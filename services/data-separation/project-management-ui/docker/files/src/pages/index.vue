@@ -136,8 +136,8 @@ export default defineComponent({
         this.userHasAdminAccess = true;
       }
     },
-    goToProjects(projectUUID: string) {
-      this.$router.push(`/project/${projectUUID}`);
+    goToProjects(projectId: string) {
+      this.$router.push(`/project/${projectId}`);
     },
   },
 });

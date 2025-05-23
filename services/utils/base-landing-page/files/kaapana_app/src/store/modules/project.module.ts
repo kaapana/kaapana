@@ -48,7 +48,7 @@ const actions = {
           if (projectCookie) {
             for (var project in response.data){
               const currentProject = response.data[project];
-              if (currentProject.uuid == projectCookie.uuid){
+              if (currentProject.id == projectCookie.id){
                 defaultProject= currentProject;
                 break;
               }
@@ -56,7 +56,7 @@ const actions = {
           } else {
             Vue.$cookies.set("Project", {
               name: defaultProject.name,
-              uuid: defaultProject.uuid,
+              id: defaultProject.id,
             });
           }
 

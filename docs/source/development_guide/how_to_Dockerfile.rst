@@ -10,7 +10,7 @@ Writing Dockerfile
 
 Base images
 -----------
-Kaapana Dockerfiles typically utilize base images such as :code:`ubuntu:20.04` or :code:`python:3.9.16-slim`. However, it's strongly advised to use the pre-existing base images located under :code:`data-processing/base-images` in the Kaapana project. For tasks requiring Python, consider using the :code:`base-python-cpu` or :code:`base-python-gpu` images for CPU-bound and GPU-accelerated tasks, respectively.
+Kaapana Dockerfiles typically utilize base images such as :code:`ubuntu:24.04` or :code:`python:3.9.16-slim`. However, it's strongly advised to use the pre-existing base images located under :code:`data-processing/base-images` in the Kaapana project. For tasks requiring Python, consider using the :code:`base-python-cpu` or :code:`base-python-gpu` images for CPU-bound and GPU-accelerated tasks, respectively.
 
 When selecting your own base image, you should consider:
 

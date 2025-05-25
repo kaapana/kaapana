@@ -19,7 +19,7 @@ However, if you are not sure about an advanced option, proceed with the one in t
     | 1. You already have a running Kaapana platform with admin access
     | 2. You have a basic understanding of the Kaapana platform and its components, if not please refer to the :ref:`user_guide`
     | 3. You have access to a terminal where the platform is running (if you are using EDK, you can skip this step)
-    | 4. You have a local development environment with access to internet, you have either Docker or Podman installed, and you have the `Kaapana repository <https://codebase.helmholtz.cloud/kaapana/kaapana/-/tree/master>`_ cloned (if you are using EDK, you can skip this step)
+    | 4. You have a local development environment with access to internet, you have either Docker or Podman installed, and you cloned the `Kaapana repository <https://codebase.helmholtz.cloud/kaapana/kaapana/-/tree/master>`_ (if you are using EDK, you can skip this step)
 
     If you do not have an access to a terminal where Kaapana is deployed, you can still use EDK (Extension Development Kit) :ref:`_extensions_edk` inside the platform directly.
     For that, the Kaapana version should be at least :code:`0.4.0` , and there needs to be internet access on the machine where it is deployed.
@@ -125,7 +125,7 @@ Although some workflow extensions deploy multiple DAGs, (e.g. :code:`nnunet-work
 This guide will focus on the use case where there is a single DAG file for the sake of simplicity, but it should also be obvious to see how multiple DAGs can be provided in a similar way.
 
 The information about DAG definition files can be found in the official Airflow docs. Kaapana DAGs define a custom variable :code:`ui_forms` which specifies the parameters that can be passed from the frontend during the workflow execution.
-Following up on the example of the ``otsus-method`` extension, the last part of the `DAG definition file <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/templates_and_examples/examples/processing-pipelines/otsus-method/extension/docker/files/dag_otsus_method.py?ref_type=heads#L84>_` can be used as a summary of the DAG:
+Following up on the example of the ``otsus-method`` extension, the last part of the `DAG definition file <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/templates_and_examples/examples/processing-pipelines/otsus-method/extension/docker/files/dag_otsus_method.py?ref_type=heads#L84>`_ can be used as a summary of the DAG:
 
 .. code-block:: python
 
@@ -157,7 +157,7 @@ The example DAG :code:`otsus-method` contains two custom operators, :code:`Otsus
         **kwargs,
     )
 
-Note that these parameters can also be passed from the DAG file to the operator as well. It is also possible to define more environment variables for the operator, an example of which can found in another example DAG `Pyradiomics Extractor <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/templates_and_examples/examples/processing-pipelines/pyradiomics-feature-extractor/extension/docker/files/pyradiomics_extractor/PyradiomicsExtractorOperator.py?ref_type=heads#L21>_`
+Note that these parameters can also be passed from the DAG file to the operator as well. It is also possible to define more environment variables for the operator, an example of which can found in another example DAG `Pyradiomics Extractor <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/templates_and_examples/examples/processing-pipelines/pyradiomics-feature-extractor/extension/docker/files/pyradiomics_extractor/PyradiomicsExtractorOperator.py?ref_type=heads#L21>`_
 
 This is especially useful for passing values from the workflow execution UI to the DAG, and then to the containers of operators via environment variables.
 
@@ -170,7 +170,7 @@ Step 3: Code for Data Processing
 
 ``processing-containers`` directory is where the actual code that runs inside the containers pulled by the Airflow operators is stored.
 It is possible to have multiple processing containers for multiple operators inside the same extension, but they should be in separate folders.
-The example extension ``otsus-method`` has a single processing container, which is defined inside :code:`processing-containers/otsus-method` . It contains a python script :code:`otsus_method.py` where `Otsu's method <https://en.wikipedia.org/wiki/Otsu%27s_method>_` is run on images. There is also one bash scripr and a notebook file for visualizing and generating a report for results of the algorithm.
+The example extension ``otsus-method`` has a single processing container, which is defined inside :code:`processing-containers/otsus-method` . It contains a python script :code:`otsus_method.py` where :ref:`Otsu's method <https://en.wikipedia.org/wiki/Otsu%27s_method`_ is run on images. There is also one bash scripr and a notebook file for visualizing and generating a report for results of the algorithm.
 
 .. important::
     | The folder structure of the processing container is not important as long as they provide a Dockerfile. Read more about the Docker best practices here: :ref:`how_to_dockerfile` 
@@ -197,16 +197,59 @@ A convention for defining the paths of reading and writing data inside the proce
 Step 4: Building All Containers of the Extension
 *************************************************
 
-TODO: docker or podman build
-TODO: finding out the registry url, version etc
+So far we have defined the Helm chart for kubernetes objects, a container image for Airflow configuration files and another image for the processing container. The next step is to build the chart and the containers, and access them inside the platform. We will first start with the containers.
+
+
+.. tabs::
+
+      .. tab:: Local Dev
+
+        | **1.** build 3 base images from the Kaapana repository: :code:`base-python-cpu, base-python-gpu, base-installer`. This can be done in two ways:
+        | **1.a.** either running the build script :code:`cd <path-to-kaapana-repo>/build-scripts && python3 start_build.py` , however it also builds all the other images inside the platform so it can take some more time and storage space.
+        | **1.b.** or building each image script for each image separately: 
+        | - :code:`$ cd <path-to-kaapana-repo>`
+        | - :code:`$ docker/podman build -t local-only/base-python-cpu:latest data-processing/base-images/base-python-cpu`
+        | - :code:`$ docker/podman build -t  local-only/base-python-gpu:latest data-processing/base-images/base-python-gpu` 
+        | - :code:`$ docker/podman build -t local-only/base-installer:latest services/utils/base-installer`
+        | **2.** from the about section in your platform, get the registry URL and the platform version
+        | **3.** build the Airflow DAG image: :code:`docker/podman build -t <platform-registry-url>/<dag-name>:<platform-version> <path-to-extension>/extension/docker`
+        | **4.** build all processing containers :code:`docker/podman build -t <platform-registry-url>/<processing-container-name>:<platform-version> <path-to-extension>/processing-containers/<processing-container-name>`
+
+      .. tab:: EDK
+
+        | **1.** run :code:`./init.sh` script inside the EDK code server path :code:`/kaapana/app`. This will build all base images and push them to the local registry
+        | **2.** copy your extension folder inside the :code:`/kaapana/app/kaapana/extensions` directory
+        | **3.** run :code:`./build_image.sh --dir /kaapana/app/dag/<path-to-extension>`
+        | **4.** you should be able to see the built images for your extension via the local-registry-ui, which can be accessed via the link next to the EDK extension in extensions view
+        | 
+        | It is highly recommended to read the scripts inside EDK if you want to customize (e.g. build another base image if you are using one) or optimize (e.g. remove building unused base images if you don't need them)
+
 
 
 Step 5: Putting Containers in a Running Platform
 ************************************************
 
-TODO: upload via UI, takes too long
-TODO: explain the debugging options if the containers are not uploaded correctly
+Now that we have built the containers, we need to put them in a running platform. 
 
+.. important::
+    You can skip this step if you already successfully ran the commands in Step 4 via EDK, because all the images are already available in the local registry of the platform.
+
+.. tabs::
+
+      .. tab:: Local Dev with write access to Registry
+
+        | **1.** push all images to the registry: 
+        | - :code:`docker/podman push <platform-registry-url>/<dag-name>:<platform-version>` 
+        | - :code:`docker/podman push <platform-registry-url>/<processing-container-name>:<platform-version>`
+
+      .. tab:: Local Dev without write access to Registry
+
+        | **1.** save all images that you built in an :code:`images.tar` file:
+        | - :code:`docker/podman save <platform-registry-url>/<dag-name>:<platform-version> <platform-registry-url>/<processing-container-name>:<platform-version> -o images.tar`
+        | Add all of the processing containers you have to the list of images in the command before :code:`-o images.tar` part. This step will take some time depending on the size of images and number of processing containers
+        | **2.** go to the extensions view in the platform UI and upload the :code:`images.tar` file via the `Upload chart or container files` section. This upload will also take some time depending on the size of the images
+
+        If 2nd step fails for any reason, make sure to check the FAQ of the documentation: :ref:`extension_container_upload_fail`
 
 Step 6: Packaging the Helm Chart
 *************************************************

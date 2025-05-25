@@ -219,20 +219,19 @@ So far we have defined the Helm chart for kubernetes objects, a container image 
 
         | **1.** run :code:`./init.sh` script inside the EDK code server path :code:`/kaapana/app`. This will build all base images and push them to the local registry
         | **2.** copy your extension folder inside the :code:`/kaapana/app/kaapana/extensions` directory
-        | **3.** run :code:`./build_image.sh --dir /kaapana/app/dag/<path-to-extension>`
+        | **3.** run :code:`./build_extension.sh --dir /kaapana/app/dag/<path-to-extension>`
         | **4.** you should be able to see the built images for your extension via the local-registry-ui, which can be accessed via the link next to the EDK extension in extensions view
         | 
         | It is highly recommended to read the scripts inside EDK if you want to customize (e.g. build another base image if you are using one) or optimize (e.g. remove building unused base images if you don't need them)
 
+.. important::
+    | If you used EDK for this step, you can skip directly to Step 8
 
 
 Step 5: Putting Containers in a Running Platform
 ************************************************
 
 Now that we have built the containers, we need to put them in a running platform. 
-
-.. important::
-    You can skip this step if you already successfully ran the commands in Step 4 via EDK, because all the images are already available in the local registry of the platform.
 
 .. tabs::
 
@@ -254,27 +253,41 @@ Now that we have built the containers, we need to put them in a running platform
 Step 6: Packaging the Helm Chart
 *************************************************
 
-TODO: 
+| So far we have built all the necessary images and made them available in the platform. The only thing left is to package the Helm chart and upload it to the platform so that the extension can be installed and tested. 
+| For the local dev case, you need to run :code:`cd <path-to-extension>/extension/otsus-method-workflow && helm dep up && helm package .` . This will create a :code:`otsus-method-workflow-<version>.tgz` file in the same directory.
 
 
 Step 7: Putting the Chart in a Running Platform
 *************************************************
 
-TODO: upload chart via UI
+For the local dev case, you can upload the :code:`otsus-method-workflow-<version>.tgz` file to the platform via the extensions view in the UI. This should happen pretty quickly, but in case it fails check the FAQ of the documentation: :ref:`extension_chart_upload_fail`
 
 Step 8: Installing and Running the Workflow
 *************************************************
 
-TODO: install from extensions view, run via execution, check Airflow UI
+Now that we have the whole extension inside the platform, it can be installed from the extension view and can be run from the workflow execution or Datasets view.
+
+.. note::
+    | After installing the extensions, if there is an :code:`ErrImagePull` or :code:`ImagePullBackOff` error, this means that the DAG image referenced inside the Kubernetes objects created by the Helm chart. This can happen if:
+    | **1.** the image name is referenced incorrectly in the :code:`values.yaml` of the Helm chart
+    | **2.** the registry URL or version is incorrect in the images that are built. You can check whihch image is being pulled by going to the Kubernetes view in the platform UI and looking for the pod that has :code:`<dag-name>` (e.g. for our example extension : :code:`dag-otsus-method`). Look for the error message in this view and ensure if the referenced image is correct
+    | **3.** if you pushed the containers to the platform via the upload UI, follow the steps in this FAQ: :ref:`extension_container_upload_fail`
 
 Step 9: Debugging the Workflow
 *************************************************
+After running the workflow, if any jobs is shown as failed inside the Workflow List view, Kaapana provides a way to debug the workflow via opening a code-server environment inside container of the failed operator.
 
-TODO: run code-server-chart and set to debug, then access via active applications
-TODO: in edk, you can put data inside minio folder and access it via the web interface
+1. find out which operator has failed, which can be done by checking the logs of the failed job. This should lead you to the logs of the operator that has failed.
+2. go to the extensions view, and click on the link next to the :code:`code-server-chart` (renamed as :code:`Code Server for Airflow` in versions >= 0.5.0)
+3. open the DAG file :code:`/kaapana/mounted/workflows/dags/<your-dag-definition-file>.py` and go to where the operator is defined
+4. add a parameter :code:`dev-server=code-server` (you can also add a :code:`display_name` for versions >= 0.5.0)  
+5. head to the :code:`Active Applications` view and open the link to the code-server application of this operator
+6. you should be able to see the code of the container that the operator pulls, i.e. the code in :code:`processing-container` and you can run and debug it directly on the data
+
+.. important::
+    | This debug option can also be used for developing better processing scripts and testing if the file paths and environment variables are set correctly
 
 Step 10: Advanced Options for Workflow Extensions
 *************************************************
 
-TODO: values.yaml that passes values to KaapanaBaseOperator
-
+You can add a custom extension parameter to the :code:`values.yaml` file which can then be passed to different operators inside the DAG. For an example of it see `Total Segmentator workflow <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/data-processing/processing-pipelines/total-segmentator/extension/total-segmentator-workflow/values.yaml?ref_type=heads>`_ . You can read more about extension parameters in the :ref:`extensions` section.

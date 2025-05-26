@@ -109,7 +109,7 @@ class WorkflowEndpoints(KaapanaAuth):
         r = self.request(
             "kaapana-backend/client/workflow",
             request_type=requests.post,
-            json=payload,
+            _json=payload,
             retries=1,
         )
         try:

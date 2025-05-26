@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from glob import glob
 import shutil
+from urllib.parse import urlparse
 import yaml
 import os
 import re
@@ -277,7 +278,7 @@ def helm_registry_login(username, password):
         "helm",
         "registry",
         "login",
-        BuildUtils.default_registry,
+        BuildUtils.default_registry.split("/")[0],
         "--username",
         username,
         "--password",

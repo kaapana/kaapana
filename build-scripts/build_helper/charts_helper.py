@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from glob import glob
 import shutil
-from urllib.parse import urlparse
 import yaml
 import os
 import re

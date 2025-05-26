@@ -109,7 +109,7 @@ class WorkflowEndpoints(KaapanaAuth):
         r = self.request(
             "kaapana-backend/client/workflow",
             request_type=requests.post,
-            json=payload,
+            _json=payload,
             retries=1,
         )
         try:
@@ -172,7 +172,8 @@ def read_payload_from_yaml(file_path):
 
     with open(file_path) as f:
         for case in load_all(f, Loader=Loader):
-            testcases.append(case)
+            if case is not None:
+                testcases.append(case)
     return testcases
 
 

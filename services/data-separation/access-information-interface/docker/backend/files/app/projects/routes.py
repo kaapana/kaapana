@@ -49,7 +49,7 @@ async def projects(
         logger.warning(f"{project=} already exists!")
         await session.rollback()
         created_project = await crud.get_projects(session, project_name=project.name)
-        return created_project[0]
+        created_project = created_project[0]
 
     response_project = schemas.Project(**created_project.__dict__)
     await opensearch_helper.setup_new_project(project=created_project, session=session)

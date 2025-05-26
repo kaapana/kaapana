@@ -8,7 +8,7 @@ CONFIG_DIR="/usr/share/opensearch/config/"
 SECURITY_CONFIG_DIR="${CONFIG_DIR}/opensearch-security"
 MARKER_FILE="/usr/share/opensearch/logs/init-security-marker.txt"
 
-if [ "$(ls -A ${MARKER_FILE})" ]; then
+if [ -f "${MARKER_FILE}" ]; then
   echo "OpenSearch security index already initialized, skipping security setup."
   exit 0
 else

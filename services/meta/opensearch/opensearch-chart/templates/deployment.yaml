@@ -18,7 +18,7 @@ spec:
       - name: init-opensearch-certs
         image: "{{ .Values.global.registry_url }}/opensearch-certs:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
-        command: ["sh", "-c", "/certs/generate-certificates.sh && cp -r /certs/* /os/certs && chown -R 1000:1000 /os && chown -R 1000:1000 /kaapana/opensearch-security-backup"]
+        command: ["sh", "-c", "/certs/generate-certificates.sh && cp -r /certs/* /os/certs && chown -R 1000:1000 /os"]
         volumeMounts:
         - name: osdata
           mountPath: /os/data
@@ -26,8 +26,6 @@ spec:
           mountPath: /os/logs
         - name: oscerts
           mountPath: /os/certs
-        - name: os-security-backup
-          mountPath: /kaapana/opensearch-security-backup
         - name: kaapana-cert
           mountPath: /certs/root-ca-key.pem
           subPath: tls.key

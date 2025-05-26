@@ -277,7 +277,7 @@ def helm_registry_login(username, password):
         "helm",
         "registry",
         "login",
-        BuildUtils.default_registry,
+        BuildUtils.default_registry.split("/")[0],
         "--username",
         username,
         "--password",

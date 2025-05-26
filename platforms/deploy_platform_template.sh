@@ -554,7 +554,8 @@ function check_credentials {
             break
         fi
     done
-    helm registry login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD ${CONTAINER_REGISTRY_URL}
+    STRIPPED_CONTAINER_REGISTRY_URL=$(echo "$CONTAINER_REGISTRY_URL" | sed -E 's~^https?://~~' | cut -d'/' -f1)
+    helm registry login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD ${STRIPPED_CONTAINER_REGISTRY_URL}
 }
 
 function install_certs {

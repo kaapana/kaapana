@@ -42,10 +42,6 @@ spec:
         - name: opensearch-container
           image: "{{ .Values.global.registry_url }}/opensearch:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy: {{ .Values.global.pull_policy_images }}
-          lifecycle:
-            preStop:
-              exec:
-                command: ["/bin/sh","backup-security.sh"]
           env:
           - name: DISABLE_INSTALL_DEMO_CONFIG
             value: "true"
@@ -123,14 +119,9 @@ spec:
             - name: sec-config
               mountPath: /usr/share/opensearch/config/opensearch-security/internal_users.yml
               subPath: internal_users.yml
-            - name: os-security-backup
-              mountPath: /kaapana/opensearch-security-backup
           securityContext:
             allowPrivilegeEscalation: false
       volumes:
-      - name: os-security-backup
-        persistentVolumeClaim:
-          claimName: os-security-backup-pv-claim
       - name: oscerts
         persistentVolumeClaim:
           claimName: os-certs-pv-claim

@@ -9,9 +9,8 @@ RUN dnf upgrade curl-minimal libcurl-minimal ncurses-base ncurses-libs openssl-l
 
 COPY /files/start.sh .
 COPY /files/init-security.sh .
-COPY /files/backup-security.sh .
 
-RUN chmod 777 init-security.sh backup-security.sh
+RUN chmod 777 init-security.sh
 
 USER opensearch
 

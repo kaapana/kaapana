@@ -5,14 +5,14 @@ sleep 5
 done
 echo "OpenSearch is now available!"
 CONFIG_DIR="/usr/share/opensearch/config/"
-OPENSEARCH_BACK_UP_DIR="/kaapana/opensearch-security-backup"
+SECURITY_CONFIG_DIR="${CONFIG_DIR}/opensearch-security"
+MARKER_FILE="/usr/share/opensearch/logs/init-security-marker.txt"
 
-if [ -d "${OPENSEARCH_BACK_UP_DIR}" ] && [ "$(ls -A ${OPENSEARCH_BACK_UP_DIR})" ]; then
-  echo "Init security extension with back up files."
-  SECURITY_CONFIG_DIR="${OPENSEARCH_BACK_UP_DIR}"
+if [ -f "${MARKER_FILE}" ]; then
+  echo "OpenSearch security index already initialized, skipping security setup."
+  exit 0
 else
   echo "Init security extension from scratch."
-  SECURITY_CONFIG_DIR="${CONFIG_DIR}/opensearch-security"
+  /usr/share/opensearch/plugins/opensearch-security/tools/securityadmin.sh -icl -nhnv -cacert ${CONFIG_DIR}/root-ca.pem -cert ${CONFIG_DIR}/admin.pem -key ${CONFIG_DIR}/admin-key.pem -cd ${SECURITY_CONFIG_DIR} --hostname opensearch-service.${SERVICES_NAMESPACE}.svc
+  echo "OpenSearch security index initialized successfully." > ${MARKER_FILE}
 fi
-
-/usr/share/opensearch/plugins/opensearch-security/tools/securityadmin.sh -icl -nhnv -cacert ${CONFIG_DIR}/root-ca.pem -cert ${CONFIG_DIR}/admin.pem -key ${CONFIG_DIR}/admin-key.pem -cd ${SECURITY_CONFIG_DIR} --hostname opensearch-service.${SERVICES_NAMESPACE}.svc

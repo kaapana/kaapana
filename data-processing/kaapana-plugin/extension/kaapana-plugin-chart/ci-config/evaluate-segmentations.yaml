@@ -1,0 +1,51 @@
+dag_id: "tag-dataset"
+instance_names:
+  - central
+conf_data:
+  workflow_form:
+    single_execution: false 
+    action: "add"
+    tags: "TEST"
+  data_form:
+    identifiers:
+      - "1.2.276.0.7230010.3.1.3.17436855.48.1662990905.77370"
+remote: false
+username: "kaapana"
+---
+dag_id: "tag-dataset"
+instance_names:
+  - central
+conf_data:
+  workflow_form:
+    single_execution: false 
+    action: "add"
+    tags: "PRED"
+  data_form:
+    identifiers:
+      - "1.2.276.0.7230010.3.1.3.17436343.48.1662990523.357902"
+remote: false
+username: "kaapana"
+---
+dag_id: evaluate-segmentations
+instance_names:
+  - central
+conf_data:
+  data_form: 
+    identifiers:
+      - "1.2.276.0.7230010.3.1.3.17436343.48.1662990523.357902"
+      - "1.2.276.0.7230010.3.1.3.17436855.48.1662990905.77370"
+  workflow_form: 
+    metrics:
+      - dice_score
+      - surface_dice
+      - average_surface_distance
+      - hausdorff_distance
+    test_tag: TEST
+    exit_on_error: true
+    label_mapping: gtlabel:testlabel
+    gt_fuse_labels: liver
+    test_fuse_labels: left@kidney
+    gt_fused_label_name: gtlabel
+    test_fused_label_name: testlabel
+remote: false
+username: "kaapana"

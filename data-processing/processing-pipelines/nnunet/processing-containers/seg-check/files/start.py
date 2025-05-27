@@ -13,7 +13,6 @@ from typing import Tuple
 import sparse
 from kaapanapy.logger import get_logger
 import logging
-from monitoring import monitor_system_memory
 
 
 logger = get_logger(__name__, logging.DEBUG)
@@ -418,7 +417,6 @@ def check_overlap(
         return False, None, None
 
 
-@monitor_system_memory(interval=10.0)
 def merge_niftis(queue_dict):
     global merge_found_niftis, global_labels_info, global_labels_info_count, merged_counter, delete_merged_data, fail_if_overlap, skipping_level
 

@@ -336,7 +336,7 @@ def load_sparse_nifti(proxy_array: nib.arrayproxy, dtype=int) -> sparse.COO:
     coords = []
     data = []
     shape = proxy_array.shape
-    logger.error(f"{shape=}")
+    logger.info(f"{shape=}")
 
     dense_image = proxy_array.get_fdata()
 
@@ -359,9 +359,9 @@ def load_sparse_nifti(proxy_array: nib.arrayproxy, dtype=int) -> sparse.COO:
         coords = np.concatenate(coords, axis=1)
         data = np.concatenate(data, axis=0)
 
-    logger.error(f"coords: {coords}")
-    logger.error(f"coords.shape : {coords.shape}")
-    logger.error(f"{data=}")
+    logger.info(f"coords: {coords}")
+    logger.info(f"coords.shape : {coords.shape}")
+    logger.info(f"{data=}")
 
     return sparse.COO(coords=coords, data=data, shape=shape).astype(dtype)
 

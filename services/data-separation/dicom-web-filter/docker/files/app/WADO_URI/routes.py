@@ -1,9 +1,11 @@
 import logging
+from uuid import UUID
 
 import httpx
 from app import crud
 from app.config import DICOMWEB_BASE_URL_WADO_URI
 from app.database import get_session
+from app.utils import get_user_project_ids
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,7 +38,9 @@ async def stream_wado(request: Request):
 
 @router.get("/wado", tags=["WADO-URI"])
 async def retrieve_instance(
-    request: Request, session: AsyncSession = Depends(get_session)
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    project_ids_of_user=Depends(get_user_project_ids),
 ):
     """This endpoint is the wado uri endpoint.
 
@@ -50,11 +54,6 @@ async def retrieve_instance(
 
     if request.scope.get("admin") is True:
         return StreamingResponse(stream_wado(request=request))
-
-    # Get the project IDs of the projects the user is associated with
-    project_ids_of_user = [
-        project["id"] for project in request.scope.get("token")["projects"]
-    ]
 
     # Retrieve all studies mapped to the project
     studies = set(

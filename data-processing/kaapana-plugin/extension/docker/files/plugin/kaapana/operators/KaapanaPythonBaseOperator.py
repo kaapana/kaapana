@@ -39,6 +39,7 @@ class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
         batch_name=None,
         airflow_workflow_dir=None,
         priority_class_name=None,
+        display_name="-",
         **kwargs
     ):
         KaapanaBaseOperator.set_defaults(
@@ -86,6 +87,8 @@ class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
             pool_slots=self.pool_slots,
             **kwargs
         )
+
+        self.display_name = display_name
 
     def post_execute(self, context, result=None):
         pass

@@ -55,6 +55,7 @@ RUN code-server --install-extension ms-python.python
 
 # Copy federated files
 COPY files/kaapana_federated /app/kaapana_federated
+ENV PYTHONPATH="/app"
 
 # Install kaapanapy pip package
 COPY files/kaapana_python /app/kaapana_python

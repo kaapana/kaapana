@@ -1,34 +1,49 @@
-## Services
+.. _services:
 
-You can access Kpapana services in processing containers.
+Kaapana Services
+================
 
-- dicom-web-filter (Access to dcm4chee)
-- access-information-interface (Users, Roles, Software and other access control)
-- notifications (Send notifications to project or user)
-- minio (Store files in the persistent object store)
+You can access Kaapana services in processing containers:
 
-There is a `kaapanapy` library package, that should allow you to easily use those services.
+- **dicom-web-filter**: Access control to dicom files (PACS)
+- **access-information-interface**: Manage users, roles, rights, software and other access control data.
+- **notifications**: Manage user or project notifications
+- **minio**: Manage files in the persistent object store
 
-### Notification Service
+There is a ``kaapanapy`` library package that should allow you to easily use these services.
 
-You can send notifications to the user (yourself) or project within your authorization scope (project users)
- with the following commands. You can also find example in `templates_and_examples/examples/processing-pipelines/example/processing-containers/notify/files/example-notify.py`
+Notification Service
+--------------------
 
-```python
-from kaapanapy.services import NotificationService
+You can send notifications to the user (yourself) or to the project within your authorization scope (project users)
+using the following commands.
 
-NotificationService.post_notification_to_user(
-    user_id: str, project_id: str, notification: Notification
-)
+You can also find an example in:
 
-NotificationService.post_notification_to_project(
-    project_id: str, notification: Notification
-)
+``templates_and_examples/examples/processing-pipelines/example/processing-containers/notify/files/example-notify.py``
 
-class Notification(BaseModel):
-    topic: Optional[str]
-    title: str
-    description: str
-    icon: Optional[str]
-    link: Optional[str]
-```
+Example usage:
+
+.. code-block:: python
+
+    from kaapanapy.services import NotificationService
+
+    NotificationService.post_notification_to_user(
+        user_id: str, project_id: str, notification: Notification
+    )
+
+    NotificationService.post_notification_to_project(
+        project_id: str, notification: Notification
+    )
+
+Notification Model
+^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+    class Notification(BaseModel):
+        topic: Optional[str]
+        title: str
+        description: str
+        icon: Optional[str]
+        link: Optional[str]

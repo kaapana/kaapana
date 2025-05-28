@@ -10,6 +10,7 @@ Development Guide
     development_guide/workflow_dev_guide
     development_guide/application_dev_guide
     development_guide/operators
+    development_guide/services
     development_guide/helm_charts
     development_guide/best_practices_root
 

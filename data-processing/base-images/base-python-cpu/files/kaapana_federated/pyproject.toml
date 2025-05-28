@@ -1,0 +1,10 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kaapana_federated"
+version = "0.0.1"
+description = "Federated learning utils"
+dependencies = []
+

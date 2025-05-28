@@ -433,7 +433,6 @@ put_to_minio = MinioOperator(
     zip_files=True,
     action="put",
     none_batch_input_operators=[nnunet_train, generate_nnunet_report],
-    whitelisted_file_extensions=[".zip"],
 )
 
 put_report_to_minio = MinioOperator(

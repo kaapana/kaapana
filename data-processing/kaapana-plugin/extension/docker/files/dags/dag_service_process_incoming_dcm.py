@@ -251,12 +251,12 @@ extract_metadata >> [
     push_json,
     add_to_dataset,
     assign_to_project,
-    validate,
     remove_tags,
 ]
 
 (
-    validate
+    push_json
+    >> validate
     >> save_to_meta
     >> put_html_to_minio
     >> put_results_html_to_minio_admin_bucket

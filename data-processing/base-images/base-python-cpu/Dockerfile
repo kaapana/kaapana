@@ -53,9 +53,9 @@ RUN wget https://code-server.dev/install.sh
 RUN /bin/bash install.sh --version 4.95.2
 RUN code-server --install-extension ms-python.python
 
-# Copy federated files
+# Copy and install kaapana_federated directly from source
 COPY files/kaapana_federated /app/kaapana_federated
-ENV PYTHONPATH="/app"
+RUN python3 -m pip install /app/kaapana_federated
 
 # Install kaapanapy pip package
 COPY files/kaapana_python /app/kaapana_python

@@ -105,7 +105,7 @@ class BuildUtils:
             )
             build_version = requested_repo.git.describe()
             try:
-                build_branch = requested_repo.active_branch.name.split("/")[-1]
+                build_branch = requested_repo.active_branch.name
             except TypeError as e:
                 # detached HEAD
                 build_branch = "DETACHED-HEAD"

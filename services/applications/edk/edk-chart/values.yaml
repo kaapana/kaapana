@@ -16,7 +16,7 @@ global:
     minio_mirror : true
   envVars:
   - name: WORKSPACE
-    value: "/kaapana"
+    value: "/kaapana/app"
   links:
     - /edk/
     - /local-registry-ui/

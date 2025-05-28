@@ -36,7 +36,7 @@ logger.addHandler(c_handler)
 
 with open(
     os.path.join(
-        "/models/classification-training-workflow",
+        "/models/classification-training",
         os.environ["MODEL"].split("/")[0],
         "config.json",
     ),
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     )
 
     path_to_checkpoint_file = os.path.join(
-        "/models/classification-training-workflow", os.environ["MODEL"]
+        "/models/classification-training", os.environ["MODEL"]
     )
 
     # load weights

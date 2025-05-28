@@ -53,7 +53,7 @@ def find_tar_files(root_folder):
 
 
 # Starting folder
-root_folder = "/kaapana/mounted/workflows/models/classification-training-workflow"
+root_folder = "/kaapana/mounted/workflows/models/classification-training"
 
 # Call the function and store the result
 tar_files_with_parent = find_tar_files(root_folder)

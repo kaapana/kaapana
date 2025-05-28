@@ -57,11 +57,6 @@ class CustomTestCase(unittest.TestCase):
         if self.host not in instance_names:
             instance_names.append(self.host)
             form["instance_names"] = instance_names
-        if (
-            dag_id == "send-dicom"
-            and form["conf_data"]["workflow_form"]["pacs_host"] == ""
-        ):
-            form["conf_data"]["workflow_form"]["pacs_host"] = self.host
         ### Trigger the workflow
         try:
             response = self.kaapana.submit_workflow(form)

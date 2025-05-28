@@ -31,7 +31,7 @@ Throughout this guide, a simple workflow extension called ``otsus-method`` will 
 Kaapana has a convention for the folder structure of extensions, which is recognized by other internal tools such as the build script. Therefore it is important to know what each directory contains.
 The folder structure of the example ``otsus-method`` extension is as follows:
 
-.. code-block:: otsus_method
+.. code-block::
 
     otsus-method
     ├── extension
@@ -92,6 +92,7 @@ For a custom workflow extension, the following should be ensured inside the ``ex
         3. ``values.yaml`` contains:
         
         .. code-block:: yaml
+
             ---
             global:
                 image: "<dag-image-name>" # NOTE: will be explained in Step 2
@@ -106,16 +107,17 @@ Step 2: Airflow Configuration
 ``extension/docker`` is where the information that is passed to the Airflow is stored. 
 Everything in this folder is bundled as a Docker container and copied inside the Airflow runtime. Therefore the first file necessary is a :code:`Dockerfile`, but since this container only serves a simple purpose of copying files, it is usually structured the same way in all extensions
 
-.. code-block:: 
+.. code-block:: bash
+
     FROM local-only/base-installer:latest // this base image provided by Kaapana is used for copying files inside Airflow 
 
     # name and version of the image that will be built, tag will look like <registry-url>/dag-otsus-method:0.1.0
     LABEL IMAGE="dag-otsus-method"
     LABEL VERSION="0.1.0"
-    # if set to True, the image be ignored by the build script of Kaapana
+    # if set to True, the image be ignored by the build script of Kaapana
     LABEL BUILD_IGNORE="False"
 
-    # copy the DAG file to a specific location in base-installer 
+    # copy the DAG file to a specific location in base-installer 
     COPY files/dag_otsus_method.py /kaapana/tmp/dags/ 
     # copy two custom operators of the extension in a dir with the name extracted from DAG filename 'dag_<dirname>.py'
     COPY files/otsus-method/OtsusMethodOperator.py /kaapana/tmp/dags/otsus_method/ 
@@ -145,6 +147,7 @@ Operator files describe an operator class that builds upon KaapanaBaseOperator, 
 The example DAG :code:`otsus-method` contains two custom operators, :code:`OtsusMethodOperator` and :code:`OtsusNotebookOperator`. They both reference images that are defined inside the `processing-containers` directory, which will be explained in the next section.
 
 .. code:: python
+
     super().__init__(
         dag=dag, # the name of the DAG that this operator belongs to
         name=name, # the name of the operator
@@ -170,7 +173,8 @@ Step 3: Code for Data Processing
 
 ``processing-containers`` directory is where the actual code that runs inside the containers pulled by the Airflow operators is stored.
 It is possible to have multiple processing containers for multiple operators inside the same extension, but they should be in separate folders.
-The example extension ``otsus-method`` has a single processing container, which is defined inside :code:`processing-containers/otsus-method` . It contains a python script :code:`otsus_method.py` where :ref:`Otsu's method <https://en.wikipedia.org/wiki/Otsu%27s_method`_ is run on images. There is also one bash scripr and a notebook file for visualizing and generating a report for results of the algorithm.
+The example extension ``otsus-method`` has a single processing container, which is defined inside :code:`processing-containers/otsus-method`. 
+It contains a python script :code:`otsus_method.py` where :ref:`Otsu's method https://en.wikipedia.org/wiki/Otsu%27s_method` is run on images. There is also one bash scripr and a notebook file for visualizing and generating a report for results of the algorithm.
 
 .. important::
     | The folder structure of the processing container is not important as long as they provide a Dockerfile. Read more about the Docker best practices here: :ref:`how_to_dockerfile` 
@@ -182,6 +186,7 @@ Inside the DAG definition file, :code:`OtsusNotebookOperator` passes :code:`cmds
 A convention for defining the paths of reading and writing data inside the processing containers is achieved by using common environment variables that are also passed across operators. For example in the :code:`otsus_method.py` script, :code:`"WORKFLOW_DIR"` , :code:`"BATCH_NAME"` , :code:`"OPERATOR_IN_DIR"` and :code:`"OPERATOR_OUT_DIR"` are used to define the input and output paths for the operator.
 
 .. code:: python
+
     ## Get data from <workflow-dir>/batch folder
     batch_folders = sorted(
         [ f for f in glob.glob(

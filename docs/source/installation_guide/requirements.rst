@@ -17,17 +17,17 @@ Hardware Requirements
      - Minimum
      - Recommended
    * - OS
-     - Ubuntu 20.04/22.04/24.04,
+     - Ubuntu 22.04/24.04,
 
-       Ubuntu Server 20.04/22.04/24.04,
+       Ubuntu Server 22.04/24.04,
 
        or AlmaLinux 9.3
-     - –
+     - – Ubuntu Server 24.04
    * - CPU
      - 8 cores
-     - 16 or more cores
+     - 16 cores or more 
    * - RAM
-     - 64GB or more
+     - 64GB
      - 128GB or more
    * - Storage Platform
 
@@ -120,4 +120,4 @@ The following table provides an overview of the required network ports and servi
    During installation, additional ingress may occur when accessing the configured Ubuntu APT mirror or the Snap Store.
 
 .. hint::
-    | The platform is based on microk8s which opens certain ports for multi-node setups as listed in `their documentatio <https://microk8s.io/docs/services-and-ports>`_. Since the platform is single-node these ports can be blocked for external traffic by the systems firewall if needed.
+    | The platform is based on microk8s which opens certain ports for multi-node setups as listed in `their documentation <https://microk8s.io/docs/services-and-ports>`_. Since the platform is single-node these ports can be blocked for external traffic by the systems firewall if needed.

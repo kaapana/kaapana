@@ -1,13 +1,11 @@
 import os
 import time
-from datetime import timedelta
-from datetime import datetime
+from datetime import datetime, timedelta
+
 import requests
-
 from airflow.models.dagbag import DagBag
-
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
 class LocalServiceSyncDagsDbOperator(KaapanaPythonBaseOperator):
@@ -32,7 +30,7 @@ class LocalServiceSyncDagsDbOperator(KaapanaPythonBaseOperator):
         while not success and tries < max_tries:
             tries += 1
             try:
-                r = requests.get(url, timeout=1)
+                r = requests.get(url, timeout=3)
                 success = True
             except:
                 print(f"Connections issue: {url}")

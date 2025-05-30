@@ -82,6 +82,8 @@ async def get_projects(session: AsyncSession = Depends(get_session)):
 @router.get("/admin", response_model=schemas.Project, tags=["Projects"])
 async def get_admin_project(session: AsyncSession = Depends(get_session)):
     project = await crud.get_admin_project(session)
+    if not project:
+        raise HTTPException(status_code=404, detail="Admin project not yet found")
     return project
 
 

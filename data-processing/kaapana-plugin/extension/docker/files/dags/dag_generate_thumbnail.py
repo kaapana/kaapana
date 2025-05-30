@@ -8,10 +8,11 @@ import requests
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.trigger_rule import TriggerRule
+from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
 from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
 from kaapana.operators.LocalDcmBranchingOperator import LocalDcmBranchingOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
@@ -37,8 +38,8 @@ args = {
 }
 
 dag = DAG(dag_id="generate-thumbnail", default_args=args, schedule_interval=None)
-get_input = GetInputOperator(dag=dag)
-extract_metadata = LocalDcm2JsonOperator(dag=dag, input_operator=get_input)
+get_dcm_input = GetInputOperator(dag=dag, name="get-dcm-input", data_type="dicom")
+get_json_input = GetInputOperator(dag=dag, name="get-json-input", data_type="json")
 
 
 def has_ref_series(ds) -> bool:
@@ -47,7 +48,7 @@ def has_ref_series(ds) -> bool:
 
 branch_by_has_ref_series = LocalDcmBranchingOperator(
     dag=dag,
-    input_operator=get_input,
+    input_operator=get_dcm_input,
     condition=has_ref_series,
     branch_true_operator="get-ref-series-ct",
     branch_false_operator="generate-thumbnail",
@@ -55,7 +56,7 @@ branch_by_has_ref_series = LocalDcmBranchingOperator(
 
 get_ref_ct_series = LocalGetRefSeriesOperator(
     dag=dag,
-    input_operator=get_input,
+    input_operator=get_dcm_input,
     search_policy="reference_uid",
     parallel_downloads=5,
     parallel_id="ct",
@@ -64,7 +65,7 @@ get_ref_ct_series = LocalGetRefSeriesOperator(
 generate_thumbnail = GenerateThumbnailOperator(
     dag=dag,
     name="generate-thumbnail",
-    input_operator=get_input,
+    input_operator=get_dcm_input,
     get_ref_series_operator=get_ref_ct_series,
     trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
 )
@@ -83,7 +84,7 @@ def upload_thumbnails_into_project_bucket(ds, **kwargs):
     batch_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
     batch_folder = [f for f in glob.glob(os.path.join(batch_dir, "*"))]
     for batch_element_dir in batch_folder:
-        json_dir = Path(batch_element_dir) / extract_metadata.operator_out_dir
+        json_dir = Path(batch_element_dir) / get_json_input.operator_out_dir
         thumbnail_dir = Path(batch_element_dir) / generate_thumbnail.operator_out_dir
 
         json_files = [f for f in json_dir.glob("*.json")]
@@ -129,11 +130,9 @@ put_thumbnail_to_project_bucket = KaapanaPythonBaseOperator(
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
-
-get_input >> extract_metadata
-
 (
-    extract_metadata
+    get_dcm_input
+    >> get_json_input
     >> branch_by_has_ref_series
     >> get_ref_ct_series
     >> generate_thumbnail

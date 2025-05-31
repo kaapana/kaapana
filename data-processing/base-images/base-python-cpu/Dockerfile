@@ -42,7 +42,9 @@ RUN /opt/venv/bin/pip install --upgrade pip
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Install torch for cuda 11.8
-RUN python3 -m pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu118
+# revert to torch 2.5.1 from torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0
+# packages like nnunet or totalsegmentator do not implement against the new changes in torch 2.6.0 yet, e.g. https://github.com/MIC-DKFZ/nnUNet/issues/2681
+RUN python3 -m pip install torch torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu118
 
 # Install requirements
 COPY files/requirements.txt /app/

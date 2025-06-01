@@ -7,8 +7,8 @@ Developing Workflow Extensions
 Introduction
 ************
 Kaapana is built on technologies that allow many ways of developing workflows for the platform.
-Mentioning all of these steps can make the guide difficult to follow, therefore it is restructured with a goal to provide the most straightforward and easy to follow approach to ensure development reproducability in most use cases.
-We always appreciate if you reach out to us on Slack if you have any suggestions for improving this document.
+Although there are multiple ways to develop Kaapana workflows, this guide will follow the most commonly applicable and recommended way.
+We always appreciate if you reach out to us on `Slack <https://join.slack.com/t/kaapana/shared_invite/zt-hilvek0w-ucabihas~jn9PDAM0O3gVQ/>`_ if you have any suggestions for improving this document.
 
 When possible, there will still be multiple options in separate tabs for completing some steps below.
 However, if you are not sure about an advanced option, proceed with the one in the leftmost tab as this should work in most scenarios.
@@ -64,7 +64,7 @@ The details will be explained in the following sections below.
 Step 1: Helm Chart Configuration
 ********************************
 
-``extension/otsus-method-workflow`` directory contains everything regarding the configuration of the Helm chart, which is used to deploy the workflow.
+``extension/otsus-method-workflow`` directory contains everything regarding the configuration of the Helm chart, which is used to deploy the workflow. The naming of this folder is arbitrary and is not referenced anywhere else.
 This usually only includes files expected by Helm, such as ``Chart.yaml``, ``values.yaml``, ``requirements.yaml``, ``README.md`` and sometimes a ``templates`` directory. More details about these files can be found in the `Helm documentation <https://helm.sh/docs/topics/charts/>`_.
 
 For a custom workflow extension, the following should be ensured inside the ``extension/otsus-method-workflow`` directory:
@@ -73,7 +73,7 @@ For a custom workflow extension, the following should be ensured inside the ``ex
 
       .. tab:: Local Dev
         
-        1. ``Chart.yaml`` is filled with the correct information about your extension 
+        1. ``Chart.yaml`` is filled with the correct information about your extension, see the `Helm documentation <https://helm.sh/docs/topics/charts/#the-chartyaml-file>`_ and the example `otsus-method-workflow Chart.yaml <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/templates_and_examples/examples/processing-pipelines/otsus-method/extension/otsus-method-workflow/Chart.yaml?ref_type=heads>`_
         2. ``requirements.yaml`` file contains  all the dependencies of your extension, and a correct path to :code:`dag-installer-chart` dir inside the cloned Kaapana repository
         3. ``values.yaml`` file only contains
 
@@ -105,7 +105,7 @@ Step 2: Airflow Configuration
 *************************************************
 
 ``extension/docker`` is where the information that is passed to the Airflow is stored. 
-Everything in this folder is bundled as a Docker container and copied inside the Airflow runtime. Therefore the first file necessary is a :code:`Dockerfile`, but since this container only serves a simple purpose of copying files, it is usually structured the same way in all extensions
+Everything in this folder is bundled as a Docker container and copied inside the Airflow runtime. A standardized and simple :code:`Dockerfile` is used for this purpose:
 
 .. code-block:: bash
 
@@ -124,7 +124,7 @@ Everything in this folder is bundled as a Docker container and copied inside the
     COPY files/otsus-method/OtsusNotebookOperator.py /kaapana/tmp/dags/otsus_method/
 
 Although some workflow extensions deploy multiple DAGs, (e.g. :code:`nnunet-workflow` which has :code:`nnunet-training`, :code:`nnunet-inference` and :code:`nnunet-ensemble`), it is often the case that a workflow extension has one DAG file.
-This guide will focus on the use case where there is a single DAG file for the sake of simplicity, but it should also be obvious to see how multiple DAGs can be provided in a similar way.
+This guide will focus on the use case where there is a single DAG file for the sake of simplicity. For an extension with multiple DAGs, see `nnunet-workflow <https://codebase.helmholtz.cloud/kaapana/kaapana/-/tree/develop/data-processing/processing-pipelines/nnunet/extension/docker/files>`_.
 
 The information about DAG definition files can be found in the official Airflow docs. Kaapana DAGs define a custom variable :code:`ui_forms` which specifies the parameters that can be passed from the frontend during the workflow execution.
 Following up on the example of the ``otsus-method`` extension, the last part of the `DAG definition file <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/templates_and_examples/examples/processing-pipelines/otsus-method/extension/docker/files/dag_otsus_method.py?ref_type=heads#L84>`_ can be used as a summary of the DAG:
@@ -160,12 +160,12 @@ The example DAG :code:`otsus-method` contains two custom operators, :code:`Otsus
         **kwargs,
     )
 
-Note that these parameters can also be passed from the DAG file to the operator as well. It is also possible to define more environment variables for the operator, an example of which can found in another example DAG `Pyradiomics Extractor <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/templates_and_examples/examples/processing-pipelines/pyradiomics-feature-extractor/extension/docker/files/pyradiomics_extractor/PyradiomicsExtractorOperator.py?ref_type=heads#L21>`_
+It is also possible to define more environment variables for operators. This can be seen in another example DAG `Pyradiomics Extractor <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/templates_and_examples/examples/processing-pipelines/pyradiomics-feature-extractor/extension/docker/files/dag_pyradiomics_extract_features.py?ref_type=heads#L71>`_ where the operator then `fetches <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/templates_and_examples/examples/processing-pipelines/pyradiomics-feature-extractor/extension/docker/files/pyradiomics_extractor/PyradiomicsExtractorOperator.py?ref_type=heads#L21>`_ the value that the user `provided in ui forms <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/templates_and_examples/examples/processing-pipelines/pyradiomics-feature-extractor/extension/docker/files/dag_pyradiomics_extract_features.py?ref_type=heads#L22>`_.
 
 This is especially useful for passing values from the workflow execution UI to the DAG, and then to the containers of operators via environment variables.
 
 .. important::
-    | The name of the operator file should contain the word "operator" in it, e.g. :code:`OtsusMethodOperator.py` and :code:`OtsusNotebookOperator.py`.
+    | The name of the operator file has to contain the word "operator" in it, e.g. :code:`OtsusMethodOperator.py` and :code:`OtsusNotebookOperator.py`.
     | This is important for the build script to recognize the file as an operator and automatically build the image that is referenced inside it.
 
 Step 3: Code for Data Processing
@@ -177,8 +177,10 @@ The example extension ``otsus-method`` has a single processing container, which 
 It contains a python script :code:`otsus_method.py` where :ref:`Otsu's method https://en.wikipedia.org/wiki/Otsu%27s_method` is run on images. There is also one bash scripr and a notebook file for visualizing and generating a report for results of the algorithm.
 
 .. important::
-    | The folder structure of the processing container is not important as long as they provide a Dockerfile. Read more about the Docker best practices here: :ref:`how_to_dockerfile` 
+    | The structure of the processing container should be 1. a :code:`Dockerfile` and 2. a :code:`files` directory where the source code and other files are stored. Read more about the Docker best practices here: :ref:`how_to_dockerfile` 
     | Although not mandatory, it is strongly recommended to base the container images of processing containers on `local-only/base-python-cpu:latest` or `local-only/base-python-gpu:latest` based on if the algorithm uses GPUs or not. This will allow you to debug inside the containers in Step 9.
+
+.. TODO: when the kaapanapy is documented, also mention above that users can not access kaapanapy without the base image 
 
 It is important to mention here that even though there are two custom operators defined for the DAG, they both reference the same processing container image. The different functionalities are achieved by running different scripts inside the container. 
 Inside the DAG definition file, :code:`OtsusNotebookOperator` passes :code:`cmds` and :code:`arguments` parameters to in order to run :code:`run_otsus_report_notebook.sh` inside the container. Whereas :code:`OtsusMethodOperator` does not pass any custom commands, in which case the default run command defined in the Dockerfile :code:`CMD ["python3","-u","/kaapana/app/otsus_method.py"]` is used.
@@ -271,6 +273,9 @@ Step 8: Installing and Running the Workflow
 *************************************************
 
 Now that we have the whole extension inside the platform, it can be installed from the extension view and can be run from the workflow execution or Datasets view.
+
+.. important::
+    | Starting from version :code:`0.5.0`, new extensions in the platform should be explicitly allowed in projects. Go to System/Projects view, select the project you want to use the extension in and use "Add Software to Project" button.
 
 .. note::
     | After installing the extensions, if there is an :code:`ErrImagePull` or :code:`ImagePullBackOff` error, this means that the DAG image referenced inside the Kubernetes objects created by the Helm chart. This can happen if:

@@ -45,7 +45,7 @@ allowed_user_endpoints := [
     {"path": "^/collabora-wopi/", "methods": ["GET"]},
     {"path": "^/collabora-wopi/documents.*", "methods": ["GET","PUT" ,"POST", "HEAD", "PATCH","DELETE"]},
     {"path": "^/collabora/.*", "methods": ["GET","PUT" ,"POST", "HEAD", "PATCH","DELETE"]},
-
+    {"path": "^/notifications/.*", "methods": ["GET", "POST", "PUT"]},
 ]
 
 allowed_project_manager_endpoints := [

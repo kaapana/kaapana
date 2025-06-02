@@ -18,13 +18,13 @@ The results of this build (containers and charts) are usually pushed into a regi
 
 Build Requirements
 ------------------
-Perform these steps on the build-machine! Recommended operating system is Ubuntu 20.04.
+Perform these steps on the build-machine! Recommended operating system is Ubuntu 24.04.
 
 .. important::
 
   | **Disk space needed:**
   | For the complete build of the project ~90GB (~110GB including build cache) of container images will be stored at :code:`/var/snap/docker/common/var-lib-docker`.
-  | When creating offline installation tarball, ~75GB additional disk space is needed.
+  | When creating offline installation tarball, ~80GB additional disk space is needed.
 
 Before you get started you should be familiar with the basic concepts and components of Kaapana (see :ref:`about_kaapana`).
 You should also have the following packages installed on your build-system.
@@ -207,4 +207,4 @@ Start Build
 
 #. You can find the build-logs and results at :code:`./kaapana/build`
 
-#. If everything has worked, you can proceed with the server installation: :ref:`server_installation`.
+The next step will explain how to install the Kubernetes cluster via the :code:`server_installation.sh` script.

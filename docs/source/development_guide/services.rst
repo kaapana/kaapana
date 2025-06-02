@@ -12,8 +12,11 @@ You can access Kaapana services in processing containers:
 
 There is a ``kaapanapy`` library package that should allow you to easily use these services.
 
+
 Notification Service
 --------------------
+
+.. _notification_service:
 
 You can send notifications to the user (yourself) or to the project within your authorization scope (project users)
 using the following commands.

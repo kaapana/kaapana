@@ -4,8 +4,7 @@ set -e  # Exit immediately if a command exits with a non-zero status
 export PYTHONPATH="$PWD" 
 APPLICATION_ROOT="/aii"
 
-# Apply all migrations
-alembic upgrade head
+python3 alembic/migrate.py
 
 if [ -z "${DEV_FILES}" ]; then
     # Production

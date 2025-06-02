@@ -87,7 +87,7 @@ def repeat_every(
     return decorator
 
 
-def only_one_process(func):
+def only_one_process(lock_file="/tmp/airflow_sync.lock"):
     """
     This decorator is used for the syncing functions in main.py.
     It prevents multiple workers syncing the database with the airflow and creating duplicates.
@@ -101,12 +101,16 @@ def only_one_process(func):
         func (function): function to be decorated
     """
 
-    def wrapper(*args, **kwargs):
-        lock = FileLock("/tmp/airflow_sync.lock", timeout=1)
-        try:
-            with lock:
-                return func(*args, **kwargs)
-        except Timeout:
-            logging.info("Another process is already handling this task.")
+    def inner(func):
+        def wrapper(*args, **kwargs):
+            lock = FileLock(lock_file, timeout=0)
+            try:
+                with lock:
+                    logging.debug(f"Acquired lock for {func.__name__}")
+                    return func(*args, **kwargs)
+            except Timeout:
+                logging.debug(f"Another process is already handling {func.__name__}.")
 
-    return wrapper
+        return wrapper
+
+    return inner

@@ -1,14 +1,88 @@
+.. _faq_undeploy_fails_or_takes_too_long:
+
 Undeployment fails or takes too long
 ************************************
-| If some Kubernetes resources of the Kaapana deployment are not in a :code:`Running` or :code:`Completed` state, there might be some issues with undeployment.
 
-| First thing to try for this issue is to use some of the flags in the deploy script that can help with incomplete undeployments, i.e. :code:`./deploy_platform.sh --no-hooks` or :code:`./deploy_platform.sh --nuke-pods`
+If some Kubernetes resources from the Kaapana deployment are **not in a** ``Running`` **or** ``Completed`` **state**, undeployment might hang or fail.
 
-| :code:`--no-hooks` will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forever.
-| :code:`--nuke-pods` will force-delete all pods of the Kaapana deployment namespaces.
+Use Deployment Script Flags
+##############################
 
-| If none of the flags solve the issue, you can try and manually undeploy the platform. Note that running these commands is NOT recommended for users that are not familiar with how to directly interact with Kubernetes and Helm.
+Kaapana provides deployment script flags to help resolve common undeployment issues:
 
-| **1.** Check if there are any platform deployments are listed under :code:`helm ls -A` or :code:`helm ls -A --uninstalling`. If there are, remove with :code:`helm uninstall <chart-name> --no-hooks`. It is important that no platform-chart or admin-chart remains after undeployment.
-| **2.** Next step is to look at the namespaces via :code:`kubectl get namespaces` and check whether any of the following are listed there: :code:`extensions, jobs, services, admin`. If there are, you can remove all the resources under that namespace via :code:`kubectl delete namespace <namespace>`.
-| **3.** Last step is to check if there are any remaining persistent volumes, via :code:`kubectl get pv`. You can remove them all by running :code:`kubectl delete pv --all`
+- ``--no-hooks``  
+  Purges all Kubernetes deployments, jobs, and Helm charts **without running pre/post delete hooks**.  
+  Use this if undeployment **fails** or **runs indefinitely**.
+
+- ``--nuke-pods``  
+  Force-deletes all pods within Kaapana-related namespaces.  
+  Useful if stuck pods are blocking removal.
+
+Run the deployment script with one or both of these flags:
+
+.. code-block:: bash
+
+   ./deploy_platform.sh --no-hooks
+   ./deploy_platform.sh --nuke-pods
+
+Manual Undeployment (Advanced)
+###############################
+
+If the above options don’t resolve the issue, you can manually undeploy Kaapana.  
+> ⚠️ **Warning:** Only perform these steps if you are familiar with Kubernetes and Helm.
+
+Step 1 – Remove Helm Releases
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Check for existing releases:
+
+.. code-block:: bash
+
+   helm ls -n admin
+   helm ls -n admin --uninstalling
+   helm ls -n default
+   helm ls -n default --uninstalling
+
+Uninstall any Kaapana-related charts (e.g., platform-chart, admin-chart, project-charts):
+
+.. code-block:: bash
+
+   helm uninstall -n <namespace> <chart-name> --no-hooks
+
+Ensure that no Kaapana Helm releases remain.
+
+Step 2 – Delete Namespaces
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+List current namespaces:
+
+.. code-block:: bash
+
+   kubectl get namespaces
+
+Remove any Kaapana-specific namespaces, such as:
+
+- ``services``
+- ``admin``
+- ``project-<name>``
+
+Delete each one manually:
+
+.. code-block:: bash
+
+   kubectl delete namespace <namespace>
+
+Step 3 – Clean Up Persistent Volumes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Check for remaining persistent volumes:
+
+.. code-block:: bash
+
+   kubectl get pv
+
+If needed, delete all persistent volumes:
+
+.. code-block:: bash
+
+   kubectl delete pv --all

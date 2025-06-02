@@ -316,21 +316,12 @@ In **production mode**, the initial credentials are:
 Undeploy Platform
 ^^^^^^^^^^^^^^^^^
 
-To undeploy the Kaapana platform, the kaapana-platform-chart and all related charts need to be deleted. For that, run the deployment script :code:`./deploy_platform.sh` and choose the **2) Undeploy** option.
+To undeploy the Kaapana platform means, that all Kubernetes resources, Helm charts and persistent volumes are deleted.
+You can achieve this by simply running
+  
+.. code-block:: bash
 
-If the **undeployment fails**, make sure to manually check followint two things:
+  ./deploy_platform.sh --undeploy
 
-1. All helm charts are deleted. All helm charts in Kaapana are created with the same namespace so that they are distinguished from possible other charts
 
-   :code:`helm ls -n kaapana`
-
-2. All pods are deleted. Kaapana uses multiple namespaces for separating Kubernetes resources, i.e. **admin**, **services**, **project-xyz**.
-
-   :code:`kubectl get pods -A`
-
-.. hint::
-
-   | The :code:`./deploy_platform.sh` script also has some flags that can help with failed undeployments.
-   | :code:`--no-hooks` will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forever.
-   | :code:`--nuke-pods` will force-delete all pods of the Kaapana deployment namespaces.
-
+If the **undeployment fails** or takes forever, check the correspoding :ref:`FAQ entry<faq_undeploy_fails_or_takes_too_long>` for more information.

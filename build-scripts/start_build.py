@@ -604,13 +604,18 @@ if __name__ == "__main__":
         if default_registry:
             # Validates the default_registry
             # Ensures lowercase, correct structure (registry/namespace/repo)
-            pattern = re.compile(
+            full_image_pattern = re.compile(
                 r"^([a-z0-9.-]+(?::[0-9]+)?)/"  # Registry (host:port)
                 r"([a-z0-9._-]+(?:/[a-z0-9._-]+)*)$"  # Namespace/repo path
             )
 
-            match = pattern.match(default_registry)
-            if not match:
+            # Match registry only: registry[:port] (e.g. localhost:5000)
+            registry_only_pattern = re.compile(
+                r'^[a-z0-9.-]+(?::[0-9]+)?$'
+            )
+
+            if not (registry_only_pattern.match(default_registry) or
+                    full_image_pattern.match(default_registry)):
                 if any(c.isupper() for c in default_registry):
                     raise ValueError(
                         f"Invalid default_registry '{default_registry}': contains uppercase characters, "
@@ -618,7 +623,9 @@ if __name__ == "__main__":
                     )
                 raise ValueError(
                     f"Invalid default_registry format: '{default_registry}'. "
-                    "Expected format: registry/namespace/repo (lowercase, alphanumerics, '.', '-', '_'). "
+                    "Expected one of the following:\n"
+                    "  - registry[:port]                     (e.g. localhost:5000)\n"
+                    "  - registry[:port]/namespace/repo     (e.g. registry.gitlab.com/group/project)\n"
                 )
         if not no_login:
             if registry_user is None:

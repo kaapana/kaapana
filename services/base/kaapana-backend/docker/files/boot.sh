@@ -1,8 +1,7 @@
 #!/bin/sh
 set -e  # Exit immediately if a command exits with a non-zero status
 
-# Apply all migrations
-alembic upgrade head
+python3 alembic/migrate.py
 
 export PYTHONPATH="$PWD"
 python3 scripts/create_kaapana_instance.py

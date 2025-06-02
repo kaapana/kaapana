@@ -16,7 +16,7 @@ args = parser.parse_args()
 
 # global vars
 chart_name = "gpu-operator"
-chart_version = "v22.9.1"
+chart_version = "v25.3.0"
 script_dir = pathlib.Path(args.script_dir)
 chart_path = script_dir / "gpu-operator.tgz"
 

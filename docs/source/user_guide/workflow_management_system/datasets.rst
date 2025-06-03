@@ -113,7 +113,7 @@ For a more detailed look at a series, double-click a series card or click the ey
 
 Settings
 """"""""
-Settings can be found by clicking on the user icon in the top-right corner and then selecting 'Settings'. A dialog will open.
+Settings can be found by clicking on the gear icon in the header of the navigation bar and then selecting *DATASET CONFIGURATION*. A dialog will open.
 
 The Dataset view is highly configurable, allowing you to tailor the display to your needs. 
 You can choose between the Gallery View and Structured Gallery View, set the number of items displayed per row, and decide whether to show only thumbnails or include series metadata as well. 

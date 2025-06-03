@@ -3,7 +3,7 @@
 Installation Guide
 ##################
 
-This manual serves as a resource for deploying Kaapana on a server.
+This manual serves as a resource for deploying Kaapana on a :term:`server`.
 
 If you want to deploy the platform as it is, you can request access to our container registry through `Slack <https://kaapana.slack.com/archives/C018MPL9404>`_. 
 While the platform can be adjusted manually with additional extensions, custom web applications, and manually defined workflows, 

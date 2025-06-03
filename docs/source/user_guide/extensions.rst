@@ -3,28 +3,33 @@
 Extensions
 ##########
 
-Introduction
-^^^^^^^^^^^^
-
-.. note::
-  This section explains the types of Kaapana extensions and how they work. For descriptions of available workflow and application extensions, refer to the  :ref:`extensions_workflows` and :ref:`extensions_applications`. 
-  To learn how to integrate custom components into the platform as extensions, refer to the :ref:`application_dev_guide` and :ref:`workflow_dev_guide`.
+This section explains the types of Kaapana :term:`extensions<extension>` and how they work. 
+For descriptions of available workflow and application extensions, refer to the :ref:`extensions_workflows` and :ref:`extensions_applications`. 
+To learn how to integrate custom components into the platform as extensions, refer to the :ref:`application_dev_guide` and :ref:`workflow_dev_guide`.
 
 
-The *Extension* functional unit in Kaapana serves as an app store. It allows users to install/uninstall applications, workflows, and even platforms (experimental feature). Technically, an extension is a `Helm chart <https://helm.sh/docs/topics/charts/>`_. 
+The *Extension* functional unit in Kaapana serves as an app store. 
+It allows users to install/uninstall applications, workflows, and even platforms (experimental feature). 
+Technically, an extension is a `Helm chart <https://helm.sh/docs/topics/charts/>`_. 
 
-Each extension in the Kaapana repository consists of two folders: :code:`docker` and :code:`<extension-name>-chart`. For more information about the file structure, refer to the Helm Charts section :ref:`helm_charts`.
+Each extension in the Kaapana repository consists of two folders: :code:`docker` and :code:`<extension-name>-chart`. 
+For more information about the file structure, refer to the Helm Charts section :ref:`helm_charts`.
 
 There are two types of extensions:
 
-1. **Workflow Extensions**: Consist of single or multiple executable DAGs in `Apache Airflow <https://airflow.apache.org/>`_. After installing a workflow extension, you can see the DAGs available under Workflow Execution menu.
-2. **Applications**: These provide additional functionalities such as opening a VS Code server, a JupyterLab notebook, or an MITK Workbench instance.
+1. :term:`Workflow Extensions<workflow-extension>`: Consist of single or multiple executable DAGs in `Apache Airflow <https://airflow.apache.org/>`_. After installing a workflow extension, you can see the DAGs available under Workflow Execution menu.
+2. :term:`Applications<application>`: These provide additional functionalities such as opening a VS Code server, a JupyterLab notebook, or an MITK Workbench instance.
 
-In addition to the distinction in kinds, there is also an distinction in versions, namely *stable* or *experimental*. Stable extensions **have been tested and maintained**, while experimental extensions are not. The filters on the Extensions page allow users to filter extensions based on the version. The extension list is updated in real time based on the selected filters. The Extensions page also displays the current Helm and Kubernetes status of each extension, such as :code:`Running`, :code:`Completed`, :code:`Failed`, or :code:`Error`.
+In addition to the distinction in type, there is also an distinction in maturiy, namely *stable* or *experimental*. 
+Stable extensions **have been tested and maintained**, while experimental extensions are not. 
+The filters on the Extensions page allow users to filter extensions based on type, maturiy, and hardware requirements, i.e. GPU or CPU. 
+The extension list is updated in real time based on the selected filters. 
+The Extensions page also displays the current Helm and Kubernetes status of each extension, such as :code:`Running`, :code:`Completed`, :code:`Failed`, or :code:`Error`.
 
 .. note::
 
-  Kaapana supports multi-installable extensions, which will have a "Launch" button instead of "Install". Each time a multi-installable extension is launched, it is deployed as a separate Helm release.
+  Kaapana supports multi-installable extensions, which will have a "Launch" button instead of "Install". 
+  Each time a multi-installable extension is launched, it is deployed as a separate Helm release.
 
 .. hint::
 

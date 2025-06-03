@@ -3,18 +3,15 @@
 Airflow
 ^^^^^^^^^^
 
-In Airflow, we define Directed Acyclic Graphs (DAGs) that build our data-processing pipelines.
-These DAGs are composed of multiple operators, each serving a specific task.
-Within Kaapana, we categorize operators into two types: `Local` operators and `containerized` operators.
-Local operators are executed within the `airflow-scheduler` container.
-On the other hand, when a `containerized` operator is triggered, a dedicated Kubernetes job is spawned, encapsulating a container responsible for executing the operator's code.
-We commonly refer to these containers as `processing-containers`.
+In Airflow, we define :term:`Directed Acyclic Graphs (DAGs)<dag>` that build our data-processing pipelines.
+These DAGs are composed of multiple :term:`operators<operator>`, each serving a specific task.
+Within Kaapana, we categorize operators into two types: :term:`local operators<local-operator>` and :term:`processing-containers<processing-container>`.
 
-Furthermore, Airflow functions as the scheduling system for the data-processing-pipelines.
+Furthermore, Airflow functions as the scheduling system for the :term:`jobs<job>`.
 The Airflow user interface offers comprehensive insights into DAGs, DAG runs, and their scheduling details.
 
-The platform comes with several preinstalled DAGs and a large set of :ref:`custom operators<operators>`.
-Additional DAGs can be installed as :ref:`ẁorkflow-extensions<extensions_workflows>` in the `Extensions` page.
+The platform comes with several preinstalled DAGs and a large set of :term:`custom operators<operator>`.
+Additional DAGs can be installed as :term:`ẁorkflow-extensions<workflow-extension>` in the `Extensions` page.
 
 .. _preinstalled_dags:
 

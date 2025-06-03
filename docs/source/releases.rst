@@ -3,6 +3,55 @@
 Changelog
 #########
 
+.. _release-0.5.0:
+
+------------------------
+
+********************
+Release Notes v0.5.0
+********************
+
+June 3, 2025
+
+-------------------------
+
+New features
+------------
+* Notifications API and UI for alerting users about failed DAGs and more
+* Project separation for DAGs and Datasets
+* Documentation is now deployed inside the platform with links provided to workflows and extensions
+* New workflow: Body and Organ Analysis (BOA)
+* Loki and Promtail are integrated for log aggregation across the Kubernetes cluster
+* Squid http proxy is introduced for restricting and containing network traffic within the cluster
+* Simplified way of downloading data with the "Download Items" button in Datasets view
+* :code:`dicom-validator` also checks for series completeness in `service-process-incoming-dcm`
+* Banners removed from the landing page, new "About" component is added 
+* Display names for active applications
+* :code:`project-dicom-transfer` DAG for transferring data between projects
+* Extensions view is updated and charts now have a better display names
+* Maintenance page fetches all new versions of platform chart from the registry
+* CI code is now stored inside the main repository
+
+
+Improvements and Maintenance
+----------------------------
+* New version of the workflow development guide
+* Many bug fixes
+* Multiple documentation updates
+
+Updated components
+----------------------------
+* Microk8s to `v1.33`
+* Airflow to `2.10.5`
+* Oauth2-proxy to `7.9.0 (20250513)`
+* Slicer to`5.8.1`
+* Nginx to `1.27.5`
+
+Notes
+-----
+* The migration guide from :code:`0.4.x` to :code:`0.5.x` will soon be provided after the release
+* nnunet-ensemble has `a known bug <https://codebase.helmholtz.cloud/kaapana/kaapana/-/issues/1739>`_ that will be fixed in the next patch release
+
 .. _release-0.4.2:
 
 ------------------------
@@ -40,7 +89,7 @@ February 21, 2025
 * Fix :code:`wsiconv` build
 * Fix custom routes for :code:`slim-viewer` in :code:`dicom-web-filter`
 * Fix :code:`/rendered` endpoint of :code:`dicom-web-filter`
-* Fix specifying calling and called AE titles in :code:`send-dicom``
+* Fix specifying calling and called AE titles in :code:`send-dicom`
 * Fix :code:`GetRefSeriesOperator` output folder structure
 * Fix Federated Averaging issues in KaapanaFed
 * Fix federated communication being dependent on remote instance's Minio username

@@ -7,9 +7,9 @@ LABEL BUILD_IGNORE="False"
 WORKDIR /kaapana/app/backend
 
 # Set versions for cli tools
-ENV KUBE_VERSION="v1.31.2"
-ENV HELM_VERSION="v3.16.3"
-ENV CONTAINERD_VERSION="1.7.12"
+ENV KUBE_VERSION="v1.33.0"
+ENV HELM_VERSION="v3.17.3"
+ENV CONTAINERD_VERSION="1.7.27"
 
 # Install kubectl and helm cli tools
 RUN curl -LO https://dl.k8s.io/release/${KUBE_VERSION}/bin/linux/amd64/kubectl && chmod +x kubectl && mv ./kubectl /usr/local/bin/kubectl

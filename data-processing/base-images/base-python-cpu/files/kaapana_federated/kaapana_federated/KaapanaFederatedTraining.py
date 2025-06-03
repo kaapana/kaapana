@@ -15,7 +15,7 @@ from minio import Minio
 from abc import ABC, abstractmethod
 from requests.adapters import HTTPAdapter
 from abc import ABC, abstractmethod
-from kaapanapy.helper import get_minio_client
+from kaapanapy.helper.HelperMinioSessionManager import HelperMinioSessionManager
 from minio.deleteobjects import DeleteObject
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
@@ -263,7 +263,7 @@ class KaapanaFederatedTrainingBase(ABC):
         self.remote_sites = r.json()
 
         # instantiate Minio client
-        self.minioClient: Minio = get_minio_client()
+        self.minioSession: Minio = HelperMinioSessionManager()
 
         # FL aggregation strategy
         if "aggregation_strategy" in self.remote_conf_data["federated_form"]:
@@ -401,7 +401,8 @@ class KaapanaFederatedTrainingBase(ABC):
             tmp_site_info["next_object_names"] = []
 
             print(current_federated_round_dir)
-            objects = self.minioClient.list_objects(
+            minio_client = self.minioSession.get_client()
+            objects = minio_client.list_objects(
                 project_bucket,
                 os.path.join(current_federated_round_dir, instance_name),
                 recursive=True,
@@ -428,7 +429,8 @@ class KaapanaFederatedTrainingBase(ABC):
                     ).replace("/from_client", "")
                     file_dir = os.path.dirname(file_path)  # file_path.rsplit('/', 2)[0]
                     os.makedirs(file_dir, exist_ok=True)
-                    self.minioClient.fget_object(
+                    minio_client = self.minioSession.get_client()
+                    minio_client.fget_object(
                         project_bucket, obj.object_name, file_path
                     )
                     KaapanaFederatedTrainingBase.fernet_decryptfile(
@@ -444,8 +446,9 @@ class KaapanaFederatedTrainingBase(ABC):
             print("Removing objects from previous federated_round_dir on Minio")
 
             if previous_federated_round_dir is not None:
+                minio_client = self.minioSession.get_client()
                 minio_rmtree(
-                    self.minioClient,
+                    minio_client,
                     project_bucket,
                     os.path.join(previous_federated_round_dir, instance_name),
                 )
@@ -660,7 +663,8 @@ class KaapanaFederatedTrainingBase(ABC):
                     "from_client", "from_server"
                 )
                 print(f"Uploading {file_path } to {next_object_name}")
-                self.minioClient.fput_object(
+                minio_client = self.minioSession.get_client()
+                minio_client.fput_object(
                     self.remote_conf_data["project_form"]["s3_bucket"],  # minio bucket
                     next_object_name,  # path in minio bucket
                     file_path,  # file in current workflow dir
@@ -751,7 +755,8 @@ class KaapanaFederatedTrainingBase(ABC):
         print(
             f"Uploading recovery_conf to MinIO: {self.remote_conf_data['project_form']['s3_bucket']}/{minio_recovery_path}"
         )
-        self.minioClient.fput_object(
+        minio_client = self.minioSession.get_client()
+        minio_client.fput_object(
             self.remote_conf_data["project_form"]["s3_bucket"],  # minio bucket
             minio_recovery_path,  # path in minio bucket
             recovery_path,  # path of file in current workflow dir
@@ -773,8 +778,9 @@ class KaapanaFederatedTrainingBase(ABC):
                     shutil.rmtree(previous_fl_working_round_dir)
 
     def clean_up_minio(self):
+        minio_client = self.minioSession.get_client()
         minio_rmtree(
-            self.minioClient,
+            minio_client,
             self.remote_conf_data["project_form"]["s3_bucket"],
             self.remote_conf_data["federated_form"]["federated_dir"],
         )

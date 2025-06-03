@@ -171,6 +171,9 @@ nnunet-ensemble
 | **Authors:**  Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein
 | **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
 
+.. important::
+  | nnunet-ensemble has `a known bug <https://codebase.helmholtz.cloud/kaapana/kaapana/-/issues/1739>`_ in v0.5.0 that will be fixed in the next patch release
+
 | **Workflow Overview**
 | Evaluates the performance of multiple trained nnU-Net models on a given dataset. This workflow can also be used to evaluate only one model, where the *seg-check-ensemble* operator throws an error, but the execution is still successful.
 

@@ -8,4 +8,3 @@ This will allow easier migrations in the future.
 
 1. Backup up you FAST_DATA_DIR (`/home/kaapana`)
 2. Run `sudo ./kaapana/utils/migration-0.4.2-0.5.0.sh`
-    - Rename db folders

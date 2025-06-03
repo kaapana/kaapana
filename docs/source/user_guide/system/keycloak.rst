@@ -20,7 +20,7 @@ Additionally, their access to `OpenSeach` and `MinIO` is limited to project spec
 
 **kaapana_project_manager**: 
 Members of this group inherit the `project-manager` and `user` roles. 
-The role `project-manager` grants full access to the project-managing API of Kaapana.
+The role `project-manager` grants full access to the :term:`project`-managing API of Kaapana.
 Users with this role can use all functionalities under :ref:`System>Projects <projects>`.
 
 **kaapana_admin**: 
@@ -42,7 +42,7 @@ How to create a new user
 
 .. note::
 
-   After creating a new user, **do not forget to assign the user to a project** in :ref:`Projects <projects>` section.
+   After creating a new user, **do not forget to assign the user to a :term:`project`** in :ref:`Projects <projects>` section.
    If a user logs in without being assigned to any project, they may end up in an
    undefined or broken state, such as an endless reload loop. In the case this happens, delete browser cookies manually to reset the state.
 

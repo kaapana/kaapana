@@ -57,7 +57,7 @@ class HelperOpensearch:
         }
 
         try:
-            hits = self.execute_opensearch_query(os_client=self.os_client, **query_dict)
+            hits = self.execute_opensearch_query(index=index, **query_dict)
         except Exception as e:
             print("ERROR in search!")
             raise e

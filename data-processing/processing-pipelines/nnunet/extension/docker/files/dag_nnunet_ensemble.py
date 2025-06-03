@@ -233,6 +233,7 @@ extract_model = NnUnetModelOperator(
     target_level="batch_element",
     input_operator=dcm2bin,
     operator_out_dir="model-exports",
+    action="install"
 )
 
 nnunet_predict = NnUnetOperator(

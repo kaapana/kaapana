@@ -21,9 +21,63 @@ In non-production systems the Kubernetes Dasboard can be used for unrestricted o
 
 .. _network_policies:
 
-Network policies
+Network Policies
 *****************
-To ensure a more encapsulated setup, all pods initiated by user actions operate within the `jobs` namespace of Kubernetes. 
-We've implemented network policies to confine communication between pods within this namespace, restricting access to other containers in the platform. 
-By default, these network policies prevent pods in this namespace from communicating with any other pod. 
-For pods requiring external communication, we've introduced the :code:`network-access-<type>` labels, offering type options such as :code:`external-ips`, :code:`ctp`, and :code:`opensearch`.
+The following Kubernetes Network Policies define and control how pods within the Kaapana platform can communicate with each other and with external services. 
+These policies help enforce **network segmentation**, improve **security**, and ensure **explicit access** for required :term:`operators<operator>` only.
+
+General Strategy
+----------------
+1. **Default Deny-All**: 
+   - A baseline policy (`deny-all-traffic`) blocks all ingress and egress traffic by default for all pods in the project namespace.
+   - This ensures that no pod can send or receive traffic unless explicitly allowed.
+
+2. **Selective Allow Rules**:
+   - Specific policies selectively **enable communication** between required pods and services.
+   - Traffic is only permitted when:
+     - Pods have the correct labels (e.g., `network-access-external-ips: "true"`),
+     - The destination pod matches a specific label and namespace, and
+     - The traffic is on an explicitly allowed port (when applicable).
+
+Policy Descriptions
+--------------------
+
+- **deny-all-traffic**  
+  Denies all incoming and outgoing traffic by default in the project namespace.
+
+- **allow-kube-dns**  
+  Allows all pods in the project namespace to access the `kube-dns` service in the `kube-system` namespace (needed for DNS resolution).
+
+- **allow-external-ips**  
+  Allows pods labeled with `network-access-external-ips: "true"` to access external IPs (internet), **except** for a configurable set of internal CIDRs.
+
+- **allow-access-to-squid-proxy**  
+  Grants pods with `network-access-external-ips: "true"` access to the internal Squid HTTP proxy, allowing controlled internet access through the proxy.
+
+- **allow-access-to-ctp**  
+  Enables pods labeled with `network-access-ctp: "true"` to communicate with the `ctp` service in the `services` namespace.
+
+- **allow-ingress-from-traefik**  
+  Allows ingress traffic from the `traefik` service in the `admin` namespace to all pods.
+
+- **allow-opensearch-egress**  
+  Grants egress access to the `opensearch` service on port 9200 for jobs labeled with `network-access-opensearch: "true"`.
+
+- **allow-keycloak-and-aii-egress**  
+  Allows the `create-project-user` job to communicate with:
+  - `keycloak` service (port 8443) in the `admin` namespace.
+  - `access-information-interface` (port 8080) in the `services` namespace.
+
+- **egress-for-processing-containers**  
+  Grants processing containers (pods labeled `pod-type: "processing-container"`) access to several core services:
+  - `keycloak` (8443, 8080)
+  - `opensearch` (9200)
+  - `dicom-web-filter` (8080)
+  - `minio` (9000)
+  - `kaapana-backend` (5000)
+
+Security Implications
+----------------------
+- This strict, **label-based access model** ensures that pods can only communicate with specific, authorized services.
+- Unauthorized traffic is dropped by default.
+- Outbound internet access is gated through the proxy or through explicit labels and IP filtering.

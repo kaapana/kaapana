@@ -5,16 +5,7 @@ Server Installation
 
 #. **Host system**
 
-   | You will need some kind of :term:`server` to run the platform on.
-   | Minimum specs:
-
-   - OS: Ubuntu 20.04/22.04, Ubuntu Server 20.04/22.04 or AlmaLinux 9.3
-   - CPU: 8 cores (recommended 16+)
-   - RAM: 64GB+ (recommended 128GB+) 
-   - Storage for application-data (fast-dir): 100GB (recommended >200GB) 
-   - Storage for imaging-data (slow-dir): depends on your needs 
-
-
+   | You will need some kind of :term:`server` to run the platform on (see :ref:`requirements`).
 
 #. **Access to a container registry (online) or a prebuild installer and tarball (offline)**
 
@@ -60,7 +51,7 @@ If you need to configure a proxy in your institution to access the internet, you
 
 #. Insert the proxy variables for the proxy in your institution
 
-    :: 
+    ::
 
         http_proxy="your.proxy.url:port"
         https_proxy="your.proxy.url:port"
@@ -85,16 +76,16 @@ Custom DNS Server
     You can configure a custom DNS :code:`my.custom.dns` by executing:
 
     :code:`sed -i 's/DNS=""/DNS="my.custom.dns"/' ./kaapana/server-installation/server_installation.sh`
-    
+
     If not set manually, the DNS will be configured according to system information.
 
 
 
-Installation of Server Dependencies 
+Installation of Server Dependencies
 ===================================
 
 This part describes the preparation of the host system for Kaapana.
-Besides a few required software packages, mainly Microk8s is installed, to setup Kubernetes. 
+Besides a few required software packages, mainly Microk8s is installed, to setup Kubernetes.
 
 .. hint::
 
@@ -103,7 +94,7 @@ Besides a few required software packages, mainly Microk8s is installed, to setup
   | Please make sure the :code:`nvidia-smi` command is working as expected!
 
 Before the example platform "Kaapana-platform" can be deployed, all dependencies must be installed on the server.
-To do this, you can use the :term:`server-installation-script`. 
+To do this, you can use the :term:`server-installation-script`.
 
 .. hint::
    | If you don't want to clone the Kaapana repository, you can copy the :code:`server_installation.sh` script from `Github <https://github.com/kaapana/kaapana/blob/master/server-installation/server_installation.sh>`_.
@@ -127,12 +118,12 @@ To do this, you can use the :term:`server-installation-script`.
    | :code:`chmod +x server_installation.sh`
 
 3. Execute the server installation script:
-   
+
    .. tabs::
 
       .. tab:: Online
          | :code:`sudo ./server_installation.sh`
-   
+
       .. tab:: Tarball
          | Use ``--offline`` flag.
          | :code:`sudo ./server_installation.sh --offline`
@@ -142,13 +133,10 @@ To do this, you can use the :term:`server-installation-script`.
       | On Almalinux it is recommended to set `-E` flag to preserve user's environmental variables.
       | :code:`sudo -E ./server_installation.sh`
 
-4. Reboot the system 
+4. Reboot the system
 
    | :code:`sudo reboot`
 
-5. (optional) Enable GPU support for Microk8s 
-
-   | :code:`sudo ./server_installation.sh -gpu`
 
 .. hint::
 

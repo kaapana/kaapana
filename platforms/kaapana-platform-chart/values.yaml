@@ -48,56 +48,6 @@ extension_params:
         definition: Name of the helm chart for this platform
         type: string
         value: ""
-    credentials_grafana_password:
-        default: admin
-        definition: ""
-        type: string
-        value: ""
-    credentials_grafana_username:
-        default: admin
-        definition: ""
-        type: string
-        value: ""
-    credentials_keycloak_admin_password:
-        default: Kaapana2020
-        definition: ""
-        type: string
-        value: ""
-    credentials_keycloak_admin_username:
-        default: admin
-        definition: ""
-        type: string
-        value: ""
-    credentials_minio_password:
-        default: Kaapana2020
-        definition: ""
-        type: string
-        value: ""
-    credentials_minio_username:
-        default: kaapanaminio
-        definition: ""
-        type: string
-        value: ""
-    credentials_registry_password:
-        default: ""
-        definition: ""
-        type: string
-        value: ""
-    credentials_registry_username:
-        default: ""
-        definition: ""
-        type: string
-        value: ""
-    credentials_postgres_aip_password:
-        default: Kaapana2020
-        definition: ""
-        type: string
-        value: ""
-    credentials_postgres_dicom_web_filter_password:
-        default: Kaapana2020
-        definition: ""
-        type: string
-        value: ""
     admin_namespace:
         default: admin
         definition: "Namespace for Kubernetes resources with admin access, such as reverse proxy and authentication"
@@ -173,7 +123,7 @@ extension_params:
         definition: ""
         type: string
         value: ""
-    pull_policy_operators:
+    pull_policy_images:
         default: Always
         definition: ""
         type: string

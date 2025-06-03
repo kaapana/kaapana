@@ -5,14 +5,14 @@ metadata:
   name: kube-helm-service
   namespace: "{{  .Values.global.admin_namespace  }}"
   labels:
-    app-name: kube-helm
+    app.kubernetes.io/name: kube-helm
 spec:
   ports:
     - port: 5000
       targetPort: 5000
   type: ClusterIP
   selector:
-    app-name: kube-helm
+    app.kubernetes.io/name: kube-helm
 ---
 apiVersion: traefik.io/v1alpha1
 kind: Middleware

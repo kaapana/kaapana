@@ -1,8 +1,9 @@
-from kaapana.operators.HelperMinio import HelperMinio
+from kaapana.operators.HelperMinio import apply_action_to_object_dirs
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapanapy.helper.HelperOpensearch import DicomTags, HelperOpensearch
+from kaapanapy.helper import get_minio_client
 
 from airflow.api.common.trigger_dag import trigger_dag as trigger
 from os.path import join
@@ -28,11 +29,12 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
         # ctpet-prep batch 1.3.12.2.1107.5.8.15.101314.30000019092314381173500002262normalization
 
         object_dirs = [join(self.batch_name, series_uid, cache_operator)]
-        minio_client = HelperMinio(dag_run=self.dag_run)
-        minio_client.apply_action_to_object_dirs(
-            "get",
-            self.target_bucket,
-            output_dir,
+        minio_client = get_minio_client()
+        apply_action_to_object_dirs(
+            minio_client=minio_client,
+            action="get",
+            bucket_name=self.target_bucket,
+            local_root_dir=output_dir,
             object_dirs=object_dirs,
         )
         try:

@@ -1,0 +1,72 @@
+---
+- name: PROXY UBUNTU
+  debug:
+    msg: "INSTALLING CUSTOM PROXY"
+  
+- name: Set http_proxy /etc/environment
+  become: yes
+  lineinfile:
+    dest: /etc/environment
+    state: present
+    regexp: '^http_proxy'
+    line: 'http_proxy="{{ http_proxy }}"'
+
+- name: Set https_proxy /etc/environment
+  become: yes
+  lineinfile:
+    dest: /etc/environment
+    state: present
+    regexp: '^https_proxy'
+    line: 'https_proxy="{{ http_proxy }}"'
+
+# - name: Set no_proxy /etc/environment
+#   become: yes
+#   lineinfile:
+#     dest: /etc/environment
+#     state: present
+#     regexp: '^no_proxy'
+#     line: "no_proxy=\"127.0.0.1,localhost,{{ system_hostname }},{{ ansible_host }}\""
+
+- name: Set HTTP_PROXY /etc/environment
+  become: yes
+  lineinfile:
+    dest: /etc/environment
+    state: present
+    regexp: '^HTTP_PROXY'
+    line: 'HTTP_PROXY="{{ http_proxy }}"'
+
+- name: Set HTTPS_PROXY /etc/environment
+  become: yes
+  lineinfile:
+    dest: /etc/environment
+    state: present
+    regexp: '^HTTPS_PROXY'
+    line: 'HTTPS_PROXY="{{ http_proxy }}"'
+
+- name: tasks info
+  debug:
+    msg: "INSTALLING APT PROXY"
+
+- name: create APT config
+  become: yes
+  copy:
+    content: ""
+    dest: /etc/apt/apt.conf.d/proxy.conf
+    force: no
+
+- name: Set APT HTTP_PROXY
+  become: yes
+  lineinfile:
+    dest: /etc/apt/apt.conf.d/proxy.conf
+    state: present
+    regexp: '^Acquire::http::Proxy'
+    line: 'Acquire::http::Proxy "{{ http_proxy }}";'
+
+- name: Set APT HTTPS_PROXY
+  become: yes
+  lineinfile:
+    dest: /etc/apt/apt.conf.d/proxy.conf
+    state: present
+    regexp: '^Acquire::https::Proxy'
+    line: 'Acquire::https::Proxy "{{ http_proxy }}";'
+

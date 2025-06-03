@@ -8,11 +8,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: dcm4chee
+      app.kubernetes.io/name: dcm4chee
   template:
     metadata:
       labels:
-        app-name: dcm4chee
+        app.kubernetes.io/name: dcm4chee
     spec:
       initContainers:
       - name: init

@@ -4,8 +4,8 @@ from datetime import timedelta
 from airflow.models import DAG
 
 
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from example.ExtractStudyIdOperator import ExtractStudyIdOperator
 from example.PoolJsonsOperator import PoolJsonsOperator
@@ -42,10 +42,10 @@ dag = DAG(
 )
 
 
-get_input = LocalGetInputDataOperator(dag=dag)
+get_input = GetInputOperator(dag=dag)
 extract = ExtractStudyIdOperator(dag=dag, input_operator=get_input)
 pool_jsons = PoolJsonsOperator(dag=dag, input_operator=extract)
-put_to_minio = LocalMinioOperator(dag=dag, action="put", action_operators=[pool_jsons])
+put_to_minio = MinioOperator(dag=dag, action="put", none_batch_input_operators=[pool_jsons])
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 get_input >> extract >> pool_jsons >> put_to_minio >> clean

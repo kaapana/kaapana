@@ -20,14 +20,14 @@ spec:
   podSelector: {}
   policyTypes:
   - Egress
-  egress: 
+  egress:
   - to:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: kube-system
     - podSelector:
         matchLabels:
-          k8s-app: kube-dns
+          app.kubernetes.io/name: kube-dns
 ---
 ## Allow access to external IPs
 kind: NetworkPolicy
@@ -46,8 +46,30 @@ spec:
     - ipBlock:
         cidr: 0.0.0.0/0
         except:
-        - 10.152.183.0/24 ### Default range for services in microk8s https://microk8s.io/docs/change-cidr
-        - 10.1.0.0/16 ### Default range for pods in microk8s https://microk8s.io/docs/change-cidr
+          {{- range .Values.global.internalCidrs }}
+          - {{ . | quote }}
+          {{- end }}
+---
+## Allow access to the squid http proxy for internet access
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: allow-access-to-squid-proxy
+  namespace: {{ .Values.global.project_namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      network-access-external-ips: "true"
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.global.admin_namespace }}
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: squid-proxy
 ---
 ## Allow access to ctp
 kind: NetworkPolicy
@@ -68,7 +90,7 @@ spec:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
     - podSelector:
         matchLabels:
-          app-name: ctp
+          app.kubernetes.io/name: ctp
 ---
 ### Allow ingress from traefik for dev_server
 kind: NetworkPolicy
@@ -87,7 +109,7 @@ spec:
           kubernetes.io/metadata.name: {{ .Values.global.admin_namespace }}
     - podSelector:
         matchLabels:
-          app: 'traefik'
+          app.kubernetes.io/name: 'traefik'
 ---
 ### Allow access to opensearch from jobs with label {"network-access-opensearch": "true"}
 apiVersion: networking.k8s.io/v1
@@ -108,7 +130,7 @@ spec:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
     - podSelector:
         matchLabels:
-          app-name: opensearch
+          app.kubernetes.io/name: opensearch
     ports:
     - protocol: TCP
       port: 9200
@@ -122,7 +144,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app-name: "create-project-user"
+      app.kubernetes.io/name: "create-project-user"
   policyTypes:
   - Egress
   egress:
@@ -132,7 +154,7 @@ spec:
           kubernetes.io/metadata.name: {{ .Values.global.admin_namespace }}
     - podSelector:
         matchLabels:
-          app-name: keycloak
+          app.kubernetes.io/name: keycloak
     ports:
     - protocol: TCP
       port: 8443
@@ -142,11 +164,11 @@ spec:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
     - podSelector:
         matchLabels:
-          app-name: access-information-interface
+          app.kubernetes.io/name: access-information-interface
     ports:
     - protocol: TCP
       port: 8080
---- 
+---
 ### Policy for proccessing-containers to keycloak, opensearch, dicom-web-filter, minio
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -166,7 +188,7 @@ spec:
           kubernetes.io/metadata.name: {{ .Values.global.admin_namespace }}
     - podSelector:
         matchLabels:
-          app-name: keycloak
+          app.kubernetes.io/name: keycloak
     ports:
     - protocol: TCP
       port: 8443
@@ -178,7 +200,7 @@ spec:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
     - podSelector:
         matchLabels:
-          app-name: opensearch
+          app.kubernetes.io/name: opensearch
     ports:
     - protocol: TCP
       port: 9200
@@ -188,7 +210,7 @@ spec:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
     - podSelector:
         matchLabels:
-          app-name: dicom-web-filter
+          app.kubernetes.io/name: dicom-web-filter
     ports:
     - protocol: TCP
       port: 8080
@@ -198,7 +220,7 @@ spec:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
     - podSelector:
         matchLabels:
-          app-name: minio
+          app.kubernetes.io/name: minio
     ports:
     - protocol: TCP
       port: 9000
@@ -208,7 +230,7 @@ spec:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
     - podSelector:
         matchLabels:
-          app-name: kaapana-backend
+          app.kubernetes.io/name: kaapana-backend
     ports:
     - protocol: TCP
       port: 5000

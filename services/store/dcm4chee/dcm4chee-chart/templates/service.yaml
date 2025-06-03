@@ -5,10 +5,10 @@ metadata:
   name: dcm4chee-service
   namespace: "{{ .Values.global.services_namespace }}"
   labels:
-    app-name: dcm4chee
+    app.kubernetes.io/name: dcm4chee
 spec:
   selector:
-    app-name: dcm4chee
+    app.kubernetes.io/name: dcm4chee
   type: ClusterIP
   ports:
   - name: dcm4che-http

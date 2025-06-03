@@ -46,6 +46,10 @@ const props = defineProps({
         type: String,
         required: true,
     },
+    projectId: {
+        type: String,
+        required: true,
+    },
     actionType: {
         type: String,
         default: 'add',
@@ -128,7 +132,7 @@ const fetchAllUsers = async () => {
 const submit = async () => {
     // console.log(props.projectName, roleName.value, userId.value);
     const data = {
-        "project_name": props.projectName.trim(),
+        "project_id": props.projectId.trim(),
         "role_name": roleName.value.trim(),
         "user_id": userId.value.trim()
     }
@@ -147,7 +151,7 @@ const cancel = () => {
 
 const addNewUserProjectMap = async(data: any) => {
     try {
-        await aiiApiPost(`projects/${data['project_name']}/role/${data['role_name']}/user/${data['user_id']}`, {});
+        await aiiApiPost(`projects/${data['project_id']}/role/${data['role_name']}/user/${data['user_id']}`, {});
         fetching.value = false;
         props.onsuccess?.();
     } catch (error: unknown) {
@@ -162,7 +166,7 @@ const updateNewUserProjectMap = async(data: any) => {
     }
 
     try {
-        await aiiApiPut(`projects/${data['project_name']}/user/${data['user_id']}/rolemapping`, params);
+        await aiiApiPut(`projects/${data['project_id']}/user/${data['user_id']}/rolemapping`, params);
         fetching.value = false;
         props.onsuccess?.();
     } catch (error: unknown) {

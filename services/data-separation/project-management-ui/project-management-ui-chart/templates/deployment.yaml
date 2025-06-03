@@ -8,13 +8,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: project-management-ui-app
+      app.kubernetes.io/name: project-management-ui-app
   strategy:
     type: Recreate
   template: 
     metadata:
       labels:
-        app-name: project-management-ui-app
+        app.kubernetes.io/name: project-management-ui-app
     spec:      
       containers:
       - name: project-management-ui-container

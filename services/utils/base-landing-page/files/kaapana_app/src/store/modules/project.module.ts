@@ -38,24 +38,28 @@ const actions = {
         }
 
         // fetch all the projects and set the selected project
-        httpClient.get(get_users_projects_url).then((response: any) => {            
+        httpClient.get(get_users_projects_url).then((response: any) => {
           let defaultProject = response.data[0]
-
-          // if project name is stored in cookie set that as selected project
+          // if project name and project id is stored in cookie set that as selected project
           // else set the first project from the retrived project as selected project
-          const projectCookies = Vue.$cookies.get("Project-Name");
-          if (projectCookies) {
+          
+          const projectCookie = Vue.$cookies.get("Project");
+          
+          if (projectCookie) {
             for (var project in response.data){
               const currentProject = response.data[project];
-              if (currentProject.name == projectCookies) {
-                defaultProject = currentProject;
+              if (currentProject.id == projectCookie.id){
+                defaultProject= currentProject;
                 break;
               }
             }
-          }else {
-            Vue.$cookies.set("Project-Name", defaultProject.name);
+          } else {
+            Vue.$cookies.set("Project", {
+              name: defaultProject.name,
+              id: defaultProject.id,
+            });
           }
-          
+
           context.dispatch(UPDATE_SELECTED_PROJECT, defaultProject)
           context.commit(SET_AVAILABLE_PROJECTS, response.data)
         }).catch((error: any) => {

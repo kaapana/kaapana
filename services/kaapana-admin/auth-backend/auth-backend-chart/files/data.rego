@@ -6,6 +6,8 @@ whitelisted_endpoints := [
     {"path": "^/oauth2/metrics", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/kaapana-backend/remote/.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/kaapana-backend/oidc-logout", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/docs/", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/web/system/Documentation", "methods": ["GET","POST","PUT","DELETE"]},
 ]
 
 allowed_user_endpoints := [
@@ -43,7 +45,7 @@ allowed_user_endpoints := [
     {"path": "^/collabora-wopi/", "methods": ["GET"]},
     {"path": "^/collabora-wopi/documents.*", "methods": ["GET","PUT" ,"POST", "HEAD", "PATCH","DELETE"]},
     {"path": "^/collabora/.*", "methods": ["GET","PUT" ,"POST", "HEAD", "PATCH","DELETE"]},
-
+    {"path": "^/notifications/.*", "methods": ["GET", "POST", "PUT"]},
 ]
 
 allowed_project_manager_endpoints := [

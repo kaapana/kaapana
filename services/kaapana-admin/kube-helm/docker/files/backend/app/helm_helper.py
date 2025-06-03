@@ -2,14 +2,15 @@ import asyncio
 import glob
 import hashlib
 import json
-import logging
 import os
 import re
+import fnmatch
 import subprocess
 import time
 from distutils.version import LooseVersion
 from os.path import basename
 from typing import Dict, List, Set, Tuple, Union
+from utils import helm_get_values
 
 import schemas
 import yaml
@@ -175,6 +176,29 @@ def execute_shell_command(
         return success, stderr
 
 
+def check_if_extension_param_is_needed(
+    extension_name: str,
+    ext_params: dict,
+) -> dict:
+    """
+    Checks if the extension_params are needed for the extension by comparing them with the global values
+    Args:
+        ext_params (dict): The extension parameters to check
+    Returns:
+        dict: The updated extension parameters
+    """
+
+    # get global values
+    exctension_values = helm_get_values("kaapana-admin-chart", "default")
+    for key in ext_params:
+        if key in exctension_values.get("global", {}):
+            ext_params[key]["required"] = False
+        else:
+            ext_params[key]["required"] = True
+
+    return ext_params
+
+
 def add_extension_to_dict(
     extension_id: str,
     extension_dict: dict,
@@ -203,28 +227,34 @@ def add_extension_to_dict(
         if "extension_params" in extension_dict:
             logger.debug("add_extension_to_dict found extension_params")
             ext_params = extension_dict["extension_params"]
-        global_extensions_dict[extension_name] = schemas.KaapanaExtension.construct(
-            latest_version=None,
-            chart_name=extension_name,
-            name=extension_name,  # TODO: for backwards compat w/ landing page, delete later
-            links=[],
-            available_versions={},
-            description=extension_dict["description"],
-            keywords=extension_dict["keywords"],
-            experimental=(
-                "yes" if "kaapanaexperimental" in extension_dict["keywords"] else "no"
-            ),
-            multiinstallable=(
-                "yes"
-                if "kaapanamultiinstallable" in extension_dict["keywords"]
-                else "no"
-            ),
-            kind=extension_kind,
-            resourceRequirement=(
-                "gpu" if "gpurequired" in extension_dict["keywords"] else "cpu"
-            ),
-            extension_params=ext_params,
-            # "values": extension_dict["values"]
+            ext_params = check_if_extension_param_is_needed(extension_name, ext_params)
+        global_extensions_dict[extension_name] = (
+            schemas.KaapanaExtension.model_construct(
+                latest_version=None,
+                chart_name=extension_name,
+                name=extension_name,  # TODO: for backwards compat w/ landing page, delete later
+                links=[],
+                available_versions={},
+                description=extension_dict["description"],
+                keywords=extension_dict["keywords"],
+                experimental=(
+                    "yes"
+                    if "kaapanaexperimental" in extension_dict["keywords"]
+                    else "no"
+                ),
+                multiinstallable=(
+                    "yes"
+                    if "kaapanamultiinstallable" in extension_dict["keywords"]
+                    else "no"
+                ),
+                kind=extension_kind,
+                resourceRequirement=(
+                    "gpu" if "gpurequired" in extension_dict["keywords"] else "cpu"
+                ),
+                extension_params=ext_params,
+                annotations=extension_dict.get("annotations"),
+                # "values": extension_dict["values"]
+            )
         )
 
     all_links = []
@@ -428,7 +458,6 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
         global_extensions_dict: Dict[str, schemas.KaapanaExtension] = {}
         if (not platforms) and settings.recent_update_cache and check:
             states_w_indexes = get_recently_updated_extensions()
-
             if len(states_w_indexes) == 0:
                 # nothing updated recently, return cached
                 logger.info(f"no recent updates -> returning cached list")
@@ -467,7 +496,8 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
                     )
                     # add to cache if a new extension is uploaded
                     if ind >= len(global_extensions_list):
-                        name = global_extensions_dict[extension_dict["name"]]
+                        extension = global_extensions_dict[extension_dict["name"]]
+                        name = extension.chart_name
                         if name in global_extensions_release_names:
                             logger.info(
                                 f"{name} already in the list, avoiding duplicate entries"
@@ -656,7 +686,7 @@ def collect_all_tgz_charts(
             fname = ".".join(f.split("/")[-1].split(".")[:-1])
             current_tgz_charts.pop(fname)
 
-    logger.debug(f"{current_tgz_charts=}")
+    # logger.debug(f"{current_tgz_charts=}")
     if name_filter != "":
         if len(collected_tgz_charts) > 0:
             logger.debug(f"returning {collected_tgz_charts=}")
@@ -757,11 +787,21 @@ def get_kube_objects(
         """
         states = None
         # TODO: might be replaced by json or yaml output in the future with the flag -o json!
+        if kind == "job":
+            pod_label = "batch.kubernetes.io/job-name"
+        elif kind == "app":
+            pod_label = "app.kubernetes.io/name"
+        else:
+            logger.error(f"Unknown kind: {kind}. Must be one of ['job', 'app'].")
+            raise ValueError(f"Unknown kind: {kind}. Must be one of ['job', 'app'].")
+
         success, stdout = execute_shell_command(
-            f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name}"
+            f"{settings.kubectl_path} -n {namespace} get pod -l={pod_label}={name}"
         )
         if success:
-            states = schemas.KubeInfo(name=[], ready=[], status=[], restarts=[], age=[])
+            states = schemas.KubeInfo(
+                name=[], ready=[], status=[], restarts=[], age=[], annotations={}
+            )
 
             stdout = stdout.splitlines()[1:]
 
@@ -769,7 +809,7 @@ def get_kube_objects(
             job_completed = False
             if kind == "job" and single_status_for_jobs:
                 for row in stdout:
-                    name, ready, status, restarts, age = re.split("\s\s+", row)
+                    name, ready, status, restarts, age = re.split(r"\s\s+", row)
                     if status.lower() == "completed":
                         # ignore other pods and only return the completed pod status
                         job_completed = True
@@ -786,7 +826,7 @@ def get_kube_objects(
             if not job_completed:
                 # return all pod states if no pod is completed or if resource kind is not Job
                 for row in stdout:
-                    name, ready, status, restarts, age = re.split("\s\s+", row)
+                    name, ready, status, restarts, age = re.split(r"\s\s+", row)
                     states.name.append(name)
                     states.ready.append(ready)
                     states.status.append(status.lower())
@@ -804,7 +844,7 @@ def get_kube_objects(
     )
     paths = []
     concatenated_states = schemas.KubeInfo(
-        name=[], ready=[], status=[], restarts=[], age=[]
+        name=[], ready=[], status=[], restarts=[], age=[], annotations={}
     )
     if success:
         manifest_dict = list(yaml.load_all(stdout, yaml.FullLoader))
@@ -815,6 +855,18 @@ def get_kube_objects(
             if config is None:
                 continue
 
+            # collect annotations from every k8s resource that matches any of the patterns
+            annotation_keys_include_patterns = ["*/kaapana.ai/*"]
+            annotations = config.get("metadata", {}).get("annotations", {})
+            for key, value in annotations.items():
+                if any(
+                    fnmatch.fnmatch(key, pattern)
+                    for pattern in annotation_keys_include_patterns
+                ):
+                    if key not in concatenated_states.annotations:
+                        concatenated_states.annotations[key] = value
+
+            # based on the kind of resource, extract relevant information
             kind = config["kind"]
             if kind == "Ingress":
                 path = config["spec"]["rules"][0]["http"]["paths"][0]["path"]
@@ -832,13 +884,9 @@ def get_kube_objects(
             elif kind == "Deployment" or kind == "Job":
                 obj_kube_status = None
                 if kind == "Deployment":
-                    # TODO: only traefik lacks app-name in matchLabels
+                    # TODO: only traefik lacks app.kubernetes.io/name in matchLabels
                     match_labels = config["spec"]["selector"]["matchLabels"]
-                    # There are different conventions for app name
-                    app_name = match_labels.get(
-                        "app.kubernetes.io/name",
-                        match_labels.get("app", match_labels.get("app-name")),
-                    )
+                    app_name = match_labels.get("app.kubernetes.io/name")
                     if not app_name:
                         app_name = "-- UNKNOWN APP --"
                     obj_kube_status = get_pod_status(
@@ -854,8 +902,11 @@ def get_kube_objects(
 
                 if obj_kube_status != None:
                     for key, value in obj_kube_status.dict().items():
-                        concatenated_states[key].extend(value)
-                        logger.debug(f"{key=} {value=}")
+                        if key == "annotations":
+                            concatenated_states[key].update(value)
+                        else:
+                            concatenated_states[key].extend(value)
+
                         if (
                             key == "status"
                             and value[0] != KUBE_STATUS_COMPLETED
@@ -890,11 +941,6 @@ def helm_show_values(name, version, platforms=False) -> Dict:
         return list(yaml.load_all(stdout, yaml.FullLoader))[0]
     else:
         return {}
-
-
-def helm_repo_index(repo_dir):
-    helm_command = f"{settings.helm_path} repo index {repo_dir}"
-    _, _ = execute_shell_command(helm_command)
 
 
 def helm_show_chart(name=None, version=None, package=None, platforms=False) -> Dict:

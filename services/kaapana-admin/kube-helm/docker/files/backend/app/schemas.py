@@ -34,6 +34,7 @@ class KubeInfo(BaseModelExtended):
     ready: List[str]
     status: List[str]
     restarts: List[str]
+    annotations: Dict[str, str]  # aggreated annotations from pods and ingress objects
 
     def __getitem__(self, item):
         return getattr(self, item)
@@ -75,10 +76,11 @@ class KaapanaExtension(BaseModelExtended):
     links: Union[List[str], None]
     name: str  # TODO: same as chart_name not necessary
     releaseName: str
-    resourceRequirement: str # either cpu or gpu for now
+    resourceRequirement: str  # either cpu or gpu for now
     successful: Union[str, None]  # TODO: make bool
     version: str
     versions: List[str]
+    annotations: Union[dict, None]
 
     # TODO: not necessary if BaseModelExtended is used
     class Config:
@@ -117,3 +119,15 @@ class ExtensionState(BaseModelExtended):
 
     def __getitem__(self, item):
         return getattr(self, item)
+
+
+class ActiveApplication(BaseModelExtended):
+    name: str
+    namespace: str
+    created_at: str
+    project: str
+    paths: List[str]
+    annotations: Dict[str, str]
+    release_name: str  # name of the deployed chart
+    from_workflow_run: bool  # True if the application is triggered from a workflow run, False if it is directly installed by user
+    ready: bool # Whether all pods deployed from the chart of the application are running or completed

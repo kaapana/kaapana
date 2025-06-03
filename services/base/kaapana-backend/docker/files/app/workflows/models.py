@@ -1,16 +1,6 @@
 from app.database import Base
-from sqlalchemy import (
-    Boolean,
-    Column,
-    DateTime,
-    ForeignKey,
-    Identity,
-    Integer,
-    String,
-    Table,
-    Text,
-)
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.schema import Index, UniqueConstraint
 from sqlalchemy_json import mutable_json_type
@@ -23,7 +13,7 @@ identifiers2dataset = Table(
     "identifier2dataset",
     Base.metadata,
     Column("identifier", ForeignKey("identifiers.id"), primary_key=True),
-    Column("dataset", ForeignKey("dataset.name"), primary_key=True),
+    Column("dataset", ForeignKey("dataset.id"), primary_key=True),
 )
 
 
@@ -37,8 +27,8 @@ class Identifier(Base):
 
 class Dataset(Base):
     __tablename__ = "dataset"
-    # id = Column(Integer, primary_key=True)
-    name = Column(String(64), index=True, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(64), index=True)
     username = Column(String(64))
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
@@ -49,6 +39,8 @@ class Dataset(Base):
     # many-to-one relationship
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
     kaapana_instance = relationship("KaapanaInstance", back_populates="datasets")
+    project_id = Column(UUID(as_uuid=True), nullable=False)
+    __table_args__ = (UniqueConstraint("project_id", "name"),)
 
 
 class KaapanaInstance(Base):
@@ -109,6 +101,7 @@ class Workflow(Base):
     automatic_execution = Column(Boolean(), default=False, index=True)
     service_workflow = Column(Boolean(), default=False, index=True)
     federated = Column(Boolean(), default=False, index=True)
+    project_id = Column(UUID(as_uuid=True), nullable=False)
 
     # many-to-one relationships
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))

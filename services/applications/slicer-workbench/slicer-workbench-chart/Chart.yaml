@@ -7,3 +7,6 @@ keywords:
 - kaapanaapplication
 - kaapanaint
 - kaapanamultiinstallable
+annotations:
+  documentation: "user_guide/extensions.html#slicer-workbench"
+  ui-visible-name: "Slicer Workbench"

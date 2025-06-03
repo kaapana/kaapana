@@ -1,4 +1,15 @@
-from app.models import Projects, Rights, Roles, RolesRights, UsersProjectsRoles
+from typing import Optional
+from uuid import UUID
+
+from app.models import (
+    AdminProject,
+    Projects,
+    Rights,
+    Roles,
+    RolesRights,
+    SoftwareMappings,
+    UsersProjectsRoles,
+)
 from app.projects import schemas
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,9 +33,30 @@ async def create_project(session: AsyncSession, project: schemas.CreateProject):
     return new_project
 
 
-async def get_projects(session: AsyncSession, name: str = None):
+async def get_admin_project(session: AsyncSession):
+    result = await session.execute(
+        select(Projects).join(AdminProject, Projects.id == AdminProject.project_id)
+    )
+    return result.scalars().first()
+
+
+async def set_admin_project(session: AsyncSession, project_id: UUID):
+    default_project = AdminProject(project_id=project_id)
+    session.add(default_project)
+    await session.commit()
+    return default_project
+
+
+async def get_projects(
+    session: AsyncSession,
+    project_id: Optional[UUID] = None,
+    project_name: Optional[str] = None,
+):
     stmt = select(Projects)
-    stmt = stmt.filter(Projects.name == name) if name else stmt
+    if project_id:
+        stmt = stmt.where(Projects.id == project_id)
+    if project_name:
+        stmt = stmt.where(Projects.name == project_name)
     result = await session.execute(stmt)
     return result.scalars().all()
 
@@ -41,9 +73,10 @@ async def create_rights(session: AsyncSession, right: schemas.CreateRight):
     return new_right
 
 
-async def get_rights(session: AsyncSession, name: str = None):
+async def get_rights(session: AsyncSession, name: Optional[str] = None):
     stmt = select(Rights)
-    stmt = stmt.filter(Rights.name == name) if name else stmt
+    if name:
+        stmt = stmt.where(Rights.name == name)
     result = await session.execute(stmt)
     return result.scalars().all()
 
@@ -66,16 +99,16 @@ async def create_roles(session: AsyncSession, role: schemas.CreateRole):
     return new_role
 
 
-async def get_roles(session: AsyncSession, name: str = None):
+async def get_roles(session: AsyncSession, name: Optional[str] = None):
     stmt = select(Roles)
-    stmt = stmt.filter(Roles.name == name) if name else stmt
+    if name:
+        stmt = stmt.where(Roles.name == name)
     result = await session.execute(stmt)
     return result.scalars().all()
 
 
 async def get_role(session: AsyncSession, role_id: int):
-    stmt = select(Roles)
-    stmt = stmt.filter(Roles.id == role_id)
+    stmt = select(Roles).where(Roles.id == role_id)
     result = await session.execute(stmt)
     return result.scalars().first()
 
@@ -90,7 +123,7 @@ async def create_roles_rights_mapping(
 
 
 async def get_users_projects_roles_mapping(
-    session: AsyncSession, project_id: int, keycloak_id: str
+    session: AsyncSession, project_id: UUID, keycloak_id: str
 ):
     # Create the select UserProjectRoles statement
     stmt = select(UsersProjectsRoles).where(
@@ -104,7 +137,7 @@ async def get_users_projects_roles_mapping(
 
 
 async def create_users_projects_roles_mapping(
-    session: AsyncSession, project_id: int, role_id: int, keycloak_id
+    session: AsyncSession, project_id: UUID, role_id: int, keycloak_id
 ):
     new_user_project_role = UsersProjectsRoles(
         project_id=project_id, role_id=role_id, keycloak_id=keycloak_id
@@ -116,7 +149,7 @@ async def create_users_projects_roles_mapping(
 
 async def update_users_projects_roles_mapping(
     session: AsyncSession,
-    project_id: int,
+    project_id: UUID,
     keycloak_id: str,
     role_id: int,
 ):
@@ -143,7 +176,7 @@ async def update_users_projects_roles_mapping(
 
 
 async def delete_users_projects_roles_mapping(
-    session: AsyncSession, project_id: int, keycloak_id: str
+    session: AsyncSession, project_id: UUID, keycloak_id: str
 ):
     # Create the delete statement
     stmt = delete(UsersProjectsRoles).where(
@@ -159,7 +192,7 @@ async def delete_users_projects_roles_mapping(
 
 async def get_project_users_roles_mapping(
     session: AsyncSession,
-    project_id: int,
+    project_id: UUID,
 ):
     stmt = select(UsersProjectsRoles)
     stmt = stmt.filter(UsersProjectsRoles.project_id == project_id)
@@ -170,7 +203,7 @@ async def get_project_users_roles_mapping(
 async def get_user_role_in_project(
     session: AsyncSession,
     keycloak_id: str,
-    project_id: int,
+    project_id: UUID,
 ):
     stmt = select(UsersProjectsRoles).where(
         UsersProjectsRoles.project_id == project_id,
@@ -184,12 +217,43 @@ async def get_user_role_in_project(
 async def get_user_rights_in_project(
     session: AsyncSession,
     keycloak_id: str,
-    project_id: int,
+    project_id: UUID,
 ):
+
     stmt = select(UsersProjectsRoles).where(
-        UsersProjectsRoles.project_id == project_id,
-        UsersProjectsRoles.keycloak_id == keycloak_id,
+        (UsersProjectsRoles.project_id == project_id),
+        (UsersProjectsRoles.keycloak_id == keycloak_id),
     )
     result = await session.execute(stmt)
     role_map = result.scalars().first()
     return await get_rights_by_role_id(session, role_map.role_id)
+
+
+async def get_software_mappings_by_project_id(session: AsyncSession, project_id: UUID):
+    stmt = select(SoftwareMappings).where(SoftwareMappings.project_id == project_id)
+    result = await session.execute(stmt)
+    software_mappings = result.scalars().all()
+    return software_mappings
+
+
+async def create_software_mapping(
+    session: AsyncSession, project_id: UUID, software_uuid: str
+):
+    new_software_mapping = SoftwareMappings(
+        software_uuid=software_uuid, project_id=project_id
+    )
+    session.add(new_software_mapping)
+    await session.commit()
+    return new_software_mapping
+
+
+async def delete_software_mapping(
+    session: AsyncSession, project_id: UUID, software_uuid: str
+):
+    stmt = delete(SoftwareMappings).where(
+        SoftwareMappings.project_id == project_id,
+        SoftwareMappings.software_uuid == software_uuid,
+    )
+    await session.execute(stmt)
+    await session.commit()
+    return True

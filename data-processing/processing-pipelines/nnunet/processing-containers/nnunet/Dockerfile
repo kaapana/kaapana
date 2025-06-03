@@ -8,5 +8,7 @@ COPY files/ /kaapana/app/
 WORKDIR /kaapana/app/
 
 RUN apt update && apt install -y --no-install-recommends --allow-unauthenticated python3-dev
+# ENV TORCHDYNAMO_DISABLE=1
+# ENV nnUNet_compile=f
 
 CMD ["bash","/kaapana/app/start_nnunet.sh"]

@@ -7,6 +7,9 @@ from airflow.utils.dates import days_ago
 from airflow.models import DAG
 
 ui_forms = {
+    "documentation_form": {
+        "path": "/user_guide/system/airflow.html#tag-dataset",
+    },
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -33,7 +36,7 @@ ui_forms = {
                 "readOnly": False,
             },
         },
-    }
+    },
 }
 
 args = {

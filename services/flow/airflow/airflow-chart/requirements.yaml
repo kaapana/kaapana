@@ -1,5 +1,4 @@
 ---
 dependencies:
-  - name: airflow-postgres
+  - name: kaapana_database
     version: 0.0.0
-    repository: file://deps/airflow-postgres

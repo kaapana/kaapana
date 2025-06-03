@@ -5,7 +5,7 @@ metadata:
   namespace: "{{ tpl .Values.global.namespace . }}"
 spec:
   selector:
-    app-name: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ .Release.Name }}
   ports:
     - protocol: TCP
       port: 8080

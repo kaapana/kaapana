@@ -8,11 +8,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: alertmanager
+      app.kubernetes.io/name: alertmanager
   template:
     metadata:
       labels:
-        app-name: alertmanager
+        app.kubernetes.io/name: alertmanager
     spec:
       containers:
       - name: alertmanager

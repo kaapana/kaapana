@@ -10,11 +10,11 @@ from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.MinioOperator import MinioOperator
-from kaapana.operators.ValidationResult2MetaOperator import (
-    ValidationResult2MetaOperator,
-)
 
 ui_forms = {
+    "documentation_form": {
+        "path": "/user_guide/system/airflow.html#validate-dicoms",
+    },
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -40,7 +40,7 @@ ui_forms = {
                 "default": [],
             },
         },
-    }
+    },
 }
 
 log = LoggingMixin().log
@@ -59,12 +59,6 @@ dag = DAG(dag_id="validate-dicoms", default_args=args, schedule_interval=None)
 
 get_input = GetInputOperator(dag=dag)
 
-validate = DcmValidatorOperator(
-    dag=dag,
-    input_operator=get_input,
-    exit_on_error=False,
-)
-
 get_input_json = GetInputOperator(dag=dag, name="get-json-input-data", data_type="json")
 
 clear_validation_results = ClearValidationResultOperator(
@@ -74,11 +68,10 @@ clear_validation_results = ClearValidationResultOperator(
     static_results_dir="staticwebsiteresults",
 )
 
-save_to_meta = ValidationResult2MetaOperator(
+validate = DcmValidatorOperator(
     dag=dag,
-    input_operator=get_input_json,
-    validator_output_dir=validate.operator_out_dir,
-    validation_tag="00111001",
+    input_operator=get_input,
+    exit_on_error=False,
 )
 
 put_html_to_minio = MinioOperator(
@@ -94,10 +87,9 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 (
     get_input
-    >> validate
     >> get_input_json
     >> clear_validation_results
-    >> save_to_meta
+    >> validate
     >> put_html_to_minio
     >> clean
 )

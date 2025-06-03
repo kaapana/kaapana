@@ -1,9 +1,11 @@
 ---
 apiVersion: v1
 appVersion: "0.1.1"
-description: Radiomics Airflow Dag
+description: "Calculate radiomics features from DICOM Segmentation objects"
 name: radiomics-workflow
 version: "0.0.0"
 keywords:
 - kaapanaworkflow
-- kaapanaexperimental
+annotations:
+  documentation: "user_guide/extensions.html#radiomics-radiomics-dcmseg"
+  ui-visible-name: "Radiomics"

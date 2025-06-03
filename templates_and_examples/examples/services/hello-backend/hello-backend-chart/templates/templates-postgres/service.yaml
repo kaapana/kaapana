@@ -6,10 +6,10 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
   #namespace: "{{ .Values.global.services_namespace }}"
   labels:
-    app-name: hello-postgres
+    app.kubernetes.io/name: hello-postgres
 spec:
   selector:
-    app-name: hello-postgres
+    app.kubernetes.io/name: hello-postgres
   ports:
     - port: 5432
       targetPort: 5432

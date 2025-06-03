@@ -1,0 +1,17 @@
+server {
+    listen 80;
+    server_name localhost;
+
+    root /usr/share/nginx/html;
+    index index.html index.htm;
+
+    location /slim/ {
+        alias /usr/share/nginx/html/slim/;
+        index index.html;
+        try_files $uri $uri/ /slim/index.html; # all requests to /slim/ should be handled by slim/index.html
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html; 
+    }
+}

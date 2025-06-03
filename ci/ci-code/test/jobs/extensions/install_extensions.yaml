@@ -1,0 +1,27 @@
+---
+- name: Running kaapana tests
+  hosts: localhost
+
+  vars:
+    repo_dir: "{{ lookup('ansible.builtin.env', 'REPO_DIR') }}"
+    artifacts_dir: "{{ lookup('ansible.builtin.env', 'ARTIFACTS_DIR') }}"
+    ip_address: "{{ lookup('ansible.builtin.env', 'ip_address') }}"
+
+  tasks:
+    - name: Install all extensions
+      register: install_extensions_result
+      ignore_errors: true
+      ansible.builtin.command:
+        cmd: "python3 install_extensions.py --host {{ ip_address }} --install-all --timeout 3000"
+      args:
+        chdir: "{{ repo_dir }}/ci-code/test/src"
+
+    - name: Save logs
+      ansible.builtin.copy:
+        content: "{{ install_extensions_result.stdout }} {{ install_extensions_result.stderr }}"
+        dest: "{{ artifacts_dir }}/install_extensions.log"
+
+    - name: Fail if installing extensions failed.
+      when: install_extensions_result.rc != 0
+      ansible.builtin.fail:
+        msg: "Failed to install all extensions."

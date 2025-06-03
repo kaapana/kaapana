@@ -7,11 +7,11 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app-name: pull-{{ .Values.image }}-{{ .Values.version }}
+      app.kubernetes.io/name: pull-{{ .Values.image }}-{{ .Values.version }}
   template:
     metadata:
       labels:
-        app-name: pull-{{ .Values.image }}-{{ .Values.version }}
+        app.kubernetes.io/name: pull-{{ .Values.image }}-{{ .Values.version }}
     spec:
       containers:
       - name: pull-{{ .Values.image }}

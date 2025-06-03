@@ -4,12 +4,12 @@ kind: Service
 apiVersion: v1
 metadata:
   labels:
-    k8s-app: kubernetes-dashboard
+    app.kubernetes.io/name: kubernetes-dashboard
   name: kubernetes-dashboard
   namespace: "{{  .Values.global.admin_namespace  }}"
 spec:
   selector:
-    app-name: kubernetes-dashboard
+    app.kubernetes.io/name: kubernetes-dashboard
   type: ClusterIP
   ports:
     - port: 9090

@@ -16,6 +16,9 @@ from shapemodel.OrganSegmentationOperator import OrganSegmentationOperator
 log = LoggingMixin().log
 
 ui_forms = {
+    "documentation_form": {
+        "path": "/user_guide/extensions.html#automatic-organ-segmentation-shapemodel-organ-seg",
+    },
     "publication_form": {
         "title": "1",
         "type": "object",

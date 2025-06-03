@@ -4,16 +4,16 @@ metadata:
   name: {{ .Release.Name }}
   namespace: "{{ tpl .Values.global.namespace . }}"
   labels:
-    k8s-app: edk
+    app.kubernetes.io/name: edk
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: {{ .Release.Name }}
+      app.kubernetes.io/name: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app-name: {{ .Release.Name }}
+        app.kubernetes.io/name: {{ .Release.Name }}
     spec:
       securityContext:
         runAsUser: 0
@@ -79,6 +79,8 @@ spec:
           value: {{ .Values.global.http_proxy }}
         - name: https_proxy
           value: {{ .Values.global.https_proxy }}
+        - name: no_proxy
+          value: ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }}"
         - name: NAMESPACE
           value: {{ tpl .Values.global.namespace . }}
         - name: REGISTRY_URL
@@ -103,10 +105,6 @@ spec:
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
           - name: dshm
             mountPath: /dev/shm
-        {{- if contains (tpl .Values.global.complete_image .) "podman" }}
-        securityContext:
-          privileged: true
-        {{- end }}
       volumes:
       - name: configs
         configMap:

@@ -74,9 +74,6 @@ GRAFANA_PASSWORD="{{ credentials_grafana_password|default('admin', true) }}"
 KEYCLOAK_ADMIN_USERNAME="{{ credentials_keycloak_admin_username|default('admin', true) }}"
 KEYCLOAK_ADMIN_PASSWORD="{{ credentials_keycloak_admin_password|default('Kaapana2020', true) }}" #  Minimum policy for production: 1 specialChar + 1 upperCase + 1 lowerCase and 1 digit + min-length = 8
 
-CREDENTIALS_POSTGRES_AIP_PASSWORD="{{ credentials_postgres_aip_password|default('Kaapana2020', true) }}"
-CREDENTIALS_POSTGRES_DICOM_WEB_FILTER_PASSWORD="{{ credentials_postgres_aip_password|default('Kaapana2020', true) }}"
-
 FAST_DATA_DIR="{{ fast_data_dir|default('/home/kaapana')}}" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 SLOW_DATA_DIR="{{ slow_data_dir|default('/home/kaapana')}}" # Directory on the server, where the DICOM images will be stored (can be slower)
 
@@ -118,7 +115,7 @@ if [ ! -z $INSTANCE_UID ]; then
 
     FAST_DATA_DIR="$FAST_DATA_DIR-$INSTANCE_UID"
     SLOW_DATA_DIR="$SLOW_DATA_DIR-$INSTANCE_UID"
-    
+
     INCLUDE_REVERSE_PROXY=true
 fi
 echo ""
@@ -277,12 +274,12 @@ function delete_deployment {
         echo -e "${GREEN}Removing all pvs from cluster ...${NC}"
         microk8s.kubectl delete pv --all
     fi
-    
+
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
         echo "${RED}kubectl get pods -A${NC}"
         echo "${RED}kubectl get namespaces${NC}"
-        echo "${RED}Executing './deploy_platform.sh --no-hooks' is an option to force the resources to be removed.${NC}"        
+        echo "${RED}Executing './deploy_platform.sh --no-hooks' is an option to force the resources to be removed.${NC}"
         echo "${RED}Once everything is deleted you can re-deploy the platform!${NC}"
         exit 1
     fi
@@ -293,11 +290,11 @@ function delete_deployment {
 
 function nuke_pods {
     for namespace in $EXTENSIONS_NAMESPACE $SERVICES_NAMESPACE $ADMIN_NAMESPACE $HELM_NAMESPACE; do
-        echo "${RED}Deleting all pods from namespaces: $namespace ...${NC}"; 
+        echo "${RED}Deleting all pods from namespaces: $namespace ...${NC}";
         for mypod in $(microk8s.kubectl get pods -n $namespace -o jsonpath="{.items[*].metadata.name}");
         do
-            echo "${RED}Deleting: $mypod ${NC}"; 
-            microk8s.kubectl delete pod -n $namespace $mypod --grace-period=0 --force 
+            echo "${RED}Deleting: $mypod ${NC}";
+            microk8s.kubectl delete pod -n $namespace $mypod --grace-period=0 --force
         done
     done
 }
@@ -336,7 +333,7 @@ function deploy_chart {
     fi
 
     get_domain
-    
+
     if [ -z "$INSTANCE_NAME" ]; then
         INSTANCE_NAME=$DOMAIN
         echo "${YELLOW}No INSTANCE_NAME is set, setting it to $DOMAIN!${NC}"
@@ -377,7 +374,7 @@ function deploy_chart {
                     exit 1
                 fi
             else
-                microk8s.enable gpu
+                microk8s.enable nvidia
             fi
         fi
     fi
@@ -393,8 +390,12 @@ function deploy_chart {
     else
         PULL_POLICY_IMAGES="Always"
     fi
-        
-    if [ ! -z "$CHART_PATH" ]; then # Note: OFFLINE_MODE requires CHART_PATH 
+
+    # configmap kube-public/local-registry-hosting is used by EDK if installed inside Kaapana, therefore should not already exist
+    echo "${YELLOW}Removing configmap kube-public/local-registry-hosting if exists...${NC}"
+    microk8s.kubectl delete configmap -n kube-public local-registry-hosting --ignore-not-found=true
+
+    if [ ! -z "$CHART_PATH" ]; then # Note: OFFLINE_MODE requires CHART_PATH
         echo -e "${YELLOW}We assume that that all images are already presented inside the microk8s.${NC}"
         echo -e "${YELLOW}Images are uploaded either with a previous deployment from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
 
@@ -441,6 +442,18 @@ function deploy_chart {
         CHART_PATH="$SCRIPT_PATH/$PLATFORM_NAME-$PLATFORM_VERSION.tgz"
     fi
 
+    # Kubernetes API endpoint
+    INTERNAL_CIDR=$(microk8s.kubectl get endpoints kubernetes -n default -o jsonpath="{.subsets[0].addresses[0].ip}/32")
+    # Server IP
+    if [[ "$DOMAIN" =~ ^(([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))\.){3}([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))$ ]]; then
+        # external ip can differ from local ip, must be reachable due to keycloak (only in ip deployments)
+        INTERNAL_CIDR="$DOMAIN/32,$INTERNAL_CIDR"
+    fi
+    SERVER_IP=$(hostname -I | awk -F ' ' '{print $1}')
+    INTERNAL_CIDR="$SERVER_IP/32,$INTERNAL_CIDR"
+    # MicroK8s https://microk8s.io/docs/change-cidr
+    INTERNAL_CIDR="10.152.183.0/24,10.1.0.0/16,$INTERNAL_CIDR"
+
     echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
     helm -n $HELM_NAMESPACE install --create-namespace $CHART_PATH \
@@ -453,8 +466,6 @@ function deploy_chart {
     --set-string global.credentials_grafana_password="$GRAFANA_PASSWORD" \
     --set-string global.credentials_keycloak_admin_username="$KEYCLOAK_ADMIN_USERNAME" \
     --set-string global.credentials_keycloak_admin_password="$KEYCLOAK_ADMIN_PASSWORD" \
-    --set-string global.credentials_postgres_aip_password="$CREDENTIALS_POSTGRES_AIP_PASSWORD" \
-    --set-string global.credentials_postgres_dicom_web_filter_password="$CREDENTIALS_POSTGRES_DICOM_WEB_FILTER_PASSWORD" \
     --set-string global.dicom_port="$DICOM_PORT" \
     --set-string global.fast_data_dir="$FAST_DATA_DIR" \
     --set-string global.services_namespace=$SERVICES_NAMESPACE \
@@ -468,9 +479,10 @@ function deploy_chart {
     --set-string global.home_dir="$HOME" \
     --set-string global.hostname="$DOMAIN" \
     --set-string global.http_port="$HTTP_PORT" \
-    --set-string global.http_proxy="$http_proxy" \
     --set-string global.https_port="$HTTPS_PORT" \
-    --set-string global.https_proxy="$https_proxy" \
+    --set global.internalCidrs="{$INTERNAL_CIDR}" \
+    --set-string squid-proxy.upstreamHttpProxy="$http_proxy" \
+    --set-string squid-proxy.upstreamHttpsProxy="$https_proxy" \
     --set global.offline_mode=$OFFLINE_MODE \
     --set global.prefetch_extensions=$PREFETCH_EXTENSIONS \
     --set-string global.pull_policy_images="$PULL_POLICY_IMAGES" \
@@ -546,7 +558,8 @@ function check_credentials {
             break
         fi
     done
-    helm registry login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD ${CONTAINER_REGISTRY_URL}
+    STRIPPED_CONTAINER_REGISTRY_URL=$(echo "$CONTAINER_REGISTRY_URL" | sed -E 's~^https?://~~' | cut -d'/' -f1)
+    helm registry login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD ${STRIPPED_CONTAINER_REGISTRY_URL}
 }
 
 function install_certs {
@@ -812,6 +825,12 @@ function update_coredns_rewrite() {
         return 1
     fi
 
+    # If hostname starts with a number it is considerd an IP and dns rewrite is skipped
+    if [[ "$hostname" =~ ^[0-9] ]]; then
+        echo "Skipped DNS rewrite because ${hostname} seems to be an IP Adress"
+        return 0
+    fi
+
     # Build the new rewrite rule.
     # Ensure both hostname and target are FQDNs (with trailing dots).
     local new_rule="rewrite name exact ${hostname}. oauth2-proxy-service.$ADMIN_NAMESPACE.svc.cluster.local."
@@ -885,36 +904,36 @@ function create_report {
 cat << "EOF"
 
 
-                           .=#%@@@%#-                                 
-                          .@@@@@@@@@@                                 
-                     .::::*@@@@@@@@+      :+##*+=.                    
-                 .+%@@@@@@#  -@@@-       *@@@@@@@@#:                  
-                -@@@@@@@@@+   #@#       -@@@@@@@@@@@=.=#%*=           
-                #@@@@@@@@#. :#@@@#=---=#@@@@@@@@@@@#+#@@@@@@*         
-           .:::=@@@@@@@%- -%@@@@@@@@@@@+.   .-===-.   #@@@@@@%        
-         +@@@@@@-:+@@@=  +@@@@@@@@@@@@=                +@@@@@@=       
-       :@@@@@@@#   %@=   @@@@@@@@@@@@@=                 .#@@@#  =##=  
-       %@@@@@@@=  =@@%.  +@@@@@@@@@@@@@+.    .:---.       +@%  :@@@@% 
+                           .=#%@@@%#-
+                          .@@@@@@@@@@
+                     .::::*@@@@@@@@+      :+##*+=.
+                 .+%@@@@@@#  -@@@-       *@@@@@@@@#:
+                -@@@@@@@@@+   #@#       -@@@@@@@@@@@=.=#%*=
+                #@@@@@@@@#. :#@@@#=---=#@@@@@@@@@@@#+#@@@@@@*
+           .:::=@@@@@@@%- -%@@@@@@@@@@@+.   .-===-.   #@@@@@@%
+         +@@@@@@-:+@@@=  +@@@@@@@@@@@@=                +@@@@@@=
+       :@@@@@@@#   %@=   @@@@@@@@@@@@@=                 .#@@@#  =##=
+       %@@@@@@@=  =@@%.  +@@@@@@@@@@@@@+.    .:---.       +@%  :@@@@%
        *@@@@@@= .#@@@@@=  -%@@@@@@@@##*#@@@@@@@@@@@@*.    .@#  :@@@@@*
  .*@@#. #@@@*. +@@@@@@@@%.  -%@@@=.      *@@@@@@@@@@@@-  .#@@+  %@@@@@
 .@@@@@#  %@=  *@@@@@@@@@@*   .@@=         +@@@@@@@@@@@@ -@@@@@#..%@@@#
 #@@@@@%  %@.  %@@@@@@@@@@*   -@@+          *@@@@@@@@@@@:@@@@@@@@  %@@.
-%@@@@@= *@@%: +@@@@@@@@@@.  =@@@@*.         -%@@@@@@@%:=@@@@@@@@= .@- 
-=@@@@=.%@@@@@+ =@@@@@@@*. -%@@@@@@@=          :=+**+-  .@@@@@@@@- :@. 
- .-:  %@@@@@@@+  :===-   +@@@@@@@@@@#             .::.  =@@@@@@#:*@@* 
+%@@@@@= *@@%: +@@@@@@@@@@.  =@@@@*.         -%@@@@@@@%:=@@@@@@@@= .@-
+=@@@@=.%@@@@@+ =@@@@@@@*. -%@@@@@@@=          :=+**+-  .@@@@@@@@- :@.
+ .-:  %@@@@@@@+  :===-   +@@@@@@@@@@#             .::.  =@@@@@@#:*@@*
      .@@@@@@@@%   :-:   .@@@@@@@@@@@@-         -#@@@@@@#-.-++=.*@@@@@-
       %@@@@@@@+ =@@@@@*..@@@@@@@@@@@@:        +@@@@@@@@@@%-   +@@@@@@+
        *@@@@@*  @@@@@@@% =@@@@@@@@@@#        .@@@@@@@@@@@@@@%@@@@@@@@=
-        .---    +@@@@@@@  :#@@@@@@@@#:----.   @@@@@@@@@@@@+:.:#@@@@@% 
-                 -#@@@*.     :---..%@@@@@@@%= :@@@@@@@@@@:     :#@%+  
-                                   @@@@@@@@@@%  =#@@@@@@:             
-                                  :@@@@@@@@@@@#   .-#@@*              
-                                   #@@@@@@@@@@@*     +@%              
- | |/ /                                   +@@@@@@@@@@@%+--+@@@@*-           
- | ' / __ _  __ _ _ __   __ _ _ __   __ _  -+*#*+=-::+@@@@@@@@@@#          
- |  < / _` |/ _` | '_ \ / _` | '_ \ / _` |            :@@@@@@@@@@:         
- | . \ (_| | (_| | |_) | (_| | | | | (_| |             +@@@@@@@@=          
- |_|\_\__,_|\__,_| .__/ \__,_|_| |_|\__,_|              #@@@@@*. 
+        .---    +@@@@@@@  :#@@@@@@@@#:----.   @@@@@@@@@@@@+:.:#@@@@@%
+                 -#@@@*.     :---..%@@@@@@@%= :@@@@@@@@@@:     :#@%+
+                                   @@@@@@@@@@%  =#@@@@@@:
+                                  :@@@@@@@@@@@#   .-#@@*
+                                   #@@@@@@@@@@@*     +@%
+ | |/ /                                   +@@@@@@@@@@@%+--+@@@@*-
+ | ' / __ _  __ _ _ __   __ _ _ __   __ _  -+*#*+=-::+@@@@@@@@@@#
+ |  < / _` |/ _` | '_ \ / _` | '_ \ / _` |            :@@@@@@@@@@:
+ | . \ (_| | (_| | |_) | (_| | | | | (_| |             +@@@@@@@@=
+ |_|\_\__,_|\__,_| .__/ \__,_|_| |_|\__,_|              #@@@@@*.
                  | |
   _   _          |_|       _____                       _
  | \ | |         | |      |  __ \                     | |
@@ -932,8 +951,8 @@ echo "Report created on $(date +'%Y-%m-%d')"
 uptime
 free
 
---- "Last Boot Log"
-journalctl -b
+--- "Last 2H Log"
+journalctl --since "2 hours ago"
 
 --- "Pod Status"
 microk8s.kubectl get pods -A
@@ -1055,7 +1074,7 @@ do
             QUIET=true
             shift # past argument
         ;;
-        
+
         --offline)
             OFFLINE_MODE=true
             echo -e "${GREEN}Deploying in offline mode!${NC}"
@@ -1090,7 +1109,7 @@ do
             while true; do
                 read -e -p "Do you really want to nuke all pods? -> Not recommended!" -i " no" yn
                 case $yn in
-                    [Yy]* ) 
+                    [Yy]* )
                     nuke_pods
                     delete_deployment
                     clean_up_kubernetes
@@ -1130,7 +1149,7 @@ preflight_checks
 
 echo -e "${YELLOW}Get helm deployments...${NC}"
 deployments=$(helm -n $HELM_NAMESPACE ls -a |cut -f1 |tail -n +2)
-echo "Current deployments: " 
+echo "Current deployments: "
 echo $deployments
 
 if [[ $deployments == *"$PLATFORM_NAME"* ]] && [[ ! $QUIET = true ]];then

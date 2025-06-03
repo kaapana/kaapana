@@ -5,3 +5,6 @@ name: collabora-chart
 version: "0.0.0"
 keywords:
 - kaapanaapplication
+annotations:
+  documentation: "user_guide/extensions.html#collabora"
+  ui-visible-name: "Collabora"

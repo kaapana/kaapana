@@ -23,8 +23,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     xauth \
     && rm -rf /var/lib/apt/lists/*
 
-# Slicer 5.6.2
-RUN SLICER_URL="https://download.slicer.org/bitstream/660f92ed30e435b0e355f1a4" \
+# Slicer 5.8.1
+RUN SLICER_URL="https://download.slicer.org/bitstream/67c51fc129825655577cfee9" \
     && curl -k -v -s -L $SLICER_URL | tar xz -C /tmp \
     && mv /tmp/Slicer* /opt/slicer
 

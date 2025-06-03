@@ -1,0 +1,31 @@
+DELETE_FILE_SYSTEM: "false"                     ### Set to "true" if the kaapana file system should be removed; default "false"
+EXECUTE_BUILD: "true"                           ### Set this variable to "false" if you do not want to build the platform; Default: "true"
+DEPLOY_PLATFORM: "true"                         ### Set this variable to "false" if you do not want to deploy the platform; Default: "true"
+DOCKER_PRUNE: "false"
+TEST_STAGE: "false"
+BUILD_ARGUMENTS: ""
+
+OS_CREATE: ""
+OS_DELETE: ""
+OS_AUTH_URL: ""   
+OS_PROJECT_NAME: ""                             ### Name of the openstack project for the deployment instance 
+OS_INSTANCE_FLAVOR: ""
+OS_KEY_NAME: ""
+OS_IMAGE: ""
+OS_TENANT_ID: ""
+OS_USERNAME: ""
+OS_FLOATING_IP_POOLS: ""
+
+HTTP_PROXY: ""
+HTTPS_PROXY: ""
+
+DEPLOYMENT_INSTANCE_IP: "none"                       ### Set in order to reuse an instance -> will be used to determine the groupname of the instance
+DEPLOYMENT_INSTANCE_NAME: ""
+DEPLOYMENT_INSTANCE_USER: ""
+SSH_FILE: ""                                        ### Path to ssh file to connect to deployment instance e.g /home/ubuntu/.ssh/id_rsa  
+REGISTRY_URL: $CI_REGISTRY_IMAGE
+REGISTRY_TOKEN: ""
+USER: ""
+
+DOCKER_IO_USER: ""                                ### username for docker.io
+DOCKER_IO_PASSWORD: ""                         ### password for docker.io

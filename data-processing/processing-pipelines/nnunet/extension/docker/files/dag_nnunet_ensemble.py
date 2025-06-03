@@ -34,6 +34,9 @@ organ_filter = None
 
 parallel_processes = 3
 ui_forms = {
+    "documentation_form": {
+        "path": "/user_guide/extensions.html#nnunet-ensemble",
+    },
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -127,7 +130,7 @@ ui_forms = {
                 "readOnly": True,
             },
         },
-    }
+    },
 }
 
 args = {
@@ -230,6 +233,7 @@ extract_model = NnUnetModelOperator(
     target_level="batch_element",
     input_operator=dcm2bin,
     operator_out_dir="model-exports",
+    action="install"
 )
 
 nnunet_predict = NnUnetOperator(

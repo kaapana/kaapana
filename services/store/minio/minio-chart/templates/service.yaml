@@ -5,10 +5,10 @@ metadata:
   name: minio-service
   namespace: "{{ .Values.global.services_namespace }}"
   labels:
-    app-name: minio
+    app.kubernetes.io/name: minio
 spec:
   selector:
-    app-name: minio
+    app.kubernetes.io/name: minio
   type: ClusterIP
   ports:
     - name: minio-server-port

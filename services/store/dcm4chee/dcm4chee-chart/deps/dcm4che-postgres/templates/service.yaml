@@ -5,10 +5,10 @@ metadata:
   name: postgres-dcm4che-service
   namespace: "{{ .Values.global.services_namespace }}"
   labels:
-    app-name: postgres-dcm4che
+    app.kubernetes.io/name: postgres-dcm4che
 spec:
   selector:
-    app-name: postgres-dcm4che
+    app.kubernetes.io/name: postgres-dcm4che
   ports:
   - name: postgres-dcm4che-port
     port: 5432

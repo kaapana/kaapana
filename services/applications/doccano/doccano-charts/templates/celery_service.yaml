@@ -5,7 +5,7 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
   selector:
-    app-name: doccano-celery
+    app.kubernetes.io/name: doccano-celery
   ports:
     - port: 5672
       targetPort: 5672

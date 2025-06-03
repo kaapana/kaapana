@@ -52,7 +52,7 @@ Check out the [documentation](https://kaapana.readthedocs.io/en/latest/) for fur
 
 ## Where to find us
 * [GitLab](https://gitlab.hzdr.de/kaapana/kaapana/): The main Kaapana repository, mirrored on GitHub.
-* [Slack](https://kaapana.slack.com/): Join the community for discussions and updates.
+* [Slack](https://join.slack.com/t/kaapana/shared_invite/zt-hilvek0w-ucabihas~jn9PDAM0O3gVQ/): Join the community for discussions and updates.
 * [YouTube](https://www.youtube.com/@KaapanaAI): Tutorials, demos and more in-depth presentations.
 * [Website](https://kaapana.ai/)
 
@@ -90,6 +90,9 @@ If not, see <https://www.gnu.org/licenses/>.
 You can use Kaapana to build any product you like, including commercial closed-source ones since it is a highly modular system. Kaapana is licensed under the [GNU Affero General Public License](https://www.gnu.org/licenses/agpl-3.0.en.html) for now since we want to ensure that we can integrate all developments and contributions to its core system for maximum benefit to the community and give everything back. We consider switching to a more liberal license in the future. This decision will depend on how our project develops and what the feedback from the community is regarding the license. 
 
 Kaapana is built upon the great work of many other open-source projects, see the documentation for details. For now, we only release source code we created ourselves since providing pre-built docker containers and licensing for highly modular container-based systems is [a complex task](https://www.linuxfoundation.org/blog/2020/04/docker-containers-what-are-the-open-source-licensing-considerations/). We have done our very best to fulfill all requirements, and the choice of AGPL was motivated mainly to make sure we can improve and advance Kaapana in the best way for the whole community. If you have thoughts about this or if you disagree with our way of using a particular third-party toolkit or miss something please let us know and get in touch. We are open to any feedback and advice on this challenging topic.
+
+## Contribution guide
+If you want to contribute to Kaapana by submitting an issue or code please have a look at our [contribution guide](https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/CONTRIBUTION.md).
 
 ## Acknowledgments
 

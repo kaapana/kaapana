@@ -1,7 +1,8 @@
+import re
 from typing import Optional
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_validator
-import re
 
 
 class OrmBaseModel(BaseModel):
@@ -12,11 +13,12 @@ class CreateProject(OrmBaseModel):
     external_id: Optional[str] = None
     name: str
     description: str
+    default: bool = False
 
     @field_validator("name", mode="before")
     @classmethod
     def validate_project_name(cls, v):
-        from app.projects import minio, opensearch, kubehelm
+        from app.projects import kubehelm, minio, opensearch
 
         """
         Validate if the project name satisfies naming rules for buckets in minio, namespaces in kubernetes and indices in opensearch.
@@ -58,13 +60,13 @@ class CreateProject(OrmBaseModel):
 
 
 def is_valid_dicom_ae_title(ae_title: str) -> bool:
-    """
+    r"""
     https://pydicom.github.io/pynetdicom/dev/user/ae.html
     AE titles must meet the conditions of a DICOM data element with a Value Representation of AE:
     * Leading and trailing spaces (hex 0x20) are non-significant.
     * Maximum 16 characters (once non-significant characters are removed).
     * Valid characters belong to the DICOM Default Character Repertoire, which is the basic G0 Set
-        of the ISO/IEC 646:1991 (ASCII) standard excluding backslash (\ - hex 0x5C) and all control
+        of the ISO/IEC 646:1991 (ASCII) standard excluding backslash (\\ - hex 0x5C) and all control
         characters (such as '\n').
     * An AE title made entirely of spaces is not allowed.
     """
@@ -88,9 +90,10 @@ def is_valid_dicom_ae_title(ae_title: str) -> bool:
 
 
 class Project(OrmBaseModel):
-    id: int
+    id: UUID
     external_id: Optional[str] = None
     name: str
+    int_id: Optional[int] = None
     description: str
     kubernetes_namespace: str
     s3_bucket: str
@@ -121,3 +124,7 @@ class Role(OrmBaseModel):
     id: int
     description: str
     name: str
+
+
+class Software(OrmBaseModel):
+    software_uuid: str

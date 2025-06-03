@@ -1,6 +1,7 @@
-from pydantic import Field, AliasChoices
-from pydantic_settings import BaseSettings
 from typing import Optional
+
+from pydantic import AliasChoices, Field
+from pydantic_settings import BaseSettings
 
 
 class KaapanaSettings(BaseSettings):
@@ -40,7 +41,6 @@ class ProjectSettings(KaapanaSettings):
     Project specific settings
     """
 
-    project_name: str = Field("admin", validation_alias="KAAPANA_PROJECT_NAME")
     project_user_name: str = Field(
         "system", validation_alias="KAAPANA_PROJECT_USER_NAME"
     )
@@ -58,9 +58,23 @@ class OperatorSettings(BaseSettings):
 
     run_id: str
     dag_id: str
+    task_id: str
     workflow_dir: str
     batch_name: str = "batch"
     operator_out_dir: str
     batches_input_dir: str
-
     operator_in_dir: Optional[str] = None
+
+
+class ServicesSettings(BaseSettings):
+    # ADMIN
+    keycloak_url: Optional[str] = None
+    kube_helm_url: Optional[str] = None
+
+    # SERVICES
+    aii_url: str
+    dicom_web_filter_url: Optional[str] = None
+    opensearch_url: Optional[str] = None
+    kaapana_backend_url: Optional[str] = None
+    minio_url: Optional[str] = None
+    notification_url: Optional[str] = None

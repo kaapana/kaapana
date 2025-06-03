@@ -4,16 +4,18 @@ metadata:
   name: dicom-web-filter-service
   namespace: "{{ .Values.global.services_namespace }}"
   labels: 
-    app-name: dicom-web-filter
+    app.kubernetes.io/name: dicom-web-filter
+    app.kubernetes.io/component: backend
 spec:
   selector:
-    app-name: dicom-web-filter
+    app.kubernetes.io/name: dicom-web-filter
+    app.kubernetes.io/component: backend
   ports:
 {{- if .Values.global.dev_files }}
     - name: dicom-web-http
-      port: 8080 
+      port: 8080
       targetPort: 8080
-      nodePort: 8080 # only for development!
+      nodePort: 8082 # only for development!
   type: NodePort # only for development!
 {{- else }}
     - name: dicom-web-http

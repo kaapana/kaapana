@@ -1,9 +1,6 @@
 #!/bin/bash
 set -euf -o pipefail
 
-echo "KAAPANA_BUILD_BRANCH"
-echo "$KAAPANA_BUILD_BRANCH"
-
 clone_repo() {
   local branch=$1
   echo "cloning repo from branch $branch"
@@ -24,9 +21,7 @@ clone_repo() {
 
 # clone repo, try with normal branch name first, if fails add feature/ prefix
 if ! clone_repo "$KAAPANA_BUILD_BRANCH"; then
-  echo "git clone failed, retrying with 'feature/' prefix"
-  clone_repo "feature/$KAAPANA_BUILD_BRANCH"
-  sleep 2
+  echo "git clone failed with branch '$KAAPANA_BUILD_BRANCH'. Overwrite it with a valid branch name by running 'export KAAPANA_BUILD_BRANCH=<branch>' and try again"
 fi
 
 # change to commit hash that the current platform is built from

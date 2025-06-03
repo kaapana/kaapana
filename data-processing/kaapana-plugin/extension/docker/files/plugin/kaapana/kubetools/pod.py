@@ -120,11 +120,11 @@ class Pod:
             pod_spec.priority = self.priority
 
         # spec - node_selector
-        if self.node_selectors is not None and len(self.node_selectors) is not 0:
+        if self.node_selectors is not None and len(self.node_selectors) != 0:
             pod_spec.node_selector = self.node_selectors
 
         # spec - tolerations
-        if self.tolerations is not None and len(self.tolerations) is not 0:
+        if self.tolerations is not None and len(self.tolerations) != 0:
             pod_spec.tolerations = self.tolerations
 
         # spec - init_container

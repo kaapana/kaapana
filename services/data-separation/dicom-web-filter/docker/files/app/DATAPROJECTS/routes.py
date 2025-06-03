@@ -1,4 +1,5 @@
 import logging
+from uuid import UUID
 
 from app import crud
 from app.database import get_session
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
     tags=["DataProjects"],
 )
 async def create_data_project_mappings(
-    project_id: int,
+    project_id: UUID,
     series_instance_uid: str,
     session: AsyncSession = Depends(get_session),
 ):
@@ -39,7 +40,7 @@ async def create_data_project_mappings(
     tags=["DataProjects"],
 )
 async def get_data_by_project_id(
-    project_id: int,
+    project_id: UUID,
     session: AsyncSession = Depends(get_session),
 ):
     """
@@ -73,7 +74,7 @@ async def get_projects_by_series_instance_uid(
     tags=["DataProjects"],
 )
 async def delete_data_project_mappings(
-    project_id: int,
+    project_id: UUID,
     series_instance_uid: str,
     session: AsyncSession = Depends(get_session),
 ):

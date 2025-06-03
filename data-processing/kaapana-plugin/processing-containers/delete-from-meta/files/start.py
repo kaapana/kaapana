@@ -45,22 +45,22 @@ class DeleteFromMetaOperator:
 
         if not self.delete_complete_study:
             if (
-                "form_data" in self.workflow_config
-                and self.workflow_config["form_data"] is not None
-                and "delete_complete_study" in self.workflow_config["form_data"]
+                "workflow_form" in self.workflow_config
+                and self.workflow_config["workflow_form"] is not None
+                and "delete_complete_study" in self.workflow_config["workflow_form"]
             ):
-                self.delete_complete_study = self.workflow_config["form_data"][
+                self.delete_complete_study = self.workflow_config["workflow_form"][
                     "delete_complete_study"
                 ]
         logger.info(f"Delete entire study set to {self.delete_complete_study}")
 
         if not self.delete_all_documents:
             if (
-                "form_data" in self.workflow_config
-                and self.workflow_config["form_data"] is not None
-                and "delete_all_documents" in self.workflow_config["form_data"]
+                "workflow_form" in self.workflow_config
+                and self.workflow_config["workflow_form"] is not None
+                and "delete_all_documents" in self.workflow_config["workflow_form"]
             ):
-                self.delete_all_documents = self.workflow_config["form_data"][
+                self.delete_all_documents = self.workflow_config["workflow_form"][
                     "delete_all_documents"
                 ]
         logger.info(f"Delete all documents set to {self.delete_all_documents}")

@@ -4,16 +4,16 @@ metadata:
   name: doccano-backend
   namespace: "{{ .Values.global.services_namespace }}"
   labels:
-    k8s-app: doccano-backend
+    app.kubernetes.io/name: doccano-backend
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: doccano-backend
+      app.kubernetes.io/name: doccano-backend
   template:
     metadata:
       labels:
-        app-name: doccano-backend
+        app.kubernetes.io/name: doccano-backend
     spec:
       containers:
       - name: doccano-backend

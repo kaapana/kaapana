@@ -5,10 +5,10 @@ from tfda_spe_orchestrator.LocalTriggerContainerIsolationOperator import (
 )
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from datetime import timedelta
-from kaapana.operators.HelperMinio import HelperMinio
 
+from kaapanapy.helper import get_minio_client
 
-minioClient = HelperMinio(username="system")
+minioClient = get_minio_client()
 buckets = minioClient.list_buckets()
 bucket_names = [bucket.name for bucket in buckets]
 

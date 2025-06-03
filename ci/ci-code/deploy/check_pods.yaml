@@ -1,0 +1,20 @@
+- hosts: "{{ ansible_groupname | default('kaapana_depl_server') }}"
+  gather_facts: true
+  become: no
+  remote_user: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_USER') }}"
+
+  tasks:
+  - debug: 
+      msg: "Wait for pods"
+  - name: namespace admin
+    vars:
+      k8s_namespace: "admin"
+    ansible.builtin.import_tasks: tasks/check_pods_in_namespace.yaml
+  - name: namespace services
+    vars:
+      k8s_namespace: "services"
+    ansible.builtin.import_tasks: tasks/check_pods_in_namespace.yaml
+  - name: namespace jobs
+    vars:
+      k8s_namespace: "jobs"
+    ansible.builtin.import_tasks: tasks/check_pods_in_namespace.yaml

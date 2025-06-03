@@ -1,9 +1,12 @@
 ---
 apiVersion: v1
 appVersion: "03-22"
-description: nnUNet workflow for inference and training
+description: "nnUNet workflows for inference and training"
 name: nnunet-workflow
 version: "0.0.0"
 keywords:
 - kaapanaworkflow
 - gpurequired
+annotations:
+  documentation: "user_guide/extensions.html#nnunet-predict"
+  ui-visible-name: "nnUNet"

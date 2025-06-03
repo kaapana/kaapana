@@ -1,0 +1,14 @@
+dag_id: tag-train-test-split-dataset
+instance_names:
+  - central
+conf_data:
+  data_form:
+    dataset_name: test-SEG
+  workflow_form:
+    split: 0.5
+    test_tag: TEST_TAG
+    train_tag: TRAIN_TAG
+    random_seed: 1
+    single_execution: false
+remote: false
+username: "kaapana"

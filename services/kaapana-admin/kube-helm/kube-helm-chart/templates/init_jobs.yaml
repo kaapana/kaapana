@@ -108,6 +108,24 @@ spec:
         - name: PROXY
           value: {{ $.Values.global.http_proxy }}
 {{- end }}
+        {{- with .Values.timeouts }}
+  {{- if hasKey . "shellCmdDefaultTimeout" }}
+        - name: SHELL_CMD_DEFAULT_TIMEOUT
+          value: "{{ .shellCmdDefaultTimeout }}"
+  {{- end }}
+  {{- if hasKey . "helmPullContainerTimeout" }}
+        - name: HELM_PULL_CONTAINER_TIMEOUT
+          value: "{{ .helmPullContainerTimeout }}"
+  {{- end }}
+  {{- if hasKey . "helmInstallTimeout" }}
+        - name: HELM_INSTALL_TIMEOUT
+          value: "{{ .helmInstallTimeout }}"
+  {{- end }}
+  {{- if hasKey . "helmDeletionTimeout" }}
+        - name: HELM_DELETION_TIMEOUT
+          value: "{{ .helmDeletionTimeout }}"
+  {{- end }}
+{{- end }}
         - name: KAAPANA_COLLECTIONS
           value: "{{- range $collection := $.Values.global.kaapana_collections }}{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.kaapana_build_version }};{{- end }}"
         - name: PREINSTALL_EXTENSIONS
@@ -153,6 +171,24 @@ spec:
           value: '[{{- range $extension := $.Values.global.preinstall_extensions }}{"name": "{{ $extension.name }}", "version": "{{ $extension.version }}"},{{- end }}]'
         - name: PREFETCH_EXTENSIONS
           value: "{{ $.Values.global.prefetch_extensions }}"
+{{- with .Values.timeouts }}
+  {{- if hasKey . "shellCmdDefaultTimeout" }}
+        - name: SHELL_CMD_DEFAULT_TIMEOUT
+          value: "{{ .shellCmdDefaultTimeout }}"
+  {{- end }}
+  {{- if hasKey . "helmPullContainerTimeout" }}
+        - name: HELM_PULL_CONTAINER_TIMEOUT
+          value: "{{ .helmPullContainerTimeout }}"
+  {{- end }}
+  {{- if hasKey . "helmInstallTimeout" }}
+        - name: HELM_INSTALL_TIMEOUT
+          value: "{{ .helmInstallTimeout }}"
+  {{- end }}
+  {{- if hasKey . "helmDeletionTimeout" }}
+        - name: HELM_DELETION_TIMEOUT
+          value: "{{ .helmDeletionTimeout }}"
+  {{- end }}
+{{- end }}
         volumeMounts:
           - name: helmextensions
             mountPath: "/kaapana/mounted/extensions"

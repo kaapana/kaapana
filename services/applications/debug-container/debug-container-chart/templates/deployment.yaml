@@ -8,11 +8,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: debug-container
+      app.kubernetes.io/name: debug-container
   template:
     metadata:
       labels:
-        app-name: debug-container
+        app.kubernetes.io/name: debug-container
     spec:
       containers:
       - name: debug

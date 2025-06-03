@@ -6,7 +6,8 @@ from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from os.path import join
 from pathlib import Path
-from typing import List
+from typing import Any, Dict, List
+from uuid import UUID
 
 import pydicom
 import requests
@@ -320,7 +321,7 @@ class HelperDcmWeb:
         response.raise_for_status()
         return response
 
-    def delete_study(self, project_id: int, study_uid: str) -> requests.Response:
+    def delete_study(self, project_id: UUID, study_uid: str) -> requests.Response:
         """This function deletes a study from the PACS. It first rejects the study and then deletes it.
 
         Args:
@@ -342,7 +343,7 @@ class HelperDcmWeb:
 
         return response
 
-    def delete_series(self, project_id: int, study_uid: str, series_uid: str):
+    def delete_series(self, project_id: UUID, study_uid: str, series_uid: str):
         """This function deletes a series from the PACS.
 
         Args:
@@ -380,7 +381,9 @@ class HelperDcmWeb:
             response.raise_for_status()
             return response.json()
 
-    def get_instances_of_series(self, study_uid: str, series_uid: str) -> List[dict]:
+    def get_instances_of_series(
+        self, study_uid: str, series_uid: str, params: Dict[str, Any] = None
+    ) -> List[dict]:
         """This function retrieves all instances of a series from the PACS.
 
         Args:
@@ -390,8 +393,11 @@ class HelperDcmWeb:
         Returns:
             List[dict]: List of instances of the series. Each instance is represented as a dictionary containing the instance metadata
         """
+        if not params:
+            params = {}
+
         url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}/instances"
-        response = self.session.get(url)
+        response = self.session.get(url, params=params)
         if response.status_code == 204:
             return []
         elif response.status_code == 404:

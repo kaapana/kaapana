@@ -8,13 +8,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: open-policy-agent
+      app.kubernetes.io/name: open-policy-agent
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app-name: open-policy-agent
+        app.kubernetes.io/name: open-policy-agent
     spec:
       containers:
       - name: open-policy-agent
@@ -40,10 +40,10 @@ metadata:
   name: open-policy-agent-service
   namespace: "{{ .Values.global.admin_namespace }}"
   labels:
-    app-name: open-policy-agent
+    app.kubernetes.io/name: open-policy-agent
 spec:
   selector:
-    app-name: open-policy-agent
+    app.kubernetes.io/name: open-policy-agent
   ports:
     - name: bundle-http
       port: 8181 

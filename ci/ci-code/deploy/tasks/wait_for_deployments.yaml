@@ -1,0 +1,42 @@
+---
+- name: Get all deployments 
+  become: false
+  kubernetes.core.k8s_info:
+    kind: Deployment
+    namespace: "{{ k8s_namespace }}"
+  register: deployments
+
+- name: Assume all deployments succeeded
+  ansible.builtin.set_fact:
+    all_deployments_succeeded: true
+
+- name: Wait for all deployments to have succeeded
+  ansible.builtin.set_fact:
+    all_deployments_succeeded: false
+  loop: "{{ deployments.resources }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when: >
+    not (item.status.conditions | selectattr('type', 'equalto', 'Available') | map(attribute='status') | list | first == 'True')
+
+- debug:
+    msg: "All deployments in namespace {{ k8s_namespace}} succeeded: {{ all_deployments_succeeded }}"
+
+- name: Set the retry count
+  set_fact:
+    retry_count: "{{ 0 if retry_count is undefined else retry_count|int + 1 }}"
+
+- debug:
+    msg: "Retries: {{ retry_count }}/180"
+
+- name: Fail deployment stage if retry_count exceeds maximum
+  ansible.builtin.command: /usr/bin/false
+  when: retry_count | int >= 180
+
+- name: Wait for 10 seconds.
+  ansible.builtin.command: /usr/bin/sleep 10
+  when: all_deployments_succeeded is false
+
+- name: Start the recursion
+  ansible.builtin.include_tasks: wait_for_deployments.yaml
+  when: all_deployments_succeeded is false

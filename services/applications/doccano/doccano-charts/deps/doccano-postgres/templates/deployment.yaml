@@ -8,11 +8,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: postgres-doccano
+      app.kubernetes.io/name: postgres-doccano
   template:
     metadata:
       labels:
-        app-name: postgres-doccano
+        app.kubernetes.io/name: postgres-doccano
     spec:
       restartPolicy: Always
       containers:

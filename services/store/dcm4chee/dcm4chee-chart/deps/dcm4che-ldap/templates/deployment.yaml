@@ -9,11 +9,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: ldap
+      app.kubernetes.io/name: ldap
   template:
     metadata:
       labels:
-        app-name: ldap
+        app.kubernetes.io/name: ldap
     spec:
       containers:
         - name: ldap-container

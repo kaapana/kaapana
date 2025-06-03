@@ -25,11 +25,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: airflow-webserver
+      app.kubernetes.io/name: airflow
+      app.kubernetes.io/component: webserver
   template:
     metadata:
       labels:
-        app-name: airflow-webserver
+        app.kubernetes.io/name: airflow
+        app.kubernetes.io/component: webserver
     spec:
       initContainers:
       - name: airflow-scheduler-check
@@ -37,7 +39,7 @@ spec:
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
         env:
         - name: WAIT
-          value: "postgres,postgres-airflow,5432;statsd-service,airflow-statsd-service.{{  .Values.global.services_namespace  }}.svc,9102"
+          value: "{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-,{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{  .Values.global.services_namespace  }}.svc,5432;statsd-service,airflow-statsd-service.{{  .Values.global.services_namespace  }}.svc,9102"
         - name: DELAY
           value: "5"
         - name: FILES_AND_FOLDERS_EXISTS
@@ -81,13 +83,30 @@ spec:
         - name: SERVICES_NAMESPACE
           value: "{{ .Values.global.services_namespace }}"
         - name: SQL_ALCHEMY_CONN
-          value: postgresql+psycopg2://root:root@postgres-airflow:5432/airflow
+          value: postgresql+psycopg2://{{ .Values.kaapana_database.postgres_user }}:{{ .Values.kaapana_database.postgres_password }}@{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{  .Values.global.services_namespace  }}.svc:5432/{{ .Values.kaapana_database.postgres_db }}
         - name: OIDC_CLIENT_SECRET
           value: "{{ .Values.global.oidc_client_secret }}"
         - name: OPENSEARCH_HOST
           value: "opensearch-service.{{ .Values.global.services_namespace }}.svc"
         - name: OPENSEARCH_PORT
           value: "9200"
+        # API URLs:
+        - name: KEYCLOAK_URL
+          value: "http://keycloak-external-service.{{ .Values.global.admin_namespace }}.svc:80"
+        - name: KUBE_HELM_URL
+          value: "http://kube-helm-service.{{ .Values.global.admin_namespace }}.svc:9000"
+        - name: OPENSEARCH_URL
+          value: "opensearch-service.{{ .Values.global.services_namespace }}.svc:9200"
+        - name: DICOM_WEB_FILTER_URL
+          value: "http://dicom-web-filter-service.{{ .Values.global.services_namespace }}.svc:8080"
+        - name: NOTIFICATION_URL
+          value: "http://notification-service.{{ .Values.global.services_namespace }}.svc:80"
+        - name: AII_URL
+          value: "http://aii-service.{{ .Values.global.services_namespace }}.svc:8080"
+        - name: KAAPANA_BACKEND_URL
+          value: "http://kaapana-backend-service.{{ .Values.global.services_namespace }}.svc:5000"
+        - name: MINIO_URL
+          value: "http://minio-service.{{ .Values.global.services_namespace }}.svc:9000"
         - name: SYSTEM_USER_PASSWORD
           valueFrom:
             secretKeyRef:

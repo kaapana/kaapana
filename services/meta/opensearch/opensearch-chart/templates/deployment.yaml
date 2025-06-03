@@ -8,17 +8,17 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: opensearch
+      app.kubernetes.io/name: opensearch
   template:
     metadata:
       labels:
-        app-name: opensearch
+        app.kubernetes.io/name: opensearch
     spec:
       initContainers:
       - name: init-opensearch-certs
         image: "{{ .Values.global.registry_url }}/opensearch-certs:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
-        command: ["sh", "-c", "/certs/generate-certificates.sh && cp -r /certs/* /os/certs && chown -R 1000:1000 /os && chown -R 1000:1000 /kaapana/opensearch-security-backup"]
+        command: ["sh", "-c", "/certs/generate-certificates.sh && cp -r /certs/* /os/certs && chown -R 1000:1000 /os"]
         volumeMounts:
         - name: osdata
           mountPath: /os/data
@@ -26,8 +26,6 @@ spec:
           mountPath: /os/logs
         - name: oscerts
           mountPath: /os/certs
-        - name: os-security-backup
-          mountPath: /kaapana/opensearch-security-backup
         - name: kaapana-cert
           mountPath: /certs/root-ca-key.pem
           subPath: tls.key
@@ -42,10 +40,6 @@ spec:
         - name: opensearch-container
           image: "{{ .Values.global.registry_url }}/opensearch:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy: {{ .Values.global.pull_policy_images }}
-          lifecycle:
-            preStop:
-              exec:
-                command: ["/bin/sh","backup-security.sh"]
           env:
           - name: DISABLE_INSTALL_DEMO_CONFIG
             value: "true"
@@ -74,6 +68,7 @@ spec:
               -Dhttps.proxyHost={{ (regexFind "^(https?://)?([^:/]+)" .Values.global.http_proxy) | default "" | trimPrefix "http://" | trimPrefix "https://" }}
               -Dhttps.proxyPort={{ (regexFind ":([0-9]+)" .Values.global.http_proxy | trimPrefix ":") | default "80" }}
               -Dhttp.nonProxyHosts=*.svc|*.svc.cluster|*.svc.cluster.local|{{ .Values.global.hostname }}
+              -Dhttps.nonProxyHosts=*.svc|*.svc.cluster|*.svc.cluster.local|{{ .Values.global.hostname }}
               {{- end }}
           - name: SERVICES_NAMESPACE
             value: "{{ .Values.global.services_namespace }}"
@@ -122,14 +117,9 @@ spec:
             - name: sec-config
               mountPath: /usr/share/opensearch/config/opensearch-security/internal_users.yml
               subPath: internal_users.yml
-            - name: os-security-backup
-              mountPath: /kaapana/opensearch-security-backup
           securityContext:
             allowPrivilegeEscalation: false
       volumes:
-      - name: os-security-backup
-        persistentVolumeClaim:
-          claimName: os-security-backup-pv-claim
       - name: oscerts
         persistentVolumeClaim:
           claimName: os-certs-pv-claim

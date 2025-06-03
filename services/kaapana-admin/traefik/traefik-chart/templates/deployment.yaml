@@ -5,16 +5,16 @@ metadata:
   namespace: "{{  .Values.global.helm_namespace  }}"
   name: traefik
   labels:
-    app: traefik
+    app.kubernetes.io/name: traefik
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: traefik
+      app.kubernetes.io/name: traefik
   template:
     metadata:
       labels:
-        app: traefik
+        app.kubernetes.io/name: traefik
     spec:
       serviceAccountName: kaapana-kube-admin
       containers:

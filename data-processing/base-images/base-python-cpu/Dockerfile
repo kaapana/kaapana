@@ -42,6 +42,8 @@ RUN /opt/venv/bin/pip install --upgrade pip
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Install torch for cuda 11.8
+# revert to torch 2.5.1 from torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0
+# packages like nnunet or totalsegmentator do not implement against the new changes in torch 2.6.0 yet, e.g. https://github.com/MIC-DKFZ/nnUNet/issues/2681
 RUN python3 -m pip install torch torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu118
 
 # Install requirements
@@ -53,12 +55,13 @@ RUN wget https://code-server.dev/install.sh
 RUN /bin/bash install.sh --version 4.95.2
 RUN code-server --install-extension ms-python.python
 
-# Copy federated files
-COPY files/kaapana_federated /kaapana_federated
+# Copy and install kaapana_federated directly from source
+COPY files/kaapana_federated /app/kaapana_federated
+RUN python3 -m pip install /app/kaapana_federated
 
 # Install kaapanapy pip package
-COPY files/kaapana_python /kaapana_python
-WORKDIR /kaapana_python
+COPY files/kaapana_python /app/kaapana_python
+WORKDIR /app/kaapana_python
 RUN python3 -m build 
 RUN python3 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.4.0/constraints.txt dist/kaapanapy-0.0.1.tar.gz
 

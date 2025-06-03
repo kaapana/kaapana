@@ -1,8 +1,9 @@
 dag_id: "send-dicom"
 conf_data:
   workflow_form:
-    aetitle: Send2OwnPacs
-    pacs_host: ""
+    aetitle: kp-Send2OwnPacs
+    called_ae_title_scp: "kp-admin"
+    pacs_host: "ctp-dicom-service.services.svc"
     pacs_port: 11112
     single_execution: false
   data_form:

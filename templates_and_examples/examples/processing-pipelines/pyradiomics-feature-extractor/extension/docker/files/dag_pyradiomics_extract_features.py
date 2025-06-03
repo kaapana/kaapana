@@ -4,9 +4,9 @@ from airflow.utils.dates import days_ago
 from airflow.models import DAG
 
 # Operators available under Kaapana library
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 # Operators specific to this DAG
@@ -57,7 +57,7 @@ dag = DAG(
 )
 
 # Get dicom files from the PACS
-get_input = LocalGetInputDataOperator(dag=dag)
+get_input = GetInputOperator(dag=dag)
 
 # Convert dicom data to specified format (nifti or nrrd)
 convert_to_nifti = DcmConverterOperator(
@@ -73,13 +73,13 @@ pyradiomics_extractor = PyradiomicsExtractorOperator(
 )
 
 # Minio Operator for putting json results to a specified Minio bucket
-put_json_to_minio = LocalMinioOperator(
+put_json_to_minio = MinioOperator(
     dag=dag,
     name="put-json-to-minio",
-    bucket_name="pyradiomics-features",
+    minio_prefix="pyradiomics-features",
     action="put",
-    action_operators=[pyradiomics_extractor],
-    file_white_tuples=(".json"),
+    batch_input_operators=[pyradiomics_extractor],
+    whitelisted_file_extensions=(".json"),
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

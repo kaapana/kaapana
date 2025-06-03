@@ -5,17 +5,17 @@ import re
 import json
 import subprocess
 import hashlib
-
+from pathlib import Path
 import yaml
 import secrets
+from typing import Tuple, List, Dict
 
-from typing import Tuple
+from kubernetes import client, config
 from fastapi import Response
 
 from config import settings, timeouts
 import schemas
 import helm_helper
-import logging
 from logger import get_logger
 
 logger = get_logger(__name__)
@@ -208,20 +208,16 @@ def pull_docker_image(
         f"Pulling {docker_registry_url}/{docker_image}:{docker_version} , shell={shell}"
     )
 
-    try:
-        helm_helper.helm_repo_index(settings.helm_helpers_cache)
-    except subprocess.CalledProcessError as e:
-        return Response(f"Could not create index.yaml!", 500)
-
-    with open(os.path.join(settings.helm_helpers_cache, "index.yaml"), "r") as stream:
-        try:
-            helper_charts = list(yaml.load_all(stream, yaml.FullLoader))[0]
-        except yaml.YAMLError as exc:
-            logger.error(exc)
+    helper_chart_file = list(
+        Path(settings.helm_helpers_cache).glob("pull-docker-chart-*.tgz")
+    )[0]
+    helper_chart_version = helper_chart_file.name.removeprefix(
+        "pull-docker-chart-"
+    ).removesuffix(".tgz")
 
     payload = {
         "name": "pull-docker-chart",
-        "version": helper_charts["entries"]["pull-docker-chart"][0]["version"],
+        "version": helper_chart_version,
         "sets": {
             "registry_url": docker_registry_url or os.getenv("REGISTRY_URL"),
             "image": docker_image,
@@ -351,7 +347,7 @@ def helm_install(
         suffix_param = default_sets.get("global.suffix_param_key")
         if suffix_param is not None:
             logger.info(f"suffix_param exists {suffix_param=}")
-            suffix = default_sets[f"global.{suffix_param}"][:20] # get first 20 chars
+            suffix = default_sets[f"global.{suffix_param}"][:20]  # get first 20 chars
         release_name = f"{name}-{suffix}"
         logger.info(f"suffixed {release_name=}")
     else:
@@ -399,22 +395,34 @@ def helm_install(
     helm_sets = ""
     if "sets" in payload:
         for key, value in payload["sets"].items():
-            if type(value) == str:
+            if isinstance(value, str):
                 value = (
                     str(value)
-                    .replace(",", "\,")
-                    .replace("'", "'\"'")
-                    .replace(" ", "")
-                    .replace(" ", "")
-                    .replace("{", "\{")
-                    .replace("}", "\}")
+                    .replace(",", r"\,")
+                    .replace("'", r"'\"'")
+                    .replace(" ", r"")
+                    .replace(" ", r"")
+                    .replace("{", r"\{")
+                    .replace("}", r"\}")
                 )
                 helm_sets = helm_sets + f" --set-string {key}='{value}'"
+            elif isinstance(value, list):
+                val = "{" + ",".join(value) + "}"
+                helm_sets = helm_sets + f" --set '{key}={val}'"
             else:
                 helm_sets = helm_sets + f" --set {key}='{value}'"
 
+    # add chart keywords as labels so they can be used for filtering deployed charts
+    labels = ""
+    for i, kw in enumerate(keywords):
+        if i == 0:
+            labels = "--labels '"
+        labels += f"kaapana.ai/{kw}=True,"
+        if i == len(keywords) - 1:
+            labels = labels[:-1] + "'"
+
     # make the whole command
-    helm_command = f"{settings.helm_path} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}"
+    helm_command = f"{settings.helm_path} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {labels} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}"
     if not execute_cmd:
         return True, "", keywords, release_name, helm_command
 
@@ -618,14 +626,18 @@ def helm_delete(
     return success, stdout
 
 
-def helm_ls(helm_namespace=settings.helm_namespace, release_filter=""):
+def helm_ls(helm_namespace=settings.helm_namespace, release_filter="", label_filter=""):
     """
     Returns all charts under namespace (in all states) after applying the filter
     """
     # TODO: run subprocess via execute function and with shell=False
     try:
+        if release_filter != "":
+            release_filter = f"--filter {release_filter}"
+        if label_filter != "":
+            label_filter = f"--selector {label_filter}"
         resp = subprocess.check_output(
-            f'{os.environ["HELM_PATH"]} -n {helm_namespace} --filter {release_filter} ls --deployed --pending --failed --uninstalling -o json',
+            f'{os.environ["HELM_PATH"]} ls -n {helm_namespace} {release_filter} {label_filter}  --deployed --pending --failed --uninstalling -o json',
             stderr=subprocess.STDOUT,
             shell=True,
         )
@@ -678,7 +690,6 @@ def cure_invalid_name(name, regex, max_length=None):
 
 def execute_update_extensions():
     """
-
     Returns:
         install_error (bool): Whether there was an error during the installation
         message (str): Describes the state of execution
@@ -746,3 +757,92 @@ def execute_update_extensions():
                 logger.error(message)
 
     return install_error, message
+
+
+def get_active_apps_from_ingresses(
+    annotation_filters: List[Dict[str, str]],
+) -> List[schemas.ActiveApplication]:
+    """
+    Get active applications in the cluster by filtering ingresses that match the given annotation filters
+    Args:
+        annotation_filters  List[Dict[str, str]]: A list of dicts to filter by annotations. An ingress matches if **any** filter dict matches (OR logic).
+    Returns:
+        List[schemas.ActiveApplication]: A list of ActiveApplication objects
+    Raises:
+        kubernetes.client.exceptions.ApiException: If there is an error while fetching the ingresses.
+    """
+
+    def _extract_project_name(path: str) -> str:
+        match = re.match(r"^/applications/project/([^/]+)/release/[^/]+/?", path)
+        if match:
+            return match.group(1)
+        return ""
+
+    # load kube config and get client
+    try:
+        config.load_incluster_config()
+    except:
+        config.load_kube_config()
+
+    networking_v1 = client.NetworkingV1Api()
+
+    res: List[schemas.ActiveApplication] = []
+    ingresses = networking_v1.list_ingress_for_all_namespaces().items
+
+    for ingress in ingresses:
+        annotations = ingress.metadata.annotations or {}
+
+        # check if ingress matches any of the filter dicts (OR logic)
+        if not any(
+            all(annotations.get(k) == v for k, v in filt.items())
+            for filt in annotation_filters
+        ):
+            continue
+
+        type = annotations.get("kaapana.ai/type")
+        if not type:
+            logger.error(
+                f"Application ingress {ingress.metadata.name} in namespace {ingress.metadata.namespace} doesn't have `kaapana.ai/type` in annotations: {annotations}"
+            )
+            continue
+
+        release_name = annotations.get("meta.helm.sh/release-name")
+        if not release_name:
+            logger.error(
+                f"Application ingress {ingress.metadata.name} in namespace {ingress.metadata.namespace} doesn't have `meta.helm.sh/release-name` in annotations: {annotations}"
+            )
+            continue
+
+        created_at = ingress.metadata.creation_timestamp.isoformat()
+
+        # extract paths and project
+        paths = []
+        project = ""
+        if ingress.spec.rules:
+            rule = ingress.spec.rules[0]
+            if rule.http and rule.http.paths:
+                for p in rule.http.paths:
+                    paths.append(p.path)
+                    extracted_project = _extract_project_name(p.path)
+                    # confirm that the project is the same for all paths, raise error if not
+                    if project != "" and extracted_project != project:
+                        raise AttributeError(
+                            f"Multiple projects found in paths: {paths}"
+                        )
+                    project = extracted_project
+
+        res.append(
+            schemas.ActiveApplication(
+                name=ingress.metadata.name,
+                namespace=ingress.metadata.namespace,
+                created_at=created_at,
+                project=project,
+                paths=paths,
+                annotations=annotations,
+                release_name=release_name,
+                from_workflow_run=type.lower() == "triggered",
+                ready=False,
+            )
+        )
+
+    return res

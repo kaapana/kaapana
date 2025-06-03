@@ -23,6 +23,9 @@ organ_filter = None
 
 parallel_processes = 3
 ui_forms = {
+    "documentation_form": {
+        "path": "/user_guide/system/airflow.html#evaluate-segmentations",
+    },
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -98,7 +101,7 @@ ui_forms = {
                 "readOnly": False,
             },
         },
-    }
+    },
 }
 
 args = {
@@ -215,14 +218,12 @@ evaluation = SegmentationEvaluationOperator(
 )
 
 put_to_minio = MinioOperator(
+    source_files=[f"{evaluation.operator_out_dir}/metrics.json"],
     dag=dag,
     name="put-eval-metrics-to-minio",
-    zip_files=True,
     action="put",
-    none_batch_input_operators=[evaluation],
-    whitelisted_file_extensions=[".zip"],
+    whitelisted_file_extensions=[".json"],
 )
-
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 get_gt_images >> dcm2nifti_gt >> filter_gt >> fuse_gt >> evaluation

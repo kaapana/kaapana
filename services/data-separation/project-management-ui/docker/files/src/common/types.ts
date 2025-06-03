@@ -1,5 +1,5 @@
 export type ProjectItem = {
-    id: number,
+    id: string,
     external_id?: number,
     name: string,
     description?: string,
@@ -19,4 +19,8 @@ export type UserRole = {
     id: number,
     description: string,
     name: string,
+}
+
+export type Software = {
+    software_uuid: string
 }

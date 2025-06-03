@@ -1,0 +1,13 @@
+---
+apiVersion: v1
+appVersion: "0.1.0"
+description: A Dag to run body and organ analysis
+name: body-and-organ-analysis-workflow
+version: "0.0.0"
+keywords:
+- kaapanaworkflow
+- kaapanaexperimental
+- gpurequired
+annotations:
+  documentation: "user_guide/extensions.html#body-and-organ-analysis"
+  ui-visible-name: "Body and Organ Analysis"

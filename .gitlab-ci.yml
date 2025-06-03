@@ -49,6 +49,8 @@ variables:
   ### CONFIGURABLE
   DOCKER_IO_USER: $DOCKER_IO_USER ### username for docker.io
   DOCKER_IO_PASSWORD: $DOCKER_IO_PASSWORD ### password for docker.io
+  SLACK_BOT_TOKEN: $SLACK_BOT_TOKEN ### Oauth bot token of the slack app
+  SLACK_CHANNEL_ID: $SLACK_CHANNEL_ID ### Channel ID to inform about failing pipelines
   USER: $USER ### username on the CI instance
   DEPLOYMENT_INSTANCE_NAME: $DEPLOYMENT_INSTANCE_NAME
   DEPLOYMENT_INSTANCE_IP: $DEPLOYMENT_INSTANCE_IP ### Set in order to reuse an instance
@@ -67,7 +69,7 @@ variables:
   # GIT_CLONE_PATH: $CI_BUILDS_DIR/$CI_PIPELINE_ID
   GIT_CLONE_PATH: /home/ubuntu/builds/$CI_COMMIT_SHORT_SHA
   KAAPANA_DIR: $GIT_CLONE_PATH
-  REPO_URL: codebase.helmholtz.cloud/kaapana/kaapana-ci ### Url to the repository with the ci-code
+  REPO_DIR: $GIT_CLONE_PATH/ci
   ANSIBLE_VERBOSITY: 0
 
 #############################################
@@ -94,15 +96,6 @@ prepare_pipeline: ### This is the only job, where I clone the project repo
   - echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" >> prepare.env
   - rm -rf $ARTIFACTS_DIR
   - mkdir -p $ARTIFACTS_DIR
-  - export REPO_DIR=/home/$USER/ci-repo/
-  - echo "REPO_DIR=$REPO_DIR" >> prepare.env
-  - echo clone repository $REPO_URL into $REPO_DIR
-  - |-
-    if [ ! -d $REPO_DIR ]; then
-      git clone https://$CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD@$REPO_URL.git $REPO_DIR
-    else
-      cd $REPO_DIR && git pull https://$CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD@$REPO_URL.git
-    fi
   artifacts:
     reports:
       dotenv: prepare.env
@@ -112,6 +105,7 @@ unit_tests:
   needs:
   - prepare_pipeline
   script:
+  - source /home/$USER/venv/bin/activate
   - pip install -r $KAAPANA_DIR/tests/requirements.txt
   - pytest $KAAPANA_DIR/tests/ --junitxml=unittest_report.xml
   artifacts:
@@ -130,8 +124,9 @@ build_packages:
   needs:
   - prepare_pipeline
   script:
+  - source /home/$USER/venv/bin/activate
   - if [[ $DOCKER_PRUNE == "true" ]]; then docker system prune --all --volumes -f; fi
-  - if [[ $EXECUTE_BUILD == "true" ]]; then ansible-playbook $REPO_DIR/ci-code/build/build_and_push.yaml; fi
+  - if [[ $EXECUTE_BUILD == "true" ]]; then ansible-playbook $REPO_DIR/ci-code/build/build_and_push.yaml 2>&1 | tee $ARTIFACTS_DIR/ansible_build_and_push.log; fi
   retry: 1
   resource_group: build-1
   environment: build-1
@@ -141,8 +136,9 @@ build_documentation:
   needs:
   - prepare_pipeline
   script:
+  - source /home/$USER/venv/bin/activate
   - cd $REPO_DIR/ci-code/build
-  - ansible-playbook build_documentation.yaml
+  - ansible-playbook build_documentation.yaml 2>&1 | tee $ARTIFACTS_DIR/ansible_build_documentation.log
   - if [[ $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop" ]]; then bash check_readthedocs.sh; fi
   rules:
   - if: $EXECUTE_BUILD == "false"
@@ -157,8 +153,9 @@ prepare_deployment_instance:
   needs:
   - prepare_pipeline
   script:
-  - ansible-playbook $REPO_DIR/ci-code/prepare/prepare_instance.yaml
-  - ansible-playbook $REPO_DIR/ci-code/prepare/server_installation.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
+  - source /home/$USER/venv/bin/activate
+  - ansible-playbook $REPO_DIR/ci-code/prepare/prepare_instance.yaml 2>&1 | tee $ARTIFACTS_DIR/ansible_prepare_instance.log
+  - ansible-playbook $REPO_DIR/ci-code/prepare/server_installation.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME" 2>&1 | tee $ARTIFACTS_DIR/ansible_server_installation.log
   artifacts:
     reports:
       dotenv: prepare.env
@@ -177,9 +174,7 @@ deploy_and_test:
   - build_packages
   trigger:
     include:
-    - project: kaapana/kaapana-ci
-      file: '/templates/.deploy_stage.yaml'
-      ref: main
+      - local: 'ci/templates/.deploy_stage.yaml'
     strategy: depend
     forward:
       pipeline_variables: true
@@ -194,6 +189,23 @@ deploy_and_test:
 #############################################
 ############## CLEAN ########################
 #############################################
+if_ci_failing:
+  stage: clean
+  script:
+    - source /home/$USER/venv/bin/activate
+    - cd $REPO_DIR/ci-code/clean 
+    - python3 create_ticket_if_ci_failed.py
+    - python3 notify_slack.py
+  resource_group: $DEPLOYMENT_INSTANCE_NAME-1
+  environment: $DEPLOYMENT_INSTANCE_NAME-1
+  rules:
+  - if: $CI_COMMIT_BRANCH == "develop"
+    when: on_failure
+  - if: $CI_COMMIT_BRANCH == "master"
+    when: on_failure
+  - when: never
+  allow_failure: true
+
 logs:
   stage: clean
   script: cp -r $ARTIFACTS_DIR/ $CI_PROJECT_DIR/artifacts/

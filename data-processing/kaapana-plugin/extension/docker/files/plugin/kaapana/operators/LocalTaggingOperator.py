@@ -25,9 +25,9 @@ class LocalTaggingOperator(KaapanaPythonBaseOperator):
     ):
         """
         Update the tag_field of the series metadata stored in opensearch.
-        The values to use for updating the tag_field are provided as a comma-separated string of values by kwargs["dag_run"].conf["form_data"]["tags"].
+        The values to use for updating the tag_field are provided as a comma-separated string of values by kwargs["dag_run"].conf["workflow_form"]["tags"].
         The operator supports the actions "add", "delete" and "add_from_file".
-        The action is provided by kwargs["dag_run"].conf["form_data"]["action"].
+        The action is provided by kwargs["dag_run"].conf["workflow_form"]["action"].
 
 
         :param tag_field: The field of the opensearch object where the tags are stored
@@ -93,12 +93,12 @@ class LocalTaggingOperator(KaapanaPythonBaseOperator):
         else:
             self.opensearch_index = OpensearchSettings().default_index
 
-        if "form_data" in conf:
-            form_data = conf["form_data"]
-            if "tags" in form_data:
-                tags = form_data["tags"].split(",")
-            if "action" in form_data:
-                action_param = form_data["action"].lower().strip()
+        if "workflow_form" in conf:
+            workflow_form = conf["workflow_form"]
+            if "tags" in workflow_form:
+                tags = workflow_form["tags"].split(",")
+            if "action" in workflow_form:
+                action_param = workflow_form["action"].lower().strip()
                 action = self.Action(action_param)
 
         logger.info(f"Action: {action}")

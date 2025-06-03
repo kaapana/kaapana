@@ -56,4 +56,20 @@ kind: ConfigMap
 metadata:
   name: grafana-ds-prometheus
   namespace: "{{ .Values.global.services_namespace }}"
-
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-ds-loki
+  namespace: "{{ .Values.global.services_namespace }}"
+data:
+  loki.yml: |
+    apiVersion: 1
+    datasources:
+    - name: loki
+      type: loki
+      access: proxy
+      url: http://loki-service.services.svc:3100
+      isDefault: false
+      editable: true
+---

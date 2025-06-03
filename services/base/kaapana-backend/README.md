@@ -14,11 +14,9 @@ When the backend is running a swager frontend is accessable under `https://YOUR-
 
 ## How to develop
 
-1. Set absolute path to `docker/files` for the `dev_files` variable in  `kaapana-backend-chart/values.yaml``
-2. Uncomment the Development line and comment the productin line in the `docker/files/boot.sh`
-3. Install the chart into your platofrm `helm install kaapana-backend kaapana-backend-chart/`
+1. Set absolute path to `docker/files` for the `dev_files` variable in  `kaapana-backend-chart/values.yaml`
 
-Your backend pod will have the code directly mounted via a volume called `fastapi-dev-files`. Since fastapi is able to detect changes, it will reload every time you edit a file in the backend folder. To have continious logging use `kubectl logs POD-NAME -n base -f`.
+Your backend pod will have the code directly mounted via a volume. Since fastapi is able to detect changes, it will reload every time you edit a file in the backend folder. To have continious logging use `kubectl logs <pod name> -n services -f`.
 
 **Note:** Dev mode opens a NodePort for the backend on port 5000 for direct access. Authentification is disabled here.
 

@@ -91,12 +91,23 @@ html_template = """
         padding: 2px 8px;
         border-radius: 50%;
         margin-left: 8px;
-    }    
+    }
+    .incomplete-alert {
+        padding: 15px;
+        background-color: #f44336;
+        color: white;
+        margin-bottom: 10px;
+        border-radius: 5px;
+    }
+    .hidden {
+        display: none;
+    }
     </style>
 </head>
 <body>
   <div class="container">
     <h1 class="pb-5">$title</h1>
+    $series_completeness
     $attributes
     $errors
     $warnings
@@ -120,12 +131,16 @@ def replace_html_like_tags(target: str):
 def get_html_from_validation_item(vitem: ValidationItem, htmlclass: str = "error"):
     validtn_dicoms = ""
     if len(vitem.list_of_dicoms) > 0 and vitem.list_of_dicoms[0] != "all":
-        validtn_dicoms = "</br>" + ", ".join(vitem.list_of_dicoms)
+        validtn_dicoms = (
+            f"<span>Slices With {htmlclass}: <b>"
+            + ", ".join(vitem.list_of_dicoms)
+            + "</b></span>"
+        )
 
     validation_str = f"""
     <div class="row validation-item mt-n3">
     <div class="col col-2"><div class="item-label {htmlclass}">{vitem.tag}</div></div>
-    <div class="col col-10"> {vitem.name} {escape(vitem.message)} {validtn_dicoms}</div>
+    <div class="col col-10"> {vitem.name} {escape(vitem.message)}. {validtn_dicoms}</div>
     </div>
     """
     return validation_str
@@ -139,7 +154,13 @@ def get_attributes_html_from_dict(attrs: dict):
     return attr_html
 
 
-def generate_html(title: str, attrs: dict, errors: list, warnings: list):
+def generate_html(
+    title: str,
+    attrs: dict,
+    errors: list,
+    warnings: list,
+    series_completete_stat: dict = None,
+):
     """
     Generate an HTML string from the given title, attributes, errors, and warnings.
 
@@ -156,6 +177,31 @@ def generate_html(title: str, attrs: dict, errors: list, warnings: list):
 
     attrs_str = get_attributes_html_from_dict(attrs)
 
+    series_completeness_str = ""
+    if series_completete_stat:
+        missing_slices = ", ".join(
+            str(x) for x in series_completete_stat.missing_instance_numbers
+        )
+        if not series_completete_stat.is_series_complete:
+            series_completeness_str = f"""
+            <div class='incomplete-alert'>
+            <strong>Broken / Incomplete Series:</strong> 
+            Following Slice indexes are missing in the Series: <span class='missing-slices-list-label'>{missing_slices}</span>
+            <div class='hidden'>
+            <span class='min-instance-number-label'>{series_completete_stat.min_instance_number}</span>
+            <span class='max-instance-number-label'>{series_completete_stat.max_instance_number}</span>
+            </div>
+            </div>
+            """
+        else:
+            series_completeness_str = f"""
+            <div class='hidden'>
+            <span class='missing-slices-list-label'>{missing_slices}</span>            
+            <span class='min-instance-number-label'>{series_completete_stat.min_instance_number}</span>
+            <span class='max-instance-number-label'>{series_completete_stat.max_instance_number}</span>
+            </div>
+            """
+
     err_str = ""
     if len(errors) > 0:
         err_str = f"<h3 class='py-3 mb-3'>Errors <span class='item-count-label error'>{len(errors)}</span></h3>\n"
@@ -169,5 +215,9 @@ def generate_html(title: str, attrs: dict, errors: list, warnings: list):
             warn_str += get_html_from_validation_item(warn, htmlclass="warning")
 
     return html.substitute(
-        title=title, attributes=attrs_str, errors=err_str, warnings=warn_str
+        title=title,
+        series_completeness=series_completeness_str,
+        attributes=attrs_str,
+        errors=err_str,
+        warnings=warn_str,
     )

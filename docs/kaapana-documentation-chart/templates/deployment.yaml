@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kaapana-documentation
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    app.kubernetes.io/name: kaapana-documentation
+    app.kubernetes.io/component: nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kaapana-documentation
+      app.kubernetes.io/component: nginx
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kaapana-documentation
+        app.kubernetes.io/component: nginx
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: nginx
+          image: {{ .Values.global.registry_url }}/kaapana-documentation:{{ .Values.global.kaapana_build_version }}
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+          ports:
+            - containerPort: 80
+      priorityClassName: kaapana-high-priority
+      imagePullSecrets:
+        - name: registry-secret

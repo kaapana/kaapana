@@ -5,16 +5,16 @@ metadata:
   name: landingpage
   namespace: "{{ .Values.global.services_namespace }}"
   labels:
-    k8s-app: landingpage
+    app.kubernetes.io/name: landingpage
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: landingpage
+      app.kubernetes.io/name: landingpage
   template:
     metadata:
       labels:
-        app-name: landingpage
+        app.kubernetes.io/name: landingpage
     spec:
       securityContext:
         runAsUser: 1000
@@ -81,7 +81,7 @@ spec:
 {{- if .Values.global.dev_files }}
       - name: landing-dev-files
         persistentVolumeClaim:
-          claimName: landing-dev-pv-claim
+          claimName: {{ .Chart.Name }}-dev-pv-claim
 {{- end }}
       - name: tmpfs
         emptyDir: {}

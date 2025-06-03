@@ -1,7 +1,7 @@
 FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="airflow"
-LABEL VERSION="2.10.3"
+LABEL VERSION="2.10.5"
 LABEL BUILD_IGNORE="False"
 
 ENV SLUGIFY_USES_TEXT_UNIDECODE=yes

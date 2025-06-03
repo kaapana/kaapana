@@ -1,6 +1,7 @@
 from typing import Optional
+from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 
 class OrmBaseModel(BaseModel):
@@ -15,11 +16,11 @@ class AiiRightResponse(OrmBaseModel):
     description: str
     claim_key: str
     claim_value: str
-    project_id: int
+    project_id: UUID
 
 
 class AiiProjectResponse(OrmBaseModel):
-    id: int
+    id: UUID
     name: str
     description: str
     role_id: int
@@ -32,6 +33,11 @@ class KeycloakUser(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     email_verified: bool
+
+    @computed_field
+    @property
+    def system(self) -> bool:
+        return self.last_name.lower() == "system"
 
 
 class KeycloakUserExtended(KeycloakUser):

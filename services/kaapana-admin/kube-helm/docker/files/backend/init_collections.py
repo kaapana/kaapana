@@ -1,7 +1,6 @@
 import os
 import sys
 import time
-import logging
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/app")
 
@@ -13,7 +12,6 @@ from app.utils import (
     helm_status,
 )
 from app.helm_helper import get_kube_objects
-import logging
 from app.logger import get_logger
 
 logger = get_logger(__name__)

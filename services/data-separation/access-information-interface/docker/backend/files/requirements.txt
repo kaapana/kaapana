@@ -4,3 +4,6 @@ SQLAlchemy==2.0.36
 psycopg2-binary==2.9.10
 python-keycloak==4.7.2
 uvicorn==0.32.1
+debugpy==1.8.8
+httpx==0.27.0
+alembic==1.15.1  

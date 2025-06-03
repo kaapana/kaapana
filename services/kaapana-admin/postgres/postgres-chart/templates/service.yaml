@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.appName | default .Chart.Name }}-database-service
+  namespace: "{{ ternary .Values.global.admin_namespace .Values.global.services_namespace .Values.admin }}"
+  labels:
+    app.kubernetes.io/name: {{ .Values.appName | default .Chart.Name }}
+    app.kubernetes.io/component: database
+spec:
+  selector:
+    app.kubernetes.io/name: {{ .Values.appName | default .Chart.Name }}
+    app.kubernetes.io/component: database
+  ports:
+    - port: 5432
+      targetPort: 5432

@@ -1,0 +1,117 @@
+- name: Running kaapana tests
+  hosts: "{{ ansible_groupname | default('kaapana_depl_server') }}"
+  remote_user: ubuntu
+  vars:
+    repo_dir: "{{ lookup('ansible.builtin.env', 'REPO_DIR') }}"
+    kaapana_dir: "{{ lookup('ansible.builtin.env', 'KAAPANA_DIR') }}"
+    nnunet_tasks:
+      - "Task017_AbdominalOrganSegmentation"
+      - "Task010_Colon"
+    totalsegmentator_urls:
+      - "https://zenodo.org/record/6802342/files/Task251_TotalSegmentator_part1_organs_1139subj.zip?download=1"
+      - "https://zenodo.org/record/6802358/files/Task252_TotalSegmentator_part2_vertebrae_1139subj.zip?download=1"
+      - "https://zenodo.org/record/6802360/files/Task253_TotalSegmentator_part3_cardiac_1139subj.zip?download=1"
+      - "https://zenodo.org/record/6802366/files/Task254_TotalSegmentator_part4_muscles_1139subj.zip?download=1"
+      - "https://zenodo.org/record/6802452/files/Task255_TotalSegmentator_part5_ribs_1139subj.zip?download=1"
+      - "https://zenodo.org/record/6802052/files/Task256_TotalSegmentator_3mm_1139subj.zip?download=1"
+      - "https://zenodo.org/record/7064718/files/Task258_lung_vessels_248subj.zip?download=1"
+      - "https://zenodo.org/record/7079161/files/Task150_icb_v0.zip?download=1"
+      - "https://zenodo.org/record/7234263/files/Task260_hip_implant_71subj.zip?download=1"
+      - "https://zenodo.org/record/7334272/files/Task269_Body_extrem_6mm_1200subj.zip?download=1"
+      - "https://zenodo.org/record/7271576/files/Task503_cardiac_motion.zip?download=1"
+      - "https://zenodo.org/record/7510286/files/Task273_Body_extrem_1259subj.zip?download=1"
+      - "https://zenodo.org/record/7510288/files/Task315_thoraxCT.zip?download=1"
+      - "https://zenodo.org/record/7573746/files/Task008_HepaticVessel.zip?download=1"
+    
+  tasks:
+  - name: Get information about nnunet models
+    ansible.builtin.slurp: 
+      src: "{{ kaapana_dir }}/data-processing/processing-pipelines/nnunet/extension/docker/files/nnunet/nnunet_tasks.json"
+    register: nnunet_model_information
+    delegate_to: 127.0.0.1
+
+  - name: Set paths
+    ansible.builtin.set_fact:
+      ci_nnunet_model_dir:            "{{ repo_dir }}/ci-code/test/jobs/integration_tests/models/nnunet"
+      ci_totalsegmentator_model_dir:  "{{ repo_dir }}/ci-code/test/jobs/integration_tests/models/totalsegmentator"
+      workflow_nnunet_dir:            "/home/kaapana/workflows/models/nnUNet"
+      workflow_totalsegmentator_dir:  "/home/kaapana/workflows/models/total_segmentator/nnUNet/3d_fullres"
+
+  - name: Create directory for models on the ci instance
+    delegate_to: 127.0.0.1
+    loop:
+      - "{{ ci_nnunet_model_dir }}"
+      - "{{ ci_totalsegmentator_model_dir }}"
+    ansible.builtin.file:
+      path: "{{ item }}"
+      state: directory
+      mode: 0777
+  - name: Create directories for the models in the data dir on the deployment instance
+    loop:
+      - "{{ workflow_nnunet_dir }}"
+      - "{{ workflow_totalsegmentator_dir }}"
+    become: yes
+    ansible.builtin.file:
+      path: "{{ item }}"
+      state: directory
+      mode: 0777
+  
+  - name: Download and extract nnunet models
+    block:
+    - name: Save nnunet model_information as jsondata
+      set_fact:
+        nnunet_json: "{{ nnunet_model_information.content | b64decode | from_json }}"
+    - name: Create list of nnunet models from json dict
+      ansible.builtin.set_fact:
+        nnunet_models_list: "{{ nnunet_json.values() | list }}"
+    - name: Download nnunet models
+      delegate_to: 127.0.0.1
+      register: model_urls
+      loop: "{{ nnunet_models_list }}"
+      when: 'item.url | regex_search("[^\\/]+(?=\.zip)") in nnunet_tasks'  
+      loop_control:
+        label: '{{ item.url | regex_search("[^\\/]+(?=\.zip)") }}'
+      ansible.builtin.command:
+        cmd: 'wget -nc {{ item.url | regex_search(".*\.zip") }}'
+        chdir: "{{ ci_nnunet_model_dir }}"
+    - name: Get all zip files in the models directory
+      delegate_to: 127.0.0.1
+      ansible.builtin.find:
+        paths: "{{ ci_nnunet_model_dir }}"
+        patterns: '*.zip'
+      register: zipped_nnunet_models
+    - name: Unpack all models
+      become: yes
+      loop: "{{ zipped_nnunet_models.files }}"
+      loop_control:
+        label: '{{ item.path }}'
+      ansible.builtin.unarchive:
+        dest: "{{ workflow_nnunet_dir }}"
+        src: '{{ item.path }}'
+
+  - name: Download and extract totalsegmentator models
+    block:
+      - name: Download totalsegmentator models
+        delegate_to: 127.0.0.1
+        loop: "{{ totalsegmentator_urls }}"
+        loop_control:
+          label: '{{ item | regex_search("[^\\/]+(?=\.zip)") }}'
+        ansible.builtin.command:
+          cmd: 'wget -nc {{ item | regex_search(".*\.zip") }}'
+          chdir: "{{ ci_totalsegmentator_model_dir }}"
+      - name: Get all zip files in the models directory
+        delegate_to: 127.0.0.1
+        ansible.builtin.find:
+          paths: "{{ ci_totalsegmentator_model_dir }}"
+          patterns: '*.zip'
+        register: zipped_totalsegmentator_models
+      - name: Unpack all models
+        become: yes
+        loop: "{{ zipped_totalsegmentator_models.files }}"
+        loop_control:
+          label: '{{ item.path }}'
+        ansible.builtin.unarchive:
+          dest: "{{ workflow_totalsegmentator_dir }}"
+          src: '{{ item.path }}'
+
+  

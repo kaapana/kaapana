@@ -51,15 +51,17 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
         # load user input's label renaming look-up table
         conf = kwargs["dag_run"].conf
         print("CONF:")
-        print(conf["form_data"])
-        if ("old_labels" in conf["form_data"]) and ("new_labels" in conf["form_data"]):
-            old_label_names = conf["form_data"]["old_labels"].split(",")
+        print(conf["workflow_form"])
+        if ("old_labels" in conf["workflow_form"]) and (
+            "new_labels" in conf["workflow_form"]
+        ):
+            old_label_names = conf["workflow_form"]["old_labels"].split(",")
             old_label_names = [
                 self.remove_special_characters(x) for x in old_label_names
             ]
 
             new_label_names = (
-                conf["form_data"]["new_labels"].replace(" ", "").lower().split(",")
+                conf["workflow_form"]["new_labels"].replace(" ", "").lower().split(",")
             )
             new_label_names = [
                 self.remove_special_characters(x) for x in new_label_names
@@ -233,7 +235,7 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                             incoming_metainfo["segmentAttributes"][i][
                                 0
                             ] = segment_attribute
-                            
+
                     print(f"{json.dumps(incoming_metainfo, indent=4)}")
                     assert new_label_name in json.dumps(incoming_metainfo)
                 else:

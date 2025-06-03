@@ -1,4 +1,5 @@
 ---
+admin: true
 global:
   offline_mode: "false"
   fast_data_dir: ""

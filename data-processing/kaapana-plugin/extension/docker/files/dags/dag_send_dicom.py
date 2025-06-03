@@ -10,6 +10,9 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 log = LoggingMixin().log
 
 ui_forms = {
+    "documentation_form": {
+        "path": "/user_guide/system/airflow.html#send-dicom",
+    },
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -44,7 +47,7 @@ ui_forms = {
                 "readOnly": False,
             },
         },
-    }
+    },
 }
 
 args = {

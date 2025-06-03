@@ -1,0 +1,50 @@
+---
+- name: Running kaapana tests
+  hosts: localhost
+  
+  vars:
+    repo_dir: "{{ lookup('ansible.builtin.env', 'REPO_DIR') }}"
+    artifacts_dir: "{{ lookup('ansible.builtin.env', 'ARTIFACTS_DIR') }}"
+    ip_address: "{{ lookup('ansible.builtin.env', 'ip_address') }}"
+    http_proxy: "{{ lookup('ansible.builtin.env', 'http_proxy') }}"
+    https_proxy: "{{ lookup('ansible.builtin.env', 'https_proxy') }}"
+
+  tasks:
+
+  - name: Set absolute path for logfile
+    ansible.builtin.set_fact:
+      log_file: "{{ artifacts_dir }}/first_login.log"
+
+  - name: Create logfile
+    ansible.builtin.file:
+      path: "{{ log_file }}"
+      state: touch
+    
+  - name: Execute UI tests
+    environment:
+      KAAPANA_URL: "https://{{ ip_address }}"
+      TEST_FILE: "tests/test_first_login.py"
+      HTTP_PROXY: "{{ http_proxy }}"
+      HTTPS_PROXY: "{{ https_proxy }}"
+      LOG_FILE: "{{ log_file }}"
+    command: docker compose up --build --exit-code-from tests --force-recreate
+    register: ui_tests_log
+    args:
+      chdir: "{{ repo_dir }}/ci-code/test/jobs/ui_tests"
+    ignore_errors: true
+    no_log: false
+
+  - name: Save logs from UI tests
+    ansible.builtin.copy:
+      content: "{{ ui_tests_log.stdout }}{{ ui_tests_log.stderr }}"
+      dest: "{{ artifacts_dir }}/ui-tests.log"
+
+  - name: rm docker containers
+    ansible.builtin.command:
+      cmd: docker rm -f ui_tests_tests_1 ui_tests_selenium_1
+    ignore_errors: true
+
+
+  - name: Fail if ui tests failed
+    when: ui_tests_log.failed == true
+    ansible.builtin.command: /bin/false

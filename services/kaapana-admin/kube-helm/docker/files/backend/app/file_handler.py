@@ -239,14 +239,17 @@ def check_file_namespace(filename: str) -> bool:
         if type(value) == str:
             value = (
                 str(value)
-                .replace(",", "\,")
-                .replace("'", "'\"'")
-                .replace(" ", "")
-                .replace(" ", "")
-                .replace("{", "\{")
-                .replace("}", "\}")
+                .replace(",", r"\,")
+                .replace("'", r"'\"'")
+                .replace(" ", r"")
+                .replace(" ", r"")
+                .replace("{", r"\{")
+                .replace("}", r"\}")
             )
             helm_sets = helm_sets + f" --set-string {key}='{value}'"
+        elif isinstance(value, list):
+            val = "{" + ",".join(value) + "}"
+            helm_sets = helm_sets + f" --set '{key}={val}'"
         else:
             helm_sets = helm_sets + f" --set {key}='{value}'"
     logger.debug(f"{helm_sets=}")

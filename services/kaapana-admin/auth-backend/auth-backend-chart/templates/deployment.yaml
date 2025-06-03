@@ -7,13 +7,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: auth-backend
+      app.kubernetes.io/name: auth-backend
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app-name: auth-backend
+        app.kubernetes.io/name: auth-backend
     spec:
       initContainers:
         - name: opa-build
@@ -34,6 +34,12 @@ spec:
         env:
           - name: ADMIN_NAMESPACE
             value: "{{ .Values.global.admin_namespace }}"
+          - name: PORT
+            value: "5000"
+          {{- if .Values.global.dev_files }}
+          - name: DEV_FILES
+            value: "True"
+          {{- end }}
         ports:
           - containerPort: 5000
         resources:
@@ -45,9 +51,18 @@ spec:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
         volumeMounts:
-            - name: rego-config
-              mountPath: /kaapana/app/authz/
+          - name: rego-config
+            mountPath: /kaapana/app/authz/
+          {{- if .Values.global.dev_files }}
+          - name: auth-backend-dev
+            mountPath: /kaapana/app
+          {{- end }}
       volumes:
+        {{- if .Values.global.dev_files }}
+        - name: auth-backend-dev
+          persistentVolumeClaim:
+            claimName: {{ .Chart.Name }}-dev-pv-claim
+        {{- end }}
         - name: rego-config
           emptyDir: {}
         - name: rego-configmap

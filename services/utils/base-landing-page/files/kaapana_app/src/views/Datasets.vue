@@ -164,6 +164,7 @@
                         </template>
                         <span>Start Workflow</span>
                       </v-tooltip>
+                      <DownloadDatasetBtn :selected-series="identifiersOfInterest"/>
                     </v-col>
                   </v-row>
                 </v-card-title>
@@ -383,6 +384,7 @@ import SaveDatasetDialog from "@/components/SaveDatasetDialog.vue";
 import WorkflowExecution from "@/components/WorkflowExecution.vue";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 import EditDatasetsDialog from "@/components/EditDatasetsDialog.vue";
+import DownloadDatasetBtn from "@/components/DownloadDatasetBtn.vue";
 import KeyController from "keycon";
 import { debounce } from "@/utils/utils.js";
 import { Splitpanes, Pane } from "splitpanes";
@@ -440,6 +442,7 @@ export default {
     Pane,
     ElementsFromHTML,
     Paginate,
+    DownloadDatasetBtn
   },
   created() {
     this.settings = JSON.parse(localStorage["settings"]);
@@ -844,12 +847,12 @@ export default {
 }
 
 .side-navigation {
-  height: calc(100vh - 80px);
+  height: 100vh;
   overflow-y: auto;
 }
 
 .gallery-side-navigation {
-  height: calc(100vh - 258px);
+  height: calc(100vh - 180px);
 }
 
 /deep/ .item-label {
@@ -868,6 +871,17 @@ export default {
   padding: 2px 16px;
   border-radius: 15px;
   margin-left: 8px;
+}
+
+/deep/ .incomplete-alert {
+  padding: 15px;
+  background-color: #f44336;
+  color: white;
+  margin-bottom: 10px;
+  border-radius: 5px;
+}
+/deep/ .hidden {
+  display: none;
 }
 </style>
 

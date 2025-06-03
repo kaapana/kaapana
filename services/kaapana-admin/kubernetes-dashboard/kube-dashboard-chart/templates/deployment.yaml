@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   labels:
-    k8s-app: kubernetes-dashboard
+    app.kubernetes.io/name: kubernetes-dashboard
   name: kubernetes-dashboard-csrf
   namespace: "{{  .Values.global.admin_namespace  }}"
 type: Opaque
@@ -13,7 +13,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   labels:
-    k8s-app: kubernetes-dashboard
+    app.kubernetes.io/name: kubernetes-dashboard
   name: kubernetes-dashboard
   namespace: "{{  .Values.global.admin_namespace  }}"
 spec:
@@ -21,11 +21,11 @@ spec:
   revisionHistoryLimit: 10
   selector:
     matchLabels:
-      app-name: kubernetes-dashboard
+      app.kubernetes.io/name: kubernetes-dashboard
   template:
     metadata:
       labels:
-        app-name: kubernetes-dashboard
+        app.kubernetes.io/name: kubernetes-dashboard
     spec:
       containers:
         - name: kubernetes-dashboard

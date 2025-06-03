@@ -10,6 +10,9 @@ from airflow.models import DAG
 
 
 ui_forms = {
+    "documentation_form": {
+        "path": "/user_guide/system/airflow.html#tag-train-test-split-dataset",
+    },
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -53,7 +56,7 @@ ui_forms = {
                 "readOnly": True,
             },
         },
-    }
+    },
 }
 
 args = {

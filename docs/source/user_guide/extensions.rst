@@ -88,6 +88,32 @@ Introduced in version 0.2.0, Extensions support specifying parameters as environ
 Workflows
 ^^^^^^^^^
 
+This is a list of built-in workflow-extensions, that can be installed.
+
+.. note::
+
+  The list of executable workflows in the :ref:`Workflow Execution <workflow_execution>` view is only refreshed once every minute.
+  This interval is configurable as the parameter ``dag_dir_list_interval`` in the file `airflow.cfg <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/master/services/flow/airflow/airflow-chart/files/airflow.cfg?ref_type=heads>`_.
+
+
+
+body-and-organ-analysis
+-----------------------
+| **Method:** "BOA: Body and Organ Analysis"
+| **Authors:**  Haubold, J., Baldini, G., Parmar, V., Schaarschmidt, B. M., Koitka, S., Kroll, L., van Landeghem, N., Umutlu, L., Forsting, M., Nensa, F., & Hosch, R.
+| **Cite as:** Haubold, J., Baldini, G., Parmar, V., Schaarschmidt, B. M., Koitka, S., Kroll, L., van Landeghem, N., Umutlu, L., Forsting, M., Nensa, F., & Hosch, R. (2023). BOA: A CT-Based Body and Organ Analysis for Radiologists at the Point of Care. Investigative radiology, 10.1097/RLI.0000000000001040. Advance online publication. https://doi.org/10.1097/RLI.0000000000001040
+| **Code:** `https://github.com/UMEssen/Body-and-Organ-Analysis/tree/main <https://github.com/UMEssen/Body-and-Organ-Analysis/tree/main>`_
+
+**Workflow Overview:**
+
+Runs inference of all selected models on the CT images in the input dataset.
+For each input series a dedicated workflow is started.
+For more information checkout their `repository <https://github.com/UMEssen/Body-and-Organ-Analysis/tree/main>`_.
+
+#. Converts the dicom input to a nifti file.
+#. Executes the BOA command line tool on the input image.
+#. Uploads all output files to minio at :code:`<project-bucket>/body-and-organ-analysis/<dicom-series-uid>`.
+
 .. _extensions_nnunet:
 
 nnunet-predict
@@ -144,6 +170,9 @@ nnunet-ensemble
 | **Method:** "Automated Design of Deep Learning Methods for Biomedical Image Segmentation"
 | **Authors:**  Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein
 | **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
+
+.. important::
+  | nnunet-ensemble has `a known bug <https://codebase.helmholtz.cloud/kaapana/kaapana/-/issues/1739>`_ in v0.5.0 that will be fixed in the next patch release
 
 | **Workflow Overview**
 | Evaluates the performance of multiple trained nnU-Net models on a given dataset. This workflow can also be used to evaluate only one model, where the *seg-check-ensemble* operator throws an error, but the execution is still successful.

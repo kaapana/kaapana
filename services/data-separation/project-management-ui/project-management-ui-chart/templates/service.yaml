@@ -5,10 +5,10 @@ metadata:
   name: project-management-ui-service
   namespace: "{{ .Values.global.services_namespace }}"
   labels: 
-    app-name: project-management-ui-service
+    app.kubernetes.io/name: project-management-ui-service
 spec:
   selector: 
-    app-name: project-management-ui-app
+    app.kubernetes.io/name: project-management-ui-app
   ports:
     - name: proj-list-http-svc
       port: 80

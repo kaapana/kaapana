@@ -1,0 +1,41 @@
+---
+- name: Get all jobs 
+  become: false
+  kubernetes.core.k8s_info:
+    kind: Job
+    namespace: "{{ k8s_namespace }}"
+  register: jobs
+
+- name: Assume all jobs succeeded
+  ansible.builtin.set_fact:
+    all_jobs_succeeded: true
+
+- name: Wait for all jobs to have succeeded
+  ansible.builtin.set_fact:
+    all_jobs_succeeded: false
+  loop: "{{ jobs.resources }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when: item.status.succeeded is not defined or item.status.succeeded != 1
+
+- debug:
+    msg: "All jobs in namespace {{ k8s_namespace}} succeeded: {{ all_jobs_succeeded }}"
+
+- name: Set the retry count
+  set_fact:
+    retry_count: "{{ 0 if retry_count is undefined else retry_count|int + 1 }}"
+
+- debug:
+    msg: "Retries: {{ retry_count }}/180"
+
+- name: Fail deployment stage if retry_count exceeds maximum
+  ansible.builtin.command: /usr/bin/false
+  when: retry_count | int >= 180
+
+- name: Wait for 10 seconds.
+  ansible.builtin.command: /usr/bin/sleep 10
+  when: all_jobs_succeeded is false
+
+- name: Start the recursion
+  ansible.builtin.include_tasks: wait_for_jobs.yaml
+  when: all_jobs_succeeded is false

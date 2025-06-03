@@ -6,7 +6,7 @@ metadata:
   namespace: "{{ tpl .Values.global.namespace . }}"
 spec:
   selector:
-    app-name: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ .Release.Name }}
   ports:
     - protocol: TCP
       port: 6006
@@ -21,6 +21,8 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/preserve-host: "true"
+    kaapana.ai/display-name: {{ if eq .Values.global.display_name "-" }}{{ .Release.Name }}{{ else }}{{ .Values.global.display_name }}{{ end }}
+    kaapana.ai/type: application
 spec:
   rules:
   - host: 

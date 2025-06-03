@@ -1,8 +1,11 @@
 apiVersion: v1
 appVersion: "4.10.1"
-description: Extension Development Kit
+description: A development environment for building containers and charts for new extensions
 name: edk
 version: "0.0.0"
 keywords:
 - kaapanaapplication
 - kaapanaint
+annotations:
+  documentation: "user_guide/extensions.html#extension-development-kit-edk"
+  ui-visible-name: "Extension Development Kit"

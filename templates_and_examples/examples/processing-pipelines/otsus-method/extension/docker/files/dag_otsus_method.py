@@ -3,11 +3,11 @@ from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
 
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from otsus_method.OtsusMethodOperator import OtsusMethodOperator
 from otsus_method.OtsusNotebookOperator import OtsusNotebookOperator
@@ -42,7 +42,7 @@ args = {
 dag = DAG(dag_id="otsus-method", default_args=args, schedule_interval=None)
 
 
-get_input = LocalGetInputDataOperator(dag=dag)
+get_input = GetInputOperator(dag=dag)
 
 convert = DcmConverterOperator(dag=dag, input_operator=get_input)
 
@@ -70,13 +70,13 @@ generate_report = OtsusNotebookOperator(
     arguments=["/kaapana/app/otsus_notebooks/run_otsus_report_notebook.sh"],
 )
 
-put_report_to_minio = LocalMinioOperator(
+put_report_to_minio = MinioOperator(
     dag=dag,
     name="upload-to-staticwebsite",
-    bucket_name="staticwebsiteresults",
+    minio_prefix="staticwebsiteresults",
     action="put",
-    action_operators=[generate_report],
-    file_white_tuples=(".html", ".pdf"),
+    none_batch_input_operators=[generate_report],
+    whitelisted_file_extensions=(".html", ".pdf"),
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

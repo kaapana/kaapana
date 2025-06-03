@@ -6,10 +6,10 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
 
   labels:
-    app-name: grafana
+    app.kubernetes.io/name: grafana
 spec:
   selector:
-    app-name: grafana
+    app.kubernetes.io/name: grafana
   ports:
     - port: 3000
       protocol: TCP

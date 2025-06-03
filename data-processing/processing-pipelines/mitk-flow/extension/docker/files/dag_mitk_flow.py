@@ -19,6 +19,9 @@ dag_info = {
 }
 
 ui_forms = {
+    "documentation_form": {
+        "path": "/user_guide/extensions.html#mitk-flow",
+    },
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -30,7 +33,7 @@ ui_forms = {
                 "readOnly": False,
             }
         },
-    }
+    },
 }
 
 args = {

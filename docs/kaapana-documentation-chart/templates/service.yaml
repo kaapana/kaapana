@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kaapana-documentation-service
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    app.kubernetes.io/name: kaapana-documentation
+    app.kubernetes.io/component: nginx
+spec:
+  selector:
+    app.kubernetes.io/name: kaapana-documentation
+    app.kubernetes.io/component: nginx
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: ClusterIP

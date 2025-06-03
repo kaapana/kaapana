@@ -1,4 +1,5 @@
 from typing import List
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,7 +8,7 @@ from .models import DataProjects, DicomData
 
 
 async def get_all_studies_mapped_to_projects(
-    session: AsyncSession, project_ids: List[int]
+    session: AsyncSession, project_ids: List[UUID]
 ) -> List[str]:
     stmt = (
         select(DicomData.study_instance_uid)
@@ -23,7 +24,7 @@ async def get_all_studies_mapped_to_projects(
 
 
 async def get_all_series_mapped_to_projects(
-    session: AsyncSession, project_ids: List[int]
+    session: AsyncSession, project_ids: List[UUID]
 ) -> List[str]:
     stmt = (
         select(DicomData.series_instance_uid)
@@ -39,7 +40,7 @@ async def get_all_series_mapped_to_projects(
 
 
 async def get_series_instance_uids_of_study_which_are_mapped_to_projects(
-    session: AsyncSession, project_ids: List[int], study_instance_uid: str
+    session: AsyncSession, project_ids: List[UUID], study_instance_uid: str
 ) -> List[str]:
     stmt = (
         select(DicomData.series_instance_uid)
@@ -57,7 +58,7 @@ async def get_series_instance_uids_of_study_which_are_mapped_to_projects(
 
 async def check_if_series_in_given_study_is_mapped_to_projects(
     session: AsyncSession,
-    project_ids: List[int],
+    project_ids: List[UUID],
     study_instance_uid: str,
     series_instance_uid: str,
 ) -> bool:
@@ -92,7 +93,7 @@ async def add_dicom_data(
     return new_data
 
 
-async def get_data_of_project(session: AsyncSession, project_id: int):
+async def get_data_of_project(session: AsyncSession, project_id: UUID):
     """
     Return all data that belongs to a project.
     """
@@ -105,7 +106,7 @@ async def get_data_of_project(session: AsyncSession, project_id: int):
 
 
 async def add_data_project_mapping(
-    session: AsyncSession, series_instance_uid: str, project_id: int
+    session: AsyncSession, series_instance_uid: str, project_id: UUID
 ) -> DataProjects:
     new_mapping = DataProjects(
         series_instance_uid=series_instance_uid, project_id=project_id
@@ -126,7 +127,7 @@ async def get_all_series_of_study(
     return series
 
 
-async def get_data_project_mapping(session, series_instance_uid: str, project_id: int):
+async def get_data_project_mapping(session, series_instance_uid: str, project_id: UUID):
     stmt = select(DataProjects)
     stmt = stmt = stmt.where(
         DataProjects.series_instance_uid == series_instance_uid,
@@ -137,7 +138,7 @@ async def get_data_project_mapping(session, series_instance_uid: str, project_id
 
 
 async def remove_data_project_mapping(
-    session: AsyncSession, series_instance_uid: str, project_id: int
+    session: AsyncSession, series_instance_uid: str, project_id: UUID
 ):
     """
     Delete a DataProject mapping.

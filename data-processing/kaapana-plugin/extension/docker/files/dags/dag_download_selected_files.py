@@ -13,6 +13,9 @@ from kaapana.operators.KaapanaBranchPythonBaseOperator import (
 log = LoggingMixin().log
 
 ui_forms = {
+    "documentation_form": {
+        "path": "/user_guide/system/airflow.html#download-selected-files",
+    },
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -36,7 +39,7 @@ ui_forms = {
                 "readOnly": False,
             },
         },
-    }
+    },
 }
 
 args = {
@@ -62,7 +65,7 @@ class BranchIfNiftiOperator(KaapanaBranchPythonBaseOperator):
         conf = kwargs["dag_run"].conf
         print("conf", conf)
 
-        convert_to_nifti = bool(conf["form_data"]["convert_to_nifti"])
+        convert_to_nifti = bool(conf["workflow_form"]["convert_to_nifti"])
 
         if convert_to_nifti:
             return "dcm-converter"

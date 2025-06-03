@@ -1,13 +1,22 @@
-from fastapi import FastAPI
-from fastapi import Response, Request, status
-from fastapi.responses import HTMLResponse, StreamingResponse
+import json
+import logging
+import os
+import sys
+import urllib.parse
 
-from init import error_page, logger
-import uvicorn
 import jwt
 import requests
-import os
-import json
+from fastapi import FastAPI, Request, Response, status
+from fastapi.responses import HTMLResponse, StreamingResponse
+from init import error_page
+
+logging.basicConfig(
+    level=logging.INFO,  # Adjust this to INFO or WARNING if you want less verbosity
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],  # Output logs to stdout
+)
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -24,11 +33,10 @@ def check_endpoint(input: dict):
         url,
         json=input,
     )
-
     try:
         result = r.json()["result"]
     except KeyError as e:
-        raise KeyError("No result from open policy agent")
+        raise KeyError(f"No result from open policy agent: {e}")
     return result
 
 
@@ -37,6 +45,7 @@ async def auth_check(request: Request, response: Response):
     """
     Check if the user who made the request is mapped to the required roles in order to be authorized to access the requested resource.
     """
+
     requested_prefix = request.headers.get("x-forwarded-prefix")
     if requested_prefix is None:
         requested_prefix = request.headers.get("x-forwarded-uri")
@@ -57,13 +66,18 @@ async def auth_check(request: Request, response: Response):
         }
     }
     try:
-        project_name = request.cookies.get("Project-Name", None)
-        logger.debug(f"{project_name=}")
-        aii_response = requests.get(
-            f"http://aii-service.services.svc:8080/projects/{project_name}"
-        )
-        project = aii_response.json()
-        input["input"]["project"] = project
+        project_cookie = request.cookies.get("Project", None)
+        if project_cookie:
+            decoded_string = urllib.parse.unquote(project_cookie)
+            project = json.loads(decoded_string)
+            project_id = project["id"]
+            aii_response = requests.get(
+                f"http://aii-service.services.svc:8080/projects/{project_id}"
+            )
+            project = aii_response.json()
+            input["input"]["project"] = project
+    except json.JSONDecodeError as e:
+        logger.debug(f"Could not decode the project information from cookies: {e}")
     except requests.exceptions.ConnectionError as e:
         logger.debug(f"Could not fetch the project information from aii: {e}")
 
@@ -87,11 +101,3 @@ async def get_opa_bundles(somedir: str, bundle: str):
     """
     f = open(f"/kaapana/app/{somedir}/{bundle}", "rb")
     return StreamingResponse(content=f, media_type="application/octet-stream")
-
-
-if __name__ == "__main__":
-    ### Production
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-
-    ### Development
-    # uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

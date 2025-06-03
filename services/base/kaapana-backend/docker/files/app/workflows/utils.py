@@ -222,14 +222,16 @@ def get_dag_list(
                 dags[dag] = dag_data
 
     if only_dag_names is True:
-        return sorted(list(dags.keys()))
-    else:
-        if filter_allowed_dags is None:
-            return dags
-        elif filter_allowed_dags:
-            return {dag: dags[dag] for dag in filter_allowed_dags if dag in dags}
+        sorted_dag_names = sorted(list(dags.keys()))
+        if filter_allowed_dags is not None:
+            return [dag for dag in sorted_dag_names if dag in filter_allowed_dags]
         else:
-            return {}
+            return sorted_dag_names
+    else:
+        if filter_allowed_dags is not None:
+            return {dag: dags[dag] for dag in dags if dag in filter_allowed_dags}
+        else:
+            return dags
 
 
 def check_dag_id_and_dataset(
@@ -338,14 +340,15 @@ def get_dagruns_airflow(states):
     return dagruns_states
 
 
-def raise_kaapana_connection_error(r):
+def raise_kaapana_connection_error(r: requests.Response):
     if r.history:
         raise HTTPException(
-            "You were redirect to the auth page. Your token is not valid!"
+            status_code=401,
+            detail="You were redirected to the auth page. Your token is not valid!",
         )
     try:
         r.raise_for_status()
-    except:
-        raise HTTPException(
-            f"Something was not okay with your request code {r}: {r.text}!"
-        )
+    except requests.exceptions.HTTPError as e:
+        status_code = r.status_code
+        detail = f"Request failed with status code {status_code}: {r.text}"
+        raise HTTPException(status_code=status_code, detail=detail)

@@ -391,6 +391,10 @@ function deploy_chart {
         PULL_POLICY_IMAGES="Always"
     fi
 
+    # configmap kube-public/local-registry-hosting is used by EDK if installed inside Kaapana, therefore should not already exist
+    echo "${YELLOW}Removing configmap kube-public/local-registry-hosting if exists...${NC}"
+    microk8s.kubectl delete configmap -n kube-public local-registry-hosting --ignore-not-found=true
+
     if [ ! -z "$CHART_PATH" ]; then # Note: OFFLINE_MODE requires CHART_PATH
         echo -e "${YELLOW}We assume that that all images are already presented inside the microk8s.${NC}"
         echo -e "${YELLOW}Images are uploaded either with a previous deployment from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
@@ -554,7 +558,8 @@ function check_credentials {
             break
         fi
     done
-    helm registry login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD ${CONTAINER_REGISTRY_URL}
+    STRIPPED_CONTAINER_REGISTRY_URL=$(echo "$CONTAINER_REGISTRY_URL" | sed -E 's~^https?://~~' | cut -d'/' -f1)
+    helm registry login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD ${STRIPPED_CONTAINER_REGISTRY_URL}
 }
 
 function install_certs {

@@ -1,13 +1,13 @@
-import binascii
 import logging
-import os
 import re
+from uuid import UUID
 
 import httpx
 from app import crud
 from app.config import DICOMWEB_BASE_URL
 from app.database import get_session
 from app.streaming_helpers import metadata_replace_stream
+from app.utils import get_user_project_ids
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -170,6 +170,7 @@ async def proxy_series_requests(
     remaining_path: str,
     request: Request,
     session: AsyncSession = Depends(get_session),
+    project_ids_of_user=Depends(get_user_project_ids),
 ):
     """
     Proxy any series-level DICOMWeb requests (e.g. including /instances/{instance},
@@ -184,10 +185,6 @@ async def proxy_series_requests(
     Returns:
         response: Response object
     """
-    project_ids_of_user = [
-        project["id"] for project in request.scope.get("token")["projects"]
-    ]
-
     is_admin = request.scope.get("admin") is True
     is_mapped = await crud.check_if_series_in_given_study_is_mapped_to_projects(
         session=session,
@@ -233,7 +230,10 @@ async def proxy_series_requests(
 
 @router.get("/studies/{study}/metadata", tags=["WADO-RS"])
 async def retrieve_study_metadata(
-    study: str, request: Request, session: AsyncSession = Depends(get_session)
+    study: str,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    project_ids_of_user=Depends(get_user_project_ids),
 ):
     """Retrieve the metadata of the study. If all series of the study are mapped to the project, the metadata is returned. If only some series are mapped, the metadata is filtered and only the mapped series are returned.
        Metadata contains routes to the series and instances of the study. These point to dcm4chee, which is why we need to replace the base URL.
@@ -246,11 +246,6 @@ async def retrieve_study_metadata(
     Returns:
         StreamingResponse: Response object
     """
-
-    # Get the project IDs of the projects the user is associated with
-    project_ids_of_user = [
-        project["id"] for project in request.scope.get("token")["projects"]
-    ]
 
     if request.scope.get("admin") is True:
         return stream_study_metadata(study, request)

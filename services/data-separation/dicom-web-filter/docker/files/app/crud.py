@@ -8,7 +8,7 @@ from .models import DataProjects, DicomData
 
 
 async def get_all_studies_mapped_to_projects(
-    session: AsyncSession, project_ids: List[int]
+    session: AsyncSession, project_ids: List[UUID]
 ) -> List[str]:
     stmt = (
         select(DicomData.study_instance_uid)
@@ -24,7 +24,7 @@ async def get_all_studies_mapped_to_projects(
 
 
 async def get_all_series_mapped_to_projects(
-    session: AsyncSession, project_ids: List[int]
+    session: AsyncSession, project_ids: List[UUID]
 ) -> List[str]:
     stmt = (
         select(DicomData.series_instance_uid)
@@ -58,7 +58,7 @@ async def get_series_instance_uids_of_study_which_are_mapped_to_projects(
 
 async def check_if_series_in_given_study_is_mapped_to_projects(
     session: AsyncSession,
-    project_ids: List[int],
+    project_ids: List[UUID],
     study_instance_uid: str,
     series_instance_uid: str,
 ) -> bool:

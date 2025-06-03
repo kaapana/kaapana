@@ -5,21 +5,11 @@ from glob import glob
 from os.path import basename, exists, join, normpath
 from typing import Dict
 
-from kaapanapy.helper import (
-    get_opensearch_client,
-    get_project_user_access_token,
-    load_workflow_config,
-)
+from kaapanapy.helper import get_opensearch_client, get_project_user_access_token
 from kaapanapy.settings import OpensearchSettings
 
-# instatiate opensearch access
-access_token = get_project_user_access_token()
-os_client = get_opensearch_client(access_token=access_token)
-workflow_config = load_workflow_config()
-project_form = workflow_config.get("project_form", {})
-opensearch_index = project_form.get(
-    "opensearch_index", OpensearchSettings().default_index
-)
+
+
 
 
 def _get_dataset_json(model_path, installed_task):
@@ -259,6 +249,11 @@ def get_all_checkpoints():
 
 
 def get_available_protocol_names():
+    # instatiate opensearch access
+    access_token = get_project_user_access_token()
+    os_client = get_opensearch_client(access_token=access_token)
+    #TODO change to project context via backend-calles
+    default_index = OpensearchSettings().default_index
     # compose query
     queryDict = {}
     queryDict["query"] = {
@@ -275,7 +270,7 @@ def get_available_protocol_names():
     }
     queryDict["_source"] = {}
     try:
-        res = os_client.search(index=[opensearch_index], body=queryDict)
+        res = os_client.search(index=[default_index], body=queryDict)
         hits = res["hits"]["hits"]
         print(f"HITS: {hits=}")
 

@@ -26,7 +26,7 @@ if "inference" in os.environ["WORKFLOW_NAME"]:
     # Open the file for reading
     with open(
         os.path.join(
-            "/models/classification-training-workflow",
+            "/models/classification-training",
             WORKFLOW_ID_OF_TRAINING,
             "config.json",
         ),

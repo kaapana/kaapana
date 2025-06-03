@@ -38,25 +38,23 @@ app.add_middleware(middlewares.SanitizeQueryParams)
 
 @app.on_event("startup")
 @repeat_every(seconds=float(os.getenv("REMOTE_SYNC_INTERVAL", 2.5)))
+@only_one_process(lock_file="/tmp/remote_sync.lock")
 def periodically_get_remote_updates():
     # From: https://github.com/dmontagu/fastapi-utils/issues/230
     # In the future also think about integrating celery, this might help with the issue of repeated execution: https://testdriven.io/blog/fastapi-and-celery/
-    parent_process = psutil.Process(os.getppid())
-    children = parent_process.children(recursive=True)  # List of all child processes
-    if children[0].pid == os.getpid():
-        with SessionLocal() as db:
-            try:
-                get_remote_updates(db, periodically=True)
-            except Exception:
-                logging.warning(
-                    "Something went wrong updating in crud.get_remote_updates()"
-                )
-                logging.warning(traceback.format_exc())
+    with SessionLocal() as db:
+        try:
+            get_remote_updates(db, periodically=True)
+        except Exception:
+            logging.warning(
+                "Something went wrong updating in crud.get_remote_updates()"
+            )
+            logging.warning(traceback.format_exc())
 
 
 @app.on_event("startup")
 @repeat_every(seconds=float(os.getenv("AIRFLOW_SYNC_INTERVAL", 10.0)))
-@only_one_process
+@only_one_process()
 def periodically_sync_states_from_airflow():
     with SessionLocal() as db:
         try:
@@ -98,7 +96,9 @@ app.include_router(monitoring.router, prefix="/monitoring")
 # app.include_router(users.router, prefix="/users")
 
 # # Not used yet
-app.include_router(storage.router, prefix="/storage",
+app.include_router(
+    storage.router,
+    prefix="/storage",
     responses={418: {"description": "I'm the storage backend..."}},
 )
 Instrumentator().instrument(app).expose(app)

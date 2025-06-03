@@ -31,9 +31,9 @@ copyright = "2025, MIC @DKFZ"
 author = "MIC @DKFZ"
 
 # The short X.Y version
-version = "0.4.2"
+version = "0.5.0"
 # The full version, including alpha/beta/rc tags
-release = "0.4.2"
+release = "0.5.0"
 
 
 # -- General configuration ---------------------------------------------------

@@ -827,20 +827,29 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
     @staticmethod
     def post_notification_to_user_from_context(context):
-        form_data = context["dag_run"].conf.get("form_data", {})
-        username = form_data.get("username")
+        workflow_form = context["dag_run"].conf.get("workflow_form", {})
+        username = workflow_form.get("username")
         if not username:
-            raise ValueError("Missing username in form_data")
+            # Assume it is a service dag
+            user_ids = []
+        else:
+            # Get user ID
+            user_resp = requests.get(
+                f"{ServicesSettings().aii_url}/users/username/{username}"
+            )
+            user_resp.raise_for_status()
+            user_id = user_resp.json()["id"]
+            user_ids = [user_id]
 
-        # Get user ID
-        user_resp = requests.get(
-            f"{ServicesSettings().aii_url}/users/username/{username}"
-        )
-        user_resp.raise_for_status()
-        user_id = user_resp.json()["id"]
+        def fetch_default_project_id() -> str:
+            response = requests.get(
+                "http://aii-service.services.svc:8080/projects/admin"
+            )
+            response.raise_for_status()
+            return response.json().get("id")
 
         project_form = context.get("params", {}).get("project_form", {})
-        project_id = project_form.get("name", "unknown")
+        project_id = project_form.get("name", fetch_default_project_id())
 
         dag_id = context["dag_run"].dag_id
         run_id = context["dag_run"].run_id
@@ -848,14 +857,14 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         notification = Notification(
             topic=run_id,
-            title=f"Workflow {run_id} Failed",
-            description=f"<b>Failed</b> workflow <em>{dag_id}</em>.",
+            title="Workflow failed",
+            description=f"Workflow <b>{run_id}</b> failed.",
             icon="mdi-information",
             link=f"/flow/dags/{dag_id}/grid?dag_run_id={run_id}&task_id={task_id}&tab=logs",
         )
 
-        return NotificationService.post_notification_to_user(
-            user_id=user_id, project_id=project_id, notification=notification
+        return NotificationService.send(
+            project_id=project_id, user_ids=user_ids, notification=notification
         )
 
     @staticmethod

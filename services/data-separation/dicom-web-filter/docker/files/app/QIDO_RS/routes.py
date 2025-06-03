@@ -1,8 +1,11 @@
+from uuid import UUID
+
 import httpx
 from app import crud
 from app.config import DICOMWEB_BASE_URL
 from app.database import get_session
 from app.streaming_helpers import metadata_replace_stream
+from app.utils import get_user_project_ids
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -118,7 +121,11 @@ async def retrieve_instances(study: str, series: str, request: Request) -> Respo
 
 
 @router.get("/studies", tags=["QIDO-RS"])
-async def query_studies(request: Request, session: AsyncSession = Depends(get_session)):
+async def query_studies(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    project_ids_of_user=Depends(get_user_project_ids),
+):
     """This endpoint is used to get all studies mapped to the project.
 
     Args:
@@ -131,11 +138,6 @@ async def query_studies(request: Request, session: AsyncSession = Depends(get_se
 
     if request.scope.get("admin") is True:
         return await retrieve_studies(request=request)
-
-    # Get the project IDs of the projects the user is associated with
-    project_ids_of_user = [
-        project["id"] for project in request.scope.get("token")["projects"]
-    ]
 
     if "SeriesInstanceUID" in request.query_params:
         # retrieve series mapped to the project
@@ -193,7 +195,10 @@ async def query_studies(request: Request, session: AsyncSession = Depends(get_se
 
 @router.get("/studies/{study}/series", tags=["QIDO-RS"])
 async def query_series(
-    study: str, request: Request, session: AsyncSession = Depends(get_session)
+    study: str,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    project_ids_of_user=Depends(get_user_project_ids),
 ):
     """This endpoint is used to get all series of a study mapped to the project.
 
@@ -207,11 +212,6 @@ async def query_series(
     """
     if request.scope.get("admin") is True:
         return await retrieve_series(study=study, request=request)
-
-    # Get the project IDs of the projects the user is associated with
-    project_ids_of_user = [
-        project["id"] for project in request.scope.get("token")["projects"]
-    ]
 
     # If StudyInstanceUID is in the query parameters, remove it
     query_params = dict(request.query_params)
@@ -255,6 +255,7 @@ async def query_instances(
     series: str,
     request: Request,
     session: AsyncSession = Depends(get_session),
+    project_ids_of_user=Depends(get_user_project_ids),
 ):
     """This endpoint is used to get all instances of a series mapped to the project.
 
@@ -270,11 +271,6 @@ async def query_instances(
 
     if request.scope.get("admin") is True:
         return await retrieve_instances(study=study, series=series, request=request)
-
-    # Get the project IDs of the projects the user is associated with
-    project_ids_of_user = [
-        project["id"] for project in request.scope.get("token")["projects"]
-    ]
 
     query_params = dict(request.query_params)
 

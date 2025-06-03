@@ -1,12 +1,12 @@
 {
-    "description": "Kaapana release v0.4.2",
-    "title": "kaapana/kaapana: v0.4.2",
-    "version": "0.4.2",
+    "description": "Kaapana release v0.5.0",
+    "title": "kaapana/kaapana: v0.5.0",
+    "version": "0.5.0",
     "license": {
         "id": "AGPL-3.0"
     },
     "upload_type": "software",
-    "publication_date": "2025-05-13",
+    "publication_date": "2025-06-03",
     "creators": [
         {
             "affiliation": "German Cancer Research Center",
@@ -93,7 +93,8 @@
         "Thomas Phil, Thomas Albrecht, Skylar Gay, & Mathis Ersted Rasmussen. (2023). Sikerdebaard/dcmrtstruct2nii: dcmrtstruct2nii v5 (Version v5). Zenodo. https://doi.org/10.5281/zenodo.4037864",
         "Van Griethuysen, J. J., Fedorov, A., Parmar, C., Hosny, A., Aucoin, N., Narayan, V., ... & Aerts, H. J. (2017). Computational radiomics system to decode the radiographic phenotype. Cancer research, 77(21), e104-e107.",
         "Wasserthal, J., Breit, H.-C., Meyer, M.T., Pradella, M., Hinck, D., Sauter, A.W., Heye, T., Boll, D., Cyriac, J., Yang, S., Bach, M., Segeroth, M., 2023. TotalSegmentator: Robust Segmentation of 104 Anatomic Structures in CT Images. Radiology: Artificial Intelligence. https://doi.org/10.1148/ryai.230024",
-        "Ziegler, E., Urban, T., Brown, D., Petts, J., Pieper, S. D., Lewis, R., ... & Harris, G. J. (2020). Open health imaging foundation viewer: an extensible open-source framework for building web-based imaging applications to support cancer research. JCO Clinical Cancer Informatics, 4, 336-345."
+        "Ziegler, E., Urban, T., Brown, D., Petts, J., Pieper, S. D., Lewis, R., ... & Harris, G. J. (2020). Open health imaging foundation viewer: an extensible open-source framework for building web-based imaging applications to support cancer research. JCO Clinical Cancer Informatics, 4, 336-345.",
+        "Haubold, J., Baldini, G., Parmar, V., Schaarschmidt, B. M., Koitka, S., Kroll, L., van Landeghem, N., Umutlu, L., Forsting, M., Nensa, F., & Hosch, R. (2023). BOA: A CT-Based Body and Organ Analysis for Radiologists at the Point of Care. Investigative radiology, 10.1097/RLI.0000000000001040. Advance online publication. https://doi.org/10.1097/RLI.0000000000001040"
     ],
     "related_identifiers": [
         {

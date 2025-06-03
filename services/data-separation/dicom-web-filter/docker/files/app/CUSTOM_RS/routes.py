@@ -5,6 +5,7 @@ import httpx
 from app import crud
 from app.config import DICOMWEB_BASE_URL
 from app.database import get_session
+from app.utils import get_user_project_ids
 from fastapi import APIRouter, Depends, Path, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -84,6 +85,7 @@ async def del_study(
     study: str,
     request: Request,
     session: AsyncSession = Depends(get_session),
+    project_ids_of_user=Depends(get_user_project_ids),
 ):
     """
     This endpoint is used to delete a study.
@@ -98,9 +100,7 @@ async def del_study(
         response: Response object
     """
 
-    if project_id not in [
-        project["id"] for project in request.scope.get("token")["projects"]
-    ]:
+    if project_id not in project_ids_of_user:
         return Response(status_code=403)
 
     # Retrieve series mapped to the project for the given study
@@ -153,6 +153,7 @@ async def del_series(
     series: str,
     request: Request,
     session: AsyncSession = Depends(get_session),
+    project_ids_of_user=Depends(get_user_project_ids),
 ):
     """This endpoint is used to delete a series.
 
@@ -166,10 +167,10 @@ async def del_series(
     """
 
     # Check if user is in the project
-    if project_id not in [
-        project["id"] for project in request.scope.get("token")["projects"]
-    ]:
-        return Response(status_code=403)
+    if project_id not in project_ids_of_user:
+        projects = request.scope.get("token")["projects"]
+        logging.info(f"User not in project: {project_id}: {projects=}")
+        return Response(status_code=403, content=f"User not in project {project_id}")
 
     # Check if series is mapped to the project
     if await crud.check_if_series_in_given_study_is_mapped_to_projects(
@@ -194,12 +195,16 @@ async def del_series(
             # Delete in PACS
             return await delete_series_dcm4chee(study, series, request)
     else:
-        return Response(status_code=403)
+        return Response(status_code=403, content="Series not mapped to project")
 
 
 # FOR SLIM VIEWER
 @router.get("/series", tags=["Custom"])
-async def get_series(request: Request, session: AsyncSession = Depends(get_session)):
+async def get_series(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    project_ids_of_user=Depends(get_user_project_ids),
+):
 
     if not "StudyInstanceUID" in request.query_params:
         return JSONResponse(
@@ -207,11 +212,6 @@ async def get_series(request: Request, session: AsyncSession = Depends(get_sessi
         )
 
     study = request.query_params["StudyInstanceUID"]
-
-    # Get the project IDs of the projects the user is associated with
-    project_ids_of_user = [
-        project["id"] for project in request.scope.get("token")["projects"]
-    ]
 
     # Get all series mapped to the project
     series = set(
@@ -246,13 +246,11 @@ async def get_series(request: Request, session: AsyncSession = Depends(get_sessi
 # FOR SLIM VIEWER
 @router.get("/studies/{study}/instances", tags=["Custom"])
 async def get_instances(
-    study: str, request: Request, session: AsyncSession = Depends(get_session)
+    study: str,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    project_ids_of_user=Depends(get_user_project_ids),
 ):
-    # Get the project IDs of the projects the user is associated with
-    project_ids_of_user = [
-        project["id"] for project in request.scope.get("token")["projects"]
-    ]
-
     # Get all series mapped to the project
     series = set(
         await crud.get_all_series_mapped_to_projects(session, project_ids_of_user)
@@ -294,12 +292,8 @@ async def get_bulkdata(
     instance: str,
     tag: str = Path(...),
     session: AsyncSession = Depends(get_session),
+    project_ids_of_user=Depends(get_user_project_ids),
 ):
-    # Get the project IDs of the projects the user is associated with
-    project_ids_of_user = [
-        project["id"] for project in request.scope.get("token")["projects"]
-    ]
-
     if not await crud.check_if_series_in_given_study_is_mapped_to_projects(
         session=session,
         project_ids=project_ids_of_user,

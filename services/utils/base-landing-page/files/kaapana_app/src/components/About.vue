@@ -49,7 +49,7 @@
               </v-card-text>
 
               <v-card-actions>
-                &copy; DKFZ 2018 - DKFZ 2024
+                &copy; DKFZ 2018 - DKFZ 2025
               </v-card-actions>
             </v-container>
         </v-card>

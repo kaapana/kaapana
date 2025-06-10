@@ -15,42 +15,51 @@ logger = logging.getLogger(__name__)
 
 class LocalEmailSendOperator(KaapanaPythonBaseOperator):
     """
-    (1)
+    1.
     Operator designed for use in DAGs to facilitate email notifications.
     This operator, when added to a DAG, is responsible for triggering a single email notification encompassing all DAG runs within a workflow trigger (Jobs).
 
-    Example usage in dag, add operator and ui forms paramenter:
-    "send_email": {
-        "title": "Send workflow result email",
-        "description": "Sends a result email to the user.",
-        "type": "boolean",
-        "default": True,
-        "readOnly": False,
-    },
-    "receivers": {
-        "title": "Receivers",
-        "description": "Email addresses of receivers.",
-        "type": "array",
-        "items": {    "type": "string" },
-        "required": False,
-    }
-    # if no receivers are set and send_email is selcted the email will be send to the "username" email, if it is an email-address.
-    AND
-    add LocalEmailSendOperator to the dag (with send_email=True to always send an email,
-    False, only if ui parameter added and ui form parameter is send_email=True):
-    e.g.:
-    from kaapana.operators.LocalEmailSendOperator import LocalEmailSendOperator
-    local_email_send = LocalEmailSendOperator(dag=dag, send_email=False)
+    Example usage in dag:
+
+    * Add operator and ui forms paramenter:
+
+        .. code-block:: python
+
+            "send_email": {
+                "title": "Send workflow result email",
+                "description": "Sends a result email to the user.",
+                "type": "boolean",
+                "default": True,
+                "readOnly": False,
+            },
+            "receivers": {
+                "title": "Receivers",
+                "description": "Email addresses of receivers.",
+                "type": "array",
+                "items": {    "type": "string" },
+                "required": False,
+            }
+
+    * If no receivers are set and send_email is selcted the email will be send to the "username" email, if it is an email-address.
+    * Add LocalEmailSendOperator to the dag
+
+        * Set ``send_email=True`` to always send an email,
+        * Set ``send_email=False`` to only send an email, if ui parameter added and ui form parameter is send_email=True:
+
+        e.g.:
+
+        .. code-block:: python
+
+            from kaapana.operators.LocalEmailSendOperator import LocalEmailSendOperator
+            local_email_send = LocalEmailSendOperator(dag=dag, send_email=False)
 
 
-
-
-    (2)
-    Optionally an operator falure can be configured with the "send_email_on_workflow_failure" parameter to leverage the HelperSendEmailService task_failure_alert function.
+    2.
+    Optionally an operator failure can be configured with the "send_email_on_workflow_failure" parameter to leverage the method ``HelperSendEmailService.task_failure_alert``.
     In such cases, the operator does not need to be explicitly added to the DAG; the email will be sent only on failure.
 
-    (3)
-    The dag (dag_id="service-email-send") can be directly triggered with valid "workflow_name" to notify a user when all Jobs of the workflow execution are done.
+    3.
+    The DAG "service-email-send" can be directly triggered with a valid "workflow_name" to send an email to a user when all Jobs of the workflow execution are done.
     """
 
     def get_input_value(self, workflow_form: dict, key: str):
@@ -256,7 +265,7 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
 
         Args:
             ds: Date string (templated).
-            **kwargs: Other context arguments provided by Airflow.
+            kwargs: Other context arguments provided by Airflow.
 
         Returns:
             str: Message indicating the email task status.

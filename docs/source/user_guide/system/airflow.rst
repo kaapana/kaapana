@@ -41,6 +41,17 @@ download-selected-files
 
 This DAG will create a zip file containing the series in the dataset and stores it in the project bucket in MinIO.
 
+evaluate-predictions
+""""""""""""""""""""""
+
+.. warning::
+
+    This is an experimental DAG designed for evaluation with running nnunet-predict with only providing the ground truth segmentations.
+    This DAG will only run if nnunet is installed. 
+    For a stable evaluation DAG where it is possible to compare test and ground truth segmentations, please refer to the :ref:`evaluate-segmentations` DAG.
+
+
+.. _evaluate-segmentations:
 
 evaluate-segmentations
 """"""""""""""""""""""""
@@ -141,6 +152,11 @@ This DAG runs automatically every night to clean up the platform and perform the
 
 .. _service_process_incoming_dcm:
 
+service-email-send
+"""""""""""""""""""
+This dag consists only of the :class:`kaapana.operators.LocalEmailSendOperator`.
+
+
 service-process-incoming-dcm
 """""""""""""""""""""""""""""
 This DAG is triggered automatically whenever data is sent to the DICOM receiver of the platform.
@@ -177,7 +193,6 @@ tag-train-test-split-dataset
 This DAG expexts a dataset of segmentation series.
 It will split the dataset into a training and a test dataset based on the specified *Train split*.
 Then it will tag all series of both splits according to the specified *Training tag* and *Test tag*.
-
 
 validate-dicoms
 """"""""""""""""

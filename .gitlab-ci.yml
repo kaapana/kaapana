@@ -211,6 +211,7 @@ security:
   script: 
     - cd $REPO_DIR/ci-code/clean
     - export GIT_DESCRIBE=$(git describe)
+    - source /home/$USER/venv/bin/activate
     - python3 create_vulnerability_report.py --output html $KAAPANA_DIR/build/security-reports/${GIT_DESCRIBE}/${GIT_DESCRIBE}_cves.json vulnerability_report.html
     - echo "Access the report at https://kaapana.pages.hzdr.de/-/kaapana/-/jobs/${CI_JOB_ID}/artifacts/ci/ci-code/clean/vulnerability_report.html"
   artifacts:

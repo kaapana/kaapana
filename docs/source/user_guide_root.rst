@@ -1,5 +1,11 @@
 .. _user_guide:
 
+.. raw:: html
+
+    <style> .blue {color:blue} </style>
+
+.. role:: blue
+
 User Guide
 ############
 
@@ -13,43 +19,24 @@ The navigation header
 
 The top navigation bar provides quick access to essential platform and user features through a set of intuitive icons. 
 Below is a description of each icon available in the header:
-
-.. raw:: html
-
-   <span class="material-icons">information_outline</span> 
    
-**Platform Information:** Displays details about the current Kaapana platform instance, such as chart version, build date and build-branch
+:material-regular:`info;2em;sd-text-primary` **Platform Information:** Displays details about the current Kaapana platform instance, such as chart version, build date and build-branch
 Useful for identifying which version of the platform you are currently using.
 
-.. raw:: html
-
-   <span class="material-icons">account_circle_outline</span>
-
-**Profile Information:** Opens a dropdown with user-specific information, such as username. 
+:material-regular:`account_circle;2em;sd-text-primary` **Profile Information:** Opens a dropdown with user-specific information, such as username. 
 From here, users can also log out.
 
-.. raw:: html
+:material-regular:`settings;2em;sd-text-primary` **User Settings:** Provides access to user preferences and customization options, such as configurations for the :ref:`datasets` view and and default settings for :ref:`workflow execution<workflow_execution>`.
 
-   <span class="material-icons">cog</span>
 
-**User Settings:** Provides access to user preferences and customization options, such as configurations for the :ref:`datasets` view and and default settings for :ref:`workflow execution<workflow_execution>`.
-
-.. raw:: html
-
-   <span class="material-icons">lightbulb_on </span>
-
-**Theme toggle:** Allows users to switch between light and dark themes for the user interface. 
+:material-regular:`lightbulb;2em;sd-text-primary` **Theme toggle:** Allows users to switch between light and dark themes for the user interface. 
 The selected mode is saved across sessions.
 
-.. raw:: html
-
-   <span class="material-icons">bell</span>
-
-**Notifications alert:** Displays system notifications, such as platform updates, warnings, or task completions. 
+:material-outlined:`notifications;2em;sd-text-primary` **Notifications alert:** Displays system notifications, such as platform updates, warnings, or task completions. 
 A badge indicator shows the number of unread notifications.
 
 
-**Project Selection:** Enables users to switch between :term:`projects<project>`.
+:blue:`PROJECT` **Project Selection:** Enables users to switch between :term:`projects<project>`.
 
 .. important::
     The web interface only works properly if a :term:`project` is selected.
@@ -61,13 +48,13 @@ The navigation menu provides quick access to all sections of the user interface.
 
 
 .. toctree::
-    :maxdepth: 1
+   :maxdepth: 1
 
-    user_guide/workflows
-    user_guide/store
-    user_guide/meta
-    user_guide/system
-    user_guide/extensions
+   user_guide/workflows
+   user_guide/store
+   user_guide/meta
+   user_guide/system
+   user_guide/extensions
 
 
 
@@ -75,17 +62,7 @@ The navigation footer
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 The footer of the navigation bar contains:
 
-.. raw:: html
+:material-outlined:`help;2em;sd-text-primary` Link to the documentation.
 
-   <span class="material-icons">help</span> 
-   
-
-Link to the documentation.
-
-
-.. raw:: html
-
-   <span class="material-icons">login</span> 
-   
-Logout button.
+:material-outlined:`login;2em;sd-text-primary` Logout button.
 

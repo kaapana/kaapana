@@ -53,6 +53,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx_tabs.tabs",
     "sphinxcontrib.mermaid",
+    "sphinx_design",
 ]
 pdf_documents = [
     ("index", "kaapana_docs", "Kaapana documentation", "MIC @DKFZ"),
@@ -232,5 +233,3 @@ epub_exclude_files = ["search.html"]
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
-
-html_css_files = ["https://fonts.googleapis.com/icon?family=Material+Icons"]

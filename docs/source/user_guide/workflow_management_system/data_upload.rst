@@ -35,7 +35,7 @@ Dicom Data
 ''''''''''
 
 DICOM data should be uploaded in a single compressed zip-file containing folder(s) with DICOM files. The default expected file-extension for DICOMs is 
-:code:`.dcm`, but can be configured when triggering the :code:`import-dicoms-in-zip-to-internal-pacs` workflow.
+:code:`.dcm`, but can be configured when triggering the :code:`import-dicoms-from-data-upload` workflow.
 
 .. _import-uploaded-nifti-files:
 

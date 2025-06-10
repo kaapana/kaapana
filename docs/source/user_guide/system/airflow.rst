@@ -22,9 +22,10 @@ collect-metadata
 """"""""""""""""""
 This DAG collects metadata from the DICOM files in the selected dataset and stores it in the project bucket in MinIO.
 
-convert-niftis-to-dicom-and-import-to-pacs
-""""""""""""""""""""""""""""""""""""""""""""
+import-niftis-from-data-upload
+""""""""""""""""""""""""""""""""
 This DAG converts NIfTI files to DICOM format and imports them into the internal PACS system.
+More details can be found :ref:`here <import-uploaded-nifti-files>`.
 
 delete-series
 """""""""""""""

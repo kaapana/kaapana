@@ -49,7 +49,8 @@ def main():
         print(
             f"Assuming DB is migrated to 0.4.0. Stamping to revision {INITIAL_REVISION}"
         )
-        command.stamp(alembic_cfg, INITIAL_REVISION)
+        command.stamp(alembic_cfg, INITIAL_REVISION, purge=True)
+
         command.upgrade(alembic_cfg, "head")
 
 

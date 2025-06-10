@@ -21,12 +21,19 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade():
+    op.drop_constraint(
+        "data_projects_data_id_fkey",  # Name of the FK constraint
+        "data_projects",  # Table that has the FK
+        type_="foreignkey",
+    )
+
     op.drop_table(
         "data",
     )
     op.drop_table(
         "data_projects",
     )
+
     """Upgrade schema."""
     # Add UUID columns to tables
     op.add_column(
@@ -124,7 +131,7 @@ def upgrade():
         "software_mappings",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("software_uuid", sa.String(length=72), nullable=False),
-        sa.Column("project_id", sa.Integer(), nullable=True),
+        sa.Column("project_id", UUID(as_uuid=True), nullable=False),
         sa.ForeignKeyConstraint(
             ["project_id"],
             ["projects.id"],

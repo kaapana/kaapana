@@ -7,6 +7,7 @@ Create Date: 2025-04-15 16:45:06.641749
 """
 
 import os
+import uuid
 from typing import Sequence, Union
 
 import requests
@@ -21,86 +22,89 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def fetch_project_id_uuid_mapping():
+def fetch_default_project_id() -> uuid.UUID:
     aii_service = os.environ["ACCESS_INFORMATION_INTERFACE_URL"]
-    response = requests.get(f"{aii_service}/projects")
-    projects = response.json()
-
-    return {project["int_id"]: project["id"] for project in projects}
-
-
-def fetch_uuid_to_project_id_mapping():
-    id_uuid_map = fetch_project_id_uuid_mapping()
-    return {uuid: pid for pid, uuid in id_uuid_map.items()}
+    response = requests.get(f"{aii_service}/projects/admin")
+    project = response.json()
+    return project["id"]
 
 
 def upgrade() -> None:
-    id_uuid_map = fetch_project_id_uuid_mapping()
+    default_project_id = fetch_default_project_id()
 
     connection = op.get_bind()
-    op.drop_constraint("dataset_project_id_name_key", "dataset", type_="unique")
-    op.alter_column("dataset", "project_id", new_column_name="old_project_id")
-    op.alter_column("workflow", "project_id", new_column_name="old_project_id")
-
-    op.add_column("dataset", sa.Column("project_id", UUID(), nullable=True))
+    op.add_column(
+        "dataset", sa.Column("id", sa.Integer(), autoincrement=True, nullable=True)
+    )
+    op.add_column("dataset", sa.Column("project_id", UUID(as_uuid=True), nullable=True))
     op.add_column("workflow", sa.Column("project_id", UUID(), nullable=True))
     op.create_unique_constraint(None, "dataset", ["project_id", "name"])
-
-    # Update existing records using the map
-    for old_id, new_uuid in id_uuid_map.items():
-        if old_id:
-            connection.execute(
-                sa.text(
-                    """
-                        UPDATE dataset SET project_id = :uuid WHERE old_project_id = :old_id
-                    """
-                ),
-                {"uuid": new_uuid, "old_id": old_id},
-            )
-            connection.execute(
-                sa.text(
-                    """
-                    UPDATE workflow SET project_id = :uuid WHERE old_project_id = :old_id
-                """
-                ),
-                {"uuid": new_uuid, "old_id": old_id},
-            )
-
+    op.execute(
+        """
+            CREATE SEQUENCE dataset_id_seq OWNED BY dataset.id;
+            UPDATE dataset SET id = nextval('dataset_id_seq');
+        """
+    )
+    connection.execute(
+        sa.text(
+            """
+            UPDATE dataset SET project_id = :default_uuid WHERE project_id IS NULL
+            """
+        ),
+        {"default_uuid": default_project_id},
+    )
+    connection.execute(
+        sa.text(
+            """
+            UPDATE workflow SET project_id = :default_uuid WHERE project_id IS NULL
+            """
+        ),
+        {"default_uuid": default_project_id},
+    )
     op.alter_column("dataset", "project_id", nullable=False)
     op.alter_column("workflow", "project_id", nullable=False)
+
+    op.add_column(
+        "identifier2dataset", sa.Column("new_dataset_id", sa.Integer(), nullable=True)
+    )
+    op.execute(
+        """
+        UPDATE identifier2dataset
+        SET new_dataset_id = dataset.id
+        FROM dataset
+        WHERE identifier2dataset.dataset = dataset.name
+    """
+    )
+    op.drop_constraint(
+        "identifier2dataset_dataset_fkey", "identifier2dataset", type_="foreignkey"
+    )
+    op.drop_column("identifier2dataset", "dataset")
+    op.alter_column("identifier2dataset", "new_dataset_id", new_column_name="dataset")
+
+    op.drop_constraint("dataset_pkey", "dataset", type_="primary")
+    op.create_primary_key("dataset_pkey", "dataset", ["id"])
+    op.create_foreign_key(
+        "identifier2dataset_dataset_fkey",
+        "identifier2dataset",
+        "dataset",
+        ["dataset"],
+        ["id"],
+        ondelete="CASCADE",
+    )
+
     # ### end Alembic commands ###
 
 
-def downgrade() -> None:
-    connection = op.get_bind()
-
-    # Add project_id column back as nullable
-    op.add_column("dataset", sa.Column("project_id", sa.Integer(), nullable=True))
-    op.add_column("workflow", sa.Column("project_id", sa.Integer(), nullable=True))
-
-    # Fetch reverse mapping UUID -> ID
-    uuid_id_map = fetch_uuid_to_project_id_mapping()
-
-    for uuid, project_id in uuid_id_map.items():
-        connection.execute(
-            sa.text("UPDATE dataset SET project_id = :pid WHERE project_id = :uuid"),
-            {"pid": project_id, "uuid": uuid},
-        )
-        connection.execute(
-            sa.text("UPDATE workflow SET project_id = :pid WHERE project_id = :uuid"),
-            {"pid": project_id, "uuid": uuid},
-        )
-
-    # Make project_id mandatory again
-    op.alter_column("dataset", "project_id", nullable=False)
-    op.alter_column("workflow", "project_id", nullable=False)
-
-    # Restore old constraint
-    op.drop_constraint(None, "dataset", type_="unique")
-    op.create_unique_constraint(
-        "dataset_project_id_name_key", "dataset", ["project_id", "name"]
-    )
-
-    # Drop project_id column
-    op.drop_column("workflow", "project_id")
+def downgrade():
+    # Reverse the operations
+    op.drop_constraint("uq_dataset_project_id_name", "dataset", type_="unique")
+    op.alter_column("dataset", "project_id", nullable=True)
     op.drop_column("dataset", "project_id")
+
+    op.drop_constraint("uq_dataset_name", "dataset", type_="unique")
+    op.drop_constraint(
+        None, "dataset", type_="primary"
+    )  # assumes anonymous primary key constraint
+    op.drop_column("dataset", "id")
+
+    op.execute("DROP SEQUENCE IF EXISTS dataset_id_seq;")

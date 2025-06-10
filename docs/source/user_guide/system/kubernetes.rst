@@ -28,16 +28,19 @@ These policies help enforce **network segmentation**, improve **security**, and 
 
 General Strategy
 ----------------
-1. **Default Deny-All**: 
-   - A baseline policy (`deny-all-traffic`) blocks all ingress and egress traffic by default for all pods in the project namespace.
-   - This ensures that no pod can send or receive traffic unless explicitly allowed.
+1. Default Deny-All:
 
-2. **Selective Allow Rules**:
-   - Specific policies selectively **enable communication** between required pods and services.
-   - Traffic is only permitted when:
-     - Pods have the correct labels (e.g., `network-access-external-ips: "true"`),
-     - The destination pod matches a specific label and namespace, and
-     - The traffic is on an explicitly allowed port (when applicable).
+  - A baseline policy (`deny-all-traffic`) blocks all ingress and egress traffic by default for all pods in the project namespace.
+  - This ensures that no pod can send or receive traffic unless explicitly allowed.
+
+2. Selective Allow Rules:
+
+  - Specific policies selectively **enable communication** between required pods and services.
+  - Traffic is only permitted when:
+
+    - Pods have the correct labels (e.g., `network-access-external-ips: "true"`),
+    - The destination pod matches a specific label and namespace, and
+    - The traffic is on an explicitly allowed port (when applicable).
 
 Policy Descriptions
 --------------------

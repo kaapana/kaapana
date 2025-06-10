@@ -51,9 +51,7 @@ def upgrade():
     # Use Python's `uuid.uuid4()` for generating UUIDs for each row
     op.execute(
         """
-        UPDATE projects SET project_uuid = '"""
-        + str(uuid.uuid4())
-        + """';
+        UPDATE projects SET project_uuid = gen_random_uuid();
         """
     )
     # Update foreign key columns in related tables to point to the new UUID

@@ -1,12 +1,10 @@
 import logging
 from uuid import UUID
 
-from app import crud_postgres as crud
-from app.database import get_session
+from app.crud import BaseDataAdapter
+from app.utils import get_project_data_adapter
 from fastapi import APIRouter, Depends
 from fastapi.responses import Response
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -19,20 +17,15 @@ logger = logging.getLogger(__name__)
 async def create_data_project_mappings(
     project_id: UUID,
     series_instance_uid: str,
-    session: AsyncSession = Depends(get_session),
+    crud: BaseDataAdapter = Depends(get_project_data_adapter),
 ):
     """
     Create DataProjects mappings in the database.
     """
-    try:
-        return await crud.add_data_project_mapping(
-            session=session,
-            series_instance_uid=series_instance_uid,
-            project_id=project_id,
-        )
-
-    except IntegrityError:
-        return Response("Project mapping already exists!", status_code=200)
+    return await crud.add_data_project_mapping(
+        series_instance_uid=series_instance_uid,
+        project_id=project_id,
+    )
 
 
 @router.get(
@@ -41,13 +34,12 @@ async def create_data_project_mappings(
 )
 async def get_data_by_project_id(
     project_id: UUID,
-    session: AsyncSession = Depends(get_session),
+    crud: BaseDataAdapter = Depends(get_project_data_adapter),
 ):
     """
     Return all Data that belong to a project.
     """
     return await crud.get_data_of_project(
-        session=session,
         project_id=project_id,
     )
 
@@ -58,13 +50,12 @@ async def get_data_by_project_id(
 )
 async def get_projects_by_series_instance_uid(
     series_instance_uid: str,
-    session: AsyncSession = Depends(get_session),
+    crud: BaseDataAdapter = Depends(get_project_data_adapter),
 ):
     """
     Get all projects Data belongs to.
     """
     return await crud.get_project_ids_of_series(
-        session=session,
         series_instance_uid=series_instance_uid,
     )
 
@@ -76,19 +67,17 @@ async def get_projects_by_series_instance_uid(
 async def delete_data_project_mappings(
     project_id: UUID,
     series_instance_uid: str,
-    session: AsyncSession = Depends(get_session),
+    crud: BaseDataAdapter = Depends(get_project_data_adapter),
 ):
     """
     Delete existing DataProjects mappings from the database.
     """
-
     try:
         await crud.remove_data_project_mapping(
-            session=session,
             series_instance_uid=series_instance_uid,
             project_id=project_id,
         )
-    except IntegrityError:
+    except NameError:
         return Response("Project does not exist!", status_code=404)
 
 
@@ -100,33 +89,13 @@ async def create_dicom_data(
     series_instance_uid: str,
     study_uid: str,
     description: str,
-    session: AsyncSession = Depends(get_session),
+    crud: BaseDataAdapter = Depends(get_project_data_adapter),
 ):
     """
     Create DataProjects mappings in the database.
     """
-    try:
-        return await crud.add_dicom_data(
-            session=session,
-            series_instance_uid=series_instance_uid,
-            study_instance_uid=study_uid,
-            description=description,
-        )
-    except IntegrityError:
-        return Response("Dicom data already exists!", status_code=200)
-
-
-# Debug endpoint
-@router.get(
-    "/data/overview",
-    tags=["DataProjects"],
-)
-async def get_overview(
-    session: AsyncSession = Depends(get_session),
-):
-    """
-    Get overview of all data.
-    """
-    return await crud.get_overview(
-        session=session,
+    return await crud.add_dicom_data(
+        series_instance_uid=series_instance_uid,
+        study_instance_uid=study_uid,
+        description=description,
     )

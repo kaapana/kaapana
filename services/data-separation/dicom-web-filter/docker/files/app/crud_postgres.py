@@ -3,8 +3,12 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
-from .models import DataProjects, DicomData
+from app.models import DataProjects, DicomData
+from kaapanapy.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 async def get_all_studies_mapped_to_projects(
@@ -89,7 +93,11 @@ async def add_dicom_data(
         description=description,
     )
     session.add(new_data)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as e:
+        await session.rollback()
+        logger.warning(f"{series_instance_uid=} already exists in the database")
     return new_data
 
 
@@ -112,7 +120,11 @@ async def add_data_project_mapping(
         series_instance_uid=series_instance_uid, project_id=project_id
     )
     session.add(new_mapping)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as e:
+        await session.rollback()
+        logger.warning(f"{series_instance_uid=} already exists in the project mapping")
     return new_mapping
 
 
@@ -127,7 +139,9 @@ async def get_all_series_of_study(
     return series
 
 
-async def get_data_project_mapping(session, series_instance_uid: str, project_id: UUID):
+async def _get_data_project_mapping(
+    session, series_instance_uid: str, project_id: UUID
+):
     stmt = select(DataProjects)
     stmt = stmt = stmt.where(
         DataProjects.series_instance_uid == series_instance_uid,
@@ -143,9 +157,12 @@ async def remove_data_project_mapping(
     """
     Delete a DataProject mapping.
     """
-    remove_mapping = await get_data_project_mapping(
-        session, series_instance_uid=series_instance_uid, project_id=project_id
-    )
+    try:
+        remove_mapping = await _get_data_project_mapping(
+            session, series_instance_uid=series_instance_uid, project_id=project_id
+        )
+    except IntegrityError:
+        raise NameError(f"Project {project_id} does not exist!")
     await session.delete(remove_mapping[0])
     await session.commit()
     return None
@@ -185,24 +202,3 @@ async def get_project_ids_of_series(session: AsyncSession, series_instance_uid: 
     result = await session.execute(stmt)
     project_ids = result.scalars().all()
     return project_ids
-
-
-async def get_overview(session: AsyncSession) -> dict:
-    """
-    Return a dictionary with the project_id as key and the series_instance_uids as values
-    E.g. {<project_id>: <series_instance_uids> }
-
-    """
-    stmt = select(DicomData)
-    result = await session.execute(stmt)
-    data = result.scalars().all()
-
-    project_series = {}
-    for d in data:
-        project_ids = await get_project_ids_of_series(session, d.series_instance_uid)
-        for project_id in project_ids:
-            if project_id not in project_series:
-                project_series[project_id] = []
-            project_series[project_id].append(d.series_instance_uid)
-
-    return project_series

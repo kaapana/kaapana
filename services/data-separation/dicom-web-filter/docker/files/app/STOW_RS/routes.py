@@ -3,7 +3,8 @@ import logging
 from uuid import UUID
 
 import httpx
-from app import config, crud
+from app import config
+from app import crud_postgres as crud
 from app.database import get_session
 from app.utils import get_default_project_id
 from fastapi import APIRouter, Depends, Request

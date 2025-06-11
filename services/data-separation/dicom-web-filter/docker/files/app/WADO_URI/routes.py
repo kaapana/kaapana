@@ -2,13 +2,11 @@ import logging
 from uuid import UUID
 
 import httpx
-from app import crud, utils
+from app.crud import BaseDataAdapter
 from app.config import DICOMWEB_BASE_URL_WADO_URI
-from app.database import get_session
-from app.utils import get_user_project_ids
+from app.utils import get_user_project_ids, get_project_data_adapter
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
@@ -39,14 +37,14 @@ async def stream_wado(request: Request):
 @router.get("/wado", tags=["WADO-URI"])
 async def retrieve_instance(
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    crud: BaseDataAdapter = Depends(get_project_data_adapter),
     project_ids_of_user=Depends(get_user_project_ids),
 ):
     """This endpoint is the wado uri endpoint.
 
     Args:
         request (Request): Request object
-        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+        crud (BaseDataAdapter, optional): Data adapter for database operations. Defaults to Depends(get_project_data_adapter).
 
     Returns:
         StreamingResponse: Response object
@@ -55,14 +53,9 @@ async def retrieve_instance(
     if request.scope.get("admin") is True:
         return StreamingResponse(stream_wado(request=request))
 
-    studies = await utils.get_filtered_studies_mapped_to_projects(
-        session=session,
-        request=request,
-        project_ids_of_user=project_ids_of_user,
-        study_uid_param_name="studyUID",
-    )
-    if not studies:
-        return Response(status_code=HTTP_204_NO_CONTENT)
+    # Retrieve all studies mapped to the project
+    studies = set(await crud.get_all_studies_mapped_to_projects(project_ids_of_user))
+
     # check if studyUID is in the query parameters
     query_params = dict(request.query_params)
     query_params["studyUID"] = []
@@ -76,7 +69,6 @@ async def retrieve_instance(
 
         all_mapped_series = set(
             await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
-                session=session,
                 project_ids=project_ids_of_user,
                 study_instance_uid=list(studies)[
                     0

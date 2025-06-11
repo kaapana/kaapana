@@ -2,14 +2,12 @@ import logging
 from uuid import UUID
 
 import httpx
-from app import crud, utils
+from app.crud import BaseDataAdapter
 from app.config import DICOMWEB_BASE_URL
-from app.database import get_session
 from app.streaming_helpers import metadata_replace_stream
-from app.utils import get_user_project_ids
+from app.utils import get_user_project_ids, get_project_data_adapter
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_204_NO_CONTENT
 
 router = APIRouter()
@@ -132,14 +130,14 @@ async def retrieve_instances(study: str, series: str, request: Request) -> Respo
 @router.get("/studies", tags=["QIDO-RS"])
 async def query_studies(
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    crud: BaseDataAdapter = Depends(get_project_data_adapter),
     project_ids_of_user=Depends(get_user_project_ids),
 ):
     """This endpoint is used to get all studies mapped to the project.
 
     Args:
         request (Request): Request object
-        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+        crud (BaseDataAdapter, optional): Data adapter for CRUD operations. Defaults to Depends(get_project_data_adapter).
 
     Returns:
         response: Response object
@@ -150,14 +148,8 @@ async def query_studies(
 
     query_params = dict(request.query_params)
     if "SeriesInstanceUID" in request.query_params:
-        requested_series_instance_uids = request.query_params.getlist(
-            "SeriesInstanceUID"
-        )
-
-        series = await crud.get_mapped_series_by_project_and_series_uids(
-            session, project_ids_of_user, requested_series_instance_uids
-        )
-
+        # retrieve series mapped to the project
+        series = set(await crud.get_all_series_mapped_to_projects(project_ids_of_user))
         # Remove SeriesInstanceUID from the query parameters
         query_params["SeriesInstanceUID"] = []
 
@@ -169,12 +161,8 @@ async def query_studies(
             # return empty response with status code 204
             return Response(status_code=HTTP_204_NO_CONTENT)
 
-    studies = await utils.get_filtered_studies_mapped_to_projects(
-        session=session,
-        request=request,
-        project_ids_of_user=project_ids_of_user,
-        study_uid_param_name="StudyInstanceUID",
-    )
+    # Retrieve studies mapped to the project
+    studies = set(await crud.get_all_studies_mapped_to_projects(project_ids_of_user))
 
     # Remove StudyInstanceUID from the query parameters
     query_params["StudyInstanceUID"] = []
@@ -196,7 +184,7 @@ async def query_studies(
 async def query_series(
     study: str,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    crud: BaseDataAdapter = Depends(get_project_data_adapter),
     project_ids_of_user=Depends(get_user_project_ids),
 ):
     """This endpoint is used to get all series of a study mapped to the project.
@@ -204,7 +192,6 @@ async def query_series(
     Args:
         study (str): Study Instance UID
         request (Request): Request object
-        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
 
     Returns:
         response: Response object
@@ -220,7 +207,6 @@ async def query_series(
     # Retrieve series mapped to the project for the given study
     mapped_series_uids = set(
         await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
-            session=session,
             project_ids=project_ids_of_user,
             study_instance_uid=study,
         )
@@ -253,7 +239,7 @@ async def query_instances(
     study: str,
     series: str,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    crud: BaseDataAdapter = Depends(get_project_data_adapter),
     project_ids_of_user=Depends(get_user_project_ids),
 ):
     """This endpoint is used to get all instances of a series mapped to the project.
@@ -262,7 +248,7 @@ async def query_instances(
         study (str): Study Instance UID
         series (str): Series Instance UID
         request (Request): Request object
-        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+        crud (BaseDataAdapter, optional): Data adapter for CRUD operations. Defaults to Depends(get_project_data_adapter).
 
     Returns:
         response: Response object
@@ -285,7 +271,6 @@ async def query_instances(
     request._query_params = query_params
 
     if not await crud.check_if_series_in_given_study_is_mapped_to_projects(
-        session=session,
         project_ids=project_ids_of_user,
         study_instance_uid=study,
         series_instance_uid=series,

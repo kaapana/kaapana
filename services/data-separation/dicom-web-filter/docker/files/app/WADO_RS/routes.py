@@ -3,14 +3,12 @@ import re
 from uuid import UUID
 
 import httpx
-from app import crud
+from app.crud import BaseDataAdapter
 from app.config import DICOMWEB_BASE_URL
-from app.database import get_session
 from app.streaming_helpers import metadata_replace_stream
-from app.utils import get_user_project_ids
+from app.utils import get_user_project_ids, get_project_data_adapter
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing import AsyncGenerator, Tuple, List
 
 # Create a router
@@ -169,7 +167,7 @@ async def proxy_series_requests(
     series: str,
     remaining_path: str,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    crud: BaseDataAdapter = Depends(get_project_data_adapter),
     project_ids_of_user=Depends(get_user_project_ids),
 ):
     """
@@ -180,14 +178,13 @@ async def proxy_series_requests(
         study (str): Study Instance UID
         series (str): Series Instance UID
         request (Request): Request object
-        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+        crud (BaseDataAdapter, optional): Data adapter for CRUD operations. Defaults to Depends(get_project_data_adapter).
 
     Returns:
         response: Response object
     """
     is_admin = request.scope.get("admin") is True
     is_mapped = await crud.check_if_series_in_given_study_is_mapped_to_projects(
-        session=session,
         project_ids=project_ids_of_user,
         study_instance_uid=study,
         series_instance_uid=series,
@@ -232,7 +229,7 @@ async def proxy_series_requests(
 async def retrieve_study_metadata(
     study: str,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    crud: BaseDataAdapter = Depends(get_project_data_adapter),
     project_ids_of_user=Depends(get_user_project_ids),
 ):
     """Retrieve the metadata of the study. If all series of the study are mapped to the project, the metadata is returned. If only some series are mapped, the metadata is filtered and only the mapped series are returned.
@@ -241,7 +238,7 @@ async def retrieve_study_metadata(
     Args:
         study (str): Study Instance UID
         request (Request): Request object
-        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+        crud (BaseDataAdapter, optional): Data adapter for CRUD operations. Defaults to Depends(get_project_data_adapter).
 
     Returns:
         StreamingResponse: Response object
@@ -253,7 +250,6 @@ async def retrieve_study_metadata(
     # Retrieve series mapped to the project for the given study
     mapped_series_uids = (
         await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
-            session=session,
             project_ids=project_ids_of_user,
             study_instance_uid=study,
         )
@@ -262,9 +258,7 @@ async def retrieve_study_metadata(
     logging.info(f"mapped_series_uids: {mapped_series_uids}")
 
     # get all series of the study
-    all_series = await crud.get_all_series_of_study(
-        session=session, study_instance_uid=study
-    )
+    all_series = await crud.get_all_series_of_study(study_instance_uid=study)
 
     logging.info(f"all_series: {all_series}")
 
@@ -316,14 +310,14 @@ async def retrieve_study_or_rendered(
     study: str,
     rendered_path: str,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    crud: BaseDataAdapter = Depends(get_project_data_adapter),
 ):
     """Retrieve the study from the DICOMWeb server. If all series of the study are mapped to the project, the study is returned. If only some series are mapped, the study is filtered and only the mapped series are returned.
         If there is a rendered path, the rendered study is returned.
     Args:
         study (str): Study Instance UID
         request (Request): Request object
-        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+        crud (BaseDataAdapter, optional): Data adapter for CRUD operations. Defaults to Depends(get_project_data_adapter).
 
     Returns:
         StreamingResponse: Response object
@@ -358,7 +352,6 @@ async def retrieve_study_or_rendered(
     # Otherwise, filter series based on project access
     mapped_series_uids = (
         await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
-            session=session,
             project_ids=project_ids_of_user,
             study_instance_uid=study,
         )
@@ -367,7 +360,6 @@ async def retrieve_study_or_rendered(
     logging.debug(f"mapped_series_uids: {mapped_series_uids}")
 
     all_series = await crud.get_all_series_of_study(
-        session=session,
         study_instance_uid=study,
     )
 

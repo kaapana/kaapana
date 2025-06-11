@@ -1,7 +1,7 @@
 import logging
 from uuid import UUID
 
-from app import crud
+from app import crud_postgres as crud
 from app.database import get_session
 from fastapi import APIRouter, Depends
 from fastapi.responses import Response

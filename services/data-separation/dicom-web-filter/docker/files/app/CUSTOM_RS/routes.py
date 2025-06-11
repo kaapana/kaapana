@@ -2,13 +2,11 @@ import logging
 from uuid import UUID
 
 import httpx
-from app import crud
+from app.crud import BaseDataAdapter
 from app.config import DICOMWEB_BASE_URL
-from app.database import get_session
-from app.utils import get_user_project_ids
+from app.utils import get_user_project_ids, get_project_data_adapter
 from fastapi import APIRouter, Depends, Path, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_204_NO_CONTENT
 
 router = APIRouter()
@@ -84,7 +82,7 @@ async def del_study(
     project_id: UUID,
     study: str,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    crud: BaseDataAdapter = Depends(get_project_data_adapter),
     project_ids_of_user=Depends(get_user_project_ids),
 ):
     """
@@ -106,16 +104,14 @@ async def del_study(
     # Retrieve series mapped to the project for the given study
     mapped_series_uids = (
         await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
-            session=session, project_ids=[project_id], study_instance_uid=study
+            project_ids=[project_id], study_instance_uid=study
         )
     )
 
     logging.info(f"mapped_series_uids: {mapped_series_uids}")
 
     # get all series of the study
-    all_series = await crud.get_all_series_of_study(
-        session=session, study_instance_uid=study
-    )
+    all_series = await crud.get_all_series_of_study(study_instance_uid=study)
 
     logging.info(f"all_series: {all_series}")
 
@@ -129,11 +125,11 @@ async def del_study(
     for series in mapped_series_uids:
         logging.info(f"Deleting series: {series}")
         await crud.remove_data_project_mapping(
-            session=session, series_instance_uid=series, project_id=project_id
+            series_instance_uid=series, project_id=project_id
         )
 
         # Check for other usages
-        mapped_project_ids = await crud.get_project_ids_of_series(session, series)
+        mapped_project_ids = await crud.get_project_ids_of_series(series)
 
         if len(mapped_project_ids) == 0:
             # This part should only run if a project deletes the last mapping of a series
@@ -152,7 +148,7 @@ async def del_series(
     study: str,
     series: str,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    crud: BaseDataAdapter = Depends(get_project_data_adapter),
     project_ids_of_user=Depends(get_user_project_ids),
 ):
     """This endpoint is used to delete a series.
@@ -174,7 +170,6 @@ async def del_series(
 
     # Check if series is mapped to the project
     if await crud.check_if_series_in_given_study_is_mapped_to_projects(
-        session=session,
         project_ids=[project_id],
         study_instance_uid=study,
         series_instance_uid=series,
@@ -182,11 +177,11 @@ async def del_series(
         logging.info(f"Deleting series: {series}")
 
         # Check for other usages
-        mapped_project_ids = await crud.get_project_ids_of_series(session, series)
+        mapped_project_ids = await crud.get_project_ids_of_series(series)
 
         # Remove the mapping to the current project
         await crud.remove_data_project_mapping(
-            session=session, series_instance_uid=series, project_id=project_id
+            series_instance_uid=series, project_id=project_id
         )
 
         if len(mapped_project_ids) == 1:
@@ -202,7 +197,7 @@ async def del_series(
 @router.get("/series", tags=["Custom"])
 async def get_series(
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    crud: BaseDataAdapter = Depends(get_project_data_adapter),
     project_ids_of_user=Depends(get_user_project_ids),
 ):
 
@@ -214,9 +209,7 @@ async def get_series(
     study = request.query_params["StudyInstanceUID"]
 
     # Get all series mapped to the project
-    series = set(
-        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(session, project_ids_of_user, study)
-    )
+    series = set(await crud.get_all_series_mapped_to_projects(project_ids_of_user))
 
     # Remove SeriesInstanceUID from the query parameters
     query_params = dict(request.query_params)
@@ -248,13 +241,11 @@ async def get_series(
 async def get_instances(
     study: str,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    crud: BaseDataAdapter = Depends(get_project_data_adapter),
     project_ids_of_user=Depends(get_user_project_ids),
 ):
     # Get all series mapped to the project
-    series = set(
-        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(session, project_ids_of_user, study)
-    )
+    series = set(await crud.get_all_series_mapped_to_projects(project_ids_of_user))
 
     # Remove SeriesInstanceUID from the query parameters
     query_params = dict(request.query_params)
@@ -291,11 +282,10 @@ async def get_bulkdata(
     series: str,
     instance: str,
     tag: str = Path(...),
-    session: AsyncSession = Depends(get_session),
+    crud: BaseDataAdapter = Depends(get_project_data_adapter),
     project_ids_of_user=Depends(get_user_project_ids),
 ):
     if not await crud.check_if_series_in_given_study_is_mapped_to_projects(
-        session=session,
         project_ids=project_ids_of_user,
         study_instance_uid=study,
         series_instance_uid=series,

@@ -231,7 +231,7 @@ async def get_project_ids_of_series(
                     "must": [{"match": {DicomTags.series_uid_tag: series_instance_uid}}]
                 }
             },
-            "_source": [DicomTags.project_id_tag],
+            "_source": [DicomTags.series_uid_tag],
         },
     )
     project_ids = list(

@@ -1,13 +1,14 @@
 from typing import List
 from uuid import UUID
 
+from app.schemas import DataProjects, DicomData
+
 from app.config import PROJECT_INFORMATION_SOURCE
 
 if PROJECT_INFORMATION_SOURCE == "POSTGRES":
     import app.crud_postgres as crud
-    from app.models import DataProjects, DicomData
 elif PROJECT_INFORMATION_SOURCE == "OPENSEARCH":
-    import crud_opensearch as crud
+    import opensearch_adapter.crud_opensearch as crud
 
 
 class BaseDataAdapter:
@@ -59,7 +60,6 @@ class BaseDataAdapter:
         description: str,
     ) -> DicomData:
         return await crud.add_dicom_data(
-            self,
             series_instance_uid=series_instance_uid,
             study_instance_uid=study_instance_uid,
             description=description,
@@ -84,15 +84,6 @@ class BaseDataAdapter:
     async def get_all_series_of_study(self, study_instance_uid: str) -> List[str]:
         return await crud.get_all_series_of_study(
             study_instance_uid=study_instance_uid, **self.kwargs
-        )
-
-    async def get_data_project_mapping(
-        self, series_instance_uid: str, project_id: UUID
-    ):
-        return await crud.get_data_project_mapping(
-            series_instance_uid=series_instance_uid,
-            project_id=project_id,
-            **self.kwargs
         )
 
     async def remove_data_project_mapping(
@@ -128,11 +119,3 @@ class BaseDataAdapter:
         return await crud.get_project_ids_of_series(
             series_instance_uid=series_instance_uid, **self.kwargs
         )
-
-    async def get_overview(self) -> dict:
-        """
-        Return a dictionary with the project_id as key and the series_instance_uids as values
-        E.g. {<project_id>: <series_instance_uids> }
-
-        """
-        return await crud.get_overview(**self.kwargs)

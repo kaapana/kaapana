@@ -18,7 +18,7 @@ ENV nnUNet_raw='/STU-Net/nnUNET_raw_data'
 ENV nnUNet_preprocessed='/STU-Net/nnUNET_preprocessed'
 ENV nnUNet_results='/STU-Net/nnUNET_results'
 
-COPY /STU-Net/nnUNet-2.2/nnunetv2/ /usr/local/lib/python3.9/site-packages/nnunetv2/
+COPY /STU-Net/nnUNet-2.2/nnunetv2/ /opt/venv/lib/python3.12/site-packages/nnunetv2/
 
 RUN wget -O /STU-Net/nnUNET_results/Dataset123_ATLAS/STUNetTrainer_base_ft__nnUNetPlans__3d_fullres/fold_0/checkpoint_best.pth https://heibox.uni-heidelberg.de/f/327ee31cf8f84ba6be16/?dl=1
 

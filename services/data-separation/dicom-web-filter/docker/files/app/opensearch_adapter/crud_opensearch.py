@@ -2,240 +2,110 @@ from typing import List
 from uuid import UUID
 from opensearchpy import OpenSearch
 
-from app.schemas import DataProjects, DicomData
-from app.opensearch_adapter.utils import get_project_indices, get_project_index
+from app.schemas import DataProjectMappings
+from app.opensearch_adapter.utils import (
+    get_project_index,
+    get_project_index_mapping,
+)
 from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-async def get_all_studies_mapped_to_projects(
-    os_client: OpenSearch, project_ids: List[UUID]
-) -> List[str]:
-    project_indices = await get_project_indices(project_ids)
-    response = os_client.search(
-        index=",".join(project_indices),
-        body={
-            "query": {"match_all": {}},
-            "_source": [DicomTags.study_uid_tag],
-        },
-    )
-    studies = (
-        hit["_source"].get(DicomTags.study_uid_tag) for hit in response["hits"]["hits"]
-    )
-    return list(set(studies))
-
-
-async def get_all_series_mapped_to_projects(
-    os_client: OpenSearch, project_ids: List[UUID]
-) -> List[str]:
-    project_indices = await get_project_indices(project_ids)
-    response = os_client.search(
-        index=",".joins(project_indices),
-        body={
-            "query": {"match_all": {}},
-            "_source": [DicomTags.series_uid_tag],
-        },
-    )
-    series = (
-        hit["_source"].get(DicomTags.series_uid_tag) for hit in response["hits"]["hits"]
-    )
-    return list(set(series))
-
-
-async def get_series_instance_uids_of_study_which_are_mapped_to_projects(
-    os_client: OpenSearch, project_ids: List[UUID], study_instance_uid: str
-) -> List[str]:
-    """
-    Return all series_instance_uids of a study that are mapped to the given projects.
-    """
-    project_indices = await get_project_indices(project_ids)
-    response = os_client.search(
-        index=",".join(project_indices),
-        body={
-            "query": {
-                "bool": {
-                    "must": [{"match": {DicomTags.study_uid_tag: study_instance_uid}}]
-                }
-            },
-            "_source": [],
-        },
-    )
-    series_instance_uids = (
-        hit["_source"][DicomTags.series_uid_tag] for hit in response["hits"]["hits"]
-    )
-    return list(set(series_instance_uids))
-
-
-async def check_if_series_in_given_study_is_mapped_to_projects(
+async def get_data_project_mappings(
     os_client: OpenSearch,
-    project_ids: List[UUID],
-    study_instance_uid: str,
-    series_instance_uid: str,
-) -> bool:
+    project_ids: List[UUID] = None,
+    series_instance_uids: List[str] = None,
+    study_instance_uids: List[str] = None,
+) -> List[DataProjectMappings]:
     """
-    Check if a series_instance_uid in a study is mapped to the given projects.
+    Return all DataProjectMappings for a given project.
     """
-    project_indices = await get_project_indices(project_ids)
+    project_index_mapping = await get_project_index_mapping()
+    index_project_mapping = {v: k for k, v in project_index_mapping.items()}
+    if project_ids:
+        os_indices = ",".join(
+            [project_index_mapping.get(project_id) for project_id in project_ids]
+        )
+    else:
+        os_indices = ",".join(project_index_mapping.values())
+
+    query = {"bool": {"must": []}}
+    if series_instance_uids:
+        query["bool"]["must"].append(
+            {"terms": {DicomTags.series_uid_tag: series_instance_uids}}
+        )
+    if study_instance_uids:
+        query["bool"]["must"].append(
+            {"terms": {DicomTags.study_uid_tag: study_instance_uids}}
+        )
+    else:
+        query = {"match_all": {}}
+
     response = os_client.search(
-        index=",".join(project_indices),
+        index=os_indices,
         body={
-            "query": {
-                "bool": {
-                    "must": [
-                        {"match": {DicomTags.study_uid_tag: study_instance_uid}},
-                        {"match": {DicomTags.series_uid_tag: series_instance_uid}},
-                    ]
-                }
-            },
+            "query": query,
+            "_source": [DicomTags.study_uid_tag, DicomTags.series_uid_tag],
         },
     )
-    if response["hits"]["total"]["value"] > 0:
-        return True
-    return False
-
-
-async def add_dicom_data(
-    series_instance_uid: str,
-    study_instance_uid: str,
-    description: str,
-) -> DicomData:
-    logger.warning(
-        "This method has no effect. It is required to support the database mode."
-    )
-    return DicomData(
-        series_instance_uid=series_instance_uid,
-        study_instance_uid=study_instance_uid,
-        description=description,
-    )
-
-
-async def get_data_of_project(os_client: OpenSearch, project_id: UUID):
-    """
-    Return all data that belongs to a project.
-    """
-    project_index = await get_project_index(project_id)
-    response = os_client.search(
-        index=project_index,
-        body={
-            "query": {"match_all": {}},
-            "_source": [
-                DicomTags.series_uid_tag,
-            ],
-        },
-    )
-    series_instance_uids = [
-        hit["_source"][DicomTags.series_uid_tag] for hit in response["hits"]["hits"]
-    ]
-    return series_instance_uids
-
-
-async def add_data_project_mapping(
-    os_client: OpenSearch, series_instance_uid: str, project_id: UUID
-) -> DataProjects:
-    logger.warning(
-        "This method has no effect. It is required to support the database mode."
-    )
-    return DataProjects(series_instance_uid=series_instance_uid, project_id=project_id)
-
-
-async def get_all_series_of_study(
-    os_client: OpenSearch, study_instance_uid: str
-) -> List[str]:
-    response = os_client.search(
-        body={
-            "query": {"match": {DicomTags.study_uid_tag: study_instance_uid}},
-            "_source": [DicomTags.series_uid_tag],
-        },
-    )
+    hits = response["hits"]["hits"]
     return [
-        hit["_source"][DicomTags.series_uid_tag] for hit in response["hits"]["hits"]
+        DataProjectMappings(
+            series_instance_uid=hit.get("_source")[DicomTags.series_uid_tag],
+            study_instance_uid=hit.get("_source")[DicomTags.study_uid_tag],
+            project_id=index_project_mapping.get(hit.get("_index")),
+        )
+        for hit in hits
     ]
 
 
-async def remove_data_project_mapping(
-    os_client: OpenSearch, series_instance_uid: str, project_id: UUID
+async def put_data_project_mappings(
+    os_client: OpenSearch,
+    data_project_mappings: List[DataProjectMappings],
+) -> List[DataProjectMappings]:
+    """
+    Create or update a DataProjectMappings entry.
+    """
+    logger.warning(
+        "Creation of DataProjectMappings not supported with mode Opensearch."
+    )
+    return []
+
+
+async def delete_data_project_mappings(
+    os_client: OpenSearch,
+    data_project_mappings: DataProjectMappings,
 ):
     """
-    Remove the document correpsonding to the series_instance_uid from the project index.
+    Delete a DataProjectMappings entry.
     """
-    try:
-        project_index = await get_project_index(project_id)
-    except Exception as e:
-        logger.error(f"Project index not found for project_id {project_id}: {e}")
-        raise NameError(f"Project {project_id} does not exist!")
-    os_client.delete_by_query(
-        index=project_index,
-        body={
-            "query": {
-                "bool": {
-                    "must": [
-                        {"match": {DicomTags.series_uid_tag: series_instance_uid}},
-                    ]
-                }
-            }
-        },
+    logger.warning(
+        "Deletion of DataProjectMappings not supported with mode Opensearch."
     )
     return
-
-
-async def series_is_mapped_to_multiple_projects(
-    os_client: OpenSearch, series_instance_uid: str
-) -> bool:
-    """
-    Check if a series_instance_uid is mapped to multiple projects.
-    """
-    response = os_client.search(
-        body={
-            "query": {
-                "bool": {
-                    "must": [{"match": {DicomTags.series_uid_tag: series_instance_uid}}]
+    for mapping in data_project_mappings:
+        try:
+            project_index = await get_project_index(mapping.project_id)
+        except Exception as e:
+            logger.error(
+                f"Project index not found for project_id {mapping.project_id}: {e}"
+            )
+        os_client.delete_by_query(
+            index=project_index,
+            body={
+                "query": {
+                    "bool": {
+                        "must": [
+                            {
+                                "match": {
+                                    DicomTags.series_uid_tag: mapping.series_instance_uid
+                                }
+                            },
+                        ]
+                    }
                 }
             },
-            "_source": [DicomTags.series_uid_tag],
-        },
-    )
-    return response["hits"]["total"]["value"] > 1
-
-
-async def study_is_mapped_to_multiple_projects(
-    os_client: OpenSearch, study_instance_uid: str
-) -> bool:
-    """
-    Check if a study_instance_uid is mapped to multiple projects.
-    """
-    response = os_client.search(
-        body={
-            "query": {
-                "bool": {
-                    "must": [{"match": {DicomTags.study_uid_tag: study_instance_uid}}]
-                }
-            },
-            "_source": [DicomTags.study_uid_tag],
-        },
-    )
-    return response["hits"]["total"]["value"] > 1
-
-
-async def get_project_ids_of_series(
-    os_client: OpenSearch, series_instance_uid: str
-) -> List[UUID]:
-    """
-    Return the ids of all projects that contain series_instance_uid.
-    """
-    response = os_client.search(
-        body={
-            "query": {
-                "bool": {
-                    "must": [{"match": {DicomTags.series_uid_tag: series_instance_uid}}]
-                }
-            },
-            "_source": [DicomTags.series_uid_tag],
-        },
-    )
-    project_ids = list(
-        set([UUID(hit.get("_index")) for hit in response["hits"]["hits"]])
-    )
-
-    return get_project_indices(project_ids)
+        )
+    return

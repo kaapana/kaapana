@@ -146,36 +146,48 @@ async def query_studies(
     if request.scope.get("admin") is True:
         return await retrieve_studies(request=request)
 
-    query_params = dict(request.query_params)
+    data_project_mappings = await crud.get_data_project_mappings(
+        project_ids=project_ids_of_user
+    )
+
     if "SeriesInstanceUID" in request.query_params:
         # retrieve series mapped to the project
-        series = set(await crud.get_all_series_mapped_to_projects(project_ids_of_user))
-        # Remove SeriesInstanceUID from the query parameters
-        query_params["SeriesInstanceUID"] = []
+        series = set(
+            data_project_mapping.series_instance_uid
+            for data_project_mapping in data_project_mappings
+        )
 
-        # Add the series mapped to the project to the query parameters
-        for uid in series:
-            query_params["SeriesInstanceUID"].append(uid)
+        # Check if the requested series are mapped to the project
+        requested_series = set(request.query_params.getlist("SeriesInstanceUID"))
+        series = series.intersection(requested_series)
 
         if not series:
             # return empty response with status code 204
             return Response(status_code=HTTP_204_NO_CONTENT)
 
-    # Retrieve studies mapped to the project
-    studies = set(await crud.get_all_studies_mapped_to_projects(project_ids_of_user))
+        # Remove SeriesInstanceUID from the query parameters
+        request.query_params["SeriesInstanceUID"] = []
 
-    # Remove StudyInstanceUID from the query parameters
-    query_params["StudyInstanceUID"] = []
-    # Add the studies mapped to the project to the query parameters
-    for uid in studies:
-        query_params["StudyInstanceUID"].append(uid)
+        # Add the series mapped to the project to the query parameters
+        for uid in series:
+            request.query_params["SeriesInstanceUID"].append(uid)
+
+    # Retrieve studies mapped to the project
+    studies = set(
+        data_project_mapping.study_instance_uid
+        for data_project_mapping in data_project_mappings
+    )
 
     # Update the query parameters
-    request._query_params = query_params
-
     if not studies:
         # return empty response with status code 204
         return Response(status_code=HTTP_204_NO_CONTENT)
+
+    # Remove StudyInstanceUID from the query parameters
+    request.query_params["StudyInstanceUID"] = []
+    # Add the studies mapped to the project to the query parameters
+    for uid in studies:
+        request.query_params["StudyInstanceUID"].append(uid)
 
     return await retrieve_studies(request=request)
 
@@ -205,11 +217,15 @@ async def query_series(
         query_params.pop("StudyInstanceUID")
 
     # Retrieve series mapped to the project for the given study
+    data_project_mappings = await crud.get_data_project_mappings(
+        project_ids=project_ids_of_user,
+        study_instance_uids=[study],
+    )
     mapped_series_uids = set(
-        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
-            project_ids=project_ids_of_user,
-            study_instance_uid=study,
-        )
+        [
+            data_project_mappings.series_instance_uid
+            for data_project_mappings in data_project_mappings
+        ]
     )
 
     # check if SeriesInstanceUID is in the query parameters
@@ -270,11 +286,13 @@ async def query_instances(
     # Update the query parameters
     request._query_params = query_params
 
-    if not await crud.check_if_series_in_given_study_is_mapped_to_projects(
+    data_project_mappings = await crud.get_data_project_mappings(
         project_ids=project_ids_of_user,
-        study_instance_uid=study,
-        series_instance_uid=series,
-    ):
+        study_instance_uids=[study],
+        series_instance_uids=[series],
+    )
+
+    if not (len(data_project_mappings) > 0):
         return Response(status_code=HTTP_204_NO_CONTENT)
 
     return await retrieve_instances(study=study, series=series, request=request)

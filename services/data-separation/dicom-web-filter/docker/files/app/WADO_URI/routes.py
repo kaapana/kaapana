@@ -54,7 +54,13 @@ async def retrieve_instance(
         return StreamingResponse(stream_wado(request=request))
 
     # Retrieve all studies mapped to the project
-    studies = set(await crud.get_all_studies_mapped_to_projects(project_ids_of_user))
+    data_project_mappings = await crud.get_data_project_mappings(
+        project_ids=project_ids_of_user
+    )
+    studies = set(
+        data_project_mapping.study_instance_uid
+        for data_project_mapping in data_project_mappings
+    )
 
     # check if studyUID is in the query parameters
     query_params = dict(request.query_params)
@@ -68,12 +74,11 @@ async def retrieve_instance(
         series_in_query_params = set(request.query_params.getlist("seriesUID"))
 
         all_mapped_series = set(
-            await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
-                project_ids=project_ids_of_user,
-                study_instance_uid=list(studies)[
-                    0
-                ],  # If seriesUID is present, providing multiple studies is not supported (Ambiguity)
-            )
+            [
+                data_project_mapping.series_instance_uid
+                for data_project_mapping in data_project_mappings
+                if data_project_mapping.study_instance_uid in list(studies)
+            ]
         )
 
         series = all_mapped_series.intersection(series_in_query_params)

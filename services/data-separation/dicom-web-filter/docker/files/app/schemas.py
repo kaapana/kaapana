@@ -8,12 +8,7 @@ class OrmBaseModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class DicomData(OrmBaseModel):
+class DataProjectMappings(OrmBaseModel):
     series_instance_uid: str
     study_instance_uid: str
-    description: str
-
-
-class DataProjects(OrmBaseModel):
-    series_instance_uid: str
     project_id: UUID

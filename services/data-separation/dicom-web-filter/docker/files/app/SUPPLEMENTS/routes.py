@@ -28,13 +28,12 @@ async def retrieve_instance_thumbnail(
     crud: BaseDataAdapter = Depends(get_project_data_adapter),
     project_ids_of_user=Depends(get_user_project_ids),
 ):
-    if request.scope.get(
-        "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
+    data_project_mappings = await crud.get_data_project_mappings(
         project_ids=project_ids_of_user,
-        study_instance_uid=study,
-        series_instance_uid=series,
-    ):
+        study_instance_uids=[study],
+        series_instance_uids=[series],
+    )
+    if request.scope.get("admin") is True or (len(data_project_mappings) > 0):
 
         async def stream_thumbnail():
             """Stream the thumbnail from the DICOMWeb server.
@@ -66,13 +65,12 @@ async def retrieve_series_thumbnail(
     crud: BaseDataAdapter = Depends(get_project_data_adapter),
     project_ids_of_user=Depends(get_user_project_ids),
 ):
-    if request.scope.get(
-        "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
+    data_project_mappings = await crud.get_data_project_mappings(
         project_ids=project_ids_of_user,
-        study_instance_uid=study,
-        series_instance_uid=series,
-    ):
+        study_instance_uids=[study],
+        series_instance_uids=[series],
+    )
+    if request.scope.get("admin") is True or (len(data_project_mappings) > 0):
 
         async def stream_thumbnail():
             """Stream the thumbnail from the DICOMWeb server.

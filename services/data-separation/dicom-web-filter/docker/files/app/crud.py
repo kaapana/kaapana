@@ -1,9 +1,9 @@
 from typing import List
 from uuid import UUID
+import httpx
+from app.schemas import DataProjectMappings
 
-from app.schemas import DataProjects, DicomData
-
-from app.config import PROJECT_INFORMATION_SOURCE
+from app.config import PROJECT_INFORMATION_SOURCE, DICOMWEB_BASE_URL
 
 if PROJECT_INFORMATION_SOURCE == "POSTGRES":
     import app.crud_postgres as crud
@@ -15,107 +15,55 @@ class BaseDataAdapter:
     def __init__(self, **kwargs):
         self.kwargs = kwargs
 
-    async def get_all_studies_mapped_to_projects(
-        self, project_ids: List[UUID]
-    ) -> List[str]:
-        return await crud.get_all_studies_mapped_to_projects(
-            project_ids=project_ids, **self.kwargs
-        )
-
-    async def get_all_series_mapped_to_projects(
-        self, project_ids: List[UUID]
-    ) -> List[str]:
-        return await crud.get_all_series_mapped_to_projects(
-            project_ids=project_ids, **self.kwargs
-        )
-
-    async def get_series_instance_uids_of_study_which_are_mapped_to_projects(
-        self, project_ids: List[UUID], study_instance_uid: str
-    ) -> List[str]:
-        return (
-            await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
-                project_ids=project_ids,
-                study_instance_uid=study_instance_uid,
-                **self.kwargs
-            )
-        )
-
-    async def check_if_series_in_given_study_is_mapped_to_projects(
+    async def get_data_project_mappings(
         self,
-        project_ids: List[UUID],
-        study_instance_uid: str,
-        series_instance_uid: str,
-    ) -> bool:
-        return await crud.check_if_series_in_given_study_is_mapped_to_projects(
+        project_ids: List[UUID] = None,
+        series_instance_uids: List[str] = None,
+        study_instance_uids: List[str] = None,
+    ) -> List[DataProjectMappings]:
+        """
+        Return all DataProjectMappings for a given project.
+        """
+        return await crud.get_data_project_mappings(
             project_ids=project_ids,
-            study_instance_uid=study_instance_uid,
-            series_instance_uid=series_instance_uid,
-            **self.kwargs
+            series_instance_uids=series_instance_uids,
+            study_instance_uids=study_instance_uids,
+            **self.kwargs,
         )
 
-    async def add_dicom_data(
+    async def put_data_project_mappings(
         self,
-        series_instance_uid: str,
-        study_instance_uid: str,
-        description: str,
-    ) -> DicomData:
-        return await crud.add_dicom_data(
-            series_instance_uid=series_instance_uid,
-            study_instance_uid=study_instance_uid,
-            description=description,
-            **self.kwargs
+        data_project_mappings=List[DataProjectMappings],
+    ) -> List[DataProjectMappings]:
+        """
+        Create or update a DataProjectMappings entry.
+        """
+        return await crud.put_data_project_mappings(
+            data_project_mappings=data_project_mappings,
+            **self.kwargs,
         )
 
-    async def get_data_of_project(self, project_id: UUID):
+    async def delete_data_project_mappings(
+        self,
+        data_project_mappings: List[DataProjectMappings],
+    ):
         """
-        Return all data that belongs to a project.
+        Delete a DataProjectMappings entry.
         """
-        return await crud.get_data_of_project(project_id=project_id, **self.kwargs)
-
-    async def add_data_project_mapping(
-        self, series_instance_uid: str, project_id: UUID
-    ) -> DataProjects:
-        return await crud.add_data_project_mapping(
-            series_instance_uid=series_instance_uid,
-            project_id=project_id,
-            **self.kwargs
+        return await crud.delete_data_project_mappings(
+            data_project_mappings=data_project_mappings,
+            **self.kwargs,
         )
 
     async def get_all_series_of_study(self, study_instance_uid: str) -> List[str]:
-        return await crud.get_all_series_of_study(
-            study_instance_uid=study_instance_uid, **self.kwargs
-        )
-
-    async def remove_data_project_mapping(
-        self, series_instance_uid: str, project_id: UUID
-    ):
         """
-        Delete a DataProject mapping.
+        Return all series_instance_uids of a study stored in the PACS.
         """
-        return await crud.remove_data_project_mapping(
-            series_instance_uid=series_instance_uid,
-            project_id=project_id,
-            **self.kwargs
-        )
+        async with httpx.AsyncClient() as client:
+            async with client.get(
+                "GET", f"{DICOMWEB_BASE_URL}/studies/{study_instance_uid}/series"
+            ) as response:
+                response.raise_for_status()
+                data = response.json()
 
-    async def series_is_mapped_to_multiple_projects(
-        self, series_instance_uid: str
-    ) -> bool:
-        return await crud.series_is_mapped_to_multiple_projects(
-            series_instance_uid=series_instance_uid, **self.kwargs
-        )
-
-    async def study_is_mapped_to_multiple_projects(
-        self, study_instance_uid: str
-    ) -> bool:
-        return await crud.study_is_mapped_to_multiple_projects(
-            study_instance_uid=study_instance_uid, **self.kwargs
-        )
-
-    async def get_project_ids_of_series(self, series_instance_uid: str):
-        """
-        Return the ids of all projects that contain series_instance_uid.
-        """
-        return await crud.get_project_ids_of_series(
-            series_instance_uid=series_instance_uid, **self.kwargs
-        )
+                return [series.get("0020000E").get("Value")[0] for series in data]

@@ -6,6 +6,7 @@ import httpx
 from app import config
 from app.crud import BaseDataAdapter
 from app.utils import get_default_project_id, get_project_data_adapter
+from app.schemas import DataProjectMappings
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
 
@@ -56,20 +57,16 @@ async def __map_dicom_series_to_project(
         request.query_params.get("clinical_trial_protocol_info")
     )
 
-    for series_instance_uid in clinical_trial_protocol_info:
-        # Add the dicom data to the database
-        await crud.add_dicom_data(
-            series_instance_uid=series_instance_uid,
-            study_instance_uid=clinical_trial_protocol_info[series_instance_uid][
-                "study_instance_uid"
-            ],
-            description="Dicom data",
-        )
-
+    for series_instance_uid, ctp_info in clinical_trial_protocol_info.items():
         # Map the dicom data to the project
-        await crud.add_data_project_mapping(
-            series_instance_uid=series_instance_uid,
-            project_id=project_id,
+        await crud.put_data_project_mappings(
+            data_project_mappings=[
+                DataProjectMappings(
+                    series_instance_uid=series_instance_uid,
+                    project_id=project_id,
+                    study_instance_uid=ctp_info.get("study_instance_uid"),
+                )
+            ]
         )
 
 

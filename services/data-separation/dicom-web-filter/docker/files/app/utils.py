@@ -40,6 +40,7 @@ if PROJECT_INFORMATION_SOURCE == "POSTGRES":
             await session.close()
 
 elif PROJECT_INFORMATION_SOURCE == "OPENSEARCH":
+    from app.opensearch_adapter.utils import get_opensearch
 
-    async def get_project_data_adapter():
-        yield BaseDataAdapter()
+    async def get_project_data_adapter(os_client=Depends(get_opensearch)):
+        yield BaseDataAdapter(os_client=os_client)

@@ -8,7 +8,7 @@ from app.config import PROJECT_INFORMATION_SOURCE, DICOMWEB_BASE_URL
 if PROJECT_INFORMATION_SOURCE == "POSTGRES":
     import app.crud_postgres as crud
 elif PROJECT_INFORMATION_SOURCE == "OPENSEARCH":
-    import opensearch_adapter.crud_opensearch as crud
+    import app.opensearch_adapter.crud_opensearch as crud
 
 
 class BaseDataAdapter:

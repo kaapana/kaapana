@@ -3,99 +3,101 @@ from uuid import UUID
 
 from app.crud import BaseDataAdapter
 from app.utils import get_project_data_adapter
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
+from app.schemas import DataProjectMappings
+from typing import List
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+# @router.put(
+#     "/projects/{project_id}/data/{series_instance_uid}",
+#     tags=["DataProjects"],
+# )
+
+
+# @router.get(
+#     "/projects/{project_id}/data",
+#     tags=["DataProjects"],
+#     response_model=DataProjectMappings,
+# )
+
+
+# @router.get(
+#     "/data/{series_instance_uid}/projects",
+#     tags=["DataProjects"],
+#     response_model=List[DataProjectMappings],
+# )
+
+
+# @router.delete(
+#     "/projects/{project_id}/data/{series_instance_uid}",
+#     tags=["DataProjects"],
+# )
+
+
+# @router.put(
+#     "/data/{series_instance_uid}",
+#     tags=["DataProjects"],
+# )
+
+###### New ROUTES ######
+
+
 @router.put(
-    "/projects/{project_id}/data/{series_instance_uid}",
-    tags=["DataProjects"],
+    "/project-mappings", tags=["DataProjects"], response_model=List[DataProjectMappings]
 )
-async def create_data_project_mappings(
-    project_id: UUID,
-    series_instance_uid: str,
+async def create_data_project_mapping(
+    data_project_mappings: List[DataProjectMappings],
     crud: BaseDataAdapter = Depends(get_project_data_adapter),
 ):
     """
-    Create DataProjects mappings in the database.
+    Create a DataProjects mapping.
     """
-    return await crud.add_data_project_mapping(
-        series_instance_uid=series_instance_uid,
-        project_id=project_id,
+    return await crud.put_data_project_mappings(
+        data_project_mappings=data_project_mappings,
     )
 
 
 @router.get(
-    "/projects/{project_id}/data",
+    "/project-mappings/",
     tags=["DataProjects"],
+    response_model=List[DataProjectMappings],
 )
-async def get_data_by_project_id(
-    project_id: UUID,
+async def get_data_project_mappings(
     crud: BaseDataAdapter = Depends(get_project_data_adapter),
+    series_instance_uids: List[str] = Query(None),
+    study_instance_uids: List[str] = Query(None),
+    project_ids: List[UUID] = Query(None),
 ):
     """
-    Return all Data that belong to a project.
+    Get all DataProjects mappings.
     """
-    return await crud.get_data_of_project(
-        project_id=project_id,
+    logger.info(f"{series_instance_uids=}")
+    logger.info(f"{study_instance_uids=}")
+    logger.info(f"{project_ids=}")
+    return await crud.get_data_project_mappings(
+        series_instance_uids=series_instance_uids,
+        study_instance_uids=study_instance_uids,
+        project_ids=project_ids,
     )
 
 
-@router.get(
-    "/data/{series_instance_uid}/projects",
-    tags=["DataProjects"],
-)
-async def get_projects_by_series_instance_uid(
-    series_instance_uid: str,
-    crud: BaseDataAdapter = Depends(get_project_data_adapter),
-):
-    """
-    Get all projects Data belongs to.
-    """
-    return await crud.get_project_ids_of_series(
-        series_instance_uid=series_instance_uid,
-    )
-
-
-@router.delete(
-    "/projects/{project_id}/data/{series_instance_uid}",
-    tags=["DataProjects"],
-)
+@router.delete("/project-mappings", tags=["DataProjects"])
 async def delete_data_project_mappings(
-    project_id: UUID,
-    series_instance_uid: str,
+    data_project_mappings: List[DataProjectMappings],
     crud: BaseDataAdapter = Depends(get_project_data_adapter),
 ):
     """
-    Delete existing DataProjects mappings from the database.
+    Delete a DataProjects mapping.
     """
     try:
-        await crud.remove_data_project_mapping(
-            series_instance_uid=series_instance_uid,
-            project_id=project_id,
+        await crud.delete_data_project_mappings(
+            data_project_mappings=data_project_mappings,
         )
     except NameError:
-        return Response("Project does not exist!", status_code=404)
-
-
-@router.put(
-    "/data/{series_instance_uid}",
-    tags=["DataProjects"],
-)
-async def create_dicom_data(
-    series_instance_uid: str,
-    study_uid: str,
-    description: str,
-    crud: BaseDataAdapter = Depends(get_project_data_adapter),
-):
-    """
-    Create DataProjects mappings in the database.
-    """
-    return await crud.add_dicom_data(
-        series_instance_uid=series_instance_uid,
-        study_instance_uid=study_uid,
-        description=description,
-    )
+        return Response(
+            "One or more DataProjectMappings do not exist!", status_code=404
+        )

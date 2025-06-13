@@ -184,11 +184,12 @@ async def proxy_series_requests(
         response: Response object
     """
     is_admin = request.scope.get("admin") is True
-    is_mapped = await crud.check_if_series_in_given_study_is_mapped_to_projects(
+    data_project_mappings = await crud.get_data_project_mappings(
         project_ids=project_ids_of_user,
-        study_instance_uid=study,
-        series_instance_uid=series,
+        study_instance_uids=[study],
+        series_instance_uids=[series],
     )
+    is_mapped = len(data_project_mappings) > 0
 
     if not (is_admin or is_mapped):
         return Response(status_code=status.HTTP_403_FORBIDDEN)
@@ -248,11 +249,13 @@ async def retrieve_study_metadata(
         return stream_study_metadata(study, request)
 
     # Retrieve series mapped to the project for the given study
-    mapped_series_uids = (
-        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
-            project_ids=project_ids_of_user,
-            study_instance_uid=study,
-        )
+    data_project_mappings = await crud.get_data_project_mappings(
+        project_ids=project_ids_of_user,
+        study_instance_uid=[study],
+    )
+    mapped_series_uids = set(
+        data_project_mapping.series_instance_uid
+        for data_project_mapping in data_project_mappings
     )
 
     logging.info(f"mapped_series_uids: {mapped_series_uids}")
@@ -350,11 +353,15 @@ async def retrieve_study_or_rendered(
         )
 
     # Otherwise, filter series based on project access
-    mapped_series_uids = (
-        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
-            project_ids=project_ids_of_user,
-            study_instance_uid=study,
-        )
+    data_project_mappings = await crud.get_data_project_mappings(
+        project_ids=project_ids_of_user,
+        study_instance_uid=[study],
+    )
+    mapped_series_uids = set(
+        [
+            data_project_mappings.series_instance_uid
+            for data_project_mappings in data_project_mappings
+        ]
     )
 
     logging.debug(f"mapped_series_uids: {mapped_series_uids}")

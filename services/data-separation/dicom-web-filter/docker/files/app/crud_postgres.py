@@ -5,200 +5,94 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
-from app.models import DataProjects, DicomData
+from app import models
+from app import schemas
 from kaapanapy.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-async def get_all_studies_mapped_to_projects(
-    session: AsyncSession, project_ids: List[UUID]
-) -> List[str]:
-    stmt = (
-        select(DicomData.study_instance_uid)
-        .join(
-            DataProjects,
-            DataProjects.series_instance_uid == DicomData.series_instance_uid,
-        )
-        .where(DataProjects.project_id.in_(project_ids))
-    )
-    result = await session.execute(stmt)
-    studies = result.scalars().all()
-    return studies
-
-
-async def get_all_series_mapped_to_projects(
-    session: AsyncSession, project_ids: List[UUID]
-) -> List[str]:
-    stmt = (
-        select(DicomData.series_instance_uid)
-        .join(
-            DataProjects,
-            DataProjects.series_instance_uid == DicomData.series_instance_uid,
-        )
-        .where(DataProjects.project_id.in_(project_ids))
-    )
-    result = await session.execute(stmt)
-    series = result.scalars().all()
-    return series
-
-
-async def get_series_instance_uids_of_study_which_are_mapped_to_projects(
-    session: AsyncSession, project_ids: List[UUID], study_instance_uid: str
-) -> List[str]:
-    stmt = (
-        select(DicomData.series_instance_uid)
-        .join(
-            DataProjects,
-            DataProjects.series_instance_uid == DicomData.series_instance_uid,
-        )
-        .where(DataProjects.project_id.in_(project_ids))
-        .where(DicomData.study_instance_uid == study_instance_uid)
-    )
-    result = await session.execute(stmt)
-    series = result.scalars().all()
-    return series
-
-
-async def check_if_series_in_given_study_is_mapped_to_projects(
+async def get_data_project_mappings(
     session: AsyncSession,
-    project_ids: List[UUID],
-    study_instance_uid: str,
-    series_instance_uid: str,
-) -> bool:
-    stmt = (
-        select(DicomData.series_instance_uid)
-        .join(
-            DataProjects,
-            DataProjects.series_instance_uid == DicomData.series_instance_uid,
+    project_ids: List[UUID] = None,
+    series_instance_uids: List[str] = None,
+    study_instance_uids: List[str] = None,
+) -> List[models.DataProjectMappings]:
+    """
+    Return all DataProjectMappings for a given project.
+    """
+    stmt = select(models.DataProjectMappings)
+    if project_ids:
+        stmt = stmt.where(models.DataProjectMappings.project_id.in_(project_ids))
+    if series_instance_uids:
+        stmt = stmt.where(
+            models.DataProjectMappings.series_instance_uid.in_(series_instance_uids)
         )
-        .where(DataProjects.project_id.in_(project_ids))
-        .where(DicomData.study_instance_uid == study_instance_uid)
-        .where(DicomData.series_instance_uid == series_instance_uid)
-    )
-    result = await session.execute(stmt)
-    series = result.scalars().all()
-    return len(series) > 0
-
-
-async def add_dicom_data(
-    session: AsyncSession,
-    series_instance_uid: str,
-    study_instance_uid: str,
-    description: str,
-) -> DicomData:
-    new_data = DicomData(
-        series_instance_uid=series_instance_uid,
-        study_instance_uid=study_instance_uid,
-        description=description,
-    )
-    session.add(new_data)
-    try:
-        await session.commit()
-    except IntegrityError as e:
-        await session.rollback()
-        logger.warning(f"{series_instance_uid=} already exists in the database")
-    return new_data
-
-
-async def get_data_of_project(session: AsyncSession, project_id: UUID):
-    """
-    Return all data that belongs to a project.
-    """
-    stmt = select(DicomData)
-    stmt = stmt.join(DicomData.data_projects)
-    stmt = stmt.where(DataProjects.project_id == project_id)
-    result = await session.execute(stmt)
-    data = result.scalars().all()
-    return data
-
-
-async def add_data_project_mapping(
-    session: AsyncSession, series_instance_uid: str, project_id: UUID
-) -> DataProjects:
-    new_mapping = DataProjects(
-        series_instance_uid=series_instance_uid, project_id=project_id
-    )
-    session.add(new_mapping)
-    try:
-        await session.commit()
-    except IntegrityError as e:
-        await session.rollback()
-        logger.warning(f"{series_instance_uid=} already exists in the project mapping")
-    return new_mapping
-
-
-async def get_all_series_of_study(
-    session: AsyncSession, study_instance_uid: str
-) -> List[str]:
-    stmt = select(DicomData.series_instance_uid).where(
-        DicomData.study_instance_uid == study_instance_uid
-    )
-    result = await session.execute(stmt)
-    series = result.scalars().all()
-    return series
-
-
-async def _get_data_project_mapping(
-    session, series_instance_uid: str, project_id: UUID
-):
-    stmt = select(DataProjects)
-    stmt = stmt = stmt.where(
-        DataProjects.series_instance_uid == series_instance_uid,
-        DataProjects.project_id == project_id,
-    )
+    if study_instance_uids:
+        stmt = stmt.where(
+            models.DataProjectMappings.study_instance_uid.in_(study_instance_uids)
+        )
     result = await session.execute(stmt)
     return result.scalars().all()
 
 
-async def remove_data_project_mapping(
-    session: AsyncSession, series_instance_uid: str, project_id: UUID
+async def put_data_project_mappings(
+    session: AsyncSession,
+    data_project_mappings: List[schemas.DataProjectMappings],
+) -> List[models.DataProjectMappings]:
+    """
+    Create or update a DataProjectMappings entry.
+    """
+    new_mappings = []
+    for mapping in data_project_mappings:
+        existing_mapping = await get_data_project_mappings(
+            session,
+            series_instance_uids=[mapping.series_instance_uid],
+            project_ids=[mapping.project_id],
+            study_instance_uids=[mapping.study_instance_uid],
+        )
+
+        if existing_mapping:
+            logger.warning(f"Mapping {mapping} already exists.")
+            continue
+
+        new_mappings.append(
+            models.DataProjectMappings(
+                series_instance_uid=mapping.series_instance_uid,
+                project_id=mapping.project_id,
+                study_instance_uid=mapping.study_instance_uid,
+            )
+        )
+
+    session.add_all(new_mappings)
+
+    try:
+        await session.commit()
+    except IntegrityError as e:
+        await session.rollback()
+        logger.warning(f"Some {data_project_mappings=} already exist in the database.")
+
+    return new_mappings
+
+
+async def delete_data_project_mappings(
+    session: AsyncSession,
+    data_project_mappings: schemas.DataProjectMappings,
 ):
     """
-    Delete a DataProject mapping.
+    Delete a DataProjectMappings entry.
     """
-    try:
-        remove_mapping = await _get_data_project_mapping(
-            session, series_instance_uid=series_instance_uid, project_id=project_id
+    for mapping in data_project_mappings:
+        existing_mapping = await get_data_project_mappings(
+            session,
+            series_instance_uids=[mapping.series_instance_uid],
+            project_ids=[mapping.project_id],
         )
-    except IntegrityError:
-        raise NameError(f"Project {project_id} does not exist!")
-    await session.delete(remove_mapping[0])
+
+        if not existing_mapping:
+            raise NameError(f"{mapping=} not found in the database. Cannot delete.")
+
+        await session.delete(existing_mapping[0])
+
     await session.commit()
     return None
-
-
-async def series_is_mapped_to_multiple_projects(
-    session: AsyncSession, series_instance_uid: str
-) -> bool:
-    stmt = select(DataProjects.project_id).where(
-        DataProjects.series_instance_uid == series_instance_uid
-    )
-    result = await session.execute(stmt)
-    projects = result.scalars().all()
-    return len(projects) > 1
-
-
-async def study_is_mapped_to_multiple_projects(
-    session: AsyncSession, study_instance_uid: str
-) -> bool:
-    stmt = (
-        select(DataProjects.project_id)
-        .join(DicomData)
-        .where(DicomData.study_instance_uid == study_instance_uid)
-    )
-    result = await session.execute(stmt)
-    projects = result.scalars().all()
-    return len(projects) > 1
-
-
-async def get_project_ids_of_series(session: AsyncSession, series_instance_uid: str):
-    """
-    Return the ids of all projects that contain series_instance_uid.
-    """
-    stmt = select(DataProjects.project_id).where(
-        DataProjects.series_instance_uid == series_instance_uid
-    )
-    result = await session.execute(stmt)
-    project_ids = result.scalars().all()
-    return project_ids

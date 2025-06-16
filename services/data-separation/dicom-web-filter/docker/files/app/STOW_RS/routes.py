@@ -4,8 +4,8 @@ from uuid import UUID
 
 import httpx
 from app import config
-from app.crud import BaseDataAdapter
-from app.utils import get_default_project_id, get_project_data_adapter
+from app.crud import BaseDataAdapter, get_project_data_adapter
+from app.utils import get_default_project_id
 from app.schemas import DataProjectMappings
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response

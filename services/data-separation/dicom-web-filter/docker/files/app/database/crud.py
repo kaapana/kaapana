@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
-from app import models
+from app.database import models
 from app import schemas
 from kaapanapy.logger import get_logger
 

@@ -11,13 +11,29 @@ import httpx
 logger = get_logger(__name__)
 
 
-def get_opensearch(request: Request) -> OpenSearch:
+def get_opensearch_client(request: Request) -> OpenSearch:
     """
     Create and return an OpenSearch client.
     This function should be implemented to connect to your OpenSearch instance.
     """
     access_token = request.headers.get("x-forwarded-access-token")
-    return get_opensearch_client(access_token=access_token)
+    settings = OpensearchSettings()
+    auth_headers = {"Authorization": f"Bearer {access_token}"}
+    return OpenSearch(
+        hosts=[
+            {
+                "host": settings.opensearch_host,
+                "port": settings.opensearch_port,
+            }
+        ],
+        http_compress=True,  # enables gzip compression for request bodies
+        use_ssl=True,
+        verify_certs=False,
+        ssl_assert_hostname=False,
+        ssl_show_warn=False,
+        timeout=10,
+        headers=auth_headers,
+    )
 
 
 async def get_project_index(project_id: UUID) -> str:
@@ -43,23 +59,3 @@ async def get_project_index_mapping() -> dict[UUID, str]:
         UUID(project.get("id")): project.get("opensearch_index")
         for project in projects_info
     }
-
-
-def get_opensearch_client(access_token) -> OpenSearch:
-    settings = OpensearchSettings()
-    auth_headers = {"Authorization": f"Bearer {access_token}"}
-    return OpenSearch(
-        hosts=[
-            {
-                "host": settings.opensearch_host,
-                "port": settings.opensearch_port,
-            }
-        ],
-        http_compress=True,  # enables gzip compression for request bodies
-        use_ssl=True,
-        verify_certs=False,
-        ssl_assert_hostname=False,
-        ssl_show_warn=False,
-        timeout=10,
-        headers=auth_headers,
-    )

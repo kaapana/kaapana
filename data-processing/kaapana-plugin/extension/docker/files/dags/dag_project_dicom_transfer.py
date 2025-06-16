@@ -10,17 +10,9 @@ from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.blueprints.json_schema_templates import get_all_projects
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
-from kaapana.operators.DeleteFromMetaOperator import DeleteFromMetaOperator
-from kaapana.operators.DeleteFromPacsOperator import DeleteFromPacsOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
-from kaapana.operators.KaapanaBranchPythonBaseOperator import (
-    KaapanaBranchPythonBaseOperator,
-    KaapanaPythonBaseOperator,
-)
+from kaapana.operators.KaapanaBranchPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
-from kaapana.operators.LocalAssignDataToProjectOperator import (
-    LocalAssignDataToProjectOperator,
-)
 from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
@@ -200,9 +192,6 @@ class LocalCopyThumbnails(KaapanaPythonBaseOperator):
 get_input = GetInputOperator(dag=dag, data_type="json")
 clean_tags = LocalCleanCustomTagsOperator(dag=dag, input_operator=get_input)
 ## use local operator to push to different projects
-assign_to_project = LocalAssignDataToProjectOperator(
-    dag=dag, from_other_project=True, input_operator=clean_tags
-)
 add_datasets = LocalAddToDatasetOperator(
     dag=dag, from_other_project=True, input_operator=clean_tags
 )
@@ -216,12 +205,4 @@ clean = LocalWorkflowCleanerOperator(
     dag=dag, clean_workflow_dir=True, trigger_rule="none_failed_or_skipped"
 )
 
-(
-    get_input
-    >> clean_tags
-    >> assign_to_project
-    >> push_json
-    >> add_datasets
-    >> copy_thumbnails
-    >> clean
-)
+(get_input >> clean_tags >> push_json >> add_datasets >> copy_thumbnails >> clean)

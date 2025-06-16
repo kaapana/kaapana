@@ -11,12 +11,10 @@ from kaapana.blueprints.kaapana_global_variables import (
 )
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
-from kaapana.operators.LocalAssignDataToProjectOperator import (
-    LocalAssignDataToProjectOperator,
-)
 from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
 from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 
 args = {
     "ui_visible": False,
@@ -92,17 +90,10 @@ add_to_dataset = LocalAddToDatasetOperator(dag=dag, input_operator=extract_metad
 push_json = LocalJson2MetaOperator(
     dag=dag, input_operator=copy_from_pacs, json_operator=extract_metadata
 )
-assign_to_project = LocalAssignDataToProjectOperator(
-    dag=dag, input_operator=extract_metadata
-)
+
 
 clean = LocalWorkflowCleanerOperator(
     dag=dag, clean_workflow_dir=True, namespace=SERVICES_NAMESPACE
 )
 
-(
-    copy_from_pacs
-    >> extract_metadata
-    >> (add_to_dataset, assign_to_project, push_json)
-    >> clean
-)
+(copy_from_pacs >> extract_metadata >> (add_to_dataset, push_json) >> clean)

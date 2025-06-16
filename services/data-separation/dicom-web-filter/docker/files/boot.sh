@@ -4,8 +4,6 @@ set -e  # Exit immediately if a command exits with a non-zero status
 export PYTHONPATH="$PWD" 
 APPLICATION_ROOT="/dicom-web-filter"
 
-# Apply all migrations
-alembic upgrade head
 
 if [ -z "${DEV_FILES}" ]; then
     # Production

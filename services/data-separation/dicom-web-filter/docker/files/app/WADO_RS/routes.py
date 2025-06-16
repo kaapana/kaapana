@@ -3,10 +3,10 @@ import re
 from uuid import UUID
 
 import httpx
-from app.crud import BaseDataAdapter
+from app.crud import BaseDataAdapter, get_project_data_adapter
 from app.config import DICOMWEB_BASE_URL
 from app.streaming_helpers import metadata_replace_stream
-from app.utils import get_user_project_ids, get_project_data_adapter
+from app.utils import get_user_project_ids
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.responses import StreamingResponse
 from typing import AsyncGenerator, Tuple, List

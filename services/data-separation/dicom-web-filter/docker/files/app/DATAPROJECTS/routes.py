@@ -1,8 +1,7 @@
 import logging
 from uuid import UUID
 
-from app.crud import BaseDataAdapter
-from app.utils import get_project_data_adapter
+from app.crud import BaseDataAdapter, get_project_data_adapter
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 from app.schemas import DataProjectMappings
@@ -10,40 +9,6 @@ from typing import List
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-
-# @router.put(
-#     "/projects/{project_id}/data/{series_instance_uid}",
-#     tags=["DataProjects"],
-# )
-
-
-# @router.get(
-#     "/projects/{project_id}/data",
-#     tags=["DataProjects"],
-#     response_model=DataProjectMappings,
-# )
-
-
-# @router.get(
-#     "/data/{series_instance_uid}/projects",
-#     tags=["DataProjects"],
-#     response_model=List[DataProjectMappings],
-# )
-
-
-# @router.delete(
-#     "/projects/{project_id}/data/{series_instance_uid}",
-#     tags=["DataProjects"],
-# )
-
-
-# @router.put(
-#     "/data/{series_instance_uid}",
-#     tags=["DataProjects"],
-# )
-
-###### New ROUTES ######
 
 
 @router.put(

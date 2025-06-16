@@ -68,10 +68,10 @@ async def put_data_project_mappings(
     """
     Create or update a DataProjectMappings entry.
     """
-    logger.warning(
-        "Creation of DataProjectMappings not supported with mode Opensearch."
+    logger.error("Creation of DataProjectMappings not supported with mode Opensearch.")
+    raise NotImplementedError(
+        f"Creation of DataProjectMappings not supported with mode Opensearch."
     )
-    return []
 
 
 async def delete_data_project_mappings(
@@ -81,31 +81,7 @@ async def delete_data_project_mappings(
     """
     Delete a DataProjectMappings entry.
     """
-    logger.warning(
-        "Deletion of DataProjectMappings not supported with mode Opensearch."
+    logger.error("Deletion of DataProjectMappings not supported with mode Opensearch.")
+    raise NotImplementedError(
+        f"Deletion of DataProjectMappings not supported with mode Opensearch."
     )
-    return
-    for mapping in data_project_mappings:
-        try:
-            project_index = await get_project_index(mapping.project_id)
-        except Exception as e:
-            logger.error(
-                f"Project index not found for project_id {mapping.project_id}: {e}"
-            )
-        os_client.delete_by_query(
-            index=project_index,
-            body={
-                "query": {
-                    "bool": {
-                        "must": [
-                            {
-                                "match": {
-                                    DicomTags.series_uid_tag: mapping.series_instance_uid
-                                }
-                            },
-                        ]
-                    }
-                }
-            },
-        )
-    return

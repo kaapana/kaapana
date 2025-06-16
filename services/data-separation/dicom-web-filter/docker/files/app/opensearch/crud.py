@@ -4,7 +4,6 @@ from opensearchpy import OpenSearch
 
 from app.schemas import DataProjectMappings
 from app.opensearch.utils import (
-    get_project_index,
     get_project_index_mapping,
 )
 from kaapanapy.helper.HelperOpensearch import DicomTags
@@ -69,9 +68,7 @@ async def put_data_project_mappings(
     Create or update a DataProjectMappings entry.
     """
     logger.error("Creation of DataProjectMappings not supported with mode Opensearch.")
-    raise NotImplementedError(
-        f"Creation of DataProjectMappings not supported with mode Opensearch."
-    )
+    return []
 
 
 async def delete_data_project_mappings(
@@ -82,6 +79,4 @@ async def delete_data_project_mappings(
     Delete a DataProjectMappings entry.
     """
     logger.error("Deletion of DataProjectMappings not supported with mode Opensearch.")
-    raise NotImplementedError(
-        f"Deletion of DataProjectMappings not supported with mode Opensearch."
-    )
+    return

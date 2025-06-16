@@ -81,33 +81,18 @@
 
   - name: Save vulnerability reports as artifacts
     block:
-    - name: set additional build arguments
+    - name: Set global directory paths
       ansible.builtin.set_fact:
-        security_artifacts_path: "{{ artifacts_dir }}/security-scan"
-    - name: Create additional directory in the artifacts dir for results of security scans
-      ansible.builtin.file:
-        path: "{{ security_artifacts_path }}"
-        state: directory
-        mode: '0755'
-    - name: Create list with information about desired files
-      register: file_stats
+        security_report_dir: "{{ kaapana_dir }}/build/security-reports"
+    - name: Get stats about the security report directory to check if it exists
+      register: source_dir_stats
       ansible.builtin.stat:
-        path: "{{ kaapana_dir }}/build/{{ item }}"
-      loop:
-      - "chart_report.json"
-      - "commpressed_chart_report.json"
-      - "commpressed_vulnerability_reports.json"
-      - "dockerfile_report.json"
-      - "sboms.json"
-      - "vulnerability_report.json"
+        path: "{{ security_report_dir }}"
     - name: Copy results of security scan to subdirectory of the artifacts directory
-      loop: "{{ file_stats.results }}"
-      loop_control:
-        label: "{{ item.item }} exists: {{ item.stat.exists }}"
-      when: item.stat.exists == true
+      when: source_dir_stats.stat.exists == true
       ansible.builtin.copy:
-        src: "{{ item.stat.path }}"
-        dest: "{{ security_artifacts_path }}/{{ item.item | basename }}"
+        src: "{{ security_report_dir }}"
+        dest: "{{ artifacts_dir }}"
 
 
   - name: Fail playbook and job if build failed

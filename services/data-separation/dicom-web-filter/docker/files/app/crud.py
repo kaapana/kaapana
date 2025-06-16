@@ -1,14 +1,27 @@
 from typing import List
 from uuid import UUID
 import httpx
+from fastapi import Depends
 from app.schemas import DataProjectMappings
 
 from app.config import PROJECT_INFORMATION_SOURCE, DICOMWEB_BASE_URL
 
-if PROJECT_INFORMATION_SOURCE == "POSTGRES":
-    import app.crud_postgres as crud
+if PROJECT_INFORMATION_SOURCE == "DATABASE":
+    import app.database.crud as crud
+    from app.database.database import get_session
+
+    async def get_project_data_adapter(session=Depends(get_session)):
+        try:
+            yield BaseDataAdapter(session=session)
+        finally:
+            await session.close()
+
 elif PROJECT_INFORMATION_SOURCE == "OPENSEARCH":
-    import app.opensearch_adapter.crud_opensearch as crud
+    import app.opensearch.crud as crud
+    from app.opensearch.utils import get_opensearch_client
+
+    async def get_project_data_adapter(os_client=Depends(get_opensearch_client)):
+        yield BaseDataAdapter(os_client=os_client)
 
 
 class BaseDataAdapter:

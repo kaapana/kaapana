@@ -3,7 +3,7 @@ from uuid import UUID
 from opensearchpy import OpenSearch
 
 from app.schemas import DataProjectMappings
-from app.opensearch_adapter.utils import (
+from app.opensearch.utils import (
     get_project_index,
     get_project_index_mapping,
 )

@@ -36,7 +36,7 @@ organ_filter = None
 parallel_processes = 3
 ui_forms = {
     "documentation_form": {
-        "path": "/user_guide/system/airflow.html#evaluate-segmentations",
+        "path": "/user_guide/system/airflow.html#evaluate-predictions",
     },
     "workflow_form": {
         "type": "object",

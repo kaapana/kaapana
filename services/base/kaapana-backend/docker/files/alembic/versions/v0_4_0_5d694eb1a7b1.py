@@ -1,4 +1,4 @@
-"""v0-4-2
+"""v0-4-0
 
 Revision ID: 5d694eb1a7b1
 Revises:
@@ -93,19 +93,16 @@ def upgrade() -> None:
     )
     op.create_table(
         "dataset",
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("name", sa.String(length=64), nullable=True),
         sa.Column("username", sa.String(length=64), nullable=True),
         sa.Column("time_created", sa.DateTime(timezone=True), nullable=True),
         sa.Column("time_updated", sa.DateTime(timezone=True), nullable=True),
         sa.Column("kaapana_id", sa.Integer(), nullable=True),
-        sa.Column("project_id", sa.Integer(), nullable=True),
         sa.ForeignKeyConstraint(
             ["kaapana_id"],
             ["kaapana_instance.id"],
         ),
-        sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("project_id", "name"),
+        sa.PrimaryKeyConstraint("name"),
     )
     op.create_index(op.f("ix_dataset_name"), "dataset", ["name"], unique=False)
     op.create_table(
@@ -143,7 +140,6 @@ def upgrade() -> None:
         sa.Column("automatic_execution", sa.Boolean(), nullable=True),
         sa.Column("service_workflow", sa.Boolean(), nullable=True),
         sa.Column("federated", sa.Boolean(), nullable=True),
-        sa.Column("project_id", sa.Integer(), nullable=True),
         sa.Column("kaapana_id", sa.Integer(), nullable=True),
         sa.Column("involved_kaapana_instances", sa.String(length=51200), nullable=True),
         sa.ForeignKeyConstraint(
@@ -176,10 +172,10 @@ def upgrade() -> None:
     op.create_table(
         "identifier2dataset",
         sa.Column("identifier", sa.String(), nullable=False),
-        sa.Column("dataset", sa.Integer(), nullable=False),
+        sa.Column("dataset", sa.String(), nullable=False),
         sa.ForeignKeyConstraint(
             ["dataset"],
-            ["dataset.id"],
+            ["dataset.name"],
         ),
         sa.ForeignKeyConstraint(
             ["identifier"],

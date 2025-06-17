@@ -20,7 +20,7 @@ ui_forms = {
         whitelisted_file_formats=(".zip"),
     ),
     "documentation_form": {
-        "path": "/user_guide/system/airflow.html#convert-niftis-to-dicom-and-import-to-pacs",
+        "path": "/user_guide/system/airflow.html#import-niftis-from-data-upload",
     },
     "workflow_form": {
         "type": "object",
@@ -60,7 +60,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id="convert-nifitis-to-dicoms-and-import-to-pacs",
+    dag_id="import-niftis-from-data-upload",
     default_args=args,
     schedule_interval=None,
     tags=["import"],

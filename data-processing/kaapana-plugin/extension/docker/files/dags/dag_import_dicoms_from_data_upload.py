@@ -16,7 +16,7 @@ log = LoggingMixin().log
 
 ui_forms = {
     "documentation_form": {
-        "path": "/user_guide/system/airflow.html#import-dicoms-in-zip-to-internal-pacs",
+        "path": "/user_guide/system/airflow.html#import-dicoms-from-data-upload",
     },
     **schema_upload_form(whitelisted_file_formats=(".zip",)),
     "workflow_form": {
@@ -48,7 +48,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id="import-dicoms-in-zip-to-internal-pacs",
+    dag_id="import-dicoms-from-data-upload",
     default_args=args,
     schedule_interval=None,
     concurrency=10,

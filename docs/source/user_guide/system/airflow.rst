@@ -3,18 +3,15 @@
 Airflow
 ^^^^^^^^^^
 
-In Airflow, we define Directed Acyclic Graphs (DAGs) that build our data-processing pipelines.
-These DAGs are composed of multiple operators, each serving a specific task.
-Within Kaapana, we categorize operators into two types: `Local` operators and `containerized` operators.
-Local operators are executed within the `airflow-scheduler` container.
-On the other hand, when a `containerized` operator is triggered, a dedicated Kubernetes job is spawned, encapsulating a container responsible for executing the operator's code.
-We commonly refer to these containers as `processing-containers`.
+In Airflow, we define :term:`Directed Acyclic Graphs (DAGs)<dag>` that build our data-processing pipelines.
+These DAGs are composed of multiple :term:`operators<operator>`, each serving a specific task.
+Within Kaapana, we categorize operators into two types: :term:`local operators<local-operator>` and :term:`processing-containers<processing-container>`.
 
-Furthermore, Airflow functions as the scheduling system for the data-processing-pipelines.
+Furthermore, Airflow functions as the scheduling system for the :term:`jobs<job>`.
 The Airflow user interface offers comprehensive insights into DAGs, DAG runs, and their scheduling details.
 
-The platform comes with several preinstalled DAGs and a large set of :ref:`custom operators<operators>`.
-Additional DAGs can be installed as :ref:`ẁorkflow-extensions<extensions_workflows>` in the `Extensions` page.
+The platform comes with several preinstalled DAGs and a large set of :term:`custom operators<operator>`.
+Additional DAGs can be installed as :term:`ẁorkflow-extensions<workflow-extension>` in the `Extensions` page.
 
 .. _preinstalled_dags:
 
@@ -23,15 +20,28 @@ Preinstalled DAGs
 
 collect-metadata
 """"""""""""""""""
+This DAG collects metadata from the DICOM files in the selected dataset and stores it in the project bucket in MinIO.
 
-convert-niftis-to-dicom-and-import-to-pacs
-""""""""""""""""""""""""""""""""""""""""""""
+import-niftis-from-data-upload
+""""""""""""""""""""""""""""""""
+This DAG converts NIfTI files to DICOM format and imports them into the internal PACS system.
+More details can be found :ref:`here <import-uploaded-nifti-files>`.
 
 delete-series
-""""""""""""""""""""""""""""""
+"""""""""""""""
+This DAG deletes the all series in the dataset from the project.
+If any series only belongs to the selected project, it will be deleted from the internal PACS system.
+The option :code:`Delete entire study` allows to delete all series correspoding to each study in the dataset.
+
+.. warning:: The option :code:`Delete entire study` might delete a series, even if it does not belong to the dataset.
 
 download-selected-files
 """""""""""""""""""""""""""
+.. warning:: This DAG is deprecated and will be removed in the future.
+
+This DAG will create a zip file containing the series in the dataset and stores it in the project bucket in MinIO.
+
+.. _evaluate-segmentations:
 
 evaluate-segmentations
 """"""""""""""""""""""""
@@ -105,35 +115,74 @@ i. **Label Mappings**: in the format of :code:`gtlabelx:testlabely,gtlabelz:test
     }
 
 
-import-dicoms-in-zip-to-internal-pacs
+import-dicoms-from-data-upload
 """""""""""""""""""""""""""""""""""""""
+
+This workflow expectes a zip file containing DICOM files as input.
+The zip file must first be uploaded via the :ref:`Data Upload<data_upload>`.
+
+The DAG will extract the zip file and send all DICOM files to the internal ctp server with selected project and the specified dataset name attached as :code:`--aetitle kp-<dataset-name> --call kp-<project-name>`.
+
+The ctp server will trigger DAGs :ref:`service-process-incoming-dcm<service_process_incoming_dcm>`.
 
 send-dicom
 """"""""""""
+This DAG can be used to send DICOM files to another DICOM receiver, e.g. to another Kaapana platform.
+
+.. important::
+    If you send data to another Kaapana platform, you have to specify the project name as :code:`kp-<project-name>` and the dataset name as :code:`kp-<dataset-name>`.
 
 service-daily-cleanup-jobs
 """""""""""""""""""""""""""
+This DAG runs automatically every night to clean up the platform and perform the following tasks:
+* :class:`kaapana.operators.LocalCleanUpExpiredWorkflowDataOperator` to delete workflow directories for expired workflows.
+* :class:`kaapana.operators.LocalCtpQuarantineCheckOperator` to check the quarantine folder of the CTP and trigger :ref:`service-process-incoming-dcm<service_process_incoming_dcm>` if files were found.
+* :class:`kaapana.operators.LocalServiceSyncDagsDbOperator` to synchronize the DAGs in the Airflow database with the DAGs in the file system.
+* Clean old log files in the Airflow log directory.
 
-service-extract-metadata
-"""""""""""""""""""""""""""
+.. _service_process_incoming_dcm:
+
+service-email-send
+"""""""""""""""""""
+This dag consists only of the :class:`kaapana.operators.LocalEmailSendOperator`.
+
 
 service-process-incoming-dcm
 """""""""""""""""""""""""""""
+This DAG is triggered automatically whenever data is sent to the DICOM receiver of the platform.
+It processes incoming DICOM data and performs the following tasks:
+
+* Collect metadata from the DICOM files and store it the project index in OpenSearch. (This steps is also done for the _admin_ project.)
+* Store the DICOM files in the internal PACS.
+* Create series-project mappings for all incoming series to the associated project. (This steps is also done for the _admin_ project.)
+* Generate thumbnails for all series and store them in MinIO. (This steps is also done for the _admin_ project.)
+* Validate the DICOM files. Validation warnings and errors are stored as metadata and visible in the Gallery View. HTML reports are stored in MinIO. (This steps is also done for the _admin_ project.)
+* Downstream DAGs will be triggered if specified for the :class:`kaapana.operators.LocalAutoTriggerOperator`.
 
 service-re-index-dicom-data
 """""""""""""""""""""""""""""
-
-service-segmentation-thumbnail
-""""""""""""""""""""""""""""""""
+This DAG can by triggered manually from the Airflow webinterface to repopulate the PACS, Opensearch, and the access-information-interface database from DICOM data stored on the file system.
+This step can be helpful, when migrating from an older version of Kaapana to a newer one.
 
 tag-dataset
 """"""""""""
 
+This DAG will add or remove tags from the series in the selected dataset.
+The tags are stored in the OpenSearch index of the project and can be used to filter series in the Gallery View.
+
 tag-seg-ct-tuples
 """"""""""""""""""
 
+This DAG expects a dataset of series with modalities _SEG_ or _RTSTRUCT_.
+It will add the specified tags to all series in the dataset and corresponding reference series.
+The tags are stored in the OpenSearch index of the project and can be used to filter series in the Gallery View.
+
 tag-train-test-split-dataset
 """""""""""""""""""""""""""""
+
+This DAG expexts a dataset of segmentation series.
+It will split the dataset into a training and a test dataset based on the specified *Train split*.
+Then it will tag all series of both splits according to the specified *Training tag* and *Test tag*.
 
 validate-dicoms
 """"""""""""""""

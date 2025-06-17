@@ -53,6 +53,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx_tabs.tabs",
     "sphinxcontrib.mermaid",
+    "sphinx_design",
 ]
 pdf_documents = [
     ("index", "kaapana_docs", "Kaapana documentation", "MIC @DKFZ"),

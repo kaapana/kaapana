@@ -43,6 +43,7 @@ def upgrade() -> None:
         """
             CREATE SEQUENCE dataset_id_seq OWNED BY dataset.id;
             UPDATE dataset SET id = nextval('dataset_id_seq');
+            ALTER TABLE dataset ALTER COLUMN id SET DEFAULT nextval('dataset_id_seq');
         """
     )
     connection.execute(

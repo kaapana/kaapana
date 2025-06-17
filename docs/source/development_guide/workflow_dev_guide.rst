@@ -123,7 +123,7 @@ Everything in this folder is bundled as a Docker container and copied inside the
     COPY files/otsus-method/OtsusMethodOperator.py /kaapana/tmp/dags/otsus_method/ 
     COPY files/otsus-method/OtsusNotebookOperator.py /kaapana/tmp/dags/otsus_method/
 
-Although some workflow extensions deploy multiple DAGs, (e.g. :code:`nnunet-workflow` which has :code:`nnunet-training`, :code:`nnunet-inference` and :code:`nnunet-ensemble`), it is often the case that a workflow extension has one DAG file.
+Although some workflow extensions deploy multiple DAGs (e.g. :code:`nnunet-workflow`), it is often the case that a workflow extension has one DAG file.
 This guide will focus on the use case where there is a single DAG file for the sake of simplicity. For an extension with multiple DAGs, see `nnunet-workflow <https://codebase.helmholtz.cloud/kaapana/kaapana/-/tree/develop/data-processing/processing-pipelines/nnunet/extension/docker/files>`_.
 
 The information about DAG definition files can be found in the official Airflow docs. Kaapana DAGs define a custom variable :code:`ui_forms` which specifies the parameters that can be passed from the frontend during the workflow execution.

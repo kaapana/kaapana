@@ -170,43 +170,6 @@ nnunet-training
 | **Input data:**  
 | Segmentation objects. Please avoid overlapping segmentations and specify the segmentation labels that you want to use for the training in the *SEG* field.
 
-nnunet-ensemble
--------------------------
-| **Method:** "Automated Design of Deep Learning Methods for Biomedical Image Segmentation"
-| **Authors:**  Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein
-| **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
-
-.. important::
-  | nnunet-ensemble has `a known bug <https://codebase.helmholtz.cloud/kaapana/kaapana/-/issues/1739>`_ in v0.5.0 that will be fixed in the next patch release
-
-| **Workflow Overview**
-| Evaluates the performance of multiple trained nnU-Net models on a given dataset. This workflow can also be used to evaluate only one model, where the *seg-check-ensemble* operator throws an error, but the execution is still successful.
-
-| 1) Segmentation objects used as reference segmentations are downloaded
-| 2) Segmentation objects are sorted
-| 3) Referenced DICOM images are downloaded
-| 4) DICOM images are converted to .nifti files
-| 5) Models to be evaluated are downloaded
-| 6) Models are extracted from DIOCM objects and unzipped
-| 7) Models are applied to the DICOM images
-| 8) The predicted segmentations are restructured
-| 9) The predicted segmentations are evaluated for overlapping segmentations and if the overlap is above a certain threshold, they removed from the evaluation
-| 10) Model predictions are ensembled
-| 11) The ensembled segmentations are restructured
-| 12) The ensembled segmentations are evaluated for overlapping segmentations and if the overlap is above a certain threshold, they removed from the evaluation
-| 13) The reference segmentations are converted to .nifti files
-| 14) If specified in input form, segmentation masks are filtered based on keywords "Keep: <label>" and "Ignore: <label>"
-| 15) If specified in input form, multiple labels are fused into a new label
-| 16) If specified in input form, labels are renamed
-| 17) The reference segmentations are evaluated for overlapping segmentations and and if the overlap is above a certain threshold, they removed from the evaluation
-| 18) DICE scores between the reference and predicted (ensembled) segmentations are calculated
-| 19) A report containing the DICE scores is created
-| 20) The evaluation results are uploaded to Minio
-| 21) A report is uploaded to a location, where it can be rendered by a static website
-
-| **Input data:**  
-| Segmentation objects and models for evaluation. Please avoid overlapping segmentations, and make sure that the models predict the labels from the input (reference) segmentations.
-
 
 nnunet-install-model
 --------------------
@@ -215,7 +178,8 @@ nnunet-install-model
 | **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
 
 | **Workflow Overview**
-| Models that are stored as DICOM files the internal PACS are installed into the *models* directory of Kaapana. Installed models can be used in nnunet-predict and ensemble workflows.
+| Models that are stored as DICOM files the internal PACS are installed into the *models* directory of Kaapana. 
+| Installed models can be used in nnunet-predict workflow.
 
 | **Input data:**
 | Dataset that stores nnunet models as DICOM files. If the dataset contains any modality other than **OT**, the workflow will fail. Use the Datasets view to filter for the right model.

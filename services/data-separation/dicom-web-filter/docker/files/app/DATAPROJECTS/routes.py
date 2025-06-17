@@ -40,9 +40,6 @@ async def get_data_project_mappings(
     """
     Get all DataProjects mappings.
     """
-    logger.info(f"{series_instance_uids=}")
-    logger.info(f"{study_instance_uids=}")
-    logger.info(f"{project_ids=}")
     return await crud.get_data_project_mappings(
         series_instance_uids=series_instance_uids,
         study_instance_uids=study_instance_uids,

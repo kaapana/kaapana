@@ -336,7 +336,7 @@ async def get_bulkdata(
         study_instance_uids=[study],
         series_instance_uids=[series],
     )
-    if not (len(data_project_mappings) > 0) and not request.scope.get("admin"):
+    if (len(data_project_mappings) == 0) and not request.scope.get("admin"):
         return Response(status_code=HTTP_204_NO_CONTENT)
 
     async def stream_fn(request: Request):

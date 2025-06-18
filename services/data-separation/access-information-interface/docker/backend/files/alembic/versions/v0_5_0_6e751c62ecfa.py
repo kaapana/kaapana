@@ -1,4 +1,4 @@
-"""v0-4-2
+"""v0-5-0
 
 Revision ID: 6e751c62ecfa
 Revises: 100ab450e292
@@ -21,6 +21,19 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade():
+    op.drop_constraint(
+        "data_projects_data_id_fkey",  # Name of the FK constraint
+        "data_projects",  # Table that has the FK
+        type_="foreignkey",
+    )
+
+    op.drop_table(
+        "data",
+    )
+    op.drop_table(
+        "data_projects",
+    )
+
     """Upgrade schema."""
     # Add UUID columns to tables
     op.add_column(
@@ -28,10 +41,6 @@ def upgrade():
         sa.Column(
             "project_uuid", UUID(as_uuid=True), nullable=True, default=uuid.uuid4
         ),
-    )
-    op.add_column(
-        "software_mappings",
-        sa.Column("project_uuid", UUID(as_uuid=True), nullable=True),
     )
     op.add_column(
         "users_projects_roles",
@@ -42,18 +51,10 @@ def upgrade():
     # Use Python's `uuid.uuid4()` for generating UUIDs for each row
     op.execute(
         """
-        UPDATE projects SET project_uuid = '"""
-        + str(uuid.uuid4())
-        + """';
+        UPDATE projects SET project_uuid = gen_random_uuid();
         """
     )
     # Update foreign key columns in related tables to point to the new UUID
-    op.execute(
-        """
-        UPDATE software_mappings
-        SET project_uuid = (SELECT project_uuid FROM projects WHERE projects.id = software_mappings.project_id)
-        """
-    )
     op.execute(
         """
         UPDATE users_projects_roles
@@ -62,18 +63,14 @@ def upgrade():
     )
 
     op.alter_column("projects", "project_uuid", nullable=False)
-    op.alter_column("software_mappings", "project_uuid", nullable=False)
     op.alter_column("users_projects_roles", "project_uuid", nullable=False)
 
-    # Drop old foreign key constraints
-    op.drop_constraint(
-        "software_mappings_project_id_fkey", "software_mappings", type_="foreignkey"
-    )
     op.drop_constraint(
         "users_projects_roles_project_id_fkey",
         "users_projects_roles",
         type_="foreignkey",
     )
+
     # Remove the foreign and primary key constraints
     # op.drop_column("software_mappings", "project_id")
     # op.drop_column("users_projects_roles", "project_id")
@@ -99,14 +96,7 @@ def upgrade():
     # Add a new primary key constraint on the UUID `id` column in `projects`
     op.create_primary_key("projects_pkey", "projects", ["id"])
 
-    op.drop_column("software_mappings", "project_id")
     op.drop_column("users_projects_roles", "project_id")
-    op.alter_column(
-        "software_mappings",
-        "project_uuid",
-        new_column_name="project_id",
-        nullable=False,
-    )
     op.alter_column(
         "users_projects_roles",
         "project_uuid",
@@ -115,13 +105,6 @@ def upgrade():
     )
 
     # Create new foreign keys on the `project_id` columns, now pointing to the new `id` column in `projects`
-    op.create_foreign_key(
-        "software_mappings_project_id_fkey",
-        "software_mappings",
-        "projects",
-        ["project_id"],
-        ["id"],  # Referencing the UUID `id` column in `projects`
-    )
     op.create_foreign_key(
         "users_projects_roles_project_id_fkey",
         "users_projects_roles",
@@ -141,6 +124,18 @@ def upgrade():
         INSERT INTO admin_project (project_id)
         SELECT id FROM projects WHERE int_id = 1
     """
+    )
+    op.create_table(
+        "software_mappings",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("software_uuid", sa.String(length=72), nullable=False),
+        sa.Column("project_id", UUID(as_uuid=True), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["project_id"],
+            ["projects.id"],
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("project_id", "software_uuid"),
     )
 
 
@@ -232,4 +227,5 @@ def downgrade() -> None:
         ["project_id"],
         ["id"],
     )
+    op.drop_table("software_mappings")
     # ### end Alembic commands ###

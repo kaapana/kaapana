@@ -15,13 +15,10 @@ from .decorators import only_one_process, repeat_every
 from .dependencies import get_token_header
 from .monitoring import routers as monitoring
 from .settings import routers as settings
+from .storage import routers as storage
 from .workflows import models
 from .workflows.crud import get_remote_updates, sync_states_from_airflow
 from .workflows.routers import client, remote
-from .storage import routers as storage
-from . import middlewares
-
-models.Base.metadata.create_all(bind=engine)
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 

@@ -26,7 +26,7 @@
                     </v-col>
                     <v-col cols="6">
                         <v-btn :disabled="!valid" color="success" size="large" variant="elevated" block
-                            @click="submit">{{ actionType == 'update' ? 'Update' : 'Create' }}</v-btn>
+                            @click="submit">{{ actionType == 'update' ? 'Update' : 'Add' }}</v-btn>
                     </v-col>
                 </v-row>
             </v-container>

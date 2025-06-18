@@ -820,7 +820,6 @@ a {
   align-items: center; /* Align text and icon */
   justify-content: space-between; /* Ensures text stays left, icon stays right */
   width: 100%;
-  height: 100%;
 }
 
 .text-content {

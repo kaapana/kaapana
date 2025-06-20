@@ -176,7 +176,7 @@ generate_thumbnail = GenerateThumbnailOperator(
     name="generate-thumbnail",
     input_operator=get_input,
     get_ref_series_operator=get_ref_ct_series,
-    trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
+    trigger_rule=TriggerRule.ALL_DONE,
     # dev_server="code-server",
 )
 
@@ -245,37 +245,29 @@ clean = LocalWorkflowCleanerOperator(
     trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
 )
 
-get_input >> auto_trigger_operator
-get_input >> [extract_metadata]
-extract_metadata >> [
+get_input >> (auto_trigger_operator, extract_metadata)
+
+extract_metadata >> (
     push_json,
     add_to_dataset,
     assign_to_project,
-    remove_tags,
-]
+    remove_tags
+    )
 
-(
-    push_json
-    >> validate
-    >> save_to_meta
-    >> put_html_to_minio
-    >> put_results_html_to_minio_admin_bucket
-    >> clean
-)
-(remove_tags >> dcm_send)
 
-(push_json >> branch_by_has_ref_series >> get_ref_ct_series)
+push_json >> (validate, branch_by_has_ref_series)
+validate >> save_to_meta >> (put_html_to_minio, put_results_html_to_minio_admin_bucket, generate_thumbnail)
+branch_by_has_ref_series >> (get_ref_ct_series, generate_thumbnail)
 
-save_to_meta >> generate_thumbnail
+remove_tags >> dcm_send
+
 get_ref_ct_series >> generate_thumbnail >> put_thumbnail_to_project_bucket
 
-(branch_by_has_ref_series >> generate_thumbnail)
-
 [
-    push_json,
     add_to_dataset,
     assign_to_project,
     dcm_send,
     put_html_to_minio,
+    put_results_html_to_minio_admin_bucket,
     put_thumbnail_to_project_bucket,
 ] >> clean

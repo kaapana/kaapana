@@ -28,7 +28,7 @@
       </thead>
       <tbody>
         <tr v-for="item in projects" :key="item.name">
-          <td><v-icon>mdi-folder-file</v-icon></td>
+          <td><v-icon>mdi-card</v-icon></td>
           <td>{{ item.id }}</td>
           <td class="project-name-col">{{ item.name }}</td>
           <td class="desc-col">{{ item.description }}</td>

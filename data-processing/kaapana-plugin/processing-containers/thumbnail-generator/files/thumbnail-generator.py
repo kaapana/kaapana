@@ -4,15 +4,19 @@ from pathlib import Path
 import pydicom
 from generic import generate_generic_thumbnail
 from histopathology import generate_histopathology_thumbnail
+from kaapanapy.helper import load_workflow_config
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import OperatorSettings
+from kaapanapy.services.NotificationService import Notification, NotificationService
 from kaapanapy.utils import ConfigError, is_batch_mode, process_batches, process_single
 from overlay_modalities import (
     generate_rtstruct_thumbnail,
     generate_segmentation_thumbnail,
+    create_empty_ref_series
 )
 from PIL import Image
 from pydicom.uid import EncapsulatedPDFStorage, RawDataStorage
+import requests
 from slice_based_modalities import generate_thumbnail_for_middle_slice
 
 logger = get_logger(__name__)
@@ -93,9 +97,14 @@ def generate_thumbnail(
             operator_in_dir, operator_get_ref_series_dir, thumbnail_size
         )
     elif modality == "SEG":
+        reference_images = [im for im in os.listdir(operator_get_ref_series_dir)]
+        if not reference_images:
+            send_notification(series_uid=series_uid)
+            create_empty_ref_series(operator_in_dir=operator_in_dir,operator_ref_dir=operator_get_ref_series_dir)
+        
         thumbnail = generate_segmentation_thumbnail(
-            operator_in_dir, operator_get_ref_series_dir, thumbnail_size
-        )
+                operator_in_dir, operator_get_ref_series_dir, thumbnail_size
+            )
     elif modality == "SM":
         thumbnail = generate_histopathology_thumbnail(operator_in_dir, thumbnail_size)
 
@@ -204,6 +213,23 @@ def main():
             operator_get_ref_series_dir=operator_get_ref_series_dir,
         )
 
+def send_notification(series_uid):
+    """
+    Send a notification, that thumbnail was created without reference image
+    """
+    note = Notification(
+                title ="Thumbnail generation",
+                description = f"""
+                Thumbnail genereration for segmentation {series_uid} was generated before reference image arrived. 
+                Rerun workflow generate-thumbnail after the reference image arrived to create a better thumbnail."""
+                )
+    workflow_config = load_workflow_config()
+    project_id = workflow_config.get("project_form",{}).get("id")
+    if not project_id:
+        r = requests.get("http://aii-service.services.svc:8080/projects/admin")
+        project_id = r.json().get("id")
+    NotificationService.send(project_id=project_id, user_ids=[], notification=note)
+    
 
 if __name__ == "__main__":
     main()

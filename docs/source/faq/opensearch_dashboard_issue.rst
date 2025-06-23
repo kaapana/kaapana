@@ -1,17 +1,8 @@
 OpenSearch dashboard does not work
 **********************************
 
-You open OpenSearch/Meta and you see something like this?
+If you encounter an issue with the OpenSearch dashboard, such as an error message like :code:`Could not locate that index-pattern-field`, it may be due to incomplete meta-data extraction from the images.
+You can resolve this by going to :code:`https://<server-domain>/meta`
 
-
-.. figure:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/kibana_bug.png
-   :align: center
-
-The error occurred, because the dashboard was opened while not all the meta-data of the images were extracted. You can resolve this by going to
-
-::
-
-    https://<server-domain>/meta
-
-this is the OpenSearch dashboard. Select "Manage" on the top right menu or "Stack Management" in the menu on the left and then "Index Patterns''. Then you should see an entry called "meta-index". Click on it and on the next page there is a refresh button at the top right corner.
-By clicking this button the meta-data will be updated for the view. Now your dashboard should work as expected!
+This is the OpenSearch dashboard. Select "Manage" on the top right menu or "Stack Management" in the menu on the left and then "Index Patterns''. Then you should see an entry called "meta-index". Click on it and on the next page there is a refresh button at the top right corner.
+By clicking this button the meta-data will be updated for the view. Now the dashboard should work as expected.

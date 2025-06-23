@@ -101,6 +101,39 @@ This is a list of built-in workflow-extensions, that can be installed.
   This interval is configurable as the parameter ``dag_dir_list_interval`` in the file `airflow.cfg <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/master/services/flow/airflow/airflow-chart/files/airflow.cfg?ref_type=heads>`_.
 
 
+.. _extensions_clf_inference:
+
+classification-inference
+------------------------
+
+| **Workflow Overview**
+| A classification inference pipeline based on a trained model is executed.
+
+| 1) DICOM data is fetched from the PACS
+| 2) DICOM data is converted to .nifti
+| 3) Images are preprocessed: resampled and normalized
+| 4) The model runs inference on the input data
+| 5) DICOM SEG objects are sent to the internal platform PACS
+
+| **Input data:**  
+| A trained classification model checkpoint
+
+.. _extensions_clf_training:
+
+classification-training
+------------------------
+
+| **Workflow Overview**
+| A classification training pipeline based on ResNet18 is executed. The labels should be custom tags that can be added in the Datasets view.
+
+| 1) DICOM data is fetched from the PACS
+| 2) DICOM data is converted to .nifti
+| 3) Images are preprocessed: resampled and normalized
+| 4) The model is trained on the input data
+| 5) DICOM SEG objects are sent to the internal platform PACS
+
+| **Input data:**  
+| A dataset with DICOM images and tags that represent the labels for classification. The tags should be added to the dataset in the Datasets view.
 
 body-and-organ-analysis
 -----------------------
@@ -302,6 +335,9 @@ Code server
 Collabora
 ---------
 
+| Collabora is a LibreOffice based office suite that allows users to create and edit documents, spreadsheets, and presentations directly in their browser.
+| Once installed, the documents can be accessed via `Store > Documents`
+
 .. _extensions_edk:
 
 Extension Development Kit (EDK)
@@ -337,6 +373,13 @@ While JupyterLab is great for exploratory data analysis, for more complex calcul
 
 MinIO Sync
 ----------
+
+| The MinIO Sync application is used to constantly sync a host directory located directly on the server with a folder inside a MINIO bucket following a sync strategy.
+| The following strategies are available:
+
+* Bidirectional: Syncs files from the host to minio and back
+* Host2Minio: Syncs files undirectional form host into minio
+* Minio2Host: Syncs files undirectional from MINIO to the host
 
 .. _extensions_mitk_workbench:
 

@@ -21,7 +21,11 @@ class Slice(BaseModel):
     number_of_classes: int
     number_of_foreground_pixels: int
 
-def create_empty_ref_series(operator_ref_dir: Path, operator_in_dir:Path):
+
+def create_empty_ref_series(operator_ref_dir: Path, operator_in_dir: Path):
+    """
+    Create empty reference image for a segmentation image.
+    """
     file_name = os.path.join(operator_in_dir, os.listdir(operator_in_dir)[0])
     # Read the segmentation
     seg_ds = pydicom.dcmread(file_name)
@@ -33,15 +37,26 @@ def create_empty_ref_series(operator_ref_dir: Path, operator_in_dir:Path):
     # Extract info from the SEG
     rows = seg_ds.Rows
     cols = seg_ds.Columns
-    spacing = [float(x) for x in seg_ds.SharedFunctionalGroupsSequence[0]
-            .PixelMeasuresSequence[0].PixelSpacing]
-    spacing_z = float(seg_ds.SharedFunctionalGroupsSequence[0]
-                    .PixelMeasuresSequence[0].SliceThickness)
-    orientation = seg_ds.SharedFunctionalGroupsSequence[0]\
-        .PlaneOrientationSequence[0].ImageOrientationPatient
-    position = seg_ds.PerFrameFunctionalGroupsSequence[0]\
-        .PlanePositionSequence[0].ImagePositionPatient
-    
+    spacing = [
+        float(x)
+        for x in seg_ds.SharedFunctionalGroupsSequence[0]
+        .PixelMeasuresSequence[0]
+        .PixelSpacing
+    ]
+    spacing_z = float(
+        seg_ds.SharedFunctionalGroupsSequence[0].PixelMeasuresSequence[0].SliceThickness
+    )
+    orientation = (
+        seg_ds.SharedFunctionalGroupsSequence[0]
+        .PlaneOrientationSequence[0]
+        .ImageOrientationPatient
+    )
+    position = (
+        seg_ds.PerFrameFunctionalGroupsSequence[0]
+        .PlanePositionSequence[0]
+        .ImagePositionPatient
+    )
+
     # Create one slice per referenced frame
     SeriesInstanceUID = pydicom.uid.generate_uid()
 
@@ -52,8 +67,13 @@ def create_empty_ref_series(operator_ref_dir: Path, operator_in_dir:Path):
         file_meta.ImplementationClassUID = pydicom.uid.generate_uid()
         file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRLittleEndian
 
-        ds = pydicom.dataset.FileDataset(f"file_meta.MediaStorageSOPInstanceUID.dcm", {}, file_meta=file_meta, preamble=b"\0" * 128)
-        
+        ds = pydicom.dataset.FileDataset(
+            f"file_meta.MediaStorageSOPInstanceUID.dcm",
+            {},
+            file_meta=file_meta,
+            preamble=b"\0" * 128,
+        )
+
         # Set CT metadata
         ds.PatientName = "Dummy^CT"
         ds.PatientID = "000000"
@@ -63,7 +83,11 @@ def create_empty_ref_series(operator_ref_dir: Path, operator_in_dir:Path):
         ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
         ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
         ds.InstanceNumber = i + 1
-        ds.ImagePositionPatient = [float(position[0]), float(position[1]), float(position[2] + i * spacing_z)]
+        ds.ImagePositionPatient = [
+            float(position[0]),
+            float(position[1]),
+            float(position[2] + i * spacing_z),
+        ]
         ds.ImageOrientationPatient = orientation
         ds.Rows = rows
         ds.Columns = cols
@@ -85,7 +109,12 @@ def create_empty_ref_series(operator_ref_dir: Path, operator_in_dir:Path):
         ds.PixelData = pixel_array.tobytes()
 
         # Save to disk
-        ds.save_as(os.path.join(operator_ref_dir, f"{file_meta.MediaStorageSOPInstanceUID}.dcm"))
+        ds.save_as(
+            os.path.join(
+                operator_ref_dir, f"{file_meta.MediaStorageSOPInstanceUID}.dcm"
+            )
+        )
+
 
 def dicomlab2LAB(dicomlab: list) -> list:
     """Converts DICOM Lab values to CIELab values

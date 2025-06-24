@@ -72,15 +72,14 @@ def get_images_series(studyUid: str):
             series_list.append(series_dict)
 
         return series_list
-    else: 
-        return None
-    # elif response.status_code == 204:
-    #     return None  # The search completed successfully, but there were zero results.
-    # else:
-    #     raise HTTPException(
-    #         status_code=response.status_code,
-    #         detail=f"Error accessing url {response.url}, errorcode {response.status_code}",
-    #     )
+
+    elif response.status_code == 204:
+        return None  # The search completed successfully, but there were zero results.
+    else:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=f"Error accessing url {response.url}, errorcode {response.status_code}",
+        )
 
 
 @router.post("/startWorkflow")

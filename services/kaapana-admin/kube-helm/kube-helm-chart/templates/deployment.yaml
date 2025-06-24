@@ -9,10 +9,12 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: kube-helm
+      app.kubernetes.io/component: backend
   template:
     metadata:
       labels:
         app.kubernetes.io/name: kube-helm
+        app.kubernetes.io/component: backend
     spec:
       containers:
       - name: kube-helm
@@ -82,7 +84,7 @@ spec:
         volumeMounts:
 {{- if .Values.global.dev_files }}
           - name: kaapana-dev-files
-            mountPath: /kaapana/app/backend
+            mountPath: /app
 {{- end }}
           - name: helmextensions
             mountPath: "/kaapana/mounted/extensions"
@@ -92,9 +94,9 @@ spec:
             mountPath: "/kaapana/mounted/containerd.sock"
           - name: tmp
             mountPath: "/tmp"
-        securityContext:
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
+        # securityContext:
+        #   allowPrivilegeEscalation: false
+        #   readOnlyRootFilesystem: true
       volumes:
       - name: containerd-socket
         hostPath:

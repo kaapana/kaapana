@@ -4,7 +4,7 @@ LABEL IMAGE="kube-helm"
 LABEL VERSION="0.1.4"
 LABEL BUILD_IGNORE="False"
 
-WORKDIR /kaapana/app/backend
+WORKDIR /app
 
 # Set versions for cli tools
 ENV KUBE_VERSION="v1.33.0"
@@ -25,13 +25,16 @@ RUN cp bin/ctr /usr/local/bin/ctr && chmod +x /usr/local/bin/ctr
 RUN rm -rf containerd* bin/
 
 # Install pip packages
-COPY files/requirements.txt /kaapana/app/
-RUN pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.4.0/constraints.txt -r /kaapana/app/requirements.txt
+COPY files/requirements.txt /app/
+RUN pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.4.0/constraints.txt -r /app/requirements.txt
 
 # Copy all files for containers
-COPY files/backend /kaapana/app/backend
+COPY files/backend/ /app
 COPY files/update-collections-chart /root/collections/update-collections-chart
 COPY files/pull-docker-chart /root/helpers/pull-docker-chart
+
+# Install app package for scripts
+RUN pip3 install .
 
 # Package helper charts via `helm package`
 RUN /usr/local/bin/helm package /root/collections/update-collections-chart -d /root/collections
@@ -48,4 +51,4 @@ ENV CONTAINERD_SOCK="/kaapana/mounted/containerd.sock"
 
 EXPOSE 5000
 
-CMD ["/bin/sh", "/kaapana/app/backend/boot.sh"]
+CMD ["/bin/sh", "/app/boot.sh"]

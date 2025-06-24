@@ -9,7 +9,8 @@ from fastapi import (
 from typing import List
 from pydantic import BaseModel
 import time
-
+import json
+from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 
 class Dataseries(BaseModel):
     imageSeries: list
@@ -20,6 +21,7 @@ router = APIRouter()
 
 
 def execute_job_airflow(conf_data, db_job):
+    print(f"Triggering DAG {db_job.dag_id} with conf_data: {conf_data}")
     with requests.Session() as s:
         resp = s.post(
             f"http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/trigger/{db_job.dag_id}",
@@ -42,8 +44,17 @@ async def root(request: Request):
 
 @router.get("/getImageSeries")
 def get_images_series(studyUid: str):
-    url = settings.dcm4chee_url + "studies/" + studyUid + "/series"
-    response = requests.get(url)
+    """
+    Fetches image series for a given study UID from the DICOMweb service.
+    Returns a list of dictionaries containing seriesUID and seriesDescription.
+    """
+    print(f"Fetching image series for study UID: {studyUid}")
+    dicomweb_helper = HelperDcmWeb()
+    
+    url = f"{dicomweb_helper.dcmweb_rs_endpoint}/studies/{studyUid}/series"
+
+    response = dicomweb_helper.session.get(url)
+    print(f"Response status code: {response.status_code}")
     if response.status_code == 200:
         data = response.json()
         series_list = []
@@ -61,14 +72,15 @@ def get_images_series(studyUid: str):
             series_list.append(series_dict)
 
         return series_list
-
-    elif response.status_code == 204:
-        return None  # The search completed successfully, but there were zero results.
-    else:
-        raise HTTPException(
-            status_code=response.status_code,
-            detail=f"Error accessing url {response.url}, errorcode {response.status_code}",
-        )
+    else: 
+        return None
+    # elif response.status_code == 204:
+    #     return None  # The search completed successfully, but there were zero results.
+    # else:
+    #     raise HTTPException(
+    #         status_code=response.status_code,
+    #         detail=f"Error accessing url {response.url}, errorcode {response.status_code}",
+    #     )
 
 
 @router.post("/startWorkflow")
@@ -78,8 +90,10 @@ async def start_workflow(
     taskLabel: str,
     prometheus_uri: str,
     dataseries: Dataseries,
+    request: Request,
 ):
     conf_data = dict()
+    project = request.headers.get("Project")
     conf_data["data_form"] = {
         "identifiers": dataseries.imageSeries,
         "cohort_query": {"index": ["meta-index"]},
@@ -91,6 +105,7 @@ async def start_workflow(
             "prometheus_uri": prometheus_uri,
         },
     }
+    conf_data["project_form"] = json.loads(project)
     db_job = type("db_job", (object,), {"dag_id": dagId})
     response = execute_job_airflow(conf_data=conf_data, db_job=db_job)
     # trigger_info = response.json()

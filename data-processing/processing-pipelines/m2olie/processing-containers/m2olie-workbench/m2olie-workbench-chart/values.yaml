@@ -1,0 +1,14 @@
+---
+global:
+  registry_url: ""
+  pull_policy_images: ""
+  base_namespace: ""
+  fast_data_dir: ""
+  slow_data_dir: ""
+  namespace: ""
+  dynamicVolumes:
+    - name: minio
+      mount_path: /kaapana/minio
+      host_path: /applications/minio
+      minio_mirror: true
+        

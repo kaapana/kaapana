@@ -2,16 +2,16 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: {{ .Release.Name }}
-  namespace: "{{ tpl .Values.global.namespace .  }}"
+  namespace: "{{ tpl .Values.global.namespace . }}"
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: {{ .Release.Name }}
+      app.kubernetes.io/name: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app-name: {{ .Release.Name }}
+        app.kubernetes.io/name: {{ .Release.Name }}
     spec:
       restartPolicy: Always
       containers:
@@ -26,7 +26,7 @@ spec:
             memory: "8Gi"
         env:
         - name: INGRESS_PATH
-          value: {{ .Release.Name }}
+          value: "applications/project/{{ .Values.global.project_name }}/release/{{ .Release.Name }}"
         - name: WORKFLOW_DIR
           value: "{{ .Values.workflow_dir }}"
         - name: BATCH_NAME

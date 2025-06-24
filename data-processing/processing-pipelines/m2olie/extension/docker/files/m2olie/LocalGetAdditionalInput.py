@@ -8,19 +8,23 @@ from pathlib import Path
 from typing import List, Dict
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_utils import get_release_name
-from kaapana.operators.HelperDcmWeb import HelperDcmWeb
-from kaapana.blueprints.kaapana_global_variables import (
-    PROCESSING_WORKFLOW_DIR,
-    ADMIN_NAMESPACE,
-    SERVICES_NAMESPACE,
-    JOBS_NAMESPACE,
-)
-
+from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
+from kaapanapy.helper.HelperOpensearch import HelperOpensearch
+from kaapanapy.settings import OpensearchSettings
 
 class LocalGetAdditionalInput(KaapanaPythonBaseOperator):
     def get_data(self, target_dir, seriesUID):
-        download_successfull = HelperDcmWeb.downloadSeries(
-            seriesUID=seriesUID, target_dir=target_dir
+        opensearch_index = OpensearchSettings().default_index
+        os_helper = HelperOpensearch()
+        dcm_uid = os_helper.get_dcm_uid_objects(
+            index=opensearch_index,
+            series_instance_uids=seriesUID,
+        )[0]
+        print(dcm_uid)
+        dcmweb_helper = get_dcmweb_helper()
+        download_successfull = dcmweb_helper.download_series(
+            study_uid=dcm_uid['dcm-uid']['study-uid'],
+            series_uid=seriesUID, target_dir=target_dir
         )
         if not download_successfull:
             print("Could not download DICOM data!")

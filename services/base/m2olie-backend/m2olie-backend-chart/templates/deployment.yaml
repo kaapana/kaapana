@@ -8,13 +8,15 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: m2olie-backend
+      app.kubernetes.io/name: m2olie-backend
+      app.kubernetes.io/component: backend
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app-name: m2olie-backend
+        app.kubernetes.io/name: m2olie-backend
+        app.kubernetes.io/component: backend
     spec:
       containers:
       - name: m2olie-backend
@@ -43,27 +45,43 @@ spec:
           value: "{{  .Values.global.services_namespace  }}"
         - name: AIRFLOW_URL
           value: "http://airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc:8080/flow/kaapana/api"
-        - name: DCM4CHEE_URL
-          value: "http://dcm4chee-service.{{  .Values.global.services_namespace  }}.svc:8080/dcm4chee-arc/aets/KAAPANA/rs/"
         - name: APPLICATION_ROOT
           value: "/m2olie"
+        - name: PORT
+          value: "5000"
+        - name: WORKERS
+          value: "4"
+        - name: KAAPANA_PROJECT_USER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: system-user-password
+              key: system-user-password
+        - name: KAAPANA_PROJECT_USER_NAME
+          value: "system"
+        - name: KAAPANA_CLIENT_SECRET
+          value: "{{ .Values.global.oidc_client_secret }}"
+{{- if .Values.global.dev_files }}
+        - name: DEV_FILES
+          value: "True"
+{{- end }}
         ports:
           - containerPort: 5000
         resources:
           limits:
-            memory: "100Mi"
+            memory: "1Gi"
           requests:
-            memory: "50Mi"
-        volumeMounts:
+            memory: "500Mi"      
 {{- if .Values.global.dev_files }}
+        volumeMounts:
         - name: kaapana-dev-files
           mountPath: /kaapana/app
 {{- end }}
       imagePullSecrets:
         - name: registry-secret  
 {{- if .Values.global.dev_files }}
+      volumes:
       - name: kaapana-dev-files
         persistentVolumeClaim:
-          claimName: backend-dev-pv-claim
+          claimName: {{ .Chart.Name }}-dev-pv-claim
 {{- end }}
 ---

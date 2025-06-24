@@ -9,8 +9,6 @@ from kaapana.blueprints.kaapana_utils import get_release_name
 from kaapana.blueprints.kaapana_global_variables import (
     PROCESSING_WORKFLOW_DIR,
     ADMIN_NAMESPACE,
-    SERVICES_NAMESPACE,
-    JOBS_NAMESPACE,
 )
 
 

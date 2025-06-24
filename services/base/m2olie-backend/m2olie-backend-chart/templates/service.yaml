@@ -1,6 +1,6 @@
 
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: strip-prefix-m2olie-backend
@@ -9,7 +9,6 @@ spec:
   stripPrefix:
     prefixes:
     - /m2olie
-    forceSlash: true
 ---
 apiVersion: v1
 kind: Service
@@ -17,10 +16,12 @@ metadata:
   name: m2olie-backend-service
   namespace: "{{ .Values.global.services_namespace }}"
   labels:
-    app-name: m2olie-backend
+    app.kubernetes.io/name: m2olie-backend
+    app.kubernetes.io/component: backend
 spec:
   selector:
-    app-name: m2olie-backend
+    app.kubernetes.io/name: m2olie-backend
+    app.kubernetes.io/component: backend
   ports:
 {{- if .Values.global.dev_files }}
     - name: hw-http

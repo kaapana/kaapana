@@ -2,7 +2,6 @@ from datetime import timedelta, datetime
 
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 from kaapana.blueprints.kaapana_global_variables import (
-    SERVICES_NAMESPACE,
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
 )

@@ -10,12 +10,6 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 from kaapana.blueprints.kaapana_utils import get_release_name
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from xml.etree import ElementTree
-from kaapana.blueprints.kaapana_global_variables import (
-    PROCESSING_WORKFLOW_DIR,
-    ADMIN_NAMESPACE,
-    SERVICES_NAMESPACE,
-    JOBS_NAMESPACE,
-)
 
 
 class LocalCreateMITKScene(KaapanaPythonBaseOperator):

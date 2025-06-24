@@ -16,9 +16,8 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     python3-opencv \
     && rm -rf /var/lib/apt/lists/*
 
-# RUN apt-get purge -y libhwloc-dev libhwloc-plugins
 # Clone directory from git
-RUN git clone https://github.com/estegmeier/BodyPartRegression && cd BodyPartRegression
+RUN git clone https://github.com/MIC-DKFZ/BodyPartRegression.git && cd BodyPartRegression && git checkout 49624c025fb57e3b53fc75ecca0c7dbf6bed5278
 
 # Download public model from zenodo 
 RUN touch BodyPartRegression/src/models/public_bpr_model.zip

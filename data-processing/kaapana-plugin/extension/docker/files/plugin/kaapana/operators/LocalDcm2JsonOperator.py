@@ -11,8 +11,8 @@ import pytz
 from dateutil import parser
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from pydicom.tag import Tag
 from kaapanapy.settings import KaapanaSettings
+from pydicom.tag import Tag
 
 TIMEZONE = KaapanaSettings().timezone
 
@@ -94,6 +94,8 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
     @cache_operator_output
     def start(self, **kwargs):
         logger.info("Starting module dcm2json...")
+        config = kwargs["dag_run"].conf
+        self.default_project = config.get("project_form", {}).get("name", "admin")
 
         run_dir: Path = Path(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folders: List[Path] = list((run_dir / self.batch_name).glob("*"))
@@ -191,7 +193,9 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         # TODO Why is this necessary?
         metadata["predicted_bodypart_string"] = "N/A"
 
-        self._sanitize_project_and_dataset(metadata)
+        self._sanitize_project_and_dataset(
+            metadata, default_project=self.default_project
+        )
         return metadata
 
     def _sanitize_project_and_dataset(

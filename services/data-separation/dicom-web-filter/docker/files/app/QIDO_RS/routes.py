@@ -51,7 +51,7 @@ async def retrieve_studies(request: Request) -> Response:
 
     if head_response.status_code == HTTP_204_NO_CONTENT:
         # If the response is 204 No Content, return it directly
-        return head_response
+        return Response(status_code=204)
 
     return StreamingResponse(
         metadata_replace_stream(
@@ -80,7 +80,7 @@ async def retrieve_series(study: str, request: Request) -> Response:
 
     if head_response.status_code == HTTP_204_NO_CONTENT:
         # If the response is 204 No Content, return it directly
-        return head_response
+        return Response(status_code=204)
     # Send the request to the DICOM Web server
     return StreamingResponse(
         metadata_replace_stream(
@@ -112,7 +112,7 @@ async def retrieve_instances(study: str, series: str, request: Request) -> Respo
 
     if head_response.status_code == HTTP_204_NO_CONTENT:
         # If the response is 204 No Content, return it directly
-        return head_response
+        return Response(status_code=204)
     # Send the request to the DICOM Web server
     return StreamingResponse(
         metadata_replace_stream(

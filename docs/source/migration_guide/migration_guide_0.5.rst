@@ -24,10 +24,16 @@ However, some structural and visibility changes have been introduced in how data
   Similarly, executed workflows were visible system-wide without project association.  
   After the migration, workflows are now project-scoped. Existing workflows have been assigned to the **admin** project.
 
-- **Thumbnail Generation:**  
-  Thumbnails (stored in Minio) were not generated in older versions. As a result, historical data does not include thumbnails.  
-  Thumbnails can be retroactively generated, but note that the thumbnail DAG expects validation completeness, which is absent in older validations.  
-  To ensure consistency, we recommend running the following DAGs in sequence:
+Not Included
+============
+- Automatic thumbnail generation for old files
+- Automatic validation rerun for legacy datasets
+
+- **Manual Thumbnail Generation:**  
+
+  In earlier versions, thumbnails (stored in MinIO) were not generated. Therefore, existing data from those versions does not contain thumbnails.
+  Thumbnails can be generated retroactively, but the thumbnail DAG relies on validation completeness, which may be missing in older validation entries.
+  To ensure consistent and reliable thumbnail generation, we recommend running the following DAGs in sequence:
 
   1. `clear-validation-results`
   2. `validate-dicoms`
@@ -39,21 +45,39 @@ Migrate
 =======
 To update existing platforms' databases from version 0.4.x to 0.5.x, follow the steps below:
 
-1. Backup your `FAST_DATA_DIR`
+1. Undeploy Kaapana platform
+  
+   .. code-block:: bash
+
+      ./deploy_plaform.sh --undeploy
+
+2. Wait until fully undeployed
+
+  - `helm ls -a` does not show any Kaapana deployment
+  - `kubectl get pods -A` does not show any Kaapana pods, only `kube-system` namespace
+    
+3. Backup your `FAST_DATA_DIR`
    
    .. code-block:: bash
 
-      cp -a /home/kaapana/* /home/kaapana-backup
+      cp -a <FAST_DATA_DIR>/* /path/to/backup
 
-2. Run the migration script:
+4. Get the migration script - either clone the kaapana repository or download the script directly:
 
    .. code-block:: bash
 
-      sudo ./kaapana/utils/migration-0.4.x-0.5.x-0.sh
+      git clone https://codebase.helmholtz.cloud/kaapana/kaapana/
 
-3. Steps 1, 2, 3, and 4 are completed automatically by the script.
+5. Run the migration script with specified FAST_DATA_DIR:
 
-Not Included
-============
-- Automatic thumbnail generation for old files
-- Automatic validation rerun for legacy datasets
+   .. code-block:: bash
+
+      sudo ./kaapana/utils/migration-0.4.x-0.5.x-0.sh <FAST_DATA_DIR>
+
+6. Deploy kaapana and wait until all pods are Completed or Running state:
+
+   .. code-block:: bash
+
+      ./deploy_platform.sh
+
+

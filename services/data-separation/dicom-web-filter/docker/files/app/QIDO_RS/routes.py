@@ -33,10 +33,6 @@ async def head_request(url: str, request: Request) -> Response:
             headers=dict(request.headers),
         )
 
-        if response.status_code == 204:
-            # Return empty response with status code 204
-            return Response(status_code=HTTP_204_NO_CONTENT)
-
     response.raise_for_status()
     return response
 
@@ -51,7 +47,11 @@ async def retrieve_studies(request: Request) -> Response:
         response: Response object
     """
     # Perform a HEAD request to check the response code without retrieving the body
-    await head_request(f"{DICOMWEB_BASE_URL}/studies", request)
+    head_response = await head_request(f"{DICOMWEB_BASE_URL}/studies", request)
+
+    if head_response.status_code == HTTP_204_NO_CONTENT:
+        # If the response is 204 No Content, return it directly
+        return Response(status_code=HTTP_204_NO_CONTENT)
 
     return StreamingResponse(
         metadata_replace_stream(
@@ -76,8 +76,11 @@ async def retrieve_series(study: str, request: Request) -> Response:
         Response: Response object
     """
     # Perform a HEAD request to check the response code without retrieving the body
-    await head_request(f"{DICOMWEB_BASE_URL}/studies/{study}/series", request)
+    head_response = await head_request(f"{DICOMWEB_BASE_URL}/studies/{study}/series", request)
 
+    if head_response.status_code == HTTP_204_NO_CONTENT:
+        # If the response is 204 No Content, return it directly
+        return Response(status_code=HTTP_204_NO_CONTENT)
     # Send the request to the DICOM Web server
     return StreamingResponse(
         metadata_replace_stream(
@@ -103,10 +106,13 @@ async def retrieve_instances(study: str, series: str, request: Request) -> Respo
         Response: Response object
     """
     # Perform a HEAD request to check the response code without retrieving the body
-    await head_request(
+    head_response = await head_request(
         f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances", request
     )
 
+    if head_response.status_code == HTTP_204_NO_CONTENT:
+        # If the response is 204 No Content, return it directly
+        return Response(status_code=HTTP_204_NO_CONTENT)
     # Send the request to the DICOM Web server
     return StreamingResponse(
         metadata_replace_stream(

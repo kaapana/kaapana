@@ -150,14 +150,6 @@ put_results_html_to_minio_admin_bucket = KaapanaPythonBaseOperator(
     dag=dag,
 )
 
-get_ref_ct_series = LocalGetRefSeriesOperator(
-    dag=dag,
-    input_operator=get_input,
-    search_policy="reference_uid",
-    parallel_downloads=5,
-    parallel_id="ct",
-)
-
 
 def has_ref_series(ds) -> bool:
     return ds.Modality in ["SEG", "RTSTRUCT"]
@@ -171,6 +163,15 @@ branch_by_has_ref_series = LocalDcmBranchingOperator(
     branch_true_operator="get-ref-series-ct",
     branch_false_operator="generate-thumbnail",
 )
+
+get_ref_ct_series = LocalGetRefSeriesOperator(
+    dag=dag,
+    input_operator=branch_by_has_ref_series,
+    search_policy="reference_uid",
+    parallel_downloads=5,
+    parallel_id="ct",
+)
+
 generate_thumbnail = GenerateThumbnailOperator(
     dag=dag,
     name="generate-thumbnail",

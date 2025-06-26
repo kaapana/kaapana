@@ -26,8 +26,8 @@ Kaapana contains strong authorization features that allow to control access to t
         * Traefik
         * Prometheus and Grafana
         * Extensions page
-    * Access to installable applications
-    * DAG execution
+* Access to active applications
+* Workflow execution
 
 
 How Access Control Works
@@ -42,6 +42,7 @@ The authorization decision is based on:
 Authorization decisions are evaluated at the **Policy Decision Point (PDP)**, which is an instance of an **Open Policy Agent (OPA)**. 
 Access policies are written using the Rego policy language.
 
+.. _global_system_groups:
 
 Global System Groups
 ^^^^^^^^^^^^^^^^^^^^
@@ -140,3 +141,34 @@ This is enforced through the following mechanisms:
 - Processing-containers use the credentials of the corresponding project system user to authenticate against the storage services.
 
 This design guarantees that processes inside containers can only interact with storage resources belonging to their project, preventing cross-project data access.
+
+Workflow Execution And Active Applications
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* The Project Management UI allows to manage, which DAG can be executed as a Workflow by which Project.
+* This can be managed by creating or deleting porject-software mappings.
+* A default list of project-software-mappings can be configured before building your custom platform at <link>
+
+
+* Active Applications are also bound to a project-context
+* As active applications are spawned in the extension page, the selected project determines the project for which the application will be deployed.
+* Applications that are started by workflows like MITK-flow are automatically associated with the project of corresponding workflow.
+
+
+Workflow Execution and Active Applications  
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The **Project Management UI** provides fine-grained control over which :term:`DAGs<dag>` can be executed as workflows within specific projects. 
+This is achieved by managing **project-software mappings**, which define the association between a project and the workflows available to it. 
+These mappings can be created or removed as needed to control workflow availability.
+Additionally, a default set of project-software mappings can be defined prior to building your custom Kaapana platform in the correpsonding `configuration file <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/0.5.0/services/data-separation/access-information-interface/access-information-interface-chart/templates/configmap.yaml?ref_type=tags>`_ 
+
+Similarly, :term:`active applications<application>` are always tied to a specific **project context**. 
+When launching an application via the :ref:`Extension Page<extensions>`, the currently selected project determines the project within which the application will be deployed. 
+For applications started automatically by workflows, such as those initiated by **MITK-Flow**, the project association is inherited from the project of the corresponding workflow execution.
+
+This mechanism ensures that both workflow execution and application deployment in Kaapana remain strictly project-bound, maintaining clear separation and secure access to project resources.
+
+.. note::
+    Only users within dedicated :ref:`global system groups<global_system_groups>` are able to manage project-software-mappings and to start applications.
+    Check out the :ref:`Keycloak user guide<keycloak>` for more information.

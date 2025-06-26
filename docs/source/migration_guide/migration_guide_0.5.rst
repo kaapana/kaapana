@@ -81,3 +81,53 @@ To update existing platforms' databases from version 0.4.x to 0.5.x, follow the 
       ./deploy_platform.sh
 
 
+Operators and Workflows Changes
+===============================
+
+- `KaapanaBaseOperator` now accepts a new parameter: `display_name`
+
+- Operator configuration:
+  
+  - `conf["form_data"]` has been removed
+  - Use `conf["workflow_form"]` instead
+
+- MinIO access updated:
+  
+  - Use `kaapanapy.get_minio_client()` function
+  - Deprecated: `kaapanapy.helper.get_minio_client.HelperMinio` class
+
+- `DcmSendOperator`:
+  
+  - New default parameters:
+  
+    - `ram_mem_mb=50`
+    - `ram_mem_mb_lmt=4000`
+
+- `GetThumbnailOperator`:
+  
+  - Environment variable changed from `ORIG_IMAGE_OPERATOR_DIR` to `GET_REF_SERIES_OPERATOR_DIR`
+
+- New Operators:
+  
+  - `NotifyOperator`
+  - `LocalRemoveDicomTagsOperator`
+  - `LocalDcmBranchingOperator`
+
+- Label updates:
+  
+  - `TrainingOperator` and `SegmentationEvaluationOperator` now use:
+    
+    .. code-block:: json
+
+       {"network-access-opensearch": "true"}
+
+    instead of:
+
+    .. code-block:: json
+
+       {"network-access": "opensearch"}
+
+- DAG Renames:
+  
+  - `convert-nifitis-to-dicoms-and-import-to-pacs` → `import-niftis-from-data-upload`
+  - `import-dicoms-in-zip-to-internal-pacs` → `import-dicoms-from-data-upload`

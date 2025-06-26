@@ -54,13 +54,16 @@ for extension in preinstall_extensions:
         # if chart is stuck in 'uninstalling' state, uninstall with --no-hooks
         chart_name = chart["name"]
         chart_status = helm_status(chart_name)
-        if len(chart_status) != 0 and chart_status["STATUS"] == "uninstalling":
+        if len(chart_status) != 0 and chart_status[0]["STATUS"] == "uninstalling":
             # if it is stuck in uninstalling, delete with --no-hooks
             logger.warning(f"{chart_name} stuck in 'uninstalling' status")
             logger.info(f"Deleting {chart_name} with --no-hooks")
             execute_shell_command(
                 f"{settings.helm_path} uninstall {chart_name} --no-hooks"
             )
+        elif len(chart_status) != 0 and chart_status[0]["STATUS"] == "deployed":
+            logger.info(f"Chart {chart_name} is already installed, skipping")
+            continue
 
         success, _, _, release_name, _ = helm_install(
             extension,

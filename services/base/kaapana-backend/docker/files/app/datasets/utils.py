@@ -53,7 +53,8 @@ def execute_sliced_search(
         "pit": {"id": pit_id, "keep_alive": "1m"},
         "slice": {"id": slice_id, "max": total_slices},
     }
-    res = os_client.search(index=index, body=body)
+    # ❗ Do not include `index` here!, since pit is already index specific.
+    res = os_client.search(body=body)
     return res["hits"]["hits"]
 
 
@@ -135,8 +136,9 @@ def execute_search_after_search(
         }
         if search_after:
             body["search_after"] = search_after
-
-        res = os_client.search(index=index, body=body)
+        
+        # ❗ Do not include `index` here!, since pit is already index specific.
+        res = os_client.search(body=body)
         return res
 
     search_after = None

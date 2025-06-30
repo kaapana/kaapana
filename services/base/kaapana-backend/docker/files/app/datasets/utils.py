@@ -194,7 +194,7 @@ def execute_initial_search(
         )
     else:
         # Create a PIT
-        pit_id = create_pit(index=index)
+        pit_id = create_pit(os_client=os_client,index=index)
         # initially only the patitenid is needed, for resorting later
         patient_source = {
             "includes": [
@@ -225,7 +225,7 @@ def execute_initial_search(
                 start_from=page_index,
                 size=page_length,
             )
-        close_pit(pit_id)
+        close_pit(os_client=os_client, pit_id=pit_id)
     return hits
 
 

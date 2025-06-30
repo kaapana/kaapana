@@ -89,20 +89,19 @@ def upload_thumbnails_into_project_bucket(ds, **kwargs):
 
     kaapana_settings = KaapanaSettings()
     minio = get_minio_client()
+    conf = kwargs["dag_run"].conf
+    project_id = conf["project_form"]["id"]
+    response = requests.get(
+        f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/{project_id}"
+    )
+    response.raise_for_status()
+    project = response.json()
 
     batch_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
     batch_folder = [f for f in glob.glob(os.path.join(batch_dir, "*"))]
     for batch_element_dir in batch_folder:
 
         thumbnail_dir = Path(batch_element_dir) / generate_thumbnail.operator_out_dir
-
-        conf = kwargs["dag_run"].conf
-        project_id = conf["project_form"]["id"]
-        response = requests.get(
-            f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/{project_id}"
-        )
-        response.raise_for_status()
-        project = response.json()
 
         thumbnails = [f for f in thumbnail_dir.glob("*.png")]
         for thumbnail_path in thumbnails:

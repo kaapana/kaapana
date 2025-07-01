@@ -146,14 +146,11 @@ async def query_studies(
         return await retrieve_studies(request=request)
 
     if "SeriesInstanceUID" in request.query_params:
-        # retrieve series mapped to the project
-        series = set(
-            await crud.get_all_series_mapped_to_projects(session, project_ids_of_user)
-        )
+        requested_series_instance_uids = request.query_params.getlist("SeriesInstanceUID")
 
-        # Check if the requested series are mapped to the project
-        requested_series = set(request.query_params.getlist("SeriesInstanceUID"))
-        series = series.intersection(requested_series)
+        series = await crud.get_mapped_series_by_project_and_uid(
+            session, project_ids_of_user, requested_series_instance_uids
+        )
 
         # Remove SeriesInstanceUID from the query parameters
         query_params = dict(request.query_params)

@@ -1,6 +1,11 @@
 #!/bin/bash
 set -eu -o pipefail
 
+if [ "$EUID" -ne 0 ]
+then echo -e "Please run the script with root privileges!";
+    exit 1
+fi
+
 # Check if FAST_DATA_DIR is provided
 if [ $# -eq 0 ]; then
     echo "ERROR: No FAST_DATA_DIR provided."

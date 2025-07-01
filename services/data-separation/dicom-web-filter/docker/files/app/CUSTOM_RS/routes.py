@@ -214,7 +214,7 @@ async def get_series(request: Request, session: AsyncSession = Depends(get_sessi
 
     # Get all series mapped to the project
     series = set(
-        await crud.get_all_series_mapped_to_projects(session, project_ids_of_user)
+        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(session, project_ids_of_user, study)
     )
 
     # Remove SeriesInstanceUID from the query parameters
@@ -254,7 +254,7 @@ async def get_instances(
 
     # Get all series mapped to the project
     series = set(
-        await crud.get_all_series_mapped_to_projects(session, project_ids_of_user)
+        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(session, project_ids_of_user, study)
     )
 
     # Remove SeriesInstanceUID from the query parameters

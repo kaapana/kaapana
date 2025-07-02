@@ -1,5 +1,8 @@
+import logging
+from uuid import UUID
+
 import httpx
-from app import crud
+from app import crud, utils
 from app.config import DICOMWEB_BASE_URL
 from app.database import get_session
 from app.streaming_helpers import metadata_replace_stream
@@ -73,7 +76,9 @@ async def retrieve_series(study: str, request: Request) -> Response:
         Response: Response object
     """
     # Perform a HEAD request to check the response code without retrieving the body
-    await head_request(f"{DICOMWEB_BASE_URL}/studies/{study}/series", request)
+    head_response = await head_request(
+        f"{DICOMWEB_BASE_URL}/studies/{study}/series", request
+    )
 
     # Send the request to the DICOM Web server
     return StreamingResponse(
@@ -118,7 +123,11 @@ async def retrieve_instances(study: str, series: str, request: Request) -> Respo
 
 
 @router.get("/studies", tags=["QIDO-RS"])
-async def query_studies(request: Request, session: AsyncSession = Depends(get_session)):
+async def query_studies(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    project_ids_of_user=Depends(get_user_project_ids),
+):
     """This endpoint is used to get all studies mapped to the project.
 
     Args:
@@ -132,48 +141,36 @@ async def query_studies(request: Request, session: AsyncSession = Depends(get_se
     if request.scope.get("admin") is True:
         return await retrieve_studies(request=request)
 
-    # Get the project IDs of the projects the user is associated with
-    project_ids_of_user = [
-        project["id"] for project in request.scope.get("token")["projects"]
-    ]
-
+    query_params = dict(request.query_params)
     if "SeriesInstanceUID" in request.query_params:
-        requested_series_instance_uids = request.query_params.getlist("SeriesInstanceUID")
+        requested_series_instance_uids = request.query_params.getlist(
+            "SeriesInstanceUID"
+        )
 
-        series = await crud.get_mapped_series_by_project_and_uid(
+        series = await crud.get_mapped_series_by_project_and_series_uids(
             session, project_ids_of_user, requested_series_instance_uids
         )
 
         # Remove SeriesInstanceUID from the query parameters
-        query_params = dict(request.query_params)
         query_params["SeriesInstanceUID"] = []
 
         # Add the series mapped to the project to the query parameters
         for uid in series:
             query_params["SeriesInstanceUID"].append(uid)
 
-        # Update the query parameters
-        request._query_params = query_params
-
         if not series:
             # return empty response with status code 204
             return Response(status_code=HTTP_204_NO_CONTENT)
 
-    # Retrieve studies mapped to the project
-    studies = set(
-        await crud.get_all_studies_mapped_to_projects(session, project_ids_of_user)
+    studies = await utils.get_filtered_studies_mapped_to_projects(
+        session=session,
+        request=request,
+        project_ids_of_user=project_ids_of_user,
+        study_uid_param_name="StudyInstanceUID",
     )
 
-    # check if StudyInstanceUID is in the query parameters
-    if "StudyInstanceUID" in request.query_params:
-        # Check if the requested studies are mapped to the project
-        requested_studies = set(request.query_params.getlist("StudyInstanceUID"))
-        studies = studies.intersection(requested_studies)
-
     # Remove StudyInstanceUID from the query parameters
-    query_params = dict(request.query_params)
     query_params["StudyInstanceUID"] = []
-
     # Add the studies mapped to the project to the query parameters
     for uid in studies:
         query_params["StudyInstanceUID"].append(uid)

@@ -45,6 +45,7 @@ data:
     [
       { "software_uuid": "advanced-collect-metadata"},
       { "software_uuid": "advanced-collect-metadata-federated"},
+      { "software_uuid": "body-and-organ-analysis"},
       { "software_uuid": "bodypart-regression"},
       { "software_uuid": "classification-inference"},
       { "software_uuid": "classification-training"},

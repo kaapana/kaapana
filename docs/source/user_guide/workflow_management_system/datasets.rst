@@ -102,6 +102,16 @@ Next to the Gallery View is the Metadata Dashboard (configurable in :ref:`settin
 .. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/dashboard.gif
    :alt: Interacting with the Metadata Dashboard
 
+
+Validation Results
+""""""""""""""""""
+Series cards include small icons in the form of warnings or errors in the lower right corner of the thumbnail that indicate the validation results for the series.
+Validation results are generated in the ingestion process using one of two supported tools: `dciodvfy <https://www.dclunie.com/dicom3tools/dciodvfy.html>`_ and `pydicom-validator <https://github.com/pydicom/dicom-validator>`_ . They check DICOM files for missing or unexpected attributes.
+
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/validation.gif
+   :alt: Validation results in the gallery view
+
+
 Detail View
 """""""""""
 For a more detailed look at a series, double-click a series card or click the eye icon at the top-right of the thumbnail to open the detail view in the side panel. This view comprises an OHIF-v3 viewer and a searchable metadata table for the selected series.

@@ -36,7 +36,7 @@ spec:
         image: "{{ .Values.global.registry_url }}/collabora:{{ .Values.global.kaapana_build_version }}"
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
         ports:
-        - name: http
+        - name: collabora-http
           containerPort: 9980
           protocol: TCP
         resources:
@@ -57,7 +57,7 @@ spec:
         image: "{{ .Values.global.registry_url }}/kaapana-wopi:{{ .Values.global.kaapana_build_version }}"
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
         ports:
-        - name: http
+        - name: wopi-http
           containerPort: 5000
           protocol: TCP
         resources:

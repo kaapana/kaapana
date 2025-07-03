@@ -98,7 +98,11 @@ async def exec_shell_cmd_async(
 
 
 def execute_shell_command(
-    command, shell=False, blocking=True, timeout=timeouts.shell_cmd_default_timeout, skip_check=False
+    command,
+    shell=False,
+    blocking=True,
+    timeout=timeouts.shell_cmd_default_timeout,
+    skip_check=False,
 ) -> Tuple[bool, str]:
     """Runs given command via subprocess.run or subprocess.Popen
 
@@ -146,7 +150,10 @@ def execute_shell_command(
     stdout = command_result.stdout.strip()
     stderr = command_result.stderr.strip()
     return_code = command_result.returncode
-    success = True if return_code == 0 and stderr == "" else False
+    success = True if return_code == 0 else False
+
+    if success and stderr != "":
+        logger.info(f"WARNING: Command raised a warning: {stderr}")
 
     if success:
         logger.debug(f"Command successfully executed {command}")

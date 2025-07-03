@@ -39,7 +39,7 @@ RUN chmod a+rwx -R /app && \
     ## python3 -m pip install pyradiomics && \
     python3 -m pip install .
 
-ENV TOTALSEG_WEIGHTS_PATH=/models
+ENV TOTALSEG_WEIGHTS_PATH=/models/total_segmentator
 ENV MPLCONFIGDIR=/app/configs
 ENV nnUNet_USE_TRITON=0
 

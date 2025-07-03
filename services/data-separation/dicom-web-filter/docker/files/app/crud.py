@@ -30,9 +30,6 @@ async def get_mapped_series_by_project_and_series_uids(
     project_ids: List[UUID],
     requested_series_instance_uids: List[str],
 ) -> List[str]:
-    if not requested_uids:
-        return []
-
     stmt = (
         select(DicomData.series_instance_uid)
         .join(

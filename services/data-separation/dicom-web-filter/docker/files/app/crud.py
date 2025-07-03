@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import DataProjects, DicomData
 
-MAX_UIDS_IN_GET = 100  # ~40 chars per UID + URL encoding => ~4,000 characters
 
 
 async def get_all_studies_mapped_to_projects(

@@ -260,6 +260,7 @@ def add_extension_to_dict(
                 ),
                 extension_params=ext_params,
                 annotations=extension_dict.get("annotations"),
+                display_name="",
                 # "values": extension_dict["values"]
             )
         )
@@ -386,6 +387,14 @@ def add_info_from_deployments(
                     chart_template = extension_info.copy()
                     chart_template.installed = "yes"
                     chart_template.releaseName = deployment.deployment_id
+                    vals = helm_get_values(deployment.deployment_id)
+                    if (
+                        "display_name" in vals["global"]
+                        and vals["global"]["display_name"] != "-"
+                    ):
+                        chart_template.display_name = vals["global"]["display_name"]
+                    else:
+                        chart_template.display_name = deployment.deployment_id
                     chart_template.successful = "yes" if deployment.ready else "pending"
                     chart_template.helmStatus = deployment.helm_status.capitalize()
                     chart_template.kubeStatus = None

@@ -78,6 +78,13 @@ def remove_thumbnail_from_project_bucket(ds, **kwargs):
     """
     kaapana_settings = KaapanaSettings()
     minio = get_minio_client()
+    conf = kwargs["dag_run"].conf
+    project_id = conf["project_form"]["id"]
+    response = requests.get(
+        f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/{project_id}"
+    )
+    response.raise_for_status()
+    project = response.json()
 
     batch_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
     batch_folder = [f for f in glob.glob(os.path.join(batch_dir, "*"))]
@@ -85,26 +92,16 @@ def remove_thumbnail_from_project_bucket(ds, **kwargs):
         json_dir = Path(batch_element_dir) / get_input.operator_out_dir
         json_files = [f for f in json_dir.glob("*.json")]
 
-        assert len(json_files) == 1
-        metadata_file = json_files[0]
-        with open(metadata_file, "r") as f:
-            metadata = json.load(f)
+        for metadata_file in json_files:
+            with open(metadata_file, "r") as f:
+                metadata = json.load(f)
+            series_uid = metadata.get(DicomTags.series_uid_tag)
 
-        project_name = metadata.get(DicomTags.clinical_trial_protocol_id_tag)
-        series_uid = metadata.get(DicomTags.series_uid_tag)
-
-        response = requests.get(
-            f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects"
-        )
-        project = [
-            project for project in response.json() if project["name"] == project_name
-        ][0]
-
-        minio_object_path = f"thumbnails/{series_uid}.png"
-        minio.remove_object(
-            bucket_name=project.get("s3_bucket"),
-            object_name=minio_object_path,
-        )
+            minio_object_path = f"thumbnails/{series_uid}.png"
+            minio.remove_object(
+                bucket_name=project.get("s3_bucket"),
+                object_name=minio_object_path,
+            )
 
 
 remove_thumbnail_from_project_bucket = KaapanaPythonBaseOperator(

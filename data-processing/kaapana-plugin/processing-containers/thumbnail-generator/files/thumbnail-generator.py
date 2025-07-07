@@ -137,7 +137,7 @@ def generate_thumbnail(
     if not thumbnail:
         raise Exception("Couldn't create thumbnail")
 
-    target_png = os.path.join(operator_out_dir, f"new_{series_uid}.png")
+    target_png = os.path.join(operator_out_dir, f"{series_uid}.png")
     thumbnail.save(target_png)
     logger.info(f"Thumbnail saved to {target_png}")
     return True, target_png

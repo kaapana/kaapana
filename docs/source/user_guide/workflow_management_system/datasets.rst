@@ -20,12 +20,12 @@ Gallery View
 """"""""""""
 With numerous DICOMs, managing them can be challenging. Taking cues from recent photo gallery apps, we've created a similar interaction model called the "Gallery View". It displays a thumbnail of the series and its metadata, all of which is configurable via :ref:`settings`. The Gallery View loads items on-demand to ensure scalability.
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/gallery_view.gif
+.. image:: /img/gallery_view.gif
    :alt: Scrolling through the gallery view
 
 In some scenarios, you may wish to structure data by patient and study. This can be achieved through the Structured Gallery View, which can be enabled in :ref:`settings`.
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/structured_gallery_view.gif
+.. image:: /img/structured_gallery_view.gif
    :alt: Scrolling through the structured gallery view
 
 The Gallery View offers straightforward and intuitive data interaction via multi-select functionality. You can select multiple individual series by holding CTRL (CMD on MacOS) and clicking the desired series, or by using the dragging functionality.
@@ -37,19 +37,19 @@ After selecting, you have several options:
 * If a dataset is selected, remove the selected items from the currently selected dataset (this will not delete the data from the platform).
 * Execute a workflow with the selected data. Note that in this scenario, unlike in :ref:`workflow_execution`, there is no explicit linkage to a dataset.
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/save_dataset.gif
+.. image:: /img/save_dataset.gif
    :alt: Saving a dataset
    :class: half-width-gif
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/add_to_dataset.gif
+.. image:: /img/add_to_dataset.gif
    :alt: Adding items to an existing dataset
    :class: half-width-gif
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/remove_from_dataset.gif
+.. image:: /img/remove_from_dataset.gif
    :alt: Removing items from a dataset
    :class: half-width-gif
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/workflow.gif
+.. image:: /img/workflow.gif
    :alt: Starting a workflow
    :class: half-width-gif
 
@@ -77,7 +77,7 @@ You can add additional filters for specific DICOM tags, with an autocomplete fea
 .. note:: 
    Individual filters are combined with `AND`, while the different values within a filter are combined with `OR`.
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/search.gif
+.. image:: /img/search.gif
    :alt: Filtering
 
 The following row handles tagging, a convenient way to structure data. Tags are free-text, but an autocomplete feature allows reusing existing tags. To tag a series, activate the tag(s) and then click on the series. The switch next to the tags enables tagging with multiple tags at once.
@@ -87,7 +87,7 @@ The following row handles tagging, a convenient way to structure data. Tags are 
    * If a series already has the currently active tag, clicking the series again will remove it. This also applies in multiple tags mode.
    * Remove tags by clicking the `X` next to the tag. (Note: Removing a tag this way will not update the :ref:`meta_dashboard` dashboard if it's visualized there)
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/tagging.gif
+.. image:: /img/tagging.gif
    :alt: Tagging items in the gallery view
 
 .. _meta_dashboard:
@@ -99,7 +99,7 @@ Next to the Gallery View is the Metadata Dashboard (configurable in :ref:`settin
 .. note::
   Clicking on a bar in a bar chart will set the selected value as a filter. Click 'search' to execute the query.
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/dashboard.gif
+.. image:: /img/dashboard.gif
    :alt: Interacting with the Metadata Dashboard
 
 
@@ -108,7 +108,7 @@ Validation Results
 Series cards include small icons in the form of warnings or errors in the lower right corner of the thumbnail that indicate the validation results for the series.
 Validation results are generated in the ingestion process using one of two supported tools: `dciodvfy <https://www.dclunie.com/dicom3tools/dciodvfy.html>`_ and `pydicom-validator <https://github.com/pydicom/dicom-validator>`_ . They check DICOM files for missing or unexpected attributes.
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/validation.gif
+.. image:: /img/validation.gif
    :alt: Validation results in the gallery view
 
 
@@ -116,7 +116,7 @@ Detail View
 """""""""""
 For a more detailed look at a series, double-click a series card or click the eye icon at the top-right of the thumbnail to open the detail view in the side panel. This view comprises an OHIF-v3 viewer and a searchable metadata table for the selected series.
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/detail_view.gif
+.. image:: /img/detail_view.gif
    :alt: Detail view with OHIF viewer and metadata table
 
 .. _settings:
@@ -141,7 +141,7 @@ For each field in the metadata, the following options are available:
 
 Saving the settings will update the configuration and reload the page.
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/settings.gif
+.. image:: /img/settings.gif
    :alt: Opening the settings window and adjusting the configuration.
 
 .. note::

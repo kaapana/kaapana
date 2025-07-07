@@ -2,8 +2,9 @@ import glob
 import os
 import shutil
 from pathlib import Path
-import pydicom
 from typing import Callable, List
+
+import pydicom
 from kaapana.operators.KaapanaBranchPythonBaseOperator import (
     KaapanaBranchPythonBaseOperator,
 )
@@ -55,20 +56,20 @@ class LocalDcmBranchingOperator(KaapanaBranchPythonBaseOperator):
             Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name
         ).glob("*")
 
-        condition_met = False
+        none_satisfies_condition = True
 
         for batch_element_dir in batch_folders:
             dcm_files: List[Path] = sorted(
-                list((batch_element_dir / self.operator_in_dir).rglob(f"*.dcm"))
+                list((batch_element_dir / self.operator_in_dir).rglob("*.dcm"))
             )
             for dcm_file in dcm_files:
-                ds = pydicom.dcmread(dcm_file)
+                ds = pydicom.dcmread(dcm_file, stop_before_pixels=True)
                 if self.condition(ds):
-                    dst = os.path.join(batch_element_dir, self.operator_out_dir)
-
+                    Path(batch_element_dir / self.operator_out_dir).mkdir(exist_ok=True)
+                    dst = batch_element_dir / self.operator_out_dir / dcm_file.name
                     shutil.copy(dcm_file, dst)
-                    condition_met = True
+                    none_satisfies_condition = False
 
-        if condition_met:
-            return self.branch_true_operator
-        return self.branch_false_operator
+        if none_satisfies_condition:
+            return self.branch_false_operator
+        return self.branch_true_operator

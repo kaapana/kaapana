@@ -25,6 +25,22 @@ def download_image(name, url, output_dir):
         print(f"failed to download media {name}: {e}")
 
 
+def download(output_dir: str):
+    os.makedirs(output_dir, exist_ok=True)
+
+    # load image urls from json
+    try:
+        with open(image_url_path, "r") as f:
+            image_urls = json.load(f)
+    except FileNotFoundError:
+        print(f"image_urls.json not found at expected path: {image_url_path}")
+        exit(1)
+
+    # download all images
+    for name, url in image_urls.items():
+        download_image(name, url, output_dir)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -48,16 +64,4 @@ if __name__ == "__main__":
             print(f"directory does not exist: {args.remove}")
         exit(0)
 
-    os.makedirs(args.output_dir, exist_ok=True)
-
-    # load image urls from json
-    try:
-        with open(image_url_path, "r") as f:
-            image_urls = json.load(f)
-    except FileNotFoundError:
-        print(f"image_urls.json not found at expected path: {image_url_path}")
-        exit(1)
-
-    # download all images
-    for name, url in image_urls.items():
-        download_image(name, url, args.output_dir)
+    download(args.output_dir)

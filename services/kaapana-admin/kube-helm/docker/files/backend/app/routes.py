@@ -1,22 +1,18 @@
 import base64
 import json
-import logging
 import secrets
 import subprocess
 from os.path import dirname, join
-from typing import Optional, List
+from typing import List, Optional
 
-import file_handler
-import helm_helper
-import schemas
 import httpx
-from config import settings
-from fastapi import APIRouter, HTTPException, Query, Request, Response, UploadFile 
+from fastapi import APIRouter, HTTPException, Query, Request, Response, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from logger import get_logger
+from kaapanapy.logger import get_logger
 
-import utils
+from . import file_handler, helm_helper, schemas, utils
+from .config import settings
 
 # TODO: add endpoint for /helm-delete-file
 # TODO: add dependency injection
@@ -440,7 +436,7 @@ async def available_platforms(
     container_registry_url: str,
     encoded_auth: str = Query(...),
     platform_name: str = "kaapana-admin-chart",
-    auth_url: str = "https://codebase.helmholtz.cloud/jwt/auth"
+    auth_url: str = "https://codebase.helmholtz.cloud/jwt/auth",
 ) -> List[str]:
     try:
         decoded = base64.b64decode(encoded_auth).decode()
@@ -450,9 +446,9 @@ async def available_platforms(
 
     try:
         # Extract host and path
-        registry_parts = container_registry_url.split('/')
+        registry_parts = container_registry_url.split("/")
         registry_host = registry_parts[0]
-        registry_path = '/'.join(registry_parts[1:])
+        registry_path = "/".join(registry_parts[1:])
 
         scope = f"repository:{registry_path}/{platform_name}:pull"
         logger.info(f"Using scope: {scope}")
@@ -462,7 +458,7 @@ async def available_platforms(
             "client_id": "docker",
             "offline_token": "true",
             "service": "container_registry",
-            "scope": scope
+            "scope": scope,
         }
         logger.info(f"Fetching token from: {auth_url} with params: {params}")
 
@@ -479,14 +475,18 @@ async def available_platforms(
             token = token_json.get("token")
 
             if not token:
-                raise HTTPException(status_code=401, detail="Authentication failed, token not received")
+                raise HTTPException(
+                    status_code=401, detail="Authentication failed, token not received"
+                )
 
             # Get tags
             headers = {
                 "Accept": "application/vnd.docker.distribution.manifest.v2+json",
-                "Authorization": f"Bearer {token}"
+                "Authorization": f"Bearer {token}",
             }
-            tags_url = f"https://{registry_host}/v2/{registry_path}/{platform_name}/tags/list"
+            tags_url = (
+                f"https://{registry_host}/v2/{registry_path}/{platform_name}/tags/list"
+            )
             logger.info(f"Fetching tags from: {tags_url}")
 
             tags_response = await client.get(tags_url, headers=headers)
@@ -499,7 +499,10 @@ async def available_platforms(
 
     except httpx.TimeoutException:
         logger.error("Request timed out")
-        raise HTTPException(status_code=504, detail="Gateway Timeout: The request to the container registry timed out.")
+        raise HTTPException(
+            status_code=504,
+            detail="Gateway Timeout: The request to the container registry timed out.",
+        )
     except httpx.HTTPStatusError as e:
         logger.error(f"HTTP error: {e.response.status_code} - {e.response.text}")
         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)

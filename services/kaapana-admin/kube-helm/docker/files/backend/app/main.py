@@ -1,15 +1,13 @@
 from os.path import dirname, join
 
-import uvicorn
-from config import settings, timeouts
-from fastapi import APIRouter, FastAPI
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from helm_helper import get_extensions_list
+from kaapanapy.logger import get_logger
 from prometheus_fastapi_instrumentator import Instrumentator
-from routes import router
-from logger import get_logger
 
-from middlewares import SanitizeBodyInputs, SanitizeQueryParams
+from .config import settings, timeouts
+from .middlewares import SanitizeBodyInputs, SanitizeQueryParams
+from .routes import router
 
 logger = get_logger(__name__)
 
@@ -31,13 +29,3 @@ app.mount(
     name="static",
 )
 Instrumentator().instrument(app).expose(app)
-
-
-if __name__ == "__main__":
-    get_extensions_list()
-
-    # if charts_cached == None:
-    #     helm_search_repo(keywords_filter=['kaapanaapplication', 'kaapanaworkflow'])
-    # rt = RepeatedTimer(5, get_extensions_list)
-
-    uvicorn.run("main:app", host="127.0.0.1", port=5000, reload=True)

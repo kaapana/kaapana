@@ -1,12 +1,8 @@
-import os
-import sys
 import time
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/app")
-
-from app.utils import helm_prefetch_extension_docker, helm_status
 from app.config import settings
-from app.logger import get_logger
+from app.utils import helm_prefetch_extension_docker, helm_status
+from kaapanapy.logger import get_logger
 
 logger = get_logger(__name__, "DEBUG")
 

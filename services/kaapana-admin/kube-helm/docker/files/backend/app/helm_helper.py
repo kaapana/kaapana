@@ -1,21 +1,22 @@
 import asyncio
+import fnmatch
 import glob
 import hashlib
 import json
 import os
 import re
-import fnmatch
 import subprocess
 import time
 from distutils.version import LooseVersion
 from os.path import basename
 from typing import Dict, List, Set, Tuple, Union
-from utils import helm_get_values
 
-import schemas
 import yaml
-from config import settings, timeouts
-from logger import get_logger
+from kaapanapy.logger import get_logger
+
+from . import schemas
+from .config import settings, timeouts
+from .utils import helm_get_values
 
 logger = get_logger(__name__)
 

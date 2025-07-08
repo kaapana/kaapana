@@ -1,0 +1,7 @@
+[project]
+name = "kube-helm-api"
+version = "0.0.0"
+dependencies = []
+
+[tool.setuptools]
+packages = ["app"]

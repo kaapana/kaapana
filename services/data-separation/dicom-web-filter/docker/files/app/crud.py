@@ -25,7 +25,7 @@ async def get_all_studies_mapped_to_projects(
 
 async def get_mapped_series_by_project_and_series_uids(
     session: AsyncSession,
-    project_ids: List[UUID],
+    project_ids: List[int],
     requested_series_instance_uids: List[str],
 ) -> List[str]:
     stmt = (
@@ -62,7 +62,7 @@ async def get_series_instance_uids_of_study_which_are_mapped_to_projects(
 
 async def get_mapped_studies_by_project_and_study_uids(
     session: AsyncSession,
-    project_ids: List[UUID],
+    project_ids: List[int],
     requested_study_uids: List[str],
 ) -> List[str]:
     stmt = (
@@ -103,7 +103,7 @@ async def check_if_series_in_given_study_is_mapped_to_projects(
 
 
 async def count_studies_mapped_to_projects(
-    session: AsyncSession, project_ids: List[UUID]
+    session: AsyncSession, project_ids: List[int]
 ) -> int:
     stmt = (
         select(func.count(distinct(DicomData.study_instance_uid)))

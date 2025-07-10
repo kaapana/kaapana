@@ -1,5 +1,4 @@
 import logging
-from uuid import UUID
 
 import httpx
 from app import crud, utils
@@ -10,6 +9,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_204_NO_CONTENT
+from app.utils import get_user_project_ids
 
 router = APIRouter()
 

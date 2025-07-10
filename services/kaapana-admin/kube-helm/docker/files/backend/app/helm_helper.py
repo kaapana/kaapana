@@ -331,7 +331,7 @@ def add_extension_to_dict(
 
                 except Exception as e:
                     logger.error(
-                        f"Skipping chart {chart_deployment['name']}-{chart_deployment['version']} , error: {str(e)}"
+                        f"Skipping chart {chart_deployment.get('name', 'UNKNOWN_NAME')}-{chart_deployment.get('version', 'UNKNOWN_VERSION')} , error: {str(e)}"
                     )
 
         available_versions = schemas.KaapanaAvailableVersions(deployments=deployments)
@@ -926,6 +926,7 @@ def get_kube_objects(
 
                         if (
                             key == "status"
+                            and len(value) > 0
                             and value[0] != KUBE_STATUS_COMPLETED
                             and value[0] != KUBE_STATUS_RUNNING
                         ):

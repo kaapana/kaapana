@@ -54,7 +54,7 @@ As an example, let’s say you run a DAG like TotalSegmentator on CT data and ge
 
 1. Select the dataset that contains both test and gt segmentations. In the screenshot below, the predicted segmentations from TotalSegmentator are tagged with “pred”. 
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/eval-seg-1.png
+.. image:: /img/eval-seg-1.png
    :alt: Tagging for segmentation evaluation
    :align: center
 
@@ -62,7 +62,7 @@ As an example, let’s say you run a DAG like TotalSegmentator on CT data and ge
 
 2. In the workflow form, fill in the parameters as follows:
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/eval-seg-2.png
+.. image:: /img/eval-seg-2.png
    :alt: Segmentation evaluation form
    :width: 50%
    :align: center

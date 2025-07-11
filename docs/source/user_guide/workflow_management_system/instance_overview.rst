@@ -34,7 +34,7 @@ Remote instances
 * comprehensive information regarding the specification of the local instance: instance name, network including protocol and port, token to establish a secure connection to remote instances, time of instance creation and time of last instance update, SSL verification, fernet encryption, configurations of the connection remote instance regarding remote/federated syncing and execution privileges and permissions for the remote/federated usage of Airflow DAGs and datasets
 * on the local instance, the user can define and modify the following specifications of remote instances: port of the network, token, SSL verification and fernet encryption
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/wms_instance_overview.png
+.. image:: /img/wms_instance_overview.png
 
 
 .. raw:: html

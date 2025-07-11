@@ -19,7 +19,7 @@ This list of job list comes with the following features:
 * redirect links to the Airflow logs of the job's failed operator for troubleshooting and understanding the cause of the failure
 * set of job actions that users can perform, including the ability to abort, restart, or delete jobs
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/wms_workflow_list.png
+.. image:: /img/wms_workflow_list.png
 
 
 Service-workflows

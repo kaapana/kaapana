@@ -3,7 +3,7 @@
 Operator hangs in *scheduled* state
 *************************************
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/operator_not_started.png
+.. image:: /img/operator_not_started.png
 
 
 If a task of a DAG-run is not started and hangs in the *scheduled* state, it could be due to insufficient resources on the host machine to start the operator. 
@@ -14,7 +14,7 @@ If you wish to run the operator anyway, you can manually decrease the value of :
     The :code:`ram_mem_mb` variable defines the amount of memory allocated to this operator. 
     If it is set too low, the operator might fail since the operation requires more memory than what has been allocated.
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/adjust_ram_mem_mb.png
+.. image:: /img/adjust_ram_mem_mb.png
 
 
 

@@ -1,4 +1,4 @@
-FROM local-only/base-python-gpu-3.10:latest
+FROM local-only/base-python-gpu:latest
 
 LABEL IMAGE="bodypartregression"
 LABEL VERSION="v1.3"
@@ -17,7 +17,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Clone directory from git
-RUN git clone https://github.com/MIC-DKFZ/BodyPartRegression.git && cd BodyPartRegression && git checkout 49624c025fb57e3b53fc75ecca0c7dbf6bed5278
+RUN git clone https://github.com/MIC-DKFZ/BodyPartRegression.git && cd BodyPartRegression && git checkout 88252f8
 
 # Download public model from zenodo 
 RUN touch BodyPartRegression/src/models/public_bpr_model.zip

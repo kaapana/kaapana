@@ -121,7 +121,7 @@ class Json2MetaOperator:
         # Try to get the series from OpenSearch
         try:
             old_json = self.os_client.get(
-                series_instance_uid=self.series_instance_uid,
+                id=self.series_instance_uid,
                 index=index,
             )["_source"]
         except NotFoundError:

@@ -24,7 +24,7 @@ List of Kaapana specific terms used in this guide. Note that the reader is also 
 * **Operator**: A single task inside a DAG. Kaapana utilizes distributed operators, where each operator is linked to a specific container that is executed in a Kubernetes pod. The scheduler of Airflow is responsible for executing the operators in the correct order.
 * **Chart**: A Kaapana extension is technically a Helm package which contains its configuration. It references the container images of the extension, and defines the necessary Kubernetes resources around them.
 * **Microk8s**: Kubernetes distribution used in Kaapana. It contains the container runtime called :code:`containerd`, abbreviated as :code:`ctr`, which is used to run containers inside the platform.
-* **EDK**: Extension Development Kit, available for versions >= 0.4.0. It provides a development environment inside Kaapana for building and deploying containers and charts. For more information :ref:`_extensions_edk`
+* **EDK**: Extension Development Kit, available for versions >= 0.4.0. It provides a development environment inside Kaapana for building and deploying containers and charts. For more information :ref:`extensions_edk`
 
 
 List of Technologies

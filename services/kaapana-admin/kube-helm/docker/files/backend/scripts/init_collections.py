@@ -1,18 +1,14 @@
-import os
-import sys
 import time
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/app")
-
 from app.config import settings
+from app.helm_helper import get_kube_objects
 from app.utils import (
-    execute_update_extensions,
     all_successful,
     cure_invalid_name,
+    execute_update_extensions,
     helm_status,
 )
-from app.helm_helper import get_kube_objects
-from app.logger import get_logger
+from kaapanapy.logger import get_logger
 
 logger = get_logger(__name__)
 

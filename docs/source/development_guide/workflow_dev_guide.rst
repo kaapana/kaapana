@@ -21,7 +21,7 @@ However, if you are not sure about an advanced option, proceed with the one in t
     | 3. You have access to a terminal where the platform is running (if you are using EDK, you can skip this step)
     | 4. You have a local development environment with access to internet, you have either Docker or Podman installed, and you cloned the `Kaapana repository <https://codebase.helmholtz.cloud/kaapana/kaapana/-/tree/master>`_ (if you are using EDK, you can skip this step)
 
-    If you do not have an access to a terminal where Kaapana is deployed, you can still use EDK (Extension Development Kit) :ref:`_extensions_edk` inside the platform directly.
+    If you do not have an access to a terminal where Kaapana is deployed, you can still use EDK (Extension Development Kit) :ref:`extensions_edk` inside the platform directly.
     For that, the Kaapana version should be at least :code:`0.4.0` , and there needs to be internet access on the machine where it is deployed.
     You can reach out to us on Slack if you do not satisfy these conditions.
 
@@ -123,7 +123,7 @@ Everything in this folder is bundled as a Docker container and copied inside the
     COPY files/otsus-method/OtsusMethodOperator.py /kaapana/tmp/dags/otsus_method/ 
     COPY files/otsus-method/OtsusNotebookOperator.py /kaapana/tmp/dags/otsus_method/
 
-Although some workflow extensions deploy multiple DAGs, (e.g. :code:`nnunet-workflow` which has :code:`nnunet-training`, :code:`nnunet-inference` and :code:`nnunet-ensemble`), it is often the case that a workflow extension has one DAG file.
+Although some workflow extensions deploy multiple DAGs (e.g. :code:`nnunet-workflow`), it is often the case that a workflow extension has one DAG file.
 This guide will focus on the use case where there is a single DAG file for the sake of simplicity. For an extension with multiple DAGs, see `nnunet-workflow <https://codebase.helmholtz.cloud/kaapana/kaapana/-/tree/develop/data-processing/processing-pipelines/nnunet/extension/docker/files>`_.
 
 The information about DAG definition files can be found in the official Airflow docs. Kaapana DAGs define a custom variable :code:`ui_forms` which specifies the parameters that can be passed from the frontend during the workflow execution.
@@ -174,7 +174,7 @@ Step 3: Code for Data Processing
 ``processing-containers`` directory is where the actual code that runs inside the containers pulled by the Airflow operators is stored.
 It is possible to have multiple processing containers for multiple operators inside the same extension, but they should be in separate folders.
 The example extension ``otsus-method`` has a single processing container, which is defined inside :code:`processing-containers/otsus-method`. 
-It contains a python script :code:`otsus_method.py` where :ref:`Otsu's method https://en.wikipedia.org/wiki/Otsu%27s_method` is run on images. There is also one bash scripr and a notebook file for visualizing and generating a report for results of the algorithm.
+It contains a python script :code:`otsus_method.py` where `Otsu's method <https://en.wikipedia.org/wiki/Otsu%27s_method>`_ is run on images. There is also one bash scripr and a notebook file for visualizing and generating a report for results of the algorithm.
 
 .. important::
     | The structure of the processing container should be 1. a :code:`Dockerfile` and 2. a :code:`files` directory where the source code and other files are stored. Read more about the Docker best practices here: :ref:`how_to_dockerfile` 

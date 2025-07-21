@@ -15,6 +15,7 @@
 import os
 import sys
 
+
 sys.path.insert(
     0,
     os.path.abspath(
@@ -22,6 +23,12 @@ sys.path.insert(
     ),
 )
 # sys.path.insert(1, os.path.abspath('../../workflows/airflow-components/'))
+
+# Workaround to donwload images for local use
+sys.path.insert(0, os.path.dirname(__file__))
+from download_images import download
+
+download(os.path.join(os.path.dirname(__file__), "img"))
 
 
 # -- Project information -----------------------------------------------------
@@ -31,9 +38,9 @@ copyright = "2025, MIC @DKFZ"
 author = "MIC @DKFZ"
 
 # The short X.Y version
-version = "0.5.0"
+version = "0.5.1"
 # The full version, including alpha/beta/rc tags
-release = "0.5.0"
+release = "0.5.1"
 
 
 # -- General configuration ---------------------------------------------------
@@ -53,6 +60,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx_tabs.tabs",
     "sphinxcontrib.mermaid",
+    "sphinx_design",
 ]
 pdf_documents = [
     ("index", "kaapana_docs", "Kaapana documentation", "MIC @DKFZ"),

@@ -366,11 +366,12 @@ export default Vue.extend({
         filterable: true,
       },
       {
-        text: "Hardware requirement", 
+        text: "Hardware requirement",
         value: "resourceRequirement",
         align: "start",
       },
-      { text: "Action", 
+      {
+        text: "Action",
         value: "installed",
         align: "center"
       },
@@ -386,7 +387,7 @@ export default Vue.extend({
       },
     ],
   }),
-  created() {},
+  created() { },
   mounted() {
     this.getHelmCharts();
     this.startExtensionsInterval();
@@ -576,8 +577,12 @@ export default Vue.extend({
             documentation: item.annotations?.documentation ?? null,
             ...item,
           }));
+          // use "display_name" as uiVisibleName if it is set, and not the default value "-"
+          // otherwise use "ui-visible-name" annotation or fall back to the releaseName
           this.launchedAppLinks = this.launchedAppLinks.map((item: any) => ({
-            uiVisibleName: item.annotations?.["ui-visible-name"] ?? item.releaseName,
+            uiVisibleName: (item["display_name"] && item["display_name"].trim() !== "" && item["display_name"].trim() !== "-")
+              ? item["display_name"]
+              : item.annotations?.["ui-visible-name"] ?? item.releaseName,
             ...item,
           }));
           // console.log(JSON.stringify(this.launchedAppLinks));
@@ -817,10 +822,11 @@ a {
 
 .cell-content {
   display: flex;
-  align-items: center; /* Align text and icon */
-  justify-content: space-between; /* Ensures text stays left, icon stays right */
+  align-items: center;
+  /* Align text and icon */
+  justify-content: space-between;
+  /* Ensures text stays left, icon stays right */
   width: 100%;
-  height: 100%;
 }
 
 .text-content {
@@ -839,7 +845,9 @@ a {
 }
 
 .cell-icon {
-  font-size: 1.5em; /* Adjust as needed */
-  align-self: stretch; /* Ensures icon takes max cell height */
+  font-size: 1.5em;
+  /* Adjust as needed */
+  align-self: stretch;
+  /* Ensures icon takes max cell height */
 }
 </style>

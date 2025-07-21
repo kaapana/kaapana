@@ -1,4 +1,4 @@
-"""init
+"""v0-4-0
 
 Revision ID: b2c8d2f8b682
 Revises:

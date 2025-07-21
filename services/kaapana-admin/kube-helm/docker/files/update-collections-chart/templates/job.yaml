@@ -23,8 +23,6 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /kaapana/mounted/extensions
-      # securityContext:
-      #   runAsUser: 0
       volumes:
       - name: data
         persistentVolumeClaim:

@@ -3,28 +3,33 @@
 Extensions
 ##########
 
-Introduction
-^^^^^^^^^^^^
-
-.. note::
-  This section explains the types of Kaapana extensions and how they work. For descriptions of available workflow and application extensions, refer to the  :ref:`extensions_workflows` and :ref:`extensions_applications`. 
-  To learn how to integrate custom components into the platform as extensions, refer to the :ref:`application_dev_guide` and :ref:`workflow_dev_guide`.
+This section explains the types of Kaapana :term:`extensions<extension>` and how they work. 
+For descriptions of available workflow and application extensions, refer to the :ref:`extensions_workflows` and :ref:`extensions_applications`. 
+To learn how to integrate custom components into the platform as extensions, refer to the :ref:`application_dev_guide` and :ref:`workflow_dev_guide`.
 
 
-The *Extension* functional unit in Kaapana serves as an app store. It allows users to install/uninstall applications, workflows, and even platforms (experimental feature). Technically, an extension is a `Helm chart <https://helm.sh/docs/topics/charts/>`_. 
+The *Extension* functional unit in Kaapana serves as an app store. 
+It allows users to install/uninstall applications, workflows, and even platforms (experimental feature). 
+Technically, an extension is a `Helm chart <https://helm.sh/docs/topics/charts/>`_. 
 
-Each extension in the Kaapana repository consists of two folders: :code:`docker` and :code:`<extension-name>-chart`. For more information about the file structure, refer to the Helm Charts section :ref:`helm_charts`.
+Each extension in the Kaapana repository consists of two folders: :code:`docker` and :code:`<extension-name>-chart`. 
+For more information about the file structure, refer to the Helm Charts section :ref:`helm_charts`.
 
 There are two types of extensions:
 
-1. **Workflow Extensions**: Consist of single or multiple executable DAGs in `Apache Airflow <https://airflow.apache.org/>`_. After installing a workflow extension, you can see the DAGs available under Workflow Execution menu.
-2. **Applications**: These provide additional functionalities such as opening a VS Code server, a JupyterLab notebook, or an MITK Workbench instance.
+1. :term:`Workflow Extensions<workflow-extension>`: Consist of single or multiple executable DAGs in `Apache Airflow <https://airflow.apache.org/>`_. After installing a workflow extension, you can see the DAGs available under Workflow Execution menu.
+2. :term:`Applications<application>`: These provide additional functionalities such as opening a VS Code server, a JupyterLab notebook, or an MITK Workbench instance.
 
-In addition to the distinction in kinds, there is also an distinction in versions, namely *stable* or *experimental*. Stable extensions **have been tested and maintained**, while experimental extensions are not. The filters on the Extensions page allow users to filter extensions based on the version. The extension list is updated in real time based on the selected filters. The Extensions page also displays the current Helm and Kubernetes status of each extension, such as :code:`Running`, :code:`Completed`, :code:`Failed`, or :code:`Error`.
+In addition to the distinction in type, there is also an distinction in maturiy, namely *stable* or *experimental*. 
+Stable extensions **have been tested and maintained**, while experimental extensions are not. 
+The filters on the Extensions page allow users to filter extensions based on type, maturiy, and hardware requirements, i.e. GPU or CPU. 
+The extension list is updated in real time based on the selected filters. 
+The Extensions page also displays the current Helm and Kubernetes status of each extension, such as :code:`Running`, :code:`Completed`, :code:`Failed`, or :code:`Error`.
 
 .. note::
 
-  Kaapana supports multi-installable extensions, which will have a "Launch" button instead of "Install". Each time a multi-installable extension is launched, it is deployed as a separate Helm release.
+  Kaapana supports multi-installable extensions, which will have a "Launch" button instead of "Install". 
+  Each time a multi-installable extension is launched, it is deployed as a separate Helm release.
 
 .. hint::
 
@@ -96,6 +101,39 @@ This is a list of built-in workflow-extensions, that can be installed.
   This interval is configurable as the parameter ``dag_dir_list_interval`` in the file `airflow.cfg <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/master/services/flow/airflow/airflow-chart/files/airflow.cfg?ref_type=heads>`_.
 
 
+.. _extensions_clf_inference:
+
+classification-inference
+------------------------
+
+| **Workflow Overview**
+| A classification inference pipeline based on a trained model is executed.
+
+| 1) DICOM data is fetched from the PACS
+| 2) DICOM data is converted to .nifti
+| 3) Images are preprocessed: resampled and normalized
+| 4) The model runs inference on the input data
+| 5) DICOM SEG objects are sent to the internal platform PACS
+
+| **Input data:**  
+| A trained classification model checkpoint
+
+.. _extensions_clf_training:
+
+classification-training
+------------------------
+
+| **Workflow Overview**
+| A classification training pipeline based on ResNet18 is executed. The labels should be custom tags that can be added in the Datasets view.
+
+| 1) DICOM data is fetched from the PACS
+| 2) DICOM data is converted to .nifti
+| 3) Images are preprocessed: resampled and normalized
+| 4) The model is trained on the input data
+| 5) DICOM SEG objects are sent to the internal platform PACS
+
+| **Input data:**  
+| A dataset with DICOM images and tags that represent the labels for classification. The tags should be added to the dataset in the Datasets view.
 
 body-and-organ-analysis
 -----------------------
@@ -165,43 +203,6 @@ nnunet-training
 | **Input data:**  
 | Segmentation objects. Please avoid overlapping segmentations and specify the segmentation labels that you want to use for the training in the *SEG* field.
 
-nnunet-ensemble
--------------------------
-| **Method:** "Automated Design of Deep Learning Methods for Biomedical Image Segmentation"
-| **Authors:**  Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein
-| **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
-
-.. important::
-  | nnunet-ensemble has `a known bug <https://codebase.helmholtz.cloud/kaapana/kaapana/-/issues/1739>`_ in v0.5.0 that will be fixed in the next patch release
-
-| **Workflow Overview**
-| Evaluates the performance of multiple trained nnU-Net models on a given dataset. This workflow can also be used to evaluate only one model, where the *seg-check-ensemble* operator throws an error, but the execution is still successful.
-
-| 1) Segmentation objects used as reference segmentations are downloaded
-| 2) Segmentation objects are sorted
-| 3) Referenced DICOM images are downloaded
-| 4) DICOM images are converted to .nifti files
-| 5) Models to be evaluated are downloaded
-| 6) Models are extracted from DIOCM objects and unzipped
-| 7) Models are applied to the DICOM images
-| 8) The predicted segmentations are restructured
-| 9) The predicted segmentations are evaluated for overlapping segmentations and if the overlap is above a certain threshold, they removed from the evaluation
-| 10) Model predictions are ensembled
-| 11) The ensembled segmentations are restructured
-| 12) The ensembled segmentations are evaluated for overlapping segmentations and if the overlap is above a certain threshold, they removed from the evaluation
-| 13) The reference segmentations are converted to .nifti files
-| 14) If specified in input form, segmentation masks are filtered based on keywords "Keep: <label>" and "Ignore: <label>"
-| 15) If specified in input form, multiple labels are fused into a new label
-| 16) If specified in input form, labels are renamed
-| 17) The reference segmentations are evaluated for overlapping segmentations and and if the overlap is above a certain threshold, they removed from the evaluation
-| 18) DICE scores between the reference and predicted (ensembled) segmentations are calculated
-| 19) A report containing the DICE scores is created
-| 20) The evaluation results are uploaded to Minio
-| 21) A report is uploaded to a location, where it can be rendered by a static website
-
-| **Input data:**  
-| Segmentation objects and models for evaluation. Please avoid overlapping segmentations, and make sure that the models predict the labels from the input (reference) segmentations.
-
 
 nnunet-install-model
 --------------------
@@ -210,7 +211,8 @@ nnunet-install-model
 | **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
 
 | **Workflow Overview**
-| Models that are stored as DICOM files the internal PACS are installed into the *models* directory of Kaapana. Installed models can be used in nnunet-predict and ensemble workflows.
+| Models that are stored as DICOM files the internal PACS are installed into the *models* directory of Kaapana. 
+| Installed models can be used in nnunet-predict workflow.
 
 | **Input data:**
 | Dataset that stores nnunet models as DICOM files. If the dataset contains any modality other than **OT**, the workflow will fail. Use the Datasets view to filter for the right model.
@@ -333,6 +335,9 @@ Code server
 Collabora
 ---------
 
+| Collabora is a LibreOffice based office suite that allows users to create and edit documents, spreadsheets, and presentations directly in their browser.
+| Once installed, the documents can be accessed via `Store > Documents`
+
 .. _extensions_edk:
 
 Extension Development Kit (EDK)
@@ -368,6 +373,13 @@ While JupyterLab is great for exploratory data analysis, for more complex calcul
 
 MinIO Sync
 ----------
+
+| The MinIO Sync application is used to constantly sync a host directory located directly on the server with a folder inside a MINIO bucket following a sync strategy.
+| The following strategies are available:
+
+* Bidirectional: Syncs files from the host to minio and back
+* Host2Minio: Syncs files undirectional form host into minio
+* Minio2Host: Syncs files undirectional from MINIO to the host
 
 .. _extensions_mitk_workbench:
 

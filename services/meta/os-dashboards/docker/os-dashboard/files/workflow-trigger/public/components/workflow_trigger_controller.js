@@ -175,13 +175,17 @@ export const getWorkflowTriggerVisController = (data, getStartServices, buildOpe
             this.container.innerHTML = '';
             VisController.div_element = document.createElement(`div`);
             VisController.div_element.innerHTML = `
-        <form>
+      <form>
             <select id="projectSelection" placeholder="Select a project" ></select>
-        </form>
-        <form id="datasetNameForm">
-            <input id="datasetName" placeholder="Enter a dataset name" type="text" name="datasetName" required>
-            <input id="addDataset" type="button" value="Save as dataset">
-        </form>
+      </form>
+      <form id="datasetNameForm">
+        <input id="datasetName" placeholder="Enter a dataset name" type="text" name="datasetName" required>
+        <input id="addDataset" type="button" value="Save dataset from query">
+      </form>
+      <form>
+        <select id="datasetSelection" placeholder="Delete a dataset" name="datasetSelection" required></select>
+        <input id="selectDataset" type="button" value="Delete dataset">
+      </form>
     `;
 
             this.container.appendChild(VisController.div_element);

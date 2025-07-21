@@ -56,6 +56,7 @@ send_testdata:
     - if: $TEST_STAGE == "true"
       when: on_success
     - when: never
+  retry: 2
 
 install_extensions:
   stage: test
@@ -70,6 +71,7 @@ install_extensions:
     - if: $TEST_STAGE == "true"
       when: on_success
     - when: never
+  retry: 2
 
 download_models:
   stage: test

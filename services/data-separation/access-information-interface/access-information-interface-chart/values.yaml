@@ -5,6 +5,6 @@ global:
 kaapana_database:
   admin: false
   postgres_user: kaapanauser
-  postgres_password: kaapanapassword
+  postgres_password: Kaapana2020
   postgres_db: kaapanauser
   appName: access-information-interface

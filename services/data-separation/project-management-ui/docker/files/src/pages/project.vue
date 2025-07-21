@@ -7,7 +7,7 @@
         <v-row justify="space-between">
             <v-col>
                 <h4 v-if="project" class="text-h4 pb-8">
-                    <v-btn class="ma-2" icon="mdi-folder-file" fab readonly></v-btn>
+                    <v-btn class="ma-2" icon="mdi-card" fab readonly></v-btn>
                     Project {{ project.name }}
                 </h4>
                 <p v-if="project">{{ project.description }}</p>

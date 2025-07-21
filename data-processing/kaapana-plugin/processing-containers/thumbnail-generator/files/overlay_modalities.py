@@ -22,6 +22,100 @@ class Slice(BaseModel):
     number_of_foreground_pixels: int
 
 
+def create_empty_ref_series(operator_ref_dir: Path, operator_in_dir: Path):
+    """
+    Create empty reference image for a segmentation image.
+    """
+    file_name = os.path.join(operator_in_dir, os.listdir(operator_in_dir)[0])
+    # Read the segmentation
+    seg_ds = pydicom.dcmread(file_name)
+
+    # SEG references to source image slices
+    ref_series = seg_ds.ReferencedSeriesSequence[0].ReferencedInstanceSequence
+    num_slices = len(ref_series)
+
+    # Extract info from the SEG
+    rows = seg_ds.Rows
+    cols = seg_ds.Columns
+    spacing = [
+        float(x)
+        for x in seg_ds.SharedFunctionalGroupsSequence[0]
+        .PixelMeasuresSequence[0]
+        .PixelSpacing
+    ]
+    spacing_z = float(
+        seg_ds.SharedFunctionalGroupsSequence[0].PixelMeasuresSequence[0].SliceThickness
+    )
+    orientation = (
+        seg_ds.SharedFunctionalGroupsSequence[0]
+        .PlaneOrientationSequence[0]
+        .ImageOrientationPatient
+    )
+    position = (
+        seg_ds.PerFrameFunctionalGroupsSequence[0]
+        .PlanePositionSequence[0]
+        .ImagePositionPatient
+    )
+
+    # Create one slice per referenced frame
+    SeriesInstanceUID = pydicom.uid.generate_uid()
+
+    for i in range(num_slices):
+        file_meta = pydicom.dataset.FileMetaDataset()
+        file_meta.MediaStorageSOPClassUID = pydicom.uid.CTImageStorage
+        file_meta.MediaStorageSOPInstanceUID = pydicom.uid.generate_uid()
+        file_meta.ImplementationClassUID = pydicom.uid.generate_uid()
+        file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRLittleEndian
+
+        ds = pydicom.dataset.FileDataset(
+            f"file_meta.MediaStorageSOPInstanceUID.dcm",
+            {},
+            file_meta=file_meta,
+            preamble=b"\0" * 128,
+        )
+
+        # Set CT metadata
+        ds.PatientName = "Dummy^CT"
+        ds.PatientID = "000000"
+        ds.Modality = "CT"
+        ds.SeriesInstanceUID = SeriesInstanceUID
+        ds.StudyInstanceUID = seg_ds.StudyInstanceUID
+        ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+        ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
+        ds.InstanceNumber = i + 1
+        ds.ImagePositionPatient = [
+            float(position[0]),
+            float(position[1]),
+            float(position[2] + i * spacing_z),
+        ]
+        ds.ImageOrientationPatient = orientation
+        ds.Rows = rows
+        ds.Columns = cols
+        ds.PixelSpacing = spacing
+        ds.SliceThickness = spacing_z
+        ds.BitsAllocated = 16
+        ds.BitsStored = 16
+        ds.HighBit = 15
+        ds.PixelRepresentation = 1  # signed
+        ds.RescaleIntercept = 1
+        ds.RescaleSlope = 1
+        ds.SamplesPerPixel = 1
+        ds.PhotometricInterpretation = "MONOCHROME2"
+        ds.is_little_endian = True
+        ds.is_implicit_VR = False
+
+        # Create zero image data (Hounsfield units = -1024 for air)
+        pixel_array = np.full((rows, cols), 1, dtype=np.int16)
+        ds.PixelData = pixel_array.tobytes()
+
+        # Save to disk
+        ds.save_as(
+            os.path.join(
+                operator_ref_dir, f"{file_meta.MediaStorageSOPInstanceUID}.dcm"
+            )
+        )
+
+
 def dicomlab2LAB(dicomlab: list) -> list:
     """Converts DICOM Lab values to CIELab values
 
@@ -120,8 +214,10 @@ def load_ref_series_and_segmentation(image_dir: str, seg_dir: str) -> tuple:
     image_reader = sitk.ImageSeriesReader()
 
     dicom_names = image_reader.GetGDCMSeriesFileNames(image_dir)
+    logger.info(f"Found {len(dicom_names)} DICOM files")
     image_reader.SetFileNames(dicom_names)
-
+    series_ids = sitk.ImageSeriesReader.GetGDCMSeriesIDs(image_dir)
+    logger.info(f"Detected series IDs: {series_ids}")
     dicom_image = image_reader.Execute()
     image_array = sitk.GetArrayFromImage(dicom_image)
 

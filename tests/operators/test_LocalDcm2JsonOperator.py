@@ -4,19 +4,18 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
-from attr import dataclass
 import pytest
+from attr import dataclass
 
-
-from .utils import mock_modules, PLUGIN_DIR, DICOM_TAG_DICT
 from .generator import (
+    MINUS_DATETIME,
+    NOW,
+    PLUS_DATETIME,
     generate_ct,
     generate_rtstruct,
     generate_seg,
-    NOW,
-    PLUS_DATETIME,
-    MINUS_DATETIME,
 )
+from .utils import DICOM_TAG_DICT, PLUGIN_DIR, mock_modules
 
 sys.path.insert(0, str(PLUGIN_DIR))
 mock_modules()
@@ -30,6 +29,7 @@ def __init__(self, *args, **kwargs):
 @dataclass
 class Dag:
     run_id: str
+    conf: dict
 
 
 AIRFLOW_WORKFLOW_DIR = "tests/airflow_workflow_dir"
@@ -51,7 +51,7 @@ def op(request):
 
     os.environ["DICT_PATH"] = str(DICOM_TAG_DICT)
 
-    dag = Dag(run_id=DAG_RUN_ID)
+    dag = Dag(run_id=DAG_RUN_ID, conf={})
 
     def mock_decorator_function(func):
         def wrapper(*args, **kwargs):
@@ -61,8 +61,6 @@ def op(request):
         return wrapper
 
     mock1 = patch.object(KaapanaPythonBaseOperator, "__init__", __init__)
-    # mock2 = patch.object(SkipMixin, "__init__", __init__)
-    # mock3 = patch.object(PythonOperator, "__init__", __init__)
     mock4 = patch(
         "kaapana.operators.HelperCaching.cache_operator_output",
         mock_decorator_function,

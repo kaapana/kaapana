@@ -1,186 +1,299 @@
 import os
-import glob
-import shutil
 import re
-import requests
+import shutil
 import warnings
+from pathlib import Path
+from typing import Any, Dict, Generator, Optional
 
-tmp_prefix = "/kaapana/tmp/"
-target_prefix = os.getenv("TARGET_PREFIX", "/kaapana/mounted/workflows/")
+import requests
+from kaapanapy.logger import get_logger
+from pydantic import Field, ValidationError, model_validator
+from pydantic_settings import BaseSettings
 
-if not target_prefix.startswith(f"/kaapana/mounted/"):
-    print(f"Unknown prefix {target_prefix=} -> issue")
-    exit(1)
+logger = get_logger(__name__, level="DEBUG")
+
+REGEX = r"image=(\"|\'|f\"|f\')([\w\-\\{\}.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\\{\}\.]+)(\"|\'|f\"|f\')"
 
 
-def listdir_nohidden(path):
-    if target_prefix.startswith(f"/kaapana/mounted/workflows"):
-        for f in os.listdir(path):
+class Settings(BaseSettings):
+    """
+    Configuration settings loaded from environment variables or defaults.
+
+    Attributes:
+        tmp_prefix (str): Temporary directory path containing files to process.
+        target_prefix (str): Target directory where files will be copied or removed.
+        action (str): Action to perform: "copy", "remove", or "prefetch".
+        admin_namespace (Optional[str]): Kubernetes namespace for Helm-related services.
+        services_namespace (Optional[str]): Kubernetes namespace for Airflow services.
+        kaapana_build_version (Optional[str]): Build version tag for Kaapana images.
+        kaapana_default_registry (Optional[str]): Default Docker registry URL for images.
+        docker_version (Optional[str]): Optional Docker version tag; defaults to kaapana_build_version if unset.
+
+    Properties:
+        helm_api (Optional[str]): Constructs Helm API base URL from admin_namespace.
+        airflow_api (Optional[str]): Constructs Airflow API trigger URL from services_namespace.
+        docker_version_effective (Optional[str]): Effective Docker version to use, preferring docker_version over kaapana_build_version.
+
+    Validators:
+        validate_conditionally_required: Ensures certain environment variables are set
+            when working with workflows under the mounted workflows directory.
+    """
+
+    tmp_prefix: str = "/kaapana/tmp/"
+    target_prefix: str = Field(
+        default_factory=lambda: os.getenv("TARGET_PREFIX", "/kaapana/mounted/workflows")
+    )
+    action: str = Field(default_factory=lambda: os.getenv("ACTION", "copy"))
+
+    admin_namespace: Optional[str] = Field(default=None, alias="ADMIN_NAMESPACE")
+    services_namespace: Optional[str] = Field(default=None, alias="SERVICES_NAMESPACE")
+    kaapana_build_version: Optional[str] = Field(
+        default=None, alias="KAAPANA_BUILD_VERSION"
+    )
+    kaapana_default_registry: Optional[str] = Field(
+        default=None, alias="KAAPANA_DEFAULT_REGISTRY"
+    )
+    docker_version: Optional[str] = Field(default=None, alias="DOCKER_VERSION")
+
+    @property
+    def helm_api(self) -> Optional[str]:
+        if self.admin_namespace:
+            return f"http://kube-helm-service.{self.admin_namespace}.svc:5000"
+        return None
+
+    @property
+    def airflow_api(self) -> Optional[str]:
+        if self.services_namespace:
+            return (
+                f"http://airflow-webserver-service.{self.services_namespace}.svc:8080/"
+                f"flow/kaapana/api/trigger/service-daily-cleanup-jobs"
+            )
+        return None
+
+    @property
+    def docker_version_effective(self) -> Optional[str]:
+        """
+        Returns the effective Docker version to use.
+
+        Returns:
+            str | None: The docker_version if set; otherwise the kaapana_build_version.
+        """
+        return self.docker_version or self.kaapana_build_version
+
+    @model_validator(mode="after")
+    def validate_conditionally_required(self) -> "Settings":
+        # Only validate if workflows are involved
+        if self.target_prefix.startswith("/kaapana/mounted/workflows"):
+            missing = []
+            if not self.kaapana_build_version:
+                missing.append("KAAPANA_BUILD_VERSION")
+            if not self.kaapana_default_registry:
+                missing.append("KAAPANA_DEFAULT_REGISTRY")
+            if not self.admin_namespace:
+                missing.append("ADMIN_NAMESPACE")
+            if not self.services_namespace:
+                missing.append("SERVICES_NAMESPACE")
+
+            if missing:
+                raise ValueError(
+                    f"The following environment variables must be set when "
+                    f"target_prefix starts with '/kaapana/mounted/workflows': {', '.join(missing)}"
+                )
+        return self
+
+
+def listdir_nohidden(path: Path, target_prefix: str) -> Generator[str, None, None]:
+    """
+    Generator that yields non-hidden, relevant file names from a directory.
+
+    Depending on the mount target, it filters files to exclude hidden/system artifacts
+    and only yields those relevant for workflows (e.g., `.tgz` files or Python scripts).
+
+    Args:
+        path (Path): The directory to scan.
+        target_prefix (str): The workflow root to determine filter rules.
+
+    Yields:
+        str: File names matching the visibility criteria.
+    """
+    for f in path.iterdir():
+        if target_prefix.startswith("/kaapana/mounted/workflows"):
             if (
-                not f.endswith(".pyc")
-                and not f.startswith(".")
-                and not (f.startswith("__") and f.endswith("__"))
+                not f.name.endswith(".pyc")
+                and not f.name.startswith(".")
+                and not (f.name.startswith("__") and f.name.endswith("__"))
             ):
-                yield f
-    else:
-        for f in os.listdir(path):
-            if f.endswith(".tgz"):
-                yield f
+                yield f.name
+        elif f.name.endswith(".tgz"):
+            yield f.name
 
 
-def get_images(target_dir):
-    print("Searching for images...")
-    default_registry_identifier = "{DEFAULT_REGISTRY}"
-    default_version_identifier = "{KAAPANA_BUILD_VERSION}"
+def get_images(target_dir: str, settings: Settings) -> Dict[str, Any]:
+    """
+    Scans Python files under a given directory for Docker image references.
+
+    Matches custom image tags using a regex and replaces placeholders with
+    actual values from the environment. Returns a dictionary of image metadata
+    for triggering remote pull operations.
+
+    Args:
+        target_dir (str): The directory containing files to scan.
+        settings (Settings): The configuration settings with env context.
+
+    Returns:
+        Dict[str, Any]: A dictionary mapping image strings to metadata.
+    """
+    logger.info("Searching for images...")
     image_dict = {}
-    file_paths = glob.glob(f"{target_dir}/**/*.py", recursive=True)
-    print("Found %i files..." % len(file_paths))
-    for file_path in file_paths:
-        if os.path.isfile(file_path):
-            print(f"Checking file: {file_path}")
-            content = open(file_path).read()
-            matches = re.findall(REGEX, content)
-            if matches:
-                for match in matches:
-                    # Backward compatibility default_registry vs DEFAULT_REGISTRY
-                    match = list(match)
-                    match[1] = match[1].replace(
-                        "{default_registry}", default_registry_identifier
-                    )
-                    docker_registry_url = (
-                        match[1]
-                        if default_registry_identifier not in match[1]
-                        else match[1].replace(
-                            default_registry_identifier, KAAPANA_DEFAULT_REGISTRY
-                        )
-                    )
-                    docker_image = match[3]
-                    # Backward compatibility default_registry vs DEFAULT_REGISTRY
-                    match[4] = match[4].replace(
-                        "{default_version_identifier}", default_version_identifier
-                    )
-                    docker_version = (
-                        match[4]
-                        if default_version_identifier not in match[4]
-                        else match[4].replace(
-                            default_version_identifier, KAAPANA_BUILD_VERSION
-                        )
-                    )
-                    print(f"{docker_registry_url=}")
-                    print(f"{docker_image=}")
-                    print(f"{docker_version=}")
 
-                    image_dict.update(
-                        {
-                            f"{docker_registry_url}/{docker_image}:{docker_version}": {
-                                "docker_registry_url": docker_registry_url,
-                                "docker_image": docker_image,
-                                "docker_version": docker_version,
-                            }
-                        }
-                    )
-        else:
-            print(f"Skipping directory: {file_path}")
-    print("Found %i images to download..." % len(image_dict))
+    for file_path in Path(target_dir).rglob("*.py"):
+        if not file_path.is_file():
+            logger.debug("Skipping directory: %s", file_path)
+            continue
+
+        logger.debug("Checking file: %s", file_path)
+        content = file_path.read_text()
+
+        for match in re.findall(REGEX, content):
+            match = list(match)
+            registry = match[1].replace("{default_registry}", "{DEFAULT_REGISTRY}")
+            registry_url = registry.replace(
+                "{DEFAULT_REGISTRY}", settings.kaapana_default_registry or ""
+            )
+
+            image = match[3]
+            version = match[4].replace(
+                "{default_version_identifier}", "{DOCKER_VERSION}"
+            )
+            version = version.replace(
+                "{DOCKER_VERSION}", settings.docker_version_effective or ""
+            )
+
+            full_image = f"{registry_url}/{image}:{version}"
+            logger.debug("Found image: %s", full_image)
+
+            image_dict[full_image] = {
+                "docker_registry_url": registry_url,
+                "docker_image": image,
+                "docker_version": version,
+            }
+
+    logger.info("Found %d images to download", len(image_dict))
     return image_dict
 
 
-action = os.getenv("ACTION", "copy")
-print(f"Apply action {action} to files")
-files_to_copy = glob.glob(f"{tmp_prefix}**", recursive=True)
-if action == "remove":
-    files_to_copy = reversed(files_to_copy)
+def handle_files(settings: Settings) -> None:
+    """
+    Applies a file operation (copy or remove) on a temporary directory's contents.
 
-for file_path in files_to_copy:
-    rel_dest_path = os.path.relpath(file_path, tmp_prefix)
+    Based on the `action` setting, this function walks the `tmp_prefix` directory
+    recursively and either copies files to `target_prefix` or removes them from there.
+    Only specific top-level directories are allowed (`plugins`, `dags`, etc.)
 
-    if rel_dest_path == "" or rel_dest_path == ".":
-        print(f"Skipping root {rel_dest_path=}")
-        continue
+    Args:
+        settings (Settings): Configuration object specifying paths and action.
 
-    if (
-        not rel_dest_path.startswith(f"plugins")
-        and not rel_dest_path.startswith("dags")
-        and not rel_dest_path.startswith("mounted_scripts")
-        and not rel_dest_path.startswith("extensions")
-    ):
-        print(f"Unknown relative directory {rel_dest_path=} -> issue")
-        exit(1)
+    Raises:
+        SystemExit: If an unrecognized subdirectory is encountered.
+    """
+    logger.info("Applying action '%s' to files...", settings.action)
+    tmp_dir = Path(settings.tmp_prefix)
+    files = sorted(tmp_dir.rglob("*"), reverse=(settings.action == "remove"))
 
-    dest_path = os.path.join(target_prefix, rel_dest_path)
+    for file_path in files:
+        rel_path = file_path.relative_to(tmp_dir)
+        if rel_path in {Path("."), Path("")}:
+            logger.debug("Skipping root")
+            continue
 
-    print(f"Copy file: {file_path=} to {dest_path=}")
+        if rel_path.parts[0] not in {
+            "plugins",
+            "dags",
+            "mounted_scripts",
+            "extensions",
+        }:
+            logger.error("Unknown relative directory: %s", rel_path)
+            raise SystemExit(1)
 
-    print(file_path, dest_path)
-    if os.path.isdir(file_path):
-        if not os.path.isdir(dest_path) and action == "copy":
-            os.makedirs(dest_path)
-        if action == "remove":
-            if os.path.isdir(dest_path) and not list(listdir_nohidden(dest_path)):
+        dest_path = Path(settings.target_prefix) / rel_path
+        logger.info("Processing: %s -> %s", file_path, dest_path)
+
+        if file_path.is_dir():
+            if settings.action == "copy":
+                dest_path.mkdir(parents=True, exist_ok=True)
+            elif settings.action == "remove" and not list(
+                listdir_nohidden(dest_path, settings.target_prefix)
+            ):
                 shutil.rmtree(dest_path, ignore_errors=True)
-    else:
-        if action == "copy":
-            if os.path.isfile(dest_path) and action == "copy":
-                warnings.warn(f"Attention! You are overwriting the file {dest_path}!")
-                # raise NameError('File exists already!')
-            shutil.copyfile(file_path, dest_path)
-        elif action == "remove":
-            if os.path.isfile(dest_path):
-                os.remove(dest_path)
         else:
+            if settings.action == "copy":
+                if dest_path.exists():
+                    warnings.warn(f"Overwriting existing file: {dest_path}")
+                shutil.copyfile(file_path, dest_path)
+            elif settings.action == "remove" and dest_path.exists():
+                dest_path.unlink()
+
+
+def trigger_services(settings: Settings) -> None:
+    """
+    Triggers external services (Helm or Airflow) depending on the action.
+
+    - If action is 'copy' or 'prefetch', it POSTs image data to the Helm API.
+    - If action is 'remove', it POSTs to Airflow to notify DAG updates.
+
+    Args:
+        settings (Settings): Configuration object with API endpoints and image data.
+    """
+    if settings.action in {"copy", "prefetch"}:
+        if not settings.helm_api:
+            logger.warning("Skipping Helm API trigger: ADMIN_NAMESPACE not set.")
+        else:
+            logger.info("Triggering image pull via Helm API...")
+            url = f"{settings.helm_api}/pull-docker-image"
+            for _, payload in get_images(settings.tmp_prefix, settings).items():
+                response = requests.post(url, json=payload)
+                logger.info(
+                    "Status: %d | Response: %s", response.status_code, response.text
+                )
+
+    if settings.action == "remove":
+        if not settings.airflow_api:
+            logger.warning("Skipping Airflow trigger: SERVICES_NAMESPACE not set.")
+        else:
+            logger.info("Triggering DAG update in Airflow...")
+            response = requests.post(settings.airflow_api, json={})
+            logger.info(
+                "Status: %d | Response: %s", response.status_code, response.text
+            )
+
+
+def main() -> None:
+    """
+    Entrypoint for applying copy/remove/prefetch actions and triggering services.
+
+    Loads and validates settings, performs file operations, and conditionally
+    interacts with Helm and Airflow services based on environment configuration.
+    """
+    try:
+        settings = Settings()
+    except (ValidationError, ValueError) as e:
+        logger.error("Configuration error:\n%s", e)
+        raise SystemExit(1)
+
+    handle_files(settings)
+    logger.info("✓ Successfully applied action '%s' to all files", settings.action)
+
+    if not settings.target_prefix.startswith("/kaapana/mounted/workflows"):
+        logger.info("No workflow-related files to act on. Exiting.")
+        return
+
+    trigger_services(settings)
+
+    if settings.action == "prefetch":
+        logger.info("Running forever :)")
+        while True:
             pass
 
 
-print(
-    "################################################################################"
-)
-print(f"✓ Successfully applied action {action} to all the files")
-print(
-    "################################################################################"
-)
-
-if not target_prefix.startswith(f"/kaapana/mounted/workflows"):
-    print(f"Calling it a day since I am not any workflow-related file")
-    exit()
-
-ADMIN_NAMESPACE = os.getenv("ADMIN_NAMESPACE", None)
-print(f"{ADMIN_NAMESPACE=}")
-assert ADMIN_NAMESPACE
-SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", None)
-print(f"{SERVICES_NAMESPACE=}")
-assert SERVICES_NAMESPACE
-KAAPANA_BUILD_VERSION = os.getenv("KAAPANA_BUILD_VERSION", None)
-print(f"{KAAPANA_BUILD_VERSION=}")
-assert KAAPANA_BUILD_VERSION
-KAAPANA_DEFAULT_REGISTRY = os.getenv("KAAPANA_DEFAULT_REGISTRY", None)
-print(f"{KAAPANA_DEFAULT_REGISTRY=}")
-assert KAAPANA_DEFAULT_REGISTRY
-
-REGEX = r"image=(\"|\'|f\"|f\')([\w\-\\{\}.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\\{\}\.]+)(\"|\'|f\"|f\')"
-HELM_API = f"http://kube-helm-service.{ADMIN_NAMESPACE}.svc:5000"
-AIRFLOW_API = f"http://airflow-webserver-service.{SERVICES_NAMESPACE}.svc:8080/flow/kaapana/api/trigger/service-daily-cleanup-jobs"
-
-if action == "copy" or action == "prefetch":
-    url = f"{HELM_API}/pull-docker-image"
-    for name, payload in get_images(tmp_prefix).items():
-        print(payload)
-        r = requests.post(url, json=payload)
-        print(r.status_code)
-        print(r.text)
-
-if action == "remove":
-    print(
-        "################################################################################"
-    )
-    print(f"Updating dags in airflow database!")
-    print(
-        "################################################################################"
-    )
-    r = requests.post(AIRFLOW_API, json={})
-    print(r.status_code)
-    print(r.text)
-
-if action == "prefetch":
-    print("Running forever :)")
-    while True:
-        pass
+if __name__ == "__main__":
+    main()

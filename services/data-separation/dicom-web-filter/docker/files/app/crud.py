@@ -1,10 +1,11 @@
 from typing import List
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import DataProjects, DicomData
+
 
 
 async def get_all_studies_mapped_to_projects(
@@ -23,8 +24,10 @@ async def get_all_studies_mapped_to_projects(
     return studies
 
 
-async def get_all_series_mapped_to_projects(
-    session: AsyncSession, project_ids: List[UUID]
+async def get_mapped_series_by_project_and_series_uids(
+    session: AsyncSession,
+    project_ids: List[UUID],
+    requested_series_instance_uids: List[str],
 ) -> List[str]:
     stmt = (
         select(DicomData.series_instance_uid)
@@ -32,11 +35,13 @@ async def get_all_series_mapped_to_projects(
             DataProjects,
             DataProjects.series_instance_uid == DicomData.series_instance_uid,
         )
-        .where(DataProjects.project_id.in_(project_ids))
+        .where(
+            DataProjects.project_id.in_(project_ids),
+            DicomData.series_instance_uid.in_(requested_series_instance_uids),
+        )
     )
     result = await session.execute(stmt)
-    series = result.scalars().all()
-    return series
+    return result.scalars().all()
 
 
 async def get_series_instance_uids_of_study_which_are_mapped_to_projects(
@@ -54,6 +59,27 @@ async def get_series_instance_uids_of_study_which_are_mapped_to_projects(
     result = await session.execute(stmt)
     series = result.scalars().all()
     return series
+
+
+async def get_mapped_studies_by_project_and_study_uids(
+    session: AsyncSession,
+    project_ids: List[UUID],
+    requested_study_uids: List[str],
+) -> List[str]:
+    stmt = (
+        select(DicomData.study_instance_uid)
+        .join(
+            DataProjects,
+            DataProjects.series_instance_uid == DicomData.series_instance_uid,
+        )
+        .where(
+            DataProjects.project_id.in_(project_ids),
+            DicomData.study_instance_uid.in_(requested_study_uids),
+        )
+        .distinct()
+    )
+    result = await session.execute(stmt)
+    return result.scalars().all()
 
 
 async def check_if_series_in_given_study_is_mapped_to_projects(
@@ -75,6 +101,21 @@ async def check_if_series_in_given_study_is_mapped_to_projects(
     result = await session.execute(stmt)
     series = result.scalars().all()
     return len(series) > 0
+
+
+async def count_studies_mapped_to_projects(
+    session: AsyncSession, project_ids: List[UUID]
+) -> int:
+    stmt = (
+        select(func.count(distinct(DicomData.study_instance_uid)))
+        .join(
+            DataProjects,
+            DataProjects.series_instance_uid == DicomData.series_instance_uid,
+        )
+        .where(DataProjects.project_id.in_(project_ids))
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one()
 
 
 async def add_dicom_data(

@@ -3,6 +3,33 @@
 Changelog
 #########
 
+.. _release-0.5.1:
+
+------------------------
+
+********************
+Release Notes v0.5.1
+********************
+
+July 21, 2025
+
+-------------------------
+
+* New migration scripts and guide for migrating from 0.4.x to 0.5.x
+* Fix thumbnail issue for segmentations without a reference image
+* Fix jupyterlab error :code:`radiomics-federated`
+* Fix :code:`service-checker` error in `dicom-init`
+* Fix missing images in local docs
+* Fix installing incorrect extension versions
+* Fix :code:`collect-metadata` project dicom tag error
+* Fix missing project context in notifications API
+* Fix extension UI issues
+* Fix project selection menu UI
+* Deprecate workflow :code:`nnunet-ensemble`
+* Update :code:`bodypartregression` container image
+* Docs: add missing information, update outdated information
+
+
 .. _release-0.5.0:
 
 ------------------------

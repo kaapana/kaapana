@@ -19,7 +19,7 @@ spec:
 {{- else }}
   storageClassName: host-dir
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   hostPath:
     path: "{{ .Values.global.dev_files }}"
 {{- end }}

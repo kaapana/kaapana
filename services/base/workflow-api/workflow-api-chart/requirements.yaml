@@ -1,0 +1,6 @@
+---
+dependencies:
+  - name: kaapana_database
+    version: 0.0.0
+  - name: workflow-api-redis
+    version: 0.0.0

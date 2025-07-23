@@ -2,46 +2,46 @@
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
-  name: strip-prefix-notification-service
+  name: strip-prefix-workflow-api
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
   stripPrefix:
     prefixes:
-    - /notifications
+    - /workflow-api
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: notification-service-ingress
+  name: workflow-api-ingress
   namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-strip-prefix-notification-service@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-strip-prefix-workflow-api@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:
   - host:
     http:
       paths:
-      - path: /notifications
+      - path: /workflow-api
         pathType: ImplementationSpecific
         backend:
           service:
-            name: notification-service
+            name: workflow-api
             port:
               number: 80
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: notification-service
+  name: workflow-api
   namespace: "{{ .Values.global.services_namespace }}"
-  labels:
-    app.kubernetes.io/name: notification-service
-    app.kubernetes.io/component: api
+  # labels:
+  #   app.kubernetes.io/name: workflow-api
+  #   app.kubernetes.io/component: api
 spec:
   selector:
-    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/name: workflow-api
     app.kubernetes.io/component: api
   ports:
     - port: 80

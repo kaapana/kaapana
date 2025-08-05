@@ -8,8 +8,8 @@ from pathlib import Path
 import json
 import os
 
-ROOT_WORKFLOW_DIR = Path("/home/kaapana/workflows/data")
-OUTPUT_CHANNEL_KEY = "output_channel"
+HOST_WORKFLOW_DIR = Path("/home/kaapana/workflows/data")
+AIRFLOW_WORKFLOW_DIR = Path("/kaapana/mounted/workflows/data")
 DEFAULT_NAMESPACE = "project-admin"
 
 
@@ -42,8 +42,9 @@ class KaapanaTaskOperator(BaseOperator):
 
     def execute(self, context: Context) -> Any:
         dag_run_id = context["dag_run"].run_id
-        self.workflow_dir = ROOT_WORKFLOW_DIR / dag_run_id
-        os.makedirs(self.workflow_dir)
+        self.workflow_dir = HOST_WORKFLOW_DIR / dag_run_id
+        self.airflow_workflow_dir = AIRFLOW_WORKFLOW_DIR / dag_run_id
+        os.makedirs(self.airflow_workflow_dir, exist_ok=True)
 
         # Step 3: Create task.json
         task = self._create_task(context)
@@ -51,7 +52,9 @@ class KaapanaTaskOperator(BaseOperator):
         # Step 4: Trigger task
         task_run = self._submit_task(task)
 
-        with open(self.workflow_dir / f"task_run-{self.task_id}.json", "w") as f:
+        with open(
+            self.airflow_workflow_dir / f"task_run-{self.task_id}.json", "w"
+        ) as f:
             json.dump(
                 task_run.model_dump(
                     mode="json",
@@ -88,7 +91,9 @@ class KaapanaTaskOperator(BaseOperator):
         for task_id in upstream_task_ids:
             if task_id not in self.iochannel_map:
                 continue
-            with open(self.workflow_dir / Path(f"task_run-{task_id}.json"), "r") as f:
+            with open(
+                self.airflow_workflow_dir / Path(f"task_run-{task_id}.json"), "r"
+            ) as f:
                 task_run = TaskRun(**json.load(f))
 
             for channel, output in task_run.outputs.items():

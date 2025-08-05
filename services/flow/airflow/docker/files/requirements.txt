@@ -1,4 +1,4 @@
-apache-airflow==2.10.5
+apache-airflow[cncf.kubernetes]==2.10.5
 psycopg2-binary == 2.9.10
 Flask-Admin==1.6.1
 kubernetes==30.1.0

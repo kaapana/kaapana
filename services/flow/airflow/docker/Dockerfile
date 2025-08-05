@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.3-labs
+
 FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="airflow"
@@ -6,8 +8,8 @@ LABEL BUILD_IGNORE="False"
 
 ENV SLUGIFY_USES_TEXT_UNIDECODE=yes
 
-ENV DCMDICTPATH /scripts/dicom.dic
-ENV DICT_PATH /scripts/dicom_tag_dict.json
+ENV DCMDICTPATH=/scripts/dicom.dic
+ENV DICT_PATH=/scripts/dicom_tag_dict.json
 
 WORKDIR /kaapana/app
 
@@ -22,5 +24,11 @@ RUN chmod +x /kaapana/app/bootstrap.sh
 
 COPY files/scheduler_job_runner_2.10.3_adapted.py /opt/venv/lib/python3.12/site-packages/airflow/jobs/scheduler_job_runner.py
 COPY files/task_command_2.10.3_adapted.py /opt/venv/lib/python3.12/site-packages/airflow/cli/commands/task_command.py
+
+RUN apt-get update && apt-get install -y openssh-server
+RUN mkdir -p /root/.ssh && \
+    ssh-keyscan codebase.helmholtz.cloud >> /root/.ssh/known_hosts
+
+RUN --mount=type=ssh git clone git@codebase.helmholtz.cloud:uenal.akuenal/task-api-poc.git && make -C /kaapana/app/task-api-poc
 
 ENTRYPOINT ["/kaapana/app/bootstrap.sh"]

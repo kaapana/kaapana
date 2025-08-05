@@ -53,7 +53,6 @@ def upgrade() -> None:
     sa.Column('config', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
     sa.Column('creation_time', sa.DateTime(), nullable=True),
     sa.Column('lifecycle_status', sa.Enum('PENDING', 'SCHEDULED', 'RUNNING', 'ERROR', 'COMPLETED', 'CANCELED', name='lifecyclestatus'), nullable=False),
-    sa.Column('is_canceled', sa.Boolean(), nullable=True),
     sa.Column('labels', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
     sa.Column('celery_task_id', sa.String(), nullable=True),
     sa.Column('external_id', sa.String(), nullable=True),

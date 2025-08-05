@@ -1,7 +1,8 @@
 from dataclasses import dataclass
+from dataclasses import field
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Json
+from pydantic import BaseModel, Json, ConfigDict
 from enum import Enum
 
 class LifecycleStatus(str, Enum):
@@ -18,10 +19,11 @@ class WorkflowRunResult:
     workflow_run_id: int
     external_id: Optional[str] = None
     status: LifecycleStatus = LifecycleStatus.PENDING
-    metadata: Dict[str, Any] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 class TaskBase(BaseModel):
-    task_display_name: str
+    display_name: str
+    task_id: Optional[str] = None  # Optional, can be generated later
     type: str
     input_tasks_ids: Optional[List[str]] = None
     output_tasks_ids: Optional[List[str]] = None
@@ -30,11 +32,10 @@ class TaskCreate(TaskBase):
     pass
 
 class Task(TaskBase):
-    id: str
-    workflow_id: str
+    id: int
+    workflow_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class WorkflowUISchemaBase(BaseModel):
     workflow_identifier: str
@@ -45,12 +46,10 @@ class WorkflowUISchemaCreate(WorkflowUISchemaBase):
 
 class WorkflowUISchema(WorkflowUISchemaBase):
     workflow_version: int
-    class Config:
-        from_attributes = True
 
+    model_config = ConfigDict(from_attributes=True)
 class TaskRunBase(BaseModel):
-
-    is_canceled: bool = False
+    pass
 
 class TaskRunCreate(TaskRunBase):
     task_id: str
@@ -58,12 +57,11 @@ class TaskRunCreate(TaskRunBase):
 
 class TaskRun(TaskRunBase):
     id: int
-    task_id: str
     workflow_run_id: int
     lifecycle_status: LifecycleStatus
+    task: Task
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class WorkflowBase(BaseModel):
     definition: str
@@ -79,12 +77,10 @@ class Workflow(WorkflowBase):
     creation_time: datetime
     tasks: List[Task] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class WorkflowRunBase(BaseModel):
     config: Optional[dict] = {}
-    is_canceled: bool = False
     labels: Dict[str, Any] = {}
 
 class WorkflowRunCreate(WorkflowRunBase):
@@ -93,8 +89,8 @@ class WorkflowRunCreate(WorkflowRunBase):
 class WorkflowRun(WorkflowRunBase):
     id: int
     workflow_id: int    
+    external_id_: Optional[str] = None
     creation_time: datetime
-    #task_runs: List[TaskRun] = []
-
-    class Config:
-        from_attributes = True
+    lifecycle_status: LifecycleStatus
+    task_runs: List[TaskRun] = []
+    model_config = ConfigDict(from_attributes=True)

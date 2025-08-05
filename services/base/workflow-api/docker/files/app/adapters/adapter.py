@@ -54,6 +54,21 @@ class WorkflowEngineAdapter(ABC):
         pass
     
     @abstractmethod
+    def get_workflow_run_tasks(self, workflow_identifier: str, external_id: str) -> Dict[str, Any]:
+        """
+        Get tasks for a workflow run from the external engine.
+        
+        Args:
+            workflow_identifier (str): The workflow identifier.
+            external_id (str): The external ID of the workflow run.
+
+        
+        Returns:
+            Dict[str, Any]: A dictionary containing task information.
+        """
+        pass
+
+    @abstractmethod
     def get_workflow_run_status(self, external_id: str) -> LifecycleStatus:
         """Get the current status of a workflow from the external engine"""
         pass

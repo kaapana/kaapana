@@ -1,10 +1,11 @@
 import functools
-from typing import AsyncGenerator
+from typing import AsyncGenerator,Dict, Any
 
 from app.database import async_session
 from app.utils import ConnectionManager
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import Request
+from fastapi import Request, HTTPException, status
+
 import json
 
 
@@ -31,11 +32,14 @@ def get_forwarded_headers(request: Request):
 
 
 # TODO: move that to kaapanapy since it is used in multiple places
-def get_project(request: Request):
+def get_project(request: Request) -> Dict[str, Any]:
+    """Get project from request headers"""
     project = request.headers.get("Project")
-    print(f"Project header: {project}")
     if not project:
-        raise ValueError("Project header is required")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Project header is required"
+        )
     return json.loads(project)
 
 def get_project_id(request: Request):

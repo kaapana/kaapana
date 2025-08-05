@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import List, Dict, Any, Optional
 
 from app.adapters.adapter import WorkflowEngineAdapter
 from app.schemas import WorkflowRunResult
@@ -33,11 +33,8 @@ class AirflowAdapter(WorkflowEngineAdapter):
             extra_headers (Optional[Dict[str, str]]): Additional headers to include in requests.
         """
         self.base_url = airflow_base_url
-        self.extra_headers = {}
+        self.extra_headers = extra_headers
         #TODO change to airflow API endpoint, the auth has to be adapted
-        # Extract x-forwarded-access-token if provided, otherwise default to empty string
-        if extra_headers and "x-forwarded-access-token" in extra_headers:
-            self.extra_headers["x_auth_token"] = extra_headers["x-forwarded-access-token"]
         super().__init__()
 
 
@@ -68,7 +65,7 @@ class AirflowAdapter(WorkflowEngineAdapter):
         endpoint = f"/trigger/{dag_id}" # Reverted to the previous endpoint as requested
         payload = {
             "dag_run_id": dag_run_id,
-            "conf": config.get("conf", {})
+            "conf": config
         }
 
         response = self._request("POST", endpoint, json=payload)
@@ -112,6 +109,43 @@ class AirflowAdapter(WorkflowEngineAdapter):
         airflow_status = response.get("state", "failed") # Default to failed if state is missing
         return self.AIRFLOW_STATUS_MAPPER.get(airflow_status, LifecycleStatus.ERROR)
 
+    def get_workflow_run_tasks(self, dag_id: str, dag_run_id: str) -> List[Dict[str, Any]]:
+        """
+        Gets the tasks for a specific DAG run from Airflow.
+
+        Args:
+            dag_id (str): The ID of the DAG.
+            dag_run_id (str): The ID of the DAG run.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing task information.
+        """
+        #endpoint = f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances"
+        #return self._request("GET", endpoint)
+        endpoint = f"/get_dagrun_tasks/{dag_id}/{dag_run_id}"  # Adjusted endpoint to match Airflow's API
+        response = self._request("POST", endpoint)
+        if isinstance(response, dict):
+            data = response
+        elif hasattr(response, "json") and callable(response.json):
+            data = response.json()
+        else:
+            raise TypeError(f"Unsupported response type: {type(response)}")
+
+        tasks = list()
+        for task_id, details in data.items():
+            # Map Airflow's task states to our LifecycleStatus
+            airflow_status = details.get("state", "unknown")
+            status = self.AIRFLOW_STATUS_MAPPER.get(airflow_status, LifecycleStatus.PENDING)
+            tasks.append({
+                "task_id": task_id,
+                "status": status,
+                "execution_date": details.get("execution_date"),
+                "duration": details.get("duration"),
+                #"try_number": details.get("try_number", 1)
+            })
+        return tasks
+        
+
     def cancel_workflow_run(self, dag_id: str, dag_run_id: str) -> bool:
         """
         Attempts to cancel a workflow run in Airflow.
@@ -131,7 +165,7 @@ class AirflowAdapter(WorkflowEngineAdapter):
         # payload = {"state": "failed"} # Mark as failed to stop execution
         # try:
         #     self._request("PATCH", endpoint, json=payload)
-        endpoint = f"/abort/{dag_id}/{dag_run_id}/" # Adjusted endpoint to match Airflow's API
+        endpoint = f"/abort/{dag_id}/{dag_run_id}" # Adjusted endpoint to match Airflow's API
         try:
             self._request("POST", endpoint)
             self.logger.info(f"Attempted to mark DAG run {dag_run_id} (DAG: {dag_id}) as 'failed'.")

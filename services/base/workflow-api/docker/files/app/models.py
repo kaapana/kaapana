@@ -21,7 +21,7 @@ class Workflow(Base):
     definition = Column(String)
     config_definition = Column(JSONB)
     creation_time = Column(DateTime, default=datetime.utcnow)
-    # User seperatoin
+    # User separation
     project_id = Column(UUID(as_uuid=True), nullable=False)
     username = Column(String(64))
 
@@ -47,7 +47,6 @@ class WorkflowRun(Base):
     config = Column(JSONB)
     creation_time = Column(DateTime, default=datetime.utcnow)
     lifecycle_status = Column(SqlEnum(LifecycleStatus), default=LifecycleStatus.PENDING, nullable=False)
-    is_canceled = Column(Boolean, default=False)
     labels = Column(JSONB) # Key-Value pairs for labeling
 
     celery_task_id = Column(String, nullable=True) # Celery task ID for tracking

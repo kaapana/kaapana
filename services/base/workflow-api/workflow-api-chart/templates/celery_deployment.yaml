@@ -37,22 +37,17 @@ spec:
         args: ["-A", "app.config.celery_app", "worker", "--loglevel=info"]
         resources:
           limits:
-            memory: "4Gi"
+            memory: "1Gi"
           requests:
-            memory: "10Mi"
+            memory: "256Mi"
         volumeMounts:
         - name: tmp
           mountPath: "/tmp"
-        - name: workflow-api-dev
-          mountPath: /app
-        # securityContext:
-        #   allowPrivilegeEscalation: false
-        #   readOnlyRootFilesystem: true  
+        securityContext:
+           allowPrivilegeEscalation: false
+           readOnlyRootFilesystem: true  
       volumes:
       - name: tmp
-        emptyDir: {}   
-      - name: workflow-api-dev
-        persistentVolumeClaim:
-          claimName: {{ .Chart.Name }}-dev-pv-claim  
+        emptyDir: {}
       imagePullSecrets:
         - name: registry-secret

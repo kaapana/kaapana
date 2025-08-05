@@ -1,6 +1,6 @@
 ---
 global:
-  dev_files: "/home/h443o/Projects/kaapana-1/services/base/workflow-api/docker/files"
+  dev_files: false
 
 kaapana_database:
   admin: false

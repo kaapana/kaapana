@@ -9,11 +9,13 @@ from pathlib import Path
 import json
 import os
 import signal
+import shutil
 from datetime import timedelta
 
 HOST_WORKFLOW_DIR = Path("/home/kaapana/workflows/data")
 AIRFLOW_WORKFLOW_DIR = Path("/kaapana/mounted/workflows/data")
 DEFAULT_NAMESPACE = "project-admin"
+USER_INPUT_KEY = "task_form"
 
 
 class KaapanaTaskOperator(BaseOperator):
@@ -45,7 +47,7 @@ class KaapanaTaskOperator(BaseOperator):
 
     def execute(self, context: Context) -> Any:
         dag_run_id = context["dag_run"].run_id
-        self.workflow_dir = HOST_WORKFLOW_DIR / dag_run_id
+        self.host_workflow_dir = HOST_WORKFLOW_DIR / dag_run_id
         self.airflow_workflow_dir = AIRFLOW_WORKFLOW_DIR / dag_run_id
         os.makedirs(self.airflow_workflow_dir, exist_ok=True)
 
@@ -55,7 +57,20 @@ class KaapanaTaskOperator(BaseOperator):
         # Step 4: Trigger task
         self.task_run = self._submit_task(task)
         signal.signal(signal.SIGTERM, self.handle_sigterm)
+        self._save_task_run()
 
+        # Step 5: Monitor until complete
+        result = self._monitor_task(self.task_run)
+        return result
+
+    def handle_sigterm(self, signum, frame):
+        self.on_kill()
+        raise AirflowException("Task was killed gracefully.")
+
+    def _save_task_run(self):
+        """
+        Save the task_run json file in the workflow directory
+        """
         with open(
             self.airflow_workflow_dir / f"task_run-{self.task_id}.json", "w"
         ) as f:
@@ -70,28 +85,24 @@ class KaapanaTaskOperator(BaseOperator):
                 f,
             )
 
-        # Step 5: Monitor until complete
-        result = self._monitor_task(self.task_run)
-        return result
-
-    def handle_sigterm(self, signum, frame):
-        self.on_kill()
-        raise AirflowException("Task was killed gracefully.")
-
     def _create_task(self, context: Context) -> Task:
-
         # Set outputs based on processing_container_json
+        # Remove existing output directories on the host
         processing_container_json = get_processing_container_json(
             self.image, mode="k8s"
         )
-        outputs = {
-            channel: IOChannel(
+        outputs = {}
+        for channel, output in processing_container_json.get("outputs").items():
+            scheduler_path = Path(self.airflow_workflow_dir / self.task_id / channel)
+            if scheduler_path.exists() and scheduler_path.is_dir():
+                shutil.rmtree(scheduler_path)
+
+            outputs[channel] = IOChannel(
                 labels=output.get("labels"),
                 mounted_path=output.get("mounted_path"),
-                local_path=str(Path(self.workflow_dir / self.task_id / channel)),
+                local_path=str(Path(self.host_workflow_dir / self.task_id / channel)),
             )
-            for channel, output in processing_container_json.get("outputs").items()
-        }
+
         # Set inputs based on upstream tasks and iochannel_map
         upstream_task_ids = self.get_direct_relative_ids(upstream=True)
         inputs = {}
@@ -108,12 +119,6 @@ class KaapanaTaskOperator(BaseOperator):
                     continue
                 inputs[channel] = IOChannel(local_path=output.local_path)
 
-        # Set the namespace based on conf object
-        conf = context["dag_run"].conf
-        namespace = conf.get("project_form", {}).get(
-            "kubernetes_namespace", DEFAULT_NAMESPACE
-        )
-
         task = Task(
             name=self.task_id,
             image=self.image,
@@ -121,7 +126,7 @@ class KaapanaTaskOperator(BaseOperator):
             command=self.command,
             outputs=outputs,
             inputs=inputs,
-            namespace=namespace,
+            namespace=DEFAULT_NAMESPACE,
             resources=self.resources,
             registryUrl=self.registryUrl,
             registryUsername=self.registryUsername,
@@ -129,11 +134,21 @@ class KaapanaTaskOperator(BaseOperator):
             imagePullSecrets=["registry-secret"],
         )
 
+        overwrite_with_user_input = self._merge_user_input(context, task)
+
         return Task(
             **recursively_merge_dicts(
                 processing_container_json,
-                task.model_dump(mode="pytohn", exclude_none=True),
+                overwrite_with_user_input.model_dump(mode="pytohn", exclude_none=True),
             )
+        )
+
+    def _merge_user_input(self, context: Context, task: Task) -> Task:
+        conf = context["dag_run"].conf
+        user_input = conf.get(USER_INPUT_KEY, {})
+
+        return Task(
+            **recursively_merge_dicts(task.model_dump(mode="python"), user_input)
         )
 
     def _submit_task(self, task_json) -> TaskRun:

@@ -2,11 +2,14 @@ from taskctl.runners import KubernetesRunner
 from taskctl.cli import get_processing_container_json, recursively_merge_dicts
 from taskctl.model import Task, TaskRun, IOChannel, Resources
 from airflow.models import BaseOperator
+from airflow.exceptions import AirflowException
 from typing import List, Dict, Any, Optional
 from airflow.utils.context import Context
 from pathlib import Path
 import json
 import os
+import signal
+from datetime import timedelta
 
 HOST_WORKFLOW_DIR = Path("/home/kaapana/workflows/data")
 AIRFLOW_WORKFLOW_DIR = Path("/kaapana/mounted/workflows/data")
@@ -30,7 +33,7 @@ class KaapanaTaskOperator(BaseOperator):
         """
         :param iochannel_map: {<upstream-task_id>: {<upstream-output-channel>: <input-channel>}}
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(retry_delay=timedelta(seconds=10), *args, **kwargs)
         self.image = image
         self.env = env
         self.command = command
@@ -50,13 +53,14 @@ class KaapanaTaskOperator(BaseOperator):
         task = self._create_task(context)
 
         # Step 4: Trigger task
-        task_run = self._submit_task(task)
+        self.task_run = self._submit_task(task)
+        signal.signal(signal.SIGTERM, self.handle_sigterm)
 
         with open(
             self.airflow_workflow_dir / f"task_run-{self.task_id}.json", "w"
         ) as f:
             json.dump(
-                task_run.model_dump(
+                self.task_run.model_dump(
                     mode="json",
                     exclude={"full_object"},
                     exclude_none=True,
@@ -67,9 +71,12 @@ class KaapanaTaskOperator(BaseOperator):
             )
 
         # Step 5: Monitor until complete
-        result = self._monitor_task(task_run)
-
+        result = self._monitor_task(self.task_run)
         return result
+
+    def handle_sigterm(self, signum, frame):
+        self.on_kill()
+        raise AirflowException("Task was killed gracefully.")
 
     def _create_task(self, context: Context) -> Task:
 
@@ -134,3 +141,10 @@ class KaapanaTaskOperator(BaseOperator):
 
     def _monitor_task(self, task_run):
         KubernetesRunner.task_logs(task_run, follow=True, logger=self.log)
+
+    def on_kill(self):
+        """
+        Make sure that the corresponding pod is removed.
+        """
+        KubernetesRunner.kill_pod(self.task_run)
+        self.log.info("Pod deleted successfully!")

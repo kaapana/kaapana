@@ -145,7 +145,7 @@ class KaapanaTaskOperator(BaseOperator):
 
     def _merge_user_input(self, context: Context, task: Task) -> Task:
         conf = context["dag_run"].conf
-        user_input = conf.get(USER_INPUT_KEY, {})
+        user_input = conf.get(USER_INPUT_KEY, {}).get(self.task_id, {})
 
         return Task(
             **recursively_merge_dicts(task.model_dump(mode="python"), user_input)

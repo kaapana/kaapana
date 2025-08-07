@@ -259,17 +259,15 @@ async def create_or_update_workflow_ui_schema(db: AsyncSession, ui_schema: schem
     stmt = insert(models.WorkflowUISchema).values(
         workflow_id=workflow_id,
         schema_definition=ui_schema.schema_definition
-    )
-    # on conflict on workflow_id, update the schema_definition
-    stmt = stmt.on_conflict_do_update(
+    ).on_conflict_do_update(
         index_elements=['workflow_id'],
-        set_=dict(schema_definition=ui_schema.schema_definition)
-    )
-    await db.execute(stmt)
+        set_={'schema_definition': ui_schema.schema_definition}
+    ).returning(models.WorkflowUISchema)
+
+    result = await db.execute(stmt)
+    db_ui_schema = result.scalar_one()
     await db.commit()
 
-    # Then fetch the updated or inserted row
-    db_ui_schema = await db.get(models.WorkflowUISchema, workflow_id)
     return db_ui_schema
 
 

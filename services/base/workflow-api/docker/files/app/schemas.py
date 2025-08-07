@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Json, ConfigDict
+from pydantic import BaseModel, Json, ConfigDict, Field
 from enum import Enum
 
 class LifecycleStatus(str, Enum):
@@ -22,9 +22,9 @@ class WorkflowRunResult:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 class TaskBase(BaseModel):
-    display_name: str
-    task_id: Optional[str] = None  # Optional, can be generated later
-    type: str
+    display_name: Optional[str] = None
+    task_identifier: str
+    type: Optional[str] = None
     input_tasks_ids: Optional[List[str]] = None
     output_tasks_ids: Optional[List[str]] = None
 
@@ -38,26 +38,25 @@ class Task(TaskBase):
     model_config = ConfigDict(from_attributes=True)
 
 class WorkflowUISchemaBase(BaseModel):
-    workflow_identifier: str
-    schema_definition: Dict[str, Any]
+    schema_definition: Optional[dict] = Field(default_factory=dict)
 
 class WorkflowUISchemaCreate(WorkflowUISchemaBase):
     pass
 
 class WorkflowUISchema(WorkflowUISchemaBase):
-    workflow_version: int
+    workflow_id: int
 
     model_config = ConfigDict(from_attributes=True)
+
 class TaskRunBase(BaseModel):
-    pass
+    task_id: int
+    workflow_run_id: int
 
 class TaskRunCreate(TaskRunBase):
-    task_id: str
-    workflow_run_id: int
+    pass
 
 class TaskRun(TaskRunBase):
     id: int
-    workflow_run_id: int
     lifecycle_status: LifecycleStatus
     task: Task
 
@@ -65,7 +64,7 @@ class TaskRun(TaskRunBase):
 
 class WorkflowBase(BaseModel):
     definition: str
-    config_definition: Optional[dict] = {}
+    config_definition: Optional[dict] = None
 
 class WorkflowCreate(WorkflowBase):
     identifier: str
@@ -73,15 +72,16 @@ class WorkflowCreate(WorkflowBase):
 class Workflow(WorkflowBase):
     id: int
     identifier: str
-    version: Optional[int] = None  # Make version optional and default to None
+    version: int
     creation_time: datetime
-    tasks: List[Task] = []
+    tasks: List[Task] = Field(default_factory=list)
+    #ui_schema_id: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 
 class WorkflowRunBase(BaseModel):
-    config: Optional[dict] = {}
-    labels: Dict[str, Any] = {}
+    config: Optional[Dict[str, Any]] = Field(default_factory=dict) 
+    labels: Optional[Dict[str, Any]] = None
 
 class WorkflowRunCreate(WorkflowRunBase):
     pass
@@ -89,8 +89,9 @@ class WorkflowRunCreate(WorkflowRunBase):
 class WorkflowRun(WorkflowRunBase):
     id: int
     workflow_id: int    
-    external_id_: Optional[str] = None
+    external_id: Optional[str] = None
     creation_time: datetime
     lifecycle_status: LifecycleStatus
-    task_runs: List[TaskRun] = []
+    task_runs: List[TaskRun] = Field(default_factory=list)
+
     model_config = ConfigDict(from_attributes=True)

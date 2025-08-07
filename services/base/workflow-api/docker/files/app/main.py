@@ -1,7 +1,8 @@
 import logging
 
 from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
-from app.api.routers import router as workflow_router
+from app.api.workflows import router as workflow_router
+from app.api.workflow_runs import router as workflow_run_router
 from app.dependencies import get_connection_manager
 from app.database import async_engine
 from app.config import celery_app
@@ -47,6 +48,7 @@ async def websocket_endpoint(
     except WebSocketDisconnect:
         con_mgr.disconnect(websocket)
 
-
+app.include_router(workflow_run_router, prefix="/v1", tags=["workflow runs"])
 app.include_router(workflow_router, prefix="/v1", tags=["workflow"])
+
 

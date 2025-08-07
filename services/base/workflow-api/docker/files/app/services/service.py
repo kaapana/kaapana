@@ -39,7 +39,11 @@ async def create_workflow_run(db: AsyncSession, forwarded_headers: Dict[str, str
     
     print(f"Created workflow run {db_workflow_run.id} with Celery task {celery_task.id}")
     # get update workflow run with task runs
-    db_workflow_run = await crud.get_workflow_run(db, workflow_run_id=db_workflow_run.id)
+    db_workflow_run = await crud.get_workflow_runs(
+        db,
+        filters={"id": db_workflow_run.id},
+        single=True,
+    )
     return db_workflow_run
 
 # TODO remove this function when AirflowAdapter is fully implemented

@@ -5,66 +5,91 @@ from . import models, schemas
 from sqlalchemy import select, distinct, func
 from sqlalchemy.orm import selectinload
 
-def filter_query(query: select, model: type, filter_conditions: dict) -> select:
+from typing import Optional, Type, List, Union, Any, Dict
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from sqlalchemy.dialects.postgresql import insert
+from uuid import UUID
+
+def create_query(
+    db: AsyncSession,
+    model: Type[Any],
+    filters: Optional[Dict[str, Any]] = None,
+    eager_load: Optional[List[str]] = None,
+    order_by: Optional[Any] = None,
+    skip: Optional[int] = None,
+    limit: Optional[int] = None,
+) -> Union[Any, List[Any], None]:
     """
-    Apply filter conditions to the query based on the model's attributes.
+    Generic query function for SQLAlchemy models using AsyncSession.
+
+    Parameters:
+    - db: SQLAlchemy AsyncSession
+    - model: SQLAlchemy ORM model
+    - filters: Dict of column_name -> value
+    - eager_load: List of relationship names to eager load (flat only)
+    - order_by: SQLAlchemy ordering expression
+    - skip: Offset for pagination
+    - limit: Limit for pagination
+
+    Returns:
+    - SQLAlchemy query object
     """
-    for attr, value in filter_conditions.items():
-        query = query.filter(getattr(model, attr) == value)
+    query = select(model)
+
+    # Apply direct filters
+    if filters:
+        for attr, value in filters.items():
+            query = query.filter(getattr(model, attr) == value)
+
+    # Apply eager loading (flat only)
+    if eager_load:
+        for relation in eager_load:
+            query = query.options(selectinload(getattr(model, relation)))
+
+    # Apply ordering
+    if order_by is not None:
+        query = query.order_by(order_by)
+
+    # Apply pagination
+    if skip is not None:
+        query = query.offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
+    
     return query
+    
 
 def filter_by_project(query: select, model: type, project_id: UUID) -> select:
     return query.filter(getattr(model, "project_id") == project_id)
 
-# CRUD for Workflow
-async def get_workflow(db: AsyncSession, project_id: UUID, workflow_id: int):
-    #query = filter_query(select(models.Workflow) {'id': workflow_id})
-    query = select(models.Workflow).filter(models.Workflow.id == workflow_id)
-    query = filter_by_project(query, models.Workflow, project_id)
-    result = await db.execute(query)
-    return result.scalars().first()
 
-async def get_workflows(db: AsyncSession, project_id: UUID, skip: int = 0, limit: int = 100):
-    result = await db.execute(
-        select(models.Workflow)
-        .filter(models.Workflow.project_id == project_id)
-        .options(selectinload(models.Workflow.tasks)) # <--- load also tasks
-        .offset(skip)
-        .limit(limit)
+async def get_workflows(
+    db: AsyncSession, 
+    filters: dict = None,
+    order_by = None,
+    skip: int = 0, 
+    limit: int = 100,
+    single: bool = False
+):
+    """
+    Generic function to get workflows based on filters and parameters.
+    Workflows always eager load tasks by default.
+    """
+    
+    query =  create_query(
+        db=db,
+        model=models.Workflow,
+        filters=filters or {},
+        eager_load=["tasks", "ui_schema"],
+        order_by=order_by,
+        skip=skip,
+        limit=limit
     )
-    return result.scalars().all()
-
-async def get_workflow_by_identifier_and_version(db: AsyncSession, project_id: UUID, identifier: str, version: int):
-    query = select(models.Workflow).filter(
-            models.Workflow.identifier == identifier,
-            models.Workflow.version == version
-        )
-    query = filter_by_project(query, models.Workflow, project_id)
-    query = query.options(selectinload(models.Workflow.tasks))
     result = await db.execute(query)
-    return result.scalars().first()
+    return result.scalars().first() if single else result.scalars().all()
 
-async def get_latest_workflow_by_identifier(db: AsyncSession, project_id: UUID, identifier: str):
-    query = (
-        select(models.Workflow)
-        .filter(models.Workflow.identifier == identifier)
-        .order_by(models.Workflow.version.desc())
-        .options(selectinload(models.Workflow.tasks))
-        .limit(1)
-    )
-    query = filter_by_project(query, models.Workflow, project_id)
-    result = await db.execute(query)
-    return result.scalars().first()
-
-async def get_workflow_versions(db: AsyncSession, project_id: UUID, identifier: str):
-    query = (select(models.Workflow)
-        .filter(models.Workflow.identifier == identifier)
-        .order_by(models.Workflow.version)
-        .options(selectinload(models.Workflow.tasks))
-    )
-    query = filter_by_project(query, models.Workflow, project_id)
-    result = await db.execute(query)
-    return result.scalars().all()
 
 
 async def create_workflow(db: AsyncSession, project_id: UUID, workflow: schemas.WorkflowCreate):
@@ -73,8 +98,6 @@ async def create_workflow(db: AsyncSession, project_id: UUID, workflow: schemas.
     result = await db.execute(stmt)
     max_version = result.scalar()
     new_version = (max_version or 0) + 1
-    print(workflow)
-    print(f"Creating workflow for project {project_id} with identifier {workflow.identifier}")
     db_workflow = models.Workflow(
         project_id=project_id,
         identifier=workflow.identifier,
@@ -84,14 +107,17 @@ async def create_workflow(db: AsyncSession, project_id: UUID, workflow: schemas.
         )
     db.add(db_workflow)
     await db.commit()
-    await db.refresh(db_workflow)
-    ## also load tasks?
-    await db_workflow.awaitable_attrs.tasks # This uses the asyncio-compatible attribute loader
+    #get workfow to load realationships:
+    workflow = await get_workflows(db=db, filters={"id": db_workflow.id}, single= True)
 
-    return db_workflow
+    return workflow
 
 async def delete_workflow(db: AsyncSession, project_id: UUID, identifier: str, version: int):
-    db_workflow = await get_workflow_by_identifier_and_version(db, project_id, identifier, version)
+    db_workflow = await get_workflows(
+        db,
+        filters={"identifier": identifier, "version": version, "project_id": project_id},
+        single=True
+    )
     if db_workflow:
         await db.delete(db_workflow)
         await db.commit()
@@ -100,36 +126,36 @@ async def delete_workflow(db: AsyncSession, project_id: UUID, identifier: str, v
     return False
 
 # CRUD for WorkflowRun
-async def get_workflow_run(db: AsyncSession, workflow_run_id: int):
-    result = await db.execute(
-        select(models.WorkflowRun)
-        .filter(models.WorkflowRun.id == workflow_run_id)
-        .options(
-            selectinload(models.WorkflowRun.task_runs)
-            .selectinload(models.TaskRun.task)
-        )
+async def get_workflow_runs(
+    db: AsyncSession, 
+    filters: dict = None,
+    project_id: Optional[UUID] = None,
+    order_by = None,
+    skip: int = 0, 
+    limit: int = 100,
+    single: bool = False
+):
+    """
+    Generic function to get workflow runs with optional project filtering.
+    """
+
+    query = create_query(
+        db=db,
+        model=models.WorkflowRun,
+        filters=filters or {},
+        order_by=order_by or models.WorkflowRun.id.desc(),
+        skip=skip,
+        limit=limit
     )
-    return result.scalars().first()
-
-
-async def get_workflow_runs(db: AsyncSession, project_id: UUID, skip: int = 0, limit: int = 100, labels: Optional[str] = None, dataset: Optional[str] = None):
-    query = select(models.WorkflowRun)
-    query = query.filter(models.WorkflowRun.workflow.has(models.Workflow.project_id == project_id))
-
-
-    #if dataset:
-        # This filtering logic might need refinement based on how labels are stored
-        #query = query.filter(cast(models.WorkflowRun.config['dataset'], String) == dataset)
-    result = await db.execute(query.offset(skip).limit(limit).options(selectinload(models.WorkflowRun.task_runs)))
-    return result.scalars().all()
-
-async def get_workflow_runs_by_workflow(db: AsyncSession, workflow_id: int):
-    result = await db.execute(
-        select(models.WorkflowRun).filter(models.WorkflowRun.workflow_id == workflow_id)
-        .options(selectinload(models.WorkflowRun.task_runs))
-    )
-    return result.scalars().all()
-
+    #since nested, don't add to create_query
+    query = query.options(selectinload(models.WorkflowRun.task_runs).selectinload(models.TaskRun.task))
+    # Add project filter if provided
+    if project_id:
+        query = query.filter(models.WorkflowRun.workflow.has(models.Workflow.project_id == project_id))
+    
+    result = await db.execute(query)
+    return result.scalars().first() if single else result.scalars().all()
+ 
 async def create_workflow_run(db: AsyncSession, workflow_run: schemas.WorkflowRunCreate, workflow_id: int):
     db_workflow_run = models.WorkflowRun(
         workflow_id=workflow_id,
@@ -175,7 +201,7 @@ async def get_tasks_by_workflow(db: AsyncSession, workflow_id: int):
 async def create_task(db: AsyncSession, task: schemas.TaskCreate, workflow_id: int):
     db_task = models.Task(
         workflow_id=workflow_id,
-        task_id = task.task_id, 
+        task_identifier = task.task_identifier, 
         display_name=task.display_name,
         type=task.type,
         input_tasks_ids=task.input_tasks_ids,
@@ -192,12 +218,19 @@ async def get_task_run(db: AsyncSession, task_run_id: int):
     return result.scalars().first()
 
 async def get_task_run_by_workflow_run_and_task(db: AsyncSession, workflow_run_id: int, task_id: int):
-    result = await db.execute(
-        select(models.TaskRun).filter(
-            models.TaskRun.workflow_run_id == workflow_run_id,
-            models.TaskRun.task_id == task_id
-        )
+    # result = await db.execute(
+    #     select(models.TaskRun).filter(
+    #         models.TaskRun.workflow_run_id == workflow_run_id,
+    #         models.TaskRun.task_id == task_id
+    #     )
+    # )
+    query =  create_query(
+        db=db,
+        model=models.TaskRun,
+        filters={"workflow_run_id": workflow_run_id, "task_id": task_id },
+        eager_load=["task"],
     )
+    result = await db.execute(query)
     return result.scalars().first()
 
 async def create_task_run(db: AsyncSession, task_run: schemas.TaskRunCreate, task_id: int, workflow_run_id: int):
@@ -222,64 +255,25 @@ async def update_task_run_lifecycle(db: AsyncSession, task_run_id: int, lifecycl
     return None
 
 # CRUD for WorkflowUISchema
-async def create_workflow_ui_schema(db: AsyncSession, ui_schema: schemas.WorkflowUISchemaCreate, workflow_identifier: str, workflow_version: int):
-    db_ui_schema = models.WorkflowUISchema(
-        workflow_identifier=workflow_identifier,
-        workflow_version=workflow_version,
+async def create_or_update_workflow_ui_schema(db: AsyncSession, ui_schema: schemas.WorkflowUISchemaCreate, workflow_id: int): 
+    stmt = insert(models.WorkflowUISchema).values(
+        workflow_id=workflow_id,
         schema_definition=ui_schema.schema_definition
     )
-    db.add(db_ui_schema)
+    # on conflict on workflow_id, update the schema_definition
+    stmt = stmt.on_conflict_do_update(
+        index_elements=['workflow_id'],
+        set_=dict(schema_definition=ui_schema.schema_definition)
+    )
+    await db.execute(stmt)
     await db.commit()
-    await db.refresh(db_ui_schema)
+
+    # Then fetch the updated or inserted row
+    db_ui_schema = await db.get(models.WorkflowUISchema, workflow_id)
     return db_ui_schema
 
-async def get_latest_workflow_ui_schema(db: AsyncSession, identifier: str):
-    result = await db.execute(
-        select(models.WorkflowUISchema)
-        .filter(models.WorkflowUISchema.workflow_identifier == identifier)
-        .order_by(models.WorkflowUISchema.workflow_version.desc())
-        .limit(1)
-    )
+
+async def get_workflow_ui_schema(db: AsyncSession, workflow_id: int):    
+    result = await db.execute(select(models.WorkflowUISchema).filter(models.WorkflowUISchema.workflow_id == workflow_id))
     return result.scalars().first()
 
-async def get_workflow_ui_schema(db: AsyncSession, workflow_identifier: str, workflow_version: int):
-    result = await db.execute(select(models.WorkflowUISchema).filter(models.WorkflowUISchema.workflow_identifier == workflow_identifier, models.WorkflowUISchema.workflow_version == workflow_version))
-    return result.scalars().first()
-
-async def get_workflow_ui_schemas_per_project(db: AsyncSession, project_id: UUID):
-    query = select(models.WorkflowUISchema).join(models.Workflow, models.WorkflowUISchema.workflow_identifier == models.Workflow.identifier)
-    query = query.filter(models.Workflow.project_id == project_id)
-    result = await db.execute(query)
-    return result.scalars().all()
-
-# get get_latest_workflow_ui_schemas_per_project
-async def get_latest_workflow_ui_schemas_per_project(db: AsyncSession, project_id: UUID):
-    subquery = (
-        select(
-            models.WorkflowUISchema.workflow_identifier,
-            models.WorkflowUISchema.workflow_version,
-        )
-        .join(
-            models.Workflow,
-            models.WorkflowUISchema.workflow_identifier == models.Workflow.identifier,
-        )
-        .filter(models.Workflow.project_id == project_id)
-        .order_by(
-            models.WorkflowUISchema.workflow_identifier,
-            models.WorkflowUISchema.workflow_version.desc(),
-        )
-        .distinct(models.WorkflowUISchema.workflow_identifier)
-        .subquery()
-    )
-
-    query = (
-        select(models.WorkflowUISchema)
-        .join(
-            subquery,
-            (models.WorkflowUISchema.workflow_identifier == subquery.c.workflow_identifier)
-            & (models.WorkflowUISchema.workflow_version == subquery.c.workflow_version),
-        )
-    )
-
-    result = await db.execute(query)
-    return result.scalars().all()

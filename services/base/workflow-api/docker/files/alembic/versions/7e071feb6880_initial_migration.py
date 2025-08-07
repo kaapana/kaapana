@@ -37,7 +37,7 @@ def upgrade() -> None:
     op.create_table('tasks',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('workflow_id', sa.Integer(), nullable=True),
-    sa.Column('task_id', sa.String(), nullable=True),
+    sa.Column('task_identifier', sa.String(), nullable=True),
     sa.Column('display_name', sa.String(), nullable=True),
     sa.Column('type', sa.String(), nullable=True),
     sa.Column('input_tasks_ids', postgresql.JSONB(astext_type=sa.Text()), nullable=True),

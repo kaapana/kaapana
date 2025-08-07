@@ -29,6 +29,8 @@ class Workflow(Base):
     tasks = relationship("Task", back_populates="workflow")
     ui_schema = relationship("WorkflowUISchema", back_populates="workflow", uselist=False)
 
+    #ui_schema_id = Column(Integer, ForeignKey("workflow_ui_schemas.id"), nullable=True)
+
 class WorkflowUISchema(Base):
     __tablename__ = "workflow_ui_schemas"
 
@@ -53,7 +55,6 @@ class WorkflowRun(Base):
 
     external_id = Column(String, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
     workflow = relationship("Workflow", back_populates="runs")
     task_runs = relationship("TaskRun", back_populates="workflow_run")
 
@@ -62,7 +63,7 @@ class Task(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     workflow_id = Column(Integer, ForeignKey("workflows.id"))
-    task_id = Column(String, index=True) # e.g. total_segmentator_0
+    task_identifier = Column(String, index=True) # e.g. total_segmentator_0
     display_name = Column(String)
     type = Column(String) # e.g. TotalSegmentatorOperator
     input_tasks_ids = Column(JSONB) # Optional: List of Task IDs

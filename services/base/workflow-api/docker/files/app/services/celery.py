@@ -183,20 +183,20 @@ def monitor_tasks(self, workflow_type: str, forwarded_headers: dict, workflow_id
         all_statuses = []
 
         for task_data in tasks_info:
-            task_id = task_data['task_id']
+            task_identifier = task_data['task_id']
             # get task from id
-            task = db.query(models.Task).filter_by(task_id=task_id).first()
+            task = db.query(models.Task).filter_by(workflow_id=workflow_id, task_identifier=task_identifier).first()
             if not task:
-                logging.info(f"Task {task_id} not found in DB, creating new Task entry.")
+                logging.info(f"Task {task_identifier} not found in DB, creating new Task entry.")
                 task = models.Task(
-                    task_id=task_id,
-                    display_name=task_id,
-                    type=task_id,
+                    task_identifier=task_identifier,
+                    display_name=task_identifier,
+                    type=task_identifier,
                     workflow_id=workflow_id
                 )
                 db.add(task)    
 
-            task_name = task_id
+            task_name = task_identifier
             status = task_data.get('status', LifecycleStatus.PENDING)
 
             all_statuses.append(status)

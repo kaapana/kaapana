@@ -147,6 +147,7 @@ async def get_tasks(task_id: int, db: AsyncSession = Depends(get_async_db)):
     if db_task is None:
         raise HTTPException(status_code=404, detail="Task not found!")
     return db_task
+
 ## Workflow UI Schema Endpoints
 # TODO check if maybe only provide direct endpoints with workflow_id?
 @router.get("/workflows/{identifier}/versions/{version}/ui-schema", response_model=schemas.WorkflowUISchema)

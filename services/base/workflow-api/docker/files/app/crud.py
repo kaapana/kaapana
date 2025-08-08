@@ -112,18 +112,11 @@ async def create_workflow(db: AsyncSession, project_id: UUID, workflow: schemas.
 
     return workflow
 
-async def delete_workflow(db: AsyncSession, project_id: UUID, identifier: str, version: int):
-    db_workflow = await get_workflows(
-        db,
-        filters={"identifier": identifier, "version": version, "project_id": project_id},
-        single=True
-    )
-    if db_workflow:
-        await db.delete(db_workflow)
-        await db.commit()
-        return True
-    #TODO : Also delete related UI schema, 
-    return False
+async def delete_workflow(db: AsyncSession, db_workflow: models.Workflow):
+    await db.delete(db_workflow)
+    await db.commit()
+    return True 
+
 
 # CRUD for WorkflowRun
 async def get_workflow_runs(
@@ -274,4 +267,17 @@ async def create_or_update_workflow_ui_schema(db: AsyncSession, ui_schema: schem
 async def get_workflow_ui_schema(db: AsyncSession, workflow_id: int):    
     result = await db.execute(select(models.WorkflowUISchema).filter(models.WorkflowUISchema.workflow_id == workflow_id))
     return result.scalars().first()
+
+async def delete_workflow_ui_schema(db: AsyncSession, workflow_id: int):
+    result = await db.execute(
+        select(models.WorkflowUISchema).filter(models.WorkflowUISchema.workflow_id == workflow_id)
+    )
+    ui_schema = result.scalar_one_or_none()
+
+    if ui_schema:
+        await db.delete(ui_schema)
+        await db.commit()
+        return True
+
+    return False
 

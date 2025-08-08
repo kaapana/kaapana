@@ -6,6 +6,7 @@ import json
 from app.dependencies import get_async_db, get_project, get_project_id, get_forwarded_headers
 from app.services import service as workflow_service
 from app import crud, schemas, models
+from app.validation import validate as validate
 from typing import Dict, Any
 router = APIRouter()
 
@@ -42,6 +43,8 @@ async def get_workflows_endpoint(
 
 @router.post("/workflows", response_model=schemas.Workflow)
 async def create_workflow(workflow: schemas.WorkflowCreate, project_id=Depends(get_project_id), db: AsyncSession = Depends(get_async_db)):
+    if not validate.workflow(workflow):
+        raise HTTPException(status_code=400, detail="Workflow definition is not valid.")
     db_workflow = await crud.create_workflow(db, project_id=project_id, workflow=workflow)
     return db_workflow
 
@@ -100,10 +103,18 @@ async def get_workflow_by_identifier_and_version(
 
 
 @router.delete("/workflows/{identifier}/versions/{version}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_workflow(identifier: str,version: int, project_id=Depends(get_project_id), db: AsyncSession = Depends(get_async_db)):    
-    success = await crud.delete_workflow(db, identifier=identifier, version=version, project_id=project_id)
-    # TODO: Also delete related UI schema, if exists
-    # and related tasks, but not task-runs? But then task-runs would be orphaned?? So maybe not delete tasks?
+async def delete_workflow(identifier: str,version: int, project_id=Depends(get_project_id), db: AsyncSession = Depends(get_async_db)):
+    db_workflow = await crud.get_workflows(
+        db,
+        filters={"identifier": identifier, "version": version, "project_id": project_id},
+        single=True
+    )
+    success = False
+    if db_workflow:
+        is_deleted = await crud.delete_workflow_ui_schema(db, db_workflow.id)
+        success = await crud.delete_workflow(db, db_workflow)
+    # TODO: Also delete  
+    # related tasks, but not task-runs? But then task-runs would be orphaned?? So maybe not delete tasks?
     # but for sure a delte task endpoint should be implemented
     if not success:
         raise HTTPException(status_code=404, detail="Workflow not found")

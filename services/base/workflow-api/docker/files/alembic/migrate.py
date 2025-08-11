@@ -5,9 +5,9 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 
-DATABASE_URL = os.environ["DATABASE_URL"].replace("postgresql://", "postgresql+asyncpg://", 1)
+DATABASE_URL = os.environ["DATABASE_URL"].replace("postgresql://", "postgresql+psycopg2://", 1)
 ALEMBIC_CFG_PATH = "alembic.ini"
-INITIAL_REVISION = "7e071feb6880"
+INITIAL_REVISION = "fc34c263b43c"
 
 
 def get_current_db_revision(engine):
@@ -46,12 +46,6 @@ def main():
         command.upgrade(alembic_cfg, "head")
     else:
         print("⚠️ DB revision is not part of current migration chain!")
-        print(
-            f"Assuming DB is migrated to 0.4.0. Stamping to revision {INITIAL_REVISION}"
-        )
-        command.stamp(alembic_cfg, INITIAL_REVISION, purge=True)
-
-        command.upgrade(alembic_cfg, "head")
 
 
 if __name__ == "__main__":

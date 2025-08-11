@@ -25,8 +25,6 @@ spec:
         env:
         - name: DATABASE_URL
           value: "postgresql://{{ .Values.kaapana_database.postgres_user}}:{{ .Values.kaapana_database.postgres_password}}@{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{ .Values.global.services_namespace }}.svc:5432"
-        - name: AII_URL
-          value: "http://aii-service.{{ .Values.global.services_namespace }}.svc:8080"
         - name: CELERY_BROKER_URL
           value: "redis://workflow-api-redis-service.{{ .Values.global.services_namespace }}.svc:6379/0"
         - name: AIRFLOW_URL
@@ -34,7 +32,7 @@ spec:
         - name: CELERYD_CONCURRENCY
           value: "2"
         command: ["celery"]
-        args: ["-A", "app.config.celery_app", "worker", "--loglevel=info"]
+        args: ["-A", "app.adapters.config.celery_app", "worker", "--loglevel=info"]
         resources:
           limits:
             memory: "1Gi"

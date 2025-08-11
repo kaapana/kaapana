@@ -4,7 +4,7 @@ from typing import List, Optional
 from datetime import datetime
 import json
 from app.dependencies import get_async_db, get_project, get_project_id, get_forwarded_headers
-from app.services import service as workflow_service
+from app.adapters import adapter
 from app import crud, schemas, models
 from typing import Dict, Any
 from uuid import UUID
@@ -123,7 +123,7 @@ async def get_task_run_logs(run_id: int, task_id: int, project_id=Depends(get_pr
 
 @router.put("/runs/{run_id}/cancel", response_model=bool)
 async def cancel_workflow_run(run_id: int, db: AsyncSession = Depends(get_async_db), forwarded_headers: Dict[str, str] =  Depends(get_forwarded_headers)):
-    success = await workflow_service.cancel_workflow_run(db, forwarded_headers, workflow_run_id=run_id)
+    success = await adapter.cancel_workflow_run(db, forwarded_headers, workflow_run_id=run_id)
     # Here you would interact with your Workflow Engine to signal cancellation
     return success
 
@@ -212,7 +212,7 @@ async def create_workflow_run(
     )
     if db_workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found, not possible to create run")
-    db_workflow_run = await workflow_service.create_workflow_run(db, forwarded_headers=forwarded_headers, project=project, workflow_run=workflow_run_create, workflow_id=db_workflow.id)
+    db_workflow_run = await adapter.create_workflow_run(db, forwarded_headers=forwarded_headers, project=project, workflow_run=workflow_run_create, workflow_id=db_workflow.id)
     
     # Here you would interact with your Workflow Engine to schedule the run
     return db_workflow_run

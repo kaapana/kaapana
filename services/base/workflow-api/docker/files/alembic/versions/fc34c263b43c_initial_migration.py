@@ -1,8 +1,8 @@
-"""Initial migration
+"""initial migration
 
-Revision ID: 7e071feb6880
+Revision ID: fc34c263b43c
 Revises: 
-Create Date: 2025-07-21 13:15:01.069706
+Create Date: 2025-08-11 11:45:33.717570
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '7e071feb6880'
+revision: str = 'fc34c263b43c'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -46,7 +46,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_tasks_id'), 'tasks', ['id'], unique=False)
-    op.create_index(op.f('ix_tasks_task_id'), 'tasks', ['task_id'], unique=False)
+    op.create_index(op.f('ix_tasks_task_identifier'), 'tasks', ['task_identifier'], unique=False)
     op.create_table('workflow_runs',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('workflow_id', sa.Integer(), nullable=True),
@@ -92,7 +92,7 @@ def downgrade() -> None:
     op.drop_table('workflow_ui_schemas')
     op.drop_index(op.f('ix_workflow_runs_id'), table_name='workflow_runs')
     op.drop_table('workflow_runs')
-    op.drop_index(op.f('ix_tasks_task_id'), table_name='tasks')
+    op.drop_index(op.f('ix_tasks_task_identifier'), table_name='tasks')
     op.drop_index(op.f('ix_tasks_id'), table_name='tasks')
     op.drop_table('tasks')
     op.drop_index(op.f('ix_workflows_identifier'), table_name='workflows')

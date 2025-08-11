@@ -1,79 +1,104 @@
-from abc import ABC, abstractmethod
-from typing import Dict, Any
-from app.models import LifecycleStatus
-from app.schemas import WorkflowRunResult
-from dataclasses import dataclass
-from datetime import datetime
-import requests
+from app import models, schemas, crud
+from sqlalchemy.ext.asyncio import AsyncSession
 import logging
+from sqlalchemy import select, update
+from sqlalchemy.orm import selectinload
+from app.schemas import LifecycleStatus
+from datetime import datetime
+from typing import Dict, Any
+import app.adapters.celery as celery
 
-class WorkflowEngineAdapter(ABC):
-    """Abstract base class for workflow engine adapters"""
-    def __init__(self):
-        self.logger = logging.getLogger(self.__class__.__name__)
-
-    def generate_run_id(self, dag_id: str) -> str:
-        run_id = datetime.now().strftime("%y%m%d%H%M%S%f")
-        return f"{dag_id}-{run_id}"
-
-    def _request(self, method: str, endpoint: str, params: Dict[str, Any] = None,
-                 json: Dict[str, Any] = None) -> Any:
-        """
-        Makes a synchronous HTTP request to the workflow engine API.
-        Args:
-            method (str): The HTTP method (e.g., "GET", "POST", "PATCH").
-            endpoint (str): The API endpoint (e.g., "/dags/{dag_id}/dagRuns").
-            params (Optional[Dict[str, Any]]): Query parameters for the request.
-            json (Optional[Dict[str, Any]]): JSON payload for the request body.
-        Returns:
-            Any: The JSON response from the API, or text if content type is not JSON.
-        Raises:
-            RuntimeError: If the request fails or the response is not JSON.
-        """
-        url = f"{self.base_url}{endpoint}"
-        self.logger.info(f"Making request to: {url} with headers: {self.extra_headers}")
-        headers = {
-            "Content-Type": "application/json",
-            **self.extra_headers,
-        }
-
-        try:
-            resp = requests.request(method, url, headers=headers, params=params, json=json)
-            resp.raise_for_status()
-            if 'application/json' in resp.headers.get('Content-Type', ''):
-                return resp.json()
-            return resp.text
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"Request error [{method} {url}]: {e}")
-            raise RuntimeError(f"API request error: {e}")
     
-    @abstractmethod
-    def trigger_workflow_run(self, workflow_run_id: int, config: Dict[str, Any], 
-                            labels: Dict[str, str] = None) -> WorkflowRunResult:
-        """Submit a workflow to the external engine"""
-        pass
+async def create_workflow_run(db: AsyncSession, forwarded_headers: Dict[str, str], project: Dict[str, Any] , workflow_run: schemas.WorkflowRunCreate, 
+                            workflow_id: int) -> models.WorkflowRun:
+    """Create workflow run and submit via Celery"""
     
-    @abstractmethod
-    def get_workflow_run_tasks(self, workflow_identifier: str, external_id: str) -> Dict[str, Any]:
-        """
-        Get tasks for a workflow run from the external engine.
+    # add project to config
+    if project:
+        workflow_run.config['project_form'] = project
+
+    db_workflow_run = await crud.create_workflow_run(db, workflow_run=workflow_run, workflow_id=workflow_id)
+
+
+    # Submit to Celery for background processing
+    celery_task = celery.submit_workflow_run.delay(
+        forwarded_headers=forwarded_headers,
+        workflow_id=workflow_id,
+        workflow_run_id=db_workflow_run.id,
+        workflow_identifier=db_workflow_run.workflow.identifier,
+        config=workflow_run.config,
+        labels=workflow_run.labels
+    )
+    # Store Celery task ID for tracking
+    await db.execute(
+        update(models.WorkflowRun)
+        .where(models.WorkflowRun.id == db_workflow_run.id)
+        .values(celery_task_id=celery_task.id)
+    )
+    await db.commit()
+    
+    print(f"Created workflow run {db_workflow_run.id} with Celery task {celery_task.id}")
+    # get update workflow run with task runs
+    db_workflow_run = await crud.get_workflow_runs(
+        db,
+        filters={"id": db_workflow_run.id},
+        single=True,
+    )
+    return db_workflow_run
+
+# TODO remove this function when AirflowAdapter is fully implemented
+def test_airflow_connection(forwarded_headers: Dict[str, str]) -> bool:
+    logging.warning(f"Testing Airflow connection with forwarded headers: {forwarded_headers}")
+    adapter = celery.get_adapter_for_workflow(workflow_type="airflow", forwarded_headers=forwarded_headers)
+    adapter.base_url = "http://airflow-webserver-service.services.svc:8080/flow"
+    logging.warning(f"Testing Airflow connection with extra_headers: {adapter.extra_headers}")
+    endpoint = f"/api/v1/dags"
+    value = adapter._request("GET", endpoint)
+    logging.warning(f"Airflow health check response: {value}")
+    return True
+
+async def cancel_workflow_run(db: AsyncSession, forwarded_headers: Dict[str, str], workflow_run_id: int) -> bool:
+    """Cancel workflow run"""
+    result = await db.execute(
+        select(models.WorkflowRun).where(
+            models.WorkflowRun.id == workflow_run_id)
+            .options(selectinload(models.WorkflowRun.workflow))
+    )
+    workflow_run = result.scalar_one_or_none()
+    
+    if not workflow_run:
+        return False
+    
+    workflow_identifier = workflow_run.workflow.identifier
         
-        Args:
-            workflow_identifier (str): The workflow identifier.
-            external_id (str): The external ID of the workflow run.
+    # Submit cancellation task if we have external ID
+    if workflow_run.external_id and workflow_run.lifecycle_status not in [LifecycleStatus.CANCELED, LifecycleStatus.COMPLETED]:
+        celery.cancel_workflow.delay(forwarded_headers=forwarded_headers, workflow_run_id=workflow_run_id, workflow_identifier=workflow_identifier, external_id=workflow_run.external_id)
+    else:
+        return False
+   
+    return True
 
-        
-        Returns:
-            Dict[str, Any]: A dictionary containing task information.
-        """
-        pass
-
-    @abstractmethod
-    def get_workflow_run_status(self, external_id: str) -> LifecycleStatus:
-        """Get the current status of a workflow from the external engine"""
-        pass
+#TODO not tested/implemented correct
+async def get_workflow_run_logs(db: AsyncSession, workflow_run_id: int) -> Dict[str, Any]:
+    """Get workflow run logs including Celery task logs"""
+    result = await db.execute(
+        select(models.WorkflowRun).where(
+            models.WorkflowRun.id == workflow_run_id
+        )
+    )
+    workflow_run = result.scalar_one_or_none()
     
-    @abstractmethod
-    def cancel_workflow_run(self, external_id: str) -> bool:
-        """Cancel a workflow in the external engine"""
-        pass
+    if not workflow_run or not workflow_run.celery_task_id:
+        return {'logs': []}
+    
+    # Get task result and info
+    task_result = AsyncResult(workflow_run.celery_task_id, app=celery_app)
+    
+    return {
+        'workflow_run_id': workflow_run_id,
+        'celery_task_id': workflow_run.celery_task_id,
+        'task_state': task_result.state,
+        'task_result': task_result.result if task_result.ready() else None,
+        'task_traceback': task_result.traceback if task_result.failed() else None
+    }

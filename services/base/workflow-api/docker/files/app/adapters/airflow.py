@@ -2,11 +2,11 @@ import logging
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
-from app.adapters.adapter import WorkflowEngineAdapter
+from app.adapters.base import WorkflowEngineBase
 from app.schemas import WorkflowRunResult
 from app.models import LifecycleStatus
 
-class AirflowAdapter(WorkflowEngineAdapter):
+class AirflowAdapter(WorkflowEngineBase):
     """
     Airflow-specific adapter implementation for synchronous communication.
     This adapter handles submitting, monitoring, and canceling workflows

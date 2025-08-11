@@ -4,7 +4,6 @@ from typing import List, Optional
 from datetime import datetime
 import json
 from app.dependencies import get_async_db, get_project, get_project_id, get_forwarded_headers
-from app.services import service as workflow_service
 from app import crud, schemas, models
 from app.validation import validate as validate
 from typing import Dict, Any
@@ -188,8 +187,8 @@ async def create_or_update_workflow_ui_schema(
 #TODO: REMOVE LATER, just for testing
 from celery import Celery
 from celery.result import AsyncResult
-from app.config import celery_app
-
+from app.adapters.config import celery_app
+from app.adapters import adapter
 # Celery monitoring endpoints
 @router.get("/celery/status")
 async def get_celery_status():
@@ -213,7 +212,7 @@ async def get_celery_task_status(task_id: str):
     }
 
 @router.get("/test-airflow")
-async def test_airflow_connection(forwarded_headers: Dict[str, str] =  Depends(get_forwarded_headers)):
-    test = workflow_service.test_airflow_connection(forwarded_headers=forwarded_headers)
+async def test_airflow_connection(forwarded_headers: Dict[str, str] =  Depends(get_forwarded_headers)):  
+    test = adapter.test_airflow_connection(forwarded_headers=forwarded_headers)
     if not test:
         raise HTTPException(status_code=500, detail="Failed to connect to Airflow")

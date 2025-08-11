@@ -18,6 +18,7 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
     yield
 
+
 tags_metadata = [
     {
         "name": "workflow",
@@ -48,7 +49,6 @@ async def websocket_endpoint(
     except WebSocketDisconnect:
         con_mgr.disconnect(websocket)
 
+
 app.include_router(workflow_run_router, prefix="/v1", tags=["workflow runs"])
 app.include_router(workflow_router, prefix="/v1", tags=["workflow"])
-
-

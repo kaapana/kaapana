@@ -7,8 +7,10 @@ from datetime import datetime
 import requests
 import logging
 
+
 class WorkflowEngineBase(ABC):
     """Abstract base class for workflow engine adapters"""
+
     def __init__(self):
         self.logger = logging.getLogger(self.__class__.__name__)
 
@@ -16,8 +18,13 @@ class WorkflowEngineBase(ABC):
         run_id = datetime.now().strftime("%y%m%d%H%M%S%f")
         return f"{dag_id}-{run_id}"
 
-    def _request(self, method: str, endpoint: str, params: Dict[str, Any] = None,
-                 json: Dict[str, Any] = None) -> Any:
+    def _request(
+        self,
+        method: str,
+        endpoint: str,
+        params: Dict[str, Any] = None,
+        json: Dict[str, Any] = None,
+    ) -> Any:
         """
         Makes a synchronous HTTP request to the workflow engine API.
         Args:
@@ -38,31 +45,39 @@ class WorkflowEngineBase(ABC):
         }
 
         try:
-            resp = requests.request(method, url, headers=headers, params=params, json=json)
+            resp = requests.request(
+                method, url, headers=headers, params=params, json=json
+            )
             resp.raise_for_status()
-            if 'application/json' in resp.headers.get('Content-Type', ''):
+            if "application/json" in resp.headers.get("Content-Type", ""):
                 return resp.json()
             return resp.text
         except requests.exceptions.RequestException as e:
             self.logger.error(f"Request error [{method} {url}]: {e}")
             raise RuntimeError(f"API request error: {e}")
-    
+
     @abstractmethod
-    def trigger_workflow_run(self, workflow_run_id: int, config: Dict[str, Any], 
-                            labels: Dict[str, str] = None) -> WorkflowRunResult:
+    def trigger_workflow_run(
+        self,
+        workflow_run_id: int,
+        config: Dict[str, Any],
+        labels: Dict[str, str] = None,
+    ) -> WorkflowRunResult:
         """Submit a workflow to the external engine"""
         pass
-    
+
     @abstractmethod
-    def get_workflow_run_tasks(self, workflow_identifier: str, external_id: str) -> Dict[str, Any]:
+    def get_workflow_run_tasks(
+        self, workflow_identifier: str, external_id: str
+    ) -> Dict[str, Any]:
         """
         Get tasks for a workflow run from the external engine.
-        
+
         Args:
             workflow_identifier (str): The workflow identifier.
             external_id (str): The external ID of the workflow run.
 
-        
+
         Returns:
             Dict[str, Any]: A dictionary containing task information.
         """
@@ -72,7 +87,7 @@ class WorkflowEngineBase(ABC):
     def get_workflow_run_status(self, external_id: str) -> LifecycleStatus:
         """Get the current status of a workflow from the external engine"""
         pass
-    
+
     @abstractmethod
     def cancel_workflow_run(self, external_id: str) -> bool:
         """Cancel a workflow in the external engine"""

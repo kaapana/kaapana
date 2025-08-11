@@ -5,7 +5,9 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 
-DATABASE_URL = os.environ["DATABASE_URL"].replace("postgresql://", "postgresql+psycopg2://", 1)
+DATABASE_URL = os.environ["DATABASE_URL"].replace(
+    "postgresql://", "postgresql+psycopg2://", 1
+)
 ALEMBIC_CFG_PATH = "alembic.ini"
 INITIAL_REVISION = "fc34c263b43c"
 

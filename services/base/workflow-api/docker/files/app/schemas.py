@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Json, ConfigDict, Field
 from enum import Enum
 
+
 class LifecycleStatus(str, Enum):
     PENDING = "Pending"
     SCHEDULED = "Scheduled"
@@ -13,13 +14,16 @@ class LifecycleStatus(str, Enum):
     COMPLETED = "Completed"
     CANCELED = "Canceled"
 
+
 @dataclass
 class WorkflowRunResult:
     """Result of a workflow run operation"""
+
     workflow_run_id: int
     external_id: Optional[str] = None
     status: LifecycleStatus = LifecycleStatus.PENDING
     metadata: Dict[str, Any] = field(default_factory=dict)
+
 
 class TaskBase(BaseModel):
     display_name: Optional[str] = None
@@ -28,8 +32,10 @@ class TaskBase(BaseModel):
     input_tasks_ids: Optional[List[str]] = None
     output_tasks_ids: Optional[List[str]] = None
 
+
 class TaskCreate(TaskBase):
     pass
+
 
 class Task(TaskBase):
     id: int
@@ -37,23 +43,29 @@ class Task(TaskBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class WorkflowUISchemaBase(BaseModel):
     schema_definition: Optional[dict] = Field(default_factory=dict)
 
+
 class WorkflowUISchemaCreate(WorkflowUISchemaBase):
     pass
+
 
 class WorkflowUISchema(WorkflowUISchemaBase):
     workflow_id: int
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class TaskRunBase(BaseModel):
     task_id: int
     workflow_run_id: int
 
+
 class TaskRunCreate(TaskRunBase):
     pass
+
 
 class TaskRun(TaskRunBase):
     id: int
@@ -62,12 +74,25 @@ class TaskRun(TaskRunBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class WorkflowBase(BaseModel):
     definition: str
     config_definition: Optional[dict] = None
 
+from pydantic import root_validator
+from app.validation.config_definition import ConfigDefinition
+
 class WorkflowCreate(WorkflowBase):
     identifier: str
+
+    @root_validator
+    def validate_config_definition(cls, values):
+        try:
+            ConfigDefinition.parse_obj(values["config_definition"])
+        except ValidationError as e:
+            raise ValueError(f"Invalid config_definition: {e}")
+        return values
+
 
 class Workflow(WorkflowBase):
     id: int
@@ -75,20 +100,23 @@ class Workflow(WorkflowBase):
     version: int
     creation_time: datetime
     tasks: List[Task] = Field(default_factory=list)
-    #ui_schema_id: Optional[int] = None
+    # ui_schema_id: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class WorkflowRunBase(BaseModel):
-    config: Optional[Dict[str, Any]] = Field(default_factory=dict) 
+    config: Optional[Dict[str, Any]] = Field(default_factory=dict)
     labels: Optional[Dict[str, Any]] = None
+
 
 class WorkflowRunCreate(WorkflowRunBase):
     pass
 
+
 class WorkflowRun(WorkflowRunBase):
     id: int
-    workflow_id: int    
+    workflow_id: int
     external_id: Optional[str] = None
     creation_time: datetime
     lifecycle_status: LifecycleStatus

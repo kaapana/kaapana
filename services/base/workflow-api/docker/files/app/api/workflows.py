@@ -5,7 +5,6 @@ from datetime import datetime
 import json
 from app.dependencies import get_async_db, get_project, get_project_id, get_forwarded_headers
 from app import crud, schemas, models
-from app.validation import validate as validate
 from typing import Dict, Any
 router = APIRouter()
 

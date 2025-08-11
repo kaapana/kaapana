@@ -20,9 +20,3 @@ sync_session = sync_sessionmaker(
     bind=sync_engine,
     expire_on_commit=False,
 )
-
-
-
-
-
-

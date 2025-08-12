@@ -3,6 +3,7 @@ from dataclasses import field
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Json, ConfigDict, Field
+from app.validation.config_definition import ConfigDefinition
 from enum import Enum
 
 
@@ -77,21 +78,10 @@ class TaskRun(TaskRunBase):
 
 class WorkflowBase(BaseModel):
     definition: str
-    config_definition: Optional[dict] = None
-
-from pydantic import root_validator
-from app.validation.config_definition import ConfigDefinition
+    config_definition: Optional[ConfigDefinition] = None 
 
 class WorkflowCreate(WorkflowBase):
     identifier: str
-
-    @root_validator
-    def validate_config_definition(cls, values):
-        try:
-            ConfigDefinition.parse_obj(values["config_definition"])
-        except ValidationError as e:
-            raise ValueError(f"Invalid config_definition: {e}")
-        return values
 
 
 class Workflow(WorkflowBase):

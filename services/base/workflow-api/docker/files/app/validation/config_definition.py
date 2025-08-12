@@ -1,4 +1,4 @@
-   """  - Dataselections : e.g. dataset, minio-path, DataEntity
+"""  - Dataselections : e.g. dataset, minio-path, DataEntity
                     |---- task_identifier e.g. InputOperator / get-input
                     |---- Env-VariableName e.g.  channel1
                     |---- query e.g. DICOM_SEG via Data API
@@ -40,12 +40,15 @@ class WorkflowParameter(BaseModel):
     env_variable_name: str
     ui_params: WorkflowParameterUI
 
+class KaapanaBackendSelection(BaseModel):
+    identifiers: List[str]
+    dataset_name: Optional[str] = None
 
 class DataSelection(BaseModel):
     task_identifier: str
     env_variable_name: str
     query: Optional[str] = None
-    kaapana_backend: Optional[str] = None
+    kaapana_backend: Optional[KaapanaBackendSelection] = None
 
 
 class ConfigDefinition(BaseModel):
@@ -54,3 +57,5 @@ class ConfigDefinition(BaseModel):
     description: Optional[str] = None
 
 
+    class Config:
+        extra = "forbid"  # unknown keys cause validation error

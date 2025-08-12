@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from datetime import datetime
@@ -41,8 +42,7 @@ async def get_workflows_endpoint(
 
 @router.post("/workflows", response_model=schemas.Workflow)
 async def create_workflow(workflow: schemas.WorkflowCreate, project_id=Depends(get_project_id), db: AsyncSession = Depends(get_async_db)):
-    if not validate.workflow(workflow):
-        raise HTTPException(status_code=400, detail="Workflow definition is not valid.")
+    workflow.config_definition = jsonable_encoder(workflow.config_definition)
     db_workflow = await crud.create_workflow(db, project_id=project_id, workflow=workflow)
     return db_workflow
 

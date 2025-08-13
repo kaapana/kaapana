@@ -32,6 +32,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from kaapanapy.helper import get_minio_client
 from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.settings import KaapanaSettings
+from airflow.operators.empty import EmptyOperator
 
 args = {
     "ui_visible": False,
@@ -53,7 +54,7 @@ dag = DAG(
 
 get_input = LocalGetInputDataOperator(dag=dag, delete_input_on_success=True)
 
-remove_tags = LocalRemoveDicomTagsOperator(dag=dag, input_operator=get_input)
+# remove_tags = LocalRemoveDicomTagsOperator(dag=dag, input_operator=get_input)
 auto_trigger_operator = LocalAutoTriggerOperator(dag=dag, input_operator=get_input)
 
 dcm_send = LocalDicomSendOperator(
@@ -150,6 +151,14 @@ put_results_html_to_minio_admin_bucket = KaapanaPythonBaseOperator(
     dag=dag,
 )
 
+get_ref_ct_series = LocalGetRefSeriesOperator(
+    dag=dag,
+    input_operator=get_input,
+    search_policy="reference_uid",
+    parallel_downloads=5,
+    parallel_id="ct",
+)
+
 
 def has_ref_series(ds) -> bool:
     return ds.Modality in ["SEG", "RTSTRUCT"]
@@ -163,15 +172,6 @@ branch_by_has_ref_series = LocalDcmBranchingOperator(
     branch_true_operator="get-ref-series-ct",
     branch_false_operator="generate-thumbnail",
 )
-
-get_ref_ct_series = LocalGetRefSeriesOperator(
-    dag=dag,
-    input_operator=branch_by_has_ref_series,
-    search_policy="reference_uid",
-    parallel_downloads=5,
-    parallel_id="ct",
-)
-
 generate_thumbnail = GenerateThumbnailOperator(
     dag=dag,
     name="generate-thumbnail",
@@ -243,32 +243,52 @@ put_thumbnail_to_project_bucket = KaapanaPythonBaseOperator(
 clean = LocalWorkflowCleanerOperator(
     dag=dag,
     clean_workflow_dir=True,
+    # This rule is now correct because it applies to the join tasks.
     trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
 )
 
+join_critical_tasks = EmptyOperator(task_id="join-critical-tasks", dag=dag)
+join_optional_tasks = EmptyOperator(
+    task_id="join-optional-tasks", trigger_rule=TriggerRule.ALL_DONE, dag=dag
+)
+
+
+# --- 1. Define the new core critical path
+# The flow is now serial: extract -> send -> push
 get_input >> (auto_trigger_operator, extract_metadata)
+extract_metadata >> (add_to_dataset, assign_to_project, dcm_send)
+dcm_send >> push_json
 
-extract_metadata >> (
-    push_json,
-    add_to_dataset,
-    assign_to_project,
-    remove_tags
-    )
-
-
+# --- 2. Define the optional branches that start after push_json
 push_json >> (validate, branch_by_has_ref_series)
-validate >> save_to_meta >> (put_html_to_minio, put_results_html_to_minio_admin_bucket, generate_thumbnail)
-branch_by_has_ref_series >> (get_ref_ct_series, generate_thumbnail)
 
-remove_tags >> dcm_send
+# The validation branch
+validate >> save_to_meta >> (put_html_to_minio, put_results_html_to_minio_admin_bucket)
 
-get_ref_ct_series >> generate_thumbnail >> put_thumbnail_to_project_bucket
+# The thumbnail branch
+branch_by_has_ref_series >> get_ref_ct_series
+# Note: generate_thumbnail has trigger_rule=ALL_DONE, so it can handle save_to_meta's state
+(save_to_meta, get_ref_ct_series) >> generate_thumbnail
+generate_thumbnail >> put_thumbnail_to_project_bucket
 
-[
+# --- 3. Connect the branches to the join tasks
+# All tasks that MUST succeed for cleanup to occur
+critical_tasks = [
     add_to_dataset,
     assign_to_project,
-    dcm_send,
+    push_json,  # push_json is now critical and depends on dcm_send
+]
+critical_tasks >> join_critical_tasks
+
+# All tasks that are OPTIONAL for cleanup
+# These are the endpoints of the optional validation and thumbnail branches
+optional_tasks = [
     put_html_to_minio,
     put_results_html_to_minio_admin_bucket,
     put_thumbnail_to_project_bucket,
-] >> clean
+]
+optional_tasks >> join_optional_tasks
+
+# --- 4. Final step: The clean task depends on the two join tasks
+# This logic remains the same.
+[join_critical_tasks, join_optional_tasks] >> clean

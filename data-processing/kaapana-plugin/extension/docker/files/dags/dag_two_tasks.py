@@ -1,5 +1,6 @@
 from airflow.models import DAG
-from kaapana.operators.KaapanaTaskOperator import KaapanaTaskOperator
+from kaapana.operators.KaapanaTaskOperator import KaapanaTaskOperator, IOMapping
+
 
 with DAG("test-two-tasks") as dag:
     task = KaapanaTaskOperator(
@@ -10,7 +11,18 @@ with DAG("test-two-tasks") as dag:
     downstream = KaapanaTaskOperator(
         task_id="downstream",
         image="registry.hzdr.de/lorenz.feineis/kaapana-feineis-dev/downstream:latest",
-        iochannel_map={"dummy": {"channel1": "channel1", "channel2": "channel2"}},
+        iochannel_maps=[
+            IOMapping(
+                upstream_operator=task,
+                upstream_channel="channel1",
+                downstream_channel="channel1",
+            ),
+            IOMapping(
+                upstream_operator=task,
+                upstream_channel="channel2",
+                downstream_channel="channel2",
+            ),
+        ],
     )
 
     task >> downstream

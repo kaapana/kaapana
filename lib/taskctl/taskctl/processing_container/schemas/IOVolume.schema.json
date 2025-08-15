@@ -1,0 +1,18 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "IOVolume",
+    "type": "object",
+    "required": [
+      "name",
+      "input"
+    ],
+    "properties": {
+      "name": {"type": "string"},
+      "scale_rule": { "$ref": "ScaleRule.schema.json" },
+      "input": {
+        "oneOf": [
+          { "$ref": "LocalPath.schema.json" }
+        ]
+      }
+    }
+}

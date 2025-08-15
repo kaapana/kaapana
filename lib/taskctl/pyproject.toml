@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "taskctl"
+version = "0.1.0"
+description = "A tool for processing-containers for Kaapana"
+authors = [
+    { name="Your Name", email="your.email@example.com" }
+]
+readme = "Readme.md"
+requires-python = ">=3.8"
+dependencies = [
+    "pydantic>=2.0",
+    "jsonschema>=4.24.0",
+    "typer>=0.16.0",
+    "docker>=7.1.0",
+    "kubernetes>=25.3.0",
+    "jinja2==3.1.6",
+    "python-dotenv==1.1.0",
+    "kaapana-utils @ TODO git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@develop#subdirectory=lib/kaapana_utils",
+]
+
+[tool.poetry.group.dev.dependencies]
+test = [
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "datamodel-code-generator==0.32.0",
+]

@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Task Run",
+  "allOf": [
+    {"$ref": "TaskInstance.schema.json"},
+    {
+      "type": "object",
+      "required": [
+        "id",
+        "mode"
+      ],
+      "properties": {
+        "id": {
+        "type": "string"
+        },
+        "mode": {
+          "type": "string"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "IOMount",
+    "type": "object",
+    "required": [
+      "name",
+      "mounted_path"
+    ],
+    "properties": {
+      "name": {"type": "string"},
+      "mounted_path": {
+        "type": "string"
+      },
+      "description": {
+        "type": "string"
+      },
+      "scale_rule": { "$ref": "ScaleRule.schema.json" }
+    }
+}

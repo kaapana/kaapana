@@ -1,0 +1,33 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ScaleRule",
+    "type": "object",
+    "required": [
+      "complexity",
+      "type",
+      "mode"
+    ],
+    "properties": {
+      "complexity": {
+        "type": "string",
+        "pattern": "^[-+]?\\d*(\\.\\d+)?\\*?n(\\*\\*\\d+)?$"
+      },
+      "type": {
+        "type": "string",
+        "enum": ["limit", "request"]
+      },
+      "mode": {
+        "type": "string",
+        "enum": ["sum", "max_file_size"]
+      },
+      "target_dir": {
+        "type": "string"
+      },
+      "target_regex": {
+        "type": "string"
+      },
+      "target_glob": {
+        "type": "string"
+      }
+    }
+}

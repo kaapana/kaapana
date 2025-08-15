@@ -1,0 +1,28 @@
+{
+    "name": "Dummy-processing-container",
+    "description": "Dummy processing container",
+    "env": [{
+        "name":"TIME_SLEEP",
+        "value": "5",
+        "type": "int",
+        "choices": [],
+        "description": "Number of iterations to sleep before finishing.",
+        "adjustable": true
+    }],
+    "inputs": [],
+    "outputs": [
+        {
+            "name": "channel1",
+            "mounted_path": "/home/dummy/channel1"
+        },
+        {
+            "name": "channel2",
+            "mounted_path": "/home/dummy/channel2"
+        }
+    ],
+    "command": [
+        "python3",
+        "-u",
+        "start.py"
+    ]
+}

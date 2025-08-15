@@ -1,0 +1,9 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "IOChannel",
+    "type": "object",
+    "allOf": [
+    {"$ref": "IOMount.schema.json"},
+    {"$ref": "IOVolume.schema.json"}
+    ]
+}

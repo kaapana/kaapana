@@ -28,11 +28,11 @@ Additionally to the Workflow API we will provide admin Rest endpoints for housek
 
 
 ## Architecture
-### Connection to Workflow Engines
+### Workflow Engine Adapter
 The Workflow API is by concept independent of any Workflow Engine.
 Therefore, a component is required that handles communication between the Workflow API and any Workflow Engine.
 We will call this component *Workflow Engine Adapter*.
-It will utilize the Workflow API to handle the following actions:
+
 * Receive Workflow Definitions and create them in a Workflow Engine.
 * Validate that Workflow Definitions are valid.
 * Fetch WorkflowRuns from the Workflow API and:
@@ -53,11 +53,11 @@ In this context note, that the Workflow API is not responsible that a Workflow R
 * A *Workflow Engine Adapter* can fetch only those Workflow Runs with a specific label and schedule them on the corresponding Workflow Enigne
 * A collection of Workflow Runs could be tight together by a unique value of an `kaapana.experiment` label
 
-### Celery as basis of the Workflow Engine Adapter
-Current implementation creates two tasks in Celery whenever a WorkflowRun is created:
+### Connecting Workflow API to Workflow Engine
+#### Implementation with Celery:
+Creates two tasks in Celery whenever a WorkflowRun is created:
 * One for triggering the DAG
 * Upon success: Two tasks one for monitoring the state of the DagRun and its TaskRuns.
-This blocks two Celery workers until the DagRun ends in a final state.
 
 ```mermaid
 sequenceDiagram
@@ -82,37 +82,11 @@ sequenceDiagram
     end
 ```
 
+Drawbacks:
+* Celery workers blocked with two task per WorkflowRun until the DagRun ends in a final state.
+* Overhead of Celery deployment and Redis database
 
-A more scalable implementation relies on two periodic tasks,
-* One that trigger Workflows that are Up-For-Schdeduling
-* Another one that syncs states from Airflow to The Datbabase in bulk.
-
-```mermaid
-sequenceDiagram
-    participant Client as Client
-    participant API as Workflow API
-    participant DB as DB
-    participant Celery as Celery Worker
-    participant Airflow as Airflow
-
-    Client->>API: POST /workflow-runs
-    API->>DB: Create WorkflowRun (state=UP-FOR-SCHEDULE)
-
-    loop Periodic Scheduler Task
-        Celery->>DB: Query WorkflowRuns in UP-FOR-SCHEDULE
-        Celery->>Airflow: Trigger missing DAGRuns
-        Airflow-->>Celery: DAGRun IDs
-        Celery->>DB: Update WorkflowRun states (RUNNING)
-    end
-
-    loop Periodic Sync Task
-        Celery->>Airflow: Fetch DAGRun states in bulk
-        Airflow-->>Celery: States for all active runs
-        Celery->>DB: Update WorkflowRun states
-    end
-```
-
-### Comparison of different approaches for connecting the Workflow API to Workflow Engines
+#### Comparison of different approaches for connecting the Workflow API to Workflow Engines
 | Approach            | Example Frameworks            | Core Idea                                      | Pros                                                      | Cons                                                           | Best For |
 |---------------------|-------------------------------|------------------------------------------------|-----------------------------------------------------------|----------------------------------------------------------------|----------|
 | **Task Queue**      | Celery, RQ, Dramatiq, Huey    | Push jobs into a queue, workers consume them   | Mature ecosystem, retries, distributed, Python-native     | Can get noisy with many per-run tasks, state drift, coupling   | General background jobs, async triggers |
@@ -120,6 +94,69 @@ sequenceDiagram
 | **Event Bus**       | Kafka, RabbitMQ, SQS, PubSub  | Emit events (`WorkflowRunCreated`), consumers react | Decoupled, resilient, scalable, multiple consumers possible | Extra infra complexity, less Python-native, requires ops team | Large-scale, multi-service event-driven systems |
 | **Workflow Engine** | Temporal, Argo Workflows      | Engine manages state transitions + retries     | Strong guarantees, history, retries, observability        | Heavyweight, steep learning curve, locks you into model        | Complex workflows, compliance/audit requirements |
 
+#### Hybrid approach
+
+1. Triggering a Workflow with FastAPI background task
+```mermaid
+sequenceDiagram
+    participant Client as Client
+    participant API as Workflow API (FastAPI)
+    participant DB as Workflow API DB
+    participant BG as FastAPI Background Task
+    participant Adapter as Workflow Engine Adapter
+    participant Engine as Workflow Engine
+
+    Client->>API: POST /workflow-runs
+    API->>DB: Create WorkflowRun (state=PENDING)
+    API->>BG: Start background job (schedule Workflow)
+    API-->>Client: 201 Created (returns WorkflowRun)
+
+    BG->>Adapter: trigger_workflow_run(workflow, run_id)
+    Adapter->>Engine: Create WorkflowRun (DAGRun/etc.)
+    Engine-->>Adapter: Ack (Workflow scheduled)
+    Adapter->>DB: Update WorkflowRun (state=RUNNING)
+```
+
+2. Getting WorkflowRun information from WorkflowEngine
+
+```mermaid
+sequenceDiagram
+    participant Client as Client
+    participant API as Workflow API
+    participant DB as Workflow API DB
+    participant Adapter as Workflow Engine Adapter
+    participant Engine as Workflow Engine
+
+    Client->>API: GET /workflow-runs/{id}
+    API->>DB: Read WorkflowRun
+    alt State is final (COMPLETED/FAILED/CANCELLED)
+        API-->>Client: Return state from DB
+    else State is active (PENDING/RUNNING/RETRYING)
+        API->>Adapter: get_workflow_run(run_id)
+        Adapter->>Engine: Fetch current state
+        Engine-->>Adapter: Current state
+        Adapter->>DB: Update WorkflowRun state
+        API-->>Client: Return updated state
+    end
+```
+
+
+3. Periodic sync of Workflow API DB with Workflow Engine
+```mermaid
+sequenceDiagram
+    participant Cron as K8s CronJob
+    participant Adapter as Workflow Engine Adapter
+    participant Engine as Workflow Engine
+    participant DB as Workflow API DB
+
+    loop Periodic Sync (e.g., every 30s)
+        Cron->>Adapter: list_workflow_runs(filter=active, pagination)
+        Adapter->>Engine: Query runs with filters
+        Engine-->>Adapter: Return page of WorkflowRuns + states
+        Adapter->>DB: Upsert WorkflowRun states
+        note over Adapter,DB: Continue with pagination until complete
+    end
+```
 
 ## Glossary
 

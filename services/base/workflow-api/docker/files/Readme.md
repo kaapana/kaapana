@@ -9,7 +9,7 @@ Kaapana aims to be **agnostic** to the specific Workflow Engine that is most con
 Hence, in Kaapana a Workflow simply corresponds to a *Workflow Definition* that is interpretable by the Workflow Engine of your choice,
 e.g. for Airflow a dag-file corresponds to the Workflow Definition
 
-Furthermore, Kaapana wants to provide a **unified interface** for a exclusive list of commonly required when managing Workflows and their execution:
+Furthermore, Kaapana wants to provide a **unified interface** that supports an exclusive list of commonly required actions when managing Workflows and their execution:
 * **Post Workflows**
 * **Configuring Workflow Execution**
 * **Receiving lifecycle information on Workflow Runs and Task Run**

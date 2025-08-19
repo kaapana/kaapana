@@ -54,6 +54,71 @@ In this context note, that the Workflow API is not responsible that a Workflow R
 * A collection of Workflow Runs could be tight together by a unique value of an `kaapana.experiment` label
 
 ### Celery as basis of the Workflow Engine Adapter
+Current implementation creates two tasks in Celery whenever a WorkflowRun is created:
+* One for triggering the DAG
+* Upon success: Two tasks one for monitoring the state of the DagRun and its TaskRuns.
+This blocks two Celery workers until the DagRun ends in a final state.
+
+```mermaid
+sequenceDiagram
+
+    participant Client as Client
+    participant API as Workflow API
+    participant DB as DB
+    participant Celery as Celery Worker
+    participant Airflow as Airflow
+
+    Client->>API: POST /workflow-runs
+    API->>DB: Create WorkflowRun (state=PENDING)
+    API->>Celery: Enqueue Trigger Task
+    Celery->>Airflow: Trigger DAGRun
+    Airflow-->>Celery: DAGRun created
+    Celery->>DB: Update WorkflowRun (state=RUNNING)
+    Celery->>Celery: Enqueue Monitoring Task
+    loop Poll DAGRun state
+        Celery->>Airflow: Get DAGRun status
+        Airflow-->>Celery: Status update
+        Celery->>DB: Update WorkflowRun state
+    end
+```
+
+
+A more scalable implementation relies on two periodic tasks,
+* One that trigger Workflows that are Up-For-Schdeduling
+* Another one that syncs states from Airflow to The Datbabase in bulk.
+
+```mermaid
+sequenceDiagram
+    participant Client as Client
+    participant API as Workflow API
+    participant DB as DB
+    participant Celery as Celery Worker
+    participant Airflow as Airflow
+
+    Client->>API: POST /workflow-runs
+    API->>DB: Create WorkflowRun (state=UP-FOR-SCHEDULE)
+
+    loop Periodic Scheduler Task
+        Celery->>DB: Query WorkflowRuns in UP-FOR-SCHEDULE
+        Celery->>Airflow: Trigger missing DAGRuns
+        Airflow-->>Celery: DAGRun IDs
+        Celery->>DB: Update WorkflowRun states (RUNNING)
+    end
+
+    loop Periodic Sync Task
+        Celery->>Airflow: Fetch DAGRun states in bulk
+        Airflow-->>Celery: States for all active runs
+        Celery->>DB: Update WorkflowRun states
+    end
+```
+
+### Comparison of different approaches for connecting the Workflow API to Workflow Engines
+| Approach            | Example Frameworks            | Core Idea                                      | Pros                                                      | Cons                                                           | Best For |
+|---------------------|-------------------------------|------------------------------------------------|-----------------------------------------------------------|----------------------------------------------------------------|----------|
+| **Task Queue**      | Celery, RQ, Dramatiq, Huey    | Push jobs into a queue, workers consume them   | Mature ecosystem, retries, distributed, Python-native     | Can get noisy with many per-run tasks, state drift, coupling   | General background jobs, async triggers |
+| **Scheduler**       | APScheduler, K8s CronJobs     | Run periodic reconciliation loops              | Simple, low overhead, easy to reason about                | Not event-driven, can add latency, single point unless scaled  | Periodic sync tasks, controller-style loops |
+| **Event Bus**       | Kafka, RabbitMQ, SQS, PubSub  | Emit events (`WorkflowRunCreated`), consumers react | Decoupled, resilient, scalable, multiple consumers possible | Extra infra complexity, less Python-native, requires ops team | Large-scale, multi-service event-driven systems |
+| **Workflow Engine** | Temporal, Argo Workflows      | Engine manages state transitions + retries     | Strong guarantees, history, retries, observability        | Heavyweight, steep learning curve, locks you into model        | Complex workflows, compliance/audit requirements |
 
 
 ## Glossary

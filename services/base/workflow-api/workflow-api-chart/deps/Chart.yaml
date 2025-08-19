@@ -1,6 +1,0 @@
----
-apiVersion: v1
-appVersion: "0.0.1"
-description: Workflow API
-name: workflow-api-redis
-version: "0.0.0"

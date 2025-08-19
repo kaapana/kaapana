@@ -1,5 +1,4 @@
 from pydantic_settings import BaseSettings
-from celery import Celery
 from functools import cached_property
 
 

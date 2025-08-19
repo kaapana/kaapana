@@ -5,7 +5,6 @@ from app.api.workflows import router as workflow_router
 from app.api.workflow_runs import router as workflow_run_router
 from app.dependencies import get_connection_manager
 from app.database import async_engine
-from app.adapters.config import celery_app
 from app.models import Base
 from contextlib import asynccontextmanager
 

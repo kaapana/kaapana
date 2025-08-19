@@ -8,4 +8,5 @@ pydantic_settings==2.10.1
 alembic==1.16.4
 aiohttp==3.12.14
 httpx==0.28.1
-celery[redis]==5.5.3
+requests
+pytest-asyncio==1.1.0

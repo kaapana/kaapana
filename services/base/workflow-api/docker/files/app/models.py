@@ -60,8 +60,6 @@ class WorkflowRun(Base):
     )
     labels = Column(JSONB)  # Key-Value pairs for labeling
 
-    celery_task_id = Column(String, nullable=True)  # Celery task ID for tracking
-
     external_id = Column(String, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     workflow = relationship("Workflow", back_populates="runs")

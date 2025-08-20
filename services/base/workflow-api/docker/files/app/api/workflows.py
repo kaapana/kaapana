@@ -182,78 +182,9 @@ async def get_workflow_tasks(
     return tasks
 
 
-@router.post(
-    "/workflows/{identifier}/versions/{version}/tasks", response_model=schemas.Task
-)
-async def create_workflow_task(
-    identifier: str,
-    version: int,
-    task_create: schemas.TaskCreate,
-    project_id=Depends(get_project_id),
-    db: AsyncSession = Depends(get_async_db),
-):
-
-    db_workflow = await crud.get_workflows(
-        db,
-        filters={
-            "identifier": identifier,
-            "version": version,
-            "project_id": project_id,
-        },
-        single=True,
-    )
-    if db_workflow is None:
-        raise HTTPException(
-            status_code=404, detail="Workflow not found, cannot create task"
-        )
-    db_task = await crud.create_task(db, workflow_id=db_workflow.id, task=task_create)
-    return db_task
-
-
 @router.get("/tasks/{task_id}", response_model=schemas.Task)
 async def get_tasks(task_id: int, db: AsyncSession = Depends(get_async_db)):
     db_task = await crud.get_tasks(db, task_id=task_id)
     if db_task is None:
         raise HTTPException(status_code=404, detail="Task not found!")
     return db_task
-
-
-## Workflow UI Schema Endpoints
-# TODO check if maybe only provide direct endpoints with workflow_id?
-@router.get(
-    "/workflows/{identifier}/versions/{version}/ui-schema",
-    response_model=schemas.WorkflowUISchema,
-)
-async def get_workflow_ui_schema(
-    identifier: str,
-    version: int,
-    project_id=Depends(get_project_id),
-    db: AsyncSession = Depends(get_async_db),
-):
-    workflow = await get_workflow_by_identifier_and_version(
-        identifier, version, project_id, db
-    )
-    db_ui_schema = await crud.get_workflow_ui_schema(db, workflow_id=workflow.id)
-    if db_ui_schema is None:
-        raise HTTPException(status_code=404, detail="Workflow UI Schema not found")
-    return db_ui_schema
-
-
-@router.post(
-    "/workflows/{identifier}/versions/{version}/ui-schema",
-    response_model=schemas.WorkflowUISchema,
-)
-async def create_or_update_workflow_ui_schema(
-    identifier: str,
-    version: int,
-    ui_schema: schemas.WorkflowUISchemaCreate,
-    project_id=Depends(get_project_id),
-    db: AsyncSession = Depends(get_async_db),
-):
-    workflow = await get_workflow_by_identifier_and_version(
-        identifier, version, project_id, db
-    )
-    db_ui_schema = await crud.create_or_update_workflow_ui_schema(
-        db, ui_schema=ui_schema, workflow_id=workflow.id
-    )
-    return db_ui_schema

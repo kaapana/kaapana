@@ -193,37 +193,6 @@ async def test_get_workflow_versions(auth_headers_and_cookies):
 
 
 @pytest.mark.asyncio
-async def test_create_workflow_task(auth_headers_and_cookies):
-    headers, cookies = auth_headers_and_cookies
-    workflow = schemas.WorkflowCreate(
-        identifier="example-workflow",
-        definition="A test workflow",
-    )
-    data = await create_or_get_workflow(headers, cookies, payload=workflow.model_dump())
-
-    response = await httpx.AsyncClient(verify=False).get(
-        f"{BASE_URL}/workflow-api/v1/workflows/{data["identifier"]}/versions",
-        headers=headers,
-        cookies=cookies,
-    )
-    version = response.json()[0]["version"]  # Get the latest version
-    response = await httpx.AsyncClient(verify=False).post(
-        f"{BASE_URL}/workflow-api/v1/workflows/{data["identifier"]}/versions/{version}/tasks",
-        headers=headers,
-        cookies=cookies,
-        json={
-            "display_name": "test-task",
-            "type": "TotalSegmentatorOperator",
-            "task_identifier": "test-task-id",
-            "input_tasks_ids": ["task1", "task2"],
-            "output_tasks_ids": ["task3"],
-        },
-    )
-    assert response.status_code == 200
-    assert response.json()["display_name"] == "test-task"
-
-
-@pytest.mark.asyncio
 async def test_get_workflow_tasks(auth_headers_and_cookies):
     headers, cookies = auth_headers_and_cookies
     workflow = schemas.WorkflowCreate(

@@ -1,22 +1,13 @@
-from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException,
-    status,
-    WebSocket,
-    WebSocketDisconnect,
-)
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
-from datetime import datetime
-import json
 from app.dependencies import (
     get_async_db,
     get_project,
     get_project_id,
     get_forwarded_headers,
 )
-from app.adapters import adapter
+from app.adapters import get_workflow_engine, WorkflowEngineAdapter
 from app import crud, schemas, models
 from typing import Dict, Any
 from uuid import UUID
@@ -165,11 +156,11 @@ async def cancel_workflow_run(
     run_id: int,
     db: AsyncSession = Depends(get_async_db),
     forwarded_headers: Dict[str, str] = Depends(get_forwarded_headers),
+    workflow_engine: WorkflowEngineAdapter = Depends(get_workflow_engine),
 ):
-    success = await adapter.cancel_workflow_run(
+    success = await workflow_engine.cancel_workflow_run(
         db, forwarded_headers, workflow_run_id=run_id
     )
-    # Here you would interact with your Workflow Engine to signal cancellation
     return success
 
 
@@ -251,10 +242,12 @@ async def create_workflow_run(
     identifier: str,
     version: int,
     workflow_run_create: schemas.WorkflowRunCreate,
+    background_tasks: BackgroundTasks,
     forwarded_headers: Dict[str, str] = Depends(get_forwarded_headers),
     project: Dict[str, Any] = Depends(get_project),
     project_id=Depends(get_project_id),
     db: AsyncSession = Depends(get_async_db),
+    workflow_engine: WorkflowEngineAdapter = Depends(get_workflow_engine),
 ):
 
     db_workflow = await crud.get_workflows(
@@ -270,13 +263,12 @@ async def create_workflow_run(
         raise HTTPException(
             status_code=404, detail="Workflow not found, not possible to create run"
         )
-    db_workflow_run = await adapter.create_workflow_run(
-        db,
-        forwarded_headers=forwarded_headers,
-        project=project,
-        workflow_run=workflow_run_create,
-        workflow_id=db_workflow.id,
+
+    background_tasks.add_task(
+        workflow_engine.submit_workflow_run, workflow_run=workflow_run_create
+    )
+    db_workflow_run = await crud.create_workflow_run(
+        db=db, workflow_run=workflow_run_create, workflow_id=db_workflow.id
     )
 
-    # Here you would interact with your Workflow Engine to schedule the run
-    return db_workflow_run
+    return schemas.WorkflowRun(**db_workflow_run.__dict__)

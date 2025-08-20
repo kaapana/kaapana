@@ -2,12 +2,12 @@ import logging
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
-from app.adapters.base import WorkflowEngineBase
+from app.adapters.base import WorkflowEngineAdapter
 from app.schemas import WorkflowRunResult
 from app.models import LifecycleStatus
 
 
-class AirflowAdapter(WorkflowEngineBase):
+class AirflowAdapter(WorkflowEngineAdapter):
     """
     Airflow-specific adapter implementation for synchronous communication.
     This adapter handles submitting, monitoring, and canceling workflows
@@ -26,6 +26,8 @@ class AirflowAdapter(WorkflowEngineBase):
         "removed": LifecycleStatus.CANCELED,
     }
 
+    workflow_engine = "airflow"
+
     def __init__(
         self, airflow_base_url: str, extra_headers: Optional[Dict[str, str]] = None
     ):
@@ -41,7 +43,10 @@ class AirflowAdapter(WorkflowEngineBase):
         # TODO change to airflow API endpoint, the auth has to be adapted
         super().__init__()
 
-    def trigger_workflow_run(
+    def post_workflow(self):
+        pass
+
+    def submit_workflow_run(
         self,
         workflow_run_id: int,
         workflow_identifier: str,

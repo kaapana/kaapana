@@ -1,0 +1,11 @@
+[
+  {
+    "search_tags": {},
+    "dag_ids": {
+      "service-ingestion": {
+        "fetch_method": "copy",
+        "single_execution": false
+      }
+    }
+  }
+]

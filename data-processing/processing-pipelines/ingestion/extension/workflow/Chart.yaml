@@ -1,0 +1,10 @@
+---
+apiVersion: v1
+appVersion: "0.1.0"
+description: "Ingestion workflow"
+name: ingestion-workflow
+version: "0.0.0"
+keywords:
+- kaapanaworkflow
+annotations:
+  documentation: "user_guide/extensions.html"

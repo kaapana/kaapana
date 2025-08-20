@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ingestion-cm
+  namespace: ingestion
+data:
+  config.yaml: |-
+{{ tpl (.Files.Get "files/ingestion-config.yaml") . | nindent 4 }}

@@ -26,12 +26,12 @@ def discover_workflow_engine_adapters() -> List[WorkflowEngineAdapter]:
     return discovered_adapters
 
 
-def get_workflow_engine(workflow_run: schemas.WorkflowRun):
+def get_workflow_engine(workflow_run_create: schemas.WorkflowRunCreate):
     """
     Return the workflow engine specified in the Workflow Run
     """
 
-    workflow_engine_identifier = workflow_run.labels.get(
+    workflow_engine_identifier = workflow_run_create.labels.get(
         "kaapana.builtin.workflow_engine"
     )
     for engine in discover_workflow_engine_adapters():

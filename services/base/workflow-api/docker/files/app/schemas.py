@@ -78,7 +78,9 @@ class TaskRun(TaskRunBase):
 
 class WorkflowBase(BaseModel):
     definition: str
-    config_definition: Optional[ConfigDefinition] = None 
+    config_definition: Optional[ConfigDefinition] = None
+    labels: Optional[Dict[str, str]] = {}
+
 
 class WorkflowCreate(WorkflowBase):
     identifier: str

@@ -7,7 +7,7 @@ from app.schemas import WorkflowRunResult
 from app.models import LifecycleStatus
 
 
-class AirflowAdapter(WorkflowEngineAdapter):
+class KaapanaPluginAdapter(WorkflowEngineAdapter):
     """
     Airflow-specific adapter implementation for synchronous communication.
     This adapter handles submitting, monitoring, and canceling workflows
@@ -26,7 +26,7 @@ class AirflowAdapter(WorkflowEngineAdapter):
         "removed": LifecycleStatus.CANCELED,
     }
 
-    workflow_engine = "airflow"
+    workflow_engine = "kaapana-plugin"
 
     def __init__(
         self, airflow_base_url: str, extra_headers: Optional[Dict[str, str]] = None

@@ -1,15 +1,15 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any
-from app.models import LifecycleStatus
-from app.schemas import WorkflowRunResult
-from dataclasses import dataclass
+from typing import Dict, Any, List
 from datetime import datetime
 import requests
 import logging
+from app import schemas
 
 
-class WorkflowEngineBase(ABC):
+class WorkflowEngineAdapter(ABC):
     """Abstract base class for workflow engine adapters"""
+
+    workflow_engine = "base"
 
     def __init__(self):
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -56,20 +56,18 @@ class WorkflowEngineBase(ABC):
             self.logger.error(f"Request error [{method} {url}]: {e}")
             raise RuntimeError(f"API request error: {e}")
 
+    @classmethod
     @abstractmethod
-    def trigger_workflow_run(
-        self,
-        workflow_run_id: int,
-        config: Dict[str, Any],
-        labels: Dict[str, str] = None,
-    ) -> WorkflowRunResult:
+    def submit_workflow_run(
+        cls, workflow_run: schemas.WorkflowRunCreate
+    ) -> schemas.WorkflowRunResult:
         """Submit a workflow to the external engine"""
         pass
 
     @abstractmethod
     def get_workflow_run_tasks(
-        self, workflow_identifier: str, external_id: str
-    ) -> Dict[str, Any]:
+        self, workflow_run: schemas.WorkflowRun
+    ) -> List[schemas.TaskRun]:
         """
         Get tasks for a workflow run from the external engine.
 
@@ -84,11 +82,35 @@ class WorkflowEngineBase(ABC):
         pass
 
     @abstractmethod
-    def get_workflow_run_status(self, external_id: str) -> LifecycleStatus:
+    def get_workflow_run_status(
+        self, workflow_run: schemas.WorkflowRun
+    ) -> schemas.LifecycleStatus:
         """Get the current status of a workflow from the external engine"""
         pass
 
     @abstractmethod
-    def cancel_workflow_run(self, external_id: str) -> bool:
+    def cancel_workflow_run(self, workflow_run: schemas.WorkflowRun) -> bool:
         """Cancel a workflow in the external engine"""
         pass
+
+    @abstractmethod
+    def post_workflow(workflow: schemas.Workflow):
+        """
+        Create the workflow based on the definition in the WorkflowEngine
+        """
+
+    def _get_workflows(self):
+        """
+        Get Workflows from the database that are associated with the specific WorkflowEngineAdapter
+        """
+
+    def _get_workflows_runs(
+        self,
+        state: schemas.LifecycleStatus,
+    ) -> List[schemas.WorkflowRun]:
+        """
+        Get all Workflow Run objects with state as LifecycleStatus
+        """
+
+    def _update_workflow_run_(self, update: schemas.WorkflowRun) -> schemas.WorkflowRun:
+        """ """

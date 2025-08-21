@@ -320,6 +320,112 @@ function import_container_images_tar {
     echo "${GREEN}Finished image upload! You should now be able to deploy the platform by specifying the chart path.${NC}"
 }
 
+function migrate() {
+    VERSION_FILE="$FAST_DATA_DIR/version"
+
+    # Otherwise check version file
+    if [[ -f "$VERSION_FILE" ]]; then
+        DATA_STATE_VERSION_RAW=$(cat "$VERSION_FILE")
+    else
+        DATA_STATE_VERSION_RAW="none"
+    fi
+
+    TARGET_PLATFORM_VERSION_RAW="$PLATFORM_VERSION"  # e.g., "0.5.1"
+
+    # Extract only major.minor (ignore patch & metadata)
+    DATA_STATE_VERSION=$(echo "$DATA_STATE_VERSION_RAW" | sed -E 's/^([0-9]+)\.([0-9]+).*/\1.\2/')
+    TARGET_PLATFORM_VERSION=$(echo "$TARGET_PLATFORM_VERSION_RAW" | sed -E 's/^([0-9]+)\.([0-9]+).*/\1.\2/')
+
+    if [[ "$DATA_STATE_VERSION" == "none" ]]; then
+        echo -e "${YELLOW}No previous deployed version found: ${VERSION_FILE}.${NC}"
+        yn="y"  # auto-run migration chart
+    elif [[ "$DATA_STATE_VERSION" != "$TARGET_PLATFORM_VERSION" ]]; then
+        echo -e "${YELLOW}Version changed: $DATA_STATE_VERSION -> $TARGET_PLATFORM_VERSION${NC}"
+        read -p "Do you want to run the migration chart? [y/N]: " yn
+    else
+        echo -e "${GREEN}Deployed version is up-to-date ($DATA_STATE_VERSION). No migration needed.${NC}"
+        yn="n"
+    fi
+
+    case "$yn" in
+        [Yy]* )
+            if [[ "${OFFLINE_MODE,,}" == true && -n "$CHART_PATH" ]]; then
+                echo -e "${YELLOW}Using existing chart path (offline mode): $CHART_PATH${NC}"
+                if [[ $(basename "$CHART_PATH") != "$PLATFORM_NAME-$PLATFORM_VERSION.tgz" ]]; then
+                    echo -e "${RED}Version of CHART_PATH $CHART_PATH differs from PLATFORM_NAME=$PLATFORM_NAME and PLATFORM_VERSION=$PLATFORM_VERSION.${NC}"
+                    exit 1
+                fi
+            else
+                CHART_PATH="$SCRIPT_PATH/$PLATFORM_NAME-$PLATFORM_VERSION.tgz"
+            fi
+
+            WORKDIR=$(mktemp -d)
+            tar -xzf "$CHART_PATH" -C "$WORKDIR"
+
+            # The migration chart should now be in charts/ inside the unpacked folder
+            MIGRATION_CHART_PATH="$WORKDIR/$PLATFORM_NAME/charts/migration-chart"
+            if [ ! -d "$MIGRATION_CHART_PATH" ]; then
+                echo -e "${RED}Migration chart not found inside admin chart package!${NC}"
+                exit 1
+            fi
+
+            echo -e "${YELLOW}Deploying migration chart...${NC}"
+            helm -n "$HELM_NAMESPACE" install --create-namespace "$MIGRATION_CHART_PATH" \
+                --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \
+                --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
+                --set-string global.fast_data_dir="$FAST_DATA_DIR" \
+                --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
+                --set-string global.pull_policy_images="$PULL_POLICY_IMAGES" \
+                --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
+                --set-string global.kaapana_build_version="$PLATFORM_VERSION" \
+                --set-string global.data_state_version="$DATA_STATE_VERSION" \
+                --set-string global.target_platform_version="$TARGET_PLATFORM_VERSION" \
+                --name-template "kaapana-migration"
+
+            cleanup() {
+                echo -e "${YELLOW}Cleaning up migration helm chart...${NC}"
+                helm uninstall "kaapana-migration" -n "$HELM_NAMESPACE" || true
+            }
+
+            # Wait for migration Job to complete
+            JOB_NAME="migration"
+            NAMESPACE="migration"
+            TIMEOUT=180  # 3 minutes
+            INTERVAL=5
+            ELAPSED=0
+
+            echo -e "${YELLOW}Waiting for migration job $JOB_NAME to complete...${NC}"
+            while true; do
+                ACTIVE=$(microk8s.kubectl get job "$JOB_NAME" -n "$NAMESPACE" -o jsonpath='{.status.active}')
+                SUCCEEDED=$(microk8s.kubectl get job "$JOB_NAME" -n "$NAMESPACE" -o jsonpath='{.status.succeeded}')
+                FAILED=$(microk8s.kubectl get job "$JOB_NAME" -n "$NAMESPACE" -o jsonpath='{.status.failed}')
+
+                if [[ "${SUCCEEDED:-0}" -ge 1 ]]; then
+                    echo -e "${GREEN}Migration job completed successfully!${NC}"
+                    cleanup        # immediate uninstall
+                    break
+                elif [[ "${FAILED:-0}" -ge 1 ]]; then
+                    echo -e "${RED}Migration job failed!${NC}"
+                    POD=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o jsonpath='{.items[0].metadata.name}')
+                    microk8s.kubectl logs "$POD" -n "$NAMESPACE"
+                    cleanup        # also uninstall on failure
+                    exit 1
+                fi
+                sleep "$INTERVAL"
+                ELAPSED=$((ELAPSED + INTERVAL))
+
+                if [[ $ELAPSED -ge $TIMEOUT ]]; then
+                    echo -e "${RED}Migration job did not complete within timeout (${TIMEOUT}s)${NC}"
+                    exit 1
+                fi
+            done
+            ;;
+        * )
+            echo -e "${YELLOW}Skipping migration.${NC}"
+            ;;
+    esac
+}
+
 function deploy_chart {
     if [ -z "$CONTAINER_REGISTRY_URL" ]; then
         echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the deploy_platform.sh script!${NC}"
@@ -438,7 +544,7 @@ function deploy_chart {
         check_credentials
         echo "${GREEN}Pulling platform chart from registry...${NC}"
         SCRIPT_PATH=$(dirname "$(realpath $0)")
-        pull_chart $SCRIPT_PATH
+        pull_chart "$PLATFORM_NAME" "$PLATFORM_VERSION" "$SCRIPT_PATH"
         CHART_PATH="$SCRIPT_PATH/$PLATFORM_NAME-$PLATFORM_VERSION.tgz"
     fi
 
@@ -453,6 +559,8 @@ function deploy_chart {
     INTERNAL_CIDR="$SERVER_IP/32,$INTERNAL_CIDR"
     # MicroK8s https://microk8s.io/docs/change-cidr
     INTERNAL_CIDR="10.152.183.0/24,10.1.0.0/16,$INTERNAL_CIDR"
+
+    migrate
 
     echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
@@ -529,17 +637,23 @@ function deploy_chart {
 
 
 function pull_chart {
+    local chart_name=$1
+    local chart_version=$2
+    local dest_dir=$3
+
     MAX_RETRIES=30
     i=1
     while [ $i -le $MAX_RETRIES ];
     do
-        echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/$PLATFORM_NAME with version $PLATFORM_VERSION ${NC}"
-        helm pull oci://${CONTAINER_REGISTRY_URL}/$PLATFORM_NAME --version $PLATFORM_VERSION -d $1 \
+        echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/${chart_name} with version ${chart_version} ${NC}"
+        helm pull oci://${CONTAINER_REGISTRY_URL}/${chart_name} \
+            --version ${chart_version} -d ${dest_dir} \
             && break \
-            || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 );
+            || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 )
         ((i++))
     done
-    if [ ! -f "${1}/${PLATFORM_NAME}-${PLATFORM_VERSION}.tgz" ];then
+
+    if [ ! -f "${dest_dir}/${chart_name}-${chart_version}.tgz" ]; then
         echo -e "${RED}Could not pull chart! -> abort${NC}"
         echo -e "${YELLOW}This can be related to issues on the registry side or connection issues.${NC}"
         echo -e "${YELLOW}Retrying the deployment script might solve this issue.${NC}"

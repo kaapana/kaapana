@@ -1,0 +1,9 @@
+global:
+  namespace: migration
+  dynamicVolumes:
+    - name: fast-data
+      mount_path: /kaapana/fast_data
+      mount_full_dir: fast
+    - name: slow-data
+      mount_path: /kaapana/slow_data
+      mount_full_dir: slow

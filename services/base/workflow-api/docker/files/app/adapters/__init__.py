@@ -1,11 +1,16 @@
 from app.adapters.adapters import *
 from app.adapters.base import WorkflowEngineAdapter
+from app.adapters.adapters.dummy_adapter import DummyAdapter
 
 from typing import List
 
 from app import schemas
+from app import crud
 from app.adapters import adapters
+from app.dependencies import get_async_db
 import inspect, pkgutil, importlib
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 def discover_workflow_engine_adapters() -> List[WorkflowEngineAdapter]:
@@ -26,16 +31,16 @@ def discover_workflow_engine_adapters() -> List[WorkflowEngineAdapter]:
     return discovered_adapters
 
 
-def get_workflow_engine(workflow_run_create: schemas.WorkflowRunCreate):
+def get_workflow_engine(workflow: schemas.Workflow) -> WorkflowEngineAdapter:
     """
-    Return the workflow engine specified in the Workflow Run
+    Return the workflow engine defined in the Workflow
     """
-
-    workflow_engine_identifier = workflow_run_create.labels.get(
-        "kaapana.builtin.workflow_engine"
-    )
+    workflow_engine_identifier = workflow.labels.get("kaapana.builtin.workflow_engine")
     for engine in discover_workflow_engine_adapters():
+        print(f"{engine.workflow_engine=}")
+        print(f"{workflow_engine_identifier=}")
         if workflow_engine_identifier == engine.workflow_engine:
-            return engine
+            print(type(engine))
+            return engine()
 
-    return WorkflowEngineAdapter
+    return DummyAdapter()

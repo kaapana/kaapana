@@ -241,13 +241,12 @@ async def get_runs_by_workflow_identifier_latest_version(
 async def create_workflow_run(
     identifier: str,
     version: int,
-    workflow_run_create: schemas.WorkflowRunCreate,
+    workflow_run_create: schemas.WorkflowRunCreateForWorkflow,
     background_tasks: BackgroundTasks,
     forwarded_headers: Dict[str, str] = Depends(get_forwarded_headers),
     project: Dict[str, Any] = Depends(get_project),
     project_id=Depends(get_project_id),
     db: AsyncSession = Depends(get_async_db),
-    workflow_engine: WorkflowEngineAdapter = Depends(get_workflow_engine),
 ):
 
     db_workflow = await crud.get_workflows(
@@ -264,11 +263,20 @@ async def create_workflow_run(
             status_code=404, detail="Workflow not found, not possible to create run"
         )
 
-    background_tasks.add_task(
-        workflow_engine.submit_workflow_run, workflow_run=workflow_run_create
+    workflow_run_create = schemas.WorkflowRunCreate(
+        **workflow_run_create.model_dump(), identifier=identifier, version=version
     )
     db_workflow_run = await crud.create_workflow_run(
         db=db, workflow_run=workflow_run_create, workflow_id=db_workflow.id
+    )
+
+    workflow_engine = get_workflow_engine(
+        workflow=schemas.Workflow(**db_workflow.__dict__)
+    )
+    background_tasks.add_task(
+        workflow_engine.submit_workflow_run,
+        workflow=db_workflow,
+        workflow_run=schemas.WorkflowRun(**db_workflow_run.__dict__),
     )
 
     return schemas.WorkflowRun(**db_workflow_run.__dict__)

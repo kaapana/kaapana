@@ -5,8 +5,10 @@ from fastapi import (
     status,
     WebSocket,
     WebSocketDisconnect,
+    status,
 )
 from fastapi.encoders import jsonable_encoder
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from datetime import datetime
@@ -52,16 +54,33 @@ async def get_workflows_endpoint(
     return workflows
 
 
-@router.post("/workflows", response_model=schemas.Workflow)
+@router.get("/workflows/{id}", response_model=schemas.Workflow)
+async def get_workflow_by_id(
+    id: int,
+    project_id=Depends(get_project_id),
+    db: AsyncSession = Depends(get_async_db),
+):
+    db_workflow = await crud.get_workflows(
+        db, filters={"project_id": project_id, "id": id}, single=True
+    )
+    if not db_workflow:
+        raise HTTPException(status_code=404, detail="No workflow found")
+    return db_workflow
+
+
+@router.post("/workflows", response_model=schemas.Workflow, status_code=201)
 async def create_workflow(
     workflow: schemas.WorkflowCreate,
+    response: Response,
     project_id=Depends(get_project_id),
     db: AsyncSession = Depends(get_async_db),
 ):
     workflow.config_definition = jsonable_encoder(workflow.config_definition)
+    workflow.labels = jsonable_encoder(workflow.labels)
     db_workflow = await crud.create_workflow(
         db, project_id=project_id, workflow=workflow
     )
+    response.headers["Location"] = f"/workflows/{db_workflow.id}"
     return db_workflow
 
 

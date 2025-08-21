@@ -20,10 +20,15 @@ class LifecycleStatus(str, Enum):
 class WorkflowRunResult:
     """Result of a workflow run operation"""
 
-    workflow_run_id: int
+    workflow_run_id: Optional[int] = 1
     external_id: Optional[str] = None
     status: LifecycleStatus = LifecycleStatus.PENDING
     metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+#####################################
+############## TASKS ################
+#####################################
 
 
 class TaskBase(BaseModel):
@@ -45,6 +50,11 @@ class Task(TaskBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+#####################################
+############## UISCHEMA #############
+#####################################
+
+
 class WorkflowUISchemaBase(BaseModel):
     schema_definition: Optional[dict] = Field(default_factory=dict)
 
@@ -57,6 +67,11 @@ class WorkflowUISchema(WorkflowUISchemaBase):
     workflow_id: int
 
     model_config = ConfigDict(from_attributes=True)
+
+
+#####################################
+############## TASKRUN ##############
+#####################################
 
 
 class TaskRunBase(BaseModel):
@@ -76,10 +91,15 @@ class TaskRun(TaskRunBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+#####################################
+############## WORKFLOW #############
+#####################################
+
+
 class WorkflowBase(BaseModel):
     definition: str
     config_definition: Optional[ConfigDefinition] = None
-    labels: Optional[Dict[str, str]] = {}
+    labels: Dict[str, str] = {}
 
 
 class WorkflowCreate(WorkflowBase):
@@ -97,12 +117,30 @@ class Workflow(WorkflowBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+#####################################
+############## WORKFLOWRUN ##########
+#####################################
+
+
 class WorkflowRunBase(BaseModel):
     config: Optional[Dict[str, Any]] = Field(default_factory=dict)
     labels: Optional[Dict[str, Any]] = None
 
 
 class WorkflowRunCreate(WorkflowRunBase):
+    """
+    Schema for the route POST /runs
+    """
+
+    identifier: str
+    version: int
+
+
+class WorkflowRunCreateForWorkflow(WorkflowRunBase):
+    """
+    Schema for the route POST /workflow/<identifier>/version/<version>/runs
+    """
+
     pass
 
 

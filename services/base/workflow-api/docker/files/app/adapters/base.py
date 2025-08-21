@@ -56,10 +56,9 @@ class WorkflowEngineAdapter(ABC):
             self.logger.error(f"Request error [{method} {url}]: {e}")
             raise RuntimeError(f"API request error: {e}")
 
-    @classmethod
     @abstractmethod
     def submit_workflow_run(
-        cls, workflow_run: schemas.WorkflowRunCreate
+        self, workflow: schemas.Workflow, workflow_run: schemas.WorkflowRun
     ) -> schemas.WorkflowRunResult:
         """Submit a workflow to the external engine"""
         pass

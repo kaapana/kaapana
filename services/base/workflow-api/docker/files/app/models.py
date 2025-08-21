@@ -31,7 +31,7 @@ class Workflow(Base):
     ui_schema = relationship(
         "WorkflowUISchema", back_populates="workflow", uselist=False
     )
-
+    labels = Column(JSONB, nullable=False, default=dict)
     # ui_schema_id = Column(Integer, ForeignKey("workflow_ui_schemas.id"), nullable=True)
 
 

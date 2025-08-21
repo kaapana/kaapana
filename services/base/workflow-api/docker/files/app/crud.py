@@ -108,6 +108,7 @@ async def create_workflow(
         definition=workflow.definition,
         version=new_version,
         config_definition=workflow.config_definition,
+        labels=workflow.labels,
     )
     db.add(db_workflow)
     await db.commit()

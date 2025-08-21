@@ -3,8 +3,9 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 
 from app.adapters.base import WorkflowEngineAdapter
-from app.schemas import WorkflowRunResult
+from app import schemas
 from app.models import LifecycleStatus
+from app.adapters.config import settings
 
 
 class KaapanaPluginAdapter(WorkflowEngineAdapter):
@@ -28,9 +29,7 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
 
     workflow_engine = "kaapana-plugin"
 
-    def __init__(
-        self, airflow_base_url: str, extra_headers: Optional[Dict[str, str]] = None
-    ):
+    def __init__(self, extra_headers: Optional[Dict[str, str]] = None):
         """
         Initializes the AirflowAdapter.
 
@@ -38,9 +37,10 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
             airflow_base_url (str): The base URL for the Airflow API.
             extra_headers (Optional[Dict[str, str]]): Additional headers to include in requests.
         """
-        self.base_url = airflow_base_url
-        self.extra_headers = extra_headers
-        # TODO change to airflow API endpoint, the auth has to be adapted
+        self.base_url = (
+            "http://airflow-webserver-service.services.svc:8080/flow/kaapana/api"
+        )
+        self.extra_headers = {}
         super().__init__()
 
     def post_workflow(self):
@@ -48,11 +48,9 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
 
     def submit_workflow_run(
         self,
-        workflow_run_id: int,
-        workflow_identifier: str,
-        config: Dict[str, Any],
-        labels: Dict[str, str] = None,
-    ) -> WorkflowRunResult:
+        workflow: schemas.Workflow,
+        workflow_run: schemas.WorkflowRun,
+    ) -> schemas.WorkflowRunResult:
         """
         Submits a new workflow run to Airflow.
 
@@ -66,12 +64,9 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
             WorkflowRunResult: The result of the submission, including external ID and status.
         """
 
-        dag_id = workflow_identifier
+        dag_id = workflow.identifier
+        config = workflow_run.config
 
-        # TODO change to airflow API endpoint
-        # endpoint = f"/dags/{dag_id}/dagRuns"
-        # dag_run_id = self.generate_run_id(workflow_identifier)
-        # dag_run_id is generated in kaapana endpoint
         dag_run_id = (
             "undefiened"  # Placeholder, should be replaced with actual run ID logic
         )
@@ -81,9 +76,7 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
         payload = {"dag_run_id": dag_run_id, "conf": config}
 
         response = self._request("POST", endpoint, json=payload)
-        self.logger.info(
-            f"Submitted workflow run {workflow_run_id} to Airflow with DAG ID {dag_id}"
-        )
+        self.logger.info(f"Submitted workflow run to Airflow with DAG ID {dag_id}")
         # {'message': ['delete-series created!', {'dag_id': 'delete-series', 'run_id': 'delete-series-250723104127048483'}]}})
 
         # kaapana response: {'message': ['delete-series created!', {'dag_id': '<dag-id>', 'run_id': '<dag-id>-250723104127048483'}]}
@@ -92,12 +85,11 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
         # Airflow's API typically returns the DAG run details upon successful submission
         # We'll use the status from the response or default to SCHEDULED
         airflow_status = response.get("state", "queued")
-        lifecycle_status = self.AIRFLOW_STATUS_MAPPER.get(
+        lifecycle_status = KaapanaPluginAdapter.AIRFLOW_STATUS_MAPPER.get(
             airflow_status, LifecycleStatus.SCHEDULED
         )
 
-        return WorkflowRunResult(
-            workflow_run_id=workflow_run_id,
+        return schemas.WorkflowRunResult(
             external_id=dag_run_id,
             status=lifecycle_status,
             metadata={
@@ -107,7 +99,9 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
             },
         )
 
-    def get_workflow_run_status(self, dag_id: str, dag_run_id: str) -> LifecycleStatus:
+    def get_workflow_run_status(
+        self, workflow_run: schemas.WorkflowRun
+    ) -> LifecycleStatus:
         """
         Gets the current status of a workflow run from Airflow.
 
@@ -118,6 +112,9 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
         Returns:
             LifecycleStatus: The mapped lifecycle status of the workflow run.
         """
+        dag_id = workflow_run.workflow_id
+        dag_run_id = workflow_run.external_id
+
         endpoint = f"/dagdetails/{dag_id}/{dag_run_id}"  # Adjusted endpoint to match Airflow's API
         # endpoint = f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}"
         response = self._request("GET", endpoint)

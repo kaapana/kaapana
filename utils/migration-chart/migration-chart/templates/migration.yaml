@@ -1,0 +1,40 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migration
+  namespace: "{{ .Values.global.namespace }}"
+spec:
+  backoffLimit: 0        # Never retry, fail immediately
+  template:
+    metadata:
+      name: migration
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: migration
+        image: "{{ .Values.global.registry_url }}/migration:{{ .Values.global.kaapana_build_version }}"
+        imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
+        env:
+        - name: FAST_DATA_DIR
+          value: /fast_data_dir
+        - name: SLOW_DATA_DIR
+          value: /slow_data_dir
+        - name: DATA_STATE_VERSION
+          value: "{{ .Values.global.data_state_version }}"
+        - name: TARGET_PLATFORM_VERSION
+          value: "{{ .Values.global.target_platform_version }}"
+        volumeMounts:
+        - name: fastdir
+          mountPath: /fast_data_dir
+        - name: slowdir
+          mountPath: /slow_data_dir
+      volumes:
+      - name: fastdir
+        persistentVolumeClaim:
+          claimName: fast-data-dir-pvc
+      - name: slowdir
+        persistentVolumeClaim:
+          claimName: slow-data-dir-pvc
+      imagePullSecrets:
+      - name: registry-secret

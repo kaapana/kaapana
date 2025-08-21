@@ -29,3 +29,6 @@ dependencies:
     version: 0.0.0
   - name: squid-proxy
     version: 0.0.0
+  - name: migration-chart
+    version: 0.0.0
+    condition: migration-chart.enabled

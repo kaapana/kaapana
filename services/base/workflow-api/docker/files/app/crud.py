@@ -10,7 +10,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.dialects.postgresql import insert
-from uuid import UUID
 
 
 def create_query(
@@ -78,12 +77,12 @@ async def get_workflows(
     Generic function to get workflows based on filters and parameters.
     Workflows always eager load tasks by default.
     """
-
+    # TODO join labels
     query = create_query(
         db=db,
         model=models.Workflow,
         filters=filters or {},
-        eager_load=["tasks", "ui_schema"],
+        eager_load=["tasks"],
         order_by=order_by,
         skip=skip,
         limit=limit,
@@ -92,19 +91,14 @@ async def get_workflows(
     return result.scalars().first() if single else result.scalars().all()
 
 
-async def create_workflow(
-    db: AsyncSession, project_id: UUID, workflow: schemas.WorkflowCreate
-):
+async def create_workflow(db: AsyncSession, workflow: schemas.WorkflowCreate):
     # TODO lock while determining version ?
-    stmt = select(func.max(models.Workflow.version)).filter_by(
-        identifier=workflow.identifier
-    )
+    stmt = select(func.max(models.Workflow.version)).filter_by(title=workflow.title)
     result = await db.execute(stmt)
     max_version = result.scalar()
     new_version = (max_version or 0) + 1
     db_workflow = models.Workflow(
-        project_id=project_id,
-        identifier=workflow.identifier,
+        title=workflow.title,
         definition=workflow.definition,
         version=new_version,
         config_definition=workflow.config_definition,
@@ -172,19 +166,22 @@ async def create_workflow_run(
     return db_workflow_run
 
 
-async def update_workflow_run_lifecycle(
-    db: AsyncSession, workflow_run_id: int, lifecycle_status: str
+async def update_workflow_run(
+    db: AsyncSession, run_id: int, workflow_run_update: schemas.WorkflowRunUpdate
 ):
     result = await db.execute(
-        select(models.WorkflowRun).filter(models.WorkflowRun.id == workflow_run_id)
+        select(models.WorkflowRun).filter(models.WorkflowRun.id == run_id)
     )
     db_workflow_run = result.scalars().first()
-    if db_workflow_run:
-        db_workflow_run.lifecycle_status = lifecycle_status
-        await db.commit()
-        await db.refresh(db_workflow_run)
-        return db_workflow_run
-    return None
+    if not db_workflow_run:
+        return None
+
+    update_data = workflow_run_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_workflow_run, key, value)
+    await db.commit()
+    await db.refresh(db_workflow_run)
+    return db_workflow_run
 
 
 async def get_task_runs_by_workflow_run(db: AsyncSession, workflow_run_id: int):
@@ -285,49 +282,3 @@ async def update_task_run_lifecycle(
         await db.refresh(db_task_run)
         return db_task_run
     return None
-
-
-# CRUD for WorkflowUISchema
-async def create_or_update_workflow_ui_schema(
-    db: AsyncSession, ui_schema: schemas.WorkflowUISchemaCreate, workflow_id: int
-):
-    stmt = (
-        insert(models.WorkflowUISchema)
-        .values(workflow_id=workflow_id, schema_definition=ui_schema.schema_definition)
-        .on_conflict_do_update(
-            index_elements=["workflow_id"],
-            set_={"schema_definition": ui_schema.schema_definition},
-        )
-        .returning(models.WorkflowUISchema)
-    )
-
-    result = await db.execute(stmt)
-    db_ui_schema = result.scalar_one()
-    await db.commit()
-
-    return db_ui_schema
-
-
-async def get_workflow_ui_schema(db: AsyncSession, workflow_id: int):
-    result = await db.execute(
-        select(models.WorkflowUISchema).filter(
-            models.WorkflowUISchema.workflow_id == workflow_id
-        )
-    )
-    return result.scalars().first()
-
-
-async def delete_workflow_ui_schema(db: AsyncSession, workflow_id: int):
-    result = await db.execute(
-        select(models.WorkflowUISchema).filter(
-            models.WorkflowUISchema.workflow_id == workflow_id
-        )
-    )
-    ui_schema = result.scalar_one_or_none()
-
-    if ui_schema:
-        await db.delete(ui_schema)
-        await db.commit()
-        return True
-
-    return False

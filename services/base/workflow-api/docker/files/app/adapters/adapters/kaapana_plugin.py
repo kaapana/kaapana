@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 
 from app.adapters.base import WorkflowEngineAdapter
-from app import schemas
+from app import schemas, crud
 from app.models import LifecycleStatus
 from app.adapters.config import settings
 
@@ -43,6 +43,44 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
         self.extra_headers = {}
         super().__init__()
 
+    def _request(
+        self,
+        method: str,
+        endpoint: str,
+        params: Dict[str, Any] = None,
+        json: Dict[str, Any] = None,
+    ) -> Any:
+        """
+        Makes a synchronous HTTP request to the workflow engine API.
+        Args:
+            method (str): The HTTP method (e.g., "GET", "POST", "PATCH").
+            endpoint (str): The API endpoint (e.g., "/dags/{dag_id}/dagRuns").
+            params (Optional[Dict[str, Any]]): Query parameters for the request.
+            json (Optional[Dict[str, Any]]): JSON payload for the request body.
+        Returns:
+            Any: The JSON response from the API, or text if content type is not JSON.
+        Raises:
+            RuntimeError: If the request fails or the response is not JSON.
+        """
+        url = f"{self.base_url}{endpoint}"
+        self.logger.info(f"Making request to: {url} with headers: {self.extra_headers}")
+        headers = {
+            "Content-Type": "application/json",
+            **self.extra_headers,
+        }
+
+        try:
+            resp = requests.request(
+                method, url, headers=headers, params=params, json=json
+            )
+            resp.raise_for_status()
+            if "application/json" in resp.headers.get("Content-Type", ""):
+                return resp.json()
+            return resp.text
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"Request error [{method} {url}]: {e}")
+            raise RuntimeError(f"API request error: {e}")
+
     def post_workflow(self):
         pass
 
@@ -50,19 +88,8 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
         self,
         workflow: schemas.Workflow,
         workflow_run: schemas.WorkflowRun,
-    ) -> schemas.WorkflowRunResult:
-        """
-        Submits a new workflow run to Airflow.
-
-        Args:
-            workflow_run_id (int): The internal ID of the workflow run.
-            workflow_identifier (str): The identifier of the workflow (e.g., DAG ID).
-            config (Dict[str, Any]): Configuration for the workflow run.
-            labels (Optional[Dict[str, str]]): Labels for the workflow run (not directly used by Airflow).
-
-        Returns:
-            WorkflowRunResult: The result of the submission, including external ID and status.
-        """
+    ) -> schemas.WorkflowRun:
+        """ """
 
         dag_id = workflow.identifier
         config = workflow_run.config
@@ -89,19 +116,16 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
             airflow_status, LifecycleStatus.SCHEDULED
         )
 
-        return schemas.WorkflowRunResult(
-            external_id=dag_run_id,
-            status=lifecycle_status,
-            metadata={
-                "dag_id": dag_id,
-                "submitted_at": datetime.utcnow().isoformat(),
-                "airflow_response": response,  # Store the full Airflow response for debugging
-            },
+        return crud.update_workflow_run(
+            run_id=workflow_run.id,
+            workflow_run_update=schemas.WorkflowRunUpdate(
+                external_id=dag_run_id, lifecycle_status=lifecycle_status
+            ),
         )
 
-    def get_workflow_run_status(
+    def get_workflow_run(
         self, workflow_run: schemas.WorkflowRun
-    ) -> LifecycleStatus:
+    ) -> schemas.WorkflowRun:
         """
         Gets the current status of a workflow run from Airflow.
 
@@ -124,7 +148,10 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
         airflow_status = response.get(
             "state", "failed"
         )  # Default to failed if state is missing
-        return self.AIRFLOW_STATUS_MAPPER.get(airflow_status, LifecycleStatus.ERROR)
+        workflow_run.lifecycle_status = self.AIRFLOW_STATUS_MAPPER.get(
+            airflow_status, LifecycleStatus.ERROR
+        )
+        return workflow_run
 
     def get_workflow_run_tasks(
         self, dag_id: str, dag_run_id: str

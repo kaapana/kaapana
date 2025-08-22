@@ -1,8 +1,8 @@
 from typing import List, Dict, Any, Optional
 
 from app.adapters.base import WorkflowEngineAdapter
-from app import schemas
-from app.models import LifecycleStatus
+from app import schemas, crud
+from app.schemas import LifecycleStatus
 
 
 class DummyAdapter(WorkflowEngineAdapter):
@@ -14,7 +14,7 @@ class DummyAdapter(WorkflowEngineAdapter):
 
     workflow_engine = "dummy"
 
-    def __init__(self, extra_headers: Optional[Dict[str, str]] = None):
+    def __init__(self):
         super().__init__()
 
     def post_workflow(self):
@@ -24,27 +24,15 @@ class DummyAdapter(WorkflowEngineAdapter):
         self,
         workflow: schemas.Workflow,
         workflow_run: schemas.WorkflowRun,
-    ) -> schemas.WorkflowRunResult:
-        """
-        Submits a new workflow run to Airflow.
+    ) -> schemas.WorkflowRun:
+        """ """
 
-        Args:
-            workflow_run_id (int): The internal ID of the workflow run.
-            workflow_identifier (str): The identifier of the workflow (e.g., DAG ID).
-            config (Dict[str, Any]): Configuration for the workflow run.
-            labels (Optional[Dict[str, str]]): Labels for the workflow run (not directly used by Airflow).
-
-        Returns:
-            WorkflowRunResult: The result of the submission, including external ID and status.
-        """
-        return schemas.WorkflowRunResult(
-            external_id="",
-            status=LifecycleStatus.COMPLETED,
+        return crud.update_workflow_run(
+            run_id=workflow_run.id,
+            workflow_run_update=schemas.WorkflowRunUpdate(LifecycleStatus.COMPLETED),
         )
 
-    def get_workflow_run_status(
-        self, workflow_run: schemas.WorkflowRun
-    ) -> LifecycleStatus:
+    def get_workflow_run(self, workflow_run: schemas.WorkflowRun) -> LifecycleStatus:
         """
         Gets the current status of a workflow run from Airflow.
 
@@ -55,7 +43,7 @@ class DummyAdapter(WorkflowEngineAdapter):
         Returns:
             LifecycleStatus: The mapped lifecycle status of the workflow run.
         """
-        return workflow_run.lifecycle_status
+        return workflow_run
 
     def get_workflow_run_tasks(
         self, dag_id: str, dag_run_id: str

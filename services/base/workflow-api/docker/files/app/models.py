@@ -1,51 +1,63 @@
 import json
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, JSON
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    DateTime,
+    ForeignKey,
+    Boolean,
+    JSON,
+    UniqueConstraint,
+    Table,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import relationship
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import relationship, DeclarativeBase, Mapped
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy import Enum as SqlEnum
 from datetime import datetime
-from .schemas import LifecycleStatus
+from app.schemas import LifecycleStatus
 
 
 class Base(AsyncAttrs, DeclarativeBase):
     pass
 
 
+workflow_label = Table(
+    "workflow_label",
+    Base.metadata,
+    Column("workflow_id", ForeignKey("workflows.id"), primary_key=True),
+    Column("label_id", ForeignKey("labels.id"), primary_key=True),
+)
+
+# Association table for WorkflowRun <-> Label
+workflowrun_label = Table(
+    "workflowrun_label",
+    Base.metadata,
+    Column("workflowrun_id", ForeignKey("workflow_runs.id"), primary_key=True),
+    Column("label_id", ForeignKey("labels.id"), primary_key=True),
+)
+
+
 class Workflow(Base):
     __tablename__ = "workflows"
 
     id = Column(Integer, primary_key=True, index=True)
-    identifier = Column(String, index=True)
+    worklow_engine = Column(String)
+    title = Column(String, index=True)
     version = Column(Integer)
     definition = Column(String)
-    config_definition = Column(JSONB)
+    config_definition = Column(JSONB)  ### Schema for validate workflow run config
     creation_time = Column(DateTime, default=datetime.utcnow)
-    # User separation
-    project_id = Column(UUID(as_uuid=True), nullable=False)
-    username = Column(String(64))
 
     runs = relationship("WorkflowRun", back_populates="workflow")
-    tasks = relationship("Task", back_populates="workflow")
-    ui_schema = relationship(
-        "WorkflowUISchema", back_populates="workflow", uselist=False
+    tasks = relationship(
+        "Task", back_populates="workflow", cascade="all, delete-orphan"
     )
-    labels = Column(JSONB, nullable=False, default=dict)
-    # ui_schema_id = Column(Integer, ForeignKey("workflow_ui_schemas.id"), nullable=True)
-
-
-class WorkflowUISchema(Base):
-    __tablename__ = "workflow_ui_schemas"
-
-    id = Column(Integer, primary_key=True, index=True)
-    schema_definition = Column(JSONB)
-    # FK to a specific workflow (which includes identifier + version)
-    workflow_id = Column(
-        Integer, ForeignKey("workflows.id"), nullable=False, unique=True
+    labels: Mapped[list["Label"]] = relationship(
+        "Label",
+        secondary=workflow_label,
+        back_populates="workflows",
     )
-
-    workflow = relationship("Workflow", back_populates="ui_schema")
 
 
 class WorkflowRun(Base):
@@ -54,16 +66,40 @@ class WorkflowRun(Base):
     id = Column(Integer, primary_key=True, index=True)
     workflow_id = Column(Integer, ForeignKey("workflows.id"))
     config = Column(JSONB)
-    creation_time = Column(DateTime, default=datetime.utcnow)
     lifecycle_status = Column(
-        SqlEnum(LifecycleStatus), default=LifecycleStatus.PENDING, nullable=False
+        SqlEnum(LifecycleStatus), default=LifecycleStatus.CREATED, nullable=False
     )
-    labels = Column(JSONB)  # Key-Value pairs for labeling
-
+    labels: Mapped[list["Label"]] = relationship(
+        "Label",
+        secondary=workflowrun_label,
+        back_populates="workflow_runs",
+    )
     external_id = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     workflow = relationship("Workflow", back_populates="runs")
     task_runs = relationship("TaskRun", back_populates="workflow_run")
+
+
+class Label(Base):
+    __tablename__ = "labels"
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String)
+    value = Column(String)
+    __table_args__ = (UniqueConstraint("key", "value"),)
+
+    # reverse relationships
+    workflows: Mapped[list[Workflow]] = relationship(
+        "Workflow",
+        secondary=workflow_label,
+        back_populates="labels",
+    )
+
+    workflow_runs: Mapped[list[WorkflowRun]] = relationship(
+        "WorkflowRun",
+        secondary=workflowrun_label,
+        back_populates="labels",
+    )
 
 
 class Task(Base):
@@ -74,11 +110,29 @@ class Task(Base):
     task_identifier = Column(String, index=True)  # e.g. total_segmentator_0
     display_name = Column(String)
     type = Column(String)  # e.g. TotalSegmentatorOperator
-    input_tasks_ids = Column(JSONB)  # Optional: List of Task IDs
-    output_tasks_ids = Column(JSONB)  # Optional: List of Task IDs
+    downstream_tasks = relationship(
+        "DownstreamTask",
+        back_populates="task",
+        cascade="all, delete-orphan",
+        foreign_keys="DownstreamTask.task_id",
+    )
 
-    workflow = relationship("Workflow", back_populates="tasks")
-    task_runs = relationship("TaskRun", back_populates="task")
+    workflow = relationship("Workflow", back_populates="tasks")  # many-to-one
+    task_runs = relationship("TaskRun", back_populates="task")  # one-to-many
+
+
+class DownstreamTask(Base):
+    __tablename__ = "downstream_tasks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"))
+    downstream_task_id = Column(Integer, ForeignKey("tasks.id"))
+
+    task = relationship(
+        "Task", foreign_keys=[task_id], back_populates="downstream_tasks"
+    )
+    downstream_task = relationship("Task", foreign_keys=[downstream_task_id])
+    __table_args__ = (UniqueConstraint("task_id", "downstream_task_id"),)
 
 
 class TaskRun(Base):
@@ -88,7 +142,7 @@ class TaskRun(Base):
     task_id = Column(Integer, ForeignKey("tasks.id"))
     workflow_run_id = Column(Integer, ForeignKey("workflow_runs.id"))
     lifecycle_status = Column(
-        SqlEnum(LifecycleStatus), default=LifecycleStatus.PENDING, nullable=False
+        SqlEnum(LifecycleStatus), default=LifecycleStatus.CREATED, nullable=False
     )
 
     task = relationship("Task", back_populates="task_runs")

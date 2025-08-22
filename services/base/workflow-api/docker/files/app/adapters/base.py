@@ -18,48 +18,10 @@ class WorkflowEngineAdapter(ABC):
         run_id = datetime.now().strftime("%y%m%d%H%M%S%f")
         return f"{dag_id}-{run_id}"
 
-    def _request(
-        self,
-        method: str,
-        endpoint: str,
-        params: Dict[str, Any] = None,
-        json: Dict[str, Any] = None,
-    ) -> Any:
-        """
-        Makes a synchronous HTTP request to the workflow engine API.
-        Args:
-            method (str): The HTTP method (e.g., "GET", "POST", "PATCH").
-            endpoint (str): The API endpoint (e.g., "/dags/{dag_id}/dagRuns").
-            params (Optional[Dict[str, Any]]): Query parameters for the request.
-            json (Optional[Dict[str, Any]]): JSON payload for the request body.
-        Returns:
-            Any: The JSON response from the API, or text if content type is not JSON.
-        Raises:
-            RuntimeError: If the request fails or the response is not JSON.
-        """
-        url = f"{self.base_url}{endpoint}"
-        self.logger.info(f"Making request to: {url} with headers: {self.extra_headers}")
-        headers = {
-            "Content-Type": "application/json",
-            **self.extra_headers,
-        }
-
-        try:
-            resp = requests.request(
-                method, url, headers=headers, params=params, json=json
-            )
-            resp.raise_for_status()
-            if "application/json" in resp.headers.get("Content-Type", ""):
-                return resp.json()
-            return resp.text
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"Request error [{method} {url}]: {e}")
-            raise RuntimeError(f"API request error: {e}")
-
     @abstractmethod
     def submit_workflow_run(
         self, workflow: schemas.Workflow, workflow_run: schemas.WorkflowRun
-    ) -> schemas.WorkflowRunResult:
+    ) -> schemas.WorkflowRun:
         """Submit a workflow to the external engine"""
         pass
 
@@ -81,9 +43,9 @@ class WorkflowEngineAdapter(ABC):
         pass
 
     @abstractmethod
-    def get_workflow_run_status(
+    def get_workflow_run(
         self, workflow_run: schemas.WorkflowRun
-    ) -> schemas.LifecycleStatus:
+    ) -> schemas.WorkflowRun:
         """Get the current status of a workflow from the external engine"""
         pass
 
@@ -95,21 +57,7 @@ class WorkflowEngineAdapter(ABC):
     @abstractmethod
     def post_workflow(workflow: schemas.Workflow):
         """
-        Create the workflow based on the definition in the WorkflowEngine
+        1. Create the workflow based on the definition in the WorkflowEngine
+        2. Get tasks from workflow engine
+        3. Create tasks in database
         """
-
-    def _get_workflows(self):
-        """
-        Get Workflows from the database that are associated with the specific WorkflowEngineAdapter
-        """
-
-    def _get_workflows_runs(
-        self,
-        state: schemas.LifecycleStatus,
-    ) -> List[schemas.WorkflowRun]:
-        """
-        Get all Workflow Run objects with state as LifecycleStatus
-        """
-
-    def _update_workflow_run_(self, update: schemas.WorkflowRun) -> schemas.WorkflowRun:
-        """ """

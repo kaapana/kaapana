@@ -8,6 +8,7 @@ from enum import Enum
 
 
 class LifecycleStatus(str, Enum):
+    CREATED = "Created"
     PENDING = "Pending"
     SCHEDULED = "Scheduled"
     RUNNING = "Running"
@@ -16,14 +17,34 @@ class LifecycleStatus(str, Enum):
     CANCELED = "Canceled"
 
 
-@dataclass
-class WorkflowRunResult:
-    """Result of a workflow run operation"""
+class Label(BaseModel):
+    key: str
+    value: str
 
-    workflow_run_id: Optional[int] = 1
-    external_id: Optional[str] = None
-    status: LifecycleStatus = LifecycleStatus.PENDING
-    metadata: Dict[str, Any] = field(default_factory=dict)
+
+#####################################
+############## WORKFLOW #############
+#####################################
+
+
+class WorkflowBase(BaseModel):
+    title: str
+    definition: str
+    workflow_engine: str
+    config_definition: Optional[ConfigDefinition] = None
+    labels: List[Label] = []
+
+
+class WorkflowCreate(WorkflowBase):
+    pass
+
+
+class Workflow(WorkflowBase):
+    id: int
+    version: int
+    creation_time: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 #####################################
@@ -33,7 +54,7 @@ class WorkflowRunResult:
 
 class TaskBase(BaseModel):
     display_name: Optional[str] = None
-    task_identifier: str
+    title: str
     type: Optional[str] = None
     input_tasks_ids: Optional[List[str]] = None
     output_tasks_ids: Optional[List[str]] = None
@@ -51,31 +72,12 @@ class Task(TaskBase):
 
 
 #####################################
-############## UISCHEMA #############
-#####################################
-
-
-class WorkflowUISchemaBase(BaseModel):
-    schema_definition: Optional[dict] = Field(default_factory=dict)
-
-
-class WorkflowUISchemaCreate(WorkflowUISchemaBase):
-    pass
-
-
-class WorkflowUISchema(WorkflowUISchemaBase):
-    workflow_id: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-#####################################
 ############## TASKRUN ##############
 #####################################
 
 
 class TaskRunBase(BaseModel):
-    task_id: int
+    task: Task
     workflow_run_id: int
 
 
@@ -86,33 +88,6 @@ class TaskRunCreate(TaskRunBase):
 class TaskRun(TaskRunBase):
     id: int
     lifecycle_status: LifecycleStatus
-    task: Task
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-#####################################
-############## WORKFLOW #############
-#####################################
-
-
-class WorkflowBase(BaseModel):
-    definition: str
-    config_definition: Optional[ConfigDefinition] = None
-    labels: Dict[str, str] = {}
-
-
-class WorkflowCreate(WorkflowBase):
-    identifier: str
-
-
-class Workflow(WorkflowBase):
-    id: int
-    identifier: str
-    version: int
-    creation_time: datetime
-    tasks: List[Task] = Field(default_factory=list)
-    # ui_schema_id: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -125,20 +100,13 @@ class Workflow(WorkflowBase):
 class WorkflowRunBase(BaseModel):
     config: Optional[Dict[str, Any]] = Field(default_factory=dict)
     labels: Optional[Dict[str, Any]] = None
+    workflow_version: int
+    workflow_title: str
 
 
 class WorkflowRunCreate(WorkflowRunBase):
     """
-    Schema for the route POST /runs
-    """
-
-    identifier: str
-    version: int
-
-
-class WorkflowRunCreateForWorkflow(WorkflowRunBase):
-    """
-    Schema for the route POST /workflow/<identifier>/version/<version>/runs
+    Schema for the route POST /workflow-runs
     """
 
     pass
@@ -146,10 +114,16 @@ class WorkflowRunCreateForWorkflow(WorkflowRunBase):
 
 class WorkflowRun(WorkflowRunBase):
     id: int
-    workflow_id: int
     external_id: Optional[str] = None
     creation_time: datetime
     lifecycle_status: LifecycleStatus
     task_runs: List[TaskRun] = Field(default_factory=list)
+    updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class WorkflowRunUpdate(BaseModel):
+    external_id: Optional[str]
+    lifecycle_status: Optional[LifecycleStatus]
+    updated_at: datetime

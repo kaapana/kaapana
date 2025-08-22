@@ -3,7 +3,6 @@ import logging
 from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
 from app.api.workflows import router as workflow_router
 from app.api.workflow_runs import router as workflow_run_router
-from app.api.ui import router as ui_router
 from app.dependencies import get_connection_manager
 from app.database import async_engine
 from app.models import Base
@@ -55,4 +54,3 @@ app.include_router(
     workflow_run_router, prefix=f"/{API_VERSION}", tags=["workflow runs"]
 )
 app.include_router(workflow_router, prefix=f"/{API_VERSION}", tags=["workflow"])
-app.include_router(ui_router, prefix=f"/{API_VERSION}", tags=["ui"])

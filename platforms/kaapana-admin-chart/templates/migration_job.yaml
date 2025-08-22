@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: preinstall-migrations
+  namespace: "{{ .Values.global.admin_namespace }}"
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  template:
+    spec:
+      containers:
+        - name: migrate
+          image: "{{ .Values.global.registry_url }}/migration:{{ .Values.global.kaapana_build_version }}"
+          volumeMounts:
+            - name: fast-data
+              mountPath: "{{ .Values.global.fast_data_dir }}"
+      restartPolicy: Never
+      volumes:
+        - name: fast-data
+          hostPath:
+            path: "{{ .Values.global.fast_data_dir }}"
+            type: DirectoryOrCreate

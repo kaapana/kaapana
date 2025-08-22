@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
-from glob import glob
-import shutil
-import yaml
 import os
 import re
-from treelib import Tree
-from subprocess import PIPE, run, DEVNULL
-from os.path import join, dirname, exists, isfile
-from pathlib import Path
-from build_helper.build_utils import BuildUtils
-from jinja2 import Environment, FileSystemLoader
-from multiprocessing.pool import ThreadPool
-import networkx as nx
-from alive_progress import alive_bar
-from build_helper.container_helper import get_image_stats
-from build_helper.offline_installer_helper import OfflineInstallerHelper
+import shutil
 import threading
 from datetime import datetime
+from glob import glob
+from multiprocessing.pool import ThreadPool
+from os.path import dirname, exists, isfile, join
+from pathlib import Path
+from subprocess import DEVNULL, PIPE, run
 from timeit import default_timer as timer
+
+import networkx as nx
+import yaml
+from alive_progress import alive_bar
+from build_helper.build_utils import BuildUtils
+from build_helper.container_helper import get_image_stats
+from build_helper.offline_installer_helper import OfflineInstallerHelper
+from jinja2 import Environment, FileSystemLoader
+from treelib import Tree
 
 suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
@@ -454,15 +455,14 @@ class HelmChart:
             deployment_config = glob(
                 self.chart_dir + "/deployment_config.yaml", recursive=True
             )
-            assert len(deployment_config) == 1
+            if len(deployment_config) == 1:
+                deployment_config = deployment_config[0]
+                platform_params = yaml.load(open(deployment_config), Loader=yaml.FullLoader)
+                if "kaapana_collections" in platform_params:
+                    self.kaapana_collections = platform_params["kaapana_collections"]
 
-            deployment_config = deployment_config[0]
-            platform_params = yaml.load(open(deployment_config), Loader=yaml.FullLoader)
-            if "kaapana_collections" in platform_params:
-                self.kaapana_collections = platform_params["kaapana_collections"]
-
-            if "preinstall_extensions" in platform_params:
-                self.preinstall_extensions = platform_params["preinstall_extensions"]
+                if "preinstall_extensions" in platform_params:
+                    self.preinstall_extensions = platform_params["preinstall_extensions"]
 
         self.check_container_use()
 

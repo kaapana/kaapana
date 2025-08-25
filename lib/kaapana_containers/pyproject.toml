@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "kaapana-oci"
+name = "kaapana-containers"
 version = "0.1.0"
-description = "A library for interacting with OCI Registries"
+description = "A library with utils to deal with containers and registries"
 authors = [
     { name="Your Name", email="your.email@example.com" }
 ]
@@ -15,6 +15,8 @@ dependencies = [
     "pydantic>=2.0",
     "jsonschema>=4.24.0",
     "typer>=0.16.0",
+    "docker>=7.1.0",
+    "kubernetes>=25.0.0",
 ]
 
 [tool.poetry.group.dev.dependencies]

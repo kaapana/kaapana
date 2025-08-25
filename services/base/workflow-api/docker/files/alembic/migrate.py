@@ -9,7 +9,7 @@ DATABASE_URL = os.environ["DATABASE_URL"].replace(
     "postgresql://", "postgresql+psycopg2://", 1
 )
 ALEMBIC_CFG_PATH = "alembic.ini"
-INITIAL_REVISION = "fc34c263b43c"
+INITIAL_REVISION = "1a9377b8a612"
 
 
 def get_current_db_revision(engine):
@@ -47,7 +47,7 @@ def main():
         print("No revision found in DB and DB is empty. Initializing DB.")
         command.upgrade(alembic_cfg, "head")
     else:
-        print("⚠️ DB revision is not part of current migration chain!")
+        print("DB revision is not part of current migration chain!")
 
 
 if __name__ == "__main__":

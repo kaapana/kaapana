@@ -42,7 +42,7 @@ class WorkflowCreate(WorkflowBase):
 class Workflow(WorkflowBase):
     id: int
     version: int
-    creation_time: datetime
+    created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -55,9 +55,8 @@ class Workflow(WorkflowBase):
 class TaskBase(BaseModel):
     display_name: Optional[str] = None
     title: str
+    downstream_task_ids: List[str] = []
     type: Optional[str] = None
-    input_tasks_ids: Optional[List[str]] = None
-    output_tasks_ids: Optional[List[str]] = None
 
 
 class TaskCreate(TaskBase):
@@ -98,10 +97,10 @@ class TaskRun(TaskRunBase):
 
 
 class WorkflowRunBase(BaseModel):
-    config: Optional[Dict[str, Any]] = Field(default_factory=dict)
-    labels: Optional[Dict[str, Any]] = None
-    workflow_version: int
     workflow_title: str
+    workflow_version: int
+    labels: List[Label] = []
+    config: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
 class WorkflowRunCreate(WorkflowRunBase):
@@ -115,7 +114,7 @@ class WorkflowRunCreate(WorkflowRunBase):
 class WorkflowRun(WorkflowRunBase):
     id: int
     external_id: Optional[str] = None
-    creation_time: datetime
+    created_at: datetime
     lifecycle_status: LifecycleStatus
     task_runs: List[TaskRun] = Field(default_factory=list)
     updated_at: datetime

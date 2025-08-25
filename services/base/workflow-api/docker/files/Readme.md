@@ -43,7 +43,33 @@ We will call this component *Workflow Engine Adapter*.
 * ...
 
 
-## Design desicions
+## Design decisions
+
+### Database Relations
+* **Workflow**
+    * `Workflow 1 — n WorkflowRun` (a workflow can have many runs).
+    * `Workflow 1 — n Task` (a workflow has many tasks).
+    * `Workflow m — n Label` (workflows can have multiple labels via workflow_label).
+
+* **WorkflowRun**
+    * `WorkflowRun n — 1 Workflow` (each run belongs to a specific workflow).
+    * `WorkflowRun m — n Label` (runs can have labels via workflowrun_label).
+    * `WorkflowRun 1 — n TaskRun` (each run has multiple task runs).
+
+* **Task**
+    * `Task n — 1 Workflow` (belongs to a workflow).
+    * `Task 1 — n TaskRun` (each task can spawn multiple runs).
+    * `Task m — n Task` (via DownstreamTask) (dependency graph between tasks).
+    * `DownstreamTask` Association table between Task.task_id and Task.downstream_task_id. Enforces unique pair.
+
+* **TaskRun**
+    * `TaskRun n — 1 Task` (links to task definition).
+    * `TaskRun n — 1 WorkflowRun` (links to workflow execution instance).
+
+* **Label**
+    * `Label m — n Workflow`
+    * `Label m — n WorkflowRun`
+
 ### Labels
 One key design decision is to allow very generic labeling of objects in the Workflow API.
 The main purpose for labels is, that clients can easily add information to objects that determine how they should be handled my other clients.

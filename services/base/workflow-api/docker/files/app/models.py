@@ -1,20 +1,17 @@
-import json
 from sqlalchemy import (
     Column,
     Integer,
     String,
     DateTime,
     ForeignKey,
-    Boolean,
-    JSON,
     UniqueConstraint,
     Table,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, DeclarativeBase, Mapped
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy import Enum as SqlEnum
-from datetime import datetime
+from datetime import datetime, timezone
 from app.schemas import LifecycleStatus
 
 
@@ -40,23 +37,25 @@ workflowrun_label = Table(
 
 class Workflow(Base):
     __tablename__ = "workflows"
+    __table_args__ = (UniqueConstraint("title", "version"),)
 
     id = Column(Integer, primary_key=True, index=True)
-    worklow_engine = Column(String)
+    workflow_engine = Column(String)
     title = Column(String, index=True)
     version = Column(Integer)
     definition = Column(String)
     config_definition = Column(JSONB)  ### Schema for validate workflow run config
-    creation_time = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
 
     runs = relationship("WorkflowRun", back_populates="workflow")
     tasks = relationship(
-        "Task", back_populates="workflow", cascade="all, delete-orphan"
-    )
+        "Task", back_populates="workflow", cascade="save-update, merge"
+    ) # NOTE: only update operations cascade, deletes don’t. Task might be related to historical workflow runs
     labels: Mapped[list["Label"]] = relationship(
         "Label",
         secondary=workflow_label,
         back_populates="workflows",
+        lazy="selectin"
     )
 
 
@@ -73,10 +72,11 @@ class WorkflowRun(Base):
         "Label",
         secondary=workflowrun_label,
         back_populates="workflow_runs",
+        lazy="selectin" # by default lazy='select', which means that the related items are loaded only when they are accessed
     )
     external_id = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
     workflow = relationship("Workflow", back_populates="runs")
     task_runs = relationship("TaskRun", back_populates="workflow_run")
 

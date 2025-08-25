@@ -1,3 +1,4 @@
+import logging
 from fastapi import (
     APIRouter,
     Depends,
@@ -20,6 +21,7 @@ from app.dependencies import (
 from app import crud, schemas, models
 from typing import Dict, Any
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # TODO: check which endpoints are needed, remove unused ones
@@ -43,12 +45,12 @@ router = APIRouter()
 async def get_workflows(
     skip: int = 0,
     limit: int = 100,
-    id: int = None,
+    id: Optional[int] = None,
     db: AsyncSession = Depends(get_async_db),
 ):
+    logger.debug("Getting workflows with skip=%d, limit=%d, id=%s", skip, limit, id)
     filters = {"id": id} if id else {}
     workflows = await crud.get_workflows(db, skip=skip, limit=limit, filters=filters)
-    print([m.__dict__ for m in workflows])
     return workflows
 
 
@@ -58,20 +60,20 @@ async def create_workflow(
     response: Response,
     db: AsyncSession = Depends(get_async_db),
 ):
-    workflow.config_definition = jsonable_encoder(workflow.config_definition)
-    workflow.labels = jsonable_encoder(workflow.labels)
+    logger.debug("Creating workflow: %s", workflow)
     db_workflow = await crud.create_workflow(db, workflow=workflow)
-    response.headers["Location"] = f"/workflows/{workflow.title}/{db_workflow.version}"
+    response.headers["Location"] = (
+        f"/workflows/{db_workflow.title}/{db_workflow.version}"
+    )
     return db_workflow
 
 
 @router.get("/workflows/{title}", response_model=List[schemas.Workflow])
-async def get_workflow_versions(
+async def get_workflow_by_title(
     title: str,
     latest: bool = False,
     db: AsyncSession = Depends(get_async_db),
 ):
-    filters = {"title": title}
     limit = 1 if latest else 100
     db_workflows = await crud.get_workflows(
         db,
@@ -81,7 +83,7 @@ async def get_workflow_versions(
     )
     if not db_workflows:
         raise HTTPException(
-            status_code=404, detail="No versions found for this workflow title"
+            status_code=404, detail=f"No versions found for workflow title {title}"
         )
     return db_workflows
 
@@ -157,14 +159,6 @@ async def get_workflow_tasks(
         )
     tasks = await crud.get_tasks_by_workflow(db, workflow_id=db_workflow.id)
     return tasks
-
-
-@router.get("/workflows/{title}/{version}/tasks", response_model=schemas.Task)
-async def get_tasks(task_id: int, db: AsyncSession = Depends(get_async_db)):
-    db_task = await crud.get_tasks(db, task_id=task_id)
-    if db_task is None:
-        raise HTTPException(status_code=404, detail="Task not found!")
-    return db_task
 
 
 @router.get(

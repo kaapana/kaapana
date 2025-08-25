@@ -2,6 +2,7 @@ import pytest
 from app import schemas
 from . import common
 import httpx
+from datetime import datetime
 
 API_BASE_URL = "http://localhost:8080/v1"
 
@@ -21,15 +22,13 @@ async def test_get_workflows():
     """
     response1 = await common.create_workflow(
         schemas.WorkflowCreate(
-            title="test1",
-            definition="test1",
+            title="test1", definition="test1", workflow_engine="Airflow"
         )
     )
     assert response1.raise_for_status() and response1.status_code == 201
     response2 = await common.create_workflow(
         schemas.WorkflowCreate(
-            title="test2",
-            definition="test2",
+            title="test2", definition="test2", workflow_engine="Airflow"
         )
     )
     assert response2.raise_for_status() and response2.status_code == 201
@@ -47,31 +46,38 @@ async def test_get_workflow_by_title():
     POST /v1/workflows
     GET /v1/workflows/{title}
     """
-    title = "test1"
+    title = 'test-' + f"{datetime.now().microsecond:06d}"
 
     response1 = await common.create_workflow(
         schemas.WorkflowCreate(
-            title=title,
-            definition="First one",
+            title=title, definition="get-by-title-1", workflow_engine="Airflow"
         )
     )
     assert response1.raise_for_status() and response1.status_code == 201
     response2 = await common.create_workflow(
         schemas.WorkflowCreate(
-            title=title,
-            definition="Second one",
+            title=title, definition="get-by-title-2", workflow_engine="Airflow"
         )
     )
     assert response2.raise_for_status() and response2.status_code == 201
+    # test latest=True
     async with httpx.AsyncClient(base_url=API_BASE_URL) as client:
-        params = {"skip": 0, "limit": 2}
+        params = {"latest": True}
+        response = await client.get(f"/workflows/{title}", params=params)
+        response.raise_for_status()
+        workflows = [schemas.Workflow(**wf) for wf in response.json()]
+        assert len(workflows) == 1
+        wf = workflows[0]
+        assert wf.title == title
+        assert wf.definition == "get-by-title-2"
+
+    # test latest=False
+    async with httpx.AsyncClient(base_url=API_BASE_URL) as client:
+        params = {"latest": False}
         response = await client.get(f"/workflows/{title}", params=params)
         response.raise_for_status()
         workflows = [schemas.Workflow(**wf) for wf in response.json()]
         assert len(workflows) == 2
-
-        for wf in workflows:
-            assert wf.title == title
 
 
 @pytest.mark.asyncio
@@ -82,15 +88,13 @@ async def test_get_workflow_by_title_version():
     """
     response1 = await common.create_workflow(
         schemas.WorkflowCreate(
-            title="test1",
-            definition="First one",
+            title="test1", definition="Get by version test", workflow_engine="Airflow"
         )
     )
     assert response1.raise_for_status() and response1.status_code == 201
     response2 = await common.create_workflow(
         schemas.WorkflowCreate(
-            title="test1",
-            definition="First one",
+            title="test1", definition="Get by version test", workflow_engine="Airflow"
         )
     )
     assert response2.raise_for_status() and response2.status_code == 201
@@ -110,8 +114,7 @@ async def test_delete():
     """
     response1 = await common.create_workflow(
         schemas.WorkflowCreate(
-            title="test1",
-            definition="First one",
+            title="test-to-be-deleted", definition="To be deleted", workflow_engine="Airflow"
         )
     )
     assert response1.raise_for_status() and response1.status_code == 201
@@ -122,7 +125,7 @@ async def test_delete():
             f"/workflows/{workflow1.title}/{workflow1.version}"
         )
         response.raise_for_status()
-        response.status_code == 204
+        assert response.status_code == 204
         get_response = await client.get(
             f"/workflows/{workflow1.title}/{workflow1.version}"
         )

@@ -67,12 +67,12 @@ def filter_by_project(query: select, model: type, project_id: UUID) -> select:
 
 async def get_workflows(
     db: AsyncSession,
-    filters: dict = None,
+    filters: Optional[Dict[str, Any]] = None,
     order_by=None,
     skip: int = 0,
     limit: int = 100,
     single: bool = False,
-):
+) -> List[models.Workflow]:
     """
     Generic function to get workflows based on filters and parameters.
     Workflows always eager load tasks by default.
@@ -91,28 +91,51 @@ async def get_workflows(
     return result.scalars().first() if single else result.scalars().all()
 
 
-async def create_workflow(db: AsyncSession, workflow: schemas.WorkflowCreate):
-    # TODO lock while determining version ?
+async def create_workflow(db: AsyncSession, workflow: schemas.WorkflowCreate)  -> models.Workflow:
+    # get version of workflow
+    # NOTE: no need to lock while determining version -> UniqueConstraint(title, version) raises IntegrityError on conflict
     stmt = select(func.max(models.Workflow.version)).filter_by(title=workflow.title)
     result = await db.execute(stmt)
-    max_version = result.scalar()
-    new_version = (max_version or 0) + 1
+    max_version = result.scalar() or 0
+    new_version = max_version + 1
+
+    # get config_definition as json
+    config_definition = None
+    if workflow.config_definition:
+        config_definition = workflow.config_definition.model_dump()
+
+    # add labels if they don't already exist
+    db_labels = []
+    for label in workflow.labels:
+        stmt = select(models.Label).where(
+            models.Label.key == label.key, models.Label.value == label.value
+        )
+        result = await db.execute(stmt)
+        db_label = result.scalars().first()
+        if not db_label:
+            db_label = models.Label(key=label.key, value=label.value)
+        db_labels.append(db_label)
+
+    # create workflow object
     db_workflow = models.Workflow(
         title=workflow.title,
+        workflow_engine=workflow.workflow_engine,
         definition=workflow.definition,
+        config_definition=config_definition,
         version=new_version,
-        config_definition=workflow.config_definition,
-        labels=workflow.labels,
+        labels=db_labels,
     )
+
     db.add(db_workflow)
     await db.commit()
-    # get workfow to load realationships:
-    workflow = await get_workflows(db=db, filters={"id": db_workflow.id}, single=True)
+    await db.refresh(
+        db_workflow
+    )  # ensures db_workflow.labels are fully loaded with lazy="selectin"
 
-    return workflow
+    return db_workflow
 
 
-async def delete_workflow(db: AsyncSession, db_workflow: models.Workflow):
+async def delete_workflow(db: AsyncSession, db_workflow: models.Workflow) -> bool:
     await db.delete(db_workflow)
     await db.commit()
     return True

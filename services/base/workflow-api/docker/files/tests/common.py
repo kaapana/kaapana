@@ -8,12 +8,11 @@ load_dotenv()
 USERNAME = os.getenv("USERNAME", "kaapana")
 PASSWORD = os.getenv("PASSWORD", "admin")
 PROTOCOL = os.getenv("PROTOCOL", "https")
-HOST = os.environ["HOST"]
+HOST = os.getenv("HOST")
 PORT = os.getenv("PORT", 443)
 SSL_CHECK = False if os.getenv("SSL_CHECK", "False").lower == "false" else True
 CLIENT_ID = os.getenv("CLIENT_ID", "kaapana")
-CLIENT_SECRET = os.environ["CLIENT_SECRET"]
-
+CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 
 API_BASE_URL = "http://localhost:8080/v1"
 

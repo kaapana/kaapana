@@ -1,5 +1,6 @@
 import logging
 
+from app.logging_config import setup_logging
 from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
 from app.api.workflows import router as workflow_router
 from app.api.workflow_runs import router as workflow_run_router
@@ -8,7 +9,9 @@ from app.database import async_engine
 from app.models import Base
 from contextlib import asynccontextmanager
 
+setup_logging()
 logger = logging.getLogger(__name__)
+
 API_VERSION = "v1"
 
 

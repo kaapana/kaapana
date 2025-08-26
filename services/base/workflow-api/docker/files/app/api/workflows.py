@@ -24,8 +24,6 @@ from typing import Dict, Any
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# TODO: check which endpoints are needed, remove unused ones
-
 # WebSocket endpoint for lifecycle updates
 # @router.websocket("/ws")
 # async def websocket_endpoint(websocket: WebSocket):
@@ -45,12 +43,18 @@ router = APIRouter()
 async def get_workflows(
     skip: int = 0,
     limit: int = 100,
+    order_by: Optional[str] = None,  # e.g., "created_at", "version"
+    order: Optional[str] = "desc",  # "asc" or "desc"
     id: Optional[int] = None,
     db: AsyncSession = Depends(get_async_db),
 ):
     logger.debug("Getting workflows with skip=%d, limit=%d, id=%s", skip, limit, id)
     filters = {"id": id} if id else {}
-    workflows = await crud.get_workflows(db, skip=skip, limit=limit, filters=filters)
+    workflows = await crud.get_workflows(
+        db, skip=skip, limit=limit, order_by=order_by, order=order, filters=filters
+    )
+    if not workflows:
+        raise HTTPException(status_code=404, detail="No workflows found")
     return workflows
 
 
@@ -72,19 +76,21 @@ async def create_workflow(
 async def get_workflow_by_title(
     title: str,
     latest: bool = False,
+    order_by: Optional[str] = None,
+    order: Optional[str] = "desc",
     db: AsyncSession = Depends(get_async_db),
 ):
     limit = 1 if latest else 100
     db_workflows = await crud.get_workflows(
         db,
         filters={"title": title},
-        order_by=models.Workflow.version.desc(),
+        order_by="version",
+        order="desc",
         limit=limit,
     )
     if not db_workflows:
-        raise HTTPException(
-            status_code=404, detail=f"No versions found for workflow title {title}"
-        )
+        logger.error(f"Workflow with {title=} not found")
+        raise HTTPException(status_code=404, detail="Workflow not found")
     return db_workflows
 
 
@@ -155,17 +161,18 @@ async def get_workflow_tasks(
     )
     if db_workflow is None:
         raise HTTPException(
-            status_code=404, detail="Workflow not found, cannot get tasks"
+            status_code=404,
+            detail="Failed to get tasks of workflow: Workflow not found",
         )
-    tasks = await crud.get_tasks_by_workflow(db, workflow_id=db_workflow.id)
+    tasks = await crud.get_tasks_of_workflow(db, workflow_id=db_workflow.id)
     return tasks
 
 
 @router.get(
     "/workflows/{title}/{version}/tasks/{task_title}", response_model=schemas.Task
 )
-async def get_tasks(task_id: int, db: AsyncSession = Depends(get_async_db)):
+async def get_task(task_id: int, db: AsyncSession = Depends(get_async_db)):
     db_task = await crud.get_tasks(db, task_id=task_id)
     if db_task is None:
-        raise HTTPException(status_code=404, detail="Task not found!")
+        raise HTTPException(status_code=404, detail="Task not found")
     return db_task

@@ -68,22 +68,31 @@ def filter_by_project(query: select, model: type, project_id: UUID) -> select:
 async def get_workflows(
     db: AsyncSession,
     filters: Optional[Dict[str, Any]] = None,
-    order_by=None,
+    order_by: Optional[str] = None,
+    order: Optional[str] = "desc",
     skip: int = 0,
     limit: int = 100,
     single: bool = False,
-) -> List[models.Workflow]:
+) -> Union[List[models.Workflow], models.Workflow]:
     """
     Generic function to get workflows based on filters and parameters.
     Workflows always eager load tasks by default.
     """
     # TODO join labels
+
+    # construct order_by expression
+    order_by_exp = models.Workflow.created_at.desc()
+    if order_by:
+        order_col = getattr(models.Workflow, order_by, None)
+        if order_col is not None:
+            order_by_exp = order_col.asc() if order == "asc" else order_col.desc()
+
     query = create_query(
         db=db,
         model=models.Workflow,
         filters=filters or {},
         eager_load=["tasks"],
-        order_by=order_by,
+        order_by=order_by_exp,
         skip=skip,
         limit=limit,
     )
@@ -91,7 +100,9 @@ async def get_workflows(
     return result.scalars().first() if single else result.scalars().all()
 
 
-async def create_workflow(db: AsyncSession, workflow: schemas.WorkflowCreate)  -> models.Workflow:
+async def create_workflow(
+    db: AsyncSession, workflow: schemas.WorkflowCreate
+) -> models.Workflow:
     # get version of workflow
     # NOTE: no need to lock while determining version -> UniqueConstraint(title, version) raises IntegrityError on conflict
     stmt = select(func.max(models.Workflow.version)).filter_by(title=workflow.title)
@@ -226,7 +237,7 @@ async def get_tasks(db: AsyncSession, task_id: int):
 # not used right now
 
 
-async def get_tasks_by_workflow(db: AsyncSession, workflow_id: int):
+async def get_tasks_of_workflow(db: AsyncSession, workflow_id: int):
     result = await db.execute(
         select(models.Task).filter(models.Task.workflow_id == workflow_id)
     )

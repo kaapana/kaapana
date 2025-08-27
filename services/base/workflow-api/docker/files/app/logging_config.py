@@ -14,5 +14,5 @@ def setup_logging():
     )
 
     # OPTIONAL: set verbose loggers to WARNING for uvicorn and sqlalchemy
-    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
-    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    # logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    # logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)

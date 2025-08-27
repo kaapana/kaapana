@@ -1,15 +1,16 @@
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from uuid import UUID
 from . import models, schemas
-from sqlalchemy import select, distinct, func
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
 from typing import Optional, Type, List, Union, Any, Dict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-from sqlalchemy.dialects.postgresql import insert
+
+logger = logging.getLogger(__name__)
 
 
 def create_query(
@@ -38,15 +39,21 @@ def create_query(
     """
     query = select(model)
 
-    # Apply direct filters
-    if filters:
-        for attr, value in filters.items():
-            query = query.filter(getattr(model, attr) == value)
-
-    # Apply eager loading (flat only)
+    # Apply eager loading
     if eager_load:
         for relation in eager_load:
             query = query.options(selectinload(getattr(model, relation)))
+
+    # Apply filters
+    if filters:
+        for attr, value in filters.items():
+            if "." in attr:  # related field filtering
+                rel_name, col_name = attr.split(".", 1)
+                rel = getattr(model, rel_name)
+                col = getattr(rel.property.mapper.class_, col_name)
+                query = query.join(rel).filter(col == value)
+            else:  # direct field filtering
+                query = query.filter(getattr(model, attr) == value)
 
     # Apply ordering
     if order_by is not None:
@@ -155,8 +162,7 @@ async def delete_workflow(db: AsyncSession, db_workflow: models.Workflow) -> boo
 # CRUD for WorkflowRun
 async def get_workflow_runs(
     db: AsyncSession,
-    filters: dict = None,
-    project_id: Optional[UUID] = None,
+    filters: dict = {},
     order_by=None,
     skip: int = 0,
     limit: int = 100,
@@ -166,23 +172,15 @@ async def get_workflow_runs(
     Generic function to get workflow runs with optional project filtering.
     """
 
-    query = create_query(
+    query: Any = create_query(
         db=db,
         model=models.WorkflowRun,
-        filters=filters or {},
+        filters=filters,
+        eager_load=["task_runs", "workflow"],
         order_by=order_by or models.WorkflowRun.id.desc(),
         skip=skip,
         limit=limit,
     )
-    # since nested, don't add to create_query
-    query = query.options(
-        selectinload(models.WorkflowRun.task_runs).selectinload(models.TaskRun.task)
-    )
-    # Add project filter if provided
-    if project_id:
-        query = query.filter(
-            models.WorkflowRun.workflow.has(models.Workflow.project_id == project_id)
-        )
 
     result = await db.execute(query)
     return result.scalars().first() if single else result.scalars().all()
@@ -191,12 +189,26 @@ async def get_workflow_runs(
 async def create_workflow_run(
     db: AsyncSession, workflow_run: schemas.WorkflowRunCreate, workflow_id: int
 ):
+    # add labels if they don't already exist
+    db_labels = []
+    for label in workflow_run.labels:
+        stmt = select(models.Label).where(
+            models.Label.key == label.key, models.Label.value == label.value
+        )
+        result = await db.execute(stmt)
+        db_label = result.scalars().first()
+        if not db_label:
+            db_label = models.Label(key=label.key, value=label.value)
+        db_labels.append(db_label)
+
     db_workflow_run = models.WorkflowRun(
-        workflow_id=workflow_id, config=workflow_run.config, labels=workflow_run.labels
+        workflow_id=workflow_id, config=workflow_run.config, labels=db_labels
     )
+
     db.add(db_workflow_run)
     await db.commit()
     await db.refresh(db_workflow_run)
+
     return db_workflow_run
 
 
@@ -295,7 +307,6 @@ async def create_task_run(
     db_task_run = models.TaskRun(
         task_id=task_id,
         workflow_run_id=workflow_run_id,
-        lifecycle_status=task_run.lifecycle_status,
     )
     db.add(db_task_run)
     await db.commit()

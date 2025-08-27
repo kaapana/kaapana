@@ -40,3 +40,10 @@ async def delete_workflow(headers, title, version) -> httpx.Response:
     return await httpx.AsyncClient(verify=False).delete(
         f"{API_BASE_URL}/workflows/{title}/{version}",
     )
+
+async def create_workflow_run(workflow_run_create: schemas.WorkflowRunCreate) -> httpx.Response:
+    return await httpx.AsyncClient(base_url=API_BASE_URL, verify=False).post(
+        "/workflow-runs",
+        json=workflow_run_create.model_dump(),
+    )
+

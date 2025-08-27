@@ -8,18 +8,14 @@ from fastapi import (
     WebSocketDisconnect,
     status,
 )
-from fastapi.encoders import jsonable_encoder
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
-from datetime import datetime
-import json
 from app.dependencies import (
     get_async_db,
     get_forwarded_headers,
 )
-from app import crud, schemas, models
-from typing import Dict, Any
+from app import crud, schemas
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

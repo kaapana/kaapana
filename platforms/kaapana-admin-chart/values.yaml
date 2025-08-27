@@ -10,6 +10,3 @@ global:
   internalCidrs:
     - 10.152.183.0/24 ### Default range for services in microk8s https://microk8s.io/docs/change-cidr
     - 10.1.0.0/16 ### Default range for pods in microk8s https://microk8s.io/docs/change-cidr
-
-migration-chart:
-  enabled: false

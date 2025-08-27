@@ -50,12 +50,9 @@ class Workflow(Base):
     runs = relationship("WorkflowRun", back_populates="workflow")
     tasks = relationship(
         "Task", back_populates="workflow", cascade="save-update, merge"
-    ) # NOTE: only update operations cascade, deletes don’t. Task might be related to historical workflow runs
+    )  # NOTE: only update operations cascade, deletes don’t. Task might be related to historical workflow runs
     labels: Mapped[list["Label"]] = relationship(
-        "Label",
-        secondary=workflow_label,
-        back_populates="workflows",
-        lazy="selectin"
+        "Label", secondary=workflow_label, back_populates="workflows", lazy="selectin"
     )
 
 
@@ -72,13 +69,17 @@ class WorkflowRun(Base):
         "Label",
         secondary=workflowrun_label,
         back_populates="workflow_runs",
-        lazy="selectin" # by default lazy='select', which means that the related items are loaded only when they are accessed
+        lazy="selectin",  # by default lazy='select', which means that the related items are loaded only when they are accessed
     )
     external_id = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
-    workflow = relationship("Workflow", back_populates="runs")
-    task_runs = relationship("TaskRun", back_populates="workflow_run")
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=datetime.now(timezone.utc),
+        onupdate=datetime.now(timezone.utc),
+    )
+    workflow = relationship("Workflow", back_populates="runs", lazy="selectin")
+    task_runs = relationship("TaskRun", back_populates="workflow_run", lazy="selectin")
 
 
 class Label(Base):

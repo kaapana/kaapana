@@ -17,13 +17,11 @@ services:
     volumes:
       - database:/var/lib/postgresql/data
 
-    
-
   api:
     build:
       context: .
     image: workflow-api:latest
-    ports: 
+    ports:
       - 8080:8080
     environment:
       - APPLICATION_ROOT=/

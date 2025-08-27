@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Json, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field
 from app.validation.config_definition import ConfigDefinition
 from enum import Enum
 
@@ -20,6 +20,8 @@ class LifecycleStatus(str, Enum):
 class Label(BaseModel):
     key: str
     value: str
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 #####################################
@@ -76,7 +78,7 @@ class Task(TaskBase):
 
 
 class TaskRunBase(BaseModel):
-    task: Task
+    task_id: int
     workflow_run_id: int
 
 
@@ -96,18 +98,22 @@ class TaskRun(TaskRunBase):
 #####################################
 
 
+class WorkflowRef(BaseModel):
+    """Lightweight reference to a Workflow for embedding in WorkflowRun."""
+
+    title: str
+    version: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class WorkflowRunBase(BaseModel):
-    workflow_title: str
-    workflow_version: int
+    workflow: WorkflowRef
     labels: List[Label] = []
     config: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
 class WorkflowRunCreate(WorkflowRunBase):
-    """
-    Schema for the route POST /workflow-runs
-    """
-
     pass
 
 
@@ -116,6 +122,7 @@ class WorkflowRun(WorkflowRunBase):
     external_id: Optional[str] = None
     created_at: datetime
     lifecycle_status: LifecycleStatus
+    workflow: WorkflowRef
     task_runs: List[TaskRun] = Field(default_factory=list)
     updated_at: datetime
 
@@ -125,4 +132,3 @@ class WorkflowRun(WorkflowRunBase):
 class WorkflowRunUpdate(BaseModel):
     external_id: Optional[str]
     lifecycle_status: Optional[LifecycleStatus]
-    updated_at: datetime

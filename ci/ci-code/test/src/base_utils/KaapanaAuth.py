@@ -56,7 +56,7 @@ class KaapanaAuth:
         data={},
         params={},
         raise_for_status=True,
-        timeout=10,
+        timeout=30,
         retries=5,
         headers={},
     ):

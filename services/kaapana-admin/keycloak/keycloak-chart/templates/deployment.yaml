@@ -63,9 +63,9 @@ spec:
             containerPort: 9990
           resources:
             requests:
-              memory: 1000Mi
+              memory: 600Mi
             limits:
-              memory: 1250Mi
+              memory: 700Mi
           volumeMounts:
             - name: ssl-config-files
               mountPath: /etc/x509/https

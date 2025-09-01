@@ -29,7 +29,7 @@ echo "$REGISTRY_TOKEN" | docker login "$REGISTRY_URL" -u "$REGISTRY_USER" --pass
 echo "$DOCKER_IO_PASSWORD" | docker login docker.io -u "$DOCKER_IO_USER" --password-stdin
 
 export REGISTRY_USER=$REGISTRY_USER
-export REGISTRY_USER=$REGISTRY_TOKEN
+export REGISTRY_PW=$REGISTRY_TOKEN
 set -x
 
 # --- Start build process ---

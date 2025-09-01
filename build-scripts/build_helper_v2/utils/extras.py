@@ -1,9 +1,9 @@
 from subprocess import PIPE, run
 
 
-def get_image_stats(version, ctx):
-    images_stats = {}
-    command = [f"{ctx.config.container_engine} image ls | grep {version}"]
+def get_image_stats(version: str, container_engine: str):
+    images_stats: dict[str, dict] = {}
+    command = [f"{container_engine} image ls | grep {version}"]
     output = run(
         command,
         shell=True,
@@ -23,7 +23,7 @@ def get_image_stats(version, ctx):
             size = convert_size(size)
             images_stats[f"{image_name}:{image_tag}"] = {"size": size}
 
-    command = [f"{ctx.config.container_engine} system df -v | grep {version}"]
+    command = [f"{container_engine} system df -v | grep {version}"]
     output = run(
         command,
         shell=True,

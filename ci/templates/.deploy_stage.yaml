@@ -7,8 +7,6 @@ default:
 
 stages:
   - deploy
-  - wait
-  - check
   - test
 
 workflow:
@@ -20,8 +18,8 @@ platform_deployment:
   script:
     - source /home/$USER/venv/bin/activate
     - ansible-playbook $REPO_DIR/ci-code/deploy/deploy_platform.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
-    - ansible-playbook $REPO_DIR/ci-code/deploy/wait_for_platform.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
-    - ansible-playbook $REPO_DIR/ci-code/deploy/check_pods.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
+    # - ansible-playbook $REPO_DIR/ci-code/deploy/wait_for_platform.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
+    # - ansible-playbook $REPO_DIR/ci-code/deploy/check_pods.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
   artifacts: ### Save environment such that upcoming tasks can depend on this task and have all variables available
     reports:
       dotenv: prepare.env

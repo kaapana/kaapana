@@ -141,7 +141,7 @@
     - name: Run platform deployment script
       register: deploy_result
       ignore_errors: yes
-      no_log: true
+      no_log: false
       become: no
       environment:
         TERM: xterm
@@ -157,3 +157,12 @@
     - name: Fail playbook and job if deployment failed
       ansible.builtin.command: /bin/false
       when: deploy_result.rc != 0
+  
+  - name: Wait until all deployments are healthy
+    ansible.builtin.command: 
+      cmd: ./deploy_platform.sh --check-system
+      chdir: "{{ ansible_env.HOME }}/"
+    register: system_check
+    until: system_check.rc == 0
+    retries: 60
+    delay: 5     

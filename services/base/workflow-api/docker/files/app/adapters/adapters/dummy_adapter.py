@@ -1,15 +1,19 @@
-from typing import List, Dict, Any, Optional
+import logging
+import time
+from typing import List, Dict, Any
 
 from app.adapters.base import WorkflowEngineAdapter
 from app import schemas, crud
 from app.schemas import LifecycleStatus
+from sqlalchemy.ext.asyncio import AsyncSession
+
+
+logger = logging.getLogger(__name__)
 
 
 class DummyAdapter(WorkflowEngineAdapter):
     """
-    Airflow-specific adapter implementation for synchronous communication.
-    This adapter handles submitting, monitoring, and canceling workflows
-    via the Airflow API.
+    Dummy adapter for testing purposes
     """
 
     workflow_engine = "dummy"
@@ -17,8 +21,33 @@ class DummyAdapter(WorkflowEngineAdapter):
     def __init__(self):
         super().__init__()
 
-    def post_workflow(self):
-        pass
+    async def submit_workflow(
+        self, db: AsyncSession, workflow: schemas.Workflow
+    ) -> bool:
+        logger.info(f"Posting workflow to DummyAdapter: {workflow.title}")
+        time.sleep(2)
+        # TODO: add task2 should be a downstream task of task1, but since task1 comes first, adding task2 as downstream does not work
+        # TODO: might need a `crud.add_downstream_task` method
+        task1 = await crud.create_task(
+            db=db,
+            task=schemas.TaskCreate(
+                title="dummy-task-1", display_name="Dummy Task 1", type="test"
+            ),
+            workflow_id=workflow.id,
+        )
+        task2 = await crud.create_task(
+            db=db,
+            task=schemas.TaskCreate(
+                title="dummy-task-2",
+                display_name="Dummy Task 2",
+                type="test",
+            ),
+            workflow_id=workflow.id,
+        )
+        logger.info(
+            f"Dummy adapter successfully added tasks: {task1.title}, {task2.title}"
+        )
+        return True
 
     def submit_workflow_run(
         self,
@@ -26,7 +55,7 @@ class DummyAdapter(WorkflowEngineAdapter):
         workflow_run: schemas.WorkflowRun,
     ) -> schemas.WorkflowRun:
         """ """
-
+        time.sleep(5)
         return crud.update_workflow_run(
             run_id=workflow_run.id,
             workflow_run_update=schemas.WorkflowRunUpdate(LifecycleStatus.COMPLETED),

@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-from glob import glob
+import json
 import os
+from glob import glob
+from shutil import which
 from subprocess import PIPE, run
 from time import time
-from shutil import which
-from build_helper.build_utils import BuildUtils
+
 from alive_progress import alive_bar
-import json
+from build_helper.build_utils import BuildUtils
 
 suite_tag = "Container"
 max_retries = 30

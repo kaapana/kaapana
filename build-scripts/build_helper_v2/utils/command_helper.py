@@ -1,7 +1,6 @@
+import logging
 import subprocess
 from typing import Dict, List, Optional
-
-from build_helper.build_utils_v2 import BuildUtils
 
 
 class CommandHelper:
@@ -16,11 +15,10 @@ class CommandHelper:
         exit_on_error: bool = False,
         context: Optional[str] = None,
         hints: Optional[List[str]] = None,
+        logger: logging.Logger,
     ) -> subprocess.CompletedProcess:
         if log_command:
-            BuildUtils.logger.debug(
-                f"{'[' + context + '] ' if context else ''}Running: {command}"
-            )
+            logger.debug(f"{'[' + context + '] ' if context else ''}Running: {command}")
 
         try:
             result = subprocess.run(
@@ -33,25 +31,23 @@ class CommandHelper:
                 env=env,
             )
         except Exception as e:
-            BuildUtils.logger.error(
+            logger.error(
                 f"{'[' + context + '] ' if context else ''}Command failed: {e}"
             )
             if hints:
                 for hint in hints:
-                    BuildUtils.logger.error(f"hint: {hint}")
+                    logger.error(f"hint: {hint}")
             if exit_on_error:
                 exit(1)
             raise
 
         if result.returncode != 0:
-            BuildUtils.logger.error(
-                f"{'[' + context + '] ' if context else ''}Command failed"
-            )
-            BuildUtils.logger.error(f"stdout: {result.stdout.strip()}")
-            BuildUtils.logger.error(f"stderr: {result.stderr.strip()}")
+            logger.error(f"{'[' + context + '] ' if context else ''}Command failed")
+            logger.error(f"stdout: {result.stdout.strip()}")
+            logger.error(f"stderr: {result.stderr.strip()}")
             if hints:
                 for hint in hints:
-                    BuildUtils.logger.error(f"hint: {hint}")
+                    logger.error(f"hint: {hint}")
             if exit_on_error:
                 exit(1)
 

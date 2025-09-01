@@ -4,18 +4,18 @@ from pathlib import Path
 from shutil import copyfile, rmtree
 from time import time
 
-from build_helper_v2.cli.config_utils import (
+from build_helper_v2.cli.config_loader import (
     load_yaml,
     merge_args_with_config,
     parse_args,
 )
-from build_helper_v2.core.app_context import AppContext
+from build_helper_v2.core.build_state import BuildState
 from build_helper_v2.models.build_config import BuildConfig
-from build_helper_v2.models.build_state import BuildState
+from build_helper_v2.services.build_service import BuildService
 from build_helper_v2.services.container_service import ContainerService
-
-# from build_helper_v2.services.helm_chart_service import HelmChartService
-from build_helper_v2.utils.logger import CustomLogger
+from build_helper_v2.services.helm_chart_service import HelmChartService
+from build_helper_v2.services.issue_tracker import IssueTracker
+from build_helper_v2.utils.logger import get_logger, init_logger, set_console_level
 
 
 def main():
@@ -33,9 +33,8 @@ def main():
         rmtree(build_dir)
 
     build_dir.mkdir(parents=True, exist_ok=True)
-    custom_logger = CustomLogger(build_dir, log_level="DEBUG")
-    logger = custom_logger.get_logger()
-
+    init_logger(build_dir, log_level="DEBUG")
+    logger = get_logger()
     logger.info("-----------------------------------------------------------")
     logger.info("--------------- loading build-configuration ---------------")
     logger.info("-----------------------------------------------------------")
@@ -62,7 +61,7 @@ def main():
     )
     config_data = merge_args_with_config(args, file_config)
     config = BuildConfig(**config_data)
-    custom_logger.set_console_level(config.log_level)
+    set_console_level(config.log_level)
 
     logger.info("")
     logger.info("-----------------------------------------------------------")
@@ -73,62 +72,75 @@ def main():
     logger.info("")
     config.log_self(logger)
 
-    ctx = AppContext(
-        config=config, logger=logger, build_state=BuildState(started_at=time())
-    )
+    build_state = BuildState(started_at=time())
 
     logger.info("-----------------------------------------------------------")
-    container_service = ContainerService(ctx=ctx)
-    container_service.verify_container_engine_installed()
 
-    # chart_service = HelmChartService(ctx=ctx)
-    # chart_service.verify_helm_installed()
+    ContainerService.init(config=config, build_state=build_state)
+    ContainerService.verify_container_engine_installed()
+
+    HelmChartService.init(config=config, build_state=build_state)
+    HelmChartService.verify_helm_installed()
 
     if not config.build_only and not config.no_login:
-        container_service.container_registry_login(
+        ContainerService.container_registry_login(
             username=config.registry_username, password=config.registry_password
         )
-        # chart_service.helm_registry_login(
-        #     username=config.registry_username, password=config.registry_password
-        # )
+        HelmChartService.helm_registry_login(
+            username=config.registry_username, password=config.registry_password
+        )
 
     logger.info("-----------------------------------------------------------")
-    containers_available = container_service.collect_containers()
-    # charts_available = chart_service.collect_charts()
-
+    ContainerService.collect_containers()
+    ContainerService.resolve_base_images_into_container()
+    HelmChartService.collect_charts()
+    HelmChartService.resolve_chart_dependencies()
     logger.info("")
     logger.info("-----------------------------------------------------------")
     logger.info("------------------ BUILD PLATFORM CHARTS ------------------")
     logger.info("-----------------------------------------------------------")
     logger.info("")
+    
+    selected_charts, selected_containers = BuildService.determine_build_targets(
+        build_config=config, build_state=build_state
+    )
+    
+    if not selected_charts:
+        ContainerService.build_and_push_containers(selected_containers)
+    else:
+        # HelmChartService.generate_build_tree(selected_charts)
+        # HelmChartService.build_and_push_charts(selected_charts)        
+        ContainerService.build_and_push_containers(selected_containers)
 
-    # chart_service.generate_platform_build_tree()
+    if config.vulnerability_scan:
+        pass
+        
+    if config.create_sboms:
+        pass
+        # trivy_utils = BuildUtils.trivy_utils
+        # trivy_utils.tag = BuildUtils.platform_build_version
 
-    # if BuildUtils.config.vulnerability_scan or BuildUtils.config.create_sboms:
-    #     trivy_utils = BuildUtils.trivy_utils
-    #     trivy_utils.tag = BuildUtils.platform_build_version
+        # def handler(signum, frame):
+        #     logger.info("Exiting...")
 
-    #     def handler(signum, frame):
-    #         BuildUtils.logger.info("Exiting...")
+        #     trivy_utils.kill_flag = True
 
-    #         trivy_utils.kill_flag = True
+        #     with trivy_utils.semaphore_threadpool:
+        #         if trivy_utils.threadpool is not None:
+        #             trivy_utils.threadpool.terminate()
+        #             trivy_utils.threadpool = None
+        #     trivy_utils.error_clean_up()
 
-    #         with trivy_utils.semaphore_threadpool:
-    #             if trivy_utils.threadpool is not None:
-    #                 trivy_utils.threadpool.terminate()
-    #                 trivy_utils.threadpool = None
-    #         trivy_utils.error_clean_up()
+        #     if BuildUtils.create_sboms:
+        #         trivy_utils.safe_sboms()
+        #     if BuildUtils.vulnerability_scan:
+        #         trivy_utils.safe_vulnerability_reports()
 
-    #         if BuildUtils.create_sboms:
-    #             trivy_utils.safe_sboms()
-    #         if BuildUtils.vulnerability_scan:
-    #             trivy_utils.safe_vulnerability_reports()
+        #     exit(1)
 
-    #         exit(1)
+        # signal.signal(signal.SIGTSTP, handler)
 
-    #     signal.signal(signal.SIGTSTP, handler)
-
-    # # Create SBOMs if enabled
+    # Create SBOMs if enabled
     # if BuildUtils.create_sboms:
     #     trivy_utils.create_sboms(successful_built_containers)
     # # Scan for vulnerabilities if enabled
@@ -149,25 +161,27 @@ def main():
     #             path_to_chart=os.path.join(BuildUtils.build_dir, chart_object)
     #         )
 
-    if len(ctx.build_state.issues) > 0:
+    if len(IssueTracker.issues) > 0:
         logger.info("")
         logger.info("-----------------------------------------------------------")
         logger.info("------------------------ ISSUES: --------------------------")
         logger.info("-----------------------------------------------------------")
-        for issue in ctx.build_state.issues:
-            issue.log_self(ctx.logger)
+        for issue in IssueTracker.issues:
+            issue.log_self(logger)
 
-    hours, rem = divmod(time() - ctx.build_state.started_at, 3600)
-    minutes, seconds = divmod(rem, 60)
-    logger.info("")
-    logger.info("")
-    logger.info("")
-    logger.info("-----------------------------------------------------------")
-    logger.info(
-        "------------------ TIME NEEDED: {:0>2}:{:0>2}:{:0>2} -----------------".format(
-            int(hours), int(minutes), int(seconds)
+    build_state.mark_finished()
+    if build_state.duration:
+        hours, rem = divmod(build_state.duration, 3600)
+        minutes, seconds = divmod(rem, 60)
+        logger.info("")
+        logger.info("")
+        logger.info("")
+        logger.info("-----------------------------------------------------------")
+        logger.info(
+            "------------------ TIME NEEDED: {:0>2}:{:0>2}:{:0>2} -----------------".format(
+                int(hours), int(minutes), int(seconds)
+            )
         )
-    )
     logger.info("-----------------------------------------------------------")
     logger.info("-------------------------- DONE ---------------------------")
     logger.info("-----------------------------------------------------------")

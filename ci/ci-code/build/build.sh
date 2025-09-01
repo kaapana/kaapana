@@ -16,11 +16,11 @@ pip install -r "$KAAPANA_DIR/build-scripts/requirements.txt"
 cp "$KAAPANA_DIR/build-scripts/build-config-template.yaml" "$BUILD_CONFIG_FILE"
 
 # --- Set registry URL in build-config.yaml ---
-sed -i -E "s|^default_registry:[[:space:]]*\"[a-zA-Z./\-_<>]*\"|default_registry: \"$REGISTRY_URL\"|" "$BUILD_CONFIG_FILE"
+sed -i -E "s|^default_registry:[[:space:]]*.*|default_registry: \"$REGISTRY_URL\"|" "$BUILD_CONFIG_FILE"
 
 # --- Adjust exit_on_error if flags set ---
 if [[ "$BUILD_ARGUMENTS" =~ -vs|--vulnerability-scan|-cc|--configuration-check ]]; then
-  sed -i -E "s|^exit_on_error:[[:space:]]*[a-zA-Z]*|exit_on_error: false|" "$BUILD_CONFIG_FILE"
+  sed -i -E "s|^exit_on_error:[[:space:]]*.*|exit_on_error: false|" "$BUILD_CONFIG_FILE"
 fi
 
 # --- Docker logins ---

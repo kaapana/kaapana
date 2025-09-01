@@ -35,8 +35,8 @@ set -x
 # --- Start build process ---
 set +e
 python3 "$KAAPANA_DIR/build-scripts/start_build.py" \
-    -c "$BUILD_CONFIG_FILE"
-    $BUILD_ARGUMENTS
+    -c "$BUILD_CONFIG_FILE" \
+    $BUILD_ARGUMENTS 
 BUILD_RC=$?
 set -e
 

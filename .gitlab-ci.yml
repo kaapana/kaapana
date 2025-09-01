@@ -144,7 +144,7 @@ build_packages:
   script:
   - source /home/$USER/venv/bin/activate
   - if [[ $DOCKER_PRUNE == "true" ]]; then docker system prune --all --volumes -f; fi
-  - if [[ $EXECUTE_BUILD == "true" ]]; then ansible-playbook $REPO_DIR/ci-code/build/build_and_push.yaml 2>&1 | tee $ARTIFACTS_DIR/ansible_build_and_push.log; fi
+  - if [[ $EXECUTE_BUILD == "true" ]]; then bash $REPO_DIR/ci-code/build/build.sh; fi
   retry: 1
   resource_group: build-1
   environment: build-1
@@ -156,7 +156,7 @@ build_documentation:
   script:
   - source /home/$USER/venv/bin/activate
   - cd $REPO_DIR/ci-code/build
-  - ansible-playbook build_documentation.yaml 2>&1 | tee $ARTIFACTS_DIR/ansible_build_documentation.log
+  - bash build_documentation.sh
   - if [[ $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop" ]]; then bash check_readthedocs.sh; fi
   rules:
   - if: $EXECUTE_BUILD == "false"

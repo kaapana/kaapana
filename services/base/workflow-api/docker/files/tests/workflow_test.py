@@ -24,13 +24,19 @@ async def test_create_and_get_workflows():
 
     resp1 = await common.create_workflow(
         schemas.WorkflowCreate(
-            title=title1, definition="create-get-wf1", workflow_engine="Airflow"
+            title=title1,
+            definition="create-get-wf1",
+            workflow_engine="dummy",
+            labels=[schemas.Label(key="created_from_test", value="true")],
         )
     )
     assert resp1.status_code == 201
     resp2 = await common.create_workflow(
         schemas.WorkflowCreate(
-            title=title2, definition="create-get-wf2", workflow_engine="Airflow"
+            title=title2,
+            definition="create-get-wf2",
+            workflow_engine="dummy",
+            labels=[schemas.Label(key="created_from_test", value="true")],
         )
     )
     assert resp2.status_code == 201
@@ -57,13 +63,13 @@ async def test_get_workflows_by_title():
 
     resp1 = await common.create_workflow(
         schemas.WorkflowCreate(
-            title=title, definition="def-v1", workflow_engine="Airflow"
+            title=title, definition="def-v1", workflow_engine="dummy"
         )
     )
     assert resp1.status_code == 201
     resp2 = await common.create_workflow(
         schemas.WorkflowCreate(
-            title=title, definition="def-v2", workflow_engine="Airflow"
+            title=title, definition="def-v2", workflow_engine="dummy"
         )
     )
     assert resp2.status_code == 201
@@ -125,3 +131,41 @@ async def test_delete_workflow():
 
         get_resp = await client.get(f"/workflows/{wf.title}/{wf.version}")
         assert get_resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_workflow_tasks():
+    title = f"wf-gettasks-test-{datetime.now().timestamp()}"
+    resp1 = await common.create_workflow(
+        schemas.WorkflowCreate(
+            title=title, definition="test-get-tests", workflow_engine="dummy"
+        )
+    )
+    assert resp1.status_code == 201
+    wf1 = schemas.Workflow(**resp1.json())
+
+    async with httpx.AsyncClient(base_url=API_BASE_URL) as client:
+        resp1 = await client.get(f"/workflows/{wf1.title}/{wf1.version}")
+        assert resp1.status_code == 200
+        wf = schemas.Workflow(**resp1.json())
+        assert wf.id == wf1.id
+        assert wf.definition == wf1.definition
+
+        # get all tasks of the workflow
+        resp2 = await client.get(f"/workflows/{wf1.title}/{wf1.version}/tasks")
+        assert resp2.status_code == 200
+        tasks = resp2.json()
+        for task in tasks:
+            t = schemas.Task(**task)
+            assert t.title in ["dummy-task-1", "dummy-task-2"]
+
+        # get specific task by title
+        resp3 = await client.get(
+            f"/workflows/{wf1.title}/{wf1.version}/tasks/dummy-task-1"
+        )
+        assert resp3.status_code == 200
+        task = schemas.Task(**resp3.json())
+        assert task.title == "dummy-task-1"
+        assert task.display_name == "Dummy Task 1"
+
+    # TODO: test for downstream tasks

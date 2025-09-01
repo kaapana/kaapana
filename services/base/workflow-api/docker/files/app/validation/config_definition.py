@@ -23,7 +23,7 @@ class WorkflowParameter(BaseModel):
     title: str
     # "The tag must exist in all test segmentations, and must not exist in ground truth data"
     description: Optional[str] = None
-    task_identifier: str  # get-input
+    task_title: str  # get-input
     # DELETE_COMPLETE_STUDY (str)
     env_variable_name: str
     required: Optional[bool] = False

@@ -1,7 +1,6 @@
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
-from uuid import UUID
 from . import models, schemas
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
@@ -66,10 +65,6 @@ def create_query(
         query = query.limit(limit)
 
     return query
-
-
-def filter_by_project(query: select, model: type, project_id: UUID) -> select:
-    return query.filter(getattr(model, "project_id") == project_id)
 
 
 async def get_workflows(
@@ -230,23 +225,37 @@ async def update_workflow_run(
     return db_workflow_run
 
 
-async def get_task_runs_by_workflow_run(db: AsyncSession, workflow_run_id: int):
-    result = await db.execute(
-        select(models.TaskRun)
-        .filter(models.TaskRun.workflow_run_id == workflow_run_id)
-        .options(selectinload(models.TaskRun.task))
-    )
-    return result.scalars().all()
-
-
-async def get_tasks(db: AsyncSession, task_id: int):
-    result = await db.execute(select(models.Task).filter(models.Task.id == task_id))
-    return result.scalars().first()
-
-
 # CRUD for Task
 
-# not used right now
+
+async def get_tasks(
+    db: AsyncSession,
+    order_by: Optional[str] = None,
+    filters: Optional[Dict[str, Any]] = None,
+    order: Optional[str] = "desc",
+    skip: int = 0,
+    limit: int = 100,
+    single: bool = False,
+):
+    logger.info(f"Getting tasks with filters: {filters}, order_by: {order_by}, order: {order}, skip: {skip}, limit: {limit}")
+    # construct order_by expression
+    order_by_exp = models.Task.id.desc()
+    if order_by:
+        order_col = getattr(models.Task, order_by, None)
+        if order_col is not None:
+            order_by_exp = order_col.asc() if order == "asc" else order_col.desc()
+
+    query = create_query(
+        db=db,
+        model=models.Task,
+        filters=filters or {},
+        order_by=order_by_exp,
+        skip=skip,
+        limit=limit,
+    )
+    result = await db.execute(query)
+
+    return result.scalars().first() if single else result.scalars().all()
 
 
 async def get_tasks_of_workflow(db: AsyncSession, workflow_id: int):
@@ -257,22 +266,56 @@ async def get_tasks_of_workflow(db: AsyncSession, workflow_id: int):
 
 
 async def create_task(db: AsyncSession, task: schemas.TaskCreate, workflow_id: int):
+    logger.info(f"Creating task {task.display_name} for workflow_id {workflow_id}")
+
+    # TODO: handle downstream tasks in a different endpoint and add a `crud.add_downstream_task` method
+    # add downstream tasks if they don't already exist
+    # db_downstream_tasks = []
+    # for ds_task_id in task.downstream_task_ids:
+    #     stmt = select(models.DownstreamTask).where(
+    #         models.DownstreamTask.task_id == db_task.id,
+    #         models.DownstreamTask.downstream_task_id == ds_task_id,
+    #     )
+    #     result = await db.execute(stmt)
+    #     db_ds_task = result.scalars().first()
+    #     if not db_ds_task:
+    #         db_ds_task = models.DownstreamTask(
+    #             task_id=ds_task_id,
+    #             downstream_task_id=ds_task_id,
+    #         )
+    #     db_downstream_tasks.append(db_ds_task)
+
     db_task = models.Task(
         workflow_id=workflow_id,
-        task_identifier=task.task_identifier,
+        title=task.title,
         display_name=task.display_name,
         type=task.type,
-        input_tasks_ids=task.input_tasks_ids,
-        output_tasks_ids=task.output_tasks_ids,
+        # downstream_tasks=db_downstream_tasks,
     )
+
     db.add(db_task)
     await db.commit()
     await db.refresh(db_task)
+
     return db_task
 
 
 # CRUD for TaskRun
-async def get_task_run(db: AsyncSession, task_run_id: int):
+
+
+async def get_task_runs_of_workflow_run(db: AsyncSession, workflow_run_id: int):
+    result = await db.execute(
+        select(models.TaskRun)
+        .filter(models.TaskRun.workflow_run_id == workflow_run_id)
+        .options(selectinload(models.TaskRun.task))
+    )
+    return result.scalars().all()
+
+
+async def get_task_run(
+    db: AsyncSession,
+    filters: Optional[Dict[str, Any]] = None,
+):
     result = await db.execute(
         select(models.TaskRun).filter(models.TaskRun.id == task_run_id)
     )

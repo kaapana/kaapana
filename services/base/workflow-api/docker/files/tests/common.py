@@ -21,6 +21,7 @@ async def create_workflow(workflow_create: schemas.WorkflowCreate) -> httpx.Resp
     return await httpx.AsyncClient(base_url=API_BASE_URL, verify=False).post(
         "/workflows",
         json=workflow_create.model_dump(),
+        timeout=10.0,
     )
 
 

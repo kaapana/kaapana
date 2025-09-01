@@ -22,21 +22,29 @@ class BuildConfig(BaseModel):
     registry_username: str
     registry_password: str
     include_credentials: bool
-    no_login: bool
+    no_login: bool = False
 
     # Build Script
     build_dir: Path
     kaapana_dir: Path
-    version_latest: bool
-    build_only: bool
+    version_latest: bool = False
     container_engine: str
     exit_on_error: bool
     log_level: str
     enable_linting: bool
-    enable_build_kit: bool
+    enable_build_kit: bool = (
+        True  # Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/
+    )
     skip_push_no_changes: bool
     parallel_processes: int
-    max_build_rounds: int
+    max_build_rounds: int = 5
+    max_push_retries: int = 30
+
+    # Build Target
+    interactive: bool = False
+    build_only: bool
+    build_charts: List[str] = Field(default_factory=list)
+    build_containers: List[str] = Field(default_factory=list)
 
     # Others
     http_proxy: Optional[str]
@@ -59,7 +67,12 @@ class BuildConfig(BaseModel):
     @classmethod
     def preprocess_lists(cls, data: dict[str, Any]) -> dict[str, Any]:
         # Convert CSV strings to lists
-        for field_name in ["platform_filter", "build_ignore_patterns"]:
+        for field_name in [
+            "platform_filter",
+            "build_ignore_patterns",
+            "build_charts",
+            "build_containers",
+        ]:
             if field_name in data and isinstance(data[field_name], str):
                 data[field_name] = [
                     x.strip() for x in data[field_name].split(",") if x.strip()

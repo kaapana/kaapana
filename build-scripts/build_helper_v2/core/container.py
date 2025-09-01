@@ -1,11 +1,41 @@
 from __future__ import annotations
 
-import logging
+import os
+import subprocess
+import tempfile
+import time
+from enum import Enum, auto
 from pathlib import Path
-from typing import List
+from subprocess import PIPE, run
+from typing import List, Optional, Set
 
-from build_helper_v2.models import BuildConfig, IssueTracker
+from build_helper_v2.models.build_config import BuildConfig
+from build_helper_v2.models.issue import Issue
+from build_helper_v2.services.issue_tracker import IssueTracker
 from build_helper_v2.utils.git_utils import GitUtils
+from build_helper_v2.utils.logger import get_logger
+
+logger = get_logger()
+
+
+class Status(Enum):
+    """Represents the lifecycle status of a container build."""
+
+    NOT_BUILT = auto()  # initial state
+    BUILD_DISABLED = auto()  # build skipped/disabled
+
+    WAITING = "waiting"  # waiting for dependencies
+    BUILDING = "building"  # Status during the built
+    BUILT = "waiting"  # built successfully
+    BUILD_FAILED = auto()  # build faile
+    NOTHING_CHANGED = auto()  # build succeeded but nothing changed
+
+    PUSHING = auto()
+    PUSH_FAILED = auto()  # push failed
+    PUSH_DISABLED = auto()  # push skipped/disabled
+    PUSHED = auto()
+
+    DONE = "Done"
 
 
 class BaseImage:
@@ -16,19 +46,20 @@ class BaseImage:
         tag: str,
         registry: str,
         project: str,
-        name: str,
+        image_name: str,
         version: str,
         local_image: bool = False,
     ):
         self.tag = tag
         self.registry = registry
         self.project = project
-        self.name = name
+        self.image_name = image_name
         self.version = version
         self.local_image = local_image
+        self.build_status = Status.NOT_BUILT
 
     def __repr__(self) -> str:
-        return f"BaseImage(tag={self.tag!r}, registry={self.registry!r}, project={self.project!r}, name={self.name!r}, version={self.version!r}, local={self.local_image})"
+        return f"BaseImage(tag={self.tag!r}, registry={self.registry!r}, project={self.project!r}, name={self.image_name!r}, version={self.version!r}, local={self.local_image})"
 
     @classmethod
     def from_tag(cls, tag: str) -> BaseImage:
@@ -67,7 +98,7 @@ class BaseImage:
             tag=tag,
             registry=registry,
             project=project,
-            name=name,
+            image_name=name,
             version=version,
             local_image=local_image,
         )
@@ -80,12 +111,11 @@ class Container:
         self,
         dockerfile: Path,
         registry: str,
-        tag: str,
         image_name: str,
-        repo_version: str,
-        base_images: List[BaseImage],
-        operator_containers: List[str],
-        missing_base_images: List[BaseImage] | None = None,
+        version: str,
+        tag: str,
+        base_images: Set[BaseImage | Container],
+        missing_base_images: List[BaseImage | Container] | None = None,
         build_ignore: bool = False,
         local_image: bool = False,
     ):
@@ -93,25 +123,31 @@ class Container:
         self.registry = registry
         self.tag = tag
         self.image_name = image_name
-        self.repo_version = repo_version
+        self.version = version
 
         self.base_images = base_images
-        self.operator_containers = operator_containers
         self.missing_base_images = missing_base_images or []
 
         self.build_ignore = build_ignore
         self.local_image = local_image
+        self.status = Status.NOT_BUILT
 
     def __repr__(self) -> str:
-        return f"Container(tag={self.tag!r}, image_name={self.image_name!r}, repo_version={self.repo_version!r}, local={self.local_image})"
+        return f"Container(tag={self.tag!r}, image_name={self.image_name!r}, repo_version={self.version!r}, local={self.local_image})"
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Container):
+            return False
+        return self.tag == other.tag
+
+    def __hash__(self) -> int:
+        return hash(self.tag)
 
     @classmethod
     def from_dockerfile(
         cls,
         dockerfile: Path,
         build_config: BuildConfig,
-        logger: logging.Logger,
-        issues_tracker: IssueTracker,
     ) -> "Container":
         if not dockerfile.exists():
             raise FileNotFoundError(f"Dockerfile not found: {dockerfile}")
@@ -122,7 +158,7 @@ class Container:
         repo_version = ""
         build_ignore = False
         local_image = False
-        base_images = []
+        base_images = set()
 
         for line in lines:
             line = line.strip()
@@ -138,7 +174,7 @@ class Container:
             elif line.startswith("FROM") and "#ignore" not in line:
                 base_tag = line.split("FROM", 1)[1].split()[0].strip().replace('"', "")
                 base_img = BaseImage.from_tag(base_tag)
-                base_images.append(base_img)
+                base_images.add(base_img)
 
         # Determine registry and version
         if registry and "local-only" in registry:
@@ -162,7 +198,6 @@ class Container:
                 name=str(dockerfile.parent),
                 msg="could not extract container infos!",
                 level="ERROR",
-                ctx=ctx,
             )
             if build_config.exit_on_error:
                 exit(1)
@@ -171,52 +206,268 @@ class Container:
 
         tag = f"{registry}/{image_name}:{repo_version}"
 
-        operator_containers = cls.find_operator_images(
-            dockerfile.parent, build_config.default_registry, repo_version
-        )
-
         container = cls(
-            tag=tag,
             dockerfile=dockerfile,
-            base_images=base_images,
             registry=registry,
             image_name=image_name or "",
-            repo_version=repo_version,
+            version=repo_version,
+            tag=tag,
+            base_images=base_images,
             build_ignore=build_ignore,
             local_image=local_image,
-            operator_containers=operator_containers,
         )
         return container
-
-    @classmethod
-    def find_operator_images(
-        cls, container_dir: Path, default_registry: str, repo_version: str
-    ) -> List[str]:
-        operator_containers = []
-        python_files = container_dir.glob("**/*.py")
-
-        for python_file in python_files:
-            with python_file.open("r", encoding="utf-8") as f:
-                for line in f:
-                    # Removed backward compatibility default_registry vs DEFAULT_REGISTRY
-                    # Removed backward compatibility kaapana_build_version vs KAAPANA_BUILD_VERSION
-                    if (
-                        "image=" in line
-                        and "{DEFAULT_REGISTRY}" in line
-                        and "{KAAPANA_BUILD_VERSION}" in line
-                    ):
-                        image_str = line.strip().split('"')[1].replace(" ", "")
-                        image_str = image_str.replace(
-                            "{KAAPANA_BUILD_VERSION}", repo_version
-                        )
-                        container_id = image_str.replace(
-                            "{DEFAULT_REGISTRY}", default_registry
-                        )
-                        operator_containers.append(container_id)
-                    break
-
-        return operator_containers
 
     @staticmethod
     def _extract_label_value(line: str) -> str:
         return line.split("=", 1)[1].strip().strip('"').strip("'")
+
+    def build(self, config: BuildConfig) -> tuple[Optional[Issue], Optional[float]]:
+        logger.debug(f"{self.tag}: start building ...")
+        issue = None
+        duration = None
+
+        if self.build_ignore:
+            logger.warning(f"{self.tag}: {self.build_ignore=} -> skip")
+            self.status = Status.BUILD_DISABLED
+            return issue, duration
+
+        if self.status == Status.PUSHED:
+            logger.debug(f"{self.tag}: already build -> skip")
+            return issue, duration
+
+        if config.http_proxy is not None:
+            command = [
+                config.container_engine,
+                "build",
+                "--build-arg",
+                f"http_proxy={config.http_proxy}",
+                "--build-arg",
+                f"https_proxy={config.http_proxy}",
+                "-t",
+                self.tag,
+                "-f",
+                self.dockerfile,
+                ".",
+            ]
+        else:
+            command = [
+                config.container_engine,
+                "build",
+                "-t",
+                self.tag,
+                "-f",
+                self.dockerfile,
+                ".",
+            ]
+        start_time = time.time()
+        output = run(
+            command,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True,
+            timeout=6000,
+            cwd=self.dockerfile.parent,
+            env=dict(
+                os.environ,
+                DOCKER_BUILDKIT=f"{config.enable_build_kit}",
+            ),
+        )
+        end_time = time.time()
+
+        if output.returncode == 0:
+            if "---> Running in" in output.stdout:
+                self.status = Status.BUILT
+                logger.debug(f"{self.tag}: Build sucessful.")
+            else:
+                self.status = Status.NOTHING_CHANGED
+                logger.debug(f"{self.tag}: Build sucessful - no changes.")
+            duration = end_time - start_time
+            return issue, duration
+
+        else:
+            self.status = Status.BUILD_FAILED
+            logger.error(f"{self.tag}: Build failed!")
+
+            issue = IssueTracker.generate_issue(
+                component=self.__class__.__name__,
+                name=f"{self.tag}",
+                msg="container build failed!",
+                level="ERROR",
+                output=output,
+                path=str(self.dockerfile.parent),
+            )
+            return issue, duration
+
+    def _push_to_microk8s(
+        self, config: BuildConfig
+    ) -> tuple[Optional[Issue], Optional[float]]:
+        """
+        Push the container to MicroK8s by piping `docker save` directly into `microk8s ctr image import`.
+        """
+        issue = None
+        duration = None
+
+        if self.tag.startswith("local-only"):
+            logger.info(f"Skipping: Pushing {self.tag} to microk8s, due to local-only")
+            return issue, duration
+
+        logger.info(f"Pushing {self.tag} to microk8s via pipe")
+
+        try:
+            start_time = time.time()
+            # docker save -> stdout
+            cmd_save = [config.container_engine, "save", self.tag]
+            # microk8s import <- stdin
+            cmd_import = ["microk8s", "ctr", "image", "import", "-"]
+
+            save_proc = subprocess.Popen(
+                cmd_save, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
+            import_proc = subprocess.Popen(
+                cmd_import,
+                stdin=save_proc.stdout,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            save_proc.stdout.close()  # allow save_proc to get SIGPIPE if import_proc exits
+
+            out, err = import_proc.communicate(timeout=9000)
+            save_err = save_proc.stderr.read()
+            save_proc.wait(timeout=1)
+            end_time = time.time()
+            duration = end_time - start_time
+
+            if import_proc.returncode != 0:
+                logger.error(f"Microk8s image push failed {err or save_err}!")
+                issue = IssueTracker.generate_issue(
+                    component="Microk8s image push",
+                    name=self.tag,
+                    msg=f"Microk8s image push failed {err or save_err}!",
+                    level="ERROR",
+                    output=[err or save_err],
+                    path=str(self.dockerfile.parent),
+                )
+                return issue, duration
+
+            logger.debug(f"Successfully pushed {self.tag} to microk8s via pipe")
+
+        except subprocess.TimeoutExpired as e:
+            save_proc.kill()
+            import_proc.kill()
+            logger.error(f"Microk8s image push timed out for {self.tag}!")
+            issue = IssueTracker.generate_issue(
+                component="Microk8s image push",
+                name=self.tag,
+                msg=f"Microk8s image push timed out!",
+                level="ERROR",
+                output=[str(e)],
+                path=str(self.dockerfile.parent),
+            )
+
+        return issue, duration
+
+    def push(self, config: BuildConfig) -> tuple[Optional[Issue], Optional[float]]:
+        issue: Optional[Issue] = None
+        duration: Optional[float] = None
+        logger.debug(f"{self.tag}: in push()")
+
+        if self.build_ignore:
+            logger.warning(f"{self.tag}: {self.build_ignore=} -> skip")
+            self.status = Status.PUSH_DISABLED
+            return issue, duration
+
+        if self.status == Status.PUSHED:
+            logger.info(f"{self.tag}: Already pushed -> skip")
+            return issue, duration
+
+        if self.local_image:
+            logger.debug(f"{self.tag}: Skipping push: local image! ")
+            return issue, duration
+
+        if self.status == Status.NOTHING_CHANGED:
+            if config.skip_push_no_changes:
+                logger.info(f"{self.tag}: Image did not change -> skipping ...")
+                return issue, duration
+
+        elif self.status != Status.BUILT:
+            logger.warning(
+                f"{self.tag}: Skipping push since image has not been built successfully!"
+            )
+            logger.warning(f"{self.tag}: container_build_status: {self.status}")
+            IssueTracker.generate_issue(
+                component=self.__class__.__name__,
+                name=f"{self.tag}",
+                msg=f"Push skipped -> image has not been built successfully! container_build_status: {self.status}",
+                level="WARNING",
+                path=self.dockerfile.parent,
+            )
+
+        if config.push_to_microk8s is True:
+            logger.info(f"Pushing {self.tag} to microk8s")
+            return self._push_to_microk8s(config)
+
+        logger.debug(f"{self.tag}: start pushing! ")
+        retries = 0
+        command = [config.container_engine, "push", self.tag] # Consider using python library https://docker-py.readthedocs.io/en/stable/
+        while retries < config.max_push_retries:
+            start_time = time.time()
+            retries += 1
+            output = run(
+                command,
+                stdout=PIPE,
+                stderr=PIPE,
+                universal_newlines=True,
+                timeout=9000,
+            )
+            duration = time.time() - start_time
+
+            # Stop retrying on success or immutable
+            if output.returncode == 0 or "configured as immutable" in output.stderr:
+
+                if "Pushed" in output.stdout or "podman" in config.container_engine:
+                    logger.debug(f"{self.tag}: pushed -> success")
+                    self.status = Status.PUSHED
+                else:
+                    logger.debug(
+                        f"{self.tag}: pushed -> success but nothing was changed!"
+                    )
+                    self.status = Status.NOTHING_CHANGED
+
+                return issue, duration
+
+        # If we reached here, push failed
+        self.status = Status.PUSH_FAILED
+        component_name = self.__class__.__name__
+        path = self.dockerfile.parent
+
+        # Determine reason
+        if "configured as immutable" in output.stderr:
+            level = "WARNING"
+            msg = "Container not pushed -> immutable!"
+            logger.warning(f"{self.tag}: {msg}")
+        elif "read only mode" in output.stderr:
+            level = "WARNING"
+            msg = "Container not pushed -> read only mode!"
+            logger.warning(f"{self.tag}: {msg}")
+        elif "denied" in output.stderr:
+            level = "ERROR"
+            msg = "Container not pushed -> access denied!"
+            logger.error(f"{self.tag}: {msg}")
+        else:
+            level = "ERROR"
+            msg = "Container not pushed -> unknown reason!"
+            logger.error(f"{self.tag}: {msg}")
+
+        # Generate the issue once
+        issue = IssueTracker.generate_issue(
+            component=component_name,
+            name=self.tag,
+            msg=msg,
+            level=level,
+            output=[output.stderr],
+            path=path,
+        )
+
+        return issue, duration

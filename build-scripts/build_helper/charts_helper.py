@@ -8,8 +8,7 @@ from glob import glob
 from multiprocessing.pool import ThreadPool
 from os.path import dirname, exists, isfile, join
 from pathlib import Path
-from subprocess import DEVNULL, PIPE, run
-from timeit import default_timer as timer
+from subprocess import PIPE, run
 
 import networkx as nx
 import yaml

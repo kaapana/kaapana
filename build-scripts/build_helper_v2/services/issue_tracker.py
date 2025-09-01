@@ -1,24 +1,28 @@
 import json
-import logging
 from pathlib import Path
 from typing import List
 
-from build_helper_v2.models import Issue
+from build_helper_v2.models.issue import Issue
+from build_helper_v2.utils.logger import get_logger
+
+logger = get_logger()
 
 
 class IssueTracker:
-    def __init__(self):
-        self.issues = []
-    
-    
-    @staticmethod
+    issues: List[Issue] = []
+    exit_on_error: bool = False
+
+    @classmethod
+    def configure(cls, *, exit_on_error: bool = False):
+        cls.exit_on_error = exit_on_error
+
+    @classmethod
     def generate_issue(
+        cls,
         component: str,
         name: str,
         msg: str,
         level: str,
-        logger: logging.Logger,
-        issues: List[Issue],
         path: str | Path = "",
         output=None,
     ):
@@ -53,11 +57,13 @@ class IssueTracker:
             output=log,
         )
 
-        build_state.issues.append(issue)
+        cls.issues.append(issue)
         logger.warning(json.dumps(issue.model_dump(), sort_keys=True))
 
-        if config.exit_on_error or level == "FATAL":
+        if cls.exit_on_error or level == "FATAL":
             exit(1)
+
+        return issue
 
     @staticmethod
     def _make_log(output) -> List[str]:

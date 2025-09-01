@@ -81,7 +81,7 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
             self.logger.error(f"Request error [{method} {url}]: {e}")
             raise RuntimeError(f"API request error: {e}")
 
-    def post_workflow(self):
+    def submit_workflow(self):
         pass
 
     def submit_workflow_run(

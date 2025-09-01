@@ -140,7 +140,7 @@ async def get_workflow_run_task_runs(
     db: AsyncSession = Depends(get_async_db),
 ):
     # TODO: support query params task_title and latest=true
-    task_runs = await crud.get_task_runs_by_workflow_run(
+    task_runs = await crud.get_task_runs_of_workflow_run(
         db, workflow_run_id=workflow_run_id, task_title=task_title, latest=latest
     )
     if not task_runs:

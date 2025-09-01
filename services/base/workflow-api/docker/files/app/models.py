@@ -108,7 +108,7 @@ class Task(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     workflow_id = Column(Integer, ForeignKey("workflows.id"))
-    task_identifier = Column(String, index=True)  # e.g. total_segmentator_0
+    title = Column(String, index=True)  # e.g. total_segmentator_0
     display_name = Column(String)
     type = Column(String)  # e.g. TotalSegmentatorOperator
     downstream_tasks = relationship(

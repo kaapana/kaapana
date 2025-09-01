@@ -16,6 +16,8 @@ from app.dependencies import (
     get_forwarded_headers,
 )
 from app import crud, schemas
+from app.adapters import get_workflow_engine
+
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -60,11 +62,26 @@ async def create_workflow(
     response: Response,
     db: AsyncSession = Depends(get_async_db),
 ):
-    logger.debug("Creating workflow: %s", workflow)
+    logger.debug(f"Creating workflow: {workflow}")
     db_workflow = await crud.create_workflow(db, workflow=workflow)
     response.headers["Location"] = (
         f"/workflows/{db_workflow.title}/{db_workflow.version}"
     )
+    if not db_workflow:
+        logger.error(f"Failed to create workflow: {workflow}")
+        raise HTTPException(status_code=400, detail="Failed to create workflow")
+    logger.info(f"Created workflow: {db_workflow.title} v{db_workflow.version}")
+
+    # add tasks
+    engine = get_workflow_engine(workflow_labels=workflow.labels)
+    logger.info(
+        f"Using workflow engine: {engine.workflow_engine} for workflow: {workflow.title}"
+    )
+    tasks_added = await engine.submit_workflow(db=db, workflow=db_workflow)
+    if not tasks_added:
+        logger.error(f"Failed to add tasks to workflow: {workflow}")
+        raise HTTPException(status_code=500, detail="Failed to add tasks to workflow")
+    logger.info(f"Created tasks to workflow: {workflow.title}")
     return db_workflow
 
 
@@ -167,8 +184,22 @@ async def get_workflow_tasks(
 @router.get(
     "/workflows/{title}/{version}/tasks/{task_title}", response_model=schemas.Task
 )
-async def get_task(task_id: int, db: AsyncSession = Depends(get_async_db)):
-    db_task = await crud.get_tasks(db, task_id=task_id)
+async def get_task(
+    title: str,
+    version: int,
+    task_title: str,
+    db: AsyncSession = Depends(get_async_db),
+):
+    db_task = await crud.get_tasks(
+        db,
+        filters={
+            "title": task_title,
+            "workflow.title": title,
+            "workflow.version": version,
+        },
+        single=True,
+    )
+    logger.info(f"Retrieved task: {db_task} for {title=} v{version=}, {task_title=}")
     if db_task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return db_task

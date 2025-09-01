@@ -1,4 +1,4 @@
-from taskctl.processing_container.models import (
+from task_api.processing_container.models import (
     ScaleRule,
     IOChannel,
     Mode,

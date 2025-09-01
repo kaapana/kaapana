@@ -1,6 +1,6 @@
 import functools
 import json
-from taskctl.processing_container.models import (
+from task_api.processing_container.models import (
     Task,
     TaskInstance,
     ProcessingContainer,
@@ -131,14 +131,14 @@ def merge_io_channels(
 @functools.lru_cache()
 def get_processing_container(image: str, mode: str = "docker") -> ProcessingContainer:
     if mode == "k8s":
-        from extractors.runtime.KubernetesExtractorProcess import KubernetesUtils
+        from kaapana_containers.kubernetes.utils import KubernetsUtils
 
-        with KubernetesUtils.extract_file_from_image(
+        with KubernetsUtils.extract_file_from_image(
             image, "/processing-container.json", namespace="project-admin"
         ) as f:
             return ProcessingContainer(**json.load(f))
     elif mode == "docker":
-        from extractors.utils.docker import DockerUtils
+        from kaapana_containers.docker.utils import DockerUtils
 
         with DockerUtils.extract_file_from_image(
             image, "/processing-container.json"

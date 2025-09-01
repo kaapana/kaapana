@@ -4,13 +4,13 @@ import re
 import datetime
 
 from kubernetes import client, config, watch
-from taskctl.processing_container.models import Task, TaskRun, TaskInstance
-from taskctl.processing_container.resources import compute_memory_resources
-from taskctl.processing_container.common import (
+from task_api.processing_container.models import Task, TaskRun, TaskInstance
+from task_api.processing_container.resources import compute_memory_resources
+from task_api.processing_container.common import (
     create_task_instance,
     get_processing_container,
 )
-from taskctl.runners.base import BaseRunner
+from task_api.runners.base import BaseRunner
 
 from typing import Tuple, List
 

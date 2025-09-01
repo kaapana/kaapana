@@ -1,15 +1,15 @@
 import json
 import logging
 from dotenv import load_dotenv
-from taskctl.processing_container.models import Task, TaskRun, IOChannel, ScaleRule
-from taskctl.processing_container.common import (
+from task_api.processing_container.models import Task, TaskRun, IOChannel, ScaleRule
+from task_api.processing_container.common import (
     get_processing_container,
     parse_task,
     parse_processing_container,
 )
-from taskctl.runners.DockerRunner import DockerRunner
-from taskctl.runners.KubernetesRunner import KubernetesRunner
-from taskctl.processing_container.resources import (
+from task_api.runners.DockerRunner import DockerRunner
+from task_api.runners.KubernetesRunner import KubernetesRunner
+from task_api.processing_container.resources import (
     sum_of_file_sizes,
     max_file_size,
     human_readable_size,

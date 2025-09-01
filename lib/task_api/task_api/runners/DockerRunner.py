@@ -4,23 +4,23 @@ import docker
 import sys, os
 import time
 
-from taskctl.processing_container.models import (
+from task_api.processing_container.models import (
     TaskRun,
     Task,
     Resources,
     TaskInstance,
 )
-from taskctl.processing_container.resources import (
+from task_api.processing_container.resources import (
     calculate_bytes,
     compute_memory_requirement,
     human_readable_size,
 )
-from taskctl.processing_container.common import (
+from task_api.processing_container.common import (
     get_processing_container,
     create_task_instance,
 )
 
-from taskctl.runners.base import BaseRunner
+from task_api.runners.base import BaseRunner
 
 
 class DockerRunner(BaseRunner):

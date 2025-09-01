@@ -1,5 +1,5 @@
 import pytest
-from taskctl.processing_container.models import (
+from task_api.processing_container.models import (
     ScaleRule,
     IOVolume,
     LocalPath,
@@ -10,9 +10,9 @@ from taskctl.processing_container.models import (
 from pathlib import Path
 import subprocess
 import os
-from taskctl.runners.DockerRunner import DockerRunner
-from taskctl.runners.KubernetesRunner import KubernetesRunner
-from taskctl.processing_container.common import (
+from task_api.runners.DockerRunner import DockerRunner
+from task_api.runners.KubernetesRunner import KubernetesRunner
+from task_api.processing_container.common import (
     get_processing_container,
     create_task_instance,
     parse_task,
@@ -22,7 +22,7 @@ from conftest import LOCAL_REGISTRY, TASK_DIR, MODULE_PATH
 
 
 def test_resources():
-    from taskctl.processing_container.resources import (
+    from task_api.processing_container.resources import (
         human_readable_size,
         calculate_bytes,
         compute_memory_requirement,
@@ -118,7 +118,7 @@ def test_schemas_and_models(tmp_output_dir):
 
 
 def test_cli_run(tmp_output_dir):
-    from taskctl import cli
+    from task_api import cli
 
     os.environ["registry"] = str(LOCAL_REGISTRY)
     os.environ["output_dir"] = str(tmp_output_dir)
@@ -151,7 +151,7 @@ def test_cli_run(tmp_output_dir):
 
 
 def test_cli_processing_container(tmp_output_dir):
-    from taskctl import cli
+    from task_api import cli
 
     os.environ["registry"] = str(LOCAL_REGISTRY)
     os.environ["output_dir"] = str(tmp_output_dir)

@@ -18,21 +18,21 @@ The task API must contain following functionalities
 * Start a container based on a Task object
 * Receive logs from a container
 
-## The taskctl library
+## The python library
 ### Install
 ```bash
 python3 -m build
-python3 -m pip install dist/taskctl-0.1.0.tar.gz
+python3 -m pip install dist/task_api-0.1.0.tar.gz
 ```
 
 ### Get a processing-container json file
 ```bash
-python3 -m taskctl.cli processing-container <image> --mode docker 
+python3 -m task_api.cli processing-container <image> --mode docker 
 ```
 
 ### Run a task in docker
 ```bash
-python3 -m taskctl.cli run <path-to-task.json> --mode docker
+python3 -m task_api.cli run <path-to-task.json> --mode docker
 ```
 
 ### Testing
@@ -44,12 +44,12 @@ coverage report -m
 ### pydantic models
 ```bash
 python3 -m pip install datamodel-codegen
-cd taskctl/processing-container
+cd task_api/processing-container
 datamodel-codegen --input schemas/ --input-file-type jsonschema --output generated-models/ --target-python-version 3.12 --output-model-type pydantic_v2.BaseModel --use-annotate
 ```
 
 ## Monitoring functionality
-You can monitor the memory peak of the container started with `taskctl.cli.py run` with the flag `--monitor-container`. This works only locally with Docker. If the `taks.json` file includes scaleRules, our tool will also check, if the computed Resource specification matches with the memory usage.
+You can monitor the memory peak of the container started with `task_api.cli.py run` with the flag `--monitor-container`. This works only locally with Docker. If the `taks.json` file includes scaleRules, our tool will also check, if the computed Resource specification matches with the memory usage.
 
 The following section documents the decision for the chosen implementation of monitoring peak memory usage of a container:
 
@@ -91,5 +91,5 @@ Requirements:
 * The solution HAS TO clean output destinations before running a task
 * The solution HAS TO provide container logs to the task
 
-* The solution IS ALLOWED to utilize the KubernetesRunner from the taskctl library
+* The solution IS ALLOWED to utilize the KubernetesRunner from the task_api library
 * The solution SHOULD only execute a task, if there are sufficient resources available in the cluster

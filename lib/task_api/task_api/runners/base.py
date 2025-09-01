@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from taskctl.processing_container import models
+from task_api.processing_container import models
 import logging
 from pathlib import Path
 import os

@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "taskctl"
+name = "task-api"
 version = "0.1.0"
 description = "A tool for processing-containers for Kaapana"
 authors = [
@@ -19,7 +19,7 @@ dependencies = [
     "kubernetes>=25.3.0",
     "jinja2==3.1.6",
     "python-dotenv==1.1.0",
-    "kaapana-utils @ TODO git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@develop#subdirectory=lib/kaapana_utils",
+    "kaapana-containers@git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@develop#subdirectory=lib/kaapana_containers",
 ]
 
 [tool.poetry.group.dev.dependencies]

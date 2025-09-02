@@ -27,7 +27,7 @@ class BaseRunner(ABC):
         cls._logger = logger
 
     @classmethod
-    def dump(cls, task_run: models.TaskRun, output: Path = None):
+    def dump(cls, task_run: models.TaskRun, output: Path = None) -> None:
         """
         Write json model of task_run to output.
         """
@@ -51,14 +51,23 @@ class BaseRunner(ABC):
     @classmethod
     @abstractmethod
     def run(cls, task: models.Task, dry_run: bool = False) -> models.TaskRun:
+        """
+        Start a processing-container for task
+        """
         pass
 
     @classmethod
     @abstractmethod
-    def logs(cls, task_run: models.TaskRun, follow: bool = True):
+    def logs(cls, task_run: models.TaskRun, follow: bool = True) -> None:
+        """
+        Print logs to stdout.
+        """
         pass
 
     @classmethod
     @abstractmethod
-    def stop(cls, task_run: models.TaskRun):
+    def stop(cls, task_run: models.TaskRun) -> None:
+        """
+        Stop the container associated with task_run.
+        """
         pass

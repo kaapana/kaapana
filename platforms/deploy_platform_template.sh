@@ -1055,6 +1055,11 @@ modinfo nvidia | grep ^version
 --- "GPU"
 nvidia-smi
 
+--- "Resource Health"
+check_system kaapana-admin-chart default
+check_system kaapana-platform-chart default
+check_system project-admin admin
+
 --- "END"
 }
 
@@ -1072,6 +1077,7 @@ _Flag: --nuke-pods will force-delete all pods of the Kaapana deployment namespac
 _Flag: --quiet, meaning non-interactive operation
 _Flag: --offline, using prebuilt tarball and chart (--chart-path required!)
 _Flag: --check-system, check health of all resources in kaapana-admin-chart and kaapana-platform-chart
+_Flag: --report, create a report of the state of the microk8s cluster
 
 _Argument: --username [Docker registry username]
 _Argument: --password [Docker registry password]

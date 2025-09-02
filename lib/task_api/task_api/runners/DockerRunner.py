@@ -24,6 +24,8 @@ from task_api.runners.base import BaseRunner
 
 
 class DockerRunner(BaseRunner):
+    client = docker.from_env()
+
     @classmethod
     def run(cls, task: Task, dry_run: bool = False):
         cls._logger.info("Running task in Docker...")
@@ -32,56 +34,38 @@ class DockerRunner(BaseRunner):
         task_instance = create_task_instance(
             processing_container=processing_container, task=task
         )
-        volumes = []
-        mounts = []
-        for channel in task_instance.inputs:
-            local_path = Path(channel.input.local_path).resolve()
-            mounted_path = channel.mounted_path
-            if mounted_path in mounts:
-                continue
-            mounts.append(mounted_path)
-            volumes.append(f"{local_path}:{mounted_path}")
-
-        for channel in task_instance.outputs:
-            local_path = Path(channel.input.local_path).resolve()
-            mounted_path = channel.mounted_path
-            if mounted_path in mounts:
-                continue
-            mounts.append(mounted_path)
-            volumes.append(f"{local_path}:{mounted_path}")
-
-        envs = sum([["-e", f"{env.name}={env.value}"] for env in task_instance.env], [])
 
         cls._logger.info(f"TaskInstance: {task_instance.model_dump()}")
-
-        cmd = [
-            "docker",
-            "run",
-            "--label",
-            "kaapana.type=processing-container",
-            "-d",
-            *sum([["-v", m] for m in volumes], []),
-            *envs,
-        ]
-
-        memory_limit = cls._set_memory_limit(task_instance=task_instance)
+        memory_limit = int(cls._set_memory_limit(task_instance=task_instance))
         if memory_limit >= 10:
             task.resources.limits.memory = human_readable_size(memory_limit)
-            cmd.extend(["--memory", str(memory_limit)])
+        else:
+            memory_limit = None
 
-        cmd.extend(
-            [
-                task_instance.image,
-                *task_instance.command,
-            ]
-        )
+        input_volumes = {
+            vol.input.local_path: {"bind": vol.mounted_path, "mode": "ro"}
+            for vol in task_instance.inputs
+        }
+        output_volumes = {
+            vol.input.local_path: {"bind": vol.mounted_path, "mode": "rw"}
+            for vol in task_instance.outputs
+            if vol.input.local_path not in input_volumes
+        }
 
-        cls._logger.debug(f"Running command: {' '.join(cmd)}")
         if dry_run:
             id = "dummy-id"
         else:
-            process = subprocess.run(cmd, check=True, capture_output=True)
-            id = process.stdout.decode("utf-8").rstrip()
+            container = cls.client.containers.run(
+                image=task_instance.image,
+                command=task_instance.command,
+                labels={"kaapana.type": "processing-container"},
+                environment={env.name: env.value for env in task_instance.env},
+                detach=True,
+                volumes={**input_volumes, **output_volumes},
+                mem_limit=memory_limit,
+            )
+
+            id = container.id
 
         return TaskRun(id=id, mode="docker", **task_instance.model_dump())
 
@@ -89,36 +73,26 @@ class DockerRunner(BaseRunner):
     def logs(cls, task_run: TaskRun, follow: bool = False):
         if follow:
             cls._logger.info("Start log streaming")
-
-        if follow:
-            cmd = ["docker", "logs", "-f", task_run.id]
-        else:
-            cmd = ["docker", "logs", task_run.id]
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            bufsize=1,
-            universal_newlines=True,
-        )
+        container = cls.client.containers.get(container_id=task_run.id)
+        logs = container.logs(stream=follow)
         try:
-            for line in process.stdout:
-                cls._logger.info(line.rstrip())
-            for line in process.stderr:
-                cls._logger.error(line.rstrip())
+            for line in logs:
+                cls._logger.info(line.decode().rstrip())
+            for line in logs:
+                cls._logger.error(line.decode().rstrip())
         except KeyboardInterrupt:
             cls._logger.error("Log streaming interrupted.")
         finally:
-            process.terminate()
+            logs.close()
 
     @classmethod
     def stop(cls, task_run: TaskRun):
         raise NotImplementedError()
 
     @classmethod
-    def _set_memory_limit(cls, task_instance: TaskInstance) -> Resources:
+    def _set_memory_limit(cls, task_instance: TaskInstance) -> int:
         """
-        Return the memory limit from specified resources and scaleRules
+        Return the memory limit for a task_instance based on Resources and ScaleRules
         """
         memory_limit = 0
         if (
@@ -136,9 +110,8 @@ class DockerRunner(BaseRunner):
 
     @classmethod
     def check_status(cls, task_run: TaskRun, follow: bool = False):
-        client = docker.from_env()
         container_id = task_run.id
-        container = client.containers.get(container_id=container_id)
+        container = cls.client.containers.get(container_id=container_id)
 
         running = True
         while running and follow:
@@ -163,11 +136,9 @@ class DockerRunner(BaseRunner):
         """
         Monitor the memory usage of a container and return the maxmimum memory utilization.
         """
-
         cls._logger.info(f"Start monitoring memory usage")
         container_id = task_run.id
-        client = docker.from_env()
-        container = client.containers.get(container_id=container_id)
+        container = cls.client.containers.get(container_id=container_id)
         attrs = container.attrs
         pid = attrs["State"]["Pid"]
 

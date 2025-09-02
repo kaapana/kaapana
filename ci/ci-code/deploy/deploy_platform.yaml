@@ -111,9 +111,9 @@
       register: undeploy_result
       ignore_errors: yes
     - debug:
-        var: undeploy_result.stdout
+        var: undeploy_result.stdout_lines
     - debug:
-        var: undeploy_result.stderr
+        var: undeploy_result.stderr_lines
     - name: Copy STDOUT from undeployment script to ci-server
       become: yes
       ansible.builtin.copy:
@@ -153,9 +153,9 @@
         cmd: ./deploy_platform.sh --quiet --username {{ registry_user }} --password {{ registry_token }} --domain {{ ip_address }}
         chdir: "{{ ansible_env.HOME }}/"
     - debug:
-        var: deploy_result.stdout
+        var: deploy_result.stdout_lines
     - debug:
-        var: deploy_result.stderr
+        var: deploy_result.stderr_lines
     - name: Copy STDOUT from deployment script to ci-server
       become: yes
       ansible.builtin.copy:

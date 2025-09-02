@@ -9,13 +9,11 @@ mkdir -p "${ARTIFACTS_DIR}/tests/"
 pids=()   # store PIDs
 names=()  # store test names
 
-for test in $( find $TESTCASE_DIR -wholename *ci-config/*.yaml | grep collect-metadata)
+for test in $( find $TESTCASE_DIR -wholename *ci-config/*.yaml)
 do
     name=$(basename -s ".yaml" $test)
     logfile="${ARTIFACTS_DIR}/tests/${name}.log"
-    echo $name
-    
-
+    echo "Start test for $name"
     (
         timeout $TIMEOUT python3 $KAAPANA_DIR/ci/ci-code/test/src/integration_tests.py --files ${test} --host ${ip_address} > "${logfile}" 2>&1
     ) &

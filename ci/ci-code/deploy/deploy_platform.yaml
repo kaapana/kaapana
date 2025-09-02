@@ -148,6 +148,10 @@
       ansible.builtin.command:
         cmd: ./deploy_platform.sh --quiet --username {{ registry_user }} --password {{ registry_token }} --domain {{ ip_address }}
         chdir: "{{ ansible_env.HOME }}/"
+    - debug:
+      msg: deploy_result.stdout
+    - debug:
+      msg: deploy_result.stderr
     - name: Copy STDOUT from deployment script to ci-server
       become: yes
       ansible.builtin.copy:

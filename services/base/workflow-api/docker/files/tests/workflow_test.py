@@ -155,6 +155,7 @@ async def test_get_workflow_tasks():
         resp2 = await client.get(f"/workflows/{wf1.title}/{wf1.version}/tasks")
         assert resp2.status_code == 200
         tasks = resp2.json()
+        assert len(tasks) == 2
         for task in tasks:
             t = schemas.Task(**task)
             assert t.title in ["dummy-task-1", "dummy-task-2"]

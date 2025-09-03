@@ -4,8 +4,6 @@ from fastapi import (
     Depends,
     HTTPException,
     status,
-    WebSocket,
-    WebSocketDisconnect,
     status,
 )
 from fastapi.responses import Response
@@ -13,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from app.dependencies import (
     get_async_db,
-    get_forwarded_headers,
+    get_forwarded_headers,  # TODO
 )
 from app import crud, schemas
 from app.adapters import get_workflow_engine
@@ -73,15 +71,20 @@ async def create_workflow(
     logger.info(f"Created workflow: {db_workflow.title} v{db_workflow.version}")
 
     # add tasks
-    engine = get_workflow_engine(workflow_labels=workflow.labels)
+    engine = get_workflow_engine(workflow_engine=workflow.workflow_engine)
     logger.info(
         f"Using workflow engine: {engine.workflow_engine} for workflow: {workflow.title}"
     )
-    tasks_added = await engine.submit_workflow(db=db, workflow=db_workflow)
-    if not tasks_added:
-        logger.error(f"Failed to add tasks to workflow: {workflow}")
-        raise HTTPException(status_code=500, detail="Failed to add tasks to workflow")
-    logger.info(f"Created tasks to workflow: {workflow.title}")
+    tasks = await engine.submit_workflow(workflow=db_workflow)
+
+    for task in tasks:
+        t = await crud.create_task(
+            db=db,
+            task=task,
+            workflow_id=db_workflow.id,
+        )
+        logger.info(f"Created task {t.title} for workflow: {workflow.title}")
+
     return db_workflow
 
 

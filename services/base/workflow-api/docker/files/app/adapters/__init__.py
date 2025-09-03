@@ -30,17 +30,12 @@ def discover_workflow_engine_adapters() -> List[Type[WorkflowEngineAdapter]]:
     return discovered_adapters
 
 
-def get_workflow_engine(workflow_labels: List[schemas.Label]) -> WorkflowEngineAdapter:
+def get_workflow_engine(workflow_engine: str) -> WorkflowEngineAdapter:
     """
     Return the workflow engine defined in the Workflow
     """
-    workflow_engine_id = ""
-    for label in workflow_labels:
-        if label.key == "kaapana.builtin.workflow_engine":
-            workflow_engine_id = label.value
-            break
     for engine in discover_workflow_engine_adapters():
-        if workflow_engine_id == engine.workflow_engine:
+        if workflow_engine == engine.workflow_engine:
             logger.info(f"Using workflow engine: {engine.workflow_engine}")
             return engine()
 

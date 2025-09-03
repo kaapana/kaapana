@@ -57,7 +57,6 @@ class Workflow(WorkflowBase):
 class TaskBase(BaseModel):
     display_name: Optional[str] = None
     title: str
-    downstream_task_ids: List[str] = []
     type: Optional[str] = None
 
 
@@ -68,6 +67,7 @@ class TaskCreate(TaskBase):
 class Task(TaskBase):
     id: int
     workflow_id: int
+    downstream_task_ids: List[str] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -75,6 +75,14 @@ class Task(TaskBase):
 #####################################
 ############## TASKRUN ##############
 #####################################
+
+
+class TaskRef(BaseModel):
+    """Lightweight reference to a Task for embedding in TaskRun."""
+
+    title: str
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TaskRunBase(BaseModel):
@@ -89,8 +97,19 @@ class TaskRunCreate(TaskRunBase):
 class TaskRun(TaskRunBase):
     id: int
     lifecycle_status: LifecycleStatus
+    external_id: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TaskRunUpdate(BaseModel):
+    """Used for updating TaskRun from the workflow engine."""
+
+    # The title of the task this run belongs to in the engine
+    task_title: str
+    # The unique ID of the task run in the engine (the API does not know about it when this is passed the first time, therefore we also have the task title for linking)
+    external_id: str
+    lifecycle_status: LifecycleStatus
 
 
 #####################################
@@ -130,5 +149,5 @@ class WorkflowRun(WorkflowRunBase):
 
 
 class WorkflowRunUpdate(BaseModel):
-    external_id: Optional[str]
+    external_id: Optional[str] = None
     lifecycle_status: Optional[LifecycleStatus]

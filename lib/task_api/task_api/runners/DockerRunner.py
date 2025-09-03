@@ -30,7 +30,9 @@ class DockerRunner(BaseRunner):
     def run(cls, task: Task, dry_run: bool = False):
         cls._logger.info("Running task in Docker...")
 
-        processing_container = get_processing_container(task.image, mode="docker")
+        processing_container = get_processing_container(
+            task.image, task.taskTemplate, mode="docker"
+        )
         task_instance = create_task_instance(
             processing_container=processing_container, task=task
         )

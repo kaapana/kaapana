@@ -1,14 +1,6 @@
 import functools
 import json
-from task_api.processing_container.models import (
-    Task,
-    TaskInstance,
-    ProcessingContainer,
-    IOChannel,
-    IOMount,
-    IOVolume,
-    ContainerEnvVar,
-)
+from task_api.processing_container import models
 from typing import List
 from pathlib import Path
 from jinja2 import Environment, BaseLoader
@@ -28,30 +20,32 @@ def _parse_with_jinja(file: Path, custom_vars: dict = {}) -> dict:
     return json.loads(rendered)
 
 
-def parse_task(file: Path, custom_vars: dict = {}) -> Task:
+def parse_task(file: Path, custom_vars: dict = {}) -> models.Task:
     """
     Parse a json file to a Task object and use jinja templating.
     """
-    return Task(**_parse_with_jinja(file, custom_vars=custom_vars))
+    return models.Task(**_parse_with_jinja(file, custom_vars=custom_vars))
 
 
 def parse_processing_container(
     file: Path, custom_vars: dict = {}
-) -> ProcessingContainer:
+) -> models.ProcessingContainer:
     """
     Parse a json file to a ProcessingContainer object and use jinja templating.
     """
 
-    return ProcessingContainer(**_parse_with_jinja(file, custom_vars=custom_vars))
+    return models.ProcessingContainer(
+        **_parse_with_jinja(file, custom_vars=custom_vars)
+    )
 
 
 def create_task_instance(
-    processing_container: ProcessingContainer, task: Task
-) -> TaskInstance:
+    processing_container: models.ProcessingContainer, task: models.Task
+) -> models.TaskInstance:
     """
     Create a TaskInstance object by merging a ProcessingContainer and a Task object
     """
-    return TaskInstance(
+    return models.TaskInstance(
         inputs=merge_io_channels(processing_container.inputs, task.inputs),
         outputs=merge_io_channels(processing_container.outputs, task.outputs),
         env=merge_env(processing_container.env, task.env),
@@ -67,8 +61,8 @@ def create_task_instance(
 
 
 def merge_env(
-    orig_envs: List[ContainerEnvVar], update_envs: List[ContainerEnvVar]
-) -> List[ContainerEnvVar]:
+    orig_envs: List[models.ContainerEnvVar], update_envs: List[models.ContainerEnvVar]
+) -> List[models.ContainerEnvVar]:
     """
     Merge two lists of ContainerEnvVar objects.
 
@@ -85,7 +79,7 @@ def merge_env(
         for upd_env in update_envs:
             if orig_env.name == upd_env.name:
                 merged_env.append(
-                    ContainerEnvVar(
+                    models.ContainerEnvVar(
                         **{
                             **orig_env.model_dump(mode="python"),
                             **upd_env.model_dump(mode="python"),
@@ -101,8 +95,8 @@ def merge_env(
 
 
 def merge_io_channels(
-    mounts: List[IOMount], volumes: List[IOVolume]
-) -> List[IOChannel]:
+    mounts: List[models.IOMount], volumes: List[models.IOVolume]
+) -> List[models.IOChannel]:
     """
     Merge a list of IOMount objects and IOVolume objects to a list of IOChannel objects.
 
@@ -117,7 +111,7 @@ def merge_io_channels(
         for vol in volumes:
             if mount.name == vol.name:
                 io_channels.append(
-                    IOChannel(
+                    models.IOChannel(
                         **{
                             **mount.model_dump(mode="python", exclude_none=True),
                             **vol.model_dump(mode="python", exclude_none=True),
@@ -129,20 +123,26 @@ def merge_io_channels(
 
 
 @functools.lru_cache()
-def get_processing_container(image: str, mode: str = "docker") -> ProcessingContainer:
+def get_processing_container(
+    image: str, task_identifier: str, mode: str = "docker"
+) -> models.ProcessingContainer:
     if mode == "k8s":
         from kaapana_containers.kubernetes.utils import KubernetsUtils
 
         with KubernetsUtils.extract_file_from_image(
             image, "/processing-container.json", namespace="project-admin"
         ) as f:
-            return ProcessingContainer(**json.load(f))
+            task_templates = models.TaskTemplates(**json.load(f))
     elif mode == "docker":
         from kaapana_containers.docker.utils import DockerUtils
 
         with DockerUtils.extract_file_from_image(
             image, "/processing-container.json"
         ) as f:
-            return ProcessingContainer(**json.load(f))
+            task_templates = models.TaskTemplates(**json.load(f))
     else:
         raise ValueError(f"{mode=} must be one of ['docker','k8s']")
+
+    for pc in task_templates.templates:
+        if pc.identifier == task_identifier:
+            return pc

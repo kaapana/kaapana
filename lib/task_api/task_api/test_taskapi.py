@@ -48,7 +48,9 @@ def test_resources():
 
 
 def test_processing_container():
-    pc = get_processing_container(image=f"{LOCAL_REGISTRY}/dummy:latest", mode="docker")
+    pc = get_processing_container(
+        image=f"{LOCAL_REGISTRY}/dummy:latest", task_identifier="default", mode="docker"
+    )
     task = parse_task(
         file=f"{TASK_DIR}/dummy/tasks/kubernetes_task.json",
         custom_vars={"registry": LOCAL_REGISTRY, "task_dir": TASK_DIR},
@@ -156,5 +158,5 @@ def test_cli_processing_container(tmp_output_dir):
     os.environ["registry"] = str(LOCAL_REGISTRY)
     os.environ["output_dir"] = str(tmp_output_dir)
     cli.processing_container(
-        image=f"{LOCAL_REGISTRY}/dummy:latest", mode=cli.Modes.docker
+        image=f"{LOCAL_REGISTRY}/dummy:latest", task="default", mode=cli.Modes.docker
     )

@@ -1,6 +1,7 @@
 {
     "name": "Test downstream task",
     "image": "{{ env.registry }}/downstream:latest",
+    "taskTemplate": "default",
     "inputs": [
         {
             "name":"channel1",

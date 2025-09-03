@@ -11,7 +11,7 @@ from . import ContainerEnvVar_schema, IOMount_schema, Resources_schema
 
 
 class ProcessingContainer(BaseModel):
-    name: str
+    identifier: str
     description: str
     command: List[str]
     inputs: List[IOMount_schema.IOMount]

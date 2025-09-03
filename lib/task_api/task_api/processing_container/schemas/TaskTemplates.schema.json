@@ -1,0 +1,23 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "TaskTemplates",
+    "description": "",
+    "type": "object",
+    "required": [
+        "name",
+        "description",
+        "templates"
+    ],
+    "properties": {
+      "name": {
+        "type": "string"
+        },
+      "description": {
+        "type": "string"
+        },
+      "templates": { 
+        "type": "array",  
+        "items": {"$ref": "ProcessingContainer.schema.json" }
+        }
+    }
+  }

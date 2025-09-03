@@ -83,6 +83,7 @@ def processing_container(
     image: str = typer.Argument(
         ..., help="Image to get the processing-container.json for"
     ),
+    task: str = typer.Argument(..., help="Identifier of the task template."),
     mode: Optional[Modes] = typer.Option(
         Modes.docker.value,
         help="Environemnt in which to run the container.",
@@ -91,7 +92,7 @@ def processing_container(
     """
     Return the processing-container json for the image
     """
-    processing_container_json = get_processing_container(image, mode=mode.value)
+    processing_container_json = get_processing_container(image, task, mode=mode.value)
     typer.echo(processing_container_json.model_dump_json(indent=2))
 
 

@@ -1,6 +1,7 @@
 {
     "name": "Kubernetes task for dummy image",
     "image": "{{ env.registry }}/dummy:latest",
+    "taskTemplate": "default",
     "inputs": [],
     "outputs": [
         {   

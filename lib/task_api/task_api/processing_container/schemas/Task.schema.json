@@ -5,6 +5,7 @@
   "required": [
     "name",
     "image",
+    "taskTemplate",
     "inputs",
     "outputs"
   ],
@@ -14,6 +15,12 @@
     },
     "image": {
       "type": "string"
+    },
+    "taskTemplate": {
+      "oneOf": [
+      {"type": "string"},
+      {"$ref": "ProcessingContainer.schema.json"}
+    ]
     },
     "command": {
       "type": "array",

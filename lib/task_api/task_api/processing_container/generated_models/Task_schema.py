@@ -3,16 +3,22 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from pydantic import BaseModel
 
-from . import ContainerEnvVar_schema, IOVolume_schema, Resources_schema
+from . import (
+    ContainerEnvVar_schema,
+    IOVolume_schema,
+    ProcessingContainer_schema,
+    Resources_schema,
+)
 
 
 class Task(BaseModel):
     name: str
     image: str
+    taskTemplate: Union[str, ProcessingContainer_schema.ProcessingContainer]
     command: Optional[List[str]] = None
     inputs: List[IOVolume_schema.IOVolume]
     outputs: List[IOVolume_schema.IOVolume]

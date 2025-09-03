@@ -1,21 +1,25 @@
 {
-    "name": "Dummy-processing-container",
-    "description": "Dummy processing container",
-    "env": [],
-    "inputs": [
-        {
-            "name": "channel1",
-            "mounted_path":"/home/downstream/channel1"
-        },
-        {
-            "name": "channel2",
-            "mounted_path":"/home/downstream/channel2"
-        }
-    ],
-    "outputs": [],
-    "command": [
-        "python3",
-        "-u",
-        "start.py"
+    "name": "Downstream-processing-container",
+    "description": "Downstream processing container",
+    "templates": [{
+        "identifier": "default",
+        "description": "Default task template for this processing-container",
+        "env": [],
+        "inputs": [
+            {
+                "name": "channel1",
+                "mounted_path":"/home/downstream/channel1"
+            },
+            {
+                "name": "channel2",
+                "mounted_path":"/home/downstream/channel2"
+            }
+        ],
+        "outputs": [],
+        "command": [
+            "python3",
+            "-u",
+            "start.py"
+        ]}
     ]
 }

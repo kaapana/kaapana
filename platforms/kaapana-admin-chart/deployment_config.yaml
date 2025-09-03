@@ -1,3 +1,7 @@
+helm_namespace: "default"
+admin_namespace: "admin"
+services_namespace: "services"
+extensions_namespace: "extensions"
 kaapana_collections:
 - name: kaapana-extension-collection
 preinstall_extensions:

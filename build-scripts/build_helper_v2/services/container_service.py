@@ -158,14 +158,6 @@ class ContainerService:
                 logger.warning(duplicate)
             logger.warning("")
 
-        # # Init Trivy if configuration check is enabled
-        # if self.config.configuration_check:
-        #     trivy_utils = self.trivy_utils
-        #     trivy_utils.dockerfile_report_path = os.path.join(
-        #         trivy_utils.reports_path, "dockerfile_reports"
-        #     )
-        #     os.makedirs(trivy_utils.dockerfile_report_path, exist_ok=True)
-
         dockerfiles_found = sorted(set(dockerfiles_found))
 
         if cls._build_config.configuration_check:
@@ -182,10 +174,6 @@ class ContainerService:
                 ):
                     logger.debug(f"Ignoring Dockerfile {dockerfile}")
                     continue
-
-                # Check Dockerfiles for configuration errors using Trivy
-                # if self.config.configuration_check:
-                #     trivy_utils.check_dockerfile(dockerfile)
 
                 container = Container.from_dockerfile(
                     dockerfile, build_config=cls._build_config
@@ -332,139 +320,50 @@ class ContainerService:
         return True
 
     @classmethod
-    def build_and_push_containers(cls):
+    def build_and_push_containers(cls) -> None:
         """
         Build and push a set of containers with dependency handling and parallel processing.
-
-        Args:
-            selected_containers (Set[Container]): Containers to build and push.
-
-        Returns:
-            Set[Container]: Containers with updated build statuses.
         """
-        ready_queue = PriorityQueue()
+        ready_queue: PriorityQueue = PriorityQueue()
         waiting_set = set(cls._build_state.selected_containers)
-        last_container_lock = Lock()
         containers_lock = Lock()
 
-        containers_lock = Lock()
-        last_container_lock = Lock()
-        last_container: Optional[Container] = None
+        cls._initialize_ready_queue(waiting_set, ready_queue)
 
-        # --- initialize ready queue with dependency-free containers
-        for c in list(waiting_set):
-            if cls.all_dependencies_ready(c):
-                priority = 0 if c.local_image else 1
-                ready_queue.put((priority, c))
-                waiting_set.remove(c)
-
-        def worker():
-            nonlocal waiting_set, last_container
-
+        def worker(pb: "ProgressBar") -> None:
             while True:
                 try:
-                    _, container = ready_queue.get(timeout=1)
-                    container: Container
+                    container: "Container" = ready_queue.get(timeout=1)[1]
                 except Empty:
                     if not waiting_set and ready_queue.empty():
                         return
                     continue
 
-                container.status = Status.BUILDING
-                build_issue = container.build(config=cls._build_config)
+                cls._process_container(
+                    container,
+                    waiting_set,
+                    ready_queue,
+                    containers_lock,
+                    pb,
+                )
 
-                with containers_lock, last_container_lock:
-                    final_status = None
+                ready_queue.task_done()
 
-                    if build_issue:
-                        IssueTracker.issues.append(build_issue)
-                        final_status = Status.FAILED
-
-                    elif container.status in {
-                        Status.SKIPPED,
-                        Status.NOTHING_CHANGED,
-                        Status.BUILT_ONLY,
-                    }:
-                        final_status = container.status
-
-                    elif cls._build_config.build_only:
-                        final_status = Status.BUILT_ONLY
-
-                    else:
-                        # Built Succeeded
-                        pass
-
-                    # If there is a final status, mark it and print immediately
-                    if final_status:
-                        pb.finished_print(
-                            title="Finished", last_processed_container=container
-                        )
-                        pb.advance(last_processed_container=container, advance=1)
-                        ready_queue.task_done()
-
-                        newly_ready = set()
-                        to_fail = set()
-                        for c in list(waiting_set):
-                            if any(
-                                isinstance(b, Container) and b.status == Status.FAILED
-                                for b in c.base_images
-                            ):
-                                c.status = Status.FAILED
-                                to_fail.add(c)
-                            elif cls.all_dependencies_ready(c):
-                                priority = 0 if c.local_image else 1
-                                ready_queue.put((priority, c))
-                                newly_ready.add(c)
-
-                        waiting_set -= newly_ready | to_fail
-                        continue
-
-                # PUSH
-                container.status = Status.PUSHING
-
-                push_issue = container.push(cls._build_config)
-
-                with containers_lock, last_container_lock:
-                    if push_issue:
-                        IssueTracker.issues.append(push_issue)
-
-                    pb.finished_print(
-                        title="Finished", last_processed_container=container
-                    )
-                    pb.advance(last_processed_container=container, advance=1)
-                    ready_queue.task_done()
-
-                    # after push, update dependents
-                    newly_ready = set()
-                    to_fail = set()
-                    for c in list(waiting_set):
-                        if any(
-                            isinstance(b, Container) and b.status == Status.FAILED
-                            for b in c.base_images
-                        ):
-                            c.status = Status.FAILED
-                            to_fail.add(c)
-                        elif cls.all_dependencies_ready(c):
-                            priority = 0 if c.local_image else 1
-                            ready_queue.put((priority, c))
-                            newly_ready.add(c)
-
-                    waiting_set -= newly_ready | to_fail
-
-        # --- Run workers with progress bar
-        threads = [
-            Thread(target=worker) for _ in range(cls._build_config.parallel_processes)
-        ]
+        threads = []
 
         with ProgressBar(
             total=len(cls._build_state.selected_containers),
             title="Build-Container",
-            containers=cls._build_state.selected_containers,  # pass containers, not results dict
-            use_rich=True,
+            containers=cls._build_state.selected_containers,
+            use_rich=False,
         ) as pb:
-            for t in threads:
+            # Start threads
+            for _ in range(cls._build_config.parallel_processes):
+                t = Thread(target=worker, args=(pb,))
                 t.start()
+                threads.append(t)
 
+            # Wait threads and refresh progress bar
             while any(t.is_alive() for t in threads):
                 pb.refresh()
                 time.sleep(0.2)
@@ -479,6 +378,81 @@ class ContainerService:
             logger.fatal(
                 f"Containers could not be built (missing/cyclic dependencies): {remaining}"
             )
+
+    @classmethod
+    def _initialize_ready_queue(
+        cls, waiting_set: set, ready_queue: PriorityQueue
+    ) -> None:
+        """Add dependency-free containers to the ready queue."""
+        for c in list(waiting_set):
+            if cls.all_dependencies_ready(c):
+                priority = 0 if c.local_image else 1
+                ready_queue.put((priority, c))
+                waiting_set.remove(c)
+
+    @classmethod
+    def _update_dependents(cls, waiting_set: set, ready_queue: PriorityQueue) -> None:
+        """After a container is built or pushed, update dependents to ready queue or fail set."""
+        newly_ready = set()
+        to_fail = set()
+        for c in list(waiting_set):
+            if any(
+                isinstance(b, Container) and b.status == Status.FAILED
+                for b in c.base_images
+            ):
+                c.status = Status.FAILED
+                to_fail.add(c)
+            elif cls.all_dependencies_ready(c):
+                priority = 0 if c.local_image else 1
+                ready_queue.put((priority, c))
+                newly_ready.add(c)
+        waiting_set -= newly_ready | to_fail
+
+    @classmethod
+    def _process_container(
+        cls,
+        container: "Container",
+        waiting_set: set,
+        ready_queue: PriorityQueue,
+        containers_lock: Lock,
+        pb: "ProgressBar",
+    ) -> None:
+        """Build and push a single container, updating status and dependents."""
+        container.status = Status.BUILDING
+        build_issue = container.build(config=cls._build_config)
+
+        with containers_lock:
+            final_status = None
+
+            if build_issue:
+                IssueTracker.issues.append(build_issue)
+                final_status = Status.FAILED
+            elif container.status in {
+                Status.SKIPPED,
+                Status.NOTHING_CHANGED,
+                Status.BUILT_ONLY,
+            }:
+                final_status = container.status
+            elif cls._build_config.build_only:
+                final_status = Status.BUILT_ONLY
+
+            if final_status:
+                pb.finished_print(title="Finished", last_processed_container=container)
+                pb.advance(last_processed_container=container, advance=1)
+                cls._update_dependents(waiting_set, ready_queue)
+                return
+
+        # PUSH stage
+        container.status = Status.PUSHING
+        push_issue = container.push(cls._build_config)
+
+        with containers_lock:
+            if push_issue:
+                IssueTracker.issues.append(push_issue)
+
+            pb.finished_print(title="Finished", last_processed_container=container)
+            pb.advance(last_processed_container=container, advance=1)
+            cls._update_dependents(waiting_set, ready_queue)
 
     @classmethod
     def get_built_images_stats(cls, version: str) -> Dict[str, Dict[str, Any]]:

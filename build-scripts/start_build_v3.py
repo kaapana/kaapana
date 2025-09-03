@@ -97,6 +97,8 @@ def main():
     ContainerService.resolve_base_images_into_container()
     HelmChartService.collect_charts()
     HelmChartService.resolve_chart_dependencies()
+    HelmChartService.resolve_kaapana_collections()
+    HelmChartService.resolve_preinstall_extensions()
 
     BuildService.determine_build_targets()  # Updates build_state
 
@@ -137,9 +139,14 @@ def main():
                 int(hours), int(minutes), int(seconds)
             )
         )
+
+    logger.info("")
     logger.info("-----------------------------------------------------------")
     logger.info("--------------------GENERATE REPORT -----------------------")
     logger.info("-----------------------------------------------------------")
+    logger.info("")
+    logger.info("")
+
     BuildService.generate_report()
 
     if build_config.configuration_check:

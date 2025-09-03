@@ -1,3 +1,4 @@
+import json
 from typing import Callable, Iterable, Set, Tuple, TypeVar
 
 from build_helper_v2.cli.selector import interactive_select
@@ -15,17 +16,46 @@ logger = get_logger()
 
 
 class BuildService:
-    @staticmethod
-    def determine_build_targets(
-        build_config: BuildConfig, build_state: BuildState
-    ) -> Tuple[Set[HelmChart], Set[Container]]:
-        all_charts = build_state.charts_available
-        all_containers = build_state.container_images_available
+    _build_config: BuildConfig = None  # type: ignore
+    _build_state: BuildState = None  # type: ignore
+
+    @classmethod
+    def init(cls, build_config: BuildConfig, build_state: BuildState):
+        """
+        Initialize the ContainerService singleton with configuration and build state.
+
+        Args:
+            config (BuildConfig): Build configuration object.
+            build_state (BuildState): Object managing container build state.
+        """
+        if cls._build_config is None:
+            cls._build_config = build_config
+        if cls._build_state is None:
+            cls._build_state = build_state
+
+    @classmethod
+    def get_platform_version(cls) -> str:
+        """
+        Get the platform version from the kaapana-admin-chart.
+
+        Returns:
+            str | None: Version string if found, else None
+        """
+        for chart in cls._build_state.charts_available:
+            if chart.name == "kaapana-admin-chart":
+                return chart.version  # or chart.app_version depending on your HelmChart
+        logger.fatal("kaapana-admin-chart not found in charts_available")
+        exit(1)
+
+    @classmethod
+    def determine_build_targets(cls) -> Tuple[Set[HelmChart], Set[Container]]:
+        all_charts = cls._build_state.charts_available
+        all_containers = cls._build_state.containers_available
 
         selected_charts_objs: Set[HelmChart] = set()
         selected_containers_objs: Set[Container] = set()
 
-        if build_config.interactive:
+        if cls._build_config.interactive:
             # Step 1: choose Charts or Containers
             choice = inquirer.select(
                 message="What do you want to select?",
@@ -51,25 +81,28 @@ class BuildService:
         else:  # Non-interactive
             # Non-interactive: use helper
             selected_charts_objs = BuildService.filter_selection(
-                build_state.charts_available,
-                build_config.build_charts,
+                cls._build_state.charts_available,
+                cls._build_config.build_charts,
                 get_name=lambda c: c.name,
-                exit_on_error=build_config.exit_on_error,
+                exit_on_error=cls._build_config.exit_on_error,
                 kind="chart",
             )
 
             selected_containers_objs = BuildService.filter_selection(
-                build_state.container_images_available,
-                build_config.build_containers,
+                cls._build_state.containers_available,
+                cls._build_config.build_containers,
                 get_name=lambda c: c.image_name,
-                exit_on_error=build_config.exit_on_error,
+                exit_on_error=cls._build_config.exit_on_error,
                 kind="container",
             )
 
             # Add all BaseImages in the queue of selected_containers
-            all_base_containers = ContainerService.collect_all_local_base_containers(selected_containers_objs)
+            all_base_containers = ContainerService.collect_all_local_base_containers(
+                selected_containers_objs
+            )
             selected_containers_objs.update(all_base_containers)
-
+        cls._build_state.selected_containers = selected_containers_objs
+        cls._build_state.selected_charts = selected_charts_objs
         return selected_charts_objs, selected_containers_objs
 
     @staticmethod
@@ -113,3 +146,75 @@ class BuildService:
                     exit(1)
 
             return selected
+
+    @classmethod
+    def report_unused_containers(cls):
+        logger.debug("\nCollect unused containers:\n")
+        unused_containers_json_path = (
+            cls._build_config.build_dir / "build_containers_unused.json"
+        )
+        unused_containers = (
+            cls._build_state.containers_available - cls._build_state.selected_containers
+        )
+
+        with open(unused_containers_json_path, "w") as fp:
+            json.dump([c.to_dict() for c in unused_containers], fp, indent=4)
+
+    @classmethod
+    def report_image_stats(cls):
+        image_stats = ContainerService.get_built_images_stats(
+            cls.get_platform_version()
+        )
+
+        logger.debug("\nCollect image stats:\n")
+        image_stats_json_path = cls._build_config.build_dir / "image_stats.json"
+
+        with open(image_stats_json_path, "w") as fp:
+            json.dump(image_stats, fp, indent=4)
+
+    @classmethod
+    def report_used_base_images(cls):
+        return NotImplemented
+
+    @classmethod
+    def report_available_containers(cls):
+        logger.debug("\nCollect all containers:\n")
+        built_containers_json_path = (
+            cls._build_config.build_dir / "containers_available.json"
+        )
+
+        with open(built_containers_json_path, "w") as fp:
+            json.dump(
+                [c.to_dict() for c in cls._build_state.containers_available],
+                fp,
+                indent=4,
+            )
+
+    @classmethod
+    def report_available_charts(cls):
+        logger.debug("\nCollect all charts:\n")
+        built_containers_json_path = (
+            cls._build_config.build_dir / "charts_available.json"
+        )
+
+        with open(built_containers_json_path, "w") as fp:
+            json.dump(
+                [c.to_dict() for c in cls._build_state.charts_available],
+                fp,
+                indent=4,
+            )
+
+    @classmethod
+    def report_unused_charts(cls):
+        return NotImplemented
+
+    @classmethod
+    def generate_report(cls):
+        BuildService.report_unused_containers()
+        BuildService.report_used_base_images()
+        BuildService.report_available_containers()
+        BuildService.report_available_charts()
+        BuildService.report_unused_charts()
+
+        if cls._build_config.enable_image_stats:
+            BuildService.report_image_stats()

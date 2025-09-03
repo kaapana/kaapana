@@ -1,15 +1,16 @@
 import os
 import time
-from dataclasses import dataclass
 from glob import glob
 from pathlib import Path
 from queue import Empty, PriorityQueue
 from shutil import which
+from subprocess import PIPE, run
 from threading import Lock, Thread
-from typing import Any, Dict, Set
+from typing import Any, Dict, Optional, Set
 
+import docker
 from alive_progress import alive_bar
-from build_helper_v2.cli.progress import ProgressBar, Result
+from build_helper_v2.cli.progress import ProgressBar
 from build_helper_v2.core.build_state import BuildState
 from build_helper_v2.core.container import Container, Status
 from build_helper_v2.models.build_config import BuildConfig
@@ -21,48 +22,82 @@ logger = get_logger()
 
 
 class ContainerService:
-    # singleton-like class
-    _config: BuildConfig = None  # type: ignore
+    """
+    Singleton-like service class responsible for managing container builds and
+    interactions with container engines.
+
+    Responsibilities:
+        - Verify container engine installation
+        - Login to container registries
+        - Collect containers from source directories
+        - Resolve base image dependencies
+        - Build and push containers in parallel
+        - Track build statuses
+    """
+
+    _build_config: BuildConfig = None  # type: ignore
     _build_state: BuildState = None  # type: ignore
+    _docker_client: docker.DockerClient = None  # type: ignore
 
     @classmethod
-    def init(cls, config: BuildConfig, build_state: BuildState):
-        """Initialize the singleton with context."""
-        if cls._config is None:
-            cls._config = config
+    def init(cls, build_config: BuildConfig, build_state: BuildState):
+        """
+        Initialize the ContainerService singleton with configuration and build state.
+
+        Args:
+            config (BuildConfig): Build configuration object.
+            build_state (BuildState): Object managing container build state.
+        """
+        if cls._build_config is None:
+            cls._build_config = build_config
         if cls._build_state is None:
             cls._build_state = build_state
 
+        if cls._docker_client is None:
+            cls._docker_client = docker.from_env()
+
     @classmethod
     def verify_container_engine_installed(cls):
+        """
+        Verify that the configured container engine is installed on the system.
+
+        Exits the program if the container engine is missing and `exit_on_error` is True.
+        """
         logger.debug("")
         logger.debug(" -> Container Init")
-        logger.debug(f"Container engine: {cls._config.container_engine}")
+        logger.debug(f"Container engine: {cls._build_config.container_engine}")
 
-        if which(cls._config.container_engine) is None:
-            logger.error(f"{cls._config.container_engine} was not found!")
+        if which(cls._build_config.container_engine) is None:
+            logger.error(f"{cls._build_config.container_engine} was not found!")
             logger.error("Please install {Container.container_engine} on your system.")
-            if cls._config.exit_on_error:
+            if cls._build_config.exit_on_error:
                 exit(1)
 
     @classmethod
     def container_registry_login(cls, username: str, password: str):
-        registry = cls._config.default_registry
+        """
+        Login to the default container registry.
+
+        Args:
+            username (str): Registry username.
+            password (str): Registry password.
+        """
+        registry = cls._build_config.default_registry
         logger.info(f"-> Container registry-logout: {registry}")
 
-        logout_cmd = [cls._config.container_engine, "logout", registry]
+        logout_cmd = [cls._build_config.container_engine, "logout", registry]
 
         CommandHelper.run(
             logout_cmd,
             logger=logger,
             timeout=10,
             context="registry-logout",
-            exit_on_error=cls._config.exit_on_error,
+            exit_on_error=cls._build_config.exit_on_error,
         )
         logger.info(f"-> Container registry-login: {registry}")
 
         login_cmd = [
-            cls._config.container_engine,
+            cls._build_config.container_engine,
             "login",
             registry,
             "--username",
@@ -75,23 +110,29 @@ class ContainerService:
             logger=logger,
             timeout=10,
             context="registry-login",
-            exit_on_error=cls._config.exit_on_error,
+            exit_on_error=cls._build_config.exit_on_error,
         )
 
     @classmethod
     def collect_containers(cls) -> Set[Container]:
+        """
+        Collect all Dockerfiles and initialize Container objects.
+
+        Returns:
+            Set[Container]: A set of containers representing collected Dockerfiles.
+        """
         logger.debug("")
         logger.debug(" collect_containers")
 
-        dockerfiles_found = list(cls._config.kaapana_dir.rglob("Dockerfile*"))
+        dockerfiles_found = list(cls._build_config.kaapana_dir.rglob("Dockerfile*"))
         logger.info("")
         logger.info(f"-> Found {len(dockerfiles_found)} Dockerfiles @Kaapana")
 
         if (
-            cls._config.external_source_dirs is not None
-            and len(cls._config.external_source_dirs) > 0
+            cls._build_config.external_source_dirs is not None
+            and len(cls._build_config.external_source_dirs) > 0
         ):
-            for external_source in cls._config.external_source_dirs:
+            for external_source in cls._build_config.external_source_dirs:
                 logger.info("")
                 logger.info(f"-> adding external sources: {external_source}")
                 external_dockerfiles_found = glob(
@@ -100,7 +141,7 @@ class ContainerService:
                 external_dockerfiles_found = [
                     path
                     for path in Path(external_source).rglob("Dockerfile")
-                    if Path(cls._config.kaapana_dir)
+                    if Path(cls._build_config.kaapana_dir)
                     not in path.parents  # TODO Why filter here?
                 ]
                 dockerfiles_found.extend(external_dockerfiles_found)
@@ -117,7 +158,7 @@ class ContainerService:
                 logger.warning(duplicate)
             logger.warning("")
 
-        # Init Trivy if configuration check is enabled
+        # # Init Trivy if configuration check is enabled
         # if self.config.configuration_check:
         #     trivy_utils = self.trivy_utils
         #     trivy_utils.dockerfile_report_path = os.path.join(
@@ -127,7 +168,7 @@ class ContainerService:
 
         dockerfiles_found = sorted(set(dockerfiles_found))
 
-        if cls._config.configuration_check:
+        if cls._build_config.configuration_check:
             bar_title = "Collect container and check configuration"
         else:
             bar_title = "Collect container"
@@ -135,9 +176,9 @@ class ContainerService:
         with alive_bar(len(dockerfiles_found), dual_line=True, title=bar_title) as bar:
             for dockerfile in dockerfiles_found:
                 bar()
-                if cls._config.build_ignore_patterns and any(
+                if cls._build_config.build_ignore_patterns and any(
                     pattern in dockerfile.as_posix()
-                    for pattern in cls._config.build_ignore_patterns
+                    for pattern in cls._build_config.build_ignore_patterns
                 ):
                     logger.debug(f"Ignoring Dockerfile {dockerfile}")
                     continue
@@ -147,25 +188,30 @@ class ContainerService:
                 #     trivy_utils.check_dockerfile(dockerfile)
 
                 container = Container.from_dockerfile(
-                    dockerfile, build_config=cls._config
+                    dockerfile, build_config=cls._build_config
                 )
                 bar.text(container.image_name)
                 cls._build_state.add_container(container)
 
         cls.check_base_containers()
 
-        return cls._build_state.container_images_available
+        return cls._build_state.containers_available
 
     @classmethod
     def check_base_containers(cls):
+        """
+        Verify that all local base images required by containers are present.
+
+        Exits the program if a base image is missing and `exit_on_error` is True.
+        """
         logger.debug("")
         logger.debug(" check_base_containers")
         logger.debug("")
-        for container in cls._build_state.container_images_available:
+        for container in cls._build_state.containers_available:
             for base_image in container.base_images:
                 if base_image.local_image and not any(
                     base_image.tag == available_container.tag
-                    for available_container in cls._build_state.container_images_available
+                    for available_container in cls._build_state.containers_available
                 ):
                     container.missing_base_images.append(base_image)
                     logger.error("")
@@ -173,43 +219,36 @@ class ContainerService:
                         f"-> {container.tag} - base_image missing: {base_image.tag}"
                     )
                     logger.error("")
-                    if cls._config.exit_on_error:
+                    if cls._build_config.exit_on_error:
                         exit(1)
 
     @classmethod
     def pull_container_image(cls, image_tag: str):
-        command = [cls._config.container_engine, "pull", image_tag]
+        """
+        Pull a container image from a remote registry.
+
+        Args:
+            image_tag (str): Tag of the container image to pull.
+        """
+
+        command = [cls._build_config.container_engine, "pull", image_tag]
         logger.info(f"{image_tag}: Start pulling container image")
 
         CommandHelper.run(
             command,
             logger=logger,
             timeout=6000,
-            env=dict(os.environ, DOCKER_BUILDKIT=f"{cls._config.enable_build_kit}"),
+            env=dict(
+                os.environ, DOCKER_BUILDKIT=f"{cls._build_config.enable_build_kit}"
+            ),
         )
 
     @classmethod
     def resolve_base_images_into_container(cls):
         """
-        Replace local BaseImage references in each container base_images attribute
-        with the actual Container objects.
-
-        This method iterates over all containers in `container_images_available` and checks
-        their `base_images` list. If a base image is marked as `local_image`, it is a base
-        that is also being built locally. This function resolves it to the corresponding
-        Container object from the build state, so that dependency checks can correctly
-        use the Container's build status.
-
-        After calling this method:
-            - Local base images in `container.base_images` point to the actual Container objects.
-            - Non-local base images remain as BaseImage references.
-            - Dependency checks can safely inspect `container.base_images` to determine if all
-            required containers are built.
-
-        Raises:
-            KeyError: If a local base image cannot be resolved to a known Container.
+        Replace local BaseImage references in containers with actual Container objects.
         """
-        for c in cls._build_state.container_images_available:
+        for c in cls._build_state.containers_available:
             c.base_images = {
                 (
                     cls.resolve_reference_to_container(
@@ -228,25 +267,19 @@ class ContainerService:
         cls, registry: str, image_name: str, version: str
     ) -> Container:
         """
-        Resolves a container image reference found in a Helm chart (e.g., in values.yaml or templates)
-        to a known Container object from the collected build state.
-
-        This function searches the build state's available container images for a match based on
-        the given registry and image name. If exactly one match is found, it is returned.
-        If zero or multiple matches are found, a build issue is logged and reported.
+        Resolve a container reference to a collected Container object.
 
         Args:
-            registry (str): The container registry name (e.g., 'docker.io', 'ghcr.io').
-            image_name (str): The image name without the tag (e.g., 'my-service').
-            chart_id (str): The name of the Helm chart for logging and issue tracking.
-            chartfile (Path): Path to the chart's Chart.yaml, used for issue context.
+            registry (str): Registry name.
+            image_name (str): Image name.
+            version (str): Version or tag of the image.
 
         Returns:
-            Container: The resolved container object, if found unambiguously. Otherwise, returns None.
+            Container: Resolved container object.
         """
         matches = [
             c
-            for c in cls._build_state.container_images_available
+            for c in cls._build_state.containers_available
             if c.image_name == image_name
             and c.registry == registry
             and c.version == version
@@ -274,144 +307,172 @@ class ContainerService:
     @staticmethod
     def all_dependencies_ready(container: Container) -> bool:
         """
-        Check if all local base images of a container are built or unchanged.
-        Non-local base images are ignored.
+        Check if all local base images for a container are built or unchanged.
+
+        Args:
+            container (Container): Container to check.
+
+        Returns:
+            bool: True if all local dependencies are ready, False otherwise.
         """
         for b in container.base_images:
             if b.local_image:
+                # Online reference ubuntu:24.04
                 if not isinstance(b, Container):
                     return False
                 if b.status not in {
                     Status.BUILT,
+                    Status.BUILT_ONLY,
                     Status.NOTHING_CHANGED,
                     Status.PUSHED,
+                    Status.SKIPPED,
+                    Status.FAILED,
                 }:
                     return False
         return True
 
     @classmethod
-    def build_and_push_containers(cls, selected_containers: Set["Container"]):
+    def build_and_push_containers(cls):
+        """
+        Build and push a set of containers with dependency handling and parallel processing.
+
+        Args:
+            selected_containers (Set[Container]): Containers to build and push.
+
+        Returns:
+            Set[Container]: Containers with updated build statuses.
+        """
         ready_queue = PriorityQueue()
-        results: Dict[str, Result] = {}
-        results_lock = Lock()
-        failed_set = set()
-        waiting_set = set(selected_containers)
+        waiting_set = set(cls._build_state.selected_containers)
+        last_container_lock = Lock()
+        containers_lock = Lock()
 
-        with results_lock:
-            for c in selected_containers:
-                results[c.tag] = Result(
-                    tag=c.tag, status=str(c.status), build_time="-", push_time="-"
-                )
+        containers_lock = Lock()
+        last_container_lock = Lock()
+        last_container: Optional[Container] = None
 
+        # --- initialize ready queue with dependency-free containers
         for c in list(waiting_set):
             if cls.all_dependencies_ready(c):
                 priority = 0 if c.local_image else 1
-                ready_queue.put((priority, c.tag, c))
+                ready_queue.put((priority, c))
                 waiting_set.remove(c)
 
         def worker():
-            nonlocal waiting_set
+            nonlocal waiting_set, last_container
+
             while True:
                 try:
-                    _, _, container = ready_queue.get(timeout=1)
+                    _, container = ready_queue.get(timeout=1)
+                    container: Container
                 except Empty:
                     if not waiting_set and ready_queue.empty():
                         return
                     continue
-                container: Container
-                tag = container.tag
-                with results_lock:
-                    results[tag].status = "Status.BUILDING"
 
-                build_issue, build_duration = container.build(config=cls._config)
-                with results_lock:
+                container.status = Status.BUILDING
+                build_issue = container.build(config=cls._build_config)
+
+                with containers_lock, last_container_lock:
+                    final_status = None
+
                     if build_issue:
-                        build_issue.log_self(logger)
-                        results[tag].status = str(container.status)
-                        results[tag].build_time = "-"
-                        failed_set.add(container)
-                        ready_queue.task_done()
+                        IssueTracker.issues.append(build_issue)
+                        final_status = Status.FAILED
+
+                    elif container.status in {
+                        Status.SKIPPED,
+                        Status.NOTHING_CHANGED,
+                        Status.BUILT_ONLY,
+                    }:
+                        final_status = container.status
+
+                    elif cls._build_config.build_only:
+                        final_status = Status.BUILT_ONLY
+
                     else:
-                        results[tag].status = (
-                            "Status.PUSHING" if not cls._config.build_only else "DONE"
+                        # Built Succeeded
+                        pass
+
+                    # If there is a final status, mark it and print immediately
+                    if final_status:
+                        pb.finished_print(
+                            title="Finished", last_processed_container=container
                         )
-                        results[tag].build_time = (
-                            f"{build_duration:0.2f}s" if build_duration else "-"
-                        )
+                        pb.advance(last_processed_container=container, advance=1)
+                        ready_queue.task_done()
 
-                if not cls._config.build_only:
-                    push_issue, push_duration = container.push(cls._config)
-                    with results_lock:
-                        if push_issue:
-                            IssueTracker.issues.append(push_issue)
-                            push_issue.log_self(logger)
-                            results[tag].status = "PUSH_FAILED"
-                            results[tag].push_time = "-"
-                            failed_set.add(container)
-                            ready_queue.task_done()
-                        else:
-                            results[tag].status = str(container.status)
-                            results[tag].push_time = (
-                                f"{push_duration:0.2f}s" if push_duration else "-"
-                            )
+                        newly_ready = set()
+                        to_fail = set()
+                        for c in list(waiting_set):
+                            if any(
+                                isinstance(b, Container) and b.status == Status.FAILED
+                                for b in c.base_images
+                            ):
+                                c.status = Status.FAILED
+                                to_fail.add(c)
+                            elif cls.all_dependencies_ready(c):
+                                priority = 0 if c.local_image else 1
+                                ready_queue.put((priority, c))
+                                newly_ready.add(c)
 
-                ready_queue.task_done()
-
-                newly_ready = set()
-                to_fail = set()
-                for c in list(waiting_set):
-                    if any(
-                        isinstance(b, Container) and b in failed_set
-                        for b in c.base_images
-                    ):
-                        with results_lock:
-                            results[c.tag].status = "SKIPPED (failed base)"
-                        failed_set.add(c)
-                        to_fail.add(c)
+                        waiting_set -= newly_ready | to_fail
                         continue
 
-                    if cls.all_dependencies_ready(c):
-                        priority = 0 if c.local_image else 1
-                        ready_queue.put((priority, c.tag, c))
-                        newly_ready.add(c)
+                # PUSH
+                container.status = Status.PUSHING
 
-                waiting_set -= newly_ready | to_fail
+                push_issue = container.push(cls._build_config)
 
-        threads = [Thread(target=worker) for _ in range(cls._config.parallel_processes)]
+                with containers_lock, last_container_lock:
+                    if push_issue:
+                        IssueTracker.issues.append(push_issue)
+
+                    pb.finished_print(
+                        title="Finished", last_processed_container=container
+                    )
+                    pb.advance(last_processed_container=container, advance=1)
+                    ready_queue.task_done()
+
+                    # after push, update dependents
+                    newly_ready = set()
+                    to_fail = set()
+                    for c in list(waiting_set):
+                        if any(
+                            isinstance(b, Container) and b.status == Status.FAILED
+                            for b in c.base_images
+                        ):
+                            c.status = Status.FAILED
+                            to_fail.add(c)
+                        elif cls.all_dependencies_ready(c):
+                            priority = 0 if c.local_image else 1
+                            ready_queue.put((priority, c))
+                            newly_ready.add(c)
+
+                    waiting_set -= newly_ready | to_fail
+
+        # --- Run workers with progress bar
+        threads = [
+            Thread(target=worker) for _ in range(cls._build_config.parallel_processes)
+        ]
 
         with ProgressBar(
-            total=len(selected_containers),
+            total=len(cls._build_state.selected_containers),
             title="Build-Container",
-            results=results,
+            containers=cls._build_state.selected_containers,  # pass containers, not results dict
             use_rich=True,
         ) as pb:
             for t in threads:
                 t.start()
 
-            last_completed = 0
             while any(t.is_alive() for t in threads):
-                with results_lock:
-                    completed = sum(
-                        1
-                        for r in results.values()
-                        if r.status
-                        in {
-                            "DONE",
-                            "BUILD_FAILED",
-                            "PUSH_FAILED",
-                            "SKIPPED (failed base)",
-                        }
-                    )
-                for _ in range(completed - last_completed):
-                    pb.advance()
-                last_completed = completed
-
                 pb.refresh()
                 time.sleep(0.2)
 
             for t in threads:
                 t.join()
-            pb.refresh()
+
+            pb.refresh(clear=True)
 
         if waiting_set:
             remaining = [c.tag for c in waiting_set]
@@ -419,35 +480,110 @@ class ContainerService:
                 f"Containers could not be built (missing/cyclic dependencies): {remaining}"
             )
 
-        return results
+    @classmethod
+    def get_built_images_stats(cls, version: str) -> Dict[str, Dict[str, Any]]:
+        """
+        Collect detailed stats for all images matching the specified version.
+        Uses `docker image ls` and `docker system df -v` once to gather info.
 
-    # @classmethod
-    # def get_images_stats(cls):
-    #     images_stats = {}
-    #     container_image_versions = set(
-    #         [x.split(":")[-1] for x in cls._build_state.built_containers]
-    #     )
-    #     for container_image_version in container_image_versions:
-    #         images_stats[container_image_version] = get_image_stats(
-    #             version=container_image_version
-    #         )
-    #     return images_stats
+        Args:
+            version (str): Version string to filter relevant images.
 
-    #         BuildUtils.logger.info("")
-    #         BuildUtils.logger.info("")
-    #         BuildUtils.logger.info("PLATFORM BUILD DONE.")
-    #                 msg=f"There were too many build-rounds! Still missing: {waiting_containers_to_built}",
-    #                 level="FATAL",
-    #             )
+        Returns:
+            Dict[str, Dict[str, Any]]: Mapping of image_tag -> stats dict
+        """
+        images_stats: Dict[str, Dict[str, Any]] = {}
+        command = [f"{cls._build_config.container_engine} image ls | grep {version}"]
+        output = run(
+            command,
+            shell=True,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True,
+            timeout=5,
+        )
+        if output.returncode == 0:
+            system_df_output = output.stdout.split("\n")
+            for image_stats in system_df_output:
+                if len(image_stats) == 0:
+                    continue
+                image_name, image_tag, _, image_build_time, size_str = [
+                    x for x in image_stats.strip().split("  ") if x != ""
+                ]
+                size = cls.convert_size(size_str)
+                images_stats[f"{image_name}:{image_tag}"] = {"size": size}
 
-    #         BuildUtils.logger.info("")
-    #         BuildUtils.logger.info("")
-    #         BuildUtils.logger.info("PLATFORM BUILD DONE.")
+        command = [
+            f"{cls._build_config.container_engine} system df -v | grep {version}"
+        ]
+        output = run(
+            command,
+            shell=True,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True,
+            timeout=120,
+        )
+        if output.returncode == 0:
+            system_df_output = output.stdout.split("\n")
+            for image_stats in system_df_output:
+                if len(image_stats) == 0:
+                    continue
+                (
+                    image_name,
+                    image_tag,
+                    _,
+                    image_build_time,
+                    size_str,
+                    shared_size_str,
+                    unique_size_str,
+                    containers,
+                ) = [x for x in image_stats.strip().split("  ") if x != ""]
+                size = cls.convert_size(size_str)
+                shared_size = cls.convert_size(shared_size_str)
+                unique_size = cls.convert_size(unique_size_str)
+
+                images_stats[f"{image_name}:{image_tag}"] = {
+                    "size": size,
+                    "unique_size": unique_size,
+                    "shared_size": shared_size,
+                    "image_build_time": image_build_time,
+                    "containers": int(containers.strip()),
+                }
+
+        images_stats = {
+            k: v
+            for k, v in sorted(
+                images_stats.items(),
+                key=lambda item: item[1]["size"],
+                reverse=True,
+            )
+        }
+        return images_stats
+
+    @staticmethod
+    def convert_size(size_string: str) -> Optional[float]:
+        if "GB" in size_string:
+            return float(size_string.replace("GB", ""))
+        elif "MB" in size_string:
+            return round(float(size_string.replace("MB", "")) / 1000, 2)
+        elif "kB" in size_string:
+            return 0
+        elif "B" in size_string:
+            return 0
+        else:
+            return None
 
     @staticmethod
     def collect_all_local_base_containers(containers: set[Container]) -> set[Container]:
         """
-        Recursively collect all local base-images that are also containers.
+        Recursively collect all local base images that are also containers.
+
+        Args:
+            containers (set[Container]): Initial set of containers.
+
+        Returns:
+            set[Container]: Set including all local base containers.
         """
         all_containers = set(containers)
         queue = list(containers)

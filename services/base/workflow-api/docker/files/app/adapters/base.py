@@ -20,33 +20,46 @@ class WorkflowEngineAdapter(ABC):
 
     @abstractmethod
     async def submit_workflow_run(
-        self, workflow: schemas.Workflow, workflow_run: schemas.WorkflowRun
-    ) -> schemas.WorkflowRun:
-        """Submit a workflow to the external engine"""
+        self,
+        workflow_run: schemas.WorkflowRun,
+    ) -> schemas.WorkflowRunUpdate:
+        """
+        Submit a workflow to the external engine
+
+        Args:
+            workflow_run (schemas.WorkflowRun): The workflow run to submit
+
+        Returns:
+            schemas.WorkflowRunUpdate: externa_id and lifecycle_status of the submitted workflow run
+        """
         pass
 
     @abstractmethod
-    async def get_workflow_run_tasks(
-        self, workflow_run: schemas.WorkflowRun
+    async def get_workflow_run_task_runs(
+        self, workflow_run_id: int
     ) -> List[schemas.TaskRun]:
         """
         Get tasks for a workflow run from the external engine.
 
         Args:
-            workflow_identifier (str): The workflow identifier.
-            external_id (str): The external ID of the workflow run.
-
+            workflow_run_id (id): The id of the workflow run.
 
         Returns:
-            Dict[str, Any]: A dictionary containing task information.
+            List[schemas.TaskRun]: A list of TaskRun objects.
         """
         pass
 
     @abstractmethod
-    async def get_workflow_run(
-        self, workflow_run: schemas.WorkflowRun
-    ) -> schemas.WorkflowRun:
-        """Get the current status of a workflow from the external engine"""
+    async def get_workflow_run(self, workflow_run_external_id: str) -> schemas.LifecycleStatus:
+        """
+        Get the current status of a workflow from the external engine
+
+        Args:
+            workflow_run_external_id (str): The external ID of the workflow run in the engine.
+
+        Returns:
+            schemas.WorkflowRun: The WorkflowRun object with updated status.
+        """
         pass
 
     @abstractmethod
@@ -56,10 +69,9 @@ class WorkflowEngineAdapter(ABC):
 
     @abstractmethod
     async def submit_workflow(
-        self, db: AsyncSession, workflow: schemas.Workflow
-    ) -> bool:
+        self, workflow: schemas.Workflow
+    ) -> List[schemas.TaskCreate]:
         """
         1. Create the workflow based on the definition in the WorkflowEngine
         2. Get tasks from workflow engine
-        3. Create tasks in database
         """

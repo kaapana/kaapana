@@ -3,8 +3,7 @@ import time
 from typing import List, Dict, Any
 
 from app.adapters.base import WorkflowEngineAdapter
-from app import schemas, crud
-from app.schemas import LifecycleStatus
+from app import schemas
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -22,82 +21,83 @@ class DummyAdapter(WorkflowEngineAdapter):
         super().__init__()
 
     async def submit_workflow(
-        self, db: AsyncSession, workflow: schemas.Workflow
-    ) -> bool:
+        self, workflow: schemas.Workflow
+    ) -> List[schemas.TaskCreate]:
         logger.info(f"Posting workflow to DummyAdapter: {workflow.title}")
         time.sleep(2)
-        # TODO: add task2 should be a downstream task of task1, but since task1 comes first, adding task2 as downstream does not work
-        # TODO: might need a `crud.add_downstream_task` method
-        task1 = await crud.create_task(
-            db=db,
-            task=schemas.TaskCreate(
-                title="dummy-task-1", display_name="Dummy Task 1", type="test"
-            ),
-            workflow_id=workflow.id,
+        task1 = schemas.TaskCreate(
+            title="dummy-task-1", display_name="Dummy Task 1", type="test"
         )
-        task2 = await crud.create_task(
-            db=db,
-            task=schemas.TaskCreate(
-                title="dummy-task-2",
-                display_name="Dummy Task 2",
-                type="test",
-            ),
-            workflow_id=workflow.id,
+        task2 = schemas.TaskCreate(
+            title="dummy-task-2",
+            display_name="Dummy Task 2",
+            type="test",
         )
-        logger.info(
-            f"Dummy adapter successfully added tasks: {task1.title}, {task2.title}"
-        )
-        return True
+        return [task1, task2]
 
-    def submit_workflow_run(
+    async def submit_workflow_run(
         self,
-        workflow: schemas.Workflow,
         workflow_run: schemas.WorkflowRun,
-    ) -> schemas.WorkflowRun:
+    ) -> schemas.WorkflowRunUpdate:
         """ """
-        time.sleep(5)
-        return crud.update_workflow_run(
-            run_id=workflow_run.id,
-            workflow_run_update=schemas.WorkflowRunUpdate(LifecycleStatus.COMPLETED),
+        time.sleep(1)
+        # simulate sending run to the engine, getting it back and updating external_id and status=PENDING
+        return schemas.WorkflowRunUpdate(
+            external_id="dummy-workflow-run-external-id",
+            lifecycle_status=schemas.LifecycleStatus.PENDING,
         )
 
-    def get_workflow_run(self, workflow_run: schemas.WorkflowRun) -> LifecycleStatus:
+    async def get_workflow_run(
+        self, workflow_run_external_id: str
+    ) -> schemas.LifecycleStatus:
         """
-        Gets the current status of a workflow run from Airflow.
+        Gets the current status of a workflow run from engine.
 
         Args:
-            dag_id (str): The ID of the DAG.
-            dag_run_id (str): The ID of the DAG run.
+            workflow_run_external_id (str): The ID of the workflow run in the engine.
 
         Returns:
-            LifecycleStatus: The mapped lifecycle status of the workflow run.
+            LifecycleStatus: The WorkflowRun object with updated status.
         """
-        return workflow_run
+        time.sleep(1)
+        # simulate getting info from the workflow engine and updating status to COMPLETED
+        return schemas.LifecycleStatus.COMPLETED
 
-    def get_workflow_run_tasks(
-        self, dag_id: str, dag_run_id: str
-    ) -> List[Dict[str, Any]]:
+    def get_workflow_run_task_runs(
+        self, workflow_run_external_id: str
+    ) -> List[schemas.TaskRunUpdate]:
         """
-        Gets the tasks for a specific DAG run from Airflow.
+        Gets the task runs of a workflow run from Airflow.
+        Args:
+            workflow_run_external_id (str): The ID of the workflow run in the engine.   
 
         Returns:
-            Dict[str, Any]: A dictionary containing task information.
+            List[TaskRunUpdate]: List of TaskRunUpdate objects with updated status.
         """
-        return {}
+        time.sleep(1)
+        return [
+            schemas.TaskRunUpdate(
+                external_id="dummy-task-run-1-external-id",
+                task_title="dummy-task-1",
+                lifecycle_status=schemas.LifecycleStatus.COMPLETED,
+            ),
+            schemas.TaskRunUpdate(
+                external_id="dummy-task-run-2-external-id",
+                task_title="dummy-task-2",
+                lifecycle_status=schemas.LifecycleStatus.COMPLETED,
+            ),
+        ]
 
-    def cancel_workflow_run(self, dag_id: str, dag_run_id: str) -> bool:
+    def cancel_workflow_run(
+        self, workflow_run_external_id: str
+    ) -> schemas.LifecycleStatus:
         """
-        Attempts to cancel a workflow run in Airflow.
-        Note: Airflow's REST API doesn't have a direct "cancel" endpoint for DAG runs.
-        A common approach is to set its state to "failed" or "marked_for_reschedule"
-        or clear tasks. For true cancellation, manual intervention or a custom Airflow
-        operator might be needed. This implementation marks it as failed.
+        Cancels a running workflow run in the engine.
 
         Args:
-            dag_id (str): The ID of the DAG.
-            dag_run_id (str): The ID of the DAG run.
+            workflow_run_external_id (str): The ID of the workflow run in the engine.
 
         Returns:
-            bool: True if the operation was successful, False otherwise.
+            LifecycleStatus: The updated status of the workflow run as canceled.
         """
-        return True
+        return schemas.LifecycleStatus.CANCELED

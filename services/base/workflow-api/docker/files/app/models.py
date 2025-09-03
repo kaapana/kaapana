@@ -142,6 +142,7 @@ class TaskRun(Base):
     id = Column(Integer, primary_key=True, index=True)
     task_id = Column(Integer, ForeignKey("tasks.id"))
     workflow_run_id = Column(Integer, ForeignKey("workflow_runs.id"))
+    external_id = Column(String, nullable=True)
     lifecycle_status = Column(
         SqlEnum(LifecycleStatus), default=LifecycleStatus.CREATED, nullable=False
     )

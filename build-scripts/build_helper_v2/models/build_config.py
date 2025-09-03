@@ -35,7 +35,6 @@ class BuildConfig(BaseModel):
     enable_build_kit: bool = (
         True  # Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/
     )
-    skip_push_no_changes: bool
     parallel_processes: int
     max_build_rounds: int = 5
     max_push_retries: int = 30

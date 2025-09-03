@@ -126,8 +126,8 @@ class Container:
         self.build_ignore = build_ignore
         self.local_image = local_image
         self.status = Status.NOT_BUILT
-        self.build_time = "-"
-        self.push_time = "-"
+        self.build_time: str | float = "-"
+        self.push_time: str | float = "-"
 
     def __repr__(self) -> str:
         return f"Container(tag={self.tag!r}, image_name={self.image_name!r}, repo_version={self.version!r}, local={self.local_image})"

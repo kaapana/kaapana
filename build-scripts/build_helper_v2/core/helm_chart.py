@@ -1,4 +1,6 @@
 import re
+import shutil
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from subprocess import PIPE, run
@@ -40,11 +42,15 @@ class HelmChart:
         kaapana_type: KaapanaType,
         version: str,
         ignore_linting: bool,
-        chart_containers: Set[Container],
-        unresolved_chart_dependencies: Set[tuple[str, str]],
-        chart_dependencies: Optional[Set["HelmChart"]] = None,
-        kaapana_collections: Optional[dict] = None,
-        preinstall_extensions: Optional[dict] = None,
+        chart_containers: set[Container],
+        # String references to the chart before all of them are built
+        unresolved_chart_dependencies: set[tuple[str, str]],
+        unresolved_kaapana_collections: set[str],
+        unresolved_preinstall_extensions: set[str],
+        # Resolved references into HelmChart objects
+        chart_dependencies: set["HelmChart"] = set(),
+        kaapana_collections: set["HelmChart"] = set(),
+        preinstall_extensions: set["HelmChart"] = set(),
     ):
         self.name = name
         self.chartfile = chartfile
@@ -53,11 +59,18 @@ class HelmChart:
         self.version = version
         self.ignore_linting = ignore_linting
         self.chart_containers = chart_containers
+
         self.unresolved_chart_dependencies = unresolved_chart_dependencies
-        self.linted = False
-        self.chart_dependencies = chart_dependencies or set()
-        self.kaapana_collections = kaapana_collections or {}
-        self.preinstall_extensions = preinstall_extensions or {}
+        self.unresolved_kaapana_collections = unresolved_kaapana_collections
+        self.unresolved_preinstall_extensions = unresolved_preinstall_extensions
+
+        self.chart_dependencies = chart_dependencies
+        self.kaapana_collections = kaapana_collections
+        self.preinstall_extensions = preinstall_extensions
+
+        self.build_chart_dir: Path
+        self.linted: bool = False
+        self.kubeval_done: bool = False
 
     def __repr__(self) -> str:
         return f"HelmChart({self.name=!r}, {self.version=!r}, {self.kaapana_type=})"
@@ -82,7 +95,7 @@ class HelmChart:
         values = cls._load_yaml(chartfile.parent / "values.yaml")
 
         name = cls._resolve_chart_name(chart_yaml, chartfile)
-        ignore_linting = chart_yaml.get("ingore_linging", False)
+        ignore_linting = chart_yaml.get("ignore_linting", False)
         version = cls._resolve_repo_version(chart_yaml, chartfile)
         is_dag = cls._has_dag_dependency(requirements)
         kaapana_type = cls._resolve_kaapana_type(chart_yaml, is_dag)
@@ -100,6 +113,13 @@ class HelmChart:
         unresolved_chart_dependencies = cls._collect_chart_dependencies(
             chartfile=chartfile, repo_version=version
         )
+        unresolved_kaapana_collections: set[str] = set()
+        unresolved_preinstall_extensions: set[str] = set()
+        if KaapanaType(kaapana_type) == KaapanaType.PLATFORM:
+            unresolved_kaapana_collections, unresolved_preinstall_extensions = (
+                cls._load_deployment_config(chartfile)
+            )
+
         return cls(
             name=name,
             chartfile=chartfile,
@@ -109,6 +129,8 @@ class HelmChart:
             ignore_linting=ignore_linting,
             chart_containers=chart_containers,
             unresolved_chart_dependencies=unresolved_chart_dependencies,
+            unresolved_kaapana_collections=unresolved_kaapana_collections,
+            unresolved_preinstall_extensions=unresolved_preinstall_extensions,
         )
 
     # ────────────────────────────────
@@ -193,6 +215,41 @@ class HelmChart:
                 dep_version = repo_version
             dependencies.add((dep_name, dep_version))
         return dependencies
+
+    @staticmethod
+    def _load_deployment_config(chartfile: Path) -> tuple[set[str], set[str]]:
+        """
+        Load kaapana_collections and preinstall_extensions from deployment_config.yaml.
+        Returns two sets of chart names.
+        Only runs for PLATFORM charts.
+        """
+        kaapana_collections: set[str] = set()
+        preinstall_extensions: set[str] = set()
+        deployment_config_path = chartfile.parent / "deployment_config.yaml"
+
+        if not deployment_config_path.exists():
+            return kaapana_collections, preinstall_extensions
+
+        try:
+            with deployment_config_path.open("r", encoding="utf-8") as f:
+                deployment_yaml = yaml.load(f, Loader=yaml.FullLoader) or {}
+
+            # Parse collections
+            kaapana_collections = {
+                c["name"] for c in deployment_yaml.get("kaapana_collections", [])
+            }
+
+            # Parse preinstalled extensions
+            preinstall_extensions = {
+                e["name"] for e in deployment_yaml.get("preinstall_extensions", [])
+            }
+
+        except Exception as exc:
+            logger.warning(
+                f"Failed to parse deployment_config.yaml for {chartfile}: {exc}"
+            )
+
+        return kaapana_collections, preinstall_extensions
 
     @classmethod
     def _collect_chart_containers(
@@ -372,7 +429,93 @@ class HelmChart:
 
         return containers
 
-    def lint_chart(self, config: BuildConfig):
+    def _update_values(self, target_dir: Path, version: str):
+        """Update values.yaml with global build information for platform charts."""
+        if self.kaapana_type != KaapanaType.PLATFORM:
+            return
+
+        values_file = target_dir / "values.yaml"
+        values: dict = {}
+        if values_file.exists():
+            values = yaml.safe_load(values_file.read_text()) or {}
+
+        # Ensure global section exists
+        global_vals = values.setdefault("global", {})
+
+        # Kaapana collections and preinstall extensions
+        global_vals["kaapana_collections"] = [
+            {"name": c.name, "version": version} for c in self.kaapana_collections
+        ]
+        global_vals["preinstall_extensions"] = [
+            {"name": e.name, "version": version} for e in self.preinstall_extensions
+        ]
+        version, branch, commit, timestamp = GitUtils.get_repo_info(
+            self.chartfile.parent
+        )
+        # Add build metadata
+        global_vals.update(
+            {
+                "platform_build_branch": version,
+                "platform_last_commit_timestamp": timestamp,
+                "build_timestamp": datetime.now()
+                .astimezone()
+                .replace(microsecond=0)
+                .isoformat(),
+                "kaapana_build_version": version,
+            }
+        )
+
+        values_file.write_text(yaml.dump(values))
+
+    def _update_requirements(self, target_dir: Path):
+        build_requirements = target_dir / "requirements.yaml"
+        if build_requirements.exists():
+            with open(build_requirements, "r") as f:
+                build_requirements_lines = f.readlines()
+            with open(build_requirements, "w") as f:
+                for build_requirements_line in build_requirements_lines:
+                    if "repository:" not in build_requirements_line.strip("\n"):
+                        f.write(build_requirements_line)
+
+    def _update_chart_version(self, target_dir: Path, version: str):
+        chart_file = target_dir / "Chart.yaml"
+        with open(chart_file, "r") as f:
+            lines = f.readlines()
+        with open(chart_file, "w") as f:
+            for line in lines:
+                if line.startswith("version:"):
+                    f.write(f'version: "{version}"\n')
+                else:
+                    f.write(line)
+
+    def build(self, target_dir: Path, platform_build_version: str, bar=None) -> None:
+        """
+        Build only this chart into target_dir.
+        No recursion — dependencies are handled by the caller.
+        """
+        self.build_chart_dir = target_dir
+        logger.info(f"Building chart {self.name}:{self.version}")
+        shutil.copytree(self.chartfile.parent, target_dir, dirs_exist_ok=True)
+
+        # update Chart.yaml version
+        self._update_chart_version(target_dir, version=platform_build_version)
+
+        # update values.yaml for platform
+        if self.kaapana_type == KaapanaType.PLATFORM:
+            self._update_values(target_dir, version=platform_build_version)
+
+        for dep_chart in self.chart_dependencies:
+            dep_chart.build(
+                target_dir=target_dir / "charts" / dep_chart.name,
+                platform_build_version=platform_build_version,
+                bar=bar,
+            )
+
+        if bar:
+            bar()
+            bar.text = f"{self.name}"
+
+    def lint_chart(self):
         if self.ignore_linting:
             logger.info(f"{self.name} has ignore_linting: true - skipping")
             return
@@ -383,8 +526,6 @@ class HelmChart:
 
         logger.info(f"{self.name}: lint_chart")
 
-        cwd = self.build_chart_dir
-
         command = ["helm", "lint"]
         output = run(
             command,
@@ -392,7 +533,7 @@ class HelmChart:
             stderr=PIPE,
             universal_newlines=True,
             timeout=20,
-            cwd=cwd,
+            cwd=self.build_chart_dir,
         )
         if output.returncode != 0:
             logger.error(f"{self.name}: lint_chart failed!")
@@ -406,52 +547,43 @@ class HelmChart:
             )
         else:
             logger.debug(f"{self.name}: lint_chart ok")
-            self.helmlint_done = True
+            self.linted = True
 
-    def lint_kubeval(self, build_version=False):
+    def lint_kubeval(self):
         if self.ignore_linting:
-            logger.info(f"{self.chart_id} has ignore_linting: true - skipping")
+            logger.info(f"{self.name} has ignore_linting: true - skipping")
             return
+
         if self.kubeval_done:
-            BuildUtils.logger.debug(
-                f"{self.chart_id}: lint_kubeval already done -> skip"
-            )
+            logger.debug(f"{self.name}: lint_kubeval already done -> skip")
             return
 
-        if HelmChart.enable_kubeval:
-            BuildUtils.logger.info(f"{self.chart_id}: lint_kubeval")
-            if build_version:
-                cwd = self.build_chart_dir
-            else:
-                cwd = self.chart_dir
-
-            command = ["helm", "kubeval", "--ignore-missing-schemas", "."]
-            output = run(
-                command,
-                stdout=PIPE,
-                stderr=PIPE,
-                universal_newlines=True,
-                timeout=20,
-                cwd=cwd,
+        logger.info(f"{self.name}: lint_kubeval")
+        command = ["helm", "kubeval", "--ignore-missing-schemas", "."]
+        output = run(
+            command,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True,
+            timeout=20,
+            cwd=self.build_chart_dir,
+        )
+        if output.returncode != 0 and "A valid hostname" not in output.stderr:
+            logger.error(f"{self.name}: lint_kubeval failed")
+            IssueTracker.generate_issue(
+                component=self.__class__.__name__,
+                name=f"{self.name}",
+                msg="chart kubeval failed!",
+                level="WARNING",
+                output=output,
+                path=self.chartfile.parent,
             )
-            if output.returncode != 0 and "A valid hostname" not in output.stderr:
-                BuildUtils.logger.error(f"{self.chart_id}: lint_kubeval failed")
-                BuildUtils.generate_issue(
-                    component=suite_tag,
-                    name=f"{self.chart_id}",
-                    msg="chart kubeval failed!",
-                    level="WARNING",
-                    output=output,
-                    path=self.chart_dir,
-                )
-            else:
-                BuildUtils.logger.debug(f"{self.chart_id}: lint_kubeval ok")
-                self.kubeval_done = True
         else:
-            BuildUtils.logger.debug(f"{self.chart_id}: kubeval disabled")
+            logger.debug(f"{self.name}: lint_kubeval ok")
+            self.kubeval_done = True
 
     def make_package(self):
-        BuildUtils.logger.info(f"{self.chart_id}: make_package")
+        logger.info(f"{self.name}: make_package")
         command = ["helm", "package", self.name]
         output = run(
             command,
@@ -459,66 +591,59 @@ class HelmChart:
             stderr=PIPE,
             universal_newlines=True,
             timeout=60,
-            cwd=dirname(self.build_chart_dir),
+            cwd=self.build_chart_dir.parent,
         )
         if output.returncode == 0 and "Successfully" in output.stdout:
-            BuildUtils.logger.debug(f"{self.chart_id}: package ok")
+            logger.debug(f"{self.name}: package ok")
         else:
-            BuildUtils.logger.error(f"{self.chart_id}: make_package failed!")
-            BuildUtils.generate_issue(
-                component=suite_tag,
-                name=f"{self.chart_id}",
+            logger.error(f"{self.name}: make_package failed!")
+            IssueTracker.generate_issue(
+                component=self.__class__.__name__,
+                name=f"{self.name}",
                 msg="chart make_package failed!",
                 level="ERROR",
                 output=output,
-                path=self.chart_dir,
+                path=self.chartfile.parent,
             )
 
-    def push(self):
-        if HelmChart.enable_push:
-            BuildUtils.logger.info(f"{self.chart_id}: push")
-            try_count = 0
-            command = [
-                "helm",
-                "push",
-                f"{self.name}-{self.build_version}.tgz",
-                f"oci://{BuildUtils.default_registry}",
-            ]
+    def push(self, default_registry: str, max_tries: int):
+        logger.info(f"{self.name}: push")
+        try_count = 0
+        command = [
+            "helm",
+            "push",
+            f"{self.name}-{self.version}.tgz",
+            f"oci://{default_registry}",
+        ]
+        output = run(
+            command,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True,
+            cwd=self.build_chart_dir.parent,
+            timeout=60,
+        )
+        while output.returncode != 0 and try_count < max_tries:
+            logger.warning(f"chart push failed -> try: {try_count}")
             output = run(
                 command,
                 stdout=PIPE,
                 stderr=PIPE,
                 universal_newlines=True,
-                cwd=dirname(self.build_chart_dir),
+                cwd=self.build_chart_dir,
                 timeout=60,
             )
-            while output.returncode != 0 and try_count < HelmChart.max_tries:
-                BuildUtils.logger.warning(f"chart push failed -> try: {try_count}")
-                output = run(
-                    command,
-                    stdout=PIPE,
-                    stderr=PIPE,
-                    universal_newlines=True,
-                    cwd=dirname(self.build_chart_dir),
-                    timeout=60,
-                )
-                try_count += 1
+            try_count += 1
 
-            if (
-                output.returncode != 0
-                or "The Kubernetes package manager" in output.stdout
-            ):
-                BuildUtils.logger.error(f"{self.chart_id}: push failed!")
-                BuildUtils.generate_issue(
-                    component=suite_tag,
-                    name=f"{self.chart_id}",
-                    msg="chart push failed!",
-                    level="FATAL",
-                    output=output,
-                    path=self.chart_dir,
-                )
-            else:
-                BuildUtils.logger.debug(f"{self.chart_id}: push ok")
-
+        if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
+            logger.error(f"{self.name}: push failed!")
+            IssueTracker.generate_issue(
+                component=self.__class__.__name__,
+                name=f"{self.name}",
+                msg="chart push failed!",
+                level="FATAL",
+                output=output,
+                path=self.chartfile.parent,
+            )
         else:
-            BuildUtils.logger.info(f"{self.chart_id}: push disabled")
+            logger.debug(f"{self.name}: push ok")

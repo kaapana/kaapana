@@ -3,12 +3,11 @@ import os
 import shutil
 from collections import Counter
 from pathlib import Path
-from typing import List, Set
+from typing import Set
 
-import networkx as nx
-import yaml
 from alive_progress import alive_bar
 from build_helper_v2.core.build_state import BuildState
+from build_helper_v2.core.container import Container
 from build_helper_v2.core.helm_chart import HelmChart, KaapanaType
 from build_helper_v2.models.build_config import BuildConfig
 from build_helper_v2.services.issue_tracker import IssueTracker
@@ -181,47 +180,96 @@ class HelmChartService:
         return charts_objects
 
     @classmethod
+    def _resolve_named_dependencies(
+        cls,
+        chart: HelmChart,
+        unresolved: set[str | tuple[str, str]],
+        attach_to: str,
+        require_version: bool = False,
+    ) -> None:
+        """
+        Resolve a set of named dependencies for a given chart.
+
+        Parameters:
+            chart: HelmChart object to attach dependencies to
+            unresolved: set of names or (name, version) tuples
+            attach_to: attribute name on chart to store resolved objects
+                ('chart_dependencies', 'kaapana_collections', 'preinstall_extensions')
+            require_version: whether to check versions (True for chart_dependencies, False otherwise)
+        """
+        available_charts_dict = {c.name: c for c in cls._build_state.charts_available}
+        resolved: set[HelmChart] = set()
+
+        for item in unresolved:
+            if isinstance(item, str):
+                name = item
+                version = None
+            elif isinstance(item, tuple) and len(item) == 2:
+                name, version = item
+            else:
+                IssueTracker.generate_issue(
+                    component=cls.__name__,
+                    name=chart.name,
+                    msg=f"Unable to resolve reference '{name}'"
+                    + (f":{version}" if version else ""),
+                    level="ERROR",
+                    path=chart.chartfile.parent,
+                )
+
+            candidate = available_charts_dict.get(name)
+            if not candidate:
+                IssueTracker.generate_issue(
+                    component=cls.__name__,
+                    name=chart.name,
+                    msg=f"Missing dependency '{name}'"
+                    + (f":{version}" if version else ""),
+                    level="ERROR",
+                    path=chart.chartfile.parent,
+                )
+                continue
+
+            if require_version and candidate.version != version:
+                IssueTracker.generate_issue(
+                    component=cls.__name__,
+                    name=chart.name,
+                    msg=f"Version mismatch for dependency '{name}': expected {version}, found {candidate.version}",
+                    level="ERROR",
+                    path=chart.chartfile.parent,
+                )
+                continue
+
+            resolved.add(candidate)
+        setattr(chart, attach_to, resolved)
+
+    @classmethod
     def resolve_chart_dependencies(cls) -> None:
-        """
-        Resolve and attach chart dependencies based on unresolved declarations.
+        for chart in cls._build_state.charts_available:
+            cls._resolve_named_dependencies(
+                chart=chart,
+                unresolved=chart.unresolved_chart_dependencies,
+                attach_to="chart_dependencies",
+                require_version=True,
+            )
 
-        Each chart's `unresolved_chart_dependencies` contains (name, version) tuples.
-        If a matching chart exists in `charts_available` with the same version,
-        it is added to the chart's `chart_dependencies`.
+    @classmethod
+    def resolve_kaapana_collections(cls) -> None:
+        for chart in cls._build_state.charts_available:
+            cls._resolve_named_dependencies(
+                chart=chart,
+                unresolved=chart.unresolved_kaapana_collections,
+                attach_to="kaapana_collections",
+                require_version=False,
+            )
 
-        If no match is found, an issue is generated.
-        """
-        available_charts = cls._build_state.charts_available
-        available_charts_dict = {chart.name: chart for chart in available_charts}
-
-        for chart in available_charts_dict.values():
-            for dep_name, dep_version in chart.unresolved_chart_dependencies:
-                candidate = available_charts_dict.get(dep_name)
-
-                if not candidate:
-                    IssueTracker.generate_issue(
-                        component=cls.__name__,
-                        name=chart.name,
-                        msg=f"Missing dependency chart '{dep_name}:{dep_version}'",
-                        level="ERROR",
-                        path=chart.chartfile.parent,
-                    )
-                    continue
-
-                if candidate.version != dep_version:
-                    IssueTracker.generate_issue(
-                        component=cls.__name__,
-                        name=chart.name,
-                        msg=(
-                            f"Version mismatch for dependency '{dep_name}': "
-                            f"expected {dep_version}, found {candidate.version}"
-                        ),
-                        level="ERROR",
-                        path=chart.chartfile.parent,
-                    )
-                    continue
-
-                chart.chart_dependencies.append(candidate)
+    @classmethod
+    def resolve_preinstall_extensions(cls) -> None:
+        for chart in cls._build_state.charts_available:
+            cls._resolve_named_dependencies(
+                chart=chart,
+                unresolved=chart.unresolved_preinstall_extensions,
+                attach_to="preinstall_extensions",
+                require_version=False,
+            )
 
     @staticmethod
     def expand_chart_dependencies(charts: Set[HelmChart]) -> Set[HelmChart]:
@@ -232,7 +280,7 @@ class HelmChartService:
         expanded_charts = set()
 
         def _expand(chart):
-            if chart.name not in expanded_charts:
+            if chart not in expanded_charts:
                 expanded_charts.add(chart)
                 for dep in chart.chart_dependencies:
                     _expand(dep)
@@ -246,6 +294,110 @@ class HelmChartService:
     def hash_id(path: str) -> str:
         """Generate a short SHA1 hash from a string."""
         return hashlib.sha1(path.encode("utf-8")).hexdigest()[:8]
+
+    @classmethod
+    def build_and_push_charts(cls):
+        expanded_charts = cls.expand_chart_dependencies(
+            cls._build_state.selected_charts
+        )
+        # Determine root-level charts (charts that are not dependencies of any other chart)
+        dependent_chart_names = {
+            dep.name for chart in expanded_charts for dep in chart.chart_dependencies
+        }
+        root_charts = {
+            chart
+            for chart in expanded_charts
+            if chart.name not in dependent_chart_names
+        }
+
+        filtered_root_charts = {
+            chart
+            for chart in root_charts
+            if chart.kaapana_type
+            in {KaapanaType.EXTENSION_COLLECTION, KaapanaType.PLATFORM}
+        }
+
+        # Check for exactly one platform chart
+        platform_charts = [
+            chart
+            for chart in filtered_root_charts
+            if chart.kaapana_type == KaapanaType.PLATFORM
+            and chart.name in cls._build_config.platform_filter
+        ]
+
+        if len(platform_charts) != 1:
+            logger.error(f"No single root platform chart found: {platform_charts}")
+            exit(1)
+
+        # Assign the single platform chart
+        platform_chart = platform_charts[0]
+
+        # Separate extension charts
+        root_collections = {
+            chart for chart in filtered_root_charts if chart != platform_chart
+        }
+
+        # Check for missing extensions (expected but not present)
+        missing_extensions = root_collections - platform_chart.kaapana_collections
+        if missing_extensions:
+            logger.error(
+                f"Platform chart '{platform_chart.name}' is missing extensions: {list(missing_extensions)}"
+            )
+
+        # Check for unused extensions (present in platform but not in root charts)
+        unused_extensions = platform_chart.kaapana_collections - root_collections
+        if unused_extensions:
+            logger.warning(
+                f"Platform chart '{platform_chart.name}' has unused extensions: {list(unused_extensions)}"
+            )
+
+        # Exit if critical missing extensions exist
+        if missing_extensions:
+            exit(1)
+
+        # Proceed with generating config and build tree
+        cls.generate_deployment_script(
+            platform_chart=platform_chart, kaapana_dir=cls._build_config.kaapana_dir
+        )
+        # Not important
+        cls.generate_build_tree(
+            platform_chart=platform_chart, root_charts=filtered_root_charts
+        )
+        cls.build_platform(platform_chart=platform_chart)
+        cls._build_state.selected_containers = cls.collect_chart_containers(
+            platform_chart=platform_chart
+        )
+
+    @classmethod
+    def collect_chart_containers(cls, platform_chart: HelmChart) -> Set[Container]:
+        """
+        Collect all containers from the platform chart, including:
+        - chart_dependencies
+        - kaapana_collections
+        - preinstall_extensions
+        recursively
+        """
+        all_containers: Set[Container] = set()
+        visited_charts: Set[HelmChart] = set()
+
+        def _collect(chart: HelmChart):
+            if chart in visited_charts:
+                return
+            visited_charts.add(chart)
+
+            # add chart's own containers
+            all_containers.update(chart.chart_containers)
+
+            # recurse into dependencies
+            for dep in chart.chart_dependencies:
+                _collect(dep)
+            for coll in chart.kaapana_collections:
+                _collect(coll)
+            for ext in chart.preinstall_extensions:
+                _collect(ext)
+
+        _collect(platform_chart)
+        return all_containers
 
     @staticmethod
     def _build_tree(root_charts: Set[HelmChart], include_containers=False):
@@ -315,12 +467,18 @@ class HelmChartService:
         return build_tree
 
     @classmethod
-    def generate_build_tree(cls, root_charts: Set[HelmChart]):
+    def generate_build_tree(
+        cls, platform_chart: HelmChart, root_charts: Set[HelmChart]
+    ):
         """
         Generate a build tree for all selected charts, including dependencies.
         Returns a networkx DiGraph representing chart build order.
         """
-        build_tree_file = cls._build_config.build_dir / "build_tree.txt"
+        build_tree_file = (
+            cls._build_config.build_dir
+            / platform_chart.name
+            / f"tree-{platform_chart.name}"
+        )
         build_tree = cls._build_tree(root_charts, include_containers=True)
 
         # Save tree to files
@@ -330,39 +488,27 @@ class HelmChartService:
             logger.info(line.strip())
 
     @classmethod
-    def generate_platform_config(cls, platform_chart: HelmChart) -> dict:
+    def generate_deployment_script(
+        cls,
+        platform_chart: HelmChart,
+        kaapana_dir: Path,
+    ):
         """
-        Generate platform configuration parameters from a platform Helm chart.
-        Loads deployment_config.yaml, injects metadata, and returns a dict.
+        Generate deployment script from platform parameters using Jinja2 template.
         """
-
-        logger.info(
-            f"-> Generate platform deployment config for {platform_chart.name} ..."
-        )
-
-        deployment_script_config_path = (
-            platform_chart.chartfile.parent / "deployment_config.yaml"
-        )
-        if not deployment_script_config_path.exists():
-            logger.error(
-                f"Could not find deployment_config.yaml for {platform_chart.name} "
-                f"at {platform_chart.chartfile.parent}"
-            )
-            return {}
-
-        with open(deployment_script_config_path, "r") as f:
-            platform_config = yaml.load(f, Loader=yaml.FullLoader) or {}
-
-        # Inject base metadata
-        platform_config.update(
-            {
-                "platform_name": platform_chart.name,
-                "platform_build_version": platform_chart.version,
-                "container_registry_url": cls._build_config.default_registry,
-            }
-        )
-
-        # Optional credentials
+        platform_config = {
+            "platform_name": platform_chart.name,
+            "platform_build_version": platform_chart.version,
+            "container_registry_url": cls._build_config.default_registry,
+            "kaapana_collections": [
+                {"name": chart.name, "version": platform_chart.version}
+                for chart in platform_chart.kaapana_collections
+            ],
+            "preinstall_extensions": [
+                {"name": chart.name, "version": platform_chart.version}
+                for chart in platform_chart.preinstall_extensions
+            ],
+        }
         if cls._build_config.include_credentials:
             platform_config.update(
                 {
@@ -371,76 +517,100 @@ class HelmChartService:
                 }
             )
 
-        # Collections
-        platform_config["kaapana_collections"] = [
-            {"name": chart.name, "version": platform_chart.version}
-            for chart in platform_chart.kaapana_collections.values()
-        ]
-
-        # Preinstalled extensions
-        platform_config["preinstall_extensions"] = [
-            {"name": chart.name, "version": platform_chart.version}
-            for chart in platform_chart.preinstall_extensions.values()
-        ]
-
-        return platform_config
-
-    @classmethod
-    def generate_deployment_script(
-        cls,
-        platform_chart: HelmChart,
-        platform_params,
-        kaapana_dir,
-    ):
-        """
-        Generate deployment script from platform parameters using Jinja2 template.
-        """
-        if not platform_params:
-            logger.error(
-                f"No platform parameters found for {platform_chart.name}. Skipping script generation."
-            )
-            return
-
         file_loader = FileSystemLoader(kaapana_dir / "platforms")
         env = Environment(loader=file_loader)
         template = env.get_template("deploy_platform_template.sh")
 
-        output = template.render(**platform_params)
-
-        deployment_script_path = (
-            Path(platform_chart.build_chart_dir).parent / "deploy_platform.sh"
+        output = template.render(**platform_config)
+        deployment_script = (
+            cls._build_config.build_dir / platform_chart.name / "deploy_platform.sh"
         )
-        deployment_script_path.parent.mkdir(parents=True, exist_ok=True)
+        deployment_script.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(deployment_script_path, "w") as f:
+        with open(deployment_script, "w") as f:
             f.write(output)
 
-        os.chmod(deployment_script_path, 0o775)
-        logger.debug(f"Deployment script generated at {deployment_script_path}")
+        os.chmod(deployment_script, 0o775)
+        logger.debug(f"Deployment script generated at {deployment_script}")
 
     @classmethod
-    def build_and_push_charts(cls):
-        expanded_charts = cls.expand_chart_dependencies(
-            cls._build_state.selected_charts
+    def build_platform(cls, platform_chart: HelmChart):
+        """
+        Build the platform chart and all its collections with separate progress bars.
+        """
+        # -------------------
+        # 1. Build platform
+        # -------------------
+        platform_target_dir = (
+            cls._build_config.build_dir / platform_chart.name / platform_chart.name
         )
-        # Determine root-level charts (charts that are not dependencies of any other chart)
-        dependent_chart_names = {
-            dep.name for chart in expanded_charts for dep in chart.chart_dependencies
-        }
-        root_charts = {
-            chart
-            for chart in expanded_charts
-            if chart.name not in dependent_chart_names
-        }
+        with alive_bar(
+            bar="classic",
+            spinner="crab",
+            dual_line=True,
+            title=f"Generate Build-Version: {platform_chart.name}",
+        ) as bar:
+            platform_chart.build(
+                target_dir=platform_target_dir,
+                platform_build_version=platform_chart.version,
+                bar=bar,
+            )
 
-        filtered_root_charts = {
-            chart
-            for chart in root_charts
-            if chart.kaapana_type
-            in {KaapanaType.EXTENSION_COLLECTION, KaapanaType.PLATFORM}
-        }
-        # if filtered_root_charts is Empty, try to update the chart
-        cls.generate_platform_config(filtered_root_charts)
+        # -------------------
+        # 2. Build collections
+        # -------------------
+        for collection_chart in platform_chart.kaapana_collections:
+            collection_target_dir = (
+                cls._build_config.build_dir
+                / platform_chart.name
+                / collection_chart.name
+            )
+            with alive_bar(
+                bar="classic",
+                spinner="dots",
+                dual_line=True,
+                title=f"Generate Build-Version: {collection_chart.name}",
+            ) as bar:
+                collection_chart.build(
+                    target_dir=collection_target_dir,
+                    platform_build_version=platform_chart.version,
+                    bar=bar,
+                )
 
-        cls.generate_build_tree(filtered_root_charts)
-        exit(0)
+            with alive_bar(
+                len(collection_chart.chart_dependencies),
+                dual_line=True,
+                title="Generate Build-Version",
+            ) as bar:
+                for index, chart in enumerate(collection_chart.chart_dependencies):
+                    logger.info(
+                        f"Collection chart {index + 1}/{len(collection_chart.chart_dependencies)}: {chart.name}:"
+                    )
+
+                    if cls._build_config.enable_linting:
+                        chart.lint_chart()
+                        chart.lint_kubeval()
+
+                    if not cls._build_config.build_only:
+                        chart.make_package()
+
+                    bar()
+
+            if cls._build_config.enable_linting:
+                collection_chart.lint_chart()
+                collection_chart.lint_kubeval()
+
+        # -------------------
+        # 3. Final linting on platform
+        # -------------------
+        if cls._build_config.enable_linting:
+            platform_chart.lint_chart()
+            platform_chart.lint_kubeval()
+
+        platform_chart.make_package()
+
+        if not cls._build_config.build_only:
+            platform_chart.push(
+                cls._build_config.default_registry,
+                cls._build_config.max_push_retries,
+            )

@@ -1,9 +1,9 @@
 import logging
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
+from app import crud, schemas
 from app.adapters.base import WorkflowEngineAdapter
-from app import schemas, crud
 from app.adapters.config import settings
 
 # TODO: needs to be changed w.r.to base adapter's interface
@@ -11,9 +11,9 @@ from app.adapters.config import settings
 
 class KaapanaPluginAdapter(WorkflowEngineAdapter):
     """
-    Airflow-specific adapter implementation for synchronous communication.
+    Kaapana-specific adapter implementation for synchronous communication.
     This adapter handles submitting, monitoring, and canceling workflows
-    via the Airflow API.
+    via the kaapana-plugin
     """
 
     AIRFLOW_STATUS_MAPPER = {
@@ -82,17 +82,20 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
             self.logger.error(f"Request error [{method} {url}]: {e}")
             raise RuntimeError(f"API request error: {e}")
 
-    def submit_workflow(self):
-        pass
+    async def submit_workflow(
+        self,
+        workflow: schemas.Workflow,
+    ) -> bool:
+        return True
 
-    def submit_workflow_run(
+    async def submit_workflow_run(
         self,
         workflow: schemas.Workflow,
         workflow_run: schemas.WorkflowRun,
     ) -> schemas.WorkflowRun:
         """ """
 
-        dag_id = workflow.identifier
+        dag_id = workflow.title
         config = workflow_run.config
 
         dag_run_id = (
@@ -117,16 +120,19 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
             airflow_status, schemas.WorkflowRunStatus.SCHEDULED
         )
 
-        return crud.update_workflow_run(
-            run_id=workflow_run.id,
-            workflow_run_update=schemas.WorkflowRunUpdate(
-                external_id=dag_run_id, lifecycle_status=lifecycle_status
-            ),
-        )
+        async with async_session() as db:
+
+            return await crud.update_workflow_run(
+                db=db,
+                run_id=workflow_run.id,
+                workflow_run_update=schemas.WorkflowRunUpdate(
+                    external_id=dag_run_id, lifecycle_status=lifecycle_status
+                ),
+            )
 
     def get_workflow_run(
         self, workflow_run: schemas.WorkflowRun
-    ) -> schemas.WorkflowRun:
+    ) -> schemas.WorkflowRunUpdate:
         """
         Gets the current status of a workflow run from Airflow.
 
@@ -137,7 +143,7 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
         Returns:
             schemas.WorkflowRunStatus: The mapped lifecycle status of the workflow run.
         """
-        dag_id = workflow_run.workflow_id
+        dag_id = workflow_run.workflow.title
         dag_run_id = workflow_run.external_id
 
         endpoint = f"/dagdetails/{dag_id}/{dag_run_id}"  # Adjusted endpoint to match Airflow's API
@@ -152,7 +158,6 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
         workflow_run.lifecycle_status = self.AIRFLOW_STATUS_MAPPER.get(
             airflow_status, schemas.WorkflowRunStatus.ERROR
         )
-        return workflow_run
 
     def get_workflow_run_tasks(
         self, dag_id: str, dag_run_id: str

@@ -2,7 +2,7 @@ FROM docker.io/alpine/git:2.43.0 as build-stage
 
 LABEL IMAGE="doccano-backend"
 LABEL VERSION="sha-0489118"
-LABEL BUILD_IGNORE="False"
+LABEL BUILD_IGNORE="True"
 
 WORKDIR /
 

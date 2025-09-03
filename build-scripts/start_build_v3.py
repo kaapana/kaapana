@@ -15,6 +15,7 @@ from build_helper_v2.services.build_service import BuildService
 from build_helper_v2.services.container_service import ContainerService
 from build_helper_v2.services.helm_chart_service import HelmChartService
 from build_helper_v2.services.issue_tracker import IssueTracker
+from build_helper_v2.services.trivy_service import TrivyService
 from build_helper_v2.utils.logger import get_logger, init_logger, set_console_level
 
 
@@ -29,8 +30,8 @@ def main():
         getattr(args, "config", kaapana_dir / "build-scripts" / "build-config.yaml")
     )
 
-    if build_dir.exists():
-        rmtree(build_dir)
+    # if build_dir.exists():
+    #     rmtree(build_dir)
 
     build_dir.mkdir(parents=True, exist_ok=True)
     init_logger(build_dir, log_level="DEBUG")
@@ -60,8 +61,8 @@ def main():
         }
     )
     config_data = merge_args_with_config(args, file_config)
-    config = BuildConfig(**config_data)
-    set_console_level(config.log_level)
+    build_config = BuildConfig(**config_data)
+    set_console_level(build_config.log_level)
 
     logger.info("")
     logger.info("-----------------------------------------------------------")
@@ -70,24 +71,25 @@ def main():
     logger.info("")
     logger.info("-----------------------------------------------------------")
     logger.info("")
-    config.log_self(logger)
+    build_config.log_self(logger)
 
     build_state = BuildState(started_at=time())
 
     logger.info("-----------------------------------------------------------")
-
-    ContainerService.init(config=config, build_state=build_state)
+    ContainerService.init(build_config=build_config, build_state=build_state)
+    HelmChartService.init(build_config=build_config, build_state=build_state)
+    BuildService.init(build_config=build_config, build_state=build_state)
     ContainerService.verify_container_engine_installed()
-
-    HelmChartService.init(config=config, build_state=build_state)
     HelmChartService.verify_helm_installed()
 
-    if not config.build_only and not config.no_login:
+    if not build_config.build_only and not build_config.no_login:
         ContainerService.container_registry_login(
-            username=config.registry_username, password=config.registry_password
+            username=build_config.registry_username,
+            password=build_config.registry_password,
         )
         HelmChartService.helm_registry_login(
-            username=config.registry_username, password=config.registry_password
+            username=build_config.registry_username,
+            password=build_config.registry_password,
         )
 
     logger.info("-----------------------------------------------------------")
@@ -95,71 +97,24 @@ def main():
     ContainerService.resolve_base_images_into_container()
     HelmChartService.collect_charts()
     HelmChartService.resolve_chart_dependencies()
-    logger.info("")
-    logger.info("-----------------------------------------------------------")
-    logger.info("------------------ BUILD PLATFORM CHARTS ------------------")
-    logger.info("-----------------------------------------------------------")
-    logger.info("")
-    
-    selected_charts, selected_containers = BuildService.determine_build_targets(
-        build_config=config, build_state=build_state
-    )
-    
-    if not selected_charts:
-        ContainerService.build_and_push_containers(selected_containers)
+
+    BuildService.determine_build_targets()  # Updates build_state
+
+    if not build_state.selected_charts:
+        logger.info("")
+        logger.info("-----------------------------------------------------------")
+        logger.info("------------------ BUILD CONTAINERS ------------------")
+        logger.info("-----------------------------------------------------------")
+        logger.info("")
+        ContainerService.build_and_push_containers()
     else:
-        # HelmChartService.generate_build_tree(selected_charts)
-        # HelmChartService.build_and_push_charts(selected_charts)        
-        ContainerService.build_and_push_containers(selected_containers)
-
-    if config.vulnerability_scan:
-        pass
-        
-    if config.create_sboms:
-        pass
-        # trivy_utils = BuildUtils.trivy_utils
-        # trivy_utils.tag = BuildUtils.platform_build_version
-
-        # def handler(signum, frame):
-        #     logger.info("Exiting...")
-
-        #     trivy_utils.kill_flag = True
-
-        #     with trivy_utils.semaphore_threadpool:
-        #         if trivy_utils.threadpool is not None:
-        #             trivy_utils.threadpool.terminate()
-        #             trivy_utils.threadpool = None
-        #     trivy_utils.error_clean_up()
-
-        #     if BuildUtils.create_sboms:
-        #         trivy_utils.safe_sboms()
-        #     if BuildUtils.vulnerability_scan:
-        #         trivy_utils.safe_vulnerability_reports()
-
-        #     exit(1)
-
-        # signal.signal(signal.SIGTSTP, handler)
-
-    # Create SBOMs if enabled
-    # if BuildUtils.create_sboms:
-    #     trivy_utils.create_sboms(successful_built_containers)
-    # # Scan for vulnerabilities if enabled
-    # if BuildUtils.vulnerability_scan:
-    #     trivy_utils.create_vulnerability_reports(successful_built_containers)
-
-    # # Check charts for configuation errors
-    # if BuildUtils.configuration_check:
-    #     logger.info("")
-    #     logger.info("-----------------------------------------------------------")
-    #     logger.info("------------------ CHECK PLATFORM CHARTS ------------------")
-    #     logger.info("-----------------------------------------------------------")
-    #     logger.info("")
-    #     for chart_object in BuildUtils.platform_filter:
-    #         trivy_utils = BuildUtils.trivy_utils
-    #         trivy_utils.tag = BuildUtils.platform_repo_version
-    #         trivy_utils.check_chart(
-    #             path_to_chart=os.path.join(BuildUtils.build_dir, chart_object)
-    #         )
+        logger.info("")
+        logger.info("-----------------------------------------------------------")
+        logger.info("------------------ BUILD CHARTS ------------------")
+        logger.info("-----------------------------------------------------------")
+        logger.info("")
+        HelmChartService.build_and_push_charts()
+        ContainerService.build_and_push_containers()
 
     if len(IssueTracker.issues) > 0:
         logger.info("")
@@ -182,6 +137,23 @@ def main():
                 int(hours), int(minutes), int(seconds)
             )
         )
+    logger.info("-----------------------------------------------------------")
+    logger.info("--------------------GENERATE REPORT -----------------------")
+    logger.info("-----------------------------------------------------------")
+    BuildService.generate_report()
+
+    if build_config.configuration_check:
+        TrivyService.init(build_config=build_config, build_state=build_state)
+        TrivyService.configuration_check()
+
+    if build_config.create_sboms:
+        TrivyService.init(build_config=build_config, build_state=build_state)
+        TrivyService.create_sboms()
+
+    if build_config.vulnerability_scan:
+        TrivyService.init(build_config=build_config, build_state=build_state)
+        TrivyService.vulnerability_scan()
+
     logger.info("-----------------------------------------------------------")
     logger.info("-------------------------- DONE ---------------------------")
     logger.info("-----------------------------------------------------------")

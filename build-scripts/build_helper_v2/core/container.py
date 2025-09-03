@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-import tempfile
 import time
 from enum import Enum, auto
 from pathlib import Path
@@ -19,23 +18,19 @@ logger = get_logger()
 
 
 class Status(Enum):
-    """Represents the lifecycle status of a container build."""
+    NOT_BUILT = auto()  # initial state|waiting for dependencies
+    SKIPPED = auto()  # Container was intentionally skipped (e.g., build_ignore)
+    BUILT_ONLY = (
+        auto()
+    )  # Containers that are BUILT and should not be pushed (local containers, build-only flag)
+    BUILT = auto()  # build succeeded
+    PUSHED = auto()  # push succeeded
+    NOTHING_CHANGED = auto()  # build succeeded but no changes
+    FAILED = auto()  # build failed
 
-    NOT_BUILT = auto()  # initial state
-    BUILD_DISABLED = auto()  # build skipped/disabled
-
-    WAITING = "waiting"  # waiting for dependencies
-    BUILDING = "building"  # Status during the built
-    BUILT = "waiting"  # built successfully
-    BUILD_FAILED = auto()  # build faile
-    NOTHING_CHANGED = auto()  # build succeeded but nothing changed
-
-    PUSHING = auto()
-    PUSH_FAILED = auto()  # push failed
-    PUSH_DISABLED = auto()  # push skipped/disabled
-    PUSHED = auto()
-
-    DONE = "Done"
+    # For the ProgressDashboard
+    PUSHING = auto()  # currently pushing
+    BUILDING = auto()  # currently building
 
 
 class BaseImage:
@@ -131,6 +126,8 @@ class Container:
         self.build_ignore = build_ignore
         self.local_image = local_image
         self.status = Status.NOT_BUILT
+        self.build_time = "-"
+        self.push_time = "-"
 
     def __repr__(self) -> str:
         return f"Container(tag={self.tag!r}, image_name={self.image_name!r}, repo_version={self.version!r}, local={self.local_image})"
@@ -142,6 +139,26 @@ class Container:
 
     def __hash__(self) -> int:
         return hash(self.tag)
+
+    def __lt__(self, other):
+        if not isinstance(other, Container):
+            return NotImplemented
+        return self.tag.lower() < other.tag.lower()
+
+    def to_dict(self) -> dict:
+        """Return a serializable dict representation of the container."""
+        return {
+            "tag": self.tag,
+            "image_name": self.image_name,
+            "version": self.version,
+            "status": str(self.status),
+            "build_time": self.build_time,
+            "push_time": self.push_time,
+            "local_image": self.local_image,
+            "base_images": [
+                b.tag if isinstance(b, Container) else str(b) for b in self.base_images
+            ],
+        }
 
     @classmethod
     def from_dockerfile(
@@ -222,19 +239,13 @@ class Container:
     def _extract_label_value(line: str) -> str:
         return line.split("=", 1)[1].strip().strip('"').strip("'")
 
-    def build(self, config: BuildConfig) -> tuple[Optional[Issue], Optional[float]]:
+    def build(self, config: BuildConfig) -> Optional[Issue]:
         logger.debug(f"{self.tag}: start building ...")
         issue = None
-        duration = None
 
         if self.build_ignore:
-            logger.warning(f"{self.tag}: {self.build_ignore=} -> skip")
-            self.status = Status.BUILD_DISABLED
-            return issue, duration
-
-        if self.status == Status.PUSHED:
-            logger.debug(f"{self.tag}: already build -> skip")
-            return issue, duration
+            self.status = Status.SKIPPED
+            return issue
 
         if config.http_proxy is not None:
             command = [
@@ -277,16 +288,16 @@ class Container:
 
         if output.returncode == 0:
             if "---> Running in" in output.stdout:
-                self.status = Status.BUILT
+                self.status = Status.BUILT_ONLY if self.local_image else Status.BUILT
                 logger.debug(f"{self.tag}: Build sucessful.")
             else:
                 self.status = Status.NOTHING_CHANGED
                 logger.debug(f"{self.tag}: Build sucessful - no changes.")
-            duration = end_time - start_time
-            return issue, duration
+            self.build_time = end_time - start_time
+            return issue
 
         else:
-            self.status = Status.BUILD_FAILED
+            self.status = Status.FAILED
             logger.error(f"{self.tag}: Build failed!")
 
             issue = IssueTracker.generate_issue(
@@ -297,20 +308,18 @@ class Container:
                 output=output,
                 path=str(self.dockerfile.parent),
             )
-            return issue, duration
+            return issue
 
-    def _push_to_microk8s(
-        self, config: BuildConfig
-    ) -> tuple[Optional[Issue], Optional[float]]:
+    def _push_to_microk8s(self, config: BuildConfig) -> Optional[Issue]:
         """
         Push the container to MicroK8s by piping `docker save` directly into `microk8s ctr image import`.
         """
         issue = None
-        duration = None
 
         if self.tag.startswith("local-only"):
             logger.info(f"Skipping: Pushing {self.tag} to microk8s, due to local-only")
-            return issue, duration
+            self.status = Status.SKIPPED
+            return issue
 
         logger.info(f"Pushing {self.tag} to microk8s via pipe")
 
@@ -337,7 +346,7 @@ class Container:
             save_err = save_proc.stderr.read()
             save_proc.wait(timeout=1)
             end_time = time.time()
-            duration = end_time - start_time
+            self.push_time = end_time - start_time
 
             if import_proc.returncode != 0:
                 logger.error(f"Microk8s image push failed {err or save_err}!")
@@ -349,7 +358,8 @@ class Container:
                     output=[err or save_err],
                     path=str(self.dockerfile.parent),
                 )
-                return issue, duration
+                self.status = Status.FAILED
+                return issue
 
             logger.debug(f"Successfully pushed {self.tag} to microk8s via pipe")
 
@@ -362,36 +372,18 @@ class Container:
                 name=self.tag,
                 msg=f"Microk8s image push timed out!",
                 level="ERROR",
-                output=[str(e)],
+                output=[err or save_err],
                 path=str(self.dockerfile.parent),
             )
+        self.status = Status.PUSHED
+        return issue
 
-        return issue, duration
-
-    def push(self, config: BuildConfig) -> tuple[Optional[Issue], Optional[float]]:
+    def push(self, config: BuildConfig) -> Optional[Issue]:
         issue: Optional[Issue] = None
         duration: Optional[float] = None
         logger.debug(f"{self.tag}: in push()")
 
-        if self.build_ignore:
-            logger.warning(f"{self.tag}: {self.build_ignore=} -> skip")
-            self.status = Status.PUSH_DISABLED
-            return issue, duration
-
-        if self.status == Status.PUSHED:
-            logger.info(f"{self.tag}: Already pushed -> skip")
-            return issue, duration
-
-        if self.local_image:
-            logger.debug(f"{self.tag}: Skipping push: local image! ")
-            return issue, duration
-
-        if self.status == Status.NOTHING_CHANGED:
-            if config.skip_push_no_changes:
-                logger.info(f"{self.tag}: Image did not change -> skipping ...")
-                return issue, duration
-
-        elif self.status != Status.BUILT:
+        if self.status != Status.BUILT:
             logger.warning(
                 f"{self.tag}: Skipping push since image has not been built successfully!"
             )
@@ -410,7 +402,11 @@ class Container:
 
         logger.debug(f"{self.tag}: start pushing! ")
         retries = 0
-        command = [config.container_engine, "push", self.tag] # Consider using python library https://docker-py.readthedocs.io/en/stable/
+        command = [
+            config.container_engine,
+            "push",
+            self.tag,
+        ]  # Consider using python library https://docker-py.readthedocs.io/en/stable/
         while retries < config.max_push_retries:
             start_time = time.time()
             retries += 1
@@ -424,30 +420,32 @@ class Container:
             duration = time.time() - start_time
 
             # Stop retrying on success or immutable
-            if output.returncode == 0 or "configured as immutable" in output.stderr:
+            if output.returncode == 0:
+                logger.debug(f"{self.tag}: pushed -> success")
+                self.status = Status.PUSHED
+                self.push_time = duration
+                return issue
 
-                if "Pushed" in output.stdout or "podman" in config.container_engine:
-                    logger.debug(f"{self.tag}: pushed -> success")
-                    self.status = Status.PUSHED
-                else:
-                    logger.debug(
-                        f"{self.tag}: pushed -> success but nothing was changed!"
-                    )
-                    self.status = Status.NOTHING_CHANGED
+            if "configured as immutable" in output.stderr:
+                logger.warning(f"{self.tag}: Container not pushed -> immutable!")
+                self.status = Status.NOTHING_CHANGED
+                self.push_time = duration
+                issue = IssueTracker.generate_issue(
+                    component=self.__class__.__name__,
+                    name=self.tag,
+                    msg="Container not pushed -> immutable!",
+                    level="WARNING",
+                    output=output,
+                    path=self.dockerfile.parent,
+                )
+                return issue
 
-                return issue, duration
-
-        # If we reached here, push failed
-        self.status = Status.PUSH_FAILED
+        self.status = Status.FAILED
         component_name = self.__class__.__name__
         path = self.dockerfile.parent
 
-        # Determine reason
-        if "configured as immutable" in output.stderr:
-            level = "WARNING"
-            msg = "Container not pushed -> immutable!"
-            logger.warning(f"{self.tag}: {msg}")
-        elif "read only mode" in output.stderr:
+        # Determine reason of PUSH FAILED
+        if "read only mode" in output.stderr:
             level = "WARNING"
             msg = "Container not pushed -> read only mode!"
             logger.warning(f"{self.tag}: {msg}")
@@ -466,8 +464,8 @@ class Container:
             name=self.tag,
             msg=msg,
             level=level,
-            output=[output.stderr],
+            output=output,
             path=path,
         )
 
-        return issue, duration
+        return issue

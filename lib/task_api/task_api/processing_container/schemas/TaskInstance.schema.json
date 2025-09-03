@@ -3,7 +3,7 @@
   "title": "TaskInstance",
   "allOf": [
     {"$ref": "Task.schema.json"},
-    {"$ref": "ProcessingContainer.schema.json"},
+    {"$ref": "TaskTemplate.schema.json"},
     {
       "type": "object",
       "properties": {

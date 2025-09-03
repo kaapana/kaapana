@@ -8,7 +8,7 @@ from task_api.processing_container.models import Task, TaskRun, TaskInstance
 from task_api.processing_container.resources import compute_memory_resources
 from task_api.processing_container.common import (
     create_task_instance,
-    get_processing_container,
+    get_task_template,
 )
 from task_api.runners.base import BaseRunner
 
@@ -85,12 +85,8 @@ class KubernetesRunner(BaseRunner):
     def run(cls, task: Task, dry_run: bool = False):
         cls._logger.info("Running task in Kubernetes...")
         mode = "k8s" if not dry_run else "docker"
-        processing_container = get_processing_container(
-            task.image, task.taskTemplate, mode=mode
-        )
-        task_instance = create_task_instance(
-            processing_container=processing_container, task=task
-        )
+        task_template = get_task_template(task.image, task.taskTemplate, mode=mode)
+        task_instance = create_task_instance(task_template=task_template, task=task)
 
         pod_name = generate_pod_name(task_instance.name)
         volumes, volume_mounts = get_volume_and_mounts(task_instance)

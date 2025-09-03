@@ -40,17 +40,17 @@ def parse_processing_container(
 
 
 def create_task_instance(
-    processing_container: models.ProcessingContainer, task: models.Task
+    task_template: models.TaskTemplate, task: models.Task
 ) -> models.TaskInstance:
     """
-    Create a TaskInstance object by merging a ProcessingContainer and a Task object
+    Create a TaskInstance object by merging a TaskTemplate and a Task object
     """
     return models.TaskInstance(
-        inputs=merge_io_channels(processing_container.inputs, task.inputs),
-        outputs=merge_io_channels(processing_container.outputs, task.outputs),
-        env=merge_env(processing_container.env, task.env),
+        inputs=merge_io_channels(task_template.inputs, task.inputs),
+        outputs=merge_io_channels(task_template.outputs, task.outputs),
+        env=merge_env(task_template.env, task.env),
         **{
-            **processing_container.model_dump(
+            **task_template.model_dump(
                 mode="python", exclude=["inputs", "outputs", "env"], exclude_none=True
             ),
             **task.model_dump(
@@ -123,8 +123,19 @@ def merge_io_channels(
 
 
 @functools.lru_cache()
-def get_processing_container(
+def get_task_template(
     image: str, task_identifier: str, mode: str = "docker"
+) -> models.TaskTemplate:
+    processing_container = get_processing_container(image, mode)
+
+    for template in processing_container.templates:
+        if template.identifier == task_identifier:
+            return template
+
+
+@functools.lru_cache()
+def get_processing_container(
+    image: str, mode: str = "docker"
 ) -> models.ProcessingContainer:
     if mode == "k8s":
         from kaapana_containers.kubernetes.utils import KubernetsUtils
@@ -132,17 +143,13 @@ def get_processing_container(
         with KubernetsUtils.extract_file_from_image(
             image, "/processing-container.json", namespace="project-admin"
         ) as f:
-            task_templates = models.TaskTemplates(**json.load(f))
+            return models.ProcessingContainer(**json.load(f))
     elif mode == "docker":
         from kaapana_containers.docker.utils import DockerUtils
 
         with DockerUtils.extract_file_from_image(
             image, "/processing-container.json"
         ) as f:
-            task_templates = models.TaskTemplates(**json.load(f))
+            return models.ProcessingContainer(**json.load(f))
     else:
         raise ValueError(f"{mode=} must be one of ['docker','k8s']")
-
-    for pc in task_templates.templates:
-        if pc.identifier == task_identifier:
-            return pc

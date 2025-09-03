@@ -3,18 +3,14 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List
 
 from pydantic import BaseModel
 
-from . import ContainerEnvVar_schema, IOMount_schema, Resources_schema
+from . import TaskTemplate_schema
 
 
 class ProcessingContainer(BaseModel):
-    identifier: str
+    name: str
     description: str
-    command: List[str]
-    inputs: List[IOMount_schema.IOMount]
-    outputs: List[IOMount_schema.IOMount]
-    env: List[ContainerEnvVar_schema.ContainerEnvVar]
-    resources: Optional[Resources_schema.Resources] = None
+    templates: List[TaskTemplate_schema.TaskTemplate]

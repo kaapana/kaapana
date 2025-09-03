@@ -6,10 +6,10 @@ from __future__ import annotations
 from typing import List, Optional
 
 from . import IOChannel_schema
-from .ProcessingContainer_schema import ProcessingContainer
 from .Task_schema import Task
+from .TaskTemplate_schema import TaskTemplate
 
 
-class TaskInstance(Task, ProcessingContainer):
+class TaskInstance(Task, TaskTemplate):
     inputs: Optional[List[IOChannel_schema.IOChannel]] = None
     outputs: Optional[List[IOChannel_schema.IOChannel]] = None

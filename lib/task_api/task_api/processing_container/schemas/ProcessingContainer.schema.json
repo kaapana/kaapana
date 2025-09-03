@@ -1,43 +1,23 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ProcessingContainer",
+  "description": "",
   "type": "object",
   "required": [
-      "identifier",
-      "inputs",
+      "name",
       "description",
-      "outputs",
-      "command",
-      "env"
+      "templates"
   ],
   "properties": {
-    "identifier": {
+    "name": {
       "type": "string"
       },
     "description": {
       "type": "string"
       },
-    "command": {
-      "type": "array",
-      "items": {
-          "type": "string"
+    "templates": { 
+      "type": "array",  
+      "items": {"$ref": "TaskTemplate.schema.json" }
       }
-    },
-    "inputs": {
-      "type": "array",
-      "items": { "$ref": "IOMount.schema.json" },
-      "default": []
-      },
-    "outputs": {
-      "type": "array",
-      "items": { "$ref": "IOMount.schema.json" },
-      "default": []
-      },
-    "env": {
-      "type": "array",
-      "items": { "$ref": "ContainerEnvVar.schema.json" },
-      "default": []
-      },
-    "resources": { "$ref": "Resources.schema.json" }
-    }
+  }
 }

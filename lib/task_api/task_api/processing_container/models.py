@@ -25,6 +25,6 @@ from task_api.processing_container.generated_models.Resources_schema import (
     Requests,
     Limits,
 )
-from task_api.processing_container.generated_models.TaskTemplates_schema import (
-    TaskTemplates,
+from task_api.processing_container.generated_models.TaskTemplate_schema import (
+    TaskTemplate,
 )

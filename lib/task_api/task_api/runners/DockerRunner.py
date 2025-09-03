@@ -16,7 +16,7 @@ from task_api.processing_container.resources import (
     human_readable_size,
 )
 from task_api.processing_container.common import (
-    get_processing_container,
+    get_task_template,
     create_task_instance,
 )
 
@@ -30,12 +30,8 @@ class DockerRunner(BaseRunner):
     def run(cls, task: Task, dry_run: bool = False):
         cls._logger.info("Running task in Docker...")
 
-        processing_container = get_processing_container(
-            task.image, task.taskTemplate, mode="docker"
-        )
-        task_instance = create_task_instance(
-            processing_container=processing_container, task=task
-        )
+        task_template = get_task_template(task.image, task.taskTemplate, mode="docker")
+        task_instance = create_task_instance(task_template=task_template, task=task)
 
         cls._logger.info(f"TaskInstance: {task_instance.model_dump()}")
         memory_limit = int(cls._set_memory_limit(task_instance=task_instance))

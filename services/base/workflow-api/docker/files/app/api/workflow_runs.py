@@ -58,15 +58,6 @@ async def create_workflow_run(
         db=db, workflow_run=workflow_run, workflow_id=db_workflow.id
     )
 
-    # TODO: submit workflow run to the engine
-    # workflow_engine = get_workflow_engine(workflow=db_workflow)
-    # background_tasks.add_task(
-    #     workflow_engine.submit_workflow_run,
-    #     workflow=db_workflow,
-    #     workflow_run=db_workflow_run,
-    #     forwarded_headers=forwarded_headers,
-    # )
-
     response.headers["Location"] = f"/v1/workflow-runs/{db_workflow_run.id}"
     return db_workflow_run
 
@@ -94,10 +85,6 @@ async def cancel_workflow_run(
     if not run:
         raise HTTPException(status_code=404, detail="Workflow run not found")
 
-    # TODO: call the engine to cancel the run
-    # workflow_engine = get_workflow_engine(workflow=run.workflow)
-    # external_id = await workflow_engine.cancel_workflow_run(run)
-
     updated = await crud.update_workflow_run(
         db,
         run_id=workflow_run_id,
@@ -121,11 +108,17 @@ async def retry_workflow_run(
     if not run:
         raise HTTPException(status_code=404, detail="Workflow run not found")
 
-    workflow_engine = get_workflow_engine(workflow=run.workflow)
+    # trigger retry in the engine adapter
+    workflow_engine = get_workflow_engine(run.workflow.workflow_engine)
     new_run = await workflow_engine.retry_workflow_run(run)
 
-    db_new_run = await crud.create_workflow_run(
-        db, workflow_run=new_run, workflow_id=run.workflow_id
+    db_new_run = await crud.update_workflow_run(
+        db,
+        run_id=workflow_run_id,
+        workflow_run_update=schemas.WorkflowRunUpdate(
+            lifecycle_status=new_run.lifecycle_status,
+            external_id=new_run.external_id,
+        ),
     )
     return db_new_run
 

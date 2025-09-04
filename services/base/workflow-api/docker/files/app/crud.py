@@ -209,7 +209,7 @@ async def create_workflow_run(
 
 async def update_workflow_run(
     db: AsyncSession, run_id: int, workflow_run_update: schemas.WorkflowRunUpdate
-):
+) -> models.WorkflowRun | None:
     result = await db.execute(
         select(models.WorkflowRun).filter(models.WorkflowRun.id == run_id)
     )
@@ -222,6 +222,7 @@ async def update_workflow_run(
         setattr(db_workflow_run, key, value)
     await db.commit()
     await db.refresh(db_workflow_run)
+
     return db_workflow_run
 
 
@@ -237,7 +238,9 @@ async def get_tasks(
     limit: int = 100,
     single: bool = False,
 ):
-    logger.info(f"Getting tasks with filters: {filters}, order_by: {order_by}, order: {order}, skip: {skip}, limit: {limit}")
+    logger.info(
+        f"Getting tasks with filters: {filters}, order_by: {order_by}, order: {order}, skip: {skip}, limit: {limit}, single: {single}"
+    )
     # construct order_by expression
     order_by_exp = models.Task.id.desc()
     if order_by:
@@ -268,29 +271,11 @@ async def get_tasks_of_workflow(db: AsyncSession, workflow_id: int):
 async def create_task(db: AsyncSession, task: schemas.TaskCreate, workflow_id: int):
     logger.info(f"Creating task {task.display_name} for workflow_id {workflow_id}")
 
-    # TODO: handle downstream tasks in a different endpoint and add a `crud.add_downstream_task` method
-    # add downstream tasks if they don't already exist
-    # db_downstream_tasks = []
-    # for ds_task_id in task.downstream_task_ids:
-    #     stmt = select(models.DownstreamTask).where(
-    #         models.DownstreamTask.task_id == db_task.id,
-    #         models.DownstreamTask.downstream_task_id == ds_task_id,
-    #     )
-    #     result = await db.execute(stmt)
-    #     db_ds_task = result.scalars().first()
-    #     if not db_ds_task:
-    #         db_ds_task = models.DownstreamTask(
-    #             task_id=ds_task_id,
-    #             downstream_task_id=ds_task_id,
-    #         )
-    #     db_downstream_tasks.append(db_ds_task)
-
     db_task = models.Task(
         workflow_id=workflow_id,
         title=task.title,
         display_name=task.display_name,
         type=task.type,
-        # downstream_tasks=db_downstream_tasks,
     )
 
     db.add(db_task)
@@ -298,6 +283,28 @@ async def create_task(db: AsyncSession, task: schemas.TaskCreate, workflow_id: i
     await db.refresh(db_task)
 
     return db_task
+
+
+async def add_downstream_task(
+    db: AsyncSession, task_id: int, downstream_task_id: int
+) -> models.DownstreamTask:
+    # check if downstream task already exists
+    stmt = select(models.DownstreamTask).where(
+        models.DownstreamTask.task_id == task_id,
+        models.DownstreamTask.downstream_task_id == downstream_task_id,
+    )
+    result = await db.execute(stmt)
+    db_ds_task = result.scalars().first()
+    if not db_ds_task:
+        db_ds_task = models.DownstreamTask(
+            task_id=task_id,
+            downstream_task_id=downstream_task_id,
+        )
+        db.add(db_ds_task)
+        await db.commit()
+        await db.refresh(db_ds_task)
+
+    return db_ds_task
 
 
 # CRUD for TaskRun
@@ -325,12 +332,6 @@ async def get_task_run(
 async def get_task_run_by_workflow_run_and_task(
     db: AsyncSession, workflow_run_id: int, task_id: int
 ):
-    # result = await db.execute(
-    #     select(models.TaskRun).filter(
-    #         models.TaskRun.workflow_run_id == workflow_run_id,
-    #         models.TaskRun.task_id == task_id
-    #     )
-    # )
     query = create_query(
         db=db,
         model=models.TaskRun,

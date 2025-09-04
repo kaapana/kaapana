@@ -11,5 +11,9 @@ from .TaskTemplate_schema import TaskTemplate
 
 
 class TaskInstance(Task, TaskTemplate):
+    """
+    A resolved task, created by merging the Task definition with its associated TaskTemplate.
+    """
+
     inputs: Optional[List[IOChannel_schema.IOChannel]] = None
     outputs: Optional[List[IOChannel_schema.IOChannel]] = None

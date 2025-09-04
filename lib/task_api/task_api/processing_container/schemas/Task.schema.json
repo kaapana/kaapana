@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Task",
+  "description": "Concrete usage of a TaskTemplate within a workflow. Captures how input/output data and parameters are bound for a particular execution.",
   "type": "object",
   "required": [
     "name",

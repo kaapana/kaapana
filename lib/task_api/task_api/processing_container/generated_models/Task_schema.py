@@ -16,6 +16,10 @@ from . import (
 
 
 class Task(BaseModel):
+    """
+    Concrete usage of a TaskTemplate within a workflow. Captures how input/output data and parameters are bound for a particular execution.
+    """
+
     name: str
     image: str
     taskTemplate: Union[str, ProcessingContainer_schema.ProcessingContainer]

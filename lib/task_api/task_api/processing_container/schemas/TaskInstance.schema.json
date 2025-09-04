@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "TaskInstance",
+  "description": "A resolved task, created by merging the Task definition with its associated TaskTemplate.",
   "allOf": [
     {"$ref": "Task.schema.json"},
     {"$ref": "TaskTemplate.schema.json"},

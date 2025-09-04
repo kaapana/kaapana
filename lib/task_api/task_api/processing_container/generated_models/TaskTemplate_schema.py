@@ -11,6 +11,10 @@ from . import ContainerEnvVar_schema, IOMount_schema, Resources_schema
 
 
 class TaskTemplate(BaseModel):
+    """
+    Blueprint for how a Docker image can be used for data processing in a predefined way.
+    """
+
     identifier: str
     description: str
     command: List[str]

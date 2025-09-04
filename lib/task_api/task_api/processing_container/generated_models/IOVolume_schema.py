@@ -11,6 +11,10 @@ from . import LocalPath_schema, ScaleRule_schema
 
 
 class IOVolume(BaseModel):
+    """
+    Represents a storage location for input/output data.
+    """
+
     name: str
     scale_rule: Optional[ScaleRule_schema.ScaleRule] = None
     input: LocalPath_schema.LocalPath

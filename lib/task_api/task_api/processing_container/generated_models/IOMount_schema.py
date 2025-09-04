@@ -11,6 +11,10 @@ from . import ScaleRule_schema
 
 
 class IOMount(BaseModel):
+    """
+    Defines where an input or output channel should be mounted inside the container.
+    """
+
     name: str
     mounted_path: str
     description: Optional[str] = None

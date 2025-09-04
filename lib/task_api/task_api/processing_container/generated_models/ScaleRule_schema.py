@@ -20,6 +20,10 @@ class Mode(Enum):
 
 
 class ScaleRule(BaseModel):
+    """
+    Defines how memory resources should scale based on the size of input data in an IOMount.
+    """
+
     complexity: Annotated[str, Field(pattern='^[-+]?\\d*(\\.\\d+)?\\*?n(\\*\\*\\d+)?$')]
     type: Type
     mode: Mode

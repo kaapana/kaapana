@@ -1,6 +1,7 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "IOChannel",
+    "description": "Binds an IOMount in the container to an IOVolume in external storage.",
     "type": "object",
     "allOf": [
     {"$ref": "IOMount.schema.json"},

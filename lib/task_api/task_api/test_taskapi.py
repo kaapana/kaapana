@@ -100,6 +100,7 @@ def test_schemas_and_models(tmp_output_dir):
         "pydantic_v2.BaseModel",
         "--use-annotate",
         "--disable-timestamp",
+        "--use-schema-description",
     ]
 
     subprocess.run(cmd, check=True)

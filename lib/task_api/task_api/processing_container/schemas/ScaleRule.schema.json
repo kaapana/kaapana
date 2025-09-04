@@ -1,6 +1,7 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "ScaleRule",
+    "description": "Defines how memory resources should scale based on the size of input data in an IOMount.",
     "type": "object",
     "required": [
       "complexity",

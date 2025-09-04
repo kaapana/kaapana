@@ -11,6 +11,10 @@ from . import TaskTemplate_schema
 
 
 class ProcessingContainer(BaseModel):
+    """
+    Defines a processing unit that bundles multiple task templates under a single container concept.
+    """
+
     name: str
     description: str
     templates: List[TaskTemplate_schema.TaskTemplate]

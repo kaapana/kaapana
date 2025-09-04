@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "TaskTemplate",
+  "description": "Blueprint for how a Docker image can be used for data processing in a predefined way.",
   "type": "object",
   "required": [
       "identifier",

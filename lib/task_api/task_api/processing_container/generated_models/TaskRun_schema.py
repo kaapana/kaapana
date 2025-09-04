@@ -7,5 +7,9 @@ from .TaskInstance_schema import TaskInstance
 
 
 class TaskRun(TaskInstance):
+    """
+    Execution record of a TaskInstance. Includes runtime metadata to track and identify the actual container or pod running the task.
+    """
+
     id: str
     mode: str

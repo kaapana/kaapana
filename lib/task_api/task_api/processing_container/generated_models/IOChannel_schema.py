@@ -8,4 +8,6 @@ from .IOVolume_schema import IOVolume
 
 
 class IOChannel(IOMount, IOVolume):
-    pass
+    """
+    Binds an IOMount in the container to an IOVolume in external storage.
+    """

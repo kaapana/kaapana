@@ -108,6 +108,7 @@ unit_tests:
   - source /home/$USER/venv/bin/activate
   - pip install -r $KAAPANA_DIR/tests/requirements.txt
   - pytest $KAAPANA_DIR/tests/ --junitxml=unittest_report.xml
+  - pip install build
   - python3 -m build $KAAPANA_DIR/lib/task_api
   - python3 -m pip install $KAAPANA_DIR/lib/task_api/dist/task_api-0.1.0.tar.gz
   - pytest $KAAPANA_DIR/lib/task_api/task_api --junitxml=task_api_report.xml

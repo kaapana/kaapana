@@ -236,4 +236,4 @@ class ProgressBar:
                         highlight=False,
                     )
             else:
-                logger.info(f"{tag} - build: {build_time} - push {push_time} : DONE")
+                logger.info(f"{tag} - build: {build_time} - push: {push_time}")

@@ -1,5 +1,5 @@
-helm_namespace: "default"
 admin_namespace: "admin"
+helm_namespace: "default"
 services_namespace: "services"
 extensions_namespace: "extensions"
 kaapana_collections:

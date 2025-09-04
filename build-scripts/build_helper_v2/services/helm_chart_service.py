@@ -10,6 +10,7 @@ from build_helper_v2.core.build_state import BuildState
 from build_helper_v2.core.container import Container
 from build_helper_v2.core.helm_chart import HelmChart, KaapanaType
 from build_helper_v2.models.build_config import BuildConfig
+from build_helper_v2.services.container_service import ContainerService
 from build_helper_v2.services.issue_tracker import IssueTracker
 from build_helper_v2.utils.command_helper import CommandHelper
 from build_helper_v2.utils.logger import get_logger
@@ -254,22 +255,24 @@ class HelmChartService:
     @classmethod
     def resolve_kaapana_collections(cls) -> None:
         for chart in cls._build_state.charts_available:
-            cls._resolve_named_dependencies(
-                chart=chart,
-                unresolved=chart.unresolved_kaapana_collections,
-                attach_to="kaapana_collections",
-                require_version=False,
-            )
+            if chart.deployment_config.get("kaapana_collections"):
+                cls._resolve_named_dependencies(
+                    chart=chart,
+                    unresolved=chart.deployment_config["kaapana_collections"],
+                    attach_to="kaapana_collections",
+                    require_version=False,
+                )
 
     @classmethod
     def resolve_preinstall_extensions(cls) -> None:
         for chart in cls._build_state.charts_available:
-            cls._resolve_named_dependencies(
-                chart=chart,
-                unresolved=chart.unresolved_preinstall_extensions,
-                attach_to="preinstall_extensions",
-                require_version=False,
-            )
+            if chart.deployment_config.get("preinstall_extensions"):
+                cls._resolve_named_dependencies(
+                    chart=chart,
+                    unresolved=chart.deployment_config["preinstall_extensions"],
+                    attach_to="preinstall_extensions",
+                    require_version=False,
+                )
 
     @staticmethod
     def expand_chart_dependencies(charts: Set[HelmChart]) -> Set[HelmChart]:
@@ -296,77 +299,15 @@ class HelmChartService:
         return hashlib.sha1(path.encode("utf-8")).hexdigest()[:8]
 
     @classmethod
-    def build_and_push_charts(cls):
-        expanded_charts = cls.expand_chart_dependencies(
-            cls._build_state.selected_charts
-        )
-        # Determine root-level charts (charts that are not dependencies of any other chart)
-        dependent_chart_names = {
-            dep.name for chart in expanded_charts for dep in chart.chart_dependencies
-        }
-        root_charts = {
-            chart
-            for chart in expanded_charts
-            if chart.name not in dependent_chart_names
-        }
-
-        filtered_root_charts = {
-            chart
-            for chart in root_charts
-            if chart.kaapana_type
-            in {KaapanaType.EXTENSION_COLLECTION, KaapanaType.PLATFORM}
-        }
-
-        # Check for exactly one platform chart
-        platform_charts = [
-            chart
-            for chart in filtered_root_charts
-            if chart.kaapana_type == KaapanaType.PLATFORM
-            and chart.name in cls._build_config.platform_filter
-        ]
-
-        if len(platform_charts) != 1:
-            logger.error(f"No single root platform chart found: {platform_charts}")
-            exit(1)
-
-        # Assign the single platform chart
-        platform_chart = platform_charts[0]
-
-        # Separate extension charts
-        root_collections = {
-            chart for chart in filtered_root_charts if chart != platform_chart
-        }
-
-        # Check for missing extensions (expected but not present)
-        missing_extensions = root_collections - platform_chart.kaapana_collections
-        if missing_extensions:
-            logger.error(
-                f"Platform chart '{platform_chart.name}' is missing extensions: {list(missing_extensions)}"
-            )
-
-        # Check for unused extensions (present in platform but not in root charts)
-        unused_extensions = platform_chart.kaapana_collections - root_collections
-        if unused_extensions:
-            logger.warning(
-                f"Platform chart '{platform_chart.name}' has unused extensions: {list(unused_extensions)}"
-            )
-
-        # Exit if critical missing extensions exist
-        if missing_extensions:
-            exit(1)
-
-        # Proceed with generating config and build tree
-        cls.generate_deployment_script(
-            platform_chart=platform_chart, kaapana_dir=cls._build_config.kaapana_dir
-        )
-        # Not important
-        cls.generate_build_tree(
-            platform_chart=platform_chart, root_charts=filtered_root_charts
-        )
-        cls.build_platform(platform_chart=platform_chart)
-        cls._build_state.selected_containers = cls.collect_chart_containers(
+    def update_selected_containers(cls, platform_chart: HelmChart):
+        selected_containers = cls.collect_chart_containers(
             platform_chart=platform_chart
         )
+        all_base_containers = ContainerService.collect_all_local_base_containers(
+            selected_containers
+        )
+        selected_containers.update(all_base_containers)
+        cls._build_state.selected_containers = selected_containers
 
     @classmethod
     def collect_chart_containers(cls, platform_chart: HelmChart) -> Set[Container]:
@@ -496,6 +437,7 @@ class HelmChartService:
         """
         Generate deployment script from platform parameters using Jinja2 template.
         """
+        platform_chart.deployment_config
         platform_config = {
             "platform_name": platform_chart.name,
             "platform_build_version": platform_chart.version,
@@ -509,6 +451,8 @@ class HelmChartService:
                 for chart in platform_chart.preinstall_extensions
             ],
         }
+        if platform_chart.deployment_config:
+            platform_config.update(platform_chart.deployment_config)
         if cls._build_config.include_credentials:
             platform_config.update(
                 {
@@ -614,3 +558,74 @@ class HelmChartService:
                 cls._build_config.default_registry,
                 cls._build_config.max_push_retries,
             )
+
+    @classmethod
+    def build_and_push_charts(cls):
+        expanded_charts = cls.expand_chart_dependencies(
+            cls._build_state.selected_charts
+        )
+        # Determine root-level charts (charts that are not dependencies of any other chart)
+        dependent_chart_names = {
+            dep.name for chart in expanded_charts for dep in chart.chart_dependencies
+        }
+        root_charts = {
+            chart
+            for chart in expanded_charts
+            if chart.name not in dependent_chart_names
+        }
+
+        filtered_root_charts = {
+            chart
+            for chart in root_charts
+            if chart.kaapana_type
+            in {KaapanaType.EXTENSION_COLLECTION, KaapanaType.PLATFORM}
+        }
+
+        # Check for exactly one platform chart
+        platform_charts = [
+            chart
+            for chart in filtered_root_charts
+            if chart.kaapana_type == KaapanaType.PLATFORM
+            and chart.name in cls._build_config.platform_filter
+        ]
+
+        if len(platform_charts) != 1:
+            logger.error(f"No single root platform chart found: {platform_charts}")
+            exit(1)
+
+        # Assign the single platform chart
+        platform_chart = platform_charts[0]
+
+        # Separate extension charts
+        root_collections = {
+            chart for chart in filtered_root_charts if chart != platform_chart
+        }
+
+        # Check for missing extensions (expected but not present)
+        missing_extensions = root_collections - platform_chart.kaapana_collections
+        if missing_extensions:
+            logger.error(
+                f"Platform chart '{platform_chart.name}' is missing extensions: {list(missing_extensions)}"
+            )
+
+        # Check for unused extensions (present in platform but not in root charts)
+        unused_extensions = platform_chart.kaapana_collections - root_collections
+        if unused_extensions:
+            logger.warning(
+                f"Platform chart '{platform_chart.name}' has unused extensions: {list(unused_extensions)}"
+            )
+
+        # Exit if critical missing extensions exist
+        if missing_extensions:
+            exit(1)
+
+        # Proceed with generating config and build tree
+        cls.generate_deployment_script(
+            platform_chart=platform_chart, kaapana_dir=cls._build_config.kaapana_dir
+        )
+        # Not important
+        cls.generate_build_tree(
+            platform_chart=platform_chart, root_charts=filtered_root_charts
+        )
+        cls.build_platform(platform_chart=platform_chart)
+        cls.update_selected_containers(platform_chart=platform_chart)

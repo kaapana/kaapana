@@ -30,8 +30,8 @@ def main():
         getattr(args, "config", kaapana_dir / "build-scripts" / "build-config.yaml")
     )
 
-    # if build_dir.exists():
-    #     rmtree(build_dir)
+    if build_dir.exists():
+        rmtree(build_dir)
 
     build_dir.mkdir(parents=True, exist_ok=True)
     init_logger(build_dir, log_level="DEBUG")
@@ -144,7 +144,6 @@ def main():
     logger.info("-----------------------------------------------------------")
     logger.info("--------------------GENERATE REPORT -----------------------")
     logger.info("-----------------------------------------------------------")
-    logger.info("")
     logger.info("")
 
     BuildService.generate_report()

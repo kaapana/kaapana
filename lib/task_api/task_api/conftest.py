@@ -36,3 +36,20 @@ def build_image_locally():
         f"{TASK_DIR}/downstream/",
     ]
     subprocess.run(cmd, check=True)
+
+
+def k8s_cluster_available():
+    from kubernetes import config, client
+    import urllib3
+
+    try:
+        config.load_config()
+        client.CoreV1Api().list_namespace(_request_timeout=10)
+        return True
+
+    except (
+        config.config_exception.ConfigException,
+        client.ApiException,
+        urllib3.exceptions.HTTPError,
+    ):
+        return False

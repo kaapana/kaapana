@@ -4,10 +4,9 @@ from pathlib import Path
 import subprocess
 import os
 from task_api.runners.DockerRunner import DockerRunner
-from task_api.runners.KubernetesRunner import KubernetesRunner
 from task_api.processing_container import common
 
-from conftest import LOCAL_REGISTRY, TASK_DIR, MODULE_PATH
+from conftest import LOCAL_REGISTRY, TASK_DIR, MODULE_PATH, k8s_cluster_available
 
 
 def test_resources():
@@ -43,7 +42,7 @@ def test_task_template():
         image=f"{LOCAL_REGISTRY}/dummy:latest", task_identifier="default", mode="docker"
     )
     task = common.parse_task(
-        file=f"{TASK_DIR}/dummy/tasks/kubernetes_task.json",
+        file=f"{TASK_DIR}/dummy/tasks/test_task.json",
         custom_vars={"registry": LOCAL_REGISTRY, "task_dir": TASK_DIR},
     )
     task_instance = common.create_task_instance(task_template, task)
@@ -73,7 +72,12 @@ def test_docker_runner(tmp_output_dir):
     DockerRunner.monitor_memory(task_run)
 
 
+@pytest.mark.skipif(
+    condition=not k8s_cluster_available(), reason="Kubernetes cluster not available"
+)
 def test_kubernetes_runner(tmp_output_dir):
+    from task_api.runners.KubernetesRunner import KubernetesRunner
+
     task = common.parse_task(
         file=f"{TASK_DIR}/dummy/tasks/test_task.json",
         custom_vars={"registry": LOCAL_REGISTRY, "output_dir": tmp_output_dir},

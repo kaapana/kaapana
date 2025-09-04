@@ -195,6 +195,9 @@ function delete_all_images_microk8s {
     done
 }
 
+
+
+
 function get_domain {
 
     if [ -z ${DOMAIN+x} ]; then
@@ -320,110 +323,149 @@ function import_container_images_tar {
     echo "${GREEN}Finished image upload! You should now be able to deploy the platform by specifying the chart path.${NC}"
 }
 
+function run_migration_chart() {
+    local FROM_VERSION="$1"
+    local TO_VERSION="$2"
+
+    echo -e "${YELLOW}Deploying migration chart: $FROM_VERSION -> $TO_VERSION${NC}"
+
+    WORKDIR=$(mktemp -d)
+    tar -xzf "$CHART_PATH" -C "$WORKDIR"
+
+    MIGRATION_CHART_PATH="$WORKDIR/$PLATFORM_NAME/charts/migration-chart"
+    if [[ ! -d "$MIGRATION_CHART_PATH" ]]; then
+        echo -e "${RED}Migration chart not found inside chart package!${NC}"
+        exit 1
+    fi
+
+    helm -n "$HELM_NAMESPACE" upgrade --install kaapana-migration "$MIGRATION_CHART_PATH" \
+        --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \
+        --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
+        --set-string global.fast_data_dir="$FAST_DATA_DIR" \
+        --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
+        --set-string global.pull_policy_images="$PULL_POLICY_IMAGES" \
+        --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
+        --set-string global.kaapana_build_version="$PLATFORM_VERSION" \
+        --set-string global.from_version="$FROM_VERSION" \
+        --set-string global.to_version="$TO_VERSION"
+
+    # Wait for migration job to finish
+    local JOB_NAME="migration"
+    local NAMESPACE="migration"
+    local TIMEOUT=180
+    local INTERVAL=5
+    local ELAPSED=0
+
+    cleanup() {
+        echo -e "${YELLOW}Cleaning up migration helm chart...${NC}"
+        helm uninstall "kaapana-migration" -n "$HELM_NAMESPACE" || true
+    }
+
+    echo -e "${YELLOW}Waiting for migration job $JOB_NAME to complete...${NC}"
+        while true; do
+        local SUCCEEDED=$(microk8s.kubectl get job "$JOB_NAME" -n "$NAMESPACE" -o jsonpath='{.status.succeeded}')
+        local FAILED=$(microk8s.kubectl get job "$JOB_NAME" -n "$NAMESPACE" -o jsonpath='{.status.failed}')
+
+        if [[ "${SUCCEEDED:-0}" -ge 1 ]]; then
+            echo -e "${GREEN}Migration job completed successfully!${NC}"
+            PODS=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o name)
+            for pod in $PODS; do
+                microk8s.kubectl logs "$pod" -n "$NAMESPACE"
+            done
+            cleanup
+            break
+        elif [[ "${FAILED:-0}" -ge 1 ]]; then
+            echo -e "${RED}Migration job failed!${NC}"
+            PODS=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o name)
+            for pod in $PODS; do
+                microk8s.kubectl logs "$pod" -n "$NAMESPACE"
+            done
+
+            POD=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o jsonpath='{.items[*].metadata.name}')
+            microk8s.kubectl logs "$POD" -n "$NAMESPACE"
+            cleanup
+            exit 1
+        fi
+
+        sleep "$INTERVAL"
+        ELAPSED=$((ELAPSED + INTERVAL))
+        if [[ $ELAPSED -ge $TIMEOUT ]]; then
+            echo -e "${RED}Migration job did not complete within ${TIMEOUT}s${NC}"
+            exit 1
+        fi
+    done
+}
+
+function prompt_user_backup() {
+    echo -e "${YELLOW}Please BACKUP your data directory first${NC}"
+    echo "   cp -a $FAST_DATA_DIR /path/to/fast/backup"
+    echo "   cp -a $SLOW_DATA_DIR /path/to/slow/backup"
+    echo
+    while true; do
+        read -p "Proceed with migration? (yes/no): " answer
+        case "$answer" in
+            [Yy][Ee][Ss]|[Yy])
+                echo "✅ Proceeding with migration..."
+                break
+                ;;
+            [Nn][Oo]|[Nn])
+                echo "❌ Aborting migration."
+                exit 1
+                ;;
+            *)
+                echo "Please type 'yes' or 'no'."
+                ;;
+        esac
+    done
+}
+
 function migrate() {
     VERSION_FILE="$FAST_DATA_DIR/version"
 
-    # Otherwise check version file
-    if [[ -f "$VERSION_FILE" ]]; then
-        DATA_STATE_VERSION_RAW=$(cat "$VERSION_FILE")
+    echo "${YELLOW}Checking ${VERSION_FILE} status...${NC}"
+
+    if [[ ! -d "$FAST_DATA_DIR" || -z "$(ls -A "$FAST_DATA_DIR" 2>/dev/null)" ]]; then
+        echo "${GREEN}Fresh installation detected. Running migration chart to create version file.${NC}"
+         # Just creating a version file. Could be handled somewhere else, in the kaapana-admin-chart or whatever.)
+        run_migration_chart "fresh" "$PLATFORM_VERSION"
+
+    elif [[ -f "$VERSION_FILE" ]]; then
+        CURRENT_VERSION=$(cat "$VERSION_FILE")
+        echo "Found version: $CURRENT_VERSION"
+
+        if [[ "$CURRENT_VERSION" == "$PLATFORM_VERSION" ]]; then
+            echo "${GREEN}Version matches ($PLATFORM_VERSION). Skipping migration.${NC}"
+        else
+            echo "${YELLOW}Version mismatch: current=$CURRENT_VERSION, deploy=$PLATFORM_VERSION.${NC}"
+
+            # Extract major.minor
+            cur_major=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+            cur_minor=$(echo "$CURRENT_VERSION" | cut -d. -f2)
+            dep_major=$(echo "$PLATFORM_VERSION" | cut -d. -f1)
+            dep_minor=$(echo "$PLATFORM_VERSION" | cut -d. -f2)
+
+            echo "${YELLOW}Version change detected: $CURRENT_VERSION -> $PLATFORM_VERSION.${NC}"
+            prompt_user_backup
+            run_migration_chart "$CURRENT_VERSION" "$PLATFORM_VERSION"
+        fi
+
+    elif [[ -d "$FAST_DATA_DIR" && -n "$(ls -A "$FAST_DATA_DIR")" ]]; then
+        echo "${YELLOW}No version file and directory is not empty!${NC}"
+        echo "Options:"
+        echo "  1. Let migration-chart autodetect version using $FAST_DATA_DIR/extensions/kaapana-platform-chart-<version>.tgz"
+        echo "  2. Exit to manually create $VERSION_FILE with correct version and rerun the deploy script."
+        read -p "Choose option (1/2): " choice
+        if [[ "$choice" == "1" ]]; then
+            prompt_user_backup
+            run_migration_chart "autodetect" "$PLATFORM_VERSION"
+        else
+            echo "${RED}Please create the version file manually and rerun.${NC}"
+            exit 1
+        fi
     else
-        DATA_STATE_VERSION_RAW="none"
+        echo "Unexpected state. Please check $FAST_DATA_DIR."
+        exit 1
     fi
-
-    TARGET_PLATFORM_VERSION_RAW="$PLATFORM_VERSION"  # e.g., "0.5.1"
-
-    # Extract only major.minor (ignore patch & metadata)
-    DATA_STATE_VERSION=$(echo "$DATA_STATE_VERSION_RAW" | sed -E 's/^([0-9]+)\.([0-9]+).*/\1.\2/')
-    TARGET_PLATFORM_VERSION=$(echo "$TARGET_PLATFORM_VERSION_RAW" | sed -E 's/^([0-9]+)\.([0-9]+).*/\1.\2/')
-
-    if [[ "$DATA_STATE_VERSION" == "none" ]]; then
-        echo -e "${YELLOW}No previous deployed version found: ${VERSION_FILE}.${NC}"
-        yn="y"  # auto-run migration chart
-    elif [[ "$DATA_STATE_VERSION" != "$TARGET_PLATFORM_VERSION" ]]; then
-        echo -e "${YELLOW}Version changed: $DATA_STATE_VERSION -> $TARGET_PLATFORM_VERSION${NC}"
-        read -p "Do you want to run the migration chart? [y/N]: " yn
-    else
-        echo -e "${GREEN}Deployed version is up-to-date ($DATA_STATE_VERSION). No migration needed.${NC}"
-        yn="n"
-    fi
-
-    case "$yn" in
-        [Yy]* )
-            if [[ "${OFFLINE_MODE,,}" == true && -n "$CHART_PATH" ]]; then
-                echo -e "${YELLOW}Using existing chart path (offline mode): $CHART_PATH${NC}"
-                if [[ $(basename "$CHART_PATH") != "$PLATFORM_NAME-$PLATFORM_VERSION.tgz" ]]; then
-                    echo -e "${RED}Version of CHART_PATH $CHART_PATH differs from PLATFORM_NAME=$PLATFORM_NAME and PLATFORM_VERSION=$PLATFORM_VERSION.${NC}"
-                    exit 1
-                fi
-            else
-                CHART_PATH="$SCRIPT_PATH/$PLATFORM_NAME-$PLATFORM_VERSION.tgz"
-            fi
-
-            WORKDIR=$(mktemp -d)
-            tar -xzf "$CHART_PATH" -C "$WORKDIR"
-
-            # The migration chart should now be in charts/ inside the unpacked folder
-            MIGRATION_CHART_PATH="$WORKDIR/$PLATFORM_NAME/charts/migration-chart"
-            if [ ! -d "$MIGRATION_CHART_PATH" ]; then
-                echo -e "${RED}Migration chart not found inside admin chart package!${NC}"
-                exit 1
-            fi
-
-            echo -e "${YELLOW}Deploying migration chart...${NC}"
-            helm -n "$HELM_NAMESPACE" install --create-namespace "$MIGRATION_CHART_PATH" \
-                --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \
-                --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
-                --set-string global.fast_data_dir="$FAST_DATA_DIR" \
-                --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
-                --set-string global.pull_policy_images="$PULL_POLICY_IMAGES" \
-                --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
-                --set-string global.kaapana_build_version="$PLATFORM_VERSION" \
-                --set-string global.data_state_version="$DATA_STATE_VERSION" \
-                --set-string global.target_platform_version="$TARGET_PLATFORM_VERSION" \
-                --name-template "kaapana-migration"
-
-            cleanup() {
-                echo -e "${YELLOW}Cleaning up migration helm chart...${NC}"
-                helm uninstall "kaapana-migration" -n "$HELM_NAMESPACE" || true
-            }
-
-            # Wait for migration Job to complete
-            JOB_NAME="migration"
-            NAMESPACE="migration"
-            TIMEOUT=180  # 3 minutes
-            INTERVAL=5
-            ELAPSED=0
-
-            echo -e "${YELLOW}Waiting for migration job $JOB_NAME to complete...${NC}"
-            while true; do
-                ACTIVE=$(microk8s.kubectl get job "$JOB_NAME" -n "$NAMESPACE" -o jsonpath='{.status.active}')
-                SUCCEEDED=$(microk8s.kubectl get job "$JOB_NAME" -n "$NAMESPACE" -o jsonpath='{.status.succeeded}')
-                FAILED=$(microk8s.kubectl get job "$JOB_NAME" -n "$NAMESPACE" -o jsonpath='{.status.failed}')
-
-                if [[ "${SUCCEEDED:-0}" -ge 1 ]]; then
-                    echo -e "${GREEN}Migration job completed successfully!${NC}"
-                    cleanup        # immediate uninstall
-                    break
-                elif [[ "${FAILED:-0}" -ge 1 ]]; then
-                    echo -e "${RED}Migration job failed!${NC}"
-                    POD=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o jsonpath='{.items[0].metadata.name}')
-                    microk8s.kubectl logs "$POD" -n "$NAMESPACE"
-                    cleanup        # also uninstall on failure
-                    exit 1
-                fi
-                sleep "$INTERVAL"
-                ELAPSED=$((ELAPSED + INTERVAL))
-
-                if [[ $ELAPSED -ge $TIMEOUT ]]; then
-                    echo -e "${RED}Migration job did not complete within timeout (${TIMEOUT}s)${NC}"
-                    exit 1
-                fi
-            done
-            ;;
-        * )
-            echo -e "${YELLOW}Skipping migration.${NC}"
-            ;;
-    esac
 }
 
 function deploy_chart {
@@ -560,6 +602,8 @@ function deploy_chart {
     # MicroK8s https://microk8s.io/docs/change-cidr
     INTERNAL_CIDR="10.152.183.0/24,10.1.0.0/16,$INTERNAL_CIDR"
 
+    
+    echo "${GREEN}Checking for version difference and migration options...${NC}"
     migrate
 
     echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"
@@ -1192,6 +1236,12 @@ do
         --offline)
             OFFLINE_MODE=true
             echo -e "${GREEN}Deploying in offline mode!${NC}"
+            shift # past argument
+        ;;
+
+        --no-migration)
+            MIGRATION_ENABLED=false
+            echo -e "${YELLOW}Migration disabled via CLI (--no-migration).${NC}"
             shift # past argument
         ;;
 

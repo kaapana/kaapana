@@ -20,10 +20,10 @@ spec:
           value: /fast_data_dir
         - name: SLOW_DATA_DIR
           value: /slow_data_dir
-        - name: DATA_STATE_VERSION
-          value: "{{ .Values.global.data_state_version }}"
-        - name: TARGET_PLATFORM_VERSION
-          value: "{{ .Values.global.target_platform_version }}"
+        - name: FROM_VERSION
+          value: "{{ .Values.global.from_version }}"
+        - name: TO_VERSION
+          value: "{{ .Values.global.to_version }}"
         volumeMounts:
         - name: fastdir
           mountPath: /fast_data_dir

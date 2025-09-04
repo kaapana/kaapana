@@ -3,7 +3,6 @@ import os
 import re
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 
@@ -36,7 +35,7 @@ def autodetect_version(extensions_dir: Path) -> str:
     candidates = list(extensions_dir.glob("kaapana-platform-chart-*.tgz"))
     if not candidates:
         raise FileNotFoundError(
-            "No kaapana-platform-chart-*.tgz found in extensions dir"
+            f"No kaapana-platform-chart-*.tgz found in {extensions_dir}. Please create version file `sudo nano version` and add <version> (e.g., 0.4.1) inside the <fast_data_dir> and re-run"
         )
 
     if len(candidates) > 1:
@@ -91,7 +90,7 @@ def main():
         exit(1)
 
     if from_version == "fresh":
-        logger.info(f"Assuming fresh installation")
+        logger.info("Assuming fresh installation")
         fast_data_dir.mkdir(parents=True, exist_ok=True)
 
         logger.info(f"Creating version file imprint: {to_version}")
@@ -112,8 +111,8 @@ def main():
     logger.info(from_version)
     logger.info(to_version)
 
-    major_from, minor_from, _ = map(int, from_version.split("."))
-    major_to, minor_to, _ = map(int, to_version.split("."))
+    major_from, minor_from, _ = map(int, from_version.split("-")[0].split("."))
+    major_to, minor_to, _ = map(int, to_version.split("-")[0].split("."))
 
     if major_from != major_to:
         logger.error("Major version migration not supported yet")
@@ -161,7 +160,7 @@ def main():
                 logger.warning(f"Migration script warnings/errors:\n{result.stderr}")
 
             logger.info("Overwrite version file with the new version")
-            (fast_data_dir / "version").write_text(minor_to)
+            (fast_data_dir / "version").write_text(f"{major_to}.{minor_to}")
 
         except subprocess.CalledProcessError as e:
             logger.error(
@@ -174,8 +173,10 @@ def main():
             logger.info(f"Warnings/errors:\n{result.stderr}")
 
         logger.info("Check version file is the newest version")
-        _, minor_final = (fast_data_dir / "version").read_text().split(".")[:2]
-        assert minor_final == minor_to, "Not finished on the same version!"
+        minor_final = (fast_data_dir / "version").read_text().split(".")[1]
+        assert int(minor_final) == int(
+            minor_to
+        ), f"Not finished on the same version!: {minor_to=} -> {minor_final=}"
 
 
 if __name__ == "__main__":

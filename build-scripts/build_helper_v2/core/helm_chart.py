@@ -45,8 +45,7 @@ class HelmChart:
         chart_containers: set[Container],
         # String references to the chart before all of them are built
         unresolved_chart_dependencies: set[tuple[str, str]],
-        unresolved_kaapana_collections: set[str],
-        unresolved_preinstall_extensions: set[str],
+        deployment_config: dict[str, Any],
         # Resolved references into HelmChart objects
         chart_dependencies: set["HelmChart"] = set(),
         kaapana_collections: set["HelmChart"] = set(),
@@ -61,8 +60,7 @@ class HelmChart:
         self.chart_containers = chart_containers
 
         self.unresolved_chart_dependencies = unresolved_chart_dependencies
-        self.unresolved_kaapana_collections = unresolved_kaapana_collections
-        self.unresolved_preinstall_extensions = unresolved_preinstall_extensions
+        self.deployment_config = deployment_config
 
         self.chart_dependencies = chart_dependencies
         self.kaapana_collections = kaapana_collections
@@ -113,12 +111,9 @@ class HelmChart:
         unresolved_chart_dependencies = cls._collect_chart_dependencies(
             chartfile=chartfile, repo_version=version
         )
-        unresolved_kaapana_collections: set[str] = set()
-        unresolved_preinstall_extensions: set[str] = set()
+        deployment_config: dict = {}
         if KaapanaType(kaapana_type) == KaapanaType.PLATFORM:
-            unresolved_kaapana_collections, unresolved_preinstall_extensions = (
-                cls._load_deployment_config(chartfile)
-            )
+            deployment_config = cls._load_deployment_config(chartfile)
 
         return cls(
             name=name,
@@ -129,8 +124,7 @@ class HelmChart:
             ignore_linting=ignore_linting,
             chart_containers=chart_containers,
             unresolved_chart_dependencies=unresolved_chart_dependencies,
-            unresolved_kaapana_collections=unresolved_kaapana_collections,
-            unresolved_preinstall_extensions=unresolved_preinstall_extensions,
+            deployment_config=deployment_config,
         )
 
     # ────────────────────────────────
@@ -216,40 +210,40 @@ class HelmChart:
             dependencies.add((dep_name, dep_version))
         return dependencies
 
-    @staticmethod
-    def _load_deployment_config(chartfile: Path) -> tuple[set[str], set[str]]:
-        """
-        Load kaapana_collections and preinstall_extensions from deployment_config.yaml.
-        Returns two sets of chart names.
-        Only runs for PLATFORM charts.
-        """
-        kaapana_collections: set[str] = set()
-        preinstall_extensions: set[str] = set()
+    @classmethod
+    def _load_deployment_config(cls, chartfile: Path) -> dict[str, Any]:
+
         deployment_config_path = chartfile.parent / "deployment_config.yaml"
 
         if not deployment_config_path.exists():
-            return kaapana_collections, preinstall_extensions
+            return {}
 
         try:
             with deployment_config_path.open("r", encoding="utf-8") as f:
                 deployment_yaml = yaml.load(f, Loader=yaml.FullLoader) or {}
 
-            # Parse collections
-            kaapana_collections = {
-                c["name"] for c in deployment_yaml.get("kaapana_collections", [])
+            deployment_config: dict[str, Any] = dict(deployment_yaml)
+
+            # Normalize collections/extensions as sets
+            deployment_config["kaapana_collections"] = {
+                c.get("name")
+                for c in deployment_yaml.get("kaapana_collections", [])
+                if isinstance(c, dict) and "name" in c
             }
 
-            # Parse preinstalled extensions
-            preinstall_extensions = {
-                e["name"] for e in deployment_yaml.get("preinstall_extensions", [])
+            deployment_config["preinstall_extensions"] = {
+                e.get("name")
+                for e in deployment_yaml.get("preinstall_extensions", [])
+                if isinstance(e, dict) and "name" in e
             }
+
+            return deployment_config
 
         except Exception as exc:
             logger.warning(
                 f"Failed to parse deployment_config.yaml for {chartfile}: {exc}"
             )
-
-        return kaapana_collections, preinstall_extensions
+            return {}
 
     @classmethod
     def _collect_chart_containers(
@@ -517,7 +511,7 @@ class HelmChart:
 
     def lint_chart(self):
         if self.ignore_linting:
-            logger.info(f"{self.name} has ignore_linting: true - skipping")
+            logger.debug(f"{self.name} has ignore_linting: true - skipping")
             return
 
         if self.linted:
@@ -551,7 +545,7 @@ class HelmChart:
 
     def lint_kubeval(self):
         if self.ignore_linting:
-            logger.info(f"{self.name} has ignore_linting: true - skipping")
+            logger.debug(f"{self.name} has ignore_linting: true - skipping")
             return
 
         if self.kubeval_done:

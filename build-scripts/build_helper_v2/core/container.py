@@ -383,7 +383,7 @@ class Container:
         duration: Optional[float] = None
         logger.debug(f"{self.tag}: in push()")
 
-        if self.status != Status.BUILT:
+        if self.status not in {Status.BUILT, Status.NOTHING_CHANGED}:
             logger.warning(
                 f"{self.tag}: Skipping push since image has not been built successfully!"
             )
@@ -406,7 +406,7 @@ class Container:
             config.container_engine,
             "push",
             self.tag,
-        ]  # Consider using python library https://docker-py.readthedocs.io/en/stable/
+        ]
         while retries < config.max_push_retries:
             start_time = time.time()
             retries += 1

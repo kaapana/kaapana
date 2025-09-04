@@ -87,22 +87,26 @@ class BuildService:
                 exit_on_error=cls._build_config.exit_on_error,
                 kind="chart",
             )
+            if selected_charts_objs:
+                cls._build_state.selected_charts = selected_charts_objs
+            else:
+                selected_containers_objs = BuildService.filter_selection(
+                    cls._build_state.containers_available,
+                    cls._build_config.build_containers,
+                    get_name=lambda c: c.image_name,
+                    exit_on_error=cls._build_config.exit_on_error,
+                    kind="container",
+                )
 
-            selected_containers_objs = BuildService.filter_selection(
-                cls._build_state.containers_available,
-                cls._build_config.build_containers,
-                get_name=lambda c: c.image_name,
-                exit_on_error=cls._build_config.exit_on_error,
-                kind="container",
-            )
+                # Add all BaseImages in the queue of selected_containers
+                all_base_containers = (
+                    ContainerService.collect_all_local_base_containers(
+                        selected_containers_objs
+                    )
+                )
+                selected_containers_objs.update(all_base_containers)
+                cls._build_state.selected_containers = selected_containers_objs
 
-            # Add all BaseImages in the queue of selected_containers
-            all_base_containers = ContainerService.collect_all_local_base_containers(
-                selected_containers_objs
-            )
-            selected_containers_objs.update(all_base_containers)
-        cls._build_state.selected_containers = selected_containers_objs
-        cls._build_state.selected_charts = selected_charts_objs
         return selected_charts_objs, selected_containers_objs
 
     @staticmethod

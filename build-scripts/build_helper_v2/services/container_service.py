@@ -418,7 +418,6 @@ class ContainerService:
         pb: "ProgressBar",
     ) -> None:
         """Build and push a single container, updating status and dependents."""
-        container.status = Status.BUILDING
         build_issue = container.build(config=cls._build_config)
 
         with containers_lock:
@@ -429,7 +428,6 @@ class ContainerService:
                 final_status = Status.FAILED
             elif container.status in {
                 Status.SKIPPED,
-                Status.NOTHING_CHANGED,
                 Status.BUILT_ONLY,
             }:
                 final_status = container.status
@@ -442,10 +440,7 @@ class ContainerService:
                 cls._update_dependents(waiting_set, ready_queue)
                 return
 
-        # PUSH stage
-        container.status = Status.PUSHING
         push_issue = container.push(cls._build_config)
-
         with containers_lock:
             if push_issue:
                 IssueTracker.issues.append(push_issue)

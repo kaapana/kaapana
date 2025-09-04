@@ -20,7 +20,7 @@ class DummyAdapter(WorkflowEngineAdapter):
     def __init__(self):
         super().__init__()
 
-    async def submit_workflow(
+    async def get_workflow_tasks(
         self, workflow: schemas.Workflow
     ) -> List[schemas.TaskCreate]:
         logger.info(f"Posting workflow to DummyAdapter: {workflow.title}")
@@ -34,6 +34,9 @@ class DummyAdapter(WorkflowEngineAdapter):
             type="test",
         )
         return [task1, task2]
+
+    async def submit_workflow(self, workflow: schemas.Workflow) -> schemas.Workflow:
+        return workflow
 
     async def submit_workflow_run(
         self,
@@ -69,7 +72,7 @@ class DummyAdapter(WorkflowEngineAdapter):
         """
         Gets the task runs of a workflow run from Airflow.
         Args:
-            workflow_run_external_id (str): The ID of the workflow run in the engine.   
+            workflow_run_external_id (str): The ID of the workflow run in the engine.
 
         Returns:
             List[TaskRunUpdate]: List of TaskRunUpdate objects with updated status.

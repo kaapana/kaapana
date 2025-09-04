@@ -7,8 +7,6 @@ from task_api.processing_container.common import (
     parse_task,
     parse_processing_container,
 )
-from task_api.runners.DockerRunner import DockerRunner
-from task_api.runners.KubernetesRunner import KubernetesRunner
 from task_api.processing_container.resources import (
     sum_of_file_sizes,
     max_file_size,
@@ -43,6 +41,8 @@ class Schema(str, Enum):
 
 
 def monitor_container_memory(task_run: TaskRun):
+    from task_api.runners.DockerRunner import DockerRunner
+
     max_memory_usage = human_readable_size(DockerRunner.monitor_memory(task_run))
     typer.echo(f"Peak memory usage of container: {max_memory_usage}")
 
@@ -103,6 +103,8 @@ def check_task_run(
     watch: bool = typer.Option(True, help="Wether to check the state until finished."),
 ):
     """ """
+    from task_api.runners.DockerRunner import DockerRunner
+
     with open(task_run, "r") as f:
         task_data = TaskRun(**json.load(f))
 
@@ -135,9 +137,13 @@ def run(
     """
 
     if mode.value == Modes.docker.value:
+        from task_api.runners.DockerRunner import DockerRunner
+
         runner = DockerRunner
 
     elif mode.value == Modes.kubernetes.value:
+        from task_api.runners.KubernetesRunner import KubernetesRunner
+
         runner = KubernetesRunner
     task = parse_task(input)
     task_run = runner.run(task)
@@ -160,8 +166,12 @@ def logs(
     with open(task, "r") as f:
         task_run = TaskRun(**json.load(f))
     if task_run.mode == "docker":
+        from task_api.runners.DockerRunner import DockerRunner
+
         runner = DockerRunner
     elif task_run.mode == "k8s":
+        from task_api.runners.KubernetesRunner import KubernetesRunner
+
         runner = KubernetesRunner
     runner.logs(task_run, watch)
 

@@ -61,13 +61,13 @@ class TaskBase(BaseModel):
 
 
 class TaskCreate(TaskBase):
-    pass
+    downstream_task_titles: List[str] = []
 
 
 class Task(TaskBase):
     id: int
     workflow_id: int
-    downstream_task_ids: List[str] = []
+    downstream_task_ids: List[int] = []
 
     model_config = ConfigDict(from_attributes=True)
 

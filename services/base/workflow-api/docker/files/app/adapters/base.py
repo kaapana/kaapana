@@ -50,7 +50,9 @@ class WorkflowEngineAdapter(ABC):
         pass
 
     @abstractmethod
-    async def get_workflow_run(self, workflow_run_external_id: str) -> schemas.LifecycleStatus:
+    async def get_workflow_run(
+        self, workflow_run_external_id: str
+    ) -> schemas.LifecycleStatus:
         """
         Get the current status of a workflow from the external engine
 
@@ -68,10 +70,15 @@ class WorkflowEngineAdapter(ABC):
         pass
 
     @abstractmethod
-    async def submit_workflow(
+    async def get_workflow_tasks(
         self, workflow: schemas.Workflow
     ) -> List[schemas.TaskCreate]:
         """
-        1. Create the workflow based on the definition in the WorkflowEngine
-        2. Get tasks from workflow engine
+        Get tasks with task-to-downstream mappings
         """
+
+    async def submit_workflow(self, workflow: schemas.Workflow) -> schemas.Workflow:
+        """
+        Create a workflow in the engine
+        """
+        pass

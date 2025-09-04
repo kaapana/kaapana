@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import subprocess
 import sys
 import time
@@ -26,6 +27,38 @@ def get_logger(name: str) -> logging.Logger:
 logger = get_logger(__name__)
 
 
+def autodetect_version(extensions_dir: Path) -> str:
+    logger.info(
+        "Trying to automatically detect version using kaapana-platform-chart in %s",
+        extensions_dir,
+    )
+
+    candidates = list(extensions_dir.glob("kaapana-platform-chart-*.tgz"))
+    if not candidates:
+        raise FileNotFoundError(
+            "No kaapana-platform-chart-*.tgz found in extensions dir"
+        )
+
+    if len(candidates) > 1:
+        logger.warning(
+            "Multiple kaapana-platform-chart files found, taking the first one: %s",
+            candidates[0],
+        )
+
+    filename = candidates[0].name
+    # Extract version between "kaapana-platform-chart-" and ".tgz"
+    m = re.search(
+        r"kaapana-platform-chart-([0-9]+\.[0-9]+(?:\.[0-9]+)?(?:-[^-]+)?)\.tgz",
+        filename,
+    )
+    if not m:
+        raise ValueError(f"Could not parse version from {filename}")
+
+    version = m.group(1)
+    logger.info("Detected platform version: %s", version)
+    return version
+
+
 def main():
     fast_data_env = os.getenv("FAST_DATA_DIR")
     if not fast_data_env:
@@ -47,74 +80,102 @@ def main():
         logger.error(f"slow_data_dir doees not exists: {slow_data_dir}")
         exit(1)
 
-    data_state_version = os.getenv("DATA_STATE_VERSION")
-    if not data_state_version:
-        logger.error("No data state version")
+    from_version = os.getenv("FROM_VERSION")
+    if not from_version:
+        logger.error("No from_version")
         exit(1)
-    old_version = ".".join(data_state_version.split(".")[:2])
 
-    target_platform_version = os.getenv("TARGET_PLATFORM_VERSION")
-    if not target_platform_version:
-        logger.error("No target platform version")
+    to_version = os.getenv("TO_VERSION")
+    if not to_version:
+        logger.error("No to_version")
         exit(1)
-    new_version = ".".join(target_platform_version.split(".")[:2])
 
-    if data_state_version == "none":
-        logger.info(
-            f"No data state version found. Assuming new release of version: {target_platform_version}"
-        )
+    if from_version == "fresh":
+        logger.info(f"Assuming fresh installation")
         fast_data_dir.mkdir(parents=True, exist_ok=True)
-        (fast_data_dir / "version").write_text(target_platform_version)
+
+        logger.info(f"Creating version file imprint: {to_version}")
+        (fast_data_dir / "version").write_text(to_version)
         exit(0)
+
+    if from_version == "autodetect":
+        from_version = autodetect_version(fast_data_dir / "extensions")
 
     migration_scripts_dir = Path("/kaapana/app/")
     if not migration_scripts_dir.exists():
-        logger.error("No migration scripts dir exists: migration_scripts_dir")
+        logger.error(f"No migration scripts dir exists: {migration_scripts_dir}")
         exit(1)
 
     logger.info(migration_scripts_dir)
     logger.info(fast_data_dir)
     logger.info(slow_data_dir)
-    logger.info(old_version)
-    logger.info(new_version)
+    logger.info(from_version)
+    logger.info(to_version)
 
-    major_old, minor_old = old_version.split(".")
-    major_new, minor_new = new_version.split(".")
+    major_from, minor_from, _ = map(int, from_version.split("."))
+    major_to, minor_to, _ = map(int, to_version.split("."))
 
-    migration_script_path = (
-        migration_scripts_dir
-        / f"migration-{major_old}.{minor_old}.x-{major_new}.{minor_new}.x.sh"
-    )
-    if not migration_script_path.exists():
-        logger.error(f"No migration script found: {migration_script_path}")
+    if major_from != major_to:
+        logger.error("Major version migration not supported yet")
         exit(1)
 
-    try:
-        logger.info(f"Running migration script: {migration_script_path}")
-        # Make sure the script is executable
-        migration_script_path.chmod(0o755)
+    version_chain = []
 
-        result = subprocess.run(
-            [str(migration_script_path), fast_data_dir, slow_data_dir],
-            check=True,  # Raise CalledProcessError on failure
-            capture_output=True,
-            text=True,
-        )
+    minor_current = minor_from
+    logger.info("Generating migration chain")
+    while minor_current < minor_to:
+        version_chain.append((major_from, minor_current, major_to, minor_current + 1))
+        minor_current += 1
 
-        logger.info(
-            f"Migration script completed successfully.\nOutput:\n{result.stdout}"
+    logger.info("Migration chain generated. Validatin migration chain")
+    for major_from, minor_from, major_to, minor_to in version_chain:
+        migration_script_path = (
+            migration_scripts_dir
+            / f"migration-{major_from}.{minor_from}.x-{major_to}.{minor_to}.x.sh"
         )
+        if not migration_script_path.exists():
+            logger.error(f"No migration script found: {migration_script_path}")
+            logger.error("No migration performed.")
+            exit(1)
+
+    for major_from, minor_from, major_to, minor_to in version_chain:
+        migration_script_path = (
+            migration_scripts_dir
+            / f"migration-{major_from}.{minor_from}.x-{major_to}.{minor_to}.x.sh"
+        )
+        try:
+            logger.info(f"Running migration script: {migration_script_path}")
+            migration_script_path.chmod(0o755)
+
+            result = subprocess.run(
+                [str(migration_script_path), str(fast_data_dir), str(slow_data_dir)],
+                check=True,  # Raise CalledProcessError on failure
+                capture_output=True,
+                text=True,
+            )
+
+            logger.info(
+                f"Migration script completed successfully.\nOutput:\n{result.stdout}"
+            )
+            if result.stderr:
+                logger.warning(f"Migration script warnings/errors:\n{result.stderr}")
+
+            logger.info("Overwrite version file with the new version")
+            (fast_data_dir / "version").write_text(minor_to)
+
+        except subprocess.CalledProcessError as e:
+            logger.error(
+                f"Migration script failed with exit code {e.returncode}\nOutput:\n{e.output}\nError:\n{e.stderr}"
+            )
+            sys.exit(e.returncode)
+
+        logger.info(f"Output:\n{result.stdout}")
         if result.stderr:
-            logger.warning(f"Migration script warnings/errors:\n{result.stderr}")
+            logger.info(f"Warnings/errors:\n{result.stderr}")
 
-        logger.info("Overwrite version file with the new version")
-        (fast_data_dir / "version").write_text(new_version)
-
-    except subprocess.CalledProcessError as e:
-        logger.error(
-            f"Migration script failed with exit code {e.returncode}\nOutput:\n{e.output}\nError:\n{e.stderr}"
-        )
-        sys.exit(e.returncode)
+        logger.info("Check version file is the newest version")
+        _, minor_final = (fast_data_dir / "version").read_text().split(".")[:2]
+        assert minor_final == minor_to, "Not finished on the same version!"
 
 
 if __name__ == "__main__":

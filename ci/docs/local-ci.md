@@ -48,10 +48,12 @@ kaapanaci ALL=(ALL) NOPASSWD:ALL
 
 
 ## Starting a pipeline in the UI
-
+When starting a pipeline via the GitLab web interface you must set the following variables:
 ```bash
 DEPLOYMENT_INSTANCE_USER: kaapanaci
 DEPLOYMENT_INSTANCE_IP: <IP address of your instance>
 DEPLOYMENT_INSTANCE_NAME: <name-for-the-ansible-inventory>
 DEPLOYMENT_ON_WORKSTATION: True
+OS_CREATE: False
+SSH_FILE: /home/ubuntu/.ssh/kaapanaci_ci
 ```

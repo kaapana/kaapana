@@ -40,6 +40,9 @@
       cmd: sysctl -w fs.inotify.max_user_instances=100000
     become: true
 
+  - name: create microk8s config file
+    ansible.builtin.shell: microk8s config | tee {{ ansible_env.HOME }}/.kube/config 
+
   - name: Check that microk8s status
     ansible.builtin.command: microk8s status
     register: microk8s_status

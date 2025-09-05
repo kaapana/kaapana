@@ -40,8 +40,25 @@
       cmd: sysctl -w fs.inotify.max_user_instances=100000
     become: true
 
-  - name: create microk8s config file
-    ansible.builtin.shell: microk8s config | tee {{ ansible_env.HOME }}/.kube/config 
+  - name: Generate microk8s kubeconfig
+    ansible.builtin.command: microk8s kubectl config view --raw
+    register: kubeconfig
+
+  - name: Ensure .kube directory exists
+    ansible.builtin.file:
+      path: "{{ ansible_env.HOME }}/.kube"
+      state: directory
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0700'
+
+  - name: Write kubeconfig to file
+    ansible.builtin.copy:
+      content: "{{ kubeconfig.stdout }}"
+      dest: "{{ ansible_env.HOME }}/.kube/config"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0600'
 
   - name: Check that microk8s status
     ansible.builtin.command: microk8s status

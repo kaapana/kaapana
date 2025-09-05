@@ -1,0 +1,34 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ScaleRule",
+    "description": "Defines how memory resources should scale based on the size of input data in an IOMount.",
+    "type": "object",
+    "required": [
+      "complexity",
+      "type",
+      "mode"
+    ],
+    "properties": {
+      "complexity": {
+        "type": "string",
+        "pattern": "^[-+]?\\d*(\\.\\d+)?\\*?n(\\*\\*\\d+)?$"
+      },
+      "type": {
+        "type": "string",
+        "enum": ["limit", "request"]
+      },
+      "mode": {
+        "type": "string",
+        "enum": ["sum", "max_file_size"]
+      },
+      "target_dir": {
+        "type": "string"
+      },
+      "target_regex": {
+        "type": "string"
+      },
+      "target_glob": {
+        "type": "string"
+      }
+    }
+}

@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TaskTemplate",
+  "description": "Blueprint for how a Docker image can be used for data processing in a predefined way.",
+  "type": "object",
+  "required": [
+      "identifier",
+      "inputs",
+      "description",
+      "outputs",
+      "command",
+      "env"
+  ],
+  "properties": {
+    "identifier": {
+      "type": "string"
+      },
+    "description": {
+      "type": "string"
+      },
+    "command": {
+      "type": "array",
+      "items": {
+          "type": "string"
+      }
+    },
+    "inputs": {
+      "type": "array",
+      "items": { "$ref": "IOMount.schema.json" },
+      "default": []
+      },
+    "outputs": {
+      "type": "array",
+      "items": { "$ref": "IOMount.schema.json" },
+      "default": []
+      },
+    "env": {
+      "type": "array",
+      "items": { "$ref": "ContainerEnvVar.schema.json" },
+      "default": []
+      },
+    "resources": { "$ref": "Resources.schema.json" }
+    }
+}

@@ -1,0 +1,61 @@
+---
+# Persistent Volumes & Claims
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: fast-data-dir-pv
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: 1Mi
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ .Values.global.fast_data_dir }}"
+  persistentVolumeReclaimPolicy: Retain
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fast-data-dir-pvc
+  namespace: "{{ .Values.global.namespace }}"
+spec:
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Mi
+  volumeName: fast-data-dir-pv
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: slow-data-dir-pv
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: 1Mi
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ .Values.global.slow_data_dir }}"
+  persistentVolumeReclaimPolicy: Retain
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: slow-data-dir-pvc
+  namespace: "{{ .Values.global.namespace }}"
+spec:
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Mi
+  volumeName: slow-data-dir-pv

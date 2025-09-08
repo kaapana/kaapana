@@ -184,7 +184,7 @@ class HelmChartService:
     def _resolve_named_dependencies(
         cls,
         chart: HelmChart,
-        unresolved: set[str | tuple[str, str]],
+        unresolved: set[str] | set[tuple[str, str]],
         attach_to: str,
         require_version: bool = False,
     ) -> None:
@@ -520,6 +520,10 @@ class HelmChartService:
                     platform_build_version=platform_chart.version,
                     bar=bar,
                 )
+                # TODO This is currently necessary to change default build cwd for docker build command, as kaapana-extension-collection image requires charts/* being present in the directory
+                if len(collection_chart.chart_containers) == 1:
+                    collection_container = next(iter(collection_chart.chart_containers))
+                    collection_container.container_build_dir = collection_target_dir
 
             with alive_bar(
                 len(collection_chart.chart_dependencies),

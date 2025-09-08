@@ -17,7 +17,7 @@ from build_helper_v2.utils.logger import get_logger
 logger = get_logger()
 
 IMAGE_PATTERN = re.compile(
-    r'image\s*=\s*f?["\']\{DEFAULT_REGISTRY\}/(?P<image_name>[^:]+):(?P<version>[^"\']+)["\']'
+    r'^\s*-?\s*image\s*[:=]\s*f?["\']\{DEFAULT_REGISTRY\}/(?P<image_name>[^:]+):(?P<version>[^"\']+)["\']'
 )
 
 
@@ -331,8 +331,9 @@ class HelmChart:
                     operator_containers.add(operator_container)
         return operator_containers
 
-    @staticmethod
+    @classmethod
     def extract_images_from_templates(
+        cls,
         chartfile: Path,
         default_registry: str,
         version: str,
@@ -349,6 +350,7 @@ class HelmChart:
             try:
                 for raw_line in yaml_file.read_text(encoding="utf-8").splitlines():
                     match = IMAGE_LINE_RE.match(raw_line)
+
                     if not match:
                         continue
 
@@ -385,22 +387,9 @@ class HelmChart:
                         logger.debug(f"Templated image: {image_value} -> skip")
                         continue
 
-                    # Final cleanup
-                    container_tag = (
-                        image_value.replace("}", "")
-                        .replace("{", "")
-                        .replace(" ", "")
-                        .replace("$", "")
+                    container_tag = cls._normalize_image_value(
+                        image_value, default_registry, version
                     )
-                    container_tag = container_tag.replace(
-                        ".Values.global.registry_url",
-                        default_registry,
-                    )
-                    container_tag = container_tag.replace(
-                        ".Values.global.kaapana_build_version",
-                        version,
-                    )
-                    # Extract registry, name, version
                     container_registry = "/".join(container_tag.split("/")[:-1])
                     container_name = container_tag.split("/")[-1].split(":")[0]
 
@@ -420,6 +409,76 @@ class HelmChart:
                     level="ERROR",
                     path=chartfile.parent,
                 )
+
+        return containers
+
+    @staticmethod
+    def _normalize_image_value(
+        image_value: str, default_registry: str, version: str
+    ) -> str:
+        """Clean up templated image strings into a resolved image tag."""
+        container_tag = (
+            image_value.replace("}", "")
+            .replace("{", "")
+            .replace(" ", "")
+            .replace("$", "")
+        )
+        container_tag = container_tag.replace(
+            ".Values.global.registry_url", default_registry
+        )
+        container_tag = container_tag.replace(
+            ".Values.global.kaapana_build_version", version
+        )
+        return container_tag
+
+    @classmethod
+    def extract_images_from_values(
+        cls,
+        chartfile: Path,
+        default_registry: str,
+        version: str,
+        name: str,
+    ) -> Set[Container]:
+        """Scan values.yaml for 'complete_image:' entries."""
+        containers: Set[Container] = set()
+        values_file = chartfile.parent / "values.yaml"
+        COMPLETE_IMAGE_RE = re.compile(r"^\s*complete_image:\s*(.+)$")
+        if not values_file.exists():
+            return containers
+
+        try:
+            for raw_line in values_file.read_text(encoding="utf-8").splitlines():
+                match = COMPLETE_IMAGE_RE.match(raw_line)
+                if not match:
+                    continue
+
+                image_value = (
+                    match.group(1).strip().translate(str.maketrans("", "", "\"'`$ "))
+                )
+
+                container_tag = cls._normalize_image_value(
+                    image_value, default_registry, version
+                )
+
+                container_registry = "/".join(container_tag.split("/")[:-1])
+                container_name = container_tag.split("/")[-1].split(":")[0]
+
+                container = ContainerService.resolve_reference_to_container(
+                    registry=container_registry,
+                    image_name=container_name,
+                    version=version,
+                )
+                containers.add(container)
+
+        except Exception as e:
+            logger.error(f"Failed reading {values_file}: {e}")
+            IssueTracker.generate_issue(
+                component=HelmChart.__name__,
+                name=name,
+                msg="Container extraction from values.yaml failed!",
+                level="ERROR",
+                path=chartfile.parent,
+            )
 
         return containers
 

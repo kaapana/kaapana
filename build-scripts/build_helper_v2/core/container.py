@@ -123,6 +123,9 @@ class Container:
         self.base_images = base_images
         self.missing_base_images = missing_base_images or []
 
+        self.container_build_dir: Optional[Path] = (
+            None  # kaapana-extension-collections needs access to the built helm charts/
+        )
         self.build_ignore = build_ignore
         self.local_image = local_image
         self.status = Status.NOT_BUILT
@@ -278,7 +281,11 @@ class Container:
             stderr=PIPE,
             universal_newlines=True,
             timeout=6000,
-            cwd=self.dockerfile.parent,
+            cwd=(
+                self.container_build_dir
+                if self.container_build_dir
+                else self.dockerfile.parent
+            ),
             env=dict(
                 os.environ,
                 DOCKER_BUILDKIT=f"{config.enable_build_kit}",
@@ -395,6 +402,10 @@ class Container:
                 level="WARNING",
                 path=self.dockerfile.parent,
             )
+
+        if self.local_image:
+            logger.debug(f"{self.tag}: Skipping push since image is local!")
+            return issue
 
         if config.push_to_microk8s is True:
             logger.info(f"Pushing {self.tag} to microk8s")

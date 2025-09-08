@@ -173,4 +173,9 @@
     register: system_check
     until: system_check.rc == 0
     retries: 60
-    delay: 5     
+    delay: 10
+
+  - debug:
+      var: system_check.stdout_lines
+  - debug:
+      var: system_check.stderr_lines

@@ -94,7 +94,7 @@ prepare_pipeline: ### This is the only job, where I clone the project repo
   - echo VERSION_TAG=$VERSION_TAG >> prepare.env
   - export ARTIFACTS_DIR="/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"
   - echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" >> prepare.env
-  - rm -rf $ARTIFACTS_DIR
+  - sudo rm -rf $ARTIFACTS_DIR
   - mkdir -p $ARTIFACTS_DIR
   artifacts:
     reports:

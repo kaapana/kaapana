@@ -12,9 +12,10 @@ TASK_DIR = Path(MODULE_PATH, "container_templates")
 @pytest.fixture(scope="session")
 def tmp_output_dir():
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    path = MODULE_PATH / "tmp" / timestamp
+    ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR", MODULE_PATH))
+    path = ARTIFACTS_DIR / "tmp" / timestamp
     os.makedirs(path, exist_ok=True)
-    return path
+    yield path
 
 
 @pytest.fixture(scope="session", autouse=True)

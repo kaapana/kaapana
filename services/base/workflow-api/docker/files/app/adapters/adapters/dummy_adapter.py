@@ -26,12 +26,16 @@ class DummyAdapter(WorkflowEngineAdapter):
         logger.info(f"Posting workflow to DummyAdapter: {workflow.title}")
         time.sleep(2)
         task1 = schemas.TaskCreate(
-            title="dummy-task-1", display_name="Dummy Task 1", type="test"
+            title="dummy-task-1",
+            display_name="Dummy Task 1",
+            type="test",
+            downstream_task_titles=["dummy-task-2"],
         )
         task2 = schemas.TaskCreate(
             title="dummy-task-2",
             display_name="Dummy Task 2",
             type="test",
+            downstream_task_titles=[],
         )
         return [task1, task2]
 

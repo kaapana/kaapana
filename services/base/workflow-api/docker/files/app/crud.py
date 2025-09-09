@@ -162,7 +162,7 @@ async def get_workflow_runs(
     skip: int = 0,
     limit: int = 100,
     single: bool = False,
-):
+) -> Union[List[models.WorkflowRun], models.WorkflowRun]:
     """
     Generic function to get workflow runs with optional project filtering.
     """
@@ -237,7 +237,7 @@ async def get_tasks(
     skip: int = 0,
     limit: int = 100,
     single: bool = False,
-):
+) -> Union[List[models.Task], models.Task]:
     logger.info(
         f"Getting tasks with filters: {filters}, order_by: {order_by}, order: {order}, skip: {skip}, limit: {limit}, single: {single}"
     )
@@ -253,19 +253,13 @@ async def get_tasks(
         model=models.Task,
         filters=filters or {},
         order_by=order_by_exp,
+        eager_load=["downstream_tasks"],
         skip=skip,
         limit=limit,
     )
     result = await db.execute(query)
 
     return result.scalars().first() if single else result.scalars().all()
-
-
-async def get_tasks_of_workflow(db: AsyncSession, workflow_id: int):
-    result = await db.execute(
-        select(models.Task).filter(models.Task.workflow_id == workflow_id)
-    )
-    return result.scalars().all()
 
 
 async def create_task(db: AsyncSession, task: schemas.TaskCreate, workflow_id: int):

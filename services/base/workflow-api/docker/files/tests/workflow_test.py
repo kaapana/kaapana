@@ -156,9 +156,13 @@ async def test_get_workflow_tasks():
         assert resp2.status_code == 200
         tasks = resp2.json()
         assert len(tasks) == 2
+        task2_id = None  # get task2 id for downstream check later on
         for task in tasks:
             t = schemas.Task(**task)
             assert t.title in ["dummy-task-1", "dummy-task-2"]
+            if t.title == "dummy-task-2":
+                task2_id = t.id
+        assert task2_id is not None
 
         # get specific task by title
         resp3 = await client.get(
@@ -168,5 +172,8 @@ async def test_get_workflow_tasks():
         task = schemas.Task(**resp3.json())
         assert task.title == "dummy-task-1"
         assert task.display_name == "Dummy Task 1"
-
-    # TODO: test for downstream tasks
+        # check for downstream task
+        assert (
+            len(task.downstream_task_ids) == 1
+            and task.downstream_task_ids[0] == task2_id
+        )

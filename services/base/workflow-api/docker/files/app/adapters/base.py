@@ -19,6 +19,22 @@ class WorkflowEngineAdapter(ABC):
         return f"{dag_id}-{run_id}"
 
     @abstractmethod
+    async def submit_workflow(self, workflow: schemas.Workflow) -> schemas.Workflow:
+        """
+        Create a workflow in the engine
+        """
+        pass
+
+    @abstractmethod
+    async def get_workflow_tasks(
+        self, workflow: schemas.Workflow
+    ) -> List[schemas.TaskCreate]:
+        """
+        Get tasks with task-to-downstream mappings
+        """
+        pass
+
+    @abstractmethod
     async def submit_workflow_run(
         self,
         workflow_run: schemas.WorkflowRun,
@@ -36,13 +52,13 @@ class WorkflowEngineAdapter(ABC):
 
     @abstractmethod
     async def get_workflow_run_task_runs(
-        self, workflow_run_id: int
+        self, workflow_run_external_id: int
     ) -> List[schemas.TaskRun]:
         """
         Get tasks for a workflow run from the external engine.
 
         Args:
-            workflow_run_id (id): The id of the workflow run.
+            workflow_run_external_id (id): The id of the workflow run.
 
         Returns:
             List[schemas.TaskRun]: A list of TaskRun objects.
@@ -67,18 +83,4 @@ class WorkflowEngineAdapter(ABC):
     @abstractmethod
     async def cancel_workflow_run(self, workflow_run: schemas.WorkflowRun) -> bool:
         """Cancel a workflow in the external engine"""
-        pass
-
-    @abstractmethod
-    async def get_workflow_tasks(
-        self, workflow: schemas.Workflow
-    ) -> List[schemas.TaskCreate]:
-        """
-        Get tasks with task-to-downstream mappings
-        """
-
-    async def submit_workflow(self, workflow: schemas.Workflow) -> schemas.Workflow:
-        """
-        Create a workflow in the engine
-        """
         pass

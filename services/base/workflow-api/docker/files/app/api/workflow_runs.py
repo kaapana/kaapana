@@ -132,6 +132,33 @@ async def get_workflow_run_task_runs(
     task_title: Optional[str] = None,  # Only include task-runs for this task title
     db: AsyncSession = Depends(get_async_db),
 ):
+    workflow_run = crud.get_workflow_runs(
+        db, filters={"id": workflow_run_id}, single=True
+    )
+    # check if it's completed
+    if workflow_run.lifecycle_status not in [
+        schemas.LifecycleStatus.COMPLETED,
+        schemas.LifecycleStatus.FAILED,
+        schemas.LifecycleStatus.CANCELED,
+    ]:
+        # get task runs from the engine adapter
+        workflow_engine = get_workflow_engine(workflow_run.workflow.workflow_engine)
+
+        task_run_updates = await workflow_engine.get_workflow_run_task_runs(
+            workflow_run_external_id=workflow_run.external_id
+        )
+
+        # update task runs in the database and return the list 
+        res_task_runs = []
+        for task_run in task_runs:
+            db_task_run = await crud.update_or_create_task_run(
+                db,
+                workflow_run_id=workflow_run_id,
+                task_run_update=task_run,
+            )
+            res_task_runs.append(db_task_run)
+
+
     # TODO: support query params task_title and latest=true
     task_runs = await crud.get_task_runs_of_workflow_run(
         db, workflow_run_id=workflow_run_id, task_title=task_title, latest=latest

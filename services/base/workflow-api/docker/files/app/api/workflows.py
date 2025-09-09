@@ -6,6 +6,7 @@ from fastapi import (
     status,
     status,
 )
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
@@ -70,20 +71,64 @@ async def create_workflow(
         raise HTTPException(status_code=400, detail="Failed to create workflow")
     logger.info(f"Created workflow: {db_workflow.title} v{db_workflow.version}")
 
-    # add tasks
+    # get the workflow engine adapter
     engine = get_workflow_engine(workflow_engine=workflow.workflow_engine)
     logger.info(
         f"Using workflow engine: {engine.workflow_engine} for workflow: {workflow.title}"
     )
-    tasks = await engine.submit_workflow(workflow=db_workflow)
+    # submit the workflow to the engine and get tasks
+    await engine.submit_workflow(workflow=db_workflow)
+    tasks = await engine.get_workflow_tasks(workflow=db_workflow)
 
-    for task in tasks:
+    # create tasks in the database
+    for task_create in tasks:
         t = await crud.create_task(
             db=db,
-            task=task,
+            task=task_create,
             workflow_id=db_workflow.id,
         )
         logger.info(f"Created task {t.title} for workflow: {workflow.title}")
+
+    # after all tasks are created, link downstream tasks
+    for task in tasks:
+        db_task = await crud.get_tasks(
+            db,
+            filters={
+                "title": task.title,
+                "workflow.title": db_workflow.title,
+                "workflow.version": db_workflow.version,
+            },
+            single=True,
+        )
+        if not db_task:
+            logger.error(
+                f"Failed to find task {task.title} for workflow: {db_workflow.title} v{db_workflow.version} to link downstream tasks"
+            )
+            continue
+        for downstream_title in task.downstream_task_titles:
+            ds_task = await crud.get_tasks(
+                db,
+                filters={
+                    "title": downstream_title,
+                    "workflow.title": db_workflow.title,
+                    "workflow.version": db_workflow.version,
+                },
+                single=True,
+            )
+            if not ds_task:
+                logger.error(
+                    f"Failed to find downstream task {downstream_title} for workflow: {db_workflow.title} v{db_workflow.version} to link downstream tasks"
+                )
+                continue
+            logger.info(
+                f"Linking task {db_task.title} to downstream task {ds_task.title}"
+            )
+            await crud.add_downstream_task(
+                db, task_id=db_task.id, downstream_task_id=ds_task.id
+            )
+            logger.info(
+                f"Added downstream task {ds_task.title} to task {db_task.title}"
+            )
 
     return db_workflow
 
@@ -180,7 +225,20 @@ async def get_workflow_tasks(
             status_code=404,
             detail="Failed to get tasks of workflow: Workflow not found",
         )
-    tasks = await crud.get_tasks_of_workflow(db, workflow_id=db_workflow.id)
+    # get tasks
+    db_tasks = await crud.get_tasks(db, filters={"workflow_id": db_workflow.id})
+    if db_tasks is None:
+        raise HTTPException(status_code=404, detail="Tasks not found")
+
+    # append downstream task ids to each task
+    tasks = []
+    for db_task in db_tasks:
+        ds_ids = [dt.downstream_task_id for dt in db_task.downstream_tasks]
+        task = jsonable_encoder(db_task)
+        logger.info("adding ds tasks %s to task %s", ds_ids, db_task.title)
+        task["downstream_task_ids"] = ds_ids
+        tasks.append(schemas.Task(**task))
+
     return tasks
 
 
@@ -202,7 +260,13 @@ async def get_task(
         },
         single=True,
     )
-    logger.info(f"Retrieved task: {db_task} for {title=} v{version=}, {task_title=}")
     if db_task is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    return db_task
+
+    # append downstream task ids
+    ds_ids = [dt.downstream_task_id for dt in db_task.downstream_tasks]
+    task = jsonable_encoder(db_task)
+    logger.info("adding ds tasks %s to task %s", ds_ids, db_task.title)
+    task["downstream_task_ids"] = ds_ids
+
+    return schemas.Task(**task)

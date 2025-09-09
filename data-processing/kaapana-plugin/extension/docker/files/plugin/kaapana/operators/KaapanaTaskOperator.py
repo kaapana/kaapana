@@ -1,5 +1,5 @@
 from task_api.runners.KubernetesRunner import KubernetesRunner
-from task_api.processing_container.common import get_processing_container, merge_env
+from task_api.processing_container.common import get_task_template, merge_env
 from task_api.processing_container.models import (
     Task,
     TaskRun,
@@ -93,11 +93,13 @@ class KaapanaTaskOperator(BaseOperator):
         KubernetesRunner.dump(self.task_run, output)
 
     def _create_task(self, context: Context) -> Task:
-        # Set outputs based on processing_container_json
+        # Set outputs based on task_template
         # Remove existing output directories on the host
-        processing_container = get_processing_container(self.image, mode="k8s")
+        task_template = get_task_template(
+            image=self.image, task_identifier=self.taskTemplate, mode="k8s"
+        )
         outputs = []
-        for channel in processing_container.outputs:
+        for channel in task_template.outputs:
             scheduler_path = Path(
                 self.airflow_workflow_dir / self.task_id / channel.name
             )

@@ -15,7 +15,7 @@ WORKDIR /kaapana/app
 
 COPY files/requirements.txt /files/requirements.txt
 COPY files/constraints-3.12.txt /files/constraints-3.12.txt
-RUN python -m pip install --upgrade setuptools pip && pip3 install -c /files/constraints-3.12.txt -r /files/requirements.txt
+RUN python -m pip install --upgrade setuptools pip && pip3 install -r /files/requirements.txt
 
 COPY files/scripts/ /scripts
 
@@ -24,11 +24,5 @@ RUN chmod +x /kaapana/app/bootstrap.sh
 
 COPY files/scheduler_job_runner_2.10.3_adapted.py /opt/venv/lib/python3.12/site-packages/airflow/jobs/scheduler_job_runner.py
 COPY files/task_command_2.10.3_adapted.py /opt/venv/lib/python3.12/site-packages/airflow/cli/commands/task_command.py
-
-RUN apt-get update && apt-get install -y openssh-server
-RUN mkdir -p /root/.ssh && \
-    ssh-keyscan codebase.helmholtz.cloud >> /root/.ssh/known_hosts
-
-RUN --mount=type=ssh git clone git@codebase.helmholtz.cloud:uenal.akuenal/task-api-poc.git && make -C /kaapana/app/task-api-poc
 
 ENTRYPOINT ["/kaapana/app/bootstrap.sh"]

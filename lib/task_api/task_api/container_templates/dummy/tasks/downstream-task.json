@@ -1,7 +1,7 @@
 {
     "name": "Test downstream task",
-    "image": "{{ env.registry }}/downstream:latest",
-    "taskTemplate": "default",
+    "image": "{{ env.registryUrl }}/dummy:latest",
+    "taskTemplate": "downstream",
     "inputs": [
         {
             "name":"channel1",
@@ -30,6 +30,8 @@
             "memory": "50Mi"
         }
     },
-    "namespace":"default",
-    "imagePullSecrets": ["registry-secret"]
+    "namespace": "{{ env.namespace }}",
+    "registryUrl": "{{ env.registryUrl }}",
+    "registryUsername": "{{ env.registryUsername }}",
+    "registryPassword": "{{ env.registryPassword }}"
 }

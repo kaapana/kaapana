@@ -27,7 +27,7 @@ class DockerRunner(BaseRunner):
     client = docker.from_env()
 
     @classmethod
-    def run(cls, task: Task, dry_run: bool = False):
+    def run(cls, task: Task):
         cls._logger.info("Running task in Docker...")
 
         task_template = get_task_template(task.image, task.taskTemplate, mode="docker")
@@ -50,22 +50,17 @@ class DockerRunner(BaseRunner):
             if vol.input.local_path not in input_volumes
         }
 
-        if dry_run:
-            id = "dummy-id"
-        else:
-            container = cls.client.containers.run(
-                image=task_instance.image,
-                command=task_instance.command,
-                labels={"kaapana.type": "processing-container"},
-                environment={env.name: env.value for env in task_instance.env},
-                detach=True,
-                volumes={**input_volumes, **output_volumes},
-                mem_limit=memory_limit,
-            )
+        container = cls.client.containers.run(
+            image=task_instance.image,
+            command=task_instance.command,
+            labels={"kaapana.type": "processing-container"},
+            environment={env.name: env.value for env in task_instance.env},
+            detach=True,
+            volumes={**input_volumes, **output_volumes},
+            mem_limit=memory_limit,
+        )
 
-            id = container.id
-
-        return TaskRun(id=id, mode="docker", **task_instance.model_dump())
+        return TaskRun(id=container.id, mode="docker", **task_instance.model_dump())
 
     @classmethod
     def logs(cls, task_run: TaskRun, follow: bool = False):

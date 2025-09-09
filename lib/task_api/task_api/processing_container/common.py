@@ -124,9 +124,19 @@ def merge_io_channels(
 
 @functools.lru_cache()
 def get_task_template(
-    image: str, task_identifier: str, mode: str = "docker"
+    image: str,
+    task_identifier: str,
+    mode: str = "docker",
+    registry_secret: str = None,
+    namespace: str = None,
 ) -> models.TaskTemplate:
-    processing_container = get_processing_container(image, mode)
+    kwargs = {}
+    if registry_secret:
+        kwargs["registry_secret"] = registry_secret
+    if namespace:
+        kwargs["namespace"] = namespace
+
+    processing_container = get_processing_container(image=image, mode=mode, **kwargs)
 
     for template in processing_container.templates:
         if template.identifier == task_identifier:
@@ -135,13 +145,19 @@ def get_task_template(
 
 @functools.lru_cache()
 def get_processing_container(
-    image: str, mode: str = "docker"
+    image: str,
+    mode: str = "docker",
+    namespace: str = "services",
+    registry_secret: str = "registry-secret",
 ) -> models.ProcessingContainer:
     if mode == "k8s":
         from kaapana_containers.kubernetes.utils import KubernetsUtils
 
         with KubernetsUtils.extract_file_from_image(
-            image, "/processing-container.json", namespace="project-admin"
+            image,
+            "/processing-container.json",
+            namespace=namespace,
+            registry_secret=registry_secret,
         ) as f:
             return models.ProcessingContainer(**json.load(f))
     elif mode == "docker":

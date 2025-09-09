@@ -1,7 +1,7 @@
 {
     "name": "Kubernetes task for dummy image",
-    "image": "{{ env.registry }}/dummy:latest",
-    "taskTemplate": "default",
+    "image": "{{ env.registryUrl }}/dummy:latest",
+    "taskTemplate": "upstream",
     "inputs": [],
     "outputs": [
         {   
@@ -19,8 +19,14 @@
     ],
     "env": [{
         "name":"TIME_SLEEP",
-        "value": "5"
+        "value": "0"
+    },
+    {
+        "name": "DUMMY",
+        "value": "dummy"
     }],
-    "namespace": "default",
-    "imagePullSecrets": ["registry-secret"]
+    "namespace": "{{ env.namespace }}",
+    "registryUrl": "{{ env.registryUrl }}",
+    "registryUsername": "{{ env.registryUsername }}",
+    "registryPassword": "{{ env.registryPassword }}"
 }

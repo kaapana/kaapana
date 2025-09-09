@@ -82,10 +82,17 @@ class KubernetesRunner(BaseRunner):
     api = client.CoreV1Api()
 
     @classmethod
-    def run(cls, task: Task, dry_run: bool = False):
+    def run(cls, task: Task):
         cls._logger.info("Running task in Kubernetes...")
-        mode = "k8s" if not dry_run else "docker"
-        task_template = get_task_template(task.image, task.taskTemplate, mode=mode)
+        image_pull_secrets = cls.get_image_pull_secrets(task)
+        task.imagePullSecrets = [secret.name for secret in image_pull_secrets]
+
+        task_template = get_task_template(
+            image=task.image,
+            task_identifier=task.taskTemplate,
+            namespace=task.namespace,
+            registry_secret=task.imagePullSecrets[0],
+        )
         task_instance = create_task_instance(task_template=task_template, task=task)
 
         pod_name = generate_pod_name(task_instance.name)
@@ -94,10 +101,6 @@ class KubernetesRunner(BaseRunner):
         task_container = get_container(
             task_instance=task_instance, volume_mounts=volume_mounts
         )
-        if dry_run:
-            image_pull_secrets = []
-        else:
-            image_pull_secrets = cls.get_image_pull_secrets(task_instance)
 
         pod_spec = client.V1PodSpec(
             restart_policy="Never",
@@ -118,19 +121,14 @@ class KubernetesRunner(BaseRunner):
             f"Creating pod '{pod_name}' in namespace '{task_instance.namespace}'..."
         )
 
-        if dry_run:
-            id = "dummy-id"
-        else:
-            pod = cls.api.create_namespaced_pod(
-                namespace=task_instance.namespace, body=pod
-            )
-            task_instance.imagePullSecrets = [
-                secret.name for secret in pod.spec.image_pull_secrets
-            ]
-            id = pod.metadata.name
+        pod = cls.api.create_namespaced_pod(namespace=task_instance.namespace, body=pod)
+        task_instance.imagePullSecrets = [
+            secret.name for secret in pod.spec.image_pull_secrets
+        ]
+        id = pod.metadata.name
         return TaskRun(
             id=id,
-            mode=mode,
+            mode="k8s",
             **task_instance.model_dump(),
         )
 
@@ -201,9 +199,7 @@ class KubernetesRunner(BaseRunner):
         )
 
     @classmethod
-    def create_image_pull_secret(
-        cls, task_instance: TaskInstance, secret_name: str
-    ) -> client.V1Secret:
+    def create_image_pull_secret(cls, task: Task, secret_name: str) -> client.V1Secret:
         """
         Create a secret derived from registryUrl, registryUsername, registryPassword
         that can be used as ImagePullSecret
@@ -212,11 +208,11 @@ class KubernetesRunner(BaseRunner):
 
         reg_config_json = {
             "auths": {
-                task_instance.registryUrl: {
-                    "username": task_instance.registryUsername,
-                    "password": task_instance.registryPassword,
+                task.registryUrl: {
+                    "username": task.registryUsername,
+                    "password": task.registryPassword,
                     "auth": base64.b64encode(
-                        f"{task_instance.registryUsername}:{task_instance.registryPassword}".encode()
+                        f"{task.registryUsername}:{task.registryPassword}".encode()
                     ).decode(),
                 }
             }
@@ -232,29 +228,21 @@ class KubernetesRunner(BaseRunner):
             },
         )
 
-        cls.api.create_namespaced_secret(namespace=task_instance.namespace, body=secret)
+        cls.api.create_namespaced_secret(namespace=task.namespace, body=secret)
         return secret
 
     @classmethod
-    def get_image_pull_secrets(
-        cls, task_instance: TaskInstance
-    ) -> List[client.V1LocalObjectReference]:
-
+    def get_image_pull_secrets(cls, task: Task) -> List[client.V1LocalObjectReference]:
         image_pull_secrets = []
-
-        if (
-            task_instance.registryUrl
-            and task_instance.registryUsername
-            and task_instance.registryPassword
-        ):
-            secret_name = f"{generate_pod_name(task_instance.name)}-secret"
-            cls.create_image_pull_secret(task_instance, secret_name)
+        if task.registryUrl and task.registryUsername and task.registryPassword:
+            secret_name = f"{generate_pod_name(task.name)}-secret"
+            cls.create_image_pull_secret(task, secret_name)
             image_pull_secrets.append(client.V1LocalObjectReference(name=secret_name))
-        elif task_instance.imagePullSecrets:
+        if task.imagePullSecrets:
             image_pull_secrets.extend(
                 [
                     client.V1LocalObjectReference(name=name)
-                    for name in task_instance.imagePullSecrets
+                    for name in task.imagePullSecrets
                 ]
             )
         return image_pull_secrets

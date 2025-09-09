@@ -50,7 +50,7 @@ class BaseRunner(ABC):
 
     @classmethod
     @abstractmethod
-    def run(cls, task: models.Task, dry_run: bool = False) -> models.TaskRun:
+    def run(cls, task: models.Task) -> models.TaskRun:
         """
         Start a processing-container for task
         """

@@ -16,3 +16,7 @@ for channel in [CHANNEL1, CHANNEL2]:
             with open(file, "r") as f:
                 for line in f.readlines():
                     print(line)
+
+for i in range(int(TIME_SLEEP)):
+    time.sleep(1)
+    print(i)

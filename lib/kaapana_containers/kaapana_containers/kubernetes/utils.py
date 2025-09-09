@@ -38,7 +38,7 @@ class KubernetsUtils:
                     )
                 ],
                 image_pull_secrets=(
-                    [client.V1LocalObjectReference(name="registry-secret")]
+                    [client.V1LocalObjectReference(name=registry_secret)]
                     if registry_secret
                     else None
                 ),

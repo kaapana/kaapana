@@ -1,6 +1,6 @@
-from taskctl.runners.KubernetesRunner import KubernetesRunner
-from taskctl.processing_container.common import get_processing_container, merge_env
-from taskctl.processing_container.models import (
+from task_api.runners.KubernetesRunner import KubernetesRunner
+from task_api.processing_container.common import get_processing_container, merge_env
+from task_api.processing_container.models import (
     Task,
     TaskRun,
     IOVolume,
@@ -38,6 +38,7 @@ class KaapanaTaskOperator(BaseOperator):
     def __init__(
         self,
         image: str,
+        taskTemplate: str,
         env: list = [],
         command: Optional[List] = None,
         resources: Optional[Resources] = None,
@@ -53,6 +54,7 @@ class KaapanaTaskOperator(BaseOperator):
         """
         super().__init__(retry_delay=timedelta(seconds=10), *args, **kwargs)
         self.image = image
+        self.taskTemplate = taskTemplate
         self.env = env
         self.command = command
         self.resources = resources
@@ -133,6 +135,7 @@ class KaapanaTaskOperator(BaseOperator):
         task = Task(
             name=self.task_id,
             image=self.image,
+            taskTemplate=self.taskTemplate,
             env=self.env,
             command=self.command,
             outputs=outputs,

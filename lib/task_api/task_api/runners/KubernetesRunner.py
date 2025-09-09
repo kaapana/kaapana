@@ -92,6 +92,7 @@ class KubernetesRunner(BaseRunner):
             task_identifier=task.taskTemplate,
             namespace=task.namespace,
             registry_secret=task.imagePullSecrets[0],
+            mode="k8s",
         )
         task_instance = create_task_instance(task_template=task_template, task=task)
 

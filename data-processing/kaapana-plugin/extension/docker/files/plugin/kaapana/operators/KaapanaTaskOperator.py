@@ -67,6 +67,7 @@ class KaapanaTaskOperator(BaseOperator):
         dag_run_id = context["dag_run"].run_id
         self.host_workflow_dir = HOST_WORKFLOW_DIR / dag_run_id
         self.airflow_workflow_dir = AIRFLOW_WORKFLOW_DIR / dag_run_id
+        self.set_namespace_from_context(context)
         os.makedirs(self.airflow_workflow_dir, exist_ok=True)
 
         # Step 3: Create task.json
@@ -96,7 +97,11 @@ class KaapanaTaskOperator(BaseOperator):
         # Set outputs based on task_template
         # Remove existing output directories on the host
         task_template = get_task_template(
-            image=self.image, task_identifier=self.taskTemplate, mode="k8s"
+            image=self.image,
+            task_identifier=self.taskTemplate,
+            mode="k8s",
+            namespace=self.namespace,
+            registry_secret="registry-secret",
         )
         outputs = []
         for channel in task_template.outputs:
@@ -142,7 +147,7 @@ class KaapanaTaskOperator(BaseOperator):
             command=self.command,
             outputs=outputs,
             inputs=inputs,
-            namespace=DEFAULT_NAMESPACE,
+            namespace=self.namespace,
             resources=self.resources,
             registryUrl=self.registryUrl,
             registryUsername=self.registryUsername,
@@ -174,3 +179,8 @@ class KaapanaTaskOperator(BaseOperator):
         """
         KubernetesRunner.stop(self.task_run)
         self.log.info("Pod deleted successfully!")
+
+    def set_namespace_from_context(self, context):
+        conf = context["dag_run"].conf
+        project_form = conf.get("project_form", {})
+        self.namespace = project_form.get("kubernetes_namespace", DEFAULT_NAMESPACE)

@@ -39,10 +39,7 @@ class HelmChartService:
         logout_cmd = ["helm", "registry", "logout", cls._build_config.default_registry]
 
         logout_result = CommandHelper.run(
-            logout_cmd,
-            logger=logger,
-            timeout=10,
-            context="helm-logout",
+            logout_cmd, logger=logger, timeout=10, context="helm-logout", quiet=True
         )
 
         # Log only if logout failed for a reason other than "not logged in"

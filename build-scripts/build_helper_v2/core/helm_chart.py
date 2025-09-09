@@ -331,6 +331,47 @@ class HelmChart:
                     operator_containers.add(operator_container)
         return operator_containers
 
+    @staticmethod
+    def process_line(line: str) -> str | None:
+        """
+        Try to extract an image reference from a line of YAML.
+        Returns the cleaned image string or None if not applicable.
+        """
+        IMAGE_LINE_RE = re.compile(r"^\s*image:\s*(.+)$")
+        VALUES_IMAGE_RE = re.compile(r"^\s*complete_image:\s*(.+)$")
+
+        match = IMAGE_LINE_RE.match(line) or VALUES_IMAGE_RE.match(line)
+        if not match:
+            return None
+
+        image_value = match.group(1).strip().translate(str.maketrans("", "", "\"'`$ "))
+
+        # Skip commented lines
+        if "#" in line.split(match.re.pattern.split(":")[0])[0]:
+            logger.debug(f"Commented: {image_value} -> skip")
+            return None
+
+        # Skip known templating / test cases
+        if ("-if." in line and "{{else}}" in line) or ("test_pull_image" in line):
+            logger.debug(f"Templated: {image_value} -> skip")
+            return None
+
+        # Skip templated image references
+        if any(
+            t in image_value
+            for t in [
+                ".Values.image",
+                ".Values.global.complete_image",
+                ".Values.global.image",
+                "collection.name",
+                "kube_helm_collection",
+            ]
+        ):
+            logger.debug(f"Templated image: {image_value} -> skip")
+            return None
+
+        return image_value
+
     @classmethod
     def extract_images_from_templates(
         cls,
@@ -338,59 +379,43 @@ class HelmChart:
         default_registry: str,
         version: str,
         name: str,
-    ) -> Set[Container]:
-        containers: Set[Container] = set()
+    ) -> Set["Container"]:
+        containers: Set["Container"] = set()
 
-        IMAGE_LINE_RE = re.compile(r"^\s*image:\s*(.+)$")
-
-        template_dirs = [chartfile.parent / "templates", chartfile.parent / "crds"]
+        template_dirs = [
+            chartfile.parent / "templates",
+            chartfile.parent / "crds",
+            chartfile.parent,
+        ]
         yaml_files = [f for d in template_dirs if d.exists() for f in d.glob("*.yaml")]
 
         for yaml_file in yaml_files:
             try:
                 for raw_line in yaml_file.read_text(encoding="utf-8").splitlines():
-                    match = IMAGE_LINE_RE.match(raw_line)
+                    image_value = cls.process_line(raw_line)
 
-                    if not match:
-                        continue
-
-                    # Remove unwanted literal characters
-                    image_value = (
-                        match.group(1)
-                        .strip()
-                        .translate(str.maketrans("", "", "\"'`$ "))
-                    )
-
-                    # Skip commented lines
-                    if "#" in raw_line.split("image:")[0]:
-                        logger.debug(f"Commented: {image_value} -> skip")
-                        continue
-
-                    # Skip known templating / test cases
-                    if ("-if." in raw_line and "{{else}}" in raw_line) or (
-                        "test_pull_image" in raw_line
+                    # If templated reference, check values.yaml
+                    if image_value is None and any(
+                        key in raw_line for key in ["image:", "complete_image:"]
                     ):
-                        logger.debug(f"Templated: {image_value} -> skip")
-                        continue
+                        values_file = chartfile.parent / "values.yaml"
+                        if values_file.exists():
+                            for val_line in values_file.read_text(
+                                encoding="utf-8"
+                            ).splitlines():
+                                image_value = cls.process_line(val_line)
+                                if image_value:
+                                    break
 
-                    # Skip templated image references
-                    if any(
-                        t in image_value
-                        for t in [
-                            ".Values.image",
-                            ".Values.global.complete_image",
-                            ".Values.global.image",
-                            "collection.name",
-                            "kube_helm_collection",
-                        ]
-                    ):
-                        logger.debug(f"Templated image: {image_value} -> skip")
+                    if not image_value:
                         continue
 
                     container_tag = cls._normalize_image_value(
                         image_value, default_registry, version
                     )
-                    container_registry = "/".join(container_tag.split("/")[:-1])
+                    container_registry = (
+                        "/".join(container_tag.split("/")[:-1]) or default_registry
+                    )
                     container_name = container_tag.split("/")[-1].split(":")[0]
 
                     container = ContainerService.resolve_reference_to_container(
@@ -409,7 +434,6 @@ class HelmChart:
                     level="ERROR",
                     path=chartfile.parent,
                 )
-
         return containers
 
     @staticmethod

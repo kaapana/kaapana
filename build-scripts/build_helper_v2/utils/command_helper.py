@@ -15,6 +15,7 @@ class CommandHelper:
         exit_on_error: bool = False,
         context: Optional[str] = None,
         hints: Optional[List[str]] = None,
+        quiet: bool = False,
         logger: logging.Logger,
     ) -> subprocess.CompletedProcess:
         if log_command:
@@ -42,12 +43,13 @@ class CommandHelper:
             raise
 
         if result.returncode != 0:
-            logger.error(f"{'[' + context + '] ' if context else ''}Command failed")
-            logger.error(f"stdout: {result.stdout.strip()}")
-            logger.error(f"stderr: {result.stderr.strip()}")
-            if hints:
-                for hint in hints:
-                    logger.error(f"hint: {hint}")
+            if not quiet:
+                logger.error(f"{'[' + context + '] ' if context else ''}Command failed")
+                logger.error(f"stdout: {result.stdout.strip()}")
+                logger.error(f"stderr: {result.stderr.strip()}")
+                if hints:
+                    for hint in hints:
+                        logger.error(f"hint: {hint}")
             if exit_on_error:
                 exit(1)
 

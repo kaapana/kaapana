@@ -8,7 +8,6 @@ from subprocess import PIPE, run
 from threading import Lock, Thread
 from typing import Any, Dict, Optional, Set
 
-import docker
 from alive_progress import alive_bar
 from build_helper_v2.cli.progress import ProgressBar
 from build_helper_v2.core.build_state import BuildState
@@ -37,7 +36,6 @@ class ContainerService:
 
     _build_config: BuildConfig = None  # type: ignore
     _build_state: BuildState = None  # type: ignore
-    _docker_client: docker.DockerClient = None  # type: ignore
 
     @classmethod
     def init(cls, build_config: BuildConfig, build_state: BuildState):
@@ -52,9 +50,6 @@ class ContainerService:
             cls._build_config = build_config
         if cls._build_state is None:
             cls._build_state = build_state
-
-        if cls._docker_client is None:
-            cls._docker_client = docker.from_env()
 
     @classmethod
     def verify_container_engine_installed(cls):
@@ -93,6 +88,7 @@ class ContainerService:
             timeout=10,
             context="registry-logout",
             exit_on_error=cls._build_config.exit_on_error,
+            quiet=True,
         )
         logger.info(f"-> Container registry-login: {registry}")
 
@@ -160,12 +156,9 @@ class ContainerService:
 
         dockerfiles_found = sorted(set(dockerfiles_found))
 
-        if cls._build_config.configuration_check:
-            bar_title = "Collect container and check configuration"
-        else:
-            bar_title = "Collect container"
-
-        with alive_bar(len(dockerfiles_found), dual_line=True, title=bar_title) as bar:
+        with alive_bar(
+            len(dockerfiles_found), dual_line=True, title="Collect container"
+        ) as bar:
             for dockerfile in dockerfiles_found:
                 bar()
                 if cls._build_config.build_ignore_patterns and any(

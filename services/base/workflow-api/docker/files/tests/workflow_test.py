@@ -44,7 +44,7 @@ async def test_create_and_get_workflows():
     async with httpx.AsyncClient(base_url=API_BASE_URL) as client:
         response = await client.get(
             "/workflows",
-            params={"skip": 0, "limit": 10, "order_by": "created_at", "order": "desc"},
+            params={"skip": 0, "limit": 50, "order_by": "created_at", "order": "desc"},
         )
         assert response.status_code == 200
         workflows = [schemas.Workflow(**wf) for wf in response.json()]

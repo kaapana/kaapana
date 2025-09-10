@@ -82,7 +82,13 @@ class KubernetesRunner(BaseRunner):
     api = client.CoreV1Api()
 
     @classmethod
-    def run(cls, task: Task):
+    def run(
+        cls,
+        task: Task,
+        extra_volumes: List[client.V1Volume] = [],
+        extra_volume_mounts: List[client.V1VolumeMount] = [],
+        extra_env_vars: List[client.V1EnvVar] = [],
+    ):
         cls._logger.info("Running task in Kubernetes...")
         image_pull_secrets = cls.get_image_pull_secrets(task)
         task.imagePullSecrets = [secret.name for secret in image_pull_secrets]
@@ -98,10 +104,13 @@ class KubernetesRunner(BaseRunner):
 
         pod_name = generate_pod_name(task_instance.name)
         volumes, volume_mounts = get_volume_and_mounts(task_instance)
+        volumes.extend(extra_volumes)
+        volume_mounts.extend(extra_volume_mounts)
         task_instance.resources = compute_memory_resources(task_instance)
         task_container = get_container(
             task_instance=task_instance, volume_mounts=volume_mounts
         )
+        task_container.env = task_container.env + extra_env_vars
 
         pod_spec = client.V1PodSpec(
             restart_policy="Never",

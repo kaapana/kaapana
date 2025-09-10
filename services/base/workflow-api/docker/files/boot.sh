@@ -4,8 +4,7 @@ set -e  # Exit immediately if a command exits with a non-zero status
 export PYTHONPATH="$PWD" 
 
 # Apply all migrations
-python3 alembic/migrate.py
-#TODO move to deployment
+# python3 alembic/migrate.py
 PORT=8080
 WORKERS=4
 

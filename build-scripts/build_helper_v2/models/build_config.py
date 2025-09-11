@@ -69,8 +69,8 @@ class BuildConfig(BaseModel):
         for field_name in [
             "platform_filter",
             "build_ignore_patterns",
-            "build_charts",
-            "build_containers",
+            "containers_to_build_by_charts",
+            "containers_to_build",
         ]:
             if field_name in data and isinstance(data[field_name], str):
                 data[field_name] = [

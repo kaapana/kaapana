@@ -6,19 +6,16 @@ from __future__ import annotations
 from enum import Enum
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 
 class Type(Enum):
-    boolean = 'boolean'
-    string = 'string'
-    int = 'int'
+    boolean = "boolean"
+    string = "string"
+    int = "int"
 
 
-class ContainerEnvVar(BaseModel):
-    model_config = ConfigDict(
-        extra='forbid',
-    )
+class TaskTemplateEnv(BaseModel):
     name: str
     value: str
     type: Optional[Type] = None

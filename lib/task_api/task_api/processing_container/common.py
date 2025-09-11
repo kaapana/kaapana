@@ -61,8 +61,8 @@ def create_task_instance(
 
 
 def merge_env(
-    orig_envs: List[models.ContainerEnvVar], update_envs: List[models.ContainerEnvVar]
-) -> List[models.ContainerEnvVar]:
+    orig_envs: List[models.TaskInstanceEnv], update_envs: List[models.TaskInstanceEnv]
+) -> List[models.TaskInstanceEnv]:
     """
     Merge two lists of ContainerEnvVar objects.
 
@@ -74,12 +74,12 @@ def merge_env(
     merged_env = []
     for orig_env in orig_envs:
         if orig_env not in update_names:
-            merged_env.append(orig_env)
+            merged_env.append(models.TaskInstanceEnv(**orig_env.model_dump()))
             continue
         for upd_env in update_envs:
             if orig_env.name == upd_env.name:
                 merged_env.append(
-                    models.ContainerEnvVar(
+                    models.TaskInstanceEnv(
                         **{
                             **orig_env.model_dump(mode="python"),
                             **upd_env.model_dump(mode="python"),
@@ -90,7 +90,7 @@ def merge_env(
 
     for upd_env in update_envs:
         if upd_env.name not in orig_names:
-            merged_env.append(upd_env)
+            merged_env.append(models.TaskInstanceEnv(**upd_env.model_dump()))
     return merged_env
 
 

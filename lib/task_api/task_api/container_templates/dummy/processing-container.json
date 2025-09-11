@@ -35,7 +35,14 @@
         {
             "identifier": "downstream",
             "description": "Downstream task template for this processing-container",
-            "env": [],
+            "env": [{
+                "name": "TIME_SLEEP",
+                "value": "5",
+                "type": "int",
+                "choices": [],
+                "description": "Number of iterations to sleep before finishing.",
+                "adjustable": true
+            }],
             "inputs": [
                 {
                     "name": "channel1",

@@ -3,8 +3,8 @@
 
 from __future__ import annotations
 
-from .IOMount_schema import IOMount
-from .IOVolume_schema import IOVolume
+from task_api.processing_container.pc_models.IOMount_schema import IOMount
+from task_api.processing_container.task_models.IOVolume_schema import IOVolume
 
 
 class IOChannel(IOMount, IOVolume):

@@ -1,30 +1,37 @@
-from task_api.processing_container.generated_models.TaskRun_schema import TaskRun
-from task_api.processing_container.generated_models.TaskInstance_schema import (
+from task_api.processing_container.task_models.TaskRun_schema import TaskRun
+from task_api.processing_container.task_models.TaskInstance_schema import (
     TaskInstance,
+    TaskInstanceEnv,
 )
-from task_api.processing_container.generated_models.ProcessingContainer_schema import (
+from task_api.processing_container.task_models.Task_schema import Task
+from task_api.processing_container.task_models.IOChannel_schema import (
+    IOChannel,
+)
+from task_api.processing_container.task_models.IOVolume_schema import (
+    IOVolume,
+    HostPathVolume,
+)
+
+
+from task_api.processing_container.pc_models.IOMount_schema import (
+    IOMount,
+)
+from task_api.processing_container.pc_models.ProcessingContainer_schema import (
     ProcessingContainer,
 )
-from task_api.processing_container.generated_models.Task_schema import Task
-from task_api.processing_container.generated_models.IOChannel_schema import (
-    IOChannel,
-    IOMount,
-    IOVolume,
-)
-from task_api.processing_container.generated_models.LocalPath_schema import LocalPath
-from task_api.processing_container.generated_models.ScaleRule_schema import (
+from task_api.processing_container.pc_models.ScaleRule_schema import (
     ScaleRule,
     Mode,
     Type,
 )
-from task_api.processing_container.generated_models.ContainerEnvVar_schema import (
-    ContainerEnvVar,
+from task_api.processing_container.pc_models.TaskTemplateEnv_schema import (
+    TaskTemplateEnv,
 )
-from task_api.processing_container.generated_models.Resources_schema import (
+from task_api.processing_container.pc_models.Resources_schema import (
     Resources,
     Requests,
     Limits,
 )
-from task_api.processing_container.generated_models.TaskTemplate_schema import (
+from task_api.processing_container.pc_models.TaskTemplate_schema import (
     TaskTemplate,
 )

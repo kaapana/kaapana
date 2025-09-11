@@ -6,7 +6,7 @@
         {
             "name":"channel1",
             "input": {
-                "local_path":"{{ env.output_dir }}/dummy/channel1"
+                "host_path":"{{ env.output_dir }}/dummy/channel1"
             },
             "scale_rule":{
                 "complexity": "25*n**1",
@@ -20,7 +20,7 @@
         {
             "name":"channel2",
             "input": {
-                "local_path":"{{ env.output_dir }}/dummy/channel2"
+                "host_path":"{{ env.output_dir }}/dummy/channel2"
             }
         }
     ],
@@ -30,8 +30,11 @@
             "memory": "50Mi"
         }
     },
-    "namespace": "{{ env.namespace }}",
-    "registryUrl": "{{ env.registryUrl }}",
-    "registryUsername": "{{ env.registryUsername }}",
-    "registryPassword": "{{ env.registryPassword }}"
+    "config": {
+        "type":"k8s",
+        "namespace": "{{ env.namespace }}",
+        "registryUrl": "{{ env.registryUrl }}",
+        "registryUsername": "{{ env.registryUsername }}",
+        "registryPassword": "{{ env.registryPassword }}"
+    }
 }

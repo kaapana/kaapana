@@ -7,7 +7,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
-from . import ContainerEnvVar_schema, IOMount_schema, Resources_schema
+from . import IOMount_schema, Resources_schema, TaskTemplateEnv_schema
 
 
 class TaskTemplate(BaseModel):
@@ -20,5 +20,5 @@ class TaskTemplate(BaseModel):
     command: List[str]
     inputs: List[IOMount_schema.IOMount]
     outputs: List[IOMount_schema.IOMount]
-    env: List[ContainerEnvVar_schema.ContainerEnvVar]
+    env: List[TaskTemplateEnv_schema.TaskTemplateEnv]
     resources: Optional[Resources_schema.Resources] = None

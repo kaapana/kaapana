@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from .TaskInstance_schema import TaskInstance
+from task_api.processing_container.task_models.TaskInstance_schema import TaskInstance
 
 
 class TaskRun(TaskInstance):

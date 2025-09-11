@@ -19,7 +19,7 @@ def compute_target_size(io: IOChannel) -> int:
     assert io.scale_rule
     scale_rule = io.scale_rule
 
-    target_path = Path(io.input.local_path, scale_rule.target_dir)
+    target_path = Path(io.input.host_path, scale_rule.target_dir)
 
     if scale_rule.mode.value == "sum":
         return sum_of_file_sizes(

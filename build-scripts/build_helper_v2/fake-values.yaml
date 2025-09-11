@@ -1,4 +1,6 @@
 global:
+  default_admin_limits_mem: "512Mi"
+  default_admin_requests_mem: "256Mi"
   base_namespace: "placeholder"
   credentials_registry_username: "placeholder"
   credentials_registry_password: "placeholder"
@@ -8,7 +10,7 @@ global:
   credentials_grafana_password: "placeholder"
   credentials_keycloak_admin_username: "placeholder"
   credentials_keycloak_admin_password: "placeholder"
-  dicom_port: "placeholder"
+  dicom_port: "11112"
   fast_data_dir: "placeholder"
   services_namespace: "placeholder"
   extensions_namespace: "placeholder"
@@ -20,8 +22,8 @@ global:
   include_reverse_proxy: false
   home_dir: "placeholder"
   hostname: "placeholder"
-  http_port: "placeholder"
-  https_port: "placeholder"
+  http_port: "80"
+  https_port: "80"
   internalCidrs: ["0.0.0.0/0"]
   offline_mode: false
   prefetch_extensions: false
@@ -43,8 +45,8 @@ global:
   pacs_memory_request: "placeholder"
   airflow_memory_request: "placeholder"
   opensearch_memory_request: "placeholder"
-  smtp_host: "placeholder"
-  smtp_port: "placeholder"
+  smtp_host: 11113
+  smtp_port: 11113
   smtp_username: "placeholder"
   smtp_password: "placeholder"
   email_address_sender: "placeholder"

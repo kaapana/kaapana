@@ -100,23 +100,25 @@ def main():
     HelmChartService.resolve_kaapana_collections()
     HelmChartService.resolve_preinstall_extensions()
 
-    BuildService.determine_build_targets()  # Updates build_state
+    platform_chart = BuildService.get_platform_chart()
+    BuildService.generate_build_graph(platform_chart)
+    BuildService.generate_build_tree(platform_chart)
+    BuildService.generate_deployment_script(platform_chart)
 
-    if not build_state.selected_charts:
-        logger.info("")
-        logger.info("-----------------------------------------------------------")
-        logger.info("------------------ BUILD CONTAINERS ------------------")
-        logger.info("-----------------------------------------------------------")
-        logger.info("")
-        ContainerService.build_and_push_containers()
-    else:
-        logger.info("")
-        logger.info("-----------------------------------------------------------")
-        logger.info("------------------ BUILD CHARTS ------------------")
-        logger.info("-----------------------------------------------------------")
-        logger.info("")
-        HelmChartService.build_and_push_charts()
-        ContainerService.build_and_push_containers()
+    logger.info("")
+    logger.info("-----------------------------------------------------------")
+    logger.info("------------------ BUILD CHARTS ------------------")
+    logger.info("-----------------------------------------------------------")
+    logger.info("")
+    HelmChartService.build_and_push_charts(platform_chart=platform_chart)
+
+    logger.info("")
+    logger.info("-----------------------------------------------------------")
+    logger.info("------------------ BUILD CONTAINERS ------------------")
+    logger.info("-----------------------------------------------------------")
+    logger.info("")
+    BuildService.select_containers_to_build()
+    ContainerService.build_and_push_containers()
 
     if len(IssueTracker.issues) > 0:
         logger.info("")

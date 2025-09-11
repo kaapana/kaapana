@@ -1,12 +1,11 @@
 import os
 import time
-from glob import glob
 from pathlib import Path
 from queue import Empty, PriorityQueue
 from shutil import which
 from subprocess import PIPE, run
 from threading import Lock, Thread
-from typing import Any, Dict, Optional, Set
+from typing import Any, Dict, Optional, Set, TypeVar
 
 from alive_progress import alive_bar
 from build_helper_v2.cli.progress import ProgressBar
@@ -18,6 +17,7 @@ from build_helper_v2.utils.command_helper import CommandHelper
 from build_helper_v2.utils.logger import get_logger
 
 logger = get_logger()
+T = TypeVar("T")  # HelmChart or Container
 
 
 class ContainerService:
@@ -40,7 +40,7 @@ class ContainerService:
     @classmethod
     def init(cls, build_config: BuildConfig, build_state: BuildState):
         """
-        Initialize the ContainerService singleton with configuration and build state.
+        Initialize the ContainerService7 singleton with configuration and build state.
 
         Args:
             config (BuildConfig): Build configuration object.
@@ -131,9 +131,6 @@ class ContainerService:
             for external_source in cls._build_config.external_source_dirs:
                 logger.info("")
                 logger.info(f"-> adding external sources: {external_source}")
-                external_dockerfiles_found = glob(
-                    str(external_source) + "/**/Dockerfile", recursive=True
-                )
                 external_dockerfiles_found = [
                     path
                     for path in Path(external_source).rglob("Dockerfile")
@@ -232,7 +229,7 @@ class ContainerService:
         for c in cls._build_state.containers_available:
             c.base_images = {
                 (
-                    cls.resolve_reference_to_container(
+                    cls.get_container(
                         registry=b.registry,
                         image_name=b.image_name,
                         version=b.version,
@@ -244,8 +241,11 @@ class ContainerService:
             }
 
     @classmethod
-    def resolve_reference_to_container(
-        cls, registry: str, image_name: str, version: str
+    def get_container(
+        cls,
+        image_name: str,
+        registry: Optional[str] = None,
+        version: Optional[str] = None,
     ) -> Container:
         """
         Resolve a container reference to a collected Container object.
@@ -258,12 +258,13 @@ class ContainerService:
         Returns:
             Container: Resolved container object.
         """
+
         matches = [
             c
             for c in cls._build_state.containers_available
             if c.image_name == image_name
-            and c.registry == registry
-            and c.version == version
+            and (registry is None or c.registry == registry)
+            and (version is None or c.version == version)
         ]
 
         if len(matches) != 1:

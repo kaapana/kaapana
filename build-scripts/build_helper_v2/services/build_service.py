@@ -348,7 +348,9 @@ class BuildService:
                 ContainerService.get_container(name)
                 for name in selected_container_names
             }
-            cls._build_state.selected_containers = containers
+            cls._build_state.selected_containers = (
+                ContainerService.collect_all_local_base_containers(containers)
+            )
             return None
 
         G = cls._build_state.build_graph

@@ -39,7 +39,7 @@ class BaseRunner(ABC):
             json.dump(
                 task_run.model_dump(
                     mode="json",
-                    exclude={"full_object"},
+                    exclude={"full_object", "config"},
                     exclude_none=True,
                     exclude_unset=True,
                     exclude_defaults=True,

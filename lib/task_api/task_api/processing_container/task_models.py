@@ -39,11 +39,11 @@ class BaseConfig(BaseModel):
 
 
 class DockerConfig(BaseConfig):
-    type: Literal["docker"]
+    type: Literal["docker"] = "docker"
 
 
 class K8sConfig(BaseConfig):
-    type: Literal["k8s"]
+    type: Literal["k8s"] = "k8s"
     model_config = ConfigDict(arbitrary_types_allowed=True)
     namespace: Optional[str] = None
     registryUrl: Optional[str] = None

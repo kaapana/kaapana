@@ -11,8 +11,8 @@ from alive_progress import alive_bar
 from build_helper_v2.cli.progress import ProgressBar
 from build_helper_v2.core.build_state import BuildState
 from build_helper_v2.core.container import Container, Status
+from build_helper_v2.helper.issue_tracker import IssueTracker
 from build_helper_v2.models.build_config import BuildConfig
-from build_helper_v2.services.issue_tracker import IssueTracker
 from build_helper_v2.utils.command_helper import CommandHelper
 from build_helper_v2.utils.logger import get_logger
 
@@ -20,9 +20,9 @@ logger = get_logger()
 T = TypeVar("T")  # HelmChart or Container
 
 
-class ContainerService:
+class ContainerHelper:
     """
-    Singleton-like service class responsible for managing container builds and
+    Singleton-like helper class responsible for managing container builds and
     interactions with container engines.
 
     Responsibilities:
@@ -32,6 +32,7 @@ class ContainerService:
         - Resolve base image dependencies
         - Build and push containers in parallel
         - Track build statuses
+        - Gather statistics on built images
     """
 
     _build_config: BuildConfig = None  # type: ignore
@@ -40,11 +41,15 @@ class ContainerService:
     @classmethod
     def init(cls, build_config: BuildConfig, build_state: BuildState):
         """
-        Initialize the ContainerService7 singleton with configuration and build state.
+        Initialize the ContainerHelper singleton with configuration and build state.
 
         Args:
-            config (BuildConfig): Build configuration object.
+            build_config (BuildConfig): Build configuration object.
             build_state (BuildState): Object managing container build state.
+
+        Notes:
+            This must be called before any other method in this class is used.
+            Initialization will only run once; subsequent calls are ignored.
         """
         if cls._build_config is None:
             cls._build_config = build_config
@@ -55,8 +60,6 @@ class ContainerService:
     def verify_container_engine_installed(cls):
         """
         Verify that the configured container engine is installed on the system.
-
-        Exits the program if the container engine is missing and `exit_on_error` is True.
         """
         logger.debug("")
         logger.debug(" -> Container Init")
@@ -71,8 +74,7 @@ class ContainerService:
     @classmethod
     def container_registry_login(cls, username: str, password: str):
         """
-        Login to the default container registry.
-
+        Logour and login to the default container registry.
         Args:
             username (str): Registry username.
             password (str): Registry password.
@@ -114,8 +116,15 @@ class ContainerService:
         """
         Collect all Dockerfiles and initialize Container objects.
 
+        This searches the configured Kaapana directory and any external sources,
+        filters duplicates, applies ignore patterns, and adds containers to
+        the build state.
+
         Returns:
             Set[Container]: A set of containers representing collected Dockerfiles.
+
+        Side Effects:
+            Updates ``_build_state.containers_available``.
         """
         logger.debug("")
         logger.debug(" collect_containers")
@@ -179,8 +188,6 @@ class ContainerService:
     def check_base_containers(cls):
         """
         Verify that all local base images required by containers are present.
-
-        Exits the program if a base image is missing and `exit_on_error` is True.
         """
         logger.debug("")
         logger.debug(" check_base_containers")
@@ -275,7 +282,7 @@ class ContainerService:
                 logger.error(f"Dockerfile found: {match.dockerfile}")
 
             IssueTracker.generate_issue(
-                component=ContainerService.__name__,
+                component=ContainerHelper.__name__,
                 name=f"{registry}/{image_name}:{version}",
                 msg=f"Container not found or ambiguous: {image_name}",
                 level="ERROR",
@@ -285,33 +292,6 @@ class ContainerService:
         container = matches[0]
         logger.debug(f"{image_name}: container found: {container.tag}")
         return container
-
-    @staticmethod
-    def all_dependencies_ready(container: Container) -> bool:
-        """
-        Check if all local base images for a container are built or unchanged.
-
-        Args:
-            container (Container): Container to check.
-
-        Returns:
-            bool: True if all local dependencies are ready, False otherwise.
-        """
-        for b in container.base_images:
-            if b.local_image:
-                # Online reference ubuntu:24.04
-                if not isinstance(b, Container):
-                    return False
-                if b.status not in {
-                    Status.BUILT,
-                    Status.BUILT_ONLY,
-                    Status.NOTHING_CHANGED,
-                    Status.PUSHED,
-                    Status.SKIPPED,
-                    Status.FAILED,
-                }:
-                    return False
-        return True
 
     @classmethod
     def build_and_push_containers(cls) -> None:
@@ -559,3 +539,30 @@ class ContainerService:
                     queue.append(base)
 
         return all_containers
+
+    @staticmethod
+    def all_dependencies_ready(container: Container) -> bool:
+        """
+        Check if all local base images for a container are built or unchanged.
+
+        Args:
+            container (Container): Container to check.
+
+        Returns:
+            bool: True if all local dependencies are ready, False otherwise.
+        """
+        for b in container.base_images:
+            if b.local_image:
+                # Online reference ubuntu:24.04
+                if not isinstance(b, Container):
+                    return False
+                if b.status not in {
+                    Status.BUILT,
+                    Status.BUILT_ONLY,
+                    Status.NOTHING_CHANGED,
+                    Status.PUSHED,
+                    Status.SKIPPED,
+                    Status.FAILED,
+                }:
+                    return False
+        return True

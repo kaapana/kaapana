@@ -5,15 +5,15 @@ from typing import Optional, Set
 from alive_progress import alive_bar
 from build_helper_v2.core.build_state import BuildState
 from build_helper_v2.core.helm_chart import HelmChart
+from build_helper_v2.helper.issue_tracker import IssueTracker
 from build_helper_v2.models.build_config import BuildConfig
-from build_helper_v2.services.issue_tracker import IssueTracker
 from build_helper_v2.utils.command_helper import CommandHelper
 from build_helper_v2.utils.logger import get_logger
 
 logger = get_logger()
 
 
-class HelmChartService:
+class HelmChartHelper:
     # singleton-like class
     _build_config: BuildConfig = None  # type: ignore
     _build_state: BuildState = None  # type: ignore

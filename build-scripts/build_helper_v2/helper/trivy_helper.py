@@ -1,9 +1,7 @@
-import json
 import subprocess
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from alive_progress import alive_bar
 from build_helper_v2.core.build_state import BuildState
 from build_helper_v2.core.container import Container
 from build_helper_v2.core.helm_chart import HelmChart
@@ -13,7 +11,7 @@ from build_helper_v2.utils.logger import get_logger
 logger = get_logger()
 
 
-class TrivyService:
+class TrivyHelper:
     _build_config: BuildConfig = None  # type: ignore
     _build_state: BuildState = None  # type: ignore
     _reports_path: Path = None  # type: ignore

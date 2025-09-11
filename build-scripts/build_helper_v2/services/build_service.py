@@ -357,9 +357,7 @@ class BuildService:
             charts = {HelmChartService.get_chart(name) for name in selected_chart_names}
             for chart in charts:
                 containers_from_chart = {
-                    n
-                    for n in nx.descendants(G, chart)
-                    if G.nodes[n].get("type") == "container"
+                    n for n in nx.descendants(G, chart) if isinstance(n, Container)
                 }
                 containers_from_charts.update(containers_from_chart)
         else:

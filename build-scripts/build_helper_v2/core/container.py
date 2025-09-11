@@ -8,9 +8,9 @@ from pathlib import Path
 from subprocess import PIPE, run
 from typing import List, Optional, Set
 
+from build_helper_v2.helper.issue_tracker import IssueTracker
 from build_helper_v2.models.build_config import BuildConfig
 from build_helper_v2.models.issue import Issue
-from build_helper_v2.services.issue_tracker import IssueTracker
 from build_helper_v2.utils.git_utils import GitUtils
 from build_helper_v2.utils.logger import get_logger
 

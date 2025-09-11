@@ -87,16 +87,16 @@ def parse_args() -> argparse.Namespace:
         default=argparse.SUPPRESS,
     )
     parser.add_argument(
-        "--build-charts",
-        help="Comma-separated list of specific Helm charts to build "
-        "(default: ALL charts will be built)",
-        default="ALL",
+        "--containers-to-build-by-charts",
+        help="Comma-separated list of specific Helm charts to build their containers"
+        "(default: ALL containers used by platform chart will be built)",
+        default=None,
     )
     parser.add_argument(
-        "--build-containers",
+        "--containers-to-build",
         help="Comma-separated list of specific container images to build "
-        "(default: ALL charts will be built)",
-        default="ALL",
+        "(default: ALL containers used by platform chart will be built)",
+        default=None,
     )
 
     return parser.parse_args()

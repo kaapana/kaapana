@@ -46,10 +46,6 @@ class HelmChart:
         # String references to the chart before all of them are built
         unresolved_chart_dependencies: set[tuple[str, str]],
         deployment_config: dict[str, Any],
-        # Resolved references into HelmChart objects
-        chart_dependencies: set["HelmChart"] = set(),
-        kaapana_collections: set["HelmChart"] = set(),
-        preinstall_extensions: set["HelmChart"] = set(),
     ):
         self.name = name
         self.chartfile = chartfile
@@ -62,9 +58,9 @@ class HelmChart:
         self.unresolved_chart_dependencies = unresolved_chart_dependencies
         self.deployment_config = deployment_config
 
-        self.chart_dependencies = chart_dependencies
-        self.kaapana_collections = kaapana_collections
-        self.preinstall_extensions = preinstall_extensions
+        self.chart_dependencies: set["HelmChart"] = set()
+        self.kaapana_collections: set["HelmChart"] = set()
+        self.preinstall_extensions: set["HelmChart"] = set()
 
         self.build_chart_dir: Path
         self.linted: bool = False
@@ -88,17 +84,19 @@ class HelmChart:
         chart_yaml = cls._load_yaml(chartfile)
         if not chart_yaml:
             raise FileNotFoundError(f"Cannot find a Chart.yaml document: {chartfile}")
-
         requirements = cls._load_yaml(chartfile.parent / "requirements.yaml")
         values = cls._load_yaml(chartfile.parent / "values.yaml")
-
         name = cls._resolve_chart_name(chart_yaml, chartfile)
         ignore_linting = chart_yaml.get("ignore_linting", False)
-        version = cls._resolve_repo_version(chart_yaml, chartfile)
+        if build_config.version_latest:
+            version_str, *_ = GitUtils.get_repo_info(chartfile.parent)
+            base = version_str.split("-")[0]
+            version = f"{base}-latest"
+        else:
+            version = cls._resolve_repo_version(chart_yaml, chartfile)
+
         is_dag = cls._has_dag_dependency(requirements)
         kaapana_type = cls._resolve_kaapana_type(chart_yaml, is_dag)
-
-        logger.debug(f"{name}: chart init")
 
         chart_containers = cls._collect_chart_containers(
             chartfile=chartfile,
@@ -204,8 +202,6 @@ class HelmChart:
             dep_name = dep.get("name")
             dep_version = dep.get("version", "0.0.0")
             if dep_version == "0.0.0":
-                dep_version = GitUtils.get_repo_info(chartfile.parent)[0]
-            else:
                 dep_version = repo_version
             dependencies.add((dep_name, dep_version))
         return dependencies
@@ -262,14 +258,14 @@ class HelmChart:
             return set()
 
         if kaapana_type == "extension-collection":
-            collection_container = ContainerService.resolve_reference_to_container(
+            collection_container = ContainerService.get_container(
                 registry=build_config.default_registry, image_name=name, version=version
             )
             chart_containers.add(collection_container)
 
         if kaapana_type == "kaapanaworkflow" and values:
             image = values.get("global", {}).get("image")
-            workflow_container = ContainerService.resolve_reference_to_container(
+            workflow_container = ContainerService.get_container(
                 registry=build_config.default_registry,
                 image_name=image,
                 version=version,
@@ -321,12 +317,10 @@ class HelmChart:
                     else:
                         actual_version = version  # your default
 
-                    operator_container = (
-                        ContainerService.resolve_reference_to_container(
-                            registry=default_registry,
-                            image_name=image_name,
-                            version=actual_version,
-                        )
+                    operator_container = ContainerService.get_container(
+                        registry=default_registry,
+                        image_name=image_name,
+                        version=actual_version,
                     )
                     operator_containers.add(operator_container)
         return operator_containers
@@ -418,7 +412,7 @@ class HelmChart:
                     )
                     container_name = container_tag.split("/")[-1].split(":")[0]
 
-                    container = ContainerService.resolve_reference_to_container(
+                    container = ContainerService.get_container(
                         registry=container_registry,
                         image_name=container_name,
                         version=version,
@@ -487,7 +481,7 @@ class HelmChart:
                 container_registry = "/".join(container_tag.split("/")[:-1])
                 container_name = container_tag.split("/")[-1].split(":")[0]
 
-                container = ContainerService.resolve_reference_to_container(
+                container = ContainerService.get_container(
                     registry=container_registry,
                     image_name=container_name,
                     version=version,
@@ -526,13 +520,11 @@ class HelmChart:
         global_vals["preinstall_extensions"] = [
             {"name": e.name, "version": version} for e in self.preinstall_extensions
         ]
-        version, branch, commit, timestamp = GitUtils.get_repo_info(
-            self.chartfile.parent
-        )
+        _, branch, commit, timestamp = GitUtils.get_repo_info(self.chartfile.parent)
         # Add build metadata
         global_vals.update(
             {
-                "platform_build_branch": version,
+                "platform_build_branch": branch,
                 "platform_last_commit_timestamp": timestamp,
                 "build_timestamp": datetime.now()
                 .astimezone()
@@ -565,34 +557,7 @@ class HelmChart:
                 else:
                     f.write(line)
 
-    def build(self, target_dir: Path, platform_build_version: str, bar=None) -> None:
-        """
-        Build only this chart into target_dir.
-        No recursion — dependencies are handled by the caller.
-        """
-        self.build_chart_dir = target_dir
-        logger.info(f"Building chart {self.name}:{self.version}")
-        shutil.copytree(self.chartfile.parent, target_dir, dirs_exist_ok=True)
-
-        # update Chart.yaml version
-        self._update_chart_version(target_dir, version=platform_build_version)
-
-        # update values.yaml for platform
-        if self.kaapana_type == KaapanaType.PLATFORM:
-            self._update_values(target_dir, version=platform_build_version)
-
-        for dep_chart in self.chart_dependencies:
-            dep_chart.build(
-                target_dir=target_dir / "charts" / dep_chart.name,
-                platform_build_version=platform_build_version,
-                bar=bar,
-            )
-
-        if bar:
-            bar()
-            bar.text = f"{self.name}"
-
-    def lint_chart(self):
+    def lint_chart(self, values: Optional[Path] = None):
         if self.ignore_linting:
             logger.debug(f"{self.name} has ignore_linting: true - skipping")
             return
@@ -603,7 +568,9 @@ class HelmChart:
 
         logger.info(f"{self.name}: lint_chart")
 
-        command = ["helm", "lint"]
+        command = ["helm", "lint", "."]
+        if values:
+            command = ["helm", "lint", ".", "--values", str(values)]
         output = run(
             command,
             stdout=PIPE,
@@ -626,7 +593,7 @@ class HelmChart:
             logger.debug(f"{self.name}: lint_chart ok")
             self.linted = True
 
-    def lint_kubeval(self):
+    def lint_kubeval(self, values: Optional[Path] = None):
         if self.ignore_linting:
             logger.debug(f"{self.name} has ignore_linting: true - skipping")
             return
@@ -637,6 +604,10 @@ class HelmChart:
 
         logger.info(f"{self.name}: lint_kubeval")
         command = ["helm", "kubeval", "--ignore-missing-schemas", "."]
+        if values:
+            command.insert(-1, "--values")
+            command.insert(-1, str(values))
+
         output = run(
             command,
             stdout=PIPE,
@@ -724,3 +695,62 @@ class HelmChart:
             )
         else:
             logger.debug(f"{self.name}: push ok")
+
+    @staticmethod
+    def _count_all_dependencies(
+        chart: "HelmChart", seen: Optional[set[str]] = None
+    ) -> int:
+        """Count all recursive dependencies for a chart (no duplicates)."""
+        if seen is None:
+            seen = set()
+
+        count = 0
+        for dep in chart.chart_dependencies:
+            if dep.name in seen:
+                continue
+            seen.add(dep.name)
+            count += 1
+            count += HelmChart._count_all_dependencies(dep, seen)
+
+        return count
+
+    def build(
+        self,
+        target_dir: Path,
+        platform_build_version: str,
+        bar=None,
+        enable_linting=True,
+        values=None,
+    ) -> None:
+        """
+        Build only this chart into target_dir.
+        No recursion — dependencies are handled by the caller.
+        """
+        self.build_chart_dir = target_dir
+        logger.info(f"Building chart {self.name}:{self.version}")
+        shutil.copytree(self.chartfile.parent, target_dir, dirs_exist_ok=True)
+
+        # update Chart.yaml version
+        self._update_chart_version(target_dir, version=platform_build_version)
+        self._update_requirements(target_dir)
+
+        # update values.yaml for platform
+        if self.kaapana_type == KaapanaType.PLATFORM:
+            self._update_values(target_dir, version=platform_build_version)
+
+        for dep_chart in self.chart_dependencies:
+            dep_chart.build(
+                target_dir=target_dir / "charts" / dep_chart.name,
+                platform_build_version=platform_build_version,
+                bar=bar,
+                enable_linting=enable_linting,
+                values=values,
+            )
+
+        if enable_linting:
+            self.lint_chart(values)
+            self.lint_kubeval(values)
+
+        if bar:
+            bar()
+            bar.text = f"{self.name}"

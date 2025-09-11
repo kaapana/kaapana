@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import json
 import time
 from collections import defaultdict
-from typing import TYPE_CHECKING, Dict, List, Optional, Set
+from pathlib import Path
+from typing import TYPE_CHECKING, Optional
+
+import networkx as nx
 
 if TYPE_CHECKING:
-    from build_helper_v2.models.build_config import BuildConfig
     from container import BaseImage, Container
     from helm_chart import HelmChart
 
@@ -27,14 +28,18 @@ class BuildState:
         self.duration: Optional[float] = None
 
         # Containers
-        self.containers_available: Set[Container] = set()
-        self.selected_containers: Set[Container] = set()
-        self.base_images_used: Dict[BaseImage, List[Container]] = defaultdict(list)
+        self.containers_available: set[Container] = set()
+        self.selected_containers: set[Container] = set()
+        self.base_images_used: dict[BaseImage, list[Container]] = defaultdict(list)
 
         # Charts
-        self.charts_available: Set[HelmChart] = set()
-        self.selected_charts: Set[HelmChart] = set()
-        self.chart_used: Set[HelmChart] = set()
+        self.charts_available: set[HelmChart] = set()
+        self.charts_available_by_name: dict[str, HelmChart] = {}
+        self.crds = set[Path]
+        self.selected_charts: set[HelmChart] = set()
+        self.chart_used: set[HelmChart] = set()
+
+        self.build_graph: nx.DiGraph = None  # type: ignore
 
     def init(self) -> None:
         self.started_at = time.time()
@@ -55,6 +60,7 @@ class BuildState:
 
     def add_chart(self, chart: HelmChart) -> None:
         self.charts_available.add(chart)
+        self.charts_available_by_name[chart.name] = chart
 
     def __repr__(self) -> str:
         return (

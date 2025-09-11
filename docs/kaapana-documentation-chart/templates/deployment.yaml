@@ -24,8 +24,8 @@ spec:
         fsGroup: 1000
       containers:
         - name: nginx
-          image: {{ .Values.global.registry_url }}/kaapana-documentation:{{ .Values.global.kaapana_build_version }}
-          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+          image: "{{ .Values.global.registry_url }}/kaapana-documentation:{{ .Values.global.kaapana_build_version }}"
+          imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
           ports:
             - containerPort: 80
       priorityClassName: kaapana-high-priority

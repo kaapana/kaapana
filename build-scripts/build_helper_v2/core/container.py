@@ -178,7 +178,7 @@ class Container:
         repo_version = ""
         build_ignore = False
         local_image = False
-        base_images = set()
+        base_images: set[BaseImage | Container] = set()
 
         for line in lines:
             line = line.strip()
@@ -200,9 +200,12 @@ class Container:
         if registry and "local-only" in registry:
             local_image = True
             repo_version = "latest"
+        elif build_config.version_latest:
+            version_str, *_ = GitUtils.get_repo_info(dockerfile.parent)
+            base = version_str.split("-")[0]
+            repo_version = f"{base}-latest"
         else:
-            build_version, *_ = GitUtils.get_repo_info(dockerfile.parent)
-            repo_version = build_version
+            repo_version, *_ = GitUtils.get_repo_info(dockerfile.parent)
 
         registry = registry or build_config.default_registry
         tag = (
@@ -370,7 +373,7 @@ class Container:
 
             logger.debug(f"Successfully pushed {self.tag} to microk8s via pipe")
 
-        except subprocess.TimeoutExpired as e:
+        except subprocess.TimeoutExpired:
             save_proc.kill()
             import_proc.kill()
             logger.error(f"Microk8s image push timed out for {self.tag}!")

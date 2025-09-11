@@ -42,8 +42,8 @@ class BuildConfig(BaseModel):
     # Build Target
     interactive: bool = False
     build_only: bool
-    build_charts: List[str] = Field(default_factory=list)
-    build_containers: List[str] = Field(default_factory=list)
+    containers_to_build_by_charts: List[str] = Field(default_factory=list)
+    containers_to_build: List[str] = Field(default_factory=list)
 
     # Others
     http_proxy: Optional[str]

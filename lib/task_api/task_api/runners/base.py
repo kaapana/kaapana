@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from task_api.processing_container import models
+from task_api.processing_container import task_models
 import logging
 from pathlib import Path
 import os
@@ -27,7 +27,7 @@ class BaseRunner(ABC):
         cls._logger = logger
 
     @classmethod
-    def dump(cls, task_run: models.TaskRun, output: Path = None) -> None:
+    def dump(cls, task_run: task_models.TaskRun, output: Path = None) -> None:
         """
         Write json model of task_run to output.
         """
@@ -50,7 +50,7 @@ class BaseRunner(ABC):
 
     @classmethod
     @abstractmethod
-    def run(cls, task: models.Task) -> models.TaskRun:
+    def run(cls, task: task_models.Task) -> task_models.TaskRun:
         """
         Start a processing-container for task
         """
@@ -58,7 +58,7 @@ class BaseRunner(ABC):
 
     @classmethod
     @abstractmethod
-    def logs(cls, task_run: models.TaskRun, follow: bool = True) -> None:
+    def logs(cls, task_run: task_models.TaskRun, follow: bool = True) -> None:
         """
         Print logs to stdout.
         """
@@ -66,7 +66,7 @@ class BaseRunner(ABC):
 
     @classmethod
     @abstractmethod
-    def stop(cls, task_run: models.TaskRun) -> None:
+    def stop(cls, task_run: task_models.TaskRun) -> None:
         """
         Stop the container associated with task_run.
         """

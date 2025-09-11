@@ -1,18 +1,11 @@
-from task_api.processing_container.models import (
-    ScaleRule,
-    IOChannel,
-    Mode,
-    Resources,
-    TaskInstance,
-    Limits,
-    Requests,
-)
+from task_api.processing_container import task_models
+from task_api.processing_container import pc_models
 from pathlib import Path
 from types import FunctionType
 import re
 
 
-def compute_target_size(io: IOChannel) -> int:
+def compute_target_size(io: task_models.IOChannel) -> int:
     """
     Compute the size of the input channel that should be used for scaling the resources
     """
@@ -106,7 +99,7 @@ def parse_complexity(complexity: str) -> FunctionType:
     return complexity
 
 
-def compute_memory_requirement(io: IOChannel) -> int:
+def compute_memory_requirement(io: task_models.IOChannel) -> int:
     """
     Compute the memory requirements for the inpute channel based on the files in the local file path.
     """
@@ -118,7 +111,9 @@ def compute_memory_requirement(io: IOChannel) -> int:
     return complexity(target_size)
 
 
-def compute_memory_resources(task_instance: TaskInstance) -> Resources:
+def compute_memory_resources(
+    task_instance: task_models.TaskInstance,
+) -> pc_models.Resources:
     """
     Return a Resources object based on the Resources and ScaleRule in the task_instance object.
 
@@ -130,7 +125,9 @@ def compute_memory_resources(task_instance: TaskInstance) -> Resources:
     if task_instance.resources:
         task_resources = task_instance.resources
     else:
-        task_resources = Resources(limits=Limits(), requests=Requests())
+        task_resources = pc_models.Resources(
+            limits=pc_models.Limits(), requests=pc_models.Requests()
+        )
     memory_request = (
         calculate_bytes(task_resources.requests.memory)
         if task_resources.requests.memory

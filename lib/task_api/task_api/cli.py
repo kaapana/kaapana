@@ -1,7 +1,8 @@
 import json
 import logging
 from dotenv import load_dotenv
-from task_api.processing_container.models import Task, TaskRun, IOChannel, ScaleRule
+from task_api.processing_container import task_models
+from task_api.processing_container import pc_models
 from task_api.processing_container.common import (
     get_processing_container,
     parse_task,
@@ -40,7 +41,7 @@ class Schema(str, Enum):
     processing_container = "pc"
 
 
-def monitor_container_memory(task_run: TaskRun):
+def monitor_container_memory(task_run: task_models.TaskRun):
     from task_api.runners.DockerRunner import DockerRunner
 
     max_memory_usage = human_readable_size(DockerRunner.monitor_memory(task_run))
@@ -106,7 +107,7 @@ def check_task_run(
     from task_api.runners.DockerRunner import DockerRunner
 
     with open(task_run, "r") as f:
-        task_data = TaskRun(**json.load(f))
+        task_data = task_models.TaskRun(**json.load(f))
 
     if task_data.mode == "docker":
         DockerRunner.check_status(task_data, follow=watch)
@@ -164,7 +165,7 @@ def logs(
 ):
     """Get logs from a task"""
     with open(task, "r") as f:
-        task_run = TaskRun(**json.load(f))
+        task_run = task_models.TaskRun(**json.load(f))
     if task_run.mode == "docker":
         from task_api.runners.DockerRunner import DockerRunner
 

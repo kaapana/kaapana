@@ -4,12 +4,7 @@ import docker
 import sys, os
 import time
 
-from task_api.processing_container.models import (
-    TaskRun,
-    Task,
-    Resources,
-    TaskInstance,
-)
+from task_api.processing_container import task_models
 from task_api.processing_container.resources import (
     calculate_bytes,
     compute_memory_requirement,
@@ -27,7 +22,7 @@ class DockerRunner(BaseRunner):
     client = docker.from_env()
 
     @classmethod
-    def run(cls, task: Task):
+    def run(cls, task: task_models.Task):
         cls._logger.info("Running task in Docker...")
 
         task_template = get_task_template(task.image, task.taskTemplate, mode="docker")
@@ -60,10 +55,12 @@ class DockerRunner(BaseRunner):
             mem_limit=memory_limit,
         )
 
-        return TaskRun(id=container.id, mode="docker", **task_instance.model_dump())
+        return task_models.TaskRun(
+            id=container.id, mode="docker", **task_instance.model_dump()
+        )
 
     @classmethod
-    def logs(cls, task_run: TaskRun, follow: bool = False):
+    def logs(cls, task_run: task_models.TaskRun, follow: bool = False):
         if follow:
             cls._logger.info("Start log streaming")
         container = cls.client.containers.get(container_id=task_run.id)
@@ -79,11 +76,11 @@ class DockerRunner(BaseRunner):
             logs.close()
 
     @classmethod
-    def stop(cls, task_run: TaskRun):
+    def stop(cls, task_run: task_models.TaskRun):
         raise NotImplementedError()
 
     @classmethod
-    def _set_memory_limit(cls, task_instance: TaskInstance) -> int:
+    def _set_memory_limit(cls, task_instance: task_models.TaskInstance) -> int:
         """
         Return the memory limit for a task_instance based on Resources and ScaleRules
         """
@@ -102,7 +99,7 @@ class DockerRunner(BaseRunner):
         return memory_limit
 
     @classmethod
-    def check_status(cls, task_run: TaskRun, follow: bool = False):
+    def check_status(cls, task_run: task_models.TaskRun, follow: bool = False):
         container_id = task_run.id
         container = cls.client.containers.get(container_id=container_id)
 
@@ -125,7 +122,7 @@ class DockerRunner(BaseRunner):
             running = state.get("Running")
 
     @classmethod
-    def monitor_memory(cls, task_run: TaskRun):
+    def monitor_memory(cls, task_run: task_models.TaskRun):
         """
         Monitor the memory usage of a container and return the maxmimum memory utilization.
         """

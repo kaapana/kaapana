@@ -1,6 +1,7 @@
 import functools
 import json
-from task_api.processing_container import models
+from task_api.processing_container import task_models
+from task_api.processing_container import pc_models
 from typing import List
 from pathlib import Path
 from jinja2 import Environment, BaseLoader
@@ -20,32 +21,32 @@ def _parse_with_jinja(file: Path, custom_vars: dict = {}) -> dict:
     return json.loads(rendered)
 
 
-def parse_task(file: Path, custom_vars: dict = {}) -> models.Task:
+def parse_task(file: Path, custom_vars: dict = {}) -> task_models.Task:
     """
     Parse a json file to a Task object and use jinja templating.
     """
-    return models.Task(**_parse_with_jinja(file, custom_vars=custom_vars))
+    return task_models.Task(**_parse_with_jinja(file, custom_vars=custom_vars))
 
 
 def parse_processing_container(
     file: Path, custom_vars: dict = {}
-) -> models.ProcessingContainer:
+) -> pc_models.ProcessingContainer:
     """
     Parse a json file to a ProcessingContainer object and use jinja templating.
     """
 
-    return models.ProcessingContainer(
+    return pc_models.ProcessingContainer(
         **_parse_with_jinja(file, custom_vars=custom_vars)
     )
 
 
 def create_task_instance(
-    task_template: models.TaskTemplate, task: models.Task
-) -> models.TaskInstance:
+    task_template: pc_models.TaskTemplate, task: task_models.Task
+) -> task_models.TaskInstance:
     """
     Create a TaskInstance object by merging a TaskTemplate and a Task object
     """
-    return models.TaskInstance(
+    return task_models.TaskInstance(
         inputs=merge_io_channels(task_template.inputs, task.inputs),
         outputs=merge_io_channels(task_template.outputs, task.outputs),
         env=merge_env(task_template.env, task.env),
@@ -61,8 +62,9 @@ def create_task_instance(
 
 
 def merge_env(
-    orig_envs: List[models.TaskInstanceEnv], update_envs: List[models.TaskInstanceEnv]
-) -> List[models.TaskInstanceEnv]:
+    orig_envs: List[task_models.TaskInstanceEnv],
+    update_envs: List[task_models.TaskInstanceEnv],
+) -> List[task_models.TaskInstanceEnv]:
     """
     Merge two lists of ContainerEnvVar objects.
 
@@ -74,12 +76,12 @@ def merge_env(
     merged_env = []
     for orig_env in orig_envs:
         if orig_env not in update_names:
-            merged_env.append(models.TaskInstanceEnv(**orig_env.model_dump()))
+            merged_env.append(task_models.TaskInstanceEnv(**orig_env.model_dump()))
             continue
         for upd_env in update_envs:
             if orig_env.name == upd_env.name:
                 merged_env.append(
-                    models.TaskInstanceEnv(
+                    task_models.TaskInstanceEnv(
                         **{
                             **orig_env.model_dump(mode="python"),
                             **upd_env.model_dump(mode="python"),
@@ -90,13 +92,13 @@ def merge_env(
 
     for upd_env in update_envs:
         if upd_env.name not in orig_names:
-            merged_env.append(models.TaskInstanceEnv(**upd_env.model_dump()))
+            merged_env.append(task_models.TaskInstanceEnv(**upd_env.model_dump()))
     return merged_env
 
 
 def merge_io_channels(
-    mounts: List[models.IOMount], volumes: List[models.IOVolume]
-) -> List[models.IOChannel]:
+    mounts: List[pc_models.IOMount], volumes: List[task_models.IOVolume]
+) -> List[task_models.IOChannel]:
     """
     Merge a list of IOMount objects and IOVolume objects to a list of IOChannel objects.
 
@@ -111,7 +113,7 @@ def merge_io_channels(
         for vol in volumes:
             if mount.name == vol.name:
                 io_channels.append(
-                    models.IOChannel(
+                    task_models.IOChannel(
                         **{
                             **mount.model_dump(mode="python", exclude_none=True),
                             **vol.model_dump(mode="python", exclude_none=True),
@@ -129,7 +131,7 @@ def get_task_template(
     mode: str = "docker",
     registry_secret: str = None,
     namespace: str = None,
-) -> models.TaskTemplate:
+) -> pc_models.TaskTemplate:
     kwargs = {}
     if registry_secret:
         kwargs["registry_secret"] = registry_secret
@@ -149,7 +151,7 @@ def get_processing_container(
     mode: str = "docker",
     namespace: str = "services",
     registry_secret: str = "registry-secret",
-) -> models.ProcessingContainer:
+) -> pc_models.ProcessingContainer:
     if mode == "k8s":
         from kaapana_containers.kubernetes.utils import KubernetsUtils
 
@@ -159,13 +161,13 @@ def get_processing_container(
             namespace=namespace,
             registry_secret=registry_secret,
         ) as f:
-            return models.ProcessingContainer(**json.load(f))
+            return pc_models.ProcessingContainer(**json.load(f))
     elif mode == "docker":
         from kaapana_containers.docker.utils import DockerUtils
 
         with DockerUtils.extract_file_from_image(
             image, "/processing-container.json"
         ) as f:
-            return models.ProcessingContainer(**json.load(f))
+            return pc_models.ProcessingContainer(**json.load(f))
     else:
         raise ValueError(f"{mode=} must be one of ['docker','k8s']")

@@ -4,7 +4,7 @@ import re
 import datetime
 
 from kubernetes import client, config, watch
-from task_api.processing_container.models import Task, TaskRun, TaskInstance
+from task_api.processing_container import task_models
 from task_api.processing_container.resources import compute_memory_resources
 from task_api.processing_container.common import (
     create_task_instance,
@@ -27,7 +27,7 @@ def generate_pod_name(base_name: str) -> str:
 
 
 def get_volume_and_mounts(
-    task_instance: TaskInstance,
+    task_instance: task_models.TaskInstance,
 ) -> Tuple[List[client.V1Volume], List[client.V1VolumeMount]]:
     volumes = []
     volume_mounts = []
@@ -51,7 +51,7 @@ def get_volume_and_mounts(
 
 
 def get_container(
-    task_instance: TaskInstance, volume_mounts: List[client.V1VolumeMount]
+    task_instance: task_models.TaskInstance, volume_mounts: List[client.V1VolumeMount]
 ) -> client.V1Container:
     env_vars = [
         client.V1EnvVar(name=env.name, value=env.value) for env in task_instance.env
@@ -82,7 +82,7 @@ class KubernetesRunner(BaseRunner):
     api = client.CoreV1Api()
 
     @classmethod
-    def run(cls, task: Task):
+    def run(cls, task: task_models.Task):
         cls._logger.info("Running task in Kubernetes...")
 
         image_pull_secrets = cls.get_image_pull_secrets(task)
@@ -130,14 +130,14 @@ class KubernetesRunner(BaseRunner):
             namespace=task_instance.config.namespace, body=pod
         )
         id = pod.metadata.name
-        return TaskRun(
+        return task_models.TaskRun(
             id=id,
             mode="k8s",
             **task_instance.model_dump(),
         )
 
     @classmethod
-    def logs(cls, task_run: TaskRun, follow: bool):
+    def logs(cls, task_run: task_models.TaskRun, follow: bool):
         """
         Log stdout and stderr of the container corresponding to task_run.
         """
@@ -171,7 +171,7 @@ class KubernetesRunner(BaseRunner):
             raise e
 
     @classmethod
-    def stop(cls, task_run: TaskRun):
+    def stop(cls, task_run: task_models.TaskRun):
         config.load_config()
         cls.api.delete_namespaced_pod(
             name=task_run.id, namespace=task_run.config.namespace
@@ -180,7 +180,7 @@ class KubernetesRunner(BaseRunner):
     @classmethod
     def wait_for_task_status(
         cls,
-        task_run: TaskRun,
+        task_run: task_models.TaskRun,
         states: list = ["Running", "Succeeded", "Failed"],
         timeout: int = 5,
     ):
@@ -205,7 +205,9 @@ class KubernetesRunner(BaseRunner):
         )
 
     @classmethod
-    def create_image_pull_secret(cls, task: Task, secret_name: str) -> client.V1Secret:
+    def create_image_pull_secret(
+        cls, task: task_models.Task, secret_name: str
+    ) -> client.V1Secret:
         """
         Create a secret derived from registryUrl, registryUsername, registryPassword
         that can be used as ImagePullSecret
@@ -238,7 +240,9 @@ class KubernetesRunner(BaseRunner):
         return secret
 
     @classmethod
-    def get_image_pull_secrets(cls, task: Task) -> List[client.V1LocalObjectReference]:
+    def get_image_pull_secrets(
+        cls, task: task_models.Task
+    ) -> List[client.V1LocalObjectReference]:
         image_pull_secrets = []
         if (
             task.config.registryUrl

@@ -1,5 +1,6 @@
 import pytest
-from task_api.processing_container import models
+from task_api.processing_container import task_models
+from task_api.processing_container import pc_models
 from pathlib import Path
 import os
 from task_api.runners.DockerRunner import DockerRunner
@@ -18,7 +19,7 @@ def test_resources():
     sizes = [2342, 2346437, 87648, 1231, 0, 69234006234, 23423.4564]
     for size in sizes:
         assert abs(calculate_bytes(human_readable_size(size)) - size) <= int(size / 10)
-    sr = models.ScaleRule(
+    sr = pc_models.ScaleRule(
         target_dir=".",
         target_glob="*.dcm",
         target_regex=".*",
@@ -26,9 +27,9 @@ def test_resources():
         complexity="1*n**1",
         type="limit",
     )
-    io = models.IOVolume(
+    io = task_models.IOVolume(
         name="test-scale-rule",
-        input=models.HostPathVolume(host_path=f"{TASK_DIR}/dummy/files"),
+        input=task_models.HostPathVolume(host_path=f"{TASK_DIR}/dummy/files"),
         scale_rule=sr,
     )
     compute_memory_requirement(io=io)

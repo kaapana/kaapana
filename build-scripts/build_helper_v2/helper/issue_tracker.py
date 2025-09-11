@@ -59,12 +59,12 @@ class IssueTracker:
 
         cls.issues.append(issue)
         logger.warning(json.dumps(issue.model_dump(), sort_keys=True))
-        
+
         if cls.exit_on_error or level == "FATAL":
             exit(1)
-            
+
         return issue
-    
+
     @staticmethod
     def _make_log(output) -> List[str]:
         """

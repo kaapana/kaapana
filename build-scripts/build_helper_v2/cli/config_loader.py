@@ -7,7 +7,13 @@ import yaml
 
 def parse_args() -> argparse.Namespace:
     """
-    Uses SUPPRESS that does not returns argument in namespace if it was not set in CLI
+    Parse command-line arguments for Kaapana Platform Builder.
+
+    Uses `argparse.SUPPRESS` so that arguments not set in the CLI
+    are not included in the returned Namespace.
+
+    Returns:
+        argparse.Namespace: Parsed arguments.
     """
     parser = argparse.ArgumentParser(description="Kaapana Platform Builder")
     parser.add_argument(
@@ -103,7 +109,17 @@ def parse_args() -> argparse.Namespace:
 
 
 def apply_env_fallbacks(config: dict) -> dict:
-    # Only set if not already set
+    """
+    Apply environment variable fallbacks to a configuration dictionary.
+
+    Only sets values if they are not already present in `config`.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Returns:
+        dict: Configuration dictionary with environment fallbacks applied.
+    """
     if not config.get("http_proxy"):
         config["http_proxy"] = os.getenv("http_proxy")
 
@@ -117,7 +133,15 @@ def apply_env_fallbacks(config: dict) -> dict:
 
 
 def load_yaml(path: Path) -> dict:
-    """Loads YAML file content safely."""
+    """
+    Load a YAML file safely.
+
+    Args:
+        path (Path): Path to the YAML file.
+
+    Returns:
+        dict: Loaded YAML content as a dictionary, or empty dict if file does not exist.
+    """
     if not path.exists():
         return {}
     with path.open("r") as stream:
@@ -125,7 +149,19 @@ def load_yaml(path: Path) -> dict:
 
 
 def merge_args_with_config(args: argparse.Namespace, config_data: dict):
-    """Merges CLI arguments with loaded YAML config using priority: args > config"""
+    """
+    Merge command-line arguments with a configuration dictionary.
+
+    Command-line arguments take priority over the configuration dictionary.
+    Applies environment variable fallbacks afterwards.
+
+    Args:
+        args (argparse.Namespace): Parsed CLI arguments.
+        config_data (dict): Configuration data loaded from YAML.
+
+    Returns:
+        dict: Merged configuration dictionary.
+    """
     cli_dict = {k: v for k, v in vars(args).items() if v is not None}
     config_data.update(cli_dict)
     config_data = apply_env_fallbacks(config_data)

@@ -1,15 +1,9 @@
-from contextlib import contextmanager
 from typing import Any, List
 
 from build_helper_v2.utils.logger import get_logger
 from InquirerPy import inquirer
 from InquirerPy.base.list import BaseListPrompt
 from InquirerPy.prompts import fuzzy
-from rich.console import Console, Group
-from rich.live import Live
-from rich.progress import BarColumn, Progress, TimeElapsedColumn
-from rich.table import Table
-from rich.text import Text
 
 
 def patch_inquirerpy_safely():
@@ -61,7 +55,26 @@ patch_inquirerpy_safely()
 
 
 def interactive_select(options: List[str], obj_type: str) -> List[str]:
-    """Fuzzy searchable multiselect with scrollable list."""
+    """Launch an interactive fuzzy multi-select prompt.
+
+    Provides a fuzzy-searchable, scrollable list of options using
+    InquirerPy. The prompt allows multiple selections, supports
+    keyboard navigation, and requires at least one choice.
+
+    Args:
+        options (List[str]): List of available option strings.
+        obj_type (str): Descriptive name of the object type (used in
+            prompt messages and validation errors).
+
+    Returns:
+        List[str]: The list of selected options. If "ALL" is chosen,
+        returns all items from ``options``.
+
+    Example:
+        >>> interactive_select(["fastsurfer", "nnunet"], "extension")
+        # User selects "ALL"
+        ['fastsurfer', 'nnunet']
+    """
     choices = ["ALL"] + options
     selected: List[str] = []
 

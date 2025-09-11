@@ -1,7 +1,7 @@
 import logging
 from queue import SimpleQueue
 from threading import Lock
-from typing import List, Set
+from typing import Set
 
 from alive_progress import alive_bar
 from build_helper_v2.core.container import Container, Status
@@ -16,6 +16,26 @@ logger = get_logger()
 
 
 class ProgressBar:
+    """
+    Unified progress bar implementation supporting both `alive-progress` and `rich`.
+
+    When `use_rich=False`, it uses `alive-progress` (lightweight console progress).
+    When `use_rich=True`, it renders a live Rich dashboard with:
+        - An overall progress bar
+        - A detailed table of container statuses
+
+    Attributes:
+        total (int): Total number of steps (e.g., containers to process).
+        title (str): Title of the progress bar.
+        containers (Set[Container]): Set of containers being tracked.
+        use_rich (bool): Whether to use Rich dashboard or alive-progress.
+        _lock (Lock): Thread lock to protect updates.
+        _finished_queue (SimpleQueue): Queue for finished container events.
+        status_colors (dict): Mapping from `Status` to Rich color names.
+        status_order (List[Status]): Ordering of statuses in the dashboard.
+        finished_states (Set[Status]): States considered "finished".
+    """
+
     def __init__(
         self,
         total: int,
@@ -24,16 +44,20 @@ class ProgressBar:
         use_rich: bool = False,
     ):
         """
-        Unified progress bar:
-        - use_rich=False => no Rich dashboard (you could plug in alive_bar separately)
-        - use_rich=True  => Rich dashboard + overall progress bar
+        Initialize the progress bar.
+
+        Args:
+            total (int): Total number of items to process.
+            title (str): Title of the progress bar.
+            containers (Set[Container]): Set of containers being tracked.
+            use_rich (bool, optional): If True, use Rich dashboard. Defaults to False.
         """
         self.total = total
         self.title = title
         self.containers = containers
         self.use_rich = use_rich
         self._lock = Lock()
-        self._finished_queue = SimpleQueue()
+        self._finished_queue: SimpleQueue = SimpleQueue()
 
         # Rich backend
         self._console = None
@@ -86,6 +110,12 @@ class ProgressBar:
         }
 
     def __enter__(self):
+        """
+        Enter context manager, initializing either Rich or alive-progress backend.
+
+        Returns:
+            ProgressBar: Self instance, ready for updates.
+        """
         if self.use_rich:
             self._console = Console()
             log_file = None
@@ -131,6 +161,14 @@ class ProgressBar:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        Exit context manager, closing progress bar backends.
+
+        Args:
+            exc_type (Exception): Exception type (if raised).
+            exc_val (Exception): Exception value.
+            exc_tb (traceback): Traceback object.
+        """
         if self.use_rich and self._rich_progress and self._dashboard_live:
             self._rich_progress.stop()
             self._dashboard_live.__exit__(exc_type, exc_val, exc_tb)
@@ -140,7 +178,13 @@ class ProgressBar:
                 self._alive_cm.__exit__(exc_type, exc_val, exc_tb)
 
     def advance(self, last_processed_container: Container, advance: int):
-        """Advance overall progress by one step."""
+        """
+        Advance progress by a given step.
+
+        Args:
+            last_processed_container (Container): The most recently processed container.
+            advance (int): Number of steps to advance.
+        """
         with self._lock:
             if self.use_rich and self._rich_progress and self._task_id is not None:
                 status = last_processed_container.status
@@ -158,7 +202,12 @@ class ProgressBar:
                 )
 
     def refresh(self, clear=False):
-        """Refresh the dashboard table."""
+        """
+        Refresh the Rich dashboard table.
+
+        Args:
+            clear (bool, optional): Whether to clear the console first. Defaults to False.
+        """
         if clear and self._console:
             self._console.clear()
         if self.use_rich and self._dashboard_live:
@@ -166,7 +215,12 @@ class ProgressBar:
                 self._dashboard_live.update(self._render_dashboard())
 
     def _render_dashboard(self):
-        """Render results table with colored status cells."""
+        """
+        Render the dashboard table of containers and their statuses.
+
+        Returns:
+            Table: Rich table object containing container status rows.
+        """
         table = Table(show_header=True, header_style="bold")
         # Precompute max widths
 
@@ -205,6 +259,13 @@ class ProgressBar:
         return table
 
     def finished_print(self, title: str, last_processed_container: Container):
+        """
+        Print a finished container status line to the console and log file.
+
+        Args:
+            title (str): Prefix title for the log line.
+            last_processed_container (Container): The container that has just finished.
+        """
         with self._lock:
             tag = f"{last_processed_container.tag:<{self.container_width}}"
             build_time = (

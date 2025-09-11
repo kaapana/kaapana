@@ -8,10 +8,10 @@ from build_helper_v2.cli.selector import interactive_select
 from build_helper_v2.core.build_state import BuildState
 from build_helper_v2.core.container import Container
 from build_helper_v2.core.helm_chart import HelmChart
+from build_helper_v2.helper.container_helper import ContainerHelper
+from build_helper_v2.helper.helm_chart_helper import HelmChartHelper
+from build_helper_v2.helper.issue_tracker import IssueTracker
 from build_helper_v2.models.build_config import BuildConfig
-from build_helper_v2.services.container_service import ContainerService
-from build_helper_v2.services.helm_chart_service import HelmChartService
-from build_helper_v2.services.issue_tracker import IssueTracker
 from build_helper_v2.utils.logger import get_logger
 from InquirerPy import inquirer
 from jinja2 import Environment, FileSystemLoader
@@ -21,14 +21,14 @@ T = TypeVar("T")  # HelmChart or Container
 logger = get_logger()
 
 
-class BuildService:
+class BuildHelper:
     _build_config: BuildConfig = None  # type: ignore
     _build_state: BuildState = None  # type: ignore
 
     @classmethod
     def init(cls, build_config: BuildConfig, build_state: BuildState):
         """
-        Initialize the ContainerService singleton with configuration and build state.
+        Initialize the ContainerHelper singleton with configuration and build state.
 
         Args:
             config (BuildConfig): Build configuration object.
@@ -68,9 +68,7 @@ class BuildService:
 
     @classmethod
     def report_image_stats(cls):
-        image_stats = ContainerService.get_built_images_stats(
-            cls.get_platform_version()
-        )
+        image_stats = ContainerHelper.get_built_images_stats(cls.get_platform_version())
 
         logger.debug("\nCollect image stats:\n")
         image_stats_json_path = cls._build_config.build_dir / "image_stats.json"
@@ -116,121 +114,19 @@ class BuildService:
 
     @classmethod
     def generate_report(cls):
-        BuildService.report_unused_containers()
-        BuildService.report_used_base_images()
-        BuildService.report_available_containers()
-        BuildService.report_available_charts()
-        BuildService.report_unused_charts()
+        BuildHelper.report_unused_containers()
+        BuildHelper.report_used_base_images()
+        BuildHelper.report_available_containers()
+        BuildHelper.report_available_charts()
+        BuildHelper.report_unused_charts()
 
         if cls._build_config.enable_image_stats:
-            BuildService.report_image_stats()
-
-    @staticmethod
-    def _build_graph(root_chart: HelmChart) -> nx.DiGraph:
-        G = nx.DiGraph()
-        visited = set()  # Track fully processed charts
-
-        def add_chart(chart: HelmChart):
-            if chart in visited:  # Only skip if fully processed
-                return
-            visited.add(chart)  # Mark as processed
-
-            G.add_node(chart, type="chart")
-
-            # Dependencies
-            for dep in chart.chart_dependencies:
-                G.add_edge(chart, dep, type="subchart")
-                add_chart(dep)
-
-            # Collections
-            for coll in chart.kaapana_collections:
-                G.add_edge(chart, coll, type="collection")
-                add_chart(coll)
-
-            # Containers
-            for container in chart.chart_containers:
-                G.add_node(container, type="container")
-                G.add_edge(chart, container, type="produces")
-
-                for base in container.base_images:
-                    G.add_node(base, type="container")
-                    G.add_edge(container, base, type="base-image")
-
-        # Start recursion from root
-        add_chart(root_chart)
-        return G
+            BuildHelper.report_image_stats()
 
     @classmethod
     def generate_build_graph(cls, platform_chart: HelmChart):
         build_graph = cls._build_graph(platform_chart)
         cls._build_state.build_graph = build_graph
-
-    @staticmethod
-    def _build_tree(root_chart: HelmChart, include_containers=False):
-        """
-        Generate a Tree() from a list of root charts.
-        Optionally include containers and their base images.
-        Guarantees unique node IDs using a hash of the full hierarchical path.
-        Only include allowed root charts and skip runtime-only charts.
-        """
-        build_tree = Tree()
-        build_tree.create_node("ROOT", "ROOT")
-
-        def add_chart(chart: HelmChart, parent_tree_id: str, path_prefix=""):
-            # Skip runtime-only charts
-            if getattr(chart, "runtime_only", False):
-                return
-
-            # Full path for hashing
-            current_path = f"{path_prefix}/{chart.name}"
-            tree_id = BuildService.hash_id(current_path)
-            build_tree.create_node(chart.name, tree_id, parent=parent_tree_id)
-
-            # Add containers if requested
-            if include_containers and getattr(chart, "chart_containers", None):
-                containers_path = f"{current_path}/containers"
-                containers_id = BuildService.hash_id(containers_path)
-                build_tree.create_node("containers", containers_id, parent=tree_id)
-
-                for container in chart.chart_containers:
-                    container_path = (
-                        f"{containers_path}/{container.image_name}:{container.version}"
-                    )
-                    c_id = BuildService.hash_id(container_path)
-                    build_tree.create_node(container.tag, c_id, parent=containers_id)
-
-                    # Base images
-                    if getattr(container, "base_images", None):
-                        base_path = f"{container_path}/base-images"
-                        base_id = BuildService.hash_id(base_path)
-                        build_tree.create_node("base-images", base_id, parent=c_id)
-                        for base in container.base_images:
-                            base_img_path = (
-                                f"{base_path}/{base.image_name}:{base.version}"
-                            )
-                            base_img_id = BuildService.hash_id(base_img_path)
-                            build_tree.create_node(
-                                f"{base.image_name}:{base.version}",
-                                base_img_id,
-                                parent=base_id,
-                            )
-
-            # Recurse into sub-charts / dependencies
-            if getattr(chart, "chart_dependencies", None):
-                subcharts_path = f"{current_path}/sub-charts"
-                subcharts_id = BuildService.hash_id(subcharts_path)
-                build_tree.create_node("sub-charts", subcharts_id, parent=tree_id)
-                for dep in chart.chart_dependencies:
-                    add_chart(dep, subcharts_id, path_prefix=current_path)
-
-        add_chart(root_chart, "ROOT")
-
-        return build_tree
-
-    @staticmethod
-    def hash_id(path: str) -> str:
-        """Generate a short SHA1 hash from a string."""
-        return hashlib.sha1(path.encode("utf-8")).hexdigest()[:8]
 
     @classmethod
     def generate_build_tree(cls, platform_chart: HelmChart):
@@ -297,9 +193,7 @@ class BuildService:
                 level="FATAL",
             )
             exit(1)
-        platform_chart = HelmChartService.get_chart(
-            cls._build_config.platform_filter[0]
-        )
+        platform_chart = HelmChartHelper.get_chart(cls._build_config.platform_filter[0])
         if not platform_chart:
             IssueTracker.generate_issue(
                 component=cls.__name__,
@@ -345,18 +239,17 @@ class BuildService:
         # If any containers are specified, we do not resolve charts.
         if selected_container_names:
             containers = {
-                ContainerService.get_container(name)
-                for name in selected_container_names
+                ContainerHelper.get_container(name) for name in selected_container_names
             }
             cls._build_state.selected_containers = (
-                ContainerService.collect_all_local_base_containers(containers)
+                ContainerHelper.collect_all_local_base_containers(containers)
             )
             return None
 
         G = cls._build_state.build_graph
         if selected_chart_names:
             containers_from_charts = set()
-            charts = {HelmChartService.get_chart(name) for name in selected_chart_names}
+            charts = {HelmChartHelper.get_chart(name) for name in selected_chart_names}
             for chart in charts:
                 containers_from_chart = {
                     n for n in nx.descendants(G, chart) if isinstance(n, Container)
@@ -371,13 +264,6 @@ class BuildService:
 
     @classmethod
     def collect_chart_containers(cls, chart: HelmChart) -> Set[Container]:
-        """
-        Collect all containers from the chart, including:
-        - chart_dependencies
-        - kaapana_collections
-        - preinstall_extensions
-        recursively
-        """
         containers: Set[Container] = set()
         visited_charts: Set[HelmChart] = set()
 
@@ -398,6 +284,108 @@ class BuildService:
                 _collect(ext)
 
         _collect(chart)
-        base_containers = ContainerService.collect_all_local_base_containers(containers)
+        base_containers = ContainerHelper.collect_all_local_base_containers(containers)
         containers.update(base_containers)
         return containers
+
+    @staticmethod
+    def _build_graph(root_chart: HelmChart) -> nx.DiGraph:
+        G = nx.DiGraph()
+        visited = set()  # Track fully processed charts
+
+        def add_chart(chart: HelmChart):
+            if chart in visited:  # Only skip if fully processed
+                return
+            visited.add(chart)  # Mark as processed
+
+            G.add_node(chart, type="chart")
+
+            # Dependencies
+            for dep in chart.chart_dependencies:
+                G.add_edge(chart, dep, type="subchart")
+                add_chart(dep)
+
+            # Collections
+            for coll in chart.kaapana_collections:
+                G.add_edge(chart, coll, type="collection")
+                add_chart(coll)
+
+            # Containers
+            for container in chart.chart_containers:
+                G.add_node(container, type="container")
+                G.add_edge(chart, container, type="produces")
+
+                for base in container.base_images:
+                    G.add_node(base, type="container")
+                    G.add_edge(container, base, type="base-image")
+
+        # Start recursion from root
+        add_chart(root_chart)
+        return G
+
+    @staticmethod
+    def _build_tree(root_chart: HelmChart, include_containers=False):
+        """
+        Generate a Tree() from a list of root charts.
+        Optionally include containers and their base images.
+        Guarantees unique node IDs using a hash of the full hierarchical path.
+        Only include allowed root charts and skip runtime-only charts.
+        """
+        build_tree = Tree()
+        build_tree.create_node("ROOT", "ROOT")
+
+        def add_chart(chart: HelmChart, parent_tree_id: str, path_prefix=""):
+            # Skip runtime-only charts
+            if getattr(chart, "runtime_only", False):
+                return
+
+            # Full path for hashing
+            current_path = f"{path_prefix}/{chart.name}"
+            tree_id = BuildHelper.hash_id(current_path)
+            build_tree.create_node(chart.name, tree_id, parent=parent_tree_id)
+
+            # Add containers if requested
+            if include_containers and getattr(chart, "chart_containers", None):
+                containers_path = f"{current_path}/containers"
+                containers_id = BuildHelper.hash_id(containers_path)
+                build_tree.create_node("containers", containers_id, parent=tree_id)
+
+                for container in chart.chart_containers:
+                    container_path = (
+                        f"{containers_path}/{container.image_name}:{container.version}"
+                    )
+                    c_id = BuildHelper.hash_id(container_path)
+                    build_tree.create_node(container.tag, c_id, parent=containers_id)
+
+                    # Base images
+                    if getattr(container, "base_images", None):
+                        base_path = f"{container_path}/base-images"
+                        base_id = BuildHelper.hash_id(base_path)
+                        build_tree.create_node("base-images", base_id, parent=c_id)
+                        for base in container.base_images:
+                            base_img_path = (
+                                f"{base_path}/{base.image_name}:{base.version}"
+                            )
+                            base_img_id = BuildHelper.hash_id(base_img_path)
+                            build_tree.create_node(
+                                f"{base.image_name}:{base.version}",
+                                base_img_id,
+                                parent=base_id,
+                            )
+
+            # Recurse into sub-charts / dependencies
+            if getattr(chart, "chart_dependencies", None):
+                subcharts_path = f"{current_path}/sub-charts"
+                subcharts_id = BuildHelper.hash_id(subcharts_path)
+                build_tree.create_node("sub-charts", subcharts_id, parent=tree_id)
+                for dep in chart.chart_dependencies:
+                    add_chart(dep, subcharts_id, path_prefix=current_path)
+
+        add_chart(root_chart, "ROOT")
+
+        return build_tree
+
+    @staticmethod
+    def hash_id(path: str) -> str:
+        """Generate a short SHA1 hash from a string."""
+        return hashlib.sha1(path.encode("utf-8")).hexdigest()[:8]

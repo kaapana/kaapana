@@ -10,12 +10,12 @@ from build_helper_v2.cli.config_loader import (
     parse_args,
 )
 from build_helper_v2.core.build_state import BuildState
+from build_helper_v2.helper.build_helper import BuildHelper
+from build_helper_v2.helper.container_helper import ContainerHelper
+from build_helper_v2.helper.helm_chart_helper import HelmChartHelper
+from build_helper_v2.helper.issue_tracker import IssueTracker
+from build_helper_v2.helper.trivy_helper import TrivyHelper
 from build_helper_v2.models.build_config import BuildConfig
-from build_helper_v2.services.build_service import BuildService
-from build_helper_v2.services.container_service import ContainerService
-from build_helper_v2.services.helm_chart_service import HelmChartService
-from build_helper_v2.services.issue_tracker import IssueTracker
-from build_helper_v2.services.trivy_service import TrivyService
 from build_helper_v2.utils.logger import get_logger, init_logger, set_console_level
 
 
@@ -76,49 +76,49 @@ def main():
     build_state = BuildState(started_at=time())
 
     logger.info("-----------------------------------------------------------")
-    ContainerService.init(build_config=build_config, build_state=build_state)
-    HelmChartService.init(build_config=build_config, build_state=build_state)
-    BuildService.init(build_config=build_config, build_state=build_state)
-    ContainerService.verify_container_engine_installed()
-    HelmChartService.verify_helm_installed()
+    ContainerHelper.init(build_config=build_config, build_state=build_state)
+    HelmChartHelper.init(build_config=build_config, build_state=build_state)
+    BuildHelper.init(build_config=build_config, build_state=build_state)
+    ContainerHelper.verify_container_engine_installed()
+    HelmChartHelper.verify_helm_installed()
 
     if not build_config.build_only and not build_config.no_login:
-        ContainerService.container_registry_login(
+        ContainerHelper.container_registry_login(
             username=build_config.registry_username,
             password=build_config.registry_password,
         )
-        HelmChartService.helm_registry_login(
+        HelmChartHelper.helm_registry_login(
             username=build_config.registry_username,
             password=build_config.registry_password,
         )
 
     logger.info("-----------------------------------------------------------")
-    ContainerService.collect_containers()
-    ContainerService.resolve_base_images_into_container()
-    HelmChartService.collect_charts()
-    HelmChartService.resolve_chart_dependencies()
-    HelmChartService.resolve_kaapana_collections()
-    HelmChartService.resolve_preinstall_extensions()
+    ContainerHelper.collect_containers()
+    ContainerHelper.resolve_base_images_into_container()
+    HelmChartHelper.collect_charts()
+    HelmChartHelper.resolve_chart_dependencies()
+    HelmChartHelper.resolve_kaapana_collections()
+    HelmChartHelper.resolve_preinstall_extensions()
 
-    platform_chart = BuildService.get_platform_chart()
-    BuildService.generate_build_graph(platform_chart)
-    BuildService.generate_build_tree(platform_chart)
-    BuildService.generate_deployment_script(platform_chart)
+    platform_chart = BuildHelper.get_platform_chart()
+    BuildHelper.generate_build_graph(platform_chart)
+    BuildHelper.generate_build_tree(platform_chart)
+    BuildHelper.generate_deployment_script(platform_chart)
 
     logger.info("")
     logger.info("-----------------------------------------------------------")
     logger.info("------------------ BUILD CHARTS ------------------")
     logger.info("-----------------------------------------------------------")
     logger.info("")
-    HelmChartService.build_and_push_charts(platform_chart=platform_chart)
+    HelmChartHelper.build_and_push_charts(platform_chart=platform_chart)
 
     logger.info("")
     logger.info("-----------------------------------------------------------")
     logger.info("------------------ BUILD CONTAINERS ------------------")
     logger.info("-----------------------------------------------------------")
     logger.info("")
-    BuildService.select_containers_to_build()
-    ContainerService.build_and_push_containers()
+    BuildHelper.select_containers_to_build()
+    ContainerHelper.build_and_push_containers()
 
     if len(IssueTracker.issues) > 0:
         logger.info("")
@@ -148,19 +148,19 @@ def main():
     logger.info("-----------------------------------------------------------")
     logger.info("")
 
-    BuildService.generate_report()
+    BuildHelper.generate_report()
 
     if build_config.configuration_check:
-        TrivyService.init(build_config=build_config, build_state=build_state)
-        TrivyService.configuration_check()
+        TrivyHelper.init(build_config=build_config, build_state=build_state)
+        TrivyHelper.configuration_check()
 
     if build_config.create_sboms:
-        TrivyService.init(build_config=build_config, build_state=build_state)
-        TrivyService.create_sboms()
+        TrivyHelper.init(build_config=build_config, build_state=build_state)
+        TrivyHelper.create_sboms()
 
     if build_config.vulnerability_scan:
-        TrivyService.init(build_config=build_config, build_state=build_state)
-        TrivyService.vulnerability_scan()
+        TrivyHelper.init(build_config=build_config, build_state=build_state)
+        TrivyHelper.vulnerability_scan()
 
     logger.info("-----------------------------------------------------------")
     logger.info("-------------------------- DONE ---------------------------")

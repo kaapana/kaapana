@@ -8,9 +8,9 @@ from typing import Any, Dict, Optional, Set
 
 import yaml
 from build_helper_v2.core.container import Container
+from build_helper_v2.helper.container_helper import ContainerHelper
+from build_helper_v2.helper.issue_tracker import IssueTracker
 from build_helper_v2.models.build_config import BuildConfig
-from build_helper_v2.services.container_service import ContainerService
-from build_helper_v2.services.issue_tracker import IssueTracker
 from build_helper_v2.utils.git_utils import GitUtils
 from build_helper_v2.utils.logger import get_logger
 
@@ -29,7 +29,7 @@ class KaapanaType(str, Enum):
     KAAPANA_APPLICATION = "kaapanaapplication"  # code-server-chart
 
     EXTENSION_COLLECTION = "extension-collection"
-    SERVICE = "service"
+
     OTHER = "other"
 
 
@@ -258,14 +258,14 @@ class HelmChart:
             return set()
 
         if kaapana_type == "extension-collection":
-            collection_container = ContainerService.get_container(
+            collection_container = ContainerHelper.get_container(
                 registry=build_config.default_registry, image_name=name, version=version
             )
             chart_containers.add(collection_container)
 
         if kaapana_type == "kaapanaworkflow" and values:
             image = values.get("global", {}).get("image")
-            workflow_container = ContainerService.get_container(
+            workflow_container = ContainerHelper.get_container(
                 registry=build_config.default_registry,
                 image_name=image,
                 version=version,
@@ -317,7 +317,7 @@ class HelmChart:
                     else:
                         actual_version = version  # your default
 
-                    operator_container = ContainerService.get_container(
+                    operator_container = ContainerHelper.get_container(
                         registry=default_registry,
                         image_name=image_name,
                         version=actual_version,
@@ -412,7 +412,7 @@ class HelmChart:
                     )
                     container_name = container_tag.split("/")[-1].split(":")[0]
 
-                    container = ContainerService.get_container(
+                    container = ContainerHelper.get_container(
                         registry=container_registry,
                         image_name=container_name,
                         version=version,
@@ -481,7 +481,7 @@ class HelmChart:
                 container_registry = "/".join(container_tag.split("/")[:-1])
                 container_name = container_tag.split("/")[-1].split(":")[0]
 
-                container = ContainerService.get_container(
+                container = ContainerHelper.get_container(
                     registry=container_registry,
                     image_name=container_name,
                     version=version,

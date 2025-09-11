@@ -34,7 +34,7 @@ from kaapanapy.settings import ServicesSettings
 
 import signal
 from pathlib import Path
-from task_api.processing_container import models
+from task_api.processing_container import task_models, pc_models
 from task_api.runners.KubernetesRunner import KubernetesRunner
 from kubernetes import client
 
@@ -252,8 +252,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         # self.helm_namespace = os.getenv("HELM_NAMESPACE", "")
 
         if self.pod_resources is None:
-            self.pod_resources = models.Resources(
-                limits=models.Limits(
+            self.pod_resources = pc_models.Resources(
+                limits=pc_models.Limits(
                     cpu=(
                         "{}m".format(self.cpu_millicores + 100)
                         if self.cpu_millicores != None
@@ -265,7 +265,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                         else self.ram_mem_mb + 100
                     ),
                 ),
-                requests=models.Requests(
+                requests=pc_models.Requests(
                     cpu=(
                         "{}m".format(self.cpu_millicores)
                         if self.cpu_millicores != None
@@ -361,7 +361,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         Set volumes and volume claims based on the project namespace self.namespace.
         This function should be called after self.namespace was changed according to the project in the context params.
         """
-        client.V1PersistentVolumeClaimVolumeSource
         volume_volumeMount_pairs = [
             (
                 client.V1Volume(
@@ -434,11 +433,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         for volume, volumeMount in volume_volumeMount_pairs:
             self.volumes.append(volume)
             self.volume_mounts.append(volumeMount)
-
-    def set_env_secrets(self):
-        """
-        Add env variables that are retrieved from kubernets secrets to self.secrets.
-        """
 
     def set_env_secrets(self):
         """
@@ -524,7 +518,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         for idx, secret in enumerate(self.secrets):
             env_vars_from_secret_key_refs.update(
                 {
-                    f"global.envVarsFromSecretRef[{idx}].name": secret.deploy_target,
+                    f"global.envVarsFromSecretRef[{idx}].name": secret.name,
                     f"global.envVarsFromSecretRef[{idx}].secretName": secret.secret,
                     f"global.envVarsFromSecretRef[{idx}].secretKey": secret.key,
                 }
@@ -703,23 +697,25 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             self.delete_operator_out_dir(context["run_id"], self.operator_out_dir)
 
         self.task_run = KubernetesRunner.run(
-            task=models.Task(
+            task=task_models.Task(
                 name=context["run_id"],
                 image=self.image,
                 taskTemplate="main",
                 inputs=[],
                 outputs=[],
                 resources=self.pod_resources,
-                namespace=self.namespace,
-                imagePullSecrets=self.image_pull_secrets or ["registry-secret"],
-            ),
-            extra_env_vars=self.secrets
-            + [
-                client.V1EnvVar(name=key, value=val)
-                for key, val in self.env_vars.items()
-            ],
-            extra_volume_mounts=self.volume_mounts,
-            extra_volumes=self.volumes,
+                config=task_models.K8sConfig(
+                    namespace=self.namespace,
+                    imagePullSecrets=self.image_pull_secrets or ["registry-secret"],
+                    env_vars=self.secrets
+                    + [
+                        client.V1EnvVar(name=key, value=val)
+                        for key, val in self.env_vars.items()
+                    ],
+                    volumes=self.volumes,
+                    volume_mounts=self.volume_mounts,
+                ),
+            )
         )
         signal.signal(signal.SIGTERM, self.handle_sigterm)
         self.task_run_file = Path(
@@ -786,7 +782,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 ),
                 "r",
             ) as f:
-                task_run = models.TaskRun(**json.load(f))
+                task_run = task_models.TaskRun(**json.load(f))
         except FileNotFoundError:
             logging.info("Task File not found")
             KubernetesRunner.stop(task_run=task_run)

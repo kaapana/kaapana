@@ -62,6 +62,10 @@ class BuildConfig(BaseModel):
     create_sboms: bool
     check_expired_vulnerabilities_database: bool
 
+    snap_download_timeout: int = 120
+    helm_download_timeout: int = 10
+    save_image_timeout: int = 6000
+
     @model_validator(mode="before")
     @classmethod
     def preprocess_lists(cls, data: dict[str, Any]) -> dict[str, Any]:

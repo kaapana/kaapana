@@ -264,7 +264,7 @@ class Container:
                 "-t",
                 self.tag,
                 "-f",
-                self.dockerfile,
+                str(self.dockerfile),
                 ".",
             ]
         else:
@@ -274,7 +274,7 @@ class Container:
                 "-t",
                 self.tag,
                 "-f",
-                self.dockerfile,
+                str(self.dockerfile),
                 ".",
             ]
         start_time = time.time()

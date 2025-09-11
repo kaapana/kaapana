@@ -14,6 +14,7 @@ from build_helper_v2.helper.build_helper import BuildHelper
 from build_helper_v2.helper.container_helper import ContainerHelper
 from build_helper_v2.helper.helm_chart_helper import HelmChartHelper
 from build_helper_v2.helper.issue_tracker import IssueTracker
+from build_helper_v2.helper.offline_installer_helper import OfflineInstallerHelper
 from build_helper_v2.helper.trivy_helper import TrivyHelper
 from build_helper_v2.models.build_config import BuildConfig
 from build_helper_v2.utils.logger import get_logger, init_logger, set_console_level
@@ -119,6 +120,23 @@ def main():
     logger.info("")
     BuildHelper.select_containers_to_build()
     ContainerHelper.build_and_push_containers()
+
+    if build_config.create_offline_installation:
+        OfflineInstallerHelper.init(build_config=build_config, build_state=build_state)
+        OfflineInstallerHelper.generate_microk8s_offline_version(
+            platform_chart.build_chart_dir
+        )
+
+        images_tarball_path = (
+            platform_chart.build_chart_dir.parent
+            / f"{platform_chart.name}-{platform_chart.version}-images.tar"
+        )
+        OfflineInstallerHelper.export_image_list_into_tarball(
+            image_list=[c.tag for c in build_state.selected_containers],
+            images_tarball_path=images_tarball_path,
+            container_engine=build_config.container_engine,
+        )
+        logger.info("Finished: Generating platform images tarball.")
 
     if len(IssueTracker.issues) > 0:
         logger.info("")

@@ -618,6 +618,15 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             r.raise_for_status()
         return
 
+    @staticmethod
+    def unique_task_identifer(context):
+        return f"{context["ti"].run_id}__{context["ti"].task_id}"
+
+    @staticmethod
+    def task_run_file_path(context):
+        unique_id = KaapanaBaseOperator.unique_task_identifer(context)
+        return Path(AIRFLOW_WORKFLOW_DIR, context["run_id"], unique_id)
+
     # The order of this decorators matters because of the whitelist_federated_learning variable, do not change them!
     @cache_operator_output
     @federated_sharing_decorator
@@ -704,10 +713,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             env=[],
         )
 
-        unique_id = f"{context["ti"].run_id}__{context["ti"].task_id}"
         self.task_run = KubernetesRunner.run(
             task=task_models.Task(
-                name=unique_id,
+                name=KaapanaBaseOperator.unique_task_identifer(context),
                 image=self.image,
                 taskTemplate=task_template,
                 inputs=[],
@@ -728,8 +736,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             )
         )
         signal.signal(signal.SIGTERM, self.handle_sigterm)
-        self.task_run_file = Path(AIRFLOW_WORKFLOW_DIR, context["run_id"], unique_id)
-        KubernetesRunner.dump(self.task_run, output=self.task_run_file)
+        KubernetesRunner.dump(
+            self.task_run, output=KaapanaBaseOperator.task_run_file_path(context)
+        )
         try:
             KubernetesRunner.logs(
                 self.task_run,
@@ -797,20 +806,13 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         except (KeyError, AttributeError):
             namespace = "project-admin"
 
-        unique_id = f"{context["ti"].dag_id}__{context["ti"].task_id}__{context["ti"].run_id}__{context["ti"].try_number}"
         try:
-            with open(
-                Path(
-                    AIRFLOW_WORKFLOW_DIR,
-                    context["run_id"],
-                    unique_id,
-                ),
-                "r",
-            ) as f:
+            with open(KaapanaBaseOperator.task_run_file_path(context), "r") as f:
                 task_run = task_models.TaskRun(**json.load(f))
+                KubernetesRunner.stop(task_run=task_run)
         except FileNotFoundError:
             logging.info("Task File not found")
-            KubernetesRunner.stop(task_run=task_run)
+
         release_name = get_release_name(context)
         url = f"{KaapanaBaseOperator.HELM_API}/view-chart-status"
         r = requests.get(url, params={"release_name": release_name})

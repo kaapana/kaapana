@@ -70,8 +70,7 @@ class Task(BaseModel):
     outputs: List[IOVolume] = []
     env: Optional[List[TaskEnvVar]] = []
     resources: Optional[pc_models.Resources] = None
-
-    config: Optional[Union[DockerConfig, K8sConfig]] = None
+    config: Optional[Union[K8sConfig, DockerConfig, BaseConfig]] = BaseConfig()
 
 
 class TaskInstanceEnv(pc_models.TaskTemplateEnv, TaskEnvVar):

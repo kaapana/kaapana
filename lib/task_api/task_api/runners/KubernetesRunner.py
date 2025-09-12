@@ -2,6 +2,7 @@ import json
 import base64
 import re
 import datetime
+import time
 
 from kubernetes import client, config, watch
 from task_api.processing_container import task_models, pc_models
@@ -119,7 +120,7 @@ class KubernetesRunner(BaseRunner):
 
         pod = client.V1Pod(
             metadata=client.V1ObjectMeta(
-                name=pod_name, labels={"kaapana.type": "processing-container"}
+                name=pod_name, labels=task_instance.config.labels
             ),
             spec=pod_spec,
         )
@@ -140,9 +141,23 @@ class KubernetesRunner(BaseRunner):
         )
 
     @classmethod
-    def logs(cls, task_run: task_models.TaskRun, follow: bool):
+    def logs(
+        cls,
+        task_run: task_models.TaskRun,
+        follow: bool = True,
+        start_time_out: int = 30,
+        log_timeout: int = 3600,
+    ):
         """
         Log stdout and stderr of the container corresponding to task_run.
+
+        Log stdout and stderr of the container corresponding to task_run.
+
+        Args:
+            task_run: TaskRun object containing pod metadata.
+            follow (bool): Whether to stream logs continuously.
+            startup_timeout (int): Time in seconds to wait for pod to start running.
+            log_timeout (int): Max time in seconds to stream logs before raising TimeoutError.
         """
         cls._logger.debug("Waiting for pod to start running...")
         w = watch.Watch()
@@ -151,8 +166,10 @@ class KubernetesRunner(BaseRunner):
         cls.wait_for_task_status(
             task_run=task_run,
             states=["Running", "Succeeded", "Failed"],
-            timeout=30,
+            timeout=start_time_out,
         )
+
+        start_time = time.time()
 
         cls._logger.debug("Streaming logs from the pod container...")
         try:
@@ -167,8 +184,18 @@ class KubernetesRunner(BaseRunner):
             )
 
             for line in logs:
+                if abs(time.time() - start_time) > log_timeout:
+                    cls._logger.error(
+                        f"Log streaming exceeded timeout of {log_timeout}s for pod {task_run.id}"
+                    )
+                    raise TimeoutError(
+                        f"Log streaming exceeded timeout of {log_timeout}s"
+                    )
+
                 cls._logger.info(line.decode("utf-8").rstrip())
 
+        except TimeoutError:
+            raise
         except Exception as e:
             cls._logger.error(f"Error while streaming logs: {e}")
             raise e

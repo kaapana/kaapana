@@ -54,7 +54,7 @@ class DockerRunner(BaseRunner):
         container = cls.client.containers.run(
             image=task_instance.image,
             command=task_instance.command,
-            labels={"kaapana.type": "processing-container"},
+            labels=task_instance.config.labels,
             environment={env.name: env.value for env in task_instance.env},
             detach=True,
             volumes={**input_volumes, **output_volumes},
@@ -66,16 +66,29 @@ class DockerRunner(BaseRunner):
         )
 
     @classmethod
-    def logs(cls, task_run: task_models.TaskRun, follow: bool = False):
+    def logs(
+        cls,
+        task_run: task_models.TaskRun,
+        follow: bool = False,
+        startup_timeout: int = 30,
+        log_timeout: int = 3600,
+    ):
         if follow:
             cls._logger.info("Start log streaming")
         container = cls.client.containers.get(container_id=task_run.id)
-        logs = container.logs(stream=follow)
+        start_time = time.time()
         try:
+            logs = container.logs(stream=follow)
+            if abs(time.time() - start_time) > log_timeout:
+                cls._logger.error(
+                    f"Log streaming exceeded timeout of {log_timeout}s for pod {task_run.id}"
+                )
+                raise TimeoutError(f"Log streaming exceeded timeout of {log_timeout}s")
             for line in logs:
                 cls._logger.info(line.decode().rstrip())
-            for line in logs:
-                cls._logger.error(line.decode().rstrip())
+
+        except TimeoutError:
+            raise
         except KeyboardInterrupt:
             cls._logger.error("Log streaming interrupted.")
         finally:

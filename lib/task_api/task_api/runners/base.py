@@ -58,7 +58,13 @@ class BaseRunner(ABC):
 
     @classmethod
     @abstractmethod
-    def logs(cls, task_run: task_models.TaskRun, follow: bool = True) -> None:
+    def logs(
+        cls,
+        task_run: task_models.TaskRun,
+        follow: bool,
+        startup_timeout: int,
+        log_timeout: int,
+    ) -> None:
         """
         Print logs to stdout.
         """

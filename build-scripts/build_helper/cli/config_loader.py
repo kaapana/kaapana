@@ -16,92 +16,196 @@ def parse_args() -> argparse.Namespace:
         argparse.Namespace: Parsed arguments.
     """
     parser = argparse.ArgumentParser(description="Kaapana Platform Builder")
+
     parser.add_argument(
-        "--config", help="Path to build-config.yaml", default=argparse.SUPPRESS
+        "-c",
+        "--config",
+        help="Path to build-config.yaml",
+        default=argparse.SUPPRESS,
     )
-    parser.add_argument("--log-level", help="Log verbosity", default=argparse.SUPPRESS)
     parser.add_argument(
-        "--default-registry", help="Docker registry", default=argparse.SUPPRESS
+        "-ll",
+        "--log-level",
+        help="Set logging verbosity (e.g. DEBUG, INFO, WARNING, ERROR).",
+        default=argparse.SUPPRESS,
     )
     parser.add_argument(
+        "-dr",
+        "--default-registry",
+        help="Name of the Docker registry to build and push images to.",
+        default=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "-pf",
         "--platform-filter",
-        help="Comma-separated platform filter",
+        help="Comma-separated list of platform chart names to build.",
         default=argparse.SUPPRESS,
     )
     parser.add_argument(
+        "-es",
         "--external-source-dirs",
-        help="Comma-separated external sources",
+        help="Comma-separated external directories to search for containers and charts.",
         default=argparse.SUPPRESS,
     )
     parser.add_argument(
+        "-bip",
         "--build-ignore-patterns",
-        help="Comma-separated ignore patterns",
+        help="Comma-separated list of directories or files to exclude from build.",
         default=argparse.SUPPRESS,
     )
-    parser.add_argument("--username", default=argparse.SUPPRESS)
-    parser.add_argument("--password", default=argparse.SUPPRESS)
-    parser.add_argument("--build-only", action="store_true", default=argparse.SUPPRESS)
     parser.add_argument(
-        "--enable-linting", action="store_true", default=argparse.SUPPRESS
+        "-u",
+        "--username",
+        help="Username for registry authentication.",
+        default=argparse.SUPPRESS,
     )
     parser.add_argument(
-        "--exit-on-error", action="store_true", default=argparse.SUPPRESS
-    )
-    parser.add_argument("--push-to-microk8s", default=argparse.SUPPRESS)
-    parser.add_argument(
-        "--create-offline-installation", action="store_true", default=argparse.SUPPRESS
-    )
-    parser.add_argument("--parallel-processes", type=int, default=argparse.SUPPRESS)
-    parser.add_argument(
-        "--include-credentials", action="store_true", default=argparse.SUPPRESS
+        "-p",
+        "--password",
+        help="Password for registry authentication.",
+        default=argparse.SUPPRESS,
     )
     parser.add_argument(
-        "--vulnerability-scan", action="store_true", default=argparse.SUPPRESS
-    )
-    parser.add_argument("--vulnerability-severity-level", default=argparse.SUPPRESS)
-    parser.add_argument(
-        "--configuration-check", action="store_true", default=argparse.SUPPRESS
-    )
-    parser.add_argument(
-        "--configuration-check-severity-level", default=argparse.SUPPRESS
+        "-bo",
+        "--build-only",
+        help="Only build containers and charts (do not push).",
+        action="store_true",
+        default=argparse.SUPPRESS,
     )
     parser.add_argument(
-        "--create-sboms", action="store_true", default=argparse.SUPPRESS
+        "-el",
+        "--enable-linting",
+        help="Enable Helm chart linting and kubeval validation.",
+        action="store_true",
+        default=argparse.SUPPRESS,
     )
     parser.add_argument(
-        "--enable-image-stats", action="store_true", default=argparse.SUPPRESS
+        "-ee",
+        "--exit-on-error",
+        help="Stop the build process immediately if an error occurs.",
+        action="store_true",
+        default=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "-pm",
+        "--push-to-microk8s",
+        help="Push built images into MicroK8s registry.",
+        default=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "-oi",
+        "--create-offline-installation",
+        help="Create a docker image dump for offline platform installation.",
+        action="store_true",
+        default=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "-pp",
+        "--parallel-processes",
+        help="Number of parallel processes for container build + push.",
+        type=int,
+        default=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "-ic",
+        "--include-credentials",
+        help="Include registry credentials in deploy-platform script.",
+        action="store_true",
+        default=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "-vs",
+        "--vulnerability-scan",
+        help="Scan built containers with Trivy for vulnerabilities.",
+        action="store_true",
+        default=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "-vsl",
+        "--vulnerability-severity-level",
+        help="Filter vulnerabilities by severity (CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN).",
+        default=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "-cc",
+        "--configuration-check",
+        help="Check charts, deployments, Dockerfiles, etc. for configuration errors.",
+        action="store_true",
+        default=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "-ccl",
+        "--configuration-check-severity-level",
+        help="Filter configuration check findings by severity "
+        "(CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN).",
+        default=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "-sbom",
+        "--create-sboms",
+        help="Generate SBOMs (Software Bill of Materials) for built containers.",
+        action="store_true",
+        default=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "-is",
+        "--enable-image-stats",
+        help="Enable container image size statistics (writes image_stats.json).",
+        action="store_true",
+        default=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--latest",
         dest="version_latest",
+        help="Force version tag to 'latest'.",
         action="store_true",
         default=argparse.SUPPRESS,
     )
     parser.add_argument(
+        "-cevd",
         "--check-expired-vulnerabilities-database",
+        help="Check if vulnerability database is expired and rescan if necessary.",
         action="store_true",
         default=argparse.SUPPRESS,
     )
-    parser.add_argument("--kaapana-dir", default=argparse.SUPPRESS)
-    parser.add_argument("--build-dir", default=argparse.SUPPRESS)
-    parser.add_argument("--no-login", action="store_true", default=argparse.SUPPRESS)
-
     parser.add_argument(
+        "-kd",
+        "--kaapana-dir",
+        help="Path to the Kaapana repository directory.",
+        default=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "-bd",
+        "--build-dir",
+        help="Path to the main Kaapana repo-dir to build from.",
+        default=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "-nl",
+        "--no-login",
+        help="Skip login to registry (expects to already be logged in).",
+        action="store_true",
+        default=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "-i",
         "--interactive",
+        help="Launch interactive selector to choose charts or containers to build.",
         action="store_true",
-        help="Launch interactive selector to choose charts or containers to build",
         default=argparse.SUPPRESS,
     )
     parser.add_argument(
+        "-cbc",
         "--containers-to-build-by-charts",
-        help="Comma-separated list of specific Helm charts to build their containers"
-        "(default: ALL containers used by platform chart will be built)",
+        help="Comma-separated list of Helm charts whose containers should be built "
+        "(default: all containers used by platform charts).",
         default=argparse.SUPPRESS,
     )
     parser.add_argument(
+        "-cb",
         "--containers-to-build",
         help="Comma-separated list of specific container images to build "
-        "(default: ALL containers used by platform chart will be built)",
+        "(default: all containers used by platform charts).",
         default=argparse.SUPPRESS,
     )
 

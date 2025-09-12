@@ -704,9 +704,10 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             env=[],
         )
 
+        unique_id = f"{context["ti"].run_id}__{context["ti"].task_id}"
         self.task_run = KubernetesRunner.run(
             task=task_models.Task(
-                name=context["run_id"],
+                name=unique_id,
                 image=self.image,
                 taskTemplate=task_template,
                 inputs=[],
@@ -722,21 +723,30 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     ],
                     volumes=self.volumes,
                     volume_mounts=self.volume_mounts,
+                    labels={**self.labels, **{"kaapana.type": "processing-container"}},
                 ),
             )
         )
         signal.signal(signal.SIGTERM, self.handle_sigterm)
-        self.task_run_file = Path(
-            AIRFLOW_WORKFLOW_DIR, context["run_id"], f"task_run-{context["run_id"]}"
-        )
+        self.task_run_file = Path(AIRFLOW_WORKFLOW_DIR, context["run_id"], unique_id)
         KubernetesRunner.dump(self.task_run, output=self.task_run_file)
-        KubernetesRunner.logs(self.task_run, follow=True)
+        try:
+            KubernetesRunner.logs(
+                self.task_run,
+                follow=True,
+                startup_timeout=self.startup_timeout_seconds,
+                log_timeout=self.execution_timeout.seconds,
+            )
+        except TimeoutError:
+            raise AirflowException(
+                f"Processing container reached timeout after {self.execution_timeout} seconds."
+            )
 
         final_status = KubernetesRunner.wait_for_task_status(
             self.task_run, states=["Succeeded", "Failed", "Skipped"], timeout=30
         )
         if final_status == "Failed":
-            raise AirflowException("Processing Container failed!")
+            raise AirflowException("Processing container failed!")
 
     def handle_sigterm(self, signum, frame):
         self.on_kill()
@@ -787,12 +797,13 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         except (KeyError, AttributeError):
             namespace = "project-admin"
 
+        unique_id = f"{context["ti"].dag_id}__{context["ti"].task_id}__{context["ti"].run_id}__{context["ti"].try_number}"
         try:
             with open(
                 Path(
                     AIRFLOW_WORKFLOW_DIR,
                     context["run_id"],
-                    f"task_run-{context["run_id"]}",
+                    unique_id,
                 ),
                 "r",
             ) as f:

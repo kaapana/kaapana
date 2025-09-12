@@ -108,6 +108,9 @@ unit_tests:
   script:
   - source /home/$USER/venv/bin/activate
   - pip install -r $KAAPANA_DIR/tests/requirements.txt
+  - pip install build datamodel-code-generator==0.32.0
+  - python3 -m build $KAAPANA_DIR/lib/task_api
+  - python3 -m pip install $KAAPANA_DIR/lib/task_api/dist/task_api-0.1.0.tar.gz
   - pytest $KAAPANA_DIR/tests/ --junitxml=unittest_report.xml
   artifacts:
     when: always

@@ -145,7 +145,7 @@ class KubernetesRunner(BaseRunner):
         cls,
         task_run: task_models.TaskRun,
         follow: bool = True,
-        start_time_out: int = 30,
+        startup_timeout: int = 30,
         log_timeout: int = 3600,
     ):
         """
@@ -166,7 +166,7 @@ class KubernetesRunner(BaseRunner):
         cls.wait_for_task_status(
             task_run=task_run,
             states=["Running", "Succeeded", "Failed"],
-            timeout=start_time_out,
+            timeout=startup_timeout,
         )
 
         start_time = time.time()

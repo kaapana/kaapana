@@ -6,6 +6,7 @@ security-reports/*.json
 security-reports/*/
 tmpcharts
 migrations
+.trivy_cache/*
 .ipynb_checkpoints
 __pycache__
 .vscode

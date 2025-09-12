@@ -696,11 +696,19 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         if self.delete_output_on_start is True:
             self.delete_operator_out_dir(context["run_id"], self.operator_out_dir)
 
+        task_template = pc_models.TaskTemplate(
+            identifier="main",
+            description=f"This template is used for images that do not contain a processing-container.json file.",
+            inputs=[],
+            outputs=[],
+            env=[],
+        )
+
         self.task_run = KubernetesRunner.run(
             task=task_models.Task(
                 name=context["run_id"],
                 image=self.image,
-                taskTemplate="main",
+                taskTemplate=task_template,
                 inputs=[],
                 outputs=[],
                 resources=self.pod_resources,
@@ -723,6 +731,12 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         )
         KubernetesRunner.dump(self.task_run, output=self.task_run_file)
         KubernetesRunner.logs(self.task_run, follow=True)
+
+        final_status = KubernetesRunner.wait_for_task_status(
+            self.task_run, states=["Succeeded", "Failed", "Skipped"], timeout=30
+        )
+        if final_status == "Failed":
+            raise AirflowException("Processing Container failed!")
 
     def handle_sigterm(self, signum, frame):
         self.on_kill()

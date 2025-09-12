@@ -1,12 +1,6 @@
 from task_api.runners.KubernetesRunner import KubernetesRunner
 from task_api.processing_container.common import get_task_template, merge_env
-from task_api.processing_container.models import (
-    Task,
-    TaskRun,
-    IOVolume,
-    Resources,
-    ContainerEnvVar,
-)
+from task_api.processing_container import task_models, pc_models
 from airflow.models import BaseOperator
 from airflow.exceptions import AirflowException
 from typing import List, Dict, Any, Optional
@@ -41,7 +35,7 @@ class KaapanaTaskOperator(BaseOperator):
         taskTemplate: str,
         env: list = [],
         command: Optional[List] = None,
-        resources: Optional[Resources] = None,
+        resources: Optional[pc_models.Resources] = None,
         registryUrl: Optional[str] = None,
         registryUsername: Optional[str] = None,
         registryPassword: Optional[str] = None,
@@ -67,7 +61,7 @@ class KaapanaTaskOperator(BaseOperator):
         dag_run_id = context["dag_run"].run_id
         self.host_workflow_dir = HOST_WORKFLOW_DIR / dag_run_id
         self.airflow_workflow_dir = AIRFLOW_WORKFLOW_DIR / dag_run_id
-        self.set_namespace_from_context(context)
+        self.set_namespace(context)
         os.makedirs(self.airflow_workflow_dir, exist_ok=True)
 
         # Step 3: Create task.json
@@ -93,7 +87,7 @@ class KaapanaTaskOperator(BaseOperator):
         output = self.airflow_workflow_dir / f"task_run-{self.task_id}.json"
         KubernetesRunner.dump(self.task_run, output)
 
-    def _create_task(self, context: Context) -> Task:
+    def _create_task(self, context: Context) -> task_models.Task:
         # Set outputs based on task_template
         # Remove existing output directories on the host
         task_template = get_task_template(
@@ -112,13 +106,13 @@ class KaapanaTaskOperator(BaseOperator):
                 shutil.rmtree(scheduler_path)
 
             outputs.append(
-                IOVolume(
+                task_models.IOVolume(
                     name=channel.name,
-                    input={
-                        "local_path": str(
+                    input=task_models.HostPathVolume(
+                        host_path=str(
                             Path(self.host_workflow_dir / self.task_id / channel.name)
                         ),
-                    },
+                    ),
                 )
             )
         inputs = []
@@ -127,19 +121,21 @@ class KaapanaTaskOperator(BaseOperator):
             with open(
                 self.airflow_workflow_dir / Path(f"task_run-{task_id}.json"), "r"
             ) as f:
-                task_run = TaskRun(**json.load(f))
+                task_run = task_models.TaskRun(**json.load(f))
 
             for channel in task_run.outputs:
                 if channel.name != io_map.upstream_channel:
                     continue
                 inputs.append(
-                    IOVolume(
+                    task_models.IOVolume(
                         name=io_map.downstream_channel,
-                        input={"local_path": channel.input.local_path},
+                        input=task_models.HostPathVolume(
+                            host_path=channel.input.host_path
+                        ),
                     )
                 )
 
-        task = Task(
+        task = task_models.Task(
             name=self.task_id,
             image=self.image,
             taskTemplate=self.taskTemplate,
@@ -147,27 +143,32 @@ class KaapanaTaskOperator(BaseOperator):
             command=self.command,
             outputs=outputs,
             inputs=inputs,
-            namespace=self.namespace,
             resources=self.resources,
-            registryUrl=self.registryUrl,
-            registryUsername=self.registryUsername,
-            registryPassword=self.registryPassword,
-            imagePullSecrets=["registry-secret"],
+            config=task_models.K8sConfig(
+                namespace=self.namespace,
+                registryUrl=self.registryUrl,
+                registryUsername=self.registryUsername,
+                registryPassword=self.registryPassword,
+                imagePullSecrets=["registry-secret"],
+            ),
         )
 
         return self._merge_user_input(context, task)
 
-    def _merge_user_input(self, context: Context, task: Task) -> Task:
+    def _merge_user_input(
+        self, context: Context, task: task_models.Task
+    ) -> task_models.Task:
         conf = context["dag_run"].conf
         user_input = conf.get(USER_INPUT_KEY, {}).get(self.task_id, {})
         env = merge_env(
-            task.env, [ContainerEnvVar(**env) for env in user_input.pop("env", [])]
+            task.env,
+            [task_models.TaskInstanceEnv(**env) for env in user_input.pop("env", [])],
         )
-        return Task(
+        return task_models.Task(
             **{**task.model_dump(mode="python", exclude=["env"]), **user_input}, env=env
         )
 
-    def _submit_task(self, task: Task) -> TaskRun:
+    def _submit_task(self, task: task_models.Task) -> task_models.TaskRun:
         return KubernetesRunner.run(task)
 
     def _monitor_task(self, task_run):
@@ -180,7 +181,9 @@ class KaapanaTaskOperator(BaseOperator):
         KubernetesRunner.stop(self.task_run)
         self.log.info("Pod deleted successfully!")
 
-    def set_namespace_from_context(self, context):
+    def set_namespace(self, context):
         conf = context["dag_run"].conf
+        print(f"{conf=}")
         project_form = conf.get("project_form", {})
         self.namespace = project_form.get("kubernetes_namespace", DEFAULT_NAMESPACE)
+        print(f"{self.namespace=}")

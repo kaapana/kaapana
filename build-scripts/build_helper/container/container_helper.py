@@ -8,13 +8,11 @@ from threading import Lock, Thread
 from typing import Any, Dict, Optional, Set, TypeVar
 
 from alive_progress import alive_bar
-from build_helper_v2.cli.progress import ProgressBar
-from build_helper_v2.core.build_state import BuildState
-from build_helper_v2.core.container import Container, Status
-from build_helper_v2.helper.issue_tracker import IssueTracker
-from build_helper_v2.models.build_config import BuildConfig
-from build_helper_v2.utils.command_helper import CommandHelper
-from build_helper_v2.utils.logger import get_logger
+
+from build_helper.build import BuildConfig, BuildState, IssueTracker
+from build_helper.cli.progress import ProgressBar
+from build_helper.container import Container, Status
+from build_helper.utils import CommandUtils, get_logger
 
 logger = get_logger()
 T = TypeVar("T")  # HelmChart or Container
@@ -84,7 +82,7 @@ class ContainerHelper:
 
         logout_cmd = [cls._build_config.container_engine, "logout", registry]
 
-        CommandHelper.run(
+        CommandUtils.run(
             logout_cmd,
             logger=logger,
             timeout=10,
@@ -103,7 +101,7 @@ class ContainerHelper:
             "--password",
             password,
         ]
-        CommandHelper.run(
+        CommandUtils.run(
             login_cmd,
             logger=logger,
             timeout=10,
@@ -219,7 +217,7 @@ class ContainerHelper:
         command = [cls._build_config.container_engine, "pull", image_tag]
         logger.info(f"{image_tag}: Start pulling container image")
 
-        CommandHelper.run(
+        CommandUtils.run(
             command,
             logger=logger,
             timeout=6000,
@@ -296,7 +294,19 @@ class ContainerHelper:
     @classmethod
     def build_and_push_containers(cls) -> None:
         """
-        Build and push a set of containers with dependency handling and parallel processing.
+        Build and push all selected containers in parallel while respecting dependencies.
+
+        Containers are processed in multiple threads. Containers with no pending dependencies
+        are added to a ready queue. Each worker thread picks a container from the queue, builds it,
+        pushes it (if applicable), updates dependent containers, and tracks build status.
+
+        Side Effects:
+            Updates container statuses in `cls._build_state.selected_containers`.
+            Appends build or push issues to `IssueTracker.issues`.
+            Logs progress to the console via `ProgressBar`.
+
+        Raises:
+            Logs fatal error if any containers remain unbuilt due to missing or cyclic dependencies.
         """
         ready_queue: PriorityQueue = PriorityQueue()
         waiting_set = set(cls._build_state.selected_containers)
@@ -357,7 +367,16 @@ class ContainerHelper:
     def _initialize_ready_queue(
         cls, waiting_set: set, ready_queue: PriorityQueue
     ) -> None:
-        """Add dependency-free containers to the ready queue."""
+        """
+        Populate the ready queue with containers that have all dependencies satisfied.
+
+        Args:
+            waiting_set (set): Set of containers pending build.
+            ready_queue (PriorityQueue): Queue to store containers ready for processing.
+
+        Side Effects:
+            Removes ready containers from `waiting_set` and adds them to `ready_queue`.
+        """
         for c in list(waiting_set):
             if cls.all_dependencies_ready(c):
                 priority = 0 if c.local_image else 1
@@ -366,7 +385,20 @@ class ContainerHelper:
 
     @classmethod
     def _update_dependents(cls, waiting_set: set, ready_queue: PriorityQueue) -> None:
-        """After a container is built or pushed, update dependents to ready queue or fail set."""
+        """
+        Move dependent containers to the ready queue or mark them as failed.
+
+        A dependent container is added to the ready queue if all its base images are ready.
+        If any base image has failed, the container is marked as failed and removed from waiting.
+
+        Args:
+            waiting_set (set): Set of containers still waiting to be processed.
+            ready_queue (PriorityQueue): Queue for ready-to-build containers.
+
+        Side Effects:
+            Updates statuses of dependent containers.
+            Modifies `waiting_set` by removing processed containers.
+        """
         newly_ready = set()
         to_fail = set()
         for c in list(waiting_set):
@@ -391,7 +423,30 @@ class ContainerHelper:
         containers_lock: Lock,
         pb: "ProgressBar",
     ) -> None:
-        """Build and push a single container, updating status and dependents."""
+        """
+        Build and push a single container, updating progress and dependents.
+
+        Steps:
+            1. Build the container.
+            2. Handle build issues or skipped status.
+            3. Push the container if applicable.
+            4. Update dependents based on build outcome.
+            5. Update the progress bar.
+
+        Args:
+            container (Container): Container to build and push.
+            waiting_set (set): Containers still waiting to be built.
+            ready_queue (PriorityQueue): Queue of containers ready for processing.
+            containers_lock (Lock): Thread lock to synchronize shared data.
+            pb (ProgressBar): Progress bar to track container build progress.
+
+        Side Effects:
+            Updates container status.
+            Logs build and push progress.
+            Updates dependent containers in `waiting_set` and `ready_queue`.
+            Appends issues to `IssueTracker.issues` if build or push fails.
+        """
+
         build_issue = container.build(config=cls._build_config)
 
         with containers_lock:
@@ -426,14 +481,16 @@ class ContainerHelper:
     @classmethod
     def get_built_images_stats(cls, version: str) -> Dict[str, Dict[str, Any]]:
         """
-        Collect detailed stats for all images matching the specified version.
-        Uses `docker image ls` and `docker system df -v` once to gather info.
+        Collect statistics of container images matching a specified version.
+
+        Combines data from `docker image ls` and `docker system df -v` to compute
+        image size, unique/shared storage, build time, and number of containers using the image.
 
         Args:
-            version (str): Version string to filter relevant images.
+            version (str): Version string to filter images.
 
         Returns:
-            Dict[str, Dict[str, Any]]: Mapping of image_tag -> stats dict
+            Dict[str, Dict[str, Any]]: Mapping from image tag to statistics dictionary.
         """
         images_stats: Dict[str, Dict[str, Any]] = {}
         command = [f"{cls._build_config.container_engine} image ls | grep {version}"]
@@ -506,6 +563,15 @@ class ContainerHelper:
 
     @staticmethod
     def convert_size(size_string: str) -> Optional[float]:
+        """
+        Convert a human-readable size string (e.g., '2.5GB', '500MB') to float GB.
+
+        Args:
+            size_string (str): Size string to convert.
+
+        Returns:
+            float | None: Converted size in GB, or None if unknown format.
+        """
         if "GB" in size_string:
             return float(size_string.replace("GB", ""))
         elif "MB" in size_string:
@@ -521,6 +587,8 @@ class ContainerHelper:
     def collect_all_local_base_containers(containers: set[Container]) -> set[Container]:
         """
         Recursively collect all local base images that are also containers.
+        That means they are part of our codebase - local containers that need to be built,
+        like: base-python-cpu, and not docker.io containers ubuntu:24.04
 
         Args:
             containers (set[Container]): Initial set of containers.

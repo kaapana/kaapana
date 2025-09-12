@@ -7,12 +7,10 @@ from subprocess import PIPE, run
 from typing import Any, Dict, Optional, Set
 
 import yaml
-from build_helper_v2.core.container import Container
-from build_helper_v2.helper.container_helper import ContainerHelper
-from build_helper_v2.helper.issue_tracker import IssueTracker
-from build_helper_v2.models.build_config import BuildConfig
-from build_helper_v2.utils.git_utils import GitUtils
-from build_helper_v2.utils.logger import get_logger
+
+from build_helper.build import BuildConfig, IssueTracker
+from build_helper.container import Container, ContainerHelper
+from build_helper.utils import GitUtils, get_logger
 
 logger = get_logger()
 

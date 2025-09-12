@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 import argparse
 import logging
-from build_helper.security_utils import TrivyUtils
-from subprocess import PIPE, run, DEVNULL
-from build_helper.build_utils import BuildUtils
-from os.path import join, dirname, exists
 import os
-import yaml
 import signal
+from os.path import dirname, exists, join
+from subprocess import DEVNULL, PIPE, run
+
+import yaml
+from build_helper.build_utils import BuildUtils
+from build_helper.security_utils import TrivyUtils
 
 logging.getLogger().setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
@@ -103,9 +104,9 @@ if __name__ == "__main__":
                 trivy_utils.threadpool = None
         trivy_utils.error_clean_up()
 
-        #if BuildUtils.create_sboms:
+        # if BuildUtils.create_sboms:
         #    trivy_utils.safe_sboms()
-        #if BuildUtils.vulnerability_scan:
+        # if BuildUtils.vulnerability_scan:
         #    trivy_utils.safe_vulnerability_reports()
 
         exit()

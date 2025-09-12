@@ -1,11 +1,30 @@
 import json
+import logging
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
-from build_helper_v2.models.issue import Issue
-from build_helper_v2.utils.logger import get_logger
+from build_helper.utils import get_logger
+from pydantic import BaseModel
 
 logger = get_logger()
+
+
+class Issue(BaseModel):
+    component: str
+    name: str
+    msg: str
+    level: str
+    output: List[str]
+    path: Optional[str] = None
+
+    def log_self(self, logger: logging.Logger):
+        """Logs this issue using the provided logger."""
+        logger.warning("")
+        logger.warning(f"{self.level} -> {self.component}:{self.name}")
+        logger.warning(f"msg={self.msg}")
+        logger.warning("\n".join(self.output))
+        logger.warning("")
+        logger.warning("-----------------------------------------------------------")
 
 
 class IssueTracker:
@@ -14,6 +33,7 @@ class IssueTracker:
 
     @classmethod
     def configure(cls, *, exit_on_error: bool = False):
+        """Set whether the tracker should exit immediately on errors or fatal issues."""
         cls.exit_on_error = exit_on_error
 
     @classmethod
@@ -66,7 +86,7 @@ class IssueTracker:
         return issue
 
     @staticmethod
-    def _make_log(output) -> List[str]:
+    def _make_log(output) -> list[str]:
         """
         Extracts and formats the last 100 lines of stdout and all stderr lines from a process output.
 
@@ -76,8 +96,7 @@ class IssueTracker:
             output (Any): An object expected to have `stdout` and `stderr` string attributes.
 
         Returns:
-            Dict[int, str]: A dictionary mapping line indices to output lines,
-                            with stderr lines labeled as errors.
+            list[str]: List of first 100 stdout lines and all stderr lines.
         """
         # Extract last 100 lines of stdout
         stdout_lines = output.stdout.splitlines()[-100:]

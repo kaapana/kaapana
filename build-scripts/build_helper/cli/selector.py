@@ -1,9 +1,10 @@
 from typing import Any, List
 
-from build_helper_v2.utils.logger import get_logger
 from InquirerPy import inquirer
 from InquirerPy.base.list import BaseListPrompt
 from InquirerPy.prompts import fuzzy
+
+from build_helper.utils import get_logger
 
 
 def patch_inquirerpy_safely():

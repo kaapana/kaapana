@@ -13,11 +13,12 @@ from subprocess import PIPE, run
 import networkx as nx
 import yaml
 from alive_progress import alive_bar
-from build_helper.build_utils import BuildUtils
-from build_helper.container_helper import get_image_stats
-from build_helper.offline_installer_helper import OfflineInstallerHelper
 from jinja2 import Environment, FileSystemLoader
 from treelib import Tree
+
+from build_helper_legacy.build_utils import BuildUtils
+from build_helper_legacy.container_helper import get_image_stats
+from build_helper_legacy.offline_installer_helper import OfflineInstallerHelper
 
 suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
@@ -456,12 +457,16 @@ class HelmChart:
             )
             if len(deployment_config) == 1:
                 deployment_config = deployment_config[0]
-                platform_params = yaml.load(open(deployment_config), Loader=yaml.FullLoader)
+                platform_params = yaml.load(
+                    open(deployment_config), Loader=yaml.FullLoader
+                )
                 if "kaapana_collections" in platform_params:
                     self.kaapana_collections = platform_params["kaapana_collections"]
 
                 if "preinstall_extensions" in platform_params:
-                    self.preinstall_extensions = platform_params["preinstall_extensions"]
+                    self.preinstall_extensions = platform_params[
+                        "preinstall_extensions"
+                    ]
 
         self.check_container_use()
 

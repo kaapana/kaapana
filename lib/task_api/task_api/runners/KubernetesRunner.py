@@ -4,7 +4,7 @@ import re
 import datetime
 
 from kubernetes import client, config, watch
-from task_api.processing_container import task_models
+from task_api.processing_container import task_models, pc_models
 from task_api.processing_container.resources import compute_memory_resources
 from task_api.processing_container.common import (
     create_task_instance,
@@ -88,15 +88,18 @@ class KubernetesRunner(BaseRunner):
         image_pull_secrets = cls.get_image_pull_secrets(task)
         imagePullSecrets = [secret.name for secret in image_pull_secrets]
 
-        task_template = get_task_template(
-            image=task.image,
-            task_identifier=task.taskTemplate,
-            namespace=task.config.namespace,
-            registry_secret=imagePullSecrets[0],
-            mode="k8s",
-        )
-        task_instance = create_task_instance(task_template=task_template, task=task)
+        if isinstance(task.taskTemplate, pc_models.TaskTemplate):
+            task_template = task.taskTemplate
+        else:
+            task_template = get_task_template(
+                image=task.image,
+                task_identifier=task.taskTemplate,
+                namespace=task.config.namespace,
+                registry_secret=imagePullSecrets[0],
+                mode="k8s",
+            )
 
+        task_instance = create_task_instance(task_template=task_template, task=task)
         pod_name = generate_pod_name(task_instance.name)
         volumes, volume_mounts = get_volume_and_mounts(task_instance)
         volumes.extend(task.config.volumes)
@@ -183,7 +186,7 @@ class KubernetesRunner(BaseRunner):
         task_run: task_models.TaskRun,
         states: list = ["Running", "Succeeded", "Failed"],
         timeout: int = 5,
-    ):
+    ) -> str:
         """ """
         w = watch.Watch()
 
@@ -197,7 +200,7 @@ class KubernetesRunner(BaseRunner):
             if pod_obj.status.phase in states:
                 cls._logger.debug(f"Pod entered phase: {pod_obj.status.phase}")
                 w.stop()
-                return
+                return pod_obj.status.phase
             else:
                 cls._logger.warning(f"Pod in phase: {pod_obj.status.phase}")
         raise TimeoutError(

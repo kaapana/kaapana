@@ -78,7 +78,7 @@ class TaskTemplate(BaseModel):
 
     identifier: str
     description: str
-    command: List[str]
+    command: Optional[List[str]] = None
     inputs: List[IOMount]
     outputs: List[IOMount]
     env: List[TaskTemplateEnv]

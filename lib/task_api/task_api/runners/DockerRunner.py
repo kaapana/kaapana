@@ -4,7 +4,7 @@ import docker
 import sys, os
 import time
 
-from task_api.processing_container import task_models
+from task_api.processing_container import task_models, pc_models
 from task_api.processing_container.resources import (
     calculate_bytes,
     compute_memory_requirement,
@@ -25,7 +25,13 @@ class DockerRunner(BaseRunner):
     def run(cls, task: task_models.Task):
         cls._logger.info("Running task in Docker...")
 
-        task_template = get_task_template(task.image, task.taskTemplate, mode="docker")
+        if isinstance(task.taskTemplate, pc_models.TaskTemplate):
+            task_template = task.taskTemplate
+        else:
+            task_template = get_task_template(
+                task.image, task.taskTemplate, mode="docker"
+            )
+
         task_instance = create_task_instance(task_template=task_template, task=task)
 
         cls._logger.info(f"TaskInstance: {task_instance.model_dump()}")

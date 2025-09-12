@@ -8,9 +8,11 @@ from shutil import which
 from subprocess import DEVNULL, PIPE, run
 
 from alive_progress import alive_bar
-from build_helper.build_utils import BuildUtils
+
+from build_helper_legacy.build_utils import BuildUtils
 
 suite_tag = "security"
+
 
 # Class containing security related helper functions
 # Using Trivy to create SBOMS and check for vulnerabilities
@@ -476,7 +478,8 @@ class TrivyUtils:
             "json",
             "-o",
             os.path.join(
-                self.reports_path, self.tag,
+                self.reports_path,
+                self.tag,
                 "chart_report.json",
             ),
             "--severity",
@@ -504,7 +507,8 @@ class TrivyUtils:
         # read the chart report file
         with open(
             os.path.join(
-                self.reports_path, self.tag,
+                self.reports_path,
+                self.tag,
                 "chart_report.json",
             ),
             "r",
@@ -524,21 +528,21 @@ class TrivyUtils:
                             + "-"
                             + str(misconfiguration["CauseMetadata"]["EndLine"])
                         )
-                    compressed_chart_report[report["Target"]][
-                        "Type"
-                    ] = misconfiguration["Type"]
-                    compressed_chart_report[report["Target"]][
-                        "Title"
-                    ] = misconfiguration["Title"]
-                    compressed_chart_report[report["Target"]][
-                        "Description"
-                    ] = misconfiguration["Description"]
-                    compressed_chart_report[report["Target"]][
-                        "Message"
-                    ] = misconfiguration["Message"]
-                    compressed_chart_report[report["Target"]][
-                        "Severity"
-                    ] = misconfiguration["Severity"]
+                    compressed_chart_report[report["Target"]]["Type"] = (
+                        misconfiguration["Type"]
+                    )
+                    compressed_chart_report[report["Target"]]["Title"] = (
+                        misconfiguration["Title"]
+                    )
+                    compressed_chart_report[report["Target"]]["Description"] = (
+                        misconfiguration["Description"]
+                    )
+                    compressed_chart_report[report["Target"]]["Message"] = (
+                        misconfiguration["Message"]
+                    )
+                    compressed_chart_report[report["Target"]]["Severity"] = (
+                        misconfiguration["Severity"]
+                    )
 
         # Safe the chart report to the security-reports directory if there are any errors
         if not compressed_chart_report == {}:
@@ -547,7 +551,8 @@ class TrivyUtils:
             )
             with open(
                 os.path.join(
-                    self.reports_path, self.tag,
+                    self.reports_path,
+                    self.tag,
                     "compressed_chart_report.json",
                 ),
                 "w",
@@ -559,18 +564,18 @@ class TrivyUtils:
             os.path.join(
                 self.reports_path,
                 "dockerfile_reports",
-                )
-            ):
+            )
+        ):
             os.rename(
                 os.path.join(
                     self.reports_path,
                     "dockerfile_reports",
-                    ),
+                ),
                 os.path.join(
                     self.reports_path,
                     self.tag,
                     "dockerfile_reports",
-                    ),
+                ),
             )
 
     # Function to check Dockerfile for configuration errors
@@ -693,7 +698,9 @@ class TrivyUtils:
                 ) as f:
                     json.dump(compressed_vulnerability_report, f)
 
-            module_vulnerability_count[vulnerability_report["ArtifactName"]] = len(compressed_vulnerability_report)
+            module_vulnerability_count[vulnerability_report["ArtifactName"]] = len(
+                compressed_vulnerability_report
+            )
 
         with open(
             os.path.join(
@@ -823,39 +830,47 @@ class TrivyUtils:
                             ):
                                 if not vulnerability["VulnerabilityID"] in cves:
                                     cves[vulnerability["VulnerabilityID"]] = {
-                                        "Class": issue["Class"]
-                                        if "Class" in issue
-                                        else None,
-                                        "Type": issue["Type"]
-                                        if "Type" in issue
-                                        else None,
-                                        "Title": vulnerability["Title"]
-                                        if "Title" in vulnerability
-                                        else None,
+                                        "Class": (
+                                            issue["Class"] if "Class" in issue else None
+                                        ),
+                                        "Type": (
+                                            issue["Type"] if "Type" in issue else None
+                                        ),
+                                        "Title": (
+                                            vulnerability["Title"]
+                                            if "Title" in vulnerability
+                                            else None
+                                        ),
                                         "PkgName": vulnerability["PkgName"],
-                                        "PublishedDate": vulnerability["PublishedDate"]
-                                        if "PublishedDate" in vulnerability
-                                        else None,
-                                        "LastModifiedDate": vulnerability[
-                                            "LastModifiedDate"
-                                        ]
-                                        if "LastModifiedDate" in vulnerability
-                                        else None,
+                                        "PublishedDate": (
+                                            vulnerability["PublishedDate"]
+                                            if "PublishedDate" in vulnerability
+                                            else None
+                                        ),
+                                        "LastModifiedDate": (
+                                            vulnerability["LastModifiedDate"]
+                                            if "LastModifiedDate" in vulnerability
+                                            else None
+                                        ),
                                         "InstalledVersion": vulnerability[
                                             "InstalledVersion"
                                         ],
-                                        "FixedVersion": vulnerability["FixedVersion"]
-                                        if "FixedVersion" in vulnerability
-                                        else None,
+                                        "FixedVersion": (
+                                            vulnerability["FixedVersion"]
+                                            if "FixedVersion" in vulnerability
+                                            else None
+                                        ),
                                         "Severity": vulnerability["Severity"],
-                                        "SeveritySource": vulnerability[
-                                            "SeveritySource"
-                                        ]
-                                        if "SeveritySource" in vulnerability
-                                        else None,
-                                        "Target": issue["Type"]
-                                        if issue["Type"] in issue["Target"]
-                                        else issue["Target"],
+                                        "SeveritySource": (
+                                            vulnerability["SeveritySource"]
+                                            if "SeveritySource" in vulnerability
+                                            else None
+                                        ),
+                                        "Target": (
+                                            issue["Type"]
+                                            if issue["Type"] in issue["Target"]
+                                            else issue["Target"]
+                                        ),
                                         "Modules": [report["ArtifactName"]],
                                     }
                                 else:

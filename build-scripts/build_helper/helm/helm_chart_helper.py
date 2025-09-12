@@ -1,14 +1,12 @@
 import shutil
 from collections import Counter
-from typing import Optional, Set
+from typing import Optional
 
 from alive_progress import alive_bar
-from build_helper_v2.core.build_state import BuildState
-from build_helper_v2.core.helm_chart import HelmChart
-from build_helper_v2.helper.issue_tracker import IssueTracker
-from build_helper_v2.models.build_config import BuildConfig
-from build_helper_v2.utils.command_helper import CommandHelper
-from build_helper_v2.utils.logger import get_logger
+
+from build_helper.build import BuildConfig, BuildState, IssueTracker
+from build_helper.helm import HelmChart
+from build_helper.utils import CommandUtils, get_logger
 
 logger = get_logger()
 
@@ -19,7 +17,7 @@ class HelmChartHelper:
     _build_state: BuildState = None  # type: ignore
 
     @classmethod
-    def init(cls, build_config: BuildConfig, build_state: BuildState):
+    def init(cls, build_config: BuildConfig, build_state: BuildState) -> None:
         """Initialize the singleton with context."""
         if cls._build_config is None:
             cls._build_config = build_config
@@ -27,11 +25,12 @@ class HelmChartHelper:
             cls._build_state = build_state
 
     @classmethod
-    def helm_registry_login(cls, username, password):
+    def helm_registry_login(cls, username: str, password: str) -> None:
+        """Log out and log in to the Helm registry, reporting any failures as issues."""
         logger.info(f"-> Helm registry-logout: {cls._build_config.default_registry}")
         logout_cmd = ["helm", "registry", "logout", cls._build_config.default_registry]
 
-        logout_result = CommandHelper.run(
+        logout_result = CommandUtils.run(
             logout_cmd, logger=logger, timeout=10, context="helm-logout", quiet=True
         )
 
@@ -55,7 +54,7 @@ class HelmChartHelper:
             password,
         ]
 
-        login_result = CommandHelper.run(
+        login_result = CommandUtils.run(
             login_cmd,
             logger=logger,
             timeout=10,
@@ -79,7 +78,8 @@ class HelmChartHelper:
             )
 
     @classmethod
-    def verify_helm_installed(cls):
+    def verify_helm_installed(cls) -> None:
+        """Ensure Helm and Helm kubeval plugin are installed and functional."""
         if shutil.which("helm") is None:
             logger.error("Helm is not installed!")
             logger.error("-> install curl 'sudo apt install curl'")
@@ -90,7 +90,7 @@ class HelmChartHelper:
             exit(1)
 
         helm_kubeval_cmd = ["helm", "kubeval", "--help"]
-        CommandHelper.run(
+        CommandUtils.run(
             helm_kubeval_cmd,
             logger=logger,
             exit_on_error=cls._build_config.exit_on_error,
@@ -104,10 +104,17 @@ class HelmChartHelper:
         )
 
     @classmethod
-    def collect_charts(cls) -> Set[HelmChart]:
+    def collect_charts(cls) -> None:
         """
-        Collects all Helm charts found in the main kaapana directory and any external source directories.
-        Filters duplicates and applies ignore patterns, returning a list of HelmChart objects.
+        Discover and collect all Helm charts from the main kaapana directory and external sources.
+
+        Charts inside the build directory are ignored. Duplicate charts are detected and logged.
+        Ignore patterns specified in the build configuration are applied. Each valid Chart.yaml
+        file is converted into a HelmChart object and added to the build state.
+
+        Side Effects:
+            Updates cls._build_state by adding collected HelmChart objects.
+            Logs progress and duplicate chart warnings.
         """
         chart_files = set(
             f
@@ -150,7 +157,6 @@ class HelmChartHelper:
         logger.info("Generating Chart objects ...")
         logger.info("")
 
-        charts_objects = set()
         with alive_bar(len(chart_files), dual_line=True, title="Collect-Charts") as bar:
             for chart_file in chart_files:
                 bar()
@@ -161,17 +167,25 @@ class HelmChartHelper:
                     logger.debug(f"Ignoring chart {chart_file}")
                     continue
 
-                chart = HelmChart.from_chartfile(
+                chart_obj = HelmChart.from_chartfile(
                     chart_file, build_config=cls._build_config
                 )
-                bar.text(chart.name)
-                cls._build_state.add_chart(chart)
-                charts_objects.add(chart)
-
-        return charts_objects
+                bar.text(chart_obj.name)
+                cls._build_state.add_chart(chart_obj)
 
     @classmethod
     def resolve_chart_dependencies(cls) -> None:
+        """
+        Resolve and link all chart dependencies for charts in the build state.
+
+        Iterates over each chart's unresolved dependencies (name and optional version),
+        retrieves the corresponding HelmChart object via `get_chart`, and adds it to
+        the chart's `chart_dependencies` set.
+
+        Side Effects:
+            Updates the `chart_dependencies` attribute of charts in `cls._build_state`.
+        """
+
         for chart in cls._build_state.charts_available:
             for name, version in chart.unresolved_chart_dependencies:
                 dep = cls.get_chart(name=name, version=version)
@@ -180,6 +194,16 @@ class HelmChartHelper:
 
     @classmethod
     def resolve_kaapana_collections(cls) -> None:
+        """
+        Resolve and attach Kaapana collection charts to charts in the build state.
+
+        Checks the `deployment_config` of each chart for `kaapana_collections` entries,
+        retrieves the corresponding HelmChart objects, and adds them to the chart's
+        `kaapana_collections` set.
+
+        Side Effects:
+            Updates the `kaapana_collections` attribute of charts in `cls._build_state`.
+        """
         for chart in cls._build_state.charts_available:
             if chart.deployment_config.get("kaapana_collections"):
                 for name in chart.deployment_config["kaapana_collections"]:
@@ -189,6 +213,16 @@ class HelmChartHelper:
 
     @classmethod
     def resolve_preinstall_extensions(cls) -> None:
+        """
+        Resolve and attach pre-install extension charts to charts in the build state.
+
+        Checks the `deployment_config` of each chart for `preinstall_extensions` entries,
+        retrieves the corresponding HelmChart objects, and adds them to the chart's
+        `preinstall_extensions` set.
+
+        Side Effects:
+            Updates the `preinstall_extensions` attribute of charts in `cls._build_state`.
+        """
         for chart in cls._build_state.charts_available:
             if chart.deployment_config.get("preinstall_extensions"):
                 for name in chart.deployment_config["preinstall_extensions"]:
@@ -202,6 +236,20 @@ class HelmChartHelper:
         name: str,
         version: Optional[str] = None,
     ) -> HelmChart | None:
+        """
+        Retrieve a HelmChart by its name and optionally its version from the build state.
+
+        Args:
+            name: Name of the chart to retrieve.
+            version: Optional specific version to match.
+
+        Returns:
+            The HelmChart object if found and version matches, otherwise None.
+
+        Raises:
+            Issues are generated via IssueTracker if the chart is not found or the version
+            does not match. If exit_on_error is True or level is FATAL, the process may exit.
+        """
         candidate = cls._build_state.charts_available_by_name.get(name)
 
         if not candidate:
@@ -235,14 +283,28 @@ class HelmChartHelper:
     @classmethod
     def build_and_push_charts(cls, platform_chart: HelmChart):
         """
-        Build the platform chart along with all its dependencies and collections.
+        Build a platform Helm chart along with its collections and dependencies, then push to registry.
+
+        Args:
+            platform_chart: The primary HelmChart representing the platform to build.
+
+        Process:
+            1. Build the main platform chart using its build directory and fake-values.yaml.
+            2. Build all charts in the platform's kaapana_collections, respecting dependency order.
+            3. Handle chart_dependencies for each collection, optionally making packages if not build_only.
+            4. Generate final Helm packages for the platform chart.
+            5. Push charts to the configured registry if build_only is False.
+
+        Side Effects:
+            Creates build artifacts on disk, updates container build directories where necessary,
+            and interacts with the registry to push Helm packages.
         """
         platform_target_dir = (
             cls._build_config.build_dir / platform_chart.name / platform_chart.name
         )
         fake_values = (
             cls._build_config.kaapana_dir
-            / "build-scripts/build_helper_v2/fake-values.yaml"
+            / "build-scripts/build_helper/configs/fake-values.yaml"
         )
 
         with alive_bar(

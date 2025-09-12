@@ -4,20 +4,18 @@ from pathlib import Path
 from shutil import copyfile, rmtree
 from time import time
 
-from build_helper_v2.cli.config_loader import (
-    load_yaml,
-    merge_args_with_config,
-    parse_args,
+from build_helper.build import (
+    BuildConfig,
+    BuildHelper,
+    BuildState,
+    IssueTracker,
+    OfflineInstallerHelper,
+    TrivyHelper,
 )
-from build_helper_v2.core.build_state import BuildState
-from build_helper_v2.helper.build_helper import BuildHelper
-from build_helper_v2.helper.container_helper import ContainerHelper
-from build_helper_v2.helper.helm_chart_helper import HelmChartHelper
-from build_helper_v2.helper.issue_tracker import IssueTracker
-from build_helper_v2.helper.offline_installer_helper import OfflineInstallerHelper
-from build_helper_v2.helper.trivy_helper import TrivyHelper
-from build_helper_v2.models.build_config import BuildConfig
-from build_helper_v2.utils.logger import get_logger, init_logger, set_console_level
+from build_helper.cli.config_loader import load_yaml, merge_args_with_config, parse_args
+from build_helper.container import ContainerHelper
+from build_helper.helm import HelmChartHelper
+from build_helper.utils.logger import get_logger, init_logger, set_console_level
 
 
 def main():

@@ -7,10 +7,10 @@ from typing import TYPE_CHECKING, Optional
 import networkx as nx
 
 if TYPE_CHECKING:
-    from container import BaseImage, Container
-    from helm_chart import HelmChart
+    from build_helper.container import BaseImage, Container
+    from build_helper.helm import HelmChart
 
-from build_helper_v2.utils.logger import get_logger
+from build_helper.utils.logger import get_logger
 
 logger = get_logger()
 

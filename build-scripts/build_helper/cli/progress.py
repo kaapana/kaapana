@@ -4,13 +4,14 @@ from threading import Lock
 from typing import Set
 
 from alive_progress import alive_bar
-from build_helper_v2.core.container import Container, Status
-from build_helper_v2.utils.logger import get_logger
 from rich.console import Console, Group
 from rich.live import Live
 from rich.progress import BarColumn, Progress, TextColumn
 from rich.style import Style
 from rich.table import Table
+
+from build_helper.container import Container, Status
+from build_helper.utils import get_logger
 
 logger = get_logger()
 

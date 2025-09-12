@@ -3,7 +3,7 @@ import subprocess
 from typing import Dict, List, Optional
 
 
-class CommandHelper:
+class CommandUtils:
     @staticmethod
     def run(
         command: List[str] | str,

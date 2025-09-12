@@ -1,14 +1,12 @@
 import os
 import subprocess
-from enum import Enum, auto
 from pathlib import Path
 
 from alive_progress import alive_bar
-from build_helper_v2.core.build_state import BuildState
-from build_helper_v2.core.container import Container
-from build_helper_v2.core.helm_chart import HelmChart
-from build_helper_v2.models.build_config import BuildConfig
-from build_helper_v2.utils.logger import get_logger
+from build_helper.build import BuildState, BuildConfig
+from build_helper.container import Container
+from build_helper.helm import HelmChart
+from build_helper.utils import get_logger
 
 logger = get_logger()
 
@@ -20,7 +18,8 @@ class TrivyHelper:
     _cache_path: Path = None  # type: ignore
 
     @classmethod
-    def init(cls, build_config: BuildConfig, build_state: BuildState):
+    def init(cls, build_config: BuildConfig, build_state: BuildState) -> None:
+        """Initialize Trivy helper with configuration and build state, setting up report and cache directories."""
         cls._build_config = build_config
         cls._build_state = build_state
         cls._reports_path = build_config.kaapana_dir / "security-reports"
@@ -29,7 +28,8 @@ class TrivyHelper:
         cls._cache_path.mkdir(parents=True, exist_ok=True)
 
     @classmethod
-    def misconfiguration_check(cls):
+    def misconfiguration_check(cls) -> None:
+        """Run Trivy misconfiguration scans on selected charts and containers."""
         with alive_bar(
             len(cls._build_state.selected_charts),
             dual_line=True,
@@ -51,7 +51,8 @@ class TrivyHelper:
                 bar()
 
     @classmethod
-    def _check_chart(cls, chart: HelmChart):
+    def _check_chart(cls, chart: HelmChart) -> None:
+        """Run Trivy configuration scan for a single Helm chart."""
         report_path = cls._reports_path / "charts"
         report_path.mkdir(parents=True, exist_ok=True)
         filename = f"misconfiguration_report_chart_{chart.name}.json"
@@ -88,10 +89,10 @@ class TrivyHelper:
                 result.returncode, cmd, output=result.stdout, stderr=result.stderr
             )
         logger.info(f"Chart misconfiguration report saved at {report_path / filename}")
-        return result
 
     @classmethod
-    def _check_container(cls, container: Container):
+    def _check_container(cls, container: Container) -> None:
+        """Run Trivy configuration scan for a single container."""
         report_path = cls._reports_path / "containers"
         report_path.mkdir(parents=True, exist_ok=True)
         filename = f"misconfiguration_report_container_{container.image_name}.json"
@@ -131,10 +132,9 @@ class TrivyHelper:
         logger.info(
             f"Container misconfiguration report saved at {report_path / filename}"
         )
-        return result
 
     @classmethod
-    def create_sboms(cls):
+    def create_sboms(cls) -> None:
         """Generate SBOMs for all selected containers."""
         report_path = cls._reports_path / "sboms"
         report_path.mkdir(parents=True, exist_ok=True)
@@ -191,8 +191,8 @@ class TrivyHelper:
                 bar()
 
     @classmethod
-    def vulnerability_scan(cls):
-        """Scan all selected containers for vulnerabilities."""
+    def vulnerability_scan(cls) -> None:
+        """Perform Trivy vulnerability scan on all selected containers with configured severity levels."""
         report_path = cls._reports_path / "vuln_scan"
         report_path.mkdir(parents=True, exist_ok=True)
         with alive_bar(

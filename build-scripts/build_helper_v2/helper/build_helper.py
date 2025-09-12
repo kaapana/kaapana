@@ -249,17 +249,22 @@ class BuildHelper:
         G = cls._build_state.build_graph
         if selected_chart_names:
             containers_from_charts = set()
-            charts = {HelmChartHelper.get_chart(name) for name in selected_chart_names}
+            charts = {
+                chart
+                for name in selected_chart_names
+                if (chart := HelmChartHelper.get_chart(name)) is not None
+            }
             for chart in charts:
                 containers_from_chart = {
                     n for n in nx.descendants(G, chart) if isinstance(n, Container)
                 }
                 containers_from_charts.update(containers_from_chart)
         else:
+            charts = cls._build_state.charts_available
             containers_from_charts = {
                 n for n, _ in G.nodes(data=True) if isinstance(n, Container)
             }
-
+        cls._build_state.selected_charts = charts
         cls._build_state.selected_containers = containers_from_charts
 
     @classmethod

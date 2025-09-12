@@ -170,7 +170,7 @@ def main():
 
     if build_config.configuration_check:
         TrivyHelper.init(build_config=build_config, build_state=build_state)
-        TrivyHelper.configuration_check()
+        TrivyHelper.misconfiguration_check()
 
     if build_config.create_sboms:
         TrivyHelper.init(build_config=build_config, build_state=build_state)

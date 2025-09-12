@@ -55,12 +55,13 @@ class BuildConfig(BaseModel):
 
     # Additional Details
     vulnerability_scan: bool
-    vulnerability_severity_level: Optional[str]
+    vulnerability_severity_level: list[str]
     configuration_check: bool
-    configuration_check_severity_level: Optional[str]
+    configuration_check_severity_level: list[str]
     enable_image_stats: bool
     create_sboms: bool
-    check_expired_vulnerabilities_database: bool
+    trivy_image: str = "aquasec/trivy:0.66.0"
+    trivy_timeout: int = 10000
 
     snap_download_timeout: int = 120
     helm_download_timeout: int = 10
@@ -75,6 +76,8 @@ class BuildConfig(BaseModel):
             "build_ignore_patterns",
             "containers_to_build_by_charts",
             "containers_to_build",
+            "vulnerability_severity_level",
+            "configuration_check_severity_level",
         ]:
             if field_name in data and isinstance(data[field_name], str):
                 data[field_name] = [
@@ -112,6 +115,31 @@ class BuildConfig(BaseModel):
         if not platforms_dir.is_dir():
             raise ValueError(f"`platforms` directory not found in {self.kaapana_dir}")
 
+        SEVERITY_LEVELS = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+
+        for field_name in [
+            "vulnerability_severity_level",
+            "configuration_check_severity_level",
+        ]:
+            levels = getattr(self, field_name)
+
+            # Default to all severities if None
+            if not levels:
+                setattr(self, field_name, SEVERITY_LEVELS.copy())
+                continue
+
+            # Normalize + validate
+            normalized = []
+            for lvl in levels:
+                lvl_upper = lvl.upper()
+                if lvl_upper in SEVERITY_LEVELS:
+                    normalized.append(lvl_upper)
+                else:
+                    raise ValueError(
+                        f"Invalid severity level '{lvl}' for {field_name}. "
+                        f"Must be one of: {SEVERITY_LEVELS}"
+                    )
+            setattr(self, field_name, normalized)
         return self
 
     def log_self(self, logger):

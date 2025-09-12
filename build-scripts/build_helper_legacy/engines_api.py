@@ -1,7 +1,8 @@
-from build_helper.build_utils import BuildUtils
 import os
 from importlib import import_module
-from os.path import dirname, basename, exists, join
+from os.path import basename, dirname, exists, join
+
+from build_helper_legacy.build_utils import BuildUtils
 
 
 class Docker:

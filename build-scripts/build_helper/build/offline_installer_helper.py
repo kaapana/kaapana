@@ -5,11 +5,9 @@ from shutil import copyfile
 from subprocess import PIPE, run
 
 from alive_progress import alive_bar
-from build_helper_v2.core.build_state import BuildState
-from build_helper_v2.helper.container_helper import ContainerHelper
-from build_helper_v2.helper.issue_tracker import IssueTracker
-from build_helper_v2.models.build_config import BuildConfig
-from build_helper_v2.utils.logger import get_logger
+from build_helper.build import BuildState, BuildConfig, IssueTracker
+from build_helper.container import ContainerHelper
+from build_helper.utils import get_logger
 
 logger = get_logger()
 
@@ -30,16 +28,16 @@ class OfflineInstallerHelper:
     _build_state: BuildState = None  # type: ignore
 
     @classmethod
-    def init(cls, build_config: BuildConfig, build_state: BuildState):
-        """Initialize the singleton with context."""
+    def init(cls, build_config: BuildConfig, build_state: BuildState) -> None:
+        """Initialize the helper with build configuration and state."""
         if cls._build_config is None:
             cls._build_config = build_config
         if cls._build_state is None:
             cls._build_state = build_state
 
     @classmethod
-    def download_snap_package(cls, name: str, version: str, target_path: Path):
-        """Download a snap package to the target directory."""
+    def download_snap_package(cls, name: str, version: str, target_path: Path) -> None:
+        """Download and normalize a snap package to the specified directory."""
         logger.info(f"Downloading snap package: {name}")
         target_path.mkdir(parents=True, exist_ok=True)
 
@@ -86,8 +84,8 @@ class OfflineInstallerHelper:
         )
 
     @classmethod
-    def download_gpu_operator_chart(cls, target_path: Path):
-        """Download the NVIDIA GPU Operator Helm chart."""
+    def download_gpu_operator_chart(cls, target_path: Path) -> None:
+        """Download and normalize the NVIDIA GPU Operator Helm chart."""
         logger.info("Downloading gpu-operator Helm chart...")
         target_path.mkdir(parents=True, exist_ok=True)
 
@@ -147,8 +145,8 @@ class OfflineInstallerHelper:
         image_list: list[str],
         images_tarball_path: Path,
         container_engine: str,
-    ):
-        """Export container images as a tarball."""
+    ) -> None:
+        """Export specified container images into a tarball using the given container engine."""
         logger.info(f"Exporting images to tarball: {images_tarball_path}")
         command = (
             [container_engine, "save"]
@@ -172,8 +170,8 @@ class OfflineInstallerHelper:
             )
 
     @classmethod
-    def generate_microk8s_offline_version(cls, build_chart_dir: Path):
-        """Generate a complete Microk8s offline installer."""
+    def generate_microk8s_offline_version(cls, build_chart_dir: Path) -> None:
+        """Assemble a complete Microk8s offline installer including snaps, Helm charts, and container images."""
         offline_dir = Path(cls._build_config.build_dir) / "microk8s-offline-installer"
         offline_dir.mkdir(parents=True, exist_ok=True)
         build_chart_dir.mkdir(parents=True, exist_ok=True)
@@ -197,7 +195,8 @@ class OfflineInstallerHelper:
         microk8s_images_json = (
             Path(cls._build_config.kaapana_dir)
             / "build-scripts"
-            / "build_helper_v2"
+            / "build_helper"
+            / "configs"
             / "microk8s_images.json"
         )
         assert microk8s_images_json.exists()

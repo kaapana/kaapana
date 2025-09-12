@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
-from shutil import copyfile, rmtree
-import yaml
-import os
 import logging
+import os
 import re
-from os.path import join, dirname, exists
-from time import time
+import signal
 from argparse import ArgumentParser
+from os.path import dirname, exists, join
+from shutil import copyfile, rmtree
+from time import time
+
+import yaml
+from build_helper.build_utils import BuildUtils
 from build_helper.charts_helper import (
     HelmChart,
-    init_helm_charts,
     helm_registry_login,
+    init_helm_charts,
     successful_built_containers,
 )
 from build_helper.container_helper import Container, container_registry_login
-from build_helper.build_utils import BuildUtils
 from build_helper.security_utils import TrivyUtils
-import signal
-
 
 supported_log_levels = ["DEBUG", "INFO", "WARN", "ERROR"]
 
@@ -616,12 +616,12 @@ if __name__ == "__main__":
             )
 
             # Match registry only: registry[:port] (e.g. localhost:5000)
-            registry_only_pattern = re.compile(
-                r'^[a-z0-9.-]+(?::[0-9]+)?$'
-            )
+            registry_only_pattern = re.compile(r"^[a-z0-9.-]+(?::[0-9]+)?$")
 
-            if not (registry_only_pattern.match(default_registry) or
-                    full_image_pattern.match(default_registry)):
+            if not (
+                registry_only_pattern.match(default_registry)
+                or full_image_pattern.match(default_registry)
+            ):
                 if any(c.isupper() for c in default_registry):
                     raise ValueError(
                         f"Invalid default_registry '{default_registry}': contains uppercase characters, "

@@ -1,8 +1,9 @@
-from time import time
 import json
-import semver
+from os.path import basename, dirname, exists, join
+from time import time
+
 import networkx as nx
-from os.path import join, dirname, basename, exists
+import semver
 from git import Repo
 
 
@@ -122,7 +123,7 @@ class BuildUtils:
             if "root" in entry.lower():
                 continue
 
-            entry_id = entry.split(":",1)[1]
+            entry_id = entry.split(":", 1)[1]
 
             if "chart:" in entry:
                 unused_chart = [
@@ -165,7 +166,9 @@ class BuildUtils:
                         f"{entry_id} not found in container_images_unused!"
                     )
 
-            if entry_id.startswith("local-only") or entry_id.startswith(BuildUtils.default_registry):
+            if entry_id.startswith("local-only") or entry_id.startswith(
+                BuildUtils.default_registry
+            ):
                 build_order.append(entry_id)
 
         return build_order

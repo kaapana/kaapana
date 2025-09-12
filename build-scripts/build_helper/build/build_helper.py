@@ -4,15 +4,12 @@ import os
 from typing import Set, TypeVar
 
 import networkx as nx
-from build_helper_v2.cli.selector import interactive_select
-from build_helper_v2.core.build_state import BuildState
-from build_helper_v2.core.container import Container
-from build_helper_v2.core.helm_chart import HelmChart
-from build_helper_v2.helper.container_helper import ContainerHelper
-from build_helper_v2.helper.helm_chart_helper import HelmChartHelper
-from build_helper_v2.helper.issue_tracker import IssueTracker
-from build_helper_v2.models.build_config import BuildConfig
-from build_helper_v2.utils.logger import get_logger
+from build_helper.cli.selector import interactive_select
+from build_helper.build import BuildState, BuildConfig, IssueTracker
+from build_helper.container import Container, ContainerHelper
+from build_helper.helm import HelmChart, HelmChartHelper
+from build_helper.utils import get_logger
+
 from InquirerPy import inquirer
 from jinja2 import Environment, FileSystemLoader
 from treelib.tree import Tree

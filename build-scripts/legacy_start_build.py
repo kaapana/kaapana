@@ -9,15 +9,15 @@ from shutil import copyfile, rmtree
 from time import time
 
 import yaml
-from build_helper.build_utils import BuildUtils
-from build_helper.charts_helper import (
+from build_helper_legacy.build_utils import BuildUtils
+from build_helper_legacy.charts_helper import (
     HelmChart,
     helm_registry_login,
     init_helm_charts,
     successful_built_containers,
 )
-from build_helper.container_helper import Container, container_registry_login
-from build_helper.security_utils import TrivyUtils
+from build_helper_legacy.container_helper import Container, container_registry_login
+from build_helper_legacy.security_utils import TrivyUtils
 
 supported_log_levels = ["DEBUG", "INFO", "WARN", "ERROR"]
 

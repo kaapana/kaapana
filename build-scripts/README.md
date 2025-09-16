@@ -206,7 +206,7 @@ Pure singleton class -> classes that are never initialized and have only class a
   - Instead using queueing containers with all ready base images (Failed, Built, skipped, etc.)
   - This theoreticalyl improves speed, when threads do not have to wait until end of the building round to be built, but immediately when base container is built added to the queue and picked up by thread worker.
   
-  
+# Future Work
 
-    
-
+- Introduce build_extension.sh helper to build extensions (Or collections?) and introduce a guide how to install them/ update them/ remove them
+- Look at the pre-installation and create a dependency order, as kaapana-platform-chart should be always installed first before extension like code-server-chart are installed.

@@ -7,7 +7,6 @@ from subprocess import PIPE, run
 from typing import Any, Dict, Optional, Set
 
 import yaml
-
 from build_helper.build import BuildConfig, IssueTracker
 from build_helper.container import Container, ContainerHelper
 from build_helper.utils import GitUtils, get_logger
@@ -58,7 +57,7 @@ class HelmChart:
 
         self.chart_dependencies: set["HelmChart"] = set()
         self.kaapana_collections: set["HelmChart"] = set()
-        self.preinstall_extensions: set["HelmChart"] = set()
+        self.preinstall_extensions: list["HelmChart"] = []
 
         self.build_chart_dir: Path
         self.linted: bool = False

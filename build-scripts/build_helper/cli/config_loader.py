@@ -209,6 +209,14 @@ def parse_args() -> argparse.Namespace:
         default=argparse.SUPPRESS,
     )
 
+    parser.add_argument(
+        "-oc",
+        "--only-charts",
+        help="Skip docker build and docker push completely and only package and push charts",
+        action="store_true",
+        default=argparse.SUPPRESS,
+    )
+
     return parser.parse_args()
 
 

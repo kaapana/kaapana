@@ -3,7 +3,6 @@ from collections import Counter
 from typing import Optional
 
 from alive_progress import alive_bar
-
 from build_helper.build import BuildConfig, BuildState, IssueTracker
 from build_helper.helm import HelmChart
 from build_helper.utils import CommandUtils, get_logger
@@ -228,7 +227,7 @@ class HelmChartHelper:
                 for name in chart.deployment_config["preinstall_extensions"]:
                     dep = cls.get_chart(name=name)
                     if dep:
-                        chart.preinstall_extensions.add(dep)
+                        chart.preinstall_extensions.append(dep)
 
     @classmethod
     def get_chart(

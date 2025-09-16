@@ -111,30 +111,33 @@ def main():
     logger.info("")
     HelmChartHelper.build_and_push_charts(platform_chart=platform_chart)
 
-    logger.info("")
-    logger.info("-----------------------------------------------------------")
-    logger.info("------------------ BUILD CONTAINERS ------------------")
-    logger.info("-----------------------------------------------------------")
-    logger.info("")
-    BuildHelper.select_containers_to_build()
-    ContainerHelper.build_and_push_containers()
+    if not build_config.only_charts:
+        logger.info("")
+        logger.info("-----------------------------------------------------------")
+        logger.info("------------------ BUILD CONTAINERS ------------------")
+        logger.info("-----------------------------------------------------------")
+        logger.info("")
+        BuildHelper.select_containers_to_build()
+        ContainerHelper.build_and_push_containers()
 
-    if build_config.create_offline_installation:
-        OfflineInstallerHelper.init(build_config=build_config, build_state=build_state)
-        OfflineInstallerHelper.generate_microk8s_offline_version(
-            platform_chart.build_chart_dir
-        )
+        if build_config.create_offline_installation:
+            OfflineInstallerHelper.init(
+                build_config=build_config, build_state=build_state
+            )
+            OfflineInstallerHelper.generate_microk8s_offline_version(
+                platform_chart.build_chart_dir
+            )
 
-        images_tarball_path = (
-            platform_chart.build_chart_dir.parent
-            / f"{platform_chart.name}-{platform_chart.version}-images.tar"
-        )
-        OfflineInstallerHelper.export_image_list_into_tarball(
-            image_list=[c.tag for c in build_state.selected_containers],
-            images_tarball_path=images_tarball_path,
-            container_engine=build_config.container_engine,
-        )
-        logger.info("Finished: Generating platform images tarball.")
+            images_tarball_path = (
+                platform_chart.build_chart_dir.parent
+                / f"{platform_chart.name}-{platform_chart.version}-images.tar"
+            )
+            OfflineInstallerHelper.export_image_list_into_tarball(
+                image_list=[c.tag for c in build_state.selected_containers],
+                images_tarball_path=images_tarball_path,
+                container_engine=build_config.container_engine,
+            )
+            logger.info("Finished: Generating platform images tarball.")
 
     if len(IssueTracker.issues) > 0:
         logger.info("")

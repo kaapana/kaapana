@@ -12,7 +12,7 @@ from sqlalchemy.orm import relationship, DeclarativeBase, Mapped
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy import Enum as SqlEnum
 from datetime import datetime, timezone
-from app.schemas import LifecycleStatus
+from app.schemas import TaskRunStatus, WorkflowRunStatus
 
 
 class Base(AsyncAttrs, DeclarativeBase):
@@ -63,7 +63,7 @@ class WorkflowRun(Base):
     workflow_id = Column(Integer, ForeignKey("workflows.id"))
     config = Column(JSONB)
     lifecycle_status = Column(
-        SqlEnum(LifecycleStatus), default=LifecycleStatus.CREATED, nullable=False
+        SqlEnum(WorkflowRunStatus), default=WorkflowRunStatus.CREATED, nullable=False
     )
     labels: Mapped[list["Label"]] = relationship(
         "Label",
@@ -144,7 +144,7 @@ class TaskRun(Base):
     workflow_run_id = Column(Integer, ForeignKey("workflow_runs.id"))
     external_id = Column(String, nullable=True)
     lifecycle_status = Column(
-        SqlEnum(LifecycleStatus), default=LifecycleStatus.CREATED, nullable=False
+        SqlEnum(TaskRunStatus), default=TaskRunStatus.CREATED, nullable=False
     )
 
     task = relationship("Task", back_populates="task_runs")

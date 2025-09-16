@@ -4,8 +4,9 @@ from typing import List, Dict, Any, Optional
 
 from app.adapters.base import WorkflowEngineAdapter
 from app import schemas, crud
-from app.models import LifecycleStatus
 from app.adapters.config import settings
+
+# TODO: needs to be changed w.r.to base adapter's interface
 
 
 class KaapanaPluginAdapter(WorkflowEngineAdapter):
@@ -16,15 +17,15 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
     """
 
     AIRFLOW_STATUS_MAPPER = {
-        "queued": LifecycleStatus.SCHEDULED,
-        "running": LifecycleStatus.RUNNING,
-        "success": LifecycleStatus.COMPLETED,
-        "failed": LifecycleStatus.ERROR,
-        "up_for_retry": LifecycleStatus.RUNNING,
-        "up_for_reschedule": LifecycleStatus.SCHEDULED,
-        "upstream_failed": LifecycleStatus.ERROR,
-        "skipped": LifecycleStatus.CANCELED,
-        "removed": LifecycleStatus.CANCELED,
+        "queued": schemas.WorkflowRunStatus.SCHEDULED,
+        "running": schemas.WorkflowRunStatus.RUNNING,
+        "success": schemas.WorkflowRunStatus.COMPLETED,
+        "failed": schemas.WorkflowRunStatus.ERROR,
+        "up_for_retry": schemas.WorkflowRunStatus.RUNNING,
+        "up_for_reschedule": schemas.WorkflowRunStatus.SCHEDULED,
+        "upstream_failed": schemas.WorkflowRunStatus.ERROR,
+        "skipped": schemas.WorkflowRunStatus.CANCELED,
+        "removed": schemas.WorkflowRunStatus.CANCELED,
     }
 
     workflow_engine = "kaapana-plugin"
@@ -113,7 +114,7 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
         # We'll use the status from the response or default to SCHEDULED
         airflow_status = response.get("state", "queued")
         lifecycle_status = KaapanaPluginAdapter.AIRFLOW_STATUS_MAPPER.get(
-            airflow_status, LifecycleStatus.SCHEDULED
+            airflow_status, schemas.WorkflowRunStatus.SCHEDULED
         )
 
         return crud.update_workflow_run(
@@ -134,7 +135,7 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
             dag_run_id (str): The ID of the DAG run.
 
         Returns:
-            LifecycleStatus: The mapped lifecycle status of the workflow run.
+            schemas.WorkflowRunStatus: The mapped lifecycle status of the workflow run.
         """
         dag_id = workflow_run.workflow_id
         dag_run_id = workflow_run.external_id
@@ -149,7 +150,7 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
             "state", "failed"
         )  # Default to failed if state is missing
         workflow_run.lifecycle_status = self.AIRFLOW_STATUS_MAPPER.get(
-            airflow_status, LifecycleStatus.ERROR
+            airflow_status, schemas.WorkflowRunStatus.ERROR
         )
         return workflow_run
 
@@ -179,10 +180,10 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
 
         tasks = list()
         for task_id, details in data.items():
-            # Map Airflow's task states to our LifecycleStatus
+            # Map Airflow's task states to our schemas.WorkflowRunStatus
             airflow_status = details.get("state", "unknown")
             status = self.AIRFLOW_STATUS_MAPPER.get(
-                airflow_status, LifecycleStatus.PENDING
+                airflow_status, schemas.WorkflowRunStatus.PENDING
             )
             tasks.append(
                 {

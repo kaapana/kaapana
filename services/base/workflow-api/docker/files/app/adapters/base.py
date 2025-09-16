@@ -30,7 +30,7 @@ class WorkflowEngineAdapter(ABC):
         self, workflow: schemas.Workflow
     ) -> List[schemas.TaskCreate]:
         """
-        Get tasks with task-to-downstream mappings
+        Get tasks with task-to-downstream mappings by task titles
         """
         pass
 
@@ -53,7 +53,7 @@ class WorkflowEngineAdapter(ABC):
     @abstractmethod
     async def get_workflow_run_task_runs(
         self, workflow_run_external_id: int
-    ) -> List[schemas.TaskRun]:
+    ) -> List[schemas.TaskRunUpdate]:
         """
         Get tasks for a workflow run from the external engine.
 
@@ -61,14 +61,14 @@ class WorkflowEngineAdapter(ABC):
             workflow_run_external_id (id): The id of the workflow run.
 
         Returns:
-            List[schemas.TaskRun]: A list of TaskRun objects.
+            List[schemas.TaskRunUpdate]: A list of TaskTaskRunUpdate objects.
         """
         pass
 
     @abstractmethod
-    async def get_workflow_run(
+    async def get_workflow_run_status(
         self, workflow_run_external_id: str
-    ) -> schemas.LifecycleStatus:
+    ) -> schemas.WorkflowRunStatus:
         """
         Get the current status of a workflow from the external engine
 

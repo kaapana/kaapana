@@ -5,7 +5,7 @@ from app.validation.config_definition import ConfigDefinition
 from enum import Enum
 
 
-class LifecycleStatus(str, Enum):
+class WorkflowRunStatus(str, Enum):
     CREATED = "Created"
     PENDING = "Pending"
     SCHEDULED = "Scheduled"
@@ -13,6 +13,16 @@ class LifecycleStatus(str, Enum):
     ERROR = "Error"
     COMPLETED = "Completed"
     CANCELED = "Canceled"
+
+
+class TaskRunStatus(str, Enum):
+    CREATED = "Created"
+    PENDING = "Pending"
+    SCHEDULED = "Scheduled"
+    RUNNING = "Running"
+    ERROR = "Error"
+    COMPLETED = "Completed"
+    SKIPPED = "Skipped"
 
 
 class Label(BaseModel):
@@ -75,39 +85,28 @@ class Task(TaskBase):
 #####################################
 
 
-class TaskRef(BaseModel):
-    """Lightweight reference to a Task for embedding in TaskRun."""
-
-    title: str
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 class TaskRunBase(BaseModel):
-    task_id: int
-    workflow_run_id: int
+    task_title: str  # The title of the task this run belongs to in the engine
+    lifecycle_status: TaskRunStatus
+    external_id: str  # The unique ID of the task run in the engine (the API does not know about it when this is passed the first time, therefore we also have the task title for linking)
 
 
 class TaskRunCreate(TaskRunBase):
-    pass
+    workflow_run_id: int
+    task_id: int  # The title of the task this run belongs to
 
 
 class TaskRun(TaskRunBase):
     id: int
-    lifecycle_status: LifecycleStatus
-    external_id: str
+    task_id: int  # The title of the task this run belongs to
+    workflow_run_id: int
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class TaskRunUpdate(BaseModel):
-    """Used for updating TaskRun from the workflow engine."""
-
-    # The title of the task this run belongs to in the engine
-    task_title: str
-    # The unique ID of the task run in the engine (the API does not know about it when this is passed the first time, therefore we also have the task title for linking)
-    external_id: str
-    lifecycle_status: LifecycleStatus
+class TaskRunUpdate(TaskRunBase):
+    external_id: Optional[str] = None
+    lifecycle_status: Optional[TaskRunStatus]
 
 
 #####################################
@@ -138,7 +137,7 @@ class WorkflowRun(WorkflowRunBase):
     id: int
     external_id: Optional[str] = None
     created_at: datetime
-    lifecycle_status: LifecycleStatus
+    lifecycle_status: WorkflowRunStatus
     workflow: WorkflowRef
     task_runs: List[TaskRun] = Field(default_factory=list)
     updated_at: datetime
@@ -148,4 +147,4 @@ class WorkflowRun(WorkflowRunBase):
 
 class WorkflowRunUpdate(BaseModel):
     external_id: Optional[str] = None
-    lifecycle_status: Optional[LifecycleStatus]
+    lifecycle_status: Optional[WorkflowRunStatus]

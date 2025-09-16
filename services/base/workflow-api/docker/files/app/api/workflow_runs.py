@@ -1,7 +1,8 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Response
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Optional
+from typing import Any, List, Optional
 from app.dependencies import (
     get_async_db,
     get_forwarded_headers,
@@ -16,20 +17,56 @@ router = APIRouter()
 
 @router.get("/workflow-runs", response_model=List[schemas.WorkflowRun])
 async def get_workflow_runs(
+    background_tasks: BackgroundTasks,
     workflow_title: Optional[str] = None,
     workflow_version: Optional[int] = None,
     db: AsyncSession = Depends(get_async_db),
 ):
     logger.debug(f"Getting workflow runs for {workflow_title=} and {workflow_version=}")
-    # TODO: filter by status and created_at
+    # TODO: add filtering by status and created_at
     filters = {}
     if workflow_title:
         filters["workflow.title"] = workflow_title
     if workflow_version:
         filters["workflow.version"] = workflow_version
-    runs = await crud.get_workflow_runs(db, filters=filters)
-    logger.debug(f"Found {len(runs)} runs for {filters=}")
-    return runs
+
+    # get workflow runs from the database
+    runs = await crud.get_workflow_runs(db, filters=filters, single=False)
+    if not runs:
+        raise HTTPException(status_code=404, detail="No workflow runs found")
+
+    res = []
+    # get all run statuses from the engine adapter
+    for run in runs:
+        # add from db directly, if a run is not already completed
+        if run.lifecycle_status in [
+            schemas.WorkflowRunStatus.COMPLETED,
+            schemas.WorkflowRunStatus.ERROR,
+            schemas.WorkflowRunStatus.CANCELED,
+        ]:
+            res.append(run)
+            continue
+
+        # get status from the engine
+        engine = get_workflow_engine(run.workflow.workflow_engine)
+        status = await engine.get_workflow_run_status(
+            workflow_run_external_id=run.external_id
+        )
+        if status != run.lifecycle_status:
+            updated_run: schemas.WorkflowRun = await crud.update_workflow_run(
+                db=db,
+                run_id=run.id,
+                workflow_run_update=schemas.WorkflowRunUpdate(lifecycle_status=status),
+            )
+            run = updated_run
+        # update all task runs of workflow run in the background
+        task_run_updates = await engine.get_workflow_run_task_runs(run.external_id)
+        for task_run_update in task_run_updates:
+            background_tasks.add_task(
+                crud.create_or_update_task_run, db, task_run_update, run.id
+            )
+        res.append(run)
+    return res
 
 
 @router.post("/workflow-runs", response_model=schemas.WorkflowRun, status_code=201)
@@ -40,10 +77,10 @@ async def create_workflow_run(
     forwarded_headers: Dict[str, str] = Depends(get_forwarded_headers),
     db: AsyncSession = Depends(get_async_db),
 ):
-
     logger.debug(f"Creating workflow run for {workflow_run=}")
 
-    db_workflow: schemas.Workflow = await crud.get_workflows(
+    # get workflow of workflow run from the database
+    db_workflow = await crud.get_workflows(
         db,
         filters={
             "title": workflow_run.workflow.title,
@@ -52,13 +89,25 @@ async def create_workflow_run(
         single=True,
     )
     if not db_workflow:
+        logger.error(f"Workflow of {workflow_run=} not found")
         raise HTTPException(status_code=404, detail="Workflow not found")
 
+    # create workflow run in the database
     db_workflow_run = await crud.create_workflow_run(
         db=db, workflow_run=workflow_run, workflow_id=db_workflow.id
     )
-
+    if not db_workflow_run:
+        logger.error(f"Failed to create workflow run for {workflow_run=}")
+        raise HTTPException(status_code=400, detail="Failed to create workflow run")
     response.headers["Location"] = f"/v1/workflow-runs/{db_workflow_run.id}"
+
+    # create workflow run in the engine in the background
+    engine = get_workflow_engine(db_workflow.workflow_engine)
+    background_tasks.add_task(
+        engine.submit_workflow_run,
+        workflow_run=db_workflow_run,
+    )
+
     return db_workflow_run
 
 
@@ -70,6 +119,20 @@ async def get_workflow_run_by_id(
     run = await crud.get_workflow_runs(db, filters={"id": workflow_run_id}, single=True)
     if not run:
         raise HTTPException(status_code=404, detail="Workflow run not found")
+
+    # TODO: add a query parameter to limit engine calls so that it is not called on every request
+    engine = get_workflow_engine(run.workflow.workflow_engine)
+    status = await engine.get_workflow_run_status(
+        workflow_run_external_id=run.external_id
+    )
+    if status != run.lifecycle_status:
+        updated_run = await crud.update_workflow_run(
+            db=db,
+            run_id=workflow_run_id,
+            workflow_run_update=schemas.WorkflowRunUpdate(lifecycle_status=status),
+        )
+        run = updated_run
+
     return run
 
 
@@ -85,12 +148,19 @@ async def cancel_workflow_run(
     if not run:
         raise HTTPException(status_code=404, detail="Workflow run not found")
 
+    engine = get_workflow_engine(run.workflow.workflow_engine)
+    canceled = await engine.cancel_workflow_run(run.external_id)
+    if not canceled:
+        raise HTTPException(
+            status_code=400, detail="Failed to cancel workflow run in engine"
+        )
+
     updated = await crud.update_workflow_run(
         db,
         run_id=workflow_run_id,
         workflow_run_update=schemas.WorkflowRunUpdate(
-            external_id=run.external_id,  # TODO: change to external_id once engine is supported
-            lifecycle_status=schemas.LifecycleStatus.CANCELED,
+            external_id=run.external_id,
+            lifecycle_status=schemas.WorkflowRunStatus.CANCELED,
         ),
     )
     return updated
@@ -128,18 +198,17 @@ async def retry_workflow_run(
 )
 async def get_workflow_run_task_runs(
     workflow_run_id: int,
-    latest: bool = True,  # TODO Whether to only include the latest task-runs per task
     task_title: Optional[str] = None,  # Only include task-runs for this task title
     db: AsyncSession = Depends(get_async_db),
 ):
-    workflow_run = crud.get_workflow_runs(
+    workflow_run = await crud.get_workflow_runs(
         db, filters={"id": workflow_run_id}, single=True
     )
-    # check if it's completed
+    # check if the workflow run is completed
     if workflow_run.lifecycle_status not in [
-        schemas.LifecycleStatus.COMPLETED,
-        schemas.LifecycleStatus.FAILED,
-        schemas.LifecycleStatus.CANCELED,
+        schemas.WorkflowRunStatus.COMPLETED,
+        schemas.WorkflowRunStatus.ERROR,
+        schemas.WorkflowRunStatus.CANCELED,
     ]:
         # get task runs from the engine adapter
         workflow_engine = get_workflow_engine(workflow_run.workflow.workflow_engine)
@@ -147,26 +216,47 @@ async def get_workflow_run_task_runs(
         task_run_updates = await workflow_engine.get_workflow_run_task_runs(
             workflow_run_external_id=workflow_run.external_id
         )
+        logger.info(f"Got {len(task_run_updates)} task runs from the engine")
 
-        # update task runs in the database and return the list 
+        # update task runs in the database and return the list
         res_task_runs = []
-        for task_run in task_runs:
-            db_task_run = await crud.update_or_create_task_run(
-                db,
-                workflow_run_id=workflow_run_id,
-                task_run_update=task_run,
+        for task_run_update in task_run_updates:
+            db_tr = await crud.create_or_update_task_run(
+                db, task_run_update=task_run_update, workflow_run_id=workflow_run_id
             )
-            res_task_runs.append(db_task_run)
-
+            res_task_runs.append(db_tr)
 
     # TODO: support query params task_title and latest=true
-    task_runs = await crud.get_task_runs_of_workflow_run(
-        db, workflow_run_id=workflow_run_id, task_title=task_title, latest=latest
+    filters: dict[str, Any] = {
+        "workflow_run_id": workflow_run_id,
+    }
+    if task_title:
+        filters["task.title"] = task_title
+
+    db_task_runs = await crud.get_task_runs(
+        db,
+        filters=filters,
     )
-    if not task_runs:
+    if not db_task_runs:
         logger.error(f"No task runs found for {workflow_run_id=} and {task_title=}")
         raise HTTPException(status_code=404, detail="No task runs found")
-    return task_runs
+
+    # cast task runs as
+    res = []
+    for db_task_run in db_task_runs:
+        encoded_task_run = jsonable_encoder(db_task_run)
+        res.append(
+            schemas.TaskRun(
+                id=encoded_task_run["id"],
+                workflow_run_id=workflow_run_id,
+                external_id=encoded_task_run["external_id"],
+                lifecycle_status=encoded_task_run["lifecycle_status"],
+                task_id=encoded_task_run["task_id"],
+                task_title=encoded_task_run["task"]["title"],
+            )
+        )
+
+    return res
 
 
 @router.get(

@@ -89,7 +89,7 @@ async def test_cancel_workflow_run():
         cancel_resp = await client.put(f"/workflow-runs/{run.id}/cancel")
         assert cancel_resp.status_code == 200
         canceled = schemas.WorkflowRun(**cancel_resp.json())
-        assert canceled.lifecycle_status == schemas.WorkflowRunStatus.ERROR
+        assert canceled.lifecycle_status == schemas.WorkflowRunStatus.CANCELED
 
 
 @pytest.mark.asyncio
@@ -126,7 +126,4 @@ async def test_get_workflow_run_task_runs():
         assert len(task_runs) > 0
         for tr in task_runs:
             assert tr.task_title in ["dummy-task-1", "dummy-task-2"]
-            assert tr.lifecycle_status == schemas.TaskRunStatus.COMPLETED
-
-
-        
+            assert tr.lifecycle_status == schemas.TaskRunStatus.RUNNING

@@ -51,12 +51,12 @@ class DummyAdapter(WorkflowEngineAdapter):
         # simulate sending run to the engine, getting it back and updating external_id and status=PENDING
         return schemas.WorkflowRunUpdate(
             external_id="dummy-workflow-run-external-id",
-            lifecycle_status=schemas.LifecycleStatus.PENDING,
+            lifecycle_status=schemas.WorkflowRunStatus.PENDING,
         )
 
-    async def get_workflow_run(
+    async def get_workflow_run_status(
         self, workflow_run_external_id: str
-    ) -> schemas.LifecycleStatus:
+    ) -> schemas.WorkflowRunStatus:
         """
         Gets the current status of a workflow run from engine.
 
@@ -64,13 +64,13 @@ class DummyAdapter(WorkflowEngineAdapter):
             workflow_run_external_id (str): The ID of the workflow run in the engine.
 
         Returns:
-            LifecycleStatus: The WorkflowRun object with updated status.
+            WorkflowRunStatus: The WorkflowRun object with updated status.
         """
         time.sleep(1)
         # simulate getting info from the workflow engine and updating status to COMPLETED
-        return schemas.LifecycleStatus.COMPLETED
+        return schemas.WorkflowRunStatus.RUNNING
 
-    def get_workflow_run_task_runs(
+    async def get_workflow_run_task_runs(
         self, workflow_run_external_id: str
     ) -> List[schemas.TaskRunUpdate]:
         """
@@ -86,18 +86,18 @@ class DummyAdapter(WorkflowEngineAdapter):
             schemas.TaskRunUpdate(
                 external_id="dummy-task-run-1-external-id",
                 task_title="dummy-task-1",
-                lifecycle_status=schemas.LifecycleStatus.COMPLETED,
+                lifecycle_status=schemas.TaskRunStatus.RUNNING,
             ),
             schemas.TaskRunUpdate(
                 external_id="dummy-task-run-2-external-id",
                 task_title="dummy-task-2",
-                lifecycle_status=schemas.LifecycleStatus.COMPLETED,
+                lifecycle_status=schemas.TaskRunStatus.RUNNING,
             ),
         ]
 
-    def cancel_workflow_run(
+    async def cancel_workflow_run(
         self, workflow_run_external_id: str
-    ) -> schemas.LifecycleStatus:
+    ) -> schemas.WorkflowRunStatus:
         """
         Cancels a running workflow run in the engine.
 
@@ -105,6 +105,6 @@ class DummyAdapter(WorkflowEngineAdapter):
             workflow_run_external_id (str): The ID of the workflow run in the engine.
 
         Returns:
-            LifecycleStatus: The updated status of the workflow run as canceled.
+            WorkflowRunStatus: The updated status of the workflow run as canceled.
         """
-        return schemas.LifecycleStatus.CANCELED
+        return schemas.WorkflowRunStatus.CANCELED

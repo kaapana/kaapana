@@ -9,7 +9,7 @@ DATABASE_URL = os.environ["DATABASE_URL"].replace(
     "postgresql://", "postgresql+psycopg2://", 1
 )
 ALEMBIC_CFG_PATH = "alembic.ini"
-INITIAL_REVISION = "7c395eefa0bf"
+INITIAL_REVISION = "cbc70e22f530"
 
 
 def get_current_db_revision(engine):

@@ -39,13 +39,14 @@ class BaseRunner(ABC):
             json.dump(
                 task_run.model_dump(
                     mode="json",
-                    exclude={"full_object", "config"},
+                    exclude={},
                     exclude_none=True,
                     exclude_unset=True,
                     exclude_defaults=True,
                 ),
                 f,
                 indent=2,
+                skipkeys=True,
             )
 
     @classmethod

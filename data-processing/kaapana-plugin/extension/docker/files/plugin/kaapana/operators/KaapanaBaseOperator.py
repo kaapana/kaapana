@@ -33,6 +33,7 @@ from kaapanapy.services.NotificationService import Notification, NotificationSer
 from kaapanapy.settings import ServicesSettings
 
 import signal
+import pickle
 from pathlib import Path
 from task_api.processing_container import task_models, pc_models
 from task_api.runners.KubernetesRunner import KubernetesRunner
@@ -140,7 +141,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         image_pull_secrets=None,
         priority_weight=1,
         priority_class_name="kaapana-low-priority",
-        startup_timeout_seconds=120,
+        startup_timeout_seconds=3600,
         namespace=None,
         image_pull_policy=PULL_POLICY_IMAGES,
         #  Deactivated till dynamic persistent volumes are supported
@@ -620,12 +621,12 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
     @staticmethod
     def unique_task_identifer(context):
-        return f"{context["ti"].run_id}__{context["ti"].task_id}"
+        return f"{context["ti"].run_id}-{context["ti"].task_id}"
 
     @staticmethod
     def task_run_file_path(context):
         unique_id = KaapanaBaseOperator.unique_task_identifer(context)
-        return Path(AIRFLOW_WORKFLOW_DIR, context["run_id"], unique_id)
+        return Path(AIRFLOW_WORKFLOW_DIR, context["run_id"], f"{unique_id}.pkl")
 
     # The order of this decorators matters because of the whitelist_federated_learning variable, do not change them!
     @cache_operator_output
@@ -747,15 +748,37 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 log_timeout=self.execution_timeout.seconds,
             )
         except TimeoutError:
-            raise AirflowException(
-                f"Processing container reached timeout after {self.execution_timeout} seconds."
+            final_status = KubernetesRunner.wait_for_task_status(
+                self.task_run,
+                states=["Pending", "Running"],
+                timeout=5,
             )
+            if final_status == "Running":
+                raise AirflowException(
+                    f"Processing container didn't finish in execution timeout: {self.execution_timeout.seconds} seconds."
+                )
+            elif final_status == "Pending":
+                raise AirflowException(
+                    f"Processing container didn't start within {self.startup_timeout_seconds} seconds."
+                )
+            else:
+                raise AirflowException(
+                    f"Processing container in unexpected state: {final_status}"
+                )
 
         final_status = KubernetesRunner.wait_for_task_status(
-            self.task_run, states=["Succeeded", "Failed", "Skipped"], timeout=30
+            self.task_run,
+            states=["Succeeded", "Failed"],
+            timeout=5,
         )
         if final_status == "Failed":
             raise AirflowException("Processing container failed!")
+        elif final_status == "Succeeded":
+            self.log.info(f"Processing Container finished successfully!")
+        else:
+            raise AirflowException(
+                f"Processing container in unexpected state: {final_status}"
+            )
 
     def handle_sigterm(self, signum, frame):
         self.on_kill()
@@ -783,6 +806,20 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         shutil.rmtree(batch_input_dir, ignore_errors=True)
 
     @staticmethod
+    def stop_task_pod(context):
+        try:
+            with open(KaapanaBaseOperator.task_run_file_path(context), "rb") as f:
+                task_run = pickle.load(f)
+                KubernetesRunner.stop(task_run=task_run)
+            logging.info(f"Stopped processing-container: {task_run.id}")
+        except FileNotFoundError:
+            logging.info("Task File not found")
+        except client.ApiException as e:
+            logging.warning(f"Kubernetes API exception: {e}")
+        finally:
+            return None
+
+    @staticmethod
     def on_failure(context):
         """
         Use this method with caution, because it unclear at which state the context object is updated!
@@ -790,28 +827,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         logging.info(
             "##################################################### ON FAILURE!"
         )
-        # Same expression as in execute method!
-        kube_name = cure_invalid_name(
-            context["run_id"]
-            .replace(context["dag_run"].dag_id, context["task_instance"].task_id)
-            .replace("manual", context["task_instance"].task_id)
-            .replace("scheduled", context["task_instance"].task_id),
-            KaapanaBaseOperator.CURE_INVALID_NAME_REGEX,
-            63,
-        )  # actually 63, but because of helm set to 53, maybe...
-        time.sleep(2)  # since the phase needs some time to get updated
-        try:
-            project_form = context.get("params").get("project_form")
-            namespace = project_form.get("kubernetes_namespace")
-        except (KeyError, AttributeError):
-            namespace = "project-admin"
-
-        try:
-            with open(KaapanaBaseOperator.task_run_file_path(context), "r") as f:
-                task_run = task_models.TaskRun(**json.load(f))
-                KubernetesRunner.stop(task_run=task_run)
-        except FileNotFoundError:
-            logging.info("Task File not found")
+        KaapanaBaseOperator.stop_task_pod(context)
 
         release_name = get_release_name(context)
         url = f"{KaapanaBaseOperator.HELM_API}/view-chart-status"
@@ -896,6 +912,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         Use this method with caution, because it unclear at which state the context object is updated!
         """
         logging.info("##################################################### on_retry!")
+        KaapanaBaseOperator.stop_task_pod(context)
 
     @staticmethod
     def on_execute(context):

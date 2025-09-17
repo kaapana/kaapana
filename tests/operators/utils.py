@@ -4,15 +4,6 @@ from unittest.mock import MagicMock
 
 
 def mock_modules():
-    # Kubernetes + Kubetools
-    sys.modules["kaapana.kubetools"] = MagicMock()
-    sys.modules["kaapana.kubetools.volume_mount"] = MagicMock()
-    sys.modules["kaapana.kubetools.volume"] = MagicMock()
-    sys.modules["kaapana.kubetools.pod"] = MagicMock()
-    sys.modules["kaapana.kubetools.pod_stopper"] = MagicMock()
-    sys.modules["kaapana.kubetools.resources"] = MagicMock()
-    sys.modules["kaapana.kubetools.secret"] = MagicMock()
-
     # Flask
     sys.modules["requests"] = MagicMock()
     sys.modules["kaapana.blueprints"] = MagicMock()

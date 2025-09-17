@@ -35,7 +35,9 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         env:
         - name: APPLICATION_ROOT
-          value: "/workflow-api"
+          value: "/"
+        - name: LOG_LEVEL
+          value: INFO
         - name: DATABASE_URL
           value: "postgresql://{{ .Values.kaapana_database.postgres_user}}:{{ .Values.kaapana_database.postgres_password}}@{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{ .Values.global.services_namespace }}.svc:5432"
 {{- if .Values.global.dev_files }}
@@ -49,7 +51,7 @@ spec:
           - containerPort: 8080
         resources:
           limits:
-            memory: "256Mi"
+            memory: "1024Mi"
           requests:
             memory: "100Mi"
         securityContext:

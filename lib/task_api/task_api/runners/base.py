@@ -3,7 +3,7 @@ from task_api.processing_container import task_models
 import logging
 from pathlib import Path
 import os
-import json
+import pickle
 
 
 class BaseRunner(ABC):
@@ -29,24 +29,16 @@ class BaseRunner(ABC):
     @classmethod
     def dump(cls, task_run: task_models.TaskRun, output: Path = None) -> None:
         """
-        Write json model of task_run to output.
+        Dump task run object as pickle to output.
         """
-        output_path = output or Path(os.curdir, f"task_run-{task_run.id}.json")
+        output_path = output or Path(os.curdir, f"task_run-{task_run.id}.pkl")
         with open(
             output_path,
-            "w",
+            "wb",
         ) as f:
-            json.dump(
-                task_run.model_dump(
-                    mode="json",
-                    exclude={},
-                    exclude_none=True,
-                    exclude_unset=True,
-                    exclude_defaults=True,
-                ),
+            pickle.dump(
+                task_run,
                 f,
-                indent=2,
-                skipkeys=True,
             )
 
     @classmethod

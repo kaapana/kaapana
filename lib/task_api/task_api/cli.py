@@ -1,4 +1,5 @@
 import json
+import pickle
 import logging
 from dotenv import load_dotenv
 from task_api.processing_container import task_models
@@ -99,15 +100,15 @@ def processing_container(
 @app.command()
 def check_task_run(
     task_run: Path = typer.Argument(
-        ..., help="task_run.json file to run a container for."
+        ..., help="task_run.pkl file to run a container for."
     ),
     watch: bool = typer.Option(True, help="Wether to check the state until finished."),
 ):
     """ """
     from task_api.runners.DockerRunner import DockerRunner
 
-    with open(task_run, "r") as f:
-        task_data = task_models.TaskRun(**json.load(f))
+    with open(task_run, "rb") as f:
+        task_data = pickle.load(f)
 
     if task_data.mode == "docker":
         DockerRunner.check_status(task_data, follow=watch)
@@ -164,8 +165,8 @@ def logs(
     watch: Optional[bool] = typer.Option(False, help="Stream logs to stdout."),
 ):
     """Get logs from a task"""
-    with open(task, "r") as f:
-        task_run = task_models.TaskRun(**json.load(f))
+    with open(task, "rb") as f:
+        task_run = pickle.load(f)
     if task_run.mode == "docker":
         from task_api.runners.DockerRunner import DockerRunner
 

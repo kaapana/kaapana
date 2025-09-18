@@ -37,7 +37,7 @@ class DockerRunner(BaseRunner):
         cls._logger.info(f"TaskInstance: {task_instance.model_dump()}")
         memory_limit = int(cls._set_memory_limit(task_instance=task_instance))
         if memory_limit >= 10:
-            task.resources.limits.memory = human_readable_size(memory_limit)
+            task.resources.limits["memory"] = human_readable_size(memory_limit)
         else:
             memory_limit = None
 
@@ -107,9 +107,9 @@ class DockerRunner(BaseRunner):
         if (
             task_instance.resources
             and task_instance.resources.limits
-            and task_instance.resources.limits.memory
+            and task_instance.resources.limits.get("memory")
         ):
-            memory_limit = calculate_bytes(task_instance.resources.limits.memory)
+            memory_limit = calculate_bytes(task_instance.resources.limits.get("memory"))
 
         for channel in task_instance.inputs:
             if channel.scale_rule and channel.scale_rule.type.value == "limit":

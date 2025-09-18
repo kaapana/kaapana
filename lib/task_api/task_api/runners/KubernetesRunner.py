@@ -63,16 +63,8 @@ def get_container(
         env=env_vars,
         volume_mounts=volume_mounts,
         resources=client.V1ResourceRequirements(
-            limits=(
-                task_instance.resources.limits.model_dump(exclude_none=True)
-                if task_instance.resources.limits
-                else None
-            ),
-            requests=(
-                task_instance.resources.requests.model_dump(exclude_none=True)
-                if task_instance.resources.requests
-                else None
-            ),
+            limits=task_instance.resources.limits,
+            requests=task_instance.resources.requests,
         ),
     )
 

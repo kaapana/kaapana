@@ -125,17 +125,15 @@ def compute_memory_resources(
     if task_instance.resources:
         task_resources = task_instance.resources
     else:
-        task_resources = pc_models.Resources(
-            limits=pc_models.Limits(), requests=pc_models.Requests()
-        )
+        task_resources = pc_models.Resources(limits={}, requests={})
     memory_request = (
-        calculate_bytes(task_resources.requests.memory)
-        if task_resources.requests.memory
+        calculate_bytes(task_resources.requests.get("memory"))
+        if task_resources.requests.get("memory")
         else 0
     )
     memory_limit = (
-        calculate_bytes(task_resources.limits.memory)
-        if task_resources.limits.memory
+        calculate_bytes(task_resources.limits.get("memory"))
+        if task_resources.limits.get("memory")
         else 0
     )
     for channel in task_instance.inputs:
@@ -148,8 +146,8 @@ def compute_memory_resources(
                 )
 
     if memory_limit >= 10:
-        task_resources.limits.memory = human_readable_size(1.1 * memory_limit)
+        task_resources.limits["memory"] = human_readable_size(1.1 * memory_limit)
     if memory_request >= 10:
-        task_resources.requests.memory = human_readable_size(1.1 * memory_request)
+        task_resources.requests["memory"] = human_readable_size(1.1 * memory_request)
 
     return task_resources

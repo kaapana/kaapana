@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, List, Annotated
+from typing import Optional, List, Annotated, Dict
 from pydantic import BaseModel, ConfigDict, Field
 from enum import Enum
 
@@ -19,22 +19,9 @@ class TaskTemplateEnv(BaseModel):
     description: Optional[str] = None
 
 
-class Limits(BaseModel):
-    cpu: Optional[str] = None
-    memory: Optional[str] = None
-
-
-class Requests(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    cpu: Optional[str] = None
-    memory: Optional[str] = None
-
-
 class Resources(BaseModel):
-    limits: Optional[Limits] = None
-    requests: Optional[Requests] = None
+    limits: Optional[Dict] = None
+    requests: Optional[Dict] = None
 
 
 class ScaleRuleType(Enum):

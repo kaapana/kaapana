@@ -53,6 +53,7 @@ class HelmChart:
         self.chart_containers = chart_containers
 
         self.unresolved_chart_dependencies = unresolved_chart_dependencies
+
         self.deployment_config = deployment_config
 
         self.chart_dependencies: set["HelmChart"] = set()
@@ -224,11 +225,11 @@ class HelmChart:
                 if isinstance(c, dict) and "name" in c
             }
 
-            deployment_config["preinstall_extensions"] = {
+            deployment_config["preinstall_extensions"] = [
                 e.get("name")
                 for e in deployment_yaml.get("preinstall_extensions", [])
                 if isinstance(e, dict) and "name" in e
-            }
+            ]
 
             return deployment_config
 

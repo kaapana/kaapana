@@ -254,26 +254,27 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         if self.pod_resources is None:
             self.pod_resources = pc_models.Resources(
-                limits=pc_models.Limits(
-                    cpu=(
+                limits={
+                    "cpu": (
                         "{}m".format(self.cpu_millicores + 100)
                         if self.cpu_millicores != None
                         else None
                     ),
-                    memory="{}Mi".format(
+                    "memory": "{}Mi".format(
                         self.ram_mem_mb_lmt
                         if self.ram_mem_mb_lmt is not None
                         else self.ram_mem_mb + 100
                     ),
-                ),
-                requests=pc_models.Requests(
-                    cpu=(
+                    "nvidia.com/gpu": 1 if self.gpu_mem_mb else 0,
+                },
+                requests={
+                    "cpu": (
                         "{}m".format(self.cpu_millicores)
                         if self.cpu_millicores != None
                         else None
                     ),
-                    memory="{}Mi".format(self.ram_mem_mb),
-                ),
+                    "memory": "{}Mi".format(self.ram_mem_mb),
+                },
             )
 
         envs = {
@@ -745,7 +746,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 self.task_run,
                 follow=True,
                 startup_timeout=self.startup_timeout_seconds,
-                log_timeout=self.execution_timeout.seconds,
+                log_timeout=self.execution_timeout.total_seconds(),
             )
         except TimeoutError:
             final_status = KubernetesRunner.wait_for_task_status(
@@ -755,7 +756,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             )
             if final_status == "Running":
                 raise AirflowException(
-                    f"Processing container didn't finish in execution timeout: {self.execution_timeout.seconds} seconds."
+                    f"Processing container didn't finish in execution timeout: {self.execution_timeout.total_seconds()} seconds."
                 )
             elif final_status == "Pending":
                 raise AirflowException(

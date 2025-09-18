@@ -23,7 +23,7 @@ def sanitize_name(name: str) -> str:
 
 def generate_pod_name(base_name: str) -> str:
     sanitized = sanitize_name(base_name)
-    return f"{sanitized[:62]}"  # truncate base if needed
+    return f"{sanitized[:62]}".rstrip("-.")  # truncate base if needed
 
 
 def get_volume_and_mounts(

@@ -10,6 +10,7 @@
   "dependencies": {
     "@mdi/font": "7.4.47",
     "axios": "1.12.2",
+    "cross-spawn": "7.0.6",
     "core-js": "3.37.1",
     "roboto-fontface": "*",
     "vue": "3.4.31",

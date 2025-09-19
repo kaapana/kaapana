@@ -773,7 +773,40 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             timeout=5,
         )
         if final_status == "Failed":
-            raise AirflowException("Processing container failed!")
+            pod = KubernetesRunner.api.read_namespaced_pod(
+                name=self.task_run.id, namespace=self.task_run.config.namespace
+            )
+
+            container_name = "main"
+            if pod.status.container_statuses:
+                for cs in pod.status.container_statuses:
+                    if cs.name == container_name:
+                        state = cs.state
+                        if state.terminated:
+                            exit_code = state.terminated.exit_code
+                            message = state.terminated.message
+                            reason = state.terminated.reason
+                        else:
+                            raise AirflowException(
+                                f"Kubernetes status {final_status} but container {container_name} not terminated"
+                            )
+                        break
+            else:
+                raise AirflowException(
+                    f"Could not read final container status for pod {pod.name} and container {container_name}"
+                )
+            if reason == "OOMKilled":
+                raise AirflowException(
+                    f"Container {container_name} for task {self.task_run.name} was terminated due to OutOfMemory (OOMKilled)"
+                )
+            if exit_code == 126:
+                raise AirflowSkipException(
+                    f"Task {self.task_run.name} was skipped, {reason=}, {message=}"
+                )
+            elif exit_code != 0:
+                raise AirflowException(
+                    f"Processing container failed for task {self.task_run.name}!"
+                )
         elif final_status == "Succeeded":
             self.log.info(f"Processing Container finished successfully!")
         else:

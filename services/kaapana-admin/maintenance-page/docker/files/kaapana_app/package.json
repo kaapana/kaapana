@@ -11,7 +11,7 @@
   "dependencies": {
     "@babel/preset-env": "7.26.0",
     "@koumoul/vjsf": "2.23.3",
-    "axios": "1.7.7",
+    "axios": "1.12.2",
     "babel-polyfill": "6.26.0",
     "filepond": "4.32.1",
     "filepond-plugin-file-validate-type": "1.2.9",

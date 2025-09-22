@@ -521,8 +521,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             env_vars_from_secret_key_refs.update(
                 {
                     f"global.envVarsFromSecretRef[{idx}].name": secret.name,
-                    f"global.envVarsFromSecretRef[{idx}].secretName": secret.secret,
-                    f"global.envVarsFromSecretRef[{idx}].secretKey": secret.key,
+                    f"global.envVarsFromSecretRef[{idx}].secretName": secret.value_from.secret_key_ref.name,
+                    f"global.envVarsFromSecretRef[{idx}].secretKey": secret.value_from.secret_key_ref.key,
                 }
             )
 
@@ -535,49 +535,35 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 }
             )
 
-        volume_mounts_lookup = {}
-        for volume_mount in self.volume_mounts:
-            if (
-                volume_mount.name in volume_mounts_lookup.values()
-                or volume_mount.name == "dshm"
-            ):
-                logging.warning(
-                    f"Warning {volume_mount.name} already in volume_mount dict!"
-                )
-                continue
-            volume_mounts_lookup.update({volume_mount.name: volume_mount.mount_path})
-        logging.info(volume_mounts_lookup)
-
-        volume_claims_lookup = {}
+        dynamic_volume_lookup = {}
         for volume in self.volumes:
-            if "PersistentVolumeClaim" in volume.configs:
-                if (
-                    volume.name in volume_claims_lookup.values()
-                    or volume.name == "dshm"
-                ):
-                    logging.warning(f"Warning {volume.name} already in volume dict!")
-                    continue
-                volume_claims_lookup.update(
-                    {
-                        volume.name: volume.configs["PersistentVolumeClaim"][
-                            "claim_name"
-                        ].replace("-pv-claim", "")
-                    }
+            if not volume.persistent_volume_claim:
+                continue
+            dynamic_volume_lookup[volume.name] = {
+                "name": volume.persistent_volume_claim.claim_name.replace(
+                    "-pv-claim", ""
                 )
-        logging.info(volume_claims_lookup)
+            }
+
+        for vol_mount in self.volume_mounts:
+            if vol_mount.name not in dynamic_volume_lookup:
+                continue
+            dynamic_volume_lookup[vol_mount.name]["mount_path"] = vol_mount.mount_path
 
         dynamic_volumes = {}
-        for idx, (k, name) in enumerate(volume_claims_lookup.items()):
+        for idx, (vol_name, vol_config) in enumerate(dynamic_volume_lookup.items()):
+            if vol_name == "dshm":
+                logging.warning(f"Warning {vol_name} already in volume_mount dict!")
+                continue
             dynamic_volumes.update(
                 {
-                    f"global.dynamicVolumes[{idx}].name": f"{name}",
-                    f"global.dynamicVolumes[{idx}].mount_path": f"{volume_mounts_lookup[k]}",
+                    f"global.dynamicVolumes[{idx}].name": f"{vol_config["name"]}",
+                    f"global.dynamicVolumes[{idx}].mount_path": f"{vol_config["mount_path"]}",
                 }
             )
 
         # In case of debugging service_dag there is no self.project
         project_name = self.project.get("name") if self.project else "admin"
-
         ingress_path = (
             f"applications/project/{project_name}/release/" + "{{ .Release.Name }}"
         )
@@ -642,16 +628,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 json.dump(context["dag_run"].conf, file, indent=4, sort_keys=True)
 
         self.set_context_variables(context)
-        # Same expression as in on_failure method!
-        self.kube_name = cure_invalid_name(
-            context["run_id"]
-            .replace(context["dag_run"].dag_id, context["task_instance"].task_id)
-            .replace("manual", context["task_instance"].task_id)
-            .replace("scheduled", context["task_instance"].task_id),
-            KaapanaBaseOperator.CURE_INVALID_NAME_REGEX,
-            63,
-        )  # actually 63, but because of helm set to 53, maybe...
-
         if "gpu_device" in context["task_instance"].executor_config:
             self.env_vars.update(
                 {

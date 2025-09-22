@@ -23,14 +23,15 @@ This unified interface gives a **clear separation of concerns** and keeps the co
 The Workflow API follows a layered architecture:
 
 ```
-Client → API (FastAPI) → CRUD → DB
-                       ↘ Engine Adapter → Workflow Engine
+Client → API router (HTTP) → Service → CRUD → DB
+                           ↘ Engine Adapter → Workflow Engine
 ```
 
 - **API layer (`app/api/`)**  
-  - FastAPI endpoints for workflows, runs, and tasks.  
-  - Request validation and response serialization using Pydantic schemas.  
-  - Orchestrates database operations and adapter calls.  
+  - HTTP Routers for workflows and workflow runs.
+  - Business logic for workflow and workflow run services.
+  - Request validation and response serialization using Pydantic schemas.
+  - Orchestrates database operations and adapter calls.
 
 - **CRUD layer (`app/crud.py`)**  
   - Encapsulates SQLAlchemy queries.  
@@ -38,8 +39,8 @@ Client → API (FastAPI) → CRUD → DB
   - Returns ORM objects
 
 - **Adapter layer (`app/adapters/`)**  
-  - Bridges between the API and external workflow engines.  
-  - Each engine implements the `WorkflowEngineAdapter` interface.  
+  - Bridges between the API and external workflow engines.
+  - Each engine implements the `WorkflowEngineAdapter` interface.
   - Example: `DummyAdapter` (stub for testing)
 
 - **Models and Schemas**  
@@ -152,10 +153,9 @@ Workflows, runs, and tasks can be labeled arbitrarily. Labels enable flexible gr
 ---
 
 ## Roadmap & future TODOs
-* Introduce service/use-case layer: remove orchestration from endpoints; endpoints become thin adapters.
 * Integrate user & permission model for audit requirement integration.
-* Outbox pattern for atomic DB write + external call semantics.
 * Event sourcing / message bus for scaling cross-system communication.
+* A dedicated `audit_log` table, if compliance requires it.
 
 ## Development
 * Ensure `local-only/base-python-cpu:latest` exists via `docker image ls | grep local-only/base-python-cpu`

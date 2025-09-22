@@ -108,3 +108,30 @@ class DummyAdapter(WorkflowEngineAdapter):
             WorkflowRunStatus: The updated status of the workflow run as canceled.
         """
         return schemas.WorkflowRunStatus.CANCELED
+
+    async def retry_workflow_run(
+        self, workflow_run_external_id: str
+    ) -> schemas.WorkflowRunStatus:
+        """
+        Retries a workflow run in the engine.
+
+        Args:
+            workflow_run_external_id (str): The ID of the workflow run in the engine.
+
+        Returns:
+            WorkflowRunStatus: The updated status of the workflow run.
+        """
+        return schemas.WorkflowRunStatus.PENDING
+
+    async def get_task_run_logs(self, task_run_external_id: str) -> str:
+        """
+        Gets the logs of a task run from the engine.
+
+        Args:
+            task_run_external_id (str): The ID of the task run in the engine.
+        Returns:
+            str: The logs of the task run.
+        """
+
+        time.sleep(1)
+        return f"Dummy logs for TaskRun {task_run_external_id}"

@@ -1,13 +1,12 @@
 import logging
+from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
+from contextlib import asynccontextmanager
 
 from app.logging_config import setup_logging
-from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
-from app.api.workflows import router as workflow_router
-from app.api.workflow_runs import router as workflow_run_router
+from app.api.v1.routers import workflow_runs, workflows
 from app.dependencies import get_connection_manager
 from app.database import async_engine
 from app.models import Base
-from contextlib import asynccontextmanager
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -22,38 +21,35 @@ async def lifespan(app: FastAPI):
     yield
 
 
-tags_metadata = [
-    {
-        "name": "workflow",
-        "description": "Search for workflow-related resources.",
-    }
-]
-
 app = FastAPI(
     title="Kaapana Workflow API",
     docs_url="/docs",
     openapi_url="/openapi.json",
     version="0.0.1",
-    openapi_tags=tags_metadata,
+    openapi_tags=[
+        {
+            "name": "workflow",
+            "description": "Operations for workflow resources.",
+        }
+    ],
     lifespan=lifespan,
 )
 
 
 @app.websocket("/ws")
 async def websocket_endpoint(
-    websocket: WebSocket,
-    con_mgr=Depends(get_connection_manager),
+    websocket: WebSocket, con_mgr=Depends(get_connection_manager)
 ):
     await con_mgr.connect(websocket)
     try:
         while True:
-            # No server operations
-            msg = await websocket.receive_text()
+            await websocket.receive_text()
     except WebSocketDisconnect:
         con_mgr.disconnect(websocket)
 
 
+# Versioned routers
 app.include_router(
-    workflow_run_router, prefix=f"/{API_VERSION}", tags=["workflow runs"]
+    workflow_runs.router, prefix=f"/{API_VERSION}", tags=["workflow runs"]
 )
-app.include_router(workflow_router, prefix=f"/{API_VERSION}", tags=["workflow"])
+app.include_router(workflows.router, prefix=f"/{API_VERSION}", tags=["workflow"])

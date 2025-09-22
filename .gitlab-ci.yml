@@ -55,6 +55,7 @@ variables:
   DEPLOYMENT_INSTANCE_NAME: $DEPLOYMENT_INSTANCE_NAME
   DEPLOYMENT_INSTANCE_IP: $DEPLOYMENT_INSTANCE_IP ### Set in order to reuse an instance
   DEPLOYMENT_INSTANCE_USER: $DEPLOYMENT_INSTANCE_USER ### Username on the deployment instance
+  DEPLOYMENT_ON_WORKSTATION: $DEPLOYMENT_ON_WORKSTATION
   HTTP_PROXY: $HTTP_PROXY
   HTTPS_PROXY: $HTTPS_PROXY
   SSH_FILE: $SSH_FILE ### Path to the ssh file used for connecting to the deployment instance

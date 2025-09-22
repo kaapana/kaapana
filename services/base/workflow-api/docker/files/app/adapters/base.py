@@ -81,6 +81,35 @@ class WorkflowEngineAdapter(ABC):
         pass
 
     @abstractmethod
-    async def cancel_workflow_run(self, workflow_run: schemas.WorkflowRun) -> bool:
+    async def cancel_workflow_run(
+        self, workflow_run: schemas.WorkflowRun
+    ) -> schemas.WorkflowRunStatus:
         """Cancel a workflow in the external engine"""
+        pass
+
+    @abstractmethod
+    async def retry_workflow_run(
+        self, workflow_run_external_id: str
+    ) -> schemas.WorkflowRunStatus:
+        """
+        Retries a workflow run in the engine.
+
+        Args:
+            workflow_run_external_id (str): The ID of the workflow run in the engine.
+
+        Returns:
+            WorkflowRunStatus: The updated status of the workflow run.
+        """
+        pass
+
+    @abstractmethod
+    async def get_task_run_logs(self, task_run_external_id: str) -> str:
+        """
+        Gets the logs of a task run from the engine.
+
+        Args:
+            task_run_external_id (str): The ID of the task run in the engine.
+        Returns:
+            str: The logs of the task run.
+        """
         pass

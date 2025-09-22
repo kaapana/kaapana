@@ -125,6 +125,7 @@ task_api_tests:
   script:
   - python3 -m virtualenv $KAAPANA_DIR/lib/.lib
   - source $KAAPANA_DIR/lib/.lib/bin/activate
+  - python3 -m pip install build
   - python3 -m build $KAAPANA_DIR/lib/task_api
   - python3 -m pip install $KAAPANA_DIR/lib/task_api/dist/task_api-0.1.0.tar.gz
   - pytest $KAAPANA_DIR/lib/task_api/task_api --junitxml=task_api_report.xml

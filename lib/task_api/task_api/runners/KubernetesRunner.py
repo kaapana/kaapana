@@ -16,14 +16,27 @@ from task_api.runners.base import BaseRunner
 from typing import Tuple, List
 
 
-def sanitize_name(name: str) -> str:
-    # lowercase and replace invalid chars
-    return re.sub(r"[^a-z0-9.-]", "-", name.lower())
-
-
 def generate_pod_name(base_name: str) -> str:
-    sanitized = sanitize_name(base_name)
-    return f"{sanitized[:62]}".rstrip("-.")  # truncate base if needed
+    """
+    Generate a valid Kubernetes pod name from an arbitrary string.
+
+    Rules enforced:
+    - Lowercase only
+    - Allowed characters: [a-z0-9-.]
+    - Must start and end with alphanumeric
+    - Max length: 63 chars -> Kaapana specific
+    """
+
+    sanitized_name = base_name.lower()
+    sanitized_name = re.sub(r"[^a-z0-9.-]", "-", sanitized_name)
+    sanitized_name = re.sub(r"^[^a-z0-9]+", "", sanitized_name)
+    sanitized_name = re.sub(r"[^a-z0-9]+$", "", sanitized_name)
+    if len(sanitized_name) > 63:
+        sanitized_name = sanitized_name[:63]
+        # after cutting, re-strip trailing non-alphanumeric
+        sanitized_name = re.sub(r"[^a-z0-9]+$", "", sanitized_name)
+
+    return sanitized_name
 
 
 def get_volume_and_mounts(

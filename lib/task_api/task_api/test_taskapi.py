@@ -5,8 +5,51 @@ from pathlib import Path
 import os
 from task_api.runners.DockerRunner import DockerRunner
 from task_api.processing_container import common
+import re
 
 from conftest import LOCAL_REGISTRY, TASK_DIR, MODULE_PATH, k8s_cluster_available
+
+
+def is_valid_pod_name(name: str) -> bool:
+    pod_name_regex = re.compile(
+        r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
+    )
+    """Check if a string is a valid Kubernetes pod name."""
+    if not isinstance(name, str):
+        return False
+    if len(name) > 63:
+        return False
+    return pod_name_regex.match(name) is not None
+
+
+@pytest.mark.parametrize(
+    "input_name",
+    [
+        "validname",
+        "valid-name-123",
+        "evaluate-segmentations-250922070517319578-put-eval-metrics-to-",
+        "a" * 63,
+    ],
+)
+def test_pod_name(input_name):
+    from task_api.runners.KubernetesRunner import generate_pod_name
+
+    pod_name = generate_pod_name(input_name)
+    assert is_valid_pod_name(pod_name), f"Invalid pod name: {pod_name}"
+
+
+@pytest.mark.parametrize(
+    "bad_name",
+    [
+        "InvalidUpper",
+        "-startswithdash",
+        "endswithdash-",
+        "contains_underscore",
+        "a" * 64,
+    ],
+)
+def test_invalid_examples(bad_name):
+    assert not is_valid_pod_name(bad_name)
 
 
 def test_resources():

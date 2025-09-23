@@ -1,13 +1,8 @@
-import logging
 import time
-from typing import List, Dict, Any
+from typing import List
 
 from app.adapters.base import WorkflowEngineAdapter
 from app import schemas
-from sqlalchemy.ext.asyncio import AsyncSession
-
-
-logger = logging.getLogger(__name__)
 
 
 class DummyAdapter(WorkflowEngineAdapter):
@@ -23,7 +18,7 @@ class DummyAdapter(WorkflowEngineAdapter):
     async def get_workflow_tasks(
         self, workflow: schemas.Workflow
     ) -> List[schemas.TaskCreate]:
-        logger.info(f"Posting workflow to DummyAdapter: {workflow.title}")
+        self.logger.info(f"Posting workflow to DummyAdapter: {workflow.title}")
         time.sleep(2)
         task1 = schemas.TaskCreate(
             title="dummy-task-1",

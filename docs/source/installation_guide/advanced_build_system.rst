@@ -70,7 +70,7 @@ e.g. :code:`kaapana/platforms/kaapana-admin-chart/deployment_config.yaml`.
   Platform charts are specified by the key-value pair :code:`kaapana_type: "platform"` in the :code:`Chart.yaml` file.
   
   A filter can be applied in order to build only a subset of platform-charts e.g. only the :code:`kaapana-platform-chart`.
-  To do so use the command line flag :code:`-pf, --platform-filter <list-of-platform-chart-names>` or adjust the value of :code:`platform_filter` in the config file.
+  To do so use the command line flag :code:`-pf, --platform-filter <platform-chart-name>` or adjust the value of :code:`platform_filter` in the config file.
 
 
 The actual build-proccess

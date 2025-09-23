@@ -182,15 +182,7 @@ class BuildHelper:
 
     @classmethod
     def get_platform_chart(cls) -> HelmChart:
-        if len(cls._build_config.platform_filter) != 1:
-            IssueTracker.generate_issue(
-                component=cls.__name__,
-                name=f"{cls._build_config.platform_filter}",
-                msg=f"Platform Chart could not be determined from platform_filter: {cls._build_config.platform_filter}",
-                level="FATAL",
-            )
-            exit(1)
-        platform_chart = HelmChartHelper.get_chart(cls._build_config.platform_filter[0])
+        platform_chart = HelmChartHelper.get_chart(cls._build_config.platform_filter)
         if not platform_chart:
             IssueTracker.generate_issue(
                 component=cls.__name__,

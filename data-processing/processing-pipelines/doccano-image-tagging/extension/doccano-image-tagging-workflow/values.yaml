@@ -1,4 +1,0 @@
----
-global:
-    image: "dag-doccano-image-tagging"
-    action: "copy"

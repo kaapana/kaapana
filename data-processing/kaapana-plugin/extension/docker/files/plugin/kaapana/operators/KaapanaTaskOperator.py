@@ -6,12 +6,14 @@ from airflow.exceptions import AirflowException
 from typing import List, Dict, Any, Optional
 from airflow.utils.context import Context
 from pathlib import Path
-import json
+import pickle
 import os
 import signal
 import shutil
 from datetime import timedelta
 from pydantic import BaseModel, ConfigDict
+
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 HOST_WORKFLOW_DIR = Path("/home/kaapana/workflows/data")
 AIRFLOW_WORKFLOW_DIR = Path("/kaapana/mounted/workflows/data")
@@ -64,7 +66,7 @@ class KaapanaTaskOperator(BaseOperator):
         self.set_namespace(context)
         os.makedirs(self.airflow_workflow_dir, exist_ok=True)
 
-        # Step 3: Create task.json
+        # Step 3: Create task.pkl
         task = self._create_task(context)
 
         # Step 4: Trigger task
@@ -82,9 +84,9 @@ class KaapanaTaskOperator(BaseOperator):
 
     def _save_task_run(self):
         """
-        Save the task_run json file in the workflow directory
+        Save the task_run pkl file in the workflow directory
         """
-        output = self.airflow_workflow_dir / f"task_run-{self.task_id}.json"
+        output = self.airflow_workflow_dir / f"task_run-{self.task_id}.pkl"
         KubernetesRunner.dump(self.task_run, output)
 
     def _create_task(self, context: Context) -> task_models.Task:
@@ -119,9 +121,9 @@ class KaapanaTaskOperator(BaseOperator):
         for io_map in self.iochannel_maps:
             task_id = io_map.upstream_operator.task_id
             with open(
-                self.airflow_workflow_dir / Path(f"task_run-{task_id}.json"), "r"
+                self.airflow_workflow_dir / Path(f"task_run-{task_id}.pkl"), "rb"
             ) as f:
-                task_run = task_models.TaskRun(**json.load(f))
+                task_run = pickle.load(f)
 
             for channel in task_run.outputs:
                 if channel.name != io_map.upstream_channel:
@@ -136,7 +138,7 @@ class KaapanaTaskOperator(BaseOperator):
                 )
 
         task = task_models.Task(
-            name=self.task_id,
+            name=KaapanaBaseOperator.unique_task_identifer(context),
             image=self.image,
             taskTemplate=self.taskTemplate,
             env=self.env,

@@ -1205,7 +1205,7 @@ do
 
         --check-system)
             check_system kaapana-admin-chart default
-            check_system kaapana-platform-chart default
+            check_system kaapana-platform-chart admin
             check_system project-admin admin
             exit 0
         ;;

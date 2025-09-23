@@ -131,7 +131,7 @@ Start Build
             exit_on_error: true  # stop immediately if an issue occurs
             enable_linting: true # should be true - checks deployment validity
             skip_push_no_changes: false # Advanced feature - should be false usually
-            platform_filter: "kaapana-admin-chart" # comma seperated platform-chart-names
+            platform_filter: "kaapana-admin-chart" # platform-chart name (e.g. racoon-admin-chart, kaapana-admin-chart, wdb-chart)
             external_source_dirs: "" # comma seperated paths
             build_ignore_patterns: "" # comma seperated list of directory paths or files that should be ignored
             parallel_processes: 2 # parallel process count for container build + push 

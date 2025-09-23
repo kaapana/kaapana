@@ -50,7 +50,7 @@ class BuildConfig(BaseModel):
     http_proxy: Optional[str]
     push_to_microk8s: bool
     create_offline_installation: bool
-    platform_filter: List[str] = Field(default_factory=list)
+    platform_filter: str
     external_source_dirs: List[Path] = Field(default_factory=list)
     build_ignore_patterns: List[str] = Field(default_factory=list)
 
@@ -73,7 +73,6 @@ class BuildConfig(BaseModel):
     def preprocess_lists(cls, data: dict[str, Any]) -> dict[str, Any]:
         # Convert CSV strings to lists
         for field_name in [
-            "platform_filter",
             "build_ignore_patterns",
             "containers_to_build_by_charts",
             "containers_to_build",

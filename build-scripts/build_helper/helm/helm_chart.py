@@ -329,8 +329,8 @@ class HelmChart:
         Try to extract an image reference from a line of YAML.
         Returns the cleaned image string or None if not applicable.
         """
-        IMAGE_LINE_RE = re.compile(r"^\s*image:\s*(.+)$")
-        VALUES_IMAGE_RE = re.compile(r"^\s*complete_image:\s*(.+)$")
+        IMAGE_LINE_RE = re.compile(r"^\s*-?\s*image:\s*(.+)$")
+        VALUES_IMAGE_RE = re.compile(r"^\s*-?\s*complete_image:\s*(.+)$")
 
         match = IMAGE_LINE_RE.match(line) or VALUES_IMAGE_RE.match(line)
         if not match:

@@ -723,16 +723,16 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         except TimeoutError:
             final_status = KubernetesRunner.wait_for_task_status(
                 self.task_run,
-                states=["Pending", "Running"],
+                states=["Pending", "Running", "Terminating"],
                 timeout=5,
             )
             if final_status == "Running":
                 raise AirflowException(
-                    f"Processing container didn't finish in execution timeout: {self.execution_timeout.total_seconds()} seconds."
+                    f"Processing container didn't finish in execution timeout: {self.execution_timeout.total_seconds()} seconds. The corresponding will be deleted!"
                 )
             elif final_status == "Pending":
                 raise AirflowException(
-                    f"Processing container didn't start within {self.startup_timeout_seconds} seconds."
+                    f"Processing container didn't start within {self.startup_timeout_seconds} seconds. The corresponding will be deleted!"
                 )
             else:
                 raise AirflowException(
@@ -742,7 +742,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         final_status = KubernetesRunner.wait_for_task_status(
             self.task_run,
             states=["Succeeded", "Failed"],
-            timeout=5,
+            timeout=30,
         )
         if final_status == "Failed":
             pod = KubernetesRunner.api.read_namespaced_pod(

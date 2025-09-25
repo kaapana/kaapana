@@ -22,6 +22,15 @@ def is_valid_pod_name(name: str) -> bool:
     return pod_name_regex.match(name) is not None
 
 
+@pytest.mark.skipif(
+    condition=not (
+        k8s_cluster_available()
+        and os.getenv("REGISTRY_URL")
+        and os.getenv("REGISTRY_USER")
+        and os.getenv("REGISTRY_PASSWORD")
+    ),
+    reason="Kubernetes cluster not available",
+)
 @pytest.mark.parametrize(
     "input_name",
     [

@@ -85,6 +85,21 @@ integration_tests:
   script:
     - source /home/$USER/venv/bin/activate
     - bash $REPO_DIR/ci-code/test/jobs/integration_tests/run_tests.sh
+    - python3 -m virtualenv $KAAPANA_DIR/ci/.ci
+    - source $KAAPANA_DIR/ci/.ci
+    - python3 -m pip install pytest pytest-asyncio
+    - export test_files=$( find ${KAAPANA_DIR}/data-processing -wholename *ci-config/*.yaml)
+    - pytest $KAAPANA_DIR/ci/ci-code/test/src/test_workflows.py \
+      --files ${test_files} \
+      --host ${ip_address} \
+      --junitxml=workflow_test_report.xml
+  artifacts:
+    when: always
+    paths:
+    - workflow_test_report.xml
+    reports:
+      junit: 
+        - workflow_test_report.xml
   needs:
     - first_login
     - send_testdata

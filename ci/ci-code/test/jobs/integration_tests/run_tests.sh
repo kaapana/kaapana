@@ -36,6 +36,8 @@ for i in "${!pids[@]}"; do
         rc=$?
         if [ $rc -eq 124 ]; then
             echo -e "\n[TIMEOUT] Test $name exceeded ${TIMEOUT}s"
+        else if [ $rc -eq 0 ]; then
+            echo -e "\n[OK] Test $name finished successfully"
         else
             echo -e "\n[FAIL] Test $name failed (exit code $rc)"
         fi

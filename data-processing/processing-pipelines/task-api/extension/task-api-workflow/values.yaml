@@ -1,0 +1,4 @@
+---
+global:
+    image: "dag-test-task-api"
+    action: "copy"

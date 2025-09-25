@@ -23,8 +23,8 @@ USER_INPUT_KEY = "task_form"
 
 class IOMapping(BaseModel):
     upstream_operator: BaseOperator
-    upstream_channel: str
-    downstream_channel: str
+    upstream_output_channel: str
+    input_channel: str
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
     )

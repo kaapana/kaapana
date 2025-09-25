@@ -222,7 +222,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             [arguments] if isinstance(arguments, str) else (arguments or [])
         )
         self.labels = labels or {}
-        self.labels.update({"pod-type": "processing-container"})
+        self.labels.update(
+            {"pod-type": "processing-container", "kaapana.type": "processing-container"}
+        )
         self.startup_timeout_seconds = startup_timeout_seconds
         self.volume_mounts = volume_mounts or []
         self.volumes = volumes or []
@@ -705,7 +707,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     ],
                     volumes=self.volumes,
                     volume_mounts=self.volume_mounts,
-                    labels={**self.labels, **{"kaapana.type": "processing-container"}},
+                    labels=self.labels,
                 ),
             )
         )

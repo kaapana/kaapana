@@ -249,8 +249,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         # Namespaces
         self.services_namespace = os.getenv("SERVICES_NAMESPACE", "")
         self.admin_namespace = os.getenv("ADMIN_NAMESPACE", "")
-        self.extensions_namespace = os.getenv("EXTENSIONS_NAMESPACE", "")
-        # self.helm_namespace = os.getenv("HELM_NAMESPACE", "")
 
         if self.pod_resources is None:
             self.pod_resources = pc_models.Resources(
@@ -280,8 +278,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         envs = {
             "SERVICES_NAMESPACE": str(self.services_namespace),
             "ADMIN_NAMESPACE": str(self.admin_namespace),
-            "EXTENSIONS_NAMESPACE": str(self.extensions_namespace),
-            # "HELM_NAMESPACE": str(self.helm_namespace),
         }
 
         envs.update(

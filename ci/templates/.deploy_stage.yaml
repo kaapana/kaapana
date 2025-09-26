@@ -85,7 +85,7 @@ integration_tests:
   script:
     - python3 -m virtualenv $KAAPANA_DIR/ci/.ci
     - source $KAAPANA_DIR/ci/.ci/bin/activate
-    - python3 -m pip install pytest pytest-asyncio
+    - python3 -m pip install -r $KAAPANA_DIR/ci/ci-code/test/src/requirements.txt
     - export test_files=$( find ${KAAPANA_DIR}/data-processing -wholename *ci-config/*.yaml)
     - pytest $KAAPANA_DIR/ci/ci-code/test/src/test_workflows.py \
       --files ${test_files} \

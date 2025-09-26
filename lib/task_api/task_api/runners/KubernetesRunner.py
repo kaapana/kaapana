@@ -87,7 +87,7 @@ class KubernetesRunner(BaseRunner):
     api = client.CoreV1Api()
 
     @classmethod
-    def run(cls, task: task_models.Task, dry_run: False):
+    def run(cls, task: task_models.Task, dry_run: bool = False):
         """
         Create and execute a Kubernetes Pod for the given task.
 

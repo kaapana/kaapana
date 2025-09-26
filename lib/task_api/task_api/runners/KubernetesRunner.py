@@ -24,15 +24,15 @@ def generate_pod_name(base_name: str) -> str:
     - Lowercase only
     - Allowed characters: [a-z0-9-.]
     - Must start and end with alphanumeric
-    - Max length: 63 chars -> Kaapana specific
+    - Max length: 62 chars -> dcmsend does not work if local hostname is too long
     """
 
     sanitized_name = base_name.lower()
     sanitized_name = re.sub(r"[^a-z0-9.-]", "-", sanitized_name)
     sanitized_name = re.sub(r"^[^a-z0-9]+", "", sanitized_name)
     sanitized_name = re.sub(r"[^a-z0-9]+$", "", sanitized_name)
-    if len(sanitized_name) > 63:
-        sanitized_name = sanitized_name[:63]
+    if len(sanitized_name) > 62:
+        sanitized_name = sanitized_name[:62]
         # after cutting, re-strip trailing non-alphanumeric
         sanitized_name = re.sub(r"[^a-z0-9]+$", "", sanitized_name)
 
@@ -87,7 +87,42 @@ class KubernetesRunner(BaseRunner):
     api = client.CoreV1Api()
 
     @classmethod
-    def run(cls, task: task_models.Task):
+    def run(cls, task: task_models.Task, dry_run: False):
+        """
+        Create and execute a Kubernetes Pod for the given task.
+
+        This method translates a task definition into a Kubernetes Pod spec,
+        applies resource and configuration settings, and submits it to the
+        cluster via the Kubernetes API. The resulting Pod runs the specified
+        task container in `Never` restart mode.
+
+        Workflow:
+            1. Resolve image pull secrets and task template.
+            2. Create a task instance and derive pod/container configuration.
+            3. Compute resource requirements, volumes, and environment variables.
+            4. Construct the Kubernetes Pod manifest.
+            5. Submit the Pod to the cluster namespace.
+            6. Return a `TaskRun` object representing the execution.
+
+        Args:
+            task (task_models.Task):
+                The task definition, including image, configuration,
+                volumes, environment variables, and template reference.
+            dry_run (bool):
+                If True, build the Pod specification without submitting it
+                to Kubernetes. Currently unused in this implementation.
+
+        Returns:
+            task_models.TaskRun:
+                A task run object containing the Pod name as the run ID,
+                execution mode, and metadata derived from the task instance.
+
+        Raises:
+            kubernetes.client.exceptions.ApiException:
+                If creating the Pod in Kubernetes fails.
+            ValueError:
+                If the task template cannot be resolved.
+        """
         cls._logger.info("Running task in Kubernetes...")
 
         image_pull_secrets = cls.get_image_pull_secrets(task)
@@ -107,13 +142,13 @@ class KubernetesRunner(BaseRunner):
         task_instance = create_task_instance(task_template=task_template, task=task)
         pod_name = generate_pod_name(task_instance.name)
         volumes, volume_mounts = get_volume_and_mounts(task_instance)
-        volumes.extend(task.config.volumes)
-        volume_mounts.extend(task.config.volume_mounts)
+        volumes.extend(task_instance.config.volumes)
+        volume_mounts.extend(task_instance.config.volume_mounts)
         task_instance.resources = compute_memory_resources(task_instance)
         task_container = get_container(
             task_instance=task_instance, volume_mounts=volume_mounts
         )
-        task_container.env = task_container.env + task.config.env_vars
+        task_container.env = task_container.env + task_instance.config.env_vars
 
         pod_spec = client.V1PodSpec(
             restart_policy="Never",
@@ -128,12 +163,20 @@ class KubernetesRunner(BaseRunner):
             ),
             spec=pod_spec,
         )
+        task_instance.config["V1Pod"] = pod
+
+        if dry_run:
+            cls._logger.info(f"Pod was not created in Kubernetes because {dry_run=}.")
+            return task_models.TaskRun(
+                id="dry-run",
+                mode="k8s",
+                **task_instance.model_dump(),
+            )
 
         # push pod to Kubernetes
         cls._logger.info(
             f"Creating pod '{pod_name}' in namespace '{task_instance.config.namespace}'..."
         )
-
         pod = cls.api.create_namespaced_pod(
             namespace=task_instance.config.namespace, body=pod
         )

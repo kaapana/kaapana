@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Optional, Union, List, Dict, Literal
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from task_api.processing_container import pc_models
 from kubernetes import client as k8sclient
 
@@ -44,15 +44,15 @@ class DockerConfig(BaseConfig):
 
 class K8sConfig(BaseConfig):
     type: Literal["k8s"] = "k8s"
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
     namespace: Optional[str] = None
     registryUrl: Optional[str] = None
     registryUsername: Optional[str] = None
     registryPassword: Optional[str] = None
     imagePullSecrets: Optional[List[str]] = None
-    env_vars: List[k8sclient.V1EnvVar] = []
-    volumes: List[k8sclient.V1Volume] = []
-    volume_mounts: List[k8sclient.V1VolumeMount] = []
+    env_vars: List[k8sclient.V1EnvVar] = Field(default_factory=list)
+    volumes: List[k8sclient.V1Volume] = Field(default_factory=list)
+    volume_mounts: List[k8sclient.V1VolumeMount] = Field(default_factory=list)
     annotations: dict = {}
 
 
@@ -66,9 +66,9 @@ class Task(BaseModel):
     image: str
     taskTemplate: Union[str, pc_models.TaskTemplate]
     command: Optional[List[str]] = None
-    inputs: List[IOVolume] = []
-    outputs: List[IOVolume] = []
-    env: Optional[List[TaskEnvVar]] = []
+    inputs: List[IOVolume] = Field(default_factory=list)
+    outputs: List[IOVolume] = Field(default_factory=list)
+    env: Optional[List[TaskEnvVar]] = Field(default_factory=list)
     resources: Optional[pc_models.Resources] = None
     config: Optional[Union[K8sConfig, DockerConfig, BaseConfig]] = BaseConfig()
 
@@ -84,7 +84,7 @@ class TaskInstance(Task, pc_models.TaskTemplate):
 
     inputs: Optional[List[IOChannel]] = None
     outputs: Optional[List[IOChannel]] = None
-    env: Optional[List[TaskInstanceEnv]] = []
+    env: Optional[List[TaskInstanceEnv]] = Field(default_factory=list)
 
 
 class TaskRun(TaskInstance):

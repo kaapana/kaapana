@@ -163,7 +163,7 @@ class KubernetesRunner(BaseRunner):
             ),
             spec=pod_spec,
         )
-        task_instance.config["V1Pod"] = pod
+        task_instance.config.V1Pod = pod
 
         if dry_run:
             cls._logger.info(f"Pod was not created in Kubernetes because {dry_run=}.")
@@ -312,8 +312,15 @@ class KubernetesRunner(BaseRunner):
                 ).decode()
             },
         )
-
-        cls.api.create_namespaced_secret(namespace=task.config.namespace, body=secret)
+        try:
+            cls.api.create_namespaced_secret(
+                namespace=task.config.namespace, body=secret
+            )
+        except client.ApiException as e:
+            if e.status == 409 or e.reason == "Conflict":
+                cls._logger.warning(
+                    f"Secret {secret_name} already exists in namespace {task.config.namespace}."
+                )
         return secret
 
     @classmethod

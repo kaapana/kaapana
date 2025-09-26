@@ -3,6 +3,10 @@ import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
 
 def pytest_addoption(parser):
     parser.addoption(

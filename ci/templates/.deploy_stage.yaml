@@ -83,8 +83,6 @@ download_models:
 integration_tests:
   stage: test
   script:
-    - source /home/$USER/venv/bin/activate
-    - bash $REPO_DIR/ci-code/test/jobs/integration_tests/run_tests.sh
     - python3 -m virtualenv $KAAPANA_DIR/ci/.ci
     - source $KAAPANA_DIR/ci/.ci
     - python3 -m pip install pytest pytest-asyncio

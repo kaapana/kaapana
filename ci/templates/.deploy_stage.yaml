@@ -69,17 +69,6 @@ install_extensions:
     - when: never
   retry: 2
 
-download_models:
-  stage: test
-  script:
-    - source /home/$USER/venv/bin/activate
-    - ansible-playbook ${REPO_DIR}/ci-code/test/jobs/integration_tests/download_models.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
-  allow_failure: true
-  rules:
-    # - if: $TEST_STAGE == "true"
-    #   when: on_success
-    - when: never
-
 integration_tests:
   stage: test
   script:
@@ -99,7 +88,6 @@ integration_tests:
     - first_login
     - send_testdata
     - install_extensions
-    # - download_models
   allow_failure: true
   rules:
     - if: $TEST_STAGE == "true"

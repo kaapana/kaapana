@@ -87,10 +87,7 @@ integration_tests:
     - source $KAAPANA_DIR/ci/.ci/bin/activate
     - python3 -m pip install -r $KAAPANA_DIR/ci/ci-code/test/src/requirements.txt
     - export test_files=$( find ${KAAPANA_DIR}/data-processing -wholename *ci-config/*.yaml)
-    - pytest $KAAPANA_DIR/ci/ci-code/test/src/test_workflows.py \
-      --files ${test_files} \
-      --host ${ip_address} \
-      --junitxml=workflow_test_report.xml
+    - pytest $KAAPANA_DIR/ci/ci-code/test/src/test_workflows.py --files ${test_files} --host ${ip_address} --junitxml=workflow_test_report.xml -n auto
   artifacts:
     when: always
     paths:

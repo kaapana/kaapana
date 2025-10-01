@@ -70,24 +70,27 @@ ui_forms = {
         "properties": {
             "models": {
                 "title": "Model selection",
-                "description": "Select the models that should be used during analysis.",
+                "description": "Select one or more models to use during analysis.",
                 "type": "array",
-                "minItems": 1,
+                "items": {"type": "string", "enum": ["bca", "body", "total"]},
+                "default": ["bca"],
+            },
+            "total_models": {
+                "title": "Optional models for 'total'",
+                "description": "Run only if 'total' is selected.",
+                "type": "array",
                 "items": {
                     "type": "string",
-                    "examples": [
-                        "body",
-                        "total",
+                    "enum": [
                         "lung_vessels",
                         "cerebral_bleed",
                         "hip_implant",
                         "coronary_arteries",
                         "pleural_pericard_effusion",
                         "liver_vessels",
-                        "bca",
                     ],
                 },
-                "default": ["bca"],
+                "default": [],
                 "readOnly": False,
             },
             "single_execution": {
@@ -186,13 +189,36 @@ def merge_conditionally(**kwargs):
 def branch_models_callable(**kwargs):
     conf = kwargs["dag_run"].conf
     selected_models = conf["workflow_form"].get("models", [])
+    total_extras = conf["workflow_form"].get("total_models", [])
+
     branches = []
 
+    # Flag to determine if 'total' is in the selected models
+    total_selected = "total" in selected_models
+
     for model in selected_models:
+        # Get the outputs for the model
         outputs = model_outputs.get(model, [])
+
+        # If 'bca' is selected AND 'total' is also selected, skip 'vertebrae'
+        if model == "bca" and total_selected:
+            outputs = [o for o in outputs if o != "vertebrae"]
+
         for out in outputs:
             task_id = f"{model}_{out}_seg2dcm" if out != model else f"{model}_seg2dcm"
             branches.append(task_id)
+
+        # If this is the 'total' model, include its optional sub-models
+        if model == "total":
+            for extra_model in total_extras:
+                extra_outputs = model_outputs.get(extra_model, [])
+                for out in extra_outputs:
+                    task_id = (
+                        f"{extra_model}_{out}_seg2dcm"
+                        if out != extra_model
+                        else f"{extra_model}_seg2dcm"
+                    )
+                    branches.append(task_id)
 
     return branches
 
@@ -223,7 +249,7 @@ send_tasks = {}
 
 seg_merge = KaapanaPythonBaseOperator(
     dag=dag,
-    trigger_rule="all_done",
+    trigger_rule="none_failed",
     name="merge_dcm_send",
     python_callable=merge_conditionally,
 )

@@ -73,12 +73,12 @@ data:
         - targets: ['traefik-{{  .Values.global.instance_uid | default 0 }}.{{  .Values.global.admin_namespace  }}.svc:8080']
       {{- end }}
 
-      - job_name: 'Granafa'
-        scheme: http
-        scrape_interval: 30s
-        metrics_path: '/metrics'
-        static_configs:
-        - targets: ['grafana.{{  .Values.global.services_namespace  }}.svc:3000']
+      # - job_name: 'Granafa'
+      #   scheme: http
+      #   scrape_interval: 30s
+      #   metrics_path: '/metrics'
+      #   static_configs:
+      #   - targets: ['grafana.{{  .Values.global.services_namespace  }}.svc:3000']
 
       - job_name: 'Airflow'
         scheme: http
@@ -207,6 +207,117 @@ data:
         - source_labels: [__meta_kubernetes_service_name]
           action: replace
           target_label: kubernetes_name
+
+
+      - job_name: "kubernetes-pods"
+
+        kubernetes_sd_configs:
+        - role: pod
+
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          action: keep
+          regex: true
+        # Optionally keep only pods that configured a custom job name.
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_custom_job_name]
+          action: keep
+          regex: (.+)
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scheme]
+          action: replace
+          target_label: __scheme__
+          regex: (https?)
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+          action: replace
+          target_label: __metrics_path__
+          regex: (.+)
+        - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+          action: replace
+          target_label: __address__
+          regex: ([^:]+)(?::\d+)?;(\d+)
+          replacement: $1:$2
+        # Configure Scrape Settings
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape_interval]
+          action: replace
+          target_label: __scrape_interval__
+          regex: (.+)
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape_timeout]
+          action: replace
+          target_label: __scrape_timeout__
+          regex: (.+)
+        # Add Pod Labels to Metrics
+        # - action: labelmap
+        #   regex: __meta_kubernetes_pod_label_(.+)
+        - source_labels: [__meta_kubernetes_namespace]
+          action: replace
+          target_label: kubernetes_namespace
+        - source_labels: [__meta_kubernetes_pod_name]
+          action: replace
+          target_label: kubernetes_name
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_custom_job_name]
+          action: replace
+          target_label: job
+          regex: (.+)
+
+      # # Optionally on a per service level
+      # - job_name: "kubernetes-services"
+      #   kubernetes_sd_configs:
+      #   - role: service
+
+      #   relabel_configs:
+      #   - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+      #     action: keep
+      #     regex: true
+
+      #   - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_custom_job_name]
+      #     action: keep
+      #     regex: (.+)
+
+      #   - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]
+      #     action: replace
+      #     target_label: __scheme__
+      #     regex: (https?)
+
+      #   - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+      #     action: replace
+      #     target_label: __metrics_path__
+      #     regex: (.+)
+
+      #   # Build __address__ = <svc>.<ns>.svc:<port> from annotations + metadata
+      #   - source_labels:
+      #       [__meta_kubernetes_service_name,
+      #       __meta_kubernetes_namespace,
+      #       __meta_kubernetes_service_annotation_prometheus_io_port]
+      #     action: replace
+      #     target_label: __address__
+      #     regex: (.+);(.+);(\d+)
+      #     replacement: ${1}.${2}.svc:${3}
+
+      #   - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape_interval]
+      #     action: replace
+      #     target_label: __scrape_interval__
+      #     regex: (.+)
+
+      #   - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape_timeout]
+      #     action: replace
+      #     target_label: __scrape_timeout__
+      #     regex: (.+)
+
+      #   # (Optional) copy Service labels
+      #   # - action: labelmap
+      #   #   regex: __meta_kubernetes_service_label_(.+)
+
+      #   - source_labels: [__meta_kubernetes_namespace]
+      #     action: replace
+      #     target_label: kubernetes_namespace
+
+      #   - source_labels: [__meta_kubernetes_service_name]
+      #     action: replace
+      #     target_label: kubernetes_service_name
+
+      #   - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_custom_job_name]
+      #     action: replace
+      #     target_label: job
+      #     regex: (.+)
 
 
     alerting:

@@ -1,8 +1,8 @@
 import logging
 from fastapi import APIRouter, Depends, BackgroundTasks, Response
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Optional, Dict
-from app.dependencies import get_async_db, get_forwarded_headers
+from typing import List, Optional
+from app.dependencies import get_async_db
 from app import schemas
 from app.api.v1.services import workflow_run_service as service
 
@@ -27,7 +27,6 @@ async def create_workflow_run(
     response: Response,
     workflow_run: schemas.WorkflowRunCreate,
     background_tasks: BackgroundTasks,
-    forwarded_headers: Dict[str, str] = Depends(get_forwarded_headers),
     db: AsyncSession = Depends(get_async_db),
 ):
     workflow_run_res = await service.create_workflow_run(
@@ -51,7 +50,6 @@ async def get_workflow_run_by_id(
 async def cancel_workflow_run(
     workflow_run_id: int,
     db: AsyncSession = Depends(get_async_db),
-    forwarded_headers: Dict[str, str] = Depends(get_forwarded_headers),
 ):
     return await service.cancel_workflow_run(db, workflow_run_id)
 
@@ -62,7 +60,6 @@ async def cancel_workflow_run(
 async def retry_workflow_run(
     workflow_run_id: int,
     db: AsyncSession = Depends(get_async_db),
-    forwarded_headers: Dict[str, str] = Depends(get_forwarded_headers),
 ):
     return await service.retry_workflow_run(db, workflow_run_id)
 

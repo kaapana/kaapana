@@ -4,7 +4,14 @@ kind: Service
 metadata:
   name: grafana
   namespace: "{{ .Values.global.services_namespace }}"
-
+  # annotations:
+  #   prometheus.io/scrape: "true"
+  #   prometheus.io/port: "3000"
+  #   prometheus.io/path: "/metrics"
+  #   prometheus.io/scheme: "http"
+  #   prometheus.io/custom_job_name: "grafana"
+  #   prometheus.io/scrape_interval: "30s"
+  #   prometheus.io/scrape_timeout: "10s"
   labels:
     app.kubernetes.io/name: grafana
 spec:

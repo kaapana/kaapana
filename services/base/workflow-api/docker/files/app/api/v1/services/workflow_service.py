@@ -1,11 +1,10 @@
 import logging
-from math import log
-from fastapi import HTTPException, Response
+from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.encoders import jsonable_encoder
-from typing import List, Optional
 
 from app import crud, schemas
+from app.api.v1.services.errors import *
 from app.adapters import get_workflow_engine
 
 logger = logging.getLogger(__name__)
@@ -24,18 +23,19 @@ async def get_workflows(
         db, skip=skip, limit=limit, order_by=order_by, order=order, filters=filters
     )
     if not workflows:
-        logger.error(f"No workflows found with filters: {filters}")
-        raise HTTPException(status_code=404, detail="No workflows found")
+        logger.warning(f"No workflows found with filters: {filters}")
+        return []
     return workflows
 
 
 async def create_workflow(
-    db: AsyncSession, workflow: schemas.WorkflowCreate,
+    db: AsyncSession,
+    workflow: schemas.WorkflowCreate,
 ) -> schemas.Workflow:
     db_workflow = await crud.create_workflow(db, workflow=workflow)
     if not db_workflow:
         logger.error(f"Failed to create workflow: {workflow}")
-        raise HTTPException(status_code=400, detail="Failed to create workflow")
+        raise InternalError("Failed to create workflow")
     logger.info(f"Created workflow: {db_workflow.title} v{db_workflow.version}")
 
     # submit the workflow to the engine and get tasks
@@ -105,7 +105,7 @@ async def get_workflow_by_title(
     )
     if not workflows:
         logger.error(f"Workflow with {title=} not found")
-        raise HTTPException(status_code=404, detail="Workflow not found")
+        raise NotFoundError("Workflow not found")
     return workflows
 
 
@@ -117,7 +117,7 @@ async def get_workflow_by_title_and_version(
     )
     if not workflow:
         logger.error(f"Workflow with {title=} and {version=} not found")
-        raise HTTPException(status_code=404, detail="Workflow not found")
+        raise NotFoundError("Workflow not found")
     return workflow
 
 
@@ -129,7 +129,7 @@ async def delete_workflow(db: AsyncSession, title: str, version: int):
     # TODO: also delete tasks associated with the workflow, but this creates orphaned task runs
     if not success:
         logger.error(f"Failed to delete workflow with {title=} and {version=}")
-        raise HTTPException(status_code=404, detail="Workflow not found")
+        raise NotFoundError("Workflow not found")
 
 
 async def get_workflow_tasks(
@@ -140,13 +140,13 @@ async def get_workflow_tasks(
     )
     if not workflow:
         logger.error(f"Workflow with {title=} and {version=} not found")
-        raise HTTPException(status_code=404, detail="Workflow not found")
-    
+        raise NotFoundError("Workflow not found")
+
     # get tasks
     tasks = await crud.get_tasks(db, filters={"workflow_id": workflow.id})
     if not tasks:
-        logger.error(f"No tasks found for workflow with {title=} and {version=}")
-        raise HTTPException(status_code=404, detail="Tasks not found")
+        logger.warning(f"No tasks found for workflow with {title=} and {version=}")
+        return []
 
     # append downstream task ids to each task
     res = []
@@ -172,9 +172,11 @@ async def get_task(
         single=True,
     )
     if not task:
-        logger.error(f"Task with {task_title=} for workflow with {title=} and {version=} not found")
-        raise HTTPException(status_code=404, detail="Task not found")
-    
+        logger.error(
+            f"Task with {task_title=} for workflow with {title=} and {version=} not found"
+        )
+        raise NotFoundError("Task not found")
+
     # append downstream task ids
     task_data = jsonable_encoder(task)
     task_data["downstream_task_ids"] = [

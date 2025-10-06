@@ -1,7 +1,7 @@
 import hashlib
 import json
 import os
-from typing import Set, TypeVar
+from typing import Set
 
 import networkx as nx
 from build_helper.cli.selector import interactive_select
@@ -14,7 +14,6 @@ from InquirerPy import inquirer
 from jinja2 import Environment, FileSystemLoader
 from treelib.tree import Tree
 
-T = TypeVar("T")  # HelmChart or Container
 logger = get_logger()
 
 

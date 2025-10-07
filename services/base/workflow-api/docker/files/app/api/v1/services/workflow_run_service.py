@@ -133,7 +133,7 @@ async def create_workflow_run(
     db_workflow_run = await crud.create_workflow_run(db, workflow_run, db_workflow.id)
     if not db_workflow_run:
         logger.error(f"Failed to create workflow run for {workflow_run=}")
-        raise BadRequestError("Failed to create workflow run")
+        raise InternalError("Failed to create workflow run")
 
     # submit workflow run to the workflow engine in the background
     engine = get_workflow_engine(db_workflow.workflow_engine)
@@ -177,7 +177,8 @@ async def cancel_workflow_run(
     engine = get_workflow_engine(run.workflow.workflow_engine)
     canceled = await engine.cancel_workflow_run(run.external_id)
     if not canceled:
-        raise BadRequestError("Failed to cancel workflow run in engine")
+        logger.error(f"Failed to cancel workflow run in engine {workflow_run_id}")
+        raise InternalError("Failed to cancel workflow run in engine")
     updated = await crud.update_workflow_run(
         db,
         run_id=workflow_run_id,

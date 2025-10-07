@@ -390,7 +390,9 @@ async def create_task_run(
         workflow_run_id=task_run.workflow_run_id,
         external_id=task_run.external_id,
         lifecycle_status=(
-            None if task_run.lifecycle_status == "" else task_run.lifecycle_status
+            schemas.TaskRunStatus.CREATED
+            if task_run.lifecycle_status == ""
+            else task_run.lifecycle_status
         ),
     )
     db.add(db_task_run)

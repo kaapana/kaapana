@@ -9,22 +9,24 @@ class HostPathVolume(BaseModel):
     host_path: str
 
 
-class IOVolume(BaseModel):
+class IOVolume(pc_models.IOBase):
     """
     Represents a storage location for input/output data.
     """
 
-    name: str
-    scale_rule: Optional[pc_models.ScaleRule] = None
     input: Union[k8sclient.V1Volume, HostPathVolume]
-
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
-class IOChannel(pc_models.IOMount, IOVolume):
+class IOChannel(pc_models.IOBase):
     """
     Binds an IOMount in the container to an IOVolume in external storage.
     """
+
+    input: Union[k8sclient.V1Volume, HostPathVolume]
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    mounted_path: str
+    description: Optional[str] = None
 
 
 class TaskEnvVar(BaseModel):

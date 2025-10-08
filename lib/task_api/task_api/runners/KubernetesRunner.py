@@ -1,7 +1,6 @@
 import json
 import base64
 import re
-import datetime
 import time
 
 from kubernetes import client, config, watch
@@ -249,7 +248,6 @@ class KubernetesRunner(BaseRunner):
 
     @classmethod
     def stop(cls, task_run: task_models.TaskRun):
-        config.load_config()
         cls.api.delete_namespaced_pod(
             name=task_run.id, namespace=task_run.config.namespace
         )

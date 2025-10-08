@@ -47,15 +47,22 @@ class ScaleRule(BaseModel):
     target_glob: Optional[str] = None
 
 
-class IOMount(BaseModel):
+class IOBase(BaseModel):
+    """
+    Model with common attributes for all IO related models.
+    """
+
+    name: str
+    scale_rule: Optional[ScaleRule] = None
+
+
+class IOMount(IOBase):
     """
     Defines where an input or output channel should be mounted inside the container.
     """
 
-    name: str
     mounted_path: str
     description: Optional[str] = None
-    scale_rule: Optional[ScaleRule] = None
 
 
 class TaskTemplate(BaseModel):

@@ -2,7 +2,7 @@ dag_id: "test-task-operator"
 ci_ignore: False
 conf_data:
   task_form:
-    dummy:
+    upstream:
       env:
         - name: TIME_SLEEP
           value: "0"

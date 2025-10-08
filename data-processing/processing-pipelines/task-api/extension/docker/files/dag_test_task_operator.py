@@ -15,8 +15,8 @@ args = {
 
 
 with DAG("test-task-operator", default_args=args) as dag:
-    task = KaapanaTaskOperator(
-        task_id="dummy",
+    upstream = KaapanaTaskOperator(
+        task_id="upstream",
         image=f"{DEFAULT_REGISTRY}/dummy:{KAAPANA_BUILD_VERSION}",
         taskTemplate="upstream",
     )

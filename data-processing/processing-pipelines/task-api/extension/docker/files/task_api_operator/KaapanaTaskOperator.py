@@ -230,7 +230,5 @@ class KaapanaTaskOperator(BaseOperator):
 
     def set_namespace(self, context):
         conf = context["dag_run"].conf
-        print(f"{conf=}")
         project_form = conf.get("project_form", {})
         self.namespace = project_form.get("kubernetes_namespace", DEFAULT_NAMESPACE)
-        print(f"{self.namespace=}")

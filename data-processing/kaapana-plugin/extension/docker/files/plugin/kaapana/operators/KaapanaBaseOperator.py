@@ -605,11 +605,21 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         return
 
     @staticmethod
-    def unique_task_identifer(context):
+    def unique_task_identifer(context: dict):
+        """
+        Set a unique identifier for this task instance.
+
+        :param context: Dictionary set by Airflow. It contains references to related objects to the task instance.
+        """
         return f"{context["ti"].run_id}-{context["ti"].task_id}"
 
     @staticmethod
-    def task_run_file_path(context):
+    def task_run_file_path(context: dict):
+        """
+        Return the path to the file, where the TaskInstance object will be stored.
+
+        :param context: Dictionary set by Airflow. It contains references to related objects to the task instance.
+        """
         unique_id = KaapanaBaseOperator.unique_task_identifer(context)
         return Path(AIRFLOW_WORKFLOW_DIR, context["run_id"], f"{unique_id}.pkl")
 

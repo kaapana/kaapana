@@ -15,8 +15,9 @@ from pydantic import BaseModel, ConfigDict
 
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
-HOST_WORKFLOW_DIR = Path("/home/kaapana/workflows/data")
-AIRFLOW_WORKFLOW_DIR = Path("/kaapana/mounted/workflows/data")
+HOST_WORKFLOW_DIR = Path(os.environ["DATADIR"])
+AIRFLOW_HOME = Path(os.environ["AIRFLOW_HOME"])
+AIRFLOW_WORKFLOW_DIR = Path(AIRFLOW_HOME, "data")
 DEFAULT_NAMESPACE = "project-admin"
 USER_INPUT_KEY = "task_form"
 

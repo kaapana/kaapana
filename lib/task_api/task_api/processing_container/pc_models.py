@@ -10,9 +10,12 @@ class EnvVarType(Enum):
     int = "int"
 
 
-class TaskTemplateEnv(BaseModel):
+class BaseEnv(BaseModel):
     name: str
     value: str
+
+
+class TaskTemplateEnv(BaseEnv):
     type: Optional[EnvVarType] = None
     choices: Optional[List[str]] = None
     adjustable: Optional[bool] = None

@@ -29,13 +29,6 @@ class IOChannel(pc_models.IOBase):
     description: Optional[str] = None
 
 
-class TaskEnvVar(BaseModel):
-    """ """
-
-    name: str
-    value: str
-
-
 class BaseConfig(BaseModel):
     labels: Optional[Dict] = {}
 
@@ -70,13 +63,9 @@ class Task(BaseModel):
     command: Optional[List[str]] = None
     inputs: List[IOVolume] = Field(default_factory=list)
     outputs: List[IOVolume] = Field(default_factory=list)
-    env: Optional[List[TaskEnvVar]] = Field(default_factory=list)
+    env: Optional[List[pc_models.BaseEnv]] = Field(default_factory=list)
     resources: Optional[pc_models.Resources] = None
     config: Optional[Union[K8sConfig, DockerConfig, BaseConfig]] = BaseConfig()
-
-
-class TaskInstanceEnv(pc_models.TaskTemplateEnv, TaskEnvVar):
-    pass
 
 
 class TaskInstance(Task, pc_models.TaskTemplate):
@@ -86,7 +75,7 @@ class TaskInstance(Task, pc_models.TaskTemplate):
 
     inputs: Optional[List[IOChannel]] = None
     outputs: Optional[List[IOChannel]] = None
-    env: Optional[List[TaskInstanceEnv]] = Field(default_factory=list)
+    env: Optional[List[pc_models.TaskTemplateEnv]] = Field(default_factory=list)
 
 
 class TaskRun(TaskInstance):

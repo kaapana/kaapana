@@ -43,8 +43,8 @@ def pytest_generate_tests(metafunc):
     client_secret = metafunc.config.getoption("client_secret") or os.environ.get(
         "CLIENT_SECRET", None
     )
-    kaapana = WorkflowEndpoints(host=host, client_secret=client_secret)
     assert client_secret, "No client secret specified!"
+    kaapana = WorkflowEndpoints(host=host, client_secret=client_secret)
     if "testconfig" in metafunc.fixturenames:
 
         files = metafunc.config.getoption("files")

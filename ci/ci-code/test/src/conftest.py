@@ -26,7 +26,7 @@ def pytest_addoption(parser):
 
 def pytest_make_parametrize_id(config, val, argname):
     if argname == "testconfig" and isinstance(val, tuple):
-        testcase, host, client_secret = val
+        testcase, kaapana = val
         return testcase.get("dag_id")
     return None
 

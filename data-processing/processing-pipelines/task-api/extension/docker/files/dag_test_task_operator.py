@@ -27,16 +27,16 @@ with DAG("test-task-operator", default_args=args) as dag:
         taskTemplate="downstream",
         iochannel_maps=[
             IOMapping(
-                upstream_operator=task,
+                upstream_operator=upstream,
                 upstream_output_channel="channel1",
                 input_channel="channel1",
             ),
             IOMapping(
-                upstream_operator=task,
+                upstream_operator=upstream,
                 upstream_output_channel="channel2",
                 input_channel="channel2",
             ),
         ],
     )
 
-    task >> downstream
+    upstream >> downstream

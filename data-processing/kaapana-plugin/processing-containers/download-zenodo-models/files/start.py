@@ -11,41 +11,8 @@ from os import getenv
 import json
 import pathlib
 import logging
-
+import glob
 from logger_helper import get_logger
-
-success_count = 0
-processed_count = 0
-max_retries = 3
-waiting_timeout_sec = 7200
-max_hours_since_creation = 3
-model_dir = getenv("MODEL_DIR", "None")
-model_dir = model_dir if model_dir.lower() != "none" else None
-assert model_dir is not None
-
-task_ids = getenv("TASK_IDS", "None")
-task_ids = None if task_ids == "None" else task_ids
-task_ids = task_ids.split(",")
-
-enable_lung_vessels = getenv("LUNG_VESSELS", "False")
-enable_lung_vessels = True if enable_lung_vessels.lower() == "true" else False
-
-enable_cerebral_bleed = getenv("CEREBRAL_BLEED", "False")
-enable_cerebral_bleed = True if enable_cerebral_bleed.lower() == "true" else False
-
-enable_hip_implant = getenv("HIP_IMPLANT", "False")
-enable_hip_implant = True if enable_hip_implant.lower() == "true" else False
-
-enable_coronary_arteries = getenv("CORONARY_ARTERIES", "False")
-enable_coronary_arteries = True if enable_coronary_arteries.lower() == "true" else False
-
-enable_body = getenv("BODY", "False")
-enable_body = True if enable_body.lower() == "true" else False
-
-enable_pleural_pericard_effusion = getenv("PLEURAL_PERICARD_EFFUSION", "False")
-enable_pleural_pericard_effusion = (
-    True if enable_pleural_pericard_effusion.lower() == "true" else False
-)
 
 log_level = getenv("LOG_LEVEL", "info").lower()
 log_level_int = None
@@ -64,52 +31,123 @@ logger = get_logger(__name__, log_level_int)
 pbar = None
 pbar_count = 0
 
-if (
-    len(task_ids) == 1
-    and not enable_lung_vessels
-    and "Task258_lung_vessels_248subj" in task_ids
-):
-    logger.warning("enable_lung_vessels == False -> skipping")
-    exit(126)
+success_count = 0
+processed_count = 0
+max_retries = 3
+waiting_timeout_sec = 7200
+max_hours_since_creation = 3
+model_dir = getenv("MODEL_DIR", "None")
+model_dir = model_dir if model_dir.lower() != "none" else None
+print(model_dir)
+assert model_dir is not None
 
-if len(task_ids) == 1 and not enable_cerebral_bleed and "Task150_icb_v0" in task_ids:
-    logger.warning("enable_cerebral_bleed == False -> skipping")
-    exit(126)
 
-if (
-    len(task_ids) == 1
-    and not enable_hip_implant
-    and "Task260_hip_implant_71subj" in task_ids
-):
-    logger.warning("enable_hip_implant == False -> skipping")
-    exit(126)
+dag_id = getenv("DAG_ID", "None")
+task_ids = getenv("TASK_IDS", "None")
+task_ids = None if task_ids == "None" else task_ids
+task_ids = task_ids.split(",")
+if dag_id == 'total-segmentator':
+    enable_lung_vessels = getenv("LUNG_VESSELS", "False")
+    enable_lung_vessels = True if enable_lung_vessels.lower() == "true" else False
 
-if (
-    len(task_ids) == 1
-    and not enable_coronary_arteries
-    and "Task503_cardiac_motion" in task_ids
-):
-    logger.warning("enable_coronary_arteries == False -> skipping")
-    exit(126)
+    enable_cerebral_bleed = getenv("CEREBRAL_BLEED", "False")
+    enable_cerebral_bleed = True if enable_cerebral_bleed.lower() == "true" else False
 
-if (
-    len(task_ids) == 2
-    and not enable_body
-    and (
-        "Task269_Body_extrem_6mm_1200subj" in task_ids
-        or "Task273_Body_extrem_1259subj" in task_ids
+    enable_hip_implant = getenv("HIP_IMPLANT", "False")
+    enable_hip_implant = True if enable_hip_implant.lower() == "true" else False
+
+    enable_coronary_arteries = getenv("CORONARY_ARTERIES", "False")
+    enable_coronary_arteries = True if enable_coronary_arteries.lower() == "true" else False
+
+    enable_liver_segments = getenv("LIVER_SEGMENTS", "False")
+    enable_liver_segments = True if enable_liver_segments.lower() == "true" else False
+
+    enable_body = getenv("BODY", "False")
+    enable_body = True if enable_body.lower() == "true" else False
+
+    enable_pleural_pericard_effusion = getenv("PLEURAL_PERICARD_EFFUSION", "False")
+    enable_pleural_pericard_effusion = (
+        True if enable_pleural_pericard_effusion.lower() == "true" else False
     )
-):
-    logger.warning("enable_body == False -> skipping")
-    exit(126)
 
-if (
-    len(task_ids) == 1
-    and not enable_pleural_pericard_effusion
-    and "Task315_thoraxCT" in task_ids
-):
-    logger.warning("enable_pleural_pericard_effusion == False -> skipping")
-    exit(126)
+    if (
+        len(task_ids) == 1
+        and not enable_lung_vessels
+        and "Task258_lung_vessels_248subj" in task_ids
+    ):
+        logger.warning("enable_lung_vessels == False -> skipping")
+        exit(126)
+
+    if len(task_ids) == 1 and not enable_cerebral_bleed and "Task150_icb_v0" in task_ids:
+        logger.warning("enable_cerebral_bleed == False -> skipping")
+        exit(126)
+
+    if (
+        len(task_ids) == 1
+        and not enable_hip_implant
+        and "Task260_hip_implant_71subj" in task_ids
+    ):
+        logger.warning("enable_hip_implant == False -> skipping")
+        exit(126)
+
+    if (
+        len(task_ids) == 1
+        and not enable_coronary_arteries
+        and "Task503_cardiac_motion" in task_ids
+    ):
+        logger.warning("enable_coronary_arteries == False -> skipping")
+        exit(126)
+
+    if (
+        len(task_ids) == 2
+        and not enable_body
+        and (
+            "Task269_Body_extrem_6mm_1200subj" in task_ids
+            or "Task273_Body_extrem_1259subj" in task_ids
+        )
+    ):
+        logger.warning("enable_body == False -> skipping")
+        exit(126)
+
+    if (
+        len(task_ids) == 1
+        and not enable_pleural_pericard_effusion
+        and "Task315_thoraxCT" in task_ids
+    ):
+        logger.warning("enable_pleural_pericard_effusion == False -> skipping")
+        exit(126)
+else:
+    task_dict = {
+        "total": '',
+        "total_mr":"Dataset850_TotalSegMRI_part1_organs_1088subj,Dataset851_TotalSegMRI_part1_organs_1088subj,Dataset852_TotalSegMRI_total_3mm_1088subj",
+        "body":"Dataset299_body_1559subj,Dataset300_body_6mm_1559subj",
+        "body_mr":"Dataset597_mri_body_139subj,Dataset598_mri_body_6mm_139subj",
+        "lung_vessels":"Dataset258_lung_vessels_248subj",
+        "hip_implant":"Dataset260_hip_implant_71subj",
+        "liver_segments":"Dataset570_ct_liver_segments",
+        "vertebrae_mr":"Dataset756_mri_vertebrae_1076subj",
+        "cerebral_bleed":"Dataset150_icb_v0",
+        "pleural_pericard_effusion":"Dataset315_thoraxCT",
+        "head_glands_cavities":"Dataset775_head_glands_cavities_492subj",
+        "head_muscles":"Dataset777_head_muscles_492subj",
+        "headneck_bones_vessels":"Dataset776_headneck_bones_vessels_492subj",
+        "headneck_muscles":"Dataset778_headneck_muscles_part1_492subj,Dataset779_headneck_muscles_part2_492subj",
+        "liver_vessels":"Dataset008_HepaticVessel",
+        "oculomotor_muscles":"Dataset351_oculomotor_muscles_18subj",
+        "lung_nodules":"Dataset913_lung_nodules",
+        "kidney_cysts":"Dataset789_kidney_cyst_501subj",
+        "breasts":"Dataset527_breasts_1559subj",
+        "liver_segments_mr":"Dataset576_mri_liver_segments_120subj",
+        "craniofacial_structures":"Dataset115_mandible",
+        "abdominal_muscles":"Dataset952_abdominal_muscles_167subj",
+        "teeth":"Dataset113_ToothFairy3"
+    }
+    import ast
+    tasks = ast.literal_eval(getenv("TASKS", "[]"))
+    for task, task_id in task_dict.items():
+        if (task not in tasks and task_id in task_ids):
+            logger.warning(f"{task} not enabled -> skipping")
+            exit(126)
 
 
 def bar_update(block_num, block_size, total_size):
@@ -257,11 +295,14 @@ if __name__ == "__main__":
                         "nnUNetTrainerV2__nnUNetPlansv2.1",
                         "plans.pkl",
                     )
+                elif check_file == 'totalv2':
+                    model_target_dir = join(model_dir, task_id)
+                    check_file_path = join(model_target_dir, '*', "plans.json")
                 else:
                     check_file_path = join(model_target_dir, check_file)
 
                 logger.info(f"Check if model already present: {check_file_path}")
-                if exists(check_file_path):
+                if len(glob.glob(check_file_path)) == 1:
                     logger.info(
                         f"{task_id} already exists @{check_file_path} -> skipping"
                     )
@@ -309,7 +350,7 @@ if __name__ == "__main__":
                 delete_file(model_download_lockfile_path)
 
                 logger.info(f"{task_id} checking result @{check_file_path} ...")
-                if not exists(check_file_path):
+                if len(glob.glob(check_file_path)) == 0:
                     rmtree(model_target_dir)
                     logger.error(f"{task_id} model resulting could not be found! ")
                     issues_occurred = True

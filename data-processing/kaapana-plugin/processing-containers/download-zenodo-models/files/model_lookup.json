@@ -208,5 +208,210 @@
     "models": ["3d_fullres"],
     "check_file": "default",
     "download_link": "https://zenodo.org/record/7510288/files/Task315_thoraxCT.zip?download=1"
-  }
+  },
+  "Dataset291_TotalSegmentator_part1_organs_1559subj" :{
+    "id": "291",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+     "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset291_TotalSegmentator_part1_organs_1559subj.zip"
+  },
+  "Dataset292_TotalSegmentator_part2_vertebrae_1532subj" :{
+    "id": "292",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+     "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset292_TotalSegmentator_part2_vertebrae_1532subj.zip"
+  },
+  "Dataset293_TotalSegmentator_part3_cardiac_1559subj" :{
+    "id": "293",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset293_TotalSegmentator_part3_cardiac_1559subj.zip"
+  },
+  "Dataset294_TotalSegmentator_part4_muscles_1559subj" :{
+    "id": "294",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+     "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset294_TotalSegmentator_part4_muscles_1559subj.zip"
+  },
+  "Dataset295_TotalSegmentator_part5_ribs_1559subj" :{
+    "id": "295",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+     "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset295_TotalSegmentator_part5_ribs_1559subj.zip"
+  },
+   "Dataset297_TotalSegmentator_total_6mm_1559subj" :{
+    "id": "297",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset297_TotalSegmentator_total_3mm_1559subj.zip"
+  },
+  "Dataset298_TotalSegmentator_total_6mm_1559subj" :{
+    "id": "298",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset298_TotalSegmentator_total_6mm_1559subj.zip"
+  },
+  "Dataset258_lung_vessels_248subj" :{
+    "id": "258",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset258_lung_vessels_248subj.zip"
+  },
+  "Dataset150_icb_v0" :{
+    "id": "150",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset150_icb_v0.zip"
+  },
+  "Dataset260_hip_implant_71subj" :{
+    "id": "260",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset260_hip_implant_71subj.zip"
+  },
+  "Dataset299_body_1559subj" :{
+    "id": "299",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset299_body_1559subj.zip"
+  },
+  "Dataset300_body_1559subj" :{
+    "id": "300",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset300_body_6mm_1559subj.zip"
+  },
+  "Dataset315_thoraxCT" :{
+    "id": "315",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset315_thoraxCT.zip"
+  },
+  "Dataset570_ct_liver_segments" :{
+    "id": "570",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.5.0-weights/Dataset570_ct_liver_segments.zip"
+  },
+  "Dataset850_TotalSegMRI_part1_organs_1088subj" :{
+    "id": "850",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.5.0-weights/Dataset850_TotalSegMRI_part1_organs_1088subj.zip"
+  },
+  "Dataset851_TotalSegMRI_part1_organs_1088subj" :{
+    "id": "851",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.5.0-weights/Dataset851_TotalSegMRI_part1_organs_1088subj.zip"
+  },
+  "Dataset852_TotalSegMRI_part1_organs_1088subj" :{
+    "id": "852",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.5.0-weights/Dataset852_TotalSegMRI_part1_organs_1088subj.zip"
+  },
+  "Dataset597_mri_body_139subj" :{
+    "id": "597",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.5.0-weights/Dataset597_mri_body_139subj.zip"
+  },
+  "Dataset598_mri_body_6mm_139subj" :{
+    "id": "598",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.5.0-weights/Dataset598_mri_body_6mm_139subj.zip"
+  },
+  "Dataset756_mri_vertebrae_1076subj" :{
+    "id": "756",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.5.0-weights/Dataset756_mri_vertebrae_1076subj.zip"
+  },
+  "Dataset775_head_glands_cavities_492subj" :{
+    "id": "775",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.5.0-weights/Dataset775_head_glands_cavities_492subj.zip"
+  },
+  "Dataset776_head_muscles_492subj" :{
+    "id": "776",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.3.0-weights/Dataset776_headneck_bones_vessels_492subj.zip"
+  },
+  "Dataset777_head_muscles_492subj" :{
+    "id": "777",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.3.0-weights/Dataset777_head_muscles_492subj.zip"
+  },
+  "Dataset778_headneck_muscles_part1_492subj" :{
+    "id": "778",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.3.0-weights/Dataset778_headneck_muscles_part1_492subj.zip"
+  },
+  "Dataset779_headneck_muscles_part1_492subj" :{
+    "id": "779",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.3.0-weights/Dataset779_headneck_muscles_part2_492subj.zip"
+  },
+  "Dataset008_HepaticVessel" :{
+    "id": "8",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.4.0-weights/Dataset008_HepaticVessel.zip"
+  },
+  "Dataset351_oculomotor_muscles_18subj" :{
+    "id": "351",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.4.0-weights/Dataset351_oculomotor_muscles_18subj.zip"
+  },
+  "Dataset913_lung_nodules" :{
+    "id": "913",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.5.0-weights/Dataset913_lung_nodules.zip"
+  },
+  "Dataset789_kidney_cyst_501subj" :{
+    "id": "789",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.5.0-weights/Dataset789_kidney_cyst_501subj.zip"
+  },
+  "Dataset527_breasts_1559subj" :{
+    "id": "527",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.5.0-weights/Dataset527_breasts_1559subj.zip"
+  },
+  "Dataset576_mri_liver_segments_120subj" :{
+    "id": "576",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.5.0-weights/Dataset576_mri_liver_segments_120subj.zip"
+  },
+  "Dataset952_abdominal_muscles_167subj" :{
+    "id": "952",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.5.0-weights/Dataset952_abdominal_muscles_167subj.zip"
+  },
+  "Dataset115_mandible" :{
+    "id": "115",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.5.0-weights/Dataset115_mandible.zip"
+  },
+  "Dataset113_ToothFairy3" :{
+    "id": "115",
+    "models": ["3d_fullres"],
+    "check_file": "totalv2",
+    "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.5.0-weights/Dataset113_ToothFairy3.zip"
+  },
 }
+

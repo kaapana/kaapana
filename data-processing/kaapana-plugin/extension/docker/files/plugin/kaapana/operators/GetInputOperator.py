@@ -18,7 +18,7 @@ class GetInputOperator(KaapanaBaseOperator):
     **Inputs:**
 
     * data_form: 'json'
-    * data_type: 'dicom' or 'json'
+    * data_type: 'dicom' or 'json' or 'all'
     * dataset_limit: limit the download series list number
     * include_custom_tag_property: Key in workflow_form used to specify tags that must be present in the data for inclusion
     * exclude_custom_tag_property: Key in workflow_form used to specify tags that, if present in the data, lead to exclusion
@@ -43,7 +43,7 @@ class GetInputOperator(KaapanaBaseOperator):
         **kwargs,
     ):
         """
-        :param data_type: 'dicom' or 'json'
+        :param data_type: 'dicom' or 'json' or 'all'
         :param data_form: 'json'
         :param check_modality: 'True' or 'False'
         :param dataset_limit: limits the download list

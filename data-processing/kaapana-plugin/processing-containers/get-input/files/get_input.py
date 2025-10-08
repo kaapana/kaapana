@@ -95,11 +95,11 @@ class GetInputOperator:
         study_uid = dcm_uid_object.get("dcm-uid").get("study-uid")
         target_dir = self.make_target_dir_for_series(series_uid=series_uid)
 
-        if data_type == "json":
+        if data_type == "json" or data_type == "all":
             download_successful = self.get_data_from_opensearch(
                 target_dir=target_dir, seriesUID=series_uid
             )
-        elif data_type == "dicom":
+        if data_type == "dicom" or data_type == "all":
             download_successful = self.get_data_from_pacs(
                 target_dir=target_dir, studyUID=study_uid, seriesUID=series_uid
             )

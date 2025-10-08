@@ -228,7 +228,7 @@ class KaapanaTaskOperator(BaseOperator):
         KubernetesRunner.stop(self.task_run)
         self.log.info("Pod deleted successfully!")
 
-    def set_namespace(self, context):
+    def set_namespace(self, context: Context):
         conf = context["dag_run"].conf
         project_form = conf.get("project_form", {})
         self.namespace = project_form.get("kubernetes_namespace", DEFAULT_NAMESPACE)

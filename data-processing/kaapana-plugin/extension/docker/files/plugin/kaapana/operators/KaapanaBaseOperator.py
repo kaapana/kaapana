@@ -14,6 +14,7 @@ from airflow.models.skipmixin import SkipMixin
 from airflow.utils.dates import days_ago
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.context import Context
 from kaapana.blueprints.kaapana_global_variables import (
     ADMIN_NAMESPACE,
     AIRFLOW_WORKFLOW_DIR,
@@ -476,7 +477,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             ]
         )
 
-    def launch_dev_server(self, context):
+    def launch_dev_server(self, context: Context):
         """
         Launch a dev-server as pending application.
         """
@@ -605,7 +606,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         return
 
     @staticmethod
-    def unique_task_identifer(context: dict):
+    def unique_task_identifer(context: Context):
         """
         Set a unique identifier for this task instance.
 
@@ -614,7 +615,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         return f"{context["ti"].run_id}-{context["ti"].task_id}"
 
     @staticmethod
-    def task_run_file_path(context: dict):
+    def task_run_file_path(context: Context):
         """
         Return the path to the file, where the TaskInstance object will be stored.
 
@@ -626,7 +627,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     # The order of this decorators matters because of the whitelist_federated_learning variable, do not change them!
     @cache_operator_output
     @federated_sharing_decorator
-    def execute(self, context):
+    def execute(self, context: Context):
         config_path = os.path.join(
             self.airflow_workflow_dir, context["run_id"], "conf", "conf.json"
         )
@@ -824,7 +825,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         shutil.rmtree(batch_input_dir, ignore_errors=True)
 
     @staticmethod
-    def stop_task_pod(context):
+    def stop_task_pod(context: Context):
         try:
             with open(KaapanaBaseOperator.task_run_file_path(context), "rb") as f:
                 task_run = pickle.load(f)
@@ -838,7 +839,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             return None
 
     @staticmethod
-    def on_failure(context):
+    def on_failure(context: Context):
         """
         Use this method with caution, because it unclear at which state the context object is updated!
         """
@@ -874,7 +875,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             KaapanaBaseOperator.post_notification_to_user_from_context(context)
 
     @staticmethod
-    def post_notification_to_user_from_context(context):
+    def post_notification_to_user_from_context(context: Context):
         workflow_form = context["dag_run"].conf.get("workflow_form", {})
         username = workflow_form.get("username")
         if not username:
@@ -946,7 +947,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         logging.info(context)
         logging.info(result)
 
-    def set_context_variables(self, context):
+    def set_context_variables(self, context: Context):
         self.labels["run_id"] = cure_invalid_name(
             context["run_id"], r"(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?"
         )

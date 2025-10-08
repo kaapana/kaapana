@@ -1,5 +1,4 @@
 import pytest
-import asyncio
 import os
 from base_utils.utils_workflows import (
     collect_all_testcases,
@@ -72,7 +71,7 @@ async def test_workflow(testconfig):
     testcase, kaapana = testconfig
 
     dag_id = testcase.get("dag_id")
-    if testcase.get("ci_ignore", False) == True:
+    if testcase.get("ci_ignore", False):
         logger.info(f"Ignore testcase for {dag_id=}")
         return None
     ### Check that dag is available

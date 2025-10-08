@@ -22,6 +22,23 @@ USER_INPUT_KEY = "task_form"
 
 
 class IOMapping(BaseModel):
+    """
+    Represents a mapping between the output of one Airflow task and
+    the input of another within a Kaapana workflow.
+
+    This model defines how data is passed between tasks in the workflow DAG
+    using specific I/O channels. Each mapping connects a given output channel
+    of an upstream task to a corresponding input channel of a downstream task.
+
+    Attributes:
+        upstream_operator (BaseOperator):
+            The upstream Airflow operator whose output is being used.
+        upstream_output_channel (str):
+            The name of the output channel of the task template used in the upstream operator.
+        input_channel (str):
+            The name of the input channel of the task template used in the operator.
+    """
+
     upstream_operator: BaseOperator
     upstream_output_channel: str
     input_channel: str
@@ -46,7 +63,35 @@ class KaapanaTaskOperator(BaseOperator):
         **kwargs,
     ):
         """
-        :param iochannel_map: {<upstream-task_id>: {<upstream-output-channel>: <input-channel>}}
+        An Airflow operator for executing Kaapana tasks within a Kubernetes environment.
+
+        The `KaapanaTaskOperator` handles the full lifecycle of a Kaapana processing
+        task: creating the task definition, preparing input/output volumes,
+        submitting the task to a to the Kubernetes cluster, and monitoring its execution.
+        It strongly utilizes the taskAPI library from Kaapana.
+
+        This operator is typically used as part of a Kaapana workflow DAG, where
+        multiple tasks communicate through defined I/O mappings.
+
+        Args:
+            image (str):
+                The processing-container image used to execute the task.
+            taskTemplate (str):
+                The identifier of the task template to use in the processing-container.json file.
+            env (list, optional):
+                A list of environment variable definitions to inject into the container. Overwrites the default values in the task template.
+            command (List, optional):
+                A list representing the command to execute in the container. Overwrites the default command in the task template.
+            resources (pc_models.Resources, optional):
+                Resource configuration (e.g., CPU, memory) for the Kubernetes pod.
+            registryUrl (str, optional):
+                URL of the container registry used to pull the task image.
+            registryUsername (str, optional):
+                Username for the container registry.
+            registryPassword (str, optional):
+                Password for the container registry.
+            iochannel_maps (List[IOMapping], optional):
+                A list of I/O mappings defining data flow between this task and others.
         """
         super().__init__(retry_delay=timedelta(seconds=10), *args, **kwargs)
         self.image = image

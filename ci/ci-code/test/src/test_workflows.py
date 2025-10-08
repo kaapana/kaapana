@@ -60,15 +60,7 @@ def pytest_generate_tests(metafunc):
             testcases = collect_all_testcases(testdir)
         else:
             raise AssertionError("Use --files or --test-dir to specify testcase files")
-
-        # metafunc.parametrize("workflow_name", [tc.get("dag_id") for tc in testcases])
-        # metafunc.parametrize("testcase", testcases)
-        # metafunc.parametrize("host", [host])
-        # metafunc.parametrize("kaapana", [kaapana])
-
-        metafunc.parametrize(
-            "testconfig", [(tc, host, client_secret) for tc in testcases]
-        )
+        metafunc.parametrize("testconfig", [(tc, kaapana) for tc in testcases])
 
 
 @pytest.mark.asyncio
@@ -77,8 +69,7 @@ async def test_workflow(testconfig):
     """
     A generic test method derived from a dag_id and a JSON string.
     """
-    testcase, host, client_secret = testconfig
-    kaapana = WorkflowEndpoints(host, client_secret)
+    testcase, kaapana = testconfig
 
     dag_id = testcase.get("dag_id")
     if testcase.get("ci_ignore", False) == True:

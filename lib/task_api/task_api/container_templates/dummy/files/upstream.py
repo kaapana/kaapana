@@ -4,8 +4,8 @@ import os
 
 TIME_SLEEP = os.getenv("TIME_SLEEP", 10)
 
-CHANNEL1 = Path("/home/dummy/channel1")
-CHANNEL2 = Path("/home/dummy/channel2")
+CHANNEL1 = Path("/home/upstream/channel1")
+CHANNEL2 = Path("/home/upstream/channel2")
 
 
 msg = "Hello channel 1!"

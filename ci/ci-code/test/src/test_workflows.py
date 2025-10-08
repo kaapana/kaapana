@@ -78,14 +78,14 @@ async def test_workflow(testconfig):
     ### Check that dag is available
     if dag_id not in kaapana.get_dags():
         logger.warning(f"DAG {dag_id=} not available on the platform!")
-        logger.warning(f"Skip test!")
+        logger.warning("Skip test!")
         return None
     ### Adjust payload/workflow_form before triggering the workflow
     testcase["workflow_name"] = "ci_" + dag_id
     logger.info(f"Start testcase for {dag_id=}")
     instance_names = testcase.get("instance_names", [])
-    if host not in instance_names:
-        instance_names.append(host)
+    if kaapana.host not in instance_names:
+        instance_names.append(kaapana.host)
         testcase["instance_names"] = instance_names
     ### Trigger the workflow
     try:

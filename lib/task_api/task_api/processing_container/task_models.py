@@ -51,7 +51,7 @@ class K8sConfig(BaseConfig):
     annotations: dict = {}
 
 
-class Task(BaseModel):
+class Task(pc_models.BaseTask):
     """
     Concrete usage of a TaskTemplate within a workflow.
     Captures how input/output data and parameters are bound for a particular execution.
@@ -60,22 +60,33 @@ class Task(BaseModel):
     name: str
     image: str
     taskTemplate: Union[str, pc_models.TaskTemplate]
-    command: Optional[List[str]] = None
+    config: Optional[Union[K8sConfig, DockerConfig, BaseConfig]] = BaseConfig()
+
+    ### Common attributes for Task, TaskTemplate and TaskInstance with different types per model.
     inputs: List[IOVolume] = Field(default_factory=list)
     outputs: List[IOVolume] = Field(default_factory=list)
     env: Optional[List[pc_models.BaseEnv]] = Field(default_factory=list)
-    resources: Optional[pc_models.Resources] = None
-    config: Optional[Union[K8sConfig, DockerConfig, BaseConfig]] = BaseConfig()
 
 
-class TaskInstance(Task, pc_models.TaskTemplate):
+class TaskInstance(pc_models.BaseTask):
     """
     A resolved task, created by merging the Task definition with its associated TaskTemplate.
     """
 
+    ### Common attributes for Task, TaskTemplate and TaskInstance with different types per model.
     inputs: Optional[List[IOChannel]] = None
     outputs: Optional[List[IOChannel]] = None
     env: Optional[List[pc_models.TaskTemplateEnv]] = Field(default_factory=list)
+
+    ### From pc_models.TaskTemplate
+    identifier: str
+    description: str
+
+    ### From Task
+    name: str
+    image: str
+    taskTemplate: Union[str, pc_models.TaskTemplate]
+    config: Optional[Union[K8sConfig, DockerConfig, BaseConfig]] = BaseConfig()
 
 
 class TaskRun(TaskInstance):

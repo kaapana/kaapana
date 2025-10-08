@@ -68,18 +68,23 @@ class IOMount(IOBase):
     description: Optional[str] = None
 
 
-class TaskTemplate(BaseModel):
+class BaseTask(BaseModel):
+    command: Optional[List[str]] = None
+    resources: Optional[Resources] = None
+
+
+class TaskTemplate(BaseTask):
     """
     Blueprint for how a Docker image can be used for data processing in a predefined way.
     """
 
     identifier: str
     description: str
-    command: Optional[List[str]] = None
+
+    ### Common attributes for Task, TaskTemplate and TaskInstance with different types per model.
     inputs: List[IOMount]
     outputs: List[IOMount]
     env: List[TaskTemplateEnv]
-    resources: Optional[Resources] = None
 
 
 class ProcessingContainer(BaseModel):

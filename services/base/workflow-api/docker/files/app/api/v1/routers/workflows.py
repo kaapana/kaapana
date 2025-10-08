@@ -5,7 +5,6 @@ from typing import List, Optional
 from app.dependencies import get_async_db
 from app import schemas
 from app.api.v1.services import workflow_service as service
-from app.api.v1.routers import _map_service_exception
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -20,10 +19,7 @@ async def get_workflows(
     id: Optional[int] = None,
     db: AsyncSession = Depends(get_async_db),
 ):
-    try:
-        return await service.get_workflows(db, skip, limit, order_by, order, id)
-    except Exception as exc:
-        _map_service_exception(exc)
+    return await service.get_workflows(db, skip, limit, order_by, order, id)
 
 
 @router.post("/workflows", response_model=schemas.Workflow, status_code=201)
@@ -32,10 +28,7 @@ async def create_workflow(
     response: Response,
     db: AsyncSession = Depends(get_async_db),
 ):
-    try:
-        workflow_res = await service.create_workflow(db, workflow)
-    except Exception as exc:
-        _map_service_exception(exc)
+    workflow_res = await service.create_workflow(db, workflow)
     response.headers["Location"] = (
         f"/workflows/{workflow_res.title}/{workflow_res.version}"
     )
@@ -50,10 +43,7 @@ async def get_workflow_by_title(
     order: Optional[str] = "desc",
     db: AsyncSession = Depends(get_async_db),
 ):
-    try:
-        return await service.get_workflow_by_title(db, title, latest, order_by, order)
-    except Exception as exc:
-        _map_service_exception(exc)
+    return await service.get_workflow_by_title(db, title, latest, order_by, order)
 
 
 @router.get("/workflows/{title}/{version}", response_model=schemas.Workflow)
@@ -62,10 +52,7 @@ async def get_workflow_by_title_and_version(
     version: int,
     db: AsyncSession = Depends(get_async_db),
 ):
-    try:
-        return await service.get_workflow_by_title_and_version(db, title, version)
-    except Exception as exc:
-        _map_service_exception(exc)
+    return await service.get_workflow_by_title_and_version(db, title, version)
 
 
 @router.delete("/workflows/{title}/{version}", status_code=204)
@@ -74,10 +61,7 @@ async def delete_workflow(
     version: int,
     db: AsyncSession = Depends(get_async_db),
 ):
-    try:
-        await service.delete_workflow(db, title, version)
-    except Exception as exc:
-        _map_service_exception(exc)
+    await service.delete_workflow(db, title, version)
 
 
 @router.get("/workflows/{title}/{version}/tasks", response_model=List[schemas.Task])
@@ -86,10 +70,7 @@ async def get_workflow_tasks(
     version: int,
     db: AsyncSession = Depends(get_async_db),
 ):
-    try:
-        return await service.get_workflow_tasks(db, title, version)
-    except Exception as exc:
-        _map_service_exception(exc)
+    return await service.get_workflow_tasks(db, title, version)
 
 
 @router.get(
@@ -101,7 +82,4 @@ async def get_task(
     task_title: str,
     db: AsyncSession = Depends(get_async_db),
 ):
-    try:
-        return await service.get_task(db, title, version, task_title)
-    except Exception as exc:
-        _map_service_exception(exc)
+    return await service.get_task(db, title, version, task_title)

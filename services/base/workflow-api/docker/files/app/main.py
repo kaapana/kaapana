@@ -1,5 +1,12 @@
 import logging
-from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import (
+    Depends,
+    FastAPI,
+    WebSocket,
+    WebSocketDisconnect,
+    Request,
+)
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
 from app.logging_config import setup_logging
@@ -7,6 +14,7 @@ from app.api.v1.routers import workflow_runs, workflows
 from app.dependencies import get_connection_manager
 from app.database import async_engine
 from app.models import Base
+from app.api.v1.services import errors
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -46,6 +54,25 @@ async def websocket_endpoint(
             await websocket.receive_text()
     except WebSocketDisconnect:
         con_mgr.disconnect(websocket)
+
+
+@app.exception_handler(errors.ServiceError)
+async def service_exception_handler(request: Request, exc: errors.ServiceError):
+    if isinstance(exc, errors.NotFoundError):
+        status_code = 404
+    elif isinstance(exc, errors.BadRequestError):
+        status_code = 400
+    elif isinstance(exc, errors.DependencyError):
+        status_code = 503
+    elif isinstance(exc, errors.InternalError):
+        status_code = 500
+    else:
+        status_code = 500
+
+    return JSONResponse(
+        status_code=status_code,
+        content={"detail": str(exc)},
+    )
 
 
 # Versioned routers

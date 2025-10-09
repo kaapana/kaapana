@@ -1,21 +1,22 @@
 import asyncio
+import fnmatch
 import glob
 import hashlib
 import json
 import os
 import re
-import fnmatch
 import subprocess
 import time
 from distutils.version import LooseVersion
 from os.path import basename
 from typing import Dict, List, Set, Tuple, Union
-from utils import helm_get_values
 
-import schemas
 import yaml
-from config import settings, timeouts
-from logger import get_logger
+from kaapanapy.logger import get_logger
+
+from . import schemas
+from .config import settings, timeouts
+from .utils import helm_get_values
 
 logger = get_logger(__name__)
 
@@ -98,7 +99,11 @@ async def exec_shell_cmd_async(
 
 
 def execute_shell_command(
-    command, shell=False, blocking=True, timeout=timeouts.shell_cmd_default_timeout, skip_check=False
+    command,
+    shell=False,
+    blocking=True,
+    timeout=timeouts.shell_cmd_default_timeout,
+    skip_check=False,
 ) -> Tuple[bool, str]:
     """Runs given command via subprocess.run or subprocess.Popen
 
@@ -146,7 +151,10 @@ def execute_shell_command(
     stdout = command_result.stdout.strip()
     stderr = command_result.stderr.strip()
     return_code = command_result.returncode
-    success = True if return_code == 0 and stderr == "" else False
+    success = True if return_code == 0 else False
+
+    if success and stderr != "":
+        logger.info(f"WARNING: Command raised a warning: {stderr}")
 
     if success:
         logger.debug(f"Command successfully executed {command}")
@@ -253,6 +261,7 @@ def add_extension_to_dict(
                 ),
                 extension_params=ext_params,
                 annotations=extension_dict.get("annotations"),
+                display_name="",
                 # "values": extension_dict["values"]
             )
         )
@@ -322,7 +331,7 @@ def add_extension_to_dict(
 
                 except Exception as e:
                     logger.error(
-                        f"Skipping chart {chart_deployment['name']}-{chart_deployment['version']} , error: {str(e)}"
+                        f"Skipping chart {chart_deployment.get('name', 'UNKNOWN_NAME')}-{chart_deployment.get('version', 'UNKNOWN_VERSION')} , error: {str(e)}"
                     )
 
         available_versions = schemas.KaapanaAvailableVersions(deployments=deployments)
@@ -379,6 +388,14 @@ def add_info_from_deployments(
                     chart_template = extension_info.copy()
                     chart_template.installed = "yes"
                     chart_template.releaseName = deployment.deployment_id
+                    vals = helm_get_values(deployment.deployment_id)
+                    if (
+                        "display_name" in vals["global"]
+                        and vals["global"]["display_name"] != "-"
+                    ):
+                        chart_template.display_name = vals["global"]["display_name"]
+                    else:
+                        chart_template.display_name = deployment.deployment_id
                     chart_template.successful = "yes" if deployment.ready else "pending"
                     chart_template.helmStatus = deployment.helm_status.capitalize()
                     chart_template.kubeStatus = None
@@ -909,6 +926,7 @@ def get_kube_objects(
 
                         if (
                             key == "status"
+                            and len(value) > 0
                             and value[0] != KUBE_STATUS_COMPLETED
                             and value[0] != KUBE_STATUS_RUNNING
                         ):

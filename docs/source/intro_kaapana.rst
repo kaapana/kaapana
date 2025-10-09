@@ -1,5 +1,5 @@
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/kaapana_logo_2.png
+.. image:: /img/kaapana_logo_2.png
    :alt: Kaapana logo
    :class: logo
    :align: center
@@ -17,7 +17,7 @@
 What is Kaapana?
 ================
 
-Kaapana (from the hawaiian word kaʻāpana, meaning "distributor" or "part") is an open source toolkit for state of the art platform provisioning in the field of medical data analysis. The applications comprise  AI-based workflows and federated learning scenarios with a focus on radiological and radiotherapeutic imaging. 
+Kaapana is an open source toolkit for state of the art platform provisioning in the field of medical data analysis. The applications comprise  AI-based workflows and federated learning scenarios with a focus on radiological and radiotherapeutic imaging. 
 
 Obtaining large amounts of medical data necessary for developing and training modern machine learning methods is an extremely challenging effort that often fails in a multi-center setting, e.g. due to technical, organizational and legal hurdles. A federated approach where the data remains under the authority of  the individual institutions and is only processed on-site is, in contrast, a promising approach ideally suited to overcome these difficulties.
 
@@ -26,7 +26,7 @@ Following this federated concept, the goal of Kaapana is to provide a framework 
 By adhering to established standards and by adopting widely used open technologies for private cloud development and containerized data processing, Kaapana integrates seamlessly with the existing clinical IT infrastructure, such as the Picture Archiving and Communication System (PACS), and ensures modularity and easy extensibility.
 
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/kaapana-v0.2.1-showcase-fps30-1920p.gif
+.. image:: /img/kaapana-v0.2.1-showcase-fps30-1920p.gif
    :alt: Kaapana v0.2.1
 
 
@@ -38,6 +38,8 @@ Core components of Kaapana:
 * :ref:`store`: An integrated PACS system and Minio for other types of data
 * :ref:`monitoring`: Extensive resource and system monitoring for administrators
 * :ref:`keycloak`: Simple user management via `Keycloak <https://www.keycloak.org/>`_
+* :ref:`projects`: Project based access control of data and workflows
+
 
 Core technologies used in Kaapana:
 
@@ -48,12 +50,18 @@ Core technologies used in Kaapana:
 * `Prometheus <https://github.com/prometheus/prometheus>`_: Collecting metrics for system monitoring
 * `Grafana <https://github.com/grafana/grafana>`_: Visualization for monitoring metrics
 * `Keycloak <https://www.keycloak.org/>`_: User authentication
+* `FastAPI <https://fastapi.tiangolo.com/>`_: Web framework for building APIs with Python 
+* `Open Policy Agent (OPA) <https://www.openpolicyagent.org/>`_: Policy based access control for projects
 
-Currently the most widely used platform realized using Kaapana is the Joint Imaging Platform (JIP) of the German Cancer Consortium (DKTK). The `JIP <https://jip.dktk.dkfz.de/jiphomepage/>`_ is currently being deployed at all 36 german university hospitals with the objective of distributed radiological image analysis and quantification.
+For more information about Kaapana, take a look at the publication of the Kaapana-based `Joint Imaging Platform in JCO Clinical Cancer Informatics <https://ascopubs.org/doi/full/10.1200/CCI.20.00045>`_.
 
-For more information, please also take a look at our recent publication of the Kaapana-based `Joint Imaging Platform in JCO Clinical Cancer Informatics <https://ascopubs.org/doi/full/10.1200/CCI.20.00045>`_.
+Currently the most widely used platform based on Kaapana is in the `Radiological Cooperative Network (RACOON) <https://racoon.network/>`_. This platform is currently deployed at all 36 German university hospitals with the objective of distributed radiological image analysis and AI-based medical imaging research.
 
+Kaapana has also been successfully adopted across a range of other national and international research initiatives. Some deployments include:
 
+* `CCE-DART consortium <https://cce-dart.com>_` 
+* `German Cancer Consortium (DKTK) <https://dktk.dkfz.de>_`
+* `NeuroRad project <https://stroke.ccibonn.ai>_`
 
 .. raw:: html
 

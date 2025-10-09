@@ -4,26 +4,30 @@
 Migration Guide
 ########################
 
-
-+-------+-------+---------------------------+--------------------------+
-| From  | To    |   What is preserverd?     |    What is lost?         |
-+=======+=======+===========================+==========================+
-| 0.3.X | 0.4.X |  - Datasets               |                          |
-|       |       |  - Airflow logs           |                          |
-|       |       |  - Images in Pacs         |                          |
-|       |       |  - Metadata in Opensearch |                          |
-|       |       |  - Keycloak user          |                          |
-|       |       |  - Generated thumbnails   |                          |
-|       |       |  - Static website results |                          |
-+-------+-------+---------------------------+--------------------------+
-| 0.2.X | 0.3.X |  - Images in PACS         |                          |
-|       |       |  - Metadata               |                          |
-+-------+-------+---------------------------+--------------------------+
-| 0.1.3 | 0.2.X |  - Images in PACS         |  - Airflow Logs          |
-|       |       |  - Datasets               |  - Airflow Configuration |
-|       |       |  - Workflows              |                          |
-+-------+-------+---------------------------+--------------------------+
-
++-------+-------+---------------------------+----------------------------------------------+
+| From  | To    | What is preserved?        | What is lost?                                |
++=======+=======+===========================+==============================================+
+| 0.4.X | 0.5.X | - PACS images             | - CT thumbnails                              |
+|       |       | - Opensearch metadata     | - Datasets scoped to admin project only      |
+|       |       | - Keycloak users          | - Airflow logs scoped to admin project only  |
+|       |       | - Static site results     |                                              |
+|       |       | - Workflows               |                                              |
++-------+-------+---------------------------+----------------------------------------------+
+| 0.3.X | 0.4.X | - Datasets                |                                              |
+|       |       | - Airflow logs            |                                              |
+|       |       | - PACS images             |                                              |
+|       |       | - Opensearch metadata     |                                              |
+|       |       | - Keycloak users          |                                              |
+|       |       | - Thumbnails              |                                              |
+|       |       | - Static site results     |                                              |
++-------+-------+---------------------------+----------------------------------------------+
+| 0.2.X | 0.3.X | - PACS images             |                                              |
+|       |       | - Metadata                |                                              |
++-------+-------+---------------------------+----------------------------------------------+
+| 0.1.3 | 0.2.X | - PACS images             | - Airflow logs                               |
+|       |       | - Datasets                | - Airflow config                             |
+|       |       | - Workflows               |                                              |
++-------+-------+---------------------------+----------------------------------------------+
 
 .. toctree::
     :maxdepth: 3

@@ -14,6 +14,7 @@ KAAPANA Documentation
    installation_guide_root
    user_guide_root
    development_guide_root
+   access_control_root
    faq_root
    publication_citation
    releases

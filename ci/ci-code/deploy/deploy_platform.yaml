@@ -40,6 +40,26 @@
       cmd: sysctl -w fs.inotify.max_user_instances=100000
     become: true
 
+  - name: Generate microk8s kubeconfig
+    ansible.builtin.command: microk8s kubectl config view --raw
+    register: kubeconfig
+
+  - name: Ensure .kube directory exists
+    ansible.builtin.file:
+      path: "{{ ansible_env.HOME }}/.kube"
+      state: directory
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0700'
+
+  - name: Write kubeconfig to file
+    ansible.builtin.copy:
+      content: "{{ kubeconfig.stdout }}"
+      dest: "{{ ansible_env.HOME }}/.kube/config"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0600'
+
   - name: Check that microk8s status
     ansible.builtin.command: microk8s status
     register: microk8s_status
@@ -110,6 +130,10 @@
         chdir: "{{ ansible_env.HOME }}/"
       register: undeploy_result
       ignore_errors: yes
+    - debug:
+        var: undeploy_result.stdout_lines
+    - debug:
+        var: undeploy_result.stderr_lines
     - name: Copy STDOUT from undeployment script to ci-server
       become: yes
       ansible.builtin.copy:
@@ -141,13 +165,17 @@
     - name: Run platform deployment script
       register: deploy_result
       ignore_errors: yes
-      no_log: true
+      no_log: false
       become: no
       environment:
         TERM: xterm
       ansible.builtin.command:
         cmd: ./deploy_platform.sh --quiet --username {{ registry_user }} --password {{ registry_token }} --domain {{ ip_address }}
         chdir: "{{ ansible_env.HOME }}/"
+    - debug:
+        var: deploy_result.stdout_lines
+    - debug:
+        var: deploy_result.stderr_lines
     - name: Copy STDOUT from deployment script to ci-server
       become: yes
       ansible.builtin.copy:
@@ -157,3 +185,17 @@
     - name: Fail playbook and job if deployment failed
       ansible.builtin.command: /bin/false
       when: deploy_result.rc != 0
+  
+  - name: Wait until all deployments are healthy
+    ansible.builtin.command: 
+      cmd: ./deploy_platform.sh --check-system
+      chdir: "{{ ansible_env.HOME }}/"
+    register: system_check
+    until: system_check.rc == 0
+    retries: 60
+    delay: 10
+
+  - debug:
+      var: system_check.stdout_lines
+  - debug:
+      var: system_check.stderr_lines

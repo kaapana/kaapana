@@ -17,14 +17,14 @@ ui_forms = {
         "type": "object",
         "properties": {
             "train_tag": {
-                "title": "Train dataset name",
-                "description": "Name of the train dataset.",
+                "title": "Training tag",
+                "description": "Tag to be added to series in the the training split",
                 "type": "string",
                 "required": True,
             },
             "test_tag": {
-                "title": "Test dataset name",
-                "description": "Name of the test dataset",
+                "title": "Test tag",
+                "description": "Tag to be added to series in the the test split",
                 "type": "string",
                 "required": True,
             },

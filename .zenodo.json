@@ -1,12 +1,12 @@
 {
-    "description": "Kaapana release v0.5.0",
-    "title": "kaapana/kaapana: v0.5.0",
-    "version": "0.5.0",
+    "description": "Kaapana release v0.5.1",
+    "title": "kaapana/kaapana: v0.5.1",
+    "version": "0.5.1",
     "license": {
         "id": "AGPL-3.0"
     },
     "upload_type": "software",
-    "publication_date": "2025-06-03",
+    "publication_date": "2025-07-21",
     "creators": [
         {
             "affiliation": "German Cancer Research Center",
@@ -14,31 +14,7 @@
         },
         {
             "affiliation": "German Cancer Research Center",
-            "name": "Rajesh Baidya"
-        },
-        {
-            "affiliation": "German Cancer Research Center",
-            "name": "Mikulas Bankovic"
-        },
-        {
-            "affiliation": "German Cancer Research Center",
-            "name": "Markus Bujotzek"
-        },
-        {
-            "affiliation": "German Cancer Research Center",
-            "name": "Stefan Denner"
-        },
-        {
-            "affiliation": "German Cancer Research Center",
-            "name": "Lorenz Feineis"
-        },
-        {
-            "affiliation": "German Cancer Research Center",
-            "name": "Maximilian Fischer"
-        },
-        {
-            "affiliation": "German Cancer Research Center",
-            "name": "Ralf Floca"
+            "name": "Philipp Schader"
         },
         {
             "affiliation": "German Cancer Research Center",
@@ -46,11 +22,27 @@
         },
         {
             "affiliation": "German Cancer Research Center",
+            "name": "Lorenz Feineis"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Mikulas Bankovic"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Stefan Denner"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
             "name": "Benjamin Hamm"
         },
         {
             "affiliation": "German Cancer Research Center",
-            "name": "Klaus Maier-Hein"
+            "name": "Markus Bujotzek"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Maximilian Fischer"
         },
         {
             "affiliation": "German Cancer Research Center",
@@ -58,15 +50,15 @@
         },
         {
             "affiliation": "German Cancer Research Center",
+            "name": "Ralf Floca"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
             "name": "Marco Nolden"
         },
         {
             "affiliation": "German Cancer Research Center",
-            "name": "Santhosh Parampottupadam"
-        },
-        {
-            "affiliation": "German Cancer Research Center",
-            "name": "Philipp Schader"
+            "name": "Klaus Maier-Hein"
         }
     ],
     "keywords": [

@@ -876,6 +876,65 @@ function update_coredns_rewrite() {
     fi
 }
 
+function check_system() {
+    release="$1"
+    helm_ns="${2:-default}"
+
+    # Extract all resources from the Helm manifest
+    resources=$(
+    helm get manifest "$release" -n "$helm_ns" \
+        | microk8s.kubectl apply --dry-run=client -f - -o json \
+        | jq -r '.items[] | "\(.kind)/\(.metadata.namespace)/\(.metadata.name)"'
+    )
+
+    all_healthy=true
+
+    for res in $resources; do
+    kind=$(echo "$res" | cut -d'/' -f1)
+    ns=$(echo "$res" | cut -d'/' -f2)
+    name=$(echo "$res" | cut -d'/' -f3)
+
+    case $kind in
+        Deployment)
+        if ! microk8s.kubectl rollout status "deployment/$name" -n "$ns"; then
+            echo "❌ Deployment $name not healthy"
+            all_healthy=false
+        fi
+        ;;
+        StatefulSet)
+        if ! microk8s.kubectl rollout status "statefulset/$name" -n "$ns"; then
+            echo "❌ StatefulSet $name not healthy"
+            all_healthy=false
+        fi
+        ;;
+        Pod)
+        phase=$(microk8s.kubectl get pod "$name" -n "$ns" -o jsonpath='{.status.phase}')
+        if [[ "$phase" != "Running" && "$phase" != "Succeeded" ]]; then
+            echo "❌ Pod $name is $phase"
+            all_healthy=false
+        fi
+        ;;
+        Job)
+        succeeded=$(microk8s.kubectl get job "$name" -n "$ns" -o jsonpath='{.status.succeeded}')
+        if [[ "$succeeded" != "1" ]]; then
+            echo "❌ Job $name not successful"
+            all_healthy=false
+        fi
+        ;;
+        *)
+        ;;
+    esac
+    done
+
+    if [ "$all_healthy" = true ]; then
+        echo "✅ All resources healthy"
+    else
+        echo "❌ Some resources are unhealthy"
+        exit 1
+    fi
+
+}
+
 
 function create_report {
     # Dont abort report generation on error
@@ -996,6 +1055,11 @@ modinfo nvidia | grep ^version
 --- "GPU"
 nvidia-smi
 
+--- "Resource Health"
+check_system kaapana-admin-chart default
+check_system kaapana-platform-chart default
+check_system project-admin admin
+
 --- "END"
 }
 
@@ -1012,6 +1076,8 @@ _Flag: --remove-all-images-docker will delete all Docker images from the system
 _Flag: --nuke-pods will force-delete all pods of the Kaapana deployment namespaces.
 _Flag: --quiet, meaning non-interactive operation
 _Flag: --offline, using prebuilt tarball and chart (--chart-path required!)
+_Flag: --check-system, check health of all resources in kaapana-admin-chart and kaapana-platform-chart
+_Flag: --report, create a report of the state of the microk8s cluster
 
 _Argument: --username [Docker registry username]
 _Argument: --password [Docker registry password]
@@ -1137,11 +1203,20 @@ do
             exit 0
         ;;
 
+        --check-system)
+            check_system kaapana-admin-chart default
+            check_system kaapana-platform-chart default
+            check_system project-admin admin
+            exit 0
+        ;;
+
         *)    # unknown option
             echo -e "${RED}unknown parameter: $key ${NC}"
             echo -e "${YELLOW}$usage${NC}"
             exit 1
         ;;
+
+
     esac
 done
 

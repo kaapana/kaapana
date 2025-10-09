@@ -3,7 +3,7 @@ Prometheus Metrics Are Not Displayed
 
 Sometimes the Home Page does not show any metrics, indicating that Prometheus might not be running properly. This issue often occurs because Prometheus fails to start due to the presence of a lock file.
 
-.. figure:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/homepage_prometheus_lock.png
+.. figure:: /img/homepage_prometheus_lock.png
    :alt: Screenshot of Kaapana homepage with Prometheus metrics not working.
 
 To resolve this issue, follow these steps:

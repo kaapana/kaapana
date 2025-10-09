@@ -1,3 +1,5 @@
+raise DeprecationWarning("This DAG is deprecated since version >=0.5.0.")
+
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
@@ -233,7 +235,7 @@ extract_model = NnUnetModelOperator(
     target_level="batch_element",
     input_operator=dcm2bin,
     operator_out_dir="model-exports",
-    action="install"
+    action="install",
 )
 
 nnunet_predict = NnUnetOperator(

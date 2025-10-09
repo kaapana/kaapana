@@ -2,17 +2,11 @@ dag_id: "total-segmentator-v2"
 conf_data:
   workflow_form:
     input: "CT"
-    task: "total"
+    tasks:
+      - "total"
     single_execution: true
     nr_thr_saving: 6
     nr_thr_resamp: 1
-    pleural_pericard_effusion: false
-    body: true
-    coronary_arteries: false
-    liver_segments: false
-    hip_implant: false
-    cerebral_bleed: false
-    lung_vessels: false
     bodyseg: false
     forcesplit: false
     quiet: false
@@ -30,18 +24,12 @@ username: "kaapana"
 dag_id: "total-segmentator-v2"
 conf_data:
   workflow_form:
-    input: "CT"
-    task: "total"
+    input: "MR"
+    tasks:
+      - "total_mr"
     single_execution: true
     nr_thr_saving: 6
     nr_thr_resamp: 1
-    pleural_pericard_effusion: true
-    body: false
-    coronary_arteries: true
-    liver_segments: false
-    hip_implant: false
-    cerebral_bleed: false
-    lung_vessels: true
     bodyseg: false
     forcesplit: false
     quiet: false
@@ -51,7 +39,7 @@ conf_data:
     preview: false
     fast: false
   data_form:
-    dataset_name: test-CT
+    dataset_name: test-MR
     dataset_limit: 1
 remote: false
 username: "kaapana"

@@ -10,7 +10,8 @@ from kaapana.blueprints.kaapana_global_variables import (
 class UpdateSegInfoJSONOperator(KaapanaBaseOperator):
     """
     UpdateSegInfoJSONOperator
-
+    Operator to update the seginfo json file and adapt as per the labels available 
+    the mask.
  
     **Inputs:**
     * mode: "update_json" 

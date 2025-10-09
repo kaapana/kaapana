@@ -9,8 +9,8 @@ from kaapana.blueprints.kaapana_global_variables import (
 
 class TotalSegmentatorV2Operator(KaapanaBaseOperator):
     """
-    Executes the total segmentator algorithm on a given 3D CT nifti image.
-    The algorithm segments 104 body structures and stores them in single file nifti format.
+    Executes the total segmentator algorithm on a given 3D CT or MR nifti image.
+    The algorithm segments 117 (CT) and 50 (MR) body structures and stores them in single file nifti format.
 
     Expects the pretrained weights already to be downloaded (use LocalGetTotalSegmentatorModels for that).
 
@@ -21,7 +21,7 @@ class TotalSegmentatorV2Operator(KaapanaBaseOperator):
 
     - Code: https://github.com/wasserth/TotalSegmentator
 
-    :param task: Task to execute. Currently, on 'total' is supported.
+    :param task: Task to execute.
     :type task: str
     """
 

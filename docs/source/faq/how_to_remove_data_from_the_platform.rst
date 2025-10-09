@@ -20,6 +20,9 @@ In case you want to delete a lot of data you can set :code:`Delete entire study:
 With this setting the entire study of each selected series will be deleted.
 This is also handy, if you want to delete a series and additionally all of its segmentations.
 
+.. important::
+    The series will be deleted from the PACS if it is only mapped to the admin project, and not any other project.
+
 .. warning:: 
     The hierarchy of DICOM data is: `Study` > `Series` > `Instance`.
     Hence, deleting the entire study of a series might include additional series which are not part of the selected dataset.

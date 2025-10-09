@@ -16,5 +16,7 @@ help:
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
 %: Makefile
+	# python3 $(SOURCEDIR)/download_images.py --output-dir "$(SOURCEDIR)/img"
 	# sphinx-apidoc -f -E -o source/apidoc ../workflows/airflow-components/plugins/
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+	# python3 $(SOURCEDIR)/download_images.py --remove "$(SOURCEDIR)/img"

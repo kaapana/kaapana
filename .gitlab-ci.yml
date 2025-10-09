@@ -55,6 +55,7 @@ variables:
   DEPLOYMENT_INSTANCE_NAME: $DEPLOYMENT_INSTANCE_NAME
   DEPLOYMENT_INSTANCE_IP: $DEPLOYMENT_INSTANCE_IP ### Set in order to reuse an instance
   DEPLOYMENT_INSTANCE_USER: $DEPLOYMENT_INSTANCE_USER ### Username on the deployment instance
+  DEPLOYMENT_ON_WORKSTATION: $DEPLOYMENT_ON_WORKSTATION
   HTTP_PROXY: $HTTP_PROXY
   HTTPS_PROXY: $HTTPS_PROXY
   SSH_FILE: $SSH_FILE ### Path to the ssh file used for connecting to the deployment instance
@@ -94,7 +95,7 @@ prepare_pipeline: ### This is the only job, where I clone the project repo
   - echo VERSION_TAG=$VERSION_TAG >> prepare.env
   - export ARTIFACTS_DIR="/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"
   - echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" >> prepare.env
-  - rm -rf $ARTIFACTS_DIR
+  - sudo rm -rf $ARTIFACTS_DIR
   - mkdir -p $ARTIFACTS_DIR
   artifacts:
     reports:
@@ -113,8 +114,26 @@ unit_tests:
     paths:
     - unittest_report.xml
     reports:
-      junit: unittest_report.xml
+      junit: 
+        - unittest_report.xml
 
+task_api_tests:
+  stage: prepare
+  needs:
+  - prepare_pipeline
+  script:
+  - source /home/$USER/venv/bin/activate
+  - pip install build datamodel-code-generator==0.32.0
+  - python3 -m build $KAAPANA_DIR/lib/task_api
+  - python3 -m pip install $KAAPANA_DIR/lib/task_api/dist/task_api-0.1.0.tar.gz
+  - pytest $KAAPANA_DIR/lib/task_api/task_api --junitxml=task_api_report.xml
+  artifacts:
+    when: always
+    paths:
+    - task_api_report.xml
+    reports:
+      junit: 
+        - task_api_report.xml
 
 #############################################
 ############## BUILD ########################
@@ -126,7 +145,7 @@ build_packages:
   script:
   - source /home/$USER/venv/bin/activate
   - if [[ $DOCKER_PRUNE == "true" ]]; then docker system prune --all --volumes -f; fi
-  - if [[ $EXECUTE_BUILD == "true" ]]; then ansible-playbook $REPO_DIR/ci-code/build/build_and_push.yaml 2>&1 | tee $ARTIFACTS_DIR/ansible_build_and_push.log; fi
+  - if [[ $EXECUTE_BUILD == "true" ]]; then bash $REPO_DIR/ci-code/build/build.sh; fi
   retry: 1
   resource_group: build-1
   environment: build-1
@@ -138,7 +157,7 @@ build_documentation:
   script:
   - source /home/$USER/venv/bin/activate
   - cd $REPO_DIR/ci-code/build
-  - ansible-playbook build_documentation.yaml 2>&1 | tee $ARTIFACTS_DIR/ansible_build_documentation.log
+  - bash build_documentation.sh
   - if [[ $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop" ]]; then bash check_readthedocs.sh; fi
   rules:
   - if: $EXECUTE_BUILD == "false"

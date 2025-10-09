@@ -80,6 +80,8 @@ async def auth_check(request: Request, response: Response):
         logger.debug(f"Could not decode the project information from cookies: {e}")
     except requests.exceptions.ConnectionError as e:
         logger.debug(f"Could not fetch the project information from aii: {e}")
+    except KeyError as e:
+        logger.error(f"Could not identify the project: {e}")
 
     if check_endpoint(input):
         message = f"Policies satisfied for {method} {requested_prefix} -> ok"

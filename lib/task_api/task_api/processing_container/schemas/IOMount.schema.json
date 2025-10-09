@@ -1,0 +1,20 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "IOMount",
+    "description": "Defines where an input or output channel should be mounted inside the container.",
+    "type": "object",
+    "required": [
+      "name",
+      "mounted_path"
+    ],
+    "properties": {
+      "name": {"type": "string"},
+      "mounted_path": {
+        "type": "string"
+      },
+      "description": {
+        "type": "string"
+      },
+      "scale_rule": { "$ref": "ScaleRule.schema.json" }
+    }
+}

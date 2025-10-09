@@ -1,0 +1,35 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Resources",
+    "type": "object",
+    "required": [],
+    "properties": {
+      "limits": {
+        "type": "object",
+        "properties": {
+          "cpu": {
+            "type": "string"
+          },
+          "memory": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": {
+          "type": "string",
+          "pattern": ".*gpu.*"
+        }
+      },
+      "requests": {
+        "type": "object",
+        "properties": {
+          "cpu": {
+            "type": "string"
+          },
+          "memory": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+}

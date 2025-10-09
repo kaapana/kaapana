@@ -97,13 +97,7 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
         project_id = r.json()["id"]
 
         ### Create the project-data mapping for the admin project
-        url = f"{self.dcmweb_helper.dcmweb_rs_endpoint}/projects/{project_id}/data/{series_instance_uid}"
-        response = self.dcmweb_helper.session.put(url)
-        response.raise_for_status()
         self.add_data_to_project(series_instance_uid, project_id=project_id)
-        logger.debug(
-            f"Added {series_instance_uid} to admin project with project_id: {project_id}."
-        )
 
         if type(clinical_trial_protocol_id) == list:
             assert len(clinical_trial_protocol_id) == 1
@@ -114,12 +108,6 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
             self.add_data_to_project(
                 series_instance_uid, project_name=clinical_trial_protocol_id
             )
-            project = self.get_project_by_name(clinical_trial_protocol_id)
-            project_id = project.get("id")
-            url = f"{self.dcmweb_helper.dcmweb_rs_endpoint}/projects/{project_id}/data/{series_instance_uid}"
-            response = self.dcmweb_helper.session.put(url)
-            response.raise_for_status()
-            logger.debug(f"Added {series_instance_uid} to project with {project_id=}")
         except (IndexError, requests.exceptions.HTTPError) as e:
             logger.warning(
                 f"{series_instance_uid=} is not assigned to a project! This does not fail the task. The series will still be assigned to the default admin project, when the data arrives at the Dicom-Web-Filter: {e}"

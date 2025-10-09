@@ -1,0 +1,35 @@
+{
+    "name": "Test downstream task",
+    "image": "{{ env.registry }}/downstream:latest",
+    "taskTemplate": "default",
+    "inputs": [
+        {
+            "name":"channel1",
+            "input": {
+                "local_path":"{{ env.output_dir }}/dummy/channel1"
+            },
+            "scale_rule":{
+                "complexity": "25*n**1",
+                "type": "limit",
+                "mode": "sum",
+                "target_dir": ".",
+                "target_regex": ".*\\.txt",
+                "target_glob": "*"
+            }
+        },
+        {
+            "name":"channel2",
+            "input": {
+                "local_path":"{{ env.output_dir }}/dummy/channel2"
+            }
+        }
+    ],
+    "outputs": [],
+    "resources": {
+        "limits": {
+            "memory": "50Mi"
+        }
+    },
+    "namespace":"default",
+    "imagePullSecrets": ["registry-secret"]
+}

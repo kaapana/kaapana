@@ -849,7 +849,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             return response.json().get("id")
 
         project_form = context.get("params", {}).get("project_form", {})
-        project_id = project_form.get("name", fetch_default_project_id())
+        project_id = project_form.get("id", fetch_default_project_id())
 
         dag_id = context["dag_run"].dag_id
         run_id = context["dag_run"].run_id

@@ -7,8 +7,6 @@ default:
 
 stages:
   - deploy
-  - wait
-  - check
   - test
 
 workflow:
@@ -20,8 +18,6 @@ platform_deployment:
   script:
     - source /home/$USER/venv/bin/activate
     - ansible-playbook $REPO_DIR/ci-code/deploy/deploy_platform.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
-    - ansible-playbook $REPO_DIR/ci-code/deploy/wait_for_platform.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
-    - ansible-playbook $REPO_DIR/ci-code/deploy/check_pods.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
   artifacts: ### Save environment such that upcoming tasks can depend on this task and have all variables available
     reports:
       dotenv: prepare.env
@@ -56,6 +52,7 @@ send_testdata:
     - if: $TEST_STAGE == "true"
       when: on_success
     - when: never
+  retry: 2
 
 install_extensions:
   stage: test
@@ -70,6 +67,7 @@ install_extensions:
     - if: $TEST_STAGE == "true"
       when: on_success
     - when: never
+  retry: 2
 
 download_models:
   stage: test
@@ -86,7 +84,7 @@ integration_tests:
   stage: test
   script:
     - source /home/$USER/venv/bin/activate
-    - ansible-playbook $REPO_DIR/ci-code/test/jobs/integration_tests/integration_tests.yaml
+    - bash $REPO_DIR/ci-code/test/jobs/integration_tests/run_tests.sh
   needs:
     - first_login
     - send_testdata

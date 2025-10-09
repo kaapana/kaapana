@@ -281,6 +281,15 @@ LocalCtpQuarantineCheckOperator
    :undoc-members:
    :show-inheritance:
 
+LocalEmailSendOperator
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: kaapana.operators.LocalEmailSendOperator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
 LocalServiceSyncDagsDbOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

@@ -1,22 +1,18 @@
 import base64
 import json
-import logging
 import secrets
 import subprocess
 from os.path import dirname, join
-from typing import Optional, List
+from typing import List, Optional
 
-import file_handler
-import helm_helper
-import schemas
 import httpx
-from config import settings
-from fastapi import APIRouter, HTTPException, Query, Request, Response, UploadFile 
+from fastapi import APIRouter, HTTPException, Query, Request, Response, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from logger import get_logger
+from kaapanapy.logger import get_logger
 
-import utils
+from . import file_handler, helm_helper, schemas, utils
+from .config import settings
 
 # TODO: add endpoint for /helm-delete-file
 # TODO: add dependency injection
@@ -45,7 +41,7 @@ async def post_filepond_upload(request: Request):
 
     except Exception as e:
         logger.error(f"/file upload failed {e}", exc_info=True)
-        return Response("Filepond Upload Initialization failed", status_code=500)
+        raise HTTPException(status_code=500, detail="Filepond Upload Initialization failed")
 
     return Response(content=patch, status_code=200)
 
@@ -77,7 +73,7 @@ def head_filepond_upload(request: Request, patch: str):
         return Response(str(offset), 200)
     except Exception as e:
         logger.error(e, exc_info=True)
-        return Response(f"HEAD /filepond-upload failed {e}", 500)
+        raise HTTPException(status_code=500, detail=f"HEAD /filepond-upload failed {e}")
 
 
 @router.delete("/filepond-upload")
@@ -134,7 +130,7 @@ async def file_chunks_init(request: Request):
         return Response(msg, 200)
     except Exception as e:
         logger.error(f"/file_chunks_init failed {e}", exc_info=True)
-        return Response(f"File upload init failed {e}", 500)
+        raise HTTPException(status_code=500, detail=f"File upload init failed {e}")
 
 
 @router.post("/file_chunks")
@@ -146,7 +142,7 @@ async def upload_file_chunks(file: UploadFile):
         return Response(str(next_index), 200)
     except Exception as e:
         logger.error(f"/file_chunks failed: {e}", exc_info=True)
-        return Response(f"File upload failed", 500)
+        raise HTTPException(status_code=500, detail=f"File upload failed")
 
 
 # @router.websocket("/file_chunks/{client_id}")
@@ -191,7 +187,7 @@ async def import_container(filename: str, platforms: Optional[bool] = False):
         raise HTTPException(400, f"Container import failed, bad request {str(e)}")
     except Exception as e:
         logger.error(f"/import-container failed: {e}", exc_info=True)
-        raise HTTPException(500, f"Container import failed, bad request {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Container import failed, bad request {str(e)}")
 
 
 @router.get("/health-check")
@@ -252,7 +248,7 @@ async def helm_delete_chart(request: Request):
         return Response(f"Chart uninstall failed, bad request {str(e)}", 400)
     except Exception as e:
         logger.error(f"/helm-delete-chart failed: {e}", exc_info=True)
-        return Response(f"Chart uninstall failed {str(e)}", 500)
+        raise HTTPException(status_code=500, detail=f"Chart uninstall failed {str(e)}")
 
 
 @router.post("/helm-install-chart")
@@ -287,7 +283,7 @@ async def helm_install_chart(request: Request):
             execute_cmd=False,
         )
         if not not_installed:
-            return Response(f"Chart is already installed {release_name}", 204)
+            return Response(f"Chart is already installed {release_name}", 200)
         success, stdout = await utils.helm_install_cmd_run_async(
             release_name, payload["version"], cmd, keywords
         )
@@ -301,7 +297,7 @@ async def helm_install_chart(request: Request):
         return Response(f"Chart install failed, bad request {str(e)}", 400)
     except Exception as e:
         logger.error(f"/helm-install-chart failed: {e}", exc_info=True)
-        return Response(f"Chart install failed {str(e)}", 500)
+        raise HTTPException(status_code=500, detail=f"Chart install failed {str(e)}")
 
 
 @router.post("/pull-docker-image")
@@ -327,7 +323,7 @@ async def pull_docker_image(request: Request):
         )
     except Exception as e:
         logger.error(f"/pull-docker-image failed: {e}", exc_info=True)
-        return Response(f"Pulling docker image failed {e}", 400)
+        raise HTTPException(status_code=400, detail=f"Pulling docker image failed {e}")
 
 
 @router.post("/complete-active-application")
@@ -348,9 +344,10 @@ async def complete_active_application(request: Request):
             logger.error(
                 f"No deployed releases found with name: {release_name} and label: kaapana.ai/kaapanaint=True"
             )
-            return HTTPException(
-                f"Failed to complete active application: release {release_name} does not have correct annotations",
+            raise HTTPException(
                 status_code=500,
+                detail=f"Failed to complete active application: release {release_name} does not have correct annotations",
+                
             )
 
         # delete chart
@@ -368,7 +365,7 @@ async def complete_active_application(request: Request):
 
     except Exception as e:
         logger.error(f"/complete-active-application failed: {str(e)}", exc_info=True)
-        return Response(f"Internal server error: {str(e)}", status_code=500)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.get("/active-applications", response_model=List[schemas.ActiveApplication])
@@ -420,7 +417,7 @@ async def extensions():
 
     except Exception as e:
         logger.error(f"/extensions FAILED", exc_info=True)
-        return Response(f"Failed to get extensions", 500)
+        raise HTTPException(status_code=500, detail=f"Failed to get extensions")
 
 
 @router.get("/platforms")
@@ -432,7 +429,7 @@ async def get_platforms():
 
     except Exception as e:
         logger.error(f"/platforms FAILED {e}", exc_info=True)
-        return Response(f"Failed to get platforms", 500)
+        raise HTTPException(status_code=500, detail=f"Failed to get platforms")
 
 
 @router.get("/available-platforms")
@@ -440,7 +437,7 @@ async def available_platforms(
     container_registry_url: str,
     encoded_auth: str = Query(...),
     platform_name: str = "kaapana-admin-chart",
-    auth_url: str = "https://codebase.helmholtz.cloud/jwt/auth"
+    auth_url: str = "https://codebase.helmholtz.cloud/jwt/auth",
 ) -> List[str]:
     try:
         decoded = base64.b64decode(encoded_auth).decode()
@@ -450,9 +447,9 @@ async def available_platforms(
 
     try:
         # Extract host and path
-        registry_parts = container_registry_url.split('/')
+        registry_parts = container_registry_url.split("/")
         registry_host = registry_parts[0]
-        registry_path = '/'.join(registry_parts[1:])
+        registry_path = "/".join(registry_parts[1:])
 
         scope = f"repository:{registry_path}/{platform_name}:pull"
         logger.info(f"Using scope: {scope}")
@@ -462,7 +459,7 @@ async def available_platforms(
             "client_id": "docker",
             "offline_token": "true",
             "service": "container_registry",
-            "scope": scope
+            "scope": scope,
         }
         logger.info(f"Fetching token from: {auth_url} with params: {params}")
 
@@ -479,14 +476,18 @@ async def available_platforms(
             token = token_json.get("token")
 
             if not token:
-                raise HTTPException(status_code=401, detail="Authentication failed, token not received")
+                raise HTTPException(
+                    status_code=401, detail="Authentication failed, token not received"
+                )
 
             # Get tags
             headers = {
                 "Accept": "application/vnd.docker.distribution.manifest.v2+json",
-                "Authorization": f"Bearer {token}"
+                "Authorization": f"Bearer {token}",
             }
-            tags_url = f"https://{registry_host}/v2/{registry_path}/{platform_name}/tags/list"
+            tags_url = (
+                f"https://{registry_host}/v2/{registry_path}/{platform_name}/tags/list"
+            )
             logger.info(f"Fetching tags from: {tags_url}")
 
             tags_response = await client.get(tags_url, headers=headers)
@@ -499,7 +500,10 @@ async def available_platforms(
 
     except httpx.TimeoutException:
         logger.error("Request timed out")
-        raise HTTPException(status_code=504, detail="Gateway Timeout: The request to the container registry timed out.")
+        raise HTTPException(
+            status_code=504,
+            detail="Gateway Timeout: The request to the container registry timed out.",
+        )
     except httpx.HTTPStatusError as e:
         logger.error(f"HTTP error: {e.response.status_code} - {e.response.text}")
         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)

@@ -21,7 +21,7 @@ class OfflineInstallerHelper:
             "repo",
             "add",
             "nvidia",
-            "https://nvidia.github.io/gpu-operator",
+            "https://helm.ngc.nvidia.com/nvidia",
         ]
         output = run(
             command,
@@ -56,7 +56,7 @@ class OfflineInstallerHelper:
             )
 
         name = "nvidia/gpu-operator"
-        version = "v22.9.1"
+        version = "v25.3.0"
         command = [
             "helm",
             "pull",

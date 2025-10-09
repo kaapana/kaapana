@@ -1,0 +1,30 @@
+{
+    "name": "Kubernetes task for dummy image",
+    "image": "{{ env.registry }}/dummy:latest",
+    "taskTemplate": "default",
+    "inputs": [],
+    "outputs": [
+        {   
+            "name": "channel1",
+            "input": {
+                "local_path": "{{ env.output_dir }}/env/channel1"
+            }
+        },
+        {   
+            "name": "channel2",
+            "input": {
+                "local_path": "{{ env.output_dir }}/env/channel2"
+            }
+        }
+    ],
+    "env": [{
+        "name":"TIME_SLEEP",
+        "value": "1"
+    },
+    {
+        "name": "DUMMY",
+        "value": "dummy"
+    }],
+    "namespace": "default",
+    "imagePullSecrets": ["registry-secret"]
+}

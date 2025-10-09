@@ -82,24 +82,30 @@
               <NotificationButton />
             </v-col>
             </v-row>
-          </v-container>
-
-
-          <v-list-item class="px-2" v-if="!mini">
-            <v-menu offset-y v-if="isAuthenticated" :close-on-content-click="false">
-              <template v-slot:activator="{ on }">
-                <v-btn v-on="on"
-                  block depressed
-                  title="Select Project"
+            <v-row
+              class=""
+            >
+              <v-col 
+              class="px-2 py-3"
+              >
+                <v-select
+                  class="uppercase-text blue darken-2 pr-5 pl-5 pb-0 pt-5"
                   color="primary"
-                  class="blue darken-1"
+                  dense
+                  prepend-icon="mdi-card-multiple"
+                  v-model="selectedProject"
+                  :items="availableProjects"
+                  title="Select a project"
+                  item-text="name"
+                  item-value="id"
+                  label="Project"
+                  return-object
+                  @change="update_selected_project"
                 >
-                  Project: {{ selectedProject.name }}
-                </v-btn>
-              </template>
-              <ProjectSelection v-on="on"> </ProjectSelection>
-            </v-menu>
-          </v-list-item>
+                </v-select>
+              </v-col>
+            </v-row>
+          </v-container>
         </div>
 
         <v-list dense>
@@ -210,7 +216,6 @@ import kaapanaApiService from "@/common/kaapanaApi.service";
 import Settings from "@/components/Settings.vue";
 import About from "@/components/About.vue";
 import IdleTracker from "@/components/IdleTracker.vue";
-import ProjectSelection from "@/components/ProjectSelection.vue";
 import NotificationButton from "@/components/NotificationButton.vue";
 import { settings as defaultSettings } from "@/static/defaultUIConfig";
 import {
@@ -221,12 +226,13 @@ import {
   GET_POLICY_DATA,
   GET_SELECTED_PROJECT,
   CLEAR_SELECTED_PROJECT,
+  UPDATE_SELECTED_PROJECT,
 } from "@/store/actions.type";
 import { checkAuthR } from "@/utils/utils.js";
 
 export default Vue.extend({
   name: "App",
-  components: { Settings, IdleTracker, ProjectSelection, About, NotificationButton },
+  components: { Settings, IdleTracker, About, NotificationButton },
   data: () => ({
     drawer: true,
     federatedBackendAvailable: false,
@@ -247,6 +253,9 @@ export default Vue.extend({
     ]),
   },
   methods: {
+    update_selected_project(newProject:any){
+      this.$store.dispatch(UPDATE_SELECTED_PROJECT, newProject);
+    },
     _checkAuthR(policyData: any, endpoint: string, currentUser: any): boolean {
       "Check if the user has a role that authorizes him to access the requested endpoint";
       return checkAuthR(policyData, endpoint, currentUser);
@@ -418,6 +427,10 @@ export default Vue.extend({
   font-size: 14px;
   line-height: 1.42857143;
   color: #333;
+}
+
+.uppercase-text .v-input__control {
+  text-transform: uppercase;
 }
 
 body {

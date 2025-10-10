@@ -1,8 +1,6 @@
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
-from airflow.exceptions import AirflowSkipException, AirflowFailException
-from airflow.utils.state import State
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
@@ -10,18 +8,10 @@ from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 
-from kaapana.operators.KaapanaBranchPythonBaseOperator import (
-    KaapanaBranchPythonBaseOperator,
-)
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from body_and_organ_analysis.BodyAndOrganAnalysisOperator import (
     BodyAndOrganAnalysisOperator,
 )
 from body_and_organ_analysis.BoaOutputCheckOperator import BoaOutputCheckOperator
-from body_and_organ_analysis.SegExemptionCheckOperator import SegExemptionCheckOperator
-
-from os.path import join
-from typing import List, Dict, Any
 
 max_active_runs = 5
 
@@ -151,98 +141,22 @@ model_outputs = {
     "bca": ["body-parts", "body-regions", "tissues", "vertebrae"],
 }
 
-
-def generate_task_id(model: str, output: str) -> str:
-    """
-    Generate consistent task_id for segmentation to DICOM task.
-    Matches the pattern used in DAG generation logic.
-    """
-    suffix = output if output != model else ""
-    task_id_prefix = f"{model}_{suffix}" if suffix else model
-    return task_id_prefix
-
-
-def generate_seg2dcm_task_id(model: str, output: str) -> str:
-    """
-    Generate the task ID for the ITK to DICOM SEG conversion task.
-    """
-    return f"{generate_task_id(model, output)}_seg2dcm"
-
-
-def generate_dcm_send_task_id(model: str, output: str) -> str:
-    """
-    Generate the task ID for the DICOM send task.
-    """
-    return f"{generate_task_id(model, output)}_dcm_send"
-
-
-output_exemptions = [
-    {
-        "task_id": generate_seg2dcm_task_id(model="bca", output="vertebrae"),
-        "condition": lambda conf: "total"
-        in conf.get("workflow_form", {}).get("models", []),
-        "reason": "Vertebrae are skipped when 'total' model is selected.",
-    },
-    {
-        "task_id": generate_seg2dcm_task_id(model="total", output="pulmonary_fat"),
-        "condition": lambda conf: "cerebral_bleed"
-        in conf.get("workflow_form", {}).get("total_models", []),
-        "reason": "Pulmonary fat output is typically skipped when 'cerebral_bleed' is selected.",
-    },
-    {
-        "task_id": generate_seg2dcm_task_id(
-            model="coronary_arteries", output="coronary_arteries"
-        ),
-        "condition": lambda conf: True,
-        "reason": "Coronary artery segmentation is not reliable — output may be missing.",
-    },
-    {
-        "task_id": generate_seg2dcm_task_id(model="body", output="body_extremities"),
-        "condition": lambda conf: True,
-        "reason": "No extremities were found in the image — segmentation may be missing.",
-    },
-]
-
-
-def get_exemption_rule(task_id: str) -> Dict[str, Any] | None:
-    return next(
-        (rule for rule in output_exemptions if rule["task_id"] == task_id), None
-    )
-
-
-# --- Branching function ---
-def branch_models_callable(**kwargs) -> List[str]:
-    """
-    Determines which segmentation tasks to run based on selected models and optional sub-models.
-    Returns a list of task_ids for downstream branching.
-    """
-    conf: Dict[str, Any] = kwargs["dag_run"].conf or {}
-    selected_models: List[str] = conf.get("workflow_form", {}).get("models", [])
-    total_extras: List[str] = conf.get("workflow_form", {}).get("total_models", [])
-
-    branches: List[str] = []
-
-    for model in selected_models:
-        # Get the outputs for the model
-        outputs = model_outputs.get(model, [])
-
-        for out in outputs:
-            branches.append(generate_seg2dcm_task_id(model, out))
-
-        # If this is the 'total' model, include its optional sub-models
-        if model == "total":
-            for extra_model in total_extras:
-                extra_outputs = model_outputs.get(extra_model, [])
-                for out in extra_outputs:
-                    branches.append(generate_seg2dcm_task_id(extra_model, out))
-    return branches
-
-
-# --- Branching operator ---
-branch_models = KaapanaBranchPythonBaseOperator(
-    name="branch_models",
-    python_callable=branch_models_callable,
+seg2dicom = Itk2DcmSegOperator(
     dag=dag,
+    segmentation_operator=boa_check,
+    input_type="multi_label_seg",
+    input_operator=get_input,
+    skip_empty_slices=True,
+    multi_label_seg_name=dag.dag_id,
+    multi_label_seg_info_json="seg_info.json",
+    alg_name=dag.dag_id,
+    series_description=dag.dag_id,
+    single_label_seg_info="from_file_name",
+)
+
+send_task = DcmSendOperator(
+    dag=dag,
+    input_operator=seg2dicom,
 )
 
 push_to_minio = MinioOperator(
@@ -254,62 +168,6 @@ push_to_minio = MinioOperator(
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-# --- Static task flow up to branching and upload of other files ---
-get_input >> dcm2nifti >> boa >> boa_check >> branch_models
+# --- Task flow ---
+get_input >> dcm2nifti >> boa >> boa_check >> seg2dicom >> send_task >> clean
 boa >> push_to_minio >> clean
-
-# --- Output task dictionaries ---
-# seg_tasks = {}
-# send_tasks = {}
-
-seg_merge = KaapanaPythonBaseOperator(
-    dag=dag,
-    trigger_rule="none_failed",
-    name="merge_dcm_send",
-)
-
-# --- Generate all possible segmentation/send tasks for each model output ---
-for model, outputs in model_outputs.items():
-    for output in outputs:
-        task_id_prefix = generate_task_id(model, output)
-
-        seg_task_id = generate_seg2dcm_task_id(model, output)
-        send_task_id = generate_dcm_send_task_id(model, output)
-
-        seg_info_json = f"{output}_seg_info.json" if output != "default" else ""
-
-        seg_task = Itk2DcmSegOperator(
-            dag=dag,
-            task_id=seg_task_id,
-            segmentation_in_dir=join(boa_check.operator_out_dir, output),
-            input_type="multi_label_seg",
-            input_operator=get_input,
-            skip_empty_slices=True,
-            multi_label_seg_name=f"{dag.dag_id}_{task_id_prefix}",
-            multi_label_seg_info_json=seg_info_json,
-            alg_name=dag.dag_id,
-            series_description=f"{dag.dag_id}-{output}",
-            single_label_seg_info="from_file_name",
-        )
-
-        send_task = DcmSendOperator(
-            dag=dag,
-            task_id=send_task_id,
-            input_operator=seg_task,
-        )
-
-        rule = get_exemption_rule(seg_task_id)
-
-        # Set dependencies
-        if rule:
-            seg_exemption = SegExemptionCheckOperator(
-                dag=dag,
-                rule=rule,
-                task_id=f"{task_id_prefix}_exempt_checker",
-                name=f"{task_id_prefix}_exempt_checker",
-            )
-            branch_models >> seg_task >> seg_exemption >> send_task >> seg_merge
-        else:
-            branch_models >> seg_task >> send_task >> seg_merge
-
-seg_merge >> clean

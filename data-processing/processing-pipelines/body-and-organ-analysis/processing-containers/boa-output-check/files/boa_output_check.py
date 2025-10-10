@@ -18,10 +18,20 @@ import shutil
 from os import environ, makedirs
 from os.path import join, basename, exists
 from glob import glob
-from typing import Dict, List, Set, Any, Optional
+from typing import Dict, List, Any, Optional
+from collections import defaultdict
 import SimpleITK as sitk
 import numpy as np
+from matplotlib import cm
+
 import segmentation_defaults
+from metadata_generator import (
+    build_segmentation_information,
+    map_labels_to_segment_attributes,
+)
+
+# base color map
+cmap = cm.get_cmap("gist_ncar")
 
 
 def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
@@ -104,6 +114,13 @@ def extract_labels(
 if __name__ == "__main__":
     logger = get_logger(__name__, logging.INFO)
 
+    file_occurrences = defaultdict(int)  # Tracks how many batches each file appears in
+    all_batches = 0
+    existing_files = []
+    problem_files = defaultdict(
+        list
+    )  # Stores filenames with list of reasons they are problematic
+
     # Environment-based paths
     workflow_dir = environ["WORKFLOW_DIR"]
     operator_in_dir = environ["OPERATOR_IN_DIR"]
@@ -116,12 +133,16 @@ if __name__ == "__main__":
     logger.info(f"Found {len(series_uid_folders)} series UID folder(s)")
 
     for input_dir in series_uid_folders:
+        all_batches += 1
+        seen_in_this_batch = set()
+
         series_uid = basename(input_dir)
 
         # Step 1: Find segmentation files in the input directory
         segmentation_files = []
         for ext in ("*.nii", "*.nii.gz", "*.nrrd"):
             segmentation_files.extend(glob(join(input_dir, ext)))
+        segmentation_files.sort(key=str.lower)
 
         logger.info(
             f"Found {len(segmentation_files)} segmentation file(s) in {series_uid}"
@@ -143,14 +164,16 @@ if __name__ == "__main__":
             logger.warning(f"No measurement info found for {series_uid}")
 
         # Step 3: Process each segmentation image
-        for file_path in segmentation_files:
+        segment_attributes = []
+        output_dir = join("/", workflow_dir, batch_dir, series_uid, operator_out_dir)
+        # For Colormmap
+        num_files = len(segmentation_files)
+        for idx, file_path in enumerate(segmentation_files):
             image_basename = basename(file_path)
             rootname = image_basename.split(".")[0]
 
             # Image-specific output directory
-            image_output_dir = join(
-                "/", workflow_dir, batch_dir, series_uid, operator_out_dir, rootname
-            )
+            image_output_dir = output_dir
 
             if not exists(image_output_dir):
                 try:
@@ -162,6 +185,30 @@ if __name__ == "__main__":
                     )
                     continue
 
+            # Extract declared label info from measurement metadata or fallback enum
+            label_entries = extract_labels(measurement_info, rootname, logger)
+            declared_ids = set(entry["label_int"] for entry in label_entries)
+
+            # Read image data to find unique label IDs (excluding background = 0)
+            try:
+                image = sitk.ReadImage(file_path)
+                array = sitk.GetArrayFromImage(image)
+                unique_vals = np.unique(array)
+                image_label_ids = set(int(v) for v in unique_vals if v != 0)
+            except Exception as e:
+                logger.error(f"Failed to read image '{file_path}': {e}")
+                continue
+
+            if image_label_ids:
+                seen_in_this_batch.add(image_basename)
+            else:
+                # File contains only background; mark as problematic for this batch
+                logger.warning(
+                    f"Skipping file '{image_basename}' in {series_uid} — contains only background (label 0)"
+                )
+                problem_files[image_basename].append("only background")
+                continue
+
             # Copy image to image_output_dir
             dest_path = join(image_output_dir, image_basename)
             if not exists(dest_path):
@@ -172,33 +219,68 @@ if __name__ == "__main__":
                     logger.error(f"Failed to copy file '{file_path}' to output: {e}")
                     continue
 
-            # Extract declared labels
-            label_entries = extract_labels(measurement_info, rootname, logger)
-            declared_ids = set(entry["label_int"] for entry in label_entries)
-
-            # Read image to extract label IDs
-            try:
-                image = sitk.ReadImage(file_path)
-                array = sitk.GetArrayFromImage(image)
-                unique_vals = np.unique(array)
-                image_label_ids = set(int(v) for v in unique_vals if v != 0)
-            except Exception as e:
-                logger.error(f"Failed to read image '{file_path}': {e}")
-                continue
-
-            # Add fallback labels if needed
+            # Add fallback labels for any labels found in image but missing from declared metadata
             missing_ids = image_label_ids - declared_ids
             for i, mid in enumerate(sorted(missing_ids), start=1):
                 fallback_name = f"unnamed_{rootname}_{i}"
                 label_entries.append({"label_int": mid, "label_name": fallback_name})
 
-            # Write <image>_seg_info.json
-            out_path = join(image_output_dir, f"{rootname}_seg_info.json")
-            try:
-                with open(out_path, "w") as f:
-                    json.dump({"seg_info": label_entries}, f, indent=4)
-                logger.info(f"Saved seg info: {out_path}")
-            except Exception as e:
-                logger.error(f"Failed to write seg info file '{out_path}': {e}")
+            segment_attributes.append(
+                map_labels_to_segment_attributes(label_entries=label_entries)
+            )
+
+        # Update how many batches this file has appeared in (and was valid, i.e. not background-only)
+        for filename in seen_in_this_batch:
+            file_occurrences[filename] += 1
+        # assign the colors for the segments equidistant
+        all_segments = [
+            segment for sublist in segment_attributes for segment in sublist
+        ]
+        num_segments = len(all_segments)
+        if num_segments == 0:
+            logger.warning("No segments found to assign colors.")
+        else:
+            # Generate equidistant color partitions between 0 and 1 for each segment
+            color_positions = np.linspace(0, 1, num_segments)
+
+            for i, segment in enumerate(all_segments):
+                color = (
+                    np.round(np.array(cmap(color_positions[i])[:3]) * 255)
+                    .astype(int)
+                    .tolist()
+                )
+                segment["recommendedDisplayRGBValue"] = color
+        # write the MetaInfo.json for this batch
+        metainfo_filename = join(output_dir, "body-and-organ-analysis.json")
+        with open(metainfo_filename, "w") as f:
+            json.dump(
+                build_segmentation_information(
+                    segment_attributes=segment_attributes,
+                    series_description="body-and-organ-analysis",
+                ),
+                f,
+                indent=4,
+            )
+
+        # Empty seg_info.json
+        empty_seg_info = {"seg_info": []}
+
+        with open(join(output_dir, "seg_info.json"), "w") as f:
+            json.dump(empty_seg_info, f, indent=4)
+
+    # Step 4: After processing all batches, determine which files are complete or problematic
+    for filename, count in file_occurrences.items():
+        if count == all_batches:
+            existing_files.append(filename)
+        else:
+            missing_in = all_batches - count
+            # Mark file as missing in some batches, adding reason with counts
+            problem_files[filename].append(
+                f"missing in {missing_in} of {all_batches} batches"
+            )
+
+    logger.info("Files summary:")
+    logger.info("Existing Files: %s", existing_files)
+    logger.info("Problem Files: %s", dict(problem_files))
 
     logger.info("All image label info exported.")

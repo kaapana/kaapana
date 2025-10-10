@@ -1,3 +1,2 @@
-gloabl:
-  image: ""
-  task_ids: ""
+image: ""
+model_dir: "/models"

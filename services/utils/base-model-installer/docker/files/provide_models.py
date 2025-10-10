@@ -7,7 +7,6 @@ from requests.adapters import HTTPAdapter, Retry
 import zipfile
 import sys
 from multiprocessing.pool import ThreadPool
-from functools import partial
 import tqdm
 import argparse
 
@@ -50,7 +49,7 @@ def download_file(
     """
 
     # Ensure destination directory exists
-    dest_path.absolute().parent.mkdir(exist_ok=True)
+    dest_path.absolute().parent.mkdir(exist_ok=True, parents=True)
 
     # Session with retry strategy
     session = requests.Session()
@@ -120,7 +119,7 @@ def download_and_extract(
             logger.error(
                 f"Failed to download model for {task_id=} from {model_download_link}"
             )
-            return
+            return False, task_id
     else:
         logger.debug(f"Model archive for {task_id=} already exists -> Skip download!")
 
@@ -133,9 +132,9 @@ def download_and_extract(
             logger.error(f"Failed to extract model for {task_id=}! Error: {str(e)}")
             if model_zip_file.is_file():
                 model_zip_file.unlink()
-            return
+            return False, task_id
 
-    return task_id
+    return True, task_id
 
 
 def parse_arguments():
@@ -178,6 +177,20 @@ def parse_arguments():
 if __name__ == "__main__":
     logger.info("Start main process.")
     args = parse_arguments()
+    try:
+        from kaapanapy.services.NotificationService import (
+            NotificationService,
+            Notification,
+        )
+        from kaapanapy.helper import load_workflow_config
+
+        kaapana_notifier = NotificationService()
+        wf_config = load_workflow_config()
+        project_form = wf_config["project_form"]
+        kaapana_project_id = project_form["id"]
+    except:
+        kaapana_notifier = None
+        kaapana_project_id = None
 
     with open(Path("/model_lookup.json"), "r") as f:
         model_lookup = json.load(f)
@@ -191,9 +204,9 @@ if __name__ == "__main__":
         logger.warning(f"No task_ids specified!")
         sys.exit(0)
 
-    Path(args.download_dir).mkdir(exist_ok=True)
+    Path(args.download_dir).mkdir(exist_ok=True, parents=True)
     if args.extract_models:
-        Path(args.extraction_dir).mkdir(exist_ok=True)
+        Path(args.extraction_dir).mkdir(exist_ok=True, parents=True)
 
     worker_args = []
     for task_id in task_ids:
@@ -204,26 +217,57 @@ if __name__ == "__main__":
             logger.error(f"No information found in the container for {task_id=}")
             continue
 
-        model_already_provided = (
-            Path(args.extraction_dir, task_id, model_info.get("check_file")).exists()
-            if model_info.get("check_file")
-            else Path(args.extraction_dir, task_id).exists()
-        )
-        if model_already_provided:
-            logger.info(f"Model for {task_id} already already exists.")
-        else:
-            worker_args = [
-                {"task_id": task_id, "model_download_link": model_download_link}
-            ]
+        for model in model_info["models"]:
+            model_target_dir = Path(args.extraction_dir, model, task_id)
+            model_already_provided = (
+                Path(model_target_dir, model_info.get("check_file")).exists()
+                if model_info.get("check_file") != "default"
+                else Path(
+                    model_target_dir,
+                    "nnUNetTrainerV2__nnUNetPlansv2.1",
+                    "plans.pkl",
+                ).exists()
+            )
+            if model_already_provided:
+                logger.info(f"Model for {task_id} already already exists.")
+            else:
+                worker_args.append(
+                    {
+                        "task_id": task_id,
+                        "model_download_link": model_download_link,
+                        "extraction_dir": model_target_dir,
+                    }
+                )
 
-    worker = partial(
-        download_and_extract,
-        download_dir=Path(args.download_dir),
-        extract_model=args.extract_models,
-        extraction_dir=Path(args.extraction_dir),
-    )
-    with ThreadPool(max(len(task_ids), 4)) as threadpool:
-        results = threadpool.imap_unordered(lambda kw: worker(**kw), worker_args)
-        for task_id in results:
-            if task_id:
+    def worker(worker_arg: dict):
+        return download_and_extract(
+            task_id=worker_arg.get("task_id"),
+            model_download_link=worker_arg.get("model_download_link"),
+            download_dir=Path(args.download_dir),
+            extract_model=args.extract_models,
+            extraction_dir=worker_arg.get("extraction_dir"),
+        )
+
+    with ThreadPool(min(len(task_ids), 4)) as threadpool:
+        results = threadpool.imap_unordered(worker, worker_args)
+        for success, task_id in results:
+            if success:
                 logger.info(f"Model for {task_id=} provided successfully!")
+                if kaapana_project_id:
+                    notification = Notification(
+                        topic="Model download",
+                        title="Model download finished",
+                        description=f"Model download for {task_id} finished",
+                    )
+                    kaapana_notifier.send(
+                        project_id=kaapana_project_id, notification=notification
+                    )
+            elif kaapana_project_id:
+                notification = Notification(
+                    topic="Model download",
+                    title="Model download failed",
+                    description=f"Model download for {task_id} failed",
+                )
+                kaapana_notifier.send(
+                    project_id=kaapana_project_id, notification=notification
+                )

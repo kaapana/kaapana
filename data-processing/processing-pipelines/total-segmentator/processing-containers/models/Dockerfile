@@ -1,6 +1,6 @@
 FROM local-only/base-model-installer:latest
 
-LABEL IMAGE="provide-totalsegmentator-models"
+LABEL IMAGE="get-totalsegmentator-models"
 LABEL BUILD_IGNORE="False"
 
 ARG include_model_weights="false"

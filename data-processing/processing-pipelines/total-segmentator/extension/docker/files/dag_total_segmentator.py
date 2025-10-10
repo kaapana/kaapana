@@ -9,7 +9,7 @@ from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from totalsegmentator.TotalSegmentatorOperator import TotalSegmentatorOperator
-from kaapana.operators.GetZenodoModelOperator import GetZenodoModelOperator
+from totalsegmentator.GetZenodoModelOperator import GetZenodoModelOperator
 from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.MergeMasksOperator import MergeMasksOperator
 from pyradiomics.PyRadiomicsOperator import PyRadiomicsOperator

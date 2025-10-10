@@ -26,8 +26,8 @@ class GetZenodoModelOperator(KaapanaBaseOperator):
     def __init__(
         self,
         dag,
-        model_dir="/models/nnUNet",
-        name="get-zenodo-models",
+        model_dir="/models",
+        name="get-totalsegmentator-models",
         task_ids=None,
         enable_proxy=True,
         delete_output_on_start=False,
@@ -61,7 +61,7 @@ class GetZenodoModelOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{DEFAULT_REGISTRY}/download-zenodo-models:{KAAPANA_BUILD_VERSION}",
+            image=f"{DEFAULT_REGISTRY}/get-totalsegmentator-models:{KAAPANA_BUILD_VERSION}",
             name=name,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,

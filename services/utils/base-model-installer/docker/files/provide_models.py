@@ -29,7 +29,8 @@ def download_file(
     resume: bool = True,
 ):
     """
-    Robust file downloader using requests with streaming, retries, and resume support.
+    Download file from url to dest_path.
+    Show progress bar and make download robust.
 
     Args:
         url (str): URL to download from.
@@ -140,14 +141,35 @@ def download_and_extract(
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--all", "-a", default="false", action="store", choices=["true", "false"]
+        "--all",
+        "-a",
+        default="false",
+        action="store",
+        choices=["true", "false"],
+        help="Wether to download all models found in /model_lookup.json",
     )
-    parser.add_argument("--task-ids", default=os.getenv("TASK_IDS", ""))
-    parser.add_argument("--download-dir", default="/kaapana/app/models")
-
-    parser.add_argument("--extract-models", "-e", action="store_true")
     parser.add_argument(
-        "--extraction-dir", "-ed", default=os.getenv("MODEL_DIR", "/models")
+        "--task-ids",
+        default=os.getenv("TASK_IDS", ""),
+        help="Comma separated list of task ids that should be downloaded",
+    )
+    parser.add_argument(
+        "--download-dir",
+        default="/kaapana/app/models",
+        help="Path to the directory, where model archives should be downloaded to.",
+    )
+
+    parser.add_argument(
+        "--extract-models",
+        "-e",
+        action="store_true",
+        help="Wheter to extract the model archives.",
+    )
+    parser.add_argument(
+        "--extraction-dir",
+        "-ed",
+        default=os.getenv("MODEL_DIR", "/models"),
+        help="The path to where the models shoud be extracted to.",
     )
 
     return parser.parse_args()
@@ -155,7 +177,6 @@ def parse_arguments():
 
 if __name__ == "__main__":
     logger.info("Start main process.")
-
     args = parse_arguments()
 
     with open(Path("/model_lookup.json"), "r") as f:
@@ -175,7 +196,6 @@ if __name__ == "__main__":
         Path(args.extraction_dir).mkdir(exist_ok=True)
 
     worker_args = []
-
     for task_id in task_ids:
         try:
             model_info = model_lookup[task_id]
@@ -189,7 +209,6 @@ if __name__ == "__main__":
             if model_info.get("check_file")
             else Path(args.extraction_dir, task_id).exists()
         )
-
         if model_already_provided:
             logger.info(f"Model for {task_id} already already exists.")
         else:

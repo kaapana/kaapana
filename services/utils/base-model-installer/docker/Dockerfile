@@ -13,4 +13,4 @@ COPY files/requirements.txt /kaapana/app/
 
 RUN python -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.4.0/constraints.txt --no-cache-dir -r /kaapana/app/requirements.txt
 
-CMD ["python3","-u","/kaapana/app/provide_models.py"]
+CMD ["python3","-u","/kaapana/app/provide_models.py", "-e"]

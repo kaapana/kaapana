@@ -12,7 +12,11 @@ import tqdm
 import argparse
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    stream=sys.stdout,
+)
 
 
 def download_file(
@@ -99,16 +103,14 @@ def download_file(
     return dest_path
 
 
-def provide_models(task_id: str, target_model_dir: Path, model_lookup: dict):
-    try:
-        model_info = model_lookup[task_id]
-        model_path = Path(model_info.get("destination_path"))
-        model_download_link = model_info.get("download_link")
-    except KeyError:
-        logger.error(f"No information found in the container for {task_id=}")
-        return False
-
-    model_zip_file = Path(model_path, f"{task_id}.zip")
+def download_and_extract(
+    task_id: str,
+    model_download_link: str,
+    download_dir: Path,
+    extract_model: bool = False,
+    extraction_dir: Path = Path("/models"),
+):
+    model_zip_file = Path(download_dir, f"{task_id}.zip")
     if not model_zip_file.is_file():
         logger.debug(f"Download model for {task_id} from {model_download_link}")
         try:
@@ -118,12 +120,14 @@ def provide_models(task_id: str, target_model_dir: Path, model_lookup: dict):
                 f"Failed to download model for {task_id=} from {model_download_link}"
             )
             return
+    else:
+        logger.debug(f"Model archive for {task_id=} already exists -> Skip download!")
 
-    if model_path != target_model_dir:
-        logger.debug(f"Extract file {model_zip_file} into {target_model_dir}")
+    if extract_model:
+        logger.debug(f"Extract file {model_zip_file} into {extraction_dir}")
         try:
             with zipfile.ZipFile(model_zip_file, "r") as zip_ref:
-                zip_ref.extractall(target_model_dir)
+                zip_ref.extractall(extraction_dir)
         except Exception as e:
             logger.error(f"Failed to extract model for {task_id=}! Error: {str(e)}")
             if model_zip_file.is_file():
@@ -139,11 +143,18 @@ def parse_arguments():
         "--all", "-a", default="false", action="store", choices=["true", "false"]
     )
     parser.add_argument("--task-ids", default=os.getenv("TASK_IDS", ""))
+    parser.add_argument("--download-dir", default="/kaapana/app/models")
+
+    parser.add_argument("--extract-models", "-e", action="store_true")
+    parser.add_argument(
+        "--extraction-dir", "-ed", default=os.getenv("MODEL_DIR", "/models")
+    )
 
     return parser.parse_args()
 
 
 if __name__ == "__main__":
+    logger.info("Start main process.")
 
     args = parse_arguments()
 
@@ -152,22 +163,48 @@ if __name__ == "__main__":
 
     if args.all.lower() == "true":
         task_ids = model_lookup.keys()
-        target_model_dir = Path("/kaapana/app/models")
     else:
         task_ids = args.task_ids.split(",")
-        target_model_dir = Path(os.getenv("MODEL_DIR", "/models"))
 
     if len(task_ids) == 0:
         logger.warning(f"No task_ids specified!")
         sys.exit(0)
 
-    target_model_dir.mkdir(exist_ok=True)
+    Path(args.download_dir).mkdir(exist_ok=True)
+    if args.extract_models:
+        Path(args.extraction_dir).mkdir(exist_ok=True)
+
+    worker_args = []
+
+    for task_id in task_ids:
+        try:
+            model_info = model_lookup[task_id]
+            model_download_link = model_info.get("download_link")
+        except KeyError:
+            logger.error(f"No information found in the container for {task_id=}")
+            continue
+
+        model_already_provided = (
+            Path(args.extraction_dir, task_id, model_info.get("check_file")).exists()
+            if model_info.get("check_file")
+            else Path(args.extraction_dir, task_id).exists()
+        )
+
+        if model_already_provided:
+            logger.info(f"Model for {task_id} already already exists.")
+        else:
+            worker_args = [
+                {"task_id": task_id, "model_download_link": model_download_link}
+            ]
 
     worker = partial(
-        provide_models, target_model_dir=target_model_dir, model_lookup=model_lookup
+        download_and_extract,
+        download_dir=Path(args.download_dir),
+        extract_model=args.extract_models,
+        extraction_dir=Path(args.extraction_dir),
     )
     with ThreadPool(max(len(task_ids), 4)) as threadpool:
-        results = threadpool.imap_unordered(worker, task_ids)
+        results = threadpool.imap_unordered(lambda kw: worker(**kw), worker_args)
         for task_id in results:
             if task_id:
                 logger.info(f"Model for {task_id=} provided successfully!")

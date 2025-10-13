@@ -3,5 +3,4 @@ apiVersion: v2
 name: loki-promtail-chart
 description: Log collection stack with Loki and Promtail
 type: application
-version: 0.1.0
-appVersion: "1.0.0"
+version: 0.0.0

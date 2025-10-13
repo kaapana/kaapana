@@ -7,7 +7,7 @@ from kaapana.blueprints.kaapana_global_variables import (
 
 
 class Bin2DcmOperator(KaapanaBaseOperator):
-    """
+    r"""
     Operator to encode binary data into DICOM or to decode binary data from DICOM.
 
     This operator encodes or decodes files using a container.

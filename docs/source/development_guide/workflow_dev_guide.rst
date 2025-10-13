@@ -73,7 +73,7 @@ For a custom workflow extension, the following should be ensured inside the ``ex
 
       .. tab:: Local Dev
         
-        1. ``Chart.yaml`` is filled with the correct information about your extension, see the `Helm documentation <https://helm.sh/docs/topics/charts/#the-chartyaml-file>`_ and the example `otsus-method-workflow Chart.yaml <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/templates_and_examples/examples/processing-pipelines/otsus-method/extension/otsus-method-workflow/Chart.yaml?ref_type=heads>`_
+        1. ``Chart.yaml`` is filled with the correct information about your extension, see the `Helm Chart documentation <https://helm.sh/docs/topics/charts/#the-chartyaml-file>`_ and the example `otsus-method-workflow Chart.yaml <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/templates_and_examples/examples/processing-pipelines/otsus-method/extension/otsus-method-workflow/Chart.yaml?ref_type=heads>`_
         2. ``requirements.yaml`` file contains  all the dependencies of your extension, and a correct path to :code:`dag-installer-chart` dir inside the cloned Kaapana repository
         3. ``values.yaml`` file only contains
 

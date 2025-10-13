@@ -1,32 +1,19 @@
 from datetime import timedelta
-import os
-from pathlib import Path
-import glob
-import shutil
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.exceptions import AirflowSkipException
-
-from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
-from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.DcmSendOperator import DcmSendOperator
-from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
-from kaapana.operators.GetInputOperator import GetInputOperator
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from totalsegmentator.TotalSegmentatorV2Operator import TotalSegmentatorV2Operator
 from kaapana.operators.GetZenodoModelOperator import GetZenodoModelOperator
-from kaapana.operators.MinioOperator import MinioOperator
-from kaapana.operators.UpdateSegInfoJSONOperator import UpdateSegInfoJSONOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.LocalDagTriggerOperator import LocalDagTriggerOperator
-from pyradiomics.PyRadiomicsOperator import PyRadiomicsOperator
 
 max_active_runs = 10
 concurrency = max_active_runs * 3
 alg_name = "TotalSegmentator-v2"
 
 task_dict = {
-    "total": '',
+    "total": "Dataset291_TotalSegmentator_part1_organs_1559subj,Dataset292_TotalSegmentator_part2_vertebrae_1532subj,Dataset293_TotalSegmentator_part3_cardiac_1559subj,"
+             "Dataset294_TotalSegmentator_part4_muscles_1559subj,Dataset295_TotalSegmentator_part5_ribs_1559subj,Dataset298_TotalSegmentator_total_6mm_1559subj,"
+             "Dataset297_TotalSegmentator_total_3mm_1559subj",
     "total_mr": "Dataset850_TotalSegMRI_part1_organs_1088subj,Dataset851_TotalSegMRI_part1_organs_1088subj,Dataset852_TotalSegMRI_total_3mm_1088subj",
     "body": "Dataset299_body_1559subj,Dataset300_body_6mm_1559subj",
     "body_mr": "Dataset597_mri_body_139subj,Dataset598_mri_body_6mm_139subj",
@@ -89,6 +76,17 @@ ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
+            "tasks": {
+                "title": "Sub-Tasks",
+                "description": "Choose one or more sub-tasks for processing",
+                "type": "array",
+                "items": {
+                    "type": "string",
+                    "enum": list(task_dict)
+                },
+                "default": ["total"],
+                "readOnly": False
+            },
             "fast": {
                 "title": "--fast",
                 "description": "Run faster lower resolution model.",
@@ -137,17 +135,6 @@ ui_forms = {
                 "type": "boolean",
                 "default": False,
                 "readOnly": False,
-            },
-            "tasks": {
-                "title": "Sub-Tasks",
-                "description": "Choose one or more sub-tasks for processing",
-                "type": "array",
-                "items": {
-                    "type": "string",
-                    "enum": list(task_dict)
-                },
-                "default": ["total"],
-                "readOnly": False
             },
             "bodyseg": {
                 "title": "--body_seg",
@@ -214,85 +201,6 @@ get_total_segmentator_model = GetZenodoModelOperator(
     "Dataset295_TotalSegmentator_part5_ribs_1559subj,Dataset298_TotalSegmentator_total_6mm_1559subj,Dataset297_TotalSegmentator_total_3mm_1559subj"
 )
 
-get_input = GetInputOperator(dag=dag, parallel_downloads=5,
-                             check_modality=True, data_type='all')
-
-
-def move_metadata_json(ds, **kwargs):
-    batch_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
-    batch_folder = [f for f in glob.glob(os.path.join(batch_dir, "*"))]
-    for batch_element_dir in batch_folder:
-        json_dir = Path(batch_element_dir) / get_input.operator_out_dir
-        dest_dir = Path(batch_element_dir) / dcm2nifti.operator_out_dir
-        json_files = [f for f in json_dir.glob("*.json")]
-        print('from callback:', json_files)
-        shutil.copy(json_files[0], dest_dir)
-
-
-put_metadata_json = KaapanaPythonBaseOperator(
-    name="put_metajson",
-    python_callable=move_metadata_json,
-    dag=dag,
-)
-
-dcm2nifti = DcmConverterOperator(
-    dag=dag,
-    input_operator=get_input,
-    output_format="nii.gz",
-)
-
-ta = "total"
-total_segmentator = TotalSegmentatorV2Operator(
-    dag=dag, task=ta, input_operator=dcm2nifti, multilabel=True
-)
-
-combine_masks = UpdateSegInfoJSONOperator(
-    dag=dag,
-    input_operator=total_segmentator,
-    parallel_id=ta,
-    mode='update_json'
-)
-
-nrrd2dcmSeg_multi = Itk2DcmSegOperator(
-    dag=dag,
-    input_operator=get_input,
-    segmentation_operator=combine_masks,
-    input_type="multi_label_seg",
-    multi_label_seg_name=alg_name,
-    multi_label_seg_info_json="seg_info.json",
-    skip_empty_slices=True,
-    parallel_id=ta,
-    alg_name=f"{alg_name}-{ta}",
-)
-
-dcmseg_send = DcmSendOperator(
-    dag=dag,
-    input_operator=nrrd2dcmSeg_multi,
-    parallel_id=ta,
-)
-
-pyradiomics_total = PyRadiomicsOperator(
-    dag=dag,
-    input_operator=dcm2nifti,
-    segmentation_operator=total_segmentator,
-    parallel_id=ta,
-)
-
-put_to_minio = MinioOperator(
-    dag=dag,
-    action="put",
-    minio_prefix="radiomics-totalsegmentator-v2",
-    batch_input_operators=[pyradiomics_total],
-    whitelisted_file_extensions=[".json"],
-    trigger_rule="none_failed_min_one_success",
-)
-
-clean = LocalWorkflowCleanerOperator(
-    dag=dag,
-    clean_workflow_dir=True,
-    trigger_rule="none_failed",
-)
-
 def check_subtask_callback(ds, **kwargs):
     subtask = kwargs["params"].get("subtask")
     conf = kwargs["dag_run"].conf
@@ -302,8 +210,6 @@ def check_subtask_callback(ds, **kwargs):
 
 
 for subtask in list(task_dict):
-    if subtask == 'total':
-        continue
     check_subtask = KaapanaPythonBaseOperator(
         name=f"check-subtask-{subtask}",
         python_callable=check_subtask_callback,
@@ -329,16 +235,3 @@ for subtask in list(task_dict):
         extra_conf=args
     )
     check_subtask >> get_subtask_model >> subtask_dag
-
-get_total_segmentator_model >> total_segmentator
-(
-    get_input
-    >> dcm2nifti
-    >> put_metadata_json
-    >> total_segmentator
-    >> combine_masks
-    >> nrrd2dcmSeg_multi
-    >> dcmseg_send
-    >> clean
-)
-total_segmentator >> pyradiomics_total >> put_to_minio

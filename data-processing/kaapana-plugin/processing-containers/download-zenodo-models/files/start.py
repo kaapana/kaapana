@@ -118,7 +118,9 @@ if dag_id == 'total-segmentator':
         exit(126)
 else:
     task_dict = {
-        "total": '',
+        "total": "Dataset291_TotalSegmentator_part1_organs_1559subj,Dataset292_TotalSegmentator_part2_vertebrae_1532subj,Dataset293_TotalSegmentator_part3_cardiac_1559subj,"
+                 "Dataset294_TotalSegmentator_part4_muscles_1559subj,Dataset295_TotalSegmentator_part5_ribs_1559subj,Dataset298_TotalSegmentator_total_6mm_1559subj,"
+                 "Dataset297_TotalSegmentator_total_3mm_1559subj",
         "total_mr":"Dataset850_TotalSegMRI_part1_organs_1088subj,Dataset851_TotalSegMRI_part1_organs_1088subj,Dataset852_TotalSegMRI_total_3mm_1088subj",
         "body":"Dataset299_body_1559subj,Dataset300_body_6mm_1559subj",
         "body_mr":"Dataset597_mri_body_139subj,Dataset598_mri_body_6mm_139subj",

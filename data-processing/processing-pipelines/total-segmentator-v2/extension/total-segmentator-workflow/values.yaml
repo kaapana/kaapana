@@ -13,7 +13,7 @@ extension_params:
             "Dataset293_TotalSegmentator_part3_cardiac_1559subj",
             "Dataset294_TotalSegmentator_part4_muscles_1559subj",
             "Dataset295_TotalSegmentator_part5_ribs_1559subj",
-            "Dataset297_TotalSegmentator_total_6mm_1559subj",
+            "Dataset297_TotalSegmentator_total_3mm_1559subj",
             "Dataset298_TotalSegmentator_total_6mm_1559subj",
             "Dataset258_lung_vessels_248subj",
             "Dataset150_icb_v0",

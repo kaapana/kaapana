@@ -239,7 +239,7 @@
     "check_file": "totalv2",
      "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset295_TotalSegmentator_part5_ribs_1559subj.zip"
   },
-   "Dataset297_TotalSegmentator_total_6mm_1559subj" :{
+   "Dataset297_TotalSegmentator_total_3mm_1559subj" :{
     "id": "297",
     "models": ["3d_fullres"],
     "check_file": "totalv2",
@@ -412,6 +412,6 @@
     "models": ["3d_fullres"],
     "check_file": "totalv2",
     "download_link": "https://github.com/wasserth/TotalSegmentator/releases/download/v2.5.0-weights/Dataset113_ToothFairy3.zip"
-  },
+  }
 }
 

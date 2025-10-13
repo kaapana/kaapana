@@ -19,7 +19,7 @@ dependencies = [
     "kubernetes>=25.3.0",
     "jinja2==3.1.6",
     "python-dotenv==1.1.0",
-    "kaapana-containers@git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@feature/1755-base-task-operator#subdirectory=lib/kaapana_containers",
+    "kaapana-containers@git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@feature/develop#subdirectory=lib/kaapana_containers",
 ]
 
 [tool.poetry.group.dev.dependencies]

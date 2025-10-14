@@ -38,43 +38,43 @@
   "Task258_lung_vessels_248subj": {
     "id": "258",
     "models": ["3d_fullres"],
-    "check_file": "default",
+    "check_file": "nnUNetTrainerV2__nnUNetPlansv2.1/plans.pkl",
     "download_link": "https://zenodo.org/record/7064718/files/Task258_lung_vessels_248subj.zip?download=1"
   },
   "Task150_icb_v0": {
     "id": "150",
     "models": ["3d_fullres"],
-    "check_file": "default",
+    "check_file": "nnUNetTrainerV2__nnUNetPlansv2.1/plans.pkl",
     "download_link": "https://zenodo.org/record/7079161/files/Task150_icb_v0.zip?download=1"
   },
   "Task260_hip_implant_71subj": {
     "id": "260",
     "models": ["3d_fullres"],
-    "check_file": "default",
+    "check_file": "nnUNetTrainerV2__nnUNetPlansv2.1/plans.pkl",
     "download_link": "https://zenodo.org/record/7234263/files/Task260_hip_implant_71subj.zip?download=1"
   },
   "Task269_Body_extrem_6mm_1200subj": {
     "id": "269",
     "models": ["3d_fullres"],
-    "check_file": "default",
+    "check_file": "nnUNetTrainerV2__nnUNetPlansv2.1/plans.pkl",
     "download_link": "https://zenodo.org/record/7334272/files/Task269_Body_extrem_6mm_1200subj.zip?download=1"
   },
   "Task503_cardiac_motion": {
     "id": "503",
     "models": ["3d_fullres"],
-    "check_file": "default",
+    "check_file": "nnUNetTrainerV2__nnUNetPlansv2.1/plans.pkl",
     "download_link": "https://zenodo.org/record/7271576/files/Task503_cardiac_motion.zip?download=1"
   },
   "Task273_Body_extrem_1259subj": {
     "id": "273",
     "models": ["3d_fullres"],
-    "check_file": "default",
+    "check_file": "nnUNetTrainerV2__nnUNetPlansv2.1/plans.pkl",
     "download_link": "https://zenodo.org/record/7510286/files/Task273_Body_extrem_1259subj.zip?download=1"
   },
   "Task315_thoraxCT": {
     "id": "315",
     "models": ["3d_fullres"],
-    "check_file": "default",
+    "check_file": "nnUNetTrainerV2__nnUNetPlansv2.1/plans.pkl",
     "download_link": "https://zenodo.org/record/7510288/files/Task315_thoraxCT.zip?download=1"
   }
 }

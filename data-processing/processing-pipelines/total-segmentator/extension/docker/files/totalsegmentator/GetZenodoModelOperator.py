@@ -48,7 +48,11 @@ class GetZenodoModelOperator(KaapanaBaseOperator):
         :type delete_output_on_start: bool
         """
 
-        envs = {"MODEL_DIR": str(model_dir), "LOG_LEVEL": "INFO"}
+        envs = {
+            "MODEL_DIR": str(model_dir),
+            "LOG_LEVEL": "INFO",
+            "no_proxy": "localhost,.svc,.cluster",
+        }
         env_vars.update(envs)
 
         if task_ids is not None:

@@ -111,19 +111,25 @@ You can specify requests and limits of memory, CPU cores and GPU that the proces
 Executing a processing-container locally
 #########################################
 
+* Validating a processing-container.json file
+* Creating a task
+* Running a task locally in docker 
+
+
+
+
 
 Using a processing-container in an Airflow DAG
 ###############################################
 
 
+* Install task-api-extension
+* No need to define a custom operator 
+* Just use the KaapanaTaskOperator within the DAG
+* How to specify IOChannelMap
+* Link to example DAG
 
 =======================================
 Migrating a legacy processing-container
 =======================================
 
-
-
-.. * What is a processing-container
-.. * What Kaapana expects: processing-container.json and taskTemplates
-.. * How to use the task_api CLI to run it locally
-.. * How to use it in an Airflow Workflos KaapanaTaskOperator IOChannelMap

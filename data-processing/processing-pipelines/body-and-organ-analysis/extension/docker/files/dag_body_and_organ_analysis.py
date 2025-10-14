@@ -82,8 +82,16 @@ ui_forms = {
                 "default": [],
                 "readOnly": False,
             },
+            "strict_mode": {
+                "title": "Strict mode",
+                "description": "When enabled, the workflow must produce all expected outputs. The process will fail if any required output is missing.",
+                "type": "boolean",
+                "default": False,
+                "required": True,
+                "readOnly": False,
+            },
             "single_execution": {
-                "title": "single execution",
+                "title": "Single execution",
                 "description": "Should each series be processed separately?",
                 "type": "boolean",
                 "default": True,
@@ -128,19 +136,6 @@ boa = BodyAndOrganAnalysisOperator(dag=dag, input_operator=dcm2nifti)
 
 boa_check = BoaOutputCheckOperator(dag=dag, input_operator=boa)
 
-# --- Mapping model to its outputs ---
-model_outputs = {
-    "body": ["body_extremities", "body_trunc"],
-    "total": ["total", "pulmonary_fat"],
-    "lung_vessels": ["lung_vessels_airways"],
-    "cerebral_bleed": ["cerebral_bleed"],
-    "hip_implant": ["hip_implant"],
-    "coronary_arteries": ["coronary_arteries"],
-    "pleural_pericard_effusion": ["pleural_pericard_effusion"],
-    "liver_vessels": ["liver_vessels"],
-    "bca": ["body-parts", "body-regions", "tissues", "vertebrae"],
-}
-
 seg2dicom = Itk2DcmSegOperator(
     dag=dag,
     segmentation_operator=boa_check,
@@ -170,4 +165,4 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 # --- Task flow ---
 get_input >> dcm2nifti >> boa >> boa_check >> seg2dicom >> send_task >> clean
-boa >> push_to_minio >> clean
+boa_check >> push_to_minio >> clean

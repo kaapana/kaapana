@@ -71,3 +71,11 @@ class Tissues(enum.IntEnum):
 class LungVesselsAirways(enum.IntEnum):
     LUNG_VESSELS = 1
     LUNG_TRACHEA_BRONCHIA = 2
+
+
+class PulmonaryFat(enum.IntEnum):
+    LUNG_UPPER_LOBE_LEFT = 1
+    LUNG_LOWER_LOBE_LEFT = 2
+    LUNG_UPPER_LOBE_RIGHT = 3
+    LUNG_MIDDLE_LOBE_RIGHT = 4
+    LUNG_LOWER_LOBE_RIGHT = 5

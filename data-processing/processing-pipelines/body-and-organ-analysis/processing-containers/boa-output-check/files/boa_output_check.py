@@ -16,13 +16,13 @@ import logging
 import json
 import shutil
 from os import environ, makedirs
-from os.path import join, basename, exists
+from os.path import join, basename, exists, splitext
 from glob import glob
 from typing import Dict, List, Any, Optional
 from collections import defaultdict
 import SimpleITK as sitk
 import numpy as np
-from matplotlib import cm
+from matplotlib import colormaps
 
 import segmentation_defaults
 from metadata_generator import (
@@ -31,7 +31,24 @@ from metadata_generator import (
 )
 
 # base color map
-cmap = cm.get_cmap("gist_ncar")
+cmap = colormaps.get_cmap("gist_ncar")
+
+# --- Mapping model to its outputs ---
+# See here: https://github.com/UMEssen/Body-and-Organ-Analysis/blob/main/documentation/pacs_integration.md#Outputs
+model_outputs = {
+    "body": [
+        "body_extremities",
+        "body_trunc",
+    ],  # Nowhere defined so only assumed from testing
+    "total": ["total"],
+    "lung_vessels": ["lung_vessels_airways"],
+    "cerebral_bleed": ["cerebral_bleed"],
+    "hip_implant": ["hip_implant"],
+    "coronary_arteries": ["coronary_arteries"],
+    "pleural_pericard_effusion": ["pleural_pericard_effusion"],
+    "liver_vessels": ["liver_vessels"],
+    "bca": ["body-parts", "body-regions", "tissues"],
+}
 
 
 def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
@@ -111,6 +128,87 @@ def extract_labels(
     return []
 
 
+def get_needed_outputs() -> List[str]:
+    """
+    Determines which segmentation outputs are required based on selected models
+    defined in environment variables. If STRICT_MODE is not enabled, returns empty.
+
+    Returns:
+        list[str]: List of required segmentation output basenames.
+    """
+    strict_mode = (
+        True if environ.get("STRICT_MODE", "false").lower() == "true" else False
+    )
+
+    # Guard clause: Only continue if strict mode is on and model_outputs is set
+    if not (strict_mode and model_outputs):
+        return []
+    logger.debug(environ["MODELS"])
+    selected_models = [
+        model.strip("'\"\\,") for model in environ["MODELS"].strip("[]").split()
+    ]
+    if "total" in selected_models:
+        logger.debug(environ["TOTAL_MODELS"])
+        selected_models.extend(
+            [
+                model.strip("'\"\\,")
+                for model in environ["TOTAL_MODELS"].strip("[]").split()
+            ]
+        )
+
+    needed_output_names = []
+    logger.debug(selected_models)
+    for model in selected_models:
+        logger.debug(model)
+        needed_output_names.extend(model_outputs[model])
+    return needed_output_names
+
+
+def strip_all_extensions(filename):
+    """
+    Strips all file extensions from a filename (including double extensions like .nii.gz).
+
+    Args:
+        filename (str): The input filename.
+
+    Returns:
+        str: The filename without extensions.
+    """
+    while True:
+        filename, ext = splitext(filename)
+        if ext == "":
+            break
+    return filename
+
+
+def generate_series_description() -> str:
+    """
+    Generates a description string for the series based on the selected models
+    and DAG_ID environment variable. The function sanitizes the model names
+    from the 'MODELS' and 'TOTAL_MODELS' environment variables to ensure they
+    are formatted correctly without extra characters like quotes.
+
+    Returns:
+        str: A formatted string containing the DAG ID and the models in use.
+    """
+    # Retrieve and sanitize the selected models from the "MODELS" environment variable
+    selected_models = [
+        model.strip("'") for model in environ["MODELS"].strip("[]").split()
+    ]
+
+    # If "total" is included in the selected models, add models from the "TOTAL_MODELS" environment variable
+    if "total" in selected_models:
+        selected_models.extend(
+            [model.strip("'") for model in environ["TOTAL_MODELS"].strip("[]").split()]
+        )
+
+    # Join the selected models into a comma-separated string for the description
+    models_str = ", ".join(selected_models)
+
+    # Return the formatted description string
+    return f'{environ["DAG_ID"]} - Models: {models_str}'
+
+
 if __name__ == "__main__":
     logger = get_logger(__name__, logging.INFO)
 
@@ -143,6 +241,38 @@ if __name__ == "__main__":
         for ext in ("*.nii", "*.nii.gz", "*.nrrd"):
             segmentation_files.extend(glob(join(input_dir, ext)))
         segmentation_files.sort(key=str.lower)
+
+        # Validate required segmentations if STRICT_MODE is enabled
+        needed_segmentations = get_needed_outputs()
+        if needed_segmentations:
+            available_basenames = {
+                strip_all_extensions(basename(f)) for f in segmentation_files
+            }
+
+            # Find missing segmentations
+            missing = [n for n in needed_segmentations if n not in available_basenames]
+            if missing:
+                output_to_model = {}
+                for model, outputs in model_outputs.items():
+                    for output in outputs:
+                        output_to_model.setdefault(output, []).append(model)
+                logger.error("The following required segmentation outputs are missing:")
+                for m in missing:
+                    models = output_to_model.get(m, ["<unknown model>"])
+                    logger.error(
+                        f"  - {m} (required for model(s): {', '.join(models)})"
+                    )
+                exit(1)
+            # Find additional segmentations
+            additional = [
+                n for n in available_basenames if n not in needed_segmentations
+            ]
+            if additional:
+                logger.info(
+                    "The following additional segmentation outputs are present but not required:"
+                )
+                for a in additional:
+                    logger.info(f"  - {a}")
 
         logger.info(
             f"Found {len(segmentation_files)} segmentation file(s) in {series_uid}"
@@ -232,7 +362,7 @@ if __name__ == "__main__":
         # Update how many batches this file has appeared in (and was valid, i.e. not background-only)
         for filename in seen_in_this_batch:
             file_occurrences[filename] += 1
-        # assign the colors for the segments equidistant
+        # Assign the colors for the segments equidistant
         all_segments = [
             segment for sublist in segment_attributes for segment in sublist
         ]
@@ -250,19 +380,19 @@ if __name__ == "__main__":
                     .tolist()
                 )
                 segment["recommendedDisplayRGBValue"] = color
-        # write the MetaInfo.json for this batch
-        metainfo_filename = join(output_dir, "body-and-organ-analysis.json")
+        # Save segment metadata
+        metainfo_filename = join(output_dir, f"{environ["DAG_ID"]}.json")
         with open(metainfo_filename, "w") as f:
             json.dump(
                 build_segmentation_information(
                     segment_attributes=segment_attributes,
-                    series_description="body-and-organ-analysis",
+                    series_description=generate_series_description(),
                 ),
                 f,
                 indent=4,
             )
 
-        # Empty seg_info.json
+        # Save empty seg_info.json as placeholder/dummy
         empty_seg_info = {"seg_info": []}
 
         with open(join(output_dir, "seg_info.json"), "w") as f:

@@ -214,20 +214,24 @@ if __name__ == "__main__":
             model_info = model_lookup[task_id]
             model_download_link = model_info.get("download_link")
         except KeyError:
-            logger.error(f"No information found in the container for {task_id=}")
+            msg = f"No information found in model_lookup.json for {task_id=}."
+            logger.error(msg)
+            if kaapana_project_id:
+                notification = Notification(
+                    title="Model download",
+                    topic="Model download failed",
+                    description=msg,
+                )
+                kaapana_notifier.send(
+                    project_id=kaapana_project_id, notification=notification
+                )
             continue
 
         for model in model_info["models"]:
-            model_target_dir = Path(args.extraction_dir, model, task_id)
-            model_already_provided = (
-                Path(model_target_dir, model_info.get("check_file")).exists()
-                if model_info.get("check_file") != "default"
-                else Path(
-                    model_target_dir,
-                    "nnUNetTrainerV2__nnUNetPlansv2.1",
-                    "plans.pkl",
-                ).exists()
-            )
+            model_target_dir = Path(args.extraction_dir, model)
+            model_already_provided = Path(
+                model_target_dir, task_id, model_info.get("check_file")
+            ).exists()
             if model_already_provided:
                 logger.info(f"Model for {task_id} already already exists.")
             else:
@@ -253,20 +257,20 @@ if __name__ == "__main__":
         for success, task_id in results:
             if success:
                 logger.info(f"Model for {task_id=} provided successfully!")
-                if kaapana_project_id:
-                    notification = Notification(
-                        topic="Model download",
-                        title="Model download finished",
-                        description=f"Model download for {task_id} finished",
-                    )
-                    kaapana_notifier.send(
-                        project_id=kaapana_project_id, notification=notification
-                    )
-            elif kaapana_project_id:
+                topic = "Model download"
+                title = "Model download finished"
+                description = f"Model download for {task_id} finished"
+
+            else:
+                topic = "Model download"
+                title = "Model download failed"
+                description = f"Model download for {task_id} failed"
+
+            if kaapana_project_id:
                 notification = Notification(
-                    topic="Model download",
-                    title="Model download failed",
-                    description=f"Model download for {task_id} failed",
+                    topic=topic,
+                    title=title,
+                    description=description,
                 )
                 kaapana_notifier.send(
                     project_id=kaapana_project_id, notification=notification

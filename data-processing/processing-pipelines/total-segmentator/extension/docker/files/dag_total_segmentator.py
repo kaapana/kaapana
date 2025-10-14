@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from airflow.models import DAG
+from airflow.exceptions import AirflowSkipException
 from airflow.utils.dates import days_ago
 
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
@@ -12,11 +13,28 @@ from totalsegmentator.TotalSegmentatorOperator import TotalSegmentatorOperator
 from totalsegmentator.GetZenodoModelOperator import GetZenodoModelOperator
 from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.MergeMasksOperator import MergeMasksOperator
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from pyradiomics.PyRadiomicsOperator import PyRadiomicsOperator
 
 max_active_runs = 10
 concurrency = max_active_runs * 3
 alg_name = "TotalSegmentator"
+
+
+def skip_based_on_workflow_form_field(field: str, skip_value=False, **context):
+    """
+    Raise AirflowSkipException if the value of the environment variable is not defined
+    or its value in lower case matches with skip_value
+    """
+    conf = context["dag_run"].conf
+    workflow_form = conf["workflow_form"]
+    value = workflow_form.get(field)
+    if type(value) is type(skip_value) and value == skip_value:
+        raise AirflowSkipException(
+            f"{field} with {value=} matches {skip_value=} -> SKIP!"
+        )
+    print(f"{field} with {value=} does not match {skip_value=} -> NO SKIP!")
+
 
 ui_forms = {
     "documentation_form": {
@@ -252,6 +270,15 @@ pyradiomics_0 = PyRadiomicsOperator(
 )
 
 ta = "lung_vessels"
+
+skip_lung_vessels = KaapanaPythonBaseOperator(
+    name=f"skip-{ta}",
+    dag=dag,
+    task_id=f"skip-{ta}",
+    python_callable=skip_based_on_workflow_form_field,
+    op_kwargs={"field": "lung_vessels"},
+)
+
 get_total_segmentator_model_1 = GetZenodoModelOperator(
     dag=dag,
     model_dir="/models/total_segmentator/nnUNet",
@@ -295,6 +322,14 @@ pyradiomics_1 = PyRadiomicsOperator(
 )
 
 ta = "cerebral_bleed"
+skip_cerebral_bleed = KaapanaPythonBaseOperator(
+    name=f"skip-{ta}",
+    dag=dag,
+    task_id=f"skip-{ta}",
+    python_callable=skip_based_on_workflow_form_field,
+    op_kwargs={"field": "cerebral_bleed"},
+)
+
 get_total_segmentator_model_2 = GetZenodoModelOperator(
     dag=dag,
     model_dir="/models/total_segmentator/nnUNet",
@@ -337,6 +372,13 @@ pyradiomics_2 = PyRadiomicsOperator(
 )
 
 ta = "hip_implant"
+skip_hip_implant = KaapanaPythonBaseOperator(
+    name=f"skip-{ta}",
+    dag=dag,
+    task_id=f"skip-{ta}",
+    python_callable=skip_based_on_workflow_form_field,
+    op_kwargs={"field": "hip_implant"},
+)
 get_total_segmentator_model_3 = GetZenodoModelOperator(
     dag=dag,
     model_dir="/models/total_segmentator/nnUNet",
@@ -379,6 +421,13 @@ pyradiomics_3 = PyRadiomicsOperator(
 )
 
 ta = "coronary_arteries"
+skip_coronary_arteries = KaapanaPythonBaseOperator(
+    name=f"skip-{ta}",
+    dag=dag,
+    task_id=f"skip-{ta}",
+    python_callable=skip_based_on_workflow_form_field,
+    op_kwargs={"field": "coronary_arteries"},
+)
 get_total_segmentator_model_4 = GetZenodoModelOperator(
     dag=dag,
     model_dir="/models/total_segmentator/nnUNet",
@@ -421,6 +470,13 @@ pyradiomics_4 = PyRadiomicsOperator(
 )
 
 ta = "body"
+skip_body = KaapanaPythonBaseOperator(
+    name=f"skip-{ta}",
+    dag=dag,
+    task_id=f"skip-{ta}",
+    python_callable=skip_based_on_workflow_form_field,
+    op_kwargs={"field": "body"},
+)
 get_total_segmentator_model_5 = GetZenodoModelOperator(
     dag=dag,
     model_dir="/models/total_segmentator/nnUNet",
@@ -463,6 +519,13 @@ pyradiomics_5 = PyRadiomicsOperator(
 )
 
 ta = "pleural_pericard_effusion"
+skip_pleural_pericard_effusion = KaapanaPythonBaseOperator(
+    name=f"skip-{ta}",
+    dag=dag,
+    task_id=f"skip-{ta}",
+    python_callable=skip_based_on_workflow_form_field,
+    op_kwargs={"field": "pleural_pericard_effusion"},
+)
 get_total_segmentator_model_6 = GetZenodoModelOperator(
     dag=dag,
     model_dir="/models/total_segmentator/nnUNet",
@@ -541,6 +604,7 @@ total_segmentator_0 >> pyradiomics_0 >> put_to_minio
 
 (
     total_segmentator_0
+    >> skip_lung_vessels
     >> get_total_segmentator_model_1
     >> total_segmentator_1
     >> combine_masks_1
@@ -552,6 +616,7 @@ total_segmentator_1 >> pyradiomics_1 >> put_to_minio
 
 (
     total_segmentator_0
+    >> skip_cerebral_bleed
     >> get_total_segmentator_model_2
     >> total_segmentator_2
     >> combine_masks_2
@@ -563,6 +628,7 @@ total_segmentator_2 >> pyradiomics_2 >> put_to_minio
 
 (
     total_segmentator_0
+    >> skip_hip_implant
     >> get_total_segmentator_model_3
     >> total_segmentator_3
     >> combine_masks_3
@@ -574,6 +640,7 @@ total_segmentator_3 >> pyradiomics_3 >> put_to_minio
 
 (
     total_segmentator_0
+    >> skip_coronary_arteries
     >> get_total_segmentator_model_4
     >> total_segmentator_4
     >> combine_masks_4
@@ -585,6 +652,7 @@ total_segmentator_4 >> pyradiomics_4 >> put_to_minio
 
 (
     total_segmentator_0
+    >> skip_body
     >> get_total_segmentator_model_5
     >> total_segmentator_5
     >> combine_masks_5
@@ -596,6 +664,7 @@ total_segmentator_5 >> pyradiomics_5 >> put_to_minio
 
 (
     total_segmentator_0
+    >> skip_pleural_pericard_effusion
     >> get_total_segmentator_model_6
     >> total_segmentator_6
     >> combine_masks_6

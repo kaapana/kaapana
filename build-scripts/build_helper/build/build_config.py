@@ -48,6 +48,7 @@ class BuildConfig(BaseModel):
 
     # Others
     http_proxy: Optional[str]
+    include_model_weights: bool = False
     push_to_microk8s: bool
     create_offline_installation: bool
     platform_filter: str

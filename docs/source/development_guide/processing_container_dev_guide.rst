@@ -108,14 +108,56 @@ Resources [Optional]
 You can specify requests and limits of memory, CPU cores and GPU that the processing-container should use.
 
 
-Executing a processing-container locally
+The Task API Command Line Interface (CLI)
 #########################################
 
-* Validating a processing-container.json file
-* Creating a task
-* Running a task locally in docker 
+We provide a python CLI that allows to run and test processing-container locally with docker.
+Hence, no Kaapana platform is needed for testing your processing-container.
+
+Installation
+------------
+
+The task api package that contains the CLI can be installed via :ref:`pip`.
+
+.. code:: bash
+
+    python3 -m pip install task-api@git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@develop#subdirectory=lib/task_api
+
+Validating a processing-container.json file
+-------------------------------------------
+
+You can easily verify, if your processing-container.json file is complient with the schema.
+
+python3 -m task_api.cli validate processing-container.json --schema pc
+
+Running a task locally with Docker
+-----------------------------------
+
+For running a task that executes a processing-container locally you need to provide all required information in a `task.json` file.
+The most important information you have to provide are:
+
+* **image**: The image of the processing-container you want to execute in the task.
+* **taskTemplate**: The identifier of the taskTemplate inside the `processing-container.json` file inside the container image.
+* **inputs**: For each input channel in the task template you must provide a local paths to the directory with the input data.
+* **outputs:** For each output channel in the task template you must provide a local path, where the output data should be persisted.
+
+You can verify if your `task.json` file is valid via
+
+.. code:: bash
+
+    python3 -m task_api.cli validate task.json --schema task
+
+If the task.json file is valid you can execute the task with
+
+.. code:: bash
+
+    python3 -m task_api.cli run task.json --mode docker
+
+This will also create a `task_run-<id>.pkl` file relative to the current working directory.
+This file can be used for subsequent commands like :code:`python3 -m task_api.cli logs task-run-<id>.pkl` to stream container logs to the current console.
 
 
+To see more commands and functionalities of the CLI check :code:`python3 -m task_api.cli --help`.
 
 
 
@@ -124,7 +166,7 @@ Using a processing-container in an Airflow DAG
 
 
 * Install task-api-extension
-* No need to define a custom operator 
+* No need to define a custom operator
 * Just use the KaapanaTaskOperator within the DAG
 * How to specify IOChannelMap
 * Link to example DAG
@@ -133,3 +175,8 @@ Using a processing-container in an Airflow DAG
 Migrating a legacy processing-container
 =======================================
 
+* State of legacy processing-containers
+    * Required implicit directory structure
+    * Paths depend on environment variables
+    * Configuration either via environment variables or workflow_config
+    * Requires dedicated Airflow operator per processing-container

@@ -160,20 +160,136 @@ This file can be used for subsequent commands like :code:`python3 -m task_api.cl
 To see more commands and functionalities of the CLI check :code:`python3 -m task_api.cli --help`.
 
 
-
 Using a processing-container in an Airflow DAG
 ###############################################
 
+To use a processing-container in an Airflow DAG it is necessary, that you have build the container image and pushed it to the default registry of your Kaapana platform.
 
-* Install task-api-extension
-* No need to define a custom operator
-* Just use the KaapanaTaskOperator within the DAG
-* How to specify IOChannelMap
-* Link to example DAG
+For using a processing-container in an Airflow DAG we provide a dedicated :code:`KaapanaTaskOperator`.
+So you don't have to write a dedicated Airflow operator anymore.
 
-=======================================
+Currently, you have to install the `task-api-workflow` extension in your Kaapana platform to make this operator available.
+
+The following is a minimal example for a DAG that consists of a single operator
+
+.. code::python
+
+    from airflow.models import DAG
+    from task_api_operator.KaapanaTaskOperator import KaapanaTaskOperator
+    from kaapana.blueprints.kaapana_global_variables import (
+        DEFAULT_REGISTRY,
+        KAAPANA_BUILD_VERSION,
+    )
+
+    args = {
+        "ui_visible": True,
+        "owner": "kaapana",
+    }
+
+    with DAG("my-dag", default_args=args) as dag:
+        my_task = KaapanaTaskOperator(
+            task_id="my-task",
+            image=f"{DEFAULT_REGISTRY}/<container-image>:{KAAPANA_BUILD_VERSION}",
+            taskTemplate="my-tasktemplate-identifier",
+        )
+
+The :code:`KaapanaTaskOperator` requires at least three parameters to be set:
+
+* :code:`task_id`: A unique name for the task in your DAG.
+* :code:`image`: The container image of your processing-container which you pushed to the default registry of your Kaapana platform.
+* :code:`taskTemplate`: The identifier of the task template that is specified in the :code:`processing-container.json` file in the container image.
+
+Optional parameters allow you to overwrite environment variables and the command that is executed in the processing-container.
+
+
+Passing data between operators
+------------------------------
+
+For passing data between two operators you have to set the parameter :code:`iochannel_maps` for the :code:`KaapanaTaskOperator:`.
+
+Assume, you want to create a relatively simple workflow that consists of three tasks:
+
+* **Task 1**: Based on the container image :code:`my-download` and the task template :code:`download-from-url`. It downloads data from an url into the output channel :code:`downloads`.
+* **Task 2**: Based on the container image :code:`my-processing` and task template :code:`my-agorithm`. It processes all files in its input channel :code:`inputs` creates results and stores them in the output channel :code:`outputs`.
+* **Task 3**: Based on the container image :code:`my-upload` and task template :code:`send-to-minio`. It sends all files in its input channel `inputs` to a Minio bucket.
+
+In the parameter :code:`iochannel_maps` we can specify, which output channel should be mapped to which input channel.
+
+
+.. code::python
+    from airflow.models import DAG
+    from task_api_operator.KaapanaTaskOperator import KaapanaTaskOperator, IOMapping
+    from kaapana.blueprints.kaapana_global_variables import (
+        DEFAULT_REGISTRY,
+        KAAPANA_BUILD_VERSION,
+    )
+
+    args = {
+        "ui_visible": True,
+        "owner": "kaapana",
+    }
+
+    with DAG("test-task-operator", default_args=args) as dag:
+        download = KaapanaTaskOperator(
+            task_id="get-data",
+            image=f"{DEFAULT_REGISTRY}/my-get-data:{KAAPANA_BUILD_VERSION}",
+            taskTemplate="download-from-url",
+        )
+
+        processing = KaapanaTaskOperator(
+            task_id="process-data",
+            image=f"{DEFAULT_REGISTRY}/my-processing:{KAAPANA_BUILD_VERSION}",
+            taskTemplate="my-algorithm",
+            iochannel_maps=[
+                IOMapping(
+                    upstream_operator=task1,
+                    upstream_output_channel="downloads",
+                    input_channel="inputs",
+                )
+            ],
+        )
+
+        upload = KaapanaTaskOperator(
+            task_id="upload-data",
+            image=f"{DEFAULT_REGISTRY}/my-upload:{KAAPANA_BUILD_VERSION}",
+            taskTemplate="send-to-minio",
+            iochannel_maps=[
+                IOMapping(
+                    upstream_operator=task2,
+                    upstream_output_channel="results",
+                    input_channel="inputs",
+                )
+            ],
+        )
+
+    download >> processing >> upload
+
+
+You can find a hello-world example DAG that consists of two tasks here: TODO
+
+
+Passing user configuration to a task
+-------------------------------------
+
+For many workflows you want to give the user the option to configure how the workflow is executed e.g. 
+
+* Selecting a dataset that should be processed.
+* 
+
+
+Workflows are usually triggered via some API requests.
+
+
+
+Using an image from another registry
+------------------------------------
+In case you want to use a container image from another registry than the default registry, you can set the parameters :code:`registryUrl`, :code:`registryUsername`, :code:`registryPassword`.
+This will create a dedicated registry secret for this task.
+
+
 Migrating a legacy processing-container
-=======================================
+#########################################
+
 
 * State of legacy processing-containers
     * Required implicit directory structure

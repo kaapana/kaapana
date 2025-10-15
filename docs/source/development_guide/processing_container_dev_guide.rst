@@ -172,7 +172,7 @@ Currently, you have to install the `task-api-workflow` extension in your Kaapana
 
 The following is a minimal example for a DAG that consists of a single operator
 
-.. code::python
+.. code:: python
 
     from airflow.models import DAG
     from task_api_operator.KaapanaTaskOperator import KaapanaTaskOperator
@@ -216,7 +216,8 @@ Assume, you want to create a relatively simple workflow that consists of three t
 In the parameter :code:`iochannel_maps` we can specify, which output channel should be mapped to which input channel.
 
 
-.. code::python
+.. code:: python
+
     from airflow.models import DAG
     from task_api_operator.KaapanaTaskOperator import KaapanaTaskOperator, IOMapping
     from kaapana.blueprints.kaapana_global_variables import (
@@ -268,17 +269,40 @@ In the parameter :code:`iochannel_maps` we can specify, which output channel sho
 You can find a hello-world example DAG that consists of two tasks here: TODO
 
 
-Passing user configuration to a task
--------------------------------------
+Passing user configuration to a task-run
+-----------------------------------------
 
-For many workflows you want to give the user the option to configure how the workflow is executed e.g. 
+A common requirement for workflows is, that users are able to make configurations to the processing of the data.
+This configuration has to be passed to the process that is running inside the processing-containers.
 
-* Selecting a dataset that should be processed.
-* 
+Workflows are triggered via requests to the Airflow Rest API.
+The payload of this request contains a :code:`conf` object, which is available to the :code:`KaapanaTaskOperator`.
+You can configure environment variables in :code:`conf` at :code:`conf.task_form.{TASK_ID}.{VAR_NAME}.{VAR_VALUE}`
+An example request to the Airflow Rest API to trigger a Workflow with custom configuration can look like this:
 
+.. code:: bash
 
-Workflows are usually triggered via some API requests.
+    curl -X 'POST' \
+    'https://{KAAPANA_DOMAIN}/flow/api/v1/dags/{dag_id}/dagRuns' \
+    -H 'accept: application/json' \
+    -H 'Content-Type: application/json' \
+    -d '{
+    "dag_run_id": "<unique_dag_run_id>",
+    "conf": {
+        "task_form": {
+            "{TASK_ID}": {
+                "{VAR_NAME}": "{VAR_VALUE}" 
+                }
+            }
+        }
+    }'
 
+This will pass the environment variable :code:`MY_VAR=MY_VAR_VALUE` to the task with task_id :code:`TASK_ID` in the dag with dag-id :code:`dag_id`.
+
+.. note::
+
+    The order of precedence for environment variables is as follows:
+    conf.task_form.env >> KaapanaTaskOperator.env >> processing-container.task-template.env 
 
 
 Using an image from another registry
@@ -287,12 +311,24 @@ In case you want to use a container image from another registry than the default
 This will create a dedicated registry secret for this task.
 
 
-Migrating a legacy processing-container
-#########################################
+Migrating from KaapanaBaseOperator
+########################################
+
+This section will explain how to migrate the processing-container that was used in combination with an Airflow operator
+which inerhited from the :code:`KaapanaBaseOperator` to a processing-container that can be used with the KaapanaTaskOperator
+
+The :code:`KaapanaBaseOperator` has several implicit conventions that had to be considered, when implementing the processing-container, i.e. 
 
 
-* State of legacy processing-containers
-    * Required implicit directory structure
-    * Paths depend on environment variables
-    * Configuration either via environment variables or workflow_config
-    * Requires dedicated Airflow operator per processing-container
+* Files are mounted into the same location for each processing-container.
+* File locations have to be determined from generic environment variables.
+
+.. * This often results in nested directory structures, where data associated with a certain task can be distributed over multiple directories
+ 
+
+
+* Configuration either via environment variables or workflow_config
+* Requires dedicated Airflow operator per processing-container
+
+
+* ui_forms: data_form, workflow_form

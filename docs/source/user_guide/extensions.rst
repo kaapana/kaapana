@@ -142,11 +142,11 @@ body-and-organ-analysis
 | **Cite as:** Haubold, J., Baldini, G., Parmar, V., Schaarschmidt, B. M., Koitka, S., Kroll, L., van Landeghem, N., Umutlu, L., Forsting, M., Nensa, F., & Hosch, R. (2023). BOA: A CT-Based Body and Organ Analysis for Radiologists at the Point of Care. Investigative radiology, 10.1097/RLI.0000000000001040. Advance online publication. https://doi.org/10.1097/RLI.0000000000001040
 | **Code:** `https://github.com/UMEssen/Body-and-Organ-Analysis/tree/main <https://github.com/UMEssen/Body-and-Organ-Analysis/tree/main>`_
 
-Workflow Overview:
+**Workflow Overview:**
 
 Runs inference on the CT images using all selected models. Submodels associated with the **"total"** model are only executed if they are explicitly selected **and** the **"total"** model is selected.
 For each input series, a dedicated workflow is started.
-For more information, check out their repository <https://github.com/UMEssen/Body-and-Organ-Analysis/tree/main>_.
+For more information, check out their `repository <https://github.com/UMEssen/Body-and-Organ-Analysis/tree/main>`_.
 
 #. Converts the DICOM input to a NIfTI file.
 #. Executes the BOA command line tool on the input image.

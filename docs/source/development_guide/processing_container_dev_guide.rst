@@ -1,163 +1,385 @@
 .. _processing_container_dev_guide:
 
 ==================================
-Developing a processing-container
+Developing a Processing-Container
 ==================================
 
-A :term:`processing-container` is a container image, that processes data.
-Such containers are commonly executed in tasks of a Workflow, e.g. for pre-pocessing, training or post-processing data.
-We formulated a standard way for building processing-containers such that they are executable in Kaapana in the Task API.
-This standard expects that a processing-container has to contain a `processing-container.json` file, that satisfies a json schema.
-So make sure, that the Dockerfile for building the container image contains the following line:
+A :term:`processing-container` refers to a container image designed to perform data processing tasks.  
+These containers are typically executed as part of Workflow tasks, e.g. during data pre-processing, model training, or post-processing steps.
+
+To make the requirements that Kaapana imposes on processing-containers **explicit and standardized**, we developed the **Task API**.
+We developed a **Task API** that defines the requirements that Kaapana imposes on a processing-container in an **explicit and standardized** way.
+The Task API defines a clear contract between Kaapana and each processing-container.
+
+This contract boils down to a single, simple requirement:
+
+   **A valid processing-container image MUST include a** :file:`processing-container.json` **file that conforms to the JSON schema defined by the Task API at the root of the image.**
+
+When building your Docker image, ensure that the :file:`processing-container.json` file is copied into the image by adding the following line to your :file:`Dockerfile`:
 
 .. code-block:: bash
 
-    COPY files/processing-container.json /processing-container.json
+   COPY files/processing-container.json /processing-container.json
 
 
+The processing-container.json File
+##################################
+
+The :file:`processing-container.json` file defines how Kaapana interacts with a processing-container.  
+It describes what the container does, how to configure it, and where input and output data are mounted.
+
+This file is the **only required element** of a valid processing-container image.  
+It must conform to the :ref:`processing-container JSON schema <processing-container-schema>`.
+
+A processing-container typically packages a tool or algorithm that may support multiple use cases.  
+Each use case is described by a **task template**, which defines input/output channels, environment variables, and the command to execute.
 
 
-The processing-container.json file
-###################################
+ProcessingContainer
+===================
 
-This file serves two purposes:
+Top-level structure describing the container and its available task templates.
 
-1. It communicates in a standardized way how to use this processing-container for data processing.
-2. It contains all information that Kaapana needs to to execute as processing-container inside a task.
+.. list-table::
+   :header-rows: 1
 
-The json-schema for this file can be found here: TODO
-Example processing-containers can be found here: TODO
-
-A processing-container usually ships a specific tool and such a tool might support several usecases.
-Therefore, the `processing-container.json` file can contain multiple task templates, that describe different usecases for the same tooling.
-
-Each task template must contain the following information
-
-Identifier 
-----------
-Users of this processing-container can declare which task template to use by specifying the corresponding identifier.
-
-
-Description
-------------
-This should describe how this task template utilizes the tools in the container image to process data.
-This can also contain high-level information about how the process expects input data to be structured and how results will be structured.
+   * - Field
+     - Type
+     - Description
+   * - ``name``
+     - string
+     - Human-readable name of the processing-container.
+   * - ``description``
+     - string
+     - Short summary of the container’s purpose or functionality.
+   * - ``templates``
+     - list of :ref:`TaskTemplate`
+     - List of available task templates defining different use cases.
 
 
-Environment variables
----------------------
-It is a common concept that the execution of a container image can be cofigured via environment variables.
-A task template should contain a list of configurable environment variables with descriptions on how they influence the processing of data.
-An environment variable object must have the following fields:
+TaskTemplate
+============
 
-* name
-* value
+Blueprint describing how the container can be executed for a specific use case.
 
-It is highly recommended to also add the fields:
+.. list-table::
+   :header-rows: 1
 
-* description
-* type
-* choices
-* adjustable
-
-This will strongly improve the usability of the processing-container, as it ads clarity 
-Furthermore, the Kaapana Web Interface can utilize these fields to show users how they can configure the task execution to their needs.
-
-
-Input channels
---------------
-Input data corresponds to the data that is processed during container runtime.
-Many usecases require different types of data as input, e.g. image registration expects one fixed image and multiple moving images.
-We assume, that the command that runs in the processing-container expects different types of data at different locations.
-We understand each of these locations per data type as an input channels.
-
-A task template must specify for each channel, where the data should be mounted inside the container.
-As channels are identified by there name and need a description any input channel object requires the following fields:
-
-* name
-* mounted_path
-* description
-
-An additional feature provided by the Task API are scale rules for input channels.
-You can specify how memory resources of the processing-container should be scaled based on the file sizes in your input channels.
-More details will come TODO.
+   * - Field
+     - Type
+     - Description
+   * - ``identifier``
+     - string
+     - Unique name identifying the task template; used by users or workflows to select it.
+   * - ``description``
+     - string
+     - Explains what this task template does and how it processes data.
+   * - ``inputs``
+     - list of :ref:`IOMount`
+     - Defines where and how input data is mounted into the container.
+   * - ``outputs``
+     - list of :ref:`IOMount`
+     - Defines output directories for results produced by the process.
+   * - ``env``
+     - list of :ref:`TaskTemplateEnv`
+     - Environment variables that configure the behavior of the container.
+   * - ``command`` *(optional)*
+     - list of strings
+     - Command executed inside the container. If omitted, the image’s default command is used.
+   * - ``resources`` *(optional)*
+     - :ref:`Resources`
+     - CPU, memory, and GPU requests and limits for container execution.
 
 
-Output channels
-------------------
-Output data corresponds to all results that are generated during data-processing in form of files.
-In order to distinguish different data types generated by the process we expect that generated files are structured according to their type,
-e.g. the results of a training process usually consists of the trained model as well as logs from the training.
-Similar to input channels a task template must specify one output channel for each data type created during the process.
-Output channels consist of the same fields as input channels:
+TaskTemplateEnv
+===============
 
-* name
-* mounted_path
-* description
+Defines configurable environment variables for a task template.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Field
+     - Type
+     - Description
+   * - ``name``
+     - string
+     - Name of the environment variable.
+   * - ``value``
+     - string
+     - Default value used if not overridden.
+   * - ``type`` *(optional)*
+     - enum (``boolean``, ``string``, ``int``)
+     - Data type of the variable.
+   * - ``choices`` *(optional)*
+     - list of strings
+     - List of allowed values.
+   * - ``adjustable`` *(optional)*
+     - boolean
+     - Whether users may modify this variable at runtime.
+   * - ``description`` *(optional)*
+     - string
+     - Explains how the variable influences processing.
 
 
-Command [Optional]
--------------------
-A container image can be shipped with multiple tools.
-The command field specifies which command is executed for the corresponding that is executed in the container runtime as a list of strings.
-If this is not specified the 
+IOMount
+=======
 
-Resources [Optional]
----------------------
-You can specify requests and limits of memory, CPU cores and GPU that the processing-container should use.
+Defines a data channel (input or output) and where it is mounted inside the container.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Field
+     - Type
+     - Description
+   * - ``name``
+     - string
+     - Unique name identifying the channel.
+   * - ``mounted_path``
+     - string
+     - Path inside the container where the channel data is available.
+   * - ``description`` *(optional)*
+     - string
+     - Short explanation of the channel’s purpose or data type.
+   * - ``scale_rule`` *(optional)*
+     - :ref:`ScaleRule`
+     - Defines how resources scale with the size of data in this channel.
+
+
+ScaleRule
+=========
+
+Controls how container resources (CPU/memory) scale with input data size.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Field
+     - Type
+     - Description
+   * - ``complexity``
+     - string (pattern: ``^[-+]?\\d*(\\.\\d+)?\\*?n(\\*\\*\\d+)?$``)
+     - Mathematical expression describing how resource use grows with input size.
+   * - ``type``
+     - enum (``limit``, ``request``)
+     - Resource type affected by the rule.
+   * - ``mode``
+     - enum (``sum``, ``max_file_size``)
+     - How to aggregate file sizes for scaling.
+   * - ``target_dir`` *(optional)*
+     - string
+     - Directory to analyze for scaling (defaults to channel root).
+   * - ``target_regex`` / ``target_glob`` *(optional)*
+     - string
+     - File-matching pattern for selective scaling.
+
+
+Resources
+=========
+
+Specifies resource requests and limits for container execution.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Field
+     - Type
+     - Description
+   * - ``limits``
+     - object *(optional)*
+     - Maximum resources (CPU, memory, GPU) available to the container.
+   * - ``requests``
+     - object *(optional)*
+     - Minimum guaranteed resources for scheduling.
+
+
+Example
+=======
+
+.. code-block:: json
+
+   {
+     "name": "my_algorithm",
+     "description": "Example processing-container for demonstration",
+     "templates": [
+       {
+         "identifier": "default",
+         "description": "Performs example data processing.",
+         "inputs": [],
+         "outputs": [
+           {"name": "channel1", "mounted_path": "/home/channel1"},
+           {"name": "channel2", "mounted_path": "/home/channel2"}
+         ],
+         "env": [
+           {
+             "name": "TIME_SLEEP",
+             "value": "5",
+             "type": "int",
+             "description": "Number of seconds to sleep before finishing.",
+             "adjustable": true
+           }
+         ],
+         "command": ["python3", "-u", "start.py"]
+       }
+     ]
+   }
+
 
 
 The Task API Command Line Interface (CLI)
 #########################################
 
-We provide a python CLI that allows to run and test processing-container locally with docker.
-Hence, no Kaapana platform is needed for testing your processing-container.
+The Task API provides a Python-based Command Line Interface (CLI) that allows you to **run and test processing-containers locally using Docker**. 
+No running Kaapana platform is required.
 
 Installation
-------------
+============
 
-The task api package that contains the CLI can be installed via :ref:`pip`.
+The CLI is included in the `task-api` package, which can be installed directly from the Kaapana repository using :ref:`pip`:
 
-.. code:: bash
+.. code-block:: bash
 
-    python3 -m pip install task-api@git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@develop#subdirectory=lib/task_api
+    python3 -m pip install "task-api@git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@develop#subdirectory=lib/task_api"
 
-Validating a processing-container.json file
--------------------------------------------
+Validating a ``processing-container.json`` File
+===============================================
 
-You can easily verify, if your processing-container.json file is complient with the schema.
+You can easily verify whether your :code:`processing-container.json` file conforms to the required JSON schema using the following command:
 
-python3 -m task_api.cli validate processing-container.json --schema pc
+.. code-block:: bash
 
-Running a task locally with Docker
------------------------------------
+    python3 -m task_api.cli validate processing-container.json --schema pc
 
-For running a task that executes a processing-container locally you need to provide all required information in a `task.json` file.
-The most important information you have to provide are:
+Running a Task Locally with Docker
+==================================
 
-* **image**: The image of the processing-container you want to execute in the task.
-* **taskTemplate**: The identifier of the taskTemplate inside the `processing-container.json` file inside the container image.
-* **inputs**: For each input channel in the task template you must provide a local paths to the directory with the input data.
-* **outputs:** For each output channel in the task template you must provide a local path, where the output data should be persisted.
 
-You can verify if your `task.json` file is valid via
+To execute a task locally, you need a :file:`task.json` file describing **how a TaskTemplate is instantiated**, including input/output bindings, environment variables, and execution parameters.
 
-.. code:: bash
+Required fields in the :file:`task.json` file:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Field
+     - Type
+     - Description
+   * - ``name``
+     - string
+     - Human-readable name for this task execution.
+   * - ``image``
+     - string
+     - Docker image of the processing-container to run.
+   * - ``taskTemplate``
+     - string or object (:ref:`TaskTemplate`)
+     - Identifier or full definition of the task template to execute.
+   * - ``inputs``
+     - array of :ref:`IOVolume`
+     - Input channels mapped to local directories.
+   * - ``outputs``
+     - array of :ref:`IOVolume`
+     - Output channels mapped to local directories where results are written.
+   * - ``env`` *(optional)*
+     - array of :ref:`BaseEnv`
+     - Environment variables to override template defaults.
+   * - ``command`` *(optional)*
+     - array of strings
+     - Overrides the default container command or task template command.
+   * - ``resources`` *(optional)*
+     - :ref:`Resources`
+     - Resource requests and limits (CPU, memory, GPU) for this task.
+   * - ``config`` *(optional)*
+     - :ref:`DockerConfig` or :ref:`BaseConfig`
+     - Container runtime configuration (e.g., Docker labels).
+
+Inputs and Outputs: IOVolume
+----------------------------
+
+Each input or output channel is represented by an :ref:`IOVolume` object, which defines the channel name, the local path to mount, and optional scaling rules.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Field
+     - Type
+     - Description
+   * - ``name``
+     - string
+     - Unique name of the input/output channel.
+   * - ``input``
+     - oneOf: [HostPathVolume]
+     - Volume to mount into the processing-container
+   * - ``input.host_path``
+     - string
+     - Local directory path on the host that is mounted into the container.
+   * - ``scale_rule`` *(optional)*
+     - :ref:`ScaleRule`
+     - Defines how container resources (memory/CPU) should scale with input data size.
+
+.. note::
+    
+    For output channels, the ``input`` field represents the path where results will be written.
+
+
+Validating the Task JSON
+-------------------------
+
+Before execution, ensure your :file:`task.json` file is compliant with the schema:
+
+.. code-block:: bash
 
     python3 -m task_api.cli validate task.json --schema task
 
-If the task.json file is valid you can execute the task with
 
-.. code:: bash
+Executing the Task
+------------------
+
+Run the task locally via Docker:
+
+.. code-block:: bash
 
     python3 -m task_api.cli run task.json --mode docker
 
-This will also create a `task_run-<id>.pkl` file relative to the current working directory.
-This file can be used for subsequent commands like :code:`python3 -m task_api.cli logs task-run-<id>.pkl` to stream container logs to the current console.
+This creates a file :file:`task_run-<id>.pkl` in the current working directory.  
+You can use this file to access logs or perform follow-up operations:
+
+.. code-block:: bash
+
+    python3 -m task_api.cli logs task_run-<id>.pkl
+
+Example
+-------
+
+A minimal example :file:`task.json` for local execution:
+
+.. code-block:: json
+
+    {
+      "name": "example-task",
+      "image": "kaapana/example:latest",
+      "taskTemplate": "example",
+      "inputs": [
+        {"name": "channel1", "input": {"host_path": "./data/input1"}},
+        {"name": "channel2", "input": {"host_path": "./data/input2"}}
+      ],
+      "outputs": [
+        {"name": "results", "input": {"host_path": "./data/output"}}
+      ],
+      "env": [
+        {"name": "DUMMY", "value": "5"}
+      ]
+    }
+
+This file binds input/output directories, sets environment variables, and selects the task template to run.
 
 
-To see more commands and functionalities of the CLI check :code:`python3 -m task_api.cli --help`.
+.. note::
+    To explore all available commands and options, run:
 
+    .. code-block:: bash
+
+        python3 -m task_api.cli --help
 
 Using a processing-container in an Airflow DAG
 ###############################################

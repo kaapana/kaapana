@@ -18,9 +18,9 @@ services:
     networks:
       - workflow
 
-  api:
+  workflow-api:
     build:
-      context: .
+      context: ./workflow-api/docker
     image: workflow-api:latest
     ports:
       - 8080:8080
@@ -33,10 +33,27 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - ./files:/app
+      - ./workflow-api/docker/files:/app
+      - /app/node_modules  
     networks:
       - workflow
 
+  workflow-ui:
+    build:
+      context: ./workflow-ui/docker
+    image: workflow-ui:latest
+    ports:
+      - 5173:5173
+    environment:
+      - VITE_API_URL=http://localhost:8080
+    volumes:
+      - ./workflow-ui/docker/files:/app:cached
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0
+    networks:
+      - workflow
+    depends_on:
+      - workflow-api
 volumes:
   database:
 

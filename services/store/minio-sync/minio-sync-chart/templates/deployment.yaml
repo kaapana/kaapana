@@ -90,7 +90,7 @@ metadata:
   name: {{ .Release.Name }}-host-path-pv-claim
   namespace: {{ .Values.global.services_namespace }}
 spec:
-  storageClassName: nfs
+  storageClassName: host-dir
   accessModes:
     - ReadWriteMany
   resources:

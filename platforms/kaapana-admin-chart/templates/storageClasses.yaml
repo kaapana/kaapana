@@ -1,0 +1,71 @@
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: kaapana-hostpath-slow-data-dir
+provisioner: microk8s.io/hostpath
+reclaimPolicy: Retain
+parameters:
+  pvDir: {{.Values.global.slow_data_dir }}
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: kaapana-hostpath-fast-data-dir
+provisioner: microk8s.io/hostpath
+reclaimPolicy: Retain
+parameters:
+  pvDir: {{.Values.global.fast_data_dir }}
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: kaapana-longhorn-slow-data
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Retain
+parameters:
+  # Store DICOM files and storage data
+  numberOfReplicas: "1"
+  dataLocality: "best-effort"         # Prefer to keep data local to main node
+  #nodeSelector: "kaapana.io/role=main"
+  diskSelector: "slow-data"           # Must match Longhorn disk tag for $SLOW_DATA_DIR
+  fsType: "ext4"
+  staleReplicaTimeout: "30"
+  fromBackup: ""
+  disableRevisionCounter: "false"
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: kaapana-longhorn-fast-db
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Retain
+parameters:
+  # For PostgreSQL or other system databases
+  numberOfReplicas: "1"
+  dataLocality: "best-effort"
+  #nodeSelector: "kaapana.io/role=main"
+  diskSelector: "fast-data"           # Must match Longhorn disk tag for $FAST_DATA_DIR
+  fsType: "ext4"
+  staleReplicaTimeout: "30"
+  fromBackup: ""
+  disableRevisionCounter: "false"
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: kaapana-longhorn-fast-workflow
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+parameters:
+  # For temporary workflow execution and intermediate data
+  numberOfReplicas: "2"
+  fsType: "ext4"
+  mkfsParams: "-E discard"            # Enables TRIM for space reclamation
+  disableRevisionCounter: "true"      # Slightly faster for ephemeral volumes
+  recurringJobSelector: ""
+  staleReplicaTimeout: "20"
+  fromBackup: ""

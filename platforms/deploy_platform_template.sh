@@ -640,6 +640,11 @@ function deploy_chart {
         CHART_PATH="$SCRIPT_PATH/$PLATFORM_NAME-$PLATFORM_VERSION.tgz"
     fi
 
+    # creating kubernetes namespaces
+    for ns in "$SERVICES_NAMESPACE" "$ADMIN_NAMESPACE" "$EXTENSIONS_NAMESPACE"; do
+        microk8s.kubectl create namespace "$ns" --dry-run=client -o yaml | microk8s.kubectl apply -f -
+    done
+
     # Kubernetes API endpoint
     INTERNAL_CIDR=$(microk8s.kubectl get endpoints kubernetes -n default -o jsonpath="{.subsets[0].addresses[0].ip}/32")
     # Server IP

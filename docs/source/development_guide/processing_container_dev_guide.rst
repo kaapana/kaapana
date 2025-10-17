@@ -314,7 +314,7 @@ This will create a dedicated registry secret for this task.
 .. _data_structure_convention:
 
 Input and output channel data structure convention
-----------------------------------------------------
+###################################################
 
 When data is passed from one task-run to another task-run,
 the data structure of the output channel has to match the expectations of the respective input channels.
@@ -407,7 +407,7 @@ The :code:`KaapanaTaskOperator` will not automatically set the necessary environ
 The biggest change is how data is mounted into the container.
 If you use the KaapanaBaseOperator, every container will see a directory structure similar to
 
-Assume you have the following DAG file
+Assume you have the following DAG definition
 
 .. code:: python
 
@@ -455,8 +455,8 @@ It is expected, that :code:`my_algorithm` follows this convention. Hence, the fi
             └── conf.json
 
 
-Migrating to new :ref:`data structure <data_structure_convention>`
--------------------------------------------------------------------
+Migrating the data structure
+------------------------------
 
 The DAG from above migrated to using the KaapanaTaskOperator could look like this:
 
@@ -485,7 +485,7 @@ The DAG from above migrated to using the KaapanaTaskOperator could look like thi
 
     get_input >> my_algorithm
 
-Following the :ref:`data structure convetion <data_structure_convention> `, the directory structure in the processing-container of :code:`my_algorithm` should look like this:
+Following the :ref:`data structure convetion <data_structure_convention>`, the directory structure in the processing-container of :code:`my_algorithm` should look like this:
 
 .. code:: bash
     
@@ -506,6 +506,9 @@ Following the :ref:`data structure convetion <data_structure_convention> `, the 
 Features not supported by the KaapanaTaskOperator
 --------------------------------------------------
 
-* The `kaapanapy` package does not work out of the box, as expected environment variables are not set automatically.
-* The :code:`conf` object is not mounted into the container
+Some features, that are supported in the KaapanaBaseOperator are not supported in the KaapanaTaskOperator:
+
+* The `kaapanapy` package does not work out of the box, because expected environment variables are not automatically set.
+* The :code:`conf` object is not mounted into the container.
+* Starting a code-server as development server.
 * ui_forms: data_form, workflow_form

@@ -5,6 +5,7 @@ from app.adapters.adapters.dummy_adapter import DummyAdapter
 
 from typing import List, Type
 
+from app import schemas
 from app.adapters import adapters
 import inspect, pkgutil, importlib
 

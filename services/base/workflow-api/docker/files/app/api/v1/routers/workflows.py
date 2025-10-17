@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, Depends, Response, HTTPException
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from app.dependencies import get_async_db
@@ -8,6 +8,19 @@ from app.api.v1.services import workflow_service as service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# WebSocket endpoint for lifecycle updates
+# @router.websocket("/ws")
+# async def websocket_endpoint(websocket: WebSocket):
+#     await websocket.accept()
+#     try:
+#         while True:
+#             # Here you would listen for lifecycle updates from your workflow engine
+#             # and send them to the connected client.
+#             # For now, we'll just keep the connection open.
+#             await websocket.receive_text() # Keep connection open
+#     except WebSocketDisconnect:
+#         print("Client disconnected")
 
 
 @router.get("/workflows", response_model=List[schemas.Workflow])
@@ -61,7 +74,7 @@ async def delete_workflow(
     version: int,
     db: AsyncSession = Depends(get_async_db),
 ):
-    await service.delete_workflow(db, title, version)
+    return await service.delete_workflow(db, title, version)
 
 
 @router.get("/workflows/{title}/{version}/tasks", response_model=List[schemas.Task])

@@ -1,7 +1,9 @@
 from datetime import datetime
-from typing import List, Optional, Dict, Any, Literal, Union, Annotated
-from pydantic import BaseModel, ConfigDict, Field
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
+from app.validation.config_definition import ConfigDefinition
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class WorkflowRunStatus(str, Enum):
@@ -258,10 +260,10 @@ class WorkflowParameter(BaseModel):
 
 class WorkflowBase(BaseModel):
     title: str
-    definition: str
-    workflow_engine: str
-    workflow_parameters: Optional[List[WorkflowParameter]] = None
-    labels: List[Label] = []
+    definition: str  # full dag file
+    workflow_engine: str  # airflow, ...
+    config_definition: Optional[ConfigDefinition] = None
+    labels: List[Label] = Field(default_factory=list)
 
 
 class WorkflowCreate(WorkflowBase):
@@ -288,13 +290,13 @@ class TaskBase(BaseModel):
 
 
 class TaskCreate(TaskBase):
-    downstream_task_titles: List[str] = []
+    downstream_task_titles: List[str] = Field(default_factory=list)
 
 
 class Task(TaskBase):
     id: int
     workflow_id: int
-    downstream_task_ids: List[int] = []
+    downstream_task_ids: List[int] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -323,9 +325,9 @@ class TaskRun(TaskRunBase):
     model_config = ConfigDict(from_attributes=True)
 
 
-class TaskRunUpdate(TaskRunBase):
+class TaskRunUpdate(BaseModel):
     external_id: Optional[str] = None
-    lifecycle_status: Optional[TaskRunStatus]
+    lifecycle_status: Optional[TaskRunStatus] = None
 
 
 #####################################
@@ -344,8 +346,8 @@ class WorkflowRef(BaseModel):
 
 class WorkflowRunBase(BaseModel):
     workflow: WorkflowRef
-    labels: List[Label] = []
-    config: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    labels: List[Label] = Field(default_factory=list)
+    config: Optional[Dict[str, Any]] = Field(default_factory=lambda: {})
 
 
 class WorkflowRunCreate(WorkflowRunBase):

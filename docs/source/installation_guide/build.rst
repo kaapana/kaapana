@@ -44,10 +44,14 @@ You should also have the following packages installed on your build-system.
 
 #. Clone the repository:
 
-   | :code:`git clone -b master https://github.com/kaapana/kaapana.git` 
+   | :code:`git clone -b master https://github.com/kaapana/kaapana.git`
 
-#. Python requirements 
-   
+#. Python requirements
+
+   .. note::
+
+      Depending on your local setup, make sure you create a virtual environment (e.g. :code:`python3 -m venv kaapana/.venv`) and activate it (e.g. :code:`source kaapana/.venv/bin/activate`), to install the requirements:
+
    :code:`python3 -m pip install -r kaapana/build-scripts/requirements.txt`
 
 #. Snap 

@@ -103,6 +103,114 @@ MOUNT_POINTS_TO_MONITOR="{{ mount_points_to_monitor }}"
 
 INSTANCE_NAME="{{ instance_name|default('') }}"
 
+
+STORAGE_PROVIDER="microk8s.io/hostpath" # e.g. "host-path" (microk8s) or "longhorn
+
+
+MAIN_NODE_NAME=$(
+  microk8s.kubectl get pods -n kube-system \
+    -o jsonpath='{.items[0].spec.nodeName}'
+)
+
+echo "Main node is $MAIN_NODE_NAME"
+
+
+echo "🔍 Checking for storage provider: ${STORAGE_PROVIDER}"
+
+is_provider_installed=false
+
+case "${STORAGE_PROVIDER}" in
+  "driver.longhorn.io"|"longhorn")
+    # Check Longhorn CSI driver
+    if microk8s.kubectl get csidriver driver.longhorn.io &>/dev/null; then
+      is_provider_installed=true
+      LONGHORN_ENABLE_CUSTOM_DISKS=True
+      #TODO: add set for longhorn:  enableCustomDisks: true
+    fi
+    STORAGE_PROVIDER="driver.longhorn.io"
+    ;;
+
+  "microk8s.io/hostpath"|"hostpath"|"microk8s")
+    # Check hostpath storage class
+    if microk8s.kubectl get storageclass | grep -q "microk8s-hostpath"; then
+      is_provider_installed=true
+      LONGHORN_ENABLE_CUSTOM_DISKS=False
+    fi
+    STORAGE_PROVIDER="microk8s.io/hostpath"
+    ;;
+
+  *)
+    echo "❌ ERROR: Unknown storage provider '${STORAGE_PROVIDER}'."
+    echo "   Supported providers: microk8s.io/hostpath, longhorn"
+    exit 1
+    ;;
+esac
+
+if [ "$is_provider_installed" = false ]; then
+  echo "❌ ERROR: Storage provider '${STORAGE_PROVIDER}' is not installed in the cluster."
+  echo "   Please install it before proceeding."
+  echo "   Example: microk8s enable hostpath-storage   or   helm install longhorn longhorn/longhorn ..."
+  exit 1
+fi
+
+echo "✅ Storage provider '${STORAGE_PROVIDER}' found."
+
+# --- Set storage classes based on provider ---
+case "${STORAGE_PROVIDER}" in
+  "microk8s.io/hostpath")
+    STORAGE_CLASS_SLOW="kaapana-hostpath-slow-data-dir"
+    STORAGE_CLASS_FAST="kaapana-hostpath-fast-data-dir"
+    STORAGE_CLASS_WORKFLOW="kaapana-hostpath-fast-data-dir"
+    ;;
+  "driver.longhorn.io")
+    STORAGE_CLASS_SLOW="kaapana-longhorn-slow-data"
+    STORAGE_CLASS_FAST="kaapana-longhorn-fast-db"
+    STORAGE_CLASS_WORKFLOW="kaapana-longhorn-fast-workflow"
+
+    FSID_DEFAULT=$(stat -fc %i /var/lib/longhorn)
+    FSID_FAST=$(stat -fc %i "${FAST_DATA_DIR}")
+    FSID_SLOW=$(stat -fc %i "${SLOW_DATA_DIR}")
+
+    PATCH_DISKS="{}"
+    DISK_NAME_FAST=""
+    DISK_NAME_SLOW=""
+
+    # FAST_DATA_DIR
+    if [[ "$FSID_FAST" == "$FSID_DEFAULT" ]]; then
+        echo "⚠️ fast-data shares filesystem with default Longhorn disk."
+        PATCH_DISKS=$(jq ".disks.\"default-disk-${FSID_DEFAULT}\".tags += [\"fast-data\"]" <<< "$PATCH_DISKS")
+        DISK_NAME_FAST="default-disk-${FSID_DEFAULT}"
+    else
+        PATCH_DISKS=$(jq ".disks.\"fast-data\" = {\"path\": \"${FAST_DATA_DIR}\", \"allowScheduling\": true, \"tags\": [\"fast-data\"]}" <<< "$PATCH_DISKS")
+        DISK_NAME_FAST="fast-data"
+    fi
+
+    # SLOW_DATA_DIR
+    if [[ "$FSID_SLOW" == "$FSID_FAST" ]]; then
+        echo "⚠️ slow-data shares filesystem with fast-data."
+        PATCH_DISKS=$(jq ".disks.\"$DISK_NAME_FAST\".tags += [\"slow-data\"]" <<< "$PATCH_DISKS")
+        DISK_NAME_SLOW="$DISK_NAME_FAST"
+    elif [[ "$FSID_SLOW" == "$FSID_DEFAULT" ]]; then
+        echo "⚠️ slow-data shares filesystem with default Longhorn disk."
+        PATCH_DISKS=$(jq ".disks.\"default-disk-${FSID_DEFAULT}\".tags += [\"slow-data\"]" <<< "$PATCH_DISKS")
+        DISK_NAME_SLOW="default-disk-${FSID_DEFAULT}"
+    else
+        PATCH_DISKS=$(jq ".disks.\"slow-data\" = {\"path\": \"${SLOW_DATA_DIR}\", \"allowScheduling\": true, \"tags\": [\"slow-data\"]}" <<< "$PATCH_DISKS")
+        DISK_NAME_SLOW="slow-data"
+    fi
+
+    # Apply the patch
+    microk8s.kubectl patch node.longhorn.io "${MAIN_NODE_NAME}" -n longhorn-system --type merge -p "{\"spec\":$PATCH_DISKS}"
+
+    if [[ $? -ne 0 ]]; then
+        echo "❌ Failed to patch disks for ${MAIN_NODE_NAME}"
+        exit 1
+    fi
+    echo "✅ Patched disks for ${MAIN_NODE_NAME}"
+    ;;
+esac
+
+
 {% for item in additional_env %}
 {{ item.name }}="{{ item.default_value }}"{% if item.comment %} # {{item.comment}}{% endif %}
 {%- endfor %}
@@ -722,6 +830,11 @@ function deploy_chart {
     --set-string global.smtp_username="$SMTP_USERNAME" \
     --set-string global.smtp_password="$SMTP_PASSWORD" \
     --set-string global.email_address_sender="$EMAIL_ADDRESS_SENDER" \
+    --set-string global.storage_class_fast="$STORAGE_CLASS_FAST" \
+    --set-string global.storage_class_slow="$STORAGE_CLASS_SLOW" \
+    --set-string global.storage_class_workflow="$STORAGE_CLASS_WORKFLOW" \
+    --set-string global.main_node_name="$MAIN_NODE_NAME" \
+    --set longhorn.enableCustomDisks="$LONGHORN_ENABLE_CUSTOM_DISKS" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"

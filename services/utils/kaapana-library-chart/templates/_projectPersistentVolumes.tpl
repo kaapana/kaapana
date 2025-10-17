@@ -9,46 +9,16 @@
 {{- $volumeClaimName := printf "%s-%s-pv-claim" $namespace $volume.name }}
 {{- if $volume.host_path }}
 {{- $project_data_dir := $volume.host_path}}
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: "{{ $volumeName }}"
-  labels:
-    type: local
-spec:
-  capacity:
-    storage: {{ $volume.storage | default "1Mi" }}
-{{- if $.Values.global.enable_nfs }}
-  storageClassName: nfs
-  accessModes:
-    - ReadWriteMany
-  nfs:
-    server: "10.152.183.15"
-    path: {{ $volume.host_path }}
-{{- else }}
-  storageClassName: host-dir
-  accessModes:
-    - ReadWriteOnce
-  hostPath: 
-    path: {{ $.Values.global.fast_data_dir }}{{ $project_data_dir }}
-{{- end }}
-  persistentVolumeReclaimPolicy: Retain
-  claimRef:
-    namespace: "{{ $namespace }}"
-    name: {{ $volumeClaimName }}
----
+
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: "{{ $volumeClaimName }}"
   namespace: "{{ $namespace  }}"
+  annotations:
+    "helm.sh/resource-policy": keep
 spec:
-{{- if $.Values.global.enable_nfs }}
-  storageClassName: nfs
-  accessModes:
-    - ReadWriteMany
-{{- else }}
-  storageClassName: host-dir
+  storageClassName: "kaapana-hostpath-fast-data-dir"
   accessModes:
     - ReadWriteOnce
 {{- end }}
@@ -57,7 +27,7 @@ spec:
   resources:
     requests:
       storage: {{ $volume.storage | default "1Mi" }}
-  volumeName: {{ $volumeName }}
+  #volumeName: {{ $volumeName }}
 ---
 {{- end }}
 {{- end }}

@@ -3,5 +3,6 @@
 {{- range $volumeMount := .Values.global.dynamicVolumes }}
 - name: {{ $volumeMount.name }}
   mountPath: "{{ $volumeMount.mount_path }}"
+  subPath: "{{ $volumeMount.host_path  }}"
 {{- end }}
 {{- end }}

@@ -65,9 +65,12 @@ Glossary
       Local operators are not scalable, but they are fast to execute and do not require a :term:`container` to run.
     
     processing-container
-      A processing-container is an Airflow operator that spawns a dedicated :term:`container` in the :term:`project`-namespace to execute its code. 
-      Processing-containers are used for tasks that require more resources or need to run in isolation.
-      This isolation enforces that processes can only access data that is associated with the :term:`project` it was started in.
+      A processing-container can refer to two this:
+      
+      #. A :term:`container` image that is build for data processing.
+      #. The runtime of a container image that processes data.
+
+      In Kaapana processing-containers are combined in processing-pipelines that consist of multiple data-processing steps.
 
     project
       A project is a logical grouping of data, workflows, and other resources within the :term:`kaapana-platform`.

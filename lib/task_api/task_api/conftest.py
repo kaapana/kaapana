@@ -3,6 +3,7 @@ import subprocess
 from pathlib import Path
 import os
 from datetime import datetime
+import docker
 
 LOCAL_REGISTRY = "local-only"
 MODULE_PATH = Path(__file__).parent
@@ -20,23 +21,22 @@ def tmp_output_dir():
 
 @pytest.fixture(scope="session", autouse=True)
 def build_image_locally():
-    cmd = [
-        "docker",
-        "build",
-        "-t",
-        f"{LOCAL_REGISTRY}/dummy:latest",
-        f"{TASK_DIR}/dummy/",
-    ]
-    subprocess.run(cmd, check=True)
+    client = docker.from_env()
+    client.images.build(path=f"{TASK_DIR}/dummy/", tag=f"{LOCAL_REGISTRY}/dummy:latest")
 
-    cmd = [
-        "docker",
-        "build",
-        "-t",
-        f"{LOCAL_REGISTRY}/downstream:latest",
-        f"{TASK_DIR}/downstream/",
-    ]
-    subprocess.run(cmd, check=True)
+
+@pytest.fixture(autouse=False)
+def push_to_registry():
+    client = docker.from_env()
+    client.login(
+        username=os.environ["REGISTRY_USER"],
+        password=os.environ["REGISTRY_PASSWORD"],
+        registry=os.environ["REGISTRY_URL"],
+    )
+    client.images.build(
+        path=f"{TASK_DIR}/dummy/", tag=f"{os.environ["REGISTRY_URL"]}/dummy:latest"
+    )
+    client.images.push(repository=f"{os.environ["REGISTRY_URL"]}/dummy", tag="latest")
 
 
 def k8s_cluster_available():

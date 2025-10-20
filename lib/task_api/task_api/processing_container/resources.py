@@ -1,25 +1,18 @@
-from task_api.processing_container.models import (
-    ScaleRule,
-    IOChannel,
-    Mode,
-    Resources,
-    TaskInstance,
-    Limits,
-    Requests,
-)
+from task_api.processing_container import task_models
+from task_api.processing_container import pc_models
 from pathlib import Path
 from types import FunctionType
 import re
 
 
-def compute_target_size(io: IOChannel) -> int:
+def compute_target_size(io: task_models.IOChannel) -> int:
     """
     Compute the size of the input channel that should be used for scaling the resources
     """
     assert io.scale_rule
     scale_rule = io.scale_rule
 
-    target_path = Path(io.input.local_path, scale_rule.target_dir)
+    target_path = Path(io.input.host_path, scale_rule.target_dir)
 
     if scale_rule.mode.value == "sum":
         return sum_of_file_sizes(
@@ -106,7 +99,7 @@ def parse_complexity(complexity: str) -> FunctionType:
     return complexity
 
 
-def compute_memory_requirement(io: IOChannel) -> int:
+def compute_memory_requirement(io: task_models.IOChannel) -> int:
     """
     Compute the memory requirements for the inpute channel based on the files in the local file path.
     """
@@ -118,7 +111,9 @@ def compute_memory_requirement(io: IOChannel) -> int:
     return complexity(target_size)
 
 
-def compute_memory_resources(task_instance: TaskInstance) -> Resources:
+def compute_memory_resources(
+    task_instance: task_models.TaskInstance,
+) -> pc_models.Resources:
     """
     Return a Resources object based on the Resources and ScaleRule in the task_instance object.
 
@@ -130,15 +125,15 @@ def compute_memory_resources(task_instance: TaskInstance) -> Resources:
     if task_instance.resources:
         task_resources = task_instance.resources
     else:
-        task_resources = Resources(limits=Limits(), requests=Requests())
+        task_resources = pc_models.Resources(limits={}, requests={})
     memory_request = (
-        calculate_bytes(task_resources.requests.memory)
-        if task_resources.requests.memory
+        calculate_bytes(task_resources.requests.get("memory"))
+        if task_resources.requests.get("memory")
         else 0
     )
     memory_limit = (
-        calculate_bytes(task_resources.limits.memory)
-        if task_resources.limits.memory
+        calculate_bytes(task_resources.limits.get("memory"))
+        if task_resources.limits.get("memory")
         else 0
     )
     for channel in task_instance.inputs:
@@ -151,8 +146,8 @@ def compute_memory_resources(task_instance: TaskInstance) -> Resources:
                 )
 
     if memory_limit >= 10:
-        task_resources.limits.memory = human_readable_size(1.1 * memory_limit)
+        task_resources.limits["memory"] = human_readable_size(1.1 * memory_limit)
     if memory_request >= 10:
-        task_resources.requests.memory = human_readable_size(1.1 * memory_request)
+        task_resources.requests["memory"] = human_readable_size(1.1 * memory_request)
 
     return task_resources

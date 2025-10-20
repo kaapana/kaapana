@@ -4,12 +4,7 @@ import docker
 import sys, os
 import time
 
-from task_api.processing_container.models import (
-    TaskRun,
-    Task,
-    Resources,
-    TaskInstance,
-)
+from task_api.processing_container import task_models, pc_models
 from task_api.processing_container.resources import (
     calculate_bytes,
     compute_memory_requirement,
@@ -27,68 +22,84 @@ class DockerRunner(BaseRunner):
     client = docker.from_env()
 
     @classmethod
-    def run(cls, task: Task, dry_run: bool = False):
+    def run(cls, task: task_models.Task):
         cls._logger.info("Running task in Docker...")
 
-        task_template = get_task_template(task.image, task.taskTemplate, mode="docker")
+        if isinstance(task.taskTemplate, pc_models.TaskTemplate):
+            task_template = task.taskTemplate
+        else:
+            task_template = get_task_template(
+                task.image, task.taskTemplate, mode="docker"
+            )
+
         task_instance = create_task_instance(task_template=task_template, task=task)
 
         cls._logger.info(f"TaskInstance: {task_instance.model_dump()}")
         memory_limit = int(cls._set_memory_limit(task_instance=task_instance))
         if memory_limit >= 10:
-            task.resources.limits.memory = human_readable_size(memory_limit)
+            task.resources.limits["memory"] = human_readable_size(memory_limit)
         else:
             memory_limit = None
 
         input_volumes = {
-            vol.input.local_path: {"bind": vol.mounted_path, "mode": "ro"}
+            vol.input.host_path: {"bind": vol.mounted_path, "mode": "ro"}
             for vol in task_instance.inputs
         }
         output_volumes = {
-            vol.input.local_path: {"bind": vol.mounted_path, "mode": "rw"}
+            vol.input.host_path: {"bind": vol.mounted_path, "mode": "rw"}
             for vol in task_instance.outputs
-            if vol.input.local_path not in input_volumes
+            if vol.input.host_path not in input_volumes
         }
 
-        if dry_run:
-            id = "dummy-id"
-        else:
-            container = cls.client.containers.run(
-                image=task_instance.image,
-                command=task_instance.command,
-                labels={"kaapana.type": "processing-container"},
-                environment={env.name: env.value for env in task_instance.env},
-                detach=True,
-                volumes={**input_volumes, **output_volumes},
-                mem_limit=memory_limit,
-            )
+        container = cls.client.containers.run(
+            image=task_instance.image,
+            command=task_instance.command,
+            labels=task_instance.config.labels,
+            environment={env.name: env.value for env in task_instance.env},
+            detach=True,
+            volumes={**input_volumes, **output_volumes},
+            mem_limit=memory_limit,
+        )
 
-            id = container.id
-
-        return TaskRun(id=id, mode="docker", **task_instance.model_dump())
+        return task_models.TaskRun(
+            id=container.id, mode="docker", **task_instance.model_dump()
+        )
 
     @classmethod
-    def logs(cls, task_run: TaskRun, follow: bool = False):
+    def logs(
+        cls,
+        task_run: task_models.TaskRun,
+        follow: bool = False,
+        startup_timeout: int = 30,
+        log_timeout: int = 3600,
+    ):
         if follow:
             cls._logger.info("Start log streaming")
         container = cls.client.containers.get(container_id=task_run.id)
-        logs = container.logs(stream=follow)
+        start_time = time.time()
         try:
+            logs = container.logs(stream=follow)
+            if abs(time.time() - start_time) > log_timeout:
+                cls._logger.error(
+                    f"Log streaming exceeded timeout of {log_timeout}s for pod {task_run.id}"
+                )
+                raise TimeoutError(f"Log streaming exceeded timeout of {log_timeout}s")
             for line in logs:
                 cls._logger.info(line.decode().rstrip())
-            for line in logs:
-                cls._logger.error(line.decode().rstrip())
+
+        except TimeoutError:
+            raise
         except KeyboardInterrupt:
             cls._logger.error("Log streaming interrupted.")
         finally:
             logs.close()
 
     @classmethod
-    def stop(cls, task_run: TaskRun):
+    def stop(cls, task_run: task_models.TaskRun):
         raise NotImplementedError()
 
     @classmethod
-    def _set_memory_limit(cls, task_instance: TaskInstance) -> int:
+    def _set_memory_limit(cls, task_instance: task_models.TaskInstance) -> int:
         """
         Return the memory limit for a task_instance based on Resources and ScaleRules
         """
@@ -96,9 +107,9 @@ class DockerRunner(BaseRunner):
         if (
             task_instance.resources
             and task_instance.resources.limits
-            and task_instance.resources.limits.memory
+            and task_instance.resources.limits.get("memory")
         ):
-            memory_limit = calculate_bytes(task_instance.resources.limits.memory)
+            memory_limit = calculate_bytes(task_instance.resources.limits.get("memory"))
 
         for channel in task_instance.inputs:
             if channel.scale_rule and channel.scale_rule.type.value == "limit":
@@ -107,7 +118,7 @@ class DockerRunner(BaseRunner):
         return memory_limit
 
     @classmethod
-    def check_status(cls, task_run: TaskRun, follow: bool = False):
+    def check_status(cls, task_run: task_models.TaskRun, follow: bool = False):
         container_id = task_run.id
         container = cls.client.containers.get(container_id=container_id)
 
@@ -130,7 +141,7 @@ class DockerRunner(BaseRunner):
             running = state.get("Running")
 
     @classmethod
-    def monitor_memory(cls, task_run: TaskRun):
+    def monitor_memory(cls, task_run: task_models.TaskRun):
         """
         Monitor the memory usage of a container and return the maxmimum memory utilization.
         """

@@ -41,13 +41,6 @@ coverage run -m pytest
 coverage report -m
 ```
 
-### pydantic models
-```bash
-python3 -m pip install datamodel-codegen
-cd task_api/processing-container
-datamodel-codegen --input schemas/ --input-file-type jsonschema --output generated-models/ --target-python-version 3.12 --output-model-type pydantic_v2.BaseModel --use-annotate
-```
-
 ## Monitoring functionality
 You can monitor the memory peak of the container started with `task_api.cli.py run` with the flag `--monitor-container`. This works only locally with Docker. If the `taks.json` file includes scaleRules, our tool will also check, if the computed Resource specification matches with the memory usage.
 

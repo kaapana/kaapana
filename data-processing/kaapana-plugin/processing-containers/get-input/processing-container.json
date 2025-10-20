@@ -1,0 +1,20 @@
+{
+    "name": "GetInput",
+    "description": "Get dicom data from the PACS or json metadata from Opensearch",
+    "templates": [
+        {
+            "identifier": "main",
+            "description": "Get dicom or json data",
+            "env": [
+            ],
+            "inputs": [
+            ],
+            "outputs": [],
+            "command": [
+                "python",
+                "-u",
+                "/kaapana/app/get_input.py"
+            ]
+        }
+    ]
+}

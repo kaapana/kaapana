@@ -443,14 +443,18 @@ The result-identifier should be different from input item identifiers.
 Using a processing-container in an Airflow DAG
 ###############################################
 
-To use a processing-container in an Airflow DAG it is necessary, that you have build the container image and pushed it to the default registry of your Kaapana platform.
+To use a processing-container in an Airflow DAG, you first need to **build the container image** and push it to the default registry of your Kaapana platform.
 
-For using a processing-container in an Airflow DAG we provide a dedicated :code:`KaapanaTaskOperator`.
-So you don't have to write a dedicated Airflow operator anymore.
+We provide a dedicated :code:`KaapanaTaskOperator` so that you **do not need to implement a custom Airflow operator** for each container.
 
-Currently, you have to install the `task-api-workflow` extension in your Kaapana platform to make this operator available.
+.. note:: 
+  
+  You must install the `task-api-workflow` extension on your Kaapana platform to make this operator available.
 
-The following is a minimal example for a DAG that consists of a single operator
+Minimal DAG Example
+-------------------
+
+The following is a minimal DAG with a single task:
 
 .. code:: python
 
@@ -473,28 +477,46 @@ The following is a minimal example for a DAG that consists of a single operator
             taskTemplate="my-tasktemplate-identifier",
         )
 
-The :code:`KaapanaTaskOperator` requires at least three parameters to be set:
+The :code:`KaapanaTaskOperator` takes these parameters:
 
-* :code:`task_id`: A unique name for the task in your DAG.
-* :code:`image`: The container image of your processing-container which you pushed to the default registry of your Kaapana platform.
-* :code:`taskTemplate`: The identifier of the task template that is specified in the :code:`processing-container.json` file in the container image.
+.. list-table::
+  :header-rows: 1
 
-Optional parameters allow you to overwrite environment variables and the command that is executed in the processing-container.
+  * - Field
+    - Type
+    - Description
+  * - :code:`task_id`
+    - string 
+    - Unique name of the task in the DAG.
+  * - :code:`image`
+    - string 
+    - Container image of your processing-container (pushed to the default registry).
+  * - :code:`taskTemplate`
+    - string/taskTemplate
+    - Identifier of the task template defined in the :code:`processing-container.json` file inside the container image.
+  * - :code:`env` (optional)
+    - list[dict]
+    - List key-value pairs for overriding environment variables.
+  * - :code:`command` (optional)
+    - list
+    - Command to execute instead of the default command.
+  * - :code:`iochannel_maps` (optional)
+    - list[IOMapping]
+    - List of mappings from upstream operators output channels to input channels
 
 
 Passing data between operators
 ------------------------------
 
-For passing data between two operators you have to set the parameter :code:`iochannel_maps` for the :code:`KaapanaTaskOperator:`.
+To connect outputs of one task to inputs of another, use the :code:`iochannel_maps` parameter of the :code:`KaapanaTaskOperator`.
 
-Assume, you want to create a relatively simple workflow that consists of three tasks:
+For example, a workflow with three tasks:
 
-* **Task 1**: Based on the container image :code:`my-download` and the task template :code:`download-from-url`. It downloads data from an url into the output channel :code:`downloads`.
-* **Task 2**: Based on the container image :code:`my-processing` and task template :code:`my-agorithm`. It processes all files in its input channel :code:`inputs` creates results and stores them in the output channel :code:`outputs`.
-* **Task 3**: Based on the container image :code:`my-upload` and task template :code:`send-to-minio`. It sends all files in its input channel `inputs` to a Minio bucket.
+1. **Task 1:** Downloads data using container :code:`my-download` and task template :code:`download-from-url`. Output channel: :code:`downloads`.  
+2. **Task 2:** Processes data using container :code:`my-processing` and task template :code:`my-algorithm`. Reads from input channel :code:`inputs` and writes to output channel :code:`outputs`.  
+3. **Task 3:** Uploads results using container :code:`my-upload` and task template :code:`send-to-minio`. Reads from input channel :code:`inputs`.
 
-In the parameter :code:`iochannel_maps` we can specify, which output channel should be mapped to which input channel.
-
+Mapping outputs to inputs:
 
 .. code:: python
 
@@ -510,7 +532,7 @@ In the parameter :code:`iochannel_maps` we can specify, which output channel sho
         "owner": "kaapana",
     }
 
-    with DAG("test-task-operator", default_args=args) as dag:
+    with DAG("my-dag", default_args=args) as dag:
         download = KaapanaTaskOperator(
             task_id="get-data",
             image=f"{DEFAULT_REGISTRY}/my-get-data:{KAAPANA_BUILD_VERSION}",
@@ -546,7 +568,7 @@ In the parameter :code:`iochannel_maps` we can specify, which output channel sho
     download >> processing >> upload
 
 
-You can find a hello-world example DAG that consists of two tasks here: TODO
+You can find a hello-world example DAG that consists of two tasks here: :ref:`TODO`.
 
 
 Passing user configuration to a task-run
@@ -559,6 +581,27 @@ Workflows are triggered via requests to the Airflow Rest API.
 The payload of this request contains a :code:`conf` object, which is available to the :code:`KaapanaTaskOperator`.
 You can configure environment variables in :code:`conf` at :code:`conf.task_form.{TASK_ID}.{VAR_NAME}.{VAR_VALUE}`
 An example request to the Airflow Rest API to trigger a Workflow with custom configuration can look like this:
+
+Workflows often require user-configurable parameters. 
+These are passed via the Airflow REST API `conf` object.  
+The :code:`KaapanaTaskOperator` reads these values and sets the corresponding environment variables in the container.
+
+Environment variables can be provided in the payload under:
+
+.. code-block:: json
+
+    {
+      "conf": {
+        "task_form": {
+          "{TASK_ID}": {
+            "{VAR_NAME}": "{VAR_VALUE}"
+          }
+        }
+      }
+    }
+
+
+Example request to trigger a DAG with custom environment variables:
 
 .. code:: bash
 
@@ -577,19 +620,40 @@ An example request to the Airflow Rest API to trigger a Workflow with custom con
         }
     }'
 
-This will pass the environment variable :code:`MY_VAR=MY_VAR_VALUE` to the container for the task_id :code:`TASK_ID` in the dag with dag-id :code:`dag_id`.
+This sets the environment variable :code:`{VAR_NAME}={VAR_VALUE}` for the task with :code:`task_id={TASK_ID}` in the DAG.
 
 .. note::
 
-    The order of precedence for environment variables is as follows:
-    conf.task_form.env >> KaapanaTaskOperator.env >> processing-container.task-template.env 
+    **Order of precedence for environment variables**
+
+    When environment variables are defined in multiple places, the following order determines which value takes effect (highest priority first):
+
+    1. ``conf.task_form.env`` — values provided in the workflow trigger request  
+    2. ``KaapanaTaskOperator.env`` — values defined in the Airflow operator
+    3. ``processing-container.task-template.env`` — default values defined in the :code:`processing-container.json` file.
+
+    In other words, values from the workflow request override those from the operator, which in turn override defaults from the container definition.
 
 
-Container images from another registry
-----------------------------------------
-In case you want to use a container image from another registry than the default registry, you can set the parameters :code:`registryUrl`, :code:`registryUsername`, :code:`registryPassword`.
-This will create a dedicated registry secret for this task.
 
+Container images from an external registry
+------------------------------------------
+
+If your processing-container image is hosted in an external registry, you can configure authentication by setting the parameters listed below.  
+When provided, Kaapana automatically creates a dedicated registry secret that allows the task to pull the image securely during execution.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 75
+
+   * - Parameter
+     - Description
+   * - :code:`registryUrl`
+     - URL of the external container registry (e.g. :code:`https://registry.example.com`)
+   * - :code:`registryUsername`
+     - Username used to authenticate with the registry
+   * - :code:`registryPassword`
+     - Password or access token used for authentication
 
 
 Migrating from KaapanaBaseOperator

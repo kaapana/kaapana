@@ -29,7 +29,7 @@ The :file:`processing-container.json` file defines how Kaapana interacts with a 
 It describes what the container does, how to configure it, and where input and output data are mounted.
 
 This file is the **only required element** of a valid processing-container image.  
-It must conform to the :ref:`processing-container JSON schema <processing-container-schema>`.
+It must conform to the `processing-container JSON schema <https://codebase.helmholtz.cloud/kaapana/kaapana/-/raw/develop/lib/task_api/task_api/processing_container/ProcessingContainer.schema.json?ref_type=heads>`_.
 
 A processing-container typically packages a tool or algorithm that may support multiple use cases.  
 Each use case is described by a **task template**, which defines input/output channels, environment variables, and the command to execute.
@@ -56,6 +56,8 @@ Top-level structure describing the container and its available task templates.
      - list of :ref:`TaskTemplate`
      - List of available task templates defining different use cases.
 
+
+.. _TaskTemplate:
 
 TaskTemplate
 ============
@@ -90,6 +92,7 @@ Blueprint describing how the container can be executed for a specific use case.
      - :ref:`Resources`
      - CPU, memory, and GPU requests and limits for container execution.
 
+.. _TaskTemplateEnv:
 
 TaskTemplateEnv
 ===============
@@ -122,6 +125,8 @@ Defines configurable environment variables for a task template.
      - Explains how the variable influences processing.
 
 
+.. _IOMount:
+
 IOMount
 =======
 
@@ -146,6 +151,8 @@ Defines a data channel (input or output) and where it is mounted inside the cont
      - :ref:`ScaleRule`
      - Defines how resources scale with the size of data in this channel.
 
+
+.. _ScaleRule:
 
 ScaleRule
 =========
@@ -174,6 +181,8 @@ Controls how container resources (CPU/memory) scale with input data size.
      - string
      - File-matching pattern for selective scaling.
 
+
+.. _Resources:
 
 Resources
 =========
@@ -236,7 +245,7 @@ No running Kaapana platform is required.
 Installation
 ============
 
-The CLI is included in the `task-api` package, which can be installed directly from the Kaapana repository using :ref:`pip`:
+The CLI is included in the `task-api` package, which can be installed directly from the Kaapana repository using `pip <https://pypi.org/project/pip/>`_:
 
 .. code-block:: bash
 
@@ -256,6 +265,7 @@ Running a Task Locally with Docker
 
 
 To execute a task locally, you need a :file:`task.json` file describing **how a TaskTemplate is instantiated**, including input/output bindings, environment variables, and execution parameters.
+The file has to comply to the `task JSON Schema <https://codebase.helmholtz.cloud/kaapana/kaapana/-/raw/develop/lib/task_api/task_api/processing_container/Task.schema.json?ref_type=heads>`.
 
 Required fields in the :file:`task.json` file:
 
@@ -281,8 +291,8 @@ Required fields in the :file:`task.json` file:
      - array of :ref:`IOVolume`
      - Output channels mapped to local directories where results are written.
    * - ``env`` *(optional)*
-     - array of :ref:`BaseEnv`
-     - Environment variables to override template defaults.
+     - array of :code:`BaseEnv`
+     - Environment variables to override template defaults. :code:`BaseEnv` has attributes :code:`name` and :code:`value`.
    * - ``command`` *(optional)*
      - array of strings
      - Overrides the default container command or task template command.
@@ -290,13 +300,15 @@ Required fields in the :file:`task.json` file:
      - :ref:`Resources`
      - Resource requests and limits (CPU, memory, GPU) for this task.
    * - ``config`` *(optional)*
-     - :ref:`DockerConfig` or :ref:`BaseConfig`
-     - Container runtime configuration (e.g., Docker labels).
+     - :code:`DockerConfig` or :code:`K8sConfig`
+     - Container runtime configuration (e.g., Docker labels, Kubernetes namespace), see `here <https://codebase.helmholtz.cloud/kaapana/kaapana/-/raw/develop/lib/task_api/task_api/processing_container/task_models.py?ref_type=heads>_`
+
+.. _IOVolume:
 
 Inputs and Outputs: IOVolume
 ----------------------------
 
-Each input or output channel is represented by an :ref:`IOVolume` object, which defines the channel name, the local path to mount, and optional scaling rules.
+Each input or output channel is represented by an :code:`IOVolume` object, which defines the channel name, the local path to mount, and optional scaling rules.
 
 .. list-table::
    :header-rows: 1
@@ -568,7 +580,7 @@ Mapping outputs to inputs:
     download >> processing >> upload
 
 
-You can find a hello-world example DAG that consists of two tasks here: :ref:`TODO`.
+The repository contains an `example processing-pipeline <https://codebase.helmholtz.cloud/kaapana/kaapana/-/tree/d9af4682030c7f21286e348f0fb917c059557ea9/data-processing/processing-pipelines/task-api>`_ containing a processing-container and a DAG with two tasks.
 
 
 Passing user configuration to a task-run

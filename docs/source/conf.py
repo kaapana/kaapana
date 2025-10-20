@@ -87,6 +87,7 @@ autodoc_mock_imports = [
     "dicomweb_client",
     "minio",
     "kaapanapy",
+    "task_api",
 ]
 autoclass_content = "both"
 

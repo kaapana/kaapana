@@ -46,14 +46,14 @@ spec:
             value: {{ .Values.kaapana_database.postgres_password }}
           - name: KC_LOG_LEVEL
             value: "DEBUG"
-          - name: KC_HTTP_RELATIVE_PATH
-            value: "/auth/"
           - name: KC_HTTPS_CERTIFICATE_KEY_FILE
             value: "/etc/x509/https/tls.key"
           - name: KC_HTTPS_CERTIFICATE_FILE
             value: "/etc/x509/https/tls.crt"
           - name: KC_HTTP_MAX_QUEUED_REQUESTS
             value: "100"
+          - name: JAVA_OPTS
+            value: "-Xmx400m"
           ports:
           - name: http
             containerPort: 8080
@@ -66,7 +66,7 @@ spec:
               memory: 600Mi
             limits:
               memory: 700Mi
-          volumeMounts:
+          volumeMounts:        
             - name: ssl-config-files
               mountPath: /etc/x509/https
               readOnly: true
@@ -74,14 +74,13 @@ spec:
           - "/opt/keycloak/bin/kc.sh"
           - "--verbose"
           - "start"
+          - "--optimized"
           - "--hostname"
           - "https://{{ .Values.global.hostname}}:{{ .Values.global.https_port }}/auth"
           - "--proxy-headers"
           - "xforwarded"
           - "--http-enabled"
           - "true"
-          # - "--hostname-backchannel-dynamic"
-          # - "https://keycloak-internal-service.{{ .Values.global.admin_namespace }}.svc:443"
           securityContext:
             allowPrivilegeEscalation: false
       volumes:

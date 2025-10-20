@@ -34,7 +34,7 @@ RUN mvn clean package
 FROM local-only/base-python-cpu:latest AS builder
 
 WORKDIR /app
-RUN git clone --single-branch --depth 1 --branch 23.0.4 https://github.com/keycloak/keycloak.git /app/keycloak-repo
+RUN git clone --single-branch --depth 1 --branch 26.0.6 https://github.com/keycloak/keycloak.git /app/keycloak-repo
 RUN cp -r /app/keycloak-repo/themes/src/main/resources/theme/keycloak/ /app/kaapana
 COPY files/login.css /app/kaapana/login/resources/css/login.css
 COPY files/login.jpg /app/kaapana/login/resources/img/kaapana-bg.png
@@ -55,5 +55,6 @@ COPY --from=maven-builder /app/rights-token-mapper/target/kaapana-rights-token-m
 COPY --from=maven-builder /app/projects-token-mapper/target/kaapana-projects-token-mapper-1.0.jar /opt/keycloak/providers/kaapana-projects-token-mapper-1.0.jar
 COPY --from=maven-builder /app/admin-mapper/target/kaapana-admin-mapper-1.0.jar /opt/keycloak/providers/kaapana-admin-mapper-1.0.jar
 
+ENV KC_HTTP_RELATIVE_PATH=/auth
 
-RUN /opt/keycloak/bin/kc.sh build
+RUN /opt/keycloak/bin/kc.sh build --db=postgres --features=admin,admin-api,account,account-api,login,authorization,impersonation,token-exchange

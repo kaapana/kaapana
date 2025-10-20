@@ -5,7 +5,7 @@
     "inputs": [
         {
             "name":"channel1",
-            "input": {
+            "volume_source": {
                 "host_path":"{{ env.output_dir }}/dummy/channel1"
             },
             "scale_rule":{
@@ -19,7 +19,7 @@
         },
         {
             "name":"channel2",
-            "input": {
+            "volume_source": {
                 "host_path":"{{ env.output_dir }}/dummy/channel2"
             }
         }

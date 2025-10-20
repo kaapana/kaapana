@@ -42,13 +42,13 @@ class DockerRunner(BaseRunner):
             memory_limit = None
 
         input_volumes = {
-            vol.input.host_path: {"bind": vol.mounted_path, "mode": "ro"}
+            vol.volume_source.host_path: {"bind": vol.mounted_path, "mode": "ro"}
             for vol in task_instance.inputs
         }
         output_volumes = {
-            vol.input.host_path: {"bind": vol.mounted_path, "mode": "rw"}
+            vol.volume_source.host_path: {"bind": vol.mounted_path, "mode": "rw"}
             for vol in task_instance.outputs
-            if vol.input.host_path not in input_volumes
+            if vol.volume_source.host_path not in input_volumes
         }
 
         container = cls.client.containers.run(

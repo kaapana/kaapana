@@ -53,7 +53,9 @@ def get_volume_and_mounts(
         volumes.append(
             client.V1Volume(
                 name=name,
-                host_path=client.V1HostPathVolumeSource(path=channel.input.host_path),
+                host_path=client.V1HostPathVolumeSource(
+                    path=channel.volume_source.host_path
+                ),
             )
         )
         volume_mounts.append(

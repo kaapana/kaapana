@@ -14,7 +14,7 @@ class IOVolume(pc_models.IOBase):
     Represents a storage location for input/output data.
     """
 
-    input: Union[k8sclient.V1Volume, HostPathVolume]
+    volume_source: Union[k8sclient.V1Volume, HostPathVolume]
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
@@ -23,7 +23,7 @@ class IOChannel(pc_models.IOBase):
     Binds an IOMount in the container to an IOVolume in external storage.
     """
 
-    input: Union[k8sclient.V1Volume, HostPathVolume]
+    volume_source: Union[k8sclient.V1Volume, HostPathVolume]
     model_config = ConfigDict(arbitrary_types_allowed=True)
     mounted_path: str
     description: Optional[str] = None

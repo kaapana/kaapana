@@ -3,6 +3,25 @@
 Changelog
 #########
 
+.. _release-0.5.2:
+
+------------------------
+
+********************
+Release Notes v0.5.2
+********************
+
+October 20, 2025
+
+-------------------------
+
+* Automatic migrations during deployment
+* Fix Keycloak OutOfMemory error
+* Fix :code:`kube-state-metrics` bitnami container not found error
+* Fix update bodypart regression commit hash
+* Update NPM packages with high vulnerabilities and fixed version in response to NPM supply chain attacks
+
+
 .. _release-0.5.1:
 
 ------------------------

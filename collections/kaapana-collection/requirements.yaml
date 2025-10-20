@@ -88,3 +88,5 @@ dependencies:
   #   version: 0.0.0
   - name: body-and-organ-analysis-workflow
     version: 0.0.0
+  - name: task-api-workflow
+    version: 0.0.0

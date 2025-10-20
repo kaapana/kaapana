@@ -4,15 +4,6 @@ from unittest.mock import MagicMock
 
 
 def mock_modules():
-    # Kubernetes + Kubetools
-    sys.modules["kaapana.kubetools"] = MagicMock()
-    sys.modules["kaapana.kubetools.volume_mount"] = MagicMock()
-    sys.modules["kaapana.kubetools.volume"] = MagicMock()
-    sys.modules["kaapana.kubetools.pod"] = MagicMock()
-    sys.modules["kaapana.kubetools.pod_stopper"] = MagicMock()
-    sys.modules["kaapana.kubetools.resources"] = MagicMock()
-    sys.modules["kaapana.kubetools.secret"] = MagicMock()
-
     # Flask
     sys.modules["requests"] = MagicMock()
     sys.modules["kaapana.blueprints"] = MagicMock()
@@ -29,6 +20,19 @@ def mock_modules():
     sys.modules["kaapanapy.helper"] = MagicMock()
     sys.modules["kaapanapy.services"] = MagicMock()
     sys.modules["kaapanapy.services.NotificationService"] = MagicMock()
+
+    # task_api
+    sys.modules["task_api"] = MagicMock()
+    sys.modules["task_api.processing_container"] = MagicMock()
+    sys.modules["task_api.processing_container.task_models"] = MagicMock()
+    sys.modules["task_api.processing_container.pc_models"] = MagicMock()
+    sys.modules["task_api.runners"] = MagicMock()
+    sys.modules["task_api.runners.KubernetesRunner"] = MagicMock()
+    sys.modules["task_api.runners.KubernetesRunner.KubernetesRunner"] = MagicMock()
+    # Mock kubernetes and its submodules
+    sys.modules["kubernetes"] = MagicMock()
+    sys.modules["kubernetes.client"] = MagicMock()
+    sys.modules["kubernetes.config"] = MagicMock()
 
     from kaapanapy.settings import KaapanaSettings
 

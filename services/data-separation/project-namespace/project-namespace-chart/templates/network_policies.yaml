@@ -178,7 +178,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      pod-type: "processing-container"
+      kaapana.type: "processing-container"
   policyTypes:
   - Egress
   egress:

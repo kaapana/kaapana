@@ -1,8 +1,3 @@
-import os
-from datetime import timedelta
-from kaapana.kubetools.volume_mount import VolumeMount
-from kaapana.kubetools.volume import Volume
-from kaapana.kubetools.resources import Resources as PodResources
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,

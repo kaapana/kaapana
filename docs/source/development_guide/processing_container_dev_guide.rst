@@ -452,7 +452,7 @@ We provide a dedicated :code:`KaapanaTaskOperator` so that you **do not need to 
   You must install the `task-api-workflow` extension on your Kaapana platform to make this operator available.
 
 Minimal DAG Example
--------------------
+===================
 
 The following is a minimal DAG with a single task:
 
@@ -506,7 +506,7 @@ The :code:`KaapanaTaskOperator` takes these parameters:
 
 
 Passing data between operators
-------------------------------
+===============================
 
 To connect outputs of one task to inputs of another, use the :code:`iochannel_maps` parameter of the :code:`KaapanaTaskOperator`.
 
@@ -572,7 +572,7 @@ You can find a hello-world example DAG that consists of two tasks here: :ref:`TO
 
 
 Passing user configuration to a task-run
------------------------------------------
+=========================================
 
 A common requirement for workflows is, that users are able to make configurations to the processing of the data.
 This configuration has to be passed to the process that is running inside the processing-containers.
@@ -637,7 +637,7 @@ This sets the environment variable :code:`{VAR_NAME}={VAR_VALUE}` for the task w
 
 
 Container images from an external registry
-------------------------------------------
+===========================================
 
 If your processing-container image is hosted in an external registry, you can configure authentication by setting the parameters listed below.  
 When provided, Kaapana automatically creates a dedicated registry secret that allows the task to pull the image securely during execution.
@@ -657,46 +657,41 @@ When provided, Kaapana automatically creates a dedicated registry secret that al
 
 
 Migrating from KaapanaBaseOperator
-####################################
+##################################
+
+This section explains how to migrate a processing-container that was previously used with an Airflow operator inheriting from :code:`KaapanaBaseOperator` to one that works with the new :code:`KaapanaTaskOperator`.
 
 
-This section will explain how to migrate the processing-container that was used in combination with an Airflow operator
-which inerhited from the :code:`KaapanaBaseOperator` to a processing-container that can be used with the KaapanaTaskOperator.
+The :code:`KaapanaBaseOperator` imposed several *implicit conventions* that affected how processing-containers interacted with the workflow environment.  
+In contrast, the :code:`KaapanaTaskOperator` makes all expectations explicit through the Task API and the :code:`processing-container.json` schema.
 
-
-Implicit conventions from the KaapanaBaseOperator
----------------------------------------------------
-
-The :code:`KaapanaBaseOperator` has several implicit conventions that had to be considered, when implementing the processing-container, i.e. 
-
-* Files are mounted into the same location for each processing-container.
-* File locations have to be determined from generic environment variables.
-* The generic environment variables are set automatically by the :code:`KaapanaBaseOperator`.
-* Environment variables are globally set for all tasks in a workflow.
-
-The :code:`KaapanaTaskOperator` will not automatically set the necessary environment variables to generate the same file paths as before.
-
+The following table summarizes the main differences:
 
 .. list-table::
-    :header-rows: 1
+   :header-rows: 1
+   :widths: 30 30
 
-    *   - :code:`KaapanaBaseOperator`
-        - :code:`KaapanaTaskOperator`
-    *   - All workflow directories are mounted into the container.
-        - Only input and output channels are mounted into the container.
-    *   - File paths have to be constructed from environment variables.
-        - File paths are always relative to :code:`mount_path` of the corresponding channel.
-    *   - Environment variables for file path construction are set automatically.
-        - No additional environment variables are set.
-    *   - Variables in the :code:`conf` are shared between all containers in a workflow-run.
-        - Variables in the :code:`conf` are task-run specific.
+   * - :code:`KaapanaBaseOperator`
+     - :code:`KaapanaTaskOperator`
+   * - All workflow directories are mounted into the container.
+     - Only declared input and output channels are mounted.
+   * - File paths must be constructed from environment variables.
+     - File paths are always relative to the :code:`mounted_path` of the respective channel.
+   * - Environment variables for file path construction are set automatically.
+     - No environment variables are set automatically.
+   * - Variables in :code:`conf` are shared between all tasks in a workflow run.
+     - Variables in :code:`conf` are specific to each task run.
 
-The biggest change is how data is mounted into the container.
-If you use the KaapanaBaseOperator, every container will see a directory structure similar to
+The most significant difference is **how data is mounted into containers**.
 
-Assume you have the following DAG definition
+Legacy Data Mounting (KaapanaBaseOperator)
+===========================================
 
-.. code:: python
+When using the :code:`KaapanaBaseOperator`, each container received a generic directory structure that included workflow-level paths and environment variables such as :code:`WORKFLOW_DIR`, :code:`BATCH_NAME`, :code:`OPERATOR_IN_DIR`, and :code:`OPERATOR_OUT_DIR`.
+
+For example, given the following DAG:
+
+.. code-block:: python
 
     dag = DAG(dag_id="my_dag")
 
@@ -705,49 +700,41 @@ Assume you have the following DAG definition
 
     get_input >> my_algorithm
 
+Kaapana automatically mounted the following directory structure in the container of :code:`my_algorithm`:
 
-Then Kaapana would automatically set the environment variables :code:`WORKFLOW_DIR`, :code:`BATCH_NAME`, :code:`OPERATOR_IN_DIR` and :code:`${OPERATOR_OUT_DIR}`.
-Additionally, Kaapana would automatically mount the following directory structure in the container of the task-run of :code:`my_algorithm`
-
-.. code:: bash
+.. code-block:: bash
 
     └── ${WORKFLOW_DIR}
         ├── ${BATCH_NAME}
         │   ├── item-1
-        │   │   └── ${OPERATOR_IN_DIR}
-        │   │       └── input
+        │   │   └── ${OPERATOR_IN_DIR}/input
         │   └── item-2
-        │       └── ${OPERATOR_IN_DIR}
-        │           └── input
-        └── conf
-            └── conf.json
+        │       └── ${OPERATOR_IN_DIR}/input
+        └── conf/conf.json
 
-It is expected, that :code:`my_algorithm` follows this convention. Hence, the final directory strucutre would look like this
+After processing, the resulting structure typically looked like this:
 
-.. code:: bash
+.. code-block:: bash
 
     └── ${WORKFLOW_DIR}
         ├── ${BATCH_NAME}
         │   ├── item-1
-        │   │   ├── ${OPERATOR_IN_DIR}
-        │   │   │   └── input
-        │   │   └── ${OPERATOR_OUT_DIR}
-        │   │       └── result
+        │   │   ├── ${OPERATOR_IN_DIR}/input
+        │   │   └── ${OPERATOR_OUT_DIR}/result
         │   └── item-2
-        │       ├── ${OPERATOR_IN_DIR}
-        │       │   └── input
-        │       └── ${OPERATOR_OUT_DIR}
-        │           └── result
-        └── conf
-            └── conf.json
+        │       ├── ${OPERATOR_IN_DIR}/input
+        │       └── ${OPERATOR_OUT_DIR}/result
+        └── conf/conf.json
 
 
-Migrating the data structure
-------------------------------
+Migrated Data Mounting (KaapanaTaskOperator)
+===============================================
 
-The DAG from above migrated to using the KaapanaTaskOperator could look like this:
+When migrating to the :code:`KaapanaTaskOperator`, data mounts are **defined explicitly** in the :code:`processing-container.json` file and linked between tasks using :code:`IOMapping` objects.
 
-.. code:: python
+For example, the previous DAG can be migrated as follows:
+
+.. code-block:: python
 
     with DAG("my_dag", default_args=args) as dag:
         get_input = KaapanaTaskOperator(
@@ -769,29 +756,24 @@ The DAG from above migrated to using the KaapanaTaskOperator could look like thi
             ],
         )
 
-
     get_input >> my_algorithm
 
-Following the :ref:`data structure convetion <data_structure_convention>`, the directory structure in the processing-container of :code:`my_algorithm` should look like this:
+Following the :ref:`data structure convention <data_structure_convention>`, the directory structure inside the container for :code:`my_algorithm` now looks like this:
 
-.. code:: bash
-    
+.. code-block:: bash
+
     └── input-mount-path
-    │   ├── item-1
-    │   │   └── input
-    │   └── item-2
-    │       └── input
+    │   ├── item-1/input
+    │   └── item-2/input
     └── output-mount-path
-        ├── item-1
-        │   └── result
-        └── item-2
-            └── result
+        ├── item-1/result
+        └── item-2/result
 
-
+This makes data flow between tasks more explicit and modular, removing hidden assumptions about directory layouts or shared environment variables.
 
 
 Features not supported by the KaapanaTaskOperator
---------------------------------------------------
+====================================================
 
 Some features, that are supported in the KaapanaBaseOperator are not supported in the KaapanaTaskOperator:
 

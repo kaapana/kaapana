@@ -98,7 +98,7 @@ def test_resources():
     )
     io = task_models.IOVolume(
         name="test-scale-rule",
-        input=task_models.HostPathVolume(host_path=f"{TASK_DIR}/dummy/files"),
+        volume_source=task_models.HostPathVolume(host_path=f"{TASK_DIR}/dummy/files"),
         scale_rule=sr,
     )
     compute_memory_requirement(io=io)

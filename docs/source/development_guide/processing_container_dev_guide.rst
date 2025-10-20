@@ -381,6 +381,65 @@ This file binds input/output directories, sets environment variables, and select
 
         python3 -m task_api.cli --help
 
+
+.. _data_structure_convention:
+
+Input and output channel data structure convention
+###################################################
+
+When data is passed from one task-run to another task-run,
+the data structure of the output channel has to match the expectations of the respective input channels.
+Therefore, we propose a conventional data structure for output channels.
+We assume, that any channel contains results for 1 to N items.
+Then we expect the output channel to have the following structure
+
+.. code:: bash
+    
+    └── output-mount-path
+        ├── item-1-identifier
+        │   └── result
+        ├── item-2-identifier
+        │   └── result
+        ├── ...
+        └── item-N-identifier
+            └── result
+
+For processes that create results for each input item we expect, that item-identifiers of the output channel match the corresponding identifier from the input channel.
+
+.. code:: bash
+    
+    └── input-mount-path
+    │   ├── item-1-identifier
+    │   │   └── input
+    │   └── item-2-identifier
+    │       └── input
+    └── output-mount-path
+        ├── item-1-identifier
+        │   └── result
+        └── item-2-identifier
+            └── result
+
+For processes that create a results on multiple items of an input-channel we expect an output channel with a single item.
+The result-identifier should be different from input item identifiers.
+
+
+.. code:: bash
+    
+    └── input-mount-path
+    │   ├── item-1-identifier
+    │   │   └── input
+    │   └── item-2-identifier
+    │       └── input
+    └── output-mount-path
+        └── result-identifier
+            └── result
+
+
+.. note::
+
+    We strongly advise to use the description to specify which data structure is expected and can be exptected per input and output channel.
+
+
 Using a processing-container in an Airflow DAG
 ###############################################
 
@@ -531,64 +590,6 @@ Container images from another registry
 In case you want to use a container image from another registry than the default registry, you can set the parameters :code:`registryUrl`, :code:`registryUsername`, :code:`registryPassword`.
 This will create a dedicated registry secret for this task.
 
-
-
-.. _data_structure_convention:
-
-Input and output channel data structure convention
-###################################################
-
-When data is passed from one task-run to another task-run,
-the data structure of the output channel has to match the expectations of the respective input channels.
-Therefore, we propose a conventional data structure for output channels.
-We assume, that any channel contains results for 1 to N items.
-Then we expect the output channel to have the following structure
-
-.. code:: bash
-    
-    └── output-mount-path
-        ├── item-1-identifier
-        │   └── result
-        ├── item-2-identifier
-        │   └── result
-        ├── ...
-        └── item-N-identifier
-            └── result
-
-For processes that create results for each input item we expect, that item-identifiers of the output channel match the corresponding identifier from the input channel.
-
-.. code:: bash
-    
-    └── input-mount-path
-    │   ├── item-1-identifier
-    │   │   └── input
-    │   └── item-2-identifier
-    │       └── input
-    └── output-mount-path
-        ├── item-1-identifier
-        │   └── result
-        └── item-2-identifier
-            └── result
-
-For processes that create a results on multiple items of an input-channel we expect an output channel with a single item.
-The result-identifier should be different from input item identifiers.
-
-
-.. code:: bash
-    
-    └── input-mount-path
-    │   ├── item-1-identifier
-    │   │   └── input
-    │   └── item-2-identifier
-    │       └── input
-    └── output-mount-path
-        └── result-identifier
-            └── result
-
-
-.. note::
-
-    We strongly advise to use the description to specify which data structure is expected and can be exptected per input and output channel.
 
 
 Migrating from KaapanaBaseOperator

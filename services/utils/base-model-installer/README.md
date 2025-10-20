@@ -14,7 +14,28 @@ COPY files/model_lookup.json /model_lookup.json
 RUN python3 -u /kaapana/app/provide_models.py --all=$include_model_weights
 ```
 
-The file `model_lookup.json` must satisfy the following schema:
+
+## The model_lookup.json file
+
+An example file can look like this
+
+```json
+{
+  "Task1": {
+    "models": ["3d_fullres"],
+    "check_file": "nnUNetTrainerV2_ep4000_nomirror__nnUNetPlansv2.1/plans.pkl",
+    "download_link": "https://example.com/Task1.zip?download=1"
+  },
+  "Task2": {
+    "models": ["3d_fullres"],
+    "check_file": "nnUNetTrainerV2_ep4000_nomirror__nnUNetPlansv2.1/plans.pkl",
+    "download_link": "https://example.com/Task2.zip?download=1"
+  }
+}
+```
+
+
+The file `model_lookup.json` must satisfy the following JSON schema:
 
 ```json
 {
@@ -51,6 +72,8 @@ The file `model_lookup.json` must satisfy the following schema:
     }
 }
 ```
+
+## Using the helm chart
 
 The helm chart can be added to `requirements.yaml` of another helm chart as
 ```yaml

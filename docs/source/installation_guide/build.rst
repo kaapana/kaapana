@@ -18,7 +18,9 @@ The results of this build (containers and charts) are usually pushed into a regi
 
 Build Requirements
 ------------------
-Perform these steps on the build-machine. Recommended operating system is Ubuntu 24.04.
+Perform these steps on the build machine. The recommended build system is Ubuntu 24.04 (x64).
+Kaapana can only be built and run on x64 systems.
+Building on other operating systems or architectures has not been tested and may lead to unexpected issues, for which no official support is provided.
 
 .. important::
 

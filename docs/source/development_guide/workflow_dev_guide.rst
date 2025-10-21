@@ -263,6 +263,9 @@ Step 6: Packaging the Helm Chart
 | So far we have built all the necessary images and made them available in the platform. The only thing left is to package the Helm chart and upload it to the platform so that the extension can be installed and tested. 
 | For the local dev case, you need to run :code:`cd <path-to-extension>/extension/otsus-method-workflow && helm dep up && helm package .` . This will create a :code:`otsus-method-workflow-<version>.tgz` file in the same directory.
 
+.. note::
+    Verify that all file paths are correct and that the versions used are consistent.
+
 
 Step 7: Putting the Chart in a Running Platform
 *************************************************
@@ -282,6 +285,10 @@ Now that we have the whole extension inside the platform, it can be installed fr
     | **1.** the image name is referenced incorrectly in the :code:`values.yaml` of the Helm chart
     | **2.** the registry URL or version is incorrect in the images that are built. You can check whihch image is being pulled by going to the Kubernetes view in the platform UI and looking for the pod that has :code:`<dag-name>` (e.g. for our example extension : :code:`dag-otsus-method`). Look for the error message in this view and ensure if the referenced image is correct
     | **3.** if you pushed the containers to the platform via the upload UI, follow the steps in this FAQ: :ref:`extension_container_upload_fail`
+
+.. hint::
+   | Workflows built this way are marked as **experimental**.
+   | By default, **experimental** extensions are hidden. To view them, select **Experimental** in the **Maturity** filter under the Extensions tab.
 
 Step 9: Debugging the Workflow
 *************************************************

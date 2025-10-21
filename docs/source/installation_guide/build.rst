@@ -55,7 +55,7 @@ You should also have the following packages installed on your build-system.
    .. tip::
 
       | **Use a virtual environment for installing Python dependencies.**
-      | This is a recommended best practice on all systems, and on **Ubuntu 24.04**, it is **required**.
+      | This is a recommended best practice.
       |
       | On Ubuntu 24.04 and similar distributions, due to changes in Python packaging (see `PEP 668 <https://peps.python.org/pep-0668/>`_), 
       | Installing packages with :code:`pip` outside of a virtual environment may result in errors or warnings.
@@ -72,8 +72,8 @@ You should also have the following packages installed on your build-system.
                sudo apt install -y python3-venv
                
                # Create and activate a virtual environment
-               python3 -m venv venv-kaapana
-               source venv-kaapana/bin/activate
+               python3 -m venv kaapana/.venv
+               source kaapana/.venv/bin/activate
                
                # Then install the Python requirements
          

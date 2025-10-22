@@ -2,27 +2,26 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: total-get-zenodo-models
+  name: {{ .Values.image}}
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
   template:
     metadata:
-      name: total-get-zenodo-models
+      name: {{ .Values.image}}
       labels:
         network-access-external-ips: "true"
     spec:
-      # hostNetwork: true
       containers:
       - name: zenodo-models
-        image: "{{ .Values.global.registry_url }}/download-zenodo-models:{{ .Values.global.kaapana_build_version  }}"
+        image: "{{ .Values.global.registry_url }}/{{ .Values.image}}:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
         - name: MODEL_DIR
-          value: "/models/total_segmentator/nnUNet"
-        - name: LOG_LEVEL
-          value: "INFO"
+          value: {{ .Values.model_dir | default "/models"}}
         - name: TASK_IDS
           value: {{ .Values.global.task_ids | default "total" }}
+        - name: no_proxy
+          value: localhost,127.0.0.1,.svc,.cluster.local
 {{- if .Values.global.http_proxy }}
         - name: http_proxy
           value: {{ .Values.global.http_proxy }}

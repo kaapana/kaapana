@@ -250,30 +250,30 @@ class Container:
             self.status = Status.SKIPPED
             return issue
 
+        build_args = []
         if config.http_proxy is not None:
-            command = [
-                config.container_engine,
-                "build",
-                "--build-arg",
-                f"http_proxy={config.http_proxy}",
-                "--build-arg",
-                f"https_proxy={config.http_proxy}",
-                "-t",
-                self.tag,
-                "-f",
-                str(self.dockerfile),
-                ".",
-            ]
-        else:
-            command = [
-                config.container_engine,
-                "build",
-                "-t",
-                self.tag,
-                "-f",
-                str(self.dockerfile),
-                ".",
-            ]
+            build_args.extend(
+                [
+                    "--build-arg",
+                    f"http_proxy={config.http_proxy}",
+                    "--build-arg",
+                    f"https_proxy={config.http_proxy}",
+                ]
+            )
+        if config.include_model_weights:
+            build_args.extend(["--build-arg", "include_model_weights=true"])
+
+        command = [
+            config.container_engine,
+            "build",
+            *build_args,
+            "-t",
+            self.tag,
+            "-f",
+            str(self.dockerfile),
+            ".",
+        ]
+
         start_time = time.time()
         output = run(
             command,

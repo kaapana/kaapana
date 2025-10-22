@@ -234,6 +234,9 @@ So far we have defined the Helm chart for kubernetes objects, a container image 
 .. important::
     | If you used EDK for this step, you can skip directly to Step 8
 
+.. note::
+    | The `base-python-gpu` image is only required for GPU-dependent extensions and can be omitted if your extension does not use GPU functionality.
+
 
 Step 5: Putting Containers in a Running Platform
 ************************************************
@@ -297,7 +300,7 @@ After running the workflow, if any jobs is shown as failed inside the Workflow L
 1. find out which operator has failed, which can be done by checking the logs of the failed job. This should lead you to the logs of the operator that has failed.
 2. go to the extensions view, and click on the link next to the :code:`code-server-chart` (renamed as :code:`Code Server for Airflow` in versions >= 0.5.0)
 3. open the DAG file :code:`/kaapana/mounted/workflows/dags/<your-dag-definition-file>.py` and go to where the operator is defined
-4. add a parameter :code:`dev-server=code-server` (you can also add a :code:`display_name` for versions >= 0.5.0)  
+4. add a parameter :code:`dev_server="code-server"` (you can also add a :code:`display_name` for versions >= 0.5.0)  
 5. head to the :code:`Active Applications` view and open the link to the code-server application of this operator
 6. you should be able to see the code of the container that the operator pulls, i.e. the code in :code:`processing-container` and you can run and debug it directly on the data
 

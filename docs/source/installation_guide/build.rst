@@ -57,8 +57,7 @@ You should also have the following packages installed on your build-system.
       | **Use a virtual environment for installing Python dependencies.**
       | This is a recommended best practice.
       |
-      | On Ubuntu 24.04 and similar distributions, due to changes in Python packaging (see `PEP 668 <https://peps.python.org/pep-0668/>`_), 
-      | Installing packages with :code:`pip` outside of a virtual environment may result in errors or warnings.
+      | On Ubuntu 24.04 and similar distributions, due to changes in Python packaging (see `PEP 668 <https://peps.python.org/pep-0668/>`_), installing packages with :code:`pip` outside of a virtual environment may result in errors or warnings.
       |
       | To avoid issues, create and activate a virtual environment **before** running the requirements installation:
       
@@ -66,30 +65,93 @@ You should also have the following packages installed on your build-system.
 
          .. tab:: venv
 
+            **Recommended for beginners!**
+
+            **Creation step** (only needed once):
+
             .. code-block:: bash
             
                # Install the 'venv' package if not already installed
                sudo apt install -y python3-venv
                
-               # Create and activate a virtual environment
+               # Create the virtual environment (only needed once)
                python3 -m venv kaapana/.venv
+
+            **Activation step** (needed each time you use the Python code):
+
+            .. code-block:: bash
+
+               # Activate the virtual environment
                source kaapana/.venv/bin/activate
-               
-               # Then install the Python requirements
+
+            Then install the Python requirements.
+
+         .. tab:: pipenv
+
+
+            **Installation step** (only needed once):
+
+            .. code-block:: bash
+
+               # Install pipenv
+               pip install pipenv
+
+               # Create and activate the environment (only needed once)
+               pipenv install
+
+            **Activation step** (needed each time you use the Python code):
+
+            .. code-block:: bash
+
+               # Activate the environment
+               pipenv shell
+
+            Then install the Python requirements.
+
+         .. tab:: poetry
+
+            **Installation step** (only needed once):
+
+            .. code-block:: bash
+
+               # Install Poetry
+               pip install poetry
+
+               # Create and activate the environment (only needed once)
+               poetry install
+
+            **Activation step** (needed each time you use the Python code):
+
+            .. code-block:: bash
+
+               # Activate the environment
+               poetry shell
+
+            Then install the Python requirements.
          
          .. tab:: conda
 
-            | **Licensing Notice**: Please be aware that Anaconda has licensing restrictions for commercial use. 
-            | For details, refer to the `Anaconda Terms of Service <https://www.anaconda.com/terms-of-service>`_. 
+            | **Licensing Notice**: Anaconda has licensing restrictions for commercial use. For details, refer to the `Anaconda Terms of Service <https://www.anaconda.com/terms-of-service>`_. 
             |
-            | Alternatively, you can use Conda if it is already installed on your system:
-            
+            | Conda can be installed in various ways, and it’s important to research the best option for your needs to ensure compliance with the relevant licensing terms.
+            |
+            | If you have Conda installed, you can create and activate a Conda environment and then proceed to install the Python requirements.
+
+            **Creation step** (only needed once):
+
             .. code-block:: bash
 
+               # Create a Conda environment (only needed once)
                conda create -n kaapana python=3.x
+
+            **Activation step** (needed each time you use the Python code):
+
+            .. code-block:: bash
+
+               # Activate the Conda environment
                conda activate kaapana
-               
-               # Then install the Python requirements
+
+            Then install the Python requirements
 
 #. Snap 
 

@@ -71,3 +71,18 @@ Key Considerations:
 - **Paths**: Update paths referencing files after they are copied into the `/app` directory. **Absolute paths** remain unchanged.
 - **Dockerfiles**: Ensure that setup and dependencies are correctly included, but remember that execution commands like `CMD` will not automatically trigger.
 - **Manual Configuration**: Double-check that **all necessary parameters** are set and the `dev_server` parameter is only used once.
+
+Using the Airflow Code Server Extension
+---------------------------------------
+
+The **Airflow Code Server** is provided as an extension that is typically enabled and available from the start of your deployment.
+
+**Capabilities and Usage:**
+
+- Edit **DAG files directly** within the code server, enabling quick adjustments.
+- Access the **full workflow directory**, including all retained workflow data as well as downloaded models and scripts.
+- Efficiently **inspect DAGs and troubleshoot failed workflows** without needing to run a workflow or start an operator-specific code server.  
+  Note that **logs are not directly accessible** within the Airflow Code Server, but reviewing log data through the platform or Airflow UI can assist troubleshooting.
+- Primarily intended for inspection and minor debugging, though you can **add and execute small scripts** within the mounted data for testing purposes.
+- Not designed for running production workloads.
+- The Airflow Code Server extension is accessible and manageable through the platform interface under **Extensions**, in the table under the **Code Server for Airflow** extension link column.

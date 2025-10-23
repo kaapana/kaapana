@@ -17,6 +17,14 @@ spec:
       labels:
         app.kubernetes.io/name: kaapana-backend
         app.kubernetes.io/component: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5000"
+        # prometheus.io/path: "metrics"
+        prometheus.io/scheme: "http"
+        prometheus.io/custom_job_name: "Kaapana Backend"
+        prometheus.io/scrape_interval: "30s"
+        prometheus.io/scrape_timeout: "10s"
     spec:
       initContainers:
         - name: init-kaapana-backend

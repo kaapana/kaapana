@@ -35,13 +35,12 @@ data:
       #   static_configs:
       #   - targets: ['kube-helm-service.{{  .Values.global.admin_namespace  }}.svc:5000']
 
-      # TODO: How to add multiple scrape targets per pod? -> add this as second target
-      - job_name: 'Kaapana Node Info'
-        scheme: http
-        scrape_interval: 60s
-        metrics_path: '/monitoring/metrics/scrape'
-        static_configs:
-        - targets: ['kaapana-backend-service.{{  .Values.global.services_namespace  }}.svc:5000']
+      # - job_name: 'Kaapana Node Info'
+      #   scheme: http
+      #   scrape_interval: 60s
+      #   metrics_path: '/monitoring/metrics/scrape'
+      #   static_configs:
+      #   - targets: ['kaapana-backend-service.{{  .Values.global.services_namespace  }}.svc:5000']
 
       # - job_name: 'prometheus'
       #   scheme: http
@@ -268,9 +267,81 @@ data:
           action: replace
           target_label: kubernetes_pod_uid
 
+        - target_label: job
+          replacement: "kubernetes-pods"
+
         - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_custom_job_name]
           action: replace
-          target_label: job
+          target_label: custom_job_name
+          regex: (.+)
+
+
+      # Extra job to scrape kubernetes pods. Use this if pod exposes two different endpoints
+      # Otherwise identical to kubernetes-pods above
+      - job_name: "kubernetes-pods-extra"
+        kubernetes_sd_configs:
+        - role: pod
+
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape_2]
+          action: keep
+          regex: true
+
+        # (optional) keep only pods that set a custom job name
+        # - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_custom_job_name_2]
+        #   action: keep
+        #   regex: (.+)
+
+        # EXCLUDE pods that request insecure TLS
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_insecure_skip_verify_2]
+          action: drop
+          regex: true
+
+        # scheme/path/port from annotations
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scheme_2]
+          action: replace
+          target_label: __scheme__
+          regex: (https?)
+
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path_2]
+          action: replace
+          target_label: __metrics_path__
+          regex: (.+)
+
+        - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port_2]
+          action: replace
+          target_label: __address__
+          regex: ([^:]+)(?::\d+)?;(\d+)
+          replacement: $1:$2
+
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape_interval_2]
+          action: replace
+          target_label: __scrape_interval__
+          regex: (.+)
+
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape_timeout_2]
+          action: replace
+          target_label: __scrape_timeout__
+          regex: (.+)
+
+        - source_labels: [__meta_kubernetes_namespace]
+          action: replace
+          target_label: kubernetes_namespace
+
+        - source_labels: [__meta_kubernetes_pod_name]
+          action: replace
+          target_label: kubernetes_pod_name
+
+        - source_labels: [__meta_kubernetes_pod_uid]
+          action: replace
+          target_label: kubernetes_pod_uid
+
+        - target_label: job
+          replacement: "kubernetes-pods"
+
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_custom_job_name_2]
+          action: replace
+          target_label: custom_job_name
           regex: (.+)
 
 
@@ -339,9 +410,12 @@ data:
           action: replace
           target_label: kubernetes_pod_uid
 
+        - target_label: job
+          replacement: "kubernetes-pods"
+
         - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_custom_job_name]
           action: replace
-          target_label: job
+          target_label: custom_job_name
           regex: (.+)
 
 

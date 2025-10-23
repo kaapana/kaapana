@@ -32,6 +32,14 @@ spec:
       labels:
         app.kubernetes.io/name: airflow
         app.kubernetes.io/component: statsd
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9102"
+        prometheus.io/path: "/metrics"
+        prometheus.io/scheme: "http"
+        prometheus.io/custom_job_name: "Airflow"
+        prometheus.io/scrape_interval: "30s"
+        prometheus.io/scrape_timeout: "10s"
     spec:
       containers:
       - name: statsd-metrics-exporter

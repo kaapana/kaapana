@@ -12,6 +12,17 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: oauth2-proxy
+      annotations:
+        prometheus.io/scrape: "true"
+        # Port Configured in current prometheus configmap
+        # What about the 8081 metrics port?
+        prometheus.io/port: "8443"
+        prometheus.io/path: "/oauth2/metrics"
+        prometheus.io/scheme: "https"
+        prometheus.io/custom_job_name: "oauth2-proxy"
+        prometheus.io/scrape_interval: "30s"
+        prometheus.io/scrape_timeout: "10s"
+        prometheus.io/insecure_skip_verify: "true"
     spec:
       initContainers:
       - name: init

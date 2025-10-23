@@ -15,6 +15,14 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: traefik
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+        prometheus.io/scheme: "http"
+        prometheus.io/custom_job_name: "Traefik"
+        prometheus.io/scrape_interval: "30s"
+        prometheus.io/scrape_timeout: "10s"
     spec:
       serviceAccountName: kaapana-kube-admin
       containers:

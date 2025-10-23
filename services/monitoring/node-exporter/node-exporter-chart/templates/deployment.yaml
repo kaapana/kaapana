@@ -16,6 +16,14 @@ spec:
       labels:
         app.kubernetes.io/component: exporter
         app.kubernetes.io/name: node-exporter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9100"
+        prometheus.io/path: "/metrics"
+        prometheus.io/scheme: "http"
+        prometheus.io/custom_job_name: "node-exporter"
+        prometheus.io/scrape_interval: "15s"
+        prometheus.io/scrape_timeout: "10s"
     spec:
       containers:
       - args:

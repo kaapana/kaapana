@@ -1,4 +1,5 @@
 
+{{- $storage_class := .Values.global.storage_class_fast -}}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -7,12 +8,12 @@ metadata:
   annotations:
     "helm.sh/resource-policy": keep
 spec:
-  storageClassName: "kaapana-hostpath-fast-data-dir"
+  storageClassName: {{ $storage_class }}
   accessModes:
     - ReadWriteOnce
-{{- end }}
   resources:
     requests:
-      storage: {{ .Values.storage | default "1Mi" }}
+      storage: {{ .Values.storage | default "10Gi" }}
   #volumeName: {{ .Values.appName | default .Chart.Name }}-pv-volume
 ---
+#TODO why not using _dynamicPeristentVolumes.tpy form kaapana library?

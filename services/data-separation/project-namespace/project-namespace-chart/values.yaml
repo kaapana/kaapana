@@ -7,7 +7,10 @@ global:
     host_path: /tensorboard
   - name: models
     host_path: /workflows/models
+    storage_class: workflow
   - name: workflow-data
     host_path: /workflows/data
+    storage_class: workflow
   - name: mounted-scripts
     host_path: /workflows/mounted_scripts
+    storage_class: workflow

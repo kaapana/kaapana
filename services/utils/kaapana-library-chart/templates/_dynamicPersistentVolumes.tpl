@@ -2,32 +2,41 @@
 {{- define "dynamicPersistentVolumes" }}
 ---
 # Variables
-{{- $namespace := not .Values.global.namespace | ternary .Values.global.services_namespace (tpl (.Values.global.namespace | toString) .) }}
+{{- $global := .Values.global -}}
+{{- $namespace := not $global.namespace | ternary $global.services_namespace (tpl ($global.namespace | toString) .) }}
 {{- $release_name := .Release.Name }}
 {{- $keywords := .Chart.Keywords }}
-# Iteration
+
+# Iterate over all volumes
 {{- range $volume := .Values.global.dynamicVolumes }}
-{{- $postfix := and (has "kaapanamultiinstallable" $keywords) (hasKey $volume "host_path") | ternary (printf "-%s" $release_name) "" }}
-{{- $minio_mirror := and (hasKey $volume "minio_mirror") ($volume.minio_mirror) }}
-{{- if $volume.host_path }}
+  {{- $postfix := and (has "kaapanamultiinstallable" $keywords) (hasKey $volume "host_path") | ternary (printf "-%s" $release_name) "" }}
+  {{- $minio_mirror := and (hasKey $volume "minio_mirror") ($volume.minio_mirror) }}
+
+  {{- if $volume.host_path }}
+    {{- $storage_class := $global.storage_class_fast | default "default" -}}
+    {{- $storage := $volume.storage -}}
+    {{- if eq $volume.storage_class "workflow" -}}
+      {{- $storage_class = $global.storage_class_workflow -}}
+    {{- else if eq $volume.storage_class "slow" -}}
+      {{- $storage_class = $global.storage_class_slow -}}
+      {{- $storage = $volume.storage | default $global.volume_slow_data -}}
+    {{- end }}
+
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ $volume.name }}{{ $postfix }}-pv-claim
-  namespace: "{{ $namespace  }}"
+  namespace: "{{ $namespace }}"
   annotations:
     "helm.sh/resource-policy": keep
 spec:
-  storageClassName: {{ regexMatch "^(/minio|/dcm4che/dicom_data|/dcm4che/server_data)" $volume.host_path | ternary "kaapana-hostpath-slow-data-dir" "kaapana-hostpath-fast-data-dir"}}
+  storageClassName: {{ $storage_class }}
   accessModes:
     - ReadWriteOnce
-{{- end }}
   resources:
     requests:
-      storage: {{ $volume.storage | default "1Mi" }}
-  #volumeName: {{ $volume.name }}{{ $postfix }}-pv-volume
----
-{{- end }}
+      storage: {{ $storage | default "10Gi" }}
+  {{- end }}
 {{- end }}
 {{- end }}

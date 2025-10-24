@@ -45,20 +45,19 @@ spec:
               memory: 30Mi
           volumeMounts:
             - mountPath: /var/lib/openldap/openldap-data
-              name: ldap
+              name: dcm4che-volume
+              subPath: ldap
             - mountPath: /etc/openldap/slapd.d
-              name: slapd
+              name: dcm4che-volume
+              subPath: slapd.d
             - mountPath: /import
               name: ldif
           securityContext:
             allowPrivilegeEscalation: false
       volumes:
-      - name: ldap
+      - name: dcm4che-volume
         persistentVolumeClaim:
-          claimName: ldap-pv-claim
-      - name: slapd
-        persistentVolumeClaim:
-          claimName: slapd-pv-claim
+          claimName: dcm4che-pv-claim
       - name: ldif
         configMap:
           name: dcm4che-iid-config

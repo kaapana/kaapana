@@ -47,13 +47,6 @@ spec:
             secretKeyRef:
               name: system-user-password
               key: system-user-password
-        volumeMounts:
-        - name: slowdir
-          mountPath: /slow_data_dir
-      volumes:
-      - name: slowdir
-        persistentVolumeClaim:
-          claimName: dicom-pv-claim
       restartPolicy: Never
       imagePullSecrets:
       - name: registry-secret

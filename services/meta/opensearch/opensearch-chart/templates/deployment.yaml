@@ -18,7 +18,7 @@ spec:
       - name: init-opensearch-certs
         image: "{{ .Values.global.registry_url }}/opensearch-certs:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
-        command: ["sh", "-c", "/certs/generate-certificates.sh && cp -r /certs/* /os/certs && chown -R 1000:1000 /os"]
+        command: ["sh", "-c", "/certs/generate-certificates.sh && cp -r /certs/* /os/certs &&  mkdir -p /os/data /os/logs /os/certs /os/snapshots && chown -R 1000:1000 /os"]
         env:
         - name: JAVA_TOOL_OPTIONS
           value: "-Xms128m -Xmx512m"
@@ -28,10 +28,15 @@ spec:
           requests:
             memory: "512Mi"
         volumeMounts:
-        - name: osdata
+        - name: opensearch-data
           mountPath: /os/data
-        - name: oslogs
+          subPath: data
+        - name: opensearch-data
           mountPath: /os/logs
+          subPath: logs
+        - name: opensearch-data
+          mountPath: /os/snapshots
+          subPath: snapshots
         - name: oscerts
           mountPath: /os/certs
         - name: kaapana-cert
@@ -110,12 +115,15 @@ spec:
             - name: oscerts
               mountPath: /usr/share/opensearch/config/truststore.jks
               subPath: truststore.jks
-            - name: osdata
+            - name: opensearch-data
               mountPath: /usr/share/opensearch/data
-            - name: oslogs
+              subPath: data
+            - name: opensearch-data
               mountPath: /usr/share/opensearch/logs
-            - name: ossnapshots
+              subPath: logs
+            - name: opensearch-data
               mountPath: /usr/share/opensearch/snapshots
+              subPath: snapshots
             - name: sec-config
               mountPath: /usr/share/opensearch/config/opensearch.yml
               subPath: opensearch.yml
@@ -131,15 +139,9 @@ spec:
       - name: oscerts
         persistentVolumeClaim:
           claimName: os-certs-pv-claim
-      - name: osdata
+      - name: opensearch-data
         persistentVolumeClaim:
-          claimName: os-data-pv-claim
-      - name: ossnapshots
-        persistentVolumeClaim:
-          claimName: os-snapshots-pv-claim
-      - name: oslogs
-        persistentVolumeClaim:
-          claimName: os-logs-pv-claim
+          claimName: opensearch-pv-claim
       - name: sec-config
         configMap:
           name: os-config

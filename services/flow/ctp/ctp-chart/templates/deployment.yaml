@@ -30,8 +30,10 @@ spec:
           volumeMounts:
             - name: ctp-data
               mountPath: /data/
-            - name: ctp-logs
+              subPath: data
+            - name: ctp-data
               mountPath: /opt/CTP/logs
+              subPath: logs
             - name: config-file
               mountPath: /opt/CTP/config.xml
               subPath: config.xml
@@ -45,9 +47,6 @@ spec:
       - name: ctp-data
         persistentVolumeClaim:
           claimName: ctp-data-pv-claim
-      - name: ctp-logs
-        persistentVolumeClaim:
-          claimName: ctp-log-pv-claim
       - name: config-file
         configMap:
           name: ctp-config

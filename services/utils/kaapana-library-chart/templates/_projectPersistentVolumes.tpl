@@ -21,7 +21,6 @@ spec:
   storageClassName: "kaapana-hostpath-fast-data-dir"
   accessModes:
     - ReadWriteOnce
-{{- end }}
   accessModes:
     - ReadWriteMany
   resources:

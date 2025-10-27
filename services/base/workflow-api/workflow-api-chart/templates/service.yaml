@@ -36,9 +36,6 @@ kind: Service
 metadata:
   name: workflow-api
   namespace: "{{ .Values.global.services_namespace }}"
-  # labels:
-  #   app.kubernetes.io/name: workflow-api
-  #   app.kubernetes.io/component: api
 spec:
   selector:
     app.kubernetes.io/name: workflow-api

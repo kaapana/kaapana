@@ -1,6 +1,6 @@
 ---
-kind: Deployment
 apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: workflow-ui
   namespace: "{{ .Values.global.services_namespace }}"

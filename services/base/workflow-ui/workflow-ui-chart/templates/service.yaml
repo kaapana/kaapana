@@ -1,4 +1,5 @@
 apiVersion: v1
+kind: Service
 metadata:
   name: workflow-ui-service
   namespace: "{{ .Values.global.services_namespace }}"

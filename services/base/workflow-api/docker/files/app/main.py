@@ -22,13 +22,6 @@ logger = logging.getLogger(__name__)
 API_VERSION = "v1"
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-
-
 app = FastAPI(
     title="Kaapana Workflow API",
     docs_url="/docs",
@@ -40,7 +33,6 @@ app = FastAPI(
             "description": "Operations for workflow resources.",
         }
     ],
-    lifespan=lifespan,
 )
 
 

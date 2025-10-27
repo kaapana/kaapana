@@ -193,13 +193,16 @@ def generate_series_description() -> str:
     """
     # Retrieve and sanitize the selected models from the "MODELS" environment variable
     selected_models = [
-        model.strip("'") for model in environ["MODELS"].strip("[]").split()
+        model.strip("'\"\\,") for model in environ["MODELS"].strip("[]").split()
     ]
 
     # If "total" is included in the selected models, add models from the "TOTAL_MODELS" environment variable
     if "total" in selected_models:
         selected_models.extend(
-            [model.strip("'") for model in environ["TOTAL_MODELS"].strip("[]").split()]
+            [
+                model.strip("'\"\\,")
+                for model in environ["TOTAL_MODELS"].strip("[]").split()
+            ]
         )
 
     # Join the selected models into a comma-separated string for the description

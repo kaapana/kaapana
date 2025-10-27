@@ -27,13 +27,18 @@ reclaimPolicy: Retain
 parameters:
   # Store DICOM files and storage data
   numberOfReplicas: "1"
-  dataLocality: "best-effort"         # Prefer to keep data local to main node
-  #nodeSelector: "kaapana.io/role=main"
+  dataLocality: "best-effort"  
   diskSelector: "slow-data"           # Must match Longhorn disk tag for $SLOW_DATA_DIR
   fsType: "ext4"
   staleReplicaTimeout: "30"
   fromBackup: ""
   disableRevisionCounter: "false"
+volumeBindingMode: WaitForFirstConsumer
+allowedTopologies:
+  - matchLabelExpressions:
+    - key: kubernetes.io/hostname
+      values:
+        - {{ .Values.global.main_node_name }}
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -41,17 +46,22 @@ metadata:
   name: kaapana-longhorn-fast-db
 provisioner: driver.longhorn.io
 allowVolumeExpansion: true
-reclaimPolicy: Retain
+reclaimPolicy: Delete
 parameters:
   # For PostgreSQL or other system databases
   numberOfReplicas: "1"
   dataLocality: "best-effort"
-  #nodeSelector: "kaapana.io/role=main"
   diskSelector: "fast-data"           # Must match Longhorn disk tag for $FAST_DATA_DIR
   fsType: "ext4"
   staleReplicaTimeout: "30"
   fromBackup: ""
   disableRevisionCounter: "false"
+volumeBindingMode: WaitForFirstConsumer
+allowedTopologies:
+  - matchLabelExpressions:
+    - key: kubernetes.io/hostname
+      values:
+        - {{ .Values.global.main_node_name }}
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass

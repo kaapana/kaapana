@@ -1,8 +1,8 @@
 import time
 from typing import List
 
-from app.adapters.base import WorkflowEngineAdapter
 from app import schemas
+from app.adapters.base import WorkflowEngineAdapter
 
 
 class DummyAdapter(WorkflowEngineAdapter):
@@ -19,7 +19,6 @@ class DummyAdapter(WorkflowEngineAdapter):
         self, workflow: schemas.Workflow
     ) -> List[schemas.TaskCreate]:
         self.logger.info(f"Posting workflow to DummyAdapter: {workflow.title}")
-        time.sleep(2)
         task1 = schemas.TaskCreate(
             title="dummy-task-1",
             display_name="Dummy Task 1",
@@ -42,7 +41,6 @@ class DummyAdapter(WorkflowEngineAdapter):
         workflow_run: schemas.WorkflowRun,
     ) -> schemas.WorkflowRunUpdate:
         """ """
-        time.sleep(1)
         # simulate sending run to the engine, getting it back and updating external_id and status=PENDING
         return schemas.WorkflowRunUpdate(
             external_id="dummy-workflow-run-external-id",
@@ -61,12 +59,11 @@ class DummyAdapter(WorkflowEngineAdapter):
         Returns:
             WorkflowRunStatus: The WorkflowRun object with updated status.
         """
-        time.sleep(1)
         # simulate getting info from the workflow engine and updating status to COMPLETED
         return schemas.WorkflowRunStatus.RUNNING
 
     async def get_workflow_run_task_runs(
-        self, workflow_run_external_id: str
+        self, workflow_run_external_id: int
     ) -> List[schemas.TaskRunUpdate]:
         """
         Gets the task runs of a workflow run from Airflow.
@@ -76,7 +73,6 @@ class DummyAdapter(WorkflowEngineAdapter):
         Returns:
             List[TaskRunUpdate]: List of TaskRunUpdate objects with updated status.
         """
-        time.sleep(1)
         return [
             schemas.TaskRunUpdate(
                 external_id="dummy-task-run-1-external-id",
@@ -91,7 +87,7 @@ class DummyAdapter(WorkflowEngineAdapter):
         ]
 
     async def cancel_workflow_run(
-        self, workflow_run_external_id: str
+        self, workflow_run: schemas.WorkflowRun
     ) -> schemas.WorkflowRunStatus:
         """
         Cancels a running workflow run in the engine.
@@ -128,5 +124,4 @@ class DummyAdapter(WorkflowEngineAdapter):
             str: The logs of the task run.
         """
 
-        time.sleep(1)
         return f"Dummy logs for TaskRun {task_run_external_id}"

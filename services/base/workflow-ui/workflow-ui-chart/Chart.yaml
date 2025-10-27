@@ -1,0 +1,5 @@
+apiVersion: v2
+version: "0.0.0"
+appVersion: "0.0.0"
+name: workflow-ui
+description: A minimal chart to run workflow-ui in dev mode for local development

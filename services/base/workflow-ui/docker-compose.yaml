@@ -24,6 +24,7 @@ services:
     image: workflow-api:latest
     ports:
       - 8080:8080
+      - "5678:5678" # debugpy
     environment:
       - APPLICATION_ROOT=/
       - DATABASE_URL=postgresql://kaapanauser:kaapanapassword@postgres:5432/kaapanauser
@@ -34,7 +35,6 @@ services:
         condition: service_healthy
     volumes:
       - ../workflow-api/docker/files:/app
-      - /app/node_modules
     networks:
       - workflow
 

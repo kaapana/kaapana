@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from app.validation.config_definition import ConfigDefinition
 from pydantic import BaseModel, ConfigDict, Field
@@ -314,20 +314,19 @@ class TaskRunBase(BaseModel):
 
 class TaskRunCreate(TaskRunBase):
     workflow_run_id: int
-    task_id: int  # The title of the task this run belongs to
+    task_id: int  # The ID of the task this run belongs to
 
 
 class TaskRun(TaskRunBase):
     id: int
-    task_id: int  # The title of the task this run belongs to
+    task_id: int  # The ID of the task this run belongs to
     workflow_run_id: int
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class TaskRunUpdate(BaseModel):
-    external_id: Optional[str] = None
-    lifecycle_status: Optional[TaskRunStatus] = None
+class TaskRunUpdate(TaskRunBase):
+    pass
 
 
 #####################################
@@ -347,7 +346,7 @@ class WorkflowRef(BaseModel):
 class WorkflowRunBase(BaseModel):
     workflow: WorkflowRef
     labels: List[Label] = Field(default_factory=list)
-    config: Optional[Dict[str, Any]] = Field(default_factory=lambda: {})
+    config_definition: Optional[ConfigDefinition] = None
 
 
 class WorkflowRunCreate(WorkflowRunBase):

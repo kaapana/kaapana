@@ -1,7 +1,9 @@
 import argparse
 import asyncio
 import traceback
+from random import choice, randint
 
+from app import schemas
 from app.schemas import Label, Workflow, WorkflowCreate
 from app.validation.config_definition import (
     ConfigDefinition,
@@ -20,14 +22,14 @@ PARAMETERS = {
             description="How many epochs of nnUnet model training should be run?",
             env_variable_name="EPOCHS",
             required=True,
-            ui_params=WorkflowParameterUI(type="number", default=200, minimum=0),
+            ui_params=WorkflowParameterUI(type="number-field", default=10, minimum=0),
         ),
         WorkflowParameter(
             title="Learning Rate",
             description="Initial nnUnet model training learning rate?",
             env_variable_name="LR",
             ui_params=WorkflowParameterUI(
-                type="number", default=0.001, maximum=1, minimum=0
+                type="number-field", default=0.001, maximum=1, minimum=0
             ),
         ),
         WorkflowParameter(
@@ -35,7 +37,7 @@ PARAMETERS = {
             description="Should the data be preprocessed in train-nnUnet task? (Default: True) Very Long Testing Description to see how it looks in the UI",
             env_variable_name="USE_PREPROCESSING",
             required=True,
-            ui_params=WorkflowParameterUI(type="boolean"),
+            ui_params=WorkflowParameterUI(type="switch"),
         ),
         WorkflowParameter(
             title="Included Organs",
@@ -43,7 +45,6 @@ PARAMETERS = {
             env_variable_name="included_organs",
             ui_params=WorkflowParameterUI(
                 type="multiselect",
-                default="",
                 options=["lung", "liver", "spleen", "kidney"],
             ),
         ),
@@ -185,6 +186,110 @@ PREDETERMINED_WORKFLOWS = [
 ]
 
 
+# --- GENERATED WORKFLOWS FOR UI SCROLLING / TESTING ---
+MATURITY_OPTIONS = ["experimental", "stable"]
+PROVIDERS = ["dkfz-mic", "google-ai", "openai", "nvidia", "ibm"]
+CATEGORIES = [
+    "segmentation",
+    "classification",
+    "data-preprocessing",
+    "omics",
+    "registration",
+    "visualization",
+]
+
+GENERATED_WORKFLOWS = []
+for i in range(1, 31):
+    title = f"Generated Workflow {i:02d}"
+    labels = [
+        Label(
+            key="kaapana-ui.description",
+            value=f"Auto-generated workflow #{i} for UI testing.",
+        ),
+        Label(key="kaapana-ui.category", value=choice(CATEGORIES)),
+        Label(key="kaapana-ui.provider", value=choice(PROVIDERS)),
+        Label(key="kaapana-ui.maturity", value=choice(MATURITY_OPTIONS)),
+    ]
+    wf = WorkflowCreate(
+        title=title,
+        definition=DEFINITION,
+        workflow_engine=choice(["Airflow", "Docker"]),
+        config_definition=ConfigDefinition(workflow_parameters=PARAMETERS),
+        labels=labels,
+    )
+    GENERATED_WORKFLOWS.append(wf)
+
+
+async def create_generated_workflows_and_runs():
+    """Create generated workflows and some runs for UI testing."""
+    print("\n=== Creating Generated Workflows ===")
+    # create generated workflows
+    # We'll create multiple versions for some workflows to test version grouping
+    for workflow in GENERATED_WORKFLOWS:
+        async with semaphore:
+            try:
+                # create initial version
+                response = await create_workflow(workflow_create=workflow)
+                response.raise_for_status()
+                created_workflow = Workflow(**response.json())
+                print(f"Created generated workflow: {created_workflow.title} (v{created_workflow.version})")
+
+                # randomly create 1-3 additional versions for ~30% of generated workflows
+                if randint(1, 10) <= 3:
+                    extra_versions = randint(1, 3)
+                    for _ in range(extra_versions):
+                        # re-create workflow (server should bump version)
+                        resp2 = await create_workflow(workflow_create=workflow)
+                        resp2.raise_for_status()
+                        created2 = Workflow(**resp2.json())
+                        print(f"  -> Created extra version: {created2.title} (v{created2.version})")
+
+            except Exception as e:
+                print(f"Failed to create generated workflow '{workflow.title}': {e}")
+                traceback.print_exc()
+            await asyncio.sleep(0.1)
+
+    # create some workflow runs for a subset
+    print("\n=== Creating Sample Workflow Runs ===")
+    # We will use the first 10 generated workflows to create runs
+    # fetch all workflows to know available versions
+    from .common import create_workflow_run, get_all_workflows
+
+    try:
+        resp = await get_all_workflows()
+        resp.raise_for_status()
+        all_wfs = [Workflow(**wf) for wf in resp.json()]
+    except Exception:
+        all_wfs = []
+
+    # group workflows by title -> available versions
+    wf_map = {}
+    for wf in all_wfs:
+        wf_map.setdefault(wf.title, []).append(wf.version)
+
+    titles = list(wf_map.keys())[:10]
+    for wf_title in titles:
+        versions = sorted(wf_map.get(wf_title, [1]))
+        # create 1-6 runs distributed across available versions
+        runs_to_create = randint(1, 6)
+        for _ in range(runs_to_create):
+            async with semaphore:
+                try:
+                    # pick a random existing version for this title
+                    chosen_version = choice(versions)
+                    run_payload = schemas.WorkflowRunCreate(
+                        workflow=schemas.WorkflowRef(title=wf_title, version=chosen_version),
+                        labels=[],
+                        config_definition=None,
+                    )
+                    await create_workflow_run(run_payload)
+                    print(f"Created run for {wf_title} v{chosen_version}")
+                except Exception as e:
+                    print(f"Failed to create run for {wf_title}: {e}")
+                    traceback.print_exc()
+                await asyncio.sleep(0.05)
+
+
 async def create_predetermined_workflows():
     """Create all predetermined workflows."""
     for workflow in PREDETERMINED_WORKFLOWS:
@@ -231,12 +336,17 @@ async def main():
     )
     subparsers = parser.add_subparsers(dest="command")
     subparsers.add_parser("generate", help="Generate workflows")
+    subparsers.add_parser(
+        "generate-many", help="Generate many workflows and sample runs for UI testing"
+    )
     subparsers.add_parser("delete", help="Delete all workflows")
 
     args = parser.parse_args()
 
     if args.command == "generate":
         await create_all_workflows()
+    elif args.command == "generate-many":
+        await create_generated_workflows_and_runs()
     elif args.command == "delete":
         await delete_all_workflows()
     else:

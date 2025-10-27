@@ -3,6 +3,7 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
+import { commonjsDeps } from '@koumoul/vjsf/utils/build.js'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -12,6 +13,9 @@ export default defineConfig({
     vue(),
     vueDevTools(),
   ],
+  optimizeDeps: {
+    include: commonjsDeps,
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
@@ -21,5 +25,10 @@ export default defineConfig({
     proxy: {
       '/v1': 'http://localhost:8080'
     }
-  }
+  },
+  build: {
+    commonjsOptions: {
+      transformMixedEsModules: true,
+    },
+  },
 })

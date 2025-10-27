@@ -1,14 +1,13 @@
 import logging
 from contextlib import asynccontextmanager
 
-from app.api.v1.routers import workflow_runs, workflows
+from app.api.v1.routers import health_check, workflow_runs, workflows
 from app.database import async_engine
 from app.dependencies import get_connection_manager
 from app.logging_config import setup_logging
 from app.models import Base
 from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -55,3 +54,4 @@ app.include_router(
     workflow_runs.router, prefix=f"/{API_VERSION}", tags=["workflow runs"]
 )
 app.include_router(workflows.router, prefix=f"/{API_VERSION}", tags=["workflow"])
+app.include_router(health_check.router, prefix=f"/{API_VERSION}", tags=["health"])

@@ -1,19 +1,19 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import WorkflowList from '../views/WorkflowList.vue'
-import WorkflowExecution from '../views/WorkflowExecution.vue'
+import WorkflowRuns from '../views/WorkflowRuns.vue'
+import Workflows from '../views/Workflows.vue'
 
 const routes = [
     {
-        path: '/workflow-execution',
-        name: 'Workflow Execution',
-        component: WorkflowExecution,
-        meta: {title: "Workflow Execution"}
+        path: '/workflows',
+        name: 'Workflows',
+        component: Workflows,
+        meta: {title: "Workflows"}
     },
     {
-        path: '/workflow-list',
-        name: 'WorkflowList',
-        component: WorkflowList,
-        meta: {title: "Workflow List"}
+        path: '/workflows/runs',
+        name: 'WorkflowRuns',
+        component: WorkflowRuns,
+        meta: {title: "Workflow Runs"}
     }
 ]
 

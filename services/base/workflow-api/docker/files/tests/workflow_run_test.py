@@ -1,7 +1,9 @@
-import pytest
-import httpx
 from datetime import datetime
+
+import httpx
+import pytest
 from app import schemas
+
 from . import common
 
 API_BASE_URL = "http://localhost:8080/v1"
@@ -127,3 +129,20 @@ async def test_get_workflow_run_task_runs():
         for tr in task_runs:
             assert tr.task_title in ["dummy-task-1", "dummy-task-2"]
             assert tr.lifecycle_status == schemas.TaskRunStatus.RUNNING
+
+
+@pytest.mark.asyncio
+async def test_get_workflow_runs_perf_under_200ms():
+    """
+    Measure GET /workflow-runs with limit=100 and ensure response time is under 200ms
+    """
+    async with httpx.AsyncClient(base_url=API_BASE_URL, timeout=5.0) as client:
+        import time
+
+        start = time.perf_counter()
+        resp = await client.get("/workflow-runs", params={"skip": 0, "limit": 100})
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        assert resp.status_code == 200
+        assert (
+            elapsed_ms < 200
+        ), f"GET /workflow-runs took {elapsed_ms:.1f}ms, expected <200ms"

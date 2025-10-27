@@ -1,31 +1,27 @@
 import logging
+from typing import Any, Dict, List, Optional, Type
+
+from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Optional
-from . import models, schemas
-from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
-from typing import Optional, Type, List, Union, Any, Dict
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from . import models, schemas
 
 logger = logging.getLogger(__name__)
 
 
 def create_query(
-    db: AsyncSession,
     model: Type[Any],
     filters: Optional[Dict[str, Any]] = None,
     eager_load: Optional[List[str]] = None,
     order_by: Optional[Any] = None,
     skip: Optional[int] = None,
     limit: Optional[int] = None,
-) -> Union[Any, List[Any], None]:
+) -> Select[Any]:
     """
     Generic query function for SQLAlchemy models using AsyncSession.
 
     Parameters:
-    - db: SQLAlchemy AsyncSession
     - model: SQLAlchemy ORM model
     - filters: Dict of column_name -> value
     - eager_load: List of relationship names to eager load (flat only)
@@ -36,7 +32,7 @@ def create_query(
     Returns:
     - SQLAlchemy query object
     """
-    query = select(model)
+    query: Select[Any] = select(model)
 
     # Apply eager loading
     if eager_load:
@@ -76,8 +72,7 @@ async def get_workflows(
     order: Optional[str] = "desc",
     skip: int = 0,
     limit: int = 100,
-    single: bool = False,
-) -> List[models.Workflow] | models.Workflow:
+) -> List[models.Workflow]:
     """
     Generic function to get workflows based on filters and parameters.
     Workflows always eager load tasks by default.
@@ -92,7 +87,6 @@ async def get_workflows(
             order_by_exp = order_col.asc() if order == "asc" else order_col.desc()
 
     query = create_query(
-        db=db,
         model=models.Workflow,
         filters=filters or {},
         eager_load=["tasks"],
@@ -101,7 +95,30 @@ async def get_workflows(
         limit=limit,
     )
     result = await db.execute(query)
-    return result.scalars().first() if single else result.scalars().all()
+    return list(result.scalars().all())
+
+
+async def get_workflow(
+    db: AsyncSession,
+    filters: Optional[Dict[str, Any]] = None,
+) -> Optional[models.Workflow]:
+    """
+    Generic function to get workflows based on filters and parameters.
+    Workflows always eager load tasks by default.
+    """
+    # TODO join labels
+
+    # construct order_by expression
+    order_by_exp = models.Workflow.created_at.desc()
+
+    query = create_query(
+        model=models.Workflow,
+        filters=filters or {},
+        eager_load=["tasks"],
+        order_by=order_by_exp,
+    )
+    result = await db.execute(query)
+    return result.scalars().first()
 
 
 async def create_workflow(
@@ -109,8 +126,10 @@ async def create_workflow(
 ) -> models.Workflow:
     # get version of workflow
     # NOTE: no need to lock while determining version -> UniqueConstraint(title, version) raises IntegrityError on conflict
-    stmt = select(func.max(models.Workflow.version)).filter_by(title=workflow.title)
-    result = await db.execute(stmt)
+    version_stmt = select(func.max(models.Workflow.version)).filter_by(
+        title=workflow.title
+    )
+    result = await db.execute(version_stmt)
     max_version = result.scalar() or 0
     new_version = max_version + 1
 
@@ -120,15 +139,16 @@ async def create_workflow(
         config_definition = workflow.config_definition.model_dump()
 
     # add labels if they don't already exist
-    db_labels = []
-    for label in workflow.labels:
-        stmt = select(models.Label).where(
+    db_labels: List[models.Label] = []
+    for label in getattr(workflow, "labels", []) or []:
+        stmt: Select[Any] = select(models.Label).where(
             models.Label.key == label.key, models.Label.value == label.value
         )
         result = await db.execute(stmt)
-        db_label = result.scalars().first()
+        db_label = result.scalars().first()  # type: Optional[models.Label]
         if not db_label:
             db_label = models.Label(key=label.key, value=label.value)
+        assert db_label is not None
         db_labels.append(db_label)
 
     # create workflow object
@@ -159,36 +179,55 @@ async def delete_workflow(db: AsyncSession, db_workflow: models.Workflow) -> boo
 # CRUD for WorkflowRun
 async def get_workflow_runs(
     db: AsyncSession,
-    filters: dict = {},
-    order_by=None,
+    filters: Optional[Dict[str, Any]] = None,
+    order_by: Optional[Any] = None,
     skip: int = 0,
     limit: int = 100,
-    single: bool = False,
-) -> Union[List[models.WorkflowRun], models.WorkflowRun]:
+) -> List[models.WorkflowRun]:
     """
     Generic function to get workflow runs with optional project filtering.
     """
 
-    query: Any = create_query(
-        db=db,
+    query: Select[Any] = create_query(
         model=models.WorkflowRun,
-        filters=filters,
-        eager_load=["task_runs", "workflow"],
+        filters=filters or {},
+        # Avoid eager-loading task_runs for bulk list queries to prevent large
+        # joins / N+1 problems when returning many workflow runs. Task runs
+        # can be fetched via the dedicated endpoint when needed.
+        eager_load=["workflow"],
         order_by=order_by or models.WorkflowRun.id.desc(),
         skip=skip,
         limit=limit,
     )
 
     result = await db.execute(query)
-    return result.scalars().first() if single else result.scalars().all()
+    return list(result.scalars().all())
+
+
+async def get_workflow_run(
+    db: AsyncSession,
+    filters: Optional[Dict[str, Any]] = None,
+) -> Optional[models.WorkflowRun]:
+    """
+    Generic function to get a single workflow run with optional project filtering.
+    """
+
+    query: Select[Any] = create_query(
+        model=models.WorkflowRun,
+        filters=filters or {},
+        eager_load=["task_runs", "workflow"],
+    )
+
+    result = await db.execute(query)
+    return result.scalars().first()
 
 
 async def create_workflow_run(
     db: AsyncSession, workflow_run: schemas.WorkflowRunCreate, workflow_id: int
 ) -> models.WorkflowRun:
     # add labels if they don't already exist
-    db_labels = []
-    for label in workflow_run.labels:
+    db_labels: List[models.Label] = []
+    for label in getattr(workflow_run, "labels", []) or []:
         stmt = select(models.Label).where(
             models.Label.key == label.key, models.Label.value == label.value
         )
@@ -199,7 +238,9 @@ async def create_workflow_run(
         db_labels.append(db_label)
 
     db_workflow_run = models.WorkflowRun(
-        workflow_id=workflow_id, config=workflow_run.config, labels=db_labels
+        workflow_id=workflow_id,
+        config_definition=workflow_run.config_definition,
+        labels=db_labels,
     )
 
     db.add(db_workflow_run)
@@ -218,7 +259,7 @@ async def update_workflow_run(
     db_workflow_run = result.scalars().first()
     if not db_workflow_run:
         logger.error(f"Failed to update WorkflowRun {run_id=}")
-        raise ValueError(f"Failed to update WorkflowRun")
+        raise ValueError(f"Failed to update WorkflowRun {run_id}")
 
     update_data = workflow_run_update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
@@ -239,10 +280,9 @@ async def get_tasks(
     order: Optional[str] = "desc",
     skip: int = 0,
     limit: int = 100,
-    single: bool = False,
-) -> List[models.Task] | models.Task:
+) -> List[models.Task]:
     logger.info(
-        f"Getting tasks with filters: {filters}, order_by: {order_by}, order: {order}, skip: {skip}, limit: {limit}, single: {single}"
+        f"Getting tasks with filters: {filters}, order_by: {order_by}, order: {order}, skip: {skip}, limit: {limit}"
     )
     # construct order_by expression
     order_by_exp = models.Task.id.desc()
@@ -252,7 +292,6 @@ async def get_tasks(
             order_by_exp = order_col.asc() if order == "asc" else order_col.desc()
 
     query = create_query(
-        db=db,
         model=models.Task,
         filters=filters or {},
         order_by=order_by_exp,
@@ -261,11 +300,26 @@ async def get_tasks(
         limit=limit,
     )
     result = await db.execute(query)
+    return list(result.scalars().all())
 
-    return result.scalars().first() if single else result.scalars().all()
+
+async def get_task(
+    db: AsyncSession,
+    filters: Optional[Dict[str, Any]] = None,
+) -> models.Task:
+    # construct order_by expression
+    query = create_query(
+        model=models.Task,
+        filters=filters or {},
+        eager_load=["downstream_tasks"],
+    )
+    result = await db.execute(query)
+    return result.scalars().first()
 
 
-async def create_task(db: AsyncSession, task: schemas.TaskCreate, workflow_id: int):
+async def create_task(
+    db: AsyncSession, task: schemas.TaskCreate, workflow_id: int
+) -> models.Task:
     logger.info(f"Creating task {task.title} for workflow_id {workflow_id}")
 
     db_task = models.Task(
@@ -308,24 +362,35 @@ async def add_downstream_task(
 async def get_task_runs(
     db: AsyncSession,
     filters: Optional[Dict[str, Any]] = None,
-    single: bool = False,
-):
-    query = create_query(
-        db=db,
+) -> List[models.TaskRun]:
+    query: Select[Any] = create_query(
         model=models.TaskRun,
         filters=filters or {},
         eager_load=["task", "workflow_run"],
     )
     result = await db.execute(query)
 
-    return result.scalars().first() if single else result.scalars().all()
+    return list(result.scalars().all())
+
+
+async def get_task_run(
+    db: AsyncSession,
+    filters: Optional[Dict[str, Any]] = None,
+) -> Optional[models.TaskRun]:
+    query: Select[Any] = create_query(
+        model=models.TaskRun,
+        filters=filters or {},
+        eager_load=["task", "workflow_run"],
+    )
+    result = await db.execute(query)
+
+    return result.scalars().first()
 
 
 async def get_task_run_by_workflow_run_and_task_title(
     db: AsyncSession, workflow_run_id: int, task_title: str
 ) -> Optional[models.TaskRun]:
-    query = create_query(
-        db=db,
+    query: Select[Any] = create_query(
         model=models.TaskRun,
         filters={"workflow_run_id": workflow_run_id, "task.title": task_title},
         eager_load=["task"],
@@ -341,6 +406,7 @@ async def create_or_update_task_run(
 ) -> models.TaskRun:
     logger.debug(f"create_or_update_task_run {task_run_update=}, {workflow_run_id=}")
     # check if task run already exists
+
     db_task_run = await get_task_run_by_workflow_run_and_task_title(
         db, workflow_run_id, task_run_update.task_title
     )
@@ -349,17 +415,16 @@ async def create_or_update_task_run(
         # update existing task run
         db_task_run = await update_task_run_lifecycle(
             db,
-            task_run_id=db_task_run.id,
+            task_run_id=int(getattr(db_task_run, "id")),
             lifecycle_status=task_run_update.lifecycle_status,
         )
     else:
         logger.info(f"creating new task run {task_run_update=}")
 
         # get task from title
-        db_task = await get_tasks(
+        db_task = await get_task(
             db,
             filters={"title": task_run_update.task_title},
-            single=True,
         )
         if not db_task:
             logger.error(f"Task with title {task_run_update.task_title} not found")
@@ -395,8 +460,21 @@ async def create_task_run(
     )
     db.add(db_task_run)
     await db.commit()
+    # reload the created TaskRun with its relationships eagerly loaded so
+    # Pydantic can access attributes like `task.title` without triggering
+    # async lazy loads outside the request context.
     await db.refresh(db_task_run)
-    return db_task_run
+
+    stmt = (
+        select(models.TaskRun)
+        .where(models.TaskRun.id == db_task_run.id)
+        .options(
+            selectinload(models.TaskRun.task),
+            selectinload(models.TaskRun.workflow_run),
+        )
+    )
+    result = await db.execute(stmt)
+    return result.scalars().first()
 
 
 async def update_task_run_lifecycle(
@@ -409,6 +487,10 @@ async def update_task_run_lifecycle(
     if not db_task_run:
         logger.error(f"Failed to update TaskRun {task_run_id=}")
         raise ValueError(f"Failed to update TaskRun")
+    db_task_run.lifecycle_status = lifecycle_status
+    await db.commit()
+    await db.refresh(db_task_run)
+    return db_task_run
     db_task_run.lifecycle_status = lifecycle_status
     await db.commit()
     await db.refresh(db_task_run)

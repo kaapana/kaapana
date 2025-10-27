@@ -1,28 +1,24 @@
-FROM local-only/base-landing-page:latest AS base-landing-resource
-FROM node:lts-alpine3.19 AS build-stage
+FROM node:lts-alpine3.19 AS base
+LABEL IMAGE="workflow-ui"
+LABEL BUILD_IGNORE="False"
 
 WORKDIR /app
 
 COPY ./files/package*.json ./
-RUN npm ci
+RUN npm ci --no-audit --prefer-offline
 
-COPY ./files ./
-COPY --from=base-landing-resource /kaapana/app/public/favicon.ico ./public/favicon.ico
-COPY --from=base-landing-resource /kaapana/app/src/assets/img/kaapana.png ./public/assets/img/logo.png
+COPY ./files .
 
-# For development, skip build and run Vite
-# Uncomment this block for dev:
+################################
+######### Development ##########
+################################
+FROM node:lts-alpine3.19 AS dev
+
+WORKDIR /app
+
+COPY --from=base --chown=1000:1000 /app /app
+
+USER 1000
 EXPOSE 5173
+CMD ["npm", "run", "serve"]
 
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
-
-# # Build the production app
-# RUN npm run build
-
-# # Serve via Nginx
-# FROM nginx:stable-alpine AS production
-# COPY --from=build-stage /app/dist /usr/share/nginx/html
-# COPY ./files/nginx.conf /etc/nginx/conf.d/default.conf
-
-# EXPOSE 80
-# CMD ["nginx", "-g", "daemon off;"]

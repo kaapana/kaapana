@@ -1,9 +1,9 @@
-from abc import ABC, abstractmethod
-from typing import List
-from datetime import datetime
 import logging
+from abc import ABC, abstractmethod
+from datetime import datetime
+from typing import List
+
 from app import schemas
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class WorkflowEngineAdapter(ABC):
@@ -61,7 +61,7 @@ class WorkflowEngineAdapter(ABC):
             workflow_run_external_id (id): The id of the workflow run.
 
         Returns:
-            List[schemas.TaskRunUpdate]: A list of TaskTaskRunUpdate objects.
+            List[schemas.TaskRunUpdate]: A list of TaskRunUpdate objects.
         """
         pass
 

@@ -1,7 +1,9 @@
-import pytest
 from datetime import datetime
+
 import httpx
+import pytest
 from app import schemas
+
 from . import common
 
 API_BASE_URL = "http://localhost:8080/v1"
@@ -116,7 +118,7 @@ async def test_delete_workflow():
     """
     Ensure workflows can be deleted and no longer retrievable.
     """
-    title = f"wf-del-{datetime.utcnow().timestamp()}"
+    title = f"wf-del-{datetime.now().timestamp()}"
     resp = await common.create_workflow(
         schemas.WorkflowCreate(
             title=title, definition="test-to-be-deleted", workflow_engine="Airflow"
@@ -177,3 +179,20 @@ async def test_get_workflow_tasks():
             len(task.downstream_task_ids) == 1
             and task.downstream_task_ids[0] == task2_id
         )
+
+
+@pytest.mark.asyncio
+async def test_get_workflows_perf_under_200ms():
+    """
+    Measure GET /workflows with limit=100 and ensure response time is under 200ms
+    """
+    async with httpx.AsyncClient(base_url=API_BASE_URL, timeout=5.0) as client:
+        import time
+
+        start = time.perf_counter()
+        resp = await client.get("/workflows", params={"skip": 0, "limit": 100})
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        assert resp.status_code == 200
+        assert (
+            elapsed_ms < 200
+        ), f"GET /workflows took {elapsed_ms:.1f}ms, expected <200ms"

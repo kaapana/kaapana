@@ -1,3 +1,0 @@
-<template>
-    Workflow Runs
-</template>

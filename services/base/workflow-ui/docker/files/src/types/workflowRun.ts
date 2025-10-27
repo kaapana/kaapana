@@ -1,6 +1,7 @@
 import type { Label } from "./label"
 import type { TaskRun } from "./taskRun"
 import type { WorkflowRunStatus } from "./enum"
+import { ConfigDefinition } from "./workflow"
 
 export interface WorkflowRef {
   title: string
@@ -10,7 +11,7 @@ export interface WorkflowRef {
 export interface WorkflowRunBase {
   workflow: WorkflowRef
   labels: Label[]
-  config?: Record<string, any>
+  config?: ConfigDefinition
 }
 
 export interface WorkflowRunCreate extends WorkflowRunBase {}

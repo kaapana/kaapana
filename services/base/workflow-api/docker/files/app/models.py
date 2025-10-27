@@ -1,18 +1,15 @@
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    DateTime,
-    ForeignKey,
-    UniqueConstraint,
-    Table,
-)
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import relationship, DeclarativeBase, Mapped
-from sqlalchemy.ext.asyncio import AsyncAttrs
-from sqlalchemy import Enum as SqlEnum
+from __future__ import annotations
+
 from datetime import datetime, timezone
+from typing import List
+
 from app.schemas import TaskRunStatus, WorkflowRunStatus
+from sqlalchemy import Column, DateTime
+from sqlalchemy import Enum as SqlEnum
+from sqlalchemy import ForeignKey, Integer, String, Table, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.asyncio import AsyncAttrs
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(AsyncAttrs, DeclarativeBase):
@@ -44,13 +41,17 @@ class Workflow(Base):
     title = Column(String, index=True)
     version = Column(Integer)
     definition = Column(String)
-    config_definition = Column(JSONB)  ### Schema for validate workflow run config
+    config_definition = Column(JSONB)  # Schema for validate workflow run config
     created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
 
-    runs = relationship("WorkflowRun", back_populates="workflow")
-    tasks = relationship(
+    runs: Mapped[List[WorkflowRun]] = relationship(
+        "WorkflowRun", back_populates="workflow"
+    )
+
+    tasks: Mapped[List["Task"]] = relationship(
         "Task", back_populates="workflow", cascade="save-update, merge"
     )  # NOTE: only update operations cascade, deletes don’t. Task might be related to historical workflow runs
+
     labels: Mapped[list["Label"]] = relationship(
         "Label", secondary=workflow_label, back_populates="workflows", lazy="selectin"
     )
@@ -61,8 +62,8 @@ class WorkflowRun(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     workflow_id = Column(Integer, ForeignKey("workflows.id"))
-    config = Column(JSONB)
-    lifecycle_status = Column(
+    config_definition = Column(JSONB)
+    lifecycle_status: Mapped[WorkflowRunStatus] = mapped_column(
         SqlEnum(WorkflowRunStatus), default=WorkflowRunStatus.CREATED, nullable=False
     )
     labels: Mapped[list["Label"]] = relationship(
@@ -78,8 +79,13 @@ class WorkflowRun(Base):
         default=datetime.now(timezone.utc),
         onupdate=datetime.now(timezone.utc),
     )
-    workflow = relationship("Workflow", back_populates="runs", lazy="selectin")
-    task_runs = relationship("TaskRun", back_populates="workflow_run", lazy="selectin")
+    workflow: Mapped["Workflow"] = relationship(
+        "Workflow", back_populates="runs", lazy="selectin"
+    )
+
+    task_runs: Mapped[List["TaskRun"]] = relationship(
+        "TaskRun", back_populates="workflow_run", lazy="selectin"
+    )
 
 
 class Label(Base):
@@ -111,15 +117,20 @@ class Task(Base):
     title = Column(String, index=True)  # e.g. total_segmentator_0
     display_name = Column(String)
     type = Column(String)  # e.g. TotalSegmentatorOperator
-    downstream_tasks = relationship(
+    downstream_tasks: Mapped[List["DownstreamTask"]] = relationship(
         "DownstreamTask",
         back_populates="task",
         cascade="all, delete-orphan",
         foreign_keys="DownstreamTask.task_id",
     )
 
-    workflow = relationship("Workflow", back_populates="tasks")  # many-to-one
-    task_runs = relationship("TaskRun", back_populates="task")  # one-to-many
+    workflow: Mapped["Workflow"] = relationship(
+        "Workflow", back_populates="tasks"
+    )  # many-to-one
+    task_runs: Mapped[List["TaskRun"]] = relationship(
+        "TaskRun",
+        back_populates="task",
+    )  # one-to-many
 
 
 class DownstreamTask(Base):
@@ -143,9 +154,24 @@ class TaskRun(Base):
     task_id = Column(Integer, ForeignKey("tasks.id"))
     workflow_run_id = Column(Integer, ForeignKey("workflow_runs.id"))
     external_id = Column(String, nullable=True)
-    lifecycle_status = Column(
+    lifecycle_status: Mapped[TaskRunStatus] = mapped_column(
         SqlEnum(TaskRunStatus), default=TaskRunStatus.CREATED, nullable=False
     )
 
-    task = relationship("Task", back_populates="task_runs")
-    workflow_run = relationship("WorkflowRun", back_populates="task_runs")
+    task: Mapped["Task"] = relationship(
+        "Task", back_populates="task_runs", lazy="selectin"
+    )
+    workflow_run: Mapped["WorkflowRun"] = relationship(
+        "WorkflowRun", back_populates="task_runs"
+    )
+
+    @property
+    def task_title(self) -> str | None:
+        """Expose the related Task.title as an attribute for serializers (read-only).
+
+        This keeps the DB normalized (no denormalized task_title column) while
+        allowing Pydantic's from_attributes=True to read `task_title` without
+        changing schemas. Ensure queries eager-load `.task` to avoid lazy IO.
+        """
+        task = getattr(self, "task", None)
+        return task.title if task is not None else None

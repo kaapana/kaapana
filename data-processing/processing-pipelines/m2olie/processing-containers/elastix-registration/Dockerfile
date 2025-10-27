@@ -13,8 +13,12 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-#RUN wget --no-check-certificate https://github.com/SuperElastix/elastix/releases/download/${ELASTIX_VERSION}/elastix-${ELASTIX_VERSION}-linux.tar.bz2 -O /src/elastix.tar.bz2
-RUN wget --no-check-certificate https://data.jtfc.de/mitk-elastix-20231031_22-04_linux-x86_64.tar.gz -O /src/elastix.tar.bz
+RUN wget --no-check-certificate https://github.com/SuperElastix/elastix/releases/download/${ELASTIX_VERSION}/elastix-${ELASTIX_VERSION}-linux.tar.bz2 -O /src/elastix.tar.bz2 \
+    && tar -xjf /src/elastix.tar.bz2 -C /usr/ \
+    && rm -rf /src/elastix.tar.bz2
+
+
+RUN wget --no-check-certificate https://kaapana.ai/kaapana-downloads/m2olie/mitk-elastix-20231031_22-04_linux-x86_64.tar.gz -O /src/elastix.tar.bz
 RUN tar -xvf /src/elastix.tar.bz -C /usr/ && rm -rf /src/elastix.tar.bz
 
 WORKDIR /

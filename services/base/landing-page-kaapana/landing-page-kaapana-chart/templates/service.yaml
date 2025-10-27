@@ -1,3 +1,5 @@
+---
+kind: Service
 apiVersion: v1
 metadata:
   name: landingpage-service

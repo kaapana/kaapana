@@ -1,0 +1,50 @@
+{
+    "name": "register-dicoms",
+    "description": "Processing container for registering dicom images",
+    "templates": [
+        {
+            "identifier": "register",
+            "description": "Register dicom images",
+            "env": [
+            ],
+            "inputs": [
+                {
+                    "name": "fixed",
+                    "mounted_path": "/home/kaapana/fixed",
+                    "description": "Expects a single subdirectory with a single .nnrd file for the target image."
+                },
+                {
+                    "name": "moving",
+                    "mounted_path": "/home/kaapana/moving",
+                    "description": "Expects for each image that should be registered a subdirectory that contains a single .nnrd file"
+                }],
+            "outputs": [
+                {
+                    "name": "registered",
+                    "mounted_path": "/home/kaapana/registered",
+                    "description": "Creates for each subdirectory in moving a subdirectory with the same basename that contains a registered .nnrd file"
+                }
+            ],
+            "command": ["/bin/bash", "/home/kaapana/register.sh"]
+        },
+        {
+            "identifier": "convert",
+            "description": "Register dicom images",
+            "env": [
+            ],
+            "inputs": [
+                {
+                    "name": "dicom",
+                    "mounted_path": "/home/kaapana/dicom"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "nrrd",
+                    "mounted_path": "/home/kaapana/nrrd"
+                }
+            ],
+            "command": ["/bin/bash", "/home/kaapana/convert.sh"]
+        }
+    ]
+}

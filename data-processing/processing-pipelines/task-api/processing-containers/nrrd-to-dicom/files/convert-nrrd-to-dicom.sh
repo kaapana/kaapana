@@ -15,5 +15,3 @@ for INPUT_NRRD_FILE in $( find ${ROOT_INPUT_NRRD_DIR} -mindepth 2 -maxdepth 2 -t
         -r ${ROOT_REFERENCE_DIR}/${IDENTIFIER}\
         -o ${ROOT_OUTPUT_NRRD_DIR}/${IDENTIFIER}/
 done
-
-

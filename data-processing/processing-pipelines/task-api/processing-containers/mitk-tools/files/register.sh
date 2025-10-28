@@ -13,7 +13,7 @@ echo "Start registering images"
 mkdir -p /tmp
 
 for MOVING_IMAGE in ${MOVING_IMAGES}; do
-    IDENTIFIER=$( basename ${MOVING_IMAGE} )
+    IDENTIFIER=$( basename $( dirname ${MOVING_IMAGE} ) )
     echo "Register ${MOVING_IMAGE} to target ${FIXED_IMAGE}"
     mkdir -p ${ROOT_OUTPUT_DIR}/${IDENTIFIER}
     /kaapana/app/apps/MitkMatchImage.sh \
@@ -26,5 +26,5 @@ for MOVING_IMAGE in ${MOVING_IMAGES}; do
         -t ${FIXED_IMAGE}\
         -i ${MOVING_IMAGE}\
         -r /tmp/${IDENTIFIER}_registration_object.mapr\
-        -o ${ROOT_OUTPUT_DIR}/${IDENTIFIER}/${IDENTIFIER}
+        -o ${ROOT_OUTPUT_DIR}/${IDENTIFIER}/registered.nrrd
 done

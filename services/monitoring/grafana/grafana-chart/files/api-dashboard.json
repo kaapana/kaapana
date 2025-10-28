@@ -18,9 +18,8 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 8,
+  "id": 3,
   "links": [],
-  "liveNow": false,
   "panels": [
     {
       "datasource": {
@@ -39,6 +38,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -77,8 +77,7 @@
                 "value": 80
               }
             ]
-          },
-          "unitScale": true
+          }
         },
         "overrides": []
       },
@@ -106,6 +105,7 @@
           "sort": "none"
         }
       },
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": {
@@ -114,7 +114,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "increase(http_requests_total{job=\"$job\"}[1m])",
+          "expr": "increase(http_requests_total{custom_job_name=\"$custom_job_name\"}[1m])",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
@@ -171,8 +171,7 @@
                 "value": 80
               }
             ]
-          },
-          "unitScale": true
+          }
         },
         "overrides": []
       },
@@ -209,7 +208,7 @@
         "xTickLabelRotation": 0,
         "xTickLabelSpacing": 100
       },
-      "pluginVersion": "10.3.4",
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": {
@@ -244,6 +243,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -283,8 +283,7 @@
               }
             ]
           },
-          "unit": "s",
-          "unitScale": true
+          "unit": "s"
         },
         "overrides": []
       },
@@ -312,6 +311,7 @@
           "sort": "none"
         }
       },
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": {
@@ -320,7 +320,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "http_request_duration_seconds_sum{job=\"$job\",handler!=\"none\"} / http_request_duration_seconds_count",
+          "expr": "http_request_duration_seconds_sum{custom_job_name=\"$custom_job_name\",handler!=\"none\"} / http_request_duration_seconds_count",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
@@ -353,8 +353,7 @@
               }
             ]
           },
-          "unit": "decbytes",
-          "unitScale": true
+          "unit": "decbytes"
         },
         "overrides": []
       },
@@ -370,6 +369,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -381,7 +381,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.3.4",
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": {
@@ -389,7 +389,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "process_resident_memory_bytes{job=\"$job\"}",
+          "expr": "process_resident_memory_bytes{custom_job_name=\"$custom_job_name\"}",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -423,8 +423,7 @@
               }
             ]
           },
-          "unit": "percentunit",
-          "unitScale": true
+          "unit": "percentunit"
         },
         "overrides": []
       },
@@ -440,6 +439,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -451,7 +451,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.3.4",
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": {
@@ -459,7 +459,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "avg(irate(process_cpu_seconds_total{job=\"$job\"}[1m]))",
+          "expr": "avg(irate(process_cpu_seconds_total{custom_job_name=\"$custom_job_name\"}[1m]))",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -470,14 +470,14 @@
       "type": "stat"
     }
   ],
+  "preload": false,
   "refresh": "",
-  "schemaVersion": 39,
+  "schemaVersion": 40,
   "tags": [],
   "templating": {
     "list": [
       {
         "current": {
-          "selected": true,
           "text": "Kaapana Backend",
           "value": "Kaapana Backend"
         },
@@ -485,22 +485,18 @@
           "type": "prometheus",
           "uid": "PBFA97CFB590B2093"
         },
-        "definition": "label_values(http_requests_total,job)",
-        "hide": 0,
+        "definition": "label_values(http_requests_total,custom_job_name)",
         "includeAll": false,
         "label": "Backend",
-        "multi": false,
-        "name": "job",
+        "name": "custom_job_name",
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(http_requests_total,job)",
+          "query": "label_values(http_requests_total,custom_job_name)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
         "type": "query"
       }
     ]
@@ -509,11 +505,10 @@
     "from": "now-5m",
     "to": "now"
   },
-  "timeRangeUpdatedDuringEditOrView": false,
   "timepicker": {},
   "timezone": "",
   "title": "API Dashboard",
   "uid": "d72a4e47-e0c2-487a-a4a7-58bc13a3965e",
-  "version": 4,
+  "version": 1,
   "weekStart": ""
 }

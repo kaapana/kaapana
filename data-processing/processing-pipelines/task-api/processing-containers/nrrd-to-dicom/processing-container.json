@@ -1,0 +1,31 @@
+{
+    "name": "register-dicoms",
+    "description": "Processing container for registering dicom images",
+    "templates": [
+        {
+            "identifier": "nrrd-to-dicom",
+            "description": "Convert nrrd images to dicom",
+            "env": [
+            ],
+            "inputs": [
+                {
+                    "name": "nrrd",
+                    "mounted_path": "/home/kaapana/nrrd",
+                    "description": "Expects a subdirectory per image with a single .nrrd file. Directory names must match with <reference> channel."
+                },
+                {
+                    "name": "reference",
+                    "mounted_path": "/home/kaapana/reference",
+                    "description": "Expects a subdirectory per subdirectory in <nrrd> chanel with the reference dicom image. Directory names must match with <nrrd> channel."
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "dicom",
+                    "mounted_path": "/home/kaapana/dicom"
+                }
+            ],
+            "command": ["/bin/bash", "/home/kaapana/convert-nrrd-to-dicom.sh"]
+        }
+    ]
+}

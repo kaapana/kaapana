@@ -1,0 +1,48 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ .Release.Name }}
+  namespace: "{{ tpl .Values.global.namespace . }}"
+spec:
+  selector:
+    app.kubernetes.io/name: {{ .Release.Name }}
+  ports:
+    - protocol: TCP
+      port: 8080
+      name: vs-http
+  type: ClusterIP
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: cs-strip-prefix-{{ .Release.Name }}
+  namespace: "{{ tpl .Values.global.namespace . }}"
+spec:
+  stripPrefix:
+    prefixes:
+    - {{ printf "/%s" (tpl .Values.global.ingress_path .) }}
+---
+apiVersion: networking.k8s.io/v1 
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}
+  namespace: "{{ tpl .Values.global.namespace . }}"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: {{ tpl .Values.global.namespace . }}-cs-strip-prefix-{{ .Release.Name }}@kubernetescrd
+    traefik.ingress.kubernetes.io/preserve-host: "true"
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+    kaapana.ai/display-name: {{ if eq .Values.global.display_name "-" }}{{ .Release.Name }}{{ else }}{{ .Values.global.display_name }}{{ end }}
+    kaapana.ai/type: application
+spec:
+  rules:
+  - host: 
+    http:
+      paths:
+      - path: {{ printf "/%s/" (tpl .Values.global.ingress_path .) }}
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: {{ .Release.Name }}
+            port:
+              name: vs-http

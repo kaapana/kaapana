@@ -2,6 +2,8 @@
 dependencies:
   - name: kaapana-platform-chart
     version: 0.0.0
+  - name: dev-code-server-chart
+    version: 0.0.0
   - name: code-server-chart
     version: 0.0.0
   - name: edk

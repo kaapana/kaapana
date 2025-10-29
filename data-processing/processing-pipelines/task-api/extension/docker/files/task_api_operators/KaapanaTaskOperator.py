@@ -3,6 +3,7 @@ from task_api.processing_container.common import get_task_template, merge_env
 from task_api.processing_container import task_models, pc_models
 from airflow.models import BaseOperator
 from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.operators.python import get_current_context
 from typing import List, Dict, Any, Optional
 from airflow.utils.context import Context
 from pathlib import Path
@@ -305,8 +306,17 @@ class KaapanaTaskOperator(BaseOperator):
         try:
             return KubernetesRunner.run(task)
         except ApiException as e:
-            self.log.error(f"Creating task {self.task_id} failed!")
-            raise
+            KubernetesRunner._logger.warning(
+                f"Submitting task to k8s API failed: {e.reason} -> Try to delete conflicting pod."
+            )
+        try:
+            KaapanaTaskOperator.stop_task_pod()
+            return KubernetesRunner.run(task)
+        except ApiException as e:
+            KubernetesRunner._logger.error(
+                f"Submitting task to k8s API is stillg failing: {e.reason}."
+            )
+            raise e
 
     def _monitor_task_run(self):
         try:
@@ -395,7 +405,8 @@ class KaapanaTaskOperator(BaseOperator):
         self.namespace = project_form.get("kubernetes_namespace", DEFAULT_NAMESPACE)
 
     @staticmethod
-    def stop_task_pod(context: Context):
+    def stop_task_pod(context: Context = None):
+        context = context or get_current_context()
         try:
             with open(KaapanaTaskOperator.task_run_file_path(context), "rb") as f:
                 task_run = pickle.load(f)

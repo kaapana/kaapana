@@ -1,5 +1,10 @@
 import json
 import math
+import logging
+from kaapanapy.logger import get_logger
+
+# Logger
+logger = get_logger(__name__, logging.INFO)
 
 # Metadata JSON
 
@@ -9,97 +14,71 @@ with open(code_lookup_table_path) as f:
 
 
 def find_code_meaning(tag):
+    logger.info("#####################################################")
+    logger.info("#")
+    logger.info(f"Searching for identical hit for {tag}...")
+
+    # Normalize input (case and whitespace)
+    tag = tag.lower().strip()
+    tag_hyphen = tag.replace(" ", "-")
+    tag_parts = tag.split()
+
     result = None
-    print("#####################################################")
-    print("#")
-    print(f"Searching for identical hit for {tag}...")
-    tag = tag.lower()
+
     for entry in code_lookup_table:
-        if tag.replace(" ", "-") == entry["Code Meaning"].lower().replace(" ", "-"):
-            print(
-                f"Found Code Meaning: {entry['Code Meaning'].lower()} for search term: {tag}"
+        code_meaning = entry["Code Meaning"].lower()
+        body_part = entry["Body Part Examined"].lower()
+        code_meaning_hyphen = code_meaning.replace(" ", "-")
+
+        # 1. Exact match (with or without hyphens)
+        if (tag_hyphen == code_meaning_hyphen) or (tag == body_part):
+            logger.info(
+                f"Found Code Meaning: {entry['Code Meaning']} for search term: {tag}"
             )
             result = entry
             break
-        elif tag == entry["Body Part Examined"].lower():
-            print(
-                f"Found Code Meaning: {entry['Body Part Examined'].lower()} for search term: {tag}"
+
+        # 2. Partial match (tag contained in either field)
+        if (tag in code_meaning) or (tag in body_part):
+            logger.info(
+                f"Found Code Meaning: {entry['Code Meaning']} for search term: {tag}"
             )
             result = entry
             break
 
-    if result == None:
-        print(f"Nothing found -> Searching if {tag} is in one of the entires...")
-        for entry in code_lookup_table:
-            if tag in entry["Code Meaning"].lower():
-                print(
-                    f"Found Code Meaning: {entry['Code Meaning'].lower()} for search term: {tag}"
-                )
-                result = entry
-                break
-            elif tag in entry["Body Part Examined"].lower():
-                print(
-                    f"Found Code Meaning: {entry['Body Part Examined'].lower()} for search term: {tag}"
-                )
-                result = entry
-                break
+        # 3. Word-level exact match
+        if any((tp == code_meaning) or (tp == body_part) for tp in tag_parts):
+            logger.info(
+                f"Found Code Meaning: {entry['Code Meaning']} for word in search term: {tag}"
+            )
+            result = entry
+            break
 
-    if result == None:
-        print(f"Nothing found -> Searching if {tag} parts equals one of the entires...")
-        for entry in code_lookup_table:
-            for tag_part in tag.split(" "):
-                if tag_part == entry["Code Meaning"].lower():
-                    print(
-                        f"Found Code Meaning: {entry['Code Meaning'].lower()} for search term: {tag_part.lower()}"
-                    )
-                    result = entry
-                    break
-                elif tag_part == entry["Body Part Examined"].lower():
-                    print(
-                        f"Found Code Meaning: {entry['Body Part Examined'].lower()} for search term: {tag_part.lower()}"
-                    )
-                    result = entry
-                    break
-            if result != None:
-                break
+        # 4. Word-level partial match
+        if any((tp in code_meaning) or (tp in body_part) for tp in tag_parts):
+            logger.info(
+                f"Found Code Meaning: {entry['Code Meaning']} for word in search term: {tag}"
+            )
+            result = entry
+            break
 
-    if result == None:
-        print(
-            f"Nothing found -> Searching if {tag} parts can be found in one of the entires..."
-        )
-        for entry in code_lookup_table:
-            for tag_part in tag.split(" "):
-                if tag_part in entry["Code Meaning"].lower():
-                    print(
-                        f"Found Code Meaning: {entry['Code Meaning'].lower()} for search term: {tag_part.lower()}"
-                    )
-                    result = entry
-                    break
-                elif tag_part in entry["Body Part Examined"].lower():
-                    print(
-                        f"Found Code Meaning: {entry['Body Part Examined'].lower()} for search term: {tag_part.lower()}"
-                    )
-                    result = entry
-                    break
-            if result != None:
-                break
-
-    if result == None:
-        print(
+    # 5. If nothing found — create a custom entry
+    if result is None:
+        logger.info(
             f"Could not find the tag: '{tag}' in the lookup table, using custom entry"
         )
         result = {
             "Coding Scheme Designator": "Custom",
             "Code Value": "0.0.0.0.0.0.00000.0.000.0.00",
-            "Code Meaning": f"{tag.replace('  ', ' '). lower()}",
+            "Code Meaning": " ".join(tag.split()),  # safely collapse multiple spaces
             "Body Part Examined": "",
             "SNOMED-RT ID (Retired)": "",
             "FMA Code Value": None,
             "UMLS Concept UniqueID": "",
         }
 
-    print("#")
-    print("#####################################################")
+    logger.info("#")
+    logger.info("#####################################################")
     return result
 
 
@@ -125,8 +104,8 @@ def create_segment_attribute(
         search_key = (
             code_meaning.split("@")[-1].lower() if "@" in code_meaning else code_meaning
         )
-        print("Searching coding-scheme for code-meaning: {}".format(code_meaning))
-        print("Search-key: {}".format(search_key))
+        logger.info("Searching coding-scheme for code-meaning: {}".format(code_meaning))
+        logger.info("Search-key: {}".format(search_key))
         coding_scheme = find_code_meaning(tag=search_key)
     except KeyError:
         raise AssertionError(

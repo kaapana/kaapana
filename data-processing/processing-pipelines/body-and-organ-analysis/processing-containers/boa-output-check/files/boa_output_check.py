@@ -25,10 +25,15 @@ import numpy as np
 from matplotlib import colormaps
 
 import segmentation_defaults
+from kaapanapy.logger import get_logger
 from metadata_generator import (
     build_segmentation_information,
     map_labels_to_segment_attributes,
 )
+
+# Logger
+logger = get_logger(__name__, logging.INFO)
+
 
 # base color map
 cmap = colormaps.get_cmap("gist_ncar")
@@ -49,31 +54,6 @@ model_outputs = {
     "liver_vessels": ["liver_vessels"],
     "bca": ["body-parts", "body-regions", "tissues"],
 }
-
-
-def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
-    """
-    Creates and configures a logger with the specified name and logging level.
-
-    Args:
-        name (str): Name of the logger.
-        level (int): Logging level (e.g., logging.INFO, logging.DEBUG).
-
-    Returns:
-        logging.Logger: Configured logger instance.
-    """
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
-    if logger.hasHandlers():
-        logger.handlers.clear()
-    handler = logging.StreamHandler()
-    handler.setLevel(level)
-    formatter = logging.Formatter(
-        fmt="%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-    )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    return logger
 
 
 def hyphen_to_camel_case(s: str) -> str:
@@ -145,14 +125,14 @@ def get_needed_outputs() -> List[str]:
         return []
     logger.debug(environ["MODELS"])
     selected_models = [
-        model.strip("'\"\\,") for model in environ["MODELS"].strip("[]").split()
+        model.strip("'\"\\,") for model in environ.get("MODELS", []).strip("[]").split()
     ]
     if "total" in selected_models:
         logger.debug(environ["TOTAL_MODELS"])
         selected_models.extend(
             [
                 model.strip("'\"\\,")
-                for model in environ["TOTAL_MODELS"].strip("[]").split()
+                for model in environ.get("TOTAL_MODELS", []).strip("[]").split()
             ]
         )
 
@@ -193,7 +173,7 @@ def generate_series_description() -> str:
     """
     # Retrieve and sanitize the selected models from the "MODELS" environment variable
     selected_models = [
-        model.strip("'\"\\,") for model in environ["MODELS"].strip("[]").split()
+        model.strip("'\"\\,") for model in environ.get("MODELS", []).strip("[]").split()
     ]
 
     # If "total" is included in the selected models, add models from the "TOTAL_MODELS" environment variable
@@ -201,7 +181,7 @@ def generate_series_description() -> str:
         selected_models.extend(
             [
                 model.strip("'\"\\,")
-                for model in environ["TOTAL_MODELS"].strip("[]").split()
+                for model in environ.get("TOTAL_MODELS", []).strip("[]").split()
             ]
         )
 
@@ -213,8 +193,6 @@ def generate_series_description() -> str:
 
 
 if __name__ == "__main__":
-    logger = get_logger(__name__, logging.INFO)
-
     file_occurrences = defaultdict(int)  # Tracks how many batches each file appears in
     all_batches = 0
     existing_files = []
@@ -303,7 +281,7 @@ if __name__ == "__main__":
         num_files = len(segmentation_files)
         for idx, file_path in enumerate(segmentation_files):
             image_basename = basename(file_path)
-            rootname = image_basename.split(".")[0]
+            rootname = strip_all_extensions(image_basename)
 
             # Image-specific output directory
             image_output_dir = output_dir

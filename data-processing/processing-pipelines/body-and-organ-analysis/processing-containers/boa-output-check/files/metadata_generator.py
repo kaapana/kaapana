@@ -130,11 +130,15 @@ def create_segment_attribute(
         "CodingSchemeDesignator": coding_scheme["Coding Scheme Designator"],
         "CodeMeaning": code_meaning,
     }
+    coding_value = coding_scheme.get("SNOMED-RT ID (Retired)")
+    # Check if it's a number and not NaN
+    if isinstance(coding_value, (int, float)) and not math.isnan(coding_value):
+        coding_scheme_designator = coding_value
+    else:
+        coding_scheme_designator = "unknown"
     segment_attribute["SegmentedPropertyTypeModifierCodeSequence"] = {
         "CodeValue": str(coding_scheme["Code Value"]),
-        "CodingSchemeDesignator": (
-            coding_scheme["SNOMED-RT ID (Retired)"] if not math.isnan else "unknown"
-        ),
+        "CodingSchemeDesignator": coding_scheme_designator,
         "CodeMeaning": code_meaning,
     }
     return segment_attribute

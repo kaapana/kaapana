@@ -1,3 +1,6 @@
+#! /bin/bash
+set -eu -o pipefail
+
 dcmsend\
     -v \
     ${PACS_HOST}\

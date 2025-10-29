@@ -1,3 +1,6 @@
+#! /bin/bash
+set -eu -o pipefail
+
 ROOT_INPUT_DICOM_DIR="/home/kaapana/dicom"
 ROOT_OUTPUT_NRRD_DIR="/home/kaapana/nrrd"
 

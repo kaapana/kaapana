@@ -1,5 +1,5 @@
 {
-    "name": "register-dicoms",
+    "name": "mitk-tools",
     "description": "Processing container for registering dicom images",
     "templates": [
         {
@@ -25,7 +25,15 @@
                     "description": "Creates for each subdirectory in moving a subdirectory with the same basename that contains a registered .nnrd file"
                 }
             ],
-            "command": ["/bin/bash", "/home/kaapana/register.sh"]
+            "command": ["/bin/bash", "/home/kaapana/register.sh"],
+            "resources": {
+                "limits": {
+                    "memory": "1000Mi"
+                },
+                "requests": {
+                    "memory": "100Mi"
+                }
+            }
         },
         {
             "identifier": "convert",
@@ -44,7 +52,15 @@
                     "mounted_path": "/home/kaapana/nrrd"
                 }
             ],
-            "command": ["/bin/bash", "/home/kaapana/convert.sh"]
+            "command": ["/bin/bash", "/home/kaapana/convert.sh"],
+            "resources": {
+                "limits": {
+                    "memory": "500Mi"
+                },
+                "requests": {
+                    "memory": "100Mi"
+                }
+            }
         }
     ]
 }

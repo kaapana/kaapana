@@ -133,6 +133,7 @@ class KaapanaTaskOperator(BaseOperator):
         iochannel_maps: List[IOMapping] = [],
         startup_timeout_seconds: int = 3600,
         execution_timeout: timedelta = timedelta(minutes=90),
+        labels: Dict = {},
         *args,
         **kwargs,
     ):
@@ -185,6 +186,7 @@ class KaapanaTaskOperator(BaseOperator):
         self.iochannel_maps = iochannel_maps
         self.startup_timeout_seconds = startup_timeout_seconds
         self.execution_timeout = execution_timeout
+        self.labels = labels
 
     def execute(self, context: Context) -> Any:
         dag_run_id = context["dag_run"].run_id
@@ -283,6 +285,7 @@ class KaapanaTaskOperator(BaseOperator):
                 labels={
                     "kaapana.type": "processing-container",
                     "pod-type": "processing-container",
+                    **self.labels,
                 },
             ),
         )

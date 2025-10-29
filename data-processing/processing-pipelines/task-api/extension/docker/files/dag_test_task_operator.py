@@ -1,5 +1,5 @@
 from airflow.models import DAG
-from task_api_operator.KaapanaTaskOperator import KaapanaTaskOperator, IOMapping
+from task_api_operators.KaapanaTaskOperator import KaapanaTaskOperator, IOMapping
 
 
 from kaapana.blueprints.kaapana_global_variables import (

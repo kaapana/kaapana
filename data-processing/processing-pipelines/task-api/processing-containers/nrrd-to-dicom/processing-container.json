@@ -25,7 +25,15 @@
                     "mounted_path": "/home/kaapana/dicom"
                 }
             ],
-            "command": ["/bin/bash", "/home/kaapana/convert-nrrd-to-dicom.sh"]
+            "command": ["/bin/bash", "/home/kaapana/convert-nrrd-to-dicom.sh"],
+            "resources": {
+                "limits": {
+                    "memory": "1000Mi"
+                },
+                "requests": {
+                    "memory": "100Mi"
+                }
+            }
         }
     ]
 }

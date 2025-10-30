@@ -197,8 +197,8 @@ const filteredAndSortedWorkflows = computed(() => {
 })
 
 // --- METHODS ---
-function updateFilters(newFilters: typeof filters.value) {
-  filters.value = newFilters
+function updateFilters(newFilters: { search: string; categories: string[]; providers: string[]; maturity?: string[] }) {
+  filters.value = { ...filters.value, ...newFilters }
 }
 
 async function loadWorkflows() {

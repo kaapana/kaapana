@@ -26,6 +26,8 @@ services:
       - 8080:8080
     environment:
       - APPLICATION_ROOT=/
+      - PORT=8080
+      - WORKERS=4
       - DATABASE_URL=postgresql://kaapanauser:kaapanapassword@postgres:5432/kaapanauser
       - DEV_FILES=True
       - LOG_LEVEL=DEBUG

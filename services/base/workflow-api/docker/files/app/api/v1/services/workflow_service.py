@@ -21,9 +21,6 @@ async def get_workflows(
     workflows = await crud.get_workflows(
         db, skip=skip, limit=limit, order_by=order_by, order=order, filters=filters
     )
-    if not workflows:
-        logger.error(f"No workflows found with filters: {filters}")
-        raise HTTPException(status_code=204, detail="No workflows found")
     return [schemas.Workflow.model_validate(w) for w in workflows]
 
 
@@ -102,7 +99,7 @@ async def get_workflow_by_title(
     )
     if not workflows:
         logger.error(f"Workflow with {title=} not found")
-        raise HTTPException(status_code=204, detail="Workflow not found")
+        raise HTTPException(status_code=404, detail="Workflow not found")
     # convert each ORM Workflow to schema
     return [schemas.Workflow.model_validate(w) for w in workflows]
 
@@ -138,7 +135,7 @@ async def get_workflow_tasks(
     tasks = await crud.get_tasks(db, filters={"workflow_id": workflow.id})
     if not tasks:
         logger.info(f"No tasks found for workflow with {title=} and {version=}")
-        raise HTTPException(status_code=204, detail="Tasks not found")
+        raise HTTPException(status_code=404, detail="Tasks not found")
 
     # append downstream task ids to each task and convert to schema
     res = []

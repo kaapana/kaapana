@@ -35,7 +35,11 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         env:
         - name: APPLICATION_ROOT
-          value: "/"
+          value: "{{ .Values.global.pathPrefix }}"
+        - name: PORT
+          value: "8080"
+        - name: WORKERS
+          value: "4"
         - name: LOG_LEVEL
           value: INFO
         - name: DATABASE_URL

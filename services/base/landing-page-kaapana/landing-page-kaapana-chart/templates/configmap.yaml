@@ -78,11 +78,6 @@ data:
             "endpoint": "/traefik",
             "linkTo": "/traefik/dashboard/"
           },
-          "workflows": {
-            "label": "Workflow UI",
-            "endpoint": "/workflows",
-            "linkTo": "/workflows/"
-          },
           "jupyterlab": {
             "label": "Jupyterlab",
             "endpoint": "/jupyterlab",
@@ -107,6 +102,11 @@ data:
             "label": "Projects",
             "endpoint": "/projects-ui",
             "linkTo": "/projects-ui/"
+          },
+          "workflows": {
+            "label": "WorkflowV2",
+            "endpoint": "/workflow-ui",
+            "linkTo": "/workflow-ui/"
           },
           "Documentation": {
             "label": "Documentation",

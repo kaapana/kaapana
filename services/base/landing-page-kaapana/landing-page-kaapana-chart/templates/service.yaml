@@ -1,6 +1,6 @@
 ---
-kind: Service
 apiVersion: v1
+kind: Service
 metadata:
   name: landingpage-service
   namespace: "{{ .Values.global.services_namespace }}"

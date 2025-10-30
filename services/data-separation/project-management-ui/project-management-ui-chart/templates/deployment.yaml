@@ -21,6 +21,10 @@ spec:
         image: "{{ .Values.global.registry_url }}/project-management-ui:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         env:
+        - name: VITE_AIRFLOW
+          value: /flow/kaapana/api/
+        - name: VITE_AII
+          value: /aii/
         - name: POSTGRES_USER
           value: {{ .Values.global.postgres_user }}
         ports:

@@ -11,8 +11,8 @@
 					<div class="d-flex align-center">
 						<v-btn outlined small color="primary" @click="loadRuns">Refresh</v-btn>
 						<v-menu offset-y>
-							<template #activator="{ on, attrs }">
-								<v-btn outlined small v-bind="attrs" v-on="on">Filters</v-btn>
+							<template #activator="{ props }">
+								<v-btn outlined small v-bind="props">Filters</v-btn>
 							</template>
 							<v-list>
 								<v-list-item @click="clearFilters">Clear filters</v-list-item>

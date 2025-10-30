@@ -7,13 +7,13 @@ const routes = [
         path: '/workflows',
         name: 'Workflows',
         component: Workflows,
-        meta: {title: "Workflows"}
+        meta: { title: "Workflows" }
     },
     {
-        path: '/workflows/runs',
+        path: '/runs',
         name: 'WorkflowRuns',
         component: WorkflowRuns,
-        meta: {title: "Workflow Runs"}
+        meta: { title: "Workflow Runs" }
     }
 ]
 
@@ -23,7 +23,7 @@ const router = createRouter({
 })
 
 router.afterEach((to) => {
-  document.title = to.meta.title as string || 'Default Title'
+    document.title = to.meta.title as string || 'Default Title'
 })
 
 export default router

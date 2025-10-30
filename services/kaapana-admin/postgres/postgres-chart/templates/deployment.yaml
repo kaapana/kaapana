@@ -19,6 +19,8 @@ spec:
         app.kubernetes.io/name: {{ .Values.appName | default .Chart.Name }}
         app.kubernetes.io/component: database
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: {{ .Values.global.main_node_name }}
       securityContext:
         runAsUser: 70
       initContainers:

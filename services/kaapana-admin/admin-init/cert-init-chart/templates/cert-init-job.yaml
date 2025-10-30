@@ -9,6 +9,7 @@ spec:
     metadata:
       name: cert-init
     spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
       containers:
       - name: cert-init
         image: "{{ .Values.global.registry_url }}/cert-init:{{ .Values.global.kaapana_build_version  }}"

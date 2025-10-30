@@ -24,6 +24,7 @@ spec:
         prometheus.io/scrape_interval: "30s"
         prometheus.io/scrape_timeout: "10s"
     spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
       containers:
       - name: kube-helm
         image: "{{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.kaapana_build_version  }}"

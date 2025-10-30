@@ -13,6 +13,7 @@ spec:
       labels:
         app.kubernetes.io/name: {{ .Release.Name }}
     spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
       restartPolicy: Always
       securityContext:
         runAsUser: 1000

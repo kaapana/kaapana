@@ -151,7 +151,6 @@ def run(
     task_run = runner.run(task)
     runner.dump(task_run, output=output)
 
-    typer.echo(f"{task_run.model_dump(mode="json")}")
     if watch:
         runner.logs(task_run, follow=watch)
 

@@ -11,7 +11,13 @@
                 {
                     "name": "nrrd",
                     "mounted_path": "/home/kaapana/nrrd",
-                    "description": "Expects a subdirectory per image with a single .nrrd file. Directory names must match with <reference> channel."
+                    "description": "Expects a subdirectory per image with a single .nrrd file. Directory names must match with <reference> channel.",
+                    "scale_rule": {
+                        "complexity": "20*n**1",
+                        "type": "limit",
+                        "mode": "max_item_sum",
+                        "target_glob": "*.nrrd"
+                    }
                 },
                 {
                     "name": "reference",

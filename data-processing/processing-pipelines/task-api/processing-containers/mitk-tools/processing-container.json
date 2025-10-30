@@ -16,7 +16,14 @@
                 {
                     "name": "moving",
                     "mounted_path": "/home/kaapana/moving",
-                    "description": "Expects for each image that should be registered a subdirectory that contains a single .nnrd file"
+                    "description": "Expects for each image that should be registered a subdirectory that contains a single .nnrd file",
+                    "scale_rule": {
+                        "complexity": "50*n**1",
+                        "type": "limit",
+                        "mode": "max_item_sum",
+                        "target_glob": "*.nrrd"
+                    }
+                    
                 }],
             "outputs": [
                 {
@@ -37,13 +44,19 @@
         },
         {
             "identifier": "convert",
-            "description": "Register dicom images",
+            "description": "Conver dicom series to nrrd files",
             "env": [
             ],
             "inputs": [
                 {
                     "name": "dicom",
-                    "mounted_path": "/home/kaapana/dicom"
+                    "mounted_path": "/home/kaapana/dicom",
+                    "scale_rule": {
+                        "complexity": "10*n**1",
+                        "type": "limit",
+                        "mode": "max_item_sum",
+                        "target_glob": "*.dcm"
+                    }
                 }
             ],
             "outputs": [

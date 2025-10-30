@@ -8,25 +8,20 @@
 {{- $volumeName := printf "%s-%s-pv" $namespace $volume.name }}
 {{- $volumeClaimName := printf "%s-%s-pv-claim" $namespace $volume.name }}
 {{- if $volume.host_path }}
-{{- $project_data_dir := $volume.host_path}}
-
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: "{{ $volumeClaimName }}"
-  namespace: "{{ $namespace  }}"
+  namespace: "{{ $namespace }}"
   annotations:
     "helm.sh/resource-policy": keep
 spec:
-  storageClassName: "kaapana-hostpath-fast-data-dir"
+  storageClassName: {{ default "kaapana-hostpath-fast-data-dir" (index $ "Values" "global" "storage_class_workflow") }}
   accessModes:
-    - ReadWriteOnce
-  accessModes:
-    - ReadWriteMany
+    - {{ eq (index $ "Values" "global" "storage_class_workflow") "kaapana-hostpath-fast-data-dir" | ternary "ReadWriteOnce" "ReadWriteMany" }}
   resources:
     requests:
-      storage: {{ $volume.storage | default "1Mi" }}
-  #volumeName: {{ $volumeName }}
+      storage: {{ $volume.storage | default "1Gi" }}
 ---
 {{- end }}
 {{- end }}

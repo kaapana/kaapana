@@ -5,14 +5,19 @@ global:
   dynamicVolumes:
   - name: tensorboard
     host_path: /tensorboard
+    storage: 1Gi
   - name: models
     host_path: /workflows/models
     storage_class: workflow
+    storage: 100Gi
   - name: workflow-data
     host_path: /workflows/data
     storage_class: workflow
+    storage: 100Gi
   - name: mounted-scripts
     host_path: /workflows/mounted_scripts
+    storage_class: workflow
+    storage: 10Mi
 
   ### For Local Operators managed by KubernetesExecutor
   - name: dags
@@ -36,4 +41,3 @@ kaapana_database:
   postgres_db: airflow
   appName: airflow
 
-    storage_class: workflow

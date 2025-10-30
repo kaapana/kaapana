@@ -16,6 +16,7 @@ spec:
       labels:
         app.kubernetes.io/name: traefik
     spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
       serviceAccountName: kaapana-kube-admin
       containers:
         - name: traefik

@@ -15,6 +15,7 @@ spec:
       labels:
         app.kubernetes.io/name: kaapana-persistence
     spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
       initContainers:
         - name: init-wait-for-mongodb
           image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version }}"

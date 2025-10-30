@@ -33,6 +33,7 @@ spec:
         app.kubernetes.io/name: airflow
         app.kubernetes.io/component: scheduler
     spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
       initContainers:
       - name: airflow-services-ready-check
         image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"

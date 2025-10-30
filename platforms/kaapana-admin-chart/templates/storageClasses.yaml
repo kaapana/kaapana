@@ -76,6 +76,4 @@ parameters:
   fsType: "ext4"
   mkfsParams: "-E discard"            # Enables TRIM for space reclamation
   disableRevisionCounter: "true"      # Slightly faster for ephemeral volumes
-  recurringJobSelector: ""
   staleReplicaTimeout: "20"
-  fromBackup: ""

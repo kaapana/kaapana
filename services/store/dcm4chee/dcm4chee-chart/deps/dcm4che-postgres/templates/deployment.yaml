@@ -14,6 +14,8 @@ spec:
       labels:
         app.kubernetes.io/name: postgres-dcm4che
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: {{ .Values.global.main_node_name | quote }}
       securityContext:
         runAsUser: 70
       initContainers:

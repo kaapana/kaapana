@@ -18,6 +18,7 @@ spec:
       labels:
         app.kubernetes.io/name: hello-postgres
     spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
       containers:
       - name: hello-postgres
         image: "{{ .Values.global.registry_url }}/postgres-17.7-alpine:{{ .Values.global.kaapana_build_version  }}"

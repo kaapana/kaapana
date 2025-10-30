@@ -14,6 +14,7 @@ spec:
       labels:
         app.kubernetes.io/name: ctp
     spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
       containers:
         - name: ctp-container
           image: "{{ .Values.global.registry_url }}/ctp:{{ .Values.global.kaapana_build_version  }}"

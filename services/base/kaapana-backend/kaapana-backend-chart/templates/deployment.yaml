@@ -34,6 +34,7 @@ spec:
         prometheus.io/scrape_interval_2: "60s"
         prometheus.io/scrape_timeout_2: "10s"
     spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
       initContainers:
         - name: init-kaapana-backend
           image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version }}"

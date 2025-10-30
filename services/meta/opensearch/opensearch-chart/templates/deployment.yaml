@@ -14,6 +14,7 @@ spec:
       labels:
         app.kubernetes.io/name: opensearch
     spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
       initContainers:
       - name: init-opensearch-certs
         image: "{{ .Values.global.registry_url }}/opensearch-certs:{{ .Values.global.kaapana_build_version  }}"

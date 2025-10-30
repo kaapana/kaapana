@@ -16,6 +16,7 @@ spec:
       labels:
         app.kubernetes.io/name: landingpage
     spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000

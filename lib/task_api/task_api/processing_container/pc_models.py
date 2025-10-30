@@ -33,8 +33,9 @@ class ScaleRuleType(Enum):
 
 
 class ScaleRuleMode(Enum):
-    sum = "sum"
-    max_file_size = "max_file_size"
+    sum = "sum"  ### Sum of all elements in the channel
+    max_file_size = "max_file_size"  ### Maximum size of all files in all channels
+    max_item_sum = "max_item_sum"  ### Maximum sum of all elements in an item subdirectory in the channel
 
 
 class ScaleRule(BaseModel):
@@ -45,9 +46,9 @@ class ScaleRule(BaseModel):
     complexity: Annotated[str, Field(pattern="^[-+]?\\d*(\\.\\d+)?\\*?n(\\*\\*\\d+)?$")]
     type: ScaleRuleType
     mode: ScaleRuleMode
-    target_dir: Optional[str] = None
-    target_regex: Optional[str] = None
-    target_glob: Optional[str] = None
+    target_dir: Optional[str] = ""
+    target_regex: Optional[str] = ".*"
+    target_glob: Optional[str] = "*"
 
 
 class IOBase(BaseModel):

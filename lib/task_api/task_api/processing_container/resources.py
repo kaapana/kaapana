@@ -26,8 +26,21 @@ def compute_target_size(io: task_models.IOChannel) -> int:
             target_glob=scale_rule.target_glob,
             target_regex=scale_rule.target_regex,
         )
+    elif scale_rule.mode.value == "max_item_sum":
+        item_paths = [p for p in Path(io.input.host_path).glob("*") if p.is_dir()]
+        return max(
+            [
+                sum_of_file_sizes(
+                    target_path=Path(item_path, scale_rule.target_dir),
+                    target_glob=scale_rule.target_glob,
+                    target_regex=scale_rule.target_regex,
+                )
+                for item_path in item_paths
+            ]
+        )
+
     raise ValueError(
-        f"Mode must be one of ['sum','max_file_size'] not {scale_rule.mode}"
+        f"Mode must be one of ['sum','max_file_size','max_item_sum'] not {scale_rule.mode}"
     )
 
 

@@ -104,18 +104,11 @@ MOUNT_POINTS_TO_MONITOR="{{ mount_points_to_monitor }}"
 INSTANCE_NAME="{{ instance_name|default('') }}"
 
 
-STORAGE_PROVIDER="microk8s.io/hostpath" # e.g. "host-path" (microk8s) or "longhorn
+STORAGE_PROVIDER="{{ smtp_host|default('hostpath')}}" # e.g. "hostpath" (microk8s) or "longhorn
+# volume sizes relevant if STORAGE_PROVIDER is set to longhorn
+VOLUME_SLOW_DATA="{{ volume_slow_data|default('100Gi') }}" #size of volumes in slow data dir (e.g. 100Gi or 100Ti)
 
-
-MAIN_NODE_NAME=$(
-  microk8s.kubectl get pods -n kube-system \
-    -o jsonpath='{.items[0].spec.nodeName}'
-)
-
-echo "Main node is $MAIN_NODE_NAME"
-
-
-echo "🔍 Checking for storage provider: ${STORAGE_PROVIDER}"
+echo "Checking for storage provider: ${STORAGE_PROVIDER}"
 
 is_provider_installed=false
 
@@ -124,8 +117,6 @@ case "${STORAGE_PROVIDER}" in
     # Check Longhorn CSI driver
     if microk8s.kubectl get csidriver driver.longhorn.io &>/dev/null; then
       is_provider_installed=true
-      LONGHORN_ENABLE_CUSTOM_DISKS=True
-      #TODO: add set for longhorn:  enableCustomDisks: true
     fi
     STORAGE_PROVIDER="driver.longhorn.io"
     ;;
@@ -134,46 +125,54 @@ case "${STORAGE_PROVIDER}" in
     # Check hostpath storage class
     if microk8s.kubectl get storageclass | grep -q "microk8s-hostpath"; then
       is_provider_installed=true
-      LONGHORN_ENABLE_CUSTOM_DISKS=False
     fi
     STORAGE_PROVIDER="microk8s.io/hostpath"
     ;;
 
   *)
-    echo "❌ ERROR: Unknown storage provider '${STORAGE_PROVIDER}'."
-    echo "   Supported providers: microk8s.io/hostpath, longhorn"
+    echo "ERROR: Unknown storage provider '${STORAGE_PROVIDER}'."
+    echo "Supported providers: microk8s.io/hostpath, longhorn"
     exit 1
     ;;
 esac
 
 if [ "$is_provider_installed" = false ]; then
-  echo "❌ ERROR: Storage provider '${STORAGE_PROVIDER}' is not installed in the cluster."
-  echo "   Please install it before proceeding."
-  echo "   Example: microk8s enable hostpath-storage   or   helm install longhorn longhorn/longhorn ..."
+  echo "ERROR: Storage provider '${STORAGE_PROVIDER}' is not installed in the cluster."
+  echo "Please install it before proceeding."
+  echo "Example: microk8s enable hostpath-storage   or   helm install longhorn longhorn/longhorn ..."
   exit 1
 fi
 
 echo "✅ Storage provider '${STORAGE_PROVIDER}' found."
 
+MAIN_NODE_NAME=$(microk8s.kubectl get pods -n kube-system -o jsonpath='{.items[0].spec.nodeName}')
+echo "Main node is $MAIN_NODE_NAME"
 # --- Set storage classes based on provider ---
 case "${STORAGE_PROVIDER}" in
   "microk8s.io/hostpath")
     STORAGE_CLASS_SLOW="kaapana-hostpath-slow-data-dir"
     STORAGE_CLASS_FAST="kaapana-hostpath-fast-data-dir"
     STORAGE_CLASS_WORKFLOW="kaapana-hostpath-fast-data-dir"
+    if [ -z "${VOLUME_SLOW_DATA}" ]; then
+        VOLUME_SLOW_DATA="10Gi"
+    fi
     ;;
   "driver.longhorn.io")
     STORAGE_CLASS_SLOW="kaapana-longhorn-slow-data"
     STORAGE_CLASS_FAST="kaapana-longhorn-fast-db"
     STORAGE_CLASS_WORKFLOW="kaapana-longhorn-fast-workflow"
 
+    if [ -z "${VOLUME_SLOW_DATA}" ]; then
+        echo "${VOLUME_SLOW_DATA}" must be set for Longhorn storage provider.
+        exit 1
+    fi
+
     FSID_DEFAULT=$(stat -fc %i /var/lib/longhorn)
-    FSID_FAST=$(stat -fc %i "${FAST_DATA_DIR}")
-    FSID_SLOW=$(stat -fc %i "${SLOW_DATA_DIR}")
+    FSID_FAST=$(stat -fc %i "$(dirname "${FAST_DATA_DIR}")")
+    FSID_SLOW=$(stat -fc %i "$(dirname "${SLOW_DATA_DIR}")")
 
     PATCH_DISKS="{}"
     DISK_NAME_FAST=""
-    DISK_NAME_SLOW=""
 
     # FAST_DATA_DIR
     if [[ "$FSID_FAST" == "$FSID_DEFAULT" ]]; then
@@ -189,14 +188,11 @@ case "${STORAGE_PROVIDER}" in
     if [[ "$FSID_SLOW" == "$FSID_FAST" ]]; then
         echo "⚠️ slow-data shares filesystem with fast-data."
         PATCH_DISKS=$(jq ".disks.\"$DISK_NAME_FAST\".tags += [\"slow-data\"]" <<< "$PATCH_DISKS")
-        DISK_NAME_SLOW="$DISK_NAME_FAST"
     elif [[ "$FSID_SLOW" == "$FSID_DEFAULT" ]]; then
         echo "⚠️ slow-data shares filesystem with default Longhorn disk."
         PATCH_DISKS=$(jq ".disks.\"default-disk-${FSID_DEFAULT}\".tags += [\"slow-data\"]" <<< "$PATCH_DISKS")
-        DISK_NAME_SLOW="default-disk-${FSID_DEFAULT}"
     else
         PATCH_DISKS=$(jq ".disks.\"slow-data\" = {\"path\": \"${SLOW_DATA_DIR}\", \"allowScheduling\": true, \"tags\": [\"slow-data\"]}" <<< "$PATCH_DISKS")
-        DISK_NAME_SLOW="slow-data"
     fi
 
     # Apply the patch
@@ -207,6 +203,36 @@ case "${STORAGE_PROVIDER}" in
         exit 1
     fi
     echo "✅ Patched disks for ${MAIN_NODE_NAME}"
+
+    echo "Patching Longhorn settings for overprovisioning and minimal free space..."
+
+    # Allow thin provisioning (10× real capacity)
+    if [ "${DEV_MODE,,}" == "true" ]; then
+        THIN_PROVISIONING="1000"
+    else
+        THIN_PROVISIONING="1000000"
+    fi
+
+    microk8s.kubectl -n longhorn-system patch setting storage-over-provisioning-percentage \
+    --type=merge -p "{\"value\":\"${THIN_PROVISIONING}\"}"
+
+    # Allow scheduling even when less than 5% disk space is free
+    microk8s.kubectl -n longhorn-system patch setting storage-minimal-available-percentage \
+      --type=merge -p '{"value":"5"}'
+
+    echo "✅ Longhorn overprovisioning settings applied successfully."
+
+    # Detect how many Longhorn nodes are schedulable
+    # TODO use this in the storage-class definition!!!! -> set this in the helm chart values...
+    SCHEDULABLE_NODES=$(microk8s.kubectl -n longhorn-system get node.longhorn.io \
+    -o jsonpath='{range .items[?(@.spec.allowScheduling==true)]}{.metadata.name}{"\n"}{end}' | wc -l)
+
+    # Determine replica count based on node count
+    if (( SCHEDULABLE_NODES > 1 )); then
+        REPLICA_COUNT=2
+    else
+        REPLICA_COUNT=1
+    fi
     ;;
 esac
 
@@ -371,30 +397,15 @@ function delete_deployment {
             echo "Deleting helm charts in 'uninstalling' state with --no-hooks"
             $HELM_EXECUTABLE -n $namespace ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall --no-hooks --wait --timeout 5m30s %; sleep 2"
         fi
-        DEPLOYED_NAMESPACES=$(/bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered '$EXTENSIONS_NAMESPACE' | cut -d' ' -f1")
         TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E --line-buffered 'Terminating' | cut -d' ' -f1")
         echo -e ""
-        UNINSTALL_TEST=$DEPLOYED_NAMESPACES$TERMINATING_PODS
+        UNINSTALL_TEST=$TERMINATING_PODS
         if [ -z "$UNINSTALL_TEST" ]; then
             break
         else
-            echo -e "${YELLOW}Waiting for $TERMINATING_PODS $DEPLOYED_NAMESPACES ${NC}"
+            echo -e "${YELLOW}Waiting for $TERMINATING_PODS ${NC}"
         fi
     done
-    if [ ! "$QUIET" = "true" ];then
-        while true; do
-            read -e -p "Do you also want to remove all Persistent Volumes in the cluster (kubectl delete pv --all)?" -i " yes" yn
-            case $yn in
-                [Yy]* ) echo -e "${GREEN}Removing all pvs from cluster ...${NC}" && microk8s.kubectl delete pv --all; break;;
-                [Nn]* ) echo -e "${YELLOW}Skipping pv removal ...{NC}"; break;;
-                * ) echo "Please answer yes or no.";;
-            esac
-        done
-    else
-        echo -e "${YELLOW}QUIET-MODE active!${NC}"
-        echo -e "${GREEN}Removing all pvs from cluster ...${NC}"
-        microk8s.kubectl delete pv --all
-    fi
 
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
@@ -422,17 +433,19 @@ function nuke_pods {
 
 
 function clean_up_kubernetes {
-    for n in $EXTENSIONS_NAMESPACE; # $HELM_NAMESPACE;
-    do
-        echo "${YELLOW}Deleting namespace ${n} with all its resources ${NC}"
-        microk8s.kubectl delete --ignore-not-found namespace $n
-    done
+    # for n in $EXTENSIONS_NAMESPACE; # $HELM_NAMESPACE;
+    # do
+    #     echo "${YELLOW}Deleting namespace ${n} with all its resources ${NC}"
+    #     microk8s.kubectl delete --ignore-not-found namespace $n
+    # done
     echo "${YELLOW}Deleting all deployments in namespace default ${NC}"
     microk8s.kubectl delete deployments --all
     echo "${YELLOW}Deleting all jobs in namespace default ${NC}"
     microk8s.kubectl delete jobs --all
     echo "${YELLOW}Removing remove-secret job${NC}"
     microk8s.kubectl -n $SERVICES_NAMESPACE delete job --ignore-not-found remove-secret
+    #echo "${YELLOW}Removing all volumes in kubernetes ${NC}"
+    #microk8s.kubectl delete volumes -A --all
 }
 
 function import_container_images_tar {
@@ -834,7 +847,7 @@ function deploy_chart {
     --set-string global.storage_class_slow="$STORAGE_CLASS_SLOW" \
     --set-string global.storage_class_workflow="$STORAGE_CLASS_WORKFLOW" \
     --set-string global.main_node_name="$MAIN_NODE_NAME" \
-    --set longhorn.enableCustomDisks="$LONGHORN_ENABLE_CUSTOM_DISKS" \
+    --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"

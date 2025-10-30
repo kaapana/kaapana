@@ -311,3 +311,62 @@ Step 10: Advanced Options for Workflow Extensions
 *************************************************
 
 You can add a custom extension parameter to the :code:`values.yaml` file which can then be passed to different operators inside the DAG. For an example of it see `Total Segmentator workflow <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/data-processing/processing-pipelines/total-segmentator/extension/total-segmentator-workflow/values.yaml?ref_type=heads>`_ . You can read more about extension parameters in the :ref:`extensions` section.
+
+
+**Automatic Metric Scraping**:
+You can enable automatic metric scraping by adding annotations to the Operator inheriting from KaapanaBaseOperator. Annotations are identical to the ones in :ref:`application_dev_guide`. Keep in mind that this only makes sense if a compatible metrics endpoint is exposed from within the running container.
+Annotations can be added either **(a)** in the Operator definition or **(b)** in the DAG when instantiating the Operator.
+
+
+
+Example from the otsus-method example from ``kaapana/templates_and_examples/examples/processing-pipelines/otsus-method/extension/docker/files/otsus-method/OtsusMethodOperator.py`` (this pod does not expose a metrics endpoint, but we use it as an example for how annotations can be added in the Operator definition):
+
+.. code-block:: python
+
+   class OtsusMethodOperator(KaapanaBaseOperator):
+    def __init__(
+        self,
+        dag,
+        name="otsus-method",
+        execution_timeout=timedelta(seconds=120),
+        *args,
+        **kwargs,
+    ):
+        super().__init__(
+            dag=dag,
+            name=name,
+            image=f"{DEFAULT_REGISTRY}/otsus-method:{KAAPANA_BUILD_VERSION}",
+            image_pull_secrets=["registry-secret"],
+            execution_timeout=execution_timeout,
+            # operator_out_dir="otsus-method/",
+            annotations={
+                "prometheus.io/scrape": "true",
+                "prometheus.io/port": "1234",
+                "prometheus.io/path": "/metrics",
+                "prometheus.io/scheme": "http",
+                "prometheus.io/custom_job_name": "OtsusMethodOperator",
+            },
+            *args,
+            **kwargs,
+        )   
+
+Example from the otsus-method example from ``kaapana/templates_and_examples/examples/processing-pipelines/otsus-method/extension/docker/files/dag_otsus_method.py`` (the GetInputOperator does also not expose a metrics endpoint, but we use it as an example for how annotations could be added to any Operator inheriting from KaapanaBaseOperator in the DAG definition):
+
+.. code-block:: python
+    # [...]
+    dag = DAG(dag_id="otsus-method", default_args=args, schedule_interval=None)
+
+
+    get_input = GetInputOperator(
+        dag=dag,
+        annotations={
+            "prometheus.io/scrape": "true",
+            "prometheus.io/port": "1234",
+            "prometheus.io/path": "/metrics",
+            "prometheus.io/scheme": "http",
+            "prometheus.io/custom_job_name": "dag_otsus_method_GetInputOperator",
+        },
+    )
+    # [...]
+
+This will enable Prometheus auto-discovery to automatically find and scrape the configured endpoint when the pod of the Operator is running.

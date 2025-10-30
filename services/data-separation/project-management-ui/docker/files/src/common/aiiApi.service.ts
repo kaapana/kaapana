@@ -1,15 +1,15 @@
 import axios, { AxiosResponse, AxiosRequestConfig, RawAxiosRequestHeaders } from 'axios';
 
-const ACCESS_INFORMATION_BACKEND = import.meta.env.VITE_APP_ACCESS_INFORMATION_BACKEND || '/aii/';
-const KAAPANA_PLUGIN = import.meta.env.VITE_APP_KAAPANA_PLUGIN || '/flow/kaapana/api/';
+const AII_BACKEND = import.meta.env.VITE_AII;
+const AIRFLOW_BACKEND = import.meta.env.VITE_AIRFLOW;
 
 
 const client = axios.create({
-    baseURL: ACCESS_INFORMATION_BACKEND,
+    baseURL: AII_BACKEND,
 });
 
 const kaapanaPluginClient = axios.create({
-    baseURL: KAAPANA_PLUGIN,
+    baseURL: AIRFLOW_BACKEND,
 });
 
 const token = "";

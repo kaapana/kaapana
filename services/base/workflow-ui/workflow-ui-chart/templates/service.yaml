@@ -3,15 +3,26 @@ kind: Service
 metadata:
   name: workflow-ui-service
   namespace: "{{ .Values.global.services_namespace }}"
+  labels: 
+    app.kubernetes.io/name: workflow-ui-service
 spec:
   selector:
-    app.kubernetes.io/name: workflow-ui
+    app.kubernetes.io/name: workflow-ui-app
   ports:
-    - protocol: TCP
-      port: 5000
-      targetPort: workflow-ui
-      name: log-http-port
+    - name: http-port-svc
+      port: 80
+      targetPort: http-port
   type: ClusterIP
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix-workflow-ui
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  stripPrefix:
+    prefixes:
+    - /workflow-ui
 ---
 apiVersion: networking.k8s.io/v1 
 kind: Ingress
@@ -20,17 +31,18 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/preserve-host: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-strip-prefix-workflow-ui@kubernetescrd
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:
   - host: 
     http:
       paths:
-      - path: /
+      - path: /workflow-ui
         pathType: ImplementationSpecific
         backend:
           service:
             name: workflow-ui-service
             port:
-              name: log-http-port
+              number: 80
 ---

@@ -27,6 +27,8 @@ services:
       - "5678:5678" # debugpy
     environment:
       - APPLICATION_ROOT=/
+      - PORT=8080
+      - WORKERS=4
       - DATABASE_URL=postgresql://kaapanauser:kaapanapassword@postgres:5432/kaapanauser
       - DEV_FILES=True
       - LOG_LEVEL=DEBUG
@@ -43,9 +45,9 @@ services:
       context: ../workflow-ui/docker
     image: workflow-ui:latest
     ports:
-      - 5173:5173
+      - 80:80
     environment:
-      - VITE_API_URL=http://localhost:8080
+      - VITE_WORKFLOW_API_URL=http://localhost:8080/v1
     volumes:
       - ../workflow-ui/docker/files:/app:cached
       - /app/node_modules

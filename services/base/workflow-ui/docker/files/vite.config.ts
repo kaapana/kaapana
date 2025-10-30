@@ -7,8 +7,6 @@ import { commonjsDeps } from '@koumoul/vjsf/utils/build.js'
 
 // https://vite.dev/config/
 export default defineConfig({
-  root: '/app',        // should point to /app or '.'
-  publicDir: 'public', // default, but good to confirm
   plugins: [
     vue(),
     vueDevTools(),
@@ -22,11 +20,11 @@ export default defineConfig({
     },
   },
   server: {
-    proxy: {
-      '/v1': 'http://localhost:8080'
-    }
+    allowedHosts: true,
+    port: 80,
   },
   build: {
+    outDir: 'dist',
     commonjsOptions: {
       transformMixedEsModules: true,
     },

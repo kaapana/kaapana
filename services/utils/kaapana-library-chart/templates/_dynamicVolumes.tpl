@@ -9,4 +9,12 @@
   persistentVolumeClaim:
     claimName: {{ $volume.name }}{{ $postfix }}-pv-claim
 {{- end }}
+{{- if and .Values.global.workflow_configmap_name (ne .Values.global.workflow_configmap_name "") }}
+- name: workflowconf
+  configMap:
+    name: {{ .Values.global.workflow_configmap_name }}
+    items:
+      - key: conf.json
+        path: conf.json
+{{- end }}
 {{- end }}

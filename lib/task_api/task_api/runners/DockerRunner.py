@@ -160,12 +160,19 @@ class DockerRunner(BaseRunner):
         cgroup_pid_path = process.stdout.lstrip("0:").rstrip()
         max_memory_usage = 0
         logging_interval = time.time()
-        while os.path.exists(f"/proc/{pid}/status"):
+        while os.path.exists(f"/proc/{pid}/status") and os.path.exists(
+            f"/sys/fs/cgroup/{cgroup_pid_path}/memory.peak"
+        ):
             process = subprocess.run(
                 ["cat", f"/sys/fs/cgroup/{cgroup_pid_path}/memory.peak"],
                 capture_output=True,
             )
+            if process.returncode != 0:
+                continue
             memory_peak = int(process.stdout.decode("utf-8"))
+            if abs(memory_peak - max_memory_usage) < 10:
+                continue
+
             max_memory_usage = max(memory_peak, max_memory_usage)
 
             if abs(time.time() - logging_interval) >= 1:

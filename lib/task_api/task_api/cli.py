@@ -56,27 +56,27 @@ def monitor_container_memory(task_run: task_models.TaskRun):
             max_file_size(target_path=Path(channel.volume_source.host_path))
         )
 
-        typer.echo(f"Sum of all files for {channel}: {sum_input_size}")
-        typer.echo(f"Size of largest file for {channel} {max_input_size}")
+        typer.echo(f"Sum of all files for channel: {channel.name}: {sum_input_size}")
+        typer.echo(
+            f"Size of largest file for channel: {channel.name}: {max_input_size}"
+        )
 
         if channel.scale_rule:
             size_scale_rule_target = human_readable_size(
                 compute_target_size(io=channel)
             )
             typer.echo(
-                f"Size of target of ScaleRule for {channel}: {size_scale_rule_target}"
+                f"Calculated size for ScaleRule for channel: {channel.name}: {size_scale_rule_target}"
             )
             scaleRule_outcome = human_readable_size(compute_memory_requirement(channel))
             typer.echo(
-                f"Resource {channel.scale_rule.type} from scaleRule: {scaleRule_outcome}"
+                f"Calculated resource requirement for channel: {channel.name}: {scaleRule_outcome}"
             )
 
             if calculate_bytes(scaleRule_outcome) <= calculate_bytes(max_memory_usage):
-                msg = "\u274c Resource {}: {} is smaller than the peak memory usage {}"
+                msg = "WARNING: Calculated resource requirement for channel: {} is smaller than the peak memory usage {} < {}"
                 typer.echo(
-                    msg.format(
-                        channel.scale_rule.type, scaleRule_outcome, max_memory_usage
-                    )
+                    msg.format(channel.name, scaleRule_outcome, max_memory_usage)
                 )
 
 

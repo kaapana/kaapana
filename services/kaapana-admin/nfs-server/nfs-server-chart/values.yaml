@@ -1,8 +1,0 @@
----
-global:
-  pull_policy_images: "IfNotPresent"
-  namespace: "{{ .Values.global.admin_namespace }}"
-  dynamicVolumes:
-  - name: nfs-fast
-    host_path: ""
-    storage: "100Gi"

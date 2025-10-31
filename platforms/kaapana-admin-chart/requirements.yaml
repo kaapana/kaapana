@@ -10,9 +10,6 @@ dependencies:
     version: 0.0.0
   - name: oAuth2-proxy-chart
     version: 0.0.0
-  - name: nfs-server-chart
-    version: 0.0.0
-    condition: global.enable_nfs
   - name: maintenance-page-chart
     version: 0.0.0
   - name: kube-helm-chart

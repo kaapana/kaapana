@@ -34,7 +34,6 @@ GPU_OPERATOR_VERSION="v25.10.0"
 PREFETCH_EXTENSIONS={{prefetch_extensions|default('false')|lower}}
 CHART_PATH=""
 NO_HOOKS=""
-ENABLE_NFS=false
 OFFLINE_MODE=false
 
 INSTANCE_UID=""
@@ -808,7 +807,6 @@ function deploy_chart {
     --set-string global.admin_namespace=$ADMIN_NAMESPACE \
     --set global.gpu_support=$GPU_SUPPORT \
     --set-string global.helm_namespace="$ADMIN_NAMESPACE" \
-    --set global.enable_nfs=$ENABLE_NFS \
     --set global.oidc_client_secret=$OIDC_CLIENT_SECRET \
     --set global.include_reverse_proxy=$INCLUDE_REVERSE_PROXY \
     --set-string global.home_dir="$HOME" \

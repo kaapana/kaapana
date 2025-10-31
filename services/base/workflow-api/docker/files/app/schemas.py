@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, ConfigDict, Field
-from app.validation.config_definition import ConfigDefinition
 from enum import Enum
 
 
@@ -33,6 +32,60 @@ class Label(BaseModel):
 
 
 #####################################
+######## WORKFLOWCONFIG #############
+#####################################
+
+
+class BaseUI(BaseModel):
+    title: str
+    required: Optional[bool] = False
+    description: str
+
+
+class WorkflowParameterUI(BaseUI):
+    """ """
+
+    options: Optional[List[str]] = (
+        None  # [ "dice_score",  "surface_dice","average_surface_distance", "hausdorff_distance"]
+    )
+    type: str  # e.g. "list", "string", "bool", "int"
+    default: Optional[Any] = None
+    minimum: Optional[int] = None
+    maximum: Optional[int] = None
+    multiselectable: False
+
+
+class DataSelectionUI(BaseUI):
+    """
+    Select a Kaapana-Backend Dataset
+    """
+
+    pass
+
+
+class WorkflowParameter(BaseModel):
+    description: Optional[str] = None
+    task_title: str
+    env_variable_name: str
+    ui_params: WorkflowParameterUI | DataSelectionUI
+
+
+### Example WorkflowParameter ###
+# wf_param = WorkflowParameter(
+#     task_title="custom_algo",
+#     env_variable_name="ORGAN",
+#     ui_params=WorkflowParameterUI(
+#         options=["liver", "kidney"],
+#         default="liver",
+#         multiselectable=False,
+#         required=True,
+#         title="organ",
+#         description="Select the organ to be segmented",
+#     ),
+# )
+
+
+#####################################
 ############## WORKFLOW #############
 #####################################
 
@@ -41,7 +94,7 @@ class WorkflowBase(BaseModel):
     title: str
     definition: str
     workflow_engine: str
-    config_definition: Optional[ConfigDefinition] = None
+    workflow_parameters: Optional[List[WorkflowParameter]] = None
     labels: List[Label] = []
 
 

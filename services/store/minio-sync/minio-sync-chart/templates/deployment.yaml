@@ -15,6 +15,8 @@ spec:
       labels:
         app.kubernetes.io/name: {{ .Release.Name }}
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: {{ .Values.global.main_node_name }}
       restartPolicy: Always
       securityContext:
         runAsUser: {{ int .Values.global.uid }}
@@ -65,20 +67,11 @@ metadata:
 spec:
   capacity:
     storage: "1Mi"
-{{- if $.Values.global.enable_nfs }}
-  storageClassName: nfs
-  accessModes:
-    - ReadWriteMany
-  nfs:
-    server: "10.152.183.15"
-    path: {{ .Values.global.host_directory }}
-{{- else }}
   storageClassName: host-dir
   accessModes:
     - ReadWriteOnce
   hostPath: 
     path: "{{ $.Values.global.fast_data_dir }}/{{ .Values.global.host_directory }}"
-{{- end }}
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     name: {{ .Release.Name }}-host-path-pv-claim
@@ -92,7 +85,7 @@ metadata:
 spec:
   storageClassName: host-dir
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   resources:
     requests:
       storage: "1Mi"

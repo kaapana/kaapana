@@ -317,6 +317,22 @@ MITK Flow
 | **Input data:**  
 | DICOMs
 
+.. _extensions_task_api:
+
+Task API workflows
+-------------------
+| **register-dicoms**
+| 1) Download dataset with the target image
+| 2) Download dataset with the moving images that will be registerd to the target image
+| 3) Convert dicom images to nrrd
+| 4) Register moving images to the target image
+| 5) Convert registered images from nrrd to dicom
+| 6) Send registered images to the internal CTP server
+
+
+| **test-task-api:**
+| Minimal workflow to test the Task API and the KaapanaTaskOperator
+
 .. _extensions_classification:
 
 

@@ -9,8 +9,7 @@
 
 # Iterate over all volumes
 {{- range $volume := .Values.global.dynamicVolumes }}
-  {{- $postfix := and (has "kaapanamultiinstallable" $keywords) (hasKey $volume "host_path") | ternary (printf "-%s" $release_name) "" }}
-  {{- $minio_mirror := and (hasKey $volume "minio_mirror") ($volume.minio_mirror) }}
+  {{- $postfix := or (has "kaapanamultiinstallable" $keywords) (hasKey $volume "minio_mirror") | ternary (printf "-%s" $release_name) "" }}
 
   {{- if $volume.host_path }}
     {{- $storage_class := $global.storage_class_fast | default "default" -}}

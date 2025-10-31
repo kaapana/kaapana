@@ -1,11 +1,11 @@
 ---
 apiVersion: v1
 appVersion: "1.0.0"
-description: "Test workflow for the KaapanaTaskOperator and dummy processing-containers"
+description: "Workflow based on the KaapanaTaskOperator and Task API compliant processing-containers"
 name: task-api-workflow
 version: "0.0.0"
 keywords:
 - kaapanaworkflow
 annotations:
   documentation: "TODO"
-  ui-visible-name: "Test workflow for the KaapanaTaskOperator"
+  ui-visible-name: "Task API workflows"

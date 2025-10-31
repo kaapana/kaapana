@@ -7,13 +7,13 @@ conf_data:
         - name: DATASET
           value: "FIXED"
         - name: KAAPANA_PROJECT_IDENTIFIER
-          value: "565f13bd-0d58-463a-9e92-0d9c93600bab"
+          value: ""
     download_moving_images:
       env:
         - name: DATASET
           value: "MOVING"
         - name: KAAPANA_PROJECT_IDENTIFIER
-          value: "565f13bd-0d58-463a-9e92-0d9c93600bab"
+          value: ""
     send_registered_dicoms:
       env:
         - name: "DATASET"

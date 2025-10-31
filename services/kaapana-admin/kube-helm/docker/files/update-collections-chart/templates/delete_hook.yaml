@@ -25,6 +25,7 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /kaapana/mounted/extensions
+          subPath: extensions
       securityContext:
         runAsUser: 0
       volumes:

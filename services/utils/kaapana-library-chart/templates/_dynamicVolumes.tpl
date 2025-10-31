@@ -4,7 +4,7 @@
 {{- $release_name := .Release.Name }}
 {{- $keywords := .Chart.Keywords }}
 {{- range $volume := .Values.global.dynamicVolumes }}
-{{- $postfix := and (has "kaapanamultiinstallable" $keywords) (hasKey $volume "host_path") | ternary (printf "-%s" $release_name) "" }}
+{{- $postfix := or (has "kaapanamultiinstallable" $keywords) (hasKey $volume "minio_mirror") | ternary (printf "-%s" $release_name) "" }}
 - name: {{ $volume.name }}
   persistentVolumeClaim:
     claimName: {{ $volume.name }}{{ $postfix }}-pv-claim

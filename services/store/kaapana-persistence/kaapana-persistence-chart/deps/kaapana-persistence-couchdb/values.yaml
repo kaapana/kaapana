@@ -1,8 +1,3 @@
 couchdb:
   user: kaapanauser
   password: kaapanapassword
-global:
-  dynamicVolumes:
-  - name: kaapana-persistence-couchdb
-    host_path: /
-    storage: 10Gi

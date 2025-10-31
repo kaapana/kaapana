@@ -2,11 +2,11 @@
 global:
   dynamicVolumes:
   - name: kaapana-persistence-mongodb
-    host_path: /persistence/mongodb
+    storage: 10Gi
   - name: kaapana-persistence-cas
-    host_path: /persistence/cas
+  - name: kaapana-persistence-couchdb
+    storage: 10Gi
 
 couchdb:
   user: kaapanauser
   password: kaapanapassword
-

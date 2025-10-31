@@ -2,8 +2,3 @@
 mongodb:
   user: kaapanauser
   password: kaapanapassword
-global:
-  dynamicVolumes:
-  - name: kaapana-persistence-mongodb
-    host_path: /
-    storage: 10Gi

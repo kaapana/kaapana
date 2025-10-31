@@ -64,7 +64,7 @@ def pytest_generate_tests(metafunc):
 
 def set_task_form_environment(env_name: str, env_value: str, testcase: dict):
     """
-    Set in all tasks the values of environment variable env_name to env_value.
+    Set the values of the environment variable env_name to env_value in all tasks.
     """
     if task_form := testcase["conf_data"].get("task_form"):
         for task_id, task_config in task_form.items():

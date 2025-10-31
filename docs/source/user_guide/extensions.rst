@@ -330,7 +330,7 @@ Task API workflows
 | 6) Send registered images to the internal CTP server
 
 
-| **test-task-api:**
+| **test-task-operator:**
 | Minimal workflow to test the Task API and the KaapanaTaskOperator
 
 .. _extensions_classification:

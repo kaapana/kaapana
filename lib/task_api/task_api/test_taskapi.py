@@ -93,7 +93,7 @@ def test_resources():
         target_glob="*.dcm",
         target_regex=".*",
         mode="sum",
-        complexity="1*n**1",
+        scale_factor=1,
         type="limit",
     )
     io = task_models.IOVolume(

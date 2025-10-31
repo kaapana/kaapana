@@ -27,7 +27,9 @@ def compute_target_size(io: task_models.IOChannel) -> int:
             target_regex=scale_rule.target_regex,
         )
     elif scale_rule.mode.value == "max_item_sum":
-        item_paths = [p for p in Path(io.input.host_path).glob("*") if p.is_dir()]
+        item_paths = [
+            p for p in Path(io.volume_source.host_path).glob("*") if p.is_dir()
+        ]
         return max(
             [
                 sum_of_file_sizes(
@@ -96,32 +98,14 @@ def calculate_bytes(size: str) -> int:
     return size * 1024.0 ** exponent_by_size.get(unit)
 
 
-def parse_complexity(complexity: str) -> FunctionType:
-    """
-    Return a function that calculates the memory requirements of the given complexity
-    """
-    pattern = re.compile(r"^[-+]?\d*(\.\d+)?\*?n(\*\*\d+)?$")
-    assert pattern.match(complexity)
-
-    coefficient = re.split(r"(?<!\*)\*(?!\*)", complexity)[0]
-    exponent = complexity.split("**")[-1]
-
-    def complexity(size: float) -> float:
-        return int(coefficient) * size ** int(exponent)
-
-    return complexity
-
-
 def compute_memory_requirement(io: task_models.IOChannel) -> int:
     """
     Compute the memory requirements for the inpute channel based on the files in the local file path.
     """
 
     target_size = compute_target_size(io=io)
-    complexity = parse_complexity(io.scale_rule.complexity)
-    print(f"{target_size=}")
 
-    return complexity(target_size)
+    return io.scale_rule.scale_factor * target_size
 
 
 def compute_memory_resources(

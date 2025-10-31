@@ -18,7 +18,7 @@
                     "mounted_path": "/home/kaapana/moving",
                     "description": "Expects for each image that should be registered a subdirectory that contains a single .nnrd file",
                     "scale_rule": {
-                        "complexity": "50*n**1",
+                        "scale_factor": 50,
                         "type": "limit",
                         "mode": "max_item_sum",
                         "target_glob": "*.nrrd"
@@ -52,7 +52,7 @@
                     "name": "dicom",
                     "mounted_path": "/home/kaapana/dicom",
                     "scale_rule": {
-                        "complexity": "10*n**1",
+                        "scale_factor": 10,
                         "type": "limit",
                         "mode": "max_item_sum",
                         "target_glob": "*.dcm"

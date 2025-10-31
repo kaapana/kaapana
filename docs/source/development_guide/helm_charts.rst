@@ -156,6 +156,5 @@ Chart Dependency Tree
     ├── kube-dashboard-chart
     ├── kube-helm-chart
     ├── maintenance-page-chart
-    ├── nfs-server-chart
     ├── oAuth2-proxy-chart
     └── traefik-chart

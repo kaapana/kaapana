@@ -109,8 +109,6 @@ spec:
           value: "{{ .Values.global.registry_url }}"
         - name: EXTENSIONS_NAMESPACE
           value: "{{ .Values.global.extensions_namespace }}"
-        - name: ENABLE_NFS
-          value: "{{ .Values.global.enable_nfs }}"
         - name: GPU_SUPPORT
           value: "{{ .Values.global.gpu_support }}"
         - name: HOSTDOMAIN

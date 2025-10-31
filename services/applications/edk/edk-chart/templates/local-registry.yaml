@@ -6,11 +6,11 @@ metadata:
   namespace: "{{ tpl .Values.global.namespace . }}"
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   resources:
     requests:
       storage: {{ .Values.global.local_registry_disk_space }}
-  storageClassName: nfs
+  storageClassName: host-dir
   volumeName: local-registry-pv-volume
 ---
 apiVersion: v1
@@ -22,21 +22,9 @@ spec:
     storage: {{ .Values.global.local_registry_disk_space }}
   accessModes:
     - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-{{- if .Values.global.enable_nfs }}
-  storageClassName: nfs
-  accessModes:
-    - ReadWriteMany
-  nfs:
-    server: "10.152.183.15"
-    path: "/registry
-{{- else }}
   storageClassName: host-dir
-  accessModes:
-    - ReadWriteOnce
   hostPath:
     path: {{ .Values.global.slow_data_dir }}/applications/registry
-{{- end }}
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.services_namespace }}"

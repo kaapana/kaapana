@@ -10,10 +10,12 @@ global:
   local_registry_ui_path: /local-registry-ui
   dynamicVolumes:
   - name: edk
-    mount_path: /kaapana/minio/
     host_path: /applications
     storage: 10Gi
     minio_mirror : true
+  - name: local-registry
+    host_path: /
+    storage: 30Gi
   envVars:
   - name: WORKSPACE
     value: "/kaapana/app"

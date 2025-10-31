@@ -10,4 +10,3 @@ global:
   dev_files: false
   dynamicVolumes:
   - name: extensions
-    host_path: /extensions

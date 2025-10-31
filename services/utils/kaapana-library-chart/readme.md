@@ -36,7 +36,6 @@ global:
   dynamicVolumes:
   - name: hello-world
     mount_path: /kaapana/mounted/hello-world
-    host_path: /hello-world
     storage: "1Mi" ### optional
     minior_mirror: true ### Used in combination with a minio-mirror container
 ```

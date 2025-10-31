@@ -7,7 +7,6 @@
 {{- range $volume := .Values.global.dynamicVolumes }}
 {{- $volumeName := printf "%s-%s-pv" $namespace $volume.name }}
 {{- $volumeClaimName := printf "%s-%s-pv-claim" $namespace $volume.name }}
-{{- if $volume.host_path }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -23,6 +22,5 @@ spec:
     requests:
       storage: {{ $volume.storage | default "1Gi" }}
 ---
-{{- end }}
 {{- end }}
 {{- end }}

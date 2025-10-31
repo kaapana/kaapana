@@ -4,5 +4,4 @@ global:
   fast_data_dir: /home/kaapana
   dynamicVolumes:
   - name: ctp-data
-    host_path: /ctp/
     storage: 100Gi

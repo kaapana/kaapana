@@ -9,10 +9,8 @@
                 {
                     "name": "TIME_SLEEP",
                     "value": "5",
-                    "type": "int",
                     "choices": [],
-                    "description": "Number of iterations to sleep before finishing.",
-                    "adjustable": true
+                    "description": "Number of iterations to sleep before finishing."
                 }
             ],
             "inputs": [],
@@ -38,10 +36,8 @@
             "env": [{
                 "name": "TIME_SLEEP",
                 "value": "5",
-                "type": "int",
                 "choices": [],
-                "description": "Number of iterations to sleep before finishing.",
-                "adjustable": true
+                "description": "Number of iterations to sleep before finishing."
             }],
             "inputs": [
                 {

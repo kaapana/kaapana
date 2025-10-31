@@ -9,114 +9,86 @@
                 {
                     "name": "DATASET",
                     "value": "",
-                    "type": "string",
                     "choices": [],
-                    "description": "Name of the dataset",
-                    "adjustable": true
+                    "description": "Name of the dataset"
                 },
                 {
                     "name": "PARALLEL_DOWNLOADS",
                     "value": "3",
-                    "type": "int",
                     "choices": [],
-                    "description": "Number of threads used for downloading the data",
-                    "adjustable": true
+                    "description": "Number of threads used for downloading the data"
                 },
                 {
                     "name": "KAAPANA_PROJECT_IDENTIFIER",
                     "value": "",
-                    "type": "string",
                     "choices": [],
-                    "description": "Opensearch index to get metadata information",
-                    "adjustable": true
+                    "description": "Opensearch index to get metadata information"
                 },
                 {
                     "name": "KAAPANA_PROJECT_USER_NAME",
                     "value": "",
-                    "type": "string",
                     "choices": [],
-                    "description": "",
-                    "adjustable": true
+                    "description": ""
                 },
                 {
                     "name": "KAAPANA_PROJECT_USER_PASSWORD",
                     "value": "",
-                    "type": "string",
                     "choices": [],
-                    "description": "",
-                    "adjustable": true
+                    "description": ""
                 },
                 {
                     "name": "KAAPANA_OPENSEARCH_URL",
                     "value": "",
-                    "type": "string",
                     "choices": [],
-                    "description": "",
-                    "adjustable": true
+                    "description": ""
                 },
                 {
                     "name": "KAAPANA_OPENSEARCH_HOST",
                     "value": "",
-                    "type": "string",
                     "choices": [],
-                    "description": "",
-                    "adjustable": true
+                    "description": ""
                 },
                 {
                     "name": "KAAPANA_OPENSEARCH_PORT",
                     "value": "",
-                    "type": "string",
                     "choices": [],
-                    "description": "",
-                    "adjustable": true
+                    "description": ""
                 },
                 {
                     "name": "KAAPANA_KEYCLOAK_URL",
                     "value": "",
-                    "type": "string",
                     "choices": [],
-                    "description": "",
-                    "adjustable": true
+                    "description": ""
                 },
                 {
                     "name": "KAAPANA_CLIENT_SECRET",
                     "value": "",
-                    "type": "string",
                     "choices": [],
-                    "description": "",
-                    "adjustable": true
+                    "description": ""
                 },
                 {
                     "name": "KAAPANA_CLIENT_ID",
                     "value": "",
-                    "type": "string",
                     "choices": [],
-                    "description": "",
-                    "adjustable": true
+                    "description": ""
                 },
                 {
                     "name": "KAAPANA_DICOM_WEB_FILTER_URL",
                     "value": "",
-                    "type": "string",
                     "choices": [],
-                    "description": "",
-                    "adjustable": true
+                    "description": ""
                 },
                 {
                     "name": "KAAPANA_BACKEND_URL",
                     "value": "",
-                    "type": "string",
                     "choices": [],
-                    "description": "",
-                    "adjustable": true
+                    "description": ""
                 },
                 {
                     "name": "KAAPANA_NOTIFICATION_URL",
                     "value": "",
-                    "type": "string",
                     "choices": [],
-                    "description": "",
-                    "adjustable": true
+                    "description": ""
                 }
 
                 

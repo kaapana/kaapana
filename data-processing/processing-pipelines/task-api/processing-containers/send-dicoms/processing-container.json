@@ -9,34 +9,26 @@
                 {
                     "name": "DATASET",
                     "value": "",
-                    "type": "string",
                     "choices": [],
-                    "description": "The dicom series will be added to this dataset.",
-                    "adjustable": true
+                    "description": "The dicom series will be added to this dataset."
                 },
                 {
                     "name": "PROJECT_NAME",
                     "value": "",
-                    "type": "string",
                     "choices": [],
-                    "description": "The data will be send to this project.",
-                    "adjustable": true
+                    "description": "The data will be send to this project."
                 },
                 {
                     "name": "PACS_HOST",
                     "value": "",
-                    "type": "string",
                     "choices": [],
-                    "description": "Host of the CTP server.",
-                    "adjustable": true
+                    "description": "Host of the CTP server."
                 },
                 {
                     "name": "PACS_PORT",
                     "value": "11112",
-                    "type": "string",
                     "choices": [],
-                    "description": "PORT of the CTP server.",
-                    "adjustable": true
+                    "description": "PORT of the CTP server."
                 }
 
             ],

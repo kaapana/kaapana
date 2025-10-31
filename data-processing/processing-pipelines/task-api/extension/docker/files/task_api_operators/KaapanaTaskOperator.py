@@ -19,8 +19,8 @@ from kubernetes.client.exceptions import ApiException
 
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
-HOST_WORKFLOW_DIR = Path(os.environ["DATADIR"])
-AIRFLOW_HOME = Path(os.environ["AIRFLOW_HOME"])
+HOST_WORKFLOW_DIR = Path(os.getenv("DATADIR", "/home/kaapana/workflows/data"))
+AIRFLOW_HOME = Path(os.getenv("AIRFLOW_HOME"),"/kaapana/mounted/workflows")
 AIRFLOW_WORKFLOW_DIR = Path(AIRFLOW_HOME, "data")
 DEFAULT_NAMESPACE = "project-admin"
 USER_INPUT_KEY = "task_form"
@@ -299,7 +299,7 @@ class KaapanaTaskOperator(BaseOperator):
         user_input = conf.get(USER_INPUT_KEY, {}).get(self.task_id, {})
         env = merge_env(
             task.env,
-            [task_models.TaskInstanceEnv(**env) for env in user_input.pop("env", [])],
+            [pc_models.BaseEnv(**env) for env in user_input.pop("env", [])],
         )
         return task_models.Task(
             **{**task.model_dump(mode="python", exclude=["env"]), **user_input}, env=env

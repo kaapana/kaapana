@@ -1,35 +1,4 @@
 ---
-kind: PersistentVolumeClaim
-apiVersion: v1
-metadata:
-  name: local-registry-pv-claim
-  namespace: "{{ tpl .Values.global.namespace . }}"
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: {{ .Values.global.local_registry_disk_space }}
-  storageClassName: host-dir
-  volumeName: local-registry-pv-volume
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: local-registry-pv-volume
-spec:
-  capacity:
-    storage: {{ .Values.global.local_registry_disk_space }}
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: host-dir
-  hostPath:
-    path: {{ .Values.global.slow_data_dir }}/applications/registry
-  persistentVolumeReclaimPolicy: Retain
-  claimRef:
-    namespace: "{{ .Values.global.services_namespace }}"
-    name: local-registry-pv-claim
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:

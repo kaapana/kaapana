@@ -25,6 +25,7 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /kaapana/mounted/extensions
+          subPath: extensions
       volumes:
       - name: data
         persistentVolumeClaim:

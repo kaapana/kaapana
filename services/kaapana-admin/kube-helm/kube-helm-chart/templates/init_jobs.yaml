@@ -50,6 +50,7 @@ spec:
         volumeMounts:
           - name: helmextensions
             mountPath: "/kaapana/mounted/extensions" 
+            subPath: extensions
       volumes:
       - name: helmextensions
         persistentVolumeClaim:
@@ -85,6 +86,7 @@ spec:
           volumeMounts:
             - name: helmextensions
               mountPath: "/kaapana/mounted/extensions"
+              subPath: extensions
       containers:
       - name: preinstall-extensions
         image: "{{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.kaapana_build_version }}"
@@ -137,6 +139,7 @@ spec:
         volumeMounts:
           - name: helmextensions
             mountPath: "/kaapana/mounted/extensions"
+            subPath: extensions
         resources:
           requests:
             memory: 100Mi
@@ -194,6 +197,7 @@ spec:
         volumeMounts:
           - name: helmextensions
             mountPath: "/kaapana/mounted/extensions"
+            subPath: extensions
         resources:
           requests:
             memory: 100Mi

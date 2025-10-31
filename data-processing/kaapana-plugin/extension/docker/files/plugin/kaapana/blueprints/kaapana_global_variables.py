@@ -14,7 +14,6 @@ DEFAULT_REGISTRY = os.getenv("DEFAULT_REGISTRY", None)
 KAAPANA_BUILD_VERSION = os.getenv("KAAPANA_BUILD_VERSION", None)
 PLATFORM_VERSION = os.getenv("PLATFORM_VERSION", None)
 GPU_SUPPORT = True if os.getenv("GPU_SUPPORT", "False").lower() == "true" else False
-ENABLE_NFS = os.getenv("ENABLE_NFS", None)
 OIDC_CLIENT_SECRET = os.getenv("OIDC_CLIENT_SECRET", None)
 SYSTEM_USER_PASSWORD = os.getenv("SYSTEM_USER_PASSWORD")
 

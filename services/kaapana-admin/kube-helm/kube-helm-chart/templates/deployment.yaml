@@ -97,8 +97,10 @@ spec:
 {{- end }}
           - name: helmextensions
             mountPath: "/kaapana/mounted/extensions"
-          - name: helmplatforms
+            subPath: extensions
+          - name: helmextensions
             mountPath: "/kaapana/mounted/platforms"
+            subPath: platforms
           - name: containerd-socket
             mountPath: "/kaapana/mounted/containerd.sock"
           - name: tmp
@@ -115,10 +117,6 @@ spec:
       - name: helmextensions
         persistentVolumeClaim:
           claimName: extensions-pv-claim
-      - name: helmplatforms
-        hostPath:
-          path: "{{ $.Values.global.fast_data_dir }}/platforms"
-          type: DirectoryOrCreate
 {{- if .Values.global.dev_files }}
       - name: kaapana-dev-files
         persistentVolumeClaim:

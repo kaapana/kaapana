@@ -1,4 +1,4 @@
-{{/* Used to set PersistentVolume and PersistentVolumeClaim dynamically by setting global.dynamicVolumes with a list of name, host_path, storage map */}}
+{{/* Used to set PersistentVolume and PersistentVolumeClaim dynamically by setting global.dynamicVolumes with a list of name, storage map */}}
 {{- define "dynamicPersistentVolumes" }}
 ---
 # Variables
@@ -10,16 +10,14 @@
 # Iterate over all volumes
 {{- range $volume := .Values.global.dynamicVolumes }}
   {{- $postfix := or (has "kaapanamultiinstallable" $keywords) (hasKey $volume "minio_mirror") | ternary (printf "-%s" $release_name) "" }}
-
-  {{- if $volume.host_path }}
-    {{- $storage_class := $global.storage_class_fast | default "default" -}}
-    {{- $storage := $volume.storage -}}
-    {{- if eq $volume.storage_class "workflow" -}}
-      {{- $storage_class = $global.storage_class_workflow -}}
-    {{- else if eq $volume.storage_class "slow" -}}
-      {{- $storage_class = $global.storage_class_slow -}}
-      {{- $storage = $volume.storage | default $global.volume_slow_data -}}
-    {{- end }}
+  {{- $storage_class := $global.storage_class_fast | default "default" -}}
+  {{- $storage := $volume.storage -}}
+  {{- if eq $volume.storage_class "workflow" -}}
+    {{- $storage_class = $global.storage_class_workflow -}}
+  {{- else if eq $volume.storage_class "slow" -}}
+    {{- $storage_class = $global.storage_class_slow -}}
+    {{- $storage = $volume.storage | default $global.volume_slow_data -}}
+  {{- end }}
 
 ---
 apiVersion: v1
@@ -36,6 +34,5 @@ spec:
   resources:
     requests:
       storage: {{ $storage | default "10Gi" }}
-  {{- end }}
 {{- end }}
 {{- end }}

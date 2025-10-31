@@ -5,6 +5,4 @@ global:
   fast_data_dir: /home/kaapana
   dynamicVolumes:
   - name: opensearch
-    host_path: /os
   - name: os-certs
-    host_path: /os/certs

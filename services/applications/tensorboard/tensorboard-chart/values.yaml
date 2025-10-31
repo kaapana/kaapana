@@ -7,15 +7,10 @@ global:
   slow_data_dir: ""
   namespace: "{{ .Values.global.services_namespace }}"
   dynamicVolumes:
-  - name: tb-dedicated
+  - name: tensorboard-dedicated
     mount_path: /kaapana/mounted/tb-logs/tensorboard
-    host_path: /tensorboard
-  - name: tb-workflow-data
-    mount_path: /kaapana/mounted/tb-logs/data
-    host_path: /workflows/data
   - name: tb-minio
     mount_path: /kaapana/mounted/tb-logs/minio
-    host_path: /applications/tensorboard
     minio_mirror : true
   display_name: "-"
 

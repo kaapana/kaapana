@@ -5,5 +5,4 @@ global:
   hostname: ""
   dynamicVolumes:
   - name: minio
-    host_path: /minio
     storage_class: slow

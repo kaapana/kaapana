@@ -12,8 +12,8 @@ To resolve this:
 
 1. **Check all operator arguments and environment variables.**
 2. **Ensure that all values passed to `KaapanaBaseOperator` via `env_vars` are strings.**  
-   - When using the Code Server, arguments **must not be set to `None`**.  
-     Use an empty string (`""`) instead if a value is not required.
+
+   - When using the Code Server, arguments **must not be set to `None`**. Use an empty string (``""``) instead if a value is not required.
    - When *not* using the Code Server, arguments can be omitted or set to `None`.
 3. **Set the `dev_server` parameter correctly.**
 

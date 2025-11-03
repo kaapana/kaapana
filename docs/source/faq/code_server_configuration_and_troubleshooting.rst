@@ -63,10 +63,10 @@ When developing with the **Code Server**, keep the following in mind:
 
 **Pitfalls Summary**
 
-- All ``env_vars`` values must be strings (no ``None``).
-- Paths under ``/app`` may need adjustment.
-- Use manual command execution inside the Code Server.
-- The ``dev_server`` feature requires the ``base-python-cpu`` image.
+- Ensure all ``env_vars`` values are strings, as described in the *Common Issues* section.
+- Update paths for files located under ``/app``.
+- Commands must be executed manually inside the Code Server.
+- The ``dev_server`` parameter only works with the ``base-python-cpu`` image.
 
 
 Using the Code Server Extension

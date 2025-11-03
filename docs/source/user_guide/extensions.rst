@@ -321,10 +321,6 @@ Applications
 
 Code server
 -----------
-.. _extensions_code_server:
-
-Code server
------------
 
 | **Purpose**
 | The Code Server is used for developing and debugging Airflow DAGs and operators.  

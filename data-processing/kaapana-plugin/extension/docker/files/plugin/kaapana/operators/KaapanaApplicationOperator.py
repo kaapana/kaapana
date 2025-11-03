@@ -34,7 +34,6 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
 
         dynamic_volumes_dict = {
             f"{self.namespace}-workflow-data": PROCESSING_WORKFLOW_DIR,
-            f"{self.namespace}-mounted-scripts": "/kaapana/mounted/workflows/mounted_scripts",
         }
 
         dynamic_volumes = {}

@@ -12,9 +12,6 @@ global:
   - name: workflow-data
     storage_class: workflow
     storage: 100Gi
-  - name: mounted-scripts
-    storage_class: workflow
-    storage: 10Mi
 
   ### For Local Operators managed by KubernetesExecutor
   - name: dags

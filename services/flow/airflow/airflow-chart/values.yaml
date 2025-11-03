@@ -10,7 +10,6 @@ global:
   - name: af-plugins
   - name: af-data
   - name: models
-  - name: mounted-scripts
   - name: uploads
     
 

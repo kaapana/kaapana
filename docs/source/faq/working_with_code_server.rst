@@ -1,88 +1,79 @@
-Working with the Code Server
-****************************
+Code Server: Configuration and Troubleshooting
+**********************************************
 
-Code Server Not Starting
-------------------------
+Common Issues
+--------------
 
-If the code server fails to start, the issue may be related to **missing or incorrect custom settings/parameters** for the operator.
+**Code Server Not Starting**
 
-To resolve the issue:
+If the Code Server fails to start, the issue is often related to **operator arguments** (for example, environment variables derived from them).
 
-1. **Check the custom settings or parameters** defined for the operator.
-2. **Ensure all necessary settings are properly configured**. Specifically:
-   - **When using the code server**, these settings **must not be set to `None`**. Instead, if a setting is not needed, assign it an empty string (`""`), as `None` can cause issues.
-   - **When not using the code server**, these settings can either be omitted or set to `None`.
+To resolve this:
 
-3. **Set the `dev_server` parameter correctly**:
+1. **Check all operator arguments and environment variables.**
+2. **Ensure that all values passed to `KaapanaBaseOperator` via `env_vars` are strings.**  
+   - When using the Code Server, arguments **must not be set to `None`**.  
+     Use an empty string (`""`) instead if a value is not required.
+   - When *not* using the Code Server, arguments can be omitted or set to `None`.
+3. **Set the `dev_server` parameter correctly.**
 
    .. note::
-
-       - When enabling the code server, ensure that the `dev_server` is set to `"code-server"`, with the correct syntax:
-       - You can use either double quotes `"` or single quotes `'` for this assignment (e.g., `dev_server="code-server"` or `dev_server='code-server'`).
+      To enable the Code Server, define:
+      ``dev_server="code-server"`` or ``dev_server='code-server'``.
 
 **Key Points:**
 
-- **For code server use**: Ensure no settings are set to `None`—use an empty string (`""`) if a setting is not required.
-- **Without the code server**: These settings can be omitted or set to `None`.
-- **Double-check that `dev_server="code-server"` is correctly defined when enabling the code server.**
+- All keys and values in ``env_vars`` must be strings.
+- Use ``""`` instead of ``None`` when running with the Code Server.
+- Set ``dev_server="code-server"`` in the operator configuration.
 
 
+Using the Code Server
+----------------------
 
-Using the Code Server: Key Considerations and Pitfalls
--------------------------------------------------------
+When developing with the **Code Server**, keep the following in mind:
+
+1. **Manual Execution**
+
+   Commands are **not executed automatically** inside the Code Server.  
+   Use the integrated terminal to run scripts or commands manually.
+
+2. **Typical Use Case**
+
+   A common use case for the Code Server is to **edit or test files** inside the container environment.  
+   Files from your working directory are mounted under the ``/app`` directory of the container.
+
+3. **File Paths**
+
+   If your code references local files using **relative paths**, update them to reflect that files reside under ``/app/``.  
+   Example:  
+   - Before: ``example.json``  
+   - After: ``app/example.json``  
+   Absolute paths remain unchanged.
+
+4. **Operator Configuration**
+
+   - Dockerfiles do **not** need modification to use the Code Server.
+   - The **DAG file** must define ``dev_server="code-server"`` for any operator you want to debug.  
+     Multiple operators in a DAG can each define this parameter.
+   - The Code Server runs inside a container based on the same image as the operator.  
+     The ``dev_server`` parameter only works with images based on **``base-python-cpu``**, where the Code Server dependencies are installed.
+   - The Code Server does not automatically execute ``CMD`` or other final commands from the Dockerfile.  
+     You must run commands manually after the container starts.
+
+**Pitfalls Summary**
+
+- All ``env_vars`` values must be strings (no ``None``).
+- Paths under ``/app`` may need adjustment.
+- Use manual command execution inside the Code Server.
+- The ``dev_server`` feature requires the ``base-python-cpu`` image.
 
 
-When using the **Code Server** for development, there are several things you should be aware of to avoid common issues.
+Using the Code Server Extension
+-------------------------------
 
-1. **Manual Start for Code**:
+For details on the Code Server extension (mount points, editing DAGs, inspecting workflows, etc.), see:
+:ref:`extensions_code_server`.
 
-   - All code must be started **manually** with the required parameters. Unlike regular environments, the **Code Server** will not automatically run scripts or tasks unless specified.
-   - Ensure that the required settings are passed during startup, such as the correct **Dev Server** and environment parameters.
-
-2. **Purpose of the Code Server**:
-
-   - The primary purpose of the **Code Server** is to **copy files from the working directory** into the `app` subfolder inside the container. These files can now be executed from there.
-
-3. **File Path Adjustments**:
-
-   - When files are copied into the **Code Server**, **relative paths** referencing those files will need to be updated to reflect the new directory structure. 
-   - For example:
-    
-     - If you were referencing a file in the same directory as your code (like `example.json`), you will now need to access it as `app/example.json`.
-     - **Absolute paths** (e.g., `/home/user/project/example.json`) will remain unchanged.
-
-4. **Dockerfiles and Executions**:
-
-   - Dockerfiles for building the container **do not need to be modified** for the purpose of using the **Code Server**.
-   - The **DAG file** will need to be updated to set the correct `dev_server="code-server"` parameter for the operator that should be debugged.
-   - **Important**: Only one `dev_server` should be declared in the entire file, as only the first occurrence of this parameter will be handled.
-   - You can **edit the DAG file directly while the extension is deployed** using the **Code Server for Airflow Extension**. It can be found under **Extensions**, and a link to it is provided in the platform interface.
-   - Keep in mind that **commands like `CMD`** or any final execution commands in the Dockerfile **won't be executed automatically** when running in the **Code Server**. Only the setup steps (like dependencies and environment configurations) will be used to build the container; the execution will need to be done manually after the container is built.
-
-5. **Manual Configuration**:
-
-   - All configuration parameters need to be **set manually**, especially when working with the **Code Server**. This is similar to the configuration process outlined earlier in the troubleshooting section, where:
-    
-     - Ensure that **required parameters** are configured properly, and that values like `dev_server="code-server"` are set correctly.
-     - Remember that when using the **Code Server**, **settings must not be `None`**. If they are not required, they should be set to an empty string (`""`) instead.
-
-Key Considerations:
--------------------
-- **Paths**: Update paths referencing files after they are copied into the `/app` directory. **Absolute paths** remain unchanged.
-- **Dockerfiles**: Ensure that setup and dependencies are correctly included, but remember that execution commands like `CMD` will not automatically trigger.
-- **Manual Configuration**: Double-check that **all necessary parameters** are set and the `dev_server` parameter is only used once.
-
-Using the Airflow Code Server Extension
----------------------------------------
-
-The **Airflow Code Server** is provided as an extension that is typically enabled and available from the start of your deployment.
-
-**Capabilities and Usage:**
-
-- Edit **DAG files directly** within the code server, enabling quick adjustments.
-- Access the **full workflow directory**, including all retained workflow data as well as downloaded models and scripts.
-- Efficiently **inspect DAGs and troubleshoot failed workflows** without needing to run a workflow or start an operator-specific code server.  
-  Note that **logs are not directly accessible** within the Airflow Code Server, but reviewing log data through the platform or Airflow UI can assist troubleshooting.
-- Primarily intended for inspection and minor debugging, though you can **add and execute small scripts** within the mounted data for testing purposes.
-- Not designed for running production workloads.
-- The Airflow Code Server extension is accessible and manageable through the platform interface under **Extensions**, in the table under the **Code Server for Airflow** extension link column.
+This FAQ entry focuses on configuration and common pitfalls when using the ``dev_server`` parameter
+and operator ``env_vars`` for debugging with the Code Server.

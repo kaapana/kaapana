@@ -321,14 +321,32 @@ Applications
 
 Code server
 -----------
-| **What's going on?**
-| The code server is used for developing new DAGs and operators for Airflow. It mounts the workflows directory of kaapana
+.. _extensions_code_server:
+
+Code server
+-----------
+
+| **Purpose**
+| The Code Server is used for developing and debugging Airflow DAGs and operators.  
+  It runs a VS Code–compatible server inside a container and mounts the workflows directory of Kaapana.
 
 | **Mount point:**  
-| <fast_data_dir>/workflows
+| ``<fast_data_dir>/workflows``
 
-| **VSCode settings:**
-| If you want to use your costum VSCode settings inside the code-server you can save them under :code:`/kaapana/app/.vscode/settings.json`.
+| **Capabilities:**
+| - Edit DAG files directly inside the Code Server.
+| - Access the full workflow directory, including retained workflow data and downloaded models/scripts.
+| - Inspect DAG definitions and troubleshoot failed workflows without starting an operator-specific Code Server.
+| - Add and execute small scripts on the mounted data for testing and debugging.
+| - Not intended for running production workloads.
+
+| **Logs:**
+| Logs are not directly accessible from within the Code Server.  
+  Use the Kaapana platform UI or the Airflow UI to view log output.
+
+| **VS Code settings:**
+| If you want to use your custom VS Code settings inside the Code Server,  
+  save them under ``/kaapana/app/.vscode/settings.json``.
 
 .. _extensions_collabora:
 

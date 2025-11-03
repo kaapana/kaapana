@@ -35,8 +35,6 @@ spec:
           mountPath: "/kaapana/mounted/workflows/dags"
         - name: airflow-plugins
           mountPath: "/kaapana/mounted/workflows/plugins"
-        - name: airflow-mounted-scripts
-          mountPath: /kaapana/mounted/workflows/mounted_scripts
       securityContext:
         runAsUser: 0
       volumes:
@@ -46,9 +44,6 @@ spec:
       - name: airflow-plugins
         persistentVolumeClaim:
           claimName: af-plugins-pv-claim
-      - name: airflow-mounted-scripts
-        persistentVolumeClaim:
-          claimName: mounted-scripts-pv-claim
       restartPolicy: Never
       imagePullSecrets:
       - name: registry-secret

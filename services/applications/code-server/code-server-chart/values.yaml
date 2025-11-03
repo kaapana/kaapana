@@ -8,8 +8,6 @@ global:
     mount_path: /kaapana/mounted/workflows/dags
   - name: af-plugins
     mount_path: /kaapana/mounted/workflows/plugins
-  - name: mounted-scripts
-    mount_path: /kaapana/mounted/workflows/mounted_scripts
   envVars:
   - name: WORKSPACE
     value: "/kaapana"

@@ -1,14 +1,15 @@
 FROM local-only/base-landing-page:latest AS base-landing-resource
+
+
 FROM node:lts-alpine3.19 AS build-stage
+
 WORKDIR /app
 
-COPY ./files/package*.json ./
+COPY ./files ./
 
 COPY --from=base-landing-resource /kaapana/app/public/favicon.ico ./public/favicon.ico
 COPY --from=base-landing-resource /kaapana/app/src/assets/img/kaapana.png ./public/assets/img/logo.png
-
-RUN npm ci --no-audit --prefer-offline
-COPY ./files .
+RUN yarn install
 
 LABEL IMAGE="workflow-ui"
 LABEL VERSION="0.0.0"
@@ -28,9 +29,8 @@ LABEL BUILD_IGNORE="False"
 ################################
 ######### PRODUCTION ###########
 ################################
-RUN npm run build
+RUN yarn build
 
-# FROM nginxinc/nginx-unprivileged:1.27.2-alpine
 FROM nginx:1.25.4-alpine
 
 RUN mkdir /app

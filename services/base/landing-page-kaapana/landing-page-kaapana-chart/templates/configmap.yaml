@@ -10,6 +10,19 @@ data:
     }
   defaultExternalWebpages.json: |-
     {
+      "workflows": {
+        "label": "Workflows",
+        "endpoint": "/workflow-ui",
+        "linkTo": "/workflow-ui/workflows",
+        "description": "Workflows are a series of processing steps that can be executed on the platform. They can be used to automate tasks such as image processing, data analysis, and more. Workflows can be created using the built-in workflow editor or by importing existing workflows from other platforms."
+      },
+      "runs": {
+        "label": "Runs",
+        "endpoint": "/workflow-ui",
+        "linkTo": "/workflow-ui/runs",
+        "description": "Workflows are a series of processing steps that can be executed on the platform. They can be used to automate tasks such as image processing, data analysis, and more. Workflows can be created using the built-in workflow editor or by importing existing workflows from other platforms."
+
+      },
       "store": {
         "label": "Store",
         "icon": "mdi-store",
@@ -104,9 +117,14 @@ data:
             "linkTo": "/projects-ui/"
           },
           "workflows": {
-            "label": "WorkflowV2",
+            "label": "Workflows",
             "endpoint": "/workflow-ui",
-            "linkTo": "/workflow-ui/"
+            "linkTo": "/workflow-ui/workflows"
+          },
+          "runs": {
+            "label": "Runs",
+            "endpoint": "/workflow-ui",
+            "linkTo": "/workflow-ui/runs"
           },
           "Documentation": {
             "label": "Documentation",

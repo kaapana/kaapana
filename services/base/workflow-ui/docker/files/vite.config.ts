@@ -7,6 +7,7 @@ import { commonjsDeps } from '@koumoul/vjsf/utils/build.js'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: "/workflow-ui",
   plugins: [
     vue(),
     vueDevTools(),
@@ -18,6 +19,15 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
+    extensions: [
+      '.js',
+      '.json',
+      '.jsx',
+      '.mjs',
+      '.ts',
+      '.tsx',
+      '.vue',
+    ],
   },
   server: {
     allowedHosts: true,

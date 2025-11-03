@@ -397,21 +397,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             ),
             (
                 client.V1Volume(
-                    name="mounted-scripts",
-                    persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                        claim_name=f"{self.namespace}-mounted-scripts-pv-claim",
-                        read_only=False,
-                    ),
-                ),
-                client.V1VolumeMount(
-                    name="mounted-scripts",
-                    mount_path="/kaapana/mounted/workflows/mounted_scripts",
-                    sub_path=None,
-                    read_only=False,
-                ),
-            ),
-            (
-                client.V1Volume(
                     name="tensorboard",
                     persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
                         claim_name=f"{self.namespace}-tensorboard-pv-claim",

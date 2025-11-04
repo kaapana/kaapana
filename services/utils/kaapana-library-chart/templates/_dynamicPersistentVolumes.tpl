@@ -9,15 +9,16 @@
 
 # Iterate over all volumes
 {{- range $volume := .Values.global.dynamicVolumes }}
-  {{- $postfix := or (has "kaapanamultiinstallable" $keywords) (hasKey $volume "minio_mirror") | ternary (printf "-%s" $release_name) "" }}
-  {{- $storage_class := $global.storage_class_fast | default "default" -}}
-  {{- $storage := $volume.storage -}}
-  {{- if eq $volume.storage_class "workflow" -}}
-    {{- $storage_class = $global.storage_class_workflow -}}
-  {{- else if eq $volume.storage_class "slow" -}}
-    {{- $storage_class = $global.storage_class_slow -}}
-    {{- $storage = $volume.storage | default $global.volume_slow_data -}}
-  {{- end }}
+  {{- if not $volume.use_existing_pvc }} 
+    {{- $postfix := (has "kaapanamultiinstallable" $keywords) | ternary (printf "-%s" $release_name) "" }}
+    {{- $storage_class := $global.storage_class_fast | default "default" -}}
+    {{- $storage := $volume.storage -}}
+    {{- if eq $volume.storage_class "workflow" -}}
+      {{- $storage_class = $global.storage_class_workflow -}}
+    {{- else if eq $volume.storage_class "slow" -}}
+      {{- $storage_class = $global.storage_class_slow -}}
+      {{- $storage = $volume.storage | default $global.volume_slow_data -}}
+    {{- end }}
 
 ---
 apiVersion: v1
@@ -34,5 +35,6 @@ spec:
   resources:
     requests:
       storage: {{ $storage | default "10Gi" }}
-{{- end }}
+  {{- end }}
+{{- end }}  
 {{- end }}

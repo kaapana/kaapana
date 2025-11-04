@@ -408,7 +408,8 @@ Output channel
 We assume, that any channel contains results for 1 to N items.
 Then we expect the output channel to have the following structure
 
-.. code:: bash
+.. code-block:: bash
+    :caption: Convention for output channel structure
     
     └── output-mount-path
         ├── item-1-identifier
@@ -424,7 +425,8 @@ Item identifiers in input and output channels
 
 Output items are expected to have the same identifier as the input item that was used to create it.
 
-.. code:: bash
+.. code-block:: bash
+    :caption: Convention for identifiers
     
     └── input-mount-path
     │   ├── item-1-identifier
@@ -437,12 +439,13 @@ Output items are expected to have the same identifier as the input item that was
         └── item-2-identifier
             └── result
 
-Item identifiers in multiple input channels
-=============================================
+Item identifiers when combining multiple inputs items into one output item
+============================================================================
 
 Output items, that are created by processing multiple input items from the same channel, are expected to have a new unique identifier.
 
-.. code:: bash
+.. code-block:: bash
+    :caption: Convention for combined output items
     
     └── input-mount-path
     │   ├── item-1-identifier

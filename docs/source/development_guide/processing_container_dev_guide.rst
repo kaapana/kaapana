@@ -5,10 +5,9 @@ Developing a Processing-Container
 ==================================
 
 A :term:`processing-container` refers to a container image designed to perform data processing tasks.  
-These containers are typically executed as part of Workflow tasks, e.g. during data pre-processing, model training, or post-processing steps.
+These containers are typically executed as tasks in a workflow, e.g. during data pre-processing, model training, or post-processing steps.
 
 To make the requirements that Kaapana imposes on processing-containers **explicit and standardized**, we developed the **Task API**.
-We developed a **Task API** that defines the requirements that Kaapana imposes on a processing-container in an **explicit and standardized** way.
 The Task API defines a clear contract between Kaapana and each processing-container.
 
 This contract boils down to a single, simple requirement:
@@ -402,6 +401,10 @@ Input and output channel data structure convention
 When data is passed from one task-run to another task-run,
 the data structure of the output channel has to match the expectations of the respective input channels.
 Therefore, we propose a conventional data structure for output channels.
+
+Output channel
+===============
+
 We assume, that any channel contains results for 1 to N items.
 Then we expect the output channel to have the following structure
 
@@ -416,7 +419,10 @@ Then we expect the output channel to have the following structure
         └── item-N-identifier
             └── result
 
-For processes that create results for each input item we expect, that item-identifiers of the output channel match the corresponding identifier from the input channel.
+Item identifiers in input and output channels
+==============================================
+
+Output items are expected to have the same identifier as the input item that was used to create it.
 
 .. code:: bash
     
@@ -431,9 +437,10 @@ For processes that create results for each input item we expect, that item-ident
         └── item-2-identifier
             └── result
 
-For processes that create a results on multiple items of an input-channel we expect an output channel with a single item.
-The result-identifier should be different from input item identifiers.
+Item identifiers in multiple input channels
+=============================================
 
+Output items, that are created by processing multiple input items from the same channel, are expected to have a new unique identifier.
 
 .. code:: bash
     
@@ -451,6 +458,14 @@ The result-identifier should be different from input item identifiers.
 
     We strongly advise to use the description to specify which data structure is expected and can be exptected per input and output channel.
 
+Best practice for developing a processing-container
+####################################################
+
+* Wrap your code to be executable as a command line tool
+* The command line should take channels or items as as input parameters
+* Write a wrapper script, e.g. a shell script, that executes the command line tool on all items in the input channel.
+* Define your wrapper script as the :code:`command` in the task template.
+* Example command line tool, wrapper script, Dockerfile and task template.
 
 Using a processing-container in an Airflow DAG
 ###############################################
@@ -521,14 +536,31 @@ Passing data between operators
 ===============================
 
 To connect outputs of one task to inputs of another, use the :code:`iochannel_maps` parameter of the :code:`KaapanaTaskOperator`.
+The parameter :code:`iochannel_maps` expects a list of :code:`IOMapping` objects, which requires the following arguments:
 
-For example, a workflow with three tasks:
+.. list-table::
+  :widths: 25 75
+  :header-rows: 1
 
-1. **Task 1:** Downloads data using container :code:`my-download` and task template :code:`download-from-url`. Output channel: :code:`downloads`.  
-2. **Task 2:** Processes data using container :code:`my-processing` and task template :code:`my-algorithm`. Reads from input channel :code:`inputs` and writes to output channel :code:`outputs`.  
-3. **Task 3:** Uploads results using container :code:`my-upload` and task template :code:`send-to-minio`. Reads from input channel :code:`inputs`.
+  * - **Name**
+    - **Description**
+  * - ``upstream_operator``
+    - The upstream Airflow task whose output is being used.
+      This defines the task that produces the data for the downstream input.
+  * - ``upstream_output_channel``
+    - The name of the output channel of the task template used in the upstream task.
+      Identifies which output of the upstream task should be connected.
+  * - ``input_channel``
+    - The name of the input channel of the task template used in this task.
+      Determines where the data will be received.
 
-Mapping outputs to inputs:
+As an example take a workflow that consists of the following three tasks:
+
+1. **Task GetInput:** Downloads data using container :code:`my-download` and task template :code:`download-from-url`. Output channel: :code:`downloads`.  
+2. **Task Process:** Processes data using container :code:`my-processing` and task template :code:`my-algorithm`. Reads from input channel :code:`data-to-process` and writes to output channel :code:`processed-data`.  
+3. **Task Upload:** Uploads results using container :code:`my-upload` and task template :code:`send-to-minio`. Reads from input channel :code:`data-for-upload`.
+
+The DAG file would look like this
 
 .. code:: python
 
@@ -545,39 +577,39 @@ Mapping outputs to inputs:
     }
 
     with DAG("my-dag", default_args=args) as dag:
-        download = KaapanaTaskOperator(
+        GetInput = KaapanaTaskOperator(
             task_id="get-data",
             image=f"{DEFAULT_REGISTRY}/my-get-data:{KAAPANA_BUILD_VERSION}",
             taskTemplate="download-from-url",
         )
 
-        processing = KaapanaTaskOperator(
+        Process = KaapanaTaskOperator(
             task_id="process-data",
             image=f"{DEFAULT_REGISTRY}/my-processing:{KAAPANA_BUILD_VERSION}",
             taskTemplate="my-algorithm",
             iochannel_maps=[
                 IOMapping(
-                    upstream_operator=task1,
+                    upstream_operator=GetInput,
                     upstream_output_channel="downloads",
-                    input_channel="inputs",
+                    input_channel="data-to-process",
                 )
             ],
         )
 
-        upload = KaapanaTaskOperator(
+        Upload = KaapanaTaskOperator(
             task_id="upload-data",
             image=f"{DEFAULT_REGISTRY}/my-upload:{KAAPANA_BUILD_VERSION}",
             taskTemplate="send-to-minio",
             iochannel_maps=[
                 IOMapping(
-                    upstream_operator=task2,
-                    upstream_output_channel="results",
-                    input_channel="inputs",
+                    upstream_operator=Process,
+                    upstream_output_channel="processed-data",
+                    input_channel="data-for-upload",
                 )
             ],
         )
 
-    download >> processing >> upload
+    GetInput >> Process >> Upload
 
 
 The repository contains an `example processing-pipeline <https://codebase.helmholtz.cloud/kaapana/kaapana/-/tree/d9af4682030c7f21286e348f0fb917c059557ea9/data-processing/processing-pipelines/task-api>`_ containing a processing-container and a DAG with two tasks.
@@ -586,65 +618,67 @@ The repository contains an `example processing-pipeline <https://codebase.helmho
 Passing user configuration to a task-run
 =========================================
 
-A common requirement for workflows is, that users are able to make configurations to the processing of the data.
-This configuration has to be passed to the process that is running inside the processing-containers.
+Many Dags require user input to be executed, e.g. input datasets or selection for organ segmentations.
+This user input has to be passed as environment variables to a dedicated TaskRun in the DagRun.
+The user input as environment variables can be configured in the :code:`conf` object in the body of the initial request to the Airflow Rest API that starts a DagRun.
+The :code:`KaapanaTaskOperator` receives this :code:`conf` object and overrides the environment variables accordingly.
 
-Workflows are triggered via requests to the Airflow Rest API.
-The payload of this request contains a :code:`conf` object, which is available to the :code:`KaapanaTaskOperator`.
-You can configure environment variables in :code:`conf` at :code:`conf.task_form.{TASK_ID}.{VAR_NAME}.{VAR_VALUE}`
-An example request to the Airflow Rest API to trigger a Workflow with custom configuration can look like this:
-
-Workflows often require user-configurable parameters. 
-These are passed via the Airflow REST API `conf` object.  
-The :code:`KaapanaTaskOperator` reads these values and sets the corresponding environment variables in the container.
-
-Environment variables can be provided in the payload under:
+The :code:`conf` object must look like this
 
 .. code-block:: json
 
-    {
-      "conf": {
-        "task_form": {
-          "{TASK_ID}": {
-            "{VAR_NAME}": "{VAR_VALUE}"
-          }
-        }
+  {
+    "task_form": {
+      "{TASK_ID_1}": {
+        "{VAR_NAME_1}": "{VAR_VALUE_1}"
+      },
+      "{TASK_ID_2}": {
+        "{VAR_NAME_2}": "{VAR_VALUE_2}"
       }
     }
+  }
 
 
-Example request to trigger a DAG with custom environment variables:
+An example request to trigger a DagRun with custom environment variables would look like this:
 
 .. code:: bash
 
     curl -X 'POST' \
-    'https://{KAAPANA_DOMAIN}/flow/api/v1/dags/{dag_id}/dagRuns' \
+    'https://my-kaapana-domain.de/flow/api/v1/dags/my-dag/dagRuns' \
     -H 'accept: application/json' \
     -H 'Content-Type: application/json' \
     -d '{
-    "dag_run_id": "<unique_dag_run_id>",
+    "dag_run_id": "run-dag-with-user-input-23jdk",
     "conf": {
         "task_form": {
-            "{TASK_ID}": {
-                "{VAR_NAME}": "{VAR_VALUE}" 
+            "get-data": {
+                "DATASET": "study-123" 
                 }
             }
         }
     }'
 
-This sets the environment variable :code:`{VAR_NAME}={VAR_VALUE}` for the task with :code:`task_id={TASK_ID}` in the DAG.
+
+This request will start a DagRun for :code:`my-dag`.
+In the TaskRun of the :code:`get-data` task the environment variable :code:`DATASET` will be set to :code:`study-123`.
+
 
 .. note::
 
-    **Order of precedence for environment variables**
+  The :code:`dag_run_id` must be unique for each DagRun.
 
-    When environment variables are defined in multiple places, the following order determines which value takes effect (highest priority first):
 
-    1. ``conf.task_form.env`` — values provided in the workflow trigger request  
-    2. ``KaapanaTaskOperator.env`` — values defined in the Airflow operator
-    3. ``processing-container.task-template.env`` — default values defined in the :code:`processing-container.json` file.
+Order of precedence for environment variables
+------------------------------------------------
 
-    In other words, values from the workflow request override those from the operator, which in turn override defaults from the container definition.
+
+When environment variables are defined in multiple places, the following order determines which value takes effect (highest priority first):
+
+1. Variables set in the :code:`conf` object in the DagRun trigger request.
+2. Variables set in the :code:`env` parameter set for the :code:`KaapanaTaskOperator`.
+3. Default variables set in the task template in the :code:`processing-container.json` file in the container image.
+
+In other words, values from the workflow request override those from the operator, which in turn override defaults from the container definition.
 
 
 
@@ -675,7 +709,7 @@ This section explains how to migrate a processing-container that was previously 
 
 
 The :code:`KaapanaBaseOperator` imposed several *implicit conventions* that affected how processing-containers interacted with the workflow environment.  
-In contrast, the :code:`KaapanaTaskOperator` makes all expectations explicit through the Task API and the :code:`processing-container.json` schema.
+In contrast, the :code:`KaapanaTaskOperator` makes all expectations explicit through the Task API and the :code:`processing-container.json` file.
 
 The following table summarizes the main differences:
 
@@ -758,7 +792,7 @@ For example, the previous DAG can be migrated as follows:
         my_algorithm = KaapanaTaskOperator(
             task_id="my_algorithm",
             image=f"{DEFAULT_REGISTRY}/my-algorithm:{KAAPANA_BUILD_VERSION}",
-            taskTemplate="my-algorithm",
+            taskTemplate="my_algorithm",
             iochannel_maps=[
                 IOMapping(
                     upstream_operator=get_input,
@@ -769,6 +803,14 @@ For example, the previous DAG can be migrated as follows:
         )
 
     get_input >> my_algorithm
+
+.. notes::
+
+  The :code:`upstream_output_channel` of the :code:`get_input` task is :code:`downloads`.
+  This is explicitly declared in the corresponding task template in the :code:`processing-container.json` file of the :code:`get-input` image.
+
+  The identifier :code:`"downloads"` of the output channel of the :code:`get_input` task you have to look at the task template in the :code:`processing-container.json` file of the :code:`get-input` image.
+
 
 Following the :ref:`data structure convention <data_structure_convention>`, the directory structure inside the container for :code:`my_algorithm` now looks like this:
 
@@ -784,12 +826,11 @@ Following the :ref:`data structure convention <data_structure_convention>`, the 
 This makes data flow between tasks more explicit and modular, removing hidden assumptions about directory layouts or shared environment variables.
 
 
-Features not supported by the KaapanaTaskOperator
-====================================================
+Features not yet supported by the KaapanaTaskOperator
+======================================================
 
 Some features, that are supported in the KaapanaBaseOperator are not supported in the KaapanaTaskOperator:
 
-* The `kaapanapy` package does not work out of the box, because expected environment variables are not automatically set.
 * The :code:`conf` object is not mounted into the container.
 * Starting a code-server as development server.
 * ui_forms: data_form, workflow_form

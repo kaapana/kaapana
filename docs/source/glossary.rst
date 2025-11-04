@@ -65,13 +65,12 @@ Glossary
       Local operators are not scalable, but they are fast to execute and do not require a :term:`container` to run.
     
     processing-container
-      A processing-container can refer to two this:
+      A processing-container can refer to two things:
       
       #. A :term:`container` image that is build for data processing.
       #. The runtime of a container image that processes data.
 
-      In Kaapana processing-containers are combined in processing-pipelines that consist of multiple data-processing steps.
-
+      In Kaapana processing-containers are executed as tasks of a :term:`workflow`.
     project
       A project is a logical grouping of data, workflows, and other resources within the :term:`kaapana-platform`.
       Projects can be used to separate different use cases or research projects. 

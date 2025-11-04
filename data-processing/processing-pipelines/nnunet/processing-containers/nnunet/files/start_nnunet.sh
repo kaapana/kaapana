@@ -143,7 +143,6 @@ elif [ "$MODE" = "training" ]; then
     export nnUNet_preprocessed="$nnUNet_raw/nnUNet_preprocessed"
     export nnUNet_results="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/results"
     
-    TENSORBOARD_DIR="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/tensorboard"
 
     echo "#"
     echo "# Starting training..."

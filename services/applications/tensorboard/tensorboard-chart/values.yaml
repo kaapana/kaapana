@@ -9,9 +9,8 @@ global:
   dynamicVolumes:
   - name: tensorboard-dedicated
     mount_path: /kaapana/mounted/tb-logs/tensorboard
-  - name: tb-minio
+  - name: tensorboard-minio
     mount_path: /kaapana/mounted/tb-logs/minio
-    minio_mirror : true
   display_name: "-"
 
 extension_params:

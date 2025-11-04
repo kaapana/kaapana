@@ -461,11 +461,138 @@ Output items, that are created by processing multiple input items from the same 
 Best practice for developing a processing-container
 ####################################################
 
-* Wrap your code to be executable as a command line tool
-* The command line should take channels or items as as input parameters
-* Write a wrapper script, e.g. a shell script, that executes the command line tool on all items in the input channel.
-* Define your wrapper script as the :code:`command` in the task template.
-* Example command line tool, wrapper script, Dockerfile and task template.
+When developing a processing-container, the goal is to make your component **modular, reusable, and easy to integrate into workflows**.  
+Follow these guidelines to align with Kaapana’s conventions:
+
+* **Provide a command-line interface (CLI)**
+  Structure your application so that it can be executed as a standalone command-line tool.  
+  This allows it to be easily called from scripts or workflow tasks.
+
+* **Design clear input and output parameters**
+  The command-line interface should accept one or more input channels or data items as parameters (e.g., file paths or directories).  
+  This ensures that your tool can be connected seamlessly to workflow I/O definitions.
+
+* **Create a wrapper script to handle batch processing**
+  Write a small wrapper script (e.g. a Bash script) that loops over all items in the input channel and calls your command-line tool for each item.  
+  The wrapper should also write each result into the corresponding output channel.
+
+* **Use the wrapper script as the container’s entrypoint command**
+  In your task template, specify the wrapper script as the container’s :code:`command`.  
+  This makes your container self-contained and automatically executable by the workflow engine.
+
+* **Include all essential components for reproducibility**
+  Provide the following files in your container definition:
+  
+  - The command-line tool (or its dependencies)
+  - The wrapper script
+  - A Dockerfile describing how to build the image
+  - A task template inside :code:`processing-container.json` defining inputs, outputs, and the command
+
+These steps together ensure that your processing-container is **consistent, testable, and easy to integrate** into Kaapana workflows.
+
+
+Example processing-container
+=============================
+
+The example processing-container should include a task template for converting dicom series to nrrd file by utilizing MITK.
+We use the :code:`base-mitk` image that build during building Kaapana.
+MITK comes with :code:`MitkFileConverter` tool that supports the conversion from dicom to nrrd.
+The entrypoint for the corresponding command line tool in the :code:`base-mitk` image is at :code:`/kaapana/app/apps/MitkFileConverter.sh`.
+
+.. code-block:: bash
+    :caption: Usage of the MitkFileConverter in the base-mitk image
+
+    /kaapana/app/apps/MitkFileConverter.sh -i <input dicom directory> -o <output path to the .nrrd file>
+
+The MitkFileConverter already supports the best practice: 
+* We can specify the path to an input directory with the :code:`.dcm` files.
+* We can specify the path to the output file.
+
+
+
+Example wrapper script in bash
+---------------------------------
+
+The following bash script iterates over all items in in :code:`/home/kaapana/dicom` and creates output items in :code:`/home/kaapana/nrrd`.
+It uses the same identifier from the input items for the respective output items.
+
+.. code-block:: bash
+    :caption: convert.sh
+
+    #! /bin/bash
+    set -eu -o pipefail
+
+    ROOT_INPUT_DICOM_DIR="/home/kaapana/dicom"
+    ROOT_OUTPUT_NRRD_DIR="/home/kaapana/nrrd"
+
+    for INPUT_DICOM_DIR in $( find ${ROOT_INPUT_DICOM_DIR} -mindepth 1 -maxdepth 1 -type d); do
+        IDENTIFIER=$( basename ${INPUT_DICOM_DIR} )
+        mkdir -p ${ROOT_OUTPUT_NRRD_DIR}/${IDENTIFIER}
+        /kaapana/app/apps/MitkFileConverter.sh -i ${INPUT_DICOM_DIR} -o ${ROOT_OUTPUT_NRRD_DIR}/${IDENTIFIER}/${IDENTIFIER}.nrrd
+    done
+
+
+Example task template
+-----------------------
+
+
+The :code:`processing-container.json` that contains the task-template for dicom to nrrd conversion could look like this:
+
+.. code-block:: bash
+  :caption: processing-container.json
+
+    {
+      "name": "mitk-tools",
+      "description": "Processing container for tasks using MITK apps",
+      "templates": 
+      [
+          {
+              "identifier": "dicom-to-nrrd",
+              "description": "Convert dicom series to nrrd files",
+              "env": [
+              ],
+              "inputs": [
+                  {
+                      "name": "dicom",
+                      "mounted_path": "/home/kaapana/dicom",
+                  }
+              ],
+              "outputs": [
+                  {
+                      "name": "nrrd",
+                      "mounted_path": "/home/kaapana/nrrd"
+                  }
+              ],
+              "command": ["/bin/bash", "/home/kaapana/convert.sh"]
+          }
+      ]
+    }
+
+* The :code:`mounted_path` of the :code:`dicom` input channel corresponds to the :code:`ROOT_INPUT_DICOM_DIR` in :code:`convert.sh`.
+* The :code:`mounted_path` of the :code:`nrrd` output channel corresponds to the :code:`ROOT_OUTPUT_NRRD_DIR` in :code:`convert.sh`.
+* The :code:`command` declares to execute the wrapper script at :code:`/home/kaapana/convert.sh`.
+
+Example Dockerfile
+-------------------
+
+The Dockerfile for the processing-container image could look like this
+
+.. code-block:: bash
+  :caption: Dockerfile
+
+  FROM local-only/base-mitk:latest
+  LABEL IMAGE="mitk-tools"
+  LABEL BUILD_IGNORE="False"
+
+  COPY processing-container.json /
+  WORKDIR /home/kaapana
+  COPY files/convert.sh /home/kaapana/
+
+
+* The base image :code:`local-only/base-mitk:latest` contains the MitkFileCoverter
+* The :code:`LABEL` fields are used by the build-script of Kaapana.
+* The file :code:`processing-container.json` is copied to the root directory of the container image.
+* The wrapper script at :code:`files/convert.sh` is copied to the locations, where it is expected by the task template.
 
 Using a processing-container in an Airflow DAG
 ###############################################
@@ -804,15 +931,13 @@ For example, the previous DAG can be migrated as follows:
 
     get_input >> my_algorithm
 
-.. notes::
+.. note::
 
   The :code:`upstream_output_channel` of the :code:`get_input` task is :code:`downloads`.
   This is explicitly declared in the corresponding task template in the :code:`processing-container.json` file of the :code:`get-input` image.
 
-  The identifier :code:`"downloads"` of the output channel of the :code:`get_input` task you have to look at the task template in the :code:`processing-container.json` file of the :code:`get-input` image.
 
-
-Following the :ref:`data structure convention <data_structure_convention>`, the directory structure inside the container for :code:`my_algorithm` now looks like this:
+Following the :ref:`data structure convention <data_structure_convention>`, the directory structure inside the container for :code:`my_algorithm` now looks similar to this:
 
 .. code-block:: bash
 

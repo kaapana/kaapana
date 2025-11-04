@@ -7,6 +7,7 @@ Development Guide
     :maxdepth: 3
 
     development_guide/general_dev_guide
+    development_guide/processing_container_dev_guide
     development_guide/workflow_dev_guide
     development_guide/application_dev_guide
     development_guide/operators

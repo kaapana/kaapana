@@ -61,6 +61,23 @@ def test_invalid_examples(bad_name):
     assert not is_valid_pod_name(bad_name)
 
 
+def test_merge_env():
+    pc_env = [
+        pc_models.TaskTemplateEnv(name="VAR1", value="0"),
+        pc_models.TaskTemplateEnv(name="VAR2", value="0"),
+    ]
+    task_env = [
+        pc_models.BaseEnv(name="VAR1", value="1"),
+        pc_models.BaseEnv(name="VAR3", value="1"),
+    ]
+    expected_name_value_pairs = {"VAR1": "1", "VAR2": "0", "VAR3": "1"}
+    merged_env = common.merge_env(pc_env, task_env)
+    for env in merged_env:
+        for name, value in expected_name_value_pairs.items():
+            if env.name == name:
+                assert (env.name, env.value) == (name, value)
+
+
 def test_resources():
     from task_api.processing_container.resources import (
         human_readable_size,
@@ -81,7 +98,7 @@ def test_resources():
     )
     io = task_models.IOVolume(
         name="test-scale-rule",
-        input=task_models.HostPathVolume(host_path=f"{TASK_DIR}/dummy/files"),
+        volume_source=task_models.HostPathVolume(host_path=f"{TASK_DIR}/dummy/files"),
         scale_rule=sr,
     )
     compute_memory_requirement(io=io)

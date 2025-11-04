@@ -156,7 +156,7 @@ class KaapanaTaskOperator(BaseOperator):
             outputs.append(
                 task_models.IOVolume(
                     name=channel.name,
-                    input=task_models.HostPathVolume(
+                    volume_source=task_models.HostPathVolume(
                         host_path=str(
                             Path(self.host_workflow_dir / self.task_id / channel.name)
                         ),
@@ -177,8 +177,8 @@ class KaapanaTaskOperator(BaseOperator):
                 inputs.append(
                     task_models.IOVolume(
                         name=io_map.downstream_channel,
-                        input=task_models.HostPathVolume(
-                            host_path=channel.input.host_path
+                        volume_source=task_models.HostPathVolume(
+                            host_path=channel.volume_source.host_path
                         ),
                     )
                 )

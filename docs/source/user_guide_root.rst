@@ -1,10 +1,12 @@
-.. _user_guide:
 
 .. raw:: html
 
     <style> .blue {color:blue} </style>
 
 .. role:: blue
+
+
+.. _user_guide:
 
 User Guide
 ############

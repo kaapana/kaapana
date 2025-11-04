@@ -50,10 +50,10 @@ def monitor_container_memory(task_run: task_models.TaskRun):
 
     for channel in task_run.inputs:
         sum_input_size = human_readable_size(
-            sum_of_file_sizes(target_path=Path(channel.input.host_path))
+            sum_of_file_sizes(target_path=Path(channel.volume_source.host_path))
         )
         max_input_size = human_readable_size(
-            max_file_size(target_path=Path(channel.input.host_path))
+            max_file_size(target_path=Path(channel.volume_source.host_path))
         )
 
         typer.echo(f"Sum of all files for {channel}: {sum_input_size}")

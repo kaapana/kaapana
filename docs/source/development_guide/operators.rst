@@ -409,14 +409,6 @@ Workflow management operators
 
 This section comprises commonly used operators for obtaining input data, downloading models, and performing a workflow directory cleanup during the final step of a dag. 
 
-GetZenodoModelOperator
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. automodule:: kaapana.operators.GetZenodoModelOperator
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 GetInputOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

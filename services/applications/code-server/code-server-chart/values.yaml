@@ -6,8 +6,10 @@ global:
   dynamicVolumes:
   - name: dags
     mount_path: /kaapana/mounted/workflows/dags
+    use_existing_pvc: true
   - name: af-plugins
     mount_path: /kaapana/mounted/workflows/plugins
+    use_existing_pvc: true
   envVars:
   - name: WORKSPACE
     value: "/kaapana"

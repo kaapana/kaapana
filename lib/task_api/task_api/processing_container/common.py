@@ -75,7 +75,7 @@ def merge_env(
     update_names = [env.name for env in update_envs]
     merged_env = []
     for orig_env in orig_envs:
-        if orig_env not in update_names:
+        if orig_env.name not in update_names:
             merged_env.append(pc_models.TaskTemplateEnv(**orig_env.model_dump()))
             continue
         for upd_env in update_envs:

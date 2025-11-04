@@ -6,13 +6,13 @@
     "outputs": [
         {   
             "name": "channel1",
-            "input": {
+            "volume_source": {
                 "host_path": "{{ env.output_dir }}/dummy/channel1"
             }
         },
         {   
             "name": "channel2",
-            "input": {
+            "volume_source": {
                 "host_path": "{{ env.output_dir }}/dummy/channel2"
             }
         }

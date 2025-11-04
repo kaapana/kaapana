@@ -28,7 +28,7 @@ class DcmSendOperator(KaapanaBaseOperator):
         execution_timeout: datetime = timedelta(minutes=60),
         **kwargs,
     ):
-        """
+        r"""
         :param ae_title: calling Application Entity (AE) title
         :param pacs_host: Host of PACS
         :param pacs_port: Port of PACS

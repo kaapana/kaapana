@@ -755,23 +755,25 @@ The :code:`KaapanaTaskOperator` receives this :code:`conf` object and overrides 
 
 The :code:`conf` object must look like this
 
-.. code-block:: json
+.. code-block:: bash
+    :caption: The conf object in the request body
 
-  {
-    "task_form": {
-      "{TASK_ID_1}": {
-        "{VAR_NAME_1}": "{VAR_VALUE_1}"
-      },
-      "{TASK_ID_2}": {
-        "{VAR_NAME_2}": "{VAR_VALUE_2}"
+    {
+      "task_form": {
+        "{TASK_ID_1}": {
+          "{VAR_NAME_1}": "{VAR_VALUE_1}"
+        },
+        "{TASK_ID_2}": {
+          "{VAR_NAME_2}": "{VAR_VALUE_2}"
+        }
       }
     }
-  }
 
 
 An example request to trigger a DagRun with custom environment variables would look like this:
 
-.. code:: bash
+.. code-block:: bash
+    :caption: Example curl command to trigger a DagRun with user input to a task.
 
     curl -X 'POST' \
     'https://my-kaapana-domain.de/flow/api/v1/dags/my-dag/dagRuns' \
@@ -911,6 +913,7 @@ When migrating to the :code:`KaapanaTaskOperator`, data mounts are **defined exp
 For example, the previous DAG can be migrated as follows:
 
 .. code-block:: python
+    :caption: my_dag.py
 
     with DAG("my_dag", default_args=args) as dag:
         get_input = KaapanaTaskOperator(

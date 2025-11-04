@@ -745,10 +745,10 @@ The DAG file would look like this
 The repository contains an `example processing-pipeline <https://codebase.helmholtz.cloud/kaapana/kaapana/-/tree/d9af4682030c7f21286e348f0fb917c059557ea9/data-processing/processing-pipelines/task-api>`_ containing a processing-container and a DAG with two tasks.
 
 
-Passing user configuration to a task-run
+Passing user input to a task-run
 =========================================
 
-Many Dags require user input to be executed, e.g. input datasets or selection for organ segmentations.
+Many Dags require input from a user, e.g. input datasets or selection for organ segmentations.
 This user input has to be passed as environment variables to a dedicated TaskRun in the DagRun.
 The user input as environment variables can be configured in the :code:`conf` object in the body of the initial request to the Airflow Rest API that starts a DagRun.
 The :code:`KaapanaTaskOperator` receives this :code:`conf` object and overrides the environment variables accordingly.

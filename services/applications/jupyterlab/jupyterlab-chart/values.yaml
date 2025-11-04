@@ -7,7 +7,6 @@ global:
   - name: jupyterlab
     mount_path: /kaapana/minio/
     storage: "1Gi"
-    minio_mirror : true
   envVars:
   - name: WORKSPACE
     value: "/kaapana"

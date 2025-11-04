@@ -11,7 +11,6 @@ global:
   dynamicVolumes:
   - name: edk
     storage: 10Gi
-    minio_mirror : true
   - name: local-registry
     storage: 30Gi
   envVars:

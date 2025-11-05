@@ -78,10 +78,12 @@ RUN code-server --install-extension ms-python.python && \
 #     && rm -rf /var/lib/apt/lists/*
 
 # Create workspace & entrypoint
-WORKDIR /workspace
+WORKDIR /kaapana
 EXPOSE 8080
 
 COPY files/entrypoint.sh /entrypoint.sh
+COPY files/README.md /kaapana/README.md
+
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]

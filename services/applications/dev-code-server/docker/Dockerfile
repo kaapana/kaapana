@@ -40,7 +40,8 @@ RUN mkdir -p /usr/share/keyrings && \
         > /etc/apt/sources.list.d/cran.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends r-base r-base-dev && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    /usr/bin/R --silent --no-echo --no-save --no-restore -e "install.packages('languageserver', repos='https://cloud.r-project.org/')"
 
 # Python environment setup
 RUN apt-get update && apt-get install -y --no-install-recommends python3-full && rm -rf /var/lib/apt/lists/*
@@ -48,11 +49,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3-full &&
 RUN python3 -m venv /opt/venv && \
     /opt/venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel && \
     /opt/venv/bin/pip install --no-cache-dir jupyterlab ipykernel jupyter matplotlib pandas numpy scipy && \
+    /opt/venv/bin/pip --no-cache-dir install torch torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu118 && \
     echo "source /opt/venv/bin/activate" >> /etc/bash.bashrc
-
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install VS Code Server manually (not using coder image)
+# Install Code Server manually
 RUN wget -q https://code-server.dev/install.sh -O /tmp/install.sh && \
     bash /tmp/install.sh --version 4.105.1 && \
     rm /tmp/install.sh
@@ -64,14 +65,17 @@ RUN code-server --install-extension ms-python.python && \
     code-server --install-extension ms-toolsai.jupyter-keymap && \
     code-server --install-extension ms-toolsai.jupyter-renderers
 
-# Default config
-RUN mkdir -p /root/.local/share/code-server/User && \
-    echo '{ \
-        "workbench.colorTheme": "Default Dark+", \
-        "python.defaultInterpreterPath": "/opt/venv/bin/python", \
-        "r.rterm.linux": "/usr/bin/R", \
-        "r.alwaysUseActiveTerminal": true \
-    }' > /root/.local/share/code-server/User/settings.json
+# Enable GPU - currently disabled but can be reenabled if a GPU from multiple GPUs can be assigned properly in an init job
+
+# ARG CUDA_VERSION
+# LABEL com.nvidia.volumes.needed="nvidia_driver"
+# ENV NVIDIA_VISIBLE_DEVICES all
+# ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
+# ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+
+# RUN apt-get update -y && apt-get install -y --no-install-recommends \
+#     libgl1 \
+#     && rm -rf /var/lib/apt/lists/*
 
 # Create workspace & entrypoint
 WORKDIR /workspace

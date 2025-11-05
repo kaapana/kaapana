@@ -20,7 +20,7 @@ from kubernetes.client.exceptions import ApiException
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 HOST_WORKFLOW_DIR = Path(os.getenv("DATADIR", "/home/kaapana/workflows/data"))
-AIRFLOW_HOME = Path(os.getenv("AIRFLOW_HOME"),"/kaapana/mounted/workflows")
+AIRFLOW_HOME = Path(os.getenv("AIRFLOW_HOME"), "/kaapana/mounted/workflows")
 AIRFLOW_WORKFLOW_DIR = Path(AIRFLOW_HOME, "data")
 DEFAULT_NAMESPACE = "project-admin"
 USER_INPUT_KEY = "task_form"
@@ -283,8 +283,7 @@ class KaapanaTaskOperator(BaseOperator):
                 imagePullSecrets=["registry-secret"],
                 env_vars=KAAPANA_ENVIRONMENT,
                 labels={
-                    "kaapana.type": "processing-container",
-                    "pod-type": "processing-container",
+                    "kaapana.ai/type": "processing-container",
                     **self.labels,
                 },
             ),

@@ -224,7 +224,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         )
         self.labels = labels or {}
         self.labels.update(
-            {"pod-type": "processing-container", "kaapana.type": "processing-container"}
+            {
+                "kaapana.ai/type": "processing-container",
+            }
         )
         self.startup_timeout_seconds = startup_timeout_seconds
         self.volume_mounts = volume_mounts or []

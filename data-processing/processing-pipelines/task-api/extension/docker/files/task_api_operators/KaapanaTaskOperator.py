@@ -24,6 +24,7 @@ AIRFLOW_HOME = Path(os.getenv("AIRFLOW_HOME"), "/kaapana/mounted/workflows")
 AIRFLOW_WORKFLOW_DIR = Path(AIRFLOW_HOME, "data")
 DEFAULT_NAMESPACE = "project-admin"
 USER_INPUT_KEY = "task_form"
+KAAPANA_SKIP_TASK_RUN_RETURN_CODE = 126
 
 
 class IOMapping(BaseModel):
@@ -267,7 +268,7 @@ class KaapanaTaskOperator(BaseOperator):
                 )
 
         task = task_models.Task(
-            name=KaapanaBaseOperator.unique_task_identifer(context),
+            name=KaapanaTaskOperator.unique_task_identifer(context),
             image=self.image,
             taskTemplate=self.taskTemplate,
             env=self.env,
@@ -379,7 +380,7 @@ class KaapanaTaskOperator(BaseOperator):
                 raise AirflowException(
                     f"Container {container_name} for task {self.task_run.name} was terminated due to OutOfMemory (OOMKilled)"
                 )
-            if exit_code == 126:
+            if exit_code == KAAPANA_SKIP_TASK_RUN_RETURN_CODE:
                 raise AirflowSkipException(
                     f"Task {self.task_run.name} was skipped, {reason=}, {message=}"
                 )
@@ -440,3 +441,12 @@ class KaapanaTaskOperator(BaseOperator):
         """
         task_id = context["task"].task_id
         return Path(AIRFLOW_WORKFLOW_DIR, context["run_id"], f"task_run-{task_id}.pkl")
+
+    @staticmethod
+    def unique_task_identifer(context: Context):
+        """
+        Set a unique identifier for this task instance.
+
+        :param context: Dictionary set by Airflow. It contains references to related objects to the task instance.
+        """
+        return f"{context["ti"].run_id}-{context["ti"].task_id}"

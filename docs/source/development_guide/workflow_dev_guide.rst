@@ -234,6 +234,9 @@ So far we have defined the Helm chart for kubernetes objects, a container image 
 .. important::
     | If you used EDK for this step, you can skip directly to Step 8
 
+.. note::
+    | The `base-python-gpu` image is only required for GPU-dependent extensions and can be omitted if your extension does not use GPU functionality.
+
 
 Step 5: Putting Containers in a Running Platform
 ************************************************
@@ -263,6 +266,9 @@ Step 6: Packaging the Helm Chart
 | So far we have built all the necessary images and made them available in the platform. The only thing left is to package the Helm chart and upload it to the platform so that the extension can be installed and tested. 
 | For the local dev case, you need to run :code:`cd <path-to-extension>/extension/otsus-method-workflow && helm dep up && helm package .` . This will create a :code:`otsus-method-workflow-<version>.tgz` file in the same directory.
 
+.. note::
+    Verify that all file paths are correct and that the versions used are consistent.
+
 
 Step 7: Putting the Chart in a Running Platform
 *************************************************
@@ -283,6 +289,10 @@ Now that we have the whole extension inside the platform, it can be installed fr
     | **2.** the registry URL or version is incorrect in the images that are built. You can check whihch image is being pulled by going to the Kubernetes view in the platform UI and looking for the pod that has :code:`<dag-name>` (e.g. for our example extension : :code:`dag-otsus-method`). Look for the error message in this view and ensure if the referenced image is correct
     | **3.** if you pushed the containers to the platform via the upload UI, follow the steps in this FAQ: :ref:`extension_container_upload_fail`
 
+.. hint::
+   | Workflows built this way are marked as **experimental**.
+   | By default, **experimental** extensions are hidden. To view them, select **Experimental** in the **Maturity** filter under the Extensions tab.
+
 Step 9: Debugging the Workflow
 *************************************************
 After running the workflow, if any jobs is shown as failed inside the Workflow List view, Kaapana provides a way to debug the workflow via opening a code-server environment inside container of the failed operator.
@@ -290,7 +300,7 @@ After running the workflow, if any jobs is shown as failed inside the Workflow L
 1. find out which operator has failed, which can be done by checking the logs of the failed job. This should lead you to the logs of the operator that has failed.
 2. go to the extensions view, and click on the link next to the :code:`code-server-chart` (renamed as :code:`Code Server for Airflow` in versions >= 0.5.0)
 3. open the DAG file :code:`/kaapana/mounted/workflows/dags/<your-dag-definition-file>.py` and go to where the operator is defined
-4. add a parameter :code:`dev-server=code-server` (you can also add a :code:`display_name` for versions >= 0.5.0)  
+4. add a parameter :code:`dev_server="code-server"` (you can also add a :code:`display_name` for versions >= 0.5.0)  
 5. head to the :code:`Active Applications` view and open the link to the code-server application of this operator
 6. you should be able to see the code of the container that the operator pulls, i.e. the code in :code:`processing-container` and you can run and debug it directly on the data
 

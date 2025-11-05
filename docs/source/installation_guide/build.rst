@@ -48,13 +48,110 @@ You should also have the following packages installed on your build-system.
 
    | :code:`git clone -b master https://github.com/kaapana/kaapana.git`
 
-#. Python requirements
-
-   .. note::
-
-      Depending on your local setup, make sure you create a virtual environment (e.g. :code:`python3 -m venv kaapana/.venv`) and activate it (e.g. :code:`source kaapana/.venv/bin/activate`), to install the requirements:
+#. Python requirements 
 
    :code:`python3 -m pip install -r kaapana/build-scripts/requirements.txt`
+
+   .. tip::
+
+      | **Use a virtual environment for installing Python dependencies.**
+      | This is a recommended best practice.
+      |
+      | On Ubuntu 24.04 and similar distributions, due to changes in Python packaging (see `PEP 668 <https://peps.python.org/pep-0668/>`_), installing packages with :code:`pip` outside of a virtual environment may result in errors or warnings.
+      |
+      | To avoid issues, create and activate a virtual environment **before** running the requirements installation:
+      
+      .. tabs::
+
+         .. tab:: venv
+
+            **Recommended for beginners!**
+
+            **Creation step** (only needed once):
+
+            .. code-block:: bash
+            
+               # Install the 'venv' package if not already installed
+               sudo apt install -y python3-venv
+               
+               # Create the virtual environment (only needed once)
+               python3 -m venv kaapana/.venv
+
+            **Activation step** (needed each time you use the Python code):
+
+            .. code-block:: bash
+
+               # Activate the virtual environment
+               source kaapana/.venv/bin/activate
+
+            Then install the Python requirements.
+
+         .. tab:: pipenv
+
+
+            **Installation step** (only needed once):
+
+            .. code-block:: bash
+
+               # Install pipenv
+               pip install pipenv
+
+               # Create and activate the environment (only needed once)
+               pipenv install
+
+            **Activation step** (needed each time you use the Python code):
+
+            .. code-block:: bash
+
+               # Activate the environment
+               pipenv shell
+
+            Then install the Python requirements.
+
+         .. tab:: poetry
+
+            **Installation step** (only needed once):
+
+            .. code-block:: bash
+
+               # Install Poetry
+               pip install poetry
+
+               # Create and activate the environment (only needed once)
+               poetry install
+
+            **Activation step** (needed each time you use the Python code):
+
+            .. code-block:: bash
+
+               # Activate the environment
+               poetry shell
+
+            Then install the Python requirements.
+         
+         .. tab:: conda
+
+            | **Licensing Notice**: Anaconda has licensing restrictions for commercial use. For details, refer to the `Anaconda Terms of Service <https://www.anaconda.com/terms-of-service>`_. 
+            |
+            | Conda can be installed in various ways, and it’s important to research the best option for your needs to ensure compliance with the relevant licensing terms.
+            |
+            | If you have Conda installed, you can create and activate a Conda environment and then proceed to install the Python requirements.
+
+            **Creation step** (only needed once):
+
+            .. code-block:: bash
+
+               # Create a Conda environment (only needed once)
+               conda create -n kaapana python=3.x
+
+            **Activation step** (needed each time you use the Python code):
+
+            .. code-block:: bash
+
+               # Activate the Conda environment
+               conda activate kaapana
+
+            Then install the Python requirements
 
 #. Snap 
 
@@ -149,6 +246,9 @@ Start Build
             configuration_check_severity_level: "CRITICAL,HIGH" # Filter by severity of findings. CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN. All -> ""
             create_sboms: false # Create Software Bill of Materials (SBOMs) for the built containers.
 
+         .. note::
+            1. If the username and password are not working, you may need to use an **access token** instead.
+            2. Ensure that the **username/access token does not contain spaces**.
 
       .. tab:: Build With Local Registry
 
@@ -210,6 +310,11 @@ Start Build
    | :code:`./kaapana/build-scripts/start_build.py -u <registry user> -p <registry password>`
 
    This takes usually (depending on your hardware) around 1h.
+   
+   .. hint::
+      **While developing**
+      It is possible to set the username/access token and password in the config file instead of passing them as parameters.
+      This approach should be used only for development cases, not in production environments.
 
 #. You can find the build-logs and results at :code:`./kaapana/build`
 

@@ -1,16 +1,11 @@
 <template>
   <v-card class="pa-4" elevation="2" style="position: sticky; top: 16px;">
+    <v-card-title class="text-h6 font-weight-medium">Filters</v-card-title>
+    <v-divider />
     <v-card-text>
       <!-- SEARCH -->
-      <v-text-field 
-        v-model="searchQuery" 
-        label="Search workflows" 
-        prepend-inner-icon="mdi-magnify" 
-        density="compact"
-        variant="outlined"
-        clearable 
-        class="mb-4" 
-      />
+      <v-text-field v-model="searchQuery" label="Search workflows" prepend-inner-icon="mdi-magnify" density="compact"
+        variant="outlined" clearable class="mb-4" />
 
       <!-- Categories -->
       <div class="mb-4">
@@ -18,20 +13,9 @@
           <v-icon class="me-2" size="20">mdi-label-multiple</v-icon>
           Categories
         </div>
-        <v-chip-group 
-          v-model="selectedCategories" 
-          multiple 
-          column 
-          class="d-flex flex-wrap"
-        >
-          <v-chip 
-            v-for="category in availableCategories" 
-            :key="category" 
-            :value="category" 
-            variant="outlined"
-            filter
-            class="ma-1"
-          >
+        <v-chip-group v-model="selectedCategories" multiple column class="d-flex flex-wrap">
+          <v-chip v-for="category in availableCategories" :key="category" :value="category" variant="outlined" filter
+            class="ma-1">
             {{ category }}
           </v-chip>
         </v-chip-group>
@@ -43,20 +27,9 @@
           <v-icon class="me-2" size="20">mdi-domain</v-icon>
           Providers
         </div>
-        <v-chip-group 
-          v-model="selectedProviders" 
-          multiple 
-          column 
-          class="d-flex flex-wrap"
-        >
-          <v-chip 
-            v-for="provider in availableProviders" 
-            :key="provider" 
-            :value="provider" 
-            variant="outlined"
-            filter
-            class="ma-1"
-          >
+        <v-chip-group v-model="selectedProviders" multiple column class="d-flex flex-wrap">
+          <v-chip v-for="provider in availableProviders" :key="provider" :value="provider" variant="outlined" filter
+            class="ma-1">
             {{ provider }}
           </v-chip>
         </v-chip-group>
@@ -68,20 +41,8 @@
           <v-icon class="me-2" size="20">mdi-star-circle</v-icon>
           Maturity
         </div>
-        <v-chip-group 
-          v-model="selectedMaturities" 
-          multiple 
-          column 
-          class="d-flex flex-wrap"
-        >
-          <v-chip 
-            v-for="m in availableMaturities" 
-            :key="m" 
-            :value="m" 
-            variant="outlined"
-            filter
-            class="ma-1"
-          >
+        <v-chip-group v-model="selectedMaturities" multiple column class="d-flex flex-wrap">
+          <v-chip v-for="m in availableMaturities" :key="m" :value="m" variant="outlined" filter class="ma-1">
             {{ m }}
           </v-chip>
         </v-chip-group>
@@ -95,8 +56,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import type { Workflow } from '@/types/workflow'
-import type { Label } from '@/types/label'
+import type { Workflow, Label } from '@/types/schemas'
 
 // --- PROPS ---
 const props = defineProps<{
@@ -180,9 +140,3 @@ function resetFilters() {
   selectedMaturities.value = []
 }
 </script>
-
-<style scoped>
-.v-card {
-  width: 100%;
-}
-</style>

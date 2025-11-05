@@ -45,7 +45,7 @@ services:
       context: ../workflow-ui/docker
     image: workflow-ui:latest
     ports:
-      - 80:80
+      - 5173:80
     environment:
       - VITE_WORKFLOW_API_URL=http://localhost:8080/v1
     volumes:

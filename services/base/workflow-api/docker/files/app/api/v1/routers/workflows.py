@@ -1,10 +1,11 @@
 import logging
-from fastapi import APIRouter, Depends, Response
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
-from app.dependencies import get_async_db
+
 from app import schemas
 from app.api.v1.services import workflow_service as service
+from app.dependencies import get_async_db
+from fastapi import APIRouter, Depends, Response
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -56,7 +57,7 @@ async def get_workflow_by_title(
     order: Optional[str] = "desc",
     db: AsyncSession = Depends(get_async_db),
 ):
-    return await service.get_workflow_by_title(db, title, latest, order_by, order)
+    return await service.get_workflow_by_title(db, title, latest)
 
 
 @router.get("/workflows/{title}/{version}", response_model=schemas.Workflow)

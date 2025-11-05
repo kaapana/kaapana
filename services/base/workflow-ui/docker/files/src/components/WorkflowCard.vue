@@ -1,7 +1,7 @@
 <template>
-  <v-card class="d-flex flex-column">
-    <v-card-title class="d-flex align-center text-left workflow-title">
-      <v-icon size="small" class="mr-2 text-primary flex-shrink-0">mdi-tools</v-icon>
+  <v-card class="d-flex flex-column h-100">
+  <v-card-title class="d-flex align-center text-left workflow-title">
+      <v-icon size="small" class="mr-2 text-primary flex-shrink-0">mdi-sitemap-outline</v-icon>
       <span class="text-truncate-multiline">{{ workflow.title }}</span>
     </v-card-title>
 
@@ -13,7 +13,7 @@
     </v-card-subtitle>
 
     <!-- Description area with fixed height -->
-    <v-card-text class="flex-grow-1 d-flex flex-column">
+  <v-card-text class="flex-grow-1 d-flex flex-column">
       <v-sheet :border="true" rounded class="pa-3 description-container">
         <div v-if="description" class="text-body-2">
           {{ description }}
@@ -46,11 +46,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { Workflow } from '@/types/workflow'
-import type { Label } from '@/types/label'
-import type { WorkflowRunCreate } from '@/types/workflowRun'
+import type { Workflow, Label, WorkflowRunCreate } from '@/types/schemas'
 import { workflowRunsApi } from '@/api/workflowRuns'
-import WorkflowRunForm from './WorkflowRunForm.vue'
+import WorkflowRunForm from './WorkflowForm.vue'
 
 const props = defineProps<{
   workflow: Workflow
@@ -134,25 +132,18 @@ const handleSubmit = async (workflowRunCreate: WorkflowRunCreate) => {
 
 <style scoped>
 .workflow-title {
-  min-height: 56px;
+  /* slightly smaller title area to avoid forcing tall cards */
+  min-height: 48px;
   align-items: flex-start !important;
-  padding-top: 12px;
+  padding-top: 8px;
 }
 
-.text-truncate-multiline {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.4;
-  max-height: 2.8em;
-}
 
 .description-container {
-  min-height: 120px;
-  max-height: 200px;
-  overflow-y: auto;
+  /* let the description area flex to fill remaining space inside the card
+     instead of enforcing fixed min/max heights which can make the card larger
+     than its container */
+  flex: 1 1 auto;
+  overflow: auto;
 }
 </style>

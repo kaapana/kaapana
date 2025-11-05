@@ -1,6 +1,3 @@
-$kaapana-blue: rgba(0, 71, 156, 0.95);
-$kaapana-green: #ff7a20;
-
 #app {
   font-family: "Avenir", Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -11,10 +8,135 @@ $kaapana-green: #ff7a20;
   color: #333;
 }
 
-.ta-center { text-align: center; }
+.ta-center {
+  text-align: center;
+}
 
-.kaapana-blue { color: $kaapana-blue; }
+.kaapana-page-link {
+  color: black;
+  text-decoration: none;
+}
 
-.kaapana-page-link { color: black; text-decoration: none; }
 
-.pa-0 { padding: 0; }
+/* ========= Kaapana shared UI utilities (global) ========= */
+
+/* Spacing / flex helpers */
+.flex-row {
+  display: flex;
+  flex-direction: row;
+}
+
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Gap helpers (small set; add more if useful) */
+.gap-1 {
+  gap: 4px;
+}
+
+.gap-2 {
+  gap: 8px;
+}
+
+.gap-3 {
+  gap: 12px;
+}
+
+/* Card / surface helpers */
+.card-surface {
+  background-color: rgba(var(--v-theme-surface), 1);
+  border-radius: 8px;
+  /* subtle outline so cards read clearly on any theme */
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.04);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle outlined card (like v-card variant='outlined' but theme tuned) */
+.card-outlined-subtle {
+  background-color: rgba(var(--v-theme-surface), 1);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.06);
+  border-radius: 6px;
+}
+
+/* Panel wrapper to visually separate page sections */
+.panel-wrap {
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  border-radius: 8px;  
+  background-color: rgba(var(--v-theme-surface), 0.98);
+}
+
+/* Token / filter helpers (used by SearchBar or similar) */
+.token {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  line-height: 1;
+  background-color: rgba(var(--v-theme-on-surface), 0.12);
+  color: rgba(var(--v-theme-on-surface), 0.87);
+}
+
+/* Utility text / truncation */
+.text-muted {
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
+.text-truncate-multiline {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Tiny button style used inside tokens (close icon) */
+.token-close {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-left: 6px;
+  cursor: pointer;
+}
+
+/* Table / data area subtle framing */
+.table-frame {
+  border-radius: 6px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.04);
+  overflow: hidden;
+}
+
+/* Small helpers for consistent spacing inside cards/rows */
+.pad-sm {
+  padding: 6px;
+}
+
+.pad-md {
+  padding: 12px;
+}
+
+.pad-lg {
+  padding: 16px;
+}
+
+/* Small elevation (optional alternative to border) */
+.elev-sm {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* End shared utilities */

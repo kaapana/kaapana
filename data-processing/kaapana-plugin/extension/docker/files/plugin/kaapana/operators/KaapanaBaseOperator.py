@@ -40,6 +40,8 @@ from task_api.processing_container import task_models, pc_models
 from task_api.runners.KubernetesRunner import KubernetesRunner, PodPhase
 from kubernetes import client
 
+
+KAAPANA_SKIP_TASK_RUN_RETURN_CODE = 126
 # Backward compatibility
 default_registry = DEFAULT_REGISTRY
 kaapana_build_version = KAAPANA_BUILD_VERSION
@@ -666,7 +668,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 raise AirflowException(
                     f"Container {container_name} for task {self.task_run.name} was terminated due to OutOfMemory (OOMKilled)"
                 )
-            if exit_code == 126:
+            if exit_code == KAAPANA_SKIP_TASK_RUN_RETURN_CODE:
                 raise AirflowSkipException(
                     f"Task {self.task_run.name} was skipped, {reason=}, {message=}"
                 )

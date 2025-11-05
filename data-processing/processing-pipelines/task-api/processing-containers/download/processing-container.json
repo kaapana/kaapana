@@ -103,7 +103,9 @@
             "command": [
                 "python3",
                 "-u",
-                "download_dicoms.py"
+                "download_dicoms.py",
+                "-o",
+                "/home/kaapana/downloads"
             ],
             "resources": {
                 "limits": {

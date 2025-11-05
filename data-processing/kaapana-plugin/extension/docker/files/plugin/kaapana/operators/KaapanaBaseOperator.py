@@ -37,7 +37,7 @@ import signal
 import pickle
 from pathlib import Path
 from task_api.processing_container import task_models, pc_models
-from task_api.runners.KubernetesRunner import KubernetesRunner
+from task_api.runners.KubernetesRunner import KubernetesRunner, PodPhase
 from kubernetes import client
 
 # Backward compatibility
@@ -607,6 +607,80 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             r.raise_for_status()
         return
 
+    def _monitor_task_run(self):
+        try:
+            KubernetesRunner.logs(
+                self.task_run,
+                follow=True,
+                startup_timeout=self.startup_timeout_seconds,
+                log_timeout=self.execution_timeout.total_seconds(),
+            )
+        except TimeoutError:
+            final_status = KubernetesRunner.wait_for_task_status(
+                self.task_run,
+                states=[PodPhase.PENDING, PodPhase.RUNNING],
+                timeout=5,
+            )
+            if final_status == PodPhase.RUNNING:
+                raise AirflowException(
+                    f"Processing container didn't finish in execution timeout: {self.execution_timeout.total_seconds()} seconds. The corresponding will be deleted!"
+                )
+            elif final_status == PodPhase.PENDING:
+                raise AirflowException(
+                    f"Processing container didn't start within {self.startup_timeout_seconds} seconds. The corresponding will be deleted!"
+                )
+            else:
+                raise AirflowException(
+                    f"Processing container in unexpected state: {final_status}"
+                )
+
+        final_status = KubernetesRunner.wait_for_task_status(
+            self.task_run,
+            states=[PodPhase.SUCCEEDED, PodPhase.FAILED],
+            timeout=30,
+        )
+        if final_status == PodPhase.FAILED:
+            pod = KubernetesRunner.api.read_namespaced_pod(
+                name=self.task_run.id, namespace=self.task_run.config.namespace
+            )
+
+            container_name = "main"
+            if pod.status.container_statuses:
+                for cs in pod.status.container_statuses:
+                    if cs.name == container_name:
+                        state = cs.state
+                        if state.terminated:
+                            exit_code = state.terminated.exit_code
+                            message = state.terminated.message
+                            reason = state.terminated.reason
+                        else:
+                            raise AirflowException(
+                                f"Kubernetes status {final_status} but container {container_name} not terminated"
+                            )
+                        break
+            else:
+                raise AirflowException(
+                    f"Could not read final container status for pod {pod.name} and container {container_name}"
+                )
+            if reason == "OOMKilled":
+                raise AirflowException(
+                    f"Container {container_name} for task {self.task_run.name} was terminated due to OutOfMemory (OOMKilled)"
+                )
+            if exit_code == 126:
+                raise AirflowSkipException(
+                    f"Task {self.task_run.name} was skipped, {reason=}, {message=}"
+                )
+            elif exit_code != 0:
+                raise AirflowException(
+                    f"Processing container failed for task {self.task_run.name}!"
+                )
+        elif final_status == "Succeeded":
+            self.log.info(f"Processing Container finished successfully!")
+        else:
+            raise AirflowException(
+                f"Processing container in unexpected state: {final_status}"
+            )
+
     @staticmethod
     def unique_task_identifer(context: Context):
         """
@@ -728,78 +802,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         KubernetesRunner.dump(
             self.task_run, output=KaapanaBaseOperator.task_run_file_path(context)
         )
-        try:
-            KubernetesRunner.logs(
-                self.task_run,
-                follow=True,
-                startup_timeout=self.startup_timeout_seconds,
-                log_timeout=self.execution_timeout.total_seconds(),
-            )
-        except TimeoutError:
-            final_status = KubernetesRunner.wait_for_task_status(
-                self.task_run,
-                states=["Pending", "Running", "Terminating"],
-                timeout=5,
-            )
-            if final_status == "Running":
-                raise AirflowException(
-                    f"Processing container didn't finish in execution timeout: {self.execution_timeout.total_seconds()} seconds. The corresponding will be deleted!"
-                )
-            elif final_status == "Pending":
-                raise AirflowException(
-                    f"Processing container didn't start within {self.startup_timeout_seconds} seconds. The corresponding will be deleted!"
-                )
-            else:
-                raise AirflowException(
-                    f"Processing container in unexpected state: {final_status}"
-                )
-
-        final_status = KubernetesRunner.wait_for_task_status(
-            self.task_run,
-            states=["Succeeded", "Failed"],
-            timeout=30,
-        )
-        if final_status == "Failed":
-            pod = KubernetesRunner.api.read_namespaced_pod(
-                name=self.task_run.id, namespace=self.task_run.config.namespace
-            )
-
-            container_name = "main"
-            if pod.status.container_statuses:
-                for cs in pod.status.container_statuses:
-                    if cs.name == container_name:
-                        state = cs.state
-                        if state.terminated:
-                            exit_code = state.terminated.exit_code
-                            message = state.terminated.message
-                            reason = state.terminated.reason
-                        else:
-                            raise AirflowException(
-                                f"Kubernetes status {final_status} but container {container_name} not terminated"
-                            )
-                        break
-            else:
-                raise AirflowException(
-                    f"Could not read final container status for pod {pod.name} and container {container_name}"
-                )
-            if reason == "OOMKilled":
-                raise AirflowException(
-                    f"Container {container_name} for task {self.task_run.name} was terminated due to OutOfMemory (OOMKilled)"
-                )
-            if exit_code == 126:
-                raise AirflowSkipException(
-                    f"Task {self.task_run.name} was skipped, {reason=}, {message=}"
-                )
-            elif exit_code != 0:
-                raise AirflowException(
-                    f"Processing container failed for task {self.task_run.name}!"
-                )
-        elif final_status == "Succeeded":
-            self.log.info(f"Processing Container finished successfully!")
-        else:
-            raise AirflowException(
-                f"Processing container in unexpected state: {final_status}"
-            )
+        self._monitor_task_run()
 
     def handle_sigterm(self, signum, frame):
         self.on_kill()

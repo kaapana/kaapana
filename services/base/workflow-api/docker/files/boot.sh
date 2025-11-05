@@ -4,9 +4,10 @@ set -e  # Exit immediately if a command exits with a non-zero status
 export PYTHONPATH="$PWD" 
 
 # Apply all migrations
-# python3 alembic/migrate.py
+python3 alembic/migrate.py
 
-echo $APPLICATION_ROOT
+
+
 
 if [ -z "${DEV_FILES}" ]; then
     # Production

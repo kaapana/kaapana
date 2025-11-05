@@ -1,3 +1,4 @@
+version: "3.9"
 services:
   postgres:
     image: "docker.io/postgres:17.2-alpine"
@@ -15,8 +16,6 @@ services:
       retries: 5
     volumes:
       - database:/var/lib/postgresql/data
-    networks:
-      - workflow
 
   api:
     build:
@@ -26,8 +25,6 @@ services:
       - 8080:8080
     environment:
       - APPLICATION_ROOT=/
-      - PORT=8080
-      - WORKERS=4
       - DATABASE_URL=postgresql://kaapanauser:kaapanapassword@postgres:5432/kaapanauser
       - DEV_FILES=True
       - LOG_LEVEL=DEBUG
@@ -36,12 +33,6 @@ services:
         condition: service_healthy
     volumes:
       - ./files:/app
-    networks:
-      - workflow
 
 volumes:
   database:
-
-networks:
-  workflow:
-    driver: bridge

@@ -23,13 +23,6 @@ spec:
         env:
         - name: VITE_WORKFLOW_API_URL
           value: /workflow-api    
-{{- if .Values.global.dev_files }}
-        - name: DEV_FILES
-          value: "True"
-        volumeMounts:   
-        - name: workflow-ui-dev
-          mountPath: /app
-{{- end }}
         ports:
         - name: http-port
           containerPort: 80
@@ -45,22 +38,12 @@ spec:
             mountPath: /var/cache/nginx
         securityContext:
           allowPrivilegeEscalation: false
-{{- if .Values.global.dev_files }}
-          readOnlyRootFilesystem: false
-{{- else }}
           readOnlyRootFilesystem: true
-{{- end }}
       volumes:
       - name: tmp
         emptyDir: {}
       - name: cache
         emptyDir: {}  
-{{- if .Values.global.dev_files }}
-      - name: workflow-ui-dev
-        persistentVolumeClaim:
-          claimName: {{ .Chart.Name }}-dev-pv-claim
-{{- end }}
-      
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
         - name: registry-secret

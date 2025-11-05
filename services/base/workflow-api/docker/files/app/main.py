@@ -1,13 +1,12 @@
 import logging
-from contextlib import asynccontextmanager
 
 from app.api.v1.routers import health_check, workflow_runs, workflows
-from app.database import async_engine
+from app.api.v1.services import errors
 from app.dependencies import get_connection_manager
 from app.logging_config import setup_logging
-from app.models import Base
-from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -27,7 +26,6 @@ app = FastAPI(
         }
     ],
 )
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # allow all frontend origins in dev
@@ -47,6 +45,25 @@ async def websocket_endpoint(
             await websocket.receive_text()
     except WebSocketDisconnect:
         con_mgr.disconnect(websocket)
+
+
+@app.exception_handler(errors.ServiceError)
+async def service_exception_handler(request: Request, exc: errors.ServiceError):
+    if isinstance(exc, errors.NotFoundError):
+        status_code = 404
+    elif isinstance(exc, errors.BadRequestError):
+        status_code = 400
+    elif isinstance(exc, errors.DependencyError):
+        status_code = 503
+    elif isinstance(exc, errors.InternalError):
+        status_code = 500
+    else:
+        status_code = 500
+
+    return JSONResponse(
+        status_code=status_code,
+        content={"detail": str(exc)},
+    )
 
 
 # Versioned routers

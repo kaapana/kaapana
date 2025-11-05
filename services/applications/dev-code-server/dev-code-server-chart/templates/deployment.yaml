@@ -16,9 +16,7 @@ spec:
         app.kubernetes.io/name: {{ .Release.Name }}
     spec:
       securityContext:
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
+        runAsUser: 0
       initContainers:
       - name: dev-server-chart-init
         securityContext:
@@ -49,6 +47,8 @@ spec:
           value: {{ .Values.global.credentials_minio_username  | default "" }}
         - name: MINIO_PASSWORD
           value: {{ .Values.global.credentials_minio_password | default ""}}
+        - name: EXCLUDE
+          value: "**thumbnails/**,**staticwebsiteresults/**"
         volumeMounts:
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
       - name: minio-output
@@ -79,7 +79,7 @@ spec:
       - name: code-server
         image: "{{ .Values.global.registry_url }}/dev-code-server:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
-        command: ["sh", "-c", "code-server --auth none --bind-addr 0.0.0.0:8080 ${WORKSPACE}"]
+        command: ["sh", "-c", "code-server --disable-workspace-trust --auth none --bind-addr 0.0.0.0:8080 ${WORKSPACE}"]
         env:
 {{ include "dynamicEnvs" $ | indent 8 }}
         - name: http_proxy

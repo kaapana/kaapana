@@ -57,3 +57,15 @@ async def create_workflow_run(
         "/workflow-runs",
         json=workflow_run_create.model_dump(),
     )
+
+
+async def get_all_workflow_runs() -> httpx.Response:
+    return await httpx.AsyncClient(verify=False).get(
+        f"{API_BASE_URL}/workflow-runs",
+    )
+
+
+async def delete_workflow_run(workflow_run_id: int) -> httpx.Response:
+    return await httpx.AsyncClient(verify=False).delete(
+        f"{API_BASE_URL}/workflow-runs/{workflow_run_id}",
+    )

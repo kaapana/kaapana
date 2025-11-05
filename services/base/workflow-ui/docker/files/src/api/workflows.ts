@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import type { Workflow } from '@/types/workflow';
+import type { Workflow } from '@/types/schemas';
 
 
 // Fetch all workflows

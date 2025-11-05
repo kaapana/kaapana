@@ -1,8 +1,7 @@
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import Any, List, Literal, Optional, Union
 
-from app.validation.config_definition import ConfigDefinition
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -204,17 +203,55 @@ class DataEntitiesUIForm(BaseUIForm):
     )
 
 
-UIForm = Annotated[
-    Union[
-        BooleanUIForm,
-        StringUIForm,
-        IntegerUIForm,
-        FloatUIForm,
-        ListUIForm,
-        DatasetUIForm,
-        DataEntitiesUIForm,
-    ],
-    Field(discriminator="type"),
+class FileUIForm(BaseUIForm):
+    """
+    File upload form element.
+
+    Allows the user to upload a file from their local filesystem.
+
+    Attributes:
+        type (Literal["file"]): Discriminator identifying this as a file upload field.
+        accept (str | None): Comma-separated list of accepted file types/extensions (e.g., ".json,.yaml").
+        multiple (bool): Whether to allow multiple file uploads.
+    """
+
+    type: Literal["file"] = "file"
+    accept: str | None = Field(
+        default=None, description="Accepted file types (e.g., '.json,.yaml,.txt')."
+    )
+    multiple: bool = Field(
+        default=False, description="Whether to allow multiple file uploads."
+    )
+
+
+class TermsUIForm(BaseUIForm):
+    """
+    Terms and conditions acceptance form element.
+
+    Displays terms and conditions text that the user must accept before proceeding.
+    Always rendered as a checkbox that must be checked.
+
+    Attributes:
+        type (Literal["terms"]): Discriminator identifying this as a terms acceptance field.
+        terms_text (str): The text of the terms and conditions to display.
+    """
+
+    type: Literal["terms"] = "terms"
+    terms_text: str = Field(
+        ..., description="The terms and conditions text that the user must accept."
+    )
+
+
+UIForm = Union[
+    BooleanUIForm,
+    StringUIForm,
+    IntegerUIForm,
+    FloatUIForm,
+    ListUIForm,
+    DatasetUIForm,
+    DataEntitiesUIForm,
+    FileUIForm,
+    TermsUIForm,
 ]
 
 
@@ -247,10 +284,9 @@ class WorkflowParameter(BaseModel):
 
     task_title: str
     env_variable_name: str
-    ui_form: UIForm
+    ui_form: UIForm = Field(..., discriminator="type")
 
-    class Config:
-        json_schema_extra = {"discriminator": "type"}
+    model_config = ConfigDict(from_attributes=True)
 
 
 #####################################
@@ -260,10 +296,10 @@ class WorkflowParameter(BaseModel):
 
 class WorkflowBase(BaseModel):
     title: str
-    definition: str  # full dag file
-    workflow_engine: str  # airflow, ...
-    config_definition: Optional[ConfigDefinition] = None
-    labels: List[Label] = Field(default_factory=list)
+    definition: str
+    workflow_engine: str
+    workflow_parameters: Optional[List[WorkflowParameter]] = None
+    labels: List[Label] = []
 
 
 class WorkflowCreate(WorkflowBase):
@@ -290,19 +326,19 @@ class TaskBase(BaseModel):
 
 
 class TaskCreate(TaskBase):
-    downstream_task_titles: List[str] = Field(default_factory=list)
+    downstream_task_titles: List[str] = []
 
 
 class Task(TaskBase):
     id: int
     workflow_id: int
-    downstream_task_ids: List[int] = Field(default_factory=list)
+    downstream_task_ids: List[int] = []
 
     model_config = ConfigDict(from_attributes=True)
 
 
 #####################################
-############## TASKRUN ##############
+############# TASK RUN ##############
 #####################################
 
 
@@ -314,12 +350,12 @@ class TaskRunBase(BaseModel):
 
 class TaskRunCreate(TaskRunBase):
     workflow_run_id: int
-    task_id: int  # The ID of the task this run belongs to
+    task_id: int  # The title of the task this run belongs to
 
 
 class TaskRun(TaskRunBase):
     id: int
-    task_id: int  # The ID of the task this run belongs to
+    task_id: int  # The title of the task this run belongs to
     workflow_run_id: int
 
     model_config = ConfigDict(from_attributes=True)
@@ -345,8 +381,8 @@ class WorkflowRef(BaseModel):
 
 class WorkflowRunBase(BaseModel):
     workflow: WorkflowRef
-    labels: List[Label] = Field(default_factory=list)
-    config_definition: Optional[ConfigDefinition] = None
+    labels: List[Label] = []
+    workflow_parameters: Optional[List[WorkflowParameter]] = None
 
 
 class WorkflowRunCreate(WorkflowRunBase):

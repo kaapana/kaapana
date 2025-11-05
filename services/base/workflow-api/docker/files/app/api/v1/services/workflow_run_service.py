@@ -26,8 +26,8 @@ async def get_workflow_runs(
     logger.info(f"Getting workflow runs with filters: {filters}")
     runs: List[models.WorkflowRun] = await crud.get_workflow_runs(db, filters=filters)
     if not runs:
-        logger.error(f"No workflow runs found for {filters=}")
-        raise HTTPException(status_code=204, detail="No workflow runs found")
+        logger.info(f"No workflow runs found for {filters=}")
+        return []
 
     # get all run statuses from the engine adapter
     res = []
@@ -42,7 +42,6 @@ async def get_workflow_runs(
             continue
 
         # get status from the engine
-
         engine = get_workflow_engine(run.workflow.workflow_engine)
         status = await engine.get_workflow_run_status(run.external_id)
 
@@ -127,17 +126,13 @@ async def cancel_workflow_run(
         raise HTTPException(status_code=404, detail="Workflow run not found")
 
     engine = get_workflow_engine(run.workflow.workflow_engine)
-    canceled = await engine.cancel_workflow_run(run.external_id)
-    if not canceled:
-        raise HTTPException(
-            status_code=400, detail="Failed to cancel workflow run in engine"
-        )
+    new_status = await engine.cancel_workflow_run(run)
+    
     updated = await crud.update_workflow_run(
         db,
         run_id=workflow_run_id,
         workflow_run_update=schemas.WorkflowRunUpdate(
-            external_id=run.external_id,
-            lifecycle_status=schemas.WorkflowRunStatus.CANCELED,
+            lifecycle_status=new_status,
         ),
     )
     return updated
@@ -153,13 +148,12 @@ async def retry_workflow_run(
 
     # trigger retry in the engine adapter
     engine = get_workflow_engine(run.workflow.workflow_engine)
-    new_run = await engine.retry_workflow_run(run)
+    new_status = await engine.retry_workflow_run(run.external_id)
     return await crud.update_workflow_run(
         db,
         run_id=workflow_run_id,
         workflow_run_update=schemas.WorkflowRunUpdate(
-            lifecycle_status=new_run.lifecycle_status,
-            external_id=new_run.external_id,
+            lifecycle_status=new_status,
         ),
     )
 
@@ -195,8 +189,7 @@ async def get_workflow_run_task_runs(
     db_task_runs = await crud.get_task_runs(db, filters=filters)
     if not db_task_runs:
         logger.info(f"No task runs found for {workflow_run_id=} and {task_title=}")
-        # Listing endpoint: return 204 No Content when there are no task runs
-        raise HTTPException(status_code=204, detail="No task runs found")
+        return []
 
     return [
         schemas.TaskRun(

@@ -41,7 +41,7 @@ class Workflow(Base):
     title = Column(String, index=True)
     version = Column(Integer)
     definition = Column(String)
-    config_definition = Column(JSONB)  # Schema for validate workflow run config
+    workflow_parameters = Column(JSONB)  # Schema for validate workflow run config
     created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
 
     runs: Mapped[List[WorkflowRun]] = relationship(
@@ -62,7 +62,7 @@ class WorkflowRun(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     workflow_id = Column(Integer, ForeignKey("workflows.id"))
-    config_definition = Column(JSONB)
+    workflow_parameters = Column(JSONB)
     lifecycle_status: Mapped[WorkflowRunStatus] = mapped_column(
         SqlEnum(WorkflowRunStatus), default=WorkflowRunStatus.CREATED, nullable=False
     )

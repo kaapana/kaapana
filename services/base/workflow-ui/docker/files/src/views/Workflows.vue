@@ -1,24 +1,56 @@
 <template>
   <v-container fluid>
-    <v-container style="max-width: 1800px;">
+    <v-container class="pad-lg">
       <!-- Header: centered and aligned with workflows (md=9, offset-md=3) -->
       <v-row class="mb-4">
         <v-col :cols="12" :md="showFilters ? 9 : 12" :offset-md="showFilters ? 3 : 0">
           <div class="d-flex align-center justify-space-between">
             <div class="d-flex align-center">
+              <h1 class="text-h5 mb-0">Workflows</h1>
+            </div>
+            <div class="d-flex align-center">
+              <v-btn small variant="text" color="primary" aria-label="info" @click="showInfo = true" class="me-2">
+                <v-icon size="32">mdi-information</v-icon>
+              </v-btn>
+              <!-- Sort dropdown placed next to info with primary background -->
+              <v-menu v-model="sortMenuOpen" location="bottom end" offset-y>
+
+                <template #activator="{ props }">
+                  <!-- Outlined button that shows the currently selected sort, using surface color outline -->
+                  <v-btn small color="primary" class="me-2" v-bind="props" aria-label="sort"
+                    :title="`Sort: ${selectedSort}`">
+                    <v-icon left size="18">mdi-sort</v-icon>
+                    {{ selectedSort }}
+                  </v-btn>
+                </template>
+                <v-card>
+                  <v-list density="compact">
+                    <v-list-subheader>Sort by</v-list-subheader>
+                    <v-list-item @click="setSort('Name Asc')">
+                      <template #prepend>
+                        <v-icon v-if="selectedSort === 'Name Asc'">mdi-check</v-icon>
+                      </template>
+                      <v-list-item-title>Name Asc</v-list-item-title>
+                    </v-list-item>
+                    <v-list-item @click="setSort('Name Desc')">
+                      <template #prepend>
+                        <v-icon v-if="selectedSort === 'Name Desc'">mdi-check</v-icon>
+                      </template>
+                      <v-list-item-title>Name Desc</v-list-item-title>
+                    </v-list-item>
+                  </v-list>
+                </v-card>
+              </v-menu>
+
+
+
+
               <v-btn small color="primary" class="me-2" @click="showFilters = !showFilters" aria-label="toggle filters">
                 <v-icon left size="18">mdi-filter-variant</v-icon>
                 FILTERS
               </v-btn>
-              <h1 class="text-h5 mb-0">Workflows</h1>
-            </div>
 
-            <div class="d-flex align-center">
-              <v-btn small variant="text" color="primary" aria-label="info" @click="showInfo = true">
-                <v-icon size="32">mdi-information</v-icon>
-              </v-btn>
-
-              <v-btn small color="primary" class="ms-2" aria-label="refresh" @click="loadWorkflows">
+              <v-btn small color="primary" class="me-2" aria-label="refresh" @click="loadWorkflows">
                 <v-icon left size="18">mdi-refresh</v-icon>
                 REFRESH
               </v-btn>
@@ -27,25 +59,21 @@
         </v-col>
       </v-row>
 
-      <!-- Sort Panel -->
-      <v-row>
-        <!-- Info dialog -->
-        <v-dialog v-model="showInfo" max-width="600">
-          <v-card>
-            <v-card-title>About the Workflows page</v-card-title>
-            <v-card-text>
-              This page shows available workflows. Use filters and sorting to find workflows. Click a workflow card to view details. Use the refresh button to fetch the latest workflows from the server.
-            </v-card-text>
-            <v-card-actions>
-              <v-spacer />
-              <v-btn text @click="showInfo = false">Close</v-btn>
-            </v-card-actions>
-          </v-card>
-        </v-dialog>
-        <v-col cols="12" :md="showFilters ? 9 : 12" :offset-md="showFilters ? 3 : 0" class="d-flex justify-end mb-4">
-          <SortPanel :sort-options="sortOptions" v-model="selectedSort" />
-        </v-col>
-      </v-row>
+      <!-- Info dialog moved near header -->
+      <v-dialog v-model="showInfo" max-width="600">
+        <v-card>
+          <v-card-title>About the Workflows page</v-card-title>
+          <v-card-text>
+            This page shows available workflows. Use filters and sorting to find workflows. Click a workflow card to
+            view
+            details. Use the refresh button to fetch the latest workflows from the server.
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer />
+            <v-btn text @click="showInfo = false">Close</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
 
       <v-row>
         <!-- FILTER PANEL as left hideable column (split-pane) -->
@@ -78,10 +106,9 @@
           <v-row v-else class="d-flex flex-wrap justify-start">
             <!-- Workflow cards -->
 
-            <v-col v-for="([title, versions], index) in filteredAndSortedWorkflows" :key="title" cols="12" sm="6" md="4"
-              lg="3" class="d-flex">
+            <v-col v-for="([title, versions], index) in filteredAndSortedWorkflows" :key="title" cols="12" sm="6" md="4" lg="3" xl="2" class="d-flex">
               <v-responsive aspect-ratio="1" class="w-100">
-                <WorkflowCard :workflow="versions[0]" :versions="versions" class="flex-grow-1" />
+                <WorkflowCard :workflow="versions[0]" :versions="versions" class="h-100 w-100" />
               </v-responsive>
             </v-col>
 
@@ -98,11 +125,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import SortPanel from '@/components/SortPanel.vue'
 import FilterPanel from '@/components/FilterPanel.vue'
 import WorkflowCard from '@/components/WorkflowCard.vue'
-import type { Workflow } from '@/types/workflow'
-import type { Label } from '@/types/label'
+import type { Label, Workflow } from '@/types/schemas'
 import { fetchWorkflows } from '@/api/workflows'
 
 // --- STATE ---
@@ -122,8 +147,17 @@ const filters = ref({
   maturity: [] as string[],
 })
 
+// Sort options
 const sortOptions = ['Name Asc', 'Name Desc']
-const selectedSort = ref(sortOptions[0])
+const selectedSort = ref<string>(sortOptions[0])
+
+function setSort(option: string) {
+  selectedSort.value = option
+  sortMenuOpen.value = false
+}
+
+// menu open state for sort dropdown
+const sortMenuOpen = ref(false)
 
 // --- GROUP WORKFLOWS BY TITLE ---
 const groupedWorkflows = computed<Map<string, Workflow[]>>(() => {
@@ -176,7 +210,7 @@ const filteredAndSortedWorkflows = computed(() => {
 
 
     // If the group matches all filters, include it
-  if (matchesSearch && matchesCategories && matchesProviders && matchesMaturity) {
+    if (matchesSearch && matchesCategories && matchesProviders && matchesMaturity) {
       result.push([title, group])
     }
   })
@@ -205,21 +239,15 @@ async function loadWorkflows() {
   loading.value = true
   try {
     const result = await fetchWorkflows()
-    // Ensure we always have an array, even if API returns something unexpected
     workflows.value = Array.isArray(result) ? result : []
   } catch (err) {
     console.error(err)
     error.value = 'Failed to load workflows.'
-    workflows.value = [] // Ensure workflows is empty array on error
+    workflows.value = []
   } finally {
     loading.value = false
   }
 }
 
 onMounted(loadWorkflows)
-
-function goToWorkflow(id: number) {
-  console.log('Navigate to workflow', id)
-  // router.push(`/workflow/${id}`)
-}
 </script>

@@ -1,6 +1,6 @@
 import apiClient from './apiClient'
 import { toRaw } from 'vue'
-import type { WorkflowRun, WorkflowRunCreate, WorkflowRunUpdate } from '@/types/workflowRun'
+import type { WorkflowRun, WorkflowRunCreate, WorkflowRunUpdate } from '@/types/schemas'
 
 const API_BASE = '/workflow-runs'
 

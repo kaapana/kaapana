@@ -1,6 +1,7 @@
 import logging
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Type, cast
 
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -133,11 +134,6 @@ async def create_workflow(
     max_version = result.scalar() or 0
     new_version = max_version + 1
 
-    # get config_definition as json
-    config_definition = None
-    if workflow.config_definition:
-        config_definition = workflow.config_definition.model_dump()
-
     # add labels if they don't already exist
     db_labels: List[models.Label] = []
     for label in getattr(workflow, "labels", []) or []:
@@ -145,10 +141,9 @@ async def create_workflow(
             models.Label.key == label.key, models.Label.value == label.value
         )
         result = await db.execute(stmt)
-        db_label = result.scalars().first()  # type: Optional[models.Label]
+        db_label = cast(Optional[models.Label], result.scalars().first())
         if not db_label:
             db_label = models.Label(key=label.key, value=label.value)
-        assert db_label is not None
         db_labels.append(db_label)
 
     # create workflow object
@@ -156,7 +151,7 @@ async def create_workflow(
         title=workflow.title,
         workflow_engine=workflow.workflow_engine,
         definition=workflow.definition,
-        config_definition=config_definition,
+        workflow_parameters=jsonable_encoder(workflow.workflow_parameters),
         version=new_version,
         labels=db_labels,
     )
@@ -194,7 +189,7 @@ async def get_workflow_runs(
         # Avoid eager-loading task_runs for bulk list queries to prevent large
         # joins / N+1 problems when returning many workflow runs. Task runs
         # can be fetched via the dedicated endpoint when needed.
-        eager_load=["workflow"],
+        eager_load=["workflow", "labels"],
         order_by=order_by or models.WorkflowRun.id.desc(),
         skip=skip,
         limit=limit,
@@ -215,7 +210,7 @@ async def get_workflow_run(
     query: Select[Any] = create_query(
         model=models.WorkflowRun,
         filters=filters or {},
-        eager_load=["task_runs", "workflow"],
+        eager_load=["task_runs", "workflow", "labels"],
     )
 
     result = await db.execute(query)
@@ -239,7 +234,7 @@ async def create_workflow_run(
 
     db_workflow_run = models.WorkflowRun(
         workflow_id=workflow_id,
-        config_definition=workflow_run.config_definition,
+        workflow_parameters=jsonable_encoder(workflow_run.workflow_parameters),
         labels=db_labels,
     )
 
@@ -486,11 +481,7 @@ async def update_task_run_lifecycle(
     db_task_run = result.scalars().first()
     if not db_task_run:
         logger.error(f"Failed to update TaskRun {task_run_id=}")
-        raise ValueError(f"Failed to update TaskRun")
-    db_task_run.lifecycle_status = lifecycle_status
-    await db.commit()
-    await db.refresh(db_task_run)
-    return db_task_run
+        raise ValueError("Failed to update TaskRun")
     db_task_run.lifecycle_status = lifecycle_status
     await db.commit()
     await db.refresh(db_task_run)

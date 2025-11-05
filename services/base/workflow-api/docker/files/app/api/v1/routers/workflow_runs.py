@@ -1,10 +1,10 @@
 import logging
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from app import schemas
 from app.api.v1.services import workflow_run_service as service
-from app.dependencies import get_async_db, get_forwarded_headers
-from fastapi import APIRouter, BackgroundTasks, Depends, Response
+from app.dependencies import get_async_db
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -13,27 +13,20 @@ router = APIRouter()
 
 @router.get("/workflow-runs", response_model=List[schemas.WorkflowRun])
 async def get_workflow_runs(
-    background_tasks: BackgroundTasks,
     workflow_title: Optional[str] = None,
     workflow_version: Optional[int] = None,
     db: AsyncSession = Depends(get_async_db),
 ):
-    return await service.get_workflow_runs(
-        db, background_tasks, workflow_title, workflow_version
-    )
+    return await service.get_workflow_runs(db, workflow_title, workflow_version)
 
 
 @router.post("/workflow-runs", response_model=schemas.WorkflowRun, status_code=201)
 async def create_workflow_run(
     response: Response,
     workflow_run: schemas.WorkflowRunCreate,
-    background_tasks: BackgroundTasks,
-    forwarded_headers: Dict[str, str] = Depends(get_forwarded_headers),
     db: AsyncSession = Depends(get_async_db),
 ):
-    workflow_run_res = await service.create_workflow_run(
-        db, response, workflow_run, background_tasks
-    )
+    workflow_run_res = await service.create_workflow_run(db, workflow_run)
     response.headers["Location"] = f"/v1/workflow-runs/{workflow_run_res.id}"
     return workflow_run_res
 
@@ -52,8 +45,8 @@ async def get_workflow_run_by_id(
 async def cancel_workflow_run(
     workflow_run_id: int,
     db: AsyncSession = Depends(get_async_db),
-    forwarded_headers: Dict[str, str] = Depends(get_forwarded_headers),
 ):
+
     return await service.cancel_workflow_run(db, workflow_run_id)
 
 
@@ -63,7 +56,6 @@ async def cancel_workflow_run(
 async def retry_workflow_run(
     workflow_run_id: int,
     db: AsyncSession = Depends(get_async_db),
-    forwarded_headers: Dict[str, str] = Depends(get_forwarded_headers),
 ):
     return await service.retry_workflow_run(db, workflow_run_id)
 

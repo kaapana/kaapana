@@ -19,20 +19,20 @@ LABEL BUILD_IGNORE="False"
 ######### DEVELOPMENT ##########
 ################################
 
-# Expose port 80 for dev server (match Nginx prod)
-EXPOSE 80
+# # Expose port 80 for dev server (match Nginx prod)
+# EXPOSE 80
 
-# Run Vite dev server with HMR
-CMD ["npx", "vite", "dev", "--host", "0.0.0.0", "--port", "80"]
+# # Run Vite dev server with HMR
+# CMD ["npx", "vite", "dev", "--host", "0.0.0.0", "--port", "80"]
 
 
 ################################
 ######### PRODUCTION ###########
 ################################
-# RUN yarn build
+RUN yarn build
 
-# FROM nginx:1.25.4-alpine
+FROM nginx:1.25.4-alpine
 
-# RUN mkdir /app
-# COPY --from=build-stage /app/dist /app
-# COPY --from=build-stage /app/nginx.conf /etc/nginx/nginx.conf
+RUN mkdir /app
+COPY --from=build-stage /app/dist /app
+COPY --from=build-stage /app/nginx.conf /etc/nginx/nginx.conf

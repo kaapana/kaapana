@@ -1,7 +1,7 @@
 ---
 global:
   pathPrefix: /workflow-api
-  dev_files: /home/m395c/kaapana/services/base/workflow-api/docker/files
+  dev_files: false
 
 kaapana_database:
   admin: false

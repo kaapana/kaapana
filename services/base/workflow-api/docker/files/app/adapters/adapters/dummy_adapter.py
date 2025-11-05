@@ -1,3 +1,4 @@
+import random
 import time
 from typing import List
 
@@ -43,7 +44,7 @@ class DummyAdapter(WorkflowEngineAdapter):
         """ """
         # simulate sending run to the engine, getting it back and updating external_id and status=PENDING
         return schemas.WorkflowRunUpdate(
-            external_id="dummy-workflow-run-external-id",
+            external_id=f"dummy-workflow-run-extid-{workflow_run.id}-{random.randint(0, 1000)}",
             lifecycle_status=schemas.WorkflowRunStatus.PENDING,
         )
 
@@ -63,7 +64,7 @@ class DummyAdapter(WorkflowEngineAdapter):
         return schemas.WorkflowRunStatus.RUNNING
 
     async def get_workflow_run_task_runs(
-        self, workflow_run_external_id: int
+        self, workflow_run_external_id: str
     ) -> List[schemas.TaskRunUpdate]:
         """
         Gets the task runs of a workflow run from Airflow.
@@ -75,19 +76,19 @@ class DummyAdapter(WorkflowEngineAdapter):
         """
         return [
             schemas.TaskRunUpdate(
-                external_id="dummy-task-run-1-external-id",
+                external_id=f"dummy-taskrun-1-extid-{workflow_run_external_id}-{random.randint(0, 1000)}",
                 task_title="dummy-task-1",
                 lifecycle_status=schemas.TaskRunStatus.RUNNING,
             ),
             schemas.TaskRunUpdate(
-                external_id="dummy-task-run-2-external-id",
+                external_id=f"dummy-taskrun-2-extid-{workflow_run_external_id}-{random.randint(0, 1000)}",
                 task_title="dummy-task-2",
                 lifecycle_status=schemas.TaskRunStatus.RUNNING,
             ),
         ]
 
     async def cancel_workflow_run(
-        self, workflow_run: schemas.WorkflowRun
+        self, workflow_run_external_id: str
     ) -> schemas.WorkflowRunStatus:
         """
         Cancels a running workflow run in the engine.

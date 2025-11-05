@@ -75,7 +75,7 @@ async def delete_workflow(
     version: int,
     db: AsyncSession = Depends(get_async_db),
 ):
-    return await service.delete_workflow(db, title, version)
+    await service.delete_workflow(db, title, version)
 
 
 @router.get("/workflows/{title}/{version}/tasks", response_model=List[schemas.Task])

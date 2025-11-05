@@ -3,7 +3,9 @@ from typing import List, Optional
 
 from app import crud, schemas
 from app.adapters import get_workflow_engine
+from app.api.v1.services.errors import InternalError, NotFoundError
 from fastapi import HTTPException
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -21,6 +23,9 @@ async def get_workflows(
     workflows = await crud.get_workflows(
         db, skip=skip, limit=limit, order_by=order_by, order=order, filters=filters
     )
+    if not workflows:
+        logger.warning(f"No workflows found with filters: {filters}")
+        return []
     return [schemas.Workflow.model_validate(w) for w in workflows]
 
 
@@ -31,12 +36,11 @@ async def create_workflow(
     db_workflow = await crud.create_workflow(db, workflow=workflow)
     if not db_workflow:
         logger.error(f"Failed to create workflow: {workflow}")
-        raise HTTPException(status_code=400, detail="Failed to create workflow")
+        raise InternalError("Failed to create workflow")
     logger.info(f"Created workflow: {db_workflow.title} v{db_workflow.version}")
 
     # submit the workflow to the engine and get tasks
     engine = get_workflow_engine(workflow.workflow_engine)
-    # convert ORM workflow to schema for engine adapters that expect schema types
     schema_workflow = schemas.Workflow.model_validate(db_workflow)
     await engine.submit_workflow(workflow=schema_workflow)
     tasks = await engine.get_workflow_tasks(workflow=schema_workflow)
@@ -110,7 +114,7 @@ async def get_workflow_by_title_and_version(
     workflow = await crud.get_workflow(db, filters={"title": title, "version": version})
     if not workflow:
         logger.error(f"Workflow with {title=} and {version=} not found")
-        raise HTTPException(status_code=404, detail="Workflow not found")
+        raise NotFoundError("Workflow not found")
     return schemas.Workflow.model_validate(workflow)
 
 
@@ -120,7 +124,7 @@ async def delete_workflow(db: AsyncSession, title: str, version: int):
     # TODO: also delete tasks associated with the workflow, but this creates orphaned task runs
     if not success:
         logger.error(f"Failed to delete workflow with {title=} and {version=}")
-        raise HTTPException(status_code=404, detail="Workflow not found")
+        raise NotFoundError("Workflow not found")
 
 
 async def get_workflow_tasks(
@@ -129,26 +133,18 @@ async def get_workflow_tasks(
     workflow = await crud.get_workflow(db, filters={"title": title, "version": version})
     if not workflow:
         logger.error(f"Workflow with {title=} and {version=} not found")
-        raise HTTPException(status_code=404, detail="Workflow not found")
+        raise NotFoundError("Workflow not found")
 
     # get tasks
     tasks = await crud.get_tasks(db, filters={"workflow_id": workflow.id})
     if not tasks:
-        logger.info(f"No tasks found for workflow with {title=} and {version=}")
-        raise HTTPException(status_code=404, detail="Tasks not found")
+        logger.warning(f"No tasks found for workflow with {title=} and {version=}")
+        raise NotFoundError("Workflow not found")
 
     # append downstream task ids to each task and convert to schema
     res = []
     for t in tasks:
-        # build a simple dict from ORM attributes instead of walking the whole
-        # SQLAlchemy object graph with jsonable_encoder (which can recurse).
-        task_data = {
-            "id": t.id,
-            "workflow_id": t.workflow_id,
-            "title": t.title,
-            "display_name": t.display_name,
-            "type": t.type,
-        }
+        task_data = jsonable_encoder(t)
         task_data["downstream_task_ids"] = [
             dt.downstream_task_id for dt in t.downstream_tasks
         ]
@@ -171,15 +167,11 @@ async def get_task(
         logger.error(
             f"Task with {task_title=} for workflow with {title=} and {version=} not found"
         )
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise NotFoundError("Task not found")
 
-    # append downstream task ids (explicit fields to avoid recursive encode)
-    task_data = {
-        "id": task.id,
-        "workflow_id": task.workflow_id,
-        "title": task.title,
-        "display_name": task.display_name,
-        "type": task.type,
-        "downstream_task_ids": [dt.downstream_task_id for dt in task.downstream_tasks],
-    }
-    return schemas.Task.model_validate(task_data)
+    # append downstream task ids
+    task_data = jsonable_encoder(task)
+    task_data["downstream_task_ids"] = [
+        dt.downstream_task_id for dt in task.downstream_tasks
+    ]
+    return schemas.Task(**task_data)

@@ -185,11 +185,8 @@ async def get_workflow_runs(
 
     query: Select[Any] = create_query(
         model=models.WorkflowRun,
-        filters=filters or {},
-        # Avoid eager-loading task_runs for bulk list queries to prevent large
-        # joins / N+1 problems when returning many workflow runs. Task runs
-        # can be fetched via the dedicated endpoint when needed.
-        eager_load=["workflow", "labels"],
+        filters=filters,
+        eager_load=["task_runs", "workflow"],
         order_by=order_by or models.WorkflowRun.id.desc(),
         skip=skip,
         limit=limit,
@@ -210,7 +207,7 @@ async def get_workflow_run(
     query: Select[Any] = create_query(
         model=models.WorkflowRun,
         filters=filters or {},
-        eager_load=["task_runs", "workflow", "labels"],
+        eager_load=["task_runs", "workflow"],
     )
 
     result = await db.execute(query)
@@ -254,7 +251,7 @@ async def update_workflow_run(
     db_workflow_run = result.scalars().first()
     if not db_workflow_run:
         logger.error(f"Failed to update WorkflowRun {run_id=}")
-        raise ValueError(f"Failed to update WorkflowRun {run_id}")
+        raise ValueError(f"Failed to update WorkflowRun: {run_id}")
 
     update_data = workflow_run_update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
@@ -302,7 +299,6 @@ async def get_task(
     db: AsyncSession,
     filters: Optional[Dict[str, Any]] = None,
 ) -> models.Task:
-    # construct order_by expression
     query = create_query(
         model=models.Task,
         filters=filters or {},
@@ -450,26 +446,15 @@ async def create_task_run(
         workflow_run_id=task_run.workflow_run_id,
         external_id=task_run.external_id,
         lifecycle_status=(
-            None if task_run.lifecycle_status == "" else task_run.lifecycle_status
+            schemas.TaskRunStatus.CREATED
+            if task_run.lifecycle_status == ""
+            else task_run.lifecycle_status
         ),
     )
     db.add(db_task_run)
     await db.commit()
-    # reload the created TaskRun with its relationships eagerly loaded so
-    # Pydantic can access attributes like `task.title` without triggering
-    # async lazy loads outside the request context.
     await db.refresh(db_task_run)
-
-    stmt = (
-        select(models.TaskRun)
-        .where(models.TaskRun.id == db_task_run.id)
-        .options(
-            selectinload(models.TaskRun.task),
-            selectinload(models.TaskRun.workflow_run),
-        )
-    )
-    result = await db.execute(stmt)
-    return result.scalars().first()
+    return db_task_run
 
 
 async def update_task_run_lifecycle(

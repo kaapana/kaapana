@@ -6,5 +6,4 @@ LABEL BUILD_IGNORE="False"
 COPY processing-container.json /
 
 WORKDIR /home/kaapana
-COPY files/start_download.py /home/kaapana/
 COPY files/download_dicoms.py /home/kaapana/

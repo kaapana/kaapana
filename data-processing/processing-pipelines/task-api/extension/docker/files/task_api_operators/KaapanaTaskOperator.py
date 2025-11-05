@@ -1,4 +1,4 @@
-from task_api.runners.KubernetesRunner import KubernetesRunner
+from task_api.runners.KubernetesRunner import KubernetesRunner, PodPhase
 from task_api.processing_container.common import get_task_template, merge_env
 from task_api.processing_container import task_models, pc_models
 from airflow.models import BaseOperator
@@ -331,14 +331,14 @@ class KaapanaTaskOperator(BaseOperator):
         except TimeoutError:
             final_status = KubernetesRunner.wait_for_task_status(
                 self.task_run,
-                states=["Pending", "Running", "Terminating"],
+                states=[PodPhase.PENDING, PodPhase.RUNNING],
                 timeout=5,
             )
-            if final_status == "Running":
+            if final_status == PodPhase.RUNNING:
                 raise AirflowException(
                     f"Processing container didn't finish in execution timeout: {self.execution_timeout.total_seconds()} seconds. The corresponding will be deleted!"
                 )
-            elif final_status == "Pending":
+            elif final_status == PodPhase.PENDING:
                 raise AirflowException(
                     f"Processing container didn't start within {self.startup_timeout_seconds} seconds. The corresponding will be deleted!"
                 )
@@ -349,10 +349,10 @@ class KaapanaTaskOperator(BaseOperator):
 
         final_status = KubernetesRunner.wait_for_task_status(
             self.task_run,
-            states=["Succeeded", "Failed"],
+            states=[PodPhase.SUCCEEDED, PodPhase.FAILED],
             timeout=30,
         )
-        if final_status == "Failed":
+        if final_status == PodPhase.FAILED:
             pod = KubernetesRunner.api.read_namespaced_pod(
                 name=self.task_run.id, namespace=self.task_run.config.namespace
             )

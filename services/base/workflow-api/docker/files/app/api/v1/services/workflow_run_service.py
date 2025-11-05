@@ -102,9 +102,10 @@ async def get_workflow_runs(
             asyncio.create_task(
                 _run_in_background_with_retries(
                     crud.create_or_update_task_run,
-                    t,
-                    run.id,
                     db=None,  # session will be created inside _run_in_background_with_retries
+                    task_run_update=t,
+                    workflow_run_id=run.id,
+                    
                 )
             )
         res.append(run)
@@ -127,7 +128,7 @@ async def create_workflow_run(
     if not db_workflow:
         logger.error(f"Workflow of {workflow_run=} not found")
         raise NotFoundError("Workflow not found")
-
+    
     # create workflow run in db
     db_workflow_run = await crud.create_workflow_run(db, workflow_run, db_workflow.id)
     if not db_workflow_run:

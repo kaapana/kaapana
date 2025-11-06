@@ -6,9 +6,6 @@ export PYTHONPATH="$PWD"
 # Apply all migrations
 python3 alembic/migrate.py
 
-
-
-
 if [ -z "${DEV_FILES}" ]; then
     # Production
     uvicorn app.main:app --workers $WORKERS --host 0.0.0.0 --port $PORT --root-path $APPLICATION_ROOT --access-log --use-colors --forwarded-allow-ips '*'

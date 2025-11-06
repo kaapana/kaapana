@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from airflow.models.skipmixin import SkipMixin
 from airflow.operators.python import PythonOperator
+from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from kaapana.operators import HelperSendEmailService
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
@@ -85,7 +86,8 @@ class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
             on_failure_callback=KaapanaPythonBaseOperator.on_failure,
             pool=self.pool,
             pool_slots=self.pool_slots,
-            **kwargs
+            executor="KubernetesExecutor",
+            **kwargs,
         )
 
         self.display_name = display_name

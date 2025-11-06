@@ -20,9 +20,6 @@ spec:
       - name: workflow-ui-container
         image: "{{ .Values.global.registry_url }}/workflow-ui:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  "{{ .Values.global.pull_policy_images }}"
-        env:
-        - name: VITE_WORKFLOW_API_URL
-          value: /workflow-api    
         ports:
         - name: http-port
           containerPort: 80

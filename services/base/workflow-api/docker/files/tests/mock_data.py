@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import json
 import traceback
 from random import choice, randint
 
@@ -431,9 +432,7 @@ async def create_generated_workflows_and_runs():
             try:
                 # create initial version
 
-                response = await create_workflow(
-                    workflow_create=workflow
-                )
+                response = await create_workflow(workflow_create=workflow)
                 response.raise_for_status()
                 created_workflow = Workflow(**response.json())
                 print(
@@ -545,12 +544,14 @@ async def delete_all_workflows():
                     except httpx.HTTPStatusError as e:
                         # Check if it's a 405 Method Not Allowed or 404 Not Found
                         if e.response.status_code in [404, 405]:
-                            print("WARNING: DELETE endpoint for workflow runs not implemented - skipping workflow runs")
+                            print(
+                                "WARNING: DELETE endpoint for workflow runs not implemented - skipping workflow runs"
+                            )
                             break
                         print(f"Failed to delete workflow run {run_id}: {e}")
         except Exception as e:
             print(f"WARNING: Could not delete workflow runs: {e}")
-        
+
         # Then delete all workflows
         print("\n=== Deleting All Workflows ===")
         response = await get_all_workflows()
@@ -574,6 +575,7 @@ async def main():
         "generate-many", help="Generate many workflows and sample runs for UI testing"
     )
     subparsers.add_parser("delete", help="Delete all workflows")
+    subparsers.add_parser("dump", help="Dump all workflows")
 
     args = parser.parse_args()
 
@@ -583,6 +585,13 @@ async def main():
         await create_generated_workflows_and_runs()
     elif args.command == "delete":
         await delete_all_workflows()
+    elif args.command == "dump":
+        wf = PREDETERMINED_WORKFLOWS[1]
+        try:
+            obj = wf.model_dump()
+        except Exception:
+            obj = getattr(wf, "__dict__", str(wf))
+        print(json.dumps(obj, default=str, indent=2))
     else:
         parser.print_help()
 

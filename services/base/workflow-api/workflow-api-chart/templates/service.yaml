@@ -7,7 +7,7 @@ metadata:
 spec:
   stripPrefix:
     prefixes:
-    - {{ .Values.global.pathPrefix }}
+    - /workflow-api
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -23,7 +23,7 @@ spec:
   - host:
     http:
       paths:
-      - path: {{ .Values.global.pathPrefix }}
+      - path: /workflow-api
         pathType: Prefix
         backend:
           service:

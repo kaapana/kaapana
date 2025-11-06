@@ -15,7 +15,7 @@ SSL_CHECK = False if os.getenv("SSL_CHECK", "False").lower == "false" else True
 CLIENT_ID = os.getenv("CLIENT_ID", "kaapana")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 
-API_BASE_URL = "http://localhost:8080/v1"
+API_BASE_URL = "https://e230-pc25.inet.dkfz-heidelberg.de/workflow-api/v1"
 
 
 async def create_workflow(workflow_create: schemas.WorkflowCreate) -> httpx.Response:

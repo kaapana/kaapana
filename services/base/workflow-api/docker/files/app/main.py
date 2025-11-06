@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 API_VERSION = "v1"
 
-
 app = FastAPI(
     title="Kaapana Workflow API",
     docs_url="/docs",

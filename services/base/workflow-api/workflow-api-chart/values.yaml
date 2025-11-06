@@ -1,6 +1,5 @@
 ---
 global:
-  pathPrefix: /workflow-api
   dev_files: false
 
 kaapana_database:

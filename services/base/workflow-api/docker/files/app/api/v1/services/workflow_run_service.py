@@ -118,7 +118,7 @@ async def create_workflow_run(
 ) -> schemas.WorkflowRun:
     logger.debug(f"Creating workflow run for {workflow_run=}")
 
-    db_workflow = await crud.get_workflows(
+    db_workflow = await crud.get_workflow(
         db,
         filters={
             "title": workflow_run.workflow.title,

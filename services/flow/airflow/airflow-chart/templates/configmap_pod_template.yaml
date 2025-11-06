@@ -1,0 +1,213 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-pod-template
+  namespace: "{{ .Values.global.services_namespace }}"
+data:
+   pod_template.yaml: |+
+    ---
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: placeholder-name
+      namespace: services
+    spec:
+      containers:
+        - name: base
+          image: registry.hzdr.de/lorenz.feineis/kaapana-feineis-dev/airflow-executor:0.5.2-latest
+          imagePullPolicy: Always
+          env:
+            - name: AIRFLOW__CORE__EXECUTOR
+              value: KubernetesExecutor
+            # Hard Coded Airflow Envs
+            # - name: AIRFLOW__CORE__FERNET_KEY
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: RELEASE-NAME-fernet-key
+            #       key: fernet-key
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-metadata
+                  key: connection
+            - name: AIRFLOW_CONN_AIRFLOW_DB
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-metadata
+                  key: connection
+            ### Same variables as for the scheduler
+            - name: ADMIN_NAMESPACE
+              value: "{{ .Values.global.admin_namespace }}"
+            - name: AIRFLOW__LOGGING__LOGGING_LEVEL
+              value: "INFO"
+            - name: AIRFLOW_HOME
+              value: "/kaapana/mounted/workflows"
+            - name: DATADIR
+              value: "{{ .Values.global.fast_data_dir }}/workflows/data"
+            - name: DEFAULT_REGISTRY
+              value: "{{ .Values.global.registry_url }}"
+            - name: EXTENSIONS_NAMESPACE
+              value: "{{ .Values.global.extensions_namespace }}"
+            - name: ENABLE_NFS
+              value: "{{ .Values.global.enable_nfs }}"
+            - name: GPU_SUPPORT
+              value: "{{ .Values.global.gpu_support }}"
+            - name: HOSTDOMAIN
+              value: "{{ .Values.global.hostname }}"
+            - name: HTTPS_PORT
+              value: "{{ .Values.global.https_port }}"
+            - name: INSTANCE_ID
+              value: "{{ .Values.global.instance_id }}"
+            - name: INSTANCE_NAME
+              value: "{{ .Values.global.instance_name }}"
+            - name: KAAPANA_BUILD_VERSION
+              value: "{{ .Values.global.kaapana_build_version }}"
+            - name: MINIODIR
+              value: "{{ .Values.global.slow_data_dir }}/minio"
+            - name: MINIOUSER
+              value: "{{ .Values.global.credentials_minio_username }}"
+            - name: MINIOPASSWORD
+              value: "{{ .Values.global.credentials_minio_password }}"
+            - name: MODELDIR
+              value: "{{ .Values.global.fast_data_dir }}/workflows/models"
+            - name: PROXY
+              value: "{{ .Values.global.http_proxy }}"
+            - name: http_proxy
+              value: "{{ .Values.global.http_proxy }}"
+            - name: https_proxy
+              value: "{{ .Values.global.http_proxy }}"
+            - name: no_proxy
+              value: ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }}"
+            - name: SERVICES_NAMESPACE
+              value: "{{ .Values.global.services_namespace }}"
+            - name: SQL_ALCHEMY_CONN
+              value: postgresql+psycopg2://{{ .Values.kaapana_database.postgres_user }}:{{ .Values.kaapana_database.postgres_password }}@{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{  .Values.global.services_namespace  }}.svc:5432/{{ .Values.kaapana_database.postgres_db }}
+            - name: SQLALCHEMY_SILENCE_UBER_WARNING
+              value: "1"
+            - name: SMTP_HOST
+              value: "{{ .Values.global.smtp_host }}"
+            - name: SMTP_PORT
+              value: "{{ .Values.global.smtp_port }}"
+            - name: EMAIL_ADDRESS_SENDER
+              value: "{{ .Values.global.email_address_sender }}"
+            - name: SMTP_USERNAME
+              value: "{{ .Values.global.smtp_username }}"
+            - name: SMTP_PASSWORD
+              value: "{{ .Values.global.smtp_password }}"
+            - name: OIDC_CLIENT_SECRET
+              value: "{{ .Values.global.oidc_client_secret }}"
+            - name: SYSTEM_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: system-user-password
+                  key: system-user-password
+            - name: OPENSEARCH_HOST
+              value: "opensearch-service.{{ .Values.global.services_namespace }}.svc"
+            - name: OPENSEARCH_PORT
+              value: "9200"
+            - name: KAAPANA_PROJECT_USER_NAME
+              value: "system"
+            - name: KAAPANA_PROJECT_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: system-user-password
+                  key: system-user-password
+            - name: KAAPANA_CLIENT_SECRET
+              value: "{{ .Values.global.oidc_client_secret }}"
+            # API URLs:
+            - name: KEYCLOAK_URL
+              value: "http://keycloak-external-service.{{ .Values.global.admin_namespace }}.svc:80"
+            - name: KUBE_HELM_URL
+              value: "http://kube-helm-service.{{ .Values.global.admin_namespace }}.svc:9000"
+            - name: OPENSEARCH_URL
+              value: "opensearch-service.{{ .Values.global.services_namespace }}.svc:9200"
+            - name: DICOM_WEB_FILTER_URL
+              value: "http://dicom-web-filter-service.{{ .Values.global.services_namespace }}.svc:8080"
+            - name: NOTIFICATION_URL
+              value: "http://notification-service.{{ .Values.global.services_namespace }}.svc:80"
+            - name: AII_URL
+              value: "http://aii-service.{{ .Values.global.services_namespace }}.svc:8080"
+            - name: KAAPANA_BACKEND_URL
+              value: "http://kaapana-backend-service.{{ .Values.global.services_namespace }}.svc:5000"
+            - name: MINIO_URL
+              value: "http://minio-service.{{ .Values.global.services_namespace }}.svc:9000"
+          volumeMounts:
+            - name: airflow-configmap
+              mountPath: /kaapana/mounted/workflows/airflow.cfg
+              subPath: airflow.cfg
+            - name: airflow-pod-template
+              mountPath: /kaapana/mounted/workflows/pod_template.yaml
+              subPath: pod_template.yaml
+            - name: airflow-webserver-config
+              mountPath: /kaapana/mounted/workflows/webserver_config.py
+              subPath: webserver_config.py
+            - name: airflow-dags
+              mountPath: /kaapana/mounted/workflows/dags
+            - name: airflow-logs
+              mountPath: /kaapana/mounted/workflows/logs
+            - name: airflow-plugins
+              mountPath: /kaapana/mounted/workflows/plugins
+            - name: modeldata
+              mountPath: /kaapana/mounted/workflows/models
+            - name: ctpinput
+              mountPath: /kaapana/mounted/ctpinput
+            - name: workflowdata
+              mountPath: /kaapana/mounted/workflows/data
+            - name: dicomdir
+              mountPath: /kaapana/mounted/pacsdata
+            - name: uploads
+              mountPath: /kaapana/app/uploads/
+            - name: tmp
+              mountPath: /kaapana/mounted/workflows/
+            - name: tmpfs
+              mountPath: /tmp
+          resources:
+            requests:
+              memory: 100Mi
+            limits: 
+              memory: 500Mi
+      restartPolicy: Never
+      serviceAccountName: "kaapana-kube-admin"
+      imagePullSecrets:
+        - name: registry-secret
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: uploads-pv-claim
+        - name: airflow-configmap
+          configMap:
+            name: airflow-configmap
+        - name: airflow-pod-template
+          configMap:
+            name: airflow-pod-template
+        - name: airflow-webserver-config
+          configMap:
+            name: airflow-webserver-config
+        - name: airflow-statsd-config
+          configMap:
+            name: airflow-statsd-config
+        - name: airflow-dags
+          persistentVolumeClaim:
+            claimName: dags-pv-claim
+        - name: airflow-logs
+          persistentVolumeClaim:
+            claimName: af-logs-pv-claim
+        - name: airflow-plugins
+          persistentVolumeClaim:
+            claimName: af-plugins-pv-claim
+        - name: modeldata
+          persistentVolumeClaim:
+            claimName: models-pv-claim
+        - name: ctpinput
+          persistentVolumeClaim:
+            claimName: ctp-data-pv-claim
+        - name: workflowdata
+          persistentVolumeClaim:
+            claimName: af-data-pv-claim
+        - name: dicomdir
+          persistentVolumeClaim:
+            claimName: dcm4chee-dicom-pv-claim
+        - name: tmp
+          emptyDir: {}
+        - name: tmpfs
+          emptyDir: {}

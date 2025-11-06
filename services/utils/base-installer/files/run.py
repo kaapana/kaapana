@@ -102,30 +102,41 @@ class Settings(BaseSettings):
         return self
 
 
-def listdir_nohidden(path: Path, target_prefix: str) -> Generator[str, None, None]:
+def listdir_nohidden(path: Path, target_prefix: str) -> Generator[Path, None, None]:
     """
-    Generator that yields non-hidden, relevant file names from a directory.
+    Generator yielding non-hidden, relevant files or directories from a path.
 
-    Depending on the mount target, it filters files to exclude hidden/system artifacts
-    and only yields those relevant for workflows (e.g., `.tgz` files or Python scripts).
+    - Skips hidden files and directories.
+    - Returns an empty generator if the directory does not exist.
+    - Returns Path objects (not strings) for consistency.
 
     Args:
-        path (Path): The directory to scan.
-        target_prefix (str): The workflow root to determine filter rules.
+        path (Path): Directory to scan.
+        target_prefix (str): Used to determine filtering rules for workflows.
 
     Yields:
-        str: File names matching the visibility criteria.
+        Path: File or directory paths matching the visibility criteria.
     """
-    for f in path.iterdir():
-        if target_prefix.startswith("/kaapana/mounted/workflows"):
-            if (
-                not f.name.endswith(".pyc")
-                and not f.name.startswith(".")
-                and not (f.name.startswith("__") and f.name.endswith("__"))
-            ):
-                yield f.name
-        elif f.name.endswith(".tgz"):
-            yield f.name
+    if not path.exists():
+        logger.debug("Skipping non-existent path: %s", path)
+        return
+    if not path.is_dir():
+        logger.debug("Skipping non-directory path: %s", path)
+        return
+
+    try:
+        for f in path.iterdir():
+            if target_prefix.startswith("/kaapana/mounted/workflows"):
+                if (
+                    not f.name.endswith(".pyc")
+                    and not f.name.startswith(".")
+                    and not (f.name.startswith("__") and f.name.endswith("__"))
+                ):
+                    yield f
+            elif f.name.endswith(".tgz"):
+                yield f
+    except Exception as e:
+        logger.warning("Warning for listing directory %s: %s", path, e)
 
 
 def get_images(target_dir: str, settings: Settings) -> Dict[str, Any]:
@@ -218,20 +229,38 @@ def handle_files(settings: Settings) -> None:
         dest_path = Path(settings.target_prefix) / rel_path
         logger.info("Processing: %s -> %s", file_path, dest_path)
 
-        if file_path.is_dir():
-            if settings.action == "copy":
+        if settings.action == "copy":
+            if file_path.is_dir():
                 dest_path.mkdir(parents=True, exist_ok=True)
-            elif settings.action == "remove" and not list(
-                listdir_nohidden(dest_path, settings.target_prefix)
-            ):
-                shutil.rmtree(dest_path, ignore_errors=True)
-        else:
-            if settings.action == "copy":
-                if dest_path.exists():
-                    warnings.warn(f"Overwriting existing file: {dest_path}")
+            elif file_path.is_file():
+                dest_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(file_path, dest_path)
-            elif settings.action == "remove" and dest_path.exists():
-                dest_path.unlink()
+            continue
+        elif settings.action == "remove":
+            if not dest_path.exists():
+                logger.debug("Skip missing path during removal: %s", dest_path)
+                continue
+
+            if dest_path.is_file():
+                try:
+                    dest_path.unlink()
+                    logger.debug("Removed file: %s", dest_path)
+                except Exception as e:
+                    logger.warning("Could not remove file %s: %s", dest_path, e)
+                continue
+
+            try:
+                # only remove directory if it has no remaining visible files
+                remaining = list(listdir_nohidden(dest_path, settings.target_prefix))
+                if not remaining:
+                    shutil.rmtree(dest_path)
+                    logger.debug("Removed empty directory: %s", dest_path)
+                else:
+                    logger.debug("Skipped directory with remaining files: %s", dest_path)
+            except FileNotFoundError:
+                logger.debug("Directory already removed: %s", dest_path)
+            except Exception as e:
+                logger.warning("Error while removing directory %s: %s", dest_path, e)
 
 
 def trigger_services(settings: Settings) -> None:

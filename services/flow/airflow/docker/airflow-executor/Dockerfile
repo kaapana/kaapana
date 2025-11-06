@@ -19,7 +19,4 @@ RUN python3 -m pip install apache-airflow[cncf.kubernetes]==2.10.5 -c /files/con
 RUN python3 -m pip install --upgrade setuptools pip && pip3 install -r /files/requirements.txt
 COPY files/scripts/ /scripts
 
-COPY files/scheduler_job_runner_2.10.3_adapted.py /opt/venv/lib/python3.12/site-packages/airflow/jobs/scheduler_job_runner.py
-COPY files/task_command_2.10.3_adapted.py /opt/venv/lib/python3.12/site-packages/airflow/cli/commands/task_command.py
-
 CMD ["bash", "-c"]

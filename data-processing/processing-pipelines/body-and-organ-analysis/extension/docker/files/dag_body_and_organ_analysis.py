@@ -5,9 +5,13 @@ from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.MinioOperator import MinioOperator
+from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
+from kaapana.operators.DcmSendOperator import DcmSendOperator
 
-
-from body_and_organ_analysis.BodyAndOrganAnalysisOperator import BodyAndOrganAnalysisOperator
+from body_and_organ_analysis.BodyAndOrganAnalysisOperator import (
+    BodyAndOrganAnalysisOperator,
+)
+from body_and_organ_analysis.BoaOutputCheckOperator import BoaOutputCheckOperator
 
 max_active_runs = 5
 
@@ -46,7 +50,7 @@ ui_forms = {
                 "type": "boolean",
                 "readOnly": False,
                 "required": True,
-                "description": "I will cite the publications above if applicable."
+                "description": "I will cite the publications above if applicable.",
             },
         },
     },
@@ -55,27 +59,39 @@ ui_forms = {
         "properties": {
             "models": {
                 "title": "Model selection",
-                "description": "Select the models that should be used during analysis.",
+                "description": "Select one or more models to use during analysis.",
+                "type": "array",
+                "items": {"type": "string", "enum": ["bca", "body", "total"]},
+                "default": ["bca"],
+            },
+            "total_models": {
+                "title": "Optional models for 'total'",
+                "description": "Run only if 'total' is selected.",
                 "type": "array",
                 "items": {
                     "type": "string",
-                    "examples": [
-                        "body",
-                        "total",
+                    "enum": [
                         "lung_vessels",
                         "cerebral_bleed",
                         "hip_implant",
                         "coronary_arteries",
                         "pleural_pericard_effusion",
                         "liver_vessels",
-                        "bca",
-                    ]
+                    ],
                 },
-                "default": ["bca"],
+                "default": [],
+                "readOnly": False,
+            },
+            "strict_mode": {
+                "title": "Strict mode",
+                "description": "When enabled, the workflow must produce all expected outputs. The process will fail if any required output is missing.",
+                "type": "boolean",
+                "default": False,
+                "required": True,
                 "readOnly": False,
             },
             "single_execution": {
-                "title": "single execution",
+                "title": "Single execution",
                 "description": "Should each series be processed separately?",
                 "type": "boolean",
                 "default": True,
@@ -90,7 +106,7 @@ ui_forms = {
                 "required": True,
             },
         },
-    }
+    },
 }
 
 args = {
@@ -118,13 +134,35 @@ dcm2nifti = DcmConverterOperator(
 
 boa = BodyAndOrganAnalysisOperator(dag=dag, input_operator=dcm2nifti)
 
-push_to_minio = MinioOperator(
-    dag=dag, 
-    none_batch_input_operators=[boa],
-    whitelisted_file_extensions=[".json",".xlsx",".pdf",".nii.gz"]
+boa_check = BoaOutputCheckOperator(dag=dag, input_operator=boa)
+
+seg2dicom = Itk2DcmSegOperator(
+    dag=dag,
+    segmentation_operator=boa_check,
+    input_type="multi_label_seg",
+    input_operator=get_input,
+    skip_empty_slices=True,
+    multi_label_seg_name=dag.dag_id,
+    multi_label_seg_info_json="seg_info.json",
+    alg_name=dag.dag_id,
+    series_description=dag.dag_id,
+    single_label_seg_info="from_file_name",
 )
 
+send_task = DcmSendOperator(
+    dag=dag,
+    input_operator=seg2dicom,
+)
+
+push_to_minio = MinioOperator(
+    dag=dag,
+    none_batch_input_operators=[boa],
+    whitelisted_file_extensions=[".json", ".xlsx", ".pdf"],
+    # whitelisted_file_extensions=[".json",".xlsx",".pdf",".nii.gz"]
+)
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> dcm2nifti >> boa >> push_to_minio >> clean
+# --- Task flow ---
+get_input >> dcm2nifti >> boa >> boa_check >> seg2dicom >> send_task >> clean
+boa_check >> push_to_minio >> clean

@@ -6,4 +6,4 @@ pint==0.24.4
 statsd==4.0.1
 cryptography==43.0.3
 jupyterlab==4.3.1
-task-api@git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@feature/1909-registration-workflow#subdirectory=lib/task_api
+task-api@git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@develop#subdirectory=lib/task_api

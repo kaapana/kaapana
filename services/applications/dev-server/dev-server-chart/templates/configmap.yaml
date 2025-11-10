@@ -46,8 +46,15 @@ data:
     ]
   machine_settings.json: |-
     {
+        "security.workspace.trust.enabled": false,
+        "security.workspace.trust.startupPrompt": "never",
         "workbench.colorTheme": "Default Dark+",
-        "python.defaultInterpreterPath": "/opt/venv/bin/python"
+        "python.defaultInterpreterPath": "/opt/venv/bin/python",
+        "chat.disableAIFeatures": true,
+        "editor.aiStats.enabled": false,
+        "chat.agent.enabled": false,
+        "python.defaultInterpreterPath": "/opt/venv/bin/python",
+        "workbench.secondarySideBar.defaultVisibility": "hidden"
     }
   launch.json: |-
     {

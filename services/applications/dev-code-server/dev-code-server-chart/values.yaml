@@ -6,7 +6,7 @@ global:
     - name: dev-code-server
       mount_path: /kaapana/minio/
       host_path: "/applications/dev-code-server"
-      storage: "10Mi"
+      storage: "10Gi"
       minio_mirror: true
   envVars:
     - name: WORKSPACE

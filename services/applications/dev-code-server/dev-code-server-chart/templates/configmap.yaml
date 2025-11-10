@@ -56,7 +56,8 @@ data:
         "chat.agent.enabled": false,
         "python.defaultInterpreterPath": "/opt/venv/bin/python",
         "r.rterm.linux": "/usr/bin/R",
-        "r.alwaysUseActiveTerminal": true
+        "r.alwaysUseActiveTerminal": true,
+        "workbench.secondarySideBar.defaultVisibility": "hidden"
     }
 kind: ConfigMap
 metadata:

@@ -1,6 +1,6 @@
 {
-    "name": "register-dicoms",
-    "description": "Processing container for registering dicom images",
+    "name": "nrrd-to-dicom",
+    "description": "Convert nrrd images to dicom.",
     "templates": [
         {
             "identifier": "nrrd-to-dicom",

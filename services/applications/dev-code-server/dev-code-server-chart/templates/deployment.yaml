@@ -90,7 +90,7 @@ spec:
           requests:
             memory: 200Mi
           limits:
-            memory: 30Gi
+            memory: 10Gi
         volumeMounts:
           - name: configs
             mountPath: /root/.local/share/code-server/User/keybindings.json

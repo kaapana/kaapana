@@ -56,7 +56,6 @@ It supports unilateral sync:
 
 
 ## Known Limitations of The Environment
-* GPU access is currently disabled
 * JupyterLab VSCode Extension works as expected in Firefox, but in Chrome, Jupyter notebook cells may fail to render with a Service Worker SSL error:
 ```
 Could not initialize webview: Error: Could not register service worker:

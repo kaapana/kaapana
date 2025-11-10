@@ -8,5 +8,5 @@ keywords:
 - kaapanaint
 - kaapanamultiinstallable
 annotations:
-  documentation: "user_guide/extensions.html#dev-code-server"
+  documentation: "user_guide/extensions.html#code-server-for-development"
   ui-visible-name: "Code Server for Development"

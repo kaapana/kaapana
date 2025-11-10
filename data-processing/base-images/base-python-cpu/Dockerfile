@@ -52,7 +52,7 @@ RUN python3 -m pip install --upgrade setuptools pip && pip3 install -c https://c
 
 # Install code server and python extension
 RUN wget https://code-server.dev/install.sh
-RUN /bin/bash install.sh --version 4.95.2
+RUN /bin/bash install.sh --version 4.105.1
 RUN code-server --install-extension ms-python.python
 
 # Copy and install kaapana_federated directly from source

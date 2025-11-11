@@ -44,32 +44,20 @@ data:
             "when": "textInputFocus && !editorReadonly"
         }
     ]
-  machine_settings.json: |-
+  user_settings.json: |-
     {
         "security.workspace.trust.enabled": false,
         "security.workspace.trust.startupPrompt": "never",
+        "security.workspace.trust.untrustedFiles": "open",
+        "extensions.supportUntrustedWorkspaces": true,
         "workbench.colorTheme": "Default Dark+",
-        "python.defaultInterpreterPath": "/opt/venv/bin/python",
         "chat.disableAIFeatures": true,
         "editor.aiStats.enabled": false,
         "chat.agent.enabled": false,
         "python.defaultInterpreterPath": "/opt/venv/bin/python",
+        "r.rterm.linux": "/usr/bin/R",
+        "r.alwaysUseActiveTerminal": true,
         "workbench.secondarySideBar.defaultVisibility": "hidden"
-    }
-  launch.json: |-
-    {
-    // to change launch.json, change the kubernetes configmap
-        "version": "0.2.0",
-        "configurations": [
-            {
-                "name": "Python Debugger: Current File",
-                "type": "debugpy",
-                "request": "launch",
-                "program": "${file}",
-                "console": "integratedTerminal",
-                "justMyCode": false,
-            }
-        ]
     }
 kind: ConfigMap
 metadata:

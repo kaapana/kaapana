@@ -12,17 +12,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gdebi-core \
     && rm -rf /var/lib/apt/lists/*
 
-# Install R from CRAN
+# Install R
 RUN mkdir -p /usr/share/keyrings && \
-    gpg --batch --keyserver keyserver.ubuntu.com --recv-keys 51716619E084DAB9 && \
-    gpg --export 51716619E084DAB9 | gpg --dearmor > /usr/share/keyrings/cran-archive-keyring.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/cran-archive-keyring.gpg] https://cloud.r-project.org/bin/linux/ubuntu noble-cran40/" \
+    curl -fsSL https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc \
+        | gpg --dearmor -o /usr/share/keyrings/cran.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/cran.gpg] https://cloud.r-project.org/bin/linux/ubuntu noble-cran40/" \
         > /etc/apt/sources.list.d/cran.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends r-base r-base-dev && \
     rm -rf /var/lib/apt/lists/* && \
-    /usr/bin/R --silent --no-echo --no-save --no-restore -e "install.packages('languageserver', repos='https://cloud.r-project.org/')"
+    R --silent --no-echo --no-save --no-restore -e "install.packages(c('languageserver','httpgd'), repos='https://cloud.r-project.org')"
 
+# Install code-server extensions
 RUN code-server --install-extension ms-toolsai.jupyter && \
     code-server --install-extension REditorSupport.r && \
     code-server --install-extension ms-toolsai.jupyter-keymap && \

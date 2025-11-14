@@ -353,6 +353,7 @@ Example from the otsus-method example from ``kaapana/templates_and_examples/exam
 Example from the otsus-method example from ``kaapana/templates_and_examples/examples/processing-pipelines/otsus-method/extension/docker/files/dag_otsus_method.py`` (the GetInputOperator does also not expose a metrics endpoint, but we use it as an example for how annotations could be added to any Operator inheriting from KaapanaBaseOperator in the DAG definition):
 
 .. code-block:: python
+    
     # [...]
     dag = DAG(dag_id="otsus-method", default_args=args, schedule_interval=None)
 

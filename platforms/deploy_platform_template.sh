@@ -352,7 +352,7 @@ function run_migration_chart() {
     # Wait for migration job to finish
     local JOB_NAME="migration"
     local NAMESPACE="migration"
-    local TIMEOUT=180
+    local TIMEOUT=600
     local INTERVAL=5
     local ELAPSED=0
 
@@ -432,8 +432,12 @@ function migrate() {
     elif [[ -f "$VERSION_FILE" ]]; then
         CURRENT_VERSION=$(cat "$VERSION_FILE")
         echo "Found version: $CURRENT_VERSION"
+        
 
-        if [[ "$CURRENT_VERSION" == "$PLATFORM_VERSION" ]]; then
+        CURRENT_SEMVER="${CURRENT_VERSION%%-*}"
+        PLATFORM_SEMVER="${PLATFORM_VERSION%%-*}"
+
+        if [[ "$CURRENT_SEMVER" == "$PLATFORM_SEMVER" ]]; then
             echo "${GREEN}Version matches ($PLATFORM_VERSION). Skipping migration.${NC}"
         else
             echo "${YELLOW}Version mismatch: current=$CURRENT_VERSION, deploy=$PLATFORM_VERSION.${NC}"
@@ -522,7 +526,7 @@ function deploy_chart {
                     exit 1
                 fi
             else
-                microk8s.enable nvidia
+                microk8s.enable nvidia --gpu-operator-driver host --gpu-operator-version v24.6.2
             fi
         fi
     fi

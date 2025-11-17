@@ -478,7 +478,7 @@ echo -e "${GREEN}REAL_USER: $REAL_USER ${NC}";
 echo -e "${GREEN}USER_HOME: $USER_HOME ${NC}";
 echo ""
 
-DEFAULT_MICRO_VERSION=1.33/stable
+DEFAULT_MICRO_VERSION=1.34/stable
 DEFAULT_HELM_VERSION=latest/stable
 
 ### Parsing command line arguments:

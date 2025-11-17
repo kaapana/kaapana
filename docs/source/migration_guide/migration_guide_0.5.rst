@@ -53,7 +53,7 @@ To update existing platforms' databases from version 0.4.x to 0.5.x, follow the 
 
 2. Wait until fully undeployed
 
-  - `helm ls -a` does not show any Kaapana deployment
+  - `helm ls -A` does not show any Kaapana deployment
   - `kubectl get pods -A` does not show any Kaapana pods, only `kube-system` namespace
     
 3. Backup your `FAST_DATA_DIR`

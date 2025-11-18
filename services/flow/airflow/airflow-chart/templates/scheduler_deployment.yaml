@@ -201,6 +201,9 @@ spec:
         - name: airflow-pod-template
           mountPath: /kaapana/mounted/workflows/pod_template.yaml
           subPath: pod_template.yaml
+        - name: airflow-local-settings
+          mountPath: /kaapana/mounted/workflows/config/airflow_local_settings.py
+          subPath: airflow_local_settings.py
         - name: airflow-webserver-config
           mountPath: /kaapana/mounted/workflows/webserver_config.py
           subPath: webserver_config.py
@@ -237,6 +240,9 @@ spec:
       - name: airflow-pod-template
         configMap:
           name: airflow-pod-template
+      - name: airflow-local-settings
+        configMap:
+          name: airflow-local-settings
       - name: airflow-webserver-config
         configMap:
           name: airflow-webserver-config

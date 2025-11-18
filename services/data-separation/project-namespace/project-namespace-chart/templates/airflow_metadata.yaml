@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: airflow-metadata
-  namespace: "{{ .Values.global.services_namespace }}"
+  namespace: "{{ .Values.global.project_namespace }}"
 type: Opaque
 stringData:
   # The Fernet key used to encrypt Airflow connections/variables.

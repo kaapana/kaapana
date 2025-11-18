@@ -1389,29 +1389,16 @@ preflight_checks
 echo -e "${YELLOW}Get helm deployments...${NC}"
 deployments=$(
   (
-    # Common Helm args used in BOTH calls:
-    #   -n "$HELM_NAMESPACE"  → work in this namespace
-    #   ls                    → list releases
-    #   --short               → only print release names
-    #   --no-headers          → don't print the header line
+    # Helm 3 vs Helm 4:
+    # - Helm 3 needs `helm list -a` to show all releases.
+    # - Helm 4 removed `-a` and `helm list` already lists all statuses by default.
+    #   See: https://helm.sh/docs/v3/helm/helm_list/ and https://helm.sh/docs/helm/helm_list/
     #
-    # OLD HELM:
-    #   extra flag: -a        → "all releases" (required on old versions)
-    #
-    # NEW HELM:
-    #   no extra flag needed  → default already lists all statuses
-
-    # 1) Try old Helm syntax (includes -a). If this succeeds, we're done.
-    # 2>/dev/null          : send *error messages* (stderr) to /dev/null so that
-    #                        if this fails (e.g. because -a is unknown), the user
-    #                        does not see the error.
+    # Try Helm 3 syntax first; if it fails (e.g. unknown flag -a), fall back to Helm 4 syntax.
     helm -n "$HELM_NAMESPACE" ls \
          --short --no-headers \
          -a 2>/dev/null \
     || \
-    # If the previous command fails (exit code != 0), the `||` ("OR") runs this one.
-    # 2) If the above fails (e.g. unknown flag -a), fall back to new Helm syntax
-    #    which simply omits -a but keeps the same common flags.
     helm -n "$HELM_NAMESPACE" ls \
          --short --no-headers
   )

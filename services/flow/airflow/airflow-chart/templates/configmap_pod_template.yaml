@@ -10,7 +10,7 @@ data:
     kind: Pod
     metadata:
       name: placeholder-name
-      namespace: "{{ .Values.global.project_namespace }}"
+      namespace: "{{ .Values.global.services_namespace }}"
     spec:
       containers:
         - name: base

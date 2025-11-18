@@ -1,0 +1,45 @@
+{
+    "name": "nrrd-to-dicom",
+    "description": "Convert nrrd images to dicom.",
+    "templates": [
+        {
+            "identifier": "nrrd-to-dicom",
+            "description": "Convert nrrd images to dicom",
+            "env": [
+            ],
+            "inputs": [
+                {
+                    "name": "nrrd",
+                    "mounted_path": "/home/kaapana/nrrd",
+                    "description": "Expects a subdirectory per image with a single .nrrd file. Directory names must match with <reference> channel.",
+                    "scale_rule": {
+                        "scale_factor": 20,
+                        "type": "limit",
+                        "mode": "max_item_sum",
+                        "target_glob": "*.nrrd"
+                    }
+                },
+                {
+                    "name": "reference",
+                    "mounted_path": "/home/kaapana/reference",
+                    "description": "Expects a subdirectory per subdirectory in <nrrd> chanel with the reference dicom image. Directory names must match with <nrrd> channel."
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "dicom",
+                    "mounted_path": "/home/kaapana/dicom"
+                }
+            ],
+            "command": ["/bin/bash", "/home/kaapana/convert-nrrd-to-dicom.sh"],
+            "resources": {
+                "limits": {
+                    "memory": "1000Mi"
+                },
+                "requests": {
+                    "memory": "100Mi"
+                }
+            }
+        }
+    ]
+}

@@ -1,13 +1,7 @@
 from __future__ import annotations
 from typing import Optional, List, Annotated, Dict
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 from enum import Enum
-
-
-class EnvVarType(Enum):
-    boolean = "boolean"
-    string = "string"
-    int = "int"
 
 
 class BaseEnv(BaseModel):
@@ -16,9 +10,7 @@ class BaseEnv(BaseModel):
 
 
 class TaskTemplateEnv(BaseEnv):
-    type: Optional[EnvVarType] = None
     choices: Optional[List[str]] = None
-    adjustable: Optional[bool] = None
     description: Optional[str] = None
 
 
@@ -33,8 +25,9 @@ class ScaleRuleType(Enum):
 
 
 class ScaleRuleMode(Enum):
-    sum = "sum"
-    max_file_size = "max_file_size"
+    sum = "sum"  ### Sum of all elements in the channel
+    max_file_size = "max_file_size"  ### Maximum size of all files in all channels
+    max_item_sum = "max_item_sum"  ### Maximum sum of all elements in an item subdirectory in the channel
 
 
 class ScaleRule(BaseModel):
@@ -42,12 +35,12 @@ class ScaleRule(BaseModel):
     Defines how memory resources should scale based on the size of input data in an IOMount.
     """
 
-    complexity: Annotated[str, Field(pattern="^[-+]?\\d*(\\.\\d+)?\\*?n(\\*\\*\\d+)?$")]
+    scale_factor: int
     type: ScaleRuleType
     mode: ScaleRuleMode
-    target_dir: Optional[str] = None
-    target_regex: Optional[str] = None
-    target_glob: Optional[str] = None
+    target_dir: Optional[str] = ""
+    target_regex: Optional[str] = ".*"
+    target_glob: Optional[str] = "*"
 
 
 class IOBase(BaseModel):

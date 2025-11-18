@@ -9,7 +9,7 @@
                 "host_path":"{{ env.output_dir }}/dummy/channel1"
             },
             "scale_rule":{
-                "complexity": "25*n**1",
+                "scale_factor": 25,
                 "type": "limit",
                 "mode": "sum",
                 "target_dir": ".",

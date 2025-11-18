@@ -2,7 +2,7 @@ import json
 import base64
 import re
 import time
-
+from enum import Enum
 from kubernetes import client, config, watch
 from task_api.processing_container import task_models, pc_models
 from task_api.processing_container.resources import compute_memory_resources
@@ -36,6 +36,14 @@ def generate_pod_name(base_name: str) -> str:
         sanitized_name = re.sub(r"[^a-z0-9]+$", "", sanitized_name)
 
     return sanitized_name
+
+
+class PodPhase(str, Enum):
+    PENDING = "Pending"
+    RUNNING = "Running"
+    SUCCEEDED = "Succeeded"
+    FAILED = "Failed"
+    UNKNOWN = "Unknown"
 
 
 def get_volume_and_mounts(
@@ -213,7 +221,7 @@ class KubernetesRunner(BaseRunner):
         # Wait until pod is in Running state
         cls.wait_for_task_status(
             task_run=task_run,
-            states=["Running", "Succeeded", "Failed"],
+            states=[PodPhase.RUNNING, PodPhase.SUCCEEDED, PodPhase.FAILED],
             timeout=startup_timeout,
         )
 
@@ -258,10 +266,27 @@ class KubernetesRunner(BaseRunner):
     def wait_for_task_status(
         cls,
         task_run: task_models.TaskRun,
-        states: list = ["Running", "Succeeded", "Failed"],
+        states: List[PodPhase] = [
+            PodPhase.RUNNING,
+            PodPhase.SUCCEEDED,
+            PodPhase.FAILED,
+        ],
         timeout: int = 5,
-    ) -> str:
-        """ """
+    ) -> PodPhase:
+        """
+        Wait until the Pod for the TaskRun reached one of the PodPhases in states.
+
+        Arguments:
+            task_run: TaskRun object that triggered creation of the Pod
+            states: List of PodPhases to wait for the Pod to reach
+            timeout: Timeout in seconds to wait for the Pod to reach one of the phases in states
+
+        Return:
+            PodPhase of the Pod.
+
+        Raise:
+            TimeoutError: If Pod did not reach any of the PodPhases in states within timeout seconds.
+        """
         w = watch.Watch()
 
         for event in w.stream(

@@ -95,7 +95,8 @@ data:
       ns = "project-admin"
       if dagrun and dagrun.conf:
         # Example: dynamic namespace
-        ns = dagrun.conf.get("project_form", {}).get("kubernetes_namespace")
+        incoming_ns = dagrun.conf.get("project_form", {}).get("kubernetes_namespace")
+      ns = incoming_ns or ns
       pod.metadata.namespace = ns
       pod.metadata.labels = pod.metadata.labels or {}
       pod.metadata.labels["kaapana.ai/project-namespace"] = ns

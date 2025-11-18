@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: airflow-pod-template
-  namespace: "{{ .Values.global.services_namespace }}"
+  namespace: "{{ .Values.global.project_namespace }}"
 data:
    pod_template.yaml: |+
     ---

@@ -11,3 +11,25 @@ global:
     host_path: /workflows/data
   - name: mounted-scripts
     host_path: /workflows/mounted_scripts
+
+  ### For Local Operators managed by KubernetesExecutor
+  - name: dags
+    host_path: /workflows/dags
+  - name: af-logs
+    host_path: /airflow/logs
+  - name: af-plugins
+    host_path: /workflows/plugins
+  - name: uploads
+    host_path: /uploads
+  - name: ctp-data
+    host_path: /ctp/
+  - name: dcm4chee-dicom
+    host_path: /dcm4che/dicom_data
+
+
+kaapana_database:
+  admin: false
+  postgres_user: root
+  postgres_password: root
+  postgres_db: airflow
+  appName: airflow

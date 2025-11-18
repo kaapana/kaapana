@@ -21,7 +21,7 @@ CONTAINER_REGISTRY_PASSWORD="{{ container_registry_password|default('', true) }}
  # dev-mode -> containers will always be re-downloaded after pod-restart
 DEV_MODE={{ dev_mode|default(true) }}
 GPU_SUPPORT={{ gpu_support|default(false)}}
-
+GPU_OPERATOR_VERSION="v24.6.2"
 PREFETCH_EXTENSIONS={{prefetch_extensions|default('false')}}
 CHART_PATH=""
 NO_HOOKS=""
@@ -526,7 +526,7 @@ function deploy_chart {
                     exit 1
                 fi
             else
-                microk8s.enable nvidia --gpu-operator-driver host --gpu-operator-version v24.6.2
+                microk8s.enable nvidia --gpu-operator-driver host --gpu-operator-version $GPU_OPERATOR_VERSION
             fi
         fi
     fi

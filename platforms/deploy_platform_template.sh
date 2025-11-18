@@ -44,6 +44,7 @@ HELM_NAMESPACE="{{ helm_namespace }}"
 OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
 
 INCLUDE_REVERSE_PROXY=false
+MIGRATION_ENABLED=false
 
 ######################################################
 # Resource configurations
@@ -365,7 +366,7 @@ function run_migration_chart() {
     # Wait for migration job to finish
     local JOB_NAME="migration"
     local NAMESPACE="migration"
-    local TIMEOUT=180
+    local TIMEOUT=600
     local INTERVAL=5
     local ELAPSED=0
 
@@ -438,42 +439,72 @@ function migrate() {
     echo "${YELLOW}Checking ${VERSION_FILE} status...${NC}"
 
     if [[ ! -d "$FAST_DATA_DIR" || -z "$(ls -A "$FAST_DATA_DIR" 2>/dev/null)" ]]; then
-        echo "${GREEN}Fresh installation detected. Running migration chart to create version file.${NC}"
-         # Just creating a version file. Could be handled somewhere else, in the kaapana-admin-chart or whatever.)
-        run_migration_chart "fresh" "$PLATFORM_VERSION"
+        echo "${GREEN}Fresh installation detected.${NC}"
+        if [[ "$MIGRATION_ENABLED" == true ]]; then
+            echo "${GREEN}Running migration chart to create version file.${NC}"
+            run_migration_chart "fresh" "$PLATFORM_VERSION"
+        else
+            echo "${YELLOW}Migration disabled. Version file will NOT be created during deployment.${NC}"
+        fi
 
     elif [[ -f "$VERSION_FILE" ]]; then
         CURRENT_VERSION=$(cat "$VERSION_FILE")
-        echo "Found version: $CURRENT_VERSION"
+        echo "${GREEN}Found version: $CURRENT_VERSION${NC}"
+        echo "${GREEN}Target version: $PLATFORM_VERSION${NC}"
         
-        if [[ "$CURRENT_VERSION" == "$PLATFORM_VERSION" ]]; then
+        CURRENT_SEMVER="${CURRENT_VERSION%%-*}"
+        PLATFORM_SEMVER="${PLATFORM_VERSION%%-*}"
+
+        if [[ "$CURRENT_SEMVER" == "$PLATFORM_SEMVER" ]]; then
             echo "${GREEN}Version matches ($PLATFORM_VERSION). Skipping migration.${NC}"
         else
-            echo "${YELLOW}Version mismatch: current=$CURRENT_VERSION, deploy=$PLATFORM_VERSION.${NC}"
+            echo "${YELLOW}Version mismatch: current=$CURRENT_VERSION, target=$PLATFORM_VERSION.${NC}"
 
-            # Extract major.minor
-            cur_major=$(echo "$CURRENT_VERSION" | cut -d. -f1)
-            cur_minor=$(echo "$CURRENT_VERSION" | cut -d. -f2)
-            dep_major=$(echo "$PLATFORM_VERSION" | cut -d. -f1)
-            dep_minor=$(echo "$PLATFORM_VERSION" | cut -d. -f2)
+            if [[ "$MIGRATION_ENABLED" == true ]]; then
+                # Extract major.minor
+                cur_major=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+                cur_minor=$(echo "$CURRENT_VERSION" | cut -d. -f2)
+                dep_major=$(echo "$PLATFORM_VERSION" | cut -d. -f1)
+                dep_minor=$(echo "$PLATFORM_VERSION" | cut -d. -f2)
 
-            echo "${YELLOW}Version change detected: $CURRENT_VERSION -> $PLATFORM_VERSION.${NC}"
-            prompt_user_backup
-            run_migration_chart "$CURRENT_VERSION" "$PLATFORM_VERSION"
+                echo "${YELLOW}Migration enabled: $CURRENT_VERSION -> $PLATFORM_VERSION.${NC}"
+                prompt_user_backup
+                run_migration_chart "$CURRENT_VERSION" "$PLATFORM_VERSION"
+            else
+                echo "${YELLOW}╔════════════════════════════════════════════════════════════════╗${NC}"
+                echo "${YELLOW}║                    ⚠️  WARNING                                 ║${NC}"
+                echo "${YELLOW}║ Version mismatch detected but migration is DISABLED           ║${NC}"
+                echo "${YELLOW}║ Current: $CURRENT_VERSION → Target: $PLATFORM_VERSION                                   ║${NC}"
+                echo "${YELLOW}║                                                                ║${NC}"
+                echo "${YELLOW}║ Migration can be enabled with the --migration flag            ║${NC}"
+                echo "${YELLOW}║ Proceeding without migration may cause compatibility issues   ║${NC}"
+                echo "${YELLOW}╚════════════════════════════════════════════════════════════════╝${NC}"
+            fi
         fi
 
     elif [[ -d "$FAST_DATA_DIR" && -n "$(ls -A "$FAST_DATA_DIR")" ]]; then
         echo "${YELLOW}No version file and directory is not empty!${NC}"
-        echo "Options:"
-        echo "  1. Let migration-chart autodetect version using $FAST_DATA_DIR/extensions/kaapana-platform-chart-<version>.tgz"
-        echo "  2. Exit to manually create $VERSION_FILE with correct version and rerun the deploy script."
-        read -p "Choose option (1/2): " choice
-        if [[ "$choice" == "1" ]]; then
-            prompt_user_backup
-            run_migration_chart "autodetect" "$PLATFORM_VERSION"
+        
+        if [[ "$MIGRATION_ENABLED" == true ]]; then
+            echo "Options:"
+            echo "  1. Let migration-chart autodetect version using $FAST_DATA_DIR/extensions/kaapana-platform-chart-<version>.tgz"
+            echo "  2. Exit to manually create $VERSION_FILE with correct version and rerun the deploy script."
+            read -p "Choose option (1/2): " choice
+            if [[ "$choice" == "1" ]]; then
+                prompt_user_backup
+                run_migration_chart "autodetect" "$PLATFORM_VERSION"
+            else
+                echo "${RED}Please create the version file manually and rerun.${NC}"
+                exit 1
+            fi
         else
-            echo "${RED}Please create the version file manually and rerun.${NC}"
-            exit 1
+            echo "${YELLOW}╔════════════════════════════════════════════════════════════════╗${NC}"
+            echo "${YELLOW}║                    ⚠️  WARNING                                 ║${NC}"
+            echo "${YELLOW}║ Version file missing but directory is not empty               ║${NC}"
+            echo "${YELLOW}║                                                                ║${NC}"
+            echo "${YELLOW}║ Migration can be enabled with the --migration flag            ║${NC}"
+            echo "${YELLOW}║ Continuing without migration - version file will be created   ║${NC}"
+            echo "${YELLOW}╚════════════════════════════════════════════════════════════════╝${NC}"
         fi
     else
         echo "Unexpected state. Please check $FAST_DATA_DIR."
@@ -1338,9 +1369,9 @@ do
             shift # past argument
         ;;
 
-        --no-migration)
-            MIGRATION_ENABLED=false
-            echo -e "${YELLOW}Migration disabled via CLI (--no-migration).${NC}"
+        --migration)
+            MIGRATION_ENABLED=true
+            echo -e "${YELLOW}Migration enabled via CLI (--migration).${NC}"
             shift # past argument
         ;;
 

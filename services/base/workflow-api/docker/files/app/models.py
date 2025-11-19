@@ -6,7 +6,7 @@ from typing import List
 from app.schemas import TaskRunStatus, WorkflowRunStatus
 from sqlalchemy import Column, DateTime
 from sqlalchemy import Enum as SqlEnum
-from sqlalchemy import ForeignKey, Integer, String, Table, UniqueConstraint
+from sqlalchemy import ForeignKey, Integer, String, Table, UniqueConstraint, Boolean
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -43,6 +43,7 @@ class Workflow(Base):
     definition = Column(String)
     workflow_parameters = Column(JSONB)  # Schema for validate workflow run config
     created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
+    removed = Column(Boolean, default=False, nullable=False)
 
     runs: Mapped[List[WorkflowRun]] = relationship(
         "WorkflowRun", back_populates="workflow"

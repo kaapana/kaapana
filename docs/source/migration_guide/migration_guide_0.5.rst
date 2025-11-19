@@ -66,7 +66,7 @@ To update existing platforms' databases from version 0.4.x to 0.5.x, follow the 
 
    .. code-block:: bash
 
-      curl https://raw.githubusercontent.com/kaapana/kaapana/refs/tags/0.5.2/utils/migration_0.4.x-0.5.x.sh -o migration_0.4.x-0.5.x.sh
+      curl https://codebase.helmholtz.cloud/kaapana/kaapana/-/raw/0.5.2/utils/migration-0.4.x-0.5.x.sh -o migration_0.4.x-0.5.x.sh
 
 
 5. Run the migration script with specified FAST_DATA_DIR:

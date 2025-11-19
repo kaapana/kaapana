@@ -29,8 +29,6 @@ spec:
           mountPath: /fast_data_dir
         - name: slowdir
           mountPath: /slow_data_dir
-        - name: docker-sock
-          mountPath: /var/run/docker.sock
       volumes:
       - name: fastdir
         persistentVolumeClaim:
@@ -38,8 +36,5 @@ spec:
       - name: slowdir
         persistentVolumeClaim:
           claimName: slow-data-dir-pvc
-      - name: docker-sock
-        hostPath:
-          path: /var/run/docker.sock
       imagePullSecrets:
       - name: registry-secret

@@ -127,9 +127,6 @@ data:
               value: "http://minio-service.{{ .Values.global.services_namespace }}.svc:9000"
           volumeMounts:
             ### Volumes defined in configmaps
-            # - name: airflow-configmap
-            #   mountPath: /kaapana/mounted/workflows/airflow.cfg
-            #   subPath: airflow.cfg
             - name: airflow-pod-template
               mountPath: /kaapana/mounted/workflows/pod_template.yaml
               subPath: pod_template.yaml
@@ -161,24 +158,14 @@ data:
               mountPath: /dev/shm
           resources:
             requests:
-              memory: 100Mi
+              memory: 10Mi
             limits: 
-              memory: 500Mi
+              memory: 2000Mi
       restartPolicy: Never
       serviceAccountName: "kaapana-kube-admin"
       imagePullSecrets:
         - name: registry-secret
       volumes:
-        # - name: airflow-configmap
-        #   configMap:
-        #     name: airflow-configmap
-        # - name: airflow-webserver-config
-        #   configMap:
-        #     name: airflow-webserver-config
-        # - name: airflow-statsd-config
-        #   configMap:
-        #     name: airflow-statsd-config
-
         ### Defined here
         - name: tmp
           emptyDir: {}

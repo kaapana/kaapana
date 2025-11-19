@@ -152,6 +152,7 @@ class BuildHelper:
             "platform_name": platform_chart.name,
             "platform_build_version": platform_chart.version,
             "container_registry_url": cls._build_config.default_registry,
+            "plain_http": cls._build_config.plain_http,
         }
         if platform_chart.deployment_config:
             platform_config.update(platform_chart.deployment_config)

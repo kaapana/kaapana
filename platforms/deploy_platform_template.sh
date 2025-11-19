@@ -4,6 +4,11 @@ export HELM_EXPERIMENTAL_OCI=1
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 
 ######################################################
+# Executable configurations
+######################################################
+HELM_EXECUTABLE="${HELM_EXECUTABLE:-helm}"
+
+######################################################
 # Main platform configuration
 ######################################################
 
@@ -13,6 +18,7 @@ PLATFORM_VERSION="{{ platform_build_version }}" # Specific version or empty for 
 CONTAINER_REGISTRY_URL="{{ container_registry_url|default('', true) }}" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
 CONTAINER_REGISTRY_USERNAME="{{ container_registry_username|default('', true) }}"
 CONTAINER_REGISTRY_PASSWORD="{{ container_registry_password|default('', true) }}"
+PLAIN_HTTP={{ plain_http|default(false) }} # Use plain HTTP for registry (insecure)
 
 ######################################################
 # Deployment configuration
@@ -242,7 +248,7 @@ function get_domain {
 function delete_deployment {
     echo -e "${YELLOW}Undeploy releases${NC}"
     for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
-        helm -n $namespace ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "helm -n $namespace uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
+        $HELM_EXECUTABLE -n $namespace ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
     done
 
     echo -e "${YELLOW}Waiting until everything is terminated ...${NC}"
@@ -252,7 +258,7 @@ function delete_deployment {
         sleep 3
         if [ "$idx" -eq 2 ]; then
             echo "Deleting helm charts in 'uninstalling' state with --no-hooks"
-            helm -n $namespace ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "helm -n $namespace uninstall --no-hooks --wait --timeout 5m30s %; sleep 2"
+            $HELM_EXECUTABLE -n $namespace ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall --no-hooks --wait --timeout 5m30s %; sleep 2"
         fi
         DEPLOYED_NAMESPACES=$(/bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered '$EXTENSIONS_NAMESPACE' | cut -d' ' -f1")
         TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E --line-buffered 'Terminating' | cut -d' ' -f1")
@@ -339,7 +345,13 @@ function run_migration_chart() {
         exit 1
     fi
 
-    helm -n "$HELM_NAMESPACE" upgrade --install kaapana-migration "$MIGRATION_CHART_PATH" \
+    # Build helm command with optional --plain-http flag
+    HELM_CMD="$HELM_EXECUTABLE -n $HELM_NAMESPACE upgrade --install"
+    if [ "$PLAIN_HTTP" = true ]; then
+        HELM_CMD="$HELM_CMD --plain-http"
+    fi
+    
+    $HELM_CMD kaapana-migration "$MIGRATION_CHART_PATH" \
         --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \
         --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
         --set-string global.fast_data_dir="$FAST_DATA_DIR" \
@@ -359,7 +371,7 @@ function run_migration_chart() {
 
     cleanup() {
         echo -e "${YELLOW}Cleaning up migration helm chart...${NC}"
-        helm uninstall "kaapana-migration" -n "$HELM_NAMESPACE" || true
+        $HELM_EXECUTABLE uninstall "kaapana-migration" -n "$HELM_NAMESPACE" || true
     }
 
     echo -e "${YELLOW}Waiting for migration job $JOB_NAME to complete...${NC}"
@@ -611,7 +623,14 @@ function deploy_chart {
 
     echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
-    helm -n $HELM_NAMESPACE install --create-namespace $CHART_PATH \
+    
+    # Build helm command with optional --plain-http flag
+    HELM_INSTALL_CMD="$HELM_EXECUTABLE -n $HELM_NAMESPACE install --create-namespace"
+    if [ "$PLAIN_HTTP" = true ]; then
+        HELM_INSTALL_CMD="$HELM_INSTALL_CMD --plain-http"
+    fi
+    
+    $HELM_INSTALL_CMD $CHART_PATH \
     --set-string global.base_namespace="base" \
     --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \
     --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
@@ -693,7 +712,7 @@ function pull_chart {
     while [ $i -le $MAX_RETRIES ];
     do
         echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/${chart_name} with version ${chart_version} ${NC}"
-        helm pull oci://${CONTAINER_REGISTRY_URL}/${chart_name} \
+        $HELM_EXECUTABLE pull --plain-http oci://${CONTAINER_REGISTRY_URL}/${chart_name} \
             --version ${chart_version} -d ${dest_dir} \
             && break \
             || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 )
@@ -720,7 +739,14 @@ function check_credentials {
         fi
     done
     STRIPPED_CONTAINER_REGISTRY_URL=$(echo "$CONTAINER_REGISTRY_URL" | sed -E 's~^https?://~~' | cut -d'/' -f1)
-    helm registry login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD ${STRIPPED_CONTAINER_REGISTRY_URL}
+    
+    # Build helm registry login command with optional --plain-http flag
+    HELM_LOGIN_CMD="$HELM_EXECUTABLE registry login"
+    if [ "$PLAIN_HTTP" = true ]; then
+        HELM_LOGIN_CMD="$HELM_LOGIN_CMD --plain-http"
+    fi
+    
+    $HELM_LOGIN_CMD -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD $(echo "$CONTAINER_REGISTRY_URL" | cut -d/ -f1)
 }
 
 function install_certs {
@@ -1043,7 +1069,7 @@ function check_system() {
 
     # Extract all resources from the Helm manifest
     resources=$(
-    helm get manifest "$release" -n "$helm_ns" \
+    $HELM_EXECUTABLE get manifest "$release" -n "$helm_ns" \
         | microk8s.kubectl apply --dry-run=client -f - -o json \
         | jq -r '.items[] | "\(.kind)/\(.metadata.namespace)/\(.metadata.name)"'
     )
@@ -1184,7 +1210,11 @@ ping -c3 -i 0.2 www.dkfz-heidelberg.de
 openssl s_client -connect $CONTAINER_REGISTRY_URL:443
 
 --- "Check Registry Credentials"
-helm registry login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD $CONTAINER_REGISTRY_URL
+if [ "$PLAIN_HTTP" = true ]; then
+    $HELM_EXECUTABLE registry login --plain-http -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD $CONTAINER_REGISTRY_URL
+else
+    $HELM_EXECUTABLE registry login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD $CONTAINER_REGISTRY_URL
+fi
 
 --- "Systemd Status"
 systemd status
@@ -1398,11 +1428,11 @@ deployments=$(
     #   See: https://helm.sh/docs/v3/helm/helm_list/ and https://helm.sh/docs/helm/helm_list/
     #
     # Try Helm 3 syntax first; if it fails (e.g. unknown flag -a), fall back to Helm 4 syntax.
-    helm -n "$HELM_NAMESPACE" ls \
+    $HELM_EXECUTABLE -n "$HELM_NAMESPACE" ls \
          --short --no-headers \
          -a 2>/dev/null \
     || \
-    helm -n "$HELM_NAMESPACE" ls \
+    $HELM_EXECUTABLE -n "$HELM_NAMESPACE" ls \
          --short --no-headers
   )
 )

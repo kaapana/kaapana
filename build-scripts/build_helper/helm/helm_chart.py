@@ -555,7 +555,7 @@ class HelmChart:
                 else:
                     f.write(line)
 
-    def lint_chart(self, values: Optional[Path] = None):
+    def lint_chart(self, helm_executable: str, values: Optional[Path] = None):
         if self.ignore_linting:
             logger.debug(f"{self.name} has ignore_linting: true - skipping")
             return
@@ -566,9 +566,9 @@ class HelmChart:
 
         logger.info(f"{self.name}: lint_chart")
 
-        command = ["helm", "lint", "."]
+        command = [helm_executable, "lint", "."]
         if values:
-            command = ["helm", "lint", ".", "--values", str(values)]
+            command = [helm_executable, "lint", ".", "--values", str(values)]
         output = run(
             command,
             stdout=PIPE,
@@ -591,7 +591,7 @@ class HelmChart:
             logger.debug(f"{self.name}: lint_chart ok")
             self.linted = True
 
-    def lint_kubeval(self, values: Optional[Path] = None):
+    def lint_kubeval(self, helm_executable: str, values: Optional[Path] = None):
         if self.ignore_linting:
             logger.debug(f"{self.name} has ignore_linting: true - skipping")
             return
@@ -601,7 +601,7 @@ class HelmChart:
             return
 
         logger.info(f"{self.name}: lint_kubeval")
-        command = ["helm", "kubeval", "--ignore-missing-schemas", "."]
+        command = [helm_executable, "kubeval", "--ignore-missing-schemas", "."]
         if values:
             command.insert(-1, "--values")
             command.insert(-1, str(values))
@@ -628,9 +628,12 @@ class HelmChart:
             logger.debug(f"{self.name}: lint_kubeval ok")
             self.kubeval_done = True
 
-    def make_package(self):
+    def make_package(self, helm_executable: str, plain_http: bool):
         logger.info(f"{self.name}: make_package")
-        command = ["helm", "package", self.name]
+        command = [helm_executable, "package", self.name]
+        if plain_http:
+            command.append("--plain-http")
+
         output = run(
             command,
             stdout=PIPE,
@@ -652,15 +655,24 @@ class HelmChart:
                 path=self.chartfile.parent,
             )
 
-    def push(self, default_registry: str, max_tries: int):
+    def push(
+        self,
+        helm_executable: str,
+        default_registry: str,
+        max_tries: int,
+        plain_http: bool,
+    ):
         logger.info(f"{self.name}: push")
         try_count = 0
         command = [
-            "helm",
+            helm_executable,
             "push",
             f"{self.name}-{self.version}.tgz",
             f"oci://{default_registry}",
         ]
+        if plain_http:
+            command.append("--plain-http")
+
         output = run(
             command,
             stdout=PIPE,
@@ -718,6 +730,7 @@ class HelmChart:
         platform_build_version: str,
         bar=None,
         enable_linting=True,
+        helm_executable: str = "helm",
         values=None,
     ) -> None:
         """
@@ -746,8 +759,8 @@ class HelmChart:
             )
 
         if enable_linting:
-            self.lint_chart(values)
-            self.lint_kubeval(values)
+            self.lint_chart(helm_executable, values)
+            self.lint_kubeval(helm_executable, values)
 
         if bar:
             bar()

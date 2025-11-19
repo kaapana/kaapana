@@ -121,7 +121,7 @@ async def get_workflow_by_title_and_version(
 async def delete_workflow(db: AsyncSession, title: str, version: int):
     workflow = await crud.get_workflow(db, filters={"title": title, "version": version})
     success = await crud.delete_workflow(db, workflow) if workflow else False
-    # TODO: also delete tasks associated with the workflow, but this creates orphaned task runs
+    # workflow is already filtered by removed=False, so removed ones are not returned
     if not success:
         logger.error(f"Failed to delete workflow with {title=} and {version=}")
         raise NotFoundError("Workflow not found")

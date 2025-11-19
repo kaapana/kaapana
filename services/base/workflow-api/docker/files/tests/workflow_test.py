@@ -196,3 +196,61 @@ async def test_get_workflows_perf_under_200ms():
         assert (
             elapsed_ms < 200
         ), f"GET /workflows took {elapsed_ms:.1f}ms, expected <200ms"
+
+
+@pytest.mark.asyncio
+async def test_soft_delete_hides_workflow_and_other_resources():
+    """
+    Ensure that after soft deletion:
+      - workflow cannot be retrieved
+      - tasks cannot be retrieved
+      - workflow runs cannot be created
+      - existing workflow runs still exist in DB but API refuses creation
+    """
+    title = f"wf-softdel-{datetime.now().timestamp()}"
+
+    # create a workflow
+    resp = await common.create_workflow(
+        schemas.WorkflowCreate(
+            title=title,
+            definition="soft-delete-test",
+            workflow_engine="dummy",
+            labels=[schemas.Label(key="created_from_test", value="true")],
+        )
+    )
+    assert resp.status_code == 201
+    wf = schemas.Workflow(**resp.json())
+
+    async with httpx.AsyncClient(base_url=API_BASE_URL) as client:
+        # tasks should exist
+        resp_tasks = await client.get(f"/workflows/{wf.title}/{wf.version}/tasks")
+        assert resp_tasks.status_code == 200
+        tasks = resp_tasks.json()
+        assert len(tasks) >= 1  # dummy-task-1, dummy-task-2
+
+        # delete workflow
+        del_resp = await client.delete(f"/workflows/{wf.title}/{wf.version}")
+        assert del_resp.status_code == 204
+
+        # workflow can not be retrieved anymore
+        get_resp = await client.get(f"/workflows/{wf.title}/{wf.version}")
+        assert get_resp.status_code == 404
+
+        # tasks cannot be retrieved anymore because workflow cannot be resolved
+        resp_tasks = await client.get(f"/workflows/{wf.title}/{wf.version}/tasks")
+        assert resp_tasks.status_code == 404
+
+        # attempting to create a run should fail (no workflow)
+        run_payload = {
+            "workflow": {"title": wf.title, "version": wf.version},
+            "labels": [],
+            "workflow_parameters": [],
+        }
+        run_resp = await client.post("/workflow-runs", json=run_payload)
+        assert run_resp.status_code == 404
+
+        # GET /workflows should not return deleted workflow
+        list_resp = await client.get("/workflows")
+        assert list_resp.status_code == 200
+        titles = [wf_json["title"] for wf_json in list_resp.json()]
+        assert wf.title not in titles

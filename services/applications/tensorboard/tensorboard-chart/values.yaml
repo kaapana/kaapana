@@ -17,6 +17,7 @@ global:
     mount_path: /kaapana/mounted/tb-logs/minio
     host_path: /applications/tensorboard
     minio_mirror : true
+  display_name: "-"
 
 extension_params:
     display_name:

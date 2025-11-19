@@ -7,3 +7,4 @@ global:
   slow_data_dir: ""
   namespace: ""
   dynamicVolumes:
+  display_name: "-"

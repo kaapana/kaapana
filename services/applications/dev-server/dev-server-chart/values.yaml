@@ -6,3 +6,4 @@ global:
   envVars:
   - name: WORKSPACE
     value: "/kaapana"
+  display_name: "-"

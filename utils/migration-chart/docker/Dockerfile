@@ -17,8 +17,4 @@ WORKDIR /kaapana/app
 
 COPY files/* /kaapana/app/
 
-# Make bash scripts executable
-RUN chmod +x /kaapana/app/*.sh
-
-# Default command to run migration script
 CMD ["python3","-u","/kaapana/app/migration.py"]

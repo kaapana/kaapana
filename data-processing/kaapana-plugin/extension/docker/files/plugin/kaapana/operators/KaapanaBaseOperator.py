@@ -752,6 +752,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         logging.info("CONTAINER ENVS:")
         logging.info(json.dumps(self.env_vars, indent=4, sort_keys=True))
+        logging.info("CONTAINER ANNOTATIONS BEFORE RUN:")
+        logging.info(json.dumps(self.annotations, indent=2, sort_keys=True))
 
         try:
             project_form = context.get("params").get("project_form")
@@ -797,6 +799,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     volumes=self.volumes,
                     volume_mounts=self.volume_mounts,
                     labels=self.labels,
+                    annotations=self.annotations,
                 ),
             )
         )

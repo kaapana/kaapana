@@ -1,4 +1,5 @@
 import asyncio
+import io
 import json
 import logging
 from datetime import datetime
@@ -63,7 +64,10 @@ async def get_minio_presigned_url(presigned_url: str = Header(...)):
 
 
 async def stream_upload_to_minio(
-    file_data: BinaryIO, presigned_url: str, settings, filename: str = "unknown"
+    file_data: BinaryIO,
+    presigned_url: str,
+    settings,
+    filename: str = "unknown"
 ) -> AsyncGenerator[str, None]:
     """Stream MinIO response without buffering"""
     upload_id = f"{datetime.now().isoformat()}-{filename}"
@@ -91,14 +95,16 @@ async def stream_upload_to_minio(
             if chunk:
                 chunk_count += 1
                 # Yield immediately, don't buffer
-                yield chunk.decode("utf-8", errors="ignore")
-
+                yield chunk.decode('utf-8', errors='ignore')
+        
         yield f"\n[{upload_id}] Complete\n"
         logging.info(f"[{upload_id}] SUCCESS")
-
+    
     except Exception as e:
         logging.error(f"[{upload_id}] Error: {str(e)}", exc_info=True)
         yield f"\n[{upload_id}] ERROR: {str(e)}\n"
+
+
 
 
 @router.post("/minio-presigned-url")
@@ -107,25 +113,29 @@ async def post_minio_presigned_url(
     presigned_url: str = Header(...),
 ):
     logging.info(f"Upload: {file.filename}")
-
+    
     try:
+        # Transfer file handle to a copy before FastAPI closes it
         file_copy = UploadFile(
             file=file.file,
             size=file.size,
             filename=file.filename,
             headers=file.headers,
         )
-        file.file = BinaryIO()
-        file_copy.file.seek(0)
-
+        # Replace original with a dummy BytesIO so FastAPI can close it safely
+        file.file = io.BytesIO()
+        
         return StreamingResponse(
             stream_upload_to_minio(
-                file_copy.file, presigned_url, settings, file.filename
+                file_copy.file,
+                presigned_url,
+                settings,
+                file.filename
             ),
             media_type="text/event-stream",
             status_code=200,
         )
-
+    
     except Exception as e:
         logging.error(f"Error: {str(e)}", exc_info=True)
         return Response(

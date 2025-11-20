@@ -54,6 +54,7 @@ spec:
         ports:
         - name: webserver
           containerPort: 8080
+        command: ["/kaapana/app/bootstrap.sh"]
         args: ["webserver"]
         env:
         - name: ADMIN_NAMESPACE

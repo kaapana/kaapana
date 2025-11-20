@@ -14,7 +14,7 @@ data:
     spec:
       containers:
         - name: base
-          image: "{{ .Values.global.registry_url }}/airflow-executor:{{ .Values.global.kaapana_build_version  }}"
+          image: "{{ .Values.global.registry_url }}/airflow:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
           env:
             - name: AIRFLOW__CORE__EXECUTOR

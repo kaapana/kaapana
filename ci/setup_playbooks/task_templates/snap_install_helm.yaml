@@ -3,6 +3,13 @@
   debug:
     msg: "INSTALL HELM"
 
+- name: Uninstall existing Helm
+  become: yes
+  snap:
+    name: helm
+    state: absent
+  ignore_errors: yes
+
 - name: Install Helm
   become: yes
   snap:

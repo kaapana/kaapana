@@ -118,6 +118,17 @@ unit_tests:
       junit: 
         - unittest_report.xml
 
+install_helm_on_build: 
+  stage: prepare
+  needs:
+  - prepare_pipeline
+  script:
+  - if [[ $INSTALL_HELM_ON_BUILD == "true" ]]; then ansible-playbook $REPO_DIR/setup_playbooks/task_templates/snap_install_helm.yaml 2>&1 | tee $ARTIFACTS_DIR/ansible_install_helm.log; fi
+  artifacts:
+    when: always
+    paths:
+    - $ARTIFACTS_DIR/ansible_install_helm.log
+
 task_api_tests:
   stage: prepare
   needs:
@@ -136,6 +147,7 @@ task_api_tests:
     reports:
       junit: 
         - task_api_report.xml
+
 
 #############################################
 ############## BUILD ########################

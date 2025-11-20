@@ -20,15 +20,9 @@ data:
             - name: AIRFLOW__CORE__EXECUTOR
               value: KubernetesExecutor
             - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
-              valueFrom:
-                secretKeyRef:
-                  name: airflow-metadata
-                  key: connection
+              value: postgresql+psycopg2://{{ .Values.kaapana_database.postgres_user }}:{{ .Values.kaapana_database.postgres_password }}@{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{  .Values.global.services_namespace  }}.svc:5432/{{ .Values.kaapana_database.postgres_db }}
             - name: AIRFLOW_CONN_AIRFLOW_DB
-              valueFrom:
-                secretKeyRef:
-                  name: airflow-metadata
-                  key: connection
+              value: postgresql+psycopg2://{{ .Values.kaapana_database.postgres_user }}:{{ .Values.kaapana_database.postgres_password }}@{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{  .Values.global.services_namespace  }}.svc:5432/{{ .Values.kaapana_database.postgres_db }}
             ### Same variables as for the scheduler
             - name: ADMIN_NAMESPACE
               value: "{{ .Values.global.admin_namespace }}"
@@ -126,11 +120,6 @@ data:
             - name: MINIO_URL
               value: "http://minio-service.{{ .Values.global.services_namespace }}.svc:9000"
           volumeMounts:
-            ### Volumes defined in configmaps
-            - name: airflow-pod-template
-              mountPath: /kaapana/mounted/workflows/pod_template.yaml
-              subPath: pod_template.yaml
-            
             ### Volumes are appended in pod_mutation_hook
             - name: models
               mountPath: /kaapana/mounted/workflows/models
@@ -173,6 +162,3 @@ data:
           emptyDir: {}
         - name: dshm
           empty_dir: {}
-        - name: airflow-pod-template
-          configMap:
-            name: airflow-pod-template

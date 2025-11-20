@@ -123,11 +123,12 @@ install_helm_on_build:
   needs:
   - prepare_pipeline
   script:
-  - if [[ $INSTALL_HELM_ON_BUILD == "true" ]]; then ansible-playbook $REPO_DIR/setup_playbooks/task_templates/snap_install_helm.yaml 2>&1 | tee $ARTIFACTS_DIR/ansible_install_helm.log; fi
-  artifacts:
-    when: always
-    paths:
-    - $ARTIFACTS_DIR/ansible_install_helm.log
+  - source /home/$USER/venv/bin/activate
+  - ansible-playbook $REPO_DIR/setup_playbooks/task_templates/snap_install_helm.yaml 2>&1 | tee $ARTIFACTS_DIR/ansible_install_helm.log
+  rules:
+  - if: $INSTALL_HELM_ON_BUILD == "true"
+    when: on_success
+  - when: never
 
 task_api_tests:
   stage: prepare

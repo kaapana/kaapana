@@ -49,6 +49,5 @@ PLUGIN_DIR = (
     KAAPANA_DIR / "data-processing/kaapana-plugin/extension/docker/files/plugin/"
 )
 DICOM_TAG_DICT = (
-    KAAPANA_DIR
-    / "services/flow/airflow/docker/bootstrap-airflow-image/files/scripts/dicom_tag_dict.json"
+    KAAPANA_DIR / "services/flow/airflow/docker/files/scripts/dicom_tag_dict.json"
 )

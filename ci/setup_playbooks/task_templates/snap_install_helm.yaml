@@ -14,7 +14,7 @@
   become: yes
   snap:
     classic: yes
-    channel: latest/stable
+    channel: 3.7/stable
     name:
       - helm
 

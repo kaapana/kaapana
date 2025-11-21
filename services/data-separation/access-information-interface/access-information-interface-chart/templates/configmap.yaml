@@ -17,13 +17,35 @@ data:
         "description": "User gets full access to Minio",
         "claim_key": "policy",
         "claim_value": "admin_project"
+      },
+      {
+        "name": "manage_project_users",
+        "description": "User can manage user roles in this project",
+        "claim_key": "aii",
+        "claim_value": "manage_users"
+      },
+      {
+        "name": "manage_project_software",
+        "description": "User can manage software availabel to this project",
+        "claim_key": "aii",
+        "claim_value": "manage_software"
+      },
+      {
+        "name": "kaapana_backend",
+        "description": "User gets access to all kaapana-backend routes for this project",
+        "claim_key": "kaapana_backend",
+        "claim_value": "all"
       }
     ]
   initial_roles.json: | # This is the initial roles that will be created
     [
       {
+        "name": "scientist",
+        "description": "This role grants access to all data in the project"
+      },
+      {
         "name": "admin",
-        "description": "Admin role"
+        "description": "This role grants access to all data and grants permissions to change the role of users in this project."
       }
     ]
   initial_projects.json: | # This is the initial admin project that will be created
@@ -37,8 +59,12 @@ data:
   initial_roles_rights_mapping.json: | # This is the mapping of roles to rights
     [
       {
+        "role": "scientist",
+        "rights": ["opensearch_access", "minio_access","kaapana_backend"]
+      },
+      {
         "role": "admin",
-        "rights": ["opensearch_access", "minio_access"]
+        "rights": ["opensearch_access", "minio_access", "kaapana_backend", "manage_project_users", "manage_project_software"]
       }
     ]
   default_software.json: | # These are the default software that a project should be mapped to.

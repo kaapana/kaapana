@@ -33,6 +33,7 @@ spec:
         - --no-collector.hwmon
         - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)
         - --collector.netclass.ignored-devices=^(veth.*)$
+        - --collector.textfile.directory=/var/lib/node_exporter/textfile_collector
         name: node-exporter
         image: "{{ .Values.global.registry_url }}/node-exporter:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
@@ -55,9 +56,52 @@ spec:
           mountPropagation: HostToContainer
           name: root
           readOnly: true
+        - mountPath: /var/lib/node_exporter/textfile_collector
+          name: textfile-collector
+        - mountPath: /kaapana
+          name: kaapana-home
+          readOnly: true
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
+      - name: custom-node-exporter-textfile-collector
+        image: alpine:3.19
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: TEXTFILE_POLL_INTERVAL
+          value: "300"
+        command:
+        - /bin/sh
+        - -c
+        - |
+            set -euo pipefail
+            TEXTFILE_DIR="/textfile"
+            TARGET_DIR="/kaapana"
+            SLEEP_INTERVAL="${TEXTFILE_POLL_INTERVAL:-300}"
+            while true; do
+                kb=$(du -s "${TARGET_DIR}" 2>/dev/null | awk '{print $1}') || kb=0
+                size_bytes=$((kb * 1024))
+                printf '%s\n%s\n%s\n' \
+                    "# HELP kaapana_home_size_bytes Size of /home/kaapana in bytes" \
+                    "# TYPE kaapana_home_size_bytes gauge" \
+                    "kaapana_home_size_bytes ${size_bytes}" \
+                    > "${TEXTFILE_DIR}/kaapana_dirsize.prom"
+                sleep "${SLEEP_INTERVAL}"
+            done
+        volumeMounts:
+        - mountPath: /textfile
+          name: textfile-collector
+        - mountPath: /kaapana
+          name: kaapana-home
+          readOnly: true
+        resources:
+          requests:
+            memory: 50Mi
+          limits:
+            memory: 50Mi
+        securityContext:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
       volumes:
       - hostPath:
           path: /sys
@@ -65,6 +109,12 @@ spec:
       - hostPath:
           path: /
         name: root
+      - name: textfile-collector
+        emptyDir: {}
+      - name: kaapana-home
+        hostPath:
+          path: /home/kaapana
+          type: Directory
       imagePullSecrets:
       - name: registry-secret
       

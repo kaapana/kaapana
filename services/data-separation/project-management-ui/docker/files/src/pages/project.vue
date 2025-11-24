@@ -22,7 +22,7 @@
                     </v-col>
                     <v-col cols="3" class="d-flex justify-end align-center">
                         <v-btn block @click="userDialog = true" size="large" prepend-icon="mdi-account-plus"
-                            v-if="userHasAdminAccess">
+                            v-if="userHasAdminAccess || can(project?.id,'manage_project_users')">
                             Add User to Project
                         </v-btn>
                     </v-col>
@@ -166,8 +166,8 @@ import { aiiApiGet, aiiApiDelete } from '@/common/aiiApi.service'
 import { ProjectItem, UserItem, UserRole, Software } from '@/common/types'
 import AddUserToProject from '@/components/AddUserToProject.vue'
 import store from "@/common/store";
+import { usePermissions } from '@/permissions/usePermissions';
 
-// const route = useRoute()
 
 interface User extends UserItem {
     role?: UserRole
@@ -178,6 +178,13 @@ export default defineComponent({
         AddUserToProject
     },
     props: {},
+    setup () {
+        const { can } = usePermissions();
+
+        return {
+            can
+        };
+    },
     data() {
         return {
             // @ts-ignore

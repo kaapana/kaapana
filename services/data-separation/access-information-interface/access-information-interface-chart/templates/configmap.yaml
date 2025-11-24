@@ -21,20 +21,26 @@ data:
       {
         "name": "manage_project_users",
         "description": "User can manage user roles in this project",
-        "claim_key": "aii",
+        "claim_key": "kaapana.ai/aii",
         "claim_value": "manage_users"
       },
       {
         "name": "manage_project_software",
         "description": "User can manage software availabel to this project",
-        "claim_key": "aii",
+        "claim_key": "kaapana.ai/aii",
         "claim_value": "manage_software"
       },
       {
         "name": "kaapana_backend",
         "description": "User gets access to all kaapana-backend routes for this project",
-        "claim_key": "kaapana_backend",
+        "claim_key": "kaapana.ai/backend",
         "claim_value": "all"
+      },
+      {
+        "name": "open_project_applications",
+        "description": "User can access multiinstallable applications in the selected project.",
+        "claim_key": "kaapana.ai/applications",
+        "claim_value": "open"
       }
     ]
   initial_roles.json: | # This is the initial roles that will be created
@@ -60,11 +66,21 @@ data:
     [
       {
         "role": "scientist",
-        "rights": ["opensearch_access", "minio_access","kaapana_backend"]
+        "rights":
+          - "opensearch_access"
+          - "minio_access"
+          - "kaapana_backend"
+          - "open_project_applications"
       },
       {
         "role": "admin",
-        "rights": ["opensearch_access", "minio_access", "kaapana_backend", "manage_project_users", "manage_project_software"]
+        "rights":
+          - "opensearch_access"
+          - "minio_access"
+          - "kaapana_backend"
+          - "manage_project_users"
+          - "manage_project_software"
+          - "open_project_applications"
       }
     ]
   default_software.json: | # These are the default software that a project should be mapped to.

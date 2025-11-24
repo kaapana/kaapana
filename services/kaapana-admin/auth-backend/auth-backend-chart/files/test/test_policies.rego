@@ -47,7 +47,7 @@ test_allow_kaapana_backend {
         "project": {"id": "jkl-234-asd-234"}, 
         "requested_prefix": "/kaapana-backend/", 
         "method": "POST",
-        "access_token": {"kaapana_backend" : ["all_jkl-234-asd-234"] } 
+        "access_token": {"kaapana.ai/backend" : ["all_jkl-234-asd-234"] } 
         }
 }
 
@@ -56,7 +56,7 @@ test_deny_kaapana_backend_if_no_correct_claim {
         "project": {"id": "jkl-234-asd-234"}, 
         "requested_prefix": "/kaapana-backend/", 
         "method": "POST",
-        "access_token": {"kaapana_backend" : ["all_234-454-123-asd"] } 
+        "access_token": {"kaapana.ai/backend" : ["all_234-454-123-asd"] }
     }
 }
 
@@ -70,29 +70,22 @@ test_deny_kaapana_backend_if_no_project_in_input {
 
 test_allow_project_application {
     allow with input as {
-        "requested_prefix": "/applications/project/admin/release/jupyterlab-chart",
-        "access_token": {"projects" : [{"id" : 1, "name": "admin", "role_name": "read"}] } 
+        "requested_prefix": "/applications/project/234-asd-234-dfg-23r/release/jupyterlab-chart",
+        "access_token": {"kaapana.ai/applications": ["open_234-asd-234-dfg-23r"]} 
     }
 }
 
 test_deny_project_application_because_project_does_not_match {
     not allow with input as {
-        "requested_prefix": "/applications/project/combine/release/jupyterlab-chart",
-        "access_token": {"projects" : [{"id" : 1, "name": "admin", "role_name": "read"}] } 
-    }
-}
-
-test_deny_project_application_because_project_role_does_not_match {
-    not allow with input as {
-        "requested_prefix": "/applications/project/admin/release/jupyterlab-chart",
-        "access_token": {"projects" : [{"id" : 1, "name": "admin", "role_name": "guest"}] } 
+        "requested_prefix": "/applications/project/234-asd-234-dfg-23r/release/jupyterlab-chart",
+        "access_token": {"kaapana.ai/applications": ["open_123-234-345-456"]} 
     }
 }
 
 test_allow_adding_user {
     allow with input as {
         "requested_prefix": "/aii/projects/123-234-123-345/user/",
-        "access_token": {"aii" : ["manage_users_123-234-123-345"] } 
+        "access_token": {"kaapana.ai/aii" : ["manage_users_123-234-123-345"] } 
     }
 }
 
@@ -100,14 +93,14 @@ test_allow_adding_user {
 test_deny_adding_user {
     not allow with input as {
         "requested_prefix": "/aii/projects/123-234-123-345/role/",
-        "access_token": {"aii" : ["manage_users_123-234-123-asd"] } 
+        "access_token": {"kaapana.ai/aii" : ["manage_users_123-234-123-asd"] } 
     }
 }
 
 test_allow_managing_software {
     allow with input as {
         "requested_prefix": "/aii/projects/123-234-123-345/software-mappings/",
-        "access_token": {"aii" : ["manage_software_123-234-123-345"] } 
+        "access_token": {"kaapana.ai/aii" : ["manage_software_123-234-123-345"] } 
     }
 }
 
@@ -115,6 +108,6 @@ test_allow_managing_software {
 test_deny_managing_software {
     not allow with input as {
         "requested_prefix": "/aii/projects/123-234-123-345/software-mappings/",
-        "access_token": {"aii" : ["manage_users_123-234-123-345"] } 
+        "access_token": {"kaapana.ai/aii" : ["manage_users_123-234-123-345"] } 
     }
 }

@@ -9,17 +9,38 @@
     ansible.builtin.apt: name={{ item }} state=latest update_cache=yes
     loop:
       [
-        "python3-pip"
+        "python3-pip",
+        "python3-venv"
       ]
 
-  - name: install python user requirements
+  - name: Ensure python virtualenv exists in user home
+    become: no
+    ansible.builtin.command:
+      cmd: python3 -m venv "{{ ansible_env.HOME }}/venv"
+    args:
+      creates: "{{ ansible_env.HOME }}/venv/bin/activate"
+
+  - name: Upgrade pip/setuptools/wheel in venv
+    become: no
+    ansible.builtin.command: "{{ ansible_env.HOME }}/venv/bin/pip install --upgrade pip setuptools wheel"
+
+  - name: Install python user requirements into venv
     become: no
     ansible.builtin.pip:
       name:
         - kubernetes==32.0.1
       state: present
-      extra_args: --user
-      executable: pip3
+      virtualenv: "{{ ansible_env.HOME }}/venv"
+      virtualenv_command: python3 -m venv
+      # Do not set `executable` when `virtualenv` is used; they are mutually exclusive.
+
+  - name: Set Python interpreter to venv python for subsequent tasks
+    become: no
+    ansible.builtin.set_fact:
+      ansible_python_interpreter: "{{ ansible_env.HOME }}/venv/bin/python"
+
+  - name: Reset connection so Ansible uses the new interpreter
+    meta: reset_connection
 
   - name: Wait for job create-project-user
     kubernetes.core.k8s_info:

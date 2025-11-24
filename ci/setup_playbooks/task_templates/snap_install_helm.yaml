@@ -3,13 +3,15 @@
   debug:
     msg: "INSTALL HELM"
 
+- name: Uninstall existing Helm
+  become: yes
+  shell: snap remove helm || true
+  args:
+    executable: /bin/bash
+
 - name: Install Helm
   become: yes
-  snap:
-    classic: yes
-    channel: latest/stable
-    name:
-      - helm
+  command: snap install helm --classic --channel=3.7/stable
 
 - name: Check helm push installed
   become: no

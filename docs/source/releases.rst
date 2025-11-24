@@ -3,6 +3,21 @@
 Changelog
 #########
 
+.. _release-0.5.3:
+
+------------------------
+
+********************
+Release Notes v0.5.3
+********************
+
+November 24, 2025
+
+-------------------------
+
+* Fix server installation, build and deployment errors due to snap defaulting to Helm v4 via downgrading temporarily to Helm v3.7.0 until the next release
+
+
 .. _release-0.5.2:
 
 ------------------------

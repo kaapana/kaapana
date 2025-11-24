@@ -479,7 +479,7 @@ echo -e "${GREEN}USER_HOME: $USER_HOME ${NC}";
 echo ""
 
 DEFAULT_MICRO_VERSION=1.33/stable
-DEFAULT_HELM_VERSION=latest/stable
+DEFAULT_HELM_VERSION=3.7/stable
 
 ### Parsing command line arguments:
 usage="$(basename "$0")

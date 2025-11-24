@@ -11,7 +11,7 @@
 
 - name: Install Helm
   become: yes
-  command: snap install helm --classic --channel=3.7/stable
+  command: snap install helm --classic --channel=latest/stable
 
 - name: Check helm push installed
   become: no

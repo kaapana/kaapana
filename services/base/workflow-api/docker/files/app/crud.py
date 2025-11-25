@@ -87,9 +87,11 @@ async def get_workflows(
         if order_col is not None:
             order_by_exp = order_col.asc() if order == "asc" else order_col.desc()
 
+    filters = filters or {}
+    filters["removed"] = False
     query = create_query(
         model=models.Workflow,
-        filters=filters or {},
+        filters=filters,
         eager_load=["tasks"],
         order_by=order_by_exp,
         skip=skip,
@@ -112,9 +114,11 @@ async def get_workflow(
     # construct order_by expression
     order_by_exp = models.Workflow.created_at.desc()
 
+    filters = filters or {}
+    filters["removed"] = False
     query = create_query(
         model=models.Workflow,
-        filters=filters or {},
+        filters=filters,
         eager_load=["tasks"],
         order_by=order_by_exp,
     )
@@ -166,7 +170,9 @@ async def create_workflow(
 
 
 async def delete_workflow(db: AsyncSession, db_workflow: models.Workflow) -> bool:
-    await db.delete(db_workflow)
+    if not db_workflow:
+        return False
+    db_workflow.removed = True  # soft delete
     await db.commit()
     return True
 

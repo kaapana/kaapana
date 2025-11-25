@@ -66,21 +66,11 @@ data:
     [
       {
         "role": "scientist",
-        "rights":
-          - "opensearch_access"
-          - "minio_access"
-          - "kaapana_backend"
-          - "open_project_applications"
+        "rights": ["opensearch_access" ,"minio_access" ,"kaapana_backend" ,"open_project_applications"]
       },
       {
         "role": "admin",
-        "rights":
-          - "opensearch_access"
-          - "minio_access"
-          - "kaapana_backend"
-          - "manage_project_users"
-          - "manage_project_software"
-          - "open_project_applications"
+        "rights": ["opensearch_access", "minio_access", "kaapana_backend", "manage_project_users", "manage_project_software", "open_project_applications"]
       }
     ]
   default_software.json: | # These are the default software that a project should be mapped to.

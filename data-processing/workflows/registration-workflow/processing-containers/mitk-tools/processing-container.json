@@ -11,12 +11,12 @@
                 {
                     "name": "fixed",
                     "mounted_path": "/home/kaapana/fixed",
-                    "description": "Expects a single subdirectory with a single .nnrd file for the target image."
+                    "description": "Expects a single subdirectory with a single .nrrd file for the target image."
                 },
                 {
                     "name": "moving",
                     "mounted_path": "/home/kaapana/moving",
-                    "description": "Expects for each image that should be registered a subdirectory that contains a single .nnrd file",
+                    "description": "Expects for each image that should be registered a subdirectory that contains a single .nrrd file",
                     "scale_rule": {
                         "scale_factor": 50,
                         "type": "limit",
@@ -29,7 +29,7 @@
                 {
                     "name": "registered",
                     "mounted_path": "/home/kaapana/registered",
-                    "description": "Creates for each subdirectory in moving a subdirectory with the same basename that contains a registered .nnrd file"
+                    "description": "Creates for each subdirectory in moving a subdirectory with the same basename that contains a registered .nrrd file"
                 }
             ],
             "command": ["/bin/bash", "/home/kaapana/register.sh"],
@@ -44,7 +44,7 @@
         },
         {
             "identifier": "convert",
-            "description": "Conver dicom series to nrrd files",
+            "description": "Convert dicom series to nrrd files",
             "env": [
             ],
             "inputs": [

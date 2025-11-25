@@ -3,6 +3,12 @@
   debug:
     msg: "INSTALL HELM"
 
+- name: Remove helm plugins
+  become: no
+  shell: /snap/bin/helm plugin list | awk 'NR>1 {print $1}' | xargs -r -I {} /snap/bin/helm plugin uninstall {} || true
+  args:
+    executable: /bin/bash
+
 - name: Uninstall existing Helm
   become: yes
   shell: snap remove helm || true
@@ -16,9 +22,7 @@
 - name: Check helm push installed
   become: no
   command: /snap/bin/helm push --help
-  ignore_errors: no
 
 - name: install helm kubeval
   become: no
   command: /snap/bin/helm plugin install --verify=false https://github.com/instrumenta/helm-kubeval
-  ignore_errors: yes

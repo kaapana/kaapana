@@ -1,23 +1,21 @@
-from task_api.runners.KubernetesRunner import KubernetesRunner, PodPhase
-from task_api.processing_container.common import get_task_template, merge_env
-from task_api.processing_container import task_models, pc_models
-from airflow.models import BaseOperator
-from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.operators.python import get_current_context
-from typing import List, Dict, Any, Optional
-from airflow.utils.context import Context
-from pathlib import Path
-import pickle
 import os
-import signal
+import pickle
 import shutil
+import signal
 from datetime import timedelta
-from pydantic import BaseModel, ConfigDict
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.models import BaseOperator
+from airflow.operators.python import get_current_context
+from airflow.utils.context import Context
 from kubernetes import client
 from kubernetes.client.exceptions import ApiException
-
-
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from pydantic import BaseModel, ConfigDict
+from task_api.processing_container import pc_models, task_models
+from task_api.processing_container.common import get_task_template, merge_env
+from task_api.runners.KubernetesRunner import KubernetesRunner, PodPhase
 
 HOST_WORKFLOW_DIR = Path(os.getenv("DATADIR", "/home/kaapana/workflows/data"))
 AIRFLOW_HOME = Path(os.getenv("AIRFLOW_HOME"), "/kaapana/mounted/workflows")
@@ -322,7 +320,7 @@ class KaapanaTaskOperator(BaseOperator):
             return KubernetesRunner.run(task)
         except ApiException as e:
             KubernetesRunner._logger.error(
-                f"Submitting task to k8s API is stillg failing: {e.reason}."
+                f"Submitting task to k8s API is still failing: {e.reason}."
             )
             raise e
 
@@ -342,11 +340,11 @@ class KaapanaTaskOperator(BaseOperator):
             )
             if final_status == PodPhase.RUNNING:
                 raise AirflowException(
-                    f"Processing container didn't finish in execution timeout: {self.execution_timeout.total_seconds()} seconds. The corresponding will be deleted!"
+                    f"Processing container didn't finish in execution timeout: {self.execution_timeout.total_seconds()} seconds. The corresponding pod will be deleted!"
                 )
             elif final_status == PodPhase.PENDING:
                 raise AirflowException(
-                    f"Processing container didn't start within {self.startup_timeout_seconds} seconds. The corresponding will be deleted!"
+                    f"Processing container didn't start within {self.startup_timeout_seconds} seconds. The corresponding pod will be deleted!"
                 )
             else:
                 raise AirflowException(

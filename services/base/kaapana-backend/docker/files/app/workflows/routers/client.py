@@ -301,6 +301,43 @@ def get_jobs(
     return jobs
 
 
+@router.get(
+    "/my-project-jobs",
+    response_model=List[schemas.JobWithWorkflowWithKaapanaInstance]
+)
+def get_my_project_jobs(
+    username: str = None,
+    instance_name: str = None,
+    workflow_name: str = None,
+    status: str = None,
+    limit: int = None,
+    db: Session = Depends(get_db),
+    project=Depends(get_project),
+):
+    """
+    Get jobs scoped to the current project.
+    Optionally filter by username, instance_name, workflow_name, or status.
+    """
+    jobs = crud.get_my_project_jobs(
+        db=db,
+        project_id=project.get("id"),
+        username=username,
+        instance_name=instance_name,
+        workflow_name=workflow_name,
+        status=status,
+        limit=limit,
+    )
+    
+    # Clean kaapana_instance data
+    for job in jobs:
+        if job.kaapana_instance:
+            job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
+                job.kaapana_instance
+            )
+    
+    return jobs
+
+
 @router.put("/job", response_model=schemas.JobWithWorkflow)
 # changed JobWithKaapanaInstance to JobWithWorkflow
 def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):

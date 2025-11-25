@@ -117,7 +117,12 @@
               <v-list-item-title>Home</v-list-item-title>
             </v-list-item-content>
           </v-list-item>
-          <v-list-group prepend-icon="mdi-gamepad-variant" :value="true">
+            <!-- WORKFLOWS GROUP - only show if user has access to at least one workflow -->
+          <v-list-group 
+            prepend-icon="mdi-gamepad-variant" 
+            :value="true"
+            v-if="isAuthenticated && hasWorkflowAccess"
+          >
             <template v-slot:activator>
               <v-list-item-title>Workflows</v-list-item-title>
             </template>
@@ -251,7 +256,18 @@ export default Vue.extend({
       "selectedProject",
       "availableProjects"
     ]),
-  },
+    hasWorkflowAccess(): boolean {
+      // Check if user has access to at least one workflow
+      const vm = this as any;
+      if (!vm.isAuthenticated || !vm.workflowsList) {
+        return false;
+      }
+      
+      return vm.workflowsList.some(([title, icon, to]: [string, string, string]) => 
+        vm._checkAuthR(vm.policyData, to, vm.currentUser)
+      );
+    }
+},
   methods: {
     update_selected_project(newProject:any){
       this.$store.dispatch(UPDATE_SELECTED_PROJECT, newProject);
@@ -279,7 +295,7 @@ export default Vue.extend({
       this.changeMode(!this.settings["darkMode"]);
     },
     login() {
-      this.$store.dispatch(LOGIN).then(() => this.$router.push({ name: "home" }));
+      this.$store.dispatch(LOGIN).then(() => this.$router.push({ name: "data-upload" }));
     },
     logout() {
       this.$store.dispatch(LOGOUT);

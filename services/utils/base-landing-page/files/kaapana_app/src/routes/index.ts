@@ -11,7 +11,7 @@ Vue.use(VueRouter)
 export function guardRoute(to: any, from: any, next: any) {
   //// Check if the user is authenticated and authorized
   if (!store.getters.isAuthenticated) {
-    next({ name: 'home' })
+    next({ name: 'upload-data' })
   } else {
     authorizeRoute(to, from, next)
   }
@@ -22,7 +22,7 @@ function authorizeRoute(to: any, from: any, next: any) {
   if (checkAuthR(store.getters.policyData, to.path, store.getters.currentUser)) {
     return next()
   } else {
-    return next({ name: 'home' })
+    return next({ name: 'upload-data' })
   }
 }
 

@@ -124,9 +124,9 @@ import httpClient from './httpClient'
     return availableRoute
   }
 
-  const federatedClientApiPost = (subUrl: any, payload: any = null, params: any=null) => {
+  const federatedClientApiPost = (subUrl: any, payload: any = null, params: any=null, timeout: any = 10000) => {
     return new Promise((resolve, reject) => {
-      httpClient.post('/kaapana-backend/client' + subUrl, payload, { params: params}).then((response: any) => {
+      httpClient.post('/kaapana-backend/client' + subUrl, payload, { params: params, timeout: timeout}).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
         console.log('Failed: ' + error.response.data)

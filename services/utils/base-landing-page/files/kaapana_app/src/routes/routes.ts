@@ -1,11 +1,20 @@
 const routes = [
     {
-        name: 'home',
+        name: 'data-upload-home',
         path: '/',
-        component: () => import('@/views/Home.vue'),
-        title: 'Home',
+        component: () => import('@/views/DataUpload.vue'),
+        title: 'DataUpload',
         permissions: {
             isPublic: true,
+        },
+    },
+    {
+        name: 'data-upload',
+        path: '/data-upload',
+        component: () => import('@/views/DataUpload.vue'),
+        title: 'DataUpload',
+        permissions: {
+            isPublic: false,
         },
     },
     {
@@ -67,15 +76,6 @@ const routes = [
         path: '/results-browser',
         component: () => import('@/views/ResultsBrowser.vue'),
         title: 'Results browser',
-        permissions: {
-            isPublic: false,
-        },
-    },
-    {
-        name: 'data-upload',
-        path: '/data-upload',
-        component: () => import('@/views/DataUpload.vue'),
-        title: 'DataUpload',
         permissions: {
             isPublic: false,
         },

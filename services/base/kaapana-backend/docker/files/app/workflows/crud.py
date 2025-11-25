@@ -387,6 +387,52 @@ def get_job(db: Session, job_id: int = None, run_id: str = None):
 
     return db_job
 
+def get_my_project_jobs(
+    db: Session,
+    project_id: UUID,
+    username: str = None,
+    instance_name: str = None,
+    workflow_name: str = None,
+    status: str = None,
+    limit: int = None,
+):
+    """
+    Get jobs filtered by project_id (from workflow) and optionally by username.
+    This ensures jobs are scoped to the user's current project.
+    """
+    # Base query joining Job -> Workflow to access project_id
+    query = (
+        db.query(models.Job)
+        .join(models.Workflow, models.Job.workflow_id == models.Workflow.workflow_id)
+        .filter(models.Workflow.project_id == project_id)
+    )
+    
+    # Optional: filter by username (from Job table)
+    if username is not None:
+        query = query.filter(models.Job.username == username)
+    
+    # Optional: filter by instance_name
+    if instance_name is not None:
+        query = query.join(
+            models.KaapanaInstance,
+            models.Job.kaapana_id == models.KaapanaInstance.id
+        ).filter(models.KaapanaInstance.instance_name == instance_name)
+    
+    # Optional: filter by workflow_name
+    if workflow_name is not None:
+        query = query.filter(models.Workflow.workflow_name == workflow_name)
+    
+    # Optional: filter by status
+    if status is not None:
+        query = query.filter(models.Job.status == status)
+    
+    # Order and limit
+    query = query.order_by(desc(models.Job.time_updated))
+    
+    if limit is not None:
+        query = query.limit(limit)
+    
+    return query.all()
 
 def delete_job(db: Session, job_id: int, remote: bool = True):
     db_job = get_job(db, job_id)

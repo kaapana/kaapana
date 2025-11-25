@@ -1,12 +1,9 @@
 from airflow.models import DAG
-from task_api_operators.KaapanaTaskOperator import KaapanaTaskOperator, IOMapping
-
-
 from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
 )
-
+from task_api_operators.KaapanaTaskOperator import IOMapping, KaapanaTaskOperator
 
 args = {
     "ui_visible": True,

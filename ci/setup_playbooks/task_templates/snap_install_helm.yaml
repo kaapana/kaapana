@@ -20,6 +20,5 @@
 
 - name: install helm kubeval
   become: no
-  command: /snap/bin/helm plugin install https://github.com/instrumenta/helm-kubeval
+  command: /snap/bin/helm plugin install --verify=false https://github.com/instrumenta/helm-kubeval
   ignore_errors: yes
-  

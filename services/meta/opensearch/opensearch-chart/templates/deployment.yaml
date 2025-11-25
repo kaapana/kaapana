@@ -19,6 +19,14 @@ spec:
         image: "{{ .Values.global.registry_url }}/opensearch-certs:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         command: ["sh", "-c", "/certs/generate-certificates.sh && cp -r /certs/* /os/certs && chown -R 1000:1000 /os"]
+        env:
+        - name: JAVA_TOOL_OPTIONS
+          value: "-Xms128m -Xmx512m"
+        resources:
+          limits:
+            memory: "1Gi"
+          requests:
+            memory: "512Mi"
         volumeMounts:
         - name: osdata
           mountPath: /os/data

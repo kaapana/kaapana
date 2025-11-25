@@ -1,14 +1,14 @@
 import asyncio
 import logging
-from typing import Any, List, Optional, Callable, Coroutine
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any, Callable, Coroutine, List, Optional
 
-from app import crud, schemas
-from app.api.v1.services.errors import *
+from app import crud, models, schemas
 from app.adapters import get_workflow_engine
-from app.dependencies import (
+from app.api.v1.services.errors import InternalError, NotFoundError
+from app.dependencies import (  # <--- to create new session in background tasks
     get_async_db,
-)  # <--- to create new session in background tasks
+)
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ async def get_workflow_runs(
         filters["workflow.version"] = workflow_version
 
     # get workflow runs from the database
-    runs = await crud.get_workflow_runs(db, filters=filters, single=False)
+    runs: List[models.WorkflowRun] = await crud.get_workflow_runs(db, filters=filters)
     if not runs:
         logger.warning(f"No workflow runs found for {filters=}")
         return []
@@ -102,9 +102,10 @@ async def get_workflow_runs(
             asyncio.create_task(
                 _run_in_background_with_retries(
                     crud.create_or_update_task_run,
-                    t,
-                    run.id,
                     db=None,  # session will be created inside _run_in_background_with_retries
+                    task_run_update=t,
+                    workflow_run_id=run.id,
+                    
                 )
             )
         res.append(run)
@@ -117,18 +118,17 @@ async def create_workflow_run(
 ) -> schemas.WorkflowRun:
     logger.debug(f"Creating workflow run for {workflow_run=}")
 
-    db_workflow = await crud.get_workflows(
+    db_workflow = await crud.get_workflow(
         db,
         filters={
             "title": workflow_run.workflow.title,
             "version": workflow_run.workflow.version,
         },
-        single=True,
     )
     if not db_workflow:
         logger.error(f"Workflow of {workflow_run=} not found")
         raise NotFoundError("Workflow not found")
-
+    
     # create workflow run in db
     db_workflow_run = await crud.create_workflow_run(db, workflow_run, db_workflow.id)
     if not db_workflow_run:
@@ -150,7 +150,7 @@ async def create_workflow_run(
 async def get_workflow_run_by_id(
     db: AsyncSession, workflow_run_id: int
 ) -> schemas.WorkflowRun:
-    run = await crud.get_workflow_runs(db, filters={"id": workflow_run_id}, single=True)
+    run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
     if not run:
         logger.error(f"No workflow runs found by id {workflow_run_id}")
         raise NotFoundError("Workflow run not found")
@@ -169,7 +169,7 @@ async def get_workflow_run_by_id(
 async def cancel_workflow_run(
     db: AsyncSession, workflow_run_id: int
 ) -> schemas.WorkflowRun:
-    run = await crud.get_workflow_runs(db, filters={"id": workflow_run_id}, single=True)
+    run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
     if not run:
         logger.error(f"No workflow runs found to cancel {workflow_run_id}")
         raise NotFoundError("Workflow run not found")
@@ -193,7 +193,7 @@ async def cancel_workflow_run(
 async def retry_workflow_run(
     db: AsyncSession, workflow_run_id: int
 ) -> schemas.WorkflowRun:
-    run = await crud.get_workflow_runs(db, filters={"id": workflow_run_id}, single=True)
+    run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
     if not run:
         logger.error(f"No workflow runs found to retry {workflow_run_id}")
         raise NotFoundError("Workflow run not found")
@@ -215,9 +215,7 @@ async def get_workflow_run_task_runs(
     workflow_run_id: int,
     task_title: Optional[str],  # Only include task-runs for this task title
 ) -> List[schemas.TaskRun]:
-    workflow_run = await crud.get_workflow_runs(
-        db, filters={"id": workflow_run_id}, single=True
-    )
+    workflow_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
     if not workflow_run:
         logger.error(f"No workflow run found for id {workflow_run_id}")
         raise NotFoundError("Workflow run not found")
@@ -264,8 +262,8 @@ async def get_workflow_run_task_runs(
 async def get_task_run(
     db: AsyncSession, workflow_run_id: int, task_run_id: int
 ) -> schemas.TaskRun:
-    task_run = await crud.get_task_runs(
-        db, filters={"id": task_run_id, "workflow_run_id": workflow_run_id}, single=True
+    task_run = await crud.get_task_run(
+        db, filters={"id": task_run_id, "workflow_run_id": workflow_run_id}
     )
     if not task_run:
         logger.error(f"Task run not found for {workflow_run_id=} and {task_run_id=}")
@@ -283,8 +281,8 @@ async def get_task_run(
 async def get_task_run_logs(
     db: AsyncSession, workflow_run_id: int, task_run_id: int
 ) -> str:
-    task_run = await crud.get_task_runs(
-        db, filters={"id": task_run_id, "workflow_run_id": workflow_run_id}, single=True
+    task_run = await crud.get_task_run(
+        db, filters={"id": task_run_id, "workflow_run_id": workflow_run_id}
     )
     if not task_run:
         logger.error(f"Task run not found for {workflow_run_id=} and {task_run_id=}")

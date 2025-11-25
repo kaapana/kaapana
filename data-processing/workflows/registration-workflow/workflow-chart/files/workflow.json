@@ -1,0 +1,86 @@
+{
+    "title": "registration-workflow",
+    "workflow_engine": "airflow",
+    "labels": [
+        {
+            "key": "category",
+            "value": "registration"
+        },
+        {
+            "key": "modality",
+            "value": "CT"
+        },
+        {
+            "key": "provider",
+            "value": "dkfz-mic"
+        }
+
+    ],
+    "workflow_parameters": [
+        {
+            "task_title": "registration",
+            "env_variable_name": "REGISTRATION_METHOD",
+            "ui_form": {
+                "type": "list",
+                "title": "Registration Method",
+                "description": "Select the image registration algorithm to use",
+                "options": ["rigid", "affine", "deformable"],
+                "default": "rigid",
+                "multiselectable": false,
+                "required": true
+            }
+        },
+        {
+            "task_title": "registration",
+            "env_variable_name": "INTERPOLATION",
+            "ui_form": {
+                "type": "list",
+                "title": "Interpolation Method",
+                "description": "Interpolation method for resampling",
+                "options": ["nearest", "linear", "bspline"],
+                "default": "linear",
+                "multiselectable": false,
+                "required": false
+            }
+        },
+        {
+            "task_title": "registration",
+            "env_variable_name": "NUMBER_OF_ITERATIONS",
+            "ui_form": {
+                "type": "int",
+                "title": "Number of Iterations",
+                "description": "Maximum number of optimization iterations",
+                "minimum": 10,
+                "maximum": 1000,
+                "default": 100,
+                "required": false
+            }
+        },
+        {
+            "task_title": "registration",
+            "env_variable_name": "METRIC_SAMPLING_PERCENTAGE",
+            "ui_form": {
+                "type": "float",
+                "title": "Metric Sampling Percentage",
+                "description": "Percentage of voxels to use for metric computation (0.0-1.0)",
+                "minimum": 0.0,
+                "maximum": 1.0,
+                "default": 0.2,
+                "required": false
+            }
+        },
+        {
+            "task_title": "registration",
+            "env_variable_name": "SAVE_TRANSFORMATION",
+            "ui_form": {
+                "type": "bool",
+                "title": "Save Transformation Matrix",
+                "description": "Save the computed transformation matrix to output",
+                "default": true,
+                "required": false,
+                "true_label": "Save",
+                "false_label": "Don't Save"
+            }
+        }
+    ]
+}

@@ -1,8 +1,9 @@
-import time, random
+import random
+import time
 from typing import List
 
-from app.adapters.base import WorkflowEngineAdapter
 from app import schemas
+from app.adapters.base import WorkflowEngineAdapter
 
 
 class DummyAdapter(WorkflowEngineAdapter):
@@ -19,7 +20,6 @@ class DummyAdapter(WorkflowEngineAdapter):
         self, workflow: schemas.Workflow
     ) -> List[schemas.TaskCreate]:
         self.logger.info(f"Posting workflow to DummyAdapter: {workflow.title}")
-        time.sleep(2)
         task1 = schemas.TaskCreate(
             title="dummy-task-1",
             display_name="Dummy Task 1",
@@ -42,7 +42,6 @@ class DummyAdapter(WorkflowEngineAdapter):
         workflow_run: schemas.WorkflowRun,
     ) -> schemas.WorkflowRunUpdate:
         """ """
-        time.sleep(1)
         # simulate sending run to the engine, getting it back and updating external_id and status=PENDING
         return schemas.WorkflowRunUpdate(
             external_id=f"dummy-workflow-run-extid-{workflow_run.id}-{random.randint(0, 1000)}",
@@ -61,7 +60,6 @@ class DummyAdapter(WorkflowEngineAdapter):
         Returns:
             WorkflowRunStatus: The WorkflowRun object with updated status.
         """
-        time.sleep(1)
         # simulate getting info from the workflow engine and updating status to COMPLETED
         return schemas.WorkflowRunStatus.RUNNING
 
@@ -76,7 +74,6 @@ class DummyAdapter(WorkflowEngineAdapter):
         Returns:
             List[TaskRunUpdate]: List of TaskRunUpdate objects with updated status.
         """
-        time.sleep(1)
         return [
             schemas.TaskRunUpdate(
                 external_id=f"dummy-taskrun-1-extid-{workflow_run_external_id}-{random.randint(0, 1000)}",
@@ -128,5 +125,4 @@ class DummyAdapter(WorkflowEngineAdapter):
             str: The logs of the task run.
         """
 
-        time.sleep(1)
         return f"Dummy logs for TaskRun {task_run_external_id}"

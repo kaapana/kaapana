@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import List, Optional, Dict, Any, Literal, Union, Annotated
-from pydantic import BaseModel, ConfigDict, Field
 from enum import Enum
+from typing import Any, List, Literal, Optional, Union
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class WorkflowRunStatus(str, Enum):
@@ -202,17 +203,55 @@ class DataEntitiesUIForm(BaseUIForm):
     )
 
 
-UIForm = Annotated[
-    Union[
-        BooleanUIForm,
-        StringUIForm,
-        IntegerUIForm,
-        FloatUIForm,
-        ListUIForm,
-        DatasetUIForm,
-        DataEntitiesUIForm,
-    ],
-    Field(discriminator="type"),
+class FileUIForm(BaseUIForm):
+    """
+    File upload form element.
+
+    Allows the user to upload a file from their local filesystem.
+
+    Attributes:
+        type (Literal["file"]): Discriminator identifying this as a file upload field.
+        accept (str | None): Comma-separated list of accepted file types/extensions (e.g., ".json,.yaml").
+        multiple (bool): Whether to allow multiple file uploads.
+    """
+
+    type: Literal["file"] = "file"
+    accept: str | None = Field(
+        default=None, description="Accepted file types (e.g., '.json,.yaml,.txt')."
+    )
+    multiple: bool = Field(
+        default=False, description="Whether to allow multiple file uploads."
+    )
+
+
+class TermsUIForm(BaseUIForm):
+    """
+    Terms and conditions acceptance form element.
+
+    Displays terms and conditions text that the user must accept before proceeding.
+    Always rendered as a checkbox that must be checked.
+
+    Attributes:
+        type (Literal["terms"]): Discriminator identifying this as a terms acceptance field.
+        terms_text (str): The text of the terms and conditions to display.
+    """
+
+    type: Literal["terms"] = "terms"
+    terms_text: str = Field(
+        ..., description="The terms and conditions text that the user must accept."
+    )
+
+
+UIForm = Union[
+    BooleanUIForm,
+    StringUIForm,
+    IntegerUIForm,
+    FloatUIForm,
+    ListUIForm,
+    DatasetUIForm,
+    DataEntitiesUIForm,
+    FileUIForm,
+    TermsUIForm,
 ]
 
 
@@ -245,10 +284,9 @@ class WorkflowParameter(BaseModel):
 
     task_title: str
     env_variable_name: str
-    ui_form: UIForm
+    ui_form: UIForm = Field(..., discriminator="type")
 
-    class Config:
-        json_schema_extra = {"discriminator": "type"}
+    model_config = ConfigDict(from_attributes=True)
 
 
 #####################################
@@ -300,7 +338,7 @@ class Task(TaskBase):
 
 
 #####################################
-############## TASKRUN ##############
+############# TASK RUN ##############
 #####################################
 
 
@@ -324,8 +362,7 @@ class TaskRun(TaskRunBase):
 
 
 class TaskRunUpdate(TaskRunBase):
-    external_id: Optional[str] = None
-    lifecycle_status: Optional[TaskRunStatus]
+    pass
 
 
 #####################################
@@ -345,7 +382,7 @@ class WorkflowRef(BaseModel):
 class WorkflowRunBase(BaseModel):
     workflow: WorkflowRef
     labels: List[Label] = []
-    config: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    workflow_parameters: Optional[List[WorkflowParameter]] = None
 
 
 class WorkflowRunCreate(WorkflowRunBase):

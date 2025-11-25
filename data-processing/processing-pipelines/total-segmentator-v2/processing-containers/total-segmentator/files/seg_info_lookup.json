@@ -1,0 +1,2636 @@
+{
+    "total_v1": [
+        {
+            "label_int": 1,
+            "label_name": "spleen"
+        },
+        {
+            "label_int": 2,
+            "label_name": "kidney_right"
+        },
+        {
+            "label_int": 3,
+            "label_name": "kidney_left"
+        },
+        {
+            "label_int": 4,
+            "label_name": "gallbladder"
+        },
+        {
+            "label_int": 5,
+            "label_name": "liver"
+        },
+        {
+            "label_int": 6,
+            "label_name": "stomach"
+        },
+        {
+            "label_int": 7,
+            "label_name": "aorta"
+        },
+        {
+            "label_int": 8,
+            "label_name": "inferior_vena_cava"
+        },
+        {
+            "label_int": 9,
+            "label_name": "portal_vein_and_splenic_vein"
+        },
+        {
+            "label_int": 10,
+            "label_name": "pancreas"
+        },
+        {
+            "label_int": 11,
+            "label_name": "adrenal_gland_right"
+        },
+        {
+            "label_int": 12,
+            "label_name": "adrenal_gland_left"
+        },
+        {
+            "label_int": 13,
+            "label_name": "lung_upper_lobe_left"
+        },
+        {
+            "label_int": 14,
+            "label_name": "lung_lower_lobe_left"
+        },
+        {
+            "label_int": 15,
+            "label_name": "lung_upper_lobe_right"
+        },
+        {
+            "label_int": 16,
+            "label_name": "lung_middle_lobe_right"
+        },
+        {
+            "label_int": 17,
+            "label_name": "lung_lower_lobe_right"
+        },
+        {
+            "label_int": 18,
+            "label_name": "vertebrae_L5"
+        },
+        {
+            "label_int": 19,
+            "label_name": "vertebrae_L4"
+        },
+        {
+            "label_int": 20,
+            "label_name": "vertebrae_L3"
+        },
+        {
+            "label_int": 21,
+            "label_name": "vertebrae_L2"
+        },
+        {
+            "label_int": 22,
+            "label_name": "vertebrae_L1"
+        },
+        {
+            "label_int": 23,
+            "label_name": "vertebrae_T12"
+        },
+        {
+            "label_int": 24,
+            "label_name": "vertebrae_T11"
+        },
+        {
+            "label_int": 25,
+            "label_name": "vertebrae_T10"
+        },
+        {
+            "label_int": 26,
+            "label_name": "vertebrae_T9"
+        },
+        {
+            "label_int": 27,
+            "label_name": "vertebrae_T8"
+        },
+        {
+            "label_int": 28,
+            "label_name": "vertebrae_T7"
+        },
+        {
+            "label_int": 29,
+            "label_name": "vertebrae_T6"
+        },
+        {
+            "label_int": 30,
+            "label_name": "vertebrae_T5"
+        },
+        {
+            "label_int": 31,
+            "label_name": "vertebrae_T4"
+        },
+        {
+            "label_int": 32,
+            "label_name": "vertebrae_T3"
+        },
+        {
+            "label_int": 33,
+            "label_name": "vertebrae_T2"
+        },
+        {
+            "label_int": 34,
+            "label_name": "vertebrae_T1"
+        },
+        {
+            "label_int": 35,
+            "label_name": "vertebrae_C7"
+        },
+        {
+            "label_int": 36,
+            "label_name": "vertebrae_C6"
+        },
+        {
+            "label_int": 37,
+            "label_name": "vertebrae_C5"
+        },
+        {
+            "label_int": 38,
+            "label_name": "vertebrae_C4"
+        },
+        {
+            "label_int": 39,
+            "label_name": "vertebrae_C3"
+        },
+        {
+            "label_int": 40,
+            "label_name": "vertebrae_C2"
+        },
+        {
+            "label_int": 41,
+            "label_name": "vertebrae_C1"
+        },
+        {
+            "label_int": 42,
+            "label_name": "esophagus"
+        },
+        {
+            "label_int": 43,
+            "label_name": "trachea"
+        },
+        {
+            "label_int": 44,
+            "label_name": "heart_myocardium"
+        },
+        {
+            "label_int": 45,
+            "label_name": "heart_atrium_left"
+        },
+        {
+            "label_int": 46,
+            "label_name": "heart_ventricle_left"
+        },
+        {
+            "label_int": 47,
+            "label_name": "heart_atrium_right"
+        },
+        {
+            "label_int": 48,
+            "label_name": "heart_ventricle_right"
+        },
+        {
+            "label_int": 49,
+            "label_name": "pulmonary_artery"
+        },
+        {
+            "label_int": 50,
+            "label_name": "brain"
+        },
+        {
+            "label_int": 51,
+            "label_name": "iliac_artery_left"
+        },
+        {
+            "label_int": 52,
+            "label_name": "iliac_artery_right"
+        },
+        {
+            "label_int": 53,
+            "label_name": "iliac_vena_left"
+        },
+        {
+            "label_int": 54,
+            "label_name": "iliac_vena_right"
+        },
+        {
+            "label_int": 55,
+            "label_name": "small_bowel"
+        },
+        {
+            "label_int": 56,
+            "label_name": "duodenum"
+        },
+        {
+            "label_int": 57,
+            "label_name": "colon"
+        },
+        {
+            "label_int": 58,
+            "label_name": "rib_left_1"
+        },
+        {
+            "label_int": 59,
+            "label_name": "rib_left_2"
+        },
+        {
+            "label_int": 60,
+            "label_name": "rib_left_3"
+        },
+        {
+            "label_int": 61,
+            "label_name": "rib_left_4"
+        },
+        {
+            "label_int": 62,
+            "label_name": "rib_left_5"
+        },
+        {
+            "label_int": 63,
+            "label_name": "rib_left_6"
+        },
+        {
+            "label_int": 64,
+            "label_name": "rib_left_7"
+        },
+        {
+            "label_int": 65,
+            "label_name": "rib_left_8"
+        },
+        {
+            "label_int": 66,
+            "label_name": "rib_left_9"
+        },
+        {
+            "label_int": 67,
+            "label_name": "rib_left_10"
+        },
+        {
+            "label_int": 68,
+            "label_name": "rib_left_11"
+        },
+        {
+            "label_int": 69,
+            "label_name": "rib_left_12"
+        },
+        {
+            "label_int": 70,
+            "label_name": "rib_right_1"
+        },
+        {
+            "label_int": 71,
+            "label_name": "rib_right_2"
+        },
+        {
+            "label_int": 72,
+            "label_name": "rib_right_3"
+        },
+        {
+            "label_int": 73,
+            "label_name": "rib_right_4"
+        },
+        {
+            "label_int": 74,
+            "label_name": "rib_right_5"
+        },
+        {
+            "label_int": 75,
+            "label_name": "rib_right_6"
+        },
+        {
+            "label_int": 76,
+            "label_name": "rib_right_7"
+        },
+        {
+            "label_int": 77,
+            "label_name": "rib_right_8"
+        },
+        {
+            "label_int": 78,
+            "label_name": "rib_right_9"
+        },
+        {
+            "label_int": 79,
+            "label_name": "rib_right_10"
+        },
+        {
+            "label_int": 80,
+            "label_name": "rib_right_11"
+        },
+        {
+            "label_int": 81,
+            "label_name": "rib_right_12"
+        },
+        {
+            "label_int": 82,
+            "label_name": "humerus_left"
+        },
+        {
+            "label_int": 83,
+            "label_name": "humerus_right"
+        },
+        {
+            "label_int": 84,
+            "label_name": "scapula_left"
+        },
+        {
+            "label_int": 85,
+            "label_name": "scapula_right"
+        },
+        {
+            "label_int": 86,
+            "label_name": "clavicula_left"
+        },
+        {
+            "label_int": 87,
+            "label_name": "clavicula_right"
+        },
+        {
+            "label_int": 88,
+            "label_name": "femur_left"
+        },
+        {
+            "label_int": 89,
+            "label_name": "femur_right"
+        },
+        {
+            "label_int": 90,
+            "label_name": "hip_left"
+        },
+        {
+            "label_int": 91,
+            "label_name": "hip_right"
+        },
+        {
+            "label_int": 92,
+            "label_name": "sacrum"
+        },
+        {
+            "label_int": 93,
+            "label_name": "face"
+        },
+        {
+            "label_int": 94,
+            "label_name": "gluteus_maximus_left"
+        },
+        {
+            "label_int": 95,
+            "label_name": "gluteus_maximus_right"
+        },
+        {
+            "label_int": 96,
+            "label_name": "gluteus_medius_left"
+        },
+        {
+            "label_int": 97,
+            "label_name": "gluteus_medius_right"
+        },
+        {
+            "label_int": 98,
+            "label_name": "gluteus_minimus_left"
+        },
+        {
+            "label_int": 99,
+            "label_name": "gluteus_minimus_right"
+        },
+        {
+            "label_int": 100,
+            "label_name": "autochthon_left"
+        },
+        {
+            "label_int": 101,
+            "label_name": "autochthon_right"
+        },
+        {
+            "label_int": 102,
+            "label_name": "iliopsoas_left"
+        },
+        {
+            "label_int": 103,
+            "label_name": "iliopsoas_right"
+        },
+        {
+            "label_int": 104,
+            "label_name": "urinary_bladder"
+        }
+    ],
+    "total": [
+        {
+            "label_int": 1,
+            "label_name": "spleen"
+        },
+        {
+            "label_int": 2,
+            "label_name": "kidney_right"
+        },
+        {
+            "label_int": 3,
+            "label_name": "kidney_left"
+        },
+        {
+            "label_int": 4,
+            "label_name": "gallbladder"
+        },
+        {
+            "label_int": 5,
+            "label_name": "liver"
+        },
+        {
+            "label_int": 6,
+            "label_name": "stomach"
+        },
+        {
+            "label_int": 7,
+            "label_name": "pancreas"
+        },
+        {
+            "label_int": 8,
+            "label_name": "adrenal_gland_right"
+        },
+        {
+            "label_int": 9,
+            "label_name": "adrenal_gland_left"
+        },
+        {
+            "label_int": 10,
+            "label_name": "lung_upper_lobe_left"
+        },
+        {
+            "label_int": 11,
+            "label_name": "lung_lower_lobe_left"
+        },
+        {
+            "label_int": 12,
+            "label_name": "lung_upper_lobe_right"
+        },
+        {
+            "label_int": 13,
+            "label_name": "lung_middle_lobe_right"
+        },
+        {
+            "label_int": 14,
+            "label_name": "lung_lower_lobe_right"
+        },
+        {
+            "label_int": 15,
+            "label_name": "esophagus"
+        },
+        {
+            "label_int": 16,
+            "label_name": "trachea"
+        },
+        {
+            "label_int": 17,
+            "label_name": "thyroid_gland"
+        },
+        {
+            "label_int": 18,
+            "label_name": "small_bowel"
+        },
+        {
+            "label_int": 19,
+            "label_name": "duodenum"
+        },
+        {
+            "label_int": 20,
+            "label_name": "colon"
+        },
+        {
+            "label_int": 21,
+            "label_name": "urinary_bladder"
+        },
+        {
+            "label_int": 22,
+            "label_name": "prostate"
+        },
+        {
+            "label_int": 23,
+            "label_name": "kidney_cyst_left"
+        },
+        {
+            "label_int": 24,
+            "label_name": "kidney_cyst_right"
+        },
+        {
+            "label_int": 25,
+            "label_name": "sacrum"
+        },
+        {
+            "label_int": 26,
+            "label_name": "vertebrae_S1"
+        },
+        {
+            "label_int": 27,
+            "label_name": "vertebrae_L5"
+        },
+        {
+            "label_int": 28,
+            "label_name": "vertebrae_L4"
+        },
+        {
+            "label_int": 29,
+            "label_name": "vertebrae_L3"
+        },
+        {
+            "label_int": 30,
+            "label_name": "vertebrae_L2"
+        },
+        {
+            "label_int": 31,
+            "label_name": "vertebrae_L1"
+        },
+        {
+            "label_int": 32,
+            "label_name": "vertebrae_T12"
+        },
+        {
+            "label_int": 33,
+            "label_name": "vertebrae_T11"
+        },
+        {
+            "label_int": 34,
+            "label_name": "vertebrae_T10"
+        },
+        {
+            "label_int": 35,
+            "label_name": "vertebrae_T9"
+        },
+        {
+            "label_int": 36,
+            "label_name": "vertebrae_T8"
+        },
+        {
+            "label_int": 37,
+            "label_name": "vertebrae_T7"
+        },
+        {
+            "label_int": 38,
+            "label_name": "vertebrae_T6"
+        },
+        {
+            "label_int": 39,
+            "label_name": "vertebrae_T5"
+        },
+        {
+            "label_int": 40,
+            "label_name": "vertebrae_T4"
+        },
+        {
+            "label_int": 41,
+            "label_name": "vertebrae_T3"
+        },
+        {
+            "label_int": 42,
+            "label_name": "vertebrae_T2"
+        },
+        {
+            "label_int": 43,
+            "label_name": "vertebrae_T1"
+        },
+        {
+            "label_int": 44,
+            "label_name": "vertebrae_C7"
+        },
+        {
+            "label_int": 45,
+            "label_name": "vertebrae_C6"
+        },
+        {
+            "label_int": 46,
+            "label_name": "vertebrae_C5"
+        },
+        {
+            "label_int": 47,
+            "label_name": "vertebrae_C4"
+        },
+        {
+            "label_int": 48,
+            "label_name": "vertebrae_C3"
+        },
+        {
+            "label_int": 49,
+            "label_name": "vertebrae_C2"
+        },
+        {
+            "label_int": 50,
+            "label_name": "vertebrae_C1"
+        },
+        {
+            "label_int": 51,
+            "label_name": "heart"
+        },
+        {
+            "label_int": 52,
+            "label_name": "aorta"
+        },
+        {
+            "label_int": 53,
+            "label_name": "pulmonary_vein"
+        },
+        {
+            "label_int": 54,
+            "label_name": "brachiocephalic_trunk"
+        },
+        {
+            "label_int": 55,
+            "label_name": "subclavian_artery_right"
+        },
+        {
+            "label_int": 56,
+            "label_name": "subclavian_artery_left"
+        },
+        {
+            "label_int": 57,
+            "label_name": "common_carotid_artery_right"
+        },
+        {
+            "label_int": 58,
+            "label_name": "common_carotid_artery_left"
+        },
+        {
+            "label_int": 59,
+            "label_name": "brachiocephalic_vein_left"
+        },
+        {
+            "label_int": 60,
+            "label_name": "brachiocephalic_vein_right"
+        },
+        {
+            "label_int": 61,
+            "label_name": "atrial_appendage_left"
+        },
+        {
+            "label_int": 62,
+            "label_name": "superior_vena_cava"
+        },
+        {
+            "label_int": 63,
+            "label_name": "inferior_vena_cava"
+        },
+        {
+            "label_int": 64,
+            "label_name": "portal_vein_and_splenic_vein"
+        },
+        {
+            "label_int": 65,
+            "label_name": "iliac_artery_left"
+        },
+        {
+            "label_int": 66,
+            "label_name": "iliac_artery_right"
+        },
+        {
+            "label_int": 67,
+            "label_name": "iliac_vena_left"
+        },
+        {
+            "label_int": 68,
+            "label_name": "iliac_vena_right"
+        },
+        {
+            "label_int": 69,
+            "label_name": "humerus_left"
+        },
+        {
+            "label_int": 70,
+            "label_name": "humerus_right"
+        },
+        {
+            "label_int": 71,
+            "label_name": "scapula_left"
+        },
+        {
+            "label_int": 72,
+            "label_name": "scapula_right"
+        },
+        {
+            "label_int": 73,
+            "label_name": "clavicula_left"
+        },
+        {
+            "label_int": 74,
+            "label_name": "clavicula_right"
+        },
+        {
+            "label_int": 75,
+            "label_name": "femur_left"
+        },
+        {
+            "label_int": 76,
+            "label_name": "femur_right"
+        },
+        {
+            "label_int": 77,
+            "label_name": "hip_left"
+        },
+        {
+            "label_int": 78,
+            "label_name": "hip_right"
+        },
+        {
+            "label_int": 79,
+            "label_name": "spinal_cord"
+        },
+        {
+            "label_int": 80,
+            "label_name": "gluteus_maximus_left"
+        },
+        {
+            "label_int": 81,
+            "label_name": "gluteus_maximus_right"
+        },
+        {
+            "label_int": 82,
+            "label_name": "gluteus_medius_left"
+        },
+        {
+            "label_int": 83,
+            "label_name": "gluteus_medius_right"
+        },
+        {
+            "label_int": 84,
+            "label_name": "gluteus_minimus_left"
+        },
+        {
+            "label_int": 85,
+            "label_name": "gluteus_minimus_right"
+        },
+        {
+            "label_int": 86,
+            "label_name": "autochthon_left"
+        },
+        {
+            "label_int": 87,
+            "label_name": "autochthon_right"
+        },
+        {
+            "label_int": 88,
+            "label_name": "iliopsoas_left"
+        },
+        {
+            "label_int": 89,
+            "label_name": "iliopsoas_right"
+        },
+        {
+            "label_int": 90,
+            "label_name": "brain"
+        },
+        {
+            "label_int": 91,
+            "label_name": "skull"
+        },
+        {
+            "label_int": 92,
+            "label_name": "rib_left_1"
+        },
+        {
+            "label_int": 93,
+            "label_name": "rib_left_2"
+        },
+        {
+            "label_int": 94,
+            "label_name": "rib_left_3"
+        },
+        {
+            "label_int": 95,
+            "label_name": "rib_left_4"
+        },
+        {
+            "label_int": 96,
+            "label_name": "rib_left_5"
+        },
+        {
+            "label_int": 97,
+            "label_name": "rib_left_6"
+        },
+        {
+            "label_int": 98,
+            "label_name": "rib_left_7"
+        },
+        {
+            "label_int": 99,
+            "label_name": "rib_left_8"
+        },
+        {
+            "label_int": 100,
+            "label_name": "rib_left_9"
+        },
+        {
+            "label_int": 101,
+            "label_name": "rib_left_10"
+        },
+        {
+            "label_int": 102,
+            "label_name": "rib_left_11"
+        },
+        {
+            "label_int": 103,
+            "label_name": "rib_left_12"
+        },
+        {
+            "label_int": 104,
+            "label_name": "rib_right_1"
+        },
+        {
+            "label_int": 105,
+            "label_name": "rib_right_2"
+        },
+        {
+            "label_int": 106,
+            "label_name": "rib_right_3"
+        },
+        {
+            "label_int": 107,
+            "label_name": "rib_right_4"
+        },
+        {
+            "label_int": 108,
+            "label_name": "rib_right_5"
+        },
+        {
+            "label_int": 109,
+            "label_name": "rib_right_6"
+        },
+        {
+            "label_int": 110,
+            "label_name": "rib_right_7"
+        },
+        {
+            "label_int": 111,
+            "label_name": "rib_right_8"
+        },
+        {
+            "label_int": 112,
+            "label_name": "rib_right_9"
+        },
+        {
+            "label_int": 113,
+            "label_name": "rib_right_10"
+        },
+        {
+            "label_int": 114,
+            "label_name": "rib_right_11"
+        },
+        {
+            "label_int": 115,
+            "label_name": "rib_right_12"
+        },
+        {
+            "label_int": 116,
+            "label_name": "sternum"
+        },
+        {
+            "label_int": 117,
+            "label_name": "costal_cartilages"
+        }
+    ],
+    "total_mr": [
+        {
+            "label_int": 1,
+            "label_name": "spleen"
+        },
+        {
+            "label_int": 2,
+            "label_name": "kidney_right"
+        },
+        {
+            "label_int": 3,
+            "label_name": "kidney_left"
+        },
+        {
+            "label_int": 4,
+            "label_name": "gallbladder"
+        },
+        {
+            "label_int": 5,
+            "label_name": "liver"
+        },
+        {
+            "label_int": 6,
+            "label_name": "stomach"
+        },
+        {
+            "label_int": 7,
+            "label_name": "pancreas"
+        },
+        {
+            "label_int": 8,
+            "label_name": "adrenal_gland_right"
+        },
+        {
+            "label_int": 9,
+            "label_name": "adrenal_gland_left"
+        },
+        {
+            "label_int": 10,
+            "label_name": "lung_left"
+        },
+        {
+            "label_int": 11,
+            "label_name": "lung_right"
+        },
+        {
+            "label_int": 12,
+            "label_name": "esophagus"
+        },
+        {
+            "label_int": 13,
+            "label_name": "small_bowel"
+        },
+        {
+            "label_int": 14,
+            "label_name": "duodenum"
+        },
+        {
+            "label_int": 15,
+            "label_name": "colon"
+        },
+        {
+            "label_int": 16,
+            "label_name": "urinary_bladder"
+        },
+        {
+            "label_int": 17,
+            "label_name": "prostate"
+        },
+        {
+            "label_int": 18,
+            "label_name": "sacrum"
+        },
+        {
+            "label_int": 19,
+            "label_name": "vertebrae"
+        },
+        {
+            "label_int": 20,
+            "label_name": "intervertebral_discs"
+        },
+        {
+            "label_int": 21,
+            "label_name": "spinal_cord"
+        },
+        {
+            "label_int": 22,
+            "label_name": "heart"
+        },
+        {
+            "label_int": 23,
+            "label_name": "aorta"
+        },
+        {
+            "label_int": 24,
+            "label_name": "inferior_vena_cava"
+        },
+        {
+            "label_int": 25,
+            "label_name": "portal_vein_and_splenic_vein"
+        },
+        {
+            "label_int": 26,
+            "label_name": "iliac_artery_left"
+        },
+        {
+            "label_int": 27,
+            "label_name": "iliac_artery_right"
+        },
+        {
+            "label_int": 28,
+            "label_name": "iliac_vena_left"
+        },
+        {
+            "label_int": 29,
+            "label_name": "iliac_vena_right"
+        },
+        {
+            "label_int": 30,
+            "label_name": "humerus_left"
+        },
+        {
+            "label_int": 31,
+            "label_name": "humerus_right"
+        },
+        {
+            "label_int": 32,
+            "label_name": "scapula_left"
+        },
+        {
+            "label_int": 33,
+            "label_name": "scapula_right"
+        },
+        {
+            "label_int": 34,
+            "label_name": "clavicula_left"
+        },
+        {
+            "label_int": 35,
+            "label_name": "clavicula_right"
+        },
+        {
+            "label_int": 36,
+            "label_name": "femur_left"
+        },
+        {
+            "label_int": 37,
+            "label_name": "femur_right"
+        },
+        {
+            "label_int": 38,
+            "label_name": "hip_left"
+        },
+        {
+            "label_int": 39,
+            "label_name": "hip_right"
+        },
+        {
+            "label_int": 40,
+            "label_name": "gluteus_maximus_left"
+        },
+        {
+            "label_int": 41,
+            "label_name": "gluteus_maximus_right"
+        },
+        {
+            "label_int": 42,
+            "label_name": "gluteus_medius_left"
+        },
+        {
+            "label_int": 43,
+            "label_name": "gluteus_medius_right"
+        },
+        {
+            "label_int": 44,
+            "label_name": "gluteus_minimus_left"
+        },
+        {
+            "label_int": 45,
+            "label_name": "gluteus_minimus_right"
+        },
+        {
+            "label_int": 46,
+            "label_name": "autochthon_left"
+        },
+        {
+            "label_int": 47,
+            "label_name": "autochthon_right"
+        },
+        {
+            "label_int": 48,
+            "label_name": "iliopsoas_left"
+        },
+        {
+            "label_int": 49,
+            "label_name": "iliopsoas_right"
+        },
+        {
+            "label_int": 50,
+            "label_name": "brain"
+        }
+    ],
+    "lung_vessels": [
+        {
+            "label_int": 1,
+            "label_name": "lung_vessels"
+        },
+        {
+            "label_int": 2,
+            "label_name": "lung_trachea_bronchia"
+        }
+    ],
+    "oculomotor_muscles": [
+        {
+            "label_int": 1,
+            "label_name": "skull"
+        },
+        {
+            "label_int": 2,
+            "label_name": "eyeball_right"
+        },
+        {
+            "label_int": 3,
+            "label_name": "lateral_rectus_muscle_right"
+        },
+        {
+            "label_int": 4,
+            "label_name": "superior_oblique_muscle_right"
+        },
+        {
+            "label_int": 5,
+            "label_name": "levator_palpebrae_superioris_right"
+        },
+        {
+            "label_int": 6,
+            "label_name": "superior_rectus_muscle_right"
+        },
+        {
+            "label_int": 7,
+            "label_name": "medial_rectus_muscle_left"
+        },
+        {
+            "label_int": 8,
+            "label_name": "inferior_oblique_muscle_right"
+        },
+        {
+            "label_int": 9,
+            "label_name": "inferior_rectus_muscle_right"
+        },
+        {
+            "label_int": 10,
+            "label_name": "optic_nerve_left"
+        },
+        {
+            "label_int": 11,
+            "label_name": "eyeball_left"
+        },
+        {
+            "label_int": 12,
+            "label_name": "lateral_rectus_muscle_left"
+        },
+        {
+            "label_int": 13,
+            "label_name": "superior_oblique_muscle_left"
+        },
+        {
+            "label_int": 14,
+            "label_name": "levator_palpebrae_superioris_left"
+        },
+        {
+            "label_int": 15,
+            "label_name": "superior_rectus_muscle_left"
+        },
+        {
+            "label_int": 16,
+            "label_name": "medial_rectus_muscle_right"
+        },
+        {
+            "label_int": 17,
+            "label_name": "inferior_oblique_muscle_left"
+        },
+        {
+            "label_int": 18,
+            "label_name": "inferior_rectus_muscle_left"
+        },
+        {
+            "label_int": 19,
+            "label_name": "optic_nerve_right"
+        }
+    ],
+    "covid": [
+        {
+            "label_int": 1,
+            "label_name": "lung_covid_infiltrate"
+        }
+    ],
+    "cerebral_bleed": [
+        {
+            "label_int": 1,
+            "label_name": "intracerebral_hemorrhage"
+        }
+    ],
+    "hip_implant": [
+        {
+            "label_int": 1,
+            "label_name": "hip_implant"
+        }
+    ],
+    "coronary_arteries": [
+        {
+            "label_int": 1,
+            "label_name": "coronary_arteries"
+        }
+    ],
+    "body": [
+        {
+            "label_int": 1,
+            "label_name": "body_trunc"
+        },
+        {
+            "label_int": 2,
+            "label_name": "body_extremities"
+        }
+    ],
+    "body_mr": [
+        {
+            "label_int": 1,
+            "label_name": "body_trunc"
+        },
+        {
+            "label_int": 2,
+            "label_name": "body_extremities"
+        }
+    ],
+    "vertebrae_mr": [
+        {
+            "label_int": 1,
+            "label_name": "sacrum"
+        },
+        {
+            "label_int": 2,
+            "label_name": "vertebrae_L5"
+        },
+        {
+            "label_int": 3,
+            "label_name": "vertebrae_L4"
+        },
+        {
+            "label_int": 4,
+            "label_name": "vertebrae_L3"
+        },
+        {
+            "label_int": 5,
+            "label_name": "vertebrae_L2"
+        },
+        {
+            "label_int": 6,
+            "label_name": "vertebrae_L1"
+        },
+        {
+            "label_int": 7,
+            "label_name": "vertebrae_T12"
+        },
+        {
+            "label_int": 8,
+            "label_name": "vertebrae_T11"
+        },
+        {
+            "label_int": 9,
+            "label_name": "vertebrae_T10"
+        },
+        {
+            "label_int": 10,
+            "label_name": "vertebrae_T9"
+        },
+        {
+            "label_int": 11,
+            "label_name": "vertebrae_T8"
+        },
+        {
+            "label_int": 12,
+            "label_name": "vertebrae_T7"
+        },
+        {
+            "label_int": 13,
+            "label_name": "vertebrae_T6"
+        },
+        {
+            "label_int": 14,
+            "label_name": "vertebrae_T5"
+        },
+        {
+            "label_int": 15,
+            "label_name": "vertebrae_T4"
+        },
+        {
+            "label_int": 16,
+            "label_name": "vertebrae_T3"
+        },
+        {
+            "label_int": 17,
+            "label_name": "vertebrae_T2"
+        },
+        {
+            "label_int": 18,
+            "label_name": "vertebrae_T1"
+        },
+        {
+            "label_int": 19,
+            "label_name": "vertebrae_C7"
+        },
+        {
+            "label_int": 20,
+            "label_name": "vertebrae_C6"
+        },
+        {
+            "label_int": 21,
+            "label_name": "vertebrae_C5"
+        },
+        {
+            "label_int": 22,
+            "label_name": "vertebrae_C4"
+        },
+        {
+            "label_int": 23,
+            "label_name": "vertebrae_C3"
+        },
+        {
+            "label_int": 24,
+            "label_name": "vertebrae_C2"
+        },
+        {
+            "label_int": 25,
+            "label_name": "vertebrae_C1"
+        }
+    ],
+    "pleural_pericard_effusion": [
+        {
+            "label_int": 2,
+            "label_name": "pleural_effusion"
+        },
+        {
+            "label_int": 3,
+            "label_name": "pericardial_effusion"
+        }
+    ],
+    "liver_vessels": [
+        {
+            "label_int": 1,
+            "label_name": "liver_vessels"
+        },
+        {
+            "label_int": 2,
+            "label_name": "liver_tumor"
+        }
+    ],
+    "vertebrae_body": [
+        {
+            "label_int": 1,
+            "label_name": "vertebrae_body"
+        },
+        {
+            "label_int": 2,
+            "label_name": "intervertebral_discs"
+        }
+    ],
+    "heartchambers_highres": [
+        {
+            "label_int": 1,
+            "label_name": "heart_myocardium"
+        },
+        {
+            "label_int": 2,
+            "label_name": "heart_atrium_left"
+        },
+        {
+            "label_int": 3,
+            "label_name": "heart_ventricle_left"
+        },
+        {
+            "label_int": 4,
+            "label_name": "heart_atrium_right"
+        },
+        {
+            "label_int": 5,
+            "label_name": "heart_ventricle_right"
+        },
+        {
+            "label_int": 6,
+            "label_name": "aorta"
+        },
+        {
+            "label_int": 7,
+            "label_name": "pulmonary_artery"
+        }
+    ],
+    "appendicular_bones": [
+        {
+            "label_int": 1,
+            "label_name": "patella"
+        },
+        {
+            "label_int": 2,
+            "label_name": "tibia"
+        },
+        {
+            "label_int": 3,
+            "label_name": "fibula"
+        },
+        {
+            "label_int": 4,
+            "label_name": "tarsal"
+        },
+        {
+            "label_int": 5,
+            "label_name": "metatarsal"
+        },
+        {
+            "label_int": 6,
+            "label_name": "phalanges_feet"
+        },
+        {
+            "label_int": 7,
+            "label_name": "ulna"
+        },
+        {
+            "label_int": 8,
+            "label_name": "radius"
+        },
+        {
+            "label_int": 9,
+            "label_name": "carpal"
+        },
+        {
+            "label_int": 10,
+            "label_name": "metacarpal"
+        },
+        {
+            "label_int": 11,
+            "label_name": "phalanges_hand"
+        }
+    ],
+    "appendicular_bones_mr": [
+        {
+            "label_int": 1,
+            "label_name": "patella"
+        },
+        {
+            "label_int": 2,
+            "label_name": "tibia"
+        },
+        {
+            "label_int": 3,
+            "label_name": "fibula"
+        },
+        {
+            "label_int": 4,
+            "label_name": "tarsal"
+        },
+        {
+            "label_int": 5,
+            "label_name": "metatarsal"
+        },
+        {
+            "label_int": 6,
+            "label_name": "phalanges_feet"
+        },
+        {
+            "label_int": 7,
+            "label_name": "ulna"
+        },
+        {
+            "label_int": 8,
+            "label_name": "radius"
+        }
+    ],
+    "appendicular_bones_auxiliary": [
+        {
+            "label_int": 12,
+            "label_name": "humerus"
+        },
+        {
+            "label_int": 13,
+            "label_name": "femur"
+        },
+        {
+            "label_int": 14,
+            "label_name": "liver"
+        },
+        {
+            "label_int": 15,
+            "label_name": "spleen"
+        }
+    ],
+    "tissue_types": [
+        {
+            "label_int": 1,
+            "label_name": "subcutaneous_fat"
+        },
+        {
+            "label_int": 2,
+            "label_name": "torso_fat"
+        },
+        {
+            "label_int": 3,
+            "label_name": "skeletal_muscle"
+        }
+    ],
+    "tissue_types_mr": [
+        {
+            "label_int": 1,
+            "label_name": "subcutaneous_fat"
+        },
+        {
+            "label_int": 2,
+            "label_name": "torso_fat"
+        },
+        {
+            "label_int": 3,
+            "label_name": "skeletal_muscle"
+        }
+    ],
+    "tissue_4_types": [
+        {
+            "label_int": 1,
+            "label_name": "subcutaneous_fat"
+        },
+        {
+            "label_int": 2,
+            "label_name": "torso_fat"
+        },
+        {
+            "label_int": 3,
+            "label_name": "skeletal_muscle"
+        },
+        {
+            "label_int": 4,
+            "label_name": "intermuscular_fat"
+        }
+    ],
+    "face": [
+        {
+            "label_int": 1,
+            "label_name": "face"
+        }
+    ],
+    "face_mr": [
+        {
+            "label_int": 1,
+            "label_name": "face"
+        }
+    ],
+    "face_mr_auxiliary": [
+        {
+            "label_int": 2,
+            "label_name": "brain"
+        },
+        {
+            "label_int": 3,
+            "label_name": "liver"
+        }
+    ],
+    "brain_structures": [
+        {
+            "label_int": 1,
+            "label_name": "brainstem"
+        },
+        {
+            "label_int": 2,
+            "label_name": "subarachnoid_space"
+        },
+        {
+            "label_int": 3,
+            "label_name": "venous_sinuses"
+        },
+        {
+            "label_int": 4,
+            "label_name": "septum_pellucidum"
+        },
+        {
+            "label_int": 5,
+            "label_name": "cerebellum"
+        },
+        {
+            "label_int": 6,
+            "label_name": "caudate_nucleus"
+        },
+        {
+            "label_int": 7,
+            "label_name": "lentiform_nucleus"
+        },
+        {
+            "label_int": 8,
+            "label_name": "insular_cortex"
+        },
+        {
+            "label_int": 9,
+            "label_name": "internal_capsule"
+        },
+        {
+            "label_int": 10,
+            "label_name": "ventricle"
+        },
+        {
+            "label_int": 11,
+            "label_name": "central_sulcus"
+        },
+        {
+            "label_int": 12,
+            "label_name": "frontal_lobe"
+        },
+        {
+            "label_int": 13,
+            "label_name": "parietal_lobe"
+        },
+        {
+            "label_int": 14,
+            "label_name": "occipital_lobe"
+        },
+        {
+            "label_int": 15,
+            "label_name": "temporal_lobe"
+        },
+        {
+            "label_int": 16,
+            "label_name": "thalamus"
+        }
+    ],
+    "head_glands_cavities": [
+        {
+            "label_int": 1,
+            "label_name": "eye_left"
+        },
+        {
+            "label_int": 2,
+            "label_name": "eye_right"
+        },
+        {
+            "label_int": 3,
+            "label_name": "eye_lens_left"
+        },
+        {
+            "label_int": 4,
+            "label_name": "eye_lens_right"
+        },
+        {
+            "label_int": 5,
+            "label_name": "optic_nerve_left"
+        },
+        {
+            "label_int": 6,
+            "label_name": "optic_nerve_right"
+        },
+        {
+            "label_int": 7,
+            "label_name": "parotid_gland_left"
+        },
+        {
+            "label_int": 8,
+            "label_name": "parotid_gland_right"
+        },
+        {
+            "label_int": 9,
+            "label_name": "submandibular_gland_right"
+        },
+        {
+            "label_int": 10,
+            "label_name": "submandibular_gland_left"
+        },
+        {
+            "label_int": 11,
+            "label_name": "nasopharynx"
+        },
+        {
+            "label_int": 12,
+            "label_name": "oropharynx"
+        },
+        {
+            "label_int": 13,
+            "label_name": "hypopharynx"
+        },
+        {
+            "label_int": 14,
+            "label_name": "nasal_cavity_right"
+        },
+        {
+            "label_int": 15,
+            "label_name": "nasal_cavity_left"
+        },
+        {
+            "label_int": 16,
+            "label_name": "auditory_canal_right"
+        },
+        {
+            "label_int": 17,
+            "label_name": "auditory_canal_left"
+        },
+        {
+            "label_int": 18,
+            "label_name": "soft_palate"
+        },
+        {
+            "label_int": 19,
+            "label_name": "hard_palate"
+        }
+    ],
+    "headneck_bones_vessels": [
+        {
+            "label_int": 1,
+            "label_name": "larynx_air"
+        },
+        {
+            "label_int": 2,
+            "label_name": "thyroid_cartilage"
+        },
+        {
+            "label_int": 3,
+            "label_name": "hyoid"
+        },
+        {
+            "label_int": 4,
+            "label_name": "cricoid_cartilage"
+        },
+        {
+            "label_int": 5,
+            "label_name": "zygomatic_arch_right"
+        },
+        {
+            "label_int": 6,
+            "label_name": "zygomatic_arch_left"
+        },
+        {
+            "label_int": 7,
+            "label_name": "styloid_process_right"
+        },
+        {
+            "label_int": 8,
+            "label_name": "styloid_process_left"
+        },
+        {
+            "label_int": 9,
+            "label_name": "internal_carotid_artery_right"
+        },
+        {
+            "label_int": 10,
+            "label_name": "internal_carotid_artery_left"
+        },
+        {
+            "label_int": 11,
+            "label_name": "internal_jugular_vein_right"
+        },
+        {
+            "label_int": 12,
+            "label_name": "internal_jugular_vein_left"
+        }
+    ],
+    "head_muscles": [
+        {
+            "label_int": 1,
+            "label_name": "masseter_right"
+        },
+        {
+            "label_int": 2,
+            "label_name": "masseter_left"
+        },
+        {
+            "label_int": 3,
+            "label_name": "temporalis_right"
+        },
+        {
+            "label_int": 4,
+            "label_name": "temporalis_left"
+        },
+        {
+            "label_int": 5,
+            "label_name": "lateral_pterygoid_right"
+        },
+        {
+            "label_int": 6,
+            "label_name": "lateral_pterygoid_left"
+        },
+        {
+            "label_int": 7,
+            "label_name": "medial_pterygoid_right"
+        },
+        {
+            "label_int": 8,
+            "label_name": "medial_pterygoid_left"
+        },
+        {
+            "label_int": 9,
+            "label_name": "tongue"
+        },
+        {
+            "label_int": 10,
+            "label_name": "digastric_right"
+        },
+        {
+            "label_int": 11,
+            "label_name": "digastric_left"
+        }
+    ],
+    "headneck_muscles": [
+        {
+            "label_int": 1,
+            "label_name": "sternocleidomastoid_right"
+        },
+        {
+            "label_int": 2,
+            "label_name": "sternocleidomastoid_left"
+        },
+        {
+            "label_int": 3,
+            "label_name": "superior_pharyngeal_constrictor"
+        },
+        {
+            "label_int": 4,
+            "label_name": "middle_pharyngeal_constrictor"
+        },
+        {
+            "label_int": 5,
+            "label_name": "inferior_pharyngeal_constrictor"
+        },
+        {
+            "label_int": 6,
+            "label_name": "trapezius_right"
+        },
+        {
+            "label_int": 7,
+            "label_name": "trapezius_left"
+        },
+        {
+            "label_int": 8,
+            "label_name": "platysma_right"
+        },
+        {
+            "label_int": 9,
+            "label_name": "platysma_left"
+        },
+        {
+            "label_int": 10,
+            "label_name": "levator_scapulae_right"
+        },
+        {
+            "label_int": 11,
+            "label_name": "levator_scapulae_left"
+        },
+        {
+            "label_int": 12,
+            "label_name": "anterior_scalene_right"
+        },
+        {
+            "label_int": 13,
+            "label_name": "anterior_scalene_left"
+        },
+        {
+            "label_int": 14,
+            "label_name": "middle_scalene_right"
+        },
+        {
+            "label_int": 15,
+            "label_name": "middle_scalene_left"
+        },
+        {
+            "label_int": 16,
+            "label_name": "posterior_scalene_right"
+        },
+        {
+            "label_int": 17,
+            "label_name": "posterior_scalene_left"
+        },
+        {
+            "label_int": 18,
+            "label_name": "sterno_thyroid_right"
+        },
+        {
+            "label_int": 19,
+            "label_name": "sterno_thyroid_left"
+        },
+        {
+            "label_int": 20,
+            "label_name": "thyrohyoid_right"
+        },
+        {
+            "label_int": 21,
+            "label_name": "thyrohyoid_left"
+        },
+        {
+            "label_int": 22,
+            "label_name": "prevertebral_right"
+        },
+        {
+            "label_int": 23,
+            "label_name": "prevertebral_left"
+        }
+    ],
+    "thigh_shoulder_muscles": [
+        {
+            "label_int": 1,
+            "label_name": "quadriceps_femoris_left"
+        },
+        {
+            "label_int": 2,
+            "label_name": "quadriceps_femoris_right"
+        },
+        {
+            "label_int": 3,
+            "label_name": "thigh_medial_compartment_left"
+        },
+        {
+            "label_int": 4,
+            "label_name": "thigh_medial_compartment_right"
+        },
+        {
+            "label_int": 5,
+            "label_name": "thigh_posterior_compartment_left"
+        },
+        {
+            "label_int": 6,
+            "label_name": "thigh_posterior_compartment_right"
+        },
+        {
+            "label_int": 7,
+            "label_name": "sartorius_left"
+        },
+        {
+            "label_int": 8,
+            "label_name": "sartorius_right"
+        },
+        {
+            "label_int": 9,
+            "label_name": "deltoid"
+        },
+        {
+            "label_int": 10,
+            "label_name": "supraspinatus"
+        },
+        {
+            "label_int": 11,
+            "label_name": "infraspinatus"
+        },
+        {
+            "label_int": 12,
+            "label_name": "subscapularis"
+        },
+        {
+            "label_int": 13,
+            "label_name": "coracobrachial"
+        },
+        {
+            "label_int": 14,
+            "label_name": "trapezius"
+        },
+        {
+            "label_int": 15,
+            "label_name": "pectoralis_minor"
+        },
+        {
+            "label_int": 16,
+            "label_name": "serratus_anterior"
+        },
+        {
+            "label_int": 17,
+            "label_name": "teres_major"
+        },
+        {
+            "label_int": 18,
+            "label_name": "triceps_brachii"
+        }
+    ],
+    "thigh_shoulder_muscles_mr": [
+        {
+            "label_int": 1,
+            "label_name": "quadriceps_femoris_left"
+        },
+        {
+            "label_int": 2,
+            "label_name": "quadriceps_femoris_right"
+        },
+        {
+            "label_int": 3,
+            "label_name": "thigh_medial_compartment_left"
+        },
+        {
+            "label_int": 4,
+            "label_name": "thigh_medial_compartment_right"
+        },
+        {
+            "label_int": 5,
+            "label_name": "thigh_posterior_compartment_left"
+        },
+        {
+            "label_int": 6,
+            "label_name": "thigh_posterior_compartment_right"
+        },
+        {
+            "label_int": 7,
+            "label_name": "sartorius_left"
+        },
+        {
+            "label_int": 8,
+            "label_name": "sartorius_right"
+        },
+        {
+            "label_int": 9,
+            "label_name": "deltoid"
+        },
+        {
+            "label_int": 10,
+            "label_name": "supraspinatus"
+        },
+        {
+            "label_int": 11,
+            "label_name": "infraspinatus"
+        },
+        {
+            "label_int": 12,
+            "label_name": "subscapularis"
+        },
+        {
+            "label_int": 13,
+            "label_name": "coracobrachial"
+        },
+        {
+            "label_int": 14,
+            "label_name": "trapezius"
+        },
+        {
+            "label_int": 15,
+            "label_name": "pectoralis_minor"
+        },
+        {
+            "label_int": 16,
+            "label_name": "serratus_anterior"
+        },
+        {
+            "label_int": 17,
+            "label_name": "teres_major"
+        },
+        {
+            "label_int": 18,
+            "label_name": "triceps_brachii"
+        }
+    ],
+    "lung_nodules": [
+        {
+            "label_int": 1,
+            "label_name": "lung"
+        },
+        {
+            "label_int": 2,
+            "label_name": "lung_nodules"
+        }
+    ],
+    "kidney_cysts": [
+        {
+            "label_int": 1,
+            "label_name": "kidney_cyst_left"
+        },
+        {
+            "label_int": 2,
+            "label_name": "kidney_cyst_right"
+        }
+    ],
+    "kidney_cysts_auxiliary": [
+        {
+            "label_int": 3,
+            "label_name": "kidney_left"
+        },
+        {
+            "label_int": 4,
+            "label_name": "kidney_right"
+        }
+    ],
+    "breasts": [
+        {
+            "label_int": 1,
+            "label_name": "breast"
+        }
+    ],
+    "ventricle_parts": [
+        {
+            "label_int": 1,
+            "label_name": "ventricle_frontal_horn_left"
+        },
+        {
+            "label_int": 2,
+            "label_name": "ventricle_occipital_horn_left"
+        },
+        {
+            "label_int": 3,
+            "label_name": "ventricle_body_left"
+        },
+        {
+            "label_int": 4,
+            "label_name": "ventricle_temporal_horn_left"
+        },
+        {
+            "label_int": 5,
+            "label_name": "ventricle_trigone_left"
+        },
+        {
+            "label_int": 6,
+            "label_name": "ventricle_frontal_horn_right"
+        },
+        {
+            "label_int": 7,
+            "label_name": "ventricle_occipital_horn_right"
+        },
+        {
+            "label_int": 8,
+            "label_name": "ventricle_body_right"
+        },
+        {
+            "label_int": 9,
+            "label_name": "ventricle_temporal_horn_right"
+        },
+        {
+            "label_int": 10,
+            "label_name": "ventricle_trigone_right"
+        },
+        {
+            "label_int": 11,
+            "label_name": "third_ventricle"
+        },
+        {
+            "label_int": 12,
+            "label_name": "fourth_ventricle"
+        }
+    ],
+    "aortic_sinuses": [
+        {
+            "label_int": 1,
+            "label_name": "left_ventricular_outflow_tract"
+        },
+        {
+            "label_int": 2,
+            "label_name": "right_coronary_cusp"
+        },
+        {
+            "label_int": 3,
+            "label_name": "left_coronary_cusp"
+        },
+        {
+            "label_int": 4,
+            "label_name": "non_coronary_cusp"
+        }
+    ],
+    "liver_segments": [
+        {
+            "label_int": 1,
+            "label_name": "liver_segment_1"
+        },
+        {
+            "label_int": 2,
+            "label_name": "liver_segment_2"
+        },
+        {
+            "label_int": 3,
+            "label_name": "liver_segment_3"
+        },
+        {
+            "label_int": 4,
+            "label_name": "liver_segment_4"
+        },
+        {
+            "label_int": 5,
+            "label_name": "liver_segment_5"
+        },
+        {
+            "label_int": 6,
+            "label_name": "liver_segment_6"
+        },
+        {
+            "label_int": 7,
+            "label_name": "liver_segment_7"
+        },
+        {
+            "label_int": 8,
+            "label_name": "liver_segment_8"
+        }
+    ],
+    "liver_segments_mr": [
+        {
+            "label_int": 1,
+            "label_name": "liver_segment_1"
+        },
+        {
+            "label_int": 2,
+            "label_name": "liver_segment_2"
+        },
+        {
+            "label_int": 3,
+            "label_name": "liver_segment_3"
+        },
+        {
+            "label_int": 4,
+            "label_name": "liver_segment_4"
+        },
+        {
+            "label_int": 5,
+            "label_name": "liver_segment_5"
+        },
+        {
+            "label_int": 6,
+            "label_name": "liver_segment_6"
+        },
+        {
+            "label_int": 7,
+            "label_name": "liver_segment_7"
+        },
+        {
+            "label_int": 8,
+            "label_name": "liver_segment_8"
+        }
+    ],
+    "craniofacial_structures": [
+        {
+            "label_int": 1,
+            "label_name": "mandible"
+        },
+        {
+            "label_int": 2,
+            "label_name": "teeth_lower"
+        },
+        {
+            "label_int": 3,
+            "label_name": "skull"
+        },
+        {
+            "label_int": 4,
+            "label_name": "head"
+        },
+        {
+            "label_int": 5,
+            "label_name": "sinus_maxillary"
+        },
+        {
+            "label_int": 6,
+            "label_name": "sinus_frontal"
+        },
+        {
+            "label_int": 7,
+            "label_name": "teeth_upper"
+        }
+    ],
+    "abdominal_muscles": [
+        {
+            "label_int": 1,
+            "label_name": "pectoralis_major_right"
+        },
+        {
+            "label_int": 2,
+            "label_name": "pectoralis_major_left"
+        },
+        {
+            "label_int": 3,
+            "label_name": "rectus_abdominis_right"
+        },
+        {
+            "label_int": 4,
+            "label_name": "rectus_abdominis_left"
+        },
+        {
+            "label_int": 5,
+            "label_name": "serratus_anterior_right"
+        },
+        {
+            "label_int": 6,
+            "label_name": "serratus_anterior_left"
+        },
+        {
+            "label_int": 7,
+            "label_name": "latissimus_dorsi_right"
+        },
+        {
+            "label_int": 8,
+            "label_name": "latissimus_dorsi_left"
+        },
+        {
+            "label_int": 9,
+            "label_name": "trapezius_right"
+        },
+        {
+            "label_int": 10,
+            "label_name": "trapezius_left"
+        },
+        {
+            "label_int": 11,
+            "label_name": "external_oblique_right"
+        },
+        {
+            "label_int": 12,
+            "label_name": "external_oblique_left"
+        },
+        {
+            "label_int": 13,
+            "label_name": "internal_oblique_right"
+        },
+        {
+            "label_int": 14,
+            "label_name": "internal_oblique_left"
+        },
+        {
+            "label_int": 15,
+            "label_name": "erector_spinae_right"
+        },
+        {
+            "label_int": 16,
+            "label_name": "erector_spinae_left"
+        },
+        {
+            "label_int": 17,
+            "label_name": "transversospinalis_right"
+        },
+        {
+            "label_int": 18,
+            "label_name": "transversospinalis_left"
+        },
+        {
+            "label_int": 19,
+            "label_name": "psoas_major_right"
+        },
+        {
+            "label_int": 20,
+            "label_name": "psoas_major_left"
+        },
+        {
+            "label_int": 21,
+            "label_name": "quadratus_lumborum_right"
+        },
+        {
+            "label_int": 22,
+            "label_name": "quadratus_lumborum_left"
+        }
+    ],
+    "teeth": [
+        {
+            "label_int": 1,
+            "label_name": "lower_jawbone"
+        },
+        {
+            "label_int": 2,
+            "label_name": "upper_jawbone"
+        },
+        {
+            "label_int": 3,
+            "label_name": "left_inferior_alveolar_canal"
+        },
+        {
+            "label_int": 4,
+            "label_name": "right_inferior_alveolar_canal"
+        },
+        {
+            "label_int": 5,
+            "label_name": "left_maxillary_sinus"
+        },
+        {
+            "label_int": 6,
+            "label_name": "right_maxillary_sinus"
+        },
+        {
+            "label_int": 7,
+            "label_name": "pharynx"
+        },
+        {
+            "label_int": 8,
+            "label_name": "bridge"
+        },
+        {
+            "label_int": 9,
+            "label_name": "crown"
+        },
+        {
+            "label_int": 10,
+            "label_name": "implant"
+        },
+        {
+            "label_int": 11,
+            "label_name": "upper_right_central_incisor_fdi11"
+        },
+        {
+            "label_int": 12,
+            "label_name": "upper_right_lateral_incisor_fdi12"
+        },
+        {
+            "label_int": 13,
+            "label_name": "upper_right_canine_fdi13"
+        },
+        {
+            "label_int": 14,
+            "label_name": "upper_right_first_premolar_fdi14"
+        },
+        {
+            "label_int": 15,
+            "label_name": "upper_right_second_premolar_fdi15"
+        },
+        {
+            "label_int": 16,
+            "label_name": "upper_right_first_molar_fdi16"
+        },
+        {
+            "label_int": 17,
+            "label_name": "upper_right_second_molar_fdi17"
+        },
+        {
+            "label_int": 18,
+            "label_name": "upper_right_third_molar_fdi18"
+        },
+        {
+            "label_int": 19,
+            "label_name": "upper_left_central_incisor_fdi21"
+        },
+        {
+            "label_int": 20,
+            "label_name": "upper_left_lateral_incisor_fdi22"
+        },
+        {
+            "label_int": 21,
+            "label_name": "upper_left_canine_fdi23"
+        },
+        {
+            "label_int": 22,
+            "label_name": "upper_left_first_premolar_fdi24"
+        },
+        {
+            "label_int": 23,
+            "label_name": "upper_left_second_premolar_fdi25"
+        },
+        {
+            "label_int": 24,
+            "label_name": "upper_left_first_molar_fdi26"
+        },
+        {
+            "label_int": 25,
+            "label_name": "upper_left_second_molar_fdi27"
+        },
+        {
+            "label_int": 26,
+            "label_name": "upper_left_third_molar_fdi28"
+        },
+        {
+            "label_int": 27,
+            "label_name": "lower_left_central_incisor_fdi31"
+        },
+        {
+            "label_int": 28,
+            "label_name": "lower_left_lateral_incisor_fdi32"
+        },
+        {
+            "label_int": 29,
+            "label_name": "lower_left_canine_fdi33"
+        },
+        {
+            "label_int": 30,
+            "label_name": "lower_left_first_premolar_fdi34"
+        },
+        {
+            "label_int": 31,
+            "label_name": "lower_left_second_premolar_fdi35"
+        },
+        {
+            "label_int": 32,
+            "label_name": "lower_left_first_molar_fdi36"
+        },
+        {
+            "label_int": 33,
+            "label_name": "lower_left_second_molar_fdi37"
+        },
+        {
+            "label_int": 34,
+            "label_name": "lower_left_third_molar_fdi38"
+        },
+        {
+            "label_int": 35,
+            "label_name": "lower_right_central_incisor_fdi41"
+        },
+        {
+            "label_int": 36,
+            "label_name": "lower_right_lateral_incisor_fdi42"
+        },
+        {
+            "label_int": 37,
+            "label_name": "lower_right_canine_fdi43"
+        },
+        {
+            "label_int": 38,
+            "label_name": "lower_right_first_premolar_fdi44"
+        },
+        {
+            "label_int": 39,
+            "label_name": "lower_right_second_premolar_fdi45"
+        },
+        {
+            "label_int": 40,
+            "label_name": "lower_right_first_molar_fdi46"
+        },
+        {
+            "label_int": 41,
+            "label_name": "lower_right_second_molar_fdi47"
+        },
+        {
+            "label_int": 42,
+            "label_name": "lower_right_third_molar_fdi48"
+        },
+        {
+            "label_int": 43,
+            "label_name": "left_mandibular_incisive_canal_fdi103"
+        },
+        {
+            "label_int": 44,
+            "label_name": "right_mandibular_incisive_canal_fdi104"
+        },
+        {
+            "label_int": 45,
+            "label_name": "lingual_canal"
+        },
+        {
+            "label_int": 46,
+            "label_name": "upper_right_central_incisor_pulp_fdi111"
+        },
+        {
+            "label_int": 47,
+            "label_name": "upper_right_lateral_incisor_pulp_fdi112"
+        },
+        {
+            "label_int": 48,
+            "label_name": "upper_right_canine_pulp_fdi113"
+        },
+        {
+            "label_int": 49,
+            "label_name": "upper_right_first_premolar_pulp_fdi114"
+        },
+        {
+            "label_int": 50,
+            "label_name": "upper_right_second_premolar_pulp_fdi115"
+        },
+        {
+            "label_int": 51,
+            "label_name": "upper_right_first_molar_pulp_fdi116"
+        },
+        {
+            "label_int": 52,
+            "label_name": "upper_right_second_molar_pulp_fdi117"
+        },
+        {
+            "label_int": 53,
+            "label_name": "upper_right_third_molar_pulp_fdi118"
+        },
+        {
+            "label_int": 54,
+            "label_name": "upper_left_central_incisor_pulp_fdi121"
+        },
+        {
+            "label_int": 55,
+            "label_name": "upper_left_lateral_incisor_pulp_fdi122"
+        },
+        {
+            "label_int": 56,
+            "label_name": "upper_left_canine_pulp_fdi123"
+        },
+        {
+            "label_int": 57,
+            "label_name": "upper_left_first_premolar_pulp_fdi124"
+        },
+        {
+            "label_int": 58,
+            "label_name": "upper_left_second_premolar_pulp_fdi125"
+        },
+        {
+            "label_int": 59,
+            "label_name": "upper_left_first_molar_pulp_fdi126"
+        },
+        {
+            "label_int": 60,
+            "label_name": "upper_left_second_molar_pulp_fdi127"
+        },
+        {
+            "label_int": 61,
+            "label_name": "upper_left_third_molar_pulp_fdi128"
+        },
+        {
+            "label_int": 62,
+            "label_name": "lower_left_central_incisor_pulp_fdi131"
+        },
+        {
+            "label_int": 63,
+            "label_name": "lower_left_lateral_incisor_pulp_fdi132"
+        },
+        {
+            "label_int": 64,
+            "label_name": "lower_left_canine_pulp_fdi133"
+        },
+        {
+            "label_int": 65,
+            "label_name": "lower_left_first_premolar_pulp_fdi134"
+        },
+        {
+            "label_int": 66,
+            "label_name": "lower_left_second_premolar_pulp_fdi135"
+        },
+        {
+            "label_int": 67,
+            "label_name": "lower_left_first_molar_pulp_fdi136"
+        },
+        {
+            "label_int": 68,
+            "label_name": "lower_left_second_molar_pulp_fdi137"
+        },
+        {
+            "label_int": 69,
+            "label_name": "lower_left_third_molar_pulp_fdi138"
+        },
+        {
+            "label_int": 70,
+            "label_name": "lower_right_central_incisor_pulp_fdi141"
+        },
+        {
+            "label_int": 71,
+            "label_name": "lower_right_lateral_incisor_pulp_fdi142"
+        },
+        {
+            "label_int": 72,
+            "label_name": "lower_right_canine_pulp_fdi143"
+        },
+        {
+            "label_int": 73,
+            "label_name": "lower_right_first_premolar_pulp_fdi144"
+        },
+        {
+            "label_int": 74,
+            "label_name": "lower_right_second_premolar_pulp_fdi145"
+        },
+        {
+            "label_int": 75,
+            "label_name": "lower_right_first_molar_pulp_fdi146"
+        },
+        {
+            "label_int": 76,
+            "label_name": "lower_right_second_molar_pulp_fdi147"
+        },
+        {
+            "label_int": 77,
+            "label_name": "lower_right_third_molar_pulp_fdi148"
+        }
+    ]
+}

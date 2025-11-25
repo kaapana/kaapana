@@ -1,0 +1,37 @@
+---
+global:
+    image: "dag-total-segmentator-v2"
+    action: "copy"
+
+model_installer_chart:
+    image: "get-totalsegmentator-v2-models"
+    model_dir: "/models/total_segmentator_v2/"
+
+extension_params:
+    task_ids: 
+        definition: "Multi-selectable totalsegmentator models used across different tasks"
+        type: "list_multi"
+        value: [
+            "Dataset291_TotalSegmentator_part1_organs_1559subj",
+            "Dataset292_TotalSegmentator_part2_vertebrae_1532subj",
+            "Dataset293_TotalSegmentator_part3_cardiac_1559subj",
+            "Dataset294_TotalSegmentator_part4_muscles_1559subj",
+            "Dataset295_TotalSegmentator_part5_ribs_1559subj",
+            "Dataset297_TotalSegmentator_total_3mm_1559subj",
+            "Dataset298_TotalSegmentator_total_6mm_1559subj",
+            "Dataset258_lung_vessels_248subj",
+            "Dataset150_icb_v0",
+            "Dataset260_hip_implant_71subj",
+            "Dataset299_body_1559subj",
+            "Dataset315_thoraxCT",
+            "Dataset570_ct_liver_segments"
+        ]
+        default: [
+            "Dataset291_TotalSegmentator_part1_organs_1559subj",
+            "Dataset292_TotalSegmentator_part2_vertebrae_1532subj",
+            "Dataset293_TotalSegmentator_part3_cardiac_1559subj",
+            "Dataset294_TotalSegmentator_part4_muscles_1559subj",
+            "Dataset295_TotalSegmentator_part5_ribs_1559subj",
+            "Dataset297_TotalSegmentator_total_6mm_1559subj",
+            "Dataset298_TotalSegmentator_total_6mm_1559subj",
+        ]

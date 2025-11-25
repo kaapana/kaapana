@@ -1,0 +1,11 @@
+---
+apiVersion: v1
+appVersion: "v2.11"
+description: "Execute Total Segmentator v2 with a pre-selected list of tasks"
+name: total-segmentator-v2-workflow
+version: "0.0.0"
+keywords:
+- kaapanaworkflow
+annotations:
+  documentation: "user_guide/extensions.html#totalsegmentator"
+  ui-visible-name: "Total Segmentator v2"

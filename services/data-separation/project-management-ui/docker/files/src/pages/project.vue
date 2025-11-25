@@ -46,7 +46,7 @@
                             <th class="text-left">
                                 Role
                             </th>
-                            <th class="text-center" v-if="userHasAdminAccess">
+                            <th class="text-center" v-if="userHasAdminAccess || can(project?.id,'manage_project_users')">
                                 Actions
                             </th>
                         </tr>
@@ -59,7 +59,7 @@
                             <td>{{ item.last_name }}</td>
                             <td>{{ item.email_verified }}</td>
                             <td>{{ item.role?.name }}</td>
-                            <td class="text-right" v-if="userHasAdminAccess">
+                            <td class="text-right" v-if="userHasAdminAccess || can(project?.id,'manage_project_users')">
                                 <v-btn @click="openUserEditDialog(item)" density="default" icon="mdi-link-edit"></v-btn>
                                 <v-btn @click="deleteUserProjectMapping(item.id)" density="default"
                                     icon="mdi-trash-can"></v-btn>
@@ -95,7 +95,7 @@
                     </v-col>
                     <v-col cols="4" class="d-flex justify-end align-center">
                         <v-btn block @click="softwareDialog = true" size="large" prepend-icon="mdi-gamepad-variant"
-                            v-if="userHasAdminAccess">
+                            v-if="userHasAdminAccess || can(project?.id,'manage_project_software')">
                             Add software to Project
                         </v-btn>
                     </v-col>
@@ -107,7 +107,7 @@
                             <th class="text-left">
                                 Software Identifier
                             </th>
-                            <th class="text-center" v-if="userHasAdminAccess">
+                            <th class="text-center" v-if="userHasAdminAccess  || can(project?.id,'manage_project_software')">
                                 Actions
                             </th>
                         </tr>
@@ -116,7 +116,7 @@
                         <tr v-for="item in allowedSoftware" :key="item.software_uuid">
                             <td><v-icon>mdi-gamepad-variant</v-icon></td>
                             <td>{{ item.software_uuid }}</td>
-                            <td class="text-center" v-if="userHasAdminAccess">
+                            <td class="text-center" v-if="userHasAdminAccess || can(project?.id,'manage_project_software')">
                                 <v-btn @click="confirmSoftwareMappingDeletion(item.software_uuid)" density="default"
                                     icon="mdi-trash-can"></v-btn>
                             </td>

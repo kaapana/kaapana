@@ -84,7 +84,7 @@ allow {
 ### Allow user with claim aii.manage_software_<project-id> to change the role of a user in the project with <project-id> 
 allow {
     # Extract project-id from requested_prefix
-    matches := regex.find_all_string_submatch_n(`^/aii/projects/([^/]+)/software-mappings/.*`, input.requested_prefix, -1)
+    matches := regex.find_all_string_submatch_n(`^/aii/projects/([^/]+)/software-mappings$`, input.requested_prefix, -1)
     project_id := matches[0][1]
 
     # For each aii claim, check whether it matches manage_software_<project-id>
@@ -93,4 +93,15 @@ allow {
     claim_project := claim_matches[0][1]
 
     project_id == claim_project
+}
+
+### Allow user with claim aii.manage_software_<project-id> to get a list of all dags 
+allow {
+    # Extract project-id from requested_prefix
+    regex.match(`^/flow/kaapana/api/getdags$`, input.requested_prefix)
+
+    # For each aii claim, check whether it matches manage_software_<project-id>
+    some p
+    claim_matches := regex.find_all_string_submatch_n(`^manage_software_(.+)$`, input.access_token["kaapana.ai/aii"][p], -1)
+    count(claim_matches) > 0
 }

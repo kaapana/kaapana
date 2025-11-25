@@ -1,0 +1,9 @@
+---
+global:
+  pull_policy_images: "IfNotPresent"
+
+processingContainers:
+  - get-input-task
+  - mitk-tools
+  - nrrd-to-dicom
+  - send-dicoms

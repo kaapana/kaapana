@@ -4,7 +4,7 @@
     "templates": [
         {
             "identifier": "send-dicoms",
-            "description": "Register dicom images",
+            "description": "Send dicom images",
             "env": [
                 {
                     "name": "DATASET",

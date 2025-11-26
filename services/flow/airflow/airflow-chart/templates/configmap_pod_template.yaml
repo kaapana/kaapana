@@ -151,7 +151,6 @@ data:
             limits: 
               memory: 10Gi
       restartPolicy: Never
-      serviceAccountName: "kaapana-kube-admin"
       imagePullSecrets:
         - name: registry-secret
       volumes:

@@ -149,7 +149,7 @@ data:
             requests:
               memory: 10Mi
             limits: 
-              memory: 2000Mi
+              memory: 10Gi
       restartPolicy: Never
       serviceAccountName: "kaapana-kube-admin"
       imagePullSecrets:

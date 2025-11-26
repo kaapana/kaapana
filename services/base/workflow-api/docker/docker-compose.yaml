@@ -27,6 +27,8 @@ services:
       - APPLICATION_ROOT=/
       - DATABASE_URL=postgresql://kaapanauser:kaapanapassword@postgres:5432/kaapanauser
       - DEV_FILES=True
+      - PORT=8080
+      - WORKERS=4
       - LOG_LEVEL=DEBUG
     depends_on:
       postgres:

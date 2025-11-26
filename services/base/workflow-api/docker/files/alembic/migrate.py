@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, inspect, text
 
 DATABASE_URL = os.environ["DATABASE_URL"].replace("+asyncpg", "")
 ALEMBIC_CFG_PATH = "alembic.ini"
-INITIAL_REVISION = "a5839f14d576"
+INITIAL_REVISION = "721d0352a128"
 
 
 def get_current_db_revision(engine):

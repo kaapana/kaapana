@@ -21,7 +21,8 @@ CONTAINER_REGISTRY_PASSWORD="{{ container_registry_password|default('', true) }}
  # dev-mode -> containers will always be re-downloaded after pod-restart
 DEV_MODE={{ dev_mode|default(true) }}
 GPU_SUPPORT={{ gpu_support|default(false)}}
-
+# Adjust enable nvidia command if using GPU Operator below v25.10.0+
+GPU_OPERATOR_VERSION="v25.10.0"
 PREFETCH_EXTENSIONS={{prefetch_extensions|default('false')}}
 CHART_PATH=""
 NO_HOOKS=""
@@ -432,7 +433,7 @@ function migrate() {
     elif [[ -f "$VERSION_FILE" ]]; then
         CURRENT_VERSION=$(cat "$VERSION_FILE")
         echo "Found version: $CURRENT_VERSION"
-
+        
         if [[ "$CURRENT_VERSION" == "$PLATFORM_VERSION" ]]; then
             echo "${GREEN}Version matches ($PLATFORM_VERSION). Skipping migration.${NC}"
         else
@@ -522,7 +523,9 @@ function deploy_chart {
                     exit 1
                 fi
             else
-                microk8s.enable nvidia
+                
+                microk8s enable nvidia --gpu-operator-driver host --gpu-operator-version $GPU_OPERATOR_VERSION \
+                    --gpu-operator-set toolkit.env[3].name=RUNTIME_CONFIG_SOURCE --gpu-operator-set toolkit.env[3].value='file=/var/snap/microk8s/current/args/containerd.toml'
             fi
         fi
     fi

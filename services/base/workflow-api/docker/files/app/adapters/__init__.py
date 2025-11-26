@@ -27,6 +27,7 @@ def discover_workflow_engine_adapters() -> List[Type[WorkflowEngineAdapter]]:
                 and cls is not WorkflowEngineAdapter
             ):
                 discovered_adapters.append(cls)
+    logger.info(f"Discovered adapters: {discovered_adapters=}")
     return discovered_adapters
 
 
@@ -35,8 +36,7 @@ def get_workflow_engine(workflow_engine: str) -> WorkflowEngineAdapter:
     Return the workflow engine defined in the Workflow
     """
     for engine in discover_workflow_engine_adapters():
-        if workflow_engine == engine.workflow_engine:
-            logger.info(f"Using workflow engine: {engine.workflow_engine}")
+        if workflow_engine.lower() == engine.workflow_engine.lower():
             return engine()
 
     return DummyAdapter()

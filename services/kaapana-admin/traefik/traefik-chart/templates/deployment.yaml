@@ -38,6 +38,9 @@ spec:
             - '--entryPoints.websecure.http.tls=true'
             - '--entrypoints.dicom.Address=:11112'
             # - '--serversTransport.insecureSkipVerify=true'
+            - --entryPoints.websecure.transport.respondingTimeouts.readTimeout=0
+            - --entryPoints.websecure.transport.respondingTimeouts.writeTimeout=0
+            - --entryPoints.websecure.transport.respondingTimeouts.idleTimeout=0
             - '--api=true'
             - '--api.dashboard=true'
             - '--api.insecure=true'

@@ -177,6 +177,32 @@ async def delete_workflow(db: AsyncSession, db_workflow: models.Workflow) -> boo
     return True
 
 
+async def get_active_workflow_runs(
+    db: AsyncSession,
+    skip: int = 0,
+    limit: int = 100,
+) -> List[models.WorkflowRun]:
+    """
+    Get all workflow runs that are not in a terminal state (Completed, Error, Canceled).
+    """
+    terminal_states = [
+        schemas.WorkflowRunStatus.COMPLETED,
+        schemas.WorkflowRunStatus.ERROR,
+        schemas.WorkflowRunStatus.CANCELED,
+    ]
+
+    query = select(models.WorkflowRun).where(
+        models.WorkflowRun.lifecycle_status.not_in(terminal_states)
+    )
+
+    query = query.options(selectinload(models.WorkflowRun.workflow))
+
+    query = query.order_by(models.WorkflowRun.id.desc()).offset(skip).limit(limit)
+
+    result = await db.execute(query)
+    return list(result.scalars().all())
+
+
 # CRUD for WorkflowRun
 async def get_workflow_runs(
     db: AsyncSession,
@@ -408,7 +434,7 @@ async def create_or_update_task_run(
         db, workflow_run_id, task_run_update.task_title
     )
     if db_task_run:
-        logger.info(f"updating existing task run {db_task_run.id}")
+        logger.debug(f"updating existing task run {db_task_run.id}")
         # update existing task run
         db_task_run = await update_task_run_lifecycle(
             db,

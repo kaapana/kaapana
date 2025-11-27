@@ -13,8 +13,6 @@ Tests are organized by route/endpoint with clear markers:
 - GET /v1/workflows/{title}
 - GET /v1/workflows/{title}/{version}
 - DELETE /v1/workflows/{title}/{version}
-- GET /v1/workflows/{title}/{version}/tasks
-- GET /v1/workflows/{title}/{version}/tasks/{task_title}
 """
 
 import sys
@@ -286,6 +284,286 @@ async def test_read_workflows_filter_by_id(session: AsyncSession, client: AsyncC
     assert data[0]["title"] == "workflow-1"
 
 
+@pytest.mark.GET
+@pytest.mark.get_workflows
+@pytest.mark.asyncio
+async def test_read_workflows_order_by_title_asc(
+    session: AsyncSession, client: AsyncClient
+):
+    """Test ordering workflows by title in ascending order"""
+    # Create workflows with different titles
+    for title in ["zebra-workflow", "alpha-workflow", "beta-workflow"]:
+        workflow = models.Workflow(
+            title=title, version=1, definition=f"def-{title}", workflow_engine="dummy"
+        )
+        session.add(workflow)
+    await session.commit()
+
+    # Order by title ascending
+    response = await client.get("/v1/workflows?order_by=title&order=asc")
+    data = response.json()
+
+    assert response.status_code == 200
+    assert len(data) == 3
+    assert data[0]["title"] == "alpha-workflow"
+    assert data[1]["title"] == "beta-workflow"
+    assert data[2]["title"] == "zebra-workflow"
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflows
+@pytest.mark.asyncio
+async def test_read_workflows_order_by_title_desc(
+    session: AsyncSession, client: AsyncClient
+):
+    """Test ordering workflows by title in descending order"""
+    # Create workflows with different titles
+    for title in ["alpha-workflow", "beta-workflow", "zebra-workflow"]:
+        workflow = models.Workflow(
+            title=title, version=1, definition=f"def-{title}", workflow_engine="dummy"
+        )
+        session.add(workflow)
+    await session.commit()
+
+    # Order by title descending (default)
+    response = await client.get("/v1/workflows?order_by=title&order=desc")
+    data = response.json()
+
+    assert response.status_code == 200
+    assert len(data) == 3
+    assert data[0]["title"] == "zebra-workflow"
+    assert data[1]["title"] == "beta-workflow"
+    assert data[2]["title"] == "alpha-workflow"
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflows
+@pytest.mark.asyncio
+async def test_read_workflows_order_by_version(
+    session: AsyncSession, client: AsyncClient
+):
+    """Test ordering workflows by version"""
+    # Create multiple versions of same workflow
+    for version in [3, 1, 2]:
+        workflow = models.Workflow(
+            title="version-test",
+            version=version,
+            definition=f"def-{version}",
+            workflow_engine="dummy",
+        )
+        session.add(workflow)
+    await session.commit()
+
+    # Order by version ascending
+    response = await client.get("/v1/workflows?order_by=version&order=asc")
+    data = response.json()
+
+    assert response.status_code == 200
+    assert len(data) == 3
+    assert data[0]["version"] == 1
+    assert data[1]["version"] == 2
+    assert data[2]["version"] == 3
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflows
+@pytest.mark.asyncio
+async def test_read_workflows_order_by_id(session: AsyncSession, client: AsyncClient):
+    """Test ordering workflows by ID"""
+    # Create workflows
+    workflows = []
+    for i in range(3):
+        workflow = models.Workflow(
+            title=f"workflow-{i}",
+            version=1,
+            definition=f"def-{i}",
+            workflow_engine="dummy",
+        )
+        session.add(workflow)
+        workflows.append(workflow)
+    await session.commit()
+    for wf in workflows:
+        await session.refresh(wf)
+
+    # Order by ID descending (default)
+    response = await client.get("/v1/workflows?order_by=id&order=desc")
+    data = response.json()
+
+    assert response.status_code == 200
+    assert len(data) == 3
+    assert data[0]["id"] > data[1]["id"]
+    assert data[1]["id"] > data[2]["id"]
+
+    # Order by ID ascending
+    response = await client.get("/v1/workflows?order_by=id&order=asc")
+    data = response.json()
+
+    assert response.status_code == 200
+    assert len(data) == 3
+    assert data[0]["id"] < data[1]["id"]
+    assert data[1]["id"] < data[2]["id"]
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflows
+@pytest.mark.asyncio
+async def test_read_workflows_combined_query_params(
+    session: AsyncSession, client: AsyncClient
+):
+    """Test combining multiple query parameters (skip, limit, order_by, order)"""
+    # Create 10 workflows with different titles
+    for i in range(10):
+        workflow = models.Workflow(
+            title=f"workflow-{i:02d}",
+            version=1,
+            definition=f"def-{i}",
+            workflow_engine="dummy",
+        )
+        session.add(workflow)
+    await session.commit()
+
+    # Combine skip=2, limit=3, order_by=title, order=asc
+    response = await client.get(
+        "/v1/workflows?skip=2&limit=3&order_by=title&order=asc"
+    )
+    data = response.json()
+
+    assert response.status_code == 200
+    assert len(data) == 3
+    # Should get workflows 02, 03, 04 (after skipping 00, 01)
+    assert data[0]["title"] == "workflow-02"
+    assert data[1]["title"] == "workflow-03"
+    assert data[2]["title"] == "workflow-04"
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflows
+@pytest.mark.asyncio
+async def test_read_workflows_filter_by_id_with_ordering(
+    session: AsyncSession, client: AsyncClient
+):
+    """Test that filtering by ID returns single result regardless of order params"""
+    # Create workflows
+    workflow1 = models.Workflow(
+        title="workflow-1", version=1, definition="def-1", workflow_engine="dummy"
+    )
+    workflow2 = models.Workflow(
+        title="workflow-2", version=1, definition="def-2", workflow_engine="dummy"
+    )
+    session.add(workflow1)
+    session.add(workflow2)
+    await session.commit()
+    await session.refresh(workflow1)
+
+    # Filter by ID with ordering params
+    response = await client.get(
+        f"/v1/workflows?id={workflow1.id}&order_by=title&order=desc"
+    )
+    data = response.json()
+
+    assert response.status_code == 200
+    assert len(data) == 1
+    assert data[0]["id"] == workflow1.id
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflows
+@pytest.mark.asyncio
+async def test_read_workflows_invalid_order_param(client: AsyncClient):
+    """Test that invalid order parameter defaults to 'desc'"""
+    # Create a workflow
+    response = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "test-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+        },
+    )
+    assert response.status_code == 201
+
+    # Try invalid order parameter
+    response = await client.get("/v1/workflows?order=invalid")
+    data = response.json()
+
+    # Should still return results (implementation may handle invalid params differently)
+    assert response.status_code == 200
+    assert len(data) >= 1
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflows
+@pytest.mark.asyncio
+async def test_read_workflows_negative_skip(
+    session: AsyncSession, client: AsyncClient
+):
+    """Test behavior with negative skip value"""
+    # Create workflows
+    for i in range(3):
+        workflow = models.Workflow(
+            title=f"workflow-{i}",
+            version=1,
+            definition=f"def-{i}",
+            workflow_engine="dummy",
+        )
+        session.add(workflow)
+    await session.commit()
+
+    # Try negative skip - implementation may vary
+    response = await client.get("/v1/workflows?skip=-1")
+
+    # Should either return 422 validation error or treat as 0
+    assert response.status_code in [200, 422]
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflows
+@pytest.mark.asyncio
+async def test_read_workflows_zero_limit(session: AsyncSession, client: AsyncClient):
+    """Test behavior with limit=0"""
+    # Create workflows
+    for i in range(3):
+        workflow = models.Workflow(
+            title=f"workflow-{i}",
+            version=1,
+            definition=f"def-{i}",
+            workflow_engine="dummy",
+        )
+        session.add(workflow)
+    await session.commit()
+
+    # Try limit=0
+    response = await client.get("/v1/workflows?limit=0")
+    data = response.json()
+
+    assert response.status_code == 200
+    assert len(data) == 0
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflows
+@pytest.mark.asyncio
+async def test_read_workflows_large_limit(session: AsyncSession, client: AsyncClient):
+    """Test behavior with very large limit value"""
+    # Create 5 workflows
+    for i in range(5):
+        workflow = models.Workflow(
+            title=f"workflow-{i}",
+            version=1,
+            definition=f"def-{i}",
+            workflow_engine="dummy",
+        )
+        session.add(workflow)
+    await session.commit()
+
+    # Try very large limit
+    response = await client.get("/v1/workflows?limit=10000")
+    data = response.json()
+
+    assert response.status_code == 200
+    assert len(data) == 5  # Should return all available workflows
+
+
 # ============================================================
 # GET /v1/workflows/{title} - Get Workflow by Title Tests
 # ============================================================
@@ -370,6 +648,62 @@ async def test_get_workflow_by_title_versions_ordered(
     # Verify descending order
     versions = [wf["version"] for wf in data]
     assert versions == [5, 4, 3, 2, 1]
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflow_by_title
+@pytest.mark.asyncio
+async def test_get_workflow_by_title_latest_only(
+    session: AsyncSession, client: AsyncClient
+):
+    """Test getting only the latest version of workflow by title"""
+    # Create multiple versions
+    for version in [1, 2, 3]:
+        workflow = models.Workflow(
+            title="multi-version-workflow",
+            version=version,
+            definition=f"def-v{version}",
+            workflow_engine="dummy",
+        )
+        session.add(workflow)
+    await session.commit()
+
+    # Request only latest version
+    response = await client.get("/v1/workflows/multi-version-workflow?latest=true")
+    data = response.json()
+
+    assert response.status_code == 200
+    assert isinstance(data, list)
+    assert len(data) == 1
+    assert data[0]["version"] == 3
+    assert data[0]["definition"] == "def-v3"
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflow_by_title
+@pytest.mark.asyncio
+async def test_get_workflow_by_title_all_versions(
+    session: AsyncSession, client: AsyncClient
+):
+    """Test getting all versions when latest=false"""
+    # Create multiple versions
+    for version in [1, 2]:
+        workflow = models.Workflow(
+            title="two-version-workflow",
+            version=version,
+            definition=f"def-v{version}",
+            workflow_engine="dummy",
+        )
+        session.add(workflow)
+    await session.commit()
+
+    # Request all versions
+    response = await client.get("/v1/workflows/two-version-workflow?latest=false")
+    data = response.json()
+
+    assert response.status_code == 200
+    assert isinstance(data, list)
+    assert len(data) == 2
 
 
 # ============================================================

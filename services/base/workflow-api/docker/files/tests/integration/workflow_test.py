@@ -43,17 +43,15 @@ async def test_create_and_get_workflows():
     )
     assert resp2.status_code == 201
 
-    async with httpx.AsyncClient(base_url=API_BASE_URL) as client:
-        response = await client.get(
-            "/workflows",
-            params={"skip": 0, "limit": 50, "order_by": "created_at", "order": "desc"},
-        )
-        assert response.status_code == 200
-        workflows = [schemas.Workflow(**wf) for wf in response.json()]
-        print(f"{workflows=}")
-        titles = [wf.title for wf in workflows]
-        assert title1 in titles
-        assert title2 in titles
+    response = await common.get_all_workflows(
+        params={"skip": 0, "limit": 50, "order_by": "created_at", "order": "desc"}
+    )
+    assert response.status_code == 200
+    workflows = [schemas.Workflow(**wf) for wf in response.json()]
+    print(f"{workflows=}")
+    titles = [wf.title for wf in workflows]
+    assert title1 in titles
+    assert title2 in titles
 
 
 @pytest.mark.asyncio
@@ -76,19 +74,18 @@ async def test_get_workflows_by_title():
     )
     assert resp2.status_code == 201
 
-    async with httpx.AsyncClient(base_url=API_BASE_URL) as client:
-        # latest=True should return only newest version
-        response = await client.get(f"/workflows/{title}", params={"latest": True})
-        assert response.status_code == 200
-        workflows = [schemas.Workflow(**wf) for wf in response.json()]
-        assert len(workflows) == 1
-        assert workflows[0].definition == "def-v2"
+    # latest=True should return only newest version
+    response = await common.get_workflow_by_title(title, params={"latest": True})
+    assert response.status_code == 200
+    workflows = [schemas.Workflow(**wf) for wf in response.json()]
+    assert len(workflows) == 1
+    assert workflows[0].definition == "def-v2"
 
-        # latest=False should return both versions
-        response = await client.get(f"/workflows/{title}", params={"latest": False})
-        assert response.status_code == 200
-        workflows = [schemas.Workflow(**wf) for wf in response.json()]
-        assert len(workflows) == 2
+    # latest=False should return both versions
+    response = await common.get_workflow_by_title(title, params={"latest": False})
+    assert response.status_code == 200
+    workflows = [schemas.Workflow(**wf) for wf in response.json()]
+    assert len(workflows) == 2
 
 
 @pytest.mark.asyncio
@@ -105,12 +102,11 @@ async def test_get_workflow_by_title_version():
     assert resp1.status_code == 201
     wf1 = schemas.Workflow(**resp1.json())
 
-    async with httpx.AsyncClient(base_url=API_BASE_URL) as client:
-        resp = await client.get(f"/workflows/{wf1.title}/{wf1.version}")
-        assert resp.status_code == 200
-        wf = schemas.Workflow(**resp.json())
-        assert wf.id == wf1.id
-        assert wf.definition == wf1.definition
+    resp = await common.get_workflow_by_title_and_version(wf1.title, wf1.version)
+    assert resp.status_code == 200
+    wf = schemas.Workflow(**resp.json())
+    assert wf.id == wf1.id
+    assert wf.definition == wf1.definition
 
 
 @pytest.mark.asyncio
@@ -127,12 +123,11 @@ async def test_delete_workflow():
     assert resp.status_code == 201
     wf = schemas.Workflow(**resp.json())
 
-    async with httpx.AsyncClient(base_url=API_BASE_URL) as client:
-        del_resp = await client.delete(f"/workflows/{wf.title}/{wf.version}")
-        assert del_resp.status_code == 204
+    del_resp = await common.delete_workflow(wf.title, wf.version)
+    assert del_resp.status_code == 204
 
-        get_resp = await client.get(f"/workflows/{wf.title}/{wf.version}")
-        assert get_resp.status_code == 404
+    get_resp = await common.get_workflow_by_title_and_version(wf.title, wf.version)
+    assert get_resp.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -146,14 +141,14 @@ async def test_get_workflow_tasks():
     assert resp1.status_code == 201
     wf1 = schemas.Workflow(**resp1.json())
 
-    async with httpx.AsyncClient(base_url=API_BASE_URL) as client:
-        resp1 = await client.get(f"/workflows/{wf1.title}/{wf1.version}")
-        assert resp1.status_code == 200
-        wf = schemas.Workflow(**resp1.json())
-        assert wf.id == wf1.id
-        assert wf.definition == wf1.definition
+    resp1 = await common.get_workflow_by_title_and_version(wf1.title, wf1.version)
+    assert resp1.status_code == 200
+    wf = schemas.Workflow(**resp1.json())
+    assert wf.id == wf1.id
+    assert wf.definition == wf1.definition
 
-        # get all tasks of the workflow
+    # get all tasks of the workflow
+    async with httpx.AsyncClient(base_url=API_BASE_URL) as client:
         resp2 = await client.get(f"/workflows/{wf1.title}/{wf1.version}/tasks")
         assert resp2.status_code == 200
         tasks = resp2.json()
@@ -186,16 +181,15 @@ async def test_get_workflows_perf_under_200ms():
     """
     Measure GET /workflows with limit=100 and ensure response time is under 200ms
     """
-    async with httpx.AsyncClient(base_url=API_BASE_URL, timeout=5.0) as client:
-        import time
+    import time
 
-        start = time.perf_counter()
-        resp = await client.get("/workflows", params={"skip": 0, "limit": 100})
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        assert resp.status_code == 200
-        assert (
-            elapsed_ms < 200
-        ), f"GET /workflows took {elapsed_ms:.1f}ms, expected <200ms"
+    start = time.perf_counter()
+    resp = await common.get_all_workflows(params={"skip": 0, "limit": 100})
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    assert resp.status_code == 200
+    assert (
+        elapsed_ms < 200
+    ), f"GET /workflows took {elapsed_ms:.1f}ms, expected <200ms"
 
 
 @pytest.mark.asyncio
@@ -221,22 +215,23 @@ async def test_soft_delete_hides_workflow_and_other_resources():
     assert resp.status_code == 201
     wf = schemas.Workflow(**resp.json())
 
+    # tasks should exist
     async with httpx.AsyncClient(base_url=API_BASE_URL) as client:
-        # tasks should exist
         resp_tasks = await client.get(f"/workflows/{wf.title}/{wf.version}/tasks")
         assert resp_tasks.status_code == 200
         tasks = resp_tasks.json()
         assert len(tasks) >= 1  # dummy-task-1, dummy-task-2
 
-        # delete workflow
-        del_resp = await client.delete(f"/workflows/{wf.title}/{wf.version}")
-        assert del_resp.status_code == 204
+    # delete workflow
+    del_resp = await common.delete_workflow(wf.title, wf.version)
+    assert del_resp.status_code == 204
 
-        # workflow can not be retrieved anymore
-        get_resp = await client.get(f"/workflows/{wf.title}/{wf.version}")
-        assert get_resp.status_code == 404
+    # workflow can not be retrieved anymore
+    get_resp = await common.get_workflow_by_title_and_version(wf.title, wf.version)
+    assert get_resp.status_code == 404
 
-        # tasks cannot be retrieved anymore because workflow cannot be resolved
+    # tasks cannot be retrieved anymore because workflow cannot be resolved
+    async with httpx.AsyncClient(base_url=API_BASE_URL) as client:
         resp_tasks = await client.get(f"/workflows/{wf.title}/{wf.version}/tasks")
         assert resp_tasks.status_code == 404
 
@@ -249,8 +244,8 @@ async def test_soft_delete_hides_workflow_and_other_resources():
         run_resp = await client.post("/workflow-runs", json=run_payload)
         assert run_resp.status_code == 404
 
-        # GET /workflows should not return deleted workflow
-        list_resp = await client.get("/workflows")
-        assert list_resp.status_code == 200
-        titles = [wf_json["title"] for wf_json in list_resp.json()]
-        assert wf.title not in titles
+    # GET /workflows should not return deleted workflow
+    list_resp = await common.get_all_workflows()
+    assert list_resp.status_code == 200
+    titles = [wf_json["title"] for wf_json in list_resp.json()]
+    assert wf.title not in titles

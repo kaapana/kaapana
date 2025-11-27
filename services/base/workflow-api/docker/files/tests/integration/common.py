@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 
 import httpx
 from app import schemas
@@ -19,53 +20,53 @@ API_BASE_URL = "http://localhost:8080/v1"
 
 
 async def create_workflow(workflow_create: schemas.WorkflowCreate) -> httpx.Response:
-    return await httpx.AsyncClient(base_url=API_BASE_URL, verify=False).post(
-        "/workflows",
-        json=workflow_create.model_dump(),
-        timeout=10.0,
-    )
+    async with httpx.AsyncClient(base_url=API_BASE_URL, verify=False) as client:
+        return await client.post(
+            "/workflows",
+            json=workflow_create.model_dump(),
+            timeout=10.0,
+        )
 
 
-async def get_workflow_by_title(title) -> httpx.Response:
-    return await httpx.AsyncClient(verify=False).get(
-        f"{API_BASE_URL}/workflows/{title}",
-    )
+async def get_workflow_by_title(
+    title: str, params: Optional[dict] = None
+) -> httpx.Response:
+    async with httpx.AsyncClient(base_url=API_BASE_URL, verify=False) as client:
+        return await client.get(f"/workflows/{title}", params=params)
 
 
-async def get_all_workflows() -> httpx.Response:
-    return await httpx.AsyncClient(verify=False).get(
-        f"{API_BASE_URL}/workflows",
-    )
+async def get_all_workflows(params: Optional[dict] = None) -> httpx.Response:
+    async with httpx.AsyncClient(base_url=API_BASE_URL, verify=False) as client:
+        return await client.get("/workflows", params=params)
 
 
-async def get_workflow_by_title_and_version(title, version) -> httpx.Response:
-    return await httpx.AsyncClient(verify=False).get(
-        f"{API_BASE_URL}/workflows/{title}/{version}",
-    )
+async def get_workflow_by_title_and_version(
+    title: str, version: int
+) -> httpx.Response:
+    async with httpx.AsyncClient(base_url=API_BASE_URL, verify=False) as client:
+        return await client.get(f"/workflows/{title}/{version}")
 
 
-async def delete_workflow(title, version) -> httpx.Response:
-    return await httpx.AsyncClient(verify=False).delete(
-        f"{API_BASE_URL}/workflows/{title}/{version}",
-    )
+async def delete_workflow(title: str, version: int) -> httpx.Response:
+    async with httpx.AsyncClient(base_url=API_BASE_URL, verify=False) as client:
+        return await client.delete(f"/workflows/{title}/{version}")
 
 
 async def create_workflow_run(
     workflow_run_create: schemas.WorkflowRunCreate,
 ) -> httpx.Response:
-    return await httpx.AsyncClient(base_url=API_BASE_URL, verify=False).post(
-        "/workflow-runs",
-        json=workflow_run_create.model_dump(),
-    )
+    async with httpx.AsyncClient(base_url=API_BASE_URL, verify=False) as client:
+        return await client.post(
+            "/workflow-runs",
+            json=workflow_run_create.model_dump(),
+        )
 
 
-async def get_all_workflow_runs() -> httpx.Response:
-    return await httpx.AsyncClient(verify=False).get(
-        f"{API_BASE_URL}/workflow-runs",
-    )
+async def get_all_workflow_runs(params: Optional[dict] = None) -> httpx.Response:
+    async with httpx.AsyncClient(base_url=API_BASE_URL, verify=False) as client:
+        return await client.get("/workflow-runs", params=params)
 
 
 async def delete_workflow_run(workflow_run_id: int) -> httpx.Response:
-    return await httpx.AsyncClient(verify=False).delete(
-        f"{API_BASE_URL}/workflow-runs/{workflow_run_id}",
-    )
+    async with httpx.AsyncClient(base_url=API_BASE_URL, verify=False) as client:
+        return await client.delete(f"/workflow-runs/{workflow_run_id}")

@@ -1422,19 +1422,14 @@ preflight_checks
 echo -e "${YELLOW}Get helm deployments...${NC}"
 deployments=$(
   (
-    # Helm 3 vs Helm 4:
-    # - Helm 3 needs `helm list -a` to show all releases.
-    # - Helm 4 removed `-a` and `helm list` already lists all statuses by default.
-    #   See: https://helm.sh/docs/v3/helm/helm_list/ and https://helm.sh/docs/helm/helm_list/
-    #
-    # Try Helm 3 syntax first; if it fails (e.g. unknown flag -a), fall back to Helm 4 syntax.
-    $HELM_EXECUTABLE -n "$HELM_NAMESPACE" ls \
-         --short --no-headers \
-         -a 2>/dev/null \
-    || \
-    $HELM_EXECUTABLE -n "$HELM_NAMESPACE" ls \
-         --short --no-headers
-  )
+  # Helm 3 vs Helm 4:
+  # - Helm 3 needs `helm list -a` to show all releases (no --no-headers flag).
+  # - Helm 4 removed `-a` and `helm list` already lists all statuses by default.
+  #   See: https://helm.sh/docs/v3/helm/helm_list/ and https://helm.sh/docs/helm/helm_list/
+  #
+  # Try Helm 3 syntax first; if it fails (e.g. unknown flag -a), fall back to Helm 4 syntax.
+  $HELM_EXECUTABLE -n "$HELM_NAMESPACE" ls --short -a 2>/dev/null || \
+  $HELM_EXECUTABLE -n "$HELM_NAMESPACE" ls --short --no-headers 2>/dev/null
 )
 echo "Current deployments: "
 echo $deployments

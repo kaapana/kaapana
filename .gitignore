@@ -40,3 +40,4 @@ tests/airflow_workflow_dir/*
 tests/venv/*
 .mypy_cache
 *.egg-info
+*.db

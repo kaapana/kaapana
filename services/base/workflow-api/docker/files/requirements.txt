@@ -8,6 +8,6 @@ pydantic_settings==2.10.1
 alembic==1.16.4
 aiohttp==3.12.14
 httpx==0.28.1
-requests
+requests==2.32.4
 pytest-asyncio==1.1.0
 debugpy==1.6.7

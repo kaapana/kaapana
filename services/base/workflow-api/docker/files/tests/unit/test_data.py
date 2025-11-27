@@ -15,13 +15,6 @@ LABEL_PROJECT = {"key": "project", "value": "medical-imaging"}
 LABEL_PRIORITY_HIGH = {"key": "priority", "value": "high"}
 
 
-def create_label_model(label_dict: dict):
-    """Helper to create Label model from dict for database operations."""
-    from app.models import Label
-
-    return Label(**label_dict)
-
-
 # ========== WORKFLOW PARAMETERS ==========
 
 PARAM_BOOL_ENABLE_CACHE = {
@@ -93,19 +86,17 @@ PARAM_STR_MODEL_NAME = {
 }
 
 # ========== BASE WORKFLOW DEFINITIONS ==========
-# These are the canonical workflow definitions used across all tests
-# They include 'version' for database operations
+# These workflow definitions are for API CREATE requests (no version field)
+# When inserting directly into DB, add version=1 to the dict
 
 WORKFLOW_BASIC = {
     "title": "test-workflow",
-    "version": 1,
     "definition": "test_definition",
     "workflow_engine": "dummy",
 }
 
 WORKFLOW_WITH_LABELS = {
     "title": "workflow-with-labels",
-    "version": 1,
     "definition": "test_def",
     "workflow_engine": "dummy",
     "labels": [LABEL_ENVIRONMENT_PROD, LABEL_TEAM],
@@ -113,7 +104,6 @@ WORKFLOW_WITH_LABELS = {
 
 WORKFLOW_WITH_BOOL_PARAM = {
     "title": "workflow-with-bool-param",
-    "version": 1,
     "definition": "test_def",
     "workflow_engine": "dummy",
     "workflow_parameters": [PARAM_BOOL_ENABLE_CACHE],
@@ -121,7 +111,6 @@ WORKFLOW_WITH_BOOL_PARAM = {
 
 WORKFLOW_WITH_LIST_PARAM = {
     "title": "workflow-with-list-param",
-    "version": 1,
     "definition": "test_def",
     "workflow_engine": "dummy",
     "workflow_parameters": [PARAM_LIST_ORGAN],
@@ -129,7 +118,6 @@ WORKFLOW_WITH_LIST_PARAM = {
 
 WORKFLOW_WITH_MULTI_PARAMS = {
     "title": "workflow-multi-params",
-    "version": 1,
     "definition": "test_def",
     "workflow_engine": "dummy",
     "workflow_parameters": [PARAM_INT_THRESHOLD, PARAM_FLOAT_ALPHA],
@@ -137,7 +125,6 @@ WORKFLOW_WITH_MULTI_PARAMS = {
 
 WORKFLOW_WITH_LABELS_AND_PARAMS = {
     "title": "workflow-labels-and-params",
-    "version": 1,
     "definition": "test_def",
     "workflow_engine": "dummy",
     "labels": [LABEL_VERSION, LABEL_PROJECT],
@@ -145,11 +132,32 @@ WORKFLOW_WITH_LABELS_AND_PARAMS = {
 }
 
 # Additional workflow definitions for specific tests
-WORKFLOW_1 = {"title": "workflow-1", "version": 1, "definition": "def-1", "workflow_engine": "dummy"}
-WORKFLOW_2 = {"title": "workflow-2", "version": 1, "definition": "def-2", "workflow_engine": "dummy"}
-WORKFLOW_A_V1 = {"title": "workflow-a", "version": 1, "definition": "def-a1", "workflow_engine": "dummy"}
-WORKFLOW_A_V2 = {"title": "workflow-a", "version": 2, "definition": "def-a2", "workflow_engine": "dummy"}
-WORKFLOW_B_V1 = {"title": "workflow-b", "version": 1, "definition": "def-b1", "workflow_engine": "dummy"}
+WORKFLOW_1 = {
+    "title": "workflow-1",
+    "definition": "def-1",
+    "workflow_engine": "dummy",
+}
+WORKFLOW_2 = {
+    "title": "workflow-2",
+    "definition": "def-2",
+    "workflow_engine": "dummy",
+}
+WORKFLOW_A_V1 = {
+    "title": "workflow-a",
+    "definition": "def-a1",
+    "workflow_engine": "dummy",
+}
+WORKFLOW_A_V2 = {
+    "title": "workflow-a",
+    "version": 2,
+    "definition": "def-a2",
+    "workflow_engine": "dummy",
+}
+WORKFLOW_B_V1 = {
+    "title": "workflow-b",
+    "definition": "def-b1",
+    "workflow_engine": "dummy",
+}
 
 
 def create_workflow_variant(base_workflow: dict, **overrides) -> dict:
@@ -162,21 +170,15 @@ def create_workflow_variant(base_workflow: dict, **overrides) -> dict:
     return workflow
 
 
-def remove_version(workflow: dict) -> dict:
-    """Remove version field from workflow (for CREATE API tests)."""
-    return {k: v for k, v in workflow.items() if k != "version"}
-
-
 # ========== PARAMETRIZE DATA FOR CREATE TESTS ==========
-# Remove 'version' field for CREATE tests (API assigns version automatically)
 
 CREATE_WORKFLOW_TEST_CASES = [
-    (remove_version(WORKFLOW_BASIC), "basic"),
-    (remove_version(WORKFLOW_WITH_LABELS), "with_labels"),
-    (remove_version(WORKFLOW_WITH_BOOL_PARAM), "with_bool_param"),
-    (remove_version(WORKFLOW_WITH_LIST_PARAM), "with_list_param"),
-    (remove_version(WORKFLOW_WITH_MULTI_PARAMS), "multi_params"),
-    (remove_version(WORKFLOW_WITH_LABELS_AND_PARAMS), "labels_and_params"),
+    (WORKFLOW_BASIC, "basic"),
+    (WORKFLOW_WITH_LABELS, "with_labels"),
+    (WORKFLOW_WITH_BOOL_PARAM, "with_bool_param"),
+    (WORKFLOW_WITH_LIST_PARAM, "with_list_param"),
+    (WORKFLOW_WITH_MULTI_PARAMS, "multi_params"),
+    (WORKFLOW_WITH_LABELS_AND_PARAMS, "labels_and_params"),
 ]
 
 VALIDATION_ERROR_TEST_CASES = [
@@ -186,7 +188,12 @@ VALIDATION_ERROR_TEST_CASES = [
     ({"title": "test", "definition": "test"}, 422, "missing_engine"),
     # Invalid data types
     (
-        {"title": "test", "version": "not-an-integer", "definition": "test", "workflow_engine": "dummy"},
+        {
+            "title": "test",
+            "version": "not-an-integer",
+            "definition": "test",
+            "workflow_engine": "dummy",
+        },
         422,
         "invalid_version_type",
     ),
@@ -210,27 +217,35 @@ READ_WORKFLOW_ERROR_TEST_CASES = [
 ]
 
 # ========== READ WORKFLOWS TEST DATA ==========
-# Reuse base workflow definitions
 
 READ_WORKFLOWS_TEST_CASES = [
-    ([WORKFLOW_1], "single"),
-    ([WORKFLOW_1, WORKFLOW_2], "multiple"),
+    ([create_workflow_variant(WORKFLOW_1, version=1)], "single"),
+    ([create_workflow_variant(WORKFLOW_1, version=1), create_workflow_variant(WORKFLOW_2, version=1)], "multiple"),
     (
         [
-            WORKFLOW_1,
+            create_workflow_variant(WORKFLOW_1, version=1),
             create_workflow_variant(WORKFLOW_1, version=2, definition="def-2"),
             create_workflow_variant(WORKFLOW_1, version=3, definition="def-3"),
         ],
         "versions",
     ),
-    ([WORKFLOW_A_V1, WORKFLOW_A_V2, WORKFLOW_B_V1], "mixed"),
+    ([create_workflow_variant(WORKFLOW_A_V1, version=1), WORKFLOW_A_V2, create_workflow_variant(WORKFLOW_B_V1, version=1)], "mixed"),
     (
         [
-            create_workflow_variant(WORKFLOW_1, title="workflow-labeled-1", labels=[{"key": "env", "value": "dev"}]),
+            create_workflow_variant(
+                WORKFLOW_1,
+                version=1,
+                title="workflow-labeled-1",
+                labels=[{"key": "env", "value": "dev"}],
+            ),
             create_workflow_variant(
                 WORKFLOW_2,
+                version=1,
                 title="workflow-labeled-2",
-                labels=[{"key": "team", "value": "backend"}, {"key": "priority", "value": "high"}],
+                labels=[
+                    {"key": "team", "value": "backend"},
+                    {"key": "priority", "value": "high"},
+                ],
             ),
         ],
         "with_labels",
@@ -239,16 +254,27 @@ READ_WORKFLOWS_TEST_CASES = [
         [
             create_workflow_variant(
                 WORKFLOW_1,
+                version=1,
                 title="workflow-params-1",
                 workflow_parameters=[
                     {
                         "task_title": "task1",
                         "env_variable_name": "PARAM1",
-                        "ui_form": {"type": "bool", "title": "Param 1", "description": "Boolean parameter", "default": True},
+                        "ui_form": {
+                            "type": "bool",
+                            "title": "Param 1",
+                            "description": "Boolean parameter",
+                            "default": True,
+                        },
                     }
                 ],
             ),
-            create_workflow_variant(WORKFLOW_2, title="workflow-params-2", workflow_parameters=[PARAM_LIST_ORGAN]),
+            create_workflow_variant(
+                WORKFLOW_2,
+                version=1,
+                title="workflow-params-2",
+                workflow_parameters=[PARAM_LIST_ORGAN],
+            ),
         ],
         "with_params",
     ),
@@ -267,7 +293,7 @@ DELETE_WORKFLOW_TEST_CASES = [
 GET_WORKFLOW_BY_TITLE_TEST_CASES = [
     (
         "single-version-workflow",
-        [create_workflow_variant(WORKFLOW_1, title="single-version-workflow")],
+        [create_workflow_variant(WORKFLOW_1, version=1, title="single-version-workflow")],
         False,  # latest parameter
         1,  # expected count
         "single_version",
@@ -275,9 +301,19 @@ GET_WORKFLOW_BY_TITLE_TEST_CASES = [
     (
         "multi-version-workflow",
         [
-            create_workflow_variant(WORKFLOW_1, title="multi-version-workflow"),
-            create_workflow_variant(WORKFLOW_1, title="multi-version-workflow", version=2, definition="def-2"),
-            create_workflow_variant(WORKFLOW_1, title="multi-version-workflow", version=3, definition="def-3"),
+            create_workflow_variant(WORKFLOW_1, version=1, title="multi-version-workflow"),
+            create_workflow_variant(
+                WORKFLOW_1,
+                title="multi-version-workflow",
+                version=2,
+                definition="def-2",
+            ),
+            create_workflow_variant(
+                WORKFLOW_1,
+                title="multi-version-workflow",
+                version=3,
+                definition="def-3",
+            ),
         ],
         False,
         3,
@@ -286,8 +322,13 @@ GET_WORKFLOW_BY_TITLE_TEST_CASES = [
     (
         "latest-version-workflow",
         [
-            create_workflow_variant(WORKFLOW_1, title="latest-version-workflow"),
-            create_workflow_variant(WORKFLOW_1, title="latest-version-workflow", version=2, definition="def-2"),
+            create_workflow_variant(WORKFLOW_1, version=1, title="latest-version-workflow"),
+            create_workflow_variant(
+                WORKFLOW_1,
+                title="latest-version-workflow",
+                version=2,
+                definition="def-2",
+            ),
         ],
         True,
         1,
@@ -299,10 +340,10 @@ GET_WORKFLOW_BY_TITLE_TEST_CASES = [
 
 GET_WORKFLOW_BY_TITLE_VERSION_TEST_CASES = [
     (
-        create_workflow_variant(WORKFLOW_1, title="specific-workflow"),
+        create_workflow_variant(WORKFLOW_1, version=1, title="specific-workflow"),
         "specific-workflow",
         1,
         "basic",
     ),
-    (WORKFLOW_WITH_LABELS, "workflow-with-labels", 1, "with_labels"),
+    (create_workflow_variant(WORKFLOW_WITH_LABELS, version=1), "workflow-with-labels", 1, "with_labels"),
 ]

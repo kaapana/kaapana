@@ -53,8 +53,6 @@ async def create_workflow(
 async def get_workflow_by_title(
     title: str,
     latest: bool = False,
-    order_by: Optional[str] = None,
-    order: Optional[str] = "desc",
     db: AsyncSession = Depends(get_async_db),
 ):
     return await service.get_workflow_by_title(db, title, latest)

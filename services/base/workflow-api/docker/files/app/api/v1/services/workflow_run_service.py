@@ -15,6 +15,7 @@ async def get_workflow_runs(
     db: AsyncSession,
     workflow_title: Optional[str],
     workflow_version: Optional[int],
+    lifecycle_status: Optional[str] = None,
 ) -> List[schemas.WorkflowRun]:
     """
     Gets workflow runs from workflow DB, optionally filtered by workflow title and version.
@@ -32,6 +33,14 @@ async def get_workflow_runs(
         filters["workflow.title"] = workflow_title
     if workflow_version:
         filters["workflow.version"] = workflow_version
+    if lifecycle_status:
+        # Convert string to enum value (e.g., "COMPLETED" -> WorkflowRunStatus.COMPLETED)
+        try:
+            status_enum = schemas.WorkflowRunStatus[lifecycle_status]
+            filters["lifecycle_status"] = status_enum
+        except KeyError:
+            logger.warning(f"Invalid lifecycle_status: {lifecycle_status}")
+            return []
 
     # get workflow runs from the database
     runs: List[models.WorkflowRun] = await crud.get_workflow_runs(db, filters=filters)
@@ -121,7 +130,7 @@ async def create_workflow_run(
         )
     )
 
-    return schemas.WorkflowRun.from_orm(db_workflow_run)
+    return schemas.WorkflowRun.model_validate(db_workflow_run)
 
 
 async def get_workflow_run_by_id(

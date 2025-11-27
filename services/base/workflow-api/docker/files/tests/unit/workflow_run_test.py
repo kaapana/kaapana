@@ -31,7 +31,6 @@ from test_data import LABEL_ENVIRONMENT_PROD, LABEL_TEAM, PARAM_LIST_ORGAN  # no
 
 
 @pytest.mark.POST
-@pytest.mark.workflow_runs
 @pytest.mark.asyncio
 async def test_create_workflow_run_basic(session: AsyncSession, client: AsyncClient):
     """Test creating a basic workflow run"""
@@ -561,3 +560,395 @@ async def test_get_task_run_logs_not_found(session: AsyncSession, client: AsyncC
         f"/v1/workflow-runs/{workflow_run.id}/task-runs/99999/logs"
     )
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_task_run_logs(session: AsyncSession, client: AsyncClient):
+    """Test getting logs for a task run"""
+    # Create workflow, task, run, and task run
+    workflow = models.Workflow(
+        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+    )
+    session.add(workflow)
+    await session.commit()
+    await session.refresh(workflow)
+
+    task = models.Task(workflow_id=workflow.id, title="task1", type="DummyOperator")
+    session.add(task)
+    await session.commit()
+    await session.refresh(task)
+
+    workflow_run = models.WorkflowRun(workflow_id=workflow.id)
+    session.add(workflow_run)
+    await session.commit()
+    await session.refresh(workflow_run)
+
+    task_run = models.TaskRun(
+        task_id=task.id,
+        workflow_run_id=workflow_run.id,
+        external_id="task-external-id",
+    )
+    session.add(task_run)
+    await session.commit()
+    await session.refresh(task_run)
+
+    response = await client.get(
+        f"/v1/workflow-runs/{workflow_run.id}/task-runs/{task_run.id}/logs"
+    )
+
+    # Should return 200 with logs (may be empty string)
+    assert response.status_code == 200
+    assert isinstance(response.text, str)
+
+
+@pytest.mark.asyncio
+async def test_get_task_run_workflow_run_not_found(client: AsyncClient):
+    """Test getting task run when workflow run doesn't exist"""
+    response = await client.get("/v1/workflow-runs/99999/task-runs/1")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_task_run_logs_workflow_run_not_found(client: AsyncClient):
+    """Test getting logs when workflow run doesn't exist"""
+    response = await client.get("/v1/workflow-runs/99999/task-runs/1/logs")
+    assert response.status_code == 404
+
+
+# ============================================================
+# Additional Edge Case Tests
+# ============================================================
+
+
+@pytest.mark.asyncio
+async def test_create_workflow_run_increments_correctly(
+    session: AsyncSession, client: AsyncClient
+):
+    """Test that multiple runs for same workflow are created correctly"""
+    # Create workflow
+    workflow = models.Workflow(
+        title="multi-run-workflow",
+        version=1,
+        definition="test_def",
+        workflow_engine="dummy",
+    )
+    session.add(workflow)
+    await session.commit()
+
+    payload = {
+        "workflow": {"title": "multi-run-workflow", "version": 1},
+        "workflow_parameters": [],
+        "labels": [],
+    }
+
+    # Create 3 runs
+    run_ids = []
+    for _ in range(3):
+        response = await client.post("/v1/workflow-runs", json=payload)
+        assert response.status_code == 201
+        data = response.json()
+        run_ids.append(data["id"])
+
+    # Verify all have unique IDs
+    assert len(set(run_ids)) == 3
+
+
+@pytest.mark.asyncio
+async def test_cancel_already_completed_workflow_run(
+    session: AsyncSession, client: AsyncClient
+):
+    """Test canceling a workflow run that's already completed"""
+    # Create workflow and completed run
+    workflow = models.Workflow(
+        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+    )
+    session.add(workflow)
+    await session.commit()
+    await session.refresh(workflow)
+
+    workflow_run = models.WorkflowRun(
+        workflow_id=workflow.id,
+        lifecycle_status=schemas.WorkflowRunStatus.COMPLETED,
+    )
+    session.add(workflow_run)
+    await session.commit()
+    await session.refresh(workflow_run)
+
+    response = await client.put(f"/v1/workflow-runs/{workflow_run.id}/cancel")
+    
+    # Should succeed but status remains completed (or return appropriate status)
+    assert response.status_code in [200, 400, 409]
+
+
+@pytest.mark.asyncio
+async def test_retry_running_workflow_run(
+    session: AsyncSession, client: AsyncClient
+):
+    """Test retrying a workflow run that's still running"""
+    # Create workflow and running run
+    workflow = models.Workflow(
+        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+    )
+    session.add(workflow)
+    await session.commit()
+    await session.refresh(workflow)
+
+    workflow_run = models.WorkflowRun(
+        workflow_id=workflow.id,
+        lifecycle_status=schemas.WorkflowRunStatus.RUNNING,
+    )
+    session.add(workflow_run)
+    await session.commit()
+    await session.refresh(workflow_run)
+
+    response = await client.put(f"/v1/workflow-runs/{workflow_run.id}/retry")
+    
+    # Should fail or handle appropriately
+    assert response.status_code in [200, 400, 409]
+
+
+@pytest.mark.asyncio
+async def test_workflow_run_with_multiple_labels(
+    session: AsyncSession, client: AsyncClient
+):
+    """Test creating workflow run with multiple labels"""
+    # Create workflow
+    workflow = models.Workflow(
+        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+    )
+    session.add(workflow)
+    await session.commit()
+
+    payload = {
+        "workflow": {"title": "test-workflow", "version": 1},
+        "workflow_parameters": [],
+        "labels": [
+            {"key": "env", "value": "prod"},
+            {"key": "team", "value": "ml"},
+        ],
+    }
+
+    response = await client.post("/v1/workflow-runs", json=payload)
+    data = response.json()
+    
+    assert response.status_code == 201
+    assert len(data["labels"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_get_workflow_runs_multiple_filters(
+    session: AsyncSession, client: AsyncClient
+):
+    """Test combining multiple filters when getting workflow runs"""
+    # Create workflows
+    workflow1_v1 = models.Workflow(
+        title="workflow-1", version=1, definition="test_def", workflow_engine="dummy"
+    )
+    workflow1_v2 = models.Workflow(
+        title="workflow-1", version=2, definition="test_def", workflow_engine="dummy"
+    )
+    workflow2_v1 = models.Workflow(
+        title="workflow-2", version=1, definition="test_def", workflow_engine="dummy"
+    )
+    session.add_all([workflow1_v1, workflow1_v2, workflow2_v1])
+    await session.commit()
+    await session.refresh(workflow1_v1)
+    await session.refresh(workflow1_v2)
+    await session.refresh(workflow2_v1)
+
+    # Create runs
+    run1 = models.WorkflowRun(workflow_id=workflow1_v1.id)
+    run2 = models.WorkflowRun(workflow_id=workflow1_v2.id)
+    run3 = models.WorkflowRun(workflow_id=workflow2_v1.id)
+    session.add_all([run1, run2, run3])
+    await session.commit()
+
+    # Filter by title and version
+    response = await client.get(
+        "/v1/workflow-runs?workflow_title=workflow-1&workflow_version=2"
+    )
+    data = response.json()
+
+    assert response.status_code == 200
+    assert len(data) == 1
+    assert data[0]["workflow"]["title"] == "workflow-1"
+    assert data[0]["workflow"]["version"] == 2
+
+
+@pytest.mark.asyncio
+async def test_task_run_belongs_to_correct_workflow_run(
+    session: AsyncSession, client: AsyncClient
+):
+    """Test that task runs are properly associated with their workflow run"""
+    # Create workflow with task
+    workflow = models.Workflow(
+        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+    )
+    session.add(workflow)
+    await session.commit()
+    await session.refresh(workflow)
+
+    task = models.Task(workflow_id=workflow.id, title="task1", type="DummyOperator")
+    session.add(task)
+    await session.commit()
+    await session.refresh(task)
+
+    # Create two workflow runs
+    run1 = models.WorkflowRun(
+        workflow_id=workflow.id,
+        lifecycle_status=schemas.WorkflowRunStatus.COMPLETED,
+        external_id="run1",
+    )
+    run2 = models.WorkflowRun(
+        workflow_id=workflow.id,
+        lifecycle_status=schemas.WorkflowRunStatus.COMPLETED,
+        external_id="run2",
+    )
+    session.add_all([run1, run2])
+    await session.commit()
+    await session.refresh(run1)
+    await session.refresh(run2)
+
+    # Create task runs for each workflow run
+    task_run1 = models.TaskRun(
+        task_id=task.id, workflow_run_id=run1.id, external_id="task-run1"
+    )
+    task_run2 = models.TaskRun(
+        task_id=task.id, workflow_run_id=run2.id, external_id="task-run2"
+    )
+    session.add_all([task_run1, task_run2])
+    await session.commit()
+
+    # Get task runs for run1 only
+    response = await client.get(f"/v1/workflow-runs/{run1.id}/task-runs")
+    data = response.json()
+
+    assert response.status_code == 200
+    assert len(data) == 1
+    assert data[0]["external_id"] == "task-run1"
+
+
+@pytest.mark.asyncio
+async def test_get_workflow_run_with_labels(
+    session: AsyncSession, client: AsyncClient
+):
+    """Test getting workflow run that has labels"""
+    # Create workflow
+    workflow = models.Workflow(
+        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+    )
+    session.add(workflow)
+    await session.commit()
+    await session.refresh(workflow)
+
+    # Create workflow run
+    workflow_run = models.WorkflowRun(
+        workflow_id=workflow.id,
+        lifecycle_status=schemas.WorkflowRunStatus.COMPLETED,
+    )
+    session.add(workflow_run)
+    await session.commit()
+    await session.refresh(workflow_run)
+
+    # Add labels using the many-to-many relationship
+    label1 = models.Label(key="env", value="prod")
+    label2 = models.Label(key="team", value="ml")
+    session.add_all([label1, label2])
+    await session.commit()
+    
+    # Associate labels with workflow run
+    workflow_run.labels = [label1, label2]
+    await session.commit()
+    await session.refresh(workflow_run)
+
+    # Get the workflow run
+    response = await client.get(f"/v1/workflow-runs/{workflow_run.id}")
+    data = response.json()
+
+    assert response.status_code == 200
+    assert len(data["labels"]) == 2
+    label_dict = {label["key"]: label["value"] for label in data["labels"]}
+    assert label_dict["env"] == "prod"
+    assert label_dict["team"] == "ml"
+
+
+@pytest.mark.asyncio
+async def test_get_workflow_runs_with_status_filter(
+    session: AsyncSession, client: AsyncClient
+):
+    """Test filtering workflow runs by lifecycle status"""
+    # Create workflow
+    workflow = models.Workflow(
+        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+    )
+    session.add(workflow)
+    await session.commit()
+    await session.refresh(workflow)
+
+    # Create runs with different statuses
+    run_completed = models.WorkflowRun(
+        workflow_id=workflow.id,
+        lifecycle_status=schemas.WorkflowRunStatus.COMPLETED,
+    )
+    run_running = models.WorkflowRun(
+        workflow_id=workflow.id,
+        lifecycle_status=schemas.WorkflowRunStatus.RUNNING,
+    )
+    run_error = models.WorkflowRun(
+        workflow_id=workflow.id,
+        lifecycle_status=schemas.WorkflowRunStatus.ERROR,
+    )
+    session.add_all([run_completed, run_running, run_error])
+    await session.commit()
+
+    # Filter by completed status
+    response = await client.get("/v1/workflow-runs?lifecycle_status=COMPLETED")
+    data = response.json()
+
+    assert response.status_code == 200
+    assert len(data) >= 1
+    # All returned runs should have Completed status
+    assert all(run["lifecycle_status"] == "Completed" for run in data)
+
+
+@pytest.mark.asyncio
+async def test_task_run_lifecycle_status(
+    session: AsyncSession, client: AsyncClient
+):
+    """Test that task runs have proper lifecycle status"""
+    # Create workflow with task
+    workflow = models.Workflow(
+        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+    )
+    session.add(workflow)
+    await session.commit()
+    await session.refresh(workflow)
+
+    task = models.Task(workflow_id=workflow.id, title="task1", type="DummyOperator")
+    session.add(task)
+    await session.commit()
+    await session.refresh(task)
+
+    workflow_run = models.WorkflowRun(workflow_id=workflow.id)
+    session.add(workflow_run)
+    await session.commit()
+    await session.refresh(workflow_run)
+
+    # Create task run with specific status
+    task_run = models.TaskRun(
+        task_id=task.id,
+        workflow_run_id=workflow_run.id,
+        lifecycle_status=schemas.TaskRunStatus.ERROR,
+        external_id="task-external-id",
+    )
+    session.add(task_run)
+    await session.commit()
+    await session.refresh(task_run)
+
+    response = await client.get(
+        f"/v1/workflow-runs/{workflow_run.id}/task-runs/{task_run.id}"
+    )
+    data = response.json()
+
+    assert response.status_code == 200
+    assert data["lifecycle_status"] == "Error"

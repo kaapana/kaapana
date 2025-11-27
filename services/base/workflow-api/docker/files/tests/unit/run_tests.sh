@@ -8,7 +8,7 @@ set -e  # Exit on error
 export UNIT_DIR=$(pwd)
 
 echo "==> Creating virtual environment..."
-python3 -m venv $UNIT_DIR/.venv
+python3 -m virtualenv $UNIT_DIR/.venv
 
 echo "==> Activating virtual environment..."
 source $UNIT_DIR/.venv/bin/activate
@@ -24,3 +24,6 @@ pytest $UNIT_DIR --junitxml=workflow_api_report.xml
 
 echo "==> Tests completed!"
 echo "Report saved to: workflow_api_report.xml"
+
+echo "==> Deactivating virtual environment..."
+deactivate

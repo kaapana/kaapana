@@ -57,7 +57,7 @@ export default Vue.extend({
     return {
       allowedFileTypes: ["application/zip", "application/octet-stream", "application/x-zip-compressed", "multipart/x-zip"],
       polling: 0,
-      uploadJobs: [],
+      uploadJobs: [] as any[],
       componentKey: 0,
       localKaapanaInstance: null as string | null,
       recentlyTriggeredFiles: [] as string[],

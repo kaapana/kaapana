@@ -25,20 +25,6 @@ allowed_user_endpoints := [
     {"path": "^/notifications/.*", "methods": ["GET", "POST", "PUT"]},
 ]
 
-		allowed_user_endpoints := [
-		    {\"path\": \"^/img/.*\", \"methods\": [\"GET\",\"POST\",\"PUT\",\"DELETE\"]},
-		    {\"path\": \"^/fonts/.*\", \"methods\": [\"GET\",\"POST\",\"PUT\",\"DELETE\"]},
-		    {\"path\": \"^/favicon.ico\", \"methods\": [\"GET\",\"POST\",\"PUT\",\"DELETE\"]},
-		    {\"path\": \"^/jsons/.*\", \"methods\": [\"GET\",\"POST\",\"PUT\",\"DELETE\"]},
-		    {\"path\": \"^/js/.*\", \"methods\": [\"GET\",\"POST\",\"PUT\",\"DELETE\"]},
-		    {\"path\": \"^/images/.*\", \"methods\": [\"GET\",\"POST\",\"PUT\",\"DELETE\"]},
-		    {\"path\": \"^/css/.*\", \"methods\": [\"GET\",\"POST\",\"PUT\",\"DELETE\"]},
-		    {\"path\": \"^/oauth2/.*\", \"methods\": [\"GET\",\"POST\",\"PUT\",\"DELETE\"]},
-		    {\"path\": \"^/web-ide\", \"methods\": [\"GET\",\"POST\",\"PUT\",\"DELETE\"]},
-		    {\"path\": \"^/aii/.*\", \"methods\": [\"GET\"]},
-		    {\"path\": \"^/kaapana-backend/client/file\", \"methods\": [\"POST\", \"HEAD\", \"PATCH\",\"DELETE\"]},
-		    {\"path\": \"^/notifications/.*\", \"methods\": [\"GET\", \"POST\", \"PUT\"]},
-		]
 allowed_project_manager_endpoints := [
     {"path": "^/aii/.*" ,"methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/web/system/Projects.*", "methods": ["GET","POST","PUT","DELETE"]},

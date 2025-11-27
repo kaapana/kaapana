@@ -179,8 +179,6 @@ async def delete_workflow(db: AsyncSession, db_workflow: models.Workflow) -> boo
 
 async def get_active_workflow_runs(
     db: AsyncSession,
-    skip: int = 0,
-    limit: int = 100,
 ) -> List[models.WorkflowRun]:
     """
     Get all workflow runs that are not in a terminal state (Completed, Error, Canceled).
@@ -197,7 +195,7 @@ async def get_active_workflow_runs(
 
     query = query.options(selectinload(models.WorkflowRun.workflow))
 
-    query = query.order_by(models.WorkflowRun.id.desc()).offset(skip).limit(limit)
+    query = query.order_by(models.WorkflowRun.id.desc())
 
     result = await db.execute(query)
     return list(result.scalars().all())

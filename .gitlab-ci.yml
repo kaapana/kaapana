@@ -148,6 +148,24 @@ install_helm_on_build:
     when: on_success
   - when: never
 
+workflow_api_tests:
+  stage: prepare
+  needs:
+  - prepare_pipeline
+  script:
+  - python3 -m virtualenv $KAAPANA_DIR/services/base/workflow-api/.workflow-api-test
+  - source $KAAPANA_DIR/services/base/workflow-api/.workflow-api-test/bin/activate
+  - python3 -m pip install pytest
+  - pip install -r $KAAPANA_DIR/services/base/workflow-api/docker/files/requirements.txt
+  - pytest $KAAPANA_DIR/services/base/workflow-api/docker/files/tests/unit --junitxml=workflow_api_report.xml
+  artifacts:
+    when: always
+    paths:
+      - workflow_api_report.xml
+    reports:
+      junit:
+        - workflow_api_report.xml
+
 #############################################
 ############## BUILD ########################
 #############################################

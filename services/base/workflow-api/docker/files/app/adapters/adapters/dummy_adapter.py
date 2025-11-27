@@ -1,9 +1,11 @@
 import random
-import time
 from typing import List
 
 from app import schemas
 from app.adapters.base import WorkflowEngineAdapter
+
+# module-level store for mocked statuses
+_MOCKED_RUN_STATUSES: dict[str, schemas.WorkflowRunStatus] = {}
 
 
 class DummyAdapter(WorkflowEngineAdapter):
@@ -48,6 +50,16 @@ class DummyAdapter(WorkflowEngineAdapter):
             lifecycle_status=schemas.WorkflowRunStatus.PENDING,
         )
 
+    @staticmethod
+    def set_status(external_id: str, status: schemas.WorkflowRunStatus):
+        """Allows test clients to control the status returned for a specific run."""
+        _MOCKED_RUN_STATUSES[external_id] = status
+
+    @staticmethod
+    def reset_statuses():
+        """Clears the status dictionary."""
+        _MOCKED_RUN_STATUSES.clear()
+
     async def get_workflow_run_status(
         self, workflow_run_external_id: str
     ) -> schemas.WorkflowRunStatus:
@@ -61,6 +73,13 @@ class DummyAdapter(WorkflowEngineAdapter):
             WorkflowRunStatus: The WorkflowRun object with updated status.
         """
         # simulate getting info from the workflow engine and updating status to COMPLETED
+
+        # 1. check if the status has been manually set by a test (NO MOCKS)
+        if workflow_run_external_id in _MOCKED_RUN_STATUSES:
+            return _MOCKED_RUN_STATUSES[workflow_run_external_id]
+
+        # 2. Fallback to default behavior for all other cases
+        # (This is your original hardcoded logic)
         return schemas.WorkflowRunStatus.RUNNING
 
     async def get_workflow_run_task_runs(

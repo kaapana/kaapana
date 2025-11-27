@@ -67,6 +67,9 @@ async def test_get_workflow_run_by_id():
         assert get_resp.status_code == 200
         fetched = schemas.WorkflowRun(**get_resp.json())
         assert fetched.id == run.id
+        assert fetched.workflow.title == wf.title
+        assert fetched.workflow.version == wf.version
+        assert fetched.external_id is not None
 
 
 @pytest.mark.asyncio

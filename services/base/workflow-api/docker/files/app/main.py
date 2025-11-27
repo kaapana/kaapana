@@ -1,9 +1,16 @@
 import logging
-
-from app.api.v1.routers import health_check, workflow_runs, workflows
+import os
+import asyncio
+from app.api.v1.routers import (
+    health_check,
+    workflow_runs,
+    workflows,
+    dummy_adapter_status,
+)
 from app.api.v1.services import errors
 from app.dependencies import get_connection_manager
 from app.logging_config import setup_logging
+from app.sync import run_sync
 from fastapi import Depends, FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -71,3 +78,20 @@ app.include_router(
 )
 app.include_router(workflows.router, prefix=f"/{API_VERSION}", tags=["workflow"])
 app.include_router(health_check.router, prefix=f"/{API_VERSION}", tags=["health"])
+
+logger.info('test {os.getenv("ENABLE_TEST_ADAPTER", "false")}')
+if os.getenv("ENABLE_TEST_ADAPTER", "false").lower() == "true":
+    logger.info("Enabling DummyAdapter test endpoints")
+    app.include_router(
+        dummy_adapter_status.router,
+        prefix=f"/{API_VERSION}",
+        tags=["test endpoints for DummyAdapter"],
+    )
+
+
+# TODO: Make the sync interval configurable
+# TODO: move this to a cron job or separate worker
+@app.on_event("startup")
+async def startup_event():
+    # Run sync in the background without blocking the API
+    asyncio.create_task(run_sync(interval_seconds=30))

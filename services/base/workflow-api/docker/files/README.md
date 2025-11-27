@@ -5,8 +5,8 @@ One key feature of Kaapana is the execution of **Workflows**.
 A workflow consists of multiple steps (tasks) that may depend on each other, such as data retrieval, preprocessing, processing, post-processing, and result persistence.  
 
 There exist several **Workflow Engines** (e.g., Airflow, Kubeflow, Argo Workflows) that help design workflows, schedule workflow runs, and monitor their state.  
-Kaapana aims to be **agnostic** to the specific engine. A workflow simply corresponds to a **workflow definition** interpretable by your engine of choice (e.g., a DAG file for Airflow).
-Kaapana provides a **unified REST API** that supports an exclusive list of commonly required actions when managing workflows and their execution:  
+Kaapana aims to be **agnostic** to specific engines. A workflow simply corresponds to a **workflow definition** interpretable by your engine of choice (e.g., a DAG file for Airflow).
+Therefore Kaapana provides a **unified REST API** as a proxy to the authorities (i.e. external engines) that supports an exclusive list of commonly required actions when managing workflows and their execution:  
 - **Posting workflows**  
 - **Configuring workflow execution**  
 - **Retrieving lifecycle information on workflow runs and task runs**  

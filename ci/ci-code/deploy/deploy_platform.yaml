@@ -101,7 +101,7 @@
     when: kube_version.rc != 0
 
   - name: Check helm can access kubernetes
-    ansible.builtin.command: helm ls -a -A
+    ansible.builtin.command: helm ls -A
     register: helm
     until: helm.rc == 0
     retries: 60

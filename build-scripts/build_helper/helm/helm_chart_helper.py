@@ -27,7 +27,12 @@ class HelmChartHelper:
     def helm_registry_login(cls, username: str, password: str) -> None:
         """Log out and log in to the Helm registry, reporting any failures as issues."""
         logger.info(f"-> Helm registry-logout: {cls._build_config.default_registry}")
-        logout_cmd = ["helm", "registry", "logout", cls._build_config.default_registry]
+        logout_cmd = [
+            cls._build_config.helm_executable,
+            "registry",
+            "logout",
+            cls._build_config.default_registry,
+        ]
 
         logout_result = CommandUtils.run(
             logout_cmd, logger=logger, timeout=10, context="helm-logout", quiet=True
@@ -43,7 +48,7 @@ class HelmChartHelper:
 
         logger.info(f"-> Helm registry-login: {cls._build_config.default_registry}")
         login_cmd = [
-            "helm",
+            cls._build_config.helm_executable,
             "registry",
             "login",
             cls._build_config.default_registry.split("/")[0],
@@ -52,6 +57,8 @@ class HelmChartHelper:
             "--password",
             password,
         ]
+        if cls._build_config.plain_http:
+            login_cmd.append("--plain-http")
 
         login_result = CommandUtils.run(
             login_cmd,
@@ -79,7 +86,7 @@ class HelmChartHelper:
     @classmethod
     def verify_helm_installed(cls) -> None:
         """Ensure Helm and Helm kubeval plugin are installed and functional."""
-        if shutil.which("helm") is None:
+        if shutil.which(cls._build_config.helm_executable) is None:
             logger.error("Helm is not installed!")
             logger.error("-> install curl 'sudo apt install curl'")
             logger.error("-> install helm 'sudo snap install helm --classic'!")
@@ -88,7 +95,7 @@ class HelmChartHelper:
             )
             exit(1)
 
-        helm_kubeval_cmd = ["helm", "kubeval", "--help"]
+        helm_kubeval_cmd = [cls._build_config.helm_executable, "kubeval", "--help"]
         CommandUtils.run(
             helm_kubeval_cmd,
             logger=logger,
@@ -357,14 +364,21 @@ class HelmChartHelper:
                         f"Collection chart {index + 1}/{len(collection_chart.chart_dependencies)}: {chart.name}:"
                     )
                     if not cls._build_config.build_only:
-                        chart.make_package()
+                        chart.make_package(
+                            cls._build_config.helm_executable,
+                            cls._build_config.plain_http,
+                        )
 
                     bar()
 
-        platform_chart.make_package()
+        platform_chart.make_package(
+            cls._build_config.helm_executable, cls._build_config.plain_http
+        )
 
         if not cls._build_config.build_only:
             platform_chart.push(
+                cls._build_config.helm_executable,
                 cls._build_config.default_registry,
                 cls._build_config.max_push_retries,
+                cls._build_config.plain_http,
             )

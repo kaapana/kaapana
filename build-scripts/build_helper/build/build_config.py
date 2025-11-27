@@ -23,6 +23,10 @@ class BuildConfig(BaseModel):
     registry_password: str
     include_credentials: bool
     no_login: bool = False
+    plain_http: bool = False
+
+    # Executables
+    helm_executable: str = "helm"
 
     # Build Script
     build_dir: Path

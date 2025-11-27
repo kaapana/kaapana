@@ -1421,7 +1421,6 @@ preflight_checks
 
 echo -e "${YELLOW}Get helm deployments...${NC}"
 deployments=$(
-  (
   # Helm 3 vs Helm 4:
   # - Helm 3 needs `helm list -a` to show all releases (no --no-headers flag).
   # - Helm 4 removed `-a` and `helm list` already lists all statuses by default.

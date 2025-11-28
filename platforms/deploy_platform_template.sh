@@ -106,7 +106,7 @@ INSTANCE_NAME="{{ instance_name|default('') }}"
 STORAGE_PROVIDER="{{ smtp_host|default('hostpath')}}" # e.g. "hostpath" (microk8s) or "longhorn
 # volume sizes relevant if STORAGE_PROVIDER is set to longhorn
 VOLUME_SLOW_DATA="{{ volume_slow_data|default('100Gi') }}" #size of volumes in slow data dir (e.g. 100Gi or 100Ti)
-
+REPLICA_COUNT=1
 echo "Checking for storage provider: ${STORAGE_PROVIDER}"
 
 is_provider_installed=false
@@ -229,8 +229,6 @@ case "${STORAGE_PROVIDER}" in
     # Determine replica count based on node count
     if (( SCHEDULABLE_NODES > 1 )); then
         REPLICA_COUNT=2
-    else
-        REPLICA_COUNT=1
     fi
     ;;
 esac
@@ -511,16 +509,53 @@ function run_migration_chart() {
             cleanup
             break
         elif [[ "${FAILED:-0}" -ge 1 ]]; then
-            echo -e "${RED}Migration job failed!${NC}"
-            PODS=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o name)
-            for pod in $PODS; do
-                microk8s.kubectl logs "$pod" -n "$NAMESPACE"
-            done
+            VERSION_STATUS=""
+            # Safely read the status from the version file
+            if [ -f "$FAST_DATA_DIR/.version" ]; then
+                VERSION_STATUS=$(cat "$FAST_DATA_DIR/.version")
+            fi
 
-            POD=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o jsonpath='{.items[*].metadata.name}')
-            microk8s.kubectl logs "$POD" -n "$NAMESPACE"
-            cleanup
-            exit 1
+            if [[ "$VERSION_STATUS" == *"- fresh deploy and redeploy-needed"* ]]; then
+                echo -e "\n${YELLOW}================================================================${NC}"
+                echo -e "${YELLOW}🚨 MIGRATION PAUSED: FRESH DEPLOYMENT REQUIRED 🚨${NC}"
+                echo -e "${YELLOW}================================================================${NC}"
+                echo "The existing PVCs are not configured for migration."
+                echo "1. Complete the current deployment (let the platform fully start)."
+                echo "2. Once the platform is functional, run the deployment script again."
+                echo -e "\nDo you want to proceed with the required steps (Y/n) or start fresh (F)? [Y/n/F]"
+                read -r USER_CHOICE
+
+                case "$USER_CHOICE" in
+                    [Yy]* )
+                        echo "Continuing with the required redeployment path. Please run the script again after the initial deploy."
+                        exit 0 # Exit successfully, but signal a partial completion/pause.
+                        ;;
+                    [Ff]* )
+                        echo "Starting fresh. The data folder flag will be removed."
+                        # Remove the flag, allowing the next deployment to proceed without migration attempts
+                        if [ -f "$FAST_DATA_DIR/.version" ]; then
+                            sed -i '' '/- fresh deploy and redeploy-needed/d' "$FAST_DATA_DIR/.version" 2>/dev/null || \
+                            sed -i '/- fresh deploy and redeploy-needed/d' "$FAST_DATA_DIR/.version" # Linux/GNU sed fallback
+                        fi
+                        exit 0 # Exit successfully, allowing the main deploy to continue as a fresh install.
+                        ;;
+                    * )
+                        echo "Exiting without changes. Please run the script again when ready."
+                        exit 1
+                        ;;
+                esac
+            else
+                echo -e "${RED}Migration job failed!${NC}"
+                PODS=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o name)
+                for pod in $PODS; do
+                    microk8s.kubectl logs "$pod" -n "$NAMESPACE"
+                done
+
+                POD=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o jsonpath='{.items[*].metadata.name}')
+                microk8s.kubectl logs "$POD" -n "$NAMESPACE"
+                cleanup
+                exit 1
+            fi
         fi
 
         sleep "$INTERVAL"
@@ -841,6 +876,7 @@ function deploy_chart {
     --set-string global.storage_class_workflow="$STORAGE_CLASS_WORKFLOW" \
     --set-string global.main_node_name="$MAIN_NODE_NAME" \
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
+    --set-string global.replica_count="$REPLICA_COUNT"\
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"
@@ -1628,4 +1664,5 @@ elif [[ $deployments == *"$PLATFORM_NAME"* ]] && [[ $QUIET = true ]];then
 else
     echo -e "${GREEN}No previous deployment found -> deploy ${NC}"
     deploy_chart
+fi
 fi

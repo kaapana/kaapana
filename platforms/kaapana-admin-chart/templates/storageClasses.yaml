@@ -72,7 +72,7 @@ allowVolumeExpansion: true
 reclaimPolicy: Delete
 parameters:
   # For temporary workflow execution and intermediate data
-  numberOfReplicas: "2"
+  numberOfReplicas: "{{ .Values.global.replica_count }}"
   fsType: "ext4"
   mkfsParams: "-E discard"            # Enables TRIM for space reclamation
   disableRevisionCounter: "true"      # Slightly faster for ephemeral volumes

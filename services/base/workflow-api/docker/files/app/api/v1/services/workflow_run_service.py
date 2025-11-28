@@ -1,61 +1,14 @@
 import asyncio
 import logging
-from typing import Any, Callable, Coroutine, List, Optional
+from typing import Any, List, Optional
 
 from app import crud, models, schemas
 from app.adapters import get_workflow_engine, WorkflowEngineAdapter
 from app.api.v1.services.errors import InternalError, NotFoundError
-from app.dependencies import (  # <--- to create new session in background tasks
-    get_async_db,
-)
+from app.api.v1.services.utils import run_in_background_with_retries
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
-
-
-async def _run_in_background_with_retries(
-    func: Callable[..., Coroutine[Any, Any, Any]],
-    *args,
-    max_retries: int = 3,
-    delay_seconds: float = 5.0,
-    **kwargs,
-) -> None:
-    """
-    Run an async function in the background with automatic retries.
-
-    Args:
-        func: The async function to execute.
-        *args: Positional arguments for the function.
-        **kwargs: Keyword arguments for the function.
-        max_retries: Maximum number of retries before giving up.
-        delay_seconds: exponential backoff, i.e. `delay_seconds * (2 ** (attempt - 1))` is used between retries .
-
-    Returns:
-        None. Runs asynchronously and logs outcomes.
-    """
-    for attempt in range(1, max_retries + 1):
-        try:
-            # create a new session if func requires 'db'
-            if "db" in kwargs:
-                async for new_db in get_async_db():
-                    kwargs["db"] = new_db
-                    await func(*args, **kwargs)
-            else:
-                await func(*args, **kwargs)
-            logger.debug(f"Background task {func.__name__} completed successfully.")
-            return
-        except Exception as e:
-            logger.warning(
-                f"Attempt {attempt}/{max_retries} failed for {func.__name__}: {e}"
-            )
-            if attempt == max_retries:
-                logger.error(
-                    f"All {max_retries} retries failed for background task {func.__name__}"
-                )
-                return
-            await asyncio.sleep(
-                delay_seconds * (2 ** (attempt - 1))
-            )  # exponential backoff
 
 
 async def get_workflow_runs(
@@ -111,9 +64,9 @@ async def get_workflow_runs(
         task_run_updates = await engine.get_workflow_run_task_runs(run.external_id)
         for t in task_run_updates:
             asyncio.create_task(
-                _run_in_background_with_retries(
+                run_in_background_with_retries(
                     crud.create_or_update_task_run,
-                    db=None,  # session will be created inside _run_in_background_with_retries
+                    db=None,
                     task_run_update=t,
                     workflow_run_id=run.id,
                 )
@@ -135,7 +88,7 @@ async def create_workflow_run(
     Returns:
         WorkflowRun: The created WorkflowRun object
     Side Effects:
-        - Spawns a background task with func _run_in_background_with_retries() to submit the workflow run to the workflow engine
+        - Spawns a background task with func run_in_background_with_retries() to submit the workflow run to the workflow engine
 
     """
     logger.debug(f"Creating workflow run for {workflow_run=}")
@@ -160,7 +113,7 @@ async def create_workflow_run(
     # submit workflow run to the workflow engine in the background
     engine = get_workflow_engine(db_workflow.workflow_engine)
     asyncio.create_task(
-        _run_in_background_with_retries(
+        run_in_background_with_retries(
             _submit_workflow_run_to_engine,
             db=db,
             workflow_run=db_workflow_run,

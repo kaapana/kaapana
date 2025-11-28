@@ -41,6 +41,12 @@ data:
         "description": "User can access multiinstallable applications in the selected project.",
         "claim_key": "kaapana.ai/applications",
         "claim_value": "open"
+      },
+      {
+        "name": "manage_project_extensions",
+        "description": "User can install projects in the extensions view",
+        "claim_key": "kaapana.ai/extensions",
+        "claim_value": "manage"
       }
     ]
   initial_roles.json: | # This is the initial roles that will be created
@@ -50,7 +56,7 @@ data:
         "description": "This role grants access to all data in the project"
       },
       {
-        "name": "admin",
+        "name": "principal-investigator",
         "description": "This role grants access to all data and grants permissions to change the role of users in this project."
       }
     ]
@@ -66,11 +72,24 @@ data:
     [
       {
         "role": "scientist",
-        "rights": ["opensearch_access" ,"minio_access" ,"kaapana_backend" ,"open_project_applications"]
+        "rights": [
+          "opensearch_access",
+          "minio_access",
+          "kaapana_backend",
+          "open_project_applications"
+        ]
       },
       {
-        "role": "admin",
-        "rights": ["opensearch_access", "minio_access", "kaapana_backend", "manage_project_users", "manage_project_software", "open_project_applications"]
+        "role": "principal-investigator",
+        "rights": [
+          "opensearch_access", 
+          "minio_access", 
+          "kaapana_backend", 
+          "manage_project_users", 
+          "manage_project_software", 
+          "open_project_applications",
+          "manage_project_extensions"
+        ]
       }
     ]
   default_software.json: | # These are the default software that a project should be mapped to.

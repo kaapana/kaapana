@@ -97,11 +97,35 @@ allow {
 
 ### Allow user with claim aii.manage_software_<project-id> to get a list of all dags 
 allow {
-    # Extract project-id from requested_prefix
     regex.match(`^/flow/kaapana/api/getdags$`, input.requested_prefix)
 
     # For each aii claim, check whether it matches manage_software_<project-id>
     some p
     claim_matches := regex.find_all_string_submatch_n(`^manage_software_(.+)$`, input.access_token["kaapana.ai/aii"][p], -1)
     count(claim_matches) > 0
+}
+
+###################################################
+### claim: kaapana.ai/extensions: #################
+###################################################
+allow {
+    regex.match(`^/kube-helm-api/.*`, input.requested_prefix)
+
+    # For each aii claim, check whether it matches manage_software_<project-id>
+    some p
+    claim_matches := regex.find_all_string_submatch_n(`^manage_(.+)$`, input.access_token["kaapana.ai/extensions"][p], -1)
+    claim_project := claim_matches[0][1]
+
+    claim_project == input.project.id
+}
+
+allow {
+    regex.match(`^/extensions$`, input.requested_prefix)
+
+    # For each entry, check whether it matches manage_software_<project-id>
+    some p
+    claim_matches := regex.find_all_string_submatch_n(`^manage_(.+)$`, input.access_token["kaapana.ai/extensions"][p], -1)
+    claim_project := claim_matches[0][1]
+
+    claim_project == input.project.id
 }

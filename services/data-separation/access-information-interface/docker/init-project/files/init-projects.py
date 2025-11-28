@@ -94,7 +94,9 @@ def main():
     project_id = response.json()["id"]
     # Assign the user to the admin project with admin role
 
-    map_user_to_project_role(project_id, "admin", keycloak_user_id, auth_header)
+    map_user_to_project_role(
+        project_id, "principal-investigator", keycloak_user_id, auth_header
+    )
 
     logger.info("Initial projects created and user mapped successfully")
 

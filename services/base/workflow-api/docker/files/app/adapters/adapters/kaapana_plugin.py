@@ -1,261 +1,276 @@
-import logging
-from datetime import datetime
-from typing import List, Dict, Any, Optional
+import asyncio
+import shutil
+from pathlib import Path
+import os
+from typing import List, Tuple, Optional
+import httpx
 
+from app import schemas
 from app.adapters.base import WorkflowEngineAdapter
-from app import schemas, crud
-from app.adapters.config import settings
-
-# TODO: needs to be changed w.r.to base adapter's interface
+from app.adapters.token_manager import token_manager
 
 
 class KaapanaPluginAdapter(WorkflowEngineAdapter):
-    """
-    Airflow-specific adapter implementation for synchronous communication.
-    This adapter handles submitting, monitoring, and canceling workflows
-    via the Airflow API.
-    """
-
-    AIRFLOW_STATUS_MAPPER = {
-        "queued": schemas.WorkflowRunStatus.SCHEDULED,
-        "running": schemas.WorkflowRunStatus.RUNNING,
-        "success": schemas.WorkflowRunStatus.COMPLETED,
-        "failed": schemas.WorkflowRunStatus.ERROR,
-        "up_for_retry": schemas.WorkflowRunStatus.RUNNING,
-        "up_for_reschedule": schemas.WorkflowRunStatus.SCHEDULED,
-        "upstream_failed": schemas.WorkflowRunStatus.ERROR,
-        "skipped": schemas.WorkflowRunStatus.CANCELED,
-        "removed": schemas.WorkflowRunStatus.CANCELED,
-    }
-
+    # TODO: change name to airflow
     workflow_engine = "kaapana-plugin"
 
-    def __init__(self, extra_headers: Optional[Dict[str, str]] = None):
-        """
-        Initializes the AirflowAdapter.
-
-        Args:
-            airflow_base_url (str): The base URL for the Airflow API.
-            extra_headers (Optional[Dict[str, str]]): Additional headers to include in requests.
-        """
-        self.base_url = (
-            "http://airflow-webserver-service.services.svc:8080/flow/kaapana/api"
-        )
-        self.extra_headers = {}
+    def __init__(self):
         super().__init__()
+        # config
+        self.base_url = os.getenv(
+            "AIRFLOW_API_URL", "http://airflow-webserver-service:8080/flow/api/v1"
+        )
+        self.k8s_namespace = os.getenv("SERVICES_NAMESPACE", "services")
+        self.airflow_dag_folder = Path(
+            os.getenv("AIRFLOW_DAG_FOLDER", "/kaapana/mounted/workflows/dags")
+        )
+        self.access_token = token_manager.get_token()
 
-    def _request(
-        self,
-        method: str,
-        endpoint: str,
-        params: Dict[str, Any] = None,
-        json: Dict[str, Any] = None,
-    ) -> Any:
-        """
-        Makes a synchronous HTTP request to the workflow engine API.
-        Args:
-            method (str): The HTTP method (e.g., "GET", "POST", "PATCH").
-            endpoint (str): The API endpoint (e.g., "/dags/{dag_id}/dagRuns").
-            params (Optional[Dict[str, Any]]): Query parameters for the request.
-            json (Optional[Dict[str, Any]]): JSON payload for the request body.
-        Returns:
-            Any: The JSON response from the API, or text if content type is not JSON.
-        Raises:
-            RuntimeError: If the request fails or the response is not JSON.
-        """
+        # check if volume is mounted (fail fast)
+        if not self.airflow_dag_folder.exists():
+            self.logger.error(
+                f"Airflow DAG mount path '{self.airflow_dag_folder}' not found. Check deployment volumes."
+            )
+
+    def _get_composite_id(self, dag_id: str, run_id: str) -> str:
+        return f"{dag_id}::{run_id}"
+
+    def _parse_composite_id(self, external_id: str) -> Tuple[str, str]:
+        if not external_id or "::" not in external_id:
+            raise ValueError(f"Invalid external_id format: {external_id}")
+        dag_id, run_id = external_id.split("::", 1)
+        return dag_id, run_id
+
+    async def _request(self, method: str, endpoint: str, json: dict = {}) -> dict:
         url = f"{self.base_url}{endpoint}"
-        self.logger.info(f"Making request to: {url} with headers: {self.extra_headers}")
-        headers = {
-            "Content-Type": "application/json",
-            **self.extra_headers,
-        }
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            headers = {
+                "Content-Type": "application/json",
+            }
+            headers["Authorization"] = f"Bearer {self.access_token}"
+            resp = await client.request(
+                method,
+                url,
+                headers=headers,
+                json=json,
+            )  # TODO: auth
+            if resp.status_code == 404:
+                raise FileNotFoundError(f"Resource not found at {url}")
+            resp.raise_for_status()
+            return resp.json()
+
+    async def submit_workflow(self, workflow: schemas.Workflow) -> schemas.Workflow:
+        """
+        Writes the DAG definition directly to the shared PVC.
+        Atomic-like write pattern (write temp -> rename) ensures Airflow doesn't pick up partial files.
+        """
+        self.logger.info(f"Writing DAG {workflow.title} to {self.airflow_dag_folder}")
+
+        target_path = self.airflow_dag_folder / f"{workflow.title}.py"
+        temp_path = self.airflow_dag_folder / f"{workflow.title}.py.tmp"
 
         try:
-            resp = requests.request(
-                method, url, headers=headers, params=params, json=json
-            )
-            resp.raise_for_status()
-            if "application/json" in resp.headers.get("Content-Type", ""):
-                return resp.json()
-            return resp.text
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"Request error [{method} {url}]: {e}")
-            raise RuntimeError(f"API request error: {e}")
+            # write to a .tmp file first so Airflow doesn't parse half written files
+            with open(temp_path, "w") as f:
+                f.write(workflow.definition)
 
-    def submit_workflow(self):
-        pass
+            # atomic move
+            shutil.move(str(temp_path), str(target_path))
 
-    def submit_workflow_run(
-        self,
-        workflow: schemas.Workflow,
-        workflow_run: schemas.WorkflowRun,
-    ) -> schemas.WorkflowRun:
-        """ """
+            # ensure group can read/write
+            try:
+                os.chmod(target_path, 0o664)
+            except PermissionError:
+                self.logger.warning("Could not chmod DAG file. Check PVC permissions.")
 
-        dag_id = workflow.identifier
-        config = workflow_run.config
+        except Exception as e:
+            if temp_path.exists():
+                temp_path.unlink()
+            self.logger.error(f"Failed to write DAG file: {e}")
+            raise RuntimeError(f"Failed to persist DAG: {e}")
 
-        dag_run_id = (
-            "undefiened"  # Placeholder, should be replaced with actual run ID logic
-        )
-        endpoint = (
-            f"/trigger/{dag_id}"  # Reverted to the previous endpoint as requested
-        )
-        payload = {"dag_run_id": dag_run_id, "conf": config}
+        return workflow
 
-        response = self._request("POST", endpoint, json=payload)
-        self.logger.info(f"Submitted workflow run to Airflow with DAG ID {dag_id}")
-        # {'message': ['delete-series created!', {'dag_id': 'delete-series', 'run_id': 'delete-series-250723104127048483'}]}})
+    async def get_workflow_tasks(
+        self, workflow: schemas.Workflow
+    ) -> List[schemas.TaskCreate]:
+        """
+        Polls the Airflow API until the DAG is found or timeout is reached.
+        Once found, retrieves the tasks of the DAG.
+        Args:
+            workflow: The workflow whose tasks to retrieve
+        Raises:
+            RuntimeError: If the DAG is not found within the timeout period
+        """
+        dag_id = workflow.title
+        max_retries = 10
+        delay = 5
+        timeout = 120
+        start_time = asyncio.get_event_loop().time()
 
-        # kaapana response: {'message': ['delete-series created!', {'dag_id': '<dag-id>', 'run_id': '<dag-id>-250723104127048483'}]}
-        # dag_run_id = response['message'][1]['run_id']  # Use the ID from the response or fallback to dag_id
-        dag_run_id = response.get("message", [{}])[1].get("run_id", dag_run_id)
-        # Airflow's API typically returns the DAG run details upon successful submission
-        # We'll use the status from the response or default to SCHEDULED
-        airflow_status = response.get("state", "queued")
-        lifecycle_status = KaapanaPluginAdapter.AIRFLOW_STATUS_MAPPER.get(
-            airflow_status, schemas.WorkflowRunStatus.SCHEDULED
-        )
+        for i in range(max_retries):
+            # check absolute timeout before retrying
+            if asyncio.get_event_loop().time() - start_time > timeout:
+                raise TimeoutError(
+                    f"DAG {dag_id} was not found in Airflow within the {timeout}s timeout. Check scheduler logs for import errors."
+                )
 
-        return crud.update_workflow_run(
-            run_id=workflow_run.id,
-            workflow_run_update=schemas.WorkflowRunUpdate(
-                external_id=dag_run_id, lifecycle_status=lifecycle_status
-            ),
-        )
+            try:
+                data = await self._request("GET", f"/dags/{dag_id}/tasks")
+                tasks_data = data.get("tasks", [])
+                res = []
+                for t in tasks_data:
+                    res.append(
+                        schemas.TaskCreate(
+                            title=t["task_id"],
+                            display_name=t.get("ui_color", t["task_id"]),
+                            type=t.get("class_ref", {}).get("class_name", "Operator"),
+                            downstream_task_titles=t.get("downstream_task_ids", []),
+                        )
+                    )
+                return res
+            except FileNotFoundError:
+                self.logger.info(
+                    f"DAG {dag_id} not yet parsed. Retrying {i+1}/{max_retries}..."
+                )
+                await asyncio.sleep(delay)
+                delay *= 1.5
 
-    def get_workflow_run(
+        raise RuntimeError(f"DAG {dag_id} was not found in Airflow.")
+
+    async def submit_workflow_run(
         self, workflow_run: schemas.WorkflowRun
-    ) -> schemas.WorkflowRun:
-        """
-        Gets the current status of a workflow run from Airflow.
+    ) -> schemas.WorkflowRunUpdate:
+        dag_id = workflow_run.workflow.title
+        # Logic to extract/format parameters would go here
+        payload = {"conf": {}}
 
-        Args:
-            dag_id (str): The ID of the DAG.
-            dag_run_id (str): The ID of the DAG run.
+        resp = await self._request("POST", f"/dags/{dag_id}/dagRuns", json=payload)
+        airflow_run_id = resp["dag_run_id"]
+        composite_id = self._get_composite_id(dag_id, airflow_run_id)
 
-        Returns:
-            schemas.WorkflowRunStatus: The mapped lifecycle status of the workflow run.
-        """
-        dag_id = workflow_run.workflow_id
-        dag_run_id = workflow_run.external_id
-
-        endpoint = f"/dagdetails/{dag_id}/{dag_run_id}"  # Adjusted endpoint to match Airflow's API
-        # endpoint = f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}"
-        response = self._request("GET", endpoint)
-        self.logger.info(
-            f"Retrieved status for DAG run {dag_run_id} (DAG: {dag_id}) - Response: {response}"
+        return schemas.WorkflowRunUpdate(
+            external_id=composite_id, lifecycle_status=schemas.WorkflowRunStatus.PENDING
         )
-        airflow_status = response.get(
-            "state", "failed"
-        )  # Default to failed if state is missing
-        workflow_run.lifecycle_status = self.AIRFLOW_STATUS_MAPPER.get(
-            airflow_status, schemas.WorkflowRunStatus.ERROR
+
+    async def get_workflow_run_status(
+        self, workflow_run_external_id: str
+    ) -> schemas.WorkflowRunStatus:
+        dag_id, run_id = self._parse_composite_id(workflow_run_external_id)
+        try:
+            resp = await self._request("GET", f"/dags/{dag_id}/dagRuns/{run_id}")
+        except FileNotFoundError:
+            return schemas.WorkflowRunStatus.ERROR
+
+        return self._map_workflow_run_state(resp.get("state"))
+
+    async def get_workflow_run_task_runs(
+        self, workflow_run_external_id: str
+    ) -> List[schemas.TaskRunUpdate]:
+        dag_id, run_id = self._parse_composite_id(workflow_run_external_id)
+
+        data = await self._request(
+            "GET", f"/dags/{dag_id}/dagRuns/{run_id}/taskInstances"
         )
-        return workflow_run
+        tasks = []
+        for ti in data.get("task_instances", []):
+            task_id = ti["task_id"]
+            ti_external_id = f"{dag_id}::{run_id}::{task_id}"
 
-    def get_workflow_run_tasks(
-        self, dag_id: str, dag_run_id: str
-    ) -> List[Dict[str, Any]]:
-        """
-        Gets the tasks for a specific DAG run from Airflow.
-
-        Args:
-            dag_id (str): The ID of the DAG.
-            dag_run_id (str): The ID of the DAG run.
-
-        Returns:
-            Dict[str, Any]: A dictionary containing task information.
-        """
-        # endpoint = f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances"
-        # return self._request("GET", endpoint)
-        endpoint = f"/get_dagrun_tasks/{dag_id}/{dag_run_id}"  # Adjusted endpoint to match Airflow's API
-        response = self._request("POST", endpoint)
-        if isinstance(response, dict):
-            data = response
-        elif hasattr(response, "json") and callable(response.json):
-            data = response.json()
-        else:
-            raise TypeError(f"Unsupported response type: {type(response)}")
-
-        tasks = list()
-        for task_id, details in data.items():
-            # Map Airflow's task states to our schemas.WorkflowRunStatus
-            airflow_status = details.get("state", "unknown")
-            status = self.AIRFLOW_STATUS_MAPPER.get(
-                airflow_status, schemas.WorkflowRunStatus.PENDING
-            )
             tasks.append(
-                {
-                    "task_id": task_id,
-                    "status": status,
-                    "execution_date": details.get("execution_date"),
-                    "duration": details.get("duration"),
-                    # "try_number": details.get("try_number", 1)
-                }
+                schemas.TaskRunUpdate(
+                    external_id=ti_external_id,
+                    task_title=task_id,
+                    lifecycle_status=self._map_task_run_state(ti.get("state")),
+                )
             )
         return tasks
 
-    def cancel_workflow_run(self, dag_id: str, dag_run_id: str) -> bool:
-        """
-        Attempts to cancel a workflow run in Airflow.
-        Note: Airflow's REST API doesn't have a direct "cancel" endpoint for DAG runs.
-        A common approach is to set its state to "failed" or "marked_for_reschedule"
-        or clear tasks. For true cancellation, manual intervention or a custom Airflow
-        operator might be needed. This implementation marks it as failed.
+    async def cancel_workflow_run(
+        self, workflow_run: schemas.WorkflowRun
+    ) -> schemas.WorkflowRunStatus:
+        dag_id, run_id = self._parse_composite_id(workflow_run.external_id)
+        payload = {"state": "failed"}
+        await self._request("PATCH", f"/dags/{dag_id}/dagRuns/{run_id}", json=payload)
+        return schemas.WorkflowRunStatus.CANCELED
 
-        Args:
-            dag_id (str): The ID of the DAG.
-            dag_run_id (str): The ID of the DAG run.
-
-        Returns:
-            bool: True if the operation was successful, False otherwise.
-        """
-        # endpoint = f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}"
-        # payload = {"state": "failed"} # Mark as failed to stop execution
-        # try:
-        #     self._request("PATCH", endpoint, json=payload)
-        endpoint = (
-            f"/abort/{dag_id}/{dag_run_id}"  # Adjusted endpoint to match Airflow's API
-        )
+    async def retry_workflow_run(
+        self, workflow_run_external_id: str
+    ) -> schemas.WorkflowRunStatus:
+        dag_id, run_id = self._parse_composite_id(workflow_run_external_id)
         try:
-            self._request("POST", endpoint)
-            self.logger.info(
-                f"Attempted to mark DAG run {dag_run_id} (DAG: {dag_id}) as 'failed'."
+            await self._request(
+                "POST",
+                f"/dags/{dag_id}/dagRuns/{run_id}/clear",
+                json={"dry_run": False},
             )
-            return True
+        except FileNotFoundError:
+            raise RuntimeError("Could not retry workflow. Run not found.")
+        return schemas.WorkflowRunStatus.PENDING
+
+    async def get_task_run_logs(self, task_run_external_id: str) -> str:
+        parts = task_run_external_id.split("::")
+        if len(parts) != 3:
+            return "Log unavailable: Invalid ID format"
+        dag_id, run_id, task_id = parts
+        try_number = 1
+        try:
+            resp = await self._request(
+                "GET",
+                f"/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/logs/{try_number}",
+            )
+            if isinstance(resp, dict) and "content" in resp:
+                return resp["content"]
+            return str(resp)
         except Exception as e:
-            self.logger.error(f"Failed to mark DAG run {dag_run_id} as 'failed': {e}")
-            return False
+            return f"Failed to fetch logs: {e}"
 
-    def get_tasks(self, dag_id: str, dag_run_id: str) -> Dict[str, Any]:
+    def _map_workflow_run_state(
+        self, state: Optional[str]
+    ) -> schemas.WorkflowRunStatus:
         """
-        Gets the tasks for a specific DAG run from Airflow.
-
-        Args:
-            dag_id (str): The ID of the DAG.
-            dag_run_id (str): The ID of the DAG run.
-
-        Returns:
-            Dict[str, Any]: A dictionary containing task information.
+        Maps Airflow DAG Run states to Kaapana WorkflowRunStatus.
+        NOTE: WorkflowRunStatus does NOT have SKIPPED.
         """
-        endpoint = f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances"
-        return self._request("GET", endpoint)
+        if not state:
+            return schemas.WorkflowRunStatus.PENDING
 
-    def get_logs(
-        self, dag_id: str, dag_run_id: str, task_id: str, try_number: int = 1
-    ) -> str:
+        mapper = {
+            "success": schemas.WorkflowRunStatus.COMPLETED,
+            "failed": schemas.WorkflowRunStatus.ERROR,
+            "upstream_failed": schemas.WorkflowRunStatus.ERROR,
+            "queued": schemas.WorkflowRunStatus.SCHEDULED,
+            "running": schemas.WorkflowRunStatus.RUNNING,
+            "restarting": schemas.WorkflowRunStatus.RUNNING,
+            "up_for_retry": schemas.WorkflowRunStatus.RUNNING,
+            "scheduled": schemas.WorkflowRunStatus.SCHEDULED,
+            "deferred": schemas.WorkflowRunStatus.PENDING,
+            # If a whole DAG run is skipped, it is treated as cancelled.
+            "skipped": schemas.WorkflowRunStatus.CANCELED,
+        }
+        return mapper.get(state, schemas.WorkflowRunStatus.RUNNING)
+
+    def _map_task_run_state(self, state: Optional[str]) -> schemas.TaskRunStatus:
         """
-        Gets the logs for a specific task instance from Airflow.
-
-        Args:
-            dag_id (str): The ID of the DAG.
-            dag_run_id (str): The ID of the DAG run.
-            task_id (str): The ID of the task instance.
-            try_number (int): The attempt number of the task instance.
-
-        Returns:
-            str: The logs as a string.
+        Maps Airflow Task Instance states to Kaapana TaskRunStatus.
+        NOTE: TaskRunStatus DOES have SKIPPED.
         """
-        endpoint = f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}"
-        return self._request("GET", endpoint)
+        if not state:
+            return schemas.TaskRunStatus.PENDING
+
+        mapper = {
+            "success": schemas.TaskRunStatus.COMPLETED,
+            "failed": schemas.TaskRunStatus.ERROR,
+            "upstream_failed": schemas.TaskRunStatus.ERROR,
+            "queued": schemas.TaskRunStatus.SCHEDULED,
+            "running": schemas.TaskRunStatus.RUNNING,
+            "restarting": schemas.TaskRunStatus.RUNNING,
+            "up_for_retry": schemas.TaskRunStatus.RUNNING,
+            "scheduled": schemas.TaskRunStatus.SCHEDULED,
+            "deferred": schemas.TaskRunStatus.PENDING,
+            # TaskRunStatus has SKIPPED
+            "skipped": schemas.TaskRunStatus.SKIPPED,
+            "removed": schemas.TaskRunStatus.SKIPPED,
+        }
+        # Default fallback
+        return mapper.get(state, schemas.TaskRunStatus.RUNNING)

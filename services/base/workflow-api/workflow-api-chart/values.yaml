@@ -2,6 +2,14 @@
 global:
   dev_files: false
 
+airflow:
+  enabled: true
+  api_url_base: http://airflow-webserver-service
+  api_port: 8080
+  api_endpoint: /flow/api/v1
+  dag_folder: /kaapana/mounted/workflows/dags
+  scheduler_claim_name: dags-pv-claim
+
 kaapana_database:
   admin: false
   postgres_user: kaapanauser

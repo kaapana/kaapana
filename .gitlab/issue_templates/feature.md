@@ -1,3 +1,5 @@
+/label ~"New Feature"
+
 ## User Story
 
 <!-- 

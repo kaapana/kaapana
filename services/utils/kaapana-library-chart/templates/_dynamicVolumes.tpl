@@ -3,7 +3,10 @@
 {{- $namespace := not .Values.global.namespace | ternary .Values.global.services_namespace (tpl (.Values.global.namespace | toString) .) }}
 {{- $release_name := .Release.Name }}
 {{- $keywords := .Chart.Keywords }}
-{{- range $volume := .Values.global.dynamicVolumes }}
+{{- $dynamic := default (list) .Values.global.dynamicVolumes }}
+{{- $shared := default (list) .Values.global.sharedVolumes }}
+{{- $Volumes := concat $dynamic $shared }}
+{{- range $volume := $Volumes }}
 {{- $postfix := (has "kaapanamultiinstallable" $keywords) | ternary (printf "-%s" $release_name) "" }}
 - name: {{ $volume.name }}
   persistentVolumeClaim:

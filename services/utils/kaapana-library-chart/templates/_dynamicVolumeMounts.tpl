@@ -1,6 +1,10 @@
 {{/* Used to set volumeMounts dynamically given to global.dynamicVolumes as name, mount_path map */}}
 {{- define "dynamicVolumeMounts" }}
-{{- range $volumeMount := .Values.global.dynamicVolumes }}
+{{- $dynamic := default (list) .Values.global.dynamicVolumes }}
+{{- $shared := default (list) .Values.global.sharedVolumes }}
+{{- $Volumes := concat $dynamic $shared }}
+
+{{- range $volumeMount := $Volumes }}
 - name: {{ $volumeMount.name }}
   mountPath: "{{ $volumeMount.mount_path }}"
 {{- end }}

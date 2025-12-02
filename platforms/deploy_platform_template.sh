@@ -1661,4 +1661,3 @@ else
     echo -e "${GREEN}No previous deployment found -> deploy ${NC}"
     deploy_chart
 fi
-fi

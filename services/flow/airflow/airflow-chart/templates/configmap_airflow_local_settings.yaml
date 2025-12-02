@@ -1,0 +1,111 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-local-settings
+  namespace: "{{ .Values.global.services_namespace }}"
+data:
+   airflow_local_settings.py: |+
+    from airflow.models import DagRun, DagBag
+    from airflow.utils.session import create_session
+    from kubernetes import client
+
+    from kaapana.blueprints.kaapana_global_variables import PROCESSING_WORKFLOW_DIR
+        
+
+    def get_dagrun_from_pod(pod):
+      # Read run_id and dag_id from labels
+      run_id = pod.metadata.labels.get("run_id")
+      dag_id = pod.metadata.labels.get("dag_id")
+
+      if not run_id or not dag_id:
+        return None
+
+      # Use a session to query DagRun
+      with create_session() as session:
+        dagrun = (
+            session.query(DagRun)
+            .filter(DagRun.dag_id == dag_id)
+            .filter(DagRun.run_id == run_id)
+            .one_or_none()
+        )
+      return dagrun
+
+    def define_volumes_and_mounts(namespace="project-admin"):
+      return [
+          client.V1Volume(
+              name="workflowdata",
+              persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                  claim_name=f"{namespace}-workflow-data-pv-claim",
+                  read_only=False,
+              ),
+          ),
+          client.V1Volume(
+              name="models",
+              persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                  claim_name=f"{namespace}-models-pv-claim",
+                  read_only=False,
+              ),
+          ),
+          client.V1Volume(
+              name="airflow-plugins",
+              persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                  claim_name=f"{namespace}-af-plugins-pv-claim",
+                  read_only=False,
+              ),
+          ),
+          client.V1Volume(
+              name="airflow-dags",
+              persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                  claim_name=f"{namespace}-dags-pv-claim",
+                  read_only=False,
+              ),
+          ),
+          client.V1Volume(
+              name="airflow-logs",
+              persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                  claim_name=f"{namespace}-af-logs-pv-claim",
+                  read_only=False,
+              ),
+          ),
+          client.V1Volume(
+              name="uploads",
+              persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                  claim_name=f"{namespace}-uploads-pv-claim",
+                  read_only=False,
+              ),
+          ),
+          client.V1Volume(
+              name="ctpinput",
+              persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                  claim_name=f"{namespace}-ctp-data-pv-claim",
+                  read_only=False,
+              ),
+          ),
+          client.V1Volume(
+              name="dicomdir",
+              persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                  claim_name=f"{namespace}-dcm4chee-dicom-pv-claim",
+                  read_only=False,
+              ),
+          )
+      ]
+    
+    def pod_mutation_hook(pod):
+      dagrun = get_dagrun_from_pod(pod)
+      ns = "project-admin"
+      if dagrun and dagrun.conf:
+        # Example: dynamic namespace
+        incoming_ns = dagrun.conf.get("project_form", {}).get("kubernetes_namespace")
+        ns = incoming_ns or ns
+      pod.metadata.namespace = ns
+      pod.metadata.labels = pod.metadata.labels or {}
+      pod.metadata.labels["kaapana.ai/project-namespace"] = ns
+      pod.metadata.labels["kaapana.ai/type"] = "processing-container"
+      pod.metadata.labels["kaapana.type"] = "processing-container"
+
+      volumes = define_volumes_and_mounts(ns)
+
+      pod.spec.volumes = pod.spec.volumes or []
+      pod.spec.volumes.extend(volumes)
+  
+

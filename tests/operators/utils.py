@@ -32,7 +32,12 @@ def mock_modules():
     # Mock kubernetes and its submodules
     sys.modules["kubernetes"] = MagicMock()
     sys.modules["kubernetes.client"] = MagicMock()
+    sys.modules["kubernetes.client.exceptions"] = MagicMock()
+    sys.modules["kubernetes.client.api_client"] = MagicMock()
+    sys.modules["kubernetes.client.models"] = MagicMock()
+    sys.modules["kubernetes.client.rest"] = MagicMock()
     sys.modules["kubernetes.config"] = MagicMock()
+    sys.modules["kubernetes.stream"] = MagicMock()
 
     from kaapanapy.settings import KaapanaSettings
 

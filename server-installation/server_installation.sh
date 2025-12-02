@@ -369,8 +369,8 @@ function install_microk8s {
         insert_text "--insecure-port=0" /var/snap/microk8s/current/args/kube-apiserver
         insert_text "--runtime-config=admissionregistration.k8s.io/v1beta1=true" /var/snap/microk8s/current/args/kube-apiserver
         
-        echo "${YELLOW}Set limit of completed pods to 50 ...${NC}";
-        insert_text "--terminated-pod-gc-threshold=50" /var/snap/microk8s/current/args/kube-controller-manager
+        echo "${YELLOW}Set limit of completed pods to 200 ...${NC}";
+        insert_text "--terminated-pod-gc-threshold=200" /var/snap/microk8s/current/args/kube-controller-manager
         set -e
 
         echo "${YELLOW}Set vm.max_map_count=262144${NC}"

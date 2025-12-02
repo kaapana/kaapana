@@ -85,7 +85,8 @@ class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
             on_failure_callback=KaapanaPythonBaseOperator.on_failure,
             pool=self.pool,
             pool_slots=self.pool_slots,
-            **kwargs
+            executor="KubernetesExecutor",
+            **kwargs,
         )
 
         self.display_name = display_name

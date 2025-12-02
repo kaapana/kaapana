@@ -216,7 +216,8 @@ for subtask in list(task_dict):
         model_dir=model_dir,
         task_ids=task_dict[subtask]
     )
-    args = {'workflow_form': {'TASK': subtask}}
+    args = {'workflow_form': {'TASK': subtask,
+                              'minio_prefix': f'radiomics-totalseg-v2-{subtask}'}}
     subtask_dag = LocalDagTriggerOperator(
         dag=dag,
         input_operator=None,

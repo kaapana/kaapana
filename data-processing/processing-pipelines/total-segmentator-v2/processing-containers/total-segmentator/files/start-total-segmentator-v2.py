@@ -17,16 +17,10 @@ def process_input_file(input_path, output_path):
     global processed_count, task, output_type, multilabel, fast, preview, statistics, radiomics, body_seg, force_split, quiet, verbose, nr_thr_resamp, nr_thr_saving, roi_subset
     logger.info(f"{basename(input_path)}: start processing ...")
     Path(output_path).mkdir(parents=True, exist_ok=True)
-    if task != "total":
-        total_output_path = output_path
-        before_file_list = glob(join(total_output_path, "*"))
-        logger.info(f"len(before_file_list): {len(before_file_list)} ...")
-        if multilabel:
-            total_output_path = join(output_path, f"total-segmentator-{task}-ml.nii.gz")
-    else:
-        total_output_path = output_path
-        if multilabel:
-            total_output_path = join(output_path, "total-segmentator-ml.nii.gz")
+    if multilabel:
+        total_output_path = join(output_path, f"total-segmentator-{task}-ml.nii.gz")
+    if task not in ['total', 'total_mr']: # disable fast for all sub tasks
+        fast = False
     try:
         totalsegmentator(
             input=input_path,
@@ -50,37 +44,6 @@ def process_input_file(input_path, output_path):
             test=0,
         )
         processed_count += 1
-
-        if task != "total":
-            logger.info(f"")
-            logger.info(f"")
-            after_file_list = glob(join(total_output_path, "*"))
-            new_file_count = 0
-            for nifti_file in after_file_list:
-                if nifti_file not in before_file_list:
-                    logger.info(f"New NIFTI file found: {basename(nifti_file)}")
-                    new_file_count += 1
-            logger.info(f"")
-            logger.info(f"")
-            if new_file_count != len(seg_info_dict["seg_info"]):
-                logger.info(f"")
-                logger.info(f"")
-                logger.warning(
-                    f"new_file_count {new_file_count} != len(seg_info_dict['seg_info']) {len(seg_info_dict['seg_info'])} "
-                )
-                logger.info(f"")
-                logger.info(f"")
-
-            logger.info(f"Task: {task} -> moving result NIFTIs to {output_path} ...")
-            Path(output_path).mkdir(parents=True, exist_ok=True)
-            for label in seg_info_dict["seg_info"]:
-                label_nifti = f"{label['label_name']}.nii.gz"
-                src_nifti_path = join(total_output_path, label_nifti)
-                target_nifti_path = join(output_path, label_nifti)
-                logger.info(f"Moving {src_nifti_path} -> {target_nifti_path}")
-                assert exists(src_nifti_path)
-                shutil.move(src_nifti_path, target_nifti_path)
-
         logger.info(f"{basename(input_file)}: finished successully!")
         return True, input_path
 
@@ -312,7 +275,6 @@ if __name__ == "__main__":
         if len(metadata_file) == 1:
             with open(metadata_file[0], encoding="utf-8") as meta_data_lookup:
                 meta_data_lookup = json.load(meta_data_lookup)
-            print("Modality:::::::::::", meta_data_lookup["00000000 CuratedModality_keyword"])
             curated_modality =  meta_data_lookup["00000000 CuratedModality_keyword"]
             assert task_available[task] == curated_modality
         else:

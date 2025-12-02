@@ -135,6 +135,7 @@ class KaapanaTaskOperator(BaseOperator):
         startup_timeout_seconds: int = 3600,
         execution_timeout: timedelta = timedelta(minutes=90),
         labels: Dict = {},
+        annotations: Optional[Dict[str, str]] = None,
         *args,
         **kwargs,
     ):
@@ -168,6 +169,8 @@ class KaapanaTaskOperator(BaseOperator):
                 Password for the container registry.
             iochannel_maps (List[IOMapping], optional):
                 A list of I/O mappings defining data flow between this task and others.
+            annotations (Dict[str, str], optional):
+                A dictionary of annotations to add to the Kubernetes pod.
         """
         super().__init__(
             retry_delay=timedelta(seconds=10),
@@ -188,6 +191,7 @@ class KaapanaTaskOperator(BaseOperator):
         self.startup_timeout_seconds = startup_timeout_seconds
         self.execution_timeout = execution_timeout
         self.labels = labels
+        self.annotations = annotations or {}
 
     def execute(self, context: Context) -> Any:
         dag_run_id = context["dag_run"].run_id
@@ -287,6 +291,7 @@ class KaapanaTaskOperator(BaseOperator):
                     "kaapana.ai/type": "processing-container",
                     **self.labels,
                 },
+                annotations=self.annotations,
             ),
         )
 

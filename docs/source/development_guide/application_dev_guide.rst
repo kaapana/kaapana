@@ -168,4 +168,37 @@ Also here the chart can be deleted again with:
 
 Step 5: Provide the application as an extension
 ***********************************************
-You can also add the Flask application as an extension to the Kaapana platform.
+You can also add the Flask application as an extension to the Kaapana platform. To do so follow the steps described in
+:ref:`Add Extension Manually` or :ref:`Add to Extention Collection`.
+
+
+Step 6: Advanced Options for Applications
+*****************************************
+
+**Automatic Metric Scraping**:
+You can enable automatic metric scraping by annotating the kubernetes deployment with the following annotations. Example from the hello-world application from ``kaapana/templates_and_examples/examples/services/hello-world/hello-world-chart/templates/deployment.yaml``:
+
+.. code-block:: yaml
+
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+   name: hello-world
+   namespace: "{{ .Values.global.services_namespace }}"
+   spec:
+   # [...]
+   template:
+      metadata:
+         labels:
+         app.kubernetes.io/name: hello-world
+         annotations:
+         prometheus.io/scrape: "true"
+         prometheus.io/port: "5000"
+         prometheus.io/path: "/hello-world/metrics"
+         prometheus.io/scheme: "http"
+         prometheus.io/custom_job_name: "hello-world"
+         prometheus.io/scrape_interval: "30s"
+         prometheus.io/scrape_timeout: "10s"
+
+This will enable Prometheus auto-discovery to automatically find and scrape the configured endpoint. We allow passing of the most important scraping options as annotations.
+Additional options are: ``prometheus.io/insecure_skip_verify: "true"`` to skip TLS verification and adding a second scrape target per pod is possible by adding the suffix ``_2`` to all the annotations, e.g. ``prometheus.io/scrape_2: "true"``.

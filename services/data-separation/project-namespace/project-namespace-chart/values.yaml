@@ -12,14 +12,14 @@ global:
   - name: workflow-data
     storage_class: workflow
     storage: 100Gi
-
+  sharedVolumes: 
+  - name: af-plugins
+    host_path: /workflow/plugins
   ### For Local Operators managed by KubernetesExecutor
   - name: dags
     host_path: /workflows/dags
   - name: af-logs
     host_path: /airflow/logs
-  - name: af-plugins
-    host_path: /workflows/plugins
   - name: uploads
     host_path: /uploads
   - name: ctp-data
@@ -34,4 +34,6 @@ kaapana_database:
   postgres_password: root
   postgres_db: airflow
   appName: airflow
+
+
 

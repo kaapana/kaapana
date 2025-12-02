@@ -55,6 +55,8 @@ metadata:
 spec:
   template:
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: {{ .Values.global.main_node_name }}
       initContainers:
         - name: init
           image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"

@@ -15,6 +15,14 @@ spec:
       labels:
         app.kubernetes.io/name: kube-helm
         app.kubernetes.io/component: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5000"
+        # prometheus.io/path: "metrics"
+        prometheus.io/scheme: "http"
+        prometheus.io/custom_job_name: "Kaapana Kube Helm Backend"
+        prometheus.io/scrape_interval: "30s"
+        prometheus.io/scrape_timeout: "10s"
     spec:
       containers:
       - name: kube-helm

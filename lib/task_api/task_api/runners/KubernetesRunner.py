@@ -168,7 +168,7 @@ class KubernetesRunner(BaseRunner):
 
         pod = client.V1Pod(
             metadata=client.V1ObjectMeta(
-                name=pod_name, labels=task_instance.config.labels
+                name=pod_name, labels=task_instance.config.labels, annotations=task_instance.config.annotations
             ),
             spec=pod_spec,
         )

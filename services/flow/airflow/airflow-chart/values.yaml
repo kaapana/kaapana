@@ -5,13 +5,16 @@ global:
   fast_data_dir: /home/kaapana
   slow_data_dir: /home/kaapana
   dynamicVolumes:
-  - name: dags
-  - name: af-logs
-  - name: af-plugins
   - name: af-data
   - name: models
   - name: uploads
-    
+  sharedVolumes:
+  - name: af-plugins
+    host_path: /workflow/plugins
+  - name: dags
+    host_path: /workflows/dags
+  - name: af-logs
+    host_path: /airflow/logs
 
 kaapana_database:
   admin: false

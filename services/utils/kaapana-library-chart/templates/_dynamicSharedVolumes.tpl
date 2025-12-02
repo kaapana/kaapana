@@ -24,10 +24,11 @@ spec:
     storage: {{ $storage }}
   accessModes:
     - "ReadWriteOnce"
-  persistentVolumeReclaimPolicy: Delete
+  persistentVolumeReclaimPolicy: Retain
   storageClassName: "kaapana-hostpath"
   hostPath:
     path: {{ $global.fast_data_dir }}{{ $volume.host_path }}
+    type: DirectoryOrCreate
 
 ---
 apiVersion: v1

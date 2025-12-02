@@ -3,13 +3,12 @@ global:
   ingress_path: "code-server"
   complete_image: "{{ .Values.global.registry_url }}/code-server:{{ .Values.global.kaapana_build_version  }}"
   namespace: "{{ .Values.global.services_namespace }}"
-  dynamicVolumes:
-  - name: dags
-    mount_path: /kaapana/mounted/workflows/dags
-    use_existing_pvc: true
   sharedVolumes: 
   - name: af-plugins
     mount_path: /kaapana/mounted/workflows/plugins
+  - name: dags
+    mount_path: /kaapana/mounted/workflows/dags
+
   envVars:
   - name: WORKSPACE
     value: "/kaapana"

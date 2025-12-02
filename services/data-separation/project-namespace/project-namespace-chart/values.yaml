@@ -5,16 +5,16 @@ global:
   dynamicVolumes:
   - name: tensorboard
     storage_class: workflow
-    storage: 1Gi
+    storage: 10Gi
   - name: models
     storage_class: workflow
-    storage: 100Gi
+    storage: 200Gi
   - name: workflow-data
     storage_class: workflow
-    storage: 100Gi
+    storage: 200Gi
   sharedVolumes: 
   - name: af-plugins
-    host_path: /workflow/plugins
+    host_path: /workflows/plugins
   ### For Local Operators managed by KubernetesExecutor
   - name: dags
     host_path: /workflows/dags
@@ -34,6 +34,3 @@ kaapana_database:
   postgres_password: root
   postgres_db: airflow
   appName: airflow
-
-
-

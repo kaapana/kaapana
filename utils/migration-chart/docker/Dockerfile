@@ -8,9 +8,12 @@ RUN userdel -r ubuntu || true
 LABEL IMAGE="migration"
 LABEL BUILD_IGNORE="False"
 
+# rsync is required for data migration
+RUN apt-get update && apt-get install -y rsync 
+
 # Install required packages: python3, pip, curl, bash, docker CLI
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip curl bash docker.io && \
+    apt-get install -y python3 python3-pip curl bash docker.io rsync && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /kaapana/app

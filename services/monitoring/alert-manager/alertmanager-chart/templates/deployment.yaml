@@ -35,6 +35,53 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
+      - name: alertmanager-forwarder
+        image: "{{ .Values.global.registry_url }}/alertmanager-forwarder:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+        env:
+          - name: AII_BASE_URL
+            value: "http://aii-service.{{  .Values.global.services_namespace  }}.svc:8080"
+          - name: NOTIFICATION_SERVICE_URL
+            value: "http://notification-service.{{  .Values.global.services_namespace  }}.svc:80/v1"
+          - name: LOG_LEVEL
+            value: '{{ .Values.forwarder.logLevel | default "INFO" }}'
+          - name: TOPIC_PREFIX
+            value: '{{ .Values.forwarder.topicPrefix | default "Alertmanager" }}'
+          - name: FORWARDER_DEFAULT_ICON
+            value: '{{ .Values.forwarder.defaultIcon | default "mdi-alert" }}'
+          - name: HTTP_TIMEOUT
+            value: '{{ .Values.forwarder.httpTimeout | default 10 }}'
+          - name: HTTP_CONNECT_TIMEOUT
+            value: '{{ .Values.forwarder.httpConnectTimeout | default 5 }}'
+          - name: ADMIN_PROJECT_CACHE_TTL
+            value: '{{ .Values.forwarder.adminProjectCacheTtl | default 300 }}'
+          - name: PYTHONUNBUFFERED
+            value: "1"
+          - name: PORT
+            value: "8081"
+        ports:
+          - containerPort: 8081
+            protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8081
+          initialDelaySeconds: 3
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8081
+          initialDelaySeconds: 10
+          periodSeconds: 20
+        resources:
+          requests:
+            memory: 50Mi
+          limits:
+            memory: 200Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       volumes:
       - name: alertmanager-config-file
         configMap:

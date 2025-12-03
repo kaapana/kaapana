@@ -69,9 +69,12 @@ data:
 
     receivers:
     - name: 'prometheus-alert'
-      email_configs:
-      - to: 'alert@jipinfo.com'
-        require_tls: false
+      webhook_configs:
+      - url: 'http://localhost:8081/alerts'
+        send_resolved: true
+      # email_configs:
+      # - to: 'alert@jipinfo.com'
+      #   require_tls: false
 kind: ConfigMap
 metadata:
   name: alertmanager-config

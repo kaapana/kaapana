@@ -15,8 +15,14 @@ from pathlib import Path
 import httpx
 from pydantic import Field, ValidationError
 from pydantic_settings import BaseSettings
-from schemas import WorkflowCreate
-from validation_rules import ValidationConfig, WorkflowValidator
+
+# Keep installer-specific rules
+from validation_rules import ValidationConfig
+from validation_rules import WorkflowValidator as InstallerRuleValidator
+
+# Use shared validation from workflow_validation package
+from workflow_validation.schemas import WorkflowCreate
+from workflow_validation.validators import WorkflowValidator
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -206,6 +212,41 @@ async def main():
         logger.error("Workflow definition is empty")
         sys.exit(1)
 
+    # Run shared workflow validation (structure, Chart.yaml, workflow.json, etc.)
+    logger.info("\nRunning shared workflow validation...")
+    
+    # Create a temporary workflow structure for validation
+    # The shared validator expects workflow-chart/ structure
+    temp_workflow_dir = settings.workflow_dir.parent
+    chart_dir = temp_workflow_dir / "workflow-chart"
+    
+    # If chart structure exists, use shared validator
+    if chart_dir.exists():
+        shared_validator = WorkflowValidator(temp_workflow_dir)
+        shared_report = shared_validator.validate_all()
+        
+        # Display shared validation results
+        if shared_report.errors:
+            logger.error("\033[31m✗ Shared validation errors:\033[0m")
+            for error in shared_report.errors:
+                logger.error(f"  • {error}")
+        
+        if shared_report.warnings:
+            logger.warning("\033[33m⚠ Shared validation warnings:\033[0m")
+            for warning in shared_report.warnings:
+                logger.warning(f"  • {warning}")
+        
+        if shared_report.info:
+            for info in shared_report.info:
+                logger.info(f"  ℹ {info}")
+        
+        # Exit if structural errors found
+        if shared_report.errors:
+            logger.error("\033[31mShared validation failed with errors!\033[0m")
+            sys.exit(1)
+    else:
+        logger.warning("No workflow-chart/ structure found, skipping structural validation")
+
     # Validate and construct workflow data using pydantic schema
     try:
         workflow_data = WorkflowCreate(
@@ -243,14 +284,14 @@ async def main():
             logger.error(f"  {loc}: {error['msg']}")
         sys.exit(1)
 
-    # Run additional validation rules
-    logger.info("\nRunning additional validation checks...")
-    validator = WorkflowValidator(ValidationConfig())
-    validation_results = validator.validate_all(
+    # Run installer-specific validation rules (icon, labels, etc.)
+    logger.info("\nRunning installer-specific validation checks...")
+    installer_validator = InstallerRuleValidator(ValidationConfig())
+    validation_results = installer_validator.validate_all(
         settings.workflow_dir, metadata, workflow_data.workflow_engine
     )
 
-    # Display validation results
+    # Display installer-specific validation results
     for result in validation_results:
         if result.passed:
             logger.info(f"\033[32m  ✓ [{result.rule_name}] {result.message}\033[0m")
@@ -261,10 +302,10 @@ async def main():
         else:
             logger.info(f"  ℹ [{result.rule_name}] {result.message}")
 
-    logger.info(f"\nValidation summary: {validator.get_summary()}")
+    logger.info(f"\nValidation summary: {installer_validator.get_summary()}")
 
     # Exit if there are validation errors
-    if validator.has_errors():
+    if installer_validator.has_errors():
         logger.error("\033[31mValidation failed with errors!\033[0m")
         sys.exit(1)
 

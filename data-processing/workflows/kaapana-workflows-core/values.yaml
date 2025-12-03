@@ -1,3 +1,8 @@
 ---
 global:
   pull_policy_images: "IfNotPresent"
+
+# Containers used by workflow v2 charts via workflow-helpers
+processingContainers:
+  - workflow-installer
+  - service-checker

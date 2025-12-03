@@ -450,7 +450,7 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
     global update_running, global_extensions_list, last_refresh_timestamp, refresh_delay, global_platforms_list, last_refresh_timestamp_platforms, global_extensions_release_names
     logger.info("getting extensions...")
 
-    keywords_filter = ["kaapanaapplication", "kaapanaworkflow"]
+    keywords_filter = ["kaapanaapplication", "kaapanaworkflow", "kaapana-workflow-v2"]
     if platforms:
         keywords_filter = ["kaapanaplatform"]
     try:

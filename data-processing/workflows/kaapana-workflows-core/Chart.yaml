@@ -3,6 +3,8 @@ apiVersion: v2
 name: kaapana-workflows-core
 description: "Core collection of Kaapana workflows that depend on workflow-api"
 version: "0.0.0"
+keywords:
+  - kaapanaworkflow-v2
 dependencies:
   - name: dummy-workflow
     version: "0.0.0"

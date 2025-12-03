@@ -5,7 +5,7 @@ description: "Workflow based on the KaapanaTaskOperator and Task API compliant p
 name: dummy-workflow
 version: "0.0.0"
 keywords:
-  - kaapanaworkflow-v1
+  - kaapanaworkflow-v2
 dependencies:
   - name: workflow-helpers
     version: "0.0.0"

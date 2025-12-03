@@ -52,6 +52,10 @@ spec:
           value: {{ .Values.airflow.api_url_base }}.{{ .Values.global.services_namespace }}.svc:{{ .Values.airflow.api_port }}{{ .Values.airflow.api_endpoint }}
         - name: AIRFLOW_DAG_FOLDER
           value: {{ .Values.airflow.dag_folder }}
+        - name: AIRFLOW_API_USERNAME
+          value: {{ .Values.airflow.api_username }}
+        - name: AIRFLOW_API_PASSWORD
+          value: {{ .Values.airflow.api_user_password }}
 {{- end }}
 {{- if .Values.global.dev_files }}
         - name: DEV_FILES

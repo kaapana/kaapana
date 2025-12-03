@@ -4,10 +4,10 @@ from pathlib import Path
 import os
 from typing import List, Tuple, Optional
 import httpx
+import base64
 
 from app import schemas
 from app.adapters.base import WorkflowEngineAdapter
-from app.adapters.token_manager import token_manager
 
 
 class KaapanaPluginAdapter(WorkflowEngineAdapter):
@@ -24,12 +24,19 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
         self.airflow_dag_folder = Path(
             os.getenv("AIRFLOW_DAG_FOLDER", "/kaapana/mounted/workflows/dags")
         )
-        self.access_token = token_manager.get_token()
+        self.api_username = os.getenv("AIRFLOW_API_USERNAME")
+        self.api_password = os.getenv("AIRFLOW_API_PASSWORD")
 
         # check if volume is mounted (fail fast)
         if not self.airflow_dag_folder.exists():
             self.logger.error(
                 f"Airflow DAG mount path '{self.airflow_dag_folder}' not found. Check deployment volumes."
+            )
+
+        # check if Airflow API credentials are set
+        if not self.api_username or not self.api_password:
+            self.logger.error(
+                "AIRFLOW_API_USERNAME or AIRFLOW_API_PASSWORD environment variables are missing!"
             )
 
     def _get_composite_id(self, dag_id: str, run_id: str) -> str:
@@ -44,16 +51,23 @@ class KaapanaPluginAdapter(WorkflowEngineAdapter):
     async def _request(self, method: str, endpoint: str, json: dict = {}) -> dict:
         url = f"{self.base_url}{endpoint}"
         async with httpx.AsyncClient(timeout=10.0) as client:
+
+            if not self.api_username or not self.api_password:
+                raise ConnectionRefusedError("Airflow API credentials are not set.")
+
+            auth_string = f"{self.api_username}:{self.api_password}"
+            encoded_auth = base64.b64encode(auth_string.encode()).decode()
+
             headers = {
                 "Content-Type": "application/json",
+                "Authorization": f"Basic {encoded_auth}",
             }
-            headers["Authorization"] = f"Bearer {self.access_token}"
             resp = await client.request(
                 method,
                 url,
                 headers=headers,
                 json=json,
-            )  # TODO: auth
+            )
             if resp.status_code == 404:
                 raise FileNotFoundError(f"Resource not found at {url}")
             resp.raise_for_status()

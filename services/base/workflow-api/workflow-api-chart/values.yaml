@@ -9,6 +9,8 @@ airflow:
   api_endpoint: /flow/api/v1
   dag_folder: /kaapana/mounted/workflows/dags
   scheduler_claim_name: dags-pv-claim
+  api_username: kaapana-internal # must match airflow webser KAAPANA_AIRFLOW_API_USERNAME env var
+  api_user_password: kaapana-internal # must match airflow webser KAAPANA_AIRFLOW_API_PASSWORD env var
 
 kaapana_database:
   admin: false

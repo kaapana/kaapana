@@ -62,16 +62,88 @@ Run '$script_name <command> --help' for command-specific options.
 EOF
 }
 
+function prompt_required_value() {
+    local var_name="$1"
+    local prompt="$2"
+    local secret="${3:-false}"
+    local quiet_flag="${4:-false}"
+    local current=""
+
+    if [[ -n ${!var_name-} ]]; then
+        current="${!var_name}"
+    fi
+
+    if [[ -n "$current" ]]; then
+        return
+    fi
+
+    if [[ "$quiet_flag" == true ]]; then
+        echo -e "${RED}${prompt} is required when running in quiet mode.${NC}"
+        exit 1
+    fi
+
+    local value=""
+    if [[ "$secret" == true ]]; then
+        read -s -p "$prompt" value
+        echo
+    else
+        read -p "$prompt" value
+    fi
+
+    if [[ -z "$value" ]]; then
+        echo -e "${RED}A value is required for ${prompt}.${NC}"
+        exit 1
+    fi
+
+    printf -v "$var_name" '%s' "$value"
+}
+
+function parse_chart_reference() {
+    local ref="$1"
+    ref="${ref#oci://}"
+
+    if [[ -z "$ref" || "$ref" != *:* ]]; then
+        echo -e "${RED}Chart reference must be in the form <registry>/<path>/<chart>:<version>. Got '$1'.${NC}"
+        exit 1
+    fi
+
+    local registry_and_chart="${ref%:*}"
+    local version="${ref##*:}"
+
+    if [[ -z "$version" ]]; then
+        echo -e "${RED}Chart reference is missing the version part after ':'.${NC}"
+        exit 1
+    fi
+
+    local chart_name="${registry_and_chart##*/}"
+    if [[ -z "$chart_name" || "$registry_and_chart" == "$chart_name" ]]; then
+        echo -e "${RED}Chart reference must include a chart name (last segment after '/').${NC}"
+        exit 1
+    fi
+
+    local registry_url="${registry_and_chart%/$chart_name}"
+    if [[ -z "$registry_url" ]]; then
+        echo -e "${RED}Unable to determine registry URL from chart reference '$1'.${NC}"
+        exit 1
+    fi
+
+    PLATFORM_NAME="$chart_name"
+    PLATFORM_VERSION="$version"
+    CONTAINER_REGISTRY_URL="$registry_url"
+    CHART_REFERENCE="$ref"
+
+    echo -e "${GREEN}Using chart ${PLATFORM_NAME}:${PLATFORM_VERSION} from ${CONTAINER_REGISTRY_URL}${NC}"
+}
+
 function deploy() {
 
-    # TODO make this configurable via CLI or env-vars
-    PLATFORM_NAME="kaapana-admin-chart" # name of the platform Helm chart
-    PLATFORM_VERSION="0.5.3-latest" # Specific version or empty for dialog
-
-    CONTAINER_REGISTRY_URL="localhost:5000" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
-    CONTAINER_REGISTRY_USERNAME="asdf"
-    CONTAINER_REGISTRY_PASSWORD="asdf"
-    PLAIN_HTTP=True # Use plain HTTP for registry (insecure)
+    PLATFORM_NAME="${PLATFORM_NAME:-}"
+    PLATFORM_VERSION="${PLATFORM_VERSION:-}"
+    CONTAINER_REGISTRY_URL="${CONTAINER_REGISTRY_URL:-}"
+    CONTAINER_REGISTRY_USERNAME="${CONTAINER_REGISTRY_USERNAME:-}"
+    CONTAINER_REGISTRY_PASSWORD="${CONTAINER_REGISTRY_PASSWORD:-}"
+    CHART_REFERENCE="${CHART_REFERENCE:-}"
+    PLAIN_HTTP="${PLAIN_HTTP:-false}"
 
     load_kaapana_config
     ### Parsing command line arguments:
@@ -87,14 +159,19 @@ function deploy() {
     _Flag: --offline, using prebuilt tarball and chart (--chart-path required!)
     _Flag: --check-system, check health of all resources in kaapana-admin-chart and kaapana-platform-chart
     _Flag: --report, create a report of the state of the microk8s cluster
+    _Flag: --plain-http, use insecure HTTP when talking to the registry (default HTTPS, use --no-plain-http to force it)
 
+    _Argument: --chart-ref [registry/path/chart:version]
+    _Argument: --platform-name [Helm chart name]
+    _Argument: --platform-version [Helm chart version]
+    _Argument: --registry-url [OCI registry URL]
     _Argument: --username [Docker registry username]
     _Argument: --password [Docker registry password]
     _Argument: --port [Set main https-port]
     _Argument: --chart-path [path-to-chart-tgz]
     _Argument: --import-images-tar [path-to-a-tarball]"
 
-    QUIET=NA
+    QUIET=false
 
     POSITIONAL=()
     while [[ $# -gt 0 ]]
@@ -108,6 +185,34 @@ function deploy() {
                 echo -e "${GREEN}SET CONTAINER_REGISTRY_USERNAME! $CONTAINER_REGISTRY_USERNAME ${NC}";
                 shift # past argument
                 shift # past value
+            ;;
+
+            --platform-name)
+                PLATFORM_NAME="$2"
+                echo -e "${GREEN}SET PLATFORM_NAME: $PLATFORM_NAME ${NC}"
+                shift
+                shift
+            ;;
+
+            --platform-version)
+                PLATFORM_VERSION="$2"
+                echo -e "${GREEN}SET PLATFORM_VERSION: $PLATFORM_VERSION ${NC}"
+                shift
+                shift
+            ;;
+
+            --registry-url)
+                CONTAINER_REGISTRY_URL="$2"
+                echo -e "${GREEN}SET CONTAINER_REGISTRY_URL: $CONTAINER_REGISTRY_URL ${NC}"
+                shift
+                shift
+            ;;
+
+            --chart)
+                CHART_REFERENCE="$2"
+                parse_chart_reference "$CHART_REFERENCE"
+                shift
+                shift
             ;;
 
             -p|--password)
@@ -154,6 +259,12 @@ function deploy() {
                 OFFLINE_MODE=true
                 echo -e "${GREEN}Deploying in offline mode!${NC}"
                 shift # past argument
+            ;;
+
+            --plain-http)
+                PLAIN_HTTP=true
+                echo -e "${YELLOW}Using insecure plain HTTP for registry access.${NC}"
+                shift
             ;;
 
             --no-migration)
@@ -234,6 +345,14 @@ function deploy() {
 
         esac
     done
+
+    if [[ -z "$PLATFORM_NAME" || -z "$PLATFORM_VERSION" || -z "$CONTAINER_REGISTRY_URL" ]]; then
+        prompt_required_value CHART_REFERENCE "Enter the kaapana chart (registry/path/chart:version): " false "$QUIET"
+        parse_chart_reference "$CHART_REFERENCE"
+    fi
+
+    prompt_required_value CONTAINER_REGISTRY_USERNAME "Enter the container registry username: " false "$QUIET"
+    prompt_required_value CONTAINER_REGISTRY_PASSWORD "Enter the container registry password: " true "$QUIET"
 
     script_name=`basename "$0"`
 

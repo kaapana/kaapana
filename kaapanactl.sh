@@ -1,6 +1,8 @@
 #!/bin/bash
-set -euf -o pipefail
+# Kaapana control helper: run `./kaapanactl.sh deploy|install|report [options]` to deploy the platform,
+# prepare servers, or gather microk8s diagnostics without touching other scripts manually.
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
+set -euf -o pipefail
 
 function main() {
     setup_environment

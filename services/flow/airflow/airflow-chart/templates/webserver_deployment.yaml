@@ -75,6 +75,12 @@ spec:
           value: "{{ .Values.global.instance_name }}"
         - name: KAAPANA_BUILD_VERSION
           value: "{{ .Values.global.kaapana_build_version }}"
+        - name: KAAPANA_AIRFLOW_API_USERNAME
+          value: "kaapana-internal"
+        - name: KAAPANA_AIRFLOW_API_PASSWORD
+          value: "kaapana-internal"
+        - name: KAAPANA_AIRFLOW_API_USER_ROLE
+          value: "Op"
         - name: MINIOUSER
           value: "{{ .Values.global.credentials_minio_username }}"
         - name: MINIOPASSWORD

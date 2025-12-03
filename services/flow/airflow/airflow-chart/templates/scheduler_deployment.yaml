@@ -100,6 +100,8 @@ spec:
           value: "INFO"
         - name: AIRFLOW_HOME
           value: "/kaapana/mounted/workflows"
+        - name: AIRFLOW__API__AUTH_BACKENDS
+          value: "airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth"
         - name: DATADIR
           value: "{{ .Values.global.fast_data_dir }}/workflows/data"
         - name: DEFAULT_REGISTRY

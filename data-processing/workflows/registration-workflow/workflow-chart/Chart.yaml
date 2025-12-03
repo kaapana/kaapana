@@ -5,7 +5,7 @@ description: "Registration workflow"
 name: registration-workflow
 version: "0.0.0"
 keywords:
-  - kaapanaworkflow-v1
+  - kaapanaworkflow-v2
 dependencies:
   - name: workflow-helpers
     version: "0.0.0"

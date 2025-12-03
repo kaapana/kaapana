@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/health/")
+@router.get("/health")
 async def health():
     """Lightweight health endpoint."""
     return JSONResponse(status_code=200, content={"status": "ok"})

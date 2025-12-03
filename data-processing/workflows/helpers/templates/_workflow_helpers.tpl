@@ -78,5 +78,5 @@ spec:
       restartPolicy: Never
       imagePullSecrets:
         - name: registry-secret
-  backoffLimit: 3
+  backoffLimit: 1
 {{- end }}

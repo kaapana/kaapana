@@ -22,7 +22,10 @@ class KaapanaType(str, Enum):
     PLATFORM = "platform"  # kaapana-admin-chart, kaapana-platform-chart
     RUNTIME_ONLY = "runtime-only"  # pull-docker-images, update-collections
 
-    KAAPANA_WORKFLOW = "kaapanaworkflow"  # total-segmentator, nnunet
+    KAAPANA_WORKFLOW = "kaapanaworkflow"  # old style workflows (v1)
+    KAAPANA_WORKFLOW_V2 = (
+        "kaapanaworkflow-v2"  # new style workflows with processingContainers
+    )
     KAAPANA_APPLICATION = "kaapanaapplication"  # code-server-chart
 
     EXTENSION_COLLECTION = "extension-collection"
@@ -165,13 +168,18 @@ class HelmChart:
         if yaml_type:
             return KaapanaType(yaml_type.lower())
 
-        # 2. Check DAG or keywords
-        if is_dag or (
-            "keywords" in chart_yaml and "kaapanaworkflow" in chart_yaml["keywords"]
-        ):
+        # Check keywords for workflow type
+        keywords = chart_yaml.get("keywords", [])
+
+        # Check DAG or v1 workflows
+        if is_dag or "kaapanaworkflow" in keywords:
             return KaapanaType("kaapanaworkflow")
 
-        if "keywords" in chart_yaml and "kaapanaapplication" in chart_yaml["keywords"]:
+        # Check for v2 workflows
+        if "kaapanaworkflow-v2" in keywords:
+            return KaapanaType("kaapanaworkflow-v2")
+
+        if "kaapanaapplication" in keywords:
             return KaapanaType("kaapanaapplication")
 
         return KaapanaType("other")
@@ -182,26 +190,38 @@ class HelmChart:
         repo_version: str,
     ) -> Set[tuple[str, str]]:
         """
-        Collect all dependencies for a Helm chart defined in requirements.yaml.
-        Returns a list of HelmChart objects corresponding to the dependencies.
+        Collect all dependencies for a Helm chart defined in Chart.yaml or requirements.yaml.
+        Returns a set of tuples (name, version) for each dependency.
         """
         dependencies: Set[tuple[str, str]] = set()
+
+        # First check Chart.yaml for Helm 3 style dependencies
+        chart_yaml = HelmChart._load_yaml(chartfile)
+        if chart_yaml and "dependencies" in chart_yaml:
+            for dep in chart_yaml["dependencies"]:
+                dep_name = dep.get("name")
+                dep_version = dep.get("version", "0.0.0")
+                if dep_version == "0.0.0":
+                    dep_version = repo_version
+                dependencies.add((dep_name, dep_version))
+
+        # Also check requirements.yaml for Helm 2 compatibility
         requirements_file = chartfile.parent / "requirements.yaml"
+        if requirements_file.exists():
+            requirements_yaml = HelmChart._load_yaml(requirements_file)
+            if requirements_yaml and "dependencies" in requirements_yaml:
+                for dep in requirements_yaml["dependencies"]:
+                    dep_name = dep.get("name")
+                    dep_version = dep.get("version", "0.0.0")
+                    if dep_version == "0.0.0":
+                        dep_version = repo_version
+                    dependencies.add((dep_name, dep_version))
 
-        if not requirements_file.exists():
-            logger.debug(f"{chartfile}: No requirements.yaml -> no dependencies")
-            return dependencies
+        if not dependencies:
+            logger.debug(
+                f"{chartfile}: No dependencies found in Chart.yaml or requirements.yaml"
+            )
 
-        requirements_yaml = HelmChart._load_yaml(requirements_file)
-        if not requirements_yaml or "dependencies" not in requirements_yaml:
-            logger.debug(f"{chartfile}: requirements.yaml has no dependencies section")
-            return dependencies
-        for dep in requirements_yaml["dependencies"]:
-            dep_name = dep.get("name")
-            dep_version = dep.get("version", "0.0.0")
-            if dep_version == "0.0.0":
-                dep_version = repo_version
-            dependencies.add((dep_name, dep_version))
         return dependencies
 
     @classmethod
@@ -255,26 +275,42 @@ class HelmChart:
         if kaapana_type == "runtime-only":
             return set()
 
-        if kaapana_type == "extension-collection":
+        if kaapana_type == KaapanaType.EXTENSION_COLLECTION:
             collection_container = ContainerHelper.get_container(
                 registry=build_config.default_registry, image_name=name, version=version
             )
             chart_containers.add(collection_container)
 
-        if kaapana_type == "kaapanaworkflow" and values:
+        if kaapana_type == KaapanaType.KAAPANA_WORKFLOW and values:
+            # Check for workflow v1 style (global.image)
             image = values.get("global", {}).get("image")
-            workflow_container = ContainerHelper.get_container(
-                registry=build_config.default_registry,
-                image_name=image,
-                version=version,
-            )
-            chart_containers.add(workflow_container)
+            if image:
+                workflow_container = ContainerHelper.get_container(
+                    registry=build_config.default_registry,
+                    image_name=image,
+                    version=version,
+                )
+                chart_containers.add(workflow_container)
+
+            # Scan for operator containers in Python files
             operator_containers = cls.collect_operator_containers(
                 chartfile=chartfile,
                 default_registry=build_config.default_registry,
                 version=version,
             )
             chart_containers |= operator_containers
+
+        # Workflow v2 - uses processingContainers list from values.yaml
+        if kaapana_type == KaapanaType.KAAPANA_WORKFLOW_V2 and values:
+            # Check for workflow v2 style (processingContainers list)
+            processing_containers = values.get("processingContainers", [])
+            for container_name in processing_containers:
+                processing_container = ContainerHelper.get_container(
+                    registry=build_config.default_registry,
+                    image_name=container_name,
+                    version=version,
+                )
+                chart_containers.add(processing_container)
 
         templates_containers = HelmChart.extract_images_from_templates(
             chartfile=chartfile,

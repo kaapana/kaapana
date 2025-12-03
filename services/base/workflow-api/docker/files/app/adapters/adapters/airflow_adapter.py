@@ -10,9 +10,8 @@ from app import schemas
 from app.adapters.base import WorkflowEngineAdapter
 
 
-class KaapanaPluginAdapter(WorkflowEngineAdapter):
-    # TODO: change name to airflow
-    workflow_engine = "kaapana-plugin"
+class AirflowPluginAdapter(WorkflowEngineAdapter):
+    workflow_engine = "airflow" # TODO: change it to Airflow v2 when we have a separate adapter for Airflow v3
 
     def __init__(self):
         super().__init__()

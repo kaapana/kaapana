@@ -1,9 +1,9 @@
 groups:
 - name: prometheus/alert.rules
   rules:
-  - alert: service_down
-    expr: up == 0
-    for: 1m
+#  - alert: service_down
+#    expr: up == 0
+#    for: 1m
   - alert: dicom_filesyste_usage_ninety_percent_alert
     expr: sum (container_fs_usage_bytes{device=~".*dicom.*",id="/"}) / sum (container_fs_limit_bytes{device=~".*dicom.*",id="/"}) * 100 > 90
     labels:

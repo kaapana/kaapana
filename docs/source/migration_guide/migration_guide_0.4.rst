@@ -131,7 +131,7 @@ To undeploy and uninstall the current platform:
     
         .. code-block:: shell
 
-            curl https://raw.githubusercontent.com/kaapana/kaapana/refs/tags/0.3.5/server-installation/server_installation.sh -o server-installation-0.3.5.sh
+            curl https://codebase.helmholtz.cloud/kaapana/kaapana/-/raw/0.3.5/server-installation/server_installation.sh -o server-installation-0.3.5.sh
 
     - Uninstall the cluster:
     
@@ -150,8 +150,8 @@ Before deploying the new platform version, migrate the PostgreSQL database:
 1. Download the migration script:
    
    .. code-block:: shell
-
-      curl https://raw.githubusercontent.com/kaapana/kaapana/refs/tags/0.4.1/utils/migration_0.3.x-0.4.x.sh -o migration_0.3.x-0.4.x.sh
+      
+      curl https://codebase.helmholtz.cloud/kaapana/kaapana/-/raw/0.4.1/utils/migration-0.3.x-0.4.x.sh -o migration_0.3.x-0.4.x.sh
 
 2. Update the following variables in the script:
 
@@ -190,7 +190,7 @@ Install MicroK8s Cluster and Deploy New Platform Version
    
    .. code-block:: shell
 
-      curl https://raw.githubusercontent.com/kaapana/kaapana/refs/tags/0.4.0/server-installation/server_installation.sh -o server-installation-0.4.0.sh
+      curl https://codebase.helmholtz.cloud/kaapana/kaapana/-/raw/0.4.0/server-installation/server_installation.sh -o server-installation-0.4.0.sh
 
 2. Install the MicroK8s cluster:
    

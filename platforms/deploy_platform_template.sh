@@ -394,7 +394,7 @@ function delete_deployment {
             echo "Deleting helm charts in 'uninstalling' state with --no-hooks"
             $HELM_EXECUTABLE -n $namespace ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall --no-hooks --wait --timeout 5m30s %; sleep 2"
         fi
-        TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E --line-buffered 'Terminating' | cut -d' ' -f1")
+        TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E 'Terminating' | awk '{print \$1 \"/\" \$2}'")
         echo -e ""
         UNINSTALL_TEST=$TERMINATING_PODS
         if [ -z "$UNINSTALL_TEST" ]; then
@@ -403,6 +403,22 @@ function delete_deployment {
             echo -e "${YELLOW}Waiting for $TERMINATING_PODS ${NC}"
         fi
     done
+
+    echo -e "${YELLOW}Cleaning up orphaned pods in Kubernetes namespaces ...${NC}"
+    
+    # Clean SERVICES_NAMESPACE
+    if microk8s.kubectl get namespace $SERVICES_NAMESPACE &>/dev/null; then
+        echo "Deleting all pods in $SERVICES_NAMESPACE"
+        microk8s.kubectl delete pods --all -n $SERVICES_NAMESPACE --grace-period=0 --force 2>/dev/null || true
+    fi
+    
+    # Clean all project-* namespaces
+    PROJECT_NAMESPACES=$(microk8s.kubectl get namespaces --no-headers -o custom-columns=NAME:.metadata.name | grep "^project-")
+    for ns in $PROJECT_NAMESPACES; do
+        echo "Deleting all pods in $ns"
+        microk8s.kubectl delete pods --all -n $ns --grace-period=0 --force 2>/dev/null || true
+    done
+    
 
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"

@@ -486,6 +486,8 @@ function migrate() {
             echo "Options:"
             echo "  1. Let migration-chart autodetect version using $FAST_DATA_DIR/extensions/kaapana-platform-chart-<version>.tgz"
             echo "  2. Exit to manually create $VERSION_FILE with correct version and rerun the deploy script."
+            echo "  Generate the file with:"
+            echo "    echo \"<0.5.3>\" > $VERSION_FILE"
             read -p "Choose option (1/2): " choice
             if [[ "$choice" == "1" ]]; then
                 if prompt_user_backup; then

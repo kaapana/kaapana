@@ -41,13 +41,6 @@ spec:
         volumeMounts:
         - name: fast-data
           mountPath: {{ .Values.global.fast_data_dir }}
-        resources:
-          requests:
-            memory: "16Mi"
-            cpu: "10m"
-          limits:
-            memory: "32Mi"
-            cpu: "100m"
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: false

@@ -542,6 +542,20 @@ export default {
           }
         }
         if (valid_check.every((value) => value === true)) {
+          const formatted = this.formatFormData(this.formData);
+          const pubForm = formatted["publication_form"] || {};
+          if (
+            pubForm &&
+            Object.prototype.hasOwnProperty.call(pubForm, "confirmation") &&
+            pubForm.confirmation !== true
+          ) {
+            this.$notify({
+              type: "error",
+              title: "Please accept the publication consent before starting the workflow.",
+            });
+            return false;
+          }
+
           // all checks have been successful --> start workflow & return true
           this.submitWorkflow();
           return true;

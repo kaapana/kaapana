@@ -2,17 +2,77 @@
 set -euf -o pipefail
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 
-# TODO make this configurable via CLI or env-vars
-PLATFORM_NAME="kaapana-admin-chart" # name of the platform Helm chart
-PLATFORM_VERSION="0.5.3-latest" # Specific version or empty for dialog
-
-CONTAINER_REGISTRY_URL="localhost:5000" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
-CONTAINER_REGISTRY_USERNAME="asdf"
-CONTAINER_REGISTRY_PASSWORD="asdf"
-PLAIN_HTTP=True # Use plain HTTP for registry (insecure)
-
 function main() {
     setup_environment
+    local subcommand="help"
+
+    if [[ $# -gt 0 ]]; then
+        case "$1" in
+            help|--help|-h)
+                subcommand="help"
+                shift
+                ;;
+            deploy|install|report)
+                subcommand="$1"
+                shift
+                ;;
+            --*|-*)
+                subcommand="deploy"
+                ;;
+            *)
+                echo -e "${RED}Unknown command: $1${NC}"
+                print_usage
+                exit 1
+                ;;
+        esac
+    fi
+
+    case "$subcommand" in
+        help)
+            print_usage
+            ;;
+        deploy)
+            deploy "$@"
+            ;;
+        install)
+            server_installation "$@"
+            ;;
+        report)
+            create_report
+            ;;
+        *)
+            print_usage
+            exit 1
+            ;;
+    esac
+}
+
+function print_usage() {
+    local script_name
+    script_name="$(basename "$0")"
+    cat <<EOF
+Usage: $script_name <command> [options]
+
+Commands:
+  deploy               Deploy or manage the Kaapana platform.
+  install              Run the server installation helper.
+  report               Generate a microk8s state report without deploying.
+
+Run '$script_name <command> --help' for command-specific options.
+EOF
+}
+
+function deploy() {
+
+    # TODO make this configurable via CLI or env-vars
+    PLATFORM_NAME="kaapana-admin-chart" # name of the platform Helm chart
+    PLATFORM_VERSION="0.5.3-latest" # Specific version or empty for dialog
+
+    CONTAINER_REGISTRY_URL="localhost:5000" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
+    CONTAINER_REGISTRY_USERNAME="asdf"
+    CONTAINER_REGISTRY_PASSWORD="asdf"
+    PLAIN_HTTP=True # Use plain HTTP for registry (insecure)
+
     load_kaapana_config
     ### Parsing command line arguments:
     usage="$(basename "$0")
@@ -266,6 +326,10 @@ function main() {
         echo -e "${GREEN}No previous deployment found -> deploy ${NC}"
         deploy_chart
     fi
+}
+
+function server_installation() {
+    echo "TODO: Transfer server installation functionality here."
 }
 
 function setup_environment {
@@ -1451,4 +1515,4 @@ check_system project-admin admin
 }
 
 ### MAIN programme body:
-main
+main $@

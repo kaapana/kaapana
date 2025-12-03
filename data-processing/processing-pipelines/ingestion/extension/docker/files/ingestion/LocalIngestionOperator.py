@@ -11,8 +11,8 @@ from kaapana.blueprints.kaapana_global_variables import (
     KAAPANA_BUILD_VERSION,
     PULL_POLICY_IMAGES,
 )
-
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapanapy.helper import get_project_user_access_token
 
 logger = logging.getLogger(__name__)
 
@@ -374,6 +374,13 @@ class LocalIngestionOperator(KaapanaPythonBaseOperator):
 
     def ingestion(self, ds, **kwargs):
         dag_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id
+        # TODO add project_id and user_id to ingested data
+        # project_id = kwargs["dag_run"]["conf"]["project_form"]["id"]
+        # username = kwargs["dag_run"]["conf"]["workflow_form"]["username"]
+        # import kaapanapy
+        # user_id = kaapanapy.utils.get_user_id(username)
+        access_token = get_project_user_access_token()
+
         batch_dir = dag_dir / BATCH_NAME
         if batch_dir.exists():
             # batch execution
@@ -425,6 +432,16 @@ class LocalIngestionOperator(KaapanaPythonBaseOperator):
                         "/output",
                         "--config",
                         "/config.yaml",
+                        "--runtime",
+                        "kubernetes",
+                        "--input-host-dir",
+                        f"{input_folder}",
+                        "--run-host-dir",
+                        f"{output_folder}",
+                        "--namespace",
+                        "ingestion",
+                        "--access-token",
+                        access_token,
                     ],
                     input_pvc_name=pvc_input,
                     output_pvc_name=pvc_output,

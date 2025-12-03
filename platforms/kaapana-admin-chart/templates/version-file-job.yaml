@@ -1,0 +1,53 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: version-file-writer
+  namespace: {{ .Values.global.admin_namespace }}
+  labels:
+    app: version-file-writer
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: version-file-writer
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: version-writer
+        image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version }}"
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          VERSION_FILE="{{ .Values.global.fast_data_dir }}/version"
+          PLATFORM_VERSION="{{ .Values.global.kaapana_build_version }}"
+          
+          echo "Writing version file: $VERSION_FILE"
+          echo "Platform version: $PLATFORM_VERSION"
+          
+          # Create directory if it doesn't exist
+          mkdir -p "{{ .Values.global.fast_data_dir }}"
+          
+          # Write version file
+          echo "$PLATFORM_VERSION" > "$VERSION_FILE"
+          
+          echo "Version file created successfully"
+          cat "$VERSION_FILE"
+        volumeMounts:
+        - name: fast-data
+          mountPath: {{ .Values.global.fast_data_dir }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+      volumes:
+      - name: fast-data
+        hostPath:
+          path: {{ .Values.global.fast_data_dir }}
+          type: DirectoryOrCreate
+      imagePullSecrets:
+      - name: registry-secret

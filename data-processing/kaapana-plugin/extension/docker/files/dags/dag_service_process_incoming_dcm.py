@@ -8,7 +8,11 @@ import requests
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
-from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
+from kaapana.blueprints.kaapana_global_variables import (
+    AIRFLOW_WORKFLOW_DIR,
+    BATCH_NAME,
+    SERVICES_NAMESPACE,
+)
 from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
 from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
@@ -74,9 +78,7 @@ push_json = LocalJson2MetaOperator(
 )
 
 validate = DcmValidatorOperator(
-    dag=dag,
-    input_operator=get_input,
-    exit_on_error=False,
+    dag=dag, input_operator=get_input, exit_on_error=False, namespace=SERVICES_NAMESPACE
 )
 
 save_to_meta = LocalValidationResult2MetaOperator(
@@ -178,6 +180,7 @@ generate_thumbnail = GenerateThumbnailOperator(
     input_operator=get_input,
     get_ref_series_operator=get_ref_ct_series,
     trigger_rule=TriggerRule.ALL_DONE,
+    namespace=SERVICES_NAMESPACE,
     # dev_server="code-server",
 )
 
@@ -248,16 +251,15 @@ clean = LocalWorkflowCleanerOperator(
 
 get_input >> (auto_trigger_operator, extract_metadata)
 
-extract_metadata >> (
-    push_json,
-    add_to_dataset,
-    assign_to_project,
-    remove_tags
-    )
+extract_metadata >> (push_json, add_to_dataset, assign_to_project, remove_tags)
 
 
 push_json >> (validate, branch_by_has_ref_series)
-validate >> save_to_meta >> (put_html_to_minio, put_results_html_to_minio_admin_bucket, generate_thumbnail)
+(
+    validate
+    >> save_to_meta
+    >> (put_html_to_minio, put_results_html_to_minio_admin_bucket, generate_thumbnail)
+)
 branch_by_has_ref_series >> (get_ref_ct_series, generate_thumbnail)
 
 remove_tags >> dcm_send

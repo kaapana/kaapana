@@ -30,61 +30,40 @@ data:
         )
       return dagrun
 
-    def define_volumes_and_mounts(namespace="project-admin"):
+    def define_volumes_and_mounts():
       return [
           client.V1Volume(
               name="workflowdata",
               persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                  claim_name=f"{namespace}-workflow-data-pv-claim",
+                  claim_name="workflow-data-pv-claim",
                   read_only=False,
               ),
           ),
           client.V1Volume(
               name="models",
               persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                  claim_name=f"{namespace}-models-pv-claim",
+                  claim_name="models-pv-claim",
                   read_only=False,
               ),
           ),
           client.V1Volume(
               name="airflow-plugins",
               persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                  claim_name=f"{namespace}-af-plugins-pv-claim",
+                  claim_name="af-plugins-pv-claim",
                   read_only=False,
               ),
           ),
           client.V1Volume(
               name="airflow-dags",
               persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                  claim_name=f"{namespace}-dags-pv-claim",
+                  claim_name="dags-pv-claim",
                   read_only=False,
               ),
           ),
           client.V1Volume(
               name="airflow-logs",
               persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                  claim_name=f"{namespace}-af-logs-pv-claim",
-                  read_only=False,
-              ),
-          ),
-          client.V1Volume(
-              name="uploads",
-              persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                  claim_name=f"{namespace}-uploads-pv-claim",
-                  read_only=False,
-              ),
-          ),
-          client.V1Volume(
-              name="ctpinput",
-              persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                  claim_name=f"{namespace}-ctp-data-pv-claim",
-                  read_only=False,
-              ),
-          ),
-          client.V1Volume(
-              name="dicomdir",
-              persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                  claim_name=f"{namespace}-dcm4chee-dicom-pv-claim",
+                  claim_name="af-logs-pv-claim",
                   read_only=False,
               ),
           )
@@ -103,7 +82,7 @@ data:
       pod.metadata.labels["kaapana.ai/type"] = "processing-container"
       pod.metadata.labels["kaapana.type"] = "processing-container"
 
-      volumes = define_volumes_and_mounts(ns)
+      volumes = define_volumes_and_mounts()
 
       pod.spec.volumes = pod.spec.volumes or []
       pod.spec.volumes.extend(volumes)

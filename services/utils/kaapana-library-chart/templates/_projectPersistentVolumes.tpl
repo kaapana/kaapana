@@ -5,12 +5,10 @@
 {{- $namespace := .Values.global.project_namespace | default "project-admin" }}
 # Iteration
 {{- range $volume := .Values.global.dynamicVolumes }}
-{{- $volumeName := printf "%s-%s-pv" $namespace $volume.name }}
-{{- $volumeClaimName := printf "%s-%s-pv-claim" $namespace $volume.name }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: "{{ $volumeClaimName }}"
+  name: {{ $volume.name }}-pv-claim
   namespace: "{{ $namespace }}"
   annotations:
     "helm.sh/resource-policy": keep

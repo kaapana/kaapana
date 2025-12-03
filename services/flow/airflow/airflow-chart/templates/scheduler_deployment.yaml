@@ -271,7 +271,7 @@ spec:
           claimName: ctp-data-pv-claim
       - name: workflowdata
         persistentVolumeClaim:
-          claimName: af-data-pv-claim
+          claimName: workflow-data-pv-claim
       - name: dicomdir
         persistentVolumeClaim:
           claimName: dcm4chee-dicom-pv-claim

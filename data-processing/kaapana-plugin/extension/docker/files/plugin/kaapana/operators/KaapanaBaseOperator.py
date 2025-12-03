@@ -17,6 +17,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.context import Context
 from kaapana.blueprints.kaapana_global_variables import (
     ADMIN_NAMESPACE,
+    SERVICES_NAMESPACE,
     AIRFLOW_WORKFLOW_DIR,
     BATCH_NAME,
     DEFAULT_REGISTRY,
@@ -255,8 +256,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.display_name = display_name
 
         # Namespaces
-        self.services_namespace = os.getenv("SERVICES_NAMESPACE", "")
-        self.admin_namespace = os.getenv("ADMIN_NAMESPACE", "")
+        self.services_namespace = SERVICES_NAMESPACE
+        self.admin_namespace = ADMIN_NAMESPACE
 
         if self.pod_resources is None:
             self.pod_resources = pc_models.Resources(
@@ -372,7 +373,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 client.V1Volume(
                     name="workflowdata",
                     persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                        claim_name=f"{self.namespace}-workflow-data-pv-claim",
+                        claim_name="workflow-data-pv-claim",
                         read_only=False,
                     ),
                 ),
@@ -387,7 +388,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 client.V1Volume(
                     name="models",
                     persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                        claim_name=f"{self.namespace}-models-pv-claim",
+                        claim_name="models-pv-claim",
                         read_only=False,
                     ),
                 ),
@@ -399,7 +400,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 client.V1Volume(
                     name="tensorboard",
                     persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                        claim_name=f"{self.namespace}-tensorboard-pv-claim",
+                        claim_name="tensorboard-pv-claim",
                         read_only=False,
                     ),
                 ),
@@ -422,6 +423,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         ]
 
         for volume, volumeMount in volume_volumeMount_pairs:
+            #tensorboard is not part of services namespace and therefore no volume exists and none should be added.
+            if self.namespace == SERVICES_NAMESPACE and volume.name == "tensorboard":
+                continue
             self.volumes.append(volume)
             self.volume_mounts.append(volumeMount)
 
@@ -448,6 +452,22 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 )
             ),
         )
+        #Not nice but simple, special case for services namespace:
+        if self.namespace == SERVICES_NAMESPACE:
+            project_credentials_username = client.V1EnvVar(
+                name="KAAPANA_PROJECT_USER_NAME",
+                value="system",
+            )
+
+            project_credentials_password = client.V1EnvVar(
+                name="KAAPANA_PROJECT_USER_PASSWORD",
+                value_from=client.V1EnvVarSource(
+                    secret_key_ref=client.V1SecretKeySelector(
+                        name="system-user-password",
+                        key="system-user-password",
+                    )
+                ),
+            )
 
         oidc_client_secret = client.V1EnvVar(
             name="KAAPANA_CLIENT_SECRET",
@@ -458,6 +478,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 )
             ),
         )
+
 
         self.secrets.extend(
             [
@@ -755,7 +776,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         :param context: Dictionary set by Airflow. It contains references to related objects to the task instance.
         """
         unique_id = KaapanaBaseOperator.unique_task_identifer(context)
-        return Path(AIRFLOW_WORKFLOW_DIR, context["run_id"], f"{unique_id}.pkl")
+        return Path(AIRFLOW_WORKFLOW_DIR, f"{unique_id}.pkl")
 
     # The order of this decorators matters because of the whitelist_federated_learning variable, do not change them!
     @cache_operator_output
@@ -802,12 +823,15 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         logging.info("CONTAINER ANNOTATIONS BEFORE RUN:")
         logging.info(json.dumps(self.annotations, indent=2, sort_keys=True))
 
-        try:
-            project_form = context.get("params").get("project_form")
-            self.project = project_form
-            self.namespace = project_form.get("kubernetes_namespace")
-        except (KeyError, AttributeError):
-            self.namespace = "project-admin"
+        project_form = context.get("params", {}).get("project_form")
+        self.project = project_form  
+
+        if self.namespace is None:
+            self.namespace = (
+                project_form.get("kubernetes_namespace")
+                if project_form and project_form.get("kubernetes_namespace")
+                else "project-admin"
+            )
 
         self.create_conf_configmap(context)
 

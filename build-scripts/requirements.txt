@@ -7,4 +7,6 @@ semver==3.0.4
 treelib==1.8.0
 requests==2.32.4
 urllib3==2.5.0
-rich
+rich==14.2.0
+networkx==3.5
+pydantic==2.12.5

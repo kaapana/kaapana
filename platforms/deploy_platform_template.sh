@@ -146,6 +146,8 @@ echo "✅ Storage provider '${STORAGE_PROVIDER}' found."
 
 MAIN_NODE_NAME=$(microk8s.kubectl get pods -n kube-system -o jsonpath='{.items[0].spec.nodeName}')
 echo "Main node is $MAIN_NODE_NAME"
+STORAGE_NODE="storage"
+microk8s.kubectl label nodes "$MAIN_NODE_NAME" "kaapana.io/node"="$STORAGE_NODE" --overwrite
 # --- Set storage classes based on provider ---
 case "${STORAGE_PROVIDER}" in
   "microk8s.io/hostpath")
@@ -893,6 +895,7 @@ function deploy_chart {
     --set-string global.main_node_name="$MAIN_NODE_NAME" \
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
     --set-string global.replica_count="$REPLICA_COUNT"\
+    --set-string global.storage_node="$STORAGE_NODE" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"

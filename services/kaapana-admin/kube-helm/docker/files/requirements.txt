@@ -1,6 +1,6 @@
 aiofiles==24.1.0
 connexion==3.1.0
-fastapi==0.115.5
+fastapi==0.120.1
 gunicorn==23.0.0
 Jinja2==3.1.4
 python-dotenv==1.0.1

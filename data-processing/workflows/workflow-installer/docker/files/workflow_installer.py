@@ -13,21 +13,24 @@ import sys
 from pathlib import Path
 
 import httpx
-from pydantic import Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 from pydantic_settings import BaseSettings
-
-# Keep installer-specific rules
-from validation_rules import ValidationConfig
-from validation_rules import WorkflowValidator as InstallerRuleValidator
-
-# Use shared validation from workflow_validation package
-from workflow_validation.schemas import WorkflowCreate
-from workflow_validation.validators import WorkflowValidator
+from workflow_cli.validators import validate_workflow
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
+class WorkflowCreate(BaseModel):
+    """Schema for workflow submission to API."""
+
+    title: str
+    definition: str
+    workflow_engine: str = "airflow"
+    workflow_parameters: list = []
+    labels: list = []
 
 
 class Settings(BaseSettings):
@@ -212,42 +215,41 @@ async def main():
         logger.error("Workflow definition is empty")
         sys.exit(1)
 
-    # Run shared workflow validation (structure, Chart.yaml, workflow.json, etc.)
-    logger.info("\nRunning shared workflow validation...")
-    
-    # Create a temporary workflow structure for validation
-    # The shared validator expects workflow-chart/ structure
-    temp_workflow_dir = settings.workflow_dir.parent
-    chart_dir = temp_workflow_dir / "workflow-chart"
-    
-    # If chart structure exists, use shared validator
-    if chart_dir.exists():
-        shared_validator = WorkflowValidator(temp_workflow_dir)
-        shared_report = shared_validator.validate_all()
-        
-        # Display shared validation results
-        if shared_report.errors:
-            logger.error("\033[31m✗ Shared validation errors:\033[0m")
-            for error in shared_report.errors:
-                logger.error(f"  • {error}")
-        
-        if shared_report.warnings:
-            logger.warning("\033[33m⚠ Shared validation warnings:\033[0m")
-            for warning in shared_report.warnings:
-                logger.warning(f"  • {warning}")
-        
-        if shared_report.info:
-            for info in shared_report.info:
-                logger.info(f"  ℹ {info}")
-        
-        # Exit if structural errors found
-        if shared_report.errors:
-            logger.error("\033[31mShared validation failed with errors!\033[0m")
-            sys.exit(1)
-    else:
-        logger.warning("No workflow-chart/ structure found, skipping structural validation")
+    # Validate workflow using workflow-cli
+    logger.info("\nValidating workflow structure...")
 
-    # Validate and construct workflow data using pydantic schema
+    # workflow-cli expects the workflow root directory (parent of workflow-chart/)
+    workflow_root = settings.workflow_dir.parent
+
+    try:
+        validation_report = validate_workflow(workflow_root)
+
+        # Display validation results
+        if validation_report.errors:
+            logger.error("\033[31m✗ Validation errors:\033[0m")
+            for error in validation_report.errors:
+                logger.error(f"  • {error}")
+
+        if validation_report.warnings:
+            logger.warning("\033[33m⚠ Validation warnings:\033[0m")
+            for warning in validation_report.warnings:
+                logger.warning(f"  • {warning}")
+
+        if validation_report.info:
+            for info in validation_report.info:
+                logger.info(f"  ℹ {info}")
+
+        # Exit if validation errors found
+        if validation_report.errors:
+            logger.error("\033[31mValidation failed!\033[0m")
+            sys.exit(1)
+
+        logger.info("\033[32m✓ Workflow structure is valid\033[0m")
+    except Exception as e:
+        logger.error(f"\033[31mValidation failed: {e}\033[0m")
+        sys.exit(1)
+
+    # Construct workflow data for API submission
     try:
         workflow_data = WorkflowCreate(
             title=title,
@@ -256,62 +258,23 @@ async def main():
             workflow_parameters=metadata.get("workflow_parameters", []),
             labels=metadata.get("labels", []),
         )
-        logger.info(f"\033[32m✓ Workflow '{workflow_data.title}' is valid!\033[0m")
+        logger.info(
+            f"\033[32m✓ Workflow '{workflow_data.title}' is ready for submission\033[0m"
+        )
         logger.info(f"  - Workflow engine: {workflow_data.workflow_engine}")
         logger.info(f"  - Definition size: {len(workflow_data.definition)} bytes")
-
-        # Display parameters
-        params = workflow_data.workflow_parameters or []
-        logger.info(f"  - Parameters: {len(params)}")
-        if params:
-            for param in params:
-                param_type = param.ui_form.type
-                required = "required" if param.ui_form.required else "optional"
-                logger.info(
-                    f"    • {param.env_variable_name} ({param_type}, {required})"
-                )
-
-        # Display labels
-        labels = workflow_data.labels or []
-        logger.info(f"  - Labels: {len(labels)}")
-        if labels:
-            for label in labels:
-                logger.info(f"    • {label.key}: {label.value}")
+        logger.info(f"  - Parameters: {len(workflow_data.workflow_parameters)}")
+        logger.info(f"  - Labels: {len(workflow_data.labels)}")
     except ValidationError as e:
-        logger.error("\033[31mWorkflow validation failed:\033[0m")
+        logger.error("\033[31mWorkflow data construction failed:\033[0m")
         for error in e.errors():
             loc = " -> ".join(str(loc_part) for loc_part in error["loc"])
             logger.error(f"  {loc}: {error['msg']}")
         sys.exit(1)
 
-    # Run installer-specific validation rules (icon, labels, etc.)
-    logger.info("\nRunning installer-specific validation checks...")
-    installer_validator = InstallerRuleValidator(ValidationConfig())
-    validation_results = installer_validator.validate_all(
-        settings.workflow_dir, metadata, workflow_data.workflow_engine
-    )
-
-    # Display installer-specific validation results
-    for result in validation_results:
-        if result.passed:
-            logger.info(f"\033[32m  ✓ [{result.rule_name}] {result.message}\033[0m")
-        elif result.severity == "error":
-            logger.error(f"\033[31m  ✗ [{result.rule_name}] {result.message}\033[0m")
-        elif result.severity == "warning":
-            logger.warning(f"\033[33m  ⚠ [{result.rule_name}] {result.message}\033[0m")
-        else:
-            logger.info(f"  ℹ [{result.rule_name}] {result.message}")
-
-    logger.info(f"\nValidation summary: {installer_validator.get_summary()}")
-
-    # Exit if there are validation errors
-    if installer_validator.has_errors():
-        logger.error("\033[31mValidation failed with errors!\033[0m")
-        sys.exit(1)
-
     # If validate-only mode, exit here
     if settings.validate_only:
-        logger.info("\033[32mValidation successful! (Skipping API submission)\033[0m")
+        logger.info("\033[32m✓ Validation successful! (Skipping API submission)\033[0m")
         sys.exit(0)
 
     # Create async HTTP client with retry logic

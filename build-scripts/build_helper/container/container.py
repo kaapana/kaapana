@@ -262,6 +262,10 @@ class Container:
             )
         if config.include_model_weights:
             build_args.extend(["--build-arg", "include_model_weights=true"])
+        
+        # Add current git branch as build arg for containers that need it
+        _, branch, _, _ = GitUtils.get_repo_info(self.dockerfile.parent)
+        build_args.extend(["--build-arg", f"BRANCH_NAME={branch}"])
 
         command = [
             config.container_engine,

@@ -1,6 +1,6 @@
 uvicorn[standard]==0.34.0
 deepdiff==8.4.2
-fastapi==0.115.12
+fastapi==0.120.1
 httpx==0.28.1
 jsf==0.11.2
 jsonschema==4.23.0

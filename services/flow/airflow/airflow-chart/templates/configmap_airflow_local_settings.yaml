@@ -8,8 +8,7 @@ data:
     from airflow.models import DagRun, DagBag
     from airflow.utils.session import create_session
     from kubernetes import client
-
-    from kaapana.blueprints.kaapana_global_variables import PROCESSING_WORKFLOW_DIR
+    import os
         
 
     def get_dagrun_from_pod(pod):
@@ -81,9 +80,14 @@ data:
       pod.metadata.labels["kaapana.ai/project-namespace"] = ns
       pod.metadata.labels["kaapana.ai/type"] = "processing-container"
       pod.metadata.labels["kaapana.type"] = "processing-container"
-
+      
+      # ----- Node selector -----
+      storage_node = os.getenv("KAAPANA_STORAGE_NODE")   
+      pod.spec.node_selector = pod.spec.node_selector or {}
+      pod.spec.node_selector["kaapana.io/node"] = storage_node
+      
+      # ----- Volumes and Volume Mounts -----
       volumes = define_volumes_and_mounts()
-
       pod.spec.volumes = pod.spec.volumes or []
       pod.spec.volumes.extend(volumes)
   

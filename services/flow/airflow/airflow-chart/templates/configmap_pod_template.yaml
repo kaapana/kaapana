@@ -131,13 +131,6 @@ data:
               mountPath: /kaapana/mounted/workflows/dags
             - name: airflow-logs
               mountPath: /kaapana/mounted/workflows/logs
-            - name: uploads
-              mountPath: /kaapana/app/uploads/
-            - name: ctpinput
-              mountPath: /kaapana/mounted/ctpinput
-            - name: dicomdir
-              mountPath: /kaapana/mounted/pacsdata
-
             ### Volumes are defined in this pod_spec
             - name: tmp
               mountPath: /kaapana/mounted/workflows/

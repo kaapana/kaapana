@@ -20,7 +20,7 @@ spec:
         app.kubernetes.io/component: database
     spec:
       nodeSelector:
-        kubernetes.io/hostname: {{ .Values.global.main_node_name }}
+        kaapana.io/node: {{ .Values.global.storage_node }}
       securityContext:
         runAsUser: 70
       initContainers:

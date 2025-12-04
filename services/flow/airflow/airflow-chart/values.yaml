@@ -5,8 +5,12 @@ global:
   fast_data_dir: /home/kaapana
   slow_data_dir: /home/kaapana
   dynamicVolumes:
-  - name: workflow-data
   - name: models
+    storage_class: workflow
+    storage: 200Gi
+  - name: workflow-data
+    storage_class: workflow
+    storage: 200Gi
   - name: uploads
   sharedVolumes:
   - name: af-plugins

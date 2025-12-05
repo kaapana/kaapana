@@ -896,6 +896,7 @@ async def test_task_run_belongs_to_correct_workflow_run(
     assert response.status_code == 200
     assert len(data) == 1
     assert data[0]["external_id"] == "task-run1"
+    assert data[0]["workflow_run_id"] == run1.id
 
 
 @pytest.mark.asyncio

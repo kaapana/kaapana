@@ -55,6 +55,13 @@ COPY --from=maven-builder /app/rights-token-mapper/target/kaapana-rights-token-m
 COPY --from=maven-builder /app/projects-token-mapper/target/kaapana-projects-token-mapper-1.0.jar /opt/keycloak/providers/kaapana-projects-token-mapper-1.0.jar
 COPY --from=maven-builder /app/admin-mapper/target/kaapana-admin-mapper-1.0.jar /opt/keycloak/providers/kaapana-admin-mapper-1.0.jar
 
+ENV KC_METRICS_ENABLED=true
+ENV KC_HEALTH_ENABLED=true
 ENV KC_HTTP_RELATIVE_PATH=/auth
+ENV KC_HTTP_MANAGEMENT_RELATIVE_PATH=/
 
-RUN /opt/keycloak/bin/kc.sh build --db=postgres --features=admin,admin-api,account,account-api,login,authorization,impersonation,token-exchange
+RUN /opt/keycloak/bin/kc.sh build \
+    --db=postgres \
+    --health-enabled=true \
+    --metrics-enabled=true \
+    --features=admin,admin-api,account,account-api,login,authorization,impersonation,token-exchange

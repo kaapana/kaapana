@@ -512,8 +512,7 @@ async def test_read_workflows_negative_skip(
     # Try negative skip - implementation may vary
     response = await client.get("/v1/workflows?skip=-1")
 
-    # Should either return 422 validation error or treat as 0
-    assert response.status_code in [200, 422]
+    assert response.status_code == 200
 
 
 @pytest.mark.GET

@@ -16,6 +16,10 @@ logger = None
 
 
 def only_update_json(seg_info_list, target_seg_info_dict, label_nifti_path, target_dir):
+    '''
+    Reads the (multi-label) nifty file, compares to seg_info_list and adds to target_seg_info_dict
+    with 'file_found' extra boolean parameter.
+    '''
     global processed_count
     nifti_loaded = nib.load(label_nifti_path)
     nifti_numpy = nifti_loaded.get_fdata().astype(int)
@@ -32,6 +36,10 @@ def only_update_json(seg_info_list, target_seg_info_dict, label_nifti_path, targ
 
 
 def process_seginfo(nifti_dir, target_dir, mode=None):
+    '''
+    Reads seg_info json file and calls different functions as per mode.
+    Currently only update_json mode is implemented.
+    '''
     global processed_count, input_file_extension, skip_operator
 
     Path(target_dir).mkdir(parents=True, exist_ok=True)

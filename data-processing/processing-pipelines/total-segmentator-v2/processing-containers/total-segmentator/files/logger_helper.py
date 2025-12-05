@@ -1,11 +1,11 @@
-import logging
+from kaapanapy.logger import get_logger
 
 # from helpers.resources import LOGGER_NAME
 from functools import wraps
 
 
 def get_logger(name, level=logging.DEBUG):
-    logger = logging.getLogger(name)
+    logger = get_logger(__name__)
     logger.setLevel(level)
 
     if not logger.hasHandlers():

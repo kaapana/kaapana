@@ -254,6 +254,23 @@ TotalSegmentator
 | **Input data:**  
 | Any **CT** scans.
 
+TotalSegmentator v2
+----------------
+| **Method:** "TotalSegmentator: robust segmentation of  117 (CT) and 50 (MR) body structures"
+| **Authors:**  Wasserthal J., Meyer M., Breit H., Cyriac J., Yang S., Segeroth M.
+| **DOI:** `10.48550/arXiv.2208.05868 <https://arxiv.org/abs/2208.05868>`_
+| **Code:** `https://github.com/wasserth/TotalSegmentator <https://github.com/wasserth/TotalSegmentator>`_
+
+| **Workflow Overview**
+| 1) Model is downloaded.
+| 2) DICOM is converted to NIfTI files
+| 3) TotalSegmentator with selected its subtasks is applied to the input data
+| 4) NIfTI segmentations will be converted to DICOM Segmentation (DICOM SEG) object
+| 5) DICOM SEGs will be sent to the internal platform PACS
+
+| **Input data:**  
+| Any **CT** or **MR** scans.
+
 
 .. _extensions_organseg:
 

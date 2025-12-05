@@ -12,7 +12,7 @@ class TotalSegmentatorV2Operator(KaapanaBaseOperator):
     Executes the total segmentator algorithm on a given 3D CT or MR nifti image.
     The algorithm segments 117 (CT) and 50 (MR) body structures and stores them in single file nifti format.
 
-    Expects the pretrained weights already to be downloaded (use LocalGetTotalSegmentatorModels for that).
+    Expects the pretrained weights already to be downloaded (use GetZenodoModelOperator for that).
 
     - Publication:
       Wasserthal, J., Meyer, M., Breit, H. C., Cyriac, J., Yang, S., & Segeroth, M. (2022).

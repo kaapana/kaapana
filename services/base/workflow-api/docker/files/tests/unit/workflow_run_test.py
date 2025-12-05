@@ -657,7 +657,7 @@ async def test_create_workflow_run_increments_correctly(
 async def test_cancel_already_completed_workflow_run(
     session: AsyncSession, client: AsyncClient
 ):
-    """Test canceling a workflow run that's already completed"""
+    """Test canceling a workflow run that's already completed - status should remain completed"""
     # Create workflow and completed run
     workflow = models.Workflow(
         title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
@@ -675,9 +675,69 @@ async def test_cancel_already_completed_workflow_run(
     await session.refresh(workflow_run)
 
     response = await client.put(f"/v1/workflow-runs/{workflow_run.id}/cancel")
+    data = response.json()
     
-    # Should succeed but status remains completed (or return appropriate status)
-    assert response.status_code in [200, 400, 409]
+    # Should return 200 and status should remain completed
+    assert response.status_code == 200
+    assert data["lifecycle_status"] == "Completed"
+
+
+@pytest.mark.asyncio
+async def test_cancel_already_canceled_workflow_run(
+    session: AsyncSession, client: AsyncClient
+):
+    """Test canceling a workflow run that's already canceled - idempotent no-op"""
+    # Create workflow and canceled run
+    workflow = models.Workflow(
+        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+    )
+    session.add(workflow)
+    await session.commit()
+    await session.refresh(workflow)
+
+    workflow_run = models.WorkflowRun(
+        workflow_id=workflow.id,
+        lifecycle_status=schemas.WorkflowRunStatus.CANCELED,
+    )
+    session.add(workflow_run)
+    await session.commit()
+    await session.refresh(workflow_run)
+
+    response = await client.put(f"/v1/workflow-runs/{workflow_run.id}/cancel")
+    data = response.json()
+
+    # Should return 200 and status should remain canceled (idempotent)
+    assert response.status_code == 200
+    assert data["lifecycle_status"] == "Canceled"
+
+
+@pytest.mark.asyncio
+async def test_cancel_error_workflow_run(
+    session: AsyncSession, client: AsyncClient
+):
+    """Test canceling a workflow run that's in error state - status should remain error"""
+    # Create workflow and error run
+    workflow = models.Workflow(
+        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+    )
+    session.add(workflow)
+    await session.commit()
+    await session.refresh(workflow)
+
+    workflow_run = models.WorkflowRun(
+        workflow_id=workflow.id,
+        lifecycle_status=schemas.WorkflowRunStatus.ERROR,
+    )
+    session.add(workflow_run)
+    await session.commit()
+    await session.refresh(workflow_run)
+
+    response = await client.put(f"/v1/workflow-runs/{workflow_run.id}/cancel")
+    data = response.json()
+
+    # Should return 200 and status should remain error (terminal state immutability)
+    assert response.status_code == 200
+    assert data["lifecycle_status"] == "Error"
 
 
 @pytest.mark.asyncio

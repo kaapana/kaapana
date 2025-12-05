@@ -1,0 +1,9 @@
+---
+dependencies:
+- name: dag-installer-chart
+  version: 0.0.0
+  repository: file://../../../../../services/utils/dag-installer-chart/
+- name: model_installer_chart
+  version: 0.0.0
+  repository: file://../../../../../services/utils/base-model-installer/chart/
+

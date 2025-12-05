@@ -1,0 +1,45 @@
+dag_id: "total-segmentator-v2"
+conf_data:
+  workflow_form:
+    input: "CT"
+    tasks:
+      - "total"
+    single_execution: true
+    nr_thr_saving: 6
+    nr_thr_resamp: 1
+    bodyseg: false
+    forcesplit: false
+    quiet: false
+    verbose: false
+    radiomics: true
+    statistics: true
+    preview: false
+    fast: true
+  data_form:
+    dataset_name: test-CT
+    dataset_limit: 1
+remote: false
+username: "kaapana"
+---
+dag_id: "total-segmentator-v2"
+conf_data:
+  workflow_form:
+    input: "MR"
+    tasks:
+      - "total_mr"
+    single_execution: true
+    nr_thr_saving: 6
+    nr_thr_resamp: 1
+    bodyseg: false
+    forcesplit: false
+    quiet: false
+    verbose: false
+    radiomics: false
+    statistics: false
+    preview: false
+    fast: false
+  data_form:
+    dataset_name: test-MRT
+    dataset_limit: 1
+remote: false
+username: "kaapana"

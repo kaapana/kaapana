@@ -658,7 +658,6 @@ async def test_cancel_already_completed_workflow_run(
     session: AsyncSession, client: AsyncClient
 ):
     """Test canceling a workflow run that's already completed - status should remain completed"""
-    # Create workflow and completed run
     workflow = models.Workflow(
         title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
     )
@@ -676,7 +675,7 @@ async def test_cancel_already_completed_workflow_run(
 
     response = await client.put(f"/v1/workflow-runs/{workflow_run.id}/cancel")
     data = response.json()
-    
+
     # Should return 200 and status should remain completed
     assert response.status_code == 200
     assert data["lifecycle_status"] == "Completed"
@@ -712,11 +711,8 @@ async def test_cancel_already_canceled_workflow_run(
 
 
 @pytest.mark.asyncio
-async def test_cancel_error_workflow_run(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_cancel_error_workflow_run(session: AsyncSession, client: AsyncClient):
     """Test canceling a workflow run that's in error state - status should remain error"""
-    # Create workflow and error run
     workflow = models.Workflow(
         title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
     )
@@ -735,17 +731,28 @@ async def test_cancel_error_workflow_run(
     response = await client.put(f"/v1/workflow-runs/{workflow_run.id}/cancel")
     data = response.json()
 
-    # Should return 200 and status should remain error (terminal state immutability)
     assert response.status_code == 200
     assert data["lifecycle_status"] == "Error"
 
 
+@pytest.mark.parametrize(
+    "initial_status",
+    [
+        schemas.WorkflowRunStatus.RUNNING,
+        schemas.WorkflowRunStatus.CANCELED,
+        schemas.WorkflowRunStatus.COMPLETED,
+        schemas.WorkflowRunStatus.ERROR,
+        schemas.WorkflowRunStatus.PENDING,
+        schemas.WorkflowRunStatus.CREATED,
+        schemas.WorkflowRunStatus.SCHEDULED,
+    ],
+)
 @pytest.mark.asyncio
-async def test_retry_running_workflow_run(
-    session: AsyncSession, client: AsyncClient
+async def test_retry_workflow_run_from_any_status(
+    session: AsyncSession, client: AsyncClient, initial_status: schemas.WorkflowRunStatus
 ):
-    """Test retrying a workflow run that's still running"""
-    # Create workflow and running run
+    """Test retrying a workflow run from any status creates new run and cancels old"""
+    # Create workflow
     workflow = models.Workflow(
         title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
     )
@@ -753,18 +760,21 @@ async def test_retry_running_workflow_run(
     await session.commit()
     await session.refresh(workflow)
 
+    # Create workflow run with the given initial status
     workflow_run = models.WorkflowRun(
         workflow_id=workflow.id,
-        lifecycle_status=schemas.WorkflowRunStatus.RUNNING,
+        lifecycle_status=initial_status,
     )
     session.add(workflow_run)
     await session.commit()
     await session.refresh(workflow_run)
 
     response = await client.put(f"/v1/workflow-runs/{workflow_run.id}/retry")
-    
-    # Should fail or handle appropriately
-    assert response.status_code in [200, 400, 409]
+    data = response.json()
+
+    assert response.status_code == 200
+    assert data["lifecycle_status"] == "Pending"
+
 
 
 @pytest.mark.asyncio
@@ -790,7 +800,7 @@ async def test_workflow_run_with_multiple_labels(
 
     response = await client.post("/v1/workflow-runs", json=payload)
     data = response.json()
-    
+
     assert response.status_code == 201
     assert len(data["labels"]) == 2
 
@@ -889,9 +899,7 @@ async def test_task_run_belongs_to_correct_workflow_run(
 
 
 @pytest.mark.asyncio
-async def test_get_workflow_run_with_labels(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_get_workflow_run_with_labels(session: AsyncSession, client: AsyncClient):
     """Test getting workflow run that has labels"""
     # Create workflow
     workflow = models.Workflow(
@@ -915,7 +923,7 @@ async def test_get_workflow_run_with_labels(
     label2 = models.Label(key="team", value="ml")
     session.add_all([label1, label2])
     await session.commit()
-    
+
     # Associate labels with workflow run
     workflow_run.labels = [label1, label2]
     await session.commit()
@@ -972,9 +980,7 @@ async def test_get_workflow_runs_with_status_filter(
 
 
 @pytest.mark.asyncio
-async def test_task_run_lifecycle_status(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_task_run_lifecycle_status(session: AsyncSession, client: AsyncClient):
     """Test that task runs have proper lifecycle status"""
     # Create workflow with task
     workflow = models.Workflow(

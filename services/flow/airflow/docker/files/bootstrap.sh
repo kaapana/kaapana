@@ -45,6 +45,27 @@ fi
 
 if [ "$1" = "webserver" ]
 then
+	echo ""
+	echo "Ensuring API role Op exists..."
+
+	# Create Op role if it doesnt exist
+    airflow roles create Op || true
+
+	echo "Role check completed"
+	echo ""
+    echo "Ensuring API user exists..."
+    
+	# Create user if it doesnt exist
+    airflow users create \
+        --username "$KAAPANA_AIRFLOW_API_USERNAME" \
+        --firstname "Airflow" \
+        --lastname "Kaapana" \
+        --role "$KAAPANA_AIRFLOW_API_USER_ROLE" \
+        --email "$KAAPANA_AIRFLOW_API_USERNAME@kaapana.com" \
+        --password "$KAAPANA_AIRFLOW_API_PASSWORD" || true
+
+    echo "User check completed"
+    echo ""
 	export AIRFLOW_MODE=webserver
 	exec airflow webserver
 fi

@@ -44,10 +44,30 @@ spec:
           value: INFO
         - name: DATABASE_URL
           value: "postgresql+asyncpg://{{ .Values.kaapana_database.postgres_user}}:{{ .Values.kaapana_database.postgres_password}}@{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{ .Values.global.services_namespace }}.svc:5432"
+        - name: ACCESS_INFORMATION_INTERFACE_URL
+          value: "http://aii-service.{{  .Values.global.services_namespace  }}.svc:8080"
+{{- if .Values.airflow.enabled }}
+        # Airflow adapter config
+        - name: AIRFLOW_API_URL
+          value: {{ .Values.airflow.api_url_base }}.{{ .Values.global.services_namespace }}.svc:{{ .Values.airflow.api_port }}{{ .Values.airflow.api_endpoint }}
+        - name: AIRFLOW_DAG_FOLDER
+          value: {{ .Values.airflow.dag_folder }}
+        - name: AIRFLOW_API_USERNAME
+          value: {{ .Values.airflow.api_username }}
+        - name: AIRFLOW_API_PASSWORD
+          value: {{ .Values.airflow.api_user_password }}
+{{- end }}
 {{- if .Values.global.dev_files }}
         - name: DEV_FILES
           value: "True"
-        volumeMounts:   
+{{- end }}
+        volumeMounts:
+{{- if .Values.airflow.enabled }}
+        # Airflow volume mount
+        - name: airflow-dags-pvc
+          mountPath: /kaapana/mounted/workflows/dags
+{{- end }}
+{{- if .Values.global.dev_files }}
         - name: workflow-api-dev
           mountPath: /app
 {{- end }}
@@ -61,8 +81,14 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true     
-{{- if .Values.global.dev_files }}
       volumes:
+{{- if .Values.airflow.enabled }}
+      # Airflow volume definition
+      - name: airflow-dags-pvc
+        persistentVolumeClaim:
+          claimName: {{ .Values.airflow.scheduler_claim_name }} # must match the PVC created in the airflow chart
+{{- end }}
+{{- if .Values.global.dev_files }}
       - name: workflow-api-dev
         persistentVolumeClaim:
           claimName: {{ .Chart.Name }}-dev-pv-claim

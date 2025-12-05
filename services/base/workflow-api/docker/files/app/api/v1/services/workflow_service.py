@@ -1,11 +1,13 @@
 import logging
-from typing import List, Optional
+import asyncio
+from typing import Any, List, Optional
+from fastapi import HTTPException
+from fastapi.encoders import jsonable_encoder
 
 from app import crud, schemas
 from app.adapters import get_workflow_engine
 from app.api.v1.services.errors import InternalError, NotFoundError
-from fastapi import HTTPException
-from fastapi.encoders import jsonable_encoder
+from app.api.v1.services.utils import run_in_background_with_retries
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -32,6 +34,7 @@ async def get_workflows(
 async def create_workflow(
     db: AsyncSession,
     workflow: schemas.WorkflowCreate,
+    token: Optional[str] = None,
 ) -> schemas.Workflow:
     db_workflow = await crud.create_workflow(db, workflow=workflow)
     if not db_workflow:
@@ -39,56 +42,19 @@ async def create_workflow(
         raise InternalError("Failed to create workflow")
     logger.info(f"Created workflow: {db_workflow.title} v{db_workflow.version}")
 
-    # submit the workflow to the engine and get tasks
     engine = get_workflow_engine(workflow.workflow_engine)
-    schema_workflow = schemas.Workflow.model_validate(db_workflow)
-    await engine.submit_workflow(workflow=schema_workflow)
-    tasks = await engine.get_workflow_tasks(workflow=schema_workflow)
 
-    # create tasks in the db
-    for task_create in tasks:
-        t = await crud.create_task(db=db, task=task_create, workflow_id=db_workflow.id)
-        logger.info(f"Created task {t.title} for workflow: {workflow.title}")
-
-    # after all tasks are created, link downstream tasks
-    for task in tasks:
-        db_task = await crud.get_task(
-            db,
-            filters={
-                "title": task.title,
-                "workflow.title": db_workflow.title,
-                "workflow.version": db_workflow.version,
-            },
+    # background task immediately and return the DB object
+    asyncio.create_task(
+        run_in_background_with_retries(
+            _submit_and_parse_workflow_tasks,
+            db=db,
+            db_workflow=db_workflow,
+            engine=engine,
         )
-        if not db_task:
-            logger.warning(
-                f"Failed to find task {task.title} for workflow: {db_workflow.title} v{db_workflow.version} to link downstream tasks"
-            )
-            continue
+    )
 
-        # get all downstream tasks of task
-        for ds_title in task.downstream_task_titles:
-            ds_task = await crud.get_task(
-                db,
-                filters={
-                    "title": ds_title,
-                    "workflow.title": db_workflow.title,
-                    "workflow.version": db_workflow.version,
-                },
-            )
-            if not ds_task:
-                logger.error(
-                    f"Failed to find downstream task {ds_title} for workflow: {db_workflow.title} v{db_workflow.version} to link downstream tasks"
-                )
-                continue
-            # add link in the db
-            await crud.add_downstream_task(
-                db, task_id=db_task.id, downstream_task_id=ds_task.id
-            )
-            logger.info(
-                f"Added downstream task {ds_task.title} to task {db_task.title}"
-            )
-
+    # return the created workflow immediately before tasks are known
     return schemas.Workflow.model_validate(db_workflow)
 
 
@@ -175,3 +141,64 @@ async def get_task(
         dt.downstream_task_id for dt in task.downstream_tasks
     ]
     return schemas.Task(**task_data)
+
+
+async def _submit_and_parse_workflow_tasks(
+    db: AsyncSession,
+    db_workflow: schemas.Workflow,
+    engine: Any,
+):
+    """
+    Submits the DAG file to the engine, polls for its existence,
+    and then fetches and links tasks in the local database.
+    This function should be wrapped in run_in_background_with_retries.
+    """
+    schema_workflow = schemas.Workflow.model_validate(db_workflow)
+
+    # submit the DAG file
+    await engine.submit_workflow(workflow=schema_workflow)
+
+    # get workflow tasks from the engine
+    tasks: List[schemas.TaskCreate] = await engine.get_workflow_tasks(
+        workflow=schema_workflow
+    )
+
+    # create tasks in the database
+    db_tasks = {}
+    for task_create in tasks:
+        t = await crud.create_task(db=db, task=task_create, workflow_id=db_workflow.id)
+        db_tasks[t.title] = t 
+        logger.info(f"Created task {t.title} for workflow: {db_workflow.title}")
+
+    # link downstream tasks
+    for task_from_engine in tasks:
+        db_task = db_tasks.get(task_from_engine.title)
+
+        if not db_task:
+            logger.warning(
+                f"Failed to find task {task_from_engine.title} in newly created tasks."
+            )
+            continue
+
+        for ds_title in task_from_engine.downstream_task_titles:
+            ds_task = db_tasks.get(ds_title)
+
+            if not ds_task:
+                logger.error(
+                    f"Failed to find downstream task {ds_title} to link to {db_task.title}."
+                )
+                continue
+
+            # add link in the db
+            await crud.add_downstream_task(
+                db, task_id=db_task.id, downstream_task_id=ds_task.id
+            )
+            logger.info(
+                f"Added downstream task {ds_task.title} to task {db_task.title}"
+            )
+
+    # commit session at the end
+    await db.commit()
+    logger.info(
+        f"Successfully created and parsed tasks for workflow {db_workflow.title}."
+    )

@@ -11,7 +11,7 @@ from app.adapters.base import WorkflowEngineAdapter
 
 
 class AirflowPluginAdapter(WorkflowEngineAdapter):
-    workflow_engine = "airflow" # TODO: change it to Airflow v2 when we have a separate adapter for Airflow v3
+    workflow_engine = "airflow"  # TODO: change it to Airflow v2 when we have a separate adapter for Airflow v3
 
     def __init__(self):
         super().__init__()
@@ -243,7 +243,6 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
     ) -> schemas.WorkflowRunStatus:
         """
         Maps Airflow DAG Run states to Kaapana WorkflowRunStatus.
-        NOTE: WorkflowRunStatus does NOT have SKIPPED.
         """
         if not state:
             return schemas.WorkflowRunStatus.PENDING
@@ -251,17 +250,12 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         mapper = {
             "success": schemas.WorkflowRunStatus.COMPLETED,
             "failed": schemas.WorkflowRunStatus.ERROR,
-            "upstream_failed": schemas.WorkflowRunStatus.ERROR,
             "queued": schemas.WorkflowRunStatus.SCHEDULED,
             "running": schemas.WorkflowRunStatus.RUNNING,
-            "restarting": schemas.WorkflowRunStatus.RUNNING,
-            "up_for_retry": schemas.WorkflowRunStatus.RUNNING,
-            "scheduled": schemas.WorkflowRunStatus.SCHEDULED,
-            "deferred": schemas.WorkflowRunStatus.PENDING,
-            # If a whole DAG run is skipped, it is treated as cancelled.
-            "skipped": schemas.WorkflowRunStatus.CANCELED,
         }
-        return mapper.get(state, schemas.WorkflowRunStatus.RUNNING)
+        if state not in mapper:
+            raise RuntimeError(f"Unknown workflow run state: {state}")
+        return mapper[state]
 
     def _map_task_run_state(self, state: Optional[str]) -> schemas.TaskRunStatus:
         """
@@ -279,11 +273,12 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             "running": schemas.TaskRunStatus.RUNNING,
             "restarting": schemas.TaskRunStatus.RUNNING,
             "up_for_retry": schemas.TaskRunStatus.RUNNING,
+            "up_for_reschedule": schemas.TaskRunStatus.RUNNING,
             "scheduled": schemas.TaskRunStatus.SCHEDULED,
             "deferred": schemas.TaskRunStatus.PENDING,
-            # TaskRunStatus has SKIPPED
             "skipped": schemas.TaskRunStatus.SKIPPED,
             "removed": schemas.TaskRunStatus.SKIPPED,
         }
-        # Default fallback
-        return mapper.get(state, schemas.TaskRunStatus.RUNNING)
+        if state not in mapper:
+            raise RuntimeError(f"Unknown task run state: {state}")
+        return mapper[state]

@@ -224,7 +224,6 @@ case "${STORAGE_PROVIDER}" in
     echo "✅ Longhorn overprovisioning settings applied successfully."
 
     # Detect how many Longhorn nodes are schedulable
-    # TODO use this in the storage-class definition!!!! -> set this in the helm chart values...
     SCHEDULABLE_NODES=$(microk8s.kubectl -n longhorn-system get node.longhorn.io \
     -o jsonpath='{range .items[?(@.spec.allowScheduling==true)]}{.metadata.name}{"\n"}{end}' | wc -l)
 

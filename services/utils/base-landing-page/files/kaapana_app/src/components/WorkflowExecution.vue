@@ -491,6 +491,23 @@ export default {
       }
       return result;
     },
+    validConfirmation() {
+      const formatted = this.formatFormData(this.formData);
+      const failedConfirmations = []
+      Object.entries(formatted).forEach(([formName, formValue]) => {
+        if (
+          formValue && typeof formValue === "object"
+          && Object.prototype.hasOwnProperty.call(formValue, "confirmation")
+        ) {
+          const value = formValue.confirmation;
+          if (value !== true) {
+            failedConfirmations.push(formName);
+          }
+        }
+      });
+
+      return failedConfirmations
+    },
     submissionValidator() {
       let valid_check = [];
       let invalid_fields = [];
@@ -542,6 +559,16 @@ export default {
           }
         }
         if (valid_check.every((value) => value === true)) {
+          // only enforce confirmations if all other required fields are OK
+          const failedConfirmations = this.validConfirmation();
+          if (failedConfirmations.length > 0) {
+            this.$notify({
+              type: "error",
+              title: "Please accept all required confirmations before starting the workflow.",
+              text: `Missing confirmation in: ${failedConfirmations.join(", ")}`,
+            });
+            return false;
+          }
           // all checks have been successful --> start workflow & return true
           this.submitWorkflow();
           return true;

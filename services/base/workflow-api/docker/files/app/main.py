@@ -1,11 +1,13 @@
+import asyncio
 import logging
 import os
-import asyncio
+from contextlib import asynccontextmanager
+
 from app.api.v1.routers import (
+    dummy_adapter_status,
     health_check,
     workflow_runs,
     workflows,
-    dummy_adapter_status,
 )
 from app.api.v1.services import errors
 from app.dependencies import get_connection_manager
@@ -20,6 +22,20 @@ logger = logging.getLogger(__name__)
 
 API_VERSION = "v1"
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Run sync in the background without blocking the API
+    sync_task = asyncio.create_task(run_sync(interval_seconds=30))
+    yield
+    # Shutdown: Cancel the sync task
+    sync_task.cancel()
+    try:
+        await sync_task
+    except asyncio.CancelledError:
+        pass
+
+
 app = FastAPI(
     title="Kaapana Workflow API",
     docs_url="/docs",
@@ -31,6 +47,7 @@ app = FastAPI(
             "description": "Operations for workflow resources.",
         }
     ],
+    lifespan=lifespan,
 )
 app.add_middleware(
     CORSMiddleware,
@@ -87,11 +104,3 @@ if os.getenv("ENABLE_TEST_ADAPTER", "false").lower() == "true":
         prefix=f"/{API_VERSION}",
         tags=["test endpoints for DummyAdapter"],
     )
-
-
-# TODO: Make the sync interval configurable
-# TODO: move this to a cron job or separate worker
-@app.on_event("startup")
-async def startup_event():
-    # Run sync in the background without blocking the API
-    asyncio.create_task(run_sync(interval_seconds=30))

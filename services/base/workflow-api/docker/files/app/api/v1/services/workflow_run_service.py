@@ -3,7 +3,7 @@ import logging
 from typing import Any, List, Optional
 
 from app import crud, models, schemas
-from app.adapters import get_workflow_engine, WorkflowEngineAdapter
+from app.adapters import WorkflowEngineAdapter, get_workflow_engine
 from app.api.v1.services.errors import InternalError, NotFoundError
 from app.api.v1.services.utils import run_in_background_with_retries
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +15,7 @@ async def get_workflow_runs(
     db: AsyncSession,
     workflow_title: Optional[str],
     workflow_version: Optional[int],
+    lifecycle_status: Optional[str] = None,
 ) -> List[schemas.WorkflowRun]:
     """
     Gets workflow runs from workflow DB, optionally filtered by workflow title and version.
@@ -32,6 +33,14 @@ async def get_workflow_runs(
         filters["workflow.title"] = workflow_title
     if workflow_version:
         filters["workflow.version"] = workflow_version
+    if lifecycle_status:
+        # Convert string to enum value (e.g., "COMPLETED" -> WorkflowRunStatus.COMPLETED)
+        try:
+            status_enum = schemas.WorkflowRunStatus[lifecycle_status]
+            filters["lifecycle_status"] = status_enum
+        except KeyError:
+            logger.warning(f"Invalid lifecycle_status: {lifecycle_status}")
+            return []
 
     # get workflow runs from the database
     runs: List[models.WorkflowRun] = await crud.get_workflow_runs(db, filters=filters)
@@ -121,7 +130,7 @@ async def create_workflow_run(
         )
     )
 
-    return schemas.WorkflowRun.from_orm(db_workflow_run)
+    return schemas.WorkflowRun.model_validate(db_workflow_run)
 
 
 async def get_workflow_run_by_id(
@@ -158,19 +167,35 @@ async def cancel_workflow_run(
 ) -> schemas.WorkflowRun:
     """
     Updates the status of a workflow run to canceled in workflow db and cancels the run in the workflow engine.
+
+    For workflows in terminal states (COMPLETED, ERROR, CANCELED), this is a no-op that returns
+    the existing state without error - preserving idempotency and state immutability.
+
     Args:
         db (AsyncSession): Database session
         workflow_run_id (int): ID of the workflow run to cancel
     Returns:
-        WorkflowRun: The updated WorkflowRun object
+        WorkflowRun: The workflow run object (updated to CANCELED if it was active, unchanged if terminal)
     Raises:
         NotFoundError: If the workflow run is not found
-        InternalError: If the cancellation in the workflow engine fails
+        InternalError: If the cancellation in the workflow engine fails for non-terminal runs
     """
     run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
     if not run:
         logger.error(f"No workflow runs found to cancel {workflow_run_id}")
         raise NotFoundError("Workflow run not found")
+
+    # Terminal states are immutable - return existing state without error (idempotent no-op)
+    if run.lifecycle_status in [
+        schemas.WorkflowRunStatus.COMPLETED,
+        schemas.WorkflowRunStatus.ERROR,
+        schemas.WorkflowRunStatus.CANCELED,
+    ]:
+        logger.info(
+            f"Workflow run {workflow_run_id} is already in terminal state "
+            f"{run.lifecycle_status.value} - returning existing state"
+        )
+        return run
 
     engine = get_workflow_engine(run.workflow.workflow_engine)
     canceled = await engine.cancel_workflow_run(run.external_id)

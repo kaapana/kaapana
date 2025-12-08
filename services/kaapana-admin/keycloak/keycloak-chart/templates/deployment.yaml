@@ -15,6 +15,15 @@ spec:
       labels:
         app.kubernetes.io/name: keycloak
         app.kubernetes.io/component: keycloak
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9000"
+        prometheus.io/path: "/metrics"
+        prometheus.io/scheme: "https"
+        prometheus.io/custom_job_name: "keycloak"
+        prometheus.io/scrape_interval: "30s"
+        prometheus.io/scrape_timeout: "10s"
+        prometheus.io/insecure_skip_verify: "true"
     spec:
       initContainers:
       - name: init
@@ -54,6 +63,10 @@ spec:
             value: "100"
           - name: JAVA_OPTS
             value: "-Xmx400m"
+          - name: KC_METRICS_ENABLED
+            value: "true"
+          - name: KC_HEALTH_ENABLED
+            value: "true"
           ports:
           - name: http
             containerPort: 8080
@@ -61,6 +74,8 @@ spec:
             containerPort: 8443
           - name: admin
             containerPort: 9990
+          - name: metrics
+            containerPort: 9000
           resources:
             requests:
               memory: 600Mi
@@ -83,6 +98,20 @@ spec:
           - "true"
           securityContext:
             allowPrivilegeEscalation: false
+          livenessProbe:
+            httpGet:
+              scheme: HTTPS
+              path: /health/live
+              port: metrics
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              scheme: HTTPS
+              path: /health/ready
+              port: metrics
+            initialDelaySeconds: 20
+            periodSeconds: 10
       volumes:
       - name: ssl-config-files
         secret:

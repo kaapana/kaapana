@@ -1,3 +1,11 @@
 ---
 global:
     pull_policy_images: "IfNotPresent"
+
+forwarder:
+    logLevel: "INFO"
+    topicPrefix: "Alertmanager"
+    defaultIcon: "mdi-alert"
+    adminProjectCacheTtl: 300
+    httpTimeout: 10
+    httpConnectTimeout: 5

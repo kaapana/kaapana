@@ -12,6 +12,14 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: "loki"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.loki.port }}"
+        prometheus.io/path: "/metrics"
+        prometheus.io/scheme: "http"
+        prometheus.io/custom_job_name: "loki"
+        prometheus.io/scrape_interval: "30s"
+        prometheus.io/scrape_timeout: "10s"
     spec:
       initContainers:
         - name: volume-permissions

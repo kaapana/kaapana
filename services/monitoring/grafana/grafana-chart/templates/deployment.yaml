@@ -72,6 +72,12 @@ spec:
           - name: grafana-dashboards
             mountPath: /etc/grafana/dashboards/loki-logs/dashboards/loki-logs-dashboard.json
             subPath: loki-logs-dashboard.json
+          - name: grafana-dashboards
+            mountPath: /etc/grafana/dashboards/operator-dashboard/dashboards/operator-dashboard.json
+            subPath: operator-dashboard.json
+          - name: grafana-dashboards
+            mountPath: /etc/grafana/dashboards/node-exporter-dashboard/dashboards/node-exporter-dashboard.json
+            subPath: node-exporter-dashboard.json
           {{- if .Values.global.gpu_support }}
           - name: grafana-dashboards
             mountPath: /etc/grafana/dashboards/gpu/dashboards/gpu-dashboard.json
@@ -128,6 +134,10 @@ spec:
             path: api-dashboard.json
           - key: loki-logs-dashboard.json
             path: loki-logs-dashboard.json
+          - key: operator-dashboard.json
+            path: operator-dashboard.json
+          - key: node-exporter-dashboard.json
+            path: node-exporter-dashboard.json
           {{- if .Values.global.gpu_support }}
           - key: gpu-dashboard.json
             path: gpu-dashboard.json

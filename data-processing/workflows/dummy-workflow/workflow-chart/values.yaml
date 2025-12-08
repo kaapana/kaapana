@@ -1,0 +1,6 @@
+---
+global:
+  pull_policy_images: "IfNotPresent"
+
+processingContainers:
+  - dummy

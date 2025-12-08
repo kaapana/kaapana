@@ -3,7 +3,7 @@
 FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="airflow"
-LABEL VERSION="2.10.5"
+LABEL VERSION="2.11.0"
 LABEL BUILD_IGNORE="False"
 
 ENV SLUGIFY_USES_TEXT_UNIDECODE=yes
@@ -15,7 +15,7 @@ WORKDIR /kaapana/app
 
 COPY files/requirements.txt /files/requirements.txt
 COPY files/constraints-3.12.txt /files/constraints-3.12.txt
-RUN python3 -m pip install apache-airflow[cncf.kubernetes]==2.10.5 -c /files/constraints-3.12.txt
+RUN python3 -m pip install apache-airflow[cncf.kubernetes]==2.11.0 -c /files/constraints-3.12.txt
 RUN python3 -m pip install --upgrade setuptools pip && pip3 install -r /files/requirements.txt
 COPY files/scripts/ /scripts
 

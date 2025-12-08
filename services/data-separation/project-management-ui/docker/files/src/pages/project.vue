@@ -143,6 +143,77 @@
                 </v-sheet>
             </v-col>
         </v-row>
+        <v-row justify="space-between">
+            <v-col>
+                <v-row justify="space-between">
+                    <v-col cols="6">
+                        <h5 class="text-h5 py-4">Launch Project Applications</h5>
+                    </v-col>
+                </v-row>
+                <v-table>
+                    <t-head>
+                    <tr>
+                        <th></th>
+                        <th class="text-left">
+                            Name
+                        </th>
+                        <th class="text-center" v-if="userHasAdminAccess  || can(project?.id,'manage_project_extensions')">
+                            Launch
+                        </th>
+                    </tr>
+                    </t-head>
+                    <tbody>
+                    <tr v-for="item in multiinstallableExtensions" :key="item.releaseName">
+                        <td><v-icon>mdi-application-outline</v-icon></td>
+                        <td>{{ item.annotations["ui-visible-name"] }}</td>
+                        <td class="text-center" v-if="userHasAdminAccess || can(project?.id,'manage_project_extensions')">
+                            <v-btn 
+                            density="default">
+                                Launch
+                            </v-btn>
+                        </td>
+                    </tr>
+                </tbody>
+
+                </v-table>
+            </v-col>
+            
+        </v-row>
+        <v-row>
+            <v-col>
+                <v-row justify="space-between">
+                    <v-col cols="6">
+                        <h5 class="text-h5 py-4">Active Project Applications</h5>
+                    </v-col>
+                </v-row>
+                <v-table>
+                    <t-head>
+                    <tr>
+                        <th></th>
+                        <th class="text-left">
+                            Name
+                        </th>
+                        <th class="text-center" v-if="userHasAdminAccess  || can(project?.id,'manage_project_extensions')">
+                            DELETE
+                        </th>
+                    </tr>
+                    </t-head>
+                    <tbody>
+                    <tr v-for="item in installedExtensions" :key="item.releaseName">
+                        <td><v-icon>mdi-application-outline</v-icon></td>
+                        <td>{{ item.display_name }}</td>
+                        <td class="text-center" v-if="userHasAdminAccess || can(project?.id,'manage_project_extensions')">
+                            <v-btn 
+                            density="default"
+                            icon="mdi-trash-can"
+                            >
+                            </v-btn>
+                        </td>
+                    </tr>
+                </tbody>
+                </v-table>
+            </v-col>
+        </v-row>
 
     </v-container>
     <v-dialog v-model="softwareDialog" max-width="1000">
@@ -162,7 +233,7 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue'
-import { aiiApiGet, aiiApiDelete } from '@/common/aiiApi.service'
+import { aiiApiGet, aiiApiDelete, kubeHelmGet } from '@/common/aiiApi.service'
 import { ProjectItem, UserItem, UserRole, Software } from '@/common/types'
 import AddUserToProject from '@/components/AddUserToProject.vue'
 import store from "@/common/store";
@@ -199,12 +270,17 @@ export default defineComponent({
             userHasAdminAccess: false,
             allowedSoftware: [] as Software[],
             softwareDialog: false,
+            multiinstallableExtensions: [] as any[],
+            installedExtensions: [] as any[],
+            activeApplications: [] as any[],
         };
     },
     mounted() {
         this.fetchProject();
         this.fetchProjectUsers();
         this.fetchProjectSoftware();
+        this.fetchMultiinstallableApplications();
+        this.fetchActiveApplications();
 
         // set the userAdminAccess by watching the changes in store user
         const setAdminAccessRef = this.setUserAdminAccess;
@@ -228,7 +304,10 @@ export default defineComponent({
                 tempUserIds.push(user.id);
             });
             this.userIds = [...tempUserIds];
-        }
+        },
+        'project': function() {
+            this.fetchActiveApplications()
+        },
     },
     methods: {
         handleUserSubmit(success: boolean = true) {
@@ -241,6 +320,39 @@ export default defineComponent({
             // @ts-ignore
             if (await this.$refs.confirm.open('Delete User from Project', 'Are you sure?', { color: 'red' })) {
                 this.deleteProjectUsers(userId);
+            }
+        },
+        async fetchMultiinstallableApplications() {
+            // Get all installable applications
+            try {
+                const extensions = await kubeHelmGet(`extensions`)
+                
+                const multiinstallableExtensions = extensions.filter((item:any) => {
+                    return item.multiinstallable === "yes"});
+                this.multiinstallableExtensions = multiinstallableExtensions.filter((item:any) => {
+                        return item.installed === "no";});
+                this.installedExtensions = multiinstallableExtensions.filter((item:any) => {
+                        return item.installed === "yes";});
+
+                console.log("MULTIINSTALLABLE EXTENSIONS:")
+                console.log(JSON.stringify(this.multiinstallableExtensions))
+                console.log(JSON.stringify(this.installedExtensions))
+            } catch (error: unknown) {
+                console.log(error);
+            }
+        },
+        async fetchActiveApplications() {
+            // Get all installable applications
+            if (this.project) {
+                const projectName = this.project.name
+                try {
+                    const applications = await kubeHelmGet(`active-applications`)
+
+                    this.activeApplications = applications.filter((item: any) => {return item.project === projectName});
+                    console.log(JSON.stringify(this.activeApplications))
+                } catch (error: unknown) {
+                    console.log(error);
+                }
             }
         },
         openUserEditDialog(selectedUser: User) {
@@ -287,6 +399,7 @@ export default defineComponent({
                 }
             }
         },
+
         fetchProjectUserRole(userId: string, userIdx: number) {
             if (this.projectId) {
                 try {

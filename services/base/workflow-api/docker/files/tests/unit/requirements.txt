@@ -1,0 +1,7 @@
+pytest_asyncio==1.3.0
+httpx==0.28.1
+pydantic==2.12.5
+pydantic_settings==2.10.1
+fastapi==0.116.1
+sqlalchemy==2.0.44
+aiosqlite==0.21.0

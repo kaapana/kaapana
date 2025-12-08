@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, List, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class WorkflowRunStatus(str, Enum):
@@ -301,9 +301,24 @@ class WorkflowBase(BaseModel):
     workflow_parameters: Optional[List[WorkflowParameter]] = None
     labels: List[Label] = []
 
+    @field_validator("labels")
+    @classmethod
+    def validate_unique_labels(cls, labels: List[Label]) -> List[Label]:
+        """Ensure labels don't contain duplicates based on key-value pairs."""
+        seen = set()
+        for label in labels:
+            label_tuple = (label.key, label.value)
+            if label_tuple in seen:
+                raise ValueError(
+                    f"Duplicate label found: key='{label.key}', value='{label.value}'. "
+                    "Each label must have a unique key-value combination."
+                )
+            seen.add(label_tuple)
+        return labels
+
 
 class WorkflowCreate(WorkflowBase):
-    pass
+    model_config = ConfigDict(extra="forbid")
 
 
 class Workflow(WorkflowBase):

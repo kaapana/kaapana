@@ -1,0 +1,45 @@
+{
+    "title": "test-task-operator",
+    "workflow_engine": "airflow",
+    "labels": [
+        {
+            "key": "category",
+            "value": "testing"
+        },
+        {
+            "key": "environment",
+            "value": "development"
+        },
+        {
+            "key": "provider",
+            "value": "dkfz-mic"
+        }
+    ],
+    "workflow_parameters": [
+        {
+            "task_title": "upstream",
+            "env_variable_name": "SAMPLE_PARAM",
+            "ui_form": {
+                "type": "str",
+                "title": "Sample Parameter",
+                "description": "An example string parameter",
+                "regex_pattern": ".*",
+                "default": "default_value",
+                "required": false
+            }
+        },
+        {
+            "task_title": "downstream",
+            "env_variable_name": "ENABLE_FEATURE",
+            "ui_form": {
+                "type": "bool",
+                "title": "Enable Feature",
+                "description": "Toggle to enable or disable a feature",
+                "default": true,
+                "required": false,
+                "true_label": "Enabled",
+                "false_label": "Disabled"
+            }
+        }
+    ]
+}

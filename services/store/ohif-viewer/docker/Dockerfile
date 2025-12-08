@@ -25,7 +25,7 @@ RUN git apply customization.patch
 RUN yarn install
 RUN yarn run build
 
-FROM docker.io/nginx:1.27.3-alpine AS production-stage
+FROM docker.io/nginx:1.29.3-alpine AS production-stage
 
 COPY --from=build /src/platform/app/dist/ /usr/share/nginx/html/ohif/
 

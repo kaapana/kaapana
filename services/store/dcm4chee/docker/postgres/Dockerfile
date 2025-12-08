@@ -9,7 +9,7 @@ RUN git clone https://github.com/dcm4che-dockerfiles/postgres-dcm4chee.git . \
 FROM local-only/postgres-base:latest
 
 LABEL IMAGE="dcm4che-postgres"
-LABEL VERSION="17.1"
+LABEL VERSION="17.7"
 LABEL BUILD_IGNORE="False"
 
 COPY --from=postgres /dcm4chee/docker-entrypoint-initdb.d docker-entrypoint-initdb.d/

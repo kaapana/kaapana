@@ -168,13 +168,13 @@
                         <td>{{ item.annotations["ui-visible-name"] }}</td>
                         <td class="text-center" v-if="userHasAdminAccess || can(project?.id,'manage_project_extensions')">
                             <v-btn 
-                            density="default">
+                            density="default"
+                            @click="launchApplication(item)">
                                 Launch
                             </v-btn>
                         </td>
                     </tr>
-                </tbody>
-
+                    </tbody>
                 </v-table>
             </v-col>
             
@@ -228,16 +228,24 @@
         <AddUserToProject :projectId="project?.id || ''" :projectName="project?.name || ''" action-type="update" :selected-user="selectedUser"
             :current-role="selectedUser?.role" :onsuccess="handleUserSubmit" :oncancel="resetUserFormValues" />
     </v-dialog>
+    <v-dialog v-model="launchApplicationDialog" max-width="1000">
+        <LaunchApplication 
+        :extension="selectedExtension"
+        @submit="handleExtensionSubmit"
+        @close="launchApplicationDialog = false"
+        />
+    </v-dialog>
     <confirm ref="confirm"></confirm>
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
-import { aiiApiGet, aiiApiDelete, kubeHelmGet } from '@/common/aiiApi.service'
+import { aiiApiGet, aiiApiDelete, kubeHelmGet, kubeHelmPost } from '@/common/aiiApi.service'
 import { ProjectItem, UserItem, UserRole, Software } from '@/common/types'
 import AddUserToProject from '@/components/AddUserToProject.vue'
 import store from "@/common/store";
 import { usePermissions } from '@/permissions/usePermissions';
+import LaunchApplication from '@/components/LaunchApplication.vue';
 
 
 interface User extends UserItem {
@@ -246,7 +254,8 @@ interface User extends UserItem {
 
 export default defineComponent({
     components: {
-        AddUserToProject
+        AddUserToProject,
+        LaunchApplication
     },
     props: {},
     setup () {
@@ -273,6 +282,8 @@ export default defineComponent({
             multiinstallableExtensions: [] as any[],
             installedExtensions: [] as any[],
             activeApplications: [] as any[],
+            launchApplicationDialog: false,
+            selectedExtension: null as any,
         };
     },
     mounted() {
@@ -333,13 +344,30 @@ export default defineComponent({
                         return item.installed === "no";});
                 this.installedExtensions = multiinstallableExtensions.filter((item:any) => {
                         return item.installed === "yes";});
-
-                console.log("MULTIINSTALLABLE EXTENSIONS:")
-                console.log(JSON.stringify(this.multiinstallableExtensions))
-                console.log(JSON.stringify(this.installedExtensions))
             } catch (error: unknown) {
                 console.log(error);
             }
+        },
+        async launchApplication(item :any) {
+            this.selectedExtension = item;
+            this.launchApplicationDialog = true;
+        },
+        async handleExtensionSubmit({ extension, values }: { extension: any; values: any }) {
+            console.log("Submitting:", extension, values);
+            // send to API here
+            const data = {
+                name: extension.name,
+                version: extension.version,
+                keywords: extension.keywords,
+                extension_params: values,
+            }
+            try {
+                await kubeHelmPost(`helm-install-chart`, data)
+            } catch (error: unknown) {
+                console.log(error);
+            }
+            
+            this.launchApplicationDialog = false;
         },
         async fetchActiveApplications() {
             // Get all installable applications

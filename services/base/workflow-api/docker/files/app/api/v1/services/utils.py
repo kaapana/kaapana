@@ -1,7 +1,8 @@
-from app.dependencies import get_async_db
-from typing import Any, Callable, Coroutine
-import logging
 import asyncio
+import logging
+from typing import Any, Callable, Coroutine
+
+from app.dependencies import get_async_db
 
 logger = logging.getLogger(__name__)
 
@@ -37,12 +38,11 @@ async def run_in_background_with_retries(
                 await func(*args, **kwargs)
             logger.debug(f"Background task {func.__name__} completed successfully.")
             return
-        except Exception as e:
-            logger.warning(
-                f"Attempt {attempt}/{max_retries} failed for {func.__name__}: {e}"
-            )
+        except Exception:
+            # Log full traceback — this is important for debugging transient failures.
+            logger.exception(f"Attempt {attempt}/{max_retries} failed for {func.__name__}")
             if attempt == max_retries:
-                logger.error(
+                logger.exception(
                     f"All {max_retries} retries failed for background task {func.__name__}"
                 )
                 return

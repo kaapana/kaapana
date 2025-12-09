@@ -146,7 +146,6 @@ Chart Dependency Tree
     │           ├── radiomics-workflow
     │           ├── rateme-chart
     │           ├── rateme-workflow
-    │           ├── shapemodel-workflow
     │           ├── slicer-workbench-chart
     │           ├── tensorboard-chart
     │           └── total-segmentator-workflow

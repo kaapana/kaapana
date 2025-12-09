@@ -3,7 +3,7 @@ FROM local-only/base-python-cpu-3.10:latest AS poetry2requirements
 
 RUN git clone https://github.com/UMEssen/Body-and-Organ-Analysis.git /Body-and-Organ-Analysis
 WORKDIR /Body-and-Organ-Analysis
-RUN git checkout 0a3a344
+RUN git checkout e80a6d7
 RUN ./scripts/generate_version.sh
 
 ENV POETRY_HOME=/etc/poetry
@@ -16,7 +16,7 @@ RUN python3 -m poetry export -E "triton pacs" --without-hashes -f requirements.t
 FROM local-only/base-python-gpu-3.10:latest
 
 LABEL IMAGE="body-and-organ-analysis"
-LABEL VERSION="0.1.3"
+LABEL VERSION="0.1.5"
 LABEL BUILD_IGNORE="False"
 
 COPY --from=poetry2requirements /Requirements.txt /tmp
@@ -25,8 +25,8 @@ RUN apt-get -y update; DEBIAN_FRONTEND=noninteractive apt-get -y install \
 
 ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
 
-ENV BOA_VERSION=0.1.3
-ENV BOA_GITHASH=0a3a344
+ENV BOA_VERSION=0.1.5
+ENV BOA_GITHASH=e80a6d7
 WORKDIR /app
 
 COPY --from=poetry2requirements /Body-and-Organ-Analysis/pyproject.toml /Body-and-Organ-Analysis/README.md /app/

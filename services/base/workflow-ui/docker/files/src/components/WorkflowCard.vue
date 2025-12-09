@@ -32,9 +32,23 @@
             label="Version" density="compact" variant="outlined" hide-details />
         </v-col>
         <v-col :cols="versions && versions.length > 1 ? 6 : 12">
-          <v-btn color="primary" variant="elevated" block @click.stop="openForm">
-            START
+          <v-btn
+            :disabled="tasksLoading || hasTasks !== true"
+            color="primary"
+            variant="elevated"
+            block
+            @click.stop="openForm"
+          >
+            <template v-if="tasksLoading || hasTasks === null">Checking...</template>
+            <template v-else-if="hasTasks === false">Not ready</template>
+            <template v-else>START</template>
           </v-btn>
+          <div v-if="hasTasks === false" class="text-caption text-disabled mt-1">
+            Tasks not available yet — workflow is still being parsed.
+          </div>
+          <div v-else-if="tasksError" class="text-caption text-warning mt-1">
+            {{ tasksError }}
+          </div>
         </v-col>
       </v-row>
     </v-card-actions>
@@ -45,10 +59,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import type { Workflow, Label, WorkflowRunCreate } from '@/types/schemas'
 import { workflowRunsApi } from '@/api/workflowRuns'
 import WorkflowRunForm from './WorkflowForm.vue'
+import { fetchWorkflowTasks } from '@/api/workflows'
 
 const props = defineProps<{
   workflow: Workflow
@@ -91,6 +106,36 @@ const selectedWorkflow = computed(() => {
 // Form dialog state
 const showForm = ref(false)
 const submitting = ref(false)
+const tasksLoading = ref(false)
+const tasksError = ref<string | null>(null)
+const hasTasks = ref<boolean | null>(null)
+
+async function loadTasksForSelected() {
+  const wf = selectedWorkflow.value
+  if (!wf) {
+    hasTasks.value = false
+    return
+  }
+  tasksLoading.value = true
+  tasksError.value = null
+  try {
+    const tasks = await fetchWorkflowTasks(wf.title, wf.version)
+    hasTasks.value = Array.isArray(tasks) && tasks.length > 0
+  } catch (err) {
+    console.error('Failed to fetch tasks for workflow:', err)
+    tasksError.value = 'Tasks unavailable'
+    hasTasks.value = false
+  } finally {
+    tasksLoading.value = false
+  }
+}
+
+// load tasks when selected workflow or version changes
+watch(selectedWorkflow, () => {
+  loadTasksForSelected()
+}, { immediate: true })
+
+onMounted(() => loadTasksForSelected())
 
 // Open form dialog
 const openForm = () => {

@@ -1,4 +1,4 @@
-import apiClient from './apiClient'
+import apiClient from './workflowApiClient'
 import { toRaw } from 'vue'
 import type { WorkflowRun, WorkflowRunCreate, WorkflowRunUpdate } from '@/types/schemas'
 

@@ -61,7 +61,7 @@
                                         <template v-for="param in parameters" :key="param.env_variable_name">
                                             <!-- Boolean Field -->
                                             <v-switch v-if="param.ui_form.type === 'bool'"
-                                                v-model="formData[param.env_variable_name]" :label="param.ui_form.title"
+                                                v-model="formData[fieldKey(param)]" :label="param.ui_form.title"
                                                 :hint="param.ui_form.description" persistent-hint color="primary"
                                                 density="comfortable" class="parameter-field" :true-value="true"
                                                 :false-value="false">
@@ -79,7 +79,7 @@
 
                                             <!-- Integer Field -->
                                             <v-text-field v-else-if="param.ui_form.type === 'int'"
-                                                v-model.number="formData[param.env_variable_name]"
+                                                v-model.number="formData[fieldKey(param)]"
                                                 :label="param.ui_form.title + (param.ui_form.required ? ' *' : '')"
                                                 :hint="getFieldHint(param.ui_form)" type="number" density="comfortable"
                                                 variant="outlined" class="parameter-field no-spinners"
@@ -99,7 +99,7 @@
 
                                             <!-- Float Field -->
                                             <v-text-field v-else-if="param.ui_form.type === 'float'"
-                                                v-model.number="formData[param.env_variable_name]"
+                                                v-model.number="formData[fieldKey(param)]"
                                                 :label="param.ui_form.title + (param.ui_form.required ? ' *' : '')"
                                                 :hint="getFieldHint(param.ui_form)" type="number" step="any"
                                                 density="comfortable" variant="outlined"
@@ -121,7 +121,7 @@
                                             <!-- List Field (Multi-select) -->
                                             <v-select
                                                 v-else-if="param.ui_form.type === 'list' && param.ui_form.multiselectable"
-                                                v-model="formData[param.env_variable_name]"
+                                                v-model="formData[fieldKey(param)]"
                                                 :label="param.ui_form.title + (param.ui_form.required ? ' *' : '')"
                                                 :hint="param.ui_form.description" :items="param.ui_form.options || []"
                                                 multiple chips closable-chips density="comfortable" variant="outlined"
@@ -141,7 +141,7 @@
 
                                             <!-- List Field (Single-select) -->
                                             <v-select v-else-if="param.ui_form.type === 'list'"
-                                                v-model="formData[param.env_variable_name]"
+                                                v-model="formData[fieldKey(param)]"
                                                 :label="param.ui_form.title + (param.ui_form.required ? ' *' : '')"
                                                 :hint="param.ui_form.description" :items="param.ui_form.options || []"
                                                 density="comfortable" variant="outlined" class="parameter-field"
@@ -160,13 +160,16 @@
                                             </v-select>
 
                                             <!-- Dataset Field -->
-                                            <v-text-field v-else-if="param.ui_form.type === 'dataset'"
-                                                v-model="formData[param.env_variable_name]"
+                                            <v-select v-else-if="param.ui_form.type === 'dataset'"
+                                                v-model="formData[fieldKey(param)]"
                                                 :label="param.ui_form.title + (param.ui_form.required ? ' *' : '')"
-                                                :hint="param.ui_form.description" density="comfortable"
+                                                :hint="param.ui_form.description" :items="datasetOptions"
+                                                item-title="name" item-value="name" density="comfortable"
                                                 variant="outlined" class="parameter-field"
                                                 :rules="getRequiredRules(param.ui_form)"
-                                                :required="param.ui_form.required" validate-on="blur">
+                                                :required="param.ui_form.required" validate-on="blur"
+                                                :loading="datasetsLoading"
+                                                :disabled="datasetsLoading || datasetsError !== null">
                                                 <template #prepend-inner>
                                                     <v-icon size="small" color="grey">mdi-database</v-icon>
                                                 </template>
@@ -180,11 +183,14 @@
                                                         {{ param.ui_form.help }}
                                                     </v-tooltip>
                                                 </template>
-                                            </v-text-field>
+                                                <template v-if="datasetsError" #message>
+                                                    <span class="text-error">{{ datasetsError }}</span>
+                                                </template>
+                                            </v-select>
 
                                             <!-- Data Entity Field -->
                                             <v-text-field v-else-if="param.ui_form.type === 'data_entity'"
-                                                v-model="formData[param.env_variable_name]"
+                                                v-model="formData[fieldKey(param)]"
                                                 :label="param.ui_form.title + (param.ui_form.required ? ' *' : '')"
                                                 :hint="param.ui_form.description" density="comfortable"
                                                 variant="outlined" class="parameter-field"
@@ -207,7 +213,7 @@
 
                                             <!-- String Field (default) -->
                                             <v-text-field v-else-if="param.ui_form.type === 'str'"
-                                                v-model="formData[param.env_variable_name]"
+                                                v-model="formData[fieldKey(param)]"
                                                 :label="param.ui_form.title + (param.ui_form.required ? ' *' : '')"
                                                 :hint="param.ui_form.description" density="comfortable"
                                                 variant="outlined" class="parameter-field"
@@ -227,7 +233,7 @@
 
                                             <!-- File Upload Field -->
                                             <v-file-input v-else-if="param.ui_form.type === 'file'"
-                                                v-model="formData[param.env_variable_name]"
+                                                v-model="formData[fieldKey(param)]"
                                                 :label="param.ui_form.title + (param.ui_form.required ? ' *' : '')"
                                                 :hint="param.ui_form.description"
                                                 :accept="param.ui_form.accept || undefined"
@@ -246,7 +252,7 @@
 
                                             <!-- Terms and Conditions Field -->
                                             <v-checkbox v-else-if="param.ui_form.type === 'terms'"
-                                                v-model="formData[param.env_variable_name]" color="primary"
+                                                v-model="formData[fieldKey(param)]" color="primary"
                                                 density="comfortable" class="parameter-field"
                                                 :rules="[(v: boolean) => v === true || 'You must accept the terms to continue']">
                                                 <template #label>
@@ -290,8 +296,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import type { Workflow, WorkflowRunCreate, WorkflowParameter, UIForm, IntegerUIForm, FloatUIForm, StringUIForm } from '@/types/schemas'
+import { ref, computed, watch, onMounted } from 'vue'
+import type { Workflow, WorkflowRunCreate, WorkflowParameter, UIForm, IntegerUIForm, FloatUIForm, StringUIForm, Dataset } from '@/types/schemas'
+import { fetchDatasets } from '@/api/datasetsApiClient'
 
 const props = defineProps<{ workflow: Workflow; modelValue: boolean; submitting?: boolean }>()
 const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void; (e: 'submit', data: WorkflowRunCreate): void }>()
@@ -301,7 +308,46 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const formRef = ref<any>(null)
 const formData = ref<Record<string, any>>({})
+
+// Helper to create a unique key per task+env name so fields with the same
+// env_variable_name but different tasks do not collide (e.g. two DATASET fields)
+function fieldKey(param: WorkflowParameter) {
+    return `${param.task_title}::${param.env_variable_name}`
+}
 const expandedPanels = ref<number[]>([])
+
+// Dataset loading state
+const datasetOptions = ref<Dataset[]>([])
+const datasetsLoading = ref(false)
+const datasetsError = ref<string | null>(null)
+
+// Load datasets from kaapana-backend
+async function loadDatasets() {
+    datasetsLoading.value = true
+    datasetsError.value = null
+    try {
+        datasetOptions.value = await fetchDatasets()
+    } catch (err: any) {
+        console.error('Failed to load datasets:', err)
+        datasetsError.value = 'Failed to load datasets from kaapana-backend'
+        datasetOptions.value = []
+    } finally {
+        datasetsLoading.value = false
+    }
+}
+
+// Check if workflow has any dataset parameters
+const hasDatasetParameters = computed(() => {
+    const workflowParams: WorkflowParameter[] = (props.workflow as any).workflow_parameters || []
+    return workflowParams.some(param => param.ui_form.type === 'dataset')
+})
+
+// Load datasets when dialog opens if there are dataset parameters
+watch(isOpen, (newValue) => {
+    if (newValue && hasDatasetParameters.value && datasetOptions.value.length === 0) {
+        loadDatasets()
+    }
+})
 
 // Expand/Collapse functions
 function expandAll() {
@@ -346,7 +392,7 @@ watch(
             const workflowParams: WorkflowParameter[] = (newWorkflow as any).workflow_parameters || []
 
             for (const param of workflowParams) {
-                const key = param.env_variable_name
+                const key = fieldKey(param)
                 const defaultValue = param.ui_form.default
 
                 // Set default value based on type
@@ -527,7 +573,7 @@ async function submitForm() {
 
     for (const param of workflowParams) {
         const envName = param.env_variable_name
-        const value = formData.value[envName]
+        const value = formData.value[fieldKey(param)]
 
         // Create parameter with updated default value
         payload.workflow_parameters!.push({
@@ -554,7 +600,7 @@ function closeForm() {
     const initialData: Record<string, any> = {}
 
     for (const param of workflowParams) {
-        const key = param.env_variable_name
+        const key = fieldKey(param)
         const defaultValue = param.ui_form.default
 
         if (defaultValue !== undefined && defaultValue !== null) {

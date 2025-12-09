@@ -1,4 +1,4 @@
-import apiClient from './apiClient';
+import apiClient from './workflowApiClient';
 import type { Workflow } from '@/types/schemas';
 
 
@@ -21,4 +21,11 @@ export async function fetchWorkflowById(id: number): Promise<Workflow> {
 export async function createWorkflow(workflow: Partial<Workflow>): Promise<Workflow> {
     const response = await apiClient.post<Workflow>('/workflows', workflow);
     return response.data;
+}
+
+// Fetch tasks for a workflow version
+export async function fetchWorkflowTasks(title: string, version: number) {
+    const encodedTitle = encodeURIComponent(title)
+    const response = await apiClient.get(`/workflows/${encodedTitle}/${version}/tasks`)
+    return response.data
 }

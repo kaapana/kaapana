@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, Type, cast
 
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import Select, func, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -138,9 +139,17 @@ async def create_workflow(
     max_version = result.scalar() or 0
     new_version = max_version + 1
 
-    # add labels if they don't already exist
+    # add labels (use upsert pattern to avoid duplicates under concurrency)
     db_labels: List[models.Label] = []
     for label in getattr(workflow, "labels", []) or []:
+        # Insert if not exists, then select the existing/created row.
+        insert_stmt = (
+            insert(models.Label)
+            .values(key=label.key, value=label.value)
+            .on_conflict_do_nothing(index_elements=["key", "value"])
+        )
+        await db.execute(insert_stmt)
+
         stmt: Select[Any] = select(models.Label).where(
             models.Label.key == label.key, models.Label.value == label.value
         )
@@ -247,9 +256,16 @@ async def get_workflow_run(
 async def create_workflow_run(
     db: AsyncSession, workflow_run: schemas.WorkflowRunCreate, workflow_id: int
 ) -> models.WorkflowRun:
-    # add labels if they don't already exist
+    # add labels (use upsert pattern to avoid duplicates under concurrency)
     db_labels: List[models.Label] = []
     for label in getattr(workflow_run, "labels", []) or []:
+        insert_stmt = (
+            insert(models.Label)
+            .values(key=label.key, value=label.value)
+            .on_conflict_do_nothing(index_elements=["key", "value"])
+        )
+        await db.execute(insert_stmt)
+
         stmt = select(models.Label).where(
             models.Label.key == label.key, models.Label.value == label.value
         )

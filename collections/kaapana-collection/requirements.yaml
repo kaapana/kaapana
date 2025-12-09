@@ -38,8 +38,6 @@ dependencies:
     version: 0.0.0
   - name: radiomics-federated-workflow
     version: 0.0.0
-  - name: shapemodel-workflow
-    version: 0.0.0
   - name: tfda-spe-orchestrator-workflow
     version: 0.0.0
   # - name: rateme-workflow

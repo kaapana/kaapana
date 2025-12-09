@@ -87,6 +87,7 @@ async def get_workflow_runs(
 async def create_workflow_run(
     db: AsyncSession,
     workflow_run: schemas.WorkflowRunCreate,
+    project_id: str,
 ) -> schemas.WorkflowRun:
     """
     Creates a new workflow run in the database and submits it to the workflow engine as a background task.
@@ -127,6 +128,7 @@ async def create_workflow_run(
             db=db,
             workflow_run=db_workflow_run,
             workflow_engine=engine,
+            project_id=project_id,
         )
     )
 
@@ -365,6 +367,7 @@ async def _submit_workflow_run_to_engine(
     db: AsyncSession,
     workflow_run: models.WorkflowRun,
     workflow_engine: WorkflowEngineAdapter,
+    project_id: str,
 ) -> None:
     """
     Submits a workflow run to the workflow engine and updates the database with the returned external ID and status values.
@@ -377,7 +380,9 @@ async def _submit_workflow_run_to_engine(
     Raises:
         InternalError: If the workflow engine does not return an external ID
     """
-    wf_run_update = await workflow_engine.submit_workflow_run(workflow_run)
+    wf_run_update = await workflow_engine.submit_workflow_run(
+        workflow_run, project_id=project_id
+    )
     logger.info(
         f"Submitted WorkflowRun {workflow_run.id} to engine, received update: {wf_run_update}"
     )

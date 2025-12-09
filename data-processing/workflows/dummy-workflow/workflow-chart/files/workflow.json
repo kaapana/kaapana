@@ -1,5 +1,5 @@
 {
-    "title": "test-task-operator",
+    "title": "dummy-workflow",
     "workflow_engine": "airflow",
     "labels": [
         {

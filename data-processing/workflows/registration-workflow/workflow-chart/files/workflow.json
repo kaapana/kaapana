@@ -14,9 +14,28 @@
             "key": "provider",
             "value": "dkfz-mic"
         }
-
     ],
     "workflow_parameters": [
+        {
+            "task_title": "download_fixed_image",
+            "env_variable_name": "DATASET",
+            "ui_form": {
+                "type": "dataset",
+                "title": "Dataset",
+                "description": "Select the dataset to use for fixed image - Single Image Dataset",
+                "required": true
+            }
+        },
+        {
+            "task_title": "download_moving_images",
+            "env_variable_name": "DATASET",
+            "ui_form": {
+                "type": "dataset",
+                "title": "Dataset",
+                "description": "Select the dataset to use for moving images - Multiple Images Dataset",
+                "required": true
+            }
+        },
         {
             "task_title": "registration",
             "env_variable_name": "REGISTRATION_METHOD",
@@ -24,7 +43,11 @@
                 "type": "list",
                 "title": "Registration Method",
                 "description": "Select the image registration algorithm to use",
-                "options": ["rigid", "affine", "deformable"],
+                "options": [
+                    "rigid",
+                    "affine",
+                    "deformable"
+                ],
                 "default": "rigid",
                 "multiselectable": false,
                 "required": true
@@ -37,7 +60,11 @@
                 "type": "list",
                 "title": "Interpolation Method",
                 "description": "Interpolation method for resampling",
-                "options": ["nearest", "linear", "bspline"],
+                "options": [
+                    "nearest",
+                    "linear",
+                    "bspline"
+                ],
                 "default": "linear",
                 "multiselectable": false,
                 "required": false

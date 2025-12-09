@@ -18,7 +18,7 @@
                     "mounted_path": "/home/kaapana/moving",
                     "description": "Expects for each image that should be registered a subdirectory that contains a single .nrrd file",
                     "scale_rule": {
-                        "scale_factor": 50,
+                        "scale_factor": 100,
                         "type": "limit",
                         "mode": "max_item_sum",
                         "target_glob": "*.nrrd"
@@ -35,10 +35,10 @@
             "command": ["/bin/bash", "/home/kaapana/register.sh"],
             "resources": {
                 "limits": {
-                    "memory": "1000Mi"
+                    "memory": "2000Mi"
                 },
                 "requests": {
-                    "memory": "100Mi"
+                    "memory": "1000Mi"
                 }
             }
         },

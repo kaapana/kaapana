@@ -11,7 +11,7 @@ args = {
 }
 
 
-with DAG("test-task-operator", default_args=args) as dag:
+with DAG("{{ dag_id }}", default_args=args) as dag:
     upstream = KaapanaTaskOperator(
         task_id="upstream",
         image=f"{DEFAULT_REGISTRY}/dummy:{KAAPANA_BUILD_VERSION}",

@@ -41,7 +41,7 @@ class Workflow(Base):
     title: Mapped[str] = mapped_column(String, index=True)
     version: Mapped[int] = mapped_column(Integer)
     definition: Mapped[str] = mapped_column(String)
-    workflow_parameters: Mapped[dict] = mapped_column(JSONB)
+    workflow_parameters: Mapped[list] = mapped_column(JSONB, nullable=True, default=list)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.now(timezone.utc)
     )
@@ -65,7 +65,7 @@ class WorkflowRun(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     workflow_id: Mapped[int] = mapped_column(Integer, ForeignKey("workflows.id"))
-    workflow_parameters: Mapped[dict] = mapped_column(JSONB)
+    workflow_parameters: Mapped[list] = mapped_column(JSONB, nullable=True, default=list)
     lifecycle_status: Mapped[WorkflowRunStatus] = mapped_column(
         SqlEnum(WorkflowRunStatus), default=WorkflowRunStatus.CREATED, nullable=False
     )
@@ -119,7 +119,7 @@ class Task(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     workflow_id: Mapped[int] = mapped_column(Integer, ForeignKey("workflows.id"))
     title: Mapped[str] = mapped_column(String, index=True)
-    display_name: Mapped[str] = mapped_column(String)
+    display_name: Mapped[str] = mapped_column(String, nullable=True)
     type: Mapped[str] = mapped_column(String)
     downstream_tasks: Mapped[List["DownstreamTask"]] = relationship(
         "DownstreamTask",

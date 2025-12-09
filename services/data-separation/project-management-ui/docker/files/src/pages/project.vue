@@ -224,7 +224,7 @@
                         <td>
                             <v-tooltip location="bottom">
                                 <template #activator="{ props }">
-                                <div class="text-content" v-bind="props">
+                                <div v-bind="props">
                                     <span>
                                     {{ item.description.length > 28 
                                             ? item.description.slice(0, 28) + "..."
@@ -627,14 +627,6 @@ export default defineComponent({
 <style scoped>
 .large-font {
     font-size: 40px;
-}
-.text-content .first-line {
-  font-size: 16px;
-  font-weight: bold;
-}
-.text-content .second-line {
-  font-size: 12px;
-  color: gray;
 }
 
 </style>

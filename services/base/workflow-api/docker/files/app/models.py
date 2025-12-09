@@ -4,9 +4,9 @@ from datetime import datetime, timezone
 from typing import List
 
 from app.schemas import TaskRunStatus, WorkflowRunStatus
-from sqlalchemy import Column, DateTime
+from sqlalchemy import Boolean, Column, DateTime
 from sqlalchemy import Enum as SqlEnum
-from sqlalchemy import ForeignKey, Integer, String, Table, UniqueConstraint, Boolean
+from sqlalchemy import ForeignKey, Integer, String, Table, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -36,14 +36,16 @@ class Workflow(Base):
     __tablename__ = "workflows"
     __table_args__ = (UniqueConstraint("title", "version"),)
 
-    id = Column(Integer, primary_key=True, index=True)
-    workflow_engine = Column(String)
-    title = Column(String, index=True)
-    version = Column(Integer)
-    definition = Column(String)
-    workflow_parameters = Column(JSONB)  # Schema for validate workflow run config
-    created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
-    removed = Column(Boolean, default=False, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    workflow_engine: Mapped[str] = mapped_column(String)
+    title: Mapped[str] = mapped_column(String, index=True)
+    version: Mapped[int] = mapped_column(Integer)
+    definition: Mapped[str] = mapped_column(String)
+    workflow_parameters: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.now(timezone.utc)
+    )
+    removed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     runs: Mapped[List[WorkflowRun]] = relationship(
         "WorkflowRun", back_populates="workflow"
@@ -61,9 +63,9 @@ class Workflow(Base):
 class WorkflowRun(Base):
     __tablename__ = "workflow_runs"
 
-    id = Column(Integer, primary_key=True, index=True)
-    workflow_id = Column(Integer, ForeignKey("workflows.id"))
-    workflow_parameters = Column(JSONB)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    workflow_id: Mapped[int] = mapped_column(Integer, ForeignKey("workflows.id"))
+    workflow_parameters: Mapped[dict] = mapped_column(JSONB)
     lifecycle_status: Mapped[WorkflowRunStatus] = mapped_column(
         SqlEnum(WorkflowRunStatus), default=WorkflowRunStatus.CREATED, nullable=False
     )
@@ -71,11 +73,13 @@ class WorkflowRun(Base):
         "Label",
         secondary=workflowrun_label,
         back_populates="workflow_runs",
-        lazy="selectin",  # by default lazy='select', which means that the related items are loaded only when they are accessed
+        lazy="selectin",
     )
-    external_id = Column(String, nullable=True)
-    created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
-    updated_at = Column(
+    external_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.now(timezone.utc)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=datetime.now(timezone.utc),
         onupdate=datetime.now(timezone.utc),
@@ -83,7 +87,6 @@ class WorkflowRun(Base):
     workflow: Mapped["Workflow"] = relationship(
         "Workflow", back_populates="runs", lazy="selectin"
     )
-
     task_runs: Mapped[List["TaskRun"]] = relationship(
         "TaskRun", back_populates="workflow_run", lazy="selectin"
     )
@@ -91,9 +94,9 @@ class WorkflowRun(Base):
 
 class Label(Base):
     __tablename__ = "labels"
-    id = Column(Integer, primary_key=True, index=True)
-    key = Column(String)
-    value = Column(String)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    key: Mapped[str] = mapped_column(String)
+    value: Mapped[str] = mapped_column(String)
     __table_args__ = (UniqueConstraint("key", "value"),)
 
     # reverse relationships
@@ -113,11 +116,11 @@ class Label(Base):
 class Task(Base):
     __tablename__ = "tasks"
 
-    id = Column(Integer, primary_key=True, index=True)
-    workflow_id = Column(Integer, ForeignKey("workflows.id"))
-    title = Column(String, index=True)  # e.g. total_segmentator_0
-    display_name = Column(String)
-    type = Column(String)  # e.g. TotalSegmentatorOperator
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    workflow_id: Mapped[int] = mapped_column(Integer, ForeignKey("workflows.id"))
+    title: Mapped[str] = mapped_column(String, index=True)
+    display_name: Mapped[str] = mapped_column(String)
+    type: Mapped[str] = mapped_column(String)
     downstream_tasks: Mapped[List["DownstreamTask"]] = relationship(
         "DownstreamTask",
         back_populates="task",
@@ -137,9 +140,9 @@ class Task(Base):
 class DownstreamTask(Base):
     __tablename__ = "downstream_tasks"
 
-    id = Column(Integer, primary_key=True, index=True)
-    task_id = Column(Integer, ForeignKey("tasks.id"))
-    downstream_task_id = Column(Integer, ForeignKey("tasks.id"))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    task_id: Mapped[int] = mapped_column(Integer, ForeignKey("tasks.id"))
+    downstream_task_id: Mapped[int] = mapped_column(Integer, ForeignKey("tasks.id"))
 
     task = relationship(
         "Task", foreign_keys=[task_id], back_populates="downstream_tasks"
@@ -151,10 +154,12 @@ class DownstreamTask(Base):
 class TaskRun(Base):
     __tablename__ = "task_runs"
 
-    id = Column(Integer, primary_key=True, index=True)
-    task_id = Column(Integer, ForeignKey("tasks.id"))
-    workflow_run_id = Column(Integer, ForeignKey("workflow_runs.id"))
-    external_id = Column(String, nullable=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    task_id: Mapped[int] = mapped_column(Integer, ForeignKey("tasks.id"))
+    workflow_run_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("workflow_runs.id")
+    )
+    external_id: Mapped[str | None] = mapped_column(String, nullable=True)
     lifecycle_status: Mapped[TaskRunStatus] = mapped_column(
         SqlEnum(TaskRunStatus), default=TaskRunStatus.CREATED, nullable=False
     )

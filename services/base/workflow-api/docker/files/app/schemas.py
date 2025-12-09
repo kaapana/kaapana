@@ -6,13 +6,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class WorkflowRunStatus(str, Enum):
-    CREATED = "Created"
-    PENDING = "Pending"
-    SCHEDULED = "Scheduled"
-    RUNNING = "Running"
-    ERROR = "Error"
-    COMPLETED = "Completed"
-    CANCELED = "Canceled"
+    CREATED = "Created"  # Created in Workflow-API DB, not yet picked up by engine
+    PENDING = "Pending"  # Picked up by engine, waiting to be scheduled
+    SCHEDULED = "Scheduled"  # Scheduled by engine, waiting to run
+    RUNNING = "Running"  # Currently running
+    ERROR = "Error"  # Execution failed
+    COMPLETED = "Completed"  # Successfully completed
+    CANCELED = "Canceled"  # Execution canceled
 
 
 class TaskRunStatus(str, Enum):
@@ -406,7 +406,7 @@ class WorkflowRunCreate(WorkflowRunBase):
 
 class WorkflowRun(WorkflowRunBase):
     id: int
-    external_id: Optional[str] = None
+    external_id: str | None
     created_at: datetime
     lifecycle_status: WorkflowRunStatus
     workflow: WorkflowRef
@@ -417,5 +417,6 @@ class WorkflowRun(WorkflowRunBase):
 
 
 class WorkflowRunUpdate(BaseModel):
+    # external_id is optional for updates that only change lifecycle_status
     external_id: Optional[str] = None
-    lifecycle_status: Optional[WorkflowRunStatus]
+    lifecycle_status: Optional[WorkflowRunStatus] = None

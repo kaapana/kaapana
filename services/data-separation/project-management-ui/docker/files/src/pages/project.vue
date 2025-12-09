@@ -186,6 +186,9 @@
                         <th class="text-left">
                             Name
                         </th>
+                        <th>
+                            Description
+                        </th>
                         <th class="text-center" v-if="userHasAdminAccess  || can(project?.id,'manage_project_extensions')">
                             Launch
                         </th>
@@ -194,7 +197,46 @@
                     <tbody>
                     <tr v-for="item in multiinstallableExtensions" :key="item.releaseName">
                         <td><v-icon>mdi-application-outline</v-icon></td>
-                        <td>{{ item.annotations["ui-visible-name"] }}</td>
+                        <td>
+                            <span>{{ item.annotations["ui-visible-name"] }}</span>
+
+                            <!-- DOCUMENTATION LINK TOOLTIP -->
+                            <v-tooltip location="bottom">
+                                <template #activator="{ props }">
+                                <a
+                                    :href="getFullEndpoint('/docs/' + item.annotations.documentation)"
+                                    target="_blank"
+                                    v-bind="props"
+                                >
+                                    <v-icon
+                                    class="cell-icon"
+                                    color="primary"
+                                    >
+                                    mdi-information
+                                    </v-icon>
+                                </a>
+                                </template>
+
+                                <span>Link to the documentation.</span>
+                            </v-tooltip>
+
+                        </td>
+                        <td>
+                            <v-tooltip location="bottom">
+                                <template #activator="{ props }">
+                                <div class="text-content" v-bind="props">
+                                    <span>
+                                    {{ item.description.length > 28 
+                                            ? item.description.slice(0, 28) + "..."
+                                            : item.description 
+                                    }}
+                                    </span>
+                                </div>
+                                </template>
+
+                                <span>{{ item.description }}</span>
+                            </v-tooltip>
+                        </td>
                         <td class="text-center" v-if="userHasAdminAccess || can(project?.id,'manage_project_extensions')">
                             <v-btn 
                             density="default"
@@ -227,6 +269,9 @@
                         <th class="text-left">
                             Name
                         </th>
+                        <th>
+                            Status
+                        </th>
                         <th>Links</th>
                         <th class="text-center" v-if="userHasAdminAccess  || can(project?.id,'manage_project_extensions')">
                             Uninstall
@@ -237,6 +282,9 @@
                     <tr v-for="item in activeApplications" :key="item.releaseName">
                         <td><v-icon>mdi-application-outline</v-icon></td>
                         <td>{{ item.annotations["kaapana.ai/display-name"] }}</td>
+                        <td>
+                            {{ installedExtensions[item.release_name].helmStatus }}
+                        </td>
                         <td>
                               <div class="flex gap-2 justify-center">
                                 <a 
@@ -254,7 +302,7 @@
                             <v-btn 
                             density="default"
                             icon="mdi-trash-can"
-                            @click="uninstallApplication(item)"
+                            @click="conformUninstallActiveApplication(item)"
                             >
                             </v-btn>
                         </td>
@@ -389,6 +437,12 @@ export default defineComponent({
                 this.deleteProjectUsers(userId);
             }
         },
+        async conformUninstallActiveApplication(item: any) {
+            // @ts-ignore
+            if (await this.$refs.confirm.open('Uninstall application', 'Do you really want to uninstall ' + item.release_name +'?', { color: 'red' })) {
+                this.uninstallApplication(item);
+            }
+        },
         async fetchMultiinstallableApplications() {
             // Get all installable applications
             try {
@@ -398,8 +452,11 @@ export default defineComponent({
                     return item.multiinstallable === "yes"});
                 this.multiinstallableExtensions = multiinstallableExtensions.filter((item:any) => {
                         return item.installed === "no";});
-                this.installedExtensions = multiinstallableExtensions.filter((item:any) => {
-                        return item.installed === "yes";});
+                this.installedExtensions = multiinstallableExtensions
+                .filter((item:any) => {return item.installed === "yes";})
+                .reduce((map:any,item:any) => { map[item.releaseName] = item; return map;}, {});
+                console.log("installedExtensions:")
+                console.log(JSON.stringify(this.installedExtensions))
             } catch (error: unknown) {
                 console.log(error);
             }
@@ -409,7 +466,6 @@ export default defineComponent({
             this.launchApplicationDialog = true;
         },
         async handleExtensionSubmit({ extension, values }: { extension: any; values: any }) {
-            console.log("Submitting:", extension, values);
             // send to API here
             const data = {
                 name: extension.name,
@@ -444,7 +500,6 @@ export default defineComponent({
                     const applications = await kubeHelmGet(`active-applications`)
 
                     this.activeApplications = applications.filter((item: any) => {return item.project === projectName});
-                    console.log(JSON.stringify(this.activeApplications))
                 } catch (error: unknown) {
                     console.log(error);
                 }
@@ -523,7 +578,6 @@ export default defineComponent({
             if (this.projectId) {
                 try {
                     aiiApiGet(`projects/${this.projectId}/software-mappings`).then((software: any) => {
-                        console.log(software)
                         this.allowedSoftware = software.sort((a: Software, b: Software) => {
                             return a.software_uuid.localeCompare(b.software_uuid);
                         });
@@ -574,4 +628,13 @@ export default defineComponent({
 .large-font {
     font-size: 40px;
 }
+.text-content .first-line {
+  font-size: 16px;
+  font-weight: bold;
+}
+.text-content .second-line {
+  font-size: 12px;
+  color: gray;
+}
+
 </style>

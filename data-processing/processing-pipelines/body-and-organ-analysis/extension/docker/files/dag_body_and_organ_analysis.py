@@ -63,6 +63,7 @@ ui_forms = {
                 "type": "array",
                 "items": {"type": "string", "enum": ["bca", "body", "total"]},
                 "default": ["bca"],
+                "minItems": 1,
             },
             "total_models": {
                 "title": "Optional models for 'total'",
@@ -87,7 +88,6 @@ ui_forms = {
                 "description": "When enabled, the workflow must produce all expected outputs. The process will fail if any required output is missing.",
                 "type": "boolean",
                 "default": False,
-                "required": True,
                 "readOnly": False,
             },
             "single_execution": {
@@ -103,8 +103,8 @@ ui_forms = {
                 "description": "Expected input modality.",
                 "type": "string",
                 "readOnly": True,
-                "required": True,
             },
+            "required": ["input", "strict_mode"],
         },
     },
 }

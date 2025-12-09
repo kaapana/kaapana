@@ -18,16 +18,27 @@
             <v-col>
                 <v-row justify="space-between">
                     <v-col cols="6">
-                        <h5 class="text-h5 py-4">Project Users</h5>
+                        <div class="d-flex align-center gap-2">
+                            <v-btn v-if="extendProjectUsers == false" icon="mdi-chevron-right" @click="extendProjectUsers = true">
+                            </v-btn>
+                            <v-btn v-if="extendProjectUsers == true" icon="mdi-chevron-down" @click="extendProjectUsers = false">
+                            </v-btn>
+                            <h5 class="text-h5 py-4">Project Users</h5>
+                        </div>
                     </v-col>
                     <v-col cols="3" class="d-flex justify-end align-center">
-                        <v-btn block @click="userDialog = true" size="large" prepend-icon="mdi-account-plus"
+                        <v-btn 
+                            block 
+                            @click="userDialog = true" 
+                            size="large"
+                            min-width="260"
+                            prepend-icon="mdi-account-plus"
                             v-if="userHasAdminAccess || can(project?.id,'manage_project_users')">
                             Add User to Project
                         </v-btn>
                     </v-col>
                 </v-row>
-                <v-table v-if="users.length > 0">
+                <v-table v-if="users.length > 0 && extendProjectUsers == true">
                     <thead>
                         <tr>
                             <th></th>
@@ -67,7 +78,7 @@
                         </tr>
                     </tbody>
                 </v-table>
-                <v-sheet rounded v-else-if="!fetchingUser">
+                <v-sheet rounded v-else-if="!fetchingUser && extendProjectUsers == true">
                     <v-container>
                         <v-row align="center" justify="center" no-gutters>
                             <v-icon icon="mdi-information" size="x-large" class="large-font" </v-icon>
@@ -91,16 +102,28 @@
             <v-col>
                 <v-row justify="space-between">
                     <v-col cols="6">
-                        <h5 class="text-h5 py-4">Project Software</h5>
+                        <div class="d-flex align-center gap-2">
+                            <v-btn v-if="extendProjectSoftware == false" icon="mdi-chevron-right" @click="extendProjectSoftware = true">
+                            </v-btn>
+                            <v-btn v-if="extendProjectSoftware == true" icon="mdi-chevron-down" @click="extendProjectSoftware = false">
+                            </v-btn>
+                            <h5 class="text-h5 py-4">Project Software</h5>
+                        </div>
                     </v-col>
                     <v-col cols="4" class="d-flex justify-end align-center">
-                        <v-btn block @click="softwareDialog = true" size="large" prepend-icon="mdi-gamepad-variant"
-                            v-if="userHasAdminAccess || can(project?.id,'manage_project_software')">
+                        <v-btn 
+                            block 
+                            @click="softwareDialog = true" 
+                            size="large" 
+                            prepend-icon="mdi-gamepad-variant"
+                            min-width="300"
+                            v-if="userHasAdminAccess || can(project?.id,'manage_project_software')"
+                            >
                             Add software to Project
                         </v-btn>
                     </v-col>
                 </v-row>
-                <v-table v-if="allowedSoftware.length > 0">
+                <v-table v-if="allowedSoftware.length > 0 && extendProjectSoftware == true">
                     <thead>
                         <tr>
                             <th></th>
@@ -147,11 +170,17 @@
             <v-col>
                 <v-row justify="space-between">
                     <v-col cols="6">
-                        <h5 class="text-h5 py-4">Launch Project Applications</h5>
+                        <div class="d-flex align-center gap-2">
+                            <v-btn v-if="extendMultiinstallableExtensions == false" icon="mdi-chevron-right" @click="extendMultiinstallableExtensions = true">
+                            </v-btn>
+                            <v-btn v-if="extendMultiinstallableExtensions == true" icon="mdi-chevron-down" @click="extendMultiinstallableExtensions = false">
+                            </v-btn>
+                            <h5 class="text-h5 py-4">Multiinstallable Applications</h5>
+                        </div>
                     </v-col>
                 </v-row>
-                <v-table>
-                    <t-head>
+                <v-table v-if="extendMultiinstallableExtensions == true">
+                    <thead>
                     <tr>
                         <th></th>
                         <th class="text-left">
@@ -161,7 +190,7 @@
                             Launch
                         </th>
                     </tr>
-                    </t-head>
+                    </thead>
                     <tbody>
                     <tr v-for="item in multiinstallableExtensions" :key="item.releaseName">
                         <td><v-icon>mdi-application-outline</v-icon></td>
@@ -177,31 +206,50 @@
                     </tbody>
                 </v-table>
             </v-col>
-            
         </v-row>
         <v-row>
             <v-col>
                 <v-row justify="space-between">
                     <v-col cols="6">
-                        <h5 class="text-h5 py-4">Active Project Applications</h5>
+                        <div class="d-flex align-center gap-2">
+                            <v-btn v-if="extendActiveApplications == false" icon="mdi-chevron-right" @click="extendActiveApplications = true">
+                            </v-btn>
+                            <v-btn v-if="extendActiveApplications == true" icon="mdi-chevron-down" @click="extendActiveApplications = false">
+                            </v-btn>
+                            <h5 class="text-h5 py-4">Active Project Applications</h5>
+                        </div>
                     </v-col>
                 </v-row>
-                <v-table>
-                    <t-head>
+                <v-table v-if="extendActiveApplications == true">
+                    <thead>
                     <tr>
                         <th></th>
                         <th class="text-left">
                             Name
                         </th>
+                        <th>Links</th>
                         <th class="text-center" v-if="userHasAdminAccess  || can(project?.id,'manage_project_extensions')">
-                            DELETE
+                            Uninstall
                         </th>
                     </tr>
-                    </t-head>
+                    </thead>
                     <tbody>
-                    <tr v-for="item in installedExtensions" :key="item.releaseName">
+                    <tr v-for="item in activeApplications" :key="item.releaseName">
                         <td><v-icon>mdi-application-outline</v-icon></td>
-                        <td>{{ item.display_name }}</td>
+                        <td>{{ item.annotations["kaapana.ai/display-name"] }}</td>
+                        <td>
+                              <div class="flex gap-2 justify-center">
+                                <a 
+                                v-for="path in item.paths" 
+                                :key="path"
+                                :href="getFullEndpoint(path)"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                >
+                                <v-icon>mdi-open-in-new</v-icon>
+                                </a>
+                            </div>
+                        </td>
                         <td class="text-center" v-if="userHasAdminAccess || can(project?.id,'manage_project_extensions')">
                             <v-btn 
                             density="default"
@@ -284,6 +332,10 @@ export default defineComponent({
             activeApplications: [] as any[],
             launchApplicationDialog: false,
             selectedExtension: null as any,
+            extendProjectSoftware: false,
+            extendProjectUsers: false,
+            extendMultiinstallableExtensions: false,
+            extendActiveApplications: false,
         };
     },
     mounted() {
@@ -321,6 +373,9 @@ export default defineComponent({
         },
     },
     methods: {
+        getFullEndpoint(path: string) {
+         return `${window.location.origin}${path}`;
+        },
         handleUserSubmit(success: boolean = true) {
             if (success) {
                 this.fetchProjectUsers();

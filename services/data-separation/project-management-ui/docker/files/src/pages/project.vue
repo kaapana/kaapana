@@ -254,6 +254,7 @@
                             <v-btn 
                             density="default"
                             icon="mdi-trash-can"
+                            @click="uninstallApplication(item)"
                             >
                             </v-btn>
                         </td>
@@ -423,6 +424,17 @@ export default defineComponent({
             }
             
             this.launchApplicationDialog = false;
+        },
+        async uninstallApplication(item: any) {
+            const data = {
+                release_name: item.release_name,
+            }
+            try {
+                kubeHelmPost('helm-delete-chart', data)
+                this.fetchActiveApplications();
+            } catch (error: unknown) {
+                console.log(error);
+            }
         },
         async fetchActiveApplications() {
             // Get all installable applications

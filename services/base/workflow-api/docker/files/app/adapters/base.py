@@ -1,7 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from app import schemas
 
@@ -38,6 +38,7 @@ class WorkflowEngineAdapter(ABC):
     async def submit_workflow_run(
         self,
         workflow_run: schemas.WorkflowRun,
+        project_id: Optional[str] = None,
     ) -> schemas.WorkflowRunUpdate:
         """
         Submit a workflow to the external engine
@@ -52,7 +53,7 @@ class WorkflowEngineAdapter(ABC):
 
     @abstractmethod
     async def get_workflow_run_task_runs(
-        self, workflow_run_external_id: int
+        self, workflow_run_external_id: str
     ) -> List[schemas.TaskRunUpdate]:
         """
         Get tasks for a workflow run from the external engine.

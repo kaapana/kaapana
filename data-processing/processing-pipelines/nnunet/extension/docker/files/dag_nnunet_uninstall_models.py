@@ -4,28 +4,31 @@ from airflow.models import DAG
 from nnunet.NnUnetModelOperator import NnUnetModelOperator
 
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from nnunet.getTasks import get_tasks
 
-available_pretrained_task_names, installed_tasks, all_selectable_tasks = get_tasks()
+properties_template = {
+    "friendly_name": {
+        "title": "Uninstall tasks",
+        "description": "Select one of the installed models to uninstall.",
+        "type": "array",
+    },
+}
 
-installed_protocol_names = list(installed_tasks.keys())
+workflow_form = {
+    "type": "object",
+    "title": "Uninstall tasks",
+    "description": "Select one of the installed models to uninstall.",
+    "oneOf": [],
+    "properties-template": properties_template,
+    "models": True,
+}
 ui_forms = {
     "documentation_form": {
         "path": "/user_guide/extensions.html#nnunet-uninstall-models",
     },
     "data_form": {},
-    "workflow_form": {
-        "type": "object",
-        "properties": {
-            "uninstall_tasks": {
-                "title": "Uninstall tasks",
-                "description": "Select one of the installed models to uninstall.",
-                "type": "array",
-                "items": {"type": "string", "enum": sorted(installed_protocol_names)},
-            },
-        },
-    },
+    "workflow_form": workflow_form,
 }
+
 args = {
     "ui_visible": True,
     "ui_forms": ui_forms,

@@ -5,7 +5,7 @@ import logging
 import os
 import string
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from uuid import UUID
 
 import httpx
@@ -1719,3 +1719,161 @@ def delete_workflows(db: Session):
     db.query(models.Workflow).delete()
     db.commit()
     return {"ok": True}
+
+
+## models section just added here for now.
+
+def replace_installed_models_in_schemas(
+    db: Session,
+    project_id: str,
+    properties_template: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    """Generate and return the installed models schema for workflow_form.
+    """
+    # Get all models for this project
+    installed_models = get_installed_models_by_project(db, project_id)
+    logging.info(f"Installed models: {installed_models}")
+    one_of = []
+    
+    if not installed_models:
+        logging.warning(f"No installed models found for project {project_id}")
+        return one_of
+    
+    # Build oneOf array from database models
+    for idx, model in enumerate(installed_models):
+        task_values = model.to_dict()
+        task_selection = {
+            "title": model.friendly_name,
+            "properties": {
+                "task_ids": {
+                    "type": "string",
+                    "const": model.task_ids,
+                }
+            },
+        }
+        
+        # Deep copy template and populate with model data
+        task_properties = copy.deepcopy(properties_template)
+        
+        # Iterate through template properties and update with model data
+        for key, item in task_properties.items():
+            # Only update if the key exists in task_values (original logic)
+            if key in task_values:
+                to_be_placed = task_values[key]
+                
+                # Special handling for "model" key (enum with options)
+                if key == "model":
+                    item["enum"] = to_be_placed
+                    # Set the first available model or "3d_lowres" as default
+                    item["default"] = next(iter(to_be_placed), None)
+                    if "3d_lowres" in to_be_placed:
+                        item["default"] = "3d_lowres"
+                else:
+                    # For other keys, convert lists to comma-separated strings
+                    if isinstance(to_be_placed, list):
+                        to_be_placed = ",".join(to_be_placed)
+                    item["default"] = to_be_placed
+        
+        # Add index suffix to all properties (key#idx pattern)
+        for key in list(task_properties.keys()):
+            task_properties[f"{key}#{idx}"] = task_properties.pop(key)
+        
+        # Update task_selection with all properties
+        task_selection["properties"].update(task_properties)
+        one_of.append(task_selection)
+    logging.info(
+        f"Generated {len(one_of)} installed model schemas for project {project_id}"
+    )
+    return one_of
+
+
+def update_installed_models(
+    db: Session,
+    project_id: UUID,
+    installed_tasks: dict[str, dict],
+) -> tuple[List[models.InstalledModel], List[dict]]:
+    """Update all installed models for a project (replace entire list).
+    
+    Strategy: Delete all existing models for project, then create new ones.
+    This ensures clean state and handles removed models automatically.
+    """
+    created = []
+    failed = []
+    
+    try:
+        # 1. Delete all existing models for this project
+        existing_models = db.query(models.InstalledModel).filter(
+            models.InstalledModel.project_id == project_id
+        ).all()
+        
+        deleted_count = len(existing_models)
+        for model in existing_models:
+            db.delete(model)
+        db.commit()
+        logging.info(
+            f"Deleted {deleted_count} existing models for project {project_id}"
+        )
+        
+        # 2. Create new models from installed_tasks
+        for friendly_name, task_data in installed_tasks.items():
+            try:
+                model = models.InstalledModel(
+                    project_id=project_id,
+                    friendly_name=friendly_name,
+                    # Extract model info
+                    models_name=task_data.get("models_name", "N/A"),
+                    task_ids=task_data.get("task_ids", "N/A"),
+                    # Core metadata
+                    description=task_data.get("description", "nnUnet Segmentation"),
+                    instance_name=task_data.get("instance_name", "N/A"),
+                    model_network_trainer=task_data.get("model_network_trainer", "N/A"),
+                    model_plan=task_data.get("model_plan", "N/A"),
+                    task_url=task_data.get("task_url", "N/A"),
+                    # Input/output specs
+                    input_modalities=task_data.get("input", []),
+                    body_part=task_data.get("body_part", "N/A"),
+                    targets=task_data.get("targets", []),
+                    # Metadata
+                    input_mode=task_data.get("input-mode", "all"),
+                    info=task_data.get("info", "N/A"),
+                )
+                db.add(model)
+                created.append(model)
+                
+            except Exception as e:
+                failed.append({
+                    "friendly_name": friendly_name,
+                    "error": str(e)
+                })
+                logging.error(f"Failed to create model {friendly_name}: {e}")
+        
+        # Commit all new models
+        db.commit()
+        
+        # Refresh to get IDs
+        for model in created:
+            db.refresh(model)
+        
+        logging.info(
+            f"Updated models for project {project_id}: "
+            f"Created {len(created)}, Failed {len(failed)}"
+        )
+        return created, failed
+        
+    except Exception as e:
+        db.rollback()
+        logging.error(f"Error updating models for project {project_id}: {e}")
+        raise
+
+  
+def get_installed_models_by_project(
+    db: Session, project_id: str
+) -> List[models.InstalledModel]:
+    return db.query(models.InstalledModel).filter(
+        models.InstalledModel.project_id == project_id
+    ).all()
+
+
+ 
+
+

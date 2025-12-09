@@ -330,3 +330,25 @@ class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
                 workflow_job_states.append(db_job.status)
         self.workflow_jobs = workflow_job_states
         return self
+
+
+
+class InstalledModelResponse(BaseModel):
+    id: int
+    project_id: str
+    friendly_name: str
+    models_name: str
+    task_ids: str
+    description: str
+    targets: list = []
+    input_modalities: list = []
+
+    class Config:
+        from_attributes = True
+
+
+class UpdateInstalledModelsResponse(BaseModel):
+    """Response for update operations."""
+    created: List[InstalledModelResponse]
+    failed: List[dict]
+    deleted: int  # number of previously existing models

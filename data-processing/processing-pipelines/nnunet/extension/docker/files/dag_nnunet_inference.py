@@ -8,7 +8,6 @@ from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from nnunet.getTasks import get_tasks, to_task_name
 from nnunet.NnUnetOperator import NnUnetOperator
 
 max_active_runs = 10
@@ -17,7 +16,7 @@ default_interpolation_order = "default"
 default_prep_thread_count = 1
 default_nifti_thread_count = 1
 ae_title = "nnUnet-predict-results"
-available_pretrained_task_names, installed_tasks, all_selectable_tasks = get_tasks()
+
 
 properties_template = {
     "description": {
@@ -117,37 +116,9 @@ workflow_form = {
     "title": "Tasks available",
     "description": "Select one of the available tasks.",
     "oneOf": [],
+    "properties-template": properties_template,
+    "models": True,
 }
-# for idx, (task_name, task_values) in enumerate(all_selectable_tasks.items()):
-for idx, (task_name, task_values) in enumerate(installed_tasks.items()):
-    print(f"{idx=}")
-    print(f"{task_name=}")
-    print(f"{task_values=}")
-    task_selection = {
-        "title": task_name,  # task_values["model"][0],
-        "properties": {
-            "task_ids": {"type": "string", "const": to_task_name(task_name)}
-        },
-    }
-    task_properties = copy.deepcopy(properties_template)
-    for key, item in task_properties.items():
-        if key in task_values:
-            to_be_placed = task_values[key]
-            if key == "model":
-                item["enum"] = to_be_placed
-                # set the first available model or `3d_lowres` as default model
-                item["default"] = next(iter(to_be_placed), None)
-                if "3d_lowres" in to_be_placed:
-                    item["default"] = "3d_lowres"
-            else:
-                if isinstance(to_be_placed, list):
-                    to_be_placed = ",".join(to_be_placed)
-                item["default"] = to_be_placed
-    for key in list(properties_template.keys()):
-        task_properties[f"{key}#{idx}"] = task_properties.pop(key)
-    task_selection["properties"].update(task_properties)
-    workflow_form["oneOf"].append(task_selection)
-
 
 ui_forms = {
     "documentation_form": {
@@ -189,7 +160,6 @@ ui_forms["workflow_form"] = workflow_form
 
 args = {
     "ui_visible": True,
-    "ui_dag_info": all_selectable_tasks,
     "ui_forms": ui_forms,
     "owner": "kaapana",
     "start_date": days_ago(0),

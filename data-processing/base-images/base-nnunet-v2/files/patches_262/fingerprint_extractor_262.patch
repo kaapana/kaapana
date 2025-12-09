@@ -1,14 +1,5 @@
-From 1ac6ab3c4e24f6660da2977b10590496d4cf5d08 Mon Sep 17 00:00:00 2001
-From: "Bujotzek, Markus" <markus.bujotzek@dkfz-heidelberg.de>
-Date: Thu, 15 Aug 2024 17:45:27 +0200
-Subject: [PATCH] fed_fingerprinting_from_envs
-
----
- .../fingerprint_extractor.py                  | 19 ++++++++++++++++---
- 1 file changed, 16 insertions(+), 3 deletions(-)
-
 diff --git a/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py b/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py
-index 1157be7..ff1d376 100644
+index 5f014e8..a96d67b 100644
 --- a/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py
 +++ b/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py
 @@ -33,10 +33,18 @@ class DatasetFingerprintExtractor(object):
@@ -25,24 +16,32 @@ index 1157be7..ff1d376 100644
          # We don't want to use all foreground voxels because that can accumulate a lot of data (out of memory). It is
          # also not critically important to get all pixels as long as there are enough. Let's use 10e7 voxels in total
          # (for the entire dataset)
--        self.num_foreground_voxels_for_intensitystats = 10e4
+-        self.num_foreground_voxels_for_intensitystats = 10e7
 +        self.num_foreground_voxels_for_intensitystats = (10e7 // self.fed_num_clients)
 +
  
      @staticmethod
      def collect_foreground_intensities(segmentation: np.ndarray, images: np.ndarray, seed: int = 1234,
-@@ -187,13 +195,18 @@ class DatasetFingerprintExtractor(object):
-                     'max': float(np.max(foreground_intensities_per_channel[i])),
+@@ -159,9 +167,11 @@ class DatasetFingerprintExtractor(object):
+             #                 processes=self.num_processes, zipped=True, reader_writer_class=reader_writer_class,
+             #                 num_samples=num_foreground_samples_per_case, disable=self.verbose)
+             results = [i.get()[0] for i in r]
++            # results contains per sample: shape, spacing, list of all foreground_intensities, statistics, relative_size_after_cropping
+ 
+             shapes_after_crop = [r[0] for r in results]
+             spacings = [r[1] for r in results]
++            foreground_intensities_per_channel_per_case = [r[2][0].tolist() for r in results]
+             foreground_intensities_per_channel = [np.concatenate([r[2][i] for r in results]) for i in
+                                                   range(len(results[0][2]))]
+             foreground_intensities_per_channel = np.array(foreground_intensities_per_channel)
+@@ -185,11 +195,15 @@ class DatasetFingerprintExtractor(object):
                      'percentile_99_5': float(percentile_99_5),
                      'percentile_00_5': float(percentile_00_5),
--                    'v': foreground_intensities_per_channel_per_case,
                  }
 +                # put v in fingerprint dependent on fed_global_fingerprint argument
 +                if self.fed_global_fingerprint and self.fed_global_fingerprint == "accurate":
 +                    print(f"KaapanaFed-adapted: {self.fed_global_fingerprint=} ==> We are sharing {self.num_foreground_voxels_for_intensitystats} voxels!")
-+                    intensity_statistics_per_channel[i] = {
-+                        'v': foreground_intensities_per_channel_per_case
-+                    }
++                    intensity_statistics_per_channel[i]["v"] = foreground_intensities_per_channel_per_case
  
              fingerprint = {
                      "spacings": spacings,
@@ -52,6 +51,3 @@ index 1157be7..ff1d376 100644
                      "median_relative_size_after_cropping": median_relative_size_after_cropping
                  }
  
--- 
-2.45.2
-

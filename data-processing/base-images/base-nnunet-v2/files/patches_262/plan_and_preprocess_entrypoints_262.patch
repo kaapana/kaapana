@@ -1,8 +1,8 @@
 diff --git a/nnunetv2/experiment_planning/plan_and_preprocess_entrypoints.py b/nnunetv2/experiment_planning/plan_and_preprocess_entrypoints.py
-index 8ba0c5e..3499d8c 100644
+index b0d0371..4e50860 100644
 --- a/nnunetv2/experiment_planning/plan_and_preprocess_entrypoints.py
 +++ b/nnunetv2/experiment_planning/plan_and_preprocess_entrypoints.py
-@@ -177,11 +177,36 @@ def plan_and_preprocess_entry():
+@@ -173,11 +173,36 @@ def plan_and_preprocess_entry():
      parser.add_argument('--verbose', required=False, action='store_true',
                          help='Set this to print a lot of stuff. Useful for debugging. Will disable progress bar! '
                               'Recommended for cluster environments')
@@ -13,7 +13,7 @@ index 8ba0c5e..3499d8c 100644
 +        help="Kaapana adaption for federated usage of nnunet-training workflow: 'all', 'to_dataset_properties' or 'from_dataset_properties', "
 +             "enables to do the preprocessing incremental",
 +    )
-+
++    
      args = parser.parse_args()
  
 -    # fingerprint extraction

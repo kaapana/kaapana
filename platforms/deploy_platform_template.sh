@@ -34,7 +34,6 @@ GPU_OPERATOR_VERSION="v25.10.0"
 PREFETCH_EXTENSIONS={{prefetch_extensions|default('false')|lower}}
 CHART_PATH=""
 NO_HOOKS=""
-ENABLE_NFS=false
 OFFLINE_MODE=false
 
 INSTANCE_UID=""
@@ -102,6 +101,139 @@ DEPLOYMENT_TIMESTAMP=`date  --iso-8601=seconds`
 MOUNT_POINTS_TO_MONITOR="{{ mount_points_to_monitor }}"
 
 INSTANCE_NAME="{{ instance_name|default('') }}"
+
+
+STORAGE_PROVIDER="{{ smtp_host|default('hostpath')}}" # e.g. "hostpath" (microk8s) or "longhorn
+# volume sizes relevant if STORAGE_PROVIDER is set to longhorn
+VOLUME_SLOW_DATA="{{ volume_slow_data|default('100Gi') }}" #size of volumes in slow data dir (e.g. 100Gi or 100Ti)
+REPLICA_COUNT=1
+echo "Checking for storage provider: ${STORAGE_PROVIDER}"
+
+is_provider_installed=false
+
+case "${STORAGE_PROVIDER}" in
+  "driver.longhorn.io"|"longhorn")
+    # Check Longhorn CSI driver
+    if microk8s.kubectl get csidriver driver.longhorn.io &>/dev/null; then
+      is_provider_installed=true
+    fi
+    STORAGE_PROVIDER="driver.longhorn.io"
+    ;;
+
+  "microk8s.io/hostpath"|"hostpath"|"microk8s")
+    # Check hostpath storage class
+    if microk8s.kubectl get storageclass | grep -q "microk8s-hostpath"; then
+      is_provider_installed=true
+    fi
+    STORAGE_PROVIDER="microk8s.io/hostpath"
+    ;;
+
+  *)
+    echo "ERROR: Unknown storage provider '${STORAGE_PROVIDER}'."
+    echo "Supported providers: microk8s.io/hostpath, longhorn"
+    exit 1
+    ;;
+esac
+
+if [ "$is_provider_installed" = false ]; then
+  echo "ERROR: Storage provider '${STORAGE_PROVIDER}' is not installed in the cluster."
+  echo "Please install it before proceeding."
+  echo "Example: microk8s enable hostpath-storage   or   helm install longhorn longhorn/longhorn ..."
+  exit 1
+fi
+
+echo "✅ Storage provider '${STORAGE_PROVIDER}' found."
+
+MAIN_NODE_NAME=$(microk8s.kubectl get pods -n kube-system -o jsonpath='{.items[0].spec.nodeName}')
+echo "Main node is $MAIN_NODE_NAME"
+STORAGE_NODE="storage"
+microk8s.kubectl label nodes "$MAIN_NODE_NAME" "kaapana.io/node"="$STORAGE_NODE" --overwrite
+# --- Set storage classes based on provider ---
+case "${STORAGE_PROVIDER}" in
+  "microk8s.io/hostpath")
+    STORAGE_CLASS_SLOW="kaapana-hostpath-slow-data-dir"
+    STORAGE_CLASS_FAST="kaapana-hostpath-fast-data-dir"
+    STORAGE_CLASS_WORKFLOW="kaapana-hostpath-fast-data-dir"
+    if [ -z "${VOLUME_SLOW_DATA}" ]; then
+        VOLUME_SLOW_DATA="10Gi"
+    fi
+    ;;
+  "driver.longhorn.io")
+    STORAGE_CLASS_SLOW="kaapana-longhorn-slow-data"
+    STORAGE_CLASS_FAST="kaapana-longhorn-fast-db"
+    STORAGE_CLASS_WORKFLOW="kaapana-longhorn-fast-workflow"
+
+    if [ -z "${VOLUME_SLOW_DATA}" ]; then
+        echo "${VOLUME_SLOW_DATA}" must be set for Longhorn storage provider.
+        exit 1
+    fi
+
+    FSID_DEFAULT=$(stat -fc %i /var/lib/longhorn)
+    FSID_FAST=$(stat -fc %i "$(dirname "${FAST_DATA_DIR}")")
+    FSID_SLOW=$(stat -fc %i "$(dirname "${SLOW_DATA_DIR}")")
+
+    PATCH_DISKS="{}"
+    DISK_NAME_FAST=""
+
+    # FAST_DATA_DIR
+    if [[ "$FSID_FAST" == "$FSID_DEFAULT" ]]; then
+        echo "⚠️ fast-data shares filesystem with default Longhorn disk."
+        PATCH_DISKS=$(jq ".disks.\"default-disk-${FSID_DEFAULT}\".tags += [\"fast-data\"]" <<< "$PATCH_DISKS")
+        DISK_NAME_FAST="default-disk-${FSID_DEFAULT}"
+    else
+        PATCH_DISKS=$(jq ".disks.\"fast-data\" = {\"path\": \"${FAST_DATA_DIR}\", \"allowScheduling\": true, \"tags\": [\"fast-data\"]}" <<< "$PATCH_DISKS")
+        DISK_NAME_FAST="fast-data"
+    fi
+
+    # SLOW_DATA_DIR
+    if [[ "$FSID_SLOW" == "$FSID_FAST" ]]; then
+        echo "⚠️ slow-data shares filesystem with fast-data."
+        PATCH_DISKS=$(jq ".disks.\"$DISK_NAME_FAST\".tags += [\"slow-data\"]" <<< "$PATCH_DISKS")
+    elif [[ "$FSID_SLOW" == "$FSID_DEFAULT" ]]; then
+        echo "⚠️ slow-data shares filesystem with default Longhorn disk."
+        PATCH_DISKS=$(jq ".disks.\"default-disk-${FSID_DEFAULT}\".tags += [\"slow-data\"]" <<< "$PATCH_DISKS")
+    else
+        PATCH_DISKS=$(jq ".disks.\"slow-data\" = {\"path\": \"${SLOW_DATA_DIR}\", \"allowScheduling\": true, \"tags\": [\"slow-data\"]}" <<< "$PATCH_DISKS")
+    fi
+
+    # Apply the patch
+    microk8s.kubectl patch node.longhorn.io "${MAIN_NODE_NAME}" -n longhorn-system --type merge -p "{\"spec\":$PATCH_DISKS}"
+
+    if [[ $? -ne 0 ]]; then
+        echo "❌ Failed to patch disks for ${MAIN_NODE_NAME}"
+        exit 1
+    fi
+    echo "✅ Patched disks for ${MAIN_NODE_NAME}"
+
+    echo "Patching Longhorn settings for overprovisioning and minimal free space..."
+
+    # Allow thin provisioning (10× real capacity)
+    if [ "${DEV_MODE,,}" == "true" ]; then
+        THIN_PROVISIONING="1000"
+    else
+        THIN_PROVISIONING="1000000"
+    fi
+
+    microk8s.kubectl -n longhorn-system patch setting storage-over-provisioning-percentage \
+    --type=merge -p "{\"value\":\"${THIN_PROVISIONING}\"}"
+
+    # Allow scheduling even when less than 5% disk space is free
+    microk8s.kubectl -n longhorn-system patch setting storage-minimal-available-percentage \
+      --type=merge -p '{"value":"5"}'
+
+    echo "✅ Longhorn overprovisioning settings applied successfully."
+
+    # Detect how many Longhorn nodes are schedulable
+    SCHEDULABLE_NODES=$(microk8s.kubectl -n longhorn-system get node.longhorn.io \
+    -o jsonpath='{range .items[?(@.spec.allowScheduling==true)]}{.metadata.name}{"\n"}{end}' | wc -l)
+
+    # Determine replica count based on node count
+    if (( SCHEDULABLE_NODES > 1 )); then
+        REPLICA_COUNT=2
+    fi
+    ;;
+esac
+
 
 {% for item in additional_env %}
 {{ item.name }}="{{ item.default_value }}"{% if item.comment %} # {{item.comment}}{% endif %}
@@ -263,30 +395,31 @@ function delete_deployment {
             echo "Deleting helm charts in 'uninstalling' state with --no-hooks"
             $HELM_EXECUTABLE -n $namespace ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall --no-hooks --wait --timeout 5m30s %; sleep 2"
         fi
-        DEPLOYED_NAMESPACES=$(/bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered '$EXTENSIONS_NAMESPACE' | cut -d' ' -f1")
-        TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E --line-buffered 'Terminating' | cut -d' ' -f1")
+        TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E 'Terminating' | awk '{print \$1 \"/\" \$2}'")
         echo -e ""
-        UNINSTALL_TEST=$DEPLOYED_NAMESPACES$TERMINATING_PODS
+        UNINSTALL_TEST=$TERMINATING_PODS
         if [ -z "$UNINSTALL_TEST" ]; then
             break
         else
-            echo -e "${YELLOW}Waiting for $TERMINATING_PODS $DEPLOYED_NAMESPACES ${NC}"
+            echo -e "${YELLOW}Waiting for $TERMINATING_PODS ${NC}"
         fi
     done
-    if [ ! "$QUIET" = "true" ];then
-        while true; do
-            read -e -p "Do you also want to remove all Persistent Volumes in the cluster (kubectl delete pv --all)?" -i " yes" yn
-            case $yn in
-                [Yy]* ) echo -e "${GREEN}Removing all pvs from cluster ...${NC}" && microk8s.kubectl delete pv --all; break;;
-                [Nn]* ) echo -e "${YELLOW}Skipping pv removal ...{NC}"; break;;
-                * ) echo "Please answer yes or no.";;
-            esac
-        done
-    else
-        echo -e "${YELLOW}QUIET-MODE active!${NC}"
-        echo -e "${GREEN}Removing all pvs from cluster ...${NC}"
-        microk8s.kubectl delete pv --all
+
+    echo -e "${YELLOW}Cleaning up orphaned pods in Kubernetes namespaces ...${NC}"
+    
+    # Clean SERVICES_NAMESPACE
+    if microk8s.kubectl get namespace $SERVICES_NAMESPACE &>/dev/null; then
+        echo "Deleting all pods in $SERVICES_NAMESPACE"
+        microk8s.kubectl delete pods --all -n $SERVICES_NAMESPACE --grace-period=0 --force 2>/dev/null || true
     fi
+    
+    # Clean all project-* namespaces
+    PROJECT_NAMESPACES=$(microk8s.kubectl get namespaces --no-headers -o custom-columns=NAME:.metadata.name | grep "^project-")
+    for ns in $PROJECT_NAMESPACES; do
+        echo "Deleting all pods in $ns"
+        microk8s.kubectl delete pods --all -n $ns --grace-period=0 --force 2>/dev/null || true
+    done
+    
 
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
@@ -314,17 +447,19 @@ function nuke_pods {
 
 
 function clean_up_kubernetes {
-    for n in $EXTENSIONS_NAMESPACE; # $HELM_NAMESPACE;
-    do
-        echo "${YELLOW}Deleting namespace ${n} with all its resources ${NC}"
-        microk8s.kubectl delete --ignore-not-found namespace $n
-    done
+    # for n in $EXTENSIONS_NAMESPACE; # $HELM_NAMESPACE;
+    # do
+    #     echo "${YELLOW}Deleting namespace ${n} with all its resources ${NC}"
+    #     microk8s.kubectl delete --ignore-not-found namespace $n
+    # done
     echo "${YELLOW}Deleting all deployments in namespace default ${NC}"
     microk8s.kubectl delete deployments --all
     echo "${YELLOW}Deleting all jobs in namespace default ${NC}"
     microk8s.kubectl delete jobs --all
     echo "${YELLOW}Removing remove-secret job${NC}"
     microk8s.kubectl -n $SERVICES_NAMESPACE delete job --ignore-not-found remove-secret
+    #echo "${YELLOW}Removing all volumes in kubernetes ${NC}"
+    #microk8s.kubectl delete volumes -A --all
 }
 
 function import_container_images_tar {
@@ -391,16 +526,53 @@ function run_migration_chart() {
             cleanup
             break
         elif [[ "${FAILED:-0}" -ge 1 ]]; then
-            echo -e "${RED}Migration job failed!${NC}"
-            PODS=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o name)
-            for pod in $PODS; do
-                microk8s.kubectl logs "$pod" -n "$NAMESPACE"
-            done
+            VERSION_STATUS=""
+            # Safely read the status from the version file
+            if [ -f "$FAST_DATA_DIR/.version" ]; then
+                VERSION_STATUS=$(cat "$FAST_DATA_DIR/.version")
+            fi
 
-            POD=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o jsonpath='{.items[*].metadata.name}')
-            microk8s.kubectl logs "$POD" -n "$NAMESPACE"
-            cleanup
-            exit 1
+            if [[ "$VERSION_STATUS" == *"- fresh deploy and redeploy-needed"* ]]; then
+                echo -e "\n${YELLOW}================================================================${NC}"
+                echo -e "${YELLOW}🚨 MIGRATION PAUSED: FRESH DEPLOYMENT REQUIRED 🚨${NC}"
+                echo -e "${YELLOW}================================================================${NC}"
+                echo "The existing PVCs are not configured for migration."
+                echo "1. Complete the current deployment (let the platform fully start)."
+                echo "2. Once the platform is functional, run the deployment script again."
+                echo -e "\nDo you want to proceed with the required steps (Y/n) or start fresh (F)? [Y/n/F]"
+                read -r USER_CHOICE
+
+                case "$USER_CHOICE" in
+                    [Yy]* )
+                        echo "Continuing with the required redeployment path. Please run the script again after the initial deploy."
+                        exit 0 # Exit successfully, but signal a partial completion/pause.
+                        ;;
+                    [Ff]* )
+                        echo "Starting fresh. The data folder flag will be removed."
+                        # Remove the flag, allowing the next deployment to proceed without migration attempts
+                        if [ -f "$FAST_DATA_DIR/.version" ]; then
+                            sed -i '' '/- fresh deploy and redeploy-needed/d' "$FAST_DATA_DIR/.version" 2>/dev/null || \
+                            sed -i '/- fresh deploy and redeploy-needed/d' "$FAST_DATA_DIR/.version" # Linux/GNU sed fallback
+                        fi
+                        exit 0 # Exit successfully, allowing the main deploy to continue as a fresh install.
+                        ;;
+                    * )
+                        echo "Exiting without changes. Please run the script again when ready."
+                        exit 1
+                        ;;
+                esac
+            else
+                echo -e "${RED}Migration job failed!${NC}"
+                PODS=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o name)
+                for pod in $PODS; do
+                    microk8s.kubectl logs "$pod" -n "$NAMESPACE"
+                done
+
+                POD=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o jsonpath='{.items[*].metadata.name}')
+                microk8s.kubectl logs "$POD" -n "$NAMESPACE"
+                cleanup
+                exit 1
+            fi
         fi
 
         sleep "$INTERVAL"
@@ -682,7 +854,6 @@ function deploy_chart {
     --set-string global.admin_namespace=$ADMIN_NAMESPACE \
     --set global.gpu_support=$GPU_SUPPORT \
     --set-string global.helm_namespace="$ADMIN_NAMESPACE" \
-    --set global.enable_nfs=$ENABLE_NFS \
     --set global.oidc_client_secret=$OIDC_CLIENT_SECRET \
     --set global.include_reverse_proxy=$INCLUDE_REVERSE_PROXY \
     --set-string global.home_dir="$HOME" \
@@ -717,6 +888,13 @@ function deploy_chart {
     --set-string global.smtp_username="$SMTP_USERNAME" \
     --set-string global.smtp_password="$SMTP_PASSWORD" \
     --set-string global.email_address_sender="$EMAIL_ADDRESS_SENDER" \
+    --set-string global.storage_class_fast="$STORAGE_CLASS_FAST" \
+    --set-string global.storage_class_slow="$STORAGE_CLASS_SLOW" \
+    --set-string global.storage_class_workflow="$STORAGE_CLASS_WORKFLOW" \
+    --set-string global.main_node_name="$MAIN_NODE_NAME" \
+    --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
+    --set-string global.replica_count="$REPLICA_COUNT"\
+    --set-string global.storage_node="$STORAGE_NODE" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"

@@ -4,27 +4,22 @@ global:
   default_jobs_limits_mem: "50Mi"
   dynamicVolumes:
   - name: tensorboard
-    host_path: /tensorboard
+    storage_class: workflow
+    storage: 10Gi
   - name: models
-    host_path: /workflows/models
+    storage_class: workflow
+    storage: 200Gi
   - name: workflow-data
-    host_path: /workflows/data
-  - name: mounted-scripts
-    host_path: /workflows/mounted_scripts
-
-  ### For Local Operators managed by KubernetesExecutor
+    storage_class: workflow
+    storage: 200Gi
+  sharedVolumes: 
+    ### For Local Operators managed by KubernetesExecutor, will be deprecated when local operators are removed
+  - name: af-plugins
+    host_path: /workflows/plugins
   - name: dags
     host_path: /workflows/dags
   - name: af-logs
     host_path: /airflow/logs
-  - name: af-plugins
-    host_path: /workflows/plugins
-  - name: uploads
-    host_path: /uploads
-  - name: ctp-data
-    host_path: /ctp/
-  - name: dcm4chee-dicom
-    host_path: /dcm4che/dicom_data
 
 
 kaapana_database:

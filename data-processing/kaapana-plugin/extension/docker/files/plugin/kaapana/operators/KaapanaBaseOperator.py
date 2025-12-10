@@ -17,6 +17,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.context import Context
 from kaapana.blueprints.kaapana_global_variables import (
     ADMIN_NAMESPACE,
+    SERVICES_NAMESPACE,
     AIRFLOW_WORKFLOW_DIR,
     BATCH_NAME,
     DEFAULT_REGISTRY,
@@ -39,6 +40,7 @@ from pathlib import Path
 from task_api.processing_container import task_models, pc_models
 from task_api.runners.KubernetesRunner import KubernetesRunner, PodPhase
 from kubernetes import client
+from kubernetes import config as k8s_config_loader
 
 
 KAAPANA_SKIP_TASK_RUN_RETURN_CODE = 126
@@ -254,8 +256,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.display_name = display_name
 
         # Namespaces
-        self.services_namespace = os.getenv("SERVICES_NAMESPACE", "")
-        self.admin_namespace = os.getenv("ADMIN_NAMESPACE", "")
+        self.services_namespace = SERVICES_NAMESPACE
+        self.admin_namespace = ADMIN_NAMESPACE
 
         if self.pod_resources is None:
             self.pod_resources = pc_models.Resources(
@@ -371,7 +373,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 client.V1Volume(
                     name="workflowdata",
                     persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                        claim_name=f"{self.namespace}-workflow-data-pv-claim",
+                        claim_name="workflow-data-pv-claim",
                         read_only=False,
                     ),
                 ),
@@ -386,7 +388,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 client.V1Volume(
                     name="models",
                     persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                        claim_name=f"{self.namespace}-models-pv-claim",
+                        claim_name="models-pv-claim",
                         read_only=False,
                     ),
                 ),
@@ -396,24 +398,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             ),
             (
                 client.V1Volume(
-                    name="mounted-scripts",
-                    persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                        claim_name=f"{self.namespace}-mounted-scripts-pv-claim",
-                        read_only=False,
-                    ),
-                ),
-                client.V1VolumeMount(
-                    name="mounted-scripts",
-                    mount_path="/kaapana/mounted/workflows/mounted_scripts",
-                    sub_path=None,
-                    read_only=False,
-                ),
-            ),
-            (
-                client.V1Volume(
                     name="tensorboard",
                     persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                        claim_name=f"{self.namespace}-tensorboard-pv-claim",
+                        claim_name="tensorboard-pv-claim",
                         read_only=False,
                     ),
                 ),
@@ -436,6 +423,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         ]
 
         for volume, volumeMount in volume_volumeMount_pairs:
+            #tensorboard is not part of services namespace and therefore no volume exists and none should be added.
+            if self.namespace == SERVICES_NAMESPACE and volume.name == "tensorboard":
+                continue
             self.volumes.append(volume)
             self.volume_mounts.append(volumeMount)
 
@@ -462,6 +452,22 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 )
             ),
         )
+        #Not nice but simple, special case for services namespace:
+        if self.namespace == SERVICES_NAMESPACE:
+            project_credentials_username = client.V1EnvVar(
+                name="KAAPANA_PROJECT_USER_NAME",
+                value="system",
+            )
+
+            project_credentials_password = client.V1EnvVar(
+                name="KAAPANA_PROJECT_USER_PASSWORD",
+                value_from=client.V1EnvVarSource(
+                    secret_key_ref=client.V1SecretKeySelector(
+                        name="system-user-password",
+                        key="system-user-password",
+                    )
+                ),
+            )
 
         oidc_client_secret = client.V1EnvVar(
             name="KAAPANA_CLIENT_SECRET",
@@ -473,6 +479,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             ),
         )
 
+
         self.secrets.extend(
             [
                 project_credentials_password,
@@ -480,6 +487,65 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 oidc_client_secret,
             ]
         )
+
+
+
+    def create_conf_configmap(self, context: Context):
+        # Load Kubernetes configuration (in-cluster or local)
+        try:
+            k8s_config_loader.load_incluster_config()
+        except config.config_exception.ConfigException:
+            k8s_config_loader.load_kube_config()
+
+        # Extract the configuration
+        dag_conf = context["dag_run"].conf or {}
+        config_json = json.dumps(dag_conf, indent=4, sort_keys=True)
+
+        # Define metadata
+        configmap_name = f"{context["ti"].run_id}-config"
+
+        # Create ConfigMap body
+        metadata = client.V1ObjectMeta(
+            name=configmap_name,
+            namespace=self.namespace,
+            labels={"app": "kaapana", "run_id": context["run_id"]},
+        )
+        body = client.V1ConfigMap(
+            api_version="v1",
+            kind="ConfigMap",
+            metadata=metadata,
+            data={"conf.json": config_json},
+        )
+
+        # Create the ConfigMap in the cluster
+        v1 = client.CoreV1Api()
+        try:
+            v1.create_namespaced_config_map(namespace=self.namespace, body=body)
+            logging.info(f"Created ConfigMap: {configmap_name}")
+        except client.exceptions.ApiException as e:
+            if e.status == 409:
+                logging.info(f"ConfigMap: {configmap_name}, already exists.")
+            else:
+                raise
+            
+        volume_conf = client.V1Volume(
+                name="workflowconf",
+                config_map=client.V1ConfigMapVolumeSource(
+                    name=configmap_name,
+                    items=[client.V1KeyToPath(key="conf.json", path="conf.json")]
+                ),
+            )
+
+        volume_mount_conf = client.V1VolumeMount(
+                name="workflowconf",
+                mount_path=os.path.join(
+                    PROCESSING_WORKFLOW_DIR, context["run_id"], "conf", "conf.json"
+                ),
+                sub_path="conf.json",
+                read_only=True,
+            ) 
+        self.volumes.append(volume_conf)
+        self.volume_mounts.append(volume_mount_conf)
 
     def launch_dev_server(self, context: Context):
         """
@@ -539,8 +605,14 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             )
 
         dynamic_volume_lookup = {}
+        configmap_volume_config = {}
+        configmap_name = None
+
         for volume in self.volumes:
             if not volume.persistent_volume_claim:
+                if volume.name == "workflowconf" and volume.config_map:
+                    configmap_name = volume.config_map.name
+                    configmap_volume_config["global.workflow_configmap_name"] = configmap_name
                 continue
             dynamic_volume_lookup[volume.name] = {
                 "name": volume.persistent_volume_claim.claim_name.replace(
@@ -550,6 +622,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         for vol_mount in self.volume_mounts:
             if vol_mount.name not in dynamic_volume_lookup:
+                if vol_mount.name == "workflowconf":
+                    configmap_volume_config["global.workflow_config_mount_path"] = vol_mount.mount_path
                 continue
             dynamic_volume_lookup[vol_mount.name]["mount_path"] = vol_mount.mount_path
 
@@ -570,6 +644,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         ingress_path = (
             f"applications/project/{project_name}/release/" + "{{ .Release.Name }}"
         )
+        
 
         helm_sets = {
             "global.complete_image": self.image,
@@ -580,6 +655,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             **dynamic_volumes,
             **env_vars_from_secret_key_refs,
             **dynamic_label_sets,
+            **configmap_volume_config,
         }
         logging.info(helm_sets)
         # kaapanaint is there, so that it is recognized as a pending application!
@@ -700,20 +776,12 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         :param context: Dictionary set by Airflow. It contains references to related objects to the task instance.
         """
         unique_id = KaapanaBaseOperator.unique_task_identifer(context)
-        return Path(AIRFLOW_WORKFLOW_DIR, context["run_id"], f"{unique_id}.pkl")
+        return Path(AIRFLOW_WORKFLOW_DIR, f"{unique_id}.pkl")
 
     # The order of this decorators matters because of the whitelist_federated_learning variable, do not change them!
     @cache_operator_output
     @federated_sharing_decorator
     def execute(self, context: Context):
-        config_path = os.path.join(
-            self.airflow_workflow_dir, context["run_id"], "conf", "conf.json"
-        )
-        os.makedirs(os.path.dirname(config_path), exist_ok=True)
-        if context["dag_run"].conf is not None:  # not os.path.isfile(config_path) and
-            with open(os.path.join(config_path), "w") as file:
-                json.dump(context["dag_run"].conf, file, indent=4, sort_keys=True)
-
         self.set_context_variables(context)
         if "gpu_device" in context["task_instance"].executor_config:
             self.env_vars.update(
@@ -755,12 +823,18 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         logging.info("CONTAINER ANNOTATIONS BEFORE RUN:")
         logging.info(json.dumps(self.annotations, indent=2, sort_keys=True))
 
-        try:
-            project_form = context.get("params").get("project_form")
-            self.project = project_form
-            self.namespace = project_form.get("kubernetes_namespace")
-        except (KeyError, AttributeError):
-            self.namespace = "project-admin"
+        project_form = context.get("params", {}).get("project_form")
+        self.project = project_form  
+
+        if self.namespace is None:
+            self.namespace = (
+                project_form.get("kubernetes_namespace")
+                if project_form and project_form.get("kubernetes_namespace")
+                else "project-admin"
+            )
+
+        self.create_conf_configmap(context)
+
         self.set_volumes_and_volume_mounts()
         self.set_env_secrets()
 

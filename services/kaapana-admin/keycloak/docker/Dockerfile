@@ -34,20 +34,19 @@ RUN mvn clean package
 FROM local-only/base-python-cpu:latest AS builder
 
 WORKDIR /app
-RUN git clone --single-branch --depth 1 --branch 26.0.6 https://github.com/keycloak/keycloak.git /app/keycloak-repo
+RUN git clone --single-branch --depth 1 --branch 26.4.6 https://github.com/keycloak/keycloak.git /app/keycloak-repo
 RUN cp -r /app/keycloak-repo/themes/src/main/resources/theme/keycloak/ /app/kaapana
 COPY files/login.css /app/kaapana/login/resources/css/login.css
 COPY files/login.jpg /app/kaapana/login/resources/img/kaapana-bg.png
 COPY files/template.ftl /app/kaapana/login/template.ftl
 
-## Fix for update to 23.0.4 -> https://github.com/keycloak/keycloak/issues/12719#issuecomment-1858575991
-## Paths changed after 26.0.6 -> https://www.keycloak.org/docs/26.0.0/upgrading/#paths-for-common-theme-resources-have-changed
+# Paths changed after 26.0.6 -> https://www.keycloak.org/docs/26.0.0/upgrading/#paths-for-common-theme-resources-have-changed
 RUN sed -i '/^stylesCommon=/c\stylesCommon=vendor/patternfly-v4/patternfly.min.css vendor/patternfly-v3/css/patternfly.min.css vendor/patternfly-v3/css/patternfly-additions.min.css lib/pficon/pficon.css' /app/kaapana/login/theme.properties
 
 # Stage 4: Build the final Keycloak image with the custom theme and provider
-FROM quay.io/keycloak/keycloak:26.0.6
+FROM quay.io/keycloak/keycloak:26.4.6
 LABEL IMAGE="keycloak"
-LABEL VERSION="26.0.6"
+LABEL VERSION="26.4.6"
 LABEL BUILD_IGNORE="False"
 
 COPY --from=builder /app/kaapana /opt/keycloak/themes/kaapana

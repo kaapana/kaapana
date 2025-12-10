@@ -1,4 +1,4 @@
-FROM docker.io/postgres:17.2-alpine
+FROM docker.io/postgres:17.7-alpine
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="postgres-base"

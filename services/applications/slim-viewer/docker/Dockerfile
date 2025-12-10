@@ -15,7 +15,7 @@ ARG PUBLIC_URL="/slim"
 RUN yarn install --frozen-lockfile --network-timeout 100000
 RUN NODE_OPTIONS=--max_old_space_size=8192 yarn run build 
 
-FROM nginx:stable-alpine AS app
+FROM nginx:1.29.3-alpine AS app
 COPY --from=build /src/build/ /usr/share/nginx/html/slim/
 
 

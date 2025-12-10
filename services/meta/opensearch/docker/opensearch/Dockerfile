@@ -1,7 +1,7 @@
-FROM docker.io/opensearchproject/opensearch:2.18.0
+FROM docker.io/opensearchproject/opensearch:2.19.4
 
 LABEL IMAGE="opensearch"
-LABEL VERSION="2.18.0"
+LABEL VERSION="2.19.4"
 LABEL BUILD_IGNORE="False"
 
 USER root

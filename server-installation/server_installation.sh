@@ -419,7 +419,7 @@ function install_microk8s {
         chmod 600 $USER_HOME/.kube/config
 
         echo "${YELLOW}Enable microk8s hostpath-storage ...${NC}"
-        microk8s.kubectl enable hostpath-storage
+        microk8s.enable hostpath-storage
 
         if [ "$REAL_USER" != "root" ]; then
             echo "${YELLOW} Setting non-root permissions ...${NC}"

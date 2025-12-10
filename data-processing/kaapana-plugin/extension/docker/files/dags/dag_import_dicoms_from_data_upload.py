@@ -70,8 +70,10 @@ get_object_from_uploads = LocalVolumeMountOperator(
 unzip_files = ZipUnzipOperator(
     dag=dag, input_operator=get_object_from_uploads, batch_level=True, mode="unzip"
 )
-
-dicom_send = DcmSendOperator(dag=dag, input_operator=unzip_files, level="batch")
+#TODO set receiver AE Title, host, port 
+dicom_send = DcmSendOperator(dag=dag, input_operator=unzip_files, level="batch", enable_proxy=True,
+    no_proxy=".svc,.svc.cluster,.svc.cluster.local",
+    labels={"network-access-external-ips": "true"},)
 
 remove_object_from_file_uploads = LocalVolumeMountOperator(
     dag=dag,
@@ -87,22 +89,4 @@ clean = LocalWorkflowCleanerOperator(
 )
 
 
-def branching_cleaning_uploads_callable(**kwargs):
-    conf = kwargs["dag_run"].conf
-    delete_original_file = conf["workflow_form"]["delete_original_file"]
-    if delete_original_file:
-        return [remove_object_from_file_uploads.name]
-    else:
-        return [clean.name]
-
-
-branching_cleaning_uploads = BranchPythonOperator(
-    task_id="branching-cleaning-uploads",
-    provide_context=True,
-    python_callable=branching_cleaning_uploads_callable,
-    dag=dag,
-)
-
-get_object_from_uploads >> unzip_files >> dicom_send >> branching_cleaning_uploads
-branching_cleaning_uploads >> remove_object_from_file_uploads >> clean
-branching_cleaning_uploads >> clean
+get_object_from_uploads >> unzip_files >> dicom_send >> remove_object_from_file_uploads >> clean

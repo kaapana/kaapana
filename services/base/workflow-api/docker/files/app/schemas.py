@@ -397,7 +397,7 @@ class WorkflowRef(BaseModel):
 class WorkflowRunBase(BaseModel):
     workflow: WorkflowRef
     labels: List[Label] = []
-    workflow_parameters: Optional[List[WorkflowParameter]] = None
+    workflow_parameters: List[WorkflowParameter] = []
 
 
 class WorkflowRunCreate(WorkflowRunBase):

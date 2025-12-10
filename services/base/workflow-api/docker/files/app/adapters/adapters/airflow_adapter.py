@@ -264,69 +264,35 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         raise RuntimeError(f"DAG {dag_id} was not found in Airflow.")
 
     async def submit_workflow_run(
-        self, workflow_run: schemas.WorkflowRun, project_id: Optional[str] = None
+        self, workflow_run: schemas.WorkflowRun, project_id: str
     ) -> schemas.WorkflowRunUpdate:
         dag_id = self._get_dag_id_from_workflow(workflow_run.workflow)
         payload: dict = {"conf": {}}
 
-        # If project_id provided, populate conf.task_form for each task with env entry
-        if project_id:
-            try:
-                # workflow_run.workflow may be a WorkflowRef; ignore typing here
-                tasks = await self.get_workflow_tasks(workflow_run.workflow)  # type: ignore
-                task_form: dict = {}
-                for t in tasks:
-                    # t.title corresponds to Airflow task_id
-                    task_form[t.title] = {
-                        "env": [
-                            {
-                                "name": "KAAPANA_PROJECT_IDENTIFIER",
-                                "value": str(project_id),
-                            }
-                        ]
-                    }
-                payload["conf"]["task_form"] = task_form
-            except Exception as e:
-                self.logger.warning(
-                    f"Could not build task_form for project injection: {e}"
-                )
+        # Inject project_id into all task envs
+        tasks = await self.get_workflow_tasks(workflow_run.workflow)  # type: ignore
+        payload["conf"]["task_form"] = {
+            t.title: {
+                "env": [{"name": "KAAPANA_PROJECT_IDENTIFIER", "value": project_id}]
+            }
+            for t in tasks
+        }
 
-        # If workflow_run contains workflow_parameters (user-provided values), inject them
-        # into conf.task_form so KaapanaTaskOperator._merge_user_input will merge them.
-        try:
-            wp = getattr(workflow_run, "workflow_parameters", None)
-            if wp:
-                # ensure task_form exists
-                task_form = payload["conf"].setdefault("task_form", {})
-                # wp may be list of dicts or pydantic objects
-                for param in wp:
-                    # support both dict and object access
-                    if isinstance(param, dict):
-                        task_title = param.get("task_title")
-                        env_name = param.get("env_variable_name")
-                        ui_form = param.get("ui_form", {}) or {}
-                        value = ui_form.get("default")
-                    else:
-                        task_title = getattr(param, "task_title", None)
-                        env_name = getattr(param, "env_variable_name", None)
-                        ui_form = getattr(param, "ui_form", None) or {}
-                        # ui_form may be a pydantic object
-                        value = ui_form.default if hasattr(ui_form, "default") else ui_form.get("default") if isinstance(ui_form, dict) else None
+        task_form = payload["conf"]["task_form"]
 
-                    if not task_title or not env_name:
-                        continue
+        def _extract_param(param: schemas.WorkflowParameter):
+            task_title = param.task_title
+            env_name = param.env_variable_name
+            ui_form = param.ui_form
+            value = getattr(ui_form, "default", None)
+            return task_title, env_name, value
 
-                    entry = task_form.setdefault(task_title, {})
-                    env_list = entry.setdefault("env", [])
-                    # avoid overwriting existing keys: remove existing same-name entries
-                    env_list = [e for e in env_list if e.get("name") != env_name]
-                    env_list.append({"name": env_name, "value": value})
-                    entry["env"] = env_list
-                payload["conf"]["task_form"] = task_form
-        except Exception as e:
-            self.logger.warning(f"Could not inject workflow parameters into task_form: {e}")
+        for param in workflow_run.workflow_parameters:
+            task_title, env_name, value = _extract_param(param)
+            task_form.setdefault(task_title, {"env": []})["env"].append(
+                {"name": env_name, "value": value}
+            )
 
-        self.logger.info(payload)
         resp = await self._request("POST", f"/dags/{dag_id}/dagRuns", json=payload)
         airflow_run_id = resp["dag_run_id"]
         composite_id = self._get_composite_id(dag_id, airflow_run_id)
@@ -369,12 +335,9 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         return tasks
 
     async def cancel_workflow_run(
-        self, workflow_run: schemas.WorkflowRun
+        self, workflow_run_external_id: str
     ) -> schemas.WorkflowRunStatus:
-        if workflow_run.external_id is None:
-            raise ValueError("workflow_run.external_id is None")
-
-        dag_id, run_id = self._parse_composite_id(workflow_run.external_id)
+        dag_id, run_id = self._parse_composite_id(workflow_run_external_id)
         payload = {"state": "failed"}
         await self._request("PATCH", f"/dags/{dag_id}/dagRuns/{run_id}", json=payload)
         return schemas.WorkflowRunStatus.CANCELED

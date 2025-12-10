@@ -38,13 +38,14 @@ class WorkflowEngineAdapter(ABC):
     async def submit_workflow_run(
         self,
         workflow_run: schemas.WorkflowRun,
-        project_id: Optional[str] = None,
+        project_id: str,
     ) -> schemas.WorkflowRunUpdate:
         """
         Submit a workflow to the external engine
 
         Args:
             workflow_run (schemas.WorkflowRun): The workflow run to submit
+            project_id (str): project_id extracted from the cookies
 
         Returns:
             schemas.WorkflowRunUpdate: externa_id and lifecycle_status of the submitted workflow run
@@ -83,9 +84,17 @@ class WorkflowEngineAdapter(ABC):
 
     @abstractmethod
     async def cancel_workflow_run(
-        self, workflow_run: schemas.WorkflowRun
+        self, workflow_run_external_id: str
     ) -> schemas.WorkflowRunStatus:
-        """Cancel a workflow in the external engine"""
+        """
+        Cancels a running workflow run in the engine.
+
+        Args:
+            workflow_run_external_id (str): The ID of the workflow run in the engine.
+
+        Returns:
+            WorkflowRunStatus: The updated status of the workflow run as canceled.
+        """
         pass
 
     @abstractmethod

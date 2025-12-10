@@ -40,8 +40,7 @@ class DummyAdapter(WorkflowEngineAdapter):
         return workflow
 
     async def submit_workflow_run(
-        self,
-        workflow_run: schemas.WorkflowRun,
+        self, workflow_run: schemas.WorkflowRun, project_id: str
     ) -> schemas.WorkflowRunUpdate:
         """ """
         # simulate sending run to the engine, getting it back and updating external_id and status=PENDING
@@ -118,6 +117,7 @@ class DummyAdapter(WorkflowEngineAdapter):
         Returns:
             WorkflowRunStatus: The updated status of the workflow run as canceled.
         """
+        
         return schemas.WorkflowRunStatus.CANCELED
 
     async def retry_workflow_run(

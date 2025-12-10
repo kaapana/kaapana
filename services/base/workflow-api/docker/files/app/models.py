@@ -41,7 +41,9 @@ class Workflow(Base):
     title: Mapped[str] = mapped_column(String, index=True)
     version: Mapped[int] = mapped_column(Integer)
     definition: Mapped[str] = mapped_column(String)
-    workflow_parameters: Mapped[list] = mapped_column(JSONB, nullable=True, default=list)
+    workflow_parameters: Mapped[list] = mapped_column(
+        JSONB, nullable=True, default=list
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.now(timezone.utc)
     )
@@ -65,7 +67,9 @@ class WorkflowRun(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     workflow_id: Mapped[int] = mapped_column(Integer, ForeignKey("workflows.id"))
-    workflow_parameters: Mapped[list] = mapped_column(JSONB, nullable=True, default=list)
+    workflow_parameters: Mapped[list] = mapped_column(
+        JSONB, nullable=True, default=list
+    )
     lifecycle_status: Mapped[WorkflowRunStatus] = mapped_column(
         SqlEnum(WorkflowRunStatus), default=WorkflowRunStatus.CREATED, nullable=False
     )
@@ -159,7 +163,7 @@ class TaskRun(Base):
     workflow_run_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("workflow_runs.id")
     )
-    external_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    external_id: Mapped[str] = mapped_column(String, nullable=False)
     lifecycle_status: Mapped[TaskRunStatus] = mapped_column(
         SqlEnum(TaskRunStatus), default=TaskRunStatus.CREATED, nullable=False
     )

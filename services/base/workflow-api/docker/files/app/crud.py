@@ -192,14 +192,14 @@ async def get_active_workflow_runs(
     """
     Get all workflow runs that are not in a terminal state (Completed, Error, Canceled).
     """
-    terminal_states = [
+    not_syncable_states = [
         schemas.WorkflowRunStatus.COMPLETED,
         schemas.WorkflowRunStatus.ERROR,
         schemas.WorkflowRunStatus.CANCELED,
+        schemas.WorkflowRunStatus.CREATED,
     ]
-
     query = select(models.WorkflowRun).where(
-        models.WorkflowRun.lifecycle_status.not_in(terminal_states)
+        models.WorkflowRun.lifecycle_status.not_in(not_syncable_states)
     )
 
     query = query.options(selectinload(models.WorkflowRun.workflow))
@@ -344,7 +344,7 @@ async def get_tasks(
 async def get_task(
     db: AsyncSession,
     filters: Optional[Dict[str, Any]] = None,
-) -> models.Task:
+) -> models.Task | None:
     query = create_query(
         model=models.Task,
         filters=filters or {},
@@ -473,7 +473,9 @@ async def create_or_update_task_run(
             schemas.TaskRunCreate(
                 task_id=db_task.id,
                 task_title=task_run_update.task_title,
-                lifecycle_status=task_run_update.lifecycle_status,
+                lifecycle_status=schemas.TaskRunStatus[
+                    task_run_update.lifecycle_status
+                ],
                 external_id=task_run_update.external_id,
                 workflow_run_id=workflow_run_id,
             ),
@@ -485,8 +487,7 @@ async def create_or_update_task_run(
 async def create_task_run(
     db: AsyncSession,
     task_run: schemas.TaskRunCreate,
-):
-    # TODO
+) -> models.TaskRun:
     db_task_run = models.TaskRun(
         task_id=task_run.task_id,
         workflow_run_id=task_run.workflow_run_id,
@@ -513,7 +514,7 @@ async def update_task_run_lifecycle(
     if not db_task_run:
         logger.error(f"Failed to update TaskRun {task_run_id=}")
         raise ValueError("Failed to update TaskRun")
-    db_task_run.lifecycle_status = lifecycle_status
+    db_task_run.lifecycle_status = schemas.TaskRunStatus[lifecycle_status]
     await db.commit()
     await db.refresh(db_task_run)
     return db_task_run

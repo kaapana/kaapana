@@ -32,9 +32,6 @@ async def create_workflow_run(
     workflow_run: schemas.WorkflowRunCreate,
     db: AsyncSession = Depends(get_async_db),
 ):
-
-    # Assume `Project` cookie exists and contains JSON like {"name":"...","id":"..."}
-    # Some browsers URL-encode cookie values (e.g. "%7B...%7D"); decode first
     project = json.loads(unquote(request.cookies["Project"]))
     project_id = project["id"]
     workflow_run_res = await service.create_workflow_run(

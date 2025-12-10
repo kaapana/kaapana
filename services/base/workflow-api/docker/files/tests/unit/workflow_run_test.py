@@ -300,6 +300,7 @@ async def test_cancel_workflow_run(session: AsyncSession, client: AsyncClient):
 
     workflow_run = models.WorkflowRun(
         workflow_id=workflow.id,
+        external_id="test-external-id",
         lifecycle_status=schemas.WorkflowRunStatus.RUNNING,
     )
     session.add(workflow_run)
@@ -653,108 +654,41 @@ async def test_create_workflow_run_increments_correctly(
     assert len(set(run_ids)) == 3
 
 
-@pytest.mark.asyncio
-async def test_cancel_already_completed_workflow_run(
-    session: AsyncSession, client: AsyncClient
-):
-    """Test canceling a workflow run that's already completed - status should remain completed"""
-    workflow = models.Workflow(
-        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
-    )
-    session.add(workflow)
-    await session.commit()
-    await session.refresh(workflow)
-
-    workflow_run = models.WorkflowRun(
-        workflow_id=workflow.id,
-        lifecycle_status=schemas.WorkflowRunStatus.COMPLETED,
-    )
-    session.add(workflow_run)
-    await session.commit()
-    await session.refresh(workflow_run)
-
-    response = await client.put(f"/v1/workflow-runs/{workflow_run.id}/cancel")
-    data = response.json()
-
-    # Should return 200 and status should remain completed
-    assert response.status_code == 200
-    assert data["lifecycle_status"] == "Completed"
-
-
-@pytest.mark.asyncio
-async def test_cancel_already_canceled_workflow_run(
-    session: AsyncSession, client: AsyncClient
-):
-    """Test canceling a workflow run that's already canceled - idempotent no-op"""
-    # Create workflow and canceled run
-    workflow = models.Workflow(
-        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
-    )
-    session.add(workflow)
-    await session.commit()
-    await session.refresh(workflow)
-
-    workflow_run = models.WorkflowRun(
-        workflow_id=workflow.id,
-        lifecycle_status=schemas.WorkflowRunStatus.CANCELED,
-    )
-    session.add(workflow_run)
-    await session.commit()
-    await session.refresh(workflow_run)
-
-    response = await client.put(f"/v1/workflow-runs/{workflow_run.id}/cancel")
-    data = response.json()
-
-    # Should return 200 and status should remain canceled (idempotent)
-    assert response.status_code == 200
-    assert data["lifecycle_status"] == "Canceled"
-
-
-@pytest.mark.asyncio
-async def test_cancel_error_workflow_run(session: AsyncSession, client: AsyncClient):
-    """Test canceling a workflow run that's in error state - status should remain error"""
-    workflow = models.Workflow(
-        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
-    )
-    session.add(workflow)
-    await session.commit()
-    await session.refresh(workflow)
-
-    workflow_run = models.WorkflowRun(
-        workflow_id=workflow.id,
-        lifecycle_status=schemas.WorkflowRunStatus.ERROR,
-    )
-    session.add(workflow_run)
-    await session.commit()
-    await session.refresh(workflow_run)
-
-    response = await client.put(f"/v1/workflow-runs/{workflow_run.id}/cancel")
-    data = response.json()
-
-    assert response.status_code == 200
-    assert data["lifecycle_status"] == "Error"
-
-
+# ----------------------------
+# Retry tests
+# ----------------------------
 @pytest.mark.parametrize(
-    "initial_status",
+    "initial_status, expected_status_after_retry, expect_external_id",
     [
-        schemas.WorkflowRunStatus.RUNNING,
-        schemas.WorkflowRunStatus.CANCELED,
-        schemas.WorkflowRunStatus.COMPLETED,
-        schemas.WorkflowRunStatus.ERROR,
-        schemas.WorkflowRunStatus.PENDING,
-        schemas.WorkflowRunStatus.CREATED,
-        schemas.WorkflowRunStatus.SCHEDULED,
+        (schemas.WorkflowRunStatus.RUNNING, schemas.WorkflowRunStatus.PENDING, True),
+        (schemas.WorkflowRunStatus.PENDING, schemas.WorkflowRunStatus.PENDING, True),
+        (schemas.WorkflowRunStatus.SCHEDULED, schemas.WorkflowRunStatus.PENDING, True),
+        (schemas.WorkflowRunStatus.CANCELED, schemas.WorkflowRunStatus.CANCELED, True),
+        (
+            schemas.WorkflowRunStatus.COMPLETED,
+            schemas.WorkflowRunStatus.COMPLETED,
+            True,
+        ),
+        (schemas.WorkflowRunStatus.ERROR, schemas.WorkflowRunStatus.ERROR, True),
+        (schemas.WorkflowRunStatus.CREATED, schemas.WorkflowRunStatus.CREATED, False),
     ],
 )
 @pytest.mark.asyncio
 async def test_retry_workflow_run_from_any_status(
-    session: AsyncSession, client: AsyncClient, initial_status: schemas.WorkflowRunStatus
+    session: AsyncSession,
+    client: AsyncClient,
+    initial_status: schemas.WorkflowRunStatus,
+    expected_status_after_retry: schemas.WorkflowRunStatus,
+    expect_external_id: bool,
 ):
-    """Test retrying a workflow run from any status creates new run and cancels old"""
+    """Test retrying a workflow run behaves correctly depending on initial status"""
+
     # Create workflow
     workflow = models.Workflow(
-        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+        title="test-workflow",
+        version=1,
+        definition="test_def",
+        workflow_engine="dummy",
     )
     session.add(workflow)
     await session.commit()
@@ -763,18 +697,87 @@ async def test_retry_workflow_run_from_any_status(
     # Create workflow run with the given initial status
     workflow_run = models.WorkflowRun(
         workflow_id=workflow.id,
+        external_id="test-external-id" if expect_external_id else None,
         lifecycle_status=initial_status,
     )
     session.add(workflow_run)
     await session.commit()
     await session.refresh(workflow_run)
 
+    # Retry the workflow run
     response = await client.put(f"/v1/workflow-runs/{workflow_run.id}/retry")
     data = response.json()
 
     assert response.status_code == 200
-    assert data["lifecycle_status"] == "Pending"
+    assert data["lifecycle_status"] == expected_status_after_retry.value
 
+    if expect_external_id:
+        assert data["external_id"] is not None
+    else:
+        assert data["external_id"] is None
+
+
+# ----------------------------
+# Cancel tests
+# ----------------------------
+@pytest.mark.parametrize(
+    "initial_status, expected_status_after_cancel, expect_external_id",
+    [
+        (schemas.WorkflowRunStatus.RUNNING, schemas.WorkflowRunStatus.CANCELED, True),
+        (schemas.WorkflowRunStatus.PENDING, schemas.WorkflowRunStatus.CANCELED, True),
+        (schemas.WorkflowRunStatus.SCHEDULED, schemas.WorkflowRunStatus.CANCELED, True),
+        (schemas.WorkflowRunStatus.CANCELED, schemas.WorkflowRunStatus.CANCELED, True),
+        (
+            schemas.WorkflowRunStatus.COMPLETED,
+            schemas.WorkflowRunStatus.COMPLETED,
+            True,
+        ),
+        (schemas.WorkflowRunStatus.ERROR, schemas.WorkflowRunStatus.ERROR, True),
+        (schemas.WorkflowRunStatus.CREATED, schemas.WorkflowRunStatus.CREATED, False),
+    ],
+)
+@pytest.mark.asyncio
+async def test_cancel_workflow_run_from_any_status(
+    session: AsyncSession,
+    client: AsyncClient,
+    initial_status: schemas.WorkflowRunStatus,
+    expected_status_after_cancel: schemas.WorkflowRunStatus,
+    expect_external_id: bool,
+):
+    """Test canceling a workflow run behaves correctly depending on initial status"""
+
+    # Create workflow
+    workflow = models.Workflow(
+        title="test-workflow",
+        version=1,
+        definition="test_def",
+        workflow_engine="dummy",
+    )
+    session.add(workflow)
+    await session.commit()
+    await session.refresh(workflow)
+
+    # Create workflow run with the given initial status
+    workflow_run = models.WorkflowRun(
+        workflow_id=workflow.id,
+        external_id="test-external-id" if expect_external_id else None,
+        lifecycle_status=initial_status,
+    )
+    session.add(workflow_run)
+    await session.commit()
+    await session.refresh(workflow_run)
+
+    # Cancel the workflow run
+    response = await client.put(f"/v1/workflow-runs/{workflow_run.id}/cancel")
+    data = response.json()
+
+    assert response.status_code == 200
+    assert data["lifecycle_status"] == expected_status_after_cancel.value
+
+    if expect_external_id:
+        assert data["external_id"] is not None
+    else:
+        assert data["external_id"] is None
 
 
 @pytest.mark.asyncio

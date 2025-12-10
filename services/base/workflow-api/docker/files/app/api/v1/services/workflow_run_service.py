@@ -32,56 +32,57 @@ async def get_workflow_runs(
     if workflow_title:
         filters["workflow.title"] = workflow_title
     if workflow_version:
-        filters["workflow.version"] = workflow_version
+        filters["workflow.version"] = str(workflow_version)
     if lifecycle_status:
-        # Convert string to enum value (e.g., "COMPLETED" -> WorkflowRunStatus.COMPLETED)
-        try:
-            status_enum = schemas.WorkflowRunStatus[lifecycle_status]
-            filters["lifecycle_status"] = status_enum
-        except KeyError:
-            logger.warning(f"Invalid lifecycle_status: {lifecycle_status}")
-            return []
+        filters["lifecycle_status"] = schemas.WorkflowRunStatus[lifecycle_status]
 
-    # get workflow runs from the database
-    runs: List[models.WorkflowRun] = await crud.get_workflow_runs(db, filters=filters)
-    if not runs:
+    db_runs: List[models.WorkflowRun] = await crud.get_workflow_runs(
+        db, filters=filters
+    )
+    if not db_runs:
         logger.warning(f"No workflow runs found for {filters=}")
         return []
 
-    res = []
-    for run in runs:
-        # if a run is not in a terminal state, add from db
-        if run.lifecycle_status in [
+    res: List[models.WorkflowRun] = []
+    for db_run in db_runs:
+        # if a run is in a terminal state, no need to sync with engine, as well as if it was just created and not yet recognized by engine
+        if db_run.lifecycle_status in [
             schemas.WorkflowRunStatus.COMPLETED,
             schemas.WorkflowRunStatus.ERROR,
             schemas.WorkflowRunStatus.CANCELED,
+            schemas.WorkflowRunStatus.CREATED,
         ]:
-            res.append(run)
+            res.append(db_run)
             continue
 
+        # Now we know run.external_id must exist
+        assert (
+            db_run.external_id is not None
+        ), "external_id must exist for non-CREATED runs"
+
         # get status from the engine
-        engine = get_workflow_engine(run.workflow.workflow_engine)
-        status = await engine.get_workflow_run_status(run.external_id)
-        if status != run.lifecycle_status:
-            run = await crud.update_workflow_run(
+        engine = get_workflow_engine(db_run.workflow.workflow_engine)
+        status = await engine.get_workflow_run_status(db_run.external_id)
+        if status != db_run.lifecycle_status:
+            await crud.update_workflow_run(
                 db=db,
-                run_id=run.id,
+                run_id=db_run.id,
                 workflow_run_update=schemas.WorkflowRunUpdate(lifecycle_status=status),
             )
 
         # update all task runs of workflow run in the background
-        task_run_updates = await engine.get_workflow_run_task_runs(run.external_id)
+        task_run_updates = await engine.get_workflow_run_task_runs(db_run.external_id)
         for t in task_run_updates:
             asyncio.create_task(
                 run_in_background_with_retries(
                     crud.create_or_update_task_run,
                     db=None,
                     task_run_update=t,
-                    workflow_run_id=run.id,
+                    workflow_run_id=db_run.id,
                 )
             )
-        res.append(run)
-    return res
+        res.append(db_run)
+    return [schemas.WorkflowRun.model_validate(r) for r in res]
 
 
 async def create_workflow_run(
@@ -126,7 +127,7 @@ async def create_workflow_run(
         run_in_background_with_retries(
             _submit_workflow_run_to_engine,
             db=db,
-            workflow_run=db_workflow_run,
+            workflow_run=schemas.WorkflowRun.model_validate(db_workflow_run),
             workflow_engine=engine,
             project_id=project_id,
         )
@@ -148,20 +149,31 @@ async def get_workflow_run_by_id(
     Raises:
         NotFoundError: If the workflow run is not found
     """
-    run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
-    if not run:
+    db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
+    if not db_run:
         logger.error(f"No workflow runs found by id {workflow_run_id}")
         raise NotFoundError("Workflow run not found")
 
-    engine = get_workflow_engine(run.workflow.workflow_engine)
-    status = await engine.get_workflow_run_status(run.external_id)
-    if status != run.lifecycle_status:
-        run = await crud.update_workflow_run(
+    # if a run is in a terminal state, no need to sync with engine, as well as if it was just created and not yet recognized by engine
+    if db_run.lifecycle_status in [
+        schemas.WorkflowRunStatus.COMPLETED,
+        schemas.WorkflowRunStatus.ERROR,
+        schemas.WorkflowRunStatus.CANCELED,
+        schemas.WorkflowRunStatus.CREATED,
+    ]:
+        return schemas.WorkflowRun.model_validate(db_run)
+
+    assert db_run.external_id is not None, "external_id must exist for non-CREATED runs"
+
+    engine = get_workflow_engine(db_run.workflow.workflow_engine)
+    status = await engine.get_workflow_run_status(db_run.external_id)
+    if status != db_run.lifecycle_status:
+        db_run = await crud.update_workflow_run(
             db=db,
             run_id=workflow_run_id,
             workflow_run_update=schemas.WorkflowRunUpdate(lifecycle_status=status),
         )
-    return run
+    return schemas.WorkflowRun.model_validate(db_run)
 
 
 async def cancel_workflow_run(
@@ -182,37 +194,40 @@ async def cancel_workflow_run(
         NotFoundError: If the workflow run is not found
         InternalError: If the cancellation in the workflow engine fails for non-terminal runs
     """
-    run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
-    if not run:
+    db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
+    if not db_run:
         logger.error(f"No workflow runs found to cancel {workflow_run_id}")
         raise NotFoundError("Workflow run not found")
 
     # Terminal states are immutable - return existing state without error (idempotent no-op)
-    if run.lifecycle_status in [
+    if db_run.lifecycle_status in [
         schemas.WorkflowRunStatus.COMPLETED,
         schemas.WorkflowRunStatus.ERROR,
         schemas.WorkflowRunStatus.CANCELED,
+        schemas.WorkflowRunStatus.CREATED,
     ]:
         logger.info(
-            f"Workflow run {workflow_run_id} is already in terminal state "
-            f"{run.lifecycle_status.value} - returning existing state"
+            f"Workflow run {workflow_run_id} is already in terminal state or in CREATED state:"
+            f"{db_run.lifecycle_status.value} - returning existing state"
         )
-        return run
+        return schemas.WorkflowRun.model_validate(db_run)
 
-    engine = get_workflow_engine(run.workflow.workflow_engine)
-    canceled = await engine.cancel_workflow_run(run.external_id)
+    assert db_run.external_id is not None, "external_id must exist for non-CREATED runs"
+
+    engine = get_workflow_engine(db_run.workflow.workflow_engine)
+    canceled = await engine.cancel_workflow_run(db_run.external_id)
     if not canceled:
         logger.error(f"Failed to cancel workflow run in engine {workflow_run_id}")
         raise InternalError("Failed to cancel workflow run in engine")
-    updated = await crud.update_workflow_run(
+    db_updated = await crud.update_workflow_run(
         db,
         run_id=workflow_run_id,
         workflow_run_update=schemas.WorkflowRunUpdate(
-            external_id=run.external_id,
+            external_id=db_run.external_id,
             lifecycle_status=schemas.WorkflowRunStatus.CANCELED,
         ),
     )
-    return updated
+    return schemas.WorkflowRun.model_validate(db_updated)
 
 
 async def retry_workflow_run(
@@ -228,21 +243,37 @@ async def retry_workflow_run(
     Raises:
         NotFoundError: If the workflow run is not found
     """
-    run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
-    if not run:
+    db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
+    if not db_run:
         logger.error(f"No workflow runs found to retry {workflow_run_id}")
         raise NotFoundError("Workflow run not found")
 
-    engine = get_workflow_engine(run.workflow.workflow_engine)
-    new_run_status = await engine.retry_workflow_run(run)
-    return await crud.update_workflow_run(
+    if db_run.lifecycle_status in [
+        schemas.WorkflowRunStatus.COMPLETED,
+        schemas.WorkflowRunStatus.ERROR,
+        schemas.WorkflowRunStatus.CANCELED,
+        schemas.WorkflowRunStatus.CREATED,
+    ]:
+        logger.info(
+            f"Workflow run {workflow_run_id} is already in terminal state or in CREATED state:"
+            f"{db_run.lifecycle_status.value} - returning existing state"
+        )
+        return schemas.WorkflowRun.model_validate(db_run)
+
+    assert db_run.external_id is not None, "external_id must exist for non-CREATED runs"
+
+    engine = get_workflow_engine(db_run.workflow.workflow_engine)
+    new_run_status = await engine.retry_workflow_run(db_run.external_id)
+
+    updated_run = await crud.update_workflow_run(
         db,
         run_id=workflow_run_id,
         workflow_run_update=schemas.WorkflowRunUpdate(
             lifecycle_status=new_run_status,
-            external_id=run.external_id,
+            external_id=db_run.external_id,
         ),
     )
+    return schemas.WorkflowRun.model_validate(updated_run)
 
 
 async def get_workflow_run_task_runs(
@@ -262,21 +293,23 @@ async def get_workflow_run_task_runs(
         NotFoundError: If the workflow run or task runs are not found
 
     """
-    workflow_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
-    if not workflow_run:
+    db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
+    if not db_run:
         logger.error(f"No workflow run found for id {workflow_run_id}")
         raise NotFoundError("Workflow run not found")
 
     # get task runs from the engine adapter if the workflow run is not in a terminal state
-    if workflow_run.lifecycle_status not in [
+    if db_run.lifecycle_status not in [
         schemas.WorkflowRunStatus.COMPLETED,
         schemas.WorkflowRunStatus.ERROR,
         schemas.WorkflowRunStatus.CANCELED,
+        schemas.WorkflowRunStatus.CREATED,
     ]:
-        engine = get_workflow_engine(workflow_run.workflow.workflow_engine)
-        task_run_updates = await engine.get_workflow_run_task_runs(
-            workflow_run.external_id
-        )
+        assert (
+            db_run.external_id is not None
+        ), "external_id must exist for non-CREATED runs"
+        engine = get_workflow_engine(db_run.workflow.workflow_engine)
+        task_run_updates = await engine.get_workflow_run_task_runs(db_run.external_id)
         logger.info(f"Got {len(task_run_updates)} task runs from the engine")
 
         for t in task_run_updates:
@@ -365,7 +398,7 @@ async def get_task_run_logs(
 
 async def _submit_workflow_run_to_engine(
     db: AsyncSession,
-    workflow_run: models.WorkflowRun,
+    workflow_run: schemas.WorkflowRun,
     workflow_engine: WorkflowEngineAdapter,
     project_id: str,
 ) -> None:
@@ -405,6 +438,17 @@ async def _sync_single_workflow_run(db: AsyncSession, run: models.WorkflowRun) -
     Raises:
         InternalError: If syncing fails
     """
+    if run.lifecycle_status in [
+        schemas.WorkflowRunStatus.COMPLETED,
+        schemas.WorkflowRunStatus.ERROR,
+        schemas.WorkflowRunStatus.CANCELED,
+        schemas.WorkflowRunStatus.CREATED,
+    ]:
+        logger.debug(f"Skipping sync for terminal or CREATED run {run.id}")
+        return
+
+    assert run.external_id is not None, "external_id must exist for non-CREATED runs"
+
     try:
         engine = get_workflow_engine(run.workflow.workflow_engine)
 
@@ -412,7 +456,7 @@ async def _sync_single_workflow_run(db: AsyncSession, run: models.WorkflowRun) -
         status = await engine.get_workflow_run_status(run.external_id)
         if status != run.lifecycle_status:
             logger.info(f"Syncing Run {run.id}: {run.lifecycle_status} -> {status}")
-            run = await crud.update_workflow_run(
+            await crud.update_workflow_run(
                 db=db,
                 run_id=run.id,
                 workflow_run_update=schemas.WorkflowRunUpdate(lifecycle_status=status),

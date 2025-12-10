@@ -1,0 +1,296 @@
+diff --git a/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py b/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
+index fb3aa5d..b08eab2 100644
+--- a/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
++++ b/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
+@@ -65,7 +65,33 @@ from nnunetv2.utilities.get_network_from_plans import get_network_from_plans
+ from nnunetv2.utilities.helpers import empty_cache, dummy_context
+ from nnunetv2.utilities.label_handling.label_handling import convert_labelmap_to_one_hot, determine_num_input_channels
+ from nnunetv2.utilities.plans_handling.plans_handler import PlansManager
++import json
++from torch.utils.tensorboard import SummaryWriter
++from pathlib import Path
+ 
++class JsonWriter(object):
++    @staticmethod
++    def _write_json(filename, data):
++        with open(filename, "w") as json_file:
++            json.dump(data, json_file)
++
++    @staticmethod
++    def _load_json(filename):
++        try:
++            with open(filename) as json_file:
++                workflow_data = json.load(json_file)
++        except FileNotFoundError:
++            workflow_data = []
++        return workflow_data
++
++    def __init__(self, log_dir) -> None:
++        self.filename = os.path.join(log_dir, "experiment_results.json")
++        # not accumulating anything because this leads to a decrease in speed over many epochs!
++
++    def append_data_dict(self, data_dict):
++        workflow_data = JsonWriter._load_json(self.filename)
++        workflow_data.append(data_dict)
++        JsonWriter._write_json(self.filename, workflow_data)
+ 
+ class nnUNetTrainer(object):
+     def __init__(self, plans: dict, configuration: str, fold: int, dataset_json: dict,
+@@ -142,15 +168,17 @@ class nnUNetTrainer(object):
+                 if self.is_cascaded else None
+ 
+         ### Some hyperparameters for you to fiddle with
+-        self.initial_lr = 1e-2
+-        self.weight_decay = 3e-5
+-        self.oversample_foreground_percent = 0.33
++        self.initial_lr = float(os.getenv("INITIAL_LEARNING_RATE", 1e-2))
++        self.weight_decay = float(os.getenv("WEIGHT_DECAY", 3e-5))
++        self.oversample_foreground_percent = float(os.getenv("OVERSAMPLE_FOREGROUND_PERCENT", 0.33))
+         self.probabilistic_oversampling = False
+-        self.num_iterations_per_epoch = 250
+-        self.num_val_iterations_per_epoch = 50
+-        self.num_epochs = 1000
+-        self.current_epoch = 0
+-        self.enable_deep_supervision = True
++        self.num_iterations_per_epoch = int(os.getenv("NUM_BATCHES_PER_EPOCH", 250))
++        self.num_val_iterations_per_epoch = int(os.getenv("NUM_VAL_BATCHES_PER_EPOCH", 50))
++        self.num_epochs = int(os.getenv("TRAIN_MAX_EPOCHS", 1000))
++        self.epochs_per_round = int(os.getenv("EPOCHS_PER_ROUND", self.num_epochs))
++        self.current_epoch = int(os.getenv("CURRENT_EPOCH", 0))
++        self.enable_deep_supervision = str(os.getenv("ENABLE_DEEP_SUPERVISION", True))
++        self.enable_deep_supervision = True if self.enable_deep_supervision.lower() == "true" else False
+ 
+         ### Dealing with labels/regions
+         self.label_manager = self.plans_manager.get_label_manager(dataset_json)
+@@ -185,7 +213,8 @@ class nnUNetTrainer(object):
+ 
+         ### checkpoint saving stuff
+         self.save_every = 50
+-        self.disable_checkpointing = False
++        self.disable_checkpointing = str(os.getenv("DISABLE_CHECKPOINTING", "False"))
++        self.disable_checkpointing = True if self.disable_checkpointing.lower() == "true" else False
+ 
+         self.was_initialized = False
+ 
+@@ -196,6 +225,87 @@ class nnUNetTrainer(object):
+                                "Nature methods, 18(2), 203-211.\n"
+                                "#######################################################################\n",
+                                also_print_to_console=True, add_timestamp=False)
++        
++        ################################## Adapted for KaapanaFed ##################################
++        # self.save_best_checkpoint = False  # whether or not to save the best checkpoint according to self.best_val_eval_criterion_MA
++
++        # This is maybe a little bit ugly...
++        tensorboard_log_dir = Path(
++            os.path.join(
++                "/tensorboard",
++                os.getenv("RUN_ID"),
++                os.getenv("OPERATOR_OUT_DIR"),
++            )
++        )
++        with open(
++            os.path.join("/", os.getenv("WORKFLOW_DIR"), "conf", "conf.json"), "r"
++        ) as f:
++            conf_data = json.load(f)
++        if (
++            "federated_form" in conf_data
++            and "from_previous_dag_run" in conf_data["federated_form"]
++            and conf_data["federated_form"]["from_previous_dag_run"] is not None
++        ):
++            previous_tensorboard_log_dir = Path(
++                os.path.join(
++                    "/tensorboard",
++                    conf_data["federated_form"]["from_previous_dag_run"],
++                    os.getenv("OPERATOR_OUT_DIR"),
++                )
++            )
++            if (
++                previous_tensorboard_log_dir.is_dir()
++                and not tensorboard_log_dir.is_dir()
++            ):
++                print("Removing log from previous round!")
++                shutil.copytree(previous_tensorboard_log_dir, tensorboard_log_dir)
++        else:
++            tensorboard_log_dir.mkdir(exist_ok=True, parents=True)
++        if (
++            "federated_form" in conf_data
++            and "before_previous_dag_run" in conf_data["federated_form"]
++            and conf_data["federated_form"]["before_previous_dag_run"] is not None
++        ):
++            before_previous_tensorboard_log_dir = Path(
++                os.path.join(
++                    "/tensorboard",
++                    conf_data["federated_form"]["before_previous_dag_run"],
++                    os.getenv("OPERATOR_OUT_DIR"),
++                )
++            )
++            if before_previous_tensorboard_log_dir.is_dir():
++                print("Removing log from previous round!")
++                shutil.rmtree(before_previous_tensorboard_log_dir)
++
++        if os.getenv("MODE") == "training":
++            self.tensorboard_writer = SummaryWriter(log_dir=tensorboard_log_dir)
++            dataset_info_preprocessing_path = os.path.join(
++                "/",
++                os.getenv("WORKFLOW_DIR"),
++                os.getenv("OPERATOR_IN_DIR"),
++                "nnUNet_raw",                    
++                f'Dataset{int(os.getenv("TASK_NUM")):03}_{os.getenv("TASK_DESCRIPTION")}',
++                "dataset.json",
++            )
++            dataset_info_path = os.path.join(self.output_folder, "dataset.json")
++            print(
++                f"Copying dataset.json from {dataset_info_preprocessing_path}  to {dataset_info_path}"
++            )
++            os.makedirs(os.path.dirname(dataset_info_path), exist_ok=True)
++            shutil.copyfile(dataset_info_preprocessing_path, dataset_info_path)
++            with open(dataset_info_path, "r", encoding="utf-8") as jsonData:
++                dataset = json.load(jsonData)
++            self.dataset_labels = dataset["labels"]
++
++        json_log_dir = Path(
++            os.path.join("/", os.getenv("WORKFLOW_DIR"), os.getenv("OPERATOR_OUT_DIR"))
++        )
++        # if json_log_dir.is_dir():
++        #     print(f'Cleaning log dir {json_log_dir}, in case there was something running before')
++        #     shutil.rmtree(json_log_dir)
++        self.json_writer = JsonWriter(log_dir=json_log_dir)
++        # #########################################################################################
++
+ 
+     def initialize(self):
+         if not self.was_initialized:
+@@ -904,7 +1014,7 @@ class nnUNetTrainer(object):
+         # make sure deep supervision is on in the network
+         self.set_deep_supervision_enabled(self.enable_deep_supervision)
+ 
+-        self.print_plans()
++        # self.print_plans()
+         empty_cache(self.device)
+ 
+         # maybe unpack
+@@ -957,6 +1067,8 @@ class nnUNetTrainer(object):
+                 self.dataloader_val._finish()
+             sys.stdout = old_stdout
+ 
++        # write tensorboard.SummaryWriter to file
++        self.tensorboard_writer.close()
+         empty_cache(self.device)
+         self.print_to_log_file("Training done.")
+ 
+@@ -1111,10 +1223,10 @@ class nnUNetTrainer(object):
+         else:
+             loss_here = np.mean(outputs_collated['loss'])
+ 
+-        global_dc_per_class = [i for i in [2 * i / (2 * i + j + k) for i, j, k in zip(tp, fp, fn)]]
+-        mean_fg_dice = np.nanmean(global_dc_per_class)
++        self.global_dc_per_class = [i for i in [2 * i / (2 * i + j + k) for i, j, k in zip(tp, fp, fn)]]
++        mean_fg_dice = np.nanmean(self.global_dc_per_class)
+         self.logger.log('mean_fg_dice', mean_fg_dice, self.current_epoch)
+-        self.logger.log('dice_per_class_or_region', global_dc_per_class, self.current_epoch)
++        self.logger.log('dice_per_class_or_region', self.global_dc_per_class, self.current_epoch)
+         self.logger.log('val_losses', loss_here, self.current_epoch)
+ 
+     def on_epoch_start(self):
+@@ -1123,12 +1235,35 @@ class nnUNetTrainer(object):
+     def on_epoch_end(self):
+         self.logger.log('epoch_end_timestamps', time(), self.current_epoch)
+ 
+-        self.print_to_log_file('train_loss', np.round(self.logger.my_fantastic_logging['train_losses'][-1], decimals=4))
+-        self.print_to_log_file('val_loss', np.round(self.logger.my_fantastic_logging['val_losses'][-1], decimals=4))
+-        self.print_to_log_file('Pseudo dice', [np.round(i, decimals=4) for i in
+-                                               self.logger.my_fantastic_logging['dice_per_class_or_region'][-1]])
+-        self.print_to_log_file(
+-            f"Epoch time: {np.round(self.logger.my_fantastic_logging['epoch_end_timestamps'][-1] - self.logger.my_fantastic_logging['epoch_start_timestamps'][-1], decimals=2)} s")
++        # get values
++        train_loss = np.round(self.logger.my_fantastic_logging['train_losses'][-1], decimals=4)
++        val_loss = np.round(self.logger.my_fantastic_logging['val_losses'][-1], decimals=4)
++        pseudo_dice = [np.round(i, decimals=4) for i in self.logger.my_fantastic_logging['dice_per_class_or_region'][-1]]
++        epoch_time = np.round(self.logger.my_fantastic_logging['epoch_end_timestamps'][-1] - self.logger.my_fantastic_logging['epoch_start_timestamps'][-1], decimals=2)
++        # log to log_file and console
++        self.print_to_log_file('train_loss', train_loss)
++        self.print_to_log_file('val_loss', val_loss)
++        self.print_to_log_file('Pseudo dice', pseudo_dice)
++        self.print_to_log_file(f"Epoch time: {epoch_time} s")
++        # log to Kaapana's experiment_results json_writer and Tensorboard tensorboard_writer
++        log_dict = {
++            "loss/train": float(train_loss),
++            "loss/val": float(val_loss),
++        }
++        for label_name, idx in self.dataset_labels.items():
++            if label_name == "background":
++                continue
++            log_dict.update(
++                {
++                    f"foreground-dice/label_{label_name}": float(self.global_dc_per_class[int(idx) - 1])
++                }
++            )
++        for key, value in log_dict.items():
++            self.tensorboard_writer.add_scalar(key, value, self.current_epoch)
++        log_dict.update({"epoch": self.current_epoch, "fold": self.fold, "timestamp": time()})
++        self.json_writer.append_data_dict(log_dict)
++        # log to tensorboard writer
++        # self.tensorboard_writer.add_scalar(f"foreground-dice/all", self.metrics['foreground_mean']["Dice"], self.current_epoch)
+ 
+         # handling periodic checkpointing
+         current_epoch = self.current_epoch
+@@ -1148,7 +1283,8 @@ class nnUNetTrainer(object):
+ 
+     def save_checkpoint(self, filename: str) -> None:
+         if self.local_rank == 0:
+-            if not self.disable_checkpointing:
++            # self.disable_checkpointing disables intermediate checkpointing but not final checkpointing
++            if not self.disable_checkpointing or "checkpoint_final.pth" in filename:
+                 if self.is_ddp:
+                     mod = self.network.module
+                 else:
+@@ -1342,7 +1478,7 @@ class nnUNetTrainer(object):
+             dist.barrier()
+ 
+         if self.local_rank == 0:
+-            metrics = compute_metrics_on_folder(join(self.preprocessed_dataset_folder_base, 'gt_segmentations'),
++            self.metrics = compute_metrics_on_folder(join(self.preprocessed_dataset_folder_base, 'gt_segmentations'),
+                                                 validation_output_folder,
+                                                 join(validation_output_folder, 'summary.json'),
+                                                 self.plans_manager.image_reader_writer_class(),
+@@ -1353,7 +1489,7 @@ class nnUNetTrainer(object):
+                                                 num_processes=default_num_processes * dist.get_world_size() if
+                                                 self.is_ddp else default_num_processes)
+             self.print_to_log_file("Validation complete", also_print_to_console=True)
+-            self.print_to_log_file("Mean Validation Dice: ", (metrics['foreground_mean']["Dice"]),
++            self.print_to_log_file("Mean Validation Dice: ", (self.metrics['foreground_mean']["Dice"]),
+                                    also_print_to_console=True)
+ 
+         self.set_deep_supervision_enabled(True)
+@@ -1362,6 +1498,13 @@ class nnUNetTrainer(object):
+     def run_training(self):
+         self.on_train_start()
+ 
++        ### ADAPTED FOR KAAPANAFED ###
++        if os.getenv("PREP_INCREMENT_STEP", None) == "from_dataset_properties":
++            self.save_checkpoint(join(self.output_folder, "checkpoint_final.pth"))
++            print("Preparation round done: Aggregation of model initialization!")
++            return
++        ##############################
++
+         for epoch in range(self.current_epoch, self.num_epochs):
+             self.on_epoch_start()
+ 
+@@ -1380,4 +1523,17 @@ class nnUNetTrainer(object):
+ 
+             self.on_epoch_end()
+ 
++            ### ADAPTED FOR KAAPANAFED ###
++            if ((epoch + 1) % self.epochs_per_round == 0) and (
++                (epoch + 1) != self.num_epochs
++            ):
++                print("Interrupting training ")
++                self.print_to_log_file(
++                    f"Interrupting training due to epochs_per_round={self.epochs_per_round}"
++                )
++                # write tensorboard.SummaryWriter to file
++                self.tensorboard_writer.close()
++                break
++            ##############################
++
+         self.on_train_end()

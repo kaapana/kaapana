@@ -72,7 +72,12 @@ def get_opensearch(request: Request):
 
 def get_project(request: Request):
     project = request.headers.get("Project")
-    return json.loads(project)
+    if not project:
+        return None
+    try:
+        return json.loads(project)
+    except json.JSONDecodeError:
+        return None
 
 
 def get_project_index(project=Depends(get_project)):

@@ -318,9 +318,10 @@ def get_my_project_jobs(
     Get jobs scoped to the current project.
     Optionally filter by username, instance_name, workflow_name, or status.
     """
+    project_id = project.get("id") if project else None
     jobs = crud.get_my_project_jobs(
         db=db,
-        project_id=project.get("id"),
+        project_id=project_id,
         username=username,
         instance_name=instance_name,
         workflow_name=workflow_name,

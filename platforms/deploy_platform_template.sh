@@ -1,6 +1,6 @@
+#!/bin/bash
 # WARNING: This script is deprecated and will be removed in the next Kaapana release.
 # Please migrate to `./kaapanactl deploy`, which supports the same options.
-#!/bin/bash
 set -euf -o pipefail
 export HELM_EXPERIMENTAL_OCI=1
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor

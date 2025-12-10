@@ -1,10 +1,12 @@
+import json
 import logging
 from typing import List, Optional
+from urllib.parse import unquote
 
 from app import schemas
 from app.api.v1.services import workflow_run_service as service
 from app.dependencies import get_async_db
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -18,16 +20,23 @@ async def get_workflow_runs(
     lifecycle_status: Optional[str] = None,
     db: AsyncSession = Depends(get_async_db),
 ):
-    return await service.get_workflow_runs(db, workflow_title, workflow_version, lifecycle_status)
+    return await service.get_workflow_runs(
+        db, workflow_title, workflow_version, lifecycle_status
+    )
 
 
 @router.post("/workflow-runs", response_model=schemas.WorkflowRun, status_code=201)
 async def create_workflow_run(
+    request: Request,
     response: Response,
     workflow_run: schemas.WorkflowRunCreate,
     db: AsyncSession = Depends(get_async_db),
 ):
-    workflow_run_res = await service.create_workflow_run(db, workflow_run)
+    project = json.loads(unquote(request.cookies["Project"]))
+    project_id = project["id"]
+    workflow_run_res = await service.create_workflow_run(
+        db, workflow_run, project_id=project_id
+    )
     response.headers["Location"] = f"/v1/workflow-runs/{workflow_run_res.id}"
     return workflow_run_res
 

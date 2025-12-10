@@ -3,13 +3,13 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
+import type { Plugin } from 'vite'
 
-// https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(() => ({
   base: "/workflow-ui",
   plugins: [
     vue(),
-    vueDevTools(),
+    vueDevTools(),    
   ],
   resolve: {
     alias: {
@@ -26,13 +26,19 @@ export default defineConfig({
     ],
   },
   server: {
-    allowedHosts: true,
-    port: 80,
+    allowedHosts: ["e230-pc25.inet.dkfz-heidelberg.de"],
+    port: 5173,
+    host: true,
+    strictPort: true,
+    hmr: {
+      protocol: 'wss',
+      // Use clientPort so the browser connects to 443 through Traefik;
+      // Vite still listens internally on 5173 and is proxied
+      clientPort: 443,
+      path: '/workflow-ui/@vite',
+    },
   },
   build: {
     outDir: 'dist',
-    commonjsOptions: {
-      transformMixedEsModules: true,
-    },
   },
-})
+}))

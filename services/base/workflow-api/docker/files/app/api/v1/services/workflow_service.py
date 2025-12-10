@@ -1,13 +1,13 @@
-import logging
 import asyncio
-from typing import Any, List, Optional
-from fastapi import HTTPException
-from fastapi.encoders import jsonable_encoder
+import logging
+from typing import List, Optional
 
-from app import crud, schemas
-from app.adapters import get_workflow_engine
+from app import crud, models, schemas
+from app.adapters import WorkflowEngineAdapter, get_workflow_engine
 from app.api.v1.services.errors import InternalError, NotFoundError
 from app.api.v1.services.utils import run_in_background_with_retries
+from fastapi import HTTPException
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -22,13 +22,13 @@ async def get_workflows(
     id: Optional[int],
 ) -> List[schemas.Workflow]:
     filters = {"id": id} if id else {}
-    workflows = await crud.get_workflows(
+    db_workflows = await crud.get_workflows(
         db, skip=skip, limit=limit, order_by=order_by, order=order, filters=filters
     )
-    if not workflows:
+    if not db_workflows:
         logger.warning(f"No workflows found with filters: {filters}")
         return []
-    return [schemas.Workflow.model_validate(w) for w in workflows]
+    return [schemas.Workflow.model_validate(w) for w in db_workflows]
 
 
 async def create_workflow(
@@ -42,20 +42,23 @@ async def create_workflow(
         raise InternalError("Failed to create workflow")
     logger.info(f"Created workflow: {db_workflow.title} v{db_workflow.version}")
 
-    engine = get_workflow_engine(workflow.workflow_engine)
+    engine = get_workflow_engine(db_workflow.workflow_engine)
+    schema_workflow = schemas.Workflow.model_validate(db_workflow)
+    await engine.submit_workflow(workflow=schema_workflow)
 
-    # background task immediately and return the DB object
+    # parse workflow tasks in the background with retries
     asyncio.create_task(
         run_in_background_with_retries(
-            _submit_and_parse_workflow_tasks,
+            _parse_workflow_tasks,
             db=db,
             db_workflow=db_workflow,
             engine=engine,
+            max_retries=5,
+            delay_seconds=10,
         )
     )
-
     # return the created workflow immediately before tasks are known
-    return schemas.Workflow.model_validate(db_workflow)
+    return schema_workflow
 
 
 async def get_workflow_by_title(
@@ -85,8 +88,8 @@ async def get_workflow_by_title_and_version(
 
 
 async def delete_workflow(db: AsyncSession, title: str, version: int):
-    workflow = await crud.get_workflow(db, filters={"title": title, "version": version})
-    success = await crud.delete_workflow(db, workflow) if workflow else False
+    db_workflow = await crud.get_workflow(db, filters={"title": title, "version": version})
+    success = await crud.delete_workflow(db, db_workflow) if db_workflow else False
     # workflow is already filtered by removed=False, so removed ones are not returned
     if not success:
         logger.error(f"Failed to delete workflow with {title=} and {version=}")
@@ -96,16 +99,22 @@ async def delete_workflow(db: AsyncSession, title: str, version: int):
 async def get_workflow_tasks(
     db: AsyncSession, title: str, version: int
 ) -> List[schemas.Task]:
-    workflow = await crud.get_workflow(db, filters={"title": title, "version": version})
-    if not workflow:
+    db_workflow = await crud.get_workflow(
+        db, filters={"title": title, "version": version}
+    )
+    if not db_workflow:
         logger.error(f"Workflow with {title=} and {version=} not found")
         raise NotFoundError("Workflow not found")
 
     # get tasks
-    tasks = await crud.get_tasks(db, filters={"workflow_id": workflow.id})
+    tasks = await crud.get_tasks(db, filters={"workflow_id": db_workflow.id})
     if not tasks:
+        engine = get_workflow_engine(db_workflow.workflow_engine)
+        # Run parsing NOT in the baground if tasks are not find to ensure that they are created.
+        await _parse_workflow_tasks(db=db, db_workflow=db_workflow, engine=engine)
+
         logger.warning(f"No tasks found for workflow with {title=} and {version=}")
-        raise NotFoundError("Workflow not found")
+        raise NotFoundError(f"No tasks found for workflow with {title=} and {version=}")
 
     # append downstream task ids to each task and convert to schema
     res = []
@@ -143,10 +152,10 @@ async def get_task(
     return schemas.Task(**task_data)
 
 
-async def _submit_and_parse_workflow_tasks(
+async def _parse_workflow_tasks(
     db: AsyncSession,
-    db_workflow: schemas.Workflow,
-    engine: Any,
+    db_workflow: models.Workflow,
+    engine: WorkflowEngineAdapter,
 ):
     """
     Submits the DAG file to the engine, polls for its existence,
@@ -154,9 +163,6 @@ async def _submit_and_parse_workflow_tasks(
     This function should be wrapped in run_in_background_with_retries.
     """
     schema_workflow = schemas.Workflow.model_validate(db_workflow)
-
-    # submit the DAG file
-    await engine.submit_workflow(workflow=schema_workflow)
 
     # get workflow tasks from the engine
     tasks: List[schemas.TaskCreate] = await engine.get_workflow_tasks(
@@ -167,7 +173,7 @@ async def _submit_and_parse_workflow_tasks(
     db_tasks = {}
     for task_create in tasks:
         t = await crud.create_task(db=db, task=task_create, workflow_id=db_workflow.id)
-        db_tasks[t.title] = t 
+        db_tasks[t.title] = t
         logger.info(f"Created task {t.title} for workflow: {db_workflow.title}")
 
     # link downstream tasks

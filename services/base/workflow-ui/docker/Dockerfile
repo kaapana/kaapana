@@ -18,12 +18,8 @@ LABEL BUILD_IGNORE="False"
 ################################
 ######### DEVELOPMENT ##########
 ################################
-
-# # Expose port 80 for dev server (match Nginx prod)
-# EXPOSE 80
-
-# # Run Vite dev server with HMR
-# CMD ["npx", "vite", "dev", "--host", "0.0.0.0", "--port", "80"]
+# EXPOSE 5173
+# CMD ["yarn", "dev", "--host", "0.0.0.0", "--port", "5173"]
 
 
 ################################

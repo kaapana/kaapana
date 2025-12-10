@@ -47,18 +47,9 @@ services:
     ports:
       - 5173:80
     environment:
-      - VITE_WORKFLOW_API_URL=http://localhost:8080/v1
+      - VITE_WORKFLOW_API_URL=/v1
+      - VITE_KAAPANA_BACKEND_URL=/kaapana-backend
     volumes:
       - ../workflow-ui/docker/files:/app:cached
       - /app/node_modules
-    command: npm run dev -- --host 0.0.0.0
-    networks:
-      - workflow
-    depends_on:
-      - workflow-api
-volumes:
-  database:
-
-networks:
-  workflow:
-    driver: bridge
+    command: yarn dev --host 0.0.0.0

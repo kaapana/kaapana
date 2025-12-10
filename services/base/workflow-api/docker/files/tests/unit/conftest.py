@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+import json
+from urllib.parse import quote
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -111,6 +113,11 @@ async def client_fixture(session: AsyncSession):
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
+        # Provide a default `Project` cookie for tests. The app does
+        # `unquote(request.cookies["Project"])` followed by `json.loads`.
+        # Use URL-encoded JSON to match what the application expects.
+        cookie_val = quote(json.dumps({"name": "test-project", "id": "test-id"}))
+        ac.cookies.set("Project", cookie_val)
         yield ac
-
+    
     app.dependency_overrides.clear()

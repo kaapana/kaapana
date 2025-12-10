@@ -3,6 +3,14 @@ export interface Label {
     value: string
 }
 
+export interface Dataset {
+    name: string
+    time_created: string
+    time_updated: string
+    username: string
+    identifiers: string[]
+}
+
 export enum WorkflowRunStatus {
     CREATED = "Created",
     PENDING = "Pending",

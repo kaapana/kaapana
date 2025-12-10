@@ -75,7 +75,7 @@ Custom DNS Server
 
     You can configure a custom DNS :code:`my.custom.dns` by executing:
 
-    :code:`sed -i 's/DNS=""/DNS="my.custom.dns"/' ./kaapana/server-installation/server_installation.sh`
+    :code:`sed -i 's/DNS=""/DNS="my.custom.dns"/' ./kaapana/kaapanactl.sh`
 
     If not set manually, the DNS will be configured according to system information.
 
@@ -93,11 +93,16 @@ Besides a few required software packages, mainly Microk8s is installed, to setup
   | GPU support requires the installation of Nvidia drivers.
   | Please make sure the :code:`nvidia-smi` command is working as expected!
 
+.. attention::
+
+  | **Deprecation of server_installation.sh**
+  | The :term:`server-installation-script` has been deprecated since Kaapana 0.6.0 and replaced by :term:`kaapanactl`.
+
 Before the example platform "Kaapana-platform" can be deployed, all dependencies must be installed on the server.
-To do this, you can use the :term:`server-installation-script`.
+To do this, you can use :term:`kaapanactl`.
 
 .. hint::
-   | If you don't want to clone the Kaapana repository, you can copy the :code:`server_installation.sh` script from `Github <https://github.com/kaapana/kaapana/blob/master/server-installation/server_installation.sh>`_.
+   | If you don't want to clone the Kaapana repository, you can copy the :code:`kaapanactl.sh` script from `Github <https://github.com/kaapana/kaapana/blob/master/kaapanactl.sh>`_.
 
 1. Copy the script to your target-system (server)
 
@@ -105,7 +110,7 @@ To do this, you can use the :term:`server-installation-script`.
 
       .. tab:: Online
 
-         Script location\: ``kaapana/server-installation/``
+         Script location\: ``kaapana/``
 
       .. tab:: Tarball
 
@@ -115,24 +120,22 @@ To do this, you can use the :term:`server-installation-script`.
 
 2. Make it executable:
 
-   | :code:`chmod +x server_installation.sh`
+   | :code:`chmod +x kaapanactl.sh`
 
 3. Execute the server installation script:
 
    .. tabs::
 
       .. tab:: Online
-         | :code:`sudo ./server_installation.sh`
+         | :code:`sudo ./kaapanactl.sh install`
 
       .. tab:: Tarball
          | Use ``--offline`` flag.
-         | :code:`sudo ./server_installation.sh --offline`
-
+         | :code:`sudo ./kaapanactl.sh install --offline`
    .. note::
 
       | On Almalinux it is recommended to set `-E` flag to preserve user's environmental variables.
-      | :code:`sudo -E ./server_installation.sh`
-
+      | :code:`sudo -E ./kaapanactl.sh install`
 4. Reboot the system
 
    | :code:`sudo reboot`
@@ -141,4 +144,4 @@ To do this, you can use the :term:`server-installation-script`.
 .. hint::
 
   | **Server Dependency Uninstallation**
-  | To uninstall the server-packages, you can use :code:`sudo ./server_installation.sh --uninstall`
+  | To uninstall the server-packages, you can use :code:`sudo ./kaapanactl.sh uninstall`

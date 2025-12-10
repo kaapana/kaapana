@@ -9,4 +9,4 @@ Usually in the logs of the pod (can be checked via :code:`kubectl logs -n admin 
 
 1. :code:`kaapana-platform-chart` should be listed under uninstalling charts, check via :code:`helm ls -A --uninstalling`
 2. If it is listed, delete via :code:`helm uninstall kaapana-platform-chart --no-hooks`
-3. Then redeploy the platform with :code:`./deploy_platform.sh --undeploy`, make sure nothing remains under :code:`helm ls -A --uninstalling`, and run :code:`./deploy_platform.sh` again.
+3. Then redeploy the platform with :code:`./kaapanactl deploy --undeploy`, make sure nothing remains under :code:`helm ls -A --uninstalling`, and run :code:`./kaapanactl.sh deploy` again.

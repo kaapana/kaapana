@@ -14,7 +14,7 @@ Potential fixes:
 
 .. code-block:: bash
 
-    sudo -E ./server_installation.sh
+    sudo -E ./kaapanactl.sh install
 
 2. If installation script was terminated after installing microk8s, but before configuration, then before re-run either uninstall or script modification as following is necessary:
 

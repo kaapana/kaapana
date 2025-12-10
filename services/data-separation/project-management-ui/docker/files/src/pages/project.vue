@@ -495,11 +495,11 @@ export default defineComponent({
         async fetchActiveApplications() {
             // Get all installable applications
             if (this.project) {
-                const projectName = this.project.name
+                const projectId = this.project.id
                 try {
                     const applications = await kubeHelmGet(`active-applications`)
 
-                    this.activeApplications = applications.filter((item: any) => {return item.project === projectName});
+                    this.activeApplications = applications.filter((item: any) => {return item.project === projectId});
                 } catch (error: unknown) {
                     console.log(error);
                 }

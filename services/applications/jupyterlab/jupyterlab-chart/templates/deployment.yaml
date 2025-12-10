@@ -90,7 +90,7 @@ spec:
           containerPort: 8888
         env:
         - name: INGRESS_PATH
-          value: "/applications/project/{{ .Values.global.project_name }}/release/{{ .Release.Name }}"
+          value: "/applications/project/{{ .Values.global.project_id }}/release/{{ .Release.Name }}"
 {{ include "dynamicEnvs" $ | indent 8 }}
         volumeMounts:
           - name: dshm

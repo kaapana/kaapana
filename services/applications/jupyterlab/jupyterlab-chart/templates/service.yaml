@@ -28,7 +28,7 @@ spec:
   - host: 
     http:
       paths:
-      - path: "/applications/project/{{ .Values.global.project_name }}/release/{{ .Release.Name }}"
+      - path: "/applications/project/{{ .Values.global.project_id }}/release/{{ .Release.Name }}"
         pathType: ImplementationSpecific
         backend:
           service:

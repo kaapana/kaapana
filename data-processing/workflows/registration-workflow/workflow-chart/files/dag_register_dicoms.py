@@ -1,12 +1,10 @@
 from airflow.models import DAG
-from task_api_operators.KaapanaTaskOperator import KaapanaTaskOperator, IOMapping
-from task_api.processing_container import pc_models
-
 from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
 )
-
+from task_api.processing_container import pc_models
+from task_api_operators.KaapanaTaskOperator import IOMapping, KaapanaTaskOperator
 
 args = {
     "ui_visible": True,
@@ -14,31 +12,17 @@ args = {
 }
 
 
-with DAG("register-dicoms", default_args=args) as dag:
-    download_registration_target = KaapanaTaskOperator(
-        task_id="download_registration_target",
+with DAG("{{ dag_id }}", default_args=args) as dag:
+    download_fixed_image = KaapanaTaskOperator(
+        task_id="download_fixed_image",
         image=f"{DEFAULT_REGISTRY}/get-input-task:{KAAPANA_BUILD_VERSION}",
         taskTemplate="dicom-download",
-        env=[
-            pc_models.BaseEnv(name="DATASET", value="FIXED"),
-            pc_models.BaseEnv(
-                name="KAAPANA_PROJECT_IDENTIFIER",
-                value="cd98d3b5-6e15-44d9-80d8-53bc8523d063",
-            ),
-        ],
     )
 
     download_moving_images = KaapanaTaskOperator(
         task_id="download_moving_images",
         image=f"{DEFAULT_REGISTRY}/get-input-task:{KAAPANA_BUILD_VERSION}",
         taskTemplate="dicom-download",
-        env=[
-            pc_models.BaseEnv(name="DATASET", value="MOVING"),
-            pc_models.BaseEnv(
-                name="KAAPANA_PROJECT_IDENTIFIER",
-                value="cd98d3b5-6e15-44d9-80d8-53bc8523d063",
-            ),
-        ],
     )
 
     convert_target_to_nrrd = KaapanaTaskOperator(
@@ -48,7 +32,7 @@ with DAG("register-dicoms", default_args=args) as dag:
         env=[],
         iochannel_maps=[
             IOMapping(
-                upstream_operator=download_registration_target,
+                upstream_operator=download_fixed_image,
                 upstream_output_channel="downloads",
                 input_channel="dicom",
             )
@@ -128,7 +112,7 @@ with DAG("register-dicoms", default_args=args) as dag:
     )
 
 
-download_registration_target >> convert_target_to_nrrd >> register_images
+download_fixed_image >> convert_target_to_nrrd >> register_images
 
 download_moving_images >> convert_moving_images_to_nrrd >> register_images
 

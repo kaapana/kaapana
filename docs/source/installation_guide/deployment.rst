@@ -7,30 +7,24 @@ Platform Deployment
 Deploy Platform
 ^^^^^^^^^^^^^^^^
 
+.. attention::
+
+  | **Deprecation of deploy_platform.sh**
+  | The :term:`deploy-platform-script` has been deprecated since Kaapana 0.6.0 and replaced by :term:`kaapanactl`.
+
 .. hint::
 
   | **Filesystem directories**
   | In the default configuration there are two locations on the filesystem, which will be used for stateful data on the host machine:
   | 1. ``fast_data_dir=/home/kaapana``: Location of data that do not take a lot of space and should be loaded fast. Preferably, a SSD is mounted here.
   | 2. ``slow_data_dir=/home/kaapana``:  Location of huge files, like images or our object store is located here.  Preferably, a HDD is mounted here.
-  | They can be adjusted in the script :code:`deploy_platform.sh` and can also be identical (everything is stored at one place).
+  | They can be adjusted in the script :code:`kaapanactl.sh` and can also be identical (everything is stored at one place).
 
-The platform is deployed using the script :code:`deploy_platform.sh`, which is created during the build-process at :code:`kaapana/build/kaapana-admin-chart/deploy_platform.sh`.
-
-#. Copy the script to your target-system (server)
+The platform is deployed using the script :code:`kaapanactl.sh` also used during :ref:`server_installation`.
 
 #. Adjust the variables in the script to your needs. You find descriptions of all available variables :ref:`below<platform_config>`. You can use your favorite text editor, e.g. :code:`nano`:
-   
-   :code:`nano deploy_platform.sh`
-   
-   .. note::
 
-      If you are not using a tarball to deploy the platform, make sure that at least the variable :code:`CONTAINER_REGISTRY_URL` is set to the URL of your container registry.
-
-
-#. Make the script executable
-
-   :code:`sudo chmod +x deploy_platform.sh`
+   :code:`nano kaapanactl.sh`
 
 #. Execute the script:
 
@@ -38,27 +32,30 @@ The platform is deployed using the script :code:`deploy_platform.sh`, which is c
 
       .. tab:: Private registry
 
-         :code:`./deploy_platform.sh`
+         :code:`./kaapanactl.sh deploy -chart <KAAPANA_ADMIN_CHART> -u <REGISTRY_USERNAME> -p <REGISTRY_PASSWORD>`
+           - :code:`KAAPANA_ADMIN_CHART` referes to the platform chart which is about to be installed. It has the form :code:`<registry>/<chart>:<version>` (e.g. :code:`localhost:5000/kaapana-admin-chart:0.5.3-latest`)`
+           - :code:`REGISTRY_USERNAME` and :code:`REGISTRY_PASSWORD` refere to the username and password used to access the private registry.
+           - Hint: If your registry is plain HTTP (e.g. when you use a local registry) use the :code:`--plain-http` flag to enable pulling from plain HTTP registries.
 
       .. tab:: Tarball
 
          #. Copy the files generated during the :ref:`build process<build>` to your target-system (server), i.e.
-         
+
             - Tarball with all images at ``/kaapana/build/kaapana-admin-chart/kaapana-admin-chart-<version>-images.tar``
             - Helm chart file at ``/kaapana/build/kaapana-admin-chart/kaapana-admin-chart-<version>.tgz``
-         
+
          #. Run the deployment script to import images into the microk8s registry:
-            
+
             .. code-block:: bash
-            
-               ./deploy_platform.sh --import-images-tar kaapana-admin-chart-<version>-images.tar
+
+               ./kaapanactl.sh deploy --import-images-tar kaapana-admin-chart-<version>-images.tar
 
 
          #. Run the deployment script with the offline flag and chart:
 
             .. code-block:: bash
 
-               ./deploy_platform.sh --offline --chart-path kaapana-admin-chart-<version>.tgz
+               ./kaapanactl.sh deploy --offline --chart-path kaapana-admin-chart-<version>.tgz
 
 
 #. The script requires several inputs from you:
@@ -95,7 +92,7 @@ The platform is deployed using the script :code:`deploy_platform.sh`, which is c
    You can check the progress with:
 
    :code:`watch microk8s.kubectl get pods -A`
-   
+
    When all pods are in the "running" or "completed" state, you can visit the platform at the given domain.
 
 .. _platform_config:
@@ -103,42 +100,8 @@ The platform is deployed using the script :code:`deploy_platform.sh`, which is c
 Platform Configurations
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-During the build process the file :code:`.kaapana/build/kaapana-admin-chart/deploy_platform.sh` is generated.
-This section provides a brief explanation about the multiple variables in :code:`deploy_platform.sh` which can be changed to configure the Kaapana platform for different use cases.
+This section provides a brief explanation about the multiple variables in :code:`kaapanactl.sh` which can be changed to configure the Kaapana platform for different use cases.
 
-Some of the variables are automatically set during the build process.
-
-Platform and registry configurations
-------------------------------------
-
-.. list-table::
-   :header-rows: 1
-   :widths: 20 20 10 50
-
-   * - Variable
-     - Default
-     - Type
-     - Description
-   * - ``PLATFORM_NAME``
-     - ``"kaapana-admin-chart"``
-     - string
-     - Name of the Helm chart for the platform.
-   * - ``PLATFORM_VERSION``
-     - ``$( git describe )``
-     - string
-     - Version for the Helm chart. Automatically set to the output of ``git describe`` in your Kaapana repository.
-   * - ``CONTAINER_REGISTRY_URL``
-     - ``""``
-     - string
-     - Container registry URL, like ``dktk-jip-registry.dkfz.de/kaapana`` or ``registry.hzdr.de/kaapana/kaapana``. Set from ``default_registry`` in ``build-config.yaml``.
-   * - ``CONTAINER_REGISTRY_USERNAME``
-     - ``""``
-     - string
-     - Registry username. Set automatically if ``include_credentials: true`` in ``build-config.yaml``.
-   * - ``CONTAINER_REGISTRY_PASSWORD``
-     - ``""``
-     - string
-     - Registry password. Set automatically if ``include_credentials: true`` in ``build-config.yaml``.
 
 Deployment configurations
 --------------------------
@@ -154,7 +117,7 @@ Deployment configurations
    * - ``DEV_MODE``
      - ``"true"``
      - string
-     - If true, sets ``imagePullPolicy: "Always"``; images are re-downloaded on pod restart. If false, uses ``"IfNotPresent"`` and pre-configures password policies in Keycloak.  
+     - If true, sets ``imagePullPolicy: "Always"``; images are re-downloaded on pod restart. If false, uses ``"IfNotPresent"`` and pre-configures password policies in Keycloak.
        **NOTE:** If ``OFFLINE_MODE="true"``, ``imagePullPolicy="IfNotPresent"`` regardless of ``DEV_MODE``.
    * - ``GPU_SUPPORT``
      - ``"false"``
@@ -278,7 +241,7 @@ Credentials
    * - ``CREDENTIALS_MINIO_USERNAME``
      - ``"kaapanaminio"``
      - Username for Minio object storage.
-   * - ``CREDENTIALS_MINIO_PASSWORD``  
+   * - ``CREDENTIALS_MINIO_PASSWORD``
      - ``"Kaapana2020"``
      - Password for Minio object storage.
    * - ``GRAFANA_USERNAME``
@@ -294,14 +257,14 @@ Credentials
      - ``"Kaapana2020"``
      - Password for Keycloak administrator. **Minimum policy for production: 1 specialChar + 1 upperCase + 1 lowerCase and 1 digit + min-length = 8**
 
-Initial Kaapana Login Credentials 
+Initial Kaapana Login Credentials
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The initial credentials for the Kaapana platform are:
 
 .. code-block:: bash
 
    username: kaapana
-   password: kaapana    
+   password: kaapana
 
 
 In **production mode**, the initial credentials are:
@@ -309,7 +272,7 @@ In **production mode**, the initial credentials are:
 .. code-block:: bash
 
    username: kaapana
-   password: Kaapana2020!    
+   password: Kaapana2020!
 
 
 
@@ -318,10 +281,10 @@ Undeploy Platform
 
 To undeploy the Kaapana platform means, that all Kubernetes resources, Helm charts and persistent volumes are deleted.
 You can achieve this by simply running
-  
+
 .. code-block:: bash
 
-  ./deploy_platform.sh --undeploy
+  ./kaapanactl.sh deploy --undeploy
 
 
 If the **undeployment fails** or takes forever, check the correspoding :ref:`FAQ entry<faq_undeploy_fails_or_takes_too_long>` for more information.

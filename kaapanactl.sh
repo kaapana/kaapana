@@ -1,187 +1,1197 @@
 #!/bin/bash
-# WARNING: This script is deprecated and will be removed in the next Kaapana release.
-# Please migrate to `./kaapanactl deploy`, which supports the same options.
-set -euf -o pipefail
-export HELM_EXPERIMENTAL_OCI=1
+# Kaapana control helper: run `./kaapanactl.sh deploy|install|report [options]` to deploy the platform,
+# prepare servers, or gather microk8s diagnostics without touching other scripts manually.
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
+set -euf -o pipefail
 
-######################################################
-# Executable configurations
-######################################################
-HELM_EXECUTABLE="${HELM_EXECUTABLE:-helm}"
+function main() {
+    init_colors
+    local subcommand="help"
 
-######################################################
-# Main platform configuration
-######################################################
-
-PLATFORM_NAME="{{ platform_name }}" # name of the platform Helm chart
-PLATFORM_VERSION="{{ platform_build_version }}" # Specific version or empty for dialog
-
-CONTAINER_REGISTRY_URL="{{ container_registry_url|default('', true) }}" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
-CONTAINER_REGISTRY_USERNAME="{{ container_registry_username|default('', true) }}"
-CONTAINER_REGISTRY_PASSWORD="{{ container_registry_password|default('', true) }}"
-PLAIN_HTTP={{ plain_http|default(false)|lower }} # Use plain HTTP for registry (insecure)
-
-######################################################
-# Deployment configuration
-######################################################
-
- # dev-mode -> containers will always be re-downloaded after pod-restart
-DEV_MODE={{ dev_mode|default(true)|lower }}
-GPU_SUPPORT={{ gpu_support|default(false)|lower }}
-# Adjust enable nvidia command if using GPU Operator below v25.10.0+
-GPU_OPERATOR_VERSION="v25.10.0"
-PREFETCH_EXTENSIONS={{prefetch_extensions|default('false')|lower}}
-CHART_PATH=""
-NO_HOOKS=""
-ENABLE_NFS=false
-OFFLINE_MODE=false
-
-INSTANCE_UID=""
-SERVICES_NAMESPACE="{{ services_namespace }}"
-ADMIN_NAMESPACE="{{ admin_namespace }}"
-EXTENSIONS_NAMESPACE="{{ extensions_namespace }}"
-HELM_NAMESPACE="{{ helm_namespace }}"
-
-OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
-
-INCLUDE_REVERSE_PROXY=false
-MIGRATION_ENABLED=true
-
-######################################################
-# Resource configurations
-######################################################
-
-# Memory percentages for PACS, Airflow, and OpenSearch.
-PACS_PERCENT="30"
-AIRFLOW_PERCENT="50"
-OPENSEARCH_PERCENT="20"
-TOTAL_PERCENT=$((PACS_PERCENT + AIRFLOW_PERCENT + OPENSEARCH_PERCENT))
-
-# Get allocatable RAM (70% of total free memory)
-TOTAL_MEMORY=$(free -m | awk '/^Mem:/{print $2}')
-ALLOCATABLE_MEMORY=$((TOTAL_MEMORY * 70 / 100))
-
-# Set max memory limits for components
-PACS_MEMORY_LIMIT=$((ALLOCATABLE_MEMORY * PACS_PERCENT / TOTAL_PERCENT))
-AIRFLOW_MEMORY_LIMIT=$((ALLOCATABLE_MEMORY * AIRFLOW_PERCENT / TOTAL_PERCENT))
-OPENSEARCH_MEMORY_LIMIT=$((ALLOCATABLE_MEMORY * OPENSEARCH_PERCENT / TOTAL_PERCENT))
-
-# Set memory min requests (1/3 of limit)
-PACS_MEMORY_REQUEST=$((PACS_MEMORY_LIMIT / 3))
-AIRFLOW_MEMORY_REQUEST=$((AIRFLOW_MEMORY_LIMIT / 3))
-OPENSEARCH_MEMORY_REQUEST=$((OPENSEARCH_MEMORY_LIMIT / 3))
-
-######################################################
-# Individual platform configuration
-######################################################
-CREDENTIALS_MINIO_USERNAME="{{ credentials_minio_username|default('kaapanaminio', true) }}"
-CREDENTIALS_MINIO_PASSWORD="{{ credentials_minio_password|default('Kaapana2020', true) }}"
-
-GRAFANA_USERNAME="{{ credentials_grafana_username|default('admin', true) }}"
-GRAFANA_PASSWORD="{{ credentials_grafana_password|default('admin', true) }}"
-
-KEYCLOAK_ADMIN_USERNAME="{{ credentials_keycloak_admin_username|default('admin', true) }}"
-KEYCLOAK_ADMIN_PASSWORD="{{ credentials_keycloak_admin_password|default('Kaapana2020', true) }}" #  Minimum policy for production: 1 specialChar + 1 upperCase + 1 lowerCase and 1 digit + min-length = 8
-
-FAST_DATA_DIR="{{ fast_data_dir|default('/home/kaapana')}}" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
-SLOW_DATA_DIR="{{ slow_data_dir|default('/home/kaapana')}}" # Directory on the server, where the DICOM images will be stored (can be slower)
-
-HTTP_PORT="{{ http_port|default(80)|int }}"      # -> has to be 80
-HTTPS_PORT="{{ https_port|default(443) }}"    # HTTPS port
-DICOM_PORT="{{ dicom_port|default(11112) }}"  # configure DICOM receiver port
-
-SMTP_HOST="{{ smtp_host|default('')}}"
-SMTP_PORT="{{ smtp_port|default(0)|int }}"
-EMAIL_ADDRESS_SENDER="{{ email_address_sender|default('')}}"
-SMTP_USERNAME="{{ smtp_username|default('')}}"
-SMTP_PASSWORD="{{ smtp_password|default('')}}"
-
-VERSION_IMAGE_COUNT="20"
-DEPLOYMENT_TIMESTAMP=`date  --iso-8601=seconds`
-MOUNT_POINTS_TO_MONITOR="{{ mount_points_to_monitor }}"
-
-INSTANCE_NAME="{{ instance_name|default('') }}"
-
-{% for item in additional_env %}
-{{ item.name }}="{{ item.default_value }}"{% if item.comment %} # {{item.comment}}{% endif %}
-{%- endfor %}
-
-######################################################
-
-if [ -z ${http_proxy+x} ] || [ -z ${https_proxy+x} ]; then
-    http_proxy=""
-    https_proxy=""
-fi
-
-
-if [ ! -z $INSTANCE_UID ]; then
-    echo ""
-    echo "Setting INSTANCE_UID: $INSTANCE_UID namespaces ..."
-    SERVICES_NAMESPACE="$INSTANCE_UID-$SERVICES_NAMESPACE"
-    # ADMIN_NAMESPACE="$INSTANCE_UID-$ADMIN_NAMESPACE"
-    EXTENSIONS_NAMESPACE="$INSTANCE_UID-$EXTENSIONS_NAMESPACE"
-    HELM_NAMESPACE="$INSTANCE_UID-$HELM_NAMESPACE"
-
-    FAST_DATA_DIR="$FAST_DATA_DIR-$INSTANCE_UID"
-    SLOW_DATA_DIR="$SLOW_DATA_DIR-$INSTANCE_UID"
-
-    INCLUDE_REVERSE_PROXY=true
-fi
-echo ""
-echo "HELM_NAMESPACE:       $HELM_NAMESPACE "
-echo "ADMIN_NAMESPACE:      $ADMIN_NAMESPACE "
-echo "SERVICES_NAMESPACE:   $SERVICES_NAMESPACE "
-echo "EXTENSIONS_NAMESPACE: $EXTENSIONS_NAMESPACE "
-echo ""
-echo "FAST_DATA_DIR: $FAST_DATA_DIR "
-echo "SLOW_DATA_DIR: $SLOW_DATA_DIR "
-echo ""
-
-script_name=`basename "$0"`
-
-# set default values for the colors
-BOLD=""
-underline=""
-standout=""
-NC=""
-BLACK=""
-RED=""
-GREEN=""
-YELLOW=""
-BLUE=""
-MAGENTA=""
-CYAN=""
-WHITE=""
-# check if stdout is a terminal...
-if test -t 1; then
-    # see if it supports colors...
-    ncolors=$(tput colors)
-
-    if test -n "$ncolors" && test $ncolors -ge 8; then
-        BOLD="$(tput bold)"
-        underline="$(tput smul)"
-        standout="$(tput smso)"
-        NC="$(tput sgr0)"
-        BLACK="$(tput setaf 0)"
-        RED="$(tput setaf 1)"
-        GREEN="$(tput bold)$(tput setaf 2)"
-        YELLOW="$(tput bold)$(tput setaf 3)"
-        BLUE="$(tput bold)$(tput setaf 4)"
-        MAGENTA="$(tput bold)$(tput setaf 5)"
-        CYAN="$(tput bold)$(tput setaf 6)"
-        WHITE="$(tput bold)$(tput setaf 7)"
+    if [[ $# -gt 0 ]]; then
+        case "$1" in
+            help|--help|-h)
+                subcommand="help"
+                shift
+                ;;
+            deploy|install|report|offline-gpu)
+                subcommand="$1"
+                shift
+                ;;
+            --*|-*)
+                subcommand="deploy"
+                ;;
+            *)
+                echo -e "${RED}Unknown command: $1${NC}"
+                print_usage
+                exit 1
+                ;;
+        esac
     fi
-fi
 
-if command -v nvidia-smi &> /dev/null && nvidia-smi
-then
-    echo "${GREEN}Nvidia GPU detected!${NC}"
-    GPU_SUPPORT=true
-else
-    echo "${YELLOW}No GPU detected...${NC}"
+    case "$subcommand" in
+        help)
+            print_usage
+            ;;
+        deploy)
+            deploy "$@"
+            ;;
+        install)
+            server_installation "$@"
+            ;;
+        report)
+            create_report
+            ;;
+        offline-gpu)
+            install_gpu_operator "$(dirname "$0")"
+            ;;
+        *)
+            print_usage
+            exit 1
+            ;;
+    esac
+}
+
+function print_usage() {
+    local script_name
+    script_name="$(basename "$0")"
+    cat <<EOF
+Usage: $script_name <command> [options]
+
+Commands:
+  deploy               Deploy or manage the Kaapana platform.
+  install              Run the server installation helper.
+  report               Generate a microk8s state report without deploying.
+  offline-gpu          Install the GPU Operator for offline environments.
+
+Run '$script_name <command> --help' for command-specific options.
+EOF
+}
+
+function prompt_required_value() {
+    local var_name="$1"
+    local prompt="$2"
+    local secret="${3:-false}"
+    local quiet_flag="${4:-false}"
+    local current=""
+
+    if [[ -n ${!var_name-} ]]; then
+        current="${!var_name}"
+    fi
+
+    if [[ -n "$current" ]]; then
+        return
+    fi
+
+    if [[ "$quiet_flag" == true ]]; then
+        echo -e "${RED}${prompt} is required when running in quiet mode.${NC}"
+        exit 1
+    fi
+
+    local value=""
+    if [[ "$secret" == true ]]; then
+        read -s -p "$prompt" value
+        echo
+    else
+        read -p "$prompt" value
+    fi
+
+    if [[ -z "$value" ]]; then
+        echo -e "${RED}A value is required for ${prompt}.${NC}"
+        exit 1
+    fi
+
+    printf -v "$var_name" '%s' "$value"
+}
+
+function parse_chart_reference() {
+    local ref="$1"
+    ref="${ref#oci://}"
+
+    if [[ -z "$ref" || "$ref" != *:* ]]; then
+        echo -e "${RED}Chart reference must be in the form <registry>/<path>/<chart>:<version>. Got '$1'.${NC}"
+        exit 1
+    fi
+
+    local registry_and_chart="${ref%:*}"
+    local version="${ref##*:}"
+
+    if [[ -z "$version" ]]; then
+        echo -e "${RED}Chart reference is missing the version part after ':'.${NC}"
+        exit 1
+    fi
+
+    local chart_name="${registry_and_chart##*/}"
+    if [[ -z "$chart_name" || "$registry_and_chart" == "$chart_name" ]]; then
+        echo -e "${RED}Chart reference must include a chart name (last segment after '/').${NC}"
+        exit 1
+    fi
+
+    local registry_url="${registry_and_chart%/$chart_name}"
+    if [[ -z "$registry_url" ]]; then
+        echo -e "${RED}Unable to determine registry URL from chart reference '$1'.${NC}"
+        exit 1
+    fi
+
+    PLATFORM_NAME="$chart_name"
+    PLATFORM_VERSION="$version"
+    CONTAINER_REGISTRY_URL="$registry_url"
+    CHART_REFERENCE="$ref"
+
+    echo -e "${GREEN}Using chart ${PLATFORM_NAME}:${PLATFORM_VERSION} from ${CONTAINER_REGISTRY_URL}${NC}"
+}
+
+function deploy() {
+
+    PLATFORM_NAME="${PLATFORM_NAME:-}"
+    PLATFORM_VERSION="${PLATFORM_VERSION:-}"
+    CONTAINER_REGISTRY_URL="${CONTAINER_REGISTRY_URL:-}"
+    CONTAINER_REGISTRY_USERNAME="${CONTAINER_REGISTRY_USERNAME:-}"
+    CONTAINER_REGISTRY_PASSWORD="${CONTAINER_REGISTRY_PASSWORD:-}"
+    CHART_REFERENCE="${CHART_REFERENCE:-}"
+    PLAIN_HTTP="${PLAIN_HTTP:-false}"
+
+    load_kaapana_config
+    ### Parsing command line arguments:
+    usage="$(basename "$0")
+
+    _Flag: --undeploy undeploys the current platform
+    _Flag: --no-hooks will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forever.
+    _Flag: --install-certs set new HTTPS-certificates for the platform
+    _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
+    _Flag: --remove-all-images-docker will delete all Docker images from the system
+    _Flag: --nuke-pods will force-delete all pods of the Kaapana deployment namespaces.
+    _Flag: --quiet, meaning non-interactive operation
+    _Flag: --offline, using prebuilt tarball and chart (--chart-path required!)
+    _Flag: --no-migration, disable automatic migration between versions
+    _Flag: --check-system, check health of all resources in kaapana-admin-chart and kaapana-platform-chart
+    _Flag: --report, create a report of the state of the microk8s cluster
+    _Flag: --plain-http, use insecure HTTP when talking to the registry (default HTTPS, use --no-plain-http to force it)
+
+    _Argument: --chart-ref [registry/path/chart:version]
+    _Argument: --platform-name [Helm chart name]
+    _Argument: --platform-version [Helm chart version]
+    _Argument: --registry-url [OCI registry URL]
+    _Argument: --username [Docker registry username]
+    _Argument: --password [Docker registry password]
+    _Argument: --port [Set main https-port]
+    _Argument: --chart-path [path-to-chart-tgz]
+    _Argument: --import-images-tar [path-to-a-tarball]"
+
+    QUIET=false
+
+    POSITIONAL=()
+    while [[ $# -gt 0 ]]
+    do
+        key="$1"
+
+        case $key in
+
+            -u|--username)
+                CONTAINER_REGISTRY_USERNAME="$2"
+                echo -e "${GREEN}SET CONTAINER_REGISTRY_USERNAME! $CONTAINER_REGISTRY_USERNAME ${NC}";
+                shift # past argument
+                shift # past value
+            ;;
+
+            --platform-name)
+                PLATFORM_NAME="$2"
+                echo -e "${GREEN}SET PLATFORM_NAME: $PLATFORM_NAME ${NC}"
+                shift
+                shift
+            ;;
+
+            --platform-version)
+                PLATFORM_VERSION="$2"
+                echo -e "${GREEN}SET PLATFORM_VERSION: $PLATFORM_VERSION ${NC}"
+                shift
+                shift
+            ;;
+
+            --registry-url)
+                CONTAINER_REGISTRY_URL="$2"
+                echo -e "${GREEN}SET CONTAINER_REGISTRY_URL: $CONTAINER_REGISTRY_URL ${NC}"
+                shift
+                shift
+            ;;
+
+            --chart)
+                CHART_REFERENCE="$2"
+                parse_chart_reference "$CHART_REFERENCE"
+                shift
+                shift
+            ;;
+
+            -p|--password)
+                CONTAINER_REGISTRY_PASSWORD="$2"
+                echo -e "${GREEN}SET CONTAINER_REGISTRY_PASSWORD!${NC}";
+                shift # past argument
+                shift # past value
+            ;;
+
+            -d|--domain)
+                DOMAIN="$2"
+                echo -e "${GREEN}SET DOMAIN!${NC}";
+                shift # past argument
+                shift # past value
+            ;;
+
+            --port)
+                HTTPS_PORT="$2"
+                echo -e "${GREEN}SET PORT!${NC}";
+                shift # past argument
+                shift # past value
+            ;;
+
+            --chart-path)
+                CHART_PATH="$2"
+                echo -e "${GREEN}SET CHART_PATH: $CHART_PATH !${NC}";
+                shift # past argument
+                shift # past value
+            ;;
+
+            --import-images-tar)
+                TAR_PATH="$2"
+                echo -e "${GREEN}SET TAR_PATH: $TAR_PATH !${NC}";
+                import_container_images_tar
+                exit 0
+            ;;
+
+            --quiet)
+                QUIET=true
+                shift # past argument
+            ;;
+
+            --offline)
+                OFFLINE_MODE=true
+                echo -e "${GREEN}Deploying in offline mode!${NC}"
+                shift # past argument
+            ;;
+
+            --plain-http)
+                PLAIN_HTTP=true
+                echo -e "${YELLOW}Using insecure plain HTTP for registry access.${NC}"
+                shift
+            ;;
+
+            --no-migration)
+                MIGRATION_ENABLED=false
+                echo -e "${YELLOW}Migration disabled via CLI (--no-migration).${NC}"
+                shift # past argument
+            ;;
+
+            --install-certs)
+                install_certs
+                exit 0
+            ;;
+
+            --remove-all-images-ctr)
+                delete_all_images_microk8s
+                exit 0
+            ;;
+
+            --remove-all-images-docker)
+                delete_all_images_docker
+                exit 0
+            ;;
+
+            --no-hooks)
+                echo -e "${YELLOW}Starting undeployment ...${NC}"
+                NO_HOOKS="--no-hooks"
+                echo -e "${YELLOW}Using --no-hooks${NC}"
+                delete_deployment
+                clean_up_kubernetes
+                exit 0
+            ;;
+
+            --nuke-pods)
+                while true; do
+                    read -e -p "Do you really want to nuke all pods? -> Not recommended!" -i " no" yn
+                    case $yn in
+                        [Yy]* )
+                        nuke_pods
+                        delete_deployment
+                        clean_up_kubernetes
+                        break;;
+                        [Nn]* ) echo "${YELLOW}Pods will be kept${NC}"; break;;
+                        * ) echo "Please answer yes or no.";;
+                    esac
+                done
+                exit 0
+            ;;
+
+            --undeploy)
+                delete_deployment
+                exit 0
+            ;;
+
+            --re-deploy)
+                delete_deployment
+                deploy_chart
+                exit 0
+            ;;
+
+            --report)
+                create_report
+                exit 0
+            ;;
+
+            --check-system)
+                check_system kaapana-admin-chart default
+                check_system kaapana-platform-chart admin
+                check_system project-admin admin
+                exit 0
+            ;;
+
+            *)    # unknown option
+                echo -e "${RED}unknown parameter: $key ${NC}"
+                echo -e "${YELLOW}$usage${NC}"
+                exit 1
+            ;;
+
+
+        esac
+    done
+
+    if [[ -z "$PLATFORM_NAME" || -z "$PLATFORM_VERSION" || -z "$CONTAINER_REGISTRY_URL" ]]; then
+        prompt_required_value CHART_REFERENCE "Enter the kaapana chart (registry/path/chart:version): " false "$QUIET"
+        parse_chart_reference "$CHART_REFERENCE"
+    fi
+
+    prompt_required_value CONTAINER_REGISTRY_USERNAME "Enter the container registry username: " false "$QUIET"
+    prompt_required_value CONTAINER_REGISTRY_PASSWORD "Enter the container registry password: " true "$QUIET"
+
+    script_name=`basename "$0"`
+
+    if [ -z ${http_proxy+x} ] || [ -z ${https_proxy+x} ]; then
+        http_proxy=""
+        https_proxy=""
+    fi
+    export HELM_EXPERIMENTAL_OCI=1
+    HELM_EXECUTABLE="${HELM_EXECUTABLE:-helm}"
+
+    if [ ! -z $INSTANCE_UID ]; then
+        echo ""
+        echo "Setting INSTANCE_UID: $INSTANCE_UID namespaces ..."
+        SERVICES_NAMESPACE="$INSTANCE_UID-$SERVICES_NAMESPACE"
+        # ADMIN_NAMESPACE="$INSTANCE_UID-$ADMIN_NAMESPACE"
+        EXTENSIONS_NAMESPACE="$INSTANCE_UID-$EXTENSIONS_NAMESPACE"
+        HELM_NAMESPACE="$INSTANCE_UID-$HELM_NAMESPACE"
+
+        FAST_DATA_DIR="$FAST_DATA_DIR-$INSTANCE_UID"
+        SLOW_DATA_DIR="$SLOW_DATA_DIR-$INSTANCE_UID"
+
+        INCLUDE_REVERSE_PROXY=true
+    fi
+    echo ""
+    echo "HELM_NAMESPACE:       $HELM_NAMESPACE "
+    echo "ADMIN_NAMESPACE:      $ADMIN_NAMESPACE "
+    echo "SERVICES_NAMESPACE:   $SERVICES_NAMESPACE "
+    echo "EXTENSIONS_NAMESPACE: $EXTENSIONS_NAMESPACE "
+    echo ""
+    echo "FAST_DATA_DIR: $FAST_DATA_DIR "
+    echo "SLOW_DATA_DIR: $SLOW_DATA_DIR "
+    echo ""
+
+    if command -v nvidia-smi &> /dev/null && nvidia-smi
+    then
+        echo "${GREEN}Nvidia GPU detected!${NC}"
+        GPU_SUPPORT=true
+    else
+        echo "${YELLOW}No GPU detected...${NC}"
+        GPU_SUPPORT=false
+    fi
+
+    preflight_checks
+
+    echo -e "${YELLOW}Get helm deployments...${NC}"
+    deployments=$(
+    # Helm 3 vs Helm 4:
+    # - Helm 3 needs `helm list -a` to show all releases (no --no-headers flag).
+    # - Helm 4 removed `-a` and `helm list` already lists all statuses by default.
+    #   See: https://helm.sh/docs/v3/helm/helm_list/ and https://helm.sh/docs/helm/helm_list/
+    #
+    # Try Helm 3 syntax first; if it fails (e.g. unknown flag -a), fall back to Helm 4 syntax.
+    $HELM_EXECUTABLE -n "$HELM_NAMESPACE" ls --short -a 2>/dev/null || \
+    $HELM_EXECUTABLE -n "$HELM_NAMESPACE" ls --short --no-headers 2>/dev/null
+    )
+    echo "Current deployments: "
+    echo $deployments
+
+    if [[ $deployments == *"$PLATFORM_NAME"* ]] && [[ ! $QUIET = true ]];then
+        echo -e "${YELLOW}$PLATFORM_NAME already deployed!${NC}"
+        PS3='select option: '
+        options=("Un- and Re-deploy" "Undeploy" "Quit")
+        select opt in "${options[@]}"
+        do
+            case $opt in
+                "Un- and Re-deploy")
+                    echo -e "${YELLOW}Starting Un- and Re-deployment ...${NC}"
+                    delete_deployment
+                    deploy_chart
+                    break
+                    ;;
+                "Undeploy")
+                    echo -e "${YELLOW}Starting undeployment ...${NC}"
+                    delete_deployment
+                    exit 0
+                    ;;
+                "Quit")
+                    echo -e "${YELLOW}abort.${NC}"
+                    exit 0
+                    ;;
+                *) echo "invalid option $REPLY";;
+            esac
+        done
+    elif [[ $deployments == *"$PLATFORM_NAME"* ]] && [[ $QUIET = true ]];then
+        echo -e "${RED}Project already deployed!${NC}"
+        echo -e "${RED}abort.${NC}"
+        exit 1
+
+    else
+        echo -e "${GREEN}No previous deployment found -> deploy ${NC}"
+        deploy_chart
+    fi
+}
+
+function server_installation() {
+    init_colors
+    SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    OS_PRESENT=$(awk -F= '/^NAME/{print $2}' /etc/os-release)
+    OS_PRESENT="${OS_PRESENT%\"}"
+    OS_PRESENT="${OS_PRESENT#\"}"
+    REAL_USER=${SUDO_USER:-$USER}
+    if [ -v SUDO_USER ]; then
+        USER_HOME=$(getent passwd $SUDO_USER | cut -d: -f6)
+    else
+        USER_HOME=$HOME
+    fi
+
+    if [ "$EUID" -ne 0 ]
+    then echo -e "Please run the script with root privileges!";
+        exit 1
+    fi
+    echo ""
+    echo -e "${GREEN}OS:        $OS_PRESENT ${NC}";
+    echo -e "${GREEN}REAL_USER: $REAL_USER ${NC}";
+    echo -e "${GREEN}USER_HOME: $USER_HOME ${NC}";
+    echo ""
+
+    DEFAULT_MICRO_VERSION=1.33/stable
+    DEFAULT_HELM_VERSION=latest/stable
+
+    ### Parsing command line arguments:
+    usage="$(basename "$0")
+
+    _Flag: -q   --quiet      will activate quiet mode (default: false)
+    _Flag:      --uninstall  removes microk8s and helm from the system
+    _Flag:      --offline    offline installation for snap packages (expects '*.snap' and '*.assert' files within the working dir)
+
+    _Argument: -v --version [opt]
+    where opt is:
+        default: $DEFAULT_MICRO_VERSION
+
+    _Argument: -os --operating-system [opt]
+    where opt is:
+        AlmaLinux --> AlmaLinux
+        Ubuntu    --> Ubuntu
+        default: $OS_PRESENT"
+
+    QUIET=NA
+    OFFLINE_SNAPS=NA
+    DNS=""
+
+    POSITIONAL=()
+    while [[ $# -gt 0 ]]
+    do
+        key="$1"
+
+        case $key in
+
+            -h|--help)
+                echo -e "${YELLOW}$usage ${NC}";
+                exit 0
+            ;;
+
+            -os|--operating-system)
+                OS_PRESENT="$2"
+                echo -e "${GREEN}OS set to: $OS_PRESENT ${NC}";
+                shift # past argument
+                shift # past value
+            ;;
+
+            -v|--version)
+                DEFAULT_MICRO_VERSION="$2"
+                echo -e "${GREEN}Kubernetes version set to: $DEFAULT_MICRO_VERSION ${NC}";
+                shift # past argument
+                shift # past value
+            ;;
+
+            -q|--quiet)
+                echo -e "${GREEN}QUIET-MODE activated!${NC}";
+                QUIET=true
+                shift # past argument
+            ;;
+
+            --offline)
+                OFFLINE_SNAPS=true
+                echo -e "${GREEN}SET OFFLINE_SNAPS: $OFFLINE_SNAPS !${NC}";
+                shift # past argument
+            ;;
+
+            --install-ubuntu-packages)
+                install_packages_ubuntu
+                exit 0
+            ;;
+
+            --install-almalinux-packages)
+                install_packages_almalinux
+                exit 0
+            ;;
+
+            --uninstall)
+                uninstall
+                exit 0
+            ;;
+
+            *)    # unknown option
+                echo -e "${RED}UNKNOWN ARGUMENT: $key!${NC}";
+                echo -e "$usage";
+                exit 1
+            ;;
+        esac
+    done
+
+
+    case "$OS_PRESENT" in
+        "AlmaLinux")
+            echo -e "${GREEN}Starting AlmaLinux installation...${NC}";
+            install_proxy_environment
+            install_packages_almalinux
+            install_core core20 # for microk8s
+            install_core core24 # for helm
+            install_helm
+            install_microk8s
+        ;;
+
+        "Ubuntu")
+            echo -e "${GREEN}Starting Ubuntu installation...${NC}";
+            install_proxy_environment
+            install_packages_ubuntu
+            install_core core20 # for microk8s
+            install_core core24 # for helm
+            install_helm
+            install_microk8s
+        ;;
+
+        *)
+            echo "${RED}Your OS: $OS_PRESENT is not supported at the moment.${NC}"
+            echo "${RED}This scripts suppors: Ubuntu and AlmaLinux${NC}"
+            echo -e "$usage"
+            exit 1
+    esac
+}
+
+function install_proxy_environment {
+    echo "${YELLOW}Checking proxy settings ...${NC}"
+    if [ ! "$QUIET" = "true" ];then
+        if [ ! -v http_proxy ]; then
+            echo "${RED}No proxy has been found!${NC}"
+            while true; do
+                read -p "Is this correct and you don't need a proxy?" yn
+                    case $yn in
+                        [Yy]* ) break;;
+                        [Nn]* ) echo "please configure your system proxy (http_proxy + https_proxy -> /etc/environment)" && exit;;
+                        * ) echo "Please answer yes or no.";;
+                    esac
+            done
+        else
+            echo "${GREEN}Proxy ok!${NC}"
+            install_no_proxy_environment
+        fi
+    else
+        echo "QUIET = true";
+    fi
+}
+
+
+function install_no_proxy_environment {
+    # Note: This script makes sure no_proxy configuration is configured correctly so microk8s doesn't send cluster traffic to the
+    #       proxy server. The specific settings for ip ranges used by microk8s to request external resource might change in the future
+    #       and are (currently) described here: https://microk8s.io/docs/install-proxy
+    echo "${GREEN}Checking no_proxy settings${NC}"
+    if [ ! -v no_proxy ] && [ ! -v NO_PROXY ]; then
+        echo "${YELLOW}no_proxy not found, setting it and adding ${HOSTNAME}${NC}"
+        echo "NO_PROXY=127.0.0.1,$HOSTNAME,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" >> /etc/environment
+        echo "no_proxy=127.0.0.1,$HOSTNAME,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" >> /etc/environment
+        sed -i "$ a\\${INSERTLINE}" /etc/environment && echo "Adding $HOSTNAME to no_proxy"
+    else
+        echo "${YELLOW}no_proxy | NO_PROXY found - check if complete ...!${NC}"
+
+        if [ -v no_proxy ]; then
+                no_proxy=$no_proxy
+        else
+                no_proxy=$NO_PROXY
+        fi
+
+        # remove any " from no_proxy ENV
+        no_proxy=$( echo $no_proxy | sed 's/"//g')
+
+        if [[ $no_proxy == *"172.16.0.0/16"* ]]; then
+            echo "${GREEN}NO_PROXY is already configured correctly ...${NC}"
+            return
+        fi
+
+        if grep -Fq "NO_PROXY" /etc/environment
+        then
+            sed -i "/NO_PROXY/c\NO_PROXY=$no_proxy,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" /etc/environment
+        else
+            echo "NO_PROXY=127.0.0.1,$HOSTNAME,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" >> /etc/environment
+        fi
+
+        if grep -Fq "no_proxy" /etc/environment
+        then
+            sed -i "/no_proxy/c\no_proxy=$no_proxy,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" /etc/environment
+        else
+            echo "no_proxy=127.0.0.1,$HOSTNAME,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" >> /etc/environment
+        fi
+    fi
+    echo "${GREEN}Source /etc/environment ${NC}"
+    source /etc/environment
+}
+
+function install_packages_almalinux {
+    echo "${YELLOW}Check packages...${NC}"
+    if [ -x "$(command -v snap)" ] && [ -x "$(command -v jq)" ]; then
+        echo "${GREEN}Snap installed.${NC}"
+    else
+
+        echo "${YELLOW}Enable epel-release${NC}"
+        yum install -y epel-release
+        echo "${YELLOW}YUM update & upgrade${NC}"
+        set +e
+        yum check-update -y
+        yum clean all -y
+        yum update -y
+	    yum upgrade -y
+        set -e
+
+        echo "${YELLOW}Installing snap, nano, jq and curl${NC}"
+        yum install -y snapd nano jq curl
+    fi
+
+    echo "${YELLOW}Enabling snap${NC}"
+    systemctl enable --now snapd.socket
+
+    echo "${YELLOW}Create link ...${NC}"
+    ln -sf /var/lib/snapd/snap /snap
+
+    echo "${YELLOW}Waiting for snap ...${NC}"
+    snap wait system seed.loaded
+
+    if [ ! -f /etc/profile.d/set_path.sh ]; then
+        echo "${YELLOW}Adding /snap/bin to path${NC}"
+        INSERTLINE="PATH=\$PATH:/snap/bin"
+        echo "$INSERTLINE" > /etc/profile.d/set_path.sh
+        chmod +x /etc/profile.d/set_path.sh
+        sed -i -r -e '/^\s*Defaults\s+secure_path/ s[=(.*)[=\1:/usr/local/bin:/snap/bin[' /etc/sudoers
+    else
+        echo "${GREEN}/etc/profile.d/set_path.sh already exists!${NC}"
+    fi
+
+    [[ ":$PATH:" != *":/snap/bin"* ]] && echo "${YELLOW}adding snap path ...${NC}" && source /etc/profile.d/set_path.sh
+
+    if [ -v http_proxy ]; then
+        echo "${YELLOW}setting snap proxy ...${NC}"
+        snap set system proxy.http="$http_proxy"
+        snap set system proxy.https="$http_proxy"
+    else
+        echo "${GREEN}No snap proxy needed${NC}"
+    fi
+}
+
+function install_packages_ubuntu {
+    if [ -x "$(command -v nano)" ] && [ -x "$(command -v jq)" ] && [ -x "$(command -v snap)" ]; then
+        echo "${GREEN}snap,nano and jq already installed.${NC}"
+    else
+        echo "${YELLOW}Check if apt is locked ...${NC}"
+        i=0
+        tput sc
+
+        while [ fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 ] || [ fuser /var/lib/dpkg/lock >/dev/null 2>&1 ]; do
+            case $(($i % 4)) in
+                0 ) j="-" ;;
+                1 ) j="\\" ;;
+                2 ) j="|" ;;
+                3 ) j="/" ;;
+            esac
+            tput rc
+            echo -en "\r[$j] Waiting for other software managers to finish ..."
+            sleep 0.5
+            ((i=i+1))
+        done
+
+        echo "${YELLOW}APT update & upgrade${NC}"
+        apt update
+        if [ ! "$QUIET" = "true" ]; then
+            apt upgrade -y
+        else
+            # does not work
+            export DEBIAN_FRONTEND=noninteractive
+            apt upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
+        fi
+
+        echo "${YELLOW}Installing nano,jq,curl,net-tools ...${NC}"
+        apt install -y nano jq curl net-tools
+
+        if [ -x "$(command -v snap)" ]; then
+            echo "${GREEN}Snap ok.${NC}"
+        else
+            echo "${YELLOW}Snap not installed! ${NC}"
+            apt install -y snapd
+            echo "${YELLOW}Snap has been installed -> reboot needed! ${NC}"
+            echo "${YELLOW}Please restart this script afterwards. ${NC}"
+            echo "${YELLOW}Please reboot now ${NC}"
+            exit 0
+        fi
+    fi
+}
+
+
+function insert_text {
+    search_string=$(echo "$1" | sed "s/--//")
+    search_string=$(echo "$search_string" | sed "s/help/--help/")
+    insert_string=$1
+    filepath=$2
+    rc=1
+
+    echo "${YELLOW}Checking $insert_string in $filepath.. ${NC}"
+    [ -f $filepath ] || { echo "$filepath does not exist! -> abort." && exit 1; }
+    grep -q "$search_string" $filepath && echo "${YELLOW}SKIPPED: $insert_string ....${NC}" || { echo "${GREEN}Setting: $insert_string >> $filepath ${NC}" && rc=0 && sh -c "echo '$insert_string' >> $filepath"; }
+    return $rc
+}
+
+
+function install_core {
+    local package_name=$1
+    echo "${YELLOW}Checking if ${package_name} is installed ... ${NC}"
+    if ls -l /var/lib/snapd/snaps | grep ${package_name} ;
+    then
+        echo ""
+        echo "${GREEN}${package_name} is already installed ...${NC}"
+        echo "${GREEN}-> skipping installation ${NC}"
+        echo ""
+    else
+        echo "${YELLOW}${package_name} is not installed -> start installation ${NC}"
+        if [ "$OFFLINE_SNAPS" = "true" ]; then
+            echo "${YELLOW} -> ${package_name} offline installation! ${NC}"
+            snap_path=$SCRIPT_DIR/${package_name}.snap
+            assert_path=$SCRIPT_DIR/${package_name}.assert
+            [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
+            [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
+            snap ack $assert_path
+            snap install --classic $snap_path
+        else
+            echo "${YELLOW}${package_name} will be automatically installed ...${NC}"
+        fi
+    fi
+}
+
+
+function install_helm {
+    if command -v helm &> /dev/null
+    then
+        echo ""
+        echo "${GREEN}Helm is already installed ...${NC}"
+        echo "${GREEN}-> skipping installation ${NC}"
+        echo ""
+    else
+        echo "${YELLOW}Helm is not installed -> start installation ${NC}"
+        if [ "$OFFLINE_SNAPS" = "true" ];then
+            echo "${YELLOW} -> Helm offline installation! ${NC}"
+            snap_path=$SCRIPT_DIR/helm.snap
+            assert_path=$SCRIPT_DIR/helm.assert
+            [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
+            [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
+            snap ack $assert_path
+            snap install --classic $snap_path
+        else
+            echo "${YELLOW}Installing Helm v$DEFAULT_HELM_VERSION ...${NC}"
+            snap install helm --classic --channel=$DEFAULT_HELM_VERSION
+        fi
+    fi
+}
+
+function dns_check {
+    if [ ! -z "$DNS" ]; then
+        echo "${GREEN}${NC}"
+        echo "${GREEN}DNS has been manually configured to '$DNS' ...${NC}"
+        echo "${GREEN}${NC}"
+    else
+        if [ "$OFFLINE_SNAPS" != "true" ];then
+            echo "${GREEN}Checking server DNS settings ...${NC}"
+            if command -v nslookup dkfz.de &> /dev/null
+            then
+                echo "${GREEN}DNS lookup was successful ...${NC}"
+            else
+                echo ""
+                echo "${RED}DNS lookup failed -> please check your servers DNS configuration ...${NC}"
+                echo "${RED}You can test it with: 'nslookup dkfz.de'${NC}"
+                echo ""
+                exit 1
+            fi
+        fi
+
+        set +e
+        echo "${GREEN}Get DNS settings nmcli ...${NC}"
+        DNS=$(( nmcli dev list || nmcli dev show ) 2>/dev/null | grep DNS |awk -F ' ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
+
+        if [ -z "$DNS" ]; then
+            echo "${YELLOW} Trying resolvectl ...${NC}"
+            DNS=$(resolvectl status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
+        fi
+
+        if [ -z "$DNS" ]; then
+            echo "${YELLOW} Trying systemd-resolve...${NC}"
+            DNS=$(systemd-resolve --status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
+        fi
+
+        if [ -z "$DNS" ]; then
+            if [ "$OFFLINE_SNAPS" = "true" ]; then
+                echo "${YELLOW}No DNS found, setting fallback DNS...${NC}"
+                DNS="8.8.8.8,8.8.4.4"
+            else
+                echo "${RED}DNS lookup failed.${NC}"
+                exit 1
+            fi
+        fi
+
+        ## Format DNS to be a comma separated list of IP addresses without spaces and newlines
+        DNS=$(echo -e $DNS | tr -s ' \n,' ',' | sed 's/,$/\n/')
+        echo "${YELLOW}Identified DNS: $DNS ${NC}"
+
+        set -e
+    fi
+}
+
+function install_microk8s {
+    if command -v microk8s &> /dev/null
+    then
+        echo ""
+        echo "${GREEN}microk8s is already installed ...${NC}"
+        echo "${GREEN}-> skipping installation ${NC}"
+        echo ""
+        echo ""
+        echo "${GREEN}If you want to start-over use the --uninstall parameter first! ${NC}"
+        echo ""
+        echo ""
+        exit 0
+    else
+        echo "${YELLOW}microk8s is not installed -> start installation ${NC}"
+        dns_check
+
+        if [ "$OFFLINE_SNAPS" = "true" ];then
+            echo "${YELLOW} -> offline installation! ${NC}"
+
+            echo "${YELLOW}Installing microk8s...${NC}"
+            snap_path=$SCRIPT_DIR/microk8s.snap
+            assert_path=$SCRIPT_DIR/microk8s.assert
+            [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
+            [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
+
+            snap ack $assert_path
+            snap install --classic $snap_path
+            MICROK8S_BASE_IMAGES_TAR_PATH="$SCRIPT_DIR/microk8s_base_images.tar"
+            echo "${YELLOW}Start Microk8s image import from $MICROK8S_BASE_IMAGES_TAR_PATH ... ${NC}"
+            [ -f $MICROK8S_BASE_IMAGES_TAR_PATH ] && echo "${GREEN}MICROK8S_BASE_IMAGES_TAR exists ... ${NC}" || (echo "${RED}Images tar does not exist -> exit ${NC}" && exit 1)
+            echo "${RED}This can take a long time! -> please be patient and wait. ${NC}"
+            microk8s.ctr images import $MICROK8S_BASE_IMAGES_TAR_PATH
+            echo "${GREEN}Microk8s offline installation done!${NC}"
+        else
+            echo "${YELLOW}Installing microk8s v$DEFAULT_MICRO_VERSION ...${NC}"
+            snap install microk8s --classic --channel=$DEFAULT_MICRO_VERSION
+        fi
+
+        echo "${YELLOW}Stopping microk8s for configuration ...${NC}"
+        microk8s.stop
+
+        set +e
+        echo "${YELLOW}Enable node_port-range=80-32000 ...${NC}";
+        insert_text "--service-node-port-range=80-32000" /var/snap/microk8s/current/args/kube-apiserver
+        echo "${YELLOW}Disable insecure port ...${NC}";
+        insert_text "--insecure-port=0" /var/snap/microk8s/current/args/kube-apiserver
+        insert_text "--runtime-config=admissionregistration.k8s.io/v1beta1=true" /var/snap/microk8s/current/args/kube-apiserver
+
+        echo "${YELLOW}Set limit of completed pods to 200 ...${NC}";
+        insert_text "--terminated-pod-gc-threshold=200" /var/snap/microk8s/current/args/kube-controller-manager
+        set -e
+
+        echo "${YELLOW}Set vm.max_map_count=262144${NC}"
+        sysctl -w vm.max_map_count=262144
+        set +e
+        insert_text "vm.max_map_count=262144" /etc/sysctl.conf
+        set -e
+
+        echo "${YELLOW}Reload systemct daemon ...${NC}"
+        systemctl daemon-reload
+
+        echo "${YELLOW}Set alias for kubectl: $USER_HOME/.bashrc ${NC}"
+        set +e
+        insert_text "alias kubectl=\"microk8s.kubectl\"" $USER_HOME/.bashrc
+        set -e
+
+        echo "${YELLOW}Set auto-completion for kubectl: $USER_HOME/.bashrc ${NC}"
+        set +e
+        insert_text "# microk8s.kubectl --help > /dev/null 2>&1 && source <(microk8s.kubectl completion bash)" $USER_HOME/.bashrc
+        set -e
+
+        echo "${YELLOW}Starting microk8s${NC}"
+        microk8s.start
+        echo "${YELLOW}Wait until microk8s is ready ...${NC}"
+        microk8s.status --wait-ready >/dev/null 2>&1
+
+        echo "${YELLOW}Enable microk8s RBAC ...${NC}"
+        microk8s.enable rbac
+
+        echo "${YELLOW}Enable microk8s DNS: '$DNS' ...${NC}"
+        microk8s.enable dns:$DNS
+
+        echo "${YELLOW}Waiting for DNS to be ready ...${NC}"
+        microk8s.kubectl rollout status -n kube-system deployment coredns --timeout=120s
+
+        echo "${YELLOW}Create dir: $USER_HOME/.kube ...${NC}"
+        mkdir -p $USER_HOME/.kube
+
+        echo "${YELLOW}Export Kube-Config to $USER_HOME/.kube/config ...${NC}"
+        microk8s.kubectl config view --raw | tee $USER_HOME/.kube/config
+        chmod 600 $USER_HOME/.kube/config
+
+        if [ "$REAL_USER" != "root" ]; then
+            echo "${YELLOW} Setting non-root permissions ...${NC}"
+            sudo usermod -a -G microk8s $REAL_USER
+            sudo chown -f -R $REAL_USER $USER_HOME/.kube
+        fi
+
+        echo ""
+        echo ""
+        echo ""
+
+        if [ "$REAL_USER" != "root" ]; then
+            echo "${GREEN}           Installation successful.${NC}"
+            echo "${GREEN}                 Please run:${NC}"
+            echo ""
+            echo "${RED}----->           newgrp microk8s           <-----${NC}"
+            echo ""
+            echo "${GREEN}           or reboot the system${NC}"
+            echo ""
+        fi
+        echo ""
+        echo "${GREEN}You can now continue with the platform deployment script.${NC}"
+        echo ""
+        echo ""
+        echo ""
+    fi
+    echo ""
+    echo "${GREEN} DONE ${NC}"
+    echo ""
+}
+
+function uninstall {
+    echo ""
+    echo "${YELLOW}Uninstalling Helm ...${NC}"
+    snap remove helm --purge && echo "${GREEN}DONE${NC}" || echo "${RED}########################  NOT SUCCESSFUL! ########################${NC}"
+
+    echo "${YELLOW}Uninstalling microk8s ...${NC}"
+    snap remove microk8s --purge && echo "${GREEN}DONE${NC}" || echo "${RED}########################  NOT SUCCESSFUL! ########################${NC}"
+    echo ""
+    echo ""
+    echo "${YELLOW}UNINSTALLATION DONE ${NC}"
+    echo ""
+    echo ""
+
+}
+
+install_gpu_operator() {
+  local script_dir="$1"
+
+  if [[ -z "${script_dir}" ]]; then
+    echo "install_gpu_operator: missing required argument: script_dir" >&2
+    return 1
+  fi
+
+  # Constants
+  local chart_name="gpu-operator"
+  local chart_version="v25.3.0"
+  local helm="/snap/bin/helm"
+  local containerd_socket="/var/snap/microk8s/common/run/containerd.sock"
+  local containerd_toml="/var/snap/microk8s/current/args/containerd-template.toml"
+
+  local chart_path="${script_dir%/}/gpu-operator.tgz"
+
+  if [[ ! -f "${chart_path}" ]]; then
+    echo "install_gpu_operator: chart not found at ${chart_path}" >&2
+    return 1
+  fi
+
+  # Match Python: only distinguish by presence of nvidia-smi (OSError equivalent)
+  local driver
+  if command -v nvidia-smi >/dev/null 2>&1; then
+    driver="host"
+  else
+    driver="operator"
+  fi
+
+  local driver_enabled
+  if [[ "${driver}" == "operator" ]]; then
+    driver_enabled="true"
+  else
+    driver_enabled="false"
+  fi
+
+  # Feed JSON values to Helm via stdin (equivalent to -f - in the Python script)
+  cat <<EOF | "${helm}" install "${chart_name}" "${chart_path}" \
+    --version="${chart_version}" \
+    --create-namespace \
+    --namespace="${chart_name}-resources" \
+    -f -
+{
+  "operator": {
+    "defaultRuntime": "containerd"
+  },
+  "driver": {
+    "enabled": "${driver_enabled}"
+  },
+  "toolkit": {
+    "enabled": "true",
+    "env": [
+      { "name": "CONTAINERD_CONFIG", "value": "${containerd_toml}" },
+      { "name": "CONTAINERD_SOCKET", "value": "${containerd_socket}" },
+      { "name": "CONTAINERD_SET_AS_DEFAULT", "value": "1" }
+    ]
+  }
+}
+EOF
+}
+
+
+function init_colors {
+    # set default values for the colors
+    BOLD=""
+    underline=""
+    standout=""
+    NC=""
+    BLACK=""
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    MAGENTA=""
+    CYAN=""
+    WHITE=""
+    # check if stdout is a terminal...
+    if test -t 1; then
+        # see if it supports colors...
+        ncolors=$(tput colors)
+
+        if test -n "$ncolors" && test $ncolors -ge 8; then
+            BOLD="$(tput bold)"
+            underline="$(tput smul)"
+            standout="$(tput smso)"
+            NC="$(tput sgr0)"
+            BLACK="$(tput setaf 0)"
+            RED="$(tput setaf 1)"
+            GREEN="$(tput bold)$(tput setaf 2)"
+            YELLOW="$(tput bold)$(tput setaf 3)"
+            BLUE="$(tput bold)$(tput setaf 4)"
+            MAGENTA="$(tput bold)$(tput setaf 5)"
+            CYAN="$(tput bold)$(tput setaf 6)"
+            WHITE="$(tput bold)$(tput setaf 7)"
+        fi
+    fi
+}
+
+function load_kaapana_config {
+    ######################################################
+    # Deployment configuration
+    ######################################################
+
+    # dev-mode -> containers will always be re-downloaded after pod-restart
+    DEV_MODE=true
     GPU_SUPPORT=false
-fi
+    # Adjust enable nvidia command if using GPU Operator below v25.10.0+
+    GPU_OPERATOR_VERSION="v25.10.0"
+    PREFETCH_EXTENSIONS=false
+    CHART_PATH=""
+    NO_HOOKS=""
+    ENABLE_NFS=false
+    OFFLINE_MODE=false
+
+    INSTANCE_UID=""
+    SERVICES_NAMESPACE="services"
+    ADMIN_NAMESPACE="admin"
+    EXTENSIONS_NAMESPACE="extensions"
+    HELM_NAMESPACE="default"
+
+    OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
+
+    INCLUDE_REVERSE_PROXY=false
+    MIGRATION_ENABLED=true
+
+    ######################################################
+    # Resource configurations
+    ######################################################
+
+    # Memory percentages for PACS, Airflow, and OpenSearch.
+    PACS_PERCENT="30"
+    AIRFLOW_PERCENT="50"
+    OPENSEARCH_PERCENT="20"
+    TOTAL_PERCENT=$((PACS_PERCENT + AIRFLOW_PERCENT + OPENSEARCH_PERCENT))
+
+    # Get allocatable RAM (70% of total free memory)
+    TOTAL_MEMORY=$(free -m | awk '/^Mem:/{print $2}')
+    ALLOCATABLE_MEMORY=$((TOTAL_MEMORY * 70 / 100))
+
+    # Set max memory limits for components
+    PACS_MEMORY_LIMIT=$((ALLOCATABLE_MEMORY * PACS_PERCENT / TOTAL_PERCENT))
+    AIRFLOW_MEMORY_LIMIT=$((ALLOCATABLE_MEMORY * AIRFLOW_PERCENT / TOTAL_PERCENT))
+    OPENSEARCH_MEMORY_LIMIT=$((ALLOCATABLE_MEMORY * OPENSEARCH_PERCENT / TOTAL_PERCENT))
+
+    # Set memory min requests (1/3 of limit)
+    PACS_MEMORY_REQUEST=$((PACS_MEMORY_LIMIT / 3))
+    AIRFLOW_MEMORY_REQUEST=$((AIRFLOW_MEMORY_LIMIT / 3))
+    OPENSEARCH_MEMORY_REQUEST=$((OPENSEARCH_MEMORY_LIMIT / 3))
+
+    ######################################################
+    # Individual platform configuration
+    ######################################################
+    CREDENTIALS_MINIO_USERNAME="kaapanaminio"
+    CREDENTIALS_MINIO_PASSWORD="Kaapana2020"
+
+    GRAFANA_USERNAME="admin"
+    GRAFANA_PASSWORD="admin"
+
+    KEYCLOAK_ADMIN_USERNAME="admin"
+    KEYCLOAK_ADMIN_PASSWORD="Kaapana2020" #  Minimum policy for production: 1 specialChar + 1 upperCase + 1 lowerCase and 1 digit + min-length = 8
+
+    FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
+    SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)
+
+    HTTP_PORT="80"      # -> has to be 80
+    HTTPS_PORT="443"    # HTTPS port
+    DICOM_PORT="11112"  # configure DICOM receiver port
+
+    SMTP_HOST=""
+    SMTP_PORT="0"
+    EMAIL_ADDRESS_SENDER=""
+    SMTP_USERNAME=""
+    SMTP_PASSWORD=""
+
+    VERSION_IMAGE_COUNT="20"
+    DEPLOYMENT_TIMESTAMP=`date  --iso-8601=seconds`
+    MOUNT_POINTS_TO_MONITOR=""
+
+    INSTANCE_NAME=""
+}
 
 function delete_all_images_docker {
     while true; do
@@ -204,9 +1214,6 @@ function delete_all_images_microk8s {
         esac
     done
 }
-
-
-
 
 function get_domain {
 
@@ -312,7 +1319,6 @@ function nuke_pods {
     done
 }
 
-
 function clean_up_kubernetes {
     for n in $EXTENSIONS_NAMESPACE; # $HELM_NAMESPACE;
     do
@@ -353,7 +1359,7 @@ function run_migration_chart() {
     if [ "$PLAIN_HTTP" = true ]; then
         HELM_CMD="$HELM_CMD --plain-http"
     fi
-    
+
     $HELM_CMD kaapana-migration "$MIGRATION_CHART_PATH" \
         --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \
         --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
@@ -425,7 +1431,7 @@ function prompt_user_backup() {
                 return 0
                 ;;
             [Nn][Oo]|[Nn])
-                echo "❌ Aborting deployment."
+                echo "❌ Aborting migration."
                 exit 1
                 ;;
             [Ss][Kk][Ii][Pp]|[Ss])
@@ -452,7 +1458,7 @@ function migrate() {
         CURRENT_VERSION=$(cat "$VERSION_FILE")
         echo "${GREEN}Found version: $CURRENT_VERSION${NC}"
         echo "${GREEN}Target version: $PLATFORM_VERSION${NC}"
-        
+
         # Extract major.minor (ignore patch and build metadata)
         CURRENT_MAJOR_MINOR=$(echo "$CURRENT_VERSION" | sed -E 's/^([0-9]+\.[0-9]+).*/\1/')
         PLATFORM_MAJOR_MINOR=$(echo "$PLATFORM_VERSION" | sed -E 's/^([0-9]+\.[0-9]+).*/\1/')
@@ -483,7 +1489,7 @@ function migrate() {
 
     elif [[ -d "$FAST_DATA_DIR" && -n "$(ls -A "$FAST_DATA_DIR")" ]]; then
         echo "${YELLOW}No version file and directory is not empty!${NC}"
-        
+
         if [[ "$MIGRATION_ENABLED" == true ]]; then
             echo "Options:"
             echo "  1. Let migration-chart autodetect version using $FAST_DATA_DIR/extensions/kaapana-platform-chart-<version>.tgz"
@@ -560,9 +1566,7 @@ function deploy_chart {
         else
             if [ "${OFFLINE_MODE,,}" == true ];then
                 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-                OFFLINE_ENABLE_GPU_PATH=$SCRIPT_DIR/kaapanactl.sh
-                [ -f $OFFLINE_ENABLE_GPU_PATH ] && echo "${GREEN}$OFFLINE_ENABLE_GPU_PATH exists ... ${NC}" || (echo "${RED}$OFFLINE_ENABLE_GPU_PATH does not exist -> exit ${NC}" && exit 1)
-                $OFFLINE_ENABLE_GPU_PATH offline-gpu $SCRIPT_DIR
+                install_gpu_operator "$SCRIPT_DIR"
                 if [ $? -eq 0 ]; then
                     echo "Offline GPU enabled!"
                 else
@@ -570,7 +1574,7 @@ function deploy_chart {
                     exit 1
                 fi
             else
-                
+
                 microk8s enable nvidia --gpu-operator-driver host --gpu-operator-version $GPU_OPERATOR_VERSION \
                     --gpu-operator-set toolkit.env[3].name=RUNTIME_CONFIG_SOURCE --gpu-operator-set toolkit.env[3].value='file=/var/snap/microk8s/current/args/containerd.toml'
             fi
@@ -652,19 +1656,19 @@ function deploy_chart {
     # MicroK8s https://microk8s.io/docs/change-cidr
     INTERNAL_CIDR="10.152.183.0/24,10.1.0.0/16,$INTERNAL_CIDR"
 
-    
+
     echo "${GREEN}Checking for version difference and migration options...${NC}"
     migrate
 
     echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
-    
+
     # Build helm command with optional --plain-http flag
     HELM_INSTALL_CMD="$HELM_EXECUTABLE -n $HELM_NAMESPACE install --create-namespace"
     if [ "$PLAIN_HTTP" = true ]; then
         HELM_INSTALL_CMD="$HELM_INSTALL_CMD --plain-http"
     fi
-    
+
     $HELM_INSTALL_CMD $CHART_PATH \
     --set-string global.base_namespace="base" \
     --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \
@@ -717,8 +1721,6 @@ function deploy_chart {
     --set-string global.smtp_username="$SMTP_USERNAME" \
     --set-string global.smtp_password="$SMTP_PASSWORD" \
     --set-string global.email_address_sender="$EMAIL_ADDRESS_SENDER" \
-    {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
-    {% endfor -%}
     --name-template "$PLATFORM_NAME"
 
     # In case of timeout-issues in kube helm increase the default timeouts by setting
@@ -735,7 +1737,6 @@ function deploy_chart {
     CONTAINER_REGISTRY_USERNAME=""
     CONTAINER_REGISTRY_PASSWORD=""
 }
-
 
 function pull_chart {
     local chart_name=$1
@@ -774,13 +1775,13 @@ function check_credentials {
         fi
     done
     STRIPPED_CONTAINER_REGISTRY_URL=$(echo "$CONTAINER_REGISTRY_URL" | sed -E 's~^https?://~~' | cut -d'/' -f1)
-    
+
     # Build helm registry login command with optional --plain-http flag
     HELM_LOGIN_CMD="$HELM_EXECUTABLE registry login"
     if [ "$PLAIN_HTTP" = true ]; then
         HELM_LOGIN_CMD="$HELM_LOGIN_CMD --plain-http"
     fi
-    
+
     $HELM_LOGIN_CMD -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD $(echo "$CONTAINER_REGISTRY_URL" | cut -d/ -f1)
 }
 
@@ -839,8 +1840,6 @@ function print_resource_configs {
     echo "Opensearch maximum memory limit: $(awk "BEGIN {printf \"%.2f\", $OPENSEARCH_MEMORY_LIMIT/1024}") Gi"
     echo ""
 }
-
-
 
 function preflight_checks {
     echo -e "${GREEN}#################################  RUNNING PREFLIGHT CHECKS  #########################################${NC}"
@@ -1157,7 +2156,6 @@ function check_system() {
 
 }
 
-
 function create_report {
     # Dont abort report generation on error
     set +euf +o pipefail
@@ -1225,7 +2223,7 @@ cat << "EOF"
                                      | |
                                      |_|
 EOF
-echo "Version: {{ platform_build_version }}"
+echo "Version: 0.5.3-latest"
 echo "Report created on $(date +'%Y-%m-%d')"
 
 --- "Basics"
@@ -1290,218 +2288,4 @@ check_system project-admin admin
 }
 
 ### MAIN programme body:
-echo "${YELLOW:-}${BOLD:-}WARNING:${NC:-} deploy_platform.sh is deprecated and will be removed in the next Kaapana release."
-echo "${YELLOW:-}${BOLD:-}Please use './kaapanactl deploy' instead; it accepts the same options as this script.${NC:-}"
-
-### Parsing command line arguments:
-usage="$(basename "$0")
-
-_Flag: --undeploy undeploys the current platform
-_Flag: --no-hooks will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forever.
-_Flag: --install-certs set new HTTPS-certificates for the platform
-_Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
-_Flag: --remove-all-images-docker will delete all Docker images from the system
-_Flag: --nuke-pods will force-delete all pods of the Kaapana deployment namespaces.
-_Flag: --quiet, meaning non-interactive operation
-_Flag: --offline, using prebuilt tarball and chart (--chart-path required!)
-_Flag: --no-migration, disable automatic migration between versions
-_Flag: --check-system, check health of all resources in kaapana-admin-chart and kaapana-platform-chart
-_Flag: --report, create a report of the state of the microk8s cluster
-
-_Argument: --username [Docker registry username]
-_Argument: --password [Docker registry password]
-_Argument: --port [Set main https-port]
-_Argument: --chart-path [path-to-chart-tgz]
-_Argument: --import-images-tar [path-to-a-tarball]"
-
-QUIET=NA
-
-POSITIONAL=()
-while [[ $# -gt 0 ]]
-do
-    key="$1"
-
-    case $key in
-
-        -u|--username)
-            CONTAINER_REGISTRY_USERNAME="$2"
-            echo -e "${GREEN}SET CONTAINER_REGISTRY_USERNAME! $CONTAINER_REGISTRY_USERNAME ${NC}";
-            shift # past argument
-            shift # past value
-        ;;
-
-        -p|--password)
-            CONTAINER_REGISTRY_PASSWORD="$2"
-            echo -e "${GREEN}SET CONTAINER_REGISTRY_PASSWORD!${NC}";
-            shift # past argument
-            shift # past value
-        ;;
-
-        -d|--domain)
-            DOMAIN="$2"
-            echo -e "${GREEN}SET DOMAIN!${NC}";
-            shift # past argument
-            shift # past value
-        ;;
-
-        --port)
-            HTTPS_PORT="$2"
-            echo -e "${GREEN}SET PORT!${NC}";
-            shift # past argument
-            shift # past value
-        ;;
-
-        --chart-path)
-            CHART_PATH="$2"
-            echo -e "${GREEN}SET CHART_PATH: $CHART_PATH !${NC}";
-            shift # past argument
-            shift # past value
-        ;;
-
-        --import-images-tar)
-            TAR_PATH="$2"
-            echo -e "${GREEN}SET TAR_PATH: $TAR_PATH !${NC}";
-            import_container_images_tar
-            exit 0
-        ;;
-
-        --quiet)
-            QUIET=true
-            shift # past argument
-        ;;
-
-        --offline)
-            OFFLINE_MODE=true
-            echo -e "${GREEN}Deploying in offline mode!${NC}"
-            shift # past argument
-        ;;
-
-        --no-migration)
-            MIGRATION_ENABLED=false
-            echo -e "${YELLOW}Migration disabled via CLI (--no-migration).${NC}"
-            shift # past argument
-        ;;
-
-        --install-certs)
-            install_certs
-            exit 0
-        ;;
-
-        --remove-all-images-ctr)
-            delete_all_images_microk8s
-            exit 0
-        ;;
-
-        --remove-all-images-docker)
-            delete_all_images_docker
-            exit 0
-        ;;
-
-        --no-hooks)
-            echo -e "${YELLOW}Starting undeployment ...${NC}"
-            NO_HOOKS="--no-hooks"
-            echo -e "${YELLOW}Using --no-hooks${NC}"
-            delete_deployment
-            clean_up_kubernetes
-            exit 0
-        ;;
-
-        --nuke-pods)
-            while true; do
-                read -e -p "Do you really want to nuke all pods? -> Not recommended!" -i " no" yn
-                case $yn in
-                    [Yy]* )
-                    nuke_pods
-                    delete_deployment
-                    clean_up_kubernetes
-                    break;;
-                    [Nn]* ) echo "${YELLOW}Pods will be kept${NC}"; break;;
-                    * ) echo "Please answer yes or no.";;
-                esac
-            done
-            exit 0
-        ;;
-
-        --undeploy)
-            delete_deployment
-            exit 0
-        ;;
-
-        --re-deploy)
-            delete_deployment
-            deploy_chart
-            exit 0
-        ;;
-
-        --report)
-            create_report
-            exit 0
-        ;;
-
-        --check-system)
-            check_system kaapana-admin-chart default
-            check_system kaapana-platform-chart admin
-            check_system project-admin admin
-            exit 0
-        ;;
-
-        *)    # unknown option
-            echo -e "${RED}unknown parameter: $key ${NC}"
-            echo -e "${YELLOW}$usage${NC}"
-            exit 1
-        ;;
-
-
-    esac
-done
-
-preflight_checks
-
-echo -e "${YELLOW}Get helm deployments...${NC}"
-deployments=$(
-  # Helm 3 vs Helm 4:
-  # - Helm 3 needs `helm list -a` to show all releases (no --no-headers flag).
-  # - Helm 4 removed `-a` and `helm list` already lists all statuses by default.
-  #   See: https://helm.sh/docs/v3/helm/helm_list/ and https://helm.sh/docs/helm/helm_list/
-  #
-  # Try Helm 3 syntax first; if it fails (e.g. unknown flag -a), fall back to Helm 4 syntax.
-  $HELM_EXECUTABLE -n "$HELM_NAMESPACE" ls --short -a 2>/dev/null || \
-  $HELM_EXECUTABLE -n "$HELM_NAMESPACE" ls --short --no-headers 2>/dev/null
-)
-echo "Current deployments: "
-echo $deployments
-
-if [[ $deployments == *"$PLATFORM_NAME"* ]] && [[ ! $QUIET = true ]];then
-    echo -e "${YELLOW}$PLATFORM_NAME already deployed!${NC}"
-    PS3='select option: '
-    options=("Un- and Re-deploy" "Undeploy" "Quit")
-    select opt in "${options[@]}"
-    do
-        case $opt in
-            "Un- and Re-deploy")
-                echo -e "${YELLOW}Starting Un- and Re-deployment ...${NC}"
-                delete_deployment
-                deploy_chart
-                break
-                ;;
-            "Undeploy")
-                echo -e "${YELLOW}Starting undeployment ...${NC}"
-                delete_deployment
-                exit 0
-                ;;
-            "Quit")
-                echo -e "${YELLOW}abort.${NC}"
-                exit 0
-                ;;
-            *) echo "invalid option $REPLY";;
-        esac
-    done
-elif [[ $deployments == *"$PLATFORM_NAME"* ]] && [[ $QUIET = true ]];then
-    echo -e "${RED}Project already deployed!${NC}"
-    echo -e "${RED}abort.${NC}"
-    exit 1
-
-else
-    echo -e "${GREEN}No previous deployment found -> deploy ${NC}"
-    deploy_chart
-fi
+main $@

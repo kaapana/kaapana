@@ -1,4 +1,6 @@
 #!/bin/bash
+# WARNING: This script is deprecated and will be removed in the next Kaapana release.
+# Please migrate to `./kaapanactl install`, which supports the same options.
 set -euf -o pipefail
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
@@ -38,6 +40,9 @@ else
     CYAN=""
     WHITE=""
 fi
+
+echo "${YELLOW:-}${BOLD:-}WARNING:${NC:-} server_installation.sh is deprecated and will be removed in the next Kaapana release."
+echo "${YELLOW:-}${BOLD:-}Please use './kaapanactl install' instead; it accepts the same options as this script.${NC:-}"
 
 function proxy_environment {
     echo "${YELLOW}Checking proxy settings ...${NC}"

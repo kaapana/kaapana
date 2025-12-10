@@ -7,6 +7,8 @@ metadata:
 spec:
   template:
     spec:
+      nodeSelector:
+        kaapana.io/node: {{ .Values.global.storage_node }}
       containers:
       - name: copy-kube-helm-collections-{{ $uuid }}
         image: "{{ .Values.kube_helm_collection }}"
@@ -23,6 +25,7 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /kaapana/mounted/extensions
+          subPath: extensions
       volumes:
       - name: data
         persistentVolumeClaim:

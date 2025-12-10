@@ -15,6 +15,8 @@ spec:
       labels:
         app.kubernetes.io/name: ldap
     spec:
+      nodeSelector:
+        kaapana.io/node: {{ .Values.global.storage_node }}
       containers:
         - name: ldap-container
           image: "{{ .Values.global.registry_url }}/dcm4chee-ldap:{{ .Values.global.kaapana_build_version  }}"
@@ -45,20 +47,19 @@ spec:
               memory: 30Mi
           volumeMounts:
             - mountPath: /var/lib/openldap/openldap-data
-              name: ldap
+              name: dcm4che-volume
+              subPath: ldap
             - mountPath: /etc/openldap/slapd.d
-              name: slapd
+              name: dcm4che-volume
+              subPath: slapd.d
             - mountPath: /import
               name: ldif
           securityContext:
             allowPrivilegeEscalation: false
       volumes:
-      - name: ldap
+      - name: dcm4che-volume
         persistentVolumeClaim:
-          claimName: ldap-pv-claim
-      - name: slapd
-        persistentVolumeClaim:
-          claimName: slapd-pv-claim
+          claimName: dcm4che-pv-claim
       - name: ldif
         configMap:
           name: dcm4che-iid-config

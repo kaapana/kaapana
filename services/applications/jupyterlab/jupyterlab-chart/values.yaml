@@ -6,9 +6,7 @@ global:
   dynamicVolumes:
   - name: jupyterlab
     mount_path: /kaapana/minio/
-    host_path: "/applications/jupyterlab"
-    storage: "10Mi"
-    minio_mirror : true
+    storage: "1Gi"
   envVars:
   - name: WORKSPACE
     value: "/kaapana"

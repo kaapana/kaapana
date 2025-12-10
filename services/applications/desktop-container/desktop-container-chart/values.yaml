@@ -9,8 +9,6 @@ global:
   dynamicVolumes:
   - name: desktop
     mount_path: /kaapana/minio
-    host_path: /applications/desktop
-    minio_mirror : true
   nodePortDesktopWorkbench: 22224
   display_name: "-"
 

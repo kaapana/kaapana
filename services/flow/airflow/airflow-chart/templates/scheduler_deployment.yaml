@@ -33,6 +33,7 @@ spec:
         app.kubernetes.io/name: airflow
         app.kubernetes.io/component: scheduler
     spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
       initContainers:
       - name: airflow-services-ready-check
         image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
@@ -108,8 +109,6 @@ spec:
           value: "{{ .Values.global.registry_url }}"
         - name: EXTENSIONS_NAMESPACE
           value: "{{ .Values.global.extensions_namespace }}"
-        - name: ENABLE_NFS
-          value: "{{ .Values.global.enable_nfs }}"
         - name: GPU_SUPPORT
           value: "{{ .Values.global.gpu_support }}"
         - name: HOSTDOMAIN
@@ -193,6 +192,8 @@ spec:
           value: "http://kaapana-backend-service.{{ .Values.global.services_namespace }}.svc:5000"
         - name: MINIO_URL
           value: "http://minio-service.{{ .Values.global.services_namespace }}.svc:9000"
+        - name: KAAPANA_STORAGE_NODE
+          value: {{ .Values.global.storage_node}}
         resources:
           requests:
             memory: "{{ .Values.global.airflow_memory_request }}Mi"
@@ -221,10 +222,12 @@ spec:
           mountPath: /kaapana/mounted/workflows/models
         - name: ctpinput
           mountPath: /kaapana/mounted/ctpinput
+          subPath: data
         - name: workflowdata
           mountPath: /kaapana/mounted/workflows/data
         - name: dicomdir
           mountPath: /kaapana/mounted/pacsdata
+          subPath: dicom_data
         - name: uploads
           mountPath: /kaapana/app/uploads/
         - name: tmp
@@ -270,7 +273,7 @@ spec:
           claimName: ctp-data-pv-claim
       - name: workflowdata
         persistentVolumeClaim:
-          claimName: af-data-pv-claim
+          claimName: workflow-data-pv-claim
       - name: dicomdir
         persistentVolumeClaim:
           claimName: dcm4chee-dicom-pv-claim

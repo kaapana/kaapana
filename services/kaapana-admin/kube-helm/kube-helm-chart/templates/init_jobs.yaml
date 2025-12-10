@@ -10,6 +10,7 @@ spec:
     metadata:
       name: init-collections
     spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
       containers:
       - name: init-collections
         image: "{{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.kaapana_build_version }}"
@@ -49,6 +50,7 @@ spec:
         volumeMounts:
           - name: helmextensions
             mountPath: "/kaapana/mounted/extensions" 
+            subPath: extensions
       volumes:
       - name: helmextensions
         persistentVolumeClaim:
@@ -69,6 +71,7 @@ spec:
     metadata:
       name: init-extensions
     spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
       initContainers:
         - name: wait-for-extensions
           image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
@@ -83,6 +86,7 @@ spec:
           volumeMounts:
             - name: helmextensions
               mountPath: "/kaapana/mounted/extensions"
+              subPath: extensions
       containers:
       - name: preinstall-extensions
         image: "{{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.kaapana_build_version }}"
@@ -135,6 +139,7 @@ spec:
         volumeMounts:
           - name: helmextensions
             mountPath: "/kaapana/mounted/extensions"
+            subPath: extensions
         resources:
           requests:
             memory: 100Mi
@@ -192,6 +197,7 @@ spec:
         volumeMounts:
           - name: helmextensions
             mountPath: "/kaapana/mounted/extensions"
+            subPath: extensions
         resources:
           requests:
             memory: 100Mi

@@ -135,10 +135,6 @@ Deployment configurations
      - ``""``
      - string
      - Flag for ``helm uninstall``. Use ``"--no-hooks"`` to disable pre/post delete jobs.
-   * - ``ENABLE_NFS``
-     - false
-     - bool
-     - Enables ``storageClassName: nfs`` for persistent volumes.
    * - ``OFFLINE_MODE``
      - false
      - bool

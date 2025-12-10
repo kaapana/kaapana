@@ -4,11 +4,5 @@ global:
   meta_namespace: "meta"
   fast_data_dir: /home/kaapana
   dynamicVolumes:
-  - name: os-logs
-    host_path: /os/logs
-  - name: os-data
-    host_path: /os/data
+  - name: opensearch
   - name: os-certs
-    host_path: /os/certs
-  - name: os-snapshots
-    host_path: /os/snapshots

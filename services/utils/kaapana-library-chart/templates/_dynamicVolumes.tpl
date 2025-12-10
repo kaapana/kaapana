@@ -3,10 +3,21 @@
 {{- $namespace := not .Values.global.namespace | ternary .Values.global.services_namespace (tpl (.Values.global.namespace | toString) .) }}
 {{- $release_name := .Release.Name }}
 {{- $keywords := .Chart.Keywords }}
-{{- range $volume := .Values.global.dynamicVolumes }}
-{{- $postfix := and (has "kaapanamultiinstallable" $keywords) (hasKey $volume "host_path") | ternary (printf "-%s" $release_name) "" }}
+{{- $dynamic := default (list) .Values.global.dynamicVolumes }}
+{{- $shared := default (list) .Values.global.sharedVolumes }}
+{{- $Volumes := concat $dynamic $shared }}
+{{- range $volume := $Volumes }}
+{{- $postfix := (has "kaapanamultiinstallable" $keywords) | ternary (printf "-%s" $release_name) "" }}
 - name: {{ $volume.name }}
   persistentVolumeClaim:
     claimName: {{ $volume.name }}{{ $postfix }}-pv-claim
+{{- end }}
+{{- if and .Values.global.workflow_configmap_name (ne .Values.global.workflow_configmap_name "") }}
+- name: workflowconf
+  configMap:
+    name: {{ .Values.global.workflow_configmap_name }}
+    items:
+      - key: conf.json
+        path: conf.json
 {{- end }}
 {{- end }}

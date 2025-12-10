@@ -1,3 +1,5 @@
+# WARNING: This script is deprecated and will be removed in the next Kaapana release.
+# Please migrate to `./kaapanactl deploy`, which supports the same options.
 #!/bin/bash
 set -euf -o pipefail
 export HELM_EXPERIMENTAL_OCI=1
@@ -1288,6 +1290,8 @@ check_system project-admin admin
 }
 
 ### MAIN programme body:
+echo "${YELLOW:-}${BOLD:-}WARNING:${NC:-} deploy_platform.sh is deprecated and will be removed in the next Kaapana release."
+echo "${YELLOW:-}${BOLD:-}Please use './kaapanactl deploy' instead; it accepts the same options as this script.${NC:-}"
 
 ### Parsing command line arguments:
 usage="$(basename "$0")

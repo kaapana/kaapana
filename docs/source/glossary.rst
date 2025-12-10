@@ -148,6 +148,7 @@ Glossary
       Kubernetes is an open-source container-orchestration system that we use to manage all the :term:`containers<container>` required for Kaapana.
 
     server-installation-script
+      Deprecated since Kaapana 0.6.0, replaced by kaapanactl
       This script is used to install all required dependencies on the :term:`server`.
       It can be found within the Kaapana-repository: :code:`./kaapana/server-installation/server_installation.sh`.
       It will execute the following steps:
@@ -161,8 +162,9 @@ Glossary
       Currently supported operating systems are listed in :ref:`requirements`.
     
     deploy-platform-script
-      This script is used to deploy a :term:`kaapana-platform` into a :term:`Kubernetes<kubernetes>` cluster or to undeploy a platform. 
-      It basically installs the :term:`kaapana-admin-chart` using :term:`Helm<helm>`. 
+      Deprecated since Kaapana 0.6.0, replaced by kaapanactl
+      This script is used to deploy a :term:`kaapana-platform` into a :term:`Kubernetes<kubernetes>` cluster or to undeploy a platform.
+      It basically installs the :term:`kaapana-admin-chart` using :term:`Helm<helm>`.
       After building the platform you can find the script at :code:`kaapana/build/kaapana-admin-chart/deploy_platform.sh`.
 
     service

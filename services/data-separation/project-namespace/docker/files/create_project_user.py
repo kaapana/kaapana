@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
     ### Add role mappings to system user in access-information-point
     SERVICE_NAMESPACE = os.getenv("SERVICES_NAMESPACE")
-    project_user_role = "admin"
+    project_user_role = "principal-investigator"
     response = requests.post(
         f"http://aii-service.{SERVICE_NAMESPACE}.svc:8080/projects/{project_id}/role/{project_user_role}/user/{keycloak_user_id}"
     )

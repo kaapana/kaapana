@@ -151,6 +151,15 @@ function deploy() {
     CHART_REFERENCE="${CHART_REFERENCE:-}"
     PLAIN_HTTP="${PLAIN_HTTP:-false}"
 
+    script_name=`basename "$0"`
+
+    if [ -z ${http_proxy+x} ] || [ -z ${https_proxy+x} ]; then
+        http_proxy=""
+        https_proxy=""
+    fi
+    export HELM_EXPERIMENTAL_OCI=1
+    HELM_EXECUTABLE="${HELM_EXECUTABLE:-helm}"
+
     load_kaapana_config
     ### Parsing command line arguments:
     usage="$(basename "$0")
@@ -360,15 +369,6 @@ function deploy() {
 
     prompt_required_value CONTAINER_REGISTRY_USERNAME "Enter the container registry username: " false "$QUIET"
     prompt_required_value CONTAINER_REGISTRY_PASSWORD "Enter the container registry password: " true "$QUIET"
-
-    script_name=`basename "$0"`
-
-    if [ -z ${http_proxy+x} ] || [ -z ${https_proxy+x} ]; then
-        http_proxy=""
-        https_proxy=""
-    fi
-    export HELM_EXPERIMENTAL_OCI=1
-    HELM_EXECUTABLE="${HELM_EXECUTABLE:-helm}"
 
     if [ ! -z $INSTANCE_UID ]; then
         echo ""

@@ -112,6 +112,13 @@ spec:
             secretKeyRef:
               name: system-user-password
               key: system-user-password
+        # Upload Portal
+        - name: UPLOAD_PORTAL_PACS
+          value: "{{ .Values.global.upload_portal_pacs }}"
+        - name: UPLOAD_PORTAL_PORT
+          value: "{{ .Values.global.upload_portal_port }}"
+        - name: UPLOAD_PORTAL_AE_TITLE
+          value: "{{ .Values.global.upload_portal_ae_title }}"
         resources:
           requests:
             memory: 600Mi

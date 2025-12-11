@@ -13,6 +13,9 @@ PLATFORM_VERSION="{{ platform_build_version }}" # Specific version or empty for 
 CONTAINER_REGISTRY_URL="{{ container_registry_url|default('', true) }}" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
 CONTAINER_REGISTRY_USERNAME="{{ container_registry_username|default('', true) }}"
 CONTAINER_REGISTRY_PASSWORD="{{ container_registry_password|default('', true) }}"
+UPLOAD_PORTAL_PACS=""
+UPLOAD_PORTAL_PORT=""
+UPLOAD_PORTAL_AE_TITLE=""
 
 ######################################################
 # Deployment configuration
@@ -660,6 +663,9 @@ function deploy_chart {
     --set-string global.smtp_username="$SMTP_USERNAME" \
     --set-string global.smtp_password="$SMTP_PASSWORD" \
     --set-string global.email_address_sender="$EMAIL_ADDRESS_SENDER" \
+    --set-string global.upload_portal_pacs="$UPLOAD_PORTAL_PACS" \
+    --set-string global.upload_portal_port="$UPLOAD_PORTAL_PORT" \
+    --set-string global-upload_portal_ae_title="$UPLOAD_PORTAL_AE_TITLE" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"

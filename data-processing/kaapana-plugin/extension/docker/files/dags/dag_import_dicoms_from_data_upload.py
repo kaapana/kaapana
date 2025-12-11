@@ -9,7 +9,7 @@ from kaapana.operators.LocalVolumeMountOperator import LocalVolumeMountOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.blueprints.json_schema_templates import schema_upload_form
-
+from kaapana.blueprints.kaapana_global_variables import UPLOAD_PORTAL_AE_TITLE, UPLOAD_PORTAL_PACS, UPLOAD_PORTAL_PORT
 
 log = LoggingMixin().log
 
@@ -71,7 +71,7 @@ unzip_files = ZipUnzipOperator(
     dag=dag, input_operator=get_object_from_uploads, batch_level=True, mode="unzip"
 )
 #TODO set receiver AE Title, host, port 
-dicom_send = DcmSendOperator(dag=dag, input_operator=unzip_files, level="batch", enable_proxy=True,
+dicom_send = DcmSendOperator(dag=dag, ae_title=UPLOAD_PORTAL_AE_TITLE, pacs_host=UPLOAD_PORTAL_PACS, pacs_port=UPLOAD_PORTAL_PORT, input_operator=unzip_files, level="batch", enable_proxy=True,
     no_proxy=".svc,.svc.cluster,.svc.cluster.local",
     labels={"network-access-external-ips": "true"},)
 

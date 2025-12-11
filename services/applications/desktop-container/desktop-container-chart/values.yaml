@@ -10,7 +10,6 @@ global:
   - name: desktop
     mount_path: /kaapana/minio
   nodePortDesktopWorkbench: 22224
-  display_name: "-"
 
 extension_params:
     display_name:

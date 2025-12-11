@@ -27,21 +27,105 @@ allow {
     endpoint.methods[k] == input.method
 }
 
-### Allow access to kaapana-backend if the Project header matches with a project in the project claim of the access token
+##################################
+### claim: kaapana_backend #######
+##################################
+### Allow users with claim kaapana.ai/backend["all_<project-id>"] access to kaapana-backend if the project header contains the same project-id
 allow {
     regex.match("^/kaapana-backend/.*", input.requested_prefix)
+    
     some p
-    input.access_token.projects[p].id == input.project.id
+    kaapana_backend_claim := input.access_token["kaapana.ai/backend"][p]
+    claim_matches := regex.find_all_string_submatch_n(`^all_(.+)$`, kaapana_backend_claim, -1)
+    claim_project := claim_matches[0][1]
 
-    # allow kaapana backend routs if user has access to any project indifferent of roles
-    # input.access_token.projects[p].role_name in ["admin","read"]
+    claim_project == input.project.id
 }
 
-### Allow access to multiinstallable applications only in projects, where the user is part of.
+############################################
+### claim: open_project_applications #######
+############################################
+### Allow user with claim kaapana.ai/applications["open_applications_<project-id>"] to open applications in the project with project-id
 allow {
+    # Extract project-id from requested_prefix
+    matches := regex.find_all_string_submatch_n(`^/applications/project/([^/]+)/.*`, input.requested_prefix, -1)
+    project_id := matches[0][1]
+
+    # For each aii claim, check whether it matches open_<project-id>
     some p
-    project := input.access_token.projects[p]
-    project.role_name in ["admin","read"]
-    project_application_regex := concat("/", ["^","applications","project",project.name,".*"])
-    regex.match(project_application_regex, input.requested_prefix)
+    claim_matches := regex.find_all_string_submatch_n(`^open_(.+)$`, input.access_token["kaapana.ai/applications"][p], -1)
+    claim_project := claim_matches[0][1]
+
+    project_id == claim_project
+}
+
+
+############################################
+### claim: manage_project_users ############
+############################################
+### Allow user with claim kaapana.ai/aii["manage_users_<project-id>"] to change the role of a user in the project with <project-id> 
+allow {
+    # Extract project-id from requested_prefix
+    matches := regex.find_all_string_submatch_n(`^/aii/projects/([^/]+)/(?:role|user)/.*`, input.requested_prefix, -1)
+    project_id := matches[0][1]
+
+    # For each aii claim, check whether it matches manage_users_<project-id>
+    some p
+    claim_matches := regex.find_all_string_submatch_n(`^manage_users_(.+)$`, input.access_token["kaapana.ai/aii"][p], -1)
+    claim_project := claim_matches[0][1]
+
+    project_id == claim_project
+}
+
+
+############################################
+### claim: manage_project_software #########
+############################################
+### Allow user with claim aii.manage_software_<project-id> to change the role of a user in the project with <project-id> 
+allow {
+    # Extract project-id from requested_prefix
+    matches := regex.find_all_string_submatch_n(`^/aii/projects/([^/]+)/software-mappings$`, input.requested_prefix, -1)
+    project_id := matches[0][1]
+
+    # For each aii claim, check whether it matches manage_software_<project-id>
+    some p
+    claim_matches := regex.find_all_string_submatch_n(`^manage_software_(.+)$`, input.access_token["kaapana.ai/aii"][p], -1)
+    claim_project := claim_matches[0][1]
+
+    project_id == claim_project
+}
+
+### Allow user with claim aii.manage_software_<project-id> to get a list of all dags 
+allow {
+    regex.match(`^/flow/kaapana/api/getdags$`, input.requested_prefix)
+
+    # For each aii claim, check whether it matches manage_software_<project-id>
+    some p
+    claim_matches := regex.find_all_string_submatch_n(`^manage_software_(.+)$`, input.access_token["kaapana.ai/aii"][p], -1)
+    count(claim_matches) > 0
+}
+
+###################################################
+### claim: kaapana.ai/extensions: #################
+###################################################
+allow {
+    regex.match(`^/kube-helm-api/.*`, input.requested_prefix)
+
+    # For each aii claim, check whether it matches manage_software_<project-id>
+    some p
+    claim_matches := regex.find_all_string_submatch_n(`^manage_(.+)$`, input.access_token["kaapana.ai/extensions"][p], -1)
+    claim_project := claim_matches[0][1]
+
+    claim_project == input.project.id
+}
+
+allow {
+    regex.match(`^/extensions$`, input.requested_prefix)
+
+    # For each entry, check whether it matches manage_software_<project-id>
+    some p
+    claim_matches := regex.find_all_string_submatch_n(`^manage_(.+)$`, input.access_token["kaapana.ai/extensions"][p], -1)
+    claim_project := claim_matches[0][1]
+
+    claim_project == input.project.id
 }

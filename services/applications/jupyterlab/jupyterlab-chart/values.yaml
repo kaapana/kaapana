@@ -10,7 +10,6 @@ global:
   envVars:
   - name: WORKSPACE
     value: "/kaapana"
-  display_name: "-"
   
 extension_params:
   display_name:

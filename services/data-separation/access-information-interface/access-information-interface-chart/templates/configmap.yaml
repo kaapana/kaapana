@@ -17,13 +17,47 @@ data:
         "description": "User gets full access to Minio",
         "claim_key": "policy",
         "claim_value": "admin_project"
+      },
+      {
+        "name": "manage_project_users",
+        "description": "User can manage user roles in this project",
+        "claim_key": "kaapana.ai/aii",
+        "claim_value": "manage_users"
+      },
+      {
+        "name": "manage_project_software",
+        "description": "User can manage software availabel to this project",
+        "claim_key": "kaapana.ai/aii",
+        "claim_value": "manage_software"
+      },
+      {
+        "name": "kaapana_backend",
+        "description": "User gets access to all kaapana-backend routes for this project",
+        "claim_key": "kaapana.ai/backend",
+        "claim_value": "all"
+      },
+      {
+        "name": "open_project_applications",
+        "description": "User can access multiinstallable applications in the selected project.",
+        "claim_key": "kaapana.ai/applications",
+        "claim_value": "open"
+      },
+      {
+        "name": "manage_project_extensions",
+        "description": "User can install projects in the extensions view",
+        "claim_key": "kaapana.ai/extensions",
+        "claim_value": "manage"
       }
     ]
   initial_roles.json: | # This is the initial roles that will be created
     [
       {
-        "name": "admin",
-        "description": "Admin role"
+        "name": "scientist",
+        "description": "This role grants access to all data in the project"
+      },
+      {
+        "name": "principal-investigator",
+        "description": "This role grants access to all data and grants permissions to change the role of users in this project."
       }
     ]
   initial_projects.json: | # This is the initial admin project that will be created
@@ -37,8 +71,25 @@ data:
   initial_roles_rights_mapping.json: | # This is the mapping of roles to rights
     [
       {
-        "role": "admin",
-        "rights": ["opensearch_access", "minio_access"]
+        "role": "scientist",
+        "rights": [
+          "opensearch_access",
+          "minio_access",
+          "kaapana_backend",
+          "open_project_applications"
+        ]
+      },
+      {
+        "role": "principal-investigator",
+        "rights": [
+          "opensearch_access", 
+          "minio_access", 
+          "kaapana_backend", 
+          "manage_project_users", 
+          "manage_project_software", 
+          "open_project_applications",
+          "manage_project_extensions"
+        ]
       }
     ]
   default_software.json: | # These are the default software that a project should be mapped to.

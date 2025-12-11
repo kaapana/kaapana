@@ -62,7 +62,7 @@ spec:
             memory: "1Gi"
         env:
           - name: INGRESS_PATH
-            value: "/applications/project/{{ .Values.global.project_name }}/release/{{ .Release.Name }}"
+            value: "/applications/project/{{ .Values.global.project_id }}/release/{{ .Release.Name }}"
           - name: LOG_DIR
             value: /kaapana/mounted/tb-logs
         volumeMounts:

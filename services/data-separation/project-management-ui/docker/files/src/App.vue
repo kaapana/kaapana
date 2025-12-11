@@ -7,29 +7,39 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import store from '@/common/store';
 import { UserItem } from '@/common/types';
 import { aiiApiGet } from '@/common/aiiApi.service';
-
+import { usePermissionsStore } from '@/permissions/permissions.store';
 
 const user = ref<UserItem | null>(null);
 
 
-function fetchCurrentUser() {
+async function fetchCurrentUser() {
   store.state.fetching = true;
+
   try {
-    aiiApiGet('users/current').then((userResp: UserItem) => {
-      store.updateUser(userResp);
-      user.value = userResp
-      store.state.fetching = false;
-    });
-  } catch (error: unknown) {
-    console.log(error);
+    const userResp = await aiiApiGet("users/current");
+
+    store.updateUser(userResp);
+    user.value = userResp;
+
+    return userResp; // important!
+  } catch (error) {
+    console.error(error);
+    throw error;
+  } finally {
     store.state.fetching = false;
   }
 }
 
-fetchCurrentUser();
+const permissions = usePermissionsStore();
+
+onMounted(async () => {
+  const currentUser = await fetchCurrentUser();
+
+  await permissions.loadUserRights(currentUser.id);
+});
 
 </script>

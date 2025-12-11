@@ -103,6 +103,19 @@ data:
             "endpoint": "/projects-ui",
             "linkTo": "/projects-ui/"
           },
+          "Documentation": {
+            "label": "Documentation",
+            "endpoint": "/docs/",
+            "linkTo": "/docs/"
+          }
+        }
+      },
+      "experimental": {
+        "label": "Experimental",
+        "icon": "mdi-flask",
+        "linkTo": "/experimental",
+        "description": "The experimental section contains applications and services which are not fully integrated in the platform yet. These applications might be unstable or have limited functionality.",
+        "subSections": {
           "workflows": {
             "label": "Workflows V2",
             "endpoint": "/workflow-ui",
@@ -113,11 +126,6 @@ data:
             "endpoint": "/workflow-ui",
             "linkTo": "/workflow-ui/runs"
           },
-          "Documentation": {
-            "label": "Documentation",
-            "endpoint": "/docs/",
-            "linkTo": "/docs/"
-          }
         }
       }
     }

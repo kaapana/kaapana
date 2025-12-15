@@ -27,6 +27,7 @@ class KaapanaType(str, Enum):
         "kaapanaworkflow-v2"  # new style workflows with processingContainers
     )
     KAAPANA_APPLICATION = "kaapanaapplication"  # code-server-chart
+    LIBRARY_HELPER = "library"  # has library type in Chart.yaml (e.g. workflow-helpers)
 
     EXTENSION_COLLECTION = "extension-collection"
 
@@ -167,6 +168,10 @@ class HelmChart:
         yaml_type = chart_yaml.get("kaapana_type")
         if yaml_type:
             return KaapanaType(yaml_type.lower())
+
+        chart_type = chart_yaml.get("type")
+        if chart_type == "library":
+            return KaapanaType("library")
 
         # Check keywords for workflow type
         keywords = chart_yaml.get("keywords", [])
@@ -634,6 +639,12 @@ class HelmChart:
 
         if self.kubeval_done:
             logger.debug(f"{self.name}: lint_kubeval already done -> skip")
+            return
+
+        if self.kaapana_type == KaapanaType.LIBRARY_HELPER:
+            logger.debug(
+                f"{self.name}: charts with type: library are ignored for lint_kubeval -> skip"
+            )
             return
 
         logger.info(f"{self.name}: lint_kubeval")

@@ -92,7 +92,9 @@ assign_to_project = LocalAssignDataToProjectOperator(
     dag=dag, input_operator=extract_metadata
 )
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+clean = LocalWorkflowCleanerOperator(
+    dag=dag, clean_workflow_dir=True, namespace=SERVICES_NAMESPACE
+)
 
 (
     copy_from_pacs

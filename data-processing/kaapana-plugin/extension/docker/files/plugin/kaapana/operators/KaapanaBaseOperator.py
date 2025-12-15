@@ -503,12 +503,12 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         # Define metadata
         configmap_name = f"{context["ti"].run_id}-config"
-
+        run_id = context["run_id"]
         # Create ConfigMap body
         metadata = client.V1ObjectMeta(
             name=configmap_name,
             namespace=self.namespace,
-            labels={"app": "kaapana", "run_id": context["run_id"]},
+            labels={"app": "kaapana", "run_id": run_id},
         )
         body = client.V1ConfigMap(
             api_version="v1",
@@ -535,15 +535,28 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     items=[client.V1KeyToPath(key="conf.json", path="conf.json")]
                 ),
             )
+        
+        if getattr(self, "clean_workflow_dir", None):
+            mount_path = os.path.join(
+                PROCESSING_WORKFLOW_DIR,
+                "conf",
+                f"{run_id}.json",
+            )
+        else:
+            mount_path = os.path.join(
+                PROCESSING_WORKFLOW_DIR,
+                run_id,
+                "conf",
+                "conf.json",
+            )
 
         volume_mount_conf = client.V1VolumeMount(
-                name="workflowconf",
-                mount_path=os.path.join(
-                    PROCESSING_WORKFLOW_DIR, context["run_id"], "conf", "conf.json"
-                ),
-                sub_path="conf.json",
-                read_only=True,
-            ) 
+            name="workflowconf",
+            mount_path=mount_path,
+            sub_path="conf.json",
+            read_only=True,
+        )
+
         self.volumes.append(volume_conf)
         self.volume_mounts.append(volume_mount_conf)
 

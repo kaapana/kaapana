@@ -5,43 +5,67 @@ from kaapana.blueprints.kaapana_utils import (
     get_operator_properties,
     clean_previous_dag_run,
 )
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.blueprints.kaapana_global_variables import (
+    SERVICES_NAMESPACE,
+    DEFAULT_REGISTRY,
+    KAAPANA_BUILD_VERSION,
+)
+from kubernetes import client
 
-
-class LocalWorkflowCleanerOperator(KaapanaPythonBaseOperator):
+class LocalWorkflowCleanerOperator(KaapanaBaseOperator):
     """
-    Cleans a local workflow.
+    Cleans a workflow dir.
 
-    Cleans a local workflow and optionally deleting the workflow directory.
+    Cleans a  workflow and optionally deleting the workflow directory.
+    This is not a local operator anymore.
+
     """
+    def delete_conf_configmap(self, configmap_name: str, namespace: str):
+        """
+        Delete a ConfigMap by name in the given namespace.
+        This is locally executed in airflow after workflow cleanup
+        """
+        v1 = client.CoreV1Api()
+        try:
+            v1.delete_namespaced_config_map(
+                name=configmap_name,
+                namespace=namespace,
+            )
+            print(f"Deleted ConfigMap: {configmap_name}")
+        except ApiException as e:
+            # 404 = Already deleted or never existed
+            if e.status == 404:
+                print(f"ConfigMap {configmap_name} not found — nothing to delete.")
+            else:
+                raise
 
-    def start(self, ds, **kwargs):
-        run_id, dag_run_dir, dag_run, downstream_tasks = get_operator_properties(
-            self.airflow_workflow_dir, **kwargs
-        )
-        conf = dag_run.conf
+        
+    def post_execute(self, context, result=None):
+        configmap_name = f"{context["ti"].run_id}-config"
+        namespace = self.namespace
+        self.delete_conf_configmap(configmap_name, namespace)
 
-        clean_previous_dag_run(self.airflow_workflow_dir, conf, "from_previous_dag_run")
-        clean_previous_dag_run(
-            self.airflow_workflow_dir, conf, "before_previous_dag_run"
-        )
+        
 
-        run_dir = dag_run_dir if self.run_dir is None else self.run_dir
-        if self.clean_workflow_dir and Path(run_dir).exists():
-            print(("Cleaning dir: %s" % run_dir))
-            shutil.rmtree(run_dir)
 
     def __init__(
-        self, dag, run_dir: str = None, clean_workflow_dir: bool = True, **kwargs
+        self, dag, clean_workflow_dir: bool = True, **kwargs
     ):
         """
-        :param run_dir: Path to directory of the workflow
         :param clean_workflow_dir: Bool if workflow directory should be deleted
         """
-
-        self.run_dir = run_dir
+        envs = {
+            "CLEAN_WORKFLOW_DIR": str(clean_workflow_dir)
+        }
         self.clean_workflow_dir = clean_workflow_dir
 
+
         super().__init__(
-            dag=dag, name="workflow-cleaner", python_callable=self.start, **kwargs
+            dag=dag,
+            image=f"{DEFAULT_REGISTRY}/workflow-cleaner:{KAAPANA_BUILD_VERSION}",
+            name="workflow-cleaner",
+            image_pull_secrets=["registry-secret"],
+            env_vars=envs,
+            **kwargs,
         )

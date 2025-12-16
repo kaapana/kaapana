@@ -74,7 +74,11 @@ data:
       if dagrun and dagrun.conf:
         # Example: dynamic namespace
         incoming_ns = dagrun.conf.get("project_form", {}).get("kubernetes_namespace")
-        ns = incoming_ns or ns
+        ns = incoming_ns or ns       
+        # Sepcial case for federated execution
+        if dagrun.conf.get("federated_form", False):
+          ns = os.getenv("SERVICES_NAMESPACE")      
+
       pod.metadata.namespace = ns
       pod.metadata.labels = pod.metadata.labels or {}
       pod.metadata.labels["kaapana.ai/project-namespace"] = ns

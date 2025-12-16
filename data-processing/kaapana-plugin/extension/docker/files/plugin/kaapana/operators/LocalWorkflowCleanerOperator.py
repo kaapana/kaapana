@@ -1,6 +1,6 @@
 import shutil
 from pathlib import Path
-
+import json
 from kaapana.blueprints.kaapana_utils import (
     get_operator_properties,
     clean_previous_dag_run,
@@ -10,8 +10,12 @@ from kaapana.blueprints.kaapana_global_variables import (
     SERVICES_NAMESPACE,
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
+    AIRFLOW_WORKFLOW_DIR,
 )
+
 from kubernetes import client
+from kubernetes.client.exceptions import ApiException
+
 
 class LocalWorkflowCleanerOperator(KaapanaBaseOperator):
     """
@@ -21,6 +25,7 @@ class LocalWorkflowCleanerOperator(KaapanaBaseOperator):
     This is not a local operator anymore.
 
     """
+
     def delete_conf_configmap(self, configmap_name: str, namespace: str):
         """
         Delete a ConfigMap by name in the given namespace.
@@ -40,26 +45,32 @@ class LocalWorkflowCleanerOperator(KaapanaBaseOperator):
             else:
                 raise
 
-        
     def post_execute(self, context, result=None):
-        configmap_name = f"{context["ti"].run_id}-config"
+        run_id = context["run_id"]
+        configmap_name = f"{run_id}-config"
         namespace = self.namespace
         self.delete_conf_configmap(configmap_name, namespace)
 
-        
+        dag_conf = context["dag_run"].conf or {}
+        conf = json.dumps(dag_conf, indent=4, sort_keys=True)
+        # federed workflows run in SERVICES_NAMESPACE, so the cleanup can also be local only
+        clean_previous_dag_run(self.airflow_workflow_dir, conf, "from_previous_dag_run")
+        clean_previous_dag_run(
+            self.airflow_workflow_dir, conf, "before_previous_dag_run"
+        )
 
+        run_dir = Path(AIRFLOW_WORKFLOW_DIR, run_id)
+        # removes task_run_files created locally
+        if self.clean_workflow_dir and Path(run_dir).exists():
+            print(("Cleaning dir: %s in SERVICES_NAMESPACE" % run_dir))
+            shutil.rmtree(run_dir)
 
-    def __init__(
-        self, dag, clean_workflow_dir: bool = True, **kwargs
-    ):
+    def __init__(self, dag, clean_workflow_dir: bool = True, **kwargs):
         """
         :param clean_workflow_dir: Bool if workflow directory should be deleted
         """
-        envs = {
-            "CLEAN_WORKFLOW_DIR": str(clean_workflow_dir)
-        }
+        envs = {"CLEAN_WORKFLOW_DIR": str(clean_workflow_dir)}
         self.clean_workflow_dir = clean_workflow_dir
-
 
         super().__init__(
             dag=dag,

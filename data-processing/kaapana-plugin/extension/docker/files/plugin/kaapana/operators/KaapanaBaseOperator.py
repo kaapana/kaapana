@@ -423,7 +423,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         ]
 
         for volume, volumeMount in volume_volumeMount_pairs:
-            #tensorboard is not part of services namespace and therefore no volume exists and none should be added.
+            # tensorboard is not part of services namespace and therefore no volume exists and none should be added.
             if self.namespace == SERVICES_NAMESPACE and volume.name == "tensorboard":
                 continue
             self.volumes.append(volume)
@@ -452,7 +452,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 )
             ),
         )
-        #Not nice but simple, special case for services namespace:
+        # Not nice but simple, special case for services namespace:
         if self.namespace == SERVICES_NAMESPACE:
             project_credentials_username = client.V1EnvVar(
                 name="KAAPANA_PROJECT_USER_NAME",
@@ -479,7 +479,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             ),
         )
 
-
         self.secrets.extend(
             [
                 project_credentials_password,
@@ -488,23 +487,23 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             ]
         )
 
-
-
     def create_conf_configmap(self, context: Context):
+
+        # Do not mount configmap for workflow cleanup, otherwise the dir cannot be cleaned
+        if getattr(self, "clean_workflow_dir", None):
+            return
         # Load Kubernetes configuration (in-cluster or local)
         try:
             k8s_config_loader.load_incluster_config()
         except config.config_exception.ConfigException:
             k8s_config_loader.load_kube_config()
 
-        # Extract the configuration
         dag_conf = context["dag_run"].conf or {}
         config_json = json.dumps(dag_conf, indent=4, sort_keys=True)
 
-        # Define metadata
-        configmap_name = f"{context["ti"].run_id}-config"
         run_id = context["run_id"]
-        # Create ConfigMap body
+        configmap_name = f"{run_id}-config"
+
         metadata = client.V1ObjectMeta(
             name=configmap_name,
             namespace=self.namespace,
@@ -517,7 +516,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             data={"conf.json": config_json},
         )
 
-        # Create the ConfigMap in the cluster
         v1 = client.CoreV1Api()
         try:
             v1.create_namespaced_config_map(namespace=self.namespace, body=body)
@@ -527,32 +525,23 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 logging.info(f"ConfigMap: {configmap_name}, already exists.")
             else:
                 raise
-            
+
         volume_conf = client.V1Volume(
-                name="workflowconf",
-                config_map=client.V1ConfigMapVolumeSource(
-                    name=configmap_name,
-                    items=[client.V1KeyToPath(key="conf.json", path="conf.json")]
-                ),
-            )
-        
-        if getattr(self, "clean_workflow_dir", None):
-            mount_path = os.path.join(
-                PROCESSING_WORKFLOW_DIR,
-                "conf",
-                f"{run_id}.json",
-            )
-        else:
-            mount_path = os.path.join(
+            name="workflowconf",
+            config_map=client.V1ConfigMapVolumeSource(
+                name=configmap_name,
+                items=[client.V1KeyToPath(key="conf.json", path="conf.json")],
+            ),
+        )
+
+        volume_mount_conf = client.V1VolumeMount(
+            name="workflowconf",
+            mount_path=os.path.join(
                 PROCESSING_WORKFLOW_DIR,
                 run_id,
                 "conf",
                 "conf.json",
-            )
-
-        volume_mount_conf = client.V1VolumeMount(
-            name="workflowconf",
-            mount_path=mount_path,
+            ),
             sub_path="conf.json",
             read_only=True,
         )
@@ -625,7 +614,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             if not volume.persistent_volume_claim:
                 if volume.name == "workflowconf" and volume.config_map:
                     configmap_name = volume.config_map.name
-                    configmap_volume_config["global.workflow_configmap_name"] = configmap_name
+                    configmap_volume_config["global.workflow_configmap_name"] = (
+                        configmap_name
+                    )
                 continue
             dynamic_volume_lookup[volume.name] = {
                 "name": volume.persistent_volume_claim.claim_name.replace(
@@ -636,7 +627,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         for vol_mount in self.volume_mounts:
             if vol_mount.name not in dynamic_volume_lookup:
                 if vol_mount.name == "workflowconf":
-                    configmap_volume_config["global.workflow_config_mount_path"] = vol_mount.mount_path
+                    configmap_volume_config["global.workflow_config_mount_path"] = (
+                        vol_mount.mount_path
+                    )
                 continue
             dynamic_volume_lookup[vol_mount.name]["mount_path"] = vol_mount.mount_path
 
@@ -657,7 +650,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         ingress_path = (
             f"applications/project/{project_name}/release/" + "{{ .Release.Name }}"
         )
-        
 
         helm_sets = {
             "global.complete_image": self.image,
@@ -789,7 +781,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         :param context: Dictionary set by Airflow. It contains references to related objects to the task instance.
         """
         unique_id = KaapanaBaseOperator.unique_task_identifer(context)
-        return Path(AIRFLOW_WORKFLOW_DIR, f"{unique_id}.pkl")
+        task_run_dir = Path(AIRFLOW_WORKFLOW_DIR, context["run_id"])
+        task_run_dir.mkdir(parents=True, exist_ok=True)
+        return Path(task_run_dir, f"{unique_id}.pkl")
 
     # The order of this decorators matters because of the whitelist_federated_learning variable, do not change them!
     @cache_operator_output
@@ -837,7 +831,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         logging.info(json.dumps(self.annotations, indent=2, sort_keys=True))
 
         project_form = context.get("params", {}).get("project_form")
-        self.project = project_form  
+        self.project = project_form
 
         if self.namespace is None:
             self.namespace = (

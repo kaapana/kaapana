@@ -832,13 +832,24 @@ function dns_check {
     else
         if [ "$OFFLINE_SNAPS" != "true" ];then
             echo "${GREEN}Checking server DNS settings ...${NC}"
-            if command -v nslookup dkfz.de &> /dev/null
+            
+            if command -v nslookup &> /dev/null; then
+                TOOL="nslookup"
+            elif command -v dig &> /dev/null; then
+                TOOL="dig"
+            else
+                echo -e "${RED}Neither nslookup nor dig is installed on this system.${NC}"
+                echo -e "${RED}Please install nslookup (bind-utils on AlmaLinux/RHEL, dnsutils on Ubuntu/Debian) or dig.${NC}"
+                exit 1
+            fi
+            
+            if command -v $TOOL dkfz.de &> /dev/null
             then
                 echo "${GREEN}DNS lookup was successful ...${NC}"
             else
                 echo ""
                 echo "${RED}DNS lookup failed -> please check your servers DNS configuration ...${NC}"
-                echo "${RED}You can test it with: 'nslookup dkfz.de'${NC}"
+                echo "${RED}You can test it with: '$TOOL dkfz.de'${NC}"
                 echo ""
                 exit 1
             fi

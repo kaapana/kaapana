@@ -28,17 +28,21 @@ Update the Helm Chart
 
       cd services/applications/jupyterlab/jupyterlab-chart
 
-2. Update the chart version:
+2. Update the chart version in line 5 in :code:`Chart.yaml`::
 
-   * In ``Chart.yaml``, update line 5 to::
+      version: "2.0.0"
 
-         version: "2.0.0"
+3. Add relative path to the kaapana-library-chart dependency in :code:`requirements.yaml`
 
-3. Update the chart dependencies:
+      .. code-block:: yaml
 
-   * In ``requirements.yaml``, add the following repository entry (around line 5)::
+            ---
+            dependencies:
+            - name: kaapana-library-chart
+              version: 0.0.0
+              repository: file://../../../utils/kaapana-library-chart/
 
-         repository: file://../../../utils/kaapana-library-chart/
+      The :code:`repository` should always match the relative path from the Chart directory to :code:`services/utils/kaapana-library-chart/`.
 
 Package the Helm Chart and Add It to the Extension Collection
 =============================================================

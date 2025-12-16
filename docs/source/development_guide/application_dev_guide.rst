@@ -168,9 +168,7 @@ Also here the chart can be deleted again with:
 
 Step 5: Provide the application as an extension
 ***********************************************
-You can also add the Flask application as an extension to the Kaapana platform. To do so follow the steps described in
-:ref:`Add Extension Manually` or :ref:`Add to Extention Collection`.
-
+You can also add the Flask application as an extension to the Kaapana platform.
 
 Step 6: Advanced Options for Applications
 *****************************************

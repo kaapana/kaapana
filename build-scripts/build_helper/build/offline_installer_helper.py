@@ -219,7 +219,7 @@ class OfflineInstallerHelper:
         )
 
         # Copy installer scripts
-        scripts = ["server_installation.sh", "offline_enable_gpu.py"]
+        scripts = ["server_installation.sh"]
         for script in scripts:
             src = Path(cls._build_config.kaapana_dir) / "server-installation" / script
             assert src.exists()

@@ -232,13 +232,13 @@ def apply_env_fallbacks(config: dict) -> dict:
     Returns:
         dict: Configuration dictionary with environment fallbacks applied.
     """
-    if not config.get("http_proxy"):
+    if config.get("http_proxy") == None:
         config["http_proxy"] = os.getenv("http_proxy")
 
-    if not config.get("registry_username"):
+    if config.get("registry_username") == None:
         config["registry_username"] = os.getenv("REGISTRY_USER")
 
-    if not config.get("registry_password"):
+    if config.get("registry_password") == None:
         config["registry_password"] = os.getenv("REGISTRY_PW")
 
     return config

@@ -664,6 +664,7 @@ function install_no_proxy_environment {
 
 function install_packages_almalinux {
     echo "${YELLOW}Check packages...${NC}"
+    sudo dnf install -y kernel-modules-extra-$(uname -r)
     if [ -x "$(command -v snap)" ] && [ -x "$(command -v jq)" ]; then
         echo "${GREEN}Snap installed.${NC}"
     else

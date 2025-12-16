@@ -469,7 +469,11 @@ class KaapanaFederatedTrainingBase(ABC):
             current_federated_round_dir.rglob("checkpoint_final.pth")
         ):
             print(f"Loading model_weights from: {fname}")
-            checkpoint = torch.load(fname, map_location=torch.device("cpu"))
+            # using weights_only=False for backwards compatability to keep torch <2.6 behavior
+            # TODO: get rid of it via
+            # Option 1 : updating the model saving to ensure all checkpoint objects are native Python types instead of NumPy types before torch.save()
+            # Option 2: using safe_globals to whitelist the specific numpy scalar type found in legacy checkpoints
+            checkpoint = torch.load(fname, map_location=torch.device("cpu"), weights_only=False) 
 
             # retrieve site_name from current_federated_round_dir
             modified_fname = str(fname).replace(str(current_federated_round_dir), "")
@@ -614,7 +618,11 @@ class KaapanaFederatedTrainingBase(ABC):
         """
         Saves model_weights to checkpoint in fname.
         """
-        checkpoint = torch.load(str(fname), map_location=torch.device("cpu"))
+        # using weights_only=False for backwards compatability to keep torch <2.6 behavior
+        # TODO: get rid of it via
+        # Option 1 : updating the model saving to ensure all checkpoint objects are native Python types instead of NumPy types before torch.save()
+        # Option 2: using safe_globals to whitelist the specific numpy scalar type found in legacy checkpoints
+        checkpoint = torch.load(str(fname), map_location=torch.device("cpu"), weights_only=False)
         # delete here fname first and save it then again from scratch
         os.remove(fname)
         checkpoint["network_weights"] = model_weights

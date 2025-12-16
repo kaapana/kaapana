@@ -255,7 +255,7 @@ TotalSegmentator
 | Any **CT** scans.
 
 TotalSegmentator v2
-----------------
+--------------------
 | **Method:** "TotalSegmentator: robust segmentation of  117 (CT) and 50 (MR) body structures"
 | **Authors:**  Wasserthal J., Meyer M., Breit H., Cyriac J., Yang S., Segeroth M.
 | **DOI:** `10.48550/arXiv.2208.05868 <https://arxiv.org/abs/2208.05868>`_

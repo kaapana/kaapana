@@ -59,9 +59,9 @@ data:
     insecure_oidc_allow_unverified_email = true
     email_domains = ["*"]
     skip_auth_routes = [
-      "^/auth/*",
-      "^/kaapana-backend/remote/*",
-      "^/oauth2/metrics"
+      "^/auth/.*",
+      "^/kaapana-backend/remote/.*",
+      "^/oauth2/metrics$"
     ]
     pass_access_token = true
     reverse_proxy = true

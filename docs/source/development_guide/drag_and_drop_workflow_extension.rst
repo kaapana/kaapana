@@ -13,14 +13,15 @@ To make a new workflow extension fully available on the platform, the following 
 * The packaged Helm chart for the workflow extension.
 
 This guide demonstrates how to prepare a workflow extension and how to upload it to the platform, using the **otsus-method-workflow** extension as an example.
+The following steps are explicitly covering the usecase, when processing-container images, Airflow code, and the extension Helm chart are uploaded via drag-and-drop.
 
 Prerequisites
 =============
 
 The following prerequisites are assumed:
 
-* Access to the kaapana code directory
-* Access to the private registry that is used by your Kaapana Installation.
+* Access to the kaapana code directory.
+* Base images available on the system. See the :ref:`documentation <faq_build_base_img>` for more information.
 
 Build Processing Containers
 ===========================
@@ -31,7 +32,7 @@ Build Processing Containers
 
 2. Build the processing-container with the expected image tag::
     
-    docker build -t <registry>/<repository>/otsus-method:<plaform-version> .
+    docker build -t <registry>/<repository>/otsus-method:<platform-version> .
 
 
 Prepare the Airflow Code and Build the DAG Installer Image
@@ -105,9 +106,13 @@ Save and Upload Docker Images
 
 1. Save all required Docker images into a single archive::
 
-      docker save <registry>/<repository>/otsus-method:<plaform-version> <registry>/<repository>/dag-otsus-method:0.0.0 -o images.tar
+      docker save <registry>/<repository>/otsus-method:<platform-version> <registry>/<repository>/dag-otsus-method:0.0.0 -o images.tar
 
 2. Upload the ``images.tar`` file via the **Extensions View** in the Kaapana Web Interface.
+
+.. note::
+
+    In case of issues the corresponding :ref:`FAQ <extension_container_upload_fail>` can be helpful.
 
 Prepare, Package, and Upload the Helm Chart
 ===========================================
@@ -136,3 +141,5 @@ Prepare, Package, and Upload the Helm Chart
 .. note::
 
     The version of the workflow corresponds to the version in the :code:`Chart.yaml` file.
+
+    In case of issues the corresponding :ref:`FAQ <extension_chart_upload_fail>` can be helpful.

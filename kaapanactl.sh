@@ -684,27 +684,24 @@ function install_packages_almalinux {
 
     echo "${YELLOW}Enabling snap${NC}"
     systemctl enable --now snapd.socket
-
-    echo "${YELLOW}Create link ...${NC}"
-    ln -sf /var/lib/snapd/snap /snap
+    systemctl start snapd
 
     echo "${YELLOW}Waiting for snap ...${NC}"
     snap wait system seed.loaded
 
-    if [ ! -f /etc/profile.d/set_path.sh ]; then
-        echo "${YELLOW}Adding /snap/bin to path${NC}"
-        INSERTLINE="PATH=\$PATH:/snap/bin"
-        echo "$INSERTLINE" > /etc/profile.d/set_path.sh
-        chmod +x /etc/profile.d/set_path.sh
-        sed -i -r -e '/^\s*Defaults\s+secure_path/ s[=(.*)[=\1:/usr/local/bin:/snap/bin[' /etc/sudoers
-    else
-        echo "${GREEN}/etc/profile.d/set_path.sh already exists!${NC}"
-    fi
+    # If proxy is set, configure snapd systemd environment
+    if [ -n "$http_proxy" ]; then
+        echo "${YELLOW}Configuring snapd to use proxy ...${NC}"
+        mkdir -p /etc/systemd/system/snapd.service.d/
+        tee /etc/systemd/system/snapd.service.d/override.conf > /dev/null <<EOF
+[Service]
+Environment="http_proxy=$http_proxy"
+Environment="https_proxy=$http_proxy"
+EOF
 
-    [[ ":$PATH:" != *":/snap/bin"* ]] && echo "${YELLOW}adding snap path ...${NC}" && source /etc/profile.d/set_path.sh
+        systemctl daemon-reload
+        systemctl restart snapd
 
-    if [ -v http_proxy ]; then
-        echo "${YELLOW}setting snap proxy ...${NC}"
         snap set system proxy.http="$http_proxy"
         snap set system proxy.https="$http_proxy"
     else

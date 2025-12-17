@@ -945,6 +945,7 @@ function install_microk8s {
             [ -f $MICROK8S_BASE_IMAGES_TAR_PATH ] && echo "${GREEN}MICROK8S_BASE_IMAGES_TAR exists ... ${NC}" || (echo "${RED}Images tar does not exist -> exit ${NC}" && exit 1)
             echo "${RED}This can take a long time! -> please be patient and wait. ${NC}"
             microk8s.ctr images import $MICROK8S_BASE_IMAGES_TAR_PATH
+            microk8s kubectl apply -f /var/snap/microk8s/current/args/cni-network/cni.yaml
             echo "${GREEN}Microk8s offline installation done!${NC}"
         else
             echo "${YELLOW}Installing microk8s v$DEFAULT_MICRO_VERSION ...${NC}"

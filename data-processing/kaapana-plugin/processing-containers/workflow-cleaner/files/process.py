@@ -34,9 +34,9 @@ def main():
                 print(f"[INFO] Cleaning directory: {workflow_dir}")
                 shutil.rmtree(workflow_dir)
                 print(f"[SUCCESS] Cleaned: {workflow_dir}")
-            except Exception as e:
-                print(f"[ERROR] Failed to clean {workflow_dir}: {e}")
-                return 1
+            except Exception:
+                print(f"[ERROR] Failed to clean {workflow_dir}")
+                raise
         else:
             print(f"[INFO] Directory does not exist (skip): {workflow_dir}")
     else:

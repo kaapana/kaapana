@@ -247,6 +247,7 @@ clean = LocalWorkflowCleanerOperator(
     dag=dag,
     clean_workflow_dir=True,
     trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
+    namespace=SERVICES_NAMESPACE,
 )
 
 get_input >> (auto_trigger_operator, extract_metadata)

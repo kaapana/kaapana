@@ -242,6 +242,8 @@ def federated_sharing_decorator(func):
             federated = conf["federated_form"]
             print("Federated config")
             print(federated)
+            # set namespace to services namespace for federated runs
+            self.namespace = SERVICES_NAMESPACE
         else:
             federated = None
 

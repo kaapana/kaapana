@@ -572,6 +572,7 @@ function server_installation() {
             install_packages_almalinux
             install_core core20 # for microk8s
             install_core core24 # for helm
+            install_snapd # for helm
             install_helm
             install_microk8s
         ;;
@@ -582,6 +583,7 @@ function server_installation() {
             install_packages_ubuntu
             install_core core20 # for microk8s
             install_core core24 # for helm
+            install_snapd # for helm
             install_helm
             install_microk8s
         ;;
@@ -821,6 +823,32 @@ function install_helm {
         fi
     fi
 }
+
+function install_snapd {
+    local package_name="snapd"
+    echo "${YELLOW}Checking if ${package_name} is installed ... ${NC}"
+    if ls -l /var/lib/snapd/snaps | grep "${package_name}\.snap" ;
+    then
+        echo ""
+        echo "${GREEN}${package_name} is already installed ...${NC}"
+        echo "${GREEN}-> skipping installation ${NC}"
+        echo ""
+    else
+        echo "${YELLOW}${package_name} is not installed -> start installation ${NC}"
+        if [ "$OFFLINE_SNAPS" = "true" ]; then
+            echo "${YELLOW} -> ${package_name} offline installation! ${NC}"
+            snap_path=$SCRIPT_DIR/${package_name}.snap
+            assert_path=$SCRIPT_DIR/${package_name}.assert
+            [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
+            [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
+            snap ack $assert_path
+            snap install --classic $snap_path
+        else
+            echo "${YELLOW}${package_name} will be automatically installed ...${NC}"
+        fi
+    fi
+}
+
 
 function dns_check {
     if [ ! -z "$DNS" ]; then

@@ -183,6 +183,7 @@ class OfflineInstallerHelper:
             ("core20", "latest/stable"),
             ("core24", "latest/stable"),
             ("microk8s", "1.33/stable"),
+            ("snapd", "latest/stable"),
             ("helm", "latest/stable"),
         ]
         for name, version in snaps:

@@ -65,6 +65,12 @@ class UtilService:
     node_gpu_list = []
     node_gpu_queued_dict = {}
 
+    core_v1 = None
+
+    memory_pressure = False
+    disk_pressure = False
+    pid_pressure = False
+
     @staticmethod
     def create_pool(pool_name, pool_slots, pool_description, logger=logging):
         command = [
@@ -95,12 +101,20 @@ class UtilService:
         UtilService.ureg.load_definitions(units_file_path)
         UtilService.Q_ = UtilService.ureg.Quantity
 
+        logging.getLogger(__name__).info(
+            "UtilService: initialized in-cluster kubernetes client and pint registry"
+        )
+
     @staticmethod
     def get_utilization(logger=logging):
         global node_requested_memory, default_memory_offset_percent
+
+        UtilService.memory_pressure = False
+        UtilService.disk_pressure = False
+        UtilService.pid_pressure = False
+
         logger.info("UtilService -> get_utilization")
         data = {}
-        UtilService.last_update = datetime.now()
         try:
             for node in UtilService.core_v1.list_node().items:
                 stats = {}
@@ -163,7 +177,16 @@ class UtilService:
                 stats["mem_lmt_per"] = stats["mem_lmt"] / stats["mem_alloc"] * 100
                 data[node_name] = stats
 
-            node_info = next(iter(data.values()))
+            if not data:
+                logger.error(
+                    "UtilService: no nodes returned from Kubernetes API (RBAC? API unavailable?)"
+                )
+                UtilService.last_update = None
+                return False
+
+            first_node = next(iter(data.keys()))
+            node_info = data[first_node]
+            logger.warning("UtilService: using first node for sizing: %s", first_node)
             UtilService.cpu_alloc = (
                 node_info["cpu_alloc"].to_base_units().magnitude * 1000
             )
@@ -200,11 +223,11 @@ class UtilService:
             UtilService.cpu_available_limit = (
                 UtilService.cpu_alloc - UtilService.cpu_lmt
             )
-            UtilService.memory_available_req = abs(
-                UtilService.mem_alloc - UtilService.mem_req
+            UtilService.memory_available_req = max(
+                0, UtilService.mem_alloc - UtilService.mem_req
             )
-            UtilService.memory_available_limit = abs(
-                UtilService.mem_alloc - UtilService.mem_lmt
+            UtilService.memory_available_limit = max(
+                0, UtilService.mem_alloc - UtilService.mem_lmt
             )
             pool_id = "NODE_GPU_COUNT"
             if (
@@ -256,20 +279,34 @@ class UtilService:
                     else []
                 )
             tmp_node_requested_memory = get_node_requested_memory(logger=logger)
-            if UtilService.node_requested_memory != tmp_node_requested_memory:
-                new_processing_memory = abs(
-                    UtilService.mem_alloc
-                    - tmp_node_requested_memory
-                    - round(default_memory_offset_percent * UtilService.mem_alloc)
-                )
-                pool_id = "NODE_RAM"
+
+            offset = round(default_memory_offset_percent * UtilService.mem_alloc)
+            free_mem = UtilService.mem_alloc - UtilService.mem_req - offset
+            new_processing_memory = max(0, free_mem)
+            free_prom = UtilService.mem_alloc - tmp_node_requested_memory - offset
+
+            logger.warning(
+                "NODE_RAM sizing (%s): alloc=%sMiB req_k8s=%sMiB req_prom=%sMiB offset=%sMiB free_k8s=%sMiB free_prom=%sMiB pool=%sMiB",
+                first_node,
+                UtilService.mem_alloc,
+                UtilService.mem_req,
+                tmp_node_requested_memory,
+                offset,
+                free_mem,
+                free_prom,
+                new_processing_memory,
+            )
+
+            # only update pool if the computed pool value changed (reduces churn)
+            if UtilService.pool_mem != new_processing_memory:
                 UtilService.create_pool(
-                    pool_name=pool_id,
+                    pool_name="NODE_RAM",
                     pool_slots=new_processing_memory,
-                    pool_description="Pool for the available nodes RAM memory in MB",
+                    pool_description="Pool for the available node RAM in MiB (allocatable - requested - offset)",
                     logger=logger,
                 )
-                UtilService.node_requested_memory = tmp_node_requested_memory
+                UtilService.pool_mem = new_processing_memory
+            UtilService.node_requested_memory = tmp_node_requested_memory
 
             pool_id = "NODE_CPU_CORES"
             if (
@@ -283,6 +320,8 @@ class UtilService:
                     logger=logger,
                 )
                 UtilService.pool_cpu = UtilService.cpu_alloc
+
+            UtilService.last_update = datetime.now()
 
             logger.debug("#####################################")
             logger.debug("#####################################")
@@ -310,11 +349,11 @@ class UtilService:
             logger.debug("#####################################")
             logger.debug("#####################################")
 
-        except Exception as e:
-            logger.error(
+        except Exception:
+            logger.exception(
                 "+++++++++++++++++++++++++++++++++++++++++ COULD NOT FETCH NODES!"
             )
-            logger.error(e)
+            UtilService.last_update = None
             return False
 
     @staticmethod
@@ -331,15 +370,25 @@ class UtilService:
             return True, None
 
         if UtilService.last_update == None:
-            UtilService.init_util_service()
-            UtilService.get_utilization(logger=logger)
+            if UtilService.core_v1 is None:
+                UtilService.init_util_service()
+            ok = UtilService.get_utilization(logger=logger)
+            if not ok:
+                logger.error("UtilService: utilization update failed -> not scheduling")
+                return False, None
         elif (
             datetime.now() - UtilService.last_update
         ).total_seconds() > job_scheduler_delay:
-            UtilService.get_utilization(logger=logger)
-        logging.info(
-            f"last_update: {UtilService.last_update.strftime('%Y-%m-%d %H:%M:%S.%f')}"
-        )
+            ok = UtilService.get_utilization(logger=logger)
+            if not ok:
+                logger.error("UtilService: utilization update failed -> not scheduling")
+                return False, None
+        if UtilService.last_update is not None:
+            logging.info(
+                f"last_update: {UtilService.last_update.strftime('%Y-%m-%d %H:%M:%S.%f')}"
+            )
+        else:
+            logging.info("last_update: None")
 
         if schedule_lockfile.exists():
             logger.warning("##############################################")

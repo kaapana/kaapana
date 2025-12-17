@@ -11,8 +11,8 @@ prometheus_url = f"http://prometheus-service.{SERVICES_NAMESPACE}.svc:9090/prome
 
 memory_query = "floor(node_memory_MemTotal_bytes{job='Node-Exporter'}/1048576)"
 mem_util_per_query = "sum(node_memory_MemTotal_bytes{job='Node-Exporter'} - node_memory_MemAvailable_bytes{job='Node-Exporter'}) / sum(node_memory_MemTotal_bytes{job='Node-Exporter'})"
-query_memory_requested_from_pods_in_services_namespace = "round(sum(kube_pod_container_resource_requests{unit='byte',namespace='services'})/1000000)"
-query_memory_requested_from_pods_in_admin_namespace = "round(sum(kube_pod_container_resource_requests{unit='byte',namespace='admin'})/1000000)"
+query_memory_requested_from_pods_in_services_namespace = 'round(sum(kube_pod_container_resource_requests{unit="byte",namespace="services"})/1000000) * on (namespace, pod) group_left() (kube_pod_status_phase{namespace="services", phase="Running"} == 1)) / 1e6'
+query_memory_requested_from_pods_in_admin_namespace = 'round(sum(kube_pod_container_resource_requests{unit="byte",namespace="admin"})/1000000)  * on (namespace, pod) group_left() (kube_pod_status_phase{namespace="admin", phase="Running"} == 1)) / 1e6'
 
 
 cpu_core_query = "machine_cpu_cores"

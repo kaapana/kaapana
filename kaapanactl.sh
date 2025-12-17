@@ -664,6 +664,7 @@ function install_no_proxy_environment {
 
 function install_packages_almalinux {
     echo "${YELLOW}Check packages...${NC}"
+    sudo dnf install -y kernel-modules-extra-$(uname -r)
     if [ -x "$(command -v snap)" ] && [ -x "$(command -v jq)" ]; then
         echo "${GREEN}Snap installed.${NC}"
     else
@@ -684,27 +685,24 @@ function install_packages_almalinux {
 
     echo "${YELLOW}Enabling snap${NC}"
     systemctl enable --now snapd.socket
-
-    echo "${YELLOW}Create link ...${NC}"
-    ln -sf /var/lib/snapd/snap /snap
+    systemctl start snapd
 
     echo "${YELLOW}Waiting for snap ...${NC}"
     snap wait system seed.loaded
 
-    if [ ! -f /etc/profile.d/set_path.sh ]; then
-        echo "${YELLOW}Adding /snap/bin to path${NC}"
-        INSERTLINE="PATH=\$PATH:/snap/bin"
-        echo "$INSERTLINE" > /etc/profile.d/set_path.sh
-        chmod +x /etc/profile.d/set_path.sh
-        sed -i -r -e '/^\s*Defaults\s+secure_path/ s[=(.*)[=\1:/usr/local/bin:/snap/bin[' /etc/sudoers
-    else
-        echo "${GREEN}/etc/profile.d/set_path.sh already exists!${NC}"
-    fi
+    # If proxy is set, configure snapd systemd environment
+    if [ -n "$http_proxy" ]; then
+        echo "${YELLOW}Configuring snapd to use proxy ...${NC}"
+        mkdir -p /etc/systemd/system/snapd.service.d/
+        tee /etc/systemd/system/snapd.service.d/override.conf > /dev/null <<EOF
+[Service]
+Environment="http_proxy=$http_proxy"
+Environment="https_proxy=$http_proxy"
+EOF
 
-    [[ ":$PATH:" != *":/snap/bin"* ]] && echo "${YELLOW}adding snap path ...${NC}" && source /etc/profile.d/set_path.sh
+        systemctl daemon-reload
+        systemctl restart snapd
 
-    if [ -v http_proxy ]; then
-        echo "${YELLOW}setting snap proxy ...${NC}"
         snap set system proxy.http="$http_proxy"
         snap set system proxy.https="$http_proxy"
     else
@@ -832,13 +830,24 @@ function dns_check {
     else
         if [ "$OFFLINE_SNAPS" != "true" ];then
             echo "${GREEN}Checking server DNS settings ...${NC}"
-            if command -v nslookup dkfz.de &> /dev/null
+            
+            if command -v nslookup &> /dev/null; then
+                TOOL="nslookup"
+            elif command -v dig &> /dev/null; then
+                TOOL="dig"
+            else
+                echo -e "${RED}Neither nslookup nor dig is installed on this system.${NC}"
+                echo -e "${RED}Please install nslookup (bind-utils on AlmaLinux/RHEL, dnsutils on Ubuntu/Debian) or dig.${NC}"
+                exit 1
+            fi
+            
+            if command -v $TOOL dkfz.de &> /dev/null
             then
                 echo "${GREEN}DNS lookup was successful ...${NC}"
             else
                 echo ""
                 echo "${RED}DNS lookup failed -> please check your servers DNS configuration ...${NC}"
-                echo "${RED}You can test it with: 'nslookup dkfz.de'${NC}"
+                echo "${RED}You can test it with: '$TOOL dkfz.de'${NC}"
                 echo ""
                 exit 1
             fi

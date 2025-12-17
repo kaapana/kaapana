@@ -11,6 +11,8 @@ dependencies:
     version: 0.0.0
   - name: workflow-ui
     version: 0.0.0
+  - name: data-api
+    version: 0.0.0
 # MONITORING
   - name: prometheus-chart
     version: 0.0.0

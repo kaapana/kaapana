@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -72,6 +72,7 @@ async def download_artifact(
     entity_id: UUID,
     key: str,
     artifact_id: str,
+    disposition: str = Query("attachment", regex="^(inline|attachment)$"),
     db: AsyncSession = Depends(get_async_db),
 ):
     entity = await require_entity(db, entity_id)
@@ -89,10 +90,13 @@ async def download_artifact(
     store = get_artifact_store()
     fileobj = store.open(str(entity_id), key, artifact_id)
 
+    dispo = "inline" if disposition == "inline" else "attachment"
+    filename = artifact.filename or artifact.artifact_id
+
     return StreamingResponse(
         fileobj,
         media_type=artifact.content_type or "application/octet-stream",
         headers={
-            "Content-Disposition": f"attachment; filename={artifact.filename or artifact.artifact_id}",
+            "Content-Disposition": f"{dispo}; filename={filename}",
         },
     )

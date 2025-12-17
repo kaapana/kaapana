@@ -125,6 +125,11 @@ data:
             "label": "Workflow Runs V2",
             "endpoint": "/workflow-ui",
             "linkTo": "/workflow-ui/runs"
+          },
+          "data": {
+            "label": "Data API",
+            "endpoint": "/data-ui",
+            "linkTo": "/data-ui/"
           }
         }
       }

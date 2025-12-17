@@ -177,7 +177,7 @@ function deploy() {
     _Flag: --report, create a report of the state of the microk8s cluster
     _Flag: --plain-http, use insecure HTTP when talking to the registry (default HTTPS, use --no-plain-http to force it)
 
-    _Argument: --chart-ref [registry/path/chart:version]
+    _Argument: --chart [registry/path/chart:version]
     _Argument: --platform-name [Helm chart name]
     _Argument: --platform-version [Helm chart version]
     _Argument: --registry-url [OCI registry URL]
@@ -364,13 +364,26 @@ function deploy() {
 
     setup_storage_provider
 
+    if [[ -n "$CHART_PATH" ]]; then
+        PLATFORM_VERSION=$( $HELM_EXECUTABLE show chart ${CHART_PATH} | grep '^version:' | awk '{print $2}' )
+        PLATFORM_NAME=$( $HELM_EXECUTABLE show chart ${CHART_PATH} | grep '^name:' | awk '{print $2}' )
+    fi
+
+    if [ "${OFFLINE_MODE,,}" == true ]; then
+        CONTAINER_REGISTRY_USERNAME=""
+        CONTAINER_REGISTRY_PASSWORD=""
+        prompt_required_value CONTAINER_REGISTRY_URL "Enter the container registry url: " false "$QUIET"
+    fi
+
     if [[ -z "$PLATFORM_NAME" || -z "$PLATFORM_VERSION" || -z "$CONTAINER_REGISTRY_URL" ]]; then
         prompt_required_value CHART_REFERENCE "Enter the kaapana chart (registry/path/chart:version): " false "$QUIET"
         parse_chart_reference "$CHART_REFERENCE"
     fi
 
-    prompt_required_value CONTAINER_REGISTRY_USERNAME "Enter the container registry username: " false "$QUIET"
-    prompt_required_value CONTAINER_REGISTRY_PASSWORD "Enter the container registry password: " true "$QUIET"
+    if [ "${OFFLINE_MODE,,}" != true ]; then
+        prompt_required_value CONTAINER_REGISTRY_USERNAME "Enter the container registry username: " false "$QUIET"
+        prompt_required_value CONTAINER_REGISTRY_PASSWORD "Enter the container registry password: " true "$QUIET"
+    fi
 
     if [ ! -z $INSTANCE_UID ]; then
         echo ""
@@ -1275,7 +1288,7 @@ function get_domain {
         # get nslookup result, use || true to ensure script doesn't exit immediately is cmd fails
         NSLOOKUP_RESULT=$(nslookup "$SERVER_IP" || true)
         if [[ -z "$NSLOOKUP_RESULT" || "$NSLOOKUP_RESULT" == *"server can't find"* ]]; then
-            echo -e "NS lookup failed, could not determine DOMAIN from SERVER_IP. Run the script with explicit domain name: ./deploy_platform.sh --domain <domain-name>"
+            echo -e "NS lookup failed, could not determine DOMAIN from SERVER_IP. Run the script with explicit domain name: ./kaapanactl.sh deploy --domain <domain-name>"
             exit 1
         fi
         DOMAIN=$(echo "$NSLOOKUP_RESULT" | head -n 1 | awk -F '= ' '{print $2}')
@@ -1348,7 +1361,7 @@ function delete_deployment {
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
         echo "${RED}kubectl get pods -A${NC}"
         echo "${RED}kubectl get namespaces${NC}"
-        echo "${RED}Executing './deploy_platform.sh --no-hooks' is an option to force the resources to be removed.${NC}"
+        echo "${RED}Executing './kaapanactl.sh deploy --no-hooks' is an option to force the resources to be removed.${NC}"
         echo "${RED}Once everything is deleted you can re-deploy the platform!${NC}"
         exit 1
     fi
@@ -1741,7 +1754,7 @@ function migrate() {
 
 function deploy_chart {
     if [ -z "$CONTAINER_REGISTRY_URL" ]; then
-        echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the deploy_platform.sh script!${NC}"
+        echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the kaapanactl.sh script!${NC}"
         echo "${RED}ABORT${NC}"
         exit 1
     fi

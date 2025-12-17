@@ -71,7 +71,7 @@ class OfflineInstallerHelper:
         assert snap_file_path.exists()
         snap_file_path.rename(
             snap_file_path.with_name(
-                snap_file_path.stem.replace(f"_{snap_version}", "")
+                snap_file_path.name.replace(f"_{snap_version}", "")
             )
         )
 
@@ -79,7 +79,7 @@ class OfflineInstallerHelper:
         assert assert_file_path.exists()
         assert_file_path.rename(
             assert_file_path.with_name(
-                assert_file_path.stem.replace(f"_{snap_version}", "")
+                assert_file_path.name.replace(f"_{snap_version}", "")
             )
         )
 
@@ -218,17 +218,10 @@ class OfflineInstallerHelper:
             container_engine=cls._build_config.container_engine,
         )
 
-        # Copy installer scripts
-        scripts = ["server_installation.sh"]
-        for script in scripts:
-            src = Path(cls._build_config.kaapana_dir) / "server-installation" / script
-            assert src.exists()
-            dst = (
-                build_chart_dir / script
-                if script.endswith(".py")
-                else offline_dir / script
-            )
-            copyfile(src, dst)
-            os.chmod(dst, 0o775)
+        # Copy kaapanactl.sh script
+        copyfile(
+            src=Path(cls._build_config.kaapana_dir, "kaapanactl.sh"),
+            dst=Path(offline_dir, "kaapanactl.sh"),
+        )
 
         logger.info("Finished generating Microk8s offline installer.")

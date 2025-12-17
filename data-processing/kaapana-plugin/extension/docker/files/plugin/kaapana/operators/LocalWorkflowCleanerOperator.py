@@ -1,6 +1,5 @@
 import shutil
 from pathlib import Path
-import json
 from kaapana.blueprints.kaapana_utils import (
     get_operator_properties,
     clean_previous_dag_run,
@@ -51,8 +50,7 @@ class LocalWorkflowCleanerOperator(KaapanaBaseOperator):
         namespace = self.namespace
         self.delete_conf_configmap(configmap_name, namespace)
 
-        dag_conf = context["dag_run"].conf or {}
-        conf = json.dumps(dag_conf, indent=4, sort_keys=True)
+        conf = context["dag_run"].conf or {}
         # federed workflows run in SERVICES_NAMESPACE, so the cleanup can also be local only
         clean_previous_dag_run(self.airflow_workflow_dir, conf, "from_previous_dag_run")
         clean_previous_dag_run(

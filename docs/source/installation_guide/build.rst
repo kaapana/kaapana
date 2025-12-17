@@ -196,7 +196,7 @@ You should also have the following packages installed on your build-system.
 
 #. Helm plugin
 
-   | :code:`helm plugin install https://github.com/instrumenta/helm-kubeval`
+   | :code:`helm plugin install --verify=false https://github.com/instrumenta/helm-kubeval`
 
 
 Start Build

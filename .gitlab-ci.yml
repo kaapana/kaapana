@@ -30,7 +30,7 @@ variables:
   OS_CREATE: $OS_CREATE
   OS_DELETE: $OS_DELETE
   OS_AUTH_URL: $OS_AUTH_URL
-  OS_PROJECT_NAME: $OS_PROJECT_NAME ### Name of the openstack project for the deployment instance 
+  OS_PROJECT_NAME: $OS_PROJECT_NAME ### Name of the openstack project for the deployment instance
   OS_INSTANCE_FLAVOR: $OS_INSTANCE_FLAVOR
   OS_KEY_NAME: $OS_KEY_NAME
   OS_IMAGE: $OS_IMAGE
@@ -65,7 +65,7 @@ variables:
   REGISTRY_USER: $GITLAB_USER_LOGIN
 
   ### FIXED VARIABLES
-  #REGISTRY_TOKEN: $CI_REGISTRY_PASSWORD                        
+  #REGISTRY_TOKEN: $CI_REGISTRY_PASSWORD
   GIT_STRATEGY: "none" ### Predefined Gitlab CI variable; Has to be one of ["clone", "fetch", "none"]
   # GIT_CLONE_PATH: $CI_BUILDS_DIR/$CI_PIPELINE_ID
   GIT_CLONE_PATH: /home/ubuntu/builds/$CI_COMMIT_SHORT_SHA
@@ -115,7 +115,7 @@ unit_tests:
     paths:
     - unittest_report.xml
     reports:
-      junit: 
+      junit:
         - unittest_report.xml
 
 task_api_tests:
@@ -127,16 +127,16 @@ task_api_tests:
   - source $KAAPANA_DIR/lib/.venv/bin/activate
   - python3 -m pip install build pytest
   - python3 -m build $KAAPANA_DIR/lib/task_api
-  - python3 -m pip install $KAAPANA_DIR/lib/task_api/dist/task_api-0.1.0.tar.gz
+  - python3 -m pip install $KAAPANA_DIR/lib/task_api/dist/task_api-1.0.0.tar.gz
   - pytest $KAAPANA_DIR/lib/task_api/task_api --junitxml=task_api_report.xml
   artifacts:
     when: always
     paths:
     - task_api_report.xml
     reports:
-      junit: 
+      junit:
         - task_api_report.xml
-install_helm_on_build: 
+install_helm_on_build:
   stage: prepare
   needs:
   - prepare_pipeline
@@ -240,7 +240,7 @@ if_ci_failing:
   stage: clean
   script:
     - source /home/$USER/venv/bin/activate
-    - cd $REPO_DIR/ci-code/clean 
+    - cd $REPO_DIR/ci-code/clean
     - python3 create_ticket_if_ci_failed.py
     - python3 notify_slack.py
   resource_group: $DEPLOYMENT_INSTANCE_NAME-1
@@ -255,7 +255,7 @@ if_ci_failing:
 
 security:
   stage: clean
-  script: 
+  script:
     - cd $REPO_DIR/ci-code/clean
     - export GIT_DESCRIBE=$(git describe)
     - source /home/$USER/venv/bin/activate

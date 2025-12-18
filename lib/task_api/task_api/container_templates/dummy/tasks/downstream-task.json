@@ -1,5 +1,6 @@
 {
     "name": "Test downstream task",
+    "api_version": 1,
     "image": "{{ env.registryUrl }}/dummy:latest",
     "taskTemplate": "downstream",
     "inputs": [

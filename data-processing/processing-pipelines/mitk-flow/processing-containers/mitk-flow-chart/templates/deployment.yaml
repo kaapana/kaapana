@@ -26,7 +26,7 @@ spec:
             memory: "8Gi"
         env:
         - name: INGRESS_PATH
-          value: "applications/project/{{ .Values.global.project_name }}/release/{{ .Release.Name }}"
+          value: "applications/project/{{ .Values.global.project_id }}/release/{{ .Release.Name }}"
         - name: WORKFLOW_DIR
           value: "{{ .Values.workflow_dir }}"
         - name: BATCH_NAME

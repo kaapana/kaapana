@@ -1,5 +1,0 @@
-apiVersion: v1
-appVersion: "3.3.1"
-description: CouchDB chart for kaapana persistence layer
-name: kaapana-persistence-couchdb
-version: "0.0.0"

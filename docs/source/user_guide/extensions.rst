@@ -255,7 +255,7 @@ TotalSegmentator
 | Any **CT** scans.
 
 TotalSegmentator v2
-----------------
+--------------------
 | **Method:** "TotalSegmentator: robust segmentation of  117 (CT) and 50 (MR) body structures"
 | **Authors:**  Wasserthal J., Meyer M., Breit H., Cyriac J., Yang S., Segeroth M.
 | **DOI:** `10.48550/arXiv.2208.05868 <https://arxiv.org/abs/2208.05868>`_
@@ -493,18 +493,21 @@ Once you have a better understanding of this DAG, you can start adapting the DAG
 
 JupyterLab
 -----------
-The `JupyterLab <https://jupyter.org/>`__ is an excellent tool to swiftly analyse data stored to the MinIO object store.
+`JupyterLab <https://jupyter.org/>`__ is an excellent tool to swiftly analyse data stored to the MinIO object store.
 It comes preinstalled with a wide array of commonly used Python packages for data analysis.
-You can deploy multiple instances of JupyterLab simultaneously, each with its dedicated MinIO bucket named after the respective JupyterLab instance.
-Data stored within this bucket is available to the JupyterLab application through the `/minio/input` directory.
-You can save your analysis-scripts or results to the directory `/minio/output`.
-Files in this directory will be automatically transfered to and persisted in the MinIO bucket named `output` and are available to the `JupyterlabReportingOperator`.
-While JupyterLab is great for exploratory data analysis, for more complex calculations, consider developing a dedicated Airflow DAG.
+While JupyterLab is great for exploratory data analysis, for more complex calculations, consider developing a dedicated :ref:`Workflow Extension <workflow_dev_guide>`.
 
-| **Mount point:**  
-| <slow_data_dir>/applications/jupyterlab/<jupyterlab-instance-name>/input
-| <slow_data_dir>/applications/jupyterlab/<jupyterlab-instance-name>/output
-
+You can launch multiple instances of JupyterLab simultaneously for different usecases.
+Each instance has access to a directory inside the project bucket in MinIO.
+You can specify this directory, when you launch a new instance in the :ref:`extensions view <extensions>`.
+Files in this directory are periodically synced bidirectionally between MinIO and the JupyterLab instance.
+Note, that the sync interval is 20 seconds.
+If a file is simultaneously changed in MinIO and JupyterLab, rclone will resolve this conflict during the next syncronisation.
+* It does not overwrite either side.
+* It renames one version with a .conflict suffix.
+* The file changed in MinIO keeps the original filename.
+* The file changed in Jupyterlab gets the conflict rename.
+* For more information check the :ref:`rclone manual <https://rclone.org/bisync/>`.
 
 .. _extensions_minio_sync:
 

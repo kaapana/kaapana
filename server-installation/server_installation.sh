@@ -68,7 +68,7 @@ function proxy_environment {
 
 
 function no_proxy_environment {
-    # Note: This script makes sure no_proxy configuration is configured correctly so microk8s doesn't send cluster traffic to the 
+    # Note: This script makes sure no_proxy configuration is configured correctly so microk8s doesn't send cluster traffic to the
     #       proxy server. The specific settings for ip ranges used by microk8s to request external resource might change in the future
     #       and are (currently) described here: https://microk8s.io/docs/install-proxy
     echo "${GREEN}Checking no_proxy settings${NC}"
@@ -88,7 +88,7 @@ function no_proxy_environment {
 
         # remove any " from no_proxy ENV
         no_proxy=$( echo $no_proxy | sed 's/"//g')
-        
+
         if [[ $no_proxy == *"172.16.0.0/16"* ]]; then
             echo "${GREEN}NO_PROXY is already configured correctly ...${NC}"
             return
@@ -122,16 +122,16 @@ function install_packages_almalinux {
         yum install -y epel-release
         echo "${YELLOW}YUM update & upgrade${NC}"
         set +e
-        yum check-update -y 
+        yum check-update -y
         yum clean all -y
         yum update -y
 	    yum upgrade -y
         set -e
-        
+
         echo "${YELLOW}Installing snap, nano, jq and curl${NC}"
         yum install -y snapd nano jq curl
     fi
-    
+
     echo "${YELLOW}Enabling snap${NC}"
     systemctl enable --now snapd.socket
 
@@ -140,7 +140,7 @@ function install_packages_almalinux {
 
     echo "${YELLOW}Waiting for snap ...${NC}"
     snap wait system seed.loaded
-    
+
     if [ ! -f /etc/profile.d/set_path.sh ]; then
         echo "${YELLOW}Adding /snap/bin to path${NC}"
         INSERTLINE="PATH=\$PATH:/snap/bin"
@@ -169,7 +169,7 @@ function install_packages_ubuntu {
         echo "${YELLOW}Check if apt is locked ...${NC}"
         i=0
         tput sc
-        
+
         while [ fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 ] || [ fuser /var/lib/dpkg/lock >/dev/null 2>&1 ]; do
             case $(($i % 4)) in
                 0 ) j="-" ;;
@@ -178,10 +178,10 @@ function install_packages_ubuntu {
                 3 ) j="/" ;;
             esac
             tput rc
-            echo -en "\r[$j] Waiting for other software managers to finish ..." 
+            echo -en "\r[$j] Waiting for other software managers to finish ..."
             sleep 0.5
             ((i=i+1))
-        done 
+        done
 
         echo "${YELLOW}APT update & upgrade${NC}"
         apt update
@@ -274,6 +274,33 @@ function install_helm {
     fi
 }
 
+
+function install_snapd {
+    local package_name="snapd"
+    echo "${YELLOW}Checking if ${package_name} is installed ... ${NC}"
+    if ls -l /var/lib/snapd/snaps | grep "${package_name}\.snap" ;
+    then
+        echo ""
+        echo "${GREEN}${package_name} is already installed ...${NC}"
+        echo "${GREEN}-> skipping installation ${NC}"
+        echo ""
+    else
+        echo "${YELLOW}${package_name} is not installed -> start installation ${NC}"
+        if [ "$OFFLINE_SNAPS" = "true" ]; then
+            echo "${YELLOW} -> ${package_name} offline installation! ${NC}"
+            snap_path=$SCRIPT_DIR/${package_name}.snap
+            assert_path=$SCRIPT_DIR/${package_name}.assert
+            [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
+            [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
+            snap ack $assert_path
+            snap install --classic $snap_path
+        else
+            echo "${YELLOW}${package_name} will be automatically installed ...${NC}"
+        fi
+    fi
+}
+
+
 function dns_check {
     if [ ! -z "$DNS" ]; then
         echo "${GREEN}${NC}"
@@ -297,7 +324,7 @@ function dns_check {
         set +e
         echo "${GREEN}Get DNS settings nmcli ...${NC}"
         DNS=$(( nmcli dev list || nmcli dev show ) 2>/dev/null | grep DNS |awk -F ' ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
-        
+
         if [ -z "$DNS" ]; then
             echo "${YELLOW} Trying resolvectl ...${NC}"
             DNS=$(resolvectl status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
@@ -317,7 +344,7 @@ function dns_check {
                 exit 1
             fi
         fi
-                    
+
         ## Format DNS to be a comma separated list of IP addresses without spaces and newlines
         DNS=$(echo -e $DNS | tr -s ' \n,' ',' | sed 's/,$/\n/')
         echo "${YELLOW}Identified DNS: $DNS ${NC}"
@@ -341,7 +368,7 @@ function install_microk8s {
     else
         echo "${YELLOW}microk8s is not installed -> start installation ${NC}"
         dns_check
-        
+
         if [ "$OFFLINE_SNAPS" = "true" ];then
             echo "${YELLOW} -> offline installation! ${NC}"
 
@@ -350,7 +377,7 @@ function install_microk8s {
             assert_path=$SCRIPT_DIR/microk8s.assert
             [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
             [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
-            
+
             snap ack $assert_path
             snap install --classic $snap_path
             MICROK8S_BASE_IMAGES_TAR_PATH="$SCRIPT_DIR/microk8s_base_images.tar"
@@ -358,6 +385,7 @@ function install_microk8s {
             [ -f $MICROK8S_BASE_IMAGES_TAR_PATH ] && echo "${GREEN}MICROK8S_BASE_IMAGES_TAR exists ... ${NC}" || (echo "${RED}Images tar does not exist -> exit ${NC}" && exit 1)
             echo "${RED}This can take a long time! -> please be patient and wait. ${NC}"
             microk8s.ctr images import $MICROK8S_BASE_IMAGES_TAR_PATH
+            microk8s kubectl apply -f /var/snap/microk8s/current/args/cni-network/cni.yaml
             echo "${GREEN}Microk8s offline installation done!${NC}"
         else
             echo "${YELLOW}Installing microk8s v$DEFAULT_MICRO_VERSION ...${NC}"
@@ -373,7 +401,7 @@ function install_microk8s {
         echo "${YELLOW}Disable insecure port ...${NC}";
         insert_text "--insecure-port=0" /var/snap/microk8s/current/args/kube-apiserver
         insert_text "--runtime-config=admissionregistration.k8s.io/v1beta1=true" /var/snap/microk8s/current/args/kube-apiserver
-        
+
         echo "${YELLOW}Set limit of completed pods to 200 ...${NC}";
         insert_text "--terminated-pod-gc-threshold=200" /var/snap/microk8s/current/args/kube-controller-manager
         set -e
@@ -383,7 +411,7 @@ function install_microk8s {
         set +e
         insert_text "vm.max_map_count=262144" /etc/sysctl.conf
         set -e
-        
+
         echo "${YELLOW}Reload systemct daemon ...${NC}"
         systemctl daemon-reload
 
@@ -396,12 +424,12 @@ function install_microk8s {
         set +e
         insert_text "# microk8s.kubectl --help > /dev/null 2>&1 && source <(microk8s.kubectl completion bash)" $USER_HOME/.bashrc
         set -e
-        
+
         echo "${YELLOW}Starting microk8s${NC}"
         microk8s.start
         echo "${YELLOW}Wait until microk8s is ready ...${NC}"
         microk8s.status --wait-ready >/dev/null 2>&1
-        
+
         echo "${YELLOW}Enable microk8s RBAC ...${NC}"
         microk8s.enable rbac
 
@@ -430,7 +458,7 @@ function install_microk8s {
         echo ""
         echo ""
         echo ""
-        
+
         if [ "$REAL_USER" != "root" ]; then
             echo "${GREEN}           Installation successful.${NC}"
             echo "${GREEN}                 Please run:${NC}"
@@ -552,12 +580,12 @@ do
             install_packages_ubuntu
             exit 0
         ;;
-        
+
         --install-almalinux-packages)
             install_packages_almalinux
             exit 0
         ;;
-        
+
         --uninstall)
             uninstall
             exit 0
@@ -579,6 +607,7 @@ case "$OS_PRESENT" in
         install_packages_almalinux
         install_core core20 # for microk8s
         install_core core24 # for helm
+        install_snapd # for helm
         install_helm
         install_microk8s
     ;;
@@ -589,11 +618,12 @@ case "$OS_PRESENT" in
         install_packages_ubuntu
         install_core core20 # for microk8s
         install_core core24 # for helm
+        install_snapd # for helm
         install_helm
         install_microk8s
     ;;
 
-    *)  
+    *)
         echo "${RED}Your OS: $OS_PRESENT is not supported at the moment.${NC}"
         echo "${RED}This scripts suppors: Ubuntu and AlmaLinux${NC}"
         echo -e "$usage"

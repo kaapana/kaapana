@@ -3,6 +3,137 @@
 Changelog
 #########
 
+.. _release-0.6.0:
+
+------------------------
+
+********************
+Release Notes v0.6.0
+********************
+
+December 18, 2025
+
+-------------------------
+
+New Core APIs and Multi Node support
+------------------------------------
+
+We are excited to announce four pivotal changes in Kaapana 0.6.0: three new core APIs and Multi-Node support. These updates will serve as the new stable foundation for the platform where we want to ensure a more scalable and reliable basis for all upcoming features.
+
+These new features are currently in a preview state and are available as optional additions. To ensure stability, all existing core functionalities remain fully intact and maintained in this release. We encourage users to explore these new APIs and Multi Node setup, as they will become the standard interface and begin replacing legacy code starting from the next major release.
+
+Task API
+^^^^^^^^
+New way of developing processing-containers for data-processing pipelines such as Airflow DAGs.
+Guides how to use the Task API can be found in the `documentation <https://kaapana.readthedocs.io/en/latest/development_guide/processing_container_dev_guide.html>`_.
+
+Workflow API
+^^^^^^^^^^^^
+
+Workflow API comprises of three parts:
+
+**Workflow API Backend**
+
+* `README <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/services/base/workflow-api/docker/files/README.md?ref_type=heads>`_
+* Workflow Engine agnostic design
+* Designated FastAPI for handling workflows
+    * CRUD service on Workflow (Manage workflow)
+    * CRUD service on WorkflowRuns (Run a Workflow)
+    * Adapters - extendability to different workflow engines:
+        * Starting with Airflow Adapter
+        * Dummy Adapter
+
+**Workflow CLI**
+
+* New Workflow design introduced with support for multimodal data and easier local development
+* Create new workflows
+* Validate new workflows
+* Install new workflows (runs helm install and posts to Workflow API Backend)
+* Standardization of the Workflows
+    * ``workflow.json``
+    * templated chart
+    * used processing-containers are defined inside the ``values.yaml``
+
+**Workflow UI**
+
+1. **Workflows**
+    * New Workflow Cards
+    * New Form UI
+    * Connected to the Kaapana-backend (possible use of created datasets)
+2. **Workflow Runs**
+    * New page to visualize runs
+    * Query search capability.
+
+You can try the new Experimental Workflow API by running the new Registration Workflow from the user interface.
+
+Data API
+^^^^^^^^
+The Data API is now available as a central registry for data entities, providing a consistent way to discover, store, and retrieve data across heterogeneous storage systems. It introduces data entities referenced by UUIDs, backend-agnostic storage coordinates (PACS, S3, filesystem, URL), and schema-driven metadata validated with JSON Schema. Clients can attach metadata and binary artifacts (for example, thumbnails or reports) via dedicated endpoints. The API also supports querying entities through a flexible filtering model. A frontend that showcases the API’s capabilities is included. The current version ingests incoming DICOM data to enable testing with live data.
+
+Multi Node
+----------
+
+
+
+* A cluster can be created using microk8s
+* New StorageClasses are introduced: Longhorn and microk8s/hostpath
+* Volumes are now created via provisioners
+* Multiple nodes in a cluster can share the same volumes via Longhorn 
+
+Other New Features
+------------------
+
+* Added **TotalSegmentator V2** to support CT and MR data, providing access to many more specific subtasks rendering richer anatomical label sets. Leveraged native multi-label output and eliminating the merge-masks operator for faster downstream processing.
+* A new separate code-server extension for development purposes.
+* **Prometheus** is configured to automatically discover targets using annotations.
+* New **Grafana Dashboard** for operators responsible for Kaapana's uptime.
+* More fine grained project roles:
+    * Role *admin*: **DEPRECATED**
+    * Role *scientist*: 
+        * Basic access to project data, workflow execution and active applications
+    * Role *principal-investigator*: 
+        * Access to project data, workflow execution and active applications. 
+        * Manage project users
+        * Enable and disable workflows in the project
+        * Install and uninstall new application extensions in the project
+* **Project Management UI** extended with functionalities to manage applications within a project context.
+* ``kaapanactl.sh``:
+    * New unified script for installing the server dependencies and the kaapana platform.
+    * The script ``server_installation.sh`` should not be used anymore.
+    * The script ``depoy_platform.sh`` should not be used anymore.
+* New **CLI for the build-script**:
+    * ``build-config.yaml`` was deprecated.
+    * Configuration can be passed as command line flags or environment variables.
+    * Environment variables are loaded from ``.env`` file.
+* `Body and Organ Analysis (BOA) <https://github.com/UMEssen/Body-and-Organ-Analysis>`_ workflow: Segmentation results are now stored in PACS as DICOM (SEG) (previously stored as NIfTI in MinIO); all other artifacts (e.g., JSON, PDF) remain stored in MinIO. Added Strict Mode, which requires all expected results to be present.
+
+Deprecated and Removed Features
+-------------------------------
+
+* Deprecated **local operators**; they will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
+* Deprecated ``deploy_platform.sh`` and ``server_installation.sh``; ``kaapanactl.sh`` can be used instead of both.
+* Deprecated ``build-config.yaml`` file. A ``.env`` file can be used instead.
+* Removed deprecated extensions: ``rateme``, ``mHub``, ``debug-container-chart``, ``kaapana-persistence-chart``, ``modify-dcmseg-workflow``, ``tfda-spe-orchestrator-workflow``.
+
+Updates and Security Fixes
+--------------------------
+
+* GPU Operator version
+* Airflow 2.11.0
+* Keycloak 26.4.6
+* OAuth2-proxy 7.13.0
+* Nginx 1.29.3
+* Helm v4
+* nnUNet 2.6.2
+* MITK v2025.08 with built-in nnInteractive support.
+* Body and Organ Analysis (v0.1.5)
+
+Known problems
+--------------
+
+Due to the changes for supporting multi node deployments, migrating from 0.5.x to 0.6.0 is currently not possible. This will be addressed in the upcoming patch release.
+
+
 .. _release-0.5.3:
 
 ------------------------

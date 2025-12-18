@@ -277,6 +277,9 @@ Required fields in the :file:`task.json` file:
    * - ``name``
      - string
      - Human-readable name for this task execution.
+   * - ``api_version``
+     - integer
+     - API version of the task specification (current version is 1).
    * - ``image``
      - string
      - Docker image of the processing-container to run.
@@ -368,6 +371,7 @@ A minimal example :file:`task.json` for local execution:
 
     {
       "name": "example-task",
+      "api_version": 1,
       "image": "kaapana/example:latest",
       "taskTemplate": "example",
       "inputs": [

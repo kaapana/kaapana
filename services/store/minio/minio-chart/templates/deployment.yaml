@@ -51,6 +51,8 @@ spec:
           value: "public"
         - name: MINIO_IDENTITY_OPENID_CONFIG_URL
           value: "http://keycloak-external-service.{{  .Values.global.admin_namespace  }}.svc:80/auth/realms/kaapana/.well-known/openid-configuration"
+        - name: MINIO_IDENTITY_OPENID_SCOPES
+          value: "openid,profile,email,roles"
         - name: MINIO_IDENTITY_OPENID_CLIENT_ID
           value: "kaapana"
         - name: MINIO_IDENTITY_OPENID_CLIENT_SECRET

@@ -1,6 +1,7 @@
 {
     "name": "mitk-tools",
     "description": "Processing container for registering dicom images",
+    "api_version": 1,
     "templates": [
         {
             "identifier": "register",
@@ -23,7 +24,7 @@
                         "mode": "max_item_sum",
                         "target_glob": "*.nrrd"
                     }
-                    
+
                 }],
             "outputs": [
                 {

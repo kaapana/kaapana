@@ -1,6 +1,7 @@
 {
     "name": "nrrd-to-dicom",
     "description": "Convert nrrd images to dicom.",
+    "api_version": 1,
     "templates": [
         {
             "identifier": "nrrd-to-dicom",

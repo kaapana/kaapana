@@ -10,6 +10,8 @@
       "nvcr.io/nvidia/k8s/container-toolkit:v1.17.5-ubuntu20.04",
       "nvcr.io/nvidia/k8s/dcgm-exporter:4.1.1-4.0.4-ubuntu22.04",
       "registry.k8s.io/pause:3.10",
-      "registry.k8s.io/nfd/node-feature-discovery:v0.17.2"
+      "registry.k8s.io/nfd/node-feature-discovery:v0.17.2",
+      "cdkbot/hostpath-provisioner:1.5.0",
+      "docker.io/busybox:1.28.4"
    ]
 }

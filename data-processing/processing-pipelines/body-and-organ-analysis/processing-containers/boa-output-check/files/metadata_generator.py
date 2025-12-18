@@ -7,6 +7,8 @@ from kaapanapy.logger import get_logger
 logger = get_logger(__name__, logging.INFO)
 
 # Metadata JSON
+PLACEHOLDER_CODING_SCHEME_DESIGNATOR = "Custom"
+PLACEHOLDER_CODE_VALUE = "0.0.0.0.0.0.00000.0.000.0.00"
 
 code_lookup_table_path = "code_lookup_table.json"
 with open(code_lookup_table_path) as f:
@@ -62,7 +64,7 @@ def find_code_meaning(tag):
             result = entry
             break
 
-    # 5. If nothing found — create a custom entry
+    # 5a. If nothing found — create a custom entry
     if result is None:
         logger.info(
             f"Could not find the tag: '{tag}' in the lookup table, using custom entry"
@@ -76,6 +78,20 @@ def find_code_meaning(tag):
             "FMA Code Value": None,
             "UMLS Concept UniqueID": "",
         }
+
+    # 5b. If found but incomplete — warn and overwrite with placeholders
+    # (this mutates the in-memory lookup entry, which is intentional)
+    if not result.get("Coding Scheme Designator") or not result.get("Code Value"):
+        logger.warning(
+            "Lookup entry for tag '%s' has missing Code Value or Coding Scheme "
+            "Designator. Overwriting with placeholders. Entry was: %s",
+            tag,
+            result,
+        )
+        if not result.get("Coding Scheme Designator"):
+            result["Coding Scheme Designator"] = PLACEHOLDER_CODING_SCHEME_DESIGNATOR
+        if not result.get("Code Value"):
+            result["Code Value"] = PLACEHOLDER_CODE_VALUE
 
     logger.info("#")
     logger.info("#####################################################")

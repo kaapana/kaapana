@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-import sys
+import os
+from dotenv import load_dotenv
 from pathlib import Path
-from shutil import copyfile, rmtree
+from shutil import rmtree
 from time import time
 
 from build_helper.build import (
@@ -12,55 +13,29 @@ from build_helper.build import (
     OfflineInstallerHelper,
     TrivyHelper,
 )
-from build_helper.cli.config_loader import load_yaml, merge_args_with_config, parse_args
+from build_helper.cli.config_loader import parse_args
 from build_helper.container import ContainerHelper
 from build_helper.helm import HelmChartHelper
 from build_helper.utils.logger import get_logger, init_logger, set_console_level
 
 
-def main():
-    args = parse_args()
+def main(build_config):
+    if build_config.build_dir.exists():
+        rmtree(build_config.build_dir)
 
-    script_dir = Path(__file__).resolve().parent.parent
-
-    kaapana_dir = Path(getattr(args, "kaapana_dir", script_dir))
-    build_dir = Path(getattr(args, "build_dir", kaapana_dir / "build"))
-    config_path = Path(
-        getattr(args, "config", kaapana_dir / "build-scripts" / "build-config.yaml")
-    )
-
-    if build_dir.exists():
-        rmtree(build_dir)
-
-    build_dir.mkdir(parents=True, exist_ok=True)
-    init_logger(build_dir, log_level="DEBUG")
+    build_config.build_dir.mkdir(parents=True, exist_ok=True)
+    init_logger(build_config.build_dir, log_level="DEBUG")
     logger = get_logger()
     logger.info("-----------------------------------------------------------")
     logger.info("--------------- loading build-configuration ---------------")
     logger.info("-----------------------------------------------------------")
 
-    if not (kaapana_dir / "platforms").is_dir():
-        logger.error(f"The directory `platforms` was not found in {kaapana_dir}.")
+    if not (build_config.kaapana_dir / "platforms").is_dir():
+        logger.error(
+            f"The directory `platforms` was not found in {build_config.kaapana_dir}."
+        )
         exit(1)
 
-    if not config_path.exists():
-        logger.error("\nThe build-configuration.yaml was not found!")
-        template_path = kaapana_dir / "build-scripts" / "build-config-template.yaml"
-        assert template_path.exists()
-        copyfile(src=template_path, dst=config_path)
-        logger.error("Default config has been created -> please adjust as needed!!")
-        logger.error(f"See: {config_path}\n")
-        sys.exit(1)
-
-    file_config = load_yaml(config_path)
-    file_config.update(
-        {
-            "kaapana_dir": kaapana_dir,
-            "build_dir": build_dir,
-        }
-    )
-    config_data = merge_args_with_config(args, file_config)
-    build_config = BuildConfig(**config_data)
     set_console_level(build_config.log_level)
 
     logger.info("")
@@ -187,4 +162,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    load_dotenv(Path(os.getcwd(), ".env"))
+    args = parse_args()
+    build_config = BuildConfig(**vars(args))
+
+    main(build_config)

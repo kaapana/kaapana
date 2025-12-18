@@ -202,120 +202,72 @@ You should also have the following packages installed on your build-system.
 Start Build
 ------------
 
-#. Generate default build-config
+.. tabs::
 
-   :code:`./kaapana/build-scripts/start_build.py`
+   .. tab:: Build With Remote Registry
 
-#. Open the build-configuration file
+      We recommend building the project using a registry. If you do not have access to an established registry, we recommend using `Gitlab <https://gitlab.com>`_, which provides a cost-free option to use a private container registry.
 
-   :code:`nano kaapana/build-scripts/build-config.yaml`
+      .. code-block:: python
 
-#. Adjust the configuration to your needs:
+         python3 build-scripts/cli.py --default-registry <registry-url> registry-username --registry-pw <registry-password>
 
-   .. tabs::
+      .. note::
+         1. If the username and password are not working, you may need to use an **access token** instead.
+         2. Ensure that the **username/access token does not contain spaces**.
 
-      .. tab:: Build With Remote Registry
+   .. tab:: Build With Local Registry
 
-         We recommend building the project using a registry. If you do not have access to an established registry, we recommend using `Gitlab <https://gitlab.com>`_, which provides a cost-free option to use a private container registry.
+      | Not recommended.
+      | If a private registry is not available, it is possible to setup a local registry.
+      | This may be helpful for one-time show-casing, testing, developing, or if there are any issues with connection to the remote registry.
+      | This solution is only persistent while the docker container containing the registry is running. It also works only locally and cannot be distributed.
+      | For building with a local registry, you need to set up a local Docker registry with basic authentication with following steps:
 
-         .. code-block:: python
-            :emphasize-lines: 2
+      1. Create credentials (replace **<registry user>** and **<registry password>**):
 
-            http_proxy: "" # put the proxy here if needed
-            default_registry: "registry.<gitlab-url>/<group-or-user>/<project>" # registry url incl. project Gitlab template: "registry.<gitlab-url>/<group/user>/<project>"
-            registry_username: "" # container registry username
-            registry_password: "" # container registry password
-            container_engine: "docker" # docker or podman
-            enable_build_kit: true # Should be false for now: Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/
-            log_level: "INFO" # DEBUG, INFO, WARNING or ERROR
-            build_only: false # charts and containers will only be build and not pushed to the registry
-            create_offline_installation: false # Advanced feature - whether to create a docker dump from which the platform can be deployed offline (file-size ~50GB)
-            push_to_microk8s: false # Advanced feature - inject container directly into microk8s after build
-            exit_on_error: true  # stop immediately if an issue occurs
-            enable_linting: true # should be true - checks deployment validity
-            skip_push_no_changes: false # Advanced feature - should be false usually
-            platform_filter: "kaapana-admin-chart" # platform-chart name (e.g. racoon-admin-chart, kaapana-admin-chart, wdb-chart)
-            external_source_dirs: "" # comma seperated paths
-            build_ignore_patterns: "" # comma seperated list of directory paths or files that should be ignored
-            parallel_processes: 2 # parallel process count for container build + push
-            include_credentials: false # Whether to include the used registry credentials into the deploy-platform script
-            enable_image_stats: false # Whether to enable container image size statistics (build/image_stats.json)
-            vulnerability_scan: false # Whether containers should be checked for vulnerabilities during build.
-            vulnerability_severity_level: "CRITICAL,HIGH" # Filter by severity of findings. CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN. All -> ""
-            configuration_check: false # Wheter the Charts, deployments, dockerfiles etc. should be checked for configuration errors.
-            configuration_check_severity_level: "CRITICAL,HIGH" # Filter by severity of findings. CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN. All -> ""
-            create_sboms: false # Create Software Bill of Materials (SBOMs) for the built containers.
+         .. code-block:: bash
 
-         .. note::
-            1. If the username and password are not working, you may need to use an **access token** instead.
-            2. Ensure that the **username/access token does not contain spaces**.
-
-      .. tab:: Build With Local Registry
-
-         | Not recommended.
-         | If a private registry is not available, it is possible to setup a local registry.
-         | This may be helpful for one-time show-casing, testing, developing, or if there are any issues with connection to the remote registry.
-         | This solution is only persistent while the docker container containing the registry is running. It also works only locally and cannot be distributed.
-         | For building with a local registry, you need to set up a local Docker registry with basic authentication with following steps:
-
-         1. Create credentials (replace **<registry user>** and **<registry password>**):
-
-            .. code-block:: bash
-
-               mkdir auth
-               docker run --entrypoint htpasswd httpd:2.4.58 -Bbn <registry user> <registry password> > auth/htpasswd
+            mkdir auth
+            docker run --entrypoint htpasswd httpd:2.4.58 -Bbn <registry user> <registry password> > auth/htpasswd
 
 
-         2. Start the Docker registry with basic authentication:
+      2. Start the Docker registry with basic authentication:
 
-            .. code-block:: bash
+         .. code-block:: bash
 
-               docker run -d -p 5000:5000 --restart unless-stopped --name registry -v "$(pwd)"/auth:/auth -e "REGISTRY_AUTH=htpasswd" -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd registry:2.8.3
-
-
-         3. Configure ``build_config.yaml``:
-
-            .. code-block:: python
-               :emphasize-lines: 2
-
-               ...
-               default_registry: "localhost:5000"
-               ...
+            docker run -d -p 5000:5000 --restart unless-stopped --name registry -v "$(pwd)"/auth:/auth -e "REGISTRY_AUTH=htpasswd" -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd registry:2.8.3
 
 
-      .. tab:: Build Tarball
-
-         | Not recommended.
-         | In case platfrom should be deployed in the machine without internet access (i.e. offline),
-         | installation files, containers and helm charts need to be pre-build on the server
-         | with internet access and copied on the server, where requirements can be installed and platfrom deployed.
-         | This configuration creates an image tarball and offline microk8s installer
+      3. Configure ``build_config.yaml``:
 
          .. code-block:: python
-            :emphasize-lines: 2, 4, 5, 6
 
-            ...
-            default_registry: "registry.local/offline/offline" # dummy registry user for tagging purposes only
-            ...
-            build_only: true # charts and containers will only be build and not pushed to the registry
-            create_offline_installation: true # Advanced feature - whether to create a docker dump from which the platform can be deployed offline (file-size ~50GB)
-            push_to_microk8s: false # Advanced feature - inject container directly into microk8s after build
-            ...
+            python3 build-scripts/cli.py --registry-username <registry user> --registry-password <registry password> --default-registry "localhost:5000"
 
-         | Installer will be available in ``kaapana/build/microk8s-offline-installer``
-         | Tarball will be available in ``kaapana/build/kaapana-admin-chart/kaapana-admin-chart-<version>-images.tar``
 
-#. After the configuration has been adjusted, the build process can be started with:
+   .. tab:: Build Tarball
 
-   | :code:`./kaapana/build-scripts/start_build.py -u <registry user> -p <registry password>`
+      | Not recommended.
+      | In case platfrom should be deployed in the machine without internet access (i.e. offline),
+      | installation files, containers and helm charts need to be pre-build on the server
+      | with internet access and copied on the server, where requirements can be installed and platfrom deployed.
+      | This configuration creates an image tarball and offline microk8s installer
 
-   This takes usually (depending on your hardware) around 1h.
+      .. code-block:: python
 
-   .. hint::
-      **While developing**
-      It is possible to set the username/access token and password in the config file instead of passing them as parameters.
-      This approach should be used only for development cases, not in production environments.
+         python3 build-scripts/cli.py --build-only --create-offline-installation --default-registry offline
 
-#. You can find the build-logs and results at :code:`./kaapana/build`
+      | Installer will be available in ``kaapana/build/microk8s-offline-installer``
+      | Tarball will be available in ``kaapana/build/kaapana-admin-chart/kaapana-admin-chart-<version>-images.tar``
+
+
+This takes usually (depending on your hardware) around 1h.
+You can find the build-logs and results at :code:`./kaapana/build`
+
+.. hint::
+   You can also set parameters as environment variables or store them in a :code:`.env` file in your working directory.
+   For a full list of all options execute :code:`python3 build-scripts/cli --help`
+
 
 The next step will explain how to install the Kubernetes cluster via the :code:`kaapanactl.sh` script.

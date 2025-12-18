@@ -177,7 +177,7 @@ function deploy() {
     _Flag: --report, create a report of the state of the microk8s cluster
     _Flag: --plain-http, use insecure HTTP when talking to the registry (default HTTPS, use --no-plain-http to force it)
 
-    _Argument: --chart-ref [registry/path/chart:version]
+    _Argument: --chart [registry/path/chart:version]
     _Argument: --platform-name [Helm chart name]
     _Argument: --platform-version [Helm chart version]
     _Argument: --registry-url [OCI registry URL]
@@ -364,13 +364,26 @@ function deploy() {
 
     setup_storage_provider
 
+    if [[ -n "$CHART_PATH" ]]; then
+        PLATFORM_VERSION=$( $HELM_EXECUTABLE show chart ${CHART_PATH} | grep '^version:' | awk '{print $2}' )
+        PLATFORM_NAME=$( $HELM_EXECUTABLE show chart ${CHART_PATH} | grep '^name:' | awk '{print $2}' )
+    fi
+
+    if [ "${OFFLINE_MODE,,}" == true ]; then
+        CONTAINER_REGISTRY_USERNAME=""
+        CONTAINER_REGISTRY_PASSWORD=""
+        prompt_required_value CONTAINER_REGISTRY_URL "Enter the container registry url: " false "$QUIET"
+    fi
+
     if [[ -z "$PLATFORM_NAME" || -z "$PLATFORM_VERSION" || -z "$CONTAINER_REGISTRY_URL" ]]; then
         prompt_required_value CHART_REFERENCE "Enter the kaapana chart (registry/path/chart:version): " false "$QUIET"
         parse_chart_reference "$CHART_REFERENCE"
     fi
 
-    prompt_required_value CONTAINER_REGISTRY_USERNAME "Enter the container registry username: " false "$QUIET"
-    prompt_required_value CONTAINER_REGISTRY_PASSWORD "Enter the container registry password: " true "$QUIET"
+    if [ "${OFFLINE_MODE,,}" != true ]; then
+        prompt_required_value CONTAINER_REGISTRY_USERNAME "Enter the container registry username: " false "$QUIET"
+        prompt_required_value CONTAINER_REGISTRY_PASSWORD "Enter the container registry password: " true "$QUIET"
+    fi
 
     if [ ! -z $INSTANCE_UID ]; then
         echo ""
@@ -572,6 +585,7 @@ function server_installation() {
             install_packages_almalinux
             install_core core20 # for microk8s
             install_core core24 # for helm
+            install_snapd # for helm
             install_helm
             install_microk8s
         ;;
@@ -582,6 +596,7 @@ function server_installation() {
             install_packages_ubuntu
             install_core core20 # for microk8s
             install_core core24 # for helm
+            install_snapd # for helm
             install_helm
             install_microk8s
         ;;
@@ -822,6 +837,32 @@ function install_helm {
     fi
 }
 
+function install_snapd {
+    local package_name="snapd"
+    echo "${YELLOW}Checking if ${package_name} is installed ... ${NC}"
+    if ls -l /var/lib/snapd/snaps | grep "${package_name}\.snap" ;
+    then
+        echo ""
+        echo "${GREEN}${package_name} is already installed ...${NC}"
+        echo "${GREEN}-> skipping installation ${NC}"
+        echo ""
+    else
+        echo "${YELLOW}${package_name} is not installed -> start installation ${NC}"
+        if [ "$OFFLINE_SNAPS" = "true" ]; then
+            echo "${YELLOW} -> ${package_name} offline installation! ${NC}"
+            snap_path=$SCRIPT_DIR/${package_name}.snap
+            assert_path=$SCRIPT_DIR/${package_name}.assert
+            [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
+            [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
+            snap ack $assert_path
+            snap install --classic $snap_path
+        else
+            echo "${YELLOW}${package_name} will be automatically installed ...${NC}"
+        fi
+    fi
+}
+
+
 function dns_check {
     if [ ! -z "$DNS" ]; then
         echo "${GREEN}${NC}"
@@ -917,6 +958,7 @@ function install_microk8s {
             [ -f $MICROK8S_BASE_IMAGES_TAR_PATH ] && echo "${GREEN}MICROK8S_BASE_IMAGES_TAR exists ... ${NC}" || (echo "${RED}Images tar does not exist -> exit ${NC}" && exit 1)
             echo "${RED}This can take a long time! -> please be patient and wait. ${NC}"
             microk8s.ctr images import $MICROK8S_BASE_IMAGES_TAR_PATH
+            microk8s kubectl apply -f /var/snap/microk8s/current/args/cni-network/cni.yaml
             echo "${GREEN}Microk8s offline installation done!${NC}"
         else
             echo "${YELLOW}Installing microk8s v$DEFAULT_MICRO_VERSION ...${NC}"
@@ -1246,7 +1288,7 @@ function get_domain {
         # get nslookup result, use || true to ensure script doesn't exit immediately is cmd fails
         NSLOOKUP_RESULT=$(nslookup "$SERVER_IP" || true)
         if [[ -z "$NSLOOKUP_RESULT" || "$NSLOOKUP_RESULT" == *"server can't find"* ]]; then
-            echo -e "NS lookup failed, could not determine DOMAIN from SERVER_IP. Run the script with explicit domain name: ./deploy_platform.sh --domain <domain-name>"
+            echo -e "NS lookup failed, could not determine DOMAIN from SERVER_IP. Run the script with explicit domain name: ./kaapanactl.sh deploy --domain <domain-name>"
             exit 1
         fi
         DOMAIN=$(echo "$NSLOOKUP_RESULT" | head -n 1 | awk -F '= ' '{print $2}')
@@ -1319,7 +1361,7 @@ function delete_deployment {
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
         echo "${RED}kubectl get pods -A${NC}"
         echo "${RED}kubectl get namespaces${NC}"
-        echo "${RED}Executing './deploy_platform.sh --no-hooks' is an option to force the resources to be removed.${NC}"
+        echo "${RED}Executing './kaapanactl.sh deploy --no-hooks' is an option to force the resources to be removed.${NC}"
         echo "${RED}Once everything is deleted you can re-deploy the platform!${NC}"
         exit 1
     fi
@@ -1712,7 +1754,7 @@ function migrate() {
 
 function deploy_chart {
     if [ -z "$CONTAINER_REGISTRY_URL" ]; then
-        echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the deploy_platform.sh script!${NC}"
+        echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the kaapanactl.sh script!${NC}"
         echo "${RED}ABORT${NC}"
         exit 1
     fi

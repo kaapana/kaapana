@@ -10,3 +10,5 @@ urllib3==2.5.0
 rich==14.2.0
 networkx==3.5
 pydantic==2.12.5
+dotenv==0.9.9
+typer==0.20.0

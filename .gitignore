@@ -41,3 +41,4 @@ tests/venv/*
 .mypy_cache
 *.egg-info
 *.db
+.env

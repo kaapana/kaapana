@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "task-api"
-version = "0.1.0"
+version = "1.0.0"
 description = "A tool for processing-containers for Kaapana"
 authors = [
     { name="Your Name", email="your.email@example.com" }

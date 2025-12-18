@@ -1,6 +1,7 @@
 {
     "name": "send-dicoms",
     "description": "Send dicom images to a CTP server with dcmsend",
+    "api_version": 1,
     "templates": [
         {
             "identifier": "send-dicoms",

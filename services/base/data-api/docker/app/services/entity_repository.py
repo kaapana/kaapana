@@ -84,45 +84,6 @@ async def resolve_entity_cursor(
     return await _cursor_tuple(session, entity_id)
 
 
-async def execute_entity_query(
-    session: AsyncSession,
-    request: QueryRequest,
-) -> tuple[list[DataEntity], int, UUID | None]:
-    predicate = _build_query_predicate(request.where)
-    total_count = await _count_entities(session, predicate)
-
-    limit = request.limit or 100
-    stmt = _entity_select()
-    if predicate is not None:
-        stmt = stmt.where(predicate)
-
-    stmt = stmt.order_by(*_creation_order()).limit(limit + 1)
-    if request.cursor:
-        created_at, cursor_id = await _cursor_tuple(session, request.cursor)
-        stmt = stmt.where(
-            tuple_(DataEntityORM.created_at, DataEntityORM.id)
-            > tuple_(created_at, cursor_id)
-        )
-
-    result = await session.execute(stmt)
-    rows = result.scalars().unique().all()
-    has_more = len(rows) > limit
-    page = rows[:limit]
-    next_cursor = page[-1].id if has_more and page else None
-    return entities_from_orms(page), total_count, next_cursor
-
-
-async def _count_entities(
-    session: AsyncSession, predicate: ColumnElement[bool] | None
-) -> int:
-    stmt = select(func.count(DataEntityORM.id))
-    if predicate is not None:
-        stmt = stmt.where(predicate)
-    result = await session.execute(stmt)
-    scalar = result.scalar_one()
-    return int(scalar or 0)
-
-
 async def fetch_entity_page(
     session: AsyncSession,
     *,

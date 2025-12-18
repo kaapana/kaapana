@@ -237,7 +237,7 @@ def parse_args() -> argparse.Namespace:
         "--plain-http",
         help="Use plain HTTP for communication.",
         action="store_true",
-        default=os.getenv("http_proxy", False),
+        default=os.getenv("PLAIN_HTTP", False),
     )
 
     parser.add_argument(

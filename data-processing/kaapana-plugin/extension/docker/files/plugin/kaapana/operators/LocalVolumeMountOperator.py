@@ -1,3 +1,5 @@
+# !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
+# If you have a custom Local Operator, it should be migrated to a processing container based operator.
 import os, shutil
 from kaapana.operators.KaapanaPythonBaseOperator import (
     KaapanaPythonBaseOperator

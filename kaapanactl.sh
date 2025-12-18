@@ -1429,9 +1429,16 @@ function run_migration_chart() {
         --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
         --set-string global.fast_data_dir="$FAST_DATA_DIR" \
         --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
+        --set-string global.storage_provider="$STORAGE_PROVIDER" \
+        --set-string global.storage_class_slow="$STORAGE_CLASS_SLOW" \
+        --set-string global.storage_class_fast="$STORAGE_CLASS_FAST" \
+        --set-string global.storage_class_workflow="$STORAGE_CLASS_WORKFLOW" \
+        --set-string global.services_namespace="$SERVICES_NAMESPACE" \
+        --set-string global.admin_namespace="$ADMIN_NAMESPACE" \
         --set-string global.pull_policy_images="$PULL_POLICY_IMAGES" \
         --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
         --set-string global.kaapana_build_version="$PLATFORM_VERSION" \
+        --set-string global.volume_slow_data="$VOLUME_SLOW_DATA"\
         --set-string global.from_version="$FROM_VERSION" \
         --set-string global.to_version="$TO_VERSION"
 
@@ -1508,7 +1515,7 @@ function run_migration_chart() {
                 cleanup
                 exit 1
             fi
-        fi
+       fi
 
         sleep "$INTERVAL"
         ELAPSED=$((ELAPSED + INTERVAL))
@@ -1520,6 +1527,37 @@ function run_migration_chart() {
 }
 
 function prompt_user_backup() {
+    # # ------------------------------------------------------------------
+    # # Experimental migration warning for < 0.6.1
+    # # ------------------------------------------------------------------
+
+    # # Extract numeric parts, default missing patch to 0
+    # IFS='.' read -r P_MAJOR P_MINOR P_PATCH <<<"$PLATFORM_VERSION"
+    # P_PATCH=${P_PATCH:-0}
+
+    # if [[ "$P_MAJOR" -eq 0 && "$P_MINOR" -eq 6 && "$P_PATCH" -lt 1 ]]; then
+    #     echo
+    #     echo "${RED}╔════════════════════════════════════════════════════════════════════╗${NC}"
+    #     echo "${RED}║                        ⚠️  EXPERIMENTAL MIGRATION                  ║${NC}"
+    #     echo "${RED}║                                                                    ║${NC}"
+    #     echo "${RED}║ You are migrating to Kaapana ${PLATFORM_VERSION}.                  ║${NC}"
+    #     echo "${RED}║                                                                    ║${NC}"
+    #     echo "${RED}║ Migration versions < 0.6.1 are HIGHLY EXPERIMENTAL.                ║${NC}"
+    #     echo "${RED}║                                                                    ║${NC}"
+    #     echo "${RED}║ - Data loss is possible                                            ║${NC}"
+    #     echo "${RED}║ - Rollback may NOT be possible                                     ║${NC}"
+    #     echo "${RED}║ - Production use is NOT recommended                                ║${NC}"
+    #     echo "${RED}║                                                                    ║${NC}"
+    #     echo "${RED}║ Type 'I UNDERSTAND' to continue, anything else to abort.           ║${NC}"
+    #     echo "${RED}╚════════════════════════════════════════════════════════════════════╝${NC}"
+    #     echo
+
+    #     read -p "Confirmation: " confirm
+    #     if [[ "$confirm" != "I UNDERSTAND" ]]; then
+    #         echo "${RED}Aborting migration.${NC}"
+    #         exit 1
+    #     fi
+    # fi
     echo -e "${YELLOW}Please BACKUP your data directory first${NC}"
     echo "   cp -a $FAST_DATA_DIR /path/to/fast/backup"
     echo "   cp -a $SLOW_DATA_DIR /path/to/slow/backup"
@@ -1886,6 +1924,16 @@ function deploy_chart {
     # MicroK8s https://microk8s.io/docs/change-cidr
     INTERNAL_CIDR="10.152.183.0/24,10.1.0.0/16,$INTERNAL_CIDR"
 
+    echo " Installing kaapana strorage class ..."
+    WORKDIR=$(mktemp -d)
+    tar -xzf "$CHART_PATH" -C "$WORKDIR"
+    KAAPANA_STORAGE_CHARTPATH="$WORKDIR/$PLATFORM_NAME/charts/kaapana-storage-chart"
+
+    $HELM_EXECUTABLE -n $HELM_NAMESPACE upgrade --install kaapana-storageclass $KAAPANA_STORAGE_CHARTPATH \
+    --set-string global.main_node_name="$MAIN_NODE_NAME" \
+    --set-string global.replica_count="$REPLICA_COUNT" \
+    --set-string global.fast_data_dir="$FAST_DATA_DIR" \
+    --set-string global.slow_data_dir="$SLOW_DATA_DIR"
 
     echo "${GREEN}Checking for version difference and migration options...${NC}"
     migrate
@@ -1955,7 +2003,6 @@ function deploy_chart {
     --set-string global.storage_class_workflow="$STORAGE_CLASS_WORKFLOW" \
     --set-string global.main_node_name="$MAIN_NODE_NAME" \
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
-    --set-string global.replica_count="$REPLICA_COUNT"\
     --set-string global.storage_node="$STORAGE_NODE" \
     --name-template "$PLATFORM_NAME"
 

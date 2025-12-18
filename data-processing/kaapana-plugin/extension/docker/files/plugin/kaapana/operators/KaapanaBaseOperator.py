@@ -646,9 +646,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             )
 
         # In case of debugging service_dag there is no self.project
-        project_name = self.project.get("name") if self.project else "admin"
+        project_id = self.project.get("id") if self.project else "admin"
         ingress_path = (
-            f"applications/project/{project_name}/release/" + "{{ .Release.Name }}"
+            f"applications/project/{project_id}/release/" + "{{ .Release.Name }}"
         )
 
         helm_sets = {

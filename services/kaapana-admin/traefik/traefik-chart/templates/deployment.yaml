@@ -56,7 +56,6 @@ spec:
             - '--api.debug=false'
             - '--log.level=WARN'
             - '--accesslog=true'
-            - '--accesslog.filepath=/log/access.log'
             - '--log.format=json'
             - '--metrics=true'
             - '--metrics.prometheus=true'
@@ -78,17 +77,12 @@ spec:
             - mountPath: /config/conf.toml
               name: traefik-config-file
               subPath: conf.toml
-            - mountPath: /log
-              name: traefiklog
             - mountPath: /ssl
               name: ssl
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
       volumes:
-        - name: traefiklog
-          persistentVolumeClaim:
-            claimName: traefik-pv-claim
         - name: traefik-config-file
           configMap:
             name: traefik-config

@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-ui-service
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    app.kubernetes.io/name: data-ui-service
+spec:
+  selector:
+    app.kubernetes.io/name: data-ui-app
+  ports:
+{{- if .Values.global.dev_files }}
+    - name: http
+      port: 80
+      targetPort: 5173
+  type: ClusterIP
+{{- else }}
+    - name: http
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+{{- end }}
+---
+{{- if not .Values.global.dev_files }}
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix-data-ui
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  stripPrefix:
+    prefixes:
+    - /data-ui
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: data-ui-ingress
+  namespace: "{{ .Values.global.services_namespace }}"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+{{- if not .Values.global.dev_files }}
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-strip-prefix-data-ui@kubernetescrd
+{{- end }}
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /data-ui
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: data-ui-service
+            port:
+              number: 80
+---

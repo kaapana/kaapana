@@ -1,0 +1,13 @@
+---
+global:
+  dev_files: false
+  dynamicVolumes:
+  - name: data-api-artifacts
+    storage: 200Gi
+
+kaapana_database:
+  admin: false
+  postgres_user: kaapanauser
+  postgres_password: kaapanapassword
+  postgres_db: kaapanauser
+  appName: data-api

@@ -252,11 +252,4 @@ def parse_args() -> argparse.Namespace:
         default=os.getenv("CONTAINER_ENGINE", "docker"),
     )
 
-    parser.add_argument(
-        "--skip-push-no-changes",
-        help="Skip pushing containers with no changes.",
-        action="store_true",
-        default=os.getenv("SKIP_PUSH_NO_CHANGES", False),
-    )
-
     return parser.parse_args()

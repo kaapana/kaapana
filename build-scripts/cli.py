@@ -52,13 +52,15 @@ def build(
         "",
         "-u",
         "--username",
+        "--registry-username",
         envvar="REGISTRY_USER",
         help="Username for registry authentication.",
     ),
     password: str = typer.Option(
         "",
         "-p",
-        "--password",
+        "--registry-password",
+        "--registry-pw",
         envvar="REGISTRY_PW",
         help="Password for registry authentication.",
     ),
@@ -245,12 +247,6 @@ def build(
         envvar="CONTAINER_ENGINE",
         help="Container engine to use (docker or podman).",
     ),
-    skip_push_no_changes: bool = typer.Option(
-        False,
-        "--skip-push-no-changes",
-        envvar="SKIP_PUSH_NO_CHANGES",
-        help="Skip pushing containers with no changes.",
-    ),
 ):
     """
     Kaapana Platform Builder entry point.
@@ -292,7 +288,6 @@ def build(
         plain_http=plain_http,
         helm_executable=helm_executable,
         container_engine=container_engine,
-        skip_push_no_changes=skip_push_no_changes,
     )
     start_build.main(build_config=config)
 

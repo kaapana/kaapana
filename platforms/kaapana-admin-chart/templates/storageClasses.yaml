@@ -4,7 +4,8 @@ apiVersion: storage.k8s.io/v1
 metadata:
   name: kaapana-hostpath-slow-data-dir
 provisioner: microk8s.io/hostpath
-reclaimPolicy: Retain
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
 parameters:
   pvDir: {{.Values.global.slow_data_dir }}
 ---
@@ -13,7 +14,8 @@ apiVersion: storage.k8s.io/v1
 metadata:
   name: kaapana-hostpath-fast-data-dir
 provisioner: microk8s.io/hostpath
-reclaimPolicy: Retain
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
 parameters:
   pvDir: {{.Values.global.fast_data_dir }}
 ---

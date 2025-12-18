@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Optional, Union, List, Dict, Literal
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from task_api.processing_container import pc_models
 from kubernetes import client as k8sclient
 
@@ -59,6 +59,7 @@ class Task(pc_models.BaseTask):
 
     name: str
     image: str
+    api_version: int = 1
     taskTemplate: Union[str, pc_models.TaskTemplate]
     config: Optional[Union[K8sConfig, DockerConfig, BaseConfig]] = BaseConfig()
 
@@ -66,6 +67,13 @@ class Task(pc_models.BaseTask):
     inputs: List[IOVolume] = Field(default_factory=list)
     outputs: List[IOVolume] = Field(default_factory=list)
     env: Optional[List[pc_models.BaseEnv]] = Field(default_factory=list)
+
+    @field_validator("api_version")
+    @classmethod
+    def validate_api_version(cls, v: int) -> int:
+        if v != 1:
+            raise ValueError("api_version must be 1")
+        return v
 
 
 class TaskInstance(pc_models.BaseTask):

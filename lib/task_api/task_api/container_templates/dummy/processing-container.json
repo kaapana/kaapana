@@ -1,5 +1,6 @@
 {
     "name": "Dummy-processing-container",
+    "api_version": 1,
     "description": "Dummy processing container",
     "templates": [
         {

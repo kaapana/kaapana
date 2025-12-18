@@ -646,7 +646,12 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             )
 
         # In case of debugging service_dag there is no self.project
-        project_id = self.project.get("id") if self.project else "admin"
+        response = requests.get(
+            "http://aii-service.services.svc:8080/projects/admin"
+        )
+        response.raise_for_status()
+        admin_id = response.json().get("id")
+        project_id = self.project.get("id") if self.project else admin_id
         ingress_path = (
             f"applications/project/{project_id}/release/" + "{{ .Release.Name }}"
         )

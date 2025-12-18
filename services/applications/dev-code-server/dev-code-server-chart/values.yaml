@@ -1,6 +1,6 @@
 ---
 global:
-  ingress_path: "applications/project/{{ .Values.global.project_name }}/release/{{ .Release.Name }}/"
+  ingress_path: "applications/project/{{ .Values.global.project_id }}/release/{{ .Release.Name }}/"
   namespace: "{{ .Values.global.services_namespace }}"
   dynamicVolumes:
     - name: dev-code-server

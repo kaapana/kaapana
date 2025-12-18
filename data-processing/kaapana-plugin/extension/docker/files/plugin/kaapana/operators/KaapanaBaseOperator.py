@@ -169,7 +169,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         pool_slots=None,
         api_version="v1",
         dev_server=None,
-        display_name="-",  # passed to the dev-server chart as display_name annotation for the ingress
+        display_name="-",
+        launch_application_chart="",
         **kwargs,
     ):
         #  Deactivated till dynamic persistent volumes are supported
@@ -254,6 +255,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.model_dir = os.getenv("MODELDIR", "")
         self.result_message = None
         self.display_name = display_name
+        self.launch_application_chart = launch_application_chart
 
         # Namespaces
         self.services_namespace = SERVICES_NAMESPACE
@@ -549,6 +551,73 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.volumes.append(volume_conf)
         self.volume_mounts.append(volume_mount_conf)
 
+    def launch_application(self, context: Context):
+        conf = context["dag_run"].conf
+        release_name = get_release_name(context)
+        
+        try:
+            project_form = conf.get("project_form")
+            self.namespace = project_form.get("kubernetes_namespace")
+        except (KeyError, AttributeError):
+            self.namespace = "project-admin"
+
+        dynamic_volumes_dict = {
+            "workflow-data": PROCESSING_WORKFLOW_DIR,
+        }
+
+        dynamic_volumes = {}
+        for idx, (name, mount_path) in enumerate(dynamic_volumes_dict.items()):
+            dynamic_volumes.update(
+                {
+                    f"global.dynamicVolumes[{idx}].name": name,
+                    f"global.dynamicVolumes[{idx}].mount_path": mount_path,
+                }
+            )
+
+        payload = {
+            "name": f"{self.launch_application_chart}",
+            "version": KAAPANA_BUILD_VERSION,
+            "release_name": release_name,
+            "sets": {
+                "global.namespace": self.namespace,
+                "global.project_namespace": self.namespace,
+                "global.project_name": project_form.get("name"),
+                "global.project_id": project_form.get("id"),
+                "global.display_name": self.display_name,
+                **dynamic_volumes,
+                "mount_path": f'{self.data_dir}/{context["run_id"]}',
+                "workflow_dir": f'{str(PROCESSING_WORKFLOW_DIR)}/{context["run_id"]}',
+                "batch_name": str(self.batch_name),
+                "operator_out_dir": str(self.operator_out_dir),
+                "operator_in_dir": str(self.operator_in_dir),
+                "batches_input_dir": f'{str(PROCESSING_WORKFLOW_DIR)}/{context["run_id"]}/{self.batch_name}',
+            },
+        }
+
+        if "workflow_form" in conf:
+            workflow_form = conf["workflow_form"]
+            if "annotator" in workflow_form:
+                payload["sets"]["annotator"] = workflow_form["annotator"]
+
+        url = f"{KaapanaBaseOperator.HELM_API}/helm-install-chart"
+
+        print("payload")
+        print(payload)
+        r = requests.post(url, json=payload)
+        print(r)
+        print(r.text)
+        r.raise_for_status()
+
+        t_end = time.time() + KaapanaBaseOperator.TIMEOUT
+        while time.time() < t_end:
+            time.sleep(15)
+            url = f"{KaapanaBaseOperator.HELM_API}/view-chart-status"
+            r = requests.get(url, params={"release_name": release_name})
+            if r.status_code == 500 or r.status_code == 404:
+                print(f"Release {release_name} was uninstalled. My job is done here!")
+                break
+            r.raise_for_status()
+
     def launch_dev_server(self, context: Context):
         """
         Launch a dev-server as pending application.
@@ -646,9 +715,14 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             )
 
         # In case of debugging service_dag there is no self.project
-        project_name = self.project.get("name") if self.project else "admin"
+        response = requests.get(
+            "http://aii-service.services.svc:8080/projects/admin"
+        )
+        response.raise_for_status()
+        admin_id = response.json().get("id")
+        project_id = self.project.get("id") if self.project else admin_id
         ingress_path = (
-            f"applications/project/{project_name}/release/" + "{{ .Release.Name }}"
+            f"applications/project/{project_id}/release/" + "{{ .Release.Name }}"
         )
 
         helm_sets = {
@@ -845,6 +919,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.set_volumes_and_volume_mounts()
         self.set_env_secrets()
 
+        if self.launch_application_chart != "":
+            return self.launch_application(context)
         if self.dev_server == "code-server":
             return self.launch_dev_server(context)
         elif self.dev_server is not None:

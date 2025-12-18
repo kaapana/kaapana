@@ -7,7 +7,7 @@ from kaapana.blueprints.kaapana_global_variables import KAAPANA_BUILD_VERSION
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
-from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from mitk_flow.LocalBranchGetReferenceSeries import LocalBranchGetReferenceSeries
 from mitk_flow.LocalMiktInputOperator import LocalMiktInputOperator
@@ -65,12 +65,12 @@ mitk = LocalMiktInputOperator(
     operator_out_dir="mitk-results",
     trigger_rule="none_failed_or_skipped",
 )
-launch_app = KaapanaApplicationOperator(
+
+launch_app = KaapanaBaseOperator(
     dag=dag,
     name="application-mitk-flow",
     input_operator=get_input,
-    chart_name="mitk-flow-chart",
-    version=KAAPANA_BUILD_VERSION,
+    launch_application_chart="mitk-flow-chart",
 )
 
 send_dicom = DcmSendOperator(dag=dag, ae_title="MITK-flow", input_operator=mitk)

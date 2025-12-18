@@ -1,0 +1,33 @@
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: kaapana-hostpath-fast-data-dir
+provisioner: microk8s.io/hostpath
+reclaimPolicy: Delete
+parameters:
+  pvDir: {{.Values.global.fast_data_dir }}
+volumeBindingMode: WaitForFirstConsumer
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: kaapana-longhorn-fast-db
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  # For PostgreSQL or other system databases
+  numberOfReplicas: "1"
+  dataLocality: "best-effort"
+  diskSelector: "fast-data"           # Must match Longhorn disk tag for $FAST_DATA_DIR
+  fsType: "ext4"
+  staleReplicaTimeout: "30"
+  fromBackup: ""
+  disableRevisionCounter: "false"
+allowedTopologies:
+  - matchLabelExpressions:
+    - key: kubernetes.io/hostname
+      values:
+        - {{ .Values.global.main_node_name }}

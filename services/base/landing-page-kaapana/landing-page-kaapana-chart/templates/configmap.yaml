@@ -127,7 +127,7 @@ data:
             "linkTo": "/workflow-ui/runs"
           },
           "data": {
-            "label": "Data API",
+            "label": "Data",
             "endpoint": "/data-ui",
             "linkTo": "/data-ui/"
           }

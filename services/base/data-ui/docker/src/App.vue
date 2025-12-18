@@ -162,7 +162,7 @@ function openApiDocs() {
       <v-toolbar-title class="app-title">
         <div class="d-flex align-center">
           <v-icon size="small" color="primary-darken-2" class="mr-1">mdi-database</v-icon>
-          <span class="text-body-1">Data API</span>
+          <span class="text-body-1">Data</span>
         </div>
       </v-toolbar-title>
       <v-spacer></v-spacer>

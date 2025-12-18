@@ -13,6 +13,7 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 
 class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
     """
+    DEPRECATED: Use KaapanaBaseOperator with `launch_application_chart` instead. For an example DAG see `mitk-flow`.
     A custom Airflow operator for deploying and managing Helm charts within the Kaapana framework.
     """
 

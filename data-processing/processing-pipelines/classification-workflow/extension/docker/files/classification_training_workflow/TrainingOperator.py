@@ -12,7 +12,7 @@ class TrainingOperator(KaapanaBaseOperator):
         self,
         dag,
         name="classification-training",
-        execution_timeout=timedelta(minutes=20),
+        execution_timeout=timedelta(days=5),
         *args,
         **kwargs,
     ):

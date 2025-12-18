@@ -108,7 +108,7 @@ data:
       { "software_uuid": "federated-setup-central-test"},
       { "software_uuid": "federated-setup-node-test"},
       { "software_uuid": "generate-thumbnail"},
-      { "software_uuid": "import-WSI"},
+      { "software_uuid": "import-wsi"},
       { "software_uuid": "import-dicoms-from-data-upload"},
       { "software_uuid": "import-niftis-from-data-upload"},
       { "software_uuid": "isolated-container-workflow"},

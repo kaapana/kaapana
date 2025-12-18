@@ -259,6 +259,26 @@ def upload_series_to_data_api(ds, **kwargs):
     except requests.exceptions.RequestException as e:
         print(f"Note: Could not register Permissions schema (may already exist): {e}")
 
+    # Register the Validation Results schema (generic, permissive)
+    validation_schema = {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "title": "Validation Results",
+        "description": "Results produced by validators, potentially including HTML reports",
+        "additionalProperties": True,
+    }
+
+    try:
+        response = requests.post(
+            f"{data_api_url}/metadata/keys/dicom-series-validation",
+            json=validation_schema,
+            headers={"Content-Type": "application/json"},
+        )
+        response.raise_for_status()
+        print("Successfully registered Validation metadata schema")
+    except requests.exceptions.RequestException as e:
+        print(f"Note: Could not register Validation schema (may already exist): {e}")
+
     batch_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
     batch_folder = [f for f in glob.glob(os.path.join(batch_dir, "*"))]
 
@@ -375,28 +395,6 @@ def upload_series_to_data_api(ds, **kwargs):
                 print(f"Error adding permissions metadata for entity {entity_id}: {e}")
 
         # Add validation results
-        # Register the Validation Results schema (generic, permissive)
-        validation_schema = {
-            "$schema": "http://json-schema.org/draft-07/schema#",
-            "type": "object",
-            "title": "Validation Results",
-            "description": "Results produced by validators, potentially including HTML reports",
-            "additionalProperties": True,
-        }
-
-        try:
-            response = requests.post(
-                f"{data_api_url}/metadata/keys/dicom-series-validation",
-                json=validation_schema,
-                headers={"Content-Type": "application/json"},
-            )
-            response.raise_for_status()
-            print("Successfully registered Validation metadata schema")
-        except requests.exceptions.RequestException as e:
-            print(
-                f"Note: Could not register Validation schema (may already exist): {e}"
-            )
-
         # Append validation metadata and upload HTML report artifacts
         validator_results_dir = Path(batch_element_dir) / validate.operator_out_dir
         validation_reports = [f for f in validator_results_dir.glob("*.html")]
@@ -435,33 +433,33 @@ def upload_series_to_data_api(ds, **kwargs):
                 )
                 response.raise_for_status()
                 print(f"Added validation metadata to entity {entity_id}")
+
+                # Upload each HTML report as an artifact under the 'validation' metadata
+                for report_path in validation_reports:
+                    artifact_id = f"report-{report_path.stem}"
+                    try:
+                        with open(report_path, "rb") as report_file:
+                            files = {
+                                "file": (
+                                    report_path.name,
+                                    report_file,
+                                    "text/html",
+                                )
+                            }
+                            response = requests.post(
+                                f"{data_api_url}/entities/{entity_id}/metadata/dicom-series-validation/artifacts/{artifact_id}",
+                                files=files,
+                            )
+                            response.raise_for_status()
+                            print(
+                                f"Uploaded validation report artifact '{artifact_id}' for entity {entity_id}"
+                            )
+                    except requests.exceptions.RequestException as e:
+                        print(
+                            f"Error uploading validation report '{report_path.name}' for entity {entity_id}: {e}"
+                        )
             except requests.exceptions.RequestException as e:
                 print(f"Error adding validation metadata for entity {entity_id}: {e}")
-
-            # Upload each HTML report as an artifact under the 'validation' metadata
-            for report_path in validation_reports:
-                artifact_id = f"report-{report_path.stem}"
-                try:
-                    with open(report_path, "rb") as report_file:
-                        files = {
-                            "file": (
-                                report_path.name,
-                                report_file,
-                                "text/html",
-                            )
-                        }
-                        response = requests.post(
-                            f"{data_api_url}/entities/{entity_id}/metadata/dicom-series-validation/artifacts/{artifact_id}",
-                            files=files,
-                        )
-                        response.raise_for_status()
-                        print(
-                            f"Uploaded validation report artifact '{artifact_id}' for entity {entity_id}"
-                        )
-                except requests.exceptions.RequestException as e:
-                    print(
-                        f"Error uploading validation report '{report_path.name}' for entity {entity_id}: {e}"
-                    )
 
 
 def upload_thumbnails_into_project_bucket(ds, **kwargs):
@@ -550,12 +548,11 @@ branch_by_has_ref_series >> (get_ref_ct_series, generate_thumbnail)
 
 remove_tags >> dcm_send
 
-(
-    get_ref_ct_series
-    >> generate_thumbnail
-    >> put_thumbnail_to_project_bucket
-    >> upload_to_data_api
-)
+(get_ref_ct_series >> generate_thumbnail >> put_thumbnail_to_project_bucket)
+
+generate_thumbnail >> upload_to_data_api
+extract_metadata >> upload_to_data_api
+validate >> upload_to_data_api
 
 [
     add_to_dataset,
@@ -563,5 +560,6 @@ remove_tags >> dcm_send
     dcm_send,
     put_html_to_minio,
     put_results_html_to_minio_admin_bucket,
+    put_thumbnail_to_project_bucket,
     upload_to_data_api,
 ] >> clean

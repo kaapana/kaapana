@@ -278,9 +278,7 @@ Start Build
             .. code-block:: python
                :emphasize-lines: 2
 
-               ...
-               default_registry: "localhost:5000"
-               ...
+               python3 build-scripts/cli.py --username <registry user> --registry-password <registry password> --default_registry: "localhost:5000"
 
 
       .. tab:: Build Tarball

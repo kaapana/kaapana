@@ -17,3 +17,13 @@ extension_params:
       definition: Display name for the launched application
       type: string
       value: ""
+  minio_prefix:
+    default: "/"
+    definition: Directory in the project bucket to sync into the jupyterlab application/
+    type: string
+    value: "/"
+  exclude_patterns:
+    default: "__EXCLUDE_NO_FILES__"
+    definition: Comma separated list of file patterns to exclude when syncing
+    type: string
+    value: "__EXCLUDE_NO_FILES__"

@@ -26,7 +26,7 @@ elif [[ $ACTION == "PUSH" ]]; then
     mc mirror --watch ${exclude} $LOCAL_PATH minio/$MINIO_PATH 
 elif [[ $ACTION == "SYNC" ]]; then
     echo "INFO: Start bidirectional sync from local directory ${LOCAL_PATH} into  minio objects at ${MINIO_PATH}"
-    RCLONE_SYNC_CMD="rclone bisync --s3-provider "Minio" --s3-endpoint http://$MINIO_SERVICE --s3-access-key-id=$MINIO_USER --s3-secret-access-key=$MINIO_PASSWORD ":s3:/$MINIO_PATH" $LOCAL_PATH --create-empty-src-dirs --compare size,modtime,checksum --slow-hash-sync-only --resilient -MvP --drive-skip-gdocs --fix-case"
+    RCLONE_SYNC_CMD="rclone bisync ${exclude} --s3-provider "Minio" --s3-endpoint http://$MINIO_SERVICE --s3-access-key-id=$MINIO_USER --s3-secret-access-key=$MINIO_PASSWORD ":s3:/$MINIO_PATH" $LOCAL_PATH --create-empty-src-dirs --compare size,modtime,checksum --slow-hash-sync-only --resilient -MvP --drive-skip-gdocs --fix-case"
 
     echo "INFO: Inital sync"
     $RCLONE_SYNC_CMD --resync

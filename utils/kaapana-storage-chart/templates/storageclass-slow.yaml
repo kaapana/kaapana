@@ -1,0 +1,33 @@
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: kaapana-hostpath-slow-data-dir
+provisioner: microk8s.io/hostpath
+reclaimPolicy: Delete
+parameters:
+  pvDir: {{.Values.global.slow_data_dir }}
+volumeBindingMode: WaitForFirstConsumer
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: kaapana-longhorn-slow-data
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Retain
+parameters:
+  # Store DICOM files and storage data
+  numberOfReplicas: "1"
+  dataLocality: "best-effort"  
+  diskSelector: "slow-data"           # Must match Longhorn disk tag for $SLOW_DATA_DIR
+  fsType: "ext4"
+  staleReplicaTimeout: "30"
+  fromBackup: ""
+  disableRevisionCounter: "false"
+volumeBindingMode: WaitForFirstConsumer
+allowedTopologies:
+  - matchLabelExpressions:
+    - key: kubernetes.io/hostname
+      values:
+        - {{ .Values.global.main_node_name }}

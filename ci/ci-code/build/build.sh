@@ -5,22 +5,15 @@ set -x   # verbose logging
 export http_proxy="$HTTP_PROXY"
 export https_proxy="$HTTPS_PROXY"
 
-BUILD_CONFIG_FILE="$KAAPANA_DIR/build-config-ci.yaml"
-
 echo "Build command line flags: $BUILD_ARGUMENTS"
 
 # --- Install Python requirements ---
 pip install -r "$KAAPANA_DIR/build-scripts/requirements.txt"
 
-# --- Copy build config template ---
-cp "$KAAPANA_DIR/build-scripts/build-config-template.yaml" "$BUILD_CONFIG_FILE"
-
-# --- Set registry URL in build-config.yaml ---
-sed -i -E "s|^default_registry:[[:space:]]*.*|default_registry: \"$REGISTRY_URL\"|" "$BUILD_CONFIG_FILE"
 
 # --- Adjust exit_on_error if flags set ---
 if [[ "$BUILD_ARGUMENTS" =~ -vs|--vulnerability-scan|-cc|--configuration-check ]]; then
-  sed -i -E "s|^exit_on_error:[[:space:]]*.*|exit_on_error: false|" "$BUILD_CONFIG_FILE"
+  export EXIT_ON_ERROR="false"
 fi
 
 # --- Docker logins ---
@@ -34,8 +27,8 @@ set -x
 
 # --- Start build process ---
 set +e
-python3 "$KAAPANA_DIR/build-scripts/start_build.py" \
-    -c "$BUILD_CONFIG_FILE" \
+python3 "$KAAPANA_DIR/build-scripts/cli.py" \
+    --default-registry $REGISTRY_URL \
     $BUILD_ARGUMENTS 
 BUILD_RC=$?
 set -e

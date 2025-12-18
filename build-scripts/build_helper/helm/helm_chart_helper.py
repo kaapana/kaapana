@@ -363,11 +363,10 @@ class HelmChartHelper:
                     logger.info(
                         f"Collection chart {index + 1}/{len(collection_chart.chart_dependencies)}: {chart.name}:"
                     )
-                    if not cls._build_config.build_only:
-                        chart.make_package(
-                            cls._build_config.helm_executable,
-                            cls._build_config.plain_http,
-                        )
+                    chart.make_package(
+                        cls._build_config.helm_executable,
+                        cls._build_config.plain_http,
+                    )
 
                     bar()
 

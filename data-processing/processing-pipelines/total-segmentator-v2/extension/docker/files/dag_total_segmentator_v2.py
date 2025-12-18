@@ -88,6 +88,13 @@ ui_forms = {
                 "default": ["total"],
                 "readOnly": False
             },
+            "input": {
+                "title": "Input",
+                "description": "Input-data modality",
+                "type": "string",
+                "enum": ["CT", "MR"],
+                "readOnly": False,
+            },
             "fast": {
                 "title": "--fast",
                 "description": "Run faster lower resolution model.",
@@ -150,21 +157,12 @@ ui_forms = {
                 "default": 1,
                 "type": "integer",
                 "readOnly": False,
-                "required": True,
             },
             "nr_thr_saving": {
                 "title": "saving thread count",
                 "description": "Nr of threads for saving segmentations.",
                 "default": 6,
                 "type": "integer",
-                "readOnly": False,
-                "required": True,
-            },
-            "input": {
-                "title": "Input",
-                "description": "Input-data modality",
-                "type": "string",
-                "enum": ["CT", "MR"],
                 "readOnly": False,
             },
             "single_execution": {
@@ -175,6 +173,7 @@ ui_forms = {
                 "readOnly": True,
             },
         },
+        "required": ["nr_thr_resamp", "nr_thr_saving", "input"]
     },
 }
 

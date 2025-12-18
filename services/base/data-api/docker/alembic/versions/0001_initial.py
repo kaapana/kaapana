@@ -23,10 +23,35 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "data_entities",
-        sa.Column("id", sa.Integer(), primary_key=True, nullable=False),
-        sa.Column("uid", sa.String(length=255), nullable=False),
+        sa.Column(
+            "id",
+            postgresql.UUID(as_uuid=True),
+            primary_key=True,
+            nullable=False,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column("parent_id", postgresql.UUID(as_uuid=True), nullable=True),
     )
-    op.create_index(op.f("ix_data_entities_uid"), "data_entities", ["uid"], unique=True)
+    op.create_index(
+        "ix_data_entities_created_at", "data_entities", ["created_at"], unique=False
+    )
+    op.create_index(
+        "ix_data_entities_parent_id", "data_entities", ["parent_id"], unique=False
+    )
+    op.create_foreign_key(
+        "fk_data_entities_parent",
+        "data_entities",
+        "data_entities",
+        ["parent_id"],
+        ["id"],
+        ondelete="SET NULL",
+    )
 
     op.create_table(
         "metadata_schemas",
@@ -43,7 +68,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True, nullable=False),
         sa.Column(
             "entity_id",
-            sa.Integer(),
+            postgresql.UUID(as_uuid=True),
             sa.ForeignKey("data_entities.id", ondelete="CASCADE"),
             nullable=False,
         ),
@@ -62,7 +87,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True, nullable=False),
         sa.Column(
             "entity_id",
-            sa.Integer(),
+            postgresql.UUID(as_uuid=True),
             sa.ForeignKey("data_entities.id", ondelete="CASCADE"),
             nullable=False,
         ),
@@ -82,6 +107,13 @@ def upgrade() -> None:
     )
     op.create_index(
         op.f("ix_metadata_entries_key"), "metadata_entries", ["key"], unique=False
+    )
+    op.create_index(
+        "ix_metadata_entries_data_gin",
+        "metadata_entries",
+        ["data"],
+        unique=False,
+        postgresql_using="gin",
     )
 
     op.create_table(
@@ -110,6 +142,7 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_artifacts_metadata_entry_id"), table_name="artifacts")
     op.drop_table("artifacts")
 
+    op.drop_index("ix_metadata_entries_data_gin", table_name="metadata_entries")
     op.drop_index(op.f("ix_metadata_entries_key"), table_name="metadata_entries")
     op.drop_index(op.f("ix_metadata_entries_entity_id"), table_name="metadata_entries")
     op.drop_table("metadata_entries")
@@ -122,5 +155,7 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_metadata_schemas_key"), table_name="metadata_schemas")
     op.drop_table("metadata_schemas")
 
-    op.drop_index(op.f("ix_data_entities_uid"), table_name="data_entities")
+    op.drop_index("ix_data_entities_parent_id", table_name="data_entities")
+    op.drop_constraint("fk_data_entities_parent", "data_entities", type_="foreignkey")
+    op.drop_index("ix_data_entities_created_at", table_name="data_entities")
     op.drop_table("data_entities")

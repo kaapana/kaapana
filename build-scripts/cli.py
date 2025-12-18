@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from typing import List, Optional
 from pathlib import Path
 from dotenv import load_dotenv

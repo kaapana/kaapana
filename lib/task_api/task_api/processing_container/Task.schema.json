@@ -5,6 +5,7 @@
         "labels": {
           "anyOf": [
             {
+              "additionalProperties": true,
               "type": "object"
             },
             {
@@ -41,6 +42,7 @@
         "labels": {
           "anyOf": [
             {
+              "additionalProperties": true,
               "type": "object"
             },
             {
@@ -53,24 +55,12 @@
         "type": {
           "const": "docker",
           "default": "docker",
-          "enum": [
-            "docker"
-          ],
           "title": "Type",
           "type": "string"
         }
       },
       "title": "DockerConfig",
       "type": "object"
-    },
-    "EnvVarType": {
-      "enum": [
-        "boolean",
-        "string",
-        "int"
-      ],
-      "title": "EnvVarType",
-      "type": "string"
     },
     "HostPathVolume": {
       "properties": {
@@ -145,18 +135,14 @@
           ],
           "default": null
         },
-        "input": {
-          "allOf": [
-            {
-              "$ref": "#/$defs/HostPathVolume"
-            }
-          ],
-          "title": "Input"
+        "volume_source": {
+          "$ref": "#/$defs/HostPathVolume",
+          "title": "Volume Source"
         }
       },
       "required": [
         "name",
-        "input"
+        "volume_source"
       ],
       "title": "IOVolume",
       "type": "object"
@@ -166,6 +152,7 @@
         "limits": {
           "anyOf": [
             {
+              "additionalProperties": true,
               "type": "object"
             },
             {
@@ -178,6 +165,7 @@
         "requests": {
           "anyOf": [
             {
+              "additionalProperties": true,
               "type": "object"
             },
             {
@@ -194,10 +182,9 @@
     "ScaleRule": {
       "description": "Defines how memory resources should scale based on the size of input data in an IOMount.",
       "properties": {
-        "complexity": {
-          "pattern": "^[-+]?\\d*(\\.\\d+)?\\*?n(\\*\\*\\d+)?$",
-          "title": "Complexity",
-          "type": "string"
+        "scale_factor": {
+          "title": "Scale Factor",
+          "type": "integer"
         },
         "type": {
           "$ref": "#/$defs/ScaleRuleType"
@@ -214,7 +201,7 @@
               "type": "null"
             }
           ],
-          "default": null,
+          "default": "",
           "title": "Target Dir"
         },
         "target_regex": {
@@ -226,7 +213,7 @@
               "type": "null"
             }
           ],
-          "default": null,
+          "default": ".*",
           "title": "Target Regex"
         },
         "target_glob": {
@@ -238,12 +225,12 @@
               "type": "null"
             }
           ],
-          "default": null,
+          "default": "*",
           "title": "Target Glob"
         }
       },
       "required": [
-        "complexity",
+        "scale_factor",
         "type",
         "mode"
       ],
@@ -253,7 +240,8 @@
     "ScaleRuleMode": {
       "enum": [
         "sum",
-        "max_file_size"
+        "max_file_size",
+        "max_item_sum"
       ],
       "title": "ScaleRuleMode",
       "type": "string"
@@ -345,17 +333,6 @@
           "title": "Value",
           "type": "string"
         },
-        "type": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/EnvVarType"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
         "choices": {
           "anyOf": [
             {
@@ -370,18 +347,6 @@
           ],
           "default": null,
           "title": "Choices"
-        },
-        "adjustable": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Adjustable"
         },
         "description": {
           "anyOf": [
@@ -439,6 +404,11 @@
     "image": {
       "title": "Image",
       "type": "string"
+    },
+    "api_version": {
+      "default": 1,
+      "title": "Api Version",
+      "type": "integer"
     },
     "taskTemplate": {
       "anyOf": [

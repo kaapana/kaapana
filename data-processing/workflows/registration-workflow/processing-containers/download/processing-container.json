@@ -1,6 +1,7 @@
 {
     "name": "data-download-processing-container",
     "description": "Processing container for downloading data from a URL",
+    "api_version": 1,
     "templates": [
         {
             "identifier": "dicom-download",
@@ -91,7 +92,7 @@
                     "description": ""
                 }
 
-                
+
             ],
             "inputs": [],
             "outputs": [

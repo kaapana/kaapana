@@ -22,12 +22,12 @@ The task API must contain following functionalities
 ### Install
 ```bash
 python3 -m build
-python3 -m pip install dist/task_api-0.1.0.tar.gz
+python3 -m pip install dist/task_api-1.0.0.tar.gz
 ```
 
 ### Get a processing-container json file
 ```bash
-python3 -m task_api.cli processing-container <image> --mode docker 
+python3 -m task_api.cli processing-container <image> --mode docker
 ```
 
 ### Run a task in docker
@@ -37,7 +37,7 @@ python3 -m task_api.cli run <path-to-task.json> --mode docker
 
 ### Testing
 ```bash
-coverage run -m pytest 
+coverage run -m pytest
 coverage report -m
 ```
 
@@ -54,7 +54,7 @@ The following section documents the decision for the chosen implementation of mo
 | **`/sys/fs/cgroup/<container-specific-path>/memory.current`** | Shows live memory usage from the cgroup | ✅ Accurate | Cgroup v2 required | Reflects true kernel view of container memory | No historical (peak) info |
 | **`/sys/fs/cgroup/<container-specific-path>/memory.peak`** | Shows **peak memory usage** of the container since startup | ✅ Accurate and authoritative | Cgroup v2 required | Reliable, kernel-enforced metric | Only available on cgroup v2, path can vary with runtime |
 
-We chose to monitor container memory usage via the file: 
+We chose to monitor container memory usage via the file:
 ```bash
 /sys/fs/cgroup/<container-specific-path>/memory.peak
 ```

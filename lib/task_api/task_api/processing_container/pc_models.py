@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Optional, List, Annotated, Dict
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from enum import Enum
 
 
@@ -87,4 +87,12 @@ class ProcessingContainer(BaseModel):
 
     name: str
     description: str
+    api_version: int = 1
     templates: List[TaskTemplate]
+
+    @field_validator("api_version")
+    @classmethod
+    def validate_api_version(cls, v: int) -> int:
+        if v != 1:
+            raise ValueError("api_version must be 1")
+        return v

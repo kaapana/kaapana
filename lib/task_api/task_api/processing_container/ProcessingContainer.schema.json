@@ -1,14 +1,5 @@
 {
   "$defs": {
-    "EnvVarType": {
-      "enum": [
-        "boolean",
-        "string",
-        "int"
-      ],
-      "title": "EnvVarType",
-      "type": "string"
-    },
     "IOMount": {
       "description": "Defines where an input or output channel should be mounted inside the container.",
       "properties": {
@@ -56,6 +47,7 @@
         "limits": {
           "anyOf": [
             {
+              "additionalProperties": true,
               "type": "object"
             },
             {
@@ -68,6 +60,7 @@
         "requests": {
           "anyOf": [
             {
+              "additionalProperties": true,
               "type": "object"
             },
             {
@@ -84,10 +77,9 @@
     "ScaleRule": {
       "description": "Defines how memory resources should scale based on the size of input data in an IOMount.",
       "properties": {
-        "complexity": {
-          "pattern": "^[-+]?\\d*(\\.\\d+)?\\*?n(\\*\\*\\d+)?$",
-          "title": "Complexity",
-          "type": "string"
+        "scale_factor": {
+          "title": "Scale Factor",
+          "type": "integer"
         },
         "type": {
           "$ref": "#/$defs/ScaleRuleType"
@@ -104,7 +96,7 @@
               "type": "null"
             }
           ],
-          "default": null,
+          "default": "",
           "title": "Target Dir"
         },
         "target_regex": {
@@ -116,7 +108,7 @@
               "type": "null"
             }
           ],
-          "default": null,
+          "default": ".*",
           "title": "Target Regex"
         },
         "target_glob": {
@@ -128,12 +120,12 @@
               "type": "null"
             }
           ],
-          "default": null,
+          "default": "*",
           "title": "Target Glob"
         }
       },
       "required": [
-        "complexity",
+        "scale_factor",
         "type",
         "mode"
       ],
@@ -143,7 +135,8 @@
     "ScaleRuleMode": {
       "enum": [
         "sum",
-        "max_file_size"
+        "max_file_size",
+        "max_item_sum"
       ],
       "title": "ScaleRuleMode",
       "type": "string"
@@ -235,17 +228,6 @@
           "title": "Value",
           "type": "string"
         },
-        "type": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/EnvVarType"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
         "choices": {
           "anyOf": [
             {
@@ -260,18 +242,6 @@
           ],
           "default": null,
           "title": "Choices"
-        },
-        "adjustable": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Adjustable"
         },
         "description": {
           "anyOf": [
@@ -303,6 +273,11 @@
     "description": {
       "title": "Description",
       "type": "string"
+    },
+    "api_version": {
+      "default": 1,
+      "title": "Api Version",
+      "type": "integer"
     },
     "templates": {
       "items": {

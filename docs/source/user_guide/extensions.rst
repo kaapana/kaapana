@@ -502,7 +502,12 @@ Each instance has access to a directory inside the project bucket in MinIO.
 You can specify this directory, when you launch a new instance in the :ref:`extensions view <extensions>`.
 Files in this directory are periodically synced bidirectionally between MinIO and the JupyterLab instance.
 Note, that the sync interval is 20 seconds.
-
+If a file is simultaneously changed in MinIO and JupyterLab, rclone will resolve this conflict during the next syncronisation.
+* It does not overwrite either side.
+* It renames one version with a .conflict suffix.
+* The file changed in MinIO keeps the original filename.
+* The file changed in Jupyterlab gets the conflict rename.
+* For more information check the :ref:`rclone manual <https://rclone.org/bisync/>`.
 
 .. _extensions_minio_sync:
 

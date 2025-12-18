@@ -297,5 +297,5 @@ def build(
 
 
 if __name__ == "__main__":
-    load_dotenv(os.getcwd() / ".env")
+    load_dotenv(Path(os.getcwd(), ".env"))
     app()

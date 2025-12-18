@@ -1,12 +1,12 @@
 {
-    "description": "Kaapana release v0.5.3",
-    "title": "kaapana/kaapana: v0.5.3",
-    "version": "0.5.3",
+    "description": "Kaapana release v0.6.0",
+    "title": "kaapana/kaapana: v0.6.0",
+    "version": "0.6.0",
     "license": {
         "id": "AGPL-3.0"
     },
     "upload_type": "software",
-    "publication_date": "2025-11-24",
+    "publication_date": "2025-12-18",
     "creators": [
         {
             "affiliation": "German Cancer Research Center",
@@ -27,6 +27,14 @@
         {
             "affiliation": "German Cancer Research Center",
             "name": "Mikulas Bankovic"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Theo Stempel-Hauburger"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Julian Ziegler"
         },
         {
             "affiliation": "German Cancer Research Center",

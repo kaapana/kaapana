@@ -25,74 +25,74 @@ data:
         - targets: ['nvidia-dcgm-exporter.gpu-operator-resources.svc:9400']
     {{- end }}
 
-      - job_name: 'Kaapana Backend'
-        scheme: http
-        static_configs:
-        - targets: ['kaapana-backend-service.{{  .Values.global.services_namespace  }}.svc:5000']
+      # - job_name: 'Kaapana Backend'
+      #   scheme: http
+      #   static_configs:
+      #   - targets: ['kaapana-backend-service.{{  .Values.global.services_namespace  }}.svc:5000']
 
-      - job_name: 'Kaapana Kube Helm Backend'
-        scheme: http
-        static_configs:
-        - targets: ['kube-helm-service.{{  .Values.global.admin_namespace  }}.svc:5000']
+      # - job_name: 'Kaapana Kube Helm Backend'
+      #   scheme: http
+      #   static_configs:
+      #   - targets: ['kube-helm-service.{{  .Values.global.admin_namespace  }}.svc:5000']
 
-      - job_name: 'Kaapana Node Info'
-        scheme: http
-        scrape_interval: 60s
-        metrics_path: '/monitoring/metrics/scrape'
-        static_configs:
-        - targets: ['kaapana-backend-service.{{  .Values.global.services_namespace  }}.svc:5000']
+      # - job_name: 'Kaapana Node Info'
+      #   scheme: http
+      #   scrape_interval: 60s
+      #   metrics_path: '/monitoring/metrics/scrape'
+      #   static_configs:
+      #   - targets: ['kaapana-backend-service.{{  .Values.global.services_namespace  }}.svc:5000']
 
-      - job_name: 'prometheus'
-        scheme: http
-        metrics_path: '/prometheus/metrics'
-        static_configs:
-        - targets: ['prometheus-service.{{  .Values.global.services_namespace  }}.svc:9090']
+      # - job_name: 'prometheus'
+      #   scheme: http
+      #   metrics_path: '/prometheus/metrics'
+      #   static_configs:
+      #   - targets: ['prometheus-service.{{  .Values.global.services_namespace  }}.svc:9090']
 
-      - job_name: 'oAuth2-proxy'
-        scheme: https
-        metrics_path: '/oauth2/metrics'
-        static_configs:
-        - targets: ['oauth2-proxy-service.{{  .Values.global.admin_namespace  }}.svc:8443']
-        tls_config:
-          insecure_skip_verify: true
+      # - job_name: 'oAuth2-proxy'
+      #   scheme: https
+      #   metrics_path: '/oauth2/metrics'
+      #   static_configs:
+      #   - targets: ['oauth2-proxy-service.{{  .Values.global.admin_namespace  }}.svc:8443']
+      #   tls_config:
+      #     insecure_skip_verify: true
 
-      - job_name: 'kube-state-metrics'
-        scheme: http
-        metrics_path: '/metrics'
-        static_configs:
-        - targets: ['kube-state-metrics.{{  .Values.global.admin_namespace  }}.svc:8080']
+      # - job_name: 'kube-state-metrics'
+      #   scheme: http
+      #   metrics_path: '/metrics'
+      #   static_configs:
+      #   - targets: ['kube-state-metrics.{{  .Values.global.admin_namespace  }}.svc:8080']
 
-      - job_name: 'Traefik'
-        scheme: http
-        scrape_interval: 30s
-        metrics_path: '/metrics'
-        static_configs:
-      {{- if .Values.global.instance_uid }}
-        - targets: ['traefik-{{  .Values.global.instance_uid | default 0 }}.{{  .Values.global.helm_namespace  }}.svc:8080']
-      {{- else }}
-        - targets: ['traefik-{{  .Values.global.instance_uid | default 0 }}.{{  .Values.global.admin_namespace  }}.svc:8080']
-      {{- end }}
+      # - job_name: 'Traefik'
+      #   scheme: http
+      #   scrape_interval: 30s
+      #   metrics_path: '/metrics'
+      #   static_configs:
+      # {{- if .Values.global.instance_uid }}
+      #   - targets: ['traefik-{{  .Values.global.instance_uid | default 0 }}.{{  .Values.global.helm_namespace  }}.svc:8080']
+      # {{- else }}
+      #   - targets: ['traefik-{{  .Values.global.instance_uid | default 0 }}.{{  .Values.global.admin_namespace  }}.svc:8080']
+      # {{- end }}
 
-      - job_name: 'Granafa'
-        scheme: http
-        scrape_interval: 30s
-        metrics_path: '/metrics'
-        static_configs:
-        - targets: ['grafana.{{  .Values.global.services_namespace  }}.svc:3000']
+      # - job_name: 'Granafa'
+      #   scheme: http
+      #   scrape_interval: 30s
+      #   metrics_path: '/metrics'
+      #   static_configs:
+      #   - targets: ['grafana.{{  .Values.global.services_namespace  }}.svc:3000']
 
-      - job_name: 'Airflow'
-        scheme: http
-        scrape_interval: 30s
-        metrics_path: '/metrics'
-        static_configs:
-        - targets: ['airflow-statsd-service.{{  .Values.global.services_namespace  }}.svc:9102']
+      # - job_name: 'Airflow'
+      #   scheme: http
+      #   scrape_interval: 30s
+      #   metrics_path: '/metrics'
+      #   static_configs:
+      #   - targets: ['airflow-statsd-service.{{  .Values.global.services_namespace  }}.svc:9102']
 
-      - job_name: 'Node-Exporter'
-        scheme: http
-        scrape_interval: 15s
-        metrics_path: '/metrics'
-        static_configs:
-        - targets: ['node-exporter.{{  .Values.global.services_namespace  }}.svc:9100']
+      # - job_name: 'Node-Exporter'
+      #   scheme: http
+      #   scrape_interval: 15s
+      #   metrics_path: '/metrics'
+      #   static_configs:
+      #   - targets: ['node-exporter.{{  .Values.global.services_namespace  }}.svc:9100']
 
       # Taken from: https://github.com/prometheus/prometheus/blob/main/documentation/examples/prometheus-kubernetes.yml
       # Scrape config for nodes (kubelet).
@@ -207,6 +207,279 @@ data:
         - source_labels: [__meta_kubernetes_service_name]
           action: replace
           target_label: kubernetes_name
+
+
+      - job_name: "kubernetes-pods"
+        kubernetes_sd_configs:
+        - role: pod
+
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          action: keep
+          regex: true
+
+        # (optional) keep only pods that set a custom job name
+        # - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_custom_job_name]
+        #   action: keep
+        #   regex: (.+)
+
+        # EXCLUDE pods that request insecure TLS
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_insecure_skip_verify]
+          action: drop
+          regex: true
+
+        # scheme/path/port from annotations
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scheme]
+          action: replace
+          target_label: __scheme__
+          regex: (https?)
+
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+          action: replace
+          target_label: __metrics_path__
+          regex: (.+)
+
+        - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+          action: replace
+          target_label: __address__
+          regex: ([^:]+)(?::\d+)?;(\d+)
+          replacement: $1:$2
+
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape_interval]
+          action: replace
+          target_label: __scrape_interval__
+          regex: (.+)
+
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape_timeout]
+          action: replace
+          target_label: __scrape_timeout__
+          regex: (.+)
+
+        - source_labels: [__meta_kubernetes_namespace]
+          action: replace
+          target_label: kubernetes_namespace
+
+        - source_labels: [__meta_kubernetes_pod_name]
+          action: replace
+          target_label: kubernetes_pod_name
+
+        - source_labels: [__meta_kubernetes_pod_uid]
+          action: replace
+          target_label: kubernetes_pod_uid
+
+        - target_label: job
+          replacement: "kubernetes-pods"
+
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_custom_job_name]
+          action: replace
+          target_label: custom_job_name
+          regex: (.+)
+
+
+      # Extra job to scrape kubernetes pods. Use this if pod exposes two different endpoints
+      # Otherwise identical to kubernetes-pods above
+      - job_name: "kubernetes-pods-extra"
+        kubernetes_sd_configs:
+        - role: pod
+
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape_2]
+          action: keep
+          regex: true
+
+        # (optional) keep only pods that set a custom job name
+        # - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_custom_job_name_2]
+        #   action: keep
+        #   regex: (.+)
+
+        # EXCLUDE pods that request insecure TLS
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_insecure_skip_verify_2]
+          action: drop
+          regex: true
+
+        # scheme/path/port from annotations
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scheme_2]
+          action: replace
+          target_label: __scheme__
+          regex: (https?)
+
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path_2]
+          action: replace
+          target_label: __metrics_path__
+          regex: (.+)
+
+        - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port_2]
+          action: replace
+          target_label: __address__
+          regex: ([^:]+)(?::\d+)?;(\d+)
+          replacement: $1:$2
+
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape_interval_2]
+          action: replace
+          target_label: __scrape_interval__
+          regex: (.+)
+
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape_timeout_2]
+          action: replace
+          target_label: __scrape_timeout__
+          regex: (.+)
+
+        - source_labels: [__meta_kubernetes_namespace]
+          action: replace
+          target_label: kubernetes_namespace
+
+        - source_labels: [__meta_kubernetes_pod_name]
+          action: replace
+          target_label: kubernetes_pod_name
+
+        - source_labels: [__meta_kubernetes_pod_uid]
+          action: replace
+          target_label: kubernetes_pod_uid
+
+        - target_label: job
+          replacement: "kubernetes-pods"
+
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_custom_job_name_2]
+          action: replace
+          target_label: custom_job_name
+          regex: (.+)
+
+
+
+      # In this job we only want to scrape pods that explicitly request insecure TLS
+      # via the prometheus.io/insecure_skip_verify annotation.
+
+      - job_name: "kubernetes-pods-insecure"
+        kubernetes_sd_configs:
+        - role: pod
+
+        tls_config:
+          insecure_skip_verify: true
+
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          action: keep
+          regex: true
+
+        # (optional) keep only pods that set a custom job name
+        # - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_custom_job_name]
+        #   action: keep
+        #   regex: (.+)
+
+        # INCLUDE only pods that explicitly request insecure TLS
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_insecure_skip_verify]
+          action: keep
+          regex: true
+
+        # scheme/path/port from annotations
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scheme]
+          action: replace
+          target_label: __scheme__
+          regex: (https?)
+
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+          action: replace
+          target_label: __metrics_path__
+          regex: (.+)
+
+        - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+          action: replace
+          target_label: __address__
+          regex: ([^:]+)(?::\d+)?;(\d+)
+          replacement: $1:$2
+
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape_interval]
+          action: replace
+          target_label: __scrape_interval__
+          regex: (.+)
+
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape_timeout]
+          action: replace
+          target_label: __scrape_timeout__
+          regex: (.+)
+
+        - source_labels: [__meta_kubernetes_namespace]
+          action: replace
+          target_label: kubernetes_namespace
+
+        - source_labels: [__meta_kubernetes_pod_name]
+          action: replace
+          target_label: kubernetes_pod_name
+
+        - source_labels: [__meta_kubernetes_pod_uid]
+          action: replace
+          target_label: kubernetes_pod_uid
+
+        - target_label: job
+          replacement: "kubernetes-pods"
+
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_custom_job_name]
+          action: replace
+          target_label: custom_job_name
+          regex: (.+)
+
+
+
+      # # Optionally on a per service level
+      # - job_name: "kubernetes-services"
+      #   kubernetes_sd_configs:
+      #   - role: service
+
+      #   relabel_configs:
+      #   - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+      #     action: keep
+      #     regex: true
+
+      #   - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_custom_job_name]
+      #     action: keep
+      #     regex: (.+)
+
+      #   - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]
+      #     action: replace
+      #     target_label: __scheme__
+      #     regex: (https?)
+
+      #   - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+      #     action: replace
+      #     target_label: __metrics_path__
+      #     regex: (.+)
+
+      #   # Build __address__ = <svc>.<ns>.svc:<port> from annotations + metadata
+      #   - source_labels:
+      #       [__meta_kubernetes_service_name,
+      #       __meta_kubernetes_namespace,
+      #       __meta_kubernetes_service_annotation_prometheus_io_port]
+      #     action: replace
+      #     target_label: __address__
+      #     regex: (.+);(.+);(\d+)
+      #     replacement: ${1}.${2}.svc:${3}
+
+      #   - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape_interval]
+      #     action: replace
+      #     target_label: __scrape_interval__
+      #     regex: (.+)
+
+      #   - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape_timeout]
+      #     action: replace
+      #     target_label: __scrape_timeout__
+      #     regex: (.+)
+
+      #   # (Optional) copy Service labels
+      #   # - action: labelmap
+      #   #   regex: __meta_kubernetes_service_label_(.+)
+
+      #   - source_labels: [__meta_kubernetes_namespace]
+      #     action: replace
+      #     target_label: kubernetes_namespace
+
+      #   - source_labels: [__meta_kubernetes_service_name]
+      #     action: replace
+      #     target_label: kubernetes_service_name
+
+      #   - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_custom_job_name]
+      #     action: replace
+      #     target_label: job
+      #     regex: (.+)
 
 
     alerting:

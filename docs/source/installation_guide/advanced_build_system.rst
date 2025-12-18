@@ -8,14 +8,14 @@ Advanced: How the build-system works
   | For building the platform, refer to :ref:`build`.
 
 
-Assuming the kaapana repository was cloned into the :code:`kaapana/` directory the build process is usually 
-started by executing 
+Assuming the kaapana repository was cloned into the :code:`kaapana/` directory the build process is usually
+started by executing
 
 :code:`python3 build-scripts/start_build.py -u <registriy_username> -p <registry_password>`
 
 inside :code:`kaapana/`.
 
-.. important:: 
+.. important::
     | This document expects a basic knowledge of the following technologies
     | - Docker_
     | - Kubernetes_
@@ -45,7 +45,7 @@ This step also checks if all required local images are present in the collection
 .. hint::
 
   **Local images**
-  
+
   Not all images are pushed to the registry.
   If the Dockerfile contains the line :code:`LABEL REGISTRY="local-only"` the image is build but not pushed to the specified registry.
   It is tagged as :code:`local-only/<image-name>:<version>`.
@@ -56,21 +56,25 @@ For each found file an instance of :code:`HelmChart` is initialized and if exist
 Generating deployment scripts
 -------------------------------
 
+.. attention::
+  **Deprecation of generated deployment scripts**
+  The generation of deploy scripts is deprecated since Kaapana 0.6.0 and replaced by :term:`kaapanactl`.
+
 The next step is the creation of deployment scripts for each subdirectory of the :code:`kaapana/platforms/` directory.
 The deployment script for the kaapana-admin-chart for example can be found after a successful build at :code:`kaapana/build/kaapana-admin-chart/deploy_platform.sh`.
-It is based on :code:`kaapana/platforms/deploy_platform_template.sh` and configured according to a config file 
+It is based on :code:`kaapana/platforms/deploy_platform_template.sh` and configured according to a config file
 e.g. :code:`kaapana/platforms/kaapana-admin-chart/deployment_config.yaml`.
 
 .. hint::
 
   **Platform charts**
-  
+
   Currently there are two platforms build by default i.e. the :code:`admin-platform` and the :code:`kaapana-platform`.
   Each platform is entirely packaged as a single helm chart i.e. the :code:`kaapana-admin-chart` and the :code:`kaapana-platform-chart`.
   Platform charts are specified by the key-value pair :code:`kaapana_type: "platform"` in the :code:`Chart.yaml` file.
-  
+
   A filter can be applied in order to build only a subset of platform-charts e.g. only the :code:`kaapana-platform-chart`.
-  To do so use the command line flag :code:`-pf, --platform-filter <list-of-platform-chart-names>` or adjust the value of :code:`platform_filter` in the config file.
+  To do so use the command line flag :code:`-pf, --platform-filter <platform-chart-name>` or adjust the value of :code:`platform_filter` in the config file.
 
 
 The actual build-proccess
@@ -87,7 +91,7 @@ For each platform-chart that should be build the following steps are proccessed:
 5. A deployment script is generated
 6. All images in the list generated in step 4 are build and all non-local images are pushed to the registry
 
-.. hint:: 
+.. hint::
 
     **Recursively proccessing charts**
 
@@ -96,9 +100,9 @@ For each platform-chart that should be build the following steps are proccessed:
     This way all charts of the dependency tree are proccessed in a depth-first approach.
     It updates dependencies, packages charts and tags images.
     (For special charts specified as *collections* also an image is build and pushed by this method.)
-    
 
-.. hint:: 
+
+.. hint::
 
     **Collections**
 
@@ -106,9 +110,9 @@ For each platform-chart that should be build the following steps are proccessed:
     In the scope of the build script a collection contains several charts as dependencies.
     The build scripts processes a collection by updating the dependencies for all charts and packaging all charts it depends on.
 
-.. hint:: 
+.. hint::
     **Caching**
-    
+
     All packaged charts and all information regarding the build process like the log file or the dependecy trees are stored in :code:`kaapana/build/`.
 
 

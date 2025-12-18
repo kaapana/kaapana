@@ -1,48 +1,19 @@
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: {{ .Values.appName | default .Chart.Name }}-pv-volume
-  labels:
-    type: local
-spec:
-  capacity:
-    storage: {{ .Values.storage | default "1Mi" }}
-{{- if $.Values.global.enable_nfs }}
-  storageClassName: nfs
-  accessModes:
-    - ReadWriteMany
-  nfs:
-    server: "10.152.183.15"
-    path: {{ .Values.appName | default .Chart.Name }}-postgres-data
-{{- else }}
-  storageClassName: host-dir
-  accessModes:
-    - ReadWriteOnce
-  hostPath: 
-    path: "{{ $.Values.global.fast_data_dir }}/{{ .Values.appName | default .Chart.Name }}-postgres-data"
-{{- end }}
-  persistentVolumeReclaimPolicy: Retain
-  claimRef:
-    namespace: "{{ ternary .Values.global.admin_namespace .Values.global.services_namespace .Values.admin }}"
-    name: {{ .Values.appName | default .Chart.Name }}-pv-claim
----
+
+{{- $storage_class := .Values.global.storage_class_fast -}}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ .Values.appName | default .Chart.Name }}-pv-claim
   namespace: "{{ ternary .Values.global.admin_namespace .Values.global.services_namespace .Values.admin }}"
+  annotations:
+    "helm.sh/resource-policy": keep
 spec:
-{{- if $.Values.global.enable_nfs }}
-  storageClassName: nfs
-  accessModes:
-    - ReadWriteMany
-{{- else }}
-  storageClassName: host-dir
+  storageClassName: {{ $storage_class }}
   accessModes:
     - ReadWriteOnce
-{{- end }}
   resources:
     requests:
-      storage: {{ .Values.storage | default "1Mi" }}
-  volumeName: {{ .Values.appName | default .Chart.Name }}-pv-volume
+      storage: {{ .Values.storage | default "10Gi" }}
+  #volumeName: {{ .Values.appName | default .Chart.Name }}-pv-volume
 ---
+#TODO why not using _dynamicPeristentVolumes.tpy form kaapana library?

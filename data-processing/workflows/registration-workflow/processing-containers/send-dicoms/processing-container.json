@@ -1,0 +1,47 @@
+{
+    "name": "send-dicoms",
+    "description": "Send dicom images to a CTP server with dcmsend",
+    "api_version": 1,
+    "templates": [
+        {
+            "identifier": "send-dicoms",
+            "description": "Send dicom images",
+            "env": [
+                {
+                    "name": "DATASET",
+                    "value": "",
+                    "choices": [],
+                    "description": "The dicom series will be added to this dataset."
+                },
+                {
+                    "name": "PROJECT_NAME",
+                    "value": "",
+                    "choices": [],
+                    "description": "The data will be send to this project."
+                },
+                {
+                    "name": "PACS_HOST",
+                    "value": "",
+                    "choices": [],
+                    "description": "Host of the CTP server."
+                },
+                {
+                    "name": "PACS_PORT",
+                    "value": "11112",
+                    "choices": [],
+                    "description": "PORT of the CTP server."
+                }
+
+            ],
+            "inputs": [
+                {
+                    "name": "dicoms",
+                    "mounted_path": "/home/kaapana/dicoms",
+                    "description": "Expects a subdirectory for each dicom series that contains the .dcm files"
+                }],
+            "outputs": [
+            ],
+            "command": ["/bin/bash", "/home/kaapana/send-dicoms.sh"]
+        }
+    ]
+}

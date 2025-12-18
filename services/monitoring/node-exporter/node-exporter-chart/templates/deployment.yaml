@@ -16,6 +16,14 @@ spec:
       labels:
         app.kubernetes.io/component: exporter
         app.kubernetes.io/name: node-exporter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9100"
+        prometheus.io/path: "/metrics"
+        prometheus.io/scheme: "http"
+        prometheus.io/custom_job_name: "node-exporter"
+        prometheus.io/scrape_interval: "15s"
+        prometheus.io/scrape_timeout: "10s"
     spec:
       containers:
       - args:
@@ -25,6 +33,7 @@ spec:
         - --no-collector.hwmon
         - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)
         - --collector.netclass.ignored-devices=^(veth.*)$
+        - --collector.textfile.directory=/var/lib/node_exporter/textfile_collector
         name: node-exporter
         image: "{{ .Values.global.registry_url }}/node-exporter:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
@@ -47,9 +56,38 @@ spec:
           mountPropagation: HostToContainer
           name: root
           readOnly: true
+        - mountPath: /var/lib/node_exporter/textfile_collector
+          name: textfile-collector
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
+      - name: custom-node-exporter-textfile-collector
+        image: "{{ .Values.global.registry_url }}/node-exporter-textfile-collector:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: TEXTFILE_POLL_INTERVAL
+          value: "300"
+        - name: FAST_PATH
+          value: {{ .Values.global.fast_data_dir | quote }}
+        - name: SLOW_PATH
+          value: {{ .Values.global.slow_data_dir | quote }}
+        volumeMounts:
+        - mountPath: /textfile
+          name: textfile-collector
+        - mountPath: /fast
+          name: kaapana-fast
+          readOnly: true
+        - mountPath: /slow
+          name: kaapana-slow
+          readOnly: true
+        resources:
+          requests:
+            memory: 50Mi
+          limits:
+            memory: 50Mi
+        securityContext:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
       volumes:
       - hostPath:
           path: /sys
@@ -57,6 +95,16 @@ spec:
       - hostPath:
           path: /
         name: root
+      - name: textfile-collector
+        emptyDir: {}
+      - name: kaapana-fast
+        hostPath:
+          path: {{ .Values.global.fast_data_dir | quote }}
+          type: Directory
+      - name: kaapana-slow
+        hostPath:
+          path: {{ .Values.global.slow_data_dir | quote }}
+          type: Directory
       imagePullSecrets:
       - name: registry-secret
       

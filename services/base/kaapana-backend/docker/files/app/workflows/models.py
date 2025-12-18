@@ -146,3 +146,53 @@ class Job(Base):
             postgresql_where=(external_job_id.isnot(None)),
         ),  # The condition
     )
+
+
+class InstalledModel(Base):
+    __tablename__ = "installed_models"
+    
+    # Primary identifiers
+    id = Column(Integer, primary_key=True)
+    project_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    friendly_name = Column(String(255), nullable=False, unique=True)
+    models_name = Column(String(255), nullable=False)  # e.g., "3d_fullres"
+    task_ids = Column(String(255), nullable=False)  
+    # Core model metadata (directly used in UI form)
+    description = Column(String(255), default="nnUnet Segmentation")
+    instance_name = Column(String(255), default="N/A")  # IP/hostname
+    model_network_trainer = Column(String(255), default="N/A")
+    model_plan = Column(String(255), default="N/A")
+    url = Column(String(512), default="N/A")
+    task_url = Column(String(512), default="N/A")
+
+    
+    # Input/output specifications
+    input_modalities =  Column(mutable_json_type(dbtype=JSONB, nested=False), default=list) # ["CT", "MR"] etc - rendered as string for UI
+    body_part = Column(String(255), default="N/A")
+    targets = Column(mutable_json_type(dbtype=JSONB, nested=False), default=list)  # ["aorta", "liver"] - rendered as comma-separated for UI
+    
+    # Metadata (less frequently accessed)
+    input_mode = Column(String(50), default="all")
+    info = Column(String(255), default="N/A")
+    
+    
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "project_id": str(self.project_id),
+            "friendly_name": self.friendly_name,
+            "models_name": self.models_name,
+            "description": self.description,
+            "input_mode": self.input_mode,
+            "input": self.input_modalities or ["N/A"],
+            "body_part": self.body_part,
+            "targets": self.targets or ["N/A"],
+            "info": self.info,
+            "url": self.url,
+            "task_url": self.task_url,
+            "instance_name": self.instance_name,
+            "model_network_trainer": self.model_network_trainer,
+            "model_plan": self.model_plan,
+            "task_ids": self.task_ids,
+        }

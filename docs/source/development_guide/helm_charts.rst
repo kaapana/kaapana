@@ -101,7 +101,6 @@ Chart Dependency Tree
     │       └── sub-charts
     │           ├── bodypartregression-workflow
     │           ├── code-server-chart
-    │           ├── debug-container-chart
     │           ├── federated-setup-central-test-workflow
     │           ├── federated-setup-node-test-workflow
     │           ├── jupyterlab-chart
@@ -136,7 +135,6 @@ Chart Dependency Tree
     │           │               ├── os-dashboards-chart
     │           │               ├── prometheus-chart
     │           │               ├── static-website-chart
-    │           ├── mhub-models-workflow
     │           ├── mitk-flow-chart
     │           ├── mitk-flow-workflow
     │           ├── mitk-workbench-chart
@@ -144,9 +142,6 @@ Chart Dependency Tree
     │           ├── nnunet-workflow
     │           ├── radiomics-federated-workflow
     │           ├── radiomics-workflow
-    │           ├── rateme-chart
-    │           ├── rateme-workflow
-    │           ├── shapemodel-workflow
     │           ├── slicer-workbench-chart
     │           ├── tensorboard-chart
     │           └── total-segmentator-workflow
@@ -156,6 +151,5 @@ Chart Dependency Tree
     ├── kube-dashboard-chart
     ├── kube-helm-chart
     ├── maintenance-page-chart
-    ├── nfs-server-chart
     ├── oAuth2-proxy-chart
     └── traefik-chart

@@ -15,7 +15,16 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: minio
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9000"
+        prometheus.io/path: "/minio/metrics/v3"
+        prometheus.io/scheme: "http"
+        prometheus.io/custom_job_name: "minio"
+        prometheus.io/scrape_interval: "30s"
+        prometheus.io/scrape_timeout: "10s"
     spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
       initContainers:
         - name: init
           image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
@@ -38,8 +47,12 @@ spec:
           value: "{{ .Values.global.credentials_minio_username }}"
         - name: MINIO_ROOT_PASSWORD
           value: "{{ .Values.global.credentials_minio_password }}"
+        - name: MINIO_PROMETHEUS_AUTH_TYPE
+          value: "public"
         - name: MINIO_IDENTITY_OPENID_CONFIG_URL
           value: "http://keycloak-external-service.{{  .Values.global.admin_namespace  }}.svc:80/auth/realms/kaapana/.well-known/openid-configuration"
+        - name: MINIO_IDENTITY_OPENID_SCOPES
+          value: "openid,profile,email,roles"
         - name: MINIO_IDENTITY_OPENID_CLIENT_ID
           value: "kaapana"
         - name: MINIO_IDENTITY_OPENID_CLIENT_SECRET

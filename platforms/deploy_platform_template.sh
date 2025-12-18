@@ -1,7 +1,14 @@
 #!/bin/bash
+# WARNING: This script is deprecated and will be removed in the next Kaapana release.
+# Please migrate to `./kaapanactl deploy`, which supports the same options.
 set -euf -o pipefail
 export HELM_EXPERIMENTAL_OCI=1
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
+
+######################################################
+# Executable configurations
+######################################################
+HELM_EXECUTABLE="${HELM_EXECUTABLE:-helm}"
 
 ######################################################
 # Main platform configuration
@@ -13,19 +20,20 @@ PLATFORM_VERSION="{{ platform_build_version }}" # Specific version or empty for 
 CONTAINER_REGISTRY_URL="{{ container_registry_url|default('', true) }}" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
 CONTAINER_REGISTRY_USERNAME="{{ container_registry_username|default('', true) }}"
 CONTAINER_REGISTRY_PASSWORD="{{ container_registry_password|default('', true) }}"
+PLAIN_HTTP={{ plain_http|default(false)|lower }} # Use plain HTTP for registry (insecure)
 
 ######################################################
 # Deployment configuration
 ######################################################
 
  # dev-mode -> containers will always be re-downloaded after pod-restart
-DEV_MODE={{ dev_mode|default(true) }}
-GPU_SUPPORT={{ gpu_support|default(false)}}
-
-PREFETCH_EXTENSIONS={{prefetch_extensions|default('false')}}
+DEV_MODE={{ dev_mode|default(true)|lower }}
+GPU_SUPPORT={{ gpu_support|default(false)|lower }}
+# Adjust enable nvidia command if using GPU Operator below v25.10.0+
+GPU_OPERATOR_VERSION="v25.10.0"
+PREFETCH_EXTENSIONS={{prefetch_extensions|default('false')|lower}}
 CHART_PATH=""
 NO_HOOKS=""
-ENABLE_NFS=false
 OFFLINE_MODE=false
 
 INSTANCE_UID=""
@@ -37,6 +45,7 @@ HELM_NAMESPACE="{{ helm_namespace }}"
 OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
 
 INCLUDE_REVERSE_PROXY=false
+MIGRATION_ENABLED=true
 
 ######################################################
 # Resource configurations
@@ -92,6 +101,139 @@ DEPLOYMENT_TIMESTAMP=`date  --iso-8601=seconds`
 MOUNT_POINTS_TO_MONITOR="{{ mount_points_to_monitor }}"
 
 INSTANCE_NAME="{{ instance_name|default('') }}"
+
+
+STORAGE_PROVIDER="{{ smtp_host|default('hostpath')}}" # e.g. "hostpath" (microk8s) or "longhorn
+# volume sizes relevant if STORAGE_PROVIDER is set to longhorn
+VOLUME_SLOW_DATA="{{ volume_slow_data|default('100Gi') }}" #size of volumes in slow data dir (e.g. 100Gi or 100Ti)
+REPLICA_COUNT=1
+echo "Checking for storage provider: ${STORAGE_PROVIDER}"
+
+is_provider_installed=false
+
+case "${STORAGE_PROVIDER}" in
+  "driver.longhorn.io"|"longhorn")
+    # Check Longhorn CSI driver
+    if microk8s.kubectl get csidriver driver.longhorn.io &>/dev/null; then
+      is_provider_installed=true
+    fi
+    STORAGE_PROVIDER="driver.longhorn.io"
+    ;;
+
+  "microk8s.io/hostpath"|"hostpath"|"microk8s")
+    # Check hostpath storage class
+    if microk8s.kubectl get storageclass | grep -q "microk8s-hostpath"; then
+      is_provider_installed=true
+    fi
+    STORAGE_PROVIDER="microk8s.io/hostpath"
+    ;;
+
+  *)
+    echo "ERROR: Unknown storage provider '${STORAGE_PROVIDER}'."
+    echo "Supported providers: microk8s.io/hostpath, longhorn"
+    exit 1
+    ;;
+esac
+
+if [ "$is_provider_installed" = false ]; then
+  echo "ERROR: Storage provider '${STORAGE_PROVIDER}' is not installed in the cluster."
+  echo "Please install it before proceeding."
+  echo "Example: microk8s enable hostpath-storage   or   helm install longhorn longhorn/longhorn ..."
+  exit 1
+fi
+
+echo "✅ Storage provider '${STORAGE_PROVIDER}' found."
+
+MAIN_NODE_NAME=$(microk8s.kubectl get pods -n kube-system -o jsonpath='{.items[0].spec.nodeName}')
+echo "Main node is $MAIN_NODE_NAME"
+STORAGE_NODE="storage"
+microk8s.kubectl label nodes "$MAIN_NODE_NAME" "kaapana.io/node"="$STORAGE_NODE" --overwrite
+# --- Set storage classes based on provider ---
+case "${STORAGE_PROVIDER}" in
+  "microk8s.io/hostpath")
+    STORAGE_CLASS_SLOW="kaapana-hostpath-slow-data-dir"
+    STORAGE_CLASS_FAST="kaapana-hostpath-fast-data-dir"
+    STORAGE_CLASS_WORKFLOW="kaapana-hostpath-fast-data-dir"
+    if [ -z "${VOLUME_SLOW_DATA}" ]; then
+        VOLUME_SLOW_DATA="10Gi"
+    fi
+    ;;
+  "driver.longhorn.io")
+    STORAGE_CLASS_SLOW="kaapana-longhorn-slow-data"
+    STORAGE_CLASS_FAST="kaapana-longhorn-fast-db"
+    STORAGE_CLASS_WORKFLOW="kaapana-longhorn-fast-workflow"
+
+    if [ -z "${VOLUME_SLOW_DATA}" ]; then
+        echo "${VOLUME_SLOW_DATA}" must be set for Longhorn storage provider.
+        exit 1
+    fi
+
+    FSID_DEFAULT=$(stat -fc %i /var/lib/longhorn)
+    FSID_FAST=$(stat -fc %i "$(dirname "${FAST_DATA_DIR}")")
+    FSID_SLOW=$(stat -fc %i "$(dirname "${SLOW_DATA_DIR}")")
+
+    PATCH_DISKS="{}"
+    DISK_NAME_FAST=""
+
+    # FAST_DATA_DIR
+    if [[ "$FSID_FAST" == "$FSID_DEFAULT" ]]; then
+        echo "⚠️ fast-data shares filesystem with default Longhorn disk."
+        PATCH_DISKS=$(jq ".disks.\"default-disk-${FSID_DEFAULT}\".tags += [\"fast-data\"]" <<< "$PATCH_DISKS")
+        DISK_NAME_FAST="default-disk-${FSID_DEFAULT}"
+    else
+        PATCH_DISKS=$(jq ".disks.\"fast-data\" = {\"path\": \"${FAST_DATA_DIR}\", \"allowScheduling\": true, \"tags\": [\"fast-data\"]}" <<< "$PATCH_DISKS")
+        DISK_NAME_FAST="fast-data"
+    fi
+
+    # SLOW_DATA_DIR
+    if [[ "$FSID_SLOW" == "$FSID_FAST" ]]; then
+        echo "⚠️ slow-data shares filesystem with fast-data."
+        PATCH_DISKS=$(jq ".disks.\"$DISK_NAME_FAST\".tags += [\"slow-data\"]" <<< "$PATCH_DISKS")
+    elif [[ "$FSID_SLOW" == "$FSID_DEFAULT" ]]; then
+        echo "⚠️ slow-data shares filesystem with default Longhorn disk."
+        PATCH_DISKS=$(jq ".disks.\"default-disk-${FSID_DEFAULT}\".tags += [\"slow-data\"]" <<< "$PATCH_DISKS")
+    else
+        PATCH_DISKS=$(jq ".disks.\"slow-data\" = {\"path\": \"${SLOW_DATA_DIR}\", \"allowScheduling\": true, \"tags\": [\"slow-data\"]}" <<< "$PATCH_DISKS")
+    fi
+
+    # Apply the patch
+    microk8s.kubectl patch node.longhorn.io "${MAIN_NODE_NAME}" -n longhorn-system --type merge -p "{\"spec\":$PATCH_DISKS}"
+
+    if [[ $? -ne 0 ]]; then
+        echo "❌ Failed to patch disks for ${MAIN_NODE_NAME}"
+        exit 1
+    fi
+    echo "✅ Patched disks for ${MAIN_NODE_NAME}"
+
+    echo "Patching Longhorn settings for overprovisioning and minimal free space..."
+
+    # Allow thin provisioning (10× real capacity)
+    if [ "${DEV_MODE,,}" == "true" ]; then
+        THIN_PROVISIONING="1000"
+    else
+        THIN_PROVISIONING="1000000"
+    fi
+
+    microk8s.kubectl -n longhorn-system patch setting storage-over-provisioning-percentage \
+    --type=merge -p "{\"value\":\"${THIN_PROVISIONING}\"}"
+
+    # Allow scheduling even when less than 5% disk space is free
+    microk8s.kubectl -n longhorn-system patch setting storage-minimal-available-percentage \
+      --type=merge -p '{"value":"5"}'
+
+    echo "✅ Longhorn overprovisioning settings applied successfully."
+
+    # Detect how many Longhorn nodes are schedulable
+    SCHEDULABLE_NODES=$(microk8s.kubectl -n longhorn-system get node.longhorn.io \
+    -o jsonpath='{range .items[?(@.spec.allowScheduling==true)]}{.metadata.name}{"\n"}{end}' | wc -l)
+
+    # Determine replica count based on node count
+    if (( SCHEDULABLE_NODES > 1 )); then
+        REPLICA_COUNT=2
+    fi
+    ;;
+esac
+
 
 {% for item in additional_env %}
 {{ item.name }}="{{ item.default_value }}"{% if item.comment %} # {{item.comment}}{% endif %}
@@ -241,7 +383,7 @@ function get_domain {
 function delete_deployment {
     echo -e "${YELLOW}Undeploy releases${NC}"
     for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
-        helm -n $namespace ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "helm -n $namespace uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
+        $HELM_EXECUTABLE -n $namespace ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
     done
 
     echo -e "${YELLOW}Waiting until everything is terminated ...${NC}"
@@ -251,32 +393,33 @@ function delete_deployment {
         sleep 3
         if [ "$idx" -eq 2 ]; then
             echo "Deleting helm charts in 'uninstalling' state with --no-hooks"
-            helm -n $namespace ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "helm -n $namespace uninstall --no-hooks --wait --timeout 5m30s %; sleep 2"
+            $HELM_EXECUTABLE -n $namespace ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall --no-hooks --wait --timeout 5m30s %; sleep 2"
         fi
-        DEPLOYED_NAMESPACES=$(/bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered '$EXTENSIONS_NAMESPACE' | cut -d' ' -f1")
-        TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E --line-buffered 'Terminating' | cut -d' ' -f1")
+        TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E 'Terminating' | awk '{print \$1 \"/\" \$2}'")
         echo -e ""
-        UNINSTALL_TEST=$DEPLOYED_NAMESPACES$TERMINATING_PODS
+        UNINSTALL_TEST=$TERMINATING_PODS
         if [ -z "$UNINSTALL_TEST" ]; then
             break
         else
-            echo -e "${YELLOW}Waiting for $TERMINATING_PODS $DEPLOYED_NAMESPACES ${NC}"
+            echo -e "${YELLOW}Waiting for $TERMINATING_PODS ${NC}"
         fi
     done
-    if [ ! "$QUIET" = "true" ];then
-        while true; do
-            read -e -p "Do you also want to remove all Persistent Volumes in the cluster (kubectl delete pv --all)?" -i " yes" yn
-            case $yn in
-                [Yy]* ) echo -e "${GREEN}Removing all pvs from cluster ...${NC}" && microk8s.kubectl delete pv --all; break;;
-                [Nn]* ) echo -e "${YELLOW}Skipping pv removal ...{NC}"; break;;
-                * ) echo "Please answer yes or no.";;
-            esac
-        done
-    else
-        echo -e "${YELLOW}QUIET-MODE active!${NC}"
-        echo -e "${GREEN}Removing all pvs from cluster ...${NC}"
-        microk8s.kubectl delete pv --all
+
+    echo -e "${YELLOW}Cleaning up orphaned pods in Kubernetes namespaces ...${NC}"
+    
+    # Clean SERVICES_NAMESPACE
+    if microk8s.kubectl get namespace $SERVICES_NAMESPACE &>/dev/null; then
+        echo "Deleting all pods in $SERVICES_NAMESPACE"
+        microk8s.kubectl delete pods --all -n $SERVICES_NAMESPACE --grace-period=0 --force 2>/dev/null || true
     fi
+    
+    # Clean all project-* namespaces
+    PROJECT_NAMESPACES=$(microk8s.kubectl get namespaces --no-headers -o custom-columns=NAME:.metadata.name | grep "^project-")
+    for ns in $PROJECT_NAMESPACES; do
+        echo "Deleting all pods in $ns"
+        microk8s.kubectl delete pods --all -n $ns --grace-period=0 --force 2>/dev/null || true
+    done
+    
 
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
@@ -304,17 +447,19 @@ function nuke_pods {
 
 
 function clean_up_kubernetes {
-    for n in $EXTENSIONS_NAMESPACE; # $HELM_NAMESPACE;
-    do
-        echo "${YELLOW}Deleting namespace ${n} with all its resources ${NC}"
-        microk8s.kubectl delete --ignore-not-found namespace $n
-    done
+    # for n in $EXTENSIONS_NAMESPACE; # $HELM_NAMESPACE;
+    # do
+    #     echo "${YELLOW}Deleting namespace ${n} with all its resources ${NC}"
+    #     microk8s.kubectl delete --ignore-not-found namespace $n
+    # done
     echo "${YELLOW}Deleting all deployments in namespace default ${NC}"
     microk8s.kubectl delete deployments --all
     echo "${YELLOW}Deleting all jobs in namespace default ${NC}"
     microk8s.kubectl delete jobs --all
     echo "${YELLOW}Removing remove-secret job${NC}"
     microk8s.kubectl -n $SERVICES_NAMESPACE delete job --ignore-not-found remove-secret
+    #echo "${YELLOW}Removing all volumes in kubernetes ${NC}"
+    #microk8s.kubectl delete volumes -A --all
 }
 
 function import_container_images_tar {
@@ -338,7 +483,13 @@ function run_migration_chart() {
         exit 1
     fi
 
-    helm -n "$HELM_NAMESPACE" upgrade --install kaapana-migration "$MIGRATION_CHART_PATH" \
+    # Build helm command with optional --plain-http flag
+    HELM_CMD="$HELM_EXECUTABLE -n $HELM_NAMESPACE upgrade --install"
+    if [ "$PLAIN_HTTP" = true ]; then
+        HELM_CMD="$HELM_CMD --plain-http"
+    fi
+    
+    $HELM_CMD kaapana-migration "$MIGRATION_CHART_PATH" \
         --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \
         --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
         --set-string global.fast_data_dir="$FAST_DATA_DIR" \
@@ -352,13 +503,13 @@ function run_migration_chart() {
     # Wait for migration job to finish
     local JOB_NAME="migration"
     local NAMESPACE="migration"
-    local TIMEOUT=180
+    local TIMEOUT=600
     local INTERVAL=5
     local ELAPSED=0
 
     cleanup() {
         echo -e "${YELLOW}Cleaning up migration helm chart...${NC}"
-        helm uninstall "kaapana-migration" -n "$HELM_NAMESPACE" || true
+        $HELM_EXECUTABLE uninstall "kaapana-migration" -n "$HELM_NAMESPACE" || true
     }
 
     echo -e "${YELLOW}Waiting for migration job $JOB_NAME to complete...${NC}"
@@ -375,16 +526,53 @@ function run_migration_chart() {
             cleanup
             break
         elif [[ "${FAILED:-0}" -ge 1 ]]; then
-            echo -e "${RED}Migration job failed!${NC}"
-            PODS=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o name)
-            for pod in $PODS; do
-                microk8s.kubectl logs "$pod" -n "$NAMESPACE"
-            done
+            VERSION_STATUS=""
+            # Safely read the status from the version file
+            if [ -f "$FAST_DATA_DIR/.version" ]; then
+                VERSION_STATUS=$(cat "$FAST_DATA_DIR/.version")
+            fi
 
-            POD=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o jsonpath='{.items[*].metadata.name}')
-            microk8s.kubectl logs "$POD" -n "$NAMESPACE"
-            cleanup
-            exit 1
+            if [[ "$VERSION_STATUS" == *"- fresh deploy and redeploy-needed"* ]]; then
+                echo -e "\n${YELLOW}================================================================${NC}"
+                echo -e "${YELLOW}🚨 MIGRATION PAUSED: FRESH DEPLOYMENT REQUIRED 🚨${NC}"
+                echo -e "${YELLOW}================================================================${NC}"
+                echo "The existing PVCs are not configured for migration."
+                echo "1. Complete the current deployment (let the platform fully start)."
+                echo "2. Once the platform is functional, run the deployment script again."
+                echo -e "\nDo you want to proceed with the required steps (Y/n) or start fresh (F)? [Y/n/F]"
+                read -r USER_CHOICE
+
+                case "$USER_CHOICE" in
+                    [Yy]* )
+                        echo "Continuing with the required redeployment path. Please run the script again after the initial deploy."
+                        exit 0 # Exit successfully, but signal a partial completion/pause.
+                        ;;
+                    [Ff]* )
+                        echo "Starting fresh. The data folder flag will be removed."
+                        # Remove the flag, allowing the next deployment to proceed without migration attempts
+                        if [ -f "$FAST_DATA_DIR/.version" ]; then
+                            sed -i '' '/- fresh deploy and redeploy-needed/d' "$FAST_DATA_DIR/.version" 2>/dev/null || \
+                            sed -i '/- fresh deploy and redeploy-needed/d' "$FAST_DATA_DIR/.version" # Linux/GNU sed fallback
+                        fi
+                        exit 0 # Exit successfully, allowing the main deploy to continue as a fresh install.
+                        ;;
+                    * )
+                        echo "Exiting without changes. Please run the script again when ready."
+                        exit 1
+                        ;;
+                esac
+            else
+                echo -e "${RED}Migration job failed!${NC}"
+                PODS=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o name)
+                for pod in $PODS; do
+                    microk8s.kubectl logs "$pod" -n "$NAMESPACE"
+                done
+
+                POD=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o jsonpath='{.items[*].metadata.name}')
+                microk8s.kubectl logs "$POD" -n "$NAMESPACE"
+                cleanup
+                exit 1
+            fi
         fi
 
         sleep "$INTERVAL"
@@ -402,18 +590,22 @@ function prompt_user_backup() {
     echo "   cp -a $SLOW_DATA_DIR /path/to/slow/backup"
     echo
     while true; do
-        read -p "Proceed with migration? (yes/no): " answer
+        read -p "Proceed with migration? (yes/no/skip): " answer
         case "$answer" in
             [Yy][Ee][Ss]|[Yy])
                 echo "✅ Proceeding with migration..."
-                break
+                return 0
                 ;;
             [Nn][Oo]|[Nn])
-                echo "❌ Aborting migration."
+                echo "❌ Aborting deployment."
                 exit 1
                 ;;
+            [Ss][Kk][Ii][Pp]|[Ss])
+                echo "⚠️  Skipping migration - continuing without migration."
+                return 1
+                ;;
             *)
-                echo "Please type 'yes' or 'no'."
+                echo "Please type 'yes', 'no', or 'skip'."
                 ;;
         esac
     done
@@ -425,42 +617,70 @@ function migrate() {
     echo "${YELLOW}Checking ${VERSION_FILE} status...${NC}"
 
     if [[ ! -d "$FAST_DATA_DIR" || -z "$(ls -A "$FAST_DATA_DIR" 2>/dev/null)" ]]; then
-        echo "${GREEN}Fresh installation detected. Running migration chart to create version file.${NC}"
-         # Just creating a version file. Could be handled somewhere else, in the kaapana-admin-chart or whatever.)
-        run_migration_chart "fresh" "$PLATFORM_VERSION"
+        echo "${GREEN}Fresh installation detected.${NC}"
+        echo "${GREEN}Skipping migration for fresh installation. Version file will be created during deployment.${NC}"
 
     elif [[ -f "$VERSION_FILE" ]]; then
         CURRENT_VERSION=$(cat "$VERSION_FILE")
-        echo "Found version: $CURRENT_VERSION"
+        echo "${GREEN}Found version: $CURRENT_VERSION${NC}"
+        echo "${GREEN}Target version: $PLATFORM_VERSION${NC}"
+        
+        # Extract major.minor (ignore patch and build metadata)
+        CURRENT_MAJOR_MINOR=$(echo "$CURRENT_VERSION" | sed -E 's/^([0-9]+\.[0-9]+).*/\1/')
+        PLATFORM_MAJOR_MINOR=$(echo "$PLATFORM_VERSION" | sed -E 's/^([0-9]+\.[0-9]+).*/\1/')
 
-        if [[ "$CURRENT_VERSION" == "$PLATFORM_VERSION" ]]; then
-            echo "${GREEN}Version matches ($PLATFORM_VERSION). Skipping migration.${NC}"
+        if [[ "$CURRENT_MAJOR_MINOR" == "$PLATFORM_MAJOR_MINOR" ]]; then
+            echo "${GREEN}Major.Minor version matches ($CURRENT_MAJOR_MINOR). Skipping migration.${NC}"
         else
-            echo "${YELLOW}Version mismatch: current=$CURRENT_VERSION, deploy=$PLATFORM_VERSION.${NC}"
+            echo "${YELLOW}Major.Minor version mismatch: current=$CURRENT_MAJOR_MINOR, target=$PLATFORM_MAJOR_MINOR.${NC}"
 
-            # Extract major.minor
-            cur_major=$(echo "$CURRENT_VERSION" | cut -d. -f1)
-            cur_minor=$(echo "$CURRENT_VERSION" | cut -d. -f2)
-            dep_major=$(echo "$PLATFORM_VERSION" | cut -d. -f1)
-            dep_minor=$(echo "$PLATFORM_VERSION" | cut -d. -f2)
-
-            echo "${YELLOW}Version change detected: $CURRENT_VERSION -> $PLATFORM_VERSION.${NC}"
-            prompt_user_backup
-            run_migration_chart "$CURRENT_VERSION" "$PLATFORM_VERSION"
+            if [[ "$MIGRATION_ENABLED" == true ]]; then
+                echo "${YELLOW}Migration enabled: $CURRENT_VERSION -> $PLATFORM_VERSION.${NC}"
+                if prompt_user_backup; then
+                    run_migration_chart "$CURRENT_VERSION" "$PLATFORM_VERSION"
+                else
+                    echo "${YELLOW}Migration skipped by user. Continuing deployment without migration.${NC}"
+                fi
+            else
+                echo "${YELLOW}╔════════════════════════════════════════════════════════════════╗${NC}"
+                echo "${YELLOW}║                    ⚠️  WARNING                                 ║${NC}"
+                echo "${YELLOW}║ Version mismatch detected but migration is DISABLED           ║${NC}"
+                echo "${YELLOW}║ Current: $CURRENT_VERSION → Target: $PLATFORM_VERSION                                   ║${NC}"
+                echo "${YELLOW}║                                                                ║${NC}"
+                echo "${YELLOW}║ Migration can be enabled by removing the --no-migration flag  ║${NC}"
+                echo "${YELLOW}║ Proceeding without migration may cause compatibility issues   ║${NC}"
+                echo "${YELLOW}╚════════════════════════════════════════════════════════════════╝${NC}"
+            fi
         fi
 
     elif [[ -d "$FAST_DATA_DIR" && -n "$(ls -A "$FAST_DATA_DIR")" ]]; then
         echo "${YELLOW}No version file and directory is not empty!${NC}"
-        echo "Options:"
-        echo "  1. Let migration-chart autodetect version using $FAST_DATA_DIR/extensions/kaapana-platform-chart-<version>.tgz"
-        echo "  2. Exit to manually create $VERSION_FILE with correct version and rerun the deploy script."
-        read -p "Choose option (1/2): " choice
-        if [[ "$choice" == "1" ]]; then
-            prompt_user_backup
-            run_migration_chart "autodetect" "$PLATFORM_VERSION"
+        
+        if [[ "$MIGRATION_ENABLED" == true ]]; then
+            echo "Options:"
+            echo "  1. Let migration-chart autodetect version using $FAST_DATA_DIR/extensions/kaapana-platform-chart-<version>.tgz"
+            echo "  2. Exit to manually create $VERSION_FILE with correct version and rerun the deploy script."
+            echo "  Generate the file with:"
+            echo "    echo \"<0.5.3>\" > $VERSION_FILE"
+            read -p "Choose option (1/2): " choice
+            if [[ "$choice" == "1" ]]; then
+                if prompt_user_backup; then
+                    run_migration_chart "autodetect" "$PLATFORM_VERSION"
+                else
+                    echo "${YELLOW}Migration skipped by user. Continuing deployment without migration.${NC}"
+                fi
+            else
+                echo "${RED}Please create the version file manually and rerun.${NC}"
+                exit 1
+            fi
         else
-            echo "${RED}Please create the version file manually and rerun.${NC}"
-            exit 1
+            echo "${YELLOW}╔════════════════════════════════════════════════════════════════╗${NC}"
+            echo "${YELLOW}║                    ⚠️  WARNING                                 ║${NC}"
+            echo "${YELLOW}║ Version file missing but directory is not empty               ║${NC}"
+            echo "${YELLOW}║                                                                ║${NC}"
+            echo "${YELLOW}║ Migration can be enabled with the --migration flag            ║${NC}"
+            echo "${YELLOW}║ Continuing without migration - version file will be created   ║${NC}"
+            echo "${YELLOW}╚════════════════════════════════════════════════════════════════╝${NC}"
         fi
     else
         echo "Unexpected state. Please check $FAST_DATA_DIR."
@@ -512,9 +732,9 @@ function deploy_chart {
         else
             if [ "${OFFLINE_MODE,,}" == true ];then
                 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-                OFFLINE_ENABLE_GPU_PATH=$SCRIPT_DIR/offline_enable_gpu.py
+                OFFLINE_ENABLE_GPU_PATH=$SCRIPT_DIR/kaapanactl.sh
                 [ -f $OFFLINE_ENABLE_GPU_PATH ] && echo "${GREEN}$OFFLINE_ENABLE_GPU_PATH exists ... ${NC}" || (echo "${RED}$OFFLINE_ENABLE_GPU_PATH does not exist -> exit ${NC}" && exit 1)
-                python3 $OFFLINE_ENABLE_GPU_PATH --script-dir $SCRIPT_DIR
+                $OFFLINE_ENABLE_GPU_PATH offline-gpu $SCRIPT_DIR
                 if [ $? -eq 0 ]; then
                     echo "Offline GPU enabled!"
                 else
@@ -522,7 +742,9 @@ function deploy_chart {
                     exit 1
                 fi
             else
-                microk8s.enable nvidia
+                
+                microk8s enable nvidia --gpu-operator-driver host --gpu-operator-version $GPU_OPERATOR_VERSION \
+                    --gpu-operator-set toolkit.env[3].name=RUNTIME_CONFIG_SOURCE --gpu-operator-set toolkit.env[3].value='file=/var/snap/microk8s/current/args/containerd.toml'
             fi
         fi
     fi
@@ -608,7 +830,14 @@ function deploy_chart {
 
     echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
-    helm -n $HELM_NAMESPACE install --create-namespace $CHART_PATH \
+    
+    # Build helm command with optional --plain-http flag
+    HELM_INSTALL_CMD="$HELM_EXECUTABLE -n $HELM_NAMESPACE install --create-namespace"
+    if [ "$PLAIN_HTTP" = true ]; then
+        HELM_INSTALL_CMD="$HELM_INSTALL_CMD --plain-http"
+    fi
+    
+    $HELM_INSTALL_CMD $CHART_PATH \
     --set-string global.base_namespace="base" \
     --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \
     --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
@@ -625,7 +854,6 @@ function deploy_chart {
     --set-string global.admin_namespace=$ADMIN_NAMESPACE \
     --set global.gpu_support=$GPU_SUPPORT \
     --set-string global.helm_namespace="$ADMIN_NAMESPACE" \
-    --set global.enable_nfs=$ENABLE_NFS \
     --set global.oidc_client_secret=$OIDC_CLIENT_SECRET \
     --set global.include_reverse_proxy=$INCLUDE_REVERSE_PROXY \
     --set-string global.home_dir="$HOME" \
@@ -660,6 +888,13 @@ function deploy_chart {
     --set-string global.smtp_username="$SMTP_USERNAME" \
     --set-string global.smtp_password="$SMTP_PASSWORD" \
     --set-string global.email_address_sender="$EMAIL_ADDRESS_SENDER" \
+    --set-string global.storage_class_fast="$STORAGE_CLASS_FAST" \
+    --set-string global.storage_class_slow="$STORAGE_CLASS_SLOW" \
+    --set-string global.storage_class_workflow="$STORAGE_CLASS_WORKFLOW" \
+    --set-string global.main_node_name="$MAIN_NODE_NAME" \
+    --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
+    --set-string global.replica_count="$REPLICA_COUNT"\
+    --set-string global.storage_node="$STORAGE_NODE" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"
@@ -690,7 +925,7 @@ function pull_chart {
     while [ $i -le $MAX_RETRIES ];
     do
         echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/${chart_name} with version ${chart_version} ${NC}"
-        helm pull oci://${CONTAINER_REGISTRY_URL}/${chart_name} \
+        $HELM_EXECUTABLE pull --plain-http oci://${CONTAINER_REGISTRY_URL}/${chart_name} \
             --version ${chart_version} -d ${dest_dir} \
             && break \
             || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 )
@@ -717,7 +952,14 @@ function check_credentials {
         fi
     done
     STRIPPED_CONTAINER_REGISTRY_URL=$(echo "$CONTAINER_REGISTRY_URL" | sed -E 's~^https?://~~' | cut -d'/' -f1)
-    helm registry login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD ${STRIPPED_CONTAINER_REGISTRY_URL}
+    
+    # Build helm registry login command with optional --plain-http flag
+    HELM_LOGIN_CMD="$HELM_EXECUTABLE registry login"
+    if [ "$PLAIN_HTTP" = true ]; then
+        HELM_LOGIN_CMD="$HELM_LOGIN_CMD --plain-http"
+    fi
+    
+    $HELM_LOGIN_CMD -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD $(echo "$CONTAINER_REGISTRY_URL" | cut -d/ -f1)
 }
 
 function install_certs {
@@ -1034,6 +1276,65 @@ function update_coredns_rewrite() {
     fi
 }
 
+function check_system() {
+    release="$1"
+    helm_ns="${2:-default}"
+
+    # Extract all resources from the Helm manifest
+    resources=$(
+    $HELM_EXECUTABLE get manifest "$release" -n "$helm_ns" \
+        | microk8s.kubectl apply --dry-run=client -f - -o json \
+        | jq -r '.items[] | "\(.kind)/\(.metadata.namespace)/\(.metadata.name)"'
+    )
+
+    all_healthy=true
+
+    for res in $resources; do
+    kind=$(echo "$res" | cut -d'/' -f1)
+    ns=$(echo "$res" | cut -d'/' -f2)
+    name=$(echo "$res" | cut -d'/' -f3)
+
+    case $kind in
+        Deployment)
+        if ! microk8s.kubectl rollout status "deployment/$name" -n "$ns"; then
+            echo "❌ Deployment $name not healthy"
+            all_healthy=false
+        fi
+        ;;
+        StatefulSet)
+        if ! microk8s.kubectl rollout status "statefulset/$name" -n "$ns"; then
+            echo "❌ StatefulSet $name not healthy"
+            all_healthy=false
+        fi
+        ;;
+        Pod)
+        phase=$(microk8s.kubectl get pod "$name" -n "$ns" -o jsonpath='{.status.phase}')
+        if [[ "$phase" != "Running" && "$phase" != "Succeeded" ]]; then
+            echo "❌ Pod $name is $phase"
+            all_healthy=false
+        fi
+        ;;
+        Job)
+        succeeded=$(microk8s.kubectl get job "$name" -n "$ns" -o jsonpath='{.status.succeeded}')
+        if [[ "$succeeded" != "1" ]]; then
+            echo "❌ Job $name not successful"
+            all_healthy=false
+        fi
+        ;;
+        *)
+        ;;
+    esac
+    done
+
+    if [ "$all_healthy" = true ]; then
+        echo "✅ All resources healthy"
+    else
+        echo "❌ Some resources are unhealthy"
+        exit 1
+    fi
+
+}
+
 
 function create_report {
     # Dont abort report generation on error
@@ -1122,7 +1423,11 @@ ping -c3 -i 0.2 www.dkfz-heidelberg.de
 openssl s_client -connect $CONTAINER_REGISTRY_URL:443
 
 --- "Check Registry Credentials"
-helm registry login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD $CONTAINER_REGISTRY_URL
+if [ "$PLAIN_HTTP" = true ]; then
+    $HELM_EXECUTABLE registry login --plain-http -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD $CONTAINER_REGISTRY_URL
+else
+    $HELM_EXECUTABLE registry login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD $CONTAINER_REGISTRY_URL
+fi
 
 --- "Systemd Status"
 systemd status
@@ -1154,10 +1459,17 @@ modinfo nvidia | grep ^version
 --- "GPU"
 nvidia-smi
 
+--- "Resource Health"
+check_system kaapana-admin-chart default
+check_system kaapana-platform-chart default
+check_system project-admin admin
+
 --- "END"
 }
 
 ### MAIN programme body:
+echo "${YELLOW:-}${BOLD:-}WARNING:${NC:-} deploy_platform.sh is deprecated and will be removed in the next Kaapana release."
+echo "${YELLOW:-}${BOLD:-}Please use './kaapanactl deploy' instead; it accepts the same options as this script.${NC:-}"
 
 ### Parsing command line arguments:
 usage="$(basename "$0")
@@ -1170,6 +1482,9 @@ _Flag: --remove-all-images-docker will delete all Docker images from the system
 _Flag: --nuke-pods will force-delete all pods of the Kaapana deployment namespaces.
 _Flag: --quiet, meaning non-interactive operation
 _Flag: --offline, using prebuilt tarball and chart (--chart-path required!)
+_Flag: --no-migration, disable automatic migration between versions
+_Flag: --check-system, check health of all resources in kaapana-admin-chart and kaapana-platform-chart
+_Flag: --report, create a report of the state of the microk8s cluster
 
 _Argument: --username [Docker registry username]
 _Argument: --password [Docker registry password]
@@ -1301,18 +1616,36 @@ do
             exit 0
         ;;
 
+        --check-system)
+            check_system kaapana-admin-chart default
+            check_system kaapana-platform-chart admin
+            check_system project-admin admin
+            exit 0
+        ;;
+
         *)    # unknown option
             echo -e "${RED}unknown parameter: $key ${NC}"
             echo -e "${YELLOW}$usage${NC}"
             exit 1
         ;;
+
+
     esac
 done
 
 preflight_checks
 
 echo -e "${YELLOW}Get helm deployments...${NC}"
-deployments=$(helm -n $HELM_NAMESPACE ls -a |cut -f1 |tail -n +2)
+deployments=$(
+  # Helm 3 vs Helm 4:
+  # - Helm 3 needs `helm list -a` to show all releases (no --no-headers flag).
+  # - Helm 4 removed `-a` and `helm list` already lists all statuses by default.
+  #   See: https://helm.sh/docs/v3/helm/helm_list/ and https://helm.sh/docs/helm/helm_list/
+  #
+  # Try Helm 3 syntax first; if it fails (e.g. unknown flag -a), fall back to Helm 4 syntax.
+  $HELM_EXECUTABLE -n "$HELM_NAMESPACE" ls --short -a 2>/dev/null || \
+  $HELM_EXECUTABLE -n "$HELM_NAMESPACE" ls --short --no-headers 2>/dev/null
+)
 echo "Current deployments: "
 echo $deployments
 

@@ -19,10 +19,19 @@ spec:
         app.kubernetes.io/component: exporter
         app.kubernetes.io/name: kube-state-metrics
         app.kubernetes.io/version: 2.10.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+        prometheus.io/scheme: "http"
+        prometheus.io/custom_job_name: "kube-state-metrics"
+        prometheus.io/scrape_interval: "30s"
+        prometheus.io/scrape_timeout: "10s"
     spec:
       automountServiceAccountToken: true
       containers:
-      - image: "{{ .Values.global.registry_url }}/kube-state-metrics:{{ .Values.global.kaapana_build_version  }}"
+      - name: kube-state-metrics
+        image: "{{ .Values.global.registry_url }}/kube-state-metrics:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         livenessProbe:
           httpGet:
@@ -30,7 +39,7 @@ spec:
             port: 8080
           initialDelaySeconds: 5
           timeoutSeconds: 5
-        name: kube-state-metrics
+        
         ports:
         - containerPort: 8080
           name: http-metrics

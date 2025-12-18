@@ -144,7 +144,7 @@ export default Vue.extend({
           // get applications that are not triggered from a workflow run and includes current project name in all paths
           this.projectApplications = allActiveApplications.filter((item: any) => {
             const rulePattern = new RegExp(
-              `^\/applications\/project\/${this.$store.getters.selectedProject.name}\/release\/.+$`
+              `^\/applications\/project\/${this.$store.getters.selectedProject.id}\/release\/.+$`
             );
             let hasProjectURL = item.paths.every((path: string) => {
               return rulePattern.test(path);

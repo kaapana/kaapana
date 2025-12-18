@@ -37,7 +37,7 @@ class KeycloakUser(BaseModel):
     @computed_field
     @property
     def system(self) -> bool:
-        return self.last_name.lower() == "system"
+        return self.last_name is not None and self.last_name.lower() == "system"
 
 
 class KeycloakUserExtended(KeycloakUser):

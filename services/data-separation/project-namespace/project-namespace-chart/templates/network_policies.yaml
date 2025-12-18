@@ -178,7 +178,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      pod-type: "processing-container"
+      kaapana.ai/type: "processing-container"
   policyTypes:
   - Egress
   egress:
@@ -231,6 +231,16 @@ spec:
     - podSelector:
         matchLabels:
           app.kubernetes.io/name: kaapana-backend
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: airflow
     ports:
     - protocol: TCP
       port: 5000

@@ -94,21 +94,23 @@ class GetInputOperator:
         series_uid = dcm_uid_object.get("dcm-uid").get("series-uid")
         study_uid = dcm_uid_object.get("dcm-uid").get("study-uid")
         target_dir = self.make_target_dir_for_series(series_uid=series_uid)
-
-        if data_type == "json":
-            download_successful = self.get_data_from_opensearch(
+        
+        json_download_successful = dicom_download_successful = True
+        if data_type == "json" or data_type == "all":
+            json_download_successful = self.get_data_from_opensearch(
                 target_dir=target_dir, seriesUID=series_uid
             )
-        elif data_type == "dicom":
-            download_successful = self.get_data_from_pacs(
+        if data_type == "dicom" or data_type == "all":
+            dicom_download_successful = self.get_data_from_pacs(
                 target_dir=target_dir, studyUID=study_uid, seriesUID=series_uid
             )
-        else:
+
+        if data_type not in ['dicom', 'json', 'all']:
             raise NotImplementedError(
                 f"{data_type=} not supported! Must be one of ['json','dicom']"
             )
 
-        return download_successful, series_uid
+        return (json_download_successful & dicom_download_successful), series_uid
 
     def make_target_dir_for_series(self, series_uid: str):
         """

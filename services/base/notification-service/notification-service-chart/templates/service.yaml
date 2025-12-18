@@ -41,6 +41,7 @@ metadata:
     app.kubernetes.io/component: api
 spec:
   selector:
+    app.kubernetes.io/name: notification-service
     app.kubernetes.io/component: api
   ports:
     - port: 80

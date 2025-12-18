@@ -9,10 +9,7 @@ global:
   dynamicVolumes:
   - name: mitk
     mount_path: /kaapana/minio
-    host_path: /applications/mitk
-    minio_mirror : true
   nodePortMITKWorkbench: 22223
-  display_name: "-"
   service_type: "ClusterIP"
 
 extension_params:

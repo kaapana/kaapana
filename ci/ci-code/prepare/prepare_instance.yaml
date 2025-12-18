@@ -13,6 +13,7 @@
     ssh_key_file: "{{ lookup('ansible.builtin.env', 'SSH_FILE') }}"
     artifacts_dir: "{{ lookup('ansible.builtin.env', 'ARTIFACTS_DIR') }}"
     kaapana_dir: "{{ lookup('ansible.builtin.env', 'KAAPANA_DIR') }}"
+    deployment_on_workstation: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_ON_WORKSTATION') }}"
   tasks:
 
   - name: Fail playbook when OS_CREATE is not true and DEPLOYMENT_INSTANCE_IP is none
@@ -117,12 +118,23 @@
         state: absent
       check_mode: yes
       register: ansible_inventory
+
+    - name: Set inventory line for servers
+      when: deployment_on_workstation | lower == "false"
+      ansible.builtin.set_fact:
+        inventory_line: "[{{ deployment_instance_name }}]\n{{ ip_address }} ansible_become_password=\"\" ansible_private_key_file={{ ssh_key_file }}"
+
+    - name: Set inventory line without ansible_become_password
+      when: deployment_on_workstation | lower != "false"
+      ansible.builtin.set_fact:
+        inventory_line: "[{{ deployment_instance_name }}]\n{{ ip_address }} ansible_user={{ deployment_instance_user }} ansible_become_method=sudo ansible_private_key_file={{ ssh_key_file }}"
+
     - name: Add server to inventory file if deployment_instance_name does not exist in the inventory
       become: yes
       when: not ansible_inventory.changed
       ansible.builtin.lineinfile:
         path: /etc/ansible/hosts
-        line: "[{{ deployment_instance_name }}]\n{{ ip_address }} ansible_become_password=\"\" ansible_private_key_file={{ ssh_key_file }}"
+        line: "{{ inventory_line }}"
         create: yes
     - name: Change server address if deployment_instance_name does already exist
       become: yes

@@ -14,6 +14,7 @@ spec:
       labels:
         app.kubernetes.io/name: ctp
     spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
       containers:
         - name: ctp-container
           image: "{{ .Values.global.registry_url }}/ctp:{{ .Values.global.kaapana_build_version  }}"
@@ -30,8 +31,10 @@ spec:
           volumeMounts:
             - name: ctp-data
               mountPath: /data/
-            - name: ctp-logs
+              subPath: data
+            - name: ctp-data
               mountPath: /opt/CTP/logs
+              subPath: logs
             - name: config-file
               mountPath: /opt/CTP/config.xml
               subPath: config.xml
@@ -45,9 +48,6 @@ spec:
       - name: ctp-data
         persistentVolumeClaim:
           claimName: ctp-data-pv-claim
-      - name: ctp-logs
-        persistentVolumeClaim:
-          claimName: ctp-log-pv-claim
       - name: config-file
         configMap:
           name: ctp-config

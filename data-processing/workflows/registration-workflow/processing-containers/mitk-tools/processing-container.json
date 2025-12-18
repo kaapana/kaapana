@@ -1,0 +1,80 @@
+{
+    "name": "mitk-tools",
+    "description": "Processing container for registering dicom images",
+    "api_version": 1,
+    "templates": [
+        {
+            "identifier": "register",
+            "description": "Register dicom images",
+            "env": [
+            ],
+            "inputs": [
+                {
+                    "name": "fixed",
+                    "mounted_path": "/home/kaapana/fixed",
+                    "description": "Expects a single subdirectory with a single .nrrd file for the target image."
+                },
+                {
+                    "name": "moving",
+                    "mounted_path": "/home/kaapana/moving",
+                    "description": "Expects for each image that should be registered a subdirectory that contains a single .nrrd file",
+                    "scale_rule": {
+                        "scale_factor": 100,
+                        "type": "limit",
+                        "mode": "max_item_sum",
+                        "target_glob": "*.nrrd"
+                    }
+
+                }],
+            "outputs": [
+                {
+                    "name": "registered",
+                    "mounted_path": "/home/kaapana/registered",
+                    "description": "Creates for each subdirectory in moving a subdirectory with the same basename that contains a registered .nrrd file"
+                }
+            ],
+            "command": ["/bin/bash", "/home/kaapana/register.sh"],
+            "resources": {
+                "limits": {
+                    "memory": "2000Mi"
+                },
+                "requests": {
+                    "memory": "1000Mi"
+                }
+            }
+        },
+        {
+            "identifier": "convert",
+            "description": "Convert dicom series to nrrd files",
+            "env": [
+            ],
+            "inputs": [
+                {
+                    "name": "dicom",
+                    "mounted_path": "/home/kaapana/dicom",
+                    "scale_rule": {
+                        "scale_factor": 10,
+                        "type": "limit",
+                        "mode": "max_item_sum",
+                        "target_glob": "*.dcm"
+                    }
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "nrrd",
+                    "mounted_path": "/home/kaapana/nrrd"
+                }
+            ],
+            "command": ["/bin/bash", "/home/kaapana/convert.sh"],
+            "resources": {
+                "limits": {
+                    "memory": "500Mi"
+                },
+                "requests": {
+                    "memory": "100Mi"
+                }
+            }
+        }
+    ]
+}

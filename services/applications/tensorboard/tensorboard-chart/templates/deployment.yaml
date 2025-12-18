@@ -15,6 +15,7 @@ spec:
       labels:
         app.kubernetes.io/name: {{ .Release.Name }}
     spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000
@@ -61,7 +62,7 @@ spec:
             memory: "1Gi"
         env:
           - name: INGRESS_PATH
-            value: "/applications/project/{{ .Values.global.project_name }}/release/{{ .Release.Name }}"
+            value: "/applications/project/{{ .Values.global.project_id }}/release/{{ .Release.Name }}"
           - name: LOG_DIR
             value: /kaapana/mounted/tb-logs
         volumeMounts:

@@ -15,7 +15,16 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: traefik
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+        prometheus.io/scheme: "http"
+        prometheus.io/custom_job_name: "Traefik"
+        prometheus.io/scrape_interval: "30s"
+        prometheus.io/scrape_timeout: "10s"
     spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
       serviceAccountName: kaapana-kube-admin
       containers:
         - name: traefik
@@ -38,13 +47,15 @@ spec:
             - '--entryPoints.websecure.http.tls=true'
             - '--entrypoints.dicom.Address=:11112'
             # - '--serversTransport.insecureSkipVerify=true'
+            - --entryPoints.websecure.transport.respondingTimeouts.readTimeout=0
+            - --entryPoints.websecure.transport.respondingTimeouts.writeTimeout=0
+            - --entryPoints.websecure.transport.respondingTimeouts.idleTimeout=0
             - '--api=true'
             - '--api.dashboard=true'
             - '--api.insecure=true'
             - '--api.debug=false'
             - '--log.level=WARN'
             - '--accesslog=true'
-            - '--accesslog.filepath=/log/access.log'
             - '--log.format=json'
             - '--metrics=true'
             - '--metrics.prometheus=true'
@@ -66,17 +77,12 @@ spec:
             - mountPath: /config/conf.toml
               name: traefik-config-file
               subPath: conf.toml
-            - mountPath: /log
-              name: traefiklog
             - mountPath: /ssl
               name: ssl
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
       volumes:
-        - name: traefiklog
-          persistentVolumeClaim:
-            claimName: traefik-pv-claim
         - name: traefik-config-file
           configMap:
             name: traefik-config

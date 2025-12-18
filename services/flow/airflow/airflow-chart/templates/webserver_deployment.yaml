@@ -33,6 +33,7 @@ spec:
         app.kubernetes.io/name: airflow
         app.kubernetes.io/component: webserver
     spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
       initContainers:
       - name: airflow-scheduler-check
         image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
@@ -54,6 +55,7 @@ spec:
         ports:
         - name: webserver
           containerPort: 8080
+        command: ["/kaapana/app/bootstrap.sh"]
         args: ["webserver"]
         env:
         - name: ADMIN_NAMESPACE
@@ -74,6 +76,12 @@ spec:
           value: "{{ .Values.global.instance_name }}"
         - name: KAAPANA_BUILD_VERSION
           value: "{{ .Values.global.kaapana_build_version }}"
+        - name: KAAPANA_AIRFLOW_API_USERNAME
+          value: "kaapana-internal"
+        - name: KAAPANA_AIRFLOW_API_PASSWORD
+          value: "kaapana-internal"
+        - name: KAAPANA_AIRFLOW_API_USER_ROLE
+          value: "Op"
         - name: MINIOUSER
           value: "{{ .Values.global.credentials_minio_username }}"
         - name: MINIOPASSWORD

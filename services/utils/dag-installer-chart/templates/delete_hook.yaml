@@ -11,6 +11,8 @@ metadata:
 spec:
   template:
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: {{ .Values.global.main_node_name }}
       containers:
       - name: "remove-{{ .Values.global.image }}"
         image: "{{- if .Values.global.custom_registry_url }}{{ .Values.global.custom_registry_url }}{{- else}}{{ .Values.global.registry_url }}{{- end }}/{{ .Values.global.image }}:{{ .Chart.Version  }}"
@@ -33,8 +35,6 @@ spec:
           mountPath: "/kaapana/mounted/workflows/dags"
         - name: airflow-plugins
           mountPath: "/kaapana/mounted/workflows/plugins"
-        - name: airflow-mounted-scripts
-          mountPath: /kaapana/mounted/workflows/mounted_scripts
       securityContext:
         runAsUser: 0
       volumes:
@@ -44,10 +44,10 @@ spec:
       - name: airflow-plugins
         persistentVolumeClaim:
           claimName: af-plugins-pv-claim
-      - name: airflow-mounted-scripts
-        persistentVolumeClaim:
-          claimName: mounted-scripts-pv-claim
       restartPolicy: Never
       imagePullSecrets:
-      - name: registry-secret
+        - name: registry-secret
+        {{- if .Values.global.custom_registry_url }}
+        - name: registry-secret-{{ trunc 4 (sha256sum .Values.global.custom_registry_url) }}
+        {{- end }}
   backoffLimit: 0

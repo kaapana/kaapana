@@ -1,0 +1,36 @@
+{
+    "name": "Kubernetes task for dummy image",
+    "api_version": 1,
+    "image": "{{ env.registryUrl }}/dummy:latest",
+    "taskTemplate": "upstream",
+    "inputs": [],
+    "outputs": [
+        {
+            "name": "channel1",
+            "volume_source": {
+                "host_path": "{{ env.output_dir }}/dummy/channel1"
+            }
+        },
+        {
+            "name": "channel2",
+            "volume_source": {
+                "host_path": "{{ env.output_dir }}/dummy/channel2"
+            }
+        }
+    ],
+    "env": [{
+        "name":"TIME_SLEEP",
+        "value": "0"
+    },
+    {
+        "name": "DUMMY",
+        "value": "dummy"
+    }],
+    "config": {
+        "type":"k8s",
+        "namespace": "{{ env.namespace }}",
+        "registryUrl": "{{ env.registryUrl }}",
+        "registryUsername": "{{ env.registryUsername }}",
+        "registryPassword": "{{ env.registryPassword }}"
+    }
+}

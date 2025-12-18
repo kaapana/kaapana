@@ -9,10 +9,6 @@ global:
   dynamicVolumes:
   - name: slicer
     mount_path: /kaapana/minio
-    host_path: /applications/slicer
-    minio_mirror : true
-  display_name: "-"
-
 
 extension_params:
     gpu_container:

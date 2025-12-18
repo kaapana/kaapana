@@ -1,19 +1,21 @@
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
 from datetime import timedelta
+from pathlib import Path
+
 from airflow.models import DAG
 from airflow.operators.python import BranchPythonOperator
-
+from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.blueprints.json_schema_templates import schema_upload_form
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
-from kaapana.operators.Itk2DcmOperator import Itk2DcmOperator
+from kaapana.blueprints.kaapana_global_variables import (
+    AIRFLOW_WORKFLOW_DIR,
+    SERVICES_NAMESPACE,
+)
 from kaapana.operators.DcmSendOperator import DcmSendOperator
-from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
-from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR
+from kaapana.operators.Itk2DcmOperator import Itk2DcmOperator
+from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.LocalVolumeMountOperator import LocalVolumeMountOperator
-
-from pathlib import Path
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
 
 ui_forms = {
     **schema_upload_form(
@@ -82,6 +84,7 @@ unzip_files = ZipUnzipOperator(
     input_operator=get_object_from_uploads,
     batch_level=True,
     mode="unzip",
+    namespace=SERVICES_NAMESPACE,
 )
 
 convert = Itk2DcmOperator(
@@ -89,6 +92,7 @@ convert = Itk2DcmOperator(
     name="convert-itk2dcm",
     trigger_rule="none_failed_min_one_success",
     input_operator=unzip_files,
+    namespace=SERVICES_NAMESPACE,
 )
 
 convert_seg = Itk2DcmSegOperator(
@@ -99,14 +103,18 @@ convert_seg = Itk2DcmSegOperator(
     input_type="multi_label_seg",
     skip_empty_slices=True,
     fail_on_no_segmentation_found=False,
+    namespace=SERVICES_NAMESPACE,
 )
 
-dcm_send_seg = DcmSendOperator(name="dcm-send-seg", dag=dag, input_operator=convert_seg)
+dcm_send_seg = DcmSendOperator(
+    name="dcm-send-seg",
+    dag=dag,
+    input_operator=convert_seg,
+    namespace=SERVICES_NAMESPACE,
+)
 
 dcm_send_img = DcmSendOperator(
-    name="dcm-send-img",
-    dag=dag,
-    input_operator=convert,
+    name="dcm-send-img", dag=dag, input_operator=convert, namespace=SERVICES_NAMESPACE
 )
 
 remove_object_from_uploads = LocalVolumeMountOperator(
@@ -118,7 +126,10 @@ remove_object_from_uploads = LocalVolumeMountOperator(
 )
 
 clean = LocalWorkflowCleanerOperator(
-    dag=dag, trigger_rule="none_failed_min_one_success", clean_workflow_dir=True
+    dag=dag,
+    trigger_rule="none_failed_min_one_success",
+    clean_workflow_dir=True,
+    namespace=SERVICES_NAMESPACE,
 )
 
 

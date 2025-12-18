@@ -1,0 +1,60 @@
+{
+    "name": "Dummy-processing-container",
+    "description": "Dummy processing container",
+    "templates": [
+        {
+            "identifier": "upstream",
+            "description": "Upstream task template of this processing-container",
+            "env": [
+                {
+                    "name": "TIME_SLEEP",
+                    "value": "5",
+                    "choices": [],
+                    "description": "Number of iterations to sleep before finishing."
+                }
+            ],
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "channel1",
+                    "mounted_path": "/home/upstream/channel1"
+                },
+                {
+                    "name": "channel2",
+                    "mounted_path": "/home/upstream/channel2"
+                }
+            ],
+            "command": [
+                "python3",
+                "-u",
+                "upstream.py"
+            ]
+        },
+        {
+            "identifier": "downstream",
+            "description": "Downstream task template for this processing-container",
+            "env": [{
+                "name": "TIME_SLEEP",
+                "value": "5",
+                "choices": [],
+                "description": "Number of iterations to sleep before finishing."
+            }],
+            "inputs": [
+                {
+                    "name": "channel1",
+                    "mounted_path": "/home/downstream/channel1"
+                },
+                {
+                    "name": "channel2",
+                    "mounted_path": "/home/downstream/channel2"
+                }
+            ],
+            "outputs": [],
+            "command": [
+                "python3",
+                "-u",
+                "downstream.py"
+            ]
+        }
+    ]
+}

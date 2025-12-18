@@ -42,6 +42,13 @@ class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
         display_name="-",
         **kwargs
     ):
+
+        #Service dags have to run in services namespace to have access to sevices-namespace volumes
+        if "service" in dag.tags or "import" in dag.tags:
+            executor = "LocalExecutor"
+        else:
+            executor = "KubernetesExecutor"
+
         KaapanaBaseOperator.set_defaults(
             self,
             name=name,
@@ -85,7 +92,8 @@ class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
             on_failure_callback=KaapanaPythonBaseOperator.on_failure,
             pool=self.pool,
             pool_slots=self.pool_slots,
-            **kwargs
+            executor=executor,
+            **kwargs,
         )
 
         self.display_name = display_name

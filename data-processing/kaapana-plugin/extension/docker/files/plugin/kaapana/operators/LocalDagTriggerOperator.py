@@ -1,3 +1,5 @@
+# !!! DEPRECATION WARNING: Local Operators are deprecated and will be replaced with operators that run in Kubernetes pods in the next release v0.7.0.
+# If you have a custom Local Operator, it should be migrated to a processing container based operator.
 from kaapana.operators.HelperMinio import apply_action_to_object_dirs
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
@@ -325,6 +327,20 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
         self.conf = kwargs["dag_run"].conf
         self.dag_run_id = kwargs["dag_run"].run_id
 
+        if self.extra_conf:
+            def merge_conf(conf:dict, extra_conf:dict):
+                for k, v in extra_conf.items():
+                    if k in conf \
+                        and isinstance(conf[k], dict) \
+                        and isinstance(v, dict):
+                            merge_conf(conf[k], v)
+                    else:
+                        conf[k] = v 
+                return conf
+                    
+            merge_conf(self.conf, self.extra_conf)
+
+
         if self.trigger_dag_id == "":
             print(
                 f"trigger_dag_id is empty, setting to {self.conf['workflow_form']['trigger_dag_id']}"
@@ -431,6 +447,7 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
         use_dcm_files=True,
         from_data_dir=False,
         delay=10,
+        extra_conf:dict=None,
         **kwargs,
     ):
         self.trigger_dag_id = trigger_dag_id
@@ -443,6 +460,7 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
         self.use_dcm_files = use_dcm_files
         self.from_data_dir = from_data_dir
         self.delay = delay
+        self.extra_conf = extra_conf
 
         name = "trigger_" + self.trigger_dag_id
 

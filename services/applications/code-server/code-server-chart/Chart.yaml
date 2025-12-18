@@ -7,5 +7,5 @@ keywords:
 - kaapanaapplication
 - kaapanaint
 annotations:
-  documentation: "user_guide/extensions.html#code-server"
+  documentation: "user_guide/extensions.html#code-server-for-airflow"
   ui-visible-name: "Code Server for Airflow"

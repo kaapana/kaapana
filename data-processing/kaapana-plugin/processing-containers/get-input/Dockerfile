@@ -7,5 +7,6 @@ LABEL BUILD_IGNORE="False"
 WORKDIR /
 
 COPY files/get_input.py /kaapana/app/
+COPY processing-container.json /
 
 CMD ["python","-u","/kaapana/app/get_input.py"]

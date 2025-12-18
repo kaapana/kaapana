@@ -1,0 +1,13 @@
+fastapi==0.120.1
+asyncpg==0.30.0
+uvicorn==0.35.0
+SQLAlchemy==2.0.41
+psycopg2-binary==2.9.10
+websockets==15.0.1
+pydantic_settings==2.10.1
+alembic==1.16.4
+aiohttp==3.12.14
+httpx==0.28.1
+requests==2.32.4
+pytest-asyncio==1.1.0
+debugpy==1.6.7

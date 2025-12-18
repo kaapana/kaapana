@@ -1,26 +1,31 @@
-from typing import List
-import requests
+import asyncio
+import io
+import json
 import logging
+from datetime import datetime
+from typing import AsyncGenerator, BinaryIO, List
 
+import aiohttp
+import httpx
+import requests
+from app.config import settings
+from app.dependencies import get_db
+from app.workflows import crud, schemas
+from app.workflows.utils import requests_retry_session
 from fastapi import (
     APIRouter,
-    UploadFile,
-    Response,
+    Depends,
     File,
     Header,
-    Depends,
     HTTPException,
+    Response,
+    UploadFile,
 )
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from app.dependencies import get_db
-
-from app.workflows import crud
-from app.workflows import schemas
-from app.workflows.utils import requests_retry_session
-from app.config import settings
-from urllib3.util import Timeout
-import aiohttp
 from starlette.responses import StreamingResponse
+from urllib3.util import Timeout
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -58,17 +63,85 @@ async def get_minio_presigned_url(presigned_url: str = Header(...)):
     return StreamingResponse(stream_minio_response(), status_code=200)
 
 
+async def stream_upload_to_minio(
+    file_data: BinaryIO,
+    presigned_url: str,
+    settings,
+    filename: str = "unknown"
+) -> AsyncGenerator[str, None]:
+    """Stream MinIO response without buffering"""
+    upload_id = f"{datetime.now().isoformat()}-{filename}"
+
+    try:
+        logging.info(f"[{upload_id}] Starting upload")
+        yield f"[{upload_id}] Uploading...\n"
+
+        def upload_sync():
+            with requests.Session() as s:
+                return requests_retry_session(session=s).put(
+                    f"http://minio-service.{settings.services_namespace}.svc:9000{presigned_url}",
+                    data=file_data,
+                    stream=True,
+                )
+
+        response = await run_in_threadpool(upload_sync)
+
+        # DON'T wait for full response - stream chunks immediately
+        yield f"[{upload_id}] Status: {response.status_code}\n"
+
+        # Stream MinIO response chunks WITHOUT buffering
+        chunk_count = 0
+        for chunk in response.iter_content(chunk_size=1024):  # Small chunks!
+            if chunk:
+                chunk_count += 1
+                # Yield immediately, don't buffer
+                yield chunk.decode('utf-8', errors='ignore')
+        
+        yield f"\n[{upload_id}] Complete\n"
+        logging.info(f"[{upload_id}] SUCCESS")
+    
+    except Exception as e:
+        logging.error(f"[{upload_id}] Error: {str(e)}", exc_info=True)
+        yield f"\n[{upload_id}] ERROR: {str(e)}\n"
+
+
+
+
 @router.post("/minio-presigned-url")
 async def post_minio_presigned_url(
-    file: UploadFile = File(...), presigned_url: str = Header(...)
+    file: UploadFile = File(...),
+    presigned_url: str = Header(...),
 ):
-    # Todo add file streaming!
-    with requests.Session() as s:
-        resp = requests_retry_session(session=s).put(
-            f"http://minio-service.{settings.services_namespace}.svc:9000{presigned_url}",
-            data=file.file,
+    logging.info(f"Upload: {file.filename}")
+    
+    try:
+        # Transfer file handle to a copy before FastAPI closes it
+        file_copy = UploadFile(
+            file=file.file,
+            size=file.size,
+            filename=file.filename,
+            headers=file.headers,
         )
-    return Response(resp.content, resp.status_code)
+        # Replace original with a dummy BytesIO so FastAPI can close it safely
+        file.file = io.BytesIO()
+        
+        return StreamingResponse(
+            stream_upload_to_minio(
+                file_copy.file,
+                presigned_url,
+                settings,
+                file.filename
+            ),
+            media_type="text/event-stream",
+            status_code=200,
+        )
+    
+    except Exception as e:
+        logging.error(f"Error: {str(e)}", exc_info=True)
+        return Response(
+            content=json.dumps({"error": str(e)}),
+            status_code=500,
+        )
 
 
 # deprecated should be removed, if unused

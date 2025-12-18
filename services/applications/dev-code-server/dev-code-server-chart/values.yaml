@@ -1,0 +1,20 @@
+---
+global:
+  ingress_path: "applications/project/{{ .Values.global.project_id }}/release/{{ .Release.Name }}/"
+  namespace: "{{ .Values.global.services_namespace }}"
+  dynamicVolumes:
+    - name: dev-code-server
+      mount_path: /kaapana/minio/
+      host_path: "/applications/dev-code-server"
+      storage: "10Gi"
+      minio_mirror: true
+  envVars:
+    - name: WORKSPACE
+      value: "/kaapana"
+
+extension_params:
+  display_name:
+    default: "-"
+    definition: Display name for the launched application
+    type: string
+    value: ""

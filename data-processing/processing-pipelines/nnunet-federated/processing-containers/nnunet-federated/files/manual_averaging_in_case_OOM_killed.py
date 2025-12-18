@@ -34,18 +34,26 @@ print(psutil.Process(os.getpid()).memory_info().rss / 1024**2)
 
 # Not 100% sure if it is necessary to put those into functions, I did this to be sure to not allocated unnecssary memory...
 def _sum_state_dicts(fname, idx):
-    checkpoint = torch.load(fname, map_location=torch.device("cpu"))
+    # using weights_only=False for backwards compatability to keep torch <2.6 behavior
+    # TODO: get rid of it via
+    # Option 1 : updating the model saving to ensure all checkpoint objects are native Python types instead of NumPy types before torch.save()
+    # Option 2: using safe_globals to whitelist the specific numpy scalar type found in legacy checkpoints
+    checkpoint = torch.load(fname, map_location=torch.device("cpu"), weights_only=False)
     if idx == 0:
         sum_state_dict = checkpoint["state_dict"]
     else:
-        sum_state_dict = torch.load("tmp_state_dict.pt")
+        sum_state_dict = torch.load("tmp_state_dict.pt", weights_only=False)
         for key, value in checkpoint["state_dict"].items():
             sum_state_dict[key] = sum_state_dict[key] + checkpoint["state_dict"][key]
     torch.save(sum_state_dict, "tmp_state_dict.pt")
 
 
 def _save_state_dict(fname, averaged_state_dict):
-    checkpoint = torch.load(fname, map_location=torch.device("cpu"))
+    # using weights_only=False for backwards compatability to keep torch <2.6 behavior
+    # TODO: get rid of it via
+    # Option 1 : updating the model saving to ensure all checkpoint objects are native Python types instead of NumPy types before torch.save()
+    # Option 2: using safe_globals to whitelist the specific numpy scalar type found in legacy checkpoints
+    checkpoint = torch.load(fname, map_location=torch.device("cpu"), weights_only=False)
     checkpoint["state_dict"] = averaged_state_dict
     torch.save(checkpoint, fname)
 
@@ -58,7 +66,11 @@ for idx, fname in enumerate(
     _sum_state_dicts(fname, idx)
     print(psutil.Process(os.getpid()).memory_info().rss / 1024**2)
 
-sum_state_dict = torch.load("tmp_state_dict.pt")
+# using weights_only=False for backwards compatability to keep torch <2.6 behavior
+# TODO: get rid of it via
+# Option 1 : updating the model saving to ensure all checkpoint objects are native Python types instead of NumPy types before torch.save()
+# Option 2: using safe_globals to whitelist the specific numpy scalar type found in legacy checkpoints
+sum_state_dict = torch.load("tmp_state_dict.pt", weights_only=False)
 os.remove("tmp_state_dict.pt")
 
 averaged_state_dict = collections.OrderedDict()

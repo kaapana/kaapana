@@ -10,25 +10,25 @@ Use Deployment Script Flags
 
 Kaapana provides deployment script flags to help resolve common undeployment issues:
 
-- ``--no-hooks``  
-  Purges all Kubernetes deployments, jobs, and Helm charts **without running pre/post delete hooks**.  
+- ``--no-hooks``
+  Purges all Kubernetes deployments, jobs, and Helm charts **without running pre/post delete hooks**.
   Use this if undeployment **fails** or **runs indefinitely**.
 
-- ``--nuke-pods``  
-  Force-deletes all pods within Kaapana-related namespaces.  
+- ``--nuke-pods``
+  Force-deletes all pods within Kaapana-related namespaces.
   Useful if stuck pods are blocking removal.
 
 Run the deployment script with one or both of these flags:
 
 .. code-block:: bash
 
-   ./deploy_platform.sh --no-hooks
-   ./deploy_platform.sh --nuke-pods
+   ./kaapanactl.sh deploy --no-hooks
+   ./kaapanactl.sh deploy --nuke-pods
 
 Manual Undeployment (Advanced)
 ###############################
 
-If the above options don’t resolve the issue, you can manually undeploy Kaapana.  
+If the above options don’t resolve the issue, you can manually undeploy Kaapana.
 > ⚠️ **Warning:** Only perform these steps if you are familiar with Kubernetes and Helm.
 
 Step 1 – Remove Helm Releases

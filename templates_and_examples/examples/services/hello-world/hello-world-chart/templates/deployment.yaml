@@ -17,6 +17,14 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: hello-world
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5000"
+        prometheus.io/path: "/hello-world/metrics"
+        prometheus.io/scheme: "http"
+        prometheus.io/custom_job_name: "hello-world"
+        prometheus.io/scrape_interval: "30s"
+        prometheus.io/scrape_timeout: "10s"
     spec:
       containers:
       - name: hello-world

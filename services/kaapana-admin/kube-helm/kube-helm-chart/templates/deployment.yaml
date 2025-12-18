@@ -15,7 +15,16 @@ spec:
       labels:
         app.kubernetes.io/name: kube-helm
         app.kubernetes.io/component: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5000"
+        # prometheus.io/path: "metrics"
+        prometheus.io/scheme: "http"
+        prometheus.io/custom_job_name: "Kaapana Kube Helm Backend"
+        prometheus.io/scrape_interval: "30s"
+        prometheus.io/scrape_timeout: "10s"
     spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
       containers:
       - name: kube-helm
         image: "{{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.kaapana_build_version  }}"
@@ -88,8 +97,10 @@ spec:
 {{- end }}
           - name: helmextensions
             mountPath: "/kaapana/mounted/extensions"
-          - name: helmplatforms
+            subPath: extensions
+          - name: helmextensions
             mountPath: "/kaapana/mounted/platforms"
+            subPath: platforms
           - name: containerd-socket
             mountPath: "/kaapana/mounted/containerd.sock"
           - name: tmp
@@ -106,10 +117,6 @@ spec:
       - name: helmextensions
         persistentVolumeClaim:
           claimName: extensions-pv-claim
-      - name: helmplatforms
-        hostPath:
-          path: "{{ $.Values.global.fast_data_dir }}/platforms"
-          type: DirectoryOrCreate
 {{- if .Values.global.dev_files }}
       - name: kaapana-dev-files
         persistentVolumeClaim:

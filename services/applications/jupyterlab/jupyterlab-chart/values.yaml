@@ -6,13 +6,10 @@ global:
   dynamicVolumes:
   - name: jupyterlab
     mount_path: /kaapana/minio/
-    host_path: "/applications/jupyterlab"
-    storage: "10Mi"
-    minio_mirror : true
+    storage: "1Gi"
   envVars:
   - name: WORKSPACE
     value: "/kaapana"
-  display_name: "-"
   
 extension_params:
   display_name:
@@ -20,3 +17,13 @@ extension_params:
       definition: Display name for the launched application
       type: string
       value: ""
+  minio_prefix:
+    default: "/"
+    definition: Directory in the project bucket to sync into the jupyterlab application/
+    type: string
+    value: "/"
+  exclude_patterns:
+    default: "__EXCLUDE_NO_FILES__"
+    definition: Comma separated list of file patterns to exclude when syncing
+    type: string
+    value: "__EXCLUDE_NO_FILES__"

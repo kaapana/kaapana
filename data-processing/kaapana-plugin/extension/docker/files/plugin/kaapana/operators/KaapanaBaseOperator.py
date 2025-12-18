@@ -14,8 +14,10 @@ from airflow.models.skipmixin import SkipMixin
 from airflow.utils.dates import days_ago
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.context import Context
 from kaapana.blueprints.kaapana_global_variables import (
     ADMIN_NAMESPACE,
+    SERVICES_NAMESPACE,
     AIRFLOW_WORKFLOW_DIR,
     BATCH_NAME,
     DEFAULT_REGISTRY,
@@ -26,19 +28,22 @@ from kaapana.blueprints.kaapana_global_variables import (
     PULL_POLICY_IMAGES,
 )
 from kaapana.blueprints.kaapana_utils import cure_invalid_name, get_release_name
-from kaapana.kubetools import pod_launcher
-from kaapana.kubetools.pod import Pod
-from kaapana.kubetools.pod_stopper import PodStopper
-from kaapana.kubetools.resources import Resources as PodResources
-from kaapana.kubetools.secret import Secret
-from kaapana.kubetools.volume import Volume
-from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.operators import HelperSendEmailService
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
 from kaapanapy.services.NotificationService import Notification, NotificationService
 from kaapanapy.settings import ServicesSettings
 
+import signal
+import pickle
+from pathlib import Path
+from task_api.processing_container import task_models, pc_models
+from task_api.runners.KubernetesRunner import KubernetesRunner, PodPhase
+from kubernetes import client
+from kubernetes import config as k8s_config_loader
+
+
+KAAPANA_SKIP_TASK_RUN_RETURN_CODE = 126
 # Backward compatibility
 default_registry = DEFAULT_REGISTRY
 kaapana_build_version = KAAPANA_BUILD_VERSION
@@ -101,8 +106,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     TIMEOUT = 60 * 60 * 12
     CURE_INVALID_NAME_REGEX = r"[a-z]([-a-z0-9]*[a-z0-9])?"
 
-    pod_stopper = PodStopper()
-
     def __init__(
         self,
         dag,
@@ -143,7 +146,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         image_pull_secrets=None,
         priority_weight=1,
         priority_class_name="kaapana-low-priority",
-        startup_timeout_seconds=120,
+        startup_timeout_seconds=3600,
         namespace=None,
         image_pull_policy=PULL_POLICY_IMAGES,
         #  Deactivated till dynamic persistent volumes are supported
@@ -166,7 +169,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         pool_slots=None,
         api_version="v1",
         dev_server=None,
-        display_name="-",  # passed to the dev-server chart as display_name annotation for the ingress
+        display_name="-",
+        launch_application_chart="",
         **kwargs,
     ):
         #  Deactivated till dynamic persistent volumes are supported
@@ -224,7 +228,11 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             [arguments] if isinstance(arguments, str) else (arguments or [])
         )
         self.labels = labels or {}
-        self.labels.update({"pod-type": "processing-container"})
+        self.labels.update(
+            {
+                "kaapana.ai/type": "processing-container",
+            }
+        )
         self.startup_timeout_seconds = startup_timeout_seconds
         self.volume_mounts = volume_mounts or []
         self.volumes = volumes or []
@@ -247,40 +255,40 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.model_dir = os.getenv("MODELDIR", "")
         self.result_message = None
         self.display_name = display_name
+        self.launch_application_chart = launch_application_chart
 
         # Namespaces
-        self.services_namespace = os.getenv("SERVICES_NAMESPACE", "")
-        self.admin_namespace = os.getenv("ADMIN_NAMESPACE", "")
-        self.extensions_namespace = os.getenv("EXTENSIONS_NAMESPACE", "")
-        # self.helm_namespace = os.getenv("HELM_NAMESPACE", "")
+        self.services_namespace = SERVICES_NAMESPACE
+        self.admin_namespace = ADMIN_NAMESPACE
 
         if self.pod_resources is None:
-            pod_resources = PodResources(
-                request_cpu=(
-                    "{}m".format(self.cpu_millicores)
-                    if self.cpu_millicores != None
-                    else None
-                ),
-                limit_cpu=(
-                    "{}m".format(self.cpu_millicores + 100)
-                    if self.cpu_millicores != None
-                    else None
-                ),
-                request_memory="{}Mi".format(self.ram_mem_mb),
-                limit_memory="{}Mi".format(
-                    self.ram_mem_mb_lmt
-                    if self.ram_mem_mb_lmt is not None
-                    else self.ram_mem_mb + 100
-                ),
-                limit_gpu=None,  # 1 if self.gpu_mem_mb is not None else None
+            self.pod_resources = pc_models.Resources(
+                limits={
+                    "cpu": (
+                        "{}m".format(self.cpu_millicores + 100)
+                        if self.cpu_millicores != None
+                        else None
+                    ),
+                    "memory": "{}Mi".format(
+                        self.ram_mem_mb_lmt
+                        if self.ram_mem_mb_lmt is not None
+                        else self.ram_mem_mb + 100
+                    ),
+                    "nvidia.com/gpu": 1 if self.gpu_mem_mb else 0,
+                },
+                requests={
+                    "cpu": (
+                        "{}m".format(self.cpu_millicores)
+                        if self.cpu_millicores != None
+                        else None
+                    ),
+                    "memory": "{}Mi".format(self.ram_mem_mb),
+                },
             )
-            self.pod_resources = pod_resources
 
         envs = {
             "SERVICES_NAMESPACE": str(self.services_namespace),
             "ADMIN_NAMESPACE": str(self.admin_namespace),
-            "EXTENSIONS_NAMESPACE": str(self.extensions_namespace),
-            # "HELM_NAMESPACE": str(self.helm_namespace),
         }
 
         envs.update(
@@ -362,82 +370,64 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         Set volumes and volume claims based on the project namespace self.namespace.
         This function should be called after self.namespace was changed according to the project in the context params.
         """
-
         volume_volumeMount_pairs = [
             (
-                Volume(
+                client.V1Volume(
                     name="workflowdata",
-                    configs={
-                        "PersistentVolumeClaim": {
-                            "claim_name": f"{self.namespace}-workflow-data-pv-claim",
-                            "read_only": False,
-                        }
-                    },
+                    persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                        claim_name="workflow-data-pv-claim",
+                        read_only=False,
+                    ),
                 ),
-                VolumeMount(
-                    "workflowdata",
+                client.V1VolumeMount(
+                    name="workflowdata",
                     mount_path=PROCESSING_WORKFLOW_DIR,
                     sub_path=None,
                     read_only=False,
                 ),
             ),
             (
-                Volume(
+                client.V1Volume(
                     name="models",
-                    configs={
-                        "PersistentVolumeClaim": {
-                            "claim_name": f"{self.namespace}-models-pv-claim",
-                            "read_only": False,
-                        }
-                    },
+                    persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                        claim_name="models-pv-claim",
+                        read_only=False,
+                    ),
                 ),
-                VolumeMount(
-                    "models", mount_path="/models", sub_path=None, read_only=False
+                client.V1VolumeMount(
+                    name="models", mount_path="/models", sub_path=None, read_only=False
                 ),
             ),
             (
-                Volume(
-                    name="mounted-scripts",
-                    configs={
-                        "PersistentVolumeClaim": {
-                            "claim_name": f"{self.namespace}-mounted-scripts-pv-claim",
-                            "read_only": False,
-                        }
-                    },
-                ),
-                VolumeMount(
-                    "mounted-scripts",
-                    mount_path="/kaapana/mounted/workflows/mounted_scripts",
-                    sub_path=None,
-                    read_only=False,
-                ),
-            ),
-            (
-                Volume(
+                client.V1Volume(
                     name="tensorboard",
-                    configs={
-                        "PersistentVolumeClaim": {
-                            "claim_name": f"{self.namespace}-tensorboard-pv-claim",
-                            "read_only": False,
-                        }
-                    },
+                    persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                        claim_name="tensorboard-pv-claim",
+                        read_only=False,
+                    ),
                 ),
-                VolumeMount(
-                    "tensorboard",
+                client.V1VolumeMount(
+                    name="tensorboard",
                     mount_path="/tensorboard",
                     sub_path=None,
                     read_only=False,
                 ),
             ),
             (
-                Volume(name="dshm", configs={"emptyDir": {"medium": "Memory"}}),
-                VolumeMount(
-                    "dshm", mount_path="/dev/shm", sub_path=None, read_only=False
+                client.V1Volume(
+                    name="dshm",
+                    empty_dir=client.V1EmptyDirVolumeSource(medium="Memory"),
+                ),
+                client.V1VolumeMount(
+                    name="dshm", mount_path="/dev/shm", sub_path=None, read_only=False
                 ),
             ),
         ]
 
         for volume, volumeMount in volume_volumeMount_pairs:
+            # tensorboard is not part of services namespace and therefore no volume exists and none should be added.
+            if self.namespace == SERVICES_NAMESPACE and volume.name == "tensorboard":
+                continue
             self.volumes.append(volume)
             self.volume_mounts.append(volumeMount)
 
@@ -445,25 +435,50 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         """
         Add env variables that are retrieved from kubernets secrets to self.secrets.
         """
-        project_credentials_password = Secret(
-            deploy_type="env",
-            deploy_target="KAAPANA_PROJECT_USER_PASSWORD",
-            secret="project-user-credentials",
-            key="project-user-password",
+        project_credentials_password = client.V1EnvVar(
+            name="KAAPANA_PROJECT_USER_PASSWORD",
+            value_from=client.V1EnvVarSource(
+                secret_key_ref=client.V1SecretKeySelector(
+                    name="project-user-credentials",
+                    key="project-user-password",
+                )
+            ),
         )
 
-        project_credentials_username = Secret(
-            deploy_type="env",
-            deploy_target="KAAPANA_PROJECT_USER_NAME",
-            secret="project-user-credentials",
-            key="project-user",
+        project_credentials_username = client.V1EnvVar(
+            name="KAAPANA_PROJECT_USER_NAME",
+            value_from=client.V1EnvVarSource(
+                secret_key_ref=client.V1SecretKeySelector(
+                    name="project-user-credentials",
+                    key="project-user",
+                )
+            ),
         )
+        # Not nice but simple, special case for services namespace:
+        if self.namespace == SERVICES_NAMESPACE:
+            project_credentials_username = client.V1EnvVar(
+                name="KAAPANA_PROJECT_USER_NAME",
+                value="system",
+            )
 
-        oidc_client_secret = Secret(
-            deploy_type="env",
-            deploy_target="KAAPANA_CLIENT_SECRET",
-            secret="oidc-client-secret",
-            key="oidc-client-secret",
+            project_credentials_password = client.V1EnvVar(
+                name="KAAPANA_PROJECT_USER_PASSWORD",
+                value_from=client.V1EnvVarSource(
+                    secret_key_ref=client.V1SecretKeySelector(
+                        name="system-user-password",
+                        key="system-user-password",
+                    )
+                ),
+            )
+
+        oidc_client_secret = client.V1EnvVar(
+            name="KAAPANA_CLIENT_SECRET",
+            value_from=client.V1EnvVarSource(
+                secret_key_ref=client.V1SecretKeySelector(
+                    name="oidc-client-secret",
+                    key="oidc-client-secret",
+                )
+            ),
         )
 
         self.secrets.extend(
@@ -474,7 +489,136 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             ]
         )
 
-    def launch_dev_server(self, context):
+    def create_conf_configmap(self, context: Context):
+
+        # Do not mount configmap for workflow cleanup, otherwise the dir cannot be cleaned
+        if getattr(self, "clean_workflow_dir", None):
+            return
+        # Load Kubernetes configuration (in-cluster or local)
+        try:
+            k8s_config_loader.load_incluster_config()
+        except config.config_exception.ConfigException:
+            k8s_config_loader.load_kube_config()
+
+        dag_conf = context["dag_run"].conf or {}
+        config_json = json.dumps(dag_conf, indent=4, sort_keys=True)
+
+        run_id = context["run_id"]
+        configmap_name = f"{run_id}-config"
+
+        metadata = client.V1ObjectMeta(
+            name=configmap_name,
+            namespace=self.namespace,
+            labels={"app": "kaapana", "run_id": run_id},
+        )
+        body = client.V1ConfigMap(
+            api_version="v1",
+            kind="ConfigMap",
+            metadata=metadata,
+            data={"conf.json": config_json},
+        )
+
+        v1 = client.CoreV1Api()
+        try:
+            v1.create_namespaced_config_map(namespace=self.namespace, body=body)
+            logging.info(f"Created ConfigMap: {configmap_name}")
+        except client.exceptions.ApiException as e:
+            if e.status == 409:
+                logging.info(f"ConfigMap: {configmap_name}, already exists.")
+            else:
+                raise
+
+        volume_conf = client.V1Volume(
+            name="workflowconf",
+            config_map=client.V1ConfigMapVolumeSource(
+                name=configmap_name,
+                items=[client.V1KeyToPath(key="conf.json", path="conf.json")],
+            ),
+        )
+
+        volume_mount_conf = client.V1VolumeMount(
+            name="workflowconf",
+            mount_path=os.path.join(
+                PROCESSING_WORKFLOW_DIR,
+                run_id,
+                "conf",
+                "conf.json",
+            ),
+            sub_path="conf.json",
+            read_only=True,
+        )
+
+        self.volumes.append(volume_conf)
+        self.volume_mounts.append(volume_mount_conf)
+
+    def launch_application(self, context: Context):
+        conf = context["dag_run"].conf
+        release_name = get_release_name(context)
+        
+        try:
+            project_form = conf.get("project_form")
+            self.namespace = project_form.get("kubernetes_namespace")
+        except (KeyError, AttributeError):
+            self.namespace = "project-admin"
+
+        dynamic_volumes_dict = {
+            "workflow-data": PROCESSING_WORKFLOW_DIR,
+        }
+
+        dynamic_volumes = {}
+        for idx, (name, mount_path) in enumerate(dynamic_volumes_dict.items()):
+            dynamic_volumes.update(
+                {
+                    f"global.dynamicVolumes[{idx}].name": name,
+                    f"global.dynamicVolumes[{idx}].mount_path": mount_path,
+                }
+            )
+
+        payload = {
+            "name": f"{self.launch_application_chart}",
+            "version": KAAPANA_BUILD_VERSION,
+            "release_name": release_name,
+            "sets": {
+                "global.namespace": self.namespace,
+                "global.project_namespace": self.namespace,
+                "global.project_name": project_form.get("name"),
+                "global.project_id": project_form.get("id"),
+                "global.display_name": self.display_name,
+                **dynamic_volumes,
+                "mount_path": f'{self.data_dir}/{context["run_id"]}',
+                "workflow_dir": f'{str(PROCESSING_WORKFLOW_DIR)}/{context["run_id"]}',
+                "batch_name": str(self.batch_name),
+                "operator_out_dir": str(self.operator_out_dir),
+                "operator_in_dir": str(self.operator_in_dir),
+                "batches_input_dir": f'{str(PROCESSING_WORKFLOW_DIR)}/{context["run_id"]}/{self.batch_name}',
+            },
+        }
+
+        if "workflow_form" in conf:
+            workflow_form = conf["workflow_form"]
+            if "annotator" in workflow_form:
+                payload["sets"]["annotator"] = workflow_form["annotator"]
+
+        url = f"{KaapanaBaseOperator.HELM_API}/helm-install-chart"
+
+        print("payload")
+        print(payload)
+        r = requests.post(url, json=payload)
+        print(r)
+        print(r.text)
+        r.raise_for_status()
+
+        t_end = time.time() + KaapanaBaseOperator.TIMEOUT
+        while time.time() < t_end:
+            time.sleep(15)
+            url = f"{KaapanaBaseOperator.HELM_API}/view-chart-status"
+            r = requests.get(url, params={"release_name": release_name})
+            if r.status_code == 500 or r.status_code == 404:
+                print(f"Release {release_name} was uninstalled. My job is done here!")
+                break
+            r.raise_for_status()
+
+    def launch_dev_server(self, context: Context):
         """
         Launch a dev-server as pending application.
         """
@@ -516,9 +660,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         for idx, secret in enumerate(self.secrets):
             env_vars_from_secret_key_refs.update(
                 {
-                    f"global.envVarsFromSecretRef[{idx}].name": secret.deploy_target,
-                    f"global.envVarsFromSecretRef[{idx}].secretName": secret.secret,
-                    f"global.envVarsFromSecretRef[{idx}].secretKey": secret.key,
+                    f"global.envVarsFromSecretRef[{idx}].name": secret.name,
+                    f"global.envVarsFromSecretRef[{idx}].secretName": secret.value_from.secret_key_ref.name,
+                    f"global.envVarsFromSecretRef[{idx}].secretKey": secret.value_from.secret_key_ref.key,
                 }
             )
 
@@ -531,51 +675,54 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 }
             )
 
-        volume_mounts_lookup = {}
-        for volume_mount in self.volume_mounts:
-            if (
-                volume_mount.name in volume_mounts_lookup.values()
-                or volume_mount.name == "dshm"
-            ):
-                logging.warning(
-                    f"Warning {volume_mount.name} already in volume_mount dict!"
-                )
-                continue
-            volume_mounts_lookup.update({volume_mount.name: volume_mount.mount_path})
-        logging.info(volume_mounts_lookup)
+        dynamic_volume_lookup = {}
+        configmap_volume_config = {}
+        configmap_name = None
 
-        volume_claims_lookup = {}
         for volume in self.volumes:
-            if "PersistentVolumeClaim" in volume.configs:
-                if (
-                    volume.name in volume_claims_lookup.values()
-                    or volume.name == "dshm"
-                ):
-                    logging.warning(f"Warning {volume.name} already in volume dict!")
-                    continue
-                volume_claims_lookup.update(
-                    {
-                        volume.name: volume.configs["PersistentVolumeClaim"][
-                            "claim_name"
-                        ].replace("-pv-claim", "")
-                    }
+            if not volume.persistent_volume_claim:
+                if volume.name == "workflowconf" and volume.config_map:
+                    configmap_name = volume.config_map.name
+                    configmap_volume_config["global.workflow_configmap_name"] = (
+                        configmap_name
+                    )
+                continue
+            dynamic_volume_lookup[volume.name] = {
+                "name": volume.persistent_volume_claim.claim_name.replace(
+                    "-pv-claim", ""
                 )
-        logging.info(volume_claims_lookup)
+            }
+
+        for vol_mount in self.volume_mounts:
+            if vol_mount.name not in dynamic_volume_lookup:
+                if vol_mount.name == "workflowconf":
+                    configmap_volume_config["global.workflow_config_mount_path"] = (
+                        vol_mount.mount_path
+                    )
+                continue
+            dynamic_volume_lookup[vol_mount.name]["mount_path"] = vol_mount.mount_path
 
         dynamic_volumes = {}
-        for idx, (k, name) in enumerate(volume_claims_lookup.items()):
+        for idx, (vol_name, vol_config) in enumerate(dynamic_volume_lookup.items()):
+            if vol_name == "dshm":
+                logging.warning(f"Warning {vol_name} already in volume_mount dict!")
+                continue
             dynamic_volumes.update(
                 {
-                    f"global.dynamicVolumes[{idx}].name": f"{name}",
-                    f"global.dynamicVolumes[{idx}].mount_path": f"{volume_mounts_lookup[k]}",
+                    f"global.dynamicVolumes[{idx}].name": f"{vol_config["name"]}",
+                    f"global.dynamicVolumes[{idx}].mount_path": f"{vol_config["mount_path"]}",
                 }
             )
 
         # In case of debugging service_dag there is no self.project
-        project_name = self.project.get("name") if self.project else "admin"
-
+        response = requests.get(
+            "http://aii-service.services.svc:8080/projects/admin"
+        )
+        response.raise_for_status()
+        admin_id = response.json().get("id")
+        project_id = self.project.get("id") if self.project else admin_id
         ingress_path = (
-            f"applications/project/{project_name}/release/" + "{{ .Release.Name }}"
+            f"applications/project/{project_id}/release/" + "{{ .Release.Name }}"
         )
 
         helm_sets = {
@@ -587,6 +734,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             **dynamic_volumes,
             **env_vars_from_secret_key_refs,
             **dynamic_label_sets,
+            **configmap_volume_config,
         }
         logging.info(helm_sets)
         # kaapanaint is there, so that it is recognized as a pending application!
@@ -616,29 +764,106 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             r.raise_for_status()
         return
 
+    def _monitor_task_run(self):
+        try:
+            KubernetesRunner.logs(
+                self.task_run,
+                follow=True,
+                startup_timeout=self.startup_timeout_seconds,
+                log_timeout=self.execution_timeout.total_seconds(),
+            )
+        except TimeoutError:
+            final_status = KubernetesRunner.wait_for_task_status(
+                self.task_run,
+                states=[PodPhase.PENDING, PodPhase.RUNNING],
+                timeout=5,
+            )
+            if final_status == PodPhase.RUNNING:
+                raise AirflowException(
+                    f"Processing container didn't finish in execution timeout: {self.execution_timeout.total_seconds()} seconds. The corresponding will be deleted!"
+                )
+            elif final_status == PodPhase.PENDING:
+                raise AirflowException(
+                    f"Processing container didn't start within {self.startup_timeout_seconds} seconds. The corresponding will be deleted!"
+                )
+            else:
+                raise AirflowException(
+                    f"Processing container in unexpected state: {final_status}"
+                )
+
+        final_status = KubernetesRunner.wait_for_task_status(
+            self.task_run,
+            states=[PodPhase.SUCCEEDED, PodPhase.FAILED],
+            timeout=30,
+        )
+        if final_status == PodPhase.FAILED:
+            pod = KubernetesRunner.api.read_namespaced_pod(
+                name=self.task_run.id, namespace=self.task_run.config.namespace
+            )
+
+            container_name = "main"
+            if pod.status.container_statuses:
+                for cs in pod.status.container_statuses:
+                    if cs.name == container_name:
+                        state = cs.state
+                        if state.terminated:
+                            exit_code = state.terminated.exit_code
+                            message = state.terminated.message
+                            reason = state.terminated.reason
+                        else:
+                            raise AirflowException(
+                                f"Kubernetes status {final_status} but container {container_name} not terminated"
+                            )
+                        break
+            else:
+                raise AirflowException(
+                    f"Could not read final container status for pod {pod.name} and container {container_name}"
+                )
+            if reason == "OOMKilled":
+                raise AirflowException(
+                    f"Container {container_name} for task {self.task_run.name} was terminated due to OutOfMemory (OOMKilled)"
+                )
+            if exit_code == KAAPANA_SKIP_TASK_RUN_RETURN_CODE:
+                raise AirflowSkipException(
+                    f"Task {self.task_run.name} was skipped, {reason=}, {message=}"
+                )
+            elif exit_code != 0:
+                raise AirflowException(
+                    f"Processing container failed for task {self.task_run.name}!"
+                )
+        elif final_status == "Succeeded":
+            self.log.info(f"Processing Container finished successfully!")
+        else:
+            raise AirflowException(
+                f"Processing container in unexpected state: {final_status}"
+            )
+
+    @staticmethod
+    def unique_task_identifer(context: Context):
+        """
+        Set a unique identifier for this task instance.
+
+        :param context: Dictionary set by Airflow. It contains references to related objects to the task instance.
+        """
+        return f"{context["ti"].run_id}-{context["ti"].task_id}"
+
+    @staticmethod
+    def task_run_file_path(context: Context):
+        """
+        Return the path to the file, where the TaskInstance object will be stored.
+
+        :param context: Dictionary set by Airflow. It contains references to related objects to the task instance.
+        """
+        unique_id = KaapanaBaseOperator.unique_task_identifer(context)
+        task_run_dir = Path(AIRFLOW_WORKFLOW_DIR, context["run_id"])
+        task_run_dir.mkdir(parents=True, exist_ok=True)
+        return Path(task_run_dir, f"{unique_id}.pkl")
+
     # The order of this decorators matters because of the whitelist_federated_learning variable, do not change them!
     @cache_operator_output
     @federated_sharing_decorator
-    def execute(self, context):
-        config_path = os.path.join(
-            self.airflow_workflow_dir, context["run_id"], "conf", "conf.json"
-        )
-        os.makedirs(os.path.dirname(config_path), exist_ok=True)
-        if context["dag_run"].conf is not None:  # not os.path.isfile(config_path) and
-            with open(os.path.join(config_path), "w") as file:
-                json.dump(context["dag_run"].conf, file, indent=4, sort_keys=True)
-
+    def execute(self, context: Context):
         self.set_context_variables(context)
-        # Same expression as in on_failure method!
-        self.kube_name = cure_invalid_name(
-            context["run_id"]
-            .replace(context["dag_run"].dag_id, context["task_instance"].task_id)
-            .replace("manual", context["task_instance"].task_id)
-            .replace("scheduled", context["task_instance"].task_id),
-            KaapanaBaseOperator.CURE_INVALID_NAME_REGEX,
-            63,
-        )  # actually 63, but because of helm set to 53, maybe...
-
         if "gpu_device" in context["task_instance"].executor_config:
             self.env_vars.update(
                 {
@@ -676,16 +901,26 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         logging.info("CONTAINER ENVS:")
         logging.info(json.dumps(self.env_vars, indent=4, sort_keys=True))
+        logging.info("CONTAINER ANNOTATIONS BEFORE RUN:")
+        logging.info(json.dumps(self.annotations, indent=2, sort_keys=True))
 
-        try:
-            project_form = context.get("params").get("project_form")
-            self.project = project_form
-            self.namespace = project_form.get("kubernetes_namespace")
-        except (KeyError, AttributeError):
-            self.namespace = "project-admin"
+        project_form = context.get("params", {}).get("project_form")
+        self.project = project_form
+
+        if self.namespace is None:
+            self.namespace = (
+                project_form.get("kubernetes_namespace")
+                if project_form and project_form.get("kubernetes_namespace")
+                else "project-admin"
+            )
+
+        self.create_conf_configmap(context)
+
         self.set_volumes_and_volume_mounts()
         self.set_env_secrets()
 
+        if self.launch_application_chart != "":
+            return self.launch_application(context)
         if self.dev_server == "code-server":
             return self.launch_dev_server(context)
         elif self.dev_server is not None:
@@ -694,69 +929,53 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         if self.delete_output_on_start is True:
             self.delete_operator_out_dir(context["run_id"], self.operator_out_dir)
 
-        try:
-            logging.info("++++++++++++++++++++++++++++++++++++++++++++++++ launch pod!")
-            logging.info(self.name)
-            pod = Pod(
-                image=self.image,
-                name=self.kube_name,
-                envs=self.env_vars,
-                cmds=self.cmds,
-                args=self.arguments,
-                api_version=self.api_version,
-                kind=self.kind,
-                secrets=self.secrets,
-                labels=self.labels,
-                node_selectors=self.node_selectors,
-                tolerations=self.tolerations,
-                volumes=self.volumes,
-                volume_mounts=self.volume_mounts,
-                namespace=self.namespace,
-                image_pull_policy=self.image_pull_policy,
-                image_pull_secrets=self.image_pull_secrets,
-                priority_class_name=self.priority_class_name,
-                resources=self.pod_resources,
-                annotations=self.annotations,
-                affinity=self.affinity,
-            )
-            launcher = pod_launcher.PodLauncher(extract_xcom=self.xcom_push)
-
-            launcher_return = launcher.run_pod(
-                pod=pod,
-                startup_timeout=self.startup_timeout_seconds,
-                get_logs=self.get_logs,
-            )
-        except AirflowException as ex:
-            raise AirflowException("Pod Launching failed: {error}".format(error=ex))
-
-        if launcher_return is None:
-            raise AirflowException("Problems launching the pod...")
-        else:
-            (result, message) = launcher_return
-            self.result_message = result
-            logging.info("RESULT: {}".format(result))
-            logging.info("MESSAGE: {}".format(message))
-
-            if result == State.SKIPPED:
-                KaapanaBaseOperator.pod_stopper.stop_pod_by_name(
-                    pod_id=self.kube_name, namespace=self.namespace
-                )
-                raise AirflowSkipException("Pod has been skipped!")
-            elif result != State.SUCCESS:
-                raise AirflowException("Pod returned a failure!")
-            else:
-                if self.delete_input_on_success:
-                    self.delete_operator_out_dir(
-                        context["run_id"], self.operator_in_dir
-                    )
-            if self.xcom_push:
-                return result
-
-    def on_kill(self) -> None:
-        logging.info("##################################################### ON KILL!")
-        KaapanaBaseOperator.pod_stopper.stop_pod_by_name(
-            pod_id=self.kube_name, namespace=self.namespace
+        task_template = pc_models.TaskTemplate(
+            identifier="main",
+            description=f"This template is used for images that do not contain a processing-container.json file.",
+            inputs=[],
+            outputs=[],
+            env=[],
         )
+
+        self.task_run = KubernetesRunner.run(
+            task=task_models.Task(
+                name=KaapanaBaseOperator.unique_task_identifer(context),
+                image=self.image,
+                taskTemplate=task_template,
+                inputs=[],
+                outputs=[],
+                resources=self.pod_resources,
+                config=task_models.K8sConfig(
+                    namespace=self.namespace,
+                    imagePullSecrets=self.image_pull_secrets or ["registry-secret"],
+                    env_vars=self.secrets
+                    + [
+                        client.V1EnvVar(name=key, value=val)
+                        for key, val in self.env_vars.items()
+                    ],
+                    volumes=self.volumes,
+                    volume_mounts=self.volume_mounts,
+                    labels=self.labels,
+                    annotations=self.annotations,
+                ),
+            )
+        )
+        signal.signal(signal.SIGTERM, self.handle_sigterm)
+        KubernetesRunner.dump(
+            self.task_run, output=KaapanaBaseOperator.task_run_file_path(context)
+        )
+        self._monitor_task_run()
+
+    def handle_sigterm(self, signum, frame):
+        self.on_kill()
+        raise AirflowException("Task was killed gracefully.")
+
+    def on_kill(self):
+        """
+        Make sure that the corresponding pod is removed.
+        """
+        KubernetesRunner.stop(self.task_run)
+        self.log.info("Pod deleted successfully!")
 
     def delete_operator_out_dir(self, run_id, operator_dir):
         logging.info(f"#### deleting {operator_dir} folders...!")
@@ -773,32 +992,29 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         shutil.rmtree(batch_input_dir, ignore_errors=True)
 
     @staticmethod
-    def on_failure(context):
+    def stop_task_pod(context: Context):
+        try:
+            with open(KaapanaBaseOperator.task_run_file_path(context), "rb") as f:
+                task_run = pickle.load(f)
+                KubernetesRunner.stop(task_run=task_run)
+            logging.info(f"Stopped processing-container: {task_run.id}")
+        except FileNotFoundError:
+            logging.info("Task File not found")
+        except client.ApiException as e:
+            logging.warning(f"Kubernetes API exception: {e}")
+        finally:
+            return None
+
+    @staticmethod
+    def on_failure(context: Context):
         """
         Use this method with caution, because it unclear at which state the context object is updated!
         """
         logging.info(
             "##################################################### ON FAILURE!"
         )
-        # Same expression as in execute method!
-        kube_name = cure_invalid_name(
-            context["run_id"]
-            .replace(context["dag_run"].dag_id, context["task_instance"].task_id)
-            .replace("manual", context["task_instance"].task_id)
-            .replace("scheduled", context["task_instance"].task_id),
-            KaapanaBaseOperator.CURE_INVALID_NAME_REGEX,
-            63,
-        )  # actually 63, but because of helm set to 53, maybe...
-        time.sleep(2)  # since the phase needs some time to get updated
-        try:
-            project_form = context.get("params").get("project_form")
-            namespace = project_form.get("kubernetes_namespace")
-        except (KeyError, AttributeError):
-            namespace = "project-admin"
+        KaapanaBaseOperator.stop_task_pod(context)
 
-        KaapanaBaseOperator.pod_stopper.stop_pod_by_name(
-            pod_id=kube_name, namespace=namespace, phases=["Pending", "Running"]
-        )
         release_name = get_release_name(context)
         url = f"{KaapanaBaseOperator.HELM_API}/view-chart-status"
         r = requests.get(url, params={"release_name": release_name})
@@ -826,7 +1042,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             KaapanaBaseOperator.post_notification_to_user_from_context(context)
 
     @staticmethod
-    def post_notification_to_user_from_context(context):
+    def post_notification_to_user_from_context(context: Context):
         workflow_form = context["dag_run"].conf.get("workflow_form", {})
         username = workflow_form.get("username")
         if not username:
@@ -882,6 +1098,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         Use this method with caution, because it unclear at which state the context object is updated!
         """
         logging.info("##################################################### on_retry!")
+        KaapanaBaseOperator.stop_task_pod(context)
 
     @staticmethod
     def on_execute(context):
@@ -897,7 +1114,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         logging.info(context)
         logging.info(result)
 
-    def set_context_variables(self, context):
+    def set_context_variables(self, context: Context):
         self.labels["run_id"] = cure_invalid_name(
             context["run_id"], r"(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?"
         )

@@ -1,8 +1,9 @@
 groups:
 - name: prometheus/alert.rules
   rules:
-  - alert: service_down
-    expr: up == 0
+#  - alert: service_down
+#    expr: up == 0
+#    for: 1m
   - alert: dicom_filesyste_usage_ninety_percent_alert
     expr: sum (container_fs_usage_bytes{device=~".*dicom.*",id="/"}) / sum (container_fs_limit_bytes{device=~".*dicom.*",id="/"}) * 100 > 90
     labels:
@@ -23,3 +24,33 @@ groups:
     annotations:
       description: High invocation total on {{ $labels.instance }}
       summary: High invocation total on {{ $labels.instance }}
+# --- Disk Space Fast ----------------------------------------------------
+  - alert: DiskSpaceFast
+    expr: >
+      ((kaapana_fast_fs_size_bytes{custom_job_name="node-exporter"}
+        - kaapana_fast_fs_available_bytes{custom_job_name="node-exporter"})
+        / kaapana_fast_fs_size_bytes{custom_job_name="node-exporter"}) * 100 > 80
+    for: 1m
+    annotations:
+      summary: "Kaapana: Fast data DIR >80% full"
+
+  # --- Disk Space Slow ----------------------------------------------------
+  - alert: DiskSpaceSlow
+    expr: >
+      ((kaapana_slow_fs_size_bytes{custom_job_name="node-exporter"}
+        - kaapana_slow_fs_available_bytes{custom_job_name="node-exporter"})
+        / kaapana_slow_fs_size_bytes{custom_job_name="node-exporter"}) * 100 > 80
+    for: 1m
+    annotations:
+      summary: "Kaapana: Slow data DIR >80% full"
+
+  # --- Pod Status --------------------------------------------------------
+  - alert: PodDown
+    expr: up{kubernetes_namespace=~"(services|admin)", job="kubernetes-pods"} < 1
+    for: 1m
+    annotations:
+      summary: "Kubernetes Pod Down for >1m (Namespace: Service|Admin)"
+  - alert: PodDown
+    expr: up{kubernetes_namespace=~"(services|admin)", job="kubernetes-pods"} < 1
+    annotations:
+      summary: "Kubernetes Pod Down (Namespace: Service|Admin)"

@@ -2,7 +2,6 @@ global:
   pull_policy: "IfNotPresent"
   dynamicVolumes:
   - name: loki
-    host_path: /loki
 
 loki:
   port: 3100

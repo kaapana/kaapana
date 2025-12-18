@@ -1,17 +1,17 @@
 from datetime import timedelta
 
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.models import DAG
 from airflow.operators.python import BranchPythonOperator
+from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.trigger_rule import TriggerRule
+from kaapana.blueprints.json_schema_templates import schema_upload_form
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.operators.DcmSendOperator import DcmSendOperator
+from kaapana.operators.LocalVolumeMountOperator import LocalVolumeMountOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
-from kaapana.operators.DcmSendOperator import DcmSendOperator
 from wsiconv.WSIConvOperator import WSIconvOperator
-from kaapana.operators.LocalVolumeMountOperator import LocalVolumeMountOperator
-from kaapana.blueprints.json_schema_templates import schema_upload_form
-
 
 log = LoggingMixin().log
 
@@ -46,7 +46,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id="import-WSI",
+    dag_id="import-wsi",
     default_args=args,
     schedule_interval=None,
     concurrency=10,
@@ -66,13 +66,23 @@ get_object_from_uploads = LocalVolumeMountOperator(
 )
 
 unzip_files = ZipUnzipOperator(
-    dag=dag, input_operator=get_object_from_uploads, batch_level=True, mode="unzip"
+    dag=dag,
+    input_operator=get_object_from_uploads,
+    batch_level=True,
+    mode="unzip",
+    namespace=SERVICES_NAMESPACE,
 )
 
-wsi_conv = WSIconvOperator(dag=dag, input_operator=unzip_files)
+wsi_conv = WSIconvOperator(
+    dag=dag, input_operator=unzip_files, namespace=SERVICES_NAMESPACE
+)
 
 dicom_send = DcmSendOperator(
-    dag=dag, input_operator=wsi_conv, ae_title="uploaded", level="batch"
+    dag=dag,
+    input_operator=wsi_conv,
+    ae_title="uploaded",
+    level="batch",
+    namespace=SERVICES_NAMESPACE,
 )
 
 remove_object_from_uploads = LocalVolumeMountOperator(

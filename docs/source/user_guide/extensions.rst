@@ -144,13 +144,21 @@ body-and-organ-analysis
 
 **Workflow Overview:**
 
-Runs inference of all selected models on the CT images in the input dataset.
-For each input series a dedicated workflow is started.
-For more information checkout their `repository <https://github.com/UMEssen/Body-and-Organ-Analysis/tree/main>`_.
+Runs inference on the CT images using all selected models. Submodels associated with the **"total"** model are only executed if they are explicitly selected **and** the **"total"** model is selected.
+For each input series, a dedicated workflow is started.
+For more information, check out their `repository <https://github.com/UMEssen/Body-and-Organ-Analysis/tree/main>`_.
 
-#. Converts the dicom input to a nifti file.
+#. Converts the DICOM input to a NIfTI file.
 #. Executes the BOA command line tool on the input image.
-#. Uploads all output files to minio at :code:`<project-bucket>/body-and-organ-analysis/<dicom-series-uid>`.
+#. Verifies the outputs:
+
+   - Checks for invalid results, such as images with only background.
+   - If *strict mode* is enabled, all `expected outputs <https://github.com/UMEssen/Body-and-Organ-Analysis/blob/main/documentation/pacs_integration.md#Outputs>`_ must be present to continue.
+#. Converts all NIfTI segmentation results into a single DICOM SEG file.
+#. Uploads the results:
+
+   - The DICOM SEG file is uploaded to the PACS.
+   - All other output files are uploaded to MinIO at :code:`<project-bucket>/body-and-organ-analysis/<dicom-series-uid>`.
 
 .. _extensions_nnunet:
 
@@ -246,6 +254,23 @@ TotalSegmentator
 | **Input data:**  
 | Any **CT** scans.
 
+TotalSegmentator v2
+--------------------
+| **Method:** "TotalSegmentator: robust segmentation of  117 (CT) and 50 (MR) body structures"
+| **Authors:**  Wasserthal J., Meyer M., Breit H., Cyriac J., Yang S., Segeroth M.
+| **DOI:** `10.48550/arXiv.2208.05868 <https://arxiv.org/abs/2208.05868>`_
+| **Code:** `https://github.com/wasserth/TotalSegmentator <https://github.com/wasserth/TotalSegmentator>`_
+
+| **Workflow Overview**
+| 1) Model is downloaded.
+| 2) DICOM is converted to NIfTI files
+| 3) TotalSegmentator with selected its subtasks is applied to the input data
+| 4) NIfTI segmentations will be converted to DICOM Segmentation (DICOM SEG) object
+| 5) DICOM SEGs will be sent to the internal platform PACS
+
+| **Input data:**  
+| Any **CT** or **MR** scans.
+
 
 .. _extensions_organseg:
 
@@ -309,6 +334,22 @@ MITK Flow
 | **Input data:**  
 | DICOMs
 
+.. _extensions_task_api:
+
+Task API workflows
+-------------------
+| **register-dicoms**
+| 1) Download dataset with the target image
+| 2) Download dataset with the moving images that will be registerd to the target image
+| 3) Convert dicom images to nrrd
+| 4) Register moving images to the target image
+| 5) Convert registered images from nrrd to dicom
+| 6) Send registered images to the internal CTP server
+
+
+| **test-task-operator:**
+| Minimal workflow to test the Task API and the KaapanaTaskOperator
+
 .. _extensions_classification:
 
 
@@ -319,16 +360,112 @@ Applications
 
 .. _extensions_code_server:
 
-Code server
------------
-| **What's going on?**
-| The code server is used for developing new DAGs and operators for Airflow. It mounts the workflows directory of kaapana
+Code server for Airflow
+-----------------------
+
+| **Purpose**
+| The Code Server is used for developing and debugging Airflow DAGs and operators.  
+  It runs a VS Code–compatible server inside a container and mounts the workflows directory of Kaapana.
 
 | **Mount point:**  
-| <fast_data_dir>/workflows
+| ``<fast_data_dir>/workflows``
 
-| **VSCode settings:**
-| If you want to use your costum VSCode settings inside the code-server you can save them under :code:`/kaapana/app/.vscode/settings.json`.
+| **Capabilities:**
+| - Edit DAG files directly inside the Code Server.
+| - Access the full workflow directory, including retained workflow data and downloaded models/scripts.
+| - Inspect DAG definitions and troubleshoot failed workflows without starting an operator-specific Code Server.
+| - Add and execute small scripts on the mounted data for testing and debugging.
+| - Not intended for running production workloads.
+
+| **Logs:**
+| Logs are not directly accessible from within the Code Server.  
+  Use the Kaapana platform UI or the Airflow UI to view log output.
+
+| **VS Code settings:**
+| If you want to use your custom VS Code settings inside the Code Server,  
+  save them under ``/kaapana/app/.vscode/settings.json``.
+
+.. _extensions_dev_code_server:
+
+Code Server for Development
+---------------------------
+
+| This extension provides a VS Code Server environment within the Kaapana platform for Python and R development. Users can explore and analyze data directly within the platform.
+
+| **Overview**
+
+| This extension is designed for users who need an interactive coding environment similar to JupyterLab, but with the additional flexibility of VS Code. It utilizes [`code-server`]([https://](https://github.com/coder/code-server)) to bring VSCode in the browser.
+
+| Note that this extension is intended to be used with online deployments. If the container can not access the internet, an `OFFLINE_WARNING.txt` will appear next to this `README.md` file.
+
+| The environment includes:
+| - Python 3 and R support
+| - Preinstalled Python, R, and Jupyter extensions in VSCode
+| - Access to the project’s MinIO storage
+| - Ability to install additional Python or R packages
+
+| **Preinstalled Components**
+
+| 1. Python Environment
+| - Python version: 3.x (installed via Ubuntu python3-full)
+| - Virtual environment path: /opt/venv
+
+| Default packages:
+| - numpy
+| - pandas
+| - scipy
+| - matplotlib
+| - jupyterlab
+| - torch, torchvision, torchaudio
+
+| 2. R Environment
+
+| - Installed from the official CRAN repository
+| - Includes the languageserver package for IDE integration
+
+| 3. VS Code Extensions
+
+Preinstalled extensions:
+
+| - `ms-python.python`
+| - `ms-toolsai.jupyter`
+| - `REditorSupport.r`
+| - `ms-toolsai.jupyter-keymap`
+| - `ms-toolsai.jupyter-renderers`
+
+| **Project Storage and Data Access**
+
+| The MinIO folder of the project (that was selected while the extension is installed in the UI) is automatically mounted within the workspace.
+| It supports unilateral sync:
+
+| - Input data from MinIO: /kaapana/minio/input
+| - Output data to MinIO : /kaapana/minio/output
+| - Project MinIO bucket: project-<project_name>
+
+
+| **Known Limitations of The Environment**
+| JupyterLab VSCode Extension works as expected in Firefox, but in Chrome, Jupyter notebook cells may fail to render with a Service Worker SSL error:
+
+.. code-block::
+
+  Could not initialize webview: Error: Could not register service worker:
+  SecurityError: Failed to register a ServiceWorker for scope (...)
+
+| This is a known issue with `code-server`: https://github.com/coder/code-server/issues/3410
+
+| - The Jupyter extension does not automatically select the correct Python environment, therefore the users must manually choose `/opt/venv/bin/python` as the interpreter each time they open a notebook.
+
+| - The AI chat/agent sidebar introduced in newer `code-server` versions cannot currently be turned off via settings.
+| Even with configuration options such as:
+
+.. code-block::
+
+  "chat.disableAIFeatures": true,
+  "chat.agent.enabled": false
+
+| the panel still appears in the beginning and must be manually closed.
+
+| This is a known issue of `code-server`: https://github.com/coder/code-server/issues/754
 
 .. _extensions_collabora:
 
@@ -356,18 +493,21 @@ Once you have a better understanding of this DAG, you can start adapting the DAG
 
 JupyterLab
 -----------
-The `JupyterLab <https://jupyter.org/>`__ is an excellent tool to swiftly analyse data stored to the MinIO object store.
+`JupyterLab <https://jupyter.org/>`__ is an excellent tool to swiftly analyse data stored to the MinIO object store.
 It comes preinstalled with a wide array of commonly used Python packages for data analysis.
-You can deploy multiple instances of JupyterLab simultaneously, each with its dedicated MinIO bucket named after the respective JupyterLab instance.
-Data stored within this bucket is available to the JupyterLab application through the `/minio/input` directory.
-You can save your analysis-scripts or results to the directory `/minio/output`.
-Files in this directory will be automatically transfered to and persisted in the MinIO bucket named `output` and are available to the `JupyterlabReportingOperator`.
-While JupyterLab is great for exploratory data analysis, for more complex calculations, consider developing a dedicated Airflow DAG.
+While JupyterLab is great for exploratory data analysis, for more complex calculations, consider developing a dedicated :ref:`Workflow Extension <workflow_dev_guide>`.
 
-| **Mount point:**  
-| <slow_data_dir>/applications/jupyterlab/<jupyterlab-instance-name>/input
-| <slow_data_dir>/applications/jupyterlab/<jupyterlab-instance-name>/output
-
+You can launch multiple instances of JupyterLab simultaneously for different usecases.
+Each instance has access to a directory inside the project bucket in MinIO.
+You can specify this directory, when you launch a new instance in the :ref:`extensions view <extensions>`.
+Files in this directory are periodically synced bidirectionally between MinIO and the JupyterLab instance.
+Note, that the sync interval is 20 seconds.
+If a file is simultaneously changed in MinIO and JupyterLab, rclone will resolve this conflict during the next syncronisation.
+* It does not overwrite either side.
+* It renames one version with a .conflict suffix.
+* The file changed in MinIO keeps the original filename.
+* The file changed in Jupyterlab gets the conflict rename.
+* For more information check the :ref:`rclone manual <https://rclone.org/bisync/>`.
 
 .. _extensions_minio_sync:
 

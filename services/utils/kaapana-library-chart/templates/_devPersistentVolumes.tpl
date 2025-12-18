@@ -9,20 +9,11 @@ metadata:
 spec:
   capacity:
     storage: "1Mi"
-{{- if .Values.global.enable_nfs }}
-  storageClassName: nfs
-  accessModes:
-    - ReadWriteMany
-  nfs:
-    server: "10.152.183.15"
-    path: /dev_{{ .Chart.Name }}
-{{- else }}
   storageClassName: host-dir
   accessModes:
     - ReadWriteOnce
   hostPath:
     path: "{{ .Values.global.dev_files }}"
-{{- end }}
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ ternary .Values.global.admin_namespace .Values.global.services_namespace $is_admin_namespace }}"
@@ -34,9 +25,9 @@ metadata:
   name: {{ .Chart.Name }}-dev-pv-claim
   namespace: "{{ ternary .Values.global.admin_namespace .Values.global.services_namespace $is_admin_namespace }}"
 spec:
-  storageClassName: nfs
+  storageClassName: host-dir
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   resources:
     requests:
       storage: "1Mi"

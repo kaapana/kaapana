@@ -6,6 +6,7 @@ security-reports/*.json
 security-reports/*/
 tmpcharts
 migrations
+.trivy_cache/*
 .ipynb_checkpoints
 __pycache__
 .vscode
@@ -38,3 +39,6 @@ request_config.yaml
 tests/airflow_workflow_dir/*
 tests/venv/*
 .mypy_cache
+*.egg-info
+*.db
+.env

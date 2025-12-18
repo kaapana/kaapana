@@ -14,7 +14,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: {{ .Release.Name }}
-        pod-type: "processing-container"
+        kaapana.ai/type: "processing-container"
 {{ include "dynamicLabels" $ | indent 8 }}
     spec:
       securityContext:
@@ -31,7 +31,7 @@ spec:
           requests:
             memory: 200Mi
           limits:
-            memory: 30Gi
+            memory: 5Gi
         volumeMounts:
           - name: configs
             mountPath: /root/.local/share/code-server/User/keybindings.json

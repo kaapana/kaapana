@@ -1,0 +1,477 @@
+{
+  "$defs": {
+    "BaseConfig": {
+      "properties": {
+        "labels": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": {},
+          "title": "Labels"
+        }
+      },
+      "title": "BaseConfig",
+      "type": "object"
+    },
+    "BaseEnv": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "title": "BaseEnv",
+      "type": "object"
+    },
+    "DockerConfig": {
+      "properties": {
+        "labels": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": {},
+          "title": "Labels"
+        },
+        "type": {
+          "const": "docker",
+          "default": "docker",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "title": "DockerConfig",
+      "type": "object"
+    },
+    "HostPathVolume": {
+      "properties": {
+        "host_path": {
+          "title": "Host Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "host_path"
+      ],
+      "title": "HostPathVolume",
+      "type": "object"
+    },
+    "IOMount": {
+      "description": "Defines where an input or output channel should be mounted inside the container.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "scale_rule": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScaleRule"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "mounted_path": {
+          "title": "Mounted Path",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        }
+      },
+      "required": [
+        "name",
+        "mounted_path"
+      ],
+      "title": "IOMount",
+      "type": "object"
+    },
+    "IOVolume": {
+      "description": "Represents a storage location for input/output data.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "scale_rule": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScaleRule"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "volume_source": {
+          "$ref": "#/$defs/HostPathVolume",
+          "title": "Volume Source"
+        }
+      },
+      "required": [
+        "name",
+        "volume_source"
+      ],
+      "title": "IOVolume",
+      "type": "object"
+    },
+    "Resources": {
+      "properties": {
+        "limits": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Limits"
+        },
+        "requests": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requests"
+        }
+      },
+      "title": "Resources",
+      "type": "object"
+    },
+    "ScaleRule": {
+      "description": "Defines how memory resources should scale based on the size of input data in an IOMount.",
+      "properties": {
+        "scale_factor": {
+          "title": "Scale Factor",
+          "type": "integer"
+        },
+        "type": {
+          "$ref": "#/$defs/ScaleRuleType"
+        },
+        "mode": {
+          "$ref": "#/$defs/ScaleRuleMode"
+        },
+        "target_dir": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "",
+          "title": "Target Dir"
+        },
+        "target_regex": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": ".*",
+          "title": "Target Regex"
+        },
+        "target_glob": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "*",
+          "title": "Target Glob"
+        }
+      },
+      "required": [
+        "scale_factor",
+        "type",
+        "mode"
+      ],
+      "title": "ScaleRule",
+      "type": "object"
+    },
+    "ScaleRuleMode": {
+      "enum": [
+        "sum",
+        "max_file_size",
+        "max_item_sum"
+      ],
+      "title": "ScaleRuleMode",
+      "type": "string"
+    },
+    "ScaleRuleType": {
+      "enum": [
+        "limit",
+        "request"
+      ],
+      "title": "ScaleRuleType",
+      "type": "string"
+    },
+    "TaskTemplate": {
+      "description": "Blueprint for how a Docker image can be used for data processing in a predefined way.",
+      "properties": {
+        "command": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Command"
+        },
+        "resources": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Resources"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "identifier": {
+          "title": "Identifier",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "inputs": {
+          "items": {
+            "$ref": "#/$defs/IOMount"
+          },
+          "title": "Inputs",
+          "type": "array"
+        },
+        "outputs": {
+          "items": {
+            "$ref": "#/$defs/IOMount"
+          },
+          "title": "Outputs",
+          "type": "array"
+        },
+        "env": {
+          "items": {
+            "$ref": "#/$defs/TaskTemplateEnv"
+          },
+          "title": "Env",
+          "type": "array"
+        }
+      },
+      "required": [
+        "identifier",
+        "description",
+        "inputs",
+        "outputs",
+        "env"
+      ],
+      "title": "TaskTemplate",
+      "type": "object"
+    },
+    "TaskTemplateEnv": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        },
+        "choices": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Choices"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "title": "TaskTemplateEnv",
+      "type": "object"
+    }
+  },
+  "description": "Concrete usage of a TaskTemplate within a workflow.\nCaptures how input/output data and parameters are bound for a particular execution.",
+  "properties": {
+    "command": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Command"
+    },
+    "resources": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Resources"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "image": {
+      "title": "Image",
+      "type": "string"
+    },
+    "api_version": {
+      "default": 1,
+      "title": "Api Version",
+      "type": "integer"
+    },
+    "taskTemplate": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/TaskTemplate"
+        }
+      ],
+      "title": "Tasktemplate"
+    },
+    "config": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DockerConfig"
+        },
+        {
+          "$ref": "#/$defs/BaseConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": {
+        "labels": {}
+      },
+      "title": "Config"
+    },
+    "inputs": {
+      "items": {
+        "$ref": "#/$defs/IOVolume"
+      },
+      "title": "Inputs",
+      "type": "array"
+    },
+    "outputs": {
+      "items": {
+        "$ref": "#/$defs/IOVolume"
+      },
+      "title": "Outputs",
+      "type": "array"
+    },
+    "env": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/BaseEnv"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Env"
+    }
+  },
+  "required": [
+    "name",
+    "image",
+    "taskTemplate"
+  ],
+  "title": "Task",
+  "type": "object"
+}

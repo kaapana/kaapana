@@ -2,9 +2,11 @@
 dependencies:
   - name: kaapana-platform-chart
     version: 0.0.0
-  - name: kaapana-plugin-chart
+  - name: dev-code-server-chart
     version: 0.0.0
   - name: code-server-chart
+    version: 0.0.0
+  - name: kaapana-workflows-core
     version: 0.0.0
   - name: edk
     version: 0.0.0
@@ -36,22 +38,8 @@ dependencies:
     version: 0.0.0
   - name: radiomics-federated-workflow
     version: 0.0.0
-  - name: shapemodel-workflow
-    version: 0.0.0
-  - name: tfda-spe-orchestrator-workflow
-    version: 0.0.0
-  # - name: rateme-workflow
-  #   version: 0.0.0
-  # - name: rateme-chart
-  #   version: 0.0.0
   - name: tensorboard-chart
     version: 0.0.0
-  - name: kaapana-persistence-chart
-    version: 0.0.0
-  # - name: mhub-models-workflow
-  #   version: 0.0.0
-  # - name: debug-container-chart
-  #   version: 0.0.0
   - name: advanced-collect-metadata-workflow
     version: 0.0.0
   - name: advanced-collect-metadata-federated-workflow
@@ -60,13 +48,7 @@ dependencies:
     version: 0.0.0
   # - name: openedc-chart
   #   version: 0.0.0
-  # - name: doccano
-  #   version: 0.0.0
-  # - name: doccano-image-tagging-workflow
-  #   version: 0.0.0
   - name: classification-training-workflow
-    version: 0.0.0
-  - name: modify-dcmseg-workflow
     version: 0.0.0
   - name: collabora-chart
     version: 0.0.0
@@ -93,4 +75,6 @@ dependencies:
   # - name: hello-world-chart
   #   version: 0.0.0
   - name: body-and-organ-analysis-workflow
+    version: 0.0.0
+  - name: total-segmentator-v2-workflow
     version: 0.0.0

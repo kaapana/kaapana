@@ -3,6 +3,10 @@ global:
     image: "dag-total-segmentator"
     action: "copy"
 
+model_installer_chart:
+    image: "get-totalsegmentator-models"
+    model_dir: "/models/total_segmentator/nnUNet"
+
 extension_params:
     task_ids: 
         definition: "Multi-selectable nnunet versions used in different tasks"

@@ -31,7 +31,7 @@ data:
       # This way ensures that you get multiple alerts for the same group that start
       # firing shortly after another are batched together on the first 
       # notification.
-      group_wait: 120s
+      group_wait: 30s
 
       # When the first notification was sent, wait 'group_interval' to send a batch
       # of new alerts that started firing for that group.
@@ -69,9 +69,12 @@ data:
 
     receivers:
     - name: 'prometheus-alert'
-      email_configs:
-      - to: 'alert@jipinfo.com'
-        require_tls: false
+      webhook_configs:
+      - url: 'http://localhost:8081/alerts'
+        send_resolved: true
+      # email_configs:
+      # - to: 'alert@jipinfo.com'
+      #   require_tls: false
 kind: ConfigMap
 metadata:
   name: alertmanager-config

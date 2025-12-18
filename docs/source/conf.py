@@ -38,9 +38,9 @@ copyright = "2025, MIC @DKFZ"
 author = "MIC @DKFZ"
 
 # The short X.Y version
-version = "0.5.3"
+version = "0.6.0"
 # The full version, including alpha/beta/rc tags
-release = "0.5.3"
+release = "0.6.0"
 
 
 # -- General configuration ---------------------------------------------------
@@ -87,6 +87,7 @@ autodoc_mock_imports = [
     "dicomweb_client",
     "minio",
     "kaapanapy",
+    "task_api",
 ]
 autoclass_content = "both"
 

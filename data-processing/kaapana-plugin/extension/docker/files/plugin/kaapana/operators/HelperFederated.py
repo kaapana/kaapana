@@ -1,24 +1,23 @@
-import os
-import shutil
 import functools
 import json
-from pathlib import Path
-import requests
+import os
+import shutil
 import tarfile
-import urllib3
-from cryptography.fernet import Fernet
+from datetime import datetime
+from pathlib import Path
 from socket import timeout
 
-
-from minio import Minio
-
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+import httpx
+import requests
+import urllib3
+from cryptography.fernet import Fernet
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, SERVICES_NAMESPACE
 from kaapana.blueprints.kaapana_utils import (
     get_operator_properties,
     requests_retry_session,
     trying_request_action,
 )
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME
+from minio import Minio
 
 MINIO_CLIENT_URL = (
     f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/client"
@@ -131,24 +130,46 @@ def apply_minio_presigned_url_action(
         apply_tar_action(filename, src_dir, whitelist_federated_learning)
         print(f"Encrypting {filename}")
         fernet_encryptfile(filename, client_network["fernet_key"])
-        with open(filename, "rb") as tar:
-            print(f"Putting {filename} to {remote_network}")
-            # with requests.post(minio_presigned_url, verify=ssl_check, files={'file': tar}, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']}) as r:
-            #     raise_kaapana_connection_error(r)
-            with requests.Session() as s:
-                r = requests_retry_session(session=s, use_proxies=True).post(
-                    minio_presigned_url,
-                    verify=ssl_check,
-                    timeout=600,
-                    files={"file": tar},
-                    headers={
-                        "FederatedAuthorization": remote_network["token"],
-                        "presigned-url": data["path"],
-                        "User-Agent": f"kaapana",
-                    },
-                )
-                raise_kaapana_connection_error(r)
-        print(f"Finished uploading {filename}!")
+        try:
+            with open(filename, "rb") as file_handle:
+                # Log file size and start time for tracking
+                file_size_bytes = file_handle.seek(0, 2)
+                file_handle.seek(0)
+                file_size_gb = file_size_bytes / (1024**3)
+                print(f"File Size: {file_size_gb:.6f} GB")
+                print(f"Start upload: {datetime.now().isoformat()}")
+                print(f"Putting {filename} to {remote_network}")
+                headers = {
+                    "FederatedAuthorization": remote_network["token"],
+                    "presigned-url": data["path"],
+                    "User-Agent": "kaapana",
+                }
+                # file_handle is streamed directly by httpx
+                files = {
+                    "file": (
+                        os.path.basename(filename),
+                        file_handle,
+                        "application/octet-stream",
+                    )
+                }
+
+                # Timeout is set to None to handle long uploads
+                with httpx.Client(verify=ssl_check, timeout=None) as client:
+                    with client.stream(
+                        "POST",
+                        minio_presigned_url,
+                        files=files,
+                        headers=headers,
+                    ) as response:
+                        print(f"Status: {response.status_code}")
+                        response.read()
+                        raise_kaapana_connection_error(response)
+            print(f"End upload: {datetime.now().isoformat()}")
+            print(f"Finished uploading {filename}!")
+
+        except Exception as e:
+            print(f"Error during file upload: {e}")
+            raise
     if action == "get":
         print(f"Getting {filename} from {remote_network}")
         os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -221,6 +242,8 @@ def federated_sharing_decorator(func):
             federated = conf["federated_form"]
             print("Federated config")
             print(federated)
+            # set namespace to services namespace for federated runs
+            self.namespace = SERVICES_NAMESPACE
         else:
             federated = None
 

@@ -1,0 +1,66 @@
+apiVersion: v1
+data:
+  keybindings.json: |-
+    // Place your key bindings in this file to override the defaults
+    [
+        {
+            "key": "ctrl+alt+down",
+            "command": "editor.action.copyLinesDownAction",
+            "when": "editorTextFocus && !editorReadonly"
+        },
+        {
+            "key": "ctrl+shift+alt+down",
+            "command": "-editor.action.copyLinesDownAction",
+            "when": "editorTextFocus && !editorReadonly"
+        },
+        {
+            "key": "ctrl+alt+up",
+            "command": "editor.action.copyLinesUpAction",
+            "when": "editorTextFocus && !editorReadonly"
+        },
+        {
+            "key": "ctrl+shift+alt+up",
+            "command": "-editor.action.copyLinesUpAction",
+            "when": "editorTextFocus && !editorReadonly"
+        },
+        {
+            "key": "ctrl+q",
+            "command": "editor.action.addSelectionToNextFindMatch",
+            "when": "editorFocus"
+        },
+        {
+            "key": "ctrl+d",
+            "command": "-editor.action.addSelectionToNextFindMatch",
+            "when": "editorFocus"
+        },
+        {
+            "key": "ctrl+d",
+            "command": "editor.action.deleteLines",
+            "when": "textInputFocus && !editorReadonly"
+        },
+        {
+            "key": "ctrl+shift+k",
+            "command": "-editor.action.deleteLines",
+            "when": "textInputFocus && !editorReadonly"
+        }
+    ]
+  user_settings.json: |-
+    {
+        "security.workspace.trust.enabled": false,
+        "security.workspace.trust.startupPrompt": "never",
+        "security.workspace.trust.untrustedFiles": "open",
+        "extensions.supportUntrustedWorkspaces": true,
+        "workbench.colorTheme": "Default Dark+",
+        "chat.disableAIFeatures": true,
+        "editor.aiStats.enabled": false,
+        "chat.agent.enabled": false,
+        "python.defaultInterpreterPath": "/opt/venv/bin/python",
+        "r.rterm.linux": "/usr/bin/R",
+        "r.alwaysUseActiveTerminal": true,
+        "workbench.secondarySideBar.defaultVisibility": "hidden"
+    }
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}
+  namespace: "{{ tpl .Values.global.namespace . }}"
+---

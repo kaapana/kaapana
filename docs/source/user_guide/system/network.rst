@@ -59,7 +59,7 @@ Policy Descriptions
   - `access-information-interface` (port 8080) in the `services` namespace.
 
 - **egress-for-processing-containers**
-  Grants processing containers (pods labeled `pod-type: "processing-container"`) access to several core services:
+  Grants processing containers (pods labeled `kaapana.ai/type: "processing-container"`) access to several core services:
   - `keycloak` (8443, 8080)
   - `opensearch` (9200)
   - `dicom-web-filter` (8080)

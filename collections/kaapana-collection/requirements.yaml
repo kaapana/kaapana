@@ -38,17 +38,7 @@ dependencies:
     version: 0.0.0
   - name: radiomics-federated-workflow
     version: 0.0.0
-  - name: tfda-spe-orchestrator-workflow
-    version: 0.0.0
-  # - name: rateme-workflow
-  #   version: 0.0.0
-  # - name: rateme-chart
-  #   version: 0.0.0
   - name: tensorboard-chart
-    version: 0.0.0
-  # - name: mhub-models-workflow
-  #   version: 0.0.0
-  - name: debug-container-chart
     version: 0.0.0
   - name: advanced-collect-metadata-workflow
     version: 0.0.0
@@ -59,8 +49,6 @@ dependencies:
   # - name: openedc-chart
   #   version: 0.0.0
   - name: classification-training-workflow
-    version: 0.0.0
-  - name: modify-dcmseg-workflow
     version: 0.0.0
   - name: collabora-chart
     version: 0.0.0

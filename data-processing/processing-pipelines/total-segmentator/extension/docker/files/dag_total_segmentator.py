@@ -1,3 +1,5 @@
+# !!! DEPRECATION WARNING: This DAG will be removed in the next release. Please use total-segmentator-v2 workflow instead
+
 from datetime import timedelta
 
 from airflow.models import DAG

@@ -1,4 +1,0 @@
----
-global:
-    image: "dag-tfda-spe-orchestrator"
-    action: "copy"

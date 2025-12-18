@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eux
+set -eu
 
 MINIO_BUCKET=$(echo "${MINIO_PATH}/" | cut -d'/' -f1)
 mc alias set minio http://${MINIO_SERVICE} ${MINIO_USER} ${MINIO_PASSWORD}

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-from typing import List, Optional
-from pathlib import Path
-from dotenv import load_dotenv
-from build_helper.build import build_config
 import os
+from pathlib import Path
+from typing import List, Optional
+
 import start_build
 import typer
-
+from build_helper.build import build_config
+from dotenv import load_dotenv
 
 app = typer.Typer(help="Kaapana Platform Builder")
 
@@ -41,8 +41,8 @@ def build(
         envvar="EXTERNAL_SOURCE_DIRS",
         help="External directories to search for containers and charts.",
     ),
-    build_ignore_patterns: List[str] = typer.Option(
-        ["templates_and_examples", "ci", "lib/task_api"],
+    build_ignore_patterns: str = typer.Option(
+        "templates_and_examples,ci,lib/task_api",
         "-bip",
         "--build-ignore-patterns",
         envvar="BUILD_IGNORE_PATTERNS",
@@ -118,8 +118,8 @@ def build(
         envvar="VULNERABILITY_SCAN",
         help="Scan containers for vulnerabilities.",
     ),
-    vulnerability_severity_level: List[str] = typer.Option(
-        ["CRITICAL", "HIGH"],
+    vulnerability_severity_level: str = typer.Option(
+        "CRITICAL,HIGH",
         "-vsl",
         "--vulnerability-severity-level",
         envvar="VULNERABILITY_SEVERITY_LEVEL",
@@ -132,8 +132,8 @@ def build(
         envvar="CONFIGURATION_CHECK",
         help="Run configuration checks.",
     ),
-    configuration_check_severity_level: List[str] = typer.Option(
-        ["CRITICAL", "HIGH"],
+    configuration_check_severity_level: str = typer.Option(
+        "CRITICAL,HIGH",
         "-ccl",
         "--configuration-check-severity-level",
         envvar="CONFIGURATION_CHECK_SEVERITY_LEVEL",

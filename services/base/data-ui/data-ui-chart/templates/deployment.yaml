@@ -40,7 +40,9 @@ spec:
             mountPath: /var/cache/nginx
         securityContext:
           allowPrivilegeEscalation: false
+{{- if .Values.global.dev_files }}
           readOnlyRootFilesystem: false  # Allow writes for dev mode (node_modules, vite cache)
+{{- end }}
       volumes:
 {{- if .Values.global.dev_files }}
       # Mount workflow-ui source code from Kaapana repo for hot reload

@@ -1,7 +1,6 @@
 FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="data-api"
-LABEL VERSION="0.0.1"
 LABEL BUILD_IGNORE="False"
 
 WORKDIR /app

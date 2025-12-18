@@ -12,7 +12,6 @@ COPY --from=base-landing-resource /kaapana/app/src/assets/img/kaapana.png ./publ
 RUN yarn install
 
 LABEL IMAGE="data-ui"
-LABEL VERSION="0.0.0"
 LABEL BUILD_IGNORE="False"
 
 ################################

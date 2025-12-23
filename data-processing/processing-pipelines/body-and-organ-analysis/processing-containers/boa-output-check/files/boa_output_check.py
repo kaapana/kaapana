@@ -26,10 +26,6 @@ from matplotlib import colormaps
 
 import segmentation_defaults
 from kaapanapy.logger import get_logger
-from metadata_generator import (
-    build_segmentation_information,
-    map_labels_to_segment_attributes,
-)
 
 # Logger
 logger = get_logger(__name__, logging.INFO)
@@ -275,10 +271,8 @@ if __name__ == "__main__":
             logger.warning(f"No measurement info found for {series_uid}")
 
         # Step 3: Process each segmentation image
-        segment_attributes = []
         output_dir = join("/", workflow_dir, batch_dir, series_uid, operator_out_dir)
-        # For Colormmap
-        num_files = len(segmentation_files)
+        label_entries_collection = []
         for idx, file_path in enumerate(segmentation_files):
             image_basename = basename(file_path)
             rootname = strip_all_extensions(image_basename)
@@ -336,45 +330,14 @@ if __name__ == "__main__":
                 fallback_name = f"unnamed_{rootname}_{i}"
                 label_entries.append({"label_int": mid, "label_name": fallback_name})
 
-            segment_attributes.append(
-                map_labels_to_segment_attributes(label_entries=label_entries)
-            )
+            label_entries_collection.append(label_entries)
 
         # Update how many batches this file has appeared in (and was valid, i.e. not background-only)
         for filename in seen_in_this_batch:
             file_occurrences[filename] += 1
-        # Assign the colors for the segments equidistant
-        all_segments = [
-            segment for sublist in segment_attributes for segment in sublist
-        ]
-        num_segments = len(all_segments)
-        if num_segments == 0:
-            logger.warning("No segments found to assign colors.")
-        else:
-            # Generate equidistant color partitions between 0 and 1 for each segment
-            color_positions = np.linspace(0, 1, num_segments)
-
-            for i, segment in enumerate(all_segments):
-                color = (
-                    np.round(np.array(cmap(color_positions[i])[:3]) * 255)
-                    .astype(int)
-                    .tolist()
-                )
-                segment["recommendedDisplayRGBValue"] = color
-        # Save segment metadata
-        metainfo_filename = join(output_dir, f"{environ["DAG_ID"]}.json")
-        with open(metainfo_filename, "w") as f:
-            json.dump(
-                build_segmentation_information(
-                    segment_attributes=segment_attributes,
-                    series_description=generate_series_description(),
-                ),
-                f,
-                indent=4,
-            )
 
         # Save empty seg_info.json as placeholder/dummy
-        empty_seg_info = {"seg_info": []}
+        empty_seg_info = {"seg_info": label_entries_collection}
 
         with open(join(output_dir, "seg_info.json"), "w") as f:
             json.dump(empty_seg_info, f, indent=4)

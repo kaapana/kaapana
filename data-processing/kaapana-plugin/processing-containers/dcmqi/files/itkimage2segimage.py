@@ -9,160 +9,13 @@ import subprocess
 import numpy as np
 import pydicom
 
+from metadata_helper import (
+    create_segment_attribute,
+    process_seg_info,
+    normalize_seg_info,
+)
+
 processed_count = 0
-
-
-def find_code_meaning(tag):
-    result = None
-    print("#####################################################")
-    print("#")
-    print(f"Searching for identical hit for {tag}...")
-    tag = tag.lower()
-    for entry in code_lookup_table:
-        if tag.replace(" ", "-") == entry["Code Meaning"].lower().replace(" ", "-"):
-            print(
-                f"Found Code Meaning: {entry['Code Meaning'].lower()} for search term: {tag}"
-            )
-            result = entry
-            break
-        elif tag == entry["Body Part Examined"].lower():
-            print(
-                f"Found Code Meaning: {entry['Body Part Examined'].lower()} for search term: {tag}"
-            )
-            result = entry
-            break
-
-    if result == None:
-        print(f"Nothing found -> Searching if {tag} is in one of the entires...")
-        for entry in code_lookup_table:
-            if tag in entry["Code Meaning"].lower():
-                print(
-                    f"Found Code Meaning: {entry['Code Meaning'].lower()} for search term: {tag}"
-                )
-                result = entry
-                break
-            elif tag in entry["Body Part Examined"].lower():
-                print(
-                    f"Found Code Meaning: {entry['Body Part Examined'].lower()} for search term: {tag}"
-                )
-                result = entry
-                break
-
-    if result == None:
-        print(f"Nothing found -> Searching if {tag} parts equals one of the entires...")
-        for entry in code_lookup_table:
-            for tag_part in tag.split(" "):
-                if tag_part == entry["Code Meaning"].lower():
-                    print(
-                        f"Found Code Meaning: {entry['Code Meaning'].lower()} for search term: {tag_part.lower()}"
-                    )
-                    result = entry
-                    break
-                elif tag_part == entry["Body Part Examined"].lower():
-                    print(
-                        f"Found Code Meaning: {entry['Body Part Examined'].lower()} for search term: {tag_part.lower()}"
-                    )
-                    result = entry
-                    break
-            if result != None:
-                break
-
-    if result == None:
-        print(
-            f"Nothing found -> Searching if {tag} parts can be found in one of the entires..."
-        )
-        for entry in code_lookup_table:
-            for tag_part in tag.split(" "):
-                if tag_part in entry["Code Meaning"].lower():
-                    print(
-                        f"Found Code Meaning: {entry['Code Meaning'].lower()} for search term: {tag_part.lower()}"
-                    )
-                    result = entry
-                    break
-                elif tag_part in entry["Body Part Examined"].lower():
-                    print(
-                        f"Found Code Meaning: {entry['Body Part Examined'].lower()} for search term: {tag_part.lower()}"
-                    )
-                    result = entry
-                    break
-            if result != None:
-                break
-
-    if result == None:
-        print(
-            f"Could not find the tag: '{tag}' in the lookup table, using custom entry"
-        )
-        result = {
-            "Coding Scheme Designator": "Custom",
-            "Code Value": "0.0.0.0.0.0.00000.0.000.0.00",
-            "Code Meaning": f"{tag.replace('  ', ' '). lower()}",
-            "Body Part Examined": "",
-            "SNOMED-RT ID (Retired)": "",
-            "FMA Code Value": None,
-            "UMLS Concept UniqueID": "",
-        }
-
-    print("#")
-    print("#####################################################")
-    return result
-
-
-def process_seg_info(seg_info, series_description):
-    code_meaning = str(seg_info).lower()
-    series_description_code_meaning = f"{code_meaning}"
-
-    if series_description != "":
-        return code_meaning, series_description
-    else:
-        return code_meaning, series_description_code_meaning
-
-
-def create_segment_attribute(
-    segment_algorithm_type,
-    segment_algorithm_name,
-    code_meaning,
-    color,
-    label_name="",
-    labelID=1,
-):
-    try:
-        search_key = (
-            code_meaning.split("@")[-1].lower() if "@" in code_meaning else code_meaning
-        )
-        print("Searching coding-scheme for code-meaning: {}".format(code_meaning))
-        print("Search-key: {}".format(search_key))
-        coding_scheme = find_code_meaning(tag=search_key)
-    except KeyError:
-        raise AssertionError(
-            f"The specified code meaning {code_meaning.lower()} does not exist. Check here for available code names: http://dicom.nema.org/medical/dicom/current/output/chtml/part16/chapter_L.html#chapter_L from Table L-1."
-        )
-
-    segment_attribute = {}
-    segment_attribute["labelID"] = labelID
-    segment_attribute["SegmentAlgorithmType"] = segment_algorithm_type
-    segment_attribute["SegmentAlgorithmName"] = segment_algorithm_name
-    segment_attribute["recommendedDisplayRGBValue"] = color
-
-    # segment_attribute["SegmentNumber"] = labelID
-    segment_attribute["SegmentLabel"] = label_name
-    segment_attribute["SegmentedPropertyCategoryCodeSequence"] = {
-        "CodeValue": str(coding_scheme["Code Value"]),
-        "CodingSchemeDesignator": coding_scheme["Coding Scheme Designator"],
-        "CodeMeaning": code_meaning,
-    }
-    segment_attribute["SegmentedPropertyTypeCodeSequence"] = {
-        "CodeValue": str(coding_scheme["Code Value"]),
-        "CodingSchemeDesignator": coding_scheme["Coding Scheme Designator"],
-        "CodeMeaning": code_meaning,
-    }
-    segment_attribute["SegmentedPropertyTypeModifierCodeSequence"] = {
-        "CodeValue": str(coding_scheme["Code Value"]),
-        "CodingSchemeDesignator": coding_scheme["SNOMED-RT ID (Retired)"]
-        if not math.isnan
-        else "unkown",
-        "CodeMeaning": code_meaning,
-    }
-    return segment_attribute
 
 
 def adding_aetitle(element_input_dir, output_dcm_file, body_part):
@@ -199,7 +52,7 @@ def adding_aetitle(element_input_dir, output_dcm_file, body_part):
     else:
         print("# Could not extract any body-part!")
 
-    dcmseg_file.add_new([0x012, 0x020], "LO", aetitle)  # Clinical Trial Protocol ID
+    dcmseg_file.add_new([0x0012, 0x0020], "LO", aetitle)  # Clinical Trial Protocol ID
     dcmseg_file.save_as(output_dcm_file)
 
 
@@ -298,10 +151,6 @@ else:
     raise NameError("Input_type must be either multi_label_seg or single_label_segs")
 
 
-code_lookup_table_path = "code_lookup_table.json"
-with open(code_lookup_table_path) as f:
-    code_lookup_table = json.load(f)
-
 batch_folders = sorted(
     [
         f
@@ -343,13 +192,12 @@ for batch_element_dir in batch_folders:
             print(f"Skipping {input_image_list_input_dir}!")
             continue
 
-    segmentation_information = {
-        "@schema": "https://raw.githubusercontent.com/qiicr/dcmqi/master/doc/schemas/seg-schema.json#"
+    base_metadata = {
+        "@schema": "https://raw.githubusercontent.com/qiicr/dcmqi/master/doc/schemas/seg-schema.json#",
+        "ContentCreatorName": content_creator_name,
+        "SeriesNumber": int(series_number),
+        "InstanceNumber": int(instance_number),
     }
-
-    segmentation_information["ContentCreatorName"] = content_creator_name
-    segmentation_information["SeriesNumber"] = series_number
-    segmentation_information["InstanceNumber"] = instance_number
 
     if input_type == "single_label_segs":
         print("input_type == 'single_label_segs'")
@@ -365,10 +213,9 @@ for batch_element_dir in batch_folders:
             if get_seg_info_from_file is True:
                 single_label_seg_info = rootname
 
-            (
-                code_meaning,
-                segmentation_information["SeriesDescription"],
-            ) = process_seg_info(single_label_seg_info, series_description)
+            (code_meaning, series_desc) = process_seg_info(
+                single_label_seg_info, series_description
+            )
             color = (
                 np.round(
                     np.array(cm.get_cmap("gist_ncar", 20)(random.randint(0, 19))[:3])
@@ -384,16 +231,18 @@ for batch_element_dir in batch_folders:
             if create_multi_label_dcm_from_single_label_segs.lower() == "true":
                 segment_attributes.append([segment_attribute])
 
-            segmentation_information["segmentAttributes"] = [[segment_attribute]]
+            metadata = {
+                **base_metadata,
+                "SeriesDescription": series_desc,
+                "segmentAttributes": [[segment_attribute]],
+            }
             meta_data_file = f"{input_image_list_input_dir}/{rootname}.json"
             if os.path.isfile(meta_data_file):
                 print("Wow, meta data file exsists already, taking this one!")
             else:
                 with open(meta_data_file, "w") as write_file:
                     print("Writing JSON:: {}".format(meta_data_file))
-                    json.dump(
-                        segmentation_information, write_file, indent=4, sort_keys=True
-                    )
+                    json.dump(metadata, write_file, indent=4, sort_keys=True)
 
             # Creating dcm_object
             output_dcm_file = f"{element_output_dir}/{rootname}.dcm"
@@ -466,7 +315,8 @@ for batch_element_dir in batch_folders:
             print("Abort!")
             exit(1)
 
-        label_info = data["seg_info"]
+        seg_info = data["seg_info"]
+        seg_info_ll = normalize_seg_info(seg_info=seg_info)
 
         body_part = "N/A"
         if "task_body_part" in data:
@@ -477,47 +327,51 @@ for batch_element_dir in batch_folders:
                 segment_algorithm_name, data["algorithm"]
             )
 
-        segment_attributes = [[]]
+        segment_attributes = [[] for _ in seg_info_ll]
 
-        label_counts = len(label_info)
-        for idx, label in enumerate(label_info):
-            label_int = int(label["label_int"])
-            single_label_seg_info = label["label_name"]
-            print(f"process: {single_label_seg_info}: {label_int}")
-            if str(label_int) == "0":
-                print("Clear Label -> skipping")
-                continue
+        for l_idx, label_info in enumerate(seg_info_ll):
+            label_counts = len(label_info)
+            for idx, label in enumerate(label_info):
+                label_int = int(label["label_int"])
+                single_label_seg_info = label["label_name"]
+                print(f"process: {single_label_seg_info}: {label_int}")
+                if label_int == 0:
+                    print("Clear Label -> skipping")
+                    continue
 
-            (
-                code_meaning,
-                segmentation_information["SeriesDescription"],
-            ) = process_seg_info(single_label_seg_info, series_description)
-            color = (
-                np.round(
-                    np.array(cm.get_cmap("gist_ncar", label_counts)(idx)[:3]) * 255
+                (code_meaning, _) = process_seg_info(
+                    single_label_seg_info, series_description
                 )
-                .astype(int)
-                .tolist()
-            )
-            segment_attribute = create_segment_attribute(
-                segment_algorithm_type,
-                segment_algorithm_name,
-                code_meaning,
-                color,
-                label_name=single_label_seg_info,
-                labelID=label_int,
-            )
-            segment_attributes[0].append(segment_attribute)
+                color = (
+                    np.round(
+                        np.array(cm.get_cmap("gist_ncar", label_counts)(idx)[:3]) * 255
+                    )
+                    .astype(int)
+                    .tolist()
+                )
+                segment_attribute = create_segment_attribute(
+                    segment_algorithm_type,
+                    segment_algorithm_name,
+                    code_meaning,
+                    color,
+                    label_name=single_label_seg_info,
+                    labelID=label_int,
+                )
+                segment_attributes[l_idx].append(segment_attribute)
 
     if (
         input_type == "multi_label_seg"
         or create_multi_label_dcm_from_single_label_segs.lower() == "true"
     ):
-        _, segmentation_information["SeriesDescription"] = process_seg_info(
+        _, combined_series_desc = process_seg_info(
             multi_label_seg_name, series_description
         )
 
-        segmentation_information["segmentAttributes"] = segment_attributes
+        metadata = metadata = {
+            **base_metadata,
+            "SeriesDescription": combined_series_desc,
+            "segmentAttributes": segment_attributes,
+        }
         meta_data_file = (
             f"{input_image_list_input_dir}/{multi_label_seg_name.lower()}.json"
         )
@@ -526,9 +380,7 @@ for batch_element_dir in batch_folders:
         else:
             with open(meta_data_file, "w") as write_file:
                 print("Writing JSON:: {}".format(meta_data_file))
-                json.dump(
-                    segmentation_information, write_file, indent=4, sort_keys=True
-                )
+                json.dump(metadata, write_file, indent=4, sort_keys=True)
 
         output_dcm_file = f"{element_output_dir}/{multi_label_seg_name.lower()}.dcm"
         print("Output SEG.dcm file:: {}".format(output_dcm_file))

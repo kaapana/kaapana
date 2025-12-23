@@ -226,3 +226,89 @@ def build_segmentation_information(
         "segmentAttributes": segment_attributes,  # already structured correctly
     }
     return segmentation_information
+
+
+def normalize_seg_info(seg_info, background_names=("background", "__background__")):
+    """
+    Normalize seg_info into list[list[dict]] with guaranteed:
+      - label_int generated starting at 1 (never 0)
+      - label_int==0 allowed ONLY for background entries
+      - preserves extra dict fields if present
+
+    Supports inputs:
+      - list[str]
+      - list[list[str]]
+      - dict
+      - list[dict]
+      - list[list[dict]]
+    """
+    # 1) Normalize outer shape into list-of-groups
+    if isinstance(seg_info, dict):
+        groups = [[seg_info]]
+    elif isinstance(seg_info, list):
+        if not seg_info:
+            return []
+        if all(isinstance(x, str) for x in seg_info):  # list[str]
+            groups = [seg_info]
+        elif all(isinstance(x, dict) for x in seg_info):  # list[dict]
+            groups = [seg_info]
+        elif all(isinstance(x, list) for x in seg_info):  # list[list[...]]
+            groups = seg_info
+        else:
+            raise ValueError("Unsupported seg_info: mixed types in top-level list")
+    else:
+        raise TypeError(f"seg_info must be dict or list, got {type(seg_info).__name__}")
+
+    # 2) Convert each group to list[dict], generating label_int from 1
+    seg_info_ll = []
+    for group in groups:
+        if not isinstance(group, list):
+            raise ValueError("Expected each group to be a list")
+
+        out_group = []
+        next_id = 1  # <-- start at 1; 0 is reserved for background
+
+        for item in group:
+            if isinstance(item, str):
+                # Strings never become background automatically; assign 1..N
+                out_group.append({"label_name": item, "label_int": next_id})
+                next_id += 1
+                continue
+
+            if isinstance(item, dict):
+                label = dict(item)  # preserve extra fields
+
+                # normalize name key
+                name = label.get("label_name", label.get("label"))
+                if not isinstance(name, str) or not name:
+                    raise ValueError(f"Label dict missing a valid name: {item}")
+                label["label_name"] = name
+
+                # normalize / generate label_int
+                if label.get("label_int") is None:
+                    label["label_int"] = next_id
+                    next_id += 1
+                else:
+                    label["label_int"] = int(label["label_int"])
+
+                # enforce background rule
+                if label["label_int"] == 0:
+                    if name.strip().lower() not in {
+                        n.lower() for n in background_names
+                    }:
+                        raise ValueError(
+                            f"label_int=0 is reserved for background, but got label_name={name!r}"
+                        )
+                elif label["label_int"] < 0:
+                    raise ValueError(
+                        f"label_int must be >= 0, got {label['label_int']}"
+                    )
+
+                out_group.append(label)
+                continue
+
+            raise ValueError(f"Unsupported label entry type: {type(item).__name__}")
+
+        seg_info_ll.append(out_group)
+
+    return seg_info_ll

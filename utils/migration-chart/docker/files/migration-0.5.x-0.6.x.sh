@@ -25,6 +25,11 @@ fi
 
 
 declare -A PVC_CONFIG
+declare -A NS_HELM_MAP=(
+  [$SERVICES_NAMESPACE]="kaapana-platform-chart|admin"
+  [project-admin]="project-admin|admin"
+  [$ADMIN_NAMESPACE]="kaapana-admin-chart|default"
+)
 PARALLEL_MIGRATIONS=4
 define_pvcs() {
     #Services namespace
@@ -48,6 +53,35 @@ define_pvcs() {
     
 }
 
+ensure_namespace() {
+    local namespace="$1"
+
+    local helm_meta="${NS_HELM_MAP[$namespace]}"
+
+    if [[ -z "$helm_meta" ]]; then
+        echo "[ERROR] No Helm mapping defined for namespace '$namespace'"
+        return 1
+    fi
+
+    local release_name="${helm_meta%%|*}"
+    local release_namespace="${helm_meta##*|}"
+
+    echo "Ensuring namespace: $namespace (Helm release: $release_name)"
+
+    cat <<EOF | kubectl apply -f - 2>&1
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: $namespace
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: $release_name
+    meta.helm.sh/release-namespace: $release_namespace
+    helm.sh/resource-policy: keep
+EOF
+}
+
 
 create_pvc_from_config() {
     local pvc_name="$1"
@@ -57,12 +91,14 @@ create_pvc_from_config() {
 
     echo "Creating PVC: $pvc_name in namespace: $namespace"
 
-    # Create namespace if it doesn't exist
-    if ! kubectl get namespace "$namespace" &>/dev/null; then
-        echo "Creating namespace: $namespace"
-        kubectl create namespace "$namespace" 2>/dev/null || true
+    # Ensure Helm-compatible namespace exists
+    if ! ensure_namespace "$namespace"; then
+        echo "[ERROR] Failed to ensure namespace: $namespace"
+        return 1
     fi
-
+    local helm_meta="${NS_HELM_MAP[$namespace]}"
+    local release_name="${helm_meta%%|*}"
+    local release_namespace="${helm_meta##*|}"  
     # Apply PVC and capture output
     local output
     output=$(
@@ -72,8 +108,12 @@ kind: PersistentVolumeClaim
 metadata:
   name: $pvc_name
   namespace: $namespace
+  labels:
+    app.kubernetes.io/managed-by: Helm
   annotations:
-    "helm.sh/resource-policy": keep
+    meta.helm.sh/release-name: $release_name
+    meta.helm.sh/release-namespace: $release_namespace
+    helm.sh/resource-policy: keep
 spec:
   storageClassName: $storage_class
   accessModes:
@@ -306,18 +346,18 @@ migrate_data() {
         return 0
     fi
 
-    # Try mv first (same filesystem), moving *contents* only
     local mv_output
+    shopt -s dotglob # include hidden files
     if mv_output=$(mv "$source"/* "$target/" 2>&1); then
+        shopt -u dotglob
         echo "Moved data via mv: $source/* -> $target"
-        # Optionally remove now-empty source dir
         rmdir "$source" 2>/dev/null || true
         return 0
-    else
-        echo "$mv_output"
     fi
-
+ 
+    shopt -u dotglob
     echo "Failed to migrate data from $source to $target"
+    echo "mv output: $mv_output"
     return 1
 }
 
@@ -343,16 +383,14 @@ migrate_pvc_data() {
     local mount_failed=0
 
     # Split mount_specs into entries separated by |
-    echo "$mount_specs" | tr '|' '\n' | while read -r spec; do
+    while read -r spec; do
         [[ -z "$spec" ]] && continue
 
         if [[ "$spec" == *:* ]]; then
-            # source:target form
             IFS=':' read -r source target <<< "$spec"
         else
-            # only source given → target is PV root
             source="$spec"
-            target=""   # will use pv_hostpath directly
+            target=""
         fi
 
         source=$(eval echo "$source")
@@ -369,7 +407,7 @@ migrate_pvc_data() {
         else
             ((mount_failed++)) || true
         fi
-    done
+    done < <(echo "$mount_specs" | tr '|' '\n')
 
     if [[ "$mount_failed" -gt 0 ]]; then
         echo "$pvc_name:PARTIAL" >> "./migration_status"

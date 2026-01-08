@@ -1790,6 +1790,19 @@ function migrate() {
     fi
 }
 
+function setup_storage_classes() {
+    WORKDIR=$(mktemp -d)
+    tar -xzf "$CHART_PATH" -C "$WORKDIR"
+    KAAPANA_STORAGE_CHARTPATH="$WORKDIR/$PLATFORM_NAME/charts/kaapana-storage-chart"
+
+    $HELM_EXECUTABLE -n kaapana-system upgrade --install kaapana-storageclass $KAAPANA_STORAGE_CHARTPATH \
+        --create-namespace \
+        --set-string global.main_node_name="$MAIN_NODE_NAME" \
+        --set-string global.replica_count="$REPLICA_COUNT" \
+        --set-string global.fast_data_dir="$FAST_DATA_DIR" \
+        --set-string global.slow_data_dir="$SLOW_DATA_DIR"
+}
+
 function deploy_chart {
     if [ -z "$CONTAINER_REGISTRY_URL" ]; then
         echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the kaapanactl.sh script!${NC}"
@@ -1925,15 +1938,7 @@ function deploy_chart {
     INTERNAL_CIDR="10.152.183.0/24,10.1.0.0/16,$INTERNAL_CIDR"
 
     echo " Installing kaapana strorage class ..."
-    WORKDIR=$(mktemp -d)
-    tar -xzf "$CHART_PATH" -C "$WORKDIR"
-    KAAPANA_STORAGE_CHARTPATH="$WORKDIR/$PLATFORM_NAME/charts/kaapana-storage-chart"
-
-    $HELM_EXECUTABLE -n $HELM_NAMESPACE upgrade --install kaapana-storageclass $KAAPANA_STORAGE_CHARTPATH \
-    --set-string global.main_node_name="$MAIN_NODE_NAME" \
-    --set-string global.replica_count="$REPLICA_COUNT" \
-    --set-string global.fast_data_dir="$FAST_DATA_DIR" \
-    --set-string global.slow_data_dir="$SLOW_DATA_DIR"
+    setup_storage_classes
 
     echo "${GREEN}Checking for version difference and migration options...${NC}"
     migrate

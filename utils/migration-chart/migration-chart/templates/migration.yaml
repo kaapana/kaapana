@@ -33,7 +33,7 @@ spec:
         - name: STORAGE_CLASS_WORKFLOW  
           value: "{{ .Values.global.storage_class_workflow }}"
         - name: SERVICES_NAMESPACE
-          value: "{{ .Values.global.services_namespace }}"    
+          value: "{{ .Values.global.services_namespace }}"
         - name: ADMIN_NAMESPACE
           value: "{{ .Values.global.admin_namespace }}"    
         - name: VOLUME_SLOW_DATA

@@ -24,9 +24,13 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     && rm -rf /var/lib/apt/lists/*
 
 # Slicer 5.8.1
-RUN SLICER_URL="https://download.slicer.org/bitstream/67c51fc129825655577cfee9" \
-    && curl -k -v -s -L $SLICER_URL | tar xz -C /tmp \
-    && mv /tmp/Slicer* /opt/slicer
+RUN set -eux; \
+    SLICER_URL="https://download.slicer.org/bitstream/67c51fc129825655577cfee9"; \
+    curl -k -v -sS -L -f --retry 5 --retry-delay 5 --retry-connrefused \
+      -o /tmp/slicer.tar.gz "$SLICER_URL"; \
+    tar -xzf /tmp/slicer.tar.gz -C /tmp; \
+    mv /tmp/Slicer* /opt/slicer; \
+    rm -f /tmp/slicer.tar.gz
 
 RUN chmod -R a+w /opt/slicer
 

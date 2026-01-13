@@ -497,7 +497,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         # Load Kubernetes configuration (in-cluster or local)
         try:
             k8s_config_loader.load_incluster_config()
-        except config.config_exception.ConfigException:
+        except k8s_config_loader.config_exception.ConfigException:
             k8s_config_loader.load_kube_config()
 
         dag_conf = context["dag_run"].conf or {}
@@ -554,7 +554,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     def launch_application(self, context: Context):
         conf = context["dag_run"].conf
         release_name = get_release_name(context)
-        
+
         try:
             project_form = conf.get("project_form")
             self.namespace = project_form.get("kubernetes_namespace")
@@ -715,9 +715,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             )
 
         # In case of debugging service_dag there is no self.project
-        response = requests.get(
-            "http://aii-service.services.svc:8080/projects/admin"
-        )
+        response = requests.get("http://aii-service.services.svc:8080/projects/admin")
         response.raise_for_status()
         admin_id = response.json().get("id")
         project_id = self.project.get("id") if self.project else admin_id
@@ -957,6 +955,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     volume_mounts=self.volume_mounts,
                     labels=self.labels,
                     annotations=self.annotations,
+                    image_pull_policy=self.image_pull_policy,
                 ),
             )
         )

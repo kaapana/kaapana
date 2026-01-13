@@ -1,3 +1,4 @@
+import fnmatch
 import shutil
 from collections import Counter
 from typing import Optional
@@ -167,8 +168,8 @@ class HelmChartHelper:
             for chart_file in chart_files:
                 bar()
                 if any(
-                    pat in str(chart_file)
-                    for pat in (cls._build_config.build_ignore_patterns or [])
+                    fnmatch.fnmatch(chart_file.as_posix(), pattern)
+                    for pattern in (cls._build_config.build_ignore_patterns or [])
                 ):
                     logger.debug(f"Ignoring chart {chart_file}")
                     continue

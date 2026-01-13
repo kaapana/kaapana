@@ -42,7 +42,7 @@ def build(
         help="External directories to search for containers and charts.",
     ),
     build_ignore_patterns: str = typer.Option(
-        "templates_and_examples,ci,lib/task_api",
+        "*templates_and_examples/*,*ci/*,*lib/task_api/*",
         "-bip",
         "--build-ignore-patterns",
         envvar="BUILD_IGNORE_PATTERNS",

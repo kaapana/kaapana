@@ -54,10 +54,7 @@ def fetch_namespaces():
     namespaces = [p["kubernetes_namespace"] for p in r.json()]
     namespaces.append("services")
     return namespaces
-# r = requests.get("http://aii-service.services.svc:8080/projects")
-# projects = r.json()
-# namespaces = [project["kubernetes_namespace"] for project in projects]
-# namespaces.append("services")
+
 
 remove_delete_dags = LocalServiceSyncDagsDbOperator(
     dag=dag, retries=1, retry_delay=timedelta(minutes=2)

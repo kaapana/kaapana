@@ -319,28 +319,27 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         envs.update(self.env_vars)
         self.env_vars = envs
+        kwargs.setdefault("task_id", self.task_id)
+        kwargs.setdefault("retries", self.retries)
+        kwargs.setdefault("priority_weight", self.priority_weight)
+        kwargs.setdefault("execution_timeout", self.execution_timeout)
+        kwargs.setdefault("max_active_tis_per_dag", self.max_active_tis_per_dag)
+        kwargs.setdefault("pool", self.pool)
+        kwargs.setdefault("pool_slots", self.pool_slots)
+        kwargs.setdefault("pool", self.pool)
+        kwargs.setdefault("retry_delay", self.retry_delay)
+        kwargs.setdefault("trigger_rule", self.trigger_rule)
+        kwargs.setdefault("email_on_retry", False)
+        kwargs.setdefault("email_on_failure", False)
+        kwargs.setdefault("start_date", days_ago(0))
+        kwargs.setdefault("on_failure_callback", KaapanaBaseOperator.on_failure)
+        kwargs.setdefault("on_success_callback", KaapanaBaseOperator.on_success)
+        kwargs.setdefault("on_retry_callback", KaapanaBaseOperator.on_retry)
+        kwargs.setdefault("on_execute_callback", KaapanaBaseOperator.on_execute)
+        kwargs.setdefault("executor_config", self.executor_config)
+
         super().__init__(
             dag=dag,
-            task_id=self.task_id,
-            retries=self.retries,
-            priority_weight=self.priority_weight,
-            execution_timeout=self.execution_timeout,
-            max_active_tis_per_dag=self.max_active_tis_per_dag,
-            pool=self.pool,
-            pool_slots=self.pool_slots,
-            retry_delay=self.retry_delay,
-            email=None,
-            email_on_retry=False,
-            email_on_failure=False,
-            start_date=days_ago(0),
-            depends_on_past=False,
-            wait_for_downstream=False,
-            trigger_rule=self.trigger_rule,
-            on_failure_callback=KaapanaBaseOperator.on_failure,
-            on_success_callback=KaapanaBaseOperator.on_success,
-            on_retry_callback=KaapanaBaseOperator.on_retry,
-            on_execute_callback=KaapanaBaseOperator.on_execute,
-            executor_config=self.executor_config,
             **kwargs,
         )
 
@@ -503,7 +502,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         dag_conf = context["dag_run"].conf or {}
         config_json = json.dumps(dag_conf, indent=4, sort_keys=True)
 
-        run_id = context["run_id"]
+        run_id = cure_invalid_name(
+            context["run_id"], r"(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?"
+        )
         configmap_name = f"{run_id}-config"
 
         metadata = client.V1ObjectMeta(

@@ -1,26 +1,25 @@
-from kaapana.operators.LocalServiceSyncDagsDbOperator import (
-    LocalServiceSyncDagsDbOperator,
-)
-from kaapana.operators.LocalCleanUpExpiredWorkflowDataOperator import (
-    LocalCleanUpExpiredWorkflowDataOperator,
+import logging
+import os
+from datetime import timedelta
+
+import jinja2
+import requests
+from airflow.configuration import conf
+from airflow.decorators import task
+from airflow.models import DAG, Variable
+from airflow.operators.bash_operator import BashOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
+from kaapana.operators.CleanUpExpiredWorkflowDataOperator import (
+    CleanUpExpiredWorkflowDataOperator,
 )
 from kaapana.operators.LocalCtpQuarantineCheckOperator import (
     LocalCtpQuarantineCheckOperator,
 )
-from airflow.operators.bash_operator import BashOperator
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.utils.log.logging_mixin import LoggingMixin
-from datetime import timedelta
-import logging
-import os
-import jinja2
-from airflow.configuration import conf
-from airflow.models import DAG, Variable
-from airflow.utils.dates import days_ago
-from airflow.models import DAG
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
-
+from kaapana.operators.LocalServiceSyncDagsDbOperator import (
+    LocalServiceSyncDagsDbOperator,
+)
 
 log = LoggingMixin().log
 
@@ -47,15 +46,32 @@ dag = DAG(
     template_undefined=jinja2.Undefined,
 )
 
+@task
+def fetch_namespaces():
+    r = requests.get("http://aii-service.services.svc:8080/projects", timeout=5)
+    r.raise_for_status()
+
+    namespaces = [p["kubernetes_namespace"] for p in r.json()]
+    namespaces.append("services")
+    return namespaces
+# r = requests.get("http://aii-service.services.svc:8080/projects")
+# projects = r.json()
+# namespaces = [project["kubernetes_namespace"] for project in projects]
+# namespaces.append("services")
+
 remove_delete_dags = LocalServiceSyncDagsDbOperator(
     dag=dag, retries=1, retry_delay=timedelta(minutes=2)
 )
 remove_delete_dags
 
-clean_up = LocalCleanUpExpiredWorkflowDataOperator(
-    dag=dag, retries=1, expired_period=timedelta(days=14)
-)
-clean_up
+cleanup = CleanUpExpiredWorkflowDataOperator.partial(
+    dag=dag,
+    task_id="cleanup_expired_workflows",
+    expired_period=timedelta(days=14),
+    retries=1,
+    execution_timeout=timedelta(minutes=90)
+).expand(namespace=fetch_namespaces())
+
 check_ctp_quarantine = LocalCtpQuarantineCheckOperator(dag=dag, retries=1)
 check_ctp_quarantine
 

@@ -33,7 +33,7 @@ class CleanUpExpiredWorkflowDataOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{DEFAULT_REGISTRY}/cleanup-expiered-workflows:{KAAPANA_BUILD_VERSION}",
+            image=f"{DEFAULT_REGISTRY}/cleanup-expired-workflows:{KAAPANA_BUILD_VERSION}",
             name="clean-up",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,

@@ -150,6 +150,54 @@ Installation Steps
    You should see a ``longhorn`` storage class listed.
 
 
+
+Deploying Kaapana with Longhorn
+--------------------------------
+
+
+After Longhorn is installed and running on all nodes, configure the Kaapana deployment to use Longhorn as the storage provider.
+
+
+Edit the *kaapanactl.sh* script (see :ref:`deployment`) and locate the ``load_kaapana_config()`` function. In the **Storage** configuration section, update:
+
+
+.. code-block:: bash
+
+   ######################################################
+   # Storage
+   ######################################################
+   STORAGE_PROVIDER="longhorn"  # Changed from "hostpath" to "longhorn"
+   VOLUME_SLOW_DATA="100Gi"     # Set to your expected slow data directory size
+                                # Examples: 100Gi, 500Gi, 1Ti, etc.
+
+
+.. warning::
+
+
+   Longhorn volumes have size limits. The ``VOLUME_SLOW_DATA`` setting defines the maximum size of the slow data persistent volume. You can extend volumes later via the Longhorn dashboard if needed. Refer to the `Longhorn documentation Volume Expansion <https://longhorn.io/docs/1.10.1/nodes-and-volumes/volumes/expansion/>`_ for volume extension instructions.
+
+
+After updating the configuration, deploy Kaapana on the main node as usual (see :ref:`installation_guide`).
+
+
+Verifying the Deployment
+-------------------------
+
+
+After deployment completes, verify that Kaapana pods are distributed across multiple nodes and using Longhorn storage:
+
+
+.. code-block:: bash
+
+   # Verify Longhorn volumes are in use
+   kubectl get pvc -A
+
+   # Check pod distribution across nodes
+   kubectl get pods -A -o wide
+
+
+Review the NODE column: In a balanced multi-node deployment, application pods (Kaapana components, workflows) should distribute roughly evenly across all worker nodes, with similar counts per node.
+
 Accessing the Longhorn Dashboard
 ---------------------------------
 
@@ -205,57 +253,6 @@ Save this configuration to a file (e.g., ``longhorn-ingress.yaml``) and apply it
 
    kubectl apply -f longhorn-ingress.yaml
 
-
-Deploying Kaapana with Longhorn
---------------------------------
-
-
-After Longhorn is installed and running on all nodes, configure the Kaapana deployment to use Longhorn as the storage provider.
-
-
-Edit the deployment script (see :ref:`deployment`) and locate the ``load_kaapana_config()`` function. In the **Storage** configuration section, update:
-
-
-.. code-block:: bash
-
-   ######################################################
-   # Storage
-   ######################################################
-   STORAGE_PROVIDER="longhorn"  # Changed from "hostpath" to "longhorn"
-   VOLUME_SLOW_DATA="100Gi"     # Set to your expected slow data directory size
-                                # Examples: 100Gi, 500Gi, 1Ti, etc.
-
-
-.. warning::
-
-
-   Longhorn volumes have size limits. The ``VOLUME_SLOW_DATA`` setting defines the maximum size of the slow data persistent volume. You can extend volumes later via the Longhorn dashboard if needed. Refer to the `Longhorn documentation Volume Expansion <https://longhorn.io/docs/1.10.1/nodes-and-volumes/volumes/expansion/>`_ for volume extension instructions.
-
-
-After updating the configuration, deploy Kaapana on the main node as usual (see :ref:`installation_guide`).
-
-
-Verifying the Deployment
--------------------------
-
-
-After deployment completes, verify that Kaapana pods are distributed across multiple nodes and using Longhorn storage:
-
-
-.. code-block:: bash
-
-
-   # Check pod distribution across nodes
-   kubectl get pods -A -o wide
-
-
-   # Verify Longhorn volumes are in use
-   kubectl get pvc -A
-
-
-All pods should show different nodes in the ``NODE`` column for a properly balanced multi-node deployment.
-
-
 Troubleshooting
 ---------------
 
@@ -278,7 +275,7 @@ Kaapana uses three predefined storage class categories for persistent storage:
 - **STORAGE_CLASS_FAST**: For high-performance storage (e.g. databases)
 - **STORAGE_CLASS_WORKFLOW**: For workflow execution and temporary data
 
-The ``STORAGE_PROVIDER`` setting in the deployment script sets the defaults for these three storage class kinds. Depending on the selected provisioner, Kaapana automatically assigns the appropriate storage classes. You can also manually override these settings for advanced configurations (see :ref:`advanced_storage_config`).
+The ``STORAGE_PROVIDER`` setting in the deployment script *(kaapanactl.sh)* sets the defaults for these three storage class kinds. Depending on the selected provisioner, Kaapana automatically assigns the appropriate storage classes. You can also manually override these settings for advanced configurations (see :ref:`advanced_storage_config`).
 
 
 Hostpath Storage Classes
@@ -334,7 +331,7 @@ When using **Longhorn** as the storage provisioner, Kaapana uses three distinct 
 **Important Characteristics:**
 
 
-The PersistentVolumeClaims backed by the ``*-slow`` and ``*-fast`` storage classes are provisioned on the main node only. This means all pods mounting these volumes are constrained to run on the primary node. This design pattern ensures:
+The PersistentVolumeClaims backed by the ``kaapana-longhorn-slow-data`` and ``kaapana-longhorn-fast-db`` storage classes are provisioned on the main node only. This means all pods mounting these volumes are constrained to run on the primary node. This design pattern ensures:
 
 
 - **Fast access** to frequently accessed data (databases, large imaging volumes)
@@ -342,9 +339,7 @@ The PersistentVolumeClaims backed by the ``*-slow`` and ``*-fast`` storage class
 - **Simplified management** of performance-critical components
 
 
-In contrast, the PVC backed by the ``*-workflow`` storage class uses shared volumes distributed across all nodes, enabling workflow pods to be scheduled flexibly across the cluster while maintaining access to shared data.
-
-
+In contrast, the PVC backed by the ``kaapana-longhorn-fast-workflow`` storage class uses shared volumes distributed across all nodes, enabling workflow pods to be scheduled flexibly across the cluster while maintaining access to shared data.
 .. seealso::
 
 
@@ -355,7 +350,7 @@ Storage Configuration
 ~~~~~~~~~~~~~~~~~~~~~
 
 
-The storage classes are automatically configured based on the ``STORAGE_PROVIDER`` setting in the deployment script. Ensure you select the correct provisioner for your deployment architecture:
+The storage classes are automatically configured based on the ``STORAGE_PROVIDER`` setting in the *kaapanactl.sh* script. Ensure you select the correct provisioner for your deployment architecture:
 
 
 - **Single-node deployments**: Use ``STORAGE_PROVIDER="hostpath"``
@@ -380,7 +375,7 @@ For example, you can configure:
 - **Slow data storage** backed by a network filesystem (NFS) volume using hostpath provisioner
 - **Fast database and workflow storage** using Longhorn for high performance and redundancy
 
-To implement this mixed storage approach, edit the deployment script and manually override specific storage classes. This can be achieved by selecting your main storage provider (e.g., "longhorn") and then overriding individual storage class variables at the end of the ``setup_storage_provider`` function:
+To implement this mixed storage approach, edit the *kaapanactl.sh* script and manually override specific storage classes. This can be achieved by selecting your main storage provider (e.g., "longhorn") and then overriding individual storage class variables at the end of the ``setup_storage_provider`` function:
 
 .. code-block:: bash
 

@@ -40,6 +40,7 @@ class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
         airflow_workflow_dir=None,
         priority_class_name=None,
         display_name="-",
+        annotations=None,
         **kwargs
     ):
 
@@ -48,6 +49,13 @@ class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
             executor = "LocalExecutor"
         else:
             executor = "KubernetesExecutor"
+        
+        # Add annotations to executor_config
+        annotations = annotations or kwargs.pop("annotations", None)
+        if annotations and executor == "KubernetesExecutor":
+            kube_exec = self.executor_config.setdefault("KubernetesExecutor", {})
+            kube_exec["annotations"] = {**kube_exec.get("annotations", {}), **annotations}
+        
 
         KaapanaBaseOperator.set_defaults(
             self,

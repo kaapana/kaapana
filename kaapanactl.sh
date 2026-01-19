@@ -2372,6 +2372,10 @@ function check_system() {
         fi
         ;;
         Job)
+        if ! job=$(microk8s.kubectl get job "$name" -n "$ns" -o json 2>/dev/null); then
+            echo "ℹ️ Job $name already completed and removed"
+            continue
+        fi
         succeeded=$(microk8s.kubectl get job "$name" -n "$ns" -o jsonpath='{.status.succeeded}')
         if [[ "$succeeded" != "1" ]]; then
             echo "❌ Job $name not successful"

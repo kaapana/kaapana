@@ -93,6 +93,7 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
             "DCMQI_COMMAND": "itkimage2segimage",
             "REUSE_EXISTING_METADATA": reuse_existing_metadata,
         }
+        envs = {k: ("" if v is None else str(v)) for k, v in envs.items()}
         env_vars.update(envs)
 
         if segmentation_operator is None and segmentation_in_dir is not None:

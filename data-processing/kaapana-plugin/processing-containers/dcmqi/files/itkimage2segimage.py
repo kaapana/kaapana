@@ -138,6 +138,13 @@ Accepted "seg_info" shapes:
    {"seg_info": [[{"label_name": "liver", "label_int": 1},
                   {"label_name": "spleen", "label_int": 2}]]}
 
+Important: group consistency
+----------------------------
+Each group must be internally consistent:
+- A group must be either a list of strings OR a list of dicts (do not mix).
+- For dict-based groups, label_int is all-or-none within the group:
+    either every label dict provides label_int, or none do (then IDs are generated 1..N).
+
 Mapping seg_info groups to segmentation volumes
 -----------------------------------------------
 In multi-label mode, segmentation volumes in OPERATOR_IMAGE_LIST_INPUT_DIR are
@@ -157,12 +164,15 @@ Label ID ("label_int") rules:
   - label_int == 0 is reserved for background only and is allowed only when
     label_name matches "background" or "__background__" (case-insensitive).
   - label_int < 0 is invalid.
+  - Within a group, entries must be uniform: all strings or all dicts (no mixing).
 
 Optional multi-label job JSON keys:
 - "task_body_part": string
     Overrides the Body Part Examined written into the combined SEG (0018,0015).
 - "algorithm": string
-    Modifies the combined series description to: "{ALGORITHM_NAME}-{algorithm}".
+    Adds an algorithm tag to the SeriesDescription used for the combined SEG:
+      - if SERIES_DISCRIPTION is set: "<series_description> | algorithm=<ALGORITHM_NAME>-<algorithm>"
+      - otherwise: "<ALGORITHM_NAME>-<algorithm>"
 
 DICOM tags written into output SEG
 ----------------------------------
@@ -533,7 +543,7 @@ def read_trial_and_bodypart(element_input_dir: str) -> tuple[str, Optional[str]]
         If no matching DICOM files are found in `element_input_dir`.
     """
     dcm_files = sorted(
-        glob.glob(os.path.join(element_input_dir, "*.dcm*"), recursive=True)
+        glob.glob(os.path.join(element_input_dir, "**", "*.dcm*"), recursive=True)
     )
     if not dcm_files:
         raise FileNotFoundError("No dicom file found!")
@@ -807,7 +817,10 @@ def load_config() -> OperatorConfig:
     segment_algorithm_type = os.environ.get("ALGORITHM_TYPE", "AUTOMATIC")
     content_creator_name = os.environ.get("CREATOR_NAME", "kaapana")
 
-    series_description = os.environ.get("SERIES_DISCRIPTION", "")
+    series_description = os.environ.get("SERIES_DESCRIPTION")
+    if series_description in (None, "None", ""):
+        series_description = os.environ.get("SERIES_DISCRIPTION", "")
+
     series_number = int(os.environ.get("SERIES_NUMBER", "300"))
     instance_number = int(os.environ.get("INSTANCE_NUMBER", "1"))
 
@@ -1017,8 +1030,11 @@ def build_multi_label_segment_attributes(
       len(segmentation_paths); group order must match the sorted input file order.
 
     Overrides:
-    - If JSON contains "algorithm", returns series_description as
-      f"{cfg.segment_algorithm_name}-{algorithm}".
+    - If JSON contains "algorithm", returns an updated series_description:
+        - if series_description is set:
+            "<series_description> | algorithm=<ALGORITHM_NAME>-<algorithm>"
+        - otherwise:
+            "<ALGORITHM_NAME>-<algorithm>"
     - Returns body_part from JSON "task_body_part" if present, else "N/A".
 
     Notes:
@@ -1079,7 +1095,12 @@ def build_multi_label_segment_attributes(
 
     # Allow per-job series description customization (useful for model/version tagging).
     if "algorithm" in data:
-        series_description = f"{cfg.segment_algorithm_name}-{data['algorithm']}"
+        algo_suffix = f"{cfg.segment_algorithm_name}-{str(data['algorithm']).strip()}"
+        series_description = (
+            f"{series_description} | algorithm={algo_suffix}"
+            if series_description
+            else algo_suffix
+        )
 
     segment_attributes: list[list[Mapping[str, Any]]] = [[] for _ in seg_info_ll]
 
@@ -1249,7 +1270,8 @@ def process_batch(cfg: OperatorConfig, batch_element_dir: str) -> int:
     trial_aetitle, dicom_body_part = read_trial_and_bodypart(element_input_dir)
     try:
         segmentation_paths = find_segmentation_paths(input_image_list_input_dir)
-    except AssertionError:
+    except AssertionError as ae:
+        logger.debug("Segmentation directory issue: %s", ae)
         segmentation_paths = []
 
     if not segmentation_paths:

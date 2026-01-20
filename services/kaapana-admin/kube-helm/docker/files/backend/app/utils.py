@@ -12,7 +12,7 @@ from typing import Dict, List, Tuple
 import yaml
 from kaapanapy.logger import get_logger
 from kubernetes import client, config
-
+from kubernetes.client.rest import ApiException
 from . import helm_helper, schemas
 from .config import settings, timeouts
 
@@ -29,7 +29,16 @@ KUBE_STATUS_UNKNOWN = "unknown"
 
 charts_cached = None
 charts_hashes = {}
+_k8s_config_loaded = False
 
+def ensure_k8s_config():
+    global _k8s_config_loaded
+    if not _k8s_config_loaded:
+        try:
+            config.load_incluster_config()
+        except config.ConfigException:
+            config.load_kube_config()
+        _k8s_config_loaded = True
 
 def all_successful(status):
     successful = ["completed", "running", "deployed"]
@@ -236,6 +245,23 @@ def pull_docker_image(
 
     return success, helm_result_dict
 
+def create_namespace_if_not_exists(namespace: str):
+    """
+    Create Kubernetes namespace if it does not exist
+    """
+    ensure_k8s_config()
+    v1 = client.CoreV1Api()
+    try:
+        v1.read_namespace(name=namespace)
+        logger.debug(f"Namespace {namespace} already exists")
+    except client.exceptions.ApiException as e:
+        if e.status == 404:
+            logger.info(f"Creating namespace {namespace}")
+            ns = client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace))
+            v1.create_namespace(ns)
+        else:
+            logger.error(f"Error checking namespace {namespace}: {e}")
+            raise
 
 def helm_install(
     payload,
@@ -279,7 +305,7 @@ def helm_install(
     name = payload["name"]
     version = payload["version"]
 
-    release_values = helm_get_values(settings.release_name, helm_namespace="default")
+    release_values = helm_get_values(settings.release_name, helm_namespace=settings.helm_namespace)
 
     default_sets = {}
     if "global" in release_values:
@@ -369,8 +395,7 @@ def helm_install(
 
     if platforms:
         # current workaround for avoiding the namespace conflict
-        helm_namespace = "default"
-        helm_command_addons = ""
+        helm_namespace = settings.helm_namespace
         # for preinstall, set correct helm_namespace for charts
         if (
             "extension_params" in values
@@ -378,7 +403,7 @@ def helm_install(
         ):
             eparams = values["extension_params"]
             payload["sets"]["global.helm_namespace"] = eparams["helm_namespace"][
-                "default"
+                settings.helm_namespace
             ]
 
         # for preinstall, change path folder to extensions if doesn't exist
@@ -419,6 +444,9 @@ def helm_install(
         if i == len(keywords) - 1:
             labels = labels[:-1] + "'"
 
+    
+
+    create_namespace_if_not_exists(helm_namespace)
     # make the whole command
     helm_command = f"{settings.helm_path} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {labels} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}"
     if not execute_cmd:
@@ -779,10 +807,7 @@ def get_active_apps_from_ingresses(
         return ""
 
     # load kube config and get client
-    try:
-        config.load_incluster_config()
-    except:
-        config.load_kube_config()
+    ensure_k8s_config()
 
     networking_v1 = client.NetworkingV1Api()
 

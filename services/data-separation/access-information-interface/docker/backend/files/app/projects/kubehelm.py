@@ -16,6 +16,9 @@ def install_project_helm_chart(project: Project):
     * a secret with the credentials for the project-system-user
     * a job that creates the project-system-user in Keycloak and assigns a project-role to this user in the access-information-point
     """
+    payload = {"namespace": project.kubernetes_namespace}
+    response = requests.post(f"{kube_helm_api}/create-namespace", json=payload)
+    response.raise_for_status()
     kaapana_build_version = os.getenv("KAAPANA_BUILD_VERSION")
     payload = {
         "name": "project-namespace",
@@ -28,6 +31,7 @@ def install_project_helm_chart(project: Project):
             "project_id": str(project.id),
         },
     }
+
     response = requests.post(f"{kube_helm_api}/helm-install-chart", json=payload)
     response.raise_for_status()
 

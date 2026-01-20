@@ -249,6 +249,26 @@ async def helm_delete_chart(request: Request):
     except Exception as e:
         logger.error(f"/helm-delete-chart failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Chart uninstall failed {str(e)}")
+    
+
+
+@router.post("/create-namespace")
+async def create_namespace(request: Request):
+    try:
+        payload = await request.json()
+        logger.info(f"/create-namespace called with {payload=}")
+        assert "namespace" in payload, "Required key 'namespace' not found in payload"
+        success = utils.create_namespace_if_not_exists(payload["namespace"])
+        if success:
+            return Response(f"Namespace {payload['namespace']} created successfully", 200)
+        else:
+            return Response(f"Namespace {payload['namespace']} already exists or creation failed", 400)
+    except AssertionError as e:
+        logger.error(f"/create-namespace failed: {str(e)}", exc_info=True)
+        return Response(f"Namespace creation failed, bad request {str(e)}", 400)
+    except Exception as e:
+        logger.error(f"/create-namespace failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Namespace creation failed {str(e)}")
 
 
 @router.post("/helm-install-chart")
@@ -263,7 +283,6 @@ async def helm_install_chart(request: Request):
         blocking = False
         if ("platforms" in payload) and (str(payload["platforms"]).lower() == "true"):
             platforms = True
-            cmd_addons = "--create-namespace"
         if ("blocking" in payload) and (str(payload["blocking"]).lower() == "true"):
             blocking = True
         if (

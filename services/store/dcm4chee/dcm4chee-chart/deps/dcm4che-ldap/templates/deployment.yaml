@@ -15,8 +15,10 @@ spec:
       labels:
         app.kubernetes.io/name: ldap
     spec:
+      {{- if .Values.global.storage_node }}
       nodeSelector:
         kaapana.io/node: {{ .Values.global.storage_node }}
+      {{- end }}
       containers:
         - name: ldap-container
           image: "{{ .Values.global.registry_url }}/dcm4chee-ldap:{{ .Values.global.kaapana_build_version  }}"

@@ -19,8 +19,10 @@ spec:
         app.kubernetes.io/name: {{ .Values.appName | default .Chart.Name }}
         app.kubernetes.io/component: database
     spec:
+      {{- if .Values.global.storage_node }}
       nodeSelector:
         kaapana.io/node: {{ .Values.global.storage_node }}
+      {{- end }}
       securityContext:
         runAsUser: 70
       initContainers:

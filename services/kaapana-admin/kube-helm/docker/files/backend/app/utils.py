@@ -13,7 +13,7 @@ from typing import Dict, List, Tuple
 import yaml
 from kaapanapy.logger import get_logger
 from kubernetes import client, config
-
+from kubernetes.client.rest import ApiException
 from . import helm_helper, schemas
 from .config import settings, timeouts
 
@@ -41,7 +41,16 @@ HELM_TRANSITIONAL_STATUSES = {
 
 charts_cached = None
 charts_hashes = {}
+_k8s_config_loaded = False
 
+def ensure_k8s_config():
+    global _k8s_config_loaded
+    if not _k8s_config_loaded:
+        try:
+            config.load_incluster_config()
+        except config.ConfigException:
+            config.load_kube_config()
+        _k8s_config_loaded = True
 
 def all_successful(status):
     successful = ["completed", "running", "deployed"]
@@ -116,8 +125,7 @@ def resolve_install_target(
 
     if platforms:
         # current workaround for avoiding the namespace conflict
-        helm_namespace = "default"
-        helm_command_addons = ""
+        helm_namespace = settings.helm_namespace
         # for preinstall, set correct helm_namespace for charts
         if (
             "extension_params" in values
@@ -208,7 +216,7 @@ def build_helm_install_preflight(
     version = payload["version"]
 
     release_values = helm_helper.helm_get_values(
-        settings.release_name, helm_namespace="default"
+        settings.release_name, helm_namespace=settings.helm_namespace
     )
 
     default_sets = {}
@@ -696,6 +704,23 @@ def pull_docker_image(
 
     return success, helm_result_dict
 
+def create_namespace_if_not_exists(namespace: str):
+    """
+    Create Kubernetes namespace if it does not exist
+    """
+    ensure_k8s_config()
+    v1 = client.CoreV1Api()
+    try:
+        v1.read_namespace(name=namespace)
+        logger.debug(f"Namespace {namespace} already exists")
+    except client.exceptions.ApiException as e:
+        if e.status == 404:
+            logger.info(f"Creating namespace {namespace}")
+            ns = client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace))
+            v1.create_namespace(ns)
+        else:
+            logger.error(f"Error checking namespace {namespace}: {e}")
+            raise
 
 def helm_install(
     payload,
@@ -748,6 +773,8 @@ def helm_install(
     helm_command = preflight["helm_command"]
     if not execute_cmd:
         return True, "", keywords, release_name, helm_command
+
+    create_namespace_if_not_exists(preflight["helm_namespace"])
 
     skip_check = False
     if helm_command_suffix != "":
@@ -1105,10 +1132,7 @@ def get_active_apps_from_ingresses(
         return ""
 
     # load kube config and get client
-    try:
-        config.load_incluster_config()
-    except:
-        config.load_kube_config()
+    ensure_k8s_config()
 
     networking_v1 = client.NetworkingV1Api()
 

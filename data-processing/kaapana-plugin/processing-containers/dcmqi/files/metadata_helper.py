@@ -1,6 +1,41 @@
+"""
+Helpers for building dcmqi DICOM SEG metadata
+============================================
+
+This module contains utility functions used by the itkimage2segimage conversion
+script to build dcmqi-compatible SEG metadata structures.
+
+Main responsibilities
+---------------------
+- Code lookup:
+  Resolve a label/body-part tag to a coding-scheme entry from `code_lookup_table.json`.
+  If no match is found, a placeholder "Custom" coding scheme is used.
+
+- Segment attribute construction:
+  Build dcmqi `segmentAttributes` entries (per label) and wrap them into the full
+  segmentation metadata JSON structure expected by dcmqi.
+
+- seg_info normalization:
+  Normalize flexible user/job input (`seg_info`) into the strict list-of-lists of
+  label dicts required by the dcmqi schema. Supports explicit or generated label IDs
+  and enforces background rules (label_int == 0 only for background names).
+
+Files
+-----
+- code_lookup_table.json:
+  Lookup table used for resolving coding information. It is loaded once at import.
+
+Notes
+-----
+- If a lookup entry is found but missing required coding fields, the entry is
+  intentionally filled with placeholders (mutating the in-memory lookup object).
+"""
+
 import json
 import math
 import logging
+from pathlib import Path
+from typing import Sequence
 from kaapanapy.logger import get_logger
 
 # Logger
@@ -10,15 +45,36 @@ logger = get_logger(__name__, logging.INFO)
 PLACEHOLDER_CODING_SCHEME_DESIGNATOR = "Custom"
 PLACEHOLDER_CODE_VALUE = "0.0.0.0.0.0.00000.0.000.0.00"
 
-code_lookup_table_path = "code_lookup_table.json"
-with open(code_lookup_table_path) as f:
+_CODE_LOOKUP_TABLE_PATH = Path(__file__).with_name("code_lookup_table.json")
+
+with _CODE_LOOKUP_TABLE_PATH.open() as f:
     code_lookup_table = json.load(f)
 
 
 def find_code_meaning(tag):
-    logger.info("#####################################################")
-    logger.info("#")
-    logger.info(f"Searching for identical hit for {tag}...")
+    """
+    Find a coding-scheme entry for a given tag/name.
+
+    The lookup checks the loaded `code_lookup_table` using several match strategies:
+    exact match, partial match, and word-level matches (case-insensitive).
+
+    If no entry matches, a "Custom" placeholder entry is returned.
+    If an entry matches but is missing required fields ("Coding Scheme Designator" or
+    "Code Value"), those fields are overwritten with placeholder values (intentional mutation).
+
+    Parameters
+    ----------
+    tag:
+        Search term (e.g. label name, body part), case-insensitive.
+
+    Returns
+    -------
+    Mapping[str, Any]
+        Lookup entry (possibly placeholder, possibly mutated to fill required fields).
+    """
+    logger.debug("#####################################################")
+    logger.debug("#")
+    logger.debug(f"Searching for identical hit for {tag}...")
 
     # Normalize input (case and whitespace)
     tag = tag.lower().strip()
@@ -99,13 +155,27 @@ def find_code_meaning(tag):
 
 
 def process_seg_info(seg_info, series_description):
-    code_meaning = str(seg_info).lower()
-    series_description_code_meaning = f"{code_meaning}"
+    """
+    Normalize seg_info and ensure a SeriesDescription is present.
 
+    Parameters
+    ----------
+    seg_info:
+        Label/segment identifier (any type; converted to string).
+    series_description:
+        Base SeriesDescription. If empty, a default description derived from seg_info is used.
+
+    Returns
+    -------
+    (code_meaning, series_description)
+        code_meaning is always lowercased string form of seg_info.
+        series_description is either the provided one or a derived default.
+    """
+    code_meaning = str(seg_info).lower()
+    default_series_description = f"{code_meaning}"
     if series_description != "":
         return code_meaning, series_description
-    else:
-        return code_meaning, series_description_code_meaning
+    return code_meaning, default_series_description
 
 
 def create_segment_attribute(
@@ -116,6 +186,34 @@ def create_segment_attribute(
     label_name="",
     labelID=1,
 ):
+    """
+    Create a dcmqi-compatible segmentAttributes entry for one label.
+
+    Parameters
+    ----------
+    segment_algorithm_type:
+        DICOM SegmentAlgorithmType (e.g. "AUTOMATIC").
+    segment_algorithm_name:
+        DICOM SegmentAlgorithmName.
+    code_meaning:
+        Label meaning used for lookup and written into CodeMeaning.
+    color:
+        RGB triplet (3 ints) used as recommendedDisplayRGBValue.
+    label_name:
+        SegmentLabel value.
+    labelID:
+        labelID written into the segment attributes.
+
+    Returns
+    -------
+    dict[str, Any]
+        Segment attribute dictionary in dcmqi schema style.
+
+    Raises
+    ------
+    AssertionError
+        If lookup table access fails in an unexpected way.
+    """
     try:
         search_key = (
             code_meaning.split("@")[-1].lower() if "@" in code_meaning else code_meaning
@@ -129,10 +227,10 @@ def create_segment_attribute(
         )
 
     segment_attribute = {}
-    segment_attribute["labelID"] = labelID
+    segment_attribute["labelID"] = int(labelID)
     segment_attribute["SegmentAlgorithmType"] = segment_algorithm_type
     segment_attribute["SegmentAlgorithmName"] = segment_algorithm_name
-    segment_attribute["recommendedDisplayRGBValue"] = color
+    segment_attribute["recommendedDisplayRGBValue"] = list(color)
 
     # segment_attribute["SegmentNumber"] = labelID
     segment_attribute["SegmentLabel"] = label_name
@@ -164,19 +262,26 @@ def map_labels_to_segment_attributes(
     label_entries,
     segment_algorithm_type="AUTOMATIC",
     segment_algorithm_name="kaapana",
-    default_color=[128, 0, 0],
+    default_color: Sequence[int] = [128, 0, 0],  # RGB triplet
 ):
     """
-    Maps a list of label entries to a list of segment attribute dictionaries.
+    Map label entries to segmentAttributes entries.
 
-    Args:
-        label_entries (list): List of dicts with 'label_int' and 'label_name'
-        segment_algorithm_type (str): DICOM value for algorithm type
-        segment_algorithm_name (str): Name of the algorithm used
-        default_color (list): RGB list used for all labels (can be extended later)
+    Parameters
+    ----------
+    label_entries:
+        Iterable of dicts with keys: "label_int" and "label_name".
+    segment_algorithm_type:
+        SegmentAlgorithmType used for all labels.
+    segment_algorithm_name:
+        SegmentAlgorithmName used for all labels.
+    default_color:
+        RGB triplet used for all labels.
 
-    Returns:
-        list: List of segment attribute dictionaries
+    Returns
+    -------
+    list[dict[str, Any]]
+        One segmentAttributes dict per label entry.
     """
     segment_attributes = []
     for entry in label_entries:
@@ -205,17 +310,25 @@ def build_segmentation_information(
     instance_number=1,
 ):
     """
-    Wraps pre-built segment attributes into the standard DICOM segmentation metadata format.
+    Wrap segmentAttributes into the standard dcmqi segmentation metadata dict.
 
-    Args:
-        segment_attributes (list of list): Nested list of segment attribute dicts.
-        content_creator_name (str): Name of the person or system creating the content.
-        series_number (int): DICOM series number.
-        instance_number (int): DICOM instance number.
-        series_description (str): Description for the DICOM series.
+    Parameters
+    ----------
+    segment_attributes:
+        Nested list structure (list-of-lists) of segmentAttributes entries.
+    series_description:
+        SeriesDescription written into the metadata.
+    content_creator_name:
+        ContentCreatorName written into the metadata.
+    series_number:
+        DICOM SeriesNumber.
+    instance_number:
+        DICOM InstanceNumber.
 
-    Returns:
-        dict: DICOM-compatible segmentation metadata dictionary.
+    Returns
+    -------
+    dict[str, Any]
+        dcmqi-compatible segmentation metadata mapping.
     """
     segmentation_information = {
         "@schema": "https://raw.githubusercontent.com/qiicr/dcmqi/master/doc/schemas/seg-schema.json#",
@@ -230,19 +343,47 @@ def build_segmentation_information(
 
 def normalize_seg_info(seg_info, background_names=("background", "__background__")):
     """
-    Normalize seg_info into list[list[dict]] with guaranteed:
-      - label_int generated starting at 1 (never 0)
-      - label_int==0 allowed ONLY for background entries
-      - preserves extra dict fields if present
+    Normalize seg_info into dcmqi-compatible list-of-groups: list[list[dict]].
 
-    Supports inputs:
-      - list[str]
-      - list[list[str]]
-      - dict
-      - list[dict]
-      - list[list[dict]]
+    Accepted input shapes (all normalize to list[list[{"label_name","label_int"}]]):
+      - dict                               -> [[dict]]
+      - list[str] / list[dict]             -> [list]
+      - list[list[str]] / list[list[dict]] -> list-of-groups
+
+    Rules:
+      - label_int is all-or-none per group:
+          * if any label in a group provides label_int, all labels in that group must provide it
+          * otherwise label_int is generated starting at 1 per group
+      - label_int == 0 is reserved for background only (label_name must match background_names, case-insensitive).
+      - label_int < 0 is invalid.
+      - Extra keys in label dicts are preserved; duplicates are not checked.
+
+    Parameters
+    ----------
+    seg_info:
+        Label description(s) in one of the accepted input shapes.
+    background_names:
+        Names allowed to use label_int=0 (case-insensitive).
+
+    Returns
+    -------
+    list[list[dict]]
+        Normalized list-of-groups structure.
+
+    Raises
+    ------
+    TypeError
+        If seg_info is neither dict nor list.
+    ValueError
+        If seg_info has an unsupported/mixed shape, a label is missing a valid name,
+        a group mixes explicit/missing label_int, or label_int violates background/negativity rules.
     """
-    # 1) Normalize outer shape into list-of-groups
+    # 0) Prebuild some later used set:
+    #    Allowed names that may legally use label_int == 0 (background).
+    allowed_bg = {n.strip().lower() for n in background_names}
+
+    # 1) Normalize the outer shape into "groups": list[list[...]].
+    #    Each group becomes a list of label entries (strings or dicts).
     if isinstance(seg_info, dict):
         groups = [[seg_info]]
     elif isinstance(seg_info, list):
@@ -259,55 +400,69 @@ def normalize_seg_info(seg_info, background_names=("background", "__background__
     else:
         raise TypeError(f"seg_info must be dict or list, got {type(seg_info).__name__}")
 
-    # 2) Convert each group to list[dict], generating label_int from 1
-    seg_info_ll = []
+    # 2) Convert each group to list[dict], enforcing all-or-none label_int per group.
+    seg_info_ll: list[list[dict]] = []
+
     for group in groups:
         if not isinstance(group, list):
             raise ValueError("Expected each group to be a list")
 
-        out_group = []
-        next_id = 1  # <-- start at 1; 0 is reserved for background
+        out_group: list[dict] = []
+        seen_explicit = False
+        seen_missing = False
+        next_id = 1  # start at 1; 0 is reserved for background
 
+        tmp_items: list[dict] = []
         for item in group:
             if isinstance(item, str):
-                # Strings never become background automatically; assign 1..N
-                out_group.append({"label_name": item, "label_int": next_id})
-                next_id += 1
+                seen_missing = True
+                tmp_items.append({"label_name": item})
                 continue
 
             if isinstance(item, dict):
-                label = dict(item)  # preserve extra fields
+                label = dict(item)
 
-                # normalize name key
                 name = label.get("label_name", label.get("label"))
-                if not isinstance(name, str) or not name:
+                if not isinstance(name, str) or not name.strip():
                     raise ValueError(f"Label dict missing a valid name: {item}")
                 label["label_name"] = name
 
-                # normalize / generate label_int
                 if label.get("label_int") is None:
-                    label["label_int"] = next_id
-                    next_id += 1
+                    seen_missing = True
                 else:
-                    label["label_int"] = int(label["label_int"])
+                    seen_explicit = True
 
-                # enforce background rule
-                if label["label_int"] == 0:
-                    if name.strip().lower() not in {
-                        n.lower() for n in background_names
-                    }:
-                        raise ValueError(
-                            f"label_int=0 is reserved for background, but got label_name={name!r}"
-                        )
-                elif label["label_int"] < 0:
-                    raise ValueError(
-                        f"label_int must be >= 0, got {label['label_int']}"
-                    )
-
-                out_group.append(label)
+                tmp_items.append(label)
                 continue
 
             raise ValueError(f"Unsupported label entry type: {type(item).__name__}")
+
+        if seen_explicit and seen_missing:
+            raise ValueError(
+                "Mixed label_int usage within a group: either set label_int for all labels "
+                "in the group, or omit label_int for all labels in the group."
+            )
+
+        for label in tmp_items:
+            name = label["label_name"].strip()
+
+            if seen_explicit:
+                label_int = int(label["label_int"])
+                label["label_int"] = label_int
+            else:
+                label["label_int"] = next_id
+                label_int = next_id
+                next_id += 1
+
+            if label_int == 0:
+                if name.lower() not in allowed_bg:
+                    raise ValueError(
+                        f"label_int=0 is reserved for background, but got label_name={name!r}"
+                    )
+            elif label_int < 0:
+                raise ValueError(f"label_int must be >= 0, got {label_int}")
+
+            out_group.append(label)
 
         seg_info_ll.append(out_group)
 

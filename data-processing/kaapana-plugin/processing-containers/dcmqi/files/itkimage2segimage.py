@@ -288,12 +288,12 @@ def env_required(name: str) -> str:
 
     Raises
     ------
-    AssertionError
+    OSError
         If the variable is unset or empty.
     """
     v = os.environ.get(name)
     if not v:
-        raise AssertionError(f"Missing required env var: {name}")
+        raise OSError(f"Missing required env var: {name}")
     return v
 
 
@@ -361,12 +361,12 @@ def write_metadata_file(
 
     Raises
     ------
-    AssertionError
-        If metadata_file_path exists but is not a file.
+    OSError
+        If metadata_file_path exists but is not a regular file (e.g. it is a directory).
     """
     if metadata_reuse_existing and os.path.exists(metadata_file_path):
         if not os.path.isfile(metadata_file_path):
-            raise AssertionError(
+            raise OSError(
                 f"Metadata path exists but is not a file: {metadata_file_path}"
             )
         logger.info("Metadata file exists, reusing: %s", metadata_file_path)
@@ -430,16 +430,18 @@ def find_segmentation_paths(segmentation_input_dir: str) -> list[str]:
 
     Raises
     ------
-    AssertionError
-        If segmentation_input_dir does not exist or is not a directory.
+    FileNotFoundError
+        If segmentation_input_dir does not exist.
+    NotADirectoryError
+        If segmentation_input_dir exists but is not a directory.
     """
     base = Path(segmentation_input_dir)
     if not base.exists():
-        raise AssertionError(
+        raise FileNotFoundError(
             f"Segmentation input dir does not exist: {segmentation_input_dir}"
         )
     if not base.is_dir():
-        raise AssertionError(
+        raise NotADirectoryError(
             f"Segmentation input path is not a directory: {segmentation_input_dir}"
         )
 
@@ -466,9 +468,8 @@ def validate_unique_segmentation_rootnames(segmentation_paths: Sequence[str]) ->
     Raises
     ------
     ValueError
-        Propagated if a path has an unsupported filename/suffix (from validate_and_rootname).
-    AssertionError
-        If two or more paths resolve to the same rootname (case-insensitive).
+        If a path has an unsupported filename/suffix (from validate_and_rootname),
+        or if two or more paths resolve to the same rootname (case-insensitive).
     """
     by_root: dict[str, list[str]] = {}
     for p in segmentation_paths:
@@ -487,7 +488,7 @@ def validate_unique_segmentation_rootnames(segmentation_paths: Sequence[str]) ->
 
     msg = "\n".join(lines)
     logger.error(msg)
-    raise AssertionError(msg)
+    raise ValueError(msg)
 
 
 def set_or_add(ds: pydicom.Dataset, tag, vr: str, value) -> None:
@@ -651,8 +652,10 @@ def run_dcmqi(
     Raises
     ------
     FileNotFoundError
-        If the dcmqi binary cannot be executed (e.g. wrong `dcmqi_bin_dir`).
-    AssertionError
+        If the dcmqi binary cannot be found (e.g. wrong dcmqi_bin_dir).
+    PermissionError
+        If the dcmqi binary exists but cannot be executed due to insufficient permissions.
+    RuntimeError
         If dcmqi returns a non-zero exit code.
     """
     cmd = [f"{dcmqi_bin_dir}/itkimage2segimage"]
@@ -698,7 +701,7 @@ def run_dcmqi(
         if error_out.strip():
             logger.error("[dcmqi] Output:\n%s", error_out)
 
-        raise AssertionError(
+        raise RuntimeError(
             f"dcmqi failed while creating {context} dcm object (exit {spe.returncode})"
         )
 
@@ -795,16 +798,17 @@ def load_config() -> OperatorConfig:
 
     Raises
     ------
-    AssertionError
-        If required variables are missing or inconsistent.
+    OSError
+        If required environment variables are missing or empty.
     ValueError
-        If SERIES_NUMBER / INSTANCE_NUMBER cannot be parsed as integers.
+        If INPUT_TYPE has an invalid value, or if SERIES_NUMBER / INSTANCE_NUMBER
+        cannot be parsed as integers.
     """
     dcmqi_bin_dir = os.environ.get("DCMQI_BIN_DIR", _DCMQI_DEFAULT_BIN_DIR)
 
     input_type_raw = os.environ.get("INPUT_TYPE")
     if input_type_raw not in {"multi_label_seg", "single_label_segs"}:
-        raise AssertionError(
+        raise ValueError(
             "INPUT_TYPE must be either 'multi_label_seg' or 'single_label_segs'"
         )
     input_type = cast(Literal["multi_label_seg", "single_label_segs"], input_type_raw)
@@ -838,7 +842,7 @@ def load_config() -> OperatorConfig:
     single_label_seg_info = env_optional_str("SINGLE_LABEL_SEG_INFO")
     if input_type == "single_label_segs":
         if not single_label_seg_info:
-            raise AssertionError(
+            raise OSError(
                 'SINGLE_LABEL_SEG_INFO must be either "from_file_name" or e.g. "right@kidney"'
             )
         if single_label_seg_info.strip().lower() == "from_file_name":
@@ -930,10 +934,24 @@ def process_single_label_files(
         list-of-lists in dcmqi schema form; populated only when combined generation is enabled.
     created_seg_count:
         Number of per-file DICOM SEG outputs created (excludes any combined SEG).
+
+    Raises
+    ------
+    RuntimeError
+        If SINGLE_LABEL_SEG_INFO is missing/inconsistent for INPUT_TYPE=single_label_segs,
+        or if dcmqi fails (non-zero exit code).
+    ValueError
+        If a segmentation filename has an unsupported suffix (and FAIL_ON_NO_SEGMENTATION_FOUND is enabled).
+    OSError
+        If writing metadata fails (e.g. metadata path exists but is not a file).
+    FileNotFoundError
+        If the dcmqi binary cannot be found.
+    PermissionError
+        If the dcmqi binary exists but cannot be executed due to insufficient permissions.
     """
     processed = 0
     if cfg.single_label_seg_info is None and not cfg.get_seg_info_from_file:
-        raise AssertionError(
+        raise RuntimeError(
             "SINGLE_LABEL_SEG_INFO is required for INPUT_TYPE=single_label_segs"
         )
 
@@ -1062,17 +1080,22 @@ def build_multi_label_segment_attributes(
 
     Raises
     ------
-    AssertionError
-        If the JSON is missing, "seg_info" is missing, or group-to-file mapping is invalid.
+    FileNotFoundError
+        If the multi-label job JSON file is missing.
+    KeyError
+        If the JSON does not contain the key "seg_info".
+    ValueError
+        If the seg_info group-to-file mapping is invalid (group count does not match the number
+        of segmentation volumes).
     """
     json_path = os.path.join(input_image_list_input_dir, cfg.multi_label_seg_info_json)
     if not os.path.isfile(json_path):
-        raise AssertionError(f"Missing multi-label seg info json: {json_path}")
+        raise FileNotFoundError(f"Missing multi-label seg info json: {json_path}")
     with open(json_path) as f:
         data = json.load(f)
 
     if "seg_info" not in data:
-        raise AssertionError(f"Could not find key 'seg_info' in json-file: {json_path}")
+        raise KeyError(f"Could not find key 'seg_info' in json-file: {json_path}")
 
     seg_info_ll = normalize_seg_info(seg_info=data["seg_info"])
 
@@ -1081,13 +1104,13 @@ def build_multi_label_segment_attributes(
     # - N volumes -> exactly N groups, matching the sorted file order
     if len(segmentation_paths) == 1:
         if len(seg_info_ll) != 1:
-            raise AssertionError(
+            raise ValueError(
                 f"seg_info defines {len(seg_info_ll)} groups but found 1 segmentation file. "
                 "For a single multi-label volume, seg_info must be a single group (list[str] / list[dict])."
             )
     else:
         if len(seg_info_ll) != len(segmentation_paths):
-            raise AssertionError(
+            raise ValueError(
                 f"seg_info defines {len(seg_info_ll)} groups but found {len(segmentation_paths)} segmentation files. "
                 "For multiple input volumes, seg_info must be list[list[...]] with one group per file, "
                 "matching the sorted file order."
@@ -1181,8 +1204,14 @@ def generate_combined_seg(
 
     Raises
     ------
-    AssertionError
-        If dcmqi fails to create the combined SEG.
+    RuntimeError
+        Propagated from run_dcmqi() if dcmqi fails to create the combined SEG.
+    FileNotFoundError
+        Propagated from run_dcmqi() if the dcmqi binary cannot be found.
+    PermissionError
+        Propagated from run_dcmqi() if the dcmqi binary cannot be executed due to permissions.
+    OSError
+        If writing metadata fails (e.g. metadata path exists but is not a file).
     """
     _, combined_series_desc = process_seg_info(
         cfg.multi_label_seg_name, series_description
@@ -1253,12 +1282,20 @@ def process_batch(cfg: OperatorConfig, batch_element_dir: str) -> int:
     Raises
     ------
     FileNotFoundError
-        If no reference DICOM files are found in the input DICOM directory.
+        If no reference DICOM files are found, if no segmentation files are found and
+        FAIL_ON_NO_SEGMENTATION_FOUND is enabled, if required multi-label JSON is missing,
+        or if the dcmqi binary cannot be found (wrong DCMQI_BIN_DIR).
+    PermissionError
+        If the dcmqi binary exists but cannot be executed due to insufficient permissions.
+    OSError
+        If writing metadata fails (e.g. metadata path exists but is not a file).
     ValueError
-        If a segmentation filename has an unsupported suffix (raised by validate_and_rootname).
-    AssertionError
-        If required inputs/config are missing (e.g. no segmentations when FAIL_ON_NO_SEGMENTATION_FOUND),
-        if rootname collisions exist, if multi-label job JSON is invalid, or if dcmqi fails.
+        If a segmentation filename has an unsupported suffix, if rootname collisions exist,
+        or if multi-label seg_info mapping is invalid.
+    KeyError
+        If the multi-label job JSON does not contain the key "seg_info".
+    RuntimeError
+        If dcmqi fails to create the DICOM SEG.
     """
     element_input_dir = os.path.join(batch_element_dir, cfg.operator_in_dir)
     input_image_list_input_dir = os.path.join(
@@ -1270,8 +1307,8 @@ def process_batch(cfg: OperatorConfig, batch_element_dir: str) -> int:
     trial_aetitle, dicom_body_part = read_trial_and_bodypart(element_input_dir)
     try:
         segmentation_paths = find_segmentation_paths(input_image_list_input_dir)
-    except AssertionError as ae:
-        logger.debug("Segmentation directory issue: %s", ae)
+    except (FileNotFoundError, NotADirectoryError) as e:
+        logger.debug("Segmentation directory issue: %s", e)
         segmentation_paths = []
 
     if not segmentation_paths:
@@ -1282,7 +1319,7 @@ def process_batch(cfg: OperatorConfig, batch_element_dir: str) -> int:
 
         if cfg.fail_on_no_segmentation_found:
             logger.error(msg)
-            raise AssertionError("No segmentation files found")
+            raise FileNotFoundError("No segmentation files found")
 
         logger.warning(msg)
         logger.info("Skipping %s!", input_image_list_input_dir)
@@ -1321,7 +1358,7 @@ def process_batch(cfg: OperatorConfig, batch_element_dir: str) -> int:
         if cfg.create_multi_label_dcm_from_single_label_segs and not segment_attributes:
             msg = "Requested combined SEG from single-label segs, but no valid segmentations were found."
             if cfg.fail_on_no_segmentation_found:
-                raise AssertionError(msg)
+                raise FileNotFoundError(msg)
             logger.info(msg)
             return processed
 

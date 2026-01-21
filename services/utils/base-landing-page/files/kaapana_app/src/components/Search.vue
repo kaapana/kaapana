@@ -188,19 +188,24 @@ export default {
       this.filters = this.filters.filter((filter) => filter.id !== id);
     },
     async composeQuery() {
+      let inner_query = {match_all: {}};
+      if (this.query_string && this.query_string.trim().length > 0) {
+        inner_query = {
+          query_string: {
+            query: this.query_string,
+          },
+        };
+      }
+      
       const query = {
         bool: {
           must: [
-            this.constructDatasetQuery() || "",
+            this.constructDatasetQuery(),
             ...this.filters
               .map((filter) => this.queryFromFilter(filter))
               .filter((query) => query !== null),
-            {
-              query_string: {
-                query: this.query_string || "*",
-              },
-            },
-          ],
+            inner_query,
+          ].filter((q) => q !== null),
         },
       };
       return query;

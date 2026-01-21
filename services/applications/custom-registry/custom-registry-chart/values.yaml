@@ -10,8 +10,8 @@ extension_params:
         type: string
         value: ""
     custom_registry_url:
-        default: ""
-        definition: Registry URL
+        default: "https://"
+        definition: Aboslute registry URL <scheme>://<domain>:<port>//<path>
         type: string
         value: ""
     credentials_custom_registry_username:

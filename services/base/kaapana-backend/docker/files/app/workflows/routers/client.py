@@ -502,13 +502,30 @@ def ui_form_schemas(
             and "properties-template" in schemas["workflow_form"]
         ):
             # Inserting installed_models for this project
-            schemas["workflow_form"]["oneOf"] = crud.replace_installed_models_in_schemas(
-                db=db,
-                project_id=project.get("id"),
-                properties_template=schemas["workflow_form"]["properties-template"]
+            schemas["workflow_form"]["oneOf"] = (
+                crud.replace_installed_models_in_schemas(
+                    db=db,
+                    project_id=project.get("id"),
+                    properties_template=schemas["workflow_form"]["properties-template"],
+                )
             )
+
             # Remove properties-template from response (it's not needed in frontend)
             schemas["workflow_form"].pop("properties-template", None)
+            if len(schemas["workflow_form"]["oneOf"]) == 0:
+                schemas["workflow_form"] = {
+                    "type": "object",
+                    "properties": {
+                        "tasks": {
+                            "title": "No tasks are available in this project!",
+                            "description": "You first have to install a task with nnunet-install-model.",
+                            "oneOf": [],
+                            "type": "string",
+                            "readOnly": False,
+                            "required": True,
+                        }
+                    },
+                }
 
         schemas_dict[dag_id] = schemas
     # logging.info(f"\n\nFinal Schema: \n{schemas}")
@@ -916,21 +933,22 @@ def delete_workflows(db: Session = Depends(get_db)):
     return crud.delete_workflows(db)
 
 
-
 # model installation endpoints
-@router.put("/installed_models/sync", response_model=schemas.UpdateInstalledModelsResponse)
+@router.put(
+    "/installed_models/sync", response_model=schemas.UpdateInstalledModelsResponse
+)
 async def sync_installed_models(
     installed_models_wrapper: dict = Body(..., description="Dict of installed_tasks"),
     project=Depends(get_project),
     db: Session = Depends(get_db),
 ):
     """Sync installed models (alternative endpoint using PUT semantics)."""
-    
+
     # 🌟 NEW: Extract the inner dictionary using the key from the client payload
     installed_tasks_data = installed_models_wrapper.get("installed_models", {})
-    
+
     logging.info(f"installed_tasks received for sync: {installed_tasks_data}")
-    
+
     try:
         # Pass the extracted inner dictionary
         created, failed = crud.update_installed_models(
@@ -938,7 +956,7 @@ async def sync_installed_models(
             project_id=project.get("id"),
             installed_tasks=installed_tasks_data,
         )
-        
+
         return {
             "created": [m.to_dict() for m in created],
             "failed": failed,
@@ -947,4 +965,3 @@ async def sync_installed_models(
     except Exception as e:
         logging.error(f"Error syncing models: {e}")
         raise HTTPException(status_code=400, detail=str(e))
-

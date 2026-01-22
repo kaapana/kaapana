@@ -19,8 +19,8 @@
   - name: set variables
     ansible.builtin.set_fact:
       max_recursion_depth: 150
-      sleep_between_recursions: 2
-      async_timeout: 300
+      sleep_between_recursions: 4
+      async_timeout: 600
       test_data_directory: "{{ ansible_env.HOME }}/test_data"
       test_data_info:
         - {dataset: "test-CT", input: "{{ repo_dir }}/ci-code/test/jobs/testdata/download-info/ct-manifest.tcia"}

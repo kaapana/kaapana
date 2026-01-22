@@ -1,4 +1,35 @@
 #!/bin/sh
+#
+# collect.sh - Node Exporter textfile collector generator
+#
+# Periodically collects and calculates filesystem usage statistics for the
+# FAST and SLOW data directories and writes them in Prometheus textfile format
+# into $TEXTFILE_DIR as:
+#  - kaapana_fast_size.prom
+#  - kaapana_slow_size.prom
+#
+# These metrics are intended to be scraped by Node Exporter's textfile collector
+# via the --collector.textfile.directory flag.
+#
+# Exported metrics:
+#  - kaapana_fast_dir_size_bytes
+#  - kaapana_fast_fs_size_bytes
+#  - kaapana_fast_fs_available_bytes
+#  - kaapana_slow_dir_size_bytes
+#  - kaapana_slow_fs_size_bytes
+#  - kaapana_slow_fs_available_bytes
+#
+# Expected filesystem mounts:
+#  /fast     -> FAST data directory (read-only)
+#  /slow     -> SLOW data directory (read-only)
+#  /textfile -> textfile collector directory (writable)
+#
+# Environment variables:
+#  TEXTFILE_POLL_INTERVAL  Poll interval in seconds (default: 300)
+#  FAST_PATH               Host path for the FAST data directory (used in metric labels)
+#  SLOW_PATH               Host path for the SLOW data directory (used in metric labels)
+#
+
 set -eu
 set -o pipefail 2>/dev/null || true
 

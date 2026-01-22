@@ -24,7 +24,13 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logging.getLogger().setLevel(logging.INFO)
 
-app = FastAPI(root_path="/kaapana-backend")
+app = FastAPI(
+    root_path="/kaapana-backend",
+    title="kaapana-backend",
+    docs_url="/docs",
+    openapi_url="/openapi.json",
+    version="0.1.0",
+)
 
 # sanitize user inputs from the POST and PUT body
 app.add_middleware(middlewares.SanitizeBodyInputs)

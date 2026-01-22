@@ -6,16 +6,17 @@ from sqlalchemy_json import NestedMutableDict
 
 
 class SettingsBase(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True, from_attributes=True)
+    model_config = ConfigDict(from_attributes=True)
     key: Optional[str] = None
-    value: Optional[Union[NestedMutableDict, Any]] = ...
+    value: Union[dict[str, Any], Any, None] = None
 
     @field_validator("value", mode="before")
     @classmethod
     def validate_value(cls, v: Union[NestedMutableDict, Any]):
+        if v is None:
+            return None
         try:
-            value = NestedMutableDict(v)
-            return value
+            return NestedMutableDict(v)
         except (TypeError, ValueError):
             return v
 

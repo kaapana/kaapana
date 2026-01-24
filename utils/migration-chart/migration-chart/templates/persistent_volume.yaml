@@ -14,7 +14,7 @@ spec:
     - ReadWriteOnce
   hostPath:
     path: "{{ .Values.global.fast_data_dir }}"
-  persistentVolumeReclaimPolicy: Retain
+  persistentVolumeReclaimPolicy: Delete
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

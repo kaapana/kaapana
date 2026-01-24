@@ -29,3 +29,6 @@ dependencies:
   - name: migration-chart
     version: 0.0.0
     condition: migration-chart.enabled
+  - name: kaapana-storage-chart
+    version: 0.0.0
+    condition: kaapana-storage-chart.enabled

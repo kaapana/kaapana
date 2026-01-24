@@ -14,7 +14,7 @@ spec:
     - ReadWriteOnce
   hostPath:
     path: "{{ .Values.global.dev_files }}"
-  persistentVolumeReclaimPolicy: Retain
+  persistentVolumeReclaimPolicy: Delete
   claimRef:
     namespace: "{{ ternary .Values.global.admin_namespace .Values.global.services_namespace $is_admin_namespace }}"
     name: {{ .Chart.Name }}-dev-pv-claim

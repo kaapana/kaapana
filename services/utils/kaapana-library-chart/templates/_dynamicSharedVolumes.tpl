@@ -24,7 +24,7 @@ spec:
     storage: {{ $storage }}
   accessModes:
     - "ReadWriteOnce"
-  persistentVolumeReclaimPolicy: Retain
+  persistentVolumeReclaimPolicy: Delete
   storageClassName: "kaapana-hostpath"
   hostPath:
     path: {{ $global.fast_data_dir }}{{ $volume.host_path }}

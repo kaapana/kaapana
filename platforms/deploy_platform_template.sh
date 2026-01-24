@@ -494,9 +494,16 @@ function run_migration_chart() {
         --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
         --set-string global.fast_data_dir="$FAST_DATA_DIR" \
         --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
+        --set-string global.storage_provider="$STORAGE_PROVIDER" \
+        --set-string global.storage_class_slow="$STORAGE_CLASS_SLOW" \
+        --set-string global.storage_class_fast="$STORAGE_CLASS_FAST" \
+        --set-string global.storage_class_workflow="$STORAGE_CLASS_WORKFLOW" \
+        --set-string global.services_namespace="$SERVICES_NAMESPACE" \
+        --set-string global.admin_namespace="$ADMIN_NAMESPACE" \
         --set-string global.pull_policy_images="$PULL_POLICY_IMAGES" \
         --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
         --set-string global.kaapana_build_version="$PLATFORM_VERSION" \
+        --set-string global.volume_slow_data="$VOLUME_SLOW_DATA"\
         --set-string global.from_version="$FROM_VERSION" \
         --set-string global.to_version="$TO_VERSION"
 
@@ -688,6 +695,19 @@ function migrate() {
     fi
 }
 
+function setup_storage_classes() {
+    WORKDIR=$(mktemp -d)
+    tar -xzf "$CHART_PATH" -C "$WORKDIR"
+    KAAPANA_STORAGE_CHARTPATH="$WORKDIR/$PLATFORM_NAME/charts/kaapana-storage-chart"
+
+    $HELM_EXECUTABLE -n kaapana-system upgrade --install kaapana-storageclass $KAAPANA_STORAGE_CHARTPATH \
+        --create-namespace \
+        --set-string global.main_node_name="$MAIN_NODE_NAME" \
+        --set-string global.replica_count="$REPLICA_COUNT" \
+        --set-string global.fast_data_dir="$FAST_DATA_DIR" \
+        --set-string global.slow_data_dir="$SLOW_DATA_DIR"
+}
+
 function deploy_chart {
     if [ -z "$CONTAINER_REGISTRY_URL" ]; then
         echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the deploy_platform.sh script!${NC}"
@@ -824,6 +844,8 @@ function deploy_chart {
     # MicroK8s https://microk8s.io/docs/change-cidr
     INTERNAL_CIDR="10.152.183.0/24,10.1.0.0/16,$INTERNAL_CIDR"
 
+    echo " Installing kaapana strorage class ..."
+    setup_storage_classes
     
     echo "${GREEN}Checking for version difference and migration options...${NC}"
     migrate

@@ -13,3 +13,5 @@ global:
 
 migration-chart:
   enabled: false
+kaapana-storage-chart:
+  enabled: false

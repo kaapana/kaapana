@@ -241,10 +241,48 @@ _ALLOWED_SUFFIXES = (".nii.gz", ".nii", ".nrrd")
 # Default location of the dcmqi binaries. Can be overridden via DCMQI_BIN_DIR.
 _DCMQI_DEFAULT_BIN_DIR = "/kaapana/app/dcmqi/bin"
 
+# Truthy values for env_bool() parsing (case-insensitive, stripped).
+_TRUE = {"1", "true", "yes", "y", "on", "enabled"}
+
 
 # -----------------------------
 # Helpers
 # -----------------------------
+def pick_env_var(primary: str, *legacy: str) -> str:
+    """
+    Choose an environment variable name, preferring `primary` over legacy aliases.
+
+    If a legacy alias is selected (because `primary` is unset), this logs a warning
+    indicating the canonical name to migrate to.
+
+    Parameters
+    ----------
+    primary:
+        Canonical environment variable name.
+    *legacy:
+        Legacy aliases (e.g., misspellings or renamed variables). The first alias
+        that is set will be selected if `primary` is not set.
+
+    Returns
+    -------
+    str
+        The chosen environment variable name (either `primary` or a legacy alias).
+    """
+    if primary in os.environ:
+        return primary
+
+    for n in legacy:
+        if n in os.environ:
+            logger.warning(
+                "Deprecated env var '%s' is set. Please rename to '%s'.",
+                n,
+                primary,
+            )
+            return n
+
+    return primary
+
+
 def env_bool(name: str, default: bool = False) -> bool:
     """
     Read an environment variable as a boolean flag.
@@ -262,14 +300,7 @@ def env_bool(name: str, default: bool = False) -> bool:
         True if the variable value (case-insensitive, stripped) is one of:
         {"1", "true", "yes", "y", "on", "enabled"}; otherwise False.
     """
-    return os.environ.get(name, str(default)).strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "y",
-        "on",
-        "enabled",
-    }
+    return os.environ.get(name, str(default)).strip().lower() in _TRUE
 
 
 def env_required(name: str) -> str:
@@ -821,9 +852,14 @@ def load_config() -> OperatorConfig:
     segment_algorithm_type = os.environ.get("ALGORITHM_TYPE", "AUTOMATIC")
     content_creator_name = os.environ.get("CREATOR_NAME", "kaapana")
 
-    series_description = os.environ.get("SERIES_DESCRIPTION")
+    ENV_SERIES_DESC = pick_env_var(
+        "SERIES_DESCRIPTION",
+        "SERIES_DISCRIPTION",  # legacy typo
+    )
+
+    series_description = os.environ.get(ENV_SERIES_DESC, "")
     if series_description in (None, "None", ""):
-        series_description = os.environ.get("SERIES_DISCRIPTION", "")
+        series_description = ""
 
     series_number = int(os.environ.get("SERIES_NUMBER", "300"))
     instance_number = int(os.environ.get("INSTANCE_NUMBER", "1"))
@@ -850,9 +886,12 @@ def load_config() -> OperatorConfig:
             get_seg_info_from_file = True
             single_label_seg_info = None
 
-    create_multi_label_dcm_from_single_label_segs = env_bool(
-        "CREATE_MULTI_LABEL_DCM_FROM_SINGLE_LABEL_SEGS", False
+    ENV_CREATE_MULTI = pick_env_var(
+        "CREATE_MULTI_LABEL_DCM_FROM_SINGLE_LABEL_SEGS",
+        "CREATE_MULIT_LABEL_DCM_FROM_SINGLE_LABEL_SEGS",  # legacy typo
     )
+
+    create_multi_label_dcm_from_single_label_segs = env_bool(ENV_CREATE_MULTI, False)
 
     workflow_dir = env_required("WORKFLOW_DIR")
     batch_name = env_required("BATCH_NAME")

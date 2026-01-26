@@ -196,6 +196,8 @@ spec:
           value: "{{ .Values.global.upload_portal_port }}"
         - name: UPLOAD_PORTAL_AE_TITLE
           value: "{{ .Values.global.upload_portal_ae_title }}"
+        - name: EMAIL_RECEIVER
+          value: "{{ .Values.global.email_receiver }}"
         resources:
           requests:
             memory: "{{ .Values.global.airflow_memory_request }}Mi"

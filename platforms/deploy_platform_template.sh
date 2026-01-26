@@ -16,6 +16,7 @@ CONTAINER_REGISTRY_PASSWORD="{{ container_registry_password|default('', true) }}
 UPLOAD_PORTAL_PACS=""
 UPLOAD_PORTAL_PORT=""
 UPLOAD_PORTAL_AE_TITLE=""
+EMAIL_RECEIVER=""
 
 ######################################################
 # Deployment configuration
@@ -665,7 +666,8 @@ function deploy_chart {
     --set-string global.email_address_sender="$EMAIL_ADDRESS_SENDER" \
     --set-string global.upload_portal_pacs="$UPLOAD_PORTAL_PACS" \
     --set-string global.upload_portal_port="$UPLOAD_PORTAL_PORT" \
-    --set-string global-upload_portal_ae_title="$UPLOAD_PORTAL_AE_TITLE" \
+    --set-string global.upload_portal_ae_title="$UPLOAD_PORTAL_AE_TITLE" \
+    --set-string global.email_receiver="$EMAIL_RECEIVER" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"

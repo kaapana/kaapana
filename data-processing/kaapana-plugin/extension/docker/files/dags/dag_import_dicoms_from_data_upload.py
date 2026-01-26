@@ -8,10 +8,12 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from kaapana.operators.LocalVolumeMountOperator import LocalVolumeMountOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
+from kaapana.operators.SendIncomingEmailOperator import SendIncomingEmailOperator
 from kaapana.blueprints.json_schema_templates import schema_upload_form
 from kaapana.blueprints.kaapana_global_variables import UPLOAD_PORTAL_AE_TITLE, UPLOAD_PORTAL_PACS, UPLOAD_PORTAL_PORT
 
 log = LoggingMixin().log
+
 
 
 ui_forms = {
@@ -73,7 +75,7 @@ unzip_files = ZipUnzipOperator(
 #TODO set receiver AE Title, host, port 
 dicom_send = DcmSendOperator(dag=dag, ae_title=UPLOAD_PORTAL_AE_TITLE, pacs_host=UPLOAD_PORTAL_PACS, pacs_port=UPLOAD_PORTAL_PORT, input_operator=unzip_files, level="batch", enable_proxy=True,
     no_proxy=".svc,.svc.cluster,.svc.cluster.local",
-    labels={"network-access-external-ips": "true"},)
+    labels={"network-access-external-ips": "true"})
 
 remove_object_from_file_uploads = LocalVolumeMountOperator(
     dag=dag,
@@ -84,9 +86,15 @@ remove_object_from_file_uploads = LocalVolumeMountOperator(
     trigger_rule="none_failed",
 )
 
+send_email = SendIncomingEmailOperator(
+    dag=dag, input_operator=unzip_files,
+    no_proxy=".svc,.svc.cluster,.svc.cluster.local",
+    labels={"network-access-external-ips": "true"},
+)
+
 clean = LocalWorkflowCleanerOperator(
     dag=dag, trigger_rule="none_failed_min_one_success", clean_workflow_dir=True
 )
 
 
-get_object_from_uploads >> unzip_files >> dicom_send >> remove_object_from_file_uploads >> clean
+get_object_from_uploads >> unzip_files >> dicom_send >> remove_object_from_file_uploads >> send_email >> clean

@@ -26,4 +26,4 @@ extension_params:
     default: ".ipynb_checkpoints/*,thumbnails/"
     definition: Comma separated list of file patterns to exclude when syncing
     type: string
-    value: ".ipynb_checkpoints/*,thumbnails/"
+    value: ".ipynb_checkpoints/*,thumbnails/,staticwebsiteresults/"

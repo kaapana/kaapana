@@ -32,8 +32,10 @@ kind: PersistentVolumeClaim
 metadata:
   name: {{ $volume.name }}{{ $postfix }}-pv-claim
   namespace: "{{ $namespace }}"
+  {{- if not (has "kaapanamultiinstallable" $keywords) }}
   annotations:
-    "helm.sh/resource-policy": keep
+    "helm.sh/resource-policy": "keep"
+  {{- end }}
 spec:
   storageClassName: {{ $storage_class }}
   accessModes:

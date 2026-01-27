@@ -203,11 +203,8 @@ class KeycloakHelper:
         Get the user representation by the keycloak id
         """
         url = self.auth_url + f"kaapana/users/{userid}"
-        try:
-            user_response = self.make_authorized_request(url, requests.get)
-            user_data = dict_keys_camel_to_snake(user_response.json())
-        except Exception as e:
-            return None
+        user_response = self.make_authorized_request(url, requests.get)
+        user_data = dict_keys_camel_to_snake(user_response.json())
 
         user_data["groups"] = self.get_user_groups(userid)
         user_data["realm_roles"] = self.get_user_realm_roles(userid)

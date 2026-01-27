@@ -63,7 +63,7 @@ spec:
           readOnlyRootFilesystem: true
       - name: custom-node-exporter-textfile-collector
         image: "{{ .Values.global.registry_url }}/node-exporter-textfile-collector:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         env:
         - name: TEXTFILE_POLL_INTERVAL
           value: "300"

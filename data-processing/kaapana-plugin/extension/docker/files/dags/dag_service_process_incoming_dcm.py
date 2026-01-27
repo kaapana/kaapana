@@ -535,8 +535,12 @@ clean = LocalWorkflowCleanerOperator(
 
 get_input >> (auto_trigger_operator, extract_metadata)
 
-extract_metadata >> (push_json, add_to_dataset, assign_to_project, remove_tags)
+extract_metadata >> remove_tags
 
+remove_tags >> dcm_send
+
+### Only continue if dicom data was successfully send to the PACS
+dcm_send >> (push_json, add_to_dataset, assign_to_project)
 
 push_json >> (validate, branch_by_has_ref_series)
 (
@@ -546,18 +550,14 @@ push_json >> (validate, branch_by_has_ref_series)
 )
 branch_by_has_ref_series >> (get_ref_ct_series, generate_thumbnail)
 
-remove_tags >> dcm_send
 
 (get_ref_ct_series >> generate_thumbnail >> put_thumbnail_to_project_bucket)
 
 generate_thumbnail >> upload_to_data_api
-extract_metadata >> upload_to_data_api
-validate >> upload_to_data_api
 
 [
     add_to_dataset,
     assign_to_project,
-    dcm_send,
     put_html_to_minio,
     put_results_html_to_minio_admin_bucket,
     put_thumbnail_to_project_bucket,

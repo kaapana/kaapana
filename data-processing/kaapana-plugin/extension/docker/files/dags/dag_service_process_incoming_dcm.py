@@ -554,6 +554,10 @@ generate_thumbnail >> upload_to_data_api
 extract_metadata >> upload_to_data_api
 validate >> upload_to_data_api
 
+### Only send dicom to PACS after metadata has been pushed to opensearch
+push_json >> dcm_send
+
+### Run workflow cleanup after all other tasks have finished
 [
     add_to_dataset,
     assign_to_project,

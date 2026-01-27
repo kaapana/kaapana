@@ -46,7 +46,7 @@ ui_forms = {
                 "default": "SEG",
                 "description": "Expected input modality.",
                 "type": "string",
-                "readOnly": True,
+                "readOnly": False,
             },
         },
     },

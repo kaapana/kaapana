@@ -23,6 +23,14 @@ assert (
 LOCAL_REGISTRY_URL = os.getenv("LOCAL_REGISTRY_URL", None)
 assert NAMESPACE is not None, "ERROR: env variable LOCAL_REGISTRY_URL can not be empty"
 
+REGISTRY_URL = os.getenv("REGISTRY_URL", None)
+assert REGISTRY_URL is not None, "ERROR: env variable REGISTRY_URL can not be empty"
+
+KAAPANA_BUILD_VERSION = os.getenv("KAAPANA_BUILD_VERSION", None)
+assert (
+    KAAPANA_BUILD_VERSION is not None
+), "ERROR: env variable KAAPANA_BUILD_VERSION can not be empty"
+
 
 def get_image_info(dockerfile_path: str) -> tuple[str, str]:
     # expects LABEL IMAGE="<image-name>" and LABEL VERSION="<label-version>" to be present in Dockerfile
@@ -59,6 +67,19 @@ def edit_dockerfile(dockerfile_path: str, reg_url: str) -> None:
                 pass
 
 
+def replace_template_vars(content: str) -> str:
+    """Replace Helm template variables with environment variable values."""
+    import re
+
+    pattern_registry: str = r"\{\{\s*\.Values\.global\.registry_url\s*\}\}"
+    content = re.sub(pattern_registry, REGISTRY_URL, content)
+
+    pattern_version: str = r"\{\{\s*\.Values\.global\.kaapana_build_version\s*\}\}"
+    content = re.sub(pattern_version, KAAPANA_BUILD_VERSION, content)
+
+    return content
+
+
 def make_pod_yaml(
     yaml_file: str,
     dockerfile: str,
@@ -67,7 +88,11 @@ def make_pod_yaml(
     image_version: str = "",
 ) -> tuple[Any, str, str]:
     with open(yaml_file, "r") as f:
-        pod_yaml = yaml.safe_load(f)
+        yaml_content = f.read()
+
+    yaml_content = replace_template_vars(yaml_content)
+
+    pod_yaml = yaml.safe_load(yaml_content)
 
     # get image info if not passed
     if image_name == "" or image_version == "":

@@ -19,6 +19,17 @@ spec:
       securityContext:
         runAsUser: 0
       serviceAccountName: edk-serviceaccount
+      initContainers:
+      # Preflight check: ensure kaniko-executor image is available before deploying EDK
+      - name: kaniko-preflight
+        image: "{{ .Values.global.registry_url }}/kaniko-executor:{{ .Values.global.kaapana_build_version }}"
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
+        command: ["/kaniko/executor", "version"]
+        resources:
+          requests:
+            memory: "10Mi"
+          limits:
+            memory: "50Mi"
       containers:
       - name: minio-output
         image: "{{ .Values.global.registry_url }}/minio-mirror:{{ .Values.global.kaapana_build_version  }}"

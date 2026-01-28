@@ -1252,7 +1252,6 @@ function load_kaapana_config {
     ######################################################
     STORAGE_PROVIDER="hostpath" # e.g. "hostpath" (microk8s) or "longhorn"
     VOLUME_SLOW_DATA="100Gi" # size of volumes in slow data dir (e.g. 100Gi or 100Ti)
-    REPLICA_COUNT=1
 }
 
 function delete_all_images_docker {
@@ -1586,7 +1585,7 @@ function prompt_user_backup() {
 
 function setup_storage_provider() {
     echo "Checking for storage provider: ${STORAGE_PROVIDER}"
-
+    
     is_provider_installed=false
 
     case "${STORAGE_PROVIDER}" in
@@ -1625,6 +1624,7 @@ function setup_storage_provider() {
     MAIN_NODE_NAME=$(microk8s.kubectl get pods -n kube-system -o jsonpath='{.items[0].spec.nodeName}')
     echo "Main node is $MAIN_NODE_NAME"
     STORAGE_NODE="storage"
+    REPLICA_COUNT=1
     microk8s.kubectl label nodes "$MAIN_NODE_NAME" "kaapana.io/node"="$STORAGE_NODE" --overwrite
     # --- Set storage classes based on provider ---
     case "${STORAGE_PROVIDER}" in

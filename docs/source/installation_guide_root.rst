@@ -61,3 +61,5 @@ We assume that you have a server at hand, that satisfies the :ref:`hardware and 
     installation_guide/server_installation
     installation_guide/deployment
     installation_guide/advanced_build_system
+    installation_guide/multi_node
+    installation_guide/kaapana_storage

@@ -49,8 +49,6 @@ args = {
 dag = DAG(
     dag_id="project-minio-transfer",
     default_args=args,
-    concurrency=10,
-    max_active_runs=1,
     schedule_interval=None,
 )
 

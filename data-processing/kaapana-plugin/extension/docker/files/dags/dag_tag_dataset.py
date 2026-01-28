@@ -28,13 +28,6 @@ ui_forms = {
                 "default": "",
                 "required": True,
             },
-            "single_execution": {
-                "title": "single execution",
-                "description": "Should each series be processed separately?",
-                "type": "boolean",
-                "default": False,
-                "readOnly": False,
-            },
         },
     },
 }
@@ -51,8 +44,6 @@ args = {
 dag = DAG(
     dag_id="tag-dataset",
     default_args=args,
-    concurrency=10,
-    max_active_runs=1,
     schedule_interval=None,
 )
 

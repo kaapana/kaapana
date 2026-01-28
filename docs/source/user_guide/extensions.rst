@@ -387,85 +387,93 @@ Code server for Airflow
 
 .. _extensions_dev_code_server:
 
-Code Server for Development
+Code server for development
 ---------------------------
 
-| This extension provides a VS Code Server environment within the Kaapana platform for Python and R development. Users can explore and analyze data directly within the platform.
+This extension provides a VS Code Server environment within the Kaapana platform for Python and R development. Users can explore and analyze data directly within the platform.
 
-| **Overview**
+Overview
+*********
 
-| This extension is designed for users who need an interactive coding environment similar to JupyterLab, but with the additional flexibility of VS Code. It utilizes [`code-server`]([https://](https://github.com/coder/code-server)) to bring VSCode in the browser.
+This extension is designed for users who need an interactive coding environment similar to JupyterLab, but with the additional flexibility of VS Code. 
+It utilizes `code-server <https://github.com/coder/code-server>`_ to bring VSCode in the browser.
+Note that this extension is intended to be used with online deployments. If the container can not access the internet, an `OFFLINE_WARNING.txt` will appear next to this `README.md` file.
+The environment includes:
 
-| Note that this extension is intended to be used with online deployments. If the container can not access the internet, an `OFFLINE_WARNING.txt` will appear next to this `README.md` file.
+- Python 3 and R support
+- Preinstalled Python, R, and Jupyter extensions in VSCode
+- Access to the project’s MinIO storage
+- Ability to install additional Python or R packages
 
-| The environment includes:
-| - Python 3 and R support
-| - Preinstalled Python, R, and Jupyter extensions in VSCode
-| - Access to the project’s MinIO storage
-| - Ability to install additional Python or R packages
+Preinstalled Components
+************************
 
-| **Preinstalled Components**
+- **Pyhon Environment**
 
-| 1. Python Environment
-| - Python version: 3.x (installed via Ubuntu python3-full)
-| - Virtual environment path: /opt/venv
+  - Python version: 3.x (installed via Ubuntu python3-full)
+  - Virtual environment path: /opt/venv
 
-| Default packages:
-| - numpy
-| - pandas
-| - scipy
-| - matplotlib
-| - jupyterlab
-| - torch, torchvision, torchaudio
+- **Installed python packages**
 
-| 2. R Environment
+  - numpy
+  - pandas
+  - scipy
+  - matplotlib
+  - jupyterlab
+  - torch, torchvision, torchaudio
 
-| - Installed from the official CRAN repository
-| - Includes the languageserver package for IDE integration
+- **R Environment**
 
-| 3. VS Code Extensions
+  - Installed from the official CRAN repository
+  - Includes the languageserver package for IDE integration
 
-Preinstalled extensions:
+- **VS Code Extensions**
 
-| - `ms-python.python`
-| - `ms-toolsai.jupyter`
-| - `REditorSupport.r`
-| - `ms-toolsai.jupyter-keymap`
-| - `ms-toolsai.jupyter-renderers`
+  - `ms-python.python`
+  - `ms-toolsai.jupyter`
+  - `REditorSupport.r`
+  - `ms-toolsai.jupyter-keymap`
+  - `ms-toolsai.jupyter-renderers`
 
-| **Project Storage and Data Access**
+Project Storage and Data Access
+*********************************
 
-| The MinIO folder of the project (that was selected while the extension is installed in the UI) is automatically mounted within the workspace.
-| It supports unilateral sync:
+You can launch multiple instances of Code-Server simultaneously for different usecases.
+Upon launching of a new application you can specify a directory within the project-bucket in MinIO that is periodically synced to the file-system of the Code Server at :code:`/kaapana/minio/`.
+You can also specify a comma-separated list of patterns that should be excluded during the syncing process.
+The sync interval is 20 seconds.
+If a file is simultaneously changed in MinIO and Code-Server, rclone will resolve this conflict during the next syncronisation.
 
-| - Input data from MinIO: /kaapana/minio/input
-| - Output data to MinIO : /kaapana/minio/output
-| - Project MinIO bucket: project-<project_name>
+* It does not overwrite either side.
+* It renames one version with a .conflict suffix.
+* The file changed in MinIO keeps the original filename.
+* The file changed in Jupyterlab gets the conflict rename.
+* For more information check the `rclone manual <https://rclone.org/bisync/>`_.
 
+Known Limitations of The Environment
+**************************************
 
-| **Known Limitations of The Environment**
-| JupyterLab VSCode Extension works as expected in Firefox, but in Chrome, Jupyter notebook cells may fail to render with a Service Worker SSL error:
+* JupyterLab VSCode Extension works as expected in Firefox.
+  In Chrome, Jupyter notebook cells may fail to render with a Service Worker SSL error:
 
-.. code-block::
+  .. code-block::
 
-  Could not initialize webview: Error: Could not register service worker:
-  SecurityError: Failed to register a ServiceWorker for scope (...)
+    Could not initialize webview: Error: Could not register service worker:
+    SecurityError: Failed to register a ServiceWorker for scope (...)
 
-| This is a known issue with `code-server`: https://github.com/coder/code-server/issues/3410
+  This is a known issue with `code-server`: https://github.com/coder/code-server/issues/3410
 
-| - The Jupyter extension does not automatically select the correct Python environment, therefore the users must manually choose `/opt/venv/bin/python` as the interpreter each time they open a notebook.
+* The Jupyter extension does not automatically select the correct Python environment, therefore the users must manually choose `/opt/venv/bin/python` as the interpreter each time they open a notebook.
+* The AI chat/agent sidebar introduced in newer `code-server` versions cannot currently be turned off via settings.
+  Even with configuration options such as:
 
-| - The AI chat/agent sidebar introduced in newer `code-server` versions cannot currently be turned off via settings.
-| Even with configuration options such as:
+  .. code-block::
 
-.. code-block::
+    "chat.disableAIFeatures": true,
+    "chat.agent.enabled": false
 
-  "chat.disableAIFeatures": true,
-  "chat.agent.enabled": false
-
-| the panel still appears in the beginning and must be manually closed.
-
-| This is a known issue of `code-server`: https://github.com/coder/code-server/issues/754
+  the panel still appears in the beginning and must be manually closed.
+  This is a known issue of `code-server`: https://github.com/coder/code-server/issues/754
 
 .. _extensions_collabora:
 
@@ -501,13 +509,15 @@ You can launch multiple instances of JupyterLab simultaneously for different use
 Each instance has access to a directory inside the project bucket in MinIO.
 You can specify this directory, when you launch a new instance in the :ref:`extensions view <extensions>`.
 Files in this directory are periodically synced bidirectionally between MinIO and the JupyterLab instance.
+You can also specify a comma-separated list of file patterns that should be excluded during the syncing process.
 Note, that the sync interval is 20 seconds.
 If a file is simultaneously changed in MinIO and JupyterLab, rclone will resolve this conflict during the next syncronisation.
+
 * It does not overwrite either side.
 * It renames one version with a .conflict suffix.
 * The file changed in MinIO keeps the original filename.
 * The file changed in Jupyterlab gets the conflict rename.
-* For more information check the :ref:`rclone manual <https://rclone.org/bisync/>`.
+* For more information check the `rclone manual <https://rclone.org/bisync/>`_.
 
 .. _extensions_minio_sync:
 

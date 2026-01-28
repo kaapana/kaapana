@@ -26,54 +26,29 @@ spec:
         volumeMounts:
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
       containers:
-      - name: minio-input
+      - name: minio-sync
         image: "{{ .Values.global.registry_url }}/minio-mirror:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
         resources:
           requests:
-            memory: "10Mi"
+            memory: "100Mi"
           limits:
-            memory: "50Mi"
+            memory: "300Mi"
         env:
         - name: ACTION
-          value: "FETCH"
+          value: "SYNC"
         - name: MINIO_SERVICE
           value: "minio-service.{{ .Values.global.services_namespace }}.svc:9000"
         - name: LOCAL_PATH
-          value: /kaapana/minio/input
+          value: /kaapana/minio/
         - name: MINIO_PATH
-          value: project-{{ .Values.global.project_name }}
+          value: project-{{ .Values.global.project_name }}/{{ .Values.global.minio_prefix }}
         - name: MINIO_USER
           value: {{ .Values.global.credentials_minio_username  | default "" }}
         - name: MINIO_PASSWORD
           value: {{ .Values.global.credentials_minio_password | default ""}}
         - name: EXCLUDE
-          value: "**thumbnails/**,**staticwebsiteresults/**"
-        volumeMounts:
-{{ include "dynamicVolumeMounts" $ | indent 10 }}
-      - name: minio-output
-        image: "{{ .Values.global.registry_url }}/minio-mirror:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy: {{ .Values.global.pull_policy_images }}
-        resources:
-          requests:
-            memory: "10Mi"
-          limits:
-            memory: "50Mi"
-        env:
-        - name: ACTION
-          value: "PUSH"
-        - name: MINIO_SERVICE
-          value: "minio-service.{{ .Values.global.services_namespace }}.svc:9000"
-        - name: LOCAL_PATH
-          value: /kaapana/minio/output
-        - name: MINIO_PATH
-          value: "project-{{ .Values.global.project_name }}/{{ .Release.Name }}/output"
-        - name: MINIO_USER
-          value: {{ .Values.global.credentials_minio_username  | default "" }}
-        - name: EXCLUDE
-          value: "*checkpoint.ipynb"
-        - name: MINIO_PASSWORD
-          value: {{ .Values.global.credentials_minio_password | default ""}}
+          value: "{{ .Values.global.exclude_patterns }}"
         volumeMounts:
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
       - name: code-server

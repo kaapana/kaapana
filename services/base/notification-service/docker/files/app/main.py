@@ -2,6 +2,7 @@ import logging
 
 from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
 from app.notifications.routes import router as notification_router
+from app.notifications_v2.routes import router as notification_router_v2
 from app.dependencies import get_connection_manager
 from app.database import async_engine
 from app.notifications.models import Base
@@ -43,3 +44,4 @@ async def websocket_endpoint(
 
 
 app.include_router(notification_router, prefix="/v1")
+app.include_router(notification_router_v2, prefix="/v2")

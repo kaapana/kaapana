@@ -22,41 +22,69 @@
                     <v-card-text class="pa-0">
                         <div style="max-height: 1000px; overflow-y: auto;">
                             <v-expansion-panels multiple :value="defaultActivePanels">
-                                <v-expansion-panel v-for="(items, topic) in groupedNotifications" :key="topic">
-                                    <v-expansion-panel-header>
-                                        <h3>{{ topic }}</h3>
-                                    </v-expansion-panel-header>
+                            <v-expansion-panel
+                                v-for="(items, topic) in groupedNotifications"
+                                :key="topic"
+                            >
+                                <v-expansion-panel-header>
+                                <h3>{{ topic }}</h3>
+                                </v-expansion-panel-header>
 
-                                    <v-expansion-panel-content>
-                                        <v-list two-line>
-                                            <v-list-item v-for="notif in items" :key="notif.id">
-                                                <v-list-item-avatar>
-                                                    <v-icon>{{ notif.icon || 'mdi-information' }}</v-icon>
-                                                </v-list-item-avatar>
+                                <v-expansion-panel-content>
+                                <v-list two-line>
+                                    <v-list-item
+                                    v-for="notif in paginatedNotifications(topic)"
+                                    :key="notif.id"
+                                    >
+                                    <v-list-item-avatar>
+                                        <v-icon>{{ notif.icon || 'mdi-information' }}</v-icon>
+                                    </v-list-item-avatar>
 
-                                                <v-list-item-content>
-                                                    <v-list-item-title>{{ notif.title }}</v-list-item-title>
-                                                    <v-list-item-subtitle>
-                                                        {{ new Date(notif.timestamp).toLocaleString() }}
-                                                    </v-list-item-subtitle>
-                                                    <div v-html="notif.description" class="mt-1"></div>
-                                                </v-list-item-content>
+                                    <v-list-item-content>
+                                        <v-list-item-title>{{ notif.title }}</v-list-item-title>
+                                        <v-list-item-subtitle>
+                                        {{ new Date(notif.timestamp).toLocaleString() }}
+                                        </v-list-item-subtitle>
+                                        <div v-html="notif.description" class="mt-1"></div>
+                                    </v-list-item-content>
 
-                                                <v-list-item-action class="d-flex flex-row align-center"
-                                                    style="gap: 8px;">
-                                                    <v-btn color="primary" icon small v-if="notif.link"
-                                                        :href="notif.link" target="_blank">
-                                                        <v-icon>mdi-open-in-new</v-icon>
-                                                    </v-btn>
-                                                    <v-btn color="primary" text small
-                                                        @click="readNotification(notif.id)">
-                                                        <v-icon>mdi-check-circle-outline</v-icon>
-                                                    </v-btn>
-                                                </v-list-item-action>
-                                            </v-list-item>
-                                        </v-list>
-                                    </v-expansion-panel-content>
-                                </v-expansion-panel>
+                                    <v-list-item-action
+                                        class="d-flex flex-row align-center"
+                                        style="gap: 8px;"
+                                    >
+                                        <v-btn
+                                        color="primary"
+                                        icon
+                                        small
+                                        v-if="notif.link"
+                                        :href="notif.link"
+                                        target="_blank"
+                                        >
+                                        <v-icon>mdi-open-in-new</v-icon>
+                                        </v-btn>
+
+                                        <v-btn
+                                        color="primary"
+                                        text
+                                        small
+                                        @click="readNotification(notif.id)"
+                                        >
+                                        <v-icon>mdi-check-circle-outline</v-icon>
+                                        </v-btn>
+                                    </v-list-item-action>
+                                    </v-list-item>
+                                </v-list>
+
+                                <!-- Pagination -->
+                                <v-pagination
+                                    v-if="items.length > pageSize"
+                                    v-model="pageByTopic[topic]"
+                                    :length="Math.ceil(items.length / pageSize)"
+                                    :total-visible="5"
+                                    class="mt-4"
+                                />
+                                </v-expansion-panel-content>
+                            </v-expansion-panel>
                             </v-expansion-panels>
                         </div>
 
@@ -88,10 +116,31 @@ export default Vue.extend({
         return {
             notificationws: null as NotificationWebsocket | null,
             notifications: [] as Notification[],
-            dialog: false
+            dialog: false,
+            pageSize: 10 as number,
+            pageByTopic: {} as Record<string, number> // { [topic]: currentPage }
         };
     },
+    watch: {
+        groupedNotifications: {
+        immediate: true,
+        handler(groups: Record<string, any[]>) {
+            // Ensure every topic has a page initialized
+            Object.keys(groups).forEach(topic => {
+            if (!this.pageByTopic[topic]) {
+                this.$set(this.pageByTopic, topic, 1)
+            }
+            })
+        }
+        }
+    },
     methods: {
+        paginatedNotifications(topic:string) {
+            const items = this.groupedNotifications[topic] || []
+            const page = this.pageByTopic[topic] || 1
+            const start = (page - 1) * this.pageSize
+            return items.slice(start, start + this.pageSize)
+        },
         updateNotifications() {
             fetch_notifications().then((n) => {
                 this.notifications = n ?? [];

@@ -14,7 +14,9 @@ if [ -v EXCLUDE ]; then
     done
 fi
 
-mc cp /kaapana/app/README.txt minio/$MINIO_BUCKET/README.txt
+MINIO_PATH="$(printf '%s\n' "$MINIO_PATH" | sed -E 's#^/+##; s#/+#/#g; s#/$##')"
+mc cp /kaapana/app/README.txt minio/${MINIO_PATH}/README.txt
+cp /kaapana/app/README.txt ${LOCAL_PATH}
 
 if [[ $ACTION == "FETCH" ]]; then
     echo "INFO: Start to mirror minio objects from ${MINIO_PATH} into local directory ${LOCAL_PATH}"
@@ -26,7 +28,7 @@ elif [[ $ACTION == "PUSH" ]]; then
     mc mirror --watch ${exclude} $LOCAL_PATH minio/$MINIO_PATH 
 elif [[ $ACTION == "SYNC" ]]; then
     echo "INFO: Start bidirectional sync from local directory ${LOCAL_PATH} into  minio objects at ${MINIO_PATH}"
-    RCLONE_SYNC_CMD="rclone bisync ${exclude} --s3-provider "Minio" --s3-endpoint http://$MINIO_SERVICE --s3-access-key-id=$MINIO_USER --s3-secret-access-key=$MINIO_PASSWORD ":s3:/$MINIO_PATH" $LOCAL_PATH --create-empty-src-dirs --compare size,modtime,checksum --slow-hash-sync-only --resilient -MvP --drive-skip-gdocs --fix-case"
+    RCLONE_SYNC_CMD="rclone bisync ${exclude} --s3-provider "Minio" --s3-endpoint http://$MINIO_SERVICE --s3-access-key-id=$MINIO_USER --s3-secret-access-key=$MINIO_PASSWORD ":s3:/$MINIO_PATH" $LOCAL_PATH --create-empty-src-dirs --compare size,checksum --slow-hash-sync-only --resilient -MvP --drive-skip-gdocs --fix-case"
 
     echo "INFO: Inital sync"
     $RCLONE_SYNC_CMD --resync

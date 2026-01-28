@@ -18,3 +18,8 @@ extension_params:
     definition: Display name for the launched application
     type: string
     value: ""
+  exclude_patterns:
+    default: ".ipynb_checkpoints/*,thumbnails/"
+    definition: Comma separated list of file patterns to exclude when syncing
+    type: string
+    value: ".ipynb_checkpoints/*,thumbnails/,staticwebsiteresults/"

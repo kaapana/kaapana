@@ -50,13 +50,6 @@ ui_forms = {
                 "description": "Should tags also be copied?",
                 "default": True,
             },
-            "single_execution": {
-                "title": "Process Series Separately",
-                "description": "Should each series be processed individually?",
-                "type": "boolean",
-                "default": False,
-                "readOnly": False,
-            },
         },
     }
 }
@@ -73,8 +66,6 @@ args = {
 dag = DAG(
     dag_id="project-dicom-transfer",
     default_args=args,
-    concurrency=10,
-    max_active_runs=10,
     schedule_interval=None,
 )
 

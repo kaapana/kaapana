@@ -9,6 +9,7 @@ from app.projects import crud, kubehelm, minio, opensearch, schemas
 from app.schemas import KeycloakUser
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
+from requests.exceptions import HTTPError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -134,7 +135,14 @@ async def get_project_users(
 
     keycloak_users: List[KeycloakUser] = []
     for user in project_users:
-        keycloak_user_json = kc_client.get_user_by_id(user.keycloak_id)
+        try:
+            keycloak_user_json = kc_client.get_user_by_id(user.keycloak_id)
+        except HTTPError as e:
+            if e.response.status_code == 404:
+                logger.warning(f"{user=} not found in Keycloak database.")
+                continue
+            else:
+                raise e
         user = KeycloakUser(**keycloak_user_json)
         keycloak_users.append(user)
 

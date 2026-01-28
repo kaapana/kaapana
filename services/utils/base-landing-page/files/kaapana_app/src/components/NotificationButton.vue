@@ -2,7 +2,7 @@
     <div>
         <v-btn block depressed color="primary" class="blue darken-1" @click="dialog = true" title="Notifications">
             <v-icon>{{ notifications.length > 0 ? 'mdi-bell-ring' : 'mdi-bell-outline' }}</v-icon>
-            <span class="ml-1">{{ notifications.length }}</span>
+            <span class="ml-1">{{ total }}</span>
         </v-btn>
 
         <template>
@@ -20,7 +20,11 @@
 
                     <!-- only this wrapper scrolls -->
                     <v-card-text class="pa-0">
-                        <div style="max-height: 1000px; overflow-y: auto;">
+                        <div 
+                            ref="scrollContainer" 
+                            @scroll="onScroll" 
+                            style="max-height: 1000px; overflow-y: auto;"
+                            >
                             <v-expansion-panels multiple :value="defaultActivePanels">
                             <v-expansion-panel
                                 v-for="(items, topic) in groupedNotifications"
@@ -33,7 +37,7 @@
                                 <v-expansion-panel-content>
                                 <v-list two-line>
                                     <v-list-item
-                                    v-for="notif in paginatedNotifications(topic)"
+                                    v-for="notif in items"
                                     :key="notif.id"
                                     >
                                     <v-list-item-avatar>
@@ -75,14 +79,7 @@
                                     </v-list-item>
                                 </v-list>
 
-                                <!-- Pagination -->
-                                <v-pagination
-                                    v-if="items.length > pageSize"
-                                    v-model="pageByTopic[topic]"
-                                    :length="Math.ceil(items.length / pageSize)"
-                                    :total-visible="5"
-                                    class="mt-4"
-                                />
+
                                 </v-expansion-panel-content>
                             </v-expansion-panel>
                             </v-expansion-panels>
@@ -117,65 +114,109 @@ export default Vue.extend({
             notificationws: null as NotificationWebsocket | null,
             notifications: [] as Notification[],
             dialog: false,
-            pageSize: 10 as number,
-            pageByTopic: {} as Record<string, number> // { [topic]: currentPage }
+            
+            // pagination state
+            limit: 20,
+            cursor: null as string | null,
+            hasMore: true,
+            total: 0 as number,
+            loading: false,
+
+            scrollThresholdPx: 150
         };
     },
-    watch: {
-        groupedNotifications: {
-        immediate: true,
-        handler(groups: Record<string, any[]>) {
-            // Ensure every topic has a page initialized
-            Object.keys(groups).forEach(topic => {
-            if (!this.pageByTopic[topic]) {
-                this.$set(this.pageByTopic, topic, 1)
-            }
-            })
-        }
-        }
+
+  computed: {
+    groupedNotifications(): Record<string, Notification[]> {
+      return this.notifications.reduce((groups, notif) => {
+        const key = notif.topic || 'Other'
+        if (!groups[key]) groups[key] = []
+        groups[key].push(notif)
+        return groups
+      }, {} as Record<string, Notification[]>)
     },
-    methods: {
-        paginatedNotifications(topic:string) {
-            const items = this.groupedNotifications[topic] || []
-            const page = this.pageByTopic[topic] || 1
-            const start = (page - 1) * this.pageSize
-            return items.slice(start, start + this.pageSize)
-        },
-        updateNotifications() {
-            fetch_notifications().then((n) => {
-                this.notifications = n ?? [];
-            });
-        },
-        readNotification(id: string) {
-            read_notification(id).then(() => this.updateNotifications());
-        },
-        markAllAsRead() {
-            if (!this.notifications.length) return;
-            Promise.all(
-                this.notifications.map(n => this.readNotification(n.id))
-            );
-        },
-    },
-    computed: {
-        groupedNotifications(): Record<string, Notification[]> {
-            return this.notifications.reduce((groups, notif) => {
-                const key = notif.topic || 'Other'
-                if (!groups[key]) groups[key] = []
-                groups[key].push(notif)
-                return groups
-            }, {} as Record<string, Notification[]>)
-        },
-        defaultActivePanels(): number[] {
-            return Object.keys(this.groupedNotifications).map((_, i) => i)
-        },
-    },
-    mounted() {
-        this.notificationws = new NotificationWebsocket()
-        this.notificationws.onMessage((data: NotificationEvent) => {
-            console.log(data);
-            this.updateNotifications();
-        });
-        this.updateNotifications();
+
+    defaultActivePanels(): number[] {
+      return Object.keys(this.groupedNotifications).map((_, i) => i)
     }
-});
+  },
+
+  methods: {
+    /* -----------------------------
+     * Pagination / fetching
+     * ----------------------------- */
+
+    async updateNotifications() {
+      // reset and load newest
+      this.notifications = []
+      this.cursor = null
+      this.hasMore = true
+
+      await this.loadMoreNotifications()
+    },
+
+    async loadMoreNotifications() {
+      if (this.loading || !this.hasMore) return
+
+      this.loading = true
+      try {
+        const response = await fetch_notifications({
+          limit: this.limit,
+          cursor: this.cursor
+        })
+
+        if (!response) return
+        const { data, meta } = response
+
+        this.notifications.push(...data)
+        this.cursor = meta.nextCursor
+        this.hasMore = meta.hasMore
+        this.total = meta.total
+      } catch (err) {
+        console.error("Failed to load notifications", err)
+      } finally {
+        this.loading = false
+      }
+    },
+
+    onScroll() {
+      const el = this.$refs.scrollContainer as HTMLElement
+      if (!el) return
+
+      const distanceFromBottom =
+        el.scrollHeight - el.scrollTop - el.clientHeight
+
+      if (distanceFromBottom < this.scrollThresholdPx) {
+        this.loadMoreNotifications()
+      }
+    },
+
+    /* -----------------------------
+     * Actions
+     * ----------------------------- */
+
+    readNotification(id: string) {
+      read_notification(id).then(() => {
+        this.notifications = this.notifications.filter(n => n.id !== id)
+      })
+    },
+
+    markAllAsRead() {
+      if (!this.notifications.length) return
+      Promise.all(
+        this.notifications.map(n => read_notification(n.id))
+      ).then(() => this.updateNotifications())
+    }
+  },
+
+  mounted() {
+    this.notificationws = new NotificationWebsocket()
+    this.notificationws.onMessage((data: NotificationEvent) => {
+      // new notification → refresh from top
+      this.updateNotifications()
+    })
+
+    this.updateNotifications()
+  }
+})
 </script>

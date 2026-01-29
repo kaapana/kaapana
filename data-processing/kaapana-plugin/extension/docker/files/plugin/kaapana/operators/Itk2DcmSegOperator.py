@@ -81,7 +81,7 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
             or "",  # Name used for multi-label segmentation object, if it will be created
             "FAIL_ON_NO_SEGMENTATION_FOUND": f"{fail_on_no_segmentation_found}",
             # "OPERATOR_IMAGE_LIST_INPUT_DIR":  segmentation_operator.operator_out_dir, # directory that contains segmentaiton objects
-            "SERIES_DISCRIPTION": "{}".format(
+            "SERIES_DESCRIPTION": "{}".format(
                 series_description or alg_name or "UNKOWN SEGMENTATION ALGORITHM"
             ),
             "ALGORITHM_NAME": f'{alg_name or "kaapana"}',

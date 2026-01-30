@@ -11,7 +11,7 @@ extension_params:
         value: ""
     custom_registry_url:
         default: "https://"
-        definition: Aboslute registry URL <scheme>://<domain>:<port>//<path>
+        definition: Absolute registry URL <scheme>://<domain>:<port>//<path>
         type: string
         value: ""
     credentials_custom_registry_username:

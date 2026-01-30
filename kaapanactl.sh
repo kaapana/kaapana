@@ -2075,26 +2075,54 @@ function check_credentials {
 
 function install_certs {
     if [ "$EUID" -ne 0 ]
-    then echo -e "The installation of certs requires root privileges!";
+    then echo -e "${RED}The installation of certs requires root privileges!";
         exit 1
     fi
 
     if [ ! -f ./tls.key ] || [ ! -f ./tls.crt ]; then
-        echo -e "${RED}tls.key or tls.crt could not been found in this directory.${NC}"
-        echo -e "${RED}Please rename and copy the files first!${NC}"
+        echo -e "${RED}tls.key or tls.crt not found in this directory.${NC}"
+        echo -e "${RED}Rename and copy the files first.${NC}"
         exit 1
-    else
-        echo -e "files found!"
-        echo -e "Creating cluster secret ..."
-        microk8s.kubectl delete secret certificate -n $ADMIN_NAMESPACE
-        microk8s.kubectl create secret tls certificate --namespace $ADMIN_NAMESPACE --key ./tls.key --cert ./tls.crt
-        auth_proxy_pod=$(microk8s.kubectl get pods -n $ADMIN_NAMESPACE |grep oauth2-proxy  | awk '{print $1;}')
-        echo "auth_proxy_pod pod: $auth_proxy_pod"
-        microk8s.kubectl -n $ADMIN_NAMESPACE delete pod $auth_proxy_pod
-        cp ./tls.key ./tls.crt $FAST_DATA_DIR/tls/
     fi
 
-    echo -e "${GREEN}DONE${NC}"
+    # update cert and restart pods in a namespace
+    update_namespace() {
+        local ns=$1
+        echo -e "\nUpdating certificate in namespace: ${ns}"
+
+        microk8s.kubectl delete secret certificate -n "$ns" 2>/dev/null || true
+        microk8s.kubectl create secret tls certificate --namespace "$ns" --key ./tls.key --cert ./tls.crt
+
+        # get app.kubernetes.io/name of all pods that mount the certificate secret in the namespace
+        local app_labels=$(microk8s.kubectl get pods -n "$ns" -o json | \
+            jq -r '.items[] | select(.spec.volumes[]?.secret?.secretName == "certificate") | .metadata.labels."app.kubernetes.io/name" // empty' | sort -u)
+
+        if [ -n "$app_labels" ]; then
+            echo -e "Restarting pods using certificate:"
+            echo -e "$app_labels" | while read label; do
+                if [ -n "$label" ]; then
+                    echo -e "  - app.kubernetes.io/name=$label"
+                    if ! microk8s.kubectl -n "$ns" delete pod -l "app.kubernetes.io/name=$label" --grace-period=120 2>/dev/null; then
+                        echo -e "${YELLOW} Warning: Failed to restart pods with label $label${NC}"
+                    fi
+                fi
+            done
+        else
+            echo -e "No pods found mounting certificate secret"
+        fi
+    }
+
+    update_namespace "$ADMIN_NAMESPACE"
+    update_namespace "$SERVICES_NAMESPACE"
+
+    # copy certificates
+    if [ -n "$FAST_DATA_DIR" ]; then
+        mkdir -p "$FAST_DATA_DIR/tls"
+        cp ./tls.key ./tls.crt "$FAST_DATA_DIR/tls/"
+        chmod 600 "$FAST_DATA_DIR/tls/tls.key"
+    fi
+
+    echo -e "\n${GREEN}DONE${NC}"
 }
 
 function print_deployment_done {

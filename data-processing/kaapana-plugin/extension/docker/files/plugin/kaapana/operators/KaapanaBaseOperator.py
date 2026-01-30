@@ -488,6 +488,13 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             ]
         )
 
+    def _get_project_registry_secrets(self):
+        custom_registry_secrets = KubernetesRunner.api.list_namespaced_secret(
+            namespace=self.namespace,
+            label_selector="kaapana.registry-secret=custom-registry",
+        )
+        return set(secret.metadata.name for secret in custom_registry_secrets.items)
+
     def create_conf_configmap(self, context: Context):
 
         # Do not mount configmap for workflow cleanup, otherwise the dir cannot be cleaned
@@ -936,6 +943,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             env=[],
         )
 
+        self.image_pull_secrets.append("registry-secret")
+        self.image_pull_secrets.extend(self._get_project_registry_secrets())
+
         self.task_run = KubernetesRunner.run(
             task=task_models.Task(
                 name=KaapanaBaseOperator.unique_task_identifer(context),
@@ -946,7 +956,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 resources=self.pod_resources,
                 config=task_models.K8sConfig(
                     namespace=self.namespace,
-                    imagePullSecrets=self.image_pull_secrets or ["registry-secret"],
+                    imagePullSecrets=self.image_pull_secrets,
                     env_vars=self.secrets
                     + [
                         client.V1EnvVar(name=key, value=val)

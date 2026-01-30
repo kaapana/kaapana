@@ -41,7 +41,9 @@ async def post_filepond_upload(request: Request):
 
     except Exception as e:
         logger.error(f"/file upload failed {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Filepond Upload Initialization failed")
+        raise HTTPException(
+            status_code=500, detail="Filepond Upload Initialization failed"
+        )
 
     return Response(content=patch, status_code=200)
 
@@ -187,7 +189,9 @@ async def import_container(filename: str, platforms: Optional[bool] = False):
         raise HTTPException(400, f"Container import failed, bad request {str(e)}")
     except Exception as e:
         logger.error(f"/import-container failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Container import failed, bad request {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Container import failed, bad request {str(e)}"
+        )
 
 
 @router.get("/health-check")
@@ -273,6 +277,9 @@ async def helm_install_chart(request: Request):
             payload["extension_params"] = payload.get("extension_params", {})
             payload["extension_params"]["project_id"] = project_form.get("id")
             payload["extension_params"]["project_name"] = project_form.get("name")
+            payload["extension_params"]["project_namespace"] = project_form.get(
+                "kubernetes_namespace"
+            )
 
         not_installed, _, keywords, release_name, cmd = utils.helm_install(
             payload,
@@ -347,7 +354,6 @@ async def complete_active_application(request: Request):
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to complete active application: release {release_name} does not have correct annotations",
-                
             )
 
         # delete chart

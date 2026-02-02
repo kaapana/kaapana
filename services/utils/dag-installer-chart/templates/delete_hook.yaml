@@ -48,6 +48,6 @@ spec:
       imagePullSecrets:
         - name: registry-secret
         {{- if .Values.global.custom_registry_url }}
-        - name: registry-secret-{{ trunc 4 (sha256sum .Values.global.custom_registry_url) }}
+        - name: registry-secret-{{ trunc 7 .Values.global.project_id }}-{{ trunc 4 (sha256sum .Values.global.custom_registry_url ) }}
         {{- end }}
   backoffLimit: 0

@@ -1,9 +1,9 @@
 <template>
     <v-snackbar
         v-model="showSnackbar"
-        :timeout="3000"
+        :timeout="10000"
         location="top"
-        color="success"
+        color="{{ snackbarColor || 'info' }}"
         elevation="2"
         >
         {{ snackbarText }}
@@ -396,6 +396,7 @@ export default defineComponent({
             extendActiveApplications: false,
             showSnackbar: false,
             snackbarText: ref(""),
+            snackbarColor: "info"
         };
     },
     mounted() {
@@ -486,8 +487,11 @@ export default defineComponent({
             }
             try {
                 await kubeHelmPost(`helm-install-chart`, data)
-            } catch (error: unknown) {
+            } catch (error: any) {
                 console.log(error);
+                this.snackbarText = `There was an error launching the application ${extension.annotations["ui-visible-name"]}: ${error.response.data}`;
+                this.snackbarColor = "error";
+                this.showSnackbar = true;
             }
             
             this.launchApplicationDialog = false;
@@ -550,6 +554,7 @@ export default defineComponent({
                     id: project.id,
                 }));
                 this.snackbarText = `The selected project changed to: ${project.name}. You might need to refresh your tabs.`;
+                this.snackbarColor = "success";
                 this.showSnackbar = true;
             } catch (error: unknown) {
                 console.error(error);

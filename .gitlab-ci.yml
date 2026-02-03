@@ -2,8 +2,9 @@ default:
   interruptible: true
 
 stages:
-- prepare
+- prepare_build
 - build
+- prepare_deploy
 - deploy_and_test
 - clean
 
@@ -60,7 +61,7 @@ variables:
 ############## PREPARE ######################
 #############################################
 prepare_pipeline:
-  stage: prepare
+  stage: prepare_build
   tags:
     - build-shared
   before_script: # Necessary because otherwise HEAD is detached and the build fails
@@ -87,7 +88,7 @@ prepare_pipeline:
       dotenv: prepare.env
 
 unit_tests:
-  stage: prepare
+  stage: prepare_build
   tags:
     - build-shared
   needs:
@@ -106,7 +107,7 @@ unit_tests:
         - unittest_report.xml
 
 task_api_tests:
-  stage: prepare
+  stage: prepare_build
   tags:
     - build-shared
   needs:
@@ -127,7 +128,7 @@ task_api_tests:
         - task_api_report.xml
 
 workflow_api_tests:
-  stage: prepare
+  stage: prepare_build
   tags:
     - build-shared
   needs:
@@ -144,7 +145,7 @@ workflow_api_tests:
         - workflow_api_report.xml
 
 build_documentation:
-  stage: prepare
+  stage: prepare_build
   tags:
     - build-shared
   needs:
@@ -179,7 +180,7 @@ build_packages:
 ############## DEPLOY #######################
 #############################################
 prepare_deployment_instance:
-  stage: deploy
+  stage: prepare_deploy
   tags:
     - deploy-shared
   needs:
@@ -215,65 +216,6 @@ deploy_and_test:
   - if: $DEPLOY_PLATFORM == "false"
     when: never
   - when: on_success
-
-
-#############################################
-############## INTEGRATION TESTS ############
-#############################################
-# `integration:first_login` is executed inside `deploy_and_test` to ensure deploy
-# and initial integration checks run atomically on the same machine.
-
-integration:send_testdata:
-  stage: integration_tests
-  tags:
-    - deploy-shared
-  needs:
-    - integration:first_login
-  variables:
-    ARTIFACTS_DIR: "/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"
-  script:
-    - source /home/$USER/venv/bin/activate
-    - ansible-playbook $REPO_DIR/ci-code/test/jobs/testdata/prepare_data.yaml 2>&1 | tee $ARTIFACTS_DIR/prepare_data.log
-  retry: 2
-
-integration:install_extensions:
-  stage: integration_tests
-  tags:
-    - deploy-shared
-  needs:
-    - integration:first_login
-  variables:
-    ARTIFACTS_DIR: "/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"
-  script:
-    - source /home/$USER/venv/bin/activate
-    - cd $REPO_DIR/ci-code/test/src
-    - python3 install_extensions.py --host $(hostname -I | awk '{print $1}') --install-all --log-file $ARTIFACTS_DIR/install_extensions.log --timeout 600
-  retry: 2
-
-integration:workflow_tests:
-  stage: integration_tests
-  tags:
-    - deploy-dedicated
-  needs:
-    - integration:first_login
-    - integration:send_testdata
-    - integration:install_extensions
-  variables:
-    ARTIFACTS_DIR: "/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"
-  script:
-    - python3 -m virtualenv $KAAPANA_DIR/ci/.ci
-    - source $KAAPANA_DIR/ci/.ci/bin/activate
-    - python3 -m pip install -r $KAAPANA_DIR/ci/ci-code/test/src/requirements.txt
-    - export test_files=$(find ${KAAPANA_DIR}/data-processing -wholename *ci-config/*.yaml)
-    - export ip_address=$(hostname -I | awk '{print $1}')
-    - pytest $KAAPANA_DIR/ci/ci-code/test/src/test_workflows.py --files ${test_files} --host ${ip_address} --junitxml=workflow_test_report.xml -n 4 -s --log-cli-level=INFO
-  artifacts:
-    when: always
-    paths:
-      - workflow_test_report.xml
-    reports:
-      junit:
-        - workflow_test_report.xml
 
 #############################################
 ############## CLEAN ########################
@@ -315,7 +257,6 @@ security:
   - if: $BUILD_ARGUMENTS =~ /.*--vulnerability-scan.*/
     when: always
   - when: never
-
 
 build_logs:
   stage: clean

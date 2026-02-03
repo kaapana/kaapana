@@ -36,55 +36,6 @@
           Version: {{ version_tag }}
           Kaapana Dir: {{ kaapana_dir }}
 
-    - name: Dump environment variables to artifacts
-      ansible.builtin.shell: env
-      register: env_dump
-      changed_when: false
-
-    - name: Save environment dump
-      ansible.builtin.copy:
-        content: |
-          Environment dump (from `env`):
-          {{ env_dump.stdout }}
-        dest: "{{ artifacts_dir }}/env_dump.log"
-
-    - name: Save resolved Ansible variables (masking secrets)
-      ansible.builtin.copy:
-        content: |
-          Resolved Ansible variables:
-          registry_url: {{ registry_url | default('') }}
-          version_tag: {{ version_tag | default('') }}
-          registry_user: {{ registry_user | default('') }}
-          registry_token_masked: {{ (registry_token[0:4] + '...' + registry_token[-4:]) if (registry_token is defined and registry_token|length > 8) else ('***' if registry_token is defined else 'UNSET') }}
-          kaapana_dir: {{ kaapana_dir | default('') }}
-          artifacts_dir: {{ artifacts_dir | default('') }}
-        dest: "{{ artifacts_dir }}/resolved_vars.log"
-      changed_when: false
-
-    - name: Dump environment variables to artifacts
-      ansible.builtin.shell: env
-      register: env_dump
-      changed_when: false
-
-    - name: Save environment dump
-      ansible.builtin.copy:
-        content: |
-          Environment dump (from `env`):
-          {{ env_dump.stdout }}
-        dest: "{{ artifacts_dir }}/env_dump.log"
-
-    - name: Save resolved Ansible variables (masking secrets)
-      ansible.builtin.copy:
-        content: |
-          Resolved Ansible variables:
-          registry_url: {{ registry_url | default('') }}
-          version_tag: {{ version_tag | default('') }}
-          registry_user: {{ registry_user | default('') }}
-          kaapana_dir: {{ kaapana_dir | default('') }}
-          artifacts_dir: {{ artifacts_dir | default('') }}
-        dest: "{{ artifacts_dir }}/resolved_vars.log"
-      changed_when: false
-
     - name: Verify microk8s is running
       ansible.builtin.command: microk8s status --wait-ready
       register: microk8s_status
@@ -156,7 +107,7 @@
         cmd: >
           {{ kaapana_dir }}/kaapanactl.sh deploy
           --quiet
-          --chart {{ registry_url }}/kaapana-platform-chart:{{ version_tag }}
+          --chart {{ registry_url }}/kaapana-admin-chart:{{ version_tag }}
           --username {{ registry_user }}
           --password {{ registry_token }}
           --domain {{ node_ip.stdout }}

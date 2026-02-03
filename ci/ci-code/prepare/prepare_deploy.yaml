@@ -110,7 +110,7 @@
     - name: Ensure current user is in microk8s group
       become: yes
       ansible.builtin.user:
-        name: "{{ ansible_user_id }}"
+        name: "{{ ansible_facts['user_id'] }}"
         groups: microk8s
         append: yes
         
@@ -121,14 +121,14 @@
 
     - name: Ensure .kube directory exists
       ansible.builtin.file:
-        path: "{{ ansible_env.HOME }}/.kube"
+        path: "{{ ansible_facts['env']['HOME'] }}/.kube"
         state: directory
         mode: '0700'
 
     - name: Write kubeconfig to file
       ansible.builtin.copy:
         content: "{{ kubeconfig.stdout }}"
-        dest: "{{ ansible_env.HOME }}/.kube/config"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.kube/config"
         mode: '0600'
 
     - name: Verify helm can access kubernetes
@@ -183,17 +183,17 @@
         content: |
           Deployment Instance Preparation Report
           =====================================
-          Date: {{ ansible_date_time.iso8601 }}
-          Hostname: {{ ansible_hostname }}
+          Date: {{ ansible_facts['date_time']['iso8601'] }}
+          Hostname: {{ ansible_facts['hostname'] }}
           IP Address: {{ node_ip.stdout }}
-          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
-          Kernel: {{ ansible_kernel }}
+          OS: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}
+          Kernel: {{ ansible_facts['kernel'] }}
           
           Microk8s Status:
           {{ microk8s_status.stdout }}
-          
+
           Helm Version: {{ helm_version.stdout }}
-          
+
           Cluster Info:
           {{ cluster_info.stdout }}
         dest: "{{ artifacts_dir }}/instance_preparation.log"

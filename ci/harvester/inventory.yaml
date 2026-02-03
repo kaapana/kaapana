@@ -45,7 +45,6 @@ all:
       hosts:
         localhost:
           ansible_connection: local
-          python_interpreter: "/usr/bin/python3"
           # LOCAL-ONLY vars
           ci_upload_script: "set_ci_variables.py"
           harvester_kubeconfig: "{{ lookup('env', 'HARVESTER_KUBECONFIG') }}"
@@ -105,16 +104,16 @@ all:
       vars:
         instance_type: "build"
         # Global concurrent: max jobs this runner process can handle (should be >= sum of limits)
-        runner_global_concurrent: 6
+        runner_global_concurrent: 10
         # Shared runner settings
         runner_shared_limit: 5
         # request_concurrency: max simultaneous API requests to GitLab for jobs.
         # GitLab uses long polling (~50s timeout), so with value=1 job pickup can be delayed.
         # Higher values reduce worst-case latency (e.g., 4 requests = ~12.5s max delay vs ~50s).
-        runner_shared_request_concurrency: 4
+        runner_shared_request_concurrency: 5
         # Dedicated runner settings (for heavy/isolated builds)
         runner_dedicated_limit: 1
-        runner_dedicated_request_concurrency: 4  # Minimum 2 to avoid long polling delays
+        runner_dedicated_request_concurrency: 5  # Minimum 2 to avoid long polling delays
         # Base tags for build runners
         runner_tags:
           - build
@@ -135,15 +134,15 @@ all:
       vars:
         instance_type: "deploy"
         # Global concurrent: max jobs this runner process can handle (should be >= sum of limits)
-        deploy_runner_global_concurrent: 6
+        deploy_runner_global_concurrent: 10
         # Shared runner settings
         deploy_runner_shared_limit: 5
         # request_concurrency: max simultaneous API requests to GitLab for jobs.
         # Higher values reduce job pickup latency during GitLab's ~50s long polling window.
-        deploy_runner_shared_request_concurrency: 4
+        deploy_runner_shared_request_concurrency: 5
         # Dedicated runner settings
         deploy_runner_dedicated_limit: 1
-        deploy_runner_dedicated_request_concurrency: 4
+        deploy_runner_dedicated_request_concurrency: 5
         # Base tags for deploy runners
         runner_tags:
           - deploy

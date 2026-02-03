@@ -4,8 +4,7 @@ default:
 stages:
 - prepare
 - build
-- deploy
-- integration_tests
+- deploy_and_test
 - clean
 
 workflow:

@@ -236,10 +236,6 @@ integration:first_login:
     - source /home/$USER/venv/bin/activate
     - ansible-playbook $REPO_DIR/ci-code/test/get_client_secret.yaml 2>&1 | tee $ARTIFACTS_DIR/get_client_secret.log
     - ansible-playbook $REPO_DIR/ci-code/test/jobs/ui_tests/first_login.yaml 2>&1 | tee $ARTIFACTS_DIR/first_login.log
-  rules:
-    - if: $TEST_STAGE != "true"
-      when: never
-    - when: on_success
 
 integration:send_testdata:
   stage: integration_tests
@@ -252,10 +248,6 @@ integration:send_testdata:
   script:
     - source /home/$USER/venv/bin/activate
     - ansible-playbook $REPO_DIR/ci-code/test/jobs/testdata/prepare_data.yaml 2>&1 | tee $ARTIFACTS_DIR/prepare_data.log
-  rules:
-    - if: $TEST_STAGE != "true"
-      when: never
-    - when: on_success
   retry: 2
 
 integration:install_extensions:
@@ -270,10 +262,6 @@ integration:install_extensions:
     - source /home/$USER/venv/bin/activate
     - cd $REPO_DIR/ci-code/test/src
     - python3 install_extensions.py --host $(hostname -I | awk '{print $1}') --install-all --log-file $ARTIFACTS_DIR/install_extensions.log --timeout 600
-  rules:
-    - if: $TEST_STAGE != "true"
-      when: never
-    - when: on_success
   retry: 2
 
 integration:workflow_tests:
@@ -300,11 +288,6 @@ integration:workflow_tests:
     reports:
       junit:
         - workflow_test_report.xml
-  rules:
-    - if: $TEST_STAGE != "true"
-      when: never
-    - when: on_success
-  allow_failure: true
 
 #############################################
 ############## CLEAN ########################

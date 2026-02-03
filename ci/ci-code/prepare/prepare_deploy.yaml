@@ -46,9 +46,9 @@
       failed_when: false
       changed_when: false
 
-    - name: Fail if microk8s is not installed
-      ansible.builtin.fail:
-        msg: "microk8s is not installed. Run kaapanactl.sh install first."
+    - name: microk8s missing — will attempt installation later if needed
+      ansible.builtin.debug:
+        msg: "microk8s not found; will attempt installation via kaapanactl.sh if needed."
       when: microk8s_check.rc != 0
 
     - name: Check if microk8s is already installed and running

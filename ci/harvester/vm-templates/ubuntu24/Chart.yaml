@@ -1,0 +1,4 @@
+apiVersion: v2
+name: ubuntu24
+description: Templated Ubuntu 24.04 VM
+version: 0.1.0

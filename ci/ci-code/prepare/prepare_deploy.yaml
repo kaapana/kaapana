@@ -1,0 +1,204 @@
+---
+# Combined server installation and instance preparation for Kaapana deploy VM
+# This playbook merges server_installation.yaml and prepare_instance.yaml
+- name: Prepare deploy VM for Kaapana
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    artifacts_dir: "{{ lookup('ansible.builtin.env', 'ARTIFACTS_DIR') }}"
+    kaapana_dir: "{{ lookup('ansible.builtin.env', 'KAAPANA_DIR') }}"
+    http_proxy: "{{ lookup('ansible.builtin.env', 'HTTP_PROXY', default='') }}"
+    https_proxy: "{{ lookup('ansible.builtin.env', 'HTTPS_PROXY', default='') }}"
+
+  environment:
+    http_proxy: "{{ http_proxy }}"
+    https_proxy: "{{ https_proxy }}"
+    TERM: xterm
+
+  tasks:
+    # --- PREPARE INSTANCE ---
+    - name: Create artifacts directory
+      ansible.builtin.file:
+        path: "{{ artifacts_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Increase inotify watchers
+      become: yes
+      ansible.builtin.sysctl:
+        name: fs.inotify.max_user_watches
+        value: '100000'
+        state: present
+        reload: yes
+
+    - name: Increase inotify instances
+      become: yes
+      ansible.builtin.sysctl:
+        name: fs.inotify.max_user_instances
+        value: '100000'
+        state: present
+        reload: yes
+
+    - name: Check if microk8s is installed
+      ansible.builtin.command: which microk8s
+      register: microk8s_check
+      failed_when: false
+      changed_when: false
+
+    - name: Fail if microk8s is not installed
+      ansible.builtin.fail:
+        msg: "microk8s is not installed. Run kaapanactl.sh install first."
+      when: microk8s_check.rc != 0
+
+    - name: Check if microk8s is already installed and running
+      ansible.builtin.command: microk8s status --wait-ready
+      register: microk8s_status
+      failed_when: false
+      changed_when: false
+      retries: 30
+      delay: 10
+      until: microk8s_status.rc == 0
+
+    - name: Run kaapanactl.sh install if microk8s is not ready
+      when: microk8s_status.rc != 0
+      block:
+        - name: Run server installation via kaapanactl.sh
+          become: yes
+          ansible.builtin.command:
+            cmd: "{{ kaapana_dir }}/kaapanactl.sh install --quiet"
+            chdir: "{{ kaapana_dir }}"
+          register: install_result
+          ignore_errors: yes
+
+        - name: Save installation output to artifacts
+          ansible.builtin.copy:
+            content: |
+              Server Installation Output
+              ==========================
+              STDOUT:
+              {{ install_result.stdout | default('') }}
+              
+              STDERR:
+              {{ install_result.stderr | default('') }}
+              
+              Return Code: {{ install_result.rc }}
+            dest: "{{ artifacts_dir }}/server_installation.log"
+
+        - name: Fail if installation failed
+          ansible.builtin.fail:
+            msg: "kaapanactl.sh install failed with return code {{ install_result.rc }}"
+          when: install_result.rc != 0
+
+    - name: Log that microk8s was already ready
+      when: microk8s_status.rc == 0
+      ansible.builtin.copy:
+        content: |
+          Server Installation Skipped
+          ===========================
+          Microk8s was already installed and running.
+          
+          Status:
+          {{ microk8s_status.stdout }}
+        dest: "{{ artifacts_dir }}/server_installation.log"
+
+    - name: Ensure current user is in microk8s group
+      become: yes
+      ansible.builtin.user:
+        name: "{{ ansible_user_id }}"
+        groups: microk8s
+        append: yes
+
+    - name: Refresh group membership for microk8s (newgrp)
+      ansible.builtin.shell: |
+        newgrp microk8s <<EOF
+        echo 'Group updated to microk8s.'
+        EOF
+      args:
+        executable: /bin/bash
+      changed_when: false
+      ignore_errors: true
+
+    - name: Generate kubeconfig
+      ansible.builtin.command: microk8s kubectl config view --raw
+      register: kubeconfig
+      changed_when: false
+
+    - name: Ensure .kube directory exists
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/.kube"
+        state: directory
+        mode: '0700'
+
+    - name: Write kubeconfig to file
+      ansible.builtin.copy:
+        content: "{{ kubeconfig.stdout }}"
+        dest: "{{ ansible_env.HOME }}/.kube/config"
+        mode: '0600'
+
+    - name: Verify helm can access kubernetes
+      ansible.builtin.command: helm ls -A
+      register: helm_check
+      retries: 5
+      delay: 5
+      until: helm_check.rc == 0
+
+    # --- PREPARE INSTANCE CONTINUED ---
+    - name: Verify current user is in microk8s group
+      ansible.builtin.command: groups
+      register: user_groups
+      changed_when: false
+
+    - name: Warn if user not in microk8s group
+      ansible.builtin.debug:
+        msg: "WARNING: Current user is not in microk8s group. You may need to re-login."
+      when: "'microk8s' not in user_groups.stdout"
+
+    - name: Check helm is available
+      ansible.builtin.command: helm version --short
+      register: helm_version
+      changed_when: false
+
+    - name: Display helm version
+      ansible.builtin.debug:
+        var: helm_version.stdout
+
+    - name: Check kubernetes API is accessible
+      ansible.builtin.command: microk8s kubectl cluster-info
+      register: cluster_info
+      retries: 10
+      delay: 5
+      until: cluster_info.rc == 0
+
+    - name: Display cluster info
+      ansible.builtin.debug:
+        var: cluster_info.stdout_lines
+
+    - name: Get node IP address
+      ansible.builtin.shell: hostname -I | awk '{print $1}'
+      register: node_ip
+      changed_when: false
+
+    - name: Display node IP
+      ansible.builtin.debug:
+        msg: "Deploy VM IP: {{ node_ip.stdout }}"
+
+    - name: Save deployment info to artifacts
+      ansible.builtin.copy:
+        content: |
+          Deployment Instance Preparation Report
+          =====================================
+          Date: {{ ansible_date_time.iso8601 }}
+          Hostname: {{ ansible_hostname }}
+          IP Address: {{ node_ip.stdout }}
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Kernel: {{ ansible_kernel }}
+          
+          Microk8s Status:
+          {{ microk8s_status.stdout }}
+          
+          Helm Version: {{ helm_version.stdout }}
+          
+          Cluster Info:
+          {{ cluster_info.stdout }}
+        dest: "{{ artifacts_dir }}/instance_preparation.log"

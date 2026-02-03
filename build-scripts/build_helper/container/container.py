@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import time
@@ -28,6 +29,92 @@ class Status(Enum):
     # For the ProgressDashboard
     PUSHING = auto()  # currently pushing
     BUILDING = auto()  # currently building
+
+
+def get_local_image_config_digest(image_tag: str) -> Optional[str]:
+    """
+    Get the config digest (image ID) of a locally built image.
+    This is the sha256 of the image configuration JSON.
+    """
+    command = ["docker", "inspect", image_tag, "--format", "{{.Id}}"]
+    try:
+        output = run(
+            command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=30
+        )
+        if output.returncode == 0:
+            # Returns something like "sha256:abc123..."
+            return output.stdout.strip()
+    except subprocess.TimeoutExpired as e:
+        logger.warning(f"{image_tag}: Error getting local config digest: {e}")
+    return None
+
+
+def get_remote_image_config_digest(image_tag: str) -> Optional[str]:
+    """
+    Get the config digest from a remote image manifest.
+    This should match the local image ID if the content is identical.
+    """
+    command = ["docker", "manifest", "inspect", image_tag, "--verbose"]
+    try:
+        output = run(
+            command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=30
+        )
+        if output.returncode == 0:
+            manifest_data = json.loads(output.stdout)
+            if isinstance(manifest_data, list):
+                manifest_data = manifest_data[0]
+            
+            # Try SchemaV2Manifest first (Docker registry v2)
+            if "SchemaV2Manifest" in manifest_data:
+                config = manifest_data["SchemaV2Manifest"].get("config", {})
+                digest = config.get("digest")
+                if digest:
+                    return digest
+            
+            # Try OCIManifest (OCI format)
+            if "OCIManifest" in manifest_data:
+                config = manifest_data["OCIManifest"].get("config", {})
+                digest = config.get("digest")
+                if digest:
+                    return digest
+                
+    except (json.JSONDecodeError, subprocess.TimeoutExpired) as e:
+        logger.debug(f"{image_tag}: Error getting remote config digest: {e}")
+    return None
+
+
+def image_content_matches_remote(image_tag: str) -> tuple[bool, str]:
+    """
+    Check if the locally built image has the same content as the remote image.
+    Compares config digests (image IDs) which represent the full image configuration.
+    
+    Returns: (matches, reason)
+    - (True, reason) if content matches (skip push)
+    - (False, reason) if content differs or can't be compared (must push)
+    """
+    if "local-only" in image_tag:
+        return False, "local-only image"
+    
+    # Get local config digest (image ID)
+    local_config = get_local_image_config_digest(image_tag)
+    if not local_config:
+        return False, "could not get local image ID"
+    
+    # Get remote config digest
+    remote_config = get_remote_image_config_digest(image_tag)
+    if not remote_config:
+        return False, "image not in registry or could not get remote config"
+    
+    # Compare config digests - they should match exactly if content is identical
+    if local_config == remote_config:
+        logger.debug(f"{image_tag}: Config digests match: {local_config[:20]}...")
+        return True, "config digests match"
+    
+    # Config digests differ - content has changed
+    logger.debug(
+        f"{image_tag}: Config digests differ - local={local_config[:20]}..., remote={remote_config[:20]}..."
+    )
+    return False, "config digests differ (content changed)"
 
 
 class BaseImage:
@@ -377,7 +464,7 @@ class Container:
             issue = IssueTracker.generate_issue(
                 component="Microk8s image push",
                 name=self.tag,
-                msg=f"Microk8s image push timed out!",
+                msg="Microk8s image push timed out!",
                 level="ERROR",
                 output=[err or save_err],
                 path=str(self.dockerfile.parent),
@@ -410,6 +497,17 @@ class Container:
         if config.push_to_microk8s is True:
             logger.info(f"Pushing {self.tag} to microk8s")
             return self._push_to_microk8s(config)
+
+        # Smart push check: skip if image content matches remote
+        if config.smart_push:
+            matches, reason = image_content_matches_remote(self.tag)
+            if matches:
+                logger.info(f"{self.tag}: Skipping push - {reason}")
+                self.status = Status.NOTHING_CHANGED
+                self.push_time = 0.0
+                return issue
+            else:
+                logger.debug(f"{self.tag}: Will push - {reason}")
 
         logger.debug(f"{self.tag}: start pushing! ")
         retries = 0
@@ -450,6 +548,15 @@ class Container:
                     path=self.dockerfile.parent,
                 )
                 return issue
+
+            # Handle rate limiting with exponential backoff
+            if "429" in output.stderr or "too many requests" in output.stderr.lower():
+                wait_time = min(2**retries, 60)  # Cap at 60 seconds
+                logger.warning(
+                    f"{self.tag}: Rate limited, waiting {wait_time}s (attempt {retries}/{config.max_push_retries})"
+                )
+                time.sleep(wait_time)
+                continue
 
         self.status = Status.FAILED
         component_name = self.__class__.__name__

@@ -46,7 +46,7 @@ def build(
         help="External directories to search for containers and charts.",
     ),
     build_ignore_patterns: str = typer.Option(
-        "*templates_and_examples/*,*ci/*,*lib/task_api/*",
+        "templates_and_examples,ci,lib/task_api",
         "-bip",
         "--build-ignore-patterns",
         envvar="BUILD_IGNORE_PATTERNS",
@@ -221,6 +221,13 @@ def build(
         envvar="ONLY_CHARTS",
         help="Only package and push charts.",
     ),
+    smart_push: bool = typer.Option(
+        True,
+        "-sp/--no-smart-push",
+        "--smart-push/--no-smart-push",
+        envvar="SMART_PUSH",
+        help="Skip pushing images that already exist in registry with same digest (avoids 429 rate limits).",
+    ),
     include_model_weights: bool = typer.Option(
         False,
         "--include-model-weights",
@@ -287,6 +294,7 @@ def build(
         containers_to_build_by_charts=containers_to_build_by_charts,
         containers_to_build=containers_to_build,
         only_charts=only_charts,
+        smart_push=smart_push,
         include_model_weights=include_model_weights,
         http_proxy=http_proxy,
         plain_http=plain_http,

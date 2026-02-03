@@ -3,7 +3,7 @@
         v-model="showSnackbar"
         :timeout="10000"
         location="top"
-        color="{{ snackbarColor || 'info' }}"
+        :color="snackbarColor"
         elevation="2"
         >
         {{ snackbarText }}

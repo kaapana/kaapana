@@ -49,6 +49,7 @@ class BuildConfig(BaseModel):
     containers_to_build_by_charts: List[str] = Field(default_factory=list)
     containers_to_build: List[str] = Field(default_factory=list)
     only_charts: bool = False
+    smart_push: bool = True  # Skip pushing if image already exists in registry with same digest
 
     # Others
     http_proxy: Optional[str]

@@ -1,0 +1,151 @@
+all:
+  vars:
+    # -------------------------------------------------------------------------
+    # Global variables for all hosts (build + deploy)
+    # -------------------------------------------------------------------------
+    gitlab_url: "https://codebase.helmholtz.cloud"
+    gitlab_project_id: "2521"
+    gitlab_api_token: "{{ lookup('env', 'GITLAB_API_TOKEN') }}"
+    ssh_public_key: "{{ lookup('env', 'SSH_PUBLIC_KEY') }}"
+    ssh_private_key: "{{ lookup('env', 'SSH_PRIVATE_KEY') }}"
+    harvester_kubeconfig: "{{ lookup('env', 'HARVESTER_KUBECONFIG') }}"
+    harvester_namespace: "kaapana-ci"
+    
+    # VM sizing defaults (can be overridden per-host)
+    cpu_cores: 32
+    memory_guest: "256Gi"
+    disk_size: "512Gi"
+    # Basic system packages to install on new VMs (can be overridden per-host)
+    system_packages:
+      - apt-transport-https
+      - wget
+      - gnupg
+      - lsb-release
+      - ca-certificates
+      - curl
+      - git
+      - software-properties-common
+      - python3
+      - python3-pip
+      - python3-setuptools
+      - unzip
+      - virtualenv
+      - nano
+      - dcmtk
+      - nmap
+      - jq
+    ssh_user: "ubuntu"
+    venv_path: "/home/ubuntu/venv"
+    force_recreate: false
+    runner_executor: "shell"
+    upload_ci_variables: false
+
+  children:
+    localhost_group:
+      hosts:
+        localhost:
+          ansible_connection: local
+          python_interpreter: "/usr/bin/python3"
+          # LOCAL-ONLY vars
+          ci_upload_script: "set_ci_variables.py"
+          harvester_kubeconfig: "{{ lookup('env', 'HARVESTER_KUBECONFIG') }}"
+          ci_variables:
+            - key: "USER"
+              value: "{{ lookup('env', 'CI_USER') | default('ubuntu', true) }}"
+              masked: false
+            - key: "SSH_FILE"
+              value: "{{ lookup('env', 'CI_SSH_FILE') | default('/home/ubuntu/.ssh/kaapana.pem', true) }}"
+              masked: true
+            - key: "DOCKER_IO_USER"
+              value: "{{ lookup('env', 'DOCKER_IO_USER') | default('', true) }}"
+              masked: false
+            - key: "DOCKER_IO_PASSWORD"
+              value: "{{ lookup('env', 'DOCKER_IO_PASSWORD') | default('', true) }}"
+              masked: true
+            - key: "REGISTRY_URL"
+              value: "{{ lookup('env', 'CI_REGISTRY_URL') | default('$CI_REGISTRY_IMAGE', true) }}"
+              masked: false
+            - key: "REGISTRY_TOKEN"
+              value: "{{ lookup('env', 'CI_REGISTRY_TOKEN') | default('', true) }}"
+              masked: true
+            - key: "EXECUTE_BUILD"
+              value: "{{ lookup('env', 'CI_EXECUTE_BUILD') | default('true', true) }}"
+              masked: false
+            - key: "DEPLOY_PLATFORM"
+              value: "{{ lookup('env', 'CI_DEPLOY_PLATFORM') | default('true', true) }}"
+              masked: false
+            - key: "TEST_STAGE"
+              value: "{{ lookup('env', 'CI_TEST_STAGE') | default('false', true) }}"
+              masked: false
+            - key: "DOCKER_PRUNE"
+              value: "{{ lookup('env', 'CI_DOCKER_PRUNE') | default('false', true) }}"
+              masked: false
+            - key: "BUILD_ARGUMENTS"
+              value: "{{ lookup('env', 'CI_BUILD_ARGUMENTS') | default('', true) }}"
+              masked: false
+            - key: "KAAPANA_READTHEDOCS_TOKEN"
+              value: "{{ lookup('env', 'KAAPANA_READTHEDOCS_TOKEN') | default('', true) }}"
+              masked: true
+
+    build_instances:
+      hosts:
+        build-01:
+          vm_name: "kaapana-build-01"
+          runner_description: "kaapana-build-runner-01"
+          # VM sizing (override defaults)
+          cpu_cores: 32
+          memory_guest: "256Gi"
+          disk_size: "512Gi"
+        # build-02:
+        #   vm_name: "kaapana-build-02"
+        #   runner_description: "kaapana-build-runner-02"
+        #   cpu_cores: 32
+        #   memory_guest: "256Gi"
+        #   disk_size: "512Gi"
+      vars:
+        instance_type: "build"
+        # Global concurrent: max jobs this runner process can handle (should be >= sum of limits)
+        runner_global_concurrent: 6
+        # Shared runner settings
+        runner_shared_limit: 5
+        # request_concurrency: max simultaneous API requests to GitLab for jobs.
+        # GitLab uses long polling (~50s timeout), so with value=1 job pickup can be delayed.
+        # Higher values reduce worst-case latency (e.g., 4 requests = ~12.5s max delay vs ~50s).
+        runner_shared_request_concurrency: 4
+        # Dedicated runner settings (for heavy/isolated builds)
+        runner_dedicated_limit: 1
+        runner_dedicated_request_concurrency: 4  # Minimum 2 to avoid long polling delays
+        # Base tags for build runners
+        runner_tags:
+          - build
+
+    deploy_instances:
+      hosts:
+        deploy-01:
+          vm_name: "kaapana-deploy-01"
+          # VM sizing (override defaults)
+          cpu_cores: 32
+          memory_guest: "256Gi"
+          disk_size: "512Gi"
+        # deploy-02:
+        #   vm_name: "kaapana-deploy-02"
+        #   cpu_cores: 32
+        #   memory_guest: "256Gi"
+        #   disk_size: "512Gi"
+      vars:
+        instance_type: "deploy"
+        # Global concurrent: max jobs this runner process can handle (should be >= sum of limits)
+        deploy_runner_global_concurrent: 6
+        # Shared runner settings
+        deploy_runner_shared_limit: 5
+        # request_concurrency: max simultaneous API requests to GitLab for jobs.
+        # Higher values reduce job pickup latency during GitLab's ~50s long polling window.
+        deploy_runner_shared_request_concurrency: 4
+        # Dedicated runner settings
+        deploy_runner_dedicated_limit: 1
+        deploy_runner_dedicated_request_concurrency: 4
+        # Base tags for deploy runners
+        runner_tags:
+          - deploy
+
+  

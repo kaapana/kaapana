@@ -1,4 +1,3 @@
-import fnmatch
 import os
 import time
 from pathlib import Path
@@ -167,7 +166,7 @@ class ContainerHelper:
             for dockerfile in dockerfiles_found:
                 bar()
                 if cls._build_config.build_ignore_patterns and any(
-                    fnmatch.fnmatch(dockerfile.as_posix(), pattern)
+                    pattern in dockerfile.as_posix()
                     for pattern in cls._build_config.build_ignore_patterns
                 ):
                     logger.debug(f"Ignoring Dockerfile {dockerfile}")

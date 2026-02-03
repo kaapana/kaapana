@@ -46,11 +46,6 @@
       failed_when: false
       changed_when: false
 
-    - name: microk8s missing — will attempt installation later if needed
-      ansible.builtin.debug:
-        msg: "microk8s not found; will attempt installation via kaapanactl.sh if needed."
-      when: microk8s_check.rc != 0
-
     - name: Check if microk8s is already installed and running
       ansible.builtin.command: microk8s status --wait-ready
       register: microk8s_status
@@ -102,13 +97,6 @@
           {{ microk8s_status.stdout }}
         dest: "{{ artifacts_dir }}/server_installation.log"
 
-    - name: Ensure current user is in microk8s group
-      become: yes
-      ansible.builtin.user:
-        name: "{{ ansible_user_id }}"
-        groups: microk8s
-        append: yes
-
     - name: Refresh group membership for microk8s (newgrp)
       ansible.builtin.shell: |
         newgrp microk8s <<EOF
@@ -119,6 +107,13 @@
       changed_when: false
       ignore_errors: true
 
+    - name: Ensure current user is in microk8s group
+      become: yes
+      ansible.builtin.user:
+        name: "{{ ansible_user_id }}"
+        groups: microk8s
+        append: yes
+        
     - name: Generate kubeconfig
       ansible.builtin.command: microk8s kubectl config view --raw
       register: kubeconfig

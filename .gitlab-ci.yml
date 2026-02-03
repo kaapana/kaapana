@@ -200,42 +200,29 @@ prepare_deployment_instance:
   - when: on_success
   retry: 1
 
-deploy_platform:
-  stage: deploy
-  tags:
-    - deploy-dedicated
+deploy_and_test:
+  stage: deploy_and_test
   needs:
-    - job: prepare_pipeline
-      artifacts: true
-    - job: prepare_deployment_instance
-      artifacts: false
-    - job: build_packages
-      artifacts: false    
-  variables:
-    ARTIFACTS_DIR: "/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"
-  script: |
-    source /home/$USER/venv/bin/activate
-    ansible-playbook $REPO_DIR/ci-code/deploy/deploy_platform.yaml 2>&1 | tee $ARTIFACTS_DIR/ansible_deploy.log
+  - prepare_deployment_instance
+  - build_packages
+  trigger:
+    include:
+      - local: 'ci/ci-code/deploy/.deploy_stage.yaml'
+    strategy: depend
+    forward:
+      pipeline_variables: true
+      yaml_variables: true
   rules:
-    - if: $DEPLOY_PLATFORM == "false"
-      when: never
-    - when: on_success
+  - if: $DEPLOY_PLATFORM == "false"
+    when: never
+  - when: on_success
+
 
 #############################################
 ############## INTEGRATION TESTS ############
 #############################################
-integration:first_login:
-  stage: integration_tests
-  tags:
-    - deploy-shared
-  needs:
-    - deploy_platform
-  variables:
-    ARTIFACTS_DIR: "/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"
-  script:
-    - source /home/$USER/venv/bin/activate
-    - ansible-playbook $REPO_DIR/ci-code/test/get_client_secret.yaml 2>&1 | tee $ARTIFACTS_DIR/get_client_secret.log
-    - ansible-playbook $REPO_DIR/ci-code/test/jobs/ui_tests/first_login.yaml 2>&1 | tee $ARTIFACTS_DIR/first_login.log
+# `integration:first_login` is executed inside `deploy_and_test` to ensure deploy
+# and initial integration checks run atomically on the same machine.
 
 integration:send_testdata:
   stage: integration_tests

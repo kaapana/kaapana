@@ -202,6 +202,8 @@ prepare_deployment_instance:
 
 deploy_and_test:
   stage: deploy_and_test
+  tags:
+    - deploy-dedicated
   needs:
   - prepare_deployment_instance
   - build_packages

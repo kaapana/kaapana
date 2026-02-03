@@ -1,3 +1,4 @@
+{{- $registry_url_without_scheme := regexReplaceAll "^https?://" (ternary .Values.global.custom_registry_url .Values.global.registry_url (ne .Values.global.custom_registry_url "")) "" }}
 # Copy me and only adapt values.yaml and Chart.yaml!
 apiVersion: batch/v1
 kind: Job
@@ -15,7 +16,7 @@ spec:
         kubernetes.io/hostname: {{ .Values.global.main_node_name }}
       containers:
       - name: "remove-{{ .Values.global.image }}"
-        image: "{{- if .Values.global.custom_registry_url }}{{ .Values.global.custom_registry_url }}{{- else}}{{ .Values.global.registry_url }}{{- end }}/{{ .Values.global.image }}:{{ .Chart.Version  }}"
+        image: {{ $registry_url_without_scheme }}/{{ .Values.global.image }}:{{ .Chart.Version }}
         imagePullPolicy: IfNotPresent
         env:
         - name: ACTION
@@ -48,6 +49,6 @@ spec:
       imagePullSecrets:
         - name: registry-secret
         {{- if .Values.global.custom_registry_url }}
-        - name: registry-secret-{{ trunc 7 .Values.global.project_id }}-{{ trunc 4 (sha256sum .Values.global.custom_registry_url ) }}
+        - name: registry-secret-{{ trunc 4 (sha256sum .Values.global.custom_registry_url ) }}
         {{- end }}
   backoffLimit: 0

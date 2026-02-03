@@ -279,7 +279,7 @@ deploy_logs:
   tags:
     - deploy-shared
   needs:
-    - deploy_platform
+    - deploy_and_test
     - prepare_pipeline
   variables:
     ARTIFACTS_DIR: "/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"

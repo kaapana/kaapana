@@ -726,6 +726,11 @@ export default Vue.extend({
         .catch((err: any) => {
           console.log("helm install error", err);
           this.loading = false;
+          this.$notify({
+            type: "error",
+            title: "Installation failed",
+            text: `Installation of ${item.name} failed. ${err.response.data}.`,
+          });
         });
     },
   },

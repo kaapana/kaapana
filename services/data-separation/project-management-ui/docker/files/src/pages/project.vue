@@ -1,4 +1,13 @@
 <template>
+    <v-snackbar
+        v-model="showSnackbar"
+        :timeout="3000"
+        location="top"
+        color="success"
+        elevation="2"
+        >
+        {{ snackbarText }}
+    </v-snackbar>
     <v-container max-width="1200">
         <v-row no-gutters>
             <v-btn size="x-small" variant="outlined" prepend-icon="mdi-arrow-left"
@@ -107,7 +116,7 @@
                             </v-btn>
                             <v-btn v-if="extendProjectSoftware == true" icon="mdi-chevron-down" @click="extendProjectSoftware = false">
                             </v-btn>
-                            <h5 class="text-h5 py-4">Project Software</h5>
+                            <h5 class="text-h5 py-4">Executable Workflows</h5>
                         </div>
                     </v-col>
                     <v-col cols="4" class="d-flex justify-end align-center">
@@ -119,7 +128,7 @@
                             min-width="300"
                             v-if="userHasAdminAccess || can(project?.id,'manage_project_software')"
                             >
-                            Add software to Project
+                            Add executable workflow to project
                         </v-btn>
                     </v-col>
                 </v-row>
@@ -128,7 +137,7 @@
                         <tr>
                             <th></th>
                             <th class="text-left">
-                                Software Identifier
+                                Dag ID
                             </th>
                             <th class="text-center" v-if="userHasAdminAccess  || can(project?.id,'manage_project_software')">
                                 Actions
@@ -166,7 +175,7 @@
                 </v-sheet>
             </v-col>
         </v-row>
-        <v-row justify="space-between">
+        <v-row justify="space-between" v-if="userHasAdminAccess  || can(project?.id,'manage_project_extensions')">
             <v-col>
                 <v-row justify="space-between">
                     <v-col cols="6">
@@ -249,7 +258,7 @@
                 </v-table>
             </v-col>
         </v-row>
-        <v-row>
+        <v-row v-if="userHasAdminAccess  || can(project?.id,'manage_project_extensions')">
             <v-col>
                 <v-row justify="space-between">
                     <v-col cols="6">
@@ -336,14 +345,14 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+import { defineComponent, ref } from 'vue'
 import { aiiApiGet, aiiApiDelete, kubeHelmGet, kubeHelmPost } from '@/common/aiiApi.service'
 import { ProjectItem, UserItem, UserRole, Software } from '@/common/types'
 import AddUserToProject from '@/components/AddUserToProject.vue'
 import store from "@/common/store";
 import { usePermissions } from '@/permissions/usePermissions';
 import LaunchApplication from '@/components/LaunchApplication.vue';
-
+import { useCookies } from "vue3-cookies";
 
 interface User extends UserItem {
     role?: UserRole
@@ -385,6 +394,8 @@ export default defineComponent({
             extendProjectUsers: false,
             extendMultiinstallableExtensions: false,
             extendActiveApplications: false,
+            showSnackbar: false,
+            snackbarText: ref(""),
         };
     },
     mounted() {
@@ -524,15 +535,24 @@ export default defineComponent({
         goToProjectsList() {
             this.$router.push(`/`);
         },
-        fetchProject() {
-            if (this.projectId) {
-                try {
-                    aiiApiGet(`projects/${this.projectId}`).then((project: ProjectItem) => {
-                        this.project = project;
-                    })
-                } catch (error: unknown) {
-                    console.log(error);
-                }
+        async fetchProject() {
+            if (!this.projectId) return;
+            const { cookies } = useCookies();
+            try {
+                const project: ProjectItem = await aiiApiGet(
+                    `projects/${this.projectId}`
+                );
+
+                this.project = project;
+
+                cookies.set("Project", JSON.stringify({
+                    name: project.name,
+                    id: project.id,
+                }));
+                this.snackbarText = `The selected project changed to: ${project.name}. You might need to refresh your tabs.`;
+                this.showSnackbar = true;
+            } catch (error: unknown) {
+                console.error(error);
             }
         },
         fetchProjectUsers() {

@@ -188,8 +188,7 @@
         state: latest
         pkg: "{{ system_packages }}"
 
-    - name: Check if Docker is installed
-      when: instance_type == "build"
+    - name: Check if Docker is installed 
       ansible.builtin.command:
         cmd: which docker
       register: docker_check
@@ -197,7 +196,8 @@
       changed_when: false
 
     - name: Install Docker
-      when: instance_type == "build" and docker_check.rc != 0
+      # build needs docker for building, deploy for some tests (docker compose up)
+      when: docker_check.rc != 0
       import_tasks: target/install-docker.yaml
 
     - name: Check if Helm is installed

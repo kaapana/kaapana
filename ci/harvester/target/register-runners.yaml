@@ -74,7 +74,7 @@
   register: dedicated_runner_api
   delegate_to: localhost
   until: dedicated_runner_api is succeeded
-
+  when: instance_type == 'build'
 
 - name: Register dedicated runner with CLI
   ansible.builtin.command:

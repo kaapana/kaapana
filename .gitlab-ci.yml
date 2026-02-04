@@ -219,6 +219,11 @@ deploy_and_test:
     forward:
       pipeline_variables: true
       yaml_variables: true
+    variables:
+      DEPLOYMENT_INSTANCE_NAME: "$DEPLOYMENT_INSTANCE_NAME"
+      ARTIFACTS_DIR: "$ARTIFACTS_DIR"
+      KAAPANA_DIR: "$KAAPANA_DIR"
+      VERSION_TAG: "$VERSION_TAG"
   rules:
   - if: $DEPLOY_PLATFORM == "false"
     when: never

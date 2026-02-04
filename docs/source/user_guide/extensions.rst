@@ -576,3 +576,7 @@ Data stored within this bucket are available to the Tensorboard application.
 | <slow_data_dir>/applications/tensorboard/<tensorboard-instance-name>
 
 
+.. _extensions_new_registry:
+
+New Registry
+-------------

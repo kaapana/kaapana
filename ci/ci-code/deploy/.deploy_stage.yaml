@@ -1,5 +1,6 @@
 default:
   tags:
+    - $DEPLOYMENT_RUNNER_TAG
     - deploy-shared
   interruptible: true
 

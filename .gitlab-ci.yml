@@ -221,9 +221,6 @@ deploy_and_test:
     when: never
   - when: on_success
 
-###################### Unable to run pipeline
-
-    jobs:prepare_deployment_instance:script config should be a string or a nested array of strings up to 10 levels deep
 #######################
 ############## CLEAN ########################
 #############################################

@@ -491,7 +491,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     def _get_project_registry_secrets(self):
         custom_registry_secrets = KubernetesRunner.api.list_namespaced_secret(
             namespace=self.namespace,
-            label_selector="kaapana.registry-secret=custom-registry",
+            label_selector="kaapana.ai/registry-secret=custom-registry",
         )
         return set(secret.metadata.name for secret in custom_registry_secrets.items)
 

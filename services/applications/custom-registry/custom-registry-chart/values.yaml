@@ -4,23 +4,26 @@ global:
 
 extension_params:
     display_name:
-        default: "-"
-        definition: This name will be used in lists in the user interface.
+        default: "REGISTRY-service-<registry-name>"
+        definition: Unique and identifiable secret name.
+        help: "Use a unique and identifiable name for your registry-secret, e.g. REGISTRY-SECRET-service-<registry-name> or REGISTRY-SECRET-<project-name>-<registry-name>. Must satisfy the regular expression: (([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?"
         type: string
         value: ""
-    service_secret:
-        default: true
-        definition: Install the secret for system-wide functionalities like installing a new workflow extension
-        type: boolean
-        value: ""
-    project_secret:
-        default: true
-        definition: Install the secret in the selected project for pulling processing-containers
-        type: boolean
-        value: ""
+    secret_scope:
+        default: "Service-Secret"
+        definition: "Scope"
+        help: >
+            Defines the scope of the secret:
+            <ul>
+                <li><b>Service Secret</b>: Install the secret for system-wide functionalities like installing a new workflow extension</li>
+                <li><b>Project Secret</b>: Install the secret in the selected project for pulling processing-containers</li>
+            </ul>
+        type: "list_single"
+        value: ["Service-Secret", "Project-Secret"]
     custom_registry_url:
         default: "https://"
-        definition: Absolute registry URL <scheme>://<domain>:<port>//<path>
+        definition: Registry URL with scheme.
+        help: Absolute registry URL <scheme>://<domain>:<port>//<path>
         type: string
         value: ""
     credentials_custom_registry_username:
@@ -35,6 +38,7 @@ extension_params:
         value: ""
     test_pull_image:
         default: "-"
-        definition: "Image to test pull access (<regURL>/<name>:<version>). If '-', test is skipped."
+        help: "Image tag to test pull access (<regURL>/<name>:<version>). If '-', test is skipped."
+        definition: Image tag too test pull access
         type: string
         value: ""

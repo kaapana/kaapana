@@ -130,14 +130,24 @@ class KaapanaRemoteDriver(webdriver.Remote, BaseDriver):
 
     @staticmethod
     def init_capabilities():
-        HTTP_PROXY = os.environ["HTTP_PROXY"]
-        HTTPS_PROXY = os.environ["HTTPS_PROXY"]
-        # Use the selenium Proxy object to add proxy capabilities
-        proxy_config = {"httpProxy": HTTP_PROXY, "sslProxy": HTTPS_PROXY}
-        proxy_object = Proxy(raw=proxy_config)
         capabilities = DesiredCapabilities.CHROME.copy()
         capabilities["acceptSslCerts"] = True
-        proxy_object.add_to_capabilities(capabilities)
+
+        HTTP_PROXY = os.environ.get("HTTP_PROXY")
+        HTTPS_PROXY = os.environ.get("HTTPS_PROXY")
+
+        print(HTTP_PROXY, HTTPS_PROXY)
+
+        if HTTP_PROXY or HTTPS_PROXY:
+            # Only set proxy if at least one is defined
+            proxy_config = {}
+            if HTTP_PROXY:
+                proxy_config["httpProxy"] = HTTP_PROXY
+            if HTTPS_PROXY:
+                proxy_config["sslProxy"] = HTTPS_PROXY
+            proxy_object = Proxy(raw=proxy_config)
+            proxy_object.add_to_capabilities(capabilities)
+
         return capabilities
 
 
@@ -170,6 +180,8 @@ class KaapanaChromeDriver(webdriver.Chrome, BaseDriver):
         HTTP_PROXY = os.environ.get("HTTP_PROXY")
         HTTPS_PROXY = os.environ.get("HTTPS_PROXY")
 
+        print(HTTP_PROXY, HTTPS_PROXY)
+
         if HTTP_PROXY or HTTPS_PROXY:
             # Only set proxy if at least one is defined
             proxy_config = {}
@@ -179,5 +191,5 @@ class KaapanaChromeDriver(webdriver.Chrome, BaseDriver):
                 proxy_config["sslProxy"] = HTTPS_PROXY
             proxy_object = Proxy(raw=proxy_config)
             proxy_object.add_to_capabilities(capabilities)
-        
+
         return capabilities

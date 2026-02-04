@@ -16,6 +16,12 @@ platform_deployment:
   script:
     - source /home/$USER/venv/bin/activate
     - ansible-playbook $REPO_DIR/ci-code/deploy/deploy_platform.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
+    - ip_address=$(hostname -I | awk '{print $1}') || ip_address=""
+    - echo "ip_address=$ip_address" > prepare.env
+    - echo "ARTIFACTS_DIR=${ARTIFACTS_DIR:-/tmp/kaapana_artifacts}" >> prepare.env
+    - echo "KAAPANA_DIR=${KAAPANA_DIR:-/home/ubuntu/builds/$CI_COMMIT_SHORT_SHA}" >> prepare.env
+    - echo "VERSION_TAG=${VERSION_TAG:-}" >> prepare.env
+    - echo "DEPLOYMENT_INSTANCE_NAME=${DEPLOYMENT_INSTANCE_NAME:-}" >> prepare.env
   artifacts: ### Save environment such that upcoming tasks can depend on this task and have all variables available
     reports:
       dotenv: prepare.env

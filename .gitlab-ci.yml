@@ -218,7 +218,8 @@ deploy_and_test:
   stage: deploy_and_test
   needs:
   - prepare_pipeline
-  - prepare_deployment_instance
+  - job: prepare_deployment_instance
+    artifacts: true
   - build_packages
   variables:
     VERSION_TAG: $VERSION_TAG

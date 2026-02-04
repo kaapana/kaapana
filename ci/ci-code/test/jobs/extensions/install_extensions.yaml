@@ -7,6 +7,17 @@
     artifacts_dir: "{{ lookup('ansible.builtin.env', 'ARTIFACTS_DIR') }}"
     ip_address: "{{ lookup('ansible.builtin.env', 'ip_address') }}"
 
+
+  pre_tasks:
+    - name: Source prepare.env for CLIENT_SECRET
+      ansible.builtin.shell: |
+        set -a
+        if [ -f "{{ kaapana_dir }}/prepare.env" ]; then source "{{ kaapana_dir }}/prepare.env"; fi
+        set +a
+      args:
+        executable: /bin/bash
+      changed_when: false
+
   tasks:
     - name: Install all extensions
       register: install_extensions_result

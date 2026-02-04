@@ -82,6 +82,8 @@ prepare_pipeline:
   - echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" >> prepare.env
   - sudo rm -rf $ARTIFACTS_DIR
   - mkdir -p $ARTIFACTS_DIR  
+  - export KAAPANA_DIR="$GIT_CLONE_PATH"
+  - echo "KAAPANA_DIR=$KAAPANA_DIR" >> prepare.env
   artifacts:
     reports:
       dotenv: prepare.env

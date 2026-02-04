@@ -1,16 +1,18 @@
+import logging
+import os
+import time
+from urllib.parse import urljoin
+
 from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-from urllib.parse import urljoin
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.proxy import Proxy
 from selenium.webdriver.remote.remote_connection import RemoteConnection
-from selenium.webdriver.common.keys import Keys
-import time
-import os
-from .logger import get_logger
-import logging
 from urllib3.exceptions import MaxRetryError
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
+
+from .logger import get_logger
 
 logger = get_logger(__name__, logging.DEBUG)
 
@@ -162,12 +164,20 @@ class KaapanaChromeDriver(webdriver.Chrome, BaseDriver):
 
     @staticmethod
     def init_capabilities():
-        HTTP_PROXY = os.environ["HTTP_PROXY"]
-        HTTPS_PROXY = os.environ["HTTPS_PROXY"]
-        # Use the selenium Proxy object to add proxy capabilities
-        proxy_config = {"httpProxy": HTTP_PROXY, "sslProxy": HTTPS_PROXY}
-        proxy_object = Proxy(raw=proxy_config)
         capabilities = DesiredCapabilities.CHROME.copy()
         capabilities["acceptSslCerts"] = True
-        proxy_object.add_to_capabilities(capabilities)
+
+        HTTP_PROXY = os.environ.get("HTTP_PROXY")
+        HTTPS_PROXY = os.environ.get("HTTPS_PROXY")
+
+        if HTTP_PROXY or HTTPS_PROXY:
+            # Only set proxy if at least one is defined
+            proxy_config = {}
+            if HTTP_PROXY:
+                proxy_config["httpProxy"] = HTTP_PROXY
+            if HTTPS_PROXY:
+                proxy_config["sslProxy"] = HTTPS_PROXY
+            proxy_object = Proxy(raw=proxy_config)
+            proxy_object.add_to_capabilities(capabilities)
+        
         return capabilities

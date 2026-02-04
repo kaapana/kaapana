@@ -91,50 +91,23 @@
   until: register_dedicated_result.rc == 0
 
 # Update config.toml with limit, request_concurrency, and custom_build_dir settings
-- name: Update config.toml with runner settings
-  ansible.builtin.shell: |
-    python3 << 'EOF'
-    import re
-    
-    shared_name = '{{ shared_runner_name }}'
-    shared_limit = {{ shared_limit }}
-    shared_request_concurrency = {{ shared_request_concurrency }}
-    dedicated_name = '{{ dedicated_runner_name }}'
-    dedicated_limit = {{ dedicated_limit }}
-    dedicated_request_concurrency = {{ dedicated_request_concurrency }}
-    config_path = '{{ runner_config_path }}'
+- name: Copy runner settings script to remote
+  ansible.builtin.copy:
+    src: "$REPO_DIR/ci-code/register_runner_settings.py"
+    dest: /tmp/register_runner_settings.py
+    mode: '0755'
 
-    with open(config_path, 'r') as f:
-        content = f.read()
-
-    def add_runner_settings(content, runner_name, limit, request_concurrency):
-        lines = content.split('\n')
-        new_lines = []
-        in_runner = False
-        added_settings = False
-        for line in lines:
-            new_lines.append(line)
-            if f'name = "{runner_name}"' in line:
-                in_runner = True
-            if in_runner and not added_settings:
-                if line.strip().startswith('executor ='):
-                    new_lines.append(f'  limit = {limit}')
-                    new_lines.append(f'  request_concurrency = {request_concurrency}')
-                    new_lines.append('  [runners.custom_build_dir]')
-                    new_lines.append('    enabled = true')
-                    added_settings = True
-                    in_runner = False
-        return '\n'.join(new_lines)
-
-    # Add settings for shared runner
-    content = add_runner_settings(content, shared_name, shared_limit, shared_request_concurrency)
-    # Add settings for dedicated runner
-    content = add_runner_settings(content, dedicated_name, dedicated_limit, dedicated_request_concurrency)
-
-    with open(config_path, 'w') as f:
-        f.write(content)
-    
-    print(f"Updated {config_path} with settings for {shared_name} and {dedicated_name}")
-    EOF
-  args:
-    executable: /bin/bash
+- name: Run runner settings script
+  ansible.builtin.command:
+    cmd: >-
+      python3 /tmp/register_runner_settings.py
+      --config "{{ runner_config_path }}"
+      --shared-name "{{ shared_runner_name }}"
+      --shared-limit {{ shared_limit }}
+      --shared-request-concurrency {{ shared_request_concurrency }}
+      --dedicated-name "{{ dedicated_runner_name }}"
+      --dedicated-limit {{ dedicated_limit }}
+      --dedicated-request-concurrency {{ dedicated_request_concurrency }}
+      --vm-name "{{ vm_name }}"
+  register: update_config_result
+  failed_when: update_config_result.rc != 0

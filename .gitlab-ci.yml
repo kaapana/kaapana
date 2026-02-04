@@ -189,6 +189,7 @@ prepare_deployment_instance:
     ARTIFACTS_DIR: "/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"
   script: |
     mkdir -p $ARTIFACTS_DIR
+    mkdir -p $KAAPANA_DIR
     source /home/$USER/venv/bin/activate
     echo "Using VERSION_TAG=$VERSION_TAG"
     echo "CI runner: $CI_RUNNER_DESCRIPTION"

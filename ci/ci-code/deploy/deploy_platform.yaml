@@ -36,12 +36,6 @@
           Version: {{ version_tag }}
           Kaapana Dir: {{ kaapana_dir }}
 
-    - name: Ensure artifacts directory exists
-      ansible.builtin.file:
-        path: "{{ artifacts_dir }}"
-        state: directory
-        mode: '0755'
-
     - name: Verify microk8s is running
       ansible.builtin.command: microk8s status --wait-ready
       register: microk8s_status

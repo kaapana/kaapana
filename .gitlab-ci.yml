@@ -209,6 +209,9 @@ deploy_and_test:
   resource_group: "deploy-$CI_RUNNER_DESCRIPTION"
   variables:
     DEPLOYMENT_INSTANCE_NAME: "$DEPLOYMENT_INSTANCE_NAME"
+    ARTIFACTS_DIR: "$ARTIFACTS_DIR"
+    KAAPANA_DIR: "$KAAPANA_DIR"
+    VERSION_TAG: "$VERSION_TAG"
   trigger:
     include:
       - local: 'ci/ci-code/deploy/.deploy_stage.yaml'

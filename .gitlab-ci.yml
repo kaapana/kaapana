@@ -4,7 +4,6 @@ default:
 stages:
 - prepare_build
 - build
-- prepare_deploy
 - deploy_and_test
 - clean
 
@@ -180,7 +179,7 @@ build_packages:
 ############## DEPLOY #######################
 #############################################
 prepare_deployment_instance:
-  stage: prepare_deploy
+  stage: deploy_and_test
   tags:
     - deploy-shared
   needs:
@@ -194,11 +193,15 @@ prepare_deployment_instance:
     echo "Using VERSION_TAG=$VERSION_TAG"
     echo "CI runner: $CI_RUNNER_DESCRIPTION"
     ansible-playbook $REPO_DIR/ci-code/prepare/prepare_deploy.yaml 2>&1 | tee $ARTIFACTS_DIR/server_installation.log
-  
+  artifacts:
+    reports:
+      dotenv: prepare.env
   rules:
   - if: $DEPLOY_PLATFORM == "false"
     when: never
   - when: on_success
+  resource_group: "deploy-$CI_RUNNER_DESCRIPTION"
+  environment: "deploy-$CI_RUNNER_DESCRIPTION"
   retry: 1
 
 deploy_and_test:
@@ -206,12 +209,6 @@ deploy_and_test:
   needs:
   - prepare_deployment_instance
   - build_packages
-  resource_group: "deploy-$CI_RUNNER_DESCRIPTION"
-  inputs:
-    DEPLOYMENT_INSTANCE_NAME: "$DEPLOYMENT_INSTANCE_NAME"
-    ARTIFACTS_DIR: "$ARTIFACTS_DIR"
-    KAAPANA_DIR: "$KAAPANA_DIR"
-    VERSION_TAG: "$VERSION_TAG"
   trigger:
     include:
       - local: 'ci/ci-code/deploy/.deploy_stage.yaml'
@@ -223,6 +220,8 @@ deploy_and_test:
   - if: $DEPLOY_PLATFORM == "false"
     when: never
   - when: on_success
+  resource_group: "deploy-$CI_RUNNER_DESCRIPTION"
+  environment: "deploy-$CI_RUNNER_DESCRIPTION"
 
 #######################
 ############## CLEAN ########################

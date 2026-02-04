@@ -82,11 +82,12 @@ prepare_pipeline:
   - echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" >> prepare.env
   - sudo rm -rf $ARTIFACTS_DIR
   - mkdir -p $ARTIFACTS_DIR  
-  - cp $KAAPANA_DIR/kaapanactl.sh $ARTIFACTS_DIR/
+  - cp kaapanactl.sh ./kaapanactl.sh || true
+  - chmod +x ./kaapanactl.sh || true
   artifacts:
     name: deploy-file
     paths:
-      - $ARTIFACTS_DIR/kaapanactl.sh
+      - kaapanactl.sh
     expire_in: 1h
     reports:
       dotenv: prepare.env
@@ -195,7 +196,8 @@ prepare_deployment_instance:
     KAAPANA_DIR: "$GIT_CLONE_PATH"
   script: |
     mkdir -p $KAAPANA_DIR
-    cp $ARTIFACTS_DIR/kaapanactl.sh $KAAPANA_DIR/kaapanactl.sh
+    # copy kaapanactl.sh artifact (downloaded into the job workspace by needs:artifacts)
+    cp ./kaapanactl.sh $KAAPANA_DIR/kaapanactl.sh || true
     source /home/$USER/venv/bin/activate
     ansible-playbook $REPO_DIR/ci-code/prepare/prepare_deploy.yaml 2>&1 | tee $ARTIFACTS_DIR/server_installation.log
   artifacts:

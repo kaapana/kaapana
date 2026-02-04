@@ -81,8 +81,13 @@ prepare_pipeline:
   - export ARTIFACTS_DIR="/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"
   - echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" >> prepare.env
   - sudo rm -rf $ARTIFACTS_DIR
-  - mkdir -p $ARTIFACTS_DIR
+  - mkdir -p $ARTIFACTS_DIR  
+  - cp $KAAPANA_DIR/kaapanactl.sh $ARTIFACTS_DIR/
   artifacts:
+    name: deploy-file
+    paths:
+      - $ARTIFACTS_DIR/kaapanactl.sh
+    expire_in: 1h
     reports:
       dotenv: prepare.env
 
@@ -183,16 +188,15 @@ prepare_deployment_instance:
   tags:
     - deploy-shared
   needs:
-  - prepare_pipeline
+    - job: prepare_pipeline
+      artifacts: true
   variables:
-    GIT_STRATEGY: clone
     ARTIFACTS_DIR: "/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"
+    KAAPANA_DIR: "$GIT_CLONE_PATH"
   script: |
-    mkdir -p $ARTIFACTS_DIR
     mkdir -p $KAAPANA_DIR
+    cp $ARTIFACTS_DIR/kaapanactl.sh $KAAPANA_DIR/kaapanactl.sh
     source /home/$USER/venv/bin/activate
-    echo "Using VERSION_TAG=$VERSION_TAG"
-    echo "CI runner: $CI_RUNNER_DESCRIPTION"
     ansible-playbook $REPO_DIR/ci-code/prepare/prepare_deploy.yaml 2>&1 | tee $ARTIFACTS_DIR/server_installation.log
   artifacts:
     reports:

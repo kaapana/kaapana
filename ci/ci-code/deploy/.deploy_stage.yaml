@@ -1,6 +1,6 @@
 default:
   tags:
-    - deploy_shared
+    - deploy-shared
   interruptible: true
 
 stages:

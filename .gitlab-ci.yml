@@ -209,6 +209,10 @@ deploy_and_test:
   needs:
   - prepare_deployment_instance
   - build_packages
+  variables:
+    VERSION_TAG: $VERSION_TAG
+    KAAPANA_DIR: $KAAPANA_DIR
+    ARTIFACTS_DIR: $ARTIFACTS_DIR
   trigger:
     include:
       - local: 'ci/ci-code/deploy/.deploy_stage.yaml'

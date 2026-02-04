@@ -187,12 +187,19 @@ prepare_deployment_instance:
   variables:
     GIT_STRATEGY: clone
     ARTIFACTS_DIR: "/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"
+    KAAPANA_DIR: $KAAPANA_DIR
   script: |
     mkdir -p $ARTIFACTS_DIR
     mkdir -p $KAAPANA_DIR
     source /home/$USER/venv/bin/activate
     echo "Using VERSION_TAG=$VERSION_TAG"
     echo "CI runner: $CI_RUNNER_DESCRIPTION"
+    # ensure prepare.env exists so CI can publish dotenv artifacts
+    echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" > prepare.env
+    echo "KAAPANA_DIR=$KAAPANA_DIR" >> prepare.env
+    echo "VERSION_TAG=${VERSION_TAG:-}" >> prepare.env
+    echo "CI_RUNNER_DESCRIPTION=${CI_RUNNER_DESCRIPTION:-}" >> prepare.env
+
     ansible-playbook $REPO_DIR/ci-code/prepare/prepare_deploy.yaml 2>&1 | tee $ARTIFACTS_DIR/server_installation.log
   artifacts:
     reports:

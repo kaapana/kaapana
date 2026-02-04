@@ -188,12 +188,12 @@ prepare_deployment_instance:
   variables:
     GIT_STRATEGY: clone
     ARTIFACTS_DIR: "/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"
-  script:
-  - mkdir -p $ARTIFACTS_DIR
-  - source /home/$USER/venv/bin/activate
-  - echo "Using VERSION_TAG=$VERSION_TAG"
-  - echo "CI runner: $CI_RUNNER_DESCRIPTION"
-  - ansible-playbook $REPO_DIR/ci-code/prepare/prepare_deploy.yaml 2>&1 | tee $ARTIFACTS_DIR/server_installation.log
+  script: |
+    mkdir -p $ARTIFACTS_DIR
+    source /home/$USER/venv/bin/activate
+    echo "Using VERSION_TAG=$VERSION_TAG"
+    echo "CI runner: $CI_RUNNER_DESCRIPTION"
+    ansible-playbook $REPO_DIR/ci-code/prepare/prepare_deploy.yaml 2>&1 | tee $ARTIFACTS_DIR/server_installation.log
   
   rules:
   - if: $DEPLOY_PLATFORM == "false"
@@ -221,7 +221,10 @@ deploy_and_test:
     when: never
   - when: on_success
 
-#############################################
+###################### Unable to run pipeline
+
+    jobs:prepare_deployment_instance:script config should be a string or a nested array of strings up to 10 levels deep
+#######################
 ############## CLEAN ########################
 #############################################
 if_ci_failing:

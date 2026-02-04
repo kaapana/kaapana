@@ -36,24 +36,30 @@
           Version: {{ version_tag }}
           Kaapana Dir: {{ kaapana_dir }}
 
+    - name: Ensure artifacts directory exists
+      ansible.builtin.file:
+        path: "{{ artifacts_dir }}"
+        state: directory
+        mode: '0755'
+
     - name: Verify microk8s is running
       ansible.builtin.command: microk8s status --wait-ready
       register: microk8s_status
-      retries: 30
-      delay: 10
+      retries: 3
+      delay: 5
       until: microk8s_status.rc == 0
 
     - name: Check kubernetes API is healthy
       ansible.builtin.command: microk8s kubectl cluster-info
       register: cluster_info
-      retries: 10
+      retries: 3
       delay: 5
       until: cluster_info.rc == 0
 
     - name: Check helm can access kubernetes
       ansible.builtin.command: helm ls -A
       register: helm_check
-      retries: 10
+      retries: 3
       delay: 5
       until: helm_check.rc == 0
 

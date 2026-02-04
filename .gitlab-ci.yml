@@ -207,6 +207,7 @@ prepare_deployment_instance:
 deploy_and_test:
   stage: deploy_and_test
   needs:
+  - prepare_pipeline
   - prepare_deployment_instance
   - build_packages
   variables:

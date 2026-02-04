@@ -14,6 +14,7 @@ workflow:
 
 platform_deployment:
   stage: deploy
+  resource_group: "deploy-${CI_RUNNER_DESCRIPTION}"
   script:
     - source /home/$USER/venv/bin/activate
     - ansible-playbook $REPO_DIR/ci-code/deploy/deploy_platform.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"

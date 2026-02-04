@@ -220,8 +220,8 @@ deploy_and_test:
   - build_packages
   variables:
     VERSION_TAG: $VERSION_TAG
-    KAAPANA_DIR: $KAAPANA_DIR
-    ARTIFACTS_DIR: $ARTIFACTS_DIR
+    KAAPANA_DIR: "/home/ubuntu/builds/$CI_COMMIT_SHORT_SHA"
+    ARTIFACTS_DIR: "/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA"
   trigger:
     include:
       - local: 'ci/ci-code/deploy/.deploy_stage.yaml'

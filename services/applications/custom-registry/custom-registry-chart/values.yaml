@@ -22,8 +22,8 @@ extension_params:
         value: ["Service-Secret", "Project-Secret"]
     custom_registry_url:
         default: "https://"
-        definition: Registry URL with scheme.
-        help: Absolute registry URL <scheme>://<domain>:<port>//<path>
+        definition: Absolute registry URL.
+        help: Absolute registry URL <protocol>://<domain>:<port>/<path>
         type: string
         value: ""
     credentials_custom_registry_username:
@@ -38,7 +38,7 @@ extension_params:
         value: ""
     test_pull_image:
         default: "-"
-        help: "Image tag to test pull access (<regURL>/<name>:<version>). If '-', test is skipped."
+        help: "Image tag to test pull access without the protocol <domain>:<port>/<path>/<name>:<version>. If '-', test is skipped."
         definition: Image tag too test pull access
         type: string
         value: ""

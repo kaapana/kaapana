@@ -1,4 +1,6 @@
 default:
+  tags:
+    - deploy_shared
   interruptible: true
 
 stages:
@@ -11,10 +13,7 @@ workflow:
 
 platform_deployment:
   stage: deploy
-  tags:
-    - deploy-dedicated
   script:
-    - echo "child pipeline DEPLOYMENT_INSTANCE_NAME=$DEPLOYMENT_INSTANCE_NAME"
     - source /home/$USER/venv/bin/activate
     - ansible-playbook $REPO_DIR/ci-code/deploy/deploy_platform.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
   artifacts: ### Save environment such that upcoming tasks can depend on this task and have all variables available

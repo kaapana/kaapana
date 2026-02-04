@@ -207,6 +207,8 @@ deploy_and_test:
   - prepare_deployment_instance
   - build_packages
   resource_group: "deploy-$CI_RUNNER_DESCRIPTION"
+  variables:
+    DEPLOYMENT_INSTANCE_NAME: "$DEPLOYMENT_INSTANCE_NAME"
   trigger:
     include:
       - local: 'ci/ci-code/deploy/.deploy_stage.yaml'

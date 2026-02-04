@@ -190,7 +190,6 @@ prepare_deployment_instance:
   script: |
     mkdir -p $ARTIFACTS_DIR
     mkdir -p $KAAPANA_DIR
-    cp -r $CI_PROJECT_DIR/deploy_files/* $KAAPANA_DIR
     source /home/$USER/venv/bin/activate
     echo "Using VERSION_TAG=$VERSION_TAG"
     echo "CI runner: $CI_RUNNER_DESCRIPTION"

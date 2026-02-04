@@ -192,6 +192,7 @@ prepare_deployment_instance:
   - mkdir -p $ARTIFACTS_DIR
   - source /home/$USER/venv/bin/activate
   - echo "Using VERSION_TAG=$VERSION_TAG"
+  - echo "CI runner: $CI_RUNNER_DESCRIPTION"
   - ansible-playbook $REPO_DIR/ci-code/prepare/prepare_deploy.yaml 2>&1 | tee $ARTIFACTS_DIR/server_installation.log
   
   rules:
@@ -207,6 +208,7 @@ deploy_and_test:
   needs:
   - prepare_deployment_instance
   - build_packages
+  resource_group: "deploy-$CI_RUNNER_DESCRIPTION"
   trigger:
     include:
       - local: 'ci/ci-code/deploy/.deploy_stage.yaml'

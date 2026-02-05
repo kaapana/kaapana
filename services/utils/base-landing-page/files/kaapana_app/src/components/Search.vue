@@ -70,7 +70,9 @@
           ></v-autocomplete>
         </v-col>
         <v-col cols="5">
+          <!-- Normal mode: autocomplete with dropdown -->
           <v-autocomplete
+            v-if="!filter.freeInput"
             :disabled="filter.key_select == null"
             v-model="filter.item_select"
             :items="
@@ -84,9 +86,38 @@
             deletable-chips
             multiple
             small-chips
+            rows="2"
             dense
             hide-details
           ></v-autocomplete>
+          <!-- Free input mode: textarea for pasting multiple values -->
+          <v-textarea
+            v-else
+            :disabled="filter.key_select == null"
+            v-model="filter.freeInputText"
+            placeholder="Enter values separated by spaces, commas, or newlines"
+            rows="2"
+            dense
+            hide-details
+            @blur="parseFreeInput(filter)"
+            @keydown.enter.ctrl="parseFreeInput(filter)"
+          ></v-textarea>
+        </v-col>
+        <v-col cols="1" align="center">
+          <v-tooltip bottom>
+            <template v-slot:activator="{ on, attrs }">
+              <v-btn
+                @click="toggleFreeInput(filter)"
+                small
+                icon
+                v-bind="attrs"
+                v-on="on"
+              >
+                <v-icon>{{ filter.freeInput ? 'mdi-form-dropdown' : 'mdi-form-textarea' }}</v-icon>
+              </v-btn>
+            </template>
+            <span>{{ filter.freeInput ? 'Switch to dropdown' : 'Switch to free input' }}</span>
+          </v-tooltip>
         </v-col>
         <v-col cols="1" align="center">
           <v-btn @click="deleteFilter(filter.id)" small icon>
@@ -183,10 +214,51 @@ export default {
       this.display_filters = true;
       this.filters.push({
         id: this.counter++,
+        freeInput: false,
+        freeInputText: "",
       });
     },
     deleteFilter(id) {
       this.filters = this.filters.filter((filter) => filter.id !== id);
+    },
+    /**
+     * Toggle between dropdown and free input mode for a filter.
+     */
+    toggleFreeInput(filter) {
+      filter.freeInput = !filter.freeInput;
+      if (filter.freeInput && filter.item_select?.length > 0) {
+        // Convert existing selections to free text
+        filter.freeInputText = filter.item_select.join("\n");
+      } else if (!filter.freeInput && filter.freeInputText) {
+        // Parse free text back to selections
+        this.parseFreeInput(filter);
+      }
+    },
+    /**
+     * Parse free input text into item_select array.
+     */
+    parseFreeInput(filter) {
+      const text = filter.freeInputText;
+      if (!text) {
+        filter.item_select = [];
+        return;
+      }
+
+      // Split by spaces, newlines, or commas
+      const values = text
+        .split(/[\s,]+/)
+        .map((v) => v.trim())
+        .filter((v) => v.length > 0);
+
+      const key = filter.key_select;
+      const isNumeric =
+        this.mapping[key]?.key?.endsWith("_integer") ||
+        this.mapping[key]?.key?.endsWith("_float");
+
+      // Parse all values
+      filter.item_select = values.map((val) =>
+        isNumeric ? parseFloat(val) : val
+      );
     },
     /**
      * Compose the full search query.

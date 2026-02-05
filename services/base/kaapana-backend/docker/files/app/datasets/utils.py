@@ -360,3 +360,61 @@ def get_field_mapping(os_client, index) -> Dict:
         if len(re.findall("\d", k)) == 0 and k != "" and v != ""
     }
     return name_field_map
+
+
+def get_max_clause_count(os_client) -> int:
+    """
+    Fetches the max_clause_count setting from OpenSearch cluster settings.
+    This determines the maximum number of clauses allowed in a bool query.
+    Default is 1024 if not configured.
+    """
+    DEFAULT_MAX_CLAUSE_COUNT = 1024
+    try:
+        settings = os_client.cluster.get_settings(include_defaults=True)
+        # Check persistent, then transient, then defaults
+        for setting_type in ["persistent", "transient", "defaults"]:
+            if setting_type in settings:
+                max_clause = (
+                    settings[setting_type]
+                    .get("indices", {})
+                    .get("query", {})
+                    .get("bool", {})
+                    .get("max_clause_count")
+                )
+                if max_clause is not None:
+                    return int(max_clause)
+        return DEFAULT_MAX_CLAUSE_COUNT
+    except Exception as e:
+        logger.warning(f"Failed to fetch max_clause_count from cluster settings: {e}")
+        return DEFAULT_MAX_CLAUSE_COUNT
+
+
+def get_present_searchable_fields(os_client, index) -> List[str]:
+    """
+    Get all searchable (text/keyword) fields from the index mapping.
+    
+    Returns base field names (without .keyword suffix) so that:
+    - Text fields use analyzed search (partial matching)
+    - Pure keyword fields still require exact match
+    
+    :param os_client: OpenSearch client
+    :param index: Index to search
+    :return: List of searchable field names (sorted alphabetically)
+    """
+    if not index:
+        logger.warning("No index provided for get_present_searchable_fields")
+        return []
+
+    field_mapping = get_field_mapping(os_client, index)
+    if not field_mapping:
+        return []
+    
+    # Get fields that have text/keyword mapping (those with .keyword suffix)
+    # Return base names (without .keyword) for text-analyzed search
+    result_fields = sorted([
+        field.removesuffix(".keyword")
+        for field in field_mapping.values() 
+        if field.endswith(".keyword")
+    ])
+    
+    return result_fields

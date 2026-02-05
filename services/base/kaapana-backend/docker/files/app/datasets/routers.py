@@ -402,6 +402,32 @@ async def get_fields(
         return JSONResponse(mapping)
 
 
+@router.get("/search_fields")
+async def get_search_fields(
+    os_client=Depends(get_opensearch),
+    project_index=Depends(get_project_index),
+):
+    """
+    Get all searchable fields for the current project index.
+    Used for 2-step search to avoid "too many clauses" error.
+    """
+    try:
+        fields = utils.get_present_searchable_fields(os_client, project_index)
+        max_clause_count = utils.get_max_clause_count(os_client)
+        
+        return JSONResponse({
+            "fields": fields,
+            "field_count": len(fields),
+            "max_clause_count": max_clause_count,
+        })
+    except Exception as e:
+        logger.error(f"Failed to get search fields: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve searchable fields: {str(e)}"
+        )
+
+
 def get_dir_size(start_dir: str):
     if not os.path.exists(start_dir):
         return 0

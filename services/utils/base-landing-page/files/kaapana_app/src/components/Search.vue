@@ -105,6 +105,7 @@ import {
   loadDatasetByName,
   loadFieldNames,
   loadValues,
+  loadSearchFields,
 } from "../common/api.service";
 import SaveDatasetDialog from "@/components/SaveDatasetDialog.vue";
 import { mapGetters } from "vuex";
@@ -187,12 +188,20 @@ export default {
     deleteFilter(id) {
       this.filters = this.filters.filter((filter) => filter.id !== id);
     },
-    async composeQuery() {
-      let inner_query = {match_all: {}};
-      if (this.query_string && this.query_string.trim().length > 0) {
+    /**
+     * Compose the full search query.
+     * @param {Array|null} fields - Array of field names to search, or null to skip free-text.
+     */
+    composeQuery(fields = null) {
+      let inner_query = { match_all: {} };
+      const hasQueryString = this.query_string && this.query_string.trim().length > 0;
+      
+      if (hasQueryString && fields && fields.length > 0) {
         inner_query = {
           query_string: {
             query: this.query_string,
+            fields: fields,
+            default_operator: "AND",
           },
         };
       }
@@ -203,7 +212,7 @@ export default {
             this.constructDatasetQuery(),
             ...this.filters
               .map((filter) => this.queryFromFilter(filter))
-              .filter((query) => query !== null),
+              .filter((q) => q !== null),
             inner_query,
           ].filter((q) => q !== null),
         },
@@ -211,7 +220,42 @@ export default {
       return query;
     },
     async search() {
-      this.$emit("search", await this.composeQuery());
+      const hasQueryString = this.query_string && this.query_string.trim().length > 0;
+      
+      if (!hasQueryString) {
+        this.$emit("search", this.composeQuery(null));
+        return;
+      }
+      
+      try {
+        const { fields, field_count, max_clause_count } = await loadSearchFields();
+        
+        if (field_count === 0) {
+          this.$notify({
+            title: "Warning",
+            text: "No searchable text fields found. Showing filter results only.",
+            type: "warn",
+          });
+          this.$emit("search", this.composeQuery(null));
+          return;
+        }
+        
+        if (field_count > max_clause_count) {
+          this.$notify({
+            title: "Error",
+            text: `Too many fields to search (${field_count} > ${max_clause_count}). Add filters to reduce the query-size, or search without free-text.`,
+            type: "error",
+          });
+          this.$emit("search", this.composeQuery(null));
+          return;
+        }
+        
+        this.$emit("search", this.composeQuery(fields));
+        
+      } catch (error) {
+        console.error("[Search.vue] Failed to load search fields:", error);
+        this.$emit("search", this.composeQuery(null));
+      }
     },
     queryFromFilter(filter) {
       if (filter.item_select && filter.item_select.length > 0) {

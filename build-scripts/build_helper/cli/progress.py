@@ -259,7 +259,7 @@ class ProgressBar:
 
         return table
 
-    def finished_print(self, title: str, last_processed_container: Container):
+    def finished_print(self, last_processed_container: Container):
         """
         Print a finished container status line to the console and log file.
 
@@ -281,21 +281,4 @@ class ProgressBar:
             )
             status = f"{str(last_processed_container.status):<{self.status_width}}"
 
-            if self.use_rich:
-                color = self.status_colors.get(last_processed_container.status, "white")
-                if self._console:
-                    self._console.print(
-                        f"{title}: {tag} -> [{color}]{status}[/{color}] | "
-                        f"Build: {build_time} | Push: {push_time}",
-                        markup=True,
-                        highlight=False,
-                    )
-                if self.logfile_console:
-                    self.logfile_console.print(
-                        f"{title}: {tag} -> [{color}]{status}[/{color}] | "
-                        f"Build: {build_time} | Push: {push_time}",
-                        markup=True,
-                        highlight=False,
-                    )
-            else:
-                logger.info(f"{tag} - build: {build_time} - push: {push_time}")
+            logger.info(f"{tag} - build: {build_time} - push: {push_time}")

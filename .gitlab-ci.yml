@@ -49,9 +49,9 @@ variables:
 
   ### FIXED VARIABLES
   GIT_STRATEGY: "none" ### Predefined Gitlab CI variable; Has to be one of ["clone", "fetch", "none"]
-  GIT_CLONE_PATH: $HOME/builds/$CI_COMMIT_SHORT_SHA
+  GIT_CLONE_PATH: $CI_BUILDS_DIR/builds/$CI_COMMIT_SHA
   KAAPANA_DIR: $GIT_CLONE_PATH
-  ARTIFACTS_DIR: "$HOME/artifacts/$CI_COMMIT_SHORT_SHA"
+  ARTIFACTS_DIR: "$CI_BUILDS_DIR/artifacts/$CI_COMMIT_SHA"
   REPO_DIR: $GIT_CLONE_PATH/ci
   ANSIBLE_VERBOSITY: 0
 

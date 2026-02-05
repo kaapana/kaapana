@@ -18,12 +18,6 @@
 
   tasks:
     # --- PREPARE INSTANCE ---
-    - name: Create artifacts directory
-      ansible.builtin.file:
-        path: "{{ artifacts_dir }}"
-        state: directory
-        mode: '0755'
-
     - name: Increase inotify watchers
       become: yes
       ansible.builtin.sysctl:

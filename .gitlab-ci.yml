@@ -48,11 +48,10 @@ variables:
   REGISTRY_USER: $GITLAB_USER_LOGIN
 
   ### FIXED VARIABLES
-  #REGISTRY_TOKEN: $CI_REGISTRY_PASSWORD
   GIT_STRATEGY: "none" ### Predefined Gitlab CI variable; Has to be one of ["clone", "fetch", "none"]
-  # GIT_CLONE_PATH: $CI_BUILDS_DIR/$CI_PIPELINE_ID
-  GIT_CLONE_PATH: /home/ubuntu/builds/$CI_COMMIT_SHORT_SHA
+  GIT_CLONE_PATH: $HOME/builds/$CI_COMMIT_SHORT_SHA
   KAAPANA_DIR: $GIT_CLONE_PATH
+  ARTIFACTS_DIR: "$HOME/artifacts/$CI_COMMIT_SHORT_SHA"
   REPO_DIR: $GIT_CLONE_PATH/ci
   ANSIBLE_VERBOSITY: 0
 
@@ -78,12 +77,8 @@ prepare_pipeline:
   - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
   - export VERSION_TAG=$( if [[ $BUILD_ARGUMENTS == *"--latest"* ]]; then echo "0.0.0-latest"; else echo $( git describe ); fi)
   - echo VERSION_TAG=$VERSION_TAG >> prepare.env
-  - export ARTIFACTS_DIR="/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"
-  - echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" >> prepare.env
   - sudo rm -rf $ARTIFACTS_DIR
-  - mkdir -p $ARTIFACTS_DIR  
-  - export KAAPANA_DIR="$GIT_CLONE_PATH"
-  - echo "KAAPANA_DIR=$KAAPANA_DIR" >> prepare.env
+  - mkdir -p $ARTIFACTS_DIR
   artifacts:
     reports:
       dotenv: prepare.env
@@ -160,6 +155,7 @@ build_documentation:
   - if: $EXECUTE_BUILD == "false"
     when: never
   - when: on_success
+  # Artifacts uploaded in clean stage
 
 #############################################
 ############## BUILD ########################
@@ -176,33 +172,33 @@ build_packages:
   - if [[ $DOCKER_PRUNE == "true" ]]; then docker system prune --all --volumes -f; fi
   - if [[ $EXECUTE_BUILD == "true" ]]; then bash $REPO_DIR/ci-code/build/build.sh; fi
   retry: 1
-
+  # Artifacts uploaded in clean stage
+  
 #############################################
 ############## DEPLOY #######################
 #############################################
+prepare_deployment_instance1:
+  stage: deploy_and_test
+  tags:
+    - deploy-shared
+  needs:
+  - prepare_pipeline
+  script:
+    - printenv
+    - sudo rm -rf $ARTIFACTS_DIR
+    - mkdir -p $ARTIFACTS_DIR # Recreate on the deploy instance
+  
 prepare_deployment_instance:
   stage: deploy_and_test
   tags:
     - deploy-shared
   needs:
   - prepare_pipeline
-  variables:
-    GIT_STRATEGY: clone
-    ARTIFACTS_DIR: "/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"
-    KAAPANA_DIR: $KAAPANA_DIR
-  script: |
-    mkdir -p $ARTIFACTS_DIR
-    mkdir -p $KAAPANA_DIR
-    source /home/$USER/venv/bin/activate
-    echo "Using VERSION_TAG=$VERSION_TAG"
-    echo "CI runner: $CI_RUNNER_DESCRIPTION"
-    # ensure prepare.env exists so CI can publish dotenv artifacts
-    echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" > prepare.env
-    echo "KAAPANA_DIR=$KAAPANA_DIR" >> prepare.env
-    echo "VERSION_TAG=${VERSION_TAG:-}" >> prepare.env
-    echo "CI_RUNNER_DESCRIPTION=${CI_RUNNER_DESCRIPTION:-}" >> prepare.env
-
-    ansible-playbook $REPO_DIR/ci-code/prepare/prepare_deploy.yaml 2>&1 | tee $ARTIFACTS_DIR/server_installation.log
+  script:
+    - sudo rm -rf $ARTIFACTS_DIR
+    - mkdir -p $ARTIFACTS_DIR # Recreate on the deploy instance
+    - source /home/$USER/venv/bin/activate
+    - ansible-playbook $REPO_DIR/ci-code/prepare/prepare_deploy.yaml 2>&1 | tee $ARTIFACTS_DIR/server_installation.log
   artifacts:
     reports:
       dotenv: prepare.env

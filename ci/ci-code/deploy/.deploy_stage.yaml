@@ -15,7 +15,7 @@ platform_deployment:
   stage: deploy
   script:
     - source /home/$USER/venv/bin/activate
-    - ansible-playbook $REPO_DIR/ci-code/deploy/deploy_platform.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
+    - ansible-playbook $REPO_DIR/ci-code/deploy/deploy_platform.yaml
     - ip_address=$(hostname -I | awk '{print $1}') || ip_address=""
     - echo "ip_address=$ip_address" > prepare.env
     - echo "ARTIFACTS_DIR=${ARTIFACTS_DIR:-/tmp/kaapana_artifacts}" >> prepare.env
@@ -34,9 +34,20 @@ first_login:
   stage: test
   script:
     - source /home/$USER/venv/bin/activate
-    - ansible-playbook $REPO_DIR/ci-code/test/get_client_secret.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
-    - ansible-playbook $REPO_DIR/ci-code/test/jobs/ui_tests/first_login.yaml
-  artifacts: ### Save environment such that upcoming tasks can depend on this task and have all variables available
+    # Get client secret from helm and save to prepare.env
+    - echo "CLIENT_SECRET=$(helm get values kaapana-admin-chart -o json | jq -r .global.oidc_client_secret)" >> prepare.env
+    # Run UI tests using docker compose (mimic Ansible logic)
+    - export KAAPANA_URL="https://$ip_address"
+    - export TEST_FILE="tests/test_first_login.py"
+    - export LOG_FILE="$ARTIFACTS_DIR/first_login.log"
+    - cd $REPO_DIR/ci-code/test/jobs/ui_tests
+    - touch "$LOG_FILE"
+    - docker compose up --build --exit-code-from tests --force-recreate || true
+    - docker rm -f ui_tests_tests_1 ui_tests_selenium_1 || true
+    - docker compose logs > "$ARTIFACTS_DIR/ui-tests.log" || true
+    # Fail if UI tests failed
+    - docker compose ps | grep tests | grep -q "Exit 0" || exit 1
+  artifacts:
     reports:
       dotenv: prepare.env
   rules:
@@ -63,7 +74,7 @@ install_extensions:
   script:
     - source /home/$USER/venv/bin/activate
     - cd $REPO_DIR/ci-code/test/src
-    - python3 install_extensions.py --host $ip_address --install-all --log-file $ARTIFACTS_DIR/install_extensions.log --timeout 600
+    - python3 install_extensions.py --host "$ip_address" --install-all --timeout 3000 > "$ARTIFACTS_DIR/install_extensions.log" 2>&1 || (cat "$ARTIFACTS_DIR/install_extensions.log" && exit 1)
   needs:
     - first_login
   allow_failure: false

@@ -25,7 +25,6 @@ class ContainerHelper:
         - Login to container registries
         - Collect containers from source directories
         - Resolve base image dependencies
-        - Build and push containers in parallel
         - Track build statuses
         - Gather statistics on built images
     """
@@ -287,52 +286,6 @@ class ContainerHelper:
         container = matches[0]
         logger.debug(f"{image_name}: container found: {container.tag}")
         return container
-
-    @classmethod
-    def _process_container(cls, container: Container) -> None:
-        """
-        Build and optionally push a container.
-
-        This function is executed inside a worker thread and must not mutate
-        shared scheduling state or UI components.
-
-        Behavior:
-            - Builds the container
-            - Records build issues
-            - Determines final status
-            - Pushes the container if applicable
-            - Records push issues
-            - Raises on unrecoverable build failures
-
-        Side Effects:
-            - Updates container.status
-            - Appends issues to IssueTracker.issues
-            - Emits logs via container build/push operations
-
-        Raises:
-            RuntimeError:
-                If the container build fails.
-        """
-
-        build_issue = container.build(cls._build_config)
-
-        # Determine outcome after build
-        if build_issue:
-            IssueTracker.issues.append(build_issue)
-            container.status = Status.FAILED
-            raise RuntimeError(f"Build failed for container {container.tag}")
-
-        if container.status in {Status.SKIPPED, Status.BUILT_ONLY}:
-            return
-
-        if cls._build_config.build_only:
-            container.status = Status.BUILT_ONLY
-            return
-
-        # Push phase
-        push_issue = container.push(cls._build_config)
-        if push_issue:
-            IssueTracker.issues.append(push_issue)
 
     @classmethod
     def get_built_images_stats(cls, version: str) -> Dict[str, Dict[str, Any]]:

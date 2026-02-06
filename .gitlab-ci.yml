@@ -49,6 +49,7 @@ variables:
 
   ### FIXED VARIABLES
   GIT_STRATEGY: "none" ### Predefined Gitlab CI variable; Has to be one of ["clone", "fetch", "none"]
+  GIT_
   ANSIBLE_VERBOSITY: 0
 
 #############################################
@@ -74,8 +75,10 @@ prepare_pipeline:
   - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
 
   # Compute job-only paths
-  - export KAAPANA_DIR="$CI_BUILDS_DIR/$CI_COMMIT_SHORT_SHA"
-  - export ARTIFACTS_DIR="$CI_BUILDS_DIR/../artifacts/$CI_COMMIT_SHORT_SHA"
+  - export GIT_CLONE_PATH="$HOME/builds/$CI_COMMIT_SHA"
+  - export KAAPANA_DIR="$GIT_CLONE_PATH"
+  - export ARTIFACTS_DIR="$HOME/artifacts/$CI_COMMIT_SHA"
+  - export REPO_DIR="$GIT_CLONE_PATH/ci"
   - mkdir -p "$KAAPANA_DIR" "$ARTIFACTS_DIR"
   - export VERSION_TAG=$( if [[ $BUILD_ARGUMENTS == *"--latest"* ]]; then echo "0.0.0-latest"; else echo $( git describe ); fi)
   - echo VERSION_TAG=$VERSION_TAG >> prepare.env

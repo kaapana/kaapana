@@ -29,7 +29,7 @@ prepare_vars:
     - source /home/$USER/venv/bin/activate
     - |
       set -euo pipefail
-      ip_address="${IP_ADDRESS:-${DEPLOYMENT_INSTANCE_IP:-$(hostname -I | awk '{print $1}')}}"
+      ip_address="$(hostname -I | awk '{print $1}')"
       echo "DEPLOYMENT_INSTANCE_IP=$ip_address" > prepare.env
       # Try to read client secret from helm; if helm fails, still produce prepare.env
       client_secret=$(helm get values kaapana-admin-chart -o json 2>/dev/null | jq -r .global.oidc_client_secret 2>/dev/null || true)
@@ -46,9 +46,10 @@ first_login:
   stage: test
   script:
     - source /home/$USER/venv/bin/activate
-    # Get client secret from helm and save to prepare.env
-    - echo "CLIENT_SECRET=$(helm get values kaapana-admin-chart -o json | jq -r .global.oidc_client_secret)" >> prepare.env
-    # Run UI tests using docker compose (mimic Ansible logic)
+    # test if variables from prepare_vars are present
+    - echo "Testing if variables are present..."
+    - if [[ -z "$DEPLOYMENT_INSTANCE_IP" ]]; then echo "DEPLOYMENT_INSTANCE_IP is not set"; exit 1; fi
+    - if [[ -z "$CLIENT_SECRET" ]]; then echo "CLIENT_SECRET is not set"; exit 1; fi
     - export KAAPANA_URL="https://$ip_address"
     - export TEST_FILE="tests/test_first_login.py"
     - export LOG_FILE="$ARTIFACTS_DIR/first_login.log"
@@ -57,7 +58,6 @@ first_login:
     - docker compose up --build --exit-code-from tests --force-recreate || true
     - docker rm -f ui_tests_tests_1 ui_tests_selenium_1 || true
     - docker compose logs > "$ARTIFACTS_DIR/ui-tests.log" || true
-    # Fail if UI tests failed
     - docker compose ps | grep tests | grep -q "Exit 0" || exit 1
   artifacts:
     reports:

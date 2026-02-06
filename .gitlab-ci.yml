@@ -218,9 +218,7 @@ deploy_and_test:
   - prepare_deploy_pipeline    
   - build_packages
   variables:
-    VERSION_TAG: $VERSION_TAG
-    KAAPANA_DIR: $KAAPANA_DIR
-    ARTIFACTS_DIR: $ARTIFACTS_DIR
+    VERSION_TAG: "$VERSION_TAG"
   trigger:
     include:
       - local: 'ci/ci-code/deploy/.deploy_stage.yaml'

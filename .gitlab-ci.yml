@@ -2,7 +2,8 @@ default:
   interruptible: true
 
 stages:
-- prepare_build
+- prepare
+- unit_test
 - build
 - deploy_and_test
 - clean
@@ -58,8 +59,8 @@ variables:
 #############################################
 ############## PREPARE ######################
 #############################################
-prepare_pipeline:
-  stage: prepare_build
+prepare_build_pipeline:
+  stage: prepare
   tags:
     - build-shared
   before_script: # Necessary because otherwise HEAD is detached and the build fails
@@ -83,13 +84,41 @@ prepare_pipeline:
     reports:
       dotenv: prepare.env
 
+prepare_deploy_pipeline:
+  stage: prepare
+  tags:
+    - deploy-shared
+  needs:
+  - prepare_build_pipeline
+  variables:
+    GIT_STRATEGY: clone
+  script:
+    - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
+    - mkdir -p "$KAAPANA_DIR"
+    - sudo rm -rf $ARTIFACTS_DIR && mkdir -p $ARTIFACTS_DIR
+    - source /home/$USER/venv/bin/activate
+    - sudo $KAAPANA_DIR/kaapanactl.sh install --quiet 2>&1 | tee $ARTIFACTS_DIR/server_installation.log
+  artifacts:
+    reports:
+      dotenv: prepare.env
+  rules:
+  - if: $DEPLOY_PLATFORM == "false"
+    when: never
+  - when: on_success
+  resource_group: "deploy-$CI_RUNNER_DESCRIPTION"
+  environment: "deploy-$CI_RUNNER_DESCRIPTION"
+  retry: 1
+
+#############################################
+############## TESTS AND DOCS ###############
+#############################################
 unit_tests:
-  stage: prepare_build
+  stage: tests_and_docs
   tags:
     - build-shared
   needs:
   # Needs KAAPANA_DIR
-  - prepare_pipeline
+  - prepare_build_pipeline
   script:
   - python3 -m virtualenv $KAAPANA_DIR/test/.venv
   - source $KAAPANA_DIR/test/.venv/bin/activate
@@ -104,12 +133,12 @@ unit_tests:
         - unittest_report.xml
 
 task_api_tests:
-  stage: prepare_build
+  stage: tests_and_docs
   tags:
     - build-shared
   needs:
   # Needs KAAPANA_DIR
-  - prepare_pipeline
+  - prepare_build_pipeline
   script:
   - python3 -m virtualenv $KAAPANA_DIR/lib/.venv
   - source $KAAPANA_DIR/lib/.venv/bin/activate
@@ -126,12 +155,12 @@ task_api_tests:
         - task_api_report.xml
 
 workflow_api_tests:
-  stage: prepare_build
+  stage: tests_and_docs
   tags:
     - build-shared
   needs:
     # Needs KAAPANA_DIR
-  - prepare_pipeline
+  - prepare_build_pipeline
   script:
   - cd $KAAPANA_DIR/services/base/workflow-api/docker/files/tests/unit
   - bash run_tests.sh
@@ -144,12 +173,12 @@ workflow_api_tests:
         - workflow_api_report.xml
 
 build_documentation:  
-  stage: prepare_build
+  stage: tests_and_docs
   tags:
     - build-shared
   needs:
   # Needs: KAAPANA_DIR
-  - prepare_pipeline
+  - prepare_build_pipeline
   script:
   # VENV created during the setup of the build VM
   - source /home/$USER/venv/bin/activate
@@ -170,7 +199,7 @@ build_packages:
   tags:
     - build-dedicated
   needs:
-  - prepare_pipeline
+  - prepare_build_pipeline
   timeout: 2 hours
   script:
   - source /home/$USER/venv/bin/activate
@@ -182,33 +211,11 @@ build_packages:
 #############################################
 ############## DEPLOY #######################
 #############################################
-prepare_deployment_instance:
-  stage: deploy_and_test
-  tags:
-    - deploy-shared
-  needs:
-  - prepare_pipeline
-  script:
-    - rm -rf $ARTIFACTS_DIR && mkdir -p $ARTIFACTS_DIR
-    - source /home/$USER/venv/bin/activate
-    - sudo $KAAPANA_DIR/kaapanactl.sh install --quiet 2>&1 | tee $ARTIFACTS_DIR/server_installation.log
-
-  artifacts:
-    reports:
-      dotenv: prepare.env
-  rules:
-  - if: $DEPLOY_PLATFORM == "false"
-    when: never
-  - when: on_success
-  resource_group: "deploy-$CI_RUNNER_DESCRIPTION"
-  environment: "deploy-$CI_RUNNER_DESCRIPTION"
-  retry: 1
-
 deploy_and_test:
   stage: deploy_and_test
   needs:
-  - prepare_pipeline
-  - prepare_deployment_instance    
+  - prepare_build_pipeline
+  - prepare_deploy_pipeline    
   - build_packages
   variables:
     VERSION_TAG: $VERSION_TAG
@@ -235,8 +242,6 @@ if_ci_failing:
   stage: clean
   tags:
     - deploy-shared
-  variables:
-    ARTIFACTS_DIR: "/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"
   script:
     - source /home/$USER/venv/bin/activate
     - cd $REPO_DIR/ci-code/clean
@@ -269,36 +274,34 @@ security:
     when: always
   - when: never
 
-build_logs:
+logs_build:
   stage: clean
   tags:
     - build-shared
   needs:
     - build_packages
-    - prepare_pipeline
-  script: 
-    - mkdir -p $CI_PROJECT_DIR/artifacts/build
-    - cp -r $ARTIFACTS_DIR/* $CI_PROJECT_DIR/artifacts/build/ || true
+    - prepare_build_pipeline
+  script:
+    - mkdir -p $CI_PROJECT_DIR/artifacts
+    - cp -r $ARTIFACTS_DIR/ $CI_PROJECT_DIR/artifacts/ || true
   artifacts:
-    name: build-logs
+    name: build
     paths:
-    - artifacts/build/
+    - artifacts/
   when: always
 
-deploy_logs:
+logs_deploy:
   stage: clean
   tags:
     - deploy-shared
   needs:
     - deploy_and_test
-    - prepare_pipeline
-  variables:
-    ARTIFACTS_DIR: "/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"
+    - prepare_deploy_pipeline
   script:
-    - mkdir -p $CI_PROJECT_DIR/artifacts/deploy
-    - cp -r $ARTIFACTS_DIR/* $CI_PROJECT_DIR/artifacts/deploy/ || true
+    - mkdir -p $CI_PROJECT_DIR/artifacts
+    - cp -r $ARTIFACTS_DIR/ $CI_PROJECT_DIR/artifacts/ || true
   artifacts:
-    name: deploy-logs
+    name: deploy
     paths:
-    - artifacts/deploy/
+    - artifacts/
   when: always

@@ -23,6 +23,8 @@ prepare_vars:
   stage: deploy
   tags:
     - deploy-shared
+  needs:
+    - platform_deployment
   script:
     - source /home/$USER/venv/bin/activate
     - |

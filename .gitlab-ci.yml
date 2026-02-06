@@ -36,10 +36,6 @@ variables:
   SLACK_BOT_TOKEN: $SLACK_BOT_TOKEN ### Oauth bot token of the slack app
   SLACK_CHANNEL_ID: $SLACK_CHANNEL_ID ### Channel ID to inform about failing pipelines
   USER: $USER ### username on the CI instance
-  DEPLOYMENT_INSTANCE_NAME: $DEPLOYMENT_INSTANCE_NAME
-  DEPLOYMENT_INSTANCE_IP: $DEPLOYMENT_INSTANCE_IP ### Set in order to reuse an instance
-  DEPLOYMENT_INSTANCE_USER: $DEPLOYMENT_INSTANCE_USER ### Username on the deployment instance
-  DEPLOYMENT_ON_WORKSTATION: $DEPLOYMENT_ON_WORKSTATION
   HTTP_PROXY: $HTTP_PROXY
   HTTPS_PROXY: $HTTPS_PROXY
   SSH_FILE: $SSH_FILE ### Path to the ssh file used for connecting to the deployment instance
@@ -233,7 +229,7 @@ deploy_and_test:
   resource_group: "deploy-$CI_RUNNER_DESCRIPTION"
   environment: "deploy-$CI_RUNNER_DESCRIPTION"
 
-#######################
+#############################################
 ############## CLEAN ########################
 #############################################
 if_ci_failing:

@@ -49,10 +49,6 @@ variables:
 
   ### FIXED VARIABLES
   GIT_STRATEGY: "none" ### Predefined Gitlab CI variable; Has to be one of ["clone", "fetch", "none"]
-  GIT_CLONE_PATH: $HOME/builds/$CI_COMMIT_SHA
-  KAAPANA_DIR: $GIT_CLONE_PATH
-  ARTIFACTS_DIR: "$HOME/artifacts/$CI_COMMIT_SHA"
-  REPO_DIR: $GIT_CLONE_PATH/ci
   ANSIBLE_VERBOSITY: 0
 
 #############################################
@@ -74,11 +70,16 @@ prepare_pipeline:
   variables:
     GIT_STRATEGY: clone
   script:
+  # Clean old builds
   - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
+
+  # Compute job-only paths
+  - export KAAPANA_DIR="$CI_BUILDS_DIR/$CI_COMMIT_SHA"
+  - export ARTIFACTS_DIR="$CI_BUILDS_DIR/../artifacts/$CI_COMMIT_SHA"
+  - mkdir -p "$KAAPANA_DIR" "$ARTIFACTS_DIR"
   - export VERSION_TAG=$( if [[ $BUILD_ARGUMENTS == *"--latest"* ]]; then echo "0.0.0-latest"; else echo $( git describe ); fi)
   - echo VERSION_TAG=$VERSION_TAG >> prepare.env
-  - sudo rm -rf $ARTIFACTS_DIR
-  - mkdir -p $ARTIFACTS_DIR
+  - rm -rf $ARTIFACTS_DIR && mkdir -p $ARTIFACTS_DIR
   artifacts:
     reports:
       dotenv: prepare.env
@@ -88,6 +89,7 @@ unit_tests:
   tags:
     - build-shared
   needs:
+  # Needs KAAPANA_DIR
   - prepare_pipeline
   script:
   - python3 -m virtualenv $KAAPANA_DIR/test/.venv
@@ -107,6 +109,7 @@ task_api_tests:
   tags:
     - build-shared
   needs:
+  # Needs KAAPANA_DIR
   - prepare_pipeline
   script:
   - python3 -m virtualenv $KAAPANA_DIR/lib/.venv
@@ -128,6 +131,7 @@ workflow_api_tests:
   tags:
     - build-shared
   needs:
+    # Needs KAAPANA_DIR
   - prepare_pipeline
   script:
   - cd $KAAPANA_DIR/services/base/workflow-api/docker/files/tests/unit
@@ -140,13 +144,15 @@ workflow_api_tests:
       junit:
         - workflow_api_report.xml
 
-build_documentation:
+build_documentation:  
   stage: prepare_build
   tags:
     - build-shared
   needs:
+  # Needs: KAAPANA_DIR
   - prepare_pipeline
   script:
+  # VENV created during the setup of the build VM
   - source /home/$USER/venv/bin/activate
   - cd $REPO_DIR/ci-code/build
   - bash build_documentation.sh
@@ -177,17 +183,6 @@ build_packages:
 #############################################
 ############## DEPLOY #######################
 #############################################
-prepare_deployment_instance1:
-  stage: deploy_and_test
-  tags:
-    - deploy-shared
-  needs:
-  - prepare_pipeline
-  script:
-    - printenv
-    - sudo rm -rf $ARTIFACTS_DIR
-    - mkdir -p $ARTIFACTS_DIR # Recreate on the deploy instance
-  
 prepare_deployment_instance:
   stage: deploy_and_test
   tags:
@@ -195,10 +190,10 @@ prepare_deployment_instance:
   needs:
   - prepare_pipeline
   script:
-    - sudo rm -rf $ARTIFACTS_DIR
-    - mkdir -p $ARTIFACTS_DIR # Recreate on the deploy instance
+    - rm -rf $ARTIFACTS_DIR && mkdir -p $ARTIFACTS_DIR
     - source /home/$USER/venv/bin/activate
-    - ansible-playbook $REPO_DIR/ci-code/prepare/prepare_deploy.yaml 2>&1 | tee $ARTIFACTS_DIR/server_installation.log
+    - sudo $KAAPANA_DIR/kaapanactl.sh install --quiet 2>&1 | tee $ARTIFACTS_DIR/server_installation.log
+    
   artifacts:
     reports:
       dotenv: prepare.env
@@ -214,13 +209,12 @@ deploy_and_test:
   stage: deploy_and_test
   needs:
   - prepare_pipeline
-  - job: prepare_deployment_instance
-    artifacts: true
+  - prepare_deployment_instance    
   - build_packages
   variables:
     VERSION_TAG: $VERSION_TAG
-    KAAPANA_DIR: "/home/ubuntu/builds/$CI_COMMIT_SHORT_SHA"
-    ARTIFACTS_DIR: "/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA"
+    KAAPANA_DIR: $KAAPANA_DIR
+    ARTIFACTS_DIR: $ARTIFACTS_DIR
   trigger:
     include:
       - local: 'ci/ci-code/deploy/.deploy_stage.yaml'

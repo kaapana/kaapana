@@ -49,7 +49,6 @@ variables:
 
   ### FIXED VARIABLES
   GIT_STRATEGY: "none" ### Predefined Gitlab CI variable; Has to be one of ["clone", "fetch", "none"]
-  GIT_
   ANSIBLE_VERBOSITY: 0
 
 #############################################

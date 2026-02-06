@@ -17,8 +17,6 @@ from concurrent.futures import (
     ThreadPoolExecutor,
     Future,
     wait,
-    FIRST_EXCEPTION,
-    ALL_COMPLETED,
     FIRST_COMPLETED,
 )
 
@@ -58,7 +56,6 @@ class BuildCoordinator:
             total=len(ContainerHelper._build_state.selected_containers),
             title="Building Containers",
             containers=self.waiting,
-            use_rich=False,
         ) as self.progress_bar:
 
             with ThreadPoolExecutor(max_workers=4) as executor:

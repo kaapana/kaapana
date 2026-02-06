@@ -41,13 +41,25 @@ prepare_vars:
 #############################################
 ############## TESTS ########################
 #############################################
+port_scan:
+  stage: test
+  variables:
+    ALLOWED_PORTS: "22,80,443"
+  needs:
+    - prepare_vars
+  script:
+    - source /home/$USER/venv/bin/activate
+    - python3 $REPO_DIR/ci-code/test/src/scan_ports.py --host "$IP_ADDRESS" --allowed "$ALLOWED_PORTS"
+  
+
 first_login:
   needs:
     - prepare_vars
   stage: test
   script:
     - source /home/$USER/venv/bin/activate
-    # test if variables from prepare_vars are present
+    - echo $IP_ADDRESS
+    - echo $CLIENT_SECRET
     - export KAAPANA_URL="https://$IP_ADDRESS"
     - export TEST_FILE="tests/test_first_login.py"
     - export LOG_FILE="$ARTIFACTS_DIR/first_login.log"
@@ -68,7 +80,8 @@ send_testdata:
     - source /home/$USER/venv/bin/activate 
     - ansible-playbook $REPO_DIR/ci-code/test/jobs/testdata/prepare_data.yaml
   needs:
-    - - prepare_vars
+    - prepare_vars
+    - first_login
   allow_failure: false
   rules:
     - if: $TEST_STAGE == "true"
@@ -81,10 +94,10 @@ install_extensions:
   script:
     - source /home/$USER/venv/bin/activate
     - cd $REPO_DIR/ci-code/test/src
-    - python3 install_extensions.py --host "$ip_address" --install-all --timeout 3000 > "$ARTIFACTS_DIR/install_extensions.log" 2>&1 || (cat "$ARTIFACTS_DIR/install_extensions.log" && exit 1)
+    - python3 install_extensions.py --host "$IP_ADDRESS" --install-all --timeout 3000 > "$ARTIFACTS_DIR/install_extensions.log" 2>&1 || (cat "$ARTIFACTS_DIR/install_extensions.log" && exit 1)
   needs:
     - prepare_vars
-  allow_failure: false
+    - first_login
   rules:
     - if: $TEST_STAGE == "true"
       when: on_success
@@ -98,7 +111,7 @@ integration_tests:
     - source $KAAPANA_DIR/ci/.ci/bin/activate
     - python3 -m pip install -r $KAAPANA_DIR/ci/ci-code/test/src/requirements.txt
     - export test_files=$( find ${KAAPANA_DIR}/data-processing -wholename *ci-config/*.yaml)
-    - pytest $KAAPANA_DIR/ci/ci-code/test/src/test_workflows.py --files ${test_files} --host ${ip_address} --junitxml=workflow_test_report.xml -n 4 -s --log-cli-level=INFO
+    - pytest $KAAPANA_DIR/ci/ci-code/test/src/test_workflows.py --files ${test_files} --host ${IP_ADDRESS} --junitxml=workflow_test_report.xml -n 4 -s --log-cli-level=INFO
   artifacts:
     when: always
     paths:
@@ -116,12 +129,4 @@ integration_tests:
       when: on_success
     - when: never
 
-port_scan:
-  stage: test
-  needs:
-    - prepare_vars
-  script:
-    - source /home/$USER/venv/bin/activate 
-    - python3 $REPO_DIR/ci-code/test/src/scan_ports.py
-  variables:
-    ALLOWED_PORTS: "22,80,443"
+

@@ -5,9 +5,9 @@
   vars:
     repo_dir: "{{ lookup('ansible.builtin.env', 'REPO_DIR') }}"
     artifacts_dir: "{{ lookup('ansible.builtin.env', 'ARTIFACTS_DIR') }}"
-    ip_address: "{{ lookup('ansible.builtin.env', 'ip_address') }}"
-    http_proxy: "{{ lookup('ansible.builtin.env', 'http_proxy') }}"
-    https_proxy: "{{ lookup('ansible.builtin.env', 'https_proxy') }}"
+    ip_address: "{{ lookup('ansible.builtin.env', 'IP_ADDRESS') }}"
+    http_proxy: "{{ lookup('ansible.builtin.env', 'HTTP_PROXY') }}"
+    https_proxy: "{{ lookup('ansible.builtin.env', 'HTTPS_PROXY') }}"
 
   tasks:
 

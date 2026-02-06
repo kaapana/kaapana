@@ -4,7 +4,7 @@
   vars:
     repo_dir: "{{ lookup('ansible.builtin.env', 'REPO_DIR') }}"
     artifacts_dir: "{{ lookup('ansible.builtin.env', 'ARTIFACTS_DIR') }}"
-    ip_address: "{{ lookup('ansible.builtin.env', 'ip_address') }}"
+    ip_address: "{{ lookup('ansible.builtin.env', 'IP_ADDRESS') }}"
   environment:
     CLIENT_SECRET: "{{ lookup('ansible.builtin.env', 'CLIENT_SECRET') }}"
 

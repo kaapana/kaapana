@@ -3,7 +3,7 @@ default:
 
 stages:
 - prepare
-- unit_test
+- tests_and_docs
 - build
 - deploy_and_test
 - clean

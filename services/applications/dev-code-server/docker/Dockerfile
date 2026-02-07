@@ -10,7 +10,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcurl4-openssl-dev \
     software-properties-common \
     gdebi-core \
+    curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Install kubectl for GPU job management
+RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+    && install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl \
+    && rm kubectl
 
 # Install R
 RUN mkdir -p /usr/share/keyrings && \
@@ -34,8 +40,9 @@ WORKDIR /kaapana
 EXPOSE 8080
 
 COPY files/entrypoint.sh /entrypoint.sh
+COPY files/gpu-run /usr/local/bin/gpu-run
 COPY files/README.md /kaapana/README.md
 
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /entrypoint.sh /usr/local/bin/gpu-run
 
 ENTRYPOINT ["/entrypoint.sh"]

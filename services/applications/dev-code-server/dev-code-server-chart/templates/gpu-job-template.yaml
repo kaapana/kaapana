@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-gpu-job-template
+  namespace: "{{ tpl .Values.global.namespace . }}"
+data:
+  gpu-job-template.yaml: |
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: GPU_JOB_NAME
+      namespace: {{ tpl .Values.global.namespace . }}
+      labels:
+        app.kubernetes.io/name: {{ .Release.Name }}-gpu-job
+        dev-code-server-release: {{ .Release.Name }}
+    spec:
+      ttlSecondsAfterFinished: 600
+      backoffLimit: 0
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: {{ .Release.Name }}-gpu-job
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: gpu-runner
+            image: "{{ .Values.global.registry_url }}/dev-code-server:{{ .Values.global.kaapana_build_version }}"
+            imagePullPolicy: {{ .Values.global.pull_policy_images }}
+            command: ["bash", "-c"]
+            args: ["GPU_COMMAND"]
+            workingDir: /kaapana/minio
+            env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: http_proxy
+              value: {{ .Values.global.http_proxy }}
+            - name: https_proxy
+              value: {{ .Values.global.https_proxy }}
+            resources:
+              requests:
+                memory: 1Gi
+              limits:
+                memory: 32Gi
+{{- if .Values.global.gpu_support }}
+                nvidia.com/gpu: '1'
+{{- end }}
+            volumeMounts:
+            - name: workspace
+              mountPath: /kaapana/minio
+            - name: dshm
+              mountPath: /dev/shm
+          volumes:
+          - name: workspace
+            persistentVolumeClaim:
+              claimName: dev-code-server-{{ .Release.Name }}-pv-claim
+          - name: dshm
+            emptyDir:
+              medium: Memory
+          imagePullSecrets:
+          - name: registry-secret
+  gpu-support-enabled: "{{ .Values.global.gpu_support }}"

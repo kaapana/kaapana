@@ -55,6 +55,65 @@ It supports unilateral sync:
 * Project MinIO bucket: project-<project_name>
 
 
+## GPU Support
+
+This code-server runs **without a dedicated GPU** to avoid blocking GPU resources while editing code. To run GPU workloads (training, inference, etc.), use the `gpu-run` command which launches a separate GPU-enabled job.
+
+### Using gpu-run
+
+The `gpu-run` command creates a Kubernetes Job with GPU access that runs your script using the same codebase:
+
+```bash
+# Run a Python training script
+gpu-run train.py --epochs 10 --batch-size 32
+
+# Run a script in a subdirectory
+gpu-run scripts/inference.py --model weights.pth
+
+# Run a shell script
+gpu-run my_experiment.sh
+
+# Run an R script
+gpu-run analysis.R
+```
+
+### Managing GPU Jobs
+
+```bash
+# List all GPU jobs for this code-server
+gpu-run --list
+
+# View logs from a specific job
+gpu-run --logs gpu-job-abc123
+
+# Delete a specific job
+gpu-run --delete gpu-job-abc123
+
+# Clean up all completed jobs
+gpu-run --clean
+
+# Show help
+gpu-run --help
+```
+
+### How it Works
+
+1. When you run `gpu-run <script>`, it creates a Kubernetes Job with GPU access
+2. The job uses the same container image and mounts the same workspace volume
+3. Your script runs with full GPU access in the job's container
+4. Output is streamed back to your terminal in real-time
+5. The job is automatically cleaned up after completion (TTL: 10 minutes)
+
+### Tips
+
+- **Code changes**: Since the GPU job shares the same volume, any code changes you make in the code-server are immediately available to the GPU job
+- **Output files**: Files written by the GPU job to `/kaapana/minio` will be visible in your code-server workspace
+- **Multiple jobs**: You can run multiple GPU jobs in parallel (subject to GPU availability)
+- **Long-running jobs**: If a job takes a long time, you can close the terminal and check on it later with `gpu-run --logs <job-name>`
+- **Real-time output**: Python scripts run with `-u` (unbuffered) automatically; other programs use `stdbuf -oL` for line-buffered output, so logs stream in real time
+- **Log files**: Every GPU job's output is saved to `/kaapana/minio/.gpu-logs/<job-name>.log` so you can review it later from the code-server workspace
+
+
 ## Known Limitations of The Environment
 * JupyterLab VSCode Extension works as expected in Firefox, but in Chrome, Jupyter notebook cells may fail to render with a Service Worker SSL error:
 ```

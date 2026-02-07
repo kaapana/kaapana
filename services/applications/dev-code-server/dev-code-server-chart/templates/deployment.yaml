@@ -15,6 +15,7 @@ spec:
       labels:
         app.kubernetes.io/name: {{ .Release.Name }}
     spec:
+      serviceAccountName: {{ .Release.Name }}-sa
       securityContext:
         runAsUser: 0
       initContainers:
@@ -86,6 +87,10 @@ spec:
           value: {{ .Values.global.http_proxy }}
         - name: https_proxy
           value: {{ .Values.global.https_proxy }}
+        - name: GPU_JOB_NAMESPACE
+          value: "{{ tpl .Values.global.namespace . }}"
+        - name: RELEASE_NAME
+          value: "{{ .Release.Name }}"
         resources:
           requests:
             memory: 200Mi
@@ -98,6 +103,8 @@ spec:
           - name: configs
             mountPath: /root/.local/share/code-server/User/settings.json
             subPath: settings.json
+          - name: gpu-job-template
+            mountPath: /etc/gpu-job
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
           - name: dshm
             mountPath: /dev/shm
@@ -110,6 +117,9 @@ spec:
             path: keybindings.json
           - key: user_settings.json
             path: settings.json
+      - name: gpu-job-template
+        configMap:
+          name: {{ .Release.Name }}-gpu-job-template
 {{ include "dynamicVolumes" $ | indent 6 }}
       - name: dshm
         emptyDir:

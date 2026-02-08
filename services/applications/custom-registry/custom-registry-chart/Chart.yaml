@@ -10,4 +10,5 @@ keywords:
 - kaapanaexperimental
 - kaapanamultiinstallable
 annotations:
+  documentation: "user_guide/extensions.html#new-registry"
   ui-visible-name: "New Registry"

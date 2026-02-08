@@ -576,3 +576,44 @@ Data stored within this bucket are available to the Tensorboard application.
 | <slow_data_dir>/applications/tensorboard/<tensorboard-instance-name>
 
 
+.. _extensions_new_registry:
+
+New Registry
+-------------
+
+This extension can be used to access container images from custom registries.
+The :ref:`Development Guide <workflow_extension_with_custom_registry>` explains detailed steps how to install a workflow extension from a custom registry.
+
+Each instance of *New Registry* creates a registry-secret either in the *Service-Secret* scope for pulling images on a system level or in the *Project-Secret* scope in a single project for pulling processing-container images.
+Therefore, you might have to install the same registry in multiple scopes.
+You can select the scope when you launch the extension.
+
+Configuration
+**************
+
+* **display_name:** Choose a unique and identifiable name for each instance of *New Registry*, e.g. REGISTRY-<project-name>-<registry-name> or REGISTRY-service-<registry-name>.
+  Only use alphanumerical charackters and dots, dashes, and underscores.
+
+* **secret_scope:** Defines the scope of the secret
+
+    * Service-Secret: Install the secret for system-wide functionalities like installing a new workflow extension
+    * Project-Secret: Install the secret in the selected project for pulling processing-containers
+
+* **custom_registry_url:** This should be the absolute URL to the registry containing protocol and port: *<protocol>://<registry>:<port>/<repository>*
+
+* **credentials_curstom_registry_username:** The username to access the registry
+
+* **credentials_curstom_registry_password:** The password to access the registry
+
+* **test_pull_image:** This is an optional configuration if you want to test, if the connection to the registry works.
+  You can specify an image that will be pulled after launching the extensions, e.g. *<registry>:<port>/<repository>/<image>:<tag>*
+  Don't specify the protocol here.
+
+Installation errors
+********************
+
+Common reasons for installation errors are:
+
+- You can only launch a single *New Registry* instance per registry in the *Service-Secret* scope.
+- You can only launch a single *New Registry* instance per registry and project for the *Project-Secret* scope. 
+- The display_name must only contain supported charackters.

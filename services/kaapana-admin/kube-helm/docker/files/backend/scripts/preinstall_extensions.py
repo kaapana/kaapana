@@ -89,9 +89,7 @@ for extension in preinstall_extensions:
             f"Skipping {extension_path}, problems installing the extension {e}"
         )
         errors_during_preinstalling = True
-        # stop installing other extensions if any platform installation fails
-        if is_platform:
-            break
+        raise e
 
 if errors_during_preinstalling is True:
     raise NameError("Problems while preinstalling extensions!")

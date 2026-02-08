@@ -1,3 +1,4 @@
+import base64
 import glob
 import json
 import logging
@@ -491,8 +492,21 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     def _get_project_registry_secrets(self):
         custom_registry_secrets = KubernetesRunner.api.list_namespaced_secret(
             namespace=self.namespace,
-            label_selector="kaapana.registry-secret=custom-registry",
+            label_selector="kaapana.ai/registry-secret=custom-registry",
         )
+        try:
+            custom_registry_urls = {
+                secret.metadata.labels["kaapana.ai/new-registry-display-name"]: list(
+                    json.loads(base64.b64decode(secret.data.get(".dockerconfigjson")))
+                    .get("auths")
+                    .keys()
+                )[0]
+                for secret in custom_registry_secrets.items
+            }
+
+            logging.info(f"Custom registry secret urls: {custom_registry_urls}")
+        except Exception as e:
+            logging.warning("Unable to log custom registry urls.")
         return set(secret.metadata.name for secret in custom_registry_secrets.items)
 
     def create_conf_configmap(self, context: Context):
@@ -945,6 +959,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         self.image_pull_secrets.append("registry-secret")
         self.image_pull_secrets.extend(self._get_project_registry_secrets())
+        logging.info(f"{self.image_pull_secrets=}")
 
         self.task_run = KubernetesRunner.run(
             task=task_models.Task(

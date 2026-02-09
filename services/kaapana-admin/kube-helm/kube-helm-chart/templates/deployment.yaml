@@ -45,6 +45,8 @@ spec:
           value: {{ $.Values.global.release_name }}
         - name: HELM_NAMESPACE
           value: {{ $.Values.global.helm_namespace }}
+        - name: HELM_DEFAULT_NAMESPACE
+          value: {{ $.Values.global.helm_default_namespace }}
         - name: REGISTRY_URL
           value: {{ $.Values.global.registry_url }}
         - name: KAAPANA_BUILD_VERSION
@@ -63,7 +65,7 @@ spec:
         - name: https_proxy
           value: {{ .Values.global.https_proxy }}
         - name: no_proxy
-          value:  ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }},{{ join "," .Values.global.internalCidrs }}"
+          value:  ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }},10.43.0.1,{{ join "," .Values.global.internalCidrs }}"
 {{- end }}
 {{- if .Values.global.dev_files }}
         - name: DEV_FILES
@@ -88,6 +90,8 @@ spec:
           value: "{{ .helmDeletionTimeout }}"
   {{- end }}
 {{- end }}
+        - name: MANAGED_KUBERNETES
+          value: "{{ .Values.global.managed_kubernetes }}"
         ports: # Port(s) on which your application runs
           - containerPort: 5000
         volumeMounts:
@@ -123,7 +127,9 @@ spec:
           claimName: {{ .Chart.Name }}-dev-pv-claim
 {{- end }}
       serviceAccountName: kaapana-kube-admin
+{{- if not .Values.global.managed_kubernetes }}
       priorityClassName: kaapana-high-priority
+{{- end }}
       imagePullSecrets:
       - name: registry-secret
 ---

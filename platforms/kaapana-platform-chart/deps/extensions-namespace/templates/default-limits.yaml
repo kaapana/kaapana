@@ -1,3 +1,4 @@
+{{- if not .Values.global.managed_kubernetes }}
 apiVersion: v1
 kind: LimitRange
 metadata:
@@ -13,4 +14,4 @@ spec:
       memory: {{ .Values.global.default_extensions_requests_mem }}
     type: Container
 ---
-
+{{- end }}

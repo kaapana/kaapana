@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     )
     helm_helpers_cache: str = "/root/helpers"
     helm_namespace: str = os.getenv("HELM_NAMESPACE", None)
+    helm_default_namespace: str = os.getenv("HELM_DEFAULT_NAMESPACE", "default")
     release_name: str = os.getenv("RELEASE_NAME", None)
     registry_url: str = os.getenv("REGISTRY_URL", None)
 
@@ -44,6 +45,7 @@ class Settings(BaseSettings):
         else False
     )  # TODO: delete
     containerd_sock: str = os.getenv("CONTAINERD_SOCK", None)
+    managed_kubernetes: bool = (os.getenv("MANAGED_KUBERNETES", "False").lower() == "true")
 
 
 class TimeoutConfig(BaseSettings):

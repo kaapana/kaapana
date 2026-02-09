@@ -102,6 +102,8 @@ spec:
         - name: access-information-interface-config
           configMap:
             name: access-information-interface-config
+{{- if not .Values.global.managed_kubernetes }}
       priorityClassName: kaapana-high-priority
+{{- end }}
       imagePullSecrets:
         - name: registry-secret

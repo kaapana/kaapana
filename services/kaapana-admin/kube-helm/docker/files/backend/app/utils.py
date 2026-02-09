@@ -246,21 +246,51 @@ def pull_docker_image(
     return success, helm_result_dict
 
 def create_namespace_if_not_exists(namespace: str):
-    """
-    Create Kubernetes namespace if it does not exist
-    """
     ensure_k8s_config()
     v1 = client.CoreV1Api()
-    try:
-        v1.read_namespace(name=namespace)
-        logger.debug(f"Namespace {namespace} already exists")
-    except client.exceptions.ApiException as e:
-        if e.status == 404:
-            logger.info(f"Creating namespace {namespace}")
-            ns = client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace))
-            v1.create_namespace(ns)
-        else:
-            logger.error(f"Error checking namespace {namespace}: {e}")
+    
+    if settings.managed_kubernetes:
+        try:
+            v1.list_namespaced_pod(namespace, limit=1)
+            logger.info(
+                f"Namespace '{namespace}' exists and is accessible"
+            )
+            return True
+
+        except ApiException as e:
+            if e.status == 404:
+                logger.error(
+                    f"Namespace '{namespace}' does not exist. "
+                    "In managed Kubernetes, namespaces must be "
+                    "pre-created."
+                )
+                return False
+
+            if e.status == 403:
+                logger.error(
+                    f"Namespace '{namespace}' exists but is not accessible "
+                    "with the current ServiceAccount. "
+                    "Check Role/RoleBinding."
+                )
+                return False
+
+            raise
+
+
+    else:
+        try:
+            v1.create_namespace(
+                client.V1Namespace(
+                    metadata=client.V1ObjectMeta(name=namespace)
+                )
+            )
+            logger.info(f"Namespace '{namespace}' created")
+            return True
+
+        except ApiException as e:
+            if e.status == 409:
+                logger.info(f"Namespace '{namespace}' already exists")
+                return True
             raise
 
 def helm_install(
@@ -305,7 +335,7 @@ def helm_install(
     name = payload["name"]
     version = payload["version"]
 
-    release_values = helm_get_values(settings.release_name, helm_namespace=settings.helm_namespace)
+    release_values = helm_get_values(settings.release_name, helm_namespace=settings.helm_default_namespace)
 
     default_sets = {}
     if "global" in release_values:
@@ -395,7 +425,7 @@ def helm_install(
 
     if platforms:
         # current workaround for avoiding the namespace conflict
-        helm_namespace = settings.helm_namespace
+        helm_namespace = settings.helm_default_namespace
         # for preinstall, set correct helm_namespace for charts
         if (
             "extension_params" in values
@@ -403,7 +433,7 @@ def helm_install(
         ):
             eparams = values["extension_params"]
             payload["sets"]["global.helm_namespace"] = eparams["helm_namespace"][
-                settings.helm_namespace
+                settings.helm_default_namespace
             ]
 
         # for preinstall, change path folder to extensions if doesn't exist

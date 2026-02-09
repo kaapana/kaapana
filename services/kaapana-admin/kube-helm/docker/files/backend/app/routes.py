@@ -260,9 +260,9 @@ async def create_namespace(request: Request):
         assert "namespace" in payload, "Required key 'namespace' not found in payload"
         success = utils.create_namespace_if_not_exists(payload["namespace"])
         if success:
-            return Response(f"Namespace {payload['namespace']} created successfully", 200)
+            return Response(f"Namespace {payload['namespace']} created successfully or already exits", 200)
         else:
-            return Response(f"Namespace {payload['namespace']} already exists or creation failed", 400)
+            return Response(f"Namespace {payload['namespace']} creation failed, You don't have permission to create namespaces", 403)
     except AssertionError as e:
         logger.error(f"/create-namespace failed: {str(e)}", exc_info=True)
         return Response(f"Namespace creation failed, bad request {str(e)}", 400)

@@ -100,6 +100,15 @@ check_env() {
     fi
 }
 
+# Check if GPU support is enabled (returns "true"/"false"/"unknown")
+get_gpu_enabled() {
+    if [ -f "/etc/gpu-job/gpu-support-enabled" ]; then
+        cat /etc/gpu-job/gpu-support-enabled
+    else
+        echo "unknown"
+    fi
+}
+
 # List GPU jobs for this release
 list_jobs() {
     check_env
@@ -118,14 +127,8 @@ show_logs() {
         exit 1
     fi
     echo -e "${BLUE}Logs for job: ${job_name}${NC}"
-    # Get the actual pod name for proper log streaming
-    local pod_name=$(kubectl get pods -n "$GPU_JOB_NAMESPACE" -l "job-name=$job_name" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-    if [ -n "$pod_name" ]; then
-        kubectl logs -n "$GPU_JOB_NAMESPACE" "$pod_name" --follow 2>/dev/null || true
-    else
-        kubectl logs -n "$GPU_JOB_NAMESPACE" "job/$job_name" --follow 2>/dev/null || \
-            kubectl logs -n "$GPU_JOB_NAMESPACE" -l "job-name=$job_name" --follow
-    fi
+    kubectl logs -n "$GPU_JOB_NAMESPACE" -l "job-name=$job_name" --follow 2>/dev/null || \
+        echo -e "${RED}No logs found for job ${job_name}${NC}"
 }
 
 # Delete a specific job
@@ -243,20 +246,9 @@ check_status() {
     echo ""
     
     # Check if GPU support is enabled in the template
-    local gpu_enabled="unknown"
-    if [ -f "/etc/gpu-job/gpu-support-enabled" ]; then
-        gpu_enabled=$(cat /etc/gpu-job/gpu-support-enabled)
-    fi
+    local gpu_enabled
+    gpu_enabled=$(get_gpu_enabled)
     echo -e "${YELLOW}GPU Support in Kaapana:${NC} ${gpu_enabled}"
-    
-    # Show the GPU job template to verify GPU is requested
-    echo ""
-    echo -e "${YELLOW}GPU request in job template:${NC}"
-    if [ -f "/etc/gpu-job/gpu-job-template.yaml" ]; then
-        grep -A1 "limits:" /etc/gpu-job/gpu-job-template.yaml | grep -i gpu && echo -e "  ${GREEN}GPU is requested in job template${NC}" || echo -e "  ${RED}No GPU limit found in job template${NC}"
-    else
-        echo -e "  ${RED}Job template not found${NC}"
-    fi
     echo ""
     
     # Check cluster GPU resources
@@ -280,50 +272,22 @@ check_status() {
     fi
     echo ""
     
-    # Check for pods using GPUs
-    echo -e "${YELLOW}Pods currently using GPUs (in all namespaces):${NC}"
-    if kubectl get pods --all-namespaces &>/dev/null; then
-        local found_gpu_pods=0
-        while IFS= read -r line; do
-            local ns=$(echo "$line" | awk '{print $1}')
-            local pod=$(echo "$line" | awk '{print $2}')
-            local gpu_req=$(kubectl get pod -n "$ns" "$pod" -o jsonpath='{.spec.containers[*].resources.limits.nvidia\.com/gpu}' 2>/dev/null)
-            if [ -n "$gpu_req" ] && [ "$gpu_req" != "0" ]; then
-                local status=$(kubectl get pod -n "$ns" "$pod" -o jsonpath='{.status.phase}' 2>/dev/null)
-                echo -e "  ${YELLOW}$ns/$pod${NC} - GPUs: $gpu_req (Status: $status)"
-                found_gpu_pods=1
-            fi
-        done < <(kubectl get pods --all-namespaces --no-headers 2>/dev/null)
-        if [ $found_gpu_pods -eq 0 ]; then
-            echo -e "  ${GREEN}No pods currently using GPUs${NC}"
-        fi
-    else
-        echo -e "  ${RED}Cannot list pods cluster-wide (permission denied)${NC}"
-    fi
+    # Check GPU jobs for this release
+    list_jobs
     echo ""
     
-    # Check GPU jobs for this release
-    echo -e "${YELLOW}GPU Jobs for this code-server:${NC}"
-    local jobs=$(kubectl get jobs -n "$GPU_JOB_NAMESPACE" -l "dev-code-server-release=$RELEASE_NAME" --no-headers 2>/dev/null)
-    if [ -z "$jobs" ]; then
-        echo -e "  ${GREEN}No GPU jobs found${NC}"
-    else
-        kubectl get jobs -n "$GPU_JOB_NAMESPACE" -l "dev-code-server-release=$RELEASE_NAME" 2>/dev/null
+    # Show details for pending/failed pods
+    local problem_pods=$(kubectl get pods -n "$GPU_JOB_NAMESPACE" -l "dev-code-server-release=$RELEASE_NAME" --no-headers 2>/dev/null | grep -v "Running\|Completed")
+    if [ -n "$problem_pods" ]; then
+        echo -e "${YELLOW}Problem pods (not Running/Completed):${NC}"
+        echo "$problem_pods"
         echo ""
-        
-        # Show details for pending/failed pods
-        local problem_pods=$(kubectl get pods -n "$GPU_JOB_NAMESPACE" -l "dev-code-server-release=$RELEASE_NAME" --no-headers 2>/dev/null | grep -v "Running\|Completed")
-        if [ -n "$problem_pods" ]; then
-            echo -e "${YELLOW}Problem pods (not Running/Completed):${NC}"
-            echo "$problem_pods"
-            echo ""
-            echo -e "${YELLOW}Events for problem pods:${NC}"
-            while read -r line; do
-                local pod_name=$(echo "$line" | awk '{print $1}')
-                echo -e "--- ${pod_name} ---"
-                kubectl get events -n "$GPU_JOB_NAMESPACE" --field-selector "involvedObject.name=$pod_name" --sort-by='.lastTimestamp' 2>/dev/null | tail -5
-            done <<< "$problem_pods"
-        fi
+        echo -e "${YELLOW}Events for problem pods:${NC}"
+        while read -r line; do
+            local pod_name=$(echo "$line" | awk '{print $1}')
+            echo -e "--- ${pod_name} ---"
+            kubectl get events -n "$GPU_JOB_NAMESPACE" --field-selector "involvedObject.name=$pod_name" --sort-by='.lastTimestamp' 2>/dev/null | tail -5
+        done <<< "$problem_pods"
     fi
 }
 
@@ -346,6 +310,16 @@ run_gpu_job() {
     if [ -z "$script" ]; then
         echo -e "${RED}Error: No script specified${NC}"
         echo "Usage: gpu-run <script.py> [args...]"
+        exit 1
+    fi
+    
+    # Check if GPU support is enabled before doing anything else
+    local gpu_enabled
+    gpu_enabled=$(get_gpu_enabled)
+    if [ "$gpu_enabled" != "true" ]; then
+        echo -e "${RED}Error: GPU support is not enabled for this platform.${NC}"
+        echo -e "${YELLOW}Jobs created without GPU access would not have a GPU available.${NC}"
+        echo -e "Run ${YELLOW}gpu-run --status${NC} for more details."
         exit 1
     fi
     
@@ -576,24 +550,27 @@ run_gpu_job() {
     
     if [ "$job_status" = "Complete" ]; then
         echo -e "${GREEN}✓ Job completed successfully${NC}"
-        echo "---" >> "$log_file"
-        echo "# Status: Completed successfully" >> "$log_file"
-        echo "# Ended:  $(date -Iseconds)" >> "$log_file"
+        local status_text="Completed successfully"
     elif [ "$job_status" = "Failed" ]; then
         echo -e "${RED}✗ Job failed${NC}"
-        echo "---" >> "$log_file"
-        echo "# Status: Failed" >> "$log_file"
-        echo "# Ended:  $(date -Iseconds)" >> "$log_file"
-        exit 1
+        local status_text="Failed"
     else
         echo -e "${YELLOW}Job status: ${job_status:-Unknown}${NC}"
-        echo "---" >> "$log_file"
-        echo "# Status: ${job_status:-Unknown}" >> "$log_file"
-        echo "# Ended:  $(date -Iseconds)" >> "$log_file"
+        local status_text="${job_status:-Unknown}"
     fi
+    
+    {
+        echo "---"
+        echo "# Status: ${status_text}"
+        echo "# Ended:  $(date -Iseconds)"
+    } >> "$log_file"
     
     echo ""
     echo -e "Log file: ${YELLOW}$log_file${NC}"
+    
+    if [ "$job_status" = "Failed" ]; then
+        exit 1
+    fi
 }
 
 # Parse arguments

@@ -18,11 +18,16 @@ spec:
         app.kubernetes.io/name: {{ .Release.Name }}-cleanup
     spec:
       serviceAccountName: {{ .Release.Name }}-sa
+      automountServiceAccountToken: true
       restartPolicy: Never
       containers:
       - name: cleanup
         image: "{{ .Values.global.registry_url }}/dev-code-server:{{ .Values.global.kaapana_build_version }}"
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
         command:
         - /bin/bash
         - -c

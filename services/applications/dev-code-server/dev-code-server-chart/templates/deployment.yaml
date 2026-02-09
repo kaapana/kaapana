@@ -16,6 +16,7 @@ spec:
         app.kubernetes.io/name: {{ .Release.Name }}
     spec:
       serviceAccountName: {{ .Release.Name }}-sa
+      automountServiceAccountToken: true
       securityContext:
         runAsUser: 0
       initContainers:

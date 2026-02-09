@@ -3,6 +3,7 @@ kind: ServiceAccount
 metadata:
   name: {{ .Release.Name }}-sa
   namespace: "{{ tpl .Values.global.namespace . }}"
+automountServiceAccountToken: false
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -40,10 +41,6 @@ rules:
 - apiGroups: [""]
   resources: ["nodes"]
   verbs: ["get", "list"]
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["get", "list"]
-  # Allow listing pods cluster-wide to find GPU-using pods
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

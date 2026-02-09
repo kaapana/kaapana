@@ -22,7 +22,12 @@ data:
             app.kubernetes.io/name: {{ .Release.Name }}-gpu-job
             dev-code-server-release: {{ .Release.Name }}
         spec:
+          automountServiceAccountToken: false
           restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
           containers:
           - name: gpu-runner
             image: "{{ .Values.global.registry_url }}/dev-code-server:{{ .Values.global.kaapana_build_version }}"
@@ -30,6 +35,10 @@ data:
             command: ["bash", "-c"]
             args: ["GPU_COMMAND"]
             workingDir: /kaapana/minio
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop: ["ALL"]
             env:
             - name: PYTHONUNBUFFERED
               value: "1"

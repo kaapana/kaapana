@@ -58,17 +58,7 @@ first_login:
   stage: test
   script:
     - source /home/$USER/venv/bin/activate
-    - echo $IP_ADDRESS
-    - echo $CLIENT_SECRET
-    - export KAAPANA_URL="https://$IP_ADDRESS"
-    - export TEST_FILE="tests/test_first_login.py"
-    - export LOG_FILE="$ARTIFACTS_DIR/first_login.log"
-    - cd $REPO_DIR/ci-code/test/jobs/ui_tests
-    - touch "$LOG_FILE"
-    - docker compose up --build --exit-code-from tests --force-recreate || true
-    - docker rm -f ui_tests_tests_1 ui_tests_selenium_1 || true
-    - docker compose logs > "$ARTIFACTS_DIR/ui-tests.log" || true
-    - docker compose ps | grep tests | grep -q "Exit 0" || exit 1
+    - ansible-playbook $REPO_DIR/ci-code/test/jobs/ui_tests/first_login.yaml
   rules:
     - if: $TEST_STAGE == "true"
       when: on_success
@@ -98,6 +88,7 @@ install_extensions:
   needs:
     - prepare_vars
     - first_login
+  allow_failure: false
   rules:
     - if: $TEST_STAGE == "true"
       when: on_success
@@ -128,5 +119,3 @@ integration_tests:
     - if: $TEST_STAGE == "true"
       when: on_success
     - when: never
-
-

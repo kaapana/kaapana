@@ -92,7 +92,9 @@ spec:
         - name: ssl
           secret:
             secretName: certificate
+{{- if not .Values.global.managed_kubernetes }}
       priorityClassName: kaapana-high-priority
+{{- end }}
       imagePullSecrets:
       - name: registry-secret
 ---

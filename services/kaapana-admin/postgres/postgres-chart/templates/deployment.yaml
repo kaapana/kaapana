@@ -70,6 +70,8 @@ spec:
           claimName: {{ .Values.appName | default .Chart.Name }}-pv-claim
       - name: unix-socket-dir
         emptyDir: {}
+{{- if not .Values.global.managed_kubernetes }}
       priorityClassName: kaapana-high-priority
+{{- end }}
       imagePullSecrets:
         - name: registry-secret

@@ -5,6 +5,7 @@ import logging
 import os
 
 SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", None)
+ADMIN_NAMESPACE = os.getenv("ADMIN_NAMESPACE", None)
 assert SERVICES_NAMESPACE
 
 prometheus_base_url = (
@@ -14,10 +15,8 @@ prometheus_url = f"{prometheus_base_url}?query="
 
 memory_query = "floor(node_memory_MemTotal_bytes{job='Node-Exporter'}/1048576)"
 mem_util_per_query = "sum(node_memory_MemTotal_bytes{job='Node-Exporter'} - node_memory_MemAvailable_bytes{job='Node-Exporter'}) / sum(node_memory_MemTotal_bytes{job='Node-Exporter'})"
-query_memory_requested_from_pods_in_services_namespace = 'round(sum(kube_pod_container_resource_requests{unit="byte",namespace="services"})/1000000) * on (namespace, pod) group_left() (kube_pod_status_phase{namespace="services", phase="Running"} == 1)) / 1e6'
-query_memory_requested_from_pods_in_admin_namespace = 'round(sum(kube_pod_container_resource_requests{unit="byte",namespace="admin"})/1000000)  * on (namespace, pod) group_left() (kube_pod_status_phase{namespace="admin", phase="Running"} == 1)) / 1e6'
-
-
+query_memory_requested_from_pods_in_services_namespace = f'round(sum(kube_pod_container_resource_requests{{unit="byte",namespace="{SERVICES_NAMESPACE}"}})/1000000) * on (namespace, pod) group_left() (kube_pod_status_phase{{namespace="{SERVICES_NAMESPACE}", phase="Running"}} == 1)) / 1e6'
+query_memory_requested_from_pods_in_admin_namespace = f'round(sum(kube_pod_container_resource_requests{{unit="byte",namespace="{ADMIN_NAMESPACE}"}})/1000000) * on (namespace, pod) group_left() (kube_pod_status_phase{{namespace="{ADMIN_NAMESPACE}", phase="Running"}} == 1)) / 1e6'
 cpu_core_query = "machine_cpu_cores"
 cpu_util_per_query = 'sum (rate (container_cpu_usage_seconds_total{id="/"}[1m])) / sum (machine_cpu_cores) * 100'
 cpu_util_cores_used_query = 'sum(rate (container_cpu_usage_seconds_total{id="/"}[1m]))'

@@ -22,12 +22,18 @@ metadata:
   name: traefik-http
   namespace: "{{  .Values.global.helm_namespace  }}"
 spec:
+  {{- if .Values.global.managed_kubernetes }}
+  type: ClusterIP
+  {{- else }}
   type: NodePort
+  {{- end }}
   ports:
     - protocol: TCP
       name: web
       port: {{ .Values.global.http_port }}
+      {{- if not .Values.global.managed_kubernetes }}
       nodePort: {{ .Values.global.http_port }}
+      {{- end }}
   selector:
     app.kubernetes.io/name: traefik
 {{- end }}

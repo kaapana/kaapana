@@ -54,7 +54,9 @@ spec:
               memory: {{ .Values.session_storage.redis.resources.requests.memory }}
             limits:
               memory: {{ .Values.session_storage.redis.resources.limits.memory }}
+{{- if not .Values.global.managed_kubernetes }}
       priorityClassName: kaapana-high-priority
+{{- end }}
       # Required to pull the mirrored redis image from the private Kaapana registry.
       imagePullSecrets:
       - name: registry-secret

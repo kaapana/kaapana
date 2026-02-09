@@ -40,7 +40,7 @@ class KaapanaAuth:
             "client_secret": self.client_secret,
             "grant_type": "password",
         }
-        url = f"{protocol}://{host}:{port}/auth/realms/kaapana/protocol/openid-connect/token"
+        url = f"{protocol}://{self.host}:{port}/auth/realms/kaapana/protocol/openid-connect/token"
         r = requests.post(url, verify=ssl_check, data=payload)
         access_token = r.json()["access_token"]
         return access_token

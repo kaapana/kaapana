@@ -20,6 +20,7 @@ data:
         metadata:
           labels:
             app.kubernetes.io/name: {{ .Release.Name }}-gpu-job
+            dev-code-server-release: {{ .Release.Name }}
         spec:
           restartPolicy: Never
           containers:

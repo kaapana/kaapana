@@ -158,29 +158,31 @@ kill_job() {
             exit 0
         fi
 
-        local count=$(echo "$running_jobs" | wc -l)
-        if [ "$count" -eq 1 ]; then
-            # Single running job — kill it directly
-            local pod=$(echo "$running_jobs" | awk '{print $1}')
-            job_name=$(kubectl get pod -n "$GPU_JOB_NAMESPACE" "$pod" \
+        # List running jobs and let the user pick
+        echo -e "${BLUE}Running GPU jobs:${NC}"
+        echo ""
+        local i=1
+        local job_names=()
+        while IFS= read -r line; do
+            local pod=$(echo "$line" | awk '{print $1}')
+            local status=$(echo "$line" | awk '{print $3}')
+            local jn=$(kubectl get pod -n "$GPU_JOB_NAMESPACE" "$pod" \
                 -o jsonpath='{.metadata.labels.job-name}' 2>/dev/null)
-            echo -e "${YELLOW}Killing the only running GPU job: ${job_name}${NC}"
+            job_names+=("$jn")
+            echo -e "  ${YELLOW}[$i]${NC} $jn  (${status})"
+            i=$((i + 1))
+        done <<< "$running_jobs"
+        echo ""
+
+        if [ "${#job_names[@]}" -eq 1 ]; then
+            read -rp "Kill this job? (y/n): " choice
+            if [ "$choice" = "y" ] || [ "$choice" = "Y" ]; then
+                job_name="${job_names[0]}"
+            else
+                echo "Cancelled."
+                exit 0
+            fi
         else
-            # Multiple running jobs — list them and ask
-            echo -e "${BLUE}Running GPU jobs:${NC}"
-            echo ""
-            local i=1
-            local job_names=()
-            while IFS= read -r line; do
-                local pod=$(echo "$line" | awk '{print $1}')
-                local status=$(echo "$line" | awk '{print $3}')
-                local jn=$(kubectl get pod -n "$GPU_JOB_NAMESPACE" "$pod" \
-                    -o jsonpath='{.metadata.labels.job-name}' 2>/dev/null)
-                job_names+=("$jn")
-                echo -e "  ${YELLOW}[$i]${NC} $jn  (${status})"
-                i=$((i + 1))
-            done <<< "$running_jobs"
-            echo ""
             read -rp "Enter number to kill (or 'all' to kill all, 'q' to quit): " choice
 
             if [ "$choice" = "q" ] || [ "$choice" = "Q" ]; then
@@ -436,6 +438,10 @@ run_gpu_job() {
     
     echo -e "${GREEN}Job created successfully!${NC}"
     echo ""
+    echo -e "Log file:           ${YELLOW}$log_file${NC}"
+    echo -e "To kill this job:   ${YELLOW}gpu-run --kill $job_name${NC}"
+    echo -e "To delete this job: ${YELLOW}gpu-run --delete $job_name${NC}"
+    echo ""
     
     # Set up Ctrl+C handler to kill the job
     trap '_on_interrupt' INT
@@ -518,42 +524,24 @@ run_gpu_job() {
     echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
     echo ""
     
-    # Stream logs, retrying if the container isn't ready yet.
-    # kubectl logs --follow can exit silently if the container finishes very
-    # quickly or if called during the transition from Pending to Running.
-    # We retry a few times and also handle the case where the job already
-    # completed (Succeeded/Failed) by fetching logs without --follow.
-    local logs_streamed=false
-    for attempt in 1 2 3; do
-        if [ -n "$pod_name" ]; then
-            local current_phase=$(kubectl get pod -n "$GPU_JOB_NAMESPACE" "$pod_name" -o jsonpath='{.status.phase}' 2>/dev/null)
-            if [ "$current_phase" = "Succeeded" ] || [ "$current_phase" = "Failed" ]; then
-                # Pod already finished — get full logs (no --follow)
-                kubectl logs -n "$GPU_JOB_NAMESPACE" "$pod_name" 2>/dev/null | tee -a "$log_file" || true
-                logs_streamed=true
-                break
-            fi
-            # Pod still running — stream with --follow
-            kubectl logs -n "$GPU_JOB_NAMESPACE" "$pod_name" --follow 2>/dev/null | tee -a "$log_file" || true
-            # Check if the pod is done now
-            current_phase=$(kubectl get pod -n "$GPU_JOB_NAMESPACE" "$pod_name" -o jsonpath='{.status.phase}' 2>/dev/null)
-            if [ "$current_phase" = "Succeeded" ] || [ "$current_phase" = "Failed" ] || [ "$current_phase" = "" ]; then
-                logs_streamed=true
-                break
-            fi
+    # Stream logs from the pod.
+    # We check the phase first: if the pod already finished we fetch logs
+    # without --follow.  Otherwise we use --follow which streams until the
+    # container exits.  After --follow returns we are done — no retry — to
+    # avoid printing the same output twice.
+    if [ -n "$pod_name" ]; then
+        local current_phase=$(kubectl get pod -n "$GPU_JOB_NAMESPACE" "$pod_name" -o jsonpath='{.status.phase}' 2>/dev/null)
+        if [ "$current_phase" = "Succeeded" ] || [ "$current_phase" = "Failed" ]; then
+            # Pod already finished — get full logs (no --follow)
+            kubectl logs -n "$GPU_JOB_NAMESPACE" "$pod_name" 2>/dev/null | tee -a "$log_file" || true
         else
-            kubectl logs -n "$GPU_JOB_NAMESPACE" -l "job-name=$job_name" --follow 2>/dev/null | tee -a "$log_file" || true
-            logs_streamed=true
-            break
+            # Pod still running — stream with --follow.
+            # --follow exits when the container terminates, so all output is
+            # captured in this single call.  No retry needed.
+            kubectl logs -n "$GPU_JOB_NAMESPACE" "$pod_name" --follow 2>/dev/null | tee -a "$log_file" || true
         fi
-        # Brief pause before retry
-        sleep 2
-    done
-    
-    # If streaming failed, dump whatever logs exist
-    if [ "$logs_streamed" != "true" ] && [ -n "$pod_name" ]; then
-        echo -e "${YELLOW}Fetching final logs...${NC}"
-        kubectl logs -n "$GPU_JOB_NAMESPACE" "$pod_name" 2>/dev/null | tee -a "$log_file" || true
+    else
+        kubectl logs -n "$GPU_JOB_NAMESPACE" -l "job-name=$job_name" --follow 2>/dev/null | tee -a "$log_file" || true
     fi
     
     echo ""
@@ -605,9 +593,7 @@ run_gpu_job() {
     fi
     
     echo ""
-    echo -e "To view logs again: ${YELLOW}gpu-run --logs $job_name${NC}"
-    echo -e "To delete the job:  ${YELLOW}gpu-run --delete $job_name${NC}"
-    echo -e "Log file:           ${YELLOW}$log_file${NC}"
+    echo -e "Log file: ${YELLOW}$log_file${NC}"
 }
 
 # Parse arguments

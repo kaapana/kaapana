@@ -23,7 +23,6 @@ class BuildWorker:
 
         # Determine outcome after build
         if build_issue:
-            # IssueTracker.issues.append(build_issue)
             container.status = Status.FAILED
             self._emit_event(
                 BuildEvent(
@@ -32,7 +31,11 @@ class BuildWorker:
                 event_queue,
             )
             return
-            # raise RuntimeError(f"Build failed for container {container.tag}")
+        else:
+            self._emit_event(
+                BuildEvent(type=BuildEventType.BUILT, container=container),
+                event_queue,
+            )
 
         if container.status in {Status.SKIPPED, Status.BUILT_ONLY}:
             self._emit_event(
@@ -63,16 +66,6 @@ class BuildWorker:
             BuildEvent(type=BuildEventType.FINISHED, container=container),
             event_queue,
         )
-
-    def _build_container(self, container: Container) -> None:
-        """
-        Build the specified container.
-        """
-
-    def _push_container(self, container: Container) -> None:
-        """
-        Push the specified container to the registry.
-        """
 
     def _emit_event(self, event: BuildEvent, event_queue: EventQueue) -> None:
         """

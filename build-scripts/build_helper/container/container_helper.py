@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, Set, TypeVar
 from alive_progress import alive_bar
 
 from build_helper.build import BuildConfig, BuildState, IssueTracker, Issue
-from build_helper.container import Container, Status
+from build_helper.container import Container
 from build_helper.utils import CommandUtils, get_logger
 
 logger = get_logger()
@@ -25,7 +25,6 @@ class ContainerHelper:
         - Login to container registries
         - Collect containers from source directories
         - Resolve base image dependencies
-        - Track build statuses
         - Gather statistics on built images
     """
 

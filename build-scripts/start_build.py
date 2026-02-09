@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 from shutil import rmtree
+import sys
 from time import time
 
 from build_helper.build import (
@@ -21,6 +22,7 @@ from build_helper.container.coordinator import BuildCoordinator
 
 
 def main(build_config: BuildConfig):
+    EXIT_CODE = 0
     if build_config.build_dir.exists():
         rmtree(build_config.build_dir)
 
@@ -125,6 +127,9 @@ def main(build_config: BuildConfig):
         for issue in IssueTracker.issues:
             issue.log_self(logger)
 
+        if build_config.exit_on_error:
+            EXIT_CODE = 1
+
     build_state.mark_finished()
     if build_state.duration:
         hours, rem = divmod(build_state.duration, 3600)
@@ -162,6 +167,7 @@ def main(build_config: BuildConfig):
     logger.info("-----------------------------------------------------------")
     logger.info("-------------------------- DONE ---------------------------")
     logger.info("-----------------------------------------------------------")
+    sys.exit(EXIT_CODE)
 
 
 if __name__ == "__main__":

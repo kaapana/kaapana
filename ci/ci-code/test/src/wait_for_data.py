@@ -33,7 +33,7 @@ def parser():
 def main():
     args = parser()
     host = args.host
-    client_secret = args.client_secret or os.environ.get("CLIENT_SECRET", None)
+    client_secret = args.client_secret or os.environ.get("CLIENT_SECRET")
     if not client_secret:
         logger.error(
             "A client secret has to be specified by command line flag or as environment variable CLIENT_SECRET"

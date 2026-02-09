@@ -7,11 +7,10 @@ import requests
 class KaapanaAuth:
     def __init__(self, host, client_secret=None):
         self.host = host
-        if client_secret:
-            self.client_secret = client_secret
-        else:
-            self.client_secret = os.environ.get("CLIENT_SECRET")
-        self.access_token = self.get_access_token(self.host, self.client_secret)
+        self.client_secret = client_secret or os.environ.get("CLIENT_SECRET")
+        if not self.client_secret:
+            raise RuntimeError("CLIENT_SECRET not provided to KaapanaAuth (argument or CLIENT_SECRET env)")
+        self.access_token = self.get_access_token()
         self.admin_project = self.get_admin_project()
 
     def get_admin_project(self):
@@ -27,8 +26,6 @@ class KaapanaAuth:
 
     def get_access_token(
         self,
-        host,
-        client_secret,
         username="kaapana",
         password="admin",
         protocol="https",
@@ -40,7 +37,7 @@ class KaapanaAuth:
             "username": username,
             "password": password,
             "client_id": client_id,
-            "client_secret": client_secret,
+            "client_secret": self.client_secret,
             "grant_type": "password",
         }
         url = f"{protocol}://{host}:{port}/auth/realms/kaapana/protocol/openid-connect/token"

@@ -228,6 +228,7 @@ deploy_and_test:
   - when: on_success
   resource_group: "deploy-$CI_RUNNER_DESCRIPTION"
   environment: "deploy-$CI_RUNNER_DESCRIPTION"
+  # Artifacts uploaded in clean stage
 
 #############################################
 ############## CLEAN ########################

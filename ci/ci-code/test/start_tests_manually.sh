@@ -3,9 +3,9 @@ set -aeuf -o pipefail
 
 export REPO_DIR="" ### Path to the kaapana repository
 export ARTIFACTS_DIR="" ### Path to the directory, where log files are saved
-export ip_address="" ### ip_address of the instance, where kaapana is deployed
-export http_proxy=""
-export https_proxy=""
+export IP_ADDRESS="" ### IP address of the instance, where kaapana is deployed
+export HTTP_PROXY=""
+export HTTPS_PROXY=""
 
 ansible-playbook -vvv "${REPO_DIR}/ci/ci-code/test/ui_tests/first_login.yaml"
 ansible-playbook "${REPO_DIR}/ci/ci-code/test/testdata/prepare_data.yaml"

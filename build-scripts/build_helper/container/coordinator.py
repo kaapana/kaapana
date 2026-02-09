@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from queue import PriorityQueue, Empty
 from threading import Lock
-from typing import Iterable, List, Set, Optional
-from build_helper.container import Container, Status
+from typing import Iterable, Set
+from build_helper.container import Container
 from build_helper.container.worker import BuildWorker
 from build_helper.container.container_helper import (
     EventQueue,
@@ -11,8 +11,7 @@ from build_helper.container.container_helper import (
     BuildEvent,
 )
 from build_helper.cli.progress import ProgressBar
-from build_helper.build import IssueTracker
-from threading import Lock, Thread
+from threading import Lock
 from concurrent.futures import (
     ThreadPoolExecutor,
     Future,
@@ -47,6 +46,7 @@ class BuildCoordinator:
         self.ready_queue: PriorityQueue[QueueItem] = PriorityQueue()
         self.event_queue: EventQueue = EventQueue()
         self.lock = Lock()
+        self.abort_requested = False
 
     def start(self) -> None:
         """ """
@@ -64,8 +64,7 @@ class BuildCoordinator:
                 # Initial scheduling
                 self._schedule_ready(executor, futures)
 
-                while futures or self._has_pending():
-
+                while (futures or self._has_pending()) and not self.abort_requested:
                     # 1. Handle events
                     try:
                         event = self.event_queue.get(timeout=0.1)
@@ -85,11 +84,18 @@ class BuildCoordinator:
                     )
                     futures = pending
 
+            if self.abort_requested:
+                executor.shutdown(wait=False, cancel_futures=True)
+                return
+
     def _schedule_ready(
         self,
         executor: ThreadPoolExecutor,
         futures: set[Future],
     ) -> None:
+        if self.abort_requested:
+            ### Stop scheduling new workers
+            return
         while True:
             try:
                 item = self.ready_queue.get_nowait()
@@ -118,6 +124,8 @@ class BuildCoordinator:
         Mark a container as completed and enqueue any newly-unblocked
         dependent containers.
         """
+        if self.abort_requested:
+            return
         with self.lock:
             for container in list(self.waiting):
                 if container.all_dependencies_ready():
@@ -149,12 +157,7 @@ class BuildCoordinator:
         Handle a build event emitted by a worker.
         """
         match event.type:
-            case BuildEventType.STARTED:
-                pass
-                # print(f"Started {event.container.tag}")
-
             case BuildEventType.FINISHED:
-                # print(f"Finished {event.container.tag}")
                 self.mark_completed(event.container)
                 self.progress_bar.advance(
                     last_processed_container=event.container, advance=1
@@ -162,24 +165,20 @@ class BuildCoordinator:
                 self.progress_bar.finished_print(event.container)
 
             case BuildEventType.SKIPPED:
-                # print(f"Skipped {event.container.tag}")
                 self.mark_completed(event.container)
                 self.progress_bar.advance(
                     last_processed_container=event.container, advance=1
                 )
 
             case BuildEventType.FAILED:
-                # print(f"Failed {event.container.tag}")
                 self.mark_completed(event.container)
                 self.progress_bar.advance(
                     last_processed_container=event.container, advance=1
                 )
 
-                if event.issue:
-                    IssueTracker.issues.append(event.issue)
-
                 if ContainerHelper._build_config.exit_on_error:
+                    self.abort_requested = True
                     e = event.error or RuntimeError(
                         f"Build failed for {event.container.tag}"
                     )
-                    raise e
+                    self.abort_exception = e

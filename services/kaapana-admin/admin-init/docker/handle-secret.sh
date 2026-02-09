@@ -28,33 +28,37 @@ function install_cert_files {
 function copy_cert {
     if [ "$SECRET_NAMESPACE" == "$ADMIN_NAMESPACE" ]; then
         echo "SERVICES_NAMESPACE == ADMIN_NAMESPACE -> skip copy of secret."
-    else
-        if kubectl get namespace $SECRET_NAMESPACE; then
-            max_retry=10
-            counter=0
-            until kubectl get secret --namespace=$ADMIN_NAMESPACE $SECRET_NAME;
-                do
-                    [[ counter -eq $max_retry ]] && echo "Failed!" && exit 1
-                    ((counter++))
-                    echo "Cert secret not found at $ADMIN_NAMESPACE -> waiting #$counter ..."
-                    sleep 5
-                done
-
-            if ! kubectl get secret --namespace=$SECRET_NAMESPACE $SECRET_NAME; then
-                echo "Copy secret $SECRET_NAME from namespace $ADMIN_NAMESPACE -> $SECRET_NAMESPACE ..."
-                if ! kubectl get secret $SECRET_NAME --namespace=$ADMIN_NAMESPACE -ojson | jq 'del(.metadata["namespace","creationTimestamp","resourceVersion","selfLink","uid"])' | kubectl apply --namespace=$SECRET_NAMESPACE -f -; then
-                    echo "ERROR copying secret $SECRET_NAME in namespace $SECRET_NAMESPACE" 
-                    exit 1
-                fi
-                echo "Secret $SECRET_NAME created in namespace $SECRET_NAMESPACE"
-            else
-                echo "Secret $SECRET_NAME already present in namespace $SECRET_NAMESPACE -> skipping."
-            fi
-        else
-            echo "SECRET_NAMESPACE: $SECRET_NAMESPACE not present -> skipping copy of secret ..."
-        fi
+        return 0
     fi
+
+    # Wait until source secret exists
+    max_retry=10
+    counter=0
+    until kubectl get secret "$SECRET_NAME" -n "$ADMIN_NAMESPACE" >/dev/null 2>&1; do
+        [[ $counter -eq $max_retry ]] && echo "Failed waiting for secret in $ADMIN_NAMESPACE" && exit 1
+        ((counter++))
+        echo "Cert secret not found in $ADMIN_NAMESPACE -> waiting #$counter ..."
+        sleep 5
+    done
+
+    # Try to read target secret (this also implicitly checks namespace existence without requiring additional permissions on clusterscope)
+    if kubectl get secret "$SECRET_NAME" -n "$SECRET_NAMESPACE" >/dev/null 2>&1; then
+        echo "Secret $SECRET_NAME already present in namespace $SECRET_NAMESPACE -> skipping."
+        return 0
+    fi
+
+    echo "Copy secret $SECRET_NAME from namespace $ADMIN_NAMESPACE -> $SECRET_NAMESPACE ..."
+
+    if ! kubectl get secret "$SECRET_NAME" -n "$ADMIN_NAMESPACE" -o json \
+        | jq 'del(.metadata["namespace","creationTimestamp","resourceVersion","selfLink","uid"])' \
+        | kubectl apply -n "$SECRET_NAMESPACE" -f - >/dev/null 2>&1; then
+        echo "ERROR copying secret $SECRET_NAME into namespace $SECRET_NAMESPACE"
+        exit 1
+    fi
+
+    echo "Secret $SECRET_NAME created in namespace $SECRET_NAMESPACE"
 }
+
 
 function install_cert {
     if kubectl -n $SECRET_NAMESPACE get secret $SECRET_NAME; then

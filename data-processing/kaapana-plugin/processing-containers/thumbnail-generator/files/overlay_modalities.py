@@ -24,7 +24,17 @@ class Slice(BaseModel):
 
 def create_empty_ref_series(operator_ref_dir: Path, operator_in_dir: Path):
     """
-    Create empty reference image for a segmentation image.
+    Create a dummy CT reference series matching the geometry of an incoming DICOM SEG.
+
+    Some SEG objects reference a source series that is not available at import time. This function
+    creates a synthetic CT series (one slice per referenced frame) using geometry information from
+    the SEG metadata (rows/cols, spacing, orientation, slice positions).
+
+    The pixel data is constant (HU ~ -1024 everywhere) and is intended only as geometry scaffolding.
+
+    Args:
+        operator_ref_dir (Path): Output directory where the dummy reference DICOM slices are written.
+        operator_in_dir (Path): Directory containing the DICOM SEG file used to derive geometry.
     """
     file_name = os.path.join(operator_in_dir, os.listdir(operator_in_dir)[0])
     # Read the segmentation
@@ -68,7 +78,7 @@ def create_empty_ref_series(operator_ref_dir: Path, operator_in_dir: Path):
         file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRLittleEndian
 
         ds = pydicom.dataset.FileDataset(
-            f"file_meta.MediaStorageSOPInstanceUID.dcm",
+            f"{file_meta.MediaStorageSOPInstanceUID}.dcm",
             {},
             file_meta=file_meta,
             preamble=b"\0" * 128,
@@ -97,7 +107,7 @@ def create_empty_ref_series(operator_ref_dir: Path, operator_in_dir: Path):
         ds.BitsStored = 16
         ds.HighBit = 15
         ds.PixelRepresentation = 1  # signed
-        ds.RescaleIntercept = 1
+        ds.RescaleIntercept = -1024
         ds.RescaleSlope = 1
         ds.SamplesPerPixel = 1
         ds.PhotometricInterpretation = "MONOCHROME2"
@@ -105,7 +115,7 @@ def create_empty_ref_series(operator_ref_dir: Path, operator_in_dir: Path):
         ds.is_implicit_VR = False
 
         # Create zero image data (Hounsfield units = -1024 for air)
-        pixel_array = np.full((rows, cols), 1, dtype=np.int16)
+        pixel_array = np.zeros((rows, cols), dtype=np.int16)
         ds.PixelData = pixel_array.tobytes()
 
         # Save to disk
@@ -133,17 +143,158 @@ def dicomlab2LAB(dicomlab: list) -> list:
     return lab
 
 
+def _extract_segment_colors_from_dicom_seg(dicom_seg) -> dict:
+    segment_colors = {}
+    if not hasattr(dicom_seg, "SegmentSequence"):
+        return segment_colors
+
+    for seg in dicom_seg.SegmentSequence:
+        seg_num = int(seg.SegmentNumber)
+        seg_label = getattr(seg, "SegmentLabel", str(seg_num))
+
+        if hasattr(seg, "RecommendedDisplayCIELabValue"):
+            cie_lab_color_int = seg.RecommendedDisplayCIELabValue
+            cie_lab_color_float = [float(int(x)) for x in cie_lab_color_int]
+            lab_vals = dicomlab2LAB(dicomlab=cie_lab_color_float)
+            lab = LabColor(lab_vals[0], lab_vals[1], lab_vals[2])
+            rgb = convert_color(lab, sRGBColor).get_upscaled_value_tuple()
+            color = [max(min(int(x), 255), 0) for x in rgb]
+            color_type = "CIELab"
+        elif hasattr(seg, "RecommendedDisplayRGBValue"):
+            color = [int(x) for x in seg.RecommendedDisplayRGBValue]
+            color_type = "RGB"
+        else:
+            color = [randint(0, 255), randint(0, 255), randint(0, 255)]
+            color_type = "Random"
+
+        segment_colors[seg_num] = {
+            "label": seg_label,
+            "color_type": color_type,
+            "color": color,
+        }
+
+    return segment_colors
+
+
+def _pick_best_slice_index(
+    classes_per_slice: np.ndarray, area_per_slice: np.ndarray
+) -> int:
+    # lexsort sorts ascending; we want the maximum (classes, then area)
+    return int(np.lexsort((area_per_slice, classes_per_slice))[-1])
+
+
+def _overlay_from_2d_masks(
+    base_slice: np.ndarray,
+    masks_2d: list[tuple[int, np.ndarray]],
+    overlap_map: np.ndarray,
+    segment_colors: dict,
+    thumbnail_size: int,
+) -> Image.Image:
+    """
+    Render the same style (edges + semi-transparent fill normalized by overlap),
+    but using only 2D masks.
+    """
+    base = base_slice.astype(np.float32)
+
+    # union mask for windowing
+    union = overlap_map > 0
+    vals = base[union]
+
+    # Robust windowing fallback
+    if vals.size == 0:
+        window_min = float(np.min(base))
+        window_max = float(np.max(base))
+    else:
+        min_intensity = float(np.min(vals))
+        max_intensity = float(np.mean(vals) + 2 * np.std(vals))
+        margin = 0.1 * (max_intensity - min_intensity)
+        window_min = max(0.0, min_intensity - margin)
+        window_max = min(4095.0, max_intensity + margin)
+
+    windowed = np.clip(base, window_min, window_max)
+    denom = (window_max - window_min) if (window_max - window_min) != 0 else 1.0
+    normalized = ((windowed - window_min) / denom * 255.0).astype(np.uint8)
+
+    image = Image.fromarray(normalized).convert("RGBA")
+
+    overlap_map = np.clip(overlap_map.astype(np.float32), 1.0, None)
+
+    for seg_id, mask2d in masks_2d:
+        info = segment_colors.get(seg_id, {})
+        color = info.get("color") or [randint(0, 255), randint(0, 255), randint(0, 255)]
+
+        mask_array = mask2d.astype(np.uint8) * 255
+        mask = Image.fromarray(mask_array, mode="L")
+
+        # Border
+        border_overlay = Image.new("RGBA", image.size, tuple(color) + (255,))
+        image = Image.composite(
+            border_overlay, image, mask.filter(ImageFilter.FIND_EDGES)
+        )
+
+        # Fill with normalized opacity
+        normalized_opacity = 128.0 / overlap_map
+        alpha = (mask_array / 255.0 * normalized_opacity).astype(np.uint8)
+        alpha_img = Image.fromarray(alpha, mode="L")
+
+        fill_overlay = Image.new("RGBA", image.size, tuple(color) + (0,))
+        fill_overlay.putalpha(alpha_img)
+        image = Image.alpha_composite(image, fill_overlay)
+
+    image.thumbnail((thumbnail_size, thumbnail_size))
+    return image
+
+
+def _thumbnail_from_labelmap(
+    image_array: np.ndarray,
+    labelmap: np.ndarray,
+    segment_colors: dict,
+    thumbnail_size: int,
+) -> Image.Image:
+    z = labelmap.shape[0]
+
+    area_per_slice = np.count_nonzero(labelmap, axis=(1, 2)).astype(np.int64)
+    classes_per_slice = np.zeros(z, dtype=np.int16)
+    for i in range(z):
+        u = np.unique(labelmap[i])
+        classes_per_slice[i] = len(u) - (1 if 0 in u else 0)
+
+    best_slice = _pick_best_slice_index(classes_per_slice, area_per_slice)
+
+    base_slice = image_array[best_slice].copy()
+    slice_labels = np.unique(labelmap[best_slice])
+    slice_labels = slice_labels[slice_labels != 0]
+
+    masks_2d = []
+    overlap_map = np.zeros(labelmap[0].shape, dtype=np.uint16)
+    for lbl in slice_labels:
+        m2 = labelmap[best_slice] == lbl
+        masks_2d.append((int(lbl), m2))
+        overlap_map += m2.astype(np.uint16)
+
+    return _overlay_from_2d_masks(
+        base_slice=base_slice,
+        masks_2d=masks_2d,
+        overlap_map=overlap_map,
+        segment_colors=segment_colors,
+        thumbnail_size=thumbnail_size,
+    )
+
+
 def resample_to_reference_image(
     ref_image: sitk.Image, segmentation: sitk.Image
 ) -> sitk.Image:
-    """Resamples a segmentation to match the size and spacing of a reference image
+    """
+    Resample a segmentation image to match a reference image geometry.
+
+    Uses nearest-neighbor interpolation to preserve label values.
 
     Args:
-        image (sitk.Image): Reference image
-        segmentation (sitk.Image): DICOM Segmentation object
+        ref_image (sitk.Image): Reference image defining target geometry (size, spacing, origin, direction).
+        segmentation (sitk.Image): Segmentation image to resample into the reference geometry.
 
     Returns:
-        tuple: Tuple containing the cropped image and segmentation
+        sitk.Image: The segmentation resampled to the reference image geometry.
     """
 
     # Resample segmentation to match the reference image
@@ -159,55 +310,156 @@ def resample_to_reference_image(
         ref_image.GetSize() == segmentation_resampled.GetSize()
     ), f"Image and segmentation have different sizes: Image: {ref_image.GetSize()}, Segmentation: {segmentation_resampled.GetSize()}"
 
-    return ref_image, segmentation_resampled
+    return segmentation_resampled
 
 
 def generate_segmentation_thumbnail(
-    operator_in_dir: Path, operator_ref_dir: Path, thumbnail_size: int
+    operator_in_dir: Path,
+    operator_ref_dir: Path,
+    thumbnail_size: int,
+    candidate_slices_count: int = 12,
 ) -> Image:
     """
-    Generate a thumbnail image for a DICOM SEG-based segmentation.
+    Generate an overlay thumbnail for a DICOM SEG object.
 
-    This function loads the reference DICOM series and the corresponding DICOM SEG segmentation,
-    identifies the most relevant slice, and overlays the segmentation on the selected slice
-    to generate a visually informative thumbnail.
+    Loads the reference DICOM series and the DICOM SEG, selects a representative slice, and renders
+    the segmentation overlay on that slice.
+
+    Slice selection is designed to be memory-bounded:
+      1) Compute per-slice class counts exactly and an approximate area score (sum of per-segment areas).
+      2) Select the top-N candidate slices by (class count, approx area) and compute the exact union
+         foreground area only for those candidates.
+      3) Render only 2D masks for the final selected slice.
 
     Args:
-        operator_in_dir (str): Path to the directory containing the DICOM SEG file.
-        operator_ref_dir (str): Path to the directory containing the reference DICOM series.
+        operator_in_dir (Path): Directory containing the DICOM SEG file.
+        operator_ref_dir (Path): Directory containing the referenced DICOM image series.
+        thumbnail_size (int): Maximum size (pixels) of the thumbnail (largest side).
+        candidate_slices_count (int): Number of candidate slices to evaluate with exact union area.
+            Higher values more closely match the true global optimum but require more CPU.
 
     Returns:
-        Image: A PIL Image object representing the thumbnail with segmentation overlay.
+        Image: A PIL Image object representing the selected slice with segmentation overlay.
     """
-    image_array, seg_arrays, segment_colors = load_ref_series_and_segmentation(
-        operator_ref_dir, operator_in_dir
+    dicom_image, image_array, result, segment_colors = load_ref_series_and_segmentation(
+        str(operator_ref_dir), str(operator_in_dir)
     )
-    thumbnail = overlay_thumbnail(image_array, seg_arrays, segment_colors)
-    return thumbnail
+
+    target_shape = image_array.shape  # (z,y,x)
+    z, h, w = target_shape
+
+    # ---------- PASS 1: cheap metrics (exact classes, approximate area) ----------
+    classes_per_slice = np.zeros(z, dtype=np.int16)
+    area_sum_per_slice = np.zeros(
+        z, dtype=np.int64
+    )  # sum of per-segment areas (overcounts overlaps)
+
+    for seg_num in sorted(result.available_segments):
+        seg_arr = result.segment_data(seg_num)
+
+        if seg_arr.shape != target_shape:
+            seg_rs = resample_to_reference_image(
+                ref_image=dicom_image,
+                segmentation=result.segment_image(seg_num),
+            )
+            seg_arr = sitk.GetArrayFromImage(seg_rs)
+
+        fg = seg_arr > 0
+        classes_per_slice += np.any(fg, axis=(1, 2)).astype(np.int16)
+        area_sum_per_slice += np.sum(fg, axis=(1, 2)).astype(np.int64)
+
+        del seg_arr, fg
+
+    # Pick top-M candidate slices by (classes, approx area)
+    candidate_count = max(1, min(candidate_slices_count, z))
+    candidate_slices = np.lexsort((area_sum_per_slice, classes_per_slice))[
+        -candidate_count:
+    ]
+    candidate_slices = np.sort(candidate_slices)  # helps stable behavior
+
+    # ---------- PASS 2: exact union area for candidates only ----------
+    # union_candidates shape: (M, h, w)
+    union_candidates = np.zeros((candidate_slices.size, h, w), dtype=bool)
+
+    for seg_num in sorted(result.available_segments):
+        seg_arr = result.segment_data(seg_num)
+
+        if seg_arr.shape != target_shape:
+            seg_rs = resample_to_reference_image(
+                ref_image=dicom_image,
+                segmentation=result.segment_image(seg_num),
+            )
+            seg_arr = sitk.GetArrayFromImage(seg_rs)
+
+        # Only touch candidate slices -> (M, h, w)
+        union_candidates |= seg_arr[candidate_slices] > 0
+
+        del seg_arr
+
+    area_exact_candidates = np.sum(union_candidates, axis=(1, 2)).astype(np.int64)
+    del union_candidates
+
+    # Final best slice using same ordering as before:
+    # (classes_per_slice, then exact union area)
+    best_idx = int(
+        np.lexsort((area_exact_candidates, classes_per_slice[candidate_slices]))[-1]
+    )
+    best_slice = int(candidate_slices[best_idx])
+    best_area = int(area_exact_candidates[best_idx])
+
+    logger.info(
+        f"Best slice: {best_slice} with {int(classes_per_slice[best_slice])} classes "
+        f"and {best_area} foreground pixels (exact union, candidates={candidate_count})"
+    )
+
+    # Keep only the chosen slice from the reference to free memory
+    base_slice = image_array[best_slice].copy()
+    del image_array
+
+    # ---------- PASS 3: collect 2D masks only for the chosen slice ----------
+    masks_2d = []
+    overlap_map = np.zeros((h, w), dtype=np.uint16)
+
+    for seg_num in sorted(result.available_segments):
+        seg_arr = result.segment_data(seg_num)
+
+        if seg_arr.shape != target_shape:
+            seg_rs = resample_to_reference_image(
+                ref_image=dicom_image,
+                segmentation=result.segment_image(seg_num),
+            )
+            seg_arr = sitk.GetArrayFromImage(seg_rs)
+
+        m2 = seg_arr[best_slice] > 0
+        if m2.any():
+            masks_2d.append((int(seg_num), m2))
+            overlap_map += m2.astype(np.uint16)
+
+        del seg_arr, m2
+
+    return _overlay_from_2d_masks(
+        base_slice=base_slice,
+        masks_2d=masks_2d,
+        overlap_map=overlap_map,
+        segment_colors=segment_colors,
+        thumbnail_size=thumbnail_size,
+    )
 
 
 def load_ref_series_and_segmentation(image_dir: str, seg_dir: str) -> tuple:
     """
-    Load a DICOM image series and its corresponding segmentation from a DICOM SEG file.
-
-    This function reads a series of DICOM images (3D volume) from `image_dir` and a DICOM SEG
-    segmentation file from `seg_dir`. It extracts segmentation masks for each segment class
-    and assigns colors to each segment.
-
-    - Uses `pydicom_seg` to parse segmentation masks directly from the DICOM SEG file.
-    - Ensures segmentation masks align with the reference DICOM image by resampling if needed.
-    - Extracts recommended colors from the segmentation metadata (CIELab or RGB),
-      falling back to random colors if unavailable.
+    Load a DICOM image series and its corresponding DICOM SEG.
 
     Args:
-        image_dir (str): Directory containing the DICOM image series.
-        seg_dir (str): Directory containing the DICOM SEG file.
+        image_dir (str): Directory containing the referenced DICOM image series.
+        seg_dir (str): Directory containing a DICOM SEG file.
 
     Returns:
         tuple:
-            - image_array (numpy.ndarray): 3D array representing the DICOM image series.
-            - seg_arrays (numpy.ndarray): 4D array containing segmentation masks for different segment classes.
-            - segment_colors (dict): Dictionary mapping segment classes to RGB color values.
+            - dicom_image (sitk.Image): Reference series as a SimpleITK image.
+            - image_array (numpy.ndarray): Reference series as a NumPy array (z, y, x).
+            - result (pydicom_seg.reader.SegmentReadResult): Parsed SEG result used to access per-segment data.
+            - segment_colors (dict): Mapping {segment_number: {"label": str, "color_type": str, "color": [r,g,b]}}.
     """
 
     # Load the image
@@ -229,60 +481,15 @@ def load_ref_series_and_segmentation(image_dir: str, seg_dir: str) -> tuple:
     reader = pydicom_seg.SegmentReader()
     result = reader.read(dicom_seg)
 
-    # Iterate through the segments and extract the colors
-    segment_colors = {}
-    seg_arrays = []
-    for segment_number in result.available_segments:
-        seg_array = result.segment_data(segment_number)
+    segment_colors = _extract_segment_colors_from_dicom_seg(dicom_seg)
 
-        # Check segmentation and image dimensions
-        if image_array.shape != seg_array.shape:
-
-            cropped_image, cropped_seg = resample_to_reference_image(
-                ref_image=dicom_image, segmentation=result.segment_image(segment_number)
-            )
-            image_array = sitk.GetArrayFromImage(cropped_image)
-            seg_array = sitk.GetArrayFromImage(cropped_seg)
-
-            del cropped_image
-            del cropped_seg
-
-        seg_arrays.append(seg_array)
-        # Look up the color for each class from dicom seg ob
-        if "SegmentSequence" in dicom_seg:
-            for segment in dicom_seg.SegmentSequence:
-                segment_number = segment.SegmentNumber
-                segment_label = segment.SegmentLabel
-
-                # Extract the color information
-                if hasattr(segment, "RecommendedDisplayCIELabValue"):
-                    cie_lab_color_int = segment.RecommendedDisplayCIELabValue
-                    cie_lab_color_float = [float(int(x)) for x in cie_lab_color_int]
-                    color_rgb = dicomlab2LAB(dicomlab=cie_lab_color_float)
-                    lab = LabColor(color_rgb[0], color_rgb[1], color_rgb[2])
-                    color_rgb = convert_color(lab, sRGBColor).get_upscaled_value_tuple()
-                    color = [max(min(x, 255), 0) for x in color_rgb]
-                    color_type = "CIELab"
-                elif hasattr(segment, "RecommendedDisplayRGBValue"):
-                    color = segment.RecommendedDisplayRGBValue
-                    color_type = "RGB"
-                else:
-                    # If no color information is available, generate a random color
-                    color = [randint(0, 255), randint(0, 255), randint(0, 255)]
-                    color_type = "Random"
-
-                segment_colors[segment_number] = {
-                    "label": segment_label,
-                    "color_type": color_type,
-                    "color": color,
-                }
-
-    return image_array, np.array(seg_arrays), segment_colors
+    return dicom_image, image_array, result, segment_colors
 
 
+@DeprecationWarning
 def overlay_thumbnail(image_array, seg_arrays, segment_colors) -> Image.Image:
     """
-    Create a thumbnail by overlaying a DICOM segmentation on the most representative slice.
+    LEGACY: Create a thumbnail by overlaying a DICOM segmentation on the most representative slice.
 
     The function identifies the best slice based on segmentation characteristics (number of
     classes and foreground pixel area), applies windowing and normalization, and blends the
@@ -435,44 +642,43 @@ def generate_rtstruct_thumbnail(
     visually informative thumbnail.
 
     Args:
-        dcm_incoming_dir (str): Path to the directory containing the RTSTRUCT DICOM file.
-        dcm_ref_dir (str): Path to the directory containing the reference DICOM series.
+        operator_in_dir (Path): Directory containing the RTSTRUCT DICOM file.
+        operator_ref_dir (Path): Directory containing the referenced DICOM image series.
+        thumbnail_size (int): Maximum size (pixels) of the thumbnail (largest side).
 
     Returns:
-        Image: A PIL Image object representing the thumbnail with segmentation overlay.
+        Image.Image: A PIL Image object representing the selected slice with RTSTRUCT overlay.
     """
-    image_array, seg_arrays, segment_colors = load_ref_image_and_rtstruct(
+    image_array, labelmap, segment_colors = load_ref_image_and_rtstruct(
         operator_ref_dir, operator_in_dir
     )
-    thumbnail = overlay_thumbnail(image_array, seg_arrays, segment_colors)
+    thumbnail = _thumbnail_from_labelmap(
+        image_array, labelmap, segment_colors, thumbnail_size
+    )
     return thumbnail
 
 
 def load_ref_image_and_rtstruct(image_dir: str, rt_struct_dir: str) -> tuple:
     """
-    Load a DICOM image series and its corresponding segmentation from an RTSTRUCT file.
+    Load a DICOM image series and rasterize an RTSTRUCT into a 3D labelmap.
 
-    RTSTRUCT segmentation stores contours rather than pixel-based segmentation.
-    This function extracts the contours, rasterizes them into a 3D segmentation
-    mask, and assigns unique labels to each ROI.
+    RTSTRUCT stores contour points in patient (physical) coordinates. This function converts those
+    points into image index space using SimpleITK's physical->continuous-index transform and then
+    rasterizes each contour polygon into a per-slice labelmap using OpenCV.
 
-    Key Differences & Specifics:
-    - RTSTRUCT files contain **contour-based** segmentation instead of voxel-based masks.
-    - Each ROI (Region of Interest) is assigned a **unique integer label** to differentiate
-      segment classes.
-    - Converts contour data into a **binary mask** by rasterizing each slice using OpenCV.
-    - Uses the DICOM image's **spacing, origin, and direction** for proper alignment.
-    - Assigns **random colors** to each segment since RTSTRUCT files do not contain color metadata.
+    Notes:
+        - Overlapping ROIs are merged by taking the maximum label value per pixel.
+        - ROI colors are randomized (RTSTRUCT may contain colors; this implementation does not use them).
 
     Args:
-        image_dir (str): Directory containing the DICOM image series.
+        image_dir (str): Directory containing the referenced DICOM image series.
         rt_struct_dir (str): Directory containing the RTSTRUCT file.
 
     Returns:
         tuple:
-            - image_array (numpy.ndarray): 3D array representing the DICOM image series.
-            - seg_arrays (numpy.ndarray): 4D array where each slice contains rasterized segment contours.
-            - segment_colors (dict): Dictionary mapping segment classes to randomly generated colors.
+            - image_array (numpy.ndarray): Reference series as a NumPy array (z, y, x).
+            - labelmap (numpy.ndarray): 3D labelmap (z, y, x), background=0, ROI labels >= 1.
+            - segment_colors (dict): Mapping {label: {"color": [r,g,b]}} used for rendering.
     """
     rtstruct = pydicom.dcmread(
         os.path.join(rt_struct_dir, os.listdir(rt_struct_dir)[0])
@@ -485,13 +691,8 @@ def load_ref_image_and_rtstruct(image_dir: str, rt_struct_dir: str) -> tuple:
     dicom_image = image_reader.Execute()
     image_array = sitk.GetArrayFromImage(dicom_image)
 
-    # Get image properties
-    spacing = dicom_image.GetSpacing()
-    origin = dicom_image.GetOrigin()
-    direction = dicom_image.GetDirection()
-
     # Initialize a numpy array for the multi-label mask
-    mask = np.zeros(sitk.GetArrayFromImage(dicom_image).shape, dtype=np.uint8)
+    mask = np.zeros(image_array.shape, dtype=np.uint16)
 
     # Create a dictionary to store ROI label mapping
     roi_label_mapping = {}
@@ -512,46 +713,49 @@ def load_ref_image_and_rtstruct(image_dir: str, rt_struct_dir: str) -> tuple:
             # Convert the contour data to numpy array
             contour_data = np.array(contour_sequence.ContourData).reshape(-1, 3)
 
-            # Convert contour points to image indices
-            contour_points = np.round((contour_data - origin) / spacing).astype(int)
+            # Convert physical points -> continuous image index (i, j, k)
+            # This accounts for origin + spacing + direction (oblique images!)
+            idx = np.array(
+                [
+                    dicom_image.TransformPhysicalPointToContinuousIndex(tuple(p))
+                    for p in contour_data
+                ],
+                dtype=np.float64,
+            )
 
-            # Get the slice number
-            slice_number = int(contour_points[0, 2])
+            # Choose slice number robustly: median k-index across all points
+            slice_number = int(np.round(np.median(idx[:, 2])))
 
-            # Create a 2D mask for the contour
-            slice_mask = np.zeros(mask[slice_number].shape, dtype=np.uint8)
-            points = contour_points[:, :2]
+            # Guard: skip if contour maps outside volume
+            if slice_number < 0 or slice_number >= mask.shape[0]:
+                continue
 
-            # Draw the contour on the mask
-            cv2.fillPoly(slice_mask, [points], roi_label)
+            # OpenCV expects points in (x, y) = (i, j), int32, and shaped (N, 1, 2)
+            points = np.round(idx[:, :2]).astype(np.int32)
 
-            # Add the contour to the mask, preserving labels
+            # Clip to bounds (avoid OpenCV issues if points fall slightly outside)
+            points[:, 0] = np.clip(points[:, 0], 0, mask.shape[2] - 1)  # x / i
+            points[:, 1] = np.clip(points[:, 1], 0, mask.shape[1] - 1)  # y / j
+
+            poly = points.reshape((-1, 1, 2))
+
+            # Fill polygon into a 2D slice mask
+            slice_mask = np.zeros(mask[slice_number].shape, dtype=np.uint16)
+            cv2.fillPoly(slice_mask, [poly], int(roi_label))
+
+            # Merge into labelmap (note: overlapping ROIs get resolved by max label)
             mask[slice_number] = np.maximum(mask[slice_number], slice_mask)
 
-    # Convert the mask to NIfTI
-    mask_image = sitk.GetImageFromArray(mask)
-    mask_image.SetSpacing(spacing)
-    mask_image.SetOrigin(origin)
-    mask_image.SetDirection(direction)
+    # Instead of building one-hot seg_arrays (4D), keep the 3D labelmap
+    labelmap = mask.astype(np.uint16)
 
-    seg_array = sitk.GetArrayFromImage(mask_image)
-
-    # Convert seg_array to a 4D array (num_classes, num_slices, height, width)
-    unique_classes = np.unique(seg_array)
-    seg_arrays = np.array(
-        [
-            (seg_array == class_value).astype(np.uint8)
-            for class_value in unique_classes
-            if class_value != 0
-        ]
-    )  # Shape: (num_classes, num_slices, height, width)
-
-    # Generate random colors for each segment label
+    # Generate random colors per label
     segment_colors = {}
-    for seg_class in np.unique(seg_array):
-        if seg_class == 0:
+    for lbl in np.unique(labelmap):
+        if lbl == 0:
             continue
-        color = [randint(0, 255), randint(0, 255), randint(0, 255)]
-        segment_colors[seg_class] = {"color": color}
+        segment_colors[int(lbl)] = {
+            "color": [randint(0, 255), randint(0, 255), randint(0, 255)]
+        }
 
-    return image_array, seg_arrays, segment_colors
+    return image_array, labelmap, segment_colors

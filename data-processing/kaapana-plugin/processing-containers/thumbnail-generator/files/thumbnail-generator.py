@@ -66,21 +66,22 @@ def generate_thumbnail(
     if operator_get_ref_series_dir:
         logger.info(f"operator_get_ref_series_dir: {operator_get_ref_series_dir}")
 
-    dicom_files = [pydicom.dcmread(filename) for filename in operator_in_dir.iterdir()]
-    first_dcm = dicom_files[0]
+    paths = list(operator_in_dir.iterdir())
+
+    first_dcm = pydicom.dcmread(paths[0], stop_before_pixels=True)
+
     modality = first_dcm.Modality
     SOPClassUID = first_dcm.SOPClassUID
 
     study_uid = first_dcm.StudyInstanceUID
     series_uid = first_dcm.SeriesInstanceUID
 
-    assert all(
-        [ds.Modality == modality for ds in dicom_files]
-    ), "Instances have different modalities"
-    assert all(
-        [ds.SeriesInstanceUID == series_uid for ds in dicom_files]
-    ), "Instances have different SeriesUID"
-    del dicom_files
+    for p in paths[1:]:
+        ds = pydicom.dcmread(p, stop_before_pixels=True)
+        if ds.Modality != modality:
+            raise AssertionError("Instances have different modalities")
+        if ds.SeriesInstanceUID != series_uid:
+            raise AssertionError("Instances have different SeriesUID")
 
     # thumbnail: Optional[Image.Image]
     if modality in ["CT", "MR", "PET", "NM"]:

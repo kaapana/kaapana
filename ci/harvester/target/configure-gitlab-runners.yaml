@@ -1,0 +1,129 @@
+---
+## Configure GitLab runners on VM
+## Config location: ~/.gitlab-runner/config.toml (user-level)
+## Managed by: systemd (configured to run as ubuntu user)
+
+- name: Set variables
+  ansible.builtin.set_fact:
+    gitlab_token: "{{ gitlab_api_token }}"
+    runner_user: "{{ ansible_user_id }}"
+    runner_home: "{{ ansible_facts.env.HOME }}"
+    runner_config_dir: "{{ ansible_facts.env.HOME }}/.gitlab-runner"
+    runner_config_path: "{{ ansible_facts.env.HOME }}/.gitlab-runner/config.toml"
+
+- name: Check for existing config.toml
+  ansible.builtin.stat:
+    path: "{{ runner_config_path }}"
+  register: local_config
+
+- name: Register new runners if no config exists
+  when: not local_config.stat.exists
+  block:
+    - name: Install GitLab Runner package
+      become: yes
+      block:
+        - name: Download GitLab Runner repository setup script
+          ansible.builtin.get_url:
+            url: "https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh"
+            dest: /tmp/gitlab-runner-script.deb.sh
+            mode: '0755'
+
+        - name: Add GitLab apt repository
+          ansible.builtin.command: bash /tmp/gitlab-runner-script.deb.sh
+          args:
+            creates: /etc/apt/sources.list.d/runner_gitlab-runner.list
+
+        - name: Install gitlab-runner package
+          ansible.builtin.apt:
+            name: gitlab-runner
+            state: latest
+            update_cache: yes
+
+    - name: Ensure .gitlab-runner directory exists
+      ansible.builtin.file:
+        path: "{{ runner_config_dir }}"
+        state: directory
+        mode: '0700'
+
+    - name: Register runners (build or deploy based on instance_type)
+      include_tasks: register-runners.yaml
+
+    - name: Set global concurrent to configured value
+      ansible.builtin.replace:
+        path: "{{ runner_config_path }}"
+        regexp: '^concurrent\s*=.*$'
+        replace: 'concurrent = {{ runner_global_concurrent | default(deploy_runner_global_concurrent) | default(6) }}'
+
+    - name: Set check_interval to 3 seconds
+      ansible.builtin.lineinfile:
+        path: "{{ runner_config_path }}"
+        regexp: '^check_interval\s*=.*$'
+        line: 'check_interval = 3'
+        insertafter: '^concurrent\s*='
+
+- name: Configure systemd to run gitlab-runner as user
+  become: yes
+  block:
+    - name: Stop and disable existing gitlab-runner system service (if any)
+      ansible.builtin.systemd:
+        name: gitlab-runner
+        state: stopped
+        enabled: no
+      failed_when: false
+      changed_when: true
+
+    - name: Uninstall default gitlab-runner service
+      ansible.builtin.command: gitlab-runner uninstall
+      failed_when: false
+      changed_when: true
+
+    - name: Install gitlab-runner service as {{ runner_user }} user
+      ansible.builtin.command: >
+        gitlab-runner install
+        --working-directory {{ runner_home }}
+        --config {{ runner_config_path }}
+        --user {{ runner_user }}
+      register: gitlab_install
+      failed_when: gitlab_install.rc != 0
+      changed_when: gitlab_install.rc == 0
+
+    - name: Reload systemd daemon
+      ansible.builtin.command: systemctl daemon-reload
+      changed_when: false
+
+    - name: Enable and start gitlab-runner service
+      ansible.builtin.systemd:
+        name: gitlab-runner
+        state: started
+        enabled: yes
+        daemon_reload: yes
+
+- name: Verify gitlab-runner is running
+  ansible.builtin.command: gitlab-runner status
+  register: runner_status
+  changed_when: false
+  failed_when: runner_status.rc != 0
+
+- name: Verify runners can connect to GitLab
+  ansible.builtin.command: gitlab-runner verify
+  register: runner_verify
+  changed_when: false
+  failed_when: runner_verify.rc != 0
+
+- name: Display runner status
+  ansible.builtin.debug:
+    msg: 
+      - "Runner Status: {{ runner_status.stdout_lines | default(['OK']) }}"
+      - "Runner Verify: {{ runner_verify.stdout_lines | default(['OK']) }}"
+
+- name: Check if a .bash_logout exists
+  ansible.builtin.stat: 
+    path: "{{ ansible_env.HOME }}/.bash_logout"
+  register: bash_logout
+
+- name: Remove .bash_logout file which might conflict with the gitlab-runner
+  become: yes
+  ansible.builtin.file:
+    state: absent
+    path: "{{ ansible_env.HOME }}/.bash_logout"
+  when: bash_logout.stat.exists is defined and bash_logout.stat.exists

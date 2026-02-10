@@ -20,6 +20,10 @@ COPY --from=settings /tmp/settings.xml /root/.m2/settings.xml
 ADD projects-token-mapper /app/projects-token-mapper
 ADD rights-token-mapper /app/rights-token-mapper
 ADD admin-mapper /app/admin-mapper
+ADD user-created-listener /app/user-created-listener
+
+WORKDIR /app/user-created-listener
+RUN mvn clean package
 
 WORKDIR /app/projects-token-mapper
 RUN mvn clean package
@@ -53,6 +57,8 @@ COPY --from=builder /app/kaapana /opt/keycloak/themes/kaapana
 COPY --from=maven-builder /app/rights-token-mapper/target/kaapana-rights-token-mapper-1.0.jar /opt/keycloak/providers/kaapana-rights-token-mapper-1.0.jar
 COPY --from=maven-builder /app/projects-token-mapper/target/kaapana-projects-token-mapper-1.0.jar /opt/keycloak/providers/kaapana-projects-token-mapper-1.0.jar
 COPY --from=maven-builder /app/admin-mapper/target/kaapana-admin-mapper-1.0.jar /opt/keycloak/providers/kaapana-admin-mapper-1.0.jar
+COPY --from=maven-builder /app/user-created-listener/target/user-created-listener-1.0.0.jar /opt/keycloak/providers/user-created-listener-1.0.0.jar
+
 
 ENV KC_METRICS_ENABLED=true
 ENV KC_HEALTH_ENABLED=true

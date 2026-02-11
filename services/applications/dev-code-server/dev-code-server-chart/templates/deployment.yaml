@@ -18,7 +18,8 @@ spec:
       serviceAccountName: {{ .Release.Name }}-sa
       automountServiceAccountToken: true
       securityContext:
-        runAsUser: 0
+        runAsUser: 1000
+        runAsGroup: 1000
       initContainers:
       - name: dev-server-chart-init
         securityContext:
@@ -99,10 +100,10 @@ spec:
             memory: 10Gi
         volumeMounts:
           - name: configs
-            mountPath: /root/.local/share/code-server/User/keybindings.json
+            mountPath: /home/coder/.local/share/code-server/User/keybindings.json
             subPath: keybindings.json
           - name: configs
-            mountPath: /root/.local/share/code-server/User/settings.json
+            mountPath: /home/coder/.local/share/code-server/User/settings.json
             subPath: settings.json
           - name: gpu-job-template
             mountPath: /etc/gpu-job

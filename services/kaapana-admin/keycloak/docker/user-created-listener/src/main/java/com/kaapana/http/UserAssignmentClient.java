@@ -2,6 +2,8 @@ package com.kaapana.usersync.http;
 
 import com.kaapana.usersync.config.UserSyncConfig;
 import com.kaapana.usersync.config.UserSyncConfigLoader;
+import com.kaapana.usersync.http.ProjectIdResolver;
+
 
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -17,9 +19,11 @@ public final class UserAssignmentClient {
                 return;
             }
 
+            String projectId = ProjectIdResolver.getProjectId();
+
             String url = String.format(
-                "http://aii-service.services.svc/projects/%s/role/%s/user/%s",
-                cfg.project_id,
+                "http://aii-service.services.svc:8080/projects/%s/role/%s/user/%s",
+                projectId,
                 cfg.role_name,
                 userId
             );

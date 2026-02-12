@@ -1,1 +1,2 @@
 com.kaapana.listener.UserCreatedEventListenerProviderFactory
+com.kaapana.listener.FirstLoginEventListenerProviderFactory

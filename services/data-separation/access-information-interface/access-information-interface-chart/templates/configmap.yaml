@@ -66,6 +66,11 @@ data:
         "name": "admin",
         "description": "Initial admin project",
         "default": true
+      },
+      {
+        "name": "public",
+        "description": "Public project. Users are automatically added to this project",
+        "default": true
       }
     ]
   initial_roles_rights_mapping.json: | # This is the mapping of roles to rights

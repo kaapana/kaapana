@@ -708,6 +708,61 @@ function setup_storage_classes() {
         --set-string global.slow_data_dir="$SLOW_DATA_DIR"
 }
 
+function get_chart {
+    if [ ! -z "$CHART_PATH" ]; then # Note: OFFLINE_MODE requires CHART_PATH
+        echo -e "${YELLOW}We assume that that all images are already presented inside the microk8s.${NC}"
+        echo -e "${YELLOW}Images are uploaded either with a previous deployment from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
+
+        if [ $(basename "$CHART_PATH") != "$PLATFORM_NAME-$PLATFORM_VERSION.tgz" ]; then
+            echo "${RED} Version of chart_path $CHART_PATH differs from PROJECT_NAME: $PLATFORM_NAME and PLATFORM_VERSION: $PLATFORM_VERSION in the deployment script.${NC}"
+            exit 1
+        fi
+
+        if [ ! "$QUIET" = "true" ];then
+            while true; do
+            echo -e "${YELLOW}You are deploying the platform in offline mode!${NC}"
+                read -p "${YELLOW}Please confirm that you are sure that all images are present in microk8s (yes/no): ${NC}" yn
+                    case $yn in
+                        [Yy]* ) echo "${GREEN}Confirmed${NC}"; break;;
+                        [Nn]* ) echo "${RED}Cancel${NC}"; exit;;
+                        * ) echo "Please answer yes or no.";;
+                    esac
+            done
+        else
+            echo -e "${GREEN}QUIET: true -> SKIP USER INPUT ${NC}";
+        fi
+
+        echo -e "${YELLOW}Checking available images with version: $PLATFORM_VERSION ${NC}"
+        set +e
+        PRESENT_IMAGE_COUNT=$( microk8s.ctr images ls | grep $PLATFORM_VERSION | wc -l)
+        set -e
+        echo -e "${YELLOW}PRESENT_IMAGE_COUNT: $PRESENT_IMAGE_COUNT ${NC}"
+        if [ "$PRESENT_IMAGE_COUNT" -lt "$VERSION_IMAGE_COUNT" ];then
+            echo -e "${RED}There are only $PRESENT_IMAGE_COUNT present with the version $PLATFORM_VERSION - there seems to be an issue. ${NC}"
+            exit 1
+        else
+            echo -e "${GREEN}PRESENT_IMAGE_COUNT: OK ${NC}"
+        fi
+
+        PREFETCH_EXTENSIONS=false
+        CONTAINER_REGISTRY_USERNAME=""
+        CONTAINER_REGISTRY_PASSWORD=""
+    else
+        echo "${YELLOW}Helm login registry...${NC}"
+        check_credentials
+        echo "${GREEN}Pulling platform chart from registry...${NC}"
+        SCRIPT_PATH=$(dirname "$(realpath $0)")
+        pull_chart "$PLATFORM_NAME" "$PLATFORM_VERSION" "$SCRIPT_PATH"
+        CHART_PATH="$SCRIPT_PATH/$PLATFORM_NAME-$PLATFORM_VERSION.tgz"
+    fi
+}
+
+function rm_chart_path {
+    if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
+        rm $CHART_PATH
+    fi
+}
+
 function deploy_chart {
     if [ -z "$CONTAINER_REGISTRY_URL" ]; then
         echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the deploy_platform.sh script!${NC}"
@@ -785,52 +840,7 @@ function deploy_chart {
     echo "${YELLOW}Removing configmap kube-public/local-registry-hosting if exists...${NC}"
     microk8s.kubectl delete configmap -n kube-public local-registry-hosting --ignore-not-found=true
 
-    if [ ! -z "$CHART_PATH" ]; then # Note: OFFLINE_MODE requires CHART_PATH
-        echo -e "${YELLOW}We assume that that all images are already presented inside the microk8s.${NC}"
-        echo -e "${YELLOW}Images are uploaded either with a previous deployment from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
-
-        if [ $(basename "$CHART_PATH") != "$PLATFORM_NAME-$PLATFORM_VERSION.tgz" ]; then
-            echo "${RED} Version of chart_path $CHART_PATH differs from PROJECT_NAME: $PLATFORM_NAME and PLATFORM_VERSION: $PLATFORM_VERSION in the deployment script.${NC}"
-            exit 1
-        fi
-
-        if [ ! "$QUIET" = "true" ];then
-            while true; do
-            echo -e "${YELLOW}You are deploying the platform in offline mode!${NC}"
-                read -p "${YELLOW}Please confirm that you are sure that all images are present in microk8s (yes/no): ${NC}" yn
-                    case $yn in
-                        [Yy]* ) echo "${GREEN}Confirmed${NC}"; break;;
-                        [Nn]* ) echo "${RED}Cancel${NC}"; exit;;
-                        * ) echo "Please answer yes or no.";;
-                    esac
-            done
-        else
-            echo -e "${GREEN}QUIET: true -> SKIP USER INPUT ${NC}";
-        fi
-
-        echo -e "${YELLOW}Checking available images with version: $PLATFORM_VERSION ${NC}"
-        set +e
-        PRESENT_IMAGE_COUNT=$( microk8s.ctr images ls | grep $PLATFORM_VERSION | wc -l)
-        set -e
-        echo -e "${YELLOW}PRESENT_IMAGE_COUNT: $PRESENT_IMAGE_COUNT ${NC}"
-        if [ "$PRESENT_IMAGE_COUNT" -lt "$VERSION_IMAGE_COUNT" ];then
-            echo -e "${RED}There are only $PRESENT_IMAGE_COUNT present with the version $PLATFORM_VERSION - there seems to be an issue. ${NC}"
-            exit 1
-        else
-            echo -e "${GREEN}PRESENT_IMAGE_COUNT: OK ${NC}"
-        fi
-
-        PREFETCH_EXTENSIONS=false
-        CONTAINER_REGISTRY_USERNAME=""
-        CONTAINER_REGISTRY_PASSWORD=""
-    else
-        echo "${YELLOW}Helm login registry...${NC}"
-        check_credentials
-        echo "${GREEN}Pulling platform chart from registry...${NC}"
-        SCRIPT_PATH=$(dirname "$(realpath $0)")
-        pull_chart "$PLATFORM_NAME" "$PLATFORM_VERSION" "$SCRIPT_PATH"
-        CHART_PATH="$SCRIPT_PATH/$PLATFORM_NAME-$PLATFORM_VERSION.tgz"
-    fi
+    get_chart
 
     # Kubernetes API endpoint
     INTERNAL_CIDR=$(microk8s.kubectl get endpoints kubernetes -n default -o jsonpath="{.subsets[0].addresses[0].ip}/32")
@@ -926,9 +936,7 @@ function deploy_chart {
     # --set kube-helm-chart.timeouts.helmDeletionTimeout=60 \
 
     # pull_policy_jobs and pull_policy_pods only there for backward compatibility as of version 0.2.0
-    if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
-        rm $CHART_PATH
-    fi
+    rm_chart_path
 
     print_deployment_done
     update_coredns_rewrite
@@ -1537,6 +1545,7 @@ _Flag: --nuke-pods will force-delete all pods of the Kaapana deployment namespac
 _Flag: --quiet, meaning non-interactive operation
 _Flag: --offline, using prebuilt tarball and chart (--chart-path required!)
 _Flag: --no-migration, disable automatic migration between versions
+_Flag: --install-storage-classes, installs only kaapana storage classes
 _Flag: --check-system, check health of all resources in kaapana-admin-chart and kaapana-platform-chart
 _Flag: --report, create a report of the state of the microk8s cluster
 
@@ -1616,6 +1625,13 @@ do
 
         --install-certs)
             install_certs
+            exit 0
+        ;;
+
+        --install-storage-classes)
+            get_chart
+            setup_storage_classes
+            rm_chart_path
             exit 0
         ;;
 

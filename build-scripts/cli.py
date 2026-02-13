@@ -8,7 +8,11 @@ import typer
 from build_helper.build import build_config
 from dotenv import load_dotenv
 
-app = typer.Typer(help="Kaapana Platform Builder")
+app = typer.Typer(
+    help="Kaapana Platform Builder",
+    pretty_exceptions_show_locals=False,
+    pretty_exceptions_short=True,
+)
 
 
 @app.command()

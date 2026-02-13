@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 from shutil import rmtree
+import sys
 from time import time
 
 from build_helper.build import (
@@ -17,9 +18,11 @@ from build_helper.cli.config_loader import parse_args
 from build_helper.container import ContainerHelper
 from build_helper.helm import HelmChartHelper
 from build_helper.utils.logger import get_logger, init_logger, set_console_level
+from build_helper.container.coordinator import BuildCoordinator
 
 
-def main(build_config):
+def main(build_config: BuildConfig):
+    EXIT_CODE = 0
     if build_config.build_dir.exists():
         rmtree(build_config.build_dir)
 
@@ -93,7 +96,9 @@ def main(build_config):
         logger.info("-----------------------------------------------------------")
         logger.info("")
         BuildHelper.select_containers_to_build()
-        ContainerHelper.build_and_push_containers()
+        containers = ContainerHelper._build_state.selected_containers
+        coordinator = BuildCoordinator(containers)
+        coordinator.start()
 
         if build_config.create_offline_installation:
             OfflineInstallerHelper.init(
@@ -121,6 +126,9 @@ def main(build_config):
         logger.info("-----------------------------------------------------------")
         for issue in IssueTracker.issues:
             issue.log_self(logger)
+
+        if build_config.exit_on_error:
+            EXIT_CODE = 1
 
     build_state.mark_finished()
     if build_state.duration:
@@ -159,6 +167,7 @@ def main(build_config):
     logger.info("-----------------------------------------------------------")
     logger.info("-------------------------- DONE ---------------------------")
     logger.info("-----------------------------------------------------------")
+    sys.exit(EXIT_CODE)
 
 
 if __name__ == "__main__":

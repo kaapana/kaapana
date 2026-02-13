@@ -13,9 +13,9 @@ set -eu -o pipefail
 # ============================================================================
 # PARAMETERS
 # ============================================================================
-SLOW_DATA_DIR="${SLOW_DATA_DIR:-/home/kaapana}"
-FAST_DATA_DIR="${FAST_DATA_DIR:-/home/kaapana}"
-MIGRATION_IMAGE="${MIGRATION_IMAGE:-registry.hzdr.de/h.gao/kaapana/migration:0.6.0-latest}"
+SLOW_DATA_DIR="${SLOW_DATA_DIR:-}"
+FAST_DATA_DIR="${FAST_DATA_DIR:-}"
+MIGRATION_IMAGE="${MIGRATION_IMAGE:-}"
 
 SERVICES_NAMESPACE="${SERVICES_NAMESPACE:-services}"
 ADMIN_NAMESPACE="${ADMIN_NAMESPACE:-admin}"

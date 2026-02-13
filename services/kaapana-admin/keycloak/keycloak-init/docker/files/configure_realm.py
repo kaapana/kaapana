@@ -1,9 +1,11 @@
 from KeycloakHelper import KeycloakHelper
 import os, json
 from logger import get_logger
+from pathlib import Path
 import logging
 
 
+REALM_OBJECTS_ROOT_DIR = Path(os.getenv("REALM_OBJECTS_ROOT_DIR", "/realm_objects"))
 DEV_MODE = os.getenv("DEV_MODE")
 log_level = logging.DEBUG if DEV_MODE.lower() == "true" else logging.INFO
 logger = get_logger(__name__, log_level)
@@ -17,7 +19,7 @@ if __name__ == "__main__":
     logger.info(f"{KAAPANA_INIT_PASSWORD=}")
 
     ### Add realm
-    file = "realm_objects/kaapana-realm.json"
+    file = Path(REALM_OBJECTS_ROOT_DIR, "kaapana-realm.json")
     with open(file, "r") as f:
         payload = json.load(f)
         if DEV_MODE.lower() == "true":
@@ -30,7 +32,7 @@ if __name__ == "__main__":
     keycloak.post_composite_role("default-roles-kaapana", ["user"])
 
     ### Add group kaapana_admin
-    file = "realm_objects/group-kaapana_admin.json"
+    file = Path(REALM_OBJECTS_ROOT_DIR, "group-kaapana_admin.json")
     payload = json.load(open(file, "r"))
     keycloak.post_group(payload)
 
@@ -39,7 +41,7 @@ if __name__ == "__main__":
     keycloak.post_role_mapping(roles_to_add=roles, group="kaapana_admin")
 
     ### Add group kaapana_user
-    file = "realm_objects/group-kaapana_user.json"
+    file = Path(REALM_OBJECTS_ROOT_DIR, "group-kaapana_user.json")
     payload = json.load(open(file, "r"))
     keycloak.post_group(payload)
 
@@ -48,7 +50,7 @@ if __name__ == "__main__":
     keycloak.post_role_mapping(roles_to_add=roles, group="kaapana_user")
 
     ### Add group kaapana_project_manager
-    file = "realm_objects/group-kaapana_project_manager.json"
+    file = Path(REALM_OBJECTS_ROOT_DIR, "group-kaapana_project_manager.json")
     payload = json.load(open(file, "r"))
     keycloak.post_group(payload)
 
@@ -57,14 +59,14 @@ if __name__ == "__main__":
     keycloak.post_role_mapping(roles_to_add=roles, group="kaapana_project_manager")
 
     ### Add user
-    file = "realm_objects/kaapana-user.json"
+    file = Path(REALM_OBJECTS_ROOT_DIR, "kaapana-user.json")
     with open(file, "r") as f:
         payload = json.load(f)
         payload["credentials"] = [{"type": "password", "value": KAAPANA_INIT_PASSWORD}]
         keycloak.post_user(payload)
 
     ### Add system user
-    file = "realm_objects/system-user.json"
+    file = Path(REALM_OBJECTS_ROOT_DIR, "system-user.json")
     with open(file, "r") as f:
         system_user_password = os.getenv("SYSTEM_USER_PASSWORD")
         assert system_user_password
@@ -78,7 +80,7 @@ if __name__ == "__main__":
     keycloak.post_role_mapping(["dcm4chee-admin"], user="system")
 
     ### Add client
-    file = "realm_objects/kaapana-client.json"
+    file = Path(REALM_OBJECTS_ROOT_DIR, "kaapana-client.json")
     with open(file, "r") as f:
         payload = json.load(f)
         payload["secret"] = oidc_client_secret

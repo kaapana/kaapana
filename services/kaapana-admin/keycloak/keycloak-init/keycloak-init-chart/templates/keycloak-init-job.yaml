@@ -51,7 +51,16 @@ spec:
                 secretKeyRef:
                   name: system-user-password
                   key: system-user-password
+            - name: REALM_OBJECTS_ROOT_DIR
+              value: "/realm_objects/"
+          volumeMounts:
+            - name: realm-objects
+              mountPath: /realm_objects/
         restartPolicy: Never
         serviceAccountName: kaapana-kube-admin
         imagePullSecrets:
         - name: registry-secret
+        volumes:
+        - name: realm-objects
+          configMap:
+            name: keycloak-realm-objects

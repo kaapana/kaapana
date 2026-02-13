@@ -107,7 +107,7 @@ def create_empty_ref_series(operator_ref_dir: Path, operator_in_dir: Path):
         ds.BitsStored = 16
         ds.HighBit = 15
         ds.PixelRepresentation = 1  # signed
-        ds.RescaleIntercept = -1024
+        ds.RescaleIntercept = 1
         ds.RescaleSlope = 1
         ds.SamplesPerPixel = 1
         ds.PhotometricInterpretation = "MONOCHROME2"
@@ -115,7 +115,7 @@ def create_empty_ref_series(operator_ref_dir: Path, operator_in_dir: Path):
         ds.is_implicit_VR = False
 
         # Create zero image data (Hounsfield units = -1024 for air)
-        pixel_array = np.zeros((rows, cols), dtype=np.int16)
+        pixel_array = np.ones((rows, cols), dtype=np.int16)
         ds.PixelData = pixel_array.tobytes()
 
         # Save to disk
@@ -176,6 +176,27 @@ def _extract_segment_colors_from_dicom_seg(dicom_seg) -> dict:
     return segment_colors
 
 
+def _ref_paths_from_seg(image_dir: str, seg_ds: pydicom.Dataset) -> list[str]:
+    """
+    Build an ordered list of reference slice file paths from a DICOM SEG's references.
+
+    Returns an empty list if references are missing or cannot be resolved to files.
+    """
+    try:
+        refs = seg_ds.ReferencedSeriesSequence[0].ReferencedInstanceSequence
+    except Exception:
+        return []
+
+    paths: list[str] = []
+    for ref in refs:
+        uid = str(ref.ReferencedSOPInstanceUID)
+        p = os.path.join(image_dir, f"{uid}.dcm")
+        if os.path.exists(p):
+            paths.append(p)
+
+    return paths
+
+
 def _pick_best_slice_index(
     classes_per_slice: np.ndarray, area_per_slice: np.ndarray
 ) -> int:
@@ -202,14 +223,30 @@ def _overlay_from_2d_masks(
 
     # Robust windowing fallback
     if vals.size == 0:
-        window_min = float(np.min(base))
-        window_max = float(np.max(base))
-    else:
-        min_intensity = float(np.min(vals))
-        max_intensity = float(np.mean(vals) + 2 * np.std(vals))
-        margin = 0.1 * (max_intensity - min_intensity)
-        window_min = max(0.0, min_intensity - margin)
-        window_max = min(4095.0, max_intensity + margin)
+        vals = base.ravel()
+
+    vals_pos = vals[vals > 0]
+    vals_for_stats = vals_pos if vals_pos.size > 0 else vals
+
+    # Percentile-based windowing is much more stable than mean±std for odd distributions
+    p_low, p_high = np.percentile(vals_for_stats, [2.0, 98.0])
+
+    # Expand slightly to avoid overly tight contrast
+    margin = 0.05 * (p_high - p_low)
+    window_min = float(p_low - margin)
+    window_max = float(p_high + margin)
+
+    # Clamp to actual slice range (prevents nonsense windows)
+    base_min = float(np.min(base))
+    base_max = float(np.max(base))
+    window_min = max(window_min, base_min)
+    window_max = min(window_max, base_max)
+
+    # Final safety: ensure strictly increasing window
+    if window_max <= window_min:
+        window_min, window_max = base_min, base_max
+        if window_max <= window_min:
+            window_max = window_min + 1.0
 
     windowed = np.clip(base, window_min, window_max)
     denom = (window_max - window_min) if (window_max - window_min) != 0 else 1.0
@@ -461,15 +498,30 @@ def load_ref_series_and_segmentation(image_dir: str, seg_dir: str) -> tuple:
             - result (pydicom_seg.reader.SegmentReadResult): Parsed SEG result used to access per-segment data.
             - segment_colors (dict): Mapping {segment_number: {"label": str, "color_type": str, "color": [r,g,b]}}.
     """
+    # Load the segmentation first (we may use it to determine the correct reference slices)
+    file_name = os.path.join(seg_dir, os.listdir(seg_dir)[0])
+    dicom_seg = pydicom.dcmread(file_name)
+
+    reader = pydicom_seg.SegmentReader()
+    result = reader.read(dicom_seg)
+    segment_colors = _extract_segment_colors_from_dicom_seg(dicom_seg)
 
     # Load the image
     image_reader = sitk.ImageSeriesReader()
 
-    dicom_names = image_reader.GetGDCMSeriesFileNames(image_dir)
-    logger.info(f"Found {len(dicom_names)} DICOM files")
-    image_reader.SetFileNames(dicom_names)
-    series_ids = sitk.ImageSeriesReader.GetGDCMSeriesIDs(image_dir)
-    logger.info(f"Detected series IDs: {series_ids}")
+    # Preferred: use the SEG's referenced SOPInstanceUIDs to avoid mixed-size series issues
+    ref_paths = _ref_paths_from_seg(image_dir, dicom_seg)
+    if ref_paths:
+        logger.info(
+            f"Using {len(ref_paths)} referenced instances from SEG to load reference series"
+        )
+        image_reader.SetFileNames(ref_paths)
+    else:
+        # Fallback: use the series finder (may include mixed instances if directory is polluted)
+        dicom_names = image_reader.GetGDCMSeriesFileNames(image_dir)
+        logger.info(f"Found {len(dicom_names)} DICOM files (fallback scan)")
+        image_reader.SetFileNames(dicom_names)
+
     dicom_image = image_reader.Execute()
     image_array = sitk.GetArrayFromImage(dicom_image)
 

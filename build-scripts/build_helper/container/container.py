@@ -480,3 +480,26 @@ class Container:
         )
 
         return issue
+
+    def all_dependencies_ready(self) -> bool:
+        """
+        Check if all local base images for a container are built or unchanged.
+
+        Returns:
+            bool: True if all local dependencies are ready, False otherwise.
+        """
+        for b in self.base_images:
+            if b.local_image:
+                # Online reference ubuntu:24.04
+                if not isinstance(b, Container):
+                    return False
+                if b.status not in {
+                    Status.BUILT,
+                    Status.BUILT_ONLY,
+                    Status.NOTHING_CHANGED,
+                    Status.PUSHED,
+                    Status.SKIPPED,
+                    Status.FAILED,
+                }:
+                    return False
+        return True

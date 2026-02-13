@@ -12,6 +12,7 @@ from colormath.color_objects import LabColor, sRGBColor
 from kaapanapy.logger import get_logger
 from PIL import Image, ImageFilter
 from pydantic import BaseModel
+import warnings
 
 logger = get_logger(__name__)
 
@@ -30,7 +31,7 @@ def create_empty_ref_series(operator_ref_dir: Path, operator_in_dir: Path):
     creates a synthetic CT series (one slice per referenced frame) using geometry information from
     the SEG metadata (rows/cols, spacing, orientation, slice positions).
 
-    The pixel data is constant (HU ~ -1024 everywhere) and is intended only as geometry scaffolding.
+    The pixel data is constant and carries no diagnostic meaning; it is intended only as geometry scaffolding.
 
     Args:
         operator_ref_dir (Path): Output directory where the dummy reference DICOM slices are written.
@@ -114,7 +115,7 @@ def create_empty_ref_series(operator_ref_dir: Path, operator_in_dir: Path):
         ds.is_little_endian = True
         ds.is_implicit_VR = False
 
-        # Create zero image data (Hounsfield units = -1024 for air)
+        # Create constant pixel data (no diagnostic meaning; geometry scaffolding only)
         pixel_array = np.ones((rows, cols), dtype=np.int16)
         ds.PixelData = pixel_array.tobytes()
 
@@ -180,7 +181,16 @@ def _ref_paths_from_seg(image_dir: str, seg_ds: pydicom.Dataset) -> list[str]:
     """
     Build an ordered list of reference slice file paths from a DICOM SEG's references.
 
-    Returns an empty list if references are missing or cannot be resolved to files.
+    The SEG references its source instances via ReferencedSOPInstanceUIDs. We resolve those UIDs
+    to local files using the convention "<SOPInstanceUID>.dcm" in `image_dir` and preserve the
+    reference order as given in the SEG (frame order).
+
+    Args:
+        image_dir (str): Directory that contains the referenced DICOM instances.
+        seg_ds (pydicom.Dataset): The DICOM SEG dataset holding the reference list.
+
+    Returns:
+        list[str]: Ordered file paths to referenced instances that exist locally. Empty if unresolved.
     """
     try:
         refs = seg_ds.ReferencedSeriesSequence[0].ReferencedInstanceSequence
@@ -212,8 +222,24 @@ def _overlay_from_2d_masks(
     thumbnail_size: int,
 ) -> Image.Image:
     """
-    Render the same style (edges + semi-transparent fill normalized by overlap),
-    but using only 2D masks.
+    Render an overlay thumbnail from 2D segment masks.
+
+    The overlay matches the legacy style:
+      - solid borders (edge filter)
+      - semi-transparent fills with opacity normalized by the number of overlapping segments
+
+    Intensity windowing is computed from the pixels under the union of all masks and uses a
+    percentile-based window (2nd–98th percentile) for robust contrast across different scanners.
+
+    Args:
+        base_slice (np.ndarray): 2D image slice (y, x).
+        masks_2d (list[tuple[int, np.ndarray]]): List of (segment_id, 2D mask) pairs for the slice.
+        overlap_map (np.ndarray): 2D map counting how many segments overlap per pixel.
+        segment_colors (dict): Mapping from segment_id to display color metadata.
+        thumbnail_size (int): Maximum size (pixels) of the thumbnail (largest side).
+
+    Returns:
+        Image.Image: RGBA thumbnail image with overlay.
     """
     base = base_slice.astype(np.float32)
 
@@ -485,7 +511,11 @@ def generate_segmentation_thumbnail(
 
 def load_ref_series_and_segmentation(image_dir: str, seg_dir: str) -> tuple:
     """
-    Load a DICOM image series and its corresponding DICOM SEG.
+    Load a referenced DICOM image series and its corresponding DICOM SEG.
+
+    The reference series is loaded using the SOPInstanceUIDs listed in the SEG's
+    ReferencedSeriesSequence when possible. This avoids ITK/SimpleITK "size mismatch" failures
+    when the reference directory contains mixed instances (e.g., scout + diagnostic images).
 
     Args:
         image_dir (str): Directory containing the referenced DICOM image series.
@@ -525,23 +555,12 @@ def load_ref_series_and_segmentation(image_dir: str, seg_dir: str) -> tuple:
     dicom_image = image_reader.Execute()
     image_array = sitk.GetArrayFromImage(dicom_image)
 
-    # Load the segmentation
-    file_name = os.path.join(seg_dir, os.listdir(seg_dir)[0])
-    dicom_seg = pydicom.dcmread(file_name)
-
-    # Read the segmentation
-    reader = pydicom_seg.SegmentReader()
-    result = reader.read(dicom_seg)
-
-    segment_colors = _extract_segment_colors_from_dicom_seg(dicom_seg)
-
     return dicom_image, image_array, result, segment_colors
 
 
-@DeprecationWarning
 def overlay_thumbnail(image_array, seg_arrays, segment_colors) -> Image.Image:
     """
-    LEGACY: Create a thumbnail by overlaying a DICOM segmentation on the most representative slice.
+    Deprecated: Create a thumbnail by overlaying a DICOM segmentation on the most representative slice.
 
     The function identifies the best slice based on segmentation characteristics (number of
     classes and foreground pixel area), applies windowing and normalization, and blends the
@@ -556,6 +575,11 @@ def overlay_thumbnail(image_array, seg_arrays, segment_colors) -> Image.Image:
     Returns:
         Image: A PIL Image object with the overlaid segmentation.
     """
+    warnings.warn(
+        "overlay_thumbnail() is deprecated; use generate_segmentation_thumbnail() or generate_rtstruct_thumbnail().",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     # Count the number of classes in each slice
     classes_per_slice = np.sum(
         np.any(seg_arrays > 0, axis=(2, 3)), axis=0

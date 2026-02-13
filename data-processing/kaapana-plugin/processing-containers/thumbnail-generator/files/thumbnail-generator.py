@@ -27,7 +27,7 @@ def generate_thumbnail(
     operator_out_dir: Path,
     operator_get_ref_series_dir: Path,
     thumbnail_size: int,
-) -> tuple:
+) -> tuple[bool, str]:
     """
     Generates thumbnails for a given set of DICOM files.
 
@@ -36,7 +36,7 @@ def generate_thumbnail(
 
     Modality Strategy for Thumbnail Creation:
     1. Slice-based Modalities:
-        - CT, MR, PT, NM
+        - CT, MR, PET, NM
         - Use the middle slice
     2. Overlay Modalities:
         - SEG, RTSTRUCT
@@ -54,10 +54,10 @@ def generate_thumbnail(
         operator_in_dir (Path): The input directory containing the DICOM files.
         operator_out_dir (Path): The output directory where the thumbnails will be saved.
         operator_get_ref_series_dir (Path): The directory containing the reference series DICOM files.
-        thumbnail_size (int): The size of the generated thumbnails.
+        thumbnail_size (int): Maximum size (pixels) of the generated thumbnail (largest side).
 
     Returns:
-        tuple: A tuple containing the total number of processed files and the total number of thumbnails generated.
+        tuple[bool, str]: (success, output_path) where output_path is the written PNG file.
     """
 
     logger.info(f"operator_in_dir: {operator_in_dir}")

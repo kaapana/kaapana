@@ -42,9 +42,30 @@ How to create a new user
 
 .. note::
 
-   After creating a new user, **do not forget to assign the user to a :term:`project`** in :ref:`Projects <projects>` section.
-   If a user logs in without being assigned to any project, they may end up in an
-   undefined or broken state, such as an endless reload loop. In the case this happens, delete browser cookies manually to reset the state.
+   Any user created via the Keycloak admin console will automatically be added to a public project.
+   The default name of this project is *public* and the default role is set to *scientist*.
+   This behavior is :ref:`configurable <configure_default_proejct>`.
+
+.. _configure_default_proejct:
+
+Configuration of the default project
+--------------------------------------
+
+Project name and project role are configured in the configmap :code:`defaultProject.yaml` in the Keycloak helm-chart.
+You can either adjust :code:`config.json` inside this configmap before deploying the platform or 
+in a running platform by changing the configmap :code:`default-project-role-user-mapping` via the Kubernetes Dashboard.
+If you do the latter you have to delete the Keycloak pod for your changes to become active.
+
+Either way, the corresponding project and the role have to exist in the platform.
+You can define a list of initial projects and roles that will be created during platform deployment in :code:`configmap.yaml` in the access-information-interface-chart.
+
+You can also fully disable this feature.
+This can be done before building the platform by configuring the file :code:`kaapana-realm.json` in the keycloak-init-chart.
+Just remove :code:`user-created-http-listener` and :code:`first-login-listener` from the list :code:`eventsListeners`.
+Alternatively, you can always disable this feature in a running platform in the Keycloak admin console under *Realm settings > Events*.
+
+The events listener :code:`user-created-http-listener` will map any user that was created via the admin console to the default project.
+The events listener :code:`first-login-listener` will map any user during its first login to the default project.
 
 Authorization
 ***************

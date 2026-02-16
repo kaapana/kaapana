@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
-from app.notifications.schemas import (
+from app.notifications.v1.schemas import (
     Notification,
     NotificationUser,
     NotificationCreate,
     NotificationCreateNoReceivers,
 )
-from app.notifications.models import Notification as NotificationModel
+from app.models import Notification as NotificationModel
 from app.dependencies import get_async_db, get_connection_manager, get_access_service
 from uuid import UUID
 from sqlalchemy import select, delete, update, func, cast
@@ -22,7 +22,9 @@ async def add_notification(
     db.add(notification)
     await db.commit()
     await db.refresh(notification)
-    await con_mgr.notify_new_notification(user_ids=notification.receivers, id=notification.id)
+    await con_mgr.notify_new_notification(
+        user_ids=notification.receivers, id=notification.id
+    )
     return notification
 
 

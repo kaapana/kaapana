@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, ConfigDict
 from uuid import UUID
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 
 class NotificationBase(BaseModel):
@@ -68,7 +68,7 @@ class NotificationCreateNoReceivers(NotificationBase): ...
 
 class Metadata(BaseModel):
     total: int
-    nextCursor: datetime
+    nextCursor: Optional[datetime] = None
     hasMore: bool
 
 

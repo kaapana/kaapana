@@ -96,7 +96,7 @@ async def get_series(
     import pandas as pd
 
     structured: bool = data.get("structured", False)
-    query: dict = data.get("query", {"query_string": {"query": "*"}})
+    query: dict = data.get("query", {"match_all": {}})
     page_index: int = data.get("pageIndex", 1)
     page_length: int = data.get("pageLength", 1000)
     aggregated_series_num: int = data.get("aggregatedSeriesNum", 1)
@@ -172,7 +172,7 @@ async def get_aggregatedSeriesNum(
     os_client=Depends(get_opensearch),
     project_index=Depends(get_project_index),
 ):
-    query: dict = data.get("query", {"query_string": {"query": "*"}})
+    query: dict = data.get("query", {"match_all": {}})
     res = os_client.search(
         index=project_index,
         body={
@@ -372,7 +372,7 @@ async def get_query_values_item(
     # sanitize field_name path params
     field_name = sanitize_inputs(field_name)
     if not query or query == {}:
-        query = {"query_string": {"query": "*"}}
+        query = {"match_all": {}}
 
     return JSONResponse(
         await get_all_values(os_client, project_index, field_name, query)

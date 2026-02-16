@@ -345,15 +345,15 @@ export default {
       }
     },
     constructDatasetQuery() {
-      if (this.dataset && this.dataset.identifiers) {
+      const hasIdentifiers = this.dataset && this.dataset.identifiers && this.dataset.identifiers.length > 0;
+      if (hasIdentifiers) {
         return {
           ids: {
             values: this.dataset.identifiers,
           },
         };
-      } else {
-        return null;
       }
+      return null;
     },
     async updateMapping(filter) {
       filter.item_select = [];

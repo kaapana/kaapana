@@ -36,7 +36,7 @@ prepare_vars:
       echo "CLIENT_SECRET=$client_secret" >> prepare.env
       echo "HOSTNAME=$hostname" >> prepare.env
       source /home/$USER/venv/bin/activate
-      pip install $KAAPANA_DIR/ci/ci-code/kaapana_test
+      pip install -e $KAAPANA_DIR/ci/ci-code/kaapana_test
 
   artifacts:
     reports:
@@ -54,14 +54,16 @@ port_scan:
     - prepare_vars
   script:
     - source /home/$USER/venv/bin/activate
-    - pytest $KAAPANA_DIR/ci/ci-code/kaapana_test/test_scan_ports.py --ip-address $IP_ADDRESS --allowed-ports $ALLOWED_PORTS --junitxml="$ARTIFACTS_DIR/junit_scan_ports.xml" -n 4 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/scan_ports.log"
+    - cd $KAAPANA_DIR/ci/ci-code/kaapana_test/tests
+    - pytest test_scan_ports.py --ip-address $IP_ADDRESS --allowed-ports $ALLOWED_PORTS --junitxml="$ARTIFACTS_DIR/junit_scan_ports.xml" -n 4 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/scan_ports.log"
   artifacts:
     when: always
     paths:
-    - junit_scan_ports.xml
+    - $ARTIFACTS_DIR/junit_scan_ports.xml
+    - $ARTIFACTS_DIR/scan_ports.log
     reports:
       junit: 
-        - junit_scan_ports.xml
+        - $ARTIFACTS_DIR/junit_scan_ports.xml
 
 first_login:
   needs:
@@ -69,17 +71,27 @@ first_login:
   stage: test
   script:
     - source /home/$USER/venv/bin/activate
-    - pytest $KAAPANA_DIR/ci/ci-code/kaapana_test/test_first_login.py --host $HOSTNAME --junitxml="$ARTIFACTS_DIR/junit_first_login.xml" -n 4 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/first_login.log"
+    - cd $KAAPANA_DIR/ci/ci-code/kaapana_test/tests
+    - pytest test_first_login.py --host $HOSTNAME --junitxml="$ARTIFACTS_DIR/junit_first_login.xml" -n 4 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/first_login.log"
   rules:
     - if: $TEST_STAGE == "true"
       when: on_success
     - when: never
+  artifacts:
+    when: always
+    paths:
+    - $ARTIFACTS_DIR/junit_first_login.xml
+    - $ARTIFACTS_DIR/first_login.log
+    reports:
+      junit: 
+        - $ARTIFACTS_DIR/junit_first_login.xml
 
 send_testdata:
   stage: test
   script:
     - source /home/$USER/venv/bin/activate 
-    - pytest $KAAPANA_DIR/ci/ci-code/kaapana_test/test_send_data.py --host "$IP_ADDRESS" --client-secret "$CLIENT_SECRET" --junitxml="$ARTIFACTS_DIR/junit_send_data.xml" -n 4 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/send_testdata.log"
+    - cd $KAAPANA_DIR/ci/ci-code/kaapana_test/tests
+    - pytest test_send_data.py --host "$IP_ADDRESS" --client-secret "$CLIENT_SECRET" --junitxml="$ARTIFACTS_DIR/junit_send_data.xml" -n 4 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/send_testdata.log"
   needs:
     - prepare_vars
     - first_login
@@ -89,12 +101,21 @@ send_testdata:
       when: on_success
     - when: never
   retry: 2
+  artifacts:
+    when: always
+    paths:
+    - $ARTIFACTS_DIR/junit_send_data.xml
+    - $ARTIFACTS_DIR/send_testdata.log
+    reports:
+      junit: 
+        - $ARTIFACTS_DIR/junit_send_data.xml
 
 install_extensions:
   stage: test
   script:
     - source /home/$USER/venv/bin/activate
-    - pytest $KAAPANA_DIR/ci/ci-code/kaapana_test/test_install_extensions.py --host $HOSTNAME --client-secret $CLIENT_SECRET --timeout 300 --json-extension-params $REPO_DIR/data/extension_params.json --junitxml="$ARTIFACTS_DIR/junit_initial_install_extensions.xml" -n 4 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/install_extensions.log"    
+    - cd $KAAPANA_DIR/ci/ci-code/kaapana_test/tests
+    - pytest test_install_extensions.py --host $HOSTNAME --client-secret $CLIENT_SECRET --timeout 300 --json-extension-params $REPO_DIR/data/extension_params.json --junitxml="$ARTIFACTS_DIR/junit_initial_install_extensions.xml" -n 4 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/install_extensions.log"    
   needs:
     - prepare_vars
     - first_login
@@ -104,20 +125,30 @@ install_extensions:
       when: on_success
     - when: never
   retry: 2
+  artifacts:
+    when: always
+    paths:
+    - $ARTIFACTS_DIR/junit_initial_install_extensions.xml
+    - $ARTIFACTS_DIR/install_extensions.log
+    reports:
+      junit: 
+        - $ARTIFACTS_DIR/junit_initial_install_extensions.xml
 
 integration_tests:
   stage: test
   script:
     - source /home/$USER/venv/bin/activate
+    - cd $KAAPANA_DIR/ci/ci-code/kaapana_test/tests
     - export test_files=$( find ${KAAPANA_DIR}/data-processing -wholename *ci-config/*.yaml)
-    - pytest $KAAPANA_DIR/ci/ci-code/test/src/test_workflows.py --files ${test_files} --host ${IP_ADDRESS} --junitxml=workflow_test_report.xml -n 4 -s --log-cli-level=INFO
+    - pytest test_integration_tests.py --files ${test_files} --host ${IP_ADDRESS} --junitxml=$ARTIFACTS_DIR/integration_tests_report.xml -n 4 -s --log-cli-level=INFO --log-file=$ARTIFACTS_DIR/integration_tests.log
   artifacts:
     when: always
     paths:
-    - workflow_test_report.xml
+    - $ARTIFACTS_DIR/integration_tests_report.xml
+    - $ARTIFACTS_DIR/integration_tests.log
     reports:
       junit: 
-        - workflow_test_report.xml
+        - $ARTIFACTS_DIR/integration_tests_report.xml
   needs:
     - first_login
     - send_testdata
@@ -127,3 +158,4 @@ integration_tests:
     - if: $TEST_STAGE == "true"
       when: on_success
     - when: never
+

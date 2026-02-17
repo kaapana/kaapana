@@ -57,51 +57,6 @@
       delay: 5
       until: helm_check.rc == 0
 
-    # Undeploy existing platform if present
-    - name: Check for existing deployment
-      ansible.builtin.command: helm ls -n admin -q
-      register: existing_deployments
-      changed_when: false
-      failed_when: false
-
-    - name: Undeploy existing platform
-      when: existing_deployments.stdout | length > 0
-      block:
-        - name: Run kaapanactl.sh undeploy
-          ansible.builtin.command:
-            cmd: "{{ kaapana_dir }}/kaapanactl.sh deploy --undeploy --quiet"
-            chdir: "{{ kaapana_dir }}"
-          register: undeploy_result
-          ignore_errors: yes
-
-        - name: Save undeploy output
-          ansible.builtin.copy:
-            content: |
-              Undeployment Output
-              ===================
-              STDOUT:
-              {{ undeploy_result.stdout | default('') }}
-              
-              STDERR:
-              {{ undeploy_result.stderr | default('') }}
-              
-              Return Code: {{ undeploy_result.rc }}
-            dest: "{{ artifacts_dir }}/undeploy.log"
-
-        - name: Fail if undeploy failed
-          ansible.builtin.fail:
-            msg: "Undeployment failed"
-          when: undeploy_result.rc != 0
-
-    # Clean filesystem
-    - name: Delete kaapana data directories
-      become: yes
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: absent
-      loop:
-        - /home/kaapana/
-
     - name: Deploy the platform using kaapanactl.sh
       ansible.builtin.command:
         cmd: >

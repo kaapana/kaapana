@@ -105,6 +105,55 @@ prepare_deploy_pipeline:
   environment: "deploy-$CI_RUNNER_DESCRIPTION"
   retry: 1
 
+undeploy_platform:
+  stage: prepare
+  tags:
+    - deploy-shared
+  needs:
+    - prepare_deploy_pipeline
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - EXISTING_DEPLOYMENTS=$(helm ls -n admin -q || true)
+
+    - |
+      if [ -n "$EXISTING_DEPLOYMENTS" ]; then
+        set +e
+        "$KAAPANA_DIR/kaapanactl.sh" deploy --undeploy --quiet \
+          > $ARTIFACTS_DIR/undeploy.stdout \
+          2> $ARTIFACTS_DIR/undeploy.stderr
+        RC=$?
+        set -e
+
+        {
+          echo "Undeployment Output"
+          echo "==================="
+          echo "STDOUT:"; cat "$ARTIFACTS_DIR/undeploy.stdout"
+          echo
+          echo "STDERR:"; cat "$ARTIFACTS_DIR/undeploy.stderr"
+          echo
+          echo "Return Code: $RC"
+        } > "$ARTIFACTS_DIR/undeploy.log"
+
+        [ "$RC" -ne 0 ] && exit 1
+      fi
+
+    - rm -rf /home/kaapana/
+
+  artifacts:
+    paths:
+      - $ARTIFACTS_DIR/undeploy.log
+
+  rules:
+    - if: $DEPLOY_PLATFORM == "false"
+      when: never
+    - when: on_success
+
+  resource_group: "deploy-$CI_RUNNER_DESCRIPTION"
+  environment: "undeploy-$CI_RUNNER_DESCRIPTION"
+  retry: 1
+
+
 #############################################
 ############## TESTS AND DOCS ###############
 #############################################

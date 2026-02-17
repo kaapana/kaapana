@@ -138,7 +138,7 @@ undeploy_platform:
         [ "$RC" -ne 0 ] && exit 1
       fi
 
-    - rm -rf /home/kaapana/
+    - sudo rm -rf /home/kaapana/
 
   artifacts:
     paths:

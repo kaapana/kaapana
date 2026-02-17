@@ -109,7 +109,6 @@ integration_tests:
   stage: test
   script:
     - source /home/$USER/venv/bin/activate
-    - python3 -m pip install -r $KAAPANA_DIR/ci/ci-code/test/src/requirements.txt
     - export test_files=$( find ${KAAPANA_DIR}/data-processing -wholename *ci-config/*.yaml)
     - pytest $KAAPANA_DIR/ci/ci-code/test/src/test_workflows.py --files ${test_files} --host ${IP_ADDRESS} --junitxml=workflow_test_report.xml -n 4 -s --log-cli-level=INFO
   artifacts:

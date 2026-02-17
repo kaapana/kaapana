@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+import logging
+from pathlib import Path
+
+from kaapana_test.send_data.utils_data import DataEndpoints, download_data, send_data
+from kaapana_test.utils.logger import get_logger
+
+logger = get_logger("send_data", logging.DEBUG)
+
+
+def test_send_data(host, client_secret, dataset, download_directory, force_download):
+
+    source_file = dataset
+    kaapana_dataset = dataset.stem[:16]
+    logger.info(force_download)
+    # DOWNLOAD
+    logger.info(f"Downloading dataset: {kaapana_dataset}")
+    logger.info(f"Download directory: {download_directory}")
+    download_data(
+        source_file,
+        Path(download_directory) / kaapana_dataset,
+        force=force_download,
+    )
+    # SEND
+    send_data(Path(download_directory) / kaapana_dataset, host, kaapana_dataset)
+    # WAIT FOR INGESTION
+    try:
+        DataEndpoints(host, client_secret).wait_for_dataset(
+            source_file, kaapana_dataset
+        )
+    except TimeoutError:
+        assert False

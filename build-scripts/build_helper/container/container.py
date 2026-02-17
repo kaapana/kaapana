@@ -451,6 +451,15 @@ class Container:
                 )
                 return issue
 
+            # Handle rate limiting with exponential backoff
+            if "429" in output.stderr or "too many requests" in output.stderr.lower():
+                wait_time = min(2**retries, 60)  # Cap at 60 seconds
+                logger.warning(
+                    f"{self.tag}: Rate limited, waiting {wait_time}s (attempt {retries}/{config.max_push_retries})"
+                )
+                time.sleep(wait_time)
+                continue
+
         self.status = Status.FAILED
         component_name = self.__class__.__name__
         path = self.dockerfile.parent

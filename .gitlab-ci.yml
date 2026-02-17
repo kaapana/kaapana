@@ -1,12 +1,9 @@
 default:
-  tags:
-  - shell
-  - ci
-  - kaapana
   interruptible: true
 
 stages:
 - prepare
+- tests_and_docs
 - build
 - deploy_and_test
 - clean
@@ -26,23 +23,10 @@ workflow:
   - when: never
 
 variables:
-  ### OPENSTACK
-  OS_CREATE: $OS_CREATE
-  OS_DELETE: $OS_DELETE
-  OS_AUTH_URL: $OS_AUTH_URL
-  OS_PROJECT_NAME: $OS_PROJECT_NAME ### Name of the openstack project for the deployment instance
-  OS_INSTANCE_FLAVOR: $OS_INSTANCE_FLAVOR
-  OS_KEY_NAME: $OS_KEY_NAME
-  OS_IMAGE: $OS_IMAGE
-  OS_TENANT_ID: $OS_TENANT_ID
-  OS_USERNAME: $OS_USERNAME
-  OS_FLOATING_IP_POOLS: $OS_FLOATING_IP_POOLS
-  OS_INSTANCE_VOLUME_SIZE: $OS_INSTANCE_VOLUME_SIZE
-
   ### PIPELINE
   DOCKER_PRUNE: $DOCKER_PRUNE
-  DEPLOY_PLATFORM: $DEPLOY_PLATFORM ### Set this variable to "false" if you do not want to deploy the platform; Default: "true"
-  EXECUTE_BUILD: $EXECUTE_BUILD ### Set this variable to "false" if you do not want to build the platform; Default: "true"
+  DEPLOY_PLATFORM: $DEPLOY_PLATFORM
+  EXECUTE_BUILD: $EXECUTE_BUILD
   TEST_STAGE: $TEST_STAGE
   BUILD_ARGUMENTS: $BUILD_ARGUMENTS
 
@@ -52,10 +36,6 @@ variables:
   SLACK_BOT_TOKEN: $SLACK_BOT_TOKEN ### Oauth bot token of the slack app
   SLACK_CHANNEL_ID: $SLACK_CHANNEL_ID ### Channel ID to inform about failing pipelines
   USER: $USER ### username on the CI instance
-  DEPLOYMENT_INSTANCE_NAME: $DEPLOYMENT_INSTANCE_NAME
-  DEPLOYMENT_INSTANCE_IP: $DEPLOYMENT_INSTANCE_IP ### Set in order to reuse an instance
-  DEPLOYMENT_INSTANCE_USER: $DEPLOYMENT_INSTANCE_USER ### Username on the deployment instance
-  DEPLOYMENT_ON_WORKSTATION: $DEPLOYMENT_ON_WORKSTATION
   HTTP_PROXY: $HTTP_PROXY
   HTTPS_PROXY: $HTTPS_PROXY
   SSH_FILE: $SSH_FILE ### Path to the ssh file used for connecting to the deployment instance
@@ -65,19 +45,20 @@ variables:
   REGISTRY_USER: $GITLAB_USER_LOGIN
 
   ### FIXED VARIABLES
-  #REGISTRY_TOKEN: $CI_REGISTRY_PASSWORD
   GIT_STRATEGY: "none" ### Predefined Gitlab CI variable; Has to be one of ["clone", "fetch", "none"]
-  # GIT_CLONE_PATH: $CI_BUILDS_DIR/$CI_PIPELINE_ID
   GIT_CLONE_PATH: /home/ubuntu/builds/$CI_COMMIT_SHORT_SHA
   KAAPANA_DIR: $GIT_CLONE_PATH
+  ARTIFACTS_DIR: /home/ubuntu/artifacts/$CI_COMMIT_SHORT_SHA/
   REPO_DIR: $GIT_CLONE_PATH/ci
   ANSIBLE_VERBOSITY: 0
 
 #############################################
 ############## PREPARE ######################
 #############################################
-prepare_pipeline: ### This is the only job, where I clone the project repo
+prepare_build_pipeline:
   stage: prepare
+  tags:
+    - build-shared
   before_script: # Necessary because otherwise HEAD is detached and the build fails
   - |-
     if [[ $CI_PIPELINE_SOURCE == "merge_request_event" ]]; then
@@ -91,20 +72,49 @@ prepare_pipeline: ### This is the only job, where I clone the project repo
     GIT_STRATEGY: clone
   script:
   - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
+  - mkdir -p "$KAAPANA_DIR"
+  - sudo rm -rf $ARTIFACTS_DIR && mkdir -p $ARTIFACTS_DIR
   - export VERSION_TAG=$( if [[ $BUILD_ARGUMENTS == *"--latest"* ]]; then echo "0.0.0-latest"; else echo $( git describe ); fi)
   - echo VERSION_TAG=$VERSION_TAG >> prepare.env
-  - export ARTIFACTS_DIR="/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"
-  - echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" >> prepare.env
-  - sudo rm -rf $ARTIFACTS_DIR
-  - mkdir -p $ARTIFACTS_DIR
   artifacts:
     reports:
       dotenv: prepare.env
 
-unit_tests:
+prepare_deploy_pipeline:
   stage: prepare
+  tags:
+    - deploy-shared
   needs:
-  - prepare_pipeline
+  - prepare_build_pipeline
+  variables:
+    GIT_STRATEGY: clone
+  script:
+    - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
+    - mkdir -p "$KAAPANA_DIR"
+    - sudo rm -rf $ARTIFACTS_DIR && mkdir -p $ARTIFACTS_DIR
+    - source /home/$USER/venv/bin/activate
+    - sudo $KAAPANA_DIR/kaapanactl.sh install --quiet 2>&1 | tee $ARTIFACTS_DIR/server_installation.log
+  artifacts:
+    reports:
+      dotenv: prepare.env
+  rules:
+  - if: $DEPLOY_PLATFORM == "false"
+    when: never
+  - when: on_success
+  resource_group: "deploy-$CI_RUNNER_DESCRIPTION"
+  environment: "deploy-$CI_RUNNER_DESCRIPTION"
+  retry: 1
+
+#############################################
+############## TESTS AND DOCS ###############
+#############################################
+unit_tests:
+  stage: tests_and_docs
+  tags:
+    - build-shared
+  needs:
+  # Needs KAAPANA_DIR
+  - prepare_build_pipeline
   script:
   - python3 -m virtualenv $KAAPANA_DIR/test/.venv
   - source $KAAPANA_DIR/test/.venv/bin/activate
@@ -119,9 +129,12 @@ unit_tests:
         - unittest_report.xml
 
 task_api_tests:
-  stage: prepare
+  stage: tests_and_docs
+  tags:
+    - build-shared
   needs:
-  - prepare_pipeline
+  # Needs KAAPANA_DIR
+  - prepare_build_pipeline
   script:
   - python3 -m virtualenv $KAAPANA_DIR/lib/.venv
   - source $KAAPANA_DIR/lib/.venv/bin/activate
@@ -136,22 +149,14 @@ task_api_tests:
     reports:
       junit:
         - task_api_report.xml
-install_helm_on_build:
-  stage: prepare
-  needs:
-  - prepare_pipeline
-  script:
-  - source /home/$USER/venv/bin/activate
-  - ansible localhost -m include_tasks -a "file=$REPO_DIR/setup_playbooks/task_templates/snap_install_helm.yaml" 2>&1 | tee $ARTIFACTS_DIR/ansible_install_helm.log
-  rules:
-  - if: $INSTALL_HELM_ON_BUILD == "true"
-    when: on_success
-  - when: never
 
 workflow_api_tests:
-  stage: prepare
+  stage: tests_and_docs
+  tags:
+    - build-shared
   needs:
-  - prepare_pipeline
+    # Needs KAAPANA_DIR
+  - prepare_build_pipeline
   script:
   - cd $KAAPANA_DIR/services/base/workflow-api/docker/files/tests/unit
   - bash run_tests.sh
@@ -163,26 +168,15 @@ workflow_api_tests:
       junit:
         - workflow_api_report.xml
 
-#############################################
-############## BUILD ########################
-#############################################
-build_packages:
-  stage: build
+build_documentation:  
+  stage: tests_and_docs
+  tags:
+    - build-shared
   needs:
-  - prepare_pipeline
+  # Needs: KAAPANA_DIR
+  - prepare_build_pipeline
   script:
-  - source /home/$USER/venv/bin/activate
-  - if [[ $DOCKER_PRUNE == "true" ]]; then docker system prune --all --volumes -f; fi
-  - if [[ $EXECUTE_BUILD == "true" ]]; then bash $REPO_DIR/ci-code/build/build.sh; fi
-  retry: 1
-  resource_group: build-1
-  environment: build-1
-
-build_documentation:
-  stage: build
-  needs:
-  - prepare_pipeline
-  script:
+  # VENV created during the setup of the build VM
   - source /home/$USER/venv/bin/activate
   - cd $REPO_DIR/ci-code/build
   - bash build_documentation.sh
@@ -191,37 +185,39 @@ build_documentation:
   - if: $EXECUTE_BUILD == "false"
     when: never
   - when: on_success
+  # Artifacts uploaded in clean stage
 
 #############################################
-############## DEPLOY AND TEST ##############
+############## BUILD ########################
 #############################################
-prepare_deployment_instance:
-  stage: deploy_and_test
+build_packages:
+  stage: build
+  tags:
+    - build-dedicated
   needs:
-  - prepare_pipeline
+  - prepare_build_pipeline
+  timeout: 2 hours
   script:
   - source /home/$USER/venv/bin/activate
-  - ansible-playbook $REPO_DIR/ci-code/prepare/prepare_instance.yaml 2>&1 | tee $ARTIFACTS_DIR/ansible_prepare_instance.log
-  - ansible-playbook $REPO_DIR/ci-code/prepare/server_installation.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME" 2>&1 | tee $ARTIFACTS_DIR/ansible_server_installation.log
-  artifacts:
-    reports:
-      dotenv: prepare.env
-  rules:
-  - if: $DEPLOY_PLATFORM == "false"
-    when: never
-  - when: on_success
-  resource_group: $DEPLOYMENT_INSTANCE_NAME-1
-  environment: $DEPLOYMENT_INSTANCE_NAME-1
+  - if [[ $DOCKER_PRUNE == "true" ]]; then docker system prune --all --volumes -f; fi
+  - if [[ $EXECUTE_BUILD == "true" ]]; then bash $REPO_DIR/ci-code/build/build.sh; fi
   retry: 1
-
+  # Artifacts uploaded in clean stage
+  
+#############################################
+############## DEPLOY #######################
+#############################################
 deploy_and_test:
   stage: deploy_and_test
   needs:
-  - prepare_deployment_instance
+  - prepare_build_pipeline
+  - prepare_deploy_pipeline    
   - build_packages
+  variables:
+    VERSION_TAG: "$VERSION_TAG"
   trigger:
     include:
-      - local: 'ci/templates/.deploy_stage.yaml'
+      - local: 'ci/ci-code/deploy/.deploy_stage.yaml'
     strategy: depend
     forward:
       pipeline_variables: true
@@ -230,21 +226,22 @@ deploy_and_test:
   - if: $DEPLOY_PLATFORM == "false"
     when: never
   - when: on_success
-  resource_group: $DEPLOYMENT_INSTANCE_NAME-1
-  environment: $DEPLOYMENT_INSTANCE_NAME-1
+  resource_group: "deploy-$CI_RUNNER_DESCRIPTION"
+  environment: "deploy-$CI_RUNNER_DESCRIPTION"
+  # Artifacts uploaded in clean stage
 
 #############################################
 ############## CLEAN ########################
 #############################################
 if_ci_failing:
   stage: clean
+  tags:
+    - deploy-shared
   script:
     - source /home/$USER/venv/bin/activate
     - cd $REPO_DIR/ci-code/clean
     - python3 create_ticket_if_ci_failed.py
     - python3 notify_slack.py
-  resource_group: $DEPLOYMENT_INSTANCE_NAME-1
-  environment: $DEPLOYMENT_INSTANCE_NAME-1
   rules:
   - if: $CI_COMMIT_BRANCH == "develop"
     when: on_failure
@@ -255,6 +252,8 @@ if_ci_failing:
 
 security:
   stage: clean
+  tags:
+    - build-shared
   script:
     - cd $REPO_DIR/ci-code/clean
     - export GIT_DESCRIBE=$(git describe)
@@ -270,12 +269,34 @@ security:
     when: always
   - when: never
 
-
-logs:
+logs_build:
   stage: clean
-  script: cp -r $ARTIFACTS_DIR/ $CI_PROJECT_DIR/artifacts/
+  tags:
+    - build-shared
+  needs:
+    - build_packages
+    - prepare_build_pipeline
+  script:
+    - mkdir -p $CI_PROJECT_DIR/artifacts
+    - cp -r $ARTIFACTS_DIR/ $CI_PROJECT_DIR/artifacts/ || true
   artifacts:
-    name: pipeline
+    name: build
+    paths:
+    - artifacts/
+  when: always
+
+logs_deploy:
+  stage: clean
+  tags:
+    - deploy-shared
+  needs:
+    - deploy_and_test
+    - prepare_deploy_pipeline
+  script:
+    - mkdir -p $CI_PROJECT_DIR/artifacts
+    - cp -r $ARTIFACTS_DIR/ $CI_PROJECT_DIR/artifacts/ || true
+  artifacts:
+    name: deploy
     paths:
     - artifacts/
   when: always

@@ -1,6 +1,7 @@
-from pydantic_settings  import BaseSettings
-from pydantic import computed_field
 import os
+
+from pydantic import computed_field
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -49,7 +50,7 @@ class Settings(BaseSettings):
 class TimeoutConfig(BaseSettings):
     shell_cmd_default_timeout: int = 10  # 5
     helm_pull_container_timeout: int = 2 * 60 * 60
-    helm_install_timeout: int = 15
+    helm_install_timeout: int = 30
     helm_deletion_timeout: int = 20
 
     # old: helm_install_platform_timeout: int = 45

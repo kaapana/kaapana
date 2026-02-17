@@ -1,0 +1,127 @@
+default:
+  tags:
+    - deploy-shared
+  interruptible: true
+
+stages:
+  - deploy
+  - test
+
+workflow:
+  rules:
+    - when: always
+
+platform_deployment:
+  stage: deploy
+  script:
+    - source /home/$USER/venv/bin/activate
+    - ansible-playbook $REPO_DIR/ci-code/deploy/deploy_platform.yaml    
+    
+  retry: 1
+
+prepare_vars:
+  stage: deploy
+  tags:
+    - deploy-shared
+  needs:
+    - platform_deployment
+  script:
+    - source /home/$USER/venv/bin/activate
+    - |
+      set -euo pipefail
+      ip_address="$(hostname -I | awk '{print $1}')"
+      hostname="$(hostname)"
+      client_secret=$(helm get values kaapana-admin-chart -o json 2>/dev/null | jq -r .global.oidc_client_secret 2>/dev/null || true)
+      echo "IP_ADDRESS=$ip_address" > prepare.env
+      echo "CLIENT_SECRET=$client_secret" >> prepare.env
+      echo "HOSTNAME=$hostname" >> prepare.env
+  artifacts:
+    reports:
+      dotenv: prepare.env
+  retry: 1
+
+#############################################
+############## TESTS ########################
+#############################################
+port_scan:
+  stage: test
+  variables:
+    ALLOWED_PORTS: "22,80,443"
+  needs:
+    - prepare_vars
+  script:
+    - source /home/$USER/venv/bin/activate
+    - pytest $KAAPANA_DIR/ci/ci-code/kaapana_test/test_scan_ports.py --ip-address $IP_ADDRESS --allowed-ports $ALLOWED_PORTS --junitxml="$ARTIFACTS_DIR/junit_scan_ports.xml" -n 4 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/scan_ports.log"
+  artifacts:
+    when: always
+    paths:
+    - junit_scan_ports.xml
+    reports:
+      junit: 
+        - junit_scan_ports.xml
+
+first_login:
+  needs:
+    - prepare_vars
+  stage: test
+  script:
+    - source /home/$USER/venv/bin/activate
+    - pytest $KAAPANA_DIR/ci/ci-code/kaapana_test/test_first_login.py --host $HOSTNAME --junitxml="$ARTIFACTS_DIR/junit_first_login.xml" -n 4 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/first_login.log"
+  rules:
+    - if: $TEST_STAGE == "true"
+      when: on_success
+    - when: never
+
+send_testdata:
+  stage: test
+  script:
+    - source /home/$USER/venv/bin/activate 
+    - pytest $KAAPANA_DIR/ci/ci-code/kaapana_test/test_send_data.py --host "$IP_ADDRESS" --client-secret "$CLIENT_SECRET" --junitxml="$ARTIFACTS_DIR/junit_send_data.xml" -n 4 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/send_testdata.log"
+  needs:
+    - prepare_vars
+    - first_login
+  allow_failure: false
+  rules:
+    - if: $TEST_STAGE == "true"
+      when: on_success
+    - when: never
+  retry: 2
+
+install_extensions:
+  stage: test
+  script:
+    - source /home/$USER/venv/bin/activate
+    - pytest $KAAPANA_DIR/ci/ci-code/kaapana_test/test_install_extensions.py --host $HOSTNAME --client-secret $CLIENT_SECRET --timeout 300 --json-extension-params $REPO_DIR/data/extension_params.json --junitxml="$ARTIFACTS_DIR/junit_initial_install_extensions.xml" -n 4 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/install_extensions.log"    
+  needs:
+    - prepare_vars
+    - first_login
+  allow_failure: false
+  rules:
+    - if: $TEST_STAGE == "true"
+      when: on_success
+    - when: never
+  retry: 2
+
+integration_tests:
+  stage: test
+  script:
+    - source /home/$USER/venv/bin/activate
+    - python3 -m pip install -r $KAAPANA_DIR/ci/ci-code/test/src/requirements.txt
+    - export test_files=$( find ${KAAPANA_DIR}/data-processing -wholename *ci-config/*.yaml)
+    - pytest $KAAPANA_DIR/ci/ci-code/test/src/test_workflows.py --files ${test_files} --host ${IP_ADDRESS} --junitxml=workflow_test_report.xml -n 4 -s --log-cli-level=INFO
+  artifacts:
+    when: always
+    paths:
+    - workflow_test_report.xml
+    reports:
+      junit: 
+        - workflow_test_report.xml
+  needs:
+    - first_login
+    - send_testdata
+    - install_extensions
+  allow_failure: true
+  rules:
+    - if: $TEST_STAGE == "true"
+      when: on_success
+    - when: never

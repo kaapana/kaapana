@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kaapana-test"          # Project/repo name can have `-`
+version = "0.1.0"
+description = "Kaapana testing utilities and test suite"
+authors = [{name = "Kaapana Team"}]
+requires-python = ">=3.10"
+
+dependencies = [
+    "certifi==2025.8.3",
+    "charset-normalizer==3.4.3",
+    "execnet==2.1.1",
+    "idna==3.10",
+    "iniconfig==2.1.0",
+    "packaging==25.0",
+    "pluggy==1.6.0",
+    "Pygments==2.19.2",
+    "pytest==8.4.2",
+    "pytest-asyncio==1.2.0",
+    "pytest-xdist==3.8.0",
+    "PyYAML==6.0.3",
+    "requests==2.32.5",
+    "typing_extensions==4.15.0",
+    "urllib3==2.5.0",
+    "python3-nmap==1.9.1",
+    "selenium==4.14.0",
+    "playwright==1.58.0",
+    "pytest-playwright==0.3.0",
+    "pytest-xdist==3.8.0"
+]
+
+[project.scripts]
+scan-ports = "kaapana_test.scan_ports.scan_ports:main"
+send-testdata = "kaapana_test.send_data.send_testdata:main"
+install-extensions = "kaapana_test.extensions.install_extensions:main"
+
+[tool.setuptools]
+packages = ["kaapana_test"]

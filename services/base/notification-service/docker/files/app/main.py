@@ -43,5 +43,5 @@ async def websocket_endpoint(
         con_mgr.disconnect(websocket)
 
 
-app.include_router(router_v1, prefix="/v1", tags=["v1"])
+app.include_router(router_v1, prefix="/v1", tags=["v1"], deprecated=True)
 app.include_router(router_v2, prefix="/v2", tags=["v2"])

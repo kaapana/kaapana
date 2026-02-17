@@ -6,6 +6,7 @@ from app.notifications.v1.schemas import (
     NotificationCreateNoReceivers,
 )
 from app.models import Notification as NotificationModel
+from app.decorators import deprecated
 from app.dependencies import get_async_db, get_connection_manager, get_access_service
 from uuid import UUID
 from sqlalchemy import select, delete, update, func, cast
@@ -39,6 +40,11 @@ async def get_users(project_id: str, access_service):
 
 
 @router.post("/{project_id}", response_model=Notification, tags=["Service"])
+@deprecated(
+    method="POST",
+    path="/notifications/v1/{project_id}",
+    replacement="/notifications/v2/{project_id}",
+)
 async def post_notification_project(
     project_id: str,
     n: NotificationCreateNoReceivers,
@@ -59,6 +65,11 @@ async def post_notification_project(
 
 
 @router.post("/{project_id}/{user_id}", response_model=Notification, tags=["Service"])
+@deprecated(
+    method="POST",
+    path="/notifications/v1/{project_id}/{user_id}",
+    replacement="/notifications/v2/{project_id}/{user_id}",
+)
 async def post_notification_user(
     project_id: str,
     user_id: str,
@@ -85,6 +96,11 @@ async def post_notification_user(
 
 
 @router.post("/", response_model=Notification, tags=["Service"])
+@deprecated(
+    method="POST",
+    path="/notifications/v1/",
+    replacement="/notifications/v2/",
+)
 async def post_notification(
     n: NotificationCreate,
     db=Depends(get_async_db),
@@ -107,6 +123,11 @@ async def post_notification(
 
 
 @router.get("/", response_model=list[NotificationUser], tags=["Frontend API"])
+@deprecated(
+    method="GET",
+    path="/notifications/v1/",
+    replacement="/notifications/v2/",
+)
 async def get_notifications(
     db=Depends(get_async_db), x_forwarded_user: Annotated[str | None, Header()] = None
 ):
@@ -125,6 +146,11 @@ async def get_notifications(
 
 
 @router.put("/{notification_id}/read", tags=["Frontend API"])
+@deprecated(
+    method="PUT",
+    path="/notifications/v1/{notifications_id}/read",
+    replacement="/notifications/v2/{notifications_id}/read",
+)
 async def mark_read(
     notification_id: UUID,
     x_forwarded_user: Annotated[str | None, Header()] = None,

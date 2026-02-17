@@ -35,6 +35,9 @@ prepare_vars:
       echo "IP_ADDRESS=$ip_address" > prepare.env
       echo "CLIENT_SECRET=$client_secret" >> prepare.env
       echo "HOSTNAME=$hostname" >> prepare.env
+      source /home/$USER/venv/bin/activate
+      pip install $KAAPANA_DIR/ci/ci-code/kaapana_test
+
   artifacts:
     reports:
       dotenv: prepare.env

@@ -1,7 +1,7 @@
 FROM local-only/base-landing-page:latest AS base-landing-resource
 
 
-FROM node:lts-alpine3.19 AS build-stage
+FROM docker.io/node:22.13.0-alpine3.20  AS build-stage
 
 WORKDIR /app
 

@@ -70,7 +70,9 @@
           ></v-autocomplete>
         </v-col>
         <v-col cols="5">
+          <!-- Normal mode: autocomplete with dropdown -->
           <v-autocomplete
+            v-if="!filter.freeInput"
             :disabled="filter.key_select == null"
             v-model="filter.item_select"
             :items="
@@ -84,9 +86,38 @@
             deletable-chips
             multiple
             small-chips
+            rows="2"
             dense
             hide-details
           ></v-autocomplete>
+          <!-- Free input mode: textarea for pasting multiple values -->
+          <v-textarea
+            v-else
+            :disabled="filter.key_select == null"
+            v-model="filter.freeInputText"
+            placeholder="Enter values separated by spaces, commas, or newlines"
+            rows="2"
+            dense
+            hide-details
+            @blur="parseFreeInput(filter)"
+            @keydown.enter.ctrl="parseFreeInput(filter)"
+          ></v-textarea>
+        </v-col>
+        <v-col cols="1" align="center">
+          <v-tooltip bottom>
+            <template v-slot:activator="{ on, attrs }">
+              <v-btn
+                @click="toggleFreeInput(filter)"
+                small
+                icon
+                v-bind="attrs"
+                v-on="on"
+              >
+                <v-icon>{{ filter.freeInput ? 'mdi-form-dropdown' : 'mdi-form-textarea' }}</v-icon>
+              </v-btn>
+            </template>
+            <span>{{ filter.freeInput ? 'Switch to dropdown' : 'Switch to free input' }}</span>
+          </v-tooltip>
         </v-col>
         <v-col cols="1" align="center">
           <v-btn @click="deleteFilter(filter.id)" small icon>
@@ -105,6 +136,7 @@ import {
   loadDatasetByName,
   loadFieldNames,
   loadValues,
+  loadSearchFields,
 } from "../common/api.service";
 import SaveDatasetDialog from "@/components/SaveDatasetDialog.vue";
 import { mapGetters } from "vuex";
@@ -182,31 +214,120 @@ export default {
       this.display_filters = true;
       this.filters.push({
         id: this.counter++,
+        freeInput: false,
+        freeInputText: "",
       });
     },
     deleteFilter(id) {
       this.filters = this.filters.filter((filter) => filter.id !== id);
     },
-    async composeQuery() {
+    /**
+     * Toggle between dropdown and free input mode for a filter.
+     */
+    toggleFreeInput(filter) {
+      filter.freeInput = !filter.freeInput;
+      if (filter.freeInput && filter.item_select?.length > 0) {
+        // Convert existing selections to free text
+        filter.freeInputText = filter.item_select.join("\n");
+      } else if (!filter.freeInput && filter.freeInputText) {
+        // Parse free text back to selections
+        this.parseFreeInput(filter);
+      }
+    },
+    /**
+     * Parse free input text into item_select array.
+     */
+    parseFreeInput(filter) {
+      const text = filter.freeInputText;
+      if (!text) {
+        filter.item_select = [];
+        return;
+      }
+
+      // Split by spaces, newlines, or commas
+      const values = text
+        .split(/[\s,]+/)
+        .map((v) => v.trim())
+        .filter((v) => v.length > 0);
+
+      const key = filter.key_select;
+      const isNumeric =
+        this.mapping[key]?.key?.endsWith("_integer") ||
+        this.mapping[key]?.key?.endsWith("_float");
+
+      // Parse all values
+      filter.item_select = values.map((val) =>
+        isNumeric ? parseFloat(val) : val
+      );
+    },
+    /**
+     * Compose the full search query.
+     * @param {Array|null} fields - Array of field names to search, or null to skip free-text.
+     */
+    composeQuery(fields = null) {
+      let inner_query = { match_all: {} };
+      const hasQueryString = this.query_string && this.query_string.trim().length > 0;
+      
+      if (hasQueryString && fields && fields.length > 0) {
+        inner_query = {
+          query_string: {
+            query: this.query_string,
+            fields: fields,
+            default_operator: "AND",
+          },
+        };
+      }
+      
       const query = {
         bool: {
           must: [
-            this.constructDatasetQuery() || "",
+            this.constructDatasetQuery(),
             ...this.filters
               .map((filter) => this.queryFromFilter(filter))
-              .filter((query) => query !== null),
-            {
-              query_string: {
-                query: this.query_string || "*",
-              },
-            },
-          ],
+              .filter((q) => q !== null),
+            inner_query,
+          ].filter((q) => q !== null),
         },
       };
       return query;
     },
     async search() {
-      this.$emit("search", await this.composeQuery());
+      const hasQueryString = this.query_string && this.query_string.trim().length > 0;
+      
+      if (!hasQueryString) {
+        this.$emit("search", this.composeQuery(null));
+        return;
+      }
+      
+      try {
+        const { fields, field_count, max_clause_count } = await loadSearchFields();
+        
+        if (field_count === 0) {
+          this.$notify({
+            title: "Warning",
+            text: "No searchable text fields found. Showing filter results only.",
+            type: "warn",
+          });
+          this.$emit("search", this.composeQuery(null));
+          return;
+        }
+        
+        if (field_count > max_clause_count) {
+          this.$notify({
+            title: "Error",
+            text: `Too many fields to search (${field_count} > ${max_clause_count}). Add filters to reduce the query-size, or search without free-text.`,
+            type: "error",
+          });
+          this.$emit("search", this.composeQuery(null));
+          return;
+        }
+        
+        this.$emit("search", this.composeQuery(fields));
+        
+      } catch (error) {
+        console.error("[Search.vue] Failed to load search fields:", error);
+        this.$emit("search", this.composeQuery(null));
+      }
     },
     queryFromFilter(filter) {
       if (filter.item_select && filter.item_select.length > 0) {
@@ -224,15 +345,15 @@ export default {
       }
     },
     constructDatasetQuery() {
-      if (this.dataset && this.dataset.identifiers) {
+      const hasIdentifiers = this.dataset && this.dataset.identifiers && this.dataset.identifiers.length > 0;
+      if (hasIdentifiers) {
         return {
           ids: {
             values: this.dataset.identifiers,
           },
         };
-      } else {
-        return null;
       }
+      return null;
     },
     async updateMapping(filter) {
       filter.item_select = [];

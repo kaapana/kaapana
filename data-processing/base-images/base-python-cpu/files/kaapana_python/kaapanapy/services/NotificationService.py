@@ -36,7 +36,7 @@ class NotificationService:
         data = notification.model_dump()
         if not user_ids:
             response = requests.post(
-                f"{NOTIFICATION_SERVICE_URL}/v1/{project_id}",
+                f"{NOTIFICATION_SERVICE_URL}/v2/{project_id}",
                 json=data,
             )
         else:
@@ -44,7 +44,7 @@ class NotificationService:
             for user_id in user_ids:
                 try:
                     response = requests.post(
-                        f"{NOTIFICATION_SERVICE_URL}/v1/{project_id}/{user_id}",
+                        f"{NOTIFICATION_SERVICE_URL}/v2/{project_id}/{user_id}",
                         json=data,
                     )
                     response.raise_for_status()
@@ -59,7 +59,7 @@ class NotificationService:
             if failed_for_users:
                 data["receivers"] = failed_for_users
                 response = requests.post(
-                    f"{NOTIFICATION_SERVICE_URL}/v1/",
+                    f"{NOTIFICATION_SERVICE_URL}/v2/",
                     json=data,
                 )
         response.raise_for_status()

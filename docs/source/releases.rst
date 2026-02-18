@@ -8,6 +8,19 @@ Changelog
 ------------------------
 
 ********************
+Release Notes v0.6.1
+********************
+
+Notifications API version 2
+---------------------------
+
+We update the Nofitications API to version 2.
+The new version now supports cursor based pagination.
+Version 1 will be deprecated with release 0.8.0.
+
+
+
+********************
 Release Notes v0.6.0
 ********************
 

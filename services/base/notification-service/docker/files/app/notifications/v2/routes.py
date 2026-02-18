@@ -1,17 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
-from app.notifications.schemas import (
+from fastapi import APIRouter, Depends, HTTPException, Header, Query
+from app.notifications.v2.schemas import (
+    NotificationResponse,
+    Metadata,
     Notification,
-    NotificationUser,
     NotificationCreate,
     NotificationCreateNoReceivers,
 )
-from app.notifications.models import Notification as NotificationModel
+from app.models import Notification as NotificationModel
 from app.dependencies import get_async_db, get_connection_manager, get_access_service
 from uuid import UUID
 from sqlalchemy import select, delete, update, func, cast
 from sqlalchemy.dialects.postgresql import JSONB, ARRAY, TEXT
 from typing import Annotated
-import datetime
+from datetime import datetime
 
 router = APIRouter()
 
@@ -22,7 +23,9 @@ async def add_notification(
     db.add(notification)
     await db.commit()
     await db.refresh(notification)
-    await con_mgr.notify_new_notification(user_ids=notification.receivers, id=notification.id)
+    await con_mgr.notify_new_notification(
+        user_ids=notification.receivers, id=notification.id
+    )
     return notification
 
 
@@ -104,22 +107,61 @@ async def post_notification(
     return await add_notification(notification, db, con_mgr)
 
 
-@router.get("/", response_model=list[NotificationUser], tags=["Frontend API"])
+@router.get(
+    "/",
+    response_model=NotificationResponse,
+    tags=["Frontend API"],
+)
 async def get_notifications(
-    db=Depends(get_async_db), x_forwarded_user: Annotated[str | None, Header()] = None
+    db=Depends(get_async_db),
+    x_forwarded_user: Annotated[str | None, Header()] = None,
+    cursor: datetime | None = Query(
+        None, description="Fetch notifications older than this timestamp"
+    ),
+    limit: int = Query(
+        20, ge=1, le=100, description="Maximum number of notifications to return"
+    ),
 ):
     if not x_forwarded_user:
         raise HTTPException(400, "Missing user info")
 
-    stmt = (
+    base_stmt = (
         select(NotificationModel)
         .where(NotificationModel.receivers.any(x_forwarded_user))
         .where(~NotificationModel.receviers_read.has_key(x_forwarded_user))
-        .order_by(NotificationModel.timestamp)
     )
 
+    if cursor:
+        base_stmt = base_stmt.where(NotificationModel.timestamp < cursor)
+
+    stmt = base_stmt.order_by(NotificationModel.timestamp.desc()).limit(limit + 1)
+
     result = await db.execute(stmt)
-    return result.scalars().all()
+    notifications = result.scalars().all()
+
+    has_more = len(notifications) > limit
+    notifications = notifications[:limit]
+
+    next_cursor = notifications[-1].timestamp if has_more and notifications else None
+
+    count_stmt = (
+        select(func.count())
+        .select_from(NotificationModel)
+        .where(NotificationModel.receivers.any(x_forwarded_user))
+        .where(~NotificationModel.receviers_read.has_key(x_forwarded_user))
+    )
+
+    total_result = await db.execute(count_stmt)
+    total = total_result.scalar_one()
+
+    return NotificationResponse(
+        data=notifications,
+        meta=Metadata(
+            total=total,
+            nextCursor=next_cursor,
+            hasMore=has_more,
+        ),
+    )
 
 
 @router.put("/{notification_id}/read", tags=["Frontend API"])

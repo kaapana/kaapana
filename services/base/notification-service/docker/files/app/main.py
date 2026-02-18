@@ -1,10 +1,11 @@
 import logging
 
 from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
-from app.notifications.routes import router as notification_router
+from app.notifications.v1.routes import router as router_v1
+from app.notifications.v2.routes import router as router_v2
 from app.dependencies import get_connection_manager
 from app.database import async_engine
-from app.notifications.models import Base
+from app.models import Base
 from contextlib import asynccontextmanager
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ app = FastAPI(
     version="0.1.0",
     summary="""
 Send notifications to individual users or groups of users in the local platform
-(e.g. when workflow faild, an update is available, ...)
+(e.g. when workflow failed, an update is available, ...)
 """,
     lifespan=lifespan,
 )
@@ -42,4 +43,5 @@ async def websocket_endpoint(
         con_mgr.disconnect(websocket)
 
 
-app.include_router(notification_router, prefix="/v1")
+app.include_router(router_v1, prefix="/v1", tags=["v1"], deprecated=True)
+app.include_router(router_v2, prefix="/v2", tags=["v2"])

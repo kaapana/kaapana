@@ -58,7 +58,9 @@ class BuildCoordinator:
             containers=self.waiting,
         ) as self.progress_bar:
 
-            with ThreadPoolExecutor(max_workers=4) as executor:
+            with ThreadPoolExecutor(
+                max_workers=ContainerHelper._build_config.parallel_processes
+            ) as executor:
                 futures: set[Future] = set()
 
                 # Initial scheduling
@@ -84,9 +86,9 @@ class BuildCoordinator:
                     )
                     futures = pending
 
-            if self.abort_requested:
-                executor.shutdown(wait=False, cancel_futures=True)
-                return
+                if self.abort_requested:
+                    executor.shutdown(wait=False, cancel_futures=True)
+                    return
 
     def _schedule_ready(
         self,

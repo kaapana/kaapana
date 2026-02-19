@@ -1,4 +1,4 @@
-# test_first_login_async.py
+# test_first_login.py
 import pytest
 
 

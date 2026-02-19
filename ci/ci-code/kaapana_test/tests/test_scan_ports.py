@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import logging
 
-from kaapana_test.scan_ports.scan_ports import check_ports, scan_ports
+from kaapana_test.scan_ports import check_ports, scan_ports
 from kaapana_test.utils.logger import get_logger
 
 logger = get_logger(__name__, logging.DEBUG)

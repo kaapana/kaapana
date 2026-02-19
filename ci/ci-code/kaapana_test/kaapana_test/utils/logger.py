@@ -6,6 +6,14 @@ from pathlib import Path
 
 
 def get_logger(name, level=logging.DEBUG, log_file=None):
+    """Return a configured logger.
+
+    - Adds a StreamHandler if none exists.
+    - If `log_file` is provided, attaches a FileHandler to that path.
+    - If `ARTIFACTS_DIR` env var is set and no explicit `log_file` provided,
+      attaches a file handler at `${ARTIFACTS_DIR}/{name}.log`.
+    """
+    import os
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
@@ -18,13 +26,23 @@ def get_logger(name, level=logging.DEBUG, log_file=None):
         ch.setFormatter(formatter)
         logger.addHandler(ch)
 
-    if log_file:
-        fh = logging.FileHandler(log_file, mode="w")
+    # If user supplied an explicit log_file, prefer that. Otherwise if
+    # ARTIFACTS_DIR is set, add a file handler into that directory named
+    # after the logger (module) so tests and CI capture logs automatically.
+    artifacts_dir = os.environ.get("ARTIFACTS_DIR")
+    chosen_log_file = log_file
+    if not chosen_log_file and artifacts_dir:
+        chosen_log_file = str(Path(artifacts_dir) / f"{name}.log")
+
+    if chosen_log_file:
+        fh = logging.FileHandler(chosen_log_file, mode="a", encoding="utf-8")
         fh.setLevel(logging.DEBUG)
-        # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         formatter = logging.Formatter("%(levelname)s - %(asctime)s - %(message)s")
         fh.setFormatter(formatter)
-        logger.addHandler(fh)
+        # Avoid adding duplicate file handlers for the same file
+        existing_files = [getattr(h, "baseFilename", None) for h in logger.handlers if isinstance(h, logging.FileHandler)]
+        if str(getattr(fh, "baseFilename", chosen_log_file)) not in existing_files:
+            logger.addHandler(fh)
 
     return logger
 

@@ -6,7 +6,7 @@ from playwright.async_api import async_playwright
 logger = logging.getLogger(__name__)
 
 
-async def ensure_playwright_installed_async():
+async def ensure_playwright_installed():
     import subprocess
     import sys
 
@@ -15,7 +15,7 @@ async def ensure_playwright_installed_async():
     subprocess.run([sys.executable, "-m", "playwright", "install-deps"], check=True)
 
 
-class KaapanaPlaywrightDriverAsync:
+class KaapanaPlaywrightDriver:
     def __init__(self, headless=True):
         self.headless = headless
         self.playwright = None

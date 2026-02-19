@@ -16,7 +16,6 @@ logger = get_logger(__name__, logging.DEBUG)
 
 
 class DataEndpoints(KaapanaAuth):
-
     def __init__(self, host, client_secret):
         super().__init__(host, client_secret)
 

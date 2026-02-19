@@ -8,7 +8,7 @@ from kaapana_test.utils.logger import get_logger
 logger = get_logger(__name__, logging.DEBUG)
 
 
-class ExtensionEndpoint(KaapanaAuth):
+class ExtensionEndpoints(KaapanaAuth):
     def __init__(self, host, client_secret):
         super().__init__(host, client_secret)
 
@@ -123,7 +123,7 @@ class ExtensionEndpoint(KaapanaAuth):
                 "latest_version": version,
                 "release_name": version,
             }
-            resolved = ExtensionEndpoint.resolve_extension(ext, available_extensions)
+            resolved = ExtensionEndpoints.resolve_extension(ext, available_extensions)
             if not resolved:
                 raise ValueError(
                     f"Extension {name}:{version} not found in available extensions"
@@ -159,7 +159,7 @@ class ExtensionEndpoint(KaapanaAuth):
                 extensions.extend(json.load(f))
 
         for ext in extensions:
-            resolved = ExtensionEndpoint.resolve_extension(ext, available_extensions)
+            resolved = ExtensionEndpoints.resolve_extension(ext, available_extensions)
             if not resolved:
                 raise ValueError(
                     f"Extension {ext.get('chart_name')}:{ext.get('latest_version')} not found in available extensions"
@@ -177,7 +177,7 @@ class ExtensionEndpoint(KaapanaAuth):
             and extension.get("multiinstallable") == "yes"
             and extension.get("helmStatus") is None
         ):
-            return False
+            return True
 
         extensions = self.get_all_extensions()
         current_extension_state = None

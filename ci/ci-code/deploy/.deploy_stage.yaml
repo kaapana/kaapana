@@ -55,7 +55,7 @@ port_scan:
   script:
     - source /home/$USER/venv/bin/activate
     - cd $KAAPANA_DIR/ci/ci-code/kaapana_test/tests
-    - pytest test_scan_ports.py --ip-address $IP_ADDRESS --allowed-ports $ALLOWED_PORTS --junitxml="$ARTIFACTS_DIR/junit_scan_ports.xml" -n 4 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/scan_ports.log"
+    - pytest test_scan_ports.py --ip-address $IP_ADDRESS --allowed-ports $ALLOWED_PORTS --junitxml="$ARTIFACTS_DIR/junit_scan_ports.xml" -n 1 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/scan_ports.log"
   artifacts:
     when: always
     paths:
@@ -72,7 +72,7 @@ first_login:
   script:
     - source /home/$USER/venv/bin/activate
     - cd $KAAPANA_DIR/ci/ci-code/kaapana_test/tests
-    - pytest test_first_login.py --host $HOSTNAME --junitxml="$ARTIFACTS_DIR/junit_first_login.xml" -n 4 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/first_login.log"
+    - pytest test_first_login.py --host $HOSTNAME --junitxml="$ARTIFACTS_DIR/junit_first_login.xml" -n 1 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/first_login.log"
   rules:
     - if: $TEST_STAGE == "true"
       when: on_success

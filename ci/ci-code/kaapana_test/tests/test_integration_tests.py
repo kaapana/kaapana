@@ -3,12 +3,8 @@ import os
 import time
 
 import pytest
-from kaapana_test.integration_tests.utils_workflows import (
-    WorkflowEndpoints,
-    collect_all_testcases,
-    read_payload_from_yaml,
-)
 from kaapana_test.utils.logger import get_logger
+from kaapana_test.workflows import WorkflowEndpoints
 
 logger = get_logger(__name__, logging.INFO)
 
@@ -38,29 +34,6 @@ def wait_for_workflow(kaapana: WorkflowEndpoints, workflow_name, timeout=3600) -
     return False, msg
 
 
-def pytest_generate_tests(metafunc):
-    host = metafunc.config.getoption("host")
-    assert host, "No host specified!"
-    client_secret = metafunc.config.getoption("client_secret") or os.environ.get(
-        "CLIENT_SECRET", None
-    )
-    assert client_secret, "No client secret specified!"
-    kaapana = WorkflowEndpoints(host=host, client_secret=client_secret)
-    if "testconfig" in metafunc.fixturenames:
-
-        files = metafunc.config.getoption("files")
-        test_dir = metafunc.config.getoption("test_dir")
-
-        if files and len(files) != 0:
-            testcases = []
-            for file in files:
-                testcases += read_payload_from_yaml(file)
-        elif test_dir:
-            testdir = os.path.join(os.getcwd(), test_dir)
-            testcases = collect_all_testcases(testdir)
-        else:
-            raise AssertionError("Use --files or --test-dir to specify testcase files")
-        metafunc.parametrize("testconfig", [(tc, kaapana) for tc in testcases])
 
 
 def set_task_form_environment(env_name: str, env_value: str, testcase: dict):

@@ -12,6 +12,9 @@ logger = get_logger(__name__, logging.INFO)
 
 
 class WorkflowEndpoints(KaapanaAuth):
+    def __init__(self, host, client_secret):
+        super().__init__(host, client_secret)
+
     def submit_workflow(self, payload):
         """
         Submit a workflow to the kaapana-backend API.

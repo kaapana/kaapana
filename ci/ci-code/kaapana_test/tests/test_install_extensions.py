@@ -10,13 +10,12 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.asyncio
-async def test_extension_lifecycle(
+async def test_install_extension(
     extension, extension_endpoint, json_extension_params, timeout
 ):
-    """Install, uninstall, and reinstall a single extension to ensure full lifecycle."""
+    """Install a single extension."""
     poll_interval = 5
 
-    # Load JSON params if provided
     try:
         with open(json_extension_params) as f:
             extension_params = json.load(f)
@@ -24,7 +23,7 @@ async def test_extension_lifecycle(
         extension_params = {}
 
     chart_name = extension.get("chart_name")
-    logger.info(f"Testing extension lifecycle: {chart_name}")
+    logger.info(f"Testing extension installation: {chart_name}")
 
     # -------------------------------
     # INSTALL
@@ -35,7 +34,10 @@ async def test_extension_lifecycle(
     start = time.time()
     while time.time() - start < timeout:
         if extension_endpoint.extension_is_installed(extension):
-            logger.info(f"Extension {chart_name} installed successfully")
+            total_elapsed = time.time() - start
+            logger.info(
+                f"Extension {chart_name} installed successfully in ~{total_elapsed:.2f} seconds."
+            )
             break
         logger.info(f"Waiting for extension {chart_name} to install...")
         await asyncio.sleep(poll_interval)

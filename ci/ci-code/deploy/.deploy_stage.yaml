@@ -72,7 +72,7 @@ first_login:
   script:
     - source /home/$USER/venv/bin/activate
     - cd $KAAPANA_DIR/ci/ci-code/kaapana_test/tests
-    - pytest test_first_login.py --host $HOSTNAME --junitxml="$ARTIFACTS_DIR/junit_first_login.xml" -n 1 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/first_login.log"
+    - pytest test_first_login.py --host $IP_ADDRESS --junitxml="$ARTIFACTS_DIR/junit_first_login.xml" -n 1 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/first_login.log"
   rules:
     - if: $TEST_STAGE == "true"
       when: on_success
@@ -115,7 +115,7 @@ install_extensions:
   script:
     - source /home/$USER/venv/bin/activate
     - cd $KAAPANA_DIR/ci/ci-code/kaapana_test/tests
-    - pytest test_install_extensions.py --host $HOSTNAME --client-secret $CLIENT_SECRET --timeout 300 --json-extension-params $REPO_DIR/data/extension_params.json --junitxml="$ARTIFACTS_DIR/junit_initial_install_extensions.xml" -n 4 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/install_extensions.log"    
+    - pytest test_install_extensions.py --host $IP_ADDRESS --client-secret $CLIENT_SECRET --timeout 300 --json-extension-params $REPO_DIR/data/extension_params.json --junitxml="$ARTIFACTS_DIR/junit_initial_install_extensions.xml" -n 4 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/install_extensions.log"    
   needs:
     - prepare_vars
     - first_login
@@ -140,7 +140,7 @@ integration_tests:
     - source /home/$USER/venv/bin/activate
     - cd $KAAPANA_DIR/ci/ci-code/kaapana_test/tests
     - export test_files=$( find ${KAAPANA_DIR}/data-processing -wholename *ci-config/*.yaml)
-    - pytest test_integration_tests.py --files ${test_files} --host ${IP_ADDRESS} --junitxml=$ARTIFACTS_DIR/integration_tests_report.xml -n 4 -s --log-cli-level=INFO --log-file=$ARTIFACTS_DIR/integration_tests.log
+    - pytest test_integration_tests.py --files ${test_files} --host $IP_ADDRESS --junitxml=$ARTIFACTS_DIR/integration_tests_report.xml -n 4 -s --log-cli-level=INFO --log-file=$ARTIFACTS_DIR/integration_tests.log
   artifacts:
     when: always
     paths:

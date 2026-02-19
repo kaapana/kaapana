@@ -4,27 +4,33 @@ Ansible playbooks for creating and managing Kaapana CI build and deploy instance
 
 ## Overview
 
+
 This setup creates two types of VMs on Harvester for the Kaapana CI/CD pipeline:
 
-- **Build VM** - Compiles containers, builds Helm charts, and packages the platform
-- **Deploy VM** - Deploys and tests the Kaapana platform
+- **Build VM** - Compiles containers, builds Helm charts, and packages the platform. **Only the Build VM runs two runners** (shared and dedicated) to ensure that build scripts are not scheduled twice on the same machine, but can still be scheduled on multiple machines if available.
+- **Deploy VM** - Deploys and tests the Kaapana platform. (Single runner)
 
-Each VM runs GitLab runners with a **shared/dedicated** architecture to handle different workload types.
+The shared runner on the Build VM is intended for unit tests, documentation, and other lightweight jobs to run in parallel, while the dedicated runner is reserved for heavy build jobs that must not overlap on the same machine.
+
 
 ## Runner Architecture
 
-### Shared vs Dedicated Runners
+### Build VM Runners
 
-Each VM registers **two runners** with different characteristics:
+The **Build VM** registers two runners:
 
-| Runner Type | Tag | Purpose | Concurrency |
-|------------|-----|---------|-------------|
-| **Shared** | `build-shared` / `deploy-shared` | Lightweight, parallel jobs | Up to 5 concurrent |
-| **Dedicated** | `build-dedicated` / `deploy-dedicated` | Heavy, isolated jobs | 1 at a time |
+| Runner Type   | Tag            | Purpose                                         | Concurrency         |
+|-------------- |--------------- |-------------------------------------------------|---------------------|
+| **Shared**    | `build-shared` | Unit tests, docs, linting, and other lightweight jobs in parallel | Up to 5 concurrent |
+| **Dedicated** | `build-dedicated` | Heavy build jobs (ensures only one build runs at a time on this machine) | 1 at a time        |
 
 **When to use which:**
-- `*-shared`: Fast jobs like linting, validation, log collection
-- `*-dedicated`: Resource-intensive jobs like full builds, platform deployment
+- `build-shared`: For fast jobs like unit tests, documentation, linting, validation, log collection, etc.
+- `build-dedicated`: For resource-intensive jobs like full builds that must not overlap on the same machine.
+
+### Deploy VM Runner
+
+The **Deploy VM** typically runs a single runner for deployment and testing tasks.
 
 ### Runner Tags
 
@@ -34,16 +40,14 @@ Use these tags in `.gitlab-ci.yml`:
 # Build VM runners
 build_job:
   tags:
-    - build-shared      # For parallel/lightweight build tasks
+    - build-shared      # For parallel/lightweight build tasks (unit tests, docs, etc.)
     # OR
     - build-dedicated   # For heavy builds needing full resources
 
-# Deploy VM runners
+# Deploy VM runner
 deploy_job:
   tags:
-    - deploy-shared     # For parallel/lightweight deploy tasks
-    # OR
-    - deploy-dedicated  # For full platform deployment
+    - deploy            # For deployment tasks
 ```
 
 ## Prerequisites

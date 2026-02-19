@@ -5,7 +5,7 @@ from pathlib import Path
 from kaapana_test.data import DataEndpoints, download_data, send_data
 from kaapana_test.utils.logger import get_logger
 
-logger = get_logger(__file__, logging.DEBUG)
+logger = get_logger(__name__, logging.DEBUG)
 
 
 def test_send_data(

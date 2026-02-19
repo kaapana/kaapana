@@ -68,7 +68,9 @@ def pytest_addoption(parser):
 # ---------------------------------------------------------------------------
 def auto_host():
     try:
-        return subprocess.check_output(["hostname"], text=True).strip()
+        return subprocess.check_output(
+            ["hostname", "-I", "|", "awk", "'{print $1}'"], text=True
+        ).strip()
     except Exception:
         return None
 

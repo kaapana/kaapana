@@ -1,21 +1,19 @@
 # test_first_login.py
 import pytest
+from kaapana_test.utils.KaapanaPlaywrightDriver import KaapanaPlaywrightDriver
 
 
 @pytest.mark.asyncio
-async def test_first_login(driver, host):
+async def test_first_login(driver: KaapanaPlaywrightDriver, host: str):
     await driver.goto(f"http://{host}")
 
-    # Wrong password must fail
-    assert not await driver.login("kaapana", "kaapana")
-
-    # Admin password may already be set
-    if await driver.login("kaapana", "admin"):
-        # Password already set, first-login flow done
-        return
+    assert not await driver.login("kaapana", "admin")
+    assert await driver.login("kaapana", "kaapana")
 
     # Set new password
     await driver.set_new_password("admin")
+
+    # Admin password may already be set
     assert await driver.login(
         "kaapana", "admin"
     ), "Login after setting new password failed"

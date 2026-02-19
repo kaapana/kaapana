@@ -55,15 +55,15 @@ port_scan:
   script:
     - source /home/$USER/venv/bin/activate
     - cd $KAAPANA_DIR/ci/ci-code/kaapana_test/tests
-    - pytest test_scan_ports.py --ip-address $IP_ADDRESS --allowed-ports $ALLOWED_PORTS --junitxml="junit_scan_ports.xml" -n 1 -s --log-cli-level=INFO --log-file="scan_ports.log"
+    - pytest test_scan_ports.py --ip-address $IP_ADDRESS --allowed-ports $ALLOWED_PORTS --junitxml="$ARTIFACTS_DIR/junit_scan_ports.xml" -n 1 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/scan_ports.log"
   artifacts:
     when: always
     paths:
-    - junit_scan_ports.xml
-    - scan_ports.log
+    - $ARTIFACTS_DIR/junit_scan_ports.xml
+    - $ARTIFACTS_DIR/scan_ports.log
     reports:
       junit: 
-        - junit_scan_ports.xml
+        - $ARTIFACTS_DIR/junit_scan_ports.xml
 
 first_login:
   needs:
@@ -72,7 +72,7 @@ first_login:
   script:
     - source /home/$USER/venv/bin/activate
     - cd $KAAPANA_DIR/ci/ci-code/kaapana_test/tests
-    - pytest test_first_login.py --host $HOSTNAME --junitxml="junit_first_login.xml" -n 1 -s --log-cli-level=INFO --log-file="first_login.log"
+    - pytest test_first_login.py --host $HOSTNAME --junitxml="$ARTIFACTS_DIR/junit_first_login.xml" -n 1 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/first_login.log"
   rules:
     - if: $TEST_STAGE == "true"
       when: on_success
@@ -80,17 +80,18 @@ first_login:
   artifacts:
     when: always
     paths:
-    - junit_first_login.xml
-    - first_login.log
+    - $ARTIFACTS_DIR/junit_first_login.xml
+    - $ARTIFACTS_DIR/first_login.log
     reports:
       junit: 
-        - junit_first_login.xml
+        - $ARTIFACTS_DIR/junit_first_login.xml
+
 send_testdata:
   stage: test
   script:
     - source /home/$USER/venv/bin/activate 
     - cd $KAAPANA_DIR/ci/ci-code/kaapana_test/tests
-    - pytest test_send_data.py --host "$IP_ADDRESS" --client-secret "$CLIENT_SECRET" --junitxml="junit_send_data.xml" -n 4 -s --log-cli-level=INFO --log-file="send_testdata.log"
+    - pytest test_send_data.py --host "$IP_ADDRESS" --client-secret "$CLIENT_SECRET" --junitxml="$ARTIFACTS_DIR/junit_send_data.xml" -n 4 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/send_testdata.log"
   needs:
     - prepare_vars
     - first_login
@@ -103,18 +104,18 @@ send_testdata:
   artifacts:
     when: always
     paths:
-    - junit_send_data.xml
-    - send_testdata.log
+    - $ARTIFACTS_DIR/junit_send_data.xml
+    - $ARTIFACTS_DIR/send_testdata.log
     reports:
       junit: 
-        - junit_send_data.xml
+        - $ARTIFACTS_DIR/junit_send_data.xml
 
 install_extensions:
   stage: test
   script:
     - source /home/$USER/venv/bin/activate
     - cd $KAAPANA_DIR/ci/ci-code/kaapana_test/tests
-    - pytest test_install_extensions.py --host $HOSTNAME --client-secret $CLIENT_SECRET --timeout 300 --json-extension-params $REPO_DIR/data/extension_params.json --junitxml="junit_initial_install_extensions.xml" -n 4 -s --log-cli-level=INFO --log-file="install_extensions.log"    
+    - pytest test_install_extensions.py --host $HOSTNAME --client-secret $CLIENT_SECRET --timeout 300 --json-extension-params $REPO_DIR/data/extension_params.json --junitxml="$ARTIFACTS_DIR/junit_initial_install_extensions.xml" -n 4 -s --log-cli-level=INFO --log-file="$ARTIFACTS_DIR/install_extensions.log"    
   needs:
     - prepare_vars
     - first_login
@@ -127,26 +128,27 @@ install_extensions:
   artifacts:
     when: always
     paths:
-    - junit_initial_install_extensions.xml
-    - install_extensions.log
+    - $ARTIFACTS_DIR/junit_initial_install_extensions.xml
+    - $ARTIFACTS_DIR/install_extensions.log
     reports:
       junit: 
-        - junit_initial_install_extensions.xml
+        - $ARTIFACTS_DIR/junit_initial_install_extensions.xml
+
 integration_tests:
   stage: test
   script:
     - source /home/$USER/venv/bin/activate
     - cd $KAAPANA_DIR/ci/ci-code/kaapana_test/tests
     - export test_files=$( find ${KAAPANA_DIR}/data-processing -wholename *ci-config/*.yaml)
-    - pytest test_integration_tests.py --files ${test_files} --host ${IP_ADDRESS} --junitxml="integration_tests_report.xml" -n 4 -s --log-cli-level=INFO --log-file="integration_tests.log"
+    - pytest test_integration_tests.py --files ${test_files} --host ${IP_ADDRESS} --junitxml=$ARTIFACTS_DIR/integration_tests_report.xml -n 4 -s --log-cli-level=INFO --log-file=$ARTIFACTS_DIR/integration_tests.log
   artifacts:
     when: always
     paths:
-    - integration_tests_report.xml
-    - integration_tests.log
+    - $ARTIFACTS_DIR/integration_tests_report.xml
+    - $ARTIFACTS_DIR/integration_tests.log
     reports:
       junit: 
-        - integration_tests_report.xml
+        - $ARTIFACTS_DIR/integration_tests_report.xml
   needs:
     - first_login
     - send_testdata

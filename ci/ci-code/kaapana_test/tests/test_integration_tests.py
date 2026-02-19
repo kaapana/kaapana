@@ -1,5 +1,4 @@
 import logging
-import os
 import time
 
 import pytest
@@ -32,8 +31,6 @@ def wait_for_workflow(kaapana: WorkflowEndpoints, workflow_name, timeout=3600) -
             time.sleep(5)
     msg = f"Workflow {workflow_name} exceeds timeout {timeout}"
     return False, msg
-
-
 
 
 def set_task_form_environment(env_name: str, env_value: str, testcase: dict):

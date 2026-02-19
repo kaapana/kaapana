@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 @pytest.mark.asyncio
 async def test_install_extension(
-    extension, extension_endpoint, json_extension_params, timeout
+    extension, extension_endpoints, json_extension_params, timeout
 ):
     """Install a single extension."""
     poll_interval = 5
@@ -28,12 +28,12 @@ async def test_install_extension(
     # -------------------------------
     # INSTALL
     # -------------------------------
-    _, failed = extension_endpoint.install_extensions([extension], extension_params)
+    _, failed = extension_endpoints.install_extensions([extension], extension_params)
     assert not failed, f"Failed to initiate installation for: {failed}"
 
     start = time.time()
     while time.time() - start < timeout:
-        if extension_endpoint.extension_is_installed(extension):
+        if extension_endpoints.extension_is_installed(extension):
             total_elapsed = time.time() - start
             logger.info(
                 f"Extension {chart_name} installed successfully in ~{total_elapsed:.2f} seconds."

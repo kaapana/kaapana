@@ -191,17 +191,17 @@ def force_download(pytestconfig):
 
 
 @pytest.fixture
-def extension_endpoint(host, client_secret):
+def extension_endpoints(host, client_secret):
     return ExtensionEndpoints(host=host, client_secret=client_secret)
 
 
 @pytest.fixture
-def workflow_endpoint(host, client_secret):
+def workflow_endpoints(host, client_secret):
     return WorkflowEndpoints(host=host, client_secret=client_secret)
 
 
 @pytest.fixture
-def data_endpoint(host, client_secret):
+def data_endpoints(host, client_secret):
     return DataEndpoints(host=host, client_secret=client_secret)
 
 

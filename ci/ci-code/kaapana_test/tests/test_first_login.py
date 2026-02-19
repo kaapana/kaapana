@@ -13,6 +13,9 @@ async def test_first_login(driver: KaapanaPlaywrightDriver, host: str):
     # Set new password
     await driver.set_new_password("admin")
 
+    await driver.reset_session()
+    await driver.goto(f"http://{host}")
+
     # Admin password may already be set
     assert await driver.login(
         "kaapana", "admin"

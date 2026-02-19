@@ -5,16 +5,14 @@ from pathlib import Path
 from kaapana_test.data import DataEndpoints, download_data, send_data
 from kaapana_test.utils.logger import get_logger
 
-logger = get_logger("send_data", logging.DEBUG)
+logger = get_logger(__file__, logging.DEBUG)
 
 
 def test_send_data(
     host, data_endpoints: DataEndpoints, dataset, download_directory, force_download
 ):
-
     source_file = dataset
     kaapana_dataset = dataset.stem[:16]
-    logger.info(force_download)
     # DOWNLOAD
     logger.info(f"Downloading dataset: {kaapana_dataset}")
     logger.info(f"Download directory: {download_directory}")

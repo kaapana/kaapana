@@ -3,13 +3,6 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_invalid_login(driver, host):
-    await driver.goto(f"http://{host}")
-    ok = await driver.login("kaapana", "invalid")
-    assert not ok, "Login with invalid credentials should fail"
-
-
-@pytest.mark.asyncio
 async def test_first_login(driver, host):
     await driver.goto(f"http://{host}")
 
@@ -26,3 +19,9 @@ async def test_first_login(driver, host):
     assert await driver.login(
         "kaapana", "admin"
     ), "Login after setting new password failed"
+
+@pytest.mark.asyncio
+async def test_invalid_login(driver, host):
+    await driver.goto(f"http://{host}")
+    ok = await driver.login("kaapana", "invalid")
+    assert not ok, "Login with invalid credentials should fail"

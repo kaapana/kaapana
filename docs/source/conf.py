@@ -34,13 +34,13 @@ download(os.path.join(os.path.dirname(__file__), "img"))
 # -- Project information -----------------------------------------------------
 
 project = "Kaapana"
-copyright = "2025, MIC @DKFZ"
+copyright = "2026, MIC @DKFZ"
 author = "MIC @DKFZ"
 
 # The short X.Y version
-version = "0.6.0"
+version = "0.6.1"
 # The full version, including alpha/beta/rc tags
-release = "0.6.0"
+release = "0.6.1"
 
 
 # -- General configuration ---------------------------------------------------

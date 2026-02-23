@@ -24,13 +24,23 @@ export interface NotificationEvent {
   type: NotificationEventType
 }
 
-export const fetch_notifications = async (): Promise<Notification[]> => {
-    const response = await httpClient.get(`${KAAPANA_NOTIFICATION_ENDPOINT}/v1`);
-    return response.data;
+export async function fetch_notifications(params?: {
+  limit?: number
+  cursor?: string | null
+}): Promise<{
+  data: Notification[]
+  meta: {
+    nextCursor: string | null
+    hasMore: boolean
+    total: number
+  }
+}> {
+  const res = await httpClient.get(`${KAAPANA_NOTIFICATION_ENDPOINT}/v2/`, { params })
+  return res.data
 }
 
 export const read_notification = async (id : NotificationID) => {
-    return await httpClient.put(`${KAAPANA_NOTIFICATION_ENDPOINT}/v1/${id}/read`);
+    return await httpClient.put(`${KAAPANA_NOTIFICATION_ENDPOINT}/v2/${id}/read`);
 }
 
 export class NotificationWebsocket {

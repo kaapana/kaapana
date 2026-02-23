@@ -1,0 +1,15 @@
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: kaapana-longhorn-fast-workflow
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+parameters:
+  # For temporary workflow execution and intermediate data
+  numberOfReplicas: "{{ .Values.global.replica_count }}"
+  fsType: "ext4"
+  mkfsParams: "-E discard"            # Enables TRIM for space reclamation
+  disableRevisionCounter: "true"      # Slightly faster for ephemeral volumes
+  staleReplicaTimeout: "20"

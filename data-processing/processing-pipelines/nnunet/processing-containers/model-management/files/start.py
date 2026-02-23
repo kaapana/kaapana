@@ -4,7 +4,7 @@ from pathlib import Path
 import zipfile
 import os
 from os.path import basename, exists, join, normpath
-from shutil import rmtree
+import shutil
 import re
 from kaapanapy.logger import get_logger
 from kaapanapy.helper import load_workflow_config
@@ -29,7 +29,8 @@ def extract_file_to_model_dir(zip_path, models_dir):
         logger.error("Could not extract model: {}".format(zip_path))
         logger.error("Target dir: {}".format(models_dir))
         logger.error("MSG: " + str(e))
-        return False, zip_path
+        raise e
+
 
 # Helper functions to read dataset.json and plans.json
 # Functions moved from nnunet get_tasks()
@@ -75,24 +76,13 @@ def _get_dataset_json(model_path, installed_task):
 
     return dataset_json
 
+
 def _get_plans_json(model_path, installed_task):
     plans_json_path = join(model_path, installed_task, "plans.json")
     with open(plans_json_path) as f:
         plans_json = json.load(f)
     return plans_json
 
-def get_task_name_to_friendly_name_mapping():
-    query_url = f"{ServicesSettings().kaapana_backend_url}/client/installed_models"
-    try:
-        res = requests.get(
-            query_url,
-            #headers=project_header,
-        )
-        if res.status_code != 200:
-            raise Exception(f"ERROR: [{res.status_code}] {res.text}")
-    except Exception as e:
-        print(f"Processing of {identifiers=} threw an error.", e)
-        raise e
 
 def to_friendly_name(task_name: str) -> str:
     """Generate a friendly name in the format 'nnunet_<id>_<DATE_TIME>'."""
@@ -103,8 +93,42 @@ def to_friendly_name(task_name: str) -> str:
     default = f"nnunet_{dataset_id:03}_{date_time_str}"
     return default
 
-def _get_installed_tasks(models_dir="/models/nnUNet"):
 
+def _create_model_object_from_nnunet_model(installed_task, model_path, installed_model):
+    # get details installed tasks from dataset.json of installed tasks
+    dataset_json = _get_dataset_json(
+        model_path=model_path, installed_task=installed_task
+    )
+    plans_json = _get_plans_json(model_path=model_path, installed_task=installed_task)
+    # and extract task's details to installed_tasks dict
+    model_name = f"{installed_model}---{installed_task}"
+
+    return {
+        "description": dataset_json.get("description", "N/A"),
+        "input-mode": dataset_json.get("input-mode", "all"),
+        "input": list(dataset_json.get("channel_names", {}).values()) or "N/A",
+        "body_part": dataset_json.get("body_part", "N/A"),
+        "targets": dataset_json.get("targets", "N/A"),
+        "info": dataset_json.get("info", "N/A"),
+        "url": dataset_json.get("url", "N/A"),
+        "task_url": dataset_json.get("task_url", "N/A"),
+        "models_name": dataset_json.get("model", ["N/A"])[0],
+        "instance_name": dataset_json.get("instance_name", "N/A"),
+        "model_network_trainer": dataset_json.get("network_trainer", "N/A"),
+        "model_plan": plans_json.get("plans_name", "N/A"),
+        "task_ids": model_name,
+    }
+
+
+def _get_installed_tasks(models_dir) -> dict:
+    """
+    Return a dict of installed tasks found in models_dir.
+    The dict keys are the friendly names of the models and the values are dicts with model details.
+
+    :param models_dir: Path to the models directory
+    :return: Dict of installed tasks
+    :rtype: dict
+    """
     installed_tasks = {}
     installed_models_path = models_dir
     if not exists(installed_models_path):
@@ -121,43 +145,24 @@ def _get_installed_tasks(models_dir="/models/nnUNet"):
         ]
         for installed_task in installed_tasks_dirs:
             if installed_task not in installed_tasks:
-                # get details installed tasks from dataset.json of installed tasks
-                dataset_json = _get_dataset_json(
-                    model_path=model_path, installed_task=installed_task
-                )
-                plans_json = _get_plans_json(
-                    model_path=model_path, installed_task=installed_task
-                )
-
                 # and extract task's details to installed_tasks dict
                 model_name = f"{installed_model}---{installed_task}"
                 friendly_model_name = to_friendly_name(model_name)
-
-                installed_tasks[friendly_model_name] = {
-                    "description": dataset_json.get("description", "N/A"),
-                    "input-mode": dataset_json.get("input-mode", "all"),
-                    "input": list(dataset_json.get("channel_names", {}).values())
-                    or "N/A",
-                    "body_part": dataset_json.get("body_part", "N/A"),
-                    "targets": dataset_json.get("targets", "N/A"),
-                    "info": dataset_json.get("info", "N/A"),
-                    "url": dataset_json.get("url", "N/A"),
-                    "task_url": dataset_json.get("task_url", "N/A"),
-                    "models_name": dataset_json.get("model", ["N/A"])[0],
-                    "instance_name": dataset_json.get("instance_name", "N/A"),
-                    "model_network_trainer": dataset_json.get("network_trainer", "N/A"),
-                    "model_plan": plans_json.get("plans_name", "N/A"),
-                    "task_ids": model_name
-                }
+                installed_tasks[friendly_model_name] = (
+                    _create_model_object_from_nnunet_model(
+                        installed_task=installed_task,
+                        model_path=model_path,
+                        installed_model=installed_model,
+                    )
+                )
 
     logger.info(f"INSTALLED TASKS: {installed_tasks}")
     return installed_tasks
 
 
+def sync_models_in_database(installed_tasks: dict):
+    logger.info("Syncing installed models with database...")
 
-
-def sync_models_in_database(models_dir="/models/nnUNet"):
-    installed_tasks = _get_installed_tasks(models_dir=models_dir)
     query_url = f"{ServicesSettings().kaapana_backend_url}/client/installed_models/sync"
     workflow_config = load_workflow_config()
     project = workflow_config["project_form"]
@@ -175,10 +180,12 @@ def sync_models_in_database(models_dir="/models/nnUNet"):
         raise e
 
 
-
-def install_tasks():
+def install_tasks(target_models_dir):
     # Counter to check if smth has been processed
     processed_count = 0
+    tmp_models_dir = "/tmp/models"
+    os.makedirs(tmp_models_dir, exist_ok=True)
+
     input_file_extension = "*.zip"
     workflow_dir = os.getenv("WORKFLOW_DIR", "None")
     workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
@@ -192,19 +199,10 @@ def install_tasks():
     operator_in_dir = operator_in_dir if operator_in_dir.lower() != "none" else None
     assert operator_in_dir is not None
 
-    operator_out_dir = os.getenv("OPERATOR_OUT_DIR", "None")
-    operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None
-    assert operator_out_dir is not None
-
-    target_level = os.getenv("TARGET_LEVEL", "None")
-    target_level = target_level if target_level.lower() != "none" else None
-    assert target_level is not None
-
-    logger.debug(f"target_level:     {target_level}")
+    logger.debug(f"target_models_dir:{target_models_dir}")
     logger.debug(f"workflow_dir:     {workflow_dir}")
     logger.debug(f"batch_name:       {batch_name}")
     logger.debug(f"operator_in_dir:  {operator_in_dir}")
-    logger.debug(f"operator_out_dir: {operator_out_dir}")
 
     # Loop for every batch-element (usually series)
     batch_folders = sorted(
@@ -214,28 +212,12 @@ def install_tasks():
 
         logger.info(f"Processing batch-element {batch_element_dir}")
         element_input_dir = os.path.join(batch_element_dir, operator_in_dir)
-        element_output_dir = os.path.join(batch_element_dir, operator_out_dir)
 
         # check if input dir present
         if not os.path.exists(element_input_dir):
-            logger.warning.info(f"Input-dir: {element_input_dir} does not exists!")
-            logger.warning.info("-> skipping")
+            logger.warning(f"Input-dir: {element_input_dir} does not exists!")
+            logger.warning("-> skipping")
             continue
-
-        # creating output dir
-        Path(element_output_dir).mkdir(parents=True, exist_ok=True)
-
-        # creating output dir
-        logger.debug("Search for model-zip-files...")
-        if target_level == "default":
-            models_dir = "/models/nnUNet"
-        elif target_level == "batch":
-            models_dir = os.path.join(workflow_dir, element_output_dir)
-        elif target_level == "batch_element":
-            models_dir = os.path.join(batch_element_dir, element_output_dir)
-        else:
-            logger.error(f"target_level: {target_level} not supported!")
-            exit(1)
 
         input_files = glob(
             os.path.join(element_input_dir, input_file_extension), recursive=True
@@ -253,22 +235,37 @@ def install_tasks():
         # Loop for every input-file found with extension 'input_file_extension'
         for input_file in input_files:
             success, input_file = extract_file_to_model_dir(
-                zip_path=input_file, models_dir=models_dir
+                zip_path=input_file, models_dir=tmp_models_dir
             )
-            if not success:
-                exit(1)
-            else:
-                processed_count += 1
+            processed_count += 1
 
     if processed_count == 0:
         logger.error("----> NO FILES HAVE BEEN PROCESSED!")
         exit(1)
-    
+
+    try:
+        new_installed_tasks = _get_installed_tasks(models_dir=tmp_models_dir)
+    except Exception as e:
+        logger.error(
+            "Could not extract the necessary information for syncing the new tasks with the database. Abort!"
+        )
+        raise e
+    installed_tasks = _get_installed_tasks(models_dir=target_models_dir)
+    installed_tasks.update(new_installed_tasks)
+    sync_models_in_database(installed_tasks)
+
+    for name in os.listdir(tmp_models_dir):
+        shutil.move(
+            os.path.join(tmp_models_dir, name), os.path.join(target_models_dir, name)
+        )
+
+        logger.info(os.path.join(tmp_models_dir, name))
+        logger.info(os.path.join(target_models_dir, name))
+
     logger.info(f"----> {processed_count} FILES HAVE BEEN PROCESSED!")
-    logger.info("Successfully extracted model into model-dir.")
 
 
-def uninstall_tasks(models_dir="/models/nnUNet"):
+def uninstall_tasks(models_dir):
     """
     Remove the directory corresponding all tasks in 'uninstall_tasks' in the workflow_form of the workflow_config.
     The directory that will be removed is generated as <models_dir>/<dataset_directory>/<model_directory>
@@ -284,12 +281,9 @@ def uninstall_tasks(models_dir="/models/nnUNet"):
 
     logger.info(f"tasks_to_uninstall:   {uninstall_task}")
 
-
     logger.info(f"Un-installing TASK: {uninstall_task}")
 
-    dataset_directory_name, model_directory_name = tuple(
-        uninstall_task.split("---")
-    )
+    dataset_directory_name, model_directory_name = tuple(uninstall_task.split("---"))
     dataset_path = Path(os.path.join(models_dir, dataset_directory_name))
     task_path = Path(
         os.path.join(models_dir, dataset_directory_name, model_directory_name)
@@ -297,7 +291,7 @@ def uninstall_tasks(models_dir="/models/nnUNet"):
 
     assert task_path.is_dir()
     logger.info(f"Recursively remove {task_path=}")
-    rmtree(task_path)
+    shutil.rmtree(task_path)
 
     try:
         dataset_path.rmdir()
@@ -313,13 +307,15 @@ def uninstall_tasks(models_dir="/models/nnUNet"):
 
 if __name__ == "__main__":
     action = os.getenv("ACTION")
+    target_models_dir = os.getenv("TARGET_MODELS_DIR", "/models/nnUNet")
 
     if action == "install":
-        install_tasks()
+        new_installed_tasks = install_tasks(target_models_dir=target_models_dir)
     elif action == "uninstall":
-        uninstall_tasks()
+        uninstall_tasks(models_dir=target_models_dir)
+        installed_tasks = _get_installed_tasks(models_dir=target_models_dir)
+        sync_models_in_database(installed_tasks=installed_tasks)
     else:
         raise ValueError(
             f"{action=} not supported! Must be one of ['install','uninstall']"
         )
-    sync_models_in_database()

@@ -48,13 +48,6 @@ ui_forms = {
                 "type": "string",
                 "readOnly": False,
             },
-            "single_execution": {
-                "type": "boolean",
-                "title": "Single execution",
-                "description": "Whether your report is execute in single mode or not",
-                "default": False,
-                "readOnly": True,
-            },
         },
     },
 }
@@ -71,8 +64,6 @@ args = {
 dag = DAG(
     dag_id="tag-train-test-split-dataset",
     default_args=args,
-    concurrency=10,
-    max_active_runs=1,
     schedule_interval=None,
 )
 

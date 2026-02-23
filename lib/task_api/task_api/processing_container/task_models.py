@@ -48,6 +48,7 @@ class K8sConfig(BaseConfig):
     env_vars: List[k8sclient.V1EnvVar] = Field(default_factory=list)
     volumes: List[k8sclient.V1Volume] = Field(default_factory=list)
     volume_mounts: List[k8sclient.V1VolumeMount] = Field(default_factory=list)
+    imagePullPolicy: Optional[str] = "Always"
     annotations: dict = {}
 
 

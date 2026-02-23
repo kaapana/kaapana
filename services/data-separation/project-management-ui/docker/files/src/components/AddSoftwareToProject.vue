@@ -18,7 +18,7 @@
         <v-row>
           <v-select
             v-model="softwareUuid"
-            label="Software"
+            label="Dag ID"
             :items="software"
             item-title="software_uuid"
             item-value="software_uuid"

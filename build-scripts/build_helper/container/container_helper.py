@@ -1,17 +1,14 @@
+import fnmatch
 import os
-import time
 from pathlib import Path
-from queue import Empty, PriorityQueue
 from shutil import which
 from subprocess import PIPE, run
-from threading import Lock, Thread
 from typing import Any, Dict, Optional, Set, TypeVar
 
 from alive_progress import alive_bar
 
-from build_helper.build import BuildConfig, BuildState, IssueTracker
-from build_helper.cli.progress import ProgressBar
-from build_helper.container import Container, Status
+from build_helper.build import BuildConfig, BuildState, IssueTracker, Issue
+from build_helper.container import Container
 from build_helper.utils import CommandUtils, get_logger
 
 logger = get_logger()
@@ -28,8 +25,6 @@ class ContainerHelper:
         - Login to container registries
         - Collect containers from source directories
         - Resolve base image dependencies
-        - Build and push containers in parallel
-        - Track build statuses
         - Gather statistics on built images
     """
 
@@ -166,7 +161,7 @@ class ContainerHelper:
             for dockerfile in dockerfiles_found:
                 bar()
                 if cls._build_config.build_ignore_patterns and any(
-                    pattern in dockerfile.as_posix()
+                    fnmatch.fnmatch(dockerfile.as_posix(), pattern)
                     for pattern in cls._build_config.build_ignore_patterns
                 ):
                     logger.debug(f"Ignoring Dockerfile {dockerfile}")
@@ -290,193 +285,6 @@ class ContainerHelper:
         container = matches[0]
         logger.debug(f"{image_name}: container found: {container.tag}")
         return container
-
-    @classmethod
-    def build_and_push_containers(cls) -> None:
-        """
-        Build and push all selected containers in parallel while respecting dependencies.
-
-        Containers are processed in multiple threads. Containers with no pending dependencies
-        are added to a ready queue. Each worker thread picks a container from the queue, builds it,
-        pushes it (if applicable), updates dependent containers, and tracks build status.
-
-        Side Effects:
-            Updates container statuses in `cls._build_state.selected_containers`.
-            Appends build or push issues to `IssueTracker.issues`.
-            Logs progress to the console via `ProgressBar`.
-
-        Raises:
-            Logs fatal error if any containers remain unbuilt due to missing or cyclic dependencies.
-        """
-        ready_queue: PriorityQueue = PriorityQueue()
-        waiting_set = set(cls._build_state.selected_containers)
-        containers_lock = Lock()
-
-        cls._initialize_ready_queue(waiting_set, ready_queue)
-
-        def worker(pb: "ProgressBar") -> None:
-            while True:
-                try:
-                    container: "Container" = ready_queue.get(timeout=1)[1]
-                except Empty:
-                    if not waiting_set and ready_queue.empty():
-                        return
-                    continue
-
-                cls._process_container(
-                    container,
-                    waiting_set,
-                    ready_queue,
-                    containers_lock,
-                    pb,
-                )
-
-                ready_queue.task_done()
-
-        threads = []
-
-        with ProgressBar(
-            total=len(cls._build_state.selected_containers),
-            title="Build-Container",
-            containers=cls._build_state.selected_containers,
-            use_rich=False,
-        ) as pb:
-            # Start threads
-            for _ in range(cls._build_config.parallel_processes):
-                t = Thread(target=worker, args=(pb,))
-                t.start()
-                threads.append(t)
-
-            # Wait threads and refresh progress bar
-            while any(t.is_alive() for t in threads):
-                pb.refresh()
-                time.sleep(0.2)
-
-            for t in threads:
-                t.join()
-
-            pb.refresh(clear=True)
-
-        if waiting_set:
-            remaining = [c.tag for c in waiting_set]
-            logger.fatal(
-                f"Containers could not be built (missing/cyclic dependencies): {remaining}"
-            )
-
-    @classmethod
-    def _initialize_ready_queue(
-        cls, waiting_set: set, ready_queue: PriorityQueue
-    ) -> None:
-        """
-        Populate the ready queue with containers that have all dependencies satisfied.
-
-        Args:
-            waiting_set (set): Set of containers pending build.
-            ready_queue (PriorityQueue): Queue to store containers ready for processing.
-
-        Side Effects:
-            Removes ready containers from `waiting_set` and adds them to `ready_queue`.
-        """
-        for c in list(waiting_set):
-            if cls.all_dependencies_ready(c):
-                priority = 0 if c.local_image else 1
-                ready_queue.put((priority, c))
-                waiting_set.remove(c)
-
-    @classmethod
-    def _update_dependents(cls, waiting_set: set, ready_queue: PriorityQueue) -> None:
-        """
-        Move dependent containers to the ready queue or mark them as failed.
-
-        A dependent container is added to the ready queue if all its base images are ready.
-        If any base image has failed, the container is marked as failed and removed from waiting.
-
-        Args:
-            waiting_set (set): Set of containers still waiting to be processed.
-            ready_queue (PriorityQueue): Queue for ready-to-build containers.
-
-        Side Effects:
-            Updates statuses of dependent containers.
-            Modifies `waiting_set` by removing processed containers.
-        """
-        newly_ready = set()
-        to_fail = set()
-        for c in list(waiting_set):
-            if any(
-                isinstance(b, Container) and b.status == Status.FAILED
-                for b in c.base_images
-            ):
-                c.status = Status.FAILED
-                to_fail.add(c)
-            elif cls.all_dependencies_ready(c):
-                priority = 0 if c.local_image else 1
-                ready_queue.put((priority, c))
-                newly_ready.add(c)
-        waiting_set -= newly_ready | to_fail
-
-    @classmethod
-    def _process_container(
-        cls,
-        container: "Container",
-        waiting_set: set,
-        ready_queue: PriorityQueue,
-        containers_lock: Lock,
-        pb: "ProgressBar",
-    ) -> None:
-        """
-        Build and push a single container, updating progress and dependents.
-
-        Steps:
-            1. Build the container.
-            2. Handle build issues or skipped status.
-            3. Push the container if applicable.
-            4. Update dependents based on build outcome.
-            5. Update the progress bar.
-
-        Args:
-            container (Container): Container to build and push.
-            waiting_set (set): Containers still waiting to be built.
-            ready_queue (PriorityQueue): Queue of containers ready for processing.
-            containers_lock (Lock): Thread lock to synchronize shared data.
-            pb (ProgressBar): Progress bar to track container build progress.
-
-        Side Effects:
-            Updates container status.
-            Logs build and push progress.
-            Updates dependent containers in `waiting_set` and `ready_queue`.
-            Appends issues to `IssueTracker.issues` if build or push fails.
-        """
-
-        build_issue = container.build(config=cls._build_config)
-
-        with containers_lock:
-            final_status = None
-
-            if build_issue:
-                IssueTracker.issues.append(build_issue)
-                final_status = Status.FAILED
-            elif container.status in {
-                Status.SKIPPED,
-                Status.BUILT_ONLY,
-            }:
-                final_status = container.status
-            elif cls._build_config.build_only:
-                final_status = Status.BUILT_ONLY
-
-            if final_status:
-                pb.finished_print(title="Finished", last_processed_container=container)
-                pb.advance(last_processed_container=container, advance=1)
-                cls._update_dependents(waiting_set, ready_queue)
-                return
-
-        push_issue = container.push(cls._build_config)
-        with containers_lock:
-            if push_issue:
-                IssueTracker.issues.append(push_issue)
-
-            pb.finished_print(title="Finished", last_processed_container=container)
-            pb.advance(last_processed_container=container, advance=1)
-            cls._update_dependents(waiting_set, ready_queue)
 
     @classmethod
     def get_built_images_stats(cls, version: str) -> Dict[str, Dict[str, Any]]:
@@ -608,29 +416,37 @@ class ContainerHelper:
 
         return all_containers
 
-    @staticmethod
-    def all_dependencies_ready(container: Container) -> bool:
-        """
-        Check if all local base images for a container are built or unchanged.
 
-        Args:
-            container (Container): Container to check.
+###################################################################################
+# Internal helper classes for build coordination
+###################################################################################
 
-        Returns:
-            bool: True if all local dependencies are ready, False otherwise.
-        """
-        for b in container.base_images:
-            if b.local_image:
-                # Online reference ubuntu:24.04
-                if not isinstance(b, Container):
-                    return False
-                if b.status not in {
-                    Status.BUILT,
-                    Status.BUILT_ONLY,
-                    Status.NOTHING_CHANGED,
-                    Status.PUSHED,
-                    Status.SKIPPED,
-                    Status.FAILED,
-                }:
-                    return False
-        return True
+
+from dataclasses import dataclass
+from enum import Enum, auto
+from typing import Optional
+from queue import Queue
+
+
+class BuildEventType(Enum):
+    STARTED = auto()
+    BUILT = auto()
+    PUSHED = auto()
+    SKIPPED = auto()
+    FAILED = auto()
+    FINISHED = auto()
+
+
+@dataclass(frozen=True)
+class BuildEvent:
+    """
+    Immutable event emitted by workers.
+    """
+
+    type: BuildEventType
+    container: Container
+    issue: Optional[Issue] = None
+    error: Optional[Exception] = None
+
+
+EventQueue = Queue[BuildEvent]

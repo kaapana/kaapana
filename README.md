@@ -14,7 +14,7 @@
   </a>
 </p>
 
-Kaapana is an open-source toolkit for state-of-the-art platform provisioning in the field of medical data analysis. The applications comprise  AI-based workflows and federated learning scenarios with a focus on radiological and radiotherapeutic imaging. The name Kaapana comes from the Hawaiian word kaʻāpana, meaning "distributor" or "part".
+Kaapana is an open-source toolkit for state-of-the-art platform provisioning in the field of medical data analysis. The applications comprise AI-based workflows and federated learning scenarios with a focus on radiological and radiotherapeutic imaging. The name Kaapana comes from the Hawaiian word kaʻāpana, meaning "distributor" or "part".
 
 Obtaining large amounts of medical data necessary for developing and training modern machine learning methods is an extremely challenging effort that often fails in a multi-center setting, e.g. due to technical, organizational and legal hurdles. A federated approach where the data remains under the authority of the individual institutions and is only processed on-site is, in contrast, a promising approach ideally suited to overcome these difficulties.
 
@@ -44,7 +44,7 @@ Core technologies used in Kaapana:
 
 Currently, Kaapana is used in multiple projects in which a Kaapana-based platform is deployed at multiple clinical sites with the objective of distributed radiological image analysis and quantification. The projects include [RACOON](https://racoon.network/) initiated by [NUM](https://www.netzwerk-universitaetsmedizin.de) with all 38 German university clinics participating, the Joint Imaging Platform ([JIP](https://jip.dktk.dkfz.de/jiphomepage/)) initiated by the German Cancer Consortium ([DKTK](https://dktk.dkfz.de/)) with 11 university clinics participating as well as [DART](https://cce-dart.com) initiated by the [Cancer Core Europe](https://cancercoreeurope.eu/) with 7 cancer research centers participating.
 
-For more information, please also take a look at our publication of the Kaapana-based [Joint Imaging Platform in JCO Clinical Cancer Informatics](https://ascopubs.org/doi/full/10.1200/CCI.20.00045).
+For more information, please also take a look at our [Kaapana publication](https://www.arxiv.org/abs/2512.09644).
 
 ## Documentation
 
@@ -61,9 +61,9 @@ Check out the [documentation](https://kaapana.readthedocs.io/en/latest/) for fur
 As of Kaapana 0.2.0 we follow strict [SemVer](https://semver.org/) approach to versioning.
 
 ## Citations
-Please [cite](https://ascopubs.org/action/showCitFormats?doi=10.1200/CCI.20.00045) the [following paper](https://ascopubs.org/doi/full/10.1200/CCI.20.00045) when using Kaapana:
+Please cite the [following paper](https://www.arxiv.org/abs/2512.09644) when using Kaapana:
 
-    Jonas Scherer, Marco Nolden, Jens Kleesiek, Jasmin Metzger, Klaus Kades, Verena Schneider, Michael Bach, Oliver Sedlaczek, Andreas M. Bucher, Thomas J. Vogl, ...Klaus Maier-Hein. Joint Imaging Platform for Federated Clinical Data Analytics. JCO Clinical Cancer Informatics, 4:10271038, November 2020. doi: 10.1200/CCI.20.00045. URL https://ascopubs.org/doi/full/10.1200/CCI.20.00045.
+    Ünal Akünal, Markus Bujotzek, Stefan Denner, Benjamin Hamm, Klaus Kades, Philipp Schader, Jonas Scherer, Marco Nolden, Peter Neher, Ralf Floca, & Klaus Maier-Hein. (2025). Kaapana: A Comprehensive Open-Source Platform for Integrating AI in Medical Imaging Research Environments. doi: 10.48550/arXiv.2512.09644. URL https://www.arxiv.org/abs/2512.09644.
 
 When using Kapaana for federated learning please also [cite](https://link.springer.com/chapter/10.1007/978-3-031-18523-6_13#citeas) the [following paper](https://link.springer.com/book/10.1007/978-3-031-18523-6):
 

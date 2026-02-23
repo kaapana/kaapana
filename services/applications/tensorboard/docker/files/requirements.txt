@@ -1,3 +1,4 @@
 protobuf==4.23.4
 tensorboard==2.18.0
 numpy==2.2.2
+setuptools==81.0.0

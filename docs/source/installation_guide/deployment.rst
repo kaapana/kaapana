@@ -32,7 +32,7 @@ The platform is deployed using the script :code:`kaapanactl.sh` also used during
 
       .. tab:: Private registry
 
-         :code:`./kaapanactl.sh deploy -chart <KAAPANA_ADMIN_CHART> -u <REGISTRY_USERNAME> -p <REGISTRY_PASSWORD>`
+         :code:`./kaapanactl.sh deploy --chart <KAAPANA_ADMIN_CHART> -u <REGISTRY_USERNAME> -p <REGISTRY_PASSWORD>`
            - :code:`KAAPANA_ADMIN_CHART` referes to the platform chart which is about to be installed. It has the form :code:`<registry>/<chart>:<version>` (e.g. :code:`localhost:5000/kaapana-admin-chart:0.5.3-latest`)`
            - :code:`REGISTRY_USERNAME` and :code:`REGISTRY_PASSWORD` refere to the username and password used to access the private registry.
            - Hint: If your registry is plain HTTP (e.g. when you use a local registry) use the :code:`--plain-http` flag to enable pulling from plain HTTP registries.

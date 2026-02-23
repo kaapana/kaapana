@@ -1857,7 +1857,9 @@ function deploy_chart {
             else
 
                 microk8s enable nvidia --gpu-operator-driver host --gpu-operator-version $GPU_OPERATOR_VERSION \
-                    --gpu-operator-set toolkit.env[3].name=RUNTIME_CONFIG_SOURCE --gpu-operator-set toolkit.env[3].value='file=/var/snap/microk8s/current/args/containerd.toml'
+                    --gpu-operator-set cdi.enabled=false \
+                    --gpu-operator-set toolkit.env[3].name=RUNTIME_CONFIG_SOURCE --gpu-operator-set \
+                    toolkit.env[3].value='file=/var/snap/microk8s/current/args/containerd.toml'
             fi
         fi
     fi

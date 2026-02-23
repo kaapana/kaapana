@@ -13,12 +13,12 @@ class NnUnetModelOperator(KaapanaBaseOperator):
         self,
         dag,
         name="model-management",
-        target_level="default",
+        models_dir: str = "/models/nnUNet",
         action: str = "uninstall",
         execution_timeout=execution_timeout,
         **kwargs,
     ):
-        envs = {"TARGET_LEVEL": str(target_level), "ACTION": action}
+        envs = {"MODELS_DIR": models_dir, "ACTION": action}
 
         super().__init__(
             dag=dag,

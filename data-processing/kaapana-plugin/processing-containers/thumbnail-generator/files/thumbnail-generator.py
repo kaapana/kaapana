@@ -27,7 +27,7 @@ def generate_thumbnail(
     operator_out_dir: Path,
     operator_get_ref_series_dir: Path,
     thumbnail_size: int,
-) -> tuple:
+) -> tuple[bool, str]:
     """
     Generates thumbnails for a given set of DICOM files.
 
@@ -36,7 +36,7 @@ def generate_thumbnail(
 
     Modality Strategy for Thumbnail Creation:
     1. Slice-based Modalities:
-        - CT, MR, PT, NM
+        - CT, MR, PET, NM
         - Use the middle slice
     2. Overlay Modalities:
         - SEG, RTSTRUCT
@@ -54,10 +54,10 @@ def generate_thumbnail(
         operator_in_dir (Path): The input directory containing the DICOM files.
         operator_out_dir (Path): The output directory where the thumbnails will be saved.
         operator_get_ref_series_dir (Path): The directory containing the reference series DICOM files.
-        thumbnail_size (int): The size of the generated thumbnails.
+        thumbnail_size (int): Maximum size (pixels) of the generated thumbnail (largest side).
 
     Returns:
-        tuple: A tuple containing the total number of processed files and the total number of thumbnails generated.
+        tuple[bool, str]: (success, output_path) where output_path is the written PNG file.
     """
 
     logger.info(f"operator_in_dir: {operator_in_dir}")
@@ -66,21 +66,22 @@ def generate_thumbnail(
     if operator_get_ref_series_dir:
         logger.info(f"operator_get_ref_series_dir: {operator_get_ref_series_dir}")
 
-    dicom_files = [pydicom.dcmread(filename) for filename in operator_in_dir.iterdir()]
-    first_dcm = dicom_files[0]
+    paths = list(operator_in_dir.iterdir())
+
+    first_dcm = pydicom.dcmread(paths[0], stop_before_pixels=True)
+
     modality = first_dcm.Modality
     SOPClassUID = first_dcm.SOPClassUID
 
     study_uid = first_dcm.StudyInstanceUID
     series_uid = first_dcm.SeriesInstanceUID
 
-    assert all(
-        [ds.Modality == modality for ds in dicom_files]
-    ), "Instances have different modalities"
-    assert all(
-        [ds.SeriesInstanceUID == series_uid for ds in dicom_files]
-    ), "Instances have different SeriesUID"
-    del dicom_files
+    for p in paths[1:]:
+        ds = pydicom.dcmread(p, stop_before_pixels=True)
+        if ds.Modality != modality:
+            raise AssertionError("Instances have different modalities")
+        if ds.SeriesInstanceUID != series_uid:
+            raise AssertionError("Instances have different SeriesUID")
 
     # thumbnail: Optional[Image.Image]
     if modality in ["CT", "MR", "PET", "NM"]:

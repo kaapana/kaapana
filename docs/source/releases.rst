@@ -3,6 +3,39 @@
 Changelog
 #########
 
+.. _release-0.6.1:
+
+------------------------
+
+********************
+Release Notes v0.6.1
+********************
+
+February 23, 2026
+
+---------------------------
+
+* Update multi-node migration scripts and documentation
+* Fix OpenSearch query failure on large datasets by restricting free-text search field expansion*
+* Fix CUDA not being available in JupyterLab by disabling cdi by default in gpu-operator
+* Fix data ingestion order by sending to PACS first and then writing to OpenSearch
+* Fix custom registry deployment issues
+* Fix MinIO folder syncing issues by excluding thumbails and static website results
+* Fix notifications UI with many entries by updating Nofitications API to v2 (v1 will be deprecated with release 0.8.0)
+* Fix TotalSegmentator adn BOA failing in nrrd2dcmseg operator
+* Fix certificate installation errors
+* Fix nnunet-predict failures in batch mode
+* Fix thumbnail generation OOM and reliability issues
+* Fix apps launched in wrong projects
+* Fix active applications not shown for Scientist role in Projects page
+* Fix kaapana-backend Swagger UI not reachable
+* Fix JupyterLab autocomplete and terminal issues
+* Fix build script succeeds with errors
+* Fix build-ignore-pattern too strict build scripts 
+* Update MITK to v2025.12
+* Update deprecated Kaniko image with the community maintained version
+* Improve documentation
+
 .. _release-0.6.0:
 
 ------------------------

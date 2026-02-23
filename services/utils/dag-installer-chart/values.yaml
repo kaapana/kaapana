@@ -2,3 +2,4 @@
 global:
     pull_policy_images: "IfNotPresent"
     action: "copy"
+    custom_registry_url: ""

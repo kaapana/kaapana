@@ -177,6 +177,25 @@ const loadValues = async (key, query = {}) => {
   }
 };
 
+const loadSearchFields = async () => {
+  try {
+    const response = await httpClient.get(
+      KAAPANA_BACKEND_ENDPOINT + "dataset/search_fields"
+    );
+    return response.data;
+  } catch (error) {
+    Vue.notify({
+      title: "Error",
+      text:
+        error.response && error.response.data && error.response.data.detail
+          ? error.response.data.detail
+          : error,
+      type: "error",
+    });
+    throw error;
+  }
+};
+
 const updateTags = async (data) => {
   const response = await httpClient.post(
     KAAPANA_BACKEND_ENDPOINT + "dataset/tag",
@@ -288,6 +307,7 @@ export {
   loadDicomTagMapping,
   loadFieldNames,
   loadValues,
+  loadSearchFields,
   getAggregatedSeriesNum,
   fetchProjects,
   downloadDatasets

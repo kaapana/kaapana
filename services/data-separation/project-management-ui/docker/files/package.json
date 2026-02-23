@@ -10,12 +10,13 @@
   "dependencies": {
     "@mdi/font": "7.4.47",
     "axios": "1.12.2",
-    "cross-spawn": "7.0.6",
     "core-js": "3.37.1",
+    "cross-spawn": "7.0.6",
+    "pinia": "3.0.4",
     "roboto-fontface": "*",
     "vue": "3.4.31",
-    "vuetify": "3.6.11",
-    "pinia": "3.0.4"
+    "vue3-cookies": "^1.0.6",
+    "vuetify": "3.6.11"
   },
   "devDependencies": {
     "@babel/types": "7.24.7",

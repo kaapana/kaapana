@@ -53,7 +53,7 @@ Core technologies used in Kaapana:
 * `FastAPI <https://fastapi.tiangolo.com/>`_: Web framework for building APIs with Python 
 * `Open Policy Agent (OPA) <https://www.openpolicyagent.org/>`_: Policy based access control for projects
 
-For more information about Kaapana, take a look at the publication of the Kaapana-based `Joint Imaging Platform in JCO Clinical Cancer Informatics <https://ascopubs.org/doi/full/10.1200/CCI.20.00045>`_.
+For more information about Kaapana, take a look at the `Kaapana publication <https://www.arxiv.org/abs/2512.09644>`_.
 
 Currently the most widely used platform based on Kaapana is in the `Radiological Cooperative Network (RACOON) <https://racoon.network/>`_. This platform is currently deployed at all 36 German university hospitals with the objective of distributed radiological image analysis and AI-based medical imaging research.
 

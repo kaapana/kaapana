@@ -5,7 +5,7 @@ metadata:
 spec:
   containers:
   - name: kaniko
-    image: gcr.io/kaniko-project/executor:v1.23.2
+    image: {{ .Values.global.registry_url }}/kaniko-executor:{{ .Values.global.kaapana_build_version }}
     imagePullPolicy: IfNotPresent
     hostNetwork: true
     resources:
@@ -30,3 +30,5 @@ spec:
   - name: edk
     persistentVolumeClaim:
       claimName: edk-pv-claim
+  imagePullSecrets:
+      - name: registry-secret

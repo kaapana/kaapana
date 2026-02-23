@@ -1,3 +1,4 @@
+import base64
 import glob
 import json
 import logging
@@ -319,28 +320,27 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         envs.update(self.env_vars)
         self.env_vars = envs
+        kwargs.setdefault("task_id", self.task_id)
+        kwargs.setdefault("retries", self.retries)
+        kwargs.setdefault("priority_weight", self.priority_weight)
+        kwargs.setdefault("execution_timeout", self.execution_timeout)
+        kwargs.setdefault("max_active_tis_per_dag", self.max_active_tis_per_dag)
+        kwargs.setdefault("pool", self.pool)
+        kwargs.setdefault("pool_slots", self.pool_slots)
+        kwargs.setdefault("pool", self.pool)
+        kwargs.setdefault("retry_delay", self.retry_delay)
+        kwargs.setdefault("trigger_rule", self.trigger_rule)
+        kwargs.setdefault("email_on_retry", False)
+        kwargs.setdefault("email_on_failure", False)
+        kwargs.setdefault("start_date", days_ago(0))
+        kwargs.setdefault("on_failure_callback", KaapanaBaseOperator.on_failure)
+        kwargs.setdefault("on_success_callback", KaapanaBaseOperator.on_success)
+        kwargs.setdefault("on_retry_callback", KaapanaBaseOperator.on_retry)
+        kwargs.setdefault("on_execute_callback", KaapanaBaseOperator.on_execute)
+        kwargs.setdefault("executor_config", self.executor_config)
+
         super().__init__(
             dag=dag,
-            task_id=self.task_id,
-            retries=self.retries,
-            priority_weight=self.priority_weight,
-            execution_timeout=self.execution_timeout,
-            max_active_tis_per_dag=self.max_active_tis_per_dag,
-            pool=self.pool,
-            pool_slots=self.pool_slots,
-            retry_delay=self.retry_delay,
-            email=None,
-            email_on_retry=False,
-            email_on_failure=False,
-            start_date=days_ago(0),
-            depends_on_past=False,
-            wait_for_downstream=False,
-            trigger_rule=self.trigger_rule,
-            on_failure_callback=KaapanaBaseOperator.on_failure,
-            on_success_callback=KaapanaBaseOperator.on_success,
-            on_retry_callback=KaapanaBaseOperator.on_retry,
-            on_execute_callback=KaapanaBaseOperator.on_execute,
-            executor_config=self.executor_config,
             **kwargs,
         )
 
@@ -489,6 +489,26 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             ]
         )
 
+    def _get_project_registry_secrets(self):
+        custom_registry_secrets = KubernetesRunner.api.list_namespaced_secret(
+            namespace=self.namespace,
+            label_selector="kaapana.ai/registry-secret=custom-registry",
+        )
+        try:
+            custom_registry_urls = {
+                secret.metadata.labels["kaapana.ai/new-registry-display-name"]: list(
+                    json.loads(base64.b64decode(secret.data.get(".dockerconfigjson")))
+                    .get("auths")
+                    .keys()
+                )[0]
+                for secret in custom_registry_secrets.items
+            }
+
+            logging.info(f"Custom registry secret urls: {custom_registry_urls}")
+        except Exception as e:
+            logging.warning("Unable to log custom registry urls.")
+        return set(secret.metadata.name for secret in custom_registry_secrets.items)
+
     def create_conf_configmap(self, context: Context):
 
         # Do not mount configmap for workflow cleanup, otherwise the dir cannot be cleaned
@@ -497,13 +517,15 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         # Load Kubernetes configuration (in-cluster or local)
         try:
             k8s_config_loader.load_incluster_config()
-        except config.config_exception.ConfigException:
+        except k8s_config_loader.config_exception.ConfigException:
             k8s_config_loader.load_kube_config()
 
         dag_conf = context["dag_run"].conf or {}
         config_json = json.dumps(dag_conf, indent=4, sort_keys=True)
 
-        run_id = context["run_id"]
+        run_id = cure_invalid_name(
+            context["run_id"], r"(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?"
+        )
         configmap_name = f"{run_id}-config"
 
         metadata = client.V1ObjectMeta(
@@ -554,7 +576,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     def launch_application(self, context: Context):
         conf = context["dag_run"].conf
         release_name = get_release_name(context)
-        
+
         try:
             project_form = conf.get("project_form")
             self.namespace = project_form.get("kubernetes_namespace")
@@ -715,9 +737,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             )
 
         # In case of debugging service_dag there is no self.project
-        response = requests.get(
-            "http://aii-service.services.svc:8080/projects/admin"
-        )
+        response = requests.get("http://aii-service.services.svc:8080/projects/admin")
         response.raise_for_status()
         admin_id = response.json().get("id")
         project_id = self.project.get("id") if self.project else admin_id
@@ -937,6 +957,10 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             env=[],
         )
 
+        self.image_pull_secrets.append("registry-secret")
+        self.image_pull_secrets.extend(self._get_project_registry_secrets())
+        logging.info(f"{self.image_pull_secrets=}")
+
         self.task_run = KubernetesRunner.run(
             task=task_models.Task(
                 name=KaapanaBaseOperator.unique_task_identifer(context),
@@ -947,7 +971,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 resources=self.pod_resources,
                 config=task_models.K8sConfig(
                     namespace=self.namespace,
-                    imagePullSecrets=self.image_pull_secrets or ["registry-secret"],
+                    imagePullSecrets=self.image_pull_secrets,
                     env_vars=self.secrets
                     + [
                         client.V1EnvVar(name=key, value=val)
@@ -957,6 +981,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     volume_mounts=self.volume_mounts,
                     labels=self.labels,
                     annotations=self.annotations,
+                    image_pull_policy=self.image_pull_policy,
                 ),
             )
         )

@@ -72,7 +72,7 @@ spec:
     - ReadWriteOnce
   hostPath: 
     path: "{{ $.Values.global.fast_data_dir }}/{{ .Values.global.host_directory }}"
-  persistentVolumeReclaimPolicy: Retain
+  persistentVolumeReclaimPolicy: Delete
   claimRef:
     name: {{ .Release.Name }}-host-path-pv-claim
     namespace: {{ .Values.global.services_namespace }}

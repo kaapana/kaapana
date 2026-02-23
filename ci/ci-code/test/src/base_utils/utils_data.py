@@ -7,7 +7,8 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 import zipfile
 from io import BytesIO
 import re
-import glob
+from pathlib import Path
+import pydicom
 from .KaapanaAuth import KaapanaAuth
 from .logger import get_logger
 import logging
@@ -135,12 +136,20 @@ def download_from_tcia(outdir, series_uid):
     content.extractall(series_outdir)
 
 
-def list_of_series_in_dir(dir):
-    list_of_series = []
-    dicom_files = glob.glob(os.path.join(dir, "**/*.dcm"), recursive=True)
-    for file in dicom_files:
-        if (
-            series_uid := os.path.dirname(file).split("/")[-1]
-        ) and series_uid not in list_of_series:
-            list_of_series.append(series_uid)
-    return list_of_series
+def list_of_series_in_dir(root_dir):
+    series_uids = set()
+
+    for path in Path(root_dir).rglob("*"):
+        if not path.is_file():
+            continue
+
+        try:
+            ds = pydicom.dcmread(path, stop_before_pixels=True, force=True)
+        except Exception:
+            continue
+
+        uid = getattr(ds, "SeriesInstanceUID", None)
+        if uid is not None:
+            series_uids.add(uid)
+
+    return series_uids

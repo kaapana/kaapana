@@ -1,17 +1,19 @@
 dag_id: "nnunet-predict"
-ci_ignore: true
+ci_ignore: false
 conf_data:
   workflow_form:
     single_execution: true
-    task_ids: "Dataset451_10.135.76.131_061124-144541---nnUNetTrainer__nnUNetResEncUNetMPlans__3d_fullres"
+    task_ids: "Dataset216_e132-pc08.inet.dkfz-heidelberg.de_150126-0751---nnUNetTrainer__nnUNetResEncUNetMPlans__3d_fullres"
     task_url: "N/A"
     inf_softmax: false
     interpolation_order: "default"
     inf_threads_prep: 1
     inf_threads_nifti: 1
-    targets: "aorta,esophagus,gallbladder,inferior-vena-cava,left@kidney,liver,pancreas,portal-vein,right@adrenal-gland,right@kidney,spleen,splenic-vein,stomach"
+    targets: "right@kidney"
     body_part: "N/A"
     input: "CT"
+    model_plan: "nnUNetResEncUNetMPlans"
+    model_network_trainer: "nnUNetTrainer"
   data_form:
     dataset_name: test-CT
     dataset_limit: 2

@@ -13,10 +13,17 @@ RUN jupyter-lab --generate-config && \
 
 COPY files/start.sh /app/
 
-ENV HOME "kaapana"
-RUN mkdir -m 744 kaapana && chown -R 1000 kaapana
-USER 1000
+RUN mkdir -p /kaapana/app && \
+    chown -R 1000:1000 /kaapana && \
+    chmod -R 755 /kaapana/app
 
+ENV HOME="/kaapana"
 ENV INGRESS_PATH="jupyter-lab"
+ENV SHELL="/bin/bash"
+
+# fix for "I have no name!" issue
+RUN echo "kaapana:x:1000:1000::/kaapana:/bin/bash" >> /etc/passwd
+
+USER 1000
 
 CMD ["/bin/bash", "/app/start.sh"]

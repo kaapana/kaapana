@@ -39,6 +39,7 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
         series_description=None,
         skip_empty_slices=False,
         fail_on_no_segmentation_found=True,
+        reuse_existing_metadata=False,
         env_vars=None,
         execution_timeout=timedelta(minutes=90),
         **kwargs,
@@ -67,17 +68,20 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
         envs = {
             "INPUT_TYPE": input_type,  # multi_label_seg or single_label_segs
             # Relevant if input is single label seg objects or multiple single label seg objects
-            "SINGLE_LABEL_SEG_INFO": single_label_seg_info,  # SINGLE_LABEL_SEG_INFO must be either "from_file_name" or a e.g. "right@kidney"
-            "CREATE_MULIT_LABEL_DCM_FROM_SINGLE_LABEL_SEGS": str(
+            "SINGLE_LABEL_SEG_INFO": single_label_seg_info
+            or "",  # SINGLE_LABEL_SEG_INFO must be either "from_file_name" or a e.g. "right@kidney"
+            "CREATE_MULTI_LABEL_DCM_FROM_SINGLE_LABEL_SEGS": str(
                 create_multi_label_dcm_from_single_label_segs
             ),  # true or false
             # Relevant if input is multilabel seg object
-            "MULTI_LABEL_SEG_INFO_JSON": multi_label_seg_info_json,  # name of json file inside OPERATOR_IMAGE_LIST_INPUT_DIR that contains the organ seg infos e.g. {"seg_info": ["spleen", "right@kidney"]}
+            "MULTI_LABEL_SEG_INFO_JSON": multi_label_seg_info_json
+            or "",  # name of json file inside OPERATOR_IMAGE_LIST_INPUT_DIR that contains the organ seg infos e.g. {"seg_info": ["spleen", "right@kidney"]}
             # Always relevant:
-            "MULTI_LABEL_SEG_NAME": multi_label_seg_name,  # Name used for multi-label segmentation object, if it will be created
+            "MULTI_LABEL_SEG_NAME": multi_label_seg_name
+            or "",  # Name used for multi-label segmentation object, if it will be created
             "FAIL_ON_NO_SEGMENTATION_FOUND": f"{fail_on_no_segmentation_found}",
             # "OPERATOR_IMAGE_LIST_INPUT_DIR":  segmentation_operator.operator_out_dir, # directory that contains segmentaiton objects
-            "SERIES_DISCRIPTION": "{}".format(
+            "SERIES_DESCRIPTION": "{}".format(
                 series_description or alg_name or "UNKOWN SEGMENTATION ALGORITHM"
             ),
             "ALGORITHM_NAME": f'{alg_name or "kaapana"}',
@@ -87,7 +91,9 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
             "INSTANCE_NUMBER": "1",
             "SKIP_EMPTY_SLICES": f"{skip_empty_slices}",
             "DCMQI_COMMAND": "itkimage2segimage",
+            "REUSE_EXISTING_METADATA": reuse_existing_metadata,
         }
+        envs = {k: ("" if v is None else str(v)) for k, v in envs.items()}
         env_vars.update(envs)
 
         if segmentation_operator is None and segmentation_in_dir is not None:

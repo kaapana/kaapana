@@ -494,9 +494,16 @@ function run_migration_chart() {
         --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
         --set-string global.fast_data_dir="$FAST_DATA_DIR" \
         --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
+        --set-string global.storage_provider="$STORAGE_PROVIDER" \
+        --set-string global.storage_class_slow="$STORAGE_CLASS_SLOW" \
+        --set-string global.storage_class_fast="$STORAGE_CLASS_FAST" \
+        --set-string global.storage_class_workflow="$STORAGE_CLASS_WORKFLOW" \
+        --set-string global.services_namespace="$SERVICES_NAMESPACE" \
+        --set-string global.admin_namespace="$ADMIN_NAMESPACE" \
         --set-string global.pull_policy_images="$PULL_POLICY_IMAGES" \
         --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
         --set-string global.kaapana_build_version="$PLATFORM_VERSION" \
+        --set-string global.volume_slow_data="$VOLUME_SLOW_DATA"\
         --set-string global.from_version="$FROM_VERSION" \
         --set-string global.to_version="$TO_VERSION"
 
@@ -688,6 +695,19 @@ function migrate() {
     fi
 }
 
+function setup_storage_classes() {
+    WORKDIR=$(mktemp -d)
+    tar -xzf "$CHART_PATH" -C "$WORKDIR"
+    KAAPANA_STORAGE_CHARTPATH="$WORKDIR/$PLATFORM_NAME/charts/kaapana-storage-chart"
+
+    $HELM_EXECUTABLE -n kaapana-system upgrade --install kaapana-storageclass $KAAPANA_STORAGE_CHARTPATH \
+        --create-namespace \
+        --set-string global.main_node_name="$MAIN_NODE_NAME" \
+        --set-string global.replica_count="$REPLICA_COUNT" \
+        --set-string global.fast_data_dir="$FAST_DATA_DIR" \
+        --set-string global.slow_data_dir="$SLOW_DATA_DIR"
+}
+
 function deploy_chart {
     if [ -z "$CONTAINER_REGISTRY_URL" ]; then
         echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the deploy_platform.sh script!${NC}"
@@ -824,6 +844,8 @@ function deploy_chart {
     # MicroK8s https://microk8s.io/docs/change-cidr
     INTERNAL_CIDR="10.152.183.0/24,10.1.0.0/16,$INTERNAL_CIDR"
 
+    echo " Installing kaapana strorage class ..."
+    setup_storage_classes
     
     echo "${GREEN}Checking for version difference and migration options...${NC}"
     migrate
@@ -964,26 +986,54 @@ function check_credentials {
 
 function install_certs {
     if [ "$EUID" -ne 0 ]
-    then echo -e "The installation of certs requires root privileges!";
+    then echo -e "${RED}The installation of certs requires root privileges!";
         exit 1
     fi
 
     if [ ! -f ./tls.key ] || [ ! -f ./tls.crt ]; then
-        echo -e "${RED}tls.key or tls.crt could not been found in this directory.${NC}"
-        echo -e "${RED}Please rename and copy the files first!${NC}"
+        echo -e "${RED}tls.key or tls.crt not found in this directory.${NC}"
+        echo -e "${RED}Rename and copy the files first.${NC}"
         exit 1
-    else
-        echo -e "files found!"
-        echo -e "Creating cluster secret ..."
-        microk8s.kubectl delete secret certificate -n $ADMIN_NAMESPACE
-        microk8s.kubectl create secret tls certificate --namespace $ADMIN_NAMESPACE --key ./tls.key --cert ./tls.crt
-        auth_proxy_pod=$(microk8s.kubectl get pods -n $ADMIN_NAMESPACE |grep oauth2-proxy  | awk '{print $1;}')
-        echo "auth_proxy_pod pod: $auth_proxy_pod"
-        microk8s.kubectl -n $ADMIN_NAMESPACE delete pod $auth_proxy_pod
-        cp ./tls.key ./tls.crt $FAST_DATA_DIR/tls/
     fi
 
-    echo -e "${GREEN}DONE${NC}"
+    # update cert and restart pods in a namespace
+    update_namespace() {
+        local ns=$1
+        echo -e "\nUpdating certificate in namespace: ${ns}"
+
+        microk8s.kubectl delete secret certificate -n "$ns" 2>/dev/null || true
+        microk8s.kubectl create secret tls certificate --namespace "$ns" --key ./tls.key --cert ./tls.crt
+
+        # get app.kubernetes.io/name of all pods that mount the certificate secret in the namespace
+        local app_labels=$(microk8s.kubectl get pods -n "$ns" -o json | \
+            jq -r '.items[] | select(.spec.volumes[]?.secret?.secretName == "certificate") | .metadata.labels."app.kubernetes.io/name" // empty' | sort -u)
+
+        if [ -n "$app_labels" ]; then
+            echo -e "Restarting pods using certificate:"
+            echo -e "$app_labels" | while read label; do
+                if [ -n "$label" ]; then
+                    echo -e "  - app.kubernetes.io/name=$label"
+                    if ! microk8s.kubectl -n "$ns" delete pod -l "app.kubernetes.io/name=$label" --grace-period=120 2>/dev/null; then
+                        echo -e "${YELLOW} Warning: Failed to restart pods with label $label${NC}"
+                    fi
+                fi
+            done
+        else
+            echo -e "No pods found mounting certificate secret"
+        fi
+    }
+
+    update_namespace "$ADMIN_NAMESPACE"
+    update_namespace "$SERVICES_NAMESPACE"
+
+    # copy certificates
+    if [ -n "$FAST_DATA_DIR" ]; then
+        mkdir -p "$FAST_DATA_DIR/tls"
+        cp ./tls.key ./tls.crt "$FAST_DATA_DIR/tls/"
+        chmod 600 "$FAST_DATA_DIR/tls/tls.key"
+    fi
+
+    echo -e "\n${GREEN}DONE${NC}"
 }
 
 function print_deployment_done {
@@ -1315,6 +1365,10 @@ function check_system() {
         fi
         ;;
         Job)
+        if ! job=$(microk8s.kubectl get job "$name" -n "$ns" -o json 2>/dev/null); then
+            echo "ℹ️ Job $name already completed and removed"
+            continue
+        fi
         succeeded=$(microk8s.kubectl get job "$name" -n "$ns" -o jsonpath='{.status.succeeded}')
         if [[ "$succeeded" != "1" ]]; then
             echo "❌ Job $name not successful"

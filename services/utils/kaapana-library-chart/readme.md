@@ -32,23 +32,36 @@ To use the template for persisent volumes do the following:
 
 ```yaml
 global:
-  namespace: <namespace> ### The namespace in which the volume should live.
+  namespace: <namespace>  # Namespace in which the volume will be created
   dynamicVolumes:
-  - name: hello-world
-    mount_path: /kaapana/mounted/hello-world
-    storage: "1Mi" ### optional
-    minior_mirror: true ### Used in combination with a minio-mirror container
+    - name: hello-world
+      mount_path: /kaapana/mounted/hello-world
+      storage: "1Gi"        # Optional; otherwise defaults 
+      # use_existing_pvc: true  # Reuse an existing PVC from another deployment
+      # storage_class: <class>  # Optional; see note below
 ```
-Depending on which template you use, more or less values are required. 
+Depending on the template you are using, additional fields may be required or some fields may be optional.
 
-2. Create a file called persistent_volumes.yaml with the following content:
+## 2. Render Persistent Volumes
+
+Create a file named `persistent_volumes.yaml` with the following content:
+
 ```yaml
 {{ include "dynamicPersistentVolumes" $ }}
 ```
-This will render the template inside your persistent volume.
 
-**Note:**
-If `host_path` matches `"^(/minio|/dcm4che/dicom_data|/dcm4che/server_data)"` the volume will be mounted in the `SLOW_DATA_DIR`, otherwise in the `FAST_DATA_DIR`.
+This will render the dynamic persistent volume definitions into your chart.
+
+
+### Storage Class Note
+
+The default StorageClass is `storage_class_fast`.
+
+- To mount data for workflows, set:
+  - `storage_class: workflow`, or
+  - `storage_class: slow`, as appropriate.
+
+---
 
 ### dynamicVolumeMounts & dynamicVolumes
 
@@ -74,10 +87,10 @@ spec:
       containers:
         - name: <container-name>
           volumeMounts:
-            - name: hello-world-data
+            - name: hello-world
             mountPath: "kaapana/mounted/hello-world"
       volumes:
-      - name: hello-world-data
+      - name: hello-world
           persistentVolumeClaim:
           claimName: hello-world-pv-claim
 ```
@@ -139,10 +152,17 @@ spec:
 {{- end }}
 ```
 
-### projectPersistentVolumes
-This template is used in multiinstallable applications like jupyterlab or tensorboard.
-The usage is the same as for `dynamicPersistentVolumes`.
-The difference is that the `host_path` and `claimName` will automatically include the project context.
+### `projectPersistentVolumes`
+
+Use this template for volumes that are scoped for projects.
+
+### `dynamicSharedVolumes`
+
+This template enables sharing volumes across namespaces.
+
+**Important:**  
+`dynamicSharedVolumes` is deprecated and will be removed in a future release. It should only be used if no alternative solution is available.
+
 
 ### dynamicEnvs & dynamicEnvsFromSecretRef & dynamicLabels
 

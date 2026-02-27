@@ -42,8 +42,9 @@ metadata:
     kaapana.ai/display-name: {{ .Values.global.display_name | default .Release.Name }}
     kaapana.ai/type: application
 spec:
+  ingressClassName: traefik
   rules:
-  - host:
+  - host: {{ .Values.global.hostname }}
     http:
       paths:
       - path: {{ printf "/%s" .Release.Name }}

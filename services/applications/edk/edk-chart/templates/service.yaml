@@ -33,8 +33,9 @@ metadata:
     traefik.ingress.kubernetes.io/preserve-host: "true"
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
+  ingressClassName: traefik
   rules:
-  - host: 
+  - host: {{ .Values.global.hostname }}
     http:
       paths:
       - path: {{ printf "/%s/" (tpl .Values.global.ingress_path .) }}

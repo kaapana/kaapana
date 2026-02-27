@@ -46,8 +46,9 @@ metadata:
     ingress.kubernetes.io/custom-request-headers: "Authorization:||cookie:"
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
+  ingressClassName: traefik
   rules:
-  - host:
+  - host: {{ .Values.global.hostname }}
     http:
       paths:
       - path: /kubernetes

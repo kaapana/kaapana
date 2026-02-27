@@ -34,8 +34,9 @@ metadata:
     traefik.ingress.kubernetes.io/preserve-host: "true"
     traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.admin_namespace }}-maintn-redirect@kubernetescrd
 spec:
+  ingressClassName: traefik
   rules:
-  - host: 
+  - host: {{ .Values.global.hostname }}
     http:
       paths:
       - path: /maintenance

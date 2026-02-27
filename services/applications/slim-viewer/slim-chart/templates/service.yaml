@@ -26,8 +26,9 @@ metadata:
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
     traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.services_namespace }}-slim-upgrade-insecure-requests@kubernetescrd
 spec:
+  ingressClassName: traefik
   rules:
-  - host:
+  - host: {{ .Values.global.hostname }}
     http:
       paths:
       - path: /slim

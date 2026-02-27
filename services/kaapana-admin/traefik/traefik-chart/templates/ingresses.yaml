@@ -8,8 +8,9 @@ metadata:
     
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
+  ingressClassName: traefik
   rules:
-  - host:
+  - host: {{ .Values.global.hostname }}
     http:
       paths:
       - path: /api
@@ -37,8 +38,9 @@ metadata:
     traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.helm_namespace  }}-traefik-redirect@kubernetescrd,{{  .Values.global.helm_namespace  }}-traefik-strip-prefix@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
+  ingressClassName: traefik
   rules:
-  - host: 
+  - host: {{ .Values.global.hostname }}
     http:
       paths:
       - path: /traefik

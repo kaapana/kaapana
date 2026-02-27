@@ -24,8 +24,9 @@ metadata:
     kaapana.ai/display-name: {{ if eq .Values.global.display_name "-" }}{{ .Release.Name }}{{ else }}{{ .Values.global.display_name }}{{ end }}
     kaapana.ai/type: application
 spec:
+  ingressClassName: traefik
   rules:
-  - host: 
+  - host: {{ .Values.global.hostname }}
     http:
       paths:
       - path: "/applications/project/{{ .Values.global.project_id }}/release/{{ .Release.Name }}"

@@ -8,8 +8,9 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
+  ingressClassName: traefik
   rules:
-  - host:
+  - host: {{ .Values.global.hostname }}
     http:
       paths:
       - path: /auth-backend

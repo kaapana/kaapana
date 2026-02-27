@@ -23,8 +23,9 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/preserve-host: "true"
 spec:
+  ingressClassName: traefik
   rules:
-  - host: 
+  - host: {{ .Values.global.hostname }}
     http:
       paths:
       - path: /

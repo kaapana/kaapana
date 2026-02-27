@@ -73,8 +73,9 @@ metadata:
     # traefik.ingress.kubernetes.io/router.middlewares: {{ tpl .Values.global.namespace . }}-collabora-wopi-redirect-workaround@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
+  ingressClassName: traefik
   rules:
-  - host: 
+  - host: {{ .Values.global.hostname }}
     http:
       paths:
       - path: {{ .Values.global.collabora_prefix }}
@@ -99,7 +100,7 @@ metadata:
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:
-  - host: 
+  - host: {{ .Values.global.hostname }}
     http:
       paths:
       - path: {{ .Values.global.collabora_prefix }}-wopi

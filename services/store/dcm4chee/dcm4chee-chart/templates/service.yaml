@@ -42,8 +42,9 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
+  ingressClassName: traefik
   rules:
-  - host:
+  - host: {{ .Values.global.hostname }}
     http:
       paths:
       - path: /dcm4chee-arc
@@ -64,8 +65,9 @@ metadata:
     traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.services_namespace }}-rewrite-pacs@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
+  ingressClassName: traefik
   rules:
-  - host:
+  - host: {{ .Values.global.hostname }}
     http:
       paths:
       - path: /pacs

@@ -13,3 +13,21 @@ spec:
       - ipBlock:
           cidr: {{ . | quote }}
     {{- end }}
+# Explicitly allow DNS (Essential for resolving 'kubernetes.default')
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: kube-system
+        podSelector:
+          matchLabels:
+            k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - ports:
+      - protocol: TCP
+        port: 443
+      - protocol: TCP
+        port: 6443 

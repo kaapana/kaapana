@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session, aliased
 from urllib3.util import Timeout
 
 from . import models, schemas
-from .schemas import DatasetCreate
+from .schemas import DatasetCreate, AccessLevel
 from .utils import (
     HelperMinio,
     abort_job_airflow,
@@ -1177,13 +1177,29 @@ def create_dataset(
             .first()
         )
 
-    if (
-        db.query(models.Dataset)
-        .filter(models.Dataset.name == dataset.name)
-        .filter(models.Dataset.project_id == project_id)
-        .first()
-    ):
-        raise HTTPException(status_code=409, detail="Dataset already exists!")
+    if dataset.access_level.value == "project":
+        if (
+            db.query(models.Dataset)
+            .filter(models.Dataset.access_level == "project")
+            .filter(models.Dataset.name == dataset.name)
+            .filter(models.Dataset.project_id == project_id)
+            .first()
+        ):
+            raise HTTPException(
+                status_code=409, detail="Project dataset already exists!"
+            )
+    elif dataset.access_level.value == "private":
+        if (
+            db.query(models.Dataset)
+            .filter(models.Dataset.access_level == "private")
+            .filter(models.Dataset.name == dataset.name)
+            .filter(models.Dataset.project_id == project_id)
+            .filter(models.Dataset.username == dataset.username)
+            .first()
+        ):
+            raise HTTPException(
+                status_code=409, detail="Private project dataset already exists!"
+            )
 
     if not db_kaapana_instance:
         raise HTTPException(status_code=404, detail="Kaapana instance not found")
@@ -1199,6 +1215,7 @@ def create_dataset(
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
         project_id=project_id,
+        access_level=dataset.access_level.value,
     )
 
     db_kaapana_instance.datasets.append(db_dataset)
@@ -1723,22 +1740,22 @@ def delete_workflows(db: Session):
 
 ## models section just added here for now.
 
+
 def replace_installed_models_in_schemas(
     db: Session,
     project_id: str,
     properties_template: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
-    """Generate and return the installed models schema for workflow_form.
-    """
+    """Generate and return the installed models schema for workflow_form."""
     # Get all models for this project
     installed_models = get_installed_models_by_project(db, project_id)
     logging.info(f"Installed models: {installed_models}")
     one_of = []
-    
+
     if not installed_models:
         logging.warning(f"No installed models found for project {project_id}")
         return one_of
-    
+
     # Build oneOf array from database models
     for idx, model in enumerate(installed_models):
         task_values = model.to_dict()
@@ -1751,16 +1768,16 @@ def replace_installed_models_in_schemas(
                 }
             },
         }
-        
+
         # Deep copy template and populate with model data
         task_properties = copy.deepcopy(properties_template)
-        
+
         # Iterate through template properties and update with model data
         for key, item in task_properties.items():
             # Only update if the key exists in task_values (original logic)
             if key in task_values:
                 to_be_placed = task_values[key]
-                
+
                 # Special handling for "model" key (enum with options)
                 if key == "model":
                     item["enum"] = to_be_placed
@@ -1773,11 +1790,11 @@ def replace_installed_models_in_schemas(
                     if isinstance(to_be_placed, list):
                         to_be_placed = ",".join(to_be_placed)
                     item["default"] = to_be_placed
-        
+
         # Add index suffix to all properties (key#idx pattern)
         for key in list(task_properties.keys()):
             task_properties[f"{key}#{idx}"] = task_properties.pop(key)
-        
+
         # Update task_selection with all properties
         task_selection["properties"].update(task_properties)
         one_of.append(task_selection)
@@ -1793,19 +1810,21 @@ def update_installed_models(
     installed_tasks: dict[str, dict],
 ) -> tuple[List[models.InstalledModel], List[dict]]:
     """Update all installed models for a project (replace entire list).
-    
+
     Strategy: Delete all existing models for project, then create new ones.
     This ensures clean state and handles removed models automatically.
     """
     created = []
     failed = []
-    
+
     try:
         # 1. Delete all existing models for this project
-        existing_models = db.query(models.InstalledModel).filter(
-            models.InstalledModel.project_id == project_id
-        ).all()
-        
+        existing_models = (
+            db.query(models.InstalledModel)
+            .filter(models.InstalledModel.project_id == project_id)
+            .all()
+        )
+
         deleted_count = len(existing_models)
         for model in existing_models:
             db.delete(model)
@@ -1813,7 +1832,7 @@ def update_installed_models(
         logging.info(
             f"Deleted {deleted_count} existing models for project {project_id}"
         )
-        
+
         # 2. Create new models from installed_tasks
         for friendly_name, task_data in installed_tasks.items():
             try:
@@ -1839,41 +1858,35 @@ def update_installed_models(
                 )
                 db.add(model)
                 created.append(model)
-                
+
             except Exception as e:
-                failed.append({
-                    "friendly_name": friendly_name,
-                    "error": str(e)
-                })
+                failed.append({"friendly_name": friendly_name, "error": str(e)})
                 logging.error(f"Failed to create model {friendly_name}: {e}")
-        
+
         # Commit all new models
         db.commit()
-        
+
         # Refresh to get IDs
         for model in created:
             db.refresh(model)
-        
+
         logging.info(
             f"Updated models for project {project_id}: "
             f"Created {len(created)}, Failed {len(failed)}"
         )
         return created, failed
-        
+
     except Exception as e:
         db.rollback()
         logging.error(f"Error updating models for project {project_id}: {e}")
         raise
 
-  
+
 def get_installed_models_by_project(
     db: Session, project_id: str
 ) -> List[models.InstalledModel]:
-    return db.query(models.InstalledModel).filter(
-        models.InstalledModel.project_id == project_id
-    ).all()
-
-
- 
-
-
+    return (
+        db.query(models.InstalledModel)
+        .filter(models.InstalledModel.project_id == project_id)
+        .all()
+    )

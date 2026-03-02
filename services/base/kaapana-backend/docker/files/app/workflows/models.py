@@ -37,8 +37,8 @@ class Identifier(Base):
 class Dataset(Base):
     __tablename__ = "dataset"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(64), index=True)
-    username = Column(String(64))
+    name = Column(String(64), index=True, nullable=False)
+    username = Column(String(64), nullable=False)
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
     identifiers = relationship(

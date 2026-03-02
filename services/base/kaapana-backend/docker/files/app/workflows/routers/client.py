@@ -568,6 +568,7 @@ def create_dataset(
         time_updated=db_obj.time_updated,
         username=db_obj.username,
         identifiers=[x.id for x in db_obj.identifiers],
+        access_level=db_obj.access_level,
     )
 
 
@@ -651,6 +652,7 @@ def get_datasets(
             time_updated=db_obj.time_updated,
             username=db_obj.username,
             identifiers=[x.id for x in db_obj.identifiers],
+            access_level=db_obj.access_level,
         )
         for db_obj in db_objs
     ]

@@ -1,5 +1,6 @@
 import datetime
 from typing import List, Optional, Union
+from enum import Enum
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
@@ -187,6 +188,11 @@ class JsonSchemaData(FilterKaapanaInstances):
     username: Optional[str] = None
 
 
+class AccessLevel(Enum):
+    private = "private"
+    project = "project"
+
+
 class DatasetBase(BaseModel):
     name: Optional[str] = None
 
@@ -195,6 +201,7 @@ class DatasetCreate(DatasetBase):
     kaapana_instance_id: Optional[int] = None
     username: Optional[str] = None
     identifiers: List[str] = []
+    access_level: AccessLevel = AccessLevel.project
 
 
 class DatasetUpdate(DatasetBase):
@@ -207,6 +214,7 @@ class Dataset(DatasetBase):
     time_updated: datetime.datetime
     username: Optional[str] = None
     identifiers: Optional[List[str]]
+    access_level: AccessLevel = AccessLevel.project
 
     @field_validator("time_updated", mode="before")
     @classmethod
@@ -332,7 +340,6 @@ class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
         return self
 
 
-
 class InstalledModelResponse(BaseModel):
     id: int
     project_id: str
@@ -349,6 +356,7 @@ class InstalledModelResponse(BaseModel):
 
 class UpdateInstalledModelsResponse(BaseModel):
     """Response for update operations."""
+
     created: List[InstalledModelResponse]
     failed: List[dict]
     deleted: int  # number of previously existing models

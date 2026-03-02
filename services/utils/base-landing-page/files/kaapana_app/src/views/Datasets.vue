@@ -236,7 +236,7 @@
       </ConfirmationDialog>
       <SaveDatasetDialog
         v-model="saveAsDatasetDialog"
-        @save="(name) => saveDatasetFromDialog(name)"
+        @save="(name, access_level) => saveDatasetFromDialog(name, access_level)"
         @cancel="() => (this.saveAsDatasetDialog = false)"
       />
       <v-dialog v-model="addToDatasetDialog" width="500">
@@ -727,17 +727,18 @@ export default {
 
       if (this.seriesInstanceUIDs.length === 0) this.message = "No data found.";
     },
-    async saveDatasetFromDialog(name) {
-      const successful = await this.saveDataset(name, this.identifiersOfInterest);
+    async saveDatasetFromDialog(name, access_level) {
+      const successful = await this.saveDataset(name, this.identifiersOfInterest, access_level);
       if (successful) {
         this.saveAsDatasetDialog = false;
       }
     },
-    async saveDataset(name, identifiers) {
+    async saveDataset(name, identifiers, access_level) {
       try {
         const body = {
           name: name,
           identifiers: identifiers,
+          access_level: access_level,
         };
         await createDataset(body);
         this.$notify({

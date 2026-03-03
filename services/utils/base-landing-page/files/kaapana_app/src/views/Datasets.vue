@@ -12,15 +12,17 @@
                 </v-col>
                 <v-col cols="10">
                   <v-autocomplete
-                    v-model="datasetName"
-                    :items="datasetNames"
+                    v-model="selectedDataset"
+                    :items="datasets"
+                    :item-text="item => `${item.name} (${item.access_level})`"
+                    :item-value="item => item"
                     label="Select Dataset"
                     clearable
                     hide-details
                     return-object
                     single-line
                     dense
-                    @click:clear="datasetName = null"
+                    @click:clear="selectedDataset = null"
                   >
                   </v-autocomplete>
                 </v-col>
@@ -30,7 +32,7 @@
               </v-row>
               <Search
                 ref="search"
-                :datasetName="datasetName"
+                :selectedDataset="selectedDataset"
                 @search="(query) => updateData(query)"
               />
             </div>
@@ -132,7 +134,7 @@
                           <span v-on="on">
                             <v-btn
                               :disabled="
-                                identifiersOfInterest.length == 0 || !datasetName
+                                identifiersOfInterest.length == 0 || !selectedDataset
                               "
                               icon
                             >
@@ -245,7 +247,9 @@
           <v-card-text>
             <v-select
               v-model="datasetToAddTo"
-              :items="datasetNames"
+              :items="datasets"
+              :item-text="item => `${item.name} (${item.access_level})`"
+              :item-value="item => item"
               label="Dataset"
             ></v-select>
           </v-card-text>
@@ -407,6 +411,8 @@ export default {
       message: "Loading...",
       settings: settings,
       datasetNames: [],
+      datasets: [],
+      selectedDataset: null,
       datasetName: null,
       saveAsDatasetDialog: false,
       addToDatasetDialog: false,
@@ -595,7 +601,9 @@ export default {
       });
     },
     async updateDatasetNames() {
-      this.datasetNames = await loadDatasets();
+      let dataests = await loadDatasets(false);
+      this.datasets = dataests;
+      this.datasetNames = dataests.map((dataset) => dataset.name);
     },
     getStaticWebsiteResults() {
       var staticWebUrl = "/get-static-website-results"
@@ -650,17 +658,18 @@ export default {
       }
       return matched;
     },
-    async updateDataset(name, identifiers, action = "UPDATE") {
+    async updateDataset(name, identifiers, action = "UPDATE", access_level = "project") {
       try {
         const body = {
           action: action,
           name: name,
           identifiers: identifiers,
+          access_level: access_level,
         };
         await updateDataset(body);
         this.$notify({
           title: `Dataset updated`,
-          text: `Successfully updated dataset ${name}.`,
+          text: `Successfully updated dataset ${name} (${access_level}).`,
           type: "success",
         });
         return true;
@@ -675,9 +684,10 @@ export default {
     },
     async addToDataset() {
       const successful = await this.updateDataset(
-        this.datasetToAddTo,
+        this.datasetToAddTo.name,
         this.identifiersOfInterest,
-        "ADD"
+        "ADD",
+        this.datasetToAddTo.access_level
       );
       if (successful) {
         this.addToDatasetDialog = false;
@@ -685,9 +695,10 @@ export default {
     },
     async removeFromDataset() {
       const successful = await this.updateDataset(
-        this.datasetName,
+        this.selectedDataset.name,
         this.identifiersOfInterest,
-        "DELETE"
+        "DELETE",
+        this.selectedDataset.access_level
       );
 
       this.removeFromDatasetDialog = false;

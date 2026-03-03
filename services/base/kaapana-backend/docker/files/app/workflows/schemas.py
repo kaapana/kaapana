@@ -207,6 +207,7 @@ class DatasetCreate(DatasetBase):
 class DatasetUpdate(DatasetBase):
     action: str = ""
     identifiers: List[str] = []
+    access_level: AccessLevel = AccessLevel.project
 
 
 class Dataset(DatasetBase):

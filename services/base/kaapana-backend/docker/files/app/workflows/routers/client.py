@@ -619,14 +619,27 @@ async def create_dataset_from_query(
 
 
 @router.get("/dataset", response_model=schemas.Dataset)
-def get_dataset(name: str, db: Session = Depends(get_db), project=Depends(get_project)):
-    db_obj = crud.get_dataset(db, name, project_id=project.get("id"))
+def get_dataset(
+    request: Request,
+    name: str,
+    access_level: str = "project",
+    db: Session = Depends(get_db),
+    project=Depends(get_project),
+):
+    db_obj = crud.get_dataset(
+        db,
+        name,
+        project_id=project.get("id"),
+        access_level=access_level,
+        username=request.headers.get("x-forwarded-preferred-username"),
+    )
     return schemas.Dataset(
         name=db_obj.name,
         time_created=db_obj.time_created,
         time_updated=db_obj.time_updated,
         username=db_obj.username,
         identifiers=[x.id for x in db_obj.identifiers],
+        access_level=db_obj.access_level,
     )
 
 
@@ -641,7 +654,7 @@ def get_datasets(
     db_objs = crud.get_datasets(
         db,
         limit=limit,
-        username=request.headers["x-forwarded-preferred-username"],
+        username=request.headers.get("x-forwarded-preferred-username"),
         project_id=project.get("id"),
     )
 
@@ -660,25 +673,42 @@ def get_datasets(
 
 @router.put("/dataset", response_model=schemas.Dataset)
 def put_dataset(
+    request: Request,
     dataset: schemas.DatasetUpdate,
     db: Session = Depends(get_db),
     project=Depends(get_project),
 ):
-    db_obj = crud.update_dataset(db, dataset, project_id=project.get("id"))
+    db_obj = crud.update_dataset(
+        db,
+        dataset,
+        project_id=project.get("id"),
+        username=request.headers.get("x-forwarded-preferred-username"),
+    )
     return schemas.Dataset(
         name=db_obj.name,
         time_created=db_obj.time_created,
         time_updated=db_obj.time_updated,
         username=db_obj.username,
         identifiers=[x.id for x in db_obj.identifiers],
+        access_level=db_obj.access_level,
     )
 
 
 @router.delete("/dataset")
 def delete_dataset(
-    name: str, db: Session = Depends(get_db), project=Depends(get_project)
+    request: Request,
+    name: str,
+    access_level: str = "project",
+    db: Session = Depends(get_db),
+    project=Depends(get_project),
 ):
-    return crud.delete_dataset(db, name, project_id=project.get("id"))
+    return crud.delete_dataset(
+        db,
+        name,
+        access_level=access_level,
+        project_id=project.get("id"),
+        username=request.headers.get("x-forwarded-preferred-username"),
+    )
 
 
 @router.delete("/datasets")

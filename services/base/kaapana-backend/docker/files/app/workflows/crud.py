@@ -1177,26 +1177,19 @@ def create_dataset(
             .first()
         )
 
-    if dataset.access_level.value == "project":
-        if (
-            db.query(models.Dataset)
-            .filter(models.Dataset.access_level == "project")
-            .filter(models.Dataset.name == dataset.name)
-            .filter(models.Dataset.project_id == project_id)
-            .first()
-        ):
+    if get_dataset(
+        db,
+        name=dataset.name,
+        raise_if_not_existing=False,
+        project_id=project_id,
+        access_level=dataset.access_level.value,
+        username=dataset.username,
+    ):
+        if dataset.access_level.value == "project":
             raise HTTPException(
                 status_code=409, detail="Project dataset already exists!"
             )
-    elif dataset.access_level.value == "private":
-        if (
-            db.query(models.Dataset)
-            .filter(models.Dataset.access_level == "private")
-            .filter(models.Dataset.name == dataset.name)
-            .filter(models.Dataset.project_id == project_id)
-            .filter(models.Dataset.username == dataset.username)
-            .first()
-        ):
+        elif dataset.access_level.value == "private":
             raise HTTPException(
                 status_code=409, detail="Private project dataset already exists!"
             )
@@ -1227,9 +1220,23 @@ def create_dataset(
     return db_dataset
 
 
-def get_dataset(db: Session, name: str, project_id: UUID, raise_if_not_existing=True):
+def get_dataset(
+    db: Session,
+    name: str,
+    project_id: UUID,
+    raise_if_not_existing=True,
+    access_level: str = "project",
+    username: str = None,
+):
+    logging.debug(f"Getting dataset with name: {name}")
+    logging.debug(f"Getting dataset with access_level: {access_level}")
+    logging.debug(f"Getting dataset with username: {username}")
+    logging.debug(f"Getting dataset with project_id: {project_id}")
     db_query = db.query(models.Dataset).filter_by(name=name)
     db_query = db_query.filter(models.Dataset.project_id == project_id)
+    db_query = db_query.filter(models.Dataset.access_level == access_level)
+    if access_level == "private":
+        db_query = db_query.filter(models.Dataset.username == username)
     db_dataset = db_query.first()
     if not db_dataset and raise_if_not_existing:
         raise HTTPException(status_code=404, detail="Dataset not found")
@@ -1246,12 +1253,24 @@ def get_datasets(
         .limit(limit)
     )
     db_query = db_query.filter(models.Dataset.project_id == project_id)
-    db_datasets = db_query.all()
-    return db_datasets
+    private_datasets_query = db_query.filter(
+        models.Dataset.access_level == "private"
+    ).filter(models.Dataset.username == username)
+    project_datasets_query = db_query.filter(models.Dataset.access_level == "project")
+
+    return private_datasets_query.all() + project_datasets_query.all()
 
 
-def delete_dataset(db: Session, name: str, project_id: UUID):
-    db_dataset = get_dataset(db, name, project_id=project_id)
+def delete_dataset(
+    db: Session,
+    name: str,
+    project_id: UUID,
+    access_level: str = "project",
+    username: str = None,
+):
+    db_dataset = get_dataset(
+        db, name, project_id=project_id, username=username, access_level=access_level
+    )
     db.delete(db_dataset)
     db.commit()
     return {"ok": True}
@@ -1264,17 +1283,28 @@ def delete_datasets(db: Session):
     return {"ok": True}
 
 
-def update_dataset(db: Session, dataset: schemas.DatasetUpdate, project_id: UUID):
+def update_dataset(
+    db: Session, dataset: schemas.DatasetUpdate, project_id: UUID, username: str = None
+):
     logging.debug(f"Updating dataset {dataset.name}")
     db_dataset = get_dataset(
-        db, dataset.name, raise_if_not_existing=False, project_id=project_id
+        db,
+        name=dataset.name,
+        raise_if_not_existing=False,
+        project_id=project_id,
+        access_level=dataset.access_level.value,
+        username=username,
     )
 
     if not db_dataset:
         logging.debug(f"Dataset {dataset.name} doesn't exist. Creating it.")
         db_dataset = create_dataset(
             db,
-            DatasetCreate(name=dataset.name),
+            DatasetCreate(
+                name=dataset.name,
+                access_level=dataset.access_level.value,
+                username=username,
+            ),
             project_id=project_id,
         )
         logging.debug(f"Dataset {dataset.name} created.")

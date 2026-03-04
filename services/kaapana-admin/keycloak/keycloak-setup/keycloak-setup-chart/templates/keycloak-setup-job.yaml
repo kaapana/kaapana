@@ -2,15 +2,15 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: "keycloak-init"
+  name: "keycloak-setup"
   namespace: "{{ .Values.global.admin_namespace }}"
 spec:
   template:
     metadata:
-      name: keycloak-init
+      name: keycloak-setup
     spec:
         initContainers:
-        - name: init
+        - name: wait-for-keycloak
           image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
           env:
@@ -21,8 +21,8 @@ spec:
             - name: TIMEOUT
               value: "10"
         containers:
-        - name: keycloak-init
-          image: "{{ .Values.global.registry_url }}/keycloak-init:{{ .Values.global.kaapana_build_version  }}"
+        - name: keycloak-setup
+          image: "{{ .Values.global.registry_url }}/keycloak-setup:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy:  "{{ .Values.global.pull_policy_images }}"
           resources:
             requests:

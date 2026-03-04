@@ -60,7 +60,7 @@ Either way, the corresponding project and the role have to exist in the platform
 You can define a list of initial projects and roles that will be created during platform deployment in :code:`configmap.yaml` in the access-information-interface-chart.
 
 You can also fully disable this feature.
-This can be done before building the platform by configuring the file :code:`kaapana-realm.json` in the keycloak-init-chart.
+This can be done before building the platform by configuring the file :code:`kaapana-realm.json` in the keycloak-setup-chart.
 Just remove :code:`user-created-http-listener` and :code:`first-login-listener` from the list :code:`eventsListeners`.
 Alternatively, you can always disable this feature in a running platform in the Keycloak admin console under *Realm settings > Events*.
 

@@ -1243,22 +1243,32 @@ def get_dataset(
     return db_dataset
 
 
+from sqlalchemy import or_, and_
+
+
 def get_datasets(
     db: Session, project_id: UUID, limit=None, username: str = None
 ) -> List[models.Dataset]:
     logging.debug(username)
-    db_query = (
+    datasets = (
         db.query(models.Dataset)
+        .filter(models.Dataset.project_id == project_id)
+        .filter(
+            or_(
+                and_(
+                    models.Dataset.access_level == "private",
+                    models.Dataset.username == username,
+                ),
+                models.Dataset.access_level == "project",
+            )
+        )
         .order_by(desc(models.Dataset.time_updated))
         .limit(limit)
+        .all()
     )
-    db_query = db_query.filter(models.Dataset.project_id == project_id)
-    private_datasets_query = db_query.filter(
-        models.Dataset.access_level == "private"
-    ).filter(models.Dataset.username == username)
-    project_datasets_query = db_query.filter(models.Dataset.access_level == "project")
+    logging.info(f"get_datasets: {datasets}")
 
-    return private_datasets_query.all() + project_datasets_query.all()
+    return datasets
 
 
 def delete_dataset(
@@ -1449,14 +1459,20 @@ def queue_generate_jobs_and_add_to_workflow(
     for db_kaapana_instance in db_kaapana_instances:
         identifiers = []
         if "data_form" in conf_data and "dataset_name" in conf_data["data_form"]:
-            project = conf_data["project_form"]
-            dataset_name = conf_data["data_form"]["dataset_name"]
+            project: dict = conf_data["project_form"]
+            dataset: dict = conf_data["data_form"]["dataset_name"]
             if not db_kaapana_instance.remote:
-                db_dataset = get_dataset(db, dataset_name, project_id=project.get("id"))
+                db_dataset = get_dataset(
+                    db,
+                    dataset.get("name"),
+                    access_level=dataset.get("access_level"),
+                    project_id=project.get("id"),
+                    username=dataset.get("username"),
+                )
                 identifiers = [idx.id for idx in db_dataset.identifiers]
             else:
                 for dataset_info in db_kaapana_instance.allowed_datasets:
-                    if dataset_info["name"] == dataset_name:
+                    if dataset_info["name"] == dataset.get("name"):
                         identifiers = (
                             dataset_info["identifiers"]
                             if "identifiers" in dataset_info

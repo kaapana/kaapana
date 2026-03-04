@@ -474,46 +474,60 @@ def ui_form_schemas(
         dataset_names = [{"const": d, "title": d} for d in overall_allowed_datasets]
     elif len(datasets) == 1:
         # if just one instance is selected -> return (allowed) datasets of this instance
+        # dataset_names = [
+        #     {"const": d, "title": d + f" ({dataset_size[d]})"}
+        #     for d in list(datasets.values())[0]
+        # ]
+
         dataset_names = [
-            {"const": d, "title": d + f" ({dataset_size[d]})"}
-            for d in list(datasets.values())[0]
+            {
+                "const": {
+                    "name": ds.name,
+                    "username": ds.username,
+                    "access_level": ds.access_level,
+                },
+                "title": f"{ds.name} ({ds.access_level}) ({len(ds.identifiers)})",
+            }
+            for ds in client_datasets
         ]
 
     schemas_dict = {}
     for dag_id, dag in dags.items():
-        schemas = dag.get("ui_forms", {})
-        # schemas = dag["ui_forms"]
+        form_schemas = dag.get("ui_forms", {})
+        # form_schemas = dag["ui_forms"]
         if (
-            "data_form" in schemas
-            and "properties" in schemas["data_form"]
-            and "dataset_name" in schemas["data_form"]["properties"]
+            "data_form" in form_schemas
+            and "properties" in form_schemas["data_form"]
+            and "dataset_name" in form_schemas["data_form"]["properties"]
         ):
             if len(dataset_names) < 1:
-                schemas["data_form"]["__emtpy__"] = "true"
+                form_schemas["data_form"]["__emtpy__"] = "true"
             else:
-                schemas["data_form"]["properties"]["dataset_name"][
+                form_schemas["data_form"]["properties"]["dataset_name"][
                     "oneOf"
                 ] = dataset_names
         # Installed Models: Checking for installed models
         if (
-            "workflow_form" in schemas
-            and "models" in schemas["workflow_form"]
-            and "oneOf" in schemas["workflow_form"]
-            and "properties-template" in schemas["workflow_form"]
+            "workflow_form" in form_schemas
+            and "models" in form_schemas["workflow_form"]
+            and "oneOf" in form_schemas["workflow_form"]
+            and "properties-template" in form_schemas["workflow_form"]
         ):
             # Inserting installed_models for this project
-            schemas["workflow_form"]["oneOf"] = (
+            form_schemas["workflow_form"]["oneOf"] = (
                 crud.replace_installed_models_in_schemas(
                     db=db,
                     project_id=project.get("id"),
-                    properties_template=schemas["workflow_form"]["properties-template"],
+                    properties_template=form_schemas["workflow_form"][
+                        "properties-template"
+                    ],
                 )
             )
 
             # Remove properties-template from response (it's not needed in frontend)
-            schemas["workflow_form"].pop("properties-template", None)
-            if len(schemas["workflow_form"]["oneOf"]) == 0:
-                schemas["workflow_form"] = {
+            form_schemas["workflow_form"].pop("properties-template", None)
+            if len(form_schemas["workflow_form"]["oneOf"]) == 0:
+                form_schemas["workflow_form"] = {
                     "type": "object",
                     "properties": {
                         "tasks": {
@@ -527,8 +541,8 @@ def ui_form_schemas(
                     },
                 }
 
-        schemas_dict[dag_id] = schemas
-    # logging.info(f"\n\nFinal Schema: \n{schemas}")
+        schemas_dict[dag_id] = form_schemas
+    # logging.info(f"\n\nFinal Schema: \n{form_schemas}")
     if filter_kaapana_instances.dag_id is None:
         return JSONResponse(content=schemas_dict)
     elif filter_kaapana_instances.dag_id in schemas_dict:

@@ -68,6 +68,9 @@
       @update:options="updateOptions"
       :server-items-length="totalItems"
     >
+     <template v-slot:item.dataset_name="{ item }">
+        {{ item.dataset_name != null ? item.dataset_name.name + '(' + item.dataset_name.access_level + ')' : "" }}
+      </template>
       <template v-slot:item.time_created="{ item }">
         {{ new Date(item.time_created).toLocaleString() }}
       </template>

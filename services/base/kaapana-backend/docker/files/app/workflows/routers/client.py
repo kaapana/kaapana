@@ -8,6 +8,7 @@ import shutil
 import string
 import uuid
 from datetime import datetime
+import functools
 from pathlib import Path
 from threading import Thread
 from typing import List, Tuple, Union
@@ -430,14 +431,7 @@ def ui_form_schemas(
     ):  # if just one instance is selected -> return (allowed) dags of this instance
         dags = list(dags.values())[0]
 
-    # Datasets: Checking for datasets
-    # if (
-    #     "data_form" in schemas
-    #     and "properties" in schemas["data_form"]
-    #     and "dataset_name" in schemas["data_form"]["properties"]
-    # ):
     datasets = {}
-    dataset_size = {}
     for instance_name in filter_kaapana_instances.instance_names:
         # check if whether instance_name is client_instance --> datasets = crud.get_datasets(db, username=username)
         db_kaapana_instance = crud.get_kaapana_instance(db, instance_name)
@@ -446,49 +440,68 @@ def ui_form_schemas(
             client_datasets = crud.get_datasets(
                 db, username=username, project_id=project.get("id")
             )
-            allowed_dataset = [ds.name for ds in client_datasets]
-            dataset_size = {ds.name: len(ds.identifiers) for ds in client_datasets}
+            datasets[db_kaapana_instance.instance_name] = [
+                schemas.AllowedDataset(
+                    name=ds.name,
+                    username=ds.username,
+                    identifiers=[id.id for id in ds.identifiers],
+                    access_level=ds.access_level,
+                )
+                for ds in client_datasets
+            ]
         else:
-            allowed_dataset = list(
-                ds["name"] for ds in db_kaapana_instance.allowed_datasets
-            )
-            dataset_size = {
-                ds["name"]: len(ds["identifiers"])
+            datasets[db_kaapana_instance.instance_name] = [
+                schemas.AllowedDataset(
+                    name=ds.get("name"),
+                    username=ds.get("username"),
+                    identifiers=ds.get("identifiers"),
+                )
                 for ds in db_kaapana_instance.allowed_datasets
-            }
-        datasets[db_kaapana_instance.instance_name] = allowed_dataset
+            ]
 
     if len(datasets) > 1:
         # if multiple instances are selected -> find intersection of their allowed datasets
-        overall_allowed_datasets = []
-        for i in range(len(datasets) - 1):
-            if len(overall_allowed_datasets) == 0:
-                list1 = list(datasets.values())[i]
-                list2 = list(datasets.values())[i + 1]
-                overall_allowed_datasets = list(set(list1) & set(list2))
-            else:
-                list1 = list(datasets.values())[i]
-                overall_allowed_datasets = list(
-                    set(overall_allowed_datasets) & set(list1)
-                )
-        dataset_names = [{"const": d, "title": d} for d in overall_allowed_datasets]
-    elif len(datasets) == 1:
-        # if just one instance is selected -> return (allowed) datasets of this instance
-        # dataset_names = [
-        #     {"const": d, "title": d + f" ({dataset_size[d]})"}
-        #     for d in list(datasets.values())[0]
-        # ]
+        # Only consider project dataests for federated workflow execution
+
+        all_datasets = [
+            {
+                ds.name: ds
+                for ds in instance_datasets
+                if ds.access_level == schemas.AccessLevel.project
+            }
+            for instance_datasets in datasets.values()
+        ]
+
+        dataset_intersection = functools.reduce(
+            lambda x, y: x.keys() & y.keys(), all_datasets
+        )
+
+        overall_allowed_datasets = [
+            all_datasets[0][ds_name] for ds_name in dataset_intersection
+        ]
 
         dataset_names = [
             {
                 "const": {
                     "name": ds.name,
                     "username": ds.username,
-                    "access_level": ds.access_level,
+                    "access_level": ds.access_level.value,
                 },
-                "title": f"{ds.name} ({ds.access_level}) ({len(ds.identifiers)})",
+                "title": f"{ds.name} ({ds.access_level.value}) ({len(ds.identifiers)})",
             }
-            for ds in client_datasets
+            for ds in overall_allowed_datasets
+        ]
+    elif len(datasets) == 1:
+        dataset_names = [
+            {
+                "const": {
+                    "name": ds.name,
+                    "username": ds.username,
+                    "access_level": ds.access_level.value,
+                },
+                "title": f"{ds.name} ({ds.access_level.value}) ({len(ds.identifiers)})",
+            }
+            for ds in datasets.get(list(datasets)[0])
         ]
 
     schemas_dict = {}

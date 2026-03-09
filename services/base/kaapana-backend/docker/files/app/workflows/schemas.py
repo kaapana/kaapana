@@ -7,6 +7,11 @@ from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 from typing_extensions import Self
 
 
+class AccessLevel(Enum):
+    private = "private"
+    project = "project"
+
+
 class KaapanaInstanceBase(BaseModel):
     ssl_check: bool
     automatic_update: bool = False
@@ -43,9 +48,10 @@ class AllowedDataset(BaseModel):
     name: str
     username: Optional[str] = None
     identifiers: List[str]
+    access_level: AccessLevel = AccessLevel.project
 
 
-AllowedDataset = List[AllowedDataset]
+AllowedDatasets = List[AllowedDataset]
 
 
 class KaapanaInstance(KaapanaInstanceBase):
@@ -60,7 +66,7 @@ class KaapanaInstance(KaapanaInstanceBase):
     encryption_key: str
     remote: bool
     allowed_dags: Union[dict, list, None] = None
-    allowed_datasets: Optional[AllowedDataset] = None
+    allowed_datasets: Optional[AllowedDatasets] = None
     time_created: datetime.datetime
     time_updated: datetime.datetime
     workflow_in_which_involved: Optional[str]
@@ -186,11 +192,6 @@ class FilterKaapanaInstances(BaseModel):
 class JsonSchemaData(FilterKaapanaInstances):
     conf_data: dict = {}
     username: Optional[str] = None
-
-
-class AccessLevel(Enum):
-    private = "private"
-    project = "project"
 
 
 class DatasetBase(BaseModel):

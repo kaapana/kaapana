@@ -15,39 +15,18 @@ class CreateProject(OrmBaseModel):
     description: str
     default: bool = False
 
+
+class UpdateProject(OrmBaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    external_id: Optional[str] = None
+
     @field_validator("name", mode="before")
     @classmethod
-    def validate_project_name(cls, v):
-        from app.projects import kubehelm, minio, opensearch
-
+    def validate_name(cls, v):
         """
-        Validate if the project name satisfies naming rules for buckets in minio, namespaces in kubernetes and indices in opensearch.
+        Validate if the name satisfies the AE title naming rules in DICOM standard.
         """
-
-        s3_bucket = f"project-{v}"
-        valid_bucket_name = minio.is_valid_minio_bucket_name(s3_bucket)
-        if not valid_bucket_name:
-            raise AssertionError(
-                f"Invalid MINIO bucket name {s3_bucket}. {minio.is_valid_minio_bucket_name.__doc__}"
-            )
-
-        opensearch_index = f"project_{v}"
-        valid_opensearch_index_name = opensearch.is_valid_opensearch_index_name(
-            opensearch_index
-        )
-        if not valid_opensearch_index_name:
-            raise AssertionError(
-                f"Invalid OpenSearch Index name {opensearch_index}. {opensearch.is_valid_opensearch_index_name.__doc__}"
-            )
-
-        kubernetes_namespace = f"project-{v}"
-        valid_kubernetes_namespace = kubehelm.is_valid_kubernetes_namespace(
-            kubernetes_namespace
-        )
-        if not valid_kubernetes_namespace:
-            raise AssertionError(
-                f"Invalid Kubernetes Namespace {kubernetes_namespace}. {kubehelm.is_valid_kubernetes_namespace.__doc__}"
-            )
 
         # AE title can only be uppercase, project name converted to uppercase
         # for validation
@@ -57,6 +36,10 @@ class CreateProject(OrmBaseModel):
                 f"Invalid AE TITLE {v.upper()}. {is_valid_dicom_ae_title.__doc__}"
             )
         return v
+
+
+class DeleteProject(OrmBaseModel):
+    retain_data: bool = False
 
 
 def is_valid_dicom_ae_title(ae_title: str) -> bool:
@@ -98,6 +81,78 @@ class Project(OrmBaseModel):
     kubernetes_namespace: str
     s3_bucket: str
     opensearch_index: str
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def validate_name(cls, v):
+        """
+        Validate if the name satisfies the AE title naming rules in DICOM standard.
+        """
+
+        # AE title can only be uppercase, project name converted to uppercase
+        # for validation
+        valid_ae_title = is_valid_dicom_ae_title(v.upper())
+        if not valid_ae_title:
+            raise AssertionError(
+                f"Invalid AE TITLE {v.upper()}. {is_valid_dicom_ae_title.__doc__}"
+            )
+        return v
+
+    @field_validator("kubernetes_namespace", mode="before")
+    @classmethod
+    def validate_kubernetes_namespace(cls, v):
+        from app.projects import kubehelm
+
+        """
+        Validate if the kubernetes namespace satisfies naming rules in kubernetes.
+        """
+
+        kubernetes_namespace = f"project-{v}"
+        valid_kubernetes_namespace = kubehelm.is_valid_kubernetes_namespace(
+            kubernetes_namespace
+        )
+        if not valid_kubernetes_namespace:
+            raise AssertionError(
+                f"Invalid Kubernetes Namespace {kubernetes_namespace}. {kubehelm.is_valid_kubernetes_namespace.__doc__}"
+            )
+
+        return v
+
+    @field_validator("s3_bucket", mode="before")
+    @classmethod
+    def validate_s3_bucket(cls, v):
+        from app.projects import minio
+
+        """
+        Validate if the s3 bucket name satisfies naming rules in minio.
+        """
+        s3_bucket = f"project-{v}"
+        valid_bucket_name = minio.is_valid_minio_bucket_name(s3_bucket)
+        if not valid_bucket_name:
+            raise AssertionError(
+                f"Invalid MINIO bucket name {s3_bucket}. {minio.is_valid_minio_bucket_name.__doc__}"
+            )
+
+        return v
+
+    @field_validator("opensearch_index", mode="before")
+    @classmethod
+    def validate_opensearch_index(cls, v):
+        from app.projects import opensearch
+
+        """
+        Validate if the opensearch index name satisfies naming rules in opensearch.
+        """
+        opensearch_index = f"project_{v}"
+        valid_opensearch_index_name = opensearch.is_valid_opensearch_index_name(
+            opensearch_index
+        )
+        if not valid_opensearch_index_name:
+            raise AssertionError(
+                f"Invalid OpenSearch Index name {opensearch_index}. {opensearch.is_valid_opensearch_index_name.__doc__}"
+            )
+
+        return v
 
 
 class CreateRight(OrmBaseModel):

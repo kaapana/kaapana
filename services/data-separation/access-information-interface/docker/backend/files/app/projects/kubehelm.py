@@ -44,3 +44,17 @@ def is_valid_kubernetes_namespace(name: str) -> bool:
         return False
     # Check for allowed characters and valid start/end
     return bool(re.fullmatch(r"[a-z0-9]([a-z0-9.\-]*[a-z0-9])?", name))
+
+def uninstall_project_helm_chart(project: Project):
+    """
+    Uninstall the project-namespace helm chart for the given project,
+    removing the namespace, secrets, and associated Keycloak job.
+    """
+    payload = {
+        "release_name": project.kubernetes_namespace, # project-<project-name>
+        "helm_command_addons": "",
+        "helm_namespace": "admin",
+
+    }
+    response = requests.post(f"{kube_helm_api}/helm-delete-chart", json=payload)
+    response.raise_for_status()

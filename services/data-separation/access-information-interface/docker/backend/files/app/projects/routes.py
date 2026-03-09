@@ -123,6 +123,76 @@ async def get_project(
     return projects[0]
 
 
+@router.put("/{project_id}", response_model=schemas.Project, tags=["Projects"])
+async def update_project(
+    project_id: UUID,
+    project_update: schemas.UpdateProject,
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Edit a project's name, description or external_id.
+    """
+    existing = await crud.get_projects(session, project_id=project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    admin_project = await crud.get_admin_project(session)
+    if admin_project and admin_project.id == project_id:
+        raise HTTPException(status_code=403, detail="Cannot edit the admin project")
+
+    project = existing[0]
+
+    # TODO: update the project name in opensearch
+
+    # TODO: rename label in k8s namespace
+
+    # update db
+    updated_project = await crud.update_project(session, project_id, project_update)
+    return schemas.Project(**updated_project.__dict__)
+
+
+@router.delete("/{project_id}", tags=["Projects"])
+async def delete_project(
+    project_id: UUID,
+    retain_data: bool = False,
+    session: AsyncSession = Depends(get_session),
+    opensearch_helper: opensearch.OpenSearchHelper = Depends(
+        opensearch.get_opensearch_helper
+    ),
+    minio_helper: minio.MinioHelper = Depends(minio.get_minio_helper),
+):
+    """
+    Delete a Kaapana project.
+
+    Data retention strategy is controlled by the `retain_data` query parameter:
+    - `retain_data=false` (default): Delete the S3 bucket contents and OpenSearch index
+    - `retain_data=true`: Keep the data, only remove the project and its access configuration
+    """
+    existing = await crud.get_projects(session, project_id=project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    project = existing[0]
+
+    admin_project = await crud.get_admin_project(session)
+    if admin_project and admin_project.id == project_id:
+        raise HTTPException(status_code=403, detail="Cannot delete the admin project")
+
+    # remove from opensearch
+    await opensearch_helper.teardown_project(
+        project=project, session=session, retain_data=retain_data
+    )
+    # remove from minio
+    await minio_helper.teardown_project(
+        project=project, session=session, retain_data=retain_data
+    )
+    # remove the helm chart
+    kubehelm.uninstall_project_helm_chart(project)
+    await crud.delete_project(session, project_id)
+
+    return Response(status_code=204)
+
+
 @router.get("/{project_id}/users", response_model=List[KeycloakUser], tags=["Projects"])
 async def get_project_users(
     project_id: UUID,

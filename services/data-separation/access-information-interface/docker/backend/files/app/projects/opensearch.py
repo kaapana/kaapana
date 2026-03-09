@@ -171,6 +171,50 @@ class OpenSearchHelper:
 
         return index
 
+    async def teardown_project(
+        self, project: Project, session, retain_data: bool = False
+    ):
+        """
+        Remove roles and rolemappings for the project. Optionally delete the project index.
+        """
+        db_rights = await get_rights(session)
+
+        for right in db_rights:
+            if not right.claim_key == "opensearch":
+                continue
+            claim_value = right.claim_value
+            role_name = f"{claim_value}_{project.name}"
+            logger.info(f"Deleting opensearch rolemapping and role for {role_name=}")
+
+            async with httpx.AsyncClient(verify=False) as client:
+                # Delete rolemapping first
+                try:
+                    response = await client.delete(
+                        f"{self.security_api_url}/rolesmapping/{role_name}",
+                        headers={"Authorization": f"Bearer {self.access_token}"},
+                    )
+                    response.raise_for_status()
+                except Exception as e:
+                    logger.warning(f"Failed to delete rolemapping {role_name}: {e}")
+
+                # then delete the role
+                try:
+                    response = await client.delete(
+                        f"{self.security_api_url}/roles/{role_name}",
+                        headers={"Authorization": f"Bearer {self.access_token}"},
+                    )
+                    response.raise_for_status()
+                except Exception as e:
+                    logger.warning(f"Failed to delete role {role_name}: {e}")
+
+        if not retain_data:
+            index = project.opensearch_index
+            logger.info(f"Deleting opensearch index {index}")
+            try:
+                self.os_client.indices.delete(index)
+            except Exception as e:
+                logger.warning(f"Failed to delete index {index}: {e}")
+
 
 def get_opensearch_helper() -> OpenSearchHelper:
     access_token = get_project_user_access_token()

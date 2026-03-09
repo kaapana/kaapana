@@ -257,3 +257,31 @@ async def delete_software_mapping(
     await session.execute(stmt)
     await session.commit()
     return True
+
+
+async def update_project(
+    session: AsyncSession, project_id: UUID, project_update: schemas.UpdateProject
+):
+    stmt = (
+        update(Projects)
+        .where(Projects.id == project_id)
+        .values(**project_update.model_dump(exclude_none=True))
+    )
+    await session.execute(stmt)
+    await session.commit()
+
+    result = await session.execute(select(Projects).where(Projects.id == project_id))
+    return result.scalars().first()
+
+
+async def delete_project(session: AsyncSession, project_id: UUID):
+    # Delete dependent rows first to avoid FK violations
+    await session.execute(
+        delete(UsersProjectsRoles).where(UsersProjectsRoles.project_id == project_id)
+    )
+    await session.execute(
+        delete(SoftwareMappings).where(SoftwareMappings.project_id == project_id)
+    )
+    await session.execute(delete(Projects).where(Projects.id == project_id))
+    await session.commit()
+    return True

@@ -42,7 +42,7 @@ How to create a new user
 
 .. note::
 
-   Any user created via the Keycloak admin console will automatically be added to a public project.
+   Upon first login any user is automatically added to a default project.
    The default name of this project is *public* and the default role is set to *scientist*.
    This behavior is :ref:`configurable <configure_default_proejct>`.
 
@@ -61,10 +61,9 @@ You can define a list of initial projects and roles that will be created during 
 
 You can also fully disable this feature.
 This can be done before building the platform by configuring the file :code:`kaapana-realm.json` in the keycloak-setup-chart.
-Just remove :code:`user-created-http-listener` and :code:`first-login-listener` from the list :code:`eventsListeners`.
+Just remove :code:`first-login-listener` from the list :code:`eventsListeners`.
 Alternatively, you can always disable this feature in a running platform in the Keycloak admin console under *Realm settings > Events*.
 
-The events listener :code:`user-created-http-listener` will map any user that was created via the admin console to the default project.
 The events listener :code:`first-login-listener` will map any user during its first login to the default project.
 
 Authorization

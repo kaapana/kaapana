@@ -82,15 +82,17 @@ def helm_get_values(release_name, helm_namespace=settings.helm_namespace):
 
 
 def helm_status(release_name, helm_namespace=settings.helm_namespace):
+    """Returns the 'info' dict from 'helm status' or {} on failure."""
     logger.debug("in function: helm_status")
     success, stdout = helm_helper.execute_shell_command(
-        f"{settings.helm_path} -n {helm_namespace} status {release_name}"
+        f"{settings.helm_path} -n {helm_namespace} status {release_name} -o yaml"
     )
     if success:
-        return list(yaml.load_all(stdout, yaml.FullLoader))[0]
+        result = list(yaml.load_all(stdout, yaml.FullLoader))[0]
+        return result.get("info", {}) if isinstance(result, dict) else {}
     else:
         logger.warning(f"Could not fetch helm status for: {release_name}")
-        return []
+        return {}
 
 
 def collect_helm_deployments(helm_namespace=settings.helm_namespace):

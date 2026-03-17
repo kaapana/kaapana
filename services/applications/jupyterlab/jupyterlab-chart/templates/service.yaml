@@ -21,10 +21,10 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/preserve-host: "true"
+    kubernetes.io/ingress.class: traefik
     kaapana.ai/display-name: {{ if eq .Values.global.display_name "-" }}{{ .Release.Name }}{{ else }}{{ .Values.global.display_name }}{{ end }}
     kaapana.ai/type: application
 spec:
-  ingressClassName: traefik
   rules:
   - host: {{ .Values.global.hostname }}
     http:

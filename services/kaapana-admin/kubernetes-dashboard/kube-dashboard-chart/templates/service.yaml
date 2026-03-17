@@ -43,10 +43,10 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.admin_namespace  }}-kube-redirect@kubernetescrd,{{  .Values.global.admin_namespace  }}-kube-strip-prefix@kubernetescrd
     ingress.kubernetes.io/auth-remove-header: 'true'
+    kubernetes.io/ingress.class: traefik
     ingress.kubernetes.io/custom-request-headers: "Authorization:||cookie:"
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
-  ingressClassName: traefik
   rules:
   - host: {{ .Values.global.hostname }}
     http:

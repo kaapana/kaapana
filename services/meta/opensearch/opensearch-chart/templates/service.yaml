@@ -39,8 +39,8 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.middlewares: "{{  .Values.global.services_namespace  }}-os-strip-prefix@kubernetescrd"
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+    kubernetes.io/ingress.class: traefik
 spec:
-  ingressClassName: traefik
   rules:
   - host: {{ .Values.global.hostname }}
     http:

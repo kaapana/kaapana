@@ -40,6 +40,7 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    kubernetes.io/ingress.class: traefik
 {{- if not .Values.global.dev_files }}
     traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.services_namespace }}-strip-prefix-extension-manager-ui@kubernetescrd
 {{- end }}

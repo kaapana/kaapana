@@ -12,6 +12,7 @@ from fastapi.templating import Jinja2Templates
 from kaapanapy.logger import get_logger
 
 from . import file_handler, helm_helper, schemas, utils
+from .auth_utils import get_request_user_id, is_admin_request
 from .config import settings
 
 # TODO: add endpoint for /helm-delete-file
@@ -25,6 +26,66 @@ router = APIRouter()
 templates = Jinja2Templates(directory=join(dirname(str(__file__)), "templates"))
 
 logger = get_logger(__name__)
+
+PI_ROLE_NAME = "principal-investigator"
+
+
+async def _fetch_multiinstallable_blacklist() -> set[str]:
+    url = f"{settings.aii_service_url}/projects/multiinstallable-blacklist"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(url)
+        if response.status_code != 200:
+            logger.warning(
+                "Failed to fetch multiinstallable blacklist from AII: status=%s",
+                response.status_code,
+            )
+            return set()
+        payload = response.json()
+        if not isinstance(payload, list):
+            return set()
+        return {str(app).strip() for app in payload if str(app).strip()}
+    except Exception:
+        logger.warning("Failed to fetch multiinstallable blacklist from AII")
+        return set()
+
+
+async def _persist_multiinstallable_blacklist(app_names: list[str]) -> list[str]:
+    normalized = sorted({str(app).strip() for app in app_names if str(app).strip()})
+    url = f"{settings.aii_service_url}/projects/multiinstallable-blacklist"
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        response = await client.put(url, json={"app_names": normalized})
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to persist multiinstallable blacklist in AII",
+        )
+    payload = response.json()
+    if not isinstance(payload, list):
+        return normalized
+    return [str(app) for app in payload]
+
+
+async def _get_project_role_name(project_id: str, request: Request) -> Optional[str]:
+    user_id = get_request_user_id(request)
+    if not user_id:
+        return None
+
+    role_url = (
+        f"{settings.aii_service_url}/projects/{project_id}/users/{user_id}/roles"
+    )
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(role_url)
+        if response.status_code != 200:
+            return None
+        role = response.json()
+        return role.get("name")
+    except Exception:
+        logger.warning(
+            "Failed to fetch role for user %s in project %s", user_id, project_id
+        )
+        return None
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -270,16 +331,46 @@ async def helm_install_chart(request: Request):
             cmd_addons = "--create-namespace"
         if ("blocking" in payload) and (str(payload["blocking"]).lower() == "true"):
             blocking = True
-        if (
-            keywords := payload.get("keywords")
-        ) and "kaapanamultiinstallable" in keywords:
-            project_form = json.loads(request.headers.get("Project"))
-            payload["extension_params"] = payload.get("extension_params", {})
-            payload["extension_params"]["project_id"] = project_form.get("id")
-            payload["extension_params"]["project_name"] = project_form.get("name")
-            payload["extension_params"]["project_namespace"] = project_form.get(
-                "kubernetes_namespace"
+        keywords = payload.get("keywords")
+        if not keywords:
+            chart = helm_helper.helm_show_chart(
+                name=payload["name"], version=payload["version"], platforms=platforms
             )
+            keywords = chart.get("keywords", [])
+            payload["keywords"] = keywords
+
+        if "kaapanamultiinstallable" in keywords:
+            project_header = request.headers.get("Project")
+            if project_header:
+                project_form = json.loads(project_header)
+                project_id = project_form.get("id")
+                if project_id:
+                    role_name = await _get_project_role_name(project_id, request)
+                    if role_name == PI_ROLE_NAME:
+                        app_name = payload["name"]
+                        project_whitelist = project_form.get("multiinstallable_whitelist") or []
+                        blacklist = await _fetch_multiinstallable_blacklist()
+                        if app_name in blacklist:
+                            raise HTTPException(
+                                status_code=403,
+                                detail=(
+                                    f"Launching multiinstallable application '{app_name}' is forbidden for role '{PI_ROLE_NAME}'."
+                                ),
+                            )
+                        if project_whitelist and app_name not in project_whitelist:
+                            raise HTTPException(
+                                status_code=403,
+                                detail=(
+                                    f"Launching multiinstallable application '{app_name}' is not allowed by the project whitelist."
+                                ),
+                            )
+
+                payload["extension_params"] = payload.get("extension_params", {})
+                payload["extension_params"]["project_id"] = project_form.get("id")
+                payload["extension_params"]["project_name"] = project_form.get("name")
+                payload["extension_params"]["project_namespace"] = project_form.get(
+                    "kubernetes_namespace"
+                )
 
         should_install, message, keywords, release_name, cmd = utils.helm_install(
             payload,
@@ -302,9 +393,37 @@ async def helm_install_chart(request: Request):
     except AssertionError as e:
         logger.error(f"/helm-install-chart failed: {str(e)}", exc_info=True)
         return Response(f"Chart install failed, bad request {str(e)}", 400)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"/helm-install-chart failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Chart install failed {str(e)}")
+
+
+@router.get("/multiinstallable-blacklist", response_model=List[str])
+async def get_multiinstallable_blacklist(request: Request) -> List[str]:
+    if not is_admin_request(request):
+        raise HTTPException(
+            status_code=403,
+            detail="Only admins can view the multiinstallable blacklist.",
+        )
+    return sorted(await _fetch_multiinstallable_blacklist())
+
+
+@router.put("/multiinstallable-blacklist", response_model=List[str])
+async def update_multiinstallable_blacklist(request: Request) -> List[str]:
+    if not is_admin_request(request):
+        raise HTTPException(
+            status_code=403,
+            detail="Only admins can edit the multiinstallable blacklist.",
+        )
+
+    payload = await request.json()
+    app_names = payload.get("app_names", [])
+    if not isinstance(app_names, list):
+        raise HTTPException(status_code=400, detail="'app_names' must be a list")
+
+    return await _persist_multiinstallable_blacklist(app_names)
 
 
 @router.post("/pull-docker-image")

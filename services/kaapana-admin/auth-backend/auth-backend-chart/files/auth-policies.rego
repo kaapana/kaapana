@@ -110,6 +110,7 @@ allow {
 ###################################################
 allow {
     regex.match(`^/kube-helm-api/.*`, input.requested_prefix)
+    not regex.match(`^/kube-helm-api/multiinstallable-blacklist/?$`, input.requested_prefix)
 
     # For each aii claim, check whether it matches manage_software_<project-id>
     some p

@@ -102,6 +102,29 @@ async def get_roles(
     return await crud.get_roles(session, name=name)
 
 
+@router.get(
+    "/multiinstallable-blacklist",
+    response_model=List[str],
+    tags=["Projects"],
+)
+async def get_multiinstallable_blacklist(
+    session: AsyncSession = Depends(get_session),
+) -> List[str]:
+    return await crud.get_multiinstallable_blacklist(session)
+
+
+@router.put(
+    "/multiinstallable-blacklist",
+    response_model=List[str],
+    tags=["Projects"],
+)
+async def update_multiinstallable_blacklist(
+    payload: schemas.UpdateMultiinstallableBlacklist,
+    session: AsyncSession = Depends(get_session),
+) -> List[str]:
+    return await crud.update_multiinstallable_blacklist(session, payload.app_names)
+
+
 @router.get("/{project_identifier}", response_model=schemas.Project, tags=["Projects"])
 async def get_project(
     project_identifier: str | UUID, session: AsyncSession = Depends(get_session)
@@ -481,3 +504,32 @@ async def delete_software_mappings(
         )
 
     return Response(status_code=204)
+
+
+@router.get(
+    "/{project_id}/multiinstallable-whitelist",
+    response_model=List[str],
+    tags=["Projects"],
+)
+async def get_multiinstallable_whitelist(
+    project_id: UUID,
+    session: AsyncSession = Depends(get_session),
+) -> List[str]:
+    project: schemas.Project = await get_project(str(project_id), session)
+    return await crud.get_multiinstallable_whitelist_by_project_id(session, project.id)
+
+
+@router.put(
+    "/{project_id}/multiinstallable-whitelist",
+    response_model=List[str],
+    tags=["Projects"],
+)
+async def update_multiinstallable_whitelist(
+    project_id: UUID,
+    payload: schemas.UpdateMultiinstallableWhitelist,
+    session: AsyncSession = Depends(get_session),
+) -> List[str]:
+    project: schemas.Project = await get_project(str(project_id), session)
+    return await crud.update_multiinstallable_whitelist_by_project_id(
+        session, project.id, payload.app_names
+    )

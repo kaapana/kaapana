@@ -202,6 +202,25 @@
                             <h5 class="text-h5 py-4">Multiinstallable Applications</h5>
                         </div>
                     </v-col>
+                    <v-col cols="4" class="d-flex justify-end align-center">
+                        <v-btn
+                            block
+                            size="large"
+                            min-width="300"
+                            prepend-icon="mdi-format-list-checks"
+                            v-if="userHasAdminAccess"
+                            @click="openWhitelistDialog"
+                        >
+                            Add/Edit Whitelist
+                        </v-btn>
+                    </v-col>
+                </v-row>
+                <v-row v-if="extendMultiinstallableExtensions == true" class="pb-2">
+                    <v-col>
+                        <span class="text-body-2">
+                            Whitelist entries: {{ projectWhitelist.length }} (empty whitelist means all multiinstallable apps are launchable)
+                        </span>
+                    </v-col>
                 </v-row>
                 <v-table v-if="extendMultiinstallableExtensions == true">
                     <thead>
@@ -360,6 +379,35 @@
         <DeleteProjectDialog v-if="project" :project="project"
             @confirm="handleDeleteConfirm" @cancel="deleteDialog = false" />
     </v-dialog>
+    
+    <v-dialog v-model="whitelistDialog" max-width="700">
+        <v-card>
+            <v-card-title class="text-h6">Edit Multiinstallable Whitelist</v-card-title>
+            <v-card-text>
+                <p class="text-body-2 pb-3">
+                    Empty whitelist means all multiinstallable applications are launchable for project-PIs.
+                </p>
+                <v-checkbox
+                    v-for="item in allMultiinstallableExtensions"
+                    :key="item.releaseName"
+                    v-model="editableProjectWhitelist"
+                    :value="item.releaseName"
+                    hide-details
+                    class="my-1"
+                >
+                    <template #label>
+                        <span>{{ item.annotations?.["ui-visible-name"] || item.releaseName }}</span>
+                        <span class="ml-2 text-medium-emphasis">({{ item.releaseName }})</span>
+                    </template>
+                </v-checkbox>
+            </v-card-text>
+            <v-card-actions>
+                <v-spacer></v-spacer>
+                <v-btn variant="text" @click="whitelistDialog = false">Cancel</v-btn>
+                <v-btn color="primary" @click="saveWhitelist">Save</v-btn>
+            </v-card-actions>
+        </v-card>
+    </v-dialog>
     <confirm ref="confirm"></confirm>
     <v-dialog v-model="editDialog" max-width="600">
         <EditProjectDialog v-if="project" :project="project"
@@ -373,7 +421,7 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue'
-import { aiiApiGet, aiiApiDelete, aiiApiPost, kubeHelmGet, kubeHelmPost } from '@/common/aiiApi.service'
+import { aiiApiGet, aiiApiDelete, aiiApiPut, aiiApiPost, kubeHelmGet, kubeHelmPost } from '@/common/aiiApi.service'
 import EditProjectDialog from '@/components/EditProjectDialog.vue'
 import DeleteProjectDialog from '@/components/DeleteProjectDialog.vue'
 import ArchiveProjectDialog from '@/components/ArchiveProjectDialog.vue'
@@ -419,10 +467,14 @@ export default defineComponent({
             allowedSoftware: [] as Software[],
             softwareDialog: false,
             multiinstallableExtensions: [] as any[],
+            allMultiinstallableExtensions: [] as any[],
             installedExtensions: [] as any[],
             activeApplications: [] as any[],
             launchApplicationDialog: false,
             selectedExtension: null as any,
+            whitelistDialog: false,
+            projectWhitelist: [] as string[],
+            editableProjectWhitelist: [] as string[],
             extendProjectSoftware: false,
             extendProjectUsers: false,
             extendMultiinstallableExtensions: false,
@@ -438,6 +490,7 @@ export default defineComponent({
         this.fetchProjectSoftware();
         this.fetchMultiinstallableApplications();
         this.fetchActiveApplications();
+        this.fetchProjectWhitelist();
 
         waitForStoreUser((user) => {
             this.userHasAdminAccess = isAdminUser(user);
@@ -489,6 +542,9 @@ export default defineComponent({
                 
                 const multiinstallableExtensions = extensions.filter((item:any) => {
                     return item.multiinstallable === "yes"});
+                this.allMultiinstallableExtensions = multiinstallableExtensions.sort((a: any, b: any) => {
+                    return a.releaseName.localeCompare(b.releaseName);
+                });
                 this.multiinstallableExtensions = multiinstallableExtensions.filter((item:any) => {
                         return item.installed === "no";});
                 this.installedExtensions = multiinstallableExtensions
@@ -496,6 +552,38 @@ export default defineComponent({
                 .reduce((map:any,item:any) => { map[item.releaseName] = item; return map;}, {});
                 console.log("installedExtensions:")
                 console.log(JSON.stringify(this.installedExtensions))
+            } catch (error: unknown) {
+                console.log(error);
+            }
+        },
+        async fetchProjectWhitelist() {
+            if (!this.projectId) {
+                return;
+            }
+            try {
+                const whitelist = await aiiApiGet(`projects/${this.projectId}/multiinstallable-whitelist`);
+                this.projectWhitelist = Array.isArray(whitelist) ? whitelist : [];
+                this.editableProjectWhitelist = [...this.projectWhitelist];
+            } catch (error: unknown) {
+                console.log(error);
+            }
+        },
+        openWhitelistDialog() {
+            this.editableProjectWhitelist = [...this.projectWhitelist];
+            this.whitelistDialog = true;
+        },
+        async saveWhitelist() {
+            if (!this.projectId) {
+                return;
+            }
+            try {
+                const savedWhitelist = await aiiApiPut(
+                    `projects/${this.projectId}/multiinstallable-whitelist`,
+                    {},
+                    { app_names: this.editableProjectWhitelist }
+                );
+                this.projectWhitelist = Array.isArray(savedWhitelist) ? savedWhitelist : [];
+                this.whitelistDialog = false;
             } catch (error: unknown) {
                 console.log(error);
             }

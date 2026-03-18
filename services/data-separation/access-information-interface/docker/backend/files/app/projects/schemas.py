@@ -3,7 +3,7 @@ from typing import Optional
 from uuid import UUID
 
 from app.config import PLATFORM_PREFIX
-from pydantic import BaseModel, ConfigDict, computed_field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 
 class OrmBaseModel(BaseModel):
@@ -66,6 +66,7 @@ class Project(OrmBaseModel):
     int_id: Optional[int] = None
     description: str
     is_archived: bool = False
+    multiinstallable_whitelist: list[str] = Field(default_factory=list)
 
     @computed_field
     @property
@@ -109,6 +110,12 @@ class Project(OrmBaseModel):
                 f"Invalid AE TITLE {v.upper()}. {is_valid_dicom_ae_title.__doc__}"
             )
         return v
+    
+
+
+class UpdateMultiinstallableWhitelist(OrmBaseModel):
+    app_names: list[str] = Field(default_factory=list)
+
 
 
 class CreateRight(OrmBaseModel):

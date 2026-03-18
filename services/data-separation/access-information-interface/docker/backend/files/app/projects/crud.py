@@ -5,6 +5,7 @@ from app.models import (
     AdminProject,
     Projects,
     Rights,
+    MultiinstallableBlacklist,
     Roles,
     RolesRights,
     SoftwareMappings,
@@ -261,6 +262,29 @@ async def delete_software_mapping(
     await session.commit()
     return True
 
+
+async def get_multiinstallable_whitelist_by_project_id(
+    session: AsyncSession, project_id: UUID
+) -> list[str]:
+    stmt = select(Projects).where(Projects.id == project_id)
+    result = await session.execute(stmt)
+    project = result.scalars().first()
+    if not project:
+        return []
+    return project.multiinstallable_whitelist or []
+
+
+async def update_multiinstallable_whitelist_by_project_id(
+    session: AsyncSession, project_id: UUID, app_names: list[str]
+) -> list[str]:
+    stmt = (
+        update(Projects)
+        .where(Projects.id == project_id)
+        .values(multiinstallable_whitelist=app_names)
+    )
+    await session.execute(stmt)
+    await session.commit()
+    return app_names
 
 async def update_project(
     session: AsyncSession, project_id: UUID, project_update: schemas.UpdateProject

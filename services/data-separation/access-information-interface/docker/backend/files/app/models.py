@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
+from sqlalchemy import JSON, Boolean, Column, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.schema import UniqueConstraint
@@ -16,6 +16,8 @@ class Projects(Base):
     name = Column(String, unique=True)
     description = Column(String)
     is_archived = Column(Boolean, nullable=False, default=False)
+    # Empty whitelist means noall multiinstallable apps are allowed.
+    multiinstallable_whitelist = Column(JSON, nullable=False, default=list)
 
 
 class AdminProject(Base):
@@ -76,6 +78,12 @@ class SoftwareMappings(Base):
     software_uuid = Column(String(length=72), nullable=False)
     project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"))
     __table_args__ = (UniqueConstraint("project_id", "software_uuid"),)
+
+
+class MultiinstallableBlacklist(Base):
+    __tablename__ = "multiinstallable_blacklist"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    app_name = Column(String(length=128), nullable=False, unique=True)
 
 
 ### TODO We might need indices to avoid duplicated rows in the relationship tables

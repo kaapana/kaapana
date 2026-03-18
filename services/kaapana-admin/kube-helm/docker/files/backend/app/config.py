@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     helm_namespace: str = os.getenv("HELM_NAMESPACE", None)
     release_name: str = os.getenv("RELEASE_NAME", None)
     registry_url: str = os.getenv("REGISTRY_URL", None)
+    aii_service_url: str = os.getenv(
+        "AII_SERVICE_URL", "http://aii-service.services.svc:8080"
+    )
 
     offline_mode: bool = (
         True if os.environ.get("OFFLINE_MODE", None) in ["true", "True"] else False

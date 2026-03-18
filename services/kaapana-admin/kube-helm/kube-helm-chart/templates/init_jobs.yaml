@@ -42,6 +42,32 @@ spec:
         - name: PROXY
           value: {{ $.Values.global.http_proxy }}
 {{- end }}
+{{- with .Values.timeouts }}
+  {{- if hasKey . "shellCmdDefaultTimeout" }}
+        - name: SHELL_CMD_DEFAULT_TIMEOUT
+          value: "{{ .shellCmdDefaultTimeout }}"
+  {{- end }}
+  {{- if hasKey . "helmPullContainerTimeout" }}
+        - name: HELM_PULL_CONTAINER_TIMEOUT
+          value: "{{ .helmPullContainerTimeout }}"
+  {{- end }}
+  {{- if hasKey . "helmInstallTimeout" }}
+        - name: HELM_INSTALL_TIMEOUT
+          value: "{{ .helmInstallTimeout }}"
+  {{- end }}
+  {{- if hasKey . "helmDeletionTimeout" }}
+        - name: HELM_DELETION_TIMEOUT
+          value: "{{ .helmDeletionTimeout }}"
+  {{- end }}
+  {{- if hasKey . "helmReleaseStatusCheckCount" }}
+        - name: HELM_RELEASE_STATUS_CHECK_COUNT
+          value: "{{ .helmReleaseStatusCheckCount }}"
+  {{- end }}
+  {{- if hasKey . "helmReleaseStatusCheckInterval" }}
+        - name: HELM_RELEASE_STATUS_CHECK_INTERVAL
+          value: "{{ .helmReleaseStatusCheckInterval }}"
+  {{- end }}
+{{- end }}
         resources:
           requests:
             memory: 100Mi
@@ -129,6 +155,14 @@ spec:
         - name: HELM_DELETION_TIMEOUT
           value: "{{ .helmDeletionTimeout }}"
   {{- end }}
+  {{- if hasKey . "helmReleaseStatusCheckCount" }}
+        - name: HELM_RELEASE_STATUS_CHECK_COUNT
+          value: "{{ .helmReleaseStatusCheckCount }}"
+  {{- end }}
+  {{- if hasKey . "helmReleaseStatusCheckInterval" }}
+        - name: HELM_RELEASE_STATUS_CHECK_INTERVAL
+          value: "{{ .helmReleaseStatusCheckInterval }}"
+  {{- end }}
 {{- end }}
         - name: KAAPANA_COLLECTIONS
           value: "{{- range $collection := $.Values.global.kaapana_collections }}{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.kaapana_build_version }};{{- end }}"
@@ -192,6 +226,14 @@ spec:
   {{- if hasKey . "helmDeletionTimeout" }}
         - name: HELM_DELETION_TIMEOUT
           value: "{{ .helmDeletionTimeout }}"
+  {{- end }}
+  {{- if hasKey . "helmReleaseStatusCheckCount" }}
+        - name: HELM_RELEASE_STATUS_CHECK_COUNT
+          value: "{{ .helmReleaseStatusCheckCount }}"
+  {{- end }}
+  {{- if hasKey . "helmReleaseStatusCheckInterval" }}
+        - name: HELM_RELEASE_STATUS_CHECK_INTERVAL
+          value: "{{ .helmReleaseStatusCheckInterval }}"
   {{- end }}
 {{- end }}
         volumeMounts:

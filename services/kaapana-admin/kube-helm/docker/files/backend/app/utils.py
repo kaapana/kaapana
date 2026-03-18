@@ -5,6 +5,7 @@ import os
 import re
 import secrets
 import subprocess
+import time
 from os.path import basename
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -21,11 +22,22 @@ logger.warning("inside utils")
 
 CHART_STATUS_UNDEPLOYED = "un-deployed"
 CHART_STATUS_DEPLOYED = "deployed"
+CHART_STATUS_FAILED = "failed"
 CHART_STATUS_UNINSTALLING = "uninstalling"
+CHART_STATUS_PENDING_INSTALL = "pending-install"
+CHART_STATUS_PENDING_UPGRADE = "pending-upgrade"
+CHART_STATUS_PENDING_ROLLBACK = "pending-rollback"
 KUBE_STATUS_RUNNING = "running"
 KUBE_STATUS_COMPLETED = "completed"
 KUBE_STATUS_PENDING = "pending"
 KUBE_STATUS_UNKNOWN = "unknown"
+
+HELM_TRANSITIONAL_STATUSES = {
+    CHART_STATUS_UNINSTALLING,
+    CHART_STATUS_PENDING_INSTALL,
+    CHART_STATUS_PENDING_UPGRADE,
+    CHART_STATUS_PENDING_ROLLBACK,
+}
 
 charts_cached = None
 charts_hashes = {}
@@ -93,6 +105,383 @@ def helm_status(release_name, helm_namespace=settings.helm_namespace):
     else:
         logger.warning(f"Could not fetch helm status for: {release_name}")
         return {}
+
+
+def get_helm_status_name(
+    release_name, helm_namespace=settings.helm_namespace
+) -> str:
+    return helm_status(release_name, helm_namespace).get("status", "").lower()
+
+
+def resolve_install_target(
+    payload,
+    values,
+    helm_namespace,
+    helm_command_addons,
+    helm_cache_path,
+    name,
+    version,
+    platforms,
+):
+    if not platforms and "global.helm_namespace" in payload["sets"]:
+        helm_namespace = payload["sets"]["global.helm_namespace"]
+
+    if platforms:
+        # current workaround for avoiding the namespace conflict
+        helm_namespace = "default"
+        helm_command_addons = ""
+        # for preinstall, set correct helm_namespace for charts
+        if (
+            "extension_params" in values
+            and "helm_namespace" in values["extension_params"]
+        ):
+            eparams = values["extension_params"]
+            payload["sets"]["global.helm_namespace"] = eparams["helm_namespace"][
+                "default"
+            ]
+        # for preinstall, change path folder to extensions if doesn't exist
+        curr_fpath = f"{helm_cache_path}/{name}-{version}.tgz"
+        if (
+            not os.path.exists(curr_fpath)
+            and helm_cache_path == settings.helm_platforms_cache
+        ):
+            helm_cache_path = settings.helm_extensions_cache
+
+    return helm_namespace, helm_command_addons, helm_cache_path
+
+
+CHART_INSTALL_ACTION_INSTALL = "install"
+CHART_INSTALL_ACTION_DELETE_THEN_INSTALL = "delete_then_install"
+CHART_INSTALL_ACTION_SKIP = "skip"
+CHART_INSTALL_ACTION_BLOCK = "block"
+CHART_INSTALL_ACTIONS = {
+    CHART_INSTALL_ACTION_INSTALL,
+    CHART_INSTALL_ACTION_DELETE_THEN_INSTALL,
+    CHART_INSTALL_ACTION_SKIP,
+    CHART_INSTALL_ACTION_BLOCK,
+}
+
+
+def decide_install_action(status_name, keywords, helm_delete_prefix):
+    if "kaapanamultiinstallable" in keywords:
+        return CHART_INSTALL_ACTION_INSTALL, "Installing again since its kaapanamultiinstallable"
+
+    if helm_delete_prefix:
+        return CHART_INSTALL_ACTION_DELETE_THEN_INSTALL, "Deleting and then installing again!"
+
+    if status_name == "":
+        return CHART_INSTALL_ACTION_INSTALL, "No previous installations were found"
+
+    if status_name == CHART_STATUS_DEPLOYED:
+        return CHART_INSTALL_ACTION_SKIP, "Chart is already installed"
+
+    if status_name == CHART_STATUS_FAILED:
+        return (
+            CHART_INSTALL_ACTION_BLOCK,
+            "Chart is in failed state and must be cleaned up before reinstalling",
+        )
+
+    if status_name in HELM_TRANSITIONAL_STATUSES:
+        return (
+            CHART_INSTALL_ACTION_BLOCK,
+            f"Chart is in Helm transitional state '{status_name}' and must settle or be cleaned up before reinstalling",
+        )
+
+    return CHART_INSTALL_ACTION_BLOCK, f"Chart is in unsupported Helm state '{status_name}'"
+
+
+def build_helm_install_preflight(
+    payload,
+    helm_namespace=settings.helm_namespace,
+    helm_command_addons="",
+    helm_command_suffix="",
+    helm_delete_prefix="",
+    helm_cache_path=None,
+    platforms=False,
+):
+    helm_cache_path = helm_cache_path or settings.helm_extensions_cache
+    if platforms:
+        assert (
+            settings.helm_platforms_cache is not None
+        ), f"HELM_PLATFORMS_CACHE is not defined"
+        helm_cache_path = settings.helm_platforms_cache
+
+    name = payload["name"]
+    version = payload["version"]
+
+    release_values = helm_get_values(settings.release_name, helm_namespace="default")
+
+    default_sets = {}
+    if "global" in release_values:
+        for k, v in release_values["global"].items():
+            default_sets[f"global.{k}"] = v
+    default_sets.pop("global.preinstall_extensions", None)
+    default_sets.pop("global.kaapana_collections", None)
+
+    if "extension_params" in payload:
+        logger.debug(f"found extension_params in payload {payload['extension_params']}")
+        for key, value in payload["extension_params"].items():
+            if (";" not in key) and (";" not in str(value)):
+                default_sets.update({f"global.{key}": value})
+
+    logger.debug("Using default sets")
+    logger.debug(json.dumps(default_sets, indent=4, sort_keys=True))
+
+    # get chart's values and keywords
+    if name in ["pull-docker-chart", "update-collections-chart"]:
+        logger.debug(payload)
+        values = {}
+        keywords = payload["keywords"] if "keywords" in payload else []
+    else:
+        values = helm_helper.helm_show_values(
+            name=name, version=version, platforms=platforms
+        )
+        if "keywords" not in payload:
+            chart = helm_helper.helm_show_chart(
+                name=name, version=version, platforms=platforms
+            )
+            if "keywords" in chart:
+                keywords = chart["keywords"]
+            else:
+                keywords = []
+        else:
+            keywords = payload["keywords"]
+
+    if "global" in values:
+        for key, value in values["global"].items():
+            if isinstance(value, str) and value != "":
+                default_sets.update({f"global.{key}": value})
+            elif isinstance(value, list) and value:
+                for idx, obj in enumerate(value):
+                    if isinstance(obj, dict):
+                        # more keys to be parsed since this is a sub-dictionary
+                        for k, v in obj.items():
+                            default_sets[f"global.{key}[{idx}].{k}"] = v
+                    else:
+                        default_sets[f"global.{key}[{idx}]"] = obj
+
+    if "sets" not in payload:
+        payload["sets"] = default_sets
+    else:
+        for key, value in default_sets.items():
+            if key not in payload["sets"] or payload["sets"][key] == "":
+                payload["sets"].update({key: value})
+
+    if "release_name" in payload:
+        release_name = payload["release_name"]
+    elif "kaapanamultiinstallable" in keywords:
+        # add suffix to a multiinstallable instance of extension if 'suffix_param_key' exists in values.yaml
+        suffix = secrets.token_hex(10)
+        suffix_param = default_sets.get("global.suffix_param_key")
+        if suffix_param is not None:
+            logger.info(f"suffix_param exists {suffix_param=}")
+            suffix = default_sets[f"global.{suffix_param}"][:20] # get first 20 chars
+        release_name = f"{name}-{suffix}"
+        logger.info(f"suffixed {release_name=}")
+    else:
+        release_name = name
+
+    helm_namespace, helm_command_addons, helm_cache_path = resolve_install_target(
+        payload,
+        values,
+        helm_namespace,
+        helm_command_addons,
+        helm_cache_path,
+        name,
+        version,
+        platforms,
+    )
+
+    status_name = get_helm_status_name(release_name, helm_namespace)
+    install_action, install_message = decide_install_action(
+        status_name, keywords, helm_delete_prefix
+    )
+    logger.info(install_message)
+
+    helm_sets = ""
+    if "sets" in payload:
+        for key, value in payload["sets"].items():
+            if isinstance(value, str):
+                value = (
+                    str(value)
+                    .replace(",", r"\,")
+                    .replace("'", r"'\"'")
+                    .replace(" ", r"")
+                    .replace(" ", r"")
+                    .replace("{", r"\{")
+                    .replace("}", r"\}")
+                )
+                helm_sets = helm_sets + f" --set-string {key}='{value}'"
+            elif isinstance(value, list):
+                val = "{" + ",".join(value) + "}"
+                helm_sets = helm_sets + f" --set '{key}={val}'"
+            else:
+                helm_sets = helm_sets + f" --set {key}='{value}'"
+
+    labels = ""
+    for i, kw in enumerate(keywords):
+        if i == 0:
+            labels = "--labels '"
+        labels += f"kaapana.ai/{kw}=True,"
+        if i == len(keywords) - 1:
+            labels = labels[:-1] + "'"
+
+    # make the whole command
+    helm_command = f"{settings.helm_path} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {labels} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}"
+
+    return {
+        "should_install": install_action in {
+            CHART_INSTALL_ACTION_INSTALL,
+            CHART_INSTALL_ACTION_DELETE_THEN_INSTALL,
+        },
+        "install_action": install_action,
+        "install_message": install_message,
+        "keywords": keywords,
+        "release_name": release_name,
+        "helm_command": helm_command,
+        "helm_namespace": helm_namespace,
+        "status_name": status_name,
+    }
+
+
+def wait_for_release_state_change(
+    release_name,
+    helm_namespace,
+    previous_status,
+    checks=None,
+    interval_seconds=None,
+):
+    if checks is None:
+        checks = timeouts.helm_release_status_check_count
+    if interval_seconds is None:
+        interval_seconds = timeouts.helm_release_status_check_interval
+
+    status_name = previous_status
+    for _ in range(checks):
+        time.sleep(interval_seconds)
+        status_name = get_helm_status_name(release_name, helm_namespace)
+        if status_name != previous_status:
+            break
+    return status_name
+
+
+def run_supervised_uninstall(
+    release_name,
+    helm_namespace,
+    status_name,
+    shell=True,
+    blocking=True,
+):
+    uninstall_cmd = (
+        f"{settings.helm_path} -n {helm_namespace} uninstall {release_name} "
+        f"--wait --timeout {timeouts.helm_deletion_timeout}s"
+    )
+    success, stdout = helm_helper.execute_shell_command(
+        uninstall_cmd, shell=shell, blocking=blocking
+    )
+    if not success:
+        logger.warning(
+            f"Normal uninstall failed for {release_name}: {stdout}. Checking release state before fallback."
+        )
+
+    status_name = wait_for_release_state_change(
+        release_name, helm_namespace, status_name
+    )
+    if status_name == "":
+        return True, ""
+
+    if status_name == CHART_STATUS_UNINSTALLING:
+        no_hooks_cmd = (
+            f"{settings.helm_path} -n {helm_namespace} uninstall {release_name} --no-hooks"
+        )
+        success, stdout = helm_helper.execute_shell_command(
+            no_hooks_cmd, shell=shell, blocking=blocking
+        )
+        if not success:
+            return False, stdout
+
+        status_name = wait_for_release_state_change(
+            release_name, helm_namespace, status_name
+        )
+        if status_name == "":
+            return True, ""
+
+    return False, status_name
+
+
+def supervised_helm_install(
+    payload,
+    helm_namespace=settings.helm_namespace,
+    helm_command_addons="",
+    helm_command_suffix="",
+    helm_delete_prefix="",
+    shell=True,
+    helm_cache_path=None,
+    update_state=True,
+    blocking=True,
+    platforms=False,
+):
+    install_kwargs = {
+        "payload": payload,
+        "helm_namespace": helm_namespace,
+        "helm_command_addons": helm_command_addons,
+        "helm_command_suffix": helm_command_suffix,
+        "helm_delete_prefix": helm_delete_prefix,
+        "shell": shell,
+        "helm_cache_path": helm_cache_path,
+        "update_state": update_state,
+        "blocking": blocking,
+        "platforms": platforms,
+    }
+
+    preflight = build_helm_install_preflight(
+        payload,
+        helm_namespace=helm_namespace,
+        helm_command_addons=helm_command_addons,
+        helm_command_suffix=helm_command_suffix,
+        helm_delete_prefix=helm_delete_prefix,
+        helm_cache_path=helm_cache_path,
+        platforms=platforms,
+    )
+
+    if preflight["should_install"]:
+        return helm_install(preflight=preflight, **install_kwargs)
+
+    release_name = preflight["release_name"]
+    message = preflight["install_message"]
+    status_name = preflight["status_name"]
+    effective_namespace = preflight["helm_namespace"]
+
+    if preflight["install_action"] == CHART_INSTALL_ACTION_SKIP:
+        return False, message, "", release_name, ""
+
+    if status_name in HELM_TRANSITIONAL_STATUSES:
+        status_name = wait_for_release_state_change(
+            release_name, effective_namespace, status_name
+        )
+        if status_name == "":
+            return helm_install(**install_kwargs)
+        if status_name == CHART_STATUS_DEPLOYED:
+            return False, "Chart is already installed", "", release_name, ""
+
+    if status_name in HELM_TRANSITIONAL_STATUSES or status_name == CHART_STATUS_FAILED:
+        success, uninstall_result = run_supervised_uninstall(
+            release_name,
+            effective_namespace,
+            status_name,
+        )
+        if not success:
+            return (
+                False,
+                f"Chart could not be recovered from Helm state '{uninstall_result}'",
+                "",
+                release_name,
+                "",
+            )
+
+        return helm_install(**install_kwargs)
+
+    return False, message, "", release_name, ""
 
 
 def collect_helm_deployments(helm_namespace=settings.helm_namespace):
@@ -251,6 +640,7 @@ def helm_install(
     blocking=True,
     platforms=False,
     execute_cmd=True,
+    preflight=None,
 ) -> Tuple[bool, str, dict, str, str]:
     # TODO: must be shell=False as default
     """
@@ -270,159 +660,23 @@ def helm_install(
         Tuple[bool, str, dict, str, str]: success, stdout, helm_result_dict, release_name, helm_command
     """
     logger.debug(f"in function: helm_install with {payload=}, {shell=}")
-
-    helm_cache_path = helm_cache_path or settings.helm_extensions_cache
-    if platforms:
-        assert (
-            settings.helm_platforms_cache is not None
-        ), f"HELM_PLATFORMS_CACHE is not defined"
-        helm_cache_path = settings.helm_platforms_cache
-
-    name = payload["name"]
     version = payload["version"]
-
-    release_values = helm_get_values(settings.release_name, helm_namespace="default")
-
-    default_sets = {}
-    if "global" in release_values:
-        for k, v in release_values["global"].items():
-            default_sets[f"global.{k}"] = v
-    default_sets.pop("global.preinstall_extensions", None)
-    default_sets.pop("global.kaapana_collections", None)
-
-    if "extension_params" in payload:
-        logger.debug(f"found extension_params in payload {payload['extension_params']}")
-        for key, value in payload["extension_params"].items():
-            if (";" not in key) and (";" not in str(value)):
-                default_sets.update({f"global.{key}": value})
-
-    logger.debug("Using default sets")
-    logger.debug(json.dumps(default_sets, indent=4, sort_keys=True))
-
-    # get chart's values and keywords
-    if name in ["pull-docker-chart", "update-collections-chart"]:
-        logger.debug(payload)
-        values = {}
-        keywords = payload["keywords"] if "keywords" in payload else []
-    else:
-        values = helm_helper.helm_show_values(
-            name=name, version=version, platforms=platforms
+    if preflight is None:
+        preflight = build_helm_install_preflight(
+            payload,
+            helm_namespace=helm_namespace,
+            helm_command_addons=helm_command_addons,
+            helm_command_suffix=helm_command_suffix,
+            helm_delete_prefix=helm_delete_prefix,
+            helm_cache_path=helm_cache_path,
+            platforms=platforms,
         )
-        if "keywords" not in payload:
-            chart = helm_helper.helm_show_chart(
-                name=name, version=version, platforms=platforms
-            )
-            if "keywords" in chart:
-                keywords = chart["keywords"]
-            else:
-                keywords = []
-        else:
-            keywords = payload["keywords"]
+    if not preflight["should_install"]:
+        return False, preflight["install_message"], "", preflight["release_name"], ""
 
-    if "global" in values:
-        for key, value in values["global"].items():
-            if isinstance(value, str) and value != "":
-                default_sets.update({f"global.{key}": value})
-            elif isinstance(value, list) and value:
-                for idx, obj in enumerate(value):
-                    if isinstance(obj, dict):
-                        # more keys to be parsed since this is a sub-dictionary
-                        for k, v in obj.items():
-                            default_sets[f"global.{key}[{idx}].{k}"] = v
-                    else:
-                        default_sets[f"global.{key}[{idx}]"] = obj
-
-    if "sets" not in payload:
-        payload["sets"] = default_sets
-    else:
-        for key, value in default_sets.items():
-            if key not in payload["sets"] or payload["sets"][key] == "":
-                payload["sets"].update({key: value})
-
-    if "release_name" in payload:
-        release_name = payload["release_name"]
-    elif "kaapanamultiinstallable" in keywords:
-        # add suffix to a multiinstallable instance of extension if 'suffix_param_key' exists in values.yaml
-        suffix = secrets.token_hex(10)
-        suffix_param = default_sets.get("global.suffix_param_key")
-        if suffix_param is not None:
-            logger.info(f"suffix_param exists {suffix_param=}")
-            suffix = default_sets[f"global.{suffix_param}"][:20]  # get first 20 chars
-        release_name = f"{name}-{suffix}"
-        logger.info(f"suffixed {release_name=}")
-    else:
-        release_name = name
-
-    # check if the chart was installed before
-    status = helm_status(release_name)
-    if status:
-        if "kaapanamultiinstallable" in keywords:
-            logger.info("Installing again since its kaapanamultiinstallable")
-        elif helm_delete_prefix:
-            logger.info("Deleting and then installing again!")
-        else:
-            logger.info("Chart is already installed")
-            return False, "Chart is already installed", "", release_name, ""
-    else:
-        logger.info("No previous installations were found")
-
-    if not platforms and "global.helm_namespace" in payload["sets"]:
-        helm_namespace = payload["sets"]["global.helm_namespace"]
-
-    if platforms:
-        # current workaround for avoiding the namespace conflict
-        helm_namespace = "default"
-        helm_command_addons = ""
-        # for preinstall, set correct helm_namespace for charts
-        if (
-            "extension_params" in values
-            and "helm_namespace" in values["extension_params"]
-        ):
-            eparams = values["extension_params"]
-            payload["sets"]["global.helm_namespace"] = eparams["helm_namespace"][
-                "default"
-            ]
-
-        # for preinstall, change path folder to extensions if doesn't exist
-        curr_fpath = f"{helm_cache_path}/{name}-{version}.tgz"
-        if (
-            not os.path.exists(curr_fpath)
-            and helm_cache_path == settings.helm_platforms_cache
-        ):
-            helm_cache_path = settings.helm_extensions_cache
-
-    # creating --set variables from values
-    helm_sets = ""
-    if "sets" in payload:
-        for key, value in payload["sets"].items():
-            if isinstance(value, str):
-                value = (
-                    str(value)
-                    .replace(",", r"\,")
-                    .replace("'", r"'\"'")
-                    .replace(" ", r"")
-                    .replace(" ", r"")
-                    .replace("{", r"\{")
-                    .replace("}", r"\}")
-                )
-                helm_sets = helm_sets + f" --set-string {key}='{value}'"
-            elif isinstance(value, list):
-                val = "{" + ",".join(value) + "}"
-                helm_sets = helm_sets + f" --set '{key}={val}'"
-            else:
-                helm_sets = helm_sets + f" --set {key}='{value}'"
-
-    # add chart keywords as labels so they can be used for filtering deployed charts
-    labels = ""
-    for i, kw in enumerate(keywords):
-        if i == 0:
-            labels = "--labels '"
-        labels += f"kaapana.ai/{kw}=True,"
-        if i == len(keywords) - 1:
-            labels = labels[:-1] + "'"
-
-    # make the whole command
-    helm_command = f"{settings.helm_path} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {labels} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}"
+    keywords = preflight["keywords"]
+    release_name = preflight["release_name"]
+    helm_command = preflight["helm_command"]
     if not execute_cmd:
         return True, "", keywords, release_name, helm_command
 

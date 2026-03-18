@@ -281,7 +281,7 @@ async def helm_install_chart(request: Request):
                 "kubernetes_namespace"
             )
 
-        not_installed, _, keywords, release_name, cmd = utils.helm_install(
+        should_install, message, keywords, release_name, cmd = utils.helm_install(
             payload,
             shell=True,
             blocking=blocking,
@@ -289,8 +289,8 @@ async def helm_install_chart(request: Request):
             helm_command_addons=cmd_addons,
             execute_cmd=False,
         )
-        if not not_installed:
-            return Response(f"Chart is already installed {release_name}", 200)
+        if not should_install:
+            return Response(message, 200)
         success, stdout = await utils.helm_install_cmd_run_async(
             release_name, payload["version"], cmd, keywords
         )

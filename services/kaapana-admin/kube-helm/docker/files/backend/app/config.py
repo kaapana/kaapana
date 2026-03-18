@@ -1,5 +1,4 @@
 import os
-
 from pydantic import computed_field
 from pydantic_settings import BaseSettings
 
@@ -52,6 +51,8 @@ class TimeoutConfig(BaseSettings):
     helm_pull_container_timeout: int = 2 * 60 * 60
     helm_install_timeout: int = 15
     helm_deletion_timeout: int = 20
+    helm_release_status_check_count: int = 3
+    helm_release_status_check_interval: int = 5
 
     # old: helm_install_platform_timeout: int = 45
     @computed_field

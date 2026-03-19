@@ -31,10 +31,10 @@ metadata:
   namespace: "{{ .Values.global.admin_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    kubernetes.io/ingress.class: traefik
     traefik.ingress.kubernetes.io/preserve-host: "true"
     traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.admin_namespace }}-maintn-redirect@kubernetescrd
 spec:
-  ingressClassName: traefik
   rules:
   - host: {{ .Values.global.hostname }}
     http:

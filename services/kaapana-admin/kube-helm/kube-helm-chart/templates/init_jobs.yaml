@@ -10,6 +10,16 @@ spec:
     metadata:
       name: init-collections
     spec:
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: kaapana.io/rwo-anchor
+                    operator: In
+                    values:
+                      - "true"
+              topologyKey: kubernetes.io/hostname
 {{- include "kaapana.nodeSelector" . | indent 6 }}
       containers:
       - name: init-collections
@@ -75,6 +85,16 @@ spec:
     metadata:
       name: init-extensions
     spec:
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: kaapana.io/rwo-anchor
+                    operator: In
+                    values:
+                      - "true"
+              topologyKey: kubernetes.io/hostname
 {{- include "kaapana.nodeSelector" . | indent 6 }}
       initContainers:
         - name: wait-for-extensions

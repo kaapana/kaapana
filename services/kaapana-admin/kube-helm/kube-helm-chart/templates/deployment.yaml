@@ -15,6 +15,7 @@ spec:
       labels:
         app.kubernetes.io/name: kube-helm
         app.kubernetes.io/component: backend
+        kaapana.io/rwo-anchor: "true"
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "5000"
@@ -105,17 +106,21 @@ spec:
           - name: helmextensions
             mountPath: "/kaapana/mounted/platforms"
             subPath: platforms
+{{- if not .Values.global.managed_kubernetes }}
           - name: containerd-socket
             mountPath: "/kaapana/mounted/containerd.sock"
+{{- end }}
           - name: tmp
             mountPath: "/tmp"
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
       volumes:
+{{- if not .Values.global.managed_kubernetes }}
       - name: containerd-socket
         hostPath:
           path: /var/snap/microk8s/common/run/containerd.sock
+{{- end }}       
       - name: tmp
         emptyDir: {}
       - name: helmextensions

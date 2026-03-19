@@ -356,12 +356,22 @@ def wait_for_release_state_change(
     if interval_seconds is None:
         interval_seconds = timeouts.helm_release_status_check_interval
 
+    logger.info(
+        f"Waiting for Helm release {release_name} in namespace {helm_namespace} to leave state '{previous_status}' "
+        f"for up to {checks} checks every {interval_seconds}s"
+    )
     status_name = previous_status
-    for _ in range(checks):
+    for attempt in range(1, checks + 1):
         time.sleep(interval_seconds)
         status_name = get_helm_status_name(release_name, helm_namespace)
+        logger.debug(
+            f"Helm release {release_name} state check {attempt}/{checks}: '{status_name}'"
+        )
         if status_name != previous_status:
             break
+    logger.info(
+        f"Helm release {release_name} state after waiting: '{status_name}'"
+    )
     return status_name
 
 
@@ -371,10 +381,20 @@ def run_supervised_uninstall(
     status_name,
     shell=True,
     blocking=True,
+    extended_timeouts=False,
 ):
+    deletion_timeout = (
+        timeouts.helm_deletion_platform_timeout
+        if extended_timeouts
+        else timeouts.helm_deletion_timeout
+    )
+    logger.info(
+        f"Running supervised uninstall for {release_name} in namespace {helm_namespace} "
+        f"from state '{status_name}' with timeout {deletion_timeout}s"
+    )
     uninstall_cmd = (
         f"{settings.helm_path} -n {helm_namespace} uninstall {release_name} "
-        f"--wait --timeout {timeouts.helm_deletion_timeout}s"
+        f"--wait --timeout {deletion_timeout}s"
     )
     success, stdout = helm_helper.execute_shell_command(
         uninstall_cmd, shell=shell, blocking=blocking
@@ -388,9 +408,13 @@ def run_supervised_uninstall(
         release_name, helm_namespace, status_name
     )
     if status_name == "":
+        logger.info(f"Release {release_name} was removed by normal uninstall")
         return True, ""
 
     if status_name == CHART_STATUS_UNINSTALLING:
+        logger.warning(
+            f"Release {release_name} is still uninstalling after normal uninstall; retrying with --no-hooks"
+        )
         no_hooks_cmd = (
             f"{settings.helm_path} -n {helm_namespace} uninstall {release_name} --no-hooks"
         )
@@ -398,14 +422,21 @@ def run_supervised_uninstall(
             no_hooks_cmd, shell=shell, blocking=blocking
         )
         if not success:
+            logger.warning(
+                f"Fallback uninstall with --no-hooks failed for {release_name}: {stdout}"
+            )
             return False, stdout
 
         status_name = wait_for_release_state_change(
             release_name, helm_namespace, status_name
         )
         if status_name == "":
+            logger.info(f"Release {release_name} was removed after --no-hooks uninstall")
             return True, ""
 
+    logger.warning(
+        f"Supervised uninstall could not recover release {release_name}; final state/result: '{status_name}'"
+    )
     return False, status_name
 
 
@@ -420,6 +451,7 @@ def supervised_helm_install(
     update_state=True,
     blocking=True,
     platforms=False,
+    extended_timeouts=False,
 ):
     install_kwargs = {
         "payload": payload,
@@ -432,6 +464,7 @@ def supervised_helm_install(
         "update_state": update_state,
         "blocking": blocking,
         "platforms": platforms,
+        "extended_timeouts": extended_timeouts,
     }
 
     preflight = build_helm_install_preflight(
@@ -444,7 +477,16 @@ def supervised_helm_install(
         platforms=platforms,
     )
 
+    logger.info(
+        f"Supervised Helm install preflight for {preflight['release_name']}: "
+        f"action={preflight['install_action']}, status='{preflight['status_name']}', "
+        f"namespace={preflight['helm_namespace']}, extended_timeouts={extended_timeouts}"
+    )
+
     if preflight["should_install"]:
+        logger.info(
+            f"Supervised Helm install executing directly for {preflight['release_name']}"
+        )
         return helm_install(preflight=preflight, **install_kwargs)
 
     release_name = preflight["release_name"]
@@ -453,24 +495,41 @@ def supervised_helm_install(
     effective_namespace = preflight["helm_namespace"]
 
     if preflight["install_action"] == CHART_INSTALL_ACTION_SKIP:
+        logger.info(f"Supervised Helm install skipping {release_name}: {message}")
         return False, message, "", release_name, ""
 
     if status_name in HELM_TRANSITIONAL_STATUSES:
+        logger.info(
+            f"Release {release_name} is in transitional state '{status_name}', waiting before recovery"
+        )
         status_name = wait_for_release_state_change(
             release_name, effective_namespace, status_name
         )
         if status_name == "":
+            logger.info(
+                f"Release {release_name} disappeared while waiting; retrying install"
+            )
             return helm_install(**install_kwargs)
         if status_name == CHART_STATUS_DEPLOYED:
+            logger.info(
+                f"Release {release_name} became deployed while waiting; treating as already installed"
+            )
             return False, "Chart is already installed", "", release_name, ""
 
     if status_name in HELM_TRANSITIONAL_STATUSES or status_name == CHART_STATUS_FAILED:
+        logger.info(
+            f"Attempting supervised recovery for {release_name} from state '{status_name}'"
+        )
         success, uninstall_result = run_supervised_uninstall(
             release_name,
             effective_namespace,
             status_name,
+            extended_timeouts=extended_timeouts,
         )
         if not success:
+            logger.warning(
+                f"Supervised recovery failed for {release_name}: {uninstall_result}"
+            )
             return (
                 False,
                 f"Chart could not be recovered from Helm state '{uninstall_result}'",
@@ -479,8 +538,10 @@ def supervised_helm_install(
                 "",
             )
 
+        logger.info(f"Supervised recovery succeeded for {release_name}; retrying install")
         return helm_install(**install_kwargs)
 
+    logger.info(f"Supervised Helm install returning without install for {release_name}: {message}")
     return False, message, "", release_name, ""
 
 
@@ -639,6 +700,7 @@ def helm_install(
     update_state=True,
     blocking=True,
     platforms=False,
+    extended_timeouts=False,
     execute_cmd=True,
     preflight=None,
 ) -> Tuple[bool, str, dict, str, str]:
@@ -691,7 +753,7 @@ def helm_install(
             logger.error(
                 f"helm delete prefix failed: cmd={helm_delete_prefix} success={success} stdout={stdout}"
             )
-    if platforms:
+    if platforms or extended_timeouts:
         timeout = (
             timeouts.helm_install_platform_timeout
         )  # plaforms usually take longer due to multiple sub-charts involved

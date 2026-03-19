@@ -48,11 +48,8 @@ for extension in preinstall_extensions:
     try:
         chart = helm_show_chart(extension["name"], extension["version"])
         chart_keywords = chart.get("keywords", [])
-        is_platform = False
-        if "kaapanaplatform" in chart_keywords:
-            is_platform = True
-        if extension["name"] == "kaapana-platform-chart":
-            is_platform = True
+        is_platform = "kaapanaplatform" in chart_keywords
+        use_extended_timeouts = extension["name"] == "kaapana-platform-chart"
 
         success, message, _, release_name, _ = supervised_helm_install(
             extension,
@@ -60,6 +57,7 @@ for extension in preinstall_extensions:
             update_state=False,
             blocking=True,
             platforms=is_platform,
+            extended_timeouts=use_extended_timeouts,
         )
         if not success and message == "Chart is already installed":
             logger.info(f"Chart {release_name} is already installed, skipping")

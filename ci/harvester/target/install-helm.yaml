@@ -1,8 +1,4 @@
 ---
-- name: tasks info
-  debug:
-    msg: "INSTALL HELM"
-
 - name: Remove helm plugins
   become: no
   shell: /snap/bin/helm plugin list | awk 'NR>1 {print $1}' | xargs -r -I {} /snap/bin/helm plugin uninstall {} || true

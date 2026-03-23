@@ -1,0 +1,65 @@
+---
+# ============================================================================
+# Delete Kaapana VM on Harvester
+# ============================================================================
+
+- name: Delete VM on Harvester
+  hosts: localhost
+  gather_facts: false
+  connection: local
+
+  vars:
+    vm_name: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_VM_NAME') }}"
+    harvester_namespace: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE') }}"
+    harvester_kubeconfig: "{{ lookup('env', 'ORCHESTRATOR_INSTANCE_HARVESTER_KUBECONFIG') }}"
+    delete_job_name: "delete-vm-{{ vm_name }}"
+
+  tasks:
+    - name: Check if VM exists
+      ansible.builtin.command:
+        cmd: kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} get vm {{ vm_name }}
+      register: vm_check
+      failed_when: false
+      changed_when: false
+
+    - name: Delete VM
+      when: vm_check.rc == 0
+      ansible.builtin.command:
+        cmd: kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} delete vm {{ vm_name }}
+
+    - name: Delete PVCs belonging to the VM
+      when: vm_check.rc == 0
+      ansible.builtin.shell: |
+        set -e
+        PVCs=$(kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} get pvc -o name | grep "{{ vm_name }}" || true)
+        if [ -n "$PVCs" ]; then
+          kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} delete $PVCs
+        fi
+      args:
+        executable: /bin/bash
+
+    - name: Delete cloud-init secrets
+      when: vm_check.rc == 0
+      ansible.builtin.shell: |
+        set -e
+        SECRETS=$(kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} get secret -o name | grep "{{ vm_name }}-cloudinit" || true)
+        if [ -n "$SECRETS" ]; then
+          kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} delete $SECRETS
+        fi
+      args:
+        executable: /bin/bash
+
+    - name: Wait until VM is deleted
+      when: vm_check.rc == 0
+      ansible.builtin.command:
+        cmd: kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} get vm {{ vm_name }}
+      register: delete_check
+      until: delete_check.rc != 0
+      retries: 60
+      delay: 10
+      failed_when: false
+      changed_when: false
+
+    - name: Display result
+      ansible.builtin.debug:
+        msg: "VM {{ vm_name }} deleted (or did not exist)"

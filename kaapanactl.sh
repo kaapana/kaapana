@@ -2452,6 +2452,14 @@ function check_system() {
             echo "❌ Pod $name is $phase"
             all_healthy=false
         fi
+
+        # check readiness condition
+        ready_cond=$(microk8s.kubectl get pod "$name" -n "$ns" \
+            -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
+        if [[ "$ready_cond" != "True" ]]; then
+            echo "❌ Pod $name is not Ready yet"
+            all_healthy=false
+        fi
         ;;
         Job)
         if ! job=$(microk8s.kubectl get job "$name" -n "$ns" -o json 2>/dev/null); then

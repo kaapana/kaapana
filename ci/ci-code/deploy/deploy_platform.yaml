@@ -1,19 +1,19 @@
 ---
-# Deploy Kaapana platform (runs locally on the deploy VM)
-# Uses kaapanactl.sh deploy for deployment
 - name: Deploy Kaapana platform
-  hosts: localhost
-  connection: local
+  hosts: all
   gather_facts: true
   vars:
     registry_user: "{{ lookup('ansible.builtin.env', 'REGISTRY_USER') }}"
     registry_token: "{{ lookup('ansible.builtin.env', 'REGISTRY_TOKEN') }}"
     registry_url: "{{ lookup('ansible.builtin.env', 'REGISTRY_URL') }}"
-    artifacts_dir: "{{ lookup('ansible.builtin.env', 'ARTIFACTS_DIR') }}"
-    kaapana_dir: "{{ lookup('ansible.builtin.env', 'KAAPANA_DIR') }}"
+
+    vm_fqdn: "{{ lookup('ansible.builtin.env', 'VM_FQDN') }}"
     version_tag: "{{ lookup('ansible.builtin.env', 'VERSION_TAG') }}"
-    http_proxy: "{{ lookup('ansible.builtin.env', 'HTTP_PROXY', default='') }}"
-    https_proxy: "{{ lookup('ansible.builtin.env', 'HTTPS_PROXY', default='') }}"
+    artifacts_dir: "{{ lookup('ansible.builtin.env', 'ARTIFACTS_DIR') }}"
+    kaapana_dir: "{{ lookup('ansible.builtin.env', 'CI_PROJECT_DIR') }}"
+    http_proxy: "{{ lookup('ansible.builtin.env', 'HTTP_PROXY') }}"
+    https_proxy: "{{ lookup('ansible.builtin.env', 'HTTPS_PROXY') }}"
+    ansible_python_interpreter: /usr/bin/python3
 
   environment:
     http_proxy: "{{ http_proxy }}"
@@ -21,17 +21,12 @@
     TERM: xterm
 
   tasks:
-    - name: Get node IP address
-      ansible.builtin.shell: hostname -I | awk '{print $1}'
-      register: node_ip
-      changed_when: false
-
     - name: Display deployment info
       ansible.builtin.debug:
         msg: |
           Deploying Kaapana Platform
           ==========================
-          Node IP: {{ node_ip.stdout }}
+          Node FQDN: {{ vm_fqdn }}
           Registry: {{ registry_url }}
           Version: {{ version_tag }}
           Kaapana Dir: {{ kaapana_dir }}
@@ -57,16 +52,21 @@
       delay: 5
       until: helm_check.rc == 0
 
+    - name: Copy server installation script
+      ansible.builtin.copy:
+        src: "{{ kaapana_dir }}/kaapanactl.sh"
+        dest: "{{ ansible_facts['env']['HOME'] }}/kaapanactl.sh"
+        mode: "0755"
+
     - name: Deploy the platform using kaapanactl.sh
       ansible.builtin.command:
         cmd: >
-          {{ kaapana_dir }}/kaapanactl.sh deploy
+          {{ ansible_facts['env']['HOME'] }}/kaapanactl.sh deploy
           --quiet
           --chart {{ registry_url }}/kaapana-admin-chart:{{ version_tag }}
           --username {{ registry_user }}
           --password {{ registry_token }}
-          --domain {{ node_ip.stdout }}
-        chdir: "{{ kaapana_dir }}"
+          --domain {{ vm_fqdn }}
       register: deploy_result
       ignore_errors: yes
 
@@ -75,16 +75,17 @@
         content: |
           Deployment Output
           =================
-          Command: kaapanactl.sh deploy --quiet --chart {{ registry_url }}/kaapana-platform-chart:{{ version_tag }} --domain {{ node_ip.stdout }}
-          
+          Command: {{ ansible_facts['env']['HOME'] }}/kaapanactl.sh deploy --quiet --chart {{ registry_url }}/kaapana-platform-chart:{{ version_tag }} --domain {{ vm_fqdn }}
+
           STDOUT:
           {{ deploy_result.stdout | default('') }}
-          
+
           STDERR:
           {{ deploy_result.stderr | default('') }}
-          
+
           Return Code: {{ deploy_result.rc }}
         dest: "{{ artifacts_dir }}/deployment.log"
+      delegate_to: localhost
 
     - name: Fail if deployment failed
       ansible.builtin.fail:
@@ -93,8 +94,7 @@
 
     - name: Wait for all deployments to be healthy
       ansible.builtin.command:
-        cmd: "{{ kaapana_dir }}/kaapanactl.sh deploy --check-system"
-        chdir: "{{ kaapana_dir }}"
+        cmd: "{{ ansible_facts['env']['HOME'] }}/kaapanactl.sh deploy --check-system"
       register: system_check
       retries: 60
       delay: 10
@@ -107,6 +107,7 @@
           ===================
           {{ system_check.stdout }}
         dest: "{{ artifacts_dir }}/system_check.log"
+      delegate_to: localhost
 
     - name: Display deployment success
       ansible.builtin.debug:
@@ -114,5 +115,5 @@
           ========================================
           Kaapana Platform Deployed Successfully!
           ========================================
-          Access URL: https://{{ node_ip.stdout }}
+          Access URL: https://{{ vm_fqdn }}
           ========================================

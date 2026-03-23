@@ -1,7 +1,3 @@
-- name: tasks info
-  debug:
-    msg: "INSTALL DOCKER"
-
 - name: Update apt and install prerequisites
   become: yes
   ansible.builtin.apt:

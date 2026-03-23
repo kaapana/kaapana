@@ -1,225 +1,171 @@
-# kaapana-ci
+# Kaapana CI/CD Documentation
 
-## Some general concepts of GitLab CI/CD
+## CI/CD Pipeline Overview
 
-Core concepts of Gitlab CI
+Kaapana uses **GitLab CI** with five stages across multiple runners:
 
-* pipelines
-* stages
-* jobs
-* variables
-* dependencies
-* artifacts
-
-### What is a gitlab-runner?
-
-A gitlab-runner is a service that is associated with a gitlab project and continuously fetches ci jobs from this project. 
-The gitlab-runner executes these jobs on its host instance, i.e. the *CI-instance*.
-
-### What is the ci-instance and what is the deployment-instance?
-
-* ***ci-instance***: The instance where the gitlab-runner is hosted and where the build is executed.
-* ***deployment-instance***: The instance where the platform is deployed.
-* Build script is executed on the ***ci-instance***
-* Logs are persisted on the ***ci-instance***
-
-The CI-instance mainly hosts the gitlab-runner who executes all jobs specified in `gitlab-ci.yml`. 
-Most of the jobs consist of an ansible playbook. 
-The tasks in these playbooks are either executed directly on the ci-instance or on the remote *deployment-instance*. 
-A deployment-instance is used to deploy a Kaapana platform.
-
-### How to setup the Kaapana continuous integration?
-
-#### Requirements for setting up the CI
-
-* At least maintainer access to a Kaapana project on gitlab.
-* Openstack user credentials.
-* Gitlab registration token to register the gitlab-runner. You get them, when you create a new GitLab runner in your GitLab project.
-* Gitlab api-token to upload the default CI variables.
-
-#### Steps to setup the CI
-
-1. Clone the repository from [https://codebase.helmholtz.cloud/kaapana/kaapana](https://codebase.helmholtz.cloud/kaapana/kaapana)
-2. Install the dependencies:
-
-    * **Install Ansible**
-        * Ubuntu/Debian
-
-          ```bash
-          sudo apt update
-          sudo apt install ansible -y
-          ```
-
-        * CentOS/RHEL
-
-          ```bash
-          sudo yum install epel-release -y
-          sudo yum install ansible -y
-          ```
-
-    * **Install the Required Ansible Collection ( `openstack.cloud.server`)**
-
-        ```bash
-        ansible-galaxy collection install openstack.cloud
-        ```
-
-3. Create `setup_vars.yaml` from `setup_vars_template.yaml` in `ci/setup_playbooks/file_templates/` and specify all variables according to your setup.
-    This file contains parameters required to create and setup the ci-instance
-    ```bash
-    cd ci/setup_playbooks/
-    cp file_templates/setup_vars_template.yaml file_templates/setup_vars.yaml
-    ```
-4. Create `ci-settings.yaml` from `ci-settings-template.yaml` in `ci/setup_playbooks/file_templates/` and specify all variables according to your setup.
-    This file should contain the default values for the CI variables in your project.
-    ```bash
-    cp file_templates/ci-settings-template.yaml file_templates/ci-settings.yaml
-    ```
-5. In `setup_ci.yaml` set a path to a python interpreter in a virtual environment, where you have installed all required dependencies
-```yaml
-  vars:
-    ansible_python_interpreter: "<path-to-python3-interpreter in virtualenv>"
-
-  environment:
-    PYTHONPATH: "<path-to-python3-interpreter in virtualenv>"
-```
-6. Run the `ci/setup_playbooks/setup_ci.yaml`.
-7. SSH to the kaapana-ci instance
-8. On the ci-instance, there should be a file `$HOME/.gitlab-runner/config.toml`
-9. This file should contain a section similar to the one below. 
-    Make sure, that the subsection `[runners.custom_build_dir]` exists.
-      ```bash
-      [[runners]]
-        name = "shell-runner"
-        url = "..."
-        id = ...
-        token = "..."
-        token_obtained_at = ...
-        token_expires_at = ...
-        executor = "shell"
-        [runners.cache]
-          MaxUploadedArchiveSize = 0
-        [runners.custom_build_dir]
-          enabled = true
-      ```
-
-10. Start the gitlab-runner service in the background `nohup gitlab-runner run </dev/null &>/dev/null &`
-11. Check if everything works, by triggering a web-pipeline in your GitLab project.
-
-The playbook at `ci/setup_playbooks/setup_ci.yaml` automates the following steps to get your ci instance up and running:
-
-1. Launch an openstack instance
-2. Upload default CI variables into the project settings
-3. Store the password for the openstack user for future communication with the openstack API
-4. Install proxy
-5. Setup timeserver
-6. Upgrade and install apt packages
-7. Install required pip packages
-8. Adjust user PATH variable
-9. Install required ansible collections
-10. Copy ssh key to the ci-instance for accessing deployment instances
-11. Install docker and helm
-12. Install and register gitlab-runner
-13. Create directory in `/etc/` for ansible
-
-## Directory structure ci/
-
-```bash
-.
-├── ci-code                 # Playbook and code that is executed during a CI pipeline
-│   ├── build               # Code for the build-stage
-│   ├── clean               # Code for the last stage
-│   ├── deploy              # Code for the platform deployment
-│   │   └── tasks
-│   ├── prepare             # Code for the preparation stage
-│   └── test                # Code for the test stage
-│       ├── jobs            # Ansible playbooks for each job of the test stage
-│       │   ├── extensions  # Install all extensions
-│       │   ├── integration_tests   # Trigger some workflows based on .yaml files in the repository
-│       │   ├── testdata    # Download testdata and send to dicom via dcmsend
-│       │   └── ui_tests    # Python code for selenium test, currently only first login to the platform.
-│       └── src             # python code for the test stage
-│           └── base_utils  # Common python utilities for the jobs in the test stage
-├── setup_playbooks ### Playbooks and code to setup the CI-instance
-│   ├── file_templates
-│   └── task_templates
-└── templates               # Place for child-pipelines or templated parts of the .gitlab-ci.yml config.
+```mermaid
+graph TB
+    subgraph "GitLab"
+        GH["Pipeline Trigger"]
+    end
+    
+    subgraph UTRVM["Unit Tests Runner VM (Small)"]
+        A1["unit_tests"]
+        A2["task_api_tests"]
+        A3["workflow_api_tests"]
+        A4["build_documentation"]
+    end
+    
+    subgraph "Build Runner VM (Large)"
+        B["build_packages"]
+    end
+    
+    subgraph "Orchestrator (deploy-runner)"
+        C1["prepare_deployment"]
+        E["destroy_deployment"]
+        F1["if_ci_failing<br/>(on_failure)"]
+        F2["security<br/>(if --vulnerability-scan)"]
+    end
+    
+    subgraph DVM["Deployment Instance"]
+        C2["server_installation<br/>via SSH"]
+        C3["platform_deployment<br/>via SSH"]
+        D1["scan_ports<br/>via SSH"]
+        D2["first_login<br/>via SSH"]
+        D3["install_extensions<br/>via SSH"]
+        D4["send_data<br/>via SSH"]
+        D5["run_workflows<br/>via SSH"]
+    end
+    
+    GH -->|parallel| A1 & A2 & A3 & A4
+    UTRVM -->|all pass| B
+    B -->|images ready| C1
+    C1 -->|provision/use existing| DVM
+    C2 --> C3
+    C3 -->|sequentially| D1 --> D2 --> D3 --> D4 --> D5
+    D5 -->|if auto-created, delayed in 4 hours| E
+    E --> F1
+    E --> F2
+    
+    style A1 fill:#4CAF50,stroke:#2d5016,color:#fff
+    style A2 fill:#4CAF50,stroke:#2d5016,color:#fff
+    style A3 fill:#4CAF50,stroke:#2d5016,color:#fff
+    style A4 fill:#4CAF50,stroke:#2d5016,color:#fff
+    style B fill:#2196F3,stroke:#0d47a1,color:#fff
+    style C1 fill:#FF9800,stroke:#e65100,color:#fff
+    style C2 fill:#FF9800,stroke:#e65100,color:#fff
+    style C3 fill:#FF9800,stroke:#e65100,color:#fff
+    style D1 fill:#9C27B0,stroke:#4a148c,color:#fff
+    style D2 fill:#9C27B0,stroke:#4a148c,color:#fff
+    style D3 fill:#9C27B0,stroke:#4a148c,color:#fff
+    style D4 fill:#9C27B0,stroke:#4a148c,color:#fff
+    style D5 fill:#9C27B0,stroke:#4a148c,color:#fff
+    style E fill:#f44336,stroke:#b71c1c,color:#fff
+    style F1 fill:#f44336,stroke:#b71c1c,color:#fff
+    style F2 fill:#f44336,stroke:#b71c1c,color:#fff
 ```
 
-## Variables
+### Color Legend
+- 🟢 **Green**: Tests stage (unit tests, API tests, documentation)
+- 🔵 **Blue**: Build stage (build images)
+- 🟠 **Orange**: Deploy stage (prepare deployment, server installation, platform deployment)
+- 🟣 **Purple**: Test stage (integration tests)
+- 🔴 **Red**: Clean stage (destroy deployment, notifications, security reports)
 
-A short description of all variables and where they can be configured
+## Architecture
 
-| Variable name | Default| Values | Comment |
+### Hardware Setup
+- **Small VM (tests-runner)**: Runs unit tests and documentation builds in parallel
+- **Big VM (build-runner)**: Builds Docker container images
+- **Orchestrator (deploy-runner)**: Controls deployment and cleanup flow via Ansible
+- **Deployment Instance**: Target server where Kaapana runs (auto-created via Harvester/OpenStack or pre-specified)
+
+### Execution Flow
+1. **Tests Stage** (Small VM): Unit/API tests + docs build run **in parallel**
+   - Artifacts: `tests/` → uploaded to GitLab
+2. **Build Stage** (Big VM): Docker images built
+   - Artifacts: `build/build.log`, `build/security-reports/` → uploaded to GitLab
+3. **Deploy Stage** (via Orchestrator + SSH):
+   - `prepare_deployment`: Provisions or uses existing deployment instance (via Harvester kubeconfig) 
+   - `server_installation`: Installs dependencies on deployment instance via SSH
+   - `platform_deployment`: Deploys Kaapana via SSH
+   - Artifacts: `artifacts/` → uploaded to GitLab
+4. **Test Stage** (via Orchestrator + SSH): Each integration test runs sequentially on deployment instance
+   - Artifacts: `artifacts/` → uploaded to GitLab
+5. **Clean Stage** (via Orchestrator):
+   - `destroy_deployment`: Destroys deployment instance (runs **after 4 hours** if auto-provisioned, using Harvester kubeconfig)
+   - `if_ci_failing`: Creates issue on develop branch if pipeline fails (runs on failure)
+   - `security`: Generates vulnerability report if `--vulnerability-scan` flag used
+   - Artifacts: All uploaded to GitLab (1 week retention)
+
+## Setting Up GitLab CI
+
+### Requirements
+- Maintainer access to GitLab project
+- Harvester Kube config (for VM provisioning)
+- GitLab API token
+
+### Setup Steps
+
+1. Clone: `git clone https://codebase.helmholtz.cloud/kaapana/kaapana`
+
+2. Install Ansible and collection:
+   ```bash
+   sudo apt install ansible -y
+   ansible-galaxy collection install openstack.cloud
+   ```
+
+3. Set required environment variables for runner provisioning:
+   ```bash
+   export GITLAB_API_TOKEN="your-gitlab-api-token"
+   export GITLAB_PROJECT_ID="your-project-id"
+   export GITLAB_URL="https://your-gitlab-instance.com"
+   export SSH_PUBLIC_KEY="~/.ssh/kaapana.pub"
+   export SSH_PRIVATE_KEY="~/.ssh/kaapana.pem"
+   export HARVESTER_KUBECONFIG="~/.kube/harvester.yaml"
+   ```
+
+4. Run ansible-playbook to provision runners:
+   ```bash
+   cd ci/harvester
+   
+   # Create build runners
+   ansible-playbook create-build-runner-instances.yaml -i inventory.yaml
+   
+   # Create deploy runners
+   ansible-playbook create-deploy-runner-instances.yaml -i inventory.yaml
+   
+   # Create test runners
+   ansible-playbook create-tests-runner-instances.yaml -i inventory.yaml
+   
+   # Force recreate (deletes and recreates existing instances)
+   ansible-playbook create-build-runner-instances.yaml -i inventory.yaml -e force_recreate=true
+   ```
+
+### Variables Reference
+
+| Variable | Type | Default | Description |
 | --- | --- | --- | --- |
-| **Deployment instance** | | |
-| DEPLOYMENT_INSTANCE_IP | `"none"` | `["none", <ip-address>]` | The ip address of an existing instance that should be used as deployment instance. If not specified and `OS_CREATE` is `false` the pipeline will fail. |
-| DEPLOYMENT_INSTANCE_NAME | `kaapana_ci_default` | | The name of the deploymen-instance as ansible groupname and in openstack.|
-| DEPLOYMENT_INSTANCE_USER | `ubuntu` | |  The username on the deployment instance |
-| HTTP_PROXY | | | URL to http proxy server on the ***deployment-instance*** |
-| HTTPS_PROXY | | |  URL to https proxy server on the ***deployment-instance*** |
-| **Openstack** | | |
-| OS_DELETE | `false` | `["true","false"]` |  If set to "true" the openstack instance  corresponding to `DEPLOYMENT_INSTANCE_NAME` will be deleted at the beginning of the pipeline.
-| OS_CREATE | `true` | `["true","false"]` | If set to "true" a new openstack instance will be created with name `DEPLOYMENT_INSTANCE_NAME` as hostname.
-| OS_AUTH_URL | | |  URL for authentification with the openstack API
-| OS_PROJECT_NAME | | | Name of the openstack project where the ***deployment-instance*** should be hosted
-| OS_INSTANCE_FLAVOR | | |  Flavor for the openstack instance
-| OS_KEY_NAME | | | Key name for the openstack instance
-| OS_IMAGE | | | Image used for the openstack image
-| OS_TENANT_ID | | | Project ID of the openstack project corresponding to `OS_PROJECT_NAME`
-| OS_USERNAME | | | Openstack username used to spawn ***deployment-instance***
-| OS_FLOATING_IP_POOLS | | | Name of the pool of floating ips from which one should be associated with the new instance
-| **CI-instance variables**  | | |
-| USER | `$USER` | | Name of the user on the ***ci-instance*** that registered the gitlab-runner
-| SSH_FILE | `<path-to-ssh-file>` | | Path to ssh file on the ci-instante to connect to the deployment-instance e.g `/home/$USER/.ssh/id_rsa` |
-| **Registry variables** | | |
-| DOCKER_IO_USER | | | Username for docker.io |
-| DOCKER_IO_PASSWORD | | | Password for docker.io |
-| REGISTRY_URL | `$CI_REGISTRY_IMAGE` | | Path to the registry used for building
-| REGISTRY_TOKEN | | | Token for the registry specified as `REGISTRY_URL`. Actually, this token also requires API access to the project. |
-| **Pipeline variables** | | |
-| BUILD_ARGUMENTS | `""` | `"--latest", "--vulnerability-scan", ...` | String of arguments that will be appended to `python3 start_build.py` e.g. `BUILD_ARGUMENTS="--latest"` |
-| DOCKER_PRUNE | `"false"` | `["true","false"]` | If `"true"` all docker images, containers and volumes are deleted at the beginning of the build-stage. |
-| DEPLOY_PLATFORM | `"true"` | `["true","false"]` | If `"true"` include the `deploy` stage in the pipeline |
-| EXECUTE_BUILD | `"true"` | `["true","false"]` | If `"true"` include the `build` stage in the pipeline |
-| TEST_STAGE | `"true"` | `["true","false"]` | If `"true"` include the `test` stage in the pipeline. Can only be set to `"true"` if  `DEPLOY_PLATFORM="true"` |
+| `CI_EXEC_UNIT_TESTS` | Bool | `true` | Run unit tests |
+| `CI_EXEC_BUILD` | Bool | `true` | Build Docker images |
+| `CI_EXEC_SERVER_INSTALL` | Bool | `true` | Install server |
+| `CI_EXEC_DEPLOY` | Bool | `true` | Deploy platform |
+| `CI_EXEC_INTEGRATION_TESTS` | Bool | `true` | Run integration tests |
+| `CI_EXEC_DOCKER_PRUNE` | Bool | `false` | Clean Docker |
+| `REGISTRY_URL` | URL | - | Image registry |
+| `REGISTRY_USER` | String | - | Registry user |
+| `REGISTRY_TOKEN` | String | - | Registry token |
+| `DEPLOYMENT_INSTANCE_FQDN` | Host | - | Deployment target |
+| `DEPLOYMENT_INSTANCE_USER` | String | ubuntu | SSH user |
 
-## Pipelines
+---
 
-### Scheduled pipelines
+### TBD
 
-* All variables can be set in the UI.
-* If a variable is not specifically set the default values from the project will be taken.
+1. Configurable destruction delay -> [start_in does not support CI variable expansion](https://gitlab.com/gitlab-org/gitlab/-/work_items/363069)
 
-### Merge request pipelines
+## Run CI on custom VM
 
-* Merge request pipelines always use the default CI settings specified in the project settings.
-* Merge request pipelines always use the ***deployment-instance*** associated with `DEPLOYMENT_INSTANCE_NAME=kaapana_ci_gpu`.
+Run pipeline in the UI and specify: `DEPLOYMENT_INSTANCE_HOSTNAME`
 
-### Web pipelines
-
-* Web pipelines can be started via the UI.
-* All variables are configurable.
-* If a variable is not specifically set the default values from the project will be taken.
-
-## Artifacts and the build directory
-
-### Build directory
-
-* The kaapana repository is cloned into `CI_BUILD_DIR=/home/$USER/builds/$CI_COMMIT_SHORT_SHA`
-
-### Artifacts and log files
-
-* Artifacts such as log files are stored in `ARTIFACTS_DIR=/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA`.
-* When startin a new pipeline on the same commit, all files in this directory and subdirectories are removed.
-
-
-## Start a pipeline in the web-interface on your own openstack machine
-
-1. Just navigate to https://codebase.helmholtz.cloud/kaapana/kaapana/-/pipelines/new
-2. Select the branch you want to be build, deployed and tested
-3. Set `DEPLOYMENT_INSTANCE_IP` to the floating ip of your openstack instance
-4. Set `DEPLOYMENT_INSTANCE_NAME` to a random name - doesn't really matter.
-5. Set `OS_CREATE: false`
-6. Click on ***New pipeline***
-
-[Optional]: Finetune your pipeline with the variables: `BUILD_ARGUMENTS`, `DEPLOY_PLATFORM`, `TEST_STAGE`

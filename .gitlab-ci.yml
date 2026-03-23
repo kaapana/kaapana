@@ -1,351 +1,528 @@
 default:
-  interruptible: true
+  interruptible: false
 
 stages:
-- prepare
-- tests_and_docs
-- build
-- deploy_and_test
-- clean
+  - tests
+  - build
+  - deploy
+  - test
+  - clean
 
 workflow:
   rules:
-  - if: $CI_PIPELINE_SOURCE == "web"
-    when: always
-  - if: $CI_PIPELINE_SOURCE == "trigger"
-    when: always
-  - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"
-    when: always
-  - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "schedule"
-    when: always
-  - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TITLE !~ /^Draft:/
-    when: always
-  - when: never
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "trigger"
+      when: always
+    - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"
+      when: always
+    - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TITLE !~ /^Draft:/
+      when: always
+    - when: never
 
 variables:
-  ### PIPELINE
-  DOCKER_PRUNE: $DOCKER_PRUNE
-  DEPLOY_PLATFORM: $DEPLOY_PLATFORM
-  EXECUTE_BUILD: $EXECUTE_BUILD
-  TEST_STAGE: $TEST_STAGE
-  BUILD_ARGUMENTS: $BUILD_ARGUMENTS
+  # Execution control flags
+  CI_EXEC_UNIT_TESTS: $CI_EXEC_UNIT_TESTS
+  CI_EXEC_BUILD: $CI_EXEC_BUILD
+  CI_EXEC_SERVER_INSTALL: $CI_EXEC_SERVER_INSTALL
+  CI_EXEC_DEPLOY: $CI_EXEC_DEPLOY
+  CI_EXEC_INTEGRATION_TESTS: $CI_EXEC_INTEGRATION_TESTS
+  CI_EXEC_DOCKER_PRUNE: $CI_EXEC_DOCKER_PRUNE
+  CI_EXEC_BUILD_ARGUMENTS: $CI_EXEC_BUILD_ARGUMENTS
 
-  ### CONFIGURABLE
-  DOCKER_IO_USER: $DOCKER_IO_USER ### username for docker.io
-  DOCKER_IO_PASSWORD: $DOCKER_IO_PASSWORD ### password for docker.io
-  SLACK_BOT_TOKEN: $SLACK_BOT_TOKEN ### Oauth bot token of the slack app
-  SLACK_CHANNEL_ID: $SLACK_CHANNEL_ID ### Channel ID to inform about failing pipelines
-  USER: $USER ### username on the CI instance
-  HTTP_PROXY: $HTTP_PROXY
-  HTTPS_PROXY: $HTTPS_PROXY
-  SSH_FILE: $SSH_FILE ### Path to the ssh file used for connecting to the deployment instance
+  # Deployment instance configuration
+  DEPLOYMENT_INSTANCE_FQDN: $DEPLOYMENT_INSTANCE_FQDN
+  DEPLOYMENT_INSTANCE_VM_NAME: "ci-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"
+  DEPLOYMENT_INSTANCE_DOMAIN: "vms.dkfz.de"
+  DEPLOYMENT_INSTANCE_USER: $DEPLOYMENT_INSTANCE_USER
+  DEPLOYMENT_INSTANCE_SSH_PORT: $DEPLOYMENT_INSTANCE_SSH_PORT
+  DEPLOYMENT_INSTANCE_MEMORY: $DEPLOYMENT_INSTANCE_MEMORY
+  DEPLOYMENT_INSTANCE_CPU: $DEPLOYMENT_INSTANCE_CPU
+  DEPLOYMENT_INSTANCE_DISK: $DEPLOYMENT_INSTANCE_DISK
+  DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE: $DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE
+
+  # Registry and container credentials
   REGISTRY_TOKEN: $REGISTRY_TOKEN
   REGISTRY_URL: $REGISTRY_URL
-  KAAPANA_READTHEDOCS_TOKEN: $KAAPANA_READTHEDOCS_TOKEN
   REGISTRY_USER: $GITLAB_USER_LOGIN
+  DOCKER_IO_USER: $DOCKER_IO_USER
+  DOCKER_IO_PASSWORD: $DOCKER_IO_PASSWORD
 
-  ### FIXED VARIABLES
-  GIT_STRATEGY: "none" ### Predefined Gitlab CI variable; Has to be one of ["clone", "fetch", "none"]
-  GIT_CLONE_PATH: /home/ubuntu/builds/$CI_COMMIT_SHORT_SHA
-  KAAPANA_DIR: $GIT_CLONE_PATH
-  ARTIFACTS_DIR: /home/ubuntu/artifacts/$CI_COMMIT_SHORT_SHA/
-  REPO_DIR: $GIT_CLONE_PATH/ci
+  # Notification settings
+  SLACK_BOT_TOKEN: $SLACK_BOT_TOKEN
+  SLACK_CHANNEL_ID: $SLACK_CHANNEL_ID
+
+  # Network and SSH configuration
+  HTTP_PROXY: $HTTP_PROXY
+  HTTPS_PROXY: $HTTPS_PROXY
+  SSH_FILE: $SSH_FILE
+
+  # Orchestrator instance configuration
+  ORCHESTRATOR_INSTANCE_HARVESTER_KUBECONFIG: $ORCHESTRATOR_INSTANCE_HARVESTER_KUBECONFIG
+  ORCHESTRATOR_INSTANCE_PRIVATE_SSH_KEY: $ORCHESTRATOR_INSTANCE_PRIVATE_SSH_KEY
+  ORCHESTRATOR_INSTANCE_PUBLIC_SSH_KEY: $ORCHESTRATOR_INSTANCE_PUBLIC_SSH_KEY
+  ORCHESTRATOR_INSTANCE_PYTHON_VENV: $ORCHESTRATOR_INSTANCE_PYTHON_VENV
+
+  # Documentation
+  KAAPANA_READTHEDOCS_TOKEN: $KAAPANA_READTHEDOCS_TOKEN
+
+  # Fixed settings
   ANSIBLE_VERBOSITY: 0
+  GIT_STRATEGY: "none" # Don't clone repo on each job by default; individual jobs will override as needed
+  GIT_CLONE_PATH: "$CI_BUILDS_DIR/$CI_COMMIT_SHORT_SHA"
+  ARTIFACTS_DIR: "$CI_PROJECT_DIR/artifacts"
 
-#############################################
-############## PREPARE ######################
-#############################################
-prepare_build_pipeline:
-  stage: prepare
+##############################################
+# TESTS AND DOCS
+##############################################
+.test_template:
+  stage: tests
   tags:
-    - build-shared
-  before_script: # Necessary because otherwise HEAD is detached and the build fails
-  - |-
-    if [[ $CI_PIPELINE_SOURCE == "merge_request_event" ]]; then
-      git checkout -B $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME $CI_COMMIT_SHA
-    else
-      git checkout -B $CI_COMMIT_BRANCH $CI_COMMIT_SHA
-    fi
-  - git status
-  - git fetch --tags
+    - tests-runner
+  rules:
+    - if: '$CI_EXEC_UNIT_TESTS == "true"'
+      when: always
+    - when: never
   variables:
-    GIT_STRATEGY: clone
-  script:
-  - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
-  - mkdir -p "$KAAPANA_DIR"
-  - sudo rm -rf $ARTIFACTS_DIR && mkdir -p $ARTIFACTS_DIR
-  - export VERSION_TAG=$( if [[ $BUILD_ARGUMENTS == *"--latest"* ]]; then echo "0.0.0-latest"; else echo $( git describe ); fi)
-  - echo VERSION_TAG=$VERSION_TAG >> prepare.env
-  artifacts:
-    reports:
-      dotenv: prepare.env
-
-prepare_deploy_pipeline:
-  stage: prepare
-  tags:
-    - deploy-shared
-  needs:
-  - prepare_build_pipeline
-  variables:
-    GIT_STRATEGY: clone
-  script:
+    KAAPANA_DIR: "$GIT_CLONE_PATH"
+    # Due to parallel execution on the same machine, each job needs its own clone path.
+    GIT_CLONE_PATH: "$CI_BUILDS_DIR/$CI_COMMIT_SHORT_SHA/$CI_JOB_NAME-$CI_JOB_ID"
+    GIT_STRATEGY: fetch
+    GIT_DEPTH: 1
+    PYTHON_VENV_DIR: ".venv-$CI_JOB_NAME"
+  before_script:
     - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
-    - mkdir -p "$KAAPANA_DIR"
-    - sudo rm -rf $ARTIFACTS_DIR && mkdir -p $ARTIFACTS_DIR
-    - source /home/$USER/venv/bin/activate
-    - sudo $KAAPANA_DIR/kaapanactl.sh install --quiet 2>&1 | tee $ARTIFACTS_DIR/server_installation.log
-  artifacts:
-    reports:
-      dotenv: prepare.env
-  rules:
-  - if: $DEPLOY_PLATFORM == "false"
-    when: never
-  - when: on_success
-  resource_group: "deploy-$CI_RUNNER_DESCRIPTION"
-  environment: "deploy-$CI_RUNNER_DESCRIPTION"
-  retry: 1
+    - python3 -m venv "$PYTHON_VENV_DIR"
+    - source "$PYTHON_VENV_DIR/bin/activate"
 
-undeploy_platform:
-  stage: prepare
-  tags:
-    - deploy-shared
-  needs:
-    - prepare_deploy_pipeline
-  variables:
-    GIT_STRATEGY: none
-  script:
-    - EXISTING_DEPLOYMENTS=$(helm ls -n admin -q || true)
-
-    - |
-      if [ -n "$EXISTING_DEPLOYMENTS" ]; then
-        set +e
-        "$KAAPANA_DIR/kaapanactl.sh" deploy --undeploy --quiet \
-          > $ARTIFACTS_DIR/undeploy.stdout \
-          2> $ARTIFACTS_DIR/undeploy.stderr
-        RC=$?
-        set -e
-
-        {
-          echo "Undeployment Output"
-          echo "==================="
-          echo "STDOUT:"; cat "$ARTIFACTS_DIR/undeploy.stdout"
-          echo
-          echo "STDERR:"; cat "$ARTIFACTS_DIR/undeploy.stderr"
-          echo
-          echo "Return Code: $RC"
-        } > "$ARTIFACTS_DIR/undeploy.log"
-
-        [ "$RC" -ne 0 ] && exit 1
-      fi
-
-    - sudo rm -rf /home/kaapana/
-
-  artifacts:
-    paths:
-      - $ARTIFACTS_DIR/undeploy.log
-
-  rules:
-    - if: $DEPLOY_PLATFORM == "false"
-      when: never
-    - when: on_success
-
-  resource_group: "deploy-$CI_RUNNER_DESCRIPTION"
-  environment: "undeploy-$CI_RUNNER_DESCRIPTION"
-  retry: 1
-
-
-#############################################
-############## TESTS AND DOCS ###############
-#############################################
+##############################################
+# Unit Tests: General Platform Tests
+##############################################
 unit_tests:
-  stage: tests_and_docs
-  tags:
-    - build-shared
-  needs:
-  # Needs KAAPANA_DIR
-  - prepare_build_pipeline
+  extends: .test_template
   script:
-  - python3 -m virtualenv $KAAPANA_DIR/test/.venv
-  - source $KAAPANA_DIR/test/.venv/bin/activate
-  - pip install -r $KAAPANA_DIR/tests/requirements.txt
-  - pytest $KAAPANA_DIR/tests/ --junitxml=unittest_report.xml
+    - pip install -r $KAAPANA_DIR/tests/requirements.txt
+    - pytest $KAAPANA_DIR/tests/ --junitxml=unittest_report.xml
   artifacts:
-    when: always
-    paths:
-    - unittest_report.xml
     reports:
       junit:
         - unittest_report.xml
 
+##############################################
+# Task API Tests
+##############################################
 task_api_tests:
-  stage: tests_and_docs
-  tags:
-    - build-shared
-  needs:
-  # Needs KAAPANA_DIR
-  - prepare_build_pipeline
+  extends: .test_template
   script:
-  - python3 -m virtualenv $KAAPANA_DIR/lib/.venv
-  - source $KAAPANA_DIR/lib/.venv/bin/activate
-  - python3 -m pip install build pytest
-  - python3 -m build $KAAPANA_DIR/lib/task_api
-  - python3 -m pip install $KAAPANA_DIR/lib/task_api/dist/task_api-1.0.0.tar.gz
-  - pytest $KAAPANA_DIR/lib/task_api/task_api --junitxml=task_api_report.xml
+    - pip install build pytest
+    - python3 -m build $KAAPANA_DIR/lib/task_api
+    - pip install $KAAPANA_DIR/lib/task_api/dist/task_api-*.tar.gz
+    - pytest $KAAPANA_DIR/lib/task_api/task_api --junitxml=task_api_report.xml
   artifacts:
-    when: always
-    paths:
-    - task_api_report.xml
     reports:
       junit:
         - task_api_report.xml
 
+##############################################
+# Workflow API Tests
+##############################################
 workflow_api_tests:
-  stage: tests_and_docs
-  tags:
-    - build-shared
-  needs:
-    # Needs KAAPANA_DIR
-  - prepare_build_pipeline
+  extends: .test_template
   script:
-  - cd $KAAPANA_DIR/services/base/workflow-api/docker/files/tests/unit
-  - bash run_tests.sh
+    - cd $KAAPANA_DIR/services/base/workflow-api/docker/files/tests/unit
+    - pip install -r requirements.txt
+    - pytest . --junitxml=workflow_api_report.xml
   artifacts:
-    when: always
-    paths:
-      - workflow_api_report.xml
     reports:
       junit:
         - workflow_api_report.xml
 
-build_documentation:  
-  stage: tests_and_docs
+##############################################
+# Documentation Build
+##############################################
+build_documentation:
+  stage: tests
+  extends: .test_template
   tags:
-    - build-shared
-  needs:
-  # Needs: KAAPANA_DIR
-  - prepare_build_pipeline
+    - tests-runner
   script:
-  # VENV created during the setup of the build VM
-  - source /home/$USER/venv/bin/activate
-  - cd $REPO_DIR/ci-code/build
-  - bash build_documentation.sh
-  - if [[ $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop" ]]; then bash check_readthedocs.sh; fi
-  rules:
-  - if: $EXECUTE_BUILD == "false"
-    when: never
-  - when: on_success
-  # Artifacts uploaded in clean stage
+    - cd $KAAPANA_DIR/docs
+    - pip install -r requirements.txt
+    - cd $KAAPANA_DIR/docs
+    - make html 2>&1 | tee "build_documentation_html.log"
+    - |
+      if [[ $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop" ]]; then
+        cd $KAAPANA_DIR/ci/ci-code/build
+        bash check_readthedocs.sh
+      fi
+  artifacts:
+    expose_as: "Documentation"
+    paths:
+      - $KAAPANA_DIR/ci/ci-code/build/public/docs/
+      - "$build_documentation_html.log"
 
-#############################################
-############## BUILD ########################
-#############################################
+##############################################
+# BUILD
+##############################################
 build_packages:
   stage: build
+  dependencies: []
   tags:
-    - build-dedicated
-  needs:
-  - prepare_build_pipeline
-  timeout: 2 hours
-  script:
-  - source /home/$USER/venv/bin/activate
-  - if [[ $DOCKER_PRUNE == "true" ]]; then docker system prune --all --volumes -f; fi
-  - if [[ $EXECUTE_BUILD == "true" ]]; then bash $REPO_DIR/ci-code/build/build.sh; fi
-  retry: 1
-  # Artifacts uploaded in clean stage
-  
-#############################################
-############## DEPLOY #######################
-#############################################
-deploy_and_test:
-  stage: deploy_and_test
-  needs:
-  - prepare_build_pipeline
-  - prepare_deploy_pipeline    
-  - build_packages
+    - build-runner
   variables:
-    VERSION_TAG: "$VERSION_TAG"
-  trigger:
-    include:
-      - local: 'ci/ci-code/deploy/.deploy_stage.yaml'
-    strategy: depend
-    forward:
-      pipeline_variables: true
-      yaml_variables: true
+    GIT_STRATEGY: clone
+    PYTHON_VENV_DIR: ".venv-build"
+  timeout: 2 hours
   rules:
-  - if: $DEPLOY_PLATFORM == "false"
-    when: never
-  - when: on_success
-  resource_group: "deploy-$CI_RUNNER_DESCRIPTION"
-  environment: "deploy-$CI_RUNNER_DESCRIPTION"
-  # Artifacts uploaded in clean stage
+    - if: '$CI_EXEC_BUILD == "true"'
+      when: always
+    - when: never
+  before_script:
+    - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
+    - python3 -m venv "$PYTHON_VENV_DIR"
+    - source "$PYTHON_VENV_DIR/bin/activate"
+    - pip install --upgrade pip -r build-scripts/requirements.txt
+    - |-
+      if [[ $CI_PIPELINE_SOURCE == "merge_request_event" ]]; then
+        git checkout -B $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME $CI_COMMIT_SHA
+      else
+        git checkout -B $CI_COMMIT_BRANCH $CI_COMMIT_SHA
+      fi
+    - git status
+    - git fetch --tags
 
-#############################################
-############## CLEAN ########################
-#############################################
+  script:
+    - |
+      [[ $CI_EXEC_DOCKER_PRUNE == "true" ]] && docker system prune --all --volumes -f
+
+    # Disable exit-on-error for scan/check modes
+    - |
+      if [[ "$CI_EXEC_BUILD_ARGUMENTS" =~ (-vs|--vulnerability-scan|-cc|--configuration-check) ]]; then
+        export EXIT_ON_ERROR="false"
+      fi
+
+    # Docker logins (set +x to hide credentials from job log)
+    - |
+      set +x
+      echo "$REGISTRY_TOKEN" | docker login "$REGISTRY_URL" -u "$REGISTRY_USER" --password-stdin
+      echo "$DOCKER_IO_PASSWORD" | docker login docker.io -u "$DOCKER_IO_USER" --password-stdin
+      export REGISTRY_PW="$REGISTRY_TOKEN"
+
+    # Run build, capturing exit code so artifacts are always collected
+    - python3 build-scripts/cli.py --default-registry "$REGISTRY_URL" $CI_EXEC_BUILD_ARGUMENTS
+
+  artifacts:
+    name: "build_$CI_COMMIT_SHORT_SHA"
+    when: always
+    paths:
+      - "$CI_PROJECT_DIR/build/build.log"
+      - "$CI_PROJECT_DIR/build/security-reports/"
+
+##############################################
+# DEPLOY
+##############################################
+
+.remote_execution_template:
+  tags:
+    - deploy-runner
+  before_script:
+    - export ARTIFACTS_DIR="$ARTIFACTS_DIR"
+    - source "$ORCHESTRATOR_INSTANCE_PYTHON_VENV/bin/activate"
+    - export ANSIBLE_HOST_KEY_CHECKING=False
+    - mkdir -p $ARTIFACTS_DIR
+    - VERSION_TAG=$(git describe --tags --always --dirty)
+    - |
+      if [[ "$CI_EXEC_BUILD_ARGUMENTS" =~ (--latest) && "$VERSION_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+        BASE_TAG=$(echo "$VERSION_TAG" | sed -E 's/-[0-9]+-g[0-9a-f]+.*//')
+        VERSION_TAG="${BASE_TAG}-latest"
+      fi
+    - export VERSION_TAG
+
+##############################################
+
+prepare_deployment:
+  # Clone repo + Optional: Provision VM
+  extends: .remote_execution_template
+  stage: deploy
+  variables:
+    GIT_STRATEGY: "clone"
+  script:
+    - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
+    - |
+      if [[ "$CI_EXEC_DEPLOY" == "true" && -z "$DEPLOYMENT_INSTANCE_FQDN" ]]; then
+        if [[ "$DEPLOYMENT_INSTANCE_PROVISIONER" == "openstack" ]]; then
+          ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/provision_openstack_vm.yaml"
+        else
+          ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/provision_harvester_vm.yaml"
+        fi
+      else
+        echo "Skipping VM provisioning and using existing deployment target: $DEPLOYMENT_INSTANCE_FQDN"
+        mkdir -p artifacts
+        echo "VM_FQDN=$DEPLOYMENT_INSTANCE_FQDN" > artifacts/deployment.env
+        echo "VM_USER=$DEPLOYMENT_INSTANCE_USER" >> artifacts/deployment.env
+      fi
+
+  artifacts:
+    reports:
+      dotenv: artifacts/deployment.env
+
+##############################################
+
+server_installation:
+  extends: .remote_execution_template
+  stage: deploy
+  rules:
+    - if: '$CI_EXEC_SERVER_INSTALL == "true"'
+      when: always
+    - when: never
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+  script:
+    # TODO remove check after completing the debugging of deployment issues, as this should never happen due to the rules and needs configuration
+    - |
+      if [ -z "$VM_FQDN" ]; then
+        echo "ERROR: VM_FQDN is empty. No deployment target."
+        exit 1
+      fi
+    - |
+      ansible-playbook "$CI_PROJECT_DIR/ci/ci-code/deploy/server_installation.yaml" \
+        -i "$VM_FQDN," \
+        -u "$VM_USER" \
+        --private-key "$ORCHESTRATOR_INSTANCE_PRIVATE_SSH_KEY"
+  artifacts:
+    paths:
+      - "artifacts/server_installation.log"
+    when: always
+    access: developer
+
+##############################################
+
+platform_deployment:
+  extends: .remote_execution_template
+  stage: deploy
+  needs:
+    - server_installation
+    - job: prepare_deployment
+      artifacts: true
+  script:
+    - |
+      if [ -z "$VM_FQDN" ]; then
+        echo "ERROR: VM_FQDN is empty. No deployment target."
+        exit 1
+      fi
+    - |
+      ansible-playbook "$CI_PROJECT_DIR/ci/ci-code/deploy/deploy_platform.yaml" \
+        -i "$VM_FQDN," \
+        -u "$VM_USER" \
+        --private-key "$ORCHESTRATOR_INSTANCE_PRIVATE_SSH_KEY"
+
+    - echo "Kaapana Platform Deployed Successfully"
+    - echo "Access the platform at https://$VM_FQDN"
+    - |
+      echo "<html>
+      <body>
+      <h1>Kaapana Platform Deployed</h1>
+      <p>Access it here: <a href=\"https://$VM_FQDN\">https://$VM_FQDN</a></p>
+      </body>
+      </html>" > artifacts/deployment.html
+  rules:
+    - if: '$CI_EXEC_DEPLOY == "true"'
+      when: always
+    - when: never
+  artifacts:
+    paths:
+      - "artifacts/deployment.log"
+      - "artifacts/system_check.log"
+      - "artifacts/deployment.html"
+    when: always
+    expose_as: "Kaapana Deployment Report"
+
+##############################################
+# INTEGRATION TESTS
+##############################################
+setup_integration_tests:
+  extends: .remote_execution_template
+  stage: test
+  tags:
+    - deploy-runner
+  variables:
+    VENV_NAME: "$CI_PROJECT_DIR/venv"
+    INTEGRATION_TESTS: "$CI_PROJECT_DIR/ci/ci-code/integration_tests"
+
+  rules:
+    - if: '$CI_EXEC_INTEGRATION_TESTS == "true"'
+      when: always
+    - when: never
+  script:
+    - |
+      ansible-playbook "$CI_PROJECT_DIR/ci/ci-code/integration_tests/remote_execution/setup_integration_tests.yaml" \
+        -i "$VM_FQDN," \
+        -u "$VM_USER" \
+        --private-key "$ORCHESTRATOR_INSTANCE_PRIVATE_SSH_KEY"
+  artifacts:
+    reports:
+      dotenv:
+        - artifacts/integration_test_setup.env
+    access: developer
+
+##############################################
+# Local pytest execution template
+##############################################
+.integration_test_local:
+  extends: .remote_execution_template
+  stage: test
+  rules:
+    - if: '$CI_EXEC_INTEGRATION_TESTS == "true"'
+      when: always
+    - when: never
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+    - job: setup_integration_tests
+      artifacts: true
+  variables:
+    VENV_NAME: "$CI_PROJECT_DIR/venv"
+    PYTEST_ARGS: "--client-secret $CLIENT_SECRET --host $VM_FQDN --allowed-ports 22,80,443 --download-directory /home/ubuntu/downloaded_test_data"
+  script:
+    - |
+      source artifacts/deployment.env
+      source "$VENV_NAME/bin/activate"
+      python3 -m pytest -n auto -s "$CI_PROJECT_DIR/$PYTEST_FILE" $PYTEST_ARGS \
+        --junitxml="$ARTIFACTS_DIR/$JUNIT_FILE" | tee "$ARTIFACTS_DIR/$LOG_FILE"
+  artifacts:
+    paths:
+      - "$ARTIFACTS_DIR/$JUNIT_FILE"
+      - "$ARTIFACTS_DIR/$LOG_FILE"
+    reports:
+      junit: ["$ARTIFACTS_DIR/$JUNIT_FILE"]
+
+##############################################
+
+scan_ports:
+  extends: .integration_test_local
+  variables:
+    PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_scan_ports.py"
+    JUNIT_FILE: "scan_ports.xml"
+    LOG_FILE: "scan_ports.log"
+
+first_login:
+  extends: .integration_test_local
+  variables:
+    PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_first_login.py"
+    JUNIT_FILE: "first_login.xml"
+    LOG_FILE: "first_login.log"
+
+install_extensions:
+  extends: .integration_test_local
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+    - job: setup_integration_tests
+      artifacts: true
+    - job: first_login
+      artifacts: true
+  variables:
+    PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_install_extensions.py"
+    JUNIT_FILE: "install_extensions.xml"
+    LOG_FILE: "install_extensions.log"
+  retry: 1
+
+send_data:
+  extends: .integration_test_local
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+    - job: setup_integration_tests
+      artifacts: true
+    - job: first_login
+      artifacts: true
+  variables:
+    PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_send_data.py"
+    JUNIT_FILE: "send_data.xml"
+    LOG_FILE: "send_data.log"
+  retry: 1
+
+run_workflows:
+  extends: .integration_test_local
+  allow_failure: true
+  timeout: 2 hours
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+    - job: setup_integration_tests
+      artifacts: true
+    - job: first_login
+      artifacts: true
+    - job: send_data
+      artifacts: true
+    - job: install_extensions
+      artifacts: true
+  variables:
+    PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_run_workflows.py"
+    JUNIT_FILE: "run_workflow.xml"
+    LOG_FILE: "run_workflow.log"
+
+# #############################################
+# ############## CLEAN ########################
+# #############################################
+destroy_deployment:
+  stage: clean
+  interruptible: false
+  rules:
+    - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN == ""'
+      when: delayed
+      start_in: 4 hours
+    - when: never
+  needs:
+  - job: prepare_deployment
+    optional: true
+  tags:
+    - deploy-runner
+  before_script:
+    - source "$ORCHESTRATOR_INSTANCE_PYTHON_VENV/bin/activate"
+  script:
+    - |
+      if [[ "$DEPLOYMENT_INSTANCE_PROVISIONER" == "openstack" ]]; then
+        echo "Deleting VM with OpenStack"
+        ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/delete_openstack_vm.yaml"
+      else
+        echo "Deleting VM with Harvester"
+        ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/delete_harvester_vm.yaml"
+      fi
+
 if_ci_failing:
   stage: clean
   tags:
     - deploy-shared
+  before_script:
+    - source "$ORCHESTRATOR_INSTANCE_PYTHON_VENV/bin/activate"
   script:
-    - source /home/$USER/venv/bin/activate
-    - cd $REPO_DIR/ci-code/clean
+    - cd $CI_PROJECT_DIR/ci-code/clean
     - python3 create_ticket_if_ci_failed.py
     - python3 notify_slack.py
   rules:
-  - if: $CI_COMMIT_BRANCH == "develop"
-    when: on_failure
-  - if: $CI_COMMIT_BRANCH == "master"
-    when: on_failure
-  - when: never
-  allow_failure: true
+    - if: $CI_COMMIT_BRANCH == "develop"
+      when: on_failure
 
 security:
   stage: clean
+  needs:
+    - job: build_packages
+      artifacts: true
   tags:
-    - build-shared
+    - build-runner
   script:
-    - cd $REPO_DIR/ci-code/clean
-    - export GIT_DESCRIBE=$(git describe)
-    - source /home/$USER/venv/bin/activate
-    - python3 create_vulnerability_report.py --output html $KAAPANA_DIR/build/security-reports/${GIT_DESCRIBE}/${GIT_DESCRIBE}_cves.json vulnerability_report.html
+    - cd $CI_PROJECT_DIR/ci/ci-code/clean
+    - python3 create_vulnerability_report.py --output html $CI_PROJECT_DIR/build/security-reports/${VERSION_TAG}/${VERSION_TAG}_cves.json vulnerability_report.html
     - echo "Access the report at https://kaapana.pages.hzdr.de/-/kaapana/-/jobs/${CI_JOB_ID}/artifacts/ci/ci-code/clean/vulnerability_report.html"
   artifacts:
     paths:
       - ci/ci-code/clean/vulnerability_report.html
   allow_failure: true
   rules:
-  - if: $BUILD_ARGUMENTS =~ /.*--vulnerability-scan.*/
-    when: always
-  - when: never
-
-logs_build:
-  stage: clean
-  tags:
-    - build-shared
-  needs:
-    - build_packages
-    - prepare_build_pipeline
-  script:
-    - mkdir -p $CI_PROJECT_DIR/artifacts
-    - cp -r $ARTIFACTS_DIR/ $CI_PROJECT_DIR/artifacts/ || true
-  artifacts:
-    name: build
-    paths:
-    - artifacts/
-  when: always
-
-logs_deploy:
-  stage: clean
-  tags:
-    - deploy-shared
-  needs:
-    - deploy_and_test
-    - prepare_deploy_pipeline
-  script:
-    - mkdir -p $CI_PROJECT_DIR/artifacts
-    - cp -r $ARTIFACTS_DIR/ $CI_PROJECT_DIR/artifacts/ || true
-  artifacts:
-    name: deploy
-    paths:
-    - artifacts/
-  when: always
+    - if: $CI_EXEC_BUILD_ARGUMENTS =~ /--vulnerability-scan/
+      when: always
+    - when: never

@@ -1,0 +1,124 @@
+---
+- name: Provision deployment VM
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    vm_name: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_VM_NAME') }}"
+    vm_domain: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DOMAIN') }}"
+    vm_template: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_OS_TEMPLATE') }}"
+    cpu_cores: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_CPU') }}"
+    memory_guest: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_MEMORY') }}"
+    disk_size: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DISK') }}"
+    harvester_namespace: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE') }}"
+    harvester_kubeconfig: "{{ lookup('env', 'ORCHESTRATOR_INSTANCE_HARVESTER_KUBECONFIG') }}"
+    ssh_public_key: "{{ lookup('env', 'ORCHESTRATOR_INSTANCE_PUBLIC_SSH_KEY') }}"
+    ssh_private_key: "{{ lookup('env', 'ORCHESTRATOR_INSTANCE_PRIVATE_SSH_KEY') }}"
+    artifacts_dir: "{{ lookup('env', 'ARTIFACTS_DIR') }}"
+
+    # Retry VM provisioning on job retry
+    force_recreate: true
+
+    vm_user_map:
+      ubuntu24: ubuntu
+      ubuntu22: ubuntu
+      almalinux10: almalinux
+  tasks:
+    - name: Check if VM already exists
+      ansible.builtin.command:
+        cmd: kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} get vm {{ vm_name }}
+      register: vm_check
+      failed_when: false
+      changed_when: false
+
+    - name: force_recreate VM if requested
+      when:
+        - vm_check.rc == 0
+        - force_recreate | bool
+      block:
+        - name: Delete VM
+          ansible.builtin.command:
+            cmd: kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} delete vm {{ vm_name }}
+
+        - name: Wait for VM to be fully deleted
+          ansible.builtin.command:
+            cmd: kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} get vm {{ vm_name }}
+          register: delete_check
+          until: delete_check.rc != 0
+          retries: 60
+          delay: 10
+          failed_when: false
+          changed_when: false
+
+    - name: Abort if VM exists and force_recreate not requested
+      ansible.builtin.fail:
+        msg: "VM '{{ vm_name }}' already exists. Use force_recreate=true to remove it."
+      when:
+        - vm_check.rc == 0
+        - not force_recreate | bool
+
+    - name: Read SSH public key
+      ansible.builtin.slurp:
+        src: "{{ ssh_public_key }}"
+      register: ssh_pub_key
+      no_log: true # <-- hide SSH key
+
+    - name: Render Helm chart for VM
+      # TODO Make deploy_user dependent on the chosen OS
+      ansible.builtin.command:
+        cmd: >
+          helm template {{ vm_name }}
+          {{ playbook_dir }}/vm-templates/{{ vm_template }}
+          --namespace {{ harvester_namespace }}
+          --set global.vmName={{ vm_name }}
+          --set global.namespace={{ harvester_namespace }}
+          --set global.cpuCores={{ cpu_cores }}
+          --set global.memoryGuest={{ memory_guest }}
+          --set global.diskSize={{ disk_size }}
+          --set-string global.publicKey="{{ ssh_pub_key['content'] | b64decode | trim }}"
+      register: helm_output
+      no_log: true
+
+    - name: Apply VM manifest
+      ansible.builtin.command:
+        cmd: kubectl --kubeconfig {{ harvester_kubeconfig }} apply -f -
+      args:
+        stdin: "{{ helm_output.stdout }}"
+
+    - name: Set VM FQDN fact
+      ansible.builtin.set_fact:
+        vm_fqdn: "{{ vm_name }}.{{ vm_domain }}"
+
+    - name: Determine deploy user from VM template
+      ansible.builtin.set_fact:
+        vm_user: "{{ vm_user_map[vm_template] }}"
+
+    - name: Output VM Info
+      ansible.builtin.debug:
+        msg:
+          vm_name: "{{ vm_name }}"
+          vm_user: "{{ vm_user }}"
+          vm_fqdn: "{{ vm_fqdn }}"
+
+    - name: Wait until SSH login works
+      ansible.builtin.command:
+        cmd: >
+          ssh -o StrictHostKeyChecking=no
+          -o UserKnownHostsFile=/dev/null
+          -o ConnectTimeout=5
+          -i {{ ssh_private_key }}
+          {{ vm_user }}@{{ vm_fqdn }} echo ready
+      register: ssh_check
+      retries: 60
+      delay: 10
+      until: ssh_check.rc == 0
+      changed_when: false
+
+    - name: Write deployment env file
+      ansible.builtin.copy:
+        content: |
+          VM_FQDN={{ vm_fqdn }}
+          VM_USER={{ vm_user }}
+        dest: "{{ artifacts_dir }}/deployment.env"

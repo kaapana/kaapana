@@ -1,0 +1,268 @@
+---
+# ============================================================================
+# Provision and Configure Kaapana Build VMs on Harvester
+# ============================================================================
+#
+# Usage:
+#   export GITLAB_API_TOKEN=...
+#   export GITLAB_PROJECT_ID=...
+#   export GITLAB_URL=...
+#   export GITLAB_RUNNER_REGISTRATION_TOKEN=...
+#   export SSH_PUBLIC_KEY=~/.ssh/kaapana.pub
+#   export SSH_PRIVATE_KEY=~/.ssh/kaapana.pem
+#   export HARVESTER_KUBECONFIG=~/.kube/harvester.yaml
+#
+#   ansible-playbook create-build-instances.yaml -i inventory.yaml
+#   ansible-playbook create-build-instances.yaml -i inventory.yaml -e force_recreate=true
+#
+# ============================================================================
+
+- name: Validate required variables
+  hosts: localhost
+  gather_facts: false
+  connection: local
+
+  tasks:
+    - name: Validate required environment variables
+      ansible.builtin.assert:
+        that:
+          - lookup('env', item) | default('', true) | length > 0
+        fail_msg: "Required variable {{ item }} is missing. Set it as environment variable."
+      loop: "{{ required_env_vars }}"
+      run_once: true
+
+- name: Create Build VMs on Harvester
+  hosts: build_instances
+  gather_facts: false
+  connection: local
+
+  vars:
+    vm_domain: vms.dkfz.de
+
+  tasks:
+    - name: Construct VM hostname
+      ansible.builtin.set_fact:
+        vm_fqdn: "{{ vm_name }}.{{ vm_domain }}"
+
+    - name: Check if VM already exists
+      ansible.builtin.command:
+        cmd: kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} get vm {{ vm_name }}
+      register: vm_check
+      failed_when: false
+      changed_when: false
+
+    - name: Delete and recreate VM if force_recreate is true
+      when: force_recreate | default(false) | bool
+      block:
+        - name: Delete the VM
+          when: vm_check.rc == 0
+          ansible.builtin.command:
+            cmd: kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} delete vm {{ vm_name }}
+
+        - name: Delete PVCs belonging to the VM (if present)
+          when: vm_check.rc == 0
+          ansible.builtin.shell: |
+            set -e
+            PVCs=$(kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} get pvc -o name | grep "{{ vm_name }}" || true)
+            if [ -n "$PVCs" ]; then
+              kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} delete $PVCs
+            fi
+          args:
+            executable: /bin/bash
+
+        - name: Delete secrets and configmaps related to cloud-init or VM (best-effort)
+          when: vm_check.rc == 0
+          ansible.builtin.shell: |
+            set -e
+            SECRETS=$(kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} get secret -o name {{ vm_name }}-cloudinit || true)
+            if [ -n "$SECRETS" ]; then
+              kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} delete $SECRETS
+            fi
+          args:
+            executable: /bin/bash
+
+        - name: Wait for VM to be fully deleted
+          when: vm_check.rc == 0
+          ansible.builtin.command:
+            cmd: kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} get vm {{ vm_name }}
+          register: delete_check
+          until: delete_check.rc != 0
+          retries: 60
+          delay: 10
+          failed_when: false
+          changed_when: false
+
+    - name: Create VM
+      when: force_recreate | default(false) | bool or vm_check.rc != 0
+      block:
+        - name: Read SSH public key content
+          ansible.builtin.slurp:
+            src: "{{ lookup('env', 'SSH_PUBLIC_KEY') }}"
+          register: public_key_content
+
+        - name: Create Helm values file for VM
+          ansible.builtin.copy:
+            content: |
+              global:
+                vmName: {{ vm_name }}
+                namespace: {{ harvester_namespace }}
+                cpuCores: {{ cpu_cores }}
+                memoryGuest: {{ memory_guest }}
+                diskSize: {{ disk_size }}
+                publicKey: "{{ public_key_content['content'] | b64decode | trim }}"
+            dest: "/tmp/{{ vm_name }}-values.yaml"
+
+        - name: Render Helm chart to YAML
+          ansible.builtin.command:
+            cmd: >
+              helm template {{ vm_name }}
+              ./vm-templates/ubuntu24
+              --namespace {{ harvester_namespace }}
+              --values /tmp/{{ vm_name }}-values.yaml
+          register: helm_output
+
+        - name: Save rendered YAML
+          ansible.builtin.copy:
+            content: "{{ helm_output.stdout }}"
+            dest: "/tmp/{{ vm_name }}-rendered.yaml"
+
+        - name: Apply rendered YAML to Harvester
+          ansible.builtin.command:
+            cmd: kubectl --kubeconfig {{ harvester_kubeconfig }} apply -f /tmp/{{ vm_name }}-rendered.yaml
+
+    - name: Wait for DNS to resolve
+      ansible.builtin.command:
+        cmd: getent hosts {{ vm_fqdn }}
+      register: dns_check
+      until: dns_check.rc == 0
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: Wait for SSH
+      ansible.builtin.wait_for:
+        host: "{{ vm_fqdn }}"
+        port: 22
+        timeout: 300
+        delay: 10
+
+    - name: Display VM info
+      ansible.builtin.debug:
+        msg: "BUILD instance {{ vm_name }} is running at {{ vm_fqdn }}"
+
+    - name: Collect VM information for registration
+      ansible.builtin.set_fact:
+        vm_info:
+          inventory_hostname: "{{ inventory_hostname }}"
+          vm_fqdn: "{{ vm_fqdn }}"
+          vm_name: "{{ vm_name }}"
+
+    - name: Add all hosts to provisioned_vms group
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        ansible_host: "{{ hostvars[item].vm_fqdn }}"
+        ansible_user: ubuntu # TODO make possible to use different user for almalinux
+        ansible_ssh_private_key_file: "{{ ssh_private_key }}"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+        groups: "provisioned_vms"
+      loop: "{{ ansible_play_hosts }}"
+      run_once: true
+
+- name: Configure Build VMs
+  hosts: provisioned_vms
+  gather_facts: false
+  remote_user: ubuntu
+  become: yes
+
+  pre_tasks:
+    - name: Use system Python for initial setup (before venv exists)
+      ansible.builtin.set_fact:
+        ansible_python_interpreter: /usr/bin/python3
+
+    - name: Gather facts after SSH is available
+      ansible.builtin.setup:
+
+  tasks:
+    - name: Upgrade system
+      apt:
+        update_cache: yes
+        upgrade: yes
+      become: yes
+
+    - name: Install required system packages
+      become: yes
+      ansible.builtin.apt:
+        state: latest
+        pkg:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - git
+          - gnupg
+          - jq
+          - lsb-release
+          - nmap
+          - openssh-client
+          - python3
+          - python3-pip
+          - python3-venv
+          - software-properties-common
+          - sudo
+          - wget
+
+    - name: Check if Docker is installed
+      ansible.builtin.command:
+        cmd: which docker
+      register: docker_check
+      failed_when: false
+      changed_when: false
+
+    - name: Install Docker
+      when: docker_check.rc != 0
+      import_tasks: target/install-docker.yaml
+
+    - name: Check if Helm is installed
+      ansible.builtin.command:
+        cmd: which helm
+      register: helm_check
+      failed_when: false
+      changed_when: false
+
+    - name: Install Helm
+      when: helm_check.rc != 0
+      import_tasks: target/install-helm.yaml
+
+    - name: Copy requirements.txt to VM
+      ansible.builtin.copy:
+        src: target/requirements.txt
+        dest: "/home/{{ ansible_user }}/requirements.txt"
+        mode: "0644"
+
+    - name: Install Python requirements in venv
+      ansible.builtin.pip:
+        requirements: "/home/{{ ansible_user }}/requirements.txt"
+        virtualenv: "{{ venv_path }}"
+        virtualenv_command: python3 -m venv
+
+    - name: Switch to using remote venv Python for remaining tasks
+      ansible.builtin.set_fact:
+        ansible_python_interpreter: "{{ venv_path }}/bin/python3"
+
+    - name: Configure GitLab Runner (Build)
+      include_tasks: target/configure-gitlab-runner.yaml
+      vars:
+        runner_description: "build-runner-{{ vm_name }}"
+        runner_tags: ["build-runner"]
+        runner_limit: 1
+        runner_concurrency: 2
+        runner_global_concurrency: 1
+
+
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "BUILD instance setup complete!"
+          - "Instance: {{ inventory_hostname }} ({{ ansible_host }})"
+          - "Runner: build-runner-{{ vm_name }}"
+          - "=========================================="

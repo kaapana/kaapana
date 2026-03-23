@@ -24,4 +24,7 @@ six==1.17.0
 urllib3==2.6.3
 websocket-client==1.9.0
 slack_sdk==3.39.0
-python3-nmap>=1.9.1
+python3-nmap==1.9.1
+python-gitlab==7.1.0
+tomli_w==1.2.0
+tomli==2.4.0

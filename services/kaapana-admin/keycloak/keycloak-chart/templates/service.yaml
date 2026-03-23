@@ -46,13 +46,20 @@ kind: Ingress
 metadata:
   name: keycloak-ingress-ip
   namespace: "{{  .Values.global.admin_namespace  }}"
-  annotations:
+  annotations:  
+    {{- if or (eq .Values.global.external_ingress "traefik") (not .Values.global.external_ingress) }}
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    
+    {{- end }}
+    {{- if eq .Values.global.external_ingress "nginx" }}
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    {{- end }}
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
+  {{- if and .Values.global.external_ingress (ne .Values.global.external_ingress "") }}
+  ingressClassName: {{ .Values.global.external_ingress | quote }}
+  {{- end }}
   rules:
-  - host: 
+  - host: {{ .Values.global.hostname }}
     http:
       paths:
       - path: /auth

@@ -52,7 +52,15 @@ data:
 
     # Additional flags
     custom_templates_dir = "/usr/share/oauth2-proxy"
-    upstreams = ["https://traefik-{{ .Values.global.instance_uid | default 0 }}.{{ .Values.global.helm_namespace }}.svc:{{ .Values.global.https_port }}"]
+    {{- if .Values.global.managed_kubernetes }}
+    upstreams = [
+      "https://traefik-{{ .Values.global.instance_uid | default 0 }}.{{ .Values.global.helm_namespace }}.svc:9000"
+    ]
+    {{- else }}
+    upstreams = [
+      "https://traefik-{{ .Values.global.instance_uid | default 0 }}.{{ .Values.global.helm_namespace }}.svc:{{ .Values.global.https_port }}"
+    ]
+    {{- end }}
     skip_provider_button = true
     skip_oidc_discovery = true
     skip_jwt_bearer_tokens = true

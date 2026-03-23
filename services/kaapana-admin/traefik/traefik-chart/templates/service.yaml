@@ -6,9 +6,14 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - protocol: TCP
-      name: websecure
+    - name: websecure
+  {{- if .Values.global.managed_kubernetes }}
+      port: 9000        # what oauth2-proxy connects to
+      targetPort: 9000
+  {{- else }}
       port: {{ .Values.global.https_port }}
+      targetPort: {{ .Values.global.https_port }}
+  {{- end }}
     - protocol: TCP
       name: admin
       port: 8080

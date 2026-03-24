@@ -11,25 +11,35 @@ from app.models import (
     UsersProjectsRoles,
 )
 from app.projects import schemas
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select, update, func, cast
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.dialects.postgresql import TEXT
 
 
-async def create_project(session: AsyncSession, project: schemas.CreateProject):
-    kubernetes_namespace = f"project-{project.name}"
-    s3_bucket = f"project-{project.name}"
-    opensearch_index = f"project_{project.name}"
+def build_kubernetes_namespace(short_id: str) -> str:
+    return f"project-{short_id}"
+
+
+def build_s3_bucket(short_id: str) -> str:
+    return f"project-{short_id}"
+
+
+def build_opensearch_index(short_id: str) -> str:
+    return f"project_{short_id}"
+
+
+async def create_project(
+    session: AsyncSession, project: schemas.CreateProject
+) -> Projects:
 
     new_project = Projects(
         name=project.name,
         description=project.description,
         external_id=project.external_id,
-        kubernetes_namespace=kubernetes_namespace,
-        s3_bucket=s3_bucket,
-        opensearch_index=opensearch_index,
     )
     session.add(new_project)
     await session.commit()
+    await session.refresh(new_project)
     return new_project
 
 
@@ -51,14 +61,19 @@ async def get_projects(
     session: AsyncSession,
     project_id: Optional[UUID] = None,
     project_name: Optional[str] = None,
-):
+    project_short_id: Optional[str] = None,
+) -> list[schemas.Project]:
     stmt = select(Projects)
-    if project_id:
+    if project_id is not None:
         stmt = stmt.where(Projects.id == project_id)
-    if project_name:
+    if project_short_id is not None:
+        # check if first 8 chars of project id matches the provided short id
+        stmt = stmt.where(func.left(cast(Projects.id, TEXT), 8) == project_short_id)
+    if project_name is not None:
         stmt = stmt.where(Projects.name == project_name)
     result = await session.execute(stmt)
-    return result.scalars().all()
+    rows = result.scalars().all()
+    return [schemas.Project.model_validate(row) for row in rows]
 
 
 async def create_rights(session: AsyncSession, right: schemas.CreateRight):

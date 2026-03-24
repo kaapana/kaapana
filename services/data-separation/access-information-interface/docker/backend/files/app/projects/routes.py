@@ -49,10 +49,10 @@ async def projects(
     except IntegrityError:
         logger.warning(f"{project=} already exists!")
         await session.rollback()
-        created_project = await crud.get_projects(session, project_name=project.name)
-        created_project = created_project[0]
 
-    response_project = schemas.Project(**created_project.__dict__)
+    created_project = await crud.get_projects(session, project_name=project.name)
+    created_project = created_project[0]
+
     await opensearch_helper.setup_new_project(project=created_project, session=session)
     await minio_helper.setup_new_project(project=created_project, session=session)
     kubehelm.install_project_helm_chart(created_project)
@@ -72,7 +72,7 @@ async def projects(
             )
             await session.rollback()
 
-    return response_project
+    return schemas.Project(**created_project.__dict__)
 
 
 @router.get("", response_model=List[schemas.Project], tags=["Projects"])
@@ -128,9 +128,15 @@ async def update_project(
     project_id: UUID,
     project_update: schemas.UpdateProject,
     session: AsyncSession = Depends(get_session),
+    opensearch_helper: opensearch.OpenSearchHelper = Depends(
+        opensearch.get_opensearch_helper
+    ),
 ):
     """
     Edit a project's name, description or external_id.
+
+    * The OpenSearch alias is updated to `project-<new_name>`.
+    * The Kubernetes namespace label `kaapana.ai/project-name` is patched to the new name
     """
     existing = await crud.get_projects(session, project_id=project_id)
     if not existing:
@@ -140,14 +146,20 @@ async def update_project(
     if admin_project and admin_project.id == project_id:
         raise HTTPException(status_code=403, detail="Cannot edit the admin project")
 
-    project = existing[0]
+    old_project = existing[0]
+    old_name = old_project.name
 
-    # TODO: update the project name in opensearch
-
-    # TODO: rename label in k8s namespace
-
-    # update db
+    # Persist mutable fields (infrastructure names are excluded inside crud.update_project)
     updated_project = await crud.update_project(session, project_id, project_update)
+
+    # Propagate a name change to aliases / labels
+    new_name = updated_project.name
+    if project_update.name is not None and new_name != old_name:
+        await opensearch_helper.update_project_alias(
+            project=updated_project, old_name=old_name
+        )
+        # TODO: Patch the k8s namespace label via and Helm label (if exists) via a Helm upgrade
+
     return schemas.Project(**updated_project.__dict__)
 
 
@@ -178,15 +190,15 @@ async def delete_project(
     if admin_project and admin_project.id == project_id:
         raise HTTPException(status_code=403, detail="Cannot delete the admin project")
 
-    # remove from opensearch
+    # remove from opensearch (alias + roles/rolemappings + optionally the index)
     await opensearch_helper.teardown_project(
         project=project, session=session, retain_data=retain_data
     )
-    # remove from minio
+    # remove from minio (policies + optionally the bucket)
     await minio_helper.teardown_project(
         project=project, session=session, retain_data=retain_data
     )
-    # remove the helm chart
+    # remove the helm chart (and therefore the k8s namespace)
     kubehelm.uninstall_project_helm_chart(project)
     await crud.delete_project(session, project_id)
 

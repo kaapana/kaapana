@@ -21,7 +21,10 @@ conf_data:
     preview: false
     fast: true
   data_form:
-    dataset_name: test-CT
+    dataset_name: 
+      name: test-CT
+      username: "kaapana"
+      access_level: project
     dataset_limit: 1
 remote: false
 username: "kaapana"
@@ -49,7 +52,10 @@ conf_data:
     preview: false
     fast: false
   data_form:
-    dataset_name: test-CT
+    dataset_name: 
+      name: test-CT
+      username: "kaapana"
+      access_level: project
     dataset_limit: 1
 remote: false
 username: "kaapana"

@@ -106,17 +106,29 @@ async def get_roles(
 async def get_project(
     project_identifier: str | UUID, session: AsyncSession = Depends(get_session)
 ):
+    # convert to str in case type is UUID
+    project_identifier = str(project_identifier)
+
     if project_identifier == "admin":
         projects = await crud.get_admin_project(session)
 
-    if isinstance(project_identifier, UUID):
-        projects = await crud.get_projects(session, project_id=project_identifier)
-    else:
-        try:
-            project_id = UUID(project_identifier)
-            projects = await crud.get_projects(session, project_id=project_id)
-        except ValueError:
-            projects = await crud.get_projects(session, project_name=project_identifier)
+    # resolve project identifier with the order: UUID → short_id (8 chars) → name
+    try:
+        projects = await crud.get_projects(session, project_id=UUID(project_identifier))
+    except ValueError:
+        if len(project_identifier) == 8:
+            projects = await crud.get_projects(
+                session, project_short_id=project_identifier
+            )
+        else:
+            projects = []
+
+        # TODO: remove the project_name altogether, projects should only be identifiable via their UUID or short_id. 
+        # The project_name is not unique
+        if not projects:
+            projects = await crud.get_projects(
+                session, project_name=project_identifier
+            )
 
     if len(projects) == 0:
         raise HTTPException(status_code=404, detail="Project not found")

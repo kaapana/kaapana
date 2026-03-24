@@ -27,10 +27,9 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
                 set the bucket and opensearch index from the metadata JSON file.
     """
 
-    def get_project_by_name(self, project_name: str):
+    def get_project_by_id(self, project_id: str):
         response = requests.get(
-            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_name}",
-            params={"name": project_name},
+            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_id}"
         )
         response.raise_for_status()
         project = response.json()
@@ -45,7 +44,7 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
             else:
                 clinical_trial_protocol_id = str(ctp_value)
 
-            project = self.get_project_by_name(clinical_trial_protocol_id)
+            project = self.get_project_by_id(clinical_trial_protocol_id)
             if project:
                 return project
         else:

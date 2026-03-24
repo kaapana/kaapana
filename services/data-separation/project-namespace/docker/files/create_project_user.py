@@ -10,7 +10,7 @@ if __name__ == "__main__":
     kc_client = KeycloakHelper()
     project_user = os.getenv("PROJECT_USER")
     project_user_password = os.getenv("PROJECT_USER_PASSWORD")
-    project_name = os.getenv("PROJECT_NAME")
+    project_short_id = os.getenv("PROJECT_SHORT_ID")
     project_id = os.getenv("project_id")
     user_payload = {
         "username": project_user,
@@ -19,7 +19,7 @@ if __name__ == "__main__":
         "emailVerified": False,
         "firstName": project_user,
         "lastName": "System",
-        "email": f"{project_user}@{project_name}.kaapana",
+        "email": f"{project_user}@{project_short_id}.kaapana",
         "requiredActions": [],
         "groups": ["kaapana_user"],
     }

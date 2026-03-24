@@ -54,13 +54,13 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
         """
         clinical_trail_tag = metadata.get("00120020 ClinicalTrialProtocolID_keyword")
         try:
-            project = get_project_by_name(
+            project = get_project_by_id_or_name(
                 metadata.get("00120020 ClinicalTrialProtocolID_keyword")
             )
         except:
-            project = get_project_by_name("admin")
+            project = get_project_by_id_or_name("admin")
 
-        admin_project = get_project_by_name("admin")
+        admin_project = get_project_by_id_or_name("admin")
         # extract datasets from dicom tags
         datasets = [
             metadata.get(dicom_tags)
@@ -100,7 +100,7 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
                 logger.info(
                     f"Add {series_uid} to dataset {dataset_name} of project {project_name}"
                 )
-                project = get_project_by_name(project_name)
+                project = get_project_by_id_or_name(project_name)
                 add_identifier_to_dataset_in_project(
                     identifiers=[series_uid],
                     dataset_name=dataset_name,
@@ -151,15 +151,15 @@ def add_identifier_to_dataset_in_project(
         raise e
 
 
-def get_project_by_name(project_name: str):
+def get_project_by_id_or_name(project_identifier: str):
     """
-    Return the project object from the access-information-point database with name project_name
+    Return the project object from the access-information-point database with name project_identifier (can be name or id)
 
     Raises:
         HttpException: If the response from the access-information code has status code >= 400.
     """
     response = requests.get(
-        f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_name}"
+        f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_identifier}"
     )
     response.raise_for_status()
     return response.json()

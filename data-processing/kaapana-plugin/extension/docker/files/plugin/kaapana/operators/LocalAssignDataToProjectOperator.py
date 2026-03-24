@@ -71,7 +71,7 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
                 projects = workflow_form.get("projects")
                 series_instance_uid = metadata.get("0020000E SeriesInstanceUID_keyword")
                 for project in projects:
-                    self.add_data_to_project(series_instance_uid, project_name=project)
+                    self.add_data_to_project(series_instance_uid, project_id=project)
             else:
                 self.assign_data_to_projects(metadata)
 
@@ -108,7 +108,7 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
         ### Create the project-data mapping for the project stored in the dicom tag: ClinicalTrialProtocolID_keyword
         try:
             self.add_data_to_project(
-                series_instance_uid, project_name=clinical_trial_protocol_id
+                series_instance_uid, project_id=clinical_trial_protocol_id
             )
         except (IndexError, requests.exceptions.HTTPError) as e:
             logger.warning(

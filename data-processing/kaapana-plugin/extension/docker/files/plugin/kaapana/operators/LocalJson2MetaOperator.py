@@ -95,8 +95,9 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             workflow_form = self.conf.get("workflow_form")
             projects = workflow_form.get("projects")
             for project_name in projects:
-                project = get_project_by_name(project_name)
-                logger.info(f"Project name: {project_name}")
+                project = get_project_by_id_or_name(project_name)
+                project_id = project.get("id")
+                logger.info(f"Project id: {project_id}")
                 self.push_to_opensearch_index(
                     new_document=meta_information,
                     opensearch_index=project.get("opensearch_index"),
@@ -106,7 +107,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             clinical_trial_protocol_id = meta_information.get(
                 "00120020 ClinicalTrialProtocolID_keyword"
             )
-            project = get_project_by_name(clinical_trial_protocol_id)
+            project = get_project_by_id_or_name(clinical_trial_protocol_id)
             self.push_to_opensearch_index(
                 new_document=meta_information,
                 opensearch_index=project.get("opensearch_index"),
@@ -216,14 +217,15 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                     self.push_to_project_and_admin_index(new_json)
 
 
-def get_project_by_name(project_name: str):
+def get_project_by_id_or_name(project_identifier: str):
     """
-    Return the project with the given name from the access-information-interface.
+    Return the project object from the access-information-point database with name project_identifier (can be name or id)
+
+    Raises:
+        HttpException: If the response from the access-information code has status code >= 400.
     """
     response = requests.get(
-        f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_name}",
-        params={"name": project_name},
+        f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_identifier}"
     )
     response.raise_for_status()
-    project = response.json()
-    return project
+    return response.json()

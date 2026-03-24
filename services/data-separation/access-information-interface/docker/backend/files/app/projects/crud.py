@@ -286,7 +286,8 @@ async def update_project(
     await session.commit()
 
     result = await session.execute(select(Projects).where(Projects.id == project_id))
-    return result.scalars().first()
+    row = result.scalars().first()
+    return schemas.Project.model_validate(row)
 
 
 async def delete_project(session: AsyncSession, project_id: UUID):

@@ -309,7 +309,7 @@ class WorkflowWithJobs(Workflow):
 class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
     # workflow_jobs: List[Job] = []
     workflow_jobs: Optional[List]
-    dataset_name: Optional[str] = None
+    dataset_name: Optional[dict] = None
 
     @model_validator(mode="after")
     def get_dataset(self) -> Self:

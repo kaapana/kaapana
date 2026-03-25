@@ -166,7 +166,7 @@ function deploy() {
     export HELM_EXPERIMENTAL_OCI=1
     HELM_EXECUTABLE="${HELM_EXECUTABLE:-helm}"
 
-    load_kaapana_config
+    load_kaapana_config    
     ### Parsing command line arguments:
     usage="$(basename "$0")
 
@@ -1189,10 +1189,10 @@ function load_kaapana_config {
     OFFLINE_MODE=false
 
     INSTANCE_UID=""
-    SERVICES_NAMESPACE="services"
-    ADMIN_NAMESPACE="admin"
-    EXTENSIONS_NAMESPACE="extensions"
-    HELM_NAMESPACE="kaapana"
+    SERVICES_NAMESPACE="idai-services"
+    ADMIN_NAMESPACE="idai-admin"
+    EXTENSIONS_NAMESPACE="idai-extensions"
+    HELM_NAMESPACE="$ADMIN_NAMESPACE"
 
     OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
 
@@ -1240,7 +1240,7 @@ function load_kaapana_config {
 
     HTTP_PORT="80"      # -> has to be 80
     HTTPS_PORT="443"    # HTTPS port
-    DICOM_PORT="11112"  # configure DICOM receiver port
+    DICOM_PORT="31112"  # configure DICOM receiver port
 
     SMTP_HOST=""
     SMTP_PORT="0"
@@ -1253,6 +1253,8 @@ function load_kaapana_config {
     MOUNT_POINTS_TO_MONITOR=""
 
     INSTANCE_NAME=""
+    # EXTERNAL_INGRESS=""
+    EXTERNAL_INGRESS="nginx" # "" or "nginx" or "traefik"
 
     ######################################################
     # Storage
@@ -1260,6 +1262,7 @@ function load_kaapana_config {
     STORAGE_PROVIDER="default" # e.g. "hostpath" (microk8s) or "longhorn"
     VOLUME_SLOW_DATA="100Gi" # size of volumes in slow data dir (e.g. 100Gi or 100Ti)
     REPLICA_COUNT=1
+    MANAGED_KUBERNETES=true
 }
 
 function delete_all_images_docker {
@@ -1575,8 +1578,16 @@ function setup_storage_provider() {
         STORAGE_PROVIDER="microk8s.io/hostpath"
         ;;
       "default"|"purestorage")
-        DEFAULT_SC=$($KUBE get sc -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}')
-        is_provider_installed=true
+        DEFAULTS=$($KUBE get sc -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}')  
+        # Prefer px-fa-direct-access if it exists in the list
+        if echo "$DEFAULTS" | grep -q "px-fa-direct-access"; then
+            DEFAULT_SC="px-fa-direct-access"
+            echo "Selected preferred PureStorage default: ${DEFAULT_SC}"
+            is_provider_installed=true
+        else
+            echo "ERROR: No supported default storage class found."
+            exit 1
+        fi
         ;;
        
 
@@ -1783,6 +1794,28 @@ function migrate() {
     fi
 }
 
+function create_namespaces {
+  for namespace in $EXTENSIONS_NAMESPACE $SERVICES_NAMESPACE $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+    echo "Checking namespace: $namespace"
+
+    if [ "$MANAGED_KUBERNETES" = "true" ]; then
+      # Managed cluster: must already exist and be accessible
+      if ! $KUBE get namespace "$namespace" >/dev/null 2>&1; then
+        echo -e "${RED}Namespace '$namespace' is not accessible or does not exist.${NC}"
+        echo -e "${RED}In a managed Kubernetes cluster, namespaces must be created beforehand via the platform UI.${NC}"
+        exit 1
+      fi
+      echo -e "${GREEN}Namespace '$namespace' exists and is accessible${NC}"
+
+    else
+      # Non-managed cluster: create if missing, no-op if present
+      echo "Ensuring namespace exists: $namespace"
+      $KUBE create namespace "$namespace" --dry-run=client -o yaml | $KUBE apply -f -
+      echo -e "${GREEN}Namespace '$namespace' ensured${NC}"
+    fi
+  done
+}
+
 function deploy_chart {
     if [ -z "$CONTAINER_REGISTRY_URL" ]; then
         echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the kaapanactl.sh script!${NC}"
@@ -1818,7 +1851,6 @@ function deploy_chart {
             echo -e "${YELLOW}QUIET-MODE active!${NC}"
         fi
     fi
-
     echo -e "${YELLOW}GPU_SUPPORT: $GPU_SUPPORT ${NC}"
     if [ "${GPU_SUPPORT,,}" == true ];then
         echo -e "-> enabling GPU in Microk8s ..."
@@ -1841,6 +1873,7 @@ function deploy_chart {
             fi
         fi
     fi
+
 
     if [ "${DEV_MODE,,}" == true ]; then
         KAAPANA_INIT_PASSWORD="kaapana"
@@ -1928,15 +1961,55 @@ function deploy_chart {
     migrate
 
     echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"
+
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
 
+    create_namespaces
+
     # Build helm command with optional --plain-http flag
-    HELM_INSTALL_CMD="$HELM_EXECUTABLE -n $HELM_NAMESPACE install --create-namespace"
+    HELM_INSTALL_CMD="$HELM_EXECUTABLE -n $HELM_NAMESPACE install"
     if [ "$PLAIN_HTTP" = true ]; then
         HELM_INSTALL_CMD="$HELM_INSTALL_CMD --plain-http"
     fi
-
-    $HELM_INSTALL_CMD $CHART_PATH \
+    
+    DEFAULT_PROXY="http://squid-proxy-service.${ADMIN_NAMESPACE}.svc.cluster.local:3128"
+        # --- Managed Kubernetes Proxy Logic ---
+    if [ "${MANAGED_KUBERNETES,,}" == "true" ]; then
+        echo -e "${CYAN} -> Managed Kubernetes detected ...${NC}"
+        
+        # If not in quiet mode, ask the user
+        if [ ! "$QUIET" = "true" ]; then
+            while true; do
+                read -e -p "Do you want to set a proxy for this deployment?" -i " no" yn
+                case $yn in
+                    [Yy]* ) 
+                        EXISTING_PROXY=$(grep "http_proxy=" /etc/environment | cut -d'=' -f2 | sed 's/"//g' || echo "")
+                        read -e -p "Enter proxy URL: " -i "$EXISTING_PROXY" user_proxy
+                        http_proxy="$user_proxy"
+                        https_proxy="$user_proxy"
+                        
+                        echo -e "${GREEN} -> Proxies set for this session.${NC}"
+                        break
+                        ;;
+                    [Nn]* ) 
+                        echo -e "${YELLOW}SET NO PROXIES${NC}"
+                        http_proxy=""
+                        https_proxy=""
+                        break
+                        ;;
+                    * ) echo "Please answer yes or no.";;
+                esac
+            done
+        else
+            # Quiet mode logic: default to no proxy
+            echo -e "${YELLOW}QUIET-MODE active! Defaulting to no proxy.${NC}"
+            http_proxy=""
+            https_proxy=""
+        fi
+    fi
+    echo "proxy settings: http_proxy=$http_proxy, https_proxy=$https_proxy"
+    
+    $HELM_INSTALL_CMD --debug $CHART_PATH \
     --set-string global.base_namespace="base" \
     --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \
     --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
@@ -1953,6 +2026,7 @@ function deploy_chart {
     --set-string global.admin_namespace=$ADMIN_NAMESPACE \
     --set global.gpu_support=$GPU_SUPPORT \
     --set-string global.helm_namespace="$ADMIN_NAMESPACE" \
+    --set-string global.helm_default_namespace="$HELM_NAMESPACE" \
     --set global.oidc_client_secret=$OIDC_CLIENT_SECRET \
     --set global.include_reverse_proxy=$INCLUDE_REVERSE_PROXY \
     --set-string global.home_dir="$HOME" \
@@ -1962,6 +2036,8 @@ function deploy_chart {
     --set global.internalCidrs="{$INTERNAL_CIDR}" \
     --set-string squid-proxy.upstreamHttpProxy="$http_proxy" \
     --set-string squid-proxy.upstreamHttpsProxy="$https_proxy" \
+    --set-string global.http_proxy="$DEFAULT_PROXY" \
+    --set-string global.https_proxy="$DEFAULT_PROXY" \
     --set global.offline_mode=$OFFLINE_MODE \
     --set global.prefetch_extensions=$PREFETCH_EXTENSIONS \
     --set-string global.pull_policy_images="$PULL_POLICY_IMAGES" \
@@ -1994,7 +2070,10 @@ function deploy_chart {
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
     --set-string global.replica_count="$REPLICA_COUNT"\
     --set-string global.storage_node="$STORAGE_NODE" \
-    --name-template "$PLATFORM_NAME"
+    --set global.managed_kubernetes="$MANAGED_KUBERNETES" \
+    --set global.all_managed_namespaces="{$EXTENSIONS_NAMESPACE,$SERVICES_NAMESPACE,$ADMIN_NAMESPACE,project-admin}" \
+    --set-string global.external_ingress="$EXTERNAL_INGRESS" \
+    --name-template "$PLATFORM_NAME" | grep -A10 -B5 rbac.authorization.k8s.io
 
     # In case of timeout-issues in kube helm increase the default timeouts by setting
     # --set kube-helm-chart.timeouts.helmInstallTimeout=45 \

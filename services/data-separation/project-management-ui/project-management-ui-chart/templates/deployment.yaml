@@ -25,21 +25,35 @@ spec:
           value: {{ .Values.global.postgres_user }}
         ports:
           - name: proj-list-http
-            containerPort: 80
+            containerPort: {{ if .Values.global.dev_files }}5174{{ else }}80{{ end }}
         resources:
           limits:
             memory: "5Gi"
           requests:
             memory: "100Mi"
         volumeMounts:
+{{- if .Values.global.dev_files }}
+          # Mount source files for hot reload in dev mode
+          - name: dev-files
+            mountPath: /app
+          - name: cache
+            mountPath: /tmp/.yarn-cache
+{{- end }}
           - name: tmp
             mountPath: /var/run
           - name: cache
             mountPath: /var/cache/nginx
         securityContext:
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
+          readOnlyRootFilesystem: {{ if .Values.global.dev_files }}false{{ else }}true{{ end }}  # Allow writes for dev mode (node_modules, vite cache)
       volumes:
+{{- if .Values.global.dev_files }}
+      # Mount project-management-ui source code from Kaapana repo for hot reload
+      - name: dev-files
+        hostPath:
+          path: {{ .Values.global.dev_files }}
+          type: Directory
+{{- end }}
       - name: cache
         emptyDir: {}
       - name: tmp

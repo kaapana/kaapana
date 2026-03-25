@@ -4,13 +4,14 @@ import Vue from '@vitejs/plugin-vue'
 import Vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
 import ViteFonts from 'unplugin-fonts/vite'
 import VueRouter from 'unplugin-vue-router/vite'
+import vueDevTools from 'vite-plugin-vue-devtools'
 
 // Utilities
 import { defineConfig } from 'vite'
 import { fileURLToPath, URL } from 'node:url'
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(() => ({
   plugins: [
     VueRouter(),
     Vue({
@@ -32,6 +33,7 @@ export default defineConfig({
         }],
       },
     }),
+    vueDevTools(),
   ],
   define: { 'process.env': {} },
   base: "/projects-ui",
@@ -50,14 +52,17 @@ export default defineConfig({
     ],
   },
   server: {
-    port: 3000,
-    proxy: {
-      '/aii': {
-        target: 'https://e230-pc25.inet.dkfz-heidelberg.de', // Your target API server
-        changeOrigin: true,
-        secure: false, // Allow self-signed certificates
-        cookieDomainRewrite: '', // This rewrites cookies' domain to match the frontend
-      },
-    }
+    allowedHosts: ["e230-pc11.inet.dkfz-heidelberg.de"],
+    port: 5174,
+    host: true,
+    strictPort: true,
+    hmr: {
+      protocol: 'wss',
+      clientPort: 443,
+      path: '/projects-ui/@vite',
+    },
   },
-})
+  build: {
+    outDir: 'dist',
+  },
+}))

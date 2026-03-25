@@ -232,13 +232,16 @@
                         <th>
                             Description
                         </th>
+                        <th class="text-center">
+                            Whitelist Status
+                        </th>
                         <th class="text-center" v-if="userHasAdminAccess  || can(project?.id,'manage_project_extensions')">
                             Launch
                         </th>
                     </tr>
                     </thead>
                     <tbody>
-                    <tr v-for="item in multiinstallableExtensions" :key="item.releaseName">
+                    <tr v-for="item in sortedMultiinstallableExtensions" :key="item.releaseName">
                         <td><v-icon>mdi-application-outline</v-icon></td>
                         <td>
                             <span>{{ item.annotations["ui-visible-name"] }}</span>
@@ -280,10 +283,55 @@
                                 <span>{{ item.description }}</span>
                             </v-tooltip>
                         </td>
+                        <td class="text-center">
+                            <v-tooltip location="bottom">
+                                <template #activator="{ props }">
+                                    <div v-bind="props" class="d-flex justify-center align-center">
+                                        <v-chip
+                                            v-if="isAppWhitelisted(item.releaseName)"
+                                            size="small"
+                                            color="success"
+                                            text-color="white"
+                                            prepend-icon="mdi-check-circle"
+                                        >
+                                            Whitelisted
+                                        </v-chip>
+                                        <v-chip
+                                            v-else-if="projectWhitelist.length > 0"
+                                            size="small"
+                                            color="warning"
+                                            text-color="white"
+                                            prepend-icon="mdi-alert-circle"
+                                        >
+                                            Blocked
+                                        </v-chip>
+                                        <v-chip
+                                            v-else
+                                            size="small"
+                                            color="info"
+                                            text-color="white"
+                                            prepend-icon="mdi-information"
+                                        >
+                                            Allowed
+                                        </v-chip>
+                                    </div>
+                                </template>
+                                <span v-if="projectWhitelist.length === 0">
+                                    Whitelist is empty - all apps are launchable
+                                </span>
+                                <span v-else-if="isAppWhitelisted(item.releaseName)">
+                                    This application is whitelisted for this project
+                                </span>
+                                <span v-else>
+                                    This application is blocked for this project
+                                </span>
+                            </v-tooltip>
+                        </td>
                         <td class="text-center" v-if="userHasAdminAccess || can(project?.id,'manage_project_extensions')">
                             <v-btn 
                             density="default"
-                            @click="launchApplication(item)">
+                            @click="launchApplication(item)"
+                            :disabled="projectWhitelist.length > 0 && !isAppWhitelisted(item.releaseName)">
                                 Launch
                             </v-btn>
                         </td>

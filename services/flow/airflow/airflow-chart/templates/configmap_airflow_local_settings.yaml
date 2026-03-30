@@ -5,94 +5,297 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
 data:
    airflow_local_settings.py: |+
-    from airflow.models import DagRun, DagBag
-    from airflow.utils.session import create_session
-    from kubernetes import client
     import os
-        
+    import time
+    import threading
+    import logging
+    from queue import Queue, Empty
+    from kubernetes import client, config
+    from airflow.models import DagRun
+    from airflow.utils.session import create_session
+
+    log = logging.getLogger(__name__)
+
+    LOG_BASE_PATH = os.getenv(
+        "AIRFLOW__LOGGING__BASE_LOG_FOLDER",
+        "/kaapana/mounted/workflows/logs",
+    )
+
+
+    # ─────────────────────────────────────────────────
+    # Log Streamer Service (runs in scheduler process)
+    # ─────────────────────────────────────────────────
+
+    class LogStreamerService:
+        _instance = None
+        _lock = threading.Lock()
+
+        def __init__(self, max_workers=20):
+            self.task_queue = Queue()
+            self.active_streams = set()
+            self.active_lock = threading.Lock()
+            self.max_workers = max_workers
+            self.workers_started = False
+
+        @classmethod
+        def get_instance(cls):
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = LogStreamerService()
+                return cls._instance
+
+        def start(self):
+            if self.workers_started:
+                return
+            self.workers_started = True
+            for _ in range(self.max_workers):
+                t = threading.Thread(target=self._worker, daemon=True)
+                t.start()
+            log.info("LogStreamerService started with %s workers", self.max_workers)
+
+        def submit(self, pod_name, namespace, dag_id, task_id, run_id, try_number, container=None):
+            if not pod_name:
+                log.warning("LogStreamerService.submit called with empty pod_name, skipping.")
+                return
+
+            key = (namespace, pod_name)
+            with self.active_lock:
+                if key in self.active_streams:
+                    return
+                self.active_streams.add(key)
+
+            self.task_queue.put((pod_name, namespace, dag_id, task_id, run_id, str(try_number), container))
+
+        def _worker(self):
+            try:
+                config.load_incluster_config()
+            except Exception:
+                config.load_kube_config()
+            v1 = client.CoreV1Api()
+
+            while True:
+                try:
+                    task = self.task_queue.get(timeout=5)
+                except Empty:
+                    continue
+
+                pod_name, namespace, dag_id, task_id, run_id, try_number, container = task
+                try:
+                    self._stream_logs(v1, pod_name, namespace, dag_id, task_id, run_id, try_number, container)
+                except Exception as e:
+                    log.error(f"Unhandled error in log worker for {pod_name}: {e}")
+                finally:
+                    with self.active_lock:
+                        self.active_streams.discard((namespace, pod_name))
+                    self.task_queue.task_done()
+
+        def _wait_for_pod(self, v1, pod_name, namespace, timeout=300):
+            for _ in range(timeout // 5):
+                try:
+                    return v1.read_namespaced_pod(pod_name, namespace)
+                except client.exceptions.ApiException as e:
+                    if e.status == 404:
+                        time.sleep(5)
+                    else:
+                        raise
+            log.warning(f"Pod {pod_name} in {namespace} not found after {timeout}s")
+            return None
+
+        def _wait_for_running(self, v1, pod_name, namespace, timeout=120):
+            for _ in range(timeout // 2):
+                pod = v1.read_namespaced_pod(pod_name, namespace)
+                if pod.status.phase in ("Running", "Succeeded", "Failed"):
+                    return pod
+                time.sleep(2)
+            log.warning(f"Pod {pod_name} did not reach Running phase after {timeout}s")
+            return None
+
+        def _stream_logs(self, v1, pod_name, namespace, dag_id, task_id, run_id, try_number, container):
+            log_dir = os.path.join(
+                LOG_BASE_PATH,
+                f"dag_id={dag_id}",
+                f"run_id={run_id}",
+                f"task_id={task_id}",
+            )
+            os.makedirs(log_dir, exist_ok=True)
+
+            file_path = os.path.join(log_dir, f"attempt={try_number}.log")
+
+            # --------------------------------------------------
+            # Step 1: Wait for pod (best effort)
+            # --------------------------------------------------
+            pod = self._wait_for_pod(v1, pod_name, namespace)
+            if not pod:
+                log.warning(f"[LOG] Pod never appeared: {namespace}/{pod_name}")
+                return
+
+            # --------------------------------------------------
+            # Step 2: Wait for running/completion
+            # --------------------------------------------------
+            pod = self._wait_for_running(v1, pod_name, namespace) or pod
+
+            # --------------------------------------------------
+            # Step 3: Resolve container
+            # --------------------------------------------------
+            if not container and pod.spec.containers:
+                container = pod.spec.containers[0].name
+
+            if not container:
+                log.warning(f"[LOG] No container for pod {namespace}/{pod_name}")
+                return
+
+            log.info(f"[LOG] Handling logs for {namespace}/{pod_name} (container={container})")
+
+            streamed_anything = False
+
+            # --------------------------------------------------
+            # Step 4: Try streaming (best effort)
+            # --------------------------------------------------
+            try:
+                stream = v1.read_namespaced_pod_log(
+                    name=pod_name,
+                    namespace=namespace,
+                    container=container,
+                    follow=True,
+                    _preload_content=False,
+                )
+
+                with open(file_path, "ab") as f:
+                    for chunk in stream.stream():
+                        if chunk:
+                            streamed_anything = True
+                            if isinstance(chunk, str):
+                                chunk = chunk.encode("utf-8")
+                            f.write(chunk)
+                            f.flush()
+
+            except client.exceptions.ApiException as e:
+                if e.status != 404:
+                    log.warning(f"[LOG] Streaming API error for {pod_name}: {e}")
+            except Exception as e:
+                log.warning(f"[LOG] Streaming error for {pod_name}: {e}")
+
+            # --------------------------------------------------
+            # Step 5: Decide if full fetch is needed
+            # --------------------------------------------------
+            file_exists = os.path.exists(file_path)
+            file_size = os.path.getsize(file_path) if file_exists else 0
+
+            need_full_fetch = (
+                not streamed_anything or
+                file_size == 0
+            )
+
+            # --------------------------------------------------
+            # Step 6: Final fetch (only if needed)
+            # --------------------------------------------------
+            if need_full_fetch:
+                try:
+                    log.info(f"[LOG] Final fetch for {namespace}/{pod_name}")
+
+                    full_log = v1.read_namespaced_pod_log(
+                        name=pod_name,
+                        namespace=namespace,
+                        container=container,
+                        follow=False,
+                        _preload_content=True,
+                    )
+
+                    if isinstance(full_log, str):
+                        full_log = full_log.encode("utf-8")
+
+                    # overwrite file completely
+                    with open(file_path, "wb") as f:
+                        f.write(full_log)
+
+                except client.exceptions.ApiException as e:
+                    if e.status == 404:
+                        log.warning(f"[LOG] Pod already deleted before final fetch: {pod_name}")
+                    else:
+                        log.warning(f"[LOG] Final fetch API error for {pod_name}: {e}")
+                except Exception as e:
+                    log.warning(f"[LOG] Final fetch failed for {pod_name}: {e}")
+
+
+
+
+
+    # ──────────────────────────────────────────────────────────────
+    # Airflow hooks
+    # ──────────────────────────────────────────────────────────────
 
     def get_dagrun_from_pod(pod):
-      # Read run_id and dag_id from labels
-      run_id = pod.metadata.labels.get("run_id")
-      dag_id = pod.metadata.labels.get("dag_id")
+        run_id = pod.metadata.labels.get("run_id")
+        dag_id = pod.metadata.labels.get("dag_id")
 
-      if not run_id or not dag_id:
-        return None
+        if not run_id or not dag_id:
+            return None
 
-      # Use a session to query DagRun
-      with create_session() as session:
-        dagrun = (
-            session.query(DagRun)
-            .filter(DagRun.dag_id == dag_id)
-            .filter(DagRun.run_id == run_id)
-            .one_or_none()
-        )
-      return dagrun
+        with create_session() as session:
+            return (
+                session.query(DagRun)
+                .filter(DagRun.dag_id == dag_id)
+                .filter(DagRun.run_id == run_id)
+                .one_or_none()
+            )
+
 
     def define_volumes_and_mounts():
-      return [
-          client.V1Volume(
-              name="workflowdata",
-              persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                  claim_name="workflow-data-pv-claim",
-                  read_only=False,
-              ),
-          ),
-          client.V1Volume(
-              name="models",
-              persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                  claim_name="models-pv-claim",
-                  read_only=False,
-              ),
-          ),
-          client.V1Volume(
-              name="airflow-plugins",
-              persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                  claim_name="af-plugins-pv-claim",
-                  read_only=False,
-              ),
-          ),
-          client.V1Volume(
-              name="airflow-dags",
-              persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                  claim_name="dags-pv-claim",
-                  read_only=False,
-              ),
-          ),
-          client.V1Volume(
-              name="airflow-logs",
-              persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                  claim_name="af-logs-pv-claim",
-                  read_only=False,
-              ),
-          )
-      ]
-    
-    def pod_mutation_hook(pod):
-      dagrun = get_dagrun_from_pod(pod)
-      ns = os.environ["PLATFORM_PREFIX"] + "-project-admin"
-      if dagrun and dagrun.conf:
-        # Example: dynamic namespace
-        incoming_ns = dagrun.conf.get("project_form", {}).get("kubernetes_namespace")
-        ns = incoming_ns or ns       
-        # Sepcial case for federated execution
-        if dagrun.conf.get("federated_form", False):
-          ns = os.getenv("SERVICES_NAMESPACE")      
+        return [
+            client.V1Volume(
+                name="workflowdata",
+                persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                    claim_name="workflow-data-pv-claim",
+                    read_only=False,
+                ),
+            ),
+            client.V1Volume(
+                name="models",
+                persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                    claim_name="models-pv-claim",
+                    read_only=False,
+                ),
+            ),
+        ]
 
-      pod.metadata.namespace = ns
-      pod.metadata.labels = pod.metadata.labels or {}
-      pod.metadata.labels["kaapana.ai/project-namespace"] = ns
-      pod.metadata.labels["kaapana.ai/type"] = "processing-container"
-      pod.metadata.labels["kaapana.type"] = "processing-container"
-      
-      # ----- Node selector -----
-      storage_node = os.getenv("KAAPANA_STORAGE_NODE")   
-      pod.spec.node_selector = pod.spec.node_selector or {}
-      pod.spec.node_selector["kaapana.io/node"] = storage_node
-      
-      # ----- Volumes and Volume Mounts -----
-      volumes = define_volumes_and_mounts()
-      pod.spec.volumes = pod.spec.volumes or []
-      pod.spec.volumes.extend(volumes)
-  
+
+    def pod_mutation_hook(pod):
+        dagrun = get_dagrun_from_pod(pod)
+
+        ns = os.environ["PLATFORM_PREFIX"] + "-project-admin"
+        if dagrun and dagrun.conf:
+            incoming_ns = dagrun.conf.get("project_form", {}).get("kubernetes_namespace")
+            ns = incoming_ns or ns
+            if dagrun.conf.get("federated_form", False):
+                ns = os.getenv("SERVICES_NAMESPACE")
+
+        pod.metadata.namespace = ns
+        pod.metadata.labels = pod.metadata.labels or {}
+        pod.metadata.labels["kaapana.ai/project-namespace"] = ns
+        pod.metadata.labels["kaapana.ai/type"] = "processing-container"
+        pod.metadata.labels["kaapana.type"] = "processing-container"
+
+
+        pod.spec.volumes = pod.spec.volumes or []
+        pod.spec.volumes.extend(define_volumes_and_mounts())
+
+        # Schedule log streaming for this pod
+        labels = pod.metadata.labels or {}
+
+        # Prefer dagrun object for unsanitized values, fall back to labels
+        dag_id    = dagrun.dag_id  if dagrun else labels.get("dag_id",   "unknown")
+        run_id    = dagrun.run_id  if dagrun else labels.get("run_id",   "unknown")
+        task_id   = labels.get("task_id",    "unknown")  # not on dagrun object
+        try_number = labels.get("try_number", "1")
+        streamer = LogStreamerService.get_instance()
+        streamer.start()
+        streamer.submit(
+            pod_name=pod.metadata.name,
+            namespace=ns,
+            dag_id=dag_id,
+            task_id=task_id,
+            run_id=run_id,
+            try_number=try_number,
+            container=None,
+        )
 

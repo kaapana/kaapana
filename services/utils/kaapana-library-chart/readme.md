@@ -139,14 +139,12 @@ spec:
 {{- end }}
 ```
 
-### projectPersistentVolumes
-This template is used in multiinstallable applications like jupyterlab or tensorboard.
-The usage is the same as for `dynamicPersistentVolumes`.
-The difference is that the `host_path` and `claimName` will automatically include the project context.
+### `projectPersistentVolumes`
+
+Use this template for volumes that are scoped for projects.
 
 ### dynamicEnvs & dynamicEnvsFromSecretRef & dynamicLabels
 
 Used by the dev-server-chart to render env variables and labels that where parsed to the kube-helm-backend from the KaapanaBaserOperator to start a dev-server.
-
 
 

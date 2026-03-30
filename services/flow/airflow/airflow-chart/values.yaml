@@ -12,13 +12,17 @@ global:
     storage_class: workflow
     storage: 200Gi
   - name: uploads
-  sharedVolumes:
+    storage_class: workflow
+    storage: 100Gi
   - name: af-plugins
-    host_path: /workflows/plugins
+    storage_class: workflow
+    storage: 1Gi
   - name: dags
-    host_path: /workflows/dags
+    storage_class: workflow
+    storage: 1Gi
   - name: af-logs
-    host_path: /airflow/logs
+    storage_class: workflow
+    storage: 100Gi
 
 kaapana_database:
   admin: false

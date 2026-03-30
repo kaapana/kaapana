@@ -12,14 +12,6 @@ global:
   - name: workflow-data
     storage_class: workflow
     storage: 200Gi
-  sharedVolumes: 
-    ### For Local Operators managed by KubernetesExecutor, will be deprecated when local operators are removed
-  - name: af-plugins
-    host_path: /workflows/plugins
-  - name: dags
-    host_path: /workflows/dags
-  - name: af-logs
-    host_path: /airflow/logs
 
 
 kaapana_database:

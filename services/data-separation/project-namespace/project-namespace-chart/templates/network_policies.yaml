@@ -247,7 +247,26 @@ spec:
         matchLabels:
           app.kubernetes.io/name: airflow
     ports:
-      - protocol: TCP
-        port: 5000
-      - protocol: TCP
-        port: 5432
+    - protocol: TCP
+      port: 8080
+    - protocol: TCP
+      port: 5432
+---
+### Allow access to interal services (e.g. kubectl) together and restricted via a corrsponding service account and role/rolebinding
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: egress-to-internal-services
+  namespace: {{ .Values.global.project_namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      network-access-internal-services: "true"
+  policyTypes:
+    - Egress
+  egress:
+  {{- range .Values.global.internalCidrs }}
+    - to:
+        - ipBlock:
+            cidr: {{ . | quote }}
+  {{- end }}

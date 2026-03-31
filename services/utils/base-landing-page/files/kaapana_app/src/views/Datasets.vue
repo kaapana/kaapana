@@ -601,9 +601,9 @@ export default {
       });
     },
     async updateDatasetNames() {
-      let dataests = await loadDatasets(false);
-      this.datasets = dataests;
-      this.datasetNames = dataests.map((dataset) => dataset.name);
+      let datasets = await loadDatasets(false);
+      this.datasets = datasets;
+      this.datasetNames = datasets.map((dataset) => dataset.name);
     },
     getStaticWebsiteResults() {
       var staticWebUrl = "/get-static-website-results"

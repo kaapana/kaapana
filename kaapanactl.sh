@@ -166,6 +166,7 @@ function deploy() {
 
     _Flag: --undeploy undeploys the current platform
     _Flag: --no-hooks will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forever.
+    _Flag: --auto-no-hooks enables an automatic --no-hooks fallback during undeployment. When enabled, stuck 'uninstalling' charts are retried with --no-hooks after a short wait.
     _Flag: --install-certs set new HTTPS-certificates for the platform
     _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
     _Flag: --remove-all-images-docker will delete all Docker images from the system
@@ -188,6 +189,7 @@ function deploy() {
     _Argument: --import-images-tar [path-to-a-tarball]"
 
     QUIET=false
+    DO_UNDEPLOY=false
 
     POSITIONAL=()
     while [[ $# -gt 0 ]]
@@ -313,6 +315,12 @@ function deploy() {
                 exit 0
             ;;
 
+            --auto-no-hooks)
+                AUTO_NO_HOOKS=true
+                echo -e "${YELLOW}Automatic --no-hooks fallback enabled${NC}"
+                shift
+            ;;
+
             --nuke-pods)
                 while true; do
                     read -e -p "Do you really want to nuke all pods? -> Not recommended!" -i " no" yn
@@ -330,8 +338,8 @@ function deploy() {
             ;;
 
             --undeploy)
-                delete_deployment
-                exit 0
+                DO_UNDEPLOY=true
+                shift
             ;;
 
             --re-deploy)
@@ -361,6 +369,11 @@ function deploy() {
 
         esac
     done
+
+    if [ "$DO_UNDEPLOY" = "true" ]; then
+        delete_deployment
+        exit 0
+    fi
 
     setup_storage_provider
 
@@ -1179,6 +1192,7 @@ function load_kaapana_config {
     PREFETCH_EXTENSIONS=false
     CHART_PATH=""
     NO_HOOKS=""
+    AUTO_NO_HOOKS=false
     OFFLINE_MODE=false
 
     INSTANCE_UID=""
@@ -1326,8 +1340,9 @@ function delete_deployment {
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
     do
+        # Increase timeout or -no-hooks. This can cause inconsistencies
         sleep 3
-        if [ "$idx" -eq 2 ]; then
+        if [ "$idx" -eq 2 ] && [ "$AUTO_NO_HOOKS" = "true" ]; then
             echo "Deleting helm charts in 'uninstalling' state with --no-hooks"
             $HELM_EXECUTABLE -n $namespace ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall --no-hooks --wait --timeout 5m30s %; sleep 2"
         fi

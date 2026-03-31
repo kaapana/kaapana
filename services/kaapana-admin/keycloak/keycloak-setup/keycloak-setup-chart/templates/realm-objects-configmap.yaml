@@ -1,0 +1,27 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm-objects
+  namespace: "{{ .Values.global.admin_namespace }}"
+data:
+  group-kaapana_admin.json: |
+{{ .Files.Get "realm_objects/group-kaapana_admin.json" | indent 4 }}
+
+  group-kaapana_project_manager.json: |
+{{ .Files.Get "realm_objects/group-kaapana_project_manager.json" | indent 4 }}
+
+  group-kaapana_user.json: |
+{{ .Files.Get "realm_objects/group-kaapana_user.json" | indent 4 }}
+
+  kaapana-client.json: |
+{{ .Files.Get "realm_objects/kaapana-client.json" | indent 4 }}
+
+  kaapana-realm.json: |
+{{ .Files.Get "realm_objects/kaapana-realm.json" | indent 4 }}
+
+  kaapana-user.json: |
+{{ .Files.Get "realm_objects/kaapana-user.json" | indent 4 }}
+
+  system-user.json: |
+{{ .Files.Get "realm_objects/system-user.json" | indent 4 }}

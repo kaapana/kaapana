@@ -1,7 +1,6 @@
 FROM local-only/base-python-cpu:latest
 
-LABEL IMAGE="keycloak-init"
-LABEL VERSION="0.0.1"
+LABEL IMAGE="keycloak-setup"
 LABEL BUILD_IGNORE="False"
 
 COPY files/ .

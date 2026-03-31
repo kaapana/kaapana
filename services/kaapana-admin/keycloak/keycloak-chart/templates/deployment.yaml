@@ -67,6 +67,8 @@ spec:
             value: "true"
           - name: KC_HEALTH_ENABLED
             value: "true"
+          - name: USER_SYNC_CONFIG_PATH
+            value: "/opt/keycloak/config/config.json"
           ports:
           - name: http
             containerPort: 8080
@@ -84,6 +86,9 @@ spec:
           volumeMounts:        
             - name: ssl-config-files
               mountPath: /etc/x509/https
+              readOnly: true
+            - name: default-project-role-user-mapping
+              mountPath: /opt/keycloak/config/
               readOnly: true
           command: 
           - "/opt/keycloak/bin/kc.sh"
@@ -116,6 +121,9 @@ spec:
       - name: ssl-config-files
         secret:
           secretName: certificate
+      - name: default-project-role-user-mapping
+        configMap:
+          name: default-project-role-user-mapping
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret

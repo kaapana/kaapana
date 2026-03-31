@@ -147,7 +147,7 @@ Chart Dependency Tree
     │           └── total-segmentator-workflow
     ├── kaapana-library-chart
     ├── keycloak-chart
-    ├── keycloak-init-chart
+    ├── keycloak-setup-chart
     ├── kube-dashboard-chart
     ├── kube-helm-chart
     ├── maintenance-page-chart

@@ -14,7 +14,7 @@ dependencies:
     version: 0.0.0
   - name: kube-helm-chart
     version: 0.0.0
-  - name: keycloak-init-chart
+  - name: keycloak-setup-chart
     version: 0.0.0
   - name: kaapana-library-chart
     version: 0.0.0

@@ -16,7 +16,7 @@ from app.dependencies import fetch_default_project_id
 from cryptography.fernet import Fernet
 from fastapi import HTTPException, Response
 from psycopg2.errors import UniqueViolation
-from sqlalchemy import String, cast, desc, func
+from sqlalchemy import String, cast, desc, func, or_, and_
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Session, aliased
 from urllib3.util import Timeout
@@ -1177,6 +1177,9 @@ def create_dataset(
             .first()
         )
 
+    if not db_kaapana_instance:
+        raise HTTPException(status_code=404, detail="Kaapana instance not found")
+
     if get_dataset(
         db,
         name=dataset.name,
@@ -1193,9 +1196,6 @@ def create_dataset(
             raise HTTPException(
                 status_code=409, detail="Private project dataset already exists!"
             )
-
-    if not db_kaapana_instance:
-        raise HTTPException(status_code=404, detail="Kaapana instance not found")
 
     utc_timestamp = get_utc_timestamp()
 
@@ -1241,9 +1241,6 @@ def get_dataset(
     if not db_dataset and raise_if_not_existing:
         raise HTTPException(status_code=404, detail="Dataset not found")
     return db_dataset
-
-
-from sqlalchemy import or_, and_
 
 
 def get_datasets(

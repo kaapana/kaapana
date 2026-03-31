@@ -48,14 +48,12 @@ class Dataset(Base):
         Enum("private", "project", name="access_level_enum"),
         nullable=False,
         server_default="project",
-        create_type=True,
     )
 
     # many-to-one relationship
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
     kaapana_instance = relationship("KaapanaInstance", back_populates="datasets")
     project_id = Column(UUID(as_uuid=True), nullable=False)
-    __table_args__ = (UniqueConstraint("project_id", "name"),)
 
     __table_args__ = (
         Index(

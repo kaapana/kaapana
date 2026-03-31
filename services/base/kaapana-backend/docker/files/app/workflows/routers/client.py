@@ -507,14 +507,13 @@ def ui_form_schemas(
     schemas_dict = {}
     for dag_id, dag in dags.items():
         form_schemas = dag.get("ui_forms", {})
-        # form_schemas = dag["ui_forms"]
         if (
             "data_form" in form_schemas
             and "properties" in form_schemas["data_form"]
             and "dataset_name" in form_schemas["data_form"]["properties"]
         ):
             if len(dataset_names) < 1:
-                form_schemas["data_form"]["__emtpy__"] = "true"
+                form_schemas["data_form"]["__empty__"] = "true"
             else:
                 form_schemas["data_form"]["properties"]["dataset_name"][
                     "oneOf"
@@ -555,7 +554,6 @@ def ui_form_schemas(
                 }
 
         schemas_dict[dag_id] = form_schemas
-    # logging.info(f"\n\nFinal Schema: \n{form_schemas}")
     if filter_kaapana_instances.dag_id is None:
         return JSONResponse(content=schemas_dict)
     elif filter_kaapana_instances.dag_id in schemas_dict:

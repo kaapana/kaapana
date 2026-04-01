@@ -44,18 +44,21 @@ class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
         **kwargs
     ):
 
-        #Service dags have to run in services namespace to have access to sevices-namespace volumes
+        # Service dags have to run in services namespace to have access to sevices-namespace volumes
         if "service" in dag.tags or "import" in dag.tags:
             executor = "LocalExecutor"
         else:
             executor = "KubernetesExecutor"
-        
+
         # Add annotations to executor_config
         annotations = annotations or kwargs.pop("annotations", None)
+        executor_config = kwargs.pop("executor_config", None) or {}
         if annotations and executor == "KubernetesExecutor":
-            kube_exec = self.executor_config.setdefault("KubernetesExecutor", {})
-            kube_exec["annotations"] = {**kube_exec.get("annotations", {}), **annotations}
-        
+            kube_exec = executor_config.setdefault("KubernetesExecutor", {})
+            kube_exec["annotations"] = {
+                **kube_exec.get("annotations", {}),
+                **annotations,
+            }
 
         KaapanaBaseOperator.set_defaults(
             self,

@@ -49,8 +49,25 @@ class KaapanaBranchPythonBaseOperator(BranchPythonOperator, SkipMixin):
         batch_name=None,
         airflow_workflow_dir=None,
         priority_class_name=None,
+        annotations=None,
         **kwargs
     ):
+        # Service dags have to run in services namespace to have access to sevices-namespace volumes
+        if "service" in dag.tags or "import" in dag.tags:
+            executor = "LocalExecutor"
+        else:
+            executor = "KubernetesExecutor"
+
+        # Add annotations to executor_config
+        annotations = annotations or kwargs.pop("annotations", None)
+        executor_config = kwargs.pop("executor_config", None) or {}
+        if annotations and executor == "KubernetesExecutor":
+            kube_exec = executor_config.setdefault("KubernetesExecutor", {})
+            kube_exec["annotations"] = {
+                **kube_exec.get("annotations", {}),
+                **annotations,
+            }
+
         KaapanaBaseOperator.set_defaults(
             self,
             name=name,
@@ -94,6 +111,7 @@ class KaapanaBranchPythonBaseOperator(BranchPythonOperator, SkipMixin):
             on_failure_callback=KaapanaPythonBaseOperator.on_failure,
             pool=self.pool,
             pool_slots=self.pool_slots,
+            executor=executor,
             **kwargs
         )
 

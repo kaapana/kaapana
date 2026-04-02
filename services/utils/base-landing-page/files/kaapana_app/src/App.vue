@@ -102,6 +102,9 @@
                   return-object
                   @change="update_selected_project"
                 >
+                  <template v-slot:selection="{ item }">
+                    {{ item.name }}<span v-if="item.short_id" style="text-transform: none"> ({{ item.short_id }})</span>
+                  </template>
                 </v-select>
               </v-col>
             </v-row>

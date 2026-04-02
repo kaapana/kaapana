@@ -1,5 +1,6 @@
 export type ProjectItem = {
     id: string,
+    short_id: string,
     external_id?: number,
     name: string,
     description?: string,

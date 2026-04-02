@@ -22,6 +22,10 @@
                 <p v-if="project">{{ project.description }}</p>
                 <v-skeleton-loader v-else :loading="!project" type="heading, paragraph" />
             </v-col>
+            <v-col cols="auto" class="d-flex align-center gap-2" v-if="userHasAdminAccess && project?.name !== 'admin'">
+                <v-btn prepend-icon="mdi-pencil" variant="outlined" @click="openEditDialog">Edit</v-btn>
+                <v-btn prepend-icon="mdi-trash-can" variant="outlined" color="error" @click="confirmDeleteProject">Delete</v-btn>
+            </v-col>
         </v-row>
         <v-row>
             <v-col>
@@ -342,11 +346,33 @@
         />
     </v-dialog>
     <confirm ref="confirm"></confirm>
+    <v-dialog v-model="editDialog" max-width="600">
+        <v-card title="Edit Project" prepend-icon="mdi-pencil">
+            <v-card-text>
+                <v-container>
+                    <v-row><v-col>
+                        <v-text-field v-model="editForm.name" label="Project Name" :rules="editNameRules" />
+                    </v-col></v-row>
+                    <v-row><v-col>
+                        <v-text-field v-model="editForm.description" label="Description" />
+                    </v-col></v-row>
+                    <v-row><v-col>
+                        <v-text-field v-model="editForm.external_id" label="External ID" />
+                    </v-col></v-row>
+                </v-container>
+            </v-card-text>
+            <v-card-actions>
+                <v-spacer />
+                <v-btn @click="editDialog = false">Cancel</v-btn>
+                <v-btn color="primary" variant="elevated" @click="submitEdit">Save</v-btn>
+            </v-card-actions>
+        </v-card>
+    </v-dialog>
 </template>
 
 <script lang="ts">
 import { defineComponent, ref } from 'vue'
-import { aiiApiGet, aiiApiDelete, kubeHelmGet, kubeHelmPost } from '@/common/aiiApi.service'
+import { aiiApiGet, aiiApiDelete, aiiApiPut, kubeHelmGet, kubeHelmPost } from '@/common/aiiApi.service'
 import { ProjectItem, UserItem, UserRole, Software } from '@/common/types'
 import AddUserToProject from '@/components/AddUserToProject.vue'
 import store from "@/common/store";
@@ -396,7 +422,16 @@ export default defineComponent({
             extendActiveApplications: false,
             showSnackbar: false,
             snackbarText: ref(""),
-            snackbarColor: "info"
+            snackbarColor: "info",
+            editDialog: false,
+            editForm: { name: '', description: '', external_id: '' },
+            editNameRules: [
+                (v: string) => !!v || 'Required.',
+                (v: string) => v.length <= 13 || 'Max 13 characters',
+                (v: string) => v === v.toLowerCase() || 'Only lowercase characters are supported',
+                (v: string) => !v.includes(' ') || 'Spaces are not allowed',
+                (v: string) => v !== 'admin' || 'Name "admin" is reserved',
+            ],
         };
     },
     mounted() {
@@ -644,6 +679,55 @@ export default defineComponent({
                 this.fetchProjectSoftware();
             }
             this.resetSoftwareFormValues();
+        },
+        openEditDialog() {
+            if (!this.project) return;
+            this.editForm = {
+                name: this.project.name,
+                description: this.project.description || '',
+                external_id: this.project.external_id ? String(this.project.external_id) : '',
+            };
+            this.editDialog = true;
+        },
+        async submitEdit() {
+            const nameError = this.editNameRules.map((r: (v: string) => boolean | string) => r(this.editForm.name)).find((r: boolean | string) => r !== true);
+            if (nameError) {
+                this.snackbarText = String(nameError);
+                this.snackbarColor = 'error';
+                this.showSnackbar = true;
+                return;
+            }
+            try {
+                await aiiApiPut(`projects/${this.projectId}`, {}, {
+                    name: this.editForm.name,
+                    description: this.editForm.description,
+                    external_id: this.editForm.external_id || null,
+                });
+                this.editDialog = false;
+                await this.fetchProject();
+                this.snackbarText = 'Project updated successfully.';
+                this.snackbarColor = 'success';
+                this.showSnackbar = true;
+            } catch (error: unknown) {
+                console.error(error);
+                this.snackbarText = 'Failed to update project.';
+                this.snackbarColor = 'error';
+                this.showSnackbar = true;
+            }
+        },
+        async confirmDeleteProject() {
+            // @ts-ignore
+            if (await this.$refs.confirm.open('Delete Project', `Are you sure you want to delete "${this.project?.name}"?`, { color: 'red' })) {
+                try {
+                    await aiiApiDelete(`projects/${this.projectId}`);
+                    this.$router.push('/');
+                } catch (error: unknown) {
+                    console.error(error);
+                    this.snackbarText = 'Failed to delete project.';
+                    this.snackbarColor = 'error';
+                    this.showSnackbar = true;
+                }
+            }
         },
     }
 })

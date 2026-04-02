@@ -18,7 +18,7 @@
               <code>
                 dcmsend -v {{ hostname }} 11112 --scan-directories --aetitle 
                 kp-{{ "<" }}dataset-name{{ ">" }} --call
-                kp-{{ selectedProject.name }} --scan-pattern '*.dcm' --recurse
+                kp-{{ selectedProject.short_id }} --scan-pattern '*.dcm' --recurse
                 {{ "<" }}data-dir-of-DICOM-images{{ ">" }}
               </code>
             </v-card-text>

@@ -66,6 +66,10 @@ def generate_thumbnail(
     if operator_get_ref_series_dir:
         logger.info(f"operator_get_ref_series_dir: {operator_get_ref_series_dir}")
 
+    candidate_slices_count = int(os.getenv("CANDIDATE_SLICES_COUNT", "12"))
+    candidate_slices_count = max(1, candidate_slices_count)
+    logger.info(f"Candidate slices: {candidate_slices_count}")
+
     paths = list(operator_in_dir.iterdir())
 
     first_dcm = pydicom.dcmread(paths[0], stop_before_pixels=True)
@@ -120,7 +124,10 @@ def generate_thumbnail(
             )
 
         thumbnail = generate_segmentation_thumbnail(
-            operator_in_dir, operator_get_ref_series_dir, thumbnail_size
+            operator_in_dir,
+            operator_get_ref_series_dir,
+            thumbnail_size,
+            candidate_slices_count,
         )
     elif modality == "SM":
         thumbnail = generate_histopathology_thumbnail(operator_in_dir, thumbnail_size)

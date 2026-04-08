@@ -6,7 +6,10 @@ conf_data:
     exit_on_error: false
     validator_algorithm: "dicom-validator"
   data_form:
-    dataset_name: test-CT
+    dataset_name: 
+      name: test-CT
+      access_level: "project"
+      username: "kaapana"
     dataset_limit: 2
 remote: false
 username: "kaapana"
@@ -19,7 +22,10 @@ conf_data:
     exit_on_error: false
     validator_algorithm: "dciodvfy"
   data_form:
-    dataset_name: test-CT
+    dataset_name: 
+      name: test-CT
+      access_level: "project"
+      username: "kaapana"
     dataset_limit: 2
 remote: false
 username: "kaapana"

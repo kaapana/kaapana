@@ -1,5 +1,14 @@
 from app.database import Base
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Table,
+    Enum,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.schema import Index, UniqueConstraint
@@ -28,19 +37,41 @@ class Identifier(Base):
 class Dataset(Base):
     __tablename__ = "dataset"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(64), index=True)
-    username = Column(String(64))
+    name = Column(String(64), index=True, nullable=False)
+    username = Column(String(64), nullable=False)
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
     identifiers = relationship(
         "Identifier", secondary=identifiers2dataset, back_populates="datasets"
+    )
+    access_level = Column(
+        Enum("private", "project", name="access_level_enum"),
+        nullable=False,
+        server_default="project",
     )
 
     # many-to-one relationship
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
     kaapana_instance = relationship("KaapanaInstance", back_populates="datasets")
     project_id = Column(UUID(as_uuid=True), nullable=False)
-    __table_args__ = (UniqueConstraint("project_id", "name"),)
+
+    __table_args__ = (
+        Index(
+            "unique_project_access",
+            "project_id",
+            "name",
+            unique=True,
+            postgresql_where=(access_level == "project"),
+        ),
+        Index(
+            "unique_private_access",
+            "project_id",
+            "name",
+            "username",
+            unique=True,
+            postgresql_where=(access_level == "private"),
+        ),
+    )
 
 
 class KaapanaInstance(Base):
@@ -150,13 +181,13 @@ class Job(Base):
 
 class InstalledModel(Base):
     __tablename__ = "installed_models"
-    
+
     # Primary identifiers
     id = Column(Integer, primary_key=True)
     project_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     friendly_name = Column(String(255), nullable=False, unique=True)
     models_name = Column(String(255), nullable=False)  # e.g., "3d_fullres"
-    task_ids = Column(String(255), nullable=False)  
+    task_ids = Column(String(255), nullable=False)
     # Core model metadata (directly used in UI form)
     description = Column(String(255), default="nnUnet Segmentation")
     instance_name = Column(String(255), default="N/A")  # IP/hostname
@@ -165,18 +196,19 @@ class InstalledModel(Base):
     url = Column(String(512), default="N/A")
     task_url = Column(String(512), default="N/A")
 
-    
     # Input/output specifications
-    input_modalities =  Column(mutable_json_type(dbtype=JSONB, nested=False), default=list) # ["CT", "MR"] etc - rendered as string for UI
+    input_modalities = Column(
+        mutable_json_type(dbtype=JSONB, nested=False), default=list
+    )  # ["CT", "MR"] etc - rendered as string for UI
     body_part = Column(String(255), default="N/A")
-    targets = Column(mutable_json_type(dbtype=JSONB, nested=False), default=list)  # ["aorta", "liver"] - rendered as comma-separated for UI
-    
+    targets = Column(
+        mutable_json_type(dbtype=JSONB, nested=False), default=list
+    )  # ["aorta", "liver"] - rendered as comma-separated for UI
+
     # Metadata (less frequently accessed)
     input_mode = Column(String(50), default="all")
     info = Column(String(255), default="N/A")
-    
-    
-    
+
     def to_dict(self):
         return {
             "id": self.id,

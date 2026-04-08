@@ -16,13 +16,13 @@ from app.dependencies import fetch_default_project_id
 from cryptography.fernet import Fernet
 from fastapi import HTTPException, Response
 from psycopg2.errors import UniqueViolation
-from sqlalchemy import String, cast, desc, func
+from sqlalchemy import String, cast, desc, func, or_, and_
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Session, aliased
 from urllib3.util import Timeout
 
 from . import models, schemas
-from .schemas import DatasetCreate
+from .schemas import DatasetCreate, AccessLevel
 from .utils import (
     HelperMinio,
     abort_job_airflow,
@@ -1177,16 +1177,25 @@ def create_dataset(
             .first()
         )
 
-    if (
-        db.query(models.Dataset)
-        .filter(models.Dataset.name == dataset.name)
-        .filter(models.Dataset.project_id == project_id)
-        .first()
-    ):
-        raise HTTPException(status_code=409, detail="Dataset already exists!")
-
     if not db_kaapana_instance:
         raise HTTPException(status_code=404, detail="Kaapana instance not found")
+
+    if get_dataset(
+        db,
+        name=dataset.name,
+        raise_if_not_existing=False,
+        project_id=project_id,
+        access_level=dataset.access_level.value,
+        username=dataset.username,
+    ):
+        if dataset.access_level.value == "project":
+            raise HTTPException(
+                status_code=409, detail="Project dataset already exists!"
+            )
+        elif dataset.access_level.value == "private":
+            raise HTTPException(
+                status_code=409, detail="Private project dataset already exists!"
+            )
 
     utc_timestamp = get_utc_timestamp()
 
@@ -1199,6 +1208,7 @@ def create_dataset(
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
         project_id=project_id,
+        access_level=dataset.access_level.value,
     )
 
     db_kaapana_instance.datasets.append(db_dataset)
@@ -1210,9 +1220,23 @@ def create_dataset(
     return db_dataset
 
 
-def get_dataset(db: Session, name: str, project_id: UUID, raise_if_not_existing=True):
+def get_dataset(
+    db: Session,
+    name: str,
+    project_id: UUID,
+    raise_if_not_existing=True,
+    access_level: str = "project",
+    username: str = None,
+):
+    logging.debug(f"Getting dataset with name: {name}")
+    logging.debug(f"Getting dataset with access_level: {access_level}")
+    logging.debug(f"Getting dataset with username: {username}")
+    logging.debug(f"Getting dataset with project_id: {project_id}")
     db_query = db.query(models.Dataset).filter_by(name=name)
     db_query = db_query.filter(models.Dataset.project_id == project_id)
+    db_query = db_query.filter(models.Dataset.access_level == access_level)
+    if access_level == "private":
+        db_query = db_query.filter(models.Dataset.username == username)
     db_dataset = db_query.first()
     if not db_dataset and raise_if_not_existing:
         raise HTTPException(status_code=404, detail="Dataset not found")
@@ -1223,18 +1247,37 @@ def get_datasets(
     db: Session, project_id: UUID, limit=None, username: str = None
 ) -> List[models.Dataset]:
     logging.debug(username)
-    db_query = (
+    datasets = (
         db.query(models.Dataset)
+        .filter(models.Dataset.project_id == project_id)
+        .filter(
+            or_(
+                and_(
+                    models.Dataset.access_level == "private",
+                    models.Dataset.username == username,
+                ),
+                models.Dataset.access_level == "project",
+            )
+        )
         .order_by(desc(models.Dataset.time_updated))
         .limit(limit)
+        .all()
     )
-    db_query = db_query.filter(models.Dataset.project_id == project_id)
-    db_datasets = db_query.all()
-    return db_datasets
+    logging.info(f"get_datasets: {datasets}")
+
+    return datasets
 
 
-def delete_dataset(db: Session, name: str, project_id: UUID):
-    db_dataset = get_dataset(db, name, project_id=project_id)
+def delete_dataset(
+    db: Session,
+    name: str,
+    project_id: UUID,
+    access_level: str = "project",
+    username: str = None,
+):
+    db_dataset = get_dataset(
+        db, name, project_id=project_id, username=username, access_level=access_level
+    )
     db.delete(db_dataset)
     db.commit()
     return {"ok": True}
@@ -1247,17 +1290,28 @@ def delete_datasets(db: Session):
     return {"ok": True}
 
 
-def update_dataset(db: Session, dataset: schemas.DatasetUpdate, project_id: UUID):
+def update_dataset(
+    db: Session, dataset: schemas.DatasetUpdate, project_id: UUID, username: str = None
+):
     logging.debug(f"Updating dataset {dataset.name}")
     db_dataset = get_dataset(
-        db, dataset.name, raise_if_not_existing=False, project_id=project_id
+        db,
+        name=dataset.name,
+        raise_if_not_existing=False,
+        project_id=project_id,
+        access_level=dataset.access_level.value,
+        username=username,
     )
 
     if not db_dataset:
         logging.debug(f"Dataset {dataset.name} doesn't exist. Creating it.")
         db_dataset = create_dataset(
             db,
-            DatasetCreate(name=dataset.name),
+            DatasetCreate(
+                name=dataset.name,
+                access_level=dataset.access_level.value,
+                username=username,
+            ),
             project_id=project_id,
         )
         logging.debug(f"Dataset {dataset.name} created.")
@@ -1402,14 +1456,20 @@ def queue_generate_jobs_and_add_to_workflow(
     for db_kaapana_instance in db_kaapana_instances:
         identifiers = []
         if "data_form" in conf_data and "dataset_name" in conf_data["data_form"]:
-            project = conf_data["project_form"]
-            dataset_name = conf_data["data_form"]["dataset_name"]
+            project: dict = conf_data["project_form"]
+            dataset: dict = conf_data["data_form"]["dataset_name"]
             if not db_kaapana_instance.remote:
-                db_dataset = get_dataset(db, dataset_name, project_id=project.get("id"))
+                db_dataset = get_dataset(
+                    db,
+                    dataset.get("name"),
+                    access_level=dataset.get("access_level"),
+                    project_id=project.get("id"),
+                    username=dataset.get("username"),
+                )
                 identifiers = [idx.id for idx in db_dataset.identifiers]
             else:
                 for dataset_info in db_kaapana_instance.allowed_datasets:
-                    if dataset_info["name"] == dataset_name:
+                    if dataset_info["name"] == dataset.get("name"):
                         identifiers = (
                             dataset_info["identifiers"]
                             if "identifiers" in dataset_info
@@ -1723,22 +1783,22 @@ def delete_workflows(db: Session):
 
 ## models section just added here for now.
 
+
 def replace_installed_models_in_schemas(
     db: Session,
     project_id: str,
     properties_template: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
-    """Generate and return the installed models schema for workflow_form.
-    """
+    """Generate and return the installed models schema for workflow_form."""
     # Get all models for this project
     installed_models = get_installed_models_by_project(db, project_id)
     logging.info(f"Installed models: {installed_models}")
     one_of = []
-    
+
     if not installed_models:
         logging.warning(f"No installed models found for project {project_id}")
         return one_of
-    
+
     # Build oneOf array from database models
     for idx, model in enumerate(installed_models):
         task_values = model.to_dict()
@@ -1751,16 +1811,16 @@ def replace_installed_models_in_schemas(
                 }
             },
         }
-        
+
         # Deep copy template and populate with model data
         task_properties = copy.deepcopy(properties_template)
-        
+
         # Iterate through template properties and update with model data
         for key, item in task_properties.items():
             # Only update if the key exists in task_values (original logic)
             if key in task_values:
                 to_be_placed = task_values[key]
-                
+
                 # Special handling for "model" key (enum with options)
                 if key == "model":
                     item["enum"] = to_be_placed
@@ -1773,11 +1833,11 @@ def replace_installed_models_in_schemas(
                     if isinstance(to_be_placed, list):
                         to_be_placed = ",".join(to_be_placed)
                     item["default"] = to_be_placed
-        
+
         # Add index suffix to all properties (key#idx pattern)
         for key in list(task_properties.keys()):
             task_properties[f"{key}#{idx}"] = task_properties.pop(key)
-        
+
         # Update task_selection with all properties
         task_selection["properties"].update(task_properties)
         one_of.append(task_selection)
@@ -1793,19 +1853,21 @@ def update_installed_models(
     installed_tasks: dict[str, dict],
 ) -> tuple[List[models.InstalledModel], List[dict]]:
     """Update all installed models for a project (replace entire list).
-    
+
     Strategy: Delete all existing models for project, then create new ones.
     This ensures clean state and handles removed models automatically.
     """
     created = []
     failed = []
-    
+
     try:
         # 1. Delete all existing models for this project
-        existing_models = db.query(models.InstalledModel).filter(
-            models.InstalledModel.project_id == project_id
-        ).all()
-        
+        existing_models = (
+            db.query(models.InstalledModel)
+            .filter(models.InstalledModel.project_id == project_id)
+            .all()
+        )
+
         deleted_count = len(existing_models)
         for model in existing_models:
             db.delete(model)
@@ -1813,7 +1875,7 @@ def update_installed_models(
         logging.info(
             f"Deleted {deleted_count} existing models for project {project_id}"
         )
-        
+
         # 2. Create new models from installed_tasks
         for friendly_name, task_data in installed_tasks.items():
             try:
@@ -1839,41 +1901,35 @@ def update_installed_models(
                 )
                 db.add(model)
                 created.append(model)
-                
+
             except Exception as e:
-                failed.append({
-                    "friendly_name": friendly_name,
-                    "error": str(e)
-                })
+                failed.append({"friendly_name": friendly_name, "error": str(e)})
                 logging.error(f"Failed to create model {friendly_name}: {e}")
-        
+
         # Commit all new models
         db.commit()
-        
+
         # Refresh to get IDs
         for model in created:
             db.refresh(model)
-        
+
         logging.info(
             f"Updated models for project {project_id}: "
             f"Created {len(created)}, Failed {len(failed)}"
         )
         return created, failed
-        
+
     except Exception as e:
         db.rollback()
         logging.error(f"Error updating models for project {project_id}: {e}")
         raise
 
-  
+
 def get_installed_models_by_project(
     db: Session, project_id: str
 ) -> List[models.InstalledModel]:
-    return db.query(models.InstalledModel).filter(
-        models.InstalledModel.project_id == project_id
-    ).all()
-
-
- 
-
-
+    return (
+        db.query(models.InstalledModel)
+        .filter(models.InstalledModel.project_id == project_id)
+        .all()
+    )

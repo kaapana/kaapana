@@ -37,12 +37,12 @@ const deleteDataset = async (datasetName) => {
   }
 };
 
-const loadDatasetByName = async (datasetName) => {
+const loadDatasetByName = async (datasetName, access_level="project") => {
   try {
     const dataset = (
       await httpClient.get(
         KAAPANA_BACKEND_ENDPOINT +
-          `client/dataset?name=${encodeURIComponent(datasetName)}`
+          `client/dataset?name=${encodeURIComponent(datasetName)}&access_level=${encodeURIComponent(access_level)}`
       )
     ).data;
     return dataset;

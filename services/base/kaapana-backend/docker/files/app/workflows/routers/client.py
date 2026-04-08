@@ -8,6 +8,7 @@ import shutil
 import string
 import uuid
 from datetime import datetime
+import functools
 from pathlib import Path
 from threading import Thread
 from typing import List, Tuple, Union
@@ -430,14 +431,7 @@ def ui_form_schemas(
     ):  # if just one instance is selected -> return (allowed) dags of this instance
         dags = list(dags.values())[0]
 
-    # Datasets: Checking for datasets
-    # if (
-    #     "data_form" in schemas
-    #     and "properties" in schemas["data_form"]
-    #     and "dataset_name" in schemas["data_form"]["properties"]
-    # ):
     datasets = {}
-    dataset_size = {}
     for instance_name in filter_kaapana_instances.instance_names:
         # check if whether instance_name is client_instance --> datasets = crud.get_datasets(db, username=username)
         db_kaapana_instance = crud.get_kaapana_instance(db, instance_name)
@@ -446,74 +440,106 @@ def ui_form_schemas(
             client_datasets = crud.get_datasets(
                 db, username=username, project_id=project.get("id")
             )
-            allowed_dataset = [ds.name for ds in client_datasets]
-            dataset_size = {ds.name: len(ds.identifiers) for ds in client_datasets}
+            datasets[db_kaapana_instance.instance_name] = [
+                schemas.AllowedDataset(
+                    name=ds.name,
+                    username=ds.username,
+                    identifiers=[id.id for id in ds.identifiers],
+                    access_level=ds.access_level,
+                )
+                for ds in client_datasets
+            ]
         else:
-            allowed_dataset = list(
-                ds["name"] for ds in db_kaapana_instance.allowed_datasets
-            )
-            dataset_size = {
-                ds["name"]: len(ds["identifiers"])
+            datasets[db_kaapana_instance.instance_name] = [
+                schemas.AllowedDataset(
+                    name=ds.get("name"),
+                    username=ds.get("username"),
+                    identifiers=ds.get("identifiers"),
+                )
                 for ds in db_kaapana_instance.allowed_datasets
-            }
-        datasets[db_kaapana_instance.instance_name] = allowed_dataset
+            ]
 
     if len(datasets) > 1:
         # if multiple instances are selected -> find intersection of their allowed datasets
-        overall_allowed_datasets = []
-        for i in range(len(datasets) - 1):
-            if len(overall_allowed_datasets) == 0:
-                list1 = list(datasets.values())[i]
-                list2 = list(datasets.values())[i + 1]
-                overall_allowed_datasets = list(set(list1) & set(list2))
-            else:
-                list1 = list(datasets.values())[i]
-                overall_allowed_datasets = list(
-                    set(overall_allowed_datasets) & set(list1)
-                )
-        dataset_names = [{"const": d, "title": d} for d in overall_allowed_datasets]
-    elif len(datasets) == 1:
-        # if just one instance is selected -> return (allowed) datasets of this instance
+        # Only consider project dataests for federated workflow execution
+
+        all_datasets = [
+            {
+                ds.name: ds
+                for ds in instance_datasets
+                if ds.access_level == schemas.AccessLevel.project
+            }
+            for instance_datasets in datasets.values()
+        ]
+
+        dataset_intersection = functools.reduce(
+            lambda x, y: x.keys() & y.keys(), all_datasets
+        )
+
+        overall_allowed_datasets = [
+            all_datasets[0][ds_name] for ds_name in dataset_intersection
+        ]
+
         dataset_names = [
-            {"const": d, "title": d + f" ({dataset_size[d]})"}
-            for d in list(datasets.values())[0]
+            {
+                "const": {
+                    "name": ds.name,
+                    "username": ds.username,
+                    "access_level": ds.access_level.value,
+                },
+                "title": f"{ds.name} ({ds.access_level.value}) ({len(ds.identifiers)})",
+            }
+            for ds in overall_allowed_datasets
+        ]
+    elif len(datasets) == 1:
+        dataset_names = [
+            {
+                "const": {
+                    "name": ds.name,
+                    "username": ds.username,
+                    "access_level": ds.access_level.value,
+                },
+                "title": f"{ds.name} ({ds.access_level.value}) ({len(ds.identifiers)})",
+            }
+            for ds in datasets.get(list(datasets)[0])
         ]
 
     schemas_dict = {}
     for dag_id, dag in dags.items():
-        schemas = dag.get("ui_forms", {})
-        # schemas = dag["ui_forms"]
+        form_schemas = dag.get("ui_forms", {})
         if (
-            "data_form" in schemas
-            and "properties" in schemas["data_form"]
-            and "dataset_name" in schemas["data_form"]["properties"]
+            "data_form" in form_schemas
+            and "properties" in form_schemas["data_form"]
+            and "dataset_name" in form_schemas["data_form"]["properties"]
         ):
             if len(dataset_names) < 1:
-                schemas["data_form"]["__emtpy__"] = "true"
+                form_schemas["data_form"]["__empty__"] = "true"
             else:
-                schemas["data_form"]["properties"]["dataset_name"][
+                form_schemas["data_form"]["properties"]["dataset_name"][
                     "oneOf"
                 ] = dataset_names
         # Installed Models: Checking for installed models
         if (
-            "workflow_form" in schemas
-            and "models" in schemas["workflow_form"]
-            and "oneOf" in schemas["workflow_form"]
-            and "properties-template" in schemas["workflow_form"]
+            "workflow_form" in form_schemas
+            and "models" in form_schemas["workflow_form"]
+            and "oneOf" in form_schemas["workflow_form"]
+            and "properties-template" in form_schemas["workflow_form"]
         ):
             # Inserting installed_models for this project
-            schemas["workflow_form"]["oneOf"] = (
+            form_schemas["workflow_form"]["oneOf"] = (
                 crud.replace_installed_models_in_schemas(
                     db=db,
                     project_id=project.get("id"),
-                    properties_template=schemas["workflow_form"]["properties-template"],
+                    properties_template=form_schemas["workflow_form"][
+                        "properties-template"
+                    ],
                 )
             )
 
             # Remove properties-template from response (it's not needed in frontend)
-            schemas["workflow_form"].pop("properties-template", None)
-            if len(schemas["workflow_form"]["oneOf"]) == 0:
-                schemas["workflow_form"] = {
+            form_schemas["workflow_form"].pop("properties-template", None)
+            if len(form_schemas["workflow_form"]["oneOf"]) == 0:
+                form_schemas["workflow_form"] = {
                     "type": "object",
                     "properties": {
                         "tasks": {
@@ -527,8 +553,7 @@ def ui_form_schemas(
                     },
                 }
 
-        schemas_dict[dag_id] = schemas
-    # logging.info(f"\n\nFinal Schema: \n{schemas}")
+        schemas_dict[dag_id] = form_schemas
     if filter_kaapana_instances.dag_id is None:
         return JSONResponse(content=schemas_dict)
     elif filter_kaapana_instances.dag_id in schemas_dict:
@@ -568,6 +593,7 @@ def create_dataset(
         time_updated=db_obj.time_updated,
         username=db_obj.username,
         identifiers=[x.id for x in db_obj.identifiers],
+        access_level=db_obj.access_level,
     )
 
 
@@ -618,14 +644,27 @@ async def create_dataset_from_query(
 
 
 @router.get("/dataset", response_model=schemas.Dataset)
-def get_dataset(name: str, db: Session = Depends(get_db), project=Depends(get_project)):
-    db_obj = crud.get_dataset(db, name, project_id=project.get("id"))
+def get_dataset(
+    request: Request,
+    name: str,
+    access_level: str = "project",
+    db: Session = Depends(get_db),
+    project=Depends(get_project),
+):
+    db_obj = crud.get_dataset(
+        db,
+        name,
+        project_id=project.get("id"),
+        access_level=access_level,
+        username=request.headers.get("x-forwarded-preferred-username"),
+    )
     return schemas.Dataset(
         name=db_obj.name,
         time_created=db_obj.time_created,
         time_updated=db_obj.time_updated,
         username=db_obj.username,
         identifiers=[x.id for x in db_obj.identifiers],
+        access_level=db_obj.access_level,
     )
 
 
@@ -640,7 +679,7 @@ def get_datasets(
     db_objs = crud.get_datasets(
         db,
         limit=limit,
-        username=request.headers["x-forwarded-preferred-username"],
+        username=request.headers.get("x-forwarded-preferred-username"),
         project_id=project.get("id"),
     )
 
@@ -651,6 +690,7 @@ def get_datasets(
             time_updated=db_obj.time_updated,
             username=db_obj.username,
             identifiers=[x.id for x in db_obj.identifiers],
+            access_level=db_obj.access_level,
         )
         for db_obj in db_objs
     ]
@@ -658,25 +698,42 @@ def get_datasets(
 
 @router.put("/dataset", response_model=schemas.Dataset)
 def put_dataset(
+    request: Request,
     dataset: schemas.DatasetUpdate,
     db: Session = Depends(get_db),
     project=Depends(get_project),
 ):
-    db_obj = crud.update_dataset(db, dataset, project_id=project.get("id"))
+    db_obj = crud.update_dataset(
+        db,
+        dataset,
+        project_id=project.get("id"),
+        username=request.headers.get("x-forwarded-preferred-username"),
+    )
     return schemas.Dataset(
         name=db_obj.name,
         time_created=db_obj.time_created,
         time_updated=db_obj.time_updated,
         username=db_obj.username,
         identifiers=[x.id for x in db_obj.identifiers],
+        access_level=db_obj.access_level,
     )
 
 
 @router.delete("/dataset")
 def delete_dataset(
-    name: str, db: Session = Depends(get_db), project=Depends(get_project)
+    request: Request,
+    name: str,
+    access_level: str = "project",
+    db: Session = Depends(get_db),
+    project=Depends(get_project),
 ):
-    return crud.delete_dataset(db, name, project_id=project.get("id"))
+    return crud.delete_dataset(
+        db,
+        name,
+        access_level=access_level,
+        project_id=project.get("id"),
+        username=request.headers.get("x-forwarded-preferred-username"),
+    )
 
 
 @router.delete("/datasets")

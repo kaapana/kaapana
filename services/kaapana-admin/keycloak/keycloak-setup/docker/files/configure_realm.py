@@ -24,7 +24,7 @@ if __name__ == "__main__":
         payload = json.load(f)
         if DEV_MODE.lower() == "true":
             payload["passwordPolicy"] = ""
-            logger.warning("!! DEV_MODE: Set password policies to emtpy string.")
+            logger.warning("!! DEV_MODE: Set password policies to empty string.")
         logger.debug(f"{payload=}")
         keycloak.post_realm(payload)
 

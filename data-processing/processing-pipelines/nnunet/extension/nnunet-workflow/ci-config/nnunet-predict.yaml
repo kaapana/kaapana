@@ -15,7 +15,10 @@ conf_data:
     model_plan: "nnUNetResEncUNetMPlans"
     model_network_trainer: "nnUNetTrainer"
   data_form:
-    dataset_name: test-CT
+    dataset_name: 
+      name: test-CT
+      username: "kaapana"
+      access_level: project
     dataset_limit: 2
 remote: false
 username: "kaapana"

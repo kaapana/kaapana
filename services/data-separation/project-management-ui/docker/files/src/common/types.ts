@@ -13,6 +13,7 @@ export type UserItem = {
     username: string,
     first_name: string,
     last_name: string,
+    email: string,
     email_verified: boolean,
     groups?: string[],
     realm_roles?: string[],

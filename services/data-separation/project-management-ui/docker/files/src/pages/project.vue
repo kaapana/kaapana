@@ -403,25 +403,25 @@
             </v-col>
         </v-row>
 
-    </v-container>
-    <v-dialog v-model="softwareDialog" max-width="1000">
-        <AddSoftwareToProject :projectId="project?.id || ''" :projectName="project?.name || ''" :current-software="allowedSoftware"
-            :oncancel="resetSoftwareFormValues" :onsuccess="handleSoftwareSubmit" />
+    <v-divider class="my-4" />
+
+    <!-- ── Dialogs ───────────────────────────────────────────────── -->
+    <v-dialog v-model="isAddWorkflowDialogOpen" max-width="1000">
+      <AddSoftwareToProject
+        :projectId="project?.id ?? ''"
+        :projectName="project?.name ?? ''"
+        :current-software="allowedWorkflows"
+        :oncancel="closeAddWorkflowDialog"
+        :onsuccess="onWorkflowAdded"
+      />
     </v-dialog>
-    <v-dialog v-model="userDialog" max-width="1000">
-        <AddUserToProject :projectId="project?.id || ''" :projectName="project?.name || ''" :current-user-ids="userIds" :onsuccess="handleUserSubmit"
-            :oncancel="resetUserFormValues" />
-    </v-dialog>
-    <v-dialog v-model="userEditDialog" max-width="1000">
-        <AddUserToProject :projectId="project?.id || ''" :projectName="project?.name || ''" action-type="update" :selected-user="selectedUser"
-            :current-role="selectedUser?.role" :onsuccess="handleUserSubmit" :oncancel="resetUserFormValues" />
-    </v-dialog>
-    <v-dialog v-model="launchApplicationDialog" max-width="1000">
-        <LaunchApplication 
-        :extension="selectedExtension"
-        @submit="handleExtensionSubmit"
-        @close="launchApplicationDialog = false"
-        />
+
+    <v-dialog v-model="isLaunchAppDialogOpen" max-width="1000">
+      <LaunchApplication
+        :extension="selectedApplication"
+        @submit="onApplicationLaunched"
+        @close="isLaunchAppDialogOpen = false"
+      />
     </v-dialog>
     <v-dialog v-model="deleteDialog" max-width="500">
         <DeleteProjectDialog v-if="project" :project="project"
@@ -469,7 +469,7 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue'
-import { aiiApiGet, aiiApiDelete, aiiApiPut, aiiApiPost, kubeHelmGet, kubeHelmPost } from '@/common/aiiApi.service'
+import { aiiApiGet, aiiApiDelete, aiiApiPut, kubeHelmGet, kubeHelmPost } from '@/common/aiiApi.service'
 import EditProjectDialog from '@/components/EditProjectDialog.vue'
 import DeleteProjectDialog from '@/components/DeleteProjectDialog.vue'
 import ArchiveProjectDialog from '@/components/ArchiveProjectDialog.vue'
@@ -477,17 +477,14 @@ import { ProjectItem, UserItem, UserRole, Software } from '@/common/types'
 import { isAdminUser, waitForStoreUser } from '@/common/userAccess'
 import { useSnackbar } from '@/composables/useSnackbar'
 import AddUserToProject from '@/components/AddUserToProject.vue'
+import ProjectUsers from '@/components/ProjectUsers.vue';
 import { usePermissions } from '@/permissions/usePermissions';
 import LaunchApplication from '@/components/LaunchApplication.vue';
-import { useCookies } from "vue3-cookies";
-
-interface User extends UserItem {
-    role?: UserRole
-}
+import { useCookies } from 'vue3-cookies';
 
 export default defineComponent({
     components: {
-        AddUserToProject,
+        ProjectUsers,
         LaunchApplication,
         EditProjectDialog,
         DeleteProjectDialog,
@@ -498,7 +495,9 @@ export default defineComponent({
         const { can } = usePermissions();
         const { showSnackbar, snackbarText, snackbarColor, notify } = useSnackbar();
 
-        return { can, showSnackbar, snackbarText, snackbarColor, notify };
+        return {
+            can
+        };
     },
     data() {
         return {
@@ -532,13 +531,14 @@ export default defineComponent({
             archiveDialog: false,
         };
     },
-    mounted() {
-        this.fetchProject();
-        this.fetchProjectUsers();
-        this.fetchProjectSoftware();
-        this.fetchMultiinstallableApplications();
-        this.fetchActiveApplications();
-        this.fetchProjectWhitelist();
+  },
+
+  mounted() {
+    this.loadProject();
+    this.loadProjectWorkflows();
+    this.loadMultiinstallableApps();
+    this.loadActiveApplications();
+    this.loadAppWhitelist();
 
         waitForStoreUser((user) => {
             this.userHasAdminAccess = isAdminUser(user);
@@ -849,10 +849,3 @@ export default defineComponent({
     }
 })
 </script>
-
-<style scoped>
-.large-font {
-    font-size: 40px;
-}
-
-</style>

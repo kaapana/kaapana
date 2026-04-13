@@ -39,7 +39,7 @@ const kubeHelmGet = async function (suburl: string) {
         } else {
             throw new Error(response.status + " Error, Error Message: " + response.statusText);
         }
-        
+
     } catch (error: unknown) {
         throw error;
     }
@@ -48,7 +48,7 @@ const kubeHelmGet = async function (suburl: string) {
 const kubeHelmPost = async function (suburl: string, data: Object) {
     const config: AxiosRequestConfig = {
         headers: header_with_auth_token({
-        'Accept': 'application/json',
+            'Accept': 'application/json',
         }) as RawAxiosRequestHeaders,
     };
 
@@ -58,10 +58,10 @@ const kubeHelmPost = async function (suburl: string, data: Object) {
             return response.data;
         } else {
             throw new Error(response.status + " Error, Error Message: " + response.statusText);
-        } 
-      } catch (error: unknown) {
+        }
+    } catch (error: unknown) {
         throw error;
-      }
+    }
 }
 
 
@@ -78,7 +78,7 @@ const kaapanaPluginGet = async function (suburl: string) {
         } else {
             throw new Error(response.status + " Error, Error Message: " + response.statusText);
         }
-        
+
     } catch (error: unknown) {
         throw error;
     }
@@ -97,16 +97,16 @@ const aiiApiGet = async function (suburl: string) {
         } else {
             throw new Error(response.status + " Error, Error Message: " + response.statusText);
         }
-        
+
     } catch (error: unknown) {
         throw error;
     }
 }
 
-const aiiApiPost = async function (suburl: string, data: Object) {
+const aiiApiPost = async function (suburl: string, data: Object | null = null) {
     const config: AxiosRequestConfig = {
         headers: header_with_auth_token({
-        'Accept': 'application/json',
+            'Accept': 'application/json',
         }) as RawAxiosRequestHeaders,
     };
 
@@ -116,10 +116,10 @@ const aiiApiPost = async function (suburl: string, data: Object) {
             return response.data;
         } else {
             throw new Error(response.status + " Error, Error Message: " + response.statusText);
-        } 
-      } catch (error: unknown) {
+        }
+    } catch (error: unknown) {
         throw error;
-      }
+    }
 }
 
 const aiiApiPut = async function (suburl: string, params: Object, data: Object = {}) {
@@ -130,21 +130,21 @@ const aiiApiPut = async function (suburl: string, params: Object, data: Object =
 
     try {
         const response: AxiosResponse = await client.put(
-            suburl, 
+            suburl,
             data,
-            config,          
+            config,
         );
         if (response.status === 200) {
             return response.data;
         } else {
             throw new Error(response.status + " Error, Error Message: " + response.statusText);
-        } 
-      } catch (error: unknown) {
+        }
+    } catch (error: unknown) {
         throw error;
-      }
+    }
 }
 
-const aiiApiDelete = async function (suburl: string, params: Object= {}, data:Object={}) {
+const aiiApiDelete = async function (suburl: string, params: Object = {}, data: Object = {}) {
     const config: AxiosRequestConfig = {
         headers: header_with_auth_token({}),
         data: data,
@@ -162,10 +162,10 @@ const aiiApiDelete = async function (suburl: string, params: Object= {}, data:Ob
         } else {
             throw new Error(response.status + " Error, Error Message: " + response.statusText);
         }
-        
+
     } catch (error: unknown) {
         throw error;
     }
 }
 
-export {aiiApiGet, aiiApiPost, aiiApiPut, aiiApiDelete, kaapanaPluginGet, kubeHelmGet, kubeHelmPost};
+export { aiiApiGet, aiiApiPost, aiiApiPut, aiiApiDelete, kaapanaPluginGet, kubeHelmGet, kubeHelmPost };

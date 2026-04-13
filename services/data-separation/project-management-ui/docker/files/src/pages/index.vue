@@ -58,8 +58,8 @@
             </div>
           </td>
         </tr>
-      </tbody>
-    </v-table>
+      </template>
+    </v-data-table>
   </v-container>
   <v-dialog v-model="projectDialog" max-width="1000">
     <CreateNewProjectForm :onsuccess="handleProjectCreate" :oncancel="() => (projectDialog = false)" />
@@ -170,7 +170,28 @@ export default defineComponent({
       }
       this.projectDialog = false;
     },
+    onRowClick(item: any, event: MouseEvent) {
+      // If user is selecting text → DO NOT navigate
+      const selection = window.getSelection();
+      if (selection && selection.toString().length > 0) {
+        return;
+      }
+
+      // If click originated from interactive element → ignore
+      const target = event.target as HTMLElement;
+
+      if (
+        target.closest('button') ||
+        target.closest('a') ||
+        target.closest('.no-row-click')
+      ) {
+        return;
+      }
+
+      this.goToProjects(item.id);
+    },
     goToProjects(projectId: string) {
+      // Use name-based route for better URL readability
       this.$router.push(`/project/${projectId}`);
     },
     openEditDialog(project: ProjectItem) {

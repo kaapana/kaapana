@@ -1,8 +1,16 @@
 import base64
 import json
+from enum import Enum
 from typing import Optional
 
 from fastapi import Request
+
+
+class UserRole(str, Enum):
+    """User roles in the Kaapana system."""
+    ADMIN = "admin"
+    PROJECT_MANAGER = "project-manager"
+    PRINCIPAL_INVESTIGATOR = "principal-investigator"
 
 
 def decode_jwt_payload(raw_token: Optional[str]) -> dict:
@@ -31,4 +39,4 @@ def get_request_user_id(request: Request) -> Optional[str]:
 def is_admin_request(request: Request) -> bool:
     token_payload = decode_jwt_payload(request.headers.get("x-forwarded-access-token"))
     roles = token_payload.get("realm_access", {}).get("roles", [])
-    return "admin" in roles
+    return UserRole.ADMIN.value in roles

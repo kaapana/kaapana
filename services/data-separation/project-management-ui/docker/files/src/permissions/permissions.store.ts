@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { aiiApiGet } from "@/common/aiiApi.service";
+import { aiiApiGet } from "@/common/services";
 
 export interface UserRight {
   name: string;

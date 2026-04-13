@@ -1,20 +1,44 @@
 /**
  * router/index.ts
  *
- * Automatic routes for `./src/pages/*.vue`
+ * Manual route configuration for project management UI
  */
 
 // Composables
-import { createRouter, createWebHistory } from 'vue-router/auto'
-import { routes } from 'vue-router/auto-routes'
+import { createRouter, createWebHistory } from 'vue-router'
+import Index from '@/pages/index.vue'
 import Project from '@/pages/project.vue'
 
+// Define routes manually to avoid auto-route conflicts
+const routes = [
+  {
+    path: '/',
+    name: 'Index',
+    component: Index,
+  },
+  {
+    path: '/project/:id',
+    component: Project,
+    props: true,
+    name: 'ProjectDetail'
+  },
+  {
+    path: '/project/:id/:name',
+    component: Project,
+    props: true,
+    name: 'ProjectDetailWithName'
+  },
+  // Catch-all redirect to home
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/'
+  }
+]
+
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHistory('/projects-ui'),
   routes,
 })
-
-router.addRoute({ path: '/project/:id', component: Project })
 
 // Workaround for https://github.com/vitejs/vite/issues/11804
 router.onError((err, to) => {

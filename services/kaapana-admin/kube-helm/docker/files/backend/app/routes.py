@@ -12,22 +12,16 @@ from fastapi.templating import Jinja2Templates
 from kaapanapy.logger import get_logger
 
 from . import file_handler, helm_helper, schemas, utils
-from .auth_utils import get_request_user_id, is_admin_request
+from .auth_utils import UserRole, get_request_user_id, is_admin_request
 from .config import settings
 
 # TODO: add endpoint for /helm-delete-file
 # TODO: add dependency injection
 
 router = APIRouter()
-# router = APIRouter(prefix=settings.application_root)
-# templates = Jinja2Templates(
-#     directory=os.path.abspath(os.path.expanduser('app/templates'))
-# )
 templates = Jinja2Templates(directory=join(dirname(str(__file__)), "templates"))
 
 logger = get_logger(__name__)
-
-PI_ROLE_NAME = "principal-investigator"
 
 
 async def _fetch_multiinstallable_blacklist() -> set[str]:
@@ -346,17 +340,10 @@ async def helm_install_chart(request: Request):
                 project_id = project_form.get("id")
                 if project_id:
                     role_name = await _get_project_role_name(project_id, request)
-                    if role_name == PI_ROLE_NAME:
+                    # PIs are restricted by project whitelist; admins can install anything
+                    if role_name == UserRole.PRINCIPAL_INVESTIGATOR.value:
                         app_name = payload["name"]
                         project_whitelist = project_form.get("multiinstallable_whitelist") or []
-                        blacklist = await _fetch_multiinstallable_blacklist()
-                        if app_name in blacklist:
-                            raise HTTPException(
-                                status_code=403,
-                                detail=(
-                                    f"Launching multiinstallable application '{app_name}' is forbidden for role '{PI_ROLE_NAME}'."
-                                ),
-                            )
                         if project_whitelist and app_name not in project_whitelist:
                             raise HTTPException(
                                 status_code=403,
@@ -643,4 +630,4 @@ async def view_chart_status(release_name: str):
     if status:
         return status
     else:
-        return Response(f"Release not found", 404)
+        return Response("Release not found", 404)

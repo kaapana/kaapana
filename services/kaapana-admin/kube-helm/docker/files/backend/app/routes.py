@@ -340,8 +340,9 @@ async def helm_install_chart(request: Request):
                 project_id = project_form.get("id")
                 if project_id:
                     role_name = await _get_project_role_name(project_id, request)
-                    # PIs are restricted by project whitelist; admins can install anything
-                    if role_name == UserRole.PRINCIPAL_INVESTIGATOR.value:
+                    # Admins can install anything; only PIs are restricted by project whitelist
+                    # Check if user is admin via is_admin_request first
+                    if not is_admin_request(request) and role_name == UserRole.PRINCIPAL_INVESTIGATOR.value:
                         app_name = payload["name"]
                         project_whitelist = project_form.get("multiinstallable_whitelist") or []
                         if project_whitelist and app_name not in project_whitelist:
@@ -510,6 +511,25 @@ async def get_active_applications() -> List[schemas.ActiveApplication]:
             _, ready, _, _ = helm_helper.get_kube_objects(release_name)
             # find the deployed chart inside the extension object
             active_app["ready"] = ready
+            
+            # Get helm values for the deployment
+            try:
+                values = helm_helper.helm_get_values(release_name)
+                if values:
+                    active_app["values"] = values
+            except Exception as values_error:
+                logger.warning(f"Could not fetch helm values for {release_name}: {values_error}")
+            
+            # Get pod information for the deployment
+            try:
+                pods = helm_helper.get_kube_objects(release_name)
+                if pods and len(pods) > 3:
+                    # pods[2] contains pod information
+                    pod_info = pods[2]
+                    if pod_info:
+                        active_app["pods"] = pod_info
+            except Exception as pods_error:
+                logger.warning(f"Could not fetch pod information for {release_name}: {pods_error}")
 
         return active_apps
     except Exception as e:

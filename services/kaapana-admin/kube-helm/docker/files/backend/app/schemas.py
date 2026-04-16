@@ -1,5 +1,6 @@
 from enum import IntEnum
-from typing import Union, List, Dict
+from typing import Dict, List, Optional, Union
+
 from pydantic import BaseModel
 
 
@@ -132,3 +133,5 @@ class ActiveApplication(BaseModelExtended):
     release_name: str  # name of the deployed chart
     from_workflow_run: bool  # True if the application is triggered from a workflow run, False if it is directly installed by user
     ready: bool # Whether all pods deployed from the chart of the application are running or completed
+    values: Optional[Dict] = None  # Helm values (user-defined parameters and defaults)
+    pods: Optional[List[Dict]] = None  # Pod information for the application

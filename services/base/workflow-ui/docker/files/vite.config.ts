@@ -8,7 +8,7 @@ export default defineConfig(() => ({
   base: "/workflow-ui",
   plugins: [
     vue(),
-    vueDevTools(),    
+    vueDevTools(),
   ],
   resolve: {
     alias: {

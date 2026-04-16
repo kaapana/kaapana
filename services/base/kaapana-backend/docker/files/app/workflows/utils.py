@@ -4,6 +4,7 @@ import logging
 import os
 import xml.etree.ElementTree as ET
 from datetime import timedelta, timezone
+from typing import Optional
 
 import requests
 from app.config import settings
@@ -167,7 +168,7 @@ def get_utc_timestamp():
 
 def get_dag_list(
     only_dag_names: bool = True,
-    filter_allowed_dags: list = None,
+    filter_allowed_dags: Optional[list] = None,
     kind_of_dags: str = "all",
 ):
     """

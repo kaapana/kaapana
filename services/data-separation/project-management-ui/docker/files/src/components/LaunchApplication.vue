@@ -113,7 +113,7 @@
       <v-spacer></v-spacer>
 
       <v-btn color="error" @click="emitClose">
-        Abort
+        Cancel
       </v-btn>
 
       <v-btn color="primary" @click="submit">

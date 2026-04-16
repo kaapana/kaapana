@@ -1,5 +1,5 @@
 <template>
-  <v-card prepend-icon="mdi-gamepad-variant" title="Add software to Project">
+  <v-card prepend-icon="mdi-workflow" title="Add Workflow to Project">
     <v-overlay v-model="fetching" class="align-center justify-center" contained>
       <v-progress-circular color="primary" indeterminate></v-progress-circular>
     </v-overlay>
@@ -14,15 +14,37 @@
             required
           ></v-text-field
         ></v-row>
-        <!-- <v-row><v-text-field v-model="userId" label="User ID"></v-text-field></v-row> -->
         <v-row>
-          <v-select
+          <v-autocomplete
             v-model="softwareUuid"
-            label="Dag ID"
+            label="Workflow / DAG"
+            :disabled="actionType == 'update'"
             :items="software"
             item-title="software_uuid"
             item-value="software_uuid"
-          />
+            :loading="fetching"
+            clearable
+            chips
+            small-chips
+            multiple
+          >
+            <template #chip="{ props, item }">
+              <v-chip v-bind="props">
+                <v-chip-text>{{ item.raw.software_uuid }}</v-chip-text>
+              </v-chip>
+            </template>
+          </v-autocomplete>
+        </v-row>
+        <v-row v-if="software.length > 0" class="mt-2">
+          <v-col>
+            <v-alert type="info" variant="tonal" icon="mdi-information">
+              <div class="text-body-2">
+                <strong>Tip:</strong> Select workflows that this project is allowed to execute.
+                <br>
+                <span class="text-caption">Available workflows: {{ software.length }}</span>
+              </div>
+            </v-alert>
+          </v-col>
         </v-row>
       </v-container>
     </v-card-text>
@@ -41,7 +63,7 @@
           </v-col>
           <v-col cols="6">
             <v-btn
-              :disabled="!valid"
+              :disabled="!valid || !softwareUuid || softwareUuid.length === 0"
               color="success"
               size="large"
               variant="elevated"
@@ -58,7 +80,7 @@
 
 <script lang="ts" setup>
 import { ref, computed, onMounted } from "vue";
-import { aiiApiPost, kaapanaPluginGet } from "@/common/aiiApi.service";
+import { aiiApiPost, kaapanaPluginGet } from "@/common/services";
 import { Software } from "@/common/types";
 
 const props = defineProps({

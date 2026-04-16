@@ -42,7 +42,7 @@
 
 <script lang="ts" setup>
 import { ref, computed } from 'vue';
-import { aiiApiPost } from '@/common/aiiApi.service';
+import { aiiApiPost } from '@/common/services';
 import { projectNameRules } from '@/common/validation';
 // import {AxiosError} from axios;
 

@@ -52,7 +52,7 @@ spec:
       - name: tmp
         emptyDir: {}
       - name: cache
-        emptyDir: {}  
+        emptyDir: {}
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
         - name: registry-secret

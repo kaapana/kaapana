@@ -402,6 +402,72 @@
                 </v-table>
             </v-col>
         </v-row>
+  <v-snackbar v-model="isSnackbarVisible" :timeout="10000" location="top" :color="snackbarColor" elevation="2">
+    {{ snackbarMessage }}
+  </v-snackbar>
+
+  <v-container max-width="1200" class="bg-surface rounded-lg mt-2">
+
+    <!-- ── Back navigation ──────────────────────────────────────── -->
+    <v-row no-gutters class="mb-4">
+      <v-col>
+        <v-btn size="x-small" variant="outlined" prepend-icon="mdi-arrow-left" @click="goToProjectsList">
+          Back to Projects
+        </v-btn>
+      </v-col>
+    </v-row>
+
+    <!-- ── Project header card ──────────────────────────────────── -->
+    <v-row>
+      <v-col>
+        <v-sheet class="pa-4 rounded-lg" border>
+          <div v-if="project" class="d-flex align-center ga-3 mb-3">
+            <v-icon icon="mdi-folder-multiple" color="primary" size="large" />
+            <div class="d-flex flex-column flex-grow-1">
+              <div class="d-flex align-baseline ga-2">
+                <span class="text-h5">Project:</span>
+                <span class="text-h5 font-weight-bold ml-2">{{ project.name }}</span>
+              </div>
+            </div>
+          </div>
+          <v-sheet v-if="project?.description" class="pa-3 rounded" border>
+            <div class="text-caption text-medium-emphasis mb-1">Description</div>
+            <div class="text-body-2">{{ project.description }}</div>
+          </v-sheet>
+          <v-skeleton-loader v-else :loading="!project" type="heading, paragraph" />
+        </v-sheet>
+      </v-col>
+    </v-row>
+
+    <!-- ── Project Users ────────────────────────────────────────── -->
+    <v-row>
+      <ProjectUsers :project="project" :expanded="isUsersSectionExpanded" @toggle="isUsersSectionExpanded = $event" />
+    </v-row>
+
+    <v-divider class="my-4" />
+
+    <!-- ── Executable Workflows ─────────────────────────────────── -->
+    <v-row>
+      <ProjectWorkflows :project="project" :expanded="isWorkflowsSectionExpanded"
+        @toggle="isWorkflowsSectionExpanded = $event" />
+    </v-row>
+
+    <v-divider class="my-4" />
+
+    <!-- ── Multiinstallable Applications ────────────────────────── -->
+    <v-row>
+      <MultiinstallableApplications :project="project" :expanded="isAppsSectionExpanded"
+        :user-has-admin-access="userHasAdminAccess" @toggle="isAppsSectionExpanded = $event" />
+    </v-row>
+
+    <v-divider class="my-4" />
+
+    <!-- ── Active Project Applications ──────────────────────────── -->
+    <v-row>
+      <ActiveProjectApplications :project="project" :expanded="isActiveAppsSectionExpanded"
+        :user-has-admin-access="userHasAdminAccess" @toggle="isActiveAppsSectionExpanded = $event"
+        @confirm-uninstall="confirmAppUninstall" />
+    </v-row>
 
     <v-divider class="my-4" />
 
@@ -465,6 +531,10 @@
         <ArchiveProjectDialog v-if="project" :project="project"
             @confirm="confirmArchive" @cancel="archiveDialog = false" />
     </v-dialog>
+
+    <confirm ref="confirmDialog" />
+
+  </v-container>
 </template>
 
 <script lang="ts">
@@ -477,9 +547,15 @@ import { ProjectItem, UserItem, UserRole, Software } from '@/common/types'
 import { isAdminUser, waitForStoreUser } from '@/common/userAccess'
 import { useSnackbar } from '@/composables/useSnackbar'
 import AddUserToProject from '@/components/AddUserToProject.vue'
+import { defineComponent, ref } from 'vue';
+import { aiiApiGet, kubeHelmGet, kubeHelmPost } from '@/common/services';
+import { ProjectItem } from '@/common/types';
 import ProjectUsers from '@/components/ProjectUsers.vue';
+import ProjectWorkflows from '@/components/ProjectWorkflows.vue';
+import MultiinstallableApplications from '@/components/MultiinstallableApplications.vue';
+import ActiveProjectApplications from '@/components/ActiveProjectApplications.vue';
+import store from '@/common/store';
 import { usePermissions } from '@/permissions/usePermissions';
-import LaunchApplication from '@/components/LaunchApplication.vue';
 import { useCookies } from 'vue3-cookies';
 
 export default defineComponent({
@@ -532,13 +608,44 @@ export default defineComponent({
         };
     },
   },
+  components: {
+    ProjectUsers,
+    ProjectWorkflows,
+    MultiinstallableApplications,
+    ActiveProjectApplications,
+  },
+
+  setup() {
+    const { can } = usePermissions();
+    return { can };
+  },
+
+  data() {
+    return {
+      // @ts-ignore
+      projectId: this.$route.params.id as string,
+      project: null as ProjectItem | null,
+      userHasAdminAccess: false,
+
+      // Active applications for uninstall
+      activeApplications: [] as any[],
+
+      // Section expand/collapse state
+      isUsersSectionExpanded: false,
+      isWorkflowsSectionExpanded: false,
+      isAppsSectionExpanded: false,
+      isActiveAppsSectionExpanded: false,
+
+      // Snackbar
+      isSnackbarVisible: false,
+      snackbarMessage: ref(''),
+      snackbarColor: 'info',
+    };
+  },
+
 
   mounted() {
     this.loadProject();
-    this.loadProjectWorkflows();
-    this.loadMultiinstallableApps();
-    this.loadActiveApplications();
-    this.loadAppWhitelist();
 
         waitForStoreUser((user) => {
             this.userHasAdminAccess = isAdminUser(user);
@@ -848,4 +955,85 @@ export default defineComponent({
         },
     }
 })
+    const applyAdminAccess = this.applyUserAdminAccess;
+    const waitForUser = setInterval(() => {
+      const user = store.state.user;
+      if (user) {
+        applyAdminAccess(user);
+        clearInterval(waitForUser);
+      }
+    }, 100);
+  },
+
+  beforeUnmount() {
+    document.title = 'Kaapana - Projects';
+  },
+
+  watch: {
+    '$route.params.id'(newProjectId: string) {
+      this.projectId = newProjectId;
+      this.loadProject();
+    },
+  },
+
+  methods: {
+    getFullEndpoint(path: string): string {
+      return `${window.location.origin}${path}`;
+    },
+
+    // ── Admin access ─────────────────────────────────────────────
+
+    applyUserAdminAccess(user: any): void {
+      if (user.realm_roles?.includes('project-manager') || user.realm_roles?.includes('admin')) {
+        this.userHasAdminAccess = true;
+      }
+    },
+
+    goToProjectsList(): void {
+      this.$router.push('/');
+    },
+
+    // ── Project ──────────────────────────────────────────────────
+
+    async loadProject(): Promise<void> {
+      if (!this.projectId) return;
+      const { cookies } = useCookies();
+      try {
+        const project: ProjectItem = await aiiApiGet(`projects/${this.projectId}`);
+        this.project = project;
+        cookies.set('Project', JSON.stringify({ name: project.name, id: project.id }));
+      } catch (error) {
+        console.error('Failed to load project:', error);
+      }
+    },
+
+    async confirmAppUninstall(app: any): Promise<void> {
+      // @ts-ignore
+      if (await this.$refs.confirmDialog.open('Uninstall application', `Do you really want to uninstall ${app.release_name}?`, { color: 'red' })) {
+        this.uninstallApplication(app);
+      }
+    },
+
+    async uninstallApplication(app: any): Promise<void> {
+      if (!this.userHasAdminAccess) return;
+      try {
+        await kubeHelmPost('helm-delete-chart', { release_name: app.release_name });
+        await this.loadActiveApplications();
+      } catch (error) {
+        console.error('Failed to uninstall application:', error);
+      }
+    },
+
+    async loadActiveApplications(): Promise<void> {
+      if (!this.project) return;
+      const currentProjectId = this.project.id;
+      try {
+        const allApps = await kubeHelmGet('active-applications');
+        this.activeApplications = allApps.filter((item: any) => item.project === currentProjectId);
+      } catch (error) {
+        console.error('Failed to load active applications:', error);
+      }
+    },
+  },
+});
 </script>

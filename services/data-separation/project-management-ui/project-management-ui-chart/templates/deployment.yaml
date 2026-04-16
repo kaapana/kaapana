@@ -11,11 +11,11 @@ spec:
       app.kubernetes.io/name: project-management-ui-app
   strategy:
     type: Recreate
-  template: 
+  template:
     metadata:
       labels:
         app.kubernetes.io/name: project-management-ui-app
-    spec:      
+    spec:
       containers:
       - name: project-management-ui-container
         image: "{{ .Values.global.registry_url }}/project-management-ui:{{ .Values.global.kaapana_build_version  }}"
@@ -36,8 +36,6 @@ spec:
           # Mount source files for hot reload in dev mode
           - name: dev-files
             mountPath: /app
-          - name: cache
-            mountPath: /tmp/.yarn-cache
 {{- end }}
           - name: tmp
             mountPath: /var/run
@@ -54,9 +52,9 @@ spec:
           path: {{ .Values.global.dev_files }}
           type: Directory
 {{- end }}
-      - name: cache
-        emptyDir: {}
       - name: tmp
+        emptyDir: {}
+      - name: cache
         emptyDir: {}
       priorityClassName: kaapana-high-priority
       imagePullSecrets:

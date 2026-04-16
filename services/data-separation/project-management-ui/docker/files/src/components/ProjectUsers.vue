@@ -101,8 +101,8 @@
                     <template #item.actions="{ item }">
                         <td class="text-center">
                             <div class="d-flex justify-center gap-1">
-                                <v-btn @click="openEditUserDialog(item)" icon="mdi-link-edit" />
-                                <v-btn @click="onRemoveUser(item)" icon="mdi-trash-can" />
+                                <v-btn @click="openEditUserDialog(item)" icon="mdi-link-edit" color="primary" variant="text"/>
+                                <v-btn @click="onRemoveUser(item)" icon="mdi-trash-can" color="error" variant="text" />
                             </div>
                         </td>
                     </template>
@@ -161,7 +161,7 @@
                 </v-card-text>
                 <v-card-actions class="pa-4 pt-0">
                     <v-spacer />
-                    <v-btn variant="text" @click="isRemoveDialogOpen = false">Cancel</v-btn>
+                    <v-btn variant="text" @click="closeRemoveDialog">Cancel</v-btn>
                     <v-btn color="error" variant="flat" :loading="isRemoving" @click="confirmRemoveUser">
                         Remove
                     </v-btn>
@@ -265,7 +265,7 @@ const tableHeaders = [
     { title: 'Last Name', key: 'last_name' },
     { title: 'Email', key: 'email' },
     { title: 'Role', key: 'role' },
-    { title: 'Actions', key: 'actions' }
+    { title: 'Actions', key: 'actions', width: '100px' }
 ];
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -302,21 +302,24 @@ const onRemoveUser = (user: UserWithRole) => {
     isRemoveDialogOpen.value = true;
 };
 
+const closeRemoveDialog = () => {
+    isRemoveDialogOpen.value = false;
+    userPendingRemoval.value = undefined;
+};
+
 // ── User operations ────────────────────────────────────────────────────────
 
 const confirmRemoveUser = async () => {
     if (!userPendingRemoval.value || !props.project?.id) return;
     isRemoving.value = true;
     try {
-        const success = await aiiApiDelete(
+        await aiiApiDelete(
             `projects/${props.project.id}/user/${userPendingRemoval.value.id}/rolemapping`
         );
-        if (success) {
-            // Optimistically remove user from the list
-            users.value = users.value.filter(u => u.id !== userPendingRemoval.value!.id);
-            isRemoveDialogOpen.value = false;
-            userPendingRemoval.value = undefined;
-        }
+        isRemoveDialogOpen.value = false;
+        userPendingRemoval.value = undefined;
+        // Reload to verify the change
+        await loadProjectUsers({ showLoading: false });
     } catch (error) {
         console.error('Failed to remove user:', error);
     } finally {
@@ -327,28 +330,24 @@ const confirmRemoveUser = async () => {
 const onUserOperationSuccess = async () => {
     isAddDialogOpen.value = false;
     closeEditDialog();
+    // Reload to verify the changes
+    await loadProjectUsers({ showLoading: false });
 };
 
-const onUsersAdded = (addedUsers: UserItem[]) => {
-    // Add new users to the list with their assigned role
-    users.value.push(...addedUsers);
+const onUsersAdded = (_addedUsers: UserItem[]) => {
+    // Data will be reloaded via onUserOperationSuccess
 };
 
-const onUsersAddFailed = (failedUserIds: string[]) => {
-    // Remove failed users from the list
-    users.value = users.value.filter(u => !failedUserIds.includes(u.id));
+const onUsersAddFailed = (_failedUserIds: string[]) => {
+    // Data will be reloaded via onUserOperationSuccess
 };
 
-const onRoleUpdated = (roleName: string) => {
-    // Optimistically update the specific user's role immediately
-    if (selectedUser.value) {
-        selectedUser.value.role = { name: roleName } as UserRole;
-    }
+const onRoleUpdated = (_roleName: string) => {
+    // Data will be reloaded via onUserOperationSuccess
 };
 
-const onRoleUpdateFailed = (rollback: () => void) => {
-    // Revert the optimistic update on failure
-    rollback();
+const onRoleUpdateFailed = (_rollback: () => void) => {
+    // Data will be reloaded via onUserOperationSuccess
 };
 
 // ── Data fetching ──────────────────────────────────────────────────────────

@@ -354,10 +354,13 @@ def delete_job_force(job_id: int, db: Session = Depends(get_db)):
 # needed?
 @router.get("/dags")
 async def dags(
-    only_dag_names: bool = True, allowed_software=Depends(get_allowed_software)
+    only_dag_names: bool = True,
+    include_all: bool = False,
+    allowed_software=Depends(get_allowed_software),
 ):
+    filter_allowed_dags = None if include_all else allowed_software
     return get_dag_list(
-        only_dag_names=only_dag_names, filter_allowed_dags=allowed_software
+        only_dag_names=only_dag_names, filter_allowed_dags=filter_allowed_dags
     )
 
 

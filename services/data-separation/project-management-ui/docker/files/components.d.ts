@@ -7,9 +7,12 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    ActiveApplications: typeof import('./src/components/ActiveApplications.vue')['default']
     ActiveProjectApplications: typeof import('./src/components/ActiveProjectApplications.vue')['default']
     AddSoftwareToProject: typeof import('./src/components/AddSoftwareToProject.vue')['default']
     AddUserToProject: typeof import('./src/components/AddUserToProject.vue')['default']
+    ApplicationParametersDialog: typeof import('./src/components/ApplicationParametersDialog.vue')['default']
+    AvailableWorkflows: typeof import('./src/components/AvailableWorkflows.vue')['default']
     Confirm: typeof import('./src/components/Confirm.vue')['default']
     copy: typeof import('./src/components/CreateNewProjectForm copy.vue')['default']
     CreateNewProjectForm: typeof import('./src/components/CreateNewProjectForm.vue')['default']
@@ -18,6 +21,7 @@ declare module 'vue' {
     LaunchApplication: typeof import('./src/components/LaunchApplication.vue')['default']
     MultiinstallableApplications: typeof import('./src/components/MultiinstallableApplications.vue')['default']
     ProjectUsers: typeof import('./src/components/ProjectUsers.vue')['default']
+    ProjectWorkflows: typeof import('./src/components/ProjectWorkflows.vue')['default']
     RequirePermissions: typeof import('./src/components/RequirePermissions.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

@@ -68,7 +68,7 @@
       <p class="text-subtitle-2 font-weight-medium mb-2 mt-4">Project Role</p>
       <v-item-group v-model="selectedRole" mandatory class="d-flex flex-column ga-2">
         <v-item v-for="role in availableRoles" :key="role.value" :value="role.value" v-slot="{ isSelected, toggle }">
-          <v-card :variant="isSelected ? 'tonal' : 'outlined'" rounded="lg" class="cursor-pointer" @click="toggle">
+          <v-card :variant="isSelected ? 'tonal' : 'elevated'" :color="isSelected ? 'secondary' : undefined" rounded="lg" class="cursor-pointer" @click="toggle">
             <v-card-text class="d-flex align-center ga-3 pa-4">
               <v-icon :color="isSelected ? 'secondary' : 'medium-emphasis'" :icon="role.icon" size="28" />
               <div class="flex-grow-1">

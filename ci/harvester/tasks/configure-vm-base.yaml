@@ -1,0 +1,57 @@
+---
+# Common VM configuration tasks
+# Usage: include_tasks: configure-vm.yaml
+# Required vars: ansible_user, ssh_private_key, ssh_public_key, harvester_kubeconfig, venv_path
+
+- name: Use system Python for initial setup (before venv exists)
+  ansible.builtin.set_fact:
+    ansible_python_interpreter: /usr/bin/python3
+
+- name: Wait for apt to be available
+  ansible.builtin.shell: "while fuser /var/lib/dpkg/lock /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/apt/lock >/dev/null 2>&1; do sleep 1; done"
+  become: yes
+  failed_when: false
+  changed_when: false
+
+- name: Upgrade system
+  apt:
+    update_cache: yes
+    upgrade: yes
+  become: yes
+
+- name: Install required system packages
+  become: yes
+  ansible.builtin.apt:
+    state: latest
+    pkg:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - git
+      - gnupg
+      - jq
+      - lsb-release
+      - nmap
+      - openssh-client
+      - python3
+      - python3-pip
+      - python3-venv
+      - software-properties-common
+      - sudo
+      - wget
+
+- name: Copy requirements.txt to VM
+  ansible.builtin.copy:
+    src: target/requirements.txt
+    dest: "/home/{{ ansible_user }}/requirements.txt"
+    mode: "0644"
+
+- name: Install Python requirements in venv
+  ansible.builtin.pip:
+    requirements: "/home/{{ ansible_user }}/requirements.txt"
+    virtualenv: "{{ venv_path }}"
+    virtualenv_command: python3 -m venv
+
+- name: Switch to using remote venv Python for remaining tasks
+  ansible.builtin.set_fact:
+    ansible_python_interpreter: "{{ venv_path }}/bin/python3"

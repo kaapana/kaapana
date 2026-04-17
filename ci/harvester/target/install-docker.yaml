@@ -1,3 +1,6 @@
+- name: Gather facts
+  ansible.builtin.setup:
+
 - name: Update apt and install prerequisites
   become: yes
   ansible.builtin.apt:

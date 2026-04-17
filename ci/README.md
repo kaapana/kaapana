@@ -121,11 +121,16 @@ graph TB
    export GITLAB_API_TOKEN="your-gitlab-api-token"
    export GITLAB_PROJECT_ID="your-project-id"
    export GITLAB_URL="https://your-gitlab-instance.com"
-   export SSH_PUBLIC_KEY="~/.ssh/kaapana.pub"
+   export SSH_PUBLIC_KEY="~/.ssh/kaapana-pub.pem"
    export SSH_PRIVATE_KEY="~/.ssh/kaapana.pem"
    export HARVESTER_KUBECONFIG="~/.kube/harvester.yaml"
    ```
-
+   Or use DOTENV file:
+   ```bash
+   set -a
+   source .env
+   set +a
+   ```
 4. Run ansible-playbook to provision runners:
    ```bash
    cd ci/harvester

@@ -23,30 +23,48 @@
 
     vm_user_map:
       ubuntu24: ubuntu
-      ubuntu22: ubuntu
       almalinux10: almalinux
+
   tasks:
     - name: Check if VM already exists
-      ansible.builtin.command:
-        cmd: kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} get vm {{ vm_name }}
+      kubernetes.core.k8s_info:
+        api_version: kubevirt.io/v1
+        kind: VirtualMachine
+        name: "{{ vm_name }}"
+        namespace: "{{ harvester_namespace }}"
       register: vm_check
       failed_when: false
       changed_when: false
 
+    - name: Debug VM check result
+      ansible.builtin.debug:
+        msg:
+          - "resources: {{ vm_check.resources }}"
+          - "length: {{ vm_check.resources | default([]) | length }}"
+
     - name: force_recreate VM if requested
       when:
-        - vm_check.rc == 0
+        - vm_check.resources is defined
+        - vm_check.resources | length > 0
         - force_recreate | bool
       block:
         - name: Delete VM
-          ansible.builtin.command:
-            cmd: kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} delete vm {{ vm_name }}
+          kubernetes.core.k8s:
+            api_version: kubevirt.io/v1
+            kind: VirtualMachine
+            name: "{{ vm_name }}"
+            namespace: "{{ harvester_namespace }}"
+            state: absent
+          register: delete_result
 
         - name: Wait for VM to be fully deleted
-          ansible.builtin.command:
-            cmd: kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} get vm {{ vm_name }}
+          kubernetes.core.k8s_info:
+            api_version: kubevirt.io/v1
+            kind: VirtualMachine
+            name: "{{ vm_name }}"
+            namespace: "{{ harvester_namespace }}"
           register: delete_check
-          until: delete_check.rc != 0
+          until: delete_check.resources | length == 0
           retries: 60
           delay: 10
           failed_when: false
@@ -56,17 +74,16 @@
       ansible.builtin.fail:
         msg: "VM '{{ vm_name }}' already exists. Use force_recreate=true to remove it."
       when:
-        - vm_check.rc == 0
+        - vm_check.resources is defined
+        - vm_check.resources | length > 0
         - not force_recreate | bool
 
     - name: Read SSH public key
       ansible.builtin.slurp:
         src: "{{ ssh_public_key }}"
       register: ssh_pub_key
-      no_log: true # <-- hide SSH key
 
     - name: Render Helm chart for VM
-      # TODO Make deploy_user dependent on the chosen OS
       ansible.builtin.command:
         cmd: >
           helm template {{ vm_name }}
@@ -82,10 +99,10 @@
       no_log: true
 
     - name: Apply VM manifest
-      ansible.builtin.command:
-        cmd: kubectl --kubeconfig {{ harvester_kubeconfig }} apply -f -
-      args:
-        stdin: "{{ helm_output.stdout }}"
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ helm_output.stdout | from_yaml_all | list }}"
+      no_log: true
 
     - name: Set VM FQDN fact
       ansible.builtin.set_fact:

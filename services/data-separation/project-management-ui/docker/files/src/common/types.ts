@@ -4,6 +4,7 @@ export type ProjectItem = {
     external_id?: number,
     name: string,
     description?: string,
+    is_archived: boolean,
 }
 
 export type UserItem = {

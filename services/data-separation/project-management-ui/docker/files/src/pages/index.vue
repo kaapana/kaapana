@@ -31,11 +31,14 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="item in projects" :key="item.name">
+        <tr v-for="item in projects" :key="item.name" :class="{ 'archived-row': item.is_archived }">
           <td><v-icon>mdi-card</v-icon></td>
           <td>{{ item.id }}</td>
           <td>{{ item.short_id }}</td>
-          <td class="project-name-col">{{ item.name }}</td>
+          <td class="project-name-col">
+            {{ item.name }}
+            <v-chip v-if="item.is_archived" size="x-small" color="warning" class="ml-1">Archived</v-chip>
+          </td>
           <td class="desc-col">{{ item.description }}</td>
           <td>{{ item.external_id }}</td>
           <td class="action-col">
@@ -46,8 +49,8 @@
               </v-btn>
               <div v-if="userHasAdminAccess" class="icon-action-slot">
                 <template v-if="item.name !== 'admin'">
-                  <v-btn icon="mdi-pencil" size="small" variant="text" @click="openEditDialog(item)" />
-                  <v-btn icon="mdi-trash-can" size="small" variant="text" color="error" @click="confirmDeleteProject(item)" />
+                  <v-btn v-if="!item.is_archived" icon="mdi-pencil" size="small" variant="text" @click="openEditDialog(item)" />
+                  <v-btn icon="mdi-trash-can" size="small" variant="text" color="error" @click="openDeleteDialog(item)" />
                 </template>
               </div>
             </div>
@@ -60,26 +63,12 @@
     <CreateNewProjectForm :onsuccess="handleProjectCreate" :oncancel="() => (projectDialog = false)" />
   </v-dialog>
   <v-dialog v-model="editDialog" max-width="600">
-    <v-card title="Edit Project" prepend-icon="mdi-pencil">
-      <v-card-text>
-        <v-container>
-          <v-row><v-col>
-            <v-text-field v-model="editForm.name" label="Project Name" :rules="editNameRules" />
-          </v-col></v-row>
-          <v-row><v-col>
-            <v-text-field v-model="editForm.description" label="Description" />
-          </v-col></v-row>
-          <v-row><v-col>
-            <v-text-field v-model="editForm.external_id" label="External ID" />
-          </v-col></v-row>
-        </v-container>
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn @click="editDialog = false">Cancel</v-btn>
-        <v-btn color="primary" variant="elevated" @click="submitEdit">Save</v-btn>
-      </v-card-actions>
-    </v-card>
+    <EditProjectDialog v-if="selectedProject" :project="selectedProject"
+      @success="handleEditSuccess" @cancel="editDialog = false" @error="handleEditError" />
+  </v-dialog>
+  <v-dialog v-model="deleteDialog" max-width="500">
+    <DeleteProjectDialog v-if="selectedProject" :project="selectedProject"
+      @confirm="handleDeleteConfirm" @cancel="deleteDialog = false" />
   </v-dialog>
   <confirm ref="confirm"></confirm>
 </template>
@@ -88,16 +77,26 @@
 import { defineComponent } from "vue";
 import CreateNewProjectFrom from "@/components/CreateNewProjectForm.vue";
 import Confirm from "@/components/Confirm.vue";
-import { aiiApiGet, aiiApiPut, aiiApiDelete } from "@/common/aiiApi.service";
+import EditProjectDialog from "@/components/EditProjectDialog.vue";
+import DeleteProjectDialog from "@/components/DeleteProjectDialog.vue";
+import { aiiApiGet, aiiApiDelete } from "@/common/aiiApi.service";
 import { ProjectItem, UserItem } from "@/common/types";
+import { isAdminUser, waitForStoreUser } from "@/common/userAccess";
+import { useSnackbar } from "@/composables/useSnackbar";
 import store from "@/common/store";
 
 export default defineComponent({
   components: {
     CreateNewProjectFrom,
     Confirm,
+    EditProjectDialog,
+    DeleteProjectDialog,
   },
   props: {},
+  setup() {
+    const { showSnackbar, snackbarText, snackbarColor, notify } = useSnackbar();
+    return { showSnackbar, snackbarText, snackbarColor, notify };
+  },
   data() {
     return {
       projects: [] as ProjectItem[],
@@ -106,34 +105,15 @@ export default defineComponent({
       projectFetched: false,
       userHasAdminAccess: false,
       editDialog: false,
+      deleteDialog: false,
       selectedProject: null as ProjectItem | null,
-      editForm: { name: '', description: '', external_id: '' },
-      editNameRules: [
-        (v: string) => !!v || 'Required.',
-        (v: string) => v.length <= 13 || 'Max 13 characters',
-        (v: string) => v === v.toLowerCase() || 'Only lowercase characters are supported',
-        (v: string) => !v.includes(' ') || 'Spaces are not allowed',
-        (v: string) => v !== 'admin' || 'Name "admin" is reserved',
-      ],
-      showSnackbar: false,
-      snackbarText: '',
-      snackbarColor: 'info',
     };
   },
   mounted() {
-    // Store watch not triggering for some reasom
-    // Temporary solution to check for user via
-    // custom interval loop
-    const fetchProjectsRef = this.fetchProjects;
-    const setAdminAccessRef = this.setUserAdminAccess;
-    let checkForUser = setInterval(function () {
-      const user = store.state.user;
-      if (user) {
-        fetchProjectsRef(user);
-        setAdminAccessRef(user);
-        clearInterval(checkForUser);
-      }
-    }, 100);
+    waitForStoreUser((user) => {
+      this.fetchProjects(user);
+      this.userHasAdminAccess = isAdminUser(user);
+    });
   },
   watch: {
     // TODO
@@ -181,68 +161,38 @@ export default defineComponent({
       }
       this.projectDialog = false;
     },
-    // enable the admin access of the user to be able to create new projects from the UI
-    setUserAdminAccess(user: UserItem) {
-      if (user.realm_roles && (user.realm_roles.includes('project-manager') || user.realm_roles.includes('admin'))) {
-        this.userHasAdminAccess = true;
-      }
-    },
     goToProjects(projectId: string) {
       this.$router.push(`/project/${projectId}`);
     },
     openEditDialog(project: ProjectItem) {
       this.selectedProject = project;
-      this.editForm = {
-        name: project.name,
-        description: project.description || '',
-        external_id: project.external_id ? String(project.external_id) : '',
-      };
       this.editDialog = true;
     },
-    async submitEdit() {
+    handleEditSuccess() {
+      this.editDialog = false;
+      const user = store.state.user;
+      if (user) this.fetchProjects(user);
+      this.notify('Project updated successfully.', 'success');
+    },
+    handleEditError(msg: string) {
+      this.notify(msg, 'error');
+    },
+    openDeleteDialog(project: ProjectItem) {
+      this.selectedProject = project;
+      this.deleteDialog = true;
+    },
+    async handleDeleteConfirm(retainData: boolean) {
       if (!this.selectedProject) return;
-      const nameError = this.editNameRules.map(r => r(this.editForm.name)).find(r => r !== true);
-      if (nameError) {
-        this.snackbarText = String(nameError);
-        this.snackbarColor = 'error';
-        this.showSnackbar = true;
-        return;
-      }
+      const project = this.selectedProject;
+      this.deleteDialog = false;
       try {
-        await aiiApiPut(`projects/${this.selectedProject.id}`, {}, {
-          name: this.editForm.name,
-          description: this.editForm.description,
-          external_id: this.editForm.external_id || null,
-        });
-        this.editDialog = false;
+        await aiiApiDelete(`projects/${project.id}`, { retain_data: retainData });
         const user = store.state.user;
         if (user) this.fetchProjects(user);
-        this.snackbarText = 'Project updated successfully.';
-        this.snackbarColor = 'success';
-        this.showSnackbar = true;
+        this.notify(`Project "${project.name}" deleted.`, 'success');
       } catch (error: unknown) {
         console.error(error);
-        this.snackbarText = 'Failed to update project.';
-        this.snackbarColor = 'error';
-        this.showSnackbar = true;
-      }
-    },
-    async confirmDeleteProject(project: ProjectItem) {
-      // @ts-ignore
-      if (await this.$refs.confirm.open('Delete Project', `Are you sure you want to delete "${project.name}"?`, { color: 'red' })) {
-        try {
-          await aiiApiDelete(`projects/${project.id}`);
-          const user = store.state.user;
-          if (user) this.fetchProjects(user);
-          this.snackbarText = `Project "${project.name}" deleted.`;
-          this.snackbarColor = 'success';
-          this.showSnackbar = true;
-        } catch (error: unknown) {
-          console.error(error);
-          this.snackbarText = 'Failed to delete project.';
-          this.snackbarColor = 'error';
-          this.showSnackbar = true;
-        }
+        this.notify('Failed to delete project.', 'error');
       }
     },
   },
@@ -272,6 +222,10 @@ export default defineComponent({
 .icon-action-slot {
   display: inline-flex;
   gap: 4px;
-  width: 72px;
+  width: 108px;
+}
+
+.archived-row {
+  opacity: 0.6;
 }
 </style>

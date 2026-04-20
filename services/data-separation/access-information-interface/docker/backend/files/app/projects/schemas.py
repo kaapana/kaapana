@@ -68,6 +68,7 @@ class Project(OrmBaseModel):
     name: str
     int_id: Optional[int] = None
     description: str
+    is_archived: bool = False
 
     @computed_field
     @property

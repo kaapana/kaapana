@@ -158,6 +158,9 @@ async def update_project(
     if admin_project and admin_project.id == project_id:
         raise HTTPException(status_code=403, detail="Cannot edit the admin project")
 
+    if existing[0].is_archived:
+        raise HTTPException(status_code=403, detail="Cannot modify an archived project")
+
     old_project = existing[0]
     old_name = old_project.name
 
@@ -173,6 +176,36 @@ async def update_project(
         # TODO: Patch the k8s namespace label via and Helm label (if exists) via a Helm upgrade
 
     return schemas.Project(**updated_project.__dict__)
+
+
+@router.post("/{project_id}/archive", response_model=schemas.Project, tags=["Projects"])
+async def archive_project(
+    project_id: UUID,
+    session: AsyncSession = Depends(get_session),
+):
+    """Set a project to archived (read-only). Data is preserved."""
+    existing = await crud.get_projects(session, project_id=project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    admin_project = await crud.get_admin_project(session)
+    if admin_project and admin_project.id == project_id:
+        raise HTTPException(status_code=403, detail="Cannot archive the admin project")
+
+    return await crud.set_project_archived(session, project_id, archived=True)
+
+
+@router.post("/{project_id}/unarchive", response_model=schemas.Project, tags=["Projects"])
+async def unarchive_project(
+    project_id: UUID,
+    session: AsyncSession = Depends(get_session),
+):
+    """Restore an archived project to active state."""
+    existing = await crud.get_projects(session, project_id=project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    return await crud.set_project_archived(session, project_id, archived=False)
 
 
 @router.delete("/{project_id}", tags=["Projects"])
@@ -309,6 +342,9 @@ async def post_user_project_role_mapping(
     if len(db_project) == 0 or len(db_role) == 0:
         raise HTTPException(status_code=404, detail="Project or User Role not found")
 
+    if db_project[0].is_archived:
+        raise HTTPException(status_code=403, detail="Cannot modify an archived project")
+
     current_user_mapping = await crud.get_users_projects_roles_mapping(
         session, db_project[0].id, user_id
     )
@@ -337,6 +373,9 @@ async def update_user_project_role_mapping(
 
     if len(db_project) == 0 or len(db_role) == 0:
         raise HTTPException(status_code=404, detail="Project or User Role not found")
+
+    if db_project[0].is_archived:
+        raise HTTPException(status_code=403, detail="Cannot modify an archived project")
 
     current_user_mapping = await crud.get_users_projects_roles_mapping(
         session, db_project[0].id, user_id
@@ -404,6 +443,9 @@ async def create_software_mappings(
 ):
     project: schemas.Project = await get_project(project_id, session)
 
+    if project.is_archived:
+        raise HTTPException(status_code=403, detail="Cannot modify an archived project")
+
     return [
         await crud.create_software_mapping(
             session, project_id=project.id, software_uuid=software.software_uuid
@@ -422,6 +464,10 @@ async def delete_software_mappings(
     session: AsyncSession = Depends(get_session),
 ):
     project: schemas.Project = await get_project(project_id, session)
+
+    if project.is_archived:
+        raise HTTPException(status_code=403, detail="Cannot modify an archived project")
+
     for software in softwares:
         await crud.delete_software_mapping(
             session, project_id=project.id, software_uuid=software.software_uuid

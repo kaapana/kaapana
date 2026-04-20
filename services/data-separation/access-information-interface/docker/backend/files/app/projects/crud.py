@@ -290,6 +290,22 @@ async def update_project(
     return schemas.Project.model_validate(row)
 
 
+async def set_project_archived(
+    session: AsyncSession, project_id: UUID, archived: bool
+) -> schemas.Project:
+    stmt = (
+        update(Projects)
+        .where(Projects.id == project_id)
+        .values(is_archived=archived)
+    )
+    await session.execute(stmt)
+    await session.commit()
+
+    result = await session.execute(select(Projects).where(Projects.id == project_id))
+    row = result.scalars().first()
+    return schemas.Project.model_validate(row)
+
+
 async def delete_project(session: AsyncSession, project_id: UUID):
     # Delete dependent rows first to avoid FK violations
     await session.execute(

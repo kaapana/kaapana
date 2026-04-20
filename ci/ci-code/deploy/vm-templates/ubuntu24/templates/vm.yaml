@@ -9,7 +9,7 @@ metadata:
     harvesterhci.io/volumeClaimTemplates: >-
       [
         {
-          "metadata": { "name": "{{ .Values.global.vmName }}-disk-0", "annotations": { "harvesterhci.io/imageId": "harvester-public/image-c797n" } },
+          "metadata": { "name": "{{ .Values.global.vmName }}-disk-0", "annotations": { "harvesterhci.io/imageId": "harvester-public/image-m4ds5" } },
           "spec": {
             "accessModes": ["ReadWriteMany"],
             "resources": { "requests": { "storage": "{{ .Values.global.diskSize }}" } },

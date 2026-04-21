@@ -1,5 +1,5 @@
 <template>
-  <v-card title="Delete Project" prepend-icon="mdi-trash-can" color="error" variant="outlined">
+  <v-card title="Delete Project" prepend-icon="mdi-trash-can">
     <v-card-text>
       <p class="mb-4">
         Are you sure you want to delete <strong>{{ project.name }}</strong>?

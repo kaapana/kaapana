@@ -262,7 +262,7 @@ class OpenSearchHelper:
             if not right.claim_key == "opensearch":
                 continue
             claim_value = right.claim_value
-            role_name = f"{claim_value}_{project.name}"
+            role_name = f"{claim_value}_{project.id}"
             logger.info(f"Deleting opensearch rolemapping and role for {role_name=}")
 
             async with httpx.AsyncClient(verify=False) as client:

@@ -3,6 +3,7 @@
 import glob
 import json
 import os
+from uuid import UUID
 
 import requests
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
@@ -116,46 +117,22 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
             )
             return None
 
-    def add_data_to_project(
-        self, series_instance_uid, project_id=None, project_name=None
-    ):
-        """
-        Assigns a DICOM series to a project using either the project ID or project name.
-
-        Args:
-            series_instance_uid (str): The unique identifier of the DICOM series.
-            project_id (str, optional): The ID of the project to assign the series to.
-            project_name (str, optional): The name of the project to assign the series to.
-
-        Raises:
-            ValueError: If neither `project_id` nor `project_name` is provided.
-            ValueError: If `project_name` is provided but does not resolve to a valid project.
-            requests.HTTPError: If the request to assign the data fails.
-        """
-        if not project_id and not project_name:
-            raise ValueError("Either 'project_id' or 'project_name' must be provided.")
-
-        if project_name:
-            project = self.get_project_by_name(project_name)
-            if not project:
-                raise ValueError(f"Project with name '{project_name}' not found.")
-            project_id = project.get("id")
-
+    def add_data_to_project(self, series_instance_uid, project_id):
+        """Map a series to a project. `project_id` may be UUID, short_id, or name."""
+        project_id = self.resolve_project_id(project_id)
         url = f"{self.dcmweb_helper.dcmweb_rs_endpoint}/projects/{project_id}/data/{series_instance_uid}"
         response = self.dcmweb_helper.session.put(url)
         response.raise_for_status()
-
         logger.debug(f"Added {series_instance_uid} to project with {project_id=}")
 
-    def get_project_by_name(self, project_name: str):
-        """
-        Return the project object from the access-information-point database with name project_name
-
-        Raises:
-            HttpException: If the response from the access-information code has status code >= 400.
-        """
+    def resolve_project_id(self, identifier) -> str:
+        """Resolve a UUID / short_id / name to the project's UUID string."""
+        try:
+            return str(UUID(str(identifier)))
+        except ValueError:
+            pass
         response = requests.get(
-            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_name}"
+            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{identifier}"
         )
         response.raise_for_status()
-        return response.json()
+        return response.json()["id"]

@@ -5,7 +5,7 @@ from uuid import UUID
 
 from app.database import get_session
 from app.keycloak_helper import KeycloakHelper, get_keycloak_helper
-from app.projects import crud, kubehelm, minio, opensearch, schemas
+from app.projects import crud, dicom_data, kubehelm, minio, opensearch, schemas
 from app.schemas import KeycloakUser
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
@@ -123,12 +123,10 @@ async def get_project(
         else:
             projects = []
 
-        # TODO: remove the project_name altogether, projects should only be identifiable via their UUID or short_id. 
+        # TODO: remove the project_name altogether, projects should only be identifiable via their UUID or short_id.
         # The project_name is not unique
         if not projects:
-            projects = await crud.get_projects(
-                session, project_name=project_identifier
-            )
+            projects = await crud.get_projects(session, project_name=project_identifier)
 
     if len(projects) == 0:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -195,7 +193,9 @@ async def archive_project(
     return await crud.set_project_archived(session, project_id, archived=True)
 
 
-@router.post("/{project_id}/unarchive", response_model=schemas.Project, tags=["Projects"])
+@router.post(
+    "/{project_id}/unarchive", response_model=schemas.Project, tags=["Projects"]
+)
 async def unarchive_project(
     project_id: UUID,
     session: AsyncSession = Depends(get_session),
@@ -222,8 +222,9 @@ async def delete_project(
     Delete a Kaapana project.
 
     Data retention strategy is controlled by the `retain_data` query parameter:
-    - `retain_data=false` (default): Delete the S3 bucket contents and OpenSearch index
-    - `retain_data=true`: Keep the data, only remove the project and its access configuration
+    - `retain_data=false` (default): Delete the project's S3 bucket, os index,
+       and any dicom series that are not also held by another non-adminproject
+    - `retain_data=true`: Keep the data, only remove the project and its access configuration.
     """
     existing = await crud.get_projects(session, project_id=project_id)
     if not existing:
@@ -235,6 +236,21 @@ async def delete_project(
     if admin_project and admin_project.id == project_id:
         raise HTTPException(status_code=403, detail="Cannot delete the admin project")
 
+    # Delete series held only by this project (and admin) from the platform.
+    # Targets the DAG at admin's context since admin always holds every series.
+    if not retain_data and admin_project is not None:
+        admin_project_schema = schemas.Project.model_validate(admin_project)
+        orphan_series = dicom_data.get_orphan_series(
+            project_id=project_id, admin_project_id=admin_project.id
+        )
+        dicom_data.clear_project_mappings(project_id=project_id)
+        try:
+            dicom_data.trigger_delete_series_dag(
+                admin_project=admin_project_schema, series_uids=orphan_series
+            )
+        except Exception as e:
+            logger.warning(f"delete-series DAG trigger failed for {project_id}: {e}")
+
     # remove from opensearch (alias + roles/rolemappings + optionally the index)
     await opensearch_helper.teardown_project(
         project=project, session=session, retain_data=retain_data
@@ -243,7 +259,7 @@ async def delete_project(
     await minio_helper.teardown_project(
         project=project, session=session, retain_data=retain_data
     )
-    # remove the helm chart (and therefore the k8s namespace)
+    # remove the helm chart (namespace is kept)
     kubehelm.uninstall_project_helm_chart(project)
     await crud.delete_project(session, project_id)
 

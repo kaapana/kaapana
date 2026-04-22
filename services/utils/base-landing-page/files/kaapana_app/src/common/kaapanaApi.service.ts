@@ -112,16 +112,37 @@ import httpClient from './httpClient'
       })
     })
   }
+  const extractPathPrefixes = (rule: string): string[] => {
+    if (!rule) {
+      return []
+    }
+
+    const prefixes: string[] = []
+    const pathPrefixRegex = /PathPrefix\(`([^`]+)`\)/g
+    let match
+
+    while ((match = pathPrefixRegex.exec(rule)) !== null) {
+      prefixes.push(match[1])
+    }
+
+    return prefixes
+  }
+
   const checkUrl = (trainingJson: any, endpoint: any) => {
-    let availableRoute = false
     for (const routes in trainingJson) {
-      if (trainingJson[routes]['status'] == 'enabled') {
-        if (trainingJson[routes]['rule'].slice(12, -2) == endpoint) {
-          availableRoute = true
-        }
+      if (trainingJson[routes]['status'] !== 'enabled') {
+        continue
+      }
+
+      const rule = trainingJson[routes]['rule']
+      const prefixes = extractPathPrefixes(rule)
+
+      if (prefixes.includes(endpoint)) {
+        return true
       }
     }
-    return availableRoute
+
+    return false
   }
 
   const federatedClientApiPost = (subUrl: any, payload: any = null, params: any=null) => {

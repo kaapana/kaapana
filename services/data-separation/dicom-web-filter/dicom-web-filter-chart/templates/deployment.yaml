@@ -1,4 +1,5 @@
 ---
+{{- $caBundleSecret := get .Values.global "ca_bundle_secret" | default dict }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -76,7 +77,7 @@ spec:
           mountPath: /tmp
         - name: kaapana-cert
           mountPath: /etc/certs/kaapana.pem
-          subPath: tls.crt
+          subPath: {{ get $caBundleSecret "key" | default "ca-bundle.pem" }}
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
@@ -93,7 +94,7 @@ spec:
       {{- end }}
       - name: kaapana-cert
         secret:
-          secretName: certificate
+          secretName: {{ get $caBundleSecret "name" | default "ca-bundle" }}
           defaultMode: 420
       - name: tmp
         emptyDir: {}

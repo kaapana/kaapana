@@ -3,6 +3,7 @@ kind: Deployment
 metadata:
   name: os-dashboards-de
   namespace: "{{ .Values.global.services_namespace }}"
+{{- $caBundleSecret := get .Values.global "ca_bundle_secret" | default dict }}
 spec:
   replicas: 1
   selector:
@@ -76,7 +77,7 @@ spec:
               subPath: uuid
             - name: kaapana-cert
               mountPath: /etc/certs/kaapana.pem
-              subPath: tls.crt
+              subPath: {{ get $caBundleSecret "key" | default "ca-bundle.pem" }}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -89,7 +90,7 @@ spec:
             path: opensearch_dashboards.yml
       - name: kaapana-cert
         secret:
-          secretName: certificate
+          secretName: {{ get $caBundleSecret "name" | default "ca-bundle" }}
           defaultMode: 420
       - name: uuid-file
         emptyDir: {}

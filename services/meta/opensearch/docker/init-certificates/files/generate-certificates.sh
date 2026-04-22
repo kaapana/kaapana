@@ -1,9 +1,6 @@
 #!/bin/sh
 set -e -o pipefail
 
-echo "DEBUG: HOSTNAME=${HOSTNAME} HTTPS_PORT=${HTTPS_PORT}"
-echo "DEBUG: https_proxy=${https_proxy} HTTPS_PROXY=${HTTPS_PROXY}"
-
 # Admin cert
 openssl genrsa -out admin-key-temp.pem 2048
 openssl pkcs8 -inform PEM -outform PEM -in admin-key-temp.pem -topk8 -nocrypt -v1 PBE-SHA1-3DES -out admin-key.pem
@@ -32,34 +29,17 @@ echo 'subjectAltName=DNS:client.dns.a-record' > client.ext
 openssl x509 -req -in client.csr -CA root-ca.pem -CAkey root-ca-key.pem -CAcreateserial -sha256 -out client.pem -days 730 -extfile client.ext
 
 # -----------------------------------------------------------------------
-# Build root-ca-bundle.pem = internal CA + optional external chain
-# A PEM bundle is valid for both internal TLS and OIDC trust validation
+# Build root-ca-bundle.pem from the shared platform trust anchor.
+# External chain handling belongs in cert-init/cert-copy, not here.
 # -----------------------------------------------------------------------
 KEYSTORE_PASSWORD="keystorepassword"
 
-# Start bundle with internal CA (read from read-only mount)
-cp root-ca.pem root-ca-bundle.pem
-
-if [ -n "${HOSTNAME}" ] && [ -n "${HTTPS_PORT}" ]; then
-  echo "Fetching external TLS chain from ${HOSTNAME}:${HTTPS_PORT} ..."
-  set +e
-  curl -sk --max-time 10 --output /dev/null \
-    --write-out "%{certs}" \
-    "https://${HOSTNAME}:${HTTPS_PORT}" > external-chain.pem 2>/dev/null
-  CURL_EXIT=$?
-  set -e
-
-  if [ ${CURL_EXIT} -eq 0 ] && grep -q "BEGIN CERTIFICATE" external-chain.pem 2>/dev/null; then
-    echo "Appending $(grep -c 'BEGIN CERTIFICATE' external-chain.pem) external cert(s) to bundle ..."
-    cat external-chain.pem >> root-ca-bundle.pem
-    echo "Bundle contains $(grep -c 'BEGIN CERTIFICATE' root-ca-bundle.pem) certificate(s) total."
-  else
-    echo "Warning: Could not fetch external TLS chain — bundle contains only internal CA."
-  fi
-  rm -f external-chain.pem
+if [ -f ca-bundle.pem ]; then
+  cp ca-bundle.pem root-ca-bundle.pem
 else
-  echo "HOSTNAME or HTTPS_PORT not set — bundle contains only internal CA."
+  cp root-ca.pem root-ca-bundle.pem
 fi
+echo "Bundle contains $(grep -c 'BEGIN CERTIFICATE' root-ca-bundle.pem) certificate(s) total."
 
 # -----------------------------------------------------------------------
 # Generate Truststore from bundle

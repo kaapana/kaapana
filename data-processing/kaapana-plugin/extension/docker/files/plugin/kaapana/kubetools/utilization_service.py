@@ -27,6 +27,7 @@ schedule_lockfile_max_duration_seconds = 300
 class UtilService:
     query_delay = None
     api_client = None
+    utilization_available = False
 
     ureg = None
     last_update = None
@@ -61,6 +62,10 @@ class UtilService:
     pool_mem = None
     pool_cpu = None
     pool_gpu_count = None
+
+    memory_pressure = False
+    disk_pressure = False
+    pid_pressure = False
 
     node_gpu_list = []
     node_gpu_queued_dict = {}
@@ -310,11 +315,17 @@ class UtilService:
             logger.debug("#####################################")
             logger.debug("#####################################")
 
+            UtilService.utilization_available = True
+
         except Exception as e:
             logger.error(
                 "+++++++++++++++++++++++++++++++++++++++++ COULD NOT FETCH NODES!"
             )
             logger.error(e)
+            UtilService.utilization_available = False
+            UtilService.memory_pressure = False
+            UtilService.disk_pressure = False
+            UtilService.pid_pressure = False
             return False
 
     @staticmethod
@@ -340,6 +351,13 @@ class UtilService:
         logging.info(
             f"last_update: {UtilService.last_update.strftime('%Y-%m-%d %H:%M:%S.%f')}"
         )
+
+        if not UtilService.utilization_available:
+            logger.warning(
+                "UtilService metrics unavailable, likely due to restricted Kubernetes RBAC. "
+                "Falling back to scheduling without node utilization checks."
+            )
+            return True, None
 
         if schedule_lockfile.exists():
             logger.warning("##############################################")

@@ -1572,6 +1572,12 @@ function load_kaapana_config {
     STORAGE_PROVIDER="default" # e.g. "hostpath" (microk8s) or "longhorn"
     VOLUME_SLOW_DATA="100Gi" # size of volumes in slow data dir (e.g. 100Gi or 100Ti)
     MANAGED_KUBERNETES=true
+    # if managed_Kubernetes
+    if [ "$MANAGED_KUBERNETES" = "true" ]; then
+    #In managed Kuberntes, get the API_SERVER e.g. via kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}' | awk -F[/:] '{print $4"/32"}')
+    #If it is an FQDN, define a suitable IP-Range 
+        API_SERVER_CIDR="10.0.0.0/8"
+    fi
 }
 
 function delete_all_images_docker {
@@ -2389,11 +2395,12 @@ function deploy_chart {
         fi
         SERVER_IP=$(hostname -I | awk -F ' ' '{print $1}')
         INTERNAL_CIDR="$SERVER_IP/32,$INTERNAL_CIDR"
-        # MicroK8s https://microk8s.io/docs/change-cidr
-        INTERNAL_CIDR="10.152.183.0/24,10.1.0.0/16,$INTERNAL_CIDR"
-    elif [[ "$KUBE" == "kubectl" ]]; then
-        INTERNAL_CIDR="10.42.0.0/16,10.43.0.0/16"
+    elif [[ "$KUBE" == "kubectl" && -n "$API_SERVER_CIDR" ]]; then
+        INTERNAL_CIDR="$API_SERVER_CIDR"
+    else
+        INTERNAL_CIDR=""
     fi
+    INTERNAL_CIDR="10.152.183.0/24,10.1.0.0/16,$INTERNAL_CIDR"
 
     # kaapana-storage-chart only provides the hostpath/longhorn classes; other providers use existing classes
     if [[ "$STORAGE_PROVIDER" == "microk8s.io/hostpath" || "$STORAGE_PROVIDER" == "driver.longhorn.io" ]]; then

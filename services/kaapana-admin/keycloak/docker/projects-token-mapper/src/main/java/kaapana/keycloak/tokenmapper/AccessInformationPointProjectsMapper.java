@@ -66,7 +66,8 @@ public class AccessInformationPointProjectsMapper extends AbstractOIDCProtocolMa
     @Override
     protected void setClaim(IDToken token, ProtocolMapperModel mappingModel, UserSessionModel userSession, KeycloakSession keycloakSession, ClientSessionContext clientSessionCtx) {
         String userId = userSession.getUser().getId();
-        String serviceUrl = "http://aii-service.services.svc.cluster.local:8080/aii/users/" + userId + "/projects"; //TODO: Should come from configmap
+        String servicesNamespace = System.getenv().getOrDefault("SERVICES_NAMESPACE", "services");
+        String serviceUrl = "http://aii-service." + servicesNamespace + ".svc.cluster.local:8080/aii/users/" + userId + "/projects";
 
         try {
             URL url = new URI(serviceUrl).toURL();

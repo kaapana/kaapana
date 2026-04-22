@@ -1,4 +1,5 @@
 import json
+import os
 import re
 
 import requests
@@ -31,9 +32,14 @@ class MinioHelper:
 
     def __init__(self, access_token, wait_for_service=True):
         self.access_token = access_token
+        services_namespace = os.getenv("SERVICES_NAMESPACE", "services")
 
-        self.minio_service_url = "http://minio-service.services.svc:9000"
-        self.minio_console_url = "http://minio-service.services.svc:9090"
+        self.minio_service_url = (
+            f"http://minio-service.{services_namespace}.svc:9000"
+        )
+        self.minio_console_url = (
+            f"http://minio-service.{services_namespace}.svc:9090"
+        )
 
         if wait_for_service:
             self.wait_for_service()

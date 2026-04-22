@@ -1,3 +1,5 @@
+import os
+
 import httpx
 from app.config import settings
 from app.database import SessionLocal
@@ -16,6 +18,8 @@ from tenacity import (
 )
 
 logger = get_logger(__name__)
+SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", "services")
+DEFAULT_PROJECT_URL = f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/admin"
 
 
 @retry(
@@ -27,9 +31,7 @@ logger = get_logger(__name__)
 )
 def fetch_project_id():
     try:
-        response = httpx.get(
-            "http://aii-service.services.svc:8080/projects/admin", timeout=5
-        )
+        response = httpx.get(DEFAULT_PROJECT_URL, timeout=5)
         response.raise_for_status()
         project = response.json()
         project_id = project.get("id")

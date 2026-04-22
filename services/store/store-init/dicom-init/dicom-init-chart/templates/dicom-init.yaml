@@ -42,6 +42,8 @@ spec:
           value: "{{ .Values.global.oidc_client_secret }}"
         - name: SERVICES_NAMESPACE
           value: "{{ .Values.global.services_namespace }}"
+        - name: ADMIN_NAMESPACE
+          value: "{{ .Values.global.admin_namespace }}"
         - name: KAAPANA_PROJECT_USER_PASSWORD
           valueFrom:
             secretKeyRef:

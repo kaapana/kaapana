@@ -23,6 +23,8 @@ AIRFLOW_WORKFLOW_DIR = Path(AIRFLOW_HOME, "data")
 DEFAULT_NAMESPACE = "project-admin"
 USER_INPUT_KEY = "task_form"
 KAAPANA_SKIP_TASK_RUN_RETURN_CODE = 126
+SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", "services")
+ADMIN_NAMESPACE = os.getenv("ADMIN_NAMESPACE", "admin")
 
 
 class IOMapping(BaseModel):
@@ -52,13 +54,13 @@ class IOMapping(BaseModel):
 
 
 KAAPANA_ENVIRONMENT = [
-    client.V1EnvVar(name="KAAPANA_SERVICES_NAMESPACE", value="services"),
-    client.V1EnvVar(name="KAAPANA_ADMIN_NAMESPACE", value="admin"),
+    client.V1EnvVar(name="KAAPANA_SERVICES_NAMESPACE", value=SERVICES_NAMESPACE),
+    client.V1EnvVar(name="KAAPANA_ADMIN_NAMESPACE", value=ADMIN_NAMESPACE),
     client.V1EnvVar(name="KAAPANA_LOG_LEVEL", value="DEBUG"),
     client.V1EnvVar(name="KAAPANA_TIMEZONE", value="Europe/Berlin"),
     client.V1EnvVar(
         name="KAAPANA_KEYCLOAK_URL",
-        value="http://keycloak-external-service.admin.svc:80",
+        value=f"http://keycloak-external-service.{ADMIN_NAMESPACE}.svc:80",
     ),
     client.V1EnvVar(
         name="KAAPANA_CLIENT_SECRET",
@@ -71,7 +73,8 @@ KAAPANA_ENVIRONMENT = [
     ),
     client.V1EnvVar(name="KAAPANA_CLIENT_ID", value="kaapana"),
     client.V1EnvVar(
-        name="KAAPANA_OPENSEARCH_HOST", value="opensearch-service.services.svc"
+        name="KAAPANA_OPENSEARCH_HOST",
+        value=f"opensearch-service.{SERVICES_NAMESPACE}.svc",
     ),
     client.V1EnvVar(name="KAAPANA_OPENSEARCH_PORT", value="9200"),
     client.V1EnvVar(name="KAAPANA_DEFAULT_OPENSEARCH_INDEX", value="project_admin"),
@@ -94,26 +97,28 @@ KAAPANA_ENVIRONMENT = [
         ),
     ),
     client.V1EnvVar(
-        name="KAAPANA_AII_URL", value="http://aii-service.services.svc:8080"
+        name="KAAPANA_AII_URL",
+        value=f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080",
     ),
     client.V1EnvVar(
         name="KAAPANA_DICOM_WEB_FILTER_URL",
-        value="http://dicom-web-filter-service.services.svc:8080",
+        value=f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080",
     ),
     client.V1EnvVar(
         name="KAAPANA_OPENSEARCH_URL",
-        value="http://opensearch-service.services.svc:9200",
+        value=f"http://opensearch-service.{SERVICES_NAMESPACE}.svc:9200",
     ),
     client.V1EnvVar(
         name="KAAPANA_BACKEND_URL",
-        value="http://kaapana-backend-service.services.svc:5000",
+        value=f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000",
     ),
     client.V1EnvVar(
-        name="KAAPANA_MINIO_URL", value="http://minio-service.services.svc:9000"
+        name="KAAPANA_MINIO_URL",
+        value=f"http://minio-service.{SERVICES_NAMESPACE}.svc:9000",
     ),
     client.V1EnvVar(
         name="KAAPANA_NOTIFICATION_URL",
-        value="http://notification-service.services.svc:80",
+        value=f"http://notification-service.{SERVICES_NAMESPACE}.svc:80",
     ),
 ]
 

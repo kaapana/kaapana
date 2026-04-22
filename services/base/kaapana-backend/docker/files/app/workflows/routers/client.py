@@ -36,6 +36,7 @@ logging.getLogger().setLevel(logging.DEBUG)
 router = APIRouter(tags=["client"])
 
 UPLOAD_DIR = "/kaapana/app/uploads"
+DEFAULT_AII_URL = f"http://aii-service.{os.getenv('SERVICES_NAMESPACE', 'services')}.svc:8080"
 
 
 def remove_outdated_tmp_files(search_dir):
@@ -689,7 +690,7 @@ def create_workflow(
         # and verify that the current user is allowed to create the workflow
         project_id = project.get("id")
         aii_response = httpx.get(
-            f"http://aii-service.services.svc:8080/projects/{project_id}/software-mappings"
+            f"{DEFAULT_AII_URL}/projects/{project_id}/software-mappings"
         )
         software_mappings = aii_response.json()
         dag_id = json_schema_data.dag_id
@@ -947,4 +948,3 @@ async def sync_installed_models(
     except Exception as e:
         logging.error(f"Error syncing models: {e}")
         raise HTTPException(status_code=400, detail=str(e))
-

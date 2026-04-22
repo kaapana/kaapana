@@ -19,6 +19,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", "services")
 
 
 def check_endpoint(input: dict):
@@ -72,7 +73,7 @@ async def auth_check(request: Request, response: Response):
             project = json.loads(decoded_string)
             project_id = project["id"]
             aii_response = requests.get(
-                f"http://aii-service.services.svc:8080/projects/{project_id}"
+                f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_id}"
             )
             project = aii_response.json()
             input["input"]["project"] = project

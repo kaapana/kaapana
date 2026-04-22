@@ -34,6 +34,8 @@ spec:
         env:
           - name: ADMIN_NAMESPACE
             value: "{{ .Values.global.admin_namespace }}"
+          - name: SERVICES_NAMESPACE
+            value: "{{ .Values.global.services_namespace }}"
           - name: PORT
             value: "5000"
           {{- if .Values.global.dev_files }}

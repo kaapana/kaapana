@@ -18,6 +18,18 @@ spec:
       securityContext:
         runAsUser: 0
 {{- include "kaapana.nodeSelector" . | indent 6 }}
+{{- if .Values.global.no_read_write_many_support }}
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: kaapana.io/airflow-rwo-anchor
+                    operator: In
+                    values:
+                      - "true"
+              topologyKey: kubernetes.io/hostname
+{{- end }}
       containers:
       - name: code-server
         image: "{{ tpl .Values.global.complete_image . }}"

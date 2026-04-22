@@ -15,6 +15,18 @@ spec:
         app.kubernetes.io/name: ctp
     spec:
 {{- include "kaapana.nodeSelector" . | indent 6 }}
+{{- if .Values.global.no_read_write_many_support }}
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: kaapana.io/airflow-rwo-anchor
+                    operator: In
+                    values:
+                      - "true"
+              topologyKey: kubernetes.io/hostname
+{{- end }}
       containers:
         - name: ctp-container
           image: "{{ .Values.global.registry_url }}/ctp:{{ .Values.global.kaapana_build_version  }}"

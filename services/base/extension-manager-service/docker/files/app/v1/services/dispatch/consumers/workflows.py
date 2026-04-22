@@ -1,4 +1,5 @@
 import json
+import os
 
 import httpx
 from v1.services.logger import get_logger
@@ -14,7 +15,9 @@ logger = get_logger(__name__)
 
 
 class WorkflowInstaller(ContentInstaller):
-    workflow_api_url = "http://workflow-api.services.svc:80/v1"
+    workflow_api_url = (
+        f"http://workflow-api.{os.getenv('SERVICES_NAMESPACE', 'services')}.svc:80/v1"
+    )
 
     def can_install(self, content: Content) -> bool:
         return content.content_type == "workflow-v1"

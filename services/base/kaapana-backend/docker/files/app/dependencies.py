@@ -1,4 +1,5 @@
 import json
+import os
 
 import httpx
 import jwt
@@ -14,6 +15,9 @@ from .monitoring.services import MonitoringService
 from .users.services import UserService
 from .workflows.models import KaapanaInstance
 from .workflows.utils import HelperMinio
+
+SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", "services")
+DEFAULT_AII_URL = f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080"
 
 
 def get_db():
@@ -95,14 +99,14 @@ def _aii_project(project_id: str) -> dict:
     Fetch a project from AII server-side so `is_archived` is checked instead of e.g. relying on the `Project` req header
     """
     return httpx.get(
-        f"http://aii-service.services.svc:8080/projects/{project_id}"
+        f"{DEFAULT_AII_URL}/projects/{project_id}"
     ).json()
 
 
 def get_allowed_software(project=Depends(get_project)) -> list:
     project_id = project.get("id")
     enabled_software_in_project = httpx.get(
-        f"http://aii-service.services.svc:8080/projects/{project_id}/software-mappings"
+        f"{DEFAULT_AII_URL}/projects/{project_id}/software-mappings"
     ).json()
     software_uuids = [
         software.get("software_uuid") for software in enabled_software_in_project
@@ -133,6 +137,6 @@ def get_dcmweb_helper(request: Request):
 
 
 def fetch_default_project_id() -> str:
-    response = requests.get("http://aii-service.services.svc:8080/projects/admin")
+    response = requests.get(f"{DEFAULT_AII_URL}/projects/admin")
     response.raise_for_status()
     return response.json().get("id")

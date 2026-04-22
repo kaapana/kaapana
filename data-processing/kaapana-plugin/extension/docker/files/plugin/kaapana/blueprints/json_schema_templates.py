@@ -1,9 +1,13 @@
 import functools
+import os
 from pathlib import Path
 
 import requests
 from kaapanapy.helper import get_minio_client
 
+SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", "services")
+AII_URL = f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080"
+BACKEND_URL = f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000"
 
 def properties_filter(func):
     @functools.wraps(func)
@@ -66,7 +70,7 @@ def schema_dataset_form(filter_keys: list = None):
 def get_all_project_names(without_admin_project: bool = True) -> list[str]:
     """Return the names of all projects. Excludes the admin project by default."""
     try:
-        r = requests.get("http://aii-service.services.svc:8080/projects")
+        r = requests.get(f"{AII_URL}/projects")
         projects = r.json()
         if without_admin_project:
             projects = [project for project in projects if project["name"] != "admin"]
@@ -83,7 +87,7 @@ def schema_upload_form(
     """
     Schema that lists files in FAST_DATA_DIR/uploads
     """
-    r = requests.get("http://kaapana-backend-service.services.svc:5000/client/files")
+    r = requests.get(f"{BACKEND_URL}/client/files")
     files_in_upload_dir = r.json()
     filtered_files = []
     for f in files_in_upload_dir:

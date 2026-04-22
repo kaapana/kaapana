@@ -11,6 +11,7 @@ from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.CleanUpExpiredWorkflowDataOperator import (
     CleanUpExpiredWorkflowDataOperator,
 )
@@ -48,11 +49,11 @@ dag = DAG(
 
 @task
 def fetch_namespaces():
-    r = requests.get("http://aii-service.services.svc:8080/projects", timeout=5)
+    r = requests.get(f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects", timeout=5)
     r.raise_for_status()
 
     namespaces = [p["kubernetes_namespace"] for p in r.json()]
-    namespaces.append("services")
+    namespaces.append(SERVICES_NAMESPACE)
     return namespaces
 
 

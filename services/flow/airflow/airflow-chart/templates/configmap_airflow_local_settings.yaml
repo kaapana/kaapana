@@ -13,6 +13,7 @@ data:
     from kubernetes import client, config
     from airflow.models import DagRun
     from airflow.utils.session import create_session
+    from task_api.runners.rwo_anchor import apply_anchor_affinity_to_pod
 
     log = logging.getLogger(__name__)
 
@@ -277,6 +278,7 @@ data:
 
         pod.spec.volumes = pod.spec.volumes or []
         pod.spec.volumes.extend(define_volumes_and_mounts())
+        pod = apply_anchor_affinity_to_pod(pod=pod, namespace=ns, logger=log)
 
         # Schedule log streaming for this pod
         labels = pod.metadata.labels or {}
@@ -297,3 +299,4 @@ data:
             try_number=try_number,
             container=None,
         )
+        return pod

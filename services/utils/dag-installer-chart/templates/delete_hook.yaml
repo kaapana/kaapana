@@ -11,8 +11,21 @@ metadata:
 spec:
   template:
     spec:
+{{- if .Values.global.no_read_write_many_support }}
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: kaapana.io/airflow-rwo-anchor
+                    operator: In
+                    values:
+                      - "true"
+              topologyKey: kubernetes.io/hostname
+{{- else }}
       nodeSelector:
         kubernetes.io/hostname: {{ .Values.global.main_node_name }}
+{{- end }}
       containers:
       - name: "remove-{{ .Values.global.image }}"
         image: "{{- if .Values.global.custom_registry_url }}{{ .Values.global.custom_registry_url }}{{- else}}{{ .Values.global.registry_url }}{{- end }}/{{ .Values.global.image }}:{{ .Chart.Version  }}"

@@ -6,6 +6,7 @@
 {{- $namespace := not $global.namespace | ternary $global.services_namespace (tpl ($global.namespace | toString) .) }}
 {{- $release_name := .Release.Name }}
 {{- $keywords := .Chart.Keywords }}
+{{- $noReadWriteManySupport := $global.no_read_write_many_support | default false }}
 
 # Iterate over all volumes
 {{- range $volume := .Values.global.dynamicVolumes }}
@@ -17,7 +18,7 @@
 
     {{- if eq $volume.storage_class "workflow" }}
       {{- $storage_class = $global.storage_class_workflow -}}
-      {{- if ne $global.storage_class_workflow "kaapana-hostpath-fast-data-dir" }}
+      {{- if and (ne $global.storage_class_workflow "kaapana-hostpath-fast-data-dir") (not $noReadWriteManySupport) }}
         {{- $accessMode = "ReadWriteMany" -}}
       {{- end }}
 

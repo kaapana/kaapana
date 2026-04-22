@@ -1263,6 +1263,7 @@ function load_kaapana_config {
     VOLUME_SLOW_DATA="100Gi" # size of volumes in slow data dir (e.g. 100Gi or 100Ti)
     REPLICA_COUNT=1
     MANAGED_KUBERNETES=true
+    NO_READ_WRITE_MANY_SUPPORT=true
     # if managed_Kubernetes
     if [ "$MANAGED_KUBERNETES" = "true" ]; then
     #In managed Kuberntes, get the API_SERVER e.g. via kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}' | awk -F[/:] '{print $4"/32"}')
@@ -2073,6 +2074,7 @@ function deploy_chart {
     --set-string global.storage_class_fast="$STORAGE_CLASS_FAST" \
     --set-string global.storage_class_slow="$STORAGE_CLASS_SLOW" \
     --set-string global.storage_class_workflow="$STORAGE_CLASS_WORKFLOW" \
+    --set global.no_read_write_many_support="$NO_READ_WRITE_MANY_SUPPORT" \
     --set-string global.main_node_name="$MAIN_NODE_NAME" \
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
     --set-string global.replica_count="$REPLICA_COUNT"\

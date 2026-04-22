@@ -32,6 +32,9 @@ spec:
       labels:
         app.kubernetes.io/name: airflow
         app.kubernetes.io/component: scheduler
+{{- if .Values.global.no_read_write_many_support }}
+        kaapana.io/airflow-rwo-anchor: "true"
+{{- end }}
     spec:
 {{- include "kaapana.nodeSelector" . | indent 6 }}
       initContainers:
@@ -121,6 +124,8 @@ spec:
           value: "{{ .Values.global.instance_name }}"
         - name: KAAPANA_BUILD_VERSION
           value: "{{ .Values.global.kaapana_build_version }}"
+        - name: NO_READ_WRITE_MANY_SUPPORT
+          value: "{{ .Values.global.no_read_write_many_support }}"
         - name: MINIODIR
           value: "{{ .Values.global.slow_data_dir }}/minio"
         - name: MINIOUSER
@@ -270,6 +275,7 @@ spec:
       - name: modeldata
         persistentVolumeClaim:
           claimName: models-pv-claim
+        # TODO: CTP, UPLOADS,DICOMDIR, have to run on the same node, or need RWx volumes, maybe af-logs can be RWO if scheduler and webserver on same node (affiliation)
       - name: ctpinput
         persistentVolumeClaim:
           claimName: ctp-data-pv-claim
@@ -284,7 +290,9 @@ spec:
       - name: tmpfs
         emptyDir: {}
       serviceAccountName: kaapana-kube-admin
+{{- if not .Values.global.managed_kubernetes }}
       priorityClassName: kaapana-high-priority
+{{- end }}
       imagePullSecrets:
       - name: registry-secret
 ---

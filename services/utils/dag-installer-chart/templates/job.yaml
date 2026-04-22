@@ -16,6 +16,18 @@ spec:
       labels:
         app.kubernetes.io/name: get-{{ .Values.global.image }}-{{ .Values.global.version }}
     spec:
+{{- if .Values.global.no_read_write_many_support }}
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: kaapana.io/airflow-rwo-anchor
+                    operator: In
+                    values:
+                      - "true"
+              topologyKey: kubernetes.io/hostname
+{{- end }}
       initContainers:
         - name: init
           image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
@@ -55,8 +67,21 @@ metadata:
 spec:
   template:
     spec:
+{{- if .Values.global.no_read_write_many_support }}
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: kaapana.io/airflow-rwo-anchor
+                    operator: In
+                    values:
+                      - "true"
+              topologyKey: kubernetes.io/hostname
+{{- else }}
       nodeSelector:
         kubernetes.io/hostname: {{ .Values.global.main_node_name }}
+{{- end }}
       initContainers:
         - name: init
           image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"

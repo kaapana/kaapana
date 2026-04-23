@@ -63,12 +63,16 @@ spec:
             value: "true"
           - name: WILDFLY_LOG_RETENTION_DAYS
             value: "7"
+          - name: HTTP_PROXY_ADDRESS_FORWARDING
+            value: "true"
+          - name: WILDFLY_RESOLVE_PEER_ADDRESS
+            value: "true"
           - name: http_proxy
             value: "{{ .Values.global.http_proxy }}"
           - name: https_proxy
             value: "{{ .Values.global.http_proxy }}"
           - name: no_proxy
-            value: ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }}"
+            value: "127.0.0.1,localhost,.svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }}"
           ports:
             - containerPort: 8443
             - containerPort: 9990

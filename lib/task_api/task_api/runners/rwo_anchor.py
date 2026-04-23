@@ -61,6 +61,20 @@ def get_anchor_node_from_workflow_pvc(
     return annotations.get(ANCHOR_NODE_ANNOTATION)
 
 
+def _workflow_pvc_exists(namespace: str) -> bool:
+    api = _get_core_v1_api()
+    try:
+        api.read_namespaced_persistent_volume_claim(
+            name=WORKFLOW_DATA_PVC_NAME,
+            namespace=namespace,
+        )
+        return True
+    except ApiException as e:
+        if e.status == 404:
+            return False
+        raise
+
+
 def set_anchor_node_on_workflow_pvc(
     namespace: str, node_name: str, logger: logging.Logger = logging
 ) -> Optional[str]:
@@ -203,7 +217,7 @@ def apply_anchor_affinity_to_pod(pod, namespace: str, logger: logging.Logger = l
 def initialize_project_anchor_if_needed(
     pod: client.V1Pod,
     namespace: str,
-    timeout_seconds: int = 30,
+    timeout_seconds: int = 180,
     logger: logging.Logger = logging,
 ):
     if not is_rwo_mode() or is_services_namespace(namespace):
@@ -218,29 +232,58 @@ def initialize_project_anchor_if_needed(
     api = _get_core_v1_api()
     pod_name = pod.metadata.name
     deadline = time.time() + timeout_seconds
+    observed_node_name = None
 
     while time.time() < deadline:
-        current_pod = api.read_namespaced_pod(name=pod_name, namespace=namespace)
+        try:
+            current_pod = api.read_namespaced_pod(name=pod_name, namespace=namespace)
+        except ApiException as e:
+            logger.warning(
+                "Could not re-read pod %s in namespace %s while initializing RWO project anchor: %s",
+                pod_name,
+                namespace,
+                e,
+            )
+            time.sleep(1)
+            continue
+
         node_name = current_pod.spec.node_name if current_pod.spec else None
         if node_name:
+            observed_node_name = node_name
+
+            try:
+                if not _workflow_pvc_exists(namespace=namespace):
+                    time.sleep(1)
+                    continue
+            except ApiException as e:
+                logger.warning(
+                    "Could not check PVC %s in namespace %s while initializing RWO project anchor: %s",
+                    WORKFLOW_DATA_PVC_NAME,
+                    namespace,
+                    e,
+                )
+                time.sleep(1)
+                continue
+
             current_anchor = get_anchor_node_from_workflow_pvc(
                 namespace=namespace, logger=logger
             )
             if current_anchor:
                 return
 
-            set_anchor_node_on_workflow_pvc(
+            if set_anchor_node_on_workflow_pvc(
                 namespace=namespace,
                 node_name=node_name,
                 logger=logger,
-            )
-            return
+            ):
+                return
 
         time.sleep(1)
 
     logger.warning(
-        "Pod %s in namespace %s did not get a node assignment within %ss, so no RWO project anchor was initialized.",
+        "Pod %s in namespace %s did not initialize an RWO project anchor within %ss. Last observed node=%s.",
         pod_name,
         namespace,
         timeout_seconds,
+        observed_node_name,
     )

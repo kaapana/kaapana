@@ -106,6 +106,17 @@ spec:
           value: "/kaapana/mounted/workflows"
         - name: AIRFLOW__API__AUTH_BACKENDS
           value: "airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth"
+{{- if .Values.global.managed_kubernetes }}
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__NAMESPACE
+          value: "{{ .Values.global.services_namespace }}"
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__MULTI_NAMESPACE_MODE
+          value: "True"
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__MULTI_NAMESPACE_MODE_NAMESPACE_LIST
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-managed-namespaces
+              key: namespaces
+{{- end }}
         - name: DATADIR
           value: "{{ .Values.global.fast_data_dir }}/workflows/data"
         - name: DEFAULT_REGISTRY

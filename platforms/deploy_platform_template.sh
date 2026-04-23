@@ -42,6 +42,8 @@ ADMIN_NAMESPACE="{{ admin_namespace }}"
 EXTENSIONS_NAMESPACE="{{ extensions_namespace }}"
 HELM_NAMESPACE="{{ helm_namespace }}"
 
+PLATFORM_PREFIX="${PLATFORM_PREFIX:-kaapana}" 
+
 OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
 
 INCLUDE_REVERSE_PROXY=false
@@ -314,6 +316,26 @@ else
     echo "${YELLOW}No GPU detected...${NC}"
     GPU_SUPPORT=false
 fi
+
+function validate_platform_prefix() {
+    # Must produce a valid k8s namespace when composed as "{prefix}-project-<short_id>".
+    # k8s namespace limit is 63 chars; "-project-" is 9 chars; short_id is up to 8 chars
+    # ("admin" is 5), so the prefix itself must be <= 46 chars.
+    local max_prefix_len=46
+    if [[ -z "$PLATFORM_PREFIX" ]]; then
+        echo -e "${RED}PLATFORM_PREFIX must not be empty.${NC}"
+        exit 1
+    fi
+    if ! [[ "$PLATFORM_PREFIX" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]; then
+        echo -e "${RED}PLATFORM_PREFIX '$PLATFORM_PREFIX' is not a valid DNS-1123 label (lowercase alphanumerics and hyphens, must start/end alphanumeric).${NC}"
+        exit 1
+    fi
+    if (( ${#PLATFORM_PREFIX} > max_prefix_len )); then
+        echo -e "${RED}PLATFORM_PREFIX '$PLATFORM_PREFIX' is ${#PLATFORM_PREFIX} chars; must be <= ${max_prefix_len} to keep project namespaces within the 63-char k8s limit.${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}Using PLATFORM_PREFIX: $PLATFORM_PREFIX${NC}"
+}
 
 function delete_all_images_docker {
     while true; do
@@ -892,6 +914,7 @@ function deploy_chart {
     --set-string global.pull_policy_pods="$PULL_POLICY_IMAGES" \
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
     --set-string global.release_name="$PLATFORM_NAME" \
+    --set-string global.platform_prefix="$PLATFORM_PREFIX" \
     --set-string global.deployment_timestamp="$DEPLOYMENT_TIMESTAMP" \
     --set-string global.mount_points_to_monitor="$MOUNT_POINTS_TO_MONITOR" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
@@ -1516,7 +1539,7 @@ nvidia-smi
 --- "Resource Health"
 check_system kaapana-admin-chart default
 check_system kaapana-platform-chart default
-check_system project-admin admin
+check_system "${PLATFORM_PREFIX:-kaapana}-project-admin" admin
 
 --- "END"
 }
@@ -1543,6 +1566,7 @@ _Flag: --report, create a report of the state of the microk8s cluster
 _Argument: --username [Docker registry username]
 _Argument: --password [Docker registry password]
 _Argument: --port [Set main https-port]
+_Argument: --platform-prefix [Prefix for project namespaces, default 'kaapana']
 _Argument: --chart-path [path-to-chart-tgz]
 _Argument: --import-images-tar [path-to-a-tarball]"
 
@@ -1586,6 +1610,13 @@ do
         --chart-path)
             CHART_PATH="$2"
             echo -e "${GREEN}SET CHART_PATH: $CHART_PATH !${NC}";
+            shift # past argument
+            shift # past value
+        ;;
+
+        --platform-prefix)
+            PLATFORM_PREFIX="$2"
+            echo -e "${GREEN}SET PLATFORM_PREFIX: $PLATFORM_PREFIX ${NC}"
             shift # past argument
             shift # past value
         ;;
@@ -1673,7 +1704,7 @@ do
         --check-system)
             check_system kaapana-admin-chart default
             check_system kaapana-platform-chart admin
-            check_system project-admin admin
+            check_system "${PLATFORM_PREFIX:-kaapana}-project-admin" admin
             exit 0
         ;;
 
@@ -1686,6 +1717,8 @@ do
 
     esac
 done
+
+validate_platform_prefix
 
 preflight_checks
 

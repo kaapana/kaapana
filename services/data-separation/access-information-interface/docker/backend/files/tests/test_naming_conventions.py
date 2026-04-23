@@ -1,5 +1,7 @@
+import os
 import sys
 from unittest.mock import MagicMock
+from uuid import UUID
 
 
 def mock_modules():
@@ -14,7 +16,7 @@ def mock_modules():
 mock_modules()
 
 
-from app.projects.schemas import is_valid_dicom_ae_title
+from app.projects.schemas import Project, is_valid_dicom_ae_title
 from app.projects.minio import is_valid_minio_bucket_name
 from app.projects.opensearch import is_valid_opensearch_index_name
 from app.projects.kubehelm import is_valid_kubernetes_namespace
@@ -88,6 +90,30 @@ def test_is_valid_opensearch_index_name() -> bool:
         success = name_tuple[1] == valid_response
 
     assert success
+
+
+def _make_project(name: str = "MYPROJECT", project_id: UUID = UUID("12345678-1234-5678-1234-567812345678")) -> Project:
+    return Project(id=project_id, name=name, description="d")
+
+
+def test_project_kubernetes_namespace_uses_platform_prefix(monkeypatch):
+    monkeypatch.setenv("PLATFORM_PREFIX", "site-a")
+    project = _make_project()
+    assert project.kubernetes_namespace == "site-a-project-12345678"
+    assert is_valid_kubernetes_namespace(project.kubernetes_namespace)
+
+
+def test_project_kubernetes_namespace_defaults_to_kaapana(monkeypatch):
+    monkeypatch.delenv("PLATFORM_PREFIX", raising=False)
+    project = _make_project()
+    assert project.kubernetes_namespace == "kaapana-project-12345678"
+
+
+def test_admin_project_namespace_is_prefixed(monkeypatch):
+    monkeypatch.setenv("PLATFORM_PREFIX", "kaapana")
+    project = _make_project(name="admin")
+    assert project.short_id == "admin"
+    assert project.kubernetes_namespace == "kaapana-project-admin"
 
 
 def test_is_valid_kubernetes_namespace() -> bool:

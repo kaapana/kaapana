@@ -162,7 +162,6 @@ async def update_project(
     old_project = existing[0]
     old_name = old_project.name
 
-    # Persist mutable fields (infrastructure names are excluded inside crud.update_project)
     updated_project = await crud.update_project(session, project_id, project_update)
 
     # Propagate a name change to aliases / labels
@@ -221,9 +220,8 @@ async def delete_project(
     """
     Delete a Kaapana project.
 
-    Data retention strategy is controlled by the `retain_data` query parameter:
     - `retain_data=false` (default): Delete the project's S3 bucket, os index,
-       and any dicom series that are not also held by another non-adminproject
+       and any dicom series that are not also held by another non-admin project. k8s namespace persists.
     - `retain_data=true`: Keep the data, only remove the project and its access configuration.
     """
     existing = await crud.get_projects(session, project_id=project_id)
@@ -255,11 +253,11 @@ async def delete_project(
     await opensearch_helper.teardown_project(
         project=project, session=session, retain_data=retain_data
     )
-    # remove from minio (policies + optionally the bucket)
+    # remove from minio
     await minio_helper.teardown_project(
         project=project, session=session, retain_data=retain_data
     )
-    # remove the helm chart (namespace is kept)
+    # remove the helm chart (k8s namespace is kept)
     kubehelm.uninstall_project_helm_chart(project)
     await crud.delete_project(session, project_id)
 

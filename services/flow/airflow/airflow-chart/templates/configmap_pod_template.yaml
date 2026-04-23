@@ -50,6 +50,8 @@ data:
               value: "{{ .Values.global.instance_name }}"
             - name: KAAPANA_BUILD_VERSION
               value: "{{ .Values.global.kaapana_build_version }}"
+            - name: PLATFORM_PREFIX
+              value: "{{ .Values.global.platform_prefix | default `kaapana` }}"
             - name: MINIODIR
               value: "{{ .Values.global.slow_data_dir }}/minio"
             - name: MINIOUSER

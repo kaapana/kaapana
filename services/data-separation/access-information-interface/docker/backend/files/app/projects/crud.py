@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 from uuid import UUID
 
@@ -17,7 +18,8 @@ from sqlalchemy.dialects.postgresql import TEXT
 
 
 def build_kubernetes_namespace(short_id: str) -> str:
-    return f"project-{short_id}"
+    prefix = os.getenv("PLATFORM_PREFIX", "kaapana")
+    return f"{prefix}-project-{short_id}"
 
 
 def build_s3_bucket(short_id: str) -> str:

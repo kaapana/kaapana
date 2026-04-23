@@ -70,7 +70,7 @@ data:
     
     def pod_mutation_hook(pod):
       dagrun = get_dagrun_from_pod(pod)
-      ns = "project-admin"
+      ns = os.getenv("PLATFORM_PREFIX", "kaapana") + "-project-admin"
       if dagrun and dagrun.conf:
         # Example: dynamic namespace
         incoming_ns = dagrun.conf.get("project_form", {}).get("kubernetes_namespace")

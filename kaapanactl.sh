@@ -1480,6 +1480,7 @@ function load_kaapana_config {
     SERVICES_NAMESPACE="idai-services"
     ADMIN_NAMESPACE="idai-admin"
     EXTENSIONS_NAMESPACE="idai-extensions"
+    EXTRA_MANAGED_NAMESPACES="" # comma-separated, in addition to the admin project namespace (${PLATFORM_PREFIX}-project-admin)
     HELM_NAMESPACE="$ADMIN_NAMESPACE"
 
     OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
@@ -2509,7 +2510,9 @@ function deploy_chart {
         fi
     fi
     echo "proxy settings: http_proxy=$http_proxy, https_proxy=$https_proxy"
-    
+
+    ALL_MANAGED_NAMESPACES="$EXTENSIONS_NAMESPACE,$SERVICES_NAMESPACE,$ADMIN_NAMESPACE,${PLATFORM_PREFIX}-project-admin${EXTRA_MANAGED_NAMESPACES:+,$EXTRA_MANAGED_NAMESPACES}"
+
     $HELM_INSTALL_CMD --debug $CHART_PATH \
     --set-string global.base_namespace="base" \
     --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \
@@ -2585,7 +2588,7 @@ function deploy_chart {
     --set-string global.storage_node="$STORAGE_NODE" \
     "${kube_helm_timeout_args[@]}" \
     --set global.managed_kubernetes="$MANAGED_KUBERNETES" \
-    --set global.all_managed_namespaces="{$EXTENSIONS_NAMESPACE,$SERVICES_NAMESPACE,$ADMIN_NAMESPACE,${PLATFORM_PREFIX}-project-admin}" \
+    --set global.all_managed_namespaces="{${ALL_MANAGED_NAMESPACES}}" \
     --set-string global.external_ingress="$EXTERNAL_INGRESS" \
     --name-template "$PLATFORM_NAME" | grep -A10 -B5 rbac.authorization.k8s.io
 

@@ -26,6 +26,15 @@ function apply_secret_from_stdin {
     kubectl apply -n "$TARGET_NAMESPACE" -f - >/dev/null 2>&1
 }
 
+function replace_or_create_secret_from_stdin {
+    TARGET_NAMESPACE=$1
+
+    SECRET_MANIFEST=$(cat)
+    if ! echo "$SECRET_MANIFEST" | kubectl replace -n "$TARGET_NAMESPACE" -f - >/dev/null 2>&1; then
+        echo "$SECRET_MANIFEST" | kubectl create -n "$TARGET_NAMESPACE" -f - >/dev/null 2>&1
+    fi
+}
+
 function install_or_update_tls_secret {
     CERT_FILE=$1
     KEY_FILE=$2
@@ -115,7 +124,7 @@ function copy_secret_between_namespaces {
 
     if ! kubectl get secret "$SOURCE_SECRET_NAME" -n "$ADMIN_NAMESPACE" -o json \
         | jq 'del(.metadata["namespace","creationTimestamp","resourceVersion","selfLink","uid"])' \
-        | kubectl apply -n "$TARGET_NAMESPACE" -f - >/dev/null 2>&1; then
+        | replace_or_create_secret_from_stdin "$TARGET_NAMESPACE"; then
         echo "ERROR copying secret $SOURCE_SECRET_NAME into namespace $TARGET_NAMESPACE"
         exit 1
     fi

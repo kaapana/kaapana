@@ -14,18 +14,6 @@ data:
       labels:
         network-access-internal-services: "true"
     spec:
-{{- if .Values.global.no_read_write_many_support }}
-      affinity:
-        podAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchExpressions:
-                  - key: kaapana.io/airflow-rwo-anchor
-                    operator: In
-                    values:
-                      - "true"
-              topologyKey: kubernetes.io/hostname
-{{- end }}
       serviceAccountName: airflow-worker-sa
       initContainers:
         - name: sync-dags-plugins

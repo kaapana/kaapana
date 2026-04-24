@@ -622,6 +622,7 @@ async def create_dataset_from_query(
     request: Request,
     db: Session = Depends(get_db),
     os_client=Depends(get_opensearch),
+    project=Depends(get_project),
 ):
     body = await request.json()
     query = body["query"]
@@ -660,7 +661,7 @@ async def create_dataset_from_query(
         identifiers=identifiers,
     )
 
-    return create_dataset(request=request, dataset=dataset, db=db)
+    return create_dataset(request=request, dataset=dataset, db=db, project=project)
 
 
 @router.get("/dataset", response_model=schemas.Dataset)

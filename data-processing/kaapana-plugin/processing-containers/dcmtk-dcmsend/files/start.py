@@ -1,12 +1,17 @@
+from collections import defaultdict
 import glob
 import os
 from pathlib import Path
 from subprocess import PIPE, run
-from typing import List
+from typing import Dict, List, Optional
 
 import pydicom
+from pydicom.dataset import FileDataset
+from pydicom.errors import InvalidDicomError
 from kaapanapy.helper import load_workflow_config
 from kaapanapy.settings import KaapanaSettings
+
+DICOMDIR_SOP_CLASS_UID = "1.2.840.10008.1.3.10"
 
 DEFAULT_SCP = "ANY-SCP"
 SERVICES_NAMESPACE = KaapanaSettings().services_namespace
@@ -36,64 +41,98 @@ print(f"LEVEL: {LEVEL}")
 dicom_sent_count = 0
 
 
+def _load_representative_instance(files: List[Path]) -> Optional[FileDataset]:
+    """
+    Return the first usable DICOM instance from a list of files.
+
+    Skips:
+    - unreadable/corrupt DICOMs
+    - DICOMDIR
+    - DICOM objects without SeriesInstanceUID
+    """
+    for f in sorted(files):
+        try:
+            ds = pydicom.dcmread(f, stop_before_pixels=True)
+        except InvalidDicomError:
+            print(f"Skipping invalid DICOM: {f}")
+            continue
+        except Exception as e:
+            print(f"Could not read {f}: {e}")
+            continue
+
+        if str(ds.get("SOPClassUID", "")) == DICOMDIR_SOP_CLASS_UID:
+            print(f"Skipping DICOMDIR: {f}")
+            continue
+
+        if not ds.get("SeriesInstanceUID"):
+            print(f"Skipping DICOM without SeriesInstanceUID: {f}")
+            continue
+
+        return ds
+
+    return None
+
+
 def send_dicom_data(send_dir, project_name, aetitle=AETITLE, timeout=60):
     global dicom_sent_count
 
-    dicom_list: List[Path] = sorted(
-        [
-            f
-            for f in Path(send_dir).rglob("*")
-            if f.is_file() and pydicom.misc.is_dicom(f)
-        ]
-    )
+    dicoms_by_dir: Dict[Path, List[Path]] = defaultdict(list)
 
-    if len(dicom_list) == 0:
+    # Single traversal over the whole tree
+    for f in Path(send_dir).rglob("*"):
+        if f.is_file() and pydicom.misc.is_dicom(f):
+            dicoms_by_dir[f.parent].append(f)
+
+    if not dicoms_by_dir:
         print(send_dir)
         print("############### No dicoms found...! Skipping to next Batch.")
-        # raise FileNotFoundError # Not very elegant, but it still fails if nothing is processed. Maybe would be better if the dag would specify an "allow partial fail" parameter.
         return
 
-    for dicom_dir, _, _ in os.walk(send_dir):
-        dicom_list = [
-            f
-            for f in Path(dicom_dir).glob("*")
-            if f.is_file() and pydicom.misc.is_dicom(f)
-        ]
+    for dicom_dir in sorted(dicoms_by_dir):
+        dicom_list = sorted(dicoms_by_dir[dicom_dir])
 
-        if len(dicom_list) == 0:
+        dcm_file = _load_representative_instance(dicom_list)
+        if dcm_file is None:
+            print(f"No usable DICOM instance found in {dicom_dir}. Skipping.")
             continue
 
-        dcm_file = pydicom.dcmread(dicom_list[0])
-        series_uid = str(dcm_file[0x0020, 0x000E].value)
+        series_uid = str(dcm_file.SeriesInstanceUID)
 
         print(
-            f"Found {len(dicom_list)} file(s) in {dicom_dir}. Will use series_uuid {series_uid}"
+            f"Found {len(dicom_list)} DICOM file(s) in {dicom_dir}. "
+            f"Will use series_uid {series_uid}"
         )
-        if aetitle is None:
+
+        local_aetitle = aetitle
+        if local_aetitle is None:
             if "WORKFLOW_NAME" in os.environ:
-                aetitle = os.environ["WORKFLOW_NAME"]
-                print(f"Using workflow_name as aetitle:    {aetitle}")
+                local_aetitle = os.environ["WORKFLOW_NAME"]
+                print(f"Using workflow_name as aetitle: {local_aetitle}")
             else:
                 try:
-                    aetitle = str(dcm_file[0x012, 0x020].value)
-                    print(f"Found aetitle    {aetitle}")
+                    local_aetitle = str(dcm_file[0x0012, 0x0020].value)
+                    print(f"Found aetitle {local_aetitle}")
                 except Exception as e:
                     print(f"Could not load aetitle: {e}")
-                    aetitle = "KAAPANA export"
-                    print(f"Using default aetitle {aetitle}")
+                    local_aetitle = "KAAPANA export"
+                    print(f"Using default aetitle {local_aetitle}")
 
-        print(f"Sending {dicom_dir} to {PACS_HOST} {PACS_PORT} with aetitle {aetitle}")
+        print(f"Sending {dicom_dir} to {PACS_HOST} {PACS_PORT} with aetitle {local_aetitle}")
+
         aec = CALLED_AE_TITLE_SCP
         if PACS_HOST == f"ctp-dicom-service.{SERVICES_NAMESPACE}.svc":
-            dataset = aetitle if aetitle.startswith("kp-") else f"kp-{aetitle}"
+            dataset = (
+                local_aetitle
+                if local_aetitle.startswith("kp-")
+                else f"kp-{local_aetitle}"
+            )
             if CALLED_AE_TITLE_SCP == DEFAULT_SCP:
                 aec = project_name
             aec = aec if aec.startswith("kp-") else f"kp-{aec}"
         else:
-            dataset = aetitle
+            dataset = local_aetitle
 
         env = dict(os.environ)
-        # To process even if the input contains non-DICOM files the --no-halt option is needed (e.g. zip-upload functionality)
         command = [
             "dcmsend",
             "-v",
@@ -105,13 +144,16 @@ def send_dicom_data(send_dir, project_name, aetitle=AETITLE, timeout=60):
             aec,
             "--scan-directories",
             "--no-halt",
-            f"{dicom_dir}",
+            str(dicom_dir),
         ]
         print(" ".join(command))
+
         max_retries = 5
         try_count = 0
+        success = False
+
         while try_count < max_retries:
-            print("Try: {}".format(try_count))
+            print(f"Try: {try_count}")
             try_count += 1
             try:
                 output = run(
@@ -122,24 +164,38 @@ def send_dicom_data(send_dir, project_name, aetitle=AETITLE, timeout=60):
                     env=env,
                     timeout=timeout,
                 )
-                if output.returncode != 0 or "with status SUCCESS" not in str(output):
-                    print("############### Something went wrong with dcmsend!")
-                    for line in str(output).split("\\n"):
-                        print(line)
-                    print("##################################################")
-                    # exit(1)
-                else:
-                    print(f"Success! output: {output}")
+
+                stdout = output.stdout or ""
+                stderr = output.stderr or ""
+
+                if output.returncode == 0:
+                    print("Success!")
+                    if stdout:
+                        print(stdout)
+                    if stderr:
+                        print(stderr)
                     print("")
+                    success = True
                     break
+
+                print("############### Something went wrong with dcmsend!")
+                print(f"Return code: {output.returncode}")
+                if stdout:
+                    print("STDOUT:")
+                    print(stdout)
+                if stderr:
+                    print("STDERR:")
+                    print(stderr)
+                print("##################################################")
+
             except Exception as e:
                 print(f"Something went wrong: {e}, trying again!")
 
-        if try_count >= max_retries:
+        if not success:
             print("------------------------------------")
             print("Max retries reached!")
             print("------------------------------------")
-            raise ValueError(f"Something went wrong with dcmsend!")
+            raise ValueError(f"Something went wrong with dcmsend for {dicom_dir}!")
 
         dicom_sent_count += 1
 

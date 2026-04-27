@@ -1,33 +1,24 @@
-    
-
-from datetime import timedelta
 import os
+import smtplib
+import mimetypes
+import logging
 from pathlib import Path
-import glob
+from email.message import EmailMessage
+
 import pydicom
 
-from kaapanapy.logger import get_logger
-from email.message import EmailMessage
-import smtplib
-from kaapanapy.helper import load_workflow_config
-EMAIL = ""
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
-
-WORKFLOW_CONFIG = load_workflow_config()
-USERNAME = WORKFLOW_CONFIG.get("workflow_form").get("username")
-logger = get_logger(__name__)
+# ---------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------
 
 def dicom_value(ds, keyword, default=""):
     elem = ds.get(keyword, None)
-    
     if elem is None:
         return default
-    
-    if hasattr(elem, 'value'):
-        val = elem.value
-    else:
-        val = elem
-
+    val = elem.value if hasattr(elem, "value") else elem
     return str(val) if val is not None else default
 
 
@@ -38,37 +29,149 @@ def format_tags_as_html(tags: dict) -> str:
         rows.append(
             f"""
             <tr>
-                <td style="padding:6px 10px; font-weight:600; background:#f5f5f5;">{key}</td>
-                <td style="padding:6px 10px;">{display_value}</td>
+                <td style="padding:6px 10px; font-weight:600; background:#f5f5f5;">
+                    {key}
+                </td>
+                <td style="padding:6px 10px;">
+                    {display_value}
+                </td>
             </tr>
             """
         )
 
     return f"""
     <table border="1" cellspacing="0" cellpadding="0"
-           style="border-collapse:collapse; font-family:Arial, sans-serif; font-size:13px;">
+           style="border-collapse:collapse; font-family:Arial, sans-serif; font-size:13px; margin-bottom:12px;">
         {''.join(rows)}
     </table>
     """
 
-def start():
 
-    send_dir = os.path.join(
+def attach_files(msg: EmailMessage, files: list[Path]):
+    for file in files:
+        ctype, encoding = mimetypes.guess_type(file)
+        if ctype is None or encoding is not None:
+            ctype = "application/octet-stream"
+
+        maintype, subtype = ctype.split("/", 1)
+
+        with open(file, "rb") as f:
+            msg.add_attachment(
+                f.read(),
+                maintype=maintype,
+                subtype=subtype,
+                filename=file.name,
+            )
+
+
+def send_via_smtp(msg: EmailMessage):
+    smtp_host = os.getenv("SMTP_HOST")
+    smtp_port = int(os.getenv("SMTP_PORT", 0))
+    smtp_user = os.getenv("SMTP_USERNAME")
+    smtp_pass = os.getenv("SMTP_PASSWORD")
+
+    if not smtp_host:
+        raise RuntimeError("SMTP_HOST not configured")
+
+    with smtplib.SMTP(smtp_host, smtp_port) as server:
+        server.starttls()
+        if smtp_user and smtp_pass:
+            server.login(smtp_user, smtp_pass)
+        server.send_message(msg)
+
+    logger.info("Email successfully sent")
+
+
+def get_receivers() -> list[str]:
+    email_receiver = os.getenv("EMAIL_RECEIVER", "")
+    receivers = [e.strip() for e in email_receiver.split(",") if e.strip()]
+    if not receivers:
+        raise RuntimeError("No email receivers configured")
+    return receivers
+
+
+# ---------------------------------------------------------------------
+# Main email sender (ONE email per upload)
+# ---------------------------------------------------------------------
+
+def send_upload_notification(tag_blocks: list[dict], attachments: list[Path]):
+    uploader = os.getenv("USERNAME", "unbekannt")
+
+    header_html = f"""
+    <p style="font-family:Arial, sans-serif; font-size:14px;">
+        Ein neuer Upload wurde von Nutzer <b>{uploader}</b> durchgeführt.
+    </p>
+    """
+
+    tables_html = ""
+    for idx, tags in enumerate(tag_blocks, start=1):
+        tables_html += f"""
+        <h4 style="font-family:Arial, sans-serif;">
+            Datensatz {idx}
+        </h4>
+        {format_tags_as_html(tags)}
+        """
+
+    body_html = f"""
+    <html>
+    <body>
+        {header_html}
+        {tables_html}
+    </body>
+    </html>
+    """
+
+    msg = EmailMessage()
+    msg["Subject"] = "Upload-Ergebnis: Neuer DICOM-Upload"
+    msg["From"] = os.getenv("EMAIL_ADDRESS_SENDER")
+    msg["To"] = ", ".join(get_receivers())
+
+    msg.set_content(
+        "Ein neuer Upload wurde durchgeführt. "
+        "Bitte öffnen Sie diese E-Mail in einem HTML-fähigen Client."
+    )
+
+    msg.add_alternative(body_html, subtype="html")
+
+    if attachments:
+        attach_files(msg, attachments)
+
+    send_via_smtp(msg)
+
+
+# ---------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------
+
+def start():
+    send_dir = Path(
         "/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]
     )
-    logger.info(send_dir)
-    for dicom_dir, _, _ in os.walk(send_dir):
-        dicom_list = [
-            f
-            for f in Path(dicom_dir).glob("*")
+
+    logger.info(f"Processing upload root: {send_dir}")
+
+    all_tag_blocks: list[dict] = []
+    all_pdfs: list[Path] = []
+
+    for root, _, _ in os.walk(send_dir):
+        current_dir = Path(root)
+
+        # Collect PDFs (global)
+        all_pdfs.extend(
+            [p for p in current_dir.glob("*.pdf") if p.is_file()]
+        )
+
+        # Collect DICOMs (per folder)
+        dicom_files = [
+            f for f in current_dir.iterdir()
             if f.is_file() and pydicom.misc.is_dicom(f)
         ]
 
-        if len(dicom_list) == 0:
+        if not dicom_files:
             continue
 
         try:
-            ds = pydicom.dcmread(dicom_list[0])
+            ds = pydicom.dcmread(dicom_files[0])
 
             tags = {
                 "PatientID": dicom_value(ds, "PatientID"),
@@ -79,106 +182,30 @@ def start():
                 "InstitutionName": dicom_value(ds, "InstitutionName"),
             }
 
+            all_tag_blocks.append(tags)
+
         except Exception as e:
-            logger.error(f"Error reading DICOM file {dicom_list[0]}: {e}")
-            continue
+            logger.error(f"Error reading DICOM file {dicom_files[0]}: {e}")
 
-        send_email_notification(tags, )
-        # upload_dcm_files does a walk through the directory and uploads all the dcm files
-
-def send_email_notification(tags: dict):
-    """
-    Sends an email notification with dicom tags.
-
-    Args:
-        tags (dict): Dictionary of DICOM tags to be included in the email.
-    Raises:
-        Exception: If no valid receivers or SMTP configuration is provided.
-    """
-    
-    uploader = USERNAME or "unbekannt"
-
-    message_before_table = f"""
-    <p style="font-family:Arial, sans-serif; font-size:14px;">
-    Ein neuer Datensatz wurde von Nutzer <b>{uploader}</b> hochgeladen.
-    </p>
-    <p style="font-family:Arial, sans-serif; font-size:14px;">
-    Die folgenden DICOM-Tags wurden erkannt:
-    </p>
-    """
-
-    styled_table_html = format_tags_as_html(tags)
-
-    email_body = f"""
-    <html>
-    <body>
-        {message_before_table}
-        {styled_table_html}
-    </body>
-    </html>
-    """
-    EMAIL_RECEIVER = os.getenv("EMAIL_RECEIVER", "")
-    combined_emails = f"{EMAIL},{EMAIL_RECEIVER}"
-    receivers = [email.strip() for email in combined_emails.split(",") if email.strip()]
-    if not receivers or (
-        isinstance(receivers, list) and len(receivers) == 1 and receivers[0] == ""
-    ):
-        raise Exception("Cannot send email, no receivers defined!")
-
-    smtp_host = os.getenv("SMTP_HOST", None)
-    smtp_port = os.getenv("SMTP_PORT", 0)
-    sender = os.getenv("EMAIL_ADDRESS_SENDER", None)
-    smtp_username = os.getenv("SMTP_USERNAME", None)
-    smtp_password = os.getenv("SMTP_PASSWORD", None)
-
-    if smtp_port:
-        smtp_port = int(smtp_port)
-    else:
-        smtp_port = 0
-
-    if not smtp_host:
-        raise Exception("Cannot send email, no smtp server defined!")
-
-    if not sender:
-        logger.warning(
-            "No sender set. Some SMTP servers will not send data without a sender. If the send fails, this could be the reason."
-        )
-
-    msg = EmailMessage()
-    msg["Subject"] = "Upload-Ergebnis: Neuer DICOM-Datensatz"
-    msg["From"] = sender
-    msg["To"] = ", ".join(receivers)
-
-    msg.set_content(
-        "Ein neuer DICOM-Datensatz wurde hochgeladen.\n"
-        "Bitte öffnen Sie diese E-Mail in einem HTML-fähigen Client.",
+    logger.info(
+        "Upload scan finished: %d DICOM dataset(s), %d PDF(s) found",
+        len(all_tag_blocks),
+        len(all_pdfs),
     )
 
-    msg.add_alternative(email_body, subtype="html")
-    logger.info("Server info")
-    logger.info(f"SMTP_HOST: {smtp_host}")
-    logger.info(f"SMTP_PORT: {smtp_port}")
-    logger.info(f"SMTP_USERNAME: {smtp_username}")
-    logger.info(f"SENDER: {sender}")
-    logger.info(f"RECEIVERS: {receivers}")
-    # logger.info("Email content:")
-    # logger.info(f"{msg}")'
+    if not all_tag_blocks and not all_pdfs:
+        logger.info("Nothing to report — no email sent")
+        return
 
-    try:
-        # Connect to the SMTP server and send the email
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
-            server.starttls()
-            if smtp_username and smtp_password:
-                server.login(smtp_username, smtp_password)
+    send_upload_notification(
+        tag_blocks=all_tag_blocks,
+        attachments=all_pdfs,
+    )
 
-            server.send_message(msg)
-            server.quit()
-        logger.info("Successfully sent email")
-    except smtplib.SMTPException as e:
-        logger.info(e)
-        logger.info("Error: unable to send email")
-        exit(1)
 
+# ---------------------------------------------------------------------
+# Optional: allow script execution
+# ---------------------------------------------------------------------
 
 if __name__ == "__main__":
-    exit(start())
+    start()

@@ -868,7 +868,7 @@ class HelmChart:
             else:
                 cwd = self.chart_dir
 
-            command = ["helm", "lint"]
+            command = ["helm", "lint", "."]
             output = run(
                 command,
                 stdout=PIPE,

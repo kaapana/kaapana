@@ -1,0 +1,57 @@
+{
+    "name": "dicom-pseudonymizer",
+    "version": "0.1.0",
+    "description": "Pseudonymize DICOM metadata using a SlideID to pseudonym mapping CSV.",
+    "api_version": 1,
+    "templates": [
+        {
+            "identifier": "dicom-pseudonymizer",
+            "description": "Apply mapping-file based DICOM pseudonymization.",
+            "env": [
+                {
+                    "name": "PSEUDONYM_MAPPING_FILE",
+                    "value": "/kaapana/mounted/mapping/mapping.csv",
+                    "choices": [],
+                    "description": "CSV with slide_id and pseudonym columns."
+                },
+                {
+                    "name": "REMOVE_PRIVATE_TAGS",
+                    "value": "true",
+                    "choices": ["true", "false"],
+                    "description": "Remove private DICOM tags during pseudonymization."
+                }
+            ],
+            "inputs": [
+                {
+                    "name": "dicom-label-removed",
+                    "mounted_path": "/kaapana/input/dicom-label-removed",
+                    "scale_rule": {
+                        "scale_factor": 10,
+                        "type": "limit",
+                        "mode": "max_file_size",
+                        "target_glob": "*.dcm"
+                    }
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "dicom-psn",
+                    "mounted_path": "/kaapana/output/dicom-psn"
+                }
+            ],
+            "command": [
+                "python3",
+                "-u",
+                "pseudonymize.py"
+            ],
+            "resources": {
+                "limits": {
+                    "memory": "2000Mi"
+                },
+                "requests": {
+                    "memory": "512Mi"
+                }
+            }
+        }
+    ]
+}

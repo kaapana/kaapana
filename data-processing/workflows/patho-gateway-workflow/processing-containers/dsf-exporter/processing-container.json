@@ -1,0 +1,51 @@
+{
+    "name": "dsf-exporter",
+    "version": "0.1.0",
+    "description": "Export pseudonymized DICOM files to a downstream filesystem target.",
+    "api_version": 1,
+    "templates": [
+        {
+            "identifier": "dsf-exporter",
+            "description": "Filesystem export for pseudonymized DICOM files.",
+            "env": [
+                {
+                    "name": "EXPORT_TARGET",
+                    "value": "/kaapana/mounted/export",
+                    "choices": [],
+                    "description": "Filesystem target directory."
+                }
+            ],
+            "inputs": [
+                {
+                    "name": "dicom-psn",
+                    "mounted_path": "/kaapana/input/dicom-psn",
+                    "scale_rule": {
+                        "scale_factor": 10,
+                        "type": "limit",
+                        "mode": "max_file_size",
+                        "target_glob": "*.dcm"
+                    }
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "export-report",
+                    "mounted_path": "/kaapana/output/export-report"
+                }
+            ],
+            "command": [
+                "python3",
+                "-u",
+                "export.py"
+            ],
+            "resources": {
+                "limits": {
+                    "memory": "1000Mi"
+                },
+                "requests": {
+                    "memory": "256Mi"
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,51 @@
+{
+    "name": "svs-to-dicom",
+    "version": "0.1.0",
+    "description": "Convert SVS WSI files to DICOM or move DICOM inputs through.",
+    "api_version": 1,
+    "templates": [
+        {
+            "identifier": "svs-to-dicom",
+            "description": "Ensure WSI data is represented as DICOM.",
+            "env": [
+                {
+                    "name": "WSIDICOMIZER_COMMAND",
+                    "value": "wsidicomizer",
+                    "choices": [],
+                    "description": "Command used to convert SVS files to DICOM."
+                }
+            ],
+            "inputs": [
+                {
+                    "name": "wsi",
+                    "mounted_path": "/kaapana/input/wsi",
+                    "scale_rule": {
+                        "scale_factor": 10,
+                        "type": "limit",
+                        "mode": "max_file_size",
+                        "target_glob": "*"
+                    }
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "dicom",
+                    "mounted_path": "/kaapana/output/dicom"
+                }
+            ],
+            "command": [
+                "python3",
+                "-u",
+                "svs_to_dicom.py"
+            ],
+            "resources": {
+                "limits": {
+                    "memory": "4000Mi"
+                },
+                "requests": {
+                    "memory": "1000Mi"
+                }
+            }
+        }
+    ]
+}

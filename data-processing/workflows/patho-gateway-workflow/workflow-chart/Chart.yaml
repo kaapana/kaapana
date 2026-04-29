@@ -1,0 +1,15 @@
+---
+apiVersion: v2
+appVersion: "1.0.0"
+description: "Patho gateway workflow for WSI fetch, DICOM conversion, pseudonymization, and export"
+name: patho-gateway-workflow
+version: "0.1.0"
+keywords:
+  - kaapanaworkflow-v2
+dependencies:
+  - name: workflow-helpers
+    version: "0.0.0"
+    repository: "file://../../helpers"
+annotations:
+  documentation: "user_guide/extensions.html#task-api-workflows"
+  ui-visible-name: "Patho Gateway Workflow"

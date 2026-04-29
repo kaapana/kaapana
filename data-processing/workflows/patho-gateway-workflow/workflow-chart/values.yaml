@@ -1,0 +1,10 @@
+---
+global:
+  pull_policy_images: "IfNotPresent"
+
+processingContainers:
+  - wsi-fetcher
+  - svs-to-dicom
+  - slide-label-remover-dummy
+  - dicom-pseudonymizer
+  - dsf-exporter

@@ -1,0 +1,237 @@
+{
+    "title": "patho-gateway-workflow",
+    "workflow_engine": "airflow",
+    "labels": [
+        {
+            "key": "category",
+            "value": "pathology"
+        },
+        {
+            "key": "provider",
+            "value": "nct"
+        },
+        {
+            "key": "workflow",
+            "value": "patho-gateway"
+        }
+    ],
+    "workflow_parameters": [
+        {
+            "task_title": "wsi-fetcher",
+            "env_variable_name": "SLIDE_IDS",
+            "ui_form": {
+                "type": "str",
+                "title": "Slide IDs",
+                "description": "Comma-separated SlideIDs. The task also accepts slide_ids as a list in the DagRun conf object.",
+                "regex_pattern": ".+",
+                "default": "",
+                "required": true
+            }
+        },
+        {
+            "task_title": "wsi-fetcher",
+            "env_variable_name": "WSI_SOURCE",
+            "ui_form": {
+                "type": "list",
+                "title": "WSI source",
+                "description": "Select where WSI files should be retrieved from.",
+                "options": [
+                    "object-storage",
+                    "REST-ENDPOINT",
+                    "filesystem"
+                ],
+                "default": "object-storage",
+                "multiselectable": false,
+                "required": true
+            }
+        },
+        {
+            "task_title": "wsi-fetcher",
+            "env_variable_name": "OBJECT_STORAGE_ENDPOINT",
+            "ui_form": {
+                "type": "str",
+                "title": "Object-storage endpoint",
+                "description": "S3-compatible endpoint, for example object-store.example.org:9000.",
+                "regex_pattern": ".+",
+                "default": "",
+                "required": true,
+                "visible_if": {
+                    "env_variable_name": "WSI_SOURCE",
+                    "equals": "object-storage"
+                }
+            }
+        },
+        {
+            "task_title": "wsi-fetcher",
+            "env_variable_name": "OBJECT_STORAGE_BUCKET",
+            "ui_form": {
+                "type": "str",
+                "title": "Object-storage bucket",
+                "description": "Bucket containing WSI files or SlideID folders.",
+                "regex_pattern": ".+",
+                "default": "pathology-wsi",
+                "required": true,
+                "visible_if": {
+                    "env_variable_name": "WSI_SOURCE",
+                    "equals": "object-storage"
+                }
+            }
+        },
+        {
+            "task_title": "wsi-fetcher",
+            "env_variable_name": "OBJECT_STORAGE_PREFIX",
+            "ui_form": {
+                "type": "str",
+                "title": "Object-storage prefix",
+                "description": "Optional prefix below the bucket.",
+                "regex_pattern": ".*",
+                "default": "",
+                "required": false,
+                "visible_if": {
+                    "env_variable_name": "WSI_SOURCE",
+                    "equals": "object-storage"
+                }
+            }
+        },
+        {
+            "task_title": "wsi-fetcher",
+            "env_variable_name": "OBJECT_STORAGE_ACCESS_KEY",
+            "ui_form": {
+                "type": "str",
+                "title": "Object-storage access key",
+                "description": "Access key for the object-storage endpoint.",
+                "regex_pattern": ".+",
+                "default": "",
+                "required": true,
+                "visible_if": {
+                    "env_variable_name": "WSI_SOURCE",
+                    "equals": "object-storage"
+                }
+            }
+        },
+        {
+            "task_title": "wsi-fetcher",
+            "env_variable_name": "OBJECT_STORAGE_SECRET_KEY",
+            "ui_form": {
+                "type": "str",
+                "title": "Object-storage secret key",
+                "description": "Secret key for the object-storage endpoint.",
+                "regex_pattern": ".+",
+                "default": "",
+                "required": true,
+                "visible_if": {
+                    "env_variable_name": "WSI_SOURCE",
+                    "equals": "object-storage"
+                }
+            }
+        },
+        {
+            "task_title": "wsi-fetcher",
+            "env_variable_name": "OBJECT_STORAGE_SECURE",
+            "ui_form": {
+                "type": "list",
+                "title": "Object-storage TLS",
+                "description": "Use HTTPS when connecting to the object-storage endpoint.",
+                "options": [
+                    "true",
+                    "false"
+                ],
+                "default": "true",
+                "multiselectable": false,
+                "required": true,
+                "visible_if": {
+                    "env_variable_name": "WSI_SOURCE",
+                    "equals": "object-storage"
+                }
+            }
+        },
+        {
+            "task_title": "wsi-fetcher",
+            "env_variable_name": "IMS_BASE_URL",
+            "ui_form": {
+                "type": "str",
+                "title": "REST endpoint",
+                "description": "Base URL for IMS REST retrieval.",
+                "regex_pattern": ".+",
+                "default": "",
+                "required": true,
+                "visible_if": {
+                    "env_variable_name": "WSI_SOURCE",
+                    "equals": "REST-ENDPOINT"
+                }
+            }
+        },
+        {
+            "task_title": "wsi-fetcher",
+            "env_variable_name": "IMS_GET_ENDPOINT",
+            "ui_form": {
+                "type": "str",
+                "title": "REST get path",
+                "description": "Endpoint path that accepts a slide_id query parameter.",
+                "regex_pattern": ".+",
+                "default": "/get",
+                "required": true,
+                "visible_if": {
+                    "env_variable_name": "WSI_SOURCE",
+                    "equals": "REST-ENDPOINT"
+                }
+            }
+        },
+        {
+            "task_title": "wsi-fetcher",
+            "env_variable_name": "IMS_AUTH_TOKEN",
+            "ui_form": {
+                "type": "str",
+                "title": "REST auth token",
+                "description": "Optional bearer token for IMS REST retrieval.",
+                "regex_pattern": ".*",
+                "default": "",
+                "required": false,
+                "visible_if": {
+                    "env_variable_name": "WSI_SOURCE",
+                    "equals": "REST-ENDPOINT"
+                }
+            }
+        },
+        {
+            "task_title": "wsi-fetcher",
+            "env_variable_name": "WSI_INPUT_DIR",
+            "ui_form": {
+                "type": "str",
+                "title": "Filesystem input directory",
+                "description": "Filesystem directory containing source WSI files for local/offline tests.",
+                "regex_pattern": ".+",
+                "default": "/object-store",
+                "required": true,
+                "visible_if": {
+                    "env_variable_name": "WSI_SOURCE",
+                    "equals": "filesystem"
+                }
+            }
+        },
+        {
+            "task_title": "dicom-pseudonymizer",
+            "env_variable_name": "PSEUDONYM_MAPPING_FILE",
+            "ui_form": {
+                "type": "str",
+                "title": "Pseudonym mapping file",
+                "description": "CSV file with slide_id and pseudonym columns.",
+                "regex_pattern": ".*",
+                "default": "/kaapana/mounted/mapping/mapping.csv",
+                "required": false
+            }
+        },
+        {
+            "task_title": "dsf-exporter",
+            "env_variable_name": "EXPORT_TARGET",
+            "ui_form": {
+                "type": "str",
+                "title": "Export target",
+                "description": "Filesystem target directory for exported pseudonymized DICOM files.",
+                "regex_pattern": ".*",
+                "default": "/kaapana/mounted/export",
+                "required": false
+            }
+        }
+    ]
+}

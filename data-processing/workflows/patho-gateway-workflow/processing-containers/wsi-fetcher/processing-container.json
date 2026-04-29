@@ -1,0 +1,102 @@
+{
+    "name": "wsi-fetcher",
+    "version": "0.1.0",
+    "description": "Fetch WSI files for SlideIDs provided in the Airflow DagRun conf object.",
+    "api_version": 1,
+    "templates": [
+        {
+            "identifier": "wsi-fetcher",
+            "description": "Fetch WSI files from a configured source and write a manifest.",
+            "env": [
+                {
+                    "name": "WSI_SOURCE",
+                    "value": "object-storage",
+                    "choices": ["object-storage", "REST-ENDPOINT", "filesystem"],
+                    "description": "WSI source backend. Filesystem is intended for local/offline tests."
+                },
+                {
+                    "name": "WSI_INPUT_DIR",
+                    "value": "/object-store",
+                    "choices": [],
+                    "description": "Filesystem directory containing source WSI files for local/offline tests."
+                },
+                {
+                    "name": "OBJECT_STORAGE_ENDPOINT",
+                    "value": "",
+                    "choices": [],
+                    "description": "External S3-compatible object-store endpoint, for example object-store.example.org:9000."
+                },
+                {
+                    "name": "OBJECT_STORAGE_BUCKET",
+                    "value": "pathology-wsi",
+                    "choices": [],
+                    "description": "External object-store bucket containing WSI files or SlideID folders."
+                },
+                {
+                    "name": "OBJECT_STORAGE_PREFIX",
+                    "value": "",
+                    "choices": [],
+                    "description": "Optional object-storage prefix."
+                },
+                {
+                    "name": "OBJECT_STORAGE_ACCESS_KEY",
+                    "value": "",
+                    "choices": [],
+                    "description": "Access key for the external object store."
+                },
+                {
+                    "name": "OBJECT_STORAGE_SECRET_KEY",
+                    "value": "",
+                    "choices": [],
+                    "description": "Secret key for the external object store."
+                },
+                {
+                    "name": "OBJECT_STORAGE_SECURE",
+                    "value": "true",
+                    "choices": ["true", "false"],
+                    "description": "Use HTTPS when connecting to the external object store."
+                },
+                {
+                    "name": "IMS_BASE_URL",
+                    "value": "",
+                    "choices": [],
+                    "description": "Base URL for IMS REST retrieval."
+                },
+                {
+                    "name": "IMS_GET_ENDPOINT",
+                    "value": "/get",
+                    "choices": [],
+                    "description": "IMS endpoint that accepts a slide_id query parameter."
+                },
+                {
+                    "name": "IMS_AUTH_TOKEN",
+                    "value": "",
+                    "choices": [],
+                    "description": "Optional bearer token for IMS REST retrieval."
+                }
+            ],
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "wsi",
+                    "mounted_path": "/kaapana/mounted/wsi"
+                }
+            ],
+            "command": [
+                "python3",
+                "-u",
+                "fetch_wsi.py",
+                "-o",
+                "/kaapana/mounted/wsi"
+            ],
+            "resources": {
+                "limits": {
+                    "memory": "1000Mi"
+                },
+                "requests": {
+                    "memory": "256Mi"
+                }
+            }
+        }
+    ]
+}

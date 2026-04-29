@@ -1,0 +1,44 @@
+{
+    "name": "slide-label-remover-dummy",
+    "version": "0.1.0",
+    "description": "Placeholder task that passes DICOM files through unchanged.",
+    "api_version": 1,
+    "templates": [
+        {
+            "identifier": "slide-label-remover-dummy",
+            "description": "Pass DICOM files through while label-removal strategy is pending.",
+            "env": [],
+            "inputs": [
+                {
+                    "name": "dicom",
+                    "mounted_path": "/kaapana/input/dicom",
+                    "scale_rule": {
+                        "scale_factor": 10,
+                        "type": "limit",
+                        "mode": "max_file_size",
+                        "target_glob": "*.dcm"
+                    }
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "dicom-label-removed",
+                    "mounted_path": "/kaapana/output/dicom-label-removed"
+                }
+            ],
+            "command": [
+                "python3",
+                "-u",
+                "pass_through.py"
+            ],
+            "resources": {
+                "limits": {
+                    "memory": "1000Mi"
+                },
+                "requests": {
+                    "memory": "256Mi"
+                }
+            }
+        }
+    ]
+}

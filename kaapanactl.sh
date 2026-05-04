@@ -150,6 +150,8 @@ function deploy() {
     CONTAINER_REGISTRY_PASSWORD="${CONTAINER_REGISTRY_PASSWORD:-}"
     CHART_REFERENCE="${CHART_REFERENCE:-}"
     PLAIN_HTTP="${PLAIN_HTTP:-false}"
+    KUBE_HELM_INSTALL_TIMEOUT="${KUBE_HELM_INSTALL_TIMEOUT:-}"
+    KUBE_HELM_DELETION_TIMEOUT="${KUBE_HELM_DELETION_TIMEOUT:-}"
 
     script_name=`basename "$0"`
 
@@ -186,6 +188,8 @@ function deploy() {
     _Argument: --password [Docker registry password]
     _Argument: --port [Set main https-port]
     _Argument: --chart-path [path-to-chart-tgz]
+    _Argument: --kube-helm-install-timeout [seconds]
+    _Argument: --kube-helm-deletion-timeout [seconds]
     _Argument: --import-images-tar [path-to-a-tarball]"
 
     QUIET=false
@@ -252,6 +256,20 @@ function deploy() {
                 echo -e "${GREEN}SET PORT!${NC}";
                 shift # past argument
                 shift # past value
+            ;;
+
+            --kube-helm-install-timeout)
+                KUBE_HELM_INSTALL_TIMEOUT="$2"
+                echo -e "${GREEN}SET KUBE_HELM_INSTALL_TIMEOUT: $KUBE_HELM_INSTALL_TIMEOUT ${NC}"
+                shift
+                shift
+            ;;
+
+            --kube-helm-deletion-timeout)
+                KUBE_HELM_DELETION_TIMEOUT="$2"
+                echo -e "${GREEN}SET KUBE_HELM_DELETION_TIMEOUT: $KUBE_HELM_DELETION_TIMEOUT ${NC}"
+                shift
+                shift
             ;;
 
             --chart-path)
@@ -1963,6 +1981,23 @@ function deploy_chart {
     echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
 
+    local -a kube_helm_timeout_args=()
+    if [[ -n "$KUBE_HELM_INSTALL_TIMEOUT" ]]; then
+        kube_helm_timeout_args+=(
+            --set
+            "kube-helm-chart.timeouts.helmInstallTimeout=$KUBE_HELM_INSTALL_TIMEOUT"
+        )
+    fi
+    if [[ -n "$KUBE_HELM_DELETION_TIMEOUT" ]]; then
+        kube_helm_timeout_args+=(
+            --set
+            "kube-helm-chart.timeouts.helmDeletionTimeout=$KUBE_HELM_DELETION_TIMEOUT"
+        )
+    fi
+    if [[ ${#kube_helm_timeout_args[@]} -gt 0 ]]; then
+        echo "${YELLOW}Applying kube-helm timeout overrides.${NC}"
+    fi
+
     # Build helm command with optional --plain-http flag
     HELM_INSTALL_CMD="$HELM_EXECUTABLE -n $HELM_NAMESPACE install --create-namespace"
     if [ "$PLAIN_HTTP" = true ]; then
@@ -2026,9 +2061,9 @@ function deploy_chart {
     --set-string global.main_node_name="$MAIN_NODE_NAME" \
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
     --set-string global.storage_node="$STORAGE_NODE" \
-    --name-template "$PLATFORM_NAME" \
-    --set kube-helm-chart.timeouts.helmInstallTimeout=45 \
-    --set kube-helm-chart.timeouts.helmDeletionTimeout=60
+    "${kube_helm_timeout_args[@]}" \
+    --name-template "$PLATFORM_NAME"
+
     # In case of timeout-issues in kube helm increase the default timeouts by setting
 
 

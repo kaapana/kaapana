@@ -456,6 +456,7 @@ def supervised_helm_install(
     platforms=False,
     extended_timeouts=False,
 ):
+    """Call helm_install with extra preflight and recovery for failed or transitional Helm states."""
     install_kwargs = {
         "payload": payload,
         "helm_namespace": helm_namespace,

@@ -441,14 +441,20 @@ async def create_or_update_task_run(
     task_run_update: schemas.TaskRunUpdate,
     workflow_run_id: int,
 ) -> models.TaskRun:
-    logger.debug(f"create_or_update_task_run {task_run_update=}, {workflow_run_id=}")
+    logger.debug(
+        "create_or_update_task_run workflow_run_id=%s task_title=%s external_id=%s status=%s",
+        workflow_run_id,
+        task_run_update.task_title,
+        task_run_update.external_id,
+        task_run_update.lifecycle_status,
+    )
     # check if task run already exists
 
     db_task_run = await get_task_run_by_workflow_run_and_task_title(
         db, workflow_run_id, task_run_update.task_title
     )
     if db_task_run:
-        logger.debug(f"updating existing task run {db_task_run.id}")
+        logger.debug("updating existing task run id=%s", db_task_run.id)
         # update existing task run
         db_task_run = await update_task_run_lifecycle(
             db,
@@ -456,15 +462,42 @@ async def create_or_update_task_run(
             lifecycle_status=task_run_update.lifecycle_status,
         )
     else:
-        logger.info(f"creating new task run {task_run_update=}")
+        logger.info(
+            "Creating TaskRun workflow_run_id=%s task_title=%s external_id=%s status=%s",
+            workflow_run_id,
+            task_run_update.task_title,
+            task_run_update.external_id,
+            task_run_update.lifecycle_status,
+        )
+        # get workflow run
+        workflow_run = await get_workflow_run(db, filters={"id": workflow_run_id})
+
+        if not workflow_run:
+            logger.error(f"WorkflowRun {workflow_run_id} not found")
+            raise ValueError(f"WorkflowRun {workflow_run_id} not found")
+
+        logger.debug(
+            "workflow_run.id=%s workflow_id=%s workflow.title=%s",
+            workflow_run.id,
+            workflow_run.workflow_id,
+            workflow_run.workflow.title if workflow_run.workflow else None,
+        )
 
         # get task from title
         db_task = await get_task(
             db,
-            filters={"title": task_run_update.task_title},
+            filters={
+                "title": task_run_update.task_title,
+                "workflow_id": workflow_run.workflow_id,
+            },
         )
         if not db_task:
-            logger.error(f"Task with title {task_run_update.task_title} not found")
+            logger.error(
+                "Task not found for TaskRun creation workflow_run_id=%s task_title=%s external_id=%s",
+                workflow_run_id,
+                task_run_update.task_title,
+                task_run_update.external_id,
+            )
             raise ValueError(f"Task with title {task_run_update.task_title} not found")
 
         # create new task run
@@ -473,9 +506,7 @@ async def create_or_update_task_run(
             schemas.TaskRunCreate(
                 task_id=db_task.id,
                 task_title=task_run_update.task_title,
-                lifecycle_status=schemas.TaskRunStatus[
-                    task_run_update.lifecycle_status
-                ],
+                lifecycle_status=task_run_update.lifecycle_status,
                 external_id=task_run_update.external_id,
                 workflow_run_id=workflow_run_id,
             ),
@@ -514,7 +545,7 @@ async def update_task_run_lifecycle(
     if not db_task_run:
         logger.error(f"Failed to update TaskRun {task_run_id=}")
         raise ValueError("Failed to update TaskRun")
-    db_task_run.lifecycle_status = schemas.TaskRunStatus[lifecycle_status]
+    db_task_run.lifecycle_status = lifecycle_status
     await db.commit()
     await db.refresh(db_task_run)
     return db_task_run

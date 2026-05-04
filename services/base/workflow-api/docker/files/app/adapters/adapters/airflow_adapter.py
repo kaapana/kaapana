@@ -3,7 +3,8 @@ import base64
 import os
 import shutil
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Any
+import json as jsonlib
 
 import httpx
 from app import schemas
@@ -107,7 +108,13 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             raise RuntimeError(f"Unknown task run state: {state}")
         return mapper[state]
 
-    async def _request(self, method: str, endpoint: str, json: dict = {}) -> dict:
+    async def _request(
+        self,
+        method: str,
+        endpoint: str,
+        json: dict = {},
+        accepted_content_types: tuple[str, ...] = ("application/json",),
+    ) -> dict | Any:
         url = f"{self.base_url}{endpoint}"
         async with httpx.AsyncClient(timeout=10.0) as client:
 
@@ -120,6 +127,7 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Basic {encoded_auth}",
+                "Accept": "application/json",
             }
             resp = await client.request(
                 method,
@@ -130,7 +138,22 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             if resp.status_code == 404:
                 raise FileNotFoundError(f"Resource not found at {url}")
             resp.raise_for_status()
-            return resp.json()
+
+            content_type = resp.headers.get("content-type", "").split(";")[0].strip()
+
+            if content_type not in accepted_content_types:
+                raise RuntimeError(
+                    f"Unexpected response content type from {method} {url}: "
+                    f"{content_type or '<missing>'}"
+                )
+
+            if content_type == "application/json":
+                return resp.json()
+
+            if content_type == "text/plain":
+                return resp.text
+
+            raise RuntimeError(f"Unsupported response content type: {content_type}")
 
     async def submit_workflow(self, workflow: schemas.Workflow) -> schemas.Workflow:
         """
@@ -361,14 +384,32 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         if len(parts) != 3:
             return "Log unavailable: Invalid ID format"
         dag_id, run_id, task_id = parts
-        try_number = 1
+
+        try:
+            task_instance: dict = await self._request(
+                "GET",
+                f"/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}",
+            )
+            if (
+                isinstance(task_instance, dict)
+                and "try_number" in task_instance
+                and task_instance["try_number"] > 0
+            ):
+                try_number = int(task_instance["try_number"])
+            else:
+                return f"No logs available for task instance {task_run_external_id} because it has not run yet."
+        except Exception as e:
+            return f"Failed to fetch task instance for logs {e}"
+
+        resp = None
         try:
             resp = await self._request(
                 "GET",
                 f"/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/logs/{try_number}",
+                accepted_content_types=("application/json",),  # "text/plain"),
             )
             if isinstance(resp, dict) and "content" in resp:
                 return resp["content"]
             return str(resp)
         except Exception as e:
-            return f"Failed to fetch logs: {e}"
+            return f"Failed to fetch logs: {e}\nResponse: {resp}"

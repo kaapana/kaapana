@@ -385,11 +385,11 @@ def run_supervised_uninstall(
     status_name,
     shell=True,
     blocking=True,
-    extended_timeouts=False,
+    platforms=False,
 ):
     deletion_timeout = (
         timeouts.helm_deletion_platform_timeout
-        if extended_timeouts
+        if platforms
         else timeouts.helm_deletion_timeout
     )
     logger.info(
@@ -455,7 +455,6 @@ def supervised_helm_install(
     update_state=True,
     blocking=True,
     platforms=False,
-    extended_timeouts=False,
 ):
     """Wraps and calls helm_install with extra preflight and recovery for failed or transitional Helm states."""
     install_kwargs = {
@@ -469,7 +468,6 @@ def supervised_helm_install(
         "update_state": update_state,
         "blocking": blocking,
         "platforms": platforms,
-        "extended_timeouts": extended_timeouts,
     }
 
     preflight = build_helm_install_preflight(
@@ -485,7 +483,7 @@ def supervised_helm_install(
     logger.info(
         f"Supervised Helm install preflight for {preflight['release_name']}: "
         f"action={preflight['install_action']}, status='{preflight['status_name']}', "
-        f"namespace={preflight['helm_namespace']}, extended_timeouts={extended_timeouts}"
+        f"namespace={preflight['helm_namespace']}, platforms={platforms}"
     )
 
     if preflight["should_install"]:
@@ -535,7 +533,7 @@ def supervised_helm_install(
             release_name,
             effective_namespace,
             status_name,
-            extended_timeouts=extended_timeouts,
+            platforms=platforms,
         )
         if not success:
             logger.warning(
@@ -711,7 +709,6 @@ def helm_install(
     update_state=True,
     blocking=True,
     platforms=False,
-    extended_timeouts=False,
     execute_cmd=True,
     preflight=None,
 ) -> Tuple[bool, str, dict, str, str]:
@@ -764,7 +761,7 @@ def helm_install(
             logger.error(
                 f"helm delete prefix failed: cmd={helm_delete_prefix} success={success} stdout={stdout}"
             )
-    if platforms or extended_timeouts:
+    if platforms:
         timeout = (
             timeouts.helm_install_platform_timeout
         )  # plaforms usually take longer due to multiple sub-charts involved

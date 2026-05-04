@@ -99,12 +99,15 @@ def helm_status(release_name, helm_namespace=settings.helm_namespace):
     success, stdout = helm_helper.execute_shell_command(
         f"{settings.helm_path} -n {helm_namespace} status {release_name} -o yaml"
     )
-    if success:
-        result = list(yaml.load_all(stdout, yaml.FullLoader))[0]
-        return result.get("info", {}) if isinstance(result, dict) else {}
-    else:
+    if not success:
         logger.warning(f"Could not fetch helm status for: {release_name}")
         return {}
+    result = next(yaml.load_all(stdout, yaml.FullLoader), None)
+    if not isinstance(result, dict):
+        logger.warning(f"Helm status returned no YAML result for: {release_name}")
+        return {}
+    return result.get("info", {})
+        
 
 
 def get_helm_status_name(

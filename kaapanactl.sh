@@ -202,6 +202,11 @@ function deploy() {
 
         case $key in
 
+            -h|--help)
+                echo -e "${YELLOW}$usage${NC}"
+                exit 0
+            ;;
+
             -u|--username)
                 CONTAINER_REGISTRY_USERNAME="$2"
                 echo -e "${GREEN}SET CONTAINER_REGISTRY_USERNAME! $CONTAINER_REGISTRY_USERNAME ${NC}";

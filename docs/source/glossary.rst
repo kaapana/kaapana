@@ -57,12 +57,14 @@ Glossary
       This makes the execution of operators heavily scalable.
       In Kaapana we differntiate between two types of operators:
 
-        - :term:`Local operators<local-operator>` run python code in the :term:`container` of the Airflow-Scheduler :term:`service`.
+        - :term:`Local operators<local-operator>` run Python code as Airflow tasks. Service and import DAGs run them in the Airflow scheduler via ``LocalExecutor``; other DAGs run them in Airflow worker pods via ``KubernetesExecutor``.
         - :term:`Processing container<processing-container>` spawn dedicated :term:`containers<container>` in the :term:`project`-namespace to execute its code.
 
     local-operator
-      A local operator is an Airflow operator that runs python code and is executed in the :term:`container` of the Airflow-Scheduler :term:`service`.
-      Local operators are not scalable, but they are fast to execute and do not require a :term:`container` to run.
+      A local operator is an Airflow operator that runs Python code as an Airflow task.
+      In service and import DAGs, local operators are executed in the :term:`container` of the Airflow-Scheduler :term:`service` via ``LocalExecutor`` so they can access services-namespace volumes.
+      In other DAGs, Airflow's ``KubernetesExecutor`` starts Kubernetes worker pods for local operators, so their Python code no longer runs inside the scheduler pod.
+      This differs from non-local Kaapana operators, which start processing pods through the Kaapana Kubernetes runner.
 
     processing-container
       A processing-container can refer to two things:

@@ -163,6 +163,7 @@ CHART_INSTALL_ACTIONS = {
     CHART_INSTALL_ACTION_SKIP,
     CHART_INSTALL_ACTION_BLOCK,
 }
+CHART_INSTALL_MESSAGE_ALREADY_INSTALLED = "Chart is already installed"
 
 
 def decide_install_action(status_name, keywords, helm_delete_prefix):
@@ -176,7 +177,7 @@ def decide_install_action(status_name, keywords, helm_delete_prefix):
         return CHART_INSTALL_ACTION_INSTALL, "No previous installations were found"
 
     if status_name == CHART_STATUS_DEPLOYED:
-        return CHART_INSTALL_ACTION_SKIP, "Chart is already installed"
+        return CHART_INSTALL_ACTION_SKIP, CHART_INSTALL_MESSAGE_ALREADY_INSTALLED
 
     if status_name == CHART_STATUS_FAILED:
         return (
@@ -456,7 +457,7 @@ def supervised_helm_install(
     platforms=False,
     extended_timeouts=False,
 ):
-    """Call helm_install with extra preflight and recovery for failed or transitional Helm states."""
+    """Wraps and calls helm_install with extra preflight and recovery for failed or transitional Helm states."""
     install_kwargs = {
         "payload": payload,
         "helm_namespace": helm_namespace,
@@ -518,7 +519,13 @@ def supervised_helm_install(
             logger.info(
                 f"Release {release_name} became deployed while waiting; treating as already installed"
             )
-            return False, "Chart is already installed", "", release_name, ""
+            return (
+                False,
+                CHART_INSTALL_MESSAGE_ALREADY_INSTALLED,
+                "",
+                release_name,
+                "",
+            )
 
     if status_name in HELM_TRANSITIONAL_STATUSES or status_name == CHART_STATUS_FAILED:
         logger.info(

@@ -12,12 +12,12 @@
 #   export SSH_PRIVATE_KEY=~/.ssh/kaapana.pem
 #   export HARVESTER_KUBECONFIG=~/.kube/harvester.yaml
 #
-#   ansible-playbook create-build-instances.yaml -i inventory.yaml
-#   ansible-playbook create-build-instances.yaml -i inventory.yaml -e force_recreate=true
+#   ansible-playbook create-build-runner-instances.yaml -i inventory.yaml
+#   ansible-playbook create-build-runner-instances.yaml -i inventory.yaml -e force_recreate=true
 #
 # ============================================================================
 
-- name: Validate required variables
+- name: Provision Build VMs on Harvester
   hosts: localhost
   gather_facts: false
   connection: local
@@ -28,42 +28,32 @@
         that:
           - lookup('env', item) | default('', true) | length > 0
         fail_msg: "Required variable {{ item }} is missing. Set it as environment variable."
-      loop: "{{ required_env_vars }}"
+      loop:
+        - GITLAB_API_TOKEN
+        - GITLAB_PROJECT_ID
+        - GITLAB_URL
+        - SSH_PUBLIC_KEY
+        - SSH_PRIVATE_KEY
+        - HARVESTER_KUBECONFIG
       run_once: true
 
-- name: Create Build VMs on Harvester
-  hosts: build_instances
-  gather_facts: false
-  connection: local
+    - name: Provision Build VMs using provision_harvester_vm.yaml
+      ansible.builtin.include_tasks: ../../ci-code/deploy/provision_harvester_vm.yaml
+      run_once: true
 
-  vars:
-    vm_domain: vms.dkfz.de
-    vm_type: "BUILD"
-
-  tasks:
-    - name: Include VM creation tasks
-      import_tasks: tasks/create-vm.yaml
-
-    - name: Collect VM information for registration
-      ansible.builtin.set_fact:
-        vm_info:
-          inventory_hostname: "{{ inventory_hostname }}"
-          vm_fqdn: "{{ vm_fqdn }}"
-          vm_name: "{{ vm_name }}"
-
-    - name: Add all hosts to provisioned_vms group
+    - name: Add provisioned VMs to group
       ansible.builtin.add_host:
-        name: "{{ item }}"
+        name: "{{ hostvars[item].vm_name }}"
         ansible_host: "{{ hostvars[item].vm_fqdn }}"
-        ansible_user: ubuntu # TODO make possible to use different user for almalinux
+        ansible_user: ubuntu
         ansible_ssh_private_key_file: "{{ ssh_private_key }}"
         ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
-        groups: "provisioned_vms"
-      loop: "{{ ansible_play_hosts }}"
+        groups: "provisioned_build_vms"
+      loop: "{{ groups['build_instances'] }}"
       run_once: true
 
 - name: Configure Build VMs
-  hosts: provisioned_vms
+  hosts: provisioned_build_vms
   gather_facts: false
   remote_user: ubuntu
   become: yes
@@ -94,7 +84,6 @@
         runner_limit: 1
         runner_concurrency: 2
         runner_global_concurrency: 1
-
 
     - name: Display completion message
       ansible.builtin.debug:

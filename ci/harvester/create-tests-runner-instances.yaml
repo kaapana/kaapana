@@ -1,5 +1,23 @@
 ---
-- name: Validate required variables
+# ============================================================================
+# Provision and Configure Kaapana Tests VMs on Harvester
+# ============================================================================
+#
+# Usage:
+#   export GITLAB_API_TOKEN=...
+#   export GITLAB_PROJECT_ID=...
+#   export GITLAB_URL=...
+#   export GITLAB_RUNNER_REGISTRATION_TOKEN=...
+#   export SSH_PUBLIC_KEY=~/.ssh/kaapana.pub
+#   export SSH_PRIVATE_KEY=~/.ssh/kaapana.pem
+#   export HARVESTER_KUBECONFIG=~/.kube/harvester.yaml
+#
+#   ansible-playbook create-tests-runner-instances.yaml -i inventory.yaml
+#   ansible-playbook create-tests-runner-instances.yaml -i inventory.yaml -e force_recreate=true
+#
+# ============================================================================
+
+- name: Provision Tests VMs on Harvester
   hosts: localhost
   gather_facts: false
   connection: local
@@ -10,40 +28,32 @@
         that:
           - lookup('env', item) | default('', true) | length > 0
         fail_msg: "Required variable {{ item }} is missing. Set it as environment variable."
-      loop: "{{ required_env_vars }}"
+      loop:
+        - GITLAB_API_TOKEN
+        - GITLAB_PROJECT_ID
+        - GITLAB_URL
+        - SSH_PUBLIC_KEY
+        - SSH_PRIVATE_KEY
+        - HARVESTER_KUBECONFIG
       run_once: true
 
-- name: Create Tests VM on Harvester
-  hosts: tests_instances
-  gather_facts: false
-  connection: local
+    - name: Provision Tests VMs using provision_harvester_vm.yaml
+      ansible.builtin.include_tasks: ../../ci-code/deploy/provision_harvester_vm.yaml
+      run_once: true
 
-  vars:
-    vm_domain: vms.dkfz.de
-    vm_type: "TESTS"
-
-  tasks:
-    - name: Include VM creation tasks
-      import_tasks: tasks/create-vm.yaml
-
-    - name: Collect VM information for registration
-      ansible.builtin.set_fact:
-        vm_info:
-          inventory_hostname: "{{ inventory_hostname }}"
-          vm_fqdn: "{{ vm_fqdn }}"
-          vm_name: "{{ vm_name }}"
-
-    - name: Add current host to provisioned_vms group
+    - name: Add provisioned VMs to group
       ansible.builtin.add_host:
-        name: "{{ inventory_hostname }}"
-        ansible_host: "{{ vm_fqdn }}"
+        name: "{{ hostvars[item].vm_name }}"
+        ansible_host: "{{ hostvars[item].vm_fqdn }}"
         ansible_user: ubuntu
         ansible_ssh_private_key_file: "{{ ssh_private_key }}"
         ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
-        groups: "provisioned_vms"
+        groups: "provisioned_tests_vms"
+      loop: "{{ groups['tests_instances'] }}"
+      run_once: true
 
 - name: Configure Tests VMs
-  hosts: provisioned_vms
+  hosts: provisioned_tests_vms
   gather_facts: false
   remote_user: ubuntu
   become: yes

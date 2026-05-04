@@ -1,8 +1,4 @@
 ---
-# ============================================================================
-# Delete Kaapana VM on Harvester
-# ============================================================================
-
 - name: Delete VM on Harvester
   hosts: localhost
   gather_facts: false
@@ -12,54 +8,99 @@
     vm_name: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_VM_NAME') }}"
     harvester_namespace: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE') }}"
     harvester_kubeconfig: "{{ lookup('env', 'ORCHESTRATOR_INSTANCE_HARVESTER_KUBECONFIG') }}"
-    delete_job_name: "delete-vm-{{ vm_name }}"
 
   tasks:
+
     - name: Check if VM exists
-      ansible.builtin.command:
-        cmd: kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} get vm {{ vm_name }}
+      kubernetes.core.k8s_info:
+        api_version: kubevirt.io/v1
+        kind: VirtualMachine
+        name: "{{ vm_name }}"
+        namespace: "{{ harvester_namespace }}"
+        kubeconfig: "{{ harvester_kubeconfig }}"
       register: vm_check
       failed_when: false
       changed_when: false
 
+    - name: Extract PVC names from VM spec before deletion
+      when:
+        - vm_check.resources is defined
+        - vm_check.resources | length > 0
+      ansible.builtin.set_fact:
+        vm_pvcs: >-
+          {{
+            vm_check.resources[0].spec.template.spec.volumes
+            | selectattr('persistentVolumeClaim', 'defined')
+            | map(attribute='persistentVolumeClaim.claimName')
+            | list
+          }}
+
+    - name: Show discovered PVCs
+      when: vm_pvcs is defined
+      ansible.builtin.debug:
+        var: vm_pvcs
+
     - name: Delete VM
-      when: vm_check.rc == 0
-      ansible.builtin.command:
-        cmd: kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} delete vm {{ vm_name }}
-
-    - name: Delete PVCs belonging to the VM
-      when: vm_check.rc == 0
-      ansible.builtin.shell: |
-        set -e
-        PVCs=$(kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} get pvc -o name | grep "{{ vm_name }}" || true)
-        if [ -n "$PVCs" ]; then
-          kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} delete $PVCs
-        fi
-      args:
-        executable: /bin/bash
-
-    - name: Delete cloud-init secrets
-      when: vm_check.rc == 0
-      ansible.builtin.shell: |
-        set -e
-        SECRETS=$(kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} get secret -o name | grep "{{ vm_name }}-cloudinit" || true)
-        if [ -n "$SECRETS" ]; then
-          kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} delete $SECRETS
-        fi
-      args:
-        executable: /bin/bash
+      when:
+        - vm_check.resources is defined
+        - vm_check.resources | length > 0
+      kubernetes.core.k8s:
+        api_version: kubevirt.io/v1
+        kind: VirtualMachine
+        name: "{{ vm_name }}"
+        namespace: "{{ harvester_namespace }}"
+        kubeconfig: "{{ harvester_kubeconfig }}"
+        state: absent
 
     - name: Wait until VM is deleted
-      when: vm_check.rc == 0
-      ansible.builtin.command:
-        cmd: kubectl --kubeconfig {{ harvester_kubeconfig }} -n {{ harvester_namespace }} get vm {{ vm_name }}
+      when:
+        - vm_check.resources is defined
+        - vm_check.resources | length > 0
+      kubernetes.core.k8s_info:
+        api_version: kubevirt.io/v1
+        kind: VirtualMachine
+        name: "{{ vm_name }}"
+        namespace: "{{ harvester_namespace }}"
+        kubeconfig: "{{ harvester_kubeconfig }}"
       register: delete_check
-      until: delete_check.rc != 0
+      until: delete_check.resources | length == 0
       retries: 60
       delay: 10
       failed_when: false
       changed_when: false
 
+    - name: Delete PVCs attached to VM
+      when:
+        - vm_pvcs is defined
+        - vm_pvcs | length > 0
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: PersistentVolumeClaim
+        name: "{{ item }}"
+        namespace: "{{ harvester_namespace }}"
+        kubeconfig: "{{ harvester_kubeconfig }}"
+        state: absent
+      loop: "{{ vm_pvcs }}"
+      ignore_errors: true
+
+    - name: Wait until PVCs are deleted
+      when:
+        - vm_pvcs is defined
+        - vm_pvcs | length > 0
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolumeClaim
+        name: "{{ item }}"
+        namespace: "{{ harvester_namespace }}"
+        kubeconfig: "{{ harvester_kubeconfig }}"
+      register: pvc_delete_check
+      until: pvc_delete_check.resources | length == 0
+      retries: 30
+      delay: 5
+      failed_when: false
+      changed_when: false
+      loop: "{{ vm_pvcs }}"
+
     - name: Display result
       ansible.builtin.debug:
-        msg: "VM {{ vm_name }} deleted (or did not exist)"
+        msg: "VM {{ vm_name }} and attached PVCs deleted (or did not exist)"

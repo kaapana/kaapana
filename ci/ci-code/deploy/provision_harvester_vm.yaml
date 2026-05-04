@@ -1,141 +1,262 @@
 ---
-- name: Provision deployment VM
+- name: Provision VM on Harvester
   hosts: localhost
   connection: local
   gather_facts: false
   any_errors_fatal: true
 
   vars:
-    vm_name: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_VM_NAME') }}"
-    vm_domain: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DOMAIN') }}"
-    vm_template: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_OS_TEMPLATE') }}"
-    cpu_cores: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_CPU') }}"
-    memory_guest: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_MEMORY') }}"
-    disk_size: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DISK') }}"
-    harvester_namespace: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE') }}"
-    harvester_kubeconfig: "{{ lookup('env', 'ORCHESTRATOR_INSTANCE_HARVESTER_KUBECONFIG') }}"
-    ssh_public_key: "{{ lookup('env', 'ORCHESTRATOR_INSTANCE_PUBLIC_SSH_KEY') }}"
-    ssh_private_key: "{{ lookup('env', 'ORCHESTRATOR_INSTANCE_PRIVATE_SSH_KEY') }}"
-    artifacts_dir: "{{ lookup('env', 'ARTIFACTS_DIR') }}"
+    # VM configuration
+    vm_name: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_VM_NAME', default=undef()) }}"
+    vm_image_name: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_IMAGE_ID', default=undef()) }}"
+    vm_storage_class: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_STORAGE_CLASS', default=undef()) }}"
+    vm_network: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_NETWORK', default=undef()) }}"
+    vm_ssh_keypair: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_SSH_KEYPAIR', default=undef()) }}"
+    vm_user: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_OS_USER', default=undef()) }}"
+    vm_dns_domain: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DOMAIN', default=undef()) }}"
+    vm_cpu_cores: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_CPU', default=undef()) }}"
+    vm_cpu_sockets: 1
+    vm_cpu_threads: 1
+    vm_cpu_max_sockets: 1
+    vm_memory_guest: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_MEMORY', default=undef()) }}"
+    vm_memory_max: "{{ vm_memory_guest }}"
+    vm_disk_size: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DISK', default=undef()) }}"
+    
+    # Harvester connection
+    harvester_namespace: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE', default=undef()) }}"
+    harvester_kubeconfig: "{{ lookup('env', 'ORCHESTRATOR_INSTANCE_HARVESTER_KUBECONFIG', default=undef()) }}"
+    ssh_private_key: "{{ lookup('env', 'ORCHESTRATOR_INSTANCE_PRIVATE_SSH_KEY', default=undef()) }}"
+    artifacts_dir: "{{ lookup('env', 'ARTIFACTS_DIR', default=undef()) }}"
 
-    # Retry VM provisioning on job retry
-    force_recreate: true
+    # Optional behavior
+    force_recreate: "{{ force_recreate | default(false) | bool }}"
 
-    vm_user_map:
-      ubuntu24: ubuntu
-      almalinux10: almalinux
+  pre_tasks:
+  - name: Print all resolved VM variables
+    ansible.builtin.debug:
+      msg:
+        - "vm_name={{ vm_name }}"
+        - "vm_image_name={{ vm_image_name }}"
+        - "vm_storage_class={{ vm_storage_class }}"
+        - "vm_network={{ vm_network }}"
+        - "vm_ssh_keypair={{ vm_ssh_keypair }}"
+        - "vm_user={{ vm_user }}"
+        - "vm_dns_domain={{ vm_dns_domain }}"
+        - "vm_cpu_cores={{ vm_cpu_cores }}"
+        - "vm_memory_guest={{ vm_memory_guest }}"
+        - "vm_disk_size={{ vm_disk_size }}"
+        - "harvester_namespace={{ harvester_namespace }}"
+        - "harvester_kubeconfig={{ harvester_kubeconfig }}"
+        - "ssh_private_key={{ ssh_private_key }}"
+        - "artifacts_dir={{ artifacts_dir }}"
+  
+  - name: Fetch image by label selector
+    kubernetes.core.k8s_info:
+      api_version: harvesterhci.io/v1beta1
+      kind: VirtualMachineImage
+      namespace: "{{ harvester_namespace }}"
+      kubeconfig: "{{ harvester_kubeconfig }}"
+      label_selectors:
+        - "harvesterhci.io/imageDisplayName={{ vm_image_name }}"
+    register: image_query
 
-  tasks:
-    - name: Check if VM already exists
-      kubernetes.core.k8s_info:
-        api_version: kubevirt.io/v1
-        kind: VirtualMachine
-        name: "{{ vm_name }}"
-        namespace: "{{ harvester_namespace }}"
-      register: vm_check
-      failed_when: false
-      changed_when: false
+  - name: Fail if no image found
+    ansible.builtin.fail:
+      msg: "No image found for {{ vm_image_name }}"
+    when: image_query.resources | length == 0
 
-    - name: Debug VM check result
-      ansible.builtin.debug:
-        msg:
-          - "resources: {{ vm_check.resources }}"
-          - "length: {{ vm_check.resources | default([]) | length }}"
+  - name: Set image
+    ansible.builtin.set_fact:
+      image_resource: "{{ image_query.resources[0] }}"
+      vm_image_id: "{{ image_query.resources[0].metadata.name }}"
 
-    - name: force_recreate VM if requested
-      when:
-        - vm_check.resources is defined
-        - vm_check.resources | length > 0
-        - force_recreate | bool
-      block:
-        - name: Delete VM
-          kubernetes.core.k8s:
-            api_version: kubevirt.io/v1
-            kind: VirtualMachine
-            name: "{{ vm_name }}"
-            namespace: "{{ harvester_namespace }}"
-            state: absent
-          register: delete_result
+  - name: Print resolved image
+    ansible.builtin.debug:
+      msg:
+        - "ID: {{ vm_image_id }}"
+        - "DisplayName: {{ image_resource.spec.displayName }}"
+        - "StorageClass: {{ image_resource.spec.targetStorageClassName }}"
+        - "URL: {{ image_resource.spec.url }}"
 
-        - name: Wait for VM to be fully deleted
-          kubernetes.core.k8s_info:
-            api_version: kubevirt.io/v1
-            kind: VirtualMachine
-            name: "{{ vm_name }}"
-            namespace: "{{ harvester_namespace }}"
-          register: delete_check
-          until: delete_check.resources | length == 0
-          retries: 60
-          delay: 10
-          failed_when: false
-          changed_when: false
+  - name: Get KeyPair
+    kubernetes.core.k8s_info:
+      api_version: harvesterhci.io/v1beta1
+      kind: KeyPair
+      name: "{{ vm_ssh_keypair }}"
+      namespace: "{{ harvester_namespace }}"
+      kubeconfig: "{{ harvester_kubeconfig }}"
+    register: keypair_info
+    failed_when: false
+    changed_when: false
+  
+  - name: Fail if KeyPair not found
+    ansible.builtin.fail:
+      msg: >
+        KeyPair '{{ vm_ssh_keypair }}' not found in namespace '{{ harvester_namespace }}'.
+        Available KeyPairs are empty or name does not match.
+    when: >
+      keypair_info.resources is not defined
+      or keypair_info.resources | length == 0
 
-    - name: Abort if VM exists and force_recreate not requested
-      ansible.builtin.fail:
-        msg: "VM '{{ vm_name }}' already exists. Use force_recreate=true to remove it."
-      when:
-        - vm_check.resources is defined
-        - vm_check.resources | length > 0
-        - not force_recreate | bool
+  - name: Extract public key from Harvester KeyPair
+    ansible.builtin.set_fact:
+      ssh_public_key: "{{ keypair_info.resources[0].spec.publicKey }}"
 
-    - name: Read SSH public key
-      ansible.builtin.slurp:
-        src: "{{ ssh_public_key }}"
-      register: ssh_pub_key
+  - name: Generate unique PVC suffix
+    ansible.builtin.set_fact:
+      pvc_suffix: "{{ lookup('password', '/dev/null chars=ascii_lowercase,digits length=5') }}"
 
-    - name: Render Helm chart for VM
-      ansible.builtin.command:
-        cmd: >
-          helm template {{ vm_name }}
-          {{ playbook_dir }}/vm-templates/{{ vm_template }}
-          --namespace {{ harvester_namespace }}
-          --set global.vmName={{ vm_name }}
-          --set global.namespace={{ harvester_namespace }}
-          --set global.cpuCores={{ cpu_cores }}
-          --set global.memoryGuest={{ memory_guest }}
-          --set global.diskSize={{ disk_size }}
-          --set-string global.publicKey="{{ ssh_pub_key['content'] | b64decode | trim }}"
-      register: helm_output
-      no_log: true
+  - name: Create cloud-init secret with SSH key
+    kubernetes.core.k8s:
+      state: present
+      definition:
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: "{{ vm_name }}-cloudinit"
+          namespace: "{{ harvester_namespace }}"
+        type: Opaque
+        stringData:
+          userdata: |
+            #cloud-config
+            package_update: true
+            packages:
+              - qemu-guest-agent
+            ssh_authorized_keys:
+              - "{{ ssh_public_key }}"
+            runcmd:
+              - systemctl enable --now qemu-guest-agent.service
+          networkdata: ""
+      kubeconfig: "{{ harvester_kubeconfig }}"
+    register: secret_result
 
-    - name: Apply VM manifest
-      kubernetes.core.k8s:
-        state: present
-        definition: "{{ helm_output.stdout | from_yaml_all | list }}"
-      no_log: true
+  - name: Render VM manifest from Jinja template
+    ansible.builtin.template:
+      src: templates/vm.yml.j2
+      dest: /tmp/{{ vm_name }}-vm.yml
+      mode: '0644'
 
-    - name: Set VM FQDN fact
-      ansible.builtin.set_fact:
-        vm_fqdn: "{{ vm_name }}.{{ vm_domain }}"
+  - name: Apply VM manifest
+    kubernetes.core.k8s:
+      state: present
+      definition: "{{ lookup('file', '/tmp/{{ vm_name }}-vm.yml') | from_yaml }}"
+      kubeconfig: "{{ harvester_kubeconfig }}"
+    register: vm_apply_result
 
-    - name: Determine deploy user from VM template
-      ansible.builtin.set_fact:
-        vm_user: "{{ vm_user_map[vm_template] }}"
+  - name: Extract VM UID
+    ansible.builtin.set_fact:
+      vm_uid: "{{ vm_apply_result.result.metadata.uid }}"
 
-    - name: Output VM Info
-      ansible.builtin.debug:
-        msg:
-          vm_name: "{{ vm_name }}"
-          vm_user: "{{ vm_user }}"
-          vm_fqdn: "{{ vm_fqdn }}"
+  - name: Wait for PVC to be created
+    kubernetes.core.k8s_info:
+      api_version: v1
+      kind: PersistentVolumeClaim
+      name: "{{ vm_name }}-disk-0-{{ pvc_suffix }}"
+      namespace: "{{ harvester_namespace }}"
+      kubeconfig: "{{ harvester_kubeconfig }}"
+    register: pvc_check
+    until: pvc_check.resources | length > 0
+    retries: 30
+    delay: 2
+    changed_when: false
 
-    - name: Wait until SSH login works
-      ansible.builtin.command:
-        cmd: >
-          ssh -o StrictHostKeyChecking=no
-          -o UserKnownHostsFile=/dev/null
-          -o ConnectTimeout=5
-          -i {{ ssh_private_key }}
-          {{ vm_user }}@{{ vm_fqdn }} echo ready
-      register: ssh_check
-      retries: 60
-      delay: 10
-      until: ssh_check.rc == 0
-      changed_when: false
+  - name: Link disk PVC to VM via ownerReferences
+    kubernetes.core.k8s:
+      state: present
+      definition:
+        apiVersion: v1
+        kind: PersistentVolumeClaim
+        metadata:
+          name: "{{ vm_name }}-disk-0-{{ pvc_suffix }}"
+          namespace: "{{ harvester_namespace }}"
+          ownerReferences:
+            - apiVersion: kubevirt.io/v1
+              kind: VirtualMachine
+              name: "{{ vm_name }}"
+              uid: "{{ vm_uid }}"
+              blockOwnerDeletion: true
+      kubeconfig: "{{ harvester_kubeconfig }}"
+    register: pvc_ownership_result
 
+  - name: Verify PVC has ownerReferences
+    kubernetes.core.k8s_info:
+      api_version: v1
+      kind: PersistentVolumeClaim
+      name: "{{ vm_name }}-disk-0-{{ pvc_suffix }}"
+      namespace: "{{ harvester_namespace }}"
+      kubeconfig: "{{ harvester_kubeconfig }}"
+    register: pvc_verify
+
+  - name: Debug PVC ownership
+    ansible.builtin.debug:
+      msg: "PVC ownerReferences: {{ pvc_verify.resources[0].metadata.get('ownerReferences', []) }}"
+
+  - name: Link cloud-init secret to VM via ownerReferences
+    kubernetes.core.k8s:
+      state: present
+      definition:
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: "{{ vm_name }}-cloudinit"
+          namespace: "{{ harvester_namespace }}"
+          ownerReferences:
+            - apiVersion: kubevirt.io/v1
+              kind: VirtualMachine
+              name: "{{ vm_name }}"
+              uid: "{{ vm_uid }}"
+              blockOwnerDeletion: true
+        type: Opaque
+        stringData:
+          userdata: |
+            #cloud-config
+            package_update: true
+            packages:
+              - qemu-guest-agent
+            ssh_authorized_keys:
+              - "{{ ssh_public_key }}"
+            runcmd:
+              - systemctl enable --now qemu-guest-agent.service
+          networkdata: ""
+      kubeconfig: "{{ harvester_kubeconfig }}"
+
+  - name: Debug VM apply result
+    ansible.builtin.debug:
+      msg:
+        - "VM applied successfully"
+        - "Name: {{ vm_name }}"
+        - "Namespace: {{ harvester_namespace }}"
+
+  - name: Wait for VM to be running
+    kubernetes.core.k8s_info:
+      api_version: kubevirt.io/v1
+      kind: VirtualMachine
+      name: "{{ vm_name }}"
+      namespace: "{{ harvester_namespace }}"
+      kubeconfig: "{{ harvester_kubeconfig }}"
+
+  - name: Wait for DNS to resolve
+    ansible.builtin.command: host {{ vm_name }}.{{ vm_dns_domain }}
+    register: dns_result
+    until: dns_result.rc == 0
+    retries: 30
+    delay: 10
+    changed_when: false
+
+  - name: Set VM FQDN fact
+    ansible.builtin.set_fact:
+      vm_fqdn: "{{ vm_name }}.{{ vm_dns_domain }}"
+
+  - name: Clean up local manifest
+    ansible.builtin.file:
+      path: /tmp/{{ vm_name }}-vm.yml
+      state: absent
+
+  post_tasks:
     - name: Write deployment env file
       ansible.builtin.copy:
         content: |
           VM_FQDN={{ vm_fqdn }}
           VM_USER={{ vm_user }}
         dest: "{{ artifacts_dir }}/deployment.env"
+        mode: '0644'

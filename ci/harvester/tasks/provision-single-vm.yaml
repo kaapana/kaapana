@@ -1,0 +1,206 @@
+---
+# Task file for provisioning a single VM on Harvester
+# Called from setup_ci.yaml with vm_config containing VM settings
+
+- name: Print VM configuration
+  ansible.builtin.debug:
+    msg:
+      - "Provisioning VM: {{ vm_config.vm_name }}"
+      - "CPU: {{ vm_config.cpu_cores | default('8') }} cores"
+      - "Memory: {{ vm_config.memory_guest | default('16Gi') }}"
+      - "Disk: {{ vm_config.disk_size | default('128Gi') }}"
+
+- name: Fetch image by label selector
+  kubernetes.core.k8s_info:
+    api_version: harvesterhci.io/v1beta1
+    kind: VirtualMachineImage
+    namespace: "{{ harvester_namespace }}"
+    kubeconfig: "{{ harvester_kubeconfig }}"
+    label_selectors:
+      - "harvesterhci.io/imageDisplayName={{ vm_image_name }}"
+  register: image_query
+
+- name: Fail if no image found
+  ansible.builtin.fail:
+    msg: "No image found for {{ vm_image_name }}"
+  when: image_query.resources | length == 0
+
+- name: Set image facts
+  ansible.builtin.set_fact:
+    vm_image_id: "{{ image_query.resources[0].metadata.name }}"
+
+- name: Get KeyPair
+  kubernetes.core.k8s_info:
+    api_version: harvesterhci.io/v1beta1
+    kind: KeyPair
+    name: "{{ vm_ssh_keypair }}"
+    namespace: "{{ harvester_namespace }}"
+    kubeconfig: "{{ harvester_kubeconfig }}"
+  register: keypair_info
+  failed_when: false
+  changed_when: false
+
+- name: Fail if KeyPair not found
+  ansible.builtin.fail:
+    msg: "KeyPair '{{ vm_ssh_keypair }}' not found in namespace '{{ harvester_namespace }}'"
+  when: keypair_info.resources | length == 0
+
+- name: Extract public key from Harvester KeyPair
+  ansible.builtin.set_fact:
+    ssh_public_key: "{{ keypair_info.resources[0].spec.publicKey }}"
+
+- name: Generate unique PVC suffix
+  ansible.builtin.set_fact:
+    pvc_suffix: "{{ lookup('password', '/dev/null chars=ascii_lowercase,digits length=5') }}"
+
+- name: Create cloud-init secret with SSH key
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "{{ vm_config.vm_name }}-cloudinit"
+        namespace: "{{ harvester_namespace }}"
+      type: Opaque
+      stringData:
+        userdata: |
+          #cloud-config
+          package_update: true
+          packages:
+            - qemu-guest-agent
+          ssh_authorized_keys:
+            - "{{ ssh_public_key }}"
+          runcmd:
+            - systemctl enable --now qemu-guest-agent.service
+        networkdata: ""
+    kubeconfig: "{{ harvester_kubeconfig }}"
+
+- name: Calculate memory max (2x guest memory)
+  ansible.builtin.set_fact:
+    vm_memory_guest_value: "{{ vm_config.memory_guest | default('16Gi') | regex_replace('[^0-9]', '') | int }}"
+    vm_memory_guest_unit: "{{ vm_config.memory_guest | default('16Gi') | regex_replace('[0-9]', '') }}"
+
+- name: Set memory max fact
+  ansible.builtin.set_fact:
+    vm_memory_max: "{{ (vm_memory_guest_value * 2) }}{{ vm_memory_guest_unit }}"
+
+- name: Render VM manifest from Jinja template
+  ansible.builtin.template:
+    src: ../templates/vm.yml.j2
+    dest: /tmp/{{ vm_config.vm_name }}-vm.yml
+    mode: '0644'
+  vars:
+    vm_name: "{{ vm_config.vm_name }}"
+    vm_cpu_cores: "{{ vm_config.cpu_cores | default('8') }}"
+    vm_cpu_sockets: 1
+    vm_cpu_threads: 1
+    vm_cpu_max_sockets: 8
+    vm_memory_guest: "{{ vm_config.memory_guest | default('16Gi') }}"
+    vm_memory_max: "{{ vm_memory_max }}"
+    vm_disk_size: "{{ vm_config.disk_size | default('128Gi') }}"
+    pvc_suffix: "{{ pvc_suffix }}"
+
+- name: Apply VM manifest
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('file', '/tmp/' + vm_config.vm_name + '-vm.yml') | from_yaml }}"
+    kubeconfig: "{{ harvester_kubeconfig }}"
+  register: vm_apply_result
+
+- name: Extract VM UID
+  ansible.builtin.set_fact:
+    vm_uid: "{{ vm_apply_result.result.metadata.uid }}"
+
+- name: Wait for PVC to be created
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: PersistentVolumeClaim
+    name: "{{ vm_config.vm_name }}-disk-0-{{ pvc_suffix }}"
+    namespace: "{{ harvester_namespace }}"
+    kubeconfig: "{{ harvester_kubeconfig }}"
+  register: pvc_check
+  until: pvc_check.resources | length > 0
+  retries: 30
+  delay: 2
+  changed_when: false
+
+- name: Link disk PVC to VM via ownerReferences
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: "{{ vm_config.vm_name }}-disk-0-{{ pvc_suffix }}"
+        namespace: "{{ harvester_namespace }}"
+        ownerReferences:
+          - apiVersion: kubevirt.io/v1
+            kind: VirtualMachine
+            name: "{{ vm_config.vm_name }}"
+            uid: "{{ vm_uid }}"
+            blockOwnerDeletion: true
+    kubeconfig: "{{ harvester_kubeconfig }}"
+
+- name: Link cloud-init secret to VM via ownerReferences
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "{{ vm_config.vm_name }}-cloudinit"
+        namespace: "{{ harvester_namespace }}"
+        ownerReferences:
+          - apiVersion: kubevirt.io/v1
+            kind: VirtualMachine
+            name: "{{ vm_config.vm_name }}"
+            uid: "{{ vm_uid }}"
+            blockOwnerDeletion: true
+      type: Opaque
+      stringData:
+        userdata: |
+          #cloud-config
+          package_update: true
+          packages:
+            - qemu-guest-agent
+          ssh_authorized_keys:
+            - "{{ ssh_public_key }}"
+          runcmd:
+            - systemctl enable --now qemu-guest-agent.service
+        networkdata: ""
+    kubeconfig: "{{ harvester_kubeconfig }}"
+
+- name: Wait for VM to be running
+  kubernetes.core.k8s_info:
+    api_version: kubevirt.io/v1
+    kind: VirtualMachine
+    name: "{{ vm_config.vm_name }}"
+    namespace: "{{ harvester_namespace }}"
+    kubeconfig: "{{ harvester_kubeconfig }}"
+  register: vm_status
+  until: vm_status.resources | length > 0 and (vm_status.resources[0].status | default({}, true)).ready | default(false, true)
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Wait for DNS to resolve
+  ansible.builtin.command: host {{ vm_config.vm_name }}.{{ vm_dns_domain }}
+  register: dns_result
+  until: dns_result.rc == 0
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Clean up local manifest
+  ansible.builtin.file:
+    path: /tmp/{{ vm_config.vm_name }}-vm.yml
+    state: absent
+
+- name: Write deployment env file
+  ansible.builtin.copy:
+    content: |
+      VM_FQDN={{ vm_config.vm_name }}.{{ vm_dns_domain }}
+      VM_USER={{ vm_user }}
+    dest: "{{ vm_config.vm_name }}-deployment.env"
+    mode: '0644'

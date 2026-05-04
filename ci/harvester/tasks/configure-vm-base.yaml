@@ -13,11 +13,11 @@
   failed_when: false
   changed_when: false
 
-- name: Upgrade system
-  apt:
-    update_cache: yes
-    upgrade: yes
-  become: yes
+# - name: Upgrade system
+#   apt:
+#     update_cache: yes
+#     upgrade: yes
+#   become: yes
 
 - name: Install required system packages
   become: yes
@@ -42,7 +42,7 @@
 
 - name: Copy requirements.txt to VM
   ansible.builtin.copy:
-    src: target/requirements.txt
+    src: requirements.txt
     dest: "/home/{{ ansible_user }}/requirements.txt"
     mode: "0644"
 

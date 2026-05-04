@@ -43,6 +43,11 @@ all:
           cpu_cores: 8
           memory_guest: "16Gi"
           disk_size: "128Gi"
+          runner_description: "tests-runner-{{ vm_name }}"
+          runner_tags: ["tests-runner"]
+          runner_limit: 4
+          runner_concurrency: 4
+          runner_global_concurrency: 4
 
     build_instances:
       hosts:
@@ -51,6 +56,12 @@ all:
           cpu_cores: 32
           memory_guest: "256Gi"
           disk_size: "512Gi"
+          runner_description: "build-runner-{{ vm_name }}"
+          runner_tags: ["build-runner"]
+          runner_limit: 1
+          runner_concurrency: 2
+          runner_global_concurrency: 1
+        
         # build-02:
         #   vm_name: kaapana-build-02
         #   cpu_cores: 32
@@ -64,3 +75,8 @@ all:
           cpu_cores: 8
           memory_guest: "16Gi"
           disk_size: "128Gi"
+          runner_description: "deploy-runner-{{ vm_name }}"
+          runner_tags: ["deploy-runner"]
+          runner_limit: 4
+          runner_concurrency: 4
+          runner_global_concurrency: 4

@@ -5,7 +5,7 @@
   become: yes
   ansible.builtin.apt:
     state: present
-    update_cache: yes
+    update_cache: no
     pkg:
       - ca-certificates
       - curl
@@ -36,10 +36,10 @@
       Signed-By: /etc/apt/keyrings/docker.asc
     mode: '0644'
 
-- name: Update apt cache
-  become: yes
-  ansible.builtin.apt:
-    update_cache: yes
+# - name: Update apt cache
+#   become: yes
+#   ansible.builtin.apt:
+#     update_cache: yes
 
 - name: Install Docker packages
   become: yes
@@ -77,7 +77,7 @@
     group: "{{ ansible_ssh_user }}"
     mode: '0755'
 
-- name: Reboot machine...
-  become: yes
-  reboot:
-    reboot_timeout: 120
+# - name: Reboot machine...
+#   become: yes
+#   reboot:
+#     reboot_timeout: 120

@@ -9,7 +9,7 @@ data:
     import time
     import threading
     import logging
-    from queue import Queue, Empty
+    from queue import Queue, Empty, Full
     from kubernetes import client, config
     from airflow.models import DagRun
     from airflow.utils.session import create_session
@@ -30,8 +30,8 @@ data:
         _instance = None
         _lock = threading.Lock()
 
-        def __init__(self, max_workers=20):
-            self.task_queue = Queue()
+        def __init__(self, max_workers=20, max_queue_size=500):
+            self.task_queue = Queue(maxsize=max_queue_size)
             self.active_streams = set()
             self.active_lock = threading.Lock()
             self.max_workers = max_workers
@@ -64,7 +64,12 @@ data:
                     return
                 self.active_streams.add(key)
 
-            self.task_queue.put((pod_name, namespace, dag_id, task_id, run_id, str(try_number), container))
+            try:
+                self.task_queue.put_nowait((pod_name, namespace, dag_id, task_id, run_id, str(try_number), container))
+            except Full:
+                with self.active_lock:
+                    self.active_streams.discard(key)
+                log.warning("LogStreamerService queue full, skipping log streaming for %s/%s", namespace, pod_name)
 
         def _worker(self):
             try:
@@ -151,6 +156,7 @@ data:
             # --------------------------------------------------
             # Step 4: Try streaming (best effort)
             # --------------------------------------------------
+            stream = None
             try:
                 stream = v1.read_namespaced_pod_log(
                     name=pod_name,
@@ -174,6 +180,9 @@ data:
                     log.warning(f"[LOG] Streaming API error for {pod_name}: {e}")
             except Exception as e:
                 log.warning(f"[LOG] Streaming error for {pod_name}: {e}")
+            finally:
+                if stream:
+                    stream.close()
 
             # --------------------------------------------------
             # Step 5: Decide if full fetch is needed
@@ -298,4 +307,3 @@ data:
             try_number=try_number,
             container=None,
         )
-

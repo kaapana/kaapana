@@ -229,7 +229,8 @@ build_packages:
     - deploy-runner
   before_script:
     - export ARTIFACTS_DIR="$ARTIFACTS_DIR"
-    - source "$ORCHESTRATOR_INSTANCE_PYTHON_VENV/bin/activate"
+    - VENV_PATH=$(eval echo "$ORCHESTRATOR_INSTANCE_PYTHON_VENV")
+    - source "$VENV_PATH/bin/activate"
     - export ANSIBLE_HOST_KEY_CHECKING=False
     - mkdir -p $ARTIFACTS_DIR
     - VERSION_TAG=$(git describe --tags --always --dirty)

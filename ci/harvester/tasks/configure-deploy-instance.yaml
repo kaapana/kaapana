@@ -1,7 +1,3 @@
----
-# Configure deploy instance with Harvester credentials
-# This task is run only on deploy instances to provide access to Harvester cluster
-
 - name: Ensure .kube directory exists
   ansible.builtin.file:
     path: "{{ runner_home }}/.kube"
@@ -22,7 +18,7 @@
 
 - name: Copy Harvester kubeconfig
   ansible.builtin.copy:
-    src: "{{ harvester_kubeconfig }}"
+    src: "{{ harvester_kubeconfig | expanduser }}"
     dest: "{{ runner_home }}/.kube/config"
     mode: "0600"
     owner: "{{ ansible_user }}"
@@ -31,8 +27,8 @@
 
 - name: Copy SSH private key
   ansible.builtin.copy:
-    src: "{{ ssh_private_key }}"
-    dest: "{{ runner_home }}/.ssh/id_rsa"
+    src: "{{ ssh_private_key | expanduser }}"
+    dest: "{{ runner_home }}/.ssh/kaapana.pem"
     mode: "0600"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
@@ -40,8 +36,8 @@
 
 - name: Copy SSH public key
   ansible.builtin.copy:
-    src: "{{ ssh_public_key }}"
-    dest: "{{ runner_home }}/.ssh/id_rsa.pub"
+    src: "{{ ssh_public_key | expanduser }}"
+    dest: "{{ runner_home }}/.ssh/kaapana-pub.pem"
     mode: "0644"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"

@@ -217,7 +217,8 @@ watch(() => props.runs, () => {
 
 // Field definitions
 const availableFields = [
-    { key: 'status', label: 'Status', icon: 'mdi-clock-outline', type: 'enum' },
+    { key: 'status', label: 'Log Status', icon: 'mdi-file-document', type: 'enum' },
+    { key: 'task', label: 'Task', icon: 'mdi-checkbox-multiple-blank-outline', type: 'string' },
     { key: 'workflow', label: 'Workflow', icon: 'mdi-sitemap-outline', type: 'string' },
     { key: 'external_id', label: 'External ID', icon: 'mdi-identifier', type: 'string' }
 ]
@@ -227,12 +228,14 @@ function getValuesForField(field: string | null) {
         return [
             { value: 'created', label: 'Created' },
             { value: 'pending', label: 'Pending' },
-            { value: 'scheduled', label: 'Scheduled' },
             { value: 'running', label: 'Running' },
             { value: 'completed', label: 'Completed' },
             { value: 'error', label: 'Error' },
             { value: 'canceled', label: 'Canceled' }
         ]
+    } else if (field === 'task') {
+        const uniqueTasks = [...new Set(props.runs.flatMap(r => r.task_runs?.map(tr => tr.task_title) || []).filter(Boolean))]
+        return uniqueTasks.map(t => ({ value: t, label: t }))
     } else if (field === 'workflow') {
         const uniqueTitles = [...new Set(props.runs.map(r => r.workflow?.title).filter(Boolean))]
         return uniqueTitles.map(t => ({ value: t as string, label: t as string }))
@@ -360,6 +363,9 @@ const filteredResults = computed(() => {
     appliedFilters.value.forEach(filter => {
         if (filter.field === 'status') {
             result = result.filter(r => (r.lifecycle_status || '').toLowerCase() === filter.value.toLowerCase())
+        } else if (filter.field === 'task') {
+            const t = filter.value.toLowerCase()
+            result = result.filter(r => r.task_runs?.some(tr => (tr.task_title || '').toLowerCase().includes(t)))
         } else if (filter.field === 'workflow') {
             const t = filter.value.toLowerCase()
             result = result.filter(r => (r.workflow?.title || '').toLowerCase().includes(t))

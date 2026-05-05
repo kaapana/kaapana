@@ -155,7 +155,7 @@ export interface TaskRun extends TaskRunBase {
     workflow_run_id: number
 }
 
-export interface TaskRunUpdate extends TaskRunBase{}
+export interface TaskRunUpdate extends TaskRunBase { }
 
 // ##########################
 // ######## Workflow ########
@@ -201,5 +201,18 @@ export interface WorkflowRun extends WorkflowRunBase {
     lifecycle_status: WorkflowRunStatus
     task_runs: TaskRun[]
     updated_at: string
+}
+
+// ##########################
+// ######## Log Entry #######
+// ##########################
+export interface LogEntry {
+    id: number
+    workflow: WorkflowRef
+    workflow_run_id: number
+    task_run: TaskRun
+    created_at: string
+    log_length: number
+    log_available: boolean
 }
 

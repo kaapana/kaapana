@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import WorkflowRuns from '../views/WorkflowRuns.vue'
 import Workflows from '../views/Workflows.vue'
+import WorkflowLogs from '../views/WorkflowLogs.vue'
 
 const routes = [
     {
@@ -14,6 +15,12 @@ const routes = [
         name: 'WorkflowRuns',
         component: WorkflowRuns,
         meta: { title: "Workflow Runs" }
+    },
+    {
+        path: '/logs',
+        name: 'WorkflowLogs',
+        component: WorkflowLogs,
+        meta: { title: "Workflow Logs" }
     }
 ]
 

@@ -104,7 +104,7 @@
 					<v-data-table v-else :headers="tableHeaders" :items="sortedFilteredRuns" density="comfortable"
 						class="workflow-runs-table" :items-per-page="25" :items-per-page-options="[10, 25, 50, 100]">
 						<template #item="{ item }">
-							<WorkflowRunRow :run="item" @cancel="cancelRun" @retry="retryRun" />
+							<WorkflowRunRow :run="item" @cancel="cancelRun" @retry="retryRun" @view-logs="viewLogs" />
 						</template>
 					</v-data-table>
 
@@ -133,11 +133,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import SearchBar from '@/components/SearchBar.vue'
 import WorkflowRunRow from '@/components/WorkflowRun.vue'
 import { workflowRunsApi } from '@/api/workflowRuns'
 import type { WorkflowRun } from '@/types/schemas'
 import { statusColor } from '@/utils/status'
+
+const router = useRouter()
 
 // --- STATE ---
 const runs = ref<WorkflowRun[]>([])
@@ -312,6 +315,10 @@ async function retryRun(run: WorkflowRun) {
 		const errorMessage = err?.response?.data?.detail || err?.message || 'Failed to retry workflow run'
 		showSnackbar(`Failed to retry: ${errorMessage}`, 'error')
 	}
+}
+
+function viewLogs(run: WorkflowRun) {
+	router.push({ path: '/logs', query: { runId: run.id } })
 }
 </script>
 

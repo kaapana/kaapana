@@ -126,6 +126,11 @@ data:
             "endpoint": "/workflow-ui",
             "linkTo": "/workflow-ui/runs"
           },
+          "logs": {
+            "label": "Workflow Logs V2",
+            "endpoint": "/workflow-ui",
+            "linkTo": "/workflow-ui/logs"
+          },
           "data": {
             "label": "Data",
             "endpoint": "/data-ui",

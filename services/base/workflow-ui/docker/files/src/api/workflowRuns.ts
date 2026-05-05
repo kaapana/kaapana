@@ -1,6 +1,6 @@
 import apiClient from './workflowApiClient'
 import { toRaw } from 'vue'
-import type { WorkflowRun, WorkflowRunCreate, WorkflowRunUpdate } from '@/types/schemas'
+import type { WorkflowRun, WorkflowRunCreate, WorkflowRunUpdate, TaskRun, LogEntry } from '@/types/schemas'
 
 const API_BASE = '/workflow-runs'
 
@@ -87,6 +87,11 @@ export const workflowRunsApi = {
 
   async retry(workflowRunId: number): Promise<WorkflowRun> {
     const response = await apiClient.put<WorkflowRun>(`${API_BASE}/${workflowRunId}/retry`)
+    return response.data
+  },
+
+  async getTaskRunLogs(workflowRunId: number, taskRunId: number): Promise<string> {
+    const response = await apiClient.get<string>(`${API_BASE}/${workflowRunId}/task-runs/${taskRunId}/logs`)
     return response.data
   },
 }

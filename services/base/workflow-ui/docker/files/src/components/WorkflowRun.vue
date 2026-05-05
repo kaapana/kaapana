@@ -62,6 +62,18 @@
             </span>
           </template>
         </v-tooltip>
+
+        <!-- View Logs tooltip -->
+        <v-tooltip color="surface" location="top">
+          <template #activator="{ props: tooltipProps }">
+            <v-btn v-bind="tooltipProps" icon="mdi-text-box-outline" size="small" variant="text" color="primary"
+              @click="$emit('view-logs', run)" />
+          </template>
+
+          <span style="color: rgb(var(--v-theme-on-surface));" class="font-weight-medium">
+            View Logs
+          </span>
+        </v-tooltip>
       </div>
     </td>
 
@@ -76,7 +88,7 @@ import type { WorkflowRun } from '@/types/schemas'
 const props = defineProps({
   run: { type: Object as PropType<WorkflowRun>, required: true }
 })
-const emit = defineEmits(['cancel', 'retry'])
+const emit = defineEmits(['cancel', 'retry', 'view-logs'])
 
 function formatDate(d: string) {
   try {

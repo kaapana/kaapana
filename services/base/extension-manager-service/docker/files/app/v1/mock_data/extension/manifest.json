@@ -1,0 +1,8 @@
+{
+    "contents": [
+        {
+            "type":"workflow",
+            "path": "workflows/dummy"
+        }
+    ]
+}

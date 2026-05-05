@@ -1,0 +1,6 @@
+fastapi==0.136.1
+uvicorn
+sqlalchemy==2.0.49
+psycopg2-binary
+asyncpg
+httpx

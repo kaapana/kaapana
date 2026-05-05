@@ -1,0 +1,161 @@
+import enum
+import uuid
+from datetime import datetime
+
+from sqlalchemy import DateTime, Enum, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.types import JSON
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class ExtensionStatus(enum.StrEnum):
+    PENDING = "pending"
+    PULLING = "pulling"
+    PULLING_FAILED = "pulling_failed"
+    INSTALLING = "installing"
+    INSTALLATION_FAILED = "installing_failed"
+    INSTALLED = "installed"
+    UNINSTALLING = "uninstalling"
+
+
+class RegisteredRepository(Base):
+    __tablename__ = "registries"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    repository_url: Mapped[str] = mapped_column(
+        String(2048), nullable=False, unique=True
+    )
+
+    authentication: Mapped[str] = mapped_column(String(2048), nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    extensions: Mapped[list["Extension"]] = relationship(
+        back_populates="registry",
+        cascade="all, delete-orphan",
+    )
+
+
+class Extension(Base):
+    __tablename__ = "extensions"
+    __table_args__ = (
+        UniqueConstraint(
+            "repository_id",
+            "tag",
+            name="uq_extension_registry_name_version",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    repository_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("registries.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    ### REGEX: [a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}
+    ### Corresponds to <reference> or tag of a manifest in the OCI distribution spec
+    tag: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
+    manifest: Mapped[JSON] = mapped_column(JSON, nullable=True)
+
+    status: Mapped[ExtensionStatus] = mapped_column(
+        Enum(
+            ExtensionStatus,
+            name="extension_status",
+            values_callable=lambda enum_cls: [status.value for status in enum_cls],
+        ),
+        nullable=False,
+        default=ExtensionStatus.PENDING,
+        server_default=ExtensionStatus.PENDING.value,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    registry: Mapped[RegisteredRepository] = relationship(back_populates="extensions")
+
+
+class ContentStatus(enum.StrEnum):
+    PENDING = "pending"
+    INSTALLING = "installing"
+    INSTALLATION_FAILED = "installation_failed"
+    INSTALLED = "installed"
+    UNINSTALLING = "uninstalling"
+    UNINSTALLED = "uninstalled"
+
+
+class Content(Base):
+    __tablename__ = "contents"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    extension_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("extensions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    content_type: Mapped[str] = mapped_column(String(255), nullable=False)
+    consumer_location: Mapped[JSON] = mapped_column(JSON, nullable=False)
+
+    status: Mapped[ContentStatus] = mapped_column(
+        Enum(
+            ContentStatus,
+            name="cotent_status",
+            values_callable=lambda enum_cls: [status.value for status in enum_cls],
+        ),
+        nullable=False,
+        default=ContentStatus.PENDING,
+        server_default=ContentStatus.PENDING.value,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    extension: Mapped[Extension] = relationship(back_populates="contents")

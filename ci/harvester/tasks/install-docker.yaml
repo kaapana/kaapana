@@ -5,7 +5,7 @@
   become: yes
   ansible.builtin.apt:
     state: present
-    update_cache: no
+    update_cache: yes
     pkg:
       - ca-certificates
       - curl
@@ -36,10 +36,10 @@
       Signed-By: /etc/apt/keyrings/docker.asc
     mode: '0644'
 
-# - name: Update apt cache
-#   become: yes
-#   ansible.builtin.apt:
-#     update_cache: yes
+- name: Update apt cache
+  become: yes
+  ansible.builtin.apt:
+    update_cache: yes
 
 - name: Install Docker packages
   become: yes

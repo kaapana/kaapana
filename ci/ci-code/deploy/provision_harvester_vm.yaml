@@ -12,7 +12,7 @@
     vm_storage_class: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_STORAGE_CLASS', default='longhorn') }}"
     vm_network: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_NETWORK', default=undef()) }}"
     vm_ssh_keypair: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_SSH_KEYPAIR', default='kaapana') }}"
-    vm_user: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_OS_USER', default='ubuntu') }}"
+    vm_user: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_USER', default='ubuntu') }}"
     vm_dns_domain: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DOMAIN', default='vms.dkfz.de') }}"
     vm_cpu_cores: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_CPU', default='8') }}"
     vm_cpu_sockets: 1

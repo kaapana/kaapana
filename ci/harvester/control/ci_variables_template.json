@@ -96,7 +96,7 @@
   },
   {
     "key": "HARVESTER_INSTANCE_HARVESTER_KUBECONFIG",
-    "value": "harvester.yaml",
+    "value": "/home/user/.kube/harvester.yaml",
     "masked": false
   },
   {

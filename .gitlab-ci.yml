@@ -174,7 +174,7 @@ build_packages:
   variables:
     GIT_STRATEGY: clone
     PYTHON_VENV_DIR: ".venv-build"
-  timeout: 2 hours
+  timeout: 4 hours
   rules:
     - if: '$CI_EXEC_BUILD == "true"'
       when: always

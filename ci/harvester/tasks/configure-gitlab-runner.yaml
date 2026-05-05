@@ -45,7 +45,7 @@
       ansible.builtin.apt:
         name: gitlab-runner
         state: latest
-        update_cache: no
+        update_cache: yes
       become: yes
 
 - name: Configure GitLab Runner user-mode service

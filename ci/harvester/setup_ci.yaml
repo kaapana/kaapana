@@ -207,6 +207,10 @@
     - name: Configure GitLab Runner
       ansible.builtin.include_tasks: tasks/configure-gitlab-runner.yaml
 
+    - name: Configure deploy instance (Harvester credentials)
+      ansible.builtin.include_tasks: tasks/configure-deploy-instance.yaml
+      when: "'deploy-runner' in runner_tags"
+
 
     - name: Display completion message
       ansible.builtin.debug:

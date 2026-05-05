@@ -1,0 +1,72 @@
+---
+# Configure deploy instance with Harvester credentials
+# This task is run only on deploy instances to provide access to Harvester cluster
+
+- name: Ensure .kube directory exists
+  ansible.builtin.file:
+    path: "{{ runner_home }}/.kube"
+    state: directory
+    mode: "0700"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  become: yes
+
+- name: Ensure .ssh directory exists
+  ansible.builtin.file:
+    path: "{{ runner_home }}/.ssh"
+    state: directory
+    mode: "0700"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  become: yes
+
+- name: Copy Harvester kubeconfig
+  ansible.builtin.copy:
+    src: "{{ harvester_kubeconfig }}"
+    dest: "{{ runner_home }}/.kube/config"
+    mode: "0600"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  become: yes
+
+- name: Copy SSH private key
+  ansible.builtin.copy:
+    src: "{{ ssh_private_key }}"
+    dest: "{{ runner_home }}/.ssh/id_rsa"
+    mode: "0600"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  become: yes
+
+- name: Copy SSH public key
+  ansible.builtin.copy:
+    src: "{{ ssh_public_key }}"
+    dest: "{{ runner_home }}/.ssh/id_rsa.pub"
+    mode: "0644"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  become: yes
+
+- name: Create SSH config for known hosts
+  ansible.builtin.file:
+    path: "{{ runner_home }}/.ssh/config"
+    state: touch
+    mode: "0600"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  become: yes
+
+- name: Verify Harvester kubeconfig
+  ansible.builtin.command: "kubectl --kubeconfig {{ runner_home }}/.kube/config cluster-info"
+  register: kubeconfig_check
+  changed_when: false
+  failed_when: false
+  become: yes
+  become_user: "{{ ansible_user }}"
+
+- name: Display kubeconfig verification result
+  ansible.builtin.debug:
+    msg:
+      - "Kubeconfig verification:"
+      - "{{ kubeconfig_check.stdout }}"
+  when: kubeconfig_check.stdout | length > 0

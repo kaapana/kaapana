@@ -318,7 +318,7 @@ platform_deployment:
       ansible-playbook "$CI_PROJECT_DIR/ci/ci-code/deploy/deploy_platform.yaml" \
         -i "$VM_FQDN," \
         -u "$VM_USER" \
-        --private-key "$ORCHESTRATOR_INSTANCE_PRIVATE_SSH_KEY"
+        --private-key "$ORCHESTRATOR_INSTANCE_PRIVATE_SSH_KEY" 2>&1 | tee /dev/tty
 
     - echo "Kaapana Platform Deployed Successfully"
     - echo "Access the platform at https://$VM_FQDN"

@@ -3,6 +3,7 @@ from typing import Any, List, Optional
 
 from sqlalchemy import select, and_, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from .models import (
     RegisteredRepository,
@@ -128,7 +129,9 @@ async def get_extension(
     session: AsyncSession, extension_id: UUID
 ) -> Optional[Extension]:
     result = await session.execute(
-        select(Extension).where(Extension.id == extension_id)
+        select(Extension)
+        .options(selectinload(Extension.contents))
+        .where(Extension.id == extension_id)
     )
     return result.scalar_one_or_none()
 
@@ -142,7 +145,7 @@ async def list_extensions(
     tag: Optional[str] = None,
     status: Optional[ExtensionStatus] = None,
 ) -> List[Extension]:
-    stmt = select(Extension)
+    stmt = select(Extension).options(selectinload(Extension.contents))
     filters = []
     if repository_id is not None:
         filters.append(Extension.repository_id == repository_id)
@@ -181,11 +184,10 @@ async def delete_extension(session: AsyncSession, extension_id: UUID) -> None:
 
 
 async def create_content(
-    session: AsyncSession,
-    extension_id: UUID,
-    content_type: str,
+    session: AsyncSession, extension_id: UUID, content_type: str, name: str
 ) -> Content:
     content = Content(
+        name=name,
         extension_id=extension_id,
         content_type=content_type,
         status=ContentStatus.PENDING,

@@ -16,9 +16,11 @@ async def install_extension_background_task(
     print(f"Installing extension with id {extension_id} in background task")
 
     #### PULLING EXTENSION ####
-    await crud.update_extension(db, extension_id=extension_id, status="pulling")
+    db_extension = await crud.update_extension(
+        db, extension_id=extension_id, status="pulling"
+    )
     try:
-        extension_path = await oci.pull_extension(tag=extension_id)
+        extension_path = await oci.pull_extension(tag=db_extension.tag)
     except Exception as e:
         await crud.update_extension(
             db, extension_id=extension_id, status="pulling_failed"

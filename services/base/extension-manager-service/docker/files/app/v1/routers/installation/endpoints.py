@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response, BackgroundTasks
 from uuid import UUID
 from typing import Optional
+import json
 from v1.routers.dependencies import get_oci_service_for_repository
 from v1.routers.installation.background_jobs import install_extension_background_task
 
@@ -36,12 +37,20 @@ async def install_extension(
         session=db,
         repository_id=repository_id,
         tag=tag,
-        manifest=extension_manifest["manifest"],
+        manifest=extension_manifest.model_dump_json(),
     )
 
-    background_tasks.add_task(
+    for content in extension_manifest.contents:
+        await crud.create_content(
+            db,
+            extension_id=db_extension.id,
+            content_type=content.contentType,
+            name=content.name,
+        )
+
+    """    background_tasks.add_task(
         install_extension_background_task, db_extension.id, db, oci
-    )
+    )"""
 
     response.headers["Location"] = f"/extensions/{db_extension.id}"
     response.status_code = status.HTTP_201_CREATED
@@ -56,12 +65,42 @@ async def get_extensions(
 ):
     extensions = await crud.list_extensions(db, repository_id=repository_id, tag=tag)
 
-    return extensions
+    response_value = [
+        schemas.InstalledExtension(
+            id=ext.id,
+            repository_id=ext.repository_id,
+            tag=ext.tag,
+            manifest=json.loads(ext.manifest),
+            status=ext.status,
+            contents=[
+                schemas.InstalledContent(
+                    name=cont.name, content_type=cont.content_type, status=cont.status
+                )
+                for cont in ext.contents
+            ],
+        )
+        for ext in extensions
+    ]
+    return response_value
 
 
 @router.get("/{extension_id}", response_model=schemas.InstalledExtension)
-async def get_extension_status(extension_id: UUID, db=Depends(database.get_async_db)):
-    return await crud.get_extension(db, extension_id=extension_id)
+async def get_extension(extension_id: UUID, db=Depends(database.get_async_db)):
+    db_extension = await crud.get_extension(db, extension_id=extension_id)
+
+    return schemas.InstalledExtension(
+        id=db_extension.id,
+        repository_id=db_extension.repository_id,
+        tag=db_extension.tag,
+        manifest=json.loads(db_extension.manifest),
+        status=db_extension.status,
+        contents=[
+            schemas.InstalledContent(
+                name=cont.name, content_type=cont.content_type, status=cont.status
+            )
+            for cont in db_extension.contents
+        ],
+    )
 
 
 @router.post("/{extension_id}/uninstall")

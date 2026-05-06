@@ -483,7 +483,8 @@ destroy_deployment:
   tags:
     - deploy-runner
   before_script:
-    - source "$ORCHESTRATOR_INSTANCE_PYTHON_VENV/bin/activate"
+    - VENV_PATH=$(eval echo "$ORCHESTRATOR_INSTANCE_PYTHON_VENV")
+    - source "$VENV_PATH/bin/activate"
   script:
     - |
       if [[ "$DEPLOYMENT_INSTANCE_PROVISIONER" == "openstack" ]]; then

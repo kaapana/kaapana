@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 from uuid import UUID
 
 from app import crud
@@ -99,7 +98,7 @@ async def delete_data_project_mappings(
 )
 async def get_orphan_series_of_project(
     project_id: UUID,
-    admin_project_id: Optional[UUID] = Query(default=None),
+    admin_project_id: UUID = Query(...),
     session: AsyncSession = Depends(get_session),
 ):
     """Series in project_id whose only other mapping (if any) is admin."""

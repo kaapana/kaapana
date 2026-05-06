@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List
 from uuid import UUID
 
 from sqlalchemy import delete, distinct, func, select
@@ -230,13 +230,13 @@ async def get_project_ids_of_series(session: AsyncSession, series_instance_uid: 
 async def get_orphan_series_of_project(
     session: AsyncSession,
     project_id: UUID,
-    admin_project_id: Optional[UUID] = None,
+    admin_project_id: UUID,
 ) -> List[str]:
-    """Series in project_id whose full mapping set in {project_id, admin_project_id}."""
-    allowed = {project_id}
-    if admin_project_id is not None:
-        allowed.add(admin_project_id)
+    """Return series UIDs that exist in the set {project_id, admin_project_id}.
 
+    Used before hard-deleting projects to find series safe to remove from: PACS, admin os index and admin MinIO bucket.
+    """
+    allowed = {project_id, admin_project_id}
     series_in_project = select(DataProjects.series_instance_uid).where(
         DataProjects.project_id == project_id
     )
@@ -251,7 +251,7 @@ async def get_orphan_series_of_project(
 
 
 async def remove_all_project_mappings(session: AsyncSession, project_id: UUID) -> int:
-    """Delete every DataProjects row for project_id. No PACS cascade. Returns row count."""
+    """Delete every `DataProjects` row for `project_id`. Pure mapping cleanup — does not touch PACS or any series storage. Returns the number of rows deleted."""
     stmt = delete(DataProjects).where(DataProjects.project_id == project_id)
     result = await session.execute(stmt)
     await session.commit()

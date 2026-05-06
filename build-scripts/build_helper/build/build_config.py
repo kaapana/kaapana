@@ -53,6 +53,7 @@ class BuildConfig(BaseModel):
     # Others
     http_proxy: Optional[str]
     include_model_weights: bool = False
+    use_local_task_api: bool = False
     push_to_microk8s: bool
     create_offline_installation: bool
     platform_filter: str
@@ -119,6 +120,11 @@ class BuildConfig(BaseModel):
         platforms_dir = self.kaapana_dir / "platforms"
         if not platforms_dir.is_dir():
             raise ValueError(f"`platforms` directory not found in {self.kaapana_dir}")
+
+        if self.use_local_task_api:
+            task_api_dir = self.kaapana_dir / "lib" / "task_api"
+            if not (task_api_dir / "pyproject.toml").is_file():
+                raise ValueError(f"Local task_api package not found in {task_api_dir}")
 
         SEVERITY_LEVELS = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
 

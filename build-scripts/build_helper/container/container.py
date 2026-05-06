@@ -263,6 +263,25 @@ class Container:
         if config.include_model_weights:
             build_args.extend(["--build-arg", "include_model_weights=true"])
 
+        build_cwd = (
+            self.container_build_dir
+            if self.container_build_dir
+            else self.dockerfile.parent
+        )
+
+        if config.use_local_task_api and self.image_name == "airflow":
+            build_cwd = config.kaapana_dir
+            build_args.extend(
+                [
+                    "--build-arg",
+                    "USE_LOCAL_TASK_API=true",
+                    "--build-arg",
+                    "AIRFLOW_DOCKER_CONTEXT=services/flow/airflow/docker",
+                    "--build-arg",
+                    "TASK_API_SOURCE=lib/task_api",
+                ]
+            )
+
         command = [
             config.container_engine,
             "build",
@@ -281,11 +300,7 @@ class Container:
             stderr=PIPE,
             universal_newlines=True,
             timeout=6000,
-            cwd=(
-                self.container_build_dir
-                if self.container_build_dir
-                else self.dockerfile.parent
-            ),
+            cwd=build_cwd,
             env=dict(
                 os.environ,
                 DOCKER_BUILDKIT=f"{config.enable_build_kit}",

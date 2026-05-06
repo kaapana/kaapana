@@ -227,6 +227,12 @@ def build(
         envvar="INCLUDE_MODEL_WEIGHTS",
         help="Download pretrained model weights during build.",
     ),
+    use_local_task_api: bool = typer.Option(
+        False,
+        "--use-local-task-api",
+        envvar="USE_LOCAL_TASK_API",
+        help="Install lib/task_api from the local checkout into the Airflow image.",
+    ),
     http_proxy: Optional[str] = typer.Option(
         "",
         "--http-proxy",
@@ -288,6 +294,7 @@ def build(
         containers_to_build=containers_to_build,
         only_charts=only_charts,
         include_model_weights=include_model_weights,
+        use_local_task_api=use_local_task_api,
         http_proxy=http_proxy,
         plain_http=plain_http,
         helm_executable=helm_executable,

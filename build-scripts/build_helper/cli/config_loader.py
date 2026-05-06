@@ -228,6 +228,13 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--use-local-task-api",
+        help="Install lib/task_api from the local checkout into the Airflow image.",
+        action="store_true",
+        default=os.getenv("USE_LOCAL_TASK_API", False),
+    )
+
+    parser.add_argument(
         "--http-proxy",
         help="HTTP proxy for outbound connections.",
         default=os.getenv("http_proxy", ""),

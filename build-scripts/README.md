@@ -76,6 +76,10 @@ Pure singleton class -> classes that are never initialized and have only class a
 
 #### config_loader.py
 - config parser and merger
+
+#### Local Task API
+- Use `--use-local-task-api` or `USE_LOCAL_TASK_API=true` to install `lib/task_api` from the current checkout into the Airflow image during build.
+- This is intended for local development, for example: `python3 build-scripts/cli.py build -cb airflow --use-local-task-api`.
  
 #### progress.py
 - rich dashboard and alive_bar progressbar helper

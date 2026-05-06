@@ -13,9 +13,11 @@ class ExtensionInstaller:
         self.installers = installers
 
     async def install(self, extension: Extension):
+        installation_results = []
         for content in extension.contents:
             installer = self._find_installer(content)
-            await installer.install(content)
+            result = await installer.install(content)
+            installation_results.append({"name": content.name})
 
     def _find_installer(self, content: Content) -> ContentInstaller | None:
         for installer in self.installers:
@@ -36,7 +38,9 @@ class ExtensionDiscovery:
         for content in extension_manifest.get("contents", []):
             detector = self._find_detector(extension_path / content["path"])
             if detector is not None:
-                created_content = detector.create(extension_path / content["path"])
+                created_content = detector.create(
+                    extension_path / content["path"], name=content.name
+                )
                 contents.append(created_content)
         return Extension(contents=contents)
 

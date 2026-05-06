@@ -11,6 +11,7 @@ services:
       - db
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/postgres
+      - APPLICATION_ROOT=/
 
   db:
     image: postgres:13
@@ -22,6 +23,3 @@ services:
       - "5432:5432"
     volumes:
       - ./pgdata:/var/lib/postgresql/data
-
-volumes:
-  pgdata:

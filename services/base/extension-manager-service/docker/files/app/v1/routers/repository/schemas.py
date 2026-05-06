@@ -60,7 +60,4 @@ class Repository(BaseModel):
 ############ Extensions ###############
 
 
-class ExtensionManifest(BaseModel):
-    name: str = Field(..., description="The name of the extension.")
-    version: str = Field(..., description="The version of the extension.")
-    manifest: dict = Field(..., description="The full manifest of the extension.")
+from v1.services.oci.models import ExtensionManifest, Content, ContentFiles

@@ -24,8 +24,9 @@ class ContentInstaller(ABC):
 
 
 class Content(ABC):
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, name: str):
         self.path = path
+        self.name = name
 
     @property
     @abstractmethod

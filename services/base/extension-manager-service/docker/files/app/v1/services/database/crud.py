@@ -4,7 +4,13 @@ from typing import Any, List, Optional
 from sqlalchemy import select, and_, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import RegisteredRepository, Extension, ExtensionStatus
+from .models import (
+    RegisteredRepository,
+    Extension,
+    ExtensionStatus,
+    Content,
+    ContentStatus,
+)
 
 # ---------- Reposiory CRUD ----------
 
@@ -169,3 +175,51 @@ async def delete_extension(session: AsyncSession, extension_id: UUID) -> None:
     stmt = delete(Extension).where(Extension.id == extension_id)
     await session.execute(stmt)
     await session.commit()
+
+
+# ---------- Content CRUD ----------
+
+
+async def create_content(
+    session: AsyncSession,
+    extension_id: UUID,
+    content_type: str,
+) -> Content:
+    content = Content(
+        extension_id=extension_id,
+        content_type=content_type,
+        status=ContentStatus.PENDING,
+    )
+
+    session.add(content)
+    await session.commit()
+    await session.refresh(content)
+    return content
+
+
+async def get_content(session: AsyncSession, content_id: UUID) -> Optional[Content]:
+    result = await session.execute(select(Content).where(Content.id == content_id))
+    return result.scalar_one_or_none()
+
+
+async def update_content(
+    session: AsyncSession,
+    content_id: UUID,
+    location: Optional[str] = None,
+    status: Optional[ContentStatus] = None,
+) -> Optional[Content]:
+
+    values = {}
+    if location:
+        values["location"] = location
+    if status:
+        values["stauts"] = status
+    stmt = (
+        update(Content)
+        .where(Content.id == content_id)
+        .values(**values)
+        .execution_options(synchronize_session="fetch")
+    )
+    await session.execute(stmt)
+    await session.commit()
+    return await get_content(session, content_id)

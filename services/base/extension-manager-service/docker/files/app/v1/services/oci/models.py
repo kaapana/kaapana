@@ -1,13 +1,18 @@
 from pydantic import BaseModel
 
 
-class Extension(BaseModel):
+class ContentFiles(BaseModel):
+    path: str
+
+
+class Content(BaseModel):
+    name: str
+    contentType: str
+    files: list[ContentFiles]
+
+
+class ExtensionManifest(BaseModel):
     name: str
     version: str
-    description: str
-
-
-class Registry(BaseModel):
-    registry: str
-    repository: str
-    extensions: list[Extension]
+    contents: list[Content]
+    dependencies: list

@@ -111,7 +111,7 @@ async def get_extensions(
 )
 async def get_extension_manifests(
     repository_id: UUID,
-    tags: list[str] | None = None,
+    tags: str | None = None,
     limit: int | None = None,
     skip: int | None = None,
     oci: ociService = Depends(get_oci_service_for_repository),
@@ -120,4 +120,4 @@ async def get_extension_manifests(
         tags=tags.split(",") if tags else None
     )
 
-    return [schemas.ExtensionManifest(**manifest) for manifest in extensions_manifests]
+    return extensions_manifests

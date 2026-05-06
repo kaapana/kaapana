@@ -51,7 +51,7 @@ class RegisteredRepository(Base):
     )
 
     extensions: Mapped[list["Extension"]] = relationship(
-        back_populates="registry",
+        back_populates="repository",
         cascade="all, delete-orphan",
     )
 
@@ -62,7 +62,7 @@ class Extension(Base):
         UniqueConstraint(
             "repository_id",
             "tag",
-            name="uq_extension_registry_name_version",
+            name="uq_repository_id_tag",
         ),
     )
 
@@ -106,7 +106,12 @@ class Extension(Base):
         nullable=False,
     )
 
-    registry: Mapped[RegisteredRepository] = relationship(back_populates="extensions")
+    repository: Mapped[RegisteredRepository] = relationship(back_populates="extensions")
+
+    contents: Mapped[list["Content"]] = relationship(
+        back_populates="extension",
+        cascade="all, delete-orphan",
+    )
 
 
 class ContentStatus(enum.StrEnum):
@@ -132,8 +137,10 @@ class Content(Base):
         nullable=False,
     )
 
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+
     content_type: Mapped[str] = mapped_column(String(255), nullable=False)
-    consumer_location: Mapped[JSON] = mapped_column(JSON, nullable=False)
+    location: Mapped[str] = mapped_column(String(255), nullable=True)
 
     status: Mapped[ContentStatus] = mapped_column(
         Enum(

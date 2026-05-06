@@ -1,6 +1,7 @@
-from .models import Extension, Registry
+from .models import ExtensionManifest
 from .exceptions import ExtensionNotFoundException, ExtensionPullError
 from pathlib import Path
+import json
 
 
 class ociService:
@@ -14,13 +15,7 @@ class ociService:
         self.repository_url = repository_url
         self._authentication = authentication
 
-        self.mock_available_extensions = {
-            "extension-v1.0.0": {"name": "extension", "manifest": {}},
-            "extension-v1.0.1": {"name": "extension", "manifest": {}},
-            "extension-v1.1.0": {"name": "extension", "manifest": {}},
-        }
-
-        pass
+        self.extension_dir = Path(f"/app/v1/mock_data")
 
     async def __aenter__(self):
         """Enter async context – establish mock connection."""
@@ -47,7 +42,7 @@ class ociService:
 
         pass
 
-    async def get_extensions_for_repository(self) -> list[str]:
+    async def get_extensions_for_repository(self) -> set[str]:
         """
         Fetches the list of extensions available in the given repository.
         This is a placeholder implementation that returns a static list of extensions.
@@ -56,9 +51,11 @@ class ociService:
         :rtype: list[Extension]
         """
 
-        return self.mock_available_extensions.keys()
+        return set([str(tag.name) for tag in self.extension_dir.iterdir()])
 
-    async def get_extension_manifests(self, tags: list[str] | None = None):
+    async def get_extension_manifests(
+        self, tags: set[str] | None = None
+    ) -> list[ExtensionManifest]:
         """
         Fetches the manifests of the extensions in the given repository.
         This is a placeholder implementation that returns static manifests.
@@ -68,18 +65,22 @@ class ociService:
         :return: TODO
         :rtype: list[ExtensionManifest]
         """
-
+        manifests = []
+        existing_tags = await self.get_extensions_for_repository()
         if tags:
-            filtered_extensions = [
-                ext
-                for tag, ext in self.mock_available_extensions.items()
-                if tag in tags
-            ]
-            return filtered_extensions
-        else:
-            return self.mock_available_extensions
+            filtered_tags = existing_tags.intersection(tags)
 
-    async def get_extension_manifest(self, tag: str):
+            for tag in filtered_tags:
+                manifest = await self.get_extension_manifest(tag)
+                manifests.append(manifest)
+        else:
+            for tag in existing_tags:
+                manifest = await self.get_extension_manifest(tag)
+                manifests.append(manifest)
+
+        return manifests
+
+    async def get_extension_manifest(self, tag: str) -> ExtensionManifest:
         """
         Fetches the manifest of a specific extension in the given repository.
         This is a placeholder implementation that returns a static manifest.
@@ -89,12 +90,16 @@ class ociService:
         :return: TODO
         :rtype: ExtensionManifest
         """
-        if tag not in self.mock_available_extensions:
+        existing_tags = await self.get_extensions_for_repository()
+        if tag not in existing_tags:
             raise ExtensionNotFoundException(
                 f"Extension with tag {tag} not found in {self.repository_url}"
             )
 
-        return self.mock_available_extensions.get(tag)
+        with open(self.extension_dir / tag / "manifest.json") as manifest:
+            manifest_json = json.load(manifest)
+
+        return ExtensionManifest(**manifest_json)
 
     async def pull_extension(self, tag: str) -> Path:
         """
@@ -106,4 +111,10 @@ class ociService:
         :raises ExtensionPullError: TODO
         """
 
-        return Path(f"/app/v1/mock_data/extension")
+        existing_tags = await self.get_extensions_for_repository()
+        if tag not in existing_tags:
+            raise ExtensionNotFoundException(
+                f"Extension with tag {tag} not found in {self.repository_url}"
+            )
+
+        return Path(f"/app/v1/mock_data/{tag}")

@@ -25,7 +25,7 @@ async def install_extension(
     db=Depends(database.get_async_db),
 ):
     try:
-        extension_manifests = await oci.get_extension_manifest(tag=tag)
+        extension_manifest = await oci.get_extension_manifest(tag=tag)
     except ExtensionNotFoundException as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -36,7 +36,7 @@ async def install_extension(
         session=db,
         repository_id=repository_id,
         tag=tag,
-        manifest=extension_manifests["manifest"],
+        manifest=extension_manifest["manifest"],
     )
 
     background_tasks.add_task(

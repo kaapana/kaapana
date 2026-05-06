@@ -29,6 +29,15 @@ async def install_extension_background_task(
     await crud.update_extension(db, extension_id=extension_id, status="installing")
     try:
         extension = Discovery.discover(extension_path=extension_path)
+
+        for content in extension.contents:
+            db_content = await crud.create_content(
+                db,
+                extension_id=extension_id,
+                content_type=content.content_type,
+                name=content.name,
+            )
+
         await Installer.install(extension)
 
     except Exception as e:

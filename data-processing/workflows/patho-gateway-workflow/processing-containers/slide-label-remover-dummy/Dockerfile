@@ -7,5 +7,5 @@ RUN pip3 install --no-cache-dir pydicom
 
 COPY processing-container.json /
 
-WORKDIR /home/kaapana
-COPY files/pass_through.py /home/kaapana/
+WORKDIR /kaapana/app
+COPY files/pass_through.py /kaapana/app/

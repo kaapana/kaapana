@@ -1,15 +1,42 @@
 #!/usr/bin/env python3
-import json
+
 import os
-import shutil
-import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
-INPUT_DIR = Path("/kaapana/input/wsi")
-OUTPUT_DIR = Path("/kaapana/output/dicom")
-REPORT_NAME = "conversion_report.json"
+import pydicom
+from wsidicomizer import WsiDicomizer
+from wsidicomizer.sources import TiffSlideSource
+from wsidicomizer.metadata import WsiDicomizerMetadata
+
+from wsidicom.conceptcode import (
+    AnatomicPathologySpecimenTypesCode,
+    ContainerTypeCode,
+    SpecimenCollectionProcedureCode,
+    SpecimenEmbeddingMediaCode,
+    SpecimenFixativesCode,
+    SpecimenSamplingProcedureCode,
+    SpecimenStainsCode,
+)
+from wsidicom.metadata import (
+    Collection,
+    Embedding,
+    Equipment,
+    Fixation,
+    Label,
+    Patient,
+    Sample,
+    Series,
+    Slide,
+    SlideSample,
+    Specimen,
+    Staining,
+    Study,
+)
+
+
+INPUT_DIR = Path("/kaapana/mount/wsi")
+OUTPUT_DIR = Path("/kaapana/mount/dicom")
 
 
 def log(message):
@@ -20,120 +47,168 @@ def fail(message):
     raise RuntimeError(message)
 
 
-def is_dicom(path):
+study = Study(identifier="Study identifier")
+series = Series(number=1)
+label = Label(text="Label text")
+
+equipment = Equipment(
+    manufacturer="Kaapana",
+    model_name="Scanner model name",
+    device_serial_number="Scanner serial number",
+    software_versions=["Scanner software versions"],
+)
+
+specimen = Specimen(
+    identifier="Specimen",
+    extraction_step=Collection(
+        method=SpecimenCollectionProcedureCode("Excision")
+    ),
+    type=AnatomicPathologySpecimenTypesCode("Gross specimen"),
+    container=ContainerTypeCode("Specimen container"),
+    steps=[
+        Fixation(
+            fixative=SpecimenFixativesCode("Neutral Buffered Formalin")
+        )
+    ],
+)
+
+block = Sample(
+    identifier="Block",
+    sampled_from=[
+        specimen.sample(
+            method=SpecimenSamplingProcedureCode("Dissection")
+        )
+    ],
+    type=AnatomicPathologySpecimenTypesCode("tissue specimen"),
+    container=ContainerTypeCode("Tissue cassette"),
+    steps=[
+        Embedding(
+            medium=SpecimenEmbeddingMediaCode("Paraffin wax")
+        )
+    ],
+)
+
+slide_sample = SlideSample(
+    identifier="Slide sample",
+    sampled_from=block.sample(
+        method=SpecimenSamplingProcedureCode("Block sectioning")
+    ),
+)
+
+slide = Slide(
+    identifier="Slide",
+    stainings=[
+        Staining(
+            substances=[
+                SpecimenStainsCode("hematoxylin stain"),
+                SpecimenStainsCode("water soluble eosin stain"),
+            ]
+        )
+    ],
+    samples=[slide_sample],
+)
+
+
+def build_metadata(file_name: str):
+    return WsiDicomizerMetadata(
+        study=study,
+        series=series,
+        patient=Patient(name=file_name),
+        equipment=equipment,
+        slide=slide,
+        label=label,
+    )
+
+
+def postprocess_dicom_files(output_dcm_dir: Path):
+    dicom_files = sorted(output_dcm_dir.glob("*.dcm"))
+
+    counter = 0
+    kept_files = []
+
+    for dicom_file in dicom_files:
+        ds = pydicom.dcmread(dicom_file)
+
+        instance_number = ds.InstanceNumber
+        new_filename = f"instance_{instance_number}_a{counter}.dcm"
+        new_filepath = dicom_file.parent / new_filename
+
+        dicom_file.rename(new_filepath)
+
+        if len(ds.ImageType) > 2 and ds.ImageType[2] == "THUMBNAIL":
+            new_filepath.unlink()
+        else:
+            kept_files.append(new_filepath)
+
+        counter += 1
+
+    return kept_files
+
+
+def convert_wsi_file(input_file: Path):
+    file_name = input_file.name.replace(".", "")
+    output_dcm_dir = OUTPUT_DIR / file_name
+    output_dcm_dir.mkdir(parents=True, exist_ok=True)
+
+    metadata = build_metadata(file_name)
+
     try:
-        import pydicom
+        WsiDicomizer.convert(
+            input_file,
+            output_dcm_dir,
+            metadata=metadata,
+            add_missing_levels=True,
+            include_confidential=False,
+        )
+    except Exception as exc:
+        log(
+            f"{input_file.name}: primary conversion failed with error: {exc}. "
+            "Retrying with TiffSlideSource."
+        )
+        WsiDicomizer.convert(
+            input_file,
+            output_dcm_dir,
+            preferred_source=TiffSlideSource,
+            metadata=metadata,
+            add_missing_levels=True,
+            include_confidential=False,
+        )
 
-        return pydicom.misc.is_dicom(path)
-    except Exception:
-        with path.open("rb") as f:
-            f.seek(128)
-            return f.read(4) == b"DICM"
+    kept_files = postprocess_dicom_files(output_dcm_dir)
 
+    if not kept_files:
+        fail(f"{input_file.name}: conversion produced no non-thumbnail DICOM files.")
 
-def move_with_copy_fallback(source, target):
-    target.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        shutil.move(str(source), str(target))
-        return "moved"
-    except Exception as move_exc:
-        log(f"Move failed for {source}: {move_exc}. Trying copy fallback.")
-        shutil.copy2(source, target)
-        if target.exists() and target.stat().st_size == source.stat().st_size:
-            source.unlink()
-            return "copied"
-        fail(f"Copy fallback failed for {source}; target is missing or incomplete.")
-
-
-def copy_sidecar_reports():
-    for name in ("manifest.json",):
-        source = INPUT_DIR / name
-        if source.is_file():
-            shutil.copy2(source, OUTPUT_DIR / name)
-
-
-def convert_svs_to_dicom(source):
-    command = os.getenv("WSIDICOMIZER_COMMAND", "wsidicomizer")
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_dir = Path(tmp)
-        cmd = [command, "-i", str(source), "-o", str(tmp_dir)]
-        log(f"{source.name}: running {' '.join(cmd)}")
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.stdout:
-            log(result.stdout)
-        if result.stderr:
-            log(result.stderr)
-        if result.returncode != 0:
-            fail(f"SVS conversion failed for {source.name} with exit code {result.returncode}.")
-
-        dicom_files = sorted(path for path in tmp_dir.rglob("*") if path.is_file())
-        if not dicom_files:
-            fail(f"SVS conversion for {source.name} did not produce any files.")
-
-        outputs = []
-        for index, dicom_file in enumerate(dicom_files, start=1):
-            suffix = ".dcm"
-            if len(dicom_files) == 1:
-                target = OUTPUT_DIR / f"{source.stem}{suffix}"
-            else:
-                target = OUTPUT_DIR / f"{source.stem}_{index:04d}{suffix}"
-            shutil.move(str(dicom_file), str(target))
-            outputs.append(target)
-        return outputs
+    log(f"{input_file.name}: converted to {len(kept_files)} DICOM file(s).")
 
 
 def main():
     log(f"Input directory: {INPUT_DIR}")
     log(f"Output directory: {OUTPUT_DIR}")
+
     if not INPUT_DIR.is_dir():
         fail(f"Input directory does not exist: {INPUT_DIR}")
+
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    files = sorted(
-        path for path in INPUT_DIR.rglob("*") if path.is_file() and path.suffix.lower() != ".json"
+    input_files = sorted(
+        path
+        for path in INPUT_DIR.iterdir()
+        if path.is_file() and not path.name.startswith(".")
     )
-    log(f"Number of files found: {len(files)}")
-    if not files:
-        fail(f"No WSI input files found in {INPUT_DIR}.")
 
-    report = {"items": []}
-    written = 0
-    for path in files:
-        suffix = path.suffix.lower()
-        if suffix == ".svs":
-            outputs = convert_svs_to_dicom(path)
-            written += len(outputs)
-            report["items"].append(
-                {
-                    "input": path.name,
-                    "output": outputs[0].name if len(outputs) == 1 else [p.name for p in outputs],
-                    "action": "converted",
-                    "status": "success",
-                }
-            )
-            log(f"{path.name}: converted to {len(outputs)} DICOM file(s)")
-        elif is_dicom(path):
-            target = OUTPUT_DIR / path.name
-            action = move_with_copy_fallback(path, target)
-            written += 1
-            report["items"].append(
-                {
-                    "input": path.name,
-                    "output": target.name,
-                    "action": action,
-                    "status": "success",
-                }
-            )
-            log(f"{path.name}: {action} to {target}")
-        else:
-            fail(f"Unsupported input file format for {path}. Expected SVS or DICOM.")
+    if not input_files:
+        fail(f"No input files found in {INPUT_DIR}")
 
-    copy_sidecar_reports()
-    report_path = OUTPUT_DIR / REPORT_NAME
-    with report_path.open("w") as f:
-        json.dump(report, f, indent=2)
-    log(f"Number of files written: {written}")
-    log(f"Final report path: {report_path}")
+    log(f"Number of input files found: {len(input_files)}")
+
+    for input_file in input_files:
+        convert_wsi_file(input_file)
+
+    log(
+        "This conversion was done with wsidicomizer as backbone. "
+        "wsidicomizer: Copyright 2021 Sectra AB, licensed under Apache 2.0."
+    )
 
 
 if __name__ == "__main__":

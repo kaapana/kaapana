@@ -25,7 +25,7 @@
                 "description": "Comma-separated SlideIDs. The task also accepts slide_ids as a list in the DagRun conf object.",
                 "regex_pattern": ".+",
                 "default": "",
-                "required": true
+                "required": false
             }
         },
         {
@@ -42,7 +42,7 @@
                 ],
                 "default": "object-storage",
                 "multiselectable": false,
-                "required": true
+                "required": false
             }
         },
         {
@@ -54,11 +54,7 @@
                 "description": "S3-compatible endpoint, for example object-store.example.org:9000.",
                 "regex_pattern": ".+",
                 "default": "",
-                "required": true,
-                "visible_if": {
-                    "env_variable_name": "WSI_SOURCE",
-                    "equals": "object-storage"
-                }
+                "required": false
             }
         },
         {
@@ -70,11 +66,7 @@
                 "description": "Bucket containing WSI files or SlideID folders.",
                 "regex_pattern": ".+",
                 "default": "pathology-wsi",
-                "required": true,
-                "visible_if": {
-                    "env_variable_name": "WSI_SOURCE",
-                    "equals": "object-storage"
-                }
+                "required": false
             }
         },
         {
@@ -86,11 +78,7 @@
                 "description": "Optional prefix below the bucket.",
                 "regex_pattern": ".*",
                 "default": "",
-                "required": false,
-                "visible_if": {
-                    "env_variable_name": "WSI_SOURCE",
-                    "equals": "object-storage"
-                }
+                "required": false
             }
         },
         {
@@ -102,11 +90,7 @@
                 "description": "Access key for the object-storage endpoint.",
                 "regex_pattern": ".+",
                 "default": "",
-                "required": true,
-                "visible_if": {
-                    "env_variable_name": "WSI_SOURCE",
-                    "equals": "object-storage"
-                }
+                "required": false
             }
         },
         {
@@ -118,11 +102,7 @@
                 "description": "Secret key for the object-storage endpoint.",
                 "regex_pattern": ".+",
                 "default": "",
-                "required": true,
-                "visible_if": {
-                    "env_variable_name": "WSI_SOURCE",
-                    "equals": "object-storage"
-                }
+                "required": false
             }
         },
         {
@@ -138,11 +118,7 @@
                 ],
                 "default": "true",
                 "multiselectable": false,
-                "required": true,
-                "visible_if": {
-                    "env_variable_name": "WSI_SOURCE",
-                    "equals": "object-storage"
-                }
+                "required": false
             }
         },
         {
@@ -154,11 +130,7 @@
                 "description": "Base URL for IMS REST retrieval.",
                 "regex_pattern": ".+",
                 "default": "",
-                "required": true,
-                "visible_if": {
-                    "env_variable_name": "WSI_SOURCE",
-                    "equals": "REST-ENDPOINT"
-                }
+                "required": false
             }
         },
         {
@@ -170,11 +142,7 @@
                 "description": "Endpoint path that accepts a slide_id query parameter.",
                 "regex_pattern": ".+",
                 "default": "/get",
-                "required": true,
-                "visible_if": {
-                    "env_variable_name": "WSI_SOURCE",
-                    "equals": "REST-ENDPOINT"
-                }
+                "required": false
             }
         },
         {
@@ -186,11 +154,7 @@
                 "description": "Optional bearer token for IMS REST retrieval.",
                 "regex_pattern": ".*",
                 "default": "",
-                "required": false,
-                "visible_if": {
-                    "env_variable_name": "WSI_SOURCE",
-                    "equals": "REST-ENDPOINT"
-                }
+                "required": false
             }
         },
         {
@@ -202,11 +166,7 @@
                 "description": "Filesystem directory containing source WSI files for local/offline tests.",
                 "regex_pattern": ".+",
                 "default": "/object-store",
-                "required": true,
-                "visible_if": {
-                    "env_variable_name": "WSI_SOURCE",
-                    "equals": "filesystem"
-                }
+                "required": false
             }
         },
         {

@@ -7,5 +7,5 @@ RUN pip3 install --no-cache-dir pydicom
 
 COPY processing-container.json /
 
-WORKDIR /home/kaapana
-COPY files/pseudonymize.py /home/kaapana/
+WORKDIR /kaapana/app
+COPY files/pseudonymize.py /kaapana/app/

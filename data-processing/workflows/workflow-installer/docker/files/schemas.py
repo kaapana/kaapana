@@ -37,6 +37,13 @@ class Label(BaseModel):
 #####################################
 
 
+class VisibleIf(BaseModel):
+    env_variable_name: str
+    equals: Optional[Any] = None
+    values: Optional[List[Any]] = None
+    task_title: Optional[str] = None
+
+
 class BaseUIForm(BaseModel):
     """
     Base class for all UI form definitions.
@@ -52,6 +59,7 @@ class BaseUIForm(BaseModel):
         help (Optional[str]): Additional help text, tooltip, or usage hint.
         required (bool): Whether this field is required in the form. Defaults to False.
         default (Optional[Any]): Default value for this field, if applicable.
+        visible_if (Optional[VisibleIf]): Show this field only when another parameter has a matching value.
     """
 
     type: str = Field(..., description="Type of the UI form element.")
@@ -64,6 +72,9 @@ class BaseUIForm(BaseModel):
         False, description="Whether the field is required."
     )
     default: Optional[Any] = Field(None, description="Default value for the field.")
+    visible_if: Optional[VisibleIf] = Field(
+        None, description="Conditional visibility rule for this field."
+    )
 
 
 class BooleanUIForm(BaseUIForm):

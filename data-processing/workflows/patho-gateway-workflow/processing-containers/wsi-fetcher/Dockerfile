@@ -5,5 +5,5 @@ LABEL BUILD_IGNORE="False"
 
 COPY processing-container.json /
 
-WORKDIR /home/kaapana
-COPY files/fetch_wsi.py /home/kaapana/
+WORKDIR /kaapana/app
+COPY files/fetch_wsi.py /kaapana/app

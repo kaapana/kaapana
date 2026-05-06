@@ -18,7 +18,7 @@
             "inputs": [
                 {
                     "name": "wsi",
-                    "mounted_path": "/kaapana/input/wsi",
+                    "mounted_path": "/kaapana/mount/wsi",
                     "scale_rule": {
                         "scale_factor": 10,
                         "type": "limit",
@@ -30,7 +30,7 @@
             "outputs": [
                 {
                     "name": "dicom",
-                    "mounted_path": "/kaapana/output/dicom"
+                    "mounted_path": "/kaapana/mount/dicom"
                 }
             ],
             "command": [

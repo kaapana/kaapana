@@ -349,6 +349,11 @@ setup_integration_tests:
   stage: test
   tags:
     - deploy-runner
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+    - job: platform_deployment
+      artifacts: true
   variables:
     VENV_NAME: "$CI_PROJECT_DIR/venv"
     INTEGRATION_TESTS: "$CI_PROJECT_DIR/ci/ci-code/integration_tests"
@@ -375,14 +380,12 @@ setup_integration_tests:
 .integration_test_local:
   extends: .remote_execution_template
   stage: test
-  rules:
-    - if: '$CI_EXEC_INTEGRATION_TESTS == "true"'
-      when: always
-    - when: never
   needs:
     - job: prepare_deployment
       artifacts: true
     - job: setup_integration_tests
+      artifacts: true
+    - job: platform_deployment
       artifacts: true
   variables:
     VENV_NAME: "$CI_PROJECT_DIR/venv"

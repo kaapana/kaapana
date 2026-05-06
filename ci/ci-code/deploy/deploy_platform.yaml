@@ -62,6 +62,7 @@
       ansible.builtin.command:
         cmd: >
           {{ ansible_facts['env']['HOME'] }}/kaapanactl.sh deploy
+          --quiet
           --chart {{ registry_url }}/kaapana-admin-chart:{{ version_tag }}
           --username {{ registry_user }}
           --password {{ registry_token }}

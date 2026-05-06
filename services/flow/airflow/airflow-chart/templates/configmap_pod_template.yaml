@@ -58,8 +58,6 @@ data:
               value: "INFO"
             - name: AIRFLOW_HOME
               value: "/kaapana/mounted/workflows"
-            - name: DATADIR
-              value: "{{ .Values.global.fast_data_dir }}/workflows/data"
             - name: DEFAULT_REGISTRY
               value: "{{ .Values.global.registry_url }}"
             - name: EXTENSIONS_NAMESPACE

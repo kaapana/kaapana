@@ -428,6 +428,8 @@ install_extensions:
       artifacts: true
     - job: first_login
       artifacts: true
+    - job: platform_deployment
+      artifacts: true
   variables:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_install_extensions.py"
     JUNIT_FILE: "install_extensions.xml"
@@ -443,6 +445,8 @@ send_data:
       artifacts: true
     - job: first_login
       artifacts: true
+    - job: platform_deployment
+      artifacts: true
   variables:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_send_data.py"
     JUNIT_FILE: "send_data.xml"
@@ -451,7 +455,6 @@ send_data:
 
 run_workflows:
   extends: .integration_test_local
-  allow_failure: true
   timeout: 2 hours
   needs:
     - job: prepare_deployment
@@ -463,6 +466,8 @@ run_workflows:
     - job: send_data
       artifacts: true
     - job: install_extensions
+      artifacts: true
+    - job: platform_deployment
       artifacts: true
   variables:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_run_workflows.py"

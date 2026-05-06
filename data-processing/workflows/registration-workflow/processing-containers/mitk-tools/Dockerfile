@@ -5,7 +5,7 @@ LABEL BUILD_IGNORE="False"
 
 COPY processing-container.json /
 
-WORKDIR /home/kaapana
+WORKDIR /kaapana/app
 
-COPY files/convert.sh /home/kaapana/
-COPY files/register.sh /home/kaapana/
+COPY files/convert.sh /kaapana/app/
+COPY files/register.sh /kaapana/app/

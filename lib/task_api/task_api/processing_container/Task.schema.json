@@ -75,6 +75,31 @@
       "title": "HostPathVolume",
       "type": "object"
     },
+    "PersistentVolumeClaimVolume": {
+      "properties": {
+        "claim_name": {
+          "title": "Claim Name",
+          "type": "string"
+        },
+        "sub_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sub Path"
+        }
+      },
+      "required": [
+        "claim_name"
+      ],
+      "title": "PersistentVolumeClaimVolume",
+      "type": "object"
+    },
     "IOMount": {
       "description": "Defines where an input or output channel should be mounted inside the container.",
       "properties": {
@@ -136,7 +161,14 @@
           "default": null
         },
         "volume_source": {
-          "$ref": "#/$defs/HostPathVolume",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostPathVolume"
+            },
+            {
+              "$ref": "#/$defs/PersistentVolumeClaimVolume"
+            }
+          ],
           "title": "Volume Source"
         }
       },

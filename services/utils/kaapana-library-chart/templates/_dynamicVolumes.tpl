@@ -6,11 +6,15 @@
 {{- $dynamic := default (list) .Values.global.dynamicVolumes }}
 {{- $shared := default (list) .Values.global.sharedVolumes }}
 {{- $Volumes := concat $dynamic $shared }}
+{{- $volumeNames := dict }}
 {{- range $volume := $Volumes }}
+{{- if not (hasKey $volumeNames $volume.name) }}
+{{- $_ := set $volumeNames $volume.name true }}
 {{- $postfix := (has "kaapanamultiinstallable" $keywords) | ternary (printf "-%s" $release_name) "" }}
 - name: {{ $volume.name }}
   persistentVolumeClaim:
     claimName: {{ $volume.name }}{{ $postfix }}-pv-claim
+{{- end }}
 {{- end }}
 {{- if and .Values.global.workflow_configmap_name (ne .Values.global.workflow_configmap_name "") }}
 - name: workflowconf

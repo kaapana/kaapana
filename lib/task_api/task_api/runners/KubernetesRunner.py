@@ -52,23 +52,64 @@ def get_volume_and_mounts(
     volumes = []
     volume_mounts = []
     mount_paths = []
+    volume_names = set()
 
     for channel in [*task_instance.inputs, *task_instance.outputs]:
         if channel.mounted_path in mount_paths:
             continue
         mount_paths.append(channel.mounted_path)
-        name = f"vol-{channel.name}"
-        volumes.append(
-            client.V1Volume(
-                name=name,
-                host_path=client.V1HostPathVolumeSource(
-                    path=channel.volume_source.host_path
-                ),
+
+        if isinstance(channel.volume_source, task_models.HostPathVolume):
+            name = f"vol-{channel.name}"
+            if name not in volume_names:
+                volumes.append(
+                    client.V1Volume(
+                        name=name,
+                        host_path=client.V1HostPathVolumeSource(
+                            path=channel.volume_source.host_path
+                        ),
+                    )
+                )
+                volume_names.add(name)
+            volume_mounts.append(
+                client.V1VolumeMount(name=name, mount_path=channel.mounted_path)
             )
-        )
-        volume_mounts.append(
-            client.V1VolumeMount(name=name, mount_path=channel.mounted_path)
-        )
+            continue
+
+        if isinstance(channel.volume_source, task_models.PersistentVolumeClaimVolume):
+            name = channel.volume_source.claim_name.replace("-pv-claim", "")
+            if name not in volume_names:
+                volumes.append(
+                    client.V1Volume(
+                        name=name,
+                        persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                            claim_name=channel.volume_source.claim_name,
+                            read_only=False,
+                        ),
+                    )
+                )
+                volume_names.add(name)
+            volume_mounts.append(
+                client.V1VolumeMount(
+                    name=name,
+                    mount_path=channel.mounted_path,
+                    sub_path=channel.volume_source.sub_path,
+                    read_only=False,
+                )
+            )
+            continue
+
+        if isinstance(channel.volume_source, client.V1Volume):
+            name = channel.volume_source.name
+            if name not in volume_names:
+                volumes.append(channel.volume_source)
+                volume_names.add(name)
+            volume_mounts.append(
+                client.V1VolumeMount(name=name, mount_path=channel.mounted_path)
+            )
+            continue
+
+        raise TypeError(f"Unsupported volume source: {type(channel.volume_source)}")
     return volumes, volume_mounts
 
 
@@ -152,7 +193,12 @@ class KubernetesRunner(BaseRunner):
         task_instance = create_task_instance(task_template=task_template, task=task)
         pod_name = generate_pod_name(task_instance.name)
         volumes, volume_mounts = get_volume_and_mounts(task_instance)
-        volumes.extend(task_instance.config.volumes)
+        volume_names = {volume.name for volume in volumes}
+        for volume in task_instance.config.volumes:
+            if volume.name in volume_names:
+                continue
+            volumes.append(volume)
+            volume_names.add(volume.name)
         volume_mounts.extend(task_instance.config.volume_mounts)
         task_instance.resources = compute_memory_resources(task_instance)
         task_container = get_container(

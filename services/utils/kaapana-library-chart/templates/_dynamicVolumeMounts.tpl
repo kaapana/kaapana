@@ -7,6 +7,9 @@
 {{- range $volumeMount := $Volumes }}
 - name: {{ $volumeMount.name }}
   mountPath: "{{ $volumeMount.mount_path }}"
+{{- if $volumeMount.sub_path }}
+  subPath: "{{ $volumeMount.sub_path }}"
+{{- end }}
 {{- end }}
 {{- if and .Values.global.workflow_config_mount_path (ne .Values.global.workflow_config_mount_path "") }}
 - name: workflowconf

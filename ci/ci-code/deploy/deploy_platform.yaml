@@ -62,7 +62,6 @@
       ansible.builtin.command:
         cmd: >
           {{ ansible_facts['env']['HOME'] }}/kaapanactl.sh deploy
-          --quiet
           --chart {{ registry_url }}/kaapana-admin-chart:{{ version_tag }}
           --username {{ registry_user }}
           --password {{ registry_token }}
@@ -96,7 +95,7 @@
       ansible.builtin.command:
         cmd: "{{ ansible_facts['env']['HOME'] }}/kaapanactl.sh deploy --check-system"
       register: system_check
-      retries: 60
+      retries: 90
       delay: 10
       until: system_check.rc == 0
 

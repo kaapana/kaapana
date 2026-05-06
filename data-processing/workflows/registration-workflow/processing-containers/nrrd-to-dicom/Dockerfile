@@ -5,7 +5,7 @@ LABEL BUILD_IGNORE="False"
 
 COPY processing-container.json /
 
-WORKDIR /home/kaapana
+WORKDIR /kaapana/app
 
-COPY files/convert-nrrd-to-dicom.sh /home/kaapana/
-COPY files/nrrd_to_dicom.py /home/kaapana/
+COPY files/convert-nrrd-to-dicom.sh /kaapana/app/
+COPY files/nrrd_to_dicom.py /kaapana/app/

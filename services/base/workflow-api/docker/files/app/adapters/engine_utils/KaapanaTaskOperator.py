@@ -2,27 +2,39 @@ import os
 import pickle
 import shutil
 import signal
+import time
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import requests
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import BaseOperator
 from airflow.operators.python import get_current_context
 from airflow.utils.context import Context
+from kaapana.blueprints.kaapana_utils import get_release_name
 from kubernetes import client
 from kubernetes.client.exceptions import ApiException
 from pydantic import BaseModel, ConfigDict
 from task_api.processing_container import pc_models, task_models
-from task_api.processing_container.common import get_task_template, merge_env
+from task_api.processing_container.common import (
+    create_task_instance,
+    get_task_template,
+    merge_env,
+)
 from task_api.runners.KubernetesRunner import KubernetesRunner, PodPhase
 
-HOST_WORKFLOW_DIR = Path(os.getenv("DATADIR", "/home/kaapana/workflows/data"))
 AIRFLOW_HOME = Path(os.getenv("AIRFLOW_HOME"), "/kaapana/mounted/workflows")
 AIRFLOW_WORKFLOW_DIR = Path(AIRFLOW_HOME, "data")
+PROCESSING_WORKFLOW_DIR = Path("/kaapana/mounted/data")
 DEFAULT_NAMESPACE = "project-admin"
+ADMIN_NAMESPACE = os.getenv("ADMIN_NAMESPACE", "admin")
+SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", "services")
+KAAPANA_BUILD_VERSION = os.getenv("KAAPANA_BUILD_VERSION")
+HELM_API = f"http://kube-helm-service.{ADMIN_NAMESPACE}.svc:5000"
 USER_INPUT_KEY = "task_form"
 KAAPANA_SKIP_TASK_RUN_RETURN_CODE = 126
+DEV_SERVER_TIMEOUT = 60 * 60 * 12
 
 
 class IOMapping(BaseModel):
@@ -134,6 +146,8 @@ class KaapanaTaskOperator(BaseOperator):
         execution_timeout: timedelta = timedelta(minutes=90),
         labels: Dict = {},
         annotations: Optional[Dict[str, str]] = None,
+        dev_server: bool = False,
+        display_name: str = "-",
         *args,
         **kwargs,
     ):
@@ -169,6 +183,11 @@ class KaapanaTaskOperator(BaseOperator):
                 A list of I/O mappings defining data flow between this task and others.
             annotations (Dict[str, str], optional):
                 A dictionary of annotations to add to the Kubernetes pod.
+            dev_server (bool, optional):
+                Deploy the task image through dev-server-chart instead of running
+                the processing pod.
+            display_name (str, optional):
+                Display name used for the pending dev-server application.
         """
         super().__init__(
             retry_delay=timedelta(seconds=10),
@@ -190,10 +209,11 @@ class KaapanaTaskOperator(BaseOperator):
         self.execution_timeout = execution_timeout
         self.labels = labels
         self.annotations = annotations or {}
+        self.dev_server = dev_server
+        self.display_name = display_name
 
     def execute(self, context: Context) -> Any:
         dag_run_id = context["dag_run"].run_id
-        self.host_workflow_dir = HOST_WORKFLOW_DIR / dag_run_id
         self.airflow_workflow_dir = AIRFLOW_WORKFLOW_DIR / dag_run_id
         self.task_run_file = KaapanaTaskOperator.task_run_file_path(context)
         self.set_namespace(context)
@@ -201,6 +221,9 @@ class KaapanaTaskOperator(BaseOperator):
 
         # Step 3: Create task.pkl
         task = self._create_task(context)
+
+        if self.dev_server:
+            return self._launch_dev_server(context, task)
 
         # Step 4: Trigger task
         self.task_run = self._submit_task(task)
@@ -238,14 +261,15 @@ class KaapanaTaskOperator(BaseOperator):
             )
             if scheduler_path.exists() and scheduler_path.is_dir():
                 shutil.rmtree(scheduler_path)
+            scheduler_path.mkdir(parents=True, exist_ok=True)
 
             outputs.append(
                 task_models.IOVolume(
                     name=channel.name,
-                    volume_source=task_models.HostPathVolume(
-                        host_path=str(
-                            Path(self.host_workflow_dir / self.task_id / channel.name)
-                        ),
+                    volume_source=self._workflow_data_volume_source(
+                        context=context,
+                        task_id=self.task_id,
+                        channel_name=channel.name,
                     ),
                 )
             )
@@ -263,9 +287,7 @@ class KaapanaTaskOperator(BaseOperator):
                 inputs.append(
                     task_models.IOVolume(
                         name=io_map.input_channel,
-                        volume_source=task_models.HostPathVolume(
-                            host_path=channel.volume_source.host_path
-                        ),
+                        volume_source=channel.volume_source,
                     )
                 )
 
@@ -290,10 +312,82 @@ class KaapanaTaskOperator(BaseOperator):
                     **self.labels,
                 },
                 annotations=self.annotations,
+                volumes=self._pvc_volumes(),
+                volume_mounts=self._pvc_volume_mounts(),
             ),
         )
 
         return self._merge_user_input(context, task)
+
+    def _workflow_data_volume_source(
+        self, context: Context, task_id: str, channel_name: str
+    ) -> task_models.PersistentVolumeClaimVolume:
+        channel_path = Path(context["dag_run"].run_id, task_id, channel_name)
+        return task_models.PersistentVolumeClaimVolume(
+            claim_name="workflow-data-pv-claim",
+            sub_path=str(channel_path),
+        )
+
+    def _pvc_volumes(self) -> List[client.V1Volume]:
+        volumes = [
+            client.V1Volume(
+                name="workflow-data",
+                persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                    claim_name="workflow-data-pv-claim",
+                    read_only=False,
+                ),
+            ),
+            client.V1Volume(
+                name="models",
+                persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                    claim_name="models-pv-claim",
+                    read_only=False,
+                ),
+            ),
+            client.V1Volume(
+                name="dshm",
+                empty_dir=client.V1EmptyDirVolumeSource(medium="Memory"),
+            ),
+        ]
+        if self.namespace != SERVICES_NAMESPACE:
+            volumes.append(
+                client.V1Volume(
+                    name="tensorboard",
+                    persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                        claim_name="tensorboard-pv-claim",
+                        read_only=False,
+                    ),
+                )
+            )
+        return volumes
+
+    def _pvc_volume_mounts(self) -> List[client.V1VolumeMount]:
+        volume_mounts = [
+            client.V1VolumeMount(
+                name="workflow-data",
+                mount_path=str(PROCESSING_WORKFLOW_DIR),
+                read_only=False,
+            ),
+            client.V1VolumeMount(
+                name="models",
+                mount_path="/models",
+                read_only=False,
+            ),
+            client.V1VolumeMount(
+                name="dshm",
+                mount_path="/dev/shm",
+                read_only=False,
+            ),
+        ]
+        if self.namespace != SERVICES_NAMESPACE:
+            volume_mounts.append(
+                client.V1VolumeMount(
+                    name="tensorboard",
+                    mount_path="/tensorboard",
+                    read_only=False,
+                )
+            )
+        return volume_mounts
 
     def _merge_user_input(
         self, context: Context, task: task_models.Task
@@ -323,6 +417,165 @@ class KaapanaTaskOperator(BaseOperator):
                 f"Submitting task to k8s API is still failing: {e.reason}."
             )
             raise e
+
+    def _launch_dev_server(self, context: Context, task: task_models.Task):
+        task_template = get_task_template(
+            image=task.image,
+            task_identifier=task.taskTemplate,
+            mode="k8s",
+            namespace=task.config.namespace,
+            registry_secret="registry-secret",
+        )
+        task_instance = create_task_instance(task_template=task_template, task=task)
+        release_name = get_release_name(context)
+        payload = {
+            "name": "dev-server-chart",
+            "version": KAAPANA_BUILD_VERSION,
+            "release_name": release_name,
+            "sets": self._dev_server_helm_sets(context, task_instance),
+        }
+
+        self.log.info("Deploying dev-server-chart for task %s", self.task_id)
+        r = requests.post(f"{HELM_API}/helm-install-chart", json=payload)
+        self.log.info(r.text)
+        r.raise_for_status()
+
+        t_end = time.time() + DEV_SERVER_TIMEOUT
+        while time.time() < t_end:
+            time.sleep(15)
+            r = requests.get(
+                f"{HELM_API}/view-chart-status",
+                params={"release_name": release_name},
+            )
+            if r.status_code in [500, 404]:
+                self.log.info(
+                    "Release %s was uninstalled. Dev-server task is done.",
+                    release_name,
+                )
+                return
+            r.raise_for_status()
+
+        raise AirflowException(
+            f"Dev-server release {release_name} exceeded timeout."
+        )
+
+    def _dev_server_helm_sets(
+        self, context: Context, task_instance: task_models.TaskInstance
+    ) -> Dict[str, Any]:
+        env_sets = self._dev_server_env_sets(task_instance)
+        secret_env_sets = self._dev_server_secret_env_sets(task_instance)
+        label_sets = self._dev_server_label_sets(task_instance)
+        volume_sets = self._dev_server_volume_sets(task_instance)
+        project_id = self._project_id(context)
+        ingress_path = (
+            f"applications/project/{project_id}/release/" + "{{ .Release.Name }}"
+        )
+
+        return {
+            "global.complete_image": task_instance.image,
+            "global.namespace": task_instance.config.namespace,
+            "global.ingress_path": ingress_path,
+            "global.display_name": self.display_name,
+            **env_sets,
+            **secret_env_sets,
+            **label_sets,
+            **volume_sets,
+        }
+
+    def _dev_server_env_sets(
+        self, task_instance: task_models.TaskInstance
+    ) -> Dict[str, Any]:
+        env_sets = {}
+        env_vars = {"WORKSPACE": "/kaapana"}
+        for env in [*task_instance.env, *task_instance.config.env_vars]:
+            if env.value is not None:
+                env_vars[env.name] = env.value
+
+        for idx, (name, value) in enumerate(env_vars.items()):
+            env_sets[f"global.envVars[{idx}].name"] = name
+            env_sets[f"global.envVars[{idx}].value"] = value
+        return env_sets
+
+    def _dev_server_secret_env_sets(
+        self, task_instance: task_models.TaskInstance
+    ) -> Dict[str, str]:
+        secret_sets = {}
+        secret_envs = [
+            env
+            for env in task_instance.config.env_vars
+            if env.value_from and env.value_from.secret_key_ref
+        ]
+        for idx, env in enumerate(secret_envs):
+            secret_ref = env.value_from.secret_key_ref
+            secret_sets[f"global.envVarsFromSecretRef[{idx}].name"] = env.name
+            secret_sets[
+                f"global.envVarsFromSecretRef[{idx}].secretName"
+            ] = secret_ref.name
+            secret_sets[
+                f"global.envVarsFromSecretRef[{idx}].secretKey"
+            ] = secret_ref.key
+        return secret_sets
+
+    def _dev_server_label_sets(
+        self, task_instance: task_models.TaskInstance
+    ) -> Dict[str, str]:
+        label_sets = {}
+        for idx, (name, value) in enumerate(task_instance.config.labels.items()):
+            label_sets[f"global.labels[{idx}].name"] = str(name)
+            label_sets[f"global.labels[{idx}].value"] = str(value)
+        return label_sets
+
+    def _dev_server_volume_sets(
+        self, task_instance: task_models.TaskInstance
+    ) -> Dict[str, str]:
+        volumes = []
+        for mount in task_instance.config.volume_mounts:
+            if mount.name == "dshm":
+                continue
+            volumes.append(
+                {
+                    "name": mount.name,
+                    "mount_path": mount.mount_path,
+                    "sub_path": mount.sub_path,
+                }
+            )
+
+        for channel in [*task_instance.inputs, *task_instance.outputs]:
+            if not isinstance(
+                channel.volume_source, task_models.PersistentVolumeClaimVolume
+            ):
+                continue
+            volumes.append(
+                {
+                    "name": channel.volume_source.claim_name.replace(
+                        "-pv-claim", ""
+                    ),
+                    "mount_path": channel.mounted_path,
+                    "sub_path": channel.volume_source.sub_path,
+                }
+            )
+
+        volume_sets = {}
+        for idx, volume in enumerate(volumes):
+            volume_sets[f"global.dynamicVolumes[{idx}].name"] = volume["name"]
+            volume_sets[f"global.dynamicVolumes[{idx}].mount_path"] = volume[
+                "mount_path"
+            ]
+            if volume["sub_path"]:
+                volume_sets[f"global.dynamicVolumes[{idx}].sub_path"] = volume[
+                    "sub_path"
+                ]
+        return volume_sets
+
+    def _project_id(self, context: Context) -> str:
+        conf = context["dag_run"].conf or {}
+        project_form = conf.get("project_form", {})
+        if project_form.get("id"):
+            return project_form["id"]
+
+        response = requests.get("http://aii-service.services.svc:8080/projects/admin")
+        response.raise_for_status()
+        return response.json().get("id")
 
     def _monitor_task_run(self):
         try:
@@ -402,6 +655,9 @@ class KaapanaTaskOperator(BaseOperator):
         """
         Make sure that the corresponding pod is removed.
         """
+        if not hasattr(self, "task_run"):
+            self.log.info("No processing pod to delete.")
+            return
         KubernetesRunner.stop(self.task_run)
         self.log.info("Pod deleted successfully!")
 
@@ -429,11 +685,39 @@ class KaapanaTaskOperator(BaseOperator):
 
     @staticmethod
     def on_failure(context: Context):
-        KaapanaTaskOperator.stop_task_pod(context)
+        if getattr(context["task"], "dev_server", False):
+            KaapanaTaskOperator.uninstall_dev_server(context)
+        else:
+            KaapanaTaskOperator.stop_task_pod(context)
 
     @staticmethod
     def on_retry(context: Context):
-        KaapanaTaskOperator.stop_task_pod(context)
+        if getattr(context["task"], "dev_server", False):
+            KaapanaTaskOperator.uninstall_dev_server(context)
+        else:
+            KaapanaTaskOperator.stop_task_pod(context)
+
+    @staticmethod
+    def uninstall_dev_server(context: Context):
+        release_name = get_release_name(context)
+        r = requests.get(
+            f"{HELM_API}/view-chart-status",
+            params={"release_name": release_name},
+        )
+        if r.status_code in [500, 404]:
+            KubernetesRunner._logger.info(
+                f"Release {release_name} was uninstalled or never installed."
+            )
+            return None
+
+        r.raise_for_status()
+        r = requests.post(
+            f"{HELM_API}/helm-delete-chart",
+            params={"release_name": release_name},
+        )
+        r.raise_for_status()
+        KubernetesRunner._logger.info(f"Deleted dev-server release: {release_name}")
+        return None
 
     @staticmethod
     def task_run_file_path(context: Context):

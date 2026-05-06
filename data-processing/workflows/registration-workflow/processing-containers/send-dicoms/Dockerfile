@@ -5,6 +5,6 @@ LABEL BUILD_IGNORE="False"
 
 COPY processing-container.json /
 
-WORKDIR /home/kaapana
+WORKDIR /kaapana/app
 
-COPY files/send-dicoms.sh /home/kaapana/
+COPY files/send-dicoms.sh /kaapana/app/

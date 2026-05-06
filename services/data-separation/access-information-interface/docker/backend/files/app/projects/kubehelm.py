@@ -34,7 +34,7 @@ def install_project_helm_chart(project: Project):
 
 
 def update_project_namespace_label(project: Project):
-    # TODO
+    # TODO: to be implemented when kube-helm API supports updating labels of namespaces
     """
     Update the human-readable `kaapana.ai/project-name` label on the
     project's Kubernetes namespace after a rename.

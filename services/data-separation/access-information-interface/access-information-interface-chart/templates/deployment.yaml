@@ -66,7 +66,7 @@ spec:
         - name: KAAPANA_BUILD_VERSION
           value: "{{ .Values.global.kaapana_build_version  }}"
         - name: PLATFORM_PREFIX
-          value: "{{ .Values.global.platform_prefix | default `kaapana` }}"
+          value: "{{ required `global.platform_prefix is required` .Values.global.platform_prefix }}"
         - name: KEYCLOAK_USER
           value: "{{ .Values.global.credentials_keycloak_admin_username }}"
         - name: KEYCLOAK_PASSWORD

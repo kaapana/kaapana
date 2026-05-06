@@ -31,7 +31,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="item in projects" :key="item.name" :class="{ 'archived-row': item.is_archived }">
+        <tr v-for="item in projects" :key="item.id" :class="{ 'archived-row': item.is_archived }">
           <td><v-icon>mdi-card</v-icon></td>
           <td>{{ item.id }}</td>
           <td>{{ item.short_id }}</td>

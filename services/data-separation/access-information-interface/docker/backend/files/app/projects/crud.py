@@ -1,4 +1,3 @@
-import os
 from typing import Optional
 from uuid import UUID
 
@@ -15,19 +14,6 @@ from app.projects import schemas
 from sqlalchemy import delete, select, update, func, cast
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import TEXT
-
-
-def build_kubernetes_namespace(short_id: str) -> str:
-    prefix = os.getenv("PLATFORM_PREFIX", "kaapana")
-    return f"{prefix}-project-{short_id}"
-
-
-def build_s3_bucket(short_id: str) -> str:
-    return f"project-{short_id}"
-
-
-def build_opensearch_index(short_id: str) -> str:
-    return f"project_{short_id}"
 
 
 async def create_project(

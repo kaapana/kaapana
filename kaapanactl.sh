@@ -159,6 +159,17 @@ function validate_platform_prefix() {
         exit 1
     fi
     echo -e "${GREEN}Using PLATFORM_PREFIX: $PLATFORM_PREFIX${NC}"
+
+    # Raise a warning if there is a namespace on the cluster with the name `{prefix}-project-...`
+    if command -v kubectl >/dev/null 2>&1; then
+        local exists
+        exists=$(kubectl get ns -o name 2>/dev/null | grep -E "^namespace/${PLATFORM_PREFIX}-project-" || true)
+        if [[ -n "$exists" ]]; then
+            echo -e "${YELLOW}Warning: namespaces matching '${PLATFORM_PREFIX}-project-*' already exist on this cluster:${NC}"
+            echo "$exists" | sed 's/^/  /'
+            echo -e "${YELLOW}If this is a redeploy of this Kaapana instance, you can ignore this. Otherwise another instance may be using the same PLATFORM_PREFIX and resources will collide.${NC}"
+        fi
+    fi
 }
 
 function deploy() {

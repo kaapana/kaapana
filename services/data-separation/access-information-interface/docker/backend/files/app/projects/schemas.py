@@ -1,13 +1,9 @@
-import os
 import re
 from typing import Optional
 from uuid import UUID
 
+from app.config import PLATFORM_PREFIX
 from pydantic import BaseModel, ConfigDict, computed_field, field_validator
-
-
-def _platform_prefix() -> str:
-    return os.getenv("PLATFORM_PREFIX", "kaapana")
 
 
 class OrmBaseModel(BaseModel):
@@ -90,7 +86,7 @@ class Project(OrmBaseModel):
     @computed_field  # type: ignore[misc]
     @property
     def kubernetes_namespace(self) -> str:
-        return f"{_platform_prefix()}-project-{self.short_id}"
+        return f"{PLATFORM_PREFIX}-project-{self.short_id}"
 
     @computed_field  # type: ignore[misc]
     @property

@@ -15,7 +15,7 @@ class Projects(Base):
     int_id = Column(Integer, nullable=True)
     name = Column(String, unique=True)
     description = Column(String)
-    is_archived = Column(Boolean, nullable=False, default=False, server_default="false")
+    is_archived = Column(Boolean, nullable=False, default=False)
 
 
 class AdminProject(Base):

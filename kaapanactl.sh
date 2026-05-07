@@ -393,6 +393,11 @@ function deploy() {
         esac
     done
 
+    # NO_HOOKS and AUTO_NO_HOOKS should be distinct, NO_HOOKS always takes precedence over AUTO_NO_HOOKS
+    if [ "${NO_HOOKS:-}" = "true" ]; then
+        AUTO_NO_HOOKS=false
+    fi
+
     if [ "$DO_UNDEPLOY" = "true" ]; then
         delete_deployment
         exit 0

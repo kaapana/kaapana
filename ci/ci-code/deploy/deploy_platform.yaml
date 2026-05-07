@@ -69,6 +69,16 @@
           --domain {{ vm_fqdn }}
       register: deploy_result
       ignore_errors: yes
+      environment:
+        TERM: xterm
+
+    - name: Display STDOUT
+      ansible.builtin.debug:
+        var: deploy_result.stdout_lines
+
+    - name: Display STDERR
+      ansible.builtin.debug:
+        var: deploy_result.stderr_lines
 
     - name: Save deployment output
       ansible.builtin.copy:
@@ -96,9 +106,13 @@
       ansible.builtin.command:
         cmd: "{{ ansible_facts['env']['HOME'] }}/kaapanactl.sh deploy --check-system"
       register: system_check
-      retries: 90
+      retries: 60
       delay: 10
       until: system_check.rc == 0
+
+    - name: Display system check output
+      ansible.builtin.debug:
+        msg: "System Check Output:\n{{ system_check.stdout }}"
 
     - name: Save system check output
       ansible.builtin.copy:

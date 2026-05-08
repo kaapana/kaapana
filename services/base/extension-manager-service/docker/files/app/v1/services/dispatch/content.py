@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 from dataclasses import dataclass
+from pydantic import BaseModel
 
 
 @dataclass
@@ -9,37 +10,21 @@ class InstallationResult:
     message: str | None = None
 
 
+class Content(BaseModel):
+    name: str
+    content_type: str
+    path: Path
+
+
 class ContentInstaller(ABC):
     @abstractmethod
-    def can_install(self, content) -> bool:
+    def can_install(self, content: Content) -> bool:
         pass
 
     @abstractmethod
-    async def install(self, repository_id: str, tag: str) -> InstallationResult:
+    async def install(self, content: Content) -> InstallationResult:
         pass
 
     @abstractmethod
-    async def uninstall(self, extension_id: str) -> None:
-        pass
-
-
-class Content(ABC):
-    def __init__(self, path: Path, name: str):
-        self.path = path
-        self.name = name
-
-    @property
-    @abstractmethod
-    def content_type(self) -> str:
-        pass
-
-
-class ContentDiscovery(ABC):
-
-    @abstractmethod
-    def matches(self, path: Path) -> bool:
-        pass
-
-    @abstractmethod
-    def create(self, path: Path) -> Content:
+    async def uninstall(self, content: Content) -> None:
         pass

@@ -2,7 +2,6 @@ from ..content import (
     Content,
     ContentInstaller,
     InstallationResult,
-    ContentDiscovery,
 )
 
 import json
@@ -11,25 +10,9 @@ import httpx
 from pathlib import Path
 
 
-class WorkflowContent(Content):
-    @property
-    def content_type(self) -> str:
-        return "workflow"
-
-
-class WorkflowDiscovery(ContentDiscovery):
-    def matches(self, path: Path) -> bool:
-        return (path / "workflow.json").exists() and (
-            path / "workflow_definition.py"
-        ).exists()
-
-    def create(self, path: Path) -> Content:
-        return WorkflowContent(path=path)
-
-
 class WorkflowInstaller(ContentInstaller):
     def can_install(self, content: Content) -> bool:
-        return content.content_type == "workflow"
+        return content.content_type == "workflow-v1"
 
     async def install(self, content: Content) -> InstallationResult:
 

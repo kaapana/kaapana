@@ -48,9 +48,9 @@ async def install_extension(
             name=content.name,
         )
 
-    """    background_tasks.add_task(
+    background_tasks.add_task(
         install_extension_background_task, db_extension.id, db, oci
-    )"""
+    )
 
     response.headers["Location"] = f"/extensions/{db_extension.id}"
     response.status_code = status.HTTP_201_CREATED

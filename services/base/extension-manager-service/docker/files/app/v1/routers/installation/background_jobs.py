@@ -1,51 +1,81 @@
-from fastapi import Depends
-from v1.services.database.database import get_async_db, AsyncSession
-from v1.services.database import crud
+from v1.services.database.database import AsyncSession
+from v1.services.database import crud, models
 
 from v1.services.oci.service import ociService
-from v1.services.dispatch import Extension, Installer, Discovery
-
-from v1.routers.dependencies import get_oci_service_for_repository
+from v1.services import dispatch
+import json
 
 
 async def install_extension_background_task(
     extension_id: str,
-    db: AsyncSession = Depends(get_async_db),
-    oci: ociService = Depends(get_oci_service_for_repository),
+    db: AsyncSession,
+    oci: ociService,
 ):
     print(f"Installing extension with id {extension_id} in background task")
 
     #### PULLING EXTENSION ####
     db_extension = await crud.update_extension(
-        db, extension_id=extension_id, status="pulling"
+        db, extension_id=extension_id, status=models.ExtensionStatus.PULLING
     )
     try:
         extension_path = await oci.pull_extension(tag=db_extension.tag)
     except Exception as e:
         await crud.update_extension(
-            db, extension_id=extension_id, status="pulling_failed"
+            db, extension_id=extension_id, status=models.ExtensionStatus.PULLING_FAILED
         )
         raise e
 
     #### INSTALLING EXTENSION ####
-    await crud.update_extension(db, extension_id=extension_id, status="installing")
+
+    db_extension = await crud.update_extension(
+        db, extension_id=extension_id, status=models.ExtensionStatus.INSTALLING
+    )
     try:
-        extension = Discovery.discover(extension_path=extension_path)
+        with open(extension_path / "manifest.json") as f:
+            extension_manifest = json.load(f)
+            assert extension_manifest == json.loads(db_extension.manifest)
 
-        for content in extension.contents:
-            db_content = await crud.create_content(
-                db,
-                extension_id=extension_id,
-                content_type=content.content_type,
-                name=content.name,
-            )
+        for content in db_extension.contents:
+            #### INSTALLING CONTENT ####
+            try:
+                result = await dispatch.Installer.install_content(
+                    dispatch.Content(
+                        name=content.name,
+                        content_type=content.content_type,
+                        path=extension_path / content.name,
+                    )
+                )
 
-        await Installer.install(extension)
+                await crud.update_content(
+                    db,
+                    content_id=content.id,
+                    status=models.ContentStatus.INSTALLED,
+                    location=result.message,
+                )
+            except Exception as e:
+                await crud.update_content(
+                    db,
+                    content_id=content.id,
+                    status=models.ContentStatus.INSTALLATION_FAILED,
+                )
+                raise e
 
-    except Exception as e:
+    except AssertionError as e:
         await crud.update_extension(
-            db, extension_id=extension_id, status="installing_failed"
+            db,
+            extension_id=extension_id,
+            status=models.ExtensionStatus.INSTALLATION_FAILED,
         )
         raise e
 
-    await crud.update_extension(db, extension_id=extension_id, status="installed")
+    except Exception as e:
+        await crud.update_extension(
+            db,
+            extension_id=extension_id,
+            status=models.ExtensionStatus.INSTALLATION_FAILED,
+        )
+        raise e
+
+    await crud.update_extension(
+        db, extension_id=extension_id, status=models.ExtensionStatus.INSTALLED
+    )

@@ -4,15 +4,7 @@
   "contents": [
     {
       "name": "dummy-workflow",
-      "contentType": "workflow",
-      "files": [
-        {"path": "workflow_definition.py"},
-        {"path": "workflow.json"}
-      ]
-    },
-    {
-      "name": "dummy-workflow-extra",
-      "contentType": "workflow",
+      "contentType": "workflow-v1",
       "files": [
         {"path": "workflow_definition.py"},
         {"path": "workflow.json"}

@@ -215,7 +215,7 @@ async def update_content(
     if location:
         values["location"] = location
     if status:
-        values["stauts"] = status
+        values["status"] = status
     stmt = (
         update(Content)
         .where(Content.id == content_id)

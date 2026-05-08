@@ -1,5 +1,5 @@
-from .consumers.workflows import WorkflowContent, WorkflowInstaller, WorkflowDiscovery
-from .extension import Extension, ExtensionInstaller, ExtensionDiscovery
+from .consumers.workflows import WorkflowInstaller
+from .extension import Extension, ExtensionInstaller
+from .content import Content
 
 Installer = ExtensionInstaller(installers=[WorkflowInstaller()])
-Discovery = ExtensionDiscovery(content_discoveries=[WorkflowDiscovery()])

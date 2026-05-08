@@ -24,7 +24,7 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         env:
           - name: APPLICATION_ROOT
-            value: /
+            value: /extensions-api
           - name: PORT
             value: "8080"
           - name: WORKERS

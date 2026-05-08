@@ -33,7 +33,6 @@
       <v-card-title class="d-flex align-center justify-space-between">
         <div>
           <span class="text-h6">Logs: {{ workflowTitle }} v{{ workflowVersion }}</span>
-          <!-- Status chip next to the title; color resolved by statusColor() -->
           <v-chip v-if="runStatus" size="small" class="ml-2" :color="statusColor(runStatus)" variant="outlined">
             {{ runStatus }}
           </v-chip>
@@ -43,105 +42,196 @@
         </v-btn>
       </v-card-title>
 
+      <!-- ===== TABS (only when Loki is available) ===== -->
+      <div v-if="namespace">
+        <v-tabs v-model="activeLogTab" color="primary" density="compact" class="px-4">
+          <v-tab value="api" prepend-icon="mdi-api">API Logs</v-tab>
+          <v-tab value="loki" prepend-icon="mdi-text-search">Loki Logs</v-tab>
+        </v-tabs>
+        <v-divider />
+      </div>
+
       <v-card-text class="pa-0">
 
-        <!--
-          Task run selector.
-          Only rendered when the workflow run has more than one task run.
-          Selecting a different task run triggers selectTaskAndLoad().
-        -->
-        <div v-if="props.taskRuns && props.taskRuns.length > 1" class="task-selector px-4 pt-3">
-          <v-select
-            v-model="selectedTaskRunId"
-            :items="taskRunOptions"
-            label="Select Task Run"
-            variant="outlined"
-            density="compact"
-            hide-details
-            @update:model-value="selectTaskAndLoad"
-          />
-        </div>
+        <!-- ===== API TAB CONTENT ===== -->
+        <div v-show="!namespace || activeLogTab === 'api'">
 
-        <div class="log-content-container">
+          <!-- Task search + scrollable list -->
+          <div v-if="props.taskRuns && props.taskRuns.length > 0" class="task-list-section">
+            <div class="px-4 pt-3 pb-2">
+              <v-text-field
+                v-model="taskSearch"
+                density="compact"
+                variant="outlined"
+                placeholder="Search tasks…"
+                prepend-inner-icon="mdi-magnify"
+                clearable
+                hide-details
+              />
+            </div>
+            <v-list density="compact" class="task-list py-0">
+              <v-list-item
+                v-for="task in filteredTaskRuns"
+                :key="task.id"
+                :active="selectedTaskRunId === task.id"
+                active-color="primary"
+                rounded="sm"
+                @click="selectTaskAndLoad(task.id)"
+                style="cursor: pointer"
+              >
+                <template #prepend>
+                  <v-chip :color="statusColor(task.lifecycle_status)" size="x-small" variant="outlined" class="mr-3">
+                    {{ task.lifecycle_status }}
+                  </v-chip>
+                </template>
+                <v-list-item-title class="text-body-2">{{ task.task_title }}</v-list-item-title>
+                <template #append>
+                  <v-progress-circular
+                    v-if="loading && selectedTaskRunId === task.id"
+                    size="16" width="2" indeterminate color="primary"
+                  />
+                </template>
+              </v-list-item>
+              <v-list-item v-if="filteredTaskRuns.length === 0" class="text-medium-emphasis">
+                <v-list-item-title class="text-caption">No tasks match your search.</v-list-item-title>
+              </v-list-item>
+            </v-list>
+          </div>
 
-          <!-- No logs available yet (initial state or empty response) -->
-          <v-alert v-if="!logs && !loading && !error" type="info" variant="tonal" class="mx-4 mt-4">
-            No logs available for this task run yet.
-          </v-alert>
+          <v-divider v-if="props.taskRuns && props.taskRuns.length > 0" />
 
-          <!-- API error state -->
-          <v-alert v-else-if="error" type="error" variant="tonal" class="mx-4 mt-4">
-            Failed to load logs: {{ error }}
-          </v-alert>
-
-          <!--
-            Log output.
-            Raw log text is rendered inside a <pre> block.
-            decodeNewlines() converts literal "\n" strings to real line breaks.
-          -->
-          <div v-else class="log-content-wrapper">
-            <pre class="log-content" v-html="decodeNewlines(logs)"></pre>
+          <div class="log-content-container">
+            <v-alert v-if="!logs && !loading && !error" type="info" variant="tonal" class="mx-4 mt-4">
+              No logs available for this task run yet.
+            </v-alert>
+            <v-alert v-else-if="error" type="error" variant="tonal" class="mx-4 mt-4">
+              Failed to load logs: {{ error }}
+            </v-alert>
+            <div v-else class="log-content-wrapper">
+              <pre class="log-content" v-html="decodeNewlines(logs)"></pre>
+            </div>
           </div>
 
         </div>
+
+        <!-- ===== LOKI TAB CONTENT ===== -->
+        <!-- wrapper div needed: v-show on a multi-root component is a no-op in Vue 3 -->
+        <div v-if="namespace && workflowRun" v-show="activeLogTab === 'loki'">
+          <TaskLokiLogTab
+            ref="lokiTabRef"
+            :workflow-run="workflowRun"
+            :namespace="namespace"
+          />
+        </div>
+
       </v-card-text>
 
       <v-card-actions class="pa-4">
+
+        <!-- API tab buttons -->
+        <template v-if="!namespace || activeLogTab === 'api'">
+          <v-btn
+            v-if="logs"
+            color="primary"
+            size="small"
+            variant="outlined"
+            @click="refreshLogs"
+            :loading="loading"
+          >
+            <v-icon size="18" class="mr-1">mdi-refresh</v-icon>
+            Reload
+          </v-btn>
+
+          <v-btn
+            v-if="logs"
+            color="primary"
+            size="small"
+            variant="outlined"
+            @click="copyToClipboard"
+          >
+            <v-icon size="18" class="mr-1">mdi-content-copy</v-icon>
+            Copy
+          </v-btn>
+
+          <v-btn
+            v-if="logs"
+            color="primary"
+            size="small"
+            variant="outlined"
+            @click="downloadLog"
+          >
+            <v-icon size="18" class="mr-1">mdi-download</v-icon>
+            Download
+          </v-btn>
+        </template>
+
+        <!-- Loki tab buttons (delegate to exposed component methods) -->
+        <template v-if="namespace && activeLogTab === 'loki'">
+          <v-btn
+            v-if="lokiTabRef?.hasTask"
+            color="primary"
+            size="small"
+            variant="outlined"
+            :loading="lokiTabRef?.logsLoading"
+            @click="lokiTabRef?.reload()"
+          >
+            <v-icon size="18" class="mr-1">mdi-refresh</v-icon>
+            Reload
+          </v-btn>
+
+          <v-btn
+            v-if="lokiTabRef?.hasLogs"
+            color="primary"
+            size="small"
+            variant="outlined"
+            @click="lokiTabRef?.copy()"
+          >
+            <v-icon size="18" class="mr-1">mdi-content-copy</v-icon>
+            Copy
+          </v-btn>
+
+          <v-btn
+            v-if="lokiTabRef?.hasLogs"
+            color="primary"
+            size="small"
+            variant="outlined"
+            @click="lokiTabRef?.download()"
+          >
+            <v-icon size="18" class="mr-1">mdi-download</v-icon>
+            Download
+          </v-btn>
+        </template>
+
         <v-spacer />
-
-        <!-- Refresh button: re-fetches logs for the currently selected task run -->
-        <v-btn
-          v-if="logs"
-          color="primary"
-          size="small"
-          variant="outlined"
-          @click="refreshLogs"
-          :loading="loading"
-        >
-          <v-icon left size="18">mdi-refresh</v-icon>
-          Refresh
-        </v-btn>
-
-        <!-- Copy button: writes raw log text to the clipboard -->
-        <v-btn
-          v-if="logs"
-          color="primary"
-          size="small"
-          variant="outlined"
-          @click="copyToClipboard"
-        >
-          <v-icon left size="18">mdi-content-copy</v-icon>
-          Copy to Clipboard
-        </v-btn>
-
-        <v-btn
-          v-if="logs"
-          color="primary"
-          size="small"
-          variant="outlined"
-          @click="downloadLog"
-        >
-          <v-icon left size="18">mdi-download</v-icon>
-          Download Log
-        </v-btn>
-
         <v-btn color="primary" @click="close">Close</v-btn>
       </v-card-actions>
 
-      <!-- Full-card loading overlay while logs are being fetched -->
-      <v-overlay v-model="loading" class="d-flex justify-center align-center" persistent>
+      <!-- Full-card loading overlay while API logs are being fetched -->
+      <v-overlay v-model="loading" v-if="!namespace || activeLogTab === 'api'" class="d-flex justify-center align-center" persistent>
         <v-progress-circular indeterminate size="64" color="primary" />
       </v-overlay>
 
     </v-card>
   </v-dialog>
+
+  <v-snackbar v-model="copySnackbar" color="success" :timeout="2500" location="top right">
+    Copied to clipboard
+  </v-snackbar>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { workflowRunsApi } from '@/api/workflowRuns'
-import type { TaskRun } from '@/types/schemas'
+import type { TaskRun, WorkflowRun } from '@/types/schemas'
 import { statusColor } from '@/utils/status'
+import TaskLokiLogTab from '@/components/logging/loki/TaskLokiLogTab.vue'
+
+const taskSearch = ref('')
+
+const filteredTaskRuns = computed(() => {
+  const q = taskSearch.value.trim().toLowerCase()
+  return q ? props.taskRuns.filter((t: TaskRun) => t.task_title.toLowerCase().includes(q)) : props.taskRuns
+})
 
 
 // ============================================================
@@ -155,6 +245,8 @@ const props = defineProps<{
   workflowVersion: number
   runStatus: string
   taskRuns: TaskRun[]
+  namespace?: string
+  workflowRun?: WorkflowRun
 }>()
 
 const emit = defineEmits<{
@@ -171,6 +263,15 @@ const model = computed({
 // ============================================================
 // STATE
 // ============================================================
+
+/** Active log source tab ('api' | 'loki'). Only visible when namespace prop is set. */
+const activeLogTab = ref('api')
+
+/** Template ref for the Loki tab component — provides reload/copy/download via defineExpose. */
+const lokiTabRef = ref<InstanceType<typeof TaskLokiLogTab> | null>(null)
+
+/** Controls the copy-success snackbar. */
+const copySnackbar = ref(false)
 
 /** Raw log text returned by the API; empty string when no logs have been loaded. */
 const logs = ref<string>('')
@@ -202,6 +303,7 @@ const close = () => {
   error.value = null
   selectedTaskRunId.value = null
   taskRunOptions.value = []
+  taskSearch.value = ''
 }
 
 
@@ -325,15 +427,9 @@ watch(
 // UTILITIES
 // ============================================================
 
-/**
- * Copies the raw log text to the system clipboard.
- * Falls back to an alert confirmation (temporary; replace with snackbar if available).
- */
 const copyToClipboard = () => {
   if (logs.value) {
-    navigator.clipboard.writeText(logs.value).then(() => {
-      alert('Logs copied to clipboard!')
-    })
+    navigator.clipboard.writeText(logs.value).then(() => { copySnackbar.value = true })
   }
 }
 
@@ -366,9 +462,13 @@ const decodeNewlines = (text: string) => {
   min-height: 500px;
 }
 
-/* Subtle background tint for the task run selector area */
-.task-selector {
-  background-color: rgba(var(--v-theme-surface-variant), 0.1);
+.task-list-section {
+  background-color: rgba(var(--v-theme-surface-variant), 0.15);
+}
+
+.task-list {
+  max-height: 220px;
+  overflow-y: auto;
 }
 
 /* Fixed-height container; overflow is handled by the inner wrapper */

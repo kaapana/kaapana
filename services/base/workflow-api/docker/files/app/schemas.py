@@ -23,6 +23,7 @@ class TaskRunStatus(str, Enum):
     ERROR = "Error"
     COMPLETED = "Completed"
     SKIPPED = "Skipped"
+    UPSTREAM_FAILED = "Upstream Failed"
 
 
 class Label(BaseModel):

@@ -93,7 +93,7 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         mapper = {
             "success": schemas.TaskRunStatus.COMPLETED,
             "failed": schemas.TaskRunStatus.ERROR,
-            "upstream_failed": schemas.TaskRunStatus.ERROR,
+            "upstream_failed": schemas.TaskRunStatus.UPSTREAM_FAILED,
             "queued": schemas.TaskRunStatus.SCHEDULED,
             "running": schemas.TaskRunStatus.RUNNING,
             "restarting": schemas.TaskRunStatus.RUNNING,
@@ -286,11 +286,23 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
 
         raise RuntimeError(f"DAG {dag_id} was not found in Airflow.")
 
+    async def _fetch_project(self, project_id: str) -> dict:
+        aii_url = os.getenv(
+            "ACCESS_INFORMATION_INTERFACE_URL", "http://aii-service.services.svc:8080"
+        )
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"{aii_url}/projects/{project_id}", timeout=10)
+            resp.raise_for_status()
+            return resp.json()
+
     async def submit_workflow_run(
         self, workflow_run: schemas.WorkflowRun, project_id: str
     ) -> schemas.WorkflowRunUpdate:
         dag_id = self._get_dag_id_from_workflow(workflow_run.workflow)
         payload: dict = {"conf": {}}
+
+        project = await self._fetch_project(project_id)
+        payload["conf"]["project_form"] = project
 
         # Inject project_id into all task envs
         tasks = await self.get_workflow_tasks(workflow_run.workflow)  # type: ignore

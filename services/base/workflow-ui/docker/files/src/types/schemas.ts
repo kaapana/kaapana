@@ -29,6 +29,7 @@ export enum TaskRunStatus {
     ERROR = "Error",
     COMPLETED = "Completed",
     SKIPPED = "Skipped",
+    UPSTREAM_FAILED = "Upstream Failed",
 }
 
 // ##########################

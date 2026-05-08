@@ -3,7 +3,10 @@ from uuid import UUID
 from typing import Optional
 import json
 from v1.routers.dependencies import get_oci_service_for_repository
-from v1.routers.installation.background_jobs import install_extension_background_task
+from v1.routers.installation.background_jobs import (
+    install_extension_background_task,
+    uninstall_extension_background_task,
+)
 
 
 from v1.services.database import crud, database
@@ -87,7 +90,10 @@ async def get_extensions(
 @router.get("/{extension_id}", response_model=schemas.InstalledExtension)
 async def get_extension(extension_id: UUID, db=Depends(database.get_async_db)):
     db_extension = await crud.get_extension(db, extension_id=extension_id)
-
+    if not db_extension:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Extension not found"
+        )
     return schemas.InstalledExtension(
         id=db_extension.id,
         repository_id=db_extension.repository_id,
@@ -107,6 +113,13 @@ async def get_extension(extension_id: UUID, db=Depends(database.get_async_db)):
 async def uninstall_extension(
     extension_id: UUID,
     response: Response,
-    oci=Depends(get_oci_service_for_repository),
+    background_tasks: BackgroundTasks,
+    db=Depends(database.get_async_db),
 ):
-    pass
+
+    db_extension = await crud.get_extension(db, extension_id=extension_id)
+    if not db_extension:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Extension not found"
+        )
+    background_tasks.add_task(uninstall_extension_background_task, db_extension.id, db)

@@ -20,6 +20,7 @@ class ExtensionStatus(enum.StrEnum):
     INSTALLATION_FAILED = "installing_failed"
     INSTALLED = "installed"
     UNINSTALLING = "uninstalling"
+    UNINSTALLING_FAILED = "uninstalling_failed"
 
 
 class RegisteredRepository(Base):
@@ -120,6 +121,7 @@ class ContentStatus(enum.StrEnum):
     INSTALLATION_FAILED = "installation_failed"
     INSTALLED = "installed"
     UNINSTALLING = "uninstalling"
+    UNINSTALLATION_FAILED = "uninstallation_failed"
     UNINSTALLED = "uninstalled"
 
 

@@ -2,18 +2,21 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from dataclasses import dataclass
 from pydantic import BaseModel
+from typing import Optional
 
 
 @dataclass
 class InstallationResult:
     success: bool
     message: str | None = None
+    location: str | None = None
 
 
 class Content(BaseModel):
     name: str
     content_type: str
-    path: Path
+    path: Optional[Path] = None
+    location: Optional[str] = None
 
 
 class ContentInstaller(ABC):

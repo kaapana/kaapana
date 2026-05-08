@@ -1,0 +1,82 @@
+all:
+  vars:
+    # -----------------------------------------
+    # 🔹 CONSTANTS
+    # -----------------------------------------
+    harvester_namespace: "kaapana-ci"
+    venv_path: "/home/ubuntu/venv"
+    ansible_python_interpreter: "auto_silent"
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+    
+    # -----------------------------------------
+    # 🔹 REQUIRED ENVIRONMENT VARIABLES
+    # -----------------------------------------
+    # GitLab variables
+    gitlab_api_token: "{{ lookup('env', 'GITLAB_API_TOKEN') }}"
+    gitlab_project_id: "{{ lookup('env', 'GITLAB_PROJECT_ID') }}"
+    gitlab_url: "{{ lookup('env', 'GITLAB_URL') }}"
+    
+    # SSH keys
+    ssh_public_key: "{{ lookup('env', 'SSH_PUBLIC_KEY') }}"
+    ssh_private_key: "{{ lookup('env', 'SSH_PRIVATE_KEY') }}"
+    ansible_ssh_private_key_file: "{{ lookup('env', 'SSH_PRIVATE_KEY') }}"
+    
+    # Harvester connection
+    harvester_kubeconfig: "{{ lookup('env', 'HARVESTER_KUBECONFIG') }}"
+    
+    # -----------------------------------------
+    # 🔹 ENV VARIABLE VALIDATION LIST
+    # -----------------------------------------
+    required_env_vars:
+      - GITLAB_API_TOKEN
+      - GITLAB_PROJECT_ID
+      - GITLAB_URL
+      - SSH_PUBLIC_KEY
+      - SSH_PRIVATE_KEY
+      - HARVESTER_KUBECONFIG
+  
+  children:
+    tests_instances:
+      hosts:
+        tests-01:
+          vm_name: kaapana-tests-01
+          cpu_cores: 8
+          memory_guest: "16Gi"
+          disk_size: "128Gi"
+          runner_description: "tests-runner-{{ vm_name }}"
+          runner_tags: ["tests-runner"]
+          runner_limit: 4
+          runner_concurrency: 4
+          runner_global_concurrency: 4
+
+    build_instances:
+      hosts:
+        build-01:
+          vm_name: kaapana-build-01
+          cpu_cores: 32
+          memory_guest: "256Gi"
+          disk_size: "512Gi"
+          runner_description: "build-runner-{{ vm_name }}"
+          runner_tags: ["build-runner"]
+          runner_limit: 1
+          runner_concurrency: 2
+          runner_global_concurrency: 1
+        
+        # build-02:
+        #   vm_name: kaapana-build-02
+        #   cpu_cores: 32
+        #   memory_guest: "256Gi"
+        #   disk_size: "512Gi"
+
+    deploy_instances:
+      hosts:
+        deploy-01:
+          vm_name: kaapana-deploy-01
+          cpu_cores: 8
+          memory_guest: "16Gi"
+          disk_size: "128Gi"
+          runner_description: "deploy-runner-{{ vm_name }}"
+          runner_tags: ["deploy-runner"]
+          runner_limit: 4
+          runner_concurrency: 4
+          runner_global_concurrency: 4

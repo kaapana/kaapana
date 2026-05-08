@@ -1,6 +1,7 @@
-from pydantic_settings  import BaseSettings
-from pydantic import computed_field
 import os
+
+from pydantic import computed_field
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):

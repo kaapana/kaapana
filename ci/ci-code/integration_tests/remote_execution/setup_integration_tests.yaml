@@ -1,0 +1,77 @@
+---
+- name: Setup Python virtual environment for integration tests
+  hosts: all
+  gather_facts: false
+  become: false
+
+  vars:
+    venv_name: "{{ lookup('env','VENV_NAME') }}"
+    integration_tests: "{{ lookup('env', 'INTEGRATION_TESTS') }}"
+    artifacts_dir: "{{ lookup('env', 'ARTIFACTS_DIR') }}"
+    ansible_python_interpreter: /usr/bin/python3
+
+  tasks:
+    # ORCHESTRATOR
+    - name: Ensure python3-venv is installed on orchestrator
+      ansible.builtin.package:
+        name: python3-venv
+        state: present
+      become: true
+      delegate_to: localhost
+
+    - name: Ensure npm is installed on orchestrator
+      ansible.builtin.package:
+        name: npm
+        state: present
+      become: true
+      delegate_to: localhost
+
+    - name: Ensure dcmsend (dcmtk) is installed on orchestrator
+      ansible.builtin.package:
+        name: dcmtk
+        state: present
+      become: true
+      delegate_to: localhost
+
+    - name: Create orchestrator Python virtualenv
+      ansible.builtin.command:
+        cmd: python3 -m venv "{{ venv_name }}"
+      args:
+        creates: "{{ venv_name }}/bin/activate"
+      delegate_to: localhost
+
+    - name: Upgrade pip in orchestrator venv
+      ansible.builtin.pip:
+        virtualenv: "{{ venv_name }}"
+        name: pip
+        state: latest
+      delegate_to: localhost
+      
+    - name: Upgrade pip in orchestrator venv
+      ansible.builtin.pip:
+        virtualenv: "{{ venv_name }}"
+        name: pip
+        state: latest
+      delegate_to: localhost
+
+    - name: Install integration_tests package in orchestrator venv
+      ansible.builtin.pip:
+        virtualenv: "{{ venv_name }}"
+        name: "{{ integration_tests }}"
+        editable: yes
+      delegate_to: localhost
+
+    # REMOTE
+    - name: Fetch client secret from remote VM
+      ansible.builtin.shell: |
+        helm get values kaapana-admin-chart -o json 2>/dev/null | jq -r .global.oidc_client_secret 2>/dev/null || true
+      register: client_secret
+      changed_when: false
+
+    - name: Write client_secret to dotenv file
+      ansible.builtin.copy:
+        dest: "{{ artifacts_dir }}/integration_test_setup.env"
+        content: |
+          CLIENT_SECRET={{ client_secret.stdout }}
+      become: false
+      delegate_to: localhost

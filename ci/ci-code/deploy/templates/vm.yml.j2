@@ -1,0 +1,75 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: {{ vm_name }}
+  namespace: {{ harvester_namespace }}
+  labels:
+    harvesterhci.io/creator: harvester
+    harvesterhci.io/os: ubuntu
+  annotations:
+    harvesterhci.io/enableCPUAndMemoryHotplug: 'true'
+    harvesterhci.io/volumeClaimTemplates: >-
+      [{"metadata":{"name":"{{ vm_name }}-disk-0-{{ pvc_suffix }}","annotations":{"harvesterhci.io/imageId":"{{ harvester_namespace }}/{{ vm_image_id }}"}},"spec":{"accessModes":["ReadWriteMany"],"resources":{"requests":{"storage":"{{ vm_disk_size }}"}},"volumeMode":"Block","storageClassName":"{{ vm_storage_class }}"}}]
+    network.harvesterhci.io/ips: '[]'
+spec:
+  runStrategy: RerunOnFailure
+  template:
+    metadata:
+      annotations:
+        harvesterhci.io/sshNames: '["{{ harvester_namespace }}/{{ vm_ssh_keypair }}"]'
+      labels:
+        harvesterhci.io/vmName: {{ vm_name }}
+    spec:
+      hostname: {{ vm_name }}
+      evictionStrategy: LiveMigrateIfPossible
+      terminationGracePeriodSeconds: 120
+      domain:
+        machine:
+          type: q35
+        cpu:
+          cores: {{ vm_cpu_cores }}
+          sockets: {{ vm_cpu_sockets }}
+          threads: {{ vm_cpu_threads }}
+          maxSockets: {{ vm_cpu_max_sockets }}
+        memory:
+          guest: {{ vm_memory_guest }}
+          maxGuest: {{ vm_memory_max }}
+        resources:
+          limits:
+            cpu: '{{ vm_cpu_sockets * vm_cpu_cores * vm_cpu_threads }}'
+            memory: {{ vm_memory_max }}
+        features:
+          acpi:
+            enabled: true
+        devices:
+          inputs:
+            - bus: usb
+              name: tablet
+              type: tablet
+          interfaces:
+            - bridge: {}
+              model: virtio
+              name: default
+          disks:
+            - name: disk-0
+              disk:
+                bus: virtio
+              bootOrder: 1
+            - name: cloudinitdisk
+              disk:
+                bus: virtio
+      networks:
+        - name: default
+          multus:
+            networkName: {{ vm_network }}
+      volumes:
+        - name: disk-0
+          persistentVolumeClaim:
+            claimName: {{ vm_name }}-disk-0-{{ pvc_suffix }}
+        - name: cloudinitdisk
+          cloudInitNoCloud:
+            secretRef:
+              name: {{ vm_name }}-cloudinit
+            networkDataSecretRef:
+              name: {{ vm_name }}-cloudinit
+      affinity: {}

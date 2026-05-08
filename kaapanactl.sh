@@ -2011,11 +2011,11 @@ function deploy_chart {
     --set-string global.main_node_name="$MAIN_NODE_NAME" \
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
     --set-string global.storage_node="$STORAGE_NODE" \
-    --name-template "$PLATFORM_NAME"
-
+    --name-template "$PLATFORM_NAME" \
+    --set kube-helm-chart.timeouts.helmInstallTimeout=45 \
+    --set kube-helm-chart.timeouts.helmDeletionTimeout=60
     # In case of timeout-issues in kube helm increase the default timeouts by setting
-    # --set kube-helm-chart.timeouts.helmInstallTimeout=45 \
-    # --set kube-helm-chart.timeouts.helmDeletionTimeout=60 \
+
 
     # pull_policy_jobs and pull_policy_pods only there for backward compatibility as of version 0.2.0
     if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
@@ -2450,6 +2450,14 @@ function check_system() {
         phase=$(microk8s.kubectl get pod "$name" -n "$ns" -o jsonpath='{.status.phase}')
         if [[ "$phase" != "Running" && "$phase" != "Succeeded" ]]; then
             echo "❌ Pod $name is $phase"
+            all_healthy=false
+        fi
+
+        # check readiness condition
+        ready_cond=$(microk8s.kubectl get pod "$name" -n "$ns" \
+            -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
+        if [[ "$ready_cond" != "True" ]]; then
+            echo "❌ Pod $name is not Ready yet"
             all_healthy=false
         fi
         ;;

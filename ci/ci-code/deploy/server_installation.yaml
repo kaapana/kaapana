@@ -1,0 +1,72 @@
+---
+- name: Install Kaapana Server
+  hosts: all
+  gather_facts: true
+  become: false
+
+  remote_user: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_USER') }}"
+  environment:
+    http_proxy: "{{ lookup('ansible.builtin.env', 'HTTP_PROXY') }}"
+    https_proxy: "{{ lookup('ansible.builtin.env', 'HTTPS_PROXY') }}"
+
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    kaapana_dir: "{{ lookup('env', 'CI_PROJECT_DIR') }}"
+    artifacts_dir: "{{ lookup('env', 'ARTIFACTS_DIR') }}"
+  tasks:
+    - name: Increase inotify watchers
+      become: yes
+      ansible.builtin.command: 
+        cmd: sysctl -w fs.inotify.max_user_watches=10000
+
+    - name: Increase inotify watchers
+      become: yes
+      ansible.builtin.command: 
+        cmd: sysctl -w fs.inotify.max_user_instances=10000
+
+
+    - name: Copy server installation script
+      ansible.builtin.copy:
+        src: "{{ kaapana_dir }}/kaapanactl.sh"
+        dest: "{{ ansible_facts['env']['HOME'] }}/kaapanactl.sh"
+        mode: "0755"
+
+    - name: Execute server installation script
+      ansible.builtin.shell: ./kaapanactl.sh install --quiet 2>&1 | tee server_installation.log
+      args:
+        chdir: "{{ ansible_facts['env']['HOME'] }}"
+      register: server_installation_output
+      become: yes
+      ignore_errors: true
+
+    - name: Show script output in CI logs
+      ansible.builtin.debug:
+        var: server_installation_output.stdout_lines
+
+    - name: Save server installation log
+      ansible.builtin.copy:
+        content: |
+          RETURN CODE: {{ server_installation_output.rc }}
+
+          STDOUT:
+          {{ server_installation_output.stdout | default('') }}
+
+          STDERR:
+          {{ server_installation_output.stderr | default('') }}
+        dest: "{{ artifacts_dir }}/server_installation.log"
+      delegate_to: localhost
+
+    - name: Fail if server installation failed
+      ansible.builtin.fail:
+        msg: "Server installation failed."
+      when: server_installation_output.rc != 0
+
+    - name: Add user to microk8s group
+      become: true
+      ansible.builtin.user:
+        name: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_USER') }}"
+        groups: microk8s
+        append: true
+
+    - name: Reset SSH connection to apply group changes
+      ansible.builtin.meta: reset_connection

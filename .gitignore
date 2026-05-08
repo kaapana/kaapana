@@ -4,6 +4,7 @@ node_modules
 venv
 security-reports/*.json
 security-reports/*/
+ci/ci-code/integration_tests/build/
 tmpcharts
 migrations
 .trivy_cache/*

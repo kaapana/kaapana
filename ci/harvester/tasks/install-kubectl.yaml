@@ -1,0 +1,27 @@
+# target/install-kubectl.yaml
+
+- name: Get latest kubectl version
+  ansible.builtin.uri:
+    url: https://dl.k8s.io/release/stable.txt
+    return_content: yes
+  register: kubectl_version
+
+- name: Download kubectl binary
+  ansible.builtin.get_url:
+    url: "https://dl.k8s.io/release/{{ kubectl_version.content | trim }}/bin/linux/amd64/kubectl"
+    dest: /usr/local/bin/kubectl
+    mode: '0755'
+    owner: root
+    group: root
+    force: yes
+  become: yes
+
+- name: Verify kubectl installation
+  ansible.builtin.command:
+    cmd: kubectl version --client
+  register: kubectl_installed
+  changed_when: false
+
+- name: Show kubectl version
+  ansible.builtin.debug:
+    var: kubectl_installed.stdout

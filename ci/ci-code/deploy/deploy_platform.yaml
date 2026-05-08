@@ -1,201 +1,133 @@
-- hosts: "{{ ansible_groupname | default('kaapana_depl_server') }}"
+---
+- name: Deploy Kaapana platform
+  hosts: all
   gather_facts: true
-  become: no
-  remote_user: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_USER') }}"
-  environment:
-    http_proxy: "{{ lookup('ansible.builtin.env', 'HTTP_PROXY') }}"
-    https_proxy: "{{ lookup('ansible.builtin.env', 'HTTPS_PROXY') }}"
   vars:
     registry_user: "{{ lookup('ansible.builtin.env', 'REGISTRY_USER') }}"
     registry_token: "{{ lookup('ansible.builtin.env', 'REGISTRY_TOKEN') }}"
+    registry_url: "{{ lookup('ansible.builtin.env', 'REGISTRY_URL') }}"
+
+    vm_fqdn: "{{ lookup('ansible.builtin.env', 'VM_FQDN') }}"
+    version_tag: "{{ lookup('ansible.builtin.env', 'VERSION_TAG') }}"
     artifacts_dir: "{{ lookup('ansible.builtin.env', 'ARTIFACTS_DIR') }}"
-    kaapana_dir: "{{ lookup('ansible.builtin.env', 'KAAPANA_DIR') }}"
-    ip_address: "{{ lookup('ansible.builtin.env', 'ip_address') }}"
+    kaapana_dir: "{{ lookup('ansible.builtin.env', 'CI_PROJECT_DIR') }}"
+    http_proxy: "{{ lookup('ansible.builtin.env', 'HTTP_PROXY') }}"
+    https_proxy: "{{ lookup('ansible.builtin.env', 'HTTPS_PROXY') }}"
+    ansible_python_interpreter: /usr/bin/python3
+
+  environment:
+    http_proxy: "{{ http_proxy }}"
+    https_proxy: "{{ https_proxy }}"
+    TERM: xterm
 
   tasks:
-  - name: Search for deployment script in KAAPANA_DIR
-    ansible.builtin.command:
-      cmd: find -name deploy_platform.sh
-      chdir: "{{ kaapana_dir }}/build"
-    register: find_deploy_script
-    delegate_to: 127.0.0.1
+    - name: Display deployment info
+      ansible.builtin.debug:
+        msg: |
+          Deploying Kaapana Platform
+          ==========================
+          Node FQDN: {{ vm_fqdn }}
+          Registry: {{ registry_url }}
+          Version: {{ version_tag }}
+          Kaapana Dir: {{ kaapana_dir }}
 
-  - name: concatenate KAAPANA_DIR and relative path to deploy_platform.sh
-    set_fact:
-      deployment_script: "{{ kaapana_dir }}/build/{{ find_deploy_script.stdout }}"
+    - name: Verify microk8s is running
+      ansible.builtin.command: microk8s status --wait-ready
+      register: microk8s_status
+      retries: 3
+      delay: 5
+      until: microk8s_status.rc == 0
 
-  - name: Copy deployment script to deployment server
-    template:
-      src: "{{ deployment_script }}"
-      dest: "{{ ansible_env.HOME }}/deploy_platform.sh"
-      mode: "+x"
+    - name: Check kubernetes API is healthy
+      ansible.builtin.command: microk8s kubectl cluster-info
+      register: cluster_info
+      retries: 3
+      delay: 5
+      until: cluster_info.rc == 0
 
-  - name: Increase maximum number of fs.inotify watchers
-    ansible.builtin.command:
-      cmd: sysctl -w fs.inotify.max_user_watches=100000
-    become: true
+    - name: Check helm can access kubernetes
+      ansible.builtin.command: helm ls -A
+      register: helm_check
+      retries: 3
+      delay: 5
+      until: helm_check.rc == 0
 
-  - name: Increase maximum number of fs.inotify instances
-    ansible.builtin.command:
-      cmd: sysctl -w fs.inotify.max_user_instances=100000
-    become: true
-
-  - name: Generate microk8s kubeconfig
-    ansible.builtin.command: microk8s kubectl config view --raw
-    register: kubeconfig
-
-  - name: Ensure .kube directory exists
-    ansible.builtin.file:
-      path: "{{ ansible_env.HOME }}/.kube"
-      state: directory
-      owner: "{{ ansible_user }}"
-      group: "{{ ansible_user }}"
-      mode: '0700'
-
-  - name: Write kubeconfig to file
-    ansible.builtin.copy:
-      content: "{{ kubeconfig.stdout }}"
-      dest: "{{ ansible_env.HOME }}/.kube/config"
-      owner: "{{ ansible_user }}"
-      group: "{{ ansible_user }}"
-      mode: '0600'
-
-  - name: Check that microk8s status
-    ansible.builtin.command: microk8s status
-    register: microk8s_status
-    until: microk8s_status.stdout.find("microk8s is running") != -1
-    retries: 60
-    delay: 5
-
-  - name: Check that microk8s api is available
-    ansible.builtin.command: curl --insecure --fail https://127.0.0.1:16443/livez?verbose
-    register: kube_api_health_check
-    until: kube_api_health_check.rc == 0
-    retries: 60
-    delay: 5
-
-  - debug:
-      msg: "{{ kube_api_health_check }}"
-    when: kube_api_health_check.rc != 0
-
-  - name: Check that microk8s api is available
-    ansible.builtin.command: curl --insecure --fail https://127.0.0.1:16443/readyz?verbose
-    register: kube_api_ready
-    until: kube_api_ready.rc == 0
-    retries: 60
-    delay: 5
-
-  - debug:
-      msg: "{{ kube_api_ready }}"
-    when: kube_api_ready.rc != 0
-
-  - name: Check that microk8s api is available
-    ansible.builtin.command: curl --insecure --fail https://127.0.0.1:16443/version
-    register: kube_version
-    until: kube_version.rc == 0
-    retries: 60
-    delay: 5
-
-  - debug:
-      msg: "{{ kube_version }}"
-    when: kube_version.rc != 0
-
-  - name: Check helm can access kubernetes
-    ansible.builtin.command: helm ls -A
-    register: helm
-    until: helm.rc == 0
-    retries: 60
-    delay: 5
-
-  - debug:
-      msg: "{{ helm }}"
-    when: helm.rc != 0
-
-  - name: Copy deployment script to ci-server artifacts directory
-    become: yes
-    ansible.builtin.copy:
-      src: "{{ deployment_script }}"
-      dest: "{{ artifacts_dir }}/"
-    delegate_to: 127.0.0.1
-
-
-  - name: Undeploy current platform
-    block:
-    - name: Run platform deployment script to undeploy the platform
-      become: no
-      environment:
-        TERM: xterm
-      ansible.builtin.command:
-        cmd: ./deploy_platform.sh --quiet --no-hooks
-        chdir: "{{ ansible_env.HOME }}/"
-      register: undeploy_result
-      ignore_errors: yes
-    - debug:
-        var: undeploy_result.stdout_lines
-    - debug:
-        var: undeploy_result.stderr_lines
-    - name: Copy STDOUT from undeployment script to ci-server
-      become: yes
+    - name: Copy server installation script
       ansible.builtin.copy:
-        content: "{{ undeploy_result.stdout }} {{ undeploy_result.stderr }}"
-        dest: "{{ artifacts_dir }}/undeploy.log"
-      delegate_to: 127.0.0.1
-    - name: Fail playbook and job if undeployment failed
-      ansible.builtin.command: /bin/false
-      when: undeploy_result.rc != 0
+        src: "{{ kaapana_dir }}/kaapanactl.sh"
+        dest: "{{ ansible_facts['env']['HOME'] }}/kaapanactl.sh"
+        mode: "0755"
 
-  - name: Delete kaapana file system
-    vars:
-      fast_data_dir: "/home/kaapana/"
-      slow_data_dir: "/home/kaapana/"
-    become: yes
-    file:
-      path: "{{ item }}"
-      state: absent
-    loop:
-    - "{{ fast_data_dir }}"
-    - "{{ slow_data_dir }}"
-
-  - name: RESULT
-    debug:
-      msg: "PURGED FILESYSTEM SUCCESSFULLY"
-
-  - name: Deploy the platform
-    block:
-    - name: Run platform deployment script
+    - name: Deploy the platform using kaapanactl.sh
+      ansible.builtin.command:
+        cmd: >
+          {{ ansible_facts['env']['HOME'] }}/kaapanactl.sh deploy
+          --quiet
+          --chart {{ registry_url }}/kaapana-admin-chart:{{ version_tag }}
+          --username {{ registry_user }}
+          --password {{ registry_token }}
+          --domain {{ vm_fqdn }}
       register: deploy_result
       ignore_errors: yes
-      no_log: false
-      become: no
       environment:
         TERM: xterm
-      ansible.builtin.command:
-        cmd: ./deploy_platform.sh --quiet --username {{ registry_user }} --password {{ registry_token }} --domain {{ ip_address }}
-        chdir: "{{ ansible_env.HOME }}/"
-    - debug:
-        var: deploy_result.stdout_lines
-    - debug:
-        var: deploy_result.stderr_lines
-    - name: Copy STDOUT from deployment script to ci-server
-      become: yes
-      ansible.builtin.copy:
-        content: "{{ deploy_result.stdout }} {{ deploy_result.stderr }}"
-        dest: "{{ artifacts_dir }}/deployment.log"
-      delegate_to: 127.0.0.1
-    - name: Fail playbook and job if deployment failed
-      ansible.builtin.command: /bin/false
-      when: deploy_result.rc != 0
-  
-  - name: Wait until all deployments are healthy
-    ansible.builtin.command: 
-      cmd: ./deploy_platform.sh --check-system
-      chdir: "{{ ansible_env.HOME }}/"
-    register: system_check
-    until: system_check.rc == 0
-    retries: 60
-    delay: 10
 
-  - debug:
-      var: system_check.stdout_lines
-  - debug:
-      var: system_check.stderr_lines
+    - name: Display STDOUT
+      ansible.builtin.debug:
+        var: deploy_result.stdout_lines
+
+    - name: Display STDERR
+      ansible.builtin.debug:
+        var: deploy_result.stderr_lines
+
+    - name: Save deployment output
+      ansible.builtin.copy:
+        content: |
+          Deployment Output
+          =================
+          Command: {{ ansible_facts['env']['HOME'] }}/kaapanactl.sh deploy --quiet --chart {{ registry_url }}/kaapana-platform-chart:{{ version_tag }} --domain {{ vm_fqdn }}
+
+          STDOUT:
+          {{ deploy_result.stdout | default('') }}
+
+          STDERR:
+          {{ deploy_result.stderr | default('') }}
+
+          Return Code: {{ deploy_result.rc }}
+        dest: "{{ artifacts_dir }}/deployment.log"
+      delegate_to: localhost
+
+    - name: Fail if deployment failed
+      ansible.builtin.fail:
+        msg: "Deployment failed with return code {{ deploy_result.rc }}"
+      when: deploy_result.rc != 0
+
+    - name: Wait for all deployments to be healthy
+      ansible.builtin.command:
+        cmd: "{{ ansible_facts['env']['HOME'] }}/kaapanactl.sh deploy --check-system"
+      register: system_check
+      retries: 60
+      delay: 10
+      until: system_check.rc == 0
+
+    - name: Display system check output
+      ansible.builtin.debug:
+        msg: "System Check Output:\n{{ system_check.stdout }}"
+
+    - name: Save system check output
+      ansible.builtin.copy:
+        content: |
+          System Health Check
+          ===================
+          {{ system_check.stdout }}
+        dest: "{{ artifacts_dir }}/system_check.log"
+      delegate_to: localhost
+
+    - name: Display deployment success
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          Kaapana Platform Deployed Successfully!
+          ========================================
+          Access URL: https://{{ vm_fqdn }}
+          ========================================

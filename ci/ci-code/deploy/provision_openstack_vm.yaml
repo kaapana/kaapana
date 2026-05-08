@@ -1,0 +1,134 @@
+# ============================================================================
+# Provision Kaapana VM on OpenStack
+# ============================================================================
+- name: Provision deployment VM on OpenStack
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    vm_name: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_VM_NAME') }}"
+    vm_domain: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DOMAIN') }}"
+    os_username: "{{ lookup('env', 'OS_USERNAME') }}"
+    os_project_name: "{{ lookup('env', 'OS_PROJECT_NAME') }}"
+    os_auth_url: "{{ lookup('env', 'OS_AUTH_URL') }}"
+    os_tenant_id: "{{ lookup('env', 'OS_TENANT_ID') }}"
+    os_image: "{{ lookup('env', 'OS_IMAGE') }}"
+    os_flavor: "{{ lookup('env', 'OS_INSTANCE_FLAVOR') }}"
+    os_floating_ip_pool: "{{ lookup('env', 'OS_FLOATING_IP_POOLS') }}"
+    os_volume_size: "{{ lookup('env', 'OS_INSTANCE_VOLUME_SIZE') }}"
+    os_key_name: "{{ lookup('env', 'OS_KEY_NAME') }}"
+    os_network: "{{ lookup('env', 'OS_NETWORK') }}"
+    ssh_private_key: "{{ lookup('env', 'ORCHESTRATOR_INSTANCE_PRIVATE_SSH_KEY') }}"
+    artifacts_dir: "{{ lookup('env', 'ARTIFACTS_DIR') }}"
+
+    force_recreate: true
+
+    vm_user_map:
+      Ubuntu: ubuntu
+      AlmaLinux: almalinux
+
+  tasks:
+    - name: Read OpenStack password
+      ansible.builtin.slurp:
+        src: "{{ ansible_env.HOME }}/.os_password"
+      register: result_slurp
+      no_log: true
+
+    - name: Set OpenStack credentials fact
+      ansible.builtin.set_fact:
+        os_auth:
+          auth_url: "{{ os_auth_url }}"
+          username: "{{ os_username }}"
+          password: "{{ result_slurp.content | b64decode | regex_replace('[\\r\\n\\t]+', '') }}"
+          project_name: "{{ os_project_name }}"
+          project_id: "{{ os_tenant_id }}"
+      no_log: true
+
+    - name: Check if VM already exists
+      openstack.cloud.server_info:
+        auth: "{{ os_auth }}"
+        server: "{{ vm_name }}"
+      register: vm_check
+      failed_when: false
+
+    - name: force_recreate VM if requested
+      when:
+        - vm_check.servers | length > 0
+        - force_recreate | bool
+      block:
+        - name: Delete existing VM
+          openstack.cloud.server:
+            auth: "{{ os_auth }}"
+            name: "{{ vm_name }}"
+            state: absent
+            wait: true
+
+        - name: Wait for VM to be fully deleted
+          openstack.cloud.server_info:
+            auth: "{{ os_auth }}"
+            server: "{{ vm_name }}"
+          register: delete_check
+          until: delete_check.servers | length == 0
+          retries: 60
+          delay: 10
+
+    - name: Abort if VM exists and force_recreate not requested
+      ansible.builtin.fail:
+        msg: "VM '{{ vm_name }}' already exists. Use force_recreate=true to remove it."
+      when:
+        - vm_check.servers | length > 0
+        - not force_recreate | bool
+
+    - name: Create VM on OpenStack
+      openstack.cloud.server:
+        auth: "{{ os_auth }}"
+        name: "{{ vm_name }}"
+        image: "{{ os_image }}"
+        flavor: "{{ os_flavor }}"
+        key_name: "{{ os_key_name }}"
+        network: "{{ os_network }}"
+        volume_size: "{{ os_volume_size }}"
+        floating_ip_pools: "{{ os_floating_ip_pool }}"
+        state: present
+        wait: true
+      register: vm_result
+
+    - name: Set VM FQDN fact
+      ansible.builtin.set_fact:
+        vm_fqdn: "{{ vm_name }}.{{ vm_domain }}"
+        vm_ip: "{{ vm_result.server.public_v4 }}"
+
+    - name: Determine deploy user from OS image
+      ansible.builtin.set_fact:
+        vm_user: "{{ vm_user_map | dict2items | selectattr('key', 'in', os_image) | map(attribute='value') | first | default('ubuntu') }}"
+
+    - name: Output VM Info
+      ansible.builtin.debug:
+        msg:
+          vm_name: "{{ vm_name }}"
+          vm_user: "{{ vm_user }}"
+          vm_fqdn: "{{ vm_fqdn }}"
+          vm_ip: "{{ vm_ip }}"
+
+    - name: Wait until SSH login works
+      ansible.builtin.command:
+        cmd: >
+          ssh -o StrictHostKeyChecking=no
+          -o UserKnownHostsFile=/dev/null
+          -o ConnectTimeout=5
+          -i {{ ssh_private_key }}
+          {{ vm_user }}@{{ vm_fqdn }} echo ready
+      register: ssh_check
+      retries: 60
+      delay: 10
+      until: ssh_check.rc == 0
+      changed_when: false
+
+    - name: Write deployment env file
+      ansible.builtin.copy:
+        content: |
+          DEPLOYMENT_INSTANCE_FQDN={{ vm_fqdn }}
+          DEPLOYMENT_INSTANCE_USER={{ vm_user }}
+        dest: "{{ artifacts_dir }}/deployment.env"

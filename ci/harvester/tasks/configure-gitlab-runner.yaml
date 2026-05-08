@@ -1,0 +1,194 @@
+---
+## Configure GitLab runners on VM
+## Config location: ~/.gitlab-runner/config.toml (user-level)
+## Managed by: systemd (running as ubuntu user)
+
+- name: Set variables
+  ansible.builtin.set_fact:
+    runner_user: "{{ ansible_user }}"
+    runner_home: "/home/{{ ansible_user }}"
+    runner_config_dir: "/home/{{ ansible_user }}/.gitlab-runner"
+    runner_config_path: "/home/{{ ansible_user }}/.gitlab-runner/config.toml"
+    gitlab_token: "{{ gitlab_api_token }}"
+    runner_description: "{{ runner_description | default(inventory_hostname) }}"
+    runner_tags: "{{ runner_tags | default(['ci-runner']) }}"
+    runner_limit: "{{ runner_limit | default(4) }}"
+    runner_concurrency: "{{ runner_concurrency | default(4) }}"
+  become: no
+
+- name: Set global concurrency fact if not defined
+  ansible.builtin.set_fact:
+    runner_global_concurrency: "{{ runner_global_concurrency | default(runner_limit) }}"
+
+- name: Ensure .gitlab-runner directory exists
+  ansible.builtin.file:
+    path: "{{ runner_config_dir }}"
+    state: directory
+    mode: "0700"
+  become: no
+
+- name: Install GitLab Runner package
+  block:
+    - name: Download GitLab Runner repository setup script
+      ansible.builtin.get_url:
+        url: "https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh"
+        dest: /tmp/gitlab-runner-script.deb.sh
+        mode: "0755"
+
+    - name: Add GitLab apt repository
+      ansible.builtin.command: bash /tmp/gitlab-runner-script.deb.sh
+      args:
+        creates: /etc/apt/sources.list.d/runner_gitlab-runner.list
+      become: yes
+
+    - name: Install gitlab-runner package
+      ansible.builtin.apt:
+        name: gitlab-runner
+        state: latest
+        update_cache: yes
+      become: yes
+
+- name: Configure GitLab Runner user-mode service
+  become: no
+  block:
+    - name: Stop and disable system-wide gitlab-runner service
+      ansible.builtin.systemd:
+        name: gitlab-runner
+        state: stopped
+        enabled: no
+      become: yes
+
+    - name: Ensure systemd user directory exists
+      ansible.builtin.file:
+        path: "{{ runner_home }}/.config/systemd/user"
+        state: directory
+        mode: "0700"
+
+    - name: Create gitlab-runner user-mode systemd service
+      ansible.builtin.copy:
+        dest: "{{ runner_home }}/.config/systemd/user/gitlab-runner.service"
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=GitLab Runner (User Mode)
+          After=network.target
+
+          [Service]
+          Type=simple
+          ExecStart=/usr/bin/gitlab-runner run
+          WorkingDirectory={{ runner_home }}
+          Restart=always
+          RestartSec=5
+
+          [Install]
+          WantedBy=default.target
+
+    - name: Enable lingering so user services run without login
+      become: yes
+      ansible.builtin.command: loginctl enable-linger {{ runner_user }}
+
+    - name: Reload systemd user manager
+      ansible.builtin.command: systemctl --user daemon-reload
+
+    - name: Enable and start user-mode gitlab-runner
+      ansible.builtin.command: systemctl --user enable --now gitlab-runner
+
+- name: Remove existing GitLab Runner config.toml
+  ansible.builtin.file:
+    path: "{{ runner_config_path }}"
+    state: absent
+  become: no
+  
+################################################
+- name: Debug Python interpreter
+  ansible.builtin.debug:
+    var: ansible_python_interpreter
+
+- name: Delete existing GitLab runner (remote)
+  community.general.gitlab_runner:
+    api_url: "{{ gitlab_url }}"
+    api_token: "{{ gitlab_api_token }}"
+    description: "{{ runner_description }}"
+    state: absent
+    project: "{{ gitlab_project_id }}"
+  become: no
+
+- name: Create GitLab runner entry (remote)
+  community.general.gitlab_runner:
+    api_url: "{{ gitlab_url }}"
+    api_token: "{{ gitlab_api_token }}"
+    description: "{{ runner_description }}"
+    state: present
+    active: true
+    tag_list: "{{ runner_tags }}"
+    run_untagged: false
+    locked: false
+    maximum_timeout: 7200
+    project: "{{ gitlab_project_id }}"
+  register: new_runner
+  become: no
+
+- name: Register runner locally
+  ansible.builtin.command: >
+    gitlab-runner register
+    --non-interactive
+    --url "{{ gitlab_url }}"
+    --token "{{ new_runner.runner.token }}"
+    --name "{{ runner_description }}"
+    --executor shell
+    --shell bash
+    --config "{{ runner_config_path }}"
+  register: register_local
+  changed_when: "'Runner registered successfully' in register_local.stdout"
+  failed_when:
+    - register_local.rc != 0
+    - "'already exists' not in register_local.stderr"
+  become: no
+
+- name: Copy config.py to runner home
+  ansible.builtin.copy:
+    src: config.py
+    dest: "{{ runner_home }}/config.py"
+    mode: "0755"
+
+- name: Update runner configuration (config.toml)
+  ansible.builtin.command: >
+    {{ venv_path }}/bin/python3 config.py
+    --runner-home {{ runner_home }}
+    --token {{ new_runner.runner.token }}
+    --custom-build-dir True
+    --limit {{ runner_limit }}
+    --request-concurrency {{ runner_concurrency }}
+    --global-concurrent {{ runner_global_concurrency }}
+    --config-path {{ runner_config_path }}
+
+################################################
+- name: Verify GitLab runners
+  become: no
+  block:
+    - name: Check runner status
+      ansible.builtin.command: gitlab-runner status
+      register: runner_status
+      changed_when: false
+      failed_when: false
+
+    - name: Verify runner connectivity
+      ansible.builtin.command: gitlab-runner verify
+      register: runner_verify
+      changed_when: false
+      failed_when: false
+
+- name: Check if .bash_logout exists for runner user
+  ansible.builtin.stat:
+    path: "{{ runner_home }}/.bash_logout"
+  register: bash_logout
+  become: yes
+  become_user: "{{ ansible_user }}"
+
+- name: Remove .bash_logout file which might conflict with the GitLab runner
+  ansible.builtin.file:
+    path: "{{ runner_home }}/.bash_logout"
+    state: absent
+  when: bash_logout.stat.exists
+  become: yes
+  become_user: "{{ ansible_user }}"

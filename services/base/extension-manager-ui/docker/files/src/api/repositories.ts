@@ -1,5 +1,11 @@
 import apiClient from './extensionManagerApiClient';
-import type { Repository, ExtensionManifest } from '@/types/schemas';
+import type {
+    CreateRepositoryRequest,
+    ExtensionManifest,
+    ExtensionManifestFilters,
+    Repository,
+    UpdateRepositoryRequest,
+} from '@/types/schemas';
 
 const API_BASE = '/repositories'
 
@@ -12,7 +18,7 @@ export async function fetchRepositories(): Promise<Repository[]> {
     return response.data;
 }
 
-export async function createRepository(repository: Repository): Promise<Repository> {
+export async function createRepository(repository: CreateRepositoryRequest): Promise<Repository> {
     const response = await apiClient.post<Repository>(API_BASE, repository);
     return response.data;
 }
@@ -22,7 +28,7 @@ export async function fetchRepositoryById(repositoryId: string): Promise<Reposit
     return response.data;
 }
 
-export async function updateRepository(repositoryId: string, repository: Partial<Repository>): Promise<Repository> {
+export async function updateRepository(repositoryId: string, repository: UpdateRepositoryRequest): Promise<Repository> {
     const response = await apiClient.put<Repository>(`${API_BASE}/${repositoryId}`, repository);
     return response.data;
 }
@@ -39,11 +45,11 @@ export async function fetchRepositoryExtensionTags(repositoryId: string): Promis
     return response.data;
 }
 
-export async function fetchRepositoryExtensionManifests(repositoryId: string, limit?: number, skip?: number): Promise<ExtensionManifest[]> {
-    // convert undefined to null
+export async function fetchRepositoryExtensionManifests(repositoryId: string, filters: ExtensionManifestFilters = {}): Promise<ExtensionManifest[]> {
     const params = {
-        limit: limit ?? null,
-        skip: skip ?? null,
+        tags: filters.tags?.join(','),
+        limit: filters.limit,
+        skip: filters.skip,
     };
     const response = await apiClient.get(`${API_BASE}/${repositoryId}/extensionManifests`, {
         params,

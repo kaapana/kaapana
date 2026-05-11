@@ -7,23 +7,75 @@ export interface Repository {
 }
 
 // from extension-manager-service
-export interface ExtensionManifest {
+export interface CreateRepositoryRequest {
     name: string
-    version: string
-    manifest: Record<string, any>
+    description?: string
+    repository_url: string
+    authentication: string
 }
 
 // from extension-manager-service
-export interface Extension {
+export interface UpdateRepositoryRequest {
+    name?: string
+    description?: string
+    repository_url?: string
+    authentication?: string
+}
+
+// local query params for /repositories/{id}/extensionManifests
+export interface ExtensionManifestFilters {
+    tags?: string[]
+    limit?: number
+    skip?: number
+}
+
+// from extension-manager-service
+export interface ContentFile {
+    path: string
+}
+
+// from extension-manager-service
+export interface ExtensionContent {
+    name: string
+    contentType: string
+    files: ContentFile[]
+}
+
+// from extension-manager-service
+export interface ExtensionManifest {
+    name: string
+    version: string
+    contents: ExtensionContent[]
+    dependencies: unknown[]
+}
+
+// from extension-manager-service
+export interface InstalledContent {
+    name: string
+    content_type: string
+    status: string
+}
+
+// from extension-manager-service
+export interface InstalledExtension {
     id: string
     repository_id: string
     tag: string
-    manifest: Record<string, any>
+    manifest: ExtensionManifest
     status: string
+    contents: InstalledContent[]
 }
 
 // local
 export interface CatalogEntry {
   repository: Repository
-  extension: ExtensionManifest
+  tag: string
+  manifest: ExtensionManifest
+}
+
+// local
+export interface CatalogEntryGroup {
+  repository: Repository
+  manifestName: string
+  entries: CatalogEntry[]
 }

@@ -125,6 +125,7 @@ import { lokiApi } from '@/api/loki/lokiApi'
 import type { TaskRun, WorkflowRun } from '@/types/schemas'
 import { statusColor } from '@/utils/status'
 import { buildTaskPodQuery } from '@/types/loki'
+import { downloadAsZip } from '@/utils/zipDownload'
 
 const props = defineProps<{
   workflowRun: WorkflowRun
@@ -214,15 +215,15 @@ function reloadIfTaskSelected() {
 
 watch(logDirection, reloadIfTaskSelected)
 
-watch(logTimeRange, (val) => {
+watch(logTimeRange, (val: string) => {
   if (val !== 'custom') reloadIfTaskSelected()
 })
 
-watch([logCustomStart, logCustomEnd], ([start, end]) => {
+watch([logCustomStart, logCustomEnd], ([start, end]: [string, string]) => {
   if (logTimeRange.value === 'custom' && start && end) reloadIfTaskSelected()
 })
 
-// ── Copy / Download ───────────────────────────────────────────────────────────
+// ── Copy / Download (single task) ────────────────────────────────────────────
 function logsAsText(): string {
   return logLines.value.map((l: { ts: string; text: string }) => `${l.ts}  ${l.text}`).join('\n')
 }
@@ -244,13 +245,47 @@ function downloadLogs() {
   URL.revokeObjectURL(url)
 }
 
+// ── Download all tasks as ZIP ─────────────────────────────────────────────────
+const downloadingAll = ref(false)
+
+async function downloadAllLokiLogs() {
+  if (downloadingAll.value) return
+  downloadingAll.value = true
+  try {
+    const { start, end } = getLogTimeRange()
+    const entries = await Promise.all(
+      props.workflowRun.task_runs.map(async (task: TaskRun) => {
+        try {
+          const query = buildTaskPodQuery(props.namespace, task.external_id)
+          const streams = await lokiApi.queryRange({ query, start, end, limit: 500, direction: logDirection.value })
+          const content = streams
+            .flatMap(s => s.values.map(([tsNs, line]: [string, string]) => {
+              const ts = new Date(parseInt(tsNs) / 1e6).toISOString().replace('T', ' ').slice(0, 19)
+              return `${ts}  ${line}`
+            }))
+            .join('\n')
+          return { name: `${task.task_title}.log`, content: content || '(no logs found)' }
+        } catch {
+          return { name: `${task.task_title}.log`, content: 'Failed to fetch Loki logs.' }
+        }
+      })
+    )
+    const run = props.workflowRun
+    downloadAsZip(`${run.workflow.title}-v${run.workflow.version}-loki-logs.zip`, entries)
+  } finally {
+    downloadingAll.value = false
+  }
+}
+
 defineExpose({
-  reload:      () => { if (selectedTask.value) fetchTaskLogs(selectedTask.value) },
-  copy:        copyLogs,
-  download:    downloadLogs,
-  hasTask:     computed(() => !!selectedTask.value),
-  hasLogs:     computed(() => logLines.value.length > 0),
+  reload:        () => { if (selectedTask.value) fetchTaskLogs(selectedTask.value) },
+  copy:          copyLogs,
+  download:      downloadLogs,
+  downloadAll:   downloadAllLokiLogs,
+  hasTask:       computed(() => !!selectedTask.value),
+  hasLogs:       computed(() => logLines.value.length > 0),
   logsLoading,
+  downloadingAll,
 })
 </script>
 

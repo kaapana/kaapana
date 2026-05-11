@@ -45,8 +45,8 @@
       <!-- ===== TABS (only when Loki is available) ===== -->
       <div v-if="namespace">
         <v-tabs v-model="activeLogTab" color="primary" density="compact" class="px-4">
-          <v-tab value="api" prepend-icon="mdi-api">API Logs</v-tab>
-          <v-tab value="loki" prepend-icon="mdi-text-search">Loki Logs</v-tab>
+          <v-tab value="loki" prepend-icon="mdi-text-search">Pod (Loki) Logs</v-tab>
+          <v-tab value="api" prepend-icon="mdi-api">Workflow-API Logs</v-tab>
         </v-tabs>
         <v-divider />
       </div>
@@ -161,7 +161,19 @@
             @click="downloadLog"
           >
             <v-icon size="18" class="mr-1">mdi-download</v-icon>
-            Download
+            Download Log
+          </v-btn>
+
+          <v-btn
+            v-if="props.taskRuns.length > 1"
+            color="primary"
+            size="small"
+            variant="outlined"
+            :loading="downloadingAllApi"
+            @click="downloadAllApiLogs"
+          >
+            <v-icon size="18" class="mr-1">mdi-zip-box</v-icon>
+            Download All Logs
           </v-btn>
         </template>
 
@@ -198,7 +210,19 @@
             @click="lokiTabRef?.download()"
           >
             <v-icon size="18" class="mr-1">mdi-download</v-icon>
-            Download
+            Download Log
+          </v-btn>
+
+          <v-btn
+            v-if="workflowRun && workflowRun.task_runs.length > 1"
+            color="primary"
+            size="small"
+            variant="outlined"
+            :loading="lokiTabRef?.downloadingAll"
+            @click="lokiTabRef?.downloadAll()"
+          >
+            <v-icon size="18" class="mr-1">mdi-zip-box</v-icon>
+            Download All Logs
           </v-btn>
         </template>
 
@@ -225,6 +249,7 @@ import { workflowRunsApi } from '@/api/workflowRuns'
 import type { TaskRun, WorkflowRun } from '@/types/schemas'
 import { statusColor } from '@/utils/status'
 import TaskLokiLogTab from '@/components/logging/loki/TaskLokiLogTab.vue'
+import { downloadAsZip } from '@/utils/zipDownload'
 
 const taskSearch = ref('')
 
@@ -265,7 +290,7 @@ const model = computed({
 // ============================================================
 
 /** Active log source tab ('api' | 'loki'). Only visible when namespace prop is set. */
-const activeLogTab = ref('api')
+const activeLogTab = ref('loki')
 
 /** Template ref for the Loki tab component — provides reload/copy/download via defineExpose. */
 const lokiTabRef = ref<InstanceType<typeof TaskLokiLogTab> | null>(null)
@@ -441,6 +466,28 @@ function downloadLog() {
   a.download = `${props.workflowTitle}-v${props.workflowVersion}-task-${selectedTaskRunId.value}.log`
   a.click()
   URL.revokeObjectURL(url)
+}
+
+const downloadingAllApi = ref(false)
+
+async function downloadAllApiLogs() {
+  if (downloadingAllApi.value || !props.taskRuns.length) return
+  downloadingAllApi.value = true
+  try {
+    const entries = await Promise.all(
+      props.taskRuns.map(async (task: TaskRun) => {
+        try {
+          const raw = await workflowRunsApi.getTaskRunLogs(props.workflowRunId, task.id)
+          return { name: `${task.task_title}.log`, content: decodeNewlines(raw) }
+        } catch {
+          return { name: `${task.task_title}.log`, content: 'Failed to fetch logs.' }
+        }
+      })
+    )
+    downloadAsZip(`${props.workflowTitle}-v${props.workflowVersion}-logs.zip`, entries)
+  } finally {
+    downloadingAllApi.value = false
+  }
 }
 
 /**

@@ -20,6 +20,32 @@ from build_helper.helm import HelmChartHelper
 from build_helper.utils.logger import get_logger, init_logger, set_console_level
 from build_helper.container.coordinator import BuildCoordinator
 
+def validate_registry_login_config(build_config: BuildConfig, logger) -> None:
+    if build_config.build_only or build_config.no_login:
+        return
+
+    missing = []
+    if not build_config.default_registry:
+        missing.append("--default-registry")
+    if not build_config.registry_username:
+        missing.append("--username/--registry-username")
+    if not build_config.registry_password:
+        missing.append("--registry-password")
+
+    if not missing:
+        return
+
+    logger.error("Registry login is enabled, but required registry settings are missing.")
+    logger.error(f"Missing: {', '.join(missing)}")
+    logger.error("How to use this script:")
+    logger.error(
+        "  - Local build only: ./start_build.py --latest --build-only --no-login"
+    )
+    logger.error(
+        "  - Build and push: ./start_build.py --latest --default-registry <registry> --username <user> --registry-password <password>"
+    )
+    sys.exit(2)
+
 
 def main(build_config: BuildConfig):
     EXIT_CODE = 0
@@ -49,6 +75,7 @@ def main(build_config: BuildConfig):
     logger.info("-----------------------------------------------------------")
     logger.info("")
     build_config.log_self(logger)
+    validate_registry_login_config(build_config, logger)
 
     build_state = BuildState(started_at=time())
 
@@ -106,20 +133,34 @@ def main(build_config: BuildConfig):
             OfflineInstallerHelper.init(
                 build_config=build_config, build_state=build_state
             )
-            OfflineInstallerHelper.generate_microk8s_offline_version(
-                platform_chart.build_chart_dir
+            offline_installer_image = OfflineInstallerHelper.generate_microk8s_offline_version(
+                platform_chart.build_chart_dir,
+                package_version=platform_chart.version,
+            )
+            if offline_installer_image:
+                logger.info(
+                    f"Finished: Packaging offline installer container {offline_installer_image}."
+                )
+
+            # We also have to build the racoon-files image, which is used in the offline installation process.
+            racoon_files_image = OfflineInstallerHelper.generate_racoon_files_version(
+                package_version=platform_chart.version,
+            )
+            logger.info(
+                f"Finished: Packaging racoon-files image {racoon_files_image} for offline installation."
             )
 
-            images_tarball_path = (
-                platform_chart.build_chart_dir.parent
-                / f"{platform_chart.name}-{platform_chart.version}-images.tar"
-            )
-            OfflineInstallerHelper.export_image_list_into_tarball(
-                image_list=[c.tag for c in build_state.selected_containers],
-                images_tarball_path=images_tarball_path,
-                container_engine=build_config.container_engine,
-            )
-            logger.info("Finished: Generating platform images tarball.")
+            # RACOON adjustment: We don't export the offline installer image into a tarball.
+            # images_tarball_path = (
+            #     platform_chart.build_chart_dir.parent
+            #     / f"{platform_chart.name}-{platform_chart.version}-images.tar"
+            # )
+            # OfflineInstallerHelper.export_image_list_into_tarball(
+            #     image_list=[c.tag for c in build_state.selected_containers],
+            #     images_tarball_path=images_tarball_path,
+            #     container_engine=build_config.container_engine,
+            # )
+            # logger.info("Finished: Generating platform images tarball.")
 
     if len(IssueTracker.issues) > 0:
         logger.info("")

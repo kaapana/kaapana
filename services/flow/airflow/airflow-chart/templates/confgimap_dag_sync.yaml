@@ -1,0 +1,24 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-dag-sync-nginx-conf
+  namespace: "{{ .Values.global.services_namespace }}"
+data:
+  default.conf: |
+    server {
+      listen 8080;
+      server_name _;
+
+      location /dags/ {
+        alias /data/dags/;
+        autoindex on;
+        autoindex_exact_size off;
+      }
+
+      location /plugins/ {
+        alias /data/plugins/;
+        autoindex on;
+        autoindex_exact_size off;
+      }
+    }

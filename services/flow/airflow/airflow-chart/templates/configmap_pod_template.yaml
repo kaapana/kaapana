@@ -14,26 +14,28 @@ data:
       labels:
         network-access-internal-services: "true"
     spec:
-      serviceAccountName: airflow-worker-sa
       initContainers:
         - name: sync-dags-plugins
-          image: "{{ .Values.global.registry_url }}/kube-helm:{{ .Values.global.kaapana_build_version }}"
+          image: "{{ .Values.global.registry_url }}/airflow:{{ .Values.global.kaapana_build_version }}"
           imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
           command:
             - sh
             - -c
             - |
-              echo "Syncing dags and plugins from airflow scheduler pod..."
-              # Find the scheduler pod by label in services namespace
-              SCHEDULER_POD=$(kubectl get pods -n ${SERVICES_NAMESPACE} \
-                -l app.kubernetes.io/name=airflow,app.kubernetes.io/component=scheduler \
-                -o jsonpath='{.items[0].metadata.name}')
-              echo "Scheduler pod: $SCHEDULER_POD"
-              kubectl cp ${SERVICES_NAMESPACE}/${SCHEDULER_POD}:/kaapana/mounted/workflows/dags /sync/dags
-              kubectl cp ${SERVICES_NAMESPACE}/${SCHEDULER_POD}:/kaapana/mounted/workflows/plugins /sync/plugins
+              sync() {
+                wget -q -r -nH --cut-dirs=1 --no-parent --reject="index.html*" \
+                    -P /sync/$1 \
+                    http://airflow-dag-sync-service.${SERVICES_NAMESPACE}.svc/$1/
+                rc=$?; [ $rc -eq 0 ] || [ $rc -eq 8 ] || exit $rc
+              }
+
+              sync dags && echo "DAGs synced successfully"
+              sync plugins && echo "Plugins synced successfully"
           env:
             - name: SERVICES_NAMESPACE
               value: "{{ .Values.global.services_namespace }}"
+            - name: no_proxy
+              value: ".svc,.svc.cluster,.svc.cluster.local"
           volumeMounts:
             - name: airflow-dags
               mountPath: /sync/dags

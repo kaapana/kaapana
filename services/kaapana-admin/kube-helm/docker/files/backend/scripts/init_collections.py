@@ -44,7 +44,7 @@ for _ in range(3600):
         _, _, ingress_paths, kube_status = get_kube_objects(release_name)
         releases_installed[release_name] = (
             True
-            if all_successful(set(kube_status["status"] + [status["STATUS"]])) == "yes"
+            if all_successful(set(kube_status["status"] + [status.get("status", "")])) == "yes"
             else False
         )
     if sum(list(releases_installed.values())) == len(releases_installed):

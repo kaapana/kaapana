@@ -150,6 +150,8 @@ function deploy() {
     CONTAINER_REGISTRY_PASSWORD="${CONTAINER_REGISTRY_PASSWORD:-}"
     CHART_REFERENCE="${CHART_REFERENCE:-}"
     PLAIN_HTTP="${PLAIN_HTTP:-false}"
+    KUBE_HELM_INSTALL_TIMEOUT="${KUBE_HELM_INSTALL_TIMEOUT:-}"
+    KUBE_HELM_DELETION_TIMEOUT="${KUBE_HELM_DELETION_TIMEOUT:-}"
 
     script_name=`basename "$0"`
 
@@ -166,6 +168,7 @@ function deploy() {
 
     _Flag: --undeploy undeploys the current platform
     _Flag: --no-hooks will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forever.
+    _Flag: --auto-no-hooks enables an automatic --no-hooks fallback during undeployment. When enabled, stuck 'uninstalling' charts are retried with --no-hooks after a short wait.
     _Flag: --install-certs set new HTTPS-certificates for the platform
     _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
     _Flag: --remove-all-images-docker will delete all Docker images from the system
@@ -185,9 +188,12 @@ function deploy() {
     _Argument: --password [Docker registry password]
     _Argument: --port [Set main https-port]
     _Argument: --chart-path [path-to-chart-tgz]
+    _Argument: --kube-helm-install-timeout [seconds]
+    _Argument: --kube-helm-deletion-timeout [seconds]
     _Argument: --import-images-tar [path-to-a-tarball]"
 
     QUIET=false
+    DO_UNDEPLOY=false
 
     POSITIONAL=()
     while [[ $# -gt 0 ]]
@@ -195,6 +201,11 @@ function deploy() {
         key="$1"
 
         case $key in
+
+            -h|--help)
+                echo -e "${YELLOW}$usage${NC}"
+                exit 0
+            ;;
 
             -u|--username)
                 CONTAINER_REGISTRY_USERNAME="$2"
@@ -250,6 +261,20 @@ function deploy() {
                 echo -e "${GREEN}SET PORT!${NC}";
                 shift # past argument
                 shift # past value
+            ;;
+
+            --kube-helm-install-timeout)
+                KUBE_HELM_INSTALL_TIMEOUT="$2"
+                echo -e "${GREEN}SET KUBE_HELM_INSTALL_TIMEOUT: $KUBE_HELM_INSTALL_TIMEOUT ${NC}"
+                shift
+                shift
+            ;;
+
+            --kube-helm-deletion-timeout)
+                KUBE_HELM_DELETION_TIMEOUT="$2"
+                echo -e "${GREEN}SET KUBE_HELM_DELETION_TIMEOUT: $KUBE_HELM_DELETION_TIMEOUT ${NC}"
+                shift
+                shift
             ;;
 
             --chart-path)
@@ -313,6 +338,12 @@ function deploy() {
                 exit 0
             ;;
 
+            --auto-no-hooks)
+                AUTO_NO_HOOKS=true
+                echo -e "${YELLOW}Automatic --no-hooks fallback enabled${NC}"
+                shift
+            ;;
+
             --nuke-pods)
                 while true; do
                     read -e -p "Do you really want to nuke all pods? -> Not recommended!" -i " no" yn
@@ -330,8 +361,8 @@ function deploy() {
             ;;
 
             --undeploy)
-                delete_deployment
-                exit 0
+                DO_UNDEPLOY=true
+                shift
             ;;
 
             --re-deploy)
@@ -361,6 +392,16 @@ function deploy() {
 
         esac
     done
+
+    # NO_HOOKS and AUTO_NO_HOOKS should be distinct, NO_HOOKS always takes precedence over AUTO_NO_HOOKS
+    if [ "${NO_HOOKS:-}" = "true" ]; then
+        AUTO_NO_HOOKS=false
+    fi
+
+    if [ "$DO_UNDEPLOY" = "true" ]; then
+        delete_deployment
+        exit 0
+    fi
 
     setup_storage_provider
 
@@ -1179,6 +1220,7 @@ function load_kaapana_config {
     PREFETCH_EXTENSIONS=false
     CHART_PATH=""
     NO_HOOKS=""
+    AUTO_NO_HOOKS=false
     OFFLINE_MODE=false
 
     INSTANCE_UID=""
@@ -1326,8 +1368,9 @@ function delete_deployment {
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
     do
+        # Increase timeout or -no-hooks. This can cause inconsistencies
         sleep 3
-        if [ "$idx" -eq 2 ]; then
+        if [ "$idx" -eq 2 ] && [ "$AUTO_NO_HOOKS" = "true" ]; then
             echo "Deleting helm charts in 'uninstalling' state with --no-hooks"
             $HELM_EXECUTABLE -n $namespace ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall --no-hooks --wait --timeout 5m30s %; sleep 2"
         fi
@@ -1948,6 +1991,23 @@ function deploy_chart {
     echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
 
+    local -a kube_helm_timeout_args=()
+    if [[ -n "$KUBE_HELM_INSTALL_TIMEOUT" ]]; then
+        kube_helm_timeout_args+=(
+            --set
+            "kube-helm-chart.timeouts.helmInstallTimeout=$KUBE_HELM_INSTALL_TIMEOUT"
+        )
+    fi
+    if [[ -n "$KUBE_HELM_DELETION_TIMEOUT" ]]; then
+        kube_helm_timeout_args+=(
+            --set
+            "kube-helm-chart.timeouts.helmDeletionTimeout=$KUBE_HELM_DELETION_TIMEOUT"
+        )
+    fi
+    if [[ ${#kube_helm_timeout_args[@]} -gt 0 ]]; then
+        echo "${YELLOW}Applying kube-helm timeout overrides.${NC}"
+    fi
+
     # Build helm command with optional --plain-http flag
     HELM_INSTALL_CMD="$HELM_EXECUTABLE -n $HELM_NAMESPACE install --create-namespace"
     if [ "$PLAIN_HTTP" = true ]; then
@@ -2011,9 +2071,9 @@ function deploy_chart {
     --set-string global.main_node_name="$MAIN_NODE_NAME" \
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
     --set-string global.storage_node="$STORAGE_NODE" \
-    --name-template "$PLATFORM_NAME" \
-    --set kube-helm-chart.timeouts.helmInstallTimeout=45 \
-    --set kube-helm-chart.timeouts.helmDeletionTimeout=60
+    "${kube_helm_timeout_args[@]}" \
+    --name-template "$PLATFORM_NAME"
+
     # In case of timeout-issues in kube helm increase the default timeouts by setting
 
 

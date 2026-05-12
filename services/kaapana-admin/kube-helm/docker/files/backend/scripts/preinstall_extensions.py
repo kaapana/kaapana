@@ -7,8 +7,8 @@ from pathlib import Path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/app")
 
 from app.config import settings
-from app.helm_helper import execute_shell_command, get_kube_objects, helm_show_chart
-from app.utils import helm_install, helm_status
+from app.helm_helper import get_kube_objects, helm_show_chart
+from app.utils import helm_status, supervised_helm_install
 from kaapanapy.logger import get_logger
 
 logger = get_logger(__name__)
@@ -47,31 +47,20 @@ for extension in preinstall_extensions:
     # install
     try:
         chart = helm_show_chart(extension["name"], extension["version"])
-        is_platform = False
-        if "keywords" in chart and "kaapanaplatform" in chart["keywords"]:
-            is_platform = True
+        chart_keywords = chart.get("keywords", [])
+        is_platform = "kaapanaplatform" in chart_keywords
 
-        # if chart is stuck in 'uninstalling' state, uninstall with --no-hooks
-        chart_name = chart["name"]
-        chart_status = helm_status(chart_name)
-        if len(chart_status) != 0 and chart_status[0]["STATUS"] == "uninstalling":
-            # if it is stuck in uninstalling, delete with --no-hooks
-            logger.warning(f"{chart_name} stuck in 'uninstalling' status")
-            logger.info(f"Deleting {chart_name} with --no-hooks")
-            execute_shell_command(
-                f"{settings.helm_path} uninstall {chart_name} --no-hooks"
-            )
-        elif len(chart_status) != 0 and chart_status[0]["STATUS"] == "deployed":
-            logger.info(f"Chart {chart_name} is already installed, skipping")
-            continue
-
-        success, _, _, release_name, _ = helm_install(
+        success, message, _, release_name, _ = supervised_helm_install(
             extension,
             shell=True,
             update_state=False,
             blocking=True,
             platforms=is_platform,
         )
+        if not success and message == "Chart is already installed":
+            logger.info(f"Chart {release_name} is already installed, skipping")
+            continue
+
         releases_installed[release_name] = {
             "version": extension["version"],
             "installed": False,
@@ -80,7 +69,7 @@ for extension in preinstall_extensions:
         if success:
             logger.info(f"Chart {release_name} successfully installed")
         else:
-            error_message = f"Failed to install chart {release_name}, see error logs"
+            error_message = f"Failed to install chart {release_name}: {message}"
             logger.error(error_message)
             raise Exception(error_message)
 

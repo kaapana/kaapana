@@ -253,12 +253,20 @@ prepare_deployment:
     - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
     - |
       if [[ "$CI_EXEC_DEPLOY" == "true" && -z "$DEPLOYMENT_INSTANCE_FQDN" ]]; then
+        # vm_name is truncated inside the provisioning playbook to keep the FQDN
+        # within 57 characters (dcmsend peerhost limit).
         if [[ "$DEPLOYMENT_INSTANCE_PROVISIONER" == "openstack" ]]; then
           ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/provision_openstack_vm.yaml"
         else
           ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/provision_harvester_vm.yaml"
         fi
       else
+        # Fail early when a pre-provided FQDN is too long — dcmsend will reject it
+        # during tests and the failure would surface much later otherwise.
+        if [[ ${#DEPLOYMENT_INSTANCE_FQDN} -gt 57 ]]; then
+          echo "ERROR: DEPLOYMENT_INSTANCE_FQDN '${DEPLOYMENT_INSTANCE_FQDN}' is ${#DEPLOYMENT_INSTANCE_FQDN} characters, exceeding the 57-character dcmsend peerhost limit."
+          exit 1
+        fi
         echo "Skipping VM provisioning and using existing deployment target: $DEPLOYMENT_INSTANCE_FQDN"
         mkdir -p artifacts
         echo "VM_FQDN=$DEPLOYMENT_INSTANCE_FQDN" > artifacts/deployment.env

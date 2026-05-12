@@ -29,6 +29,12 @@ spec:
           value: {{ .Values.global.http_proxy }}
         - name: https_proxy
           value: {{ .Values.global.https_proxy }}
+        # Keep internal cluster traffic off the proxy to avoid blocking
+        # service-to-service calls on the Squid domain allowlist.
+        - name: no_proxy
+          value: ".svc,.svc.cluster,.svc.cluster.local,localhost,127.0.0.1,{{ .Values.global.hostname }}"
+        - name: NO_PROXY
+          value: ".svc,.svc.cluster,.svc.cluster.local,localhost,127.0.0.1,{{ .Values.global.hostname }}"
         resources:
           requests:
             memory: 200Mi

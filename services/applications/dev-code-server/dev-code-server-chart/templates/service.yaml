@@ -35,6 +35,18 @@ metadata:
     kaapana.ai/display-name: {{ if eq .Values.global.display_name "-" }}{{ .Release.Name }}{{ else }}{{ .Values.global.display_name }}{{ end }}
     kaapana.ai/type: application
 spec:
+  # Explicitly bind this ingress to the platform TLS secret so the route uses
+  # the same Kaapana-managed certificate as the rest of the deployment.
+  {{- $tlsSecretName := "certificate" }}
+  {{- with .Values.global }}
+  {{- with .tls_secret }}
+  {{- $tlsSecretName = (.name | default $tlsSecretName) }}
+  {{- end }}
+  {{- end }}
+  tls:
+    # Use Kaapana's global TLS secret when provided, otherwise fall back to
+    # the historical default secret name.
+    - secretName: {{ $tlsSecretName }}
   rules:
   - host: 
     http:

@@ -1,0 +1,47 @@
+# Global Continue config baked into the image for offline cluster-local usage.
+# Continue 1.2.x validates this file strictly against `config-yaml-schema.json`,
+# so only schema-supported keys are used here.
+name: Local Config
+version: 1.0.0
+schema: v1
+models:
+  # Primary model for chat/edit/apply actions through the shared Ollama API.
+  - name: Qwen Coder Chat
+    provider: ollama
+    # Use the canonical model ID to align Continue's model heuristics with
+    # Ollama's built-in metadata for this model family.
+    model: qwen2.5-coder:7b
+    apiBase: http://ollama-service.services.svc:11434
+    defaultCompletionOptions:
+      maxTokens: 1024
+      contextLength: 8192
+    roles:
+      - chat
+      - edit
+      - apply
+      - summarize
+      - subagent
+  # Dedicated autocomplete role so inline completions stay cluster-local as well.
+  - name: Qwen Coder Autocomplete
+    provider: ollama
+    # Keep autocomplete on the canonical model name to avoid alias edge cases
+    # where model-specific completion behavior is not applied.
+    model: qwen2.5-coder:7b
+    apiBase: http://ollama-service.services.svc:11434
+    defaultCompletionOptions:
+      maxTokens: 96
+      contextLength: 8192
+      temperature: 0.2
+    # Shared 7B models have higher latency than cloud completion models.
+    # Increase timeout so Continue waits long enough for Ollama responses.
+    autocompleteOptions:
+      modelTimeout: 5000
+      debounceDelay: 350
+      maxPromptTokens: 1024
+      # Disable aggressive post-processing so valid local-model outputs are
+      # not filtered before they are surfaced as inline suggestions.
+      transform: false
+      # Avoid stale/empty autocomplete cache entries while tuning defaults.
+      useCache: false
+    roles:
+      - autocomplete

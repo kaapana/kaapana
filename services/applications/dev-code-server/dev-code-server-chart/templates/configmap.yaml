@@ -1,3 +1,10 @@
+{{- $servicesNamespace := tpl .Values.global.services_namespace . -}}
+{{- $defaultOllamaApiBase := printf "http://ollama-service.%s.svc:11434" $servicesNamespace -}}
+{{- $ollamaApiBase := $defaultOllamaApiBase -}}
+{{- if .Values.global.ollama_api_base -}}
+{{- $ollamaApiBase = tpl .Values.global.ollama_api_base . -}}
+{{- end -}}
+{{- $ollamaModel := default "qwen2.5-coder:7b" .Values.global.ollama_model -}}
 apiVersion: v1
 data:
   keybindings.json: |-
@@ -42,8 +49,61 @@ data:
             "key": "ctrl+shift+k",
             "command": "-editor.action.deleteLines",
             "when": "textInputFocus && !editorReadonly"
+        },
+        {
+            // Keep VS Code's native Ctrl+Space completion and expose Continue
+            // manual trigger on Ctrl+Alt+Space.
+            "key": "ctrl+alt+space",
+            "command": "continue.forceAutocomplete",
+            "when": "editorTextFocus && !editorHasSelection && !editorReadOnly && !inSnippetMode"
         }
     ]
+  # Continue 1.2.x strict YAML config wired to the shared cluster-local Ollama
+  # service. Keeping this in ConfigMap allows fast hotfixes without rebuilding
+  # the image.
+  continue_config.yaml: |-
+    name: Local Config
+    version: 1.0.0
+    schema: v1
+    models:
+      - name: Qwen Coder Chat
+        provider: ollama
+        # Use the canonical Ollama model ID so Continue applies the right
+        # provider/model heuristics for prompting and tokenization.
+        model: {{ $ollamaModel | quote }}
+        apiBase: {{ $ollamaApiBase | quote }}
+        defaultCompletionOptions:
+          maxTokens: 1024
+          contextLength: 8192
+        roles:
+          - chat
+          - edit
+          - apply
+          - summarize
+          - subagent
+      - name: Qwen Coder Autocomplete
+        provider: ollama
+        # Keep autocomplete on the canonical model name as well to avoid
+        # alias-related edge cases in Continue model detection.
+        model: {{ $ollamaModel | quote }}
+        apiBase: {{ $ollamaApiBase | quote }}
+        defaultCompletionOptions:
+          maxTokens: 96
+          contextLength: 8192
+          temperature: 0.2
+        # Shared 7B models can take multiple seconds for infill. Raise timeout
+        # so inline suggestions are not dropped before Ollama answers.
+        autocompleteOptions:
+          modelTimeout: 5000
+          debounceDelay: 350
+          maxPromptTokens: 1024
+          # Disable aggressive post-processing so valid model outputs are not
+          # filtered out before reaching the editor inline suggestion UI.
+          transform: false
+          # Avoid stale/empty autocomplete cache entries while iterating config.
+          useCache: false
+        roles:
+          - autocomplete
   user_settings.json: |-
     {
         "security.workspace.trust.enabled": false,
@@ -51,9 +111,39 @@ data:
         "security.workspace.trust.untrustedFiles": "open",
         "extensions.supportUntrustedWorkspaces": true,
         "workbench.colorTheme": "Default Dark+",
-        "chat.disableAIFeatures": true,
+        // Do NOT set chat.disableAIFeatures to true – in VS Code 1.105+ it can
+        // interfere with third-party InlineCompletionItemProviders such as
+        // Continue, preventing inline suggestions from being triggered.
+        "chat.disableAIFeatures": false,
         "editor.aiStats.enabled": false,
         "chat.agent.enabled": false,
+        // Disable VS Code telemetry/experiments for strict offline mode.
+        "telemetry.telemetryLevel": "off",
+        "workbench.enableExperiments": false,
+        // Continue extension: telemetry off for privacy/offline deployments.
+        "continue.telemetryEnabled": false,
+        // Enable Continue inline tab completion by default.
+        "continue.enableTabAutocomplete": true,
+        // Disable Next Edit because it may fall back to remote providers and
+        // create timeout noise in offline-only clusters.
+        "continue.enableNextEdit": false,
+        "editor.inlineSuggest.enabled": true,
+        // Allow the standard suggestion widget and AI inline suggestions to
+        // coexist instead of suppressing one another.
+        "editor.inlineSuggest.suppressSuggestions": false,
+        // Re-enable normal VS Code autocomplete behavior.
+        "editor.quickSuggestions": {
+            "other": true,
+            "comments": false,
+            "strings": false
+        },
+        "editor.suggestOnTriggerCharacters": true,
+        // Disable GitHub auth integration to avoid outbound login/telemetry calls.
+        "github.gitAuthentication": false,
+        // Offline setup: skip extension/update checks that trigger outbound timeouts.
+        "extensions.autoCheckUpdates": false,
+        "extensions.autoUpdate": false,
+        "update.mode": "none",
         "python.defaultInterpreterPath": "/opt/venv/bin/python",
         "r.rterm.linux": "/usr/bin/R",
         "r.alwaysUseActiveTerminal": true,

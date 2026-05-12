@@ -1,4 +1,5 @@
 import json
+import re
 import uuid
 from datetime import datetime, timezone
 
@@ -13,8 +14,56 @@ from minio.error import S3Error
 from starlette.responses import StreamingResponse
 
 DEFAULT_STATIC_WEBSITE_BUCKET = "staticwebsiteresults"
+DEFAULT_RESULTS_PAGE_SIZE = 100
+SERIES_ID_PATTERN = re.compile(r"^(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*$")
 
 router = APIRouter()
+
+
+def _get_bucket_and_results_prefix(request: Request) -> tuple[str, str]:
+    """Resolve the active bucket and the results root within that bucket."""
+    bucket_name = DEFAULT_STATIC_WEBSITE_BUCKET
+    project_header = request.headers.get("project")
+    project = json.loads(project_header) if project_header else None
+
+    if project and "s3_bucket" in project:
+        return project.get("s3_bucket"), f"{DEFAULT_STATIC_WEBSITE_BUCKET}/"
+
+    return bucket_name, ""
+
+
+def _normalize_results_prefix(prefix: str) -> str:
+    if not prefix:
+        return ""
+
+    normalized_prefix = prefix.strip("/")
+    if not normalized_prefix:
+        return ""
+
+    return f"{normalized_prefix}/"
+
+
+def _build_results_file_url(object_name: str) -> str:
+    return (
+        "/kaapana-backend/get-static-website-results-html"
+        f"?object_name={object_name}"
+    )
+
+
+def _extract_series_id_from_path(path: str) -> str | None:
+    for part in reversed(path.split("/")):
+        if SERIES_ID_PATTERN.match(part):
+            return part
+    return None
+
+
+def _parse_series_ids(request: Request) -> list[str]:
+    series_ids = request.query_params.getlist("series_id")
+    if series_ids:
+        return [series_id for series_id in series_ids if series_id]
+
+    series_ids_csv = request.query_params.get("series_ids", "")
+    return [series_id.strip() for series_id in series_ids_csv.split(",") if series_id]
 
 
 @router.get("/")
@@ -74,6 +123,9 @@ def get_static_website_results(
     request: Request,
     minioClient=Depends(get_minio),
 ):
+    # Legacy compatibility endpoint.
+    # Keep the recursive full-tree response stable until all callers are migrated
+    # to the incremental browse and targeted lookup endpoints below.
     # set the bucket_name automatically from the request header
     bucket_name: str = (DEFAULT_STATIC_WEBSITE_BUCKET,)
     project = json.loads(request.headers.get("project"))
@@ -128,6 +180,158 @@ def get_static_website_results(
             if obj.object_name.endswith("html") and obj.object_name != "index.html":
                 build_tree(tree, obj.object_name, obj.object_name)
         return _get_vuetify_tree_structure(tree)
+    except S3Error:
+        raise HTTPException(
+            status_code=404,
+            detail="Bucket name not found or Dont have access to the bucket",
+        )
+
+
+@router.get("/get-static-website-results-tree")
+def get_static_website_results_tree(
+    request: Request,
+    prefix: str = "",
+    limit: int = DEFAULT_RESULTS_PAGE_SIZE,
+    continuation_token: str | None = None,
+    minioClient=Depends(get_minio),
+):
+    """
+    Incremental workflow results browse endpoint.
+    Returns only one directory level at a time so the UI can lazy-load results.
+    """
+    bucket_name, bucket_results_prefix = _get_bucket_and_results_prefix(request)
+    relative_prefix = _normalize_results_prefix(prefix)
+    results_prefix = f"{bucket_results_prefix}{relative_prefix}"
+    page_size = max(1, min(limit, 500))
+
+    items = []
+    seen_paths = set()
+    found_continuation = continuation_token is None
+    next_continuation_token = None
+
+    try:
+        objects = minioClient.list_objects(
+            bucket_name,
+            prefix=results_prefix,
+            recursive=False,
+        )
+
+        for obj in objects:
+            object_name = obj.object_name
+            if object_name == results_prefix:
+                continue
+
+            rel_path = object_name[len(results_prefix) :]
+            if not rel_path:
+                continue
+
+            rel_path_clean = rel_path.rstrip("/")
+            is_directory = object_name.endswith("/") or "/" in rel_path_clean
+
+            if is_directory:
+                directory_name = rel_path_clean.split("/")[0]
+                item = {
+                    "name": directory_name,
+                    "path": f"{relative_prefix}{directory_name}".rstrip("/"),
+                    "file": False,
+                    "children": [],
+                    "hasChildren": True,
+                }
+            else:
+                if not object_name.endswith(".html"):
+                    continue
+
+                item = {
+                    "name": rel_path,
+                    "path": f"{relative_prefix}{rel_path}".rstrip("/"),
+                    "file": "html",
+                    "children": [],
+                    "hasChildren": False,
+                    "url": _build_results_file_url(object_name),
+                }
+
+            unique_path = item["path"]
+            if unique_path in seen_paths:
+                continue
+            seen_paths.add(unique_path)
+
+            if not found_continuation:
+                if unique_path == continuation_token:
+                    found_continuation = True
+                continue
+
+            if len(items) >= page_size:
+                next_continuation_token = items[-1]["path"]
+                break
+
+            items.append(item)
+
+        return {
+            "items": items,
+            "nextContinuationToken": next_continuation_token,
+            "prefix": relative_prefix.rstrip("/"),
+        }
+    except S3Error:
+        raise HTTPException(
+            status_code=404,
+            detail="Bucket name not found or Dont have access to the bucket",
+        )
+
+
+@router.get("/get-static-website-result-reports")
+def get_static_website_result_reports(
+    request: Request,
+    minioClient=Depends(get_minio),
+):
+    """
+    Targeted validation report lookup endpoint.
+    This avoids forcing Dataset-related UIs to prefetch the complete recursive
+    results tree just to resolve report URLs for one or a few series.
+    """
+    series_ids = _parse_series_ids(request)
+    if not series_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="At least one series_id or series_ids query parameter is required.",
+        )
+
+    bucket_name, bucket_results_prefix = _get_bucket_and_results_prefix(request)
+    unresolved_ids = set(series_ids)
+    results = {
+        series_id: {
+            "found": False,
+            "url": None,
+            "object_name": None,
+        }
+        for series_id in series_ids
+    }
+
+    try:
+        objects = minioClient.list_objects(
+            bucket_name,
+            prefix=bucket_results_prefix,
+            recursive=True,
+        )
+
+        for obj in objects:
+            object_name = obj.object_name
+            if not object_name.endswith(".html"):
+                continue
+
+            series_id = _extract_series_id_from_path(object_name)
+            if not series_id or series_id not in unresolved_ids:
+                continue
+
+            results[series_id] = {
+                "found": True,
+                "url": _build_results_file_url(object_name),
+                "object_name": object_name,
+            }
+            unresolved_ids.remove(series_id)
+            if not unresolved_ids:
+                break
+
+        return {"results": results}
     except S3Error:
         raise HTTPException(
             status_code=404,

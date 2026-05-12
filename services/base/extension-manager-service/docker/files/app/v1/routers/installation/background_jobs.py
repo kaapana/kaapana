@@ -3,7 +3,12 @@ from v1.services.database import crud, models
 
 from v1.services.oci.service import ociService
 from v1.services import dispatch
+
+import asyncio
 import json
+from kaapanapy.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 async def install_extension_background_task(
@@ -11,7 +16,7 @@ async def install_extension_background_task(
     db: AsyncSession,
     oci: ociService,
 ):
-    print(f"Installing extension with id {extension_id} in background task")
+    logger.info(f"Installing extension with id {extension_id} in background task")
 
     #### PULLING EXTENSION ####
     db_extension = await crud.update_extension(
@@ -38,6 +43,16 @@ async def install_extension_background_task(
 
         for content in db_extension.contents:
             #### INSTALLING CONTENT ####
+            if content.status == models.ContentStatus.INSTALLED:
+                logger.info(
+                    f"Content with id {content.id} and name {content.name} is already in status {content.status}"
+                )
+                continue
+            content = await crud.update_content(
+                db,
+                content_id=content.id,
+                status=models.ContentStatus.INSTALLING,
+            )
             try:
                 result = await dispatch.dispatcher.install_content(
                     dispatch.Content(
@@ -89,18 +104,27 @@ async def uninstall_extension_background_task(
     extension_id: str,
     db: AsyncSession,
 ):
-    print(f"Unnstalling extension with id {extension_id} in background task")
+    logger.info(f"Unnstalling extension with id {extension_id} in background task")
 
-    db_extension = await crud.update_extension(
-        db, extension_id=extension_id, status=models.ExtensionStatus.UNINSTALLING
-    )
+    db_extension = await crud.get_extension(db, extension_id=extension_id)
 
     #### UNINSTALLING CONTENT ####
     try:
         content_exceptions = []
 
         for content in db_extension.contents:
-            #### INSTALLING CONTENT ####
+            #### UNINSTALLING CONTENT ####
+            if content.status == models.ContentStatus.UNINSTALLED:
+                logger.info(
+                    f"Content with id {content.id} and name {content.name} is already in status {content.status}"
+                )
+                continue
+
+            content = await crud.update_content(
+                db,
+                content_id=content.id,
+                status=models.ContentStatus.UNINSTALLING,
+            )
             try:
                 result = await dispatch.dispatcher.uninstall_content(
                     dispatch.Content(
@@ -143,5 +167,8 @@ async def uninstall_extension_background_task(
         )
 
     await crud.update_extension(
-        db, extension_id=extension_id, status=models.ExtensionStatus.UNINSTALLING_FAILED
+        db, extension_id=extension_id, status=models.ExtensionStatus.UNINSTALLED
     )
+
+    await asyncio.sleep(30)
+    await crud.delete_extension(db, extension_id=extension_id)

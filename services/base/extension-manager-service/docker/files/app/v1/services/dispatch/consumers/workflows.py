@@ -12,6 +12,10 @@ import asyncio
 import httpx
 from pathlib import Path
 
+from kaapanapy.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class WorkflowInstaller(ContentInstaller):
     def can_install(self, content: Content) -> bool:
@@ -55,7 +59,7 @@ class WorkflowInstaller(ContentInstaller):
         )
 
     async def uninstall(self, location: str) -> None:
-        print(f"Uninstalling workflow")
+        logger.info(f"Uninstalling workflow at {location}")
         async with httpx.AsyncClient() as client:
             response = await client.delete(
                 f"http://workflow-api.services.svc:80/v1{location}",

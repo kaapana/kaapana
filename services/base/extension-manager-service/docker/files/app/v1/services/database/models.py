@@ -20,6 +20,7 @@ class ExtensionStatus(enum.StrEnum):
     INSTALLATION_FAILED = "installing_failed"
     INSTALLED = "installed"
     UNINSTALLING = "uninstalling"
+    UNINSTALLED = "uninstalled"
     UNINSTALLING_FAILED = "uninstalling_failed"
 
 
@@ -147,7 +148,7 @@ class Content(Base):
     status: Mapped[ContentStatus] = mapped_column(
         Enum(
             ContentStatus,
-            name="cotent_status",
+            name="content_status",
             values_callable=lambda enum_cls: [status.value for status in enum_cls],
         ),
         nullable=False,
@@ -168,3 +169,65 @@ class Content(Base):
     )
 
     extension: Mapped[Extension] = relationship(back_populates="contents")
+
+
+ALLOWED_EXTENSION_STATUS_TRANSITIONS = {
+    ExtensionStatus.PENDING: [
+        ExtensionStatus.PULLING,
+    ],
+    ExtensionStatus.PULLING: [
+        ExtensionStatus.PULLING_FAILED,
+        ExtensionStatus.INSTALLING,
+    ],
+    ExtensionStatus.INSTALLING: [
+        ExtensionStatus.INSTALLATION_FAILED,
+        ExtensionStatus.INSTALLED,
+    ],
+    ExtensionStatus.INSTALLED: [
+        ExtensionStatus.UNINSTALLING,
+    ],
+    ExtensionStatus.UNINSTALLING: [
+        ExtensionStatus.UNINSTALLED,
+        ExtensionStatus.UNINSTALLING_FAILED,
+    ],
+    ExtensionStatus.UNINSTALLED: [],
+    ### ERROR STATES ###
+    ExtensionStatus.PULLING_FAILED: [
+        ExtensionStatus.PENDING,
+        ExtensionStatus.UNINSTALLING,
+    ],
+    ExtensionStatus.INSTALLATION_FAILED: [
+        ExtensionStatus.PENDING,
+        ExtensionStatus.UNINSTALLING,
+    ],
+    ExtensionStatus.UNINSTALLING_FAILED: [
+        ExtensionStatus.UNINSTALLING,
+    ],
+}
+
+
+ALLOWED_CONTENT_STATUS_TRANSITIONS = {
+    ContentStatus.PENDING: [
+        ContentStatus.INSTALLING,
+    ],
+    ContentStatus.INSTALLING: [
+        ContentStatus.INSTALLATION_FAILED,
+        ContentStatus.INSTALLED,
+    ],
+    ContentStatus.INSTALLED: [
+        ContentStatus.UNINSTALLING,
+    ],
+    ContentStatus.UNINSTALLING: [
+        ContentStatus.UNINSTALLED,
+        ContentStatus.UNINSTALLATION_FAILED,
+    ],
+    ContentStatus.UNINSTALLED: [],
+    ### ERROR STATES ###
+    ContentStatus.INSTALLATION_FAILED: [
+        ContentStatus.INSTALLING,
+        ContentStatus.UNINSTALLING,
+    ],
+    ContentStatus.UNINSTALLATION_FAILED: [
+        ContentStatus.UNINSTALLING,
+    ],
+}

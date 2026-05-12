@@ -4,6 +4,7 @@ from typing import Any, List, Optional
 from sqlalchemy import select, and_, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.exc import OperationalError
 
 from .models import (
     RegisteredRepository,
@@ -11,6 +12,8 @@ from .models import (
     ExtensionStatus,
     Content,
     ContentStatus,
+    ALLOWED_EXTENSION_STATUS_TRANSITIONS,
+    ALLOWED_CONTENT_STATUS_TRANSITIONS,
 )
 
 # ---------- Reposiory CRUD ----------
@@ -161,17 +164,36 @@ async def list_extensions(
 
 
 async def update_extension(
-    session: AsyncSession, extension_id: UUID, **kwargs: Any
+    session: AsyncSession,
+    extension_id: UUID,
+    status: ExtensionStatus,
 ) -> Optional[Extension]:
-    stmt = (
-        update(Extension)
-        .where(Extension.id == extension_id)
-        .values(**kwargs)
-        .execution_options(synchronize_session="fetch")
-    )
-    await session.execute(stmt)
-    await session.commit()
-    return await get_extension(session, extension_id)
+    try:
+        selection = await session.execute(
+            select(Extension)
+            .where(Extension.id == extension_id)
+            .with_for_update(nowait=True)
+        )
+        db_extension = selection.scalar_one_or_none()
+        if not db_extension:
+            return None
+
+        if status not in ALLOWED_EXTENSION_STATUS_TRANSITIONS[db_extension.status]:
+            raise Exception(
+                f"Invalid status transition from {db_extension.status} to {status} for extension with id {extension_id}"
+            )
+
+        db_extension.status = status
+        await session.commit()
+        return await get_extension(session, extension_id)
+    except OperationalError as e:
+        await session.rollback()
+        if "could not obtain lock on row" in str(e):
+            raise Exception(
+                f"Extension with id {extension_id} is currently being updated by another process. Please try again later."
+            ) from e
+        else:
+            raise e
 
 
 async def delete_extension(session: AsyncSession, extension_id: UUID) -> None:
@@ -211,17 +233,33 @@ async def update_content(
     status: Optional[ContentStatus] = None,
 ) -> Optional[Content]:
 
-    values = {}
-    if location:
-        values["location"] = location
-    if status:
-        values["status"] = status
-    stmt = (
-        update(Content)
-        .where(Content.id == content_id)
-        .values(**values)
-        .execution_options(synchronize_session="fetch")
-    )
-    await session.execute(stmt)
-    await session.commit()
-    return await get_content(session, content_id)
+    try:
+        selection = await session.execute(
+            select(Content).where(Content.id == content_id).with_for_update(nowait=True)
+        )
+        db_content = selection.scalar_one_or_none()
+        if not db_content:
+            return None
+
+        if (
+            status
+            and status not in ALLOWED_CONTENT_STATUS_TRANSITIONS[db_content.status]
+        ):
+            raise Exception(
+                f"Invalid status transition from {db_content.status} to {status} for content with id {content_id}"
+            )
+        elif status:
+            db_content.status = status
+        if location and location != db_content.location:
+            db_content.location = location
+        await session.commit()
+        return await get_content(session, content_id)
+
+    except OperationalError as e:
+        await session.rollback()
+        if "could not obtain lock on row" in str(e):
+            raise Exception(
+                f"Content with id {content_id} is currently being updated by another process. Please try again later."
+            ) from e
+        else:
+            raise e

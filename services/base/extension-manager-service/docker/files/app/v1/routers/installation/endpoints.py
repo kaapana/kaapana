@@ -8,6 +8,7 @@ from v1.routers.installation.background_jobs import (
     uninstall_extension_background_task,
 )
 
+from v1.services import dispatch
 
 from v1.services.database import crud, database
 
@@ -28,6 +29,7 @@ async def install_extension(
     oci: ociService = Depends(get_oci_service_for_repository),
     db=Depends(database.get_async_db),
 ):
+
     try:
         extension_manifest = await oci.get_extension_manifest(tag=tag)
     except ExtensionNotFoundException as e:
@@ -36,20 +38,46 @@ async def install_extension(
             detail=f"Extension with tag {tag} not found in {oci.repository_url}",
         ) from e
 
-    db_extension = await crud.create_extension(
-        session=db,
-        repository_id=repository_id,
-        tag=tag,
-        manifest=extension_manifest.model_dump_json(),
-    )
-
     for content in extension_manifest.contents:
-        await crud.create_content(
-            db,
-            extension_id=db_extension.id,
-            content_type=content.contentType,
-            name=content.name,
+        if not dispatch.dispatcher._find_installer(
+            dispatch.Content(name=content.name, content_type=content.contentType)
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"No installer found for content type {content.contentType}",
+            )
+
+    if db_extensions := await crud.list_extensions(
+        db, repository_id=repository_id, tag=tag
+    ):
+        db_extension = db_extensions[0]
+        try:
+            await crud.update_extension(
+                db,
+                extension_id=db_extension.id,
+                status=crud.ExtensionStatus.PENDING,
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Cannot install extension with tag {tag} from repository {repository_id} because an extension with the same tag is currently being installed or is already installed",
+            ) from e
+    else:
+
+        db_extension = await crud.create_extension(
+            session=db,
+            repository_id=repository_id,
+            tag=tag,
+            manifest=extension_manifest.model_dump_json(),
         )
+
+        for content in extension_manifest.contents:
+            await crud.create_content(
+                db,
+                extension_id=db_extension.id,
+                content_type=content.contentType,
+                name=content.name,
+            )
 
     background_tasks.add_task(
         install_extension_background_task, db_extension.id, db, oci
@@ -116,8 +144,15 @@ async def uninstall_extension(
     background_tasks: BackgroundTasks,
     db=Depends(database.get_async_db),
 ):
-
-    db_extension = await crud.get_extension(db, extension_id=extension_id)
+    try:
+        db_extension = await crud.update_extension(
+            db, extension_id=extension_id, status=crud.ExtensionStatus.UNINSTALLING
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot uninstall extension with id {extension_id} because it is currently being uninstalled or is not installed",
+        ) from e
     if not db_extension:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Extension not found"

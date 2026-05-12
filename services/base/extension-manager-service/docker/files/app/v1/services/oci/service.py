@@ -119,4 +119,4 @@ class ociService:
                 f"Extension with tag {tag} not found in {self.repository_url}"
             )
 
-        return Path(f"/app/v1/mock_data/{tag}")
+        return Path(self.extension_dir / tag)

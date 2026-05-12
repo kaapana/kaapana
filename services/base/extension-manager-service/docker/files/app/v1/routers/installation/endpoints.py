@@ -158,3 +158,6 @@ async def uninstall_extension(
             status_code=status.HTTP_404_NOT_FOUND, detail="Extension not found"
         )
     background_tasks.add_task(uninstall_extension_background_task, db_extension.id, db)
+
+    response.status_code = status.HTTP_204_NO_CONTENT
+    return response

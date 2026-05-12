@@ -72,6 +72,13 @@ async def update_repository(
     update_repository: schemas.PutRepositoryRequest,
     db: AsyncSession = Depends(database.get_async_db),
 ):
+
+    repository = await crud.get_registered_repository(db, repository_id)
+    if not repository:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found"
+        )
+
     db_registered_repository = await crud.update_registered_repository(
         db,
         id=repository_id,
@@ -80,11 +87,9 @@ async def update_repository(
         repository_url=update_repository.repository_url,
         authentication=update_repository.authentication,
     )
-    response.headers["Location"] = f"/repository/{id}"
-    response.status_code = status.HTTP_201_CREATED
 
     response.headers["Location"] = f"/repository/{db_registered_repository.id}"
-    response.status_code = status.HTTP_201_CREATED
+    response.status_code = status.HTTP_204_NO_CONTENT
     return response
 
 
@@ -92,6 +97,11 @@ async def update_repository(
 async def delete_repository(
     repository_id: UUID, db: AsyncSession = Depends(database.get_async_db)
 ):
+    repository = await crud.get_registered_repository(db, repository_id)
+    if not repository:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found"
+        )
     await crud.delete_registered_repository(db, repository_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

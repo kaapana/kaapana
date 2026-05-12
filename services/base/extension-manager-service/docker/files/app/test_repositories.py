@@ -1,6 +1,7 @@
 import pytest
 from httpx import AsyncClient
 import json
+from uuid import uuid4
 
 
 @pytest.mark.asyncio
@@ -8,6 +9,32 @@ async def test_read_repositories(client: AsyncClient):
     response = await client.get("/repositories")
     assert response.status_code == 200
     assert response.json() == []
+
+
+@pytest.mark.asyncio
+async def test_repositories_404(client: AsyncClient):
+    response = await client.get(f"/repositories/{uuid4()}")
+    assert response.status_code == 404
+
+    response = await client.put(
+        f"/repositories/{uuid4()}",
+        json={
+            "name": "New Repository Name",
+            "description": "new",
+            "authentication": "hello_world",
+            "repository_url": "https://example.com/new",
+        },
+    )
+    assert response.status_code == 404
+
+    response = await client.delete(f"/repositories/{uuid4()}")
+    assert response.status_code == 404
+
+    response = await client.get(f"/repositories/{uuid4()}/extensions")
+    assert response.status_code == 404
+
+    response = await client.get(f"/repositories/{uuid4()}/extensionManifests")
+    assert response.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -23,6 +50,33 @@ async def test_post_repository(client: AsyncClient):
     )
     assert response.status_code == 201
     assert response.headers.get("Location").startswith("/repositories/")
+
+
+@pytest.mark.asyncio
+async def test_post_repository_put_repository(client: AsyncClient):
+    response = await client.post(
+        "/repositories",
+        json={
+            "name": "Test Repository",
+            "description": "",
+            "authentication": "",
+            "repository_url": "https://example.com/oci",
+        },
+    )
+    assert response.status_code == 201
+    assert response.headers.get("Location").startswith("/repositories/")
+    repo_location = response.headers.get("Location")
+
+    response = await client.put(
+        repo_location,
+        json={
+            "name": "New Repository Name",
+            "description": "new",
+            "authentication": "hello_world",
+            "repository_url": "https://example.com/new",
+        },
+    )
+    assert response.status_code == 204
 
 
 @pytest.mark.asyncio

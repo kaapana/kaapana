@@ -16,6 +16,45 @@ os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 from main import app
 from v1.services.database.models import Base
 from v1.services.database.database import get_async_db
+from v1.services.dispatch.content import Content, ContentInstaller, InstallationResult
+from v1.services.dispatch.dispatcher import Dispatcher
+
+from unittest.mock import patch, MagicMock, AsyncMock
+
+
+class MockedInstaller(ContentInstaller):
+    def can_install(self, content: Content) -> bool:
+        return True
+
+    async def install(self, content: Content) -> InstallationResult:
+        return InstallationResult(
+            success=True,
+            message="Mocked installation successful",
+            location="/mock/location",
+        )
+
+    async def uninstall(self, content: Content) -> None:
+        pass
+
+
+@pytest_asyncio.fixture(name="mocked_installer")
+def mocked_installer():
+    """
+    Mock the dispatcher to use a MockContentInstaller
+    """
+    mock_dispatcher = MagicMock()
+    mock_dispatcher.install_content = AsyncMock(
+        return_value=InstallationResult(
+            success=True,
+            message="Mocked installation successful",
+            location="/mock/location",
+        )
+    )
+    mock_dispatcher._find_installer = MagicMock(return_value=MockedInstaller())
+    mock_dispatcher.uninstall_content = AsyncMock(return_value=None)
+    with patch("v1.services.dispatch.dispatcher", new=mock_dispatcher):
+
+        yield mock_dispatcher
 
 
 @pytest_asyncio.fixture(name="session")

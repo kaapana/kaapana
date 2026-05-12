@@ -18,6 +18,8 @@ logger = get_logger(__name__)
 
 
 class WorkflowInstaller(ContentInstaller):
+    workflow_api_url = "http://workflow-api.services.svc:80/v1"
+
     def can_install(self, content: Content) -> bool:
         return content.content_type == "workflow-v1"
 
@@ -41,7 +43,7 @@ class WorkflowInstaller(ContentInstaller):
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "http://workflow-api.services.svc:80/v1/workflows",
+                f"{WorkflowInstaller.workflow_api_url}/workflows",
                 json=workflow,
             )
         try:
@@ -62,7 +64,7 @@ class WorkflowInstaller(ContentInstaller):
         logger.info(f"Uninstalling workflow at {location}")
         async with httpx.AsyncClient() as client:
             response = await client.delete(
-                f"http://workflow-api.services.svc:80/v1{location}",
+                f"{WorkflowInstaller.workflow_api_url}{location}",
             )
         try:
             response.raise_for_status()

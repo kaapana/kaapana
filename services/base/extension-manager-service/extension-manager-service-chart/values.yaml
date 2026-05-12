@@ -1,7 +1,7 @@
 global:
   services_namespace: "services"
-  registry_url: "registry.hzdr.de/lorenz.feineis/kaapana-feineis-dev"
-  kaapana_build_version: "0.6.1-10-g3c77662bc"
+  registry_url: ""
+  kaapana_build_version: ""
   pull_policy_images: "Always"
   storage_node: "storage"
 

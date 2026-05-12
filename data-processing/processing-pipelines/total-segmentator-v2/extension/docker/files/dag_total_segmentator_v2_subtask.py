@@ -14,6 +14,7 @@ from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.UpdateSegInfoJSONOperator import UpdateSegInfoJSONOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from pyradiomics.PyRadiomicsOperator import PyRadiomicsOperator
+from airflow.operators.empty import EmptyOperator
 
 max_active_runs = 10
 concurrency = max_active_runs * 3
@@ -102,8 +103,10 @@ put_to_minio_subtask = MinioOperator(
 clean_subtask = LocalWorkflowCleanerOperator(
     dag=dag,
     clean_workflow_dir=True,
-    trigger_rule="none_failed",
+    trigger_rule="all_done",
 )
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 
 (
     get_input
@@ -113,6 +116,6 @@ clean_subtask = LocalWorkflowCleanerOperator(
     >> combine_masks_subtask
     >> nrrd2dcmSeg_multi_subtask
     >> dcmseg_send_subtask
-    >> clean_subtask
+    >> [clean_subtask, check_success]
 )
-total_segmentator_subtask >> pyradiomics_subtask >> put_to_minio_subtask
+total_segmentator_subtask >> pyradiomics_subtask >> put_to_minio_subtask >> [clean_subtask, check_success]

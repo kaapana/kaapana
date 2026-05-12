@@ -2,6 +2,7 @@ import random
 from datetime import datetime, timedelta
 
 from airflow.utils.dates import days_ago
+from airflow.operators.empty import EmptyOperator
 from airflow.models import DAG
 from airflow.models import Variable
 
@@ -60,11 +61,13 @@ federated_setup_federated_test = LocalFedartedSetupFederatedTestOperator(
     dag=dag, input_operator=federated_setup_from_previous_test
 )
 federated_setup_skip_test = LocalFederatedSetupSkipTestOperator(dag=dag)
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="all_done")
 
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 (
     federated_setup_from_previous_test
     >> federated_setup_federated_test
     >> federated_setup_skip_test
-    >> clean
+    >> [clean, check_success]
 )

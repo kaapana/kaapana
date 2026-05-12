@@ -4,6 +4,7 @@ from airflow.models import DAG
 from airflow.operators.python import BranchPythonOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.operators.empty import EmptyOperator
 from kaapana.blueprints.json_schema_templates import schema_upload_form
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.DcmSendOperator import DcmSendOperator
@@ -90,7 +91,7 @@ remove_object_from_file_uploads = LocalVolumeMountOperator(
 
 clean = LocalWorkflowCleanerOperator(
     dag=dag,
-    trigger_rule="none_failed_min_one_success",
+    trigger_rule="all_done",
     clean_workflow_dir=True,
     namespace=SERVICES_NAMESPACE,
 )
@@ -112,6 +113,8 @@ branching_cleaning_uploads = BranchPythonOperator(
     dag=dag,
 )
 
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
+
 get_object_from_uploads >> unzip_files >> dicom_send >> branching_cleaning_uploads
-branching_cleaning_uploads >> remove_object_from_file_uploads >> clean
-branching_cleaning_uploads >> clean
+branching_cleaning_uploads >> remove_object_from_file_uploads >> [clean, check_success]
+branching_cleaning_uploads >> [clean, check_success]

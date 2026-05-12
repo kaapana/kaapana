@@ -4,6 +4,7 @@ from datetime import datetime
 
 
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
@@ -77,5 +78,7 @@ dag = DAG(
 )
 
 federated_setup_central_test = FedartedSetupCentralTestOperator(dag=dag)
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
-federated_setup_central_test >> clean
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="all_done")
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
+federated_setup_central_test >> [clean, check_success]

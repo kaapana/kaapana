@@ -1,4 +1,5 @@
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
@@ -100,7 +101,10 @@ put_radiomics_to_minio = MinioOperator(
 clean = LocalWorkflowCleanerOperator(
     dag=dag,
     clean_workflow_dir=True,
+    trigger_rule="all_done"
 )
 
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 get_input >> dcmseg2nrrd >> radiomics
-get_input >> get_dicom >> dcm2nrrd >> radiomics >> put_radiomics_to_minio >> clean
+get_input >> get_dicom >> dcm2nrrd >> radiomics >> put_radiomics_to_minio >> [clean, check_success]

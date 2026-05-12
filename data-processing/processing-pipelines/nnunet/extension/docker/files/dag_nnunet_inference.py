@@ -2,6 +2,7 @@ import copy
 from datetime import datetime, timedelta
 
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
@@ -205,13 +206,15 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
 dcmseg_send_multi = DcmSendOperator(
     dag=dag, ae_title=ae_title, input_operator=nrrd2dcmSeg_multi
 )
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="all_done")
 
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 (
     get_input
     >> dcm2nifti
     >> nnunet_predict
     >> nrrd2dcmSeg_multi
     >> dcmseg_send_multi
-    >> clean
+    >> [clean, check_success]
 )

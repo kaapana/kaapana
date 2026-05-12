@@ -6,6 +6,7 @@ from pathlib import Path
 
 import requests
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
@@ -109,12 +110,14 @@ remove_thumbnail_from_project_bucket = KaapanaPythonBaseOperator(
     python_callable=remove_thumbnail_from_project_bucket,
     dag=dag,
 )
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="all_done")
 
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 (
     get_input
     >> delete_dcm_pacs
     >> delete_dcm_meta
     >> remove_thumbnail_from_project_bucket
-    >> clean
+    >> [clean, check_success]
 )

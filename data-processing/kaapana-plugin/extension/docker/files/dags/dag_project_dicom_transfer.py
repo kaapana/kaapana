@@ -8,6 +8,7 @@ from pathlib import Path
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.operators.empty import EmptyOperator
 from kaapana.blueprints.json_schema_templates import get_all_project_names
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
 from kaapana.operators.DeleteFromMetaOperator import DeleteFromMetaOperator
@@ -204,8 +205,9 @@ copy_thumbnails = LocalCopyThumbnails(dag=dag, input_operator=clean_tags)
 
 
 clean = LocalWorkflowCleanerOperator(
-    dag=dag, clean_workflow_dir=True, trigger_rule="none_failed_or_skipped"
+    dag=dag, clean_workflow_dir=True, trigger_rule="all_done"
 )
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed_or_skipped")
 
 (
     get_input
@@ -216,3 +218,5 @@ clean = LocalWorkflowCleanerOperator(
     >> copy_thumbnails
     >> clean
 )
+
+copy_thumbnails >> check_success

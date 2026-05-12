@@ -1,6 +1,7 @@
 raise DeprecationWarning("This DAG is deprecated since version >=0.5.0.")
 
 from airflow.utils.dates import days_ago
+from airflow.operators.empty import EmptyOperator
 from datetime import timedelta
 from airflow.models import DAG
 from nnunet.DiceEvaluationOperator import DiceEvaluationOperator
@@ -368,8 +369,10 @@ put_report_to_minio = MinioOperator(
     whitelisted_file_extensions=(".html", ".pdf"),
 )
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="all_done")
 
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 (
     get_test_images
     >> sort_gt
@@ -403,5 +406,5 @@ seg_check_inference >> seg_check_ensemble
     >> nnunet_evaluation_notebook
     >> put_to_minio
     >> put_report_to_minio
-    >> clean
+    >> [clean, check_success]
 )

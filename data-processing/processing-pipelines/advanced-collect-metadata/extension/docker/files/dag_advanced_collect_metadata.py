@@ -21,6 +21,7 @@ from advanced_collect_metadata.LocalMergeBranchesOperator import (
 )
 
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
@@ -133,8 +134,11 @@ put_to_minio = MinioOperator(
 clean = LocalWorkflowCleanerOperator(
     dag=dag,
     clean_workflow_dir=True,
+    trigger_rule="all_done"
 )
 
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 (
     get_input
     >> anonymizer
@@ -142,7 +146,7 @@ clean = LocalWorkflowCleanerOperator(
     >> extract_img_intensities
     >> merge_branches
     >> put_to_minio
-    >> clean
+    >> [clean, check_success]
 )
 (
     extract_metadata

@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.operators.DcmSendOperator import DcmSendOperator
@@ -77,6 +78,8 @@ dcm_send = DcmSendOperator(
     labels={"network-access-external-ips": "true"},
 )
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="all_done")
 
-get_input >> dcm_send >> clean
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
+get_input >> dcm_send >> [clean, check_success]

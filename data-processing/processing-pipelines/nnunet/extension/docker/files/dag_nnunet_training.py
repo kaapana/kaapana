@@ -2,6 +2,7 @@ import random
 from datetime import datetime, timedelta
 
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
 from kaapana.blueprints.kaapana_global_variables import GPU_COUNT, INSTANCE_NAME
@@ -497,7 +498,9 @@ dcm_send_int = DcmSendOperator(
     input_operator=bin2dcm,
 )
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="all_done")
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 (
     get_input
     >> get_ref_ct_series_from_seg
@@ -524,6 +527,6 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
     >> put_report_to_minio
     >> pdf2dcm
     >> dcmseg_send_pdf
-    >> clean
+    >> [clean, check_success]
 )
-nnunet_train >> zip_model >> bin2dcm >> dcm_send_int >> clean
+nnunet_train >> zip_model >> bin2dcm >> dcm_send_int >> [clean, check_success]

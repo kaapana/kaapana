@@ -6,6 +6,7 @@ from kaapana.operators.LocalTaggingOperator import LocalTaggingOperator
 from kaapana.operators.TrainTestSplitOperator import TrainTestSplitOperator
 
 from airflow.utils.dates import days_ago
+from airflow.operators.empty import EmptyOperator
 from airflow.models import DAG
 
 
@@ -75,6 +76,8 @@ tag_dataset = LocalTaggingOperator(
     add_tags_from_file=True,
     tags_to_add_from_file=["train_test_split_tag"],
 )
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="all_done")
 
-get_input >> train_test_split >> tag_dataset >> clean
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
+get_input >> train_test_split >> tag_dataset >> [clean, check_success]

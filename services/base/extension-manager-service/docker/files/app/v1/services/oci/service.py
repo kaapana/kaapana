@@ -15,7 +15,9 @@ class ociService:
         self.repository_url = repository_url
         self._authentication = authentication
 
-        self.extension_dir = Path(f"/app/v1/mock_data")
+        self.extension_dir = Path(
+            f"{Path(__file__).parent.parent.parent}/mock_data"
+        ).absolute()
 
     async def __aenter__(self):
         """Enter async context – establish mock connection."""

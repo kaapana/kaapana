@@ -4,11 +4,10 @@ from uuid import UUID
 from typing import Optional
 
 from v1.services.database import crud, database
+from v1.services.database import exceptions as db_exceptions
 from v1.routers.repository import schemas
 
-
 from v1.services.oci.service import ociService
-
 from v1.routers.dependencies import get_oci_service_for_repository
 
 router = APIRouter(prefix="/repositories", tags=["repositories"])
@@ -23,14 +22,20 @@ async def create_extension_repository(
     response: Response,
     db: AsyncSession = Depends(database.get_async_db),
 ):
-    db_registered_repository = await crud.create_registered_repository(
-        db,
-        name=extension_repository.name,
-        description=extension_repository.description,
-        repository_url=extension_repository.repository_url,
-        authentication=extension_repository.authentication,
-    )
-    response.headers["Location"] = f"/repository/{db_registered_repository.id}"
+    try:
+        db_registered_repository = await crud.create_registered_repository(
+            db,
+            name=extension_repository.name,
+            description=extension_repository.description,
+            repository_url=extension_repository.repository_url,
+            authentication=extension_repository.authentication,
+        )
+    except db_exceptions.RepositoryExistsException as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A repository with the name {extension_repository.name} already exists with id {e.repository_id}",
+        )
+    response.headers["Location"] = f"/repositories/{db_registered_repository.id}"
     response.status_code = status.HTTP_201_CREATED
 
     return response
@@ -88,7 +93,7 @@ async def delete_repository(
     repository_id: UUID, db: AsyncSession = Depends(database.get_async_db)
 ):
     await crud.delete_registered_repository(db, repository_id)
-    return {"detail": "deleted"}
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 ########## Get Information about Extensions in Repository ##########

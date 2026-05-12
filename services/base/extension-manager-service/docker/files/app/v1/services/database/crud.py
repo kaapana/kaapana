@@ -15,6 +15,7 @@ from .models import (
     ALLOWED_EXTENSION_STATUS_TRANSITIONS,
     ALLOWED_CONTENT_STATUS_TRANSITIONS,
 )
+from .exceptions import RepositoryExistsException, RepositoryNotFoundException
 
 # ---------- Reposiory CRUD ----------
 
@@ -27,6 +28,14 @@ async def create_registered_repository(
     repository_url: str,
     authentication: Optional[str],
 ) -> RegisteredRepository:
+    selection = await session.execute(
+        select(RegisteredRepository).where(RegisteredRepository.name == name)
+    )
+    existing_repo = selection.scalar_one_or_none()
+    if existing_repo:
+        repository_id = existing_repo.id
+        await session.rollback()
+        raise RepositoryExistsException(repository_id=repository_id, name=name)
     reg = RegisteredRepository(
         name=name,
         description=description,

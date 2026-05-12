@@ -87,6 +87,14 @@ spec:
         - name: HELM_DELETION_TIMEOUT
           value: "{{ .helmDeletionTimeout }}"
   {{- end }}
+  {{- if hasKey . "helmReleaseStatusCheckCount" }}
+        - name: HELM_RELEASE_STATUS_CHECK_COUNT
+          value: "{{ .helmReleaseStatusCheckCount }}"
+  {{- end }}
+  {{- if hasKey . "helmReleaseStatusCheckInterval" }}
+        - name: HELM_RELEASE_STATUS_CHECK_INTERVAL
+          value: "{{ .helmReleaseStatusCheckInterval }}"
+  {{- end }}
 {{- end }}
         ports: # Port(s) on which your application runs
           - containerPort: 5000

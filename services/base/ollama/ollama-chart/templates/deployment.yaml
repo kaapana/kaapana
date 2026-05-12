@@ -1,0 +1,88 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama-service
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  # Large model-baked images can take longer to pull; allow longer rollout time
+  # before Kubernetes marks the Deployment as ProgressDeadlineExceeded.
+  progressDeadlineSeconds: 3600
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ollama-service
+      app.kubernetes.io/component: llm
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ollama-service
+        app.kubernetes.io/component: llm
+    spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
+      # Keep shutdown bounded during undeploy to avoid long terminating pods.
+      terminationGracePeriodSeconds: 20
+      containers:
+      - name: ollama
+        image: "{{ .Values.global.registry_url }}/ollama:{{ .Values.global.kaapana_build_version }}"
+        imagePullPolicy: {{ .Values.global.pull_policy_images | default "IfNotPresent" }}
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - |
+                # Try graceful stop first, then force-stop if the process lingers.
+                pkill -TERM -f "ollama serve" >/dev/null 2>&1 || true
+                sleep 3
+                pkill -KILL -f "ollama serve" >/dev/null 2>&1 || true
+        env:
+        - name: OLLAMA_HOST
+          value: "0.0.0.0:11434"
+        - name: OLLAMA_KEEP_ALIVE
+          value: {{ default "10m" .Values.global.nl_search_ollama_keep_alive | quote }}
+        - name: http_proxy
+          value: {{ .Values.global.http_proxy | quote }}
+        - name: https_proxy
+          value: {{ .Values.global.http_proxy | quote }}
+        - name: no_proxy
+          value: ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }}"
+        - name: NO_PROXY
+          value: ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }}"
+        ports:
+          - containerPort: 11434
+            name: http
+        readinessProbe:
+          httpGet:
+            path: /api/tags
+            port: 11434
+          initialDelaySeconds: 8
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /api/tags
+            port: 11434
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 6
+        startupProbe:
+          httpGet:
+            path: /api/tags
+            port: 11434
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        resources:
+          limits:
+            memory: "16Gi"
+          requests:
+            memory: "4Gi"
+      imagePullSecrets:
+      - name: registry-secret

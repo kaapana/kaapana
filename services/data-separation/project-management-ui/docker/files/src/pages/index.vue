@@ -50,6 +50,8 @@
               <div v-if="userHasAdminAccess" class="icon-action-slot">
                 <template v-if="item.name !== 'admin'">
                   <v-btn v-if="!item.is_archived" icon="mdi-pencil" size="small" variant="text" @click="openEditDialog(item)" />
+                  <v-btn v-if="!item.is_archived" icon="mdi-archive-arrow-down" size="small" variant="text" color="warning" @click="openArchiveDialog(item)" />
+                  <v-btn v-if="item.is_archived" icon="mdi-archive-arrow-up" size="small" variant="text" color="success" @click="unarchiveItem(item)" />
                   <v-btn icon="mdi-trash-can" size="small" variant="text" color="error" @click="openDeleteDialog(item)" />
                 </template>
               </div>
@@ -70,6 +72,10 @@
     <DeleteProjectDialog v-if="selectedProject" :project="selectedProject"
       @confirm="handleDeleteConfirm" @cancel="deleteDialog = false" />
   </v-dialog>
+  <v-dialog v-model="archiveDialog" max-width="560">
+    <ArchiveProjectDialog v-if="selectedProject" :project="selectedProject"
+      @confirm="handleArchiveConfirm" @cancel="archiveDialog = false" />
+  </v-dialog>
   <confirm ref="confirm"></confirm>
 </template>
 
@@ -79,7 +85,8 @@ import CreateNewProjectFrom from "@/components/CreateNewProjectForm.vue";
 import Confirm from "@/components/Confirm.vue";
 import EditProjectDialog from "@/components/EditProjectDialog.vue";
 import DeleteProjectDialog from "@/components/DeleteProjectDialog.vue";
-import { aiiApiGet, aiiApiDelete } from "@/common/aiiApi.service";
+import ArchiveProjectDialog from "@/components/ArchiveProjectDialog.vue";
+import { aiiApiGet, aiiApiDelete, aiiApiPost } from "@/common/aiiApi.service";
 import { ProjectItem, UserItem } from "@/common/types";
 import { isAdminUser, waitForStoreUser } from "@/common/userAccess";
 import { useSnackbar } from "@/composables/useSnackbar";
@@ -91,6 +98,7 @@ export default defineComponent({
     Confirm,
     EditProjectDialog,
     DeleteProjectDialog,
+    ArchiveProjectDialog,
   },
   props: {},
   setup() {
@@ -106,6 +114,7 @@ export default defineComponent({
       userHasAdminAccess: false,
       editDialog: false,
       deleteDialog: false,
+      archiveDialog: false,
       selectedProject: null as ProjectItem | null,
     };
   },
@@ -181,18 +190,47 @@ export default defineComponent({
       this.selectedProject = project;
       this.deleteDialog = true;
     },
-    async handleDeleteConfirm(retainData: boolean) {
+    async handleDeleteConfirm() {
       if (!this.selectedProject) return;
       const project = this.selectedProject;
       this.deleteDialog = false;
       try {
-        await aiiApiDelete(`projects/${project.id}`, { retain_data: retainData });
+        await aiiApiDelete(`projects/${project.id}`);
         const user = store.state.user;
         if (user) this.fetchProjects(user);
         this.notify(`Project "${project.name}" deleted.`, 'success');
       } catch (error: unknown) {
         console.error(error);
         this.notify('Failed to delete project.', 'error');
+      }
+    },
+    openArchiveDialog(project: ProjectItem) {
+      this.selectedProject = project;
+      this.archiveDialog = true;
+    },
+    async handleArchiveConfirm() {
+      if (!this.selectedProject) return;
+      const project = this.selectedProject;
+      this.archiveDialog = false;
+      try {
+        await aiiApiPost(`projects/${project.id}/archive`, {});
+        const user = store.state.user;
+        if (user) this.fetchProjects(user);
+        this.notify(`Project "${project.name}" archived.`, 'success');
+      } catch (error: unknown) {
+        console.error(error);
+        this.notify('Failed to archive project.', 'error');
+      }
+    },
+    async unarchiveItem(project: ProjectItem) {
+      try {
+        await aiiApiPost(`projects/${project.id}/unarchive`, {});
+        const user = store.state.user;
+        if (user) this.fetchProjects(user);
+        this.notify(`Project "${project.name}" unarchived.`, 'success');
+      } catch (error: unknown) {
+        console.error(error);
+        this.notify('Failed to unarchive project.', 'error');
       }
     },
   },

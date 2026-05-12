@@ -23,10 +23,6 @@ class UpdateProject(OrmBaseModel):
     external_id: Optional[str] = None
 
 
-class DeleteProject(OrmBaseModel):
-    retain_data: bool = False
-
-
 def is_valid_dicom_ae_title(ae_title: str) -> bool:
     r"""
     https://pydicom.github.io/pynetdicom/dev/user/ae.html

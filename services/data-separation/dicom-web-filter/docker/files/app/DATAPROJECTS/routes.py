@@ -3,6 +3,7 @@ from uuid import UUID
 
 from app import crud
 from app.database import get_session
+from app.utils import assert_project_not_archived
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 from sqlalchemy.exc import IntegrityError
@@ -24,6 +25,7 @@ async def create_data_project_mappings(
     """
     Create DataProjects mappings in the database.
     """
+    await assert_project_not_archived(project_id)
     try:
         return await crud.add_data_project_mapping(
             session=session,
@@ -81,6 +83,7 @@ async def delete_data_project_mappings(
     """
     Delete existing DataProjects mappings from the database.
     """
+    await assert_project_not_archived(project_id)
 
     try:
         await crud.remove_data_project_mapping(

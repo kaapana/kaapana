@@ -104,6 +104,11 @@
                 >
                   <template v-slot:selection="{ item }">
                     {{ item.name }}<span v-if="item.short_id" style="text-transform: none"> ({{ item.short_id }})</span>
+                    <v-chip v-if="item.is_archived" x-small color="warning" class="ml-1" style="text-transform: none">Archived</v-chip>
+                  </template>
+                  <template v-slot:item="{ item }">
+                    {{ item.name }}<span v-if="item.short_id" style="text-transform: none">&nbsp;({{ item.short_id }})</span>
+                    <v-chip v-if="item.is_archived" x-small color="warning" class="ml-1" style="text-transform: none">Archived</v-chip>
                   </template>
                 </v-select>
               </v-col>

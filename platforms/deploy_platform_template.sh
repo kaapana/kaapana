@@ -318,9 +318,7 @@ else
 fi
 
 function validate_platform_prefix() {
-    # Must produce a valid k8s namespace when composed as "{prefix}-project-<short_id>".
-    # k8s namespace limit is 63 chars; "-project-" is 9 chars; short_id is up to 8 chars
-    # ("admin" is 5), so the prefix itself must be <= 46 chars.
+    # Must produce a valid k8s namespace when composed as "<prefix>-project-<short_id>".
     local max_prefix_len=46
     if [[ -z "$PLATFORM_PREFIX" ]]; then
         echo -e "${RED}PLATFORM_PREFIX must not be empty.${NC}"
@@ -330,8 +328,10 @@ function validate_platform_prefix() {
         echo -e "${RED}PLATFORM_PREFIX '$PLATFORM_PREFIX' is not a valid DNS-1123 label (lowercase alphanumerics and hyphens, must start/end alphanumeric).${NC}"
         exit 1
     fi
-    if (( ${#PLATFORM_PREFIX} > max_prefix_len )); then
-        echo -e "${RED}PLATFORM_PREFIX '$PLATFORM_PREFIX' is ${#PLATFORM_PREFIX} chars; must be <= ${max_prefix_len} to keep project namespaces within the 63-char k8s limit.${NC}"
+    local prefix_len
+    prefix_len=$(printf '%s' "$PLATFORM_PREFIX" | wc -c)
+    if (( prefix_len > max_prefix_len )); then
+        echo -e "${RED}PLATFORM_PREFIX '$PLATFORM_PREFIX' is ${prefix_len} chars; must be <= ${max_prefix_len} to keep project namespaces within the 63-char k8s limit.${NC}"
         exit 1
     fi
     echo -e "${GREEN}Using PLATFORM_PREFIX: $PLATFORM_PREFIX${NC}"

@@ -25,7 +25,7 @@
             </v-col>
             <v-col cols="auto" class="d-flex align-center gap-2" v-if="userHasAdminAccess && project?.name !== 'admin'">
                 <v-btn v-if="!project?.is_archived" prepend-icon="mdi-pencil" variant="outlined" @click="openEditDialog">Edit</v-btn>
-                <v-btn v-if="!project?.is_archived" prepend-icon="mdi-archive-arrow-down" variant="outlined" color="warning" @click="archiveProject">Archive</v-btn>
+                <v-btn v-if="!project?.is_archived" prepend-icon="mdi-archive-arrow-down" variant="outlined" color="warning" @click="archiveDialog = true">Archive</v-btn>
                 <v-btn v-if="project?.is_archived" prepend-icon="mdi-archive-arrow-up" variant="outlined" color="success" @click="unarchiveProject">Unarchive</v-btn>
                 <v-btn prepend-icon="mdi-trash-can" variant="outlined" color="error" @click="openDeleteDialog">Delete</v-btn>
             </v-col>
@@ -365,6 +365,10 @@
         <EditProjectDialog v-if="project" :project="project"
             @success="handleEditSuccess" @cancel="editDialog = false" @error="handleEditError" />
     </v-dialog>
+    <v-dialog v-model="archiveDialog" max-width="560">
+        <ArchiveProjectDialog v-if="project" :project="project"
+            @confirm="confirmArchive" @cancel="archiveDialog = false" />
+    </v-dialog>
 </template>
 
 <script lang="ts">
@@ -372,6 +376,7 @@ import { defineComponent } from 'vue'
 import { aiiApiGet, aiiApiDelete, aiiApiPost, kubeHelmGet, kubeHelmPost } from '@/common/aiiApi.service'
 import EditProjectDialog from '@/components/EditProjectDialog.vue'
 import DeleteProjectDialog from '@/components/DeleteProjectDialog.vue'
+import ArchiveProjectDialog from '@/components/ArchiveProjectDialog.vue'
 import { ProjectItem, UserItem, UserRole, Software } from '@/common/types'
 import { isAdminUser, waitForStoreUser } from '@/common/userAccess'
 import { useSnackbar } from '@/composables/useSnackbar'
@@ -390,6 +395,7 @@ export default defineComponent({
         LaunchApplication,
         EditProjectDialog,
         DeleteProjectDialog,
+        ArchiveProjectDialog,
     },
     props: {},
     setup () {
@@ -423,6 +429,7 @@ export default defineComponent({
             extendActiveApplications: false,
             editDialog: false,
             deleteDialog: false,
+            archiveDialog: false,
         };
     },
     mounted() {
@@ -669,15 +676,19 @@ export default defineComponent({
         openDeleteDialog() {
             this.deleteDialog = true;
         },
-        async handleDeleteConfirm(retainData: boolean) {
+        async handleDeleteConfirm() {
             this.deleteDialog = false;
             try {
-                await aiiApiDelete(`projects/${this.projectId}`, { retain_data: retainData });
+                await aiiApiDelete(`projects/${this.projectId}`);
                 this.$router.push('/');
             } catch (error: unknown) {
                 console.error(error);
                 this.notify('Failed to delete project.', 'error');
             }
+        },
+        async confirmArchive() {
+            this.archiveDialog = false;
+            await this.archiveProject();
         },
         async archiveProject() {
             try {

@@ -210,7 +210,6 @@ async def unarchive_project(
 @router.delete("/{project_id}", tags=["Projects"])
 async def delete_project(
     project_id: UUID,
-    retain_data: bool = False,
     session: AsyncSession = Depends(get_session),
     opensearch_helper: opensearch.OpenSearchHelper = Depends(
         opensearch.get_opensearch_helper
@@ -218,11 +217,9 @@ async def delete_project(
     minio_helper: minio.MinioHelper = Depends(minio.get_minio_helper),
 ):
     """
-    Delete a Kaapana project.
+    Delete a Kaapana project: drops the S3 bucket, OpenSearch index, roles, helm chart and dicom series held only by this project (and admin).
 
-    - `retain_data=false` (default): Delete the project's S3 bucket, os index,
-       and any dicom series that are not also held by another non-admin project. k8s namespace persists.
-    - `retain_data=true`: Keep the data, only remove the project and its access configuration.
+
     """
     existing = await crud.get_projects(session, project_id=project_id)
     if not existing:
@@ -236,7 +233,7 @@ async def delete_project(
 
     # Delete series held only by this project (and admin) from the platform.
     # Targets the DAG at admin's context since admin always holds every series.
-    if not retain_data and admin_project is not None:
+    if admin_project is not None:
         admin_project_schema = schemas.Project.model_validate(admin_project)
         orphan_series = dicom_data.get_orphan_series(
             project_id=project_id, admin_project_id=admin_project.id
@@ -249,15 +246,8 @@ async def delete_project(
         except Exception as e:
             logger.warning(f"delete-series DAG trigger failed for {project_id}: {e}")
 
-    # remove from opensearch (alias + roles/rolemappings + optionally the index)
-    await opensearch_helper.teardown_project(
-        project=project, session=session, retain_data=retain_data
-    )
-    # remove from minio
-    await minio_helper.teardown_project(
-        project=project, session=session, retain_data=retain_data
-    )
-    # remove the helm chart (k8s namespace is kept)
+    await opensearch_helper.teardown_project(project=project, session=session)
+    await minio_helper.teardown_project(project=project, session=session)
     kubehelm.uninstall_project_helm_chart(project)
     await crud.delete_project(session, project_id)
 
@@ -417,6 +407,9 @@ async def delete_user_project_role_mapping(
 
     if len(db_project) == 0:
         raise HTTPException(status_code=404, detail="Project not found")
+
+    if db_project[0].is_archived:
+        raise HTTPException(status_code=403, detail="Cannot modify an archived project")
 
     current_user_mapping = await crud.get_users_projects_roles_mapping(
         session, db_project[0].id, user_id

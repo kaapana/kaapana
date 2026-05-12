@@ -249,12 +249,9 @@ class OpenSearchHelper:
             f"(index {index!r} unchanged)"
         )
 
-    async def teardown_project(
-        self, project: Project, session, retain_data: bool = False
-    ):
+    async def teardown_project(self, project: Project, session):
         """
-        Remove roles and rolemappings for the project.
-        Removes the alias and, unless retain_data is True, the physical index.
+        Remove roles, rolemappings, alias and the physical index of the project.
         """
         db_rights = await get_rights(session)
 
@@ -290,13 +287,12 @@ class OpenSearchHelper:
         alias = self._alias_name(project.name)
         await self._remove_alias(project.opensearch_index, alias)
 
-        if not retain_data:
-            index = project.opensearch_index
-            logger.info(f"Deleting opensearch index {index}")
-            try:
-                self.os_client.indices.delete(index)
-            except Exception as e:
-                logger.warning(f"Failed to delete index {index}: {e}")
+        index = project.opensearch_index
+        logger.info(f"Deleting opensearch index {index}")
+        try:
+            self.os_client.indices.delete(index)
+        except Exception as e:
+            logger.warning(f"Failed to delete index {index}: {e}")
 
 
 def get_opensearch_helper() -> OpenSearchHelper:

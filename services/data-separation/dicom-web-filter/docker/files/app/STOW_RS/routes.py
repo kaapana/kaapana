@@ -5,7 +5,7 @@ from uuid import UUID
 import httpx
 from app import config, crud
 from app.database import get_session
-from app.utils import get_default_project_id
+from app.utils import assert_project_not_archived, get_default_project_id
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
 from sqlalchemy.exc import IntegrityError
@@ -102,6 +102,7 @@ async def store_instances(
     Returns:
         Response: Response object
     """
+    await assert_project_not_archived(project_id)
 
     await __map_dicom_series_to_project(session, request, project_id)
 
@@ -126,6 +127,7 @@ async def store_instances_in_study(
     Returns:
         Response: Response object
     """
+    await assert_project_not_archived(project_id)
 
     await __map_dicom_series_to_project(session, request, project_id)
 

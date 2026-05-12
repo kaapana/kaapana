@@ -5,7 +5,7 @@ import httpx
 from app import crud
 from app.config import DICOMWEB_BASE_URL
 from app.database import get_session
-from app.utils import get_user_project_ids
+from app.utils import assert_project_not_archived, get_user_project_ids
 from fastapi import APIRouter, Depends, Path, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -103,6 +103,8 @@ async def del_study(
     if project_id not in project_ids_of_user:
         return Response(status_code=403)
 
+    await assert_project_not_archived(project_id)
+
     # Retrieve series mapped to the project for the given study
     mapped_series_uids = (
         await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
@@ -171,6 +173,8 @@ async def del_series(
         projects = request.scope.get("token")["projects"]
         logging.info(f"User not in project: {project_id}: {projects=}")
         return Response(status_code=403, content=f"User not in project {project_id}")
+
+    await assert_project_not_archived(project_id)
 
     # Check if series is mapped to the project
     if await crud.check_if_series_in_given_study_is_mapped_to_projects(

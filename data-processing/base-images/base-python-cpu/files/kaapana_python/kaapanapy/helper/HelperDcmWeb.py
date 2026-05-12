@@ -362,17 +362,25 @@ class HelperDcmWeb:
 
         return response
 
-    def get_instances_of_study(self, study_uid: str) -> List[dict]:
+    def get_instances_of_study(
+        self, study_uid: str, params: Dict[str, Any] = None
+    ) -> List[dict]:
         """This function retrieves all instances of a study from the PACS.
 
         Args:
             study_uid (str): Study Instance UID of the study to retrieve the instances from.
+            params (Dict[str, Any], optional): Additional DICOMweb query
+                parameters, for example ``includefield`` to request specific
+                tags in the metadata response.
 
         Returns:
             List[dict]: List of instances of the study. Each instance is represented as a dictionary containing the instance metadata
         """
+        if not params:
+            params = {}
+
         url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/instances"
-        response = requests.get(url, headers=self.auth_headers)
+        response = requests.get(url, headers=self.auth_headers, params=params)
         if response.status_code == 404:
             return None
         elif response.status_code == 204:

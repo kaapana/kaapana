@@ -13,6 +13,7 @@ import pytz
 from dateutil import parser
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 from kaapanapy.settings import KaapanaSettings
 from pydicom.tag import Tag
 
@@ -64,18 +65,28 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         delete_pixel_data=True,
         data_type="dcm",
         bulk=False,
+        issuer_of_patient_id=None,
+        resolve_issuer_conflicts_with_pacs=False,
         **kwargs,
     ):
         """
         :param exit_on_error: 'True' or 'False' (default). Exit with error, when some key/values are missing or mismatching.
         :param delete_pixel_data: 'True' (default) or 'False'. removes pixel-data from DICOM.
         :param bulk: 'True' or 'False' (default). Process all files of a series or only the first one.
+        :param issuer_of_patient_id: Optional value written to
+            ``IssuerOfPatientID`` before metadata extraction.
+        :param resolve_issuer_conflicts_with_pacs: If ``True``, look up the
+            issuer of already stored instances in PACS for the same study and
+            normalize incoming files to that issuer. The operator fails if the
+            existing study already contains multiple issuers.
         """
 
         self.bulk = bulk
         self.exit_on_error = exit_on_error
         self.delete_pixel_data = delete_pixel_data
         self.data_type = data_type
+        self.issuer_of_patient_id = issuer_of_patient_id
+        self.resolve_issuer_conflicts_with_pacs = resolve_issuer_conflicts_with_pacs
 
         os.environ["PYTHONIOENCODING"] = "utf-8"
         self.load_dicom_tag_dict()
@@ -98,6 +109,24 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         logger.info("Starting module dcm2json...")
         config = kwargs["dag_run"].conf
         self.default_project = config.get("project_form", {}).get("name", "admin")
+        self.dcmweb_helper = None
+        self.study_issuer_cache = {}
+
+        if (
+            self.data_type == "dcm"
+            and self.issuer_of_patient_id is not None
+            and self.resolve_issuer_conflicts_with_pacs
+        ):
+            self.dcmweb_helper = HelperDcmWeb()
+            logger.info(
+                "Issuer reconciliation enabled: default issuer '%s', PACS conflict resolution enabled.",
+                self.issuer_of_patient_id,
+            )
+        elif self.data_type == "dcm" and self.issuer_of_patient_id is not None:
+            logger.info(
+                "Issuer normalization enabled without PACS lookup: default issuer '%s'.",
+                self.issuer_of_patient_id,
+            )
 
         run_dir: Path = Path(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folders: List[Path] = list((run_dir / self.batch_name).glob("*"))
@@ -116,6 +145,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                     f"No dicom file found in {batch_element_dir / self.operator_in_dir}"
                 )
 
+            self._normalize_issuer_of_patient_id_for_files(files)
             logger.info(f"length {len(files)}")
             for dcm_file_path in files:
                 logger.info(f"Extracting metadata: {dcm_file_path}")
@@ -148,8 +178,231 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
                 if not self.bulk:
                     break
+        out_files = set(out_files)
+        print("Output json files:", out_files)
+
+    def _normalize_issuer_of_patient_id_for_files(self, dcm_file_paths: List[Path]) -> None:
+        """Normalize ``IssuerOfPatientID`` for all files of an incoming series.
+
+        Args:
+            dcm_file_paths: Paths of DICOM files that belong to the same batch
+                element.
+
+        Side Effects:
+            Rewrites DICOM files in-place when the resolved issuer differs from
+            the current one.
+        """
+        if self.data_type != "dcm" or self.issuer_of_patient_id is None:
+            return
+
+        logger.info(
+            "Normalizing IssuerOfPatientID for %s file(s) in current batch element.",
+            len(dcm_file_paths),
+        )
+        for dcm_file_path in dcm_file_paths:
+            self._normalize_issuer_of_patient_id_for_file(dcm_file_path)
+
+    def _normalize_issuer_of_patient_id_for_file(self, dcm_file_path: Path) -> None:
+        """Normalize ``IssuerOfPatientID`` in the DICOM file on disk.
+
+        Args:
+            dcm_file_path: Path to the DICOM file that should be normalized.
+
+        Side Effects:
+            Rewrites the DICOM file in-place when the resolved issuer differs
+            from the current one.
+        """
+        if self.issuer_of_patient_id is None:
+            return
+
+        # Read the full dataset before saving to avoid truncating pixel data.
+        dcm = pydicom.dcmread(dcm_file_path, force=True)
+        current_issuer = self._get_issuer_of_patient_id(dcm)
+        study_uid_tag = dcm.get((0x0020, 0x000D))
+        study_uid = str(study_uid_tag.value).strip() if study_uid_tag is not None else ""
+        logger.info(
+            "Checking IssuerOfPatientID for file %s (study=%s, current_issuer='%s').",
+            dcm_file_path,
+            study_uid or "unknown",
+            current_issuer,
+        )
+        target_issuer = self._resolve_target_issuer_of_patient_id(dcm)
+
+        if current_issuer == target_issuer:
+            logger.info(
+                "IssuerOfPatientID already matches target '%s' for file %s. Skipping rewrite.",
+                target_issuer,
+                dcm_file_path,
+            )
+            return
+
+        if (0x0010, 0x0021) not in dcm:
+            dcm.add_new("0x00100021", "LO", target_issuer)
+        else:
+            dcm[(0x0010, 0x0021)].value = target_issuer
+        dcm.save_as(dcm_file_path)
+        logger.info(
+            "Normalized IssuerOfPatientID for %s from '%s' to '%s'",
+            dcm_file_path,
+            current_issuer,
+            target_issuer,
+        )
+
+    def _resolve_target_issuer_of_patient_id(self, dcm: pydicom.Dataset) -> str:
+        """Resolve the issuer that should be used for an incoming DICOM.
+
+        Args:
+            dcm: The DICOM dataset whose issuer should be normalized.
+
+        Returns:
+            str: The issuer value that should be written to the DICOM.
+
+        Raises:
+            ValueError: The existing study in PACS already contains multiple
+                issuer values and therefore cannot be reconciled automatically.
+        """
+        if self.issuer_of_patient_id is None:
+            return self._get_issuer_of_patient_id(dcm)
+
+        target_issuer = self.issuer_of_patient_id
+        logger.info("Default target issuer is '%s'.", target_issuer)
+
+        if not self.resolve_issuer_conflicts_with_pacs or self.dcmweb_helper is None:
+            logger.info(
+                "PACS issuer conflict resolution disabled or unavailable. Using default issuer '%s'.",
+                target_issuer,
+            )
+            return target_issuer
+
+        study_uid_tag = dcm.get((0x0020, 0x000D))
+        if study_uid_tag is None:
+            logger.info(
+                "StudyInstanceUID missing in incoming DICOM. Falling back to default issuer '%s'.",
+                target_issuer,
+            )
+            return target_issuer
+
+        study_uid = str(study_uid_tag.value).strip()
+        logger.info("Looking up existing PACS issuer for study %s.", study_uid)
+        archive_issuer = self._get_archive_issuer_of_study(study_uid)
+        if archive_issuer:
+            current_issuer = self._get_issuer_of_patient_id(dcm)
+            if current_issuer and current_issuer != archive_issuer:
+                logger.warning(
+                    "IssuerOfPatientID conflict for study %s: incoming '%s', "
+                    "archive '%s'. Rewriting incoming DICOM to match PACS.",
+                    study_uid,
+                    current_issuer,
+                    archive_issuer,
+                )
+            else:
+                logger.info(
+                    "Using issuer '%s' already present in PACS for study %s.",
+                    archive_issuer,
+                    study_uid,
+                )
+            return archive_issuer
+
+        logger.info(
+            "No issuer found in PACS for study %s. Using default issuer '%s'.",
+            study_uid,
+            target_issuer,
+        )
+        return target_issuer
+
+    def _get_archive_issuer_of_study(self, study_uid: str) -> str:
+        """Fetch the unique issuer used by already stored instances of a study.
+
+        Args:
+            study_uid: Study Instance UID used to look up existing instances.
+
+        Returns:
+            str: The unique issuer found in PACS for the study, or an empty
+            string if no issuer is stored for that study.
+
+        Raises:
+            ValueError: The study already contains multiple issuer values in
+                PACS and cannot be reconciled automatically.
+        """
+        if study_uid in self.study_issuer_cache:
+            logger.info(
+                "Using cached PACS issuer '%s' for study %s.",
+                self.study_issuer_cache[study_uid],
+                study_uid,
+            )
+            return self.study_issuer_cache[study_uid]
+
+        if not self.dcmweb_helper.check_if_study_in_archive(study_uid):
+            logger.info("Study %s not found in PACS.", study_uid)
+            self.study_issuer_cache[study_uid] = ""
+            return ""
+
+        logger.info(
+            "Study %s found in PACS. Fetching instance metadata including IssuerOfPatientID.",
+            study_uid,
+        )
+        # Request the issuer tag explicitly because dcm4chee does not include
+        # it in the default /instances response payload.
+        instances = self.dcmweb_helper.get_instances_of_study(
+            study_uid, params={"includefield": "00100021"}
+        ) or []
+        logger.info(
+            "Retrieved %s instance metadata entrie(s) from PACS for study %s.",
+            len(instances),
+            study_uid,
+        )
+        issuers = sorted(
+            {
+                str(instance["00100021"]["Value"][0]).strip()
+                for instance in instances
+                if "00100021" in instance
+                and instance["00100021"].get("Value")
+                and str(instance["00100021"]["Value"][0]).strip()
+            }
+        )
+
+        if len(issuers) > 1:
+            logger.error(
+                "Issuer conflict detected in PACS for study %s: %s",
+                study_uid,
+                issuers,
+            )
+            raise ValueError(
+                "Conflicting IssuerOfPatientID values already exist in PACS for "
+                f"study {study_uid}: {issuers}"
+            )
+
+        resolved_issuer = issuers[0] if issuers else ""
+        logger.info(
+            "Resolved PACS issuer for study %s to '%s'.",
+            study_uid,
+            resolved_issuer,
+        )
+        self.study_issuer_cache[study_uid] = resolved_issuer
+        return resolved_issuer
+
+    def _get_issuer_of_patient_id(self, dcm: pydicom.Dataset) -> str:
+        """Read ``IssuerOfPatientID`` from a DICOM dataset.
+
+        Args:
+            dcm: DICOM dataset to inspect.
+
+        Returns:
+            str: The stripped issuer value, or an empty string if the tag is
+            missing.
+        """
+        issuer_tag = dcm.get((0x0010, 0x0021))
+        return str(issuer_tag.value).strip() if issuer_tag is not None else ""
 
     def _delete_pixel_data(self, dcm: pydicom.Dataset) -> pydicom.Dataset:
+        """Remove pixel payload tags from a DICOM dataset.
+
+        Args:
+            dcm: Dataset to strip pixel-related elements from.
+
+        Returns:
+            pydicom.Dataset: The modified dataset without pixel payload tags.
+        """
         # (0014,3080) Bad Pixel Image
         # (7FE0,0008) Float Pixel Data
         # (7FE0,0009) Double Float Pixel Data

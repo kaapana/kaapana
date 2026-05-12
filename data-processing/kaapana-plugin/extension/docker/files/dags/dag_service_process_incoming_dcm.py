@@ -61,12 +61,19 @@ get_input = LocalGetInputDataOperator(dag=dag, delete_input_on_success=True)
 remove_tags = LocalRemoveDicomTagsOperator(dag=dag, input_operator=get_input)
 auto_trigger_operator = LocalAutoTriggerOperator(dag=dag, input_operator=get_input)
 
+incoming_issuer_of_patient_id = "default"
+
 dcm_send = LocalDicomSendOperator(
     dag=dag,
     input_operator=get_input,
 )
 
-extract_metadata = LocalDcm2JsonOperator(dag=dag, input_operator=get_input)
+extract_metadata = LocalDcm2JsonOperator(
+    dag=dag,
+    input_operator=get_input,
+    issuer_of_patient_id=incoming_issuer_of_patient_id,
+    resolve_issuer_conflicts_with_pacs=True,
+)
 
 add_to_dataset = LocalAddToDatasetOperator(dag=dag, input_operator=extract_metadata)
 

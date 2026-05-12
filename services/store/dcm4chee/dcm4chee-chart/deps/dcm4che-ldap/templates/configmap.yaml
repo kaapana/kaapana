@@ -36,6 +36,18 @@ data:
     replace: dcmQidoMaxNumberOfResults
     dcmQidoMaxNumberOfResults: 0
     -
+
+    dn: cn=SupplementIssuerOfPatientID,dicomAETitle=KAAPANA,dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
+    changetype: delete
+
+    dn: cn=SetIssuerOfPatientID,dicomAETitle=KAAPANA,dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
+    objectClass: dcmArchiveAttributeCoercion2
+    cn: SetIssuerOfPatientID
+    dcmDIMSE: C_STORE_RQ
+    dicomTransferRole: SCU
+    dcmURI: merge-attrs:
+    dcmAttributeUpdatePolicy: OVERWRITE
+    dcmMergeAttribute: IssuerOfPatientID=mint
 kind: ConfigMap
 metadata:
   name: dcm4che-iid-config

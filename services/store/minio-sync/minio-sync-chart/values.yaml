@@ -36,15 +36,13 @@ extension_params:
     default: "/minio-sync"
 
   minio_path:
-    definition: "MINIO Path"
     help: >
-      <h1>MINIO Path</h1><br/>
-      <p>Path to sync within minio<br/>
-      <b>Note:</b>The first component of the path is considered the bucket (e.g. bucket-name/path/in/bucket)
-      </p>
-    type: "string"
-    value: ""
-    default: "uploads/minio-sync"
+      <h1>MinIO Subdirectory</h1><br/>
+      <p>A subdirectory of the project bucket in MinIO to sync (default is the complete bucket)</p>
+    default: "/"
+    definition: Directory in the project bucket to sync.
+    type: string
+    value: "/"
 
   sync_strategy:
     definition: "Sync Strategy"

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Catalog from '@/views/Catalog.vue'
+import Extensions from '@/views/Extensions.vue'
 import Repositories from '@/views/Repositories.vue'
 
 const routes = [
@@ -12,6 +13,12 @@ const routes = [
     name: 'Catalog',
     component: Catalog,
     meta: { title: 'Extension Catalog' },
+  },
+  {
+    path: '/extensions',
+    name: 'Extensions',
+    component: Extensions,
+    meta: { title: 'Extension Management' },
   },
   {
     path: '/repositories',

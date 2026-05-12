@@ -26,6 +26,15 @@ extension_params:
     type: "doc"
     title: "Configuration"
 
+  display_name:
+    definition: "Display Name"
+    help: >
+      <h1>Display Name</h1><br/>
+      <p>A custom name for this MinIO sync instance. This will be used to identify the sync job in the active applications.</p>
+    type: "string"
+    value: ""
+    default: "-"
+
   host_directory:
     definition: "Host Directory inside $FAST_DATA_DIR"
     help: >

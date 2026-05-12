@@ -48,6 +48,13 @@ spec:
             value: {{ .Values.global.credentials_minio_username  | default "" }}
           - name: MINIO_PASSWORD
             value: {{ .Values.global.credentials_minio_password | default ""}}
+          - name: EXCLUDE
+            value: "{{ .Values.global.exclude_patterns }}"
+          resources:
+            requests:
+              memory: 200Mi
+            limits:
+              memory: 15Gi
           volumeMounts:
             - name: {{ .Release.Name }}-host-path
               mountPath: /host

@@ -55,7 +55,11 @@ extension_params:
           <li><b>Minio2Host</b>: Syncs files undirectional from MINIO to the host</li>
       </ul>
     value: ["Host2Minio", "Minio2Host", "Bidirectional"]
-    default: "Bidirectional"
+  exclude_patterns:
+    default: ".ipynb_checkpoints/*,thumbnails/,staticwebsiteresults/"
+    definition: Comma separated list of file patterns to exclude when syncing
+    type: string
+    value: ".ipynb_checkpoints/*,thumbnails/,staticwebsiteresults/"
 
   uid:
     definition: "User ID"

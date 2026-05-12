@@ -9,3 +9,4 @@ keywords:
 - kaapanamultiinstallable
 annotations:
   ui-visible-name: "Minio Sync"
+  launch-name-prefix: "MinIO-Sync"

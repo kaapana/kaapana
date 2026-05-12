@@ -1,4 +1,3 @@
-import fnmatch
 import shutil
 from collections import Counter
 from typing import Optional
@@ -6,7 +5,7 @@ from typing import Optional
 from alive_progress import alive_bar
 from build_helper.build import BuildConfig, BuildState, IssueTracker
 from build_helper.helm import HelmChart
-from build_helper.utils import CommandUtils, get_logger
+from build_helper.utils import CommandUtils, get_logger, should_ignore_path
 
 logger = get_logger()
 
@@ -167,9 +166,8 @@ class HelmChartHelper:
         with alive_bar(len(chart_files), dual_line=True, title="Collect-Charts") as bar:
             for chart_file in chart_files:
                 bar()
-                if any(
-                    fnmatch.fnmatch(chart_file.as_posix(), pattern)
-                    for pattern in (cls._build_config.build_ignore_patterns or [])
+                if should_ignore_path(
+                    chart_file, cls._build_config.build_ignore_patterns
                 ):
                     logger.debug(f"Ignoring chart {chart_file}")
                     continue

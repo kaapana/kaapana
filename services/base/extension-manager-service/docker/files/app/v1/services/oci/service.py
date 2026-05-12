@@ -55,7 +55,7 @@ class ociService:
 
     async def get_extension_manifests(
         self, tags: set[str] | None = None
-    ) -> list[ExtensionManifest]:
+    ) -> dict[str, ExtensionManifest]:
         """
         Fetches the manifests of the extensions in the given repository.
         This is a placeholder implementation that returns static manifests.
@@ -63,20 +63,20 @@ class ociService:
 
         :param tags: TODO
         :return: TODO
-        :rtype: list[ExtensionManifest]
+        :rtype: dict[str, ExtensionManifest]
         """
-        manifests = []
+        manifests = {}
         existing_tags = await self.get_extensions_for_repository()
         if tags:
             filtered_tags = existing_tags.intersection(tags)
 
             for tag in filtered_tags:
                 manifest = await self.get_extension_manifest(tag)
-                manifests.append(manifest)
+                manifests[tag] = manifest
         else:
             for tag in existing_tags:
                 manifest = await self.get_extension_manifest(tag)
-                manifests.append(manifest)
+                manifests[tag] = manifest
 
         return manifests
 

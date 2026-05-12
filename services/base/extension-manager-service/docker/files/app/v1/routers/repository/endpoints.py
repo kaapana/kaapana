@@ -9,7 +9,6 @@ from v1.routers.repository import schemas
 
 from v1.services.oci.service import ociService
 
-from v1.services.database.exceptions import RepositoryNotFoundException
 from v1.routers.dependencies import get_oci_service_for_repository
 
 router = APIRouter(prefix="/repositories", tags=["repositories"])
@@ -107,17 +106,20 @@ async def get_extensions(
 
 @router.get(
     "/{repository_id}/extensionManifests",
-    response_model=list[schemas.ExtensionManifest],
+    response_model=list[schemas.ExtensionsManifestsResponse],
 )
 async def get_extension_manifests(
     repository_id: UUID,
     tags: str | None = None,
-    limit: int | None = None,
-    skip: int | None = None,
     oci: ociService = Depends(get_oci_service_for_repository),
 ):
     extensions_manifests = await oci.get_extension_manifests(
         tags=tags.split(",") if tags else None
     )
 
-    return extensions_manifests
+    return [
+        schemas.ExtensionsManifestsResponse(
+            tag=tag, manifest=manifest, repository_id=repository_id
+        )
+        for tag, manifest in extensions_manifests.items()
+    ]

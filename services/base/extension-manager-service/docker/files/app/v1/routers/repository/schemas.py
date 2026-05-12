@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 import uuid
 from typing import Optional
+from v1.services.oci.models import ExtensionManifest, Content, ContentFiles
 
 
 ### Request schemas
@@ -60,4 +61,10 @@ class Repository(BaseModel):
 ############ Extensions ###############
 
 
-from v1.services.oci.models import ExtensionManifest, Content, ContentFiles
+class ExtensionsManifestsResponse(BaseModel):
+    repository_id: uuid.UUID = Field(
+        ...,
+        description="The unique identifier of the repository this extension belongs to.",
+    )
+    tag: str = Field(..., description="The tag of the extension.")
+    manifest: ExtensionManifest

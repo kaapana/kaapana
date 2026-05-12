@@ -10,3 +10,4 @@ keywords:
 annotations:
   documentation: "user_guide/extensions.html#jupyterlab"
   ui-visible-name: "Jupyterlab Notebook"
+  launch-name-prefix: "JupyterLab"

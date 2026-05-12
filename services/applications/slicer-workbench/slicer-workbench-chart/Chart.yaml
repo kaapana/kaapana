@@ -10,3 +10,4 @@ keywords:
 annotations:
   documentation: "user_guide/extensions.html#slicer-workbench"
   ui-visible-name: "Slicer Workbench"
+  launch-name-prefix: "Slicer-Workbench"

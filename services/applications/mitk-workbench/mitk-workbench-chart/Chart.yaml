@@ -9,3 +9,4 @@ keywords:
 annotations:
   documentation: "user_guide/extensions.html#mitk-workbench"
   ui-visible-name: "MITK Workbench"
+  launch-name-prefix: "MITK-Workbench"

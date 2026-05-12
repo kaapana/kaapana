@@ -12,3 +12,4 @@ keywords:
 annotations:
   documentation: "user_guide/extensions.html#new-registry"
   ui-visible-name: "New Registry"
+  launch-name-prefix: "New-Registry"

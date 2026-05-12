@@ -657,7 +657,24 @@ export default Vue.extend({
         this.popUpDialog[item.releaseName] = true;
         this.popUpItem = item;
         for (let key of Object.keys(item["extension_params"])) {
-          this.popUpExtension[key] = item["extension_params"][key]["default"];
+          // Set smart default for display_name
+          if (key === "display_name" && item["extension_params"][key]["default"] === "-") {
+            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+            const projectName = (this as any).$store.getters.selectedProject.name;
+            const username = (this as any).$store.getters.currentUser.username;
+
+            // Check for custom prefix annotation first
+            let prefix = "";
+            if (item.annotations && item.annotations["launch-name-prefix"]) {
+              prefix = item.annotations["launch-name-prefix"];
+              this.popUpExtension[key] = `${prefix}-${projectName}-${username}-${today}`;
+            } else {
+              this.popUpExtension[key] = `<AppName>-${projectName}-${username}-${today}`;
+            }
+
+          } else {
+            this.popUpExtension[key] = item["extension_params"][key]["default"];
+          }
         }
       } else {
         this.installChart(item);

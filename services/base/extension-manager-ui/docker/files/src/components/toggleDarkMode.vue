@@ -14,6 +14,6 @@ function toggleTheme() {
 
 <template>
   <v-btn @click="toggleTheme">
-    Toggle theme
+    T
   </v-btn>
 </template>

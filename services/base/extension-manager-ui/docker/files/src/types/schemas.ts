@@ -79,3 +79,11 @@ export interface CatalogEntryGroup {
   manifestName: string
   entries: CatalogEntry[]
 }
+
+// local
+export interface RepositoryFormState {
+  name: string
+  description: string
+  repository_url: string
+  authentication: string
+}

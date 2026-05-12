@@ -39,6 +39,8 @@ const catalogEntryGroups = computed(() =>
   groupCatalogEntries(filteredCatalogEntries.value),
 )
 
+const catalogEntryCount = computed(() => entries.value.length)
+
 function selectCatalogEntryGroup(group: CatalogEntryGroup) {
   selectedCatalogEntryGroup.value = group
   selectedCatalogEntry.value = group.entries[0] ?? null
@@ -96,7 +98,7 @@ async function loadCatalog() {
     entries.value = manifestsByRepository.flat()
   } catch (err) {
     console.error(err)
-    error.value = 'Failed to fetch extensions from OCI repositories.'
+    error.value = 'Failed to fetch catalog entries from OCI repositories.'
     entries.value = []
   } finally {
     loading.value = false
@@ -110,7 +112,7 @@ onMounted(loadCatalog)
   <v-container fluid>
     <v-container class="pad-lg">
       <ExtensionManagerHeader :loading="loading" :repository-count="repositories.length"
-        :extension-count="entries.length" @fetch="loadCatalog" />
+        :catalog-entry-count="catalogEntryCount" @fetch="loadCatalog" />
       <CatalogFilterBar :filters="catalogFilters" :repositories="repositories" @update:filters="catalogFilters = $event" />
       <SelectedCatalogEntry
         :selected-catalog-entry-group="selectedCatalogEntryGroup"

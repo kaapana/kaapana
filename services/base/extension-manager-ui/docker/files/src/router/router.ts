@@ -1,16 +1,23 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Extensions from '@/views/Extensions.vue'
+import Catalog from '@/views/Catalog.vue'
+import Repositories from '@/views/Repositories.vue'
 
 const routes = [
   {
     path: '/',
-    redirect: '/extensions',
+    redirect: '/catalog',
   },
   {
-    path: '/extensions',
-    name: 'Extensions',
-    component: Extensions,
-    meta: { title: 'Extension Manager' },
+    path: '/catalog',
+    name: 'Catalog',
+    component: Catalog,
+    meta: { title: 'Extension Catalog' },
+  },
+  {
+    path: '/repositories',
+    name: 'Repositories',
+    component: Repositories,
+    meta: { title: 'Repository Management' },
   },
 ]
 

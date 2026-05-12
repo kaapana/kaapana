@@ -32,7 +32,7 @@ function getCatalogEntryGroup(
   </v-row>
 
   <v-alert v-else-if="props.catalogEntryGroups.length === 0" type="info" class="mb-4">
-    No extensions match the current filters.
+    No catalog entries match the current filters.
   </v-alert>
 
   <v-data-iterator

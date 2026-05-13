@@ -2,7 +2,7 @@ import typer
 import json
 import os
 from typing import Optional, List
-from kaapana_oci.registry import OCIRegistryDiscovery
+from kaapana_containers.registries.registry import OCIRepositoryManager
 
 app = typer.Typer(help="OCI Registry Discovery CLI")
 
@@ -20,8 +20,8 @@ def _load_json(json_str_or_path: str) -> dict:
 
 def _init_client(
     registry_url: str, repository: str, username: Optional[str], password: Optional[str]
-) -> OCIRegistryDiscovery:
-    return OCIRegistryDiscovery(
+) -> OCIRepositoryManager:
+    return OCIRepositoryManager(
         registry_url, repository, username=username, password=password
     )
 

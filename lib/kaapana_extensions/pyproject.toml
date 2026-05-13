@@ -15,7 +15,7 @@ dependencies = [
     "pytest>=7.0.0",
     "requests>=2.31.0",
     "gitpython>=3.1.0",
-    "kaapana-containers@git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@0.6.0#subdirectory=lib/kaapana_containers"
+    "kaapana-containers@git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@feature/2161-build-toolchain#subdirectory=lib/kaapana_containers"
 ]
 
 [project.scripts]

@@ -1515,6 +1515,188 @@ function load_kaapana_config {
     VOLUME_SLOW_DATA="100Gi" # size of volumes in slow data dir (e.g. 100Gi or 100Ti)
 }
 
+function is_ipv4 {
+    local ip="${1:-}"
+    [[ "$ip" =~ ^(([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))\.){3}([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))$ ]]
+}
+
+function create_post_reinstall_recovery_marker {
+    local real_user_home="$HOME"
+    local marker_path
+    [[ -n "${SUDO_USER:-}" ]] && real_user_home="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
+    marker_path="${real_user_home}/.kaapana/post-reinstall-recovery-pending"
+    if [[ -n "${SUDO_USER:-}" && "$EUID" -eq 0 ]]; then
+        sudo -u "$SUDO_USER" mkdir -p "$(dirname "$marker_path")"
+        sudo -u "$SUDO_USER" touch "$marker_path"
+    else
+        mkdir -p "$(dirname "$marker_path")"
+        : > "$marker_path"
+    fi
+    echo -e "${YELLOW}Marked fresh server install for optional post-reinstall recovery: ${marker_path}${NC}"
+}
+
+function clear_post_reinstall_recovery_marker {
+    local real_user_home="$HOME"
+    local marker_path
+    [[ -n "${SUDO_USER:-}" ]] && real_user_home="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
+    marker_path="${POST_REINSTALL_RECOVERY_MARKER:-${real_user_home}/.kaapana/post-reinstall-recovery-pending}"
+    if [[ -f "$marker_path" ]]; then
+        if rm -f "$marker_path" 2>/dev/null; then
+            echo -e "${GREEN}Cleared post-reinstall recovery marker: ${marker_path}${NC}"
+        else
+            echo -e "${YELLOW}Could not clear post-reinstall recovery marker without sudo: ${marker_path}${NC}"
+        fi
+    fi
+}
+
+function data_dir_has_recovery_content {
+    local data_dir="$1"
+
+    if [ -z "$data_dir" ] || [ ! -d "$data_dir" ]; then
+        return 1
+    fi
+
+    if find "$data_dir" -maxdepth 3 \
+        \( -name 'extensions' -o -name 'project-*' -o -name '*pvc-*' -o -name '*pv-claim*' \) \
+        -print -quit 2>/dev/null | grep -q .; then
+        return 0
+    fi
+
+    return 1
+}
+
+function recovery_data_detected {
+    data_dir_has_recovery_content "$FAST_DATA_DIR" || data_dir_has_recovery_content "$SLOW_DATA_DIR"
+}
+
+function platform_state_already_exists {
+    if $HELM_EXECUTABLE -n "$ADMIN_NAMESPACE" ls --short 2>/dev/null | grep -q .; then
+        return 0
+    fi
+
+    if $HELM_EXECUTABLE -n "$HELM_NAMESPACE" ls --short 2>/dev/null | grep -q .; then
+        return 0
+    fi
+
+    if microk8s.kubectl get namespace "$ADMIN_NAMESPACE" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    if microk8s.kubectl get namespace "$SERVICES_NAMESPACE" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    if microk8s.kubectl get ns --no-headers 2>/dev/null | awk '{print $1}' | grep -q '^project-'; then
+        return 0
+    fi
+
+    return 1
+}
+
+function run_post_reinstall_recovery {
+    local script_dir
+    local post_reinstall_script
+    local chart_ref
+    local recovery_cmd=()
+
+    script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    post_reinstall_script="${script_dir}/utils/post-server-reinstall.sh"
+    if [[ ! -r "${post_reinstall_script}" ]]; then
+        post_reinstall_script="${script_dir}/../utils/post-server-reinstall.sh"
+    fi
+
+    if [[ ! -r "${post_reinstall_script}" ]]; then
+        echo -e "${RED}Post-reinstall recovery helper missing or not readable: ${post_reinstall_script}${NC}"
+        return 1
+    fi
+
+    chart_ref="${CONTAINER_REGISTRY_URL}/${PLATFORM_NAME}:${PLATFORM_VERSION}"
+
+    echo -e "${YELLOW}Running delegated post-reinstall recovery before deployment...${NC}"
+    recovery_cmd=(
+        # Run helpers through bash so deployments do not depend on the executable bit.
+        bash "$post_reinstall_script"
+        --chart "$chart_ref"
+        --registry-username "$CONTAINER_REGISTRY_USERNAME"
+        --registry-password "$CONTAINER_REGISTRY_PASSWORD"
+        --fast-dir "$FAST_DATA_DIR"
+        --slow-dir "$SLOW_DATA_DIR"
+        --admin-release-name "$PLATFORM_NAME"
+        --platform-release-name "$POST_REINSTALL_PLATFORM_RELEASE_NAME"
+    )
+
+    "${recovery_cmd[@]}"
+
+    POST_DEPLOY_RECONCILE_ENABLED=true
+    echo -e "${GREEN}Post-reinstall recovery finished. Project namespace reconciliation will run after deploy.${NC}"
+    clear_post_reinstall_recovery_marker
+}
+
+function maybe_run_post_reinstall_recovery {
+    local marker_path
+    local has_marker=false
+    local has_data=false
+    local force_recovery="${POST_REINSTALL_RECOVERY_REQUESTED:-false}"
+    local answer=""
+
+    local real_user_home="$HOME"
+    [[ -n "${SUDO_USER:-}" ]] && real_user_home="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
+    marker_path="${real_user_home}/.kaapana/post-reinstall-recovery-pending"
+    POST_REINSTALL_RECOVERY_MARKER="$marker_path"
+
+    if [ -f "$marker_path" ]; then
+        has_marker=true
+    fi
+
+    if recovery_data_detected; then
+        has_data=true
+    fi
+
+    if [[ "${force_recovery,,}" == "true" ]]; then
+        echo -e "${YELLOW}Post-reinstall recovery requested explicitly.${NC}"
+        run_post_reinstall_recovery
+        return 0
+    fi
+
+    if [[ "$has_marker" != true ]]; then
+        return 0
+    fi
+
+    if [[ "$has_data" != true ]]; then
+        echo -e "${YELLOW}Fresh server-install marker found, but no Kaapana data was detected in the configured data dirs.${NC}"
+        clear_post_reinstall_recovery_marker
+        return 0
+    fi
+
+    if platform_state_already_exists; then
+        echo -e "${YELLOW}Post-reinstall recovery marker found, but platform state already exists in the cluster. Skipping automatic recovery.${NC}"
+        clear_post_reinstall_recovery_marker
+        return 0
+    fi
+
+    if [[ "${QUIET,,}" == "true" ]]; then
+        echo -e "${RED}Detected a post-reinstall recovery situation, but quiet mode cannot ask for confirmation.${NC}"
+        echo -e "${RED}Re-run deploy with --recover-after-reinstall to execute recovery explicitly.${NC}"
+        exit 1
+    fi
+
+    echo -e "${YELLOW}Detected a fresh server install plus existing Kaapana data directories.${NC}"
+    echo -e "${YELLOW}Run post-reinstall recovery now before Helm deploy? [yes/no]${NC}"
+    read -r answer
+    case "${answer,,}" in
+        y|yes)
+            run_post_reinstall_recovery
+            ;;
+        n|no)
+            echo -e "${YELLOW}Skipping post-reinstall recovery. The marker will be kept so you can retry on the next deploy.${NC}"
+            ;;
+        *)
+            echo -e "${RED}Please answer yes or no. Re-run deploy to choose again, or pass --recover-after-reinstall.${NC}"
+            exit 1
+            ;;
+    esac
+}
+
 function delete_all_images_docker {
     while true; do
         read -e -p "Do you really want to remove all the Docker images from the system?" -i " no" yn
@@ -1666,17 +1848,16 @@ function import_container_images_tar {
 function run_migration_chart() {
     local FROM_VERSION="$1"
     local TO_VERSION="$2"
+    local WORKDIR
+    local MIGRATION_CHART_PATH
+    local HELM_CMD
 
     echo -e "${YELLOW}Deploying migration chart: $FROM_VERSION -> $TO_VERSION${NC}"
 
     WORKDIR=$(mktemp -d)
     tar -xzf "$CHART_PATH" -C "$WORKDIR"
 
-    MIGRATION_CHART_PATH="$WORKDIR/$PLATFORM_NAME/charts/migration-chart"
-    if [[ ! -d "$MIGRATION_CHART_PATH" ]]; then
-        echo -e "${RED}Migration chart not found inside chart package!${NC}"
-        exit 1
-    fi
+    MIGRATION_CHART_PATH="$(resolve_extracted_chart_dependency_path "$WORKDIR" "migration-chart")"
 
     # Build helm command with optional --plain-http flag
     HELM_CMD="$HELM_EXECUTABLE -n $HELM_NAMESPACE upgrade --install"
@@ -1684,6 +1865,8 @@ function run_migration_chart() {
         HELM_CMD="$HELM_CMD --plain-http"
     fi
 
+    # Keep migration-created Helm ownership aligned with the final admin/platform
+    # release names so namespace reconciliation does not block the follow-up install.
     $HELM_CMD kaapana-migration "$MIGRATION_CHART_PATH" \
         --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \
         --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
@@ -1695,12 +1878,16 @@ function run_migration_chart() {
         --set-string global.storage_class_workflow="$STORAGE_CLASS_WORKFLOW" \
         --set-string global.services_namespace="$SERVICES_NAMESPACE" \
         --set-string global.admin_namespace="$ADMIN_NAMESPACE" \
+        --set-string global.admin_release_name="$PLATFORM_NAME" \
+        --set-string global.platform_release_name="$POST_REINSTALL_PLATFORM_RELEASE_NAME" \
         --set-string global.pull_policy_images="$PULL_POLICY_IMAGES" \
         --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
         --set-string global.kaapana_build_version="$PLATFORM_VERSION" \
         --set-string global.volume_slow_data="$VOLUME_SLOW_DATA"\
         --set-string global.from_version="$FROM_VERSION" \
-        --set-string global.to_version="$TO_VERSION"
+        --set-string global.to_version="$TO_VERSION" \
+        --set-string global.credentials_keycloak_admin_username="$KEYCLOAK_ADMIN_USERNAME" \
+        --set-string global.credentials_keycloak_admin_password="$KEYCLOAK_ADMIN_PASSWORD"
 
     # Wait for migration job to finish
     local JOB_NAME="migration"
@@ -1721,6 +1908,7 @@ function run_migration_chart() {
 
         if [[ "${SUCCEEDED:-0}" -ge 1 ]]; then
             echo -e "${GREEN}Migration job completed successfully!${NC}"
+            POST_DEPLOY_RECONCILE_AFTER_MIGRATION=true
             PODS=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o name)
             for pod in $PODS; do
                 microk8s.kubectl logs "$pod" -n "$NAMESPACE"
@@ -1822,6 +2010,12 @@ function prompt_user_backup() {
     echo "   cp -a $FAST_DATA_DIR /path/to/fast/backup"
     echo "   cp -a $SLOW_DATA_DIR /path/to/slow/backup"
     echo
+
+    if [[ "${QUIET:-false}" == true ]]; then
+        echo -e "${YELLOW}QUIET-MODE active: skipping backup confirmation prompt and proceeding with migration.${NC}"
+        return 0
+    fi
+
     while true; do
         read -p "Proceed with migration? (yes/no/skip): " answer
         case "$answer" in
@@ -1893,16 +2087,14 @@ function setup_storage_provider() {
         STORAGE_CLASS_SLOW="kaapana-hostpath-slow-data-dir"
         STORAGE_CLASS_FAST="kaapana-hostpath-fast-data-dir"
         STORAGE_CLASS_WORKFLOW="kaapana-hostpath-fast-data-dir"
-        if [ -z "${VOLUME_SLOW_DATA}" ]; then
-            VOLUME_SLOW_DATA="10Gi"
-        fi
+        VOLUME_SLOW_DATA="${VOLUME_SLOW_DATA:-10Gi}"
         ;;
       "driver.longhorn.io")
         STORAGE_CLASS_SLOW="kaapana-longhorn-slow-data"
         STORAGE_CLASS_FAST="kaapana-longhorn-fast-db"
         STORAGE_CLASS_WORKFLOW="kaapana-longhorn-fast-workflow"
 
-        if [ -z "${VOLUME_SLOW_DATA}" ]; then
+        if [[ -z "${VOLUME_SLOW_DATA}" ]]; then
             echo "${VOLUME_SLOW_DATA}" must be set for Longhorn storage provider.
             exit 1
         fi
@@ -1979,7 +2171,7 @@ function migrate() {
 
     echo "${YELLOW}Checking ${VERSION_FILE} status...${NC}"
 
-    if [[ ! -d "$FAST_DATA_DIR" || -z "$(ls -A "$FAST_DATA_DIR" 2>/dev/null)" ]]; then
+    if [[ ! -d "$FAST_DATA_DIR" ]] || ! fast_data_dir_has_migration_content "$FAST_DATA_DIR"; then
         echo "${GREEN}Fresh installation detected.${NC}"
         echo "${GREEN}Skipping migration for fresh installation. Version file will be created during deployment.${NC}"
 
@@ -2016,7 +2208,7 @@ function migrate() {
             fi
         fi
 
-    elif [[ -d "$FAST_DATA_DIR" && -n "$(ls -A "$FAST_DATA_DIR")" ]]; then
+    elif [[ -d "$FAST_DATA_DIR" ]] && fast_data_dir_has_migration_content "$FAST_DATA_DIR"; then
         echo "${YELLOW}No version file and directory is not empty!${NC}"
 
         if [[ "$MIGRATION_ENABLED" == true ]]; then
@@ -2051,10 +2243,40 @@ function migrate() {
     fi
 }
 
+function fast_data_dir_has_migration_content() {
+    local data_dir="$1"
+
+    if [[ -z "$data_dir" || ! -d "$data_dir" ]]; then
+        return 1
+    fi
+
+    if find "$data_dir" -mindepth 1 -maxdepth 1 \
+        ! -name 'recover-data-quarantine' \
+        -print -quit 2>/dev/null | grep -q .; then
+        return 0
+    fi
+
+    return 1
+}
+
 function setup_storage_classes() {
+    ensure_helm_uses_microk8s_config
+
+    local WORKDIR
+    local KAAPANA_STORAGE_CHARTPATH
+
     WORKDIR=$(mktemp -d)
     tar -xzf "$CHART_PATH" -C "$WORKDIR"
-    KAAPANA_STORAGE_CHARTPATH="$WORKDIR/$PLATFORM_NAME/charts/kaapana-storage-chart"
+    KAAPANA_STORAGE_CHARTPATH="$(resolve_extracted_chart_dependency_path "$WORKDIR" "kaapana-storage-chart")"
+
+    echo "${YELLOW}Refreshing Kaapana StorageClass definitions while preserving PVCs/PVs/data.${NC}"
+    microk8s.kubectl delete storageclass \
+        kaapana-hostpath-fast-data-dir \
+        kaapana-hostpath-slow-data-dir \
+        kaapana-longhorn-fast-db \
+        kaapana-longhorn-slow-data \
+        kaapana-longhorn-fast-workflow \
+        --ignore-not-found
 
     $HELM_EXECUTABLE -n kaapana-system upgrade --install kaapana-storageclass $KAAPANA_STORAGE_CHARTPATH \
         --create-namespace \

@@ -488,7 +488,9 @@ function run_migration_chart() {
     if [ "$PLAIN_HTTP" = true ]; then
         HELM_CMD="$HELM_CMD --plain-http"
     fi
-    
+
+    # Keep migration-created Helm ownership aligned with the final admin/platform
+    # release names so namespace reconciliation does not block the follow-up install.
     $HELM_CMD kaapana-migration "$MIGRATION_CHART_PATH" \
         --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \
         --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
@@ -500,6 +502,8 @@ function run_migration_chart() {
         --set-string global.storage_class_workflow="$STORAGE_CLASS_WORKFLOW" \
         --set-string global.services_namespace="$SERVICES_NAMESPACE" \
         --set-string global.admin_namespace="$ADMIN_NAMESPACE" \
+        --set-string global.admin_release_name="$PLATFORM_NAME" \
+        --set-string global.platform_release_name="$POST_REINSTALL_PLATFORM_RELEASE_NAME" \
         --set-string global.pull_policy_images="$PULL_POLICY_IMAGES" \
         --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
         --set-string global.kaapana_build_version="$PLATFORM_VERSION" \
@@ -596,6 +600,12 @@ function prompt_user_backup() {
     echo "   cp -a $FAST_DATA_DIR /path/to/fast/backup"
     echo "   cp -a $SLOW_DATA_DIR /path/to/slow/backup"
     echo
+
+    if [[ "${QUIET:-false}" == true ]]; then
+        echo -e "${YELLOW}QUIET-MODE active: skipping backup confirmation prompt and proceeding with migration.${NC}"
+        return 0
+    fi
+
     while true; do
         read -p "Proceed with migration? (yes/no/skip): " answer
         case "$answer" in

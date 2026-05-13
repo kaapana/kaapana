@@ -376,14 +376,90 @@ function get_domain {
         echo -e "Please restart the process. ${NC}";  > /dev/stderr;
         exit 1
     else
+        analyze_existing_certificate_state "$DOMAIN"
         echo -e "${GREEN}Server domain (FQDN): $DOMAIN ${NC}" > /dev/stderr;
     fi
 }
 
+function analyze_existing_certificate_state {
+    local expected_hostname="$1"
+    local script_dir=""
+    local reset_script=""
+    local analysis_status=0
+
+    if [[ -z "$expected_hostname" ]]; then
+        return 0
+    fi
+
+    script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    reset_script="${script_dir}/utils/reset_certificate_state.sh"
+    if [[ ! -f "$reset_script" ]]; then
+        reset_script="${script_dir}/../utils/reset_certificate_state.sh"
+    fi
+
+    if [[ ! -f "$reset_script" ]]; then
+        echo -e "${YELLOW}Certificate analysis helper not found, skipping existing certificate check.${NC}" > /dev/stderr
+        return 0
+    fi
+
+    echo -e "${GREEN}Analyzing existing certificate state for hostname ${expected_hostname}...${NC}" > /dev/stderr
+    # This preflight is informational only. Fresh installs legitimately have no
+    # certificate files or secrets yet because cert-init generates them later.
+    if [[ "${IGNORE_CERTIFICATE_STATE,,}" == "true" ]]; then
+        echo -e "${YELLOW}WARNING: Continuing because --ignore-certificate-state is set.${NC}" > /dev/stderr
+        bash "$reset_script" \
+            --analyze-only \
+            --hostname "$expected_hostname" \
+            --fast-dir "$FAST_DATA_DIR" \
+            --kubectl microk8s.kubectl \
+            --admin-namespace "$ADMIN_NAMESPACE" \
+            --services-namespace "$SERVICES_NAMESPACE" || \
+            echo -e "${YELLOW}Existing certificate analysis reported an execution problem, continuing deploy anyway.${NC}" > /dev/stderr
+        return 0
+    fi
+
+    analysis_status=0
+    bash "$reset_script" \
+        --analyze-only \
+        --fail-on-issues \
+        --hostname "$expected_hostname" \
+        --fast-dir "$FAST_DATA_DIR" \
+        --kubectl microk8s.kubectl \
+        --admin-namespace "$ADMIN_NAMESPACE" \
+        --services-namespace "$SERVICES_NAMESPACE" || analysis_status=$?
+
+    if [[ "$analysis_status" -eq 0 ]]; then
+        return 0
+    fi
+
+    if [[ "$analysis_status" -eq 2 ]]; then
+        echo -e "${RED}Existing certificate state does not match the selected hostname or validity requirements.${NC}" > /dev/stderr
+        echo -e "${RED}Clear the persisted certificate state before deploying, for example:${NC}" > /dev/stderr
+        echo -e "${RED}  bash ${reset_script} --yes${NC}" > /dev/stderr
+        # Installing a foreign certificate is safer after the reset so no stale
+        # Kaapana-generated files or OpenSearch trust artifacts survive.
+        echo -e "${RED}If you want to use a foreign certificate, reset first and then run ./kaapanactl.sh deploy --install-certs before deploying again.${NC}" > /dev/stderr
+        echo -e "${RED}Or re-run deploy with --ignore-certificate-state to override this preflight.${NC}" > /dev/stderr
+        exit 1
+    fi
+
+    echo -e "${YELLOW}Existing certificate analysis reported an execution problem, continuing deploy anyway.${NC}" > /dev/stderr
+}
+
 function delete_deployment {
+    HELM_UNINSTALL_TIMEOUT="${HELM_UNINSTALL_TIMEOUT:-15m0s}"
+    HELM_UNINSTALL_BASE_FLAGS="${NO_HOOKS} --ignore-not-found --timeout ${HELM_UNINSTALL_TIMEOUT}"
+    if $HELM_EXECUTABLE version --short 2>/dev/null | grep -qE '^v4\.' && [[ "${HELM_UNINSTALL_BASE_FLAGS}" != *"--no-hooks"* ]]; then
+        # Helm v4 waits for uninstall hooks by default (hookOnly), which can stall undeploy.
+        HELM_UNINSTALL_BASE_FLAGS="--no-hooks ${HELM_UNINSTALL_BASE_FLAGS}"
+    fi
+
+    cleanup_orphaned_pods_for_undeploy
+
     echo -e "${YELLOW}Undeploy releases${NC}"
     for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
-        $HELM_EXECUTABLE -n $namespace ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
+        # Do not block undeploy on one chart uninstall.
+        $HELM_EXECUTABLE -n "$namespace" ls --deployed --failed --pending --superseded --uninstalling --date --reverse --short | xargs -r -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall ${HELM_UNINSTALL_BASE_FLAGS} %; sleep 2" || true
     done
 
     echo -e "${YELLOW}Waiting until everything is terminated ...${NC}"
@@ -393,33 +469,40 @@ function delete_deployment {
         sleep 3
         if [ "$idx" -eq 2 ]; then
             echo "Deleting helm charts in 'uninstalling' state with --no-hooks"
-            $HELM_EXECUTABLE -n $namespace ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall --no-hooks --wait --timeout 5m30s %; sleep 2"
+            for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+                $HELM_EXECUTABLE -n "$namespace" ls --uninstalling --short | xargs -r -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall --no-hooks --ignore-not-found --wait --timeout ${HELM_UNINSTALL_TIMEOUT} %; sleep 2" || true
+            done
         fi
-        TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E 'Terminating' | awk '{print \$1 \"/\" \$2}'")
+        TERMINATING_PODS=$(microk8s.kubectl get pods --all-namespaces --no-headers 2>/dev/null | awk '$4 == "Terminating" { print $1 "/" $2 }')
+        UNINSTALLING_RELEASES=""
+        for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+            NS_UNINSTALLING=$($HELM_EXECUTABLE -n "$namespace" ls --uninstalling --short 2>/dev/null || true)
+            if [ -n "$NS_UNINSTALLING" ]; then
+                while IFS= read -r release; do
+                    if [ -n "$release" ]; then
+                        UNINSTALLING_RELEASES="${UNINSTALLING_RELEASES}${namespace}/${release} "
+                    fi
+                done <<< "$NS_UNINSTALLING"
+            fi
+        done
         echo -e ""
-        UNINSTALL_TEST=$TERMINATING_PODS
+        # Undeploy is done only when no pods are terminating and no Helm release
+        # remains in uninstalling state.
+        UNINSTALL_TEST="${TERMINATING_PODS}${UNINSTALLING_RELEASES}"
         if [ -z "$UNINSTALL_TEST" ]; then
             break
         else
-            echo -e "${YELLOW}Waiting for $TERMINATING_PODS ${NC}"
+            if [ -n "$TERMINATING_PODS" ]; then
+                echo -e "${YELLOW}Waiting for terminating pods: $TERMINATING_PODS ${NC}"
+            fi
+            if [ -n "$UNINSTALLING_RELEASES" ]; then
+                echo -e "${YELLOW}Waiting for uninstalling releases: $UNINSTALLING_RELEASES ${NC}"
+            fi
         fi
     done
 
-    echo -e "${YELLOW}Cleaning up orphaned pods in Kubernetes namespaces ...${NC}"
-    
-    # Clean SERVICES_NAMESPACE
-    if microk8s.kubectl get namespace $SERVICES_NAMESPACE &>/dev/null; then
-        echo "Deleting all pods in $SERVICES_NAMESPACE"
-        microk8s.kubectl delete pods --all -n $SERVICES_NAMESPACE --grace-period=0 --force 2>/dev/null || true
-    fi
-    
-    # Clean all project-* namespaces
-    PROJECT_NAMESPACES=$(microk8s.kubectl get namespaces --no-headers -o custom-columns=NAME:.metadata.name | grep "^project-")
-    for ns in $PROJECT_NAMESPACES; do
-        echo "Deleting all pods in $ns"
-        microk8s.kubectl delete pods --all -n $ns --grace-period=0 --force 2>/dev/null || true
-    done
-    
+    cleanup_orphaned_pods_for_undeploy
+
 
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
@@ -432,6 +515,23 @@ function delete_deployment {
 
 
     echo -e "${GREEN}####################################  UNDEPLOYMENT DONE  ############################################${NC}"
+}
+
+function cleanup_orphaned_pods_for_undeploy {
+    echo -e "${YELLOW}Cleaning up orphaned pods in Kubernetes namespaces ...${NC}"
+
+    # Clean SERVICES_NAMESPACE
+    if microk8s.kubectl get namespace $SERVICES_NAMESPACE &>/dev/null; then
+        echo "Deleting all pods in $SERVICES_NAMESPACE"
+        microk8s.kubectl delete pods --all -n $SERVICES_NAMESPACE --grace-period=0 --force 2>/dev/null || true
+    fi
+
+    # Clean all project-* namespaces
+    PROJECT_NAMESPACES=$(microk8s.kubectl get namespaces --no-headers -o custom-columns=NAME:.metadata.name | grep "^project-" || true)
+    for ns in $PROJECT_NAMESPACES; do
+        echo "Deleting all pods in $ns"
+        microk8s.kubectl delete pods --all -n $ns --grace-period=0 --force 2>/dev/null || true
+    done
 }
 
 function nuke_pods {

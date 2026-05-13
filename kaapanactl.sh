@@ -1719,6 +1719,114 @@ function delete_all_images_microk8s {
     done
 }
 
+function check_domain_reachable_to_host {
+    local domain="${1:-}"
+    local ignore_domain_check="${IGNORE_DOMAIN_REACHABILITY_CHECK:-false}"
+    local resolved_ips=""
+    local resolved_ip_csv=""
+    local local_ips_raw=""
+    local local_ip_csv=""
+    local resolved_ip=""
+    local host_ip=""
+    local match=false
+    local -a local_ips=()
+
+    function _domain_check_fail_or_override {
+        if [[ "${ignore_domain_check,,}" == "true" ]]; then
+            echo -e "${YELLOW}WARNING: Continuing because --ignore-domain-reachability-check is set.${NC}" > /dev/stderr
+            return 0
+        fi
+        return 1
+    }
+
+    if [ -z "$domain" ]; then
+        echo -e "${RED}================================================================================${NC}" > /dev/stderr
+        echo -e "${RED}ERROR: DOMAIN reachability check failed because DOMAIN is not set.${NC}" > /dev/stderr
+        echo -e "${RED}================================================================================${NC}" > /dev/stderr
+        if ! _domain_check_fail_or_override; then
+            return 1
+        fi
+        return 0
+    fi
+
+    if is_ipv4 "$domain"; then
+        echo -e "${GREEN}INFO: Skipping DNS reachability check because DOMAIN is an IP address: $domain${NC}" > /dev/stderr
+        return 0
+    fi
+
+    if ! command -v getent &> /dev/null; then
+        echo -e "${RED}================================================================================${NC}" > /dev/stderr
+        echo -e "${RED}ERROR: Could not validate DOMAIN reachability because 'getent' is unavailable.${NC}" > /dev/stderr
+        echo -e "${RED}ERROR: Install libc-bin / glibc-common (distribution dependent) to enable checks.${NC}" > /dev/stderr
+        echo -e "${RED}================================================================================${NC}" > /dev/stderr
+        if ! _domain_check_fail_or_override; then
+            return 1
+        fi
+        return 0
+    fi
+
+    resolved_ips=$(getent ahostsv4 "$domain" 2>/dev/null | awk '{print $1}' | sort -u || true)
+    if [ -z "$resolved_ips" ]; then
+        echo -e "${RED}================================================================================${NC}" > /dev/stderr
+        echo -e "${RED}ERROR: DOMAIN reachability check failed.${NC}" > /dev/stderr
+        echo -e "${RED}ERROR: Could not resolve DOMAIN '$domain' to an IPv4 address.${NC}" > /dev/stderr
+        echo -e "${RED}ERROR: Please fix DNS or use a correct --domain value.${NC}" > /dev/stderr
+        echo -e "${RED}================================================================================${NC}" > /dev/stderr
+        if ! _domain_check_fail_or_override; then
+            return 1
+        fi
+        return 0
+    fi
+
+    local_ips_raw=$(hostname -I 2>/dev/null || true)
+    for host_ip in $local_ips_raw; do
+        if is_ipv4 "$host_ip" && [[ ! "$host_ip" =~ ^127\. ]]; then
+            if ! printf '%s\n' "${local_ips[@]}" | grep -qx "$host_ip"; then
+                local_ips+=("$host_ip")
+            fi
+        fi
+    done
+
+    if [ "${#local_ips[@]}" -eq 0 ]; then
+        echo -e "${YELLOW}================================================================================${NC}" > /dev/stderr
+        echo -e "${YELLOW}WARNING: DOMAIN validation could not compare DNS to local IPv4 addresses.${NC}" > /dev/stderr
+        echo -e "${YELLOW}WARNING: Could not determine non-loopback local IPv4 addresses.${NC}" > /dev/stderr
+        echo -e "${YELLOW}WARNING: Continuing because DOMAIN resolved successfully and routed installs can terminate on an upstream IP.${NC}" > /dev/stderr
+        echo -e "${YELLOW}================================================================================${NC}" > /dev/stderr
+        return 0
+    fi
+
+    for resolved_ip in $resolved_ips; do
+        for host_ip in "${local_ips[@]}"; do
+            if [ "$resolved_ip" = "$host_ip" ]; then
+                match=true
+                break 2
+            fi
+        done
+    done
+
+    if [ "$match" = "false" ]; then
+        resolved_ip_csv=$(echo "$resolved_ips" | tr '\n' ',' | sed 's/,$//')
+        local_ip_csv=$(printf '%s\n' "${local_ips[@]}" | tr '\n' ',' | sed 's/,$//')
+
+        # In routed/NAT deployments the published clinic-side or RACOON-side IP
+        # can legitimately differ from the VM's own interface addresses. Treat
+        # the mismatch as informational as long as DNS resolution itself works.
+        echo -e "${YELLOW}================================================================================${NC}" > /dev/stderr
+        echo -e "${YELLOW}WARNING: DOMAIN resolves to a non-local IPv4 address.${NC}" > /dev/stderr
+        echo -e "${YELLOW}WARNING: Entered DOMAIN: $domain${NC}" > /dev/stderr
+        echo -e "${YELLOW}WARNING: Resolved IPv4: $resolved_ip_csv${NC}" > /dev/stderr
+        echo -e "${YELLOW}WARNING: Local IPv4:    $local_ip_csv${NC}" > /dev/stderr
+        echo -e "${YELLOW}WARNING: Continuing because routed/NAT/RAS deployments can forward DOMAIN traffic to this VM via an upstream IP.${NC}" > /dev/stderr
+        echo -e "${YELLOW}WARNING: Verify that the required ports are forwarded from the published DOMAIN endpoint to this host.${NC}" > /dev/stderr
+        echo -e "${YELLOW}================================================================================${NC}" > /dev/stderr
+        return 0
+    fi
+
+    echo -e "${GREEN}INFO: DOMAIN reachability check passed: $domain resolves to this host.${NC}" > /dev/stderr
+    return 0
+}
+
 function get_domain {
 
     if [ -z ${DOMAIN+x} ]; then
@@ -1754,15 +1862,104 @@ function get_domain {
         echo -e "${RED}DOMAIN not set!";  > /dev/stderr;
         echo -e "Please restart the process. ${NC}";  > /dev/stderr;
         exit 1
-    else
-        echo -e "${GREEN}Server domain (FQDN): $DOMAIN ${NC}" > /dev/stderr;
     fi
+
+    check_domain_reachable_to_host "$DOMAIN"
+    # Validate any persisted cert files or certificate secrets against the
+    # chosen hostname before Helm starts. This catches stale TLS state from
+    # previous deployments or reinstalls early, while still allowing fresh
+    # installs where no certificate state exists yet.
+    analyze_existing_certificate_state "$DOMAIN"
+
+        echo -e "${GREEN}Server domain (FQDN): $DOMAIN ${NC}" > /dev/stderr;
+}
+
+function analyze_existing_certificate_state {
+    local expected_hostname="$1"
+    local script_dir=""
+    local reset_script=""
+    local analysis_status=0
+
+    if [[ -z "$expected_hostname" ]]; then
+        return 0
+    fi
+
+    script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    reset_script="${script_dir}/utils/reset_certificate_state.sh"
+    if [[ ! -f "$reset_script" ]]; then
+        reset_script="${script_dir}/../utils/reset_certificate_state.sh"
+    fi
+
+    if [[ ! -f "$reset_script" ]]; then
+        echo -e "${YELLOW}Certificate analysis helper not found, skipping existing certificate check.${NC}" > /dev/stderr
+        return 0
+    fi
+
+    echo -e "${GREEN}Analyzing existing certificate state for hostname ${expected_hostname}...${NC}" > /dev/stderr
+    # This preflight is informational only. Fresh installs legitimately have no
+    # certificate files or secrets yet because cert-init generates them later.
+    if [[ "${IGNORE_CERTIFICATE_STATE,,}" == "true" ]]; then
+        # Keep the analysis visible in override mode so operators still see the
+        # mismatch details even when they intentionally force the deployment.
+        echo -e "${YELLOW}WARNING: Continuing because --ignore-certificate-state is set.${NC}" > /dev/stderr
+        bash "$reset_script" \
+            --analyze-only \
+            --hostname "$expected_hostname" \
+            --fast-dir "$FAST_DATA_DIR" \
+            --kubectl microk8s.kubectl \
+            --admin-namespace "$ADMIN_NAMESPACE" \
+            --services-namespace "$SERVICES_NAMESPACE" || \
+            echo -e "${YELLOW}Existing certificate analysis reported an execution problem, continuing deploy anyway.${NC}" > /dev/stderr
+        return 0
+    fi
+
+    # Exit code 2 from the helper means "certificate issues found" and is used
+    # to block deploy with a guided reset message. Other non-zero exits are
+    # treated as helper execution problems and do not hard-fail the deploy.
+    analysis_status=0
+    bash "$reset_script" \
+        --analyze-only \
+        --fail-on-issues \
+        --hostname "$expected_hostname" \
+        --fast-dir "$FAST_DATA_DIR" \
+        --kubectl microk8s.kubectl \
+        --admin-namespace "$ADMIN_NAMESPACE" \
+        --services-namespace "$SERVICES_NAMESPACE" || analysis_status=$?
+
+    if [[ "$analysis_status" -eq 0 ]]; then
+        return 0
+    fi
+
+    if [[ "$analysis_status" -eq 2 ]]; then
+        echo -e "${RED}Existing certificate state does not match the selected hostname or validity requirements.${NC}" > /dev/stderr
+        echo -e "${RED}Clear the persisted certificate state before deploying, for example:${NC}" > /dev/stderr
+        echo -e "${RED}  sudo bash ${reset_script} --yes${NC}" > /dev/stderr
+        # Installing a foreign certificate is safer after the reset so no stale
+        # Kaapana-generated files or OpenSearch trust artifacts survive.
+        echo -e "${RED}If you want to use a foreign certificate, reset first and then run ./kaapanactl.sh deploy --install-certs before deploying again.${NC}" > /dev/stderr
+        echo -e "${RED}Or re-run deploy with --ignore-certificate-state to override this preflight.${NC}" > /dev/stderr
+        exit 1
+    fi
+
+    echo -e "${YELLOW}Existing certificate analysis reported an execution problem, continuing deploy anyway.${NC}" > /dev/stderr
 }
 
 function delete_deployment {
+    ensure_helm_uses_microk8s_config
+
+    HELM_UNINSTALL_TIMEOUT="${HELM_UNINSTALL_TIMEOUT:-15m0s}"
+    HELM_UNINSTALL_BASE_FLAGS="${NO_HOOKS} --ignore-not-found --timeout ${HELM_UNINSTALL_TIMEOUT}"
+    if $HELM_EXECUTABLE version --short 2>/dev/null | grep -qE '^v4\.' && [[ "${HELM_UNINSTALL_BASE_FLAGS}" != *"--no-hooks"* ]]; then
+        # Helm v4 waits for uninstall hooks by default (hookOnly), which can stall undeploy.
+        HELM_UNINSTALL_BASE_FLAGS="--no-hooks ${HELM_UNINSTALL_BASE_FLAGS}"
+    fi
+
+    cleanup_orphaned_pods_for_undeploy
+
     echo -e "${YELLOW}Undeploy releases${NC}"
     for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
-        $HELM_EXECUTABLE -n $namespace ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
+        # Do not block undeploy on one chart uninstall.
+        $HELM_EXECUTABLE -n "$namespace" ls --deployed --failed --pending --superseded --uninstalling --date --reverse --short | xargs -r -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall ${HELM_UNINSTALL_BASE_FLAGS} %; sleep 2" || true
     done
 
     echo -e "${YELLOW}Waiting until everything is terminated ...${NC}"
@@ -1772,32 +1969,39 @@ function delete_deployment {
         sleep 3
         if [ "$idx" -eq 2 ]; then
             echo "Deleting helm charts in 'uninstalling' state with --no-hooks"
-            $HELM_EXECUTABLE -n $namespace ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall --no-hooks --wait --timeout 5m30s %; sleep 2"
+            for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+                $HELM_EXECUTABLE -n "$namespace" ls --uninstalling --short | xargs -r -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall --no-hooks --ignore-not-found --wait --timeout ${HELM_UNINSTALL_TIMEOUT} %; sleep 2" || true
+            done
         fi
-        TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E 'Terminating' | awk '{print \$1 \"/\" \$2}'")
+        TERMINATING_PODS=$(microk8s.kubectl get pods --all-namespaces --no-headers 2>/dev/null | awk '$4 == "Terminating" { print $1 "/" $2 }')
+        UNINSTALLING_RELEASES=""
+        for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+            NS_UNINSTALLING=$($HELM_EXECUTABLE -n "$namespace" ls --uninstalling --short 2>/dev/null || true)
+            if [ -n "$NS_UNINSTALLING" ]; then
+                while IFS= read -r release; do
+                    if [ -n "$release" ]; then
+                        UNINSTALLING_RELEASES="${UNINSTALLING_RELEASES}${namespace}/${release} "
+                    fi
+                done <<< "$NS_UNINSTALLING"
+            fi
+        done
         echo -e ""
-        UNINSTALL_TEST=$TERMINATING_PODS
+        # Undeploy is done only when no pods are terminating and no Helm release
+        # remains in uninstalling state.
+        UNINSTALL_TEST="${TERMINATING_PODS}${UNINSTALLING_RELEASES}"
         if [ -z "$UNINSTALL_TEST" ]; then
             break
         else
-            echo -e "${YELLOW}Waiting for $TERMINATING_PODS ${NC}"
+            if [ -n "$TERMINATING_PODS" ]; then
+                echo -e "${YELLOW}Waiting for terminating pods: $TERMINATING_PODS ${NC}"
+            fi
+            if [ -n "$UNINSTALLING_RELEASES" ]; then
+                echo -e "${YELLOW}Waiting for uninstalling releases: $UNINSTALLING_RELEASES ${NC}"
+            fi
         fi
     done
 
-    echo -e "${YELLOW}Cleaning up orphaned pods in Kubernetes namespaces ...${NC}"
-
-    # Clean SERVICES_NAMESPACE
-    if microk8s.kubectl get namespace $SERVICES_NAMESPACE &>/dev/null; then
-        echo "Deleting all pods in $SERVICES_NAMESPACE"
-        microk8s.kubectl delete pods --all -n $SERVICES_NAMESPACE --grace-period=0 --force 2>/dev/null || true
-    fi
-
-    # Clean all project-* namespaces
-    PROJECT_NAMESPACES=$(microk8s.kubectl get namespaces --no-headers -o custom-columns=NAME:.metadata.name | grep "^project-")
-    for ns in $PROJECT_NAMESPACES; do
-        echo "Deleting all pods in $ns"
-        microk8s.kubectl delete pods --all -n $ns --grace-period=0 --force 2>/dev/null || true
-    done
+    cleanup_orphaned_pods_for_undeploy
 
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
@@ -1812,6 +2016,23 @@ function delete_deployment {
     echo -e "${GREEN}####################################  UNDEPLOYMENT DONE  ############################################${NC}"
 }
 
+function cleanup_orphaned_pods_for_undeploy {
+    echo -e "${YELLOW}Cleaning up orphaned pods in Kubernetes namespaces ...${NC}"
+
+    # Clean SERVICES_NAMESPACE
+    if microk8s.kubectl get namespace $SERVICES_NAMESPACE &>/dev/null; then
+        echo "Deleting all pods in $SERVICES_NAMESPACE"
+        microk8s.kubectl delete pods --all -n $SERVICES_NAMESPACE --grace-period=0 --force 2>/dev/null || true
+    fi
+
+    # Clean all project-* namespaces
+    PROJECT_NAMESPACES=$(microk8s.kubectl get namespaces --no-headers -o custom-columns=NAME:.metadata.name | grep "^project-" || true)
+    for ns in $PROJECT_NAMESPACES; do
+        echo "Deleting all pods in $ns"
+        microk8s.kubectl delete pods --all -n $ns --grace-period=0 --force 2>/dev/null || true
+    done
+}
+
 function nuke_pods {
     for namespace in $EXTENSIONS_NAMESPACE $SERVICES_NAMESPACE $ADMIN_NAMESPACE $HELM_NAMESPACE; do
         echo "${RED}Deleting all pods from namespaces: $namespace ...${NC}";
@@ -1824,19 +2045,12 @@ function nuke_pods {
 }
 
 function clean_up_kubernetes {
-    # for n in $EXTENSIONS_NAMESPACE; # $HELM_NAMESPACE;
-    # do
-    #     echo "${YELLOW}Deleting namespace ${n} with all its resources ${NC}"
-    #     microk8s.kubectl delete --ignore-not-found namespace $n
-    # done
     echo "${YELLOW}Deleting all deployments in namespace default ${NC}"
     microk8s.kubectl delete deployments --all
     echo "${YELLOW}Deleting all jobs in namespace default ${NC}"
     microk8s.kubectl delete jobs --all
     echo "${YELLOW}Removing remove-secret job${NC}"
     microk8s.kubectl -n $SERVICES_NAMESPACE delete job --ignore-not-found remove-secret
-    #echo "${YELLOW}Removing all volumes in kubernetes ${NC}"
-    #microk8s.kubectl delete volumes -A --all
 }
 
 function import_container_images_tar {

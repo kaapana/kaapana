@@ -113,7 +113,13 @@ async def delete_repository(
 async def get_extensions(
     repository_id: UUID,
     oci: ociService = Depends(get_oci_service_for_repository),
+    db: AsyncSession = Depends(database.get_async_db),
 ):
+    repository = await crud.get_registered_repository(db, repository_id)
+    if not repository:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found"
+        )
     extensions = await oci.get_extensions_for_repository()
 
     return extensions
@@ -127,7 +133,14 @@ async def get_extension_manifests(
     repository_id: UUID,
     tags: str | None = None,
     oci: ociService = Depends(get_oci_service_for_repository),
+    db: AsyncSession = Depends(database.get_async_db),
 ):
+
+    repository = await crud.get_registered_repository(db, repository_id)
+    if not repository:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found"
+        )
     extensions_manifests = await oci.get_extension_manifests(
         tags=tags.split(",") if tags else None
     )

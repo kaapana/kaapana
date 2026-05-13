@@ -2,39 +2,22 @@ from .models import ExtensionManifest
 from .exceptions import ExtensionNotFoundException, ExtensionPullError
 from pathlib import Path
 import json
-from kaapana_extensions.extensions import ExtensionUtilityLibrary
-from urllib import parse
-import base64
-import json
-import os
 
 
 class ociService:
 
-    def __init__(self, repository_url: str, authentication: str) -> None:
+    def __init__(self, repository_url: str, authentication) -> None:
         """
         Initializes the ociService instance.
-
-        :param repository_url:
-        :param authentication: base64 encoded json string {"username": <>, "password":<>}
+        In a real implementation, this constructor could be used to set up any necessary connections to the OCI registry or to perform any necessary setup before the service can be used.
         """
 
         self.repository_url = repository_url
         self._authentication = authentication
 
-        parsed_url = parse.urlparse(self.repository_url)
-
-        self.extensions_download_dir = Path(f"/extensions/{parsed_url.hostname}")
-        os.makedirs(name=self.extensions_download_dir, exist_ok=True)
-
-        auth = json.loads(base64.b64decode(authentication.encode()).decode())
-
-        self.extension_lib = ExtensionUtilityLibrary(
-            registry=parsed_url.scheme + "://" + parsed_url.netloc,
-            repo=parsed_url.path,
-            username=auth["username"],
-            password=auth["password"],
-        )
+        self.extension_dir = Path(
+            f"{Path(__file__).parent.parent.parent}/mock_data"
+        ).absolute()
 
     async def __aenter__(self):
         """Enter async context – establish mock connection."""
@@ -50,11 +33,11 @@ class ociService:
     async def connect(self) -> None:
         """
         Makes a head request to the registry to check if the repository exists and the authentication is valid.
-        If the request is successful, it returns True.
-        If the request fails, it returns False.
+        If the request is successful, it returns None.
+        If the request fails, it raises an exception.
         """
 
-        return self.extension_lib.check_login()
+        return True
 
     async def get_extensions_for_repository(self) -> set[str]:
         """
@@ -65,7 +48,7 @@ class ociService:
         :rtype: list[str]
         """
 
-        return self.extension_lib.list_tags()
+        return set([str(tag.name) for tag in self.extension_dir.iterdir()])
 
     async def get_extension_manifests(
         self, tags: set[str] | None = None
@@ -110,7 +93,10 @@ class ociService:
                 f"Extension with tag {tag} not found in {self.repository_url}"
             )
 
-        return self.extension_lib.get_extension(tag)
+        with open(self.extension_dir / tag / "manifest.json") as manifest:
+            manifest_json = json.load(manifest)
+
+        return ExtensionManifest(**manifest_json)
 
     async def pull_extension(self, tag: str) -> Path:
         """
@@ -128,6 +114,4 @@ class ociService:
                 f"Extension with tag {tag} not found in {self.repository_url}"
             )
 
-        return self.extension_lib.pull(
-            tag=tag, extract=True, output_dir=self.extensions_download_dir / tag
-        )
+        return Path(self.extension_dir / tag)

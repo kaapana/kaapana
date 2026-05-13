@@ -57,6 +57,21 @@ def mocked_installer():
         yield mock_dispatcher
 
 
+from v1.services.oci.mock_service import ociService as MockOciService
+from v1.routers.dependencies import get_oci_service_for_repository
+
+
+@pytest_asyncio.fixture(name="mock_ociService", autouse=True)
+async def mock_ociService():
+    async def override():
+        async with MockOciService(repository_url="test", authentication="") as svc:
+            yield svc
+
+    app.dependency_overrides[get_oci_service_for_repository] = override
+    yield
+    app.dependency_overrides.pop(get_oci_service_for_repository, None)
+
+
 @pytest_asyncio.fixture(name="session")
 async def session_fixture():
     """

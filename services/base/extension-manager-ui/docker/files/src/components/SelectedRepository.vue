@@ -58,11 +58,8 @@ function deleteSelectedRepositoryIfConfirmed() {
 </script>
 
 <template>
-  <v-dialog
-    :model-value="Boolean(props.selectedRepository)"
-    max-width="720"
-    @update:model-value="emitClearSelectedRepository"
-  >
+  <v-dialog :model-value="Boolean(props.selectedRepository)" max-width="720"
+    @update:model-value="emitClearSelectedRepository">
     <v-card v-if="props.selectedRepository">
       <v-card-title class="d-flex align-center justify-space-between">
         <div>
@@ -72,38 +69,21 @@ function deleteSelectedRepositoryIfConfirmed() {
           </div>
         </div>
 
-        <v-btn
-          icon="mdi-close"
-          variant="text"
-          size="small"
-          title="Close"
-          @click="emitClearSelectedRepository"
-        />
+        <v-btn icon="mdi-close" variant="text" size="small" title="Close" @click="emitClearSelectedRepository" />
       </v-card-title>
 
       <v-divider />
 
       <v-card-text>
-        <v-alert
-          v-if="props.repositoryActionError"
-          type="error"
-          density="compact"
-          class="mb-4"
-        >
+        <v-alert v-if="props.repositoryActionError" type="error" density="compact" class="mb-4">
           {{ props.repositoryActionError }}
         </v-alert>
 
-        <RepositoryForm
-          v-if="props.editingSelectedRepository"
-          :repository-form="props.selectedRepositoryForm"
-          :submitting-repository-form="props.updatingSelectedRepository"
-          submit-label="Save changes"
-          :require-authentication="false"
-          show-cancel-button
-          @update:repository-form="emitSelectedRepositoryFormUpdate"
+        <RepositoryForm v-if="props.editingSelectedRepository" :repository-form="props.selectedRepositoryForm"
+          :submitting-repository-form="props.updatingSelectedRepository" submit-label="Save changes"
+          :require-authentication="false" show-cancel-button @update:repository-form="emitSelectedRepositoryFormUpdate"
           @submit-repository-form="emitUpdateSelectedRepository"
-          @cancel-repository-form="emitCancelEditSelectedRepository"
-        />
+          @cancel-repository-form="emitCancelEditSelectedRepository" />
 
         <div v-else class="d-flex flex-column ga-3">
           <div>
@@ -135,22 +115,13 @@ function deleteSelectedRepositoryIfConfirmed() {
       <v-card-actions v-if="!props.editingSelectedRepository">
         <v-spacer />
 
-        <v-btn
-          color="error"
-          variant="text"
-          :loading="props.deletingSelectedRepository"
-          :disabled="props.updatingSelectedRepository"
-          @click="deleteSelectedRepositoryIfConfirmed"
-        >
+        <v-btn color="error" variant="text" :loading="props.deletingSelectedRepository"
+          :disabled="props.updatingSelectedRepository" @click="deleteSelectedRepositoryIfConfirmed">
           Remove
         </v-btn>
 
-        <v-btn
-          color="primary"
-          variant="tonal"
-          :disabled="props.deletingSelectedRepository"
-          @click="emitEnableEditSelectedRepository"
-        >
+        <v-btn color="primary" variant="tonal" :disabled="props.deletingSelectedRepository"
+          @click="emitEnableEditSelectedRepository">
           Modify
         </v-btn>
       </v-card-actions>

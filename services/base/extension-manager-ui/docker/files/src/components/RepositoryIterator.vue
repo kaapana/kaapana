@@ -30,19 +30,8 @@ function emitSelectRepository(repository: Repository) {
   </v-alert>
 
   <v-row v-else>
-    <v-col
-      v-for="repository in props.repositories"
-      :key="repository.id"
-      cols="12"
-      md="6"
-      lg="4"
-    >
-      <v-card
-        class="h-100"
-        role="button"
-        tabindex="0"
-        @click="emitSelectRepository(repository)"
-      >
+    <v-col v-for="repository in props.repositories" :key="repository.id" cols="12" md="6" lg="4">
+      <v-card class="h-100" role="button" tabindex="0" @click="emitSelectRepository(repository)">
         <v-card-title>
           {{ repository.name }}
         </v-card-title>

@@ -15,7 +15,6 @@ import {
   type CatalogFilters,
 } from '@/utils/catalogFilters'
 import { groupCatalogEntries } from '@/utils/catalogGroups'
-import { createMockCatalogEntryTag } from '@/utils/modelUtilities'
 
 // --- STATE ---
 const repositories = ref<Repository[]>([])
@@ -44,11 +43,13 @@ const catalogEntryCount = computed(() => entries.value.length)
 function selectCatalogEntryGroup(group: CatalogEntryGroup) {
   selectedCatalogEntryGroup.value = group
   selectedCatalogEntry.value = group.entries[0] ?? null
+  catalogActionError.value = null
 }
 
 function clearSelectedCatalogEntryGroup() {
   selectedCatalogEntryGroup.value = null
   selectedCatalogEntry.value = null
+  catalogActionError.value = null
 }
 
 function updateSelectedCatalogEntry(entry: CatalogEntry | null) {
@@ -63,7 +64,7 @@ async function installSelectedCatalogEntry() {
 
   try {
     await installExtension(
-      selectedCatalogEntry.value.repository.id,
+      selectedCatalogEntry.value.repository_id,
       selectedCatalogEntry.value.tag,
     )
   } catch (err) {
@@ -87,10 +88,11 @@ async function loadCatalog() {
       loadedRepositories.map(async (repository) => {
         const manifests = await fetchRepositoryExtensionManifests(repository.id)
 
-        return manifests.map((manifest) => ({
+        return manifests.map((extensionManifestResponse) => ({
           repository,
-          tag: createMockCatalogEntryTag(manifest),
-          manifest,
+          repository_id: extensionManifestResponse.repository_id,
+          tag: extensionManifestResponse.tag,
+          manifest: extensionManifestResponse.manifest,
         }))
       }),
     )
@@ -113,22 +115,16 @@ onMounted(loadCatalog)
     <v-container class="pad-lg">
       <ExtensionManagerHeader :loading="loading" :repository-count="repositories.length"
         :catalog-entry-count="catalogEntryCount" @fetch="loadCatalog" />
-      <CatalogFilterBar :filters="catalogFilters" :repositories="repositories" @update:filters="catalogFilters = $event" />
-      <SelectedCatalogEntry
-        :selected-catalog-entry-group="selectedCatalogEntryGroup"
+      <CatalogFilterBar :filters="catalogFilters" :repositories="repositories"
+        @update:filters="catalogFilters = $event" />
+      <SelectedCatalogEntry :selected-catalog-entry-group="selectedCatalogEntryGroup"
         :selected-catalog-entry="selectedCatalogEntry"
-        :installing-selected-catalog-entry="installingSelectedCatalogEntry"
-        :catalog-action-error="catalogActionError"
+        :installing-selected-catalog-entry="installingSelectedCatalogEntry" :catalog-action-error="catalogActionError"
         @update:selected-catalog-entry="updateSelectedCatalogEntry"
         @clear-selected-catalog-entry-group="clearSelectedCatalogEntryGroup"
-        @install-selected-catalog-entry="installSelectedCatalogEntry"
-      />
-      <ExtensionCatalogIterator
-        :catalog-entry-groups="catalogEntryGroups"
-        :loading="loading"
-        :error="error"
-        @select-catalog-entry-group="selectCatalogEntryGroup"
-      />
+        @install-selected-catalog-entry="installSelectedCatalogEntry" />
+      <ExtensionCatalogIterator :catalog-entry-groups="catalogEntryGroups" :loading="loading" :error="error"
+        @select-catalog-entry-group="selectCatalogEntryGroup" />
     </v-container>
   </v-container>
 </template>

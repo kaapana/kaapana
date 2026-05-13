@@ -225,57 +225,35 @@ onMounted(loadRepositories)
             Back to catalog
           </v-btn>
 
-          <v-btn
-            color="primary"
-            variant="tonal"
-            @click="showNewRepositoryDialog"
-          >
+          <v-btn color="primary" variant="tonal" @click="showNewRepositoryDialog">
             <v-icon start>mdi-plus</v-icon>
             New repository
           </v-btn>
 
-          <v-btn
-            color="primary"
-            :loading="loadingRepositories"
-            @click="loadRepositories"
-          >
+          <v-btn color="primary" :loading="loadingRepositories" @click="loadRepositories">
             <v-icon start>mdi-refresh</v-icon>
             Refresh
           </v-btn>
         </div>
       </div>
 
-      <NewRepository
-        :showing-new-repository-dialog="showingNewRepositoryDialog"
-        :create-repository-form="createRepositoryForm"
-        :creating-repository="creatingRepository"
-        :create-repository-error="createRepositoryError"
-        @clear-new-repository-dialog="clearNewRepositoryDialog"
-        @update:create-repository-form="updateCreateRepositoryForm"
-        @create-new-repository="createNewRepository"
-      />
+      <NewRepository :showing-new-repository-dialog="showingNewRepositoryDialog"
+        :create-repository-form="createRepositoryForm" :creating-repository="creatingRepository"
+        :create-repository-error="createRepositoryError" @clear-new-repository-dialog="clearNewRepositoryDialog"
+        @update:create-repository-form="updateCreateRepositoryForm" @create-new-repository="createNewRepository" />
 
-      <SelectedRepository
-        :selected-repository="selectedRepository"
-        :selected-repository-form="selectedRepositoryForm"
+      <SelectedRepository :selected-repository="selectedRepository" :selected-repository-form="selectedRepositoryForm"
         :editing-selected-repository="editingSelectedRepository"
         :updating-selected-repository="updatingSelectedRepository"
-        :deleting-selected-repository="deletingSelectedRepository"
-        :repository-action-error="repositoryActionError"
+        :deleting-selected-repository="deletingSelectedRepository" :repository-action-error="repositoryActionError"
         @clear-selected-repository="clearSelectedRepository"
         @enable-edit-selected-repository="enableEditSelectedRepository"
         @cancel-edit-selected-repository="cancelEditSelectedRepository"
         @update:selected-repository-form="updateSelectedRepositoryForm"
-        @update-selected-repository="updateSelectedRepository"
-        @delete-selected-repository="deleteSelectedRepository"
-      />
+        @update-selected-repository="updateSelectedRepository" @delete-selected-repository="deleteSelectedRepository" />
 
-      <RepositoryIterator
-        :repositories="repositories"
-        :loading-repositories="loadingRepositories"
-        :repository-error="repositoryError"
-        @select-repository="selectRepository"
-      />
+      <RepositoryIterator :repositories="repositories" :loading-repositories="loadingRepositories"
+        :repository-error="repositoryError" @select-repository="selectRepository" />
     </v-container>
   </v-container>
 </template>

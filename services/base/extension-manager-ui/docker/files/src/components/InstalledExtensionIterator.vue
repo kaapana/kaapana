@@ -21,7 +21,8 @@ function emitSelectInstalledExtension(installedExtension: InstalledExtension) {
     {{ props.installedExtensionsError }}
   </v-alert>
 
-  <v-row v-else-if="props.loadingInstalledExtensions" class="d-flex justify-center align-center" style="min-height: 240px;">
+  <v-row v-else-if="props.loadingInstalledExtensions" class="d-flex justify-center align-center"
+    style="min-height: 240px;">
     <v-progress-circular indeterminate color="primary" size="64" />
   </v-row>
 
@@ -30,19 +31,8 @@ function emitSelectInstalledExtension(installedExtension: InstalledExtension) {
   </v-alert>
 
   <v-row v-else>
-    <v-col
-      v-for="installedExtension in props.installedExtensions"
-      :key="installedExtension.id"
-      cols="12"
-      md="6"
-      lg="4"
-    >
-      <v-card
-        class="h-100"
-        role="button"
-        tabindex="0"
-        @click="emitSelectInstalledExtension(installedExtension)"
-      >
+    <v-col v-for="installedExtension in props.installedExtensions" :key="installedExtension.id" cols="12" md="6" lg="4">
+      <v-card class="h-100" role="button" tabindex="0" @click="emitSelectInstalledExtension(installedExtension)">
         <v-card-title>
           {{ installedExtension.manifest.name }}
         </v-card-title>

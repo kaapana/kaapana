@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { InstalledExtension } from '@/types/schemas'
+import ExtensionManifestDetails from '@/components/ExtensionManifestDetails.vue'
+import type { ExtensionStatus, InstalledExtension } from '@/types/schemas'
 
 const props = defineProps<{
   selectedInstalledExtension?: InstalledExtension | null
@@ -15,8 +16,18 @@ const emit = defineEmits<{
   (event: 'uninstallSelectedInstalledExtension'): void
 }>()
 
-const selectedInstalledExtensionManifestJson = computed(() =>
-  JSON.stringify(props.selectedInstalledExtension?.manifest ?? {}, null, 2),
+const uninstallableExtensionStatuses: ExtensionStatus[] = [
+  'installed',
+  'pulling_failed',
+  'installing_failed',
+  'uninstalling_failed',
+]
+
+const selectedInstalledExtensionCanBeUninstalled = computed(() =>
+  Boolean(
+    props.selectedInstalledExtension
+    && uninstallableExtensionStatuses.includes(props.selectedInstalledExtension.status),
+  ),
 )
 
 function emitClearSelectedInstalledExtension() {
@@ -32,7 +43,10 @@ function emitUninstallSelectedInstalledExtension() {
 }
 
 function uninstallSelectedInstalledExtensionIfConfirmed() {
-  if (!props.selectedInstalledExtension) return
+  if (
+    !props.selectedInstalledExtension
+    || !selectedInstalledExtensionCanBeUninstalled.value
+  ) return
 
   const confirmed = window.confirm(
     `Uninstall extension "${props.selectedInstalledExtension.manifest.name}"?`,
@@ -45,11 +59,8 @@ function uninstallSelectedInstalledExtensionIfConfirmed() {
 </script>
 
 <template>
-  <v-dialog
-    :model-value="Boolean(props.selectedInstalledExtension)"
-    max-width="720"
-    @update:model-value="emitClearSelectedInstalledExtension"
-  >
+  <v-dialog :model-value="Boolean(props.selectedInstalledExtension)" max-width="720"
+    @update:model-value="emitClearSelectedInstalledExtension">
     <v-card v-if="props.selectedInstalledExtension">
       <v-card-title class="d-flex align-center justify-space-between">
         <div>
@@ -61,28 +72,19 @@ function uninstallSelectedInstalledExtensionIfConfirmed() {
           </div>
         </div>
 
-        <v-btn
-          icon="mdi-close"
-          variant="text"
-          size="small"
-          title="Close"
-          @click="emitClearSelectedInstalledExtension"
-        />
+        <v-btn icon="mdi-close" variant="text" size="small" title="Close"
+          @click="emitClearSelectedInstalledExtension" />
       </v-card-title>
 
       <v-divider />
 
       <v-card-text>
-        <v-alert
-          v-if="props.installedExtensionActionError"
-          type="error"
-          density="compact"
-          class="mb-4"
-        >
+        <v-alert v-if="props.installedExtensionActionError" type="error" density="compact" class="mb-4">
           {{ props.installedExtensionActionError }}
         </v-alert>
 
-        <v-row v-if="props.loadingSelectedInstalledExtension" class="d-flex justify-center align-center" style="min-height: 160px;">
+        <v-row v-if="props.loadingSelectedInstalledExtension" class="d-flex justify-center align-center"
+          style="min-height: 160px;">
           <v-progress-circular indeterminate color="primary" size="48" />
         </v-row>
 
@@ -107,21 +109,10 @@ function uninstallSelectedInstalledExtensionIfConfirmed() {
           </div>
 
           <div>
-            <div class="text-caption text-medium-emphasis">Manifest</div>
-            <div class="text-body-2">
-              {{ props.selectedInstalledExtension.manifest.name }} {{ props.selectedInstalledExtension.manifest.version }}
-            </div>
-          </div>
-
-          <div>
             <div class="text-caption text-medium-emphasis mb-1">Installed contents</div>
             <div v-if="props.selectedInstalledExtension.contents.length" class="d-flex flex-wrap ga-2">
-              <v-chip
-                v-for="installedContent in props.selectedInstalledExtension.contents"
-                :key="`${installedContent.content_type}:${installedContent.name}`"
-                size="small"
-                variant="tonal"
-              >
+              <v-chip v-for="installedContent in props.selectedInstalledExtension.contents"
+                :key="`${installedContent.content_type}:${installedContent.name}`" size="small" variant="tonal">
                 {{ installedContent.name }} · {{ installedContent.content_type }} · {{ installedContent.status }}
               </v-chip>
             </div>
@@ -129,39 +120,8 @@ function uninstallSelectedInstalledExtensionIfConfirmed() {
               No installed contents returned.
             </div>
           </div>
-
-          <div>
-            <div class="text-caption text-medium-emphasis mb-1">Manifest contents</div>
-            <div v-if="props.selectedInstalledExtension.manifest.contents.length" class="d-flex flex-column ga-2">
-              <v-card
-                v-for="manifestContent in props.selectedInstalledExtension.manifest.contents"
-                :key="`${manifestContent.contentType}:${manifestContent.name}`"
-                variant="outlined"
-              >
-                <v-card-text>
-                  <div class="text-body-2">
-                    {{ manifestContent.name }} · {{ manifestContent.contentType }}
-                  </div>
-                  <div class="text-caption text-medium-emphasis">
-                    {{ manifestContent.files.length }} files
-                  </div>
-                </v-card-text>
-              </v-card>
-            </div>
-            <div v-else class="text-body-2 text-medium-emphasis">
-              No manifest contents returned.
-            </div>
-          </div>
-
-          <div>
-            <div class="text-caption text-medium-emphasis mb-1">Dependencies</div>
-            <pre class="text-body-2 pa-3 rounded bg-surface-variant">{{ JSON.stringify(props.selectedInstalledExtension.manifest.dependencies, null, 2) }}</pre>
-          </div>
-
-          <div>
-            <div class="text-caption text-medium-emphasis mb-1">Raw manifest</div>
-            <pre class="text-body-2 pa-3 rounded bg-surface-variant">{{ selectedInstalledExtensionManifestJson }}</pre>
-          </div>
+          <v-divider />
+          <ExtensionManifestDetails :extension-manifest="props.selectedInstalledExtension.manifest" />
         </div>
       </v-card-text>
 
@@ -170,22 +130,14 @@ function uninstallSelectedInstalledExtensionIfConfirmed() {
       <v-card-actions>
         <v-spacer />
 
-        <v-btn
-          variant="text"
-          :loading="props.loadingSelectedInstalledExtension"
-          :disabled="props.uninstallingSelectedInstalledExtension"
-          @click="emitRefreshSelectedInstalledExtension"
-        >
+        <v-btn variant="text" :loading="props.loadingSelectedInstalledExtension"
+          :disabled="props.uninstallingSelectedInstalledExtension" @click="emitRefreshSelectedInstalledExtension">
           Refresh details
         </v-btn>
 
-        <v-btn
-          color="error"
-          variant="tonal"
-          :loading="props.uninstallingSelectedInstalledExtension"
-          :disabled="props.loadingSelectedInstalledExtension"
-          @click="uninstallSelectedInstalledExtensionIfConfirmed"
-        >
+        <v-btn color="error" variant="tonal" :loading="props.uninstallingSelectedInstalledExtension"
+          :disabled="props.loadingSelectedInstalledExtension || !selectedInstalledExtensionCanBeUninstalled"
+          @click="uninstallSelectedInstalledExtensionIfConfirmed">
           Uninstall
         </v-btn>
       </v-card-actions>

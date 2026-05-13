@@ -1,8 +1,8 @@
 import apiClient from './extensionManagerApiClient';
 import type {
     CreateRepositoryRequest,
-    ExtensionManifest,
     ExtensionManifestFilters,
+    ExtensionManifestResponse,
     Repository,
     UpdateRepositoryRequest,
 } from '@/types/schemas';
@@ -45,13 +45,11 @@ export async function fetchRepositoryExtensionTags(repositoryId: string): Promis
     return response.data;
 }
 
-export async function fetchRepositoryExtensionManifests(repositoryId: string, filters: ExtensionManifestFilters = {}): Promise<ExtensionManifest[]> {
+export async function fetchRepositoryExtensionManifests(repositoryId: string, filters: ExtensionManifestFilters = {}): Promise<ExtensionManifestResponse[]> {
     const params = {
         tags: filters.tags?.join(','),
-        limit: filters.limit,
-        skip: filters.skip,
     };
-    const response = await apiClient.get(`${API_BASE}/${repositoryId}/extensionManifests`, {
+    const response = await apiClient.get<ExtensionManifestResponse[]>(`${API_BASE}/${repositoryId}/extensionManifests`, {
         params,
     });
     if (!response.data || !Array.isArray(response.data)) {

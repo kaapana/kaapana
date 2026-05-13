@@ -53,32 +53,14 @@ function updateRepositoryFilter(repositoryIds: string[]) {
 
 <template>
   <div class="d-flex flex-wrap align-center ga-3 mb-4">
-    <v-text-field
-      :model-value="filters.search ?? ''"
-      label="Search catalog"
-      prepend-inner-icon="mdi-magnify"
-      density="compact"
-      variant="outlined"
-      hide-details
-      clearable
-      class="extension-filter-search"
-      @update:model-value="updateSearchFilter"
-    />
-    
+    <v-text-field :model-value="filters.search ?? ''" label="Search catalog" prepend-inner-icon="mdi-magnify"
+      density="compact" variant="outlined" hide-details clearable class="extension-filter-search"
+      @update:model-value="updateSearchFilter" />
 
-    <v-select
-      :model-value="filters.repositoryIds ?? []"
-      :items="repositoryItems"
-      label="Repositories"
-      density="compact"
-      variant="outlined"
-      hide-details
-      multiple
-      chips
-      closable-chips
-      class="extension-filter-repository"
-      @update:model-value="updateRepositoryFilter($event)"
-    />
+
+    <v-select :model-value="filters.repositoryIds ?? []" :items="repositoryItems" label="Repositories" density="compact"
+      variant="outlined" hide-details multiple chips closable-chips class="extension-filter-repository"
+      @update:model-value="updateRepositoryFilter($event)" />
   </div>
 </template>
 

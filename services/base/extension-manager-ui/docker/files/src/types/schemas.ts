@@ -25,9 +25,29 @@ export interface UpdateRepositoryRequest {
 // local query params for /repositories/{id}/extensionManifests
 export interface ExtensionManifestFilters {
     tags?: string[]
-    limit?: number
-    skip?: number
 }
+
+// from extension-manager-service
+export type ExtensionStatus =
+    | 'pending'
+    | 'pulling'
+    | 'pulling_failed'
+    | 'installing'
+    | 'installing_failed'
+    | 'installed'
+    | 'uninstalling'
+    | 'uninstalled'
+    | 'uninstalling_failed'
+
+// from extension-manager-service
+export type ContentStatus =
+    | 'pending'
+    | 'installing'
+    | 'installation_failed'
+    | 'installed'
+    | 'uninstalling'
+    | 'uninstallation_failed'
+    | 'uninstalled'
 
 // from extension-manager-service
 export interface ContentFile {
@@ -50,10 +70,17 @@ export interface ExtensionManifest {
 }
 
 // from extension-manager-service
+export interface ExtensionManifestResponse {
+    repository_id: string
+    tag: string
+    manifest: ExtensionManifest
+}
+
+// from extension-manager-service
 export interface InstalledContent {
     name: string
     content_type: string
-    status: string
+    status: ContentStatus
 }
 
 // from extension-manager-service
@@ -62,13 +89,14 @@ export interface InstalledExtension {
     repository_id: string
     tag: string
     manifest: ExtensionManifest
-    status: string
+    status: ExtensionStatus
     contents: InstalledContent[]
 }
 
 // local
 export interface CatalogEntry {
   repository: Repository
+  repository_id: string
   tag: string
   manifest: ExtensionManifest
 }

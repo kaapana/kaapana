@@ -29,11 +29,8 @@ function emitCreateNewRepository() {
 </script>
 
 <template>
-  <v-dialog
-    :model-value="props.showingNewRepositoryDialog"
-    max-width="720"
-    @update:model-value="emitClearNewRepositoryDialog"
-  >
+  <v-dialog :model-value="props.showingNewRepositoryDialog" max-width="720"
+    @update:model-value="emitClearNewRepositoryDialog">
     <v-card>
       <v-card-title class="d-flex align-center justify-space-between">
         <div>
@@ -43,37 +40,20 @@ function emitCreateNewRepository() {
           </div>
         </div>
 
-        <v-btn
-          icon="mdi-close"
-          variant="text"
-          size="small"
-          title="Close"
-          @click="emitClearNewRepositoryDialog"
-        />
+        <v-btn icon="mdi-close" variant="text" size="small" title="Close" @click="emitClearNewRepositoryDialog" />
       </v-card-title>
 
       <v-divider />
 
       <v-card-text>
-        <v-alert
-          v-if="props.createRepositoryError"
-          type="error"
-          density="compact"
-          class="mb-4"
-        >
+        <v-alert v-if="props.createRepositoryError" type="error" density="compact" class="mb-4">
           {{ props.createRepositoryError }}
         </v-alert>
 
-        <RepositoryForm
-          :repository-form="props.createRepositoryForm"
-          :submitting-repository-form="props.creatingRepository"
-          submit-label="Add repository"
-          require-authentication
-          show-cancel-button
-          @update:repository-form="emitCreateRepositoryFormUpdate"
-          @submit-repository-form="emitCreateNewRepository"
-          @cancel-repository-form="emitClearNewRepositoryDialog"
-        />
+        <RepositoryForm :repository-form="props.createRepositoryForm"
+          :submitting-repository-form="props.creatingRepository" submit-label="Add repository" require-authentication
+          show-cancel-button @update:repository-form="emitCreateRepositoryFormUpdate"
+          @submit-repository-form="emitCreateNewRepository" @cancel-repository-form="emitClearNewRepositoryDialog" />
       </v-card-text>
     </v-card>
   </v-dialog>

@@ -35,32 +35,21 @@ function getCatalogEntryGroup(
     No catalog entries match the current filters.
   </v-alert>
 
-  <v-data-iterator
-    v-else
-    :items="props.catalogEntryGroups"
-    :items-per-page="-1"
-  >
+  <v-data-iterator v-else :items="props.catalogEntryGroups" :items-per-page="-1">
     <template #default="{ items }">
       <v-row>
-        <v-col
-          v-for="catalogEntryGroupItem in items"
+        <v-col v-for="catalogEntryGroupItem in items"
           :key="`${getCatalogEntryGroup(catalogEntryGroupItem).repository.id}:${getCatalogEntryGroup(catalogEntryGroupItem).manifestName}`"
-          cols="12"
-          md="6"
-          lg="4"
-        >
-          <v-card
-            class="h-100"
-            role="button"
-            tabindex="0"
-            @click="emitSelectCatalogEntryGroup(getCatalogEntryGroup(catalogEntryGroupItem))"
-          >
+          cols="12" md="6" lg="4">
+          <v-card class="h-100" role="button" tabindex="0"
+            @click="emitSelectCatalogEntryGroup(getCatalogEntryGroup(catalogEntryGroupItem))">
             <v-card-title>
               {{ getCatalogEntryGroup(catalogEntryGroupItem).manifestName }}
             </v-card-title>
 
             <v-card-subtitle>
-              {{ getCatalogEntryGroup(catalogEntryGroupItem).entries.length }} versions · {{ getCatalogEntryGroup(catalogEntryGroupItem).repository.name }}
+              {{ getCatalogEntryGroup(catalogEntryGroupItem).entries.length }} versions · {{
+                getCatalogEntryGroup(catalogEntryGroupItem).repository.name }}
             </v-card-subtitle>
 
             <v-card-text>

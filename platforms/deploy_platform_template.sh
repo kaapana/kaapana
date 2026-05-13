@@ -889,6 +889,13 @@ function rm_chart_path {
     fi
 }
 
+# Pre-apply chart CRDs and wait until the Kubernetes API reports them as established.
+# This avoids a race where Helm has submitted the CRD declaration, but the API server
+# has not yet registered the new kind. Without this preflight, the same install can
+# fail with "no matches for kind ..." for resources that depend on freshly created CRDs.
+# Params: none.
+# Returns: 0 when all bundled CRDs are ready or no CRDs are bundled.
+# Side effects: applies CRD manifests to the cluster and waits on each CRD name.
 function apply_chart_crds() {
     local crd_manifest=""
     local crd_name=""
@@ -920,6 +927,10 @@ function apply_chart_crds() {
     )
 }
 
+# Deploy the platform chart after validating runtime prerequisites and cluster settings.
+# Params: none.
+# Returns: exits with non-zero status when deployment prerequisites or Helm install fail.
+# Side effects: may enable GPU support, install storage classes, apply CRDs, and create cluster resources.
 function deploy_chart {
     if [ -z "$CONTAINER_REGISTRY_URL" ]; then
         echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the deploy_platform.sh script!${NC}"
@@ -1250,8 +1261,8 @@ function print_resource_configs {
     echo ""
 }
 
-
-
+# Compare the user kubeconfig against the canonical microk8s view so harmless
+# formatting differences do not fail the preflight.
 function kubeconfig_matches_microk8s {
     local kubeconfig_path="${HOME}/.kube/config"
     local normalized_user_kubeconfig
@@ -1274,6 +1285,8 @@ function kubeconfig_matches_microk8s {
     [[ "$normalized_user_kubeconfig" == "$normalized_microk8s_kubeconfig" ]]
 }
 
+# Explain why the normalized kubeconfig comparison failed so operators can see
+# the likely culprit without running a manual diff first.
 function describe_kubeconfig_mismatch {
     local kubeconfig_path="${HOME}/.kube/config"
     local normalized_user_kubeconfig
@@ -1310,6 +1323,8 @@ function describe_kubeconfig_mismatch {
         echo "The normalized kubeconfig still differs, but no concise diff excerpt could be generated."
     fi
 }
+
+
 
 function preflight_checks {
     echo -e "${GREEN}#################################  RUNNING PREFLIGHT CHECKS  #########################################${NC}"
@@ -1567,100 +1582,6 @@ function update_coredns_rewrite() {
     fi
 }
 
-function run_post_deploy_reconcile {
-    if [[ "${POST_DEPLOY_RECONCILE_ENABLED,,}" != "true" ]]; then
-        echo -e "${YELLOW}Post-deploy project reconciliation disabled via --no-reconcile-project-namespaces.${NC}"
-        return 0
-    fi
-
-    local timeout_seconds="${POST_DEPLOY_RECONCILE_WAIT_SECONDS}"
-    local start_ts
-    local deadline_ts
-    local script_dir
-    local reconcile_script
-
-    print_reconcile_retry_hint() {
-        echo -e "${YELLOW}Reconciliation may have failed because the platform is still coming up.${NC}"
-        echo -e "${YELLOW}Wait until pods are in Running/Completed state, then run:${NC}"
-        echo -e "${YELLOW}  ./kaapana/utils/reconcile_project_namespaces.sh${NC}"
-    }
-
-    wait_for_deployment_ready() {
-        local ns="$1"
-        local dep="$2"
-        local deadline="$3"
-        local now
-        local remaining
-        local attempt=0
-
-        while true; do
-            now=$(date +%s)
-            remaining=$((deadline - now))
-
-            if (( remaining <= 0 )); then
-                echo -e "${RED}Timed out waiting for deployment/${dep} in namespace ${ns}.${NC}"
-                print_reconcile_retry_hint
-                return 1
-            fi
-
-            if microk8s.kubectl -n "${ns}" get deployment "${dep}" >/dev/null 2>&1; then
-                echo ""
-                echo -e "${YELLOW}Waiting for deployment/${dep} in namespace ${ns} (remaining=${remaining}s)...${NC}"
-                if microk8s.kubectl -n "${ns}" rollout status "deployment/${dep}" --timeout="${remaining}s"; then
-                    return 0
-                fi
-                echo -e "${RED}Required deployment not ready for reconciliation: ${ns}/${dep}${NC}"
-                print_reconcile_retry_hint
-                return 1
-            fi
-
-            attempt=$((attempt + 1))
-            printf "\r${YELLOW}Waiting for deployment/%s in namespace %s to appear (attempt %d, %ss remaining)...${NC}" "${dep}" "${ns}" "${attempt}" "${remaining}"
-            if (( attempt % 12 == 0 )); then
-                echo ""
-                echo -e "${YELLOW}Still waiting for deployment/${dep} in namespace ${ns}...${NC}"
-            fi
-            sleep 5
-        done
-    }
-
-    script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-    reconcile_script="${script_dir}/utils/reconcile_project_namespaces.sh"
-    if [[ ! -x "${reconcile_script}" ]]; then
-        reconcile_script="${script_dir}/../utils/reconcile_project_namespaces.sh"
-    fi
-
-    if [[ ! -x "${reconcile_script}" ]]; then
-        echo -e "${RED}Post-deploy reconcile script missing or not executable: ${reconcile_script}${NC}"
-        return 1
-    fi
-
-    echo -e "${YELLOW}Running post-deploy project reconciliation (timeout=${timeout_seconds}s)...${NC}"
-    start_ts=$(date +%s)
-    deadline_ts=$((start_ts + timeout_seconds))
-
-    for dep_ref in \
-        "${SERVICES_NAMESPACE}/airflow-webserver" \
-        "${SERVICES_NAMESPACE}/access-information-interface" \
-        "${ADMIN_NAMESPACE}/kube-helm-deployment"; do
-        local ns="${dep_ref%%/*}"
-        local dep="${dep_ref##*/}"
-
-        if ! wait_for_deployment_ready "${ns}" "${dep}" "${deadline_ts}"; then
-            return 1
-        fi
-    done
-
-    if ! SERVICES_NAMESPACE="${SERVICES_NAMESPACE}" ADMIN_NAMESPACE="${ADMIN_NAMESPACE}" WAIT_TIMEOUT_SECONDS="${timeout_seconds}" "${reconcile_script}"; then
-        echo -e "${RED}Post-deploy project reconciliation failed.${NC}"
-        print_reconcile_retry_hint
-        return 1
-    fi
-
-    echo -e "${GREEN}Post-deploy project reconciliation finished successfully.${NC}"
-    return 0
-}
-
 function list_imagepullbackoff_pods {
     local namespace="$1"
     microk8s.kubectl get pods -n "$namespace" --no-headers 2>/dev/null \
@@ -1813,6 +1734,104 @@ function autoheal_bootstrap_imagepullbackoff {
 
         sleep "$interval"
     done
+}
+
+# Run the post-deploy project namespace reconciliation step when enabled.
+# Params: none.
+# Returns: 0 when reconciliation is disabled or succeeds; 1 on reconciliation failures.
+# Side effects: waits for core deployments, runs the reconciliation helper, and prints retry guidance.
+function run_post_deploy_reconcile {
+    if [[ "${POST_DEPLOY_RECONCILE_ENABLED,,}" != "true" ]]; then
+        echo -e "${YELLOW}Post-deploy project reconciliation disabled via --no-reconcile-project-namespaces.${NC}"
+        return 0
+    fi
+
+    local timeout_seconds="${POST_DEPLOY_RECONCILE_WAIT_SECONDS}"
+    local start_ts
+    local deadline_ts
+    local script_dir
+    local reconcile_script
+
+    print_reconcile_retry_hint() {
+        echo -e "${YELLOW}Reconciliation may have failed because the platform is still coming up.${NC}"
+        echo -e "${YELLOW}Wait until pods are in Running/Completed state, then run:${NC}"
+        echo -e "${YELLOW}  ./kaapana/utils/reconcile_project_namespaces.sh${NC}"
+    }
+
+    wait_for_deployment_ready() {
+        local ns="$1"
+        local dep="$2"
+        local deadline="$3"
+        local now
+        local remaining
+        local attempt=0
+
+        while true; do
+            now=$(date +%s)
+            remaining=$((deadline - now))
+
+            if (( remaining <= 0 )); then
+                echo -e "${RED}Timed out waiting for deployment/${dep} in namespace ${ns}.${NC}"
+                print_reconcile_retry_hint
+                return 1
+            fi
+
+            if microk8s.kubectl -n "${ns}" get deployment "${dep}" >/dev/null 2>&1; then
+                echo ""
+                echo -e "${YELLOW}Waiting for deployment/${dep} in namespace ${ns} (remaining=${remaining}s)...${NC}"
+                if microk8s.kubectl -n "${ns}" rollout status "deployment/${dep}" --timeout="${remaining}s"; then
+                    return 0
+                fi
+                echo -e "${RED}Required deployment not ready for reconciliation: ${ns}/${dep}${NC}"
+                print_reconcile_retry_hint
+                return 1
+            fi
+
+            attempt=$((attempt + 1))
+            printf "\r${YELLOW}Waiting for deployment/%s in namespace %s to appear (attempt %d, %ss remaining)...${NC}" "${dep}" "${ns}" "${attempt}" "${remaining}"
+            if (( attempt % 12 == 0 )); then
+                echo ""
+                echo -e "${YELLOW}Still waiting for deployment/${dep} in namespace ${ns}...${NC}"
+            fi
+            sleep 5
+        done
+    }
+
+    script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    reconcile_script="${script_dir}/utils/reconcile_project_namespaces.sh"
+    if [[ ! -x "${reconcile_script}" ]]; then
+        reconcile_script="${script_dir}/../utils/reconcile_project_namespaces.sh"
+    fi
+
+    if [[ ! -x "${reconcile_script}" ]]; then
+        echo -e "${RED}Post-deploy reconcile script missing or not executable: ${reconcile_script}${NC}"
+        return 1
+    fi
+
+    echo -e "${YELLOW}Running post-deploy project reconciliation (timeout=${timeout_seconds}s)...${NC}"
+    start_ts=$(date +%s)
+    deadline_ts=$((start_ts + timeout_seconds))
+
+    for dep_ref in \
+        "${SERVICES_NAMESPACE}/airflow-webserver" \
+        "${SERVICES_NAMESPACE}/access-information-interface" \
+        "${ADMIN_NAMESPACE}/kube-helm-deployment"; do
+        local ns="${dep_ref%%/*}"
+        local dep="${dep_ref##*/}"
+
+        if ! wait_for_deployment_ready "${ns}" "${dep}" "${deadline_ts}"; then
+            return 1
+        fi
+    done
+
+    if ! SERVICES_NAMESPACE="${SERVICES_NAMESPACE}" ADMIN_NAMESPACE="${ADMIN_NAMESPACE}" WAIT_TIMEOUT_SECONDS="${timeout_seconds}" "${reconcile_script}"; then
+        echo -e "${RED}Post-deploy project reconciliation failed.${NC}"
+        print_reconcile_retry_hint
+        return 1
+    fi
+
+    echo -e "${GREEN}Post-deploy project reconciliation finished successfully.${NC}"
+    return 0
 }
 
 function check_system() {
@@ -1993,6 +2012,15 @@ microk8s.kubectl describe pods -A
 --- "k8s Node Status"
 microk8s.kubectl describe node
 
+--- "k8s Container Logs"
+microk8s.kubectl get pods -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"\t"}{.metadata.name}{"\t"}{range .spec.initContainers[*]}{.name}{"\n"}{end}{range .spec.containers[*]}{.name}{"\n"}{end}{end}' \
+| while IFS=$'\t' read -r ns pod ctr; do
+  echo "===== $ns/$pod [$ctr] ====="
+  microk8s.kubectl logs -n "$ns" "$pod" -c "$ctr" --timestamps --tail=5000 \
+  || microk8s.kubectl logs -n "$ns" "$pod" -c "$ctr" --timestamps --tail=5000 --previous
+  echo
+done
+
 --- "GPU Hardware"
 lshw -C Display
 
@@ -2025,17 +2053,23 @@ _Flag: --remove-all-images-docker will delete all Docker images from the system
 _Flag: --nuke-pods will force-delete all pods of the Kaapana deployment namespaces.
 _Flag: --quiet, meaning non-interactive operation
 _Flag: --offline, using prebuilt tarball and chart (--chart-path required!)
+_Flag: --prefetch-bootstrap-images, prefetch selected bootstrap images before chart install
+_Flag: --no-reconcile-project-namespaces, skip post-deploy project namespace reconciliation
 _Flag: --no-migration, disable automatic migration between versions
+_Flag: --install-storage-classes, installs only kaapana storage classes
 _Flag: --check-system, check health of all resources in kaapana-admin-chart and kaapana-platform-chart
 _Flag: --report, create a report of the state of the microk8s cluster
 
 _Argument: --username [Docker registry username]
 _Argument: --password [Docker registry password]
+_Argument: --fast-data-dir [Path to fast data dir on host]
+_Argument: --slow-data-dir [Path to slow data dir on host]
 _Argument: --port [Set main https-port]
 _Argument: --chart-path [path-to-chart-tgz]
 _Argument: --import-images-tar [path-to-a-tarball]"
 
 QUIET=NA
+IGNORE_CERTIFICATE_STATE=false
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]
@@ -2054,6 +2088,20 @@ do
         -p|--password)
             CONTAINER_REGISTRY_PASSWORD="$2"
             echo -e "${GREEN}SET CONTAINER_REGISTRY_PASSWORD!${NC}";
+            shift # past argument
+            shift # past value
+        ;;
+
+        --fast-data-dir)
+            FAST_DATA_DIR="$2"
+            echo -e "${GREEN}SET FAST_DATA_DIR: $FAST_DATA_DIR ${NC}";
+            shift # past argument
+            shift # past value
+        ;;
+
+        --slow-data-dir)
+            SLOW_DATA_DIR="$2"
+            echo -e "${GREEN}SET SLOW_DATA_DIR: $SLOW_DATA_DIR ${NC}";
             shift # past argument
             shift # past value
         ;;
@@ -2097,14 +2145,39 @@ do
             shift # past argument
         ;;
 
+        --prefetch-bootstrap-images)
+            BOOTSTRAP_IMAGE_PREFETCH_ENABLED=true
+            echo -e "${GREEN}Bootstrap image prefetch enabled via CLI flag.${NC}"
+            shift
+        ;;
+
+        --no-reconcile-project-namespaces)
+            POST_DEPLOY_RECONCILE_ENABLED=false
+            echo -e "${YELLOW}Post-deploy project namespace reconciliation disabled via CLI flag.${NC}"
+            shift
+        ;;
+
         --no-migration)
             MIGRATION_ENABLED=false
             echo -e "${YELLOW}Migration disabled via CLI (--no-migration).${NC}"
             shift # past argument
         ;;
 
+        --ignore-certificate-state)
+            IGNORE_CERTIFICATE_STATE=true
+            echo -e "${YELLOW}Certificate state mismatches will be ignored (override active).${NC}"
+            shift
+        ;;
+
         --install-certs)
             install_certs
+            exit 0
+        ;;
+
+        --install-storage-classes)
+            get_chart
+            setup_storage_classes
+            rm_chart_path
             exit 0
         ;;
 

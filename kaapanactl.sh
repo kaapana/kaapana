@@ -141,6 +141,51 @@ function parse_chart_reference() {
     echo -e "${GREEN}Using chart ${PLATFORM_NAME}:${PLATFORM_VERSION} from ${CONTAINER_REGISTRY_URL}${NC}"
 }
 
+function normalize_release_family_name() {
+    local release_name="$1"
+
+    case "$release_name" in
+        racoon-*|kaapana-*)
+            echo "${release_name#*-}"
+            ;;
+        *)
+            echo "$release_name"
+            ;;
+    esac
+}
+
+function find_release_name_conflict() {
+    local target_release="$1"
+    local release_list="$2"
+    local target_family
+    local release_name
+
+    target_family="$(normalize_release_family_name "$target_release")"
+    while IFS= read -r release_name; do
+        [[ -z "$release_name" || "$release_name" == "$target_release" ]] && continue
+        if [[ "$(normalize_release_family_name "$release_name")" == "$target_family" ]]; then
+            echo "$release_name"
+            return 0
+        fi
+    done <<< "$release_list"
+
+    return 1
+}
+
+function resolve_extracted_chart_dependency_path() {
+    local workdir="$1"
+    local dependency_name="$2"
+    local dependency_path=""
+
+    dependency_path="$(find "$workdir" -type f -path "*/${dependency_name}/Chart.yaml" -print -quit 2>/dev/null || true)"
+    if [[ -z "$dependency_path" ]]; then
+        echo -e "${RED}Dependency chart '${dependency_name}' not found in extracted chart archive under ${workdir}.${NC}" >&2
+        return 1
+    fi
+
+    dirname "$dependency_path"
+}
+
 function deploy() {
 
     PLATFORM_NAME="${PLATFORM_NAME:-}"
@@ -150,10 +195,13 @@ function deploy() {
     CONTAINER_REGISTRY_PASSWORD="${CONTAINER_REGISTRY_PASSWORD:-}"
     CHART_REFERENCE="${CHART_REFERENCE:-}"
     PLAIN_HTTP="${PLAIN_HTTP:-false}"
+    POST_DEPLOY_RECONCILE_AFTER_MIGRATION=false
+    # Optional comma-separated CIDRs overriding the default external LDAP
+    # endpoint(s) that Keycloak may reach despite the admin namespace's
+    # default deny-egress policy.
+    KEYCLOAK_LDAP_EGRESS_CIDRS="${KEYCLOAK_LDAP_EGRESS_CIDRS:-}"
 
-    script_name=`basename "$0"`
-
-    if [ -z ${http_proxy+x} ] || [ -z ${https_proxy+x} ]; then
+    if [[ -z ${http_proxy+x} || -z ${https_proxy+x} ]]; then
         http_proxy=""
         https_proxy=""
     fi
@@ -172,10 +220,17 @@ function deploy() {
     _Flag: --nuke-pods will force-delete all pods of the Kaapana deployment namespaces.
     _Flag: --quiet, meaning non-interactive operation
     _Flag: --offline, using prebuilt tarball and chart (--chart-path required!)
+    _Flag: --recover-after-reinstall, run detected post-reinstall recovery helper before chart install
+    _Flag: --prefetch-bootstrap-images, prefetch selected bootstrap images before chart install
+    _Flag: --no-reconcile-project-namespaces, skip post-deploy project namespace reconciliation
+    _Flag: --post-deploy-reconcile, force enabling the post-deploy reconcile chart even without a migration
     _Flag: --no-migration, disable automatic migration between versions
+    _Flag: --ignore-domain-reachability-check, continue deployment even if DOMAIN validation cannot be completed
+    _Flag: --ignore-certificate-state, continue deployment even if existing certificate files or secrets have hostname/validity issues
+    _Flag: --install-storage-classes, installs only kaapana storage classes
     _Flag: --check-system, check health of all resources in kaapana-admin-chart and kaapana-platform-chart
     _Flag: --report, create a report of the state of the microk8s cluster
-    _Flag: --plain-http, use insecure HTTP when talking to the registry (default HTTPS, use --no-plain-http to force it)
+    _Flag: --plain-http, use insecure HTTP when talking to the registry (default HTTPS)
 
     _Argument: --chart [registry/path/chart:version]
     _Argument: --platform-name [Helm chart name]
@@ -183,15 +238,16 @@ function deploy() {
     _Argument: --registry-url [OCI registry URL]
     _Argument: --username [Docker registry username]
     _Argument: --password [Docker registry password]
+    _Argument: --fast-data-dir [Path to fast data dir on host]
+    _Argument: --slow-data-dir [Path to slow data dir on host]
     _Argument: --port [Set main https-port]
     _Argument: --chart-path [path-to-chart-tgz]
     _Argument: --import-images-tar [path-to-a-tarball]"
 
     QUIET=false
+    IGNORE_CERTIFICATE_STATE=false
 
-    POSITIONAL=()
-    while [[ $# -gt 0 ]]
-    do
+    while [[ $# -gt 0 ]]; do
         key="$1"
 
         case $key in
@@ -199,64 +255,67 @@ function deploy() {
             -u|--username)
                 CONTAINER_REGISTRY_USERNAME="$2"
                 echo -e "${GREEN}SET CONTAINER_REGISTRY_USERNAME! $CONTAINER_REGISTRY_USERNAME ${NC}";
-                shift # past argument
-                shift # past value
+                shift 2
             ;;
 
             --platform-name)
                 PLATFORM_NAME="$2"
                 echo -e "${GREEN}SET PLATFORM_NAME: $PLATFORM_NAME ${NC}"
-                shift
-                shift
+                shift 2
             ;;
 
             --platform-version)
                 PLATFORM_VERSION="$2"
                 echo -e "${GREEN}SET PLATFORM_VERSION: $PLATFORM_VERSION ${NC}"
-                shift
-                shift
+                shift 2
             ;;
 
             --registry-url)
                 CONTAINER_REGISTRY_URL="$2"
                 echo -e "${GREEN}SET CONTAINER_REGISTRY_URL: $CONTAINER_REGISTRY_URL ${NC}"
-                shift
-                shift
+                shift 2
             ;;
 
             --chart)
                 CHART_REFERENCE="$2"
                 parse_chart_reference "$CHART_REFERENCE"
-                shift
-                shift
+                shift 2
             ;;
 
             -p|--password)
                 CONTAINER_REGISTRY_PASSWORD="$2"
                 echo -e "${GREEN}SET CONTAINER_REGISTRY_PASSWORD!${NC}";
-                shift # past argument
-                shift # past value
+                shift 2
+            ;;
+
+            --fast-data-dir)
+                FAST_DATA_DIR="$2"
+                echo -e "${GREEN}SET FAST_DATA_DIR: $FAST_DATA_DIR ${NC}";
+                shift 2
+            ;;
+
+            --slow-data-dir)
+                SLOW_DATA_DIR="$2"
+                echo -e "${GREEN}SET SLOW_DATA_DIR: $SLOW_DATA_DIR ${NC}";
+                shift 2
             ;;
 
             -d|--domain)
                 DOMAIN="$2"
                 echo -e "${GREEN}SET DOMAIN!${NC}";
-                shift # past argument
-                shift # past value
+                shift 2
             ;;
 
             --port)
                 HTTPS_PORT="$2"
                 echo -e "${GREEN}SET PORT!${NC}";
-                shift # past argument
-                shift # past value
+                shift 2
             ;;
 
             --chart-path)
                 CHART_PATH="$2"
                 echo -e "${GREEN}SET CHART_PATH: $CHART_PATH !${NC}";
-                shift # past argument
-                shift # past value
+                shift 2
             ;;
 
             --import-images-tar)
@@ -268,13 +327,37 @@ function deploy() {
 
             --quiet)
                 QUIET=true
-                shift # past argument
+                shift
             ;;
 
             --offline)
                 OFFLINE_MODE=true
                 echo -e "${GREEN}Deploying in offline mode!${NC}"
-                shift # past argument
+                shift
+            ;;
+
+            --recover-after-reinstall|--recover)
+                POST_REINSTALL_RECOVERY_REQUESTED=true
+                echo -e "${GREEN}Post-reinstall recovery forced via CLI flag.${NC}"
+                shift
+            ;;
+
+            --prefetch-bootstrap-images)
+                BOOTSTRAP_IMAGE_PREFETCH_ENABLED=true
+                echo -e "${GREEN}Bootstrap image prefetch enabled via CLI flag.${NC}"
+                shift
+            ;;
+
+            --no-reconcile-project-namespaces)
+                POST_DEPLOY_RECONCILE_ENABLED=false
+                echo -e "${YELLOW}Post-deploy project namespace reconciliation disabled via CLI flag.${NC}"
+                shift
+            ;;
+
+            --post-deploy-reconcile)
+                POST_DEPLOY_RECONCILE_AFTER_MIGRATION=true
+                echo -e "${GREEN}Post-deploy reconcile chart forced on via CLI flag.${NC}"
+                shift
             ;;
 
             --plain-http)
@@ -286,7 +369,27 @@ function deploy() {
             --no-migration)
                 MIGRATION_ENABLED=false
                 echo -e "${YELLOW}Migration disabled via CLI (--no-migration).${NC}"
-                shift # past argument
+                shift
+            ;;
+
+            --ignore-domain-reachability-check)
+                IGNORE_DOMAIN_REACHABILITY_CHECK=true
+                echo -e "${YELLOW}Domain validation failures will be ignored (override active).${NC}"
+                shift
+            ;;
+
+            --ignore-certificate-state)
+                IGNORE_CERTIFICATE_STATE=true
+                echo -e "${YELLOW}Certificate state mismatches will be ignored (override active).${NC}"
+                shift
+            ;;
+
+            --install-storage-classes)
+                setup_storage_provider
+                get_chart
+                setup_storage_classes
+                rm_chart_path
+                exit 0
             ;;
 
             --install-certs)
@@ -369,7 +472,7 @@ function deploy() {
         PLATFORM_NAME=$( $HELM_EXECUTABLE show chart ${CHART_PATH} | grep '^name:' | awk '{print $2}' )
     fi
 
-    if [ "${OFFLINE_MODE,,}" == true ]; then
+    if [[ "${OFFLINE_MODE,,}" == true ]]; then
         CONTAINER_REGISTRY_USERNAME=""
         CONTAINER_REGISTRY_PASSWORD=""
         prompt_required_value CONTAINER_REGISTRY_URL "Enter the container registry url: " false "$QUIET"
@@ -380,16 +483,15 @@ function deploy() {
         parse_chart_reference "$CHART_REFERENCE"
     fi
 
-    if [ "${OFFLINE_MODE,,}" != true ]; then
+    if [[ "${OFFLINE_MODE,,}" != true ]]; then
         prompt_required_value CONTAINER_REGISTRY_USERNAME "Enter the container registry username: " false "$QUIET"
         prompt_required_value CONTAINER_REGISTRY_PASSWORD "Enter the container registry password: " true "$QUIET"
     fi
 
-    if [ ! -z $INSTANCE_UID ]; then
+    if [[ -n "$INSTANCE_UID" ]]; then
         echo ""
         echo "Setting INSTANCE_UID: $INSTANCE_UID namespaces ..."
         SERVICES_NAMESPACE="$INSTANCE_UID-$SERVICES_NAMESPACE"
-        # ADMIN_NAMESPACE="$INSTANCE_UID-$ADMIN_NAMESPACE"
         EXTENSIONS_NAMESPACE="$INSTANCE_UID-$EXTENSIONS_NAMESPACE"
         HELM_NAMESPACE="$INSTANCE_UID-$HELM_NAMESPACE"
 
@@ -408,7 +510,7 @@ function deploy() {
     echo "SLOW_DATA_DIR: $SLOW_DATA_DIR "
     echo ""
 
-    if command -v nvidia-smi &> /dev/null && nvidia-smi
+    if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1
     then
         echo "${GREEN}Nvidia GPU detected!${NC}"
         GPU_SUPPORT=true
@@ -418,6 +520,8 @@ function deploy() {
     fi
 
     preflight_checks
+
+    ensure_helm_uses_microk8s_config
 
     echo -e "${YELLOW}Get helm deployments...${NC}"
     deployments=$(
@@ -433,7 +537,34 @@ function deploy() {
     echo "Current deployments: "
     echo $deployments
 
-    if [[ $deployments == *"$PLATFORM_NAME"* ]] && [[ ! $QUIET = true ]];then
+    conflicting_release="$(find_release_name_conflict "$PLATFORM_NAME" "$deployments" || true)"
+    if [[ -n "$conflicting_release" ]]; then
+        echo -e "${RED}Found existing release '$conflicting_release', which conflicts with requested platform name '$PLATFORM_NAME'.${NC}"
+        echo -e "${RED}This script treats 'racoon-*' and 'kaapana-*' releases with the same suffix as the same installation.${NC}"
+        if [[ "$QUIET" == true ]]; then
+            echo -e "${RED}Use --platform-name $conflicting_release, or undeploy the existing release before switching names.${NC}"
+            exit 1
+        fi
+
+        while true; do
+            read -e -p "Undeploy conflicting release '$conflicting_release' now?" -i " no" yn
+            case $yn in
+                [Yy]* )
+                    echo -e "${YELLOW}Starting undeployment of conflicting release ...${NC}"
+                    PLATFORM_NAME="$conflicting_release"
+                    delete_deployment
+                    exit 0
+                    ;;
+                [Nn]* )
+                    echo -e "${YELLOW}Abort. Re-run with --platform-name $conflicting_release if you want to reuse the existing release name.${NC}"
+                    exit 1
+                    ;;
+                * ) echo "Please answer yes or no.";;
+            esac
+        done
+    fi
+
+    if [[ $deployments == *"$PLATFORM_NAME"* && $QUIET != true ]]; then
         echo -e "${YELLOW}$PLATFORM_NAME already deployed!${NC}"
         PS3='select option: '
         options=("Un- and Re-deploy" "Undeploy" "Quit")
@@ -458,7 +589,7 @@ function deploy() {
                 *) echo "invalid option $REPLY";;
             esac
         done
-    elif [[ $deployments == *"$PLATFORM_NAME"* ]] && [[ $QUIET = true ]];then
+    elif [[ $deployments == *"$PLATFORM_NAME"* && $QUIET == true ]]; then
         echo -e "${RED}Project already deployed!${NC}"
         echo -e "${RED}abort.${NC}"
         exit 1

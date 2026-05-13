@@ -26,3 +26,10 @@ kaapana_database:
   postgres_password: root
   postgres_db: airflow
   appName: airflow
+
+statsd:
+  resources:
+    requests:
+      memory: 64Mi
+    limits:
+      memory: 128Mi

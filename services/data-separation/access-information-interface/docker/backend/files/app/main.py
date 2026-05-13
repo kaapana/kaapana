@@ -43,6 +43,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+@app.get("/healthz", include_in_schema=False)
+async def healthz():
+    """Return a lightweight health response for Kubernetes probes."""
+    return {"status": "ok"}
+
+
 app.include_router(aii_router, prefix="/aii")
 app.include_router(projects_router, prefix="/projects")
 app.include_router(users_router, prefix="/users")

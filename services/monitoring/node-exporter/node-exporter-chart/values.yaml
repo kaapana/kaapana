@@ -1,4 +1,17 @@
 ---
 global:
     pull_policy_images: "IfNotPresent"
-    
+
+nodeExporter:
+  resources:
+    requests:
+      cpu: 102m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+  sidecarResources:
+    requests:
+      memory: 50Mi
+    limits:
+      memory: 50Mi

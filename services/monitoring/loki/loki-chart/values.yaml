@@ -7,9 +7,9 @@ loki:
   port: 3100
   resources:
     requests:
-      memory: "256Mi"
+      memory: "768Mi"
       cpu: "100m"
     limits:
-      memory: "1Gi"
+      memory: "1536Mi"
       cpu: "1000m"
   storage_size: 10Gi

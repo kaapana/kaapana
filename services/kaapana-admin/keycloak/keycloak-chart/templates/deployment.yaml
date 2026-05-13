@@ -80,8 +80,8 @@ spec:
             requests:
               memory: 600Mi
             limits:
-              memory: 700Mi
-          volumeMounts:        
+              memory: 4Gi
+          volumeMounts:
             - name: ssl-config-files
               mountPath: /etc/x509/https
               readOnly: true

@@ -53,9 +53,9 @@ spec:
             memory: 10Gi
  {{- else }}
           requests:
-            memory: 10Mi
+            memory: 100Mi
           limits:
-            memory: 10Mi
+            memory: 100Mi
  {{- end }}
         volumeMounts:
 {{ include "dynamicVolumeMounts" $ | indent 10 }}

@@ -72,7 +72,7 @@ class KeycloakHelper:
         request=requests.post,
         payload={},
         update_url="",
-        timeout=2,
+        timeout=30,
         **kwargs,
     ):
         """

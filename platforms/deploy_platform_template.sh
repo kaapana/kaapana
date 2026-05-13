@@ -21,6 +21,10 @@ CONTAINER_REGISTRY_URL="{{ container_registry_url|default('', true) }}" # empty 
 CONTAINER_REGISTRY_USERNAME="{{ container_registry_username|default('', true) }}"
 CONTAINER_REGISTRY_PASSWORD="{{ container_registry_password|default('', true) }}"
 PLAIN_HTTP={{ plain_http|default(false)|lower }} # Use plain HTTP for registry (insecure)
+# Optional comma-separated CIDRs overriding the default external LDAP
+# endpoint(s) that Keycloak may reach despite the admin namespace's default
+# deny-egress policy.
+KEYCLOAK_LDAP_EGRESS_CIDRS="${KEYCLOAK_LDAP_EGRESS_CIDRS:-}"
 
 ######################################################
 # Deployment configuration

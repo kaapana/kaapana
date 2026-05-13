@@ -10,6 +10,11 @@ global:
   internalCidrs:
     - 10.152.183.0/24 ### Default range for services in microk8s https://microk8s.io/docs/change-cidr
     - 10.1.0.0/16 ### Default range for pods in microk8s https://microk8s.io/docs/change-cidr
+  # Default external LDAP endpoint that Keycloak may reach from the admin
+  # namespace. Override this list per deployment if an installation needs a
+  # different LDAP destination.
+  keycloak_ldap_egress_cidrs:
+    - 172.16.16.19/32
 
 migration-chart:
   enabled: false

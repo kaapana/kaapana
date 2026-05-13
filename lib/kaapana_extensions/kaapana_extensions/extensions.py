@@ -100,6 +100,17 @@ class ExtensionUtilityLibrary:
         """Return extension_manifests for all tags, or a specific tag if given."""
         return self._manager.get_all_metadata(tag)
 
+    def get_extension(self, tag: str) -> Dict[str, Any]:
+        """Return the extension manifest for a registry tag."""
+        return self._manager.get(tag)["user_metadata"]["extension_manifest"]
+
+    def get_extensions(self, tag: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Return the extension manifests for a tag or for all tags."""
+        if tag:
+            return [self.get_extension(tag)]
+        else:
+            return [self.get_extension(t) for t in self.list_tags()]
+
     def delete_tag(self, tag: str) -> bool:
         """Delete an extension tag from the registry."""
         return self._manager.delete_tag(tag)
@@ -167,7 +178,9 @@ class ExtensionUtilityLibrary:
                 raise RuntimeError(f"Failed to download files for tag '{tag}'")
 
             metadata = self._manager.get(tag)
-            ext_manifest = metadata.get("user_metadata", {}).get("extension_manifest", {})
+            ext_manifest = metadata.get("user_metadata", {}).get(
+                "extension_manifest", {}
+            )
             (tmp_dir / "extension_manifest.json").write_text(
                 json.dumps(ext_manifest, indent=2)
             )
@@ -279,7 +292,10 @@ class ExtensionUtilityLibrary:
                         raise RuntimeError(f"File not found in archive: {path}")
                     relative_paths.append(path)
 
-            user_metadata = {"extension_manifest": ext_manifest, "apiVersion": self.API_VERSION}
+            user_metadata = {
+                "extension_manifest": ext_manifest,
+                "apiVersion": self.API_VERSION,
+            }
 
             saved_dir = os.getcwd()
             os.chdir(ext_dir)
@@ -339,11 +355,11 @@ class ExtensionUtilityLibrary:
         errors = []
         try:
             jsonschema.validate(instance=manifest, schema=schema)
-        except jsonschema.exceptions.ValidationError as ve:
+        except jsonschema.ValidationError as ve:
             errors.append(
                 f"Schema error at {'/'.join(map(str, ve.path))}: {ve.message}"
             )
-        except jsonschema.exceptions.SchemaError as se:
+        except jsonschema.SchemaError as se:
             errors.append(f"Invalid schema: {se}")
 
         return len(errors) == 0, errors

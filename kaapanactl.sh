@@ -607,14 +607,14 @@ function server_installation() {
     OS_PRESENT="${OS_PRESENT%\"}"
     OS_PRESENT="${OS_PRESENT#\"}"
     REAL_USER=${SUDO_USER:-$USER}
-    if [ -v SUDO_USER ]; then
-        USER_HOME=$(getent passwd $SUDO_USER | cut -d: -f6)
+    if [[ -v SUDO_USER ]]; then
+        USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
     else
-        USER_HOME=$HOME
+        USER_HOME="$HOME"
     fi
 
-    if [ "$EUID" -ne 0 ]
-    then echo -e "Please run the script with root privileges!";
+    if [[ "$EUID" -ne 0 ]]; then
+        echo -e "Please run the script with root privileges!"
         exit 1
     fi
     echo ""
@@ -643,13 +643,15 @@ function server_installation() {
         Ubuntu    --> Ubuntu
         default: $OS_PRESENT"
 
-    QUIET=NA
-    OFFLINE_SNAPS=NA
-    DNS=""
+    QUIET="${QUIET:-NA}"
+    OFFLINE_SNAPS="${OFFLINE_SNAPS:-NA}"
+    DNS="${DNS:-}"
 
-    POSITIONAL=()
-    while [[ $# -gt 0 ]]
-    do
+    if [[ -z "$DNS" && -n "${NAMESERVERS:-}" ]]; then
+        DNS="$NAMESERVERS"
+    fi
+
+    while [[ $# -gt 0 ]]; do
         key="$1"
 
         case $key in
@@ -662,27 +664,25 @@ function server_installation() {
             -os|--operating-system)
                 OS_PRESENT="$2"
                 echo -e "${GREEN}OS set to: $OS_PRESENT ${NC}";
-                shift # past argument
-                shift # past value
+                shift 2
             ;;
 
             -v|--version)
                 DEFAULT_MICRO_VERSION="$2"
                 echo -e "${GREEN}Kubernetes version set to: $DEFAULT_MICRO_VERSION ${NC}";
-                shift # past argument
-                shift # past value
+                shift 2
             ;;
 
             -q|--quiet)
                 echo -e "${GREEN}QUIET-MODE activated!${NC}";
                 QUIET=true
-                shift # past argument
+                shift
             ;;
 
             --offline)
                 OFFLINE_SNAPS=true
                 echo -e "${GREEN}SET OFFLINE_SNAPS: $OFFLINE_SNAPS !${NC}";
-                shift # past argument
+                shift
             ;;
 
             --install-ubuntu-packages)
@@ -742,8 +742,8 @@ function server_installation() {
 
 function install_proxy_environment {
     echo "${YELLOW}Checking proxy settings ...${NC}"
-    if [ ! "$QUIET" = "true" ];then
-        if [ ! -v http_proxy ]; then
+    if [[ "$QUIET" != true ]]; then
+        if [[ ! -v http_proxy ]]; then
             echo "${RED}No proxy has been found!${NC}"
             while true; do
                 read -p "Is this correct and you don't need a proxy?" yn
@@ -768,7 +768,7 @@ function install_no_proxy_environment {
     #       proxy server. The specific settings for ip ranges used by microk8s to request external resource might change in the future
     #       and are (currently) described here: https://microk8s.io/docs/install-proxy
     echo "${GREEN}Checking no_proxy settings${NC}"
-    if [ ! -v no_proxy ] && [ ! -v NO_PROXY ]; then
+    if [[ ! -v no_proxy && ! -v NO_PROXY ]]; then
         echo "${YELLOW}no_proxy not found, setting it and adding ${HOSTNAME}${NC}"
         echo "NO_PROXY=127.0.0.1,$HOSTNAME,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" >> /etc/environment
         echo "no_proxy=127.0.0.1,$HOSTNAME,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" >> /etc/environment
@@ -776,11 +776,7 @@ function install_no_proxy_environment {
     else
         echo "${YELLOW}no_proxy | NO_PROXY found - check if complete ...!${NC}"
 
-        if [ -v no_proxy ]; then
-                no_proxy=$no_proxy
-        else
-                no_proxy=$NO_PROXY
-        fi
+        no_proxy="${no_proxy:-$NO_PROXY}"
 
         # remove any " from no_proxy ENV
         no_proxy=$( echo $no_proxy | sed 's/"//g')
@@ -790,15 +786,13 @@ function install_no_proxy_environment {
             return
         fi
 
-        if grep -Fq "NO_PROXY" /etc/environment
-        then
+        if grep -Fq "NO_PROXY" /etc/environment; then
             sed -i "/NO_PROXY/c\NO_PROXY=$no_proxy,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" /etc/environment
         else
             echo "NO_PROXY=127.0.0.1,$HOSTNAME,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" >> /etc/environment
         fi
 
-        if grep -Fq "no_proxy" /etc/environment
-        then
+        if grep -Fq "no_proxy" /etc/environment; then
             sed -i "/no_proxy/c\no_proxy=$no_proxy,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" /etc/environment
         else
             echo "no_proxy=127.0.0.1,$HOSTNAME,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" >> /etc/environment
@@ -818,12 +812,10 @@ function install_packages_almalinux {
         echo "${YELLOW}Enable epel-release${NC}"
         yum install -y epel-release
         echo "${YELLOW}YUM update & upgrade${NC}"
-        set +e
-        yum check-update -y
+        yum check-update -y || true
         yum clean all -y
         yum update -y
 	    yum upgrade -y
-        set -e
 
         echo "${YELLOW}Installing snap, nano, jq and curl${NC}"
         yum install -y snapd nano jq curl
@@ -995,12 +987,12 @@ function install_snapd {
 
 
 function dns_check {
-    if [ ! -z "$DNS" ]; then
+    if [[ -n "$DNS" ]]; then
         echo "${GREEN}${NC}"
         echo "${GREEN}DNS has been manually configured to '$DNS' ...${NC}"
         echo "${GREEN}${NC}"
     else
-        if [ "$OFFLINE_SNAPS" != "true" ];then
+        if [[ "$OFFLINE_SNAPS" != true ]]; then
             echo "${GREEN}Checking server DNS settings ...${NC}"
             
             if command -v nslookup &> /dev/null; then
@@ -1013,8 +1005,7 @@ function dns_check {
                 exit 1
             fi
             
-            if command -v $TOOL dkfz.de &> /dev/null
-            then
+            if command -v $TOOL dkfz.de &> /dev/null; then
                 echo "${GREEN}DNS lookup was successful ...${NC}"
             else
                 echo ""
@@ -1025,22 +1016,21 @@ function dns_check {
             fi
         fi
 
-        set +e
         echo "${GREEN}Get DNS settings nmcli ...${NC}"
-        DNS=$(( nmcli dev list || nmcli dev show ) 2>/dev/null | grep DNS |awk -F ' ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
+        DNS=$( (nmcli dev list || nmcli dev show) 2>/dev/null | grep DNS | awk -F ' ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/' || true )
 
-        if [ -z "$DNS" ]; then
+        if [[ -z "$DNS" ]]; then
             echo "${YELLOW} Trying resolvectl ...${NC}"
             DNS=$(resolvectl status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
         fi
 
-        if [ -z "$DNS" ]; then
+        if [[ -z "$DNS" ]]; then
             echo "${YELLOW} Trying systemd-resolve...${NC}"
             DNS=$(systemd-resolve --status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
         fi
 
-        if [ -z "$DNS" ]; then
-            if [ "$OFFLINE_SNAPS" = "true" ]; then
+        if [[ -z "$DNS" ]]; then
+            if [[ "$OFFLINE_SNAPS" == true ]]; then
                 echo "${YELLOW}No DNS found, setting fallback DNS...${NC}"
                 DNS="8.8.8.8,8.8.4.4"
             else
@@ -1052,9 +1042,136 @@ function dns_check {
         ## Format DNS to be a comma separated list of IP addresses without spaces and newlines
         DNS=$(echo -e $DNS | tr -s ' \n,' ',' | sed 's/,$/\n/')
         echo "${YELLOW}Identified DNS: $DNS ${NC}"
-
-        set -e
     fi
+}
+
+function apply_calico_mtu {
+    local mtu_value="$1"
+
+    if [[ -z "$mtu_value" ]]; then
+        echo "${YELLOW}Calico MTU not set, skipping configmap update.${NC}"
+        return 0
+    fi
+
+    echo "${YELLOW}Setting Calico veth_mtu to ${mtu_value} ...${NC}"
+    microk8s.kubectl -n kube-system patch configmap calico-config --type merge \
+        -p "{\"data\":{\"veth_mtu\":\"${mtu_value}\"}}"
+
+    # Also try to set the CNI plugin MTU if the placeholder exists
+    local cni_cfg
+    cni_cfg="$(microk8s.kubectl -n kube-system get cm calico-config -o jsonpath='{.data.cni_network_config}' 2>/dev/null || true)"
+    if echo "$cni_cfg" | grep -q '"mtu":[[:space:]]*__CNI_MTU__'; then
+        echo "${YELLOW}Patching Calico CNI config MTU to ${mtu_value} ...${NC}"
+        # Escape JSON for patching
+        local patched
+        patched="$(echo "$cni_cfg" | sed "s/\"mtu\":[[:space:]]*__CNI_MTU__/\"mtu\": ${mtu_value}/")"
+        # JSON-escape newlines and quotes for kubectl patch
+        patched_escaped="$(printf '%s' "$patched" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')"
+        microk8s.kubectl -n kube-system patch configmap calico-config --type merge \
+            -p "{\"data\":{\"cni_network_config\":${patched_escaped}}}"
+    fi
+
+    echo "${YELLOW}Restarting calico-node to apply MTU ...${NC}"
+    microk8s.kubectl -n kube-system rollout restart ds/calico-node
+    microk8s.kubectl -n kube-system rollout status ds/calico-node --timeout=120s
+}
+
+function wait_for_microk8s_network_ready {
+    local timeout_seconds="${1:-180}"
+    local node_name=""
+    local deadline=0
+    local now=0
+    local taint=""
+    local network_unavailable=""
+    local calico_ready=""
+    local taint_cleared=false
+
+    node_name="$(microk8s.kubectl get nodes -o jsonpath='{.items[0].metadata.name}')"
+    if [[ -z "$node_name" ]]; then
+        echo "${RED}Could not determine the microk8s node name.${NC}"
+        exit 1
+    fi
+
+    echo "${YELLOW}Waiting for node ${node_name} network readiness ...${NC}"
+    deadline=$((SECONDS + timeout_seconds))
+
+    while (( SECONDS < deadline )); do
+        taint="$(microk8s.kubectl get node "$node_name" -o jsonpath='{range .spec.taints[*]}{.key}={.effect}{"\n"}{end}' 2>/dev/null || true)"
+        network_unavailable="$(microk8s.kubectl get node "$node_name" -o jsonpath='{range .status.conditions[?(@.type=="NetworkUnavailable")]}{.status}{end}' 2>/dev/null || true)"
+        calico_ready="$(microk8s.kubectl -n kube-system get pods -l k8s-app=calico-node --field-selector "spec.nodeName=${node_name}" -o jsonpath='{range .items[*].status.conditions[?(@.type=="Ready")]}{.status}{end}' 2>/dev/null || true)"
+
+        if [[ "$taint" != *"node.kubernetes.io/network-unavailable=NoSchedule"* && "$network_unavailable" != "True" ]]; then
+            echo "${GREEN}Node ${node_name} network is ready.${NC}"
+            return 0
+        fi
+
+        if [[ "$calico_ready" == "True" && "$taint" == *"node.kubernetes.io/network-unavailable=NoSchedule"* && "$taint_cleared" == false ]]; then
+            echo "${YELLOW}Calico is ready but node ${node_name} still has a stale network-unavailable taint. Clearing it ...${NC}"
+            microk8s.kubectl taint nodes "$node_name" node.kubernetes.io/network-unavailable:NoSchedule- || true
+            taint_cleared=true
+        fi
+
+        sleep 5
+    done
+
+    echo "${RED}Timed out waiting for node ${node_name} network readiness.${NC}"
+    microk8s.kubectl describe node "$node_name" || true
+    exit 1
+}
+
+function detect_calico_mtu {
+    # Returns a best-guess MTU for Calico VXLAN
+    # Priority:
+    #   1) existing vxlan.calico MTU (most truthful if calico already up)
+    #   2) underlay iface MTU - VXLAN overhead (default 50)
+    local overhead="${1:-50}"
+
+    # Try to read MTU from vxlan.calico if it exists
+    local vxlan_mtu
+    vxlan_mtu="$(ip -o link show vxlan.calico 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="mtu"){print $(i+1); exit}}')"
+    if [[ -n "$vxlan_mtu" && "$vxlan_mtu" =~ ^[0-9]+$ ]]; then
+        echo "$vxlan_mtu"
+        return 0
+    fi
+
+    # Fallback: detect primary interface used for default route
+    local iface
+    iface="$(ip route show default 0.0.0.0/0 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
+    if [[ -z "$iface" ]]; then
+        iface="eth0"
+    fi
+
+    local underlay_mtu
+    underlay_mtu="$(ip -o link show "$iface" 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="mtu"){print $(i+1); exit}}')"
+
+    if [[ -z "$underlay_mtu" || ! "$underlay_mtu" =~ ^[0-9]+$ ]]; then
+        # Conservative last resort
+        echo "1400"
+        return 0
+    fi
+
+    local guess=$((underlay_mtu - overhead))
+    if (( guess < 576 )); then
+        guess=576
+    fi
+    echo "$guess"
+}
+
+function compute_safer_mtu {
+    # Lowers detected MTU by a margin, but never below a minimum
+    local detected="$1"
+    local margin="${2:-50}"
+    local min_mtu="${3:-1200}"
+
+    if [[ -z "$detected" || ! "$detected" =~ ^[0-9]+$ ]]; then
+        detected="$min_mtu"
+    fi
+
+    local safer=$((detected - margin))
+    if (( safer < min_mtu )); then
+        safer="$min_mtu"
+    fi
+    echo "$safer"
 }
 
 function install_microk8s {
@@ -1099,40 +1216,51 @@ function install_microk8s {
         echo "${YELLOW}Stopping microk8s for configuration ...${NC}"
         microk8s.stop
 
-        set +e
         echo "${YELLOW}Enable node_port-range=80-32000 ...${NC}";
-        insert_text "--service-node-port-range=80-32000" /var/snap/microk8s/current/args/kube-apiserver
+        insert_text "--service-node-port-range=80-32000" /var/snap/microk8s/current/args/kube-apiserver || true
         echo "${YELLOW}Disable insecure port ...${NC}";
-        insert_text "--insecure-port=0" /var/snap/microk8s/current/args/kube-apiserver
-        insert_text "--runtime-config=admissionregistration.k8s.io/v1beta1=true" /var/snap/microk8s/current/args/kube-apiserver
+        insert_text "--insecure-port=0" /var/snap/microk8s/current/args/kube-apiserver || true
+        insert_text "--runtime-config=admissionregistration.k8s.io/v1beta1=true" /var/snap/microk8s/current/args/kube-apiserver || true
 
         echo "${YELLOW}Set limit of completed pods to 200 ...${NC}";
-        insert_text "--terminated-pod-gc-threshold=200" /var/snap/microk8s/current/args/kube-controller-manager
-        set -e
+        insert_text "--terminated-pod-gc-threshold=200" /var/snap/microk8s/current/args/kube-controller-manager || true
 
         echo "${YELLOW}Set vm.max_map_count=262144${NC}"
         sysctl -w vm.max_map_count=262144
-        set +e
-        insert_text "vm.max_map_count=262144" /etc/sysctl.conf
-        set -e
+        insert_text "vm.max_map_count=262144" /etc/sysctl.conf || true
 
         echo "${YELLOW}Reload systemct daemon ...${NC}"
         systemctl daemon-reload
 
         echo "${YELLOW}Set alias for kubectl: $USER_HOME/.bashrc ${NC}"
-        set +e
-        insert_text "alias kubectl=\"microk8s.kubectl\"" $USER_HOME/.bashrc
-        set -e
+        insert_text "alias kubectl=\"microk8s.kubectl\"" "$USER_HOME/.bashrc" || true
 
         echo "${YELLOW}Set auto-completion for kubectl: $USER_HOME/.bashrc ${NC}"
-        set +e
-        insert_text "# microk8s.kubectl --help > /dev/null 2>&1 && source <(microk8s.kubectl completion bash)" $USER_HOME/.bashrc
-        set -e
+        insert_text "# microk8s.kubectl --help > /dev/null 2>&1 && source <(microk8s.kubectl completion bash)" "$USER_HOME/.bashrc" || true
 
         echo "${YELLOW}Starting microk8s${NC}"
         microk8s.start
         echo "${YELLOW}Wait until microk8s is ready ...${NC}"
         microk8s.status --wait-ready >/dev/null 2>&1
+
+        # MTU tuning
+        # If CALICO_VETH_MTU is set externally, respect it.
+        # Otherwise autodetect and subtract a safety margin.
+        CALICO_MTU_SAFETY_MARGIN="${CALICO_MTU_SAFETY_MARGIN:-50}"
+        CALICO_MTU_MIN="${CALICO_MTU_MIN:-1300}"
+        VXLAN_OVERHEAD="${VXLAN_OVERHEAD:-50}"
+
+        if [[ -n "${CALICO_VETH_MTU:-}" ]]; then
+            echo "${YELLOW}CALICO_VETH_MTU is set externally to ${CALICO_VETH_MTU} (no autodetect).${NC}"
+        else
+            detected_mtu="$(detect_calico_mtu "$VXLAN_OVERHEAD")"
+            safer_mtu="$(compute_safer_mtu "$detected_mtu" "$CALICO_MTU_SAFETY_MARGIN" "$CALICO_MTU_MIN")"
+            CALICO_VETH_MTU="$safer_mtu"
+            echo "${YELLOW}Autodetected Calico MTU: ${detected_mtu}. Applying safety margin ${CALICO_MTU_SAFETY_MARGIN} -> using ${CALICO_VETH_MTU}.${NC}"
+        fi
+
+        apply_calico_mtu "$CALICO_VETH_MTU"
+        wait_for_microk8s_network_ready "${CALICO_NETWORK_READY_TIMEOUT_SECONDS:-180}"
 
         echo "${YELLOW}Enable microk8s RBAC ...${NC}"
         microk8s.enable rbac
@@ -1177,6 +1305,8 @@ function install_microk8s {
         echo ""
         echo ""
         echo ""
+
+        create_post_reinstall_recovery_marker
     fi
     echo ""
     echo "${GREEN} DONE ${NC}"

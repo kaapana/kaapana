@@ -16,13 +16,10 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from kaapana_containers.registries.registry import OCIRegistryDiscovery
 
-# Parses: [git+]<URL>[@<ref>][#<subdir>]
-#
-#   \w+@[\w.]+:[^@#]+   →  git@github.com:org/repo.git
-#   [^@#]+              →  https://host/repo.git  or  /local/path
+# Parses: [git+]<URL>[@<ref>][#<subdir>]  (HTTPS and local paths only)
 _SOURCE_RE = re.compile(
     r"^(?P<git>git\+)?"
-    r"(?P<url>\w+@[\w.]+:[^@#]+|[^@#]+)"
+    r"(?P<url>[^@#]+)"
     r"(?:@(?P<ref>[^#]+))?"
     r"(?:#(?P<subdir>.+))?$"
 )
@@ -91,20 +88,19 @@ class ExtensionUtilityLibrary:
         )
         self.logger = self._manager.logger
 
-    def list_extensions(self) -> List[str]:
+    def list_tags(self) -> List[str]:
         """List all extension tags in the repository."""
         return self._manager.list_tags()
 
-    def get_extension(self, tag: str) -> Dict[str, Any]:
+    def get(self, tag: str) -> Dict[str, Any]:
         """Return the extension manifest for a registry tag."""
-        metadata = self._manager.get(tag)
-        return metadata.get("user_metadata", {}).get("extension_manifest", {})
+        return self._manager.get(tag)
 
-    def get_extensions(self, tag: Optional[str] = None) -> List[Tuple[str, Any]]:
+    def get_all_metadata(self, tag: Optional[str] = None) -> List[Tuple[str, Any]]:
         """Return extension_manifests for all tags, or a specific tag if given."""
         return self._manager.get_all_metadata(tag)
 
-    def delete_extension(self, tag: str) -> bool:
+    def delete_tag(self, tag: str) -> bool:
         """Delete an extension tag from the registry."""
         return self._manager.delete_tag(tag)
 
@@ -164,35 +160,27 @@ class ExtensionUtilityLibrary:
         Returns:
             Path to the saved archive.
         """
-        metadata = self._manager.get(tag)
-        ext_manifest = metadata.get("user_metadata", {}).get("extension_manifest", {})
-        files = metadata.get("files", [])
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_dir = Path(tmp)
 
-        buf = io.BytesIO()
-        with tarfile.open(fileobj=buf, mode="w:gz") as tar:
-            manifest_bytes = json.dumps(ext_manifest, indent=2).encode()
-            info = tarfile.TarInfo(name="extension_manifest.json")
-            info.size = len(manifest_bytes)
-            tar.addfile(info, io.BytesIO(manifest_bytes))
+            if not self._manager.download_files(tag, str(tmp_dir)):
+                raise RuntimeError(f"Failed to download files for tag '{tag}'")
 
-            for file_info in files:
-                filename = file_info.get("filename")
-                digest = file_info.get("digest")
-                if not filename or not digest:
-                    continue
-                data = self._manager._download_blob(digest)
-                if data:
-                    info = tarfile.TarInfo(name=filename)
-                    info.size = len(data)
-                    tar.addfile(info, io.BytesIO(data))
+            metadata = self._manager.get(tag)
+            ext_manifest = metadata.get("user_metadata", {}).get("extension_manifest", {})
+            (tmp_dir / "extension_manifest.json").write_text(
+                json.dumps(ext_manifest, indent=2)
+            )
 
-        output_dir.mkdir(parents=True, exist_ok=True)
-        archive_path = output_dir / f"{tag}.tar.gz"
-        archive_path.write_bytes(buf.getvalue())
+            output_dir.mkdir(parents=True, exist_ok=True)
+            archive_path = output_dir / f"{tag}.tar.gz"
+            with tarfile.open(archive_path, "w:gz") as tar:
+                for file_path in sorted(tmp_dir.rglob("*")):
+                    if file_path.is_file():
+                        tar.add(file_path, arcname=str(file_path.relative_to(tmp_dir)))
 
         if extract:
-            buf.seek(0)
-            with tarfile.open(fileobj=buf, mode="r:gz") as tar:
+            with tarfile.open(archive_path, "r:gz") as tar:
                 tar.extractall(output_dir / tag)
 
         return archive_path

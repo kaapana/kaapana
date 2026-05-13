@@ -23,7 +23,7 @@ def _complete_tags(incomplete: str):
         client = ExtensionUtilityLibrary(
             creds["registry"], creds["repo"], creds["username"], creds["password"]
         )
-        return [t for t in client.list_extensions() if t.startswith(incomplete)]
+        return [t for t in client.list_tags() if t.startswith(incomplete)]
     except Exception:
         return []
 
@@ -251,6 +251,7 @@ def publish(
 
 @app.command(name="list")
 def list_extensions(
+    full: bool = typer.Option(False, "--full", help="Show full metadata for each extension"),
     repo: Optional[str] = typer.Option(None, "--repo"),
     registry: Optional[str] = typer.Option(None, "--registry"),
     username: Optional[str] = typer.Option(None, "--user"),
@@ -258,12 +259,20 @@ def list_extensions(
 ):
     """List all extensions in repository."""
     client = _get_client(repo, registry, username, password)
-    tags = client.list_extensions()
-    if not tags:
-        typer.echo("No extensions found.")
-        return
-    for tag in tags:
-        typer.echo(tag)
+    if not full:
+        tags = client.list_tags()
+        if not tags:
+            typer.echo("No extensions found.")
+            return
+        for tag in tags:
+            typer.echo(tag)
+    else:
+        entries = client.get_all_metadata()
+        if not entries:
+            typer.echo("No extensions found.")
+            return
+        for _, metadata in entries:
+            typer.echo(json.dumps(metadata, indent=2))
 
 
 @app.command(name="info")
@@ -276,7 +285,7 @@ def info(
 ):
     """[Debug] Show repository/tag, manifest digest, config digest, layer digests, and config JSON."""
     client = _get_client(repo, registry, username, password)
-    config_data = client._manager.get(tag)
+    config_data = client.get(tag)
     if config_data:
         typer.echo("Config:")
         typer.echo(json.dumps(config_data, indent=2))
@@ -317,7 +326,7 @@ def delete(
     client = _get_client(repo, registry, username, password)
 
     if all_tags:
-        tags = client.list_extensions()
+        tags = client.list_tags()
         if not tags:
             typer.echo("No extensions found.")
             return
@@ -328,7 +337,7 @@ def delete(
             typer.confirm("\nDelete all of the above?", abort=True)
         failed = []
         for t in tags:
-            if client.delete_extension(t):
+            if client.delete_tag(t):
                 typer.echo(f"Deleted: {t}")
             else:
                 typer.echo(f"Failed to delete: {t}", err=True)
@@ -336,7 +345,7 @@ def delete(
         if failed:
             raise typer.Exit(1)
     else:
-        success = client.delete_extension(tag)
+        success = client.delete_tag(tag)
         if success:
             typer.echo(f"Deleted: {tag}")
         else:

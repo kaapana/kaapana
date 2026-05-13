@@ -15,6 +15,7 @@ import type {
   RepositoryFormState,
   UpdateRepositoryRequest,
 } from '@/types/schemas'
+import { getApiErrorMessage } from '@/utils/apiErrors'
 
 const repositories = ref<Repository[]>([])
 const loadingRepositories = ref(false)
@@ -139,7 +140,10 @@ async function loadRepositories() {
     updateSelectedRepositoryFromList()
   } catch (err) {
     console.error(err)
-    repositoryError.value = 'Failed to fetch repositories.'
+    repositoryError.value = getApiErrorMessage(
+      err,
+      'Failed to fetch repositories.',
+    )
     repositories.value = []
   } finally {
     loadingRepositories.value = false
@@ -157,7 +161,10 @@ async function createNewRepository() {
     await loadRepositories()
   } catch (err) {
     console.error(err)
-    createRepositoryError.value = 'Failed to create repository.'
+    createRepositoryError.value = getApiErrorMessage(
+      err,
+      'Failed to create repository.',
+    )
   } finally {
     creatingRepository.value = false
   }
@@ -181,7 +188,10 @@ async function updateSelectedRepository() {
     await loadRepositories()
   } catch (err) {
     console.error(err)
-    repositoryActionError.value = 'Failed to update repository.'
+    repositoryActionError.value = getApiErrorMessage(
+      err,
+      'Failed to update repository.',
+    )
   } finally {
     updatingSelectedRepository.value = false
   }
@@ -199,7 +209,10 @@ async function deleteSelectedRepository() {
     await loadRepositories()
   } catch (err) {
     console.error(err)
-    repositoryActionError.value = 'Failed to remove repository.'
+    repositoryActionError.value = getApiErrorMessage(
+      err,
+      'Failed to remove repository.',
+    )
   } finally {
     deletingSelectedRepository.value = false
   }

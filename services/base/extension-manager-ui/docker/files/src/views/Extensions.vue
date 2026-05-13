@@ -8,6 +8,7 @@ import {
 import InstalledExtensionIterator from '@/components/InstalledExtensionIterator.vue'
 import SelectedInstalledExtension from '@/components/SelectedInstalledExtension.vue'
 import type { InstalledExtension } from '@/types/schemas'
+import { getApiErrorMessage } from '@/utils/apiErrors'
 
 const installedExtensions = ref<InstalledExtension[]>([])
 const loadingInstalledExtensions = ref(false)
@@ -40,7 +41,10 @@ async function loadInstalledExtensions() {
     updateSelectedInstalledExtensionFromList()
   } catch (err) {
     console.error(err)
-    installedExtensionsError.value = 'Failed to fetch managed extensions.'
+    installedExtensionsError.value = getApiErrorMessage(
+      err,
+      'Failed to fetch managed extensions.',
+    )
     installedExtensions.value = []
   } finally {
     loadingInstalledExtensions.value = false
@@ -59,7 +63,10 @@ async function refreshSelectedInstalledExtension() {
     )
   } catch (err) {
     console.error(err)
-    installedExtensionActionError.value = 'Failed to fetch extension details.'
+    installedExtensionActionError.value = getApiErrorMessage(
+      err,
+      'Failed to fetch extension details.',
+    )
   } finally {
     loadingSelectedInstalledExtension.value = false
   }
@@ -94,7 +101,10 @@ async function uninstallSelectedInstalledExtension() {
     }
   } catch (err) {
     console.error(err)
-    installedExtensionActionError.value = 'Failed to uninstall extension.'
+    installedExtensionActionError.value = getApiErrorMessage(
+      err,
+      'Failed to uninstall extension.',
+    )
   } finally {
     uninstallingSelectedInstalledExtension.value = false
   }
@@ -120,33 +130,24 @@ onMounted(loadInstalledExtensions)
             Back to catalog
           </v-btn>
 
-          <v-btn
-            color="primary"
-            :loading="loadingInstalledExtensions"
-            @click="loadInstalledExtensions"
-          >
+          <v-btn color="primary" :loading="loadingInstalledExtensions" @click="loadInstalledExtensions">
             <v-icon start>mdi-refresh</v-icon>
             Refresh
           </v-btn>
         </div>
       </div>
 
-      <SelectedInstalledExtension
-        :selected-installed-extension="selectedInstalledExtension"
+      <SelectedInstalledExtension :selected-installed-extension="selectedInstalledExtension"
         :loading-selected-installed-extension="loadingSelectedInstalledExtension"
         :uninstalling-selected-installed-extension="uninstallingSelectedInstalledExtension"
         :installed-extension-action-error="installedExtensionActionError"
         @clear-selected-installed-extension="clearSelectedInstalledExtension"
         @refresh-selected-installed-extension="refreshSelectedInstalledExtension"
-        @uninstall-selected-installed-extension="uninstallSelectedInstalledExtension"
-      />
+        @uninstall-selected-installed-extension="uninstallSelectedInstalledExtension" />
 
-      <InstalledExtensionIterator
-        :installed-extensions="installedExtensions"
+      <InstalledExtensionIterator :installed-extensions="installedExtensions"
         :loading-installed-extensions="loadingInstalledExtensions"
-        :installed-extensions-error="installedExtensionsError"
-        @select-installed-extension="selectInstalledExtension"
-      />
+        :installed-extensions-error="installedExtensionsError" @select-installed-extension="selectInstalledExtension" />
     </v-container>
   </v-container>
 </template>

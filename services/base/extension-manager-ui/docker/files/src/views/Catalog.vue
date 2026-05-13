@@ -15,6 +15,7 @@ import {
   type CatalogFilters,
 } from '@/utils/catalogFilters'
 import { groupCatalogEntries } from '@/utils/catalogGroups'
+import { getApiErrorMessage } from '@/utils/apiErrors'
 
 // --- STATE ---
 const repositories = ref<Repository[]>([])
@@ -69,7 +70,10 @@ async function installSelectedCatalogEntry() {
     )
   } catch (err) {
     console.error(err)
-    catalogActionError.value = 'Failed to start extension installation.'
+    catalogActionError.value = getApiErrorMessage(
+      err,
+      'Failed to start extension installation.',
+    )
   } finally {
     installingSelectedCatalogEntry.value = false
   }
@@ -100,7 +104,10 @@ async function loadCatalog() {
     entries.value = manifestsByRepository.flat()
   } catch (err) {
     console.error(err)
-    error.value = 'Failed to fetch catalog entries from OCI repositories.'
+    error.value = getApiErrorMessage(
+      err,
+      'Failed to fetch catalog entries from OCI repositories.',
+    )
     entries.value = []
   } finally {
     loading.value = false

@@ -1436,6 +1436,100 @@ function update_coredns_rewrite() {
     fi
 }
 
+function run_post_deploy_reconcile {
+    if [[ "${POST_DEPLOY_RECONCILE_ENABLED,,}" != "true" ]]; then
+        echo -e "${YELLOW}Post-deploy project reconciliation disabled via --no-reconcile-project-namespaces.${NC}"
+        return 0
+    fi
+
+    local timeout_seconds="${POST_DEPLOY_RECONCILE_WAIT_SECONDS}"
+    local start_ts
+    local deadline_ts
+    local script_dir
+    local reconcile_script
+
+    print_reconcile_retry_hint() {
+        echo -e "${YELLOW}Reconciliation may have failed because the platform is still coming up.${NC}"
+        echo -e "${YELLOW}Wait until pods are in Running/Completed state, then run:${NC}"
+        echo -e "${YELLOW}  ./kaapana/utils/reconcile_project_namespaces.sh${NC}"
+    }
+
+    wait_for_deployment_ready() {
+        local ns="$1"
+        local dep="$2"
+        local deadline="$3"
+        local now
+        local remaining
+        local attempt=0
+
+        while true; do
+            now=$(date +%s)
+            remaining=$((deadline - now))
+
+            if (( remaining <= 0 )); then
+                echo -e "${RED}Timed out waiting for deployment/${dep} in namespace ${ns}.${NC}"
+                print_reconcile_retry_hint
+                return 1
+            fi
+
+            if microk8s.kubectl -n "${ns}" get deployment "${dep}" >/dev/null 2>&1; then
+                echo ""
+                echo -e "${YELLOW}Waiting for deployment/${dep} in namespace ${ns} (remaining=${remaining}s)...${NC}"
+                if microk8s.kubectl -n "${ns}" rollout status "deployment/${dep}" --timeout="${remaining}s"; then
+                    return 0
+                fi
+                echo -e "${RED}Required deployment not ready for reconciliation: ${ns}/${dep}${NC}"
+                print_reconcile_retry_hint
+                return 1
+            fi
+
+            attempt=$((attempt + 1))
+            printf "\r${YELLOW}Waiting for deployment/%s in namespace %s to appear (attempt %d, %ss remaining)...${NC}" "${dep}" "${ns}" "${attempt}" "${remaining}"
+            if (( attempt % 12 == 0 )); then
+                echo ""
+                echo -e "${YELLOW}Still waiting for deployment/${dep} in namespace ${ns}...${NC}"
+            fi
+            sleep 5
+        done
+    }
+
+    script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    reconcile_script="${script_dir}/utils/reconcile_project_namespaces.sh"
+    if [[ ! -x "${reconcile_script}" ]]; then
+        reconcile_script="${script_dir}/../utils/reconcile_project_namespaces.sh"
+    fi
+
+    if [[ ! -x "${reconcile_script}" ]]; then
+        echo -e "${RED}Post-deploy reconcile script missing or not executable: ${reconcile_script}${NC}"
+        return 1
+    fi
+
+    echo -e "${YELLOW}Running post-deploy project reconciliation (timeout=${timeout_seconds}s)...${NC}"
+    start_ts=$(date +%s)
+    deadline_ts=$((start_ts + timeout_seconds))
+
+    for dep_ref in \
+        "${SERVICES_NAMESPACE}/airflow-webserver" \
+        "${SERVICES_NAMESPACE}/access-information-interface" \
+        "${ADMIN_NAMESPACE}/kube-helm-deployment"; do
+        local ns="${dep_ref%%/*}"
+        local dep="${dep_ref##*/}"
+
+        if ! wait_for_deployment_ready "${ns}" "${dep}" "${deadline_ts}"; then
+            return 1
+        fi
+    done
+
+    if ! SERVICES_NAMESPACE="${SERVICES_NAMESPACE}" ADMIN_NAMESPACE="${ADMIN_NAMESPACE}" WAIT_TIMEOUT_SECONDS="${timeout_seconds}" "${reconcile_script}"; then
+        echo -e "${RED}Post-deploy project reconciliation failed.${NC}"
+        print_reconcile_retry_hint
+        return 1
+    fi
+
+    echo -e "${GREEN}Post-deploy project reconciliation finished successfully.${NC}"
+    return 0
+}
+
 function check_system() {
     release="$1"
     helm_ns="${2:-default}"

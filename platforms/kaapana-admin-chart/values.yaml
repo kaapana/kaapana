@@ -13,5 +13,7 @@ global:
 
 migration-chart:
   enabled: false
+post-deploy-reconcile-chart:
+  enabled: false
 kaapana-storage-chart:
   enabled: false

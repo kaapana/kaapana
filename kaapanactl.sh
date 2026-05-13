@@ -2500,29 +2500,142 @@ function setup_storage_classes() {
         --set-string global.slow_data_dir="$SLOW_DATA_DIR"
 }
 
+function get_chart {
+    if [[ -n "$CHART_PATH" ]]; then # Note: OFFLINE_MODE requires CHART_PATH
+        echo -e "${YELLOW}We assume that that all images are already presented inside the microk8s.${NC}"
+        echo -e "${YELLOW}Images are uploaded either with a previous deployment from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
+
+        if [[ $(basename "$CHART_PATH") != "$PLATFORM_NAME-$PLATFORM_VERSION.tgz" ]]; then
+            echo "${RED} Version of chart_path $CHART_PATH differs from PROJECT_NAME: $PLATFORM_NAME and PLATFORM_VERSION: $PLATFORM_VERSION in the deployment script.${NC}"
+            exit 1
+        fi
+
+        if [[ "$QUIET" != true ]]; then
+            while true; do
+            echo -e "${YELLOW}You are deploying the platform in offline mode!${NC}"
+                read -p "${YELLOW}Please confirm that you are sure that all images are present in microk8s (yes/no): ${NC}" yn
+                    case $yn in
+                        [Yy]* ) echo "${GREEN}Confirmed${NC}"; break;;
+                        [Nn]* ) echo "${RED}Cancel${NC}"; exit;;
+                        * ) echo "Please answer yes or no.";;
+                    esac
+            done
+        else
+            echo -e "${GREEN}QUIET: true -> SKIP USER INPUT ${NC}";
+        fi
+
+        echo -e "${YELLOW}Checking available images with version: $PLATFORM_VERSION ${NC}"
+        PRESENT_IMAGE_COUNT=$(microk8s.ctr images ls | grep "$PLATFORM_VERSION" | wc -l || true)
+        echo -e "${YELLOW}PRESENT_IMAGE_COUNT: $PRESENT_IMAGE_COUNT ${NC}"
+        if [[ "$PRESENT_IMAGE_COUNT" -lt "$VERSION_IMAGE_COUNT" ]]; then
+            echo -e "${RED}There are only $PRESENT_IMAGE_COUNT present with the version $PLATFORM_VERSION - there seems to be an issue. ${NC}"
+            exit 1
+        else
+            echo -e "${GREEN}PRESENT_IMAGE_COUNT: OK ${NC}"
+        fi
+
+        PREFETCH_EXTENSIONS=false
+        CONTAINER_REGISTRY_USERNAME=""
+        CONTAINER_REGISTRY_PASSWORD=""
+    else
+        echo "${YELLOW}Helm login registry...${NC}"
+        check_credentials
+        echo "${GREEN}Pulling platform chart from registry...${NC}"
+        SCRIPT_PATH=$(dirname "$(realpath $0)")
+        pull_chart "$PLATFORM_NAME" "$PLATFORM_VERSION" "$SCRIPT_PATH"
+        CHART_PATH="$SCRIPT_PATH/$PLATFORM_NAME-$PLATFORM_VERSION.tgz"
+    fi
+}
+
+function ensure_chart_for_deploy {
+    if [[ "${OFFLINE_MODE,,}" == true ]]; then
+        if [[ -z "$CHART_PATH" || ! -f "$CHART_PATH" ]]; then
+            echo "${RED}ERROR: Expected chart archive not found in offline mode: $CHART_PATH${NC}"
+            echo "${RED}Provide a valid --chart-path file and retry.${NC}"
+            exit 1
+        fi
+        return 0
+    fi
+
+    # Online mode: keep existing chart if it still exists.
+    if [[ -n "$CHART_PATH" && -f "$CHART_PATH" ]]; then
+        return 0
+    fi
+
+    # Post-reinstall recovery can trigger nested storage-class setup which removes
+    # the previously pulled local chart archive. Refresh it before migration/install.
+    CHART_PATH=""
+    get_chart
+
+    if [[ -z "$CHART_PATH" || ! -f "$CHART_PATH" ]]; then
+        echo "${RED}ERROR: Chart archive missing after refresh: $CHART_PATH${NC}"
+        exit 1
+    fi
+}
+
+function rm_chart_path {
+    if [[ -n "$CONTAINER_REGISTRY_USERNAME" && -n "$CONTAINER_REGISTRY_PASSWORD" ]]; then
+        rm "$CHART_PATH"
+    fi
+}
+
+function apply_chart_crds() {
+    local crd_manifest=""
+    local -a crd_names=()
+    local crd_name=""
+
+    if ! crd_manifest="$($HELM_EXECUTABLE show crds "$CHART_PATH" 2>/dev/null)"; then
+        echo "${RED}Failed to read CRDs from chart archive: $CHART_PATH${NC}"
+        exit 1
+    fi
+
+    if [[ -z "$crd_manifest" ]]; then
+        echo "${YELLOW}No bundled CRDs found in chart archive.${NC}"
+        return 0
+    fi
+
+    echo "${GREEN}Pre-applying bundled chart CRDs before platform install to avoid API registration races...${NC}"
+    printf '%s\n' "$crd_manifest" | microk8s.kubectl apply -f -
+    echo "${YELLOW}If CRDs were already created by a previous attempt, kubectl apply will reconcile them and Helm may later skip existing CRDs.${NC}"
+
+    # Wait for each declared CRD so Helm does not race the API registration.
+    mapfile -t crd_names < <(
+        printf '%s\n' "$crd_manifest" | awk '
+            $1 == "kind:" { kind = $2; next }
+            kind == "CustomResourceDefinition" && $1 == "name:" { print $2; kind = "" }
+        '
+    )
+
+    for crd_name in "${crd_names[@]}"; do
+        [[ -n "$crd_name" ]] || continue
+        echo "${GREEN}Waiting for CRD ${crd_name} to become Established...${NC}"
+        microk8s.kubectl wait --for=condition=Established "crd/${crd_name}" --timeout=600s
+    done
+}
+
 function deploy_chart {
-    if [ -z "$CONTAINER_REGISTRY_URL" ]; then
+    if [[ -z "$CONTAINER_REGISTRY_URL" ]]; then
         echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the kaapanactl.sh script!${NC}"
         echo "${RED}ABORT${NC}"
         exit 1
     fi
 
-    if [ "${OFFLINE_MODE,,}" == true ] && [ -z "$CHART_PATH" ]; then
+    if [[ "${OFFLINE_MODE,,}" == true && -z "$CHART_PATH" ]]; then
         echo "${RED}ERROR: CHART_PATH needs to be set when in OFFLINE_MODE!${NC}"
         exit 1
     fi
 
     get_domain
 
-    if [ -z "$INSTANCE_NAME" ]; then
+    if [[ -z "$INSTANCE_NAME" ]]; then
         INSTANCE_NAME=$DOMAIN
         echo "${YELLOW}No INSTANCE_NAME is set, setting it to $DOMAIN!${NC}"
     fi
 
-    if [ "${GPU_SUPPORT,,}" == true ];then
+    if [[ "${GPU_SUPPORT,,}" == true ]]; then
         echo -e "${GREEN} -> GPU found ...${NC}"
     else
-        if [ ! "$QUIET" = "true" ];then
+        if [[ "$QUIET" != true ]]; then
             while true; do
                 read -e -p "No Nvidia GPU detected - Enable GPU support anyway?" -i " no" yn
                 case $yn in
@@ -2577,57 +2690,12 @@ function deploy_chart {
     echo "${YELLOW}Removing configmap kube-public/local-registry-hosting if exists...${NC}"
     microk8s.kubectl delete configmap -n kube-public local-registry-hosting --ignore-not-found=true
 
-    if [ ! -z "$CHART_PATH" ]; then # Note: OFFLINE_MODE requires CHART_PATH
-        echo -e "${YELLOW}We assume that that all images are already presented inside the microk8s.${NC}"
-        echo -e "${YELLOW}Images are uploaded either with a previous deployment from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
-
-        if [ $(basename "$CHART_PATH") != "$PLATFORM_NAME-$PLATFORM_VERSION.tgz" ]; then
-            echo "${RED} Version of chart_path $CHART_PATH differs from PROJECT_NAME: $PLATFORM_NAME and PLATFORM_VERSION: $PLATFORM_VERSION in the deployment script.${NC}"
-            exit 1
-        fi
-
-        if [ ! "$QUIET" = "true" ];then
-            while true; do
-            echo -e "${YELLOW}You are deploying the platform in offline mode!${NC}"
-                read -p "${YELLOW}Please confirm that you are sure that all images are present in microk8s (yes/no): ${NC}" yn
-                    case $yn in
-                        [Yy]* ) echo "${GREEN}Confirmed${NC}"; break;;
-                        [Nn]* ) echo "${RED}Cancel${NC}"; exit;;
-                        * ) echo "Please answer yes or no.";;
-                    esac
-            done
-        else
-            echo -e "${GREEN}QUIET: true -> SKIP USER INPUT ${NC}";
-        fi
-
-        echo -e "${YELLOW}Checking available images with version: $PLATFORM_VERSION ${NC}"
-        set +e
-        PRESENT_IMAGE_COUNT=$( microk8s.ctr images ls | grep $PLATFORM_VERSION | wc -l)
-        set -e
-        echo -e "${YELLOW}PRESENT_IMAGE_COUNT: $PRESENT_IMAGE_COUNT ${NC}"
-        if [ "$PRESENT_IMAGE_COUNT" -lt "$VERSION_IMAGE_COUNT" ];then
-            echo -e "${RED}There are only $PRESENT_IMAGE_COUNT present with the version $PLATFORM_VERSION - there seems to be an issue. ${NC}"
-            exit 1
-        else
-            echo -e "${GREEN}PRESENT_IMAGE_COUNT: OK ${NC}"
-        fi
-
-        PREFETCH_EXTENSIONS=false
-        CONTAINER_REGISTRY_USERNAME=""
-        CONTAINER_REGISTRY_PASSWORD=""
-    else
-        echo "${YELLOW}Helm login registry...${NC}"
-        check_credentials
-        echo "${GREEN}Pulling platform chart from registry...${NC}"
-        SCRIPT_PATH=$(dirname "$(realpath $0)")
-        pull_chart "$PLATFORM_NAME" "$PLATFORM_VERSION" "$SCRIPT_PATH"
-        CHART_PATH="$SCRIPT_PATH/$PLATFORM_NAME-$PLATFORM_VERSION.tgz"
-    fi
+    get_chart
 
     # Kubernetes API endpoint
     INTERNAL_CIDR=$(microk8s.kubectl get endpoints kubernetes -n default -o jsonpath="{.subsets[0].addresses[0].ip}/32")
     # Server IP
-    if [[ "$DOMAIN" =~ ^(([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))\.){3}([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))$ ]]; then
+    if is_ipv4 "$DOMAIN"; then
         # external ip can differ from local ip, must be reachable due to keycloak (only in ip deployments)
         INTERNAL_CIDR="$DOMAIN/32,$INTERNAL_CIDR"
     fi
@@ -2639,11 +2707,18 @@ function deploy_chart {
     echo " Installing kaapana strorage class ..."
     setup_storage_classes
 
+    maybe_run_post_reinstall_recovery
+
+    ensure_chart_for_deploy
+
     echo "${GREEN}Checking for version difference and migration options...${NC}"
     migrate
 
+    prefetch_bootstrap_images || true
+
     echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
+    apply_chart_crds
 
     # Build helm command with optional --plain-http flag
     HELM_INSTALL_CMD="$HELM_EXECUTABLE -n $HELM_NAMESPACE install --create-namespace"
@@ -2675,6 +2750,7 @@ function deploy_chart {
     --set-string global.http_port="$HTTP_PORT" \
     --set-string global.https_port="$HTTPS_PORT" \
     --set global.internalCidrs="{$INTERNAL_CIDR}" \
+    ${KEYCLOAK_LDAP_EGRESS_CIDRS:+--set global.keycloak_ldap_egress_cidrs="{$KEYCLOAK_LDAP_EGRESS_CIDRS}"} \
     --set-string squid-proxy.upstreamHttpProxy="$http_proxy" \
     --set-string squid-proxy.upstreamHttpsProxy="$https_proxy" \
     --set global.offline_mode=$OFFLINE_MODE \
@@ -2708,6 +2784,7 @@ function deploy_chart {
     --set-string global.main_node_name="$MAIN_NODE_NAME" \
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
     --set-string global.storage_node="$STORAGE_NODE" \
+    --set post-deploy-reconcile-chart.enabled=$POST_DEPLOY_RECONCILE_ENABLED \
     --name-template "$PLATFORM_NAME"
 
     # In case of timeout-issues in kube helm increase the default timeouts by setting
@@ -2715,12 +2792,12 @@ function deploy_chart {
     # --set kube-helm-chart.timeouts.helmDeletionTimeout=60 \
 
     # pull_policy_jobs and pull_policy_pods only there for backward compatibility as of version 0.2.0
-    if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
-        rm $CHART_PATH
-    fi
+    rm_chart_path
 
     print_deployment_done
     update_coredns_rewrite
+    autoheal_bootstrap_imagepullbackoff || true
+    run_post_deploy_reconcile
     CONTAINER_REGISTRY_USERNAME=""
     CONTAINER_REGISTRY_PASSWORD=""
 }
@@ -2729,13 +2806,18 @@ function pull_chart {
     local chart_name=$1
     local chart_version=$2
     local dest_dir=$3
+    local HELM_PULL_CMD="$HELM_EXECUTABLE pull"
+
+    if [ "$PLAIN_HTTP" = true ]; then
+        HELM_PULL_CMD="$HELM_PULL_CMD --plain-http"
+    fi
 
     MAX_RETRIES=30
     i=1
     while [ $i -le $MAX_RETRIES ];
     do
         echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/${chart_name} with version ${chart_version} ${NC}"
-        $HELM_EXECUTABLE pull --plain-http oci://${CONTAINER_REGISTRY_URL}/${chart_name} \
+        $HELM_PULL_CMD oci://${CONTAINER_REGISTRY_URL}/${chart_name} \
             --version ${chart_version} -d ${dest_dir} \
             && break \
             || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 )
@@ -2821,6 +2903,12 @@ function install_certs {
         chmod 600 "$FAST_DATA_DIR/tls/tls.key"
     fi
 
+    # Manual certificate installation deliberately does not infer an expected
+    # hostname or CA trust model here, so point operators to the explicit
+    # analysis helper when they need to validate the installed certificate.
+    echo -e "\n${YELLOW}WARNING: The installed certificate was not checked here for hostname match or validity.${NC}"
+    echo -e "${YELLOW}If you run into certificate issues, verify it manually with:${NC}"
+    echo -e "${YELLOW}  bash $(dirname "${BASH_SOURCE[0]}")/utils/reset_certificate_state.sh --analyze-only --hostname <expected-hostname>${NC}"
     echo -e "\n${GREEN}DONE${NC}"
 }
 
@@ -2854,6 +2942,78 @@ function print_resource_configs {
     echo "Opensearch minimum memory request: $(awk "BEGIN {printf \"%.2f\", $OPENSEARCH_MEMORY_REQUEST/1024}") Gi"
     echo "Opensearch maximum memory limit: $(awk "BEGIN {printf \"%.2f\", $OPENSEARCH_MEMORY_LIMIT/1024}") Gi"
     echo ""
+}
+
+function ensure_helm_uses_microk8s_config {
+    local helm_kubeconfig_path="${TMPDIR:-/tmp}/kaapanactl-helm-${USER}.kubeconfig"
+
+    if ! microk8s.kubectl config view --raw > "$helm_kubeconfig_path" 2>/dev/null; then
+        echo -e "${RED}Failed to export the current MicroK8s kubeconfig for Helm.${NC}"
+        echo -e "${RED}Check that microk8s is running and that your user can access microk8s.kubectl.${NC}"
+        exit 1
+    fi
+
+    chmod 600 "$helm_kubeconfig_path" 2>/dev/null || true
+    export KUBECONFIG="$helm_kubeconfig_path"
+}
+
+function kubeconfig_matches_microk8s {
+    local kubeconfig_path="${HOME}/.kube/config"
+    local normalized_user_kubeconfig
+    local normalized_microk8s_kubeconfig
+
+    if [[ ! -f "$kubeconfig_path" ]]; then
+        return 1
+    fi
+
+    # Canonicalize both kubeconfigs through kubectl so formatting-only
+    # differences like `preferences: {}` do not fail the preflight.
+    if ! normalized_user_kubeconfig="$(microk8s.kubectl config view --raw --kubeconfig="$kubeconfig_path" 2>/dev/null)"; then
+        return 1
+    fi
+
+    if ! normalized_microk8s_kubeconfig="$(microk8s.kubectl config view --raw 2>/dev/null)"; then
+        return 1
+    fi
+
+    [[ "$normalized_user_kubeconfig" == "$normalized_microk8s_kubeconfig" ]]
+}
+
+function describe_kubeconfig_mismatch {
+    local kubeconfig_path="${HOME}/.kube/config"
+    local normalized_user_kubeconfig
+    local normalized_microk8s_kubeconfig
+    local diff_excerpt
+
+    if [[ ! -f "$kubeconfig_path" ]]; then
+        echo "Expected kubeconfig file not found at $kubeconfig_path."
+        return
+    fi
+
+    if ! normalized_user_kubeconfig="$(microk8s.kubectl config view --raw --kubeconfig="$kubeconfig_path" 2>&1)"; then
+        echo "Failed to parse $kubeconfig_path with microk8s.kubectl: $normalized_user_kubeconfig"
+        return
+    fi
+
+    if ! normalized_microk8s_kubeconfig="$(microk8s.kubectl config view --raw 2>&1)"; then
+        echo "Failed to read the current microk8s kubeconfig: $normalized_microk8s_kubeconfig"
+        return
+    fi
+
+    # Show only the first changed lines to keep the preflight output readable.
+    diff_excerpt="$(
+        diff -u \
+            <(printf '%s\n' "$normalized_user_kubeconfig") \
+            <(printf '%s\n' "$normalized_microk8s_kubeconfig") |
+            sed -n '/^[+-][^+-]/p' |
+            head -n 4
+    )"
+
+    if [[ -n "$diff_excerpt" ]]; then
+        echo -e "Normalized diff excerpt:\n$diff_excerpt"
+    else
+        echo "The normalized kubeconfig still differs, but no concise diff excerpt could be generated."
+    fi
 }
 
 function preflight_checks {
@@ -2925,12 +3085,12 @@ function preflight_checks {
 
     SEVERITY+=(100)
     TEST_NAMES+=("Check if ~/.kube/config matches microk8s config")
-    if [ "$(cat /home/$USER/.kube/config)" == "$(microk8s.kubectl config view --raw)" ]; then
+    if kubeconfig_matches_microk8s; then
         TEST_FAILDS+=(false)
         RESULT_MSGS+=("")
     else
         TEST_FAILDS+=(true)
-        RESULT_MSGS+=("Your kubeconfig differs from the microk8s version.")
+        RESULT_MSGS+=("Your kubeconfig differs from the microk8s version.\n$(describe_kubeconfig_mismatch)")
     fi
 
     SEVERITY+=(100)
@@ -2960,8 +3120,8 @@ function preflight_checks {
     printf "%-4s %-60s %-15s\n" "Sev" "Test" "Result"
     for i in ${!SEVERITY[@]}; do
 
-        if [ "${TEST_FAILDS[$i]}" = true ]; then
-            if [ "${SEVERITY[$i]}" -ge 200 ]; then
+        if [[ "${TEST_FAILDS[$i]}" == true ]]; then
+            if [[ "${SEVERITY[$i]}" -ge 200 ]]; then
                 STATUS="${RED}failed${NC}"
             else
                 STATUS="${YELLOW}failed${NC}"
@@ -2972,9 +3132,9 @@ function preflight_checks {
 
         printf "%-4d %-60s %-15s\n" "${SEVERITY[$i]}" "${TEST_NAMES[$i]}" "$STATUS"
 
-        if [ ! -z "${RESULT_MSGS[$i]}" ]; then
-            if [ "${TEST_FAILDS[$i]}" = true ]; then
-                if [ "${SEVERITY[$i]}" -ge 200 ]; then
+        if [[ -n "${RESULT_MSGS[$i]}" ]]; then
+            if [[ "${TEST_FAILDS[$i]}" == true ]]; then
+                if [[ "${SEVERITY[$i]}" -ge 200 ]]; then
                     echo -e "${RED}${RESULT_MSGS[$i]}${NC}"
                 else
                      echo -e "${YELLOW}${RESULT_MSGS[$i]}${NC}"
@@ -3205,6 +3365,160 @@ function run_post_deploy_reconcile {
 
     echo -e "${GREEN}Post-deploy project reconciliation finished successfully.${NC}"
     return 0
+}
+
+function list_imagepullbackoff_pods {
+    local namespace="$1"
+    microk8s.kubectl get pods -n "$namespace" --no-headers 2>/dev/null \
+        | awk '$3 == "ImagePullBackOff" || $3 == "Init:ImagePullBackOff" { print $1 }' || true
+}
+
+function list_bootstrap_imagepullbackoff_pods {
+    local namespace="$1"
+    list_imagepullbackoff_pods "$namespace" | grep -E "$IMAGE_PULL_AUTOHEAL_POD_REGEX" || true
+}
+
+function reset_bootstrap_imagepullbackoff_once {
+    local namespaces="$1"
+    local deleted=0
+
+    for namespace in $namespaces; do
+        local pods
+        pods=$(list_bootstrap_imagepullbackoff_pods "$namespace")
+        if [ -z "$pods" ]; then
+            continue
+        fi
+
+        # Keep helper output numeric on stdout so callers can use command substitution safely.
+        echo -e "${YELLOW}Resetting ImagePullBackOff in namespace $namespace:${NC}" >&2
+        while IFS= read -r pod; do
+            if [ -z "$pod" ]; then
+                continue
+            fi
+            echo "  - deleting pod/$pod" >&2
+            microk8s.kubectl -n "$namespace" delete pod "$pod" --ignore-not-found=true --grace-period=0 --force >/dev/null 2>&1 || true
+            deleted=$((deleted + 1))
+        done <<< "$pods"
+    done
+
+    echo "$deleted"
+}
+
+function check_bootstrap_pull_progress {
+    local kube_helm_running=false
+    local init_extensions_backoff=0
+    local init_collections_backoff=0
+
+    if microk8s.kubectl -n "$ADMIN_NAMESPACE" get pods -l app.kubernetes.io/name=kube-helm --no-headers 2>/dev/null | awk '$3 == "Running" { found=1 } END { exit(found ? 0 : 1) }'; then
+        kube_helm_running=true
+    fi
+
+    init_extensions_backoff=$(microk8s.kubectl -n "$ADMIN_NAMESPACE" get pods -l job-name=init-extensions --no-headers 2>/dev/null | awk '$3 == "ImagePullBackOff" || $3 == "Init:ImagePullBackOff" { c++ } END { print c+0 }')
+    init_collections_backoff=$(microk8s.kubectl -n "$ADMIN_NAMESPACE" get pods -l job-name=init-collections --no-headers 2>/dev/null | awk '$3 == "ImagePullBackOff" || $3 == "Init:ImagePullBackOff" { c++ } END { print c+0 }')
+
+    echo "kube_helm_running=${kube_helm_running}, init_extensions_backoff=${init_extensions_backoff}, init_collections_backoff=${init_collections_backoff}"
+}
+
+function prefetch_bootstrap_images {
+    if [[ "${BOOTSTRAP_IMAGE_PREFETCH_ENABLED,,}" != "true" ]]; then
+        echo -e "${YELLOW}Bootstrap image prefetch disabled (BOOTSTRAP_IMAGE_PREFETCH_ENABLED=${BOOTSTRAP_IMAGE_PREFETCH_ENABLED}).${NC}"
+        return 0
+    fi
+
+    if [ -z "${CONTAINER_REGISTRY_USERNAME:-}" ] || [ -z "${CONTAINER_REGISTRY_PASSWORD:-}" ]; then
+        echo -e "${YELLOW}Bootstrap image prefetch skipped: missing registry credentials.${NC}"
+        return 0
+    fi
+
+    local image_version="$PLATFORM_VERSION"
+    local images="$BOOTSTRAP_IMAGE_PREFETCH_IMAGES"
+
+    if [ -z "$image_version" ] || [ -z "$images" ]; then
+        return 0
+    fi
+
+    echo -e "${YELLOW}Prefetching bootstrap images into microk8s containerd (version=${image_version}).${NC}"
+    for image_name in $images; do
+        local image_ref="${CONTAINER_REGISTRY_URL}/${image_name}:${image_version}"
+        local pull_ok=false
+
+        if microk8s ctr images ls 2>/dev/null | awk '{print $1}' | grep -Fxq "$image_ref"; then
+            echo -e "${GREEN}Bootstrap image already cached:${NC} $image_ref"
+            continue
+        fi
+
+        for attempt in 1 2; do
+            echo -e "${YELLOW}Prefetch attempt ${attempt}: ${image_ref}${NC}"
+            if microk8s ctr images pull --user "${CONTAINER_REGISTRY_USERNAME}:${CONTAINER_REGISTRY_PASSWORD}" "$image_ref"; then
+                pull_ok=true
+                break
+            fi
+            sleep 2
+        done
+
+        if [[ "$pull_ok" != true ]]; then
+            echo -e "${YELLOW}Bootstrap image prefetch failed for ${image_ref}. Deployment will continue.${NC}"
+        fi
+    done
+}
+
+function autoheal_bootstrap_imagepullbackoff {
+    if [[ "${IMAGE_PULL_AUTOHEAL_ENABLED,,}" != "true" ]]; then
+        echo -e "${YELLOW}Image pull auto-heal disabled (IMAGE_PULL_AUTOHEAL_ENABLED=${IMAGE_PULL_AUTOHEAL_ENABLED}).${NC}"
+        return 0
+    fi
+
+    local timeout="$IMAGE_PULL_AUTOHEAL_TIMEOUT_SECONDS"
+    local interval="$IMAGE_PULL_AUTOHEAL_INTERVAL_SECONDS"
+    local namespaces="$IMAGE_PULL_AUTOHEAL_NAMESPACES"
+    local start_ts
+    local now_ts
+    local cycle=0
+    local total_deleted=0
+    local remaining
+
+    start_ts=$(date +%s)
+    echo -e "${YELLOW}Starting bootstrap image pull auto-heal (timeout=${timeout}s, interval=${interval}s).${NC}"
+    echo -e "${YELLOW}Namespaces: ${namespaces}${NC}"
+    echo -e "${YELLOW}Pod regex: ${IMAGE_PULL_AUTOHEAL_POD_REGEX}${NC}"
+
+    while true; do
+        cycle=$((cycle + 1))
+        remaining=""
+
+        for namespace in $namespaces; do
+            local pods
+            pods=$(list_bootstrap_imagepullbackoff_pods "$namespace")
+            if [ -n "$pods" ]; then
+                while IFS= read -r pod; do
+                    [ -z "$pod" ] && continue
+                    remaining="${remaining} ${namespace}/${pod}"
+                done <<< "$pods"
+            fi
+        done
+
+        if [ -z "$remaining" ]; then
+            echo -e "${GREEN}Bootstrap image pull auto-heal finished: no matching ImagePullBackOff pods left.${NC}"
+            echo -e "${GREEN}Progress: $(check_bootstrap_pull_progress)${NC}"
+            return 0
+        fi
+
+        echo -e "${YELLOW}[auto-heal cycle ${cycle}] remaining:${NC}${remaining}"
+        local deleted_this_cycle
+        deleted_this_cycle=$(reset_bootstrap_imagepullbackoff_once "$namespaces")
+        total_deleted=$((total_deleted + deleted_this_cycle))
+        echo -e "${YELLOW}[auto-heal cycle ${cycle}] deleted pods: ${deleted_this_cycle}, total deleted: ${total_deleted}${NC}"
+        echo -e "${YELLOW}[auto-heal cycle ${cycle}] progress: $(check_bootstrap_pull_progress)${NC}"
+
+        now_ts=$(date +%s)
+        if [ $((now_ts - start_ts)) -ge "$timeout" ]; then
+            echo -e "${RED}Bootstrap image pull auto-heal timed out after ${timeout}s.${NC}"
+            echo -e "${RED}Remaining:${NC}${remaining}"
+            return 1
+        fi
+
+        sleep "$interval"
+    done
 }
 
 function check_system() {

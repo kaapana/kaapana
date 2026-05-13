@@ -13,6 +13,17 @@ from kaapanapy.logger import get_logger
 
 logger = get_logger(__name__)
 
+
+def _extract_helm_status(status_obj):
+    """Normalize helm_status() return payloads across Helm/client variants."""
+    if isinstance(status_obj, dict):
+        return str(status_obj.get("STATUS", "")).lower()
+    if isinstance(status_obj, list) and len(status_obj) > 0:
+        if isinstance(status_obj[0], dict):
+            return str(status_obj[0].get("STATUS", "")).lower()
+    return ""
+
+
 # init
 errors_during_preinstalling = False
 logger.info("Preinstalling extensions")
@@ -54,18 +65,29 @@ for extension in preinstall_extensions:
         # if chart is stuck in 'uninstalling' state, uninstall with --no-hooks
         chart_name = chart["name"]
         chart_status = helm_status(chart_name)
-        if len(chart_status) != 0 and chart_status[0]["STATUS"] == "uninstalling":
+        current_helm_status = _extract_helm_status(chart_status)
+        if current_helm_status == "uninstalling":
             # if it is stuck in uninstalling, delete with --no-hooks
             logger.warning(f"{chart_name} stuck in 'uninstalling' status")
             logger.info(f"Deleting {chart_name} with --no-hooks")
             execute_shell_command(
                 f"{settings.helm_path} uninstall {chart_name} --no-hooks"
             )
-        elif len(chart_status) != 0 and chart_status[0]["STATUS"] == "deployed":
+        elif current_helm_status == "deployed":
             logger.info(f"Chart {chart_name} is already installed, skipping")
             continue
+        elif current_helm_status.startswith("pending-"):
+            logger.info(
+                f"Chart {chart_name} is in state '{current_helm_status}', waiting for completion"
+            )
+            releases_installed[chart_name] = {
+                "version": extension["version"],
+                "installed": False,
+                "is_platform": is_platform,
+            }
+            continue
 
-        success, _, _, release_name, _ = helm_install(
+        success, install_msg, _, release_name, _ = helm_install(
             extension,
             shell=True,
             update_state=False,
@@ -79,6 +101,11 @@ for extension in preinstall_extensions:
         }
         if success:
             logger.info(f"Chart {release_name} successfully installed")
+        elif install_msg == "Chart is already installed":
+            logger.info(
+                f"Chart {release_name} already exists (state: {current_helm_status or 'unknown'}), skipping"
+            )
+            continue
         else:
             error_message = f"Failed to install chart {release_name}, see error logs"
             logger.error(error_message)
@@ -137,7 +164,7 @@ for _ in range(1800):
                 f"Some Kubernetes objects for release {release_name} are not successful yet"
             )
         releases_installed[release_name] = {
-            "version": extension["version"],
+            "version": release_version,
             "installed": installed,
             "is_platform": is_platform,
         }

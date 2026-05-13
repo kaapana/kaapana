@@ -1,5 +1,5 @@
 ---
-{{- if not .Values.global.dev_mode}}
+{{- if false}}
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: ValidatingAdmissionPolicy
 metadata:

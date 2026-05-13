@@ -1,6 +1,6 @@
 {
-    "name": "data-download-processing-container",
-    "description": "Processing container for downloading data from a URL",
+    "name": "get-dicom",
+    "description": "Processing container for downloading DICOM data from kaapana-backend.",
     "api_version": 1,
     "templates": [
         {

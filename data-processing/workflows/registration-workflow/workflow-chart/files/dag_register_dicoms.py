@@ -15,13 +15,13 @@ args = {
 with DAG("{{ dag_id }}", default_args=args) as dag:
     download_fixed_image = KaapanaTaskOperator(
         task_id="download_fixed_image",
-        image=f"{DEFAULT_REGISTRY}/get-input-task:{KAAPANA_BUILD_VERSION}",
+        image=f"{DEFAULT_REGISTRY}/get-dicom:{KAAPANA_BUILD_VERSION}",
         taskTemplate="dicom-download",
     )
 
     download_moving_images = KaapanaTaskOperator(
         task_id="download_moving_images",
-        image=f"{DEFAULT_REGISTRY}/get-input-task:{KAAPANA_BUILD_VERSION}",
+        image=f"{DEFAULT_REGISTRY}/get-dicom:{KAAPANA_BUILD_VERSION}",
         taskTemplate="dicom-download",
     )
 

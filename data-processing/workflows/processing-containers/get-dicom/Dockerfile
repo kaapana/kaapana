@@ -1,6 +1,6 @@
 FROM local-only/base-python-cpu:latest
 
-LABEL IMAGE="get-input-task"
+LABEL IMAGE="get-dicom"
 LABEL BUILD_IGNORE="False"
 
 COPY processing-container.json /

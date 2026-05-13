@@ -1,0 +1,14 @@
+---
+global:
+  pull_policy_images: "IfNotPresent"
+
+processingContainers:
+  - get-dicom
+  - dcm-mask-converter
+  - mask-processing
+  - mitk-tools
+  - seg-check
+  - nnunet
+  - kaapana-data-api
+  - jupyterlab-reporting
+  - archive

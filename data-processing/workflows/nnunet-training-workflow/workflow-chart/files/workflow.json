@@ -1,0 +1,286 @@
+{
+    "title": "nnunet-training",
+    "workflow_engine": "airflow",
+    "labels": [
+        {
+            "key": "category",
+            "value": "training"
+        },
+        {
+            "key": "model",
+            "value": "nnUNet"
+        },
+        {
+            "key": "provider",
+            "value": "dkfz-mic"
+        }
+    ],
+    "workflow_parameters": [
+        {
+            "task_title": "download_input",
+            "env_variable_name": "DATASET",
+            "ui_form": {
+                "type": "dataset",
+                "title": "Dataset",
+                "description": "Select the dataset of segmentations (SEG/RTSTRUCT) to use for training",
+                "required": true
+            }
+        },
+        {
+            "task_title": "filter_masks",
+            "env_variable_name": "LABEL_FILTER",
+            "ui_form": {
+                "type": "string",
+                "title": "Label Filter",
+                "description": "'Ignore' or 'Keep' labels of multi-label DICOM SEGs, e.g. 'Keep: liver' or 'Ignore: spleen,liver'",
+                "default": "",
+                "required": false
+            }
+        },
+        {
+            "task_title": "fuse_masks",
+            "env_variable_name": "FUSE_LABELS",
+            "ui_form": {
+                "type": "string",
+                "title": "Fuse Segmentation Labels",
+                "description": "Segmentation label maps which should be fused (all special characters are removed)",
+                "default": "",
+                "required": false
+            }
+        },
+        {
+            "task_title": "fuse_masks",
+            "env_variable_name": "FUSED_LABEL_NAME",
+            "ui_form": {
+                "type": "string",
+                "title": "Fused Label Name",
+                "description": "Name for the new fused label (all special characters are removed)",
+                "default": "",
+                "required": false
+            }
+        },
+        {
+            "task_title": "rename_labels",
+            "env_variable_name": "OLD_LABELS",
+            "ui_form": {
+                "type": "string",
+                "title": "Rename Labels: Old Names",
+                "description": "Old segmentation label names to overwrite (SAME ORDER AS NEW LABELS)",
+                "default": "",
+                "required": false
+            }
+        },
+        {
+            "task_title": "rename_labels",
+            "env_variable_name": "NEW_LABELS",
+            "ui_form": {
+                "type": "string",
+                "title": "Rename Labels: New Names",
+                "description": "New label names that overwrite the old labels (SAME ORDER AS OLD LABELS)",
+                "default": "",
+                "required": false
+            }
+        },
+        {
+            "task_title": "nnunet_preprocess",
+            "env_variable_name": "TASK_NUM",
+            "ui_form": {
+                "type": "int",
+                "title": "Task Number",
+                "description": "Identifier for the training task",
+                "minimum": 1,
+                "maximum": 999,
+                "required": true
+            }
+        },
+        {
+            "task_title": "nnunet_preprocess",
+            "env_variable_name": "TASK_DESCRIPTION",
+            "ui_form": {
+                "type": "string",
+                "title": "Task Description",
+                "description": "Human-readable name for the training task",
+                "required": true
+            }
+        },
+        {
+            "task_title": "nnunet_preprocess",
+            "env_variable_name": "PREP_MODALITIES",
+            "ui_form": {
+                "type": "string",
+                "title": "Modalities",
+                "description": "Modalities used for training, e.g. 'CT' or 'CT,PET'",
+                "default": "CT",
+                "required": true
+            }
+        },
+        {
+            "task_title": "nnunet_preprocess",
+            "env_variable_name": "PLAN_NETWORK_PLANNER",
+            "ui_form": {
+                "type": "list",
+                "title": "Network Planner",
+                "description": "nnUNet experiment planner",
+                "options": [
+                    "nnUNetPlannerResEncM",
+                    "nnUNetPlannerResEncL",
+                    "nnUNetPlannerResEncXL",
+                    "ExperimentPlanner"
+                ],
+                "default": "nnUNetPlannerResEncM",
+                "multiselectable": false,
+                "required": true
+            }
+        },
+        {
+            "task_title": "nnunet_preprocess",
+            "env_variable_name": "PREP_CHECK_INTEGRITY",
+            "ui_form": {
+                "type": "bool",
+                "title": "Check Data Integrity",
+                "description": "Recommended! Verify integrity of the prepared dataset",
+                "default": true,
+                "required": false
+            }
+        },
+        {
+            "task_title": "nnunet_train",
+            "env_variable_name": "MODEL",
+            "ui_form": {
+                "type": "list",
+                "title": "Network",
+                "description": "nnUNet network architecture",
+                "options": [
+                    "2d",
+                    "3d_lowres",
+                    "3d_fullres",
+                    "3d_cascade_fullres"
+                ],
+                "default": "3d_fullres",
+                "multiselectable": false,
+                "required": true
+            }
+        },
+        {
+            "task_title": "nnunet_train",
+            "env_variable_name": "TRAIN_NETWORK_TRAINER",
+            "ui_form": {
+                "type": "list",
+                "title": "Network Trainer",
+                "description": "nnUNet trainer variant",
+                "options": [
+                    "nnUNetTrainer",
+                    "nnUNetTrainerCELoss"
+                ],
+                "default": "nnUNetTrainer",
+                "multiselectable": false,
+                "required": true
+            }
+        },
+        {
+            "task_title": "nnunet_train",
+            "env_variable_name": "TRAIN_MAX_EPOCHS",
+            "ui_form": {
+                "type": "int",
+                "title": "Max Epochs",
+                "description": "Maximum number of training epochs",
+                "minimum": 1,
+                "maximum": 100000,
+                "default": 1000,
+                "required": true
+            }
+        },
+        {
+            "task_title": "nnunet_train",
+            "env_variable_name": "NUM_BATCHES_PER_EPOCH",
+            "ui_form": {
+                "type": "int",
+                "title": "Training Batches per Epoch",
+                "description": "Do only change if you know what you are doing",
+                "minimum": 1,
+                "default": 250,
+                "required": true
+            }
+        },
+        {
+            "task_title": "nnunet_train",
+            "env_variable_name": "NUM_VAL_BATCHES_PER_EPOCH",
+            "ui_form": {
+                "type": "int",
+                "title": "Validation Batches per Epoch",
+                "description": "Do only change if you know what you are doing",
+                "minimum": 1,
+                "default": 50,
+                "required": false
+            }
+        },
+        {
+            "task_title": "nnunet_train",
+            "env_variable_name": "INITIAL_LEARNING_RATE",
+            "ui_form": {
+                "type": "float",
+                "title": "Initial Learning Rate",
+                "description": "Learning rate at the start of training",
+                "default": 0.01,
+                "required": false
+            }
+        },
+        {
+            "task_title": "nnunet_train",
+            "env_variable_name": "WEIGHT_DECAY",
+            "ui_form": {
+                "type": "float",
+                "title": "Weight Decay",
+                "description": "Weight decay value used during training",
+                "default": 3e-5,
+                "required": false
+            }
+        },
+        {
+            "task_title": "nnunet_train",
+            "env_variable_name": "OVERSAMPLE_FOREGROUND_PERCENT",
+            "ui_form": {
+                "type": "float",
+                "title": "Oversample Foreground Percent",
+                "description": "Percentage of foreground samples to oversample (0.0-1.0)",
+                "minimum": 0.0,
+                "maximum": 1.0,
+                "default": 0.33,
+                "required": false
+            }
+        },
+        {
+            "task_title": "nnunet_train",
+            "env_variable_name": "ENABLE_DEEP_SUPERVISION",
+            "ui_form": {
+                "type": "bool",
+                "title": "Enable Deep Supervision",
+                "description": "Enable deep supervision during training",
+                "default": true,
+                "required": false
+            }
+        },
+        {
+            "task_title": "nnunet_train",
+            "env_variable_name": "DISABLE_CHECKPOINTING",
+            "ui_form": {
+                "type": "bool",
+                "title": "Disable Intermediate Checkpointing",
+                "description": "Disable intermediate checkpointing every 50 epochs (final checkpoint is always saved)",
+                "default": true,
+                "required": false
+            }
+        },
+        {
+            "task_title": "nnunet_train",
+            "env_variable_name": "TRAINING_DESCRIPTION",
+            "ui_form": {
+                "type": "string",
+                "title": "Training Description",
+                "description": "Human-readable description of the training run",
+                "default": "nnUNet Segmentation",
+                "required": false
+            }
+        }
+    ]
+}

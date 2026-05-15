@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import AboutThisSource from '@/shared/components/AboutThisSource.vue'
 import BaseDetailDialog from '@/shared/components/BaseDetailDialog.vue'
 import DetailMetaLine from '@/shared/components/DetailMetaLine.vue'
 import ExtensionManifestDetails from '@/shared/components/ExtensionManifestDetails.vue'
+import SourceDetailsSection, {
+  type SourceDetailsRow,
+} from '@/shared/components/SourceDetailsSection.vue'
 import type { CatalogEntry, CatalogEntryGroup } from '@/features/catalog/types'
 
 const props = defineProps<{
@@ -19,6 +23,21 @@ defineEmits<{
 }>()
 
 const catalogEntryItems = computed(() => props.selectedCatalogEntryGroup?.entries ?? [])
+
+const sourceRows = computed<SourceDetailsRow[]>(() => {
+  const group = props.selectedCatalogEntryGroup
+  if (!group) return []
+  return [
+    { label: 'Repository', value: group.repository.name },
+    { label: 'URL', value: group.repository.repository_url },
+  ]
+})
+
+const advancedSourceRows = computed<SourceDetailsRow[]>(() => {
+  const group = props.selectedCatalogEntryGroup
+  if (!group) return []
+  return [{ label: 'Repository ID', value: group.repository.id }]
+})
 </script>
 
 <template>
@@ -37,15 +56,13 @@ const catalogEntryItems = computed(() => props.selectedCatalogEntryGroup?.entrie
             props.selectedCatalogEntryGroup.entries.length === 1
               ? '1 version'
               : `${props.selectedCatalogEntryGroup.entries.length} versions`,
-            props.selectedCatalogEntryGroup.repository.repository_url,
           ]"
         />
       </div>
     </template>
 
-    <template v-if="props.selectedCatalogEntry" v-slot:body>
-      <div class="d-flex flex-wrap align-start ga-3 mb-3">
-        <!-- Version Selector -->
+    <template v-if="props.selectedCatalogEntry" v-slot:sticky>
+      <div class="selected-catalog-entry-install-bar">
         <v-select
           :model-value="props.selectedCatalogEntry"
           :items="catalogEntryItems"
@@ -58,36 +75,52 @@ const catalogEntryItems = computed(() => props.selectedCatalogEntryGroup?.entrie
           class="selected-catalog-entry-version"
           @update:model-value="$emit('update:selectedCatalogEntry', $event)"
         />
-
-        <!-- Install Button -->
-        <div class="selected-catalog-entry-install-wrapper d-flex align-center">
-          <v-btn
-            color="primary"
-            :loading="props.installingSelectedCatalogEntry"
-            :disabled="props.installingSelectedCatalogEntry"
-            @click="$emit('installSelectedCatalogEntry')"
-          >
-            Install
-          </v-btn>
-        </div>
+        <v-btn
+          color="primary"
+          :loading="props.installingSelectedCatalogEntry"
+          :disabled="props.installingSelectedCatalogEntry"
+          @click="$emit('installSelectedCatalogEntry')"
+        >
+          Install
+        </v-btn>
       </div>
+    </template>
 
-      <ExtensionManifestDetails :extension-manifest="props.selectedCatalogEntry.manifest" />
+    <template v-if="props.selectedCatalogEntry" v-slot:body>
+      <div class="selected-catalog-entry-body">
+        <AboutThisSource :description="props.selectedCatalogEntryGroup?.repository.description" />
+
+        <SourceDetailsSection
+          v-if="props.selectedCatalogEntryGroup"
+          :rows="sourceRows"
+          :advanced-rows="advancedSourceRows"
+        />
+
+        <ExtensionManifestDetails :extension-manifest="props.selectedCatalogEntry.manifest" />
+      </div>
     </template>
   </BaseDetailDialog>
 </template>
 
 <style scoped>
+.selected-catalog-entry-header {
+  min-width: 0;
+}
+
+.selected-catalog-entry-install-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
 .selected-catalog-entry-version {
   flex: 1;
 }
 
-.selected-catalog-entry-install-wrapper {
-  flex: 0 0 auto;
-  min-height: 40px;
-}
-
-.selected-catalog-entry-header {
-  min-width: 0;
+.selected-catalog-entry-body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 </style>

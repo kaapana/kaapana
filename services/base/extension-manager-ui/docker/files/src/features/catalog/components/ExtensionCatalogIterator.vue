@@ -32,12 +32,12 @@ defineEmits<{
           <div class="text-medium-emphasis">{{ slotProps.item.repository.repository_url }}</div>
         </v-card-text>
         <v-card-actions class="catalog-card-footer text-medium-emphasis">
-          <span>Latest v{{ slotProps.item.entries[0].manifest.version }}</span>
-          <v-spacer />
           <span>
             {{ slotProps.item.entries.length }}
             {{ slotProps.item.entries.length === 1 ? 'version' : 'versions' }}
           </span>
+          <v-spacer />
+          <span>Latest v{{ slotProps.item.entries[0].manifest.version }}</span>
         </v-card-actions>
       </div>
     </template>

@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import AboutThisSource from '@/shared/components/AboutThisSource.vue'
 import BaseDetailDialog from '@/shared/components/BaseDetailDialog.vue'
 import ConfirmDialog from '@/shared/components/ConfirmDialog.vue'
 import DetailMetaLine from '@/shared/components/DetailMetaLine.vue'
 import ExtensionManifestDetails from '@/shared/components/ExtensionManifestDetails.vue'
+import SourceDetailsSection, {
+  type SourceDetailsRow,
+} from '@/shared/components/SourceDetailsSection.vue'
+import { extensionStatusColor } from '@/features/extensions/utils'
 import type { ExtensionStatus, InstalledExtension, Repository } from '@/shared/types/apiSchemas'
 
 const props = defineProps<{
@@ -50,6 +55,29 @@ function requestUninstall() {
 function onUninstallConfirmed() {
   emit('uninstallSelectedInstalledExtension')
 }
+
+const sourceRows = computed<SourceDetailsRow[]>(() => {
+  const ext = props.selectedInstalledExtension
+  if (!ext) return []
+  const repo = props.selectedInstalledExtensionRepository
+  const rows: SourceDetailsRow[] = [
+    { label: 'Repository', value: repo?.name ?? ext.repository_id },
+  ]
+  if (repo) {
+    rows.push({ label: 'URL', value: repo.repository_url })
+  }
+  rows.push({ label: 'Tag', value: ext.tag })
+  return rows
+})
+
+const advancedSourceRows = computed<SourceDetailsRow[]>(() => {
+  const ext = props.selectedInstalledExtension
+  if (!ext) return []
+  return [
+    { label: 'Repository ID', value: ext.repository_id },
+    { label: 'Extension ID', value: ext.id },
+  ]
+})
 </script>
 
 <template>
@@ -64,11 +92,40 @@ function onUninstallConfirmed() {
         <DetailMetaLine
           class="text-caption text-medium-emphasis"
           :items="[
-            props.selectedInstalledExtension.manifest.version,
             props.selectedInstalledExtensionRepository?.name ??
               props.selectedInstalledExtension.repository_id,
+            `v${props.selectedInstalledExtension.manifest.version}`,
           ]"
         />
+      </div>
+    </template>
+
+    <template v-if="props.selectedInstalledExtension" v-slot:sticky>
+      <div class="selected-installed-extension-action-bar">
+        <span class="selected-installed-extension-status">
+          <v-icon :color="extensionStatusColor[props.selectedInstalledExtension.status]" size="x-small">
+            mdi-circle
+          </v-icon>
+          <span>{{ props.selectedInstalledExtension.status }}</span>
+        </span>
+        <v-btn
+          variant="text"
+          size="small"
+          :loading="props.loadingSelectedInstalledExtension"
+          :disabled="props.uninstallingSelectedInstalledExtension"
+          @click="onRefreshDetails"
+        >
+          Refresh
+        </v-btn>
+        <v-btn
+          color="error"
+          variant="tonal"
+          :loading="props.uninstallingSelectedInstalledExtension"
+          :disabled="props.loadingSelectedInstalledExtension || !canBeUninstalled"
+          @click="requestUninstall"
+        >
+          Uninstall
+        </v-btn>
       </div>
     </template>
 
@@ -81,91 +138,16 @@ function onUninstallConfirmed() {
         <v-progress-circular indeterminate color="primary" size="48" />
       </v-row>
 
-      <div v-else class="d-flex flex-column ga-6">
-        <section class="d-flex flex-column ga-3">
-          <div class="text-subtitle-2">Repository</div>
+      <div v-else class="selected-installed-extension-body">
+        <AboutThisSource :description="props.selectedInstalledExtensionRepository?.description" />
 
-          <div v-if="props.selectedInstalledExtensionRepository">
-            <div class="text-caption text-medium-emphasis">Name</div>
-            <div class="text-body-2">{{ props.selectedInstalledExtensionRepository.name }}</div>
-          </div>
+        <SourceDetailsSection :rows="sourceRows" :advanced-rows="advancedSourceRows" />
 
-          <div v-if="props.selectedInstalledExtensionRepository">
-            <div class="text-caption text-medium-emphasis">URL</div>
-            <div class="text-body-2">
-              {{ props.selectedInstalledExtensionRepository.repository_url }}
-            </div>
-          </div>
-
-          <div>
-            <div class="text-caption text-medium-emphasis">Repository ID</div>
-            <div class="text-body-2">{{ props.selectedInstalledExtension.repository_id }}</div>
-          </div>
-        </section>
-
-        <section class="d-flex flex-column ga-3">
-          <div class="text-subtitle-2">Extension</div>
-
-          <div class="d-flex flex-wrap ga-2">
-            <v-chip size="small" color="primary" variant="tonal">
-              {{ props.selectedInstalledExtension.status }}
-            </v-chip>
-            <v-chip size="small" variant="tonal">
-              {{ props.selectedInstalledExtension.tag }}
-            </v-chip>
-          </div>
-
-          <div>
-            <div class="text-caption text-medium-emphasis">Extension ID</div>
-            <div class="text-body-2">{{ props.selectedInstalledExtension.id }}</div>
-          </div>
-
-          <div>
-            <div class="text-caption text-medium-emphasis mb-1">Installed contents</div>
-            <div
-              v-if="props.selectedInstalledExtension.contents.length"
-              class="d-flex flex-wrap ga-2"
-            >
-              <v-chip
-                v-for="installedContent in props.selectedInstalledExtension.contents"
-                :key="`${installedContent.content_type}:${installedContent.name}`"
-                size="small"
-                variant="tonal"
-              >
-                {{ installedContent.name }} · {{ installedContent.content_type }} ·
-                {{ installedContent.status }}
-              </v-chip>
-            </div>
-            <div v-else class="text-body-2 text-medium-emphasis">
-              No installed contents returned.
-            </div>
-          </div>
-
-          <ExtensionManifestDetails
-            :extension-manifest="props.selectedInstalledExtension.manifest"
-          />
-        </section>
+        <ExtensionManifestDetails
+          :extension-manifest="props.selectedInstalledExtension.manifest"
+          :installed-contents="props.selectedInstalledExtension.contents"
+        />
       </div>
-    </template>
-
-    <template v-slot:actions>
-      <v-btn
-        variant="text"
-        :loading="props.loadingSelectedInstalledExtension"
-        :disabled="props.uninstallingSelectedInstalledExtension"
-        @click="onRefreshDetails"
-      >
-        Refresh details
-      </v-btn>
-      <v-btn
-        color="error"
-        variant="tonal"
-        :loading="props.uninstallingSelectedInstalledExtension"
-        :disabled="props.loadingSelectedInstalledExtension || !canBeUninstalled"
-        @click="requestUninstall"
-      >
-        Uninstall
-      </v-btn>
     </template>
   </BaseDetailDialog>
 
@@ -181,5 +163,26 @@ function onUninstallConfirmed() {
 <style scoped>
 .selected-installed-extension-header {
   min-width: 0;
+}
+
+.selected-installed-extension-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.selected-installed-extension-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  font-size: 14px;
+}
+
+.selected-installed-extension-body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 </style>

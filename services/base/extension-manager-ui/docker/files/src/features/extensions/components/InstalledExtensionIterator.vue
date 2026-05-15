@@ -40,10 +40,11 @@ function repositoryName(repositoryId: string): string {
           </div>
         </v-card-text>
         <v-card-actions class="installed-card-footer text-medium-emphasis">
-          <span>v{{ slotProps.item.manifest.version }}</span>
-          <v-spacer />
-          <v-icon :color="extensionStatusColor[slotProps.item.status]" size="x-small">mdi-circle</v-icon>
-          <span>{{ slotProps.item.status }}</span>
+          <span class="installed-card-status">
+            <v-icon :color="extensionStatusColor[slotProps.item.status]" size="x-small">mdi-circle</v-icon>
+            <span>{{ slotProps.item.status }}</span>
+          </span>
+          <span class="installed-card-version">v{{ slotProps.item.manifest.version }}</span>
         </v-card-actions>
       </div>
     </template>
@@ -62,7 +63,21 @@ function repositoryName(repositoryId: string): string {
 }
 
 .installed-card-footer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
   padding-inline: 16px;
   gap: 6px;
+}
+
+.installed-card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+}
+
+.installed-card-version {
+  justify-self: end;
 }
 </style>

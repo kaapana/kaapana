@@ -186,6 +186,34 @@ function resolve_extracted_chart_dependency_path() {
     dirname "$dependency_path"
 }
 
+function validate_hostpath_reclaim_policy() {
+    # Keep the CLI and Helm chart validation aligned. The value is passed
+    # directly into kaapana-storage-chart during storage-class setup.
+    case "$HOSTPATH_RECLAIM_POLICY" in
+        Delete|Retain)
+            ;;
+        *)
+            echo -e "${RED}Invalid hostpath reclaim policy '${HOSTPATH_RECLAIM_POLICY}'. Use Delete or Retain.${NC}"
+            exit 1
+            ;;
+    esac
+}
+
+function require_retain_hostpath_reclaim_policy_for_recovery() {
+    # Recovery may delete/recreate PVCs and depends on retained hostpath PVs or
+    # retained backing directories. Do not silently change deletion semantics.
+    validate_hostpath_reclaim_policy
+
+    if [[ "$HOSTPATH_RECLAIM_POLICY" == "Retain" ]]; then
+        return 0
+    fi
+
+    echo -e "${RED}Post-reinstall recovery requires --hostpath-reclaim-policy Retain.${NC}"
+    echo -e "${RED}Current effective hostpath reclaim policy is '${HOSTPATH_RECLAIM_POLICY}'.${NC}"
+    echo -e "${RED}Rerun with --hostpath-reclaim-policy Retain to opt into retained hostpath PVs before recovery.${NC}"
+    return 1
+}
+
 function deploy() {
 
     PLATFORM_NAME="${PLATFORM_NAME:-}"
@@ -240,6 +268,7 @@ function deploy() {
     _Argument: --password [Docker registry password]
     _Argument: --fast-data-dir [Path to fast data dir on host]
     _Argument: --slow-data-dir [Path to slow data dir on host]
+    _Argument: --hostpath-reclaim-policy [Delete|Retain] (default: Delete)
     _Argument: --port [Set main https-port]
     _Argument: --chart-path [path-to-chart-tgz]
     _Argument: --import-images-tar [path-to-a-tarball]"
@@ -297,6 +326,13 @@ function deploy() {
             --slow-data-dir)
                 SLOW_DATA_DIR="$2"
                 echo -e "${GREEN}SET SLOW_DATA_DIR: $SLOW_DATA_DIR ${NC}";
+                shift 2
+            ;;
+
+            --hostpath-reclaim-policy)
+                HOSTPATH_RECLAIM_POLICY="$2"
+                validate_hostpath_reclaim_policy
+                echo -e "${GREEN}SET HOSTPATH_RECLAIM_POLICY: $HOSTPATH_RECLAIM_POLICY ${NC}";
                 shift 2
             ;;
 
@@ -522,6 +558,10 @@ function deploy() {
     preflight_checks
 
     ensure_helm_uses_microk8s_config
+
+    if [[ "${POST_REINSTALL_RECOVERY_REQUESTED,,}" == "true" ]]; then
+        require_retain_hostpath_reclaim_policy_for_recovery || exit 1
+    fi
 
     echo -e "${YELLOW}Get helm deployments...${NC}"
     deployments=$(
@@ -1528,6 +1568,9 @@ function load_kaapana_config {
     # Storage
     ######################################################
     STORAGE_PROVIDER="hostpath" # e.g. "hostpath" (microk8s) or "longhorn"
+    # kaapanactl default: Delete. Use --hostpath-reclaim-policy Retain to opt
+    # into retained hostpath PVs and post-reinstall recovery.
+    HOSTPATH_RECLAIM_POLICY="${HOSTPATH_RECLAIM_POLICY:-Delete}" # Delete or Retain for Kaapana hostpath StorageClasses
     VOLUME_SLOW_DATA="100Gi" # size of volumes in slow data dir (e.g. 100Gi or 100Ti)
 }
 
@@ -1640,6 +1683,8 @@ function run_post_reinstall_recovery {
     local chart_ref
     local recovery_cmd=()
 
+    require_retain_hostpath_reclaim_policy_for_recovery || return 1
+
     script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
     post_reinstall_script="${script_dir}/utils/post-server-reinstall.sh"
     if [[ ! -r "${post_reinstall_script}" ]]; then
@@ -1662,6 +1707,7 @@ function run_post_reinstall_recovery {
         --registry-password "$CONTAINER_REGISTRY_PASSWORD"
         --fast-dir "$FAST_DATA_DIR"
         --slow-dir "$SLOW_DATA_DIR"
+        --hostpath-reclaim-policy "$HOSTPATH_RECLAIM_POLICY"
         --admin-release-name "$PLATFORM_NAME"
         --platform-release-name "$POST_REINSTALL_PLATFORM_RELEASE_NAME"
     )
@@ -1695,7 +1741,7 @@ function maybe_run_post_reinstall_recovery {
 
     if [[ "${force_recovery,,}" == "true" ]]; then
         echo -e "${YELLOW}Post-reinstall recovery requested explicitly.${NC}"
-        run_post_reinstall_recovery
+        run_post_reinstall_recovery || exit 1
         return 0
     fi
 
@@ -1715,6 +1761,14 @@ function maybe_run_post_reinstall_recovery {
         return 0
     fi
 
+    # Marker-based recovery is automatic, so keep it conservative: notify the
+    # operator instead of enabling Retain implicitly.
+    if [[ "$HOSTPATH_RECLAIM_POLICY" != "Retain" ]]; then
+        echo -e "${YELLOW}Post-reinstall recovery marker found, but hostpath reclaim policy is '${HOSTPATH_RECLAIM_POLICY}'.${NC}"
+        echo -e "${YELLOW}Skipping automatic recovery. Rerun deploy with --hostpath-reclaim-policy Retain --recover-after-reinstall to opt into retained hostpath PVs.${NC}"
+        return 0
+    fi
+
     if [[ "${QUIET,,}" == "true" ]]; then
         echo -e "${RED}Detected a post-reinstall recovery situation, but quiet mode cannot ask for confirmation.${NC}"
         echo -e "${RED}Re-run deploy with --recover-after-reinstall to execute recovery explicitly.${NC}"
@@ -1726,7 +1780,7 @@ function maybe_run_post_reinstall_recovery {
     read -r answer
     case "${answer,,}" in
         y|yes)
-            run_post_reinstall_recovery
+            run_post_reinstall_recovery || exit 1
             ;;
         n|no)
             echo -e "${YELLOW}Skipping post-reinstall recovery. The marker will be kept so you can retry on the next deploy.${NC}"
@@ -2495,8 +2549,48 @@ function fast_data_dir_has_migration_content() {
     return 1
 }
 
+function patch_existing_kaapana_hostpath_pvs_to_retain() {
+    validate_hostpath_reclaim_policy
+
+    if [[ "$HOSTPATH_RECLAIM_POLICY" != "Retain" ]]; then
+        return 0
+    fi
+
+    # StorageClass reclaimPolicy only affects newly provisioned PVs. When an
+    # operator opts into Retain, update existing Kaapana hostpath PVs too, but
+    # never patch PVs back to Delete.
+    local pv_name
+    local storage_class
+    local reclaim_policy
+    local patched=false
+
+    echo "${YELLOW}Ensuring existing Kaapana hostpath PVs use Retain reclaim policy.${NC}"
+    while IFS=$'\t' read -r pv_name storage_class reclaim_policy; do
+        [[ -z "$pv_name" ]] && continue
+
+        case "$storage_class" in
+            kaapana-hostpath-fast-data-dir|kaapana-hostpath-slow-data-dir)
+                ;;
+            *)
+                continue
+                ;;
+        esac
+
+        if [[ "$reclaim_policy" == "Delete" ]]; then
+            echo "${YELLOW}Patching PV ${pv_name} from Delete to Retain.${NC}"
+            microk8s.kubectl patch pv "$pv_name" -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}' >/dev/null
+            patched=true
+        fi
+    done < <(microk8s.kubectl get pv -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.storageClassName}{"\t"}{.spec.persistentVolumeReclaimPolicy}{"\n"}{end}' 2>/dev/null || true)
+
+    if [[ "$patched" != true ]]; then
+        echo "${GREEN}No existing Kaapana hostpath PVs needed reclaim-policy patching.${NC}"
+    fi
+}
+
 function setup_storage_classes() {
     ensure_helm_uses_microk8s_config
+    validate_hostpath_reclaim_policy
 
     local WORKDIR
     local KAAPANA_STORAGE_CHARTPATH
@@ -2519,7 +2613,12 @@ function setup_storage_classes() {
         --set-string global.main_node_name="$MAIN_NODE_NAME" \
         --set-string global.replica_count="$REPLICA_COUNT" \
         --set-string global.fast_data_dir="$FAST_DATA_DIR" \
-        --set-string global.slow_data_dir="$SLOW_DATA_DIR"
+        --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
+        --set-string global.hostpath_reclaim_policy="$HOSTPATH_RECLAIM_POLICY"
+
+    # Apply Retain to already existing hostpath PVs only when Retain is the
+    # explicit effective policy for this deploy invocation.
+    patch_existing_kaapana_hostpath_pvs_to_retain
 }
 
 function get_chart {

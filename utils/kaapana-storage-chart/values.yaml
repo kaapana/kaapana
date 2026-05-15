@@ -3,3 +3,5 @@ global:
   slow_data_dir: "/home/kaapana"
   main_node_name: "kaapana-main-node"
   replica_count: 2
+  # Storage chart default: Delete. Deploy scripts may override this with Retain.
+  hostpath_reclaim_policy: Delete

@@ -108,6 +108,9 @@ INSTANCE_NAME="{{ instance_name|default('') }}"
 
 
 STORAGE_PROVIDER="{{ smtp_host|default('hostpath')}}" # e.g. "hostpath" (microk8s) or "longhorn
+# generated deploy_platform.sh default: Delete. Downstream deployment_config.yaml
+# can set hostpath_reclaim_policy: Retain before the script is generated.
+HOSTPATH_RECLAIM_POLICY="{{ hostpath_reclaim_policy|default('Delete') }}" # Delete or Retain for Kaapana hostpath StorageClasses
 # volume sizes relevant if STORAGE_PROVIDER is set to longhorn
 VOLUME_SLOW_DATA="{{ volume_slow_data|default('100Gi') }}" #size of volumes in slow data dir (e.g. 100Gi or 100Ti)
 REPLICA_COUNT=1
@@ -821,7 +824,60 @@ function migrate() {
     fi
 }
 
+function validate_hostpath_reclaim_policy() {
+    # Keep generated deploy scripts aligned with kaapanactl.sh and the storage
+    # chart value validation.
+    case "$HOSTPATH_RECLAIM_POLICY" in
+        Delete|Retain)
+            ;;
+        *)
+            echo -e "${RED}Invalid hostpath reclaim policy '${HOSTPATH_RECLAIM_POLICY}'. Use Delete or Retain.${NC}"
+            exit 1
+            ;;
+    esac
+}
+
+function patch_existing_kaapana_hostpath_pvs_to_retain() {
+    validate_hostpath_reclaim_policy
+
+    if [[ "$HOSTPATH_RECLAIM_POLICY" != "Retain" ]]; then
+        return 0
+    fi
+
+    # StorageClass reclaimPolicy only affects future PVs. Retain opt-in should
+    # also protect existing Kaapana hostpath PVs, but never flips them to Delete.
+    local pv_name
+    local storage_class
+    local reclaim_policy
+    local patched=false
+
+    echo "${YELLOW}Ensuring existing Kaapana hostpath PVs use Retain reclaim policy.${NC}"
+    while IFS=$'\t' read -r pv_name storage_class reclaim_policy; do
+        [[ -z "$pv_name" ]] && continue
+
+        case "$storage_class" in
+            kaapana-hostpath-fast-data-dir|kaapana-hostpath-slow-data-dir)
+                ;;
+            *)
+                continue
+                ;;
+        esac
+
+        if [[ "$reclaim_policy" == "Delete" ]]; then
+            echo "${YELLOW}Patching PV ${pv_name} from Delete to Retain.${NC}"
+            microk8s.kubectl patch pv "$pv_name" -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}' >/dev/null
+            patched=true
+        fi
+    done < <(microk8s.kubectl get pv -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.storageClassName}{"\t"}{.spec.persistentVolumeReclaimPolicy}{"\n"}{end}' 2>/dev/null || true)
+
+    if [[ "$patched" != true ]]; then
+        echo "${GREEN}No existing Kaapana hostpath PVs needed reclaim-policy patching.${NC}"
+    fi
+}
+
 function setup_storage_classes() {
+    validate_hostpath_reclaim_policy
+
     WORKDIR=$(mktemp -d)
     tar -xzf "$CHART_PATH" -C "$WORKDIR"
     KAAPANA_STORAGE_CHARTPATH="$WORKDIR/$PLATFORM_NAME/charts/kaapana-storage-chart"
@@ -831,7 +887,11 @@ function setup_storage_classes() {
         --set-string global.main_node_name="$MAIN_NODE_NAME" \
         --set-string global.replica_count="$REPLICA_COUNT" \
         --set-string global.fast_data_dir="$FAST_DATA_DIR" \
-        --set-string global.slow_data_dir="$SLOW_DATA_DIR"
+        --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
+        --set-string global.hostpath_reclaim_policy="$HOSTPATH_RECLAIM_POLICY"
+
+    # No-op unless the operator or generated defaults explicitly selected Retain.
+    patch_existing_kaapana_hostpath_pvs_to_retain
 }
 
 function get_chart {
@@ -2064,6 +2124,7 @@ _Argument: --username [Docker registry username]
 _Argument: --password [Docker registry password]
 _Argument: --fast-data-dir [Path to fast data dir on host]
 _Argument: --slow-data-dir [Path to slow data dir on host]
+_Argument: --hostpath-reclaim-policy [Delete|Retain] (default: generated value, normally Delete)
 _Argument: --port [Set main https-port]
 _Argument: --chart-path [path-to-chart-tgz]
 _Argument: --import-images-tar [path-to-a-tarball]"
@@ -2102,6 +2163,14 @@ do
         --slow-data-dir)
             SLOW_DATA_DIR="$2"
             echo -e "${GREEN}SET SLOW_DATA_DIR: $SLOW_DATA_DIR ${NC}";
+            shift # past argument
+            shift # past value
+        ;;
+
+        --hostpath-reclaim-policy)
+            HOSTPATH_RECLAIM_POLICY="$2"
+            validate_hostpath_reclaim_policy
+            echo -e "${GREEN}SET HOSTPATH_RECLAIM_POLICY: $HOSTPATH_RECLAIM_POLICY ${NC}";
             shift # past argument
             shift # past value
         ;;

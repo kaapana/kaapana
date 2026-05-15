@@ -34,6 +34,9 @@ FAST_DIR=""
 SLOW_DIR=""
 QUARANTINE_DIR=""
 QUARANTINE_PVC_PATTERNS=""
+# post-server-reinstall default: none. Recovery must receive Retain explicitly
+# through --hostpath-reclaim-policy Retain or HOSTPATH_RECLAIM_POLICY=Retain.
+HOSTPATH_RECLAIM_POLICY="${HOSTPATH_RECLAIM_POLICY:-}"
 
 ADMIN_RELEASE_NAME=""
 PLATFORM_RELEASE_NAME="kaapana-platform-chart"
@@ -69,6 +72,8 @@ Registry/Auth options:
   --migration-image IMAGE        Migration image reference (default: <registry-prefix>/migration:<chart-tag>)
 
 Data recovery options:
+  --hostpath-reclaim-policy Retain
+                                 Required explicit opt-in for retained hostpath PVs
   --admin-release-name NAME      Recover target admin release (default: chart name)
   --platform-release-name NAME   Recover target platform release (default: kaapana-platform-chart)
   --quarantine-dir DIR           Move matching orphaned PVC dirs here during recovery
@@ -78,16 +83,22 @@ Data recovery options:
 Other:
   -h, --help                     Show this help
 
+Hostpath reclaim-policy defaults:
+  kaapana-storage-chart          Delete
+  kaapanactl.sh deploy           Delete unless --hostpath-reclaim-policy overrides it
+  generated deploy_platform.sh   Delete unless deployment_config.yaml sets hostpath_reclaim_policy
+  post-server-reinstall.sh       no default; requires Retain via flag or environment
+
 Notes:
   - recover_data.sh requires sudo privileges and may prompt for your password.
   - Storage classes are always installed in a dedicated pre-step via:
-    kaapanactl.sh deploy --install-storage-classes
+    kaapanactl.sh deploy --hostpath-reclaim-policy Retain --install-storage-classes
     - Platform deploy runs project namespace reconciliation automatically when
         reconcile_project_namespaces.sh is shipped next to kaapanactl.sh.
         You can also run it manually after deploy if required.
   - This script does not deploy the platform/admin chart.
   - Example:
-    ./kaapana/utils/post-server-reinstall.sh --chart <ref> --fast-dir <dir> --slow-dir <dir>
+    ./kaapana/utils/post-server-reinstall.sh --chart <ref> --fast-dir <dir> --slow-dir <dir> --hostpath-reclaim-policy Retain
 EOF
 }
 
@@ -118,6 +129,7 @@ parse_args() {
             --migration-image) MIGRATION_IMAGE="$2"; shift 2 ;;
             --fast-dir) FAST_DIR="$2"; shift 2 ;;
             --slow-dir) SLOW_DIR="$2"; shift 2 ;;
+            --hostpath-reclaim-policy) HOSTPATH_RECLAIM_POLICY="$2"; shift 2 ;;
             --quarantine-dir) QUARANTINE_DIR="$2"; shift 2 ;;
             --quarantine-pvc-patterns) QUARANTINE_PVC_PATTERNS="$2"; shift 2 ;;
             --admin-release-name) ADMIN_RELEASE_NAME="$2"; shift 2 ;;
@@ -152,6 +164,18 @@ derive_defaults() {
     [[ -n "${FAST_DIR}" ]] || die "Missing fast data dir (--fast-dir)"
     [[ -n "${SLOW_DIR}" ]] || die "Missing slow data dir (--slow-dir)"
 
+    # Recovery depends on retained hostpath PVs. Refuse Delete instead of
+    # changing the policy implicitly inside the recovery helper.
+    case "${HOSTPATH_RECLAIM_POLICY}" in
+        Retain)
+            ;;
+        Delete|"")
+            die "Post-reinstall recovery requires --hostpath-reclaim-policy Retain"
+            ;;
+        *)
+            die "Invalid hostpath reclaim policy '${HOSTPATH_RECLAIM_POLICY}'. Use Retain for recovery."
+            ;;
+    esac
 }
 
 # Validate required executables before recovery steps start.
@@ -200,6 +224,8 @@ pull_migration_image() {
 run_storage_class_setup() {
     # This invocation is intentionally storage-class only.
     # kaapanactl exits after setup when --install-storage-classes is provided.
+    # The Retain requirement was already validated above and is forwarded rather
+    # than chosen here.
     log_step "Install Storage Classes"
 
     local storage_cmd=(
@@ -207,6 +233,7 @@ run_storage_class_setup() {
         --chart "${CHART_REF}"
         --fast-data-dir "${FAST_DIR}"
         --slow-data-dir "${SLOW_DIR}"
+        --hostpath-reclaim-policy "${HOSTPATH_RECLAIM_POLICY}"
         --username "${REGISTRY_USERNAME}"
         --password "${REGISTRY_PASSWORD}"
         --install-storage-classes
@@ -263,6 +290,7 @@ main() {
     echo "Migration image:       ${MIGRATION_IMAGE}"
     echo "Fast dir:              ${FAST_DIR}"
     echo "Slow dir:              ${SLOW_DIR}"
+    echo "Hostpath reclaim:      ${HOSTPATH_RECLAIM_POLICY}"
     if [[ -n "${QUARANTINE_PVC_PATTERNS}" ]]; then
         echo "Quarantine dir:        ${QUARANTINE_DIR:-${SLOW_DIR}/recover-data-quarantine}"
         echo "Quarantine patterns:   ${QUARANTINE_PVC_PATTERNS}"

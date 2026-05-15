@@ -4,7 +4,8 @@ apiVersion: storage.k8s.io/v1
 metadata:
   name: kaapana-hostpath-slow-data-dir
 provisioner: microk8s.io/hostpath
-reclaimPolicy: Retain
+# Configurable for downstream recovery workflows; defaults to Delete.
+reclaimPolicy: {{ include "kaapana-storage-chart.hostpathReclaimPolicy" . }}
 parameters:
   pvDir: {{.Values.global.slow_data_dir }}
 volumeBindingMode: WaitForFirstConsumer

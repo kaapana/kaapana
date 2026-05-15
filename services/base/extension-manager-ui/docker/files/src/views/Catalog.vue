@@ -1,23 +1,20 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
-import {
-  fetchRepositories,
-  fetchRepositoryExtensionManifests,
-} from '@/api/repositories'
-import { installExtension } from '@/api/extensions'
-import CatalogFilterBar from '@/components/CatalogFilterBar.vue'
-import ExtensionCatalogIterator from '@/components/ExtensionCatalogIterator.vue'
-import ExtensionManagerHeader from '@/components/ExtensionManagerHeader.vue'
-import SelectedCatalogEntry from '@/components/SelectedCatalogEntry.vue'
-import type { Repository, CatalogEntry, CatalogEntryGroup } from '@/types/schemas'
+import { fetchRepositories, fetchRepositoryExtensionManifests } from '@/features/repositories/api'
+import { installExtension } from '@/features/extensions/api'
+import CatalogFilterBar from '@/features/catalog/components/CatalogFilterBar.vue'
+import ExtensionCatalogIterator from '@/features/catalog/components/ExtensionCatalogIterator.vue'
+import SelectedCatalogEntry from '@/features/catalog/components/SelectedCatalogEntry.vue'
+import DetailMetaLine from '@/shared/components/DetailMetaLine.vue'
+import type { Repository } from '@/shared/types/apiSchemas'
+import type { CatalogEntry, CatalogEntryGroup } from '@/features/catalog/types'
 import {
   applyCatalogFilters,
+  groupCatalogEntries,
   type CatalogFilters,
-} from '@/utils/catalogFilters'
-import { groupCatalogEntries } from '@/utils/catalogGroups'
-import { getApiErrorMessage } from '@/utils/apiErrors'
+} from '@/features/catalog/utils'
+import { getApiErrorMessage } from '@/shared/utils/apiErrors'
 
-// --- STATE ---
 const repositories = ref<Repository[]>([])
 const entries = ref<CatalogEntry[]>([])
 const loading = ref(false)
@@ -27,17 +24,12 @@ const selectedCatalogEntry = ref<CatalogEntry | null>(null)
 const installingSelectedCatalogEntry = ref(false)
 const catalogActionError = ref<string | null>(null)
 
-// UI state
-
-// Filtering to be applied to the catalog entries from repositories
 const catalogFilters = ref<CatalogFilters>({})
 const filteredCatalogEntries = computed(() =>
   applyCatalogFilters(entries.value, catalogFilters.value),
 )
 
-const catalogEntryGroups = computed(() =>
-  groupCatalogEntries(filteredCatalogEntries.value),
-)
+const catalogEntryGroups = computed(() => groupCatalogEntries(filteredCatalogEntries.value))
 
 const catalogEntryCount = computed(() => entries.value.length)
 
@@ -64,22 +56,15 @@ async function installSelectedCatalogEntry() {
   catalogActionError.value = null
 
   try {
-    await installExtension(
-      selectedCatalogEntry.value.repository_id,
-      selectedCatalogEntry.value.tag,
-    )
+    await installExtension(selectedCatalogEntry.value.repository_id, selectedCatalogEntry.value.tag)
   } catch (err) {
     console.error(err)
-    catalogActionError.value = getApiErrorMessage(
-      err,
-      'Failed to start extension installation.',
-    )
+    catalogActionError.value = getApiErrorMessage(err, 'Failed to start extension installation.')
   } finally {
     installingSelectedCatalogEntry.value = false
   }
 }
 
-// -- API CALLS ---
 async function loadCatalog() {
   loading.value = true
   error.value = null
@@ -102,13 +87,12 @@ async function loadCatalog() {
     )
 
     entries.value = manifestsByRepository.flat()
+    clearSelectedCatalogEntryGroup()
   } catch (err) {
     console.error(err)
-    error.value = getApiErrorMessage(
-      err,
-      'Failed to fetch catalog entries from OCI repositories.',
-    )
+    error.value = getApiErrorMessage(err, 'Failed to fetch catalog entries from OCI repositories.')
     entries.value = []
+    clearSelectedCatalogEntryGroup()
   } finally {
     loading.value = false
   }
@@ -120,18 +104,41 @@ onMounted(loadCatalog)
 <template>
   <v-container fluid>
     <v-container class="pad-lg">
-      <ExtensionManagerHeader :loading="loading" :repository-count="repositories.length"
-        :catalog-entry-count="catalogEntryCount" @fetch="loadCatalog" />
-      <CatalogFilterBar :filters="catalogFilters" :repositories="repositories"
-        @update:filters="catalogFilters = $event" />
-      <SelectedCatalogEntry :selected-catalog-entry-group="selectedCatalogEntryGroup"
+      <div class="d-flex flex-wrap align-center justify-space-between ga-3 mb-4">
+        <div>
+          <h1 class="text-h5 mb-1">Extension Catalog</h1>
+          <DetailMetaLine
+            class="text-body-2 text-medium-emphasis"
+            :items="[`${repositories.length} repositories`, `${catalogEntryCount} extensions`]"
+          />
+        </div>
+
+        <v-btn color="primary" :loading="loading" @click="loadCatalog">
+          <v-icon start>mdi-cloud-sync</v-icon>
+          Fetch from OCI repositories
+        </v-btn>
+      </div>
+
+      <CatalogFilterBar
+        :filters="catalogFilters"
+        :repositories="repositories"
+        @update:filters="catalogFilters = $event"
+      />
+      <SelectedCatalogEntry
+        :selected-catalog-entry-group="selectedCatalogEntryGroup"
         :selected-catalog-entry="selectedCatalogEntry"
-        :installing-selected-catalog-entry="installingSelectedCatalogEntry" :catalog-action-error="catalogActionError"
+        :installing-selected-catalog-entry="installingSelectedCatalogEntry"
+        :catalog-action-error="catalogActionError"
         @update:selected-catalog-entry="updateSelectedCatalogEntry"
         @clear-selected-catalog-entry-group="clearSelectedCatalogEntryGroup"
-        @install-selected-catalog-entry="installSelectedCatalogEntry" />
-      <ExtensionCatalogIterator :catalog-entry-groups="catalogEntryGroups" :loading="loading" :error="error"
-        @select-catalog-entry-group="selectCatalogEntryGroup" />
+        @install-selected-catalog-entry="installSelectedCatalogEntry"
+      />
+      <ExtensionCatalogIterator
+        :catalog-entry-groups="catalogEntryGroups"
+        :loading="loading"
+        :error="error"
+        @select-catalog-entry-group="selectCatalogEntryGroup"
+      />
     </v-container>
   </v-container>
 </template>

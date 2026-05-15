@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { ExtensionManifest } from '@/types/schemas'
+import DetailMetaLine from '@/shared/components/DetailMetaLine.vue'
+import type { ExtensionManifest } from '@/shared/types/apiSchemas'
 
 const props = defineProps<{
   extensionManifest: ExtensionManifest
 }>()
 
-const extensionManifestJson = computed(() =>
-  JSON.stringify(props.extensionManifest, null, 2),
-)
+const extensionManifestJson = computed(() => JSON.stringify(props.extensionManifest, null, 2))
 
 const extensionManifestDependenciesJson = computed(() =>
   JSON.stringify(props.extensionManifest.dependencies, null, 2),
@@ -19,7 +18,6 @@ const showingRawManifest = ref(false)
 function toggleRawManifest() {
   showingRawManifest.value = !showingRawManifest.value
 }
-
 </script>
 
 <template>
@@ -34,28 +32,37 @@ function toggleRawManifest() {
     <div>
       <div class="text-caption text-medium-emphasis mb-1">Manifest contents</div>
       <div v-if="props.extensionManifest.contents.length" class="d-flex flex-column ga-2">
-        <v-card v-for="manifestContent in props.extensionManifest.contents"
-          :key="`${manifestContent.contentType}:${manifestContent.name}`" variant="outlined">
+        <v-card
+          v-for="manifestContent in props.extensionManifest.contents"
+          :key="`${manifestContent.contentType}:${manifestContent.name}`"
+          variant="outlined"
+        >
           <v-card-text>
-            <div class="text-body-2">
-              {{ manifestContent.name }} · {{ manifestContent.contentType }}
-            </div>
+            <DetailMetaLine
+              class="text-body-2"
+              :items="[manifestContent.name, manifestContent.contentType]"
+            />
             <div class="text-caption text-medium-emphasis">
-              {{ manifestContent.files.length === 1 ? '1 file' : `${manifestContent.files.length} files` }}
+              {{
+                manifestContent.files.length === 1
+                  ? '1 file'
+                  : `${manifestContent.files.length} files`
+              }}
             </div>
 
             <div v-if="manifestContent.files.length" class="d-flex flex-column ga-1 mt-2">
-              <div v-for="contentFile in manifestContent.files" :key="contentFile.path"
-                class="text-caption text-medium-emphasis">
+              <div
+                v-for="contentFile in manifestContent.files"
+                :key="contentFile.path"
+                class="text-caption text-medium-emphasis"
+              >
                 {{ contentFile.path }}
               </div>
             </div>
           </v-card-text>
         </v-card>
       </div>
-      <div v-else class="text-body-2 text-medium-emphasis">
-        No manifest contents returned.
-      </div>
+      <div v-else class="text-body-2 text-medium-emphasis">No manifest contents returned.</div>
     </div>
 
     <div>

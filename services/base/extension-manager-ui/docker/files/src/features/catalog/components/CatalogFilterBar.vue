@@ -1,16 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Repository } from '@/types/schemas'
-import type { CatalogFilters } from '@/utils/catalogFilters'
+import type { Repository } from '@/shared/types/apiSchemas'
+import type { CatalogFilters } from '@/features/catalog/utils'
 
-
-// --- PROPS ---
 const props = defineProps<{
   filters: CatalogFilters
   repositories: Repository[]
 }>()
 
-// --- EMITS ---
 const emit = defineEmits<{
   (event: 'update:filters', value: CatalogFilters): void
 }>()
@@ -19,14 +16,12 @@ function emitFilterUpdate(filters: CatalogFilters) {
   emit('update:filters', filters)
 }
 
-// --- VARIABLES ---
 const repositoryItems = computed(() =>
   props.repositories.map((repository) => ({
     title: repository.name,
     value: repository.id,
   })),
 )
-
 
 // Replace or add filter keys + values to current filter-state
 function getUpdatedFilters(update: Partial<CatalogFilters>): CatalogFilters {
@@ -53,14 +48,31 @@ function updateRepositoryFilter(repositoryIds: string[]) {
 
 <template>
   <div class="d-flex flex-wrap align-center ga-3 mb-4">
-    <v-text-field :model-value="filters.search ?? ''" label="Search catalog" prepend-inner-icon="mdi-magnify"
-      density="compact" variant="outlined" hide-details clearable class="extension-filter-search"
-      @update:model-value="updateSearchFilter" />
+    <v-text-field
+      :model-value="filters.search ?? ''"
+      label="Search catalog"
+      prepend-inner-icon="mdi-magnify"
+      density="compact"
+      variant="outlined"
+      hide-details
+      clearable
+      class="extension-filter-search"
+      @update:model-value="updateSearchFilter"
+    />
 
-
-    <v-select :model-value="filters.repositoryIds ?? []" :items="repositoryItems" label="Repositories" density="compact"
-      variant="outlined" hide-details multiple chips closable-chips class="extension-filter-repository"
-      @update:model-value="updateRepositoryFilter($event)" />
+    <v-select
+      :model-value="filters.repositoryIds ?? []"
+      :items="repositoryItems"
+      label="Repositories"
+      density="compact"
+      variant="outlined"
+      hide-details
+      multiple
+      chips
+      closable-chips
+      class="extension-filter-repository"
+      @update:model-value="updateRepositoryFilter"
+    />
   </div>
 </template>
 

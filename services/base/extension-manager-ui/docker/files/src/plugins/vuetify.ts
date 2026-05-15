@@ -1,9 +1,9 @@
-import 'vuetify/styles';
-import { createVuetify } from 'vuetify';
-import { aliases, mdi } from 'vuetify/iconsets/mdi';
-import colors from 'vuetify/util/colors';
-import * as components from 'vuetify/components';
-import * as directives from 'vuetify/directives';
+import 'vuetify/styles'
+import { createVuetify } from 'vuetify'
+import { aliases, mdi } from 'vuetify/iconsets/mdi'
+import colors from 'vuetify/util/colors'
+import * as components from 'vuetify/components'
+import * as directives from 'vuetify/directives'
 
 const kaapanaThemeLight = {
   dark: false,
@@ -65,5 +65,3 @@ export default createVuetify({
     sets: { mdi },
   },
 })
-
-

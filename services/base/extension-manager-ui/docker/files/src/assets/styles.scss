@@ -1,5 +1,5 @@
 #app {
-  font-family: "Avenir", Helvetica, Arial, sans-serif;
+  font-family: 'Avenir', Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-align: center;
@@ -16,7 +16,6 @@
   color: black;
   text-decoration: none;
 }
-
 
 /* ========= Kaapana shared UI utilities (global) ========= */
 
@@ -75,7 +74,7 @@
 /* Panel wrapper to visually separate page sections */
 .panel-wrap {
   border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-  border-radius: 8px;  
+  border-radius: 8px;
   background-color: rgba(var(--v-theme-surface), 0.98);
 }
 

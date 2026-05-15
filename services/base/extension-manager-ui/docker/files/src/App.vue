@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import AppShell from '@/shared/components/AppShell.vue'
 </script>
 
 <template>
   <v-app>
-    <v-main>
+    <AppShell>
       <router-view />
-    </v-main>
+    </AppShell>
   </v-app>
 </template>

@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import {
-  fetchExtensionById,
-  fetchExtensions,
-  uninstallExtension,
-} from '@/api/extensions'
-import InstalledExtensionIterator from '@/components/InstalledExtensionIterator.vue'
-import SelectedInstalledExtension from '@/components/SelectedInstalledExtension.vue'
-import type { InstalledExtension } from '@/types/schemas'
-import { getApiErrorMessage } from '@/utils/apiErrors'
+import { computed, onMounted, ref } from 'vue'
+import { fetchExtensionById, fetchExtensions, uninstallExtension } from '@/features/extensions/api'
+import InstalledExtensionIterator from '@/features/extensions/components/InstalledExtensionIterator.vue'
+import SelectedInstalledExtension from '@/features/extensions/components/SelectedInstalledExtension.vue'
+import { fetchRepositories, fetchRepositoryById } from '@/features/repositories/api'
+import type { RepositoryDict } from '@/features/repositories/types'
+import type { InstalledExtension, Repository } from '@/shared/types/apiSchemas'
+import { getApiErrorMessage } from '@/shared/utils/apiErrors'
 
 const installedExtensions = ref<InstalledExtension[]>([])
 const loadingInstalledExtensions = ref(false)
@@ -17,6 +15,25 @@ const selectedInstalledExtension = ref<InstalledExtension | null>(null)
 const loadingSelectedInstalledExtension = ref(false)
 const uninstallingSelectedInstalledExtension = ref(false)
 const installedExtensionActionError = ref<string | null>(null)
+const repositories = ref<RepositoryDict>({})
+
+const selectedInstalledExtensionRepository = computed<Repository | null>(() => {
+  const extension = selectedInstalledExtension.value
+  if (!extension) return null
+  return repositories.value[extension.repository_id] ?? null
+})
+
+async function loadRepositories() {
+  try {
+    const fetched = await fetchRepositories()
+    repositories.value = Object.fromEntries(
+      fetched.map((repository) => [repository.id, repository]),
+    )
+  } catch (err) {
+    console.error(err)
+    repositories.value = {}
+  }
+}
 
 function clearSelectedInstalledExtension() {
   selectedInstalledExtension.value = null
@@ -26,10 +43,10 @@ function clearSelectedInstalledExtension() {
 function updateSelectedInstalledExtensionFromList() {
   if (!selectedInstalledExtension.value) return
 
-  selectedInstalledExtension.value = installedExtensions.value.find(
-    (installedExtension) =>
-      installedExtension.id === selectedInstalledExtension.value?.id,
-  ) ?? null
+  selectedInstalledExtension.value =
+    installedExtensions.value.find(
+      (installedExtension) => installedExtension.id === selectedInstalledExtension.value?.id,
+    ) ?? null
 }
 
 async function loadInstalledExtensions() {
@@ -41,10 +58,7 @@ async function loadInstalledExtensions() {
     updateSelectedInstalledExtensionFromList()
   } catch (err) {
     console.error(err)
-    installedExtensionsError.value = getApiErrorMessage(
-      err,
-      'Failed to fetch managed extensions.',
-    )
+    installedExtensionsError.value = getApiErrorMessage(err, 'Failed to fetch managed extensions.')
     installedExtensions.value = []
   } finally {
     loadingInstalledExtensions.value = false
@@ -58,9 +72,7 @@ async function refreshSelectedInstalledExtension() {
   installedExtensionActionError.value = null
 
   try {
-    selectedInstalledExtension.value = await fetchExtensionById(
-      selectedInstalledExtension.value.id,
-    )
+    selectedInstalledExtension.value = await fetchExtensionById(selectedInstalledExtension.value.id)
   } catch (err) {
     console.error(err)
     installedExtensionActionError.value = getApiErrorMessage(
@@ -69,6 +81,18 @@ async function refreshSelectedInstalledExtension() {
     )
   } finally {
     loadingSelectedInstalledExtension.value = false
+  }
+}
+
+async function refreshSelectedInstalledExtensionRepository() {
+  const extension = selectedInstalledExtension.value
+  if (!extension) return
+
+  try {
+    const repository = await fetchRepositoryById(extension.repository_id)
+    repositories.value = { ...repositories.value, [repository.id]: repository }
+  } catch (err) {
+    console.error(err)
   }
 }
 
@@ -101,16 +125,18 @@ async function uninstallSelectedInstalledExtension() {
     }
   } catch (err) {
     console.error(err)
-    installedExtensionActionError.value = getApiErrorMessage(
-      err,
-      'Failed to uninstall extension.',
-    )
+    installedExtensionActionError.value = getApiErrorMessage(err, 'Failed to uninstall extension.')
   } finally {
     uninstallingSelectedInstalledExtension.value = false
   }
 }
 
-onMounted(loadInstalledExtensions)
+function refreshAll() {
+  loadInstalledExtensions()
+  loadRepositories()
+}
+
+onMounted(refreshAll)
 </script>
 
 <template>
@@ -124,30 +150,33 @@ onMounted(loadInstalledExtensions)
           </div>
         </div>
 
-        <div class="d-flex align-center ga-2">
-          <v-btn variant="text" to="/catalog">
-            <v-icon start>mdi-arrow-left</v-icon>
-            Back to catalog
-          </v-btn>
-
-          <v-btn color="primary" :loading="loadingInstalledExtensions" @click="loadInstalledExtensions">
-            <v-icon start>mdi-refresh</v-icon>
-            Refresh
-          </v-btn>
-        </div>
+        <v-btn color="primary" :loading="loadingInstalledExtensions" @click="refreshAll">
+          <v-icon start>mdi-refresh</v-icon>
+          Refresh
+        </v-btn>
       </div>
 
-      <SelectedInstalledExtension :selected-installed-extension="selectedInstalledExtension"
+      <SelectedInstalledExtension
+        :selected-installed-extension="selectedInstalledExtension"
+        :selected-installed-extension-repository="selectedInstalledExtensionRepository"
         :loading-selected-installed-extension="loadingSelectedInstalledExtension"
         :uninstalling-selected-installed-extension="uninstallingSelectedInstalledExtension"
         :installed-extension-action-error="installedExtensionActionError"
         @clear-selected-installed-extension="clearSelectedInstalledExtension"
         @refresh-selected-installed-extension="refreshSelectedInstalledExtension"
-        @uninstall-selected-installed-extension="uninstallSelectedInstalledExtension" />
+        @refresh-selected-installed-extension-repository="
+          refreshSelectedInstalledExtensionRepository
+        "
+        @uninstall-selected-installed-extension="uninstallSelectedInstalledExtension"
+      />
 
-      <InstalledExtensionIterator :installed-extensions="installedExtensions"
+      <InstalledExtensionIterator
+        :installed-extensions="installedExtensions"
+        :repositories="repositories"
         :loading-installed-extensions="loadingInstalledExtensions"
-        :installed-extensions-error="installedExtensionsError" @select-installed-extension="selectInstalledExtension" />
+        :installed-extensions-error="installedExtensionsError"
+        @select-installed-extension="selectInstalledExtension"
+      />
     </v-container>
   </v-container>
 </template>

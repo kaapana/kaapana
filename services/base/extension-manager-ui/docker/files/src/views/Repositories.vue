@@ -5,24 +5,25 @@ import {
   deleteRepository,
   fetchRepositories,
   updateRepository,
-} from '@/api/repositories'
-import NewRepository from '@/components/NewRepository.vue'
-import RepositoryIterator from '@/components/RepositoryIterator.vue'
-import SelectedRepository from '@/components/SelectedRepository.vue'
-import type {
-  CreateRepositoryRequest,
-  Repository,
-  RepositoryFormState,
-  UpdateRepositoryRequest,
-} from '@/types/schemas'
-import { getApiErrorMessage } from '@/utils/apiErrors'
+} from '@/features/repositories/api'
+import NewRepository from '@/features/repositories/components/NewRepository.vue'
+import RepositoryIterator from '@/features/repositories/components/RepositoryIterator.vue'
+import SelectedRepository from '@/features/repositories/components/SelectedRepository.vue'
+import {
+  createFormState,
+  toCreateRequest,
+  toUpdateRequest,
+} from '@/features/repositories/formAdapter'
+import type { Repository } from '@/shared/types/apiSchemas'
+import type { RepositoryFormState } from '@/features/repositories/types'
+import { getApiErrorMessage } from '@/shared/utils/apiErrors'
 
 const repositories = ref<Repository[]>([])
 const loadingRepositories = ref(false)
 const repositoryError = ref<string | null>(null)
 const selectedRepository = ref<Repository | null>(null)
-const selectedRepositoryForm = ref<RepositoryFormState>(createEmptyRepositoryForm())
-const createRepositoryForm = ref<RepositoryFormState>(createEmptyRepositoryForm())
+const selectedRepositoryForm = ref<RepositoryFormState>(createFormState())
+const createRepositoryForm = ref<RepositoryFormState>(createFormState())
 const showingNewRepositoryDialog = ref(false)
 const creatingRepository = ref(false)
 const createRepositoryError = ref<string | null>(null)
@@ -31,59 +32,18 @@ const updatingSelectedRepository = ref(false)
 const deletingSelectedRepository = ref(false)
 const repositoryActionError = ref<string | null>(null)
 
-function createEmptyRepositoryForm(): RepositoryFormState {
-  return {
-    name: '',
-    description: '',
-    repository_url: '',
-    authentication: '',
+function replaceRepositoryInList(updated: Repository) {
+  const index = repositories.value.findIndex((repo) => repo.id === updated.id)
+  if (index === -1) {
+    repositories.value.push(updated)
+  } else {
+    repositories.value.splice(index, 1, updated)
   }
-}
-
-function createRepositoryFormFromRepository(
-  repository: Repository,
-): RepositoryFormState {
-  return {
-    name: repository.name,
-    description: repository.description ?? '',
-    repository_url: repository.repository_url,
-    authentication: '',
-  }
-}
-
-function createCreateRepositoryRequest(
-  repositoryForm: RepositoryFormState,
-): CreateRepositoryRequest {
-  return {
-    name: repositoryForm.name.trim(),
-    description: repositoryForm.description.trim() || undefined,
-    repository_url: repositoryForm.repository_url.trim(),
-    authentication: repositoryForm.authentication.trim(),
-  }
-}
-
-function createUpdateRepositoryRequest(
-  repositoryForm: RepositoryFormState,
-): UpdateRepositoryRequest {
-  return {
-    name: repositoryForm.name.trim(),
-    description: repositoryForm.description.trim() || undefined,
-    repository_url: repositoryForm.repository_url.trim(),
-    authentication: repositoryForm.authentication.trim() || undefined,
-  }
-}
-
-function updateSelectedRepositoryFromList() {
-  if (!selectedRepository.value) return
-
-  selectedRepository.value = repositories.value.find(
-    (repository) => repository.id === selectedRepository.value?.id,
-  ) ?? null
 }
 
 function selectRepository(repository: Repository) {
   selectedRepository.value = repository
-  selectedRepositoryForm.value = createRepositoryFormFromRepository(repository)
+  selectedRepositoryForm.value = createFormState(repository)
   editingSelectedRepository.value = false
   repositoryActionError.value = null
 }
@@ -97,9 +57,7 @@ function clearSelectedRepository() {
 function enableEditSelectedRepository() {
   if (!selectedRepository.value) return
 
-  selectedRepositoryForm.value = createRepositoryFormFromRepository(
-    selectedRepository.value,
-  )
+  selectedRepositoryForm.value = createFormState(selectedRepository.value)
   editingSelectedRepository.value = true
   repositoryActionError.value = null
 }
@@ -110,7 +68,7 @@ function cancelEditSelectedRepository() {
 }
 
 function showNewRepositoryDialog() {
-  createRepositoryForm.value = createEmptyRepositoryForm()
+  createRepositoryForm.value = createFormState()
   createRepositoryError.value = null
   showingNewRepositoryDialog.value = true
 }
@@ -119,7 +77,7 @@ function clearNewRepositoryDialog() {
   if (creatingRepository.value) return
 
   showingNewRepositoryDialog.value = false
-  createRepositoryForm.value = createEmptyRepositoryForm()
+  createRepositoryForm.value = createFormState()
   createRepositoryError.value = null
 }
 
@@ -137,13 +95,14 @@ async function loadRepositories() {
 
   try {
     repositories.value = await fetchRepositories()
-    updateSelectedRepositoryFromList()
+    if (selectedRepository.value) {
+      selectedRepository.value =
+        repositories.value.find((repository) => repository.id === selectedRepository.value?.id) ??
+        null
+    }
   } catch (err) {
     console.error(err)
-    repositoryError.value = getApiErrorMessage(
-      err,
-      'Failed to fetch repositories.',
-    )
+    repositoryError.value = getApiErrorMessage(err, 'Failed to fetch repositories.')
     repositories.value = []
   } finally {
     loadingRepositories.value = false
@@ -155,16 +114,13 @@ async function createNewRepository() {
   createRepositoryError.value = null
 
   try {
-    await createRepository(createCreateRepositoryRequest(createRepositoryForm.value))
+    const created = await createRepository(toCreateRequest(createRepositoryForm.value))
+    repositories.value.push(created)
     showingNewRepositoryDialog.value = false
-    createRepositoryForm.value = createEmptyRepositoryForm()
-    await loadRepositories()
+    createRepositoryForm.value = createFormState()
   } catch (err) {
     console.error(err)
-    createRepositoryError.value = getApiErrorMessage(
-      err,
-      'Failed to create repository.',
-    )
+    createRepositoryError.value = getApiErrorMessage(err, 'Failed to create repository.')
   } finally {
     creatingRepository.value = false
   }
@@ -177,21 +133,17 @@ async function updateSelectedRepository() {
   repositoryActionError.value = null
 
   try {
-    selectedRepository.value = await updateRepository(
+    const updated = await updateRepository(
       selectedRepository.value.id,
-      createUpdateRepositoryRequest(selectedRepositoryForm.value),
+      toUpdateRequest(selectedRepositoryForm.value),
     )
-    selectedRepositoryForm.value = createRepositoryFormFromRepository(
-      selectedRepository.value,
-    )
+    replaceRepositoryInList(updated)
+    selectedRepository.value = updated
+    selectedRepositoryForm.value = createFormState(updated)
     editingSelectedRepository.value = false
-    await loadRepositories()
   } catch (err) {
     console.error(err)
-    repositoryActionError.value = getApiErrorMessage(
-      err,
-      'Failed to update repository.',
-    )
+    repositoryActionError.value = getApiErrorMessage(err, 'Failed to update repository.')
   } finally {
     updatingSelectedRepository.value = false
   }
@@ -203,16 +155,15 @@ async function deleteSelectedRepository() {
   deletingSelectedRepository.value = true
   repositoryActionError.value = null
 
+  const idToDelete = selectedRepository.value.id
+
   try {
-    await deleteRepository(selectedRepository.value.id)
+    await deleteRepository(idToDelete)
+    repositories.value = repositories.value.filter((repo) => repo.id !== idToDelete)
     clearSelectedRepository()
-    await loadRepositories()
   } catch (err) {
     console.error(err)
-    repositoryActionError.value = getApiErrorMessage(
-      err,
-      'Failed to remove repository.',
-    )
+    repositoryActionError.value = getApiErrorMessage(err, 'Failed to remove repository.')
   } finally {
     deletingSelectedRepository.value = false
   }
@@ -233,11 +184,6 @@ onMounted(loadRepositories)
         </div>
 
         <div class="d-flex align-center ga-2">
-          <v-btn variant="text" to="/catalog">
-            <v-icon start>mdi-arrow-left</v-icon>
-            Back to catalog
-          </v-btn>
-
           <v-btn color="primary" variant="tonal" @click="showNewRepositoryDialog">
             <v-icon start>mdi-plus</v-icon>
             New repository
@@ -250,23 +196,37 @@ onMounted(loadRepositories)
         </div>
       </div>
 
-      <NewRepository :showing-new-repository-dialog="showingNewRepositoryDialog"
-        :create-repository-form="createRepositoryForm" :creating-repository="creatingRepository"
-        :create-repository-error="createRepositoryError" @clear-new-repository-dialog="clearNewRepositoryDialog"
-        @update:create-repository-form="updateCreateRepositoryForm" @create-new-repository="createNewRepository" />
+      <NewRepository
+        :showing-new-repository-dialog="showingNewRepositoryDialog"
+        :create-repository-form="createRepositoryForm"
+        :creating-repository="creatingRepository"
+        :create-repository-error="createRepositoryError"
+        @clear-new-repository-dialog="clearNewRepositoryDialog"
+        @update:create-repository-form="updateCreateRepositoryForm"
+        @create-new-repository="createNewRepository"
+      />
 
-      <SelectedRepository :selected-repository="selectedRepository" :selected-repository-form="selectedRepositoryForm"
+      <SelectedRepository
+        :selected-repository="selectedRepository"
+        :selected-repository-form="selectedRepositoryForm"
         :editing-selected-repository="editingSelectedRepository"
         :updating-selected-repository="updatingSelectedRepository"
-        :deleting-selected-repository="deletingSelectedRepository" :repository-action-error="repositoryActionError"
+        :deleting-selected-repository="deletingSelectedRepository"
+        :repository-action-error="repositoryActionError"
         @clear-selected-repository="clearSelectedRepository"
         @enable-edit-selected-repository="enableEditSelectedRepository"
         @cancel-edit-selected-repository="cancelEditSelectedRepository"
         @update:selected-repository-form="updateSelectedRepositoryForm"
-        @update-selected-repository="updateSelectedRepository" @delete-selected-repository="deleteSelectedRepository" />
+        @update-selected-repository="updateSelectedRepository"
+        @delete-selected-repository="deleteSelectedRepository"
+      />
 
-      <RepositoryIterator :repositories="repositories" :loading-repositories="loadingRepositories"
-        :repository-error="repositoryError" @select-repository="selectRepository" />
+      <RepositoryIterator
+        :repositories="repositories"
+        :loading-repositories="loadingRepositories"
+        :repository-error="repositoryError"
+        @select-repository="selectRepository"
+      />
     </v-container>
   </v-container>
 </template>

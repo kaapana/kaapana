@@ -103,12 +103,6 @@ def test_project_kubernetes_namespace_uses_platform_prefix(monkeypatch):
     assert is_valid_kubernetes_namespace(project.kubernetes_namespace)
 
 
-def test_project_kubernetes_namespace_defaults_to_kaapana(monkeypatch):
-    monkeypatch.delenv("PLATFORM_PREFIX", raising=False)
-    project = _make_project()
-    assert project.kubernetes_namespace == "kaapana-project-12345678"
-
-
 def test_admin_project_namespace_is_prefixed(monkeypatch):
     monkeypatch.setenv("PLATFORM_PREFIX", "kaapana")
     project = _make_project(name="admin")

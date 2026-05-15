@@ -121,7 +121,7 @@ import-dicoms-from-data-upload
 This workflow expectes a zip file containing DICOM files as input.
 The zip file must first be uploaded via the :ref:`Data Upload<data_upload>`.
 
-The DAG will extract the zip file and send all DICOM files to the internal ctp server with selected project and the specified dataset name attached as :code:`--aetitle kp-<dataset-name> --call kp-<project-name>`.
+The DAG will extract the zip file and send all DICOM files to the internal ctp server with selected project and the specified dataset name attached as :code:`--aetitle kp-<dataset-name> --call kp-<project-short-id>`.
 
 The ctp server will trigger DAGs :ref:`service-process-incoming-dcm<service_process_incoming_dcm>`.
 
@@ -130,7 +130,7 @@ send-dicom
 This DAG can be used to send DICOM files to another DICOM receiver, e.g. to another Kaapana platform.
 
 .. important::
-    If you send data to another Kaapana platform, you have to specify the project name as :code:`kp-<project-name>` and the dataset name as :code:`kp-<dataset-name>`.
+    If you send data to another Kaapana platform, you have to specify the project as :code:`kp-<project-short-id>` and the dataset name as :code:`kp-<dataset-name>`.
 
 service-daily-cleanup-jobs
 """""""""""""""""""""""""""

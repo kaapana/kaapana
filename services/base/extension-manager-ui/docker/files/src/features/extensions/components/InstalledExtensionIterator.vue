@@ -2,7 +2,7 @@
 import type { InstalledExtension } from '@/shared/types/apiSchemas'
 import type { RepositoryDict } from '@/features/repositories/types'
 import BaseCardIterator from '@/shared/components/BaseCardIterator.vue'
-import DetailMetaLine from '@/shared/components/DetailMetaLine.vue'
+import { extensionStatusColor } from '@/features/extensions/utils'
 
 const props = defineProps<{
   installedExtensions: InstalledExtension[]
@@ -14,6 +14,10 @@ const props = defineProps<{
 defineEmits<{
   (event: 'selectInstalledExtension', installedExtension: InstalledExtension): void
 }>()
+
+function repositoryName(repositoryId: string): string {
+  return props.repositories[repositoryId]?.name ?? repositoryId
+}
 </script>
 
 <template>
@@ -26,26 +30,39 @@ defineEmits<{
     @select="$emit('selectInstalledExtension', $event)"
   >
     <template v-slot:cardBody="slotProps">
-      <v-card-title>{{ slotProps.item.manifest.name }}</v-card-title>
-      <v-card-subtitle>
-        <DetailMetaLine
-          :items="[slotProps.item.manifest.version, slotProps.item.tag]"
-          style="justify-content: center"
-        />
-      </v-card-subtitle>
-      <v-card-text class="d-flex flex-column ga-2">
-        <div>
-          <v-chip size="small" color="primary" variant="tonal">
-            {{ slotProps.item.status }}
-          </v-chip>
-        </div>
-        <div class="text-caption text-medium-emphasis">
-          Repository:
-          {{
-            props.repositories[slotProps.item.repository_id]?.name ?? slotProps.item.repository_id
-          }}
-        </div>
-      </v-card-text>
+      <div class="installed-card">
+        <v-card-title>{{ slotProps.item.manifest.name }}</v-card-title>
+        <v-divider />
+        <v-card-text class="installed-card-meta">
+          <div>{{ slotProps.item.tag }}</div>
+          <div class="text-medium-emphasis">
+            {{ repositoryName(slotProps.item.repository_id) }}
+          </div>
+        </v-card-text>
+        <v-card-actions class="installed-card-footer text-medium-emphasis">
+          <span>v{{ slotProps.item.manifest.version }}</span>
+          <v-spacer />
+          <v-icon :color="extensionStatusColor[slotProps.item.status]" size="x-small">mdi-circle</v-icon>
+          <span>{{ slotProps.item.status }}</span>
+        </v-card-actions>
+      </div>
     </template>
   </BaseCardIterator>
 </template>
+
+<style scoped>
+.installed-card {
+  text-align: left;
+}
+
+.installed-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.installed-card-footer {
+  padding-inline: 16px;
+  gap: 6px;
+}
+</style>

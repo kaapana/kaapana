@@ -23,11 +23,26 @@ defineEmits<{
     @select="$emit('selectRepository', $event)"
   >
     <template v-slot:cardBody="slotProps">
-      <v-card-title>{{ slotProps.item.name }}</v-card-title>
-      <v-card-subtitle>{{ slotProps.item.repository_url }}</v-card-subtitle>
-      <v-card-text v-if="slotProps.item.description">
-        {{ slotProps.item.description }}
-      </v-card-text>
+      <div class="repository-card">
+        <v-card-title>{{ slotProps.item.name }}</v-card-title>
+        <v-divider />
+        <v-card-text class="repository-card-meta">
+          <div class="text-medium-emphasis">{{ slotProps.item.repository_url }}</div>
+          <div v-if="slotProps.item.description">{{ slotProps.item.description }}</div>
+        </v-card-text>
+      </div>
     </template>
   </BaseCardIterator>
 </template>
+
+<style scoped>
+.repository-card {
+  text-align: left;
+}
+
+.repository-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+</style>

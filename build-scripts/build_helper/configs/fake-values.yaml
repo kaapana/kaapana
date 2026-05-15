@@ -1,4 +1,5 @@
 global:
+  platform_prefix: "placeholder"
   default_admin_limits_mem: "512Mi"
   default_admin_requests_mem: "256Mi"
   base_namespace: "placeholder"

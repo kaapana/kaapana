@@ -42,8 +42,6 @@ ADMIN_NAMESPACE="{{ admin_namespace }}"
 EXTENSIONS_NAMESPACE="{{ extensions_namespace }}"
 HELM_NAMESPACE="{{ helm_namespace }}"
 
-PLATFORM_PREFIX="${PLATFORM_PREFIX:-kaapana}" 
-
 OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
 
 INCLUDE_REVERSE_PROXY=false
@@ -316,6 +314,21 @@ else
     echo "${YELLOW}No GPU detected...${NC}"
     GPU_SUPPORT=false
 fi
+
+function get_platform_prefix() {
+    PLATFORM_PREFIX="${PLATFORM_PREFIX:-}"
+
+    if [ ! "$QUIET" = "true" ]; then
+        echo -e ""
+        echo -e "${YELLOW}Please enter the platform prefix.${NC}" > /dev/stderr
+        echo -e "${YELLOW}Used as the prefix for project namespaces ({prefix}-project-<short_id>).${NC}" > /dev/stderr
+        read -e -p "**** platform prefix: " -i "$PLATFORM_PREFIX" PLATFORM_PREFIX
+    else
+        echo -e "${GREEN}QUIET: true -> PLATFORM_PREFIX: $PLATFORM_PREFIX ${NC}" > /dev/stderr
+    fi
+
+    validate_platform_prefix
+}
 
 function validate_platform_prefix() {
     # Must produce a valid k8s namespace when composed as "<prefix>-project-<short_id>".
@@ -1539,7 +1552,7 @@ nvidia-smi
 --- "Resource Health"
 check_system kaapana-admin-chart default
 check_system kaapana-platform-chart default
-check_system "${PLATFORM_PREFIX:-kaapana}-project-admin" admin
+check_system "${PLATFORM_PREFIX}-project-admin" admin
 
 --- "END"
 }
@@ -1566,7 +1579,7 @@ _Flag: --report, create a report of the state of the microk8s cluster
 _Argument: --username [Docker registry username]
 _Argument: --password [Docker registry password]
 _Argument: --port [Set main https-port]
-_Argument: --platform-prefix [Prefix for project namespaces, default 'kaapana']
+_Argument: --platform-prefix [Prefix for project namespaces, required]
 _Argument: --chart-path [path-to-chart-tgz]
 _Argument: --import-images-tar [path-to-a-tarball]"
 
@@ -1704,7 +1717,7 @@ do
         --check-system)
             check_system kaapana-admin-chart default
             check_system kaapana-platform-chart admin
-            check_system "${PLATFORM_PREFIX:-kaapana}-project-admin" admin
+            check_system "${PLATFORM_PREFIX}-project-admin" admin
             exit 0
         ;;
 
@@ -1718,7 +1731,7 @@ do
     esac
 done
 
-validate_platform_prefix
+get_platform_prefix
 
 preflight_checks
 

@@ -8,6 +8,7 @@
     registry_url: "{{ lookup('ansible.builtin.env', 'REGISTRY_URL') }}"
 
     vm_fqdn: "{{ lookup('ansible.builtin.env', 'VM_FQDN') }}"
+    platform_prefix: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_PLATFORM_PREFIX') }}"
     version_tag: "{{ lookup('ansible.builtin.env', 'VERSION_TAG') }}"
     artifacts_dir: "{{ lookup('ansible.builtin.env', 'ARTIFACTS_DIR') }}"
     kaapana_dir: "{{ lookup('ansible.builtin.env', 'CI_PROJECT_DIR') }}"
@@ -67,6 +68,7 @@
           --username {{ registry_user }}
           --password {{ registry_token }}
           --domain {{ vm_fqdn }}
+          --platform-prefix {{ platform_prefix }}
       register: deploy_result
       ignore_errors: yes
       environment:
@@ -85,7 +87,7 @@
         content: |
           Deployment Output
           =================
-          Command: {{ ansible_facts['env']['HOME'] }}/kaapanactl.sh deploy --quiet --chart {{ registry_url }}/kaapana-platform-chart:{{ version_tag }} --domain {{ vm_fqdn }}
+          Command: {{ ansible_facts['env']['HOME'] }}/kaapanactl.sh deploy --quiet --chart {{ registry_url }}/kaapana-platform-chart:{{ version_tag }} --domain {{ vm_fqdn }} --platform-prefix {{ platform_prefix }}
 
           STDOUT:
           {{ deploy_result.stdout | default('') }}

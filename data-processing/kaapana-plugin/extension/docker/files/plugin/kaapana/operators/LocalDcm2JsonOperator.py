@@ -7,7 +7,6 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Union
-import requests
 
 import pydicom
 import pytz
@@ -18,8 +17,6 @@ from kaapanapy.settings import KaapanaSettings
 from pydicom.tag import Tag
 
 TIMEZONE = KaapanaSettings().timezone
-
-SERVICES_NAMESPACE = KaapanaSettings().services_namespace
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -79,7 +76,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         self.exit_on_error = exit_on_error
         self.delete_pixel_data = delete_pixel_data
         self.data_type = data_type
-        self.admin_project_short_id: str = self._get_admin_project()["short_id"]
+        self.admin_project_short_id: str = "admin"
 
         os.environ["PYTHONIOENCODING"] = "utf-8"
         self.load_dicom_tag_dict()
@@ -91,13 +88,6 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             ram_mem_mb=10,
             **kwargs,
         )
-
-    def _get_admin_project(self) -> dict:
-        response = requests.get(
-            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/admin"
-        )
-        response.raise_for_status()
-        return response.json()
 
     def _is_radiotherapy_modality(self, metadata: Dict) -> bool:
         """Check if the modality is either RTSTRUCT or SEG."""

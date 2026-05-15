@@ -141,6 +141,21 @@ function parse_chart_reference() {
     echo -e "${GREEN}Using chart ${PLATFORM_NAME}:${PLATFORM_VERSION} from ${CONTAINER_REGISTRY_URL}${NC}"
 }
 
+function get_platform_prefix() {
+    PLATFORM_PREFIX="${PLATFORM_PREFIX:-}"
+
+    if [ ! "$QUIET" = "true" ]; then
+        echo -e ""
+        echo -e "${YELLOW}Please enter the platform prefix.${NC}" > /dev/stderr
+        echo -e "${YELLOW}Used as the prefix for project namespaces ({prefix}-project-<short_id>).${NC}" > /dev/stderr
+        read -e -p "**** platform prefix: " -i "$PLATFORM_PREFIX" PLATFORM_PREFIX
+    else
+        echo -e "${GREEN}QUIET: true -> PLATFORM_PREFIX: $PLATFORM_PREFIX ${NC}" > /dev/stderr
+    fi
+
+    validate_platform_prefix
+}
+
 function validate_platform_prefix() {
     # Must produce a valid k8s namespace when composed as "<prefix>-project-<short_id>".
     local max_prefix_len=46
@@ -203,7 +218,7 @@ function deploy() {
     _Argument: --chart [registry/path/chart:version]
     _Argument: --platform-name [Helm chart name]
     _Argument: --platform-version [Helm chart version]
-    _Argument: --platform-prefix [Prefix for project namespaces, default 'kaapana']
+    _Argument: --platform-prefix [Prefix for project namespaces, required]
     _Argument: --registry-url [OCI registry URL]
     _Argument: --username [Docker registry username]
     _Argument: --password [Docker registry password]
@@ -407,7 +422,7 @@ function deploy() {
             --check-system)
                 check_system kaapana-admin-chart default
                 check_system kaapana-platform-chart admin
-                check_system "${PLATFORM_PREFIX:-kaapana}-project-admin" admin
+                check_system "${PLATFORM_PREFIX}-project-admin" admin
                 exit 0
             ;;
 
@@ -449,7 +464,7 @@ function deploy() {
         parse_chart_reference "$CHART_REFERENCE"
     fi
 
-    validate_platform_prefix
+    get_platform_prefix
 
     if [ "${OFFLINE_MODE,,}" != true ]; then
         prompt_required_value CONTAINER_REGISTRY_USERNAME "Enter the container registry username: " false "$QUIET"
@@ -1258,8 +1273,6 @@ function load_kaapana_config {
     ADMIN_NAMESPACE="admin"
     EXTENSIONS_NAMESPACE="extensions"
     HELM_NAMESPACE="default"
-
-    PLATFORM_PREFIX="${PLATFORM_PREFIX:-kaapana}" # Prefix for project-namespace (e.g. "{prefix}-project-<short_id>")
 
     OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
 
@@ -2707,7 +2720,7 @@ nvidia-smi
 --- "Resource Health"
 check_system kaapana-admin-chart default
 check_system kaapana-platform-chart default
-check_system "${PLATFORM_PREFIX:-kaapana}-project-admin" admin
+check_system "${PLATFORM_PREFIX}-project-admin" admin
 
 --- "END"
 }

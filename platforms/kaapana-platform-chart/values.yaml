@@ -49,8 +49,8 @@ extension_params:
         type: string
         value: ""
     platform_prefix:
-        default: kaapana
-        definition: "Prefix prepended to project namespaces ({prefix}-project-<short_id>) inside a k8s cluster."
+        default: ""
+        definition: "Prefix prepended to project namespaces ({prefix}-project-<short_id>) inside a k8s cluster. Required."
         type: string
         value: ""
     admin_namespace:

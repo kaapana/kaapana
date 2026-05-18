@@ -106,7 +106,7 @@
 
     - name: Wait for all deployments to be healthy
       ansible.builtin.command:
-        cmd: "{{ ansible_facts['env']['HOME'] }}/kaapanactl.sh deploy --check-system"
+        cmd: "{{ ansible_facts['env']['HOME'] }}/kaapanactl.sh deploy --check-system --platform-prefix {{ platform_prefix }}"
       register: system_check
       retries: 60
       delay: 10

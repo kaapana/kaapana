@@ -357,6 +357,23 @@ class OCIRegistryDiscovery:
             if not tags:
                 return []
             return tags
+        except requests.HTTPError as e:
+            if e.response is not None and e.response.status_code == 404:
+                # OCI Distribution Spec: NAME_UNKNOWN means the repository has not been
+                # created yet — a valid state before the first push.
+                # https://github.com/opencontainers/distribution-spec/blob/main/spec.md#error-codes
+                try:
+                    errors = e.response.json().get("errors", [])
+                    is_name_unknown = any(
+                        err.get("code") == "NAME_UNKNOWN" for err in errors
+                    )
+                except Exception:
+                    is_name_unknown = False
+                if is_name_unknown:
+                    self.logger.debug(f"Repository {self.repository} does not exist yet")
+                    return []
+            self.logger.error(f"Failed to list tags for {self.repository}: {e}")
+            return []
         except Exception as e:
             self.logger.error(f"Failed to list tags for {self.repository}: {e}")
             return []

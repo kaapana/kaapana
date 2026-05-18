@@ -1,6 +1,5 @@
 """Client library for Kaapana OCI Extension Registry."""
 
-import copy
 import git
 import io
 import os
@@ -160,43 +159,25 @@ class ExtensionUtilityLibrary:
             if tmpdir:
                 tmpdir.cleanup()
 
-    def pull(
-        self, tag: str, output_dir: Path = Path("."), extract: bool = False
-    ) -> Path:
+    def pull(self, tag: str, output_dir: Path = Path(".")) -> Path:
         """Pull an extension from the registry.
 
         Always saves the archive as <tag>.tar.gz in output_dir.
-        With extract=True, additionally unpacks it into output_dir/<tag>/.
 
         Returns:
             Path to the saved archive.
         """
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp_dir = Path(tmp)
+        output_dir.mkdir(parents=True, exist_ok=True)
 
-            if not self._manager.download_files(tag, str(tmp_dir)):
-                raise RuntimeError(f"Failed to download files for tag '{tag}'")
+        if not self._manager.download_files(tag, str(output_dir)):
+            raise RuntimeError(f"Failed to download files for tag '{tag}'")
 
-            metadata = self._manager.get(tag)
-            ext_manifest = metadata.get("user_metadata", {}).get(
-                "extension_manifest", {}
-            )
-            (tmp_dir / "extension_manifest.json").write_text(
-                json.dumps(ext_manifest, indent=2)
-            )
-
-            output_dir.mkdir(parents=True, exist_ok=True)
-            archive_path = output_dir / f"{tag}.tar.gz"
-            with tarfile.open(archive_path, "w:gz") as tar:
-                for file_path in sorted(tmp_dir.rglob("*")):
-                    if file_path.is_file():
-                        tar.add(file_path, arcname=str(file_path.relative_to(tmp_dir)))
-
-        if extract:
-            with tarfile.open(archive_path, "r:gz") as tar:
-                tar.extractall(output_dir / tag)
-
-        return archive_path
+        metadata = self._manager.get(tag)
+        ext_manifest = metadata.get("user_metadata", {}).get("extension_manifest", {})
+        (output_dir / "extension_manifest.json").write_text(
+            json.dumps(ext_manifest, indent=2)
+        )
+        return output_dir
 
     def push(
         self,
@@ -318,7 +299,6 @@ class ExtensionUtilityLibrary:
         recursive: bool = False,
         bump: Optional[str] = None,
         overwrite: bool = False,
-        save_id: bool = True,
     ) -> List[Tuple[str, str]]:
         """Build and push extension(s), returning ``[(ext_source, ext_tag), ...]``.
 

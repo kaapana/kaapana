@@ -214,7 +214,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: airflow
           app.kubernetes.io/component: scheduler

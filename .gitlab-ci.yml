@@ -247,6 +247,10 @@ build_packages:
 prepare_deployment:
   # Clone repo + Optional: Provision VM
   extends: .remote_execution_template
+  rules:
+    - if: '$CI_EXEC_DEPLOY == "true"'
+      when: always
+    - when: never
   stage: deploy
   variables:
     GIT_STRATEGY: "clone"

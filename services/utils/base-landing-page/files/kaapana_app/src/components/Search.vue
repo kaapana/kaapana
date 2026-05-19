@@ -375,8 +375,8 @@ export default {
      */
     async processQueryParams() {
       if (this.queryParams.dataset_name) {
-        const datasetNames = await loadDatasets();
-        if (datasetNames.includes(this.queryParams.dataset_name)) {
+        const datasets = await loadDatasets();
+        if (datasets.some((d) => d.name === this.queryParams.dataset_name)) {
           this.datasetNameLocal = this.queryParams.dataset_name;
           await this.initSearch();
         }

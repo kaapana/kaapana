@@ -99,21 +99,49 @@ Tracks each content item within an installed extension.
 
 ### Status Enums
 
-**`ExtensionStatus`**
+#### `ExtensionStatus`
+
+
+```mermaid
+graph LR
+
+    PENDING -->PULLING
+    
+    PULLING --> PULLING_FAILED
+
+    PULLING -->INSTALLING
+
+    INSTALLING --> INSTALLED
+    INSTALLING --> INSTALLING_FAILED
+
+    INSTALLED --> UNINSTALLING
+    PULLING_FAILED --> UNINSTALLING
+    INSTALLING_FAILED --> UNINSTALLING
+
+    UNINSTALLING --> UNINSTALLING_FAILED
+    UNINSTALLING_FAILED --> UNINSTALLING
 
 ```
-PENDING → PULLING → INSTALLING → INSTALLED
-                               ↘ INSTALLATION_FAILED
-          ↘ PULLING_FAILED
-```
 
-**`ContentStatus`**
 
-```
-PENDING → INSTALLING → INSTALLED
-                     ↘ INSTALLATION_FAILED
-UNINSTALLING → UNINSTALLED
-             ↘ UNINSTALLATION_FAILED
+#### `ContentStatus`
+
+```mermaid
+graph LR
+    
+    PENDING-->INSTALLING
+
+    INSTALLING --> INSTALLED
+    INSTALLING --> INSTALLING_FAILED
+
+    INSTALLED --> UNINSTALLING
+    INSTALLING_FAILED --> UNINSTALLING
+
+
+    PENDING --> UNINSTALLING
+    UNINSTALLING --> UNINSTALLATION_FAILED
+    UNINSTALLATION_FAILED --> UNINSTALLING
+
 ```
 
 State transitions are validated in the CRUD layer — invalid transitions raise an exception rather than silently persisting bad state.

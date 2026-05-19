@@ -457,7 +457,6 @@ send_data:
     - job: setup_integration_tests
       artifacts: true
     - first_login
-    - platform_deployment
   variables:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_send_data.py"
     JUNIT_FILE: "send_data.xml"
@@ -476,7 +475,6 @@ run_workflows:
     - first_login
     - send_data
     - install_extensions
-    - platform_deployment
   variables:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_run_workflows.py"
     JUNIT_FILE: "run_workflow.xml"

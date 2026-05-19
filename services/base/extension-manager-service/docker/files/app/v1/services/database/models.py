@@ -209,6 +209,7 @@ ALLOWED_EXTENSION_STATUS_TRANSITIONS = {
 ALLOWED_CONTENT_STATUS_TRANSITIONS = {
     ContentStatus.PENDING: [
         ContentStatus.INSTALLING,
+        ContentStatus.UNINSTALLING,
     ],
     ContentStatus.INSTALLING: [
         ContentStatus.INSTALLATION_FAILED,

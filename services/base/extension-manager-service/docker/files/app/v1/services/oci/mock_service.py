@@ -93,7 +93,7 @@ class ociService:
                 f"Extension with tag {tag} not found in {self.repository_url}"
             )
 
-        with open(self.extension_dir / tag / "manifest.json") as manifest:
+        with open(self.extension_dir / tag / "extension_manifest.json") as manifest:
             manifest_json = json.load(manifest)
 
         return ExtensionManifest(**manifest_json)

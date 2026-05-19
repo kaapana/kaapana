@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+import uuid
 
 
 class ContentFiles(BaseModel):
@@ -12,6 +13,7 @@ class Content(BaseModel):
 
 
 class ExtensionManifest(BaseModel):
+    id: uuid.UUID
     name: str
     version: str
     contents: list[Content]

@@ -3,10 +3,10 @@ from v1.services.database import crud, models
 
 from v1.services.oci.service import ociService
 from v1.services import dispatch
+from v1.services.logger import get_logger
 
 import asyncio
 import json
-from kaapanapy.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -35,7 +35,7 @@ async def install_extension_background_task(
         db, extension_id=extension_id, status=models.ExtensionStatus.INSTALLING
     )
     try:
-        with open(extension_path / "manifest.json") as f:
+        with open(extension_path / "extension_manifest.json") as f:
             extension_manifest = json.load(f)
             assert extension_manifest == json.loads(db_extension.manifest)
 
@@ -117,6 +117,11 @@ async def uninstall_extension_background_task(
             if content.status == models.ContentStatus.UNINSTALLED:
                 logger.info(
                     f"Content with id {content.id} and name {content.name} is already in status {content.status}"
+                )
+                continue
+            if content.status == models.ContentStatus.PENDING:
+                logger.info(
+                    f"Content with id {content.id} and name {content.name} still in status {content.status}"
                 )
                 continue
 

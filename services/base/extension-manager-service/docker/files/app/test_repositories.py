@@ -176,7 +176,7 @@ async def test_post_repository_get_extensions_get_manifests(client: AsyncClient)
 
     response = await client.get(location + "/extensionManifests")
     assert response.status_code == 200
-    with open("v1/mock_data/extension-v1/manifest.json") as f:
+    with open("v1/mock_data/extension-v1/extension_manifest.json") as f:
         manifest = json.load(f)
     assert response.json() == [
         {

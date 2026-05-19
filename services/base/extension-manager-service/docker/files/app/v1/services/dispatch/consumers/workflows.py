@@ -12,7 +12,7 @@ import asyncio
 import httpx
 from pathlib import Path
 
-from kaapanapy.logger import get_logger
+from v1.services.logger import get_logger
 
 logger = get_logger(__name__)
 

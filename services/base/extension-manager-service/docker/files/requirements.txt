@@ -4,4 +4,4 @@ sqlalchemy==2.0.49
 psycopg2-binary
 asyncpg
 httpx
-kaapana-extensions@git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@feature/2161-build-toolchain#subdirectory=lib/kaapana_extensions
+kaapana-extensions@git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@1bdec2ce08250b761c1a70e25f4b10b68ea4bf80#subdirectory=lib/kaapana_extensions

@@ -16,7 +16,7 @@ class ociService:
         Initializes the ociService instance.
 
         :param repository_url:
-        :param authentication: base64 encoded json string {"username": <>, "password":<>}
+        :param authentication: base64 encoded json string {"username": <>, "password": <>}
         """
 
         self.repository_url = repository_url
@@ -31,10 +31,11 @@ class ociService:
 
         self.extension_lib = ExtensionUtilityLibrary(
             registry=parsed_url.scheme + "://" + parsed_url.netloc,
-            repo=parsed_url.path,
+            repo=parsed_url.path.lstrip("/"),
             username=auth["username"],
             password=auth["password"],
         )
+        self.extension_lib.check_login()
 
     async def __aenter__(self):
         """Enter async context – establish mock connection."""
@@ -65,7 +66,7 @@ class ociService:
         :rtype: list[str]
         """
 
-        return self.extension_lib.list_tags()
+        return set(self.extension_lib.list_tags())
 
     async def get_extension_manifests(
         self, tags: set[str] | None = None
@@ -110,7 +111,7 @@ class ociService:
                 f"Extension with tag {tag} not found in {self.repository_url}"
             )
 
-        return self.extension_lib.get_extension(tag)
+        return ExtensionManifest(**self.extension_lib.get_extension(tag))
 
     async def pull_extension(self, tag: str) -> Path:
         """
@@ -128,6 +129,7 @@ class ociService:
                 f"Extension with tag {tag} not found in {self.repository_url}"
             )
 
-        return self.extension_lib.pull(
+        archive_path = self.extension_lib.pull(
             tag=tag, extract=True, output_dir=self.extensions_download_dir / tag
         )
+        return Path(str(archive_path).rstrip(".tar.gz"))

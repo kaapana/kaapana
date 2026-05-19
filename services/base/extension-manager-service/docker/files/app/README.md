@@ -6,12 +6,12 @@ This is a FastAPI backend.
 
 The routers are separated into two modules
 
-### Registry Manager
+### Repository
 
-Contains endpoints and schemas to post new registries and get available registries.
+Contains endpoints and schemas to post new repositories and get available repositories.
 Contains endpoints to retrieve a list of extensions and extensionManifests from a registry.
 
-### Extension Manager
+### Installation
 
 Contains endpoints and schemas to install and uninstall an extension.
 Contains endpoints and schemas to get information about an installed extension and its content.
@@ -23,7 +23,7 @@ Communication to external services are separated into three modules
 
 ### OCI service
 
-For communication with OCI registries.
+For communication with OCI repositories.
 
 ### Dispatch service
 

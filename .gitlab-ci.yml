@@ -12,6 +12,8 @@ workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "web"
       when: always
+    - if: $CI_PIPELINE_SOURCE == "api"
+      when: always
     - if: $CI_PIPELINE_SOURCE == "trigger"
       when: always
     - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"

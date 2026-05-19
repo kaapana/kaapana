@@ -131,9 +131,8 @@ def whoami():
 @app.command(name="pull")
 def pull(
     tag: str = typer.Argument(..., help="Extension tag", autocompletion=_complete_tags),
-    output: Path = typer.Argument(Path("."), help="Output directory (default: current directory)"),
-    extract: bool = typer.Option(
-        False, "--extract", help="Also extract the archive into output/<tag>/"
+    output: Path = typer.Argument(
+        Path("."), help="Output directory (default: current directory)"
     ),
     repo: Optional[str] = typer.Option(None, "--repo"),
     registry: Optional[str] = typer.Option(None, "--registry"),
@@ -145,10 +144,8 @@ def pull(
     By default downloads the archive (.tar.gz). Use --extract to unpack.
     """
     client = _get_client(repo, registry, username, password)
-    archive = client.pull(tag, output, extract=extract)
-    typer.echo(f"Pulled: {archive}")
-    if extract:
-        typer.echo(f"Extracted: {archive.parent / tag}/")
+    output_dir = client.pull(tag, output)
+    typer.echo(f"Pulled: {output_dir}")
 
 
 @app.command(name="push")
@@ -205,7 +202,9 @@ def build(
       extensionctl build git+https://host/repo.git -r
     """
     try:
-        for ext_source, archive in ExtensionUtilityLibrary.build(source, output, recursive):
+        for ext_source, archive in ExtensionUtilityLibrary.build(
+            source, output, recursive
+        ):
             typer.echo(f"  Source:  {ext_source}")
             typer.echo(f"  Archive: {archive}")
     except (ValueError, RuntimeError) as e:
@@ -241,7 +240,9 @@ def publish(
     """
     client = _get_client(repo, registry, username, password)
     try:
-        for ext_source, ext_tag in client.publish(source, recursive=recursive, bump=bump, overwrite=overwrite):
+        for ext_source, ext_tag in client.publish(
+            source, recursive=recursive, bump=bump, overwrite=overwrite
+        ):
             typer.echo(f"  Source:    {ext_source}")
             typer.echo(f"  Published: {ext_tag}")
     except (ValueError, RuntimeError) as e:
@@ -251,7 +252,9 @@ def publish(
 
 @app.command(name="list")
 def list_extensions(
-    full: bool = typer.Option(False, "--full", help="Show full metadata for each extension"),
+    full: bool = typer.Option(
+        False, "--full", help="Show full metadata for each extension"
+    ),
     repo: Optional[str] = typer.Option(None, "--repo"),
     registry: Optional[str] = typer.Option(None, "--registry"),
     username: Optional[str] = typer.Option(None, "--user"),
@@ -325,6 +328,14 @@ def delete(
 
     client = _get_client(repo, registry, username, password)
 
+    if tag:
+        success = client.delete_tag(tag)
+        if success:
+            typer.echo(f"Deleted: {tag}")
+        else:
+            typer.echo(f"Failed to delete: {tag}", err=True)
+            raise typer.Exit(1)
+
     if all_tags:
         tags = client.list_tags()
         if not tags:
@@ -343,13 +354,6 @@ def delete(
                 typer.echo(f"Failed to delete: {t}", err=True)
                 failed.append(t)
         if failed:
-            raise typer.Exit(1)
-    else:
-        success = client.delete_tag(tag)
-        if success:
-            typer.echo(f"Deleted: {tag}")
-        else:
-            typer.echo(f"Failed to delete: {tag}", err=True)
             raise typer.Exit(1)
 
 

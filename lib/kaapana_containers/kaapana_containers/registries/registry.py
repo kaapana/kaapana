@@ -59,7 +59,7 @@ class OCIRegistryDiscovery:
 
     def _get_bearer_token(self, www_auth: str) -> Optional[str]:
         match = re.match(
-            r'Bearer realm="([^"]+)",service="([^"]+)",scope="([^"]+)"', www_auth
+            r'Bearer realm="([^"]+)",service="([^"]+)"(?:,scope="([^"]+)")?', www_auth
         )
         if not match:
             self.logger.error(f"Failed to parse WWW-Authenticate header: {www_auth}")

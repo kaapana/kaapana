@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Dict, Optional
 
-from kaapana_containers.registries.registry import OCIRegistryDiscovery
+from kaapana_extensions.extensions import ExtensionUtilityLibrary
 
 _CREDENTIALS_FILE = Path.home() / ".kaapana" / "credentials.json"
 
@@ -70,17 +70,9 @@ def oci_login(registry: str, repo: str, username: str, password: str) -> None:
     if not registry_host.startswith(("http://", "https://")):
         registry_host = f"https://{registry_host}"
 
-    manager = OCIRegistryDiscovery(
-        registry_url=registry_host,
-        repository=repo,
-        username=username,
-        password=password,
-    )
-    try:
-        manager.list_tags()
-    except Exception:
-        pass    
-    manager._request_with_auth_retry("GET", f"{registry_host}/v2/")
+    client = ExtensionUtilityLibrary(registry_host, repo, username, password)
+    if not client.check_login():
+        raise ValueError("Login failed: invalid credentials or registry unreachable")
 
     _save_all_credentials(username, password, registry_host, repo)
 

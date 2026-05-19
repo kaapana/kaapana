@@ -118,8 +118,8 @@ class ExtensionUtilityLibrary:
         """Return True if the current credentials are accepted by the registry."""
         try:
             resp = self._manager._request_with_auth_retry(
-                "HEAD",
-                f"{self._manager.registry_url}/v2/{self._manager.repository}/tags/list",
+                "GET",
+                f"{self._manager.registry_url}/v2/",
             )
             return resp.status_code < 400
         except Exception:
@@ -138,7 +138,6 @@ class ExtensionUtilityLibrary:
             output: Output directory for archives. Defaults to cwd for git sources,
                     or the extension directory's parent for local sources.
             recursive: Discover all extensions under source, not just the top-level one.
-            save_id: Write the generated UUID back to the source manifest (default: True).
         """
         source_ref = SourceRef.parse(str(source))
         effective_output = (
@@ -307,7 +306,6 @@ class ExtensionUtilityLibrary:
             recursive: Publish all extensions found under source.
             bump: Auto-increment version: "major", "minor", or "patch".
             overwrite: Allow overwriting an existing tag.
-            save_id: Write the generated UUID back to the source manifest.
         """
         with tempfile.TemporaryDirectory() as build_tmp:
             archives = ExtensionUtilityLibrary.build(source, Path(build_tmp), recursive)
@@ -452,9 +450,6 @@ class ExtensionUtilityLibrary:
         """Build a .tar.gz archive from a single extension directory.
 
         Assigns a UUID ``id`` to the manifest if one is not already present.
-        With save_id=True (default), writes it back to the source manifest so it
-        persists across builds. With save_id=False, the UUID is embedded in the
-        archive only and the source file is left untouched.
 
         Returns:
             Path to the created archive (<name>-v<version>.tar.gz).

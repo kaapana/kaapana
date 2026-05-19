@@ -21,7 +21,8 @@ async def test_repositories_404(client: AsyncClient):
         json={
             "name": "New Repository Name",
             "description": "new",
-            "authentication": "hello_world",
+            "username": "test",
+            "password": "changed",
             "repository_url": "https://example.com/new",
         },
     )
@@ -44,7 +45,8 @@ async def test_post_repository(client: AsyncClient):
         json={
             "name": "Test Repository",
             "description": "",
-            "authentication": "",
+            "username": "test",
+            "password": "test",
             "repository_url": "https://example.com/oci",
         },
     )
@@ -59,7 +61,8 @@ async def test_post_repository_put_repository(client: AsyncClient):
         json={
             "name": "Test Repository",
             "description": "",
-            "authentication": "",
+            "username": "test",
+            "password": "test",
             "repository_url": "https://example.com/oci",
         },
     )
@@ -72,7 +75,8 @@ async def test_post_repository_put_repository(client: AsyncClient):
         json={
             "name": "New Repository Name",
             "description": "new",
-            "authentication": "hello_world",
+            "username": "test",
+            "password": "changed",
             "repository_url": "https://example.com/new",
         },
     )
@@ -84,7 +88,8 @@ async def test_post_repository_get_repository(client: AsyncClient):
     repo_payload = {
         "name": "Test Repository",
         "description": "",
-        "authentication": "",
+        "username": "test",
+        "password": "test",
         "repository_url": "https://example.com/oci",
     }
 
@@ -110,7 +115,8 @@ async def test_post_repository_delete_repository_get_404(client: AsyncClient):
     repo_payload = {
         "name": "Test Repository",
         "description": "",
-        "authentication": "",
+        "username": "test",
+        "password": "test",
         "repository_url": "https://example.com/oci",
     }
 
@@ -134,7 +140,8 @@ async def test_post_conflict_repository(client: AsyncClient):
     repo_payload = {
         "name": "Test Repository",
         "description": "",
-        "authentication": "",
+        "username": "test",
+        "password": "test",
         "repository_url": "https://example.com/oci",
     }
 
@@ -160,7 +167,8 @@ async def test_post_repository_get_extensions_get_manifests(client: AsyncClient)
         json={
             "name": "Test Repository",
             "description": "",
-            "authentication": "",
+            "username": "test",
+            "password": "test",
             "repository_url": "https://example.com/oci",
         },
     )

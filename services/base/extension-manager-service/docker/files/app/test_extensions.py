@@ -31,7 +31,8 @@ async def test_post_repo_read_extensions_install_extension(
         json={
             "name": "Test Repository",
             "description": "",
-            "authentication": "",
+            "username": "test",
+            "password": "test",
             "repository_url": "https://example.com/oci",
         },
     )
@@ -77,7 +78,8 @@ async def test_post_repo_read_extensions_install_extension_uninstall_extension(
         json={
             "name": "Test Repository",
             "description": "",
-            "authentication": "",
+            "username": "test",
+            "password": "test",
             "repository_url": "https://example.com/oci",
         },
     )

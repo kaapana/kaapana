@@ -8,7 +8,7 @@ class InstalledContent(BaseModel):
     name: str
     content_type: str
     status: str
-    location: str
+    location: Optional[str] = None
 
 
 class InstalledExtension(BaseModel):

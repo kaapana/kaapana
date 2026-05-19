@@ -130,6 +130,6 @@ class ociService:
             )
 
         archive_path = self.extension_lib.pull(
-            tag=tag, extract=True, output_dir=self.extensions_download_dir / tag
+            tag=tag, output_dir=self.extensions_download_dir / tag
         )
         return Path(str(archive_path).rstrip(".tar.gz"))

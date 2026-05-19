@@ -17,7 +17,8 @@ class PostRepositoryRequest(BaseModel):
         description="The full URL of the repository to be added. <registry>/<repository>",
     )
 
-    authentication: str = Field(..., description="Base64 encoded credentials.")
+    username: str = Field(..., description="Name of the access token to the registry")
+    password: str = Field(..., description="The access token to the registry")
 
 
 class PutRepositoryRequest(BaseModel):
@@ -33,9 +34,8 @@ class PutRepositoryRequest(BaseModel):
         None,
         description="The full URL of the repository to be added. <registry>/<repository>",
     )
-    authentication: Optional[str] = Field(
-        None, description="Base64 encoded authentication data."
-    )
+    username: str = Field(..., description="Name of the access token to the registry")
+    password: str = Field(..., description="The access token to the registry")
 
 
 ### Response schemas

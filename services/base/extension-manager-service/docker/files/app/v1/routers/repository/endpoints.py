@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from typing import Optional
+import base64, json
 
 from v1.services.database import crud, database
 from v1.services.database import exceptions as db_exceptions
@@ -22,13 +23,19 @@ async def create_extension_repository(
     response: Response,
     db: AsyncSession = Depends(database.get_async_db),
 ):
+    authentication = {
+        "username": extension_repository.username,
+        "password": extension_repository.password,
+    }
+
+    encoded_auth = base64.b64encode(json.dumps(authentication).encode()).decode()
     try:
         db_registered_repository = await crud.create_registered_repository(
             db,
             name=extension_repository.name,
             description=extension_repository.description,
             repository_url=extension_repository.repository_url,
-            authentication=extension_repository.authentication,
+            authentication=encoded_auth,
         )
     except db_exceptions.RepositoryExistsException as e:
         raise HTTPException(
@@ -79,13 +86,20 @@ async def update_repository(
             status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found"
         )
 
+    authentication = {
+        "username": update_repository.username,
+        "password": update_repository.password,
+    }
+
+    encoded_auth = base64.b64encode(json.dumps(authentication).encode()).decode()
+
     db_registered_repository = await crud.update_registered_repository(
         db,
         id=repository_id,
         name=update_repository.name,
         description=update_repository.description,
         repository_url=update_repository.repository_url,
-        authentication=update_repository.authentication,
+        authentication=encoded_auth,
     )
 
     response.headers["Location"] = f"/repository/{db_registered_repository.id}"

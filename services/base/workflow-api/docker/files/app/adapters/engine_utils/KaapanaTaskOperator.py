@@ -324,7 +324,10 @@ class KaapanaTaskOperator(BaseOperator):
     ) -> task_models.PersistentVolumeClaimVolume:
         channel_path = Path(context["dag_run"].run_id, task_id, channel_name)
         return task_models.PersistentVolumeClaimVolume(
-            claim_name="workflow-data-pv-claim",
+            persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                claim_name="workflow-data-pv-claim",
+                read_only=False,
+            ),
             sub_path=str(channel_path),
         )
 
@@ -547,7 +550,7 @@ class KaapanaTaskOperator(BaseOperator):
                 continue
             volumes.append(
                 {
-                    "name": channel.volume_source.claim_name.replace(
+                    "name": channel.volume_source.persistent_volume_claim.claim_name.replace(
                         "-pv-claim", ""
                     ),
                     "mount_path": channel.mounted_path,

@@ -77,15 +77,12 @@ def get_volume_and_mounts(
             continue
 
         if isinstance(channel.volume_source, task_models.PersistentVolumeClaimVolume):
-            name = channel.volume_source.claim_name.replace("-pv-claim", "")
+            name = channel.volume_source.persistent_volume_claim.claim_name.replace("-pv-claim", "")
             if name not in volume_names:
                 volumes.append(
                     client.V1Volume(
                         name=name,
-                        persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                            claim_name=channel.volume_source.claim_name,
-                            read_only=False,
-                        ),
+                        persistent_volume_claim=channel.volume_source.persistent_volume_claim,
                     )
                 )
                 volume_names.add(name)

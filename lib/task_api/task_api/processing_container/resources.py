@@ -133,7 +133,7 @@ def compute_pvc_target_size(
 
     scale_rule = io.scale_rule
     payload = {
-        "claim_name": io.volume_source.claim_name,
+        "claim_name": io.volume_source.persistent_volume_claim.claim_name,
         "sub_path": io.volume_source.sub_path,
         "scale_rule": {
             "mode": scale_rule.mode.value,

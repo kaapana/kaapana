@@ -367,7 +367,7 @@ setup_integration_tests:
     INTEGRATION_TESTS: "$CI_PROJECT_DIR/ci/ci-code/integration_tests"
 
   rules:
-    - if: '$CI_EXEC_INTEGRATION_TESTS == "true"'
+    - if: '$CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"'
       when: always
     - when: never
   script:
@@ -388,6 +388,10 @@ setup_integration_tests:
 .integration_test_local:
   extends: .remote_execution_template
   stage: test
+  rules:
+    - if: '$CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"'
+      when: always
+    - when: never
   needs:
     - job: prepare_deployment
       artifacts: true

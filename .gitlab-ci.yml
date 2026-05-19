@@ -515,11 +515,11 @@ destroy_deployment:
 if_ci_failing:
   stage: clean
   tags:
-    - deploy-shared
+    - deploy-runner
   before_script:
     - source "$ORCHESTRATOR_INSTANCE_PYTHON_VENV/bin/activate"
   script:
-    - cd $CI_PROJECT_DIR/ci-code/clean
+    - cd "$CI_PROJECT_DIR/ci/ci-code/clean"
     - python3 create_ticket_if_ci_failed.py
     - python3 notify_slack.py
   rules:
@@ -534,8 +534,8 @@ security:
   tags:
     - build-runner
   script:
-    - cd $CI_PROJECT_DIR/ci/ci-code/clean
-    - python3 create_vulnerability_report.py --output html $CI_PROJECT_DIR/build/security-reports/${VERSION_TAG}/${VERSION_TAG}_cves.json vulnerability_report.html
+    - cd "$CI_PROJECT_DIR/ci/ci-code/clean"
+    - python3 create_vulnerability_report.py --output html "$CI_PROJECT_DIR/build/security-reports/${VERSION_TAG}/${VERSION_TAG}_cves.json" vulnerability_report.html
     - echo "Access the report at https://kaapana.pages.hzdr.de/-/kaapana/-/jobs/${CI_JOB_ID}/artifacts/ci/ci-code/clean/vulnerability_report.html"
   artifacts:
     paths:

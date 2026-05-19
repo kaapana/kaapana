@@ -1,9 +1,16 @@
 global:
   services_namespace: "services"
-  registry_url: ""
-  kaapana_build_version: ""
+  registry_url: "registry.hzdr.de/lorenz.feineis/kaapana-feineis-dev"
+  kaapana_build_version: "0.6.1-10-g3c77662bc"
   pull_policy_images: "Always"
   storage_node: "storage"
+  dynamicVolumes:
+  - name: extensions
+    storage_class: slow
+    storage: 10Gi
+  - name: extensions-tmp
+    storage_class: slow
+    storage: 10Gi
 
 kaapana_database:
   admin: false

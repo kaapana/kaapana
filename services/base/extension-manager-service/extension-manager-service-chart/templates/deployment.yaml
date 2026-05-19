@@ -17,12 +17,17 @@ spec:
       labels:
         app.kubernetes.io/name: extension-manager
         app.kubernetes.io/component: api
+        network-access-external-ips: "true"
     spec:
       containers:
       - name: extension-manager-api
         image: "{{ .Values.global.registry_url }}/extension-api:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         env:
+          - name: http_proxy
+            value: "http://squid-proxy-service.admin.svc.cluster.local:3128"
+          - name: https_proxy
+            value: "http://squid-proxy-service.admin.svc.cluster.local:3128"
           - name: APPLICATION_ROOT
             value: /extensions-api
           - name: PORT
@@ -37,8 +42,12 @@ spec:
           - name: DEV_FILES
             value: "True"
 {{- end }}
-{{- if .Values.global.dev_files }}
         volumeMounts:
+          - name: extensions
+            mountPath: /extensions
+          - name: extensions-tmp
+            mountPath: /tmp
+{{- if .Values.global.dev_files }}
           - name: extension-api-dev
             mountPath: /app
 {{- end }}
@@ -53,6 +62,12 @@ spec:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true     
       volumes:
+      - name: extensions
+        persistentVolumeClaim:
+          claimName: extensions-pv-claim
+      - name: extensions-tmp
+        persistentVolumeClaim:
+          claimName: extensions-tmp-pv-claim
 {{- if .Values.global.dev_files }}
       - name: extension-manager-api-dev
         persistentVolumeClaim:

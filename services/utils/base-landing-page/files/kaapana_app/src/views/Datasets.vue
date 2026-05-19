@@ -275,6 +275,7 @@
         />
       </v-dialog>
       <EditDatasetsDialog
+        v-if="editDatasetsDialog"
         v-model="editDatasetsDialog"
         @close="(reloadDatasets) => editedDatasets(reloadDatasets)"
       />
@@ -601,7 +602,7 @@ export default {
       });
     },
     async updateDatasetNames() {
-      let datasets = await loadDatasets(false);
+      let datasets = await loadDatasets();
       this.datasets = datasets;
       this.datasetNames = datasets.map((dataset) => dataset.name);
     },
@@ -776,8 +777,9 @@ export default {
     },
     editedDatasets(reloadDatasets) {
       if (reloadDatasets) {
-        loadDatasets().then((_datasetNames) => {
-          this.datasetNames = _datasetNames;
+        loadDatasets().then((_datasets) => {
+          this.datasets = _datasets;
+          this.datasetNames = _datasets.map((d) => d.name);
           if (!this.datasetNames.includes(this.datasetName)) {
             this.datasetName = null;
           }

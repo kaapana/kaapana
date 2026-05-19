@@ -58,19 +58,15 @@ const loadDatasetByName = async (datasetName, access_level="project") => {
   }
 };
 
-const loadDatasets = async (namesOnly = true) => {
+const loadDatasets = async (skipIdentifiers = true) => {
   try {
     const datasets = await httpClient.get(
       KAAPANA_BACKEND_ENDPOINT + "client/datasets",
       {
-        params: namesOnly ? { names_only: true } : {},
+        params: skipIdentifiers ? { skip_identifiers: true } : {},
       }
     );
-    if (namesOnly) {
-      return datasets.data.map((dataset) => dataset.name);
-    } else {
-      return datasets.data;
-    }
+    return datasets.data;
   } catch (error) {
     Vue.notify({
       title: "Error",

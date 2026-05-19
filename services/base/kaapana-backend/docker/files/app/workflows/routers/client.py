@@ -673,7 +673,7 @@ def get_datasets(
     request: Request,
     instance_name: str = None,
     limit: int = None,
-    names_only: bool = False,
+    skip_identifiers: bool = False,
     db: Session = Depends(get_db),
     project=Depends(get_project),
 ):
@@ -690,7 +690,7 @@ def get_datasets(
             time_created=db_obj.time_created,
             time_updated=db_obj.time_updated,
             username=db_obj.username,
-            identifiers=[] if names_only else [x.id for x in db_obj.identifiers],
+            identifiers=[] if skip_identifiers else [x.id for x in db_obj.identifiers],
             access_level=db_obj.access_level,
         )
         for db_obj in db_objs

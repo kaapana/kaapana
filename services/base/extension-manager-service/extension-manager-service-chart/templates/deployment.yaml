@@ -25,9 +25,11 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         env:
           - name: http_proxy
-            value: "http://squid-proxy-service.admin.svc.cluster.local:3128"
+            value: {{ .Values.global.http_proxy }}
           - name: https_proxy
-            value: "http://squid-proxy-service.admin.svc.cluster.local:3128"
+            value: {{ .Values.global.http_proxy }}
+          - name: no_proxy
+            value: ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }}"
           - name: APPLICATION_ROOT
             value: /extensions-api
           - name: PORT

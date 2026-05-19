@@ -1,8 +1,6 @@
 ---
 dependencies:
   - name: kaapana_database
-    repository: file://../../../kaapana-admin/postgres/postgres-chart
     version: 0.0.0
   - name: kaapana-library-chart
-    repository: file://../../..//utils/kaapana-library-chart
     version: 0.0.0

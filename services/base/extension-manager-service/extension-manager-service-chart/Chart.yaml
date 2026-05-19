@@ -3,4 +3,4 @@ apiVersion: v1
 appVersion: "1.0.0"
 description: Manages extension repositories and installation of extensions on a Kaapana platform.
 name: extension-manager
-version: "1.0.0"
+version: "0.0.0"

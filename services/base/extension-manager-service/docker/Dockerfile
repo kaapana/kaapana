@@ -1,6 +1,9 @@
 # Use official lightweight Python image
 FROM local-only/base-python-cpu:latest
 
+LABEL IMAGE="extension-api"
+LABEL BUILD_IGNORE="False"
+
 # Set working directory
 WORKDIR /app
 

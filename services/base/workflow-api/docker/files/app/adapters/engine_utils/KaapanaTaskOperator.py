@@ -573,7 +573,7 @@ class KaapanaTaskOperator(BaseOperator):
         if project_form.get("id"):
             return project_form["id"]
 
-        response = requests.get("http://aii-service.services.svc:8080/projects/admin")
+        response = requests.get(f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/admin")
         response.raise_for_status()
         return response.json().get("id")
 

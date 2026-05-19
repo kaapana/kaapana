@@ -26,7 +26,6 @@ variables:
   # Execution control flags
   CI_EXEC_UNIT_TESTS: $CI_EXEC_UNIT_TESTS
   CI_EXEC_BUILD: $CI_EXEC_BUILD
-  CI_EXEC_SERVER_INSTALL: $CI_EXEC_SERVER_INSTALL
   CI_EXEC_DEPLOY: $CI_EXEC_DEPLOY
   CI_EXEC_INTEGRATION_TESTS: $CI_EXEC_INTEGRATION_TESTS
   CI_EXEC_DOCKER_PRUNE: $CI_EXEC_DOCKER_PRUNE
@@ -283,7 +282,7 @@ server_installation:
   extends: .remote_execution_template
   stage: deploy
   rules:
-    - if: '$CI_EXEC_SERVER_INSTALL == "true"'
+    - if: '$CI_EXEC_DEPLOY == "true"'
       when: always
     - when: never
   needs:

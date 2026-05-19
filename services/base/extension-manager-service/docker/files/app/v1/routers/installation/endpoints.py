@@ -133,7 +133,10 @@ async def get_extension(extension_id: UUID, db=Depends(database.get_async_db)):
         status=db_extension.status,
         contents=[
             schemas.InstalledContent(
-                name=cont.name, content_type=cont.content_type, status=cont.status
+                name=cont.name,
+                content_type=cont.content_type,
+                status=cont.status,
+                location=cont.location,
             )
             for cont in db_extension.contents
         ],

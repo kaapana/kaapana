@@ -2,6 +2,7 @@ from .models import ExtensionManifest
 from .exceptions import ExtensionNotFoundException, ExtensionPullError
 from pathlib import Path
 import json
+import shutil
 
 
 class ociService:
@@ -114,4 +115,9 @@ class ociService:
                 f"Extension with tag {tag} not found in {self.repository_url}"
             )
 
-        return Path(self.extension_dir / tag)
+        source = Path(self.extension_dir / tag)
+        dest = Path(__file__).parent.parent.parent / "tags"
+
+        shutil.copytree(source, dest)
+
+        return dest

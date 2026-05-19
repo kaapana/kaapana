@@ -7,6 +7,8 @@ from v1.services.logger import get_logger
 
 import asyncio
 import json
+from pathlib import Path
+import shutil
 
 logger = get_logger(__name__)
 
@@ -95,9 +97,11 @@ async def install_extension_background_task(
             content_exceptions,
         )
 
-    await crud.update_extension(
+    db_extension = await crud.update_extension(
         db, extension_id=extension_id, status=models.ExtensionStatus.INSTALLED
     )
+
+    shutil.rmtree(Path(extension_path))
 
 
 async def uninstall_extension_background_task(

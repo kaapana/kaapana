@@ -178,7 +178,7 @@ build_packages:
   timeout: 4 hours
   rules:
     - if: '$CI_EXEC_BUILD == "true"'
-      when: always
+      when: on_success
     - when: never
   before_script:
     - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
@@ -249,7 +249,7 @@ prepare_deployment:
   extends: .remote_execution_template
   rules:
     - if: '$CI_EXEC_DEPLOY == "true"'
-      when: always
+      when: on_success
     - when: never
   stage: deploy
   variables:
@@ -289,7 +289,7 @@ server_installation:
   stage: deploy
   rules:
     - if: '$CI_EXEC_DEPLOY == "true"'
-      when: always
+      when: on_success
     - when: never
   needs:
     - job: prepare_deployment
@@ -344,7 +344,7 @@ platform_deployment:
       </html>" > artifacts/deployment.html
   rules:
     - if: '$CI_EXEC_DEPLOY == "true"'
-      when: always
+      when: on_success
     - when: never
   artifacts:
     paths:
@@ -365,15 +365,14 @@ setup_integration_tests:
   needs:
     - job: prepare_deployment
       artifacts: true
-    - job: platform_deployment
-      artifacts: true
+    - platform_deployment
   variables:
     VENV_NAME: "$CI_PROJECT_DIR/venv"
     INTEGRATION_TESTS: "$CI_PROJECT_DIR/ci/ci-code/integration_tests"
 
   rules:
     - if: '$CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"'
-      when: always
+      when: on_success
     - when: never
   script:
     - |
@@ -395,15 +394,14 @@ setup_integration_tests:
   stage: test
   rules:
     - if: '$CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"'
-      when: always
+      when: on_success
     - when: never
   needs:
     - job: prepare_deployment
       artifacts: true
     - job: setup_integration_tests
       artifacts: true
-    - job: platform_deployment
-      artifacts: true
+    - platform_deployment
   variables:
     VENV_NAME: "$CI_PROJECT_DIR/venv"
     PYTEST_ARGS: "--client-secret $CLIENT_SECRET --host $VM_FQDN --allowed-ports 22,80,443 --download-directory /home/ubuntu/downloaded_test_data"
@@ -443,10 +441,8 @@ install_extensions:
       artifacts: true
     - job: setup_integration_tests
       artifacts: true
-    - job: first_login
-      artifacts: true
-    - job: platform_deployment
-      artifacts: true
+    - first_login
+    - platform_deployment
   variables:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_install_extensions.py"
     JUNIT_FILE: "install_extensions.xml"
@@ -460,10 +456,8 @@ send_data:
       artifacts: true
     - job: setup_integration_tests
       artifacts: true
-    - job: first_login
-      artifacts: true
-    - job: platform_deployment
-      artifacts: true
+    - first_login
+    - platform_deployment
   variables:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_send_data.py"
     JUNIT_FILE: "send_data.xml"
@@ -479,14 +473,10 @@ run_workflows:
       artifacts: true
     - job: setup_integration_tests
       artifacts: true
-    - job: first_login
-      artifacts: true
-    - job: send_data
-      artifacts: true
-    - job: install_extensions
-      artifacts: true
-    - job: platform_deployment
-      artifacts: true
+    - first_login
+    - send_data
+    - install_extensions
+    - platform_deployment
   variables:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_run_workflows.py"
     JUNIT_FILE: "run_workflow.xml"
@@ -552,5 +542,5 @@ security:
   allow_failure: true
   rules:
     - if: $CI_EXEC_BUILD == "true" && $CI_EXEC_BUILD_ARGUMENTS =~ /--vulnerability-scan/
-      when: always
+      when: on_success
     - when: never

@@ -1,20 +1,30 @@
 <template>
-  <div class="d-flex flex-column loki-tab">
+  <div class="loki-layout">
 
-    <!-- Task search + list -->
-    <div class="task-list-section flex-shrink-0">
-      <div class="px-4 pt-3 pb-2">
+    <!-- Left: task panel -->
+    <div class="task-panel">
+      <div class="task-panel-inputs pa-3 d-flex flex-column gap-2">
         <v-text-field
-          v-model="unifiedSearch"
+          v-model="taskSearch"
           density="compact"
           variant="outlined"
-          placeholder="Search tasks or logs…"
+          placeholder="Filter tasks…"
+          prepend-inner-icon="mdi-filter-outline"
+          clearable
+          hide-details
+        />
+        <v-text-field
+          v-model="logSearch"
+          density="compact"
+          variant="outlined"
+          placeholder="Search log content…"
           prepend-inner-icon="mdi-magnify"
           :loading="searchLoading"
           clearable
           hide-details
         />
       </div>
+      <v-divider />
       <v-list density="compact" class="task-list py-0">
         <v-list-item
           v-for="task in filteredTaskRuns"
@@ -33,7 +43,7 @@
           <v-list-item-title class="text-body-2">{{ task.task_title }}</v-list-item-title>
           <template #append>
             <v-chip
-              v-if="unifiedSearch && logMatchCounts.get(task.id)"
+              v-if="logSearch && logMatchCounts.get(task.id)"
               size="x-small"
               color="primary"
               variant="tonal"
@@ -46,80 +56,113 @@
           </template>
         </v-list-item>
         <v-list-item v-if="filteredTaskRuns.length === 0" class="text-medium-emphasis">
-          <v-list-item-title class="text-caption">No tasks match your search.</v-list-item-title>
+          <v-list-item-title class="text-caption">No tasks match.</v-list-item-title>
         </v-list-item>
       </v-list>
     </div>
 
-    <v-divider />
+    <!-- Right: log panel -->
+    <div class="log-panel">
 
-    <!-- Query settings -->
-    <div class="px-4 py-2 flex-shrink-0 d-flex flex-wrap align-center gap-3">
-      <v-select
-        v-model="logTimeRange"
-        :items="timeRangeOptions"
-        label="Time range"
-        density="compact"
-        variant="outlined"
-        hide-details
-        style="min-width: 160px; max-width: 200px"
-      />
-
-      <template v-if="logTimeRange === 'custom'">
-        <v-text-field
-          v-model="logCustomStart"
-          label="From (ISO 8601)"
-          placeholder="2026-05-01T00:00:00Z"
+      <!-- Toolbar: query settings + action buttons -->
+      <div class="log-panel-toolbar d-flex flex-wrap align-center gap-2 px-3 py-2">
+        <v-select
+          v-model="logTimeRange"
+          :items="timeRangeOptions"
+          label="Time range"
           density="compact"
           variant="outlined"
           hide-details
-          style="min-width: 200px"
+          style="min-width: 150px; max-width: 180px"
         />
-        <v-text-field
-          v-model="logCustomEnd"
-          label="To (ISO 8601)"
-          placeholder="2026-05-08T23:59:59Z"
+        <template v-if="logTimeRange === 'custom'">
+          <v-text-field
+            v-model="logCustomStart"
+            label="From (ISO 8601)"
+            placeholder="2026-05-01T00:00:00Z"
+            density="compact"
+            variant="outlined"
+            hide-details
+            style="min-width: 200px"
+          />
+          <v-text-field
+            v-model="logCustomEnd"
+            label="To (ISO 8601)"
+            placeholder="2026-05-08T23:59:59Z"
+            density="compact"
+            variant="outlined"
+            hide-details
+            style="min-width: 200px"
+          />
+        </template>
+        <v-select
+          v-model="logDirection"
+          :items="directionOptions"
+          label="Order"
           density="compact"
           variant="outlined"
           hide-details
-          style="min-width: 200px"
+          style="min-width: 150px; max-width: 180px"
         />
-      </template>
 
-      <v-select
-        v-model="logDirection"
-        :items="directionOptions"
-        label="Order"
-        density="compact"
-        variant="outlined"
-        hide-details
-        style="min-width: 160px; max-width: 200px"
-      />
-    </div>
+        <v-spacer />
 
-    <v-divider />
-
-    <!-- Log area -->
-    <div class="log-section">
-      <div class="d-flex align-center justify-center fill-height" v-if="logsLoading">
-        <v-progress-circular indeterminate color="primary" />
+        <!-- Action buttons -->
+        <v-tooltip v-if="selectedTask" text="Reload" location="top" theme="dark">
+          <template #activator="{ props: tp }">
+            <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" :loading="logsLoading" @click="reloadSelected">
+              <v-icon>mdi-refresh</v-icon>
+            </v-btn>
+          </template>
+        </v-tooltip>
+        <template v-if="logLines.length > 0">
+          <v-tooltip text="Copy to clipboard" location="top" theme="dark">
+            <template #activator="{ props: tp }">
+              <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" @click="copyLogs">
+                <v-icon>mdi-content-copy</v-icon>
+              </v-btn>
+            </template>
+          </v-tooltip>
+          <v-tooltip text="Download log" location="top" theme="dark">
+            <template #activator="{ props: tp }">
+              <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" @click="downloadLogs">
+                <v-icon>mdi-download</v-icon>
+              </v-btn>
+            </template>
+          </v-tooltip>
+        </template>
+        <v-tooltip v-if="workflowRun.task_runs.length > 1" text="Download all logs as ZIP" location="top" theme="dark">
+          <template #activator="{ props: tp }">
+            <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" :loading="downloadingAll" @click="downloadAllLokiLogs">
+              <v-icon>mdi-zip-box</v-icon>
+            </v-btn>
+          </template>
+        </v-tooltip>
       </div>
-      <v-alert v-else-if="logsError" type="error" variant="tonal" class="ma-3">{{ logsError }}</v-alert>
-      <v-alert v-else-if="!selectedTask" type="info" variant="tonal" class="ma-3">
-        Click a task above to load its Loki logs.
-      </v-alert>
-      <v-alert v-else-if="logLines.length === 0" type="info" variant="tonal" class="ma-3">
-        No Loki logs found for this task in the selected time range.
-      </v-alert>
-      <div v-else class="log-output">
-        <div v-for="(line, i) in logLines" :key="i" class="log-line">
-          <span class="log-ts">{{ line.ts }}</span>
-          <span class="log-text" v-html="highlightMatch(line.text)"></span>
+
+      <v-divider />
+
+      <!-- Log content -->
+      <div class="log-panel-content">
+        <div class="d-flex align-center justify-center" style="height: 100%" v-if="logsLoading">
+          <v-progress-circular indeterminate color="primary" />
+        </div>
+        <v-alert v-else-if="logsError" type="error" variant="tonal" class="ma-3">{{ logsError }}</v-alert>
+        <v-alert v-else-if="!selectedTask" type="info" variant="tonal" class="ma-3">
+          Click a task to load its Loki logs.
+        </v-alert>
+        <v-alert v-else-if="logLines.length === 0" type="info" variant="tonal" class="ma-3">
+          No Loki logs found for this task in the selected time range.
+        </v-alert>
+        <div v-else class="log-output">
+          <div v-for="(line, i) in logLines" :key="i" class="log-line">
+            <span class="log-ts">{{ line.ts }}</span>
+            <span class="log-text" v-html="highlightMatch(line.text)"></span>
+          </div>
         </div>
       </div>
+
     </div>
-
-
   </div>
 
   <v-snackbar v-model="snackbar" color="success" :timeout="2500" location="top right">
@@ -141,21 +184,24 @@ const props = defineProps<{
   initialTimeRange?: string
 }>()
 
-// ── Task list ─────────────────────────────────────────────────────────────────
-const selectedTask   = ref<TaskRun | null>(null)
-const unifiedSearch  = ref('')
+// ── Search ────────────────────────────────────────────────────────────────────
+const taskSearch     = ref('')
+const logSearch      = ref('')
 const snackbar       = ref(false)
 const logMatchCounts = ref<Map<number, number>>(new Map())
 const searchLoading  = ref(false)
 
 const filteredTaskRuns = computed(() => {
-  const runs = props.workflowRun.task_runs ?? []
-  const q = (unifiedSearch.value?.trim() ?? '').toLowerCase()
-  if (!q) return runs
+  const runs  = props.workflowRun.task_runs ?? []
+  const nameQ = (taskSearch.value?.trim() ?? '').toLowerCase()
+  const logQ  = (logSearch.value?.trim() ?? '')
   return runs.filter((t: TaskRun) => {
-    if (t.task_title.toLowerCase().includes(q)) return true
-    const count = logMatchCounts.value.get(t.id)
-    return count !== undefined && count > 0
+    if (nameQ && !t.task_title.toLowerCase().includes(nameQ)) return false
+    if (logQ) {
+      const count = logMatchCounts.value.get(t.id)
+      return count === undefined || count > 0
+    }
+    return true
   })
 })
 
@@ -192,9 +238,10 @@ function getLogTimeRange(): { start: string; end: string } {
 }
 
 // ── Log state ─────────────────────────────────────────────────────────────────
-const logLines    = ref<{ ts: string; text: string }[]>([])
-const logsLoading = ref(false)
-const logsError   = ref<string | null>(null)
+const selectedTask = ref<TaskRun | null>(null)
+const logLines     = ref<{ ts: string; text: string }[]>([])
+const logsLoading  = ref(false)
+const logsError    = ref<string | null>(null)
 
 async function fetchTaskLogs(task: TaskRun) {
   selectedTask.value = task
@@ -224,36 +271,36 @@ async function fetchTaskLogs(task: TaskRun) {
   }
 }
 
-// ── Auto-reload when settings change ─────────────────────────────────────────
-function reloadIfTaskSelected() {
+function reloadSelected() {
   if (selectedTask.value) fetchTaskLogs(selectedTask.value)
 }
 
-watch(logDirection, reloadIfTaskSelected)
+// ── Auto-reload when settings change ─────────────────────────────────────────
+watch(logDirection, reloadSelected)
 
 watch(logTimeRange, (val: string) => {
-  if (val !== 'custom') reloadIfTaskSelected()
+  if (val !== 'custom') reloadSelected()
 })
 
 watch([logCustomStart, logCustomEnd], ([start, end]: [string, string]) => {
-  if (logTimeRange.value === 'custom' && start && end) reloadIfTaskSelected()
+  if (logTimeRange.value === 'custom' && start && end) reloadSelected()
 })
 
-// ── Unified search across all tasks ──────────────────────────────────────────
+// ── Log content search ────────────────────────────────────────────────────────
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 
-watch(unifiedSearch, (val: string | null) => {
+watch(logSearch, (val: string | null) => {
   logMatchCounts.value = new Map()
   if (searchTimer) clearTimeout(searchTimer)
   const q = val?.trim() ?? ''
   if (!q) return
-  searchTimer = setTimeout(() => searchAllTaskLogs(q), 700)  // pass original case to Loki
+  searchTimer = setTimeout(() => searchAllTaskLogs(q), 700)
 })
 
-// Only reset when the actual workflow run changes (not on re-renders with new object refs)
 watch(() => props.workflowRun?.id, (newId: number | undefined, oldId: number | undefined) => {
   if (newId !== oldId) {
-    unifiedSearch.value = ''
+    taskSearch.value = ''
+    logSearch.value = ''
     logMatchCounts.value = new Map()
   }
 })
@@ -267,8 +314,6 @@ async function searchAllTaskLogs(query: string) {
   searchLoading.value = true
   try {
     const { start, end } = getLogTimeRange()
-    // queryRange with |~ filter: case-insensitive line filter, limit 5000.
-    // Using queryRange (not /query metric endpoint) because it's proven to work through the proxy.
     const escapedRegex = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const results = await Promise.all(
       runs.map(async (task: TaskRun) => {
@@ -281,7 +326,7 @@ async function searchAllTaskLogs(query: string) {
         }
       })
     )
-    if (gen !== searchGeneration) return  // stale response, discard
+    if (gen !== searchGeneration) return
     const map = new Map<number, number>()
     for (const { id, count } of results) map.set(id, count)
     logMatchCounts.value = map
@@ -296,13 +341,13 @@ function escapeHtml(str: string): string {
 
 function highlightMatch(text: string): string {
   const safe = escapeHtml(text)
-  const q = unifiedSearch.value?.trim() ?? ''
+  const q = logSearch.value?.trim() ?? ''
   if (!q) return safe
   const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   return safe.replace(new RegExp(escaped, 'gi'), m => `<mark>${m}</mark>`)
 }
 
-// ── Copy / Download (single task) ────────────────────────────────────────────
+// ── Copy / Download ───────────────────────────────────────────────────────────
 function logsAsText(): string {
   return logLines.value.map((l: { ts: string; text: string }) => `${l.ts}  ${l.text}`).join('\n')
 }
@@ -324,7 +369,6 @@ function downloadLogs() {
   URL.revokeObjectURL(url)
 }
 
-// ── Download all tasks as ZIP ─────────────────────────────────────────────────
 const downloadingAll = ref(false)
 
 async function downloadAllLokiLogs() {
@@ -355,32 +399,48 @@ async function downloadAllLokiLogs() {
     downloadingAll.value = false
   }
 }
-
-defineExpose({
-  reload:        () => { if (selectedTask.value) fetchTaskLogs(selectedTask.value) },
-  copy:          copyLogs,
-  download:      downloadLogs,
-  downloadAll:   downloadAllLokiLogs,
-  hasTask:       computed(() => !!selectedTask.value),
-  hasLogs:       computed(() => logLines.value.length > 0),
-  logsLoading,
-  downloadingAll,
-})
 </script>
 
 <style scoped>
-.task-list-section {
-  background-color: rgba(var(--v-theme-surface-variant), 0.15);
+.loki-layout {
+  display: flex;
+  height: 680px;
+}
+
+.task-panel {
+  width: 280px;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  border-right: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  overflow: hidden;
+}
+
+.task-panel-inputs {
+  flex-shrink: 0;
 }
 
 .task-list {
-  max-height: 220px;
+  flex: 1;
   overflow-y: auto;
 }
 
-.log-section {
-  height: 440px;
-  overflow-y: auto;
+.log-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.log-panel-toolbar {
+  flex-shrink: 0;
+  min-height: 52px;
+}
+
+.log-panel-content {
+  flex: 1;
+  overflow: auto;
 }
 
 .log-output {

@@ -45,7 +45,7 @@ class Workflow(Base):
         JSONB, nullable=True, default=list
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     removed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
@@ -81,12 +81,12 @@ class WorkflowRun(Base):
     )
     external_id: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.now(timezone.utc),
-        onupdate=datetime.now(timezone.utc),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
     workflow: Mapped["Workflow"] = relationship(
         "Workflow", back_populates="runs", lazy="selectin"

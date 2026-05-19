@@ -1,32 +1,5 @@
-<!--
-  LogViewer.vue
-  =============
-  Dialog component for displaying the log output of a workflow run.
-
-  Purpose:
-    Opens as a modal when the user clicks "View Logs" in WorkflowLogs.vue.
-    Fetches and renders the raw log text of a selected task run.
-    If the workflow run contains multiple task runs, a dropdown allows
-    switching between them.
-
-  Props:
-    - modelValue      : v-model — controls dialog open/close
-    - workflowRunId   : ID of the parent workflow run (used in the API call)
-    - workflowTitle   : Display name shown in the dialog title
-    - workflowVersion : Version number shown in the dialog title
-    - runStatus       : lifecycle_status of the workflow run (shown as a chip)
-    - taskRuns        : Array of task runs belonging to this workflow run
-
-  Emits:
-    - update:modelValue : Standard v-model close event
-
-  Dependencies:
-    - workflowRunsApi.getTaskRunLogs() : Fetches log text for a specific task run
-    - statusColor()                    : Maps lifecycle_status to a chip color
-    - TaskRun                          : TypeScript type from @/types/schemas
--->
 <template>
-  <v-dialog v-model="model" max-width="900px" scrollable @keydown.escape="close">
+  <v-dialog v-model="model" max-width="1300px" @keydown.escape="close">
     <v-card class="log-viewer-card">
 
       <!-- ===== TITLE BAR ===== -->
@@ -58,22 +31,32 @@
       <v-card-text class="pa-0">
 
         <!-- ===== API TAB CONTENT ===== -->
-        <div v-show="!namespace || activeLogTab === 'api'">
+        <div v-show="!namespace || activeLogTab === 'api'" class="log-viewer-body">
 
-          <!-- Task search + scrollable list -->
-          <div v-if="props.taskRuns && props.taskRuns.length > 0" class="task-list-section">
-            <div class="px-4 pt-3 pb-2">
+          <!-- Left: task panel -->
+          <div v-if="props.taskRuns && props.taskRuns.length > 0" class="task-panel">
+            <div class="task-panel-inputs pa-3 d-flex flex-column gap-2">
               <v-text-field
-                v-model="unifiedSearch"
+                v-model="taskSearch"
                 density="compact"
                 variant="outlined"
-                placeholder="Search tasks or logs…"
+                placeholder="Filter tasks…"
+                prepend-inner-icon="mdi-filter-outline"
+                clearable
+                hide-details
+              />
+              <v-text-field
+                v-model="logSearch"
+                density="compact"
+                variant="outlined"
+                placeholder="Search log content…"
                 prepend-inner-icon="mdi-magnify"
                 :loading="searchLoading"
                 clearable
                 hide-details
               />
             </div>
+            <v-divider />
             <v-list density="compact" class="task-list py-0">
               <v-list-item
                 v-for="task in filteredTaskRuns"
@@ -92,7 +75,7 @@
                 <v-list-item-title class="text-body-2">{{ task.task_title }}</v-list-item-title>
                 <template #append>
                   <v-chip
-                    v-if="unifiedSearch && logMatchCounts.get(task.id)"
+                    v-if="logSearch && logMatchCounts.get(task.id)"
                     size="x-small"
                     color="primary"
                     variant="tonal"
@@ -105,22 +88,54 @@
                 </template>
               </v-list-item>
               <v-list-item v-if="filteredTaskRuns.length === 0" class="text-medium-emphasis">
-                <v-list-item-title class="text-caption">No tasks match your search.</v-list-item-title>
+                <v-list-item-title class="text-caption">No tasks match.</v-list-item-title>
               </v-list-item>
             </v-list>
           </div>
 
-          <v-divider v-if="props.taskRuns && props.taskRuns.length > 0" />
-
-          <div class="log-content-container">
-            <v-alert v-if="!logs && !loading && !error" type="info" variant="tonal" class="mx-4 mt-4">
-              No logs available for this task run yet.
-            </v-alert>
-            <v-alert v-else-if="error" type="error" variant="tonal" class="mx-4 mt-4">
-              Failed to load logs: {{ error }}
-            </v-alert>
-            <div v-else class="log-content-wrapper">
-              <pre class="log-content" v-html="displayedLog"></pre>
+          <!-- Right: log panel -->
+          <div class="log-panel">
+            <div class="log-panel-toolbar d-flex align-center gap-1 px-3 py-2">
+              <v-tooltip text="Reload" location="top" theme="dark">
+                <template #activator="{ props: tp }">
+                  <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" :loading="loading" @click="refreshLogs">
+                    <v-icon>mdi-refresh</v-icon>
+                  </v-btn>
+                </template>
+              </v-tooltip>
+              <template v-if="logs">
+                <v-tooltip text="Copy to clipboard" location="top" theme="dark">
+                  <template #activator="{ props: tp }">
+                    <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" @click="copyToClipboard">
+                      <v-icon>mdi-content-copy</v-icon>
+                    </v-btn>
+                  </template>
+                </v-tooltip>
+                <v-tooltip text="Download log" location="top" theme="dark">
+                  <template #activator="{ props: tp }">
+                    <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" @click="downloadLog">
+                      <v-icon>mdi-download</v-icon>
+                    </v-btn>
+                  </template>
+                </v-tooltip>
+              </template>
+              <v-tooltip v-if="props.taskRuns.length > 1" text="Download all logs as ZIP" location="top" theme="dark">
+                <template #activator="{ props: tp }">
+                  <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" :loading="downloadingAllApi" @click="downloadAllApiLogs">
+                    <v-icon>mdi-zip-box</v-icon>
+                  </v-btn>
+                </template>
+              </v-tooltip>
+            </div>
+            <v-divider />
+            <div class="log-panel-content">
+              <v-alert v-if="!logs && !loading && !error" type="info" variant="tonal" class="mx-4 mt-4">
+                No logs available for this task run yet.
+              </v-alert>
+              <v-alert v-else-if="error" type="error" variant="tonal" class="mx-4 mt-4">
+                Failed to load logs: {{ error }}
+              </v-alert>
+              <pre v-else class="log-content" v-html="displayedLog"></pre>
             </div>
           </div>
 
@@ -130,7 +145,6 @@
         <!-- wrapper div needed: v-show on a multi-root component is a no-op in Vue 3 -->
         <div v-if="namespace && workflowRun" v-show="activeLogTab === 'loki'">
           <TaskLokiLogTab
-            ref="lokiTabRef"
             :workflow-run="workflowRun"
             :namespace="namespace"
             :initial-time-range="initialLokiTimeRange"
@@ -138,80 +152,6 @@
         </div>
 
       </v-card-text>
-
-      <v-card-actions class="pa-4 gap-1">
-
-        <!-- API tab buttons -->
-        <template v-if="!namespace || activeLogTab === 'api'">
-          <template v-if="logs">
-            <v-tooltip text="Reload" location="top" theme="dark">
-              <template #activator="{ props: tp }">
-                <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" :loading="loading" @click="refreshLogs">
-                  <v-icon>mdi-refresh</v-icon>
-                </v-btn>
-              </template>
-            </v-tooltip>
-            <v-tooltip text="Copy to clipboard" location="top" theme="dark">
-              <template #activator="{ props: tp }">
-                <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" @click="copyToClipboard">
-                  <v-icon>mdi-content-copy</v-icon>
-                </v-btn>
-              </template>
-            </v-tooltip>
-            <v-tooltip text="Download log" location="top" theme="dark">
-              <template #activator="{ props: tp }">
-                <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" @click="downloadLog">
-                  <v-icon>mdi-download</v-icon>
-                </v-btn>
-              </template>
-            </v-tooltip>
-          </template>
-          <v-tooltip v-if="props.taskRuns.length > 1" text="Download all logs as ZIP" location="top" theme="dark">
-            <template #activator="{ props: tp }">
-              <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" :loading="downloadingAllApi" @click="downloadAllApiLogs">
-                <v-icon>mdi-zip-box</v-icon>
-              </v-btn>
-            </template>
-          </v-tooltip>
-        </template>
-
-        <!-- Loki tab buttons (delegate to exposed component methods) -->
-        <template v-if="namespace && activeLogTab === 'loki'">
-          <v-tooltip v-if="lokiTabRef?.hasTask" text="Reload" location="top" theme="dark">
-            <template #activator="{ props: tp }">
-              <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" :loading="lokiTabRef?.logsLoading" @click="lokiTabRef?.reload()">
-                <v-icon>mdi-refresh</v-icon>
-              </v-btn>
-            </template>
-          </v-tooltip>
-          <template v-if="lokiTabRef?.hasLogs">
-            <v-tooltip text="Copy to clipboard" location="top" theme="dark">
-              <template #activator="{ props: tp }">
-                <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" @click="lokiTabRef?.copy()">
-                  <v-icon>mdi-content-copy</v-icon>
-                </v-btn>
-              </template>
-            </v-tooltip>
-            <v-tooltip text="Download log" location="top" theme="dark">
-              <template #activator="{ props: tp }">
-                <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" @click="lokiTabRef?.download()">
-                  <v-icon>mdi-download</v-icon>
-                </v-btn>
-              </template>
-            </v-tooltip>
-          </template>
-          <v-tooltip v-if="workflowRun && workflowRun.task_runs.length > 1" text="Download all logs as ZIP" location="top" theme="dark">
-            <template #activator="{ props: tp }">
-              <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" :loading="lokiTabRef?.downloadingAll" @click="lokiTabRef?.downloadAll()">
-                <v-icon>mdi-zip-box</v-icon>
-              </v-btn>
-            </template>
-          </v-tooltip>
-        </template>
-
-        <v-spacer />
-        <v-btn color="primary" variant="text" @click="close">Close</v-btn>
-      </v-card-actions>
 
       <!-- Full-card loading overlay while API logs are being fetched -->
       <v-overlay v-model="loading" v-if="!namespace || activeLogTab === 'api'" class="d-flex justify-center align-center" persistent>
@@ -234,18 +174,23 @@ import { statusColor } from '@/utils/status'
 import TaskLokiLogTab from '@/components/logging/loki/TaskLokiLogTab.vue'
 import { downloadAsZip } from '@/utils/zipDownload'
 
-const unifiedSearch    = ref('')
+// ── Search ────────────────────────────────────────────────────────────────────
+const taskSearch       = ref('')
+const logSearch        = ref('')
 const logMatchCounts   = ref<Map<number, number>>(new Map())
 const searchLoading    = ref(false)
 const allTaskLogsCache = ref<Map<number, string>>(new Map())
 
 const filteredTaskRuns = computed(() => {
-  const q = (unifiedSearch.value?.trim() ?? '').toLowerCase()
-  if (!q) return props.taskRuns
+  const nameQ = (taskSearch.value?.trim() ?? '').toLowerCase()
+  const logQ  = (logSearch.value?.trim() ?? '')
   return props.taskRuns.filter((t: TaskRun) => {
-    if (t.task_title.toLowerCase().includes(q)) return true
-    const count = logMatchCounts.value.get(t.id)
-    return count !== undefined && count > 0
+    if (nameQ && !t.task_title.toLowerCase().includes(nameQ)) return false
+    if (logQ) {
+      const count = logMatchCounts.value.get(t.id)
+      return count === undefined || count > 0
+    }
+    return true
   })
 })
 
@@ -270,7 +215,6 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
 }>()
 
-/** Two-way binding for the dialog's open/close state via v-model. */
 const model = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value)
@@ -281,46 +225,25 @@ const model = computed({
 // STATE
 // ============================================================
 
-/** Active log source tab ('api' | 'loki'). Only visible when namespace prop is set. */
-const activeLogTab = ref('loki')
-
-/** Template ref for the Loki tab component — provides reload/copy/download via defineExpose. */
-const lokiTabRef = ref<InstanceType<typeof TaskLokiLogTab> | null>(null)
-
-/** Controls the copy-success snackbar. */
-const copySnackbar = ref(false)
-
-/** Raw log text returned by the API; empty string when no logs have been loaded. */
-const logs = ref<string>('')
-
-/** True while an API request for logs is in progress. */
-const loading = ref(false)
-
-/** Error message from a failed log fetch; null when there is no error. */
-const error = ref<string | null>(null)
-
-/** ID of the task run whose logs are currently displayed. */
+const activeLogTab      = ref('loki')
+const copySnackbar      = ref(false)
+const logs              = ref<string>('')
+const loading           = ref(false)
+const error             = ref<string | null>(null)
 const selectedTaskRunId = ref<number | null>(null)
-
-/** Options list for the task run dropdown (label + value pairs). */
-const taskRunOptions = ref<{ title: string; value: number }[]>([])
 
 
 // ============================================================
 // DIALOG LIFECYCLE
 // ============================================================
 
-/**
- * Closes the dialog and resets all local state.
- * Called by the close button, the escape key, and the backdrop click.
- */
 const close = () => {
   model.value = false
   logs.value = ''
   error.value = null
   selectedTaskRunId.value = null
-  taskRunOptions.value = []
-  unifiedSearch.value = ''
+  taskSearch.value = ''
+  logSearch.value = ''
   logMatchCounts.value = new Map()
   allTaskLogsCache.value = new Map()
 }
@@ -330,25 +253,11 @@ const close = () => {
 // TASK RUN SETUP
 // ============================================================
 
-/**
- * Initialises the task run dropdown options and pre-selects the first run.
- * Resets selection when the provided list is empty.
- *
- * @param runs - Task runs belonging to the current workflow run
- */
 function setupTaskRuns(runs: TaskRun[]) {
   if (!runs || runs.length === 0) {
     selectedTaskRunId.value = null
-    taskRunOptions.value = []
     return
   }
-
-  taskRunOptions.value = runs.map((run) => ({
-    title: `${run.task_title} (${run.lifecycle_status})`,
-    value: run.id
-  }))
-
-  // Pre-select the first task run
   selectedTaskRunId.value = runs[0].id
 }
 
@@ -357,12 +266,6 @@ function setupTaskRuns(runs: TaskRun[]) {
 // LOG FETCHING
 // ============================================================
 
-/**
- * Fetches logs for a given task run from the backend.
- * Falls back to selectedTaskRunId when no explicit ID is provided.
- *
- * @param taskId - Optional task run ID to fetch logs for
- */
 const loadLogs = async (taskId?: number) => {
   const taskIdToLoad = taskId || selectedTaskRunId.value
   if (!taskIdToLoad) return
@@ -378,17 +281,8 @@ const loadLogs = async (taskId?: number) => {
   }
 }
 
-/** Re-fetches logs for the currently selected task run. */
-const refreshLogs = () => {
-  loadLogs()
-}
+const refreshLogs = () => { loadLogs() }
 
-/**
- * Called when the user selects a different task run from the dropdown.
- * Updates the selection and immediately loads the corresponding logs.
- *
- * @param taskId - ID of the newly selected task run
- */
 const selectTaskAndLoad = async (taskId: number) => {
   selectedTaskRunId.value = taskId
   await loadLogs(taskId)
@@ -399,20 +293,12 @@ const selectTaskAndLoad = async (taskId: number) => {
 // WATCHERS
 // ============================================================
 
-/**
- * Reacts to changes in the taskRuns prop (e.g. when the parent selects
- * a different workflow run without closing the dialog).
- * Resets logs, rebuilds the dropdown options, and loads logs for the
- * first task run if the dialog is open.
- */
 watch(
   () => props.taskRuns,
-  async (newRuns) => {
+  async (newRuns: TaskRun[]) => {
     logs.value = ''
     error.value = null
-
     setupTaskRuns(newRuns)
-
     if (model.value && selectedTaskRunId.value) {
       await loadLogs(selectedTaskRunId.value)
     }
@@ -420,26 +306,15 @@ watch(
   { immediate: true }
 )
 
-/**
- * Reacts to the dialog being opened.
- * Resets logs and loads fresh data for the current task run selection.
- * Does nothing when the dialog closes (cleanup is handled by close()).
- */
-watch(
-  model,
-  async (isOpen) => {
-    if (!isOpen) return
-
-    logs.value = ''
-    error.value = null
-
-    setupTaskRuns(props.taskRuns)
-
-    if (selectedTaskRunId.value) {
-      await loadLogs(selectedTaskRunId.value)
-    }
+watch(model, async (isOpen: boolean) => {
+  if (!isOpen) return
+  logs.value = ''
+  error.value = null
+  setupTaskRuns(props.taskRuns)
+  if (selectedTaskRunId.value) {
+    await loadLogs(selectedTaskRunId.value)
   }
-)
+})
 
 
 // ============================================================
@@ -489,10 +364,10 @@ const decodeNewlines = (text: string) => {
   return text.replace(/\\n/g, '\n')
 }
 
-// ── Unified search across all task logs ──────────────────────────────────────
+// ── Log content search ────────────────────────────────────────────────────────
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 
-watch(unifiedSearch, (val: string | null) => {
+watch(logSearch, (val: string | null) => {
   logMatchCounts.value = new Map()
   if (searchTimer) clearTimeout(searchTimer)
   const q = (val?.trim() ?? '').toLowerCase()
@@ -539,7 +414,7 @@ const displayedLog = computed(() => {
   if (!raw) return ''
   const decoded = decodeNewlines(raw)
   const safe = decoded.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  const q = unifiedSearch.value?.trim() ?? ''
+  const q = logSearch.value?.trim() ?? ''
   if (!q) return safe
   const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   return safe.replace(new RegExp(escaped, 'gi'), m => `<mark>${m}</mark>`)
@@ -547,33 +422,51 @@ const displayedLog = computed(() => {
 </script>
 
 <style scoped>
-/* Minimum dialog height so the card does not collapse on short log output */
 .log-viewer-card {
   min-height: 500px;
 }
 
-.task-list-section {
-  background-color: rgba(var(--v-theme-surface-variant), 0.15);
+.log-viewer-body {
+  display: flex;
+  height: 680px;
 }
 
-.task-list {
-  max-height: 220px;
-  overflow-y: auto;
-}
-
-/* Fixed-height container; overflow is handled by the inner wrapper */
-.log-content-container {
-  height: 500px;
+.task-panel {
+  width: 280px;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  border-right: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
   overflow: hidden;
 }
 
-/* Scrollable wrapper that fills the container height */
-.log-content-wrapper {
-  height: 100%;
+.task-panel-inputs {
+  flex-shrink: 0;
+}
+
+.task-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.log-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.log-panel-toolbar {
+  flex-shrink: 0;
+  min-height: 48px;
+}
+
+.log-panel-content {
+  flex: 1;
   overflow: auto;
 }
 
-/* Monospace log output block */
 .log-content {
   margin: 0;
   padding: 16px;
@@ -584,12 +477,7 @@ const displayedLog = computed(() => {
   word-wrap: break-word;
   color: rgba(var(--v-theme-on-surface), 0.87);
   background-color: rgba(var(--v-theme-on-surface), 0.04);
-  height: 100%;
-  overflow: auto;
-}
-
-.log-content pre {
-  margin: 0;
+  min-height: 100%;
 }
 
 :deep(mark) {

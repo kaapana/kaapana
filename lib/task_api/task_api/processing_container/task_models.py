@@ -12,6 +12,7 @@ class HostPathVolume(BaseModel):
 class PersistentVolumeClaimVolume(BaseModel):
     persistent_volume_claim: k8sclient.V1PersistentVolumeClaimVolumeSource
     sub_path: Optional[str] = None
+    namespace: Optional[str] = None
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 

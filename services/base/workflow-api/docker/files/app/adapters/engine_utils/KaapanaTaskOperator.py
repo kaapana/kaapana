@@ -329,6 +329,7 @@ class KaapanaTaskOperator(BaseOperator):
                 read_only=False,
             ),
             sub_path=str(channel_path),
+            namespace=self.namespace,
         )
 
     def _pvc_volumes(self) -> List[client.V1Volume]:

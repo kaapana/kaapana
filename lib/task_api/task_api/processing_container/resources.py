@@ -6,14 +6,11 @@ import os
 import re
 import urllib.error
 import urllib.request
-from typing import Optional
-
-
 PROJECT_RUNTIME_TIMEOUT = int(os.getenv("PROJECT_RUNTIME_TIMEOUT", "30"))
 
 
 def compute_target_size(
-    io: task_models.IOChannel, namespace: Optional[str] = None
+    io: task_models.IOChannel,
 ) -> int:
     """
     Compute the size of the input channel that should be used for scaling the resources
@@ -21,7 +18,7 @@ def compute_target_size(
     assert io.scale_rule
     scale_rule = io.scale_rule
     if isinstance(io.volume_source, task_models.PersistentVolumeClaimVolume):
-        return compute_pvc_target_size(io=io, namespace=namespace)
+        return compute_pvc_target_size(io=io)
 
     local_path = getattr(io.volume_source, "host_path", None)
     if not local_path:
@@ -114,20 +111,21 @@ def calculate_bytes(size: str) -> int:
 
 
 def compute_memory_requirement(
-    io: task_models.IOChannel, namespace: Optional[str] = None
+    io: task_models.IOChannel,
 ) -> int:
     """
     Compute the memory requirements for the inpute channel based on the files in the local file path.
     """
 
-    target_size = compute_target_size(io=io, namespace=namespace)
+    target_size = compute_target_size(io=io)
 
     return io.scale_rule.scale_factor * target_size
 
 
 def compute_pvc_target_size(
-    io: task_models.IOChannel, namespace: Optional[str] = None
+    io: task_models.IOChannel,
 ) -> int:
+    namespace = io.volume_source.namespace
     if not namespace:
         raise ValueError("PVC scale-rule resolution requires a project namespace")
 
@@ -191,16 +189,12 @@ def compute_memory_resources(
             if rule.type == "limit":
                 memory_limit = max(
                     memory_limit,
-                    compute_memory_requirement(
-                        channel, namespace=task_instance.config.namespace
-                    ),
+                    compute_memory_requirement(channel),
                 )
             elif rule.type == "request":
                 memory_request = max(
                     memory_request,
-                    compute_memory_requirement(
-                        channel, namespace=task_instance.config.namespace
-                    ),
+                    compute_memory_requirement(channel),
                 )
 
     if memory_limit >= 10:

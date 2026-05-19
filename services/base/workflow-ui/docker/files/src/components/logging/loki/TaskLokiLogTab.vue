@@ -5,11 +5,12 @@
     <div class="task-list-section flex-shrink-0">
       <div class="px-4 pt-3 pb-2">
         <v-text-field
-          v-model="taskSearch"
+          v-model="unifiedSearch"
           density="compact"
           variant="outlined"
-          placeholder="Search tasks…"
+          placeholder="Search tasks or logs…"
           prepend-inner-icon="mdi-magnify"
+          :loading="searchLoading"
           clearable
           hide-details
         />
@@ -31,6 +32,13 @@
           </template>
           <v-list-item-title class="text-body-2">{{ task.task_title }}</v-list-item-title>
           <template #append>
+            <v-chip
+              v-if="unifiedSearch && logMatchCounts.get(task.id)"
+              size="x-small"
+              color="primary"
+              variant="tonal"
+              class="mr-1"
+            >{{ logMatchCounts.get(task.id) === 5000 ? '5000+' : logMatchCounts.get(task.id) }}</v-chip>
             <v-progress-circular
               v-if="logsLoading && selectedTask?.id === task.id"
               size="16" width="2" indeterminate color="primary"
@@ -106,7 +114,7 @@
       <div v-else class="log-output">
         <div v-for="(line, i) in logLines" :key="i" class="log-line">
           <span class="log-ts">{{ line.ts }}</span>
-          <span class="log-text">{{ line.text }}</span>
+          <span class="log-text" v-html="highlightMatch(line.text)"></span>
         </div>
       </div>
     </div>
@@ -130,21 +138,29 @@ import { downloadAsZip } from '@/utils/zipDownload'
 const props = defineProps<{
   workflowRun: WorkflowRun
   namespace: string
+  initialTimeRange?: string
 }>()
 
 // ── Task list ─────────────────────────────────────────────────────────────────
-const selectedTask = ref<TaskRun | null>(null)
-const taskSearch   = ref('')
-const snackbar     = ref(false)
+const selectedTask   = ref<TaskRun | null>(null)
+const unifiedSearch  = ref('')
+const snackbar       = ref(false)
+const logMatchCounts = ref<Map<number, number>>(new Map())
+const searchLoading  = ref(false)
 
 const filteredTaskRuns = computed(() => {
   const runs = props.workflowRun.task_runs ?? []
-  const q = taskSearch.value.trim().toLowerCase()
-  return q ? runs.filter((t: TaskRun) => t.task_title.toLowerCase().includes(q)) : runs
+  const q = (unifiedSearch.value?.trim() ?? '').toLowerCase()
+  if (!q) return runs
+  return runs.filter((t: TaskRun) => {
+    if (t.task_title.toLowerCase().includes(q)) return true
+    const count = logMatchCounts.value.get(t.id)
+    return count !== undefined && count > 0
+  })
 })
 
 // ── Query settings ────────────────────────────────────────────────────────────
-const logTimeRange   = ref('30d')
+const logTimeRange   = ref(props.initialTimeRange ?? '30d')
 const logCustomStart = ref('')
 const logCustomEnd   = ref('')
 const logDirection   = ref<'backward' | 'forward'>('backward')
@@ -222,6 +238,69 @@ watch(logTimeRange, (val: string) => {
 watch([logCustomStart, logCustomEnd], ([start, end]: [string, string]) => {
   if (logTimeRange.value === 'custom' && start && end) reloadIfTaskSelected()
 })
+
+// ── Unified search across all tasks ──────────────────────────────────────────
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+
+watch(unifiedSearch, (val: string | null) => {
+  logMatchCounts.value = new Map()
+  if (searchTimer) clearTimeout(searchTimer)
+  const q = val?.trim() ?? ''
+  if (!q) return
+  searchTimer = setTimeout(() => searchAllTaskLogs(q), 700)  // pass original case to Loki
+})
+
+// Only reset when the actual workflow run changes (not on re-renders with new object refs)
+watch(() => props.workflowRun?.id, (newId: number | undefined, oldId: number | undefined) => {
+  if (newId !== oldId) {
+    unifiedSearch.value = ''
+    logMatchCounts.value = new Map()
+  }
+})
+
+let searchGeneration = 0
+
+async function searchAllTaskLogs(query: string) {
+  const runs = props.workflowRun.task_runs ?? []
+  if (!runs.length) return
+  const gen = ++searchGeneration
+  searchLoading.value = true
+  try {
+    const { start, end } = getLogTimeRange()
+    // queryRange with |~ filter: case-insensitive line filter, limit 5000.
+    // Using queryRange (not /query metric endpoint) because it's proven to work through the proxy.
+    const escapedRegex = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const results = await Promise.all(
+      runs.map(async (task: TaskRun) => {
+        try {
+          const lokiQuery = buildTaskPodQuery(props.namespace, task.external_id) + ` |~ "(?i)${escapedRegex}"`
+          const streams = await lokiApi.queryRange({ query: lokiQuery, start, end, limit: 5000, direction: 'forward' })
+          return { id: task.id, count: streams.flatMap(s => s.values).length }
+        } catch {
+          return { id: task.id, count: 0 }
+        }
+      })
+    )
+    if (gen !== searchGeneration) return  // stale response, discard
+    const map = new Map<number, number>()
+    for (const { id, count } of results) map.set(id, count)
+    logMatchCounts.value = map
+  } finally {
+    if (gen === searchGeneration) searchLoading.value = false
+  }
+}
+
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+function highlightMatch(text: string): string {
+  const safe = escapeHtml(text)
+  const q = unifiedSearch.value?.trim() ?? ''
+  if (!q) return safe
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return safe.replace(new RegExp(escaped, 'gi'), m => `<mark>${m}</mark>`)
+}
 
 // ── Copy / Download (single task) ────────────────────────────────────────────
 function logsAsText(): string {
@@ -324,5 +403,12 @@ defineExpose({
 
 .log-text {
   word-break: break-word;
+}
+
+:deep(mark) {
+  background: rgba(255, 200, 0, 0.35);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
 }
 </style>

@@ -7,10 +7,12 @@ export const lokiApi = {
     return data.data ?? []
   },
 
-  async getLabelValues(label: string, streamFilter?: string): Promise<string[]> {
-    const { data } = await lokiApiClient.get(`/label/${label}/values`, {
-      params: streamFilter ? { query: streamFilter } : undefined,
-    })
+  async getLabelValues(label: string, streamFilter?: string, start?: string, end?: string): Promise<string[]> {
+    const params: Record<string, string> = {}
+    if (streamFilter) params.query = streamFilter
+    if (start) params.start = start
+    if (end) params.end = end
+    const { data } = await lokiApiClient.get(`/label/${label}/values`, { params })
     return data.data ?? []
   },
 
@@ -24,4 +26,5 @@ export const lokiApi = {
     const { data } = await lokiApiClient.get('/query_range', { params })
     return data.data.result ?? []
   },
+
 }

@@ -30,14 +30,18 @@
     <v-card class="log-viewer-card">
 
       <!-- ===== TITLE BAR ===== -->
-      <v-card-title class="d-flex align-center justify-space-between">
-        <div>
-          <span class="text-h6">Logs: {{ workflowTitle }} v{{ workflowVersion }}</span>
-          <v-chip v-if="runStatus" size="small" class="ml-2" :color="statusColor(runStatus)" variant="outlined">
-            {{ runStatus }}
-          </v-chip>
+      <v-card-title class="d-flex bg-primary py-4 align-center">
+        <v-icon class="mr-3" size="x-large">mdi-text-box-search-outline</v-icon>
+        <div class="d-flex flex-column flex-grow-1 overflow-hidden">
+          <span class="text-caption text-medium-emphasis">Logs</span>
+          <div class="d-flex align-center gap-2">
+            <span class="text-h6 font-weight-bold text-truncate">{{ workflowTitle }} v{{ workflowVersion }}</span>
+            <v-chip v-if="runStatus" size="small" :color="statusColor(runStatus)" variant="outlined" class="flex-shrink-0">
+              {{ runStatus }}
+            </v-chip>
+          </div>
         </div>
-        <v-btn icon variant="text" @click="close">
+        <v-btn icon variant="text" class="ml-2" @click="close">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
@@ -60,11 +64,12 @@
           <div v-if="props.taskRuns && props.taskRuns.length > 0" class="task-list-section">
             <div class="px-4 pt-3 pb-2">
               <v-text-field
-                v-model="taskSearch"
+                v-model="unifiedSearch"
                 density="compact"
                 variant="outlined"
-                placeholder="Search tasks…"
+                placeholder="Search tasks or logs…"
                 prepend-inner-icon="mdi-magnify"
+                :loading="searchLoading"
                 clearable
                 hide-details
               />
@@ -86,6 +91,13 @@
                 </template>
                 <v-list-item-title class="text-body-2">{{ task.task_title }}</v-list-item-title>
                 <template #append>
+                  <v-chip
+                    v-if="unifiedSearch && logMatchCounts.get(task.id)"
+                    size="x-small"
+                    color="primary"
+                    variant="tonal"
+                    class="mr-1"
+                  >{{ logMatchCounts.get(task.id) }}</v-chip>
                   <v-progress-circular
                     v-if="loading && selectedTaskRunId === task.id"
                     size="16" width="2" indeterminate color="primary"
@@ -108,7 +120,7 @@
               Failed to load logs: {{ error }}
             </v-alert>
             <div v-else class="log-content-wrapper">
-              <pre class="log-content" v-html="decodeNewlines(logs)"></pre>
+              <pre class="log-content" v-html="displayedLog"></pre>
             </div>
           </div>
 
@@ -121,113 +133,84 @@
             ref="lokiTabRef"
             :workflow-run="workflowRun"
             :namespace="namespace"
+            :initial-time-range="initialLokiTimeRange"
           />
         </div>
 
       </v-card-text>
 
-      <v-card-actions class="pa-4">
+      <v-card-actions class="pa-4 gap-1">
 
         <!-- API tab buttons -->
         <template v-if="!namespace || activeLogTab === 'api'">
-          <v-btn
-            v-if="logs"
-            color="primary"
-            size="small"
-            variant="outlined"
-            @click="refreshLogs"
-            :loading="loading"
-          >
-            <v-icon size="18" class="mr-1">mdi-refresh</v-icon>
-            Reload
-          </v-btn>
-
-          <v-btn
-            v-if="logs"
-            color="primary"
-            size="small"
-            variant="outlined"
-            @click="copyToClipboard"
-          >
-            <v-icon size="18" class="mr-1">mdi-content-copy</v-icon>
-            Copy
-          </v-btn>
-
-          <v-btn
-            v-if="logs"
-            color="primary"
-            size="small"
-            variant="outlined"
-            @click="downloadLog"
-          >
-            <v-icon size="18" class="mr-1">mdi-download</v-icon>
-            Download Log
-          </v-btn>
-
-          <v-btn
-            v-if="props.taskRuns.length > 1"
-            color="primary"
-            size="small"
-            variant="outlined"
-            :loading="downloadingAllApi"
-            @click="downloadAllApiLogs"
-          >
-            <v-icon size="18" class="mr-1">mdi-zip-box</v-icon>
-            Download All Logs
-          </v-btn>
+          <template v-if="logs">
+            <v-tooltip text="Reload" location="top" theme="dark">
+              <template #activator="{ props: tp }">
+                <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" :loading="loading" @click="refreshLogs">
+                  <v-icon>mdi-refresh</v-icon>
+                </v-btn>
+              </template>
+            </v-tooltip>
+            <v-tooltip text="Copy to clipboard" location="top" theme="dark">
+              <template #activator="{ props: tp }">
+                <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" @click="copyToClipboard">
+                  <v-icon>mdi-content-copy</v-icon>
+                </v-btn>
+              </template>
+            </v-tooltip>
+            <v-tooltip text="Download log" location="top" theme="dark">
+              <template #activator="{ props: tp }">
+                <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" @click="downloadLog">
+                  <v-icon>mdi-download</v-icon>
+                </v-btn>
+              </template>
+            </v-tooltip>
+          </template>
+          <v-tooltip v-if="props.taskRuns.length > 1" text="Download all logs as ZIP" location="top" theme="dark">
+            <template #activator="{ props: tp }">
+              <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" :loading="downloadingAllApi" @click="downloadAllApiLogs">
+                <v-icon>mdi-zip-box</v-icon>
+              </v-btn>
+            </template>
+          </v-tooltip>
         </template>
 
         <!-- Loki tab buttons (delegate to exposed component methods) -->
         <template v-if="namespace && activeLogTab === 'loki'">
-          <v-btn
-            v-if="lokiTabRef?.hasTask"
-            color="primary"
-            size="small"
-            variant="outlined"
-            :loading="lokiTabRef?.logsLoading"
-            @click="lokiTabRef?.reload()"
-          >
-            <v-icon size="18" class="mr-1">mdi-refresh</v-icon>
-            Reload
-          </v-btn>
-
-          <v-btn
-            v-if="lokiTabRef?.hasLogs"
-            color="primary"
-            size="small"
-            variant="outlined"
-            @click="lokiTabRef?.copy()"
-          >
-            <v-icon size="18" class="mr-1">mdi-content-copy</v-icon>
-            Copy
-          </v-btn>
-
-          <v-btn
-            v-if="lokiTabRef?.hasLogs"
-            color="primary"
-            size="small"
-            variant="outlined"
-            @click="lokiTabRef?.download()"
-          >
-            <v-icon size="18" class="mr-1">mdi-download</v-icon>
-            Download Log
-          </v-btn>
-
-          <v-btn
-            v-if="workflowRun && workflowRun.task_runs.length > 1"
-            color="primary"
-            size="small"
-            variant="outlined"
-            :loading="lokiTabRef?.downloadingAll"
-            @click="lokiTabRef?.downloadAll()"
-          >
-            <v-icon size="18" class="mr-1">mdi-zip-box</v-icon>
-            Download All Logs
-          </v-btn>
+          <v-tooltip v-if="lokiTabRef?.hasTask" text="Reload" location="top" theme="dark">
+            <template #activator="{ props: tp }">
+              <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" :loading="lokiTabRef?.logsLoading" @click="lokiTabRef?.reload()">
+                <v-icon>mdi-refresh</v-icon>
+              </v-btn>
+            </template>
+          </v-tooltip>
+          <template v-if="lokiTabRef?.hasLogs">
+            <v-tooltip text="Copy to clipboard" location="top" theme="dark">
+              <template #activator="{ props: tp }">
+                <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" @click="lokiTabRef?.copy()">
+                  <v-icon>mdi-content-copy</v-icon>
+                </v-btn>
+              </template>
+            </v-tooltip>
+            <v-tooltip text="Download log" location="top" theme="dark">
+              <template #activator="{ props: tp }">
+                <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" @click="lokiTabRef?.download()">
+                  <v-icon>mdi-download</v-icon>
+                </v-btn>
+              </template>
+            </v-tooltip>
+          </template>
+          <v-tooltip v-if="workflowRun && workflowRun.task_runs.length > 1" text="Download all logs as ZIP" location="top" theme="dark">
+            <template #activator="{ props: tp }">
+              <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" :loading="lokiTabRef?.downloadingAll" @click="lokiTabRef?.downloadAll()">
+                <v-icon>mdi-zip-box</v-icon>
+              </v-btn>
+            </template>
+          </v-tooltip>
         </template>
 
         <v-spacer />
-        <v-btn color="primary" @click="close">Close</v-btn>
+        <v-btn color="primary" variant="text" @click="close">Close</v-btn>
       </v-card-actions>
 
       <!-- Full-card loading overlay while API logs are being fetched -->
@@ -251,11 +234,19 @@ import { statusColor } from '@/utils/status'
 import TaskLokiLogTab from '@/components/logging/loki/TaskLokiLogTab.vue'
 import { downloadAsZip } from '@/utils/zipDownload'
 
-const taskSearch = ref('')
+const unifiedSearch    = ref('')
+const logMatchCounts   = ref<Map<number, number>>(new Map())
+const searchLoading    = ref(false)
+const allTaskLogsCache = ref<Map<number, string>>(new Map())
 
 const filteredTaskRuns = computed(() => {
-  const q = taskSearch.value.trim().toLowerCase()
-  return q ? props.taskRuns.filter((t: TaskRun) => t.task_title.toLowerCase().includes(q)) : props.taskRuns
+  const q = (unifiedSearch.value?.trim() ?? '').toLowerCase()
+  if (!q) return props.taskRuns
+  return props.taskRuns.filter((t: TaskRun) => {
+    if (t.task_title.toLowerCase().includes(q)) return true
+    const count = logMatchCounts.value.get(t.id)
+    return count !== undefined && count > 0
+  })
 })
 
 
@@ -272,6 +263,7 @@ const props = defineProps<{
   taskRuns: TaskRun[]
   namespace?: string
   workflowRun?: WorkflowRun
+  initialLokiTimeRange?: string
 }>()
 
 const emit = defineEmits<{
@@ -328,7 +320,9 @@ const close = () => {
   error.value = null
   selectedTaskRunId.value = null
   taskRunOptions.value = []
-  taskSearch.value = ''
+  unifiedSearch.value = ''
+  logMatchCounts.value = new Map()
+  allTaskLogsCache.value = new Map()
 }
 
 
@@ -490,17 +484,66 @@ async function downloadAllApiLogs() {
   }
 }
 
-/**
- * Converts literal "\n" escape sequences in the API response to real line breaks.
- * Needed because some backends serialize newlines as the two-character string "\n".
- *
- * @param text - Raw log string from the API
- * @returns Log string with real newline characters
- */
 const decodeNewlines = (text: string) => {
   if (!text) return ''
   return text.replace(/\\n/g, '\n')
 }
+
+// ── Unified search across all task logs ──────────────────────────────────────
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+
+watch(unifiedSearch, (val: string | null) => {
+  logMatchCounts.value = new Map()
+  if (searchTimer) clearTimeout(searchTimer)
+  const q = (val?.trim() ?? '').toLowerCase()
+  if (!q) return
+  searchTimer = setTimeout(() => searchAllApiLogs(q), 700)
+})
+
+async function searchAllApiLogs(query: string) {
+  if (!props.taskRuns.length) return
+  searchLoading.value = true
+  try {
+    const uncached = props.taskRuns.filter((t: TaskRun) => !allTaskLogsCache.value.has(t.id))
+    if (uncached.length) {
+      const fetched = await Promise.all(
+        uncached.map(async (task: TaskRun) => {
+          try {
+            const raw = await workflowRunsApi.getTaskRunLogs(props.workflowRunId, task.id)
+            return { id: task.id, content: decodeNewlines(raw) }
+          } catch {
+            return { id: task.id, content: '' }
+          }
+        })
+      )
+      const cache = new Map(allTaskLogsCache.value)
+      for (const { id, content } of fetched) cache.set(id, content)
+      allTaskLogsCache.value = cache
+    }
+    const map = new Map<number, number>()
+    for (const task of props.taskRuns) {
+      const content = allTaskLogsCache.value.get(task.id) ?? ''
+      let count = 0
+      let idx = 0
+      while ((idx = content.toLowerCase().indexOf(query, idx)) !== -1) { count++; idx++ }
+      map.set(task.id, count)
+    }
+    logMatchCounts.value = map
+  } finally {
+    searchLoading.value = false
+  }
+}
+
+const displayedLog = computed(() => {
+  const raw = logs.value
+  if (!raw) return ''
+  const decoded = decodeNewlines(raw)
+  const safe = decoded.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const q = unifiedSearch.value?.trim() ?? ''
+  if (!q) return safe
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return safe.replace(new RegExp(escaped, 'gi'), m => `<mark>${m}</mark>`)
+})
 </script>
 
 <style scoped>
@@ -547,5 +590,12 @@ const decodeNewlines = (text: string) => {
 
 .log-content pre {
   margin: 0;
+}
+
+:deep(mark) {
+  background: rgba(255, 200, 0, 0.35);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
 }
 </style>

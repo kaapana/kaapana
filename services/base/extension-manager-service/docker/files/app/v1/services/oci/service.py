@@ -76,8 +76,8 @@ class ociService:
         This is a placeholder implementation that returns static manifests.
         In a real implementation, this method would query the OCI registry for the given repository and return the manifests of the extensions available there.
 
-        :param tags: TODO
-        :return: TODO
+        :param tags: Set of extension tags
+        :return: Dictionary with tag as key and the extension manifest as value
         :rtype: dict[str, ExtensionManifest]
         """
         manifests = {}
@@ -101,8 +101,8 @@ class ociService:
         This is a placeholder implementation that returns a static manifest.
         In a real implementation, this method would query the OCI registry for the given repository and return the manifest of the specified extension.
 
-        :param tag: TODO
-        :return: TODO
+        :param tag: Tag of an extensions
+        :return: Return the extension manifest for the extension tag
         :rtype: ExtensionManifest
         """
         existing_tags = await self.get_extensions_for_repository()
@@ -119,8 +119,10 @@ class ociService:
         This is a placeholder implementation that does nothing.
         In a real implementation, this method would query the OCI registry for the given repository and pull the specified extension.
 
-        :param tag: TODO
-        :raises ExtensionPullError: TODO
+        :param tag: Tag of an extension
+        :return: The path, where the extension was downloaded to.
+        :rtype: Path
+        :raises ExtensionNotFoundException: If the tag is not installed it raises ExtensionNotFoundException.
         """
 
         existing_tags = await self.get_extensions_for_repository()

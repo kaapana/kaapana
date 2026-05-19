@@ -105,7 +105,10 @@ async def get_extensions(
             status=ext.status,
             contents=[
                 schemas.InstalledContent(
-                    name=cont.name, content_type=cont.content_type, status=cont.status
+                    name=cont.name,
+                    content_type=cont.content_type,
+                    status=cont.status,
+                    location=cont.location,
                 )
                 for cont in ext.contents
             ],

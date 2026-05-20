@@ -93,6 +93,7 @@ variables:
     GIT_STRATEGY: fetch
     GIT_DEPTH: 1
     PYTHON_VENV_DIR: ".venv-$CI_JOB_NAME"
+    DOCKER_TIMEOUT: "300"
   before_script:
     - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
     - python3 -m venv "$PYTHON_VENV_DIR"
@@ -120,6 +121,7 @@ task_api_tests:
     - pip install build pytest
     - python3 -m build $KAAPANA_DIR/lib/task_api
     - pip install $KAAPANA_DIR/lib/task_api/dist/task_api-*.tar.gz
+    - pip install --force-reinstall $KAAPANA_DIR/lib/kaapana_containers
     - pytest $KAAPANA_DIR/lib/task_api/task_api --junitxml=task_api_report.xml
   artifacts:
     reports:

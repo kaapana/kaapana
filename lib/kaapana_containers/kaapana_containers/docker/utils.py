@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 import tarfile
 import io
+import os
 import docker
 
 

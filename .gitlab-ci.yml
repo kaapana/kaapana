@@ -92,7 +92,7 @@ variables:
     GIT_CLONE_PATH: "$CI_BUILDS_DIR/$CI_COMMIT_SHORT_SHA/$CI_JOB_NAME-$CI_JOB_ID"
     GIT_STRATEGY: fetch
     GIT_DEPTH: 1
-    PYTHON_VENV_DIR: ".venv-$CI_JOB_NAME"
+    PYTHON_VENV_DIR: "$HOME/.venvs/$CI_JOB_NAME"
   before_script:
     - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
     - python3 -m venv "$PYTHON_VENV_DIR"

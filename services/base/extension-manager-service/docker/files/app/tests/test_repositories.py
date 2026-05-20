@@ -2,6 +2,7 @@ import pytest
 from httpx import AsyncClient
 import json
 from uuid import uuid4
+from pathlib import Path
 
 
 @pytest.mark.asyncio
@@ -184,7 +185,9 @@ async def test_post_repository_get_extensions_get_manifests(client: AsyncClient)
 
     response = await client.get(location + "/extensionManifests")
     assert response.status_code == 200
-    with open("v1/mock_data/extension-v1/extension_manifest.json") as f:
+    with open(
+        f"{Path(__file__).parent.parent}/v1/mock_data/extension-v1/extension_manifest.json"
+    ) as f:
         manifest = json.load(f)
     assert response.json() == [
         {

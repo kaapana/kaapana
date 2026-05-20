@@ -147,9 +147,8 @@ task_api_tests:
 workflow_api_tests:
   extends: .test_template
   script:
-    - cd $KAAPANA_DIR/services/base/workflow-api/docker/files/tests/unit
-    - pip install -r requirements.txt
-    - pytest . --junitxml=workflow_api_report.xml
+    - pip install -r $KAAPANA_DIR/services/base/workflow-api/docker/files/tests/unit/requirements.txt
+    - pytest $KAAPANA_DIR/services/base/workflow-api/docker/files/tests/unit --junitxml=workflow_api_report.xml
   artifacts:
     reports:
       junit:
@@ -161,9 +160,8 @@ workflow_api_tests:
 extensions_api_tests:
   extends: .test_template
   script:
-    - cd $KAAPANA_DIR/services/base/extension-manager-service/docker/files/app
-    - pip install -r tests/requirements.txt
-    - pytest . --junitxml=extensions_api_report.xml
+    - pip install -r  $KAAPANA_DIR/services/base/extension-manager-service/docker/files/app/tests/requirements.txt
+    - pytest  $KAAPANA_DIR/services/base/extension-manager-service/docker/files/app --junitxml=extensions_api_report.xml
   artifacts:
     reports:
       junit:

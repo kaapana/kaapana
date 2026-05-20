@@ -241,6 +241,22 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "-eic",
+        "--enable-inline-cache",
+        help="Embed inline cache metadata in built images (BUILDKIT_INLINE_CACHE=1) so they can be used as cache sources by future builds.",
+        action="store_true",
+        default=os.getenv("ENABLE_INLINE_CACHE", True),
+    )
+
+    parser.add_argument(
+        "-cft",
+        "--cache-from-tag",
+        help="Version tag to use as cache source when building each image (e.g. 'latest'). "
+        "Each image will pull <registry>/<image>:<cache-from-tag> and use it as --cache-from.",
+        default=os.getenv("CACHE_FROM_TAG", "latest"),
+    )
+
+    parser.add_argument(
         "--helm-executable",
         help="Helm executable to use.",
         default=os.getenv("HELM_EXECUTABLE", "helm"),

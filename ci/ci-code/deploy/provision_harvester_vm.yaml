@@ -8,25 +8,25 @@
   vars:
     # VM configuration - all from environment variables
     vm_name: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_VM_NAME', default=undef()) }}"
-    vm_image_name: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_IMAGE_ID', default='ubuntu24') }}"
-    vm_storage_class: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_STORAGE_CLASS', default='px-fa-direct-access') }}"
-    vm_network: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_NETWORK', default=) }}"
-    vm_ssh_keypair: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_SSH_KEYPAIR', default='kaapana') }}"
-    vm_user: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_USER', default='ubuntu') }}"
-    vm_dns_domain: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DOMAIN', default='vms.dkfz.de') }}"
-    vm_cpu_cores: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_CPU', default='8') }}"
+    vm_image_name: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_IMAGE_ID', default=undef()) }}"
+    vm_storage_class: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_STORAGE_CLASS', default=undef()) }}"
+    vm_network: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_NETWORK', default=undef()) }}"
+    vm_ssh_keypair: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_SSH_KEYPAIR', default=undef()) }}"
+    vm_user: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_USER', default=undef()) }}"
+    vm_dns_domain: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DOMAIN', default=undef()) }}"
+    vm_cpu_cores: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_CPU', default=undef()) }}"
     vm_cpu_sockets: 1
     vm_cpu_threads: 1
     vm_cpu_max_sockets: 1
-    vm_memory_guest: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_MEMORY', default='16Gi') }}"
+    vm_memory_guest: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_MEMORY', default=undef()) }}"
     vm_memory_max: "{{ vm_memory_guest }}"
-    vm_disk_size: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DISK', default='128Gi') }}"
-    
+    vm_disk_size: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DISK', default=undef()) }}"
+
     # Harvester connection
-    harvester_namespace: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE', default='kaapana-ci') }}"
+    harvester_namespace: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE', default=undef()) }}"
     harvester_kubeconfig: "{{ lookup('env', 'ORCHESTRATOR_INSTANCE_HARVESTER_KUBECONFIG', default=undef()) }}"
     ssh_private_key: "{{ lookup('env', 'ORCHESTRATOR_INSTANCE_PRIVATE_SSH_KEY', default=undef()) }}"
-    artifacts_dir: "{{ lookup('env', 'ARTIFACTS_DIR', default='.') }}"
+    artifacts_dir: "{{ lookup('env', 'ARTIFACTS_DIR', default=undef()) }}"
 
     # Optional behavior
     force_recreate: "{{ force_recreate | default(false) | bool }}"

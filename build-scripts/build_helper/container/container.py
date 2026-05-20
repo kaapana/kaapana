@@ -128,6 +128,8 @@ class Container:
         self.status = Status.NOT_BUILT
         self.build_time: str | float = "-"
         self.push_time: str | float = "-"
+        self.cache_from_images: List[str] = []
+        self.cache_pulled: List[str] = []
 
     def __repr__(self) -> str:
         return f"Container(tag={self.tag!r}, image_name={self.image_name!r}, repo_version={self.version!r}, local={self.local_image})"
@@ -262,11 +264,28 @@ class Container:
             )
         if config.include_model_weights:
             build_args.extend(["--build-arg", "include_model_weights=true"])
+        if config.enable_inline_cache:
+            build_args.extend(["--build-arg", "BUILDKIT_INLINE_CACHE=1"])
+
+        cache_from_args = []
+        if config.cache_from_tag:
+            for cache_image in self.cache_from_images:
+                pull_result = run(
+                    [config.container_engine, "pull", "--quiet", cache_image],
+                    stdout=PIPE,
+                    stderr=PIPE,
+                    timeout=600,
+                    env=dict(os.environ, DOCKER_BUILDKIT=f"{config.enable_build_kit}"),
+                )
+                if pull_result.returncode == 0:
+                    self.cache_pulled.append(cache_image)
+                cache_from_args.extend(["--cache-from", cache_image])
 
         command = [
             config.container_engine,
             "build",
             *build_args,
+            *cache_from_args,
             "-t",
             self.tag,
             "-f",

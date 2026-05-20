@@ -123,3 +123,15 @@ class WorkflowEngineAdapter(ABC):
             str: The logs of the task run.
         """
         pass
+
+    @abstractmethod
+    def parse_task_run_logs(self, raw_log: str) -> list[schemas.LogLine]:
+        """
+        Parses the raw log string from the engine into structured LogLine objects.
+
+        Args:
+            raw_log (str): Raw log text as returned by get_task_run_logs().
+        Returns:
+            list[LogLine]: Parsed and normalized log lines.
+        """
+        pass

@@ -396,6 +396,32 @@ async def get_task_run_logs(
     return logs
 
 
+async def get_task_run_log_lines(
+    db: AsyncSession, workflow_run_id: int, task_run_id: int
+) -> list[schemas.LogLine]:
+    """
+    Fetches and parses the logs of a task run into structured LogLine objects.
+    The raw log is retrieved from the engine adapter and parsed by the same adapter.
+    Args:
+        db (AsyncSession): Database session
+        workflow_run_id (int): ID of the workflow run
+        task_run_id (int): ID of the task run
+    Returns:
+        list[LogLine]: Parsed log lines with time, severity, message, and metadata
+    Raises:
+        NotFoundError: If the task run is not found
+    """
+    task_run = await crud.get_task_run(
+        db, filters={"id": task_run_id, "workflow_run_id": workflow_run_id}
+    )
+    if not task_run:
+        raise NotFoundError("Task run not found")
+
+    engine = get_workflow_engine(task_run.workflow_run.workflow.workflow_engine)
+    raw = await engine.get_task_run_logs(task_run.external_id)
+    return engine.parse_task_run_logs(raw)
+
+
 async def _submit_workflow_run_to_engine(
     db: AsyncSession,
     workflow_run: schemas.WorkflowRun,

@@ -134,15 +134,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
 import LogViewer from '@/components/LogViewer.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import WorkflowRunRow from '@/components/WorkflowRun.vue'
 import { workflowRunsApi } from '@/api/workflowRuns'
 import type { WorkflowRun, TaskRun } from '@/types/schemas'
 import { statusColor } from '@/utils/status'
-
-const router = useRouter()
 
 // --- STATE ---
 const runs = ref<WorkflowRun[]>([])

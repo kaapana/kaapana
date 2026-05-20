@@ -217,3 +217,9 @@ export interface LogEntry {
     log_available: boolean
 }
 
+export interface LogLine {
+    time: string
+    severity: string
+    message: string
+    metadata: Record<string, string>
+}

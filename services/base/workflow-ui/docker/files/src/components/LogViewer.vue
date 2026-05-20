@@ -19,19 +19,9 @@
         </v-btn>
       </v-card-title>
 
-      <!-- ===== TABS (only when Loki is available) ===== -->
-      <div v-if="namespace">
-        <v-tabs v-model="activeLogTab" color="primary" density="compact" class="px-4">
-          <v-tab value="loki" prepend-icon="mdi-text-search">Pod (Loki) Logs</v-tab>
-          <v-tab value="api" prepend-icon="mdi-api">Workflow-API Logs</v-tab>
-        </v-tabs>
-        <v-divider />
-      </div>
-
       <v-card-text class="pa-0">
 
-        <!-- ===== API TAB CONTENT ===== -->
-        <div v-show="!namespace || activeLogTab === 'api'" class="log-viewer-body">
+        <div class="log-viewer-body">
 
           <!-- Left: task panel -->
           <div v-if="props.taskRuns && props.taskRuns.length > 0" class="task-panel">
@@ -103,7 +93,7 @@
                   </v-btn>
                 </template>
               </v-tooltip>
-              <template v-if="logs">
+              <template v-if="logLines.length > 0">
                 <v-tooltip text="Copy to clipboard" location="top" theme="dark">
                   <template #activator="{ props: tp }">
                     <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" @click="copyToClipboard">
@@ -113,7 +103,7 @@
                 </v-tooltip>
                 <v-tooltip text="Download log" location="top" theme="dark">
                   <template #activator="{ props: tp }">
-                    <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" @click="downloadLog">
+                    <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" :loading="downloading" @click="downloadLog">
                       <v-icon>mdi-download</v-icon>
                     </v-btn>
                   </template>
@@ -129,32 +119,27 @@
             </div>
             <v-divider />
             <div class="log-panel-content">
-              <v-alert v-if="!logs && !loading && !error" type="info" variant="tonal" class="mx-4 mt-4">
+              <v-alert v-if="!logLines.length && !loading && !error" type="info" variant="tonal" class="mx-4 mt-4">
                 No logs available for this task run yet.
               </v-alert>
               <v-alert v-else-if="error" type="error" variant="tonal" class="mx-4 mt-4">
                 Failed to load logs: {{ error }}
               </v-alert>
-              <pre v-else class="log-content" v-html="displayedLog"></pre>
+              <div v-else class="log-output">
+                <div v-for="(line, i) in logLines" :key="i" class="log-line">
+                  <span class="log-ts">{{ line.time.slice(0, 19).replace('T', ' ') }}</span>
+                  <span :class="`log-severity log-severity--${line.severity.toLowerCase()}`">{{ line.severity }}</span>
+                  <span class="log-text" v-html="highlightMatch(line.message)"></span>
+                </div>
+              </div>
             </div>
           </div>
 
         </div>
 
-        <!-- ===== LOKI TAB CONTENT ===== -->
-        <!-- wrapper div needed: v-show on a multi-root component is a no-op in Vue 3 -->
-        <div v-if="namespace && workflowRun" v-show="activeLogTab === 'loki'">
-          <TaskLokiLogTab
-            :workflow-run="workflowRun"
-            :namespace="namespace"
-            :initial-time-range="initialLokiTimeRange"
-          />
-        </div>
-
       </v-card-text>
 
-      <!-- Full-card loading overlay while API logs are being fetched -->
-      <v-overlay v-model="loading" v-if="!namespace || activeLogTab === 'api'" class="d-flex justify-center align-center" persistent>
+      <v-overlay v-model="loading" class="d-flex justify-center align-center" persistent>
         <v-progress-circular indeterminate size="64" color="primary" />
       </v-overlay>
 
@@ -169,9 +154,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { workflowRunsApi } from '@/api/workflowRuns'
-import type { TaskRun, WorkflowRun } from '@/types/schemas'
+import type { TaskRun, LogLine } from '@/types/schemas'
 import { statusColor } from '@/utils/status'
-import TaskLokiLogTab from '@/components/logging/loki/TaskLokiLogTab.vue'
 import { downloadAsZip } from '@/utils/zipDownload'
 
 // ── Search ────────────────────────────────────────────────────────────────────
@@ -179,6 +163,7 @@ const taskSearch       = ref('')
 const logSearch        = ref('')
 const logMatchCounts   = ref<Map<number, number>>(new Map())
 const searchLoading    = ref(false)
+// Cache stores joined message text per task ID for fast substring search
 const allTaskLogsCache = ref<Map<number, string>>(new Map())
 
 const filteredTaskRuns = computed(() => {
@@ -206,9 +191,7 @@ const props = defineProps<{
   workflowVersion: number
   runStatus: string
   taskRuns: TaskRun[]
-  namespace?: string
-  workflowRun?: WorkflowRun
-  initialLokiTimeRange?: string
+
 }>()
 
 const emit = defineEmits<{
@@ -225,10 +208,10 @@ const model = computed({
 // STATE
 // ============================================================
 
-const activeLogTab      = ref('loki')
 const copySnackbar      = ref(false)
-const logs              = ref<string>('')
+const logLines          = ref<LogLine[]>([])
 const loading           = ref(false)
+const downloading       = ref(false)
 const error             = ref<string | null>(null)
 const selectedTaskRunId = ref<number | null>(null)
 
@@ -239,7 +222,7 @@ const selectedTaskRunId = ref<number | null>(null)
 
 const close = () => {
   model.value = false
-  logs.value = ''
+  logLines.value = []
   error.value = null
   selectedTaskRunId.value = null
   taskSearch.value = ''
@@ -273,7 +256,11 @@ const loadLogs = async (taskId?: number) => {
   loading.value = true
   error.value = null
   try {
-    logs.value = await workflowRunsApi.getTaskRunLogs(props.workflowRunId, taskIdToLoad)
+    logLines.value = await workflowRunsApi.getTaskRunLogLines(props.workflowRunId, taskIdToLoad)
+    // Pre-populate search cache so switching tasks doesn't re-fetch for search
+    const cache = new Map(allTaskLogsCache.value)
+    cache.set(taskIdToLoad, logLines.value.map(l => l.message).join('\n'))
+    allTaskLogsCache.value = cache
   } catch (err: any) {
     error.value = err?.response?.data?.detail || err?.message || 'Failed to load logs'
   } finally {
@@ -296,7 +283,7 @@ const selectTaskAndLoad = async (taskId: number) => {
 watch(
   () => props.taskRuns,
   async (newRuns: TaskRun[]) => {
-    logs.value = ''
+    logLines.value = []
     error.value = null
     setupTaskRuns(newRuns)
     if (model.value && selectedTaskRunId.value) {
@@ -308,7 +295,7 @@ watch(
 
 watch(model, async (isOpen: boolean) => {
   if (!isOpen) return
-  logs.value = ''
+  logLines.value = []
   error.value = null
   setupTaskRuns(props.taskRuns)
   if (selectedTaskRunId.value) {
@@ -321,20 +308,32 @@ watch(model, async (isOpen: boolean) => {
 // UTILITIES
 // ============================================================
 
-const copyToClipboard = () => {
-  if (logs.value) {
-    navigator.clipboard.writeText(logs.value).then(() => { copySnackbar.value = true })
-  }
+function logLinesToText(): string {
+  return logLines.value
+    .map((l: LogLine) => `${l.time.slice(0, 19).replace('T', ' ')}  ${l.severity.padEnd(8)}  ${l.message}`)
+    .join('\n')
 }
 
-function downloadLog() {
-  const blob = new Blob([logs.value], { type: 'text/plain' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${props.workflowTitle}-v${props.workflowVersion}-task-${selectedTaskRunId.value}.log`
-  a.click()
-  URL.revokeObjectURL(url)
+const copyToClipboard = () => {
+  navigator.clipboard.writeText(logLinesToText()).then(() => { copySnackbar.value = true })
+}
+
+async function downloadLog() {
+  if (!selectedTaskRunId.value || downloading.value) return
+  downloading.value = true
+  try {
+    // Fetch raw log for download to preserve original formatting
+    const raw = await workflowRunsApi.getTaskRunLogs(props.workflowRunId, selectedTaskRunId.value)
+    const blob = new Blob([decodeNewlines(raw)], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${props.workflowTitle}-v${props.workflowVersion}-task-${selectedTaskRunId.value}.log`
+    a.click()
+    URL.revokeObjectURL(url)
+  } finally {
+    downloading.value = false
+  }
 }
 
 const downloadingAllApi = ref(false)
@@ -384,8 +383,8 @@ async function searchAllApiLogs(query: string) {
       const fetched = await Promise.all(
         uncached.map(async (task: TaskRun) => {
           try {
-            const raw = await workflowRunsApi.getTaskRunLogs(props.workflowRunId, task.id)
-            return { id: task.id, content: decodeNewlines(raw) }
+            const lines = await workflowRunsApi.getTaskRunLogLines(props.workflowRunId, task.id)
+            return { id: task.id, content: lines.map((l: LogLine) => l.message).join('\n') }
           } catch {
             return { id: task.id, content: '' }
           }
@@ -409,16 +408,16 @@ async function searchAllApiLogs(query: string) {
   }
 }
 
-const displayedLog = computed(() => {
-  const raw = logs.value
-  if (!raw) return ''
-  const decoded = decodeNewlines(raw)
-  const safe = decoded.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+// ── Rendering helpers ─────────────────────────────────────────────────────────
+function highlightMatch(text: string): string {
+  const safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   const q = logSearch.value?.trim() ?? ''
   if (!q) return safe
   const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   return safe.replace(new RegExp(escaped, 'gi'), m => `<mark>${m}</mark>`)
-})
+}
+
+
 </script>
 
 <style scoped>
@@ -467,17 +466,41 @@ const displayedLog = computed(() => {
   overflow: auto;
 }
 
-.log-content {
-  margin: 0;
-  padding: 16px;
+.log-output {
   font-family: 'Courier New', Courier, monospace;
-  font-size: 13px;
+  font-size: 12px;
+  padding: 12px 16px;
+}
+
+.log-line {
+  display: flex;
+  gap: 10px;
   line-height: 1.6;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  color: rgba(var(--v-theme-on-surface), 0.87);
-  background-color: rgba(var(--v-theme-on-surface), 0.04);
-  min-height: 100%;
+  min-height: 1.6em;
+}
+
+.log-ts {
+  color: rgba(var(--v-theme-on-surface), 0.45);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.log-severity {
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-weight: 600;
+  width: 8ch;
+}
+
+.log-severity--info    { color: rgba(var(--v-theme-on-surface), 0.7); }
+.log-severity--debug   { color: rgba(var(--v-theme-secondary), 1); }
+.log-severity--warning,
+.log-severity--warn    { color: rgb(var(--v-theme-warning)); }
+.log-severity--error,
+.log-severity--critical { color: rgb(var(--v-theme-error)); }
+
+.log-text {
+  word-break: break-word;
 }
 
 :deep(mark) {

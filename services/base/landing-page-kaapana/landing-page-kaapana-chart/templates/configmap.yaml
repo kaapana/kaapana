@@ -126,26 +126,6 @@ data:
             "endpoint": "/workflow-ui",
             "linkTo": "/workflow-ui/runs"
           },
-          "logs": {
-            "label": "Logs V2",
-            "endpoint": "/workflow-ui",
-            "linkTo": "/workflow-ui/logs"
-          },
-          "logs-workflow": {
-            "label": "Workflow Logs V2",
-            "endpoint": "/workflow-ui",
-            "linkTo": "/workflow-ui/logs/workflow"
-          },
-          "logs-workflow-loki": {
-            "label": "Workflow Loki Logs V2",
-            "endpoint": "/workflow-ui",
-            "linkTo": "/workflow-ui/logs/workflow-loki"
-          },
-          "logs-loki": {
-            "label": "Loki Logs V2 (advanced)",
-            "endpoint": "/workflow-ui",
-            "linkTo": "/workflow-ui/logs/loki"
-          },
           "data": {
             "label": "Data",
             "endpoint": "/data-ui",

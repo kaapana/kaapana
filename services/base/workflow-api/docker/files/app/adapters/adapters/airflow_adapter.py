@@ -11,9 +11,20 @@ from app import schemas
 from app.adapters.base import WorkflowEngineAdapter
 from jinja2 import Template
 
+import re
+from ast import literal_eval
+from datetime import datetime, timezone
+
 
 class AirflowPluginAdapter(WorkflowEngineAdapter):
     workflow_engine = "airflow"  # TODO: change it to Airflow v2 when we have a separate adapter for Airflow v3
+    # Airflow log format: [2025-05-01T12:34:56.789+00:00] {file.py:42} INFO - message
+    _LOG_LINE_RE = re.compile(
+        r"^\[(?P<ts>[^\]]+)\]\s+\{(?P<loc>[^}]*)\}\s+(?P<level>[A-Z]+)\s+-\s*(?P<msg>.*)$"
+    )
+    _BARE_LEVEL_RE = re.compile(r"^(?P<level>[A-Z]+)\s+-\s*(?P<msg>.*)$")
+    _TS_OFFSET_RE = re.compile(r"([+-]\d{2})(\d{2})$")
+    _KNOWN_LEVELS = {"DEBUG", "INFO", "WARNING", "WARN", "ERROR", "CRITICAL"}
 
     def __init__(self):
         super().__init__()
@@ -425,3 +436,73 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             return str(resp)
         except Exception as e:
             return f"Failed to fetch logs: {e}\nResponse: {resp}"
+
+    def parse_task_run_logs(self, raw_log: str) -> list[schemas.LogLine]:
+        entries: list[schemas.LogLine] = []
+        last_ts = datetime.now(tz=timezone.utc)
+
+        # Airflow wraps log content as a Python repr of [(host, log_text), ...].
+        # literal_eval is the intended way to decode this format.
+        try:
+            log_tuples: list[tuple[str, str]] = literal_eval(raw_log)
+        except (ValueError, SyntaxError):
+            # Not a tuple-list repr (e.g. plain-text error message) -> treat as single entry
+            log_tuples = [("unknown", raw_log)]
+        except Exception as e:
+            self.logger.warning(f"Unexpected error parsing log: {e}")
+            log_tuples = [("unknown", raw_log)]
+
+        for _host, log_text in log_tuples:
+            for raw_line in log_text.splitlines():
+                line = raw_line.strip()
+                if not line:
+                    continue
+
+                # Case 1: line is in the format as expected
+                m = self._LOG_LINE_RE.match(line)
+                if m and m.group("level") in self._KNOWN_LEVELS:
+                    last_ts = self._parse_ts(m.group("ts"))
+                    entries.append(
+                        schemas.LogLine(
+                            time=last_ts,
+                            severity=m.group("level"),
+                            message=m.group("msg"),
+                            metadata=(
+                                {"location": m.group("loc")} if m.group("loc") else {}
+                            ),
+                        )
+                    )
+                    continue
+
+                # Case 2: bare "INFO - ..."
+                bare = self._BARE_LEVEL_RE.match(line)
+                if bare and bare.group("level") in self._KNOWN_LEVELS:
+                    entries.append(
+                        schemas.LogLine(
+                            time=last_ts,
+                            severity=bare.group("level"),
+                            message=bare.group("msg"),
+                        )
+                    )
+                    continue
+
+                # Case 3: *** meta lines
+                if line.startswith("***"):
+                    entries.append(
+                        schemas.LogLine(
+                            time=last_ts,
+                            severity="DEBUG",
+                            message=line.lstrip("* ").strip(),
+                        )
+                    )
+        return entries
+
+    @classmethod
+    def _parse_ts(cls, ts: str) -> datetime:
+        # fromisoformat requires a colon in the UTC offset ("+00:00"), but Airflow
+        # sometimes emits "+0000" without it — normalize before parsing.
+        normalized = cls._TS_OFFSET_RE.sub(r"\1:\2", ts)
+        try:
+            return datetime.fromisoformat(normalized)
+        except ValueError:
+            return datetime.now(tz=timezone.utc)

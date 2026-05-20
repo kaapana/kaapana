@@ -14,16 +14,16 @@ logger = logging.getLogger(__name__)
 async def get_workflow_runs(
     db: AsyncSession,
     workflow_title: Optional[str],
-    workflow_version: Optional[int],
+    workflow_increment: Optional[int],
     lifecycle_status: Optional[str] = None,
 ) -> List[schemas.WorkflowRun]:
     """
-    Gets workflow runs from workflow DB, optionally filtered by workflow title and version.
+    Gets workflow runs from workflow DB, optionally filtered by workflow title and increment.
 
     Args:
         db (AsyncSession): Database session
         workflow_title (Optional[str]): Title of the workflow to filter by
-        workflow_version (Optional[int]): Version of the workflow to filter by
+        workflow_increment (Optional[int]): Increment of the workflow to filter by
     Returns:
         List[WorkflowRun]: List of WorkflowRun objects
     """
@@ -31,8 +31,8 @@ async def get_workflow_runs(
     filters = {}
     if workflow_title:
         filters["workflow.title"] = workflow_title
-    if workflow_version:
-        filters["workflow.version"] = str(workflow_version)
+    if workflow_increment:
+        filters["workflow.increment"] = str(workflow_increment)
     if lifecycle_status:
         filters["lifecycle_status"] = schemas.WorkflowRunStatus[lifecycle_status]
 
@@ -108,7 +108,7 @@ async def create_workflow_run(
         db,
         filters={
             "title": workflow_run.workflow.title,
-            "version": workflow_run.workflow.version,
+            "increment": workflow_run.workflow.increment,
         },
     )
     if not db_workflow:

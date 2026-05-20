@@ -563,7 +563,7 @@ async function submitForm() {
     expandedPanels.value = previousExpandedState
 
     const payload: WorkflowRunCreate = {
-        workflow: { title: props.workflow.title, version: props.workflow.version },
+        workflow: { title: props.workflow.title, version: props.workflow.increment },
         labels: props.workflow.labels || [],
         workflow_parameters: [],
     }

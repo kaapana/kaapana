@@ -12,7 +12,7 @@
     <td class="text-start">
       <div>
         <div class="text-body-2 font-weight-medium">{{ run.workflow?.title || 'Unknown' }}</div>
-        <div class="text-caption text-medium-emphasis">v{{ run.workflow?.version || 0 }}</div>
+        <div class="text-caption text-medium-emphasis">v{{ run.workflow?.increment || 0 }}</div>
       </div>
     </td>
 

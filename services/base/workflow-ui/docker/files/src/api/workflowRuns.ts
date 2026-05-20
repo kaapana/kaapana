@@ -60,7 +60,7 @@ export const workflowRunsApi = {
     }
   },
 
-  async getAll(params?: { workflow_title?: string; workflow_version?: number }): Promise<WorkflowRun[]> {
+  async getAll(params?: { workflow_title?: string; workflow_increment?: number }): Promise<WorkflowRun[]> {
     const response = await apiClient.get<WorkflowRun[]>(API_BASE, { params })
     return response.data
   },

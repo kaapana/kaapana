@@ -69,10 +69,10 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
     def _get_dag_id_from_workflow(
         self, workflow: schemas.Workflow | schemas.WorkflowRef
     ) -> str:
-        """Creates a DAG ID from the workflow title and version.
+        """Creates a DAG ID from the workflow title and increment.
         This is used in the Airflow as a file name as well,
         as a templated value inside the DAG file as a DAG ID ."""
-        return f"{workflow.title}_v{workflow.version}"
+        return f"{workflow.title}_inc{workflow.increment}"
 
     def _map_workflow_run_state(
         self, state: Optional[str]
@@ -168,10 +168,10 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
 
     async def submit_workflow(self, workflow: schemas.Workflow) -> schemas.Workflow:
         """
-        Writes the DAG definition directly to the shared PVC with versioned filename.
+        Writes the DAG definition directly to the shared PVC with an incremented filename.
         Atomic-like write pattern (write temp -> rename) ensures Airflow doesn't pick up partial files.
         """
-        # Use versioned filename: <title>_v<version>.py
+        # Use incremented filename: <title>_inc<increment>.py
         dag_id = self._get_dag_id_from_workflow(workflow)
         dag_filename = f"{dag_id}.py"
         temp_filename = f"{dag_id}.py.tmp"

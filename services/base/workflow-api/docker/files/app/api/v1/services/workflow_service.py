@@ -40,7 +40,7 @@ async def create_workflow(
     if not db_workflow:
         logger.error(f"Failed to create workflow: {workflow}")
         raise InternalError("Failed to create workflow")
-    logger.info(f"Created workflow: {db_workflow.title} v{db_workflow.version}")
+    logger.info(f"Created workflow: {db_workflow.title} inc{db_workflow.increment}")
 
     engine = get_workflow_engine(db_workflow.workflow_engine)
     schema_workflow = schemas.Workflow.model_validate(db_workflow)
@@ -68,7 +68,7 @@ async def get_workflow_by_title(
 ) -> List[schemas.Workflow]:
     limit = 1 if latest else 100
     workflows = await crud.get_workflows(
-        db, filters={"title": title}, order_by="version", order="desc", limit=limit
+        db, filters={"title": title}, order_by="increment", order="desc", limit=limit
     )
     if not workflows:
         logger.error(f"Workflow with {title=} not found")
@@ -77,33 +77,33 @@ async def get_workflow_by_title(
     return [schemas.Workflow.model_validate(w) for w in workflows]
 
 
-async def get_workflow_by_title_and_version(
-    db: AsyncSession, title: str, version: int
+async def get_workflow_by_title_and_increment(
+    db: AsyncSession, title: str, increment: int
 ) -> schemas.Workflow:
-    workflow = await crud.get_workflow(db, filters={"title": title, "version": version})
+    workflow = await crud.get_workflow(db, filters={"title": title, "increment": increment})
     if not workflow:
-        logger.error(f"Workflow with {title=} and {version=} not found")
+        logger.error(f"Workflow with {title=} and {increment=} not found")
         raise NotFoundError("Workflow not found")
     return schemas.Workflow.model_validate(workflow)
 
 
-async def delete_workflow(db: AsyncSession, title: str, version: int):
-    db_workflow = await crud.get_workflow(db, filters={"title": title, "version": version})
+async def delete_workflow(db: AsyncSession, title: str, increment: int):
+    db_workflow = await crud.get_workflow(db, filters={"title": title, "increment": increment})
     success = await crud.delete_workflow(db, db_workflow) if db_workflow else False
     # workflow is already filtered by removed=False, so removed ones are not returned
     if not success:
-        logger.error(f"Failed to delete workflow with {title=} and {version=}")
+        logger.error(f"Failed to delete workflow with {title=} and {increment=}")
         raise NotFoundError("Workflow not found")
 
 
 async def get_workflow_tasks(
-    db: AsyncSession, title: str, version: int
+    db: AsyncSession, title: str, increment: int
 ) -> List[schemas.Task]:
     db_workflow = await crud.get_workflow(
-        db, filters={"title": title, "version": version}
+        db, filters={"title": title, "increment": increment}
     )
     if not db_workflow:
-        logger.error(f"Workflow with {title=} and {version=} not found")
+        logger.error(f"Workflow with {title=} and {increment=} not found")
         raise NotFoundError("Workflow not found")
 
     # get tasks
@@ -113,8 +113,8 @@ async def get_workflow_tasks(
         # Run parsing NOT in the baground if tasks are not find to ensure that they are created.
         await _parse_workflow_tasks(db=db, db_workflow=db_workflow, engine=engine)
 
-        logger.warning(f"No tasks found for workflow with {title=} and {version=}")
-        raise NotFoundError(f"No tasks found for workflow with {title=} and {version=}")
+        logger.warning(f"No tasks found for workflow with {title=} and {increment=}")
+        raise NotFoundError(f"No tasks found for workflow with {title=} and {increment=}")
 
     # append downstream task ids to each task and convert to schema
     res = []
@@ -128,19 +128,19 @@ async def get_workflow_tasks(
 
 
 async def get_task(
-    db: AsyncSession, title: str, version: int, task_title: str
+    db: AsyncSession, title: str, increment: int, task_title: str
 ) -> schemas.Task:
     task = await crud.get_task(
         db,
         filters={
             "title": task_title,
             "workflow.title": title,
-            "workflow.version": version,
+            "workflow.increment": increment,
         },
     )
     if not task:
         logger.error(
-            f"Task with {task_title=} for workflow with {title=} and {version=} not found"
+            f"Task with {task_title=} for workflow with {title=} and {increment=} not found"
         )
         raise NotFoundError("Task not found")
 

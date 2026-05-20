@@ -40,16 +40,16 @@ async def get_all_workflows(params: Optional[dict] = None) -> httpx.Response:
         return await client.get("/workflows", params=params)
 
 
-async def get_workflow_by_title_and_version(
-    title: str, version: int
+async def get_workflow_by_title_and_increment(
+    title: str, increment: int
 ) -> httpx.Response:
     async with httpx.AsyncClient(base_url=API_BASE_URL, verify=False) as client:
-        return await client.get(f"/workflows/{title}/{version}")
+        return await client.get(f"/workflows/{title}/{increment}")
 
 
-async def delete_workflow(title: str, version: int) -> httpx.Response:
+async def delete_workflow(title: str, increment: int) -> httpx.Response:
     async with httpx.AsyncClient(base_url=API_BASE_URL, verify=False) as client:
-        return await client.delete(f"/workflows/{title}/{version}")
+        return await client.delete(f"/workflows/{title}/{increment}")
 
 
 async def create_workflow_run(

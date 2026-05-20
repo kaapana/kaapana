@@ -24,7 +24,7 @@ async def test_create_and_get_workflow_run():
 
     # create a new workflow run for that workflow
     new_run = schemas.WorkflowRunCreate(
-        workflow=schemas.WorkflowRef(title=wf.title, version=wf.version),
+        workflow=schemas.WorkflowRef(title=wf.title, increment=wf.increment),
         labels=[schemas.Label(key="test", value="true")],
     )
     wf_run_resp = await common.create_workflow_run(new_run)
@@ -32,7 +32,7 @@ async def test_create_and_get_workflow_run():
     assert wf_run_resp.status_code == 201
     run = schemas.WorkflowRun(**wf_run_resp.json())
     assert run.workflow.title == wf.title
-    assert run.workflow.version == wf.version
+    assert run.workflow.increment == wf.increment
 
     # fetch all runs
     async with httpx.AsyncClient(base_url=API_BASE_URL) as client:
@@ -55,7 +55,7 @@ async def test_get_workflow_run_by_id():
     wf = schemas.Workflow(**wf_resp.json())
 
     new_run = schemas.WorkflowRunCreate(
-        workflow=schemas.WorkflowRef(title=wf.title, version=wf.version),
+        workflow=schemas.WorkflowRef(title=wf.title, increment=wf.increment),
         labels=[schemas.Label(key="test", value="true")],
     )
     async with httpx.AsyncClient(base_url=API_BASE_URL) as client:
@@ -68,7 +68,7 @@ async def test_get_workflow_run_by_id():
         fetched = schemas.WorkflowRun(**get_resp.json())
         assert fetched.id == run.id
         assert fetched.workflow.title == wf.title
-        assert fetched.workflow.version == wf.version
+        assert fetched.workflow.increment == wf.increment
         assert fetched.external_id is not None
 
 
@@ -84,7 +84,7 @@ async def test_cancel_workflow_run():
     wf = schemas.Workflow(**wf_resp.json())
 
     new_run = schemas.WorkflowRunCreate(
-        workflow=schemas.WorkflowRef(title=wf.title, version=wf.version),
+        workflow=schemas.WorkflowRef(title=wf.title, increment=wf.increment),
         labels=[schemas.Label(key="test", value="true")],
     )
     async with httpx.AsyncClient(base_url=API_BASE_URL) as client:
@@ -109,7 +109,7 @@ async def test_get_workflow_run_task_runs():
     wf = schemas.Workflow(**wf_resp.json())
 
     new_run = schemas.WorkflowRunCreate(
-        workflow=schemas.WorkflowRef(title=wf.title, version=wf.version),
+        workflow=schemas.WorkflowRef(title=wf.title, increment=wf.increment),
         labels=[schemas.Label(key="test", value="true")],
     )
 

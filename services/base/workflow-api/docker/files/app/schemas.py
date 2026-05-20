@@ -333,7 +333,7 @@ class WorkflowCreate(WorkflowBase):
 
 class Workflow(WorkflowBase):
     id: int
-    version: int
+    increment: int
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -399,7 +399,7 @@ class WorkflowRef(BaseModel):
     """Lightweight reference to a Workflow for embedding in WorkflowRun."""
 
     title: str
-    version: int
+    increment: int
 
     model_config = ConfigDict(from_attributes=True)
 

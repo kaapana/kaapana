@@ -436,7 +436,7 @@ async def create_generated_workflows_and_runs():
                 response.raise_for_status()
                 created_workflow = Workflow(**response.json())
                 print(
-                    f"Created generated workflow: {created_workflow.title} (v{created_workflow.version})"
+                    f"Created generated workflow: {created_workflow.title} (v{created_workflow.increment})"
                 )
 
                 # randomly create 1-3 additional versions for ~30% of generated workflows
@@ -448,7 +448,7 @@ async def create_generated_workflows_and_runs():
                         resp2.raise_for_status()
                         created2 = Workflow(**resp2.json())
                         print(
-                            f"  -> Created extra version: {created2.title} (v{created2.version})"
+                            f"  -> Created extra version: {created2.title} (v{created2.increment})"
                         )
 
             except Exception as e:
@@ -472,7 +472,7 @@ async def create_generated_workflows_and_runs():
     # group workflows by title -> available versions
     wf_map = {}
     for wf in all_wfs:
-        wf_map.setdefault(wf.title, []).append(wf.version)
+        wf_map.setdefault(wf.title, []).append(wf.increment)
 
     titles = list(wf_map.keys())[:10]
     for wf_title in titles:
@@ -486,7 +486,7 @@ async def create_generated_workflows_and_runs():
                     chosen_version = choice(versions)
                     run_payload = schemas.WorkflowRunCreate(
                         workflow=schemas.WorkflowRef(
-                            title=wf_title, version=chosen_version
+                            title=wf_title, increment=chosen_version
                         ),
                         labels=[],
                         workflow_parameters=PARAMETERS,
@@ -508,7 +508,7 @@ async def create_predetermined_workflows():
                 response.raise_for_status()
                 created_workflow = Workflow(**response.json())
                 print(
-                    f"Created predetermined workflow: {created_workflow.title} (v{created_workflow.version})"
+                    f"Created predetermined workflow: {created_workflow.title} (v{created_workflow.increment})"
                 )
             except Exception as e:
                 print(
@@ -558,9 +558,9 @@ async def delete_all_workflows():
         response.raise_for_status()
         workflows = [Workflow(**wf) for wf in response.json()]
         for wf in workflows:
-            response = await delete_workflow(title=wf.title, version=wf.version)
+            response = await delete_workflow(title=wf.title, increment=wf.increment)
             response.raise_for_status()
-            print(f"DELETED WORKFLOW -> Title: {wf.title}, Version: {wf.version}")
+            print(f"DELETED WORKFLOW -> Title: {wf.title}, Version: {wf.increment}")
     except Exception as e:
         print(f"Failed to delete workflows: {e}")
 

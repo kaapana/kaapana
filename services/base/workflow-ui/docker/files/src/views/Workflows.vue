@@ -170,7 +170,7 @@ const groupedWorkflows = computed<Map<string, Workflow[]>>(() => {
 
   // Sort each group by version descending
   map.forEach((group: Workflow[], title: string) => {
-    group.sort((a, b) => (b.version ?? 0) - (a.version ?? 0))
+    group.sort((a, b) => (b.increment ?? 0) - (a.increment ?? 0))
   })
 
   return map

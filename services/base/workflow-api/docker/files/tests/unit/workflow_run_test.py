@@ -37,7 +37,7 @@ async def test_create_workflow_run_basic(session: AsyncSession, client: AsyncCli
     """Test creating a basic workflow run"""
     # Create a workflow first
     workflow = models.Workflow(
-        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+        title="test-workflow", increment=1, definition="test_def", workflow_engine="dummy"
     )
     session.add(workflow)
     await session.commit()
@@ -45,7 +45,7 @@ async def test_create_workflow_run_basic(session: AsyncSession, client: AsyncCli
 
     # Create workflow run
     payload = {
-        "workflow": {"title": "test-workflow", "version": 1},
+        "workflow": {"title": "test-workflow", "increment": 1},
         "workflow_parameters": [],
         "labels": [],
     }
@@ -56,7 +56,7 @@ async def test_create_workflow_run_basic(session: AsyncSession, client: AsyncCli
     assert response.status_code == 201
     assert data["id"] is not None
     assert data["workflow"]["title"] == "test-workflow"
-    assert data["workflow"]["version"] == 1
+    assert data["workflow"]["increment"] == 1
     assert data["lifecycle_status"] == "Created"
     assert "Location" in response.headers
     assert response.headers["Location"] == f"/v1/workflow-runs/{data['id']}"
@@ -70,7 +70,7 @@ async def test_create_workflow_run_with_labels(
     # Create a workflow
     workflow = models.Workflow(
         title="workflow-with-labels",
-        version=1,
+        increment=1,
         definition="test_def",
         workflow_engine="dummy",
     )
@@ -79,7 +79,7 @@ async def test_create_workflow_run_with_labels(
 
     # Create workflow run with labels
     payload = {
-        "workflow": {"title": "workflow-with-labels", "version": 1},
+        "workflow": {"title": "workflow-with-labels", "increment": 1},
         "workflow_parameters": [],
         "labels": [LABEL_ENVIRONMENT_PROD, LABEL_TEAM],
     }
@@ -103,7 +103,7 @@ async def test_create_workflow_run_with_parameters(
     # Create a workflow
     workflow = models.Workflow(
         title="workflow-with-params",
-        version=1,
+        increment=1,
         definition="test_def",
         workflow_engine="dummy",
     )
@@ -112,7 +112,7 @@ async def test_create_workflow_run_with_parameters(
 
     # Create workflow run with parameters
     payload = {
-        "workflow": {"title": "workflow-with-params", "version": 1},
+        "workflow": {"title": "workflow-with-params", "increment": 1},
         "workflow_parameters": [PARAM_LIST_ORGAN],
         "labels": [],
     }
@@ -129,7 +129,7 @@ async def test_create_workflow_run_with_parameters(
 async def test_create_workflow_run_workflow_not_found(client: AsyncClient):
     """Test creating a workflow run for non-existent workflow"""
     payload = {
-        "workflow": {"title": "non-existent", "version": 1},
+        "workflow": {"title": "non-existent", "increment": 1},
         "workflow_parameters": [],
         "labels": [],
     }
@@ -158,7 +158,7 @@ async def test_get_workflow_runs(session: AsyncSession, client: AsyncClient):
     """Test getting all workflow runs"""
     # Create workflow
     workflow = models.Workflow(
-        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+        title="test-workflow", increment=1, definition="test_def", workflow_engine="dummy"
     )
     session.add(workflow)
     await session.commit()
@@ -184,10 +184,10 @@ async def test_get_workflow_runs_filter_by_title(
     """Test filtering workflow runs by workflow title"""
     # Create workflows
     workflow1 = models.Workflow(
-        title="workflow-1", version=1, definition="test_def", workflow_engine="dummy"
+        title="workflow-1", increment=1, definition="test_def", workflow_engine="dummy"
     )
     workflow2 = models.Workflow(
-        title="workflow-2", version=1, definition="test_def", workflow_engine="dummy"
+        title="workflow-2", increment=1, definition="test_def", workflow_engine="dummy"
     )
     session.add(workflow1)
     session.add(workflow2)
@@ -212,16 +212,16 @@ async def test_get_workflow_runs_filter_by_title(
 
 
 @pytest.mark.asyncio
-async def test_get_workflow_runs_filter_by_title_and_version(
+async def test_get_workflow_runs_filter_by_title_and_increment(
     session: AsyncSession, client: AsyncClient
 ):
-    """Test filtering workflow runs by workflow title and version"""
-    # Create multiple versions
+    """Test filtering workflow runs by workflow title and increment"""
+    # Create multiple increments
     workflow_v1 = models.Workflow(
-        title="workflow", version=1, definition="test_def", workflow_engine="dummy"
+        title="workflow", increment=1, definition="test_def", workflow_engine="dummy"
     )
     workflow_v2 = models.Workflow(
-        title="workflow", version=2, definition="test_def", workflow_engine="dummy"
+        title="workflow", increment=2, definition="test_def", workflow_engine="dummy"
     )
     session.add(workflow_v1)
     session.add(workflow_v2)
@@ -238,13 +238,13 @@ async def test_get_workflow_runs_filter_by_title_and_version(
 
     # Filter by title and version
     response = await client.get(
-        "/v1/workflow-runs?workflow_title=workflow&workflow_version=2"
+        "/v1/workflow-runs?workflow_title=workflow&workflow_increment=2"
     )
     data = response.json()
 
     assert response.status_code == 200
     assert len(data) == 1
-    assert data[0]["workflow"]["version"] == 2
+    assert data[0]["workflow"]["increment"] == 2
 
 
 # ============================================================
@@ -257,7 +257,7 @@ async def test_get_workflow_run_by_id(session: AsyncSession, client: AsyncClient
     """Test getting a workflow run by ID"""
     # Create workflow and run
     workflow = models.Workflow(
-        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+        title="test-workflow", increment=1, definition="test_def", workflow_engine="dummy"
     )
     session.add(workflow)
     await session.commit()
@@ -293,7 +293,7 @@ async def test_cancel_workflow_run(session: AsyncSession, client: AsyncClient):
     """Test canceling a workflow run"""
     # Create workflow and run
     workflow = models.Workflow(
-        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+        title="test-workflow", increment=1, definition="test_def", workflow_engine="dummy"
     )
     session.add(workflow)
     await session.commit()
@@ -332,7 +332,7 @@ async def test_retry_workflow_run(session: AsyncSession, client: AsyncClient):
     """Test retrying a failed workflow run"""
     # Create workflow and run
     workflow = models.Workflow(
-        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+        title="test-workflow", increment=1, definition="test_def", workflow_engine="dummy"
     )
     session.add(workflow)
     await session.commit()
@@ -371,7 +371,7 @@ async def test_get_workflow_run_task_runs(session: AsyncSession, client: AsyncCl
     """Test getting task runs for a workflow run"""
     # Create workflow with tasks
     workflow = models.Workflow(
-        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+        title="test-workflow", increment=1, definition="test_def", workflow_engine="dummy"
     )
     session.add(workflow)
     await session.commit()
@@ -417,7 +417,7 @@ async def test_get_workflow_run_task_runs_filter_by_title(
     """Test filtering task runs by task title"""
     # Create workflow with multiple tasks
     workflow = models.Workflow(
-        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+        title="test-workflow", increment=1, definition="test_def", workflow_engine="dummy"
     )
     session.add(workflow)
     await session.commit()
@@ -482,7 +482,7 @@ async def test_get_task_run(session: AsyncSession, client: AsyncClient):
     """Test getting a specific task run"""
     # Create workflow, task, run, and task run
     workflow = models.Workflow(
-        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+        title="test-workflow", increment=1, definition="test_def", workflow_engine="dummy"
     )
     session.add(workflow)
     await session.commit()
@@ -522,7 +522,7 @@ async def test_get_task_run_not_found(session: AsyncSession, client: AsyncClient
     """Test getting non-existent task run"""
     # Create workflow and run
     workflow = models.Workflow(
-        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+        title="test-workflow", increment=1, definition="test_def", workflow_engine="dummy"
     )
     session.add(workflow)
     await session.commit()
@@ -547,7 +547,7 @@ async def test_get_task_run_logs_not_found(session: AsyncSession, client: AsyncC
     """Test getting logs for non-existent task run"""
     # Create workflow and run
     workflow = models.Workflow(
-        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+        title="test-workflow", increment=1, definition="test_def", workflow_engine="dummy"
     )
     session.add(workflow)
     await session.commit()
@@ -569,7 +569,7 @@ async def test_get_task_run_logs(session: AsyncSession, client: AsyncClient):
     """Test getting structured log lines for a task run"""
     # Create workflow, task, run, and task run
     workflow = models.Workflow(
-        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+        title="test-workflow", increment=1, definition="test_def", workflow_engine="dummy"
     )
     session.add(workflow)
     await session.commit()
@@ -671,7 +671,7 @@ async def test_create_workflow_run_increments_correctly(
     # Create workflow
     workflow = models.Workflow(
         title="multi-run-workflow",
-        version=1,
+        increment=1,
         definition="test_def",
         workflow_engine="dummy",
     )
@@ -679,7 +679,7 @@ async def test_create_workflow_run_increments_correctly(
     await session.commit()
 
     payload = {
-        "workflow": {"title": "multi-run-workflow", "version": 1},
+        "workflow": {"title": "multi-run-workflow", "increment": 1},
         "workflow_parameters": [],
         "labels": [],
     }
@@ -728,7 +728,7 @@ async def test_retry_workflow_run_from_any_status(
     # Create workflow
     workflow = models.Workflow(
         title="test-workflow",
-        version=1,
+        increment=1,
         definition="test_def",
         workflow_engine="dummy",
     )
@@ -791,7 +791,7 @@ async def test_cancel_workflow_run_from_any_status(
     # Create workflow
     workflow = models.Workflow(
         title="test-workflow",
-        version=1,
+        increment=1,
         definition="test_def",
         workflow_engine="dummy",
     )
@@ -829,13 +829,13 @@ async def test_workflow_run_with_multiple_labels(
     """Test creating workflow run with multiple labels"""
     # Create workflow
     workflow = models.Workflow(
-        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+        title="test-workflow", increment=1, definition="test_def", workflow_engine="dummy"
     )
     session.add(workflow)
     await session.commit()
 
     payload = {
-        "workflow": {"title": "test-workflow", "version": 1},
+        "workflow": {"title": "test-workflow", "increment": 1},
         "workflow_parameters": [],
         "labels": [
             {"key": "env", "value": "prod"},
@@ -857,13 +857,13 @@ async def test_get_workflow_runs_multiple_filters(
     """Test combining multiple filters when getting workflow runs"""
     # Create workflows
     workflow1_v1 = models.Workflow(
-        title="workflow-1", version=1, definition="test_def", workflow_engine="dummy"
+        title="workflow-1", increment=1, definition="test_def", workflow_engine="dummy"
     )
     workflow1_v2 = models.Workflow(
-        title="workflow-1", version=2, definition="test_def", workflow_engine="dummy"
+        title="workflow-1", increment=2, definition="test_def", workflow_engine="dummy"
     )
     workflow2_v1 = models.Workflow(
-        title="workflow-2", version=1, definition="test_def", workflow_engine="dummy"
+        title="workflow-2", increment=1, definition="test_def", workflow_engine="dummy"
     )
     session.add_all([workflow1_v1, workflow1_v2, workflow2_v1])
     await session.commit()
@@ -880,14 +880,14 @@ async def test_get_workflow_runs_multiple_filters(
 
     # Filter by title and version
     response = await client.get(
-        "/v1/workflow-runs?workflow_title=workflow-1&workflow_version=2"
+        "/v1/workflow-runs?workflow_title=workflow-1&workflow_increment=2"
     )
     data = response.json()
 
     assert response.status_code == 200
     assert len(data) == 1
     assert data[0]["workflow"]["title"] == "workflow-1"
-    assert data[0]["workflow"]["version"] == 2
+    assert data[0]["workflow"]["increment"] == 2
 
 
 @pytest.mark.asyncio
@@ -897,7 +897,7 @@ async def test_task_run_belongs_to_correct_workflow_run(
     """Test that task runs are properly associated with their workflow run"""
     # Create workflow with task
     workflow = models.Workflow(
-        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+        title="test-workflow", increment=1, definition="test_def", workflow_engine="dummy"
     )
     session.add(workflow)
     await session.commit()
@@ -949,7 +949,7 @@ async def test_get_workflow_run_with_labels(session: AsyncSession, client: Async
     """Test getting workflow run that has labels"""
     # Create workflow
     workflow = models.Workflow(
-        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+        title="test-workflow", increment=1, definition="test_def", workflow_engine="dummy"
     )
     session.add(workflow)
     await session.commit()
@@ -993,7 +993,7 @@ async def test_get_workflow_runs_with_status_filter(
     """Test filtering workflow runs by lifecycle status"""
     # Create workflow
     workflow = models.Workflow(
-        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+        title="test-workflow", increment=1, definition="test_def", workflow_engine="dummy"
     )
     session.add(workflow)
     await session.commit()
@@ -1030,7 +1030,7 @@ async def test_task_run_lifecycle_status(session: AsyncSession, client: AsyncCli
     """Test that task runs have proper lifecycle status"""
     # Create workflow with task
     workflow = models.Workflow(
-        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+        title="test-workflow", increment=1, definition="test_def", workflow_engine="dummy"
     )
     session.add(workflow)
     await session.commit()

@@ -34,12 +34,12 @@ workflowrun_label = Table(
 
 class Workflow(Base):
     __tablename__ = "workflows"
-    __table_args__ = (UniqueConstraint("title", "version"),)
+    __table_args__ = (UniqueConstraint("title", "increment"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     workflow_engine: Mapped[str] = mapped_column(String)
     title: Mapped[str] = mapped_column(String, index=True)
-    version: Mapped[int] = mapped_column(Integer)
+    increment: Mapped[int] = mapped_column(Integer)
     definition: Mapped[str] = mapped_column(String)
     workflow_parameters: Mapped[list] = mapped_column(
         JSONB, nullable=True, default=list

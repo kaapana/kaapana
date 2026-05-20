@@ -44,7 +44,7 @@ async def create_workflow(
 ):
     workflow_res = await service.create_workflow(db, workflow)
     response.headers["Location"] = (
-        f"/workflows/{workflow_res.title}/{workflow_res.version}"
+        f"/workflows/{workflow_res.title}/{workflow_res.increment}"
     )
     return workflow_res
 
@@ -58,40 +58,40 @@ async def get_workflow_by_title(
     return await service.get_workflow_by_title(db, title, latest)
 
 
-@router.get("/workflows/{title}/{version}", response_model=schemas.Workflow)
-async def get_workflow_by_title_and_version(
+@router.get("/workflows/{title}/{increment}", response_model=schemas.Workflow)
+async def get_workflow_by_title_and_increment(
     title: str,
-    version: int,
+    increment: int,
     db: AsyncSession = Depends(get_async_db),
 ):
-    return await service.get_workflow_by_title_and_version(db, title, version)
+    return await service.get_workflow_by_title_and_increment(db, title, increment)
 
 
-@router.delete("/workflows/{title}/{version}", status_code=204)
+@router.delete("/workflows/{title}/{increment}", status_code=204)
 async def delete_workflow(
     title: str,
-    version: int,
+    increment: int,
     db: AsyncSession = Depends(get_async_db),
 ):
-    await service.delete_workflow(db, title, version)
+    await service.delete_workflow(db, title, increment)
 
 
-@router.get("/workflows/{title}/{version}/tasks", response_model=List[schemas.Task])
+@router.get("/workflows/{title}/{increment}/tasks", response_model=List[schemas.Task])
 async def get_workflow_tasks(
     title: str,
-    version: int,
+    increment: int,
     db: AsyncSession = Depends(get_async_db),
 ):
-    return await service.get_workflow_tasks(db, title, version)
+    return await service.get_workflow_tasks(db, title, increment)
 
 
 @router.get(
-    "/workflows/{title}/{version}/tasks/{task_title}", response_model=schemas.Task
+    "/workflows/{title}/{increment}/tasks/{task_title}", response_model=schemas.Task
 )
 async def get_task(
     title: str,
-    version: int,
+    increment: int,
     task_title: str,
     db: AsyncSession = Depends(get_async_db),
 ):
-    return await service.get_task(db, title, version, task_title)
+    return await service.get_task(db, title, increment, task_title)

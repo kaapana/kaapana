@@ -130,14 +130,14 @@ async def get_workflow(
 async def create_workflow(
     db: AsyncSession, workflow: schemas.WorkflowCreate
 ) -> models.Workflow:
-    # get version of workflow
-    # NOTE: no need to lock while determining version -> UniqueConstraint(title, version) raises IntegrityError on conflict
-    version_stmt = select(func.max(models.Workflow.version)).filter_by(
+    # get increment of workflow
+    # NOTE: no need to lock while determining increment -> UniqueConstraint(title, increment) raises IntegrityError on conflict
+    increment_stmt = select(func.max(models.Workflow.increment)).filter_by(
         title=workflow.title
     )
-    result = await db.execute(version_stmt)
-    max_version = result.scalar() or 0
-    new_version = max_version + 1
+    result = await db.execute(increment_stmt)
+    max_increment = result.scalar() or 0
+    new_increment = max_increment + 1
 
     # add labels (use upsert pattern to avoid duplicates under concurrency)
     db_labels: List[models.Label] = []
@@ -165,7 +165,7 @@ async def create_workflow(
         workflow_engine=workflow.workflow_engine,
         definition=workflow.definition,
         workflow_parameters=jsonable_encoder(workflow.workflow_parameters),
-        version=new_version,
+        increment=new_increment,
         labels=db_labels,
     )
 

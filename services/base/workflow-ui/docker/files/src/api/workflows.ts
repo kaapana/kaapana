@@ -23,9 +23,9 @@ export async function createWorkflow(workflow: Partial<Workflow>): Promise<Workf
     return response.data;
 }
 
-// Fetch tasks for a workflow version
-export async function fetchWorkflowTasks(title: string, version: number) {
+// Fetch tasks for a workflow increment
+export async function fetchWorkflowTasks(title: string, increment: number) {
     const encodedTitle = encodeURIComponent(title)
-    const response = await apiClient.get(`/workflows/${encodedTitle}/${version}/tasks`)
+    const response = await apiClient.get(`/workflows/${encodedTitle}/${increment}/tasks`)
     return response.data
 }

@@ -11,8 +11,8 @@ Tests are organized by route/endpoint with clear markers:
 - POST /v1/workflows
 - GET /v1/workflows
 - GET /v1/workflows/{title}
-- GET /v1/workflows/{title}/{version}
-- DELETE /v1/workflows/{title}/{version}
+- GET /v1/workflows/{title}/{increment}
+- DELETE /v1/workflows/{title}/{increment}
 """
 
 import sys
@@ -58,13 +58,13 @@ async def test_create_workflow(client: AsyncClient, payload: dict):
 
     assert response.status_code == 201
     assert data["title"] == payload["title"]
-    assert data["version"] == 1
+    assert data["increment"] == 1
     assert data["id"] is not None
 
     # Verify Location header
     assert "Location" in response.headers
     assert (
-        response.headers["Location"] == f"/workflows/{data['title']}/{data['version']}"
+        response.headers["Location"] == f"/workflows/{data['title']}/{data['increment']}"
     )
 
     # Verify labels if present
@@ -142,19 +142,19 @@ async def test_create_workflow_increments_version(client: AsyncClient):
     response1 = await client.post("/v1/workflows", json=payload)
     assert response1.status_code == 201
     data1 = response1.json()
-    assert data1["version"] == 1
+    assert data1["increment"] == 1
 
     # Create second version (same title)
     response2 = await client.post("/v1/workflows", json=payload)
     assert response2.status_code == 201
     data2 = response2.json()
-    assert data2["version"] == 2
+    assert data2["increment"] == 2
 
     # Create third version
     response3 = await client.post("/v1/workflows", json=payload)
     assert response3.status_code == 201
     data3 = response3.json()
-    assert data3["version"] == 3
+    assert data3["increment"] == 3
 
 
 # ============================================================
@@ -202,12 +202,12 @@ async def test_read_workflows(
     assert response.status_code == 200
     assert len(data) == len(workflows_data)
 
-    # Verify each workflow matches (API returns newest-first; sort by id for stable comparison)
+    # Verify each workflow matches (API returns newest-first, sort by id for stable comparison)
     data_by_id = {wf["id"]: wf for wf in data}
     for expected_wf in created_workflows:
         wf = data_by_id[expected_wf.id]
         assert wf["title"] == expected_wf.title
-        assert wf["version"] == expected_wf.version
+        assert wf["increment"] == expected_wf.increment
 
 
 @pytest.mark.GET
@@ -231,7 +231,7 @@ async def test_read_workflows_pagination(session: AsyncSession, client: AsyncCli
     for i in range(5):
         workflow = models.Workflow(
             title=f"workflow-{i}",
-            version=1,
+            increment=1,
             definition=f"def-{i}",
             workflow_engine="dummy",
         )
@@ -264,10 +264,10 @@ async def test_read_workflows_filter_by_id(session: AsyncSession, client: AsyncC
     """Test filtering workflows by ID"""
     # Create workflows
     workflow1 = models.Workflow(
-        title="workflow-1", version=1, definition="def-1", workflow_engine="dummy"
+        title="workflow-1", increment=1, definition="def-1", workflow_engine="dummy"
     )
     workflow2 = models.Workflow(
-        title="workflow-2", version=1, definition="def-2", workflow_engine="dummy"
+        title="workflow-2", increment=1, definition="def-2", workflow_engine="dummy"
     )
     session.add(workflow1)
     session.add(workflow2)
@@ -295,7 +295,7 @@ async def test_read_workflows_order_by_title_asc(
     # Create workflows with different titles
     for title in ["zebra-workflow", "alpha-workflow", "beta-workflow"]:
         workflow = models.Workflow(
-            title=title, version=1, definition=f"def-{title}", workflow_engine="dummy"
+            title=title, increment=1, definition=f"def-{title}", workflow_engine="dummy"
         )
         session.add(workflow)
     await session.commit()
@@ -321,7 +321,7 @@ async def test_read_workflows_order_by_title_desc(
     # Create workflows with different titles
     for title in ["alpha-workflow", "beta-workflow", "zebra-workflow"]:
         workflow = models.Workflow(
-            title=title, version=1, definition=f"def-{title}", workflow_engine="dummy"
+            title=title, increment=1, definition=f"def-{title}", workflow_engine="dummy"
         )
         session.add(workflow)
     await session.commit()
@@ -345,25 +345,25 @@ async def test_read_workflows_order_by_version(
 ):
     """Test ordering workflows by version"""
     # Create multiple versions of same workflow
-    for version in [3, 1, 2]:
+    for increment in [3, 1, 2]:
         workflow = models.Workflow(
             title="version-test",
-            version=version,
-            definition=f"def-{version}",
+            increment=increment,
+            definition=f"def-{increment}",
             workflow_engine="dummy",
         )
         session.add(workflow)
     await session.commit()
 
-    # Order by version ascending
-    response = await client.get("/v1/workflows?order_by=version&order=asc")
+    # Order by increment ascending
+    response = await client.get("/v1/workflows?order_by=increment&order=asc")
     data = response.json()
 
     assert response.status_code == 200
     assert len(data) == 3
-    assert data[0]["version"] == 1
-    assert data[1]["version"] == 2
-    assert data[2]["version"] == 3
+    assert data[0]["increment"] == 1
+    assert data[1]["increment"] == 2
+    assert data[2]["increment"] == 3
 
 
 @pytest.mark.GET
@@ -376,7 +376,7 @@ async def test_read_workflows_order_by_id(session: AsyncSession, client: AsyncCl
     for i in range(3):
         workflow = models.Workflow(
             title=f"workflow-{i}",
-            version=1,
+            increment=1,
             definition=f"def-{i}",
             workflow_engine="dummy",
         )
@@ -416,7 +416,7 @@ async def test_read_workflows_combined_query_params(
     for i in range(10):
         workflow = models.Workflow(
             title=f"workflow-{i:02d}",
-            version=1,
+            increment=1,
             definition=f"def-{i}",
             workflow_engine="dummy",
         )
@@ -444,10 +444,10 @@ async def test_read_workflows_filter_by_id_with_ordering(
     """Test that filtering by ID returns single result regardless of order params"""
     # Create workflows
     workflow1 = models.Workflow(
-        title="workflow-1", version=1, definition="def-1", workflow_engine="dummy"
+        title="workflow-1", increment=1, definition="def-1", workflow_engine="dummy"
     )
     workflow2 = models.Workflow(
-        title="workflow-2", version=1, definition="def-2", workflow_engine="dummy"
+        title="workflow-2", increment=1, definition="def-2", workflow_engine="dummy"
     )
     session.add(workflow1)
     session.add(workflow2)
@@ -499,7 +499,7 @@ async def test_read_workflows_negative_skip(session: AsyncSession, client: Async
     for i in range(3):
         workflow = models.Workflow(
             title=f"workflow-{i}",
-            version=1,
+            increment=1,
             definition=f"def-{i}",
             workflow_engine="dummy",
         )
@@ -521,7 +521,7 @@ async def test_read_workflows_zero_limit(session: AsyncSession, client: AsyncCli
     for i in range(3):
         workflow = models.Workflow(
             title=f"workflow-{i}",
-            version=1,
+            increment=1,
             definition=f"def-{i}",
             workflow_engine="dummy",
         )
@@ -545,7 +545,7 @@ async def test_read_workflows_large_limit(session: AsyncSession, client: AsyncCl
     for i in range(5):
         workflow = models.Workflow(
             title=f"workflow-{i}",
-            version=1,
+            increment=1,
             definition=f"def-{i}",
             workflow_engine="dummy",
         )
@@ -603,9 +603,9 @@ async def test_get_workflow_by_title(
     # If latest=true, verify we got the highest version
     if latest and len(data) > 0:
         max_version = max(
-            wf["version"] for wf in workflows_data if wf["title"] == title
+            wf["increment"] for wf in workflows_data if wf["title"] == title
         )
-        assert data[0]["version"] == max_version
+        assert data[0]["increment"] == max_version
 
 
 @pytest.mark.GET
@@ -625,11 +625,11 @@ async def test_get_workflow_by_title_versions_ordered(
 ):
     """Test that versions are returned in descending order"""
     # Create multiple versions
-    for version in [1, 2, 3, 4, 5]:
+    for increment in [1, 2, 3, 4, 5]:
         workflow = models.Workflow(
             title="ordered-workflow",
-            version=version,
-            definition=f"def-{version}",
+            increment=increment,
+            definition=f"def-{increment}",
             workflow_engine="dummy",
         )
         session.add(workflow)
@@ -642,7 +642,7 @@ async def test_get_workflow_by_title_versions_ordered(
     assert len(data) == 5
 
     # Verify descending order
-    versions = [wf["version"] for wf in data]
+    versions = [wf["increment"] for wf in data]
     assert versions == [5, 4, 3, 2, 1]
 
 
@@ -654,11 +654,11 @@ async def test_get_workflow_by_title_latest_only(
 ):
     """Test getting only the latest version of workflow by title"""
     # Create multiple versions
-    for version in [1, 2, 3]:
+    for increment in [1, 2, 3]:
         workflow = models.Workflow(
             title="multi-version-workflow",
-            version=version,
-            definition=f"def-v{version}",
+            increment=increment,
+            definition=f"def-v{increment}",
             workflow_engine="dummy",
         )
         session.add(workflow)
@@ -671,7 +671,7 @@ async def test_get_workflow_by_title_latest_only(
     assert response.status_code == 200
     assert isinstance(data, list)
     assert len(data) == 1
-    assert data[0]["version"] == 3
+    assert data[0]["increment"] == 3
     assert data[0]["definition"] == "def-v3"
 
 
@@ -683,11 +683,11 @@ async def test_get_workflow_by_title_all_versions(
 ):
     """Test getting all versions when latest=false"""
     # Create multiple versions
-    for version in [1, 2]:
+    for increment in [1, 2]:
         workflow = models.Workflow(
             title="two-version-workflow",
-            version=version,
-            definition=f"def-v{version}",
+            increment=increment,
+            definition=f"def-v{increment}",
             workflow_engine="dummy",
         )
         session.add(workflow)
@@ -703,13 +703,13 @@ async def test_get_workflow_by_title_all_versions(
 
 
 # ============================================================
-# GET /v1/workflows/{title}/{version} - Get Specific Workflow Tests
+# GET /v1/workflows/{title}/{increment} - Get Specific Workflow Tests
 # ============================================================
 
 
 @pytest.mark.get_workflow_by_title_version
 @pytest.mark.parametrize(
-    "workflow_data,title,version",
+    "workflow_data,title,increment",
     [(case[0], case[1], case[2]) for case in GET_WORKFLOW_BY_TITLE_VERSION_TEST_CASES],
     ids=[case[3] for case in GET_WORKFLOW_BY_TITLE_VERSION_TEST_CASES],
 )
@@ -719,7 +719,7 @@ async def test_get_workflow_by_title_and_version(
     client: AsyncClient,
     workflow_data: dict,
     title: str,
-    version: int,
+    increment: int,
 ):
     """Test getting a specific workflow by title and version"""
     # Convert label dicts to Label models if present
@@ -734,12 +734,12 @@ async def test_get_workflow_by_title_and_version(
     await session.commit()
     await session.refresh(workflow)
 
-    response = await client.get(f"/v1/workflows/{title}/{version}")
+    response = await client.get(f"/v1/workflows/{title}/{increment}")
     data = response.json()
 
     assert response.status_code == 200
     assert data["title"] == title
-    assert data["version"] == version
+    assert data["increment"] == increment
     assert data["id"] == workflow.id
 
 
@@ -760,14 +760,14 @@ async def test_read_workflow_errors(
 
 
 # ============================================================
-# DELETE /v1/workflows/{title}/{version} - Delete Workflow Tests
+# DELETE /v1/workflows/{title}/{increment} - Delete Workflow Tests
 # ============================================================
 
 
 @pytest.mark.DELETE
 @pytest.mark.delete_workflow
 @pytest.mark.parametrize(
-    "title,version,expected_status",
+    "title,increment,expected_status",
     [(case[0], case[1], case[2]) for case in DELETE_WORKFLOW_TEST_CASES],
     ids=[case[3] for case in DELETE_WORKFLOW_TEST_CASES],
 )
@@ -776,19 +776,19 @@ async def test_delete_workflow(
     session: AsyncSession,
     client: AsyncClient,
     title: str,
-    version: int,
+    increment: int,
     expected_status: int,
 ):
     """Test deleting workflows with different scenarios"""
     # Create a workflow to delete (only for successful delete test)
-    if title == "existing-workflow" and version == 1:
+    if title == "existing-workflow" and increment == 1:
         workflow = models.Workflow(
-            title=title, version=version, definition="test", workflow_engine="dummy"
+            title=title, increment=increment, definition="test", workflow_engine="dummy"
         )
         session.add(workflow)
         await session.commit()
 
-    response = await client.delete(f"/v1/workflows/{title}/{version}")
+    response = await client.delete(f"/v1/workflows/{title}/{increment}")
     assert response.status_code == expected_status
 
 
@@ -802,7 +802,7 @@ async def test_delete_workflow_is_soft_delete(
     # Create workflow
     workflow = models.Workflow(
         title="soft-delete-test",
-        version=1,
+        increment=1,
         definition="test",
         workflow_engine="dummy",
     )
@@ -839,7 +839,7 @@ async def test_delete_workflow_twice_returns_404(
     # Create workflow
     workflow = models.Workflow(
         title="double-delete",
-        version=1,
+        increment=1,
         definition="test",
         workflow_engine="dummy",
     )

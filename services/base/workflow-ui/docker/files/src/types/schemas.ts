@@ -174,7 +174,7 @@ export interface WorkflowCreate extends WorkflowBase { }
 
 export interface Workflow extends WorkflowBase {
     id: number
-    version: number
+    increment: number
     created_at: string
 }
 
@@ -183,7 +183,7 @@ export interface Workflow extends WorkflowBase {
 // ##########################
 export interface WorkflowRef {
     title: string
-    version: number
+    increment: number
 }
 
 export interface WorkflowRunBase {

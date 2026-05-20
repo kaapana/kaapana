@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import urlencode
 from uuid import UUID
 
 import httpx
@@ -10,6 +11,7 @@ from app.utils import get_user_project_ids
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.datastructures import QueryParams
 from starlette.status import HTTP_204_NO_CONTENT
 
 router = APIRouter()
@@ -202,7 +204,9 @@ async def query_studies(
     # Project filtering must inspect the unpaginated query. Otherwise, large
     # project result sets can ask PACS for page 2 before access filtering and
     # incorrectly collapse to 204.
-    request._query_params = query_params
+    # Use QueryParams (not a plain dict) so that .getlist() remains available
+    # inside get_filtered_studies_mapped_to_projects
+    request._query_params = QueryParams(urlencode(query_params, doseq=True))
 
     studies = await utils.get_filtered_studies_mapped_to_projects(
         session=session,

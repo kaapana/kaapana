@@ -1,3 +1,4 @@
+import json
 import logging
 from urllib.parse import urlencode
 from uuid import UUID
@@ -42,7 +43,10 @@ async def retrieve_studies_json(request: Request) -> list | None:
     if response.status_code == HTTP_204_NO_CONTENT:
         return None
 
-    return response.json()
+    # Mirror the byte-level PACS-path substitution of metadata_replace_stream
+    search = "/".join(DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]).encode()
+    body = response.content.replace(search, b"dicom-web-filter")
+    return json.loads(body)
 
 
 async def head_request(url: str, request: Request) -> Response:

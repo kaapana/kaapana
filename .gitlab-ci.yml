@@ -155,7 +155,7 @@ workflow_api_tests:
         - workflow_api_report.xml
 
 ##############################################
-# Workflow API Tests
+# Extension API Tests
 ##############################################
 extensions_api_tests:
   extends: .test_template

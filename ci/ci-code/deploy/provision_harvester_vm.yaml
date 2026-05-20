@@ -9,8 +9,8 @@
     # VM configuration - all from environment variables
     vm_name: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_VM_NAME', default=undef()) }}"
     vm_image_name: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_IMAGE_ID', default='ubuntu24') }}"
-    vm_storage_class: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_STORAGE_CLASS', default='longhorn') }}"
-    vm_network: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_NETWORK', default=undef()) }}"
+    vm_storage_class: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_STORAGE_CLASS', default='px-fa-direct-access') }}"
+    vm_network: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_NETWORK', default=) }}"
     vm_ssh_keypair: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_SSH_KEYPAIR', default='kaapana') }}"
     vm_user: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_USER', default='ubuntu') }}"
     vm_dns_domain: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DOMAIN', default='vms.dkfz.de') }}"

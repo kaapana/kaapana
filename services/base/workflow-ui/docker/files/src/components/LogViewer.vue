@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="model" max-width="1300px" @keydown.escape="close">
+  <v-dialog v-model="model" max-width="92vw" @keydown.escape="close">
     <v-card class="log-viewer-card">
 
       <!-- ===== TITLE BAR ===== -->
@@ -25,6 +25,16 @@
 
           <!-- Left: task panel -->
           <div v-if="props.taskRuns && props.taskRuns.length > 0" class="task-panel">
+            <div class="task-panel-actions d-flex align-center gap-1 px-3 py-2">
+              <v-tooltip v-if="props.taskRuns.length > 1" text="Download all logs (ZIP)" location="top" theme="dark">
+                <template #activator="{ props: tp }">
+                  <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" :loading="downloadingAllApi" @click="downloadAllApiLogs">
+                    <v-icon>mdi-zip-box</v-icon>
+                  </v-btn>
+                </template>
+              </v-tooltip>
+            </div>
+            <v-divider />
             <div class="task-panel-inputs pa-3 d-flex flex-column gap-2">
               <v-text-field
                 v-model="taskSearch"
@@ -44,6 +54,8 @@
                 :loading="searchLoading"
                 clearable
                 hide-details
+                @keydown.enter.exact.prevent="goToNextMatch"
+                @keydown.shift.enter.prevent="goToPrevMatch"
               />
             </div>
             <v-divider />
@@ -109,39 +121,77 @@
                   </template>
                 </v-tooltip>
               </template>
-              <v-tooltip v-if="props.taskRuns.length > 1" text="Download all logs as ZIP" location="top" theme="dark">
+              <template v-if="logSearch?.trim() && matchLinesInLog.length > 0">
+                <v-divider vertical class="mx-1" style="align-self: center; height: 20px;" />
+                <span class="match-counter text-caption text-medium-emphasis">{{ currentMatchIdx + 1 }}/{{ matchLinesInLog.length }}</span>
+                <v-tooltip text="Previous match" location="top" theme="dark">
+                  <template #activator="{ props: tp }">
+                    <v-btn v-bind="tp" icon size="x-small" variant="tonal" @click="goToPrevMatch">
+                      <v-icon>mdi-chevron-up</v-icon>
+                    </v-btn>
+                  </template>
+                </v-tooltip>
+                <v-tooltip text="Next match" location="top" theme="dark">
+                  <template #activator="{ props: tp }">
+                    <v-btn v-bind="tp" icon size="x-small" variant="tonal" @click="goToNextMatch">
+                      <v-icon>mdi-chevron-down</v-icon>
+                    </v-btn>
+                  </template>
+                </v-tooltip>
+              </template>
+              <v-spacer />
+              <v-tooltip :text="colorizeMessages ? 'Disable message colors' : 'Colorize messages by severity'" location="top" theme="dark">
                 <template #activator="{ props: tp }">
-                  <v-btn v-bind="tp" icon size="small" color="primary" variant="tonal" :loading="downloadingAllApi" @click="downloadAllApiLogs">
-                    <v-icon>mdi-zip-box</v-icon>
+                  <v-btn v-bind="tp" icon size="small" :color="colorizeMessages ? 'primary' : 'default'" :variant="colorizeMessages ? 'tonal' : 'outlined'" @click="colorizeMessages = !colorizeMessages">
+                    <v-icon>mdi-palette-outline</v-icon>
                   </v-btn>
                 </template>
               </v-tooltip>
             </div>
             <v-divider />
-            <div class="log-panel-content">
+            <div v-if="logLines.length > 0 && logSeverities.length > 1" class="severity-chips px-3 py-2 d-flex align-center gap-1 flex-wrap">
+              <v-chip
+                v-for="sev in logSeverities"
+                :key="sev"
+                size="small"
+                :variant="activeSeverities.has(sev) ? 'flat' : 'tonal'"
+                :color="severityChipColor(sev)"
+                style="cursor: pointer"
+                @click="toggleSeverity(sev)"
+              >{{ sev }} <span class="ms-1 opacity-70">{{ severityCounts.get(sev) }}</span></v-chip>
+            </div>
+            <v-divider v-if="logLines.length > 0 && logSeverities.length > 1" />
+            <div ref="logPanelContentRef" class="log-panel-content">
               <v-alert v-if="!logLines.length && !loading && !error" type="info" variant="tonal" class="mx-4 mt-4">
                 No logs available for this task run yet.
               </v-alert>
               <v-alert v-else-if="error" type="error" variant="tonal" class="mx-4 mt-4">
                 Failed to load logs: {{ error }}
               </v-alert>
+              <v-alert v-else-if="filteredLogLines.length === 0 && logLines.length > 0" type="info" variant="tonal" class="mx-4 mt-4">
+                No lines match the active severity filter.
+              </v-alert>
               <div v-else class="log-output">
-                <div v-for="(line, i) in logLines" :key="i" class="log-line">
+                <div
+                  v-for="(line, i) in filteredLogLines"
+                  :key="i"
+                  :data-line-idx="i"
+                  :class="['log-line', colorizeMessages && `log-line--${line.severity.toLowerCase()}`, logSearch?.trim() && i === matchLinesInLog[currentMatchIdx] && 'log-line--active']"
+                >
                   <span class="log-ts">{{ line.time.slice(0, 19).replace('T', ' ') }}</span>
                   <span :class="`log-severity log-severity--${line.severity.toLowerCase()}`">{{ line.severity }}</span>
                   <span class="log-text" v-html="highlightMatch(line.message)"></span>
                 </div>
               </div>
             </div>
+            <v-overlay v-model="loading" contained class="d-flex justify-center align-center" persistent>
+              <v-progress-circular indeterminate size="64" color="primary" />
+            </v-overlay>
           </div>
 
         </div>
 
       </v-card-text>
-
-      <v-overlay v-model="loading" class="d-flex justify-center align-center" persistent>
-        <v-progress-circular indeterminate size="64" color="primary" />
-      </v-overlay>
 
     </v-card>
   </v-dialog>
@@ -152,7 +202,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { workflowRunsApi } from '@/api/workflowRuns'
 import type { TaskRun, LogLine } from '@/types/schemas'
 import { statusColor } from '@/utils/status'
@@ -163,8 +213,37 @@ const taskSearch       = ref('')
 const logSearch        = ref('')
 const logMatchCounts   = ref<Map<number, number>>(new Map())
 const searchLoading    = ref(false)
-// Cache stores joined message text per task ID for fast substring search
-const allTaskLogsCache = ref<Map<number, string>>(new Map())
+const activeSeverities = ref<Set<string>>(new Set())
+// Cache stores LogLine[] per task ID — severity filter applied at search time
+const allTaskLogsCache = ref<Map<number, LogLine[]>>(new Map())
+
+const logSeverities = computed(() => {
+  const s = new Set<string>()
+  logLines.value.forEach((l: LogLine) => s.add(l.severity.toUpperCase()))
+  return [...s].sort()
+})
+
+const severityCounts = computed(() => {
+  const m = new Map<string, number>()
+  logLines.value.forEach((l: LogLine) => {
+    const sev = l.severity.toUpperCase()
+    m.set(sev, (m.get(sev) ?? 0) + 1)
+  })
+  return m
+})
+
+const filteredLogLines = computed(() => {
+  if (!activeSeverities.value.size) return logLines.value
+  return logLines.value.filter((l: LogLine) => activeSeverities.value.has(l.severity.toUpperCase()))
+})
+
+const matchLinesInLog = computed(() => {
+  const q = logSearch.value?.trim().toLowerCase()
+  if (!q || !filteredLogLines.value.length) return []
+  return filteredLogLines.value
+    .map((line: LogLine, i: number) => (line.message.toLowerCase().includes(q) ? i : -1))
+    .filter((i: number): i is number => i !== -1)
+})
 
 const filteredTaskRuns = computed(() => {
   const nameQ = (taskSearch.value?.trim() ?? '').toLowerCase()
@@ -208,12 +287,15 @@ const model = computed({
 // STATE
 // ============================================================
 
-const copySnackbar      = ref(false)
-const logLines          = ref<LogLine[]>([])
-const loading           = ref(false)
-const downloading       = ref(false)
-const error             = ref<string | null>(null)
-const selectedTaskRunId = ref<number | null>(null)
+const copySnackbar        = ref(false)
+const colorizeMessages    = ref(true)
+const logLines            = ref<LogLine[]>([])
+const loading             = ref(false)
+const downloading         = ref(false)
+const error               = ref<string | null>(null)
+const selectedTaskRunId   = ref<number | null>(null)
+const logPanelContentRef  = ref<HTMLElement | null>(null)
+const currentMatchIdx     = ref(0)
 
 
 // ============================================================
@@ -229,6 +311,7 @@ const close = () => {
   logSearch.value = ''
   logMatchCounts.value = new Map()
   allTaskLogsCache.value = new Map()
+  activeSeverities.value = new Set()
 }
 
 
@@ -256,10 +339,17 @@ const loadLogs = async (taskId?: number) => {
   loading.value = true
   error.value = null
   try {
+    const prevActive = new Set(activeSeverities.value)
+    const prevAllSevs = new Set(logLines.value.map((l: LogLine) => l.severity.toUpperCase()))
     logLines.value = await workflowRunsApi.getTaskRunLogLines(props.workflowRunId, taskIdToLoad)
-    // Pre-populate search cache so switching tasks doesn't re-fetch for search
+    // Preserve selection: keep active ones, auto-select severities not seen in previous log
+    const next = new Set<string>()
+    for (const sev of logLines.value.map((l: LogLine) => l.severity.toUpperCase())) {
+      if (prevActive.has(sev) || !prevAllSevs.has(sev)) next.add(sev)
+    }
+    activeSeverities.value = next
     const cache = new Map(allTaskLogsCache.value)
-    cache.set(taskIdToLoad, logLines.value.map(l => l.message).join('\n'))
+    cache.set(taskIdToLoad, logLines.value)
     allTaskLogsCache.value = cache
   } catch (err: any) {
     error.value = err?.response?.data?.detail || err?.message || 'Failed to load logs'
@@ -269,6 +359,32 @@ const loadLogs = async (taskId?: number) => {
 }
 
 const refreshLogs = () => { loadLogs() }
+
+// ── In-log match navigation ───────────────────────────────────────────────────
+function scrollToLogLine(lineIdx: number) {
+  const el = logPanelContentRef.value?.querySelector(`[data-line-idx="${lineIdx}"]`) as HTMLElement | null
+  el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+}
+
+function goToNextMatch() {
+  if (!matchLinesInLog.value.length) return
+  currentMatchIdx.value = (currentMatchIdx.value + 1) % matchLinesInLog.value.length
+  scrollToLogLine(matchLinesInLog.value[currentMatchIdx.value])
+}
+
+function goToPrevMatch() {
+  if (!matchLinesInLog.value.length) return
+  currentMatchIdx.value = (currentMatchIdx.value - 1 + matchLinesInLog.value.length) % matchLinesInLog.value.length
+  scrollToLogLine(matchLinesInLog.value[currentMatchIdx.value])
+}
+
+watch(matchLinesInLog, async (matches: number[]) => {
+  currentMatchIdx.value = 0
+  if (matches.length) {
+    await nextTick()
+    scrollToLogLine(matches[0])
+  }
+})
 
 const selectTaskAndLoad = async (taskId: number) => {
   selectedTaskRunId.value = taskId
@@ -367,6 +483,7 @@ const decodeNewlines = (text: string) => {
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 
 watch(logSearch, (val: string | null) => {
+  currentMatchIdx.value = 0
   logMatchCounts.value = new Map()
   if (searchTimer) clearTimeout(searchTimer)
   const q = (val?.trim() ?? '').toLowerCase()
@@ -384,29 +501,59 @@ async function searchAllApiLogs(query: string) {
         uncached.map(async (task: TaskRun) => {
           try {
             const lines = await workflowRunsApi.getTaskRunLogLines(props.workflowRunId, task.id)
-            return { id: task.id, content: lines.map((l: LogLine) => l.message).join('\n') }
+            return { id: task.id, lines }
           } catch {
-            return { id: task.id, content: '' }
+            return { id: task.id, lines: [] as LogLine[] }
           }
         })
       )
       const cache = new Map(allTaskLogsCache.value)
-      for (const { id, content } of fetched) cache.set(id, content)
+      for (const { id, lines } of fetched) cache.set(id, lines)
       allTaskLogsCache.value = cache
     }
     const map = new Map<number, number>()
     for (const task of props.taskRuns) {
-      const content = allTaskLogsCache.value.get(task.id) ?? ''
-      let count = 0
-      let idx = 0
+      const lines = allTaskLogsCache.value.get(task.id) ?? []
+      const filtered = activeSeverities.value.size
+        ? lines.filter((l: LogLine) => activeSeverities.value.has(l.severity.toUpperCase()))
+        : lines
+      const content = filtered.map((l: LogLine) => l.message).join('\n')
+      let count = 0; let idx = 0
       while ((idx = content.toLowerCase().indexOf(query, idx)) !== -1) { count++; idx++ }
       map.set(task.id, count)
     }
     logMatchCounts.value = map
+    // Auto-navigate to first task with matches if the current one has none
+    const currentHasMatches = (map.get(selectedTaskRunId.value ?? -1) ?? 0) > 0
+    if (!currentHasMatches) {
+      const firstMatch = props.taskRuns.find((t: TaskRun) => (map.get(t.id) ?? 0) > 0)
+      if (firstMatch) await selectTaskAndLoad(firstMatch.id)
+    }
   } finally {
     searchLoading.value = false
   }
 }
+
+function toggleSeverity(sev: string) {
+  const next = new Set(activeSeverities.value)
+  if (next.has(sev)) next.delete(sev)
+  else next.add(sev)
+  activeSeverities.value = next
+}
+
+function severityChipColor(sev: string): string {
+  return ({ ERROR: 'error', CRITICAL: 'error', WARNING: 'warning', WARN: 'warning', INFO: 'info', DEBUG: 'secondary' } as Record<string, string>)[sev] ?? 'primary'
+}
+
+watch(activeSeverities, () => {
+  currentMatchIdx.value = 0
+  logMatchCounts.value = new Map()
+  const q = logSearch.value?.trim().toLowerCase()
+  if (q) {
+    if (searchTimer) clearTimeout(searchTimer)
+    searchTimer = setTimeout(() => searchAllApiLogs(q), 0)
+  }
+})
 
 // ── Rendering helpers ─────────────────────────────────────────────────────────
 function highlightMatch(text: string): string {
@@ -423,11 +570,13 @@ function highlightMatch(text: string): string {
 <style scoped>
 .log-viewer-card {
   min-height: 500px;
+  min-width: min(1300px, 95vw);
 }
 
 .log-viewer-body {
   display: flex;
-  height: 680px;
+  min-height: 680px;
+  height: calc(90vh - 160px);
 }
 
 .task-panel {
@@ -454,11 +603,16 @@ function highlightMatch(text: string): string {
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
+  position: relative;
 }
 
 .log-panel-toolbar {
   flex-shrink: 0;
   min-height: 48px;
+}
+
+.severity-chips {
+  flex-shrink: 0;
 }
 
 .log-panel-content {
@@ -502,6 +656,24 @@ function highlightMatch(text: string): string {
 .log-text {
   word-break: break-word;
 }
+
+.log-line--active {
+  background: rgba(var(--v-theme-primary), 0.14);
+  border-left: 2px solid rgb(var(--v-theme-primary));
+  padding-left: 8px;
+}
+
+.match-counter {
+  white-space: nowrap;
+  min-width: 3ch;
+  text-align: center;
+}
+
+.log-line--error .log-text,
+.log-line--critical .log-text { color: rgb(var(--v-theme-error)); }
+
+.log-line--warning .log-text,
+.log-line--warn .log-text     { color: rgb(var(--v-theme-warning)); }
 
 :deep(mark) {
   background: rgba(255, 200, 0, 0.35);

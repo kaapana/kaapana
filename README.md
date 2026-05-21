@@ -1,6 +1,6 @@
 
 <p align="center">
- <img src="https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/kaapana_logo_2.png" height=170 alt="kaapana" border="0" />
+ <img src="https://build-deps-dd81e0.pages.hzdr.de/stable/img/kaapana_logo_2.png" height=170 alt="kaapana" border="0" />
 </p>
 
 [![Documentation Status](https://readthedocs.org/projects/kaapana/badge/?version=latest)](https://kaapana.readthedocs.io/en/latest/?badge=latest)
@@ -9,8 +9,8 @@
 ## What is Kaapana?
 
 <p>
-  <a href="https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/kaapana-v0.2.1-showcase.mp4" target="_blank">
-    <img src="https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/thumbnail_kaapana_vid.png" />
+  <a href="https://build-deps-dd81e0.pages.hzdr.de/stable/gif/kaapana-v0.2.1-showcase.mp4" target="_blank">
+    <img src="https://build-deps-dd81e0.pages.hzdr.de/stable/img/thumbnail_kaapana_vid.png" />
   </a>
 </p>
 

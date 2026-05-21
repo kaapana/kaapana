@@ -324,13 +324,7 @@ async function retryRun(run: WorkflowRun) {
 	}
 }
 
-async function viewLogs(run: WorkflowRun) {
-  const firstTaskId = run.task_runs?.[0]?.id
-  if (firstTaskId) {
-    try {
-      await workflowRunsApi.getTaskRunLogs(run.id, firstTaskId)
-    } catch (e) {}
-  }
+function viewLogs(run: WorkflowRun) {
   selectedWorkflowRunId.value = run.id
   selectedWorkflowTitle.value = run.workflow.title
   selectedWorkflowVersion.value = run.workflow.version

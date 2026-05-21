@@ -19,7 +19,7 @@
 - name: Copy Harvester kubeconfig
   ansible.builtin.copy:
     src: "{{ harvester_kubeconfig | expanduser }}"
-    dest: "{{ runner_home }}/.kube/config"
+    dest: "{{ runner_home }}/.kube/harvester.yaml"
     mode: "0600"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
@@ -53,7 +53,7 @@
   become: yes
 
 - name: Verify Harvester kubeconfig
-  ansible.builtin.command: "kubectl --kubeconfig {{ runner_home }}/.kube/config cluster-info"
+  ansible.builtin.command: "kubectl --kubeconfig {{ runner_home }}/.kube/harvester.yaml cluster-info"
   register: kubeconfig_check
   changed_when: false
   failed_when: false

@@ -141,7 +141,7 @@ async def get_extension_manifests(
 ):
 
     extensions_manifests = await oci.get_extension_manifests(
-        tags=tags.split(",") if tags else None
+        tags=set(tags.split(",")) if tags else None
     )
 
     return [

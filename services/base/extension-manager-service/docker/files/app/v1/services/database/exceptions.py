@@ -18,3 +18,8 @@ class NotSupportedExtensionStateTransition(Exception):
 class LockedExtensionException(Exception):
     def __init__(self, extension_id: UUID):
         super().__init__(f"Database row for extension {extension_id} is locked!")
+
+
+class LockedRepositoryException(Exception):
+    def __init__(self, repository_id: UUID):
+        super().__init__(f"Database row for repository {repository_id} is locked!")

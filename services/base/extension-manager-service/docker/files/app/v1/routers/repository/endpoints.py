@@ -79,13 +79,6 @@ async def update_repository(
     update_repository: schemas.PutRepositoryRequest,
     db: AsyncSession = Depends(database.get_async_db),
 ):
-
-    repository = await crud.get_registered_repository(db, repository_id)
-    if not repository:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found"
-        )
-
     authentication = {
         "username": update_repository.username,
         "password": update_repository.password,
@@ -101,6 +94,10 @@ async def update_repository(
         repository_url=update_repository.repository_url,
         authentication=encoded_auth,
     )
+    if not db_registered_repository:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found"
+        )
 
     response.headers["Location"] = f"/repository/{db_registered_repository.id}"
     return db_registered_repository

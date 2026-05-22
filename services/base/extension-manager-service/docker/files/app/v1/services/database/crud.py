@@ -19,6 +19,7 @@ from .exceptions import (
     RepositoryExistsException,
     NotSupportedExtensionStateTransition,
     LockedExtensionException,
+    LockedRepositoryException,
 )
 
 # ---------- Reposiory CRUD ----------
@@ -91,24 +92,31 @@ async def update_registered_repository(
     repository_url: Optional[str] = None,
     authentication: Optional[str] = None,
 ) -> Optional[RegisteredRepository]:
-    values = {}
-    if name is not None:
-        values["name"] = name
-    if description is not None:
-        values["description"] = description
-    if repository_url is not None:
-        values["repository_url"] = repository_url
-    if authentication is not None:
-        values["authentication"] = authentication
-    stmt = (
-        update(RegisteredRepository)
-        .where(RegisteredRepository.id == id)
-        .values(**values)
-        .execution_options(synchronize_session="fetch")
-    )
-    await session.execute(stmt)
-    await session.commit()
-    return await get_registered_repository(session, id)
+    try:
+        result = await session.execute(
+            select(RegisteredRepository)
+            .where(RegisteredRepository.id == id)
+            .with_for_update()
+        )
+        repo = result.scalar_one_or_none()
+        if not repo:
+            return None
+        if name is not None:
+            repo.name = name
+        if description is not None:
+            repo.description = description
+        if repository_url is not None:
+            repo.repository_url = repository_url
+        if authentication is not None:
+            repo.authentication = authentication
+        await session.commit()
+        return await get_registered_repository(session, id)
+    except OperationalError as e:
+        await session.rollback()
+        if "could not obtain lock on row" in str(e):
+            raise LockedRepositoryException(repository_id=id)
+        else:
+            raise e
 
 
 async def delete_registered_repository(
@@ -208,6 +216,11 @@ async def update_extension(
 
 
 async def delete_extension(session: AsyncSession, extension_id: UUID) -> None:
+    db_extension = await get_extension(session, extension_id=extension_id)
+    if not db_extension:
+        raise Exception(f"Extension not found with id {extension_id}.")
+    if db_extension.status is not ExtensionStatus.UNINSTALLED:
+        raise Exception(f"Extension in status {db_extension.status} cannot be deleted.")
     stmt = delete(Extension).where(Extension.id == extension_id)
     await session.execute(stmt)
     await session.commit()

@@ -1,9 +1,10 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 import json
 import time
 import asyncio
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 
 @pytest.mark.asyncio
@@ -61,9 +62,12 @@ async def test_post_repo_read_extensions_install_extension(
     assert response.json()["status"] == "installed"
 
 
+from v1.services.database import crud
+
+
 @pytest.mark.asyncio
 async def test_post_repo_read_extensions_install_extension_uninstall_extension(
-    client: AsyncClient, mocked_installer, monkeypatch
+    client: AsyncClient, session: AsyncSession, mocked_installer, monkeypatch
 ):
 
     ### Patch asyncio.sleep
@@ -102,11 +106,14 @@ async def test_post_repo_read_extensions_install_extension_uninstall_extension(
     extension_location = response.headers["Location"]
 
     response = await client.get(extension_location)
+    extension = response.json()
     assert response.status_code == 200
-    assert response.json()["tag"] == tag
-    assert response.json()["repository_id"] == repository_id
-    assert response.json()["status"] == "installed"
-
+    assert extension["tag"] == tag
+    assert extension["repository_id"] == repository_id
+    assert extension["status"] == "installed"
+    db_extension = await crud.get_extension(session, extension_id=UUID(extension["id"]))
+    assert db_extension is not None
+    content_ids = [content.id for content in db_extension.contents]
     t0 = time.time()
     response = await client.post(extension_location + "/uninstall")
     assert response.status_code == 204
@@ -115,3 +122,10 @@ async def test_post_repo_read_extensions_install_extension_uninstall_extension(
 
     response = await client.get(extension_location)
     assert response.status_code == 404
+
+    ### Check that database entries were deleted
+    db_extension = await crud.get_extension(session, extension_id=UUID(extension["id"]))
+    assert db_extension is None
+
+    for id in content_ids:
+        assert await crud.get_content(session=session, content_id=id) == None

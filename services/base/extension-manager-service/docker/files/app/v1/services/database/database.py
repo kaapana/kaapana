@@ -1,7 +1,6 @@
 import os
 from collections.abc import AsyncGenerator
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
 from .models import Base
 
@@ -13,7 +12,8 @@ if not DATABASE_URL:
 
 # Async engine for FastAPI (uses asyncpg)
 async_engine = create_async_engine(DATABASE_URL, future=True, echo=False)
-async_session = sessionmaker(
+
+async_session = async_sessionmaker(
     bind=async_engine,
     class_=AsyncSession,
     expire_on_commit=False,

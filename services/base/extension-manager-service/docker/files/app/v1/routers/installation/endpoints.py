@@ -92,9 +92,7 @@ async def install_extension(
                 name=content.name,
             )
 
-    background_tasks.add_task(
-        install_extension_background_task, db_extension.id, db, oci
-    )
+    background_tasks.add_task(install_extension_background_task, db_extension.id, oci)
 
     response.headers["Location"] = f"/extensions/{db_extension.id}"
     db_extension = await crud.get_extension(db, extension_id=db_extension.id)
@@ -200,4 +198,4 @@ async def uninstall_extension(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Extension not found"
         )
-    background_tasks.add_task(uninstall_extension_background_task, db_extension.id, db)
+    background_tasks.add_task(uninstall_extension_background_task, db_extension.id)

@@ -112,8 +112,9 @@ async def session_fixture():
     )
 
     # Yield session for test
-    async with async_session_maker() as session:
-        yield session
+    with patch("v1.services.database.database.async_session", new=async_session_maker):
+        async with async_session_maker() as session:
+            yield session
 
     # Cleanup
     async with engine.begin() as conn:

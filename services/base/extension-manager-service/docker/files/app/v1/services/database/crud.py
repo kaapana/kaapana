@@ -15,7 +15,11 @@ from .models import (
     ALLOWED_EXTENSION_STATUS_TRANSITIONS,
     ALLOWED_CONTENT_STATUS_TRANSITIONS,
 )
-from .exceptions import RepositoryExistsException, RepositoryNotFoundException
+from .exceptions import (
+    RepositoryExistsException,
+    NotSupportedExtensionStateTransition,
+    LockedExtensionException,
+)
 
 # ---------- Reposiory CRUD ----------
 
@@ -67,7 +71,7 @@ async def list_registered_repositories(
         stmt = stmt.where(and_(*filters))
     stmt = stmt.offset(skip).limit(limit)
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def get_registered_repository(
@@ -169,7 +173,7 @@ async def list_extensions(
         stmt = stmt.where(and_(*filters))
     stmt = stmt.offset(skip).limit(limit)
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def update_extension(
@@ -188,8 +192,8 @@ async def update_extension(
             return None
 
         if status not in ALLOWED_EXTENSION_STATUS_TRANSITIONS[db_extension.status]:
-            raise Exception(
-                f"Invalid status transition from {db_extension.status} to {status} for extension with id {extension_id}"
+            raise NotSupportedExtensionStateTransition(
+                is_state=db_extension.status, soll_state=status
             )
 
         db_extension.status = status
@@ -198,9 +202,7 @@ async def update_extension(
     except OperationalError as e:
         await session.rollback()
         if "could not obtain lock on row" in str(e):
-            raise Exception(
-                f"Extension with id {extension_id} is currently being updated by another process. Please try again later."
-            ) from e
+            raise LockedExtensionException(extension_id=extension_id)
         else:
             raise e
 

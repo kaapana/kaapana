@@ -81,7 +81,7 @@ class Extension(Base):
 
     ### REGEX: [a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}
     ### Corresponds to <reference> or tag of a manifest in the OCI distribution spec
-    tag: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    tag: Mapped[str] = mapped_column(String(128), nullable=False)
 
     manifest: Mapped[JSON] = mapped_column(JSON, nullable=True)
 

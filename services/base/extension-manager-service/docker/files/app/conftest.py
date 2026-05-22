@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlalchemy import JSON, event
 from sqlalchemy.dialects import postgresql
+from fastapi import Depends, HTTPException, status
 
 
 from httpx import ASGITransport, AsyncClient
@@ -16,6 +17,7 @@ os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 from main import app
 from v1.services.database.models import Base
 from v1.services.database.database import get_async_db
+from v1.services.database import crud
 from v1.services.dispatch.content import Content, ContentInstaller, InstallationResult
 from v1.services.dispatch.dispatcher import Dispatcher
 
@@ -59,11 +61,17 @@ def mocked_installer():
 
 from v1.services.oci.mock_service import ociService as MockOciService
 from v1.routers.dependencies import get_oci_service_for_repository
+from uuid import UUID
 
 
 @pytest_asyncio.fixture(name="mock_ociService", autouse=True)
-async def mock_ociService():
-    async def override():
+async def mock_ociService(session: AsyncSession):
+    async def override(repository_id: UUID):
+        repository = await crud.get_registered_repository(session, repository_id)
+        if not repository:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found"
+            )
         async with MockOciService(repository_url="test", authentication="") as svc:
             yield svc
 

@@ -23,7 +23,7 @@ class ociService:
         self._session = None
         return False
 
-    async def connect(self) -> None:
+    async def connect(self) -> bool:
         return True
 
     async def get_extensions_for_repository(self) -> set[str]:
@@ -69,6 +69,6 @@ class ociService:
         source = Path(self.extension_dir / tag)
         dest = Path(__file__).parent.parent.parent / "tags"
 
-        shutil.copytree(source, dest)
+        shutil.copytree(source, dest, dirs_exist_ok=True)
 
         return dest

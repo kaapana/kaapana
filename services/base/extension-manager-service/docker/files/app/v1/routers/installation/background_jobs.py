@@ -9,12 +9,13 @@ import asyncio
 import json
 from pathlib import Path
 import shutil
+from uuid import UUID
 
 logger = get_logger(__name__)
 
 
 async def install_extension_background_task(
-    extension_id: str,
+    extension_id: UUID,
     db: AsyncSession,
     oci: ociService,
 ):
@@ -105,7 +106,7 @@ async def install_extension_background_task(
 
 
 async def uninstall_extension_background_task(
-    extension_id: str,
+    extension_id: UUID,
     db: AsyncSession,
 ):
     logger.info(f"Unnstalling extension with id {extension_id} in background task")

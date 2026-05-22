@@ -81,7 +81,7 @@ async def test_post_repository_put_repository(client: AsyncClient):
             "repository_url": "https://example.com/new",
         },
     )
-    assert response.status_code == 204
+    assert response.status_code == 200
 
 
 @pytest.mark.asyncio

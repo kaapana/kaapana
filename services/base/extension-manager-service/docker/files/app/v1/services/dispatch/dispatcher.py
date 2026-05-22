@@ -9,19 +9,19 @@ class Dispatcher:
         self.installers = installers
 
     async def install_content(self, content: Content):
-        content_installer = self._find_installer(content)
+        content_installer = self.find_installer(content)
         return await content_installer.install(content)
 
     async def uninstall_content(self, content: Content):
-        content_installer = self._find_installer(content)
+        content_installer = self.find_installer(content)
         if not content.location:
             logger.warning(
                 f"Content {content.name} does not have a location for uninstallation"
             )
             return None
-        await content_installer.uninstall(content.location)
+        await content_installer.uninstall(content)
 
-    def _find_installer(self, content: Content) -> ContentInstaller | None:
+    def find_installer(self, content: Content) -> ContentInstaller:
         for installer in self.installers:
             if installer.can_install(content):
                 return installer

@@ -25,6 +25,8 @@ class WorkflowInstaller(ContentInstaller):
 
     async def install(self, content: Content) -> InstallationResult:
         installation_success = False
+        if not content.path:
+            raise ContentError("No path found for content!")
         try:
             with open(content.path / "workflow.json", "r") as f:
                 workflow = json.load(f)
@@ -60,11 +62,11 @@ class WorkflowInstaller(ContentInstaller):
             location=response.headers.get("Location"),
         )
 
-    async def uninstall(self, location: str) -> None:
-        logger.info(f"Uninstalling workflow at {location}")
+    async def uninstall(self, content: Content) -> None:
+        logger.info(f"Uninstalling workflow at {content.location}")
         async with httpx.AsyncClient() as client:
             response = await client.delete(
-                f"{WorkflowInstaller.workflow_api_url}{location}",
+                f"{WorkflowInstaller.workflow_api_url}{content.location}",
             )
         try:
             response.raise_for_status()

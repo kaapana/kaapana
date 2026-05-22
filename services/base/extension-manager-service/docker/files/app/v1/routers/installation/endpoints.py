@@ -11,6 +11,10 @@ from v1.routers.installation.background_jobs import (
 from v1.services import dispatch
 
 from v1.services.database import crud, database
+from v1.services.database.exceptions import (
+    NotSupportedExtensionStateTransition,
+    LockedExtensionException,
+)
 
 from v1.services.oci.service import ociService
 from v1.services.oci.exceptions import ExtensionNotFoundException
@@ -20,7 +24,11 @@ from v1.routers.installation import schemas
 router = APIRouter(prefix="/extensions", tags=["extensions"])
 
 
-@router.post("/install")
+@router.post(
+    "/install",
+    response_model=schemas.InstalledExtension,
+    status_code=status.HTTP_201_CREATED,
+)
 async def install_extension(
     repository_id: UUID,
     tag: str,
@@ -39,7 +47,7 @@ async def install_extension(
         ) from e
 
     for content in extension_manifest.contents:
-        if not dispatch.dispatcher._find_installer(
+        if not dispatch.dispatcher.find_installer(
             dispatch.Content(name=content.name, content_type=content.contentType)
         ):
             raise HTTPException(
@@ -57,7 +65,12 @@ async def install_extension(
                 extension_id=db_extension.id,
                 status=crud.ExtensionStatus.PENDING,
             )
-        except Exception as e:
+        except NotSupportedExtensionStateTransition as e:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Cannot install extension with tag {tag} from repository {repository_id} because the extension exists and is in an non-terminal state.",
+            ) from e
+        except LockedExtensionException as e:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Cannot install extension with tag {tag} from repository {repository_id} because an extension with the same tag is currently being installed or is already installed",
@@ -84,8 +97,23 @@ async def install_extension(
     )
 
     response.headers["Location"] = f"/extensions/{db_extension.id}"
-    response.status_code = status.HTTP_201_CREATED
-    return response
+    db_extension = await crud.get_extension(db, extension_id=db_extension.id)
+    return schemas.InstalledExtension(
+        id=db_extension.id,
+        repository_id=db_extension.repository_id,
+        tag=db_extension.tag,
+        manifest=json.loads(db_extension.manifest),
+        status=db_extension.status,
+        contents=[
+            schemas.InstalledContent(
+                name=cont.name,
+                content_type=cont.content_type,
+                status=cont.status,
+                location=cont.location,
+            )
+            for cont in db_extension.contents
+        ],
+    )
 
 
 @router.get("", response_model=list[schemas.InstalledExtension])
@@ -118,7 +146,11 @@ async def get_extensions(
     return response_value
 
 
-@router.get("/{extension_id}", response_model=schemas.InstalledExtension)
+@router.get(
+    "/{extension_id}",
+    response_model=schemas.InstalledExtension,
+    status_code=status.HTTP_200_OK,
+)
 async def get_extension(extension_id: UUID, db=Depends(database.get_async_db)):
     db_extension = await crud.get_extension(db, extension_id=extension_id)
     if not db_extension:
@@ -143,7 +175,7 @@ async def get_extension(extension_id: UUID, db=Depends(database.get_async_db)):
     )
 
 
-@router.post("/{extension_id}/uninstall")
+@router.post("/{extension_id}/uninstall", status_code=status.HTTP_202_ACCEPTED)
 async def uninstall_extension(
     extension_id: UUID,
     response: Response,
@@ -154,16 +186,18 @@ async def uninstall_extension(
         db_extension = await crud.update_extension(
             db, extension_id=extension_id, status=crud.ExtensionStatus.UNINSTALLING
         )
-    except Exception as e:
+    except NotSupportedExtensionStateTransition as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Cannot uninstall extension with id {extension_id} because it is currently being uninstalled or is not installed",
+            detail=f"Cannot uninstall the extension with id {extension_id}, because the extension exists in an un-terminated status.",
+        ) from e
+    except LockedExtensionException as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot uninstall the extension with id {extension_id}, because the extension is already processed",
         ) from e
     if not db_extension:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Extension not found"
         )
     background_tasks.add_task(uninstall_extension_background_task, db_extension.id, db)
-
-    response.status_code = status.HTTP_204_NO_CONTENT
-    return response

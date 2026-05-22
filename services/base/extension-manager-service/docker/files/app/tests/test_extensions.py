@@ -116,7 +116,7 @@ async def test_post_repo_read_extensions_install_extension_uninstall_extension(
     content_ids = [content.id for content in db_extension.contents]
     t0 = time.time()
     response = await client.post(extension_location + "/uninstall")
-    assert response.status_code == 204
+    assert response.status_code == 202
 
     assert abs(t0 - time.time()) < 2
 

@@ -33,7 +33,7 @@ class RegisteredRepository(Base):
         default=uuid.uuid4,
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
     repository_url: Mapped[str] = mapped_column(
         String(2048), nullable=False, unique=False
     )
@@ -83,7 +83,7 @@ class Extension(Base):
     ### Corresponds to <reference> or tag of a manifest in the OCI distribution spec
     tag: Mapped[str] = mapped_column(String(128), nullable=False)
 
-    manifest: Mapped[JSON] = mapped_column(JSON, nullable=True)
+    manifest: Mapped[JSON] = mapped_column(JSON, nullable=False)
 
     status: Mapped[ExtensionStatus] = mapped_column(
         Enum(

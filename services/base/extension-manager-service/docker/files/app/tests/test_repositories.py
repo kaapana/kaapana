@@ -56,6 +56,22 @@ async def test_post_repository(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_post_repository_without_description(client: AsyncClient):
+    response = await client.post(
+        "/repositories",
+        json={
+            "name": "Test Repository",
+            "username": "test",
+            "password": "test",
+            "repository_url": "https://example.com/oci",
+        },
+    )
+    assert response.status_code == 201
+    assert response.headers.get("Location").startswith("/repositories/")
+    assert response.json()["description"] == ""
+
+
+@pytest.mark.asyncio
 async def test_post_repository_put_repository(client: AsyncClient):
     response = await client.post(
         "/repositories",

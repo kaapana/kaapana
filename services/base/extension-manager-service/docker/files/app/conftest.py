@@ -76,7 +76,10 @@ async def mock_ociService(session: AsyncSession):
             yield svc
 
     app.dependency_overrides[get_oci_service_for_repository] = override
-    yield
+
+    with patch("v1.routers.installation.background_jobs.ociService", new=MockOciService):
+        yield
+
     app.dependency_overrides.pop(get_oci_service_for_repository, None)
 
 

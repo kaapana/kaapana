@@ -92,7 +92,7 @@ async def install_extension(
                 name=content.name,
             )
 
-    background_tasks.add_task(install_extension_background_task, db_extension.id, oci)
+    background_tasks.add_task(install_extension_background_task, db_extension.id)
 
     response.headers["Location"] = f"/extensions/{db_extension.id}"
     db_extension = await crud.get_extension(db, extension_id=db_extension.id)
@@ -176,7 +176,6 @@ async def get_extension(extension_id: UUID, db=Depends(database.get_async_db)):
 @router.post("/{extension_id}/uninstall", status_code=status.HTTP_202_ACCEPTED)
 async def uninstall_extension(
     extension_id: UUID,
-    response: Response,
     background_tasks: BackgroundTasks,
     db=Depends(database.get_async_db),
 ):

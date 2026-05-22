@@ -12,14 +12,16 @@ export interface CreateRepositoryRequest {
   name: string
   description?: string
   repository_url: string
-  authentication: string
+  username: string
+  password: string
 }
 
 export interface UpdateRepositoryRequest {
   name?: string
   description?: string
   repository_url?: string
-  authentication?: string
+  username: string
+  password: string
 }
 
 export type ExtensionStatus =
@@ -53,6 +55,7 @@ export interface ExtensionContent {
 }
 
 export interface ExtensionManifest {
+  id: string
   name: string
   version: string
   contents: ExtensionContent[]
@@ -69,6 +72,7 @@ export interface InstalledContent {
   name: string
   content_type: string
   status: ContentStatus
+  location?: string | null
 }
 
 export interface InstalledExtension {

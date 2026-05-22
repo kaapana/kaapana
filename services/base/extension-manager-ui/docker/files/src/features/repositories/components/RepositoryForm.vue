@@ -6,7 +6,6 @@ const props = defineProps<{
   repositoryForm: RepositoryFormState
   submittingRepositoryForm: boolean
   submitLabel: string
-  requireAuthentication: boolean
   showCancelButton?: boolean
 }>()
 
@@ -20,7 +19,8 @@ const repositoryFormIsValid = computed(() =>
   Boolean(
     props.repositoryForm.name.trim() &&
       props.repositoryForm.repository_url.trim() &&
-      (!props.requireAuthentication || props.repositoryForm.authentication.trim()),
+      props.repositoryForm.username.trim() &&
+      props.repositoryForm.password,
   ),
 )
 
@@ -57,8 +57,12 @@ function updateRepositoryFormUrl(value: unknown) {
   emitRepositoryFormUpdate(getUpdatedRepositoryForm({ repository_url: String(value ?? '') }))
 }
 
-function updateRepositoryFormAuthentication(value: unknown) {
-  emitRepositoryFormUpdate(getUpdatedRepositoryForm({ authentication: String(value ?? '') }))
+function updateRepositoryFormUsername(value: unknown) {
+  emitRepositoryFormUpdate(getUpdatedRepositoryForm({ username: String(value ?? '') }))
+}
+
+function updateRepositoryFormPassword(value: unknown) {
+  emitRepositoryFormUpdate(getUpdatedRepositoryForm({ password: String(value ?? '') }))
 }
 
 function submitRepositoryForm() {
@@ -105,16 +109,26 @@ function submitRepositoryForm() {
         />
       </v-col>
 
-      <v-col cols="12">
-        <v-textarea
-          :model-value="props.repositoryForm.authentication"
-          label="Authentication"
+      <v-col cols="12" md="6">
+        <v-text-field
+          :model-value="props.repositoryForm.username"
+          label="Username"
           density="compact"
           variant="outlined"
-          rows="2"
-          auto-grow
-          :required="props.requireAuthentication"
-          @update:model-value="updateRepositoryFormAuthentication"
+          required
+          @update:model-value="updateRepositoryFormUsername"
+        />
+      </v-col>
+
+      <v-col cols="12" md="6">
+        <v-text-field
+          :model-value="props.repositoryForm.password"
+          label="Password / Access token"
+          density="compact"
+          variant="outlined"
+          type="password"
+          required
+          @update:model-value="updateRepositoryFormPassword"
         />
       </v-col>
     </v-row>

@@ -10,7 +10,8 @@ export function createFormState(repository?: Repository): RepositoryFormState {
     name: repository?.name ?? '',
     description: repository?.description ?? '',
     repository_url: repository?.repository_url ?? '',
-    authentication: '',
+    username: '',
+    password: '',
   }
 }
 
@@ -19,7 +20,8 @@ export function toCreateRequest(form: RepositoryFormState): CreateRepositoryRequ
     name: form.name.trim(),
     description: form.description.trim() || undefined,
     repository_url: form.repository_url.trim(),
-    authentication: form.authentication.trim(),
+    username: form.username.trim(),
+    password: form.password,
   }
 }
 
@@ -28,6 +30,7 @@ export function toUpdateRequest(form: RepositoryFormState): UpdateRepositoryRequ
     name: form.name.trim(),
     description: form.description.trim() || undefined,
     repository_url: form.repository_url.trim(),
-    authentication: form.authentication.trim() || undefined,
+    username: form.username.trim(),
+    password: form.password,
   }
 }

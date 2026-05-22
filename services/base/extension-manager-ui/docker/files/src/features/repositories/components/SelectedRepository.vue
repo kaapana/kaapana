@@ -50,7 +50,6 @@ function onDeleteConfirmed() {
         :repository-form="props.selectedRepositoryForm"
         :submitting-repository-form="props.updatingSelectedRepository"
         submit-label="Save changes"
-        :require-authentication="false"
         show-cancel-button
         @update:repository-form="$emit('update:selectedRepositoryForm', $event)"
         @submit-repository-form="$emit('updateSelectedRepository')"

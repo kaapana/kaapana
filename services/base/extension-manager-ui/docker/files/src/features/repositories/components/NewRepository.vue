@@ -61,7 +61,6 @@ function emitCreateNewRepository() {
           :repository-form="props.createRepositoryForm"
           :submitting-repository-form="props.creatingRepository"
           submit-label="Add repository"
-          require-authentication
           show-cancel-button
           @update:repository-form="emitCreateRepositoryFormUpdate"
           @submit-repository-form="emitCreateNewRepository"

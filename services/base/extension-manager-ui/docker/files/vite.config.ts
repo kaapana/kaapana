@@ -31,10 +31,10 @@ export default defineConfig(() => ({
     host: true,
     strictPort: true,
     proxy: {
-      '/extension-manager-api': {
+      '/extensions-api': {
         target: 'http://extension-manager:8000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/extension-manager-api/, ''),
+        rewrite: (path) => path.replace(/^\/extensions-api/, ''),
       },
     },
   },

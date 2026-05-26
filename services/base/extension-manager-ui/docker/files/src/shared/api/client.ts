@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_EXTENSION_MANAGER_API_URL,
+  baseURL: import.meta.env.VITE_EXTENSION_MANAGER_API_URL ?? '/extensions-api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

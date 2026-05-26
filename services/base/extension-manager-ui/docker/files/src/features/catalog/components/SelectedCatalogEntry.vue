@@ -88,7 +88,8 @@ const advancedSourceRows = computed<SourceDetailsRow[]>(() => {
 
     <template v-if="props.selectedCatalogEntry" v-slot:body>
       <div class="selected-catalog-entry-body">
-        <AboutThisSource :description="props.selectedCatalogEntryGroup?.repository.description" />
+        <!-- TODO: Should we have an description in the extension-manifest? -->
+        <!-- <AboutThisSource :description="props.selectedCatalogEntry?.manifest.description" /> -->
 
         <SourceDetailsSection
           v-if="props.selectedCatalogEntryGroup"

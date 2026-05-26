@@ -112,6 +112,7 @@ async def install_extension_background_task(
                     extension_id=extension_id,
                     status=models.ExtensionStatus.INSTALLATION_FAILED,
                 )
+                shutil.rmtree(Path(extension_path))
                 raise e
 
             if content_exceptions:
@@ -120,6 +121,7 @@ async def install_extension_background_task(
                     extension_id=extension_id,
                     status=models.ExtensionStatus.INSTALLATION_FAILED,
                 )
+                shutil.rmtree(Path(extension_path))
                 raise ExceptionGroup(
                     "One or more content installations failed",
                     content_exceptions,

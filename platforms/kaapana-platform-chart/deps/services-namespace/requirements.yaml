@@ -15,8 +15,8 @@ dependencies:
     version: 0.0.0
   - name: data-ui
     version: 0.0.0
-  - name: extension-manager
-    version: 0.0.0
+  # - name: extension-manager
+  #   version: 0.0.0
   - name: extension-manager-ui
     version: 0.0.0
 # MONITORING

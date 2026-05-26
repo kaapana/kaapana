@@ -26,12 +26,12 @@ async def install_extension_background_task(
             )
         except NotSupportedExtensionStateTransition as e:
             logger.warning(
-                "Cannot change status of extension with id {extension_id} to pulling. Cancel installation!"
+                f"Cannot change status of extension with id {extension_id} to pulling. Cancel installation!"
             )
             return
         except NoResultFound:
             logger.warning(
-                "Extension with id {extension_id} not found. Cancel installation."
+                f"Extension with id {extension_id} not found. Cancel installation."
             )
             return
         db_repository = await crud.get_registered_repository(

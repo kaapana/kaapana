@@ -1,12 +1,13 @@
-from .models import ExtensionManifest
-from .exceptions import ExtensionNotFoundException, ExtensionPullError
-from pathlib import Path
-import json
-from kaapana_extensions.extensions import ExtensionUtilityLibrary
-from urllib import parse
 import base64
 import json
 import os
+from pathlib import Path
+from urllib import parse
+
+from kaapana_extensions.extensions import ExtensionUtilityLibrary
+
+from .exceptions import ExtensionNotFoundException, ExtensionPullError
+from .models import ExtensionManifest
 
 
 class ociService:

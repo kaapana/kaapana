@@ -1,9 +1,9 @@
-from fastapi import FastAPI
-from v1.services.database.database import init_db
-from v1.routers.repository import endpoints as repository_router
-from v1.routers.installation import endpoints as installation_router
-
 from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from v1.routers.installation import endpoints as installation_router
+from v1.routers.repository import endpoints as repository_router
+from v1.services.database.database import init_db
 
 
 @asynccontextmanager

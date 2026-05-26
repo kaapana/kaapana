@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
-from pathlib import Path
 from dataclasses import dataclass
-from pydantic import BaseModel
+from pathlib import Path
 from typing import Optional
+
+from pydantic import BaseModel
 
 
 @dataclass

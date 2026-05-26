@@ -1,9 +1,9 @@
-from v1.services.oci.service import ociService
-from v1.services.database.database import get_async_db, AsyncSession
 from uuid import UUID
-from fastapi import Depends, HTTPException, status
 
+from fastapi import Depends, HTTPException, status
 from v1.services.database import crud
+from v1.services.database.database import AsyncSession, get_async_db
+from v1.services.oci.service import ociService
 
 
 async def get_oci_service_for_repository(

@@ -1,5 +1,5 @@
 from .consumers.workflows import WorkflowInstaller
-from .dispatcher import Dispatcher
 from .content import Content
+from .dispatcher import Dispatcher
 
 dispatcher = Dispatcher(installers=[WorkflowInstaller()])

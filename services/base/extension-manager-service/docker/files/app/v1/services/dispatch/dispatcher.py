@@ -1,5 +1,6 @@
-from .content import Content, ContentInstaller
 from v1.services.logger import get_logger
+
+from .content import Content, ContentInstaller
 
 logger = get_logger(__name__)
 

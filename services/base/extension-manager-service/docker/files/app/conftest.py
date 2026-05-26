@@ -1,27 +1,25 @@
-import pytest_asyncio
 import os
 
+import pytest_asyncio
+from fastapi import Depends, HTTPException, status
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import JSON, event
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-from sqlalchemy import JSON, event
-from sqlalchemy.dialects import postgresql
-from fastapi import Depends, HTTPException, status
-
-
-from httpx import ASGITransport, AsyncClient
 
 postgresql.JSONB = JSON
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 from main import app
-from v1.services.database.models import Base
-from v1.services.database.database import get_async_db
 from v1.services.database import crud
+from v1.services.database.database import get_async_db
+from v1.services.database.models import Base
 from v1.services.dispatch.content import Content, ContentInstaller, InstallationResult
 from v1.services.dispatch.dispatcher import Dispatcher
-
-from unittest.mock import patch, MagicMock, AsyncMock
 
 
 class MockedInstaller(ContentInstaller):
@@ -59,9 +57,10 @@ def mocked_installer():
         yield mock_dispatcher
 
 
-from v1.services.oci.mock_service import ociService as MockOciService
-from v1.routers.dependencies import get_oci_service_for_repository
 from uuid import UUID
+
+from v1.routers.dependencies import get_oci_service_for_repository
+from v1.services.oci.mock_service import ociService as MockOciService
 
 
 @pytest_asyncio.fixture(name="mock_ociService", autouse=True)
@@ -77,7 +76,9 @@ async def mock_ociService(session: AsyncSession):
 
     app.dependency_overrides[get_oci_service_for_repository] = override
 
-    with patch("v1.routers.installation.background_jobs.ociService", new=MockOciService):
+    with patch(
+        "v1.routers.installation.background_jobs.ociService", new=MockOciService
+    ):
         yield
 
     app.dependency_overrides.pop(get_oci_service_for_repository, None)

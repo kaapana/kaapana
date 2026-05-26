@@ -1,18 +1,14 @@
+import json
+
+import httpx
+from v1.services.logger import get_logger
+
 from ..content import (
     Content,
     ContentInstaller,
     InstallationResult,
 )
-
 from ..exceptions import ConsumerError, ContentError
-
-
-import json
-import asyncio
-import httpx
-from pathlib import Path
-
-from v1.services.logger import get_logger
 
 logger = get_logger(__name__)
 

@@ -1,10 +1,10 @@
+import asyncio
+import time
+from uuid import UUID, uuid4
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-import json
-import time
-import asyncio
-from uuid import uuid4, UUID
 
 
 @pytest.mark.asyncio

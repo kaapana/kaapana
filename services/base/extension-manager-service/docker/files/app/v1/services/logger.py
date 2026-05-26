@@ -1,6 +1,6 @@
 import logging
-from functools import wraps
 import os
+from functools import wraps
 
 LOG_LEVEL = os.getenv("KAAPANA_LOG_LEVEL") or os.getenv("DEBUG_LEVEL") or "INFO"
 

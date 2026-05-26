@@ -79,10 +79,10 @@ class BaseImage:
                     project, name = parts
                 case 3:
                     registry, project, name = parts
-                case 4:
+                case _ if len(parts) >= 4:
                     registry = parts[0]
-                    project = f"{parts[1]}/{parts[2]}"
-                    name = parts[3]
+                    project = "/".join(parts[1:-1])
+                    name = parts[-1]
                 case _:
                     raise ValueError(f"{tag}: Unrecognized base-image structure")
 

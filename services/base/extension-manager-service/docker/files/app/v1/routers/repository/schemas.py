@@ -2,7 +2,7 @@ import uuid
 from typing import Optional
 
 from pydantic import BaseModel, Field
-from v1.services.oci.models import Content, ContentFiles, ExtensionManifest
+from v1.services.oci.models import ExtensionManifest
 
 
 ### Request schemas

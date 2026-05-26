@@ -3,12 +3,6 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
-from v1.routers.dependencies import get_oci_service_for_repository
-from v1.routers.installation import schemas
-from v1.routers.installation.background_jobs import (
-    install_extension_background_task,
-    uninstall_extension_background_task,
-)
 from v1.services import dispatch
 from v1.services.database import crud, database
 from v1.services.database.exceptions import (
@@ -17,6 +11,13 @@ from v1.services.database.exceptions import (
 )
 from v1.services.oci.exceptions import ExtensionNotFoundException
 from v1.services.oci.service import ociService
+
+from ..dependencies import get_oci_service_for_repository
+from . import schemas
+from .background_jobs import (
+    install_extension_background_task,
+    uninstall_extension_background_task,
+)
 
 router = APIRouter(prefix="/extensions", tags=["extensions"])
 

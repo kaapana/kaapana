@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import subprocess
@@ -310,6 +311,37 @@ class TrivyHelper:
             shutil.rmtree(worker_cache, ignore_errors=True)
 
     @classmethod
+    def _consolidate_vuln_reports(cls, report_path: Path) -> Path:
+        """Merge all per-container vuln_report_*.json files into one consolidated JSON.
+        Deduplicates by CVE ID; collects container image names into Modules.
+        Returns the path of the written file."""
+        consolidated = {}
+        for report_file in sorted(report_path.glob("vuln_report_*.json")):
+            with open(report_file) as f:
+                trivy_data = json.load(f)
+            artifact_name = trivy_data.get("ArtifactName") or report_file.stem.removeprefix("vuln_report_")
+            for result in trivy_data.get("Results", []):
+                for vuln in result.get("Vulnerabilities") or []:
+                    cve_id = vuln["VulnerabilityID"]
+                    if cve_id not in consolidated:
+                        consolidated[cve_id] = {
+                            "Title": vuln.get("Title", ""),
+                            "PkgName": vuln.get("PkgName", ""),
+                            "Severity": vuln.get("Severity", "UNKNOWN"),
+                            "InstalledVersion": vuln.get("InstalledVersion", ""),
+                            "FixedVersion": vuln.get("FixedVersion", ""),
+                            "Modules": [],
+                        }
+                    if artifact_name not in consolidated[cve_id]["Modules"]:
+                        consolidated[cve_id]["Modules"].append(artifact_name)
+
+        output_path = cls._reports_path / "consolidated_vulnerability_report.json"
+        with open(output_path, "w") as f:
+            json.dump(consolidated, f, indent=2)
+        logger.info(f"Consolidated vulnerability report saved at {output_path} ({len(consolidated)} unique CVEs)")
+        return output_path
+
+    @classmethod
     def vulnerability_scan(cls) -> None:
         """Perform Trivy vulnerability scan on all selected containers with configured severity levels."""
         report_path = cls._reports_path / "vuln_scan"
@@ -334,3 +366,4 @@ class TrivyHelper:
                         logger.error(f"Trivy vulnerability scan failed for {container.tag}:\n{e.stderr}")
                         raise
                     bar()
+        cls._consolidate_vuln_reports(report_path)

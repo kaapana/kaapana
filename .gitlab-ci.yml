@@ -180,6 +180,8 @@ build_packages:
   dependencies: []
   tags:
     - build-runner
+  environment:
+    name: $REGISTRY_ENV
   variables:
     GIT_STRATEGY: clone
     PYTHON_VENV_DIR: ".venv-build"
@@ -236,6 +238,8 @@ build_packages:
 .remote_execution_template:
   tags:
     - deploy-runner
+  environment:
+    name: $REGISTRY_ENV
   before_script:
     - export ARTIFACTS_DIR="$ARTIFACTS_DIR"
     - VENV_PATH=$(eval echo "$ORCHESTRATOR_INSTANCE_PYTHON_VENV")
@@ -534,12 +538,13 @@ security:
     - build-runner
   script:
     - pip install jsonschema requests -q
+    - CONSOLIDATED="$CI_PROJECT_DIR/security-reports/consolidated_vulnerability_report.json"
     - python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
-        "$CI_PROJECT_DIR/security-reports/vuln_scan"
+        "$CONSOLIDATED"
         "$CI_PROJECT_DIR/gl-container-scanning-report.json"
         --output json
     - python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
-        "$CI_PROJECT_DIR/security-reports/vuln_scan"
+        "$CONSOLIDATED"
         "$CI_PROJECT_DIR/vulnerability_report.html"
         --output html
     - echo "Access the report at https://kaapana.pages.hzdr.de/-/kaapana/-/jobs/${CI_JOB_ID}/artifacts/vulnerability_report.html"

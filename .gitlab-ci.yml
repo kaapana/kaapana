@@ -533,12 +533,21 @@ security:
   tags:
     - build-runner
   script:
-    - cd "$CI_PROJECT_DIR/ci/ci-code/clean"
-    - python3 create_vulnerability_report.py --output html "$CI_PROJECT_DIR/build/security-reports/${VERSION_TAG}/${VERSION_TAG}_cves.json" vulnerability_report.html
-    - echo "Access the report at https://kaapana.pages.hzdr.de/-/kaapana/-/jobs/${CI_JOB_ID}/artifacts/ci/ci-code/clean/vulnerability_report.html"
+    - pip install jsonschema requests -q
+    - python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
+        "$CI_PROJECT_DIR/security-reports/vuln_scan"
+        "$CI_PROJECT_DIR/gl-container-scanning-report.json"
+        --output json
+    - python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
+        "$CI_PROJECT_DIR/security-reports/vuln_scan"
+        "$CI_PROJECT_DIR/vulnerability_report.html"
+        --output html
+    - echo "Access the report at https://kaapana.pages.hzdr.de/-/kaapana/-/jobs/${CI_JOB_ID}/artifacts/vulnerability_report.html"
   artifacts:
     paths:
-      - ci/ci-code/clean/vulnerability_report.html
+      - "$CI_PROJECT_DIR/vulnerability_report.html"
+    reports:
+      container_scanning: "$CI_PROJECT_DIR/gl-container-scanning-report.json"
   allow_failure: true
   rules:
     - if: $CI_EXEC_BUILD == "true" && $CI_EXEC_BUILD_ARGUMENTS =~ /--vulnerability-scan/

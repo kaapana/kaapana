@@ -90,14 +90,15 @@ def main(build_config: BuildConfig):
     logger.info("-----------------------------------------------------------")
     logger.info("")
     HelmChartHelper.build_and_push_charts(platform_chart=platform_chart)
-
+    
+    BuildHelper.select_containers_to_build()
     if not build_config.only_charts:
         logger.info("")
         logger.info("-----------------------------------------------------------")
         logger.info("------------------ BUILD CONTAINERS ------------------")
         logger.info("-----------------------------------------------------------")
         logger.info("")
-        BuildHelper.select_containers_to_build()
+        
         containers = ContainerHelper._build_state.selected_containers
         coordinator = BuildCoordinator(containers)
         coordinator.start()

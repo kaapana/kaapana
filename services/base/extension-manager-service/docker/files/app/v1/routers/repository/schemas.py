@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 from v1.services.oci.models import ExtensionManifest
 
 
@@ -19,7 +19,7 @@ class PostRepositoryRequest(BaseModel):
     )
 
     username: str = Field(..., description="Name of the access token to the registry")
-    password: str = Field(..., description="The access token to the registry")
+    password: SecretStr = Field(..., description="The access token to the registry")
 
 
 class PutRepositoryRequest(BaseModel):
@@ -36,7 +36,7 @@ class PutRepositoryRequest(BaseModel):
         description="The full URL of the repository to be added. <registry>/<repository>",
     )
     username: str = Field(..., description="Name of the access token to the registry")
-    password: str = Field(..., description="The access token to the registry")
+    password: SecretStr = Field(..., description="The access token to the registry")
 
 
 ### Response schemas

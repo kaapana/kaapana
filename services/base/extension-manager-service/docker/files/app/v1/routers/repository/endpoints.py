@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
+from v1.services import encryption
 from v1.services.database import crud, database
 from v1.services.database import exceptions as db_exceptions
 from v1.services.oci.service import ociService
@@ -22,19 +23,16 @@ async def create_extension_repository(
     response: Response,
     db: AsyncSession = Depends(database.get_async_db),
 ):
-    authentication = {
-        "username": extension_repository.username,
-        "password": extension_repository.password,
-    }
-
-    encoded_auth = base64.b64encode(json.dumps(authentication).encode()).decode()
+    encypted_auth = encryption.encrypt(
+        extension_repository.username, extension_repository.password.get_secret_value()
+    )
     try:
         db_registered_repository = await crud.create_registered_repository(
             db,
             name=extension_repository.name,
             description=extension_repository.description,
             repository_url=extension_repository.repository_url,
-            authentication=encoded_auth,
+            authentication=encypted_auth,
         )
     except db_exceptions.RepositoryExistsException as e:
         raise HTTPException(
@@ -80,13 +78,9 @@ async def update_repository(
     update_repository: schemas.PutRepositoryRequest,
     db: AsyncSession = Depends(database.get_async_db),
 ):
-    authentication = {
-        "username": update_repository.username,
-        "password": update_repository.password,
-    }
-
-    encoded_auth = base64.b64encode(json.dumps(authentication).encode()).decode()
-
+    encypted_auth = encryption.encrypt(
+        update_repository.username, update_repository.password.get_secret_value()
+    )
     try:
         db_registered_repository = await crud.update_registered_repository(
             db,
@@ -94,7 +88,7 @@ async def update_repository(
             name=update_repository.name,
             description=update_repository.description,
             repository_url=update_repository.repository_url,
-            authentication=encoded_auth,
+            authentication=encypted_auth,
         )
 
     except NoResultFound:

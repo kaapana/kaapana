@@ -2,15 +2,17 @@ import json
 import shutil
 from pathlib import Path
 
+from v1.services.encryption import decrypt
+
 from .exceptions import ExtensionNotFoundException, ExtensionPullError
 from .models import ExtensionManifest
 
 
 class ociService:
 
-    def __init__(self, repository_url: str, authentication) -> None:
+    def __init__(self, repository_url: str, authentication: str) -> None:
         self.repository_url = repository_url
-        self._authentication = authentication
+        self._authentication = decrypt(authentication)
 
         self.extension_dir = Path(
             f"{Path(__file__).parent.parent.parent}/mock_data"

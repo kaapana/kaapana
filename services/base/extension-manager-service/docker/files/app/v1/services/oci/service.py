@@ -5,6 +5,7 @@ from pathlib import Path
 from urllib import parse
 
 from kaapana_extensions.extensions import ExtensionUtilityLibrary
+from v1.services.encryption import decrypt
 
 from .exceptions import ExtensionNotFoundException, ExtensionPullError
 from .models import ExtensionManifest
@@ -28,7 +29,7 @@ class ociService:
         self.extensions_download_dir = Path(f"/extensions/{parsed_url.hostname}")
         os.makedirs(name=self.extensions_download_dir, exist_ok=True)
 
-        auth = json.loads(base64.b64decode(authentication.encode()).decode())
+        auth = decrypt(authentication)
 
         self.extension_lib = ExtensionUtilityLibrary(
             registry=parsed_url.scheme + "://" + parsed_url.netloc,
@@ -49,7 +50,7 @@ class ociService:
         self._session = None
         return False
 
-    async def connect(self) -> None:
+    async def connect(self) -> bool:
         """
         Makes a head request to the registry to check if the repository exists and the authentication is valid.
         If the request is successful, it returns True.

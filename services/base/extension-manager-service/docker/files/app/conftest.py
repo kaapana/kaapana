@@ -1,6 +1,7 @@
 import os
 
 import pytest_asyncio
+from cryptography.fernet import Fernet
 from fastapi import Depends, HTTPException, status
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import JSON, event
@@ -11,6 +12,7 @@ from sqlalchemy.pool import StaticPool
 
 postgresql.JSONB = JSON
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+os.environ.setdefault("CREDENTIAL_ENCRYPTION_KEY", Fernet.generate_key().decode())
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -60,6 +62,7 @@ def mocked_installer():
 from uuid import UUID
 
 from v1.routers.dependencies import get_oci_service_for_repository
+from v1.services import encryption
 from v1.services.oci.mock_service import ociService as MockOciService
 
 
@@ -71,7 +74,9 @@ async def mock_ociService(session: AsyncSession):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found"
             )
-        async with MockOciService(repository_url="test", authentication="") as svc:
+        async with MockOciService(
+            repository_url="test", authentication=encryption.encrypt("", "")
+        ) as svc:
             yield svc
 
     app.dependency_overrides[get_oci_service_for_repository] = override

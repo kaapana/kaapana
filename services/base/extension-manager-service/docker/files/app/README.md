@@ -101,47 +101,56 @@ Tracks each content item within an installed extension.
 
 #### `ExtensionStatus`
 
-
 ```mermaid
 graph LR
+    PENDING --> PULLING
+    PENDING --> UNINSTALLING
 
-    PENDING -->PULLING
-    
     PULLING --> PULLING_FAILED
+    PULLING --> INSTALLING
+    PULLING --> UNINSTALLING
 
-    PULLING -->INSTALLING
-
+    INSTALLING --> INSTALLATION_FAILED
     INSTALLING --> INSTALLED
-    INSTALLING --> INSTALLING_FAILED
+    INSTALLING --> UNINSTALLING
 
     INSTALLED --> UNINSTALLING
+
+    PULLING_FAILED --> PENDING
     PULLING_FAILED --> UNINSTALLING
-    INSTALLING_FAILED --> UNINSTALLING
 
+    INSTALLATION_FAILED --> PENDING
+    INSTALLATION_FAILED --> UNINSTALLING
+
+    UNINSTALLING --> UNINSTALLED
     UNINSTALLING --> UNINSTALLING_FAILED
-    UNINSTALLING_FAILED --> UNINSTALLING
+    UNINSTALLING --> UNINSTALLING
 
+    UNINSTALLING_FAILED --> UNINSTALLING
 ```
 
+The `UNINSTALLING → UNINSTALLING` self-loop allows re-triggering an uninstall on an extension that is already transitioning (e.g. if a previous uninstall task was lost mid-flight). `PULLING_FAILED → PENDING` and `INSTALLATION_FAILED → PENDING` are the retry arcs triggered by calling `POST /extensions/install` again.
 
 #### `ContentStatus`
 
 ```mermaid
 graph LR
-    
-    PENDING-->INSTALLING
+    PENDING --> INSTALLING
+    PENDING --> UNINSTALLING
 
+    INSTALLING --> INSTALLATION_FAILED
     INSTALLING --> INSTALLED
-    INSTALLING --> INSTALLING_FAILED
+    INSTALLING --> UNINSTALLING
 
     INSTALLED --> UNINSTALLING
-    INSTALLING_FAILED --> UNINSTALLING
 
+    INSTALLATION_FAILED --> INSTALLING
+    INSTALLATION_FAILED --> UNINSTALLING
 
-    PENDING --> UNINSTALLING
+    UNINSTALLING --> UNINSTALLED
     UNINSTALLING --> UNINSTALLATION_FAILED
-    UNINSTALLATION_FAILED --> UNINSTALLING
 
+    UNINSTALLATION_FAILED --> UNINSTALLING
 ```
 
 State transitions are validated in the CRUD layer — invalid transitions raise an exception rather than silently persisting bad state.
@@ -232,7 +241,7 @@ Routes each content item to the correct installer and abstracts the target platf
 Provides async SQLAlchemy CRUD operations over the `registries`, `extensions`, and `contents` tables.
 
 Key behaviours:
-- **Row-level locking** — `SELECT ... FOR UPDATE SKIP LOCKED` prevents two concurrent requests from mutating the same extension or content row simultaneously. Concurrent attempts raise an `OperationalError` which the caller surfaces as an HTTP 409.
+- **Row-level locking** — `SELECT ... FOR UPDATE NOWAIT` prevents two concurrent requests from mutating the same extension or content row simultaneously. The lock fails immediately rather than waiting; concurrent attempts raise a `LockedExtensionException` which the caller surfaces as an HTTP 409.
 - **Transition validation** — `update_extension_status` and `update_content_status` check the requested transition against an allow-list before committing. This enforces the state machines described above.
 - **Cascade deletes** — deleting an extension removes all its `InstalledContent` rows automatically.
 
@@ -255,7 +264,7 @@ sequenceDiagram
     OCI-->>IR: ExtensionManifest
     IR->>IR: Validate all content types have installers
     IR->>DB: create_extension(PENDING) + create_contents(PENDING)
-    IR-->>C: 202 Accepted {extension_id}
+    IR-->>C: 201 Created {extension_id}
 
     IR->>BG: schedule background install task
 
@@ -277,8 +286,10 @@ sequenceDiagram
 
     Note over C,P: Uninstall flow
     C->>IR: POST /extensions/{id}/uninstall
+    IR->>DB: update_extension_status(UNINSTALLING)
+    IR-->>C: 202 Accepted
     IR->>BG: schedule background uninstall task
-    loop For each installed content
+    loop For each non-uninstalled content
         BG->>DB: update_content_status(UNINSTALLING)
         BG->>D: uninstall_content(content)
         D->>P: DELETE {location}
@@ -290,7 +301,7 @@ sequenceDiagram
 ### Install path
 
 1. **Validate** — The router fetches the manifest from the OCI registry and checks that every `contentType` listed in the manifest has a registered installer in the dispatcher. If any type is unsupported the request is rejected immediately (no DB writes).
-2. **Record** — An `Extension` row is created with status `PENDING`; one `InstalledContent` row is created per content item, also `PENDING`.
+2. **Record** — An `Extension` row is created with status `PENDING`; one `InstalledContent` row is created per content item, also `PENDING`. If two concurrent requests race to install the same `(repository_id, tag)`, the database unique constraint resolves the conflict: the losing request detects the `IntegrityError`, loads the existing record, and retries the installation from there.
 3. **Pull** — The background job transitions the extension to `PULLING` and calls `OCI.pull_extension()`, which downloads and extracts the OCI artifact locally.
 4. **Install contents** — Status moves to `INSTALLING`. Content Items are installed consecutively; failures are collected and re-raised together as an `ExceptionGroup` so all results are captured.
 5. **Finalise** — On full success the extension moves to `INSTALLED`. If any content item fails, the extension moves to `INSTALLATION_FAILED`; successfully installed items keep their `INSTALLED` status.
@@ -298,6 +309,6 @@ sequenceDiagram
 
 ### Uninstall path
 
-1. **Trigger** — The router schedules a background uninstall task.
-2. **Uninstall contents** — Each `InstalledContent` with status `INSTALLED` is moved to `UNINSTALLING`, then the dispatcher calls the appropriate consumer which issues a `DELETE` to the stored `location` URL.
+1. **Trigger** — The router synchronously transitions the extension to `UNINSTALLING` (enforced by the state machine, returns 409 if the extension is not in an uninstallable state), then schedules a background uninstall task.
+2. **Uninstall contents** — Each `InstalledContent` that is not already `UNINSTALLED` is moved to `UNINSTALLING`, then the dispatcher calls the appropriate consumer which issues a `DELETE` to the stored `location` URL. Content still in `PENDING` state is driven through `UNINSTALLING → UNINSTALLED` as well (its `location` is `null`, the dispatcher throws a warning but succeeds).
 3. **Remove record** — After a 30-second grace period the extension row (and cascaded content rows) is deleted from the database.

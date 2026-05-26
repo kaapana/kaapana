@@ -1,4 +1,4 @@
-FROM registry.hzdr.de/kaapana/public/collabora-code-patched:23.05.5.4.1
+FROM registry.git.dkfz.de/mic/personal/group1/kaapana-fallback/collabora-code-patched:23.05.5.4.1
 
 
 LABEL IMAGE="collabora"

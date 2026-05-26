@@ -330,3 +330,4 @@ class TrivyHelper:
                     else:
                         logger.info(f"SBOM saved at {path.name}")
                     bar()
+        cls._consolidate_vuln_reports(report_path)

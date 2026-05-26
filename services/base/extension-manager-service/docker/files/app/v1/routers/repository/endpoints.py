@@ -4,6 +4,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from v1.services.database import crud, database
 from v1.services.database import exceptions as db_exceptions
@@ -51,10 +52,9 @@ async def get_registered_repository(
     repository_id: Optional[UUID] = None,
     db: AsyncSession = Depends(database.get_async_db),
 ):
-    repositories = await crud.list_registered_repositories(
+    return await crud.list_registered_repositories(
         db, name=name, repository_id=repository_id
     )
-    return repositories
 
 
 @router.get("/{repository_id}", response_model=schemas.Repository)
@@ -87,19 +87,20 @@ async def update_repository(
 
     encoded_auth = base64.b64encode(json.dumps(authentication).encode()).decode()
 
-    db_registered_repository = await crud.update_registered_repository(
-        db,
-        id=repository_id,
-        name=update_repository.name,
-        description=update_repository.description,
-        repository_url=update_repository.repository_url,
-        authentication=encoded_auth,
-    )
-    if not db_registered_repository:
+    try:
+        db_registered_repository = await crud.update_registered_repository(
+            db,
+            id=repository_id,
+            name=update_repository.name,
+            description=update_repository.description,
+            repository_url=update_repository.repository_url,
+            authentication=encoded_auth,
+        )
+
+    except NoResultFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found"
         )
-
     response.headers["Location"] = f"/repository/{db_registered_repository.id}"
     return db_registered_repository
 
@@ -123,9 +124,7 @@ async def delete_repository(
 async def get_extensions(
     oci: ociService = Depends(get_oci_service_for_repository),
 ):
-    extensions = await oci.get_extensions_for_repository()
-
-    return extensions
+    return await oci.get_extensions_for_repository()
 
 
 @router.get(

@@ -3,6 +3,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
+from sqlalchemy.exc import NoResultFound
 from v1.services import dispatch
 from v1.services.database import crud, database
 from v1.services.database.exceptions import (
@@ -10,7 +11,6 @@ from v1.services.database.exceptions import (
     NotSupportedExtensionStateTransition,
 )
 from v1.services.oci.exceptions import ExtensionNotFoundException
-from v1.services.oci.models import ExtensionManifest
 from v1.services.oci.service import ociService
 
 from ..dependencies import get_oci_service_for_repository
@@ -57,6 +57,7 @@ async def install_extension(
     if db_extensions := await crud.list_extensions(
         db, repository_id=repository_id, tag=tag
     ):
+        ### RETRY INSTALLATION ###
         db_extension = db_extensions[0]
         try:
             await crud.update_extension(
@@ -75,7 +76,7 @@ async def install_extension(
                 detail=f"Cannot install extension with tag {tag} from repository {repository_id} because an extension with the same tag is currently being installed or is already installed",
             ) from e
     else:
-
+        ### INSTALL FOR THE FIRST TIME ###
         db_extension = await crud.create_extension(
             session=db,
             repository_id=repository_id,
@@ -94,23 +95,7 @@ async def install_extension(
     background_tasks.add_task(install_extension_background_task, db_extension.id)
 
     response.headers["Location"] = f"/extensions/{db_extension.id}"
-    db_extension = await crud.get_extension(db, extension_id=db_extension.id)
-    return schemas.InstalledExtension(
-        id=db_extension.id,
-        repository_id=db_extension.repository_id,
-        tag=db_extension.tag,
-        manifest=db_extension.manifest,
-        status=db_extension.status,
-        contents=[
-            schemas.InstalledContent(
-                name=cont.name,
-                content_type=cont.content_type,
-                status=cont.status,
-                location=cont.location,
-            )
-            for cont in db_extension.contents
-        ],
-    )
+    return await crud.get_extension(db, extension_id=db_extension.id)
 
 
 @router.get("", response_model=list[schemas.InstalledExtension])
@@ -156,7 +141,7 @@ async def uninstall_extension(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Cannot uninstall the extension with id {extension_id}, because the extension is already processed",
         ) from e
-    if not db_extension:
+    except NoResultFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Extension not found"
         )

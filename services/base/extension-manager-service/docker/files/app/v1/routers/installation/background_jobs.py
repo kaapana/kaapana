@@ -25,6 +25,9 @@ async def install_extension_background_task(
         db_repository = await crud.get_registered_repository(
             db, db_extension.repository_id
         )
+        if not db_repository:
+            logger.warning("Repository not found. Cancel installation.")
+            return
 
         async with ociService(
             db_repository.repository_url,
@@ -119,6 +122,9 @@ async def uninstall_extension_background_task(
 
     async with database.async_session() as db:
         db_extension = await crud.get_extension(db, extension_id=extension_id)
+        if not db_extension:
+            logger.warning("Extension not found. Cancel uninstallation!")
+            return
 
         #### UNINSTALLING CONTENT ####
         try:

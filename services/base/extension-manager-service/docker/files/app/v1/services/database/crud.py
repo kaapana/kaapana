@@ -91,16 +91,15 @@ async def update_registered_repository(
     description: Optional[str] = None,
     repository_url: Optional[str] = None,
     authentication: Optional[str] = None,
-) -> Optional[RegisteredRepository]:
+) -> RegisteredRepository:
     try:
         result = await session.execute(
             select(RegisteredRepository)
             .where(RegisteredRepository.id == id)
             .with_for_update()
         )
-        repo = result.scalar_one_or_none()
-        if not repo:
-            return None
+        repo = result.scalar_one()
+
         if name is not None:
             repo.name = name
         if description is not None:
@@ -110,7 +109,8 @@ async def update_registered_repository(
         if authentication is not None:
             repo.authentication = authentication
         await session.commit()
-        return await get_registered_repository(session, id)
+        await session.refresh(repo)
+        return repo
     except OperationalError as e:
         await session.rollback()
         if "could not obtain lock on row" in str(e):
@@ -188,16 +188,15 @@ async def update_extension(
     session: AsyncSession,
     extension_id: UUID,
     status: ExtensionStatus,
-) -> Optional[Extension]:
+) -> Extension:
     try:
         selection = await session.execute(
             select(Extension)
             .where(Extension.id == extension_id)
             .with_for_update(nowait=True)
+            .options(selectinload(Extension.contents))
         )
-        db_extension = selection.scalar_one_or_none()
-        if not db_extension:
-            return None
+        db_extension = selection.scalar_one()
 
         if status not in ALLOWED_EXTENSION_STATUS_TRANSITIONS[db_extension.status]:
             raise NotSupportedExtensionStateTransition(
@@ -206,7 +205,9 @@ async def update_extension(
 
         db_extension.status = status
         await session.commit()
-        return await get_extension(session, extension_id)
+        await session.refresh(db_extension)
+        return db_extension
+
     except OperationalError as e:
         await session.rollback()
         if "could not obtain lock on row" in str(e):
@@ -255,16 +256,13 @@ async def update_content(
     content_id: UUID,
     location: Optional[str] = None,
     status: Optional[ContentStatus] = None,
-) -> Optional[Content]:
+) -> Content:
 
     try:
         selection = await session.execute(
             select(Content).where(Content.id == content_id).with_for_update(nowait=True)
         )
-        db_content = selection.scalar_one_or_none()
-        if not db_content:
-            return None
-
+        db_content = selection.scalar_one()
         if (
             status
             and status not in ALLOWED_CONTENT_STATUS_TRANSITIONS[db_content.status]
@@ -277,7 +275,8 @@ async def update_content(
         if location and location != db_content.location:
             db_content.location = location
         await session.commit()
-        return await get_content(session, content_id)
+        await session.refresh(db_content)
+        return db_content
 
     except OperationalError as e:
         await session.rollback()

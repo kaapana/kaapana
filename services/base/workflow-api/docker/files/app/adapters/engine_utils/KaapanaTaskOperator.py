@@ -2,23 +2,19 @@ import os
 import pickle
 import shutil
 import signal
-import time
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import requests
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import BaseOperator
 from airflow.operators.python import get_current_context
 from airflow.utils.context import Context
-from kaapana.blueprints.kaapana_utils import get_release_name
 from kubernetes import client
 from kubernetes.client.exceptions import ApiException
 from pydantic import BaseModel, ConfigDict
 from task_api.processing_container import pc_models, task_models
 from task_api.processing_container.common import (
-    create_task_instance,
     get_task_template,
     merge_env,
 )
@@ -28,13 +24,9 @@ AIRFLOW_HOME = Path(os.getenv("AIRFLOW_HOME"), "/kaapana/mounted/workflows")
 AIRFLOW_WORKFLOW_DIR = Path(AIRFLOW_HOME, "data")
 PROCESSING_WORKFLOW_DIR = Path("/kaapana/mounted/data")
 DEFAULT_NAMESPACE = f"{os.environ['PLATFORM_PREFIX']}-project-admin"  # environ will raise KeyError if not set
-ADMIN_NAMESPACE = os.getenv("ADMIN_NAMESPACE", "admin")
 SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", "services")
-KAAPANA_BUILD_VERSION = os.getenv("KAAPANA_BUILD_VERSION")
-HELM_API = f"http://kube-helm-service.{ADMIN_NAMESPACE}.svc:5000"
 USER_INPUT_KEY = "task_form"
 KAAPANA_SKIP_TASK_RUN_RETURN_CODE = 126
-DEV_SERVER_TIMEOUT = 60 * 60 * 12
 
 
 class IOMapping(BaseModel):
@@ -146,8 +138,6 @@ class KaapanaTaskOperator(BaseOperator):
         execution_timeout: timedelta = timedelta(minutes=90),
         labels: Dict = {},
         annotations: Optional[Dict[str, str]] = None,
-        dev_server: bool = False,
-        display_name: str = "-",
         *args,
         **kwargs,
     ):
@@ -183,11 +173,6 @@ class KaapanaTaskOperator(BaseOperator):
                 A list of I/O mappings defining data flow between this task and others.
             annotations (Dict[str, str], optional):
                 A dictionary of annotations to add to the Kubernetes pod.
-            dev_server (bool, optional):
-                Deploy the task image through dev-server-chart instead of running
-                the processing pod.
-            display_name (str, optional):
-                Display name used for the pending dev-server application.
         """
         super().__init__(
             retry_delay=timedelta(seconds=10),
@@ -209,8 +194,6 @@ class KaapanaTaskOperator(BaseOperator):
         self.execution_timeout = execution_timeout
         self.labels = labels
         self.annotations = annotations or {}
-        self.dev_server = dev_server
-        self.display_name = display_name
 
     def execute(self, context: Context) -> Any:
         dag_run_id = context["dag_run"].run_id
@@ -221,9 +204,6 @@ class KaapanaTaskOperator(BaseOperator):
 
         # Step 3: Create task.pkl
         task = self._create_task(context)
-
-        if self.dev_server:
-            return self._launch_dev_server(context, task)
 
         # Step 4: Trigger task
         self.task_run = self._submit_task(task)
@@ -422,165 +402,6 @@ class KaapanaTaskOperator(BaseOperator):
             )
             raise e
 
-    def _launch_dev_server(self, context: Context, task: task_models.Task):
-        task_template = get_task_template(
-            image=task.image,
-            task_identifier=task.taskTemplate,
-            mode="k8s",
-            namespace=task.config.namespace,
-            registry_secret="registry-secret",
-        )
-        task_instance = create_task_instance(task_template=task_template, task=task)
-        release_name = get_release_name(context)
-        payload = {
-            "name": "dev-server-chart",
-            "version": KAAPANA_BUILD_VERSION,
-            "release_name": release_name,
-            "sets": self._dev_server_helm_sets(context, task_instance),
-        }
-
-        self.log.info("Deploying dev-server-chart for task %s", self.task_id)
-        r = requests.post(f"{HELM_API}/helm-install-chart", json=payload)
-        self.log.info(r.text)
-        r.raise_for_status()
-
-        t_end = time.time() + DEV_SERVER_TIMEOUT
-        while time.time() < t_end:
-            time.sleep(15)
-            r = requests.get(
-                f"{HELM_API}/view-chart-status",
-                params={"release_name": release_name},
-            )
-            if r.status_code in [500, 404]:
-                self.log.info(
-                    "Release %s was uninstalled. Dev-server task is done.",
-                    release_name,
-                )
-                return
-            r.raise_for_status()
-
-        raise AirflowException(
-            f"Dev-server release {release_name} exceeded timeout."
-        )
-
-    def _dev_server_helm_sets(
-        self, context: Context, task_instance: task_models.TaskInstance
-    ) -> Dict[str, Any]:
-        env_sets = self._dev_server_env_sets(task_instance)
-        secret_env_sets = self._dev_server_secret_env_sets(task_instance)
-        label_sets = self._dev_server_label_sets(task_instance)
-        volume_sets = self._dev_server_volume_sets(task_instance)
-        project_id = self._project_id(context)
-        ingress_path = (
-            f"applications/project/{project_id}/release/" + "{{ .Release.Name }}"
-        )
-
-        return {
-            "global.complete_image": task_instance.image,
-            "global.namespace": task_instance.config.namespace,
-            "global.ingress_path": ingress_path,
-            "global.display_name": self.display_name,
-            **env_sets,
-            **secret_env_sets,
-            **label_sets,
-            **volume_sets,
-        }
-
-    def _dev_server_env_sets(
-        self, task_instance: task_models.TaskInstance
-    ) -> Dict[str, Any]:
-        env_sets = {}
-        env_vars = {"WORKSPACE": "/kaapana"}
-        for env in [*task_instance.env, *task_instance.config.env_vars]:
-            if env.value is not None:
-                env_vars[env.name] = env.value
-
-        for idx, (name, value) in enumerate(env_vars.items()):
-            env_sets[f"global.envVars[{idx}].name"] = name
-            env_sets[f"global.envVars[{idx}].value"] = value
-        return env_sets
-
-    def _dev_server_secret_env_sets(
-        self, task_instance: task_models.TaskInstance
-    ) -> Dict[str, str]:
-        secret_sets = {}
-        secret_envs = [
-            env
-            for env in task_instance.config.env_vars
-            if env.value_from and env.value_from.secret_key_ref
-        ]
-        for idx, env in enumerate(secret_envs):
-            secret_ref = env.value_from.secret_key_ref
-            secret_sets[f"global.envVarsFromSecretRef[{idx}].name"] = env.name
-            secret_sets[
-                f"global.envVarsFromSecretRef[{idx}].secretName"
-            ] = secret_ref.name
-            secret_sets[
-                f"global.envVarsFromSecretRef[{idx}].secretKey"
-            ] = secret_ref.key
-        return secret_sets
-
-    def _dev_server_label_sets(
-        self, task_instance: task_models.TaskInstance
-    ) -> Dict[str, str]:
-        label_sets = {}
-        for idx, (name, value) in enumerate(task_instance.config.labels.items()):
-            label_sets[f"global.labels[{idx}].name"] = str(name)
-            label_sets[f"global.labels[{idx}].value"] = str(value)
-        return label_sets
-
-    def _dev_server_volume_sets(
-        self, task_instance: task_models.TaskInstance
-    ) -> Dict[str, str]:
-        volumes = []
-        for mount in task_instance.config.volume_mounts:
-            if mount.name == "dshm":
-                continue
-            volumes.append(
-                {
-                    "name": mount.name,
-                    "mount_path": mount.mount_path,
-                    "sub_path": mount.sub_path,
-                }
-            )
-
-        for channel in [*task_instance.inputs, *task_instance.outputs]:
-            if not isinstance(
-                channel.volume_source, task_models.PersistentVolumeClaimVolume
-            ):
-                continue
-            volumes.append(
-                {
-                    "name": channel.volume_source.persistent_volume_claim.claim_name.replace(
-                        "-pv-claim", ""
-                    ),
-                    "mount_path": channel.mounted_path,
-                    "sub_path": channel.volume_source.sub_path,
-                }
-            )
-
-        volume_sets = {}
-        for idx, volume in enumerate(volumes):
-            volume_sets[f"global.dynamicVolumes[{idx}].name"] = volume["name"]
-            volume_sets[f"global.dynamicVolumes[{idx}].mount_path"] = volume[
-                "mount_path"
-            ]
-            if volume["sub_path"]:
-                volume_sets[f"global.dynamicVolumes[{idx}].sub_path"] = volume[
-                    "sub_path"
-                ]
-        return volume_sets
-
-    def _project_id(self, context: Context) -> str:
-        conf = context["dag_run"].conf or {}
-        project_form = conf.get("project_form", {})
-        if project_form.get("id"):
-            return project_form["id"]
-
-        response = requests.get(f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/admin")
-        response.raise_for_status()
-        return response.json().get("id")
-
     def _monitor_task_run(self):
         try:
             KubernetesRunner.logs(
@@ -689,39 +510,11 @@ class KaapanaTaskOperator(BaseOperator):
 
     @staticmethod
     def on_failure(context: Context):
-        if getattr(context["task"], "dev_server", False):
-            KaapanaTaskOperator.uninstall_dev_server(context)
-        else:
-            KaapanaTaskOperator.stop_task_pod(context)
+        KaapanaTaskOperator.stop_task_pod(context)
 
     @staticmethod
     def on_retry(context: Context):
-        if getattr(context["task"], "dev_server", False):
-            KaapanaTaskOperator.uninstall_dev_server(context)
-        else:
-            KaapanaTaskOperator.stop_task_pod(context)
-
-    @staticmethod
-    def uninstall_dev_server(context: Context):
-        release_name = get_release_name(context)
-        r = requests.get(
-            f"{HELM_API}/view-chart-status",
-            params={"release_name": release_name},
-        )
-        if r.status_code in [500, 404]:
-            KubernetesRunner._logger.info(
-                f"Release {release_name} was uninstalled or never installed."
-            )
-            return None
-
-        r.raise_for_status()
-        r = requests.post(
-            f"{HELM_API}/helm-delete-chart",
-            params={"release_name": release_name},
-        )
-        r.raise_for_status()
-        KubernetesRunner._logger.info(f"Deleted dev-server release: {release_name}")
-        return None
+        KaapanaTaskOperator.stop_task_pod(context)
 
     @staticmethod
     def task_run_file_path(context: Context):

@@ -10,6 +10,7 @@ from v1.services.database.exceptions import (
     NotSupportedExtensionStateTransition,
 )
 from v1.services.oci.exceptions import ExtensionNotFoundException
+from v1.services.oci.models import ExtensionManifest
 from v1.services.oci.service import ociService
 
 from ..dependencies import get_oci_service_for_repository
@@ -79,7 +80,7 @@ async def install_extension(
             session=db,
             repository_id=repository_id,
             tag=tag,
-            manifest=extension_manifest.model_dump_json(),
+            manifest=extension_manifest.model_dump(mode="json"),
         )
 
         for content in extension_manifest.contents:
@@ -98,7 +99,7 @@ async def install_extension(
         id=db_extension.id,
         repository_id=db_extension.repository_id,
         tag=db_extension.tag,
-        manifest=json.loads(db_extension.manifest),
+        manifest=db_extension.manifest,
         status=db_extension.status,
         contents=[
             schemas.InstalledContent(
@@ -118,28 +119,7 @@ async def get_extensions(
     repository_id: Optional[UUID] = None,
     db=Depends(database.get_async_db),
 ):
-    extensions = await crud.list_extensions(db, repository_id=repository_id, tag=tag)
-
-    response_value = [
-        schemas.InstalledExtension(
-            id=ext.id,
-            repository_id=ext.repository_id,
-            tag=ext.tag,
-            manifest=json.loads(ext.manifest),
-            status=ext.status,
-            contents=[
-                schemas.InstalledContent(
-                    name=cont.name,
-                    content_type=cont.content_type,
-                    status=cont.status,
-                    location=cont.location,
-                )
-                for cont in ext.contents
-            ],
-        )
-        for ext in extensions
-    ]
-    return response_value
+    return await crud.list_extensions(db, repository_id=repository_id, tag=tag)
 
 
 @router.get(
@@ -153,22 +133,7 @@ async def get_extension(extension_id: UUID, db=Depends(database.get_async_db)):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Extension not found"
         )
-    return schemas.InstalledExtension(
-        id=db_extension.id,
-        repository_id=db_extension.repository_id,
-        tag=db_extension.tag,
-        manifest=json.loads(db_extension.manifest),
-        status=db_extension.status,
-        contents=[
-            schemas.InstalledContent(
-                name=cont.name,
-                content_type=cont.content_type,
-                status=cont.status,
-                location=cont.location,
-            )
-            for cont in db_extension.contents
-        ],
-    )
+    return db_extension
 
 
 @router.post("/{extension_id}/uninstall", status_code=status.HTTP_202_ACCEPTED)

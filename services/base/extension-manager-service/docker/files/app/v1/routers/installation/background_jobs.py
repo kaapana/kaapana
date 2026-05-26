@@ -47,7 +47,7 @@ async def install_extension_background_task(
             try:
                 with open(extension_path / "extension_manifest.json") as f:
                     extension_manifest = json.load(f)
-                    assert extension_manifest == json.loads(db_extension.manifest)
+                    assert extension_manifest == db_extension.manifest
 
                 content_exceptions = []
 

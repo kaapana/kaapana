@@ -174,7 +174,7 @@ async def list_extensions(
     if repository_id is not None:
         filters.append(Extension.repository_id == repository_id)
     if tag is not None:
-        filters.append(Extension.tag.ilike(f"%{tag}%"))
+        filters.append(Extension.tag == tag)
     if status is not None:
         filters.append(Extension.status == status)
     if filters:

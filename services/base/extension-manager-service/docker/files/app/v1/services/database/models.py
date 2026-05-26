@@ -178,10 +178,12 @@ ALLOWED_EXTENSION_STATUS_TRANSITIONS = {
     ExtensionStatus.PULLING: [
         ExtensionStatus.PULLING_FAILED,
         ExtensionStatus.INSTALLING,
+        ExtensionStatus.UNINSTALLING,
     ],
     ExtensionStatus.INSTALLING: [
         ExtensionStatus.INSTALLATION_FAILED,
         ExtensionStatus.INSTALLED,
+        ExtensionStatus.UNINSTALLING,
     ],
     ExtensionStatus.INSTALLED: [
         ExtensionStatus.UNINSTALLING,

@@ -1,9 +1,8 @@
-import json
 from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
-from sqlalchemy.exc import NoResultFound
+from sqlalchemy.exc import IntegrityError, NoResultFound
 from v1.services import dispatch
 from v1.services.database import crud, database
 from v1.services.database.exceptions import (
@@ -54,36 +53,13 @@ async def install_extension(
                 detail=f"No installer found for content type {content.contentType}",
             )
 
-    if db_extensions := await crud.list_extensions(
-        db, repository_id=repository_id, tag=tag
-    ):
-        ### RETRY INSTALLATION ###
-        db_extension = db_extensions[0]
-        try:
-            await crud.update_extension(
-                db,
-                extension_id=db_extension.id,
-                status=crud.ExtensionStatus.PENDING,
-            )
-        except NotSupportedExtensionStateTransition as e:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Cannot install extension with tag {tag} from repository {repository_id} because the extension exists and is in an non-terminal state.",
-            ) from e
-        except LockedExtensionException as e:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Cannot install extension with tag {tag} from repository {repository_id} because an extension with the same tag is currently being installed or is already installed",
-            ) from e
-    else:
-        ### INSTALL FOR THE FIRST TIME ###
+    try:
         db_extension = await crud.create_extension(
             session=db,
             repository_id=repository_id,
             tag=tag,
             manifest=extension_manifest.model_dump(mode="json"),
         )
-
         for content in extension_manifest.contents:
             await crud.create_content(
                 db,
@@ -91,6 +67,31 @@ async def install_extension(
                 content_type=content.contentType,
                 name=content.name,
             )
+
+    except IntegrityError:
+        await db.rollback()
+        db_extensions = await crud.list_extensions(
+            db, repository_id=repository_id, tag=tag
+        )
+        db_extension = db_extensions[0]
+
+        try:
+            await crud.update_extension(
+                db,
+                extension_id=db_extension.id,
+                status=crud.ExtensionStatus.PENDING,
+            )
+
+        except NotSupportedExtensionStateTransition as e:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Cannot install extension with tag {tag} from repository {repository_id} because the extension exists and is in status {db_extension.status}",
+            ) from e
+        except LockedExtensionException as e:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Cannot install extension with tag {tag} from repository {repository_id} because an extension with the same tag is currently being processed",
+            ) from e
 
     background_tasks.add_task(install_extension_background_task, db_extension.id)
 

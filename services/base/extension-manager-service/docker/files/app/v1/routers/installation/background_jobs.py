@@ -16,7 +16,6 @@ async def install_extension_background_task(
     extension_id: UUID,
 ):
     logger.info(f"Installing extension with id {extension_id} in background task")
-
     async with database.async_session() as db:
         #### PULLING EXTENSION ####
         db_extension = await crud.update_extension(
@@ -27,6 +26,11 @@ async def install_extension_background_task(
         )
         if not db_repository:
             logger.warning("Repository not found. Cancel installation.")
+            await crud.update_extension(
+                db,
+                extension_id=extension_id,
+                status=models.ExtensionStatus.PULLING_FAILED,
+            )
             return
 
         async with ociService(
@@ -193,5 +197,6 @@ async def uninstall_extension_background_task(
             db, extension_id=extension_id, status=models.ExtensionStatus.UNINSTALLED
         )
 
-        await asyncio.sleep(30)
-        await crud.delete_extension(db, extension_id=extension_id)
+    await asyncio.sleep(30)
+    async with database.async_session() as db2:
+        await crud.delete_extension(db2, extension_id=extension_id)

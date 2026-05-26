@@ -172,9 +172,7 @@ class Content(Base):
 
 
 ALLOWED_EXTENSION_STATUS_TRANSITIONS = {
-    ExtensionStatus.PENDING: [
-        ExtensionStatus.PULLING,
-    ],
+    ExtensionStatus.PENDING: [ExtensionStatus.PULLING, ExtensionStatus.UNINSTALLING],
     ExtensionStatus.PULLING: [
         ExtensionStatus.PULLING_FAILED,
         ExtensionStatus.INSTALLING,
@@ -191,6 +189,7 @@ ALLOWED_EXTENSION_STATUS_TRANSITIONS = {
     ExtensionStatus.UNINSTALLING: [
         ExtensionStatus.UNINSTALLED,
         ExtensionStatus.UNINSTALLING_FAILED,
+        ExtensionStatus.UNINSTALLING,
     ],
     ExtensionStatus.UNINSTALLED: [],
     ### ERROR STATES ###
@@ -216,6 +215,7 @@ ALLOWED_CONTENT_STATUS_TRANSITIONS = {
     ContentStatus.INSTALLING: [
         ContentStatus.INSTALLATION_FAILED,
         ContentStatus.INSTALLED,
+        ContentStatus.UNINSTALLING,
     ],
     ContentStatus.INSTALLED: [
         ContentStatus.UNINSTALLING,

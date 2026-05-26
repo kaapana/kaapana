@@ -4,8 +4,10 @@ import shutil
 from pathlib import Path
 from uuid import UUID
 
+from sqlalchemy.exc import NoResultFound
 from v1.services import dispatch
 from v1.services.database import crud, database, models
+from v1.services.database.exceptions import NotSupportedExtensionStateTransition
 from v1.services.logger import get_logger
 from v1.services.oci.service import ociService
 
@@ -18,9 +20,20 @@ async def install_extension_background_task(
     logger.info(f"Installing extension with id {extension_id} in background task")
     async with database.async_session() as db:
         #### PULLING EXTENSION ####
-        db_extension = await crud.update_extension(
-            db, extension_id=extension_id, status=models.ExtensionStatus.PULLING
-        )
+        try:
+            db_extension = await crud.update_extension(
+                db, extension_id=extension_id, status=models.ExtensionStatus.PULLING
+            )
+        except NotSupportedExtensionStateTransition as e:
+            logger.warning(
+                "Cannot change status of extension with id {extension_id} to pulling. Cancel installation!"
+            )
+            return
+        except NoResultFound:
+            logger.warning(
+                "Extension with id {extension_id} not found. Cancel installation."
+            )
+            return
         db_repository = await crud.get_registered_repository(
             db, db_extension.repository_id
         )
@@ -141,18 +154,13 @@ async def uninstall_extension_background_task(
                         f"Content with id {content.id} and name {content.name} is already in status {content.status}"
                     )
                     continue
-                if content.status == models.ContentStatus.PENDING:
-                    logger.info(
-                        f"Content with id {content.id} and name {content.name} still in status {content.status}"
-                    )
-                    continue
 
-                content = await crud.update_content(
-                    db,
-                    content_id=content.id,
-                    status=models.ContentStatus.UNINSTALLING,
-                )
                 try:
+                    content = await crud.update_content(
+                        db,
+                        content_id=content.id,
+                        status=models.ContentStatus.UNINSTALLING,
+                    )
                     await dispatch.dispatcher.uninstall_content(
                         dispatch.Content(
                             name=content.name,

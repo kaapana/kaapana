@@ -1,12 +1,16 @@
 import json
+import logging
+import os
 import re
 import uuid
 from datetime import datetime, timezone
+from string import Template
 
 import jwt
 import requests
 from app.config import settings
 from app.dependencies import get_minio, get_opensearch
+from app.logger import get_logger
 from app.workflows.utils import raise_kaapana_connection_error, requests_retry_session
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -16,6 +20,28 @@ from starlette.responses import StreamingResponse
 DEFAULT_STATIC_WEBSITE_BUCKET = "staticwebsiteresults"
 DEFAULT_RESULTS_PAGE_SIZE = 100
 SERIES_ID_PATTERN = re.compile(r"^(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*$")
+
+# Per-series prefix appended to the bucket's results root. Must contain
+# $series_id. Override via env var if the writer-side layout changes.
+RESULTS_LAYOUT_TEMPLATE = Template(
+    os.environ.get("RESULTS_LAYOUT_TEMPLATE", "batch/$series_id/")
+)
+if (
+    "$series_id" not in RESULTS_LAYOUT_TEMPLATE.template
+    and "${series_id}" not in RESULTS_LAYOUT_TEMPLATE.template
+):
+    raise ValueError(
+        f"RESULTS_LAYOUT_TEMPLATE must contain $series_id, got "
+        f"{RESULTS_LAYOUT_TEMPLATE.template!r}"
+    )
+
+# Fall back to a batched recursive scan when the prefix lookup misses.
+# Set to "false" to fail fast on layout drift instead.
+RESULTS_LAYOUT_FALLBACK_TO_SCAN = (
+    os.environ.get("RESULTS_LAYOUT_FALLBACK_TO_SCAN", "true").lower() == "true"
+)
+
+logger = get_logger(__name__, logging.DEBUG)
 
 router = APIRouter()
 
@@ -127,8 +153,9 @@ def get_static_website_results(
     # Keep the recursive full-tree response stable until all callers are migrated
     # to the incremental browse and targeted lookup endpoints below.
     # set the bucket_name automatically from the request header
-    bucket_name: str = (DEFAULT_STATIC_WEBSITE_BUCKET,)
-    project = json.loads(request.headers.get("project"))
+    bucket_name: str = DEFAULT_STATIC_WEBSITE_BUCKET
+    project_header = request.headers.get("project")
+    project = json.loads(project_header) if project_header else None
     if project and "s3_bucket" in project:
         bucket_name = project.get("s3_bucket")
 
@@ -196,37 +223,35 @@ def get_static_website_results_tree(
     minioClient=Depends(get_minio),
 ):
     """
-    Incremental workflow results browse endpoint.
-    Returns only one directory level at a time so the UI can lazy-load results.
+    Lazy workflow results browser. Returns one directory level per call;
+    pass `continuation_token` from the previous response to get the next page.
     """
     bucket_name, bucket_results_prefix = _get_bucket_and_results_prefix(request)
     relative_prefix = _normalize_results_prefix(prefix)
     results_prefix = f"{bucket_results_prefix}{relative_prefix}"
     page_size = max(1, min(limit, 500))
 
+    list_kwargs = {"prefix": results_prefix, "recursive": False}
+    if continuation_token:
+        # Resume past the previous page's last entry, and past anything inside it.
+        list_kwargs["start_after"] = f"{bucket_results_prefix}{continuation_token}0"
+
     items = []
-    seen_paths = set()
-    found_continuation = continuation_token is None
     next_continuation_token = None
 
     try:
-        objects = minioClient.list_objects(
-            bucket_name,
-            prefix=results_prefix,
-            recursive=False,
-        )
-
-        for obj in objects:
+        for obj in minioClient.list_objects(bucket_name, **list_kwargs):
             object_name = obj.object_name
             if object_name == results_prefix:
                 continue
 
-            rel_path = object_name[len(results_prefix) :]
+            rel_path = object_name[len(results_prefix):]
             if not rel_path:
                 continue
 
             rel_path_clean = rel_path.rstrip("/")
-            is_directory = object_name.endswith("/") or "/" in rel_path_clean
+            # With recursive=False, synthetic folders end in "/", real objects don't.
+            is_directory = object_name.endswith("/")
 
             if is_directory:
                 directory_name = rel_path_clean.split("/")[0]
@@ -249,16 +274,6 @@ def get_static_website_results_tree(
                     "hasChildren": False,
                     "url": _build_results_file_url(object_name),
                 }
-
-            unique_path = item["path"]
-            if unique_path in seen_paths:
-                continue
-            seen_paths.add(unique_path)
-
-            if not found_continuation:
-                if unique_path == continuation_token:
-                    found_continuation = True
-                continue
 
             if len(items) >= page_size:
                 next_continuation_token = items[-1]["path"]
@@ -284,9 +299,11 @@ def get_static_website_result_reports(
     minioClient=Depends(get_minio),
 ):
     """
-    Targeted validation report lookup endpoint.
-    This avoids forcing Dataset-related UIs to prefetch the complete recursive
-    results tree just to resolve report URLs for one or a few series.
+    Resolve report URLs for one or more series_ids.
+
+    Fast path: one prefix lookup per series under RESULTS_LAYOUT_TEMPLATE.
+    Fallback (opt out via RESULTS_LAYOUT_FALLBACK_TO_SCAN=false): one batched
+    recursive scan that resolves any series the fast path missed.
     """
     series_ids = _parse_series_ids(request)
     if not series_ids:
@@ -307,29 +324,51 @@ def get_static_website_result_reports(
     }
 
     try:
-        objects = minioClient.list_objects(
-            bucket_name,
-            prefix=bucket_results_prefix,
-            recursive=True,
-        )
-
-        for obj in objects:
-            object_name = obj.object_name
-            if not object_name.endswith(".html"):
-                continue
-
-            series_id = _extract_series_id_from_path(object_name)
-            if not series_id or series_id not in unresolved_ids:
-                continue
-
-            results[series_id] = {
-                "found": True,
-                "url": _build_results_file_url(object_name),
-                "object_name": object_name,
-            }
-            unresolved_ids.remove(series_id)
-            if not unresolved_ids:
+        # Pass 1: per-series prefix lookup.
+        for series_id in series_ids:
+            series_prefix = (
+                f"{bucket_results_prefix}"
+                f"{RESULTS_LAYOUT_TEMPLATE.substitute(series_id=series_id)}"
+            )
+            for obj in minioClient.list_objects(
+                bucket_name, prefix=series_prefix, recursive=True
+            ):
+                if not obj.object_name.endswith(".html"):
+                    continue
+                results[series_id] = {
+                    "found": True,
+                    "url": _build_results_file_url(obj.object_name),
+                    "object_name": obj.object_name,
+                }
+                unresolved_ids.discard(series_id)
                 break
+
+        # Pass 2: batched fallback scan for any series the fast path missed.
+        if unresolved_ids and RESULTS_LAYOUT_FALLBACK_TO_SCAN:
+            logger.warning(
+                "Fast lookup miss for %d of %d series under template %r; "
+                "falling back to a batched recursive bucket scan. Layout drift?",
+                len(unresolved_ids),
+                len(series_ids),
+                RESULTS_LAYOUT_TEMPLATE.template,
+            )
+            for obj in minioClient.list_objects(
+                bucket_name, prefix=bucket_results_prefix, recursive=True
+            ):
+                object_name = obj.object_name
+                if not object_name.endswith(".html"):
+                    continue
+                series_id = _extract_series_id_from_path(object_name)
+                if not series_id or series_id not in unresolved_ids:
+                    continue
+                results[series_id] = {
+                    "found": True,
+                    "url": _build_results_file_url(object_name),
+                    "object_name": object_name,
+                }
+                unresolved_ids.remove(series_id)
+                if not unresolved_ids:
+                    break
 
         return {"results": results}
     except S3Error:

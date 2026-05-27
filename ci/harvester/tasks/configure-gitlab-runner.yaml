@@ -41,6 +41,13 @@
         creates: /etc/apt/sources.list.d/runner_gitlab-runner.list
       become: yes
 
+    - name: Mask system-wide gitlab-runner service before install
+      ansible.builtin.file:
+        src: /dev/null
+        dest: /etc/systemd/system/gitlab-runner.service
+        state: link
+        force: yes
+      become: yes
     - name: Install gitlab-runner package
       ansible.builtin.apt:
         name: gitlab-runner

@@ -1,6 +1,4 @@
-ARG NODE_VERSION=18
-ARG OS_VERSION=2.19.4
-FROM docker.io/node:${NODE_VERSION} AS builder
+FROM docker.io/node:18 AS builder
 
 LABEL IMAGE="os-dashboards"
 LABEL VERSION="2.19.4"

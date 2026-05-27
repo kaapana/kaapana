@@ -1,5 +1,9 @@
+import json
 import os
+import shutil
 import subprocess
+import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from alive_progress import alive_bar
@@ -35,20 +39,22 @@ class TrivyHelper:
             dual_line=True,
             title="Trivy misconfiguration chart scan",
         ) as bar:
-            for chart in cls._build_state.selected_charts:
-                bar.text(f"Checking chart: {chart.name}")
-                cls._check_chart(chart)
-                bar()
+            with ThreadPoolExecutor(max_workers=cls._build_config.parallel_processes) as executor:
+                futures = {executor.submit(cls._check_chart, chart): chart for chart in cls._build_state.selected_charts}
+                for future in as_completed(futures):
+                    future.result()
+                    bar()
 
         with alive_bar(
             len(cls._build_state.selected_containers),
             dual_line=True,
             title="Trivy misconfiguration container scan",
         ) as bar:
-            for container in cls._build_state.selected_containers:
-                bar.text(f"Checking container: {container.image_name}")
-                cls._check_container(container)
-                bar()
+            with ThreadPoolExecutor(max_workers=cls._build_config.parallel_processes) as executor:
+                futures = {executor.submit(cls._check_container, container): container for container in sorted(cls._build_state.selected_containers, key=lambda c: c.image_name)}
+                for future in as_completed(futures):
+                    future.result()
+                    bar()
 
     @classmethod
     def _check_chart(cls, chart: HelmChart) -> None:
@@ -67,11 +73,13 @@ class TrivyHelper:
             "-v",
             f"{report_path}:/reports",
             "-v",
-            f"{cls._cache_path}:/root/.cache",
+            f"{cls._cache_path}:/.cache",
             "--user",
             f"{os.getuid()}:{os.getgid()}",
             cls._build_config.trivy_image,
             "config",
+            "--cache-dir",
+            "/.cache",
             "--severity",
             ",".join(cls._build_config.configuration_check_severity_level),
             "/chart",
@@ -108,11 +116,13 @@ class TrivyHelper:
             "-v",
             f"{report_path}:/reports",
             "-v",
-            f"{cls._cache_path}:/root/.cache",
+            f"{cls._cache_path}:/.cache",
             "--user",
             f"{os.getuid()}:{os.getgid()}",
             cls._build_config.trivy_image,
             "config",
+            "--cache-dir",
+            "/.cache",
             "--severity",
             ",".join(cls._build_config.configuration_check_severity_level),
             "/container",
@@ -134,116 +144,226 @@ class TrivyHelper:
         )
 
     @classmethod
+    def _docker_sock_gid(cls) -> int:
+        return os.stat("/var/run/docker.sock").st_gid
+
+    @classmethod
+    def _ensure_db(cls) -> None:
+        """Download/update the Trivy vulnerability DB once before parallel scans.
+        Parallel workers all share the same cache dir, so concurrent DB updates
+        deadlock on Trivy's file lock — pre-fetching avoids this."""
+        cmd = [
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            f"{cls._cache_path}:/.cache",
+            "--user",
+            f"{os.getuid()}:{os.getgid()}",
+            cls._build_config.trivy_image,
+            "image",
+            "--cache-dir",
+            "/.cache",
+            "--download-db-only",
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        if result.returncode != 0:
+            raise subprocess.CalledProcessError(
+                result.returncode, cmd, output=result.stdout, stderr=result.stderr
+            )
+
+    @classmethod
+    def _create_sbom(cls, container: Container, report_path: Path) -> tuple[Path, bool]:
+        """Generate SBOM for a single container. Returns (report_path, skipped)."""
+        filename = f"sbom_{container.image_name}.json"
+        if (report_path / filename).exists():
+            return report_path / filename, True
+        # Each worker gets its own DB copy: bbolt acquires an exclusive lock on
+        # the DB file even for reads, so sharing the cache across parallel workers
+        # causes lock timeouts.
+        worker_cache = Path(tempfile.mkdtemp(prefix=".trivy_worker_", dir=cls._reports_path))
+        try:
+            shutil.copytree(cls._cache_path, worker_cache, dirs_exist_ok=True)
+            cmd = [
+                "docker",
+                "run",
+                "--rm",
+                # Docker socket needed for local-only images (never pushed to registry,
+                # only accessible via the daemon). --group-add grants socket access
+                # without running as root.
+                "-v",
+                "/var/run/docker.sock:/var/run/docker.sock",
+                "-v",
+                f"{worker_cache}:/.cache",
+                "-v",
+                f"{report_path}:/reports",
+                "--user",
+                f"{os.getuid()}:{os.getgid()}",
+                "--group-add",
+                str(cls._docker_sock_gid()),
+                cls._build_config.trivy_image,
+                "image",
+                "--cache-dir",
+                "/.cache",
+                "--skip-db-update",
+                "--format",
+                "cyclonedx",
+                "--quiet",
+                "--timeout",
+                str(cls._build_config.trivy_timeout) + "s",
+                "--output",
+                f"/reports/{filename}",
+                container.tag,
+            ]
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=cls._build_config.trivy_timeout,
+            )
+            if result.returncode != 0:
+                raise subprocess.CalledProcessError(
+                    result.returncode, cmd, output=result.stdout, stderr=result.stderr
+                )
+            return report_path / filename, False
+        finally:
+            shutil.rmtree(worker_cache, ignore_errors=True)
+
+    @classmethod
     def create_sboms(cls) -> None:
         """Generate SBOMs for all selected containers."""
         report_path = cls._reports_path / "sboms"
         report_path.mkdir(parents=True, exist_ok=True)
+        cls._ensure_db()
         with alive_bar(
             len(cls._build_state.selected_containers),
             dual_line=True,
             title="Trivy SBOM generation",
         ) as bar:
-            for container in cls._build_state.selected_containers:
-                bar.text(f"Generating SBOM for: {container.image_name}")
-                filename = f"sbom_{container.image_name}.json"
-
-                if (report_path / filename).exists():
+            with ThreadPoolExecutor(max_workers=cls._build_config.parallel_processes) as executor:
+                futures = {executor.submit(cls._create_sbom, container, report_path): container for container in sorted(cls._build_state.selected_containers, key=lambda c: c.image_name)}
+                for future in as_completed(futures):
+                    path, skipped = future.result()
+                    if skipped:
+                        logger.info(f"SBOM already exists, skipping: {path.name}")
+                    else:
+                        logger.info(f"SBOM saved at {path.name}")
                     bar()
-                    continue
-                cmd = [
-                    "docker",
-                    "run",
-                    "--rm",
-                    "-v",
-                    "/var/run/docker.sock:/var/run/docker.sock",
-                    "-v",
-                    f"{cls._cache_path}:/.cache",
-                    "-v",
-                    f"{report_path}:/reports",
-                    cls._build_config.trivy_image,
-                    "image",
-                    "--format",
-                    "cyclonedx",
-                    "--quiet",
-                    "--timeout",
-                    str(cls._build_config.trivy_timeout) + "s",
-                    "--output",
-                    f"/reports/{filename}",
-                    container.tag,
-                ]
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    timeout=cls._build_config.trivy_timeout,
+
+    @classmethod
+    def _scan_container_vuln(cls, container: Container, report_path: Path) -> tuple[Path, bool]:
+        """Run vulnerability scan for a single container. Returns (report_path, skipped)."""
+        filename = f"vuln_report_{container.image_name}.json"
+        if (report_path / filename).exists():
+            return report_path / filename, True
+        # Each worker gets its own DB copy: bbolt acquires an exclusive lock on
+        # the DB file even for reads, so sharing the cache across parallel workers
+        # causes lock timeouts.
+        worker_cache = Path(tempfile.mkdtemp(prefix=".trivy_worker_", dir=cls._reports_path))
+        try:
+            shutil.copytree(cls._cache_path, worker_cache, dirs_exist_ok=True)
+            cmd = [
+                "docker",
+                "run",
+                "--rm",
+                # Docker socket needed for local-only images (never pushed to registry,
+                # only accessible via the daemon). --group-add grants socket access
+                # without running as root.
+                "-v",
+                "/var/run/docker.sock:/var/run/docker.sock",
+                "-v",
+                f"{worker_cache}:/.cache",
+                "-v",
+                f"{report_path}:/reports",
+                "--user",
+                f"{os.getuid()}:{os.getgid()}",
+                "--group-add",
+                str(cls._docker_sock_gid()),
+                cls._build_config.trivy_image,
+                "image",
+                "--cache-dir",
+                "/.cache",
+                "--skip-db-update",
+                "--timeout",
+                f"{cls._build_config.trivy_timeout}s",
+                "--severity",
+                ",".join(cls._build_config.vulnerability_severity_level),
+                "--scanners",
+                "vuln",
+                "--format",
+                "json",
+                "--output",
+                f"/reports/{filename}",
+                container.tag,
+            ]
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=cls._build_config.trivy_timeout,
+            )
+            if result.returncode != 0:
+                raise subprocess.CalledProcessError(
+                    result.returncode, cmd, output=result.stdout, stderr=result.stderr
                 )
-                if result.returncode != 0:
-                    logger.error(
-                        f"Trivy SBOM generation failed for {container.tag}:\n{result.stderr}"
-                    )
-                    raise subprocess.CalledProcessError(
-                        result.returncode,
-                        cmd,
-                        output=result.stdout,
-                        stderr=result.stderr,
-                    )
-                logger.info(f"SBOM saved at {report_path}")
-                bar()
+            return report_path / filename, False
+        finally:
+            shutil.rmtree(worker_cache, ignore_errors=True)
+
+    @classmethod
+    def _consolidate_vuln_reports(cls, report_path: Path) -> Path:
+        """Merge all per-container vuln_report_*.json files into one consolidated JSON.
+        Deduplicates by CVE ID; collects container image names into Modules.
+        Returns the path of the written file."""
+        consolidated = {}
+        for report_file in sorted(report_path.glob("vuln_report_*.json")):
+            with open(report_file) as f:
+                trivy_data = json.load(f)
+            artifact_name = trivy_data.get("ArtifactName") or report_file.stem.removeprefix("vuln_report_")
+            for result in trivy_data.get("Results", []):
+                for vuln in result.get("Vulnerabilities") or []:
+                    cve_id = vuln["VulnerabilityID"]
+                    if cve_id not in consolidated:
+                        consolidated[cve_id] = {
+                            "Title": vuln.get("Title", ""),
+                            "PkgName": vuln.get("PkgName", ""),
+                            "Severity": vuln.get("Severity", "UNKNOWN"),
+                            "InstalledVersion": vuln.get("InstalledVersion", ""),
+                            "FixedVersion": vuln.get("FixedVersion", ""),
+                            "Modules": [],
+                        }
+                    if artifact_name not in consolidated[cve_id]["Modules"]:
+                        consolidated[cve_id]["Modules"].append(artifact_name)
+
+        output_path = cls._reports_path / "consolidated_vulnerability_report.json"
+        with open(output_path, "w") as f:
+            json.dump(consolidated, f, indent=2)
+        logger.info(f"Consolidated vulnerability report saved at {output_path} ({len(consolidated)} unique CVEs)")
+        return output_path
 
     @classmethod
     def vulnerability_scan(cls) -> None:
         """Perform Trivy vulnerability scan on all selected containers with configured severity levels."""
         report_path = cls._reports_path / "vuln_scan"
         report_path.mkdir(parents=True, exist_ok=True)
+        cls._ensure_db()
         with alive_bar(
             len(cls._build_state.selected_containers),
             dual_line=True,
             title="Trivy vulnerability scan",
         ) as bar:
-            for container in cls._build_state.selected_containers:
-                bar.text(f"Scanning container: {container.image_name}")
-
-                filename = f"vuln_report_{container.image_name}.json"
-                if (report_path / filename).exists():
+            with ThreadPoolExecutor(max_workers=cls._build_config.parallel_processes) as executor:
+                futures = {executor.submit(cls._scan_container_vuln, container, report_path): container for container in sorted(cls._build_state.selected_containers, key=lambda c: c.image_name)}
+                for future in as_completed(futures):
+                    container = futures[future]
+                    try:
+                        path, skipped = future.result()
+                        if skipped:
+                            logger.info(f"Skipping (exists): {path.name}")
+                        else:
+                            logger.info(f"Vulnerability report saved at {path.name}")
+                    except subprocess.CalledProcessError as e:
+                        logger.error(f"Trivy vulnerability scan failed for {container.tag}:\n{e.stderr}")
+                        raise
                     bar()
-                    continue
-                cmd = [
-                    "docker",
-                    "run",
-                    "--rm",
-                    "-v",
-                    "/var/run/docker.sock:/var/run/docker.sock",
-                    "-v",
-                    f"{cls._cache_path}:/root/.cache",
-                    "-v",
-                    f"{report_path}:/reports",
-                    cls._build_config.trivy_image,
-                    "image",
-                    "--severity",
-                    ",".join(cls._build_config.vulnerability_severity_level),
-                    "--scanners",
-                    "vuln",
-                    "--format",
-                    "json",
-                    "--output",
-                    f"/reports/{filename}",
-                    container.tag,
-                ]
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    timeout=cls._build_config.trivy_timeout,
-                )
-                if result.returncode != 0:
-                    logger.error(
-                        f"Trivy vulnerability scan failed for {container.tag}:\n{result.stderr}"
-                    )
-                    raise subprocess.CalledProcessError(
-                        result.returncode,
-                        cmd,
-                        output=result.stdout,
-                        stderr=result.stderr,
-                    )
-                logger.info(f"Vulnerability report saved at {report_path / filename}")
-                bar()
+        cls._consolidate_vuln_reports(report_path)

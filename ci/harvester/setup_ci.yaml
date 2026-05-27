@@ -20,7 +20,7 @@
   vars:
     harvester_namespace: "kaapana-ci"
     vm_image_name: "ubuntu24"
-    vm_storage_class: "longhorn"
+    vm_storage_class: "px-fa-direct-access"
     vm_network: "harvester-public/dkfz-net"
     vm_ssh_keypair: "kaapana"
     vm_user: "ubuntu"

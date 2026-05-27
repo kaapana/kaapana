@@ -251,6 +251,20 @@ def build(
         envvar="CONTAINER_ENGINE",
         help="Container engine to use (docker or podman).",
     ),
+    enable_inline_cache: bool = typer.Option(
+        True,
+        "-eic/--no-inline-cache",
+        "--enable-inline-cache/--no-inline-cache",
+        envvar="ENABLE_INLINE_CACHE",
+        help="Embed inline cache metadata in built images (BUILDKIT_INLINE_CACHE=1) so they can be used as cache sources by future builds.",
+    ),
+    cache_from_tag: Optional[str] = typer.Option(
+        None,
+        "-cft",
+        "--cache-from-tag",
+        envvar="CACHE_FROM_TAG",
+        help="Version tag to use as cache source when building each image (e.g. 'latest'). Each image will pull <registry>/<image>:<cache-from-tag> and use it as --cache-from. Disabled by default.",
+    ),
 ):
     """
     Kaapana Platform Builder entry point.

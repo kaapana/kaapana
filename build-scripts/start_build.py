@@ -72,6 +72,8 @@ def main(build_config: BuildConfig):
     logger.info("-----------------------------------------------------------")
     ContainerHelper.collect_containers()
     ContainerHelper.resolve_base_images_into_container()
+    if build_config.cache_from_tag:
+        ContainerHelper.resolve_cache_from_images(build_config.cache_from_tag)
     HelmChartHelper.collect_charts()
     HelmChartHelper.resolve_chart_dependencies()
     HelmChartHelper.resolve_kaapana_collections()

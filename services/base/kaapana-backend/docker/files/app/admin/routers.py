@@ -18,7 +18,7 @@ from minio.error import S3Error
 from starlette.responses import StreamingResponse
 
 DEFAULT_STATIC_WEBSITE_BUCKET = "staticwebsiteresults"
-DEFAULT_RESULTS_PAGE_SIZE = 100
+RESULTS_LOAD_MORE_PAGE_SIZE = int(os.environ.get("RESULTS_LOAD_MORE_PAGE_SIZE", 500))
 SERIES_ID_PATTERN = re.compile(r"^(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*$")
 
 # Per-series prefix appended to the bucket's results root. Must contain
@@ -218,7 +218,7 @@ def get_static_website_results(
 def get_static_website_results_tree(
     request: Request,
     prefix: str = "",
-    limit: int = DEFAULT_RESULTS_PAGE_SIZE,
+    limit: int = RESULTS_LOAD_MORE_PAGE_SIZE,
     continuation_token: str | None = None,
     minioClient=Depends(get_minio),
 ):

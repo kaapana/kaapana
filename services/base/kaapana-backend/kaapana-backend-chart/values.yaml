@@ -8,3 +8,8 @@ kaapana_database:
   postgres_password: kaapanapassword
   postgres_db: kaapanauser
   appName: kaapana-backend
+
+workflow_results:
+  layout_template: "batch/$series_id/"
+  layout_fallback_to_scan: true
+  load_more_page_size: 500

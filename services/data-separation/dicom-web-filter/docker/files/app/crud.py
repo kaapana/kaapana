@@ -215,6 +215,22 @@ async def study_is_mapped_to_multiple_projects(
     return len(projects) > 1
 
 
+async def get_project_ids_by_study_uid(
+    session: AsyncSession, study_instance_uid: str
+) -> List[UUID]:
+    """Return the distinct project IDs that any series of the given study is mapped to."""
+    stmt = (
+        select(DataProjects.project_id)
+        .join(
+            DicomData, DicomData.series_instance_uid == DataProjects.series_instance_uid
+        )
+        .where(DicomData.study_instance_uid == study_instance_uid)
+        .distinct()
+    )
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+
 async def get_project_ids_of_series(session: AsyncSession, series_instance_uid: str):
     """
     Return the ids of all projects that contain series_instance_uid.

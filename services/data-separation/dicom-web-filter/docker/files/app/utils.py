@@ -40,6 +40,24 @@ async def assert_project_not_archived(project_id: UUID) -> None:
         )
 
 
+async def get_project_name_by_id(project_id: UUID) -> str | None:
+    """Return the name of a project by its ID, or None if not found.
+
+    Args:
+        project_id (UUID): The project ID to look up.
+
+    Returns:
+        str | None: The project name, or None if the request fails.
+    """
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{ACCESS_INFORMATION_INTERFACE_HOST}/projects/{project_id}"
+        )
+    if not response.is_success:
+        return None
+    return response.json().get("name")
+
+
 def get_user_project_ids(request: Request) -> list[UUID]:
     """Get the project IDs of the projects the user is associated with."""
     return [UUID(project["id"]) for project in request.scope.get("token")["projects"]]

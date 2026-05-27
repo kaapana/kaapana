@@ -49,8 +49,8 @@ data:
                 requireAuthentication="no"
                 logConnections="no"
                 logDuplicates="no"
-                quarantine="/data/incoming/.quarantines/HttpImportService"
-                root="/data/incoming/.roots/HttpImportService"/>
+                quarantine="/data/incoming-web/.quarantines/HttpImportService"
+                root="/data/incoming-web/.roots/HttpImportService"/>
         <KaapanaDagTrigger
             class="org.rsna.ctp.dkfz.KaapanaDagTrigger"
             condition_tag="0008103E"
@@ -58,12 +58,12 @@ data:
             debug_log="no"
             airflowUrl="http://airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc:8080/flow/kaapana/api"
             triggerurl="/trigger"
-            name="MetaExtraction"
+            name="MetaExtractionWeb"
             acceptDuplicates="yes"
             defaultString=""
             logDuplicates="no"
-            quarantine="/data/incoming/.quarantines/KaapanaDagTrigger"
-            root="/data/incoming"
+            quarantine="/data/incoming-web/.quarantines/KaapanaDagTrigger"
+            root="/data/incoming-web"
             setStandardExtensions="yes"
             structure="(0020,000E)"
             unchangedCounter = "2"

@@ -119,12 +119,20 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         shutil.move(src=src_dcm_path, dst=target)
         logger.info(f"# Series CTP import -> OK: {target}")
 
+    def _resolve_ctp_path(self, dicom_path: str) -> str:
+        """Return the first existing CTP subdirectory that contains dicom_path."""
+        for subdir in ("incoming", "incoming-web"):
+            candidate = join("/kaapana/mounted/ctpinput", subdir, dicom_path)
+            if os.path.isdir(candidate):
+                return candidate
+        raise ValueError(
+            f"Could not find dicom dir '{dicom_path}' in incoming or incoming-web. Abort!"
+        )
+
     def ctp_input(self):
         series_uid = self.conf.get("seriesInstanceUID")
 
-        dcm_path = join(
-            "/kaapana/mounted/ctpinput", "incoming", self.conf.get("dicom_path")
-        )
+        dcm_path = self._resolve_ctp_path(self.conf.get("dicom_path"))
         logger.info(f"# Dicom-path: {dcm_path}")
         target = join(
             self.airflow_workflow_dir,
@@ -137,8 +145,6 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         if not exists(target) or not any(
             fname.endswith(".dcm") for fname in os.listdir(target)
         ):
-            if not os.path.isdir(dcm_path):
-                raise ValueError(f"Could not find dicom dir: {dcm_path}. Abort!")
             self.move_series(src_dcm_path=dcm_path, target=target)
         else:
             logger.warning("Files have already been moved -> skipping")
@@ -148,9 +154,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         A CTP restart with untransferred dirs to Airflow have to be handled:
         An Airflow trigger is created for each dicom dir, during CTP start
         """
-        batch_folder = join(
-            "/kaapana/mounted/ctpinput", "incoming", self.conf.get("dicom_path")
-        )
+        batch_folder = self._resolve_ctp_path(self.conf.get("dicom_path"))
         logger.info(f"# Batch folder: {batch_folder}")
         dcm_series_paths = [f for f in glob.glob(batch_folder + "/*")]
         for dcm_series_path in dcm_series_paths:

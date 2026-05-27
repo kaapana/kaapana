@@ -135,6 +135,7 @@ export default {
           {
             prefix: item.path,
             continuation_token: item.nextContinuationToken,
+            limit: 500,
           }
         );
         const payload = response.data || { items: [], nextContinuationToken: null };

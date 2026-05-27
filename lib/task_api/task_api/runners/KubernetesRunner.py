@@ -60,53 +60,21 @@ def get_volume_and_mounts(
         mount_paths.append(channel.mounted_path)
 
         if isinstance(channel.volume_source, task_models.HostPathVolume):
-            name = f"vol-{channel.name}"
-            if name not in volume_names:
-                volumes.append(
-                    client.V1Volume(
-                        name=name,
-                        host_path=client.V1HostPathVolumeSource(
-                            path=channel.volume_source.host_path
-                        ),
-                    )
-                )
-                volume_names.add(name)
-            volume_mounts.append(
-                client.V1VolumeMount(name=name, mount_path=channel.mounted_path)
+            v1_volume = client.V1Volume(
+                name=f"vol-{channel.name}",
+                host_path=client.V1HostPathVolumeSource(path=channel.volume_source.host_path),
             )
-            continue
+        elif isinstance(channel.volume_source, client.V1Volume):
+            v1_volume = channel.volume_source
+        else:
+            raise TypeError(f"Unsupported volume source: {type(channel.volume_source)}")
 
-        if isinstance(channel.volume_source, task_models.PersistentVolumeClaimVolume):
-            name = channel.volume_source.persistent_volume_claim.claim_name.replace("-pv-claim", "")
-            if name not in volume_names:
-                volumes.append(
-                    client.V1Volume(
-                        name=name,
-                        persistent_volume_claim=channel.volume_source.persistent_volume_claim,
-                    )
-                )
-                volume_names.add(name)
-            volume_mounts.append(
-                client.V1VolumeMount(
-                    name=name,
-                    mount_path=channel.mounted_path,
-                    sub_path=channel.volume_source.sub_path,
-                    read_only=False,
-                )
-            )
-            continue
-
-        if isinstance(channel.volume_source, client.V1Volume):
-            name = channel.volume_source.name
-            if name not in volume_names:
-                volumes.append(channel.volume_source)
-                volume_names.add(name)
-            volume_mounts.append(
-                client.V1VolumeMount(name=name, mount_path=channel.mounted_path)
-            )
-            continue
-
-        raise TypeError(f"Unsupported volume source: {type(channel.volume_source)}")
+        if v1_volume.name not in volume_names:
+            volumes.append(v1_volume)
+            volume_names.add(v1_volume.name)
+        volume_mounts.append(
+            client.V1VolumeMount(name=v1_volume.name, mount_path=channel.mounted_path, sub_path=channel.sub_path)
+        )
     return volumes, volume_mounts
 
 

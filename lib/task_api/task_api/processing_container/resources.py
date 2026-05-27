@@ -1,24 +1,28 @@
 from task_api.processing_container import task_models
 from task_api.processing_container import pc_models
+from kubernetes import client as k8sclient
 from pathlib import Path
+from typing import Optional
 import json
 import os
 import re
 import urllib.error
 import urllib.request
+
 PROJECT_RUNTIME_TIMEOUT = int(os.getenv("PROJECT_RUNTIME_TIMEOUT", "30"))
 
 
 def compute_target_size(
     io: task_models.IOChannel,
+    namespace: Optional[str] = None,
 ) -> int:
     """
     Compute the size of the input channel that should be used for scaling the resources
     """
     assert io.scale_rule
     scale_rule = io.scale_rule
-    if isinstance(io.volume_source, task_models.PersistentVolumeClaimVolume):
-        return compute_pvc_target_size(io=io)
+    if isinstance(io.volume_source, k8sclient.V1Volume) and io.volume_source.persistent_volume_claim:
+        return compute_pvc_target_size(io=io, namespace=namespace)
 
     local_path = getattr(io.volume_source, "host_path", None)
     if not local_path:
@@ -112,27 +116,28 @@ def calculate_bytes(size: str) -> int:
 
 def compute_memory_requirement(
     io: task_models.IOChannel,
+    namespace: Optional[str] = None,
 ) -> int:
     """
     Compute the memory requirements for the inpute channel based on the files in the local file path.
     """
 
-    target_size = compute_target_size(io=io)
+    target_size = compute_target_size(io=io, namespace=namespace)
 
     return io.scale_rule.scale_factor * target_size
 
 
 def compute_pvc_target_size(
     io: task_models.IOChannel,
+    namespace: Optional[str] = None,
 ) -> int:
-    namespace = io.volume_source.namespace
     if not namespace:
         raise ValueError("PVC scale-rule resolution requires a project namespace")
 
     scale_rule = io.scale_rule
     payload = {
         "claim_name": io.volume_source.persistent_volume_claim.claim_name,
-        "sub_path": io.volume_source.sub_path,
+        "sub_path": io.sub_path,
         "scale_rule": {
             "mode": scale_rule.mode.value,
             "target_dir": scale_rule.target_dir,
@@ -189,12 +194,12 @@ def compute_memory_resources(
             if rule.type == "limit":
                 memory_limit = max(
                     memory_limit,
-                    compute_memory_requirement(channel),
+                    compute_memory_requirement(channel, namespace=task_instance.config.namespace),
                 )
             elif rule.type == "request":
                 memory_request = max(
                     memory_request,
-                    compute_memory_requirement(channel),
+                    compute_memory_requirement(channel, namespace=task_instance.config.namespace),
                 )
 
     if memory_limit >= 10:

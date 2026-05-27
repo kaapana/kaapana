@@ -246,11 +246,8 @@ class KaapanaTaskOperator(BaseOperator):
             outputs.append(
                 task_models.IOVolume(
                     name=channel.name,
-                    volume_source=self._workflow_data_volume_source(
-                        context=context,
-                        task_id=self.task_id,
-                        channel_name=channel.name,
-                    ),
+                    volume_source=self._workflow_data_volume_source(),
+                    sub_path=str(Path(context["dag_run"].run_id, self.task_id, channel.name)),
                 )
             )
         inputs = []
@@ -268,6 +265,7 @@ class KaapanaTaskOperator(BaseOperator):
                     task_models.IOVolume(
                         name=io_map.input_channel,
                         volume_source=channel.volume_source,
+                        sub_path=channel.sub_path,
                     )
                 )
 
@@ -292,86 +290,21 @@ class KaapanaTaskOperator(BaseOperator):
                     **self.labels,
                 },
                 annotations=self.annotations,
-                volumes=self._pvc_volumes(),
-                volume_mounts=self._pvc_volume_mounts(),
+                volumes=[client.V1Volume(name="dshm", empty_dir=client.V1EmptyDirVolumeSource(medium="Memory"))],
+                volume_mounts=[client.V1VolumeMount(name="dshm", mount_path="/dev/shm")],
             ),
         )
 
         return self._merge_user_input(context, task)
 
-    def _workflow_data_volume_source(
-        self, context: Context, task_id: str, channel_name: str
-    ) -> task_models.PersistentVolumeClaimVolume:
-        channel_path = Path(context["dag_run"].run_id, task_id, channel_name)
-        return task_models.PersistentVolumeClaimVolume(
+    def _workflow_data_volume_source(self) -> client.V1Volume:
+        return client.V1Volume(
+            name="workflow-data",
             persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
                 claim_name="workflow-data-pv-claim",
                 read_only=False,
             ),
-            sub_path=str(channel_path),
-            namespace=self.namespace,
         )
-
-    def _pvc_volumes(self) -> List[client.V1Volume]:
-        volumes = [
-            client.V1Volume(
-                name="workflow-data",
-                persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                    claim_name="workflow-data-pv-claim",
-                    read_only=False,
-                ),
-            ),
-            client.V1Volume(
-                name="models",
-                persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                    claim_name="models-pv-claim",
-                    read_only=False,
-                ),
-            ),
-            client.V1Volume(
-                name="dshm",
-                empty_dir=client.V1EmptyDirVolumeSource(medium="Memory"),
-            ),
-        ]
-        if self.namespace != SERVICES_NAMESPACE:
-            volumes.append(
-                client.V1Volume(
-                    name="tensorboard",
-                    persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                        claim_name="tensorboard-pv-claim",
-                        read_only=False,
-                    ),
-                )
-            )
-        return volumes
-
-    def _pvc_volume_mounts(self) -> List[client.V1VolumeMount]:
-        volume_mounts = [
-            client.V1VolumeMount(
-                name="workflow-data",
-                mount_path=str(PROCESSING_WORKFLOW_DIR),
-                read_only=False,
-            ),
-            client.V1VolumeMount(
-                name="models",
-                mount_path="/models",
-                read_only=False,
-            ),
-            client.V1VolumeMount(
-                name="dshm",
-                mount_path="/dev/shm",
-                read_only=False,
-            ),
-        ]
-        if self.namespace != SERVICES_NAMESPACE:
-            volume_mounts.append(
-                client.V1VolumeMount(
-                    name="tensorboard",
-                    mount_path="/tensorboard",
-                    read_only=False,
-                )
-            )
-        return volume_mounts
 
     def _merge_user_input(
         self, context: Context, task: task_models.Task

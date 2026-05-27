@@ -75,31 +75,6 @@
       "title": "HostPathVolume",
       "type": "object"
     },
-    "PersistentVolumeClaimVolume": {
-      "properties": {
-        "claim_name": {
-          "title": "Claim Name",
-          "type": "string"
-        },
-        "sub_path": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Sub Path"
-        }
-      },
-      "required": [
-        "claim_name"
-      ],
-      "title": "PersistentVolumeClaimVolume",
-      "type": "object"
-    },
     "IOMount": {
       "description": "Defines where an input or output channel should be mounted inside the container.",
       "properties": {
@@ -161,15 +136,20 @@
           "default": null
         },
         "volume_source": {
+          "$ref": "#/$defs/HostPathVolume",
+          "title": "Volume Source"
+        },
+        "sub_path": {
           "anyOf": [
             {
-              "$ref": "#/$defs/HostPathVolume"
+              "type": "string"
             },
             {
-              "$ref": "#/$defs/PersistentVolumeClaimVolume"
+              "type": "null"
             }
           ],
-          "title": "Volume Source"
+          "default": null,
+          "title": "Sub Path"
         }
       },
       "required": [
@@ -215,11 +195,27 @@
       "description": "Defines how memory resources should scale based on the size of input data in an IOMount.",
       "properties": {
         "scale_factor": {
-          "title": "Scale Factor",
-          "type": "integer"
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scale Factor"
         },
         "type": {
-          "$ref": "#/$defs/ScaleRuleType"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScaleRuleType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "mode": {
           "$ref": "#/$defs/ScaleRuleMode"
@@ -262,8 +258,6 @@
         }
       },
       "required": [
-        "scale_factor",
-        "type",
         "mode"
       ],
       "title": "ScaleRule",

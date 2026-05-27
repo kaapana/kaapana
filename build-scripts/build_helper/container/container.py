@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import time
 from enum import Enum, auto
@@ -55,44 +56,57 @@ class BaseImage:
 
     @classmethod
     def from_tag(cls, tag: str) -> BaseImage:
-        if ":" not in tag:
-            raise ValueError(f"{tag}: Missing version in base-image tag")
+        # Regexes translated from https://github.com/distribution/reference/blob/main/regexp.go
+        # re.compile() caches by pattern string, so each pattern is compiled only once.
+        alphanumeric     = r"[a-z0-9]+"
+        separator        = r"(?:[._]|__|[-]+)"
+        domain_component = r"(?:[a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])"
+        optional_port    = r"(?::[0-9]+)?"
+        tag_pat          = r"[\w][\w.-]{0,127}"
+        digest_pat       = r"[A-Za-z][A-Za-z0-9]*(?:[-_+.][A-Za-z][A-Za-z0-9]*)*:[a-fA-F0-9]{32,}"
+        ipv6             = r"\[(?:[a-fA-F0-9:]+)\]"
+        domain_name      = rf"{domain_component}(?:\.{domain_component})*"
+        host             = rf"(?:{domain_name}|{ipv6})"
+        domain_and_port  = rf"{host}{optional_port}"
+        path_component   = rf"{alphanumeric}(?:{separator}{alphanumeric})*"
+        remote_name      = rf"{path_component}(?:/{path_component})*"
+        name_pat         = rf"(?:{domain_and_port}/)?" + remote_name
 
-        path, version = tag.rsplit(":", 1)
-        parts = path.split("/")
+        # referenceRegexp = anchored(capture(namePat), optional(":", capture(tag)), optional("@", capture(digest)))
+        ref_re  = re.compile(rf"^({name_pat})(?::({tag_pat}))?(?:@({digest_pat}))?$")
+        # anchoredNameRegexp = anchored(optional(capture(domainAndPort), "/"), capture(remoteName))
+        name_re = re.compile(rf"^(?:({domain_and_port})/)?({remote_name})$")
 
-        local_image = "local-only" in path
-        registry = project = name = None
+        # Mirrors Parse() from https://github.com/distribution/reference/blob/main/reference.go
+        if not tag:
+            raise ValueError("repository name must have at least one component")
+        matches = ref_re.match(tag)
+        if not matches:
+            if tag.lower() != tag and ref_re.match(tag.lower()):
+                raise ValueError(f"{tag}: repository name must be lowercase")
+            raise ValueError(f"{tag}: invalid reference format")
 
-        if local_image:
-            registry = "local-only"
-            project = ""
-            name = parts[-1]
+        full_name, tag_val, digest_val = matches.group(1), matches.group(2), matches.group(3)
+
+        name_match = name_re.match(full_name)
+        if name_match:
+            domain, path = name_match.group(1) or "", name_match.group(2)
         else:
-            match len(parts):
-                case 1:
-                    registry = "Dockerhub"
-                    project = ""
-                    name = parts[0]
-                case 2:
-                    registry = "Dockerhub"
-                    project, name = parts
-                case 3:
-                    registry, project, name = parts
-                case _ if len(parts) >= 4:
-                    registry = parts[0]
-                    project = "/".join(parts[1:-1])
-                    name = parts[-1]
-                case _:
-                    raise ValueError(f"{tag}: Unrecognized base-image structure")
+            domain, path = "", full_name
 
+        if len(path) > 255:  # RepositoryNameTotalLengthMax
+            raise ValueError(f"{tag}: repository name must not be more than 255 characters")
+        if not tag_val and not digest_val:
+            raise ValueError(f"{tag}: missing tag or digest")
+
+        *project_parts, image_name = path.split("/")
         return cls(
             tag=tag,
-            registry=registry,
-            project=project,
-            image_name=name,
-            version=version,
-            local_image=local_image,
+            registry=domain or "Dockerhub",
+            project="/".join(project_parts),
+            image_name=image_name,
+            version=tag_val or digest_val,
+            local_image="local-only" in (domain or path),
         )
 
 
@@ -178,10 +192,15 @@ class Container:
         build_ignore = False
         local_image = False
         base_images: set[BaseImage | Container] = set()
+        args: dict[str, str] = {}
 
         for line in lines:
             line = line.strip()
-            if line.startswith("LABEL REGISTRY="):
+            if line.startswith("ARG "):
+                k, _, v = line[4:].partition("=")
+                if v:
+                    args[k.strip()] = v.strip()
+            elif line.startswith("LABEL REGISTRY="):
                 registry = cls._extract_label_value(line)
             elif line.startswith("LABEL IMAGE="):
                 image_name = cls._extract_label_value(line)
@@ -192,6 +211,9 @@ class Container:
                 build_ignore = val in {"true", "yes", "1"}
             elif line.startswith("FROM") and "#ignore" not in line:
                 base_tag = line.split("FROM", 1)[1].split()[0].strip().replace('"', "")
+                base_tag = re.sub(r"\$\{([^}]+)\}", lambda m: args.get(m.group(1), m.group(0)), base_tag)
+                if re.search(r"\{\{|\{%|\$\{|\$[A-Z]", base_tag):
+                    continue  # unresolved Jinja template or shell variable
                 base_img = BaseImage.from_tag(base_tag)
                 base_images.add(base_img)
 

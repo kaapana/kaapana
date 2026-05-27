@@ -221,6 +221,15 @@ build_packages:
       echo "$DOCKER_IO_PASSWORD" | docker login docker.io -u "$DOCKER_IO_USER" --password-stdin
       export REGISTRY_PW="$REGISTRY_TOKEN"
 
+    # Fix, for when registry.hzdr.de is unreachable — pre-pull collabora base image from internal mirror
+    # so that the FROM in the Dockerfile resolves locally without needing the public registry.
+    - |
+      if [[ "$REGISTRY_ENV" == "DKFZ_CONTAINER_REGISTRY" ]]; then
+        docker pull registry.git.dkfz.de/mic/personal/group1/kaapana-fallback/collabora-code-patched:23.05.5.4.1
+        docker tag  registry.git.dkfz.de/mic/personal/group1/kaapana-fallback/collabora-code-patched:23.05.5.4.1 \
+                    registry.hzdr.de/kaapana/public/collabora-code-patched:23.05.5.4.1
+      fi
+
     # Run build, capturing exit code so artifacts are always collected
     - python3 build-scripts/cli.py --default-registry "$REGISTRY_URL" $CI_EXEC_BUILD_ARGUMENTS
 
@@ -231,6 +240,35 @@ build_packages:
       - "$CI_PROJECT_DIR/build/build.log"
       - "$CI_PROJECT_DIR/build/security-reports/"
 
+security:
+  stage: build
+  needs:
+    - job: build_packages
+      artifacts: true
+  tags:
+    - build-runner
+  script:
+    - pip install jsonschema requests -q
+    - CONSOLIDATED="$CI_PROJECT_DIR/security-reports/consolidated_vulnerability_report.json"
+    - python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
+        "$CONSOLIDATED"
+        "$CI_PROJECT_DIR/gl-container-scanning-report.json"
+        --output json
+    - python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
+        "$CONSOLIDATED"
+        "$CI_PROJECT_DIR/vulnerability_report.html"
+        --output html
+    - echo "Access the report at https://kaapana.pages.hzdr.de/-/kaapana/-/jobs/${CI_JOB_ID}/artifacts/vulnerability_report.html"
+  artifacts:
+    paths:
+      - "$CI_PROJECT_DIR/vulnerability_report.html"
+    reports:
+      container_scanning: "$CI_PROJECT_DIR/gl-container-scanning-report.json"
+  allow_failure: true
+  rules:
+    - if: $CI_EXEC_BUILD == "true" && $CI_EXEC_BUILD_ARGUMENTS =~ /--vulnerability-scan/
+      when: on_success
+    - when: never
 ##############################################
 # DEPLOY
 ##############################################
@@ -529,32 +567,3 @@ if_ci_failing:
     - if: $CI_COMMIT_BRANCH == "develop"
       when: on_failure
 
-security:
-  stage: clean
-  needs:
-    - job: build_packages
-      artifacts: true
-  tags:
-    - build-runner
-  script:
-    - pip install jsonschema requests -q
-    - CONSOLIDATED="$CI_PROJECT_DIR/security-reports/consolidated_vulnerability_report.json"
-    - python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
-        "$CONSOLIDATED"
-        "$CI_PROJECT_DIR/gl-container-scanning-report.json"
-        --output json
-    - python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
-        "$CONSOLIDATED"
-        "$CI_PROJECT_DIR/vulnerability_report.html"
-        --output html
-    - echo "Access the report at https://kaapana.pages.hzdr.de/-/kaapana/-/jobs/${CI_JOB_ID}/artifacts/vulnerability_report.html"
-  artifacts:
-    paths:
-      - "$CI_PROJECT_DIR/vulnerability_report.html"
-    reports:
-      container_scanning: "$CI_PROJECT_DIR/gl-container-scanning-report.json"
-  allow_failure: true
-  rules:
-    - if: $CI_EXEC_BUILD == "true" && $CI_EXEC_BUILD_ARGUMENTS =~ /--vulnerability-scan/
-      when: on_success
-    - when: never

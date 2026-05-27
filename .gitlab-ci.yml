@@ -1,5 +1,5 @@
 default:
-  interruptible: false
+  interruptible: true
 
 stages:
   - tests
@@ -11,6 +11,8 @@ stages:
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "web"
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "api"
       when: always
     - if: $CI_PIPELINE_SOURCE == "trigger"
       when: always
@@ -24,24 +26,30 @@ workflow:
 
 variables:
   # Execution control flags
-  CI_EXEC_UNIT_TESTS: $CI_EXEC_UNIT_TESTS
   CI_EXEC_BUILD: $CI_EXEC_BUILD
-  CI_EXEC_SERVER_INSTALL: $CI_EXEC_SERVER_INSTALL
-  CI_EXEC_DEPLOY: $CI_EXEC_DEPLOY
-  CI_EXEC_INTEGRATION_TESTS: $CI_EXEC_INTEGRATION_TESTS
-  CI_EXEC_DOCKER_PRUNE: $CI_EXEC_DOCKER_PRUNE
   CI_EXEC_BUILD_ARGUMENTS: $CI_EXEC_BUILD_ARGUMENTS
+  CI_EXEC_DEPLOY: $CI_EXEC_DEPLOY
+  CI_EXEC_DOCKER_PRUNE: $CI_EXEC_DOCKER_PRUNE
+  CI_EXEC_INTEGRATION_TESTS: $CI_EXEC_INTEGRATION_TESTS
+  CI_EXEC_UNIT_TESTS: $CI_EXEC_UNIT_TESTS  
 
   # Deployment instance configuration
-  DEPLOYMENT_INSTANCE_FQDN: $DEPLOYMENT_INSTANCE_FQDN
-  DEPLOYMENT_INSTANCE_VM_NAME: "ci-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"
-  DEPLOYMENT_INSTANCE_DOMAIN: "vms.dkfz.de"
-  DEPLOYMENT_INSTANCE_USER: $DEPLOYMENT_INSTANCE_USER
-  DEPLOYMENT_INSTANCE_SSH_PORT: $DEPLOYMENT_INSTANCE_SSH_PORT
-  DEPLOYMENT_INSTANCE_MEMORY: $DEPLOYMENT_INSTANCE_MEMORY
   DEPLOYMENT_INSTANCE_CPU: $DEPLOYMENT_INSTANCE_CPU
   DEPLOYMENT_INSTANCE_DISK: $DEPLOYMENT_INSTANCE_DISK
+  DEPLOYMENT_INSTANCE_DOMAIN: $DEPLOYMENT_INSTANCE_DOMAIN
+  DEPLOYMENT_INSTANCE_FQDN: $DEPLOYMENT_INSTANCE_FQDN
   DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE: $DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE
+  DEPLOYMENT_INSTANCE_IMAGE_ID: $DEPLOYMENT_INSTANCE_IMAGE_ID
+  DEPLOYMENT_INSTANCE_MEMORY: $DEPLOYMENT_INSTANCE_MEMORY
+  DEPLOYMENT_INSTANCE_NETWORK: $DEPLOYMENT_INSTANCE_NETWORK
+  DEPLOYMENT_INSTANCE_USER: $DEPLOYMENT_INSTANCE_USER
+  DEPLOYMENT_INSTANCE_PLATFORM_PREFIX: $DEPLOYMENT_INSTANCE_PLATFORM_PREFIX
+  DEPLOYMENT_INSTANCE_PROVISIONER: $DEPLOYMENT_INSTANCE_PROVISIONER
+  DEPLOYMENT_INSTANCE_STORAGE_CLASS: $DEPLOYMENT_INSTANCE_STORAGE_CLASS
+  DEPLOYMENT_INSTANCE_USER: $DEPLOYMENT_INSTANCE_USER
+
+  # Generated
+  DEPLOYMENT_INSTANCE_VM_NAME: "ci-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"
 
   # Registry and container credentials
   REGISTRY_TOKEN: $REGISTRY_TOKEN
@@ -91,9 +99,9 @@ variables:
     GIT_CLONE_PATH: "$CI_BUILDS_DIR/$CI_COMMIT_SHORT_SHA/$CI_JOB_NAME-$CI_JOB_ID"
     GIT_STRATEGY: fetch
     GIT_DEPTH: 1
-    PYTHON_VENV_DIR: ".venv-$CI_JOB_NAME"
   before_script:
     - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
+    - PYTHON_VENV_DIR=~/.venvs/$CI_JOB_NAME
     - python3 -m venv "$PYTHON_VENV_DIR"
     - source "$PYTHON_VENV_DIR/bin/activate"
 
@@ -119,6 +127,7 @@ task_api_tests:
     - pip install build pytest
     - python3 -m build $KAAPANA_DIR/lib/task_api
     - pip install $KAAPANA_DIR/lib/task_api/dist/task_api-*.tar.gz
+    - pip install --force-reinstall $KAAPANA_DIR/lib/kaapana_containers
     - pytest $KAAPANA_DIR/lib/task_api/task_api --junitxml=task_api_report.xml
   artifacts:
     reports:
@@ -171,13 +180,15 @@ build_packages:
   dependencies: []
   tags:
     - build-runner
+  environment:
+    name: $REGISTRY_ENV
   variables:
     GIT_STRATEGY: clone
     PYTHON_VENV_DIR: ".venv-build"
   timeout: 4 hours
   rules:
     - if: '$CI_EXEC_BUILD == "true"'
-      when: always
+      when: on_success
     - when: never
   before_script:
     - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
@@ -210,6 +221,15 @@ build_packages:
       echo "$DOCKER_IO_PASSWORD" | docker login docker.io -u "$DOCKER_IO_USER" --password-stdin
       export REGISTRY_PW="$REGISTRY_TOKEN"
 
+    # Fix, for when registry.hzdr.de is unreachable — pre-pull collabora base image from internal mirror
+    # so that the FROM in the Dockerfile resolves locally without needing the public registry.
+    - |
+      if [[ "$REGISTRY_ENV" == "DKFZ_CONTAINER_REGISTRY" ]]; then
+        docker pull registry.git.dkfz.de/mic/personal/group1/kaapana-fallback/collabora-code-patched:23.05.5.4.1
+        docker tag  registry.git.dkfz.de/mic/personal/group1/kaapana-fallback/collabora-code-patched:23.05.5.4.1 \
+                    registry.hzdr.de/kaapana/public/collabora-code-patched:23.05.5.4.1
+      fi
+
     # Run build, capturing exit code so artifacts are always collected
     - python3 build-scripts/cli.py --default-registry "$REGISTRY_URL" $CI_EXEC_BUILD_ARGUMENTS
 
@@ -220,6 +240,35 @@ build_packages:
       - "$CI_PROJECT_DIR/build/build.log"
       - "$CI_PROJECT_DIR/build/security-reports/"
 
+security:
+  stage: build
+  needs:
+    - job: build_packages
+      artifacts: true
+  tags:
+    - build-runner
+  script:
+    - pip install jsonschema requests -q
+    - CONSOLIDATED="$CI_PROJECT_DIR/security-reports/consolidated_vulnerability_report.json"
+    - python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
+        "$CONSOLIDATED"
+        "$CI_PROJECT_DIR/gl-container-scanning-report.json"
+        --output json
+    - python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
+        "$CONSOLIDATED"
+        "$CI_PROJECT_DIR/vulnerability_report.html"
+        --output html
+    - echo "Access the report at https://kaapana.pages.hzdr.de/-/kaapana/-/jobs/${CI_JOB_ID}/artifacts/vulnerability_report.html"
+  artifacts:
+    paths:
+      - "$CI_PROJECT_DIR/vulnerability_report.html"
+    reports:
+      container_scanning: "$CI_PROJECT_DIR/gl-container-scanning-report.json"
+  allow_failure: true
+  rules:
+    - if: $CI_EXEC_BUILD == "true" && $CI_EXEC_BUILD_ARGUMENTS =~ /--vulnerability-scan/
+      when: on_success
+    - when: never
 ##############################################
 # DEPLOY
 ##############################################
@@ -227,6 +276,8 @@ build_packages:
 .remote_execution_template:
   tags:
     - deploy-runner
+  environment:
+    name: $REGISTRY_ENV
   before_script:
     - export ARTIFACTS_DIR="$ARTIFACTS_DIR"
     - VENV_PATH=$(eval echo "$ORCHESTRATOR_INSTANCE_PYTHON_VENV")
@@ -246,6 +297,10 @@ build_packages:
 prepare_deployment:
   # Clone repo + Optional: Provision VM
   extends: .remote_execution_template
+  rules:
+    - if: '$CI_EXEC_DEPLOY == "true"'
+      when: on_success
+    - when: never
   stage: deploy
   variables:
     GIT_STRATEGY: "clone"
@@ -283,19 +338,13 @@ server_installation:
   extends: .remote_execution_template
   stage: deploy
   rules:
-    - if: '$CI_EXEC_SERVER_INSTALL == "true"'
-      when: always
+    - if: '$CI_EXEC_DEPLOY == "true"'
+      when: on_success
     - when: never
   needs:
     - job: prepare_deployment
       artifacts: true
   script:
-    # TODO remove check after completing the debugging of deployment issues, as this should never happen due to the rules and needs configuration
-    - |
-      if [ -z "$VM_FQDN" ]; then
-        echo "ERROR: VM_FQDN is empty. No deployment target."
-        exit 1
-      fi
     - |
       ansible-playbook "$CI_PROJECT_DIR/ci/ci-code/deploy/server_installation.yaml" \
         -i "$VM_FQDN," \
@@ -339,7 +388,7 @@ platform_deployment:
       </html>" > artifacts/deployment.html
   rules:
     - if: '$CI_EXEC_DEPLOY == "true"'
-      when: always
+      when: on_success
     - when: never
   artifacts:
     paths:
@@ -360,15 +409,14 @@ setup_integration_tests:
   needs:
     - job: prepare_deployment
       artifacts: true
-    - job: platform_deployment
-      artifacts: true
+    - platform_deployment
   variables:
     VENV_NAME: "$CI_PROJECT_DIR/venv"
     INTEGRATION_TESTS: "$CI_PROJECT_DIR/ci/ci-code/integration_tests"
 
   rules:
-    - if: '$CI_EXEC_INTEGRATION_TESTS == "true"'
-      when: always
+    - if: '$CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"'
+      when: on_success
     - when: never
   script:
     - |
@@ -388,13 +436,16 @@ setup_integration_tests:
 .integration_test_local:
   extends: .remote_execution_template
   stage: test
+  rules:
+    - if: '$CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"'
+      when: on_success
+    - when: never
   needs:
     - job: prepare_deployment
       artifacts: true
     - job: setup_integration_tests
       artifacts: true
-    - job: platform_deployment
-      artifacts: true
+    - platform_deployment
   variables:
     VENV_NAME: "$CI_PROJECT_DIR/venv"
     PYTEST_ARGS: "--client-secret $CLIENT_SECRET --host $VM_FQDN --allowed-ports 22,80,443 --download-directory /home/ubuntu/downloaded_test_data"
@@ -434,10 +485,8 @@ install_extensions:
       artifacts: true
     - job: setup_integration_tests
       artifacts: true
-    - job: first_login
-      artifacts: true
-    - job: platform_deployment
-      artifacts: true
+    - first_login
+    - platform_deployment
   variables:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_install_extensions.py"
     JUNIT_FILE: "install_extensions.xml"
@@ -451,10 +500,7 @@ send_data:
       artifacts: true
     - job: setup_integration_tests
       artifacts: true
-    - job: first_login
-      artifacts: true
-    - job: platform_deployment
-      artifacts: true
+    - first_login
   variables:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_send_data.py"
     JUNIT_FILE: "send_data.xml"
@@ -470,14 +516,9 @@ run_workflows:
       artifacts: true
     - job: setup_integration_tests
       artifacts: true
-    - job: first_login
-      artifacts: true
-    - job: send_data
-      artifacts: true
-    - job: install_extensions
-      artifacts: true
-    - job: platform_deployment
-      artifacts: true
+    - first_login
+    - send_data
+    - install_extensions
   variables:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_run_workflows.py"
     JUNIT_FILE: "run_workflow.xml"
@@ -515,33 +556,14 @@ destroy_deployment:
 if_ci_failing:
   stage: clean
   tags:
-    - deploy-shared
+    - deploy-runner
   before_script:
     - source "$ORCHESTRATOR_INSTANCE_PYTHON_VENV/bin/activate"
   script:
-    - cd $CI_PROJECT_DIR/ci-code/clean
+    - cd "$CI_PROJECT_DIR/ci/ci-code/clean"
     - python3 create_ticket_if_ci_failed.py
     - python3 notify_slack.py
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
       when: on_failure
 
-security:
-  stage: clean
-  needs:
-    - job: build_packages
-      artifacts: true
-  tags:
-    - build-runner
-  script:
-    - cd $CI_PROJECT_DIR/ci/ci-code/clean
-    - python3 create_vulnerability_report.py --output html $CI_PROJECT_DIR/build/security-reports/${VERSION_TAG}/${VERSION_TAG}_cves.json vulnerability_report.html
-    - echo "Access the report at https://kaapana.pages.hzdr.de/-/kaapana/-/jobs/${CI_JOB_ID}/artifacts/ci/ci-code/clean/vulnerability_report.html"
-  artifacts:
-    paths:
-      - ci/ci-code/clean/vulnerability_report.html
-  allow_failure: true
-  rules:
-    - if: $CI_EXEC_BUILD_ARGUMENTS =~ /--vulnerability-scan/
-      when: always
-    - when: never

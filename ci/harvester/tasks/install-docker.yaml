@@ -77,7 +77,7 @@
     group: "{{ ansible_ssh_user }}"
     mode: '0755'
 
-# - name: Reboot machine...
-#   become: yes
-#   reboot:
-#     reboot_timeout: 120
+- name: Reboot machine to apply docker group membership
+  become: yes
+  ansible.builtin.reboot:
+    reboot_timeout: 120

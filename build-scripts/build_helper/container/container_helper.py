@@ -241,6 +241,52 @@ class ContainerHelper:
             }
 
     @classmethod
+    def resolve_cache_from_images(cls, cache_from_tag: str):
+        """
+        Populate cache_from_images on each container so the build can use --cache-from.
+
+        For non-local images: uses the same image with cache_from_tag as cache source.
+        For local-only images: finds the closest non-local dependents and uses those,
+        since their inline cache contains all ancestor layers.
+        """
+        all_containers = cls._build_state.containers_available
+
+        # Build reverse dependency map: container -> set of containers that use it as base
+        dependents: dict = {c: set() for c in all_containers}
+        for c in all_containers:
+            for base in c.base_images:
+                if isinstance(base, Container) and base in dependents:
+                    dependents[base].add(c)
+
+        def find_non_local_dependents(container: Container) -> list:
+            """BFS to find the closest non-local containers that depend on this one."""
+            result = []
+            visited = set()
+            queue = list(dependents.get(container, []))
+            while queue:
+                dep = queue.pop(0)
+                if dep in visited:
+                    continue
+                visited.add(dep)
+                if not dep.local_image:
+                    result.append(dep)
+                else:
+                    queue.extend(dependents.get(dep, []))
+            return result
+
+        for c in all_containers:
+            if not c.local_image:
+                c.cache_from_images = [
+                    f"{c.registry}/{c.image_name}:{cache_from_tag}"
+                ]
+            else:
+                non_local_deps = find_non_local_dependents(c)
+                c.cache_from_images = [
+                    f"{dep.registry}/{dep.image_name}:{cache_from_tag}"
+                    for dep in non_local_deps
+                ]
+
+    @classmethod
     def get_container(
         cls,
         image_name: str,

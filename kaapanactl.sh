@@ -2098,7 +2098,9 @@ function pull_chart {
     while [ $i -le $MAX_RETRIES ];
     do
         echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/${chart_name} with version ${chart_version} ${NC}"
-        $HELM_EXECUTABLE pull --plain-http oci://${CONTAINER_REGISTRY_URL}/${chart_name} \
+        HELM_PULL_CMD="$HELM_EXECUTABLE pull"
+        [ "$PLAIN_HTTP" = true ] && HELM_PULL_CMD="$HELM_PULL_CMD --plain-http"
+        $HELM_PULL_CMD oci://${CONTAINER_REGISTRY_URL}/${chart_name} \
             --version ${chart_version} -d ${dest_dir} \
             && break \
             || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 )

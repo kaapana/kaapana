@@ -39,6 +39,8 @@ class BuildConfig(BaseModel):
     enable_build_kit: bool = (
         True  # Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/
     )
+    enable_inline_cache: bool = True
+    cache_from_tag: Optional[str] = None
     parallel_processes: int
     max_build_rounds: int = 5
     max_push_retries: int = 30

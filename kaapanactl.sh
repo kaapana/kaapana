@@ -230,6 +230,7 @@ function deploy() {
 
     QUIET=false
     DO_UNDEPLOY=false
+    DO_CHECK_SYSTEM=false
 
     POSITIONAL=()
     while [[ $# -gt 0 ]]
@@ -420,10 +421,8 @@ function deploy() {
             ;;
 
             --check-system)
-                check_system kaapana-admin-chart default
-                check_system kaapana-platform-chart admin
-                check_system "${PLATFORM_PREFIX}-project-admin" admin
-                exit 0
+                DO_CHECK_SYSTEM=true
+                shift
             ;;
 
             *)    # unknown option
@@ -443,6 +442,14 @@ function deploy() {
 
     if [ "$DO_UNDEPLOY" = "true" ]; then
         delete_deployment
+        exit 0
+    fi
+
+    if [ "$DO_CHECK_SYSTEM" = "true" ]; then
+        get_platform_prefix
+        check_system kaapana-admin-chart default
+        check_system kaapana-platform-chart admin
+        check_system "${PLATFORM_PREFIX}-project-admin" admin
         exit 0
     fi
 

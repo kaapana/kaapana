@@ -40,7 +40,6 @@ class KaapanaAuth:
         self.admin_project = self.get_admin_project()
 
 
-
     def get_admin_project(self):
         url = f"https://{self.host}/aii/projects/admin"
         headers = {

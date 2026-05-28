@@ -20,8 +20,7 @@ vulnerabilities:
 
   # @github/copilot is bundled inside code-server's built-in copilot extension
   # at /usr/lib/code-server/lib/vscode/extensions/copilot/node_modules/@github/copilot.
-  # Updating the package in place breaks the extension; accepted as-is.
-  - id: CVE-2026-45033
+  # Vulnerability cannot be abused through code-server's extension API.
     paths:
       - "**/extensions/copilot/node_modules/@github/copilot/package.json"
     reason: "Accepted: @github/copilot is bundled inside code-server's built-in copilot extension and cannot be updated without breaking it."

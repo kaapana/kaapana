@@ -316,23 +316,59 @@ class TrivyHelper:
             shutil.rmtree(worker_cache, ignore_errors=True)
 
     @classmethod
-    def create_sboms(cls) -> None:
-        """Generate SBOMs for all selected containers."""
-        report_path = cls._reports_path / "sboms"
+    def _consolidate_vuln_reports(cls, report_path: Path) -> Path:
+        """Merge all per-container vuln_report_*.json files into one consolidated JSON.
+        Deduplicates by CVE ID; collects container image names into Modules.
+        Returns the path of the written file."""
+        consolidated = {}
+        for report_file in sorted(report_path.glob("vuln_report_*.json")):
+            with open(report_file) as f:
+                trivy_data = json.load(f)
+            artifact_name = trivy_data.get("ArtifactName") or report_file.stem.removeprefix("vuln_report_")
+            for result in trivy_data.get("Results", []):
+                for vuln in result.get("Vulnerabilities") or []:
+                    cve_id = vuln["VulnerabilityID"]
+                    if cve_id not in consolidated:
+                        consolidated[cve_id] = {
+                            "Title": vuln.get("Title", ""),
+                            "PkgName": vuln.get("PkgName", ""),
+                            "Severity": vuln.get("Severity", "UNKNOWN"),
+                            "InstalledVersion": vuln.get("InstalledVersion", ""),
+                            "FixedVersion": vuln.get("FixedVersion", ""),
+                            "Modules": [],
+                        }
+                    if artifact_name not in consolidated[cve_id]["Modules"]:
+                        consolidated[cve_id]["Modules"].append(artifact_name)
+
+        output_path = cls._reports_path / "consolidated_vulnerability_report.json"
+        with open(output_path, "w") as f:
+            json.dump(consolidated, f, indent=2)
+        logger.info(f"Consolidated vulnerability report saved at {output_path} ({len(consolidated)} unique CVEs)")
+        return output_path
+
+    @classmethod
+    def vulnerability_scan(cls) -> None:
+        """Perform Trivy vulnerability scan on all selected containers with configured severity levels."""
+        report_path = cls._reports_path / "vuln_scan"
         report_path.mkdir(parents=True, exist_ok=True)
         cls._ensure_db()
         with alive_bar(
             len(cls._build_state.selected_containers),
             dual_line=True,
-            title="Trivy SBOM generation",
+            title="Trivy vulnerability scan",
         ) as bar:
             with ThreadPoolExecutor(max_workers=cls._build_config.parallel_processes) as executor:
-                futures = {executor.submit(cls._create_sbom, container, report_path): container for container in sorted(cls._build_state.selected_containers, key=lambda c: c.image_name)}
+                futures = {executor.submit(cls._scan_container_vuln, container, report_path): container for container in sorted(cls._build_state.selected_containers, key=lambda c: c.image_name)}
                 for future in as_completed(futures):
-                    path, skipped = future.result()
-                    if skipped:
-                        logger.info(f"SBOM already exists, skipping: {path.name}")
-                    else:
-                        logger.info(f"SBOM saved at {path.name}")
+                    container = futures[future]
+                    try:
+                        path, skipped = future.result()
+                        if skipped:
+                            logger.info(f"Skipping (exists): {path.name}")
+                        else:
+                            logger.info(f"Vulnerability report saved at {path.name}")
+                    except subprocess.CalledProcessError as e:
+                        logger.error(f"Trivy vulnerability scan failed for {container.tag}:\n{e.stderr}")
+                        raise
                     bar()
         cls._consolidate_vuln_reports(report_path)

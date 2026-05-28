@@ -551,8 +551,10 @@ destroy_deployment:
   interruptible: false
   rules:
     - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN == ""'
+      when: on_success
+    - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN == ""'
       when: delayed
-      start_in: 4 hours
+      start_in: 2 hours
     - when: never
   needs:
   - job: prepare_deployment

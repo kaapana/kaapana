@@ -306,6 +306,8 @@ def build(
         plain_http=plain_http,
         helm_executable=helm_executable,
         container_engine=container_engine,
+        enable_inline_cache=enable_inline_cache,
+        cache_from_tag=cache_from_tag,
     )
     start_build.main(build_config=config)
 

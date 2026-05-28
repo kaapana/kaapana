@@ -577,7 +577,8 @@ if_ci_failing:
   tags:
     - deploy-runner
   before_script:
-    - source "$ORCHESTRATOR_INSTANCE_PYTHON_VENV/bin/activate"
+    - VENV_PATH=$(eval echo "$ORCHESTRATOR_INSTANCE_PYTHON_VENV")
+    - source "$VENV_PATH/bin/activate"
   script:
     - cd "$CI_PROJECT_DIR/ci/ci-code/clean"
     - python3 create_ticket_if_ci_failed.py

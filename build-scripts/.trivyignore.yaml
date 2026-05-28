@@ -1,0 +1,50 @@
+vulnerabilities:
+  # False positives caused by code-server bundling VS Code internals.
+  # See: https://github.com/coder/code-server/issues/7071
+  #
+  # lib/vscode/package.json has name="code-server" and version="1.121.0",
+  # which is the embedded VS Code version — not the code-server product version.
+  # The actual installed code-server is 4.121.0, which already fixes all three CVEs.
+  - id: CVE-2023-26114
+    paths:
+      - "**/lib/vscode/package.json"
+    reason: "False positive: lib/vscode/package.json holds VS Code 1.121.0 internals, not code-server. Installed code-server is 4.121.0 (fixed)."
+  - id: CVE-2021-3810
+    paths:
+      - "**/lib/vscode/package.json"
+    reason: "False positive: same as CVE-2023-26114."
+  - id: CVE-2025-47269
+    paths:
+      - "**/lib/vscode/package.json"
+    reason: "False positive: same as CVE-2023-26114."
+
+  # @github/copilot is bundled inside code-server's built-in copilot extension
+  # at /usr/lib/code-server/lib/vscode/extensions/copilot/node_modules/@github/copilot.
+  # Updating the package in place breaks the extension; accepted as-is.
+  - id: CVE-2026-45033
+    paths:
+      - "**/extensions/copilot/node_modules/@github/copilot/package.json"
+    reason: "Accepted: @github/copilot is bundled inside code-server's built-in copilot extension and cannot be updated without breaking it."
+
+  # False positives caused by VS Code built-in npm-scripts UI extension.
+  # See: https://github.com/coder/code-server/discussions/7493
+  #
+  # extensions/npm/package.json has name="npm" and version="1.0.1".
+  # This is the VS Code npm-scripts sidebar extension (publisher: vscode),
+  # not the npm CLI package manager.
+  - id: CVE-2018-7408
+    paths:
+      - "**/lib/vscode/extensions/npm/package.json"
+    reason: "False positive: VS Code npm-scripts UI extension v1.0.1, not the npm CLI."
+  - id: CVE-2019-16775
+    paths:
+      - "**/lib/vscode/extensions/npm/package.json"
+    reason: "False positive: VS Code npm-scripts UI extension v1.0.1, not the npm CLI."
+  - id: CVE-2019-16776
+    paths:
+      - "**/lib/vscode/extensions/npm/package.json"
+    reason: "False positive: VS Code npm-scripts UI extension v1.0.1, not the npm CLI."
+  - id: CVE-2019-16777
+    paths:
+      - "**/lib/vscode/extensions/npm/package.json"
+    reason: "False positive: VS Code npm-scripts UI extension v1.0.1, not the npm CLI."

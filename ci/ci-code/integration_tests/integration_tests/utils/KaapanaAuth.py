@@ -31,13 +31,15 @@ class KaapanaAuth:
             from requests.packages.urllib3.exceptions import InsecureRequestWarning
             requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
+        # --- NEW: WARM-UP PHASE ---
+        if wait_for_platform:
+            self.wait_for_ready()
+        
         # obtain tokens and project info
         self.access_token = self.get_access_token()
         self.admin_project = self.get_admin_project()
 
-        # --- NEW: WARM-UP PHASE ---
-        if wait_for_platform:
-            self.wait_for_ready()
+
 
     def get_admin_project(self):
         url = f"https://{self.host}/aii/projects/admin"
@@ -50,7 +52,7 @@ class KaapanaAuth:
         admin_project = r.json()
         return admin_project
 
-    def wait_for_ready(self, timeout=120, interval=5):
+    def wait_for_ready(self, timeout=120, interval=10):
         """
         Polls the Keycloak configuration endpoint to ensure the Ingress/Proxy
         is routing traffic correctly before we attempt a POST request.

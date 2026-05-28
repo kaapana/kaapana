@@ -46,12 +46,20 @@ RUN pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url h
 
 # Install requirements
 COPY files/requirements.txt /app/
-RUN python3 -m pip install --upgrade setuptools pip && pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.4.0/constraints.txt -r /app/requirements.txt
+RUN python3 -m pip install --upgrade setuptools pip && pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt -r /app/requirements.txt
 
 # Install code server and python extension
 RUN wget https://code-server.dev/install.sh
-RUN /bin/bash install.sh --version 4.105.1
+RUN /bin/bash install.sh --version 4.121.0
 RUN code-server --install-extension ms-python.python
+
+# Fix CVE-2026-44240: replace basic-ftp 5.3.0 with 5.3.1 in all extension node_modules
+RUN wget -q "https://registry.npmjs.org/basic-ftp/-/basic-ftp-5.3.1.tgz" -O /tmp/basic-ftp.tgz && \
+    tar -xzf /tmp/basic-ftp.tgz -C /tmp && \
+    for dir in $(find /usr/lib/code-server /root/.local/share/code-server -path "*/node_modules/basic-ftp" -type d 2>/dev/null); do \
+        cp -rf /tmp/package/. "$dir/"; \
+    done && \
+    rm -rf /tmp/package /tmp/basic-ftp.tgz
 
 # Copy and install kaapana_federated directly from source
 COPY files/kaapana_federated /app/kaapana_federated

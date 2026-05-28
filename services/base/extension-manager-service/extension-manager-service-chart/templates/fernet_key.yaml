@@ -1,0 +1,20 @@
+{{- $secretName := "extension-manager-fernet-key" }}
+{{- $namespace := .Values.global.services_namespace }}
+{{- $existingSecret := lookup "v1" "Secret" $namespace $secretName }}
+{{- $fernetKey := "" }}
+{{- if $existingSecret }}
+  {{- $fernetKey = index $existingSecret.data "CREDENTIAL_ENCRYPTION_KEY" | b64dec }}
+{{- else }}
+  {{- $fernetKey = randBytes 32 | b64enc | replace "+" "-" | replace "/" "_" }}
+{{- end }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $secretName }}
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/resource-policy": keep ### Persist the secret during redeployments
+type: Opaque
+stringData:
+  CREDENTIAL_ENCRYPTION_KEY: {{ $fernetKey | quote }}

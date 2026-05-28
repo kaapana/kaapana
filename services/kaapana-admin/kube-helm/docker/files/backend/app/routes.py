@@ -342,7 +342,7 @@ async def helm_install_chart(request: Request):
                     role_name = await _get_project_role_name(project_id, request)
                     # Admins can install anything; only PIs are restricted by project whitelist
                     # Check if user is admin via is_admin_request first
-                    if not is_admin_request(request) and role_name == UserRole.PRINCIPAL_INVESTIGATOR.value:
+                    if is_admin_request(request) or (role_name == UserRole.PRINCIPAL_INVESTIGATOR.value):
                         app_name = payload["name"]
                         project_whitelist = project_form.get("multiinstallable_whitelist") or []
                         if project_whitelist and app_name not in project_whitelist:

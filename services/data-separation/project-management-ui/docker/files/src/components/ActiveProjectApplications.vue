@@ -60,7 +60,7 @@
                                 </a>
                             </div>
                         </td>
-                        <td class="text-center" v-if="userHasAdminAccess">
+                        <td class="text-center" v-if="can(project?.id, 'delete_multiinstallable')">
                             <v-btn
                                 density="default"
                                 icon="mdi-trash-can"
@@ -129,6 +129,7 @@ import { kubeHelmGet } from '@/common/services';
 import SearchBar from '@/components/SearchBar.vue';
 import SectionHeader from '@/components/SectionHeader.vue';
 import ApplicationParametersDialog from './ApplicationParametersDialog.vue';
+import { usePermissions } from '@/permissions/usePermissions';
 
 interface ActiveApplication {
     release_name: string;
@@ -147,15 +148,16 @@ interface InstalledExtension {
 interface Props {
     project: { id?: string } | null;
     expanded: boolean;
-    userHasAdminAccess: boolean;
 }
 
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-    (e: 'toggle', value: boolean): void;
-    (e: 'confirm-uninstall', app: ActiveApplication): void;
+  (e: 'toggle', value: boolean): void;
+  (e: 'confirm-uninstall', app: ActiveApplication): void;
 }>();
+
+const { can } = usePermissions();
 
 // ── State ──────────────────────────────────────────────────────────────────
 

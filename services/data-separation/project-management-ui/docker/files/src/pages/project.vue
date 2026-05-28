@@ -457,16 +457,15 @@
     <!-- ── Multiinstallable Applications ────────────────────────── -->
     <v-row>
       <MultiinstallableApplications :project="project" :expanded="isAppsSectionExpanded"
-        :user-has-admin-access="userHasAdminAccess" @toggle="isAppsSectionExpanded = $event" />
+        @toggle="isAppsSectionExpanded = $event" />
     </v-row>
 
     <v-divider class="my-4" />
 
     <!-- ── Active Project Applications ──────────────────────────── -->
-    <v-row>
+    <v-row v-if="can(project?.id, 'view_active_apps')">
       <ActiveProjectApplications :project="project" :expanded="isActiveAppsSectionExpanded"
-        :user-has-admin-access="userHasAdminAccess" @toggle="isActiveAppsSectionExpanded = $event"
-        @confirm-uninstall="confirmAppUninstall" />
+        @toggle="isActiveAppsSectionExpanded = $event" @confirm-uninstall="confirmAppUninstall" />
     </v-row>
 
     <v-divider class="my-4" />
@@ -556,6 +555,7 @@ import MultiinstallableApplications from '@/components/MultiinstallableApplicati
 import ActiveProjectApplications from '@/components/ActiveProjectApplications.vue';
 import store from '@/common/store';
 import { usePermissions } from '@/permissions/usePermissions';
+import { usePermissionsStore } from '@/permissions/permissions.store';
 import { useCookies } from 'vue3-cookies';
 
 export default defineComponent({
@@ -608,6 +608,7 @@ export default defineComponent({
         };
     },
   },
+  inheritAttrs: false,
   components: {
     ProjectUsers,
     ProjectWorkflows,
@@ -984,9 +985,15 @@ export default defineComponent({
     // ── Admin access ─────────────────────────────────────────────
 
     applyUserAdminAccess(user: any): void {
-      if (user.realm_roles?.includes('project-manager') || user.realm_roles?.includes('admin')) {
-        this.userHasAdminAccess = true;
-      }
+      // Load user rights for permission checks
+      const permissionsStore = usePermissionsStore();
+      permissionsStore.loadUserRights(user.id);
+      // admin and project-manager get full admin flag for legacy UI (optional)
+if (user.realm_roles?.includes('admin') || user.realm_roles?.includes('project-manager')) {
+          this.userHasAdminAccess = true;
+          permissionsStore.admin = true;
+        }
+      // Output admin status to console
     },
 
     goToProjectsList(): void {
@@ -1008,14 +1015,13 @@ export default defineComponent({
     },
 
     async confirmAppUninstall(app: any): Promise<void> {
-      // @ts-ignore
-      if (await this.$refs.confirmDialog.open('Uninstall application', `Do you really want to uninstall ${app.release_name}?`, { color: 'red' })) {
-        this.uninstallApplication(app);
-      }
+      // Directly uninstall without extra confirmation dialog (handled in ActiveProjectApplications)
+      this.uninstallApplication(app);
     },
 
     async uninstallApplication(app: any): Promise<void> {
-      if (!this.userHasAdminAccess) return;
+      const permissionsStore = usePermissionsStore();
+      if (!permissionsStore.hasRight(this.project?.id, 'delete_multiinstallable') && !permissionsStore.hasRight(this.project?.id, 'manage_project_extensions')) return;
       try {
         await kubeHelmPost('helm-delete-chart', { release_name: app.release_name });
         await this.loadActiveApplications();

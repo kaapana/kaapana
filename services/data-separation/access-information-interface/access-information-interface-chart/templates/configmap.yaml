@@ -43,10 +43,40 @@ data:
         "claim_value": "open"
       },
       {
-        "name": "manage_project_extensions",
+        "name":         "manage_project_extensions",
         "description": "User can install projects in the extensions view",
         "claim_key": "kaapana.ai/extensions",
         "claim_value": "manage"
+      },
+      {
+        "name": "manage_project_workflows",
+        "description": "User can edit project workflow whitelist",
+        "claim_key": "kaapana.ai/workflows",
+        "claim_value": "manage"
+      },
+      {
+        "name": 
+        "description": "User can edit multiinstallable application whitelist",
+        "claim_key": "kaapana.ai/multiinstall_whitelist",
+        "claim_value": "manage"
+      },
+      {
+        "name": "launch_multiinstallable",
+        "description": "User can launch whitelisted multiinstallable applications",
+        "claim_key": "kaapana.ai/multiinstallable",
+        "claim_value": "launch"
+      },
+      {
+        "name": "delete_multiinstallable",
+        "description": "User can delete active multiinstallable applications",
+        "claim_key": "kaapana.ai/multiinstallable",
+        "claim_value": "delete"
+      },
+      {
+        "name": "view_active_apps",
+        "description": "User can view active applications in a project",
+        "claim_key": "kaapana.ai/active_apps",
+        "claim_value": "view"
       }
     ]
   initial_roles.json: | # This is the initial roles that will be created
@@ -93,8 +123,13 @@ data:
           "manage_project_users", 
           "manage_project_software", 
           "open_project_applications",
-          "manage_project_extensions"
-        ]
+"manage_project_extensions",
+            "manage_project_workflows",
+
+            "launch_multiinstallable",
+            "delete_multiinstallable",
+            "view_active_apps",
+            ]
       }
     ]
   default_software.json: | # These are the default software that a project should be mapped to.

@@ -39,4 +39,8 @@ def get_request_user_id(request: Request) -> Optional[str]:
 def is_admin_request(request: Request) -> bool:
     token_payload = decode_jwt_payload(request.headers.get("x-forwarded-access-token"))
     roles = token_payload.get("realm_access", {}).get("roles", [])
-    return UserRole.ADMIN.value in roles
+    # Check for admin role or admin group
+    if UserRole.ADMIN.value in roles:
+        return True
+    groups = token_payload.get("groups", [])
+    return any('kaapana_admin' in g for g in groups)

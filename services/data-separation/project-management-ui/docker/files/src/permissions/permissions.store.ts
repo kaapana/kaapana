@@ -22,7 +22,8 @@ export const usePermissionsStore = defineStore("permissions", {
   state: () => ({
     rights: [] as UserRight[],
     rightsByProject: {} as RightsByProject,
-    initialized: false
+    initialized: false,
+    admin: false
   }),
 
   actions: {

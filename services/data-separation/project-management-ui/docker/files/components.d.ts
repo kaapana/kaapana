@@ -16,7 +16,6 @@ declare module 'vue' {
     Confirm: typeof import('./src/components/Confirm.vue')['default']
     copy: typeof import('./src/components/CreateNewProjectForm copy.vue')['default']
     CreateNewProjectForm: typeof import('./src/components/CreateNewProjectForm.vue')['default']
-    ExecutableWorkflows: typeof import('./src/components/ExecutableWorkflows.vue')['default']
     HelloWorld: typeof import('./src/components/HelloWorld.vue')['default']
     LaunchApplication: typeof import('./src/components/LaunchApplication.vue')['default']
     MultiinstallableApplications: typeof import('./src/components/MultiinstallableApplications.vue')['default']

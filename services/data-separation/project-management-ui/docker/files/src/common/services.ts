@@ -34,7 +34,26 @@ const workflowApiClient = axios.create({
 
 const token = "";
 
+function get_project_header() {
+    if (typeof document === "undefined") {
+        return null;
+    }
+    const projectCookie = document.cookie
+        .split("; ")
+        .find((cookie) => cookie.startsWith("Project="));
+    if (!projectCookie) {
+        return null;
+    }
+    return decodeURIComponent(projectCookie.slice("Project=".length));
+}
+
 function header_with_auth_token(header_dict: any) {
+    // Forward the selected project explicitly so kube-helm can inject
+    // project-scoped Helm values even when the auth proxy does not add it.
+    const project = get_project_header();
+    if (project) {
+        header_dict["Project"] = project;
+    }
     if (token) {
         header_dict['Authorization'] = `Bearer ${token}`;
     }

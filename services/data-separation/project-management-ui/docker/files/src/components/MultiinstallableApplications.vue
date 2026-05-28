@@ -7,7 +7,7 @@
 
         <!-- ── Launch dialog ───────────────────────────────────────── -->
         <v-dialog v-model="isLaunchAppDialogOpen" max-width="1000">
-            <LaunchApplication :extension="selectedApplication" @submit="onApplicationLaunched"
+            <LaunchApplication v-if="selectedApplication" :extension="selectedApplication" @submit="onApplicationLaunched"
                 @close="isLaunchAppDialogOpen = false" />
         </v-dialog>
 
@@ -83,17 +83,15 @@
                 </template>
                 <template #item.launch="{ item }">
                     <td class="text-center">
-                        <v-btn
-                            v-if="userHasAdminAccess || can(project?.id, 'manage_project_extensions')"
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                            :disabled="!userHasAdminAccess && !projectWhitelist.includes(item.releaseName)"
-                            @click="onLaunchApplication(item)"
-                        >
-                            Launch
-                        </v-btn>
-                        <span v-else class="text-medium-emphasis">—</span>
+<v-btn
+  size="small"
+  color="primary"
+  variant="outlined"
+              :disabled="!can(project?.id, 'launch_multiinstallable') && !(store.admin) && (projectWhitelist.length > 0 && !projectWhitelist.includes(item.releaseName))"
+  @click="onLaunchApplication(item)"
+>
+  Launch
+</v-btn>
                     </td>
                 </template>
                 <template #item.whitelistToggle="{ item }">
@@ -102,7 +100,7 @@
                             :model-value="projectWhitelist.includes(item.releaseName)"
                             hide-details
                             @update:model-value="updateWhitelist(item.releaseName, $event)"
-                            :disabled="!userHasAdminAccess || togglingWhitelist.includes(item.releaseName)"
+                              :disabled="!can(project?.id, 'manage_multiinstall_whitelist') || togglingWhitelist.includes(item.releaseName)"
                             color="success"
                         >
                         </v-checkbox-btn>
@@ -132,8 +130,8 @@
 <script lang="ts" setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { usePermissions } from '@/permissions/usePermissions';
-import { kubeHelmGet, kubeHelmPost } from '@/common/services';
-import { aiiApiGet, aiiApiPut } from '@/common/services';
+import { aiiApiGet, aiiApiPut, kubeHelmGet, kubeHelmPost } from '@/common/services';
+import store from '@/common/store';
 import SearchBar from '@/components/SearchBar.vue';
 import SectionHeader from '@/components/SectionHeader.vue';
 import LaunchApplication from '@/components/LaunchApplication.vue';
@@ -150,7 +148,6 @@ interface Extension {
 interface Props {
     project: { id?: string } | null;
     expanded: boolean;
-    userHasAdminAccess: boolean;
 }
 
 const props = defineProps<Props>();
@@ -219,11 +216,11 @@ const onLaunchApplication = (item: Extension) => {
 };
 
 const onApplicationLaunched = async ({ extension, values }: { extension: any; values: any }) => {
-    const payload = {
-        name: extension.name,
-        version: extension.version,
-        keywords: extension.keywords,
-        extension_params: values,
+const payload = {
+      name: extension.releaseName,
+      version: extension.version,
+      keywords: extension.keywords,
+      extension_params: values,
     };
     try {
         await kubeHelmPost('helm-install-chart', payload);
@@ -246,7 +243,7 @@ const loadExtensions = async () => {
         isLoading.value = true;
         const extensions = await kubeHelmGet('extensions');
         const multiinstallable = extensions.filter((item: any) => item.multiinstallable === 'yes');
-
+        
         multiinstallableExtensions.value = multiinstallable
             .filter((item: any) => item.installed === 'no')
             .map((item: any) => ({

@@ -56,7 +56,7 @@
                                 :model-value="item.inAii"
                                 hide-details
                                 @update:model-value="toggleWorkflow(item)"
-                                :disabled="!can(project?.id, 'manage_project_software')"
+                                :disabled="!can(project?.id, 'manage_project_workflows')"
                                 color="success"
                             >
                             </v-checkbox-btn>
@@ -152,6 +152,7 @@ const filteredWorkflows = computed(() => {
 // ── Toggle handler ─────────────────────────────────────────────────────────
 
 const toggleWorkflow = async (workflow: Workflow) => {
+  if (!can(props.project?.id, 'manage_project_workflows')) return;
     // Optimistically update the UI
     const wasAllowed = workflow.inAii;
     workflow.inAii = !wasAllowed;

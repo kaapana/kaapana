@@ -1089,11 +1089,12 @@ def get_active_apps_from_ingresses(
     annotation_filters: List[Dict[str, str]],
 ) -> List[schemas.ActiveApplication]:
     """
-    Get active applications in the cluster by filtering ingresses that match the given annotation filters
+    Get active applications in the cluster by filtering ingresses that match the given annotation filters.
+    Returns a list of ActiveApplication objects with the project inferred from ingress paths or, if needed, the deployed Helm values.
     Args:
         annotation_filters  List[Dict[str, str]]: A list of dicts to filter by annotations. An ingress matches if **any** filter dict matches (OR logic).
     Returns:
-        List[schemas.ActiveApplication]: A list of ActiveApplication objects
+        List[schemas.ActiveApplication]: A list of ActiveApplication objects.
     Raises:
         kubernetes.client.exceptions.ApiException: If there is an error while fetching the ingresses.
     """
@@ -1132,12 +1133,11 @@ def get_active_apps_from_ingresses(
             )
             continue
 
-        release_name = annotations.get("meta.helm.sh/release-name")
-        if not release_name:
-            logger.error(
-                f"Application ingress {ingress.metadata.name} in namespace {ingress.metadata.namespace} doesn't have `meta.helm.sh/release-name` in annotations: {annotations}"
-            )
-            continue
+        # Helm normally injects the release-name annotation. Fall back to the
+        # ingress name so older or externally mutated resources stay visible.
+        release_name = annotations.get("meta.helm.sh/release-name", ingress.metadata.name)
+        # No need for error logging now that we have a fallback.
+
 
         created_at = ingress.metadata.creation_timestamp.isoformat()
 

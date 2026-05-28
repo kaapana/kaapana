@@ -205,6 +205,7 @@ build_packages:
   variables:
     GIT_STRATEGY: clone
     PYTHON_VENV_DIR: ".venv-build"
+    RUNNER_SCRIPT_TIMEOUT: 4h
   timeout: 4 hours
   rules:
     - if: '$CI_EXEC_BUILD == "true"'
@@ -555,7 +556,7 @@ destroy_deployment:
       when: on_success
     - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN == ""'
       when: delayed
-      start_in: 2 hours
+      start_in: 4 hours
     - when: never
   needs:
   - job: prepare_deployment

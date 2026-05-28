@@ -93,9 +93,7 @@ async def test_post_repository_put_repository(client: AsyncClient):
         json={
             "name": "New Repository Name",
             "description": "new",
-            "username": "test",
             "password": "changed",
-            "repository_url": "https://example.com/new",
         },
     )
     assert response.status_code == 200

@@ -35,8 +35,12 @@ class PutRepositoryRequest(BaseModel):
         None,
         description="The full URL of the repository to be added. <registry>/<repository>",
     )
-    username: str = Field(..., description="Name of the access token to the registry")
-    password: SecretStr = Field(..., description="The access token to the registry")
+    username: Optional[str] = Field(
+        default=None, description="Name of the access token to the registry"
+    )
+    password: Optional[SecretStr] = Field(
+        default=None, description="The access token to the registry"
+    )
 
 
 ### Response schemas

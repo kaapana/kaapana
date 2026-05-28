@@ -20,7 +20,7 @@ from task_api.runners.KubernetesRunner import KubernetesRunner, PodPhase
 HOST_WORKFLOW_DIR = Path(os.getenv("DATADIR", "/home/kaapana/workflows/data"))
 AIRFLOW_HOME = Path(os.getenv("AIRFLOW_HOME"), "/kaapana/mounted/workflows")
 AIRFLOW_WORKFLOW_DIR = Path(AIRFLOW_HOME, "data")
-DEFAULT_NAMESPACE = "project-admin"
+DEFAULT_NAMESPACE = f"{os.environ['PLATFORM_PREFIX']}-project-admin"  # environ will raise KeyError if not set
 USER_INPUT_KEY = "task_form"
 KAAPANA_SKIP_TASK_RUN_RETURN_CODE = 126
 

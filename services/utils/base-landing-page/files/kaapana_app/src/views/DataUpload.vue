@@ -3,6 +3,10 @@
     <IdleTracker />
     <v-container grid-list-lg text-left fluid>
       <h1>Data upload</h1>
+      <v-alert v-if="selectedProject && selectedProject.is_archived" type="warning" prominent class="mb-4" icon="mdi-archive">
+        This project is archived and is read-only. Data upload is disabled.
+        Unarchive the project to enable uploads again.
+      </v-alert>
       <v-row dense>
         <v-col cols="12">
           <v-card>
@@ -16,16 +20,16 @@
               <br />
               <br />
               <code>
-                dcmsend -v {{ hostname }} 11112 --scan-directories --aetitle 
+                dcmsend -v {{ hostname }} 11112 --scan-directories --aetitle
                 kp-{{ "<" }}dataset-name{{ ">" }} --call
-                kp-{{ selectedProject.name }} --scan-pattern '*.dcm' --recurse
+                kp-{{ selectedProject.short_id }} --scan-pattern '*.dcm' --recurse
                 {{ "<" }}data-dir-of-DICOM-images{{ ">" }}
               </code>
             </v-card-text>
           </v-card>
         </v-col>
         <v-col cols="12">
-          <v-card>
+          <v-card :disabled="selectedProject && selectedProject.is_archived">
             <v-card-title class="text-h5">
               Option 2: Upload the data via the browser(experimental).
             </v-card-title>

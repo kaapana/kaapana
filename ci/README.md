@@ -162,6 +162,7 @@ graph TB
 | `REGISTRY_USER` | String | - | Registry user |
 | `REGISTRY_TOKEN` | String | - | Registry token |
 | `DEPLOYMENT_INSTANCE_FQDN` | Host | - | Deployment target |
+| `DEPLOYMENT_INSTANCE_PLATFORM_PREFIX` | String | `ci-dep` | Prefix for project namespaces (`<prefix>-project-<short_id>`) |
 | `DEPLOYMENT_INSTANCE_USER` | String | ubuntu | SSH user |
 
 ---

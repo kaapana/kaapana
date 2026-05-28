@@ -65,11 +65,20 @@ The platform is deployed using the script :code:`kaapanactl.sh` also used during
       You should enter the **domain, hostname or IP-address** where the server is accessible from client workstations.
       **Keep in mind, that valid SSL-certificates are only working with FQDN domains.**
 
-   2. *Enable GPU support?*
+      For non-interactive runs, pass it via the ``--domain`` flag or set the ``DOMAIN`` env var.
+
+   2. *platform prefix:*
+
+      Prefix for every project namespace on the Kubernetes cluster (namespaces are ``<prefix>-project-<short_id>``).
+      Choose a short, lowercase label (e.g. ``kaapana``, ``site-a``, ``dkfz``). If empty or invalid, the script exits.
+
+      For non-interactive runs, pass it via the ``--platform-prefix`` flag or set the ``PLATFORM_PREFIX`` env var.
+
+   3. *Enable GPU support?*
 
       Answer *yes* if you have a Nvidia GPU, installed drivers and enabled GPU for Microk8s.
 
-   3. *Please enter the credentials for the Container-Registry:*
+   4. *Please enter the credentials for the Container-Registry:*
 
       Use the credentials to your own registry or the ones provided to you by the Kaapana team.
 
@@ -155,6 +164,9 @@ Namespace configurations
      - ``""``
      - string
      - Prefix for namespace variables (e.g., ``SERVICES_NAMESPACE``) and suffix for ``FAST_DATA_DIR`` and ``SLOW_DATA_DIR``.
+   * - ``PLATFORM_PREFIX``
+     - string
+     - Prefix used for project namespaces (``<prefix>-project-<short_id>``). Max 46 chars. Set via ``--platform-prefix`` flag, ``PLATFORM_PREFIX`` env var, or the interactive prompt.
    * - ``SERVICES_NAMESPACE``
      - ``"services"``
      - string

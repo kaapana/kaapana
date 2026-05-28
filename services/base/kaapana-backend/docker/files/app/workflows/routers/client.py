@@ -19,7 +19,8 @@ import jsonschema.exceptions
 from app.datasets.routers import get_aggregatedSeriesNum
 from app.datasets.utils import MAX_RETURN_LIMIT, execute_initial_search
 from app.dependencies import (
-    fetch_default_project_id,
+    ARCHIVED_PROJECT_DAG_WHITELIST,
+    _aii_project,
     get_access_token,
     get_allowed_software,
     get_db,
@@ -253,7 +254,12 @@ def delete_kaapana_instances(db: Session = Depends(get_db)):
 
 @router.post("/job", response_model=schemas.JobWithKaapanaInstance)
 # also okay: JobWithWorkflow
-def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(get_db)):
+def create_job(
+    request: Request,
+    job: schemas.JobCreate,
+    db: Session = Depends(get_db),
+    project=Depends(get_project),
+):
     if job.username is not None:
         pass
     elif "x-forwarded-preferred-username" in request.headers:
@@ -263,6 +269,20 @@ def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(g
             status_code=400,
             detail="A username has to be set when you start a job, either as parameter or in the request!",
         )
+
+    # Block non-whitelisted DAGs on archived projects
+    if (
+        _aii_project(project.get("id")).get("is_archived")
+        and job.dag_id not in ARCHIVED_PROJECT_DAG_WHITELIST
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Project is archived. Only the following workflows can be run: "
+                f"{sorted(ARCHIVED_PROJECT_DAG_WHITELIST)}."
+            ),
+        )
+
     job = crud.create_job(db=db, job=job)
     if job.kaapana_instance:
         job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(

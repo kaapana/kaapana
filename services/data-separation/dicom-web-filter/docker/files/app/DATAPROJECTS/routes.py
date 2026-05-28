@@ -3,7 +3,8 @@ from uuid import UUID
 
 from app import crud
 from app.database import get_session
-from fastapi import APIRouter, Depends
+from app.utils import assert_project_not_archived
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +25,7 @@ async def create_data_project_mappings(
     """
     Create DataProjects mappings in the database.
     """
+    await assert_project_not_archived(project_id)
     try:
         return await crud.add_data_project_mapping(
             session=session,
@@ -81,6 +83,7 @@ async def delete_data_project_mappings(
     """
     Delete existing DataProjects mappings from the database.
     """
+    await assert_project_not_archived(project_id)
 
     try:
         await crud.remove_data_project_mapping(
@@ -90,6 +93,38 @@ async def delete_data_project_mappings(
         )
     except IntegrityError:
         return Response("Project does not exist!", status_code=404)
+
+
+@router.get(
+    "/projects/{project_id}/orphan-series",
+    tags=["DataProjects"],
+)
+async def get_orphan_series_of_project(
+    project_id: UUID,
+    admin_project_id: UUID = Query(...),
+    session: AsyncSession = Depends(get_session),
+):
+    """Series in project_id whose only other mapping (if any) is admin."""
+    return await crud.get_orphan_series_of_project(
+        session=session,
+        project_id=project_id,
+        admin_project_id=admin_project_id,
+    )
+
+
+@router.delete(
+    "/projects/{project_id}/data",
+    tags=["DataProjects"],
+)
+async def delete_all_data_project_mappings(
+    project_id: UUID,
+    session: AsyncSession = Depends(get_session),
+):
+    """Bulk-remove every DataProjects row for project_id"""
+    deleted = await crud.remove_all_project_mappings(
+        session=session, project_id=project_id
+    )
+    return {"deleted": deleted}
 
 
 @router.put(

@@ -82,6 +82,8 @@ spec:
           value: "{{ .Values.global.instance_name }}"
         - name: KAAPANA_BUILD_VERSION
           value: "{{ .Values.global.kaapana_build_version }}"
+        - name: PLATFORM_PREFIX
+          value: "{{ required `global.platform_prefix is required` .Values.global.platform_prefix }}"
         - name: PULL_POLICY_IMAGES
           value: "{{ .Values.global.pull_policy_images }}"
         - name: SERVICES_NAMESPACE
@@ -121,6 +123,8 @@ spec:
           value: "{{ .Values.global.instance_name }}"
         - name: KAAPANA_BUILD_VERSION
           value: "{{ .Values.global.kaapana_build_version }}"
+        - name: PLATFORM_PREFIX
+          value: "{{ required `global.platform_prefix is required` .Values.global.platform_prefix }}"
         - name: MINIODIR
           value: "{{ .Values.global.slow_data_dir }}/minio"
         - name: MINIOUSER

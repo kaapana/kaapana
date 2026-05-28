@@ -141,6 +141,41 @@ function parse_chart_reference() {
     echo -e "${GREEN}Using chart ${PLATFORM_NAME}:${PLATFORM_VERSION} from ${CONTAINER_REGISTRY_URL}${NC}"
 }
 
+function get_platform_prefix() {
+    PLATFORM_PREFIX="${PLATFORM_PREFIX:-}"
+
+    if [ ! "$QUIET" = "true" ]; then
+        echo -e ""
+        echo -e "${YELLOW}Please enter the platform prefix.${NC}" > /dev/stderr
+        echo -e "${YELLOW}Used as the prefix for project namespaces ({prefix}-project-<short_id>).${NC}" > /dev/stderr
+        read -e -p "**** platform prefix: " -i "$PLATFORM_PREFIX" PLATFORM_PREFIX
+    else
+        echo -e "${GREEN}QUIET: true -> PLATFORM_PREFIX: $PLATFORM_PREFIX ${NC}" > /dev/stderr
+    fi
+
+    validate_platform_prefix
+}
+
+function validate_platform_prefix() {
+    # Must produce a valid k8s namespace when composed as "<prefix>-project-<short_id>".
+    local max_prefix_len=46
+    if [[ -z "$PLATFORM_PREFIX" ]]; then
+        echo -e "${RED}PLATFORM_PREFIX must not be empty.${NC}"
+        exit 1
+    fi
+    if ! [[ "$PLATFORM_PREFIX" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]; then
+        echo -e "${RED}PLATFORM_PREFIX '$PLATFORM_PREFIX' is not a valid DNS-1123 label (lowercase alphanumerics and hyphens, must start/end alphanumeric).${NC}"
+        exit 1
+    fi
+    local prefix_len
+    prefix_len=$(printf '%s' "$PLATFORM_PREFIX" | wc -c)
+    if (( prefix_len > max_prefix_len )); then
+        echo -e "${RED}PLATFORM_PREFIX '$PLATFORM_PREFIX' is ${prefix_len} chars; must be <= ${max_prefix_len} to keep project namespaces within the 63-char k8s limit.${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}Using PLATFORM_PREFIX: $PLATFORM_PREFIX${NC}"
+}
+
 function deploy() {
 
     PLATFORM_NAME="${PLATFORM_NAME:-}"
@@ -183,6 +218,7 @@ function deploy() {
     _Argument: --chart [registry/path/chart:version]
     _Argument: --platform-name [Helm chart name]
     _Argument: --platform-version [Helm chart version]
+    _Argument: --platform-prefix [Prefix for project namespaces, required]
     _Argument: --registry-url [OCI registry URL]
     _Argument: --username [Docker registry username]
     _Argument: --password [Docker registry password]
@@ -194,6 +230,7 @@ function deploy() {
 
     QUIET=false
     DO_UNDEPLOY=false
+    DO_CHECK_SYSTEM=false
 
     POSITIONAL=()
     while [[ $# -gt 0 ]]
@@ -224,6 +261,13 @@ function deploy() {
             --platform-version)
                 PLATFORM_VERSION="$2"
                 echo -e "${GREEN}SET PLATFORM_VERSION: $PLATFORM_VERSION ${NC}"
+                shift
+                shift
+            ;;
+
+            --platform-prefix)
+                PLATFORM_PREFIX="$2"
+                echo -e "${GREEN}SET PLATFORM_PREFIX: $PLATFORM_PREFIX ${NC}"
                 shift
                 shift
             ;;
@@ -377,10 +421,8 @@ function deploy() {
             ;;
 
             --check-system)
-                check_system kaapana-admin-chart default
-                check_system kaapana-platform-chart admin
-                check_system project-admin admin
-                exit 0
+                DO_CHECK_SYSTEM=true
+                shift
             ;;
 
             *)    # unknown option
@@ -403,6 +445,14 @@ function deploy() {
         exit 0
     fi
 
+    if [ "$DO_CHECK_SYSTEM" = "true" ]; then
+        validate_platform_prefix
+        check_system kaapana-admin-chart default
+        check_system kaapana-platform-chart admin
+        check_system "${PLATFORM_PREFIX}-project-admin" admin
+        exit 0
+    fi
+
     setup_storage_provider
 
     if [[ -n "$CHART_PATH" ]]; then
@@ -420,6 +470,8 @@ function deploy() {
         prompt_required_value CHART_REFERENCE "Enter the kaapana chart (registry/path/chart:version): " false "$QUIET"
         parse_chart_reference "$CHART_REFERENCE"
     fi
+
+    get_platform_prefix
 
     if [ "${OFFLINE_MODE,,}" != true ]; then
         prompt_required_value CONTAINER_REGISTRY_USERNAME "Enter the container registry username: " false "$QUIET"
@@ -2047,6 +2099,7 @@ function deploy_chart {
     --set-string global.pull_policy_pods="$PULL_POLICY_IMAGES" \
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
     --set-string global.release_name="$PLATFORM_NAME" \
+    --set-string global.platform_prefix="$PLATFORM_PREFIX" \
     --set-string global.deployment_timestamp="$DEPLOYMENT_TIMESTAMP" \
     --set-string global.mount_points_to_monitor="$MOUNT_POINTS_TO_MONITOR" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
@@ -2674,7 +2727,7 @@ nvidia-smi
 --- "Resource Health"
 check_system kaapana-admin-chart default
 check_system kaapana-platform-chart default
-check_system project-admin admin
+check_system "${PLATFORM_PREFIX}-project-admin" admin
 
 --- "END"
 }

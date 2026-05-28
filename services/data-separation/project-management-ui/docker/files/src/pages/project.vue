@@ -18,9 +18,23 @@
                 <h4 v-if="project" class="text-h4 pb-8">
                     <v-btn class="ma-2" icon="mdi-card" fab readonly></v-btn>
                     Project {{ project.name }}
+                    <v-chip v-if="project?.is_archived" color="warning" size="small" class="ml-2">Archived</v-chip>
                 </h4>
                 <p v-if="project">{{ project.description }}</p>
                 <v-skeleton-loader v-else :loading="!project" type="heading, paragraph" />
+            </v-col>
+            <v-col cols="auto" class="d-flex align-center gap-2" v-if="userHasAdminAccess && project?.name !== 'admin'">
+                <v-btn v-if="!project?.is_archived" prepend-icon="mdi-pencil" variant="outlined" @click="openEditDialog">Edit</v-btn>
+                <v-btn v-if="!project?.is_archived" prepend-icon="mdi-archive-arrow-down" variant="outlined" color="warning" @click="archiveDialog = true">Archive</v-btn>
+                <v-btn v-if="project?.is_archived" prepend-icon="mdi-archive-arrow-up" variant="outlined" color="success" @click="unarchiveProject">Unarchive</v-btn>
+                <v-btn prepend-icon="mdi-trash-can" variant="outlined" color="error" @click="openDeleteDialog">Delete</v-btn>
+            </v-col>
+        </v-row>
+        <v-row v-if="project?.is_archived">
+            <v-col>
+                <v-alert type="warning" density="compact" variant="tonal" icon="mdi-archive">
+                    This project is archived and is read-only. Unarchive it to make changes.
+                </v-alert>
             </v-col>
         </v-row>
         <v-row>
@@ -36,12 +50,13 @@
                         </div>
                     </v-col>
                     <v-col cols="3" class="d-flex justify-end align-center">
-                        <v-btn 
-                            block 
-                            @click="userDialog = true" 
+                        <v-btn
+                            block
+                            @click="userDialog = true"
                             size="large"
                             min-width="260"
                             prepend-icon="mdi-account-plus"
+                            :disabled="project?.is_archived"
                             v-if="userHasAdminAccess || can(project?.id,'manage_project_users')">
                             Add User to Project
                         </v-btn>
@@ -120,14 +135,14 @@
                         </div>
                     </v-col>
                     <v-col cols="4" class="d-flex justify-end align-center">
-                        <v-btn 
-                            block 
-                            @click="softwareDialog = true" 
-                            size="large" 
+                        <v-btn
+                            block
+                            @click="softwareDialog = true"
+                            size="large"
                             prepend-icon="mdi-gamepad-variant"
                             min-width="300"
-                            v-if="userHasAdminAccess || can(project?.id,'manage_project_software')"
-                            >
+                            :disabled="project?.is_archived"
+                            v-if="userHasAdminAccess || can(project?.id,'manage_project_software')">
                             Add executable workflow to project
                         </v-btn>
                     </v-col>
@@ -341,15 +356,31 @@
         @close="launchApplicationDialog = false"
         />
     </v-dialog>
+    <v-dialog v-model="deleteDialog" max-width="500">
+        <DeleteProjectDialog v-if="project" :project="project"
+            @confirm="handleDeleteConfirm" @cancel="deleteDialog = false" />
+    </v-dialog>
     <confirm ref="confirm"></confirm>
+    <v-dialog v-model="editDialog" max-width="600">
+        <EditProjectDialog v-if="project" :project="project"
+            @success="handleEditSuccess" @cancel="editDialog = false" @error="handleEditError" />
+    </v-dialog>
+    <v-dialog v-model="archiveDialog" max-width="560">
+        <ArchiveProjectDialog v-if="project" :project="project"
+            @confirm="confirmArchive" @cancel="archiveDialog = false" />
+    </v-dialog>
 </template>
 
 <script lang="ts">
-import { defineComponent, ref } from 'vue'
-import { aiiApiGet, aiiApiDelete, kubeHelmGet, kubeHelmPost } from '@/common/aiiApi.service'
+import { defineComponent } from 'vue'
+import { aiiApiGet, aiiApiDelete, aiiApiPost, kubeHelmGet, kubeHelmPost } from '@/common/aiiApi.service'
+import EditProjectDialog from '@/components/EditProjectDialog.vue'
+import DeleteProjectDialog from '@/components/DeleteProjectDialog.vue'
+import ArchiveProjectDialog from '@/components/ArchiveProjectDialog.vue'
 import { ProjectItem, UserItem, UserRole, Software } from '@/common/types'
+import { isAdminUser, waitForStoreUser } from '@/common/userAccess'
+import { useSnackbar } from '@/composables/useSnackbar'
 import AddUserToProject from '@/components/AddUserToProject.vue'
-import store from "@/common/store";
 import { usePermissions } from '@/permissions/usePermissions';
 import LaunchApplication from '@/components/LaunchApplication.vue';
 import { useCookies } from "vue3-cookies";
@@ -361,15 +392,17 @@ interface User extends UserItem {
 export default defineComponent({
     components: {
         AddUserToProject,
-        LaunchApplication
+        LaunchApplication,
+        EditProjectDialog,
+        DeleteProjectDialog,
+        ArchiveProjectDialog,
     },
     props: {},
     setup () {
         const { can } = usePermissions();
+        const { showSnackbar, snackbarText, snackbarColor, notify } = useSnackbar();
 
-        return {
-            can
-        };
+        return { can, showSnackbar, snackbarText, snackbarColor, notify };
     },
     data() {
         return {
@@ -394,9 +427,9 @@ export default defineComponent({
             extendProjectUsers: false,
             extendMultiinstallableExtensions: false,
             extendActiveApplications: false,
-            showSnackbar: false,
-            snackbarText: ref(""),
-            snackbarColor: "info"
+            editDialog: false,
+            deleteDialog: false,
+            archiveDialog: false,
         };
     },
     mounted() {
@@ -406,15 +439,9 @@ export default defineComponent({
         this.fetchMultiinstallableApplications();
         this.fetchActiveApplications();
 
-        // set the userAdminAccess by watching the changes in store user
-        const setAdminAccessRef = this.setUserAdminAccess;
-        let checkForUser = setInterval(function () {
-            const user = store.state.user;
-            if (user) {
-                setAdminAccessRef(user);
-                clearInterval(checkForUser);
-            }
-        }, 100);
+        waitForStoreUser((user) => {
+            this.userHasAdminAccess = isAdminUser(user);
+        });
     },
     watch: {
         // Watch the route to handle dynamic changes to the route param
@@ -489,9 +516,7 @@ export default defineComponent({
                 await kubeHelmPost(`helm-install-chart`, data)
             } catch (error: any) {
                 console.log(error);
-                this.snackbarText = `There was an error launching the application ${extension.annotations["ui-visible-name"]}: ${error.response.data}`;
-                this.snackbarColor = "error";
-                this.showSnackbar = true;
+                this.notify(`There was an error launching the application ${extension.annotations["ui-visible-name"]}: ${error.response.data}`, 'error');
             }
             
             this.launchApplicationDialog = false;
@@ -530,12 +555,6 @@ export default defineComponent({
 
             this.selectedUser = undefined;
         },
-        // enable the admin access of the user to be able to create new projects from the UI
-        setUserAdminAccess(user: UserItem) {
-            if (user.realm_roles && (user.realm_roles.includes('project-manager') || user.realm_roles.includes('admin'))) {
-                this.userHasAdminAccess = true;
-            }
-        },
         goToProjectsList() {
             this.$router.push(`/`);
         },
@@ -553,9 +572,7 @@ export default defineComponent({
                     name: project.name,
                     id: project.id,
                 }));
-                this.snackbarText = `The selected project changed to: ${project.name}. You might need to refresh your tabs.`;
-                this.snackbarColor = "success";
-                this.showSnackbar = true;
+                this.notify(`The selected project changed to: ${project.name}. You might need to refresh your tabs.`, 'success');
             } catch (error: unknown) {
                 console.error(error);
             }
@@ -644,6 +661,54 @@ export default defineComponent({
                 this.fetchProjectSoftware();
             }
             this.resetSoftwareFormValues();
+        },
+        openEditDialog() {
+            this.editDialog = true;
+        },
+        async handleEditSuccess() {
+            this.editDialog = false;
+            await this.fetchProject();
+            this.notify('Project updated successfully.', 'success');
+        },
+        handleEditError(msg: string) {
+            this.notify(msg, 'error');
+        },
+        openDeleteDialog() {
+            this.deleteDialog = true;
+        },
+        async handleDeleteConfirm() {
+            this.deleteDialog = false;
+            try {
+                await aiiApiDelete(`projects/${this.projectId}`);
+                this.$router.push('/');
+            } catch (error: unknown) {
+                console.error(error);
+                this.notify('Failed to delete project.', 'error');
+            }
+        },
+        async confirmArchive() {
+            this.archiveDialog = false;
+            await this.archiveProject();
+        },
+        async archiveProject() {
+            try {
+                await aiiApiPost(`projects/${this.projectId}/archive`, {});
+                await this.fetchProject();
+                this.notify(`Project "${this.project?.name}" archived.`, 'success');
+            } catch (error: unknown) {
+                console.error(error);
+                this.notify('Failed to archive project.', 'error');
+            }
+        },
+        async unarchiveProject() {
+            try {
+                await aiiApiPost(`projects/${this.projectId}/unarchive`, {});
+                await this.fetchProject();
+                this.notify(`Project "${this.project?.name}" unarchived.`, 'success');
+            } catch (error: unknown) {
+                console.error(error);
+                this.notify('Failed to unarchive project.', 'error');
+            }
         },
     }
 })

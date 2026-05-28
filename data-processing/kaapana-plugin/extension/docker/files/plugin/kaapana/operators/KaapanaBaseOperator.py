@@ -21,6 +21,7 @@ from kaapana.blueprints.kaapana_global_variables import (
     SERVICES_NAMESPACE,
     AIRFLOW_WORKFLOW_DIR,
     BATCH_NAME,
+    DEFAULT_PROJECT_NAMESPACE,
     DEFAULT_REGISTRY,
     GPU_SUPPORT,
     KAAPANA_BUILD_VERSION,
@@ -581,7 +582,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             project_form = conf.get("project_form")
             self.namespace = project_form.get("kubernetes_namespace")
         except (KeyError, AttributeError):
-            self.namespace = "project-admin"
+            self.namespace = DEFAULT_PROJECT_NAMESPACE
 
         dynamic_volumes_dict = {
             "workflow-data": PROCESSING_WORKFLOW_DIR,
@@ -931,7 +932,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             self.namespace = (
                 project_form.get("kubernetes_namespace")
                 if project_form and project_form.get("kubernetes_namespace")
-                else "project-admin"
+                else DEFAULT_PROJECT_NAMESPACE
             )
 
         self.create_conf_configmap(context)

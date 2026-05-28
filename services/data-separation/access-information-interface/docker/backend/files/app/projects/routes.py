@@ -5,7 +5,7 @@ from uuid import UUID
 
 from app.database import get_session
 from app.keycloak_helper import KeycloakHelper, get_keycloak_helper
-from app.projects import crud, kubehelm, minio, opensearch, schemas
+from app.projects import crud, dicom_data, kubehelm, minio, opensearch, schemas
 from app.schemas import KeycloakUser
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
@@ -49,10 +49,10 @@ async def projects(
     except IntegrityError:
         logger.warning(f"{project=} already exists!")
         await session.rollback()
-        created_project = await crud.get_projects(session, project_name=project.name)
-        created_project = created_project[0]
 
-    response_project = schemas.Project(**created_project.__dict__)
+    created_project = await crud.get_projects(session, project_name=project.name)
+    created_project = created_project[0]
+
     await opensearch_helper.setup_new_project(project=created_project, session=session)
     await minio_helper.setup_new_project(project=created_project, session=session)
     kubehelm.install_project_helm_chart(created_project)
@@ -72,7 +72,7 @@ async def projects(
             )
             await session.rollback()
 
-    return response_project
+    return schemas.Project(**created_project.__dict__)
 
 
 @router.get("", response_model=List[schemas.Project], tags=["Projects"])
@@ -106,21 +106,152 @@ async def get_roles(
 async def get_project(
     project_identifier: str | UUID, session: AsyncSession = Depends(get_session)
 ):
+    # convert to str in case type is UUID
+    project_identifier = str(project_identifier)
+
     if project_identifier == "admin":
         projects = await crud.get_admin_project(session)
 
-    if isinstance(project_identifier, UUID):
-        projects = await crud.get_projects(session, project_id=project_identifier)
-    else:
-        try:
-            project_id = UUID(project_identifier)
-            projects = await crud.get_projects(session, project_id=project_id)
-        except ValueError:
+    # resolve project identifier with the order: UUID → short_id (8 chars) → name
+    try:
+        projects = await crud.get_projects(session, project_id=UUID(project_identifier))
+    except ValueError:
+        if len(project_identifier) == 8:
+            projects = await crud.get_projects(
+                session, project_short_id=project_identifier
+            )
+        else:
+            projects = []
+
+        # TODO: remove the project_name altogether, projects should only be identifiable via their UUID or short_id.
+        # The project_name is not unique
+        if not projects:
             projects = await crud.get_projects(session, project_name=project_identifier)
 
     if len(projects) == 0:
         raise HTTPException(status_code=404, detail="Project not found")
     return projects[0]
+
+
+@router.put("/{project_id}", response_model=schemas.Project, tags=["Projects"])
+async def update_project(
+    project_id: UUID,
+    project_update: schemas.UpdateProject,
+    session: AsyncSession = Depends(get_session),
+    opensearch_helper: opensearch.OpenSearchHelper = Depends(
+        opensearch.get_opensearch_helper
+    ),
+):
+    """
+    Edit a project's name, description or external_id.
+
+    * The OpenSearch alias is updated to `project-<new_name>`.
+    * The Kubernetes namespace label `kaapana.ai/project-name` is patched to the new name
+    """
+    existing = await crud.get_projects(session, project_id=project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    admin_project = await crud.get_admin_project(session)
+    if admin_project and admin_project.id == project_id:
+        raise HTTPException(status_code=403, detail="Cannot edit the admin project")
+
+    if existing[0].is_archived:
+        raise HTTPException(status_code=403, detail="Cannot modify an archived project")
+
+    old_project = existing[0]
+    old_name = old_project.name
+
+    updated_project = await crud.update_project(session, project_id, project_update)
+
+    # Propagate a name change to aliases / labels
+    new_name = updated_project.name
+    if project_update.name is not None and new_name != old_name:
+        await opensearch_helper.update_project_alias(
+            project=updated_project, old_name=old_name
+        )
+        # TODO: Patch the k8s namespace label via and Helm label (if exists) via a Helm upgrade
+
+    return schemas.Project(**updated_project.__dict__)
+
+
+@router.post("/{project_id}/archive", response_model=schemas.Project, tags=["Projects"])
+async def archive_project(
+    project_id: UUID,
+    session: AsyncSession = Depends(get_session),
+):
+    """Set a project to archived (read-only). Data is preserved."""
+    existing = await crud.get_projects(session, project_id=project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    admin_project = await crud.get_admin_project(session)
+    if admin_project and admin_project.id == project_id:
+        raise HTTPException(status_code=403, detail="Cannot archive the admin project")
+
+    return await crud.set_project_archived(session, project_id, archived=True)
+
+
+@router.post(
+    "/{project_id}/unarchive", response_model=schemas.Project, tags=["Projects"]
+)
+async def unarchive_project(
+    project_id: UUID,
+    session: AsyncSession = Depends(get_session),
+):
+    """Restore an archived project to active state."""
+    existing = await crud.get_projects(session, project_id=project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    return await crud.set_project_archived(session, project_id, archived=False)
+
+
+@router.delete("/{project_id}", tags=["Projects"])
+async def delete_project(
+    project_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    opensearch_helper: opensearch.OpenSearchHelper = Depends(
+        opensearch.get_opensearch_helper
+    ),
+    minio_helper: minio.MinioHelper = Depends(minio.get_minio_helper),
+):
+    """
+    Delete a Kaapana project: drops the S3 bucket, OpenSearch index, roles, helm chart and dicom series held only by this project (and admin).
+
+
+    """
+    existing = await crud.get_projects(session, project_id=project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    project = existing[0]
+
+    admin_project = await crud.get_admin_project(session)
+    if admin_project and admin_project.id == project_id:
+        raise HTTPException(status_code=403, detail="Cannot delete the admin project")
+
+    # Delete series held only by this project (and admin) from the platform.
+    # Targets the DAG at admin's context since admin always holds every series.
+    if admin_project is not None:
+        admin_project_schema = schemas.Project.model_validate(admin_project)
+        orphan_series = dicom_data.get_orphan_series(
+            project_id=project_id, admin_project_id=admin_project.id
+        )
+        dicom_data.clear_project_mappings(project_id=project_id)
+        try:
+            dicom_data.trigger_delete_series_dag(
+                admin_project=admin_project_schema, series_uids=orphan_series
+            )
+        except Exception as e:
+            logger.warning(f"delete-series DAG trigger failed for {project_id}: {e}")
+
+    await opensearch_helper.teardown_project(project=project, session=session)
+    await minio_helper.teardown_project(project=project, session=session)
+    kubehelm.uninstall_project_helm_chart(project)
+    await crud.delete_project(session, project_id)
+
+    return Response(status_code=204)
 
 
 @router.get("/{project_id}/users", response_model=List[KeycloakUser], tags=["Projects"])
@@ -215,6 +346,9 @@ async def post_user_project_role_mapping(
     if len(db_project) == 0 or len(db_role) == 0:
         raise HTTPException(status_code=404, detail="Project or User Role not found")
 
+    if db_project[0].is_archived:
+        raise HTTPException(status_code=403, detail="Cannot modify an archived project")
+
     current_user_mapping = await crud.get_users_projects_roles_mapping(
         session, db_project[0].id, user_id
     )
@@ -244,6 +378,9 @@ async def update_user_project_role_mapping(
     if len(db_project) == 0 or len(db_role) == 0:
         raise HTTPException(status_code=404, detail="Project or User Role not found")
 
+    if db_project[0].is_archived:
+        raise HTTPException(status_code=403, detail="Cannot modify an archived project")
+
     current_user_mapping = await crud.get_users_projects_roles_mapping(
         session, db_project[0].id, user_id
     )
@@ -270,6 +407,9 @@ async def delete_user_project_role_mapping(
 
     if len(db_project) == 0:
         raise HTTPException(status_code=404, detail="Project not found")
+
+    if db_project[0].is_archived:
+        raise HTTPException(status_code=403, detail="Cannot modify an archived project")
 
     current_user_mapping = await crud.get_users_projects_roles_mapping(
         session, db_project[0].id, user_id
@@ -310,6 +450,9 @@ async def create_software_mappings(
 ):
     project: schemas.Project = await get_project(project_id, session)
 
+    if project.is_archived:
+        raise HTTPException(status_code=403, detail="Cannot modify an archived project")
+
     return [
         await crud.create_software_mapping(
             session, project_id=project.id, software_uuid=software.software_uuid
@@ -328,6 +471,10 @@ async def delete_software_mappings(
     session: AsyncSession = Depends(get_session),
 ):
     project: schemas.Project = await get_project(project_id, session)
+
+    if project.is_archived:
+        raise HTTPException(status_code=403, detail="Cannot modify an archived project")
+
     for software in softwares:
         await crud.delete_software_mapping(
             session, project_id=project.id, software_uuid=software.software_uuid

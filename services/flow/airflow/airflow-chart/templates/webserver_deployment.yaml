@@ -76,6 +76,8 @@ spec:
           value: "{{ .Values.global.instance_name }}"
         - name: KAAPANA_BUILD_VERSION
           value: "{{ .Values.global.kaapana_build_version }}"
+        - name: PLATFORM_PREFIX
+          value: "{{ required `global.platform_prefix is required` .Values.global.platform_prefix }}"
         - name: KAAPANA_AIRFLOW_API_USERNAME
           value: "kaapana-internal"
         - name: KAAPANA_AIRFLOW_API_PASSWORD

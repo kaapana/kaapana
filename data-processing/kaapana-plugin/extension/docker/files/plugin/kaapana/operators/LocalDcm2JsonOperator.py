@@ -76,6 +76,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         self.exit_on_error = exit_on_error
         self.delete_pixel_data = delete_pixel_data
         self.data_type = data_type
+        self.admin_project_short_id: str = "admin"
 
         os.environ["PYTHONIOENCODING"] = "utf-8"
         self.load_dicom_tag_dict()
@@ -97,7 +98,9 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
     def start(self, **kwargs):
         logger.info("Starting module dcm2json...")
         config = kwargs["dag_run"].conf
-        self.default_project = config.get("project_form", {}).get("name", "admin")
+        self.default_project_short_id = config.get("project_form", {}).get(
+            "short_id", self.admin_project_short_id
+        )
 
         run_dir: Path = Path(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folders: List[Path] = list((run_dir / self.batch_name).glob("*"))
@@ -196,15 +199,20 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         metadata["predicted_bodypart_string"] = "N/A"
 
         self._sanitize_project_and_dataset(
-            metadata, default_project=self.default_project
+            metadata, default_project_short_id=self.default_project_short_id
         )
         return metadata
 
     def _sanitize_project_and_dataset(
-        self, metadata, default_project: str = "admin", default_dataset: str = None
+        self, metadata, default_project_short_id: str = "", default_dataset: str = None
     ):
         """ """
-        sanitized_project_name = default_project
+        default_project_short_id = (
+            default_project_short_id
+            if default_project_short_id != ""
+            else self.admin_project_short_id
+        )
+        sanitized_project_id = default_project_short_id
         sanitized_dataset = default_dataset or datetime.now(
             pytz.timezone(TIMEZONE)
         ).strftime("%y-%m-%d-%H:%M:%S%f")
@@ -215,12 +223,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             sanitized_dataset = dataset[3:]  # Remove "kp-" prefix
 
         if (
-            project_name := metadata.get("00120020 ClinicalTrialProtocolID_keyword")
-        ) and project_name[0].startswith("kp-"):
-            sanitized_project_name = project_name[0][3:]  # Remove "kp-" prefix
+            project_id := metadata.get("00120020 ClinicalTrialProtocolID_keyword")
+        ) and project_id[0].startswith("kp-"):
+            sanitized_project_id = project_id[0][3:]  # Remove "kp-" prefix
 
         metadata["00120010 ClinicalTrialSponsorName_keyword"] = sanitized_dataset
-        metadata["00120020 ClinicalTrialProtocolID_keyword"] = sanitized_project_name
+        metadata["00120020 ClinicalTrialProtocolID_keyword"] = sanitized_project_id
         return metadata
 
     def _process_annotation_tags(self, metadata: Dict) -> Dict:

@@ -5,6 +5,7 @@ from datetime import timedelta
 import requests
 from kaapana.blueprints.kaapana_global_variables import (
     ADMIN_NAMESPACE,
+    DEFAULT_PROJECT_NAMESPACE,
     PROCESSING_WORKFLOW_DIR,
 )
 from kaapana.blueprints.kaapana_utils import get_release_name
@@ -31,7 +32,7 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
             project_form = conf.get("project_form")
             self.namespace = project_form.get("kubernetes_namespace")
         except (KeyError, AttributeError):
-            self.namespace = "project-admin"
+            self.namespace = DEFAULT_PROJECT_NAMESPACE
 
         dynamic_volumes_dict = {
             "workflow-data": PROCESSING_WORKFLOW_DIR,

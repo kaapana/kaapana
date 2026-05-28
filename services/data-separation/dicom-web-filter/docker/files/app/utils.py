@@ -3,7 +3,7 @@ from typing import List
 from uuid import UUID
 
 import httpx
-from fastapi import Request
+from fastapi import HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_204_NO_CONTENT
 
@@ -22,6 +22,22 @@ async def get_default_project_id() -> UUID:
         )
     project = response.json()
     return UUID(project["id"])
+
+
+async def assert_project_not_archived(project_id: UUID) -> None:
+    """
+    Raise 403 if the project is archived in AII.
+    """
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{ACCESS_INFORMATION_INTERFACE_HOST}/projects/{project_id}"
+        )
+    response.raise_for_status()
+    if response.json().get("is_archived"):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Project {project_id} is archived (read-only).",
+        )
 
 
 def get_user_project_ids(request: Request) -> list[UUID]:

@@ -2,7 +2,7 @@
 {{- define "projectPersistentVolumes" -}}
 ---
 # Variables
-{{- $namespace := .Values.global.project_namespace | default "project-admin" }}
+{{- $namespace := .Values.global.project_namespace | default (printf "%s-project-admin" (.Values.global.platform_prefix | default "kaapana")) }}
 # Iteration
 {{- range $volume := .Values.global.dynamicVolumes }}
 apiVersion: v1

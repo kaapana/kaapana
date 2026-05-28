@@ -8,7 +8,7 @@ from pathlib import Path
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
-from kaapana.blueprints.json_schema_templates import get_all_projects
+from kaapana.blueprints.json_schema_templates import get_all_project_ids
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
 from kaapana.operators.DeleteFromMetaOperator import DeleteFromMetaOperator
 from kaapana.operators.DeleteFromPacsOperator import DeleteFromPacsOperator
@@ -35,7 +35,7 @@ ui_forms = {
                 "title": "Destination Projects",
                 "description": "The project(s) to which the data will be copied.",
                 "type": "array",
-                "items": {"type": "string", "enum": get_all_projects()},
+                "items": {"type": "string", "enum": get_all_project_ids()},
                 "required": True,
             },
             "copy_dataset": {

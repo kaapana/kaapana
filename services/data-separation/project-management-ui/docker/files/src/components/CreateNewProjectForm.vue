@@ -43,6 +43,7 @@
 <script lang="ts" setup>
 import { ref, computed } from 'vue';
 import { aiiApiPost } from '@/common/aiiApi.service';
+import { projectNameRules } from '@/common/validation';
 // import {AxiosError} from axios;
 
 
@@ -61,13 +62,7 @@ const description = ref('');
 const external_id = ref('');
 const fetching = ref(false)
 
-// Early validation rules for project naming from the UI
-const project_name_rules = ref<Array<(value: string) => boolean | string>>([
-  (value) => !!value || 'Required.',
-  (value) => (value && value.length <= 13) || 'Max 13 characters',
-  (value) => (value == value.toLowerCase()) || 'Only lowercase alphanumeric characters are supported',
-  (value) => (!value.includes(" ")) || 'Space are not allowed',
-]);
+const project_name_rules = ref(projectNameRules);
 
 const valid = computed(() => {
     let validate_name = true;

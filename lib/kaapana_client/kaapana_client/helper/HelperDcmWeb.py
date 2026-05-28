@@ -11,8 +11,8 @@ from uuid import UUID
 
 import pydicom
 import requests
-from kaapanapy.helper import get_project_user_access_token
-from kaapanapy.settings import ProjectSettings
+from kaapana_client.helper import get_project_user_access_token
+from kaapana_client.settings import ProjectSettings
 from requests_toolbelt.multipart import decoder
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ class HelperDcmWeb:
         self,
         dcmweb_rs_endpoint: str = DEFAULT_DICOM_WEB_RS_ENDPOINT,
         dcmweb_uri_endpoint: str = DEFAULT_DICOM_WEB_URI_ENDPOINT,
-        access_token: str = None,
+        access_token: str | None = None,
     ):
         """Initialize the HelperDcmWeb class.
 

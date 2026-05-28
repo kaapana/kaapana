@@ -1,8 +1,8 @@
 from typing import List, Optional
 
 import requests
-from kaapanapy.settings import ServicesSettings
-from kaapanapy.logger import get_logger
+from kaapana_client.settings import ServicesSettings
+from kaapana_client.logger import get_logger
 from pydantic import BaseModel
 
 NOTIFICATION_SERVICE_URL = ServicesSettings().notification_url

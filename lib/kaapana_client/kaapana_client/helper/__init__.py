@@ -6,7 +6,7 @@ import time
 import requests
 from requests.adapters import HTTPAdapter, Retry
 
-from kaapanapy.settings import (
+from kaapana_client.settings import (
     KaapanaSettings,
     OpensearchSettings,
     OperatorSettings,

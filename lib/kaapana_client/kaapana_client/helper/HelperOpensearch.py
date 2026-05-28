@@ -1,7 +1,7 @@
 from typing import Dict, List
 
-from kaapanapy.helper import get_opensearch_client
-from kaapanapy.logger import get_logger
+from kaapana_client.helper import get_opensearch_client
+from kaapana_client.logger import get_logger
 
 logger = get_logger(__name__)
 

@@ -5,8 +5,8 @@ from pathlib import Path
 from typing import Callable, Optional
 
 import requests
-from kaapanapy.logger import get_logger
-from kaapanapy.settings import ServicesSettings
+from kaapana_client.logger import get_logger
+from kaapana_client.settings import ServicesSettings
 
 logger = get_logger(__name__)
 

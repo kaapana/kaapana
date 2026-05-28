@@ -1,3 +1,4 @@
+from functools import lru_cache
 from typing import Optional
 
 from pydantic import AliasChoices, Field
@@ -6,7 +7,7 @@ from pydantic_settings import BaseSettings
 
 class KaapanaSettings(BaseSettings):
     """
-    These settings are imported in every module of the kaapana-pip library
+    Base settings
     """
 
     services_namespace: str = Field(
@@ -128,3 +129,35 @@ class ServicesSettings(BaseSettings):
         default="http://notification-service.services.svc:80",
         validation_alias=AliasChoices("KAAPANA_NOTIFICATION_URL", "NOTIFICATION_URL"),
     )
+
+    traefik_url: Optional[str] = Field("https://traefik-0.admin.svc:443")
+
+
+@lru_cache
+def get_kaapana_settings() -> KaapanaSettings:
+    return KaapanaSettings()
+
+
+@lru_cache
+def get_keycloak_settings() -> KeycloakSettings:
+    return KeycloakSettings()
+
+
+@lru_cache
+def get_opensearch_settings() -> OpensearchSettings:
+    return OpensearchSettings()
+
+
+@lru_cache
+def get_project_settings() -> ProjectSettings:
+    return ProjectSettings()
+
+
+@lru_cache
+def get_operator_settings() -> OperatorSettings:
+    return OperatorSettings()
+
+
+@lru_cache
+def get_services_settings() -> ServicesSettings:
+    return ServicesSettings()

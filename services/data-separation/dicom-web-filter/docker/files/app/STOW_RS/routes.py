@@ -118,6 +118,20 @@ def extract_uids_from_multipart(body: bytes, content_type: str) -> dict[str, str
     return result
 
 
+def _dataset_name_from_referer(request: Request) -> str:
+    """Derive a kp-prefixed dataset name from the browser Referer header.
+
+    LocalDcm2JsonOperator strips the 'kp-' prefix, so 'kp-Annotations (SLIM)'
+    becomes the dataset label 'Annotations (SLIM)' in the Kaapana UI.
+    """
+    referer = request.headers.get("referer", "")
+    if "/slim" in referer:
+        return "kp-Annotations (SLIM)"
+    if "/ohif" in referer:
+        return "kp-Annotations (OHIF)"
+    return "dicom-web"
+
+
 def enrich_dicom_parts_with_project(
     body: bytes,
     content_type: str,
@@ -336,7 +350,12 @@ async def store_instances(
             await get_project_name_by_id(project_ids[0]) if project_ids else None
         )
         enriched = (
-            enrich_dicom_parts_with_project(body, content_type, project_name)
+            enrich_dicom_parts_with_project(
+                body,
+                content_type,
+                project_name,
+                dataset_name=_dataset_name_from_referer(request),
+            )
             if project_name
             else body
         )
@@ -378,7 +397,12 @@ async def store_instances_in_study(
             await get_project_name_by_id(project_ids[0]) if project_ids else None
         )
         enriched = (
-            enrich_dicom_parts_with_project(body, content_type, project_name)
+            enrich_dicom_parts_with_project(
+                body,
+                content_type,
+                project_name,
+                dataset_name=_dataset_name_from_referer(request),
+            )
             if project_name
             else body
         )

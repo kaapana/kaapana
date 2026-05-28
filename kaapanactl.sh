@@ -446,7 +446,7 @@ function deploy() {
     fi
 
     if [ "$DO_CHECK_SYSTEM" = "true" ]; then
-        get_platform_prefix
+        validate_platform_prefix
         check_system kaapana-admin-chart default
         check_system kaapana-platform-chart admin
         check_system "${PLATFORM_PREFIX}-project-admin" admin

@@ -157,7 +157,13 @@ put_results_html_to_minio_admin_bucket = KaapanaPythonBaseOperator(
 
 
 def has_ref_series(ds) -> bool:
-    return ds.Modality in ["SEG", "RTSTRUCT"]
+    if ds.Modality in ["SEG", "RTSTRUCT"]:
+        return True
+    if ds.Modality == "SR":
+        return hasattr(ds, "ReferencedSeriesSequence") and bool(
+            ds.ReferencedSeriesSequence
+        )
+    return False
 
 
 branch_by_has_ref_series = LocalDcmBranchingOperator(
@@ -495,8 +501,11 @@ def upload_thumbnails_into_project_bucket(ds, **kwargs):
             for project in response.json()
             if project["short_id"] == project_short_id
         ][0]
+        if not thumbnail_dir.exists():
+            continue
         thumbnails = [f for f in thumbnail_dir.glob("*.png")]
-        assert len(thumbnails) == 1
+        if not thumbnails:
+            continue
         thumbnail_path = thumbnails[0]
         minio_object_path = f"thumbnails/{series_uid}.png"
         minio.fput_object(

@@ -172,3 +172,64 @@ This mechanism ensures that both workflow execution and application deployment i
 .. note::
     Only users within dedicated :ref:`global system groups<global_system_groups>` are able to manage project-software-mappings and to start applications.
     Check out the :ref:`Keycloak user guide<keycloak>` for more information.
+
+
+Client access to Kaapana APIs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can access all APIs in Kaapana from an external client using the ``KaapanaApiService`` class, which is provided by the ``kaapana_client`` Python package.
+Authentication is handled automatically via the `OAuth 2.0 Device Authorization Grant <https://datatracker.ietf.org/doc/html/rfc8628>`_.
+This flow is designed for clients that cannot open a browser themselves — the user approves access once in a browser, after which the service holds a long-lived refresh token and renews access tokens silently.
+
+**Prerequisites**
+
+* The ``kaapana_client`` package is installed (``pip install kaapana_client``).
+* The environment variable ``KAAPANA_PROJECT_ID`` is set to the UUID of the project you want to operate in.
+
+.. code-block:: bash
+
+    export KAAPANA_PROJECT_ID="d7e991b3-9463-48e7-98c2-661da8b83018"
+
+**Initialization**
+
+When you create a ``KaapanaApiService`` instance, it immediately requests a device code from Keycloak and prints a verification URL to the log:
+
+.. code-block:: python
+
+    from kaapana_client.services.ApiService import KaapanaApiService
+
+    api = KaapanaApiService()
+    # INFO - Open the following URL in a browser to grant the ApiService
+    #        access to Kaapana: https://<host>/auth/realms/kaapana/device?user_code=XXXX-YYYY
+
+Open the printed URL in a browser and confirm access with a Kaapana account.
+You do **not** need to do this before calling a method — if the token has not been obtained yet, the first HTTP call will poll for approval automatically (up to 10 attempts, 5 seconds apart) and log the URL again on each retry.
+
+**Making requests**
+
+All five HTTP methods — ``get``, ``post``, ``put``, ``delete``, and ``head`` — accept an ``endpoint`` path relative to the Kaapana base URL, followed by any keyword arguments accepted by the underlying ``requests`` library (e.g. ``json``, ``params``, ``data``, ``timeout``).
+Authentication headers and the project cookie are injected automatically.
+
+.. code-block:: python
+
+    # GET  /aii/projects
+    response = api.get("aii/projects")
+    projects = response.json()
+
+    # POST /flow/kaapana/api/getdags  with a JSON body
+    response = api.post("workflow-api/v1/workflow-runs", json={"workflow": "..."})
+
+    # PUT  /aii/projects/<id>
+    response = api.put(f"aii/projects/{project_id}", json={"name": "my-project"})
+
+    # DELETE a resource
+    response = api.delete(f"aii/projects/{project_id}")
+
+**Token lifecycle**
+
+The service manages tokens transparently:
+
+* **Access token absent** — triggers the device-code polling loop described above.
+* **Access token expired** — a silent refresh-token grant is performed before the request is sent. No user interaction is required.
+
+The refresh token is acquired with the ``offline_access`` scope, so it remains valid across restarts of the client script as long as the Keycloak session has not been revoked.

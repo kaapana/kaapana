@@ -66,8 +66,8 @@ COPY files/kaapana_federated /app/kaapana_federated
 RUN python3 -m pip install /app/kaapana_federated
 
 # Install kaapanapy pip package
-COPY files/kaapana_python /app/kaapana_python
-WORKDIR /app/kaapana_python
+COPY files/kaapanapy-shim /app/kaapanapy-shim
+WORKDIR /app/kaapanapy-shim
 RUN python3 -m build 
 RUN python3 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt dist/kaapanapy-0.0.1.tar.gz
 

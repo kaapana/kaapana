@@ -982,7 +982,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     volume_mounts=self.volume_mounts,
                     labels=self.labels,
                     annotations=self.annotations,
-                    image_pull_policy=self.image_pull_policy,
+                    imagePullPolicy=self.image_pull_policy,
                 ),
             )
         )

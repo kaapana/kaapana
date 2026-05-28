@@ -1,0 +1,22 @@
+global:
+  services_namespace: "services"
+  registry_url: ""
+  hostname: ""
+  http_proxy: ""
+  kaapana_build_version: ""
+  pull_policy_images: "Always"
+  storage_node: "storage"
+  dynamicVolumes:
+  - name: extensions
+    storage_class: slow
+    storage: 10Gi
+  - name: extensions-tmp
+    storage_class: slow
+    storage: 10Gi
+
+kaapana_database:
+  admin: false
+  postgres_user: "postgres"
+  postgres_password: "postgres"
+  postgres_db: "postgres"
+  appName: "extension-manager"

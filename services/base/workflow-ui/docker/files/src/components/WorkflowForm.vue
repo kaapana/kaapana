@@ -31,7 +31,8 @@
                     <p class="mt-4 text-body-1 text-error">{{ error }}</p>
                 </div>
 
-                <div v-else-if="Object.keys(groupedParams).length" class="mb-4">
+                <div v-else>
+                <div v-if="Object.keys(groupedParams).length" class="mb-4">
                     <div class="d-flex justify-end mb-3 gap-2">
                         <v-btn size="small" variant="text" prepend-icon="mdi-chevron-down-box-outline"
                             @click="expandAll">
@@ -276,6 +277,27 @@
                     <p class="mt-4 text-body-1">This workflow has no configurable parameters.</p>
                     <p class="text-body-2 text-medium-emphasis">Click "Run Workflow" to start execution.</p>
                 </div>
+
+                <!-- Advanced options (cleanup policy, etc.) — always visible -->
+                <v-expansion-panels variant="accordion" class="mt-4">
+                    <v-expansion-panel elevation="2" class="rounded-lg dark-panel">
+                        <v-expansion-panel-title class="font-weight-medium panel-header">
+                            <div class="d-flex align-center">
+                                <v-icon class="mr-2" size="small" color="primary">mdi-tune</v-icon>
+                                <span>Advanced</span>
+                            </div>
+                        </v-expansion-panel-title>
+                        <v-expansion-panel-text class="panel-content">
+                            <div class="pa-4">
+                                <v-select v-model="cleanupPolicy" :items="cleanupPolicyItems"
+                                    label="Cleanup policy"
+                                    hint="When to delete this run's data directory from the workflow PVC."
+                                    persistent-hint density="comfortable" variant="outlined" />
+                            </div>
+                        </v-expansion-panel-text>
+                    </v-expansion-panel>
+                </v-expansion-panels>
+                </div>
             </v-card-text>
 
             <v-divider />
@@ -297,7 +319,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import type { Workflow, WorkflowRunCreate, WorkflowParameter, UIForm, IntegerUIForm, FloatUIForm, StringUIForm, Dataset } from '@/types/schemas'
+import type { CleanupPolicy, Workflow, WorkflowRunCreate, WorkflowParameter, UIForm, IntegerUIForm, FloatUIForm, StringUIForm, Dataset } from '@/types/schemas'
 import { fetchDatasets } from '@/api/datasetsApiClient'
 
 const props = defineProps<{ workflow: Workflow; modelValue: boolean; submitting?: boolean }>()
@@ -315,6 +337,14 @@ function fieldKey(param: WorkflowParameter) {
     return `${param.task_title}::${param.env_variable_name}`
 }
 const expandedPanels = ref<number[]>([])
+
+// Advanced options
+const cleanupPolicy = ref<CleanupPolicy>('on_success')
+const cleanupPolicyItems = [
+    { title: 'On success only', value: 'on_success' },
+    { title: 'Always (success, error, canceled)', value: 'always' },
+    { title: 'Never (keep data after run)', value: 'never' },
+]
 
 // Dataset loading state
 const datasetOptions = ref<Dataset[]>([])
@@ -566,6 +596,7 @@ async function submitForm() {
         workflow: { title: props.workflow.title, version: props.workflow.version },
         labels: props.workflow.labels || [],
         workflow_parameters: [],
+        cleanup_policy: cleanupPolicy.value,
     }
 
     // Build parameters array from form data with updated default values

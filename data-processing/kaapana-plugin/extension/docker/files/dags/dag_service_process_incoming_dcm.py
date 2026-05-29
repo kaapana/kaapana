@@ -156,13 +156,7 @@ put_results_html_to_minio_admin_bucket = KaapanaPythonBaseOperator(
 )
 
 
-NO_THUMBNAIL_MODALITIES = {"SR", "KO", "PR", "RTPLAN", "REG", "FID", "AU", "RWVM"}
-
-
-def has_ref_series(ds) -> bool:
-    if ds.Modality in ["SEG", "RTSTRUCT"]:
-        return True
-    return False
+from kaapana.operators.thumbnail_utils import NO_THUMBNAIL_MODALITIES, has_ref_series
 
 
 # Modalities without renderable pixel data — skip ref-series download, go directly

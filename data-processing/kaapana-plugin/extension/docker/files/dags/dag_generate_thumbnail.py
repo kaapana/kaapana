@@ -15,6 +15,7 @@ from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.LocalDcmBranchingOperator import LocalDcmBranchingOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.thumbnail_utils import NO_THUMBNAIL_MODALITIES, has_ref_series
 from kaapanapy.helper import get_minio_client
 from kaapanapy.settings import KaapanaSettings
 
@@ -46,18 +47,6 @@ args = {
 
 dag = DAG(dag_id="generate-thumbnail", default_args=args, schedule_interval=None)
 get_dcm_input = GetInputOperator(dag=dag, name="get-dcm-input", data_type="dicom")
-
-NO_THUMBNAIL_MODALITIES = {"SR", "KO", "PR", "RTPLAN", "REG", "FID", "AU", "RWVM"}
-
-
-def has_ref_series(ds) -> bool:
-    modality = str(ds.get("Modality", "")).strip().upper()
-    sop_class_uid = str(ds.get("SOPClassUID", ""))
-
-    return modality in {"SEG", "RTSTRUCT"} or sop_class_uid in {
-        "1.2.840.10008.5.1.4.1.1.66.4",  # Segmentation Storage
-        "1.2.840.10008.5.1.4.1.1.481.3",  # RT Structure Set Storage
-    }
 
 
 # Modalities without renderable pixel data — skip thumbnail generation entirely

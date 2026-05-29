@@ -51,11 +51,6 @@ class KaapanaApiService:
             client_secret: OAuth2 client secret for the given client, or ``None``
                 for public clients.
         """
-        self.token = {}
-        self.project_cookie = self._get_project_cookie()
-        self._token_expiry: float | None = None
-        self._get_device_code()
-
         self.root_url = root_url
         self.project_id = project_id
         self.client_id = client_id
@@ -63,6 +58,11 @@ class KaapanaApiService:
 
         self.token_url = _TOKEN_URL.format(self.root_url)
         self.device_code_url = _DEVICE_CODE_URL.format(self.root_url)
+
+        self.token = {}
+        self._token_expiry: float | None = None
+        self.project_cookie = self._get_project_cookie()
+        self._get_device_code()
 
     # ------------------------------------------------------------------
     # Public HTTP methods

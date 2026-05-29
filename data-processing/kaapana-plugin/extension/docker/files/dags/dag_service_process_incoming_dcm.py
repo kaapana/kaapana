@@ -156,20 +156,31 @@ put_results_html_to_minio_admin_bucket = KaapanaPythonBaseOperator(
 )
 
 
+NO_THUMBNAIL_MODALITIES = {"SR", "KO", "PR", "RTPLAN", "REG", "FID", "AU", "RWVM"}
+
+
 def has_ref_series(ds) -> bool:
     if ds.Modality in ["SEG", "RTSTRUCT"]:
         return True
-    if ds.Modality == "SR":
-        return hasattr(ds, "ReferencedSeriesSequence") and bool(
-            ds.ReferencedSeriesSequence
-        )
     return False
 
+
+# Modalities without renderable pixel data — skip ref-series download, go directly
+# to generate_thumbnail which produces no output for these modalities
+skip_no_thumbnail = LocalDcmBranchingOperator(
+    dag=dag,
+    name="skip-no-thumbnail",
+    input_operator=get_input,
+    condition=lambda ds: str(ds.get("Modality", "")).strip().upper()
+    not in NO_THUMBNAIL_MODALITIES,
+    branch_true_operator="branch-has-ref",
+    branch_false_operator="generate-thumbnail",
+)
 
 branch_by_has_ref_series = LocalDcmBranchingOperator(
     dag=dag,
     name="branch-has-ref",
-    input_operator=get_input,
+    input_operator=skip_no_thumbnail,
     condition=has_ref_series,
     branch_true_operator="get-ref-series-ct",
     branch_false_operator="generate-thumbnail",
@@ -553,13 +564,13 @@ remove_tags >> dcm_send
 ### Only continue if dicom data was successfully send to the PACS
 dcm_send >> (push_json, add_to_dataset, assign_to_project)
 
-push_json >> (validate, branch_by_has_ref_series)
+push_json >> (validate, skip_no_thumbnail)
 (
     validate
     >> save_to_meta
     >> (put_html_to_minio, put_results_html_to_minio_admin_bucket, generate_thumbnail)
 )
-branch_by_has_ref_series >> (get_ref_ct_series, generate_thumbnail)
+skip_no_thumbnail >> branch_by_has_ref_series >> (get_ref_ct_series, generate_thumbnail)
 
 
 (get_ref_ct_series >> generate_thumbnail >> put_thumbnail_to_project_bucket)

@@ -175,8 +175,6 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                 .RTReferencedSeriesSequence[0]
                 .SeriesInstanceUID
             )
-        elif ds.Modality == "SR":
-            reference_series_uid = ds.ReferencedSeriesSequence[0].SeriesInstanceUID
         else:
             raise ValueError("Unknown modality!")
 

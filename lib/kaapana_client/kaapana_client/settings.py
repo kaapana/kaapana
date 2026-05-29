@@ -24,7 +24,7 @@ class KaapanaSettings(BaseSettings):
         default="DEBUG", validation_alias=AliasChoices("KAAPANA_LOG_LEVEL")
     )
     timezone: str = Field(
-        "Europe/Berlin",
+        default="Europe/Berlin",
         validation_alias=AliasChoices("TZ", "KAAPANA_TIMEZONE", "TIMEZONE"),
     )
 
@@ -34,10 +34,11 @@ class KeycloakSettings(KaapanaSettings):
         default="http://keycloak-external-service.admin.svc:80",
         validation_alias=AliasChoices("KAAPANA_KEYCLOAK_URL", "KEYCLOAK_URL"),
     )
-    client_secret: str = Field(
-        validation_alias=AliasChoices("KAAPANA_CLIENT_SECRET", "OIDC_CLIENT_SECRET")
+    client_secret: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("KAAPANA_CLIENT_SECRET", "OIDC_CLIENT_SECRET"),
     )
-    client_id: str = Field("kaapana", validation_alias="KAAPANA_CLIENT_ID")
+    client_id: str = Field(default="kaapana", validation_alias="KAAPANA_CLIENT_ID")
 
 
 class OpensearchSettings(KaapanaSettings):
@@ -54,7 +55,7 @@ class OpensearchSettings(KaapanaSettings):
         validation_alias=AliasChoices("KAAPANA_OPENSEARCH_PORT", "OPENSEARCH_PORT"),
     )
     default_index: str = Field(
-        "project_admin",
+        default="project_admin",
         validation_alias=AliasChoices(
             "KAAPANA_DEFAULT_OPENSEARCH_INDEX", "DEFAULT_INDEX"
         ),
@@ -67,16 +68,16 @@ class ProjectSettings(KaapanaSettings):
     """
 
     project_user_name: str = Field(
-        "system", validation_alias="KAAPANA_PROJECT_USER_NAME"
+        default="system", validation_alias="KAAPANA_PROJECT_USER_NAME"
     )
     project_user_password: Optional[str] = Field(
-        None,
+        default=None,
         validation_alias=AliasChoices(
             "KAAPANA_PROJECT_USER_PASSWORD", "SYSTEM_USER_PASSWORD"
         ),
     )
     project_id: Optional[str] = Field(
-        None, validation_alias=AliasChoices("KAAPANA_PROJECT_ID")
+        default=None, validation_alias=AliasChoices("KAAPANA_PROJECT_ID")
     )
 
 
@@ -135,7 +136,7 @@ class ServicesSettings(BaseSettings):
     )
 
     traefik_url: str = Field(
-        "https://traefik-0.admin.svc:443",
+        default="https://traefik-0.admin.svc:443",
         validation_alias=AliasChoices("KAAPANA_TRAEFIK_URL"),
     )
 

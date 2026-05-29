@@ -142,18 +142,6 @@ This is enforced through the following mechanisms:
 
 This design guarantees that processes inside containers can only interact with storage resources belonging to their project, preventing cross-project data access.
 
-Workflow Execution And Active Applications
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-* The Project Management UI allows to manage, which DAG can be executed as a Workflow by which Project.
-* This can be managed by creating or deleting porject-software mappings.
-* A default list of project-software-mappings can be configured before building your custom platform at <link>
-
-
-* Active Applications are also bound to a project-context
-* As active applications are spawned in the extension page, the selected project determines the project for which the application will be deployed.
-* Applications that are started by workflows like MITK-flow are automatically associated with the project of corresponding workflow.
-
 
 Workflow Execution and Active Applications  
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -184,13 +172,25 @@ This flow is designed for clients that cannot open a browser themselves — the 
 **Prerequisites**
 
 * The ``kaapana_client`` package is installed (``pip install kaapana_client``).
-* The environment variable ``KAAPANA_PROJECT_ID`` is set to the UUID of the project you want to operate in.
-
-.. code-block:: bash
-
-    export KAAPANA_PROJECT_ID="d7e991b3-9463-48e7-98c2-661da8b83018"
 
 **Initialization**
+
+``KaapanaApiService`` requires four constructor arguments:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 80
+
+   * - Parameter
+     - Description
+   * - ``root_url``
+     - Base URL of the Kaapana instance (e.g. the Traefik gateway URL). All endpoint paths are appended to this value.
+   * - ``project_id``
+     - UUID of the project you want to operate in.
+   * - ``client_id``
+     - OAuth2 client ID registered in Keycloak.
+   * - ``client_secret``
+     - OAuth2 client secret for the given client, or ``None`` for public clients.
 
 When you create a ``KaapanaApiService`` instance, it immediately requests a device code from Keycloak and prints a verification URL to the log:
 
@@ -198,16 +198,29 @@ When you create a ``KaapanaApiService`` instance, it immediately requests a devi
 
     from kaapana_client.services.ApiService import KaapanaApiService
 
-    api = KaapanaApiService()
+    api = KaapanaApiService(
+        root_url="https://<host>",
+        project_id="d7e991b3-9463-48e7-98c2-661da8b83018",
+        client_id="kaapana",
+        client_secret=None,
+    )
     # INFO - Open the following URL in a browser to grant the ApiService
     #        access to Kaapana: https://<host>/auth/realms/kaapana/device?user_code=XXXX-YYYY
+
+As a convenience, if the required values are available as environment variables, you can use the ``get_api_service_from_env`` factory function instead:
+
+.. code-block:: python
+
+    from kaapana_client.services.ApiService import get_api_service_from_env
+
+    api = get_api_service_from_env()
 
 Open the printed URL in a browser and confirm access with a Kaapana account.
 You do **not** need to do this before calling a method — if the token has not been obtained yet, the first HTTP call will poll for approval automatically (up to 10 attempts, 5 seconds apart) and log the URL again on each retry.
 
 **Making requests**
 
-All five HTTP methods — ``get``, ``post``, ``put``, ``delete``, and ``head`` — accept an ``endpoint`` path relative to the Kaapana base URL, followed by any keyword arguments accepted by the underlying ``requests`` library (e.g. ``json``, ``params``, ``data``, ``timeout``).
+All five HTTP methods — ``get``, ``post``, ``put``, ``delete``, and ``head`` — accept an ``endpoint`` path relative to ``root_url``, followed by any keyword arguments accepted by the underlying ``requests`` library (e.g. ``json``, ``params``, ``data``, ``timeout``).
 Authentication headers and the project cookie are injected automatically.
 
 .. code-block:: python
@@ -216,7 +229,7 @@ Authentication headers and the project cookie are injected automatically.
     response = api.get("aii/projects")
     projects = response.json()
 
-    # POST /flow/kaapana/api/getdags  with a JSON body
+    # POST /workflow-api/v1/workflow-runs  with a JSON body
     response = api.post("workflow-api/v1/workflow-runs", json={"workflow": "..."})
 
     # PUT  /aii/projects/<id>
@@ -231,5 +244,3 @@ The service manages tokens transparently:
 
 * **Access token absent** — triggers the device-code polling loop described above.
 * **Access token expired** — a silent refresh-token grant is performed before the request is sent. No user interaction is required.
-
-The refresh token is acquired with the ``offline_access`` scope, so it remains valid across restarts of the client script as long as the Keycloak session has not been revoked.

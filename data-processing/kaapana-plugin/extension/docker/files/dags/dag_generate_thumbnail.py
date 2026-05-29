@@ -13,9 +13,9 @@ from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperato
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapana.operators.HelperThumbnails import NO_THUMBNAIL_MODALITIES, has_ref_series
 from kaapana.operators.LocalDcmBranchingOperator import LocalDcmBranchingOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.thumbnail_utils import NO_THUMBNAIL_MODALITIES, has_ref_series
 from kaapanapy.helper import get_minio_client
 from kaapanapy.settings import KaapanaSettings
 

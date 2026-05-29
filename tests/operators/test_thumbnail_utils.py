@@ -12,7 +12,7 @@ sys.path.insert(
     ),
 )
 
-from kaapana.operators.thumbnail_utils import NO_THUMBNAIL_MODALITIES, has_ref_series
+from kaapana.operators.HelperThumbnails import NO_THUMBNAIL_MODALITIES, has_ref_series
 
 
 @pytest.mark.parametrize(

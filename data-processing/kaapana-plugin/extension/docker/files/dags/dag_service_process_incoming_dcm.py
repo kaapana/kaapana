@@ -34,6 +34,7 @@ from kaapana.operators.LocalValidationResult2MetaOperator import (
     LocalValidationResult2MetaOperator,
 )
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.HelperThumbnails import NO_THUMBNAIL_MODALITIES, has_ref_series
 from kaapanapy.helper import get_minio_client
 from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.settings import KaapanaSettings
@@ -154,9 +155,6 @@ put_results_html_to_minio_admin_bucket = KaapanaPythonBaseOperator(
     python_callable=fetch_bucket_name_and_put_html_to_minio_admin_bucket,
     dag=dag,
 )
-
-
-from kaapana.operators.thumbnail_utils import NO_THUMBNAIL_MODALITIES, has_ref_series
 
 
 # Modalities without renderable pixel data — skip ref-series download, go directly

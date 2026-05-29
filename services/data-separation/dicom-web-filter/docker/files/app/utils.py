@@ -1,4 +1,6 @@
+import json
 import logging
+from urllib.parse import unquote
 from typing import List
 from uuid import UUID
 
@@ -61,6 +63,22 @@ async def get_project_name_by_id(project_id: UUID) -> str | None:
 def get_user_project_ids(request: Request) -> list[UUID]:
     """Get the project IDs of the projects the user is associated with."""
     return [UUID(project["id"]) for project in request.scope.get("token")["projects"]]
+
+
+def get_project_id_from_cookie(request: Request) -> UUID | None:
+    """Extract the selected project UUID from the 'Project' browser cookie.
+
+    The Kaapana frontend stores the active project as JSON: {"name": "...", "id": "<uuid>"}.
+    Returns None if the cookie is absent or malformed.
+    """
+    raw = request.cookies.get("Project")
+    if not raw:
+        return None
+    try:
+        return UUID(json.loads(unquote(raw))["id"])
+    except (json.JSONDecodeError, KeyError, ValueError):
+        logger.warning("Could not parse Project cookie: %r", raw)
+        return None
 
 
 async def get_filtered_studies_mapped_to_projects(

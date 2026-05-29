@@ -18,6 +18,7 @@ from PIL import Image
 from pydicom.uid import EncapsulatedPDFStorage, RawDataStorage
 import requests
 from slice_based_modalities import generate_thumbnail_for_middle_slice
+from HelperThumbnails import NO_THUMBNAIL_MODALITIES
 
 logger = get_logger(__name__)
 
@@ -88,7 +89,7 @@ def generate_thumbnail(
             raise AssertionError("Instances have different SeriesUID")
 
     # Non-image modalities have no pixel data; skip without raising.
-    if modality in {"SR", "KO", "PR", "AU", "FID", "REG", "RTPLAN", "RWVM"}:
+    if modality in NO_THUMBNAIL_MODALITIES:
         logger.info(
             f"Modality {modality} has no pixel data; skipping thumbnail generation"
         )

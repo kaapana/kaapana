@@ -28,6 +28,7 @@ from kaapana.operators.HelperThumbnails import NO_THUMBNAIL_MODALITIES, has_ref_
         ("RTPLAN", False),
         ("REG", False),
         ("PT", False),
+        ("SM", False),
     ],
 )
 def test_has_ref_series_by_modality(modality, expected):
@@ -73,6 +74,7 @@ def test_no_thumbnail_modality_never_has_ref_series(modality):
         ("SEG", False),
         ("RTSTRUCT", False),
         ("PT", False),
+        ("SM", False),
     ],
 )
 def test_no_thumbnail_modalities_set(modality, should_skip):

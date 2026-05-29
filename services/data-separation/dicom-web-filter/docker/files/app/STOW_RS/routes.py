@@ -11,10 +11,10 @@ from app.database import get_session
 from app.utils import (
     assert_project_not_archived,
     get_default_project_id,
-    get_project_name_by_id,
+    get_project_id_from_cookie,
     get_user_project_ids,
 )
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,7 +36,7 @@ async def __stream_data(request: Request, url: str = "/studies"):
         async for chunk in request.stream():
             yield chunk
 
-    async with httpx.AsyncClient(timeout=500) as client:
+    async with httpx.AsyncClient(timeout=None) as client:
         async with client.stream(
             "POST",
             f"{config.DICOMWEB_BASE_URL}/{url}",
@@ -57,7 +57,7 @@ async def __forward_to_ctp(body: bytes, headers: dict, url: str = "studies"):
     forward_headers = {
         k: v for k, v in headers.items() if k.lower() in ("content-type", "accept")
     }
-    async with httpx.AsyncClient(timeout=500) as client:
+    async with httpx.AsyncClient(timeout=None) as client:
         response = await client.post(
             f"{config.CTP_DICOMWEB_URL}/{url}",
             content=body,
@@ -72,6 +72,23 @@ def _extract_boundary(content_type: str) -> bytes | None:
     if not match:
         return None
     return match.group(1).strip('"').encode()
+
+
+def _split_mime_part(stripped: bytes) -> tuple[bytes, bytes] | None:
+    """Split a stripped multipart segment into (mime_headers, dicom_bytes).
+
+    Returns None if no header separator is found or the DICOM payload is empty.
+    """
+    if b"\r\n\r\n" in stripped:
+        mime_headers, dicom_bytes = stripped.split(b"\r\n\r\n", 1)
+    elif b"\n\n" in stripped:
+        mime_headers, dicom_bytes = stripped.split(b"\n\n", 1)
+    else:
+        return None
+    dicom_bytes = dicom_bytes.rstrip(b"\r\n")
+    if not dicom_bytes:
+        return None
+    return mime_headers, dicom_bytes
 
 
 def extract_uids_from_multipart(body: bytes, content_type: str) -> dict[str, str]:
@@ -93,22 +110,10 @@ def extract_uids_from_multipart(body: bytes, content_type: str) -> dict[str, str
 
     result: dict[str, str] = {}
     for part in body.split(b"--" + boundary):
-        part = part.strip(b"\r\n")
-        if not part or part == b"--":
+        parsed = _split_mime_part(part.strip(b"\r\n"))
+        if parsed is None:
             continue
-
-        # Separate MIME part headers from the DICOM payload
-        if b"\r\n\r\n" in part:
-            _, dicom_bytes = part.split(b"\r\n\r\n", 1)
-        elif b"\n\n" in part:
-            _, dicom_bytes = part.split(b"\n\n", 1)
-        else:
-            dicom_bytes = part
-
-        dicom_bytes = dicom_bytes.rstrip(b"\r\n")
-        if not dicom_bytes:
-            continue
-
+        _, dicom_bytes = parsed
         try:
             ds = pydicom.dcmread(io.BytesIO(dicom_bytes), stop_before_pixels=True)
             result[str(ds.SeriesInstanceUID)] = str(ds.StudyInstanceUID)
@@ -135,7 +140,7 @@ def _dataset_name_from_referer(request: Request) -> str:
 def enrich_dicom_parts_with_project(
     body: bytes,
     content_type: str,
-    project_name: str,
+    project_id: str,
     dataset_name: str = "dicom-web",
 ) -> bytes:
     """Re-encode each DICOM part in the multipart body with project and dataset tags set.
@@ -148,7 +153,7 @@ def enrich_dicom_parts_with_project(
     Args:
         body (bytes): Raw multipart/related request body
         content_type (str): Content-Type header (must contain boundary parameter)
-        project_name (str): Kaapana project name to write into tag (0012,0020)
+        project_id (str): Kaapana project UUID to write into tag (0012,0020)
         dataset_name (str): Dataset name to write into tag (0012,0010). Defaults to "dicom-web".
 
     Returns:
@@ -165,31 +170,14 @@ def enrich_dicom_parts_with_project(
     new_parts = []
 
     for part in parts:
-        stripped = part.strip(b"\r\n")
-        # Skip multipart preamble and closing epilogue ("--")
-        if not stripped or stripped == b"--":
+        parsed = _split_mime_part(part.strip(b"\r\n"))
+        if parsed is None:
             new_parts.append(part)
             continue
-
-        # Separate MIME part headers from the DICOM payload
-        if b"\r\n\r\n" in stripped:
-            mime_headers, dicom_bytes = stripped.split(b"\r\n\r\n", 1)
-        elif b"\n\n" in stripped:
-            mime_headers, dicom_bytes = stripped.split(b"\n\n", 1)
-        else:
-            new_parts.append(part)
-            continue
-
-        dicom_bytes = dicom_bytes.rstrip(b"\r\n")
-        if not dicom_bytes:
-            new_parts.append(part)
-            continue
-
+        mime_headers, dicom_bytes = parsed
         try:
             ds = pydicom.dcmread(io.BytesIO(dicom_bytes))
-            ds.ClinicalTrialProtocolID = (
-                project_name  # (0012,0020) → project assignment
-            )
+            ds.ClinicalTrialProtocolID = project_id  # (0012,0020) → project assignment
             ds.ClinicalTrialSponsorName = dataset_name  # (0012,0010) → dataset name
             buf = io.BytesIO()
             ds.save_as(buf)
@@ -255,34 +243,16 @@ async def __map_dicom_series_to_project(
 async def __map_viewer_series_to_project(
     session: AsyncSession,
     series_info: dict[str, str],
-    request: Request,
-) -> list[UUID]:
-    """Map viewer-created DICOM series to a project.
-
-    Determines the target project(s) by looking up which projects the parent
-    study already belongs to. Falls back to the user's own projects when the
-    study is not yet known (e.g. a brand-new study created inside the viewer).
+    project_id: UUID,
+) -> None:
+    """Map viewer-created DICOM series to the project selected in the Kaapana UI.
 
     Args:
         session (AsyncSession): Database session
         series_info (dict[str, str]): Mapping of SeriesInstanceUID → StudyInstanceUID
-        request (Request): Incoming request (provides JWT-based project list as fallback)
-
-    Returns:
-        list[UUID]: The project IDs the series were mapped to (used for tag enrichment).
+        project_id (UUID): Target project UUID (from the Project cookie)
     """
-    resolved_project_ids: list[UUID] = []
     for series_uid, study_uid in series_info.items():
-        project_ids = await crud.get_project_ids_by_study_uid(session, study_uid)
-        if not project_ids:
-            project_ids = get_user_project_ids(request)
-            logger.info(
-                "Parent study %s not found in DB; assigning series %s to user projects %s",
-                study_uid,
-                series_uid,
-                project_ids,
-            )
-
         try:
             await crud.add_dicom_data(
                 session,
@@ -294,19 +264,15 @@ async def __map_viewer_series_to_project(
             await session.rollback()
             logger.warning(f"{series_uid=} already exists in the database")
 
-        for project_id in project_ids:
-            try:
-                await crud.add_data_project_mapping(
-                    session,
-                    series_instance_uid=series_uid,
-                    project_id=project_id,
-                )
-            except IntegrityError:
-                await session.rollback()
-                logger.warning(f"{series_uid=} already mapped to project {project_id}")
-
-        resolved_project_ids = list(set(resolved_project_ids) | set(project_ids))
-    return resolved_project_ids
+        try:
+            await crud.add_data_project_mapping(
+                session,
+                series_instance_uid=series_uid,
+                project_id=project_id,
+            )
+        except IntegrityError:
+            await session.rollback()
+            logger.warning(f"{series_uid=} already mapped to project {project_id}")
 
 
 @router.post("/studies", tags=["STOW-RS"])
@@ -340,24 +306,26 @@ async def store_instances(
         await __map_dicom_series_to_project(session, request, project_id)
         await __stream_data(request, url="studies")
     else:
+        viewer_project_id = get_project_id_from_cookie(request)
+        if viewer_project_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail="No project selected. Please select a project in the Kaapana UI before saving annotations.",
+            )
+        if viewer_project_id not in get_user_project_ids(request):
+            raise HTTPException(
+                status_code=403,
+                detail="User does not have access to the selected project.",
+            )
         content_type = request.headers.get("content-type", "")
         body = await request.body()
         series_info = extract_uids_from_multipart(body, content_type)
-        project_ids = await __map_viewer_series_to_project(
-            session, series_info, request
-        )
-        project_name = (
-            await get_project_name_by_id(project_ids[0]) if project_ids else None
-        )
-        enriched = (
-            enrich_dicom_parts_with_project(
-                body,
-                content_type,
-                project_name,
-                dataset_name=_dataset_name_from_referer(request),
-            )
-            if project_name
-            else body
+        await __map_viewer_series_to_project(session, series_info, viewer_project_id)
+        enriched = enrich_dicom_parts_with_project(
+            body,
+            content_type,
+            project_id=str(viewer_project_id),
+            dataset_name=_dataset_name_from_referer(request),
         )
         await __forward_to_ctp(enriched, dict(request.headers), url="studies")
 
@@ -387,24 +355,26 @@ async def store_instances_in_study(
         await __map_dicom_series_to_project(session, request, project_id)
         await __stream_data(request, url=f"studies/{study}")
     else:
+        viewer_project_id = get_project_id_from_cookie(request)
+        if viewer_project_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail="No project selected. Please select a project in the Kaapana UI before saving annotations.",
+            )
+        if viewer_project_id not in get_user_project_ids(request):
+            raise HTTPException(
+                status_code=403,
+                detail="User does not have access to the selected project.",
+            )
         content_type = request.headers.get("content-type", "")
         body = await request.body()
         series_info = extract_uids_from_multipart(body, content_type)
-        project_ids = await __map_viewer_series_to_project(
-            session, series_info, request
-        )
-        project_name = (
-            await get_project_name_by_id(project_ids[0]) if project_ids else None
-        )
-        enriched = (
-            enrich_dicom_parts_with_project(
-                body,
-                content_type,
-                project_name,
-                dataset_name=_dataset_name_from_referer(request),
-            )
-            if project_name
-            else body
+        await __map_viewer_series_to_project(session, series_info, viewer_project_id)
+        enriched = enrich_dicom_parts_with_project(
+            body,
+            content_type,
+            project_id=str(viewer_project_id),
+            dataset_name=_dataset_name_from_referer(request),
         )
         await __forward_to_ctp(enriched, dict(request.headers), url=f"studies/{study}")
 

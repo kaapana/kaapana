@@ -49,8 +49,8 @@ data:
                 requireAuthentication="no"
                 logConnections="no"
                 logDuplicates="no"
-                quarantine="/data/incoming-web/.quarantines/HttpImportService"
-                root="/data/incoming-web/.roots/HttpImportService"/>
+                quarantine="/data/incoming/.quarantines/HttpImportService"
+                root="/data/incoming/.roots/HttpImportService"/>
         <KaapanaDagTrigger
             class="org.rsna.ctp.dkfz.KaapanaDagTrigger"
             condition_tag="0008103E"
@@ -62,8 +62,8 @@ data:
             acceptDuplicates="yes"
             defaultString=""
             logDuplicates="no"
-            quarantine="/data/incoming-web/.quarantines/KaapanaDagTrigger"
-            root="/data/incoming-web"
+            quarantine="/data/incoming/.quarantines/KaapanaDagTrigger"
+            root="/data/incoming"
             setStandardExtensions="yes"
             structure="(0020,000E)"
             unchangedCounter = "2"

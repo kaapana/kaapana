@@ -1,7 +1,7 @@
-# This file is the source of truth for thumbnail-related helpers.
-# A copy exists in processing-containers/thumbnail-generator/files/HelperThumbnails.py
-# because that container runs in a separate Docker image and cannot import from kaapana.operators.
-# Keep both files in sync when changing NO_THUMBNAIL_MODALITIES.
+# This file is a copy of kaapana/operators/HelperThumbnails.py from the kaapana-plugin image.
+# The thumbnail-generator runs in a separate Docker image and cannot import from kaapana.operators,
+# so the file must be duplicated here. If NO_THUMBNAIL_MODALITIES changes in the source,
+# this copy must be updated as well.
 from __future__ import annotations
 
 NO_THUMBNAIL_MODALITIES: frozenset[str] = frozenset(

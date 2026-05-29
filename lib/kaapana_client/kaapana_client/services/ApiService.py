@@ -61,7 +61,7 @@ class KaapanaApiService:
 
         self.token = {}
         self._token_expiry: float | None = None
-        self.project_cookie = self._get_project_cookie()
+        self.project_cookie = {}
         self._get_device_code()
 
     # ------------------------------------------------------------------
@@ -80,6 +80,9 @@ class KaapanaApiService:
             requests.Response: The response from the server.
         """
         kwargs["url"] = f"{self.root_url}/{endpoint}"
+        cookies = kwargs.pop("cookies", {})
+        cookies.update(self.project_cookie or self._get_project_cookie())
+        kwargs["cookies"] = cookies
         return requests.get(**self._with_auth(kwargs))
 
     def post(self, endpoint, **kwargs):
@@ -94,6 +97,9 @@ class KaapanaApiService:
             requests.Response: The response from the server.
         """
         kwargs["url"] = f"{self.root_url}/{endpoint}"
+        cookies = kwargs.pop("cookies", {})
+        cookies.update(self.project_cookie or self._get_project_cookie())
+        kwargs["cookies"] = cookies
         return requests.post(**self._with_auth(kwargs))
 
     def put(self, endpoint, **kwargs):
@@ -108,6 +114,9 @@ class KaapanaApiService:
             requests.Response: The response from the server.
         """
         kwargs["url"] = f"{self.root_url}/{endpoint}"
+        cookies = kwargs.pop("cookies", {})
+        cookies.update(self.project_cookie or self._get_project_cookie())
+        kwargs["cookies"] = cookies
         return requests.put(**self._with_auth(kwargs))
 
     def delete(self, endpoint, **kwargs):
@@ -122,6 +131,9 @@ class KaapanaApiService:
             requests.Response: The response from the server.
         """
         kwargs["url"] = f"{self.root_url}/{endpoint}"
+        cookies = kwargs.pop("cookies", {})
+        cookies.update(self.project_cookie or self._get_project_cookie())
+        kwargs["cookies"] = cookies
         return requests.delete(**self._with_auth(kwargs))
 
     def head(self, endpoint, **kwargs):
@@ -136,6 +148,9 @@ class KaapanaApiService:
             requests.Response: The response from the server (no body).
         """
         kwargs["url"] = f"{self.root_url}/{endpoint}"
+        cookies = kwargs.pop("cookies", {})
+        cookies.update(self.project_cookie or self._get_project_cookie())
+        kwargs["cookies"] = cookies
         return requests.head(**self._with_auth(kwargs))
 
     # ------------------------------------------------------------------
@@ -152,7 +167,15 @@ class KaapanaApiService:
             dict: A single-key dict ``{"Project": "<json-string>"}`` ready to
                 be passed as the ``cookies`` argument to ``requests``.
         """
-        r = requests.get(f"{self.root_url}/aii/projects/{self.project_id}")
+        r = requests.get(
+            **self._with_auth(
+                {
+                    "url": f"{self.root_url}/aii/projects/{self.project_id}",
+                    "verify": False,
+                }
+            )
+        )
+
         project_response = r.json()
         self.project_cookie = {
             "Project": json.dumps(
@@ -183,9 +206,6 @@ class KaapanaApiService:
         kwargs["headers"] = headers
         verify = kwargs.pop("verify", False)
         kwargs["verify"] = verify
-        cookies = kwargs.pop("cookies", {})
-        cookies.update(self.project_cookie)
-        kwargs["cookies"] = cookies
         return kwargs
 
     def _ensure_valid_token(self):

@@ -256,7 +256,7 @@ class KaapanaApiService:
         """
         payload = {
             "client_id": self.client_id,
-            "scope": "openid offline_access",
+            "scope": "openid",
         }
         if self.client_secret:
             payload["client_secret"] = self.client_secret

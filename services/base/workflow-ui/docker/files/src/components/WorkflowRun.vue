@@ -2,15 +2,9 @@
   <tr>
     <!-- Status -->
     <td class="text-center">
-      <div class="d-flex align-center justify-center flex-wrap gap-1">
-        <v-chip :color="statusColor(run.lifecycle_status)" size="small" variant="outlined">
-          {{ run.lifecycle_status }}
-        </v-chip>
-        <v-chip v-if="run.cleanup_status && run.cleanup_status !== 'not_required'"
-          :color="cleanupStatusColor(run.cleanup_status)" size="x-small" variant="tonal">
-          {{ cleanupStatusLabel(run.cleanup_status) }}
-        </v-chip>
-      </div>
+      <v-chip :color="statusColor(run.lifecycle_status)" size="small" variant="outlined">
+        {{ run.lifecycle_status }}
+      </v-chip>
     </td>
 
     <!-- Workflow title -->

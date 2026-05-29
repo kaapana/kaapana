@@ -555,12 +555,11 @@ destroy_deployment:
     - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN == "" && $CI_EXEC_DESTROY_ON_SUCCESS == "true"'
       when: on_success
     - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN == ""'
+      when: on_failure
+    - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN == ""'
       when: delayed
       start_in: 4 hours
     - when: never
-  needs:
-  - job: prepare_deployment
-    optional: true
   tags:
     - deploy-runner
   before_script:

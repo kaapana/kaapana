@@ -88,7 +88,7 @@ def generate_thumbnail(
             raise AssertionError("Instances have different SeriesUID")
 
     # Non-image modalities have no pixel data; skip without raising.
-    if modality in {"KO", "PR", "AU", "REG"}:
+    if modality in {"SR", "KO", "PR", "AU", "FID", "REG", "RTPLAN", "RWVM"}:
         logger.info(
             f"Modality {modality} has no pixel data; skipping thumbnail generation"
         )
@@ -136,21 +136,6 @@ def generate_thumbnail(
             thumbnail_size,
             candidate_slices_count,
         )
-    elif modality == "SR":
-        if operator_get_ref_series_dir and os.listdir(operator_get_ref_series_dir):
-            ref_files = list(Path(operator_get_ref_series_dir).iterdir())
-            ref_ds = pydicom.dcmread(ref_files[0], stop_before_pixels=True)
-            thumbnail = generate_thumbnail_for_middle_slice(
-                operator_in_dir=Path(operator_get_ref_series_dir),
-                operator_out_dir=operator_out_dir,
-                study_uid=str(ref_ds.StudyInstanceUID),
-                series_uid=str(ref_ds.SeriesInstanceUID),
-                thumbnail_size=thumbnail_size,
-            )
-        else:
-            logger.info("SR has no reference series; skipping thumbnail generation")
-            return True, ""
-
     elif modality == "SM":
         thumbnail = generate_histopathology_thumbnail(operator_in_dir, thumbnail_size)
 

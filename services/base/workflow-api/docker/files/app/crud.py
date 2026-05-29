@@ -1,8 +1,9 @@
 import logging
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Type, cast
 
 from fastapi.encoders import jsonable_encoder
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -279,6 +280,7 @@ async def create_workflow_run(
         workflow_id=workflow_id,
         workflow_parameters=jsonable_encoder(workflow_run.workflow_parameters),
         labels=db_labels,
+        cleanup_policy=workflow_run.cleanup_policy,
     )
 
     db.add(db_workflow_run)
@@ -286,6 +288,88 @@ async def create_workflow_run(
     await db.refresh(db_workflow_run)
 
     return db_workflow_run
+
+
+async def claim_workflow_run_for_cleanup(
+    db: AsyncSession,
+    run_id: int,
+    allowed_from: List[schemas.CleanupStatus],
+) -> bool:
+    """Atomically flip cleanup_status to PENDING from one of `allowed_from`.
+
+    Returns True iff exactly one row transitioned. Used by both the sync-loop
+    auto-dispatch path and the manual /clean endpoint to prevent racing
+    cleanup tasks for the same run.
+    """
+    stmt = (
+        update(models.WorkflowRun)
+        .where(models.WorkflowRun.id == run_id)
+        .where(models.WorkflowRun.cleanup_status.in_(allowed_from))
+        .values(cleanup_status=schemas.CleanupStatus.PENDING)
+    )
+    result = await db.execute(stmt)
+    await db.commit()
+    return (result.rowcount or 0) == 1
+
+
+async def transition_lifecycle_and_claim_cleanup(
+    db: AsyncSession,
+    run_id: int,
+    lifecycle_status: schemas.WorkflowRunStatus,
+) -> bool:
+    """Atomically set lifecycle_status AND claim cleanup in a single commit.
+
+    Either both writes land or neither does — there is no window where the
+    run is in a terminal state with cleanup_status=NOT_REQUIRED but cleanup
+    has not been dispatched. (Periodic sync skips terminal runs by design,
+    so a partial write would strand the run.)
+
+    Lifecycle is always updated. Cleanup is claimed only when current
+    cleanup_status is NOT_REQUIRED.
+
+    Returns True iff cleanup was claimed (caller should dispatch the task).
+    """
+    claim_stmt = (
+        update(models.WorkflowRun)
+        .where(models.WorkflowRun.id == run_id)
+        .where(models.WorkflowRun.cleanup_status == schemas.CleanupStatus.NOT_REQUIRED)
+        .values(
+            lifecycle_status=lifecycle_status,
+            cleanup_status=schemas.CleanupStatus.PENDING,
+        )
+    )
+    result = await db.execute(claim_stmt)
+    claimed = (result.rowcount or 0) == 1
+    if not claimed:
+        # Cleanup was already dispatched (or completed/failed). Lifecycle
+        # still needs to be updated — same transaction.
+        await db.execute(
+            update(models.WorkflowRun)
+            .where(models.WorkflowRun.id == run_id)
+            .values(lifecycle_status=lifecycle_status)
+        )
+    await db.commit()
+    return claimed
+
+
+async def update_workflow_run_cleanup_state(
+    db: AsyncSession,
+    run_id: int,
+    status: schemas.CleanupStatus,
+    cleaned_at: Optional[datetime] = None,
+) -> None:
+    """Set cleanup_status (and optionally cleaned_at) for a single run."""
+    values: Dict[str, Any] = {"cleanup_status": status}
+    if status == schemas.CleanupStatus.CLEANED and cleaned_at is None:
+        cleaned_at = datetime.now(timezone.utc)
+    if cleaned_at is not None:
+        values["cleaned_at"] = cleaned_at
+    await db.execute(
+        update(models.WorkflowRun)
+        .where(models.WorkflowRun.id == run_id)
+        .values(**values)
+    )
+    await db.commit()
 
 
 async def update_workflow_run(

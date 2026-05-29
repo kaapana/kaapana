@@ -54,6 +54,8 @@ spec:
           value: {{ .Values.airflow.api_url_base }}.{{ .Values.global.services_namespace }}.svc:{{ .Values.airflow.api_port }}{{ .Values.airflow.api_endpoint }}
         - name: AIRFLOW_DAG_FOLDER
           value: {{ .Values.airflow.dag_folder }}
+        - name: AIRFLOW_WORKFLOW_DATA_DIR
+          value: {{ .Values.airflow.workflow_data_dir }}
         - name: AIRFLOW_API_USERNAME
           value: {{ .Values.airflow.api_username }}
         - name: AIRFLOW_API_PASSWORD
@@ -65,9 +67,12 @@ spec:
 {{- end }}
         volumeMounts:
 {{- if .Values.airflow.enabled }}
-        # Airflow volume mount
+        # Airflow volume mounts: DAGs (write rendered DAG files) + workflow data
+        # (cleanup of run data dirs requires write access).
         - name: airflow-dags-pvc
           mountPath: /kaapana/mounted/workflows/dags
+        - name: workflow-data-pvc
+          mountPath: {{ .Values.airflow.workflow_data_dir }}
 {{- end }}
 {{- if .Values.global.dev_files }}
         - name: workflow-api-dev
@@ -85,10 +90,13 @@ spec:
           readOnlyRootFilesystem: true     
       volumes:
 {{- if .Values.airflow.enabled }}
-      # Airflow volume definition
+      # Airflow volume definitions
       - name: airflow-dags-pvc
         persistentVolumeClaim:
           claimName: {{ .Values.airflow.scheduler_claim_name }} # must match the PVC created in the airflow chart
+      - name: workflow-data-pvc
+        persistentVolumeClaim:
+          claimName: {{ .Values.airflow.workflow_data_claim_name }} # must match the PVC created in the airflow chart
 {{- end }}
 {{- if .Values.global.dev_files }}
       - name: workflow-api-dev

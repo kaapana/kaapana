@@ -8,6 +8,11 @@ from datetime import datetime, timezone
 
 # module-level store for mocked statuses
 _MOCKED_RUN_STATUSES: dict[str, schemas.WorkflowRunStatus] = {}
+# module-level store for mocked cleanup state — tests can opt a specific
+# external_id into different cleanup behavior.
+_MOCKED_CLEAN_SIZES: dict[str, int] = {}
+_MOCKED_CLEAN_RAISES: set[str] = set()
+_CLEANED_RUNS: set[str] = set()
 
 
 class DummyAdapter(WorkflowEngineAdapter):
@@ -158,3 +163,40 @@ class DummyAdapter(WorkflowEngineAdapter):
             for line in raw_log.splitlines()
             if line.strip()
         ]
+
+    @staticmethod
+    def set_data_size(external_id: str, size_bytes: int) -> None:
+        """Tests opt a run into a non-zero data size."""
+        _MOCKED_CLEAN_SIZES[external_id] = size_bytes
+
+    @staticmethod
+    def make_cleanup_raise(external_id: str) -> None:
+        """Tests force the next cleanup call for this run to raise."""
+        _MOCKED_CLEAN_RAISES.add(external_id)
+
+    @staticmethod
+    def reset_cleanup_state() -> None:
+        _MOCKED_CLEAN_SIZES.clear()
+        _MOCKED_CLEAN_RAISES.clear()
+        _CLEANED_RUNS.clear()
+
+    @staticmethod
+    def was_cleaned(external_id: str) -> bool:
+        return external_id in _CLEANED_RUNS
+
+    async def clean_workflow_run_data(self, workflow_run_external_id: str) -> None:
+        if workflow_run_external_id in _MOCKED_CLEAN_RAISES:
+            _MOCKED_CLEAN_RAISES.discard(workflow_run_external_id)
+            raise RuntimeError(
+                f"Simulated cleanup failure for {workflow_run_external_id}"
+            )
+        _CLEANED_RUNS.add(workflow_run_external_id)
+        _MOCKED_CLEAN_SIZES.pop(workflow_run_external_id, None)
+
+    async def get_workflow_run_data_size(self, workflow_run_external_id: str) -> int:
+        return _MOCKED_CLEAN_SIZES.get(workflow_run_external_id, 0)
+
+    async def is_workflow_run_data_clean(self, workflow_run_external_id: str) -> bool:
+        return workflow_run_external_id in _CLEANED_RUNS or (
+            _MOCKED_CLEAN_SIZES.get(workflow_run_external_id, 0) == 0
+        )

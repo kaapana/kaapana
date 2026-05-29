@@ -1,14 +1,128 @@
 import asyncio
 import logging
+from datetime import datetime, timezone
 from typing import Any, List, Optional
 
 from app import crud, models, schemas
 from app.adapters import WorkflowEngineAdapter, get_workflow_engine
-from app.api.v1.services.errors import InternalError, NotFoundError
+from app.api.v1.services.errors import (
+    ConflictError,
+    InternalError,
+    NotFoundError,
+    ValidationError,
+)
 from app.api.v1.services.utils import run_in_background_with_retries
+from app.dependencies import get_async_db
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
+
+
+TERMINAL_STATES = {
+    schemas.WorkflowRunStatus.COMPLETED,
+    schemas.WorkflowRunStatus.ERROR,
+    schemas.WorkflowRunStatus.CANCELED,
+}
+
+
+def _should_clean(
+    policy: schemas.CleanupPolicy, status: schemas.WorkflowRunStatus
+) -> bool:
+    """Decide whether a workflow run in `status` is eligible for cleanup under `policy`."""
+    if policy == schemas.CleanupPolicy.NEVER:
+        return False
+    if policy == schemas.CleanupPolicy.ALWAYS:
+        return status in TERMINAL_STATES
+    # ON_SUCCESS
+    return status == schemas.WorkflowRunStatus.COMPLETED
+
+
+async def _apply_engine_status(
+    db: AsyncSession,
+    run: models.WorkflowRun,
+    new_status: schemas.WorkflowRunStatus,
+) -> None:
+    """Persist a lifecycle_status transition and, if policy says so, claim
+    cleanup atomically with the same commit.
+
+    Both writes land in one transaction — there is no window in which a run
+    is terminal but cleanup_status=NOT_REQUIRED with cleanup undispatched
+    (the periodic sync skips terminal runs, so a partial write would
+    strand the run).
+    """
+    if new_status in TERMINAL_STATES and _should_clean(run.cleanup_policy, new_status):
+        claimed = await crud.transition_lifecycle_and_claim_cleanup(
+            db, run.id, new_status
+        )
+        # The raw UPDATE bypasses the ORM identity map — refresh the in-memory
+        # object so callers reading `run.lifecycle_status` / `run.cleanup_status`
+        # don't see stale values.
+        await db.refresh(run)
+        if claimed:
+            asyncio.create_task(_run_cleanup(run.id))
+        return
+
+    await crud.update_workflow_run(
+        db=db,
+        run_id=run.id,
+        workflow_run_update=schemas.WorkflowRunUpdate(lifecycle_status=new_status),
+    )
+
+
+async def _run_cleanup(workflow_run_id: int) -> None:
+    """Execute the cleanup for a single workflow run.
+
+    Runs in its own AsyncSession (cleanup may be slow; we don't want to hold
+    the calling session). All failure modes flip cleanup_status to FAILED;
+    we never let an exception escape into the asyncio task background.
+    """
+    try:
+        async for db in get_async_db():
+            run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
+            if run is None:
+                logger.error(f"_run_cleanup: workflow run {workflow_run_id} not found")
+                return
+
+            # External_id may be None if the run never reached the engine
+            # (e.g. submission failure). In that case there's literally
+            # nothing to delete — mark CLEANED and exit.
+            if run.external_id is None:
+                await crud.update_workflow_run_cleanup_state(
+                    db,
+                    run_id=workflow_run_id,
+                    status=schemas.CleanupStatus.CLEANED,
+                    cleaned_at=datetime.now(timezone.utc),
+                )
+                return
+
+            await crud.update_workflow_run_cleanup_state(
+                db, workflow_run_id, schemas.CleanupStatus.RUNNING
+            )
+            engine = get_workflow_engine(run.workflow.workflow_engine)
+            try:
+                await engine.clean_workflow_run_data(run.external_id)
+                verified = await engine.is_workflow_run_data_clean(run.external_id)
+                if not verified:
+                    raise RuntimeError(
+                        f"Cleanup verification failed for run {workflow_run_id}"
+                    )
+                await crud.update_workflow_run_cleanup_state(
+                    db,
+                    workflow_run_id,
+                    schemas.CleanupStatus.CLEANED,
+                    cleaned_at=datetime.now(timezone.utc),
+                )
+                logger.info(f"Workflow run {workflow_run_id} cleaned successfully.")
+            except Exception:
+                logger.exception(f"Cleanup failed for workflow run {workflow_run_id}")
+                await crud.update_workflow_run_cleanup_state(
+                    db, workflow_run_id, schemas.CleanupStatus.FAILED
+                )
+            return
+    except Exception:
+        logger.exception(
+            f"Unexpected error while opening session for cleanup of run {workflow_run_id}"
+        )
 
 
 async def get_workflow_runs(
@@ -16,6 +130,7 @@ async def get_workflow_runs(
     workflow_title: Optional[str],
     workflow_version: Optional[int],
     lifecycle_status: Optional[str] = None,
+    cleanup_status: Optional[str] = None,
 ) -> List[schemas.WorkflowRun]:
     """
     Gets workflow runs from workflow DB, optionally filtered by workflow title and version.
@@ -35,6 +150,8 @@ async def get_workflow_runs(
         filters["workflow.version"] = str(workflow_version)
     if lifecycle_status:
         filters["lifecycle_status"] = schemas.WorkflowRunStatus[lifecycle_status]
+    if cleanup_status:
+        filters["cleanup_status"] = schemas.CleanupStatus(cleanup_status)
 
     db_runs: List[models.WorkflowRun] = await crud.get_workflow_runs(
         db, filters=filters
@@ -64,11 +181,7 @@ async def get_workflow_runs(
         engine = get_workflow_engine(db_run.workflow.workflow_engine)
         status = await engine.get_workflow_run_status(db_run.external_id)
         if status != db_run.lifecycle_status:
-            await crud.update_workflow_run(
-                db=db,
-                run_id=db_run.id,
-                workflow_run_update=schemas.WorkflowRunUpdate(lifecycle_status=status),
-            )
+            await _apply_engine_status(db, db_run, status)
 
         # update all task runs of workflow run in the background
         task_run_updates = await engine.get_workflow_run_task_runs(db_run.external_id)
@@ -168,11 +281,9 @@ async def get_workflow_run_by_id(
     engine = get_workflow_engine(db_run.workflow.workflow_engine)
     status = await engine.get_workflow_run_status(db_run.external_id)
     if status != db_run.lifecycle_status:
-        db_run = await crud.update_workflow_run(
-            db=db,
-            run_id=workflow_run_id,
-            workflow_run_update=schemas.WorkflowRunUpdate(lifecycle_status=status),
-        )
+        await _apply_engine_status(db, db_run, status)
+        db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
+        assert db_run is not None
     return schemas.WorkflowRun.model_validate(db_run)
 
 
@@ -219,14 +330,9 @@ async def cancel_workflow_run(
     if not canceled:
         logger.error(f"Failed to cancel workflow run in engine {workflow_run_id}")
         raise InternalError("Failed to cancel workflow run in engine")
-    db_updated = await crud.update_workflow_run(
-        db,
-        run_id=workflow_run_id,
-        workflow_run_update=schemas.WorkflowRunUpdate(
-            external_id=db_run.external_id,
-            lifecycle_status=schemas.WorkflowRunStatus.CANCELED,
-        ),
-    )
+    await _apply_engine_status(db, db_run, schemas.WorkflowRunStatus.CANCELED)
+    db_updated = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
+    assert db_updated is not None
     return schemas.WorkflowRun.model_validate(db_updated)
 
 
@@ -482,11 +588,7 @@ async def _sync_single_workflow_run(db: AsyncSession, run: models.WorkflowRun) -
         status = await engine.get_workflow_run_status(run.external_id)
         if status != run.lifecycle_status:
             logger.info(f"Syncing Run {run.id}: {run.lifecycle_status} -> {status}")
-            await crud.update_workflow_run(
-                db=db,
-                run_id=run.id,
-                workflow_run_update=schemas.WorkflowRunUpdate(lifecycle_status=status),
-            )
+            await _apply_engine_status(db, run, status)
 
         # update task runs in the background
         task_run_updates = await engine.get_workflow_run_task_runs(run.external_id)
@@ -500,6 +602,85 @@ async def _sync_single_workflow_run(db: AsyncSession, run: models.WorkflowRun) -
     except Exception as e:
         logger.error(f"Error syncing workflow run {run.id}: {e}")
         raise InternalError(f"Error syncing workflow run {run.id}: {e}")
+
+
+async def get_workflow_run_data_size(
+    db: AsyncSession, workflow_run_id: int
+) -> schemas.WorkflowRunDataSize:
+    """Return the on-disk size (bytes) of a workflow run's data dir."""
+    db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
+    if not db_run:
+        raise NotFoundError("Workflow run not found")
+
+    if db_run.external_id is None:
+        return schemas.WorkflowRunDataSize(
+            workflow_run_id=workflow_run_id, size_bytes=0, exists=False
+        )
+
+    engine = get_workflow_engine(db_run.workflow.workflow_engine)
+    size = await engine.get_workflow_run_data_size(db_run.external_id)
+    return schemas.WorkflowRunDataSize(
+        workflow_run_id=workflow_run_id,
+        size_bytes=size,
+        exists=size > 0,
+    )
+
+
+async def trigger_cleanup(
+    db: AsyncSession, workflow_run_id: int
+) -> schemas.WorkflowRun:
+    """Manually trigger cleanup for a workflow run, regardless of policy.
+
+    Idempotency / concurrency:
+      - already CLEANED → no-op, return current state (caller renders 200).
+      - currently PENDING or RUNNING → raise ConflictError (caller renders 409).
+      - NOT_REQUIRED → claim and dispatch.
+      - FAILED → claim from FAILED and re-dispatch.
+
+    Lifecycle precondition: the run must be in a terminal state OR have a
+    null external_id (nothing to clean). Cleaning a still-running run is
+    rejected to avoid yanking data out from under the engine.
+    """
+    db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
+    if not db_run:
+        raise NotFoundError("Workflow run not found")
+
+    if db_run.cleanup_status == schemas.CleanupStatus.CLEANED:
+        return schemas.WorkflowRun.model_validate(db_run)
+    if db_run.cleanup_status in {
+        schemas.CleanupStatus.PENDING,
+        schemas.CleanupStatus.RUNNING,
+    }:
+        raise ConflictError(
+            f"Cleanup already in progress (status={db_run.cleanup_status.value})"
+        )
+
+    if (
+        db_run.external_id is not None
+        and db_run.lifecycle_status not in TERMINAL_STATES
+    ):
+        raise ValidationError(
+            "Cannot clean a workflow run that is not in a terminal state"
+        )
+
+    claimed = await crud.claim_workflow_run_for_cleanup(
+        db,
+        run_id=workflow_run_id,
+        allowed_from=[
+            schemas.CleanupStatus.NOT_REQUIRED,
+            schemas.CleanupStatus.FAILED,
+        ],
+    )
+    if not claimed:
+        # lost the race to another caller; surface as conflict
+        raise ConflictError("Cleanup already in progress")
+
+    asyncio.create_task(_run_cleanup(workflow_run_id))
+
+    # Re-read to return the up-to-date row (now PENDING).
+    db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
+    assert db_run is not None
+    return schemas.WorkflowRun.model_validate(db_run)
 
 
 async def sync_active_runs(db: AsyncSession):

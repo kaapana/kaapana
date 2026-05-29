@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import List
 
-from app.schemas import TaskRunStatus, WorkflowRunStatus
+from app.schemas import CleanupPolicy, CleanupStatus, TaskRunStatus, WorkflowRunStatus
 from sqlalchemy import Boolean, Column, DateTime
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy import ForeignKey, Integer, String, Table, UniqueConstraint
@@ -87,6 +87,25 @@ class WorkflowRun(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
+    )
+    # Cleanup defaults intentionally asymmetric: DB server_default = NEVER so
+    # rows that pre-existed the migration are not retroactively eligible for
+    # cleanup; the Pydantic default on WorkflowRunCreate is ON_SUCCESS so new
+    # opt-out is explicit.
+    cleanup_policy: Mapped[CleanupPolicy] = mapped_column(
+        SqlEnum(CleanupPolicy),
+        nullable=False,
+        default=CleanupPolicy.ON_SUCCESS,
+        server_default=CleanupPolicy.NEVER.value,
+    )
+    cleanup_status: Mapped[CleanupStatus] = mapped_column(
+        SqlEnum(CleanupStatus),
+        nullable=False,
+        default=CleanupStatus.NOT_REQUIRED,
+        server_default=CleanupStatus.NOT_REQUIRED.value,
+    )
+    cleaned_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
     workflow: Mapped["Workflow"] = relationship(
         "Workflow", back_populates="runs", lazy="selectin"

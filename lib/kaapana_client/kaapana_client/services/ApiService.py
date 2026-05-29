@@ -8,19 +8,13 @@ import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+from kaapana_client import settings
 from kaapana_client.logger import get_logger
-from kaapana_client.settings import get_keycloak_settings, get_services_settings
 
 logger = get_logger(__name__)
 
-services = get_services_settings()
-
-KAAPANA_PROJECT_ID = os.environ["KAAPANA_PROJECT_ID"]
-
-_TOKEN_URL = f"{services.traefik_url}/auth/realms/kaapana/protocol/openid-connect/token"
-_DEVICE_CODE_URL = (
-    f"{services.traefik_url}/auth/realms/kaapana/protocol/openid-connect/auth/device"
-)
+_TOKEN_URL = "{}/auth/realms/kaapana/protocol/openid-connect/token"
+_DEVICE_CODE_URL = "{}/auth/realms/kaapana/protocol/openid-connect/auth/device"
 _DEVICE_POLL_INTERVAL = 5
 _DEVICE_MAX_RETRIES = 10
 # Refresh slightly before the actual expiry to avoid races.
@@ -28,6 +22,13 @@ _EXPIRY_BUFFER_SECONDS = 10
 
 
 class KaapanaApiService:
+    """
+    Use objects of KaapanaApiService to authenticate against Kaapana and make authenticated requests to Kaapana APIs.
+
+    Supported Oauth2 Grants:
+    * Device code grant
+    """
+
     def __init__(
         self,
         root_url: str,
@@ -35,8 +36,23 @@ class KaapanaApiService:
         client_id: str,
         client_secret: Optional[str],
     ):
-        self.token = None
-        self.project_cookie = None
+        """Initialize the service and start the OAuth2 device code flow.
+
+        Fetches the project cookie and initiates device authorization. The user
+        must visit the printed URL to grant access before the first API call is
+        made.
+
+        Args:
+            root_url: Base URL of the Kaapana instance (e.g. the Traefik gateway
+                URL). All endpoint paths are appended to this value.
+            project_id: Kaapana project identifier used to scope requests to the
+                correct project.
+            client_id: OAuth2 client ID registered in Keycloak.
+            client_secret: OAuth2 client secret for the given client, or ``None``
+                for public clients.
+        """
+        self.token = {}
+        self.project_cookie = self._get_project_cookie()
         self._token_expiry: float | None = None
         self._get_device_code()
 
@@ -45,27 +61,80 @@ class KaapanaApiService:
         self.client_id = client_id
         self.client_secret = client_secret
 
+        self.token_url = _TOKEN_URL.format(self.root_url)
+        self.device_code_url = _DEVICE_CODE_URL.format(self.root_url)
+
     # ------------------------------------------------------------------
     # Public HTTP methods
     # ------------------------------------------------------------------
 
     def get(self, endpoint=str, **kwargs):
+        """Send an authenticated HTTP GET request.
+
+        Args:
+            endpoint: API path relative to ``root_url`` (e.g. ``"aii/datasets"``).
+            **kwargs: Additional keyword arguments forwarded to ``requests.get``
+                (e.g. ``params``, ``timeout``).
+
+        Returns:
+            requests.Response: The response from the server.
+        """
         kwargs["url"] = f"{self.root_url}/{endpoint}"
         return requests.get(**self._with_auth(kwargs))
 
     def post(self, endpoint, **kwargs):
+        """Send an authenticated HTTP POST request.
+
+        Args:
+            endpoint: API path relative to ``root_url``.
+            **kwargs: Additional keyword arguments forwarded to ``requests.post``
+                (e.g. ``json``, ``data``, ``timeout``).
+
+        Returns:
+            requests.Response: The response from the server.
+        """
         kwargs["url"] = f"{self.root_url}/{endpoint}"
         return requests.post(**self._with_auth(kwargs))
 
     def put(self, endpoint, **kwargs):
+        """Send an authenticated HTTP PUT request.
+
+        Args:
+            endpoint: API path relative to ``root_url``.
+            **kwargs: Additional keyword arguments forwarded to ``requests.put``
+                (e.g. ``json``, ``data``, ``timeout``).
+
+        Returns:
+            requests.Response: The response from the server.
+        """
         kwargs["url"] = f"{self.root_url}/{endpoint}"
         return requests.put(**self._with_auth(kwargs))
 
     def delete(self, endpoint, **kwargs):
+        """Send an authenticated HTTP DELETE request.
+
+        Args:
+            endpoint: API path relative to ``root_url``.
+            **kwargs: Additional keyword arguments forwarded to ``requests.delete``
+                (e.g. ``params``, ``timeout``).
+
+        Returns:
+            requests.Response: The response from the server.
+        """
         kwargs["url"] = f"{self.root_url}/{endpoint}"
         return requests.delete(**self._with_auth(kwargs))
 
     def head(self, endpoint, **kwargs):
+        """Send an authenticated HTTP HEAD request.
+
+        Args:
+            endpoint: API path relative to ``root_url``.
+            **kwargs: Additional keyword arguments forwarded to ``requests.head``
+                (e.g. ``params``, ``timeout``).
+
+        Returns:
+            requests.Response: The response from the server (no body).
+        """
         kwargs["url"] = f"{self.root_url}/{endpoint}"
         return requests.head(**self._with_auth(kwargs))
 
@@ -74,16 +143,39 @@ class KaapanaApiService:
     # ------------------------------------------------------------------
 
     def _get_project_cookie(self):
-        r = requests.get(f"{self.root_url}/aii/projects/{KAAPANA_PROJECT_ID}")
+        """Fetch project metadata and build the ``Project`` cookie dict.
+
+        Calls the AII projects endpoint and constructs a cookie containing the project
+        name and ID in JSON form, which must accompany every API request.
+
+        Returns:
+            dict: A single-key dict ``{"Project": "<json-string>"}`` ready to
+                be passed as the ``cookies`` argument to ``requests``.
+        """
+        r = requests.get(f"{self.root_url}/aii/projects/{self.project_id}")
         project_response = r.json()
         self.project_cookie = {
             "Project": json.dumps(
-                {"name": project_response.get("name"), "id": KAAPANA_PROJECT_ID}
+                {"name": project_response.get("name"), "id": self.project_id}
             )
         }
         return self.project_cookie
 
     def _with_auth(self, kwargs: dict) -> dict:
+        """Inject authentication headers and the project cookie into a kwargs dict.
+
+        Ensures the access token is valid (refreshing it if necessary), then
+        adds ``Authorization`` and ``x-forwarded-access-token`` headers and
+        merges the project cookie. TLS verification defaults to ``False`` if
+        not already provided by the caller.
+
+        Args:
+            kwargs: Keyword arguments intended for a ``requests`` call. Modified
+                in-place and returned. Must already contain the ``url`` key.
+
+        Returns:
+            dict: The same ``kwargs`` dict with auth headers and cookies added.
+        """
         self._ensure_valid_token()
         headers = kwargs.pop("headers", {})
         headers["Authorization"] = f"Bearer {self.token['access_token']}"
@@ -92,26 +184,56 @@ class KaapanaApiService:
         verify = kwargs.pop("verify", False)
         kwargs["verify"] = verify
         cookies = kwargs.pop("cookies", {})
-        project_cookie = self.project_cookie or self._get_project_cookie()
-        cookies.update(project_cookie)
+        cookies.update(self.project_cookie)
         kwargs["cookies"] = cookies
         return kwargs
 
     def _ensure_valid_token(self):
-        if self.token is None:
+        """Guarantee that a non-expired access token is available.
+
+        Triggers the full device code authentication flow if no token has been
+        obtained yet, or refreshes the existing token when it has expired (or
+        is within ``_EXPIRY_BUFFER_SECONDS`` of expiry).
+        """
+        if self.token.get("access_token") is None:
             self._authenticate_with_device_code()
         elif self._is_token_expired():
             self._refresh_access_token()
 
     def _is_token_expired(self) -> bool:
+        """Check whether the current access token has expired (or is about to).
+
+        Returns:
+            bool: ``True`` if no expiry is recorded or if the current time is
+                at or past ``_token_expiry`` (which already includes a
+                ``_EXPIRY_BUFFER_SECONDS`` safety margin).
+        """
         return self._token_expiry is None or time.time() >= self._token_expiry
 
     def _store_token(self, token_response: dict):
+        """Persist a token response and compute its expiry timestamp.
+
+        Args:
+            token_response: Decoded JSON body of a successful Keycloak token
+                response. Expected to contain at least ``access_token``,
+                ``refresh_token``, and ``expires_in`` keys.
+        """
         self.token = token_response
         expires_in = token_response.get("expires_in", 0)
         self._token_expiry = time.time() + expires_in - _EXPIRY_BUFFER_SECONDS
 
     def _get_device_code(self):
+        """Request a device code from Keycloak and prompt the user to authenticate.
+
+        Posts to the device authorization endpoint using ``client_id`` (and
+        optionally ``client_secret``) to obtain a ``device_code`` and a
+        ``verification_uri_complete``. Both are stored as instance attributes.
+        The URI is logged at INFO level so the user knows where to grant access.
+
+        Raises:
+            requests.HTTPError: If the device authorization endpoint returns a
+                non-2xx status code.
+        """
         payload = {
             "client_id": self.client_id,
             "scope": "openid offline_access",
@@ -119,7 +241,7 @@ class KaapanaApiService:
         if self.client_secret:
             payload["client_secret"] = self.client_secret
 
-        r = requests.post(_DEVICE_CODE_URL, verify=False, data=payload)
+        r = requests.post(self.device_code_url, verify=False, data=payload)
         r.raise_for_status()
         data = r.json()
         self.verification_uri_complete = data.get("verification_uri_complete")
@@ -130,7 +252,16 @@ class KaapanaApiService:
         )
 
     def _authenticate_with_device_code(self):
-        """Poll for an access token after the user has approved the device code."""
+        """Poll Keycloak for an access token after the user has approved the device code.
+
+        Retries up to ``_DEVICE_MAX_RETRIES`` times with ``_DEVICE_POLL_INTERVAL``
+        seconds between attempts, logging a warning on each pending attempt. On
+        success the token is stored via ``_store_token``.
+
+        Raises:
+            RuntimeError: If the maximum number of attempts is exhausted without
+                a successful token response.
+        """
         payload = {
             "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
             "device_code": self.device_code,
@@ -142,7 +273,7 @@ class KaapanaApiService:
 
         for attempt in range(1, _DEVICE_MAX_RETRIES + 1):
             try:
-                r = requests.post(_TOKEN_URL, verify=False, data=payload)
+                r = requests.post(self.token_url, verify=False, data=payload)
                 r.raise_for_status()
                 self._store_token(r.json())
                 return
@@ -160,18 +291,44 @@ class KaapanaApiService:
         )
 
     def _refresh_access_token(self):
+        """Obtain a new access token using the stored refresh token.
+
+        Posts a ``refresh_token`` grant to the Keycloak token endpoint and
+        stores the resulting token via ``_store_token``.
+
+        Raises:
+            requests.HTTPError: If the token endpoint returns a non-2xx status
+                (e.g. the refresh token has expired or been revoked).
+        """
         payload = {
             "grant_type": "refresh_token",
             "refresh_token": self.token["refresh_token"],
             "client_id": self.client_id,
             "client_secret": self.client_secret,
         }
-        r = requests.post(_TOKEN_URL, verify=False, data=payload)
+        r = requests.post(self.token_url, verify=False, data=payload)
         r.raise_for_status()
         self._store_token(r.json())
 
 
-def get_api_service():
-    keycloak_settings = get_keycloak_settings()
+def get_api_service_from_env():
+    """
+    Initialize an object of KaapanaApiService based on environment variables.
+    """
 
-    return KaapanaApiService()
+    keycloak_settings = settings.get_keycloak_settings()
+    project_settings = settings.get_project_settings()
+    service_settings = settings.get_services_settings()
+
+    if not project_settings.project_id:
+        logger.warning(
+            "Project id is not set as environment variable. Could not provide KaapanaApiService"
+        )
+        return
+
+    return KaapanaApiService(
+        root_url=service_settings.traefik_url,
+        project_id=project_settings.project_id,
+        client_id=keycloak_settings.client_id,
+        client_secret=keycloak_settings.client_secret,
+    )

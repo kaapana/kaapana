@@ -69,10 +69,13 @@ class ProjectSettings(KaapanaSettings):
     project_user_name: str = Field(
         "system", validation_alias="KAAPANA_PROJECT_USER_NAME"
     )
-    project_user_password: str = Field(
+    project_user_password: Optional[str] = Field(
         validation_alias=AliasChoices(
             "KAAPANA_PROJECT_USER_PASSWORD", "SYSTEM_USER_PASSWORD"
         )
+    )
+    project_id: Optional[str] = Field(
+        None, validation_alias=AliasChoices("KAAPANA_PROJECT_ID")
     )
 
 
@@ -93,11 +96,11 @@ class OperatorSettings(BaseSettings):
 
 class ServicesSettings(BaseSettings):
     # ADMIN
-    keycloak_url: Optional[str] = Field(
+    keycloak_url: str = Field(
         default="http://keycloak-external-service.admin.svc:80",
         validation_alias=AliasChoices("KAAPANA_KEYCLOAK_URL", "KEYCLOAK_URL"),
     )
-    kube_helm_url: Optional[str] = Field(
+    kube_helm_url: str = Field(
         default="http://kube-helm-service.admin.svc:5000",
         validation_alias=AliasChoices("KAAPANA_KUBE_HELM_URL", "KUBE_HELM_URL"),
     )
@@ -107,30 +110,33 @@ class ServicesSettings(BaseSettings):
         default="http://aii-service.services.svc:8080",
         validation_alias=AliasChoices("KAAPANA_AII_URL", "AII_URL"),
     )
-    dicom_web_filter_url: Optional[str] = Field(
+    dicom_web_filter_url: str = Field(
         default="http://dicom-web-filter-service.services.svc:8080",
         validation_alias=AliasChoices(
             "KAAPANA_DICOM_WEB_FILTER_URL", "DICOM_WEB_FILTER_URL"
         ),
     )
-    opensearch_url: Optional[str] = Field(
+    opensearch_url: str = Field(
         default="http://opensearch-service.services.svc:9200",
         validation_alias=AliasChoices("KAAPANA_OPENSEARCH_URL", "OPENSEARCH_URL"),
     )
-    kaapana_backend_url: Optional[str] = Field(
+    kaapana_backend_url: str = Field(
         default="http://kaapana-backend-service.services.svc:5000",
         validation_alias=AliasChoices("KAAPANA_BACKEND_URL"),
     )
-    minio_url: Optional[str] = Field(
+    minio_url: str = Field(
         default="http://minio-service.services.svc:9000",
         validation_alias=AliasChoices("KAAPANA_MINIO_URL", "MINIO_URL"),
     )
-    notification_url: Optional[str] = Field(
+    notification_url: str = Field(
         default="http://notification-service.services.svc:80",
         validation_alias=AliasChoices("KAAPANA_NOTIFICATION_URL", "NOTIFICATION_URL"),
     )
 
-    traefik_url: Optional[str] = Field("https://traefik-0.admin.svc:443")
+    traefik_url: str = Field(
+        "https://traefik-0.admin.svc:443",
+        validation_alias=AliasChoices("KAAPANA_TRAEFIK_URL"),
+    )
 
 
 @lru_cache

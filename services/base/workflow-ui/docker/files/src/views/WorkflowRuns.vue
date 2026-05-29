@@ -12,10 +12,10 @@
 								<v-icon size="32">mdi-information</v-icon>
 							</v-btn>
 
-							<v-btn small color="warning" aria-label="clean finished"
+							<v-btn small color="warning" aria-label="clean"
 								:disabled="eligibleForCleanup.length === 0" @click="openBulkCleanup">
 								<v-icon left size="18">mdi-broom</v-icon>
-								CLEAN FINISHED ({{ eligibleForCleanup.length }})
+								CLEAN
 							</v-btn>
 
 							<v-btn small color="primary" aria-label="refresh" @click="loadData" :loading="isRefreshing">

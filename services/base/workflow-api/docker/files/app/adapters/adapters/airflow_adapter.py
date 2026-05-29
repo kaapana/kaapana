@@ -36,6 +36,9 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         self.airflow_dag_folder = Path(
             os.getenv("AIRFLOW_DAG_FOLDER", "/kaapana/mounted/workflows/dags")
         )
+        self.airflow_workflow_data_dir = Path(
+            os.getenv("AIRFLOW_WORKFLOW_DATA_DIR", "/kaapana/mounted/workflows/data")
+        )
         self.api_username = os.getenv("AIRFLOW_API_USERNAME")
         self.api_password = os.getenv("AIRFLOW_API_PASSWORD")
 
@@ -532,3 +535,45 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             return datetime.fromisoformat(normalized)
         except ValueError:
             return datetime.now(tz=timezone.utc)
+
+    def _data_dir_for_run(self, workflow_run_external_id: str) -> Path:
+        _, run_id = self._parse_composite_id(workflow_run_external_id)
+        return self.airflow_workflow_data_dir / run_id
+
+    async def clean_workflow_run_data(self, workflow_run_external_id: str) -> None:
+        target = self._data_dir_for_run(workflow_run_external_id)
+        if not target.exists():
+            self.logger.info(f"No data directory to clean at {target}; skipping.")
+            return
+        self.logger.info(f"Cleaning workflow run data at {target}")
+        await asyncio.to_thread(shutil.rmtree, target)
+
+    async def get_workflow_run_data_size(self, workflow_run_external_id: str) -> int:
+        target = self._data_dir_for_run(workflow_run_external_id)
+
+        def _walk(path: Path) -> int:
+            if not path.exists():
+                return 0
+            total = 0
+            for entry in path.rglob("*"):
+                try:
+                    if entry.is_file() and not entry.is_symlink():
+                        total += entry.stat().st_size
+                except (FileNotFoundError, PermissionError):
+                    continue
+            return total
+
+        return await asyncio.to_thread(_walk, target)
+
+    async def is_workflow_run_data_clean(self, workflow_run_external_id: str) -> bool:
+        target = self._data_dir_for_run(workflow_run_external_id)
+
+        def _check(path: Path) -> bool:
+            if not path.exists():
+                return True
+            try:
+                return not any(path.iterdir())
+            except (FileNotFoundError, PermissionError):
+                return True
+
+        return await asyncio.to_thread(_check, target)

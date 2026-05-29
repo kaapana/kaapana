@@ -138,3 +138,43 @@ class WorkflowEngineAdapter(ABC):
             list[LogLine]: Parsed and normalized log lines.
         """
         pass
+
+    @abstractmethod
+    async def clean_workflow_run_data(self, workflow_run_external_id: str) -> None:
+        """
+        Delete all on-disk data associated with a workflow run.
+
+        Must be idempotent: a no-op if the data has already been removed.
+        Raises on any other failure.
+
+        Args:
+            workflow_run_external_id (str): The external ID of the workflow run.
+        """
+        pass
+
+    @abstractmethod
+    async def get_workflow_run_data_size(self, workflow_run_external_id: str) -> int:
+        """
+        Return the total on-disk size (bytes) of the workflow run's data.
+
+        Args:
+            workflow_run_external_id (str): The external ID of the workflow run.
+
+        Returns:
+            int: Total bytes; 0 if the data directory is missing.
+        """
+        pass
+
+    @abstractmethod
+    async def is_workflow_run_data_clean(self, workflow_run_external_id: str) -> bool:
+        """
+        Verify that the workflow run's data directory has been removed
+        (or is empty).
+
+        Args:
+            workflow_run_external_id (str): The external ID of the workflow run.
+
+        Returns:
+            bool: True if no data remains, False otherwise.
+        """
+        pass

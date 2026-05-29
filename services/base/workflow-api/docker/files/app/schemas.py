@@ -36,6 +36,24 @@ class LogLine(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CleanupPolicy(str, Enum):
+    """When the workflow-api should clean a run's on-disk data."""
+
+    NEVER = "never"
+    ON_SUCCESS = "on_success"
+    ALWAYS = "always"
+
+
+class CleanupStatus(str, Enum):
+    """Lifecycle of the cleanup attempt for a single workflow run."""
+
+    NOT_REQUIRED = "not_required"
+    PENDING = "pending"
+    RUNNING = "running"
+    CLEANED = "cleaned"
+    FAILED = "failed"
+
+
 class Label(BaseModel):
     key: str
     value: str
@@ -451,7 +469,7 @@ class WorkflowRunBase(BaseModel):
 
 
 class WorkflowRunCreate(WorkflowRunBase):
-    pass
+    cleanup_policy: CleanupPolicy = CleanupPolicy.ON_SUCCESS
 
 
 class WorkflowRun(WorkflowRunBase):
@@ -462,6 +480,9 @@ class WorkflowRun(WorkflowRunBase):
     workflow: WorkflowRef
     task_runs: List[TaskRun] = Field(default_factory=list)
     updated_at: datetime
+    cleanup_policy: CleanupPolicy = CleanupPolicy.NEVER
+    cleanup_status: CleanupStatus = CleanupStatus.NOT_REQUIRED
+    cleaned_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -470,3 +491,11 @@ class WorkflowRunUpdate(BaseModel):
     # external_id is optional for updates that only change lifecycle_status
     external_id: Optional[str] = None
     lifecycle_status: Optional[WorkflowRunStatus] = None
+
+
+class WorkflowRunDataSize(BaseModel):
+    """Snapshot of the on-disk size of a workflow run's data directory."""
+
+    workflow_run_id: int
+    size_bytes: int
+    exists: bool

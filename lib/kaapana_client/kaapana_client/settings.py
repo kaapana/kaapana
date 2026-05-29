@@ -70,9 +70,10 @@ class ProjectSettings(KaapanaSettings):
         "system", validation_alias="KAAPANA_PROJECT_USER_NAME"
     )
     project_user_password: Optional[str] = Field(
+        None,
         validation_alias=AliasChoices(
             "KAAPANA_PROJECT_USER_PASSWORD", "SYSTEM_USER_PASSWORD"
-        )
+        ),
     )
     project_id: Optional[str] = Field(
         None, validation_alias=AliasChoices("KAAPANA_PROJECT_ID")

@@ -89,6 +89,12 @@ spec:
             nvidia.com/gpu: '1'
             {{- end }}
         env:
+        - name: no_proxy
+          value: "traefik-{{ .Values.global.instance_uid | default 0 }}.{{ .Values.global.helm_namespace }}.svc"
+        - name: http_proxy
+          value: {{ .Values.global.http_proxy }}
+        - name: https_proxy
+          value: {{ .Values.global.https_proxy }}
         - name: INGRESS_PATH
           value: "applications/project/{{ .Values.global.project_id }}/release/{{ .Release.Name }}"
         volumeMounts:

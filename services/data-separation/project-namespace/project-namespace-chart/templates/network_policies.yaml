@@ -25,9 +25,14 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: kube-system
-    - podSelector:
+      podSelector:
         matchLabels:
-          app.kubernetes.io/name: kube-dns
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
 ---
 ## Allow access to external IPs
 kind: NetworkPolicy
@@ -67,7 +72,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.admin_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: squid-proxy
 ---
@@ -88,7 +93,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: ctp
 ---
@@ -107,7 +112,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.admin_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: 'traefik'
 ---
@@ -128,7 +133,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: opensearch
     ports:
@@ -152,7 +157,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.admin_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: keycloak
     ports:
@@ -162,7 +167,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: access-information-interface
     ports:
@@ -186,7 +191,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.admin_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: keycloak
     ports:
@@ -198,7 +203,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: opensearch
     ports:
@@ -208,7 +213,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: dicom-web-filter
     ports:
@@ -218,7 +223,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: minio
     ports:
@@ -228,7 +233,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: kaapana-backend
     ports:
@@ -238,7 +243,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: airflow
     ports:

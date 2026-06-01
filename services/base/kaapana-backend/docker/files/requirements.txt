@@ -16,7 +16,7 @@ SQLAlchemy==2.0.36
 sqlalchemy-json==0.7.0
 dicom_parser==1.2.3
 Werkzeug==3.1.3
-cryptography==43.0.3
+cryptography==46.0.5
 pyjwt==2.10.0
 pydantic==2.9.2
 pydantic-settings==2.6.1

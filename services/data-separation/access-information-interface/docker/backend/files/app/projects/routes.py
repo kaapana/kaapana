@@ -102,28 +102,6 @@ async def get_roles(
     return await crud.get_roles(session, name=name)
 
 
-@router.get(
-    "/multiinstallable-blacklist",
-    response_model=List[str],
-    tags=["Projects"],
-)
-async def get_multiinstallable_blacklist(
-    session: AsyncSession = Depends(get_session),
-) -> List[str]:
-    return await crud.get_multiinstallable_blacklist(session)
-
-
-@router.put(
-    "/multiinstallable-blacklist",
-    response_model=List[str],
-    tags=["Projects"],
-)
-async def update_multiinstallable_blacklist(
-    payload: schemas.UpdateMultiinstallableBlacklist,
-    session: AsyncSession = Depends(get_session),
-) -> List[str]:
-    return await crud.update_multiinstallable_blacklist(session, payload.app_names)
-
 
 @router.get("/{project_identifier}", response_model=schemas.Project, tags=["Projects"])
 async def get_project(

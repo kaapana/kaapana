@@ -80,10 +80,4 @@ class SoftwareMappings(Base):
     __table_args__ = (UniqueConstraint("project_id", "software_uuid"),)
 
 
-class MultiinstallableBlacklist(Base):
-    __tablename__ = "multiinstallable_blacklist"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    app_name = Column(String(length=128), nullable=False, unique=True)
-
-
 ### TODO We might need indices to avoid duplicated rows in the relationship tables

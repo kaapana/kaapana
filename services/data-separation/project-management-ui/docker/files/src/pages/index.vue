@@ -58,8 +58,8 @@
             </div>
           </td>
         </tr>
-      </template>
-    </v-data-table>
+      </tbody>
+    </v-table>
   </v-container>
   <v-dialog v-model="projectDialog" max-width="1000">
     <CreateNewProjectForm :onsuccess="handleProjectCreate" :oncancel="() => (projectDialog = false)" />
@@ -86,7 +86,7 @@ import Confirm from "@/components/Confirm.vue";
 import EditProjectDialog from "@/components/EditProjectDialog.vue";
 import DeleteProjectDialog from "@/components/DeleteProjectDialog.vue";
 import ArchiveProjectDialog from "@/components/ArchiveProjectDialog.vue";
-import { aiiApiGet, aiiApiDelete, aiiApiPost } from "@/common/aiiApi.service";
+import { aiiApiGet, aiiApiDelete, aiiApiPost } from "@/common/services";
 import { ProjectItem, UserItem } from "@/common/types";
 import { isAdminUser, waitForStoreUser } from "@/common/userAccess";
 import { useSnackbar } from "@/composables/useSnackbar";

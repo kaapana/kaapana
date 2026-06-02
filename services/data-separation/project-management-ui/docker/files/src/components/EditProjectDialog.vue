@@ -23,7 +23,7 @@
 
 <script lang="ts">
 import { defineComponent, PropType } from 'vue'
-import { aiiApiPut } from '@/common/aiiApi.service'
+import { aiiApiPut } from '@/common/services'
 import { ProjectItem } from '@/common/types'
 import { projectNameRules } from '@/common/validation'
 

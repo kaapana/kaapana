@@ -5,7 +5,6 @@ from app.models import (
     AdminProject,
     Projects,
     Rights,
-    MultiinstallableBlacklist,
     Roles,
     RolesRights,
     SoftwareMappings,

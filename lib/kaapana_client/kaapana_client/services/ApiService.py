@@ -35,6 +35,7 @@ class KaapanaApiService:
         project_id: str,
         client_id: str,
         client_secret: Optional[str],
+        verify: bool = False,
     ):
         """Initialize the service and start the OAuth2 device code flow.
 
@@ -55,6 +56,7 @@ class KaapanaApiService:
         self.project_id = project_id
         self.client_id = client_id
         self.client_secret = client_secret
+        self.verify = verify
 
         self.token_url = _TOKEN_URL.format(self.root_url)
         self.device_code_url = _DEVICE_CODE_URL.format(self.root_url)
@@ -80,9 +82,7 @@ class KaapanaApiService:
             requests.Response: The response from the server.
         """
         kwargs["url"] = f"{self.root_url}/{endpoint}"
-        cookies = kwargs.pop("cookies", {})
-        cookies.update(self.project_cookie or self._get_project_cookie())
-        kwargs["cookies"] = cookies
+        kwargs = self._set_project_cookie(kwargs)
         return requests.get(**self._with_auth(kwargs))
 
     def post(self, endpoint, **kwargs):
@@ -97,9 +97,7 @@ class KaapanaApiService:
             requests.Response: The response from the server.
         """
         kwargs["url"] = f"{self.root_url}/{endpoint}"
-        cookies = kwargs.pop("cookies", {})
-        cookies.update(self.project_cookie or self._get_project_cookie())
-        kwargs["cookies"] = cookies
+        kwargs = self._set_project_cookie(kwargs)
         return requests.post(**self._with_auth(kwargs))
 
     def put(self, endpoint, **kwargs):
@@ -114,9 +112,7 @@ class KaapanaApiService:
             requests.Response: The response from the server.
         """
         kwargs["url"] = f"{self.root_url}/{endpoint}"
-        cookies = kwargs.pop("cookies", {})
-        cookies.update(self.project_cookie or self._get_project_cookie())
-        kwargs["cookies"] = cookies
+        kwargs = self._set_project_cookie(kwargs)
         return requests.put(**self._with_auth(kwargs))
 
     def delete(self, endpoint, **kwargs):
@@ -131,9 +127,7 @@ class KaapanaApiService:
             requests.Response: The response from the server.
         """
         kwargs["url"] = f"{self.root_url}/{endpoint}"
-        cookies = kwargs.pop("cookies", {})
-        cookies.update(self.project_cookie or self._get_project_cookie())
-        kwargs["cookies"] = cookies
+        kwargs = self._set_project_cookie(kwargs)
         return requests.delete(**self._with_auth(kwargs))
 
     def head(self, endpoint, **kwargs):
@@ -148,14 +142,22 @@ class KaapanaApiService:
             requests.Response: The response from the server (no body).
         """
         kwargs["url"] = f"{self.root_url}/{endpoint}"
-        cookies = kwargs.pop("cookies", {})
-        cookies.update(self.project_cookie or self._get_project_cookie())
-        kwargs["cookies"] = cookies
+        kwargs = self._set_project_cookie(kwargs)
         return requests.head(**self._with_auth(kwargs))
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _set_project_cookie(self, kwargs: dict):
+        """
+        Set the project-cookie in the kwargs.
+        """
+
+        cookies = kwargs.pop("cookies", {})
+        cookies.update(self.project_cookie or self._get_project_cookie())
+        kwargs["cookies"] = cookies
+        return kwargs
 
     def _get_project_cookie(self):
         """Fetch project metadata and build the ``Project`` cookie dict.
@@ -261,7 +263,7 @@ class KaapanaApiService:
         if self.client_secret:
             payload["client_secret"] = self.client_secret
 
-        r = requests.post(self.device_code_url, verify=False, data=payload)
+        r = requests.post(self.device_code_url, data=payload, verify=self.verify)
         r.raise_for_status()
         data = r.json()
         self.verification_uri_complete = data.get("verification_uri_complete")
@@ -293,7 +295,7 @@ class KaapanaApiService:
 
         for attempt in range(1, _DEVICE_MAX_RETRIES + 1):
             try:
-                r = requests.post(self.token_url, verify=False, data=payload)
+                r = requests.post(self.token_url, verify=self.verify, data=payload)
                 r.raise_for_status()
                 self._store_token(r.json())
                 return
@@ -326,7 +328,7 @@ class KaapanaApiService:
             "client_id": self.client_id,
             "client_secret": self.client_secret,
         }
-        r = requests.post(self.token_url, verify=False, data=payload)
+        r = requests.post(self.token_url, verify=self.verify, data=payload)
         r.raise_for_status()
         self._store_token(r.json())
 

@@ -195,27 +195,11 @@
       "description": "Defines how memory resources should scale based on the size of input data in an IOMount.",
       "properties": {
         "scale_factor": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Scale Factor"
+          "title": "Scale Factor",
+          "type": "integer"
         },
         "type": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ScaleRuleType"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "$ref": "#/$defs/ScaleRuleType"
         },
         "mode": {
           "$ref": "#/$defs/ScaleRuleMode"
@@ -258,6 +242,8 @@
         }
       },
       "required": [
+        "scale_factor",
+        "type",
         "mode"
       ],
       "title": "ScaleRule",

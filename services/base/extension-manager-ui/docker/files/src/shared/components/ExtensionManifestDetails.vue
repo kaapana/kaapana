@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import type { ContentStatus, ExtensionManifest, InstalledContent } from '@/shared/types/apiSchemas'
+import type {
+  ContentStatus,
+  ExtensionContent,
+  ExtensionManifest,
+  InstalledContent,
+} from '@/shared/types/apiSchemas'
 
 const props = defineProps<{
   extensionManifest: ExtensionManifest
@@ -15,12 +20,6 @@ const contentStatusColor: Record<ContentStatus, string> = {
   uninstalling: 'warning',
   uninstallation_failed: 'error',
   uninstalled: 'grey',
-}
-
-function installedContentStatus(name: string, contentType: string): ContentStatus | undefined {
-  return props.installedContents?.find(
-    (entry) => entry.name === name && entry.content_type === contentType,
-  )?.status
 }
 
 const extensionManifestJson = computed(() => JSON.stringify(props.extensionManifest, null, 2))
@@ -78,6 +77,28 @@ function dependencyJson(dep: unknown): string {
 }
 
 const contents = computed(() => props.extensionManifest.contents ?? [])
+
+const installedStatusByKey = computed(() => {
+  const statusByKey = new Map<string, ContentStatus>()
+  for (const entry of props.installedContents ?? []) {
+    statusByKey.set(contentKey(entry.name, entry.content_type), entry.status)
+  }
+  return statusByKey
+})
+
+const contentRows = computed(() =>
+  contents.value.map((manifestContent: ExtensionContent) => {
+    const key = contentKey(manifestContent.name, manifestContent.contentType)
+    return {
+      key,
+      name: manifestContent.name,
+      contentType: manifestContent.contentType,
+      files: manifestContent.files,
+      status: installedStatusByKey.value.get(key),
+    }
+  }),
+)
+
 const dependencies = computed(() => props.extensionManifest.dependencies ?? [])
 const contentsLabel = computed(() =>
   contents.value.length === 1 ? '1 item' : `${contents.value.length} items`,
@@ -96,56 +117,44 @@ const dependenciesLabel = computed(() =>
         <div class="section-count">{{ contentsLabel }}</div>
       </div>
 
-      <div v-if="contents.length" class="content-list">
+      <div v-if="contentRows.length" class="content-list">
         <div
-          v-for="manifestContent in contents"
-          :key="contentKey(manifestContent.name, manifestContent.contentType)"
+          v-for="row in contentRows"
+          :key="row.key"
           class="content-row"
         >
           <button
             type="button"
             class="content-row-header"
-            @click="toggleContent(manifestContent.name, manifestContent.contentType)"
+            @click="toggleContent(row.name, row.contentType)"
           >
             <v-icon size="small">
               {{
-                isContentExpanded(manifestContent.name, manifestContent.contentType)
+                isContentExpanded(row.name, row.contentType)
                   ? 'mdi-chevron-down'
                   : 'mdi-chevron-right'
               }}
             </v-icon>
-            <span class="content-name">{{ manifestContent.name }}</span>
-            <span
-              v-if="installedContentStatus(manifestContent.name, manifestContent.contentType)"
-              class="content-status"
-            >
-              <v-icon
-                :color="
-                  contentStatusColor[
-                    installedContentStatus(manifestContent.name, manifestContent.contentType)!
-                  ]
-                "
-                size="x-small"
-              >
+            <span class="content-name">{{ row.name }}</span>
+            <span v-if="row.status" class="content-status">
+              <v-icon :color="contentStatusColor[row.status]" size="x-small">
                 mdi-circle
               </v-icon>
-              <span>{{
-                installedContentStatus(manifestContent.name, manifestContent.contentType)
-              }}</span>
+              <span>{{ row.status }}</span>
             </span>
           </button>
 
           <div
-            v-if="isContentExpanded(manifestContent.name, manifestContent.contentType)"
+            v-if="isContentExpanded(row.name, row.contentType)"
             class="content-row-body"
           >
             <div class="metadata-grid">
               <div class="metadata-label">Type</div>
-              <div class="metadata-value">{{ manifestContent.contentType }}</div>
+              <div class="metadata-value">{{ row.contentType }}</div>
               <div class="metadata-label">Files</div>
               <div class="metadata-value">
-                <div v-if="manifestContent.files.length" class="file-list">
-                  <div v-for="file in manifestContent.files" :key="file.path">
+                <div v-if="row.files.length" class="file-list">
+                  <div v-for="file in row.files" :key="file.path">
                     {{ file.path }}
                   </div>
                 </div>

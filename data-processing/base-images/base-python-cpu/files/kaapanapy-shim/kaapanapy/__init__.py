@@ -3,8 +3,16 @@ import importlib
 import importlib.abc
 import importlib.machinery
 import sys
+import warnings
 
 import kaapana_client
+
+warnings.warn(
+    "kaapanapy is deprecated and will be removed in a future release. "
+    "Use kaapana_client instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 sys.modules["kaapanapy"] = kaapana_client
 

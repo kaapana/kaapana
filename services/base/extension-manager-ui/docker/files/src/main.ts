@@ -3,7 +3,6 @@ import router from './router/router'
 import vuetify from './plugins/vuetify'
 import App from './App.vue'
 
-import 'vuetify/styles'
 import '@mdi/font/css/materialdesignicons.css'
 import 'roboto-fontface/css/roboto/roboto-fontface.css'
 import './assets/styles.scss'

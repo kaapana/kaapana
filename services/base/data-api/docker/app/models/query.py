@@ -19,6 +19,7 @@ class QueryOp(str, Enum):
     NOT_CONTAINS = "not_contains"
     STARTS_WITH = "starts_with"
     ENDS_WITH = "ends_with"
+    HAS_KEY = "has_key"
 
 
 class FilterNode(BaseModel):
@@ -28,7 +29,10 @@ class FilterNode(BaseModel):
         description="Dotted path like 'id', 'storage.type', or 'metadata.acquisition.value'",
     )
     op: QueryOp
-    value: Any
+    value: Any = Field(
+        None,
+        description="Operand for the operator. Omitted for presence ops like 'has_key'.",
+    )
 
 
 class GroupNode(BaseModel):

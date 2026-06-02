@@ -299,6 +299,13 @@ def _build_metadata_predicate(
     field: ParsedMetadataField, op: QueryOp, value: Any
 ) -> ColumnElement[bool]:
     metadata_alias = aliased(MetadataEntryORM)
+    if op is QueryOp.HAS_KEY:
+        return exists(
+            select(1).where(
+                metadata_alias.entity_id == DataEntityORM.id,
+                metadata_alias.key == field.key,
+            )
+        )
     stmt = select(1).where(
         metadata_alias.entity_id == DataEntityORM.id,
         metadata_alias.key == field.key,

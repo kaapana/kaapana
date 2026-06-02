@@ -13,8 +13,7 @@ from kaapana_client.logger import get_logger
 
 logger = get_logger(__name__)
 
-_DEVICE_POLL_INTERVAL = 5
-_DEVICE_MAX_RETRIES = 10
+_DEVICE_POLL_INTERVAL = 5  # fallback if the IdP omits `interval`
 # Refresh slightly before the actual expiry to avoid races.
 _EXPIRY_BUFFER_SECONDS = 10
 
@@ -284,6 +283,8 @@ class KaapanaApiService:
         data = r.json()
         self.verification_uri_complete = data.get("verification_uri_complete")
         self.device_code = data.get("device_code")
+        self._device_poll_interval: int = data.get("interval", _DEVICE_POLL_INTERVAL)
+        self._device_code_deadline: float = time.time() + data.get("expires_in", 300)
         logger.info(
             "Open the following URL in a browser to grant the ApiService access to "
             f"Kaapana: {self.verification_uri_complete}"
@@ -292,41 +293,44 @@ class KaapanaApiService:
     def _authenticate_with_device_code(self):
         """Poll Keycloak for an access token after the user has approved the device code.
 
-        Retries up to ``_DEVICE_MAX_RETRIES`` times with ``_DEVICE_POLL_INTERVAL``
-        seconds between attempts, logging a warning on each pending attempt. On
-        success the token is stored via ``_store_token``.
-
-        Raises:
-            RuntimeError: If the maximum number of attempts is exhausted without
-                a successful token response.
+        Polls every ``_device_poll_interval`` seconds (from the device authorization
+        response) until the device code expires (``_device_code_deadline``), logging a
+        warning on each pending attempt. When the device code expires a new device
+        authorization grant is started automatically and polling resumes. On success
+        the token is stored via ``_store_token``.
         """
-        payload = {
-            "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-            "device_code": self.device_code,
-            "client_id": self.client_id,
-            "scope": "openid offline_access",
-        }
-        if self.client_secret:
-            payload["client_secret"] = self.client_secret
+        while True:
+            payload = {
+                "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+                "device_code": self.device_code,
+                "client_id": self.client_id,
+                "scope": "openid offline_access",
+            }
+            if self.client_secret:
+                payload["client_secret"] = self.client_secret
 
-        for attempt in range(1, _DEVICE_MAX_RETRIES + 1):
-            try:
-                r = requests.post(self.token_url, verify=self.verify, data=payload)
-                r.raise_for_status()
-                self._store_token(r.json())
-                return
-            except requests.exceptions.HTTPError:
-                logger.warning(
-                    f"Authentication pending (attempt {attempt}/{_DEVICE_MAX_RETRIES}). "
-                    f"Please open {self.verification_uri_complete} in a browser to "
-                    "approve access, then wait."
-                )
-            time.sleep(_DEVICE_POLL_INTERVAL)
+            attempt = 0
+            while time.time() < self._device_code_deadline:
+                attempt += 1
+                try:
+                    r = requests.post(self.token_url, verify=self.verify, data=payload)
+                    r.raise_for_status()
+                    self._store_token(r.json())
+                    return
+                except requests.exceptions.HTTPError:
+                    remaining = max(0, int(self._device_code_deadline - time.time()))
+                    logger.warning(
+                        f"Authentication pending (attempt {attempt}, {remaining}s remaining). "
+                        f"Please open {self.verification_uri_complete} in a browser to "
+                        "approve access, then wait."
+                    )
+                time.sleep(self._device_poll_interval)
 
-        raise RuntimeError(
-            f"Device code authentication failed after {_DEVICE_MAX_RETRIES} attempts. "
-            f"Open {self.verification_uri_complete} in a browser and try again."
-        )
+            logger.warning(
+                "Device code expired before authentication completed. "
+                "Starting a new device authorization grant."
+            )
+            self._get_device_code()
 
     def _refresh_access_token(self):
         """Obtain a new access token using the stored refresh token.

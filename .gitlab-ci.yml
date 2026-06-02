@@ -516,7 +516,7 @@ install_extensions:
     JUNIT_FILE: "install_extensions.xml"
     LOG_FILE: "install_extensions.log"
     PYTEST_WORKERS: "4"
-  retry: 3
+  retry: 2
 
 send_data:
   extends: .integration_test_local

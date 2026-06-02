@@ -196,6 +196,11 @@ class DataEntitiesUIForm(BaseUIForm):
     Displays a list of data entities retrieved from the Data API
     based on a provided query. Supports pagination and result limits.
 
+    .. deprecated::
+        Superseded by :class:`QueryUIForm` (``type: "query"``) on the Task API
+        path, which carries a structured Data API query tree and freezes the
+        selected entity set at run creation. Kept for backward compatibility.
+
     Attributes:
         type (Literal["data_entity"]): Discriminator identifying this as a data entity selector.
         query (str): Query string used to fetch matching entities from the Data API.
@@ -210,6 +215,52 @@ class DataEntitiesUIForm(BaseUIForm):
     limit: int = Field(..., description="Maximum number of results to return.")
     pagination: bool = Field(
         ..., description="Enable pagination in the result display."
+    )
+
+
+class QueryUIForm(BaseUIForm):
+    """Query-constrained data-entity input channel (Data API, Task API path).
+
+    Pure **client render hint**: the workflow designer fixes ``constraint_query``
+    and the frontend renders a picker constrained by it. The frontend resolves the
+    user's selection to a concrete entity-ID list and submits it as this field's
+    inherited ``default`` (a JSON list) — which flows to the task env like any
+    other parameter. workflow-api does NOT read ``constraint_query`` /
+    ``selected_query`` / ``selected_dataset_id`` and never contacts the Data API;
+    the download operator re-applies ``constraint_query`` against the supplied IDs.
+    Supersedes the stringly-typed ``data_entity``.
+    """
+
+    type: Literal["query"] = "query"
+    constraint_query: Optional[dict] = Field(
+        None,
+        description="Designer-fixed Data API query tree constraining selectable entities (frontend render hint).",
+    )
+    dataset: bool = Field(
+        False,
+        description=(
+            "Dataset selection mode. True: the user MUST select an existing dataset and "
+            "the channel's input is that dataset intersected with constraint_query "
+            "(required, prominent picker). False (default): input defaults to all "
+            "constraint-matching entities, with a normally-hidden option to optionally "
+            "narrow to a single dataset."
+        ),
+    )
+    cardinality: Literal["single", "multiple"] = Field(
+        "multiple",
+        description="Whether the channel expects a single data entity (e.g. a model to train on) or multiple (a dataset / many entities). Enforced in the UI and re-validated by the download operator.",
+    )
+    display_fields: list[str] = Field(
+        default_factory=list,
+        description="Ordered dotted field paths (e.g. 'metadata.model.name') the picker/preview surfaces per entity. Each is rendered as '<schema title>: <value>', the label taken from the registered metadata JSON Schema (raw key fallback). Client render hint only.",
+    )
+    selected_query: Optional[dict] = Field(
+        None,
+        description="Frontend-only: user's narrowed query at submit, ANDed with constraint_query before the FE resolves it to IDs.",
+    )
+    selected_dataset_id: Optional[str] = Field(
+        None,
+        description="Frontend-only: chosen existing dataset entity id, if the user picked a dataset.",
     )
 
 
@@ -260,6 +311,7 @@ UIForm = Union[
     ListUIForm,
     DatasetUIForm,
     DataEntitiesUIForm,
+    QueryUIForm,
     FileUIForm,
     TermsUIForm,
 ]

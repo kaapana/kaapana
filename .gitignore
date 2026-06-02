@@ -3,6 +3,7 @@ node_modules
 /docs/build/
 venv
 security-reports/*.json
+security-reports/*.html
 security-reports/*/
 ci/ci-code/integration_tests/build/
 tmpcharts

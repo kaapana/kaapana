@@ -1,7 +1,6 @@
 FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="thumbnail-generator"
-LABEL VERSION="0.4.0"
 LABEL BUILD_IGNORE="False"
 
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
@@ -13,7 +12,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY files/requirements.txt /
-RUN pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.4.0/constraints.txt --no-cache-dir -r /requirements.txt
+RUN pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt --no-cache-dir -r /requirements.txt
 
 COPY files/* /kaapana/app/
 

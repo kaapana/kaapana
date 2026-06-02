@@ -68,7 +68,7 @@ class BuildConfig(BaseModel):
     configuration_check_severity_level: list[str]
     enable_image_stats: bool
     create_sboms: bool
-    trivy_image: str = "aquasec/trivy:0.66.0"
+    trivy_image: str = "aquasec/trivy:0.70.0"
     trivy_timeout: int = 10000
 
     snap_download_timeout: int = 120

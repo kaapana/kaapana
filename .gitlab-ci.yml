@@ -29,6 +29,7 @@ variables:
   CI_EXEC_BUILD: $CI_EXEC_BUILD
   CI_EXEC_BUILD_ARGUMENTS: $CI_EXEC_BUILD_ARGUMENTS
   CI_EXEC_DEPLOY: $CI_EXEC_DEPLOY
+  CI_EXEC_DESTROY_ON_SUCCESS: $CI_EXEC_DESTROY_ON_SUCCESS
   CI_EXEC_DOCKER_PRUNE: $CI_EXEC_DOCKER_PRUNE
   CI_EXEC_INTEGRATION_TESTS: $CI_EXEC_INTEGRATION_TESTS
   CI_EXEC_UNIT_TESTS: $CI_EXEC_UNIT_TESTS  
@@ -204,6 +205,7 @@ build_packages:
   variables:
     GIT_STRATEGY: clone
     PYTHON_VENV_DIR: ".venv-build"
+    RUNNER_SCRIPT_TIMEOUT: 4h
   timeout: 4 hours
   rules:
     - if: '$CI_EXEC_BUILD == "true"'
@@ -550,13 +552,14 @@ destroy_deployment:
   stage: clean
   interruptible: false
   rules:
+    - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN == "" && $CI_EXEC_DESTROY_ON_SUCCESS == "true"'
+      when: on_success
+    - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN == ""'
+      when: on_failure
     - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN == ""'
       when: delayed
       start_in: 4 hours
     - when: never
-  needs:
-  - job: prepare_deployment
-    optional: true
   tags:
     - deploy-runner
   before_script:
@@ -577,7 +580,8 @@ if_ci_failing:
   tags:
     - deploy-runner
   before_script:
-    - source "$ORCHESTRATOR_INSTANCE_PYTHON_VENV/bin/activate"
+    - VENV_PATH=$(eval echo "$ORCHESTRATOR_INSTANCE_PYTHON_VENV")
+    - source "$VENV_PATH/bin/activate"
   script:
     - cd "$CI_PROJECT_DIR/ci/ci-code/clean"
     - python3 create_ticket_if_ci_failed.py

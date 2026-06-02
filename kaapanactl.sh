@@ -144,6 +144,11 @@ function parse_chart_reference() {
 function get_platform_prefix() {
     PLATFORM_PREFIX="${PLATFORM_PREFIX:-}"
 
+    if [[ -n "$PLATFORM_PREFIX" ]]; then
+        validate_platform_prefix
+        return
+    fi
+
     if [ ! "$QUIET" = "true" ]; then
         echo -e ""
         echo -e "${YELLOW}Please enter the platform prefix.${NC}" > /dev/stderr
@@ -2172,8 +2177,8 @@ function check_credentials {
     while true; do
         if [ -z "$CONTAINER_REGISTRY_USERNAME" ] || [ -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
             echo -e "${YELLOW}Please enter the credentials for the Container-Registry!${NC}"
-            read -p '**** username: ' CONTAINER_REGISTRY_USERNAME
-            read -s -p '**** password: ' CONTAINER_REGISTRY_PASSWORD
+                read -p '**** username: ' CONTAINER_REGISTRY_USERNAME
+                read -s -p '**** password: ' CONTAINER_REGISTRY_PASSWORD
         else
             echo -e "${GREEN}Credentials found!${NC}"
             break

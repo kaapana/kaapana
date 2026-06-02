@@ -260,6 +260,9 @@ class TrivyHelper:
         # the DB file even for reads, so sharing the cache across parallel workers
         # causes lock timeouts.
         worker_cache = Path(tempfile.mkdtemp(prefix=".trivy_worker_", dir=cls._reports_path))
+        ignore_file = cls._build_config.kaapana_dir / "build-scripts" / ".trivyignore.yaml"
+        ignore_mount = ["-v", f"{ignore_file}:/.trivyignore.yaml"] if ignore_file.exists() else []
+        ignore_flag = ["--ignorefile", "/.trivyignore.yaml"] if ignore_file.exists() else []
         try:
             shutil.copytree(cls._cache_path, worker_cache, dirs_exist_ok=True)
             cmd = [
@@ -279,6 +282,7 @@ class TrivyHelper:
                 f"{os.getuid()}:{os.getgid()}",
                 "--group-add",
                 str(cls._docker_sock_gid()),
+                *ignore_mount,
                 cls._build_config.trivy_image,
                 "image",
                 "--cache-dir",
@@ -290,6 +294,7 @@ class TrivyHelper:
                 ",".join(cls._build_config.vulnerability_severity_level),
                 "--scanners",
                 "vuln",
+                *ignore_flag,
                 "--format",
                 "json",
                 "--output",

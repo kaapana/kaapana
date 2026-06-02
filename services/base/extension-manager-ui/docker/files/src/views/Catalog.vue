@@ -56,7 +56,10 @@ async function installSelectedCatalogEntry() {
   catalogActionError.value = null
 
   try {
-    await installExtension(selectedCatalogEntry.value.repository_id, selectedCatalogEntry.value.tag)
+    await installExtension(
+      selectedCatalogEntry.value.repository.id,
+      selectedCatalogEntry.value.tag,
+    )
   } catch (err) {
     console.error(err)
     catalogActionError.value = getApiErrorMessage(err, 'Failed to start extension installation.')
@@ -79,7 +82,6 @@ async function loadCatalog() {
 
         return manifests.map((extensionManifestResponse) => ({
           repository,
-          repository_id: extensionManifestResponse.repository_id,
           tag: extensionManifestResponse.tag,
           manifest: extensionManifestResponse.manifest,
         }))

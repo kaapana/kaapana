@@ -6,7 +6,6 @@ export interface ExtensionManifestFilters {
 
 export interface CatalogEntry {
   repository: Repository
-  repository_id: string
   tag: string
   manifest: ExtensionManifest
 }

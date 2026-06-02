@@ -4,13 +4,14 @@ from datetime import datetime
 from typing import Any, Iterable, List, Tuple
 from uuid import UUID
 
-from sqlalchemy import Select, func, select, tuple_
+from sqlalchemy import Select, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import load_only, selectinload
+from sqlalchemy.orm import selectinload
 
 from app.db.models import (
     ArtifactORM,
     DataEntityORM,
+    EntityLinkORM,
     MetadataEntryORM,
     StorageCoordinateORM,
 )
@@ -18,6 +19,7 @@ from app.models.domain import (
     Artifact,
     BaseStorageCoordinate,
     DataEntity,
+    EntityLink,
     FilesystemStorageCoordinate,
     MetadataEntry,
     PacsStorageCoordinate,
@@ -26,7 +28,6 @@ from app.models.domain import (
     StoreType,
     UrlStorageCoordinate,
 )
-
 
 _STORAGE_TYPE_MAP: dict[StoreType, type[BaseStorageCoordinate]] = {
     StoreType.PACS: PacsStorageCoordinate,
@@ -42,8 +43,8 @@ def _entity_select() -> Select[tuple[DataEntityORM]]:
         selectinload(DataEntityORM.metadata_entries).selectinload(
             MetadataEntryORM.artifacts
         ),
-        selectinload(DataEntityORM.parent).load_only(DataEntityORM.id),
-        selectinload(DataEntityORM.children).load_only(DataEntityORM.id),
+        selectinload(DataEntityORM.outgoing_links),
+        selectinload(DataEntityORM.incoming_links),
     )
 
 
@@ -152,18 +153,39 @@ def metadata_entry_to_orm(entry: MetadataEntry) -> MetadataEntryORM:
     )
 
 
+def link_from_orm(orm: EntityLinkORM) -> EntityLink:
+    return EntityLink(
+        id=orm.id,
+        source_id=orm.source_id,
+        target_id=orm.target_id,
+        link_type=orm.link_type,
+        properties=dict(orm.properties or {}),
+        created_at=orm.created_at,
+    )
+
+
 def entity_from_orm(orm: DataEntityORM) -> DataEntity:
     return DataEntity(
         id=orm.id,
         created_at=orm.created_at,
-        parent_id=orm.parent.id if orm.parent else None,
-        child_ids=sorted(
-            (child.id for child in orm.children), key=lambda value: value.hex
-        ),
         storage_coordinates=[
             storage_from_orm(coord) for coord in orm.storage_coordinates
         ],
         metadata=[metadata_entry_from_orm(m) for m in orm.metadata_entries],
+        outgoing_links=[
+            link_from_orm(link)
+            for link in sorted(
+                orm.outgoing_links,
+                key=lambda link: (link.link_type, link.target_id.hex),
+            )
+        ],
+        incoming_links=[
+            link_from_orm(link)
+            for link in sorted(
+                orm.incoming_links,
+                key=lambda link: (link.link_type, link.source_id.hex),
+            )
+        ],
     )
 
 

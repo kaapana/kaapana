@@ -6,11 +6,11 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import DataEntityORM, MetadataSchemaORM
-from app.models.domain import DataEntity
+from app.models.domain import DataEntity, EntityLink
 from app.models.events import EventAction, EventMessage, EventResource
 from app.services.artifact_store import get_artifact_store
 from app.services.entity_repository import entity_from_orm, fetch_entity_orm
@@ -84,6 +84,17 @@ async def broadcast_metadata_key_event(
     _broadcast_event(EventResource.METADATA_KEY, action, **payload)
 
 
+async def broadcast_link_event(action: EventAction, link: EntityLink) -> None:
+    _broadcast_event(
+        EventResource.LINK,
+        action,
+        id=str(link.id),
+        source_id=str(link.source_id),
+        target_id=str(link.target_id),
+        link_type=link.link_type,
+    )
+
+
 def cleanup_entity_artifacts(entity_id: UUID | str) -> None:
     store = get_artifact_store()
     try:
@@ -107,26 +118,41 @@ def cleanup_metadata_artifacts(entity_id: UUID | str, key: str) -> None:
         )
 
 
-async def set_entity_parent(
-    db: AsyncSession, entity: DataEntityORM, parent_id: UUID | None
+async def validate_no_cycle(
+    db: AsyncSession, source_id: UUID, target_id: UUID, link_type: str
 ) -> None:
-    if parent_id is None:
-        entity.parent = None
-        return
+    """Reject links that would close a cycle for the given link type.
 
-    if parent_id == entity.id:
-        raise HTTPException(status_code=400, detail="Entity cannot be its own parent")
+    Walks forward from `target_id` along outgoing edges of the same link type;
+    if `source_id` appears in that set, adding (source -> target) would create
+    a cycle.
+    """
 
-    parent = await fetch_entity_orm(db, parent_id)
-    if parent is None:
-        raise HTTPException(status_code=400, detail="Parent entity not found")
+    _MAX_CYCLE_WALK_DEPTH = 64
 
-    ancestor = parent
-    while ancestor is not None:
-        if ancestor.id == entity.id:
-            raise HTTPException(
-                status_code=400, detail="Parent link would create a cycle"
-            )
-        ancestor = ancestor.parent
-
-    entity.parent = parent
+    if source_id == target_id:
+        raise HTTPException(status_code=400, detail="Entity cannot link to itself")
+    cte = text("""
+        WITH RECURSIVE descendants(id, depth) AS (
+            SELECT target_id, 1
+              FROM entity_links
+                            WHERE source_id = :target AND link_type = :link_type
+            UNION
+            SELECT el.target_id, d.depth + 1
+              FROM entity_links el
+              JOIN descendants d ON el.source_id = d.id
+                            WHERE el.link_type = :link_type AND d.depth < :max_depth
+        )
+        SELECT 1 FROM descendants WHERE id = :source LIMIT 1
+        """)
+    result = await db.execute(
+        cte,
+        {
+            "target": target_id,
+            "source": source_id,
+            "link_type": link_type,
+            "max_depth": _MAX_CYCLE_WALK_DEPTH,
+        },
+    )
+    if result.first() is not None:
+        raise HTTPException(status_code=400, detail="Link would create a cycle")

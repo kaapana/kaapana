@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 class EventResource(str, Enum):
     DATA_ENTITY = "data_entity"
     METADATA_KEY = "metadata_key"
+    LINK = "link"
 
 
 class EventAction(str, Enum):

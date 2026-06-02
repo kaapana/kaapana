@@ -3,13 +3,20 @@ from starlette.websockets import WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_async_db
-from app.api.v1.endpoints import artifacts, entities, maintenance, metadata, queries
+from app.api.v1.endpoints import (
+    artifacts,
+    entities,
+    links,
+    maintenance,
+    metadata,
+    queries,
+)
 from app.services.event_bus import get_event_bus
-
 
 router = APIRouter()
 
 router.include_router(entities.router)
+router.include_router(links.router)
 router.include_router(metadata.router)
 router.include_router(artifacts.router)
 router.include_router(queries.router)

@@ -95,6 +95,44 @@ class MetadataEntry(BaseModel):
     )
 
 
+class EntityLink(BaseModel):
+    """Directed, typed edge between two data entities, with optional properties."""
+
+    id: UUID = Field(..., description="Stable UUID identifying this link")
+    source_id: UUID = Field(
+        ..., description="UUID of the entity the link originates from"
+    )
+    target_id: UUID = Field(..., description="UUID of the entity the link points to")
+    link_type: str = Field(
+        ...,
+        min_length=1,
+        max_length=64,
+        description="Free-form edge type; the string 'contains' is treated as a tree edge",
+    )
+    properties: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Arbitrary JSON properties attached to this edge",
+    )
+    created_at: Optional[datetime] = Field(
+        None, description="Timestamp when the link was created (UTC)"
+    )
+
+
+class EntityLinkCreate(BaseModel):
+    """Request body for creating a new outgoing link from a source entity."""
+
+    target_id: UUID = Field(..., description="UUID of the target entity")
+    link_type: str = Field(
+        ...,
+        min_length=1,
+        max_length=64,
+        description="Edge type; 'contains' is cycle-checked server-side",
+    )
+    properties: Dict[str, Any] = Field(
+        default_factory=dict, description="Optional JSON properties for the edge"
+    )
+
+
 class DataEntity(BaseModel):
     """Top-level logical data entity identified by a UUID."""
 
@@ -103,14 +141,6 @@ class DataEntity(BaseModel):
         None,
         description="Timestamp when the entity was first created (UTC)",
     )
-    parent_id: Optional[UUID] = Field(
-        None,
-        description="UUID of the logical parent entity when building hierarchies",
-    )
-    child_ids: List[UUID] = Field(
-        default_factory=list,
-        description="Immediate child entity UUIDs (if already materialized)",
-    )
     storage_coordinates: List[StorageCoordinate] = Field(
         default_factory=list,
         description="One or many storage coordinates where the entity's bytes can be retrieved",
@@ -118,4 +148,12 @@ class DataEntity(BaseModel):
     metadata: List[MetadataEntry] = Field(
         default_factory=list,
         description="Metadata entries attached to this data entity",
+    )
+    outgoing_links: List[EntityLink] = Field(
+        default_factory=list,
+        description="Edges originating from this entity (read-only; mutated via the links endpoint)",
+    )
+    incoming_links: List[EntityLink] = Field(
+        default_factory=list,
+        description="Edges pointing at this entity (read-only; mutated via the links endpoint)",
     )

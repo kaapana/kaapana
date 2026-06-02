@@ -312,18 +312,24 @@ class KaapanaApiService:
             attempt = 0
             while time.time() < self._device_code_deadline:
                 attempt += 1
-                try:
-                    r = requests.post(self.token_url, verify=self.verify, data=payload)
-                    r.raise_for_status()
+                r = requests.post(self.token_url, verify=self.verify, data=payload)
+                if r.ok:
                     self._store_token(r.json())
                     return
-                except requests.exceptions.HTTPError:
-                    remaining = max(0, int(self._device_code_deadline - time.time()))
-                    logger.warning(
-                        f"Authentication pending (attempt {attempt}, {remaining}s remaining). "
-                        f"Please open {self.verification_uri_complete} in a browser to "
-                        "approve access, then wait."
-                    )
+                # RFC 8628 §3.5: pending-auth errors arrive as HTTP 400 with an
+                # `error` field.  Any other status (5xx, 401, …) or error value
+                # (e.g. `access_denied`) is a real failure — let it propagate.
+                oauth_error = r.json().get("error") if r.status_code == 400 else None
+                if oauth_error not in ("authorization_pending", "slow_down"):
+                    r.raise_for_status()
+                if oauth_error == "slow_down":
+                    self._device_poll_interval += 5
+                remaining = max(0, int(self._device_code_deadline - time.time()))
+                logger.warning(
+                    f"Authentication pending (attempt {attempt}, {remaining}s remaining). "
+                    f"Please open {self.verification_uri_complete} in a browser to "
+                    "approve access, then wait."
+                )
                 time.sleep(self._device_poll_interval)
 
             logger.warning(

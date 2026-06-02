@@ -1,5 +1,6 @@
 import ast
 import glob
+import json
 import os
 import re
 from datetime import datetime
@@ -116,6 +117,8 @@ def run_dicom_validation(
 
     errors = merge_similar_validation_items(all_errors)
     warnings = merge_similar_validation_items(all_warnings)
+    n_errors = len(errors.keys())
+    n_warnings = len(warnings.keys())
     seriesdsc = get_series_description(dcm_files)
     validation_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
     attributes = {
@@ -134,10 +137,22 @@ def run_dicom_validation(
             completeness_items.missing_instance_numbers
         )
 
-    if results_2_meta:
-        n_errors = len(errors.keys())
-        n_warnings = len(warnings.keys())
+    validation_summary = {
+        "error_count": n_errors,
+        "warning_count": n_warnings,
+        "validation_algorithm": validator_alg,
+        "validation_time": validation_time,
+        "total_slices": len(dcm_files),
+        "valid_slices": n_valid,
+        "invalid_slices": n_fail,
+        "series_complete": completeness_items.is_series_complete,
+        "missing_instances": len(completeness_items.missing_instance_numbers),
+        "source": "DcmValidatorOperator",
+    }
+    with open(os.path.join(operator_out_dir, f"results-{run_id}.json"), "w") as f:
+        json.dump(validation_summary, f)
 
+    if results_2_meta:
         tags_tuple = [
             ValdationResultItem(
                 "Errors", "integer", n_errors

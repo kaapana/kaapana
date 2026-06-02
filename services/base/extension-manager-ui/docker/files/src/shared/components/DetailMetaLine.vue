@@ -14,7 +14,7 @@ const visibleItems = computed(() =>
 
 <template>
   <div class="detail-meta-line">
-    <template v-for="(item, index) in visibleItems" :key="index">
+    <template v-for="(item, index) in visibleItems" :key="item">
       <span v-if="index > 0" class="detail-meta-line-separator">·</span>
       <span>{{ item }}</span>
     </template>

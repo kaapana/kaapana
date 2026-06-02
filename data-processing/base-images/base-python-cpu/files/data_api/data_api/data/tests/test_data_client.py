@@ -121,6 +121,66 @@ async def test_create_entity_and_attach_metadata():
     }
 
 
+async def test_create_link_posts_contains_edge_by_default():
+    captured = {}
+
+    def handler(request):
+        captured["method"] = request.method
+        captured["path"] = request.url.path
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={
+                "id": "l1",
+                "source_id": "ds-1",
+                "target_id": "series-1",
+                "link_type": "contains",
+                "properties": {},
+            },
+        )
+
+    async with _client(handler) as client:
+        out = await client.create_link("ds-1", "series-1")
+
+    assert captured["method"] == "POST"
+    assert captured["path"].endswith("/entities/ds-1/links")
+    assert captured["body"] == {
+        "target_id": "series-1",
+        "link_type": "contains",
+        "properties": {},
+    }
+    assert out["link_type"] == "contains"
+
+
+async def test_ensure_entity_posts_where_and_entity():
+    captured = {}
+
+    def handler(request):
+        captured["method"] = request.method
+        captured["path"] = request.url.path
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={"created": True, "entity": {"id": "ds-new"}},
+        )
+
+    where = {
+        "type": "filter",
+        "field": "metadata.dataset.name",
+        "op": "eq",
+        "value": "Study A",
+    }
+    entity = {"id": "ds-new", "storage_coordinates": [], "metadata": []}
+    async with _client(handler) as client:
+        out = await client.ensure_entity(where=where, entity=entity)
+
+    assert captured["method"] == "POST"
+    assert captured["path"].endswith("/entities/ensure")
+    assert captured["body"] == {"where": where, "entity": entity}
+    assert out["created"] is True
+    assert out["entity"]["id"] == "ds-new"
+
+
 async def test_auth_token_forwarded_as_headers():
     captured = {}
 

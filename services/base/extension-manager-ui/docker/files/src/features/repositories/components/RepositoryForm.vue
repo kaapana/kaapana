@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { RepositoryFormState } from '@/features/repositories/types'
 
 const props = defineProps<{
   repositoryForm: RepositoryFormState
   submittingRepositoryForm: boolean
   submitLabel: string
+  requireCredentials: boolean
   showCancelButton?: boolean
 }>()
 
@@ -15,26 +16,24 @@ const emit = defineEmits<{
   (event: 'cancelRepositoryForm'): void
 }>()
 
-const repositoryFormIsValid = computed(() =>
-  Boolean(
-    props.repositoryForm.name.trim() &&
-      props.repositoryForm.repository_url.trim() &&
-      props.repositoryForm.username.trim() &&
-      props.repositoryForm.password,
-  ),
-)
+type FieldRule = (value: string) => boolean | string
 
-function emitRepositoryFormUpdate(repositoryForm: RepositoryFormState) {
-  emit('update:repositoryForm', repositoryForm)
-}
+const formRef = ref<HTMLFormElement | null>(null)
+const isFormValid = ref<boolean | null>(null)
 
-function emitSubmitRepositoryForm() {
-  emit('submitRepositoryForm')
-}
+const requiredRule: FieldRule = (value) => Boolean(value?.trim()) || 'This field is required.'
 
-function emitCancelRepositoryForm() {
-  emit('cancelRepositoryForm')
-}
+const nameRules: FieldRule[] = [requiredRule]
+
+const repositoryUrlRules: FieldRule[] = [
+  requiredRule,
+  (value) =>
+    /^\S+\/\S+$/.test(value.trim()) ||
+    'Use the form <registry>/<repository>, e.g. https://registry.example.com/group/repository.',
+]
+
+// In edit mode credentials are optional (leave blank to keep the stored ones).
+const credentialRules = computed<FieldRule[]>(() => (props.requireCredentials ? [requiredRule] : []))
 
 function getUpdatedRepositoryForm(
   repositoryFormUpdate: Partial<RepositoryFormState>,
@@ -46,42 +45,43 @@ function getUpdatedRepositoryForm(
 }
 
 function updateRepositoryFormName(value: unknown) {
-  emitRepositoryFormUpdate(getUpdatedRepositoryForm({ name: String(value ?? '') }))
+  emit('update:repositoryForm', getUpdatedRepositoryForm({ name: String(value ?? '') }))
 }
 
 function updateRepositoryFormDescription(value: unknown) {
-  emitRepositoryFormUpdate(getUpdatedRepositoryForm({ description: String(value ?? '') }))
+  emit('update:repositoryForm', getUpdatedRepositoryForm({ description: String(value ?? '') }))
 }
 
 function updateRepositoryFormUrl(value: unknown) {
-  emitRepositoryFormUpdate(getUpdatedRepositoryForm({ repository_url: String(value ?? '') }))
+  emit('update:repositoryForm', getUpdatedRepositoryForm({ repository_url: String(value ?? '') }))
 }
 
 function updateRepositoryFormUsername(value: unknown) {
-  emitRepositoryFormUpdate(getUpdatedRepositoryForm({ username: String(value ?? '') }))
+  emit('update:repositoryForm', getUpdatedRepositoryForm({ username: String(value ?? '') }))
 }
 
 function updateRepositoryFormPassword(value: unknown) {
-  emitRepositoryFormUpdate(getUpdatedRepositoryForm({ password: String(value ?? '') }))
+  emit('update:repositoryForm', getUpdatedRepositoryForm({ password: String(value ?? '') }))
 }
 
-function submitRepositoryForm() {
-  if (!repositoryFormIsValid.value) return
+async function submitRepositoryForm() {
+  const result = await formRef.value?.validate()
+  if (result && !result.valid) return
 
-  emitSubmitRepositoryForm()
+  emit('submitRepositoryForm')
 }
 </script>
 
 <template>
-  <v-form @submit.prevent="submitRepositoryForm">
+  <v-form ref="formRef" v-model="isFormValid" @submit.prevent="submitRepositoryForm">
     <v-row dense>
       <v-col cols="12" md="6">
         <v-text-field
           :model-value="props.repositoryForm.name"
+          :rules="nameRules"
           label="Name"
           density="compact"
           variant="outlined"
-          required
           @update:model-value="updateRepositoryFormName"
         />
       </v-col>
@@ -89,10 +89,10 @@ function submitRepositoryForm() {
       <v-col cols="12" md="6">
         <v-text-field
           :model-value="props.repositoryForm.repository_url"
+          :rules="repositoryUrlRules"
           label="Repository URL"
           density="compact"
           variant="outlined"
-          required
           @update:model-value="updateRepositoryFormUrl"
         />
       </v-col>
@@ -112,10 +112,10 @@ function submitRepositoryForm() {
       <v-col cols="12" md="6">
         <v-text-field
           :model-value="props.repositoryForm.username"
+          :rules="credentialRules"
           label="Username"
           density="compact"
           variant="outlined"
-          required
           @update:model-value="updateRepositoryFormUsername"
         />
       </v-col>
@@ -123,11 +123,11 @@ function submitRepositoryForm() {
       <v-col cols="12" md="6">
         <v-text-field
           :model-value="props.repositoryForm.password"
+          :rules="credentialRules"
           label="Password / Access token"
           density="compact"
           variant="outlined"
           type="password"
-          required
           @update:model-value="updateRepositoryFormPassword"
         />
       </v-col>
@@ -138,7 +138,7 @@ function submitRepositoryForm() {
         v-if="props.showCancelButton"
         variant="text"
         :disabled="props.submittingRepositoryForm"
-        @click="emitCancelRepositoryForm"
+        @click="emit('cancelRepositoryForm')"
       >
         Cancel
       </v-btn>
@@ -147,7 +147,7 @@ function submitRepositoryForm() {
         color="primary"
         type="submit"
         :loading="props.submittingRepositoryForm"
-        :disabled="!repositoryFormIsValid"
+        :disabled="isFormValid === false"
       >
         {{ props.submitLabel }}
       </v-btn>

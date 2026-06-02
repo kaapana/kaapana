@@ -2,14 +2,16 @@ import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import vuetify from 'vite-plugin-vuetify'
 import vueDevTools from 'vite-plugin-vue-devtools'
-import type { Plugin } from 'vite'
 
-export default defineConfig(() => ({
+export default defineConfig(({ command }) => ({
   base: "/extension-manager-ui",
   plugins: [
     vue(),
-    vueDevTools(),    
+    vuetify({ autoImport: true }),
+    // Only ship the Vue devtools in dev (vite serve), never in the production build.
+    ...(command === 'serve' ? [vueDevTools()] : []),
   ],
   resolve: {
     alias: {

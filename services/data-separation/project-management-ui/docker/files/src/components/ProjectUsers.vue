@@ -34,8 +34,8 @@
                 </v-tooltip>
 
                 <!-- add button -->
-                <v-btn v-if="can(project?.id, 'manage_project_users')" @click.stop="openAddUserDialog" size="large"
-                    variant="outlined" color="primary" prepend-icon="mdi-account-plus">
+                <v-btn v-if="can(project?.id, 'manage_users')" @click.stop="openAddUserDialog" size="large" variant="tonal">
+                    <template #prepend><v-icon color="primary">mdi-account-plus</v-icon></template>
                     Add User
                 </v-btn>
 
@@ -61,7 +61,7 @@
                     </template>
 
                     <template #item.username="{ item }">
-                        <td>{{ item.username }}</td>
+                        <td><span style="font-family: monospace">{{ item.username }}</span></td>
                     </template>
 
                     <template #item.first_name="{ item }">
@@ -101,8 +101,10 @@
                     <template #item.actions="{ item }">
                         <td class="text-center">
                             <div class="d-flex justify-center gap-1">
-                                <v-btn @click="openEditUserDialog(item)" icon="mdi-link-edit" color="primary" variant="text"/>
-                                <v-btn @click="onRemoveUser(item)" icon="mdi-trash-can" color="error" variant="text" />
+                                <v-btn @click="openEditUserDialog(item)" icon="mdi-link-edit" color="primary" variant="text"
+                                    :disabled="!can(project?.id, 'manage_users')" />
+                                <v-btn @click="onRemoveUser(item)" icon="mdi-trash-can" color="error" variant="text"
+                                    :disabled="!can(project?.id, 'manage_users')" />
                             </div>
                         </td>
                     </template>
@@ -120,8 +122,8 @@
                             </div>
                         </v-row>
                         <v-row align="center" justify="center" no-gutters>
-                            <v-btn @click="openAddUserDialog" size="large" variant="outlined"
-                                prepend-icon="mdi-account-plus" v-if="can(project?.id, 'manage_project_users')">
+                            <v-btn @click="openAddUserDialog" size="large" variant="tonal" v-if="can(project?.id, 'manage_users')">
+                                <template #prepend><v-icon color="primary">mdi-account-plus</v-icon></template>
                                 Add user to project "{{ project?.name }}"
                             </v-btn>
                         </v-row>

@@ -516,7 +516,7 @@ install_extensions:
     JUNIT_FILE: "install_extensions.xml"
     LOG_FILE: "install_extensions.log"
     PYTEST_WORKERS: "4"
-  retry: 1
+  retry: 3
 
 send_data:
   extends: .integration_test_local
@@ -531,7 +531,7 @@ send_data:
     JUNIT_FILE: "send_data.xml"
     LOG_FILE: "send_data.log"
     PYTEST_WORKERS: "4"
-  retry: 1
+  retry: 3
 
 run_workflows:
   extends: .integration_test_local

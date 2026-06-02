@@ -6,10 +6,10 @@
           <v-text-field v-model="form.name" label="Project Name" :rules="nameRules" />
         </v-col></v-row>
         <v-row><v-col>
-          <v-text-field v-model="form.description" label="Description" />
+          <v-text-field v-model="form.external_id" label="External ID" />
         </v-col></v-row>
         <v-row><v-col>
-          <v-text-field v-model="form.external_id" label="External ID" />
+          <v-textarea v-model="form.description" label="Description" auto-grow rows="3" />
         </v-col></v-row>
       </v-container>
     </v-card-text>

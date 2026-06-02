@@ -10,51 +10,50 @@ import 'vuetify/styles'
 
 // Composables
 import { createVuetify } from 'vuetify'
+import { vuetifyThemeConfig, vuetifyDefaults } from '@/theme/kaapana-theme'
 
-// Function to get theme preference
-function getDefaultTheme(): 'light' | 'dark' {
-  // First, try to read from browser's prefers-color-scheme
-  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-    return 'light';
-  }
-  
-  // Second, try to read from localStorage (set by landing page)
+function readStoredTheme(): 'light' | 'dark' | null {
+  // Read-only — the landing page owns writing to localStorage
   try {
-    const settingsStr = localStorage.getItem('settings');
-    if (settingsStr) {
-      const settings = JSON.parse(settingsStr);
-      if (settings.darkMode === false) {
-        return 'light';
-      }
-    }
-  } catch (e) {
-    // Ignore parse errors
-  }
-  
-  // Default to dark
-  return 'dark';
+    const settings = JSON.parse(localStorage.getItem('settings') || '{}');
+    if (settings.darkMode === true) return 'dark';
+    if (settings.darkMode === false) return 'light';
+  } catch { /* ignore */ }
+  return null;
+}
+
+function getDefaultTheme(): 'light' | 'dark' {
+  // Stored preference always wins — never overwrite it
+  const stored = readStoredTheme();
+  if (stored) return stored;
+
+  // No preference stored yet — follow the OS
+  return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
 }
 
 // Create the vuetify instance
 const vuetify = createVuetify({
   theme: {
     defaultTheme: getDefaultTheme(),
+    ...vuetifyThemeConfig,
   },
+  defaults: vuetifyDefaults,
 });
 
-// Listen for localStorage changes (from other tabs/windows)
+// Landing page changed settings.darkMode in another tab → sync here
 window.addEventListener('storage', (event) => {
   if (event.key === 'settings') {
-    const newTheme = getDefaultTheme();
-    vuetify.theme.global.name.value = newTheme;
+    const stored = readStoredTheme();
+    if (stored) vuetify.theme.global.name.value = stored;
   }
 });
 
-// Also listen for browser theme changes
+// OS theme change — only follow if no explicit preference is stored
 if (window.matchMedia) {
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-    const newTheme = e.matches ? 'dark' : 'light';
-    vuetify.theme.global.name.value = newTheme;
+    if (!readStoredTheme()) {
+      vuetify.theme.global.name.value = e.matches ? 'dark' : 'light';
+    }
   });
 }
 

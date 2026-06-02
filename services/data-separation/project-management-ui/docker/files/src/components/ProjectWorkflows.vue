@@ -1,7 +1,7 @@
 <template>
     <v-col>
         <!-- ── Snackbar ────────────────────────────────────────────── -->
-        <v-snackbar v-model="isSnackbarVisible" :timeout="10000" location="top" :color="snackbarColor" elevation="2">
+        <v-snackbar v-model="isSnackbarVisible" :timeout="3000" location="top" :color="snackbarColor" elevation="2" closable>
             {{ snackbarMessage }}
         </v-snackbar>
 
@@ -16,7 +16,30 @@
             </template>
 
             <template #actions>
-                <!-- Add Workflow button removed - showing all workflows from all sources -->
+                <template v-if="can(project?.id, 'manage_workflow_whitelist')">
+                    <v-chip v-if="pendingCount > 0" color="warning" variant="tonal" size="small">
+                        {{ pendingCount }} unsaved
+                    </v-chip>
+                    <v-btn
+                        v-if="pendingCount > 0"
+                        size="small"
+                        variant="text"
+                        @click="discardChanges"
+                    >
+                        Discard
+                    </v-btn>
+                    <v-btn
+                        :disabled="pendingCount === 0 || isSaving"
+                        :loading="isSaving"
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                        prepend-icon="mdi-content-save"
+                        @click="saveChanges"
+                    >
+                        Save Changes
+                    </v-btn>
+                </template>
             </template>
         </SectionHeader>
 
@@ -46,18 +69,19 @@
 
                     <template #item.dag_name="{ item }">
                         <td>
-                            <span class="font-weight-medium">{{ item.dag_name }}</span>
+                            <span class="font-weight-medium" style="font-family: monospace">{{ item.dag_name }}</span>
                         </td>
                     </template>
 
                     <template #item.inAii="{ item }">
-                        <td class="text-center">
+                        <td class="text-center" :class="isPending(item.dag_name) ? 'bg-warning-lighten-4' : ''">
                             <v-checkbox-btn
-                                :model-value="item.inAii"
+                                :model-value="effectiveInAii(item)"
                                 hide-details
-                                @update:model-value="toggleWorkflow(item)"
-                                :disabled="!can(project?.id, 'manage_project_workflows')"
+                                @update:model-value="stage(item, $event)"
+                                :disabled="!can(project?.id, 'manage_workflow_whitelist')"
                                 color="success"
+                                inline
                             >
                             </v-checkbox-btn>
                         </td>
@@ -118,6 +142,9 @@ const { can } = usePermissions();
 const search = ref('');
 const workflows = ref<Workflow[]>([]);
 const isLoading = ref(false);
+const isSaving = ref(false);
+// pending: dag_name → desired inAii value (only changed ones)
+const pending = ref<Record<string, boolean>>({});
 
 // ── Snackbar ───────────────────────────────────────────────────────────────
 
@@ -149,71 +176,77 @@ const filteredWorkflows = computed(() => {
     );
 });
 
-// ── Toggle handler ─────────────────────────────────────────────────────────
+const pendingCount = computed(() => Object.keys(pending.value).length);
 
-const toggleWorkflow = async (workflow: Workflow) => {
-  if (!can(props.project?.id, 'manage_project_workflows')) return;
-    // Optimistically update the UI
-    const wasAllowed = workflow.inAii;
-    workflow.inAii = !wasAllowed;
-    
-    try {
-        if (wasAllowed) {
-            // Remove from whitelist
-            await confirmRemoveWorkflow(workflow);
-        } else {
-            // Add to whitelist
-            await addWorkflowToWhitelist(workflow);
+// ── Pending changes helpers ────────────────────────────────────────────────
+
+const effectiveInAii = (workflow: Workflow): boolean =>
+    pending.value[workflow.dag_name] !== undefined
+        ? pending.value[workflow.dag_name]
+        : workflow.inAii;
+
+const isPending = (dagName: string): boolean => dagName in pending.value;
+
+const stage = (workflow: Workflow, value: boolean) => {
+    if (value === workflow.inAii) {
+        const { [workflow.dag_name]: _, ...rest } = pending.value;
+        pending.value = rest;
+    } else {
+        pending.value = { ...pending.value, [workflow.dag_name]: value };
+    }
+};
+
+const discardChanges = () => { pending.value = {}; };
+
+const saveChanges = async () => {
+    if (!props.project?.id) return;
+    isSaving.value = true;
+    let saved = 0, failed = 0;
+    for (const [dagName, allow] of Object.entries(pending.value)) {
+        try {
+            if (allow) {
+                await aiiApiPost(`projects/${props.project.id}/software-mappings`, [{ software_uuid: dagName }]);
+            } else {
+                await aiiApiDelete(`projects/${props.project.id}/software-mappings`, {}, [{ software_uuid: dagName }]);
+            }
+            // Update committed state
+            const wf = workflows.value.find(w => w.dag_name === dagName);
+            if (wf) wf.inAii = allow;
+            saved++;
+        } catch (error: any) {
+            console.error(`Failed to update ${dagName}:`, error);
+            failed++;
         }
-    } catch (error: any) {
-        // Revert on error
-        console.error('Toggle failed, reverting:', error);
-        workflow.inAii = wasAllowed;
-        showSnackbar(`Failed to update workflow: ${error?.response?.data || 'Unknown error'}`, 'error');
+    }
+    pending.value = {};
+    isSaving.value = false;
+    if (failed > 0) {
+        showSnackbar(`${saved} saved, ${failed} failed.`, 'warning');
+    } else {
+        showSnackbar(`${saved} workflow${saved !== 1 ? 's' : ''} updated.`, 'success');
     }
 };
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────
 
 onMounted(() => {
-    loadWorkflows();
+    if (props.project?.id) loadWorkflows();
 });
 
 watch(
     () => props.project?.id,
-    () => { loadWorkflows(); }
+    (newId) => {
+        if (newId) {
+            pending.value = {};
+            loadWorkflows();
+        }
+    }
 );
-
-const confirmRemoveWorkflow = async (workflow: Workflow) => {
-    if (!workflow || !props.project?.id) return;
-    try {
-        await aiiApiDelete(
-            `projects/${props.project.id}/software-mappings`,
-            {},
-            [{ software_uuid: workflow.dag_name }]
-        );
-    } catch (error) {
-        console.error('Failed to remove workflow from whitelist:', error);
-        throw error;
-    }
-};
-
-const addWorkflowToWhitelist = async (workflow: Workflow) => {
-    if (!props.project?.id) return;
-    try {
-        await aiiApiPost(
-            `projects/${props.project.id}/software-mappings`,
-            [{ software_uuid: workflow.dag_name }]
-        );
-    } catch (error) {
-        console.error('Failed to add workflow to whitelist:', error);
-        throw error;
-    }
-};
 
 // ── Data fetching ──────────────────────────────────────────────────────────
 
 const loadWorkflows = async () => {
+    if (!props.project?.id) return;
     isLoading.value = true;
     const allWorkflows: Workflow[] = [];
     let allowedWorkflowNames = new Set<string>();

@@ -1,15 +1,20 @@
 <template>
-  <v-snackbar v-model="isSnackbarVisible" :timeout="10000" location="top" :color="snackbarColor" elevation="2">
+  <v-snackbar v-model="isSnackbarVisible" :timeout="3000" location="top" :color="snackbarColor" elevation="2" closable>
     {{ snackbarMessage }}
   </v-snackbar>
 
   <v-container max-width="1200" class="bg-surface rounded-lg mt-2">
 
     <!-- ── Back navigation ──────────────────────────────────────── -->
-    <v-row no-gutters class="mb-4">
-      <v-col>
+    <v-row no-gutters class="mb-2" justify="space-between">
+      <v-col cols="auto">
         <v-btn size="x-small" variant="outlined" prepend-icon="mdi-arrow-left" @click="goToProjectsList">
-          Back to Projects
+          Projects
+        </v-btn>
+      </v-col>
+      <v-col cols="auto">
+        <v-btn size="x-small" variant="outlined" prepend-icon="mdi-refresh" @click="refresh">
+          Refresh
         </v-btn>
       </v-col>
     </v-row>
@@ -18,52 +23,70 @@
     <v-row>
       <v-col>
         <v-sheet class="pa-4 rounded-lg" border>
-          <div v-if="project" class="d-flex align-center ga-3 mb-3">
-            <v-icon icon="mdi-folder-multiple" color="primary" size="large" />
-            <div class="d-flex flex-column flex-grow-1">
-              <div class="d-flex align-baseline ga-2">
-                <span class="text-h5">Project:</span>
-                <span class="text-h5 font-weight-bold ml-2">{{ project.name }}</span>
+          <div class="d-flex align-center justify-space-between mb-3">
+            <div v-if="project" class="d-flex align-center ga-3">
+              <v-icon icon="mdi-folder-multiple" color="primary" size="large" />
+              <div>
+                <div class="d-flex align-center ga-2">
+                  <span class="text-h5 font-weight-bold" style="font-family: monospace">{{ project.name }}</span>
+                  <v-chip v-if="project.is_archived" color="warning" size="small">Archived</v-chip>
+                </div>
+                <div v-if="project.external_id" class="text-caption text-medium-emphasis" style="font-family: monospace">
+                  {{ project.external_id }}
+                </div>
               </div>
             </div>
+            <v-skeleton-loader v-else :loading="!project" type="heading" width="200" />
+            <div v-if="userHasAdminAccess && project?.name !== 'admin'" class="d-flex ga-1">
+              <v-btn icon="mdi-pencil" size="default" variant="text" @click="openEditDialog" />
+              <v-btn v-if="!project?.is_archived" icon="mdi-archive-arrow-down" size="default" variant="text" color="warning" @click="archiveDialog = true" />
+              <v-btn v-if="project?.is_archived" icon="mdi-archive-arrow-up" size="default" variant="text" color="success" @click="unarchiveProject" />
+              <v-btn icon="mdi-trash-can" size="default" variant="text" color="error" @click="openDeleteDialog" />
+            </div>
           </div>
-          <v-sheet v-if="project?.description" class="pa-3 rounded" border>
+          <v-alert v-if="project?.is_archived" type="warning" density="compact" variant="tonal" class="mb-3">
+            This project is archived and read-only. Unarchive it to make changes.
+          </v-alert>
+          <v-sheet v-if="project?.description" class="pa-3 rounded mt-2" border>
             <div class="text-caption text-medium-emphasis mb-1">Description</div>
             <div class="text-body-2">{{ project.description }}</div>
           </v-sheet>
-          <v-skeleton-loader v-else :loading="!project" type="heading, paragraph" />
         </v-sheet>
       </v-col>
     </v-row>
 
     <!-- ── Project Users ────────────────────────────────────────── -->
     <v-row>
-      <ProjectUsers :project="project" :expanded="isUsersSectionExpanded" @toggle="isUsersSectionExpanded = $event" />
+      <ProjectUsers :key="`users-${refreshKey}`" :project="project" :expanded="isUsersSectionExpanded" @toggle="isUsersSectionExpanded = $event" />
     </v-row>
 
     <v-divider class="my-4" />
 
     <!-- ── Executable Workflows ─────────────────────────────────── -->
     <v-row>
-      <ProjectWorkflows :project="project" :expanded="isWorkflowsSectionExpanded"
+      <ProjectWorkflows :key="`workflows-${refreshKey}`" :project="project" :expanded="isWorkflowsSectionExpanded"
         @toggle="isWorkflowsSectionExpanded = $event" />
     </v-row>
 
-    <v-divider class="my-4" />
+    <template v-if="userHasAdminAccess || can(project?.id, 'view_applications')">
+      <v-divider class="my-4" />
 
-    <!-- ── Multiinstallable Applications ────────────────────────── -->
-    <v-row>
-      <MultiinstallableApplications :project="project" :expanded="isAppsSectionExpanded"
-        @toggle="isAppsSectionExpanded = $event" />
-    </v-row>
+      <!-- ── Multiinstallable Applications ────────────────────────── -->
+      <v-row>
+        <MultiinstallableApplications :key="`apps-${refreshKey}`" :project="project" :expanded="isAppsSectionExpanded"
+          @toggle="isAppsSectionExpanded = $event" />
+      </v-row>
+    </template>
 
-    <v-divider class="my-4" />
+    <template v-if="userHasAdminAccess || can(project?.id, 'view_active_apps')">
+      <v-divider class="my-4" />
 
-    <!-- ── Active Project Applications ──────────────────────────── -->
-    <v-row v-if="can(project?.id, 'view_active_apps')">
-      <ActiveProjectApplications :project="project" :expanded="isActiveAppsSectionExpanded"
-        @toggle="isActiveAppsSectionExpanded = $event" @confirm-uninstall="confirmAppUninstall" />
-    </v-row>
+      <!-- ── Active Project Applications ──────────────────────────── -->
+      <v-row>
+        <ActiveProjectApplications :key="`active-${refreshKey}`" :project="project" :expanded="isActiveAppsSectionExpanded"
+          @toggle="isActiveAppsSectionExpanded = $event" @confirm-uninstall="confirmAppUninstall" />
+      </v-row>
+    </template>
 
     <v-divider class="my-4" />
 
@@ -90,7 +113,7 @@
           >
             <template #label>
               <span>{{ item.annotations?.["ui-visible-name"] || item.releaseName }}</span>
-              <span class="ml-2 text-medium-emphasis">({{ item.releaseName }})</span>
+              <span class="ml-2 text-medium-emphasis" style="font-family: monospace">({{ item.releaseName }})</span>
             </template>
           </v-checkbox>
         </v-card-text>
@@ -129,6 +152,7 @@ import ArchiveProjectDialog from '@/components/ArchiveProjectDialog.vue';
 import { usePermissions } from '@/permissions/usePermissions';
 import { usePermissionsStore } from '@/permissions/permissions.store';
 import { useCookies } from 'vue3-cookies';
+import { isAdminUser, waitForStoreUser } from '@/common/userAccess';
 
 export default defineComponent({
   components: {
@@ -158,6 +182,8 @@ export default defineComponent({
       isAppsSectionExpanded: false,
       isActiveAppsSectionExpanded: false,
 
+      refreshKey: 0,
+
       deleteDialog: false,
       editDialog: false,
       archiveDialog: false,
@@ -174,7 +200,9 @@ export default defineComponent({
 
   mounted() {
     this.loadProject();
-    this.loadAdminAccess();
+    waitForStoreUser((user) => {
+      this.userHasAdminAccess = isAdminUser(user);
+    });
   },
 
   watch: {
@@ -191,34 +219,26 @@ export default defineComponent({
       this.isSnackbarVisible = true;
     },
 
-    loadAdminAccess(): void {
-      const permissionsStore = usePermissionsStore();
-      const check = setInterval(() => {
-        const store = (this as any).$store;
-        const user = store?.state?.user;
-        if (user) {
-          permissionsStore.loadUserRights(user.id);
-          if (user.realm_roles?.includes('admin') || user.realm_roles?.includes('project-manager')) {
-            this.userHasAdminAccess = true;
-            permissionsStore.admin = true;
-          }
-          clearInterval(check);
-        }
-      }, 100);
-    },
-
     goToProjectsList(): void {
       this.$router.push('/');
     },
 
-    async loadProject(): Promise<void> {
+    async refresh(): Promise<void> {
+      await this.loadProject({ silent: true });
+      this.refreshKey++;
+    },
+
+    async loadProject({ silent = false } = {}): Promise<void> {
       if (!this.projectId) return;
       const { cookies } = useCookies();
       try {
         const project: ProjectItem = await aiiApiGet(`projects/${this.projectId}`);
         this.project = project;
         cookies.set('Project', JSON.stringify({ name: project.name, id: project.id }));
-        this.notify(`Selected project: ${project.name}. You may need to refresh other tabs.`, 'success');
+        if (!silent) {
+          this.notify(`Selected project: ${project.name}. You may need to refresh other tabs.`, 'success');
+        }
+        usePermissionsStore().loadProjectWhitelist(this.projectId);
         this.loadMultiinstallableExtensions();
       } catch (error) {
         console.error('Failed to load project:', error);
@@ -237,16 +257,14 @@ export default defineComponent({
     },
 
     async confirmAppUninstall(app: any): Promise<void> {
-      const permissionsStore = usePermissionsStore();
-      if (
-        !permissionsStore.hasRight(this.project?.id, 'delete_multiinstallable') &&
-        !permissionsStore.hasRight(this.project?.id, 'manage_project_extensions')
-      ) return;
       try {
         await kubeHelmPost('helm-delete-chart', { release_name: app.release_name });
-      } catch (error) {
+        this.notify(`Application "${app.release_name}" uninstalled successfully.`, 'success');
+        await this.refresh();
+      } catch (error: any) {
         console.error('Failed to uninstall application:', error);
-        this.notify('Failed to uninstall application.', 'error');
+        const detail = error?.response?.data?.detail ?? error?.message ?? 'Unknown error';
+        this.notify(`Failed to uninstall "${app.release_name}": ${detail}`, 'error');
       }
     },
 

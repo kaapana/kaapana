@@ -1,7 +1,7 @@
 <template>
     <v-col>
         <!-- ── Snackbar ────────────────────────────────────────────── -->
-        <v-snackbar v-model="isSnackbarVisible" :timeout="10000" location="top" :color="snackbarColor" elevation="2">
+        <v-snackbar v-model="isSnackbarVisible" :timeout="3000" location="top" :color="snackbarColor" elevation="2" closable>
             {{ snackbarMessage }}
         </v-snackbar>
 
@@ -83,15 +83,25 @@
                 </template>
                 <template #item.launch="{ item }">
                     <td class="text-center">
-<v-btn
-  size="small"
-  color="primary"
-  variant="outlined"
-              :disabled="!can(project?.id, 'launch_multiinstallable') && !(store.admin) && (projectWhitelist.length > 0 && !projectWhitelist.includes(item.releaseName))"
-  @click="onLaunchApplication(item)"
->
-  Launch
-</v-btn>
+                        <v-tooltip
+                            text="This application is not whitelisted for this project. Contact your project admin."
+                            :disabled="can(project?.id, 'launch_application', item.releaseName)"
+                            location="top"
+                        >
+                            <template #activator="{ props }">
+                                <span v-bind="props">
+                                    <v-btn
+                                        size="small"
+                                        color="primary"
+                                        variant="outlined"
+                                        :disabled="!can(project?.id, 'launch_application', item.releaseName)"
+                                        @click="onLaunchApplication(item)"
+                                    >
+                                        Launch
+                                    </v-btn>
+                                </span>
+                            </template>
+                        </v-tooltip>
                     </td>
                 </template>
                 <template #item.whitelistToggle="{ item }">
@@ -100,7 +110,7 @@
                             :model-value="projectWhitelist.includes(item.releaseName)"
                             hide-details
                             @update:model-value="updateWhitelist(item.releaseName, $event)"
-                              :disabled="!can(project?.id, 'manage_multiinstall_whitelist') || togglingWhitelist.includes(item.releaseName)"
+                              :disabled="!can(project?.id, 'manage_applications_whitelist') || togglingWhitelist.includes(item.releaseName)"
                             color="success"
                         >
                         </v-checkbox-btn>
@@ -130,8 +140,8 @@
 <script lang="ts" setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { usePermissions } from '@/permissions/usePermissions';
-import { aiiApiGet, aiiApiPut, kubeHelmGet, kubeHelmPost } from '@/common/services';
-import store from '@/common/store';
+import { usePermissionsStore } from '@/permissions/permissions.store';
+import { aiiApiPut, kubeHelmGet, kubeHelmPost } from '@/common/services';
 import SearchBar from '@/components/SearchBar.vue';
 import SectionHeader from '@/components/SectionHeader.vue';
 import LaunchApplication from '@/components/LaunchApplication.vue';
@@ -159,15 +169,20 @@ const emit = defineEmits<{
 }>();
 
 const { can } = usePermissions();
+const permissionsStore = usePermissionsStore();
 
 // ── State ──────────────────────────────────────────────────────────────────
 
 const searchQuery = ref('');
 const multiinstallableExtensions = ref<Extension[]>([]);
 const installedExtensionsByReleaseName = ref<Record<string, any>>({});
-const projectWhitelist = ref<string[]>([]);
 const isLoading = ref(false);
 const togglingWhitelist = ref<string[]>([]);
+
+// Whitelist comes from the permissions store (loaded by project.vue on mount/refresh)
+const projectWhitelist = computed<string[]>(
+    () => permissionsStore.whitelistByProject[props.project?.id ?? ''] ?? []
+);
 
 // ── Launch dialog ──────────────────────────────────────────────────────────
 
@@ -197,16 +212,6 @@ const filteredExtensions = computed(() => {
     );
 });
 
-const sortedExtensions = computed(() => {
-    return [...multiinstallableExtensions.value].sort((a: any, b: any) => {
-        const aAllowed = projectWhitelist.value.includes(a.releaseName);
-        const bAllowed = projectWhitelist.value.includes(b.releaseName);
-        if (projectWhitelist.value.length > 0 && aAllowed !== bAllowed) {
-            return aAllowed ? -1 : 1;
-        }
-        return a.releaseName.localeCompare(b.releaseName);
-    });
-});
 
 // ── Methods ────────────────────────────────────────────────────────────────
 
@@ -227,7 +232,14 @@ const payload = {
         showSnackbar(`Successfully launched ${extension.annotations['ui-visible-name']}`, 'success');
     } catch (error: any) {
         console.error('Failed to launch application:', error);
-        showSnackbar(`Error launching ${extension.annotations['ui-visible-name']}: ${error?.response?.data}`, 'error');
+        const detail = error?.response?.data?.detail ?? error?.message ?? 'Unknown error';
+        const isPermissionError = error?.response?.status === 403;
+        showSnackbar(
+            isPermissionError
+                ? `Permission denied: ${detail}`
+                : `Failed to launch ${extension.annotations['ui-visible-name']}: ${detail}`,
+            'error'
+        );
     }
     isLaunchAppDialogOpen.value = false;
     selectedApplication.value = null;
@@ -260,37 +272,19 @@ const loadExtensions = async () => {
     }
 };
 
-const loadWhitelist = async () => {
-    if (!props.project?.id) return;
-    try {
-        const whitelist = await aiiApiGet(`projects/${props.project.id}/multiinstallable-whitelist`);
-        projectWhitelist.value = Array.isArray(whitelist) ? whitelist : [];
-    } catch (error) {
-        console.error('Failed to load whitelist:', error);
-    }
-};
-
 const updateWhitelist = async (releaseName: string, isAllowed: boolean) => {
     if (!props.project?.id) return;
-    
-    // Add to toggling state to disable the checkbox during API call
     togglingWhitelist.value = [...togglingWhitelist.value, releaseName];
-    
     try {
-        const updatedWhitelist = isAllowed
-            ? [...projectWhitelist.value, releaseName]
-            : projectWhitelist.value.filter(name => name !== releaseName);
-
-        await aiiApiPut(
-            `projects/${props.project.id}/multiinstallable-whitelist`,
-            {},
-            { app_names: updatedWhitelist }
-        );
-        projectWhitelist.value = updatedWhitelist;
+        const current = permissionsStore.whitelistByProject[props.project.id] ?? [];
+        const updated = isAllowed
+            ? [...current, releaseName]
+            : current.filter(name => name !== releaseName);
+        await aiiApiPut(`projects/${props.project.id}/multiinstallable-whitelist`, {}, { app_names: updated });
+        permissionsStore.whitelistByProject[props.project.id] = updated;
     } catch (error) {
         console.error('Failed to update whitelist:', error);
     } finally {
-        // Remove from toggling state to re-enable the checkbox
         togglingWhitelist.value = togglingWhitelist.value.filter(name => name !== releaseName);
     }
 };
@@ -298,20 +292,12 @@ const updateWhitelist = async (releaseName: string, isAllowed: boolean) => {
 // ── Lifecycle ──────────────────────────────────────────────────────────────
 
 onMounted(() => {
-    if (props.project?.id) {
-        loadExtensions();
-        loadWhitelist();
-    }
+    if (props.project?.id) loadExtensions();
 });
 
 watch(
     () => props.project?.id,
-    (newId) => {
-        if (newId) {
-            loadExtensions();
-            loadWhitelist();
-        }
-    }
+    (newId) => { if (newId) loadExtensions(); }
 );
 
 // ── Table headers ──────────────────────────────────────────────────────────

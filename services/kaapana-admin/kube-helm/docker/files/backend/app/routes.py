@@ -290,6 +290,22 @@ async def helm_delete_chart(request: Request):
             multiinstallable = True
         if "platforms" in payload:
             platforms = payload["platforms"]
+
+        # Enforce whitelist on delete: admins bypass; OPA decides who can access this endpoint;
+        project_header = request.headers.get("Project")
+        if project_header and not is_admin_request(request):
+            project_form = json.loads(project_header)
+            whitelist = project_form.get("multiinstallable_whitelist") or []
+            release = payload["release_name"]
+            is_whitelisted = any(release == e or release.startswith(e + "-") for e in whitelist)
+            if whitelist and not is_whitelisted:
+                raise HTTPException(
+                    status_code=403,
+                    detail=(
+                        f"'{release}' is not whitelisted for this project. "
+                        f"Only admins can uninstall non-whitelisted applications."
+                    ),
+                )
         success, stdout = utils.helm_delete(
             release_name=payload["release_name"],
             release_version=release_version,
@@ -340,16 +356,17 @@ async def helm_install_chart(request: Request):
                 project_id = project_form.get("id")
                 if project_id:
                     role_name = await _get_project_role_name(project_id, request)
-                    # Admins can install anything; only PIs are restricted by project whitelist
-                    # Check if user is admin via is_admin_request first
-                    if is_admin_request(request) or (role_name == UserRole.PRINCIPAL_INVESTIGATOR.value):
+                    # Admins can install anything; only PIs are restricted by the project whitelist
+                    if not is_admin_request(request) and role_name == UserRole.PRINCIPAL_INVESTIGATOR.value:
                         app_name = payload["name"]
                         project_whitelist = project_form.get("multiinstallable_whitelist") or []
                         if project_whitelist and app_name not in project_whitelist:
                             raise HTTPException(
                                 status_code=403,
                                 detail=(
-                                    f"Launching multiinstallable application '{app_name}' is not allowed by the project whitelist."
+                                    f"'{app_name}' is not whitelisted for this project. "
+                                    f"You do not have permission to launch it. "
+                                    f"Contact your project admin to add it to the whitelist."
                                 ),
                             )
 

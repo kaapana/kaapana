@@ -1,5 +1,6 @@
 <template>
-    <v-card prepend-icon="mdi-plus-box" title="Add New Project">
+    <v-card title="Create New Project">
+      <template #prepend><v-icon color="primary">mdi-plus-box</v-icon></template>
         <v-overlay v-model="fetching" class="align-center justify-center" contained>
             <v-progress-circular color="primary" indeterminate></v-progress-circular>
         </v-overlay>
@@ -27,12 +28,12 @@
             <v-container>
                 <v-row>
                     <v-col cols="6">
-                        <v-btn color="surface-variant" size="large" variant="elevated" block
+                        <v-btn size="large" variant="tonal" block
                             @click="cancel">Cancel</v-btn>
                     </v-col>
                     <v-col cols="6">
-                        <v-btn :disabled="!valid" color="success" size="large" variant="elevated" block
-                            @click="submit">Submit</v-btn>
+                        <v-btn :disabled="!valid" color="primary" size="large" variant="flat" block
+                            @click="submit">Create</v-btn>
                     </v-col>
                 </v-row>
             </v-container>
@@ -44,7 +45,6 @@
 import { ref, computed } from 'vue';
 import { aiiApiPost } from '@/common/services';
 import { projectNameRules } from '@/common/validation';
-// import {AxiosError} from axios;
 
 
 

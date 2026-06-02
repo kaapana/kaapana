@@ -41,7 +41,7 @@
           <template #selection="{ item, select, toggle, selected }">
             <v-chip v-bind="{ ...$attrs, selected, select, toggle }" size="small" class="mr-1">
               <v-icon icon="mdi-account-circle" size="18" />
-              <span class="ml-1">{{ item.raw.username }}</span>
+              <span class="ml-1" style="font-family: monospace">{{ item.raw.username }}</span>
             </v-chip>
           </template>
           <template #item="{ props, item }">
@@ -51,7 +51,7 @@
               </template>
               <v-list-item-title>{{ item.raw.first_name }} {{ item.raw.last_name }}</v-list-item-title>
               <v-list-item-subtitle>
-                <span class="text-primary">@{{ item.raw.username }}</span>
+                <span class="text-primary" style="font-family: monospace">@{{ item.raw.username }}</span>
                 <span v-if="item.raw.email" class="ml-2">{{ item.raw.email }}</span>
               </v-list-item-subtitle>
             </v-list-item>
@@ -68,14 +68,14 @@
       <p class="text-subtitle-2 font-weight-medium mb-2 mt-4">Project Role</p>
       <v-item-group v-model="selectedRole" mandatory class="d-flex flex-column ga-2">
         <v-item v-for="role in availableRoles" :key="role.value" :value="role.value" v-slot="{ isSelected, toggle }">
-          <v-card :variant="isSelected ? 'tonal' : 'elevated'" :color="isSelected ? 'secondary' : undefined" rounded="lg" class="cursor-pointer" @click="toggle">
+          <v-card :variant="isSelected ? 'tonal' : 'elevated'" :color="isSelected ? 'primary' : undefined" rounded="lg" class="cursor-pointer" @click="toggle">
             <v-card-text class="d-flex align-center ga-3 pa-4">
-              <v-icon :color="isSelected ? 'secondary' : 'medium-emphasis'" :icon="role.icon" size="28" />
+              <v-icon :color="isSelected ? 'primary' : 'medium-emphasis'" :icon="role.icon" size="28" />
               <div class="flex-grow-1">
                 <div class="text-subtitle-2 font-weight-semibold">{{ role.label }}</div>
                 <div class="text-body-2 text-medium-emphasis">{{ role.description }}</div>
               </div>
-              <v-icon v-if="isSelected" color="secondary">mdi-check-circle</v-icon>
+              <v-icon v-if="isSelected" color="primary">mdi-check-circle</v-icon>
             </v-card-text>
           </v-card>
         </v-item>

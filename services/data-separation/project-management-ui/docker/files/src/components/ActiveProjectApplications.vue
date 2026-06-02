@@ -60,14 +60,25 @@
                                 </a>
                             </div>
                         </td>
-                        <td class="text-center" v-if="can(project?.id, 'delete_multiinstallable')">
-                            <v-btn
-                                density="default"
-                                icon="mdi-trash-can"
-                                color="error"
-                                variant="text"
-                                @click="onConfirmUninstall(item)"
-                            />
+                        <td class="text-center">
+                            <v-tooltip
+                                text="Not whitelisted for this project. Only admins can uninstall this."
+                                :disabled="can(project?.id, 'delete_active_apps', item.release_name)"
+                                location="top"
+                            >
+                                <template #activator="{ props }">
+                                    <span v-bind="props">
+                                        <v-btn
+                                            density="default"
+                                            icon="mdi-trash-can"
+                                            color="error"
+                                            variant="text"
+                                            :disabled="!can(project?.id, 'delete_active_apps', item.release_name)"
+                                            @click="onConfirmUninstall(item)"
+                                        />
+                                    </span>
+                                </template>
+                            </v-tooltip>
                         </td>
                     </tr>
                 </template>
@@ -225,17 +236,13 @@ const loadActiveApplications = async () => {
 // ── Lifecycle ──────────────────────────────────────────────────────────────
 
 onMounted(() => {
-    if (props.project?.id) {
-        loadActiveApplications();
-    }
+    if (props.project?.id && props.expanded) loadActiveApplications();
 });
 
 watch(
-    () => props.project?.id,
-    (newId) => {
-        if (newId) {
-            loadActiveApplications();
-        }
+    () => [props.project?.id, props.expanded] as const,
+    ([newId, newExpanded]) => {
+        if (newId && newExpanded && !activeApplications.value.length) loadActiveApplications();
     }
 );
 

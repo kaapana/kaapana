@@ -1,7 +1,10 @@
 import json
 import logging
+import os
 from typing import List, Optional
 from uuid import UUID
+
+CONFIG_DIR = os.environ.get("CONFIG_DIR", "/app/config")
 
 from app.database import get_session
 from app.keycloak_helper import KeycloakHelper, get_keycloak_helper
@@ -57,7 +60,7 @@ async def projects(
     await minio_helper.setup_new_project(project=created_project, session=session)
     kubehelm.install_project_helm_chart(created_project)
 
-    with open("/app/config/default_software.json") as f:
+    with open(f"{CONFIG_DIR}/default_software.json") as f:
         default_software = json.load(f)
 
     created_project_id = created_project.id
@@ -95,12 +98,127 @@ async def get_rights(
     return await crud.get_rights(session, name=name)
 
 
+@router.post("/rights", response_model=schemas.Right, tags=["Projects"])
+async def create_right(
+    right: schemas.CreateRight,
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        return await crud.create_rights(session, right)
+    except IntegrityError:
+        raise HTTPException(status_code=409, detail=f"Right '{right.name}' already exists.")
+
+
+@router.put("/rights/{right_id}", response_model=schemas.Right, tags=["Projects"])
+async def update_right(
+    right_id: int,
+    right: schemas.CreateRight,
+    session: AsyncSession = Depends(get_session),
+):
+    updated = await crud.update_right(session, right_id, right)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Right not found")
+    return updated
+
+
+@router.delete("/rights/{right_id}", status_code=204, tags=["Projects"])
+async def delete_right(
+    right_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    await crud.delete_right(session, right_id)
+    return Response(status_code=204)
+
+
+@router.post("/rights/reset", tags=["Projects"])
+async def reset_role_rights(
+    session: AsyncSession = Depends(get_session),
+):
+    """Reset all rights and role-rights mappings to the defaults from the configmap."""
+    rights_path = f"{CONFIG_DIR}/initial_rights.json"
+    mappings_path = f"{CONFIG_DIR}/initial_roles_rights_mapping.json"
+    try:
+        with open(rights_path) as f:
+            default_rights = json.load(f)
+        with open(mappings_path) as f:
+            mappings = json.load(f)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=500, detail=f"Config file not found: {e}")
+
+    all_db_rights = await crud.get_rights(session)
+    deleted_rights = len(all_db_rights)
+    for db_right in all_db_rights:
+        await crud.delete_right(session, db_right.id)
+
+    for right_data in default_rights:
+        await crud.create_rights(session, schemas.CreateRight(**right_data))
+
+    reset_count = 0
+    for mapping in mappings:
+        role_name = mapping["role"]
+        right_names = mapping["rights"]
+
+        roles = await crud.get_roles(session, name=role_name)
+        if not roles:
+            logger.warning(f"Role '{role_name}' not found, skipping.")
+            continue
+        role = roles[0]
+
+        await crud.delete_all_rights_for_role(session, role.id)
+
+        for right_name in right_names:
+            rights = await crud.get_rights(session, name=right_name)
+            if not rights:
+                logger.warning(f"Right '{right_name}' not found after recreation, skipping.")
+                continue
+            try:
+                await crud.create_roles_rights_mapping(session, role.id, rights[0].id)
+                reset_count += 1
+            except Exception as e:
+                logger.warning(f"Could not assign '{right_name}' to '{role_name}': {e}")
+
+    return {"reset": reset_count, "deleted_rights": deleted_rights}
+
+
 @router.get("/roles", response_model=List[schemas.Role], tags=["Projects"])
 async def get_roles(
     session: AsyncSession = Depends(get_session), name: Optional[str] = None
 ):
     return await crud.get_roles(session, name=name)
 
+
+
+
+
+@router.get("/roles/{role_id}/rights", response_model=List[schemas.Right], tags=["Projects"])
+async def get_role_rights(
+    role_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    return await crud.get_rights_by_role_id(session, role_id)
+
+
+@router.post("/roles/{role_id}/right/{right_id}", status_code=204, tags=["Projects"])
+async def assign_right_to_role(
+    role_id: int,
+    right_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        await crud.create_roles_rights_mapping(session, role_id, right_id)
+    except IntegrityError:
+        raise HTTPException(status_code=409, detail="Mapping already exists.")
+    return Response(status_code=204)
+
+
+@router.delete("/roles/{role_id}/right/{right_id}", status_code=204, tags=["Projects"])
+async def remove_right_from_role(
+    role_id: int,
+    right_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    await crud.delete_roles_rights_mapping(session, role_id, right_id)
+    return Response(status_code=204)
 
 
 @router.get("/{project_identifier}", response_model=schemas.Project, tags=["Projects"])

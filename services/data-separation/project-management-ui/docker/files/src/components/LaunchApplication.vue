@@ -12,8 +12,7 @@
           <!-- Group title -->
           <span
             v-if="param.type === 'group_name'"
-            class="font-weight-bold"
-            style="font-size: 25px;"
+            class="font-weight-bold text-h6"
           >
             {{ param.default }}
           </span>
@@ -21,7 +20,7 @@
           <!-- Documentation block -->
           <div v-if="param.type === 'doc'">
             <br />
-            <span class="font-weight-bold" style="font-size: 25px;">
+            <span class="font-weight-bold text-h6">
               {{ param.title }}
             </span>
 

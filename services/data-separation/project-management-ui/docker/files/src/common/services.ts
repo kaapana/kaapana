@@ -68,7 +68,7 @@ const kubeHelmGet = async function (suburl: string) {
                 headers: header_with_auth_token({})
             }
         );
-        if (response.status === 200) {
+        if (response.status >= 200 && response.status < 300) {
             return response.data;
         } else {
             throw new Error(response.status + " Error, Error Message: " + response.statusText);
@@ -88,7 +88,7 @@ const kubeHelmPost = async function (suburl: string, data: Object) {
 
     try {
         const response: AxiosResponse = await kubeHelmClient.post(suburl, data, config);
-        if (response.status === 200) {
+        if (response.status >= 200 && response.status < 300) {
             return response.data;
         } else {
             throw new Error(response.status + " Error, Error Message: " + response.statusText);
@@ -107,7 +107,7 @@ const kaapanaPluginGet = async function (suburl: string) {
                 headers: header_with_auth_token({})
             }
         );
-        if (response.status === 200) {
+        if (response.status >= 200 && response.status < 300) {
             return response.data;
         } else {
             throw new Error(response.status + " Error, Error Message: " + response.statusText);
@@ -126,7 +126,7 @@ const aiiApiGet = async function (suburl: string) {
                 headers: header_with_auth_token({})
             }
         );
-        if (response.status === 200) {
+        if (response.status >= 200 && response.status < 300) {
             return response.data;
         } else {
             throw new Error(response.status + " Error, Error Message: " + response.statusText);
@@ -146,7 +146,7 @@ const aiiApiPost = async function (suburl: string, data: Object | null = null) {
 
     try {
         const response: AxiosResponse = await AccessInformationInterfaceClient.post(suburl, data, config);
-        if (response.status === 200) {
+        if (response.status >= 200 && response.status < 300) {
             return response.data;
         } else {
             throw new Error(response.status + " Error, Error Message: " + response.statusText);
@@ -168,7 +168,7 @@ const aiiApiPut = async function (suburl: string, params: Object, data: Object =
             data,
             config,
         );
-        if (response.status === 200) {
+        if (response.status >= 200 && response.status < 300) {
             return response.data;
         } else {
             throw new Error(response.status + " Error, Error Message: " + response.statusText);
@@ -209,7 +209,7 @@ const kaapanaBackendGet = async function (suburl: string) {
                 headers: header_with_auth_token({})
             }
         );
-        if (response.status === 200) {
+        if (response.status >= 200 && response.status < 300) {
             return response.data;
         } else {
             throw new Error(response.status + " Error, Error Message: " + response.statusText);
@@ -227,7 +227,7 @@ const workflowApiGet = async function (suburl: string) {
                 headers: header_with_auth_token({})
             }
         );
-        if (response.status === 200) {
+        if (response.status >= 200 && response.status < 300) {
             return response.data;
         } else {
             throw new Error(response.status + " Error, Error Message: " + response.statusText);
@@ -261,7 +261,7 @@ const kaapanaBackendGetDags = async function (onlyDagNames: boolean = true, incl
             'client/dags',
             config
         );
-        if (response.status === 200) {
+        if (response.status >= 200 && response.status < 300) {
             return response.data;
         } else {
             throw new Error(response.status + " Error, Error Message: " + response.statusText);
@@ -284,7 +284,7 @@ const workflowApiGetWorkflows = async function () {
                 }) as RawAxiosRequestHeaders,
             }
         );
-        if (response.status === 200) {
+        if (response.status >= 200 && response.status < 300) {
             return response.data;
         } else {
             throw new Error(response.status + " Error, Error Message: " + response.statusText);

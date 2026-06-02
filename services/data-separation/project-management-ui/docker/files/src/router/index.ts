@@ -8,6 +8,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Index from '@/pages/index.vue'
 import Project from '@/pages/project.vue'
+import RoleRights from '@/pages/role-rights.vue'
 
 // Define routes manually to avoid auto-route conflicts
 const routes = [
@@ -19,14 +20,17 @@ const routes = [
   {
     path: '/project/:id',
     component: Project,
-    props: true,
     name: 'ProjectDetail'
   },
   {
     path: '/project/:id/:name',
     component: Project,
-    props: true,
     name: 'ProjectDetailWithName'
+  },
+  {
+    path: '/role-rights',
+    name: 'RoleRights',
+    component: RoleRights,
   },
   // Catch-all redirect to home
   {

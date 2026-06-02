@@ -10,6 +10,8 @@ from app.services.entity_query import (
     _build_filter_predicate,
     _build_metadata_predicate,
     _coerce_bool,
+    _coerce_link_type,
+    _coerce_link_value,
     _coerce_uuid,
     _normalize_storage_type,
     _parse_metadata_field,
@@ -105,3 +107,53 @@ def test_has_key_routes_through_filter_predicate_without_value() -> None:
     sql = _sql(_build_filter_predicate(node))
     assert "exists" in sql
     assert "model-card" in sql
+
+
+def test_coerce_link_value_returns_uuid_and_normalized_type() -> None:
+    raw = "12345678-1234-5678-1234-567812345678"
+    entity_id, link_type = _coerce_link_value(
+        {"entity_id": raw, "link_type": " Contains "}
+    )
+    assert entity_id == UUID(raw)
+    assert link_type == "contains"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "not-a-dict",
+        {"entity_id": "12345678-1234-5678-1234-567812345678"},
+        {"link_type": "contains"},
+        {"entity_id": "bad", "link_type": "contains"},
+    ],
+)
+def test_coerce_link_value_rejects_bad_shapes(value: object) -> None:
+    with pytest.raises(QueryTranslationError):
+        _coerce_link_value(value)
+
+
+def test_coerce_link_type_accepts_string_and_dict() -> None:
+    assert _coerce_link_type("Contains") == "contains"
+    assert _coerce_link_type({"link_type": "FOO"}) == "foo"
+
+
+@pytest.mark.parametrize("value", ["", "   ", 42, {}, {"link_type": ""}])
+def test_coerce_link_type_rejects_invalid(value: object) -> None:
+    with pytest.raises(QueryTranslationError):
+        _coerce_link_type(value)
+
+
+def test_eq_on_nested_metadata_path_builds_json_value_comparison() -> None:
+    # Dataset find-or-create (incoming-DICOM DAG) relies on eq matching a nested
+    # metadata path: metadata.dataset.name == "<name>". This must traverse the
+    # JSON data column and compare the value as a JSONB literal, not degrade to a
+    # presence check (has_key) or raise QueryTranslationError.
+    # Compiled WITHOUT literal_binds: a JSONB literal can't be rendered inline, but
+    # it binds and executes fine at runtime — the structure is what we assert here.
+    node = FilterNode(field="metadata.dataset.name", op=QueryOp.EQ, value="cohort-a")
+    sql = str(
+        _build_filter_predicate(node).compile(dialect=postgresql.dialect())
+    ).lower()
+    assert "exists" in sql
+    assert ".data ->" in sql  # JSON traversal into the .name path segment
+    assert "::jsonb" in sql  # value compared as a JSONB literal, not presence-only

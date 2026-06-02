@@ -119,13 +119,20 @@ def test_pacs_multipart_parse_yields_named_instances(monkeypatch) -> None:
 
 
 class _FakeMinio:
-    """Minimal in-memory MinIO stand-in: put/get of objects by key."""
+    """Minimal in-memory MinIO stand-in: put/list/get of objects by key."""
 
     def __init__(self):
         self.objects: dict = {}
 
     def put_object(self, bucket, key, data, length):
         self.objects[key] = data.read()
+
+    def list_objects(self, bucket, prefix="", recursive=False):
+        class _Obj:
+            def __init__(self, name):
+                self.object_name = name
+
+        return [_Obj(k) for k in sorted(self.objects) if k.startswith(prefix)]
 
     def get_object(self, bucket, key):
         payload = self.objects[key]
@@ -298,3 +305,63 @@ def test_pacs_store_stows_multipart_and_returns_one_coord_per_series(monkeypatch
         ("study-1", "series-2"),
     ]
     assert all(c.pacs_id == "http://pacs" and c.type == "pacs" for c in coords)
+
+
+def test_s3_fetch_prefix_yields_structure_preserving_relpaths(monkeypatch):
+    pytest.importorskip("minio")
+
+    from app.models import S3Coordinate
+    from app.services.backends import s3
+
+    client = _FakeMinio()
+    client.objects = {
+        "models/run-1/model.bin": b"weights",
+        "models/run-1/weights/layer1.bin": b"L1",
+        "models/run-1/sub/": b"",  # directory marker -> skipped
+    }
+    monkeypatch.setattr(s3, "_minio_client", lambda token, endpoint: client)
+
+    coord = S3Coordinate(bucket="proj", key="models/run-1/", is_prefix=True)
+    out = dict(s3.S3Backend().fetch(coord, "tok"))
+
+    assert out == {"model.bin": b"weights", "weights/layer1.bin": b"L1"}
+
+
+def test_folder_coordinate_materialises_nested_structure_under_entity(
+    monkeypatch, tmp_path
+):
+    """End-to-end wiring: a folder coordinate's nested objects survive the
+    fetch -> entity-prefixed arcname -> stream_tar -> extract round-trip.
+
+    Unlike PACS (flat instance names), an S3 folder yields sub-directory relpaths;
+    this asserts the nested dirs land under ``<entity_id>/`` on extraction.
+    """
+    import io
+    import tarfile
+
+    pytest.importorskip("minio")
+
+    from app.models import S3Coordinate
+    from app.services.archive import stream_tar
+    from app.services.backends import s3
+
+    client = _FakeMinio()
+    client.objects = {
+        "models/run-1/model.bin": b"weights",
+        "models/run-1/weights/layer1.bin": b"L1",
+    }
+    monkeypatch.setattr(s3, "_minio_client", lambda token, endpoint: client)
+
+    coord = S3Coordinate(bucket="proj", key="models/run-1/", is_prefix=True)
+    # Mirror api/v1._iter_files: prefix each relpath with the entity id.
+    files = (
+        (f"e1/{relpath}", content)
+        for relpath, content in s3.S3Backend().fetch(coord, "tok")
+    )
+    archive = b"".join(stream_tar(files))
+
+    with tarfile.open(fileobj=io.BytesIO(archive), mode="r") as tar:
+        tar.extractall(path=tmp_path, filter="data")
+
+    assert (tmp_path / "e1" / "model.bin").read_bytes() == b"weights"
+    assert (tmp_path / "e1" / "weights" / "layer1.bin").read_bytes() == b"L1"

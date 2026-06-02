@@ -68,7 +68,11 @@ RUN python3 -m pip install /app/kaapana_federated
 # Install kaapanapy pip package
 COPY files/kaapana_python /app/kaapana_python
 WORKDIR /app/kaapana_python
-RUN python3 -m build 
+RUN python3 -m build
 RUN python3 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt dist/kaapanapy-0.0.1.tar.gz
+
+# Install data_api pip package
+COPY files/data_api /app/data_api
+RUN python3 -m pip install /app/data_api
 
 WORKDIR /kaapana/app

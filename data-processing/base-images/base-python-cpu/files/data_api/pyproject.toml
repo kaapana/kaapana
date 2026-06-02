@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "data-api"
+version = "1.0.0"
+description = "Async client SDK and programmatic gate for the Kaapana Data API + Storage API"
+readme = "Readme.md"
+requires-python = ">=3.9"
+dependencies = [
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+
+[tool.setuptools.packages.find]
+include = ["data_api*"]
+exclude = ["*.tests", "*.tests.*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

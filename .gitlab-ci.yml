@@ -143,6 +143,21 @@ task_api_tests:
         - task_api_report.xml
 
 ##############################################
+# Data API library Tests
+##############################################
+data_api_tests:
+  extends: .test_template
+  script:
+    - pip install build pytest pytest-asyncio
+    - python3 -m build $KAAPANA_DIR/data-processing/base-images/base-python-cpu/files/data_api
+    - pip install $KAAPANA_DIR/data-processing/base-images/base-python-cpu/files/data_api/dist/data_api-*.tar.gz
+    - pytest $KAAPANA_DIR/data-processing/base-images/base-python-cpu/files/data_api/data_api --junitxml=data_api_report.xml
+  artifacts:
+    reports:
+      junit:
+        - data_api_report.xml
+
+##############################################
 # Workflow API Tests
 ##############################################
 workflow_api_tests:

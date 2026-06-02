@@ -12,6 +12,7 @@ services:
       - WORKERS=4
       - LOG_LEVEL=INFO
       - DICOM_WADORS_ENDPOINT=http://dicom-web-filter-service.services.svc:8080
+      - DICOM_STOWRS_ENDPOINT=http://dicom-web-filter-service.services.svc:8080
       - MINIO_URL=minio-service.services.svc:9000
     volumes:
       - ./docker/app:/app/app

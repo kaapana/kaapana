@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 import xml.etree.ElementTree as ET
-from typing import Iterator, Optional, Tuple
+from io import BytesIO
+from typing import Iterable, Iterator, List, Optional, Tuple
 
 from app.config import get_settings
 from app.models import S3Coordinate
@@ -13,6 +14,18 @@ logger = logging.getLogger(__name__)
 
 _STS_NS = {"ns": "https://sts.amazonaws.com/doc/2011-06-15/"}
 _TIMEOUT = 30
+
+
+def _safe_relpath(filename: str) -> str:
+    """Normalise an upload file path to a safe relative key segment.
+
+    Preserves sub-directory structure (so an uploaded folder keeps its layout)
+    but strips traversal: drops leading slashes, ``.``/``..`` segments and any
+    Windows drive/backslash, so a crafted name can't escape the prefix.
+    """
+    normalised = filename.replace("\\", "/")
+    parts = [p for p in normalised.split("/") if p not in ("", ".", "..")]
+    return "/".join(parts) or "object"
 
 
 def _minio_client(access_token: str, endpoint: str):
@@ -76,3 +89,54 @@ class S3Backend(StorageBackend):
         data = self._get_object(client, coordinate.bucket, coordinate.key)
         name = coordinate.key.rstrip("/").split("/")[-1] or "object"
         yield name, data
+
+    def store(
+        self,
+        target,
+        files: Iterable[Tuple[str, bytes]],
+        access_token: Optional[str],
+    ) -> List[S3Coordinate]:
+        if not access_token:
+            raise ValueError("S3 upload requires an access token for web-identity auth")
+
+        endpoint = get_settings().minio_url
+        client = _minio_client(access_token, endpoint)
+
+        prefix = target.key_prefix or ""
+        if prefix and not prefix.endswith("/"):
+            prefix += "/"
+
+        unit = getattr(target, "unit", "folder")
+        files = list(files)
+        if unit == "file":
+            if len(files) != 1:
+                raise ValueError(
+                    f"Upload unit 'file' expects exactly one file, got {len(files)}"
+                )
+        elif not prefix:
+            # A folder coordinate with an empty prefix would later list the whole
+            # bucket on fetch — refuse it rather than mint that footgun.
+            raise ValueError("Upload unit 'folder' requires a non-empty key_prefix")
+
+        coordinates: List[S3Coordinate] = []
+        for filename, content in files:
+            # Preserve the relative path under the prefix (so an uploaded folder keeps
+            # its structure), but defend the object namespace against traversal.
+            relpath = _safe_relpath(filename)
+            key = f"{prefix}{relpath}"
+            client.put_object(
+                target.bucket,
+                key,
+                BytesIO(content),
+                length=len(content),
+            )
+            if unit == "file":
+                # Single object coordinate addressing exactly this key.
+                coordinates.append(S3Coordinate(bucket=target.bucket, key=key))
+
+        if unit == "folder":
+            # One coordinate for the whole folder; fetch lists everything under it.
+            coordinates.append(
+                S3Coordinate(bucket=target.bucket, key=prefix, is_prefix=True)
+            )
+        return coordinates

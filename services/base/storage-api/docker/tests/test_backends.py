@@ -119,10 +119,13 @@ def test_pacs_multipart_parse_yields_named_instances(monkeypatch) -> None:
 
 
 class _FakeMinio:
-    """Minimal in-memory MinIO stand-in: get of objects by key."""
+    """Minimal in-memory MinIO stand-in: put/get of objects by key."""
 
     def __init__(self):
         self.objects: dict = {}
+
+    def put_object(self, bucket, key, data, length):
+        self.objects[key] = data.read()
 
     def get_object(self, bucket, key):
         payload = self.objects[key]
@@ -154,3 +157,144 @@ def test_s3_fetch_single_object_yields_basename(monkeypatch):
     out = list(s3.S3Backend().fetch(coord, "tok"))
 
     assert out == [("report.txt", b"hello")]
+
+
+def test_s3_store_folder_preserves_structure_and_returns_one_prefix_coord(monkeypatch):
+    pytest.importorskip("minio")
+
+    from app.models import S3UploadTarget
+    from app.services.backends import s3
+
+    client = _FakeMinio()
+    monkeypatch.setattr(s3, "_minio_client", lambda token, endpoint: client)
+
+    # Default unit == "folder"; a file in a sub-directory must keep its relpath.
+    target = S3UploadTarget(bucket="proj", key_prefix="models/run-1")
+    coords = s3.S3Backend().store(
+        target,
+        [("model.bin", b"weights"), ("weights/layer1.bin", b"L1")],
+        "tok",
+    )
+
+    assert client.objects == {
+        "models/run-1/model.bin": b"weights",
+        "models/run-1/weights/layer1.bin": b"L1",
+    }
+    # One folder coordinate addressing the whole prefix.
+    assert len(coords) == 1
+    assert coords[0].bucket == "proj"
+    assert coords[0].key == "models/run-1/"
+    assert coords[0].is_prefix is True
+    assert coords[0].type == "s3"
+
+
+def test_s3_store_file_unit_returns_single_object_coord(monkeypatch):
+    pytest.importorskip("minio")
+
+    from app.models import S3UploadTarget
+    from app.services.backends import s3
+
+    client = _FakeMinio()
+    monkeypatch.setattr(s3, "_minio_client", lambda token, endpoint: client)
+
+    target = S3UploadTarget(bucket="proj", key_prefix="single/", unit="file")
+    coords = s3.S3Backend().store(target, [("report.txt", b"hello")], "tok")
+
+    assert client.objects == {"single/report.txt": b"hello"}
+    assert len(coords) == 1
+    assert coords[0].key == "single/report.txt"
+    assert coords[0].is_prefix is False
+
+
+def test_s3_store_file_unit_rejects_multiple_files(monkeypatch):
+    pytest.importorskip("minio")
+
+    from app.models import S3UploadTarget
+    from app.services.backends import s3
+
+    monkeypatch.setattr(s3, "_minio_client", lambda token, endpoint: _FakeMinio())
+    target = S3UploadTarget(bucket="proj", unit="file")
+    with pytest.raises(ValueError, match="exactly one file"):
+        s3.S3Backend().store(target, [("a", b"1"), ("b", b"2")], "tok")
+
+
+def test_s3_store_folder_rejects_empty_prefix(monkeypatch):
+    pytest.importorskip("minio")
+
+    from app.models import S3UploadTarget
+    from app.services.backends import s3
+
+    monkeypatch.setattr(s3, "_minio_client", lambda token, endpoint: _FakeMinio())
+    # A folder coordinate over an empty prefix would list the whole bucket on fetch.
+    target = S3UploadTarget(bucket="proj", key_prefix="", unit="folder")
+    with pytest.raises(ValueError, match="non-empty key_prefix"):
+        s3.S3Backend().store(target, [("a", b"1")], "tok")
+
+
+def test_s3_store_requires_access_token() -> None:
+    pytest.importorskip("minio")
+    from app.models import S3UploadTarget
+    from app.services.backends import s3
+
+    with pytest.raises(ValueError):
+        s3.S3Backend().store(S3UploadTarget(bucket="b"), [("f", b"x")], None)
+
+
+def test_pacs_store_stows_multipart_and_returns_one_coord_per_series(monkeypatch):
+    pydicom = pytest.importorskip("pydicom")
+    pytest.importorskip("requests")
+    import requests
+
+    from app.models import PacsUploadTarget
+    from app.services.backends import pacs
+
+    def _dicom(study: str, series: str, sop: str) -> bytes:
+        ds = pydicom.dataset.Dataset()
+        ds.SOPInstanceUID = sop
+        ds.StudyInstanceUID = study
+        ds.SeriesInstanceUID = series
+        file_meta = pydicom.dataset.FileMetaDataset()
+        file_meta.MediaStorageSOPClassUID = pydicom.uid.SecondaryCaptureImageStorage
+        file_meta.MediaStorageSOPInstanceUID = sop
+        file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRLittleEndian
+        fds = pydicom.dataset.FileDataset(
+            "x.dcm", ds, file_meta=file_meta, preamble=b"\x00" * 128
+        )
+        buf = io.BytesIO()
+        fds.save_as(buf, write_like_original=False)
+        return buf.getvalue()
+
+    captured: dict = {}
+
+    class _Resp:
+        def raise_for_status(self):
+            pass
+
+    def _fake_post(url, data=None, headers=None, timeout=None):
+        captured.update(url=url, data=data, headers=headers)
+        return _Resp()
+
+    monkeypatch.setattr(requests, "post", _fake_post)
+
+    # Two instances of the same series + one of another series.
+    a = _dicom("study-1", "series-1", "1.1")
+    b = _dicom("study-1", "series-1", "1.2")
+    c = _dicom("study-1", "series-2", "2.1")
+
+    coords = pacs.PacsBackend().store(
+        PacsUploadTarget(pacs_id="http://pacs"),
+        [("a.dcm", a), ("b.dcm", b), ("c.dcm", c)],
+        "tok",
+    )
+
+    assert captured["url"] == "http://pacs/studies"
+    assert 'type="application/dicom"' in captured["headers"]["Content-Type"]
+    assert captured["headers"]["Authorization"] == "Bearer tok"
+    # All three instances are in the STOW body.
+    assert captured["data"].count(b"application/dicom") == 3
+    # One coordinate per distinct series, study/series UIDs preserved.
+    assert [(c.study_uid, c.series_uid) for c in coords] == [
+        ("study-1", "series-1"),
+        ("study-1", "series-2"),
+    ]
+    assert all(c.pacs_id == "http://pacs" and c.type == "pacs" for c in coords)

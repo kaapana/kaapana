@@ -33,6 +33,8 @@ spec:
           value: INFO
         - name: DICOM_WADORS_ENDPOINT
           value: "http://dicom-web-filter-service.{{ .Values.global.services_namespace }}.svc:8080"
+        - name: DICOM_STOWRS_ENDPOINT
+          value: "http://dicom-web-filter-service.{{ .Values.global.services_namespace }}.svc:8080"
         - name: MINIO_URL
           value: "minio-service.{{ .Values.global.services_namespace }}.svc:9000"
 {{- if .Values.global.dev_files }}

@@ -19,6 +19,11 @@ class S3Coordinate(BaseModel):
     key: str
     region: Optional[str] = None
     endpoint_url: Optional[str] = None
+    is_prefix: bool = Field(
+        False,
+        description="If true, `key` is a folder prefix and all objects under it are "
+        "fetched (relative structure preserved); else `key` is a single object.",
+    )
 
 
 class FilesystemCoordinate(BaseModel):
@@ -53,3 +58,44 @@ class DownloadItem(BaseModel):
 class DownloadRequest(BaseModel):
     items: List[DownloadItem]
     format: Literal["tar", "zip"] = "tar"
+
+
+class S3UploadTarget(BaseModel):
+    """Write arbitrary files (models, archives, …) as objects under a prefix."""
+
+    store: Literal["s3"] = "s3"
+    bucket: str = Field(..., description="Target MinIO/S3 bucket")
+    key_prefix: str = Field(
+        "", description="Object-key prefix; file paths are appended to it"
+    )
+    unit: Literal["file", "folder"] = Field(
+        "folder",
+        description="'folder': store all files under the prefix and return one "
+        "prefix coordinate; 'file': store the single uploaded file and return one "
+        "object coordinate.",
+    )
+
+
+class PacsUploadTarget(BaseModel):
+    """Write DICOM instances back to a PACS via DICOMweb STOW-RS."""
+
+    store: Literal["pacs"] = "pacs"
+    pacs_id: Optional[str] = Field(
+        None,
+        description="DICOMweb endpoint base URL; defaults to the in-cluster store",
+    )
+
+
+UploadTarget = Annotated[
+    Union[S3UploadTarget, PacsUploadTarget], Field(discriminator="store")
+]
+
+
+class UploadResponse(BaseModel):
+    """The storage coordinates the written bytes are now addressable by.
+
+    The caller (e.g. the workflow upload task) records these on a new Data API
+    entity — the storage-api itself never touches the Data API.
+    """
+
+    coordinates: List[Coordinate]

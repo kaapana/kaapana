@@ -1,18 +1,22 @@
 from __future__ import annotations
 
+import json
 import logging
-from typing import Iterator, Optional, Tuple
+from typing import Iterator, List, Optional, Tuple
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
+from pydantic import TypeAdapter, ValidationError
 
-from app.models import DownloadItem, DownloadRequest
+from app.models import DownloadItem, DownloadRequest, UploadResponse, UploadTarget
 from app.services.archive import stream_tar, stream_zip
 from app.services.backends import get_backend
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+_upload_target_adapter: TypeAdapter = TypeAdapter(UploadTarget)
 
 
 def _resolve_token(
@@ -71,3 +75,43 @@ def download(
         media_type="application/x-tar",
         headers={"Content-Disposition": "attachment; filename=download.tar"},
     )
+
+
+@router.post("/upload", response_model=UploadResponse)
+def upload(
+    descriptor: str = Form(
+        ...,
+        description='JSON UploadTarget, e.g. {"store":"s3","bucket":"b","key_prefix":"p/"}',
+    ),
+    files: List[UploadFile] = File(...),
+    x_forwarded_access_token: Optional[str] = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
+) -> UploadResponse:
+    """Write uploaded files to the target store and return their coordinates.
+
+    The mirror image of ``/download``: the storage-api moves bytes only; the
+    caller records the returned coordinates on a new Data API entity. Bytes are
+    written first, so a later failure to create the entity merely orphans a
+    GC-able object rather than leaving a dangling coordinate.
+    """
+    try:
+        target = _upload_target_adapter.validate_python(json.loads(descriptor))
+    except (json.JSONDecodeError, ValidationError) as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid descriptor: {exc}")
+
+    backend = get_backend(target.store)
+    if backend is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No storage backend for store '{target.store}'",
+        )
+
+    token = _resolve_token(x_forwarded_access_token, authorization)
+
+    payload = [(f.filename or "object", f.file.read()) for f in files]
+    try:
+        coordinates = backend.store(target, payload, token)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    return UploadResponse(coordinates=coordinates)

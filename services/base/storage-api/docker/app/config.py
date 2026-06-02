@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     )
 
     dicom_wadors_endpoint: str = ""
+    dicom_stowrs_endpoint: str = ""
     minio_url: str = ""
 
 

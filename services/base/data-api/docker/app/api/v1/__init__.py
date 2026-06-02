@@ -1,4 +1,4 @@
-from app.api.v1.endpoints import artifacts, entities, maintenance, metadata, queries
+from app.api.v1.endpoints import artifacts, entities, links, maintenance, metadata, queries
 from app.db.session import get_async_db
 from app.services.event_bus import get_event_bus
 from fastapi import APIRouter, Depends, WebSocket
@@ -8,6 +8,7 @@ from starlette.websockets import WebSocketDisconnect
 router = APIRouter()
 
 router.include_router(entities.router)
+router.include_router(links.router)
 router.include_router(metadata.router)
 router.include_router(artifacts.router)
 router.include_router(queries.router)

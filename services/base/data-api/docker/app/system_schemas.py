@@ -15,6 +15,8 @@ on a fresh install (a metadata POST whose key has no registered schema is
 rejected) and any tool can discover model entities by it. A workflow needing a
 key the platform does not ship registers it itself at run time via a DAG
 operator (see the demo's ``ensure-data-schema`` task), not here.
+``dataset`` marks an entity as a named dataset whose members are attached via
+contains links.
 """
 
 from __future__ import annotations
@@ -71,7 +73,26 @@ MODEL_SCHEMA = {
     "additionalProperties": True,
 }
 
+DATASET_SCHEMA_KEY = "dataset"
+
+DATASET_SCHEMA = {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "title": "Dataset",
+    "description": "Marks an entity as a dataset; members are attached via 'contains' links.",
+    "properties": {
+        "name": {
+            "type": "string",
+            "title": "Dataset name",
+            "description": "Human-readable name of the dataset.",
+        },
+    },
+    "required": ["name"],
+    "additionalProperties": True,
+}
+
 SYSTEM_SCHEMAS = {
     PROVENANCE_SCHEMA_KEY: PROVENANCE_SCHEMA,
     MODEL_SCHEMA_KEY: MODEL_SCHEMA,
+    DATASET_SCHEMA_KEY: DATASET_SCHEMA,
 }

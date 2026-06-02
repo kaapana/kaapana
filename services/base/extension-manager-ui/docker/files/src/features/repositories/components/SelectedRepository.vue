@@ -45,12 +45,13 @@ function onDeleteConfirmed() {
     @close="$emit('clearSelectedRepository')"
   >
     <template v-if="props.selectedRepository" v-slot:body>
+      <!-- Match :require-credentials="true" with the backend. To support partial updates without credentials, set to false. -->
       <RepositoryForm
         v-if="props.editingSelectedRepository"
         :repository-form="props.selectedRepositoryForm"
         :submitting-repository-form="props.updatingSelectedRepository"
         submit-label="Save changes"
-        :require-credentials="false"
+        :require-credentials="true"
         show-cancel-button
         @update:repository-form="$emit('update:selectedRepositoryForm', $event)"
         @submit-repository-form="$emit('updateSelectedRepository')"

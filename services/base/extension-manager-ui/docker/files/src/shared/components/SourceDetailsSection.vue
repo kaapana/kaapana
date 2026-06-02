@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 export interface SourceDetailsRow {
   label: string
@@ -13,9 +13,7 @@ const props = defineProps<{
 
 const showMore = ref(false)
 
-function hasAdvanced(): boolean {
-  return Boolean(props.advancedRows && props.advancedRows.length > 0)
-}
+const hasAdvanced = computed(() => Boolean(props.advancedRows && props.advancedRows.length > 0))
 </script>
 
 <template>
@@ -34,7 +32,7 @@ function hasAdvanced(): boolean {
       </template>
     </div>
     <v-btn
-      v-if="hasAdvanced()"
+      v-if="hasAdvanced"
       variant="text"
       size="small"
       class="source-details-toggle"

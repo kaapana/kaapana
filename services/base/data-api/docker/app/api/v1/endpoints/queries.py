@@ -6,6 +6,7 @@ from app.db.session import AsyncSessionLocal, get_async_db
 from app.models.query import QueryIndexRequest, QueryRequest, QueryResponse
 from app.services.entity_query import (
     QueryTranslationError,
+    SortResultTooLarge,
     execute_entity_query,
     prepare_query_index_statement,
 )
@@ -20,6 +21,8 @@ router = APIRouter(prefix="/entities", tags=["entity-queries"])
 async def query_entities(request: QueryRequest, db: AsyncSession = Depends(get_async_db)) -> QueryResponse:
     try:
         results, total_count, next_cursor = await execute_entity_query(db, request)
+    except SortResultTooLarge as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except QueryTranslationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ValueError as exc:

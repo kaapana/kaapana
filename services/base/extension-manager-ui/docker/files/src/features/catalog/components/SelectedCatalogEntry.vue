@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import AboutThisSource from '@/shared/components/AboutThisSource.vue'
 import BaseDetailDialog from '@/shared/components/BaseDetailDialog.vue'
 import DetailMetaLine from '@/shared/components/DetailMetaLine.vue'
 import ExtensionManifestDetails from '@/shared/components/ExtensionManifestDetails.vue'

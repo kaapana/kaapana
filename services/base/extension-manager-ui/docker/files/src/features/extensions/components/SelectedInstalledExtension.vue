@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import AboutThisSource from '@/shared/components/AboutThisSource.vue'
 import BaseDetailDialog from '@/shared/components/BaseDetailDialog.vue'
 import ConfirmDialog from '@/shared/components/ConfirmDialog.vue'
 import DetailMetaLine from '@/shared/components/DetailMetaLine.vue'
@@ -139,7 +138,8 @@ const advancedSourceRows = computed<SourceDetailsRow[]>(() => {
       </v-row>
 
       <div v-else class="selected-installed-extension-body">
-        <AboutThisSource :description="props.selectedInstalledExtensionRepository?.description" />
+        <!-- TODO: Render an extension description once the manifest provides one. -->
+        <!-- <AboutThisSource :description="props.selectedInstalledExtension?.manifest.description" /> -->
 
         <SourceDetailsSection :rows="sourceRows" :advanced-rows="advancedSourceRows" />
 

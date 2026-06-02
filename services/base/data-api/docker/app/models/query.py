@@ -20,6 +20,11 @@ class QueryOp(str, Enum):
     STARTS_WITH = "starts_with"
     ENDS_WITH = "ends_with"
     HAS_KEY = "has_key"
+    HAS_OUTGOING_LINK = "has_outgoing_link"
+    HAS_INCOMING_LINK = "has_incoming_link"
+    DESCENDANT_OF = "descendant_of"
+    ANCESTOR_OF = "ancestor_of"
+    NO_INCOMING_LINK = "no_incoming_link"
 
 
 class FilterNode(BaseModel):

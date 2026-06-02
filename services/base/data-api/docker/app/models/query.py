@@ -107,7 +107,38 @@ class QueryIndexRequest(BaseModel):
     )
 
 
+class EnsureEntityRequest(BaseModel):
+    """Atomic get-or-create: create ``entity`` only if nothing matches ``where``.
+
+    Generic over entity type — the ``where`` query expresses the identifying
+    "these properties" (no dedicated identity column lives on the row). The first
+    caller is dataset creation in the incoming-DICOM DAG; any per-identity object
+    (a model, a cohort, a per-project singleton) dedups the same way.
+    """
+
+    where: "QueryNode" = Field(
+        ...,
+        description="Match query (same DSL as /entities/query). If any entity matches, it is returned instead of creating.",
+    )
+    entity: "DataEntity" = Field(
+        ...,
+        description="Entity to create verbatim if nothing matches. Its id should be a fresh UUID (discarded when an existing match wins).",
+    )
+
+
+class EnsureEntityResponse(BaseModel):
+    created: bool = Field(
+        ...,
+        description="True if ``entity`` was inserted; False if an existing match was returned.",
+    )
+    entity: "DataEntity" = Field(
+        ..., description="The created entity, or the pre-existing match."
+    )
+
+
 from app.models.domain import DataEntity  # noqa: E402
 
 QueryResponse.model_rebuild()
 GroupNode.model_rebuild()
+EnsureEntityRequest.model_rebuild()
+EnsureEntityResponse.model_rebuild()

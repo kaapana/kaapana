@@ -49,7 +49,90 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
             "title": "DICOM Metadata",
-            "description": "DICOM metadata extracted from DICOM files",
+            "description": (
+                "DICOM metadata extracted from incoming DICOM files by "
+                "LocalDcm2JsonOperator. Keys follow the '<tag> <Keyword>_<type>' "
+                "convention; tags beyond those described here are allowed."
+            ),
+            "properties": {
+                DicomTags.series_uid_tag: {
+                    "title": "Series Instance UID",
+                    "description": "DICOM SeriesInstanceUID (0020,000E).",
+                },
+                DicomTags.study_uid_tag: {
+                    "title": "Study Instance UID",
+                    "description": "DICOM StudyInstanceUID (0020,000D).",
+                },
+                DicomTags.SOPInstanceUID_tag: {
+                    "title": "SOP Instance UID",
+                    "description": "Representative SOPInstanceUID (0008,0018).",
+                },
+                DicomTags.modality_tag: {
+                    "title": "Modality",
+                    "description": "Acquisition modality, e.g. CT/MR/SEG (0008,0060).",
+                },
+                DicomTags.curated_modality_tag: {
+                    "title": "Curated Modality",
+                    "description": "Normalized modality (e.g. CT localizers re-labelled XR).",
+                },
+                DicomTags.protocol_name: {
+                    "title": "Protocol Name",
+                    "description": "Acquisition protocol name (0018,1030).",
+                },
+                DicomTags.clinical_trial_protocol_id_tag: {
+                    "title": "Project (Clinical Trial Protocol ID)",
+                    "description": (
+                        "ClinicalTrialProtocolID (0012,0020); may be a list for "
+                        "multi-protocol series."
+                    ),
+                },
+                DicomTags.dcmweb_endpoint_tag: {
+                    "title": "Source Endpoint",
+                    "description": (
+                        "Source presentation address / DICOMweb endpoint (0002,0026)."
+                    ),
+                },
+                DicomTags.custom_tag: {
+                    "title": "Tags",
+                    "description": "Free-text custom tags applied to the series.",
+                },
+                # Derived/standard tags LocalDcm2JsonOperator emits (keys verified
+                # against the operator's normalization).
+                "00000000 Timestamp_datetime": {
+                    "title": "Acquisition Timestamp",
+                    "description": (
+                        "Acquisition datetime derived from the available DICOM "
+                        "date/time tags, normalized to UTC."
+                    ),
+                },
+                "00000000 TimestampArrived_datetime": {
+                    "title": "Arrival Timestamp",
+                    "description": "UTC time the series arrived in the platform.",
+                },
+                "00000000 DerivedPatientAge_integer": {
+                    "title": "Patient Age (derived)",
+                    "description": (
+                        "Patient age in years, computed from birth date and "
+                        "acquisition time (or the PatientAge tag)."
+                    ),
+                },
+                "00100030 PatientBirthDate_date": {
+                    "title": "Patient Birth Date",
+                    "description": "DICOM PatientBirthDate (0010,0030).",
+                },
+                "00101010 PatientAge_keyword": {
+                    "title": "Patient Age",
+                    "description": "DICOM PatientAge (0010,1010), e.g. '065Y'.",
+                },
+                "0008103E SeriesDescription_keyword": {
+                    "title": "Series Description",
+                    "description": "DICOM SeriesDescription (0008,103E).",
+                },
+                "00200011 SeriesNumber_integer": {
+                    "title": "Series Number",
+                    "description": "DICOM SeriesNumber (0020,0011).",
+                },
+            },
             "additionalProperties": True,
         }
 
@@ -72,12 +155,40 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
             "additionalProperties": True,
         }
 
-        # Register the Validation Results schema (generic, permissive)
+        # Register the Validation Results schema.
         validation_schema = {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
             "title": "Validation Results",
-            "description": "Results produced by validators, potentially including HTML reports",
+            "description": "Summary produced by the DICOM validator, plus HTML report artifacts.",
+            "properties": {
+                "error_count": {
+                    "type": "integer",
+                    "title": "Errors",
+                    "description": "Number of distinct DICOM tags flagged as errors.",
+                },
+                "warning_count": {
+                    "type": "integer",
+                    "title": "Warnings",
+                    "description": "Number of distinct DICOM tags flagged as warnings.",
+                },
+                "total_slices": {"type": "integer", "title": "Total slices"},
+                "valid_slices": {"type": "integer", "title": "Valid slices"},
+                "invalid_slices": {"type": "integer", "title": "Invalid slices"},
+                "series_complete": {"type": "boolean", "title": "Series complete"},
+                "missing_instances": {"type": "integer", "title": "Missing instances"},
+                "validation_algorithm": {
+                    "type": "string",
+                    "title": "Validation algorithm",
+                },
+                "validation_time": {"type": "string", "title": "Validated at"},
+                "reports": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "title": "Report files",
+                },
+                "source": {"type": "string", "title": "Source"},
+            },
             "additionalProperties": True,
         }
 
@@ -210,15 +321,15 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
                         )
 
                 # Add validation results
-                # Append validation metadata and upload HTML report artifacts
+                # Append validation metadata and upload HTML report artifacts.
                 validator_results_dir = Path(batch_element_dir) / self.validation_dir
                 validation_reports = [f for f in validator_results_dir.glob("*.html")]
+                validation_json_files = [
+                    f for f in validator_results_dir.glob("results-*.json")
+                ]
 
-                if validation_reports:
-                    # Prefer validator-produced JSON as the metadata payload
-                    validation_json_files = [
-                        f for f in validator_results_dir.glob("*.json")
-                    ]
+                if validation_json_files or validation_reports:
+                    # Prefer the validator-produced JSON summary as the metadata payload.
                     validation_payload = None
                     if validation_json_files:
                         try:

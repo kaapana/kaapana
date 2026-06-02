@@ -83,6 +83,21 @@ task_api_tests:
       junit:
         - task_api_report.xml
 
+##############################################
+# Data API client library Tests
+##############################################
+data_api_tests:
+  extends: .pytest_template
+  script:
+    # pytest-cov is not in the package's [test] extra: the coverage report is a CI concern.
+    - pip install -e "$KAAPANA_DIR/data-processing/base-images/base-python-cpu/files/data_api[test]" pytest-cov
+    - pytest $KAAPANA_DIR/data-processing/base-images/base-python-cpu/files/data_api/data_api --junitxml=data_api_report.xml
+        --cov=data-processing/base-images/base-python-cpu/files/data_api/data_api --cov-report=term --cov-report=xml:coverage.xml
+  artifacts:
+    reports:
+      junit:
+        - data_api_report.xml
+
 kaapana_extensions_tests:
   extends: .pytest_template
   # One shared registry service for all xdist workers (KAAPANA_TEST_REGISTRY

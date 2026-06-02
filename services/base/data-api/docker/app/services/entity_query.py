@@ -94,6 +94,27 @@ async def execute_entity_query(
     return entity_repository.entities_from_orms(page), total_count, next_cursor
 
 
+async def find_one_matching(
+    session: AsyncSession, where: QueryNode | None
+) -> DataEntity | None:
+    """Return the first entity matching ``where``, or ``None``.
+
+    A single ``LIMIT 1`` scan with no count or pagination — the cheap existence
+    check the ``/entities/ensure`` get-or-create path needs (it must not pay for
+    ``execute_entity_query``'s ``_count_entities`` full scan). Raises
+    ``QueryTranslationError`` / ``ValueError`` for unsupported filters, exactly
+    like the paged query path.
+    """
+    predicate = _build_query_predicate(where)
+    stmt = entity_repository._entity_select()
+    if predicate is not None:
+        stmt = stmt.where(predicate)
+    stmt = stmt.limit(1)
+    result = await session.execute(stmt)
+    row = result.scalars().unique().first()
+    return entity_repository.entity_from_orm(row) if row is not None else None
+
+
 async def prepare_query_index_statement(
     session: AsyncSession,
     request: QueryIndexRequest,

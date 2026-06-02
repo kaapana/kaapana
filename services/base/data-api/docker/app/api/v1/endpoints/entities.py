@@ -7,12 +7,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select, tuple_
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import DataEntityORM
 from app.db.session import AsyncSessionLocal, get_async_db
 from app.models.domain import DataEntity, StorageCoordinate
 from app.models.events import EventAction
+from app.models.query import EnsureEntityRequest, EnsureEntityResponse
+from app.services.entity_query import QueryTranslationError, find_one_matching
 from app.services.entity_repository import (
     entities_from_orms,
     entity_to_orm,
@@ -28,6 +31,16 @@ from .helpers import (
     require_entity,
     require_entity_response,
 )
+
+# Retry budget for the SERIALIZABLE get-or-create loop. Under SSI two concurrent
+# first-time creators of the same identity collide on commit; the loser aborts
+# with a serialization failure, retries, and finds the winner. Converges in 1–2
+# attempts in practice — the budget is a backstop against pathological churn.
+_ENSURE_MAX_ATTEMPTS = 5
+
+# Postgres SQLSTATEs that mean "the transaction was aborted, retry it":
+# 40001 serialization_failure (SSI), 40P01 deadlock_detected.
+_SERIALIZATION_SQLSTATES = {"40001", "40P01"}
 
 router = APIRouter(prefix="/entities", tags=["entities"])
 
@@ -62,6 +75,80 @@ async def create_entity(
     action = EventAction.UPDATED if existing else EventAction.CREATED
     await broadcast_entity_event(action, result)
     return result
+
+
+def _is_serialization_failure(exc: DBAPIError) -> bool:
+    """True if ``exc`` is a Postgres serialization/deadlock abort worth retrying."""
+    sqlstate = getattr(getattr(exc, "orig", None), "sqlstate", None) or getattr(
+        getattr(exc, "orig", None), "pgcode", None
+    )
+    return sqlstate in _SERIALIZATION_SQLSTATES
+
+
+@router.post(
+    "/ensure",
+    response_model=EnsureEntityResponse,
+    summary="Atomically get-or-create an entity matching a query",
+)
+async def ensure_entity(request: EnsureEntityRequest) -> EnsureEntityResponse:
+    """Return the entity matching ``where``, or create ``entity`` if none matches.
+
+    Atomic among concurrent callers: the find-then-create runs in a SERIALIZABLE
+    transaction, so Postgres SSI predicate-locks the "no match" read and aborts
+    one of two racing first-time creators with a serialization failure; the loser
+    retries and its fresh snapshot now sees the winner, returning it with
+    ``created=False``. Generic — the ``where`` query alone defines identity, so
+    no unique column is needed on ``data_entities`` (unlike entity_links).
+
+    The caller must pass an ``entity`` that itself satisfies ``where``; otherwise
+    every call finds "no match" and creates another row → unbounded duplicates.
+
+    NOTE: this serializes concurrent ``/entities/ensure`` callers only. A plain
+    ``POST /entities`` that races in and creates a matching row is not covered.
+    """
+    last_exc: DBAPIError | None = None
+    for _ in range(_ENSURE_MAX_ATTEMPTS):
+        async with AsyncSessionLocal() as db:
+            # Per-transaction isolation; the rest of the app stays READ COMMITTED.
+            await db.connection(execution_options={"isolation_level": "SERIALIZABLE"})
+            try:
+                match = await find_one_matching(db, request.where)
+            except (QueryTranslationError, ValueError) as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+            if match is not None:
+                return EnsureEntityResponse(created=False, entity=match)
+
+            db.add(entity_to_orm(request.entity))
+            try:
+                await db.commit()
+            except DBAPIError as exc:
+                await db.rollback()
+                if _is_serialization_failure(exc):
+                    last_exc = exc
+                    continue  # retry: the winning row is now visible
+                if isinstance(exc, IntegrityError):
+                    # Almost always the caller reusing an existing entity id; the
+                    # query-based contract expects a fresh id per attempt.
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Entity id already exists; supply a fresh id for ensure",
+                    ) from exc
+                raise
+
+            created = await require_entity_response(db, request.entity.id)
+        await broadcast_entity_event(EventAction.CREATED, created)
+        return EnsureEntityResponse(created=True, entity=created)
+
+    # Retries exhausted under sustained contention: one last read for the winner.
+    async with AsyncSessionLocal() as db:
+        match = await find_one_matching(db, request.where)
+    if match is not None:
+        return EnsureEntityResponse(created=False, entity=match)
+    raise HTTPException(
+        status_code=503,
+        detail="Could not ensure entity under contention; retry",
+    ) from last_exc
 
 
 @router.get(

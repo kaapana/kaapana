@@ -5,15 +5,15 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
-    JSON,
-    Boolean,
-    Column,
+    CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
-    Text,
+    UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PGUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -35,10 +35,6 @@ class DataEntityORM(Base):
         server_default=func.now(),
         index=True,
     )
-    parent_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("data_entities.id", ondelete="SET NULL"), nullable=True, index=True
-    )
-
     storage_coordinates: Mapped[list[StorageCoordinateORM]] = relationship(
         back_populates="entity",
         cascade="all, delete-orphan",
@@ -47,15 +43,19 @@ class DataEntityORM(Base):
         back_populates="entity",
         cascade="all, delete-orphan",
     )
-    parent: Mapped["DataEntityORM | None"] = relationship(
-        "DataEntityORM",
-        remote_side="DataEntityORM.id",
-        back_populates="children",
-        foreign_keys="DataEntityORM.parent_id",
+    outgoing_links: Mapped[list[EntityLinkORM]] = relationship(
+        "EntityLinkORM",
+        foreign_keys="EntityLinkORM.source_id",
+        back_populates="source",
+        cascade="all, delete",
+        passive_deletes=True,
     )
-    children: Mapped[list["DataEntityORM"]] = relationship(
-        "DataEntityORM",
-        back_populates="parent",
+    incoming_links: Mapped[list[EntityLinkORM]] = relationship(
+        "EntityLinkORM",
+        foreign_keys="EntityLinkORM.target_id",
+        back_populates="target",
+        cascade="all, delete",
+        passive_deletes=True,
     )
 
 
@@ -75,6 +75,54 @@ class StorageCoordinateORM(Base):
     details: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     entity: Mapped[DataEntityORM] = relationship(back_populates="storage_coordinates")
+
+
+class EntityLinkORM(Base):
+    __tablename__ = "entity_links"
+    __table_args__ = (
+        UniqueConstraint(
+            "source_id", "target_id", "link_type", name="uq_entity_links_triple"
+        ),
+        CheckConstraint("source_id <> target_id", name="ck_entity_links_no_self_loop"),
+        Index("ix_entity_links_source", "source_id", "link_type"),
+        Index("ix_entity_links_target", "target_id", "link_type"),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        server_default=func.gen_random_uuid(),
+    )
+    source_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("data_entities.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    target_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("data_entities.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    link_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    properties: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    source: Mapped[DataEntityORM] = relationship(
+        "DataEntityORM",
+        foreign_keys=[source_id],
+        back_populates="outgoing_links",
+    )
+    target: Mapped[DataEntityORM] = relationship(
+        "DataEntityORM",
+        foreign_keys=[target_id],
+        back_populates="incoming_links",
+    )
 
 
 class MetadataEntryORM(Base):

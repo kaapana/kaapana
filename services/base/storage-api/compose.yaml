@@ -1,0 +1,17 @@
+services:
+  api:
+    build:
+      context: ./docker
+    image: storage-api:latest
+    ports:
+      - 8081:8080
+    environment:
+      - APPLICATION_ROOT=/
+      - DEV_FILES=True
+      - PORT=8080
+      - WORKERS=4
+      - LOG_LEVEL=INFO
+      - DICOM_WADORS_ENDPOINT=http://dicom-web-filter-service.services.svc:8080
+      - MINIO_URL=minio-service.services.svc:9000
+    volumes:
+      - ./docker/app:/app/app

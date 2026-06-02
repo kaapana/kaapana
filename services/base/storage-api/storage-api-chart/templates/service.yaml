@@ -1,0 +1,17 @@
+---
+# Internal-only Service. No Ingress is exposed for v1: storage-api forwards the
+# caller's access token but has no auth of its own yet, so it must stay
+# cluster-internal until the platform authorization model lands. The future UI
+# bulk-download button will add an Ingress at that point.
+apiVersion: v1
+kind: Service
+metadata:
+  name: storage-api
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  selector:
+    app.kubernetes.io/name: storage-api
+    app.kubernetes.io/component: api
+  ports:
+    - port: 80
+      targetPort: 8080

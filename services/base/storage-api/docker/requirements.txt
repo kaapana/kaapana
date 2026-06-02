@@ -1,0 +1,10 @@
+fastapi==0.124.2
+uvicorn[standard]==0.38.0
+pydantic==2.8.2
+pydantic-settings==2.4.0
+requests==2.32.3
+requests-toolbelt==1.0.0
+pydicom==2.4.4
+minio==7.2.7
+pytest==8.3.3
+httpx==0.27.2

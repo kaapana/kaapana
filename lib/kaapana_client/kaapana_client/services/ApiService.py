@@ -13,7 +13,6 @@ from kaapana_client.logger import get_logger
 
 logger = get_logger(__name__)
 
-_OIDC_METADATA_URL = "{}/auth/realms/kaapana/.well-known/openid-configuration"
 _DEVICE_POLL_INTERVAL = 5
 _DEVICE_MAX_RETRIES = 10
 # Refresh slightly before the actual expiry to avoid races.
@@ -33,7 +32,7 @@ class KaapanaApiService:
         root_url: str,
         project_id: str,
         client_id: str,
-        client_secret: Optional[str],
+        client_secret: Optional[str] = None,
         oidc_metadata_url: str = "/auth/realms/kaapana/.well-known/openid-configuration",
         verify: bool = False,
     ):

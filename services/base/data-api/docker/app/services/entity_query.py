@@ -26,6 +26,7 @@ from sqlalchemy.types import Boolean, Numeric, Text
 
 from app.db.models import (
     DataEntityORM,
+    EntityLinkORM,
     MetadataEntryORM,
     StorageCoordinateORM,
     MetadataSchemaORM,
@@ -303,7 +304,20 @@ def _build_group_predicate(node: GroupNode) -> ColumnElement[bool] | None:
     return or_(*clauses)
 
 
+_MAX_GRAPH_TRAVERSAL_DEPTH = 32
+
+_LINK_OPS = {
+    QueryOp.HAS_OUTGOING_LINK,
+    QueryOp.HAS_INCOMING_LINK,
+    QueryOp.DESCENDANT_OF,
+    QueryOp.ANCESTOR_OF,
+    QueryOp.NO_INCOMING_LINK,
+}
+
+
 def _build_filter_predicate(node: FilterNode) -> ColumnElement[bool]:
+    if node.op in _LINK_OPS:
+        return _build_link_predicate(node.op, node.value)
     field = (node.field or "").strip()
     if field == "id":
         return _build_id_predicate(node.op, node.value)
@@ -315,6 +329,102 @@ def _build_filter_predicate(node: FilterNode) -> ColumnElement[bool]:
         parsed = _parse_metadata_field(field)
         return _build_metadata_predicate(parsed, node.op, node.value)
     raise QueryTranslationError(f"Unsupported query field '{field}'")
+
+
+def _build_link_predicate(op: QueryOp, value: Any) -> ColumnElement[bool]:
+    if op is QueryOp.NO_INCOMING_LINK:
+        link_type = _coerce_link_type(value)
+        stmt = select(1).where(
+            EntityLinkORM.target_id == DataEntityORM.id,
+            EntityLinkORM.link_type == link_type,
+        )
+        return ~exists(stmt)
+
+    entity_id, link_type = _coerce_link_value(value)
+    if op is QueryOp.HAS_OUTGOING_LINK:
+        stmt = select(1).where(
+            EntityLinkORM.source_id == DataEntityORM.id,
+            EntityLinkORM.target_id == entity_id,
+            EntityLinkORM.link_type == link_type,
+        )
+        return exists(stmt)
+    if op is QueryOp.HAS_INCOMING_LINK:
+        stmt = select(1).where(
+            EntityLinkORM.target_id == DataEntityORM.id,
+            EntityLinkORM.source_id == entity_id,
+            EntityLinkORM.link_type == link_type,
+        )
+        return exists(stmt)
+    if op is QueryOp.DESCENDANT_OF:
+        cte = _build_traversal_cte(entity_id, link_type, forward=True)
+        return DataEntityORM.id.in_(select(cte.c.id))
+    if op is QueryOp.ANCESTOR_OF:
+        cte = _build_traversal_cte(entity_id, link_type, forward=False)
+        return DataEntityORM.id.in_(select(cte.c.id))
+    raise QueryTranslationError(f"Unsupported link operator '{op}'")
+
+
+def _build_traversal_cte(anchor_id: UUID, link_type: str, *, forward: bool):
+    """Recursive CTE of every node reachable from anchor via typed edges.
+
+    forward=True walks outgoing edges (descendants); False walks incoming
+    edges (ancestors). Bounded by _MAX_GRAPH_TRAVERSAL_DEPTH to fail loud
+    on cycles in non-`contains` link types.
+    """
+    out_col = EntityLinkORM.target_id if forward else EntityLinkORM.source_id
+    join_col = EntityLinkORM.source_id if forward else EntityLinkORM.target_id
+
+    anchor = (
+        select(
+            out_col.label("id"),
+            literal(1).label("depth"),
+        )
+        .where(
+            join_col == anchor_id,
+            EntityLinkORM.link_type == link_type,
+        )
+        .cte("graph_reach", recursive=True)
+    )
+    recursive_part = (
+        select(
+            out_col.label("id"),
+            (anchor.c.depth + 1).label("depth"),
+        )
+        .join(anchor, join_col == anchor.c.id)
+        .where(
+            EntityLinkORM.link_type == link_type,
+            anchor.c.depth < _MAX_GRAPH_TRAVERSAL_DEPTH,
+        )
+    )
+    # UNION (deduplicated) so diamond DAGs don't yield the same node multiple
+    # times and the cap counts unique visits.
+    return anchor.union(recursive_part)
+
+
+def _coerce_link_value(value: Any) -> tuple[UUID, str]:
+    if not isinstance(value, dict):
+        raise QueryTranslationError(
+            "Link traversal operators require an object value with "
+            "'entity_id' and 'link_type'"
+        )
+    if "entity_id" not in value or "link_type" not in value:
+        raise QueryTranslationError(
+            "Link traversal operators require both 'entity_id' and 'link_type'"
+        )
+    return _coerce_uuid(value["entity_id"]), _coerce_link_type(value["link_type"])
+
+
+def _coerce_link_type(value: Any) -> str:
+    if isinstance(value, dict):
+        if "link_type" not in value:
+            raise QueryTranslationError("Link operator value must include 'link_type'")
+        value = value["link_type"]
+    if not isinstance(value, str):
+        raise QueryTranslationError("link_type must be a string")
+    token = value.strip().lower()
+    if not token:
+        raise QueryTranslationError("link_type must not be empty")
+    return token
 
 
 def _build_id_predicate(op: QueryOp, value: Any) -> ColumnElement[bool]:

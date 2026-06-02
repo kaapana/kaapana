@@ -85,10 +85,26 @@ class S3Backend(StorageBackend):
         endpoint = get_settings().minio_url
         client = _minio_client(access_token, endpoint)
 
-        # Single object → one file at the entity-folder root.
-        data = self._get_object(client, coordinate.bucket, coordinate.key)
-        name = coordinate.key.rstrip("/").split("/")[-1] or "object"
-        yield name, data
+        if not coordinate.is_prefix:
+            # Single object → one file at the entity-folder root.
+            data = self._get_object(client, coordinate.bucket, coordinate.key)
+            name = coordinate.key.rstrip("/").split("/")[-1] or "object"
+            yield name, data
+            return
+
+        # Folder coordinate → every object under the prefix, internal structure
+        # preserved (relpath is the object key minus the prefix).
+        prefix = coordinate.key
+        if prefix and not prefix.endswith("/"):
+            prefix += "/"
+        for obj in client.list_objects(
+            coordinate.bucket, prefix=prefix, recursive=True
+        ):
+            key = obj.object_name
+            if key.endswith("/"):  # skip explicit directory markers
+                continue
+            relpath = key[len(prefix) :] or key.rsplit("/", 1)[-1]
+            yield relpath, self._get_object(client, coordinate.bucket, key)
 
     def store(
         self,

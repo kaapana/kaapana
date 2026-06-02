@@ -16,30 +16,43 @@ spec:
       labels:
         app.kubernetes.io/name: extension-manager-ui-app
     spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
       - name: extension-manager-ui-container
         image: "{{ .Values.global.registry_url }}/extension-manager-ui:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  "{{ .Values.global.pull_policy_images }}"
         ports:
         - name: http-port
-          containerPort: {{ if .Values.global.dev_files }}5173{{ else }}80{{ end }}
+          containerPort: {{ if .Values.global.dev_files }}5173{{ else }}5000{{ end }}
         resources:
+{{- if .Values.global.dev_files }}
+          requests:
+            memory: "5Gi"
           limits:
             memory: "5Gi"
+{{- else }}
           requests:
-            memory: "100Mi"
+            memory: "50Mi"
+          limits:
+            memory: "50Mi"
+{{- end }}
         volumeMounts:
 {{- if .Values.global.dev_files }}
           - name: dev-files
             mountPath: /app
 {{- end }}
           - name: tmp
-            mountPath: /var/run
-          - name: cache
-            mountPath: /var/cache/nginx
+            mountPath: /tmp
         securityContext:
           allowPrivilegeEscalation: false
+{{- if .Values.global.dev_files }}
           readOnlyRootFilesystem: false
+{{- else }}
+          readOnlyRootFilesystem: true
+{{- end }}
       volumes:
 {{- if .Values.global.dev_files }}
       - name: dev-files
@@ -48,8 +61,6 @@ spec:
           type: Directory
 {{- end }}
       - name: tmp
-        emptyDir: {}
-      - name: cache
         emptyDir: {}
       priorityClassName: kaapana-high-priority
       imagePullSecrets:

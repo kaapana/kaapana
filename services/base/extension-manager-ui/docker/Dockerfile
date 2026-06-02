@@ -27,8 +27,12 @@ LABEL BUILD_IGNORE="False"
 ################################
 RUN yarn build
 
-FROM nginx:1.29.3-alpine
+FROM nginxinc/nginx-unprivileged:1.27.2-alpine
 
-RUN mkdir /app
+USER 0
+RUN mkdir /app && chown 1000 /app
 COPY --from=build-stage /app/dist /app
 COPY --from=build-stage /app/nginx.conf /etc/nginx/nginx.conf
+RUN chown 1000 /etc/nginx/nginx.conf
+
+USER 1000

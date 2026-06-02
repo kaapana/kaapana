@@ -129,10 +129,8 @@ def compute_memory_requirement(
 
 def compute_pvc_target_size(
     io: task_models.IOChannel,
-    namespace: Optional[str] = None,
+    namespace: str,
 ) -> int:
-    if not namespace:
-        raise ValueError("PVC scale-rule resolution requires a project namespace")
 
     scale_rule = io.scale_rule
     payload = {

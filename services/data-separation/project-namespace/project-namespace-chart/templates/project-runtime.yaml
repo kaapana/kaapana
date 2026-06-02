@@ -38,7 +38,7 @@ spec:
           name: http
         resources:
           requests:
-            memory: 100Mi
+            memory: 50Mi
           limits:
             memory: 250Mi
         volumeMounts:

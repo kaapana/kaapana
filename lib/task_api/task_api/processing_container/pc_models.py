@@ -35,8 +35,8 @@ class ScaleRule(BaseModel):
     Defines how memory resources should scale based on the size of input data in an IOMount.
     """
 
-    scale_factor: Optional[int] = None
-    type: Optional[ScaleRuleType] = None
+    scale_factor: int
+    type: ScaleRuleType
     mode: ScaleRuleMode
     target_dir: Optional[str] = ""
     target_regex: Optional[str] = ".*"

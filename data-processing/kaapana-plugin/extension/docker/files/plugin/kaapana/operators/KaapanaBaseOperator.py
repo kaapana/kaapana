@@ -967,6 +967,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 name=KaapanaBaseOperator.unique_task_identifer(context),
                 image=self.image,
                 taskTemplate=task_template,
+                command=(self.cmds + self.arguments) if self.cmds else None,
                 inputs=[],
                 outputs=[],
                 resources=self.pod_resources,

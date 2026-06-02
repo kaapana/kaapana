@@ -1,0 +1,6 @@
+---
+apiVersion: v1
+appVersion: "0.0.1"
+description: Storage API (store-agnostic data retrieval)
+name: storage-api
+version: "0.0.0"

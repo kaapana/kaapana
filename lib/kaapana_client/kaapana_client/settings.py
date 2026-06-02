@@ -39,6 +39,10 @@ class KeycloakSettings(KaapanaSettings):
         validation_alias=AliasChoices("KAAPANA_CLIENT_SECRET", "OIDC_CLIENT_SECRET"),
     )
     client_id: str = Field(default="kaapana", validation_alias="KAAPANA_CLIENT_ID")
+    oidc_metadata_url: str = Field(
+        default="/auth/realms/kaapana/.well-known/openid-configuration",
+        validation_alias="OIDC_METADATA_URL",
+    )
 
 
 class OpensearchSettings(KaapanaSettings):

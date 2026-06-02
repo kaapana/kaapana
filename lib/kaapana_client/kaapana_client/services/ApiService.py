@@ -13,8 +13,7 @@ from kaapana_client.logger import get_logger
 
 logger = get_logger(__name__)
 
-_TOKEN_URL = "{}/auth/realms/kaapana/protocol/openid-connect/token"
-_DEVICE_CODE_URL = "{}/auth/realms/kaapana/protocol/openid-connect/auth/device"
+_OIDC_METADATA_URL = "{}/auth/realms/kaapana/.well-known/openid-configuration"
 _DEVICE_POLL_INTERVAL = 5
 _DEVICE_MAX_RETRIES = 10
 # Refresh slightly before the actual expiry to avoid races.
@@ -35,6 +34,7 @@ class KaapanaApiService:
         project_id: str,
         client_id: str,
         client_secret: Optional[str],
+        oidc_metadata_url: str = "/auth/realms/kaapana/.well-known/openid-configuration",
         verify: bool = False,
     ):
         """Initialize the service and start the OAuth2 device code flow.
@@ -56,14 +56,13 @@ class KaapanaApiService:
         self.project_id = project_id
         self.client_id = client_id
         self.client_secret = client_secret
+        self.oidc_metadata_url = oidc_metadata_url
         self.verify = verify
-
-        self.token_url = _TOKEN_URL.format(self.root_url)
-        self.device_code_url = _DEVICE_CODE_URL.format(self.root_url)
 
         self.token = {}
         self._token_expiry: float | None = None
         self.project_cookie = {}
+        self._fetch_oidc_metadata()
         self._get_device_code()
 
     # ------------------------------------------------------------------
@@ -148,6 +147,24 @@ class KaapanaApiService:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _fetch_oidc_metadata(self):
+        """Discover token and device-authorization endpoints from the OIDC metadata document.
+
+        Fetches ``{root_url}/auth/realms/kaapana/.well-known/openid-configuration``
+        and stores ``token_endpoint`` as ``self.token_url`` and
+        ``device_authorization_endpoint`` as ``self.device_code_url``.
+
+        Raises:
+            requests.HTTPError: If the metadata endpoint returns a non-2xx status.
+            KeyError: If the expected endpoint keys are absent from the document.
+        """
+        url = self.root_url + "/" + self.oidc_metadata_url
+        r = requests.get(url, verify=self.verify)
+        r.raise_for_status()
+        metadata = r.json()
+        self.token_url = metadata["token_endpoint"]
+        self.device_code_url = metadata["device_authorization_endpoint"]
 
     def _set_project_cookie(self, kwargs: dict):
         """
@@ -353,4 +370,5 @@ def get_api_service_from_env():
         project_id=project_settings.project_id,
         client_id=keycloak_settings.client_id,
         client_secret=keycloak_settings.client_secret,
+        oidc_metadata_url=keycloak_settings.oidc_metadata_url,
     )

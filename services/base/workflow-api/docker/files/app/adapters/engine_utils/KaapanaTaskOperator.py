@@ -269,11 +269,20 @@ class KaapanaTaskOperator(BaseOperator):
                     )
                 )
 
+        # Inject run-context env into every pod
+        env = [
+            *self.env,
+            {"name": "KAAPANA_WORKFLOW_RUN_ID", "value": context["dag_run"].run_id},
+            {"name": "KAAPANA_DAG_ID", "value": context["dag"].dag_id},
+            {"name": "KAAPANA_TASK_ID", "value": self.task_id},
+            {"name": "KAAPANA_IMAGE", "value": self.image},
+        ]
+
         task = task_models.Task(
             name=KaapanaTaskOperator.unique_task_identifer(context),
             image=self.image,
             taskTemplate=self.taskTemplate,
-            env=self.env,
+            env=env,
             command=self.command,
             outputs=outputs,
             inputs=inputs,

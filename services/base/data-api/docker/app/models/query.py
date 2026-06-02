@@ -44,6 +44,25 @@ class GroupNode(BaseModel):
 QueryNode = Union[FilterNode, GroupNode]
 
 
+class SortSpec(BaseModel):
+    """Single-key sort for a paged entity query.
+
+    ``field`` reuses the filter dotted-path convention: ``created_at``, ``id``,
+    or ``metadata.<key>[.<dot.path>]``. ``created_at``/``id`` use the existing
+    index (cheap, any table size). A ``metadata.*`` path sorts the
+    constraint-narrowed set with a type cast inferred from the registered schema
+    (text fallback); it is capped by ``MAX_SORT_RESULT_SIZE`` to bound its cost.
+    """
+
+    field: str = Field(
+        ...,
+        description="Dotted path to sort by: 'created_at', 'id', or 'metadata.<key>[.<dot.path>]'.",
+    )
+    direction: Literal["asc", "desc"] = Field(
+        "asc", description="Sort direction. NULLs always sort last."
+    )
+
+
 class QueryRequest(BaseModel):
     where: Optional[QueryNode] = Field(
         None,
@@ -52,6 +71,10 @@ class QueryRequest(BaseModel):
     cursor: Optional[UUID] = Field(
         None,
         description="Return entities whose ID is greater than this cursor (exclusive).",
+    )
+    sort: Optional[SortSpec] = Field(
+        None,
+        description="Sort key. Omitted ⇒ ascending creation order (created_at, id) — the default.",
     )
     limit: int = Field(
         100,

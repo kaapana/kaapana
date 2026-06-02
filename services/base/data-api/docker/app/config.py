@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://user:password@localhost:5432/data"
     ARTIFACTS_DIR: str = "./artifacts"
 
+    MAX_SORT_RESULT_SIZE: int = 5000
+
 
 @lru_cache
 def get_settings() -> Settings:

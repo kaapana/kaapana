@@ -7,6 +7,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     and_,
+    Select,
     cast,
     exists,
     false,
@@ -23,7 +24,12 @@ from sqlalchemy.orm import aliased
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.types import Boolean, Numeric, Text
 
-from app.db.models import DataEntityORM, MetadataEntryORM, StorageCoordinateORM
+from app.db.models import (
+    DataEntityORM,
+    MetadataEntryORM,
+    StorageCoordinateORM,
+    MetadataSchemaORM,
+)
 from app.models.domain import DataEntity
 from app.models.query import (
     FilterNode,
@@ -33,6 +39,7 @@ from app.models.query import (
     QueryOp,
     QueryRequest,
 )
+from app.config import get_settings
 from app.services import entity_repository
 
 
@@ -44,6 +51,14 @@ class ParsedMetadataField:
 
 class QueryTranslationError(Exception):
     """Raised when a QueryRequest cannot be represented with SQL filters."""
+
+
+class SortResultTooLarge(Exception):
+    """A metadata-path sort would sort more rows than ``MAX_SORT_RESULT_SIZE``.
+
+    Index-backed sorts (created_at / id) are never raised; only the in-memory
+    JSONB-path sort is capped to protect the DB on broad-constraint queries.
+    """
 
 
 async def execute_entity_query(
@@ -58,15 +73,18 @@ async def execute_entity_query(
     if predicate is not None:
         stmt = stmt.where(predicate)
 
-    stmt = stmt.order_by(*entity_repository._creation_order()).limit(limit + 1)
-    if request.cursor:
-        created_at, cursor_id = await entity_repository._cursor_tuple(
-            session, request.cursor
-        )
-        stmt = stmt.where(
-            tuple_(DataEntityORM.created_at, DataEntityORM.id)
-            > tuple_(created_at, cursor_id)
-        )
+    if request.sort is not None:
+        stmt = await _apply_sorted_page(session, stmt, request, total_count, limit)
+    else:
+        stmt = stmt.order_by(*entity_repository._creation_order()).limit(limit + 1)
+        if request.cursor:
+            created_at, cursor_id = await entity_repository._cursor_tuple(
+                session, request.cursor
+            )
+            stmt = stmt.where(
+                tuple_(DataEntityORM.created_at, DataEntityORM.id)
+                > tuple_(created_at, cursor_id)
+            )
 
     result = await session.execute(stmt)
     rows = result.scalars().unique().all()
@@ -101,6 +119,135 @@ async def prepare_query_index_statement(
         )
 
     return total_count, stmt
+
+
+# ---- generic sort --------------------------------------------------------
+# Keyset preserved (never offset): the cursor stays a UUID; the cursor's sort
+# value is resolved server-side from that ID so pagination works for any key.
+
+_SORT_NUMERIC_TYPES = {"number", "integer"}
+
+
+async def _apply_sorted_page(
+    session: AsyncSession,
+    stmt: Select,
+    request: QueryRequest,
+    total_count: int,
+    limit: int,
+) -> Select:
+    sort = request.sort
+    field = (sort.field or "").strip()
+    sort_expr = await _resolve_sort_expression(session, sort)
+
+    # Cap only metadata-path sorts: they have no value index and sort the matched
+    # set in memory. created_at / id ride their index — cheap at any size.
+    if field.startswith("metadata."):
+        cap = get_settings().MAX_SORT_RESULT_SIZE
+        if total_count > cap:
+            raise SortResultTooLarge(
+                f"Sorting by '{field}' would order {total_count} rows; the cap is "
+                f"{cap}. Narrow the query, or sort by created_at."
+            )
+
+    ordered = sort_expr.desc() if sort.direction == "desc" else sort_expr.asc()
+    stmt = stmt.order_by(ordered.nulls_last(), DataEntityORM.id.asc()).limit(limit + 1)
+    if request.cursor:
+        cursor_value = await _resolve_sort_value(session, sort_expr, request.cursor)
+        stmt = stmt.where(
+            _keyset_after(sort_expr, sort.direction, cursor_value, request.cursor)
+        )
+    return stmt
+
+
+async def _resolve_sort_expression(session: AsyncSession, sort: "SortSpec"):
+    """Build the orderable SQL expression for a sort field.
+
+    ``created_at`` / ``id`` are entity columns. A ``metadata.<key>[.path]`` field
+    becomes a correlated scalar subquery extracting the value (≤1 row, since
+    (entity_id, key) is unique in app code), cast to the schema-declared type
+    (numeric/integer → Numeric so 10 sorts after 9; else text)."""
+    field = (sort.field or "").strip()
+    if field in ("", "created_at"):
+        return DataEntityORM.created_at
+    if field == "id":
+        return DataEntityORM.id
+    if field.startswith("metadata."):
+        parsed = _parse_metadata_field(field)
+        numeric = await _metadata_sort_is_numeric(session, parsed.key, parsed.path)
+        return _metadata_sort_subquery(parsed, numeric)
+    raise QueryTranslationError(f"Unsupported sort field '{field}'")
+
+
+def _metadata_sort_subquery(field: ParsedMetadataField, numeric: bool):
+    """Correlated scalar subquery yielding the entity's value at this metadata
+    path (≤1 row, since (entity_id, key) is unique in app code). Numeric paths
+    are cast so 10 sorts after 9; everything else sorts as text."""
+    json_expr = MetadataEntryORM.data
+    for segment in field.path:
+        json_expr = json_expr[segment]
+    text_expr = json_expr.astext
+    value_expr = cast(text_expr, Numeric) if numeric else text_expr
+    return (
+        select(value_expr)
+        .where(
+            MetadataEntryORM.entity_id == DataEntityORM.id,
+            MetadataEntryORM.key == field.key,
+        )
+        .scalar_subquery()
+    )
+
+
+async def _metadata_sort_is_numeric(
+    session: AsyncSession, key: str, path: tuple[str, ...]
+) -> bool:
+    result = await session.execute(
+        select(MetadataSchemaORM.schema).where(MetadataSchemaORM.key == key)
+    )
+    return _schema_path_is_numeric(result.scalar_one_or_none(), path)
+
+
+def _schema_path_is_numeric(schema: Any, path: tuple[str, ...]) -> bool:
+    """True when the registered schema declares this path number/integer.
+
+    Falls back to False (text sort) for a permissive/unknown schema."""
+    node = schema
+    for segment in path:
+        if not isinstance(node, dict):
+            return False
+        node = node.get("properties", {}).get(segment)
+    declared = node.get("type") if isinstance(node, dict) else None
+    return declared in _SORT_NUMERIC_TYPES
+
+
+def _keyset_after(
+    sort_expr, direction: str, cursor_value: Any, cursor_id: UUID
+) -> ColumnElement[bool]:
+    """Rows strictly after (cursor_value, cursor_id) in the sort order.
+
+    Ordering is ``sort_expr <dir> NULLS LAST, id ASC``. NULLs sort after every
+    non-null value, so once the cursor lands in the NULL tail we page within it
+    by id."""
+    id_col = DataEntityORM.id
+    if cursor_value is None:
+        return and_(sort_expr.is_(None), id_col > cursor_id)
+    primary = (
+        sort_expr < cursor_value if direction == "desc" else sort_expr > cursor_value
+    )
+    return or_(
+        primary,
+        sort_expr.is_(None),
+        and_(sort_expr == cursor_value, id_col > cursor_id),
+    )
+
+
+async def _resolve_sort_value(session: AsyncSession, sort_expr, cursor_id: UUID) -> Any:
+    result = await session.execute(
+        select(sort_expr).where(DataEntityORM.id == cursor_id)
+    )
+    row = result.one_or_none()
+    if row is None:
+        raise ValueError("Cursor ID not found")
+    return row[0]
 
 
 async def _count_entities(

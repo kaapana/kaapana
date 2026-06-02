@@ -163,6 +163,28 @@ class DataClient:
         response.raise_for_status()
         return response.json()
 
+    async def ensure_entity(self, where: dict, entity: dict) -> dict:
+        """Atomically get-or-create: return the entity matching ``where``, or
+        create ``entity`` if none matches.
+
+        The server runs the find-then-create in a SERIALIZABLE transaction, so
+        concurrent callers passing the same ``where`` converge on a single entity
+        (no duplicate is created in a race). The ``where`` query — the same DSL as
+        :meth:`query` — alone defines identity; ``entity`` is created verbatim only
+        when nothing matches, so its ``id`` should be a fresh ``uuid4`` (it is
+        discarded when an existing match wins).
+
+        Returns the raw ``{"created": bool, "entity": {...}}`` response; read the
+        resolved id from ``result["entity"]["id"]``. Safe to retry on transport
+        errors (the endpoint is idempotent on ``where``).
+        """
+        payload = {"where": where, "entity": entity}
+        response = await request_with_retries(
+            self._client, "POST", f"{self.base_url}/entities/ensure", json=payload
+        )
+        response.raise_for_status()
+        return response.json()
+
     async def attach_metadata(
         self,
         entity_id: str,
@@ -179,6 +201,37 @@ class DataClient:
             self._client,
             "POST",
             f"{self.base_url}/entities/{entity_id}/metadata",
+            json=payload,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def create_link(
+        self,
+        source_id: str,
+        target_id: str,
+        link_type: str = CONTAINS_LINK_TYPE,
+        properties: Optional[dict] = None,
+    ) -> dict:
+        """Create a directed, typed link from ``source_id`` to ``target_id``.
+
+        The default ``link_type`` is ``contains``, the tree edge used for dataset
+        membership: the dataset entity is the source, the member entity the
+        target (mirrors :meth:`resolve_dataset_members`, which walks descendants).
+
+        Raises ``httpx.HTTPStatusError`` on failure. A 409 means an identical
+        ``(source_id, target_id, link_type)`` edge already exists — callers that
+        want idempotency should catch and ignore it.
+        """
+        payload = {
+            "target_id": target_id,
+            "link_type": link_type,
+            "properties": properties or {},
+        }
+        response = await request_with_retries(
+            self._client,
+            "POST",
+            f"{self.base_url}/entities/{source_id}/links",
             json=payload,
         )
         response.raise_for_status()

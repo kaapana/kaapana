@@ -20,8 +20,8 @@ export interface UpdateRepositoryRequest {
   name?: string
   description?: string
   repository_url?: string
-  username: string
-  password: string
+  username?: string
+  password?: string
 }
 
 export type ExtensionStatus =

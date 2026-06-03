@@ -6,7 +6,7 @@ set -euo pipefail
 # Behavior:
 # 1) Reads authoritative project metadata from AII.
 # 2) Normalizes Helm ownership metadata on project-* namespaces.
-# 3) Replays project creation for all projects via AII (idempotent).
+# 3) Reconciles the project-namespace Helm release for every known project.
 # 4) Waits until all expected project namespaces exist in Kubernetes.
 # 5) Synchronizes system-user-password from services namespace to admin/project namespaces.
 # 6) Synchronizes registry-secret from services namespace to project namespaces.
@@ -227,57 +227,72 @@ print(json.dumps(projects))
 PY
 }
 
-replay_aii_projects() {
+reconcile_project_namespace_releases() {
     ${KUBE} -n "${SERVICES_NAMESPACE}" exec -i "${AIRFLOW_POD}" -c "${AIRFLOW_CONTAINER}" -- python - "${SERVICES_NAMESPACE}" <<'PY'
 import json
+import os
 import sys
 
 import requests
 from kaapanapy.helper import get_project_user_access_token
 
 services_namespace = sys.argv[1]
-base_url = f"http://aii-service.{services_namespace}.svc:8080"
+kube_helm_url = "http://kube-helm-service.admin.svc:5000/kube-helm-api/helm-install-chart"
+aii_base_url = f"http://aii-service.{services_namespace}.svc:8080"
+build_version = os.environ.get("KAAPANA_BUILD_VERSION")
 token = get_project_user_access_token()
 headers = {
     "x-forwarded-access-token": token,
     "Content-Type": "application/json",
 }
 
-response = requests.get(f"{base_url}/projects", headers=headers, timeout=30)
+if not build_version:
+    raise RuntimeError("KAAPANA_BUILD_VERSION is not set in the Airflow container.")
+
+response = requests.get(f"{aii_base_url}/projects", headers=headers, timeout=30)
 response.raise_for_status()
 projects = response.json()
 if not isinstance(projects, list):
-    raise RuntimeError(f"Unexpected response from {base_url}/projects: {type(projects)}")
+    raise RuntimeError(
+        f"Unexpected response from {aii_base_url}/projects: {type(projects)}"
+    )
 
 count = 0
 for project in projects:
-    name = project.get("name")
-    if not name:
+    project_id = project.get("id")
+    name = project.get("name") or ""
+    namespace = project.get("kubernetes_namespace") or ""
+    if not project_id or not name or not namespace:
         continue
+
+    # Reconcile the per-project chart directly through kube-helm instead of
+    # replaying AII project creation. The POST /projects route is not a safe
+    # recovery surface for existing projects because it re-runs non-idempotent
+    # side effects after the duplicate project row is detected.
     payload = {
-        "name": name,
-        "description": project.get("description", "") or "",
-        "external_id": project.get("external_id"),
-        "default": bool(project.get("default", False)),
+        "name": "project-namespace",
+        "release_name": namespace,
+        "version": build_version,
+        "extension_params": {
+            "project": name,
+            "project_namespace": namespace,
+            "namespace": namespace,
+            "project_id": project_id,
+        },
     }
-    reconcile_response = requests.post(
-        f"{base_url}/projects",
-        headers=headers,
-        json=payload,
-        timeout=90,
-    )
+    reconcile_response = requests.post(kube_helm_url, json=payload, timeout=300)
     if reconcile_response.status_code >= 400:
         response_body = reconcile_response.text.strip().replace("\n", " ")
         print(
-            f"project-replay-failed name={project.get('name')} "
-            f"namespace={project.get('kubernetes_namespace')} "
+            f"project-chart-reconcile-failed name={name} "
+            f"namespace={namespace} "
             f"status={reconcile_response.status_code} body={response_body}",
             file=sys.stderr,
         )
     reconcile_response.raise_for_status()
     count += 1
     print(
-        f"reconciled project={name} namespace={project.get('kubernetes_namespace')}"
+        f"reconciled project={name} namespace={namespace}"
     )
 
 print(f"reconciled_projects={count}")
@@ -444,20 +459,20 @@ done <<< "${EXPECTED_NAMESPACES}"
 echo "Project namespace metadata normalization complete."
 echo ""
 
-replay_aii_projects
+reconcile_project_namespace_releases
 
-# Re-read AII metadata after replay so subsequent waits/checks always use the
+# Re-read AII metadata after project chart reconciliation so subsequent waits/checks always use the
 # final authoritative state.
 PROJECTS_JSON="$(wait_for_aii_projects_json)"
 if ! printf '%s\n' "${PROJECTS_JSON}" | jq -e 'type == "array"' >/dev/null; then
-    echo "ERROR: AII /projects did not return a JSON array after replay."
+    echo "ERROR: AII /projects did not return a JSON array after chart reconciliation."
     exit 1
 fi
 PROJECTS_JSON="$(normalize_aii_projects_json "${PROJECTS_JSON}")"
 EXPECTED_NAMESPACES="$(derive_expected_project_namespaces "${PROJECTS_JSON}")"
 
 if [[ -z "${EXPECTED_NAMESPACES}" ]]; then
-    echo "ERROR: AII returned no project-* namespaces after replay."
+    echo "ERROR: AII returned no project-* namespaces after chart reconciliation."
     exit 1
 fi
 

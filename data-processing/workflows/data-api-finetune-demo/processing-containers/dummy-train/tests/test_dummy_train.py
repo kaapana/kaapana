@@ -93,8 +93,8 @@ def test_main_writes_outputs(tmp_path, monkeypatch):
     # The upload manifest tells data-api-upload what entity to create.
     upload = json.loads((out / "upload_manifest.json").read_text())
     assert upload["store"] == "s3"
-    assert upload["metadata"]["model-card"]["trained_from_scratch"] is False
-    assert upload["metadata"]["model-card"]["base_model_entity_ids"] == ["m1"]
+    assert upload["metadata"]["model"]["trained_from_scratch"] is False
+    assert upload["metadata"]["model"]["base_model_entity_ids"] == ["m1"]
     # The workflow's own key, registered by the ensure_schema task.
     assert upload["metadata"]["finetune-note"]["reviewed"] is False
     # Lineage = segmentation inputs + the base model.
@@ -127,7 +127,7 @@ def test_main_from_scratch_with_empty_model_channel(tmp_path, monkeypatch):
     assert manifest["base_model"] == []
 
     upload = json.loads((out / "upload_manifest.json").read_text())
-    assert upload["metadata"]["model-card"]["trained_from_scratch"] is True
-    assert upload["metadata"]["model-card"]["base_model_entity_ids"] == []
+    assert upload["metadata"]["model"]["trained_from_scratch"] is True
+    assert upload["metadata"]["model"]["base_model_entity_ids"] == []
     # No base model -> lineage is just the segmentation inputs.
     assert upload["upstream_entity_ids"] == ["s1"]

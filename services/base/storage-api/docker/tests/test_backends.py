@@ -247,6 +247,61 @@ def test_s3_store_requires_access_token() -> None:
         s3.S3Backend().store(S3UploadTarget(bucket="b"), [("f", b"x")], None)
 
 
+def _s3_error(status: int, code: str):
+    """Build a real ``minio.error.S3Error`` with a stub HTTP response."""
+    from minio.error import S3Error
+
+    return S3Error(
+        response=type("_Resp", (), {"status": status})(),
+        code=code,
+        message=f"{code}.",
+        resource="/proj/p/f.bin",
+        request_id="req-1",
+        host_id="host-1",
+    )
+
+
+def test_s3_store_translates_access_denied_to_storage_error(monkeypatch):
+    """The bug: a MinIO AccessDenied (S3Error) used to escape store() and
+    surface as a 500. It must now become a StorageError carrying the 403."""
+    pytest.importorskip("minio")
+
+    from app.models import S3UploadTarget
+    from app.services.backends import s3
+    from app.services.backends.base import StorageError
+
+    class _DenyingMinio:
+        def put_object(self, bucket, key, data, length):
+            raise _s3_error(403, "AccessDenied")
+
+    monkeypatch.setattr(s3, "_minio_client", lambda token, endpoint: _DenyingMinio())
+    target = S3UploadTarget(bucket="proj", key_prefix="p/", unit="file")
+
+    with pytest.raises(StorageError) as excinfo:
+        s3.S3Backend().store(target, [("f.bin", b"x")], "tok")
+    assert excinfo.value.status_code == 403
+
+
+def test_s3_store_passes_through_non_4xx_s3_error(monkeypatch):
+    """A genuine upstream 5xx is not the caller's fault — it must stay an
+    S3Error (-> 500), not be masked as a 4xx."""
+    pytest.importorskip("minio")
+    from minio.error import S3Error
+
+    from app.models import S3UploadTarget
+    from app.services.backends import s3
+
+    class _FailingMinio:
+        def put_object(self, bucket, key, data, length):
+            raise _s3_error(500, "InternalError")
+
+    monkeypatch.setattr(s3, "_minio_client", lambda token, endpoint: _FailingMinio())
+    target = S3UploadTarget(bucket="proj", key_prefix="p/", unit="file")
+
+    with pytest.raises(S3Error):
+        s3.S3Backend().store(target, [("f.bin", b"x")], "tok")
+
+
 def test_pacs_store_stows_multipart_and_returns_one_coord_per_series(monkeypatch):
     pydicom = pytest.importorskip("pydicom")
     pytest.importorskip("requests")

@@ -20,7 +20,7 @@ run trains from scratch and produces the first model; later runs select it.
 | Channel (`task_id` = `task_title`) | Cardinality | Constraint query | Notes |
 |---|---|---|---|
 | `download_segmentations` | multiple | `metadata.dicom-series.00080060 Modality_keyword` `eq` `"SEG"` | User may narrow further or pick an existing dataset (`allow_existing_dataset: true`). |
-| `download_model` | single (optional) | `has_key metadata.model-card` **AND** `metadata.provenance.workflow_name starts_with "data-api-finetune-demo"` | Single-select; leave empty on the first run to train from scratch. Scoped to models **this workflow** produced. |
+| `download_model` | single (optional) | `has_key metadata.model` **AND** `metadata.provenance.workflow_name starts_with "data-api-finetune-demo"` | Single-select; leave empty on the first run to train from scratch. Scoped to models **this workflow** produced. |
 
 > ⚠️ **Provenance scoping is a discovery convention, not an enforced guarantee.**
 > The model constraint scopes selectable models to `provenance.workflow_name`, but
@@ -53,7 +53,7 @@ run trains from scratch and produces the first model; later runs select it.
    coordinates → streams bytes via the storage-api into its `downloads` channel as
    `<entity_id>/<files>`. An empty model selection no-ops to an empty channel.
 5. IOMapping hands both channels to `finetune`, which lists what arrived and emits
-   a dummy model + an `upload_manifest.json` (declares the `model-card` to attach
+   a dummy model + an `upload_manifest.json` (declares the `model` to attach
    and the upstream entity IDs for lineage).
 
 **Write-back:**
@@ -61,7 +61,7 @@ run trains from scratch and produces the first model; later runs select it.
 6. `upload_model` (`data-api-upload`) reads the produced files + manifest, uploads
    the bytes via the storage-api (model files → S3; DICOM would STOW-RS to PACS),
    mints a new Data API entity with the returned coordinates, and attaches
-   `model-card` + `finetune-note` (from the manifest) + `provenance` (stamped from
+   `model` + `finetune-note` (from the manifest) + `provenance` (stamped from
    the run-context env the KaapanaTaskOperator injects — `KAAPANA_WORKFLOW_RUN_ID` /
    `DAG_ID` / `TASK_ID` / `IMAGE` — so the producing task can't forge it).
 
@@ -69,7 +69,7 @@ run trains from scratch and produces the first model; later runs select it.
 
 The Data API rejects a metadata POST whose key has no registered schema.
 
-- `model-card` and `provenance` are **platform-shipped** keys (registered by a
+- `model` and `provenance` are **platform-shipped** keys (registered by a
   data-api alembic migration), present on every install — no per-workflow step.
 - `finetune-note` is this workflow's **own** key. The `ensure_schema` root task
   (`data-api-ensure-schema`) registers it at run time (idempotent) before the
@@ -79,7 +79,7 @@ The Data API rejects a metadata POST whose key has no registered schema.
 
 ## Test-data prep (run once, before the first run)
 
-No schema registration step is needed: `model-card` + `provenance` are
+No schema registration step is needed: `model` + `provenance` are
 platform-shipped (data-api migration), and `finetune-note` is registered by the
 DAG's own `ensure_schema` task on each run.
 

@@ -4,7 +4,7 @@ The worked example of how a workflow adds a **workflow-specific** metadata key t
 the Data API: it ships the key's JSON Schema with the workflow and registers it
 itself, at run time, from a normal DAG task — rather than entangling the
 workflow-installer with the Data API. Cross-cutting/baseline keys the platform
-guarantees (``provenance``, ``model-card``) are shipped data-api-side via an
+guarantees (``provenance``, ``model``) are shipped data-api-side via an
 alembic migration instead; a key only this workflow cares about lives here.
 
 ``finetune-note`` is a deliberately small, permissive demo key: enough to show the

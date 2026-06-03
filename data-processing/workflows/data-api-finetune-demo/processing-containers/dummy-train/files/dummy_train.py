@@ -6,11 +6,11 @@ handed over on disk via IOMapping — and to emit a "model" the downstream
 ``data-api-upload`` task can write back to the Data API.
 
 The ``segmentations`` channel (DICOM-SEG) is required. The ``model`` channel
-(base model, ``has_key model-card``) is OPTIONAL: an empty/absent model channel
+(base model, ``has_key model``) is OPTIONAL: an empty/absent model channel
 means "train the first model from scratch" (the bootstrap run). The task writes
 a tiny dummy model + a ``training_manifest.json`` (legible artefact), plus an
 ``upload_manifest.json`` that tells the upload task what entity to create:
-the metadata to attach (``model-card``) and the upstream entity IDs (lineage).
+the metadata to attach (``model``) and the upstream entity IDs (lineage).
 Provenance is NOT written here — the upload operator stamps it from trusted
 run-context env so a producer can't forge it.
 """
@@ -95,14 +95,14 @@ def main() -> None:
     )
 
     # Instructions for the downstream data-api-upload task: create a new entity
-    # carrying a model-card, with lineage to its inputs. Provenance is added by
+    # carrying a model, with lineage to its inputs. Provenance is added by
     # the upload operator from trusted run-context env, NOT from here.
     # ``finetune-note`` is this workflow's own key (registered by the
     # ensure_schema task); attaching it here exercises that key end-to-end.
     upload_manifest = {
         "store": "s3",
         "metadata": {
-            "model-card": {
+            "model": {
                 "name": "dummy-finetuned-model",
                 "framework": "dummy",
                 "trained_from_scratch": from_scratch,

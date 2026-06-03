@@ -19,6 +19,8 @@ from kaapanapy.settings import KaapanaSettings
 
 DATASET_NAME_TAG = "00120010 ClinicalTrialSponsorName_keyword"
 
+UPLOADS_DATASET_NAME = "DICOM-Uploads"
+
 
 class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
     """
@@ -297,10 +299,14 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
                         print(f"Error uploading thumbnail for series {series_uid}: {e}")
 
                 # Add permissions metadata if project was found
-                # Extract project name and fetch project details (aii-service, NOT data-api)
-                project_id = metadata.get(DicomTags.clinical_trial_protocol_id_tag)
+                # Extract project name and fetch project details (aii-service, NOT data-api).
+                # ClinicalTrialProtocolID carries the project SHORT_ID (e.g. "admin"),
+                # not the project UUID — match AII projects on short_id
+                project_short_id = metadata.get(
+                    DicomTags.clinical_trial_protocol_id_tag
+                )
                 project = None
-                if project_id:
+                if project_short_id:
                     try:
                         response = requests.get(
                             f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects"
@@ -308,12 +314,14 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
                         response.raise_for_status()
                         projects = response.json()
                         matching_projects = [
-                            p for p in projects if p.get("id") == project_id
+                            p for p in projects if p.get("short_id") == project_short_id
                         ]
                         if matching_projects:
                             project = matching_projects[0]
                         else:
-                            print(f"Warning: Project with id '{project_id}' not found")
+                            print(
+                                f"Warning: Project with short_id '{project_short_id}' not found"
+                            )
                     except requests.exceptions.RequestException as e:
                         print(f"Warning: Failed to fetch projects: {e}")
 
@@ -454,6 +462,7 @@ async def _ensure_dataset_entity(
     dataset_name: str,
     project_id: str,
     cache: dict,
+    link_to_uploads: bool = True,
 ) -> str:
     """Resolve (or create) the dataset entity named ``dataset_name`` in ``project_id``.
 
@@ -461,6 +470,9 @@ async def _ensure_dataset_entity(
     (``{"name": ...}``) plus the same ``permissions`` scoping used for series, so
     it is found by querying those two metadata fields. Returns the dataset entity
     id; members are then attached by the caller via a ``contains`` link.
+
+    When ``link_to_uploads`` is set (the default), the resolved dataset is also
+    filed under the per-project ``DICOM-Uploads`` collection dataset.
     """
     key = (project_id, dataset_name)
     if key in cache:
@@ -511,4 +523,34 @@ async def _ensure_dataset_entity(
         )
 
     cache[key] = dataset_id
+
+    # File this dataset under the per-project DICOM-Uploads collection
+    if link_to_uploads and dataset_name != UPLOADS_DATASET_NAME:
+        try:
+            uploads_id = await _ensure_dataset_entity(
+                data_api,
+                UPLOADS_DATASET_NAME,
+                project_id,
+                cache,
+                link_to_uploads=False,
+            )
+            await data_api.create_link(uploads_id, dataset_id)
+            print(
+                f"Filed dataset '{dataset_name}' ({dataset_id}) under "
+                f"'{UPLOADS_DATASET_NAME}' ({uploads_id})"
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code != 409:
+                # 409 = already filed (expected on re-runs); anything else is a
+                # warning, not fatal — series membership is the primary job.
+                print(
+                    f"Warning: could not file dataset '{dataset_name}' under "
+                    f"'{UPLOADS_DATASET_NAME}': {e}"
+                )
+        except httpx.HTTPError as e:
+            print(
+                f"Warning: could not file dataset '{dataset_name}' under "
+                f"'{UPLOADS_DATASET_NAME}': {e}"
+            )
+
     return dataset_id

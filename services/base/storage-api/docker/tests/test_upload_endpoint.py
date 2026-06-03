@@ -93,6 +93,29 @@ def test_upload_forwards_bearer_token(monkeypatch) -> None:
     assert backend.captured["token"] == "tok-2"
 
 
+def test_upload_maps_storage_error_to_its_status(monkeypatch) -> None:
+    # A backend StorageError (e.g. MinIO AccessDenied -> 403) must surface as
+    # that 4xx, not as FastAPI's default 500.
+    from app.services.backends.base import StorageError
+
+    class _DenyingBackend(StorageBackend):
+        store_type = "s3"
+
+        def store(self, target, files, access_token):
+            raise StorageError(403, "Access Denied.")
+
+    monkeypatch.setattr("app.api.v1.get_backend", lambda store_type: _DenyingBackend())
+    client = TestClient(app)
+    resp = client.post(
+        "/v1/upload",
+        data=_descriptor(store="s3", bucket="b"),
+        files=[("files", ("f.bin", b"x"))],
+        headers={"x-forwarded-access-token": "tok"},
+    )
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "Access Denied."
+
+
 def test_upload_rejects_unsupported_store(monkeypatch) -> None:
     monkeypatch.setattr("app.api.v1.get_backend", lambda store_type: None)
     client = TestClient(app)

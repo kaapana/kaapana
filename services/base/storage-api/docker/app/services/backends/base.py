@@ -3,6 +3,21 @@ from __future__ import annotations
 from typing import Iterable, Iterator, List, Optional, Tuple
 
 
+class StorageError(Exception):
+    """A backend operation failed with a status the API can map directly.
+
+    Backends raise this in place of a store-specific error (e.g. a MinIO
+    ``S3Error`` carrying an ``AccessDenied``) so the API boundary returns the
+    matching 4xx instead of a blanket 500. ``status_code`` is the HTTP status to
+    surface; ``detail`` is the client-facing message.
+    """
+
+    def __init__(self, status_code: int, detail: str) -> None:
+        super().__init__(detail)
+        self.status_code = status_code
+        self.detail = detail
+
+
 class StorageBackend:
     """Move raw bytes to/from a single store, store-agnostically.
 

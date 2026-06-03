@@ -28,8 +28,8 @@ const nameRules: FieldRule[] = [requiredRule]
 const repositoryUrlRules: FieldRule[] = [
   requiredRule,
   (value) =>
-    /^\S+\/\S+$/.test(value.trim()) ||
-    'Use the form <registry>/<repository>, e.g. https://registry.example.com/group/repository.',
+    /^https?:\/\/\S+\/\S+$/i.test(value.trim()) ||
+    'Use a full URL: http(s)://<registry>/<repository>, e.g. https://registry.example.com/group/repository.',
 ]
 
 // In edit mode credentials are optional (leave blank to keep the stored ones).

@@ -1,3 +1,5 @@
+import type { QueryNode } from '@/types/dataApi'
+
 export interface Label {
     key: string
     value: string
@@ -84,6 +86,23 @@ export interface DataEntitiesUIForm extends BaseUIForm {
     pagination: boolean;
 }
 
+// Mirrors workflow-api schemas.py:QueryUIForm.
+export interface QueryUIForm extends BaseUIForm {
+    type: "query";
+    constraint_query?: QueryNode | null;
+    // Dataset selection mode. true: user MUST pick a dataset (required, visible).
+    // false (default): input = all constraint matches
+    dataset?: boolean;
+    // "single": expects one data entity (e.g. a model to train on) — single-select,
+    // optional selection resolves to an empty channel. "multiple" (default): a
+    // dataset / many entities.
+    cardinality?: "single" | "multiple";
+    // Ordered dotted field paths (e.g. "metadata.model.name") shown in the preview.
+    display_fields?: string[];
+    selected_query?: QueryNode | null;
+    selected_dataset_id?: string | null;
+}
+
 export interface FileUIForm extends BaseUIForm {
     type: "file";
     accept?: string | null;
@@ -104,6 +123,7 @@ export type UIForm =
     | StringUIForm
     | DatasetUIForm
     | DataEntitiesUIForm
+    | QueryUIForm
     | FileUIForm
     | TermsUIForm;
 

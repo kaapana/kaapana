@@ -1,5 +1,6 @@
 import logging
-from typing import Any, Dict, List, Optional, Type, cast
+import uuid
+from typing import Any, Dict, List, Optional, Type
 
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import Select, func, select
@@ -12,6 +13,9 @@ from . import models, schemas
 logger = logging.getLogger(__name__)
 
 
+# Helpers
+
+
 def create_query(
     model: Type[Any],
     filters: Optional[Dict[str, Any]] = None,
@@ -20,20 +24,6 @@ def create_query(
     skip: Optional[int] = None,
     limit: Optional[int] = None,
 ) -> Select[Any]:
-    """
-    Generic query function for SQLAlchemy models using AsyncSession.
-
-    Parameters:
-    - model: SQLAlchemy ORM model
-    - filters: Dict of column_name -> value
-    - eager_load: List of relationship names to eager load (flat only)
-    - order_by: SQLAlchemy ordering expression
-    - skip: Offset for pagination
-    - limit: Limit for pagination
-
-    Returns:
-    - SQLAlchemy query object
-    """
     query: Select[Any] = select(model)
 
     # Apply eager loading
@@ -67,6 +57,49 @@ def create_query(
     return query
 
 
+def latest_revision(db_workflow: models.Workflow) -> Optional[models.WorkflowRevision]:
+    """
+    Return the WorkflowRevision with the highest `increment` for the given workflow.
+    """
+    if not db_workflow.revisions:
+        return None
+    return max(db_workflow.revisions, key=lambda r: r.increment)
+
+
+# Labels
+
+
+async def _get_or_create_labels(
+    db: AsyncSession, labels: List[schemas.Label]
+) -> List[models.Label]:
+    """
+    Get or create `Label` rows for a list of (key, value) pairs.
+    Return the persisted ORM objects suitable for attaching to a relationship.
+    """
+    db_labels: List[models.Label] = []
+    for label in labels or []:
+        # add new labels if they don't already exist
+        insert_stmt = (
+            insert(models.Label)
+            .values(key=label.key, value=label.value)
+            .on_conflict_do_nothing(index_elements=["key", "value"])
+        )
+        await db.execute(insert_stmt)
+        # fetch the label
+        stmt = select(models.Label).where(
+            models.Label.key == label.key, models.Label.value == label.value
+        )
+        result = await db.execute(stmt)
+        db_label = result.scalars().first()
+        if db_label is None:
+            db_label = models.Label(key=label.key, value=label.value)
+        db_labels.append(db_label)
+    return db_labels
+
+
+# Workflows
+
+
 async def get_workflows(
     db: AsyncSession,
     filters: Optional[Dict[str, Any]] = None,
@@ -75,13 +108,6 @@ async def get_workflows(
     skip: int = 0,
     limit: int = 100,
 ) -> List[models.Workflow]:
-    """
-    Generic function to get workflows based on filters and parameters.
-    Workflows always eager load tasks by default.
-    """
-    # TODO join labels
-
-    # construct order_by expression
     order_by_exp = models.Workflow.created_at.desc()
     if order_by:
         order_col = getattr(models.Workflow, order_by, None)
@@ -93,7 +119,7 @@ async def get_workflows(
     query = create_query(
         model=models.Workflow,
         filters=filters,
-        eager_load=["tasks"],
+        eager_load=["revisions"],
         order_by=order_by_exp,
         skip=skip,
         limit=limit,
@@ -106,22 +132,12 @@ async def get_workflow(
     db: AsyncSession,
     filters: Optional[Dict[str, Any]] = None,
 ) -> Optional[models.Workflow]:
-    """
-    Generic function to get workflows based on filters and parameters.
-    Workflows always eager load tasks by default.
-    """
-    # TODO join labels
-
-    # construct order_by expression
-    order_by_exp = models.Workflow.created_at.desc()
-
     filters = filters or {}
     filters["removed"] = False
     query = create_query(
         model=models.Workflow,
         filters=filters,
-        eager_load=["tasks"],
-        order_by=order_by_exp,
+        eager_load=["revisions"],
     )
     result = await db.execute(query)
     return result.scalars().first()
@@ -130,51 +146,82 @@ async def get_workflow(
 async def create_workflow(
     db: AsyncSession, workflow: schemas.WorkflowCreate
 ) -> models.Workflow:
-    # get increment of workflow
-    # NOTE: no need to lock while determining increment -> UniqueConstraint(title, increment) raises IntegrityError on conflict
-    increment_stmt = select(func.max(models.Workflow.increment)).filter_by(
-        title=workflow.title
-    )
-    result = await db.execute(increment_stmt)
-    max_increment = result.scalar() or 0
-    new_increment = max_increment + 1
+    """Create a new workflow with its first revision (increment=1)"""
+    params_json = jsonable_encoder(workflow.workflow_parameters or [])
+    db_labels = await _get_or_create_labels(db, workflow.labels or [])
 
-    # add labels (use upsert pattern to avoid duplicates under concurrency)
-    db_labels: List[models.Label] = []
-    for label in getattr(workflow, "labels", []) or []:
-        # Insert if not exists, then select the existing/created row.
-        insert_stmt = (
-            insert(models.Label)
-            .values(key=label.key, value=label.value)
-            .on_conflict_do_nothing(index_elements=["key", "value"])
-        )
-        await db.execute(insert_stmt)
-
-        stmt: Select[Any] = select(models.Label).where(
-            models.Label.key == label.key, models.Label.value == label.value
-        )
-        result = await db.execute(stmt)
-        db_label = cast(Optional[models.Label], result.scalars().first())
-        if not db_label:
-            db_label = models.Label(key=label.key, value=label.value)
-        db_labels.append(db_label)
-
-    # create workflow object
     db_workflow = models.Workflow(
         title=workflow.title,
         workflow_engine=workflow.workflow_engine,
-        definition=workflow.definition,
-        workflow_parameters=jsonable_encoder(workflow.workflow_parameters),
-        increment=new_increment,
-        labels=db_labels,
     )
-
+    db_workflow.revisions = [
+        models.WorkflowRevision(
+            increment=1,
+            definition=workflow.definition,
+            workflow_parameters=params_json,
+            labels=db_labels,
+        )
+    ]
     db.add(db_workflow)
     await db.commit()
-    await db.refresh(
-        db_workflow
-    )  # ensures db_workflow.labels are fully loaded with lazy="selectin"
+    await db.refresh(db_workflow)
+    return db_workflow
 
+
+async def update_workflow(
+    db: AsyncSession,
+    db_workflow: models.Workflow,
+    update: schemas.WorkflowUpdate,
+) -> models.Workflow:
+    """
+    Apply a workflow update.
+
+    A change to any versioned field (definition, parameters, labels) appends a new revision.
+    A title-only change updates the workflow row in place.
+    """
+    current = latest_revision(db_workflow)
+    if current is None:
+        raise ValueError(f"Workflow {db_workflow.id} has no revisions to update")
+
+    versioned_change = (
+        update.definition is not None
+        or update.workflow_parameters is not None
+        or update.labels is not None
+    )
+
+    if versioned_change:
+        new_definition = (
+            update.definition if update.definition is not None else current.definition
+        )
+        new_params = (
+            jsonable_encoder(update.workflow_parameters)
+            if update.workflow_parameters is not None
+            else current.workflow_parameters
+        )
+        new_labels = (
+            await _get_or_create_labels(db, update.labels)
+            if update.labels is not None
+            else list(current.labels)
+        )
+
+        next_increment = current.increment + 1
+        new_rev = models.WorkflowRevision(
+            workflow_id=db_workflow.id,
+            increment=next_increment,
+            definition=new_definition,
+            workflow_parameters=new_params,
+            labels=new_labels,
+        )
+        db.add(new_rev)
+
+    # Update title in place
+    if update.title is not None and update.title != db_workflow.title:
+        db_workflow.title = update.title
+
+    await db.commit()
+    # Refresh when a new revision was appended
+    if versioned_change:
+        await db.refresh(db_workflow)
     return db_workflow
 
 
@@ -186,31 +233,85 @@ async def delete_workflow(db: AsyncSession, db_workflow: models.Workflow) -> boo
     return True
 
 
+# Workflow Revisions
+
+
+async def restore_workflow_revision(
+    db: AsyncSession, db_workflow: models.Workflow, target_increment: int
+) -> models.Workflow:
+    """Append a new revision whose snapshot copies the requested earlier increment."""
+    target = next(
+        (r for r in db_workflow.revisions if r.increment == target_increment), None
+    )
+    if target is None:
+        raise ValueError(
+            f"Workflow {db_workflow.id} has no revision with increment={target_increment}"
+        )
+    current = latest_revision(db_workflow)
+    assert current is not None
+    next_increment = current.increment + 1
+    new_rev = models.WorkflowRevision(
+        workflow_id=db_workflow.id,
+        increment=next_increment,
+        definition=target.definition,
+        workflow_parameters=target.workflow_parameters,
+        labels=list(target.labels),
+    )
+    db.add(new_rev)
+    await db.commit()
+    await db.refresh(db_workflow)
+    return db_workflow
+
+
+async def get_workflow_revision(
+    db: AsyncSession, workflow_id: uuid.UUID, increment: int
+) -> Optional[models.WorkflowRevision]:
+    query = (
+        select(models.WorkflowRevision)
+        .where(
+            models.WorkflowRevision.workflow_id == workflow_id,
+            models.WorkflowRevision.increment == increment,
+        )
+        .options(selectinload(models.WorkflowRevision.workflow))
+    )
+    result = await db.execute(query)
+    return result.scalars().first()
+
+
+async def get_workflow_revision_by_id(
+    db: AsyncSession, revision_id: uuid.UUID
+) -> Optional[models.WorkflowRevision]:
+    query = (
+        select(models.WorkflowRevision)
+        .where(models.WorkflowRevision.id == revision_id)
+        .options(selectinload(models.WorkflowRevision.workflow))
+    )
+    result = await db.execute(query)
+    return result.scalars().first()
+
+
+# WorkflowRun
+
+
 async def get_active_workflow_runs(
     db: AsyncSession,
 ) -> List[models.WorkflowRun]:
-    """
-    Get all workflow runs that are not in a terminal state (Completed, Error, Canceled).
-    """
     not_syncable_states = [
         schemas.WorkflowRunStatus.COMPLETED,
         schemas.WorkflowRunStatus.ERROR,
         schemas.WorkflowRunStatus.CANCELED,
         schemas.WorkflowRunStatus.CREATED,
     ]
-    query = select(models.WorkflowRun).where(
-        models.WorkflowRun.lifecycle_status.not_in(not_syncable_states)
+    query = (
+        select(models.WorkflowRun)
+        .where(models.WorkflowRun.lifecycle_status.not_in(not_syncable_states))
+        .options(selectinload(models.WorkflowRun.workflow_revision))
+        .order_by(models.WorkflowRun.id.desc())
     )
-
-    query = query.options(selectinload(models.WorkflowRun.workflow))
-
-    query = query.order_by(models.WorkflowRun.id.desc())
-
     result = await db.execute(query)
     return list(result.scalars().all())
 
 
-# CRUD for WorkflowRun
 async def get_workflow_runs(
     db: AsyncSession,
     filters: Optional[Dict[str, Any]] = None,
@@ -218,14 +319,10 @@ async def get_workflow_runs(
     skip: int = 0,
     limit: int = 100,
 ) -> List[models.WorkflowRun]:
-    """
-    Generic function to get workflow runs with optional project filtering.
-    """
-
     query: Select[Any] = create_query(
         model=models.WorkflowRun,
         filters=filters,
-        eager_load=["task_runs", "workflow"],
+        eager_load=["task_runs", "workflow_revision"],
         order_by=order_by or models.WorkflowRun.id.desc(),
         skip=skip,
         limit=limit,
@@ -239,14 +336,10 @@ async def get_workflow_run(
     db: AsyncSession,
     filters: Optional[Dict[str, Any]] = None,
 ) -> Optional[models.WorkflowRun]:
-    """
-    Generic function to get a single workflow run with optional project filtering.
-    """
-
     query: Select[Any] = create_query(
         model=models.WorkflowRun,
         filters=filters or {},
-        eager_load=["task_runs", "workflow"],
+        eager_load=["task_runs", "workflow_revision"],
     )
 
     result = await db.execute(query)
@@ -254,9 +347,10 @@ async def get_workflow_run(
 
 
 async def create_workflow_run(
-    db: AsyncSession, workflow_run: schemas.WorkflowRunCreate, workflow_id: int
+    db: AsyncSession,
+    workflow_run: schemas.WorkflowRunCreate,
+    workflow_revision_id: uuid.UUID,
 ) -> models.WorkflowRun:
-    # add labels (use upsert pattern to avoid duplicates under concurrency)
     db_labels: List[models.Label] = []
     for label in getattr(workflow_run, "labels", []) or []:
         insert_stmt = (
@@ -276,7 +370,7 @@ async def create_workflow_run(
         db_labels.append(db_label)
 
     db_workflow_run = models.WorkflowRun(
-        workflow_id=workflow_id,
+        workflow_revision_id=workflow_revision_id,
         workflow_parameters=jsonable_encoder(workflow_run.workflow_parameters),
         labels=db_labels,
     )
@@ -308,7 +402,7 @@ async def update_workflow_run(
     return db_workflow_run
 
 
-# CRUD for Task
+# Task
 
 
 async def get_tasks(
@@ -355,12 +449,14 @@ async def get_task(
 
 
 async def create_task(
-    db: AsyncSession, task: schemas.TaskCreate, workflow_id: int
+    db: AsyncSession, task: schemas.TaskCreate, workflow_revision_id: uuid.UUID
 ) -> models.Task:
-    logger.info(f"Creating task {task.title} for workflow_id {workflow_id}")
+    logger.info(
+        f"Creating task {task.title} for workflow_revision_id {workflow_revision_id}"
+    )
 
     db_task = models.Task(
-        workflow_id=workflow_id,
+        workflow_revision_id=workflow_revision_id,
         title=task.title,
         display_name=task.display_name,
         type=task.type,
@@ -376,7 +472,6 @@ async def create_task(
 async def add_downstream_task(
     db: AsyncSession, task_id: int, downstream_task_id: int
 ) -> models.DownstreamTask:
-    # check if downstream task already exists
     stmt = select(models.DownstreamTask).where(
         models.DownstreamTask.task_id == task_id,
         models.DownstreamTask.downstream_task_id == downstream_task_id,
@@ -391,11 +486,12 @@ async def add_downstream_task(
         db.add(db_ds_task)
         await db.commit()
         await db.refresh(db_ds_task)
-
     return db_ds_task
 
 
-# CRUD for TaskRun
+# TaskRun
+
+
 async def get_task_runs(
     db: AsyncSession,
     filters: Optional[Dict[str, Any]] = None,
@@ -406,7 +502,6 @@ async def get_task_runs(
         eager_load=["task", "workflow_run"],
     )
     result = await db.execute(query)
-
     return list(result.scalars().all())
 
 

@@ -119,7 +119,7 @@ async function loadTasksForSelected() {
   tasksLoading.value = true
   tasksError.value = null
   try {
-    const tasks = await fetchWorkflowTasks(wf.title, wf.increment)
+    const tasks = await fetchWorkflowTasks(wf.id)
     hasTasks.value = Array.isArray(tasks) && tasks.length > 0
   } catch (err) {
     console.error('Failed to fetch tasks for workflow:', err)

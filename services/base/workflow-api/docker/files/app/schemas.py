@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from enum import Enum
 from typing import Any, List, Literal, Optional, Union
@@ -304,37 +305,85 @@ class WorkflowParameter(BaseModel):
 #####################################
 
 
-class WorkflowBase(BaseModel):
-    title: str
+class _MutableWorkflowBase(BaseModel):
+    """
+    The versioned fields of a workflow: present on the create payload, every revision, and the workflow response.
+    """
+
     definition: str
-    workflow_engine: str
     workflow_parameters: Optional[List[WorkflowParameter]] = None
     labels: List[Label] = []
 
     @field_validator("labels")
     @classmethod
-    def validate_unique_labels(cls, labels: List[Label]) -> List[Label]:
-        """Ensure labels don't contain duplicates based on key-value pairs."""
+    def _unique_labels(cls, labels: Optional[List[Label]]) -> Optional[List[Label]]:
+        if labels is None:
+            return labels
         seen = set()
         for label in labels:
-            label_tuple = (label.key, label.value)
-            if label_tuple in seen:
+            t = (label.key, label.value)
+            if t in seen:
                 raise ValueError(
-                    f"Duplicate label found: key='{label.key}', value='{label.value}'. "
-                    "Each label must have a unique key-value combination."
+                    f"Duplicate label found: key='{label.key}', value='{label.value}'.  Each label must have a unique key-value combination"
                 )
-            seen.add(label_tuple)
+            seen.add(t)
         return labels
 
 
-class WorkflowCreate(WorkflowBase):
+class WorkflowRef(BaseModel):
+    """Lightweight reference to a Workflow."""
+
+    id: uuid.UUID
+    title: str
+    increment: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class WorkflowCreate(_MutableWorkflowBase):
+    """Payload to create a new workflow (and its initial revision)."""
+
+    title: str = Field(..., min_length=1)
+    workflow_engine: str
+
     model_config = ConfigDict(extra="forbid")
 
 
-class Workflow(WorkflowBase):
-    id: int
+class WorkflowUpdate(_MutableWorkflowBase):
+    """
+    Update payload.
+    * Any change to a versioned field (definition, parameters, labels) appends a new revision.
+    * `title` is changed in-place.
+    """
+
+    # Override the base's required fields to be optional for the partial-update shape.
+    title: Optional[str] = Field(default=None, min_length=1)
+    definition: Optional[str] = None
+    labels: Optional[List[Label]] = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class WorkflowRevision(_MutableWorkflowBase):
+    """A specific revision of a workflow."""
+
+    id: uuid.UUID
+    workflow_id: uuid.UUID
+    workflow_title: str
     increment: int
     created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class Workflow(_MutableWorkflowBase):
+    """Workflow object which has the stable identity and the latest revision's information."""
+
+    id: uuid.UUID
+    title: str
+    workflow_engine: str
+    created_at: datetime
+    increment: int  # increment of the latest revision
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -356,7 +405,7 @@ class TaskCreate(TaskBase):
 
 class Task(TaskBase):
     id: int
-    workflow_id: int
+    workflow_revision_id: uuid.UUID
     downstream_task_ids: List[int] = []
 
     model_config = ConfigDict(from_attributes=True)
@@ -393,15 +442,6 @@ class TaskRunUpdate(TaskRunBase):
 #####################################
 ############## WORKFLOWRUN ##########
 #####################################
-
-
-class WorkflowRef(BaseModel):
-    """Lightweight reference to a Workflow for embedding in WorkflowRun."""
-
-    title: str
-    increment: int
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class WorkflowRunBase(BaseModel):

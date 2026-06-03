@@ -1,5 +1,6 @@
 import json
 import logging
+import uuid
 from typing import List, Optional
 from urllib.parse import unquote
 
@@ -15,13 +16,13 @@ router = APIRouter()
 
 @router.get("/workflow-runs", response_model=List[schemas.WorkflowRun])
 async def get_workflow_runs(
-    workflow_title: Optional[str] = None,
+    workflow_id: Optional[uuid.UUID] = None,
     workflow_increment: Optional[int] = None,
     lifecycle_status: Optional[str] = None,
     db: AsyncSession = Depends(get_async_db),
 ):
     return await service.get_workflow_runs(
-        db, workflow_title, workflow_increment, lifecycle_status
+        db, workflow_id, workflow_increment, lifecycle_status
     )
 
 

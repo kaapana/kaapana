@@ -1,12 +1,22 @@
 from __future__ import annotations
 
+import uuid
 from datetime import datetime, timezone
 from typing import List
 
 from app.schemas import TaskRunStatus, WorkflowRunStatus
 from sqlalchemy import Boolean, Column, DateTime
 from sqlalchemy import Enum as SqlEnum
-from sqlalchemy import ForeignKey, Integer, String, Table, UniqueConstraint
+from sqlalchemy import (
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Table,
+    UniqueConstraint,
+    Uuid,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -16,13 +26,6 @@ class Base(AsyncAttrs, DeclarativeBase):
     pass
 
 
-workflow_label = Table(
-    "workflow_label",
-    Base.metadata,
-    Column("workflow_id", ForeignKey("workflows.id"), primary_key=True),
-    Column("label_id", ForeignKey("labels.id"), primary_key=True),
-)
-
 # Association table for WorkflowRun <-> Label
 workflowrun_label = Table(
     "workflowrun_label",
@@ -31,15 +34,68 @@ workflowrun_label = Table(
     Column("label_id", ForeignKey("labels.id"), primary_key=True),
 )
 
+# Association table for WorkflowRevision <-> Label
+workflow_revision_label = Table(
+    "workflow_revision_label",
+    Base.metadata,
+    Column(
+        "workflow_revision_id",
+        ForeignKey("workflow_revisions.id"),
+        primary_key=True,
+    ),
+    Column("label_id", ForeignKey("labels.id"), primary_key=True),
+)
+
 
 class Workflow(Base):
-    __tablename__ = "workflows"
-    __table_args__ = (UniqueConstraint("title", "increment"),)
+    """
+    Mutable states (definition, parameters, labels) are in `WorkflowRevision`.
+    """
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    workflow_engine: Mapped[str] = mapped_column(String)
+    __tablename__ = "workflows"
+    # Partial unique index: title is unique only among active (non-removed) workflows
+    __table_args__ = (
+        Index(
+            "uq_workflows_title_active",
+            "title",
+            unique=True,
+            postgresql_where=text("removed = false"),
+            sqlite_where=text("removed = 0"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, primary_key=True, default=uuid.uuid4, index=True
+    )
     title: Mapped[str] = mapped_column(String, index=True)
-    increment: Mapped[int] = mapped_column(Integer)
+    workflow_engine: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.now(timezone.utc)
+    )
+    removed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    revisions: Mapped[List["WorkflowRevision"]] = relationship(
+        "WorkflowRevision",
+        back_populates="workflow",
+        cascade="all, delete-orphan",
+        order_by="WorkflowRevision.increment",
+        lazy="selectin",
+    )
+
+
+class WorkflowRevision(Base):
+    """A workflow at a given increment."""
+
+    __tablename__ = "workflow_revisions"
+    __table_args__ = (UniqueConstraint("workflow_id", "increment"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, primary_key=True, default=uuid.uuid4, index=True
+    )
+    workflow_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("workflows.id"), index=True
+    )
+    increment: Mapped[int] = mapped_column(Integer, nullable=False)
     definition: Mapped[str] = mapped_column(String)
     workflow_parameters: Mapped[list] = mapped_column(
         JSONB, nullable=True, default=list
@@ -47,18 +103,26 @@ class Workflow(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
-    removed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    runs: Mapped[List[WorkflowRun]] = relationship(
-        "WorkflowRun", back_populates="workflow"
+    workflow: Mapped["Workflow"] = relationship(
+        "Workflow", back_populates="revisions", lazy="selectin"
+    )
+
+    labels: Mapped[List["Label"]] = relationship(
+        "Label",
+        secondary=workflow_revision_label,
+        back_populates="workflow_revisions",
+        lazy="selectin",
     )
 
     tasks: Mapped[List["Task"]] = relationship(
-        "Task", back_populates="workflow", cascade="save-update, merge"
-    )  # NOTE: only update operations cascade, deletes don’t. Task might be related to historical workflow runs
+        "Task",
+        back_populates="workflow_revision",
+        cascade="save-update, merge",
+    )  # NOTE: only update operations cascade, deletes don't. Task might be related to historical workflow runs
 
-    labels: Mapped[list["Label"]] = relationship(
-        "Label", secondary=workflow_label, back_populates="workflows", lazy="selectin"
+    runs: Mapped[List["WorkflowRun"]] = relationship(
+        "WorkflowRun", back_populates="workflow_revision"
     )
 
 
@@ -66,7 +130,9 @@ class WorkflowRun(Base):
     __tablename__ = "workflow_runs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    workflow_id: Mapped[int] = mapped_column(Integer, ForeignKey("workflows.id"))
+    workflow_revision_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("workflow_revisions.id"), index=True
+    )
     workflow_parameters: Mapped[list] = mapped_column(
         JSONB, nullable=True, default=list
     )
@@ -88,8 +154,8 @@ class WorkflowRun(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
-    workflow: Mapped["Workflow"] = relationship(
-        "Workflow", back_populates="runs", lazy="selectin"
+    workflow_revision: Mapped["WorkflowRevision"] = relationship(
+        "WorkflowRevision", back_populates="runs", lazy="selectin"
     )
     task_runs: Mapped[List["TaskRun"]] = relationship(
         "TaskRun", back_populates="workflow_run", lazy="selectin"
@@ -103,14 +169,13 @@ class Label(Base):
     value: Mapped[str] = mapped_column(String)
     __table_args__ = (UniqueConstraint("key", "value"),)
 
-    # reverse relationships
-    workflows: Mapped[list[Workflow]] = relationship(
-        "Workflow",
-        secondary=workflow_label,
+    workflow_revisions: Mapped[list["WorkflowRevision"]] = relationship(
+        "WorkflowRevision",
+        secondary=workflow_revision_label,
         back_populates="labels",
     )
 
-    workflow_runs: Mapped[list[WorkflowRun]] = relationship(
+    workflow_runs: Mapped[list["WorkflowRun"]] = relationship(
         "WorkflowRun",
         secondary=workflowrun_label,
         back_populates="labels",
@@ -121,7 +186,9 @@ class Task(Base):
     __tablename__ = "tasks"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    workflow_id: Mapped[int] = mapped_column(Integer, ForeignKey("workflows.id"))
+    workflow_revision_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("workflow_revisions.id")
+    )
     title: Mapped[str] = mapped_column(String, index=True)
     display_name: Mapped[str] = mapped_column(String, nullable=True)
     type: Mapped[str] = mapped_column(String)
@@ -132,8 +199,8 @@ class Task(Base):
         foreign_keys="DownstreamTask.task_id",
     )
 
-    workflow: Mapped["Workflow"] = relationship(
-        "Workflow", back_populates="tasks"
+    workflow_revision: Mapped["WorkflowRevision"] = relationship(
+        "WorkflowRevision", back_populates="tasks"
     )  # many-to-one
     task_runs: Mapped[List["TaskRun"]] = relationship(
         "TaskRun",

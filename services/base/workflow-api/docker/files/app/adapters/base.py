@@ -19,15 +19,18 @@ class WorkflowEngineAdapter(ABC):
         return f"{dag_id}-{run_id}"
 
     @abstractmethod
-    async def submit_workflow(self, workflow: schemas.Workflow) -> schemas.Workflow:
+    async def submit_workflow_revision(
+        self, revision: schemas.WorkflowRevision
+    ) -> schemas.WorkflowRevision:
         """
-        Create a workflow in the engine
+        Create a workflow revision in the engine
         """
         pass
 
     @abstractmethod
     async def get_workflow_tasks(
-        self, workflow: schemas.Workflow
+        self,
+        revision: "schemas.WorkflowRevision | schemas.WorkflowRef",
     ) -> List[schemas.TaskCreate]:
         """
         Get tasks with task-to-downstream mappings by task titles

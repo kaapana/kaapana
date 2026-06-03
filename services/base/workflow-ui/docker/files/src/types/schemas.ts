@@ -131,7 +131,7 @@ export interface TaskCreate extends TaskBase {
 
 export interface Task extends TaskBase {
     id: number
-    workflow_id: number
+    workflow_id: string
     downstream_task_ids: number[]
 }
 
@@ -162,18 +162,37 @@ export interface TaskRunUpdate extends TaskRunBase { }
 // ######## Workflow ########
 // ##########################
 
-export interface WorkflowBase {
-    title: string
+// Versioned content of a workflow
+export interface MutableWorkflowBase {
     definition: string
-    workflow_engine: string
     workflow_parameters?: WorkflowParameter[]
     labels: Label[]
 }
 
-export interface WorkflowCreate extends WorkflowBase { }
+export interface WorkflowCreate extends MutableWorkflowBase {
+    title: string
+    workflow_engine: string
+}
 
-export interface Workflow extends WorkflowBase {
-    id: number
+// Partial update to a workflow
+export interface WorkflowUpdate extends Partial<MutableWorkflowBase> {
+    title?: string
+}
+
+// Workflow object with stable identity + the latest revision's content merged in.
+export interface Workflow extends MutableWorkflowBase {
+    id: string
+    title: string
+    workflow_engine: string
+    created_at: string
+    increment: number
+}
+
+// A specific revision (snapshot) of a workflow.
+export interface WorkflowRevision extends MutableWorkflowBase {
+    id: string
+    workflow_id: string
+    workflow_title: string
     increment: number
     created_at: string
 }
@@ -182,7 +201,9 @@ export interface Workflow extends WorkflowBase {
 // ###### Workflow Run ######
 // ##########################
 export interface WorkflowRef {
-    title: string
+    id: string
+    // Filled by server on responses; not required on POST /workflow-runs.
+    title?: string
     increment: number
 }
 

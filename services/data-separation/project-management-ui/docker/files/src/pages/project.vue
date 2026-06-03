@@ -96,35 +96,6 @@
         @confirm="handleDeleteConfirm" @cancel="deleteDialog = false" />
     </v-dialog>
 
-    <v-dialog v-model="whitelistDialog" max-width="700">
-      <v-card>
-        <v-card-title class="text-h6">Edit Multiinstallable Whitelist</v-card-title>
-        <v-card-text>
-          <p class="text-body-2 pb-3">
-            Empty whitelist means all multiinstallable applications are launchable for project-PIs.
-          </p>
-          <v-checkbox
-            v-for="item in allMultiinstallableExtensions"
-            :key="item.releaseName"
-            v-model="editableProjectWhitelist"
-            :value="item.releaseName"
-            hide-details
-            class="my-1"
-          >
-            <template #label>
-              <span>{{ item.annotations?.["ui-visible-name"] || item.releaseName }}</span>
-              <span class="ml-2 text-medium-emphasis" style="font-family: monospace">({{ item.releaseName }})</span>
-            </template>
-          </v-checkbox>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="whitelistDialog = false">Cancel</v-btn>
-          <v-btn color="primary" @click="saveWhitelist">Save</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
     <v-dialog v-model="editDialog" max-width="600">
       <EditProjectDialog v-if="project" :project="project"
         @success="handleEditSuccess" @cancel="editDialog = false" @error="handleEditError" />
@@ -140,7 +111,7 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue';
-import { aiiApiGet, aiiApiPost, aiiApiDelete, aiiApiPut, kubeHelmGet, kubeHelmPost } from '@/common/services';
+import { aiiApiGet, aiiApiPost, aiiApiDelete, kubeHelmPost } from '@/common/services';
 import { ProjectItem } from '@/common/types';
 import ProjectUsers from '@/components/ProjectUsers.vue';
 import ProjectWorkflows from '@/components/ProjectWorkflows.vue';
@@ -187,10 +158,6 @@ export default defineComponent({
       deleteDialog: false,
       editDialog: false,
       archiveDialog: false,
-      whitelistDialog: false,
-
-      allMultiinstallableExtensions: [] as any[],
-      editableProjectWhitelist: [] as string[],
 
       isSnackbarVisible: false,
       snackbarMessage: '',
@@ -239,20 +206,8 @@ export default defineComponent({
           this.notify(`Selected project: ${project.name}. You may need to refresh other tabs.`, 'success');
         }
         usePermissionsStore().loadProjectWhitelist(this.projectId);
-        this.loadMultiinstallableExtensions();
       } catch (error) {
         console.error('Failed to load project:', error);
-      }
-    },
-
-    async loadMultiinstallableExtensions(): Promise<void> {
-      try {
-        const extensions = await kubeHelmGet('extensions');
-        this.allMultiinstallableExtensions = extensions
-          .filter((e: any) => e.multiinstallable === 'yes')
-          .sort((a: any, b: any) => a.releaseName.localeCompare(b.releaseName));
-      } catch (error) {
-        console.error('Failed to load extensions:', error);
       }
     },
 
@@ -314,25 +269,6 @@ export default defineComponent({
       }
     },
 
-    openWhitelistDialog(): void {
-      this.editableProjectWhitelist = [...(this.project?.multiinstallable_whitelist ?? [])];
-      this.whitelistDialog = true;
-    },
-
-    async saveWhitelist(): Promise<void> {
-      try {
-        await aiiApiPut(
-          `projects/${this.projectId}/multiinstallable-whitelist`,
-          {},
-          { app_names: this.editableProjectWhitelist },
-        );
-        await this.loadProject();
-        this.whitelistDialog = false;
-      } catch (error) {
-        console.error(error);
-        this.notify('Failed to save whitelist.', 'error');
-      }
-    },
   },
 });
 </script>

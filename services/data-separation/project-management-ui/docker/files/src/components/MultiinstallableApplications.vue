@@ -24,6 +24,24 @@
                     {{ filteredExtensions.length }}
                 </v-chip>
             </template>
+
+            <template v-if="can(project?.id, 'manage_applications_whitelist')" #actions>
+                <v-chip v-if="pendingCount > 0" color="warning" variant="tonal" size="small">
+                    {{ pendingCount }} unsaved
+                </v-chip>
+                <v-btn v-if="pendingCount > 0" size="small" variant="text" @click="discardChanges">Discard</v-btn>
+                <v-btn
+                    :disabled="pendingCount === 0 || isSaving"
+                    :loading="isSaving"
+                    size="small"
+                    color="primary"
+                    variant="outlined"
+                    prepend-icon="mdi-content-save"
+                    @click="saveChanges"
+                >
+                    Save Changes
+                </v-btn>
+            </template>
         </SectionHeader>
 
         <!-- ── Expanded content ────────────────────────────────────── -->
@@ -105,15 +123,14 @@
                     </td>
                 </template>
                 <template #item.whitelistToggle="{ item }">
-                    <td class="text-center">
+                    <td class="text-center" :class="isPending(item.releaseName) ? 'bg-warning-lighten-4' : ''">
                         <v-checkbox-btn
-                            :model-value="projectWhitelist.includes(item.releaseName)"
+                            :model-value="effectiveInWhitelist(item.releaseName)"
                             hide-details
-                            @update:model-value="updateWhitelist(item.releaseName, $event)"
-                              :disabled="!can(project?.id, 'manage_applications_whitelist') || togglingWhitelist.includes(item.releaseName)"
+                            @update:model-value="stage(item.releaseName, $event)"
+                            :disabled="!can(project?.id, 'manage_applications_whitelist')"
                             color="success"
-                        >
-                        </v-checkbox-btn>
+                        />
                     </td>
                 </template>
             </v-data-table>
@@ -175,14 +192,61 @@ const permissionsStore = usePermissionsStore();
 
 const searchQuery = ref('');
 const multiinstallableExtensions = ref<Extension[]>([]);
-const installedExtensionsByReleaseName = ref<Record<string, any>>({});
 const isLoading = ref(false);
-const togglingWhitelist = ref<string[]>([]);
+const isSaving = ref(false);
+// pending: releaseName → desired whitelist value (only changed items)
+const pending = ref<Record<string, boolean>>({});
 
-// Whitelist comes from the permissions store (loaded by project.vue on mount/refresh)
+// Persisted whitelist from the store (source of truth after save)
 const projectWhitelist = computed<string[]>(
     () => permissionsStore.whitelistByProject[props.project?.id ?? ''] ?? []
 );
+
+// ── Pending changes helpers ────────────────────────────────────────────────
+
+const pendingCount = computed(() => Object.keys(pending.value).length);
+
+const effectiveInWhitelist = (releaseName: string): boolean =>
+    releaseName in pending.value
+        ? pending.value[releaseName]
+        : projectWhitelist.value.includes(releaseName);
+
+const isPending = (releaseName: string): boolean => releaseName in pending.value;
+
+const stage = (releaseName: string, value: boolean) => {
+    const isCurrentlyAllowed = projectWhitelist.value.includes(releaseName);
+    if (value === isCurrentlyAllowed) {
+        const { [releaseName]: _, ...rest } = pending.value;
+        pending.value = rest;
+    } else {
+        pending.value = { ...pending.value, [releaseName]: value };
+    }
+};
+
+const discardChanges = () => { pending.value = {}; };
+
+const saveChanges = async () => {
+    if (!props.project?.id) return;
+    isSaving.value = true;
+    try {
+        const finalWhitelist = projectWhitelist.value
+            .filter(n => pending.value[n] !== false)
+            .concat(
+                Object.entries(pending.value)
+                    .filter(([name, allow]) => allow && !projectWhitelist.value.includes(name))
+                    .map(([name]) => name)
+            );
+        await aiiApiPut(`projects/${props.project.id}/multiinstallable-whitelist`, {}, { app_names: finalWhitelist });
+        permissionsStore.whitelistByProject[props.project.id] = finalWhitelist;
+        pending.value = {};
+        showSnackbar('Whitelist saved successfully.', 'success');
+    } catch (error) {
+        console.error('Failed to save whitelist:', error);
+        showSnackbar('Failed to save whitelist changes.', 'error');
+    } finally {
+        isSaving.value = false;
+    }
+};
 
 // ── Launch dialog ──────────────────────────────────────────────────────────
 
@@ -256,36 +320,11 @@ const loadExtensions = async () => {
         const extensions = await kubeHelmGet('extensions');
         const multiinstallable = extensions.filter((item: any) => item.multiinstallable === 'yes');
         
-        multiinstallableExtensions.value = multiinstallable
-            .filter((item: any) => item.installed === 'no')
-            .map((item: any) => ({
-                ...item
-            }));
-
-        installedExtensionsByReleaseName.value = multiinstallable
-            .filter((item: any) => item.installed === 'yes')
-            .reduce((map: any, item: any) => { map[item.releaseName] = item; return map; }, {});
+        multiinstallableExtensions.value = multiinstallable.filter((item: any) => item.installed === 'no');
     } catch (error) {
         console.error('Failed to load extensions:', error);
     } finally {
         isLoading.value = false;
-    }
-};
-
-const updateWhitelist = async (releaseName: string, isAllowed: boolean) => {
-    if (!props.project?.id) return;
-    togglingWhitelist.value = [...togglingWhitelist.value, releaseName];
-    try {
-        const current = permissionsStore.whitelistByProject[props.project.id] ?? [];
-        const updated = isAllowed
-            ? [...current, releaseName]
-            : current.filter(name => name !== releaseName);
-        await aiiApiPut(`projects/${props.project.id}/multiinstallable-whitelist`, {}, { app_names: updated });
-        permissionsStore.whitelistByProject[props.project.id] = updated;
-    } catch (error) {
-        console.error('Failed to update whitelist:', error);
-    } finally {
-        togglingWhitelist.value = togglingWhitelist.value.filter(name => name !== releaseName);
     }
 };
 
@@ -297,7 +336,12 @@ onMounted(() => {
 
 watch(
     () => props.project?.id,
-    (newId) => { if (newId) loadExtensions(); }
+    (newId) => {
+        if (newId) {
+            pending.value = {};
+            loadExtensions();
+        }
+    }
 );
 
 // ── Table headers ──────────────────────────────────────────────────────────

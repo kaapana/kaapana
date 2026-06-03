@@ -7,13 +7,10 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    ActiveApplications: typeof import('./src/components/ActiveApplications.vue')['default']
     ActiveProjectApplications: typeof import('./src/components/ActiveProjectApplications.vue')['default']
-    AddSoftwareToProject: typeof import('./src/components/AddSoftwareToProject.vue')['default']
     AddUserToProject: typeof import('./src/components/AddUserToProject.vue')['default']
     ApplicationParametersDialog: typeof import('./src/components/ApplicationParametersDialog.vue')['default']
     ArchiveProjectDialog: typeof import('./src/components/ArchiveProjectDialog.vue')['default']
-    AvailableWorkflows: typeof import('./src/components/AvailableWorkflows.vue')['default']
     Confirm: typeof import('./src/components/Confirm.vue')['default']
     copy: typeof import('./src/components/CreateNewProjectForm copy.vue')['default']
     CreateNewProjectForm: typeof import('./src/components/CreateNewProjectForm.vue')['default']
@@ -29,6 +26,5 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     SearchBar: typeof import('./src/components/SearchBar.vue')['default']
     SectionHeader: typeof import('./src/components/SectionHeader.vue')['default']
-    SectionTable: typeof import('./src/components/SectionTable.vue')['default']
   }
 }

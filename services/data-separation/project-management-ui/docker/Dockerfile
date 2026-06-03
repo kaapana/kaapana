@@ -32,4 +32,4 @@ FROM nginx:1.29.3-alpine
 
 RUN mkdir /app
 COPY --from=build-stage /app/dist /app
-COPY --from=build-stage /app/nginx.conf /etc/nginx/nginx.conf./
+COPY --from=build-stage /app/nginx.conf /etc/nginx/nginx.conf

@@ -110,12 +110,10 @@ class Project(OrmBaseModel):
                 f"Invalid AE TITLE {v.upper()}. {is_valid_dicom_ae_title.__doc__}"
             )
         return v
-    
 
 
 class UpdateMultiinstallableWhitelist(OrmBaseModel):
     app_names: list[str] = Field(default_factory=list)
-
 
 
 class CreateRight(OrmBaseModel):

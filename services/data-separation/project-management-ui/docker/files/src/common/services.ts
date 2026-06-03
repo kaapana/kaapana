@@ -1,35 +1,12 @@
 import axios, { AxiosResponse, AxiosRequestConfig, RawAxiosRequestHeaders } from 'axios';
 
-// Make this into helm chart values, not hardcoded here
 const ACCESS_INFORMATION_BACKEND = import.meta.env.VITE_APP_ACCESS_INFORMATION_BACKEND || '/aii/';
-const KAAPANA_PLUGIN = import.meta.env.VITE_APP_KAAPANA_PLUGIN || '/flow/kaapana/api/';
 const KUBE_HELM = import.meta.env.VITE_APP_KUBE_HELM || '/kube-helm-api/';
 const KAAPANA_BACKEND = import.meta.env.VITE_APP_KAAPANA_BACKEND || '/kaapana-backend/';
-const WORKFLOW_API = import.meta.env.VITE_APP_WORKFLOW_API || '/workflow-api/';
 
-
-// kaapana-backend/client/dags_client_dags_get
-
-
-const AccessInformationInterfaceClient = axios.create({
-    baseURL: ACCESS_INFORMATION_BACKEND,
-});
-
-const kaapanaPluginClient = axios.create({
-    baseURL: KAAPANA_PLUGIN,
-});
-
-const kubeHelmClient = axios.create({
-    baseURL: KUBE_HELM,
-});
-
-const kaapanaBackendClient = axios.create({
-    baseURL: KAAPANA_BACKEND,
-});
-
-const workflowApiClient = axios.create({
-    baseURL: WORKFLOW_API,
-});
+const AccessInformationInterfaceClient = axios.create({ baseURL: ACCESS_INFORMATION_BACKEND });
+const kubeHelmClient = axios.create({ baseURL: KUBE_HELM });
+const kaapanaBackendClient = axios.create({ baseURL: KAAPANA_BACKEND });
 
 
 const token = "";
@@ -98,25 +75,6 @@ const kubeHelmPost = async function (suburl: string, data: Object) {
     }
 }
 
-
-const kaapanaPluginGet = async function (suburl: string) {
-    try {
-        const response: AxiosResponse = await kaapanaPluginClient.get(
-            suburl,
-            {
-                headers: header_with_auth_token({})
-            }
-        );
-        if (response.status >= 200 && response.status < 300) {
-            return response.data;
-        } else {
-            throw new Error(response.status + " Error, Error Message: " + response.statusText);
-        }
-
-    } catch (error: unknown) {
-        throw error;
-    }
-}
 
 const aiiApiGet = async function (suburl: string) {
     try {
@@ -201,43 +159,6 @@ const aiiApiDelete = async function (suburl: string, params: Object = {}, data: 
         throw error;
     }
 }
-const kaapanaBackendGet = async function (suburl: string) {
-    try {
-        const response: AxiosResponse = await kaapanaBackendClient.get(
-            suburl,
-            {
-                headers: header_with_auth_token({})
-            }
-        );
-        if (response.status >= 200 && response.status < 300) {
-            return response.data;
-        } else {
-            throw new Error(response.status + " Error, Error Message: " + response.statusText);
-        }
-
-    } catch (error: unknown) {
-        throw error;
-    }
-}
-const workflowApiGet = async function (suburl: string) {
-    try {
-        const response: AxiosResponse = await workflowApiClient.get(
-            suburl,
-            {
-                headers: header_with_auth_token({})
-            }
-        );
-        if (response.status >= 200 && response.status < 300) {
-            return response.data;
-        } else {
-            throw new Error(response.status + " Error, Error Message: " + response.statusText);
-        }
-
-    } catch (error: unknown) {
-        throw error;
-    }
-}
-
 // ── Kaapana Backend API ─────────────────────────────────────────────────────
 
 /**
@@ -271,39 +192,12 @@ const kaapanaBackendGetDags = async function (onlyDagNames: boolean = true, incl
     }
 };
 
-/**
- * Get all workflows from workflow-api
- */
-const workflowApiGetWorkflows = async function () {
-    try {
-        const response: AxiosResponse = await workflowApiClient.get(
-            'v1/workflows',
-            {
-                headers: header_with_auth_token({
-                    'Accept': 'application/json',
-                }) as RawAxiosRequestHeaders,
-            }
-        );
-        if (response.status >= 200 && response.status < 300) {
-            return response.data;
-        } else {
-            throw new Error(response.status + " Error, Error Message: " + response.statusText);
-        }
-    } catch (error: unknown) {
-        throw error;
-    }
-};
-
 export {
     aiiApiGet,
     aiiApiPost,
     aiiApiPut,
     aiiApiDelete,
-    kaapanaPluginGet,
     kubeHelmGet,
     kubeHelmPost,
-    kaapanaBackendGet,
-    workflowApiGet,
     kaapanaBackendGetDags,
-    workflowApiGetWorkflows,
 };

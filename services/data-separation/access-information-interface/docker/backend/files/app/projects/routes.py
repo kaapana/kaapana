@@ -4,8 +4,6 @@ import os
 from typing import List, Optional
 from uuid import UUID
 
-CONFIG_DIR = os.environ.get("CONFIG_DIR", "/app/config")
-
 from app.database import get_session
 from app.keycloak_helper import KeycloakHelper, get_keycloak_helper
 from app.projects import crud, dicom_data, kubehelm, minio, opensearch, schemas
@@ -15,6 +13,8 @@ from fastapi.responses import Response
 from requests.exceptions import HTTPError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+
+CONFIG_DIR = os.environ.get("CONFIG_DIR", "/app/config")
 
 router = APIRouter()
 
@@ -185,8 +185,6 @@ async def get_roles(
     session: AsyncSession = Depends(get_session), name: Optional[str] = None
 ):
     return await crud.get_roles(session, name=name)
-
-
 
 
 

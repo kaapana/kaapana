@@ -152,14 +152,7 @@ class KeycloakHelper:
         url = self.auth_url + f"kaapana/users"
         r = self.make_authorized_request(url, requests.get)
         users_list = r.json()
-        
-        logger.debug(f"=== GET_USERS RAW RESPONSE (first 2 users) ===")
-        logger.debug(f"Total users in response: {len(users_list)}")
-        if users_list:
-            logger.debug(f"First user keys: {list(users_list[0].keys())}")
-            logger.debug(f"First user sample data: {str(users_list[0])[:500]}")
-        
-        # Fetch full user details for each user to get email and other fields
+
         users_dict = []
         for user in users_list:
             user_id = user.get("id")
@@ -169,14 +162,8 @@ class KeycloakHelper:
                     users_dict.append(full_user)
                 except Exception as e:
                     logger.warning(f"Could not fetch full details for user {user_id}: {e}")
-                    # Fallback to minimal user data if fetch fails
                     users_dict.append(dict_keys_camel_to_snake(user))
-        
-        logger.debug(f"=== GET_USERS FINAL RESULT (first 2 users) ===")
-        if users_dict:
-            logger.debug(f"First user final keys: {list(users_dict[0].keys())}")
-            logger.debug(f"First user email: {users_dict[0].get('email', 'NOT FOUND')}")
-        
+
         return users_dict
 
     def get_user_groups(self, userid: str):
@@ -230,18 +217,6 @@ class KeycloakHelper:
         url = self.auth_url + f"kaapana/users/{userid}"
         user_response = self.make_authorized_request(url, requests.get)
         user_data = dict_keys_camel_to_snake(user_response.json())
-        
-        logger.debug(f"=== GET_USER_BY_ID ({userid}) RAW RESPONSE ===")
-        logger.debug(f"User keys: {list(user_data.keys())}")
-        logger.debug(f"User email: {user_data.get('email', 'NOT FOUND')}")
-        logger.debug(f"User full data (first 1000 chars): {str(user_data)[:1000]}")
-        
         user_data["groups"] = self.get_user_groups(userid)
         user_data["realm_roles"] = self.get_user_realm_roles(userid)
-        
-        logger.debug(f"=== GET_USER_BY_ID ({userid}) FINAL ===")
-        logger.debug(f"User final email: {user_data.get('email', 'NOT FOUND')}")
-        logger.debug(f"User groups: {user_data.get('groups', [])}")
-        logger.debug(f"User realm_roles: {user_data.get('realm_roles', [])}")
-        
         return user_data

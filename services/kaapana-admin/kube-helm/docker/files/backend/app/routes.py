@@ -24,40 +24,24 @@ templates = Jinja2Templates(directory=join(dirname(str(__file__)), "templates"))
 logger = get_logger(__name__)
 
 
-async def _fetch_multiinstallable_blacklist() -> set[str]:
-    url = f"{settings.aii_service_url}/projects/multiinstallable-blacklist"
+async def _fetch_project_whitelist(project_id: str) -> list[str]:
+    url = f"{settings.aii_service_url}/projects/{project_id}/multiinstallable-whitelist"
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.get(url)
         if response.status_code != 200:
             logger.warning(
-                "Failed to fetch multiinstallable blacklist from AII: status=%s",
+                "Failed to fetch project whitelist from AII: status=%s",
                 response.status_code,
             )
-            return set()
+            return []
         payload = response.json()
         if not isinstance(payload, list):
-            return set()
-        return {str(app).strip() for app in payload if str(app).strip()}
+            return []
+        return [str(app) for app in payload]
     except Exception:
-        logger.warning("Failed to fetch multiinstallable blacklist from AII")
-        return set()
-
-
-async def _persist_multiinstallable_blacklist(app_names: list[str]) -> list[str]:
-    normalized = sorted({str(app).strip() for app in app_names if str(app).strip()})
-    url = f"{settings.aii_service_url}/projects/multiinstallable-blacklist"
-    async with httpx.AsyncClient(timeout=5.0) as client:
-        response = await client.put(url, json={"app_names": normalized})
-    if response.status_code != 200:
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to persist multiinstallable blacklist in AII",
-        )
-    payload = response.json()
-    if not isinstance(payload, list):
-        return normalized
-    return [str(app) for app in payload]
+        logger.warning("Failed to fetch project whitelist from AII for project %s", project_id)
+        return []
 
 
 async def _get_project_role_name(project_id: str, request: Request) -> Optional[str]:
@@ -291,21 +275,22 @@ async def helm_delete_chart(request: Request):
         if "platforms" in payload:
             platforms = payload["platforms"]
 
-        # Enforce whitelist on delete: admins bypass; OPA decides who can access this endpoint;
         project_header = request.headers.get("Project")
         if project_header and not is_admin_request(request):
             project_form = json.loads(project_header)
-            whitelist = project_form.get("multiinstallable_whitelist") or []
-            release = payload["release_name"]
-            is_whitelisted = any(release == e or release.startswith(e + "-") for e in whitelist)
-            if whitelist and not is_whitelisted:
-                raise HTTPException(
-                    status_code=403,
-                    detail=(
-                        f"'{release}' is not whitelisted for this project. "
-                        f"Only admins can uninstall non-whitelisted applications."
-                    ),
-                )
+            project_id = project_form.get("id")
+            if project_id:
+                whitelist = await _fetch_project_whitelist(project_id)
+                release = payload["release_name"]
+                is_whitelisted = any(release == e or release.startswith(e + "-") for e in whitelist)
+                if whitelist and not is_whitelisted:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=(
+                            f"'{release}' is not whitelisted for this project. "
+                            f"Only admins can uninstall non-whitelisted applications."
+                        ),
+                    )
         success, stdout = utils.helm_delete(
             release_name=payload["release_name"],
             release_version=release_version,
@@ -359,7 +344,7 @@ async def helm_install_chart(request: Request):
                     # Admins can install anything; only PIs are restricted by the project whitelist
                     if not is_admin_request(request) and role_name == UserRole.PRINCIPAL_INVESTIGATOR.value:
                         app_name = payload["name"]
-                        project_whitelist = project_form.get("multiinstallable_whitelist") or []
+                        project_whitelist = await _fetch_project_whitelist(project_id)
                         if project_whitelist and app_name not in project_whitelist:
                             raise HTTPException(
                                 status_code=403,
@@ -403,32 +388,6 @@ async def helm_install_chart(request: Request):
     except Exception as e:
         logger.error(f"/helm-install-chart failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Chart install failed {str(e)}")
-
-
-@router.get("/multiinstallable-blacklist", response_model=List[str])
-async def get_multiinstallable_blacklist(request: Request) -> List[str]:
-    if not is_admin_request(request):
-        raise HTTPException(
-            status_code=403,
-            detail="Only admins can view the multiinstallable blacklist.",
-        )
-    return sorted(await _fetch_multiinstallable_blacklist())
-
-
-@router.put("/multiinstallable-blacklist", response_model=List[str])
-async def update_multiinstallable_blacklist(request: Request) -> List[str]:
-    if not is_admin_request(request):
-        raise HTTPException(
-            status_code=403,
-            detail="Only admins can edit the multiinstallable blacklist.",
-        )
-
-    payload = await request.json()
-    app_names = payload.get("app_names", [])
-    if not isinstance(app_names, list):
-        raise HTTPException(status_code=400, detail="'app_names' must be a list")
-
-    return await _persist_multiinstallable_blacklist(app_names)
 
 
 @router.post("/pull-docker-image")
@@ -529,24 +488,12 @@ async def get_active_applications() -> List[schemas.ActiveApplication]:
             # find the deployed chart inside the extension object
             active_app["ready"] = ready
             
-            # Get helm values for the deployment
             try:
                 values = helm_helper.helm_get_values(release_name)
                 if values:
                     active_app["values"] = values
             except Exception as values_error:
                 logger.warning(f"Could not fetch helm values for {release_name}: {values_error}")
-            
-            # Get pod information for the deployment
-            try:
-                pods = helm_helper.get_kube_objects(release_name)
-                if pods and len(pods) > 3:
-                    # pods[2] contains pod information
-                    pod_info = pods[2]
-                    if pod_info:
-                        active_app["pods"] = pod_info
-            except Exception as pods_error:
-                logger.warning(f"Could not fetch pod information for {release_name}: {pods_error}")
 
         return active_apps
     except Exception as e:

@@ -10,6 +10,7 @@ import re
 from conftest import LOCAL_REGISTRY, TASK_DIR, MODULE_PATH, k8s_cluster_available
 
 
+
 def is_valid_pod_name(name: str) -> bool:
     pod_name_regex = re.compile(
         r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
@@ -122,8 +123,10 @@ def test_docker_runner(tmp_output_dir):
     os.environ["registryUrl"] = str(LOCAL_REGISTRY)
     os.environ["output_dir"] = str(tmp_output_dir)
 
+    Path(tmp_output_dir, "dummy/channel1").mkdir(parents=True, exist_ok=True)
+    Path(tmp_output_dir, "dummy/channel2").mkdir(parents=True, exist_ok=True)
     task = common.parse_task(file=f"{TASK_DIR}/dummy/tasks/upstream-task.json")
-    task_run = DockerRunner.run(task=task)
+    task_run = DockerRunner.run(task=task, user=f"{os.getuid()}:{os.getgid()}")
     DockerRunner.logs(task_run, follow=True)
     DockerRunner.check_status(task_run=task_run, follow=True)
     output = tmp_output_dir / "task_test_docker_runner"
@@ -134,7 +137,7 @@ def test_docker_runner(tmp_output_dir):
     assert Path(output).exists()
 
     task = common.parse_task(file=f"{TASK_DIR}/dummy/tasks/downstream-task.json")
-    task_run = DockerRunner.run(task=task)
+    task_run = DockerRunner.run(task=task, user=f"{os.getuid()}:{os.getgid()}")
     DockerRunner.monitor_memory(task_run)
 
 
@@ -159,7 +162,7 @@ def test_kubernetes_runner(tmp_output_dir):
     task = common.parse_task(
         file=f"{TASK_DIR}/dummy/tasks/upstream-task.json",
     )
-    KubernetesRunner.run(task)
+    KubernetesRunner.run(task, run_as_user=os.getuid(), run_as_group=os.getgid())
 
 
 def test_cli_run(tmp_output_dir):
@@ -175,6 +178,8 @@ def test_cli_run(tmp_output_dir):
         watch=True,
         output=output,
         monitor_memory=False,
+        run_as_user=os.getuid(),
+        run_as_group=os.getgid(),
     )
     cli.logs(output)
     cli.check_task_run(output)
@@ -190,6 +195,8 @@ def test_cli_run(tmp_output_dir):
         monitor_memory=True,
         watch=False,
         output=output,
+        run_as_user=os.getuid(),
+        run_as_group=os.getgid(),
     )
 
     assert Path(output).exists()

@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, provide, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
 import { useDisplay } from 'vuetify'
 import QueryPanel from '@/components/queryBuilder/QueryPanel.vue'
 import EntityDetailDialog from '@/components/EntityDetailDialog.vue'
 import EntityVirtualScroll from '@/components/EntityVirtualScroll.vue'
+import EntityTreeView from '@/components/tree/EntityTreeView.vue'
+import DatasetMembersAccordion from '@/components/dataset/DatasetMembersAccordion.vue'
+import AddEntitiesDialog from '@/components/dataset/AddEntitiesDialog.vue'
+import { ACCORDION_CONTROL, type AccordionControl } from '@/components/dataset/accordionControl'
 import type { GalleryItem, MetadataEntry, QueryNode } from '@/types/domain'
-import { useEntityStore } from '@/stores/entityStore'
+import { datasetNameOf, useEntityStore } from '@/stores/entityStore'
 import { useLayoutStore } from '@/stores/layoutStore'
 
 const store = useEntityStore()
@@ -20,7 +24,57 @@ const {
   totalResultCount,
   loadedEntityCount,
   queryWhere,
+  treeSelectedId,
+  selectedDatasetHasChildDatasets,
+  selectedMemberCount,
 } = storeToRefs(store)
+
+// --- Dataset members pane ---------------------------------------------------
+const accordionControl = reactive<AccordionControl>({ command: 'idle', token: 0 })
+provide(ACCORDION_CONTROL, accordionControl)
+
+const isDatasetSelected = computed(() => Boolean(treeSelectedId.value))
+const showAccordion = computed(() => isDatasetSelected.value && selectedDatasetHasChildDatasets.value)
+const selectedDatasetName = computed(() => {
+  const id = treeSelectedId.value
+  if (!id) {
+    return ''
+  }
+  return datasetNameOf(store.entities[id]) ?? `${id.slice(0, 8)}…`
+})
+const flatSelectedIds = computed(() => Object.keys(store.selectedMembers))
+
+const addDialog = ref(false)
+const removeConfirm = ref(false)
+const removing = ref(false)
+
+function expandAllAccordions() {
+  accordionControl.command = 'expand'
+  accordionControl.token += 1
+}
+function collapseAllAccordions() {
+  accordionControl.command = 'collapse'
+  accordionControl.token += 1
+}
+function onFlatToggleSelect(id: string) {
+  if (treeSelectedId.value) {
+    store.toggleMemberSelection(id, treeSelectedId.value)
+  }
+}
+function openAddDialog() {
+  if (treeSelectedId.value) {
+    addDialog.value = true
+  }
+}
+async function confirmRemoveMembers() {
+  removing.value = true
+  try {
+    await store.removeMembers(store.selectedMemberPairs)
+    removeConfirm.value = false
+  } finally {
+    removing.value = false
+  }
+}
 const display = useDisplay()
 const route = useRoute()
 const router = useRouter()
@@ -67,6 +121,49 @@ watch(
 )
 
 const columnsOverride = computed(() => layoutStore.entityCustomColumns ?? undefined)
+
+const treePanelVisible = computed(() => layoutStore.treePanelVisible)
+const treePanelWidth = computed(() => layoutStore.treePanelWidth)
+const isMobile = computed(() => display.mobile.value)
+const showTreePanel = computed(() => treePanelVisible.value && !isMobile.value)
+
+function toggleTreePanel() {
+  layoutStore.toggleTreePanel()
+}
+
+const isResizingTree = ref(false)
+let resizeStartX = 0
+let resizeStartWidth = 0
+
+function startTreeResize(event: MouseEvent) {
+  isResizingTree.value = true
+  resizeStartX = event.clientX
+  resizeStartWidth = layoutStore.treePanelWidth
+  document.addEventListener('mousemove', handleTreeResize)
+  document.addEventListener('mouseup', stopTreeResize)
+  event.preventDefault()
+}
+
+function handleTreeResize(event: MouseEvent) {
+  if (!isResizingTree.value) {
+    return
+  }
+  const delta = event.clientX - resizeStartX
+  layoutStore.setTreePanelWidth(resizeStartWidth + delta)
+}
+
+function stopTreeResize() {
+  if (!isResizingTree.value) {
+    return
+  }
+  isResizingTree.value = false
+  document.removeEventListener('mousemove', handleTreeResize)
+  document.removeEventListener('mouseup', stopTreeResize)
+}
+
+function clearTreeSelection() {
+  void store.selectTreeNode(null)
+}
 
 const selectedId = ref<string | null>(null)
 const detailBusy = ref(false)
@@ -389,29 +486,121 @@ onBeforeUnmount(() => {
       </v-expand-transition>
     </div>
 
-    <div class="content-layout">
+    <div class="content-layout" :class="{ 'content-layout--with-tree': showTreePanel }">
+      <aside
+        v-if="showTreePanel"
+        class="tree-panel"
+        :style="{ width: `${treePanelWidth}px` }"
+      >
+        <EntityTreeView />
+        <div
+          class="tree-resizer"
+          :class="{ 'tree-resizer--active': isResizingTree }"
+          @mousedown="startTreeResize"
+        />
+      </aside>
+
       <div class="content-layout__main">
-        <div class="virtual-wrapper" v-if="totalSlots">
+        <div v-if="treeSelectedId || !isMobile" class="tree-selection-bar">
+          <template v-if="treeSelectedId">
+            <v-chip
+              color="primary"
+              variant="tonal"
+              closable
+              prepend-icon="mdi-folder-outline"
+              @click:close="clearTreeSelection"
+            >
+              {{ selectedDatasetName }}
+            </v-chip>
+            <v-btn
+              size="small"
+              variant="tonal"
+              color="primary"
+              prepend-icon="mdi-plus"
+              @click="openAddDialog"
+            >
+              Add entities
+            </v-btn>
+            <v-btn
+              size="small"
+              variant="tonal"
+              color="error"
+              prepend-icon="mdi-minus-circle-outline"
+              :disabled="selectedMemberCount === 0"
+              @click="removeConfirm = true"
+            >
+              Remove<template v-if="selectedMemberCount"> ({{ selectedMemberCount }})</template>
+            </v-btn>
+            <template v-if="showAccordion">
+              <v-btn size="small" variant="text" prepend-icon="mdi-unfold-more-horizontal" @click="expandAllAccordions">
+                Expand all
+              </v-btn>
+              <v-btn size="small" variant="text" prepend-icon="mdi-unfold-less-horizontal" @click="collapseAllAccordions">
+                Collapse all
+              </v-btn>
+            </template>
+          </template>
+          <v-spacer />
+          <v-btn
+            v-if="!isMobile"
+            size="small"
+            variant="text"
+            :prepend-icon="treePanelVisible ? 'mdi-chevron-left' : 'mdi-chevron-right'"
+            @click="toggleTreePanel"
+          >
+            {{ treePanelVisible ? 'Hide tree' : 'Show tree' }}
+          </v-btn>
+        </div>
+
+        <!-- Dataset with nested datasets: recursive grouped accordion view. -->
+        <div
+          v-if="showAccordion"
+          class="members-wrapper"
+          :style="{ maxHeight: `${virtualHeight}px` }"
+        >
+          <DatasetMembersAccordion
+            :dataset-id="treeSelectedId || ''"
+            :depth="0"
+            @view="openEntity"
+            @delete="requestDeleteEntity"
+          />
+        </div>
+
+        <!-- Flat gallery: a leaf dataset's direct members, or the unscoped list. -->
+        <div class="virtual-wrapper" v-else-if="totalSlots">
           <EntityVirtualScroll
             :length="totalSlots"
             :resolve-item="resolveVirtualItem"
             :height="virtualHeight"
             :columns-override="columnsOverride"
+            :selectable="isDatasetSelected"
+            :selected-ids="flatSelectedIds"
             @view="openEntity"
             @delete="requestDeleteEntity"
             @need-range="handleRangeRequest"
+            @toggle-select="onFlatToggleSelect"
           />
         </div>
         <v-empty-state
           v-else-if="!loading && !totalSlots"
           class="mt-8"
           icon="mdi-database"
-          title="No entities"
+          :title="treeSelectedId ? 'No members' : 'No entities'"
         >
-          <template v-if="isQueryActive" #text>
+          <template v-if="isQueryActive || treeSelectedId" #text>
             <v-alert type="info" variant="tonal" class="mt-4">
-              <div class="text-body-2 mb-2">No entities match your filter criteria.</div>
-              <v-btn size="small" @click="handleSetQueryActive(false)">Disable filter</v-btn>
+              <div class="text-body-2 mb-2">
+                {{ treeSelectedId ? 'This dataset has no members yet.' : 'No entities match the current filter.' }}
+              </div>
+              <v-btn v-if="treeSelectedId" size="small" class="mr-2" color="primary" @click="openAddDialog">
+                Add entities
+              </v-btn>
+              <v-btn v-if="treeSelectedId" size="small" class="mr-2" @click="clearTreeSelection">
+                Clear selection
+              </v-btn>
+              <v-btn v-if="isQueryActive" size="small" @click="handleSetQueryActive(false)">
+                Disable query
+              </v-btn>
             </v-alert>
           </template>
         </v-empty-state>
@@ -427,6 +616,27 @@ onBeforeUnmount(() => {
       @delete-entity="handleDetailDeleteRequest"
       @navigate-to-entity="openEntity"
     />
+
+    <AddEntitiesDialog
+      v-model="addDialog"
+      :dataset-id="treeSelectedId"
+      :dataset-name="selectedDatasetName"
+    />
+
+    <v-dialog v-model="removeConfirm" max-width="460">
+      <v-card>
+        <v-card-title class="text-h6">Remove from dataset?</v-card-title>
+        <v-card-text>
+          Remove <strong>{{ selectedMemberCount }}</strong> selected entit{{ selectedMemberCount === 1 ? 'y' : 'ies' }}
+          from this dataset? The entities themselves are kept — only the dataset membership link is removed.
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" :disabled="removing" @click="removeConfirm = false">Cancel</v-btn>
+          <v-btn color="error" :loading="removing" @click="confirmRemoveMembers">Remove</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <v-dialog v-model="confirmDeleteDialog" max-width="420">
       <v-card>
@@ -454,6 +664,13 @@ onBeforeUnmount(() => {
 .virtual-wrapper {
   flex: 1;
   min-height: 0;
+}
+
+.members-wrapper {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .stat-number {
@@ -491,9 +708,48 @@ onBeforeUnmount(() => {
   flex-direction: column;
 }
 
-@media (max-width: 1280px) {
-  .content-layout {
-    flex-direction: column;
+.tree-panel {
+  position: relative;
+  flex-shrink: 0;
+  min-height: 0;
+  background: rgba(var(--v-theme-surface-variant), 0.2);
+  border: 1px solid rgba(var(--v-border-color), 0.4);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.tree-resizer {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 2;
+}
+
+.tree-resizer:hover,
+.tree-resizer--active {
+  background: rgba(var(--v-theme-primary), 0.25);
+}
+
+.tree-selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 8px 0;
+  flex-wrap: wrap;
+}
+
+.tree-selection-bar--empty {
+  justify-content: flex-end;
+}
+
+@media (max-width: 960px) {
+  .tree-panel {
+    display: none;
   }
 }
 

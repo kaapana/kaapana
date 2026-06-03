@@ -11,11 +11,15 @@
             height?: string | number
             itemHeight?: number
             columnsOverride?: number | null
+            selectable?: boolean
+            selectedIds?: string[]
           }>(),
           {
             height: '100%',
             itemHeight: 520,
             columnsOverride: null,
+            selectable: false,
+            selectedIds: () => [],
           },
         )
 
@@ -23,7 +27,10 @@
           (e: 'view', id: string): void
           (e: 'delete', id: string): void
           (e: 'need-range', payload: { start: number; end: number }): void
+          (e: 'toggle-select', id: string): void
         }>()
+
+        const selectedSet = computed(() => new Set(props.selectedIds))
 
         const display = useDisplay()
 
@@ -392,8 +399,11 @@
                   <EntityCard
                     v-if="cell.card"
                     :item="cell.card"
+                    :selectable="selectable"
+                    :selected="selectedSet.has(cell.id)"
                     @view="emit('view', $event)"
                     @delete="emit('delete', $event)"
+                    @toggle-select="emit('toggle-select', $event)"
                   />
                   <div v-else class="entity-card placeholder">
                     <v-skeleton-loader type="image, article, actions"></v-skeleton-loader>

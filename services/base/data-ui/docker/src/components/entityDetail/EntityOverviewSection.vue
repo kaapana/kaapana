@@ -17,7 +17,6 @@ defineProps<{
   entityStats: EntityStatsSummary
   thumbnailInfo: ThumbnailInfo | null
   formatDateTime: (value?: string | null) => string
-  navigateToEntity: (id: string | null | undefined) => void
 }>()
 </script>
 
@@ -63,44 +62,6 @@ defineProps<{
         <div>
           <div class="text-caption text-medium-emphasis">Created</div>
           <div class="text-body-2">{{ formatDateTime(entity.created_at) }}</div>
-        </div>
-      </div>
-      <div class="hierarchy-summary">
-        <div>
-          <div class="text-caption text-medium-emphasis">Parent</div>
-          <div v-if="entity.parent_id" class="mt-1">
-            <v-btn
-              size="small"
-              variant="text"
-              prepend-icon="mdi-arrow-up-bold"
-              @click="navigateToEntity(entity.parent_id)"
-            >
-              {{ entity.parent_id }}
-            </v-btn>
-          </div>
-          <div v-else class="text-body-2 text-medium-emphasis mt-1">No parent entity.</div>
-        </div>
-        <div>
-          <div class="text-caption text-medium-emphasis">
-            Children
-            <v-chip v-if="entity.child_ids?.length" size="x-small" class="ml-1" variant="tonal">
-              {{ entity.child_ids.length }}
-            </v-chip>
-          </div>
-          <div v-if="entity.child_ids?.length" class="hierarchy-chip-group mt-2">
-            <v-chip
-              v-for="childId in entity.child_ids"
-              :key="childId"
-              size="small"
-              variant="outlined"
-              class="hierarchy-chip"
-              prepend-icon="mdi-subdirectory-arrow-right"
-              @click="navigateToEntity(childId)"
-            >
-              {{ childId }}
-            </v-chip>
-          </div>
-          <div v-else class="text-body-2 text-medium-emphasis mt-1">No child entities.</div>
         </div>
       </div>
     </div>
@@ -173,21 +134,5 @@ defineProps<{
   display: flex;
   justify-content: space-between;
   flex-wrap: wrap;
-}
-
-.hierarchy-summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
-}
-
-.hierarchy-chip-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.hierarchy-chip {
-  cursor: pointer;
 }
 </style>

@@ -5,7 +5,7 @@ import { buildArtifactUrl } from '@/services/api'
 import EntityOverviewSection from '@/components/entityDetail/EntityOverviewSection.vue'
 import MetadataTab from '@/components/entityDetail/tabs/MetadataTab.vue'
 import StorageTab from '@/components/entityDetail/tabs/StorageTab.vue'
-import HierarchyTab from '@/components/entityDetail/tabs/HierarchyTab.vue'
+import LinksTab from '@/components/entityDetail/tabs/LinksTab.vue'
 import ArtifactsTab from '@/components/entityDetail/tabs/ArtifactsTab.vue'
 
 interface EntityStatsSummary {
@@ -42,7 +42,7 @@ const dialog = computed({
   set: (value: boolean) => emit('update:modelValue', value),
 })
 
-const activeTab = ref<'metadata' | 'storage' | 'hierarchy' | 'artifacts'>('metadata')
+const activeTab = ref<'metadata' | 'storage' | 'links' | 'artifacts'>('metadata')
 const copyToast = ref(false)
 const copyToastMessage = ref('')
 const copyToastColor = ref<'success' | 'error'>('success')
@@ -215,7 +215,6 @@ function forwardDeleteMetadata(payload: { id: string; key: string }) {
           :entity-stats="entityStats"
           :thumbnail-info="thumbnailInfo"
           :format-date-time="formatDateTime"
-          :navigate-to-entity="navigateToEntity"
         />
 
         <v-tabs v-model="activeTab" class="mt-6 dialog-tabs" color="primary" grow>
@@ -227,9 +226,11 @@ function forwardDeleteMetadata(payload: { id: string; key: string }) {
             Storage
             <v-chip size="x-small" class="ml-2" color="primary" variant="tonal">{{ entityStats.storage }}</v-chip>
           </v-tab>
-          <v-tab value="hierarchy" prepend-icon="mdi-file-tree">
-            Hierarchy
-            <v-chip size="x-small" class="ml-2" color="primary" variant="tonal">{{ entity.child_ids?.length ?? 0 }}</v-chip>
+          <v-tab value="links" prepend-icon="mdi-link-variant">
+            Links
+            <v-chip size="x-small" class="ml-2" color="primary" variant="tonal">
+              {{ (entity.outgoing_links?.length ?? 0) + (entity.incoming_links?.length ?? 0) }}
+            </v-chip>
           </v-tab>
           <v-tab value="artifacts" prepend-icon="mdi-paperclip">
             Artifacts
@@ -252,8 +253,8 @@ function forwardDeleteMetadata(payload: { id: string; key: string }) {
             <StorageTab :entity="entity" :format-storage="formatStorage" />
           </v-window-item>
 
-          <v-window-item value="hierarchy">
-            <HierarchyTab :entity="entity" :navigate-to-entity="navigateToEntity" />
+          <v-window-item value="links">
+            <LinksTab :entity="entity" :navigate-to-entity="navigateToEntity" />
           </v-window-item>
 
           <v-window-item value="artifacts">

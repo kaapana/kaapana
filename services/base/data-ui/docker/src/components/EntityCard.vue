@@ -2,11 +2,15 @@
 import { computed } from 'vue'
 import type { GalleryItem, MetadataEntry } from '@/types/domain'
 
-const props = defineProps<{ item: GalleryItem }>()
+const props = withDefaults(
+  defineProps<{ item: GalleryItem; selectable?: boolean; selected?: boolean; showActions?: boolean }>(),
+  { selectable: false, selected: false, showActions: true },
+)
 const item = computed(() => props.item)
 const emit = defineEmits<{
   (e: 'view', id: string): void
   (e: 'delete', id: string): void
+  (e: 'toggle-select', id: string): void
 }>()
 
 function metadataSummary(entry: MetadataEntry): string {
@@ -49,7 +53,15 @@ function artifactBadge(entry: MetadataEntry): string {
 </script>
 
 <template>
-  <v-card class="entity-card" variant="flat">
+  <v-card class="entity-card" variant="flat" :class="{ 'entity-card--selected': selectable && selected }">
+    <div v-if="selectable" class="entity-card__select" @click.stop="emit('toggle-select', item.id)">
+      <v-checkbox-btn
+        :model-value="selected"
+        density="comfortable"
+        @update:model-value="emit('toggle-select', item.id)"
+        @click.stop
+      />
+    </div>
     <div class="entity-thumb">
       <v-img
         v-if="item.thumbnailUrl"
@@ -106,17 +118,19 @@ function artifactBadge(entry: MetadataEntry): string {
       </v-list>
     </v-card-text>
 
-    <v-divider></v-divider>
-    <v-card-actions class="justify-space-between">
-      <v-btn variant="text" color="primary" @click="emit('view', item.id)">
-        <v-icon start>mdi-eye</v-icon>
-        View details
-      </v-btn>
-      <v-btn variant="text" color="error" @click="emit('delete', item.id)">
-        <v-icon start>mdi-delete</v-icon>
-        Delete
-      </v-btn>
-    </v-card-actions>
+    <template v-if="showActions">
+      <v-divider></v-divider>
+      <v-card-actions class="justify-space-between">
+        <v-btn variant="text" color="primary" @click="emit('view', item.id)">
+          <v-icon start>mdi-eye</v-icon>
+          View details
+        </v-btn>
+        <v-btn variant="text" color="error" @click="emit('delete', item.id)">
+          <v-icon start>mdi-delete</v-icon>
+          Delete
+        </v-btn>
+      </v-card-actions>
+    </template>
   </v-card>
 </template>
 
@@ -129,6 +143,20 @@ function artifactBadge(entry: MetadataEntry): string {
 
 .entity-card:hover {
   box-shadow: 0 16px 38px rgba(94, 53, 177, 0.18);
+}
+
+.entity-card--selected {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: -2px;
+}
+
+.entity-card__select {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  background: rgba(var(--v-theme-surface), 0.85);
+  border-radius: 6px;
 }
 
 .entity-thumb {

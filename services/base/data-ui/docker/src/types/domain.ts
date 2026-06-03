@@ -36,10 +36,10 @@ export interface EntityLinkCreate {
 export interface DataEntity {
   id: string
   created_at?: string | null
-  parent_id?: string | null
-  child_ids?: string[]
   storage_coordinates: StorageCoordinate[]
   metadata: MetadataEntry[]
+  outgoing_links: EntityLink[]
+  incoming_links: EntityLink[]
 }
 
 export interface GalleryItem {

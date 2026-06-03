@@ -1,9 +1,23 @@
 import { isAxiosError } from 'axios'
 import { defineStore } from 'pinia'
-import type { DataEntity, EventMessage, GalleryItem, MetadataEntry, QueryNode, QueryRequest } from '@/types/domain'
+import type {
+  DataEntity,
+  EntityLink,
+  EntityLinkCreate,
+  EventMessage,
+  FilterNode,
+  GalleryItem,
+  GroupNode,
+  MetadataEntry,
+  QueryNode,
+  QueryRequest,
+} from '@/types/domain'
 import {
   buildArtifactUrl,
+  createEntity as createEntityRequest,
+  createLink as createLinkRequest,
   deleteEntity as deleteEntityRequest,
+  deleteLink as deleteLinkRequest,
   deleteMetadata,
   executeQuery,
   fetchEntity,
@@ -19,6 +33,8 @@ let eventStreamHandle: EventStreamHandle | null = null
 const activeCursorLoads = new Set<string>()
 const QUERY_REFRESH_DEBOUNCE_MS = 400
 const QUERY_PERIODIC_SYNC_MS = 30000
+const CONTAINS_LINK_TYPE = 'contains'
+const DATASET_METADATA_KEY = 'dataset'
 
 interface State {
   allIds: string[]
@@ -40,13 +56,116 @@ interface State {
   visibleRangeEnd: number | null
   queryRefreshHandle: number | null
   queryPeriodicHandle: number | null
+  lastExecutedWhere: QueryNode | null
+  treeRootIds: string[] | null
+  treeChildrenById: Record<string, string[]>
+  treeExpandedIds: string[]
+  treeSelectedId: string | null
+  treeLoading: boolean
+  treeLoadingChildrenIds: string[]
+  // Dataset membership: direct data-entity member IDs per dataset (excludes
+  // child datasets), their lazy-load flags, the direct-member count chip cache,
+  // and the cross-view member multi-selection.
+  datasetMembersById: Record<string, string[]>
+  datasetMembersLoadingIds: string[]
+  datasetMemberCounts: Record<string, number>
+  // Member multi-selection across the entities pane: memberId → the dataset it
+  // is shown under (its parent), so removal deletes the right `contains` link.
+  selectedMembers: Record<string, string>
+}
+
+// --- Dataset model filters -------------------------------------------------
+// A *dataset* is an entity carrying the `dataset` metadata key; members are its
+// `contains`-link targets; a *nested dataset* is a `contains`-target that itself
+// has the `dataset` key. These compose via AND groups (the backend ANDs each
+// child predicate independently — see entity_query._build_group_predicate).
+
+function and(...children: QueryNode[]): GroupNode {
+  return { type: 'group', op: 'and', children }
+}
+
+function datasetKeyFilter(): FilterNode {
+  // Presence-only: the entity has a `dataset` metadata entry.
+  return { type: 'filter', field: `metadata.${DATASET_METADATA_KEY}`, op: 'has_key' }
+}
+
+// All direct `contains`-children of a parent (datasets *and* data entities).
+function directChildrenFilter(parentId: string): FilterNode {
+  return {
+    type: 'filter',
+    field: 'links',
+    op: 'has_incoming_link',
+    value: { entity_id: parentId, link_type: CONTAINS_LINK_TYPE },
+  }
+}
+
+// Only the child *datasets* of a parent (used to build the dataset tree).
+function childDatasetsFilter(parentId: string): QueryNode {
+  return and(directChildrenFilter(parentId), datasetKeyFilter())
+}
+
+// All entities reachable from an anchor via `contains` (used to exclude a
+// dataset's own subtree from move targets so a cycle can't be formed).
+function descendantContainsFilter(entityId: string): FilterNode {
+  return {
+    type: 'filter',
+    field: 'links',
+    op: 'descendant_of',
+    value: { entity_id: entityId, link_type: CONTAINS_LINK_TYPE },
+  }
+}
+
+// Top-level datasets: have the dataset key and no parent `contains` link.
+function rootDatasetsFilter(): QueryNode {
+  return and(datasetKeyFilter(), {
+    type: 'filter',
+    field: 'links',
+    op: 'no_incoming_link',
+    value: { link_type: CONTAINS_LINK_TYPE },
+  })
+}
+
+// True when an entity carries the `dataset` metadata key.
+export function entityIsDataset(entity: DataEntity | undefined): boolean {
+  return Boolean(entity?.metadata?.some((entry) => entry.key === DATASET_METADATA_KEY))
+}
+
+// Human-readable dataset name from the `dataset` metadata entry, if present.
+export function datasetNameOf(entity: DataEntity | undefined): string | null {
+  const entry = entity?.metadata?.find((m) => m.key === DATASET_METADATA_KEY)
+  const name = entry?.data?.name
+  return typeof name === 'string' && name.trim() ? name : null
+}
+
+function generateUuid(): string {
+  // crypto.randomUUID needs a secure context; fall back for plain-HTTP origins.
+  const cryptoObj = globalThis.crypto
+  if (cryptoObj?.randomUUID) {
+    return cryptoObj.randomUUID()
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+    const rand = (Math.random() * 16) | 0
+    const value = char === 'x' ? rand : (rand & 0x3) | 0x8
+    return value.toString(16)
+  })
+}
+
+function combineWhere(a: QueryNode | null, b: QueryNode | null): QueryNode | null {
+  if (!a) {
+    return b ?? null
+  }
+  if (!b) {
+    return a
+  }
+  const group: GroupNode = { type: 'group', op: 'and', children: [a, b] }
+  return group
 }
 
 function isImageMime(mime?: string | null): boolean {
   return Boolean(mime && mime.startsWith('image/'))
 }
 
-function toGalleryItem(entity: DataEntity): GalleryItem {
+export function toGalleryItem(entity: DataEntity): GalleryItem {
   const thumbnail = entity.metadata
     .flatMap((entry) =>
       entry.artifacts
@@ -84,16 +203,58 @@ export const useEntityStore = defineStore('entities', {
     visibleRangeEnd: null,
     queryRefreshHandle: null,
     queryPeriodicHandle: null,
+    lastExecutedWhere: null,
+    treeRootIds: null,
+    treeChildrenById: {},
+    treeExpandedIds: [],
+    treeSelectedId: null,
+    treeLoading: false,
+    treeLoadingChildrenIds: [],
+    datasetMembersById: {},
+    datasetMembersLoadingIds: [],
+    datasetMemberCounts: {},
+    selectedMembers: {},
   }),
   getters: {
+    treeFilterNode(state): QueryNode | null {
+      // Selecting a dataset scopes the flat gallery to its *direct* members
+      // (nested datasets are surfaced via the accordion view, not recursion).
+      return state.treeSelectedId ? directChildrenFilter(state.treeSelectedId) : null
+    },
+    selectedDatasetHasChildDatasets(state): boolean {
+      const id = state.treeSelectedId
+      if (!id) {
+        return false
+      }
+      return (state.treeChildrenById[id]?.length ?? 0) > 0
+    },
+    isMemberSelected(state): (id: string) => boolean {
+      return (id: string) => id in state.selectedMembers
+    },
+    selectedMemberCount(state): number {
+      return Object.keys(state.selectedMembers).length
+    },
+    selectedMemberPairs(state): { parentId: string; memberId: string }[] {
+      return Object.entries(state.selectedMembers).map(([memberId, parentId]) => ({
+        memberId,
+        parentId,
+      }))
+    },
+    effectiveQueryNode(): QueryNode | null {
+      const userPart = this.queryEnabled ? this.queryWhere : null
+      return combineWhere(userPart, this.treeFilterNode)
+    },
+    isFilterActive(): boolean {
+      return Boolean(this.effectiveQueryNode)
+    },
     displayIdList(state): string[] {
-      if (state.queryEnabled && state.queryIdList) {
+      if (this.isFilterActive && state.queryIdList) {
         return state.queryIdList
       }
       return state.allIds
     },
     galleryItems(state): GalleryItem[] {
-      const ids = state.queryEnabled && state.queryIdList ? state.queryIdList : state.allIds
+      const ids = this.isFilterActive && state.queryIdList ? state.queryIdList : state.allIds
       return ids
         .map((id) => state.entities[id])
         .filter((entity): entity is DataEntity => Boolean(entity))
@@ -106,13 +267,13 @@ export const useEntityStore = defineStore('entities', {
       return Boolean(state.queryWhere && state.queryEnabled)
     },
     totalResultCount(state): number {
-      if (state.queryEnabled && state.queryIdList) {
+      if (this.isFilterActive && state.queryIdList) {
         return state.queryTotalCount ?? state.queryIdList.length
       }
       return state.totalCount || state.allIds.length
     },
     loadedEntityCount(state): number {
-      const ids = state.queryEnabled && state.queryIdList ? state.queryIdList : state.allIds
+      const ids = this.isFilterActive && state.queryIdList ? state.queryIdList : state.allIds
       return ids.reduce(
         (count, id) => (state.entities[id] ? count + 1 : count),
         0,
@@ -123,14 +284,14 @@ export const useEntityStore = defineStore('entities', {
     async refresh() {
       this.loading = true
       this.error = null
-      const storedQuery = this.queryWhere
       try {
         await this.loadIdIndex()
-        if (storedQuery && this.queryEnabled) {
-          await this.runQueryInternal({ where: storedQuery }, { silent: true })
+        if (this.effectiveQueryNode) {
+          await this.runQueryInternal({ where: this.effectiveQueryNode }, { silent: true })
         } else {
           this.queryIdList = null
           this.queryTotalCount = null
+          this.lastExecutedWhere = null
           await this.ensureEntitiesForRange(0, this.pageSize - 1)
         }
       } catch (error) {
@@ -283,7 +444,8 @@ export const useEntityStore = defineStore('entities', {
       }
     },
     async loadQueryPageAfterCursor(cursor: string | null) {
-      if (!this.queryWhere) {
+      const where = this.lastExecutedWhere
+      if (!where) {
         return
       }
       const key = `query:${cursor ?? '__root__'}`
@@ -293,7 +455,7 @@ export const useEntityStore = defineStore('entities', {
       activeCursorLoads.add(key)
       try {
         const response = await executeQuery({
-          where: this.queryWhere,
+          where,
           cursor: cursor ?? undefined,
           limit: this.pageSize,
         })
@@ -349,7 +511,23 @@ export const useEntityStore = defineStore('entities', {
       }
     },
     async applyQuery(where: QueryNode) {
-      await this.runQueryInternal({ where })
+      this.queryWhere = where
+      this.queryEnabled = true
+      await this.runEffectiveQuery()
+    },
+    async runEffectiveQuery(options?: { silent?: boolean }) {
+      const effective = this.effectiveQueryNode
+      if (!effective) {
+        this.queryIdList = null
+        this.queryTotalCount = null
+        this.queryNextCursor = null
+        this.queryUsesFullIndex = false
+        this.lastExecutedWhere = null
+        this.clearQueryTimers()
+        await this.ensureEntitiesForRange(0, this.pageSize - 1)
+        return
+      }
+      await this.runQueryInternal({ where: effective }, options)
     },
     async runQueryInternal(request: QueryRequest, options?: { silent?: boolean }) {
       const shouldToggleLoading = !options?.silent
@@ -364,8 +542,7 @@ export const useEntityStore = defineStore('entities', {
           this.fetchQueryIndexSnapshot(whereNode),
           executeQuery({ ...request, limit: this.pageSize }),
         ])
-        this.queryWhere = whereNode
-        this.queryEnabled = Boolean(this.queryWhere)
+        this.lastExecutedWhere = whereNode
         const snapshotTotal = indexSnapshot?.total_count ?? indexSnapshot?.items.length
         this.queryTotalCount = snapshotTotal ?? response.total_count
         if (indexSnapshot) {
@@ -381,7 +558,7 @@ export const useEntityStore = defineStore('entities', {
           this.entities[entity.id] = entity
         })
         await this.ensureQueryRange(0, this.pageSize - 1)
-        if (this.queryEnabled && this.queryWhere) {
+        if (this.isFilterActive) {
           this.ensureQuerySyncTimer()
         } else {
           this.clearQueryTimers()
@@ -405,45 +582,36 @@ export const useEntityStore = defineStore('entities', {
       this.queryTotalCount = null
       this.queryNextCursor = null
       this.queryUsesFullIndex = false
+      this.lastExecutedWhere = null
       this.clearQueryTimers()
-      void this.ensureEntitiesForRange(0, this.pageSize - 1)
+      if (this.treeSelectedId) {
+        void this.runEffectiveQuery({ silent: true })
+      } else {
+        void this.ensureEntitiesForRange(0, this.pageSize - 1)
+      }
     },
     async setQueryActivation(enabled: boolean) {
       if (!this.queryWhere) {
         this.queryEnabled = false
         return
       }
-      if (enabled) {
-        if (this.queryEnabled) {
-          return
-        }
-        await this.runQueryInternal({ where: this.queryWhere })
+      if (enabled === this.queryEnabled) {
         return
       }
-
-      if (!this.queryEnabled) {
-        return
-      }
-
-      this.queryEnabled = false
-      this.queryIdList = null
-      this.queryTotalCount = null
-      this.queryNextCursor = null
-      this.queryUsesFullIndex = false
-      this.clearQueryTimers()
-      await this.ensureEntitiesForRange(0, this.pageSize - 1)
+      this.queryEnabled = enabled
+      await this.runEffectiveQuery()
     },
     async loadMoreQueryResults() {
       if (this.queryUsesFullIndex) {
         return
       }
-      if (!this.queryWhere || !this.queryEnabled || !this.queryNextCursor || this.queryLoadingMore) {
+      if (!this.lastExecutedWhere || !this.queryNextCursor || this.queryLoadingMore) {
         return
       }
       this.queryLoadingMore = true
       try {
         const response = await executeQuery({
-          where: this.queryWhere,
+          where: this.lastExecutedWhere,
           cursor: this.queryNextCursor,
           limit: this.pageSize,
         })
@@ -481,6 +649,10 @@ export const useEntityStore = defineStore('entities', {
       eventStreamHandle.start()
     },
     handleServerEvent(event: EventMessage) {
+      if (event.resource === 'link') {
+        this.handleLinkEvent(event)
+        return
+      }
       if (event.resource !== 'data_entity') {
         return
       }
@@ -491,7 +663,8 @@ export const useEntityStore = defineStore('entities', {
       if (event.action === 'deleted') {
         if (entityId) {
           this.removeEntityState(entityId)
-          if (this.queryWhere && this.queryEnabled) {
+          this.removeEntityFromTreeState(entityId)
+          if (this.isFilterActive) {
             this.scheduleQueryRefresh({ immediate: true })
           }
         }
@@ -504,7 +677,7 @@ export const useEntityStore = defineStore('entities', {
 
       this.insertId(entityId)
 
-      if (this.queryWhere && this.queryEnabled) {
+      if (this.isFilterActive) {
         this.scheduleQueryRefresh()
         return
       }
@@ -513,14 +686,59 @@ export const useEntityStore = defineStore('entities', {
         void this.fetchEntityById(entityId)
       }
     },
+    handleLinkEvent(event: EventMessage) {
+      const data = event.data ?? {}
+      const sourceId = typeof data.source_id === 'string' ? data.source_id : null
+      const targetId = typeof data.target_id === 'string' ? data.target_id : null
+      const linkType = typeof data.link_type === 'string' ? data.link_type : null
+
+      if (sourceId && this.entities[sourceId]) {
+        void this.fetchEntityById(sourceId)
+      }
+      if (targetId && this.entities[targetId]) {
+        void this.fetchEntityById(targetId)
+      }
+
+      if (linkType === CONTAINS_LINK_TYPE) {
+        if (sourceId) {
+          delete this.treeChildrenById[sourceId]
+          delete this.datasetMembersById[sourceId]
+          delete this.datasetMemberCounts[sourceId]
+        }
+        this.treeRootIds = null
+        if (this.treeSelectedId) {
+          this.scheduleQueryRefresh()
+        }
+      }
+    },
+    removeEntityFromTreeState(entityId: string) {
+      if (this.treeRootIds) {
+        this.treeRootIds = this.treeRootIds.filter((id) => id !== entityId)
+      }
+      delete this.treeChildrenById[entityId]
+      for (const parentId of Object.keys(this.treeChildrenById)) {
+        const list = this.treeChildrenById[parentId]
+        if (!list) {
+          continue
+        }
+        this.treeChildrenById[parentId] = list.filter((id) => id !== entityId)
+      }
+      this.treeExpandedIds = this.treeExpandedIds.filter((id) => id !== entityId)
+      delete this.datasetMembersById[entityId]
+      delete this.datasetMemberCounts[entityId]
+      delete this.selectedMembers[entityId]
+      if (this.treeSelectedId === entityId) {
+        this.treeSelectedId = null
+      }
+    },
     scheduleQueryRefresh(options?: { immediate?: boolean }) {
-      if (!this.queryWhere || !this.queryEnabled) {
+      if (!this.isFilterActive) {
         this.clearPendingQueryRefresh()
         return
       }
       if (typeof window === 'undefined') {
         if (options?.immediate) {
-          void this.runQueryInternal({ where: this.queryWhere }, { silent: true })
+          void this.runEffectiveQuery({ silent: true })
         }
         return
       }
@@ -528,14 +746,14 @@ export const useEntityStore = defineStore('entities', {
       const delay = options?.immediate ? 0 : QUERY_REFRESH_DEBOUNCE_MS
       this.queryRefreshHandle = window.setTimeout(() => {
         this.queryRefreshHandle = null
-        if (!this.queryWhere || !this.queryEnabled) {
+        if (!this.isFilterActive) {
           return
         }
-        void this.runQueryInternal({ where: this.queryWhere }, { silent: true })
+        void this.runEffectiveQuery({ silent: true })
       }, delay)
     },
     ensureQuerySyncTimer() {
-      if (!this.queryWhere || !this.queryEnabled || typeof window === 'undefined') {
+      if (!this.isFilterActive || typeof window === 'undefined') {
         this.stopQuerySyncTimer()
         return
       }
@@ -543,11 +761,11 @@ export const useEntityStore = defineStore('entities', {
         return
       }
       this.queryPeriodicHandle = window.setInterval(() => {
-        if (!this.queryWhere || !this.queryEnabled) {
+        if (!this.isFilterActive) {
           this.stopQuerySyncTimer()
           return
         }
-        void this.runQueryInternal({ where: this.queryWhere }, { silent: true })
+        void this.runEffectiveQuery({ silent: true })
       }, QUERY_PERIODIC_SYNC_MS)
     },
     stopQuerySyncTimer() {
@@ -609,19 +827,359 @@ export const useEntityStore = defineStore('entities', {
     },
     async hydrateQueryFromRoute(where: QueryNode | null, isActive: boolean) {
       if (!where) {
-        this.clearQuery()
-        return
-      }
-      if (isActive) {
-        await this.runQueryInternal({ where })
+        this.queryWhere = null
+        this.queryEnabled = false
+        await this.runEffectiveQuery({ silent: true })
         return
       }
       this.queryWhere = where
-      this.queryEnabled = false
-      this.queryIdList = null
-      this.queryTotalCount = null
-      this.queryNextCursor = null
-      await this.ensureEntitiesForRange(0, this.pageSize - 1)
+      this.queryEnabled = isActive
+      await this.runEffectiveQuery()
+    },
+    async loadTreeRoots() {
+      this.treeLoading = true
+      try {
+        const ids = await this.fetchIdsForQuery(rootDatasetsFilter())
+        this.treeRootIds = ids
+        await this.hydrateEntities(ids.slice(0, 200))
+      } catch (error) {
+        this.error = error instanceof Error ? error.message : 'Failed to load datasets'
+      } finally {
+        this.treeLoading = false
+      }
+    },
+    async loadTreeChildren(parentId: string) {
+      if (this.treeLoadingChildrenIds.includes(parentId)) {
+        return
+      }
+      this.treeLoadingChildrenIds = [...this.treeLoadingChildrenIds, parentId]
+      try {
+        // Only nested *datasets* populate the tree; data-entity members are
+        // shown in the entities pane, not the hierarchy.
+        const ids = await this.fetchIdsForQuery(childDatasetsFilter(parentId))
+        this.treeChildrenById[parentId] = ids
+        // Child datasets are now known — recompute the member-count chip so it
+        // correctly excludes them (the initial estimate subtracted 0).
+        delete this.datasetMemberCounts[parentId]
+        await this.ensureDatasetMemberCount(parentId)
+        await this.hydrateEntities(ids.slice(0, 200))
+      } catch (error) {
+        this.error = error instanceof Error ? error.message : 'Failed to load nested datasets'
+      } finally {
+        this.treeLoadingChildrenIds = this.treeLoadingChildrenIds.filter((id) => id !== parentId)
+      }
+    },
+    async fetchIdsForQuery(where: QueryNode): Promise<string[]> {
+      try {
+        const snapshot = await fetchQueryIdIndex({ where })
+        return snapshot.items
+      } catch (error) {
+        if (isAxiosError(error) && error.response?.status === 404) {
+          // Streaming index unavailable — fall back to paginated execute.
+          const all: string[] = []
+          let cursor: string | null = null
+          do {
+            const response = await executeQuery({
+              where,
+              limit: 10000,
+              cursor: cursor ?? undefined,
+            })
+            response.results.forEach((entity) => {
+              this.entities[entity.id] = entity
+              all.push(entity.id)
+            })
+            cursor = response.next_cursor ?? null
+          } while (cursor)
+          return all
+        }
+        throw error
+      }
+    },
+    async hydrateEntities(ids: string[]) {
+      const missing = ids.filter((id) => !this.entities[id])
+      if (!missing.length) {
+        return
+      }
+      // The fetchQueryIdIndex path only returns IDs; pull records for the
+      // first slice so the tree node labels can show useful metadata.
+      await Promise.all(
+        missing.map(async (id) => {
+          try {
+            await this.fetchEntityById(id)
+          } catch (error) {
+            // Already logged inside fetchEntityById; swallow to keep batch resilient.
+            console.warn('Failed to hydrate entity for tree', id, error)
+          }
+        }),
+      )
+    },
+    async toggleTreeNode(id: string) {
+      const index = this.treeExpandedIds.indexOf(id)
+      if (index >= 0) {
+        this.treeExpandedIds = this.treeExpandedIds.filter((existing) => existing !== id)
+        return
+      }
+      this.treeExpandedIds = [...this.treeExpandedIds, id]
+      if (!this.treeChildrenById[id]) {
+        await this.loadTreeChildren(id)
+      }
+    },
+    async selectTreeNode(id: string | null) {
+      if (this.treeSelectedId === id) {
+        return
+      }
+      this.treeSelectedId = id
+      this.clearMemberSelection()
+      // Need to know whether this dataset has nested datasets to decide between
+      // the flat gallery and the recursive accordion view.
+      if (id && !this.treeChildrenById[id]) {
+        await this.loadTreeChildren(id)
+      }
+      await this.runEffectiveQuery()
+    },
+    // --- Dataset membership selection --------------------------------------
+    toggleMemberSelection(id: string, parentId: string) {
+      if (id in this.selectedMembers) {
+        delete this.selectedMembers[id]
+      } else {
+        this.selectedMembers[id] = parentId
+      }
+    },
+    clearMemberSelection() {
+      this.selectedMembers = {}
+    },
+    // --- Dataset member loading & counts -----------------------------------
+    async loadDatasetMembers(datasetId: string) {
+      if (this.datasetMembersLoadingIds.includes(datasetId)) {
+        return
+      }
+      this.datasetMembersLoadingIds = [...this.datasetMembersLoadingIds, datasetId]
+      try {
+        // Direct data-entity members = all direct contains-children minus the
+        // child datasets (the DSL has no `not_has_key`, so we subtract).
+        const [allChildren, childDatasets] = await Promise.all([
+          this.fetchIdsForQuery(directChildrenFilter(datasetId)),
+          this.fetchIdsForQuery(childDatasetsFilter(datasetId)),
+        ])
+        const datasetSet = new Set(childDatasets)
+        const members = allChildren.filter((id) => !datasetSet.has(id))
+        this.datasetMembersById[datasetId] = members
+        this.treeChildrenById[datasetId] = childDatasets
+        this.datasetMemberCounts[datasetId] = members.length
+        await this.hydrateEntities(members.slice(0, 200))
+      } catch (error) {
+        this.error = error instanceof Error ? error.message : 'Failed to load dataset members'
+      } finally {
+        this.datasetMembersLoadingIds = this.datasetMembersLoadingIds.filter((id) => id !== datasetId)
+      }
+    },
+    async ensureDatasetMemberCount(datasetId: string) {
+      if (this.datasetMemberCounts[datasetId] !== undefined) {
+        return
+      }
+      try {
+        // One count query for direct contains-children; subtract the locally
+        // known child-dataset count. Unexpanded nodes may briefly overcount by
+        // their nested-dataset count until their children load.
+        const response = await executeQuery({ where: directChildrenFilter(datasetId), limit: 1 })
+        const childDatasets = this.treeChildrenById[datasetId]?.length ?? 0
+        this.datasetMemberCounts[datasetId] = Math.max(0, response.total_count - childDatasets)
+      } catch (error) {
+        console.warn('Failed to count dataset members', datasetId, error)
+      }
+    },
+    invalidateDatasetMembership(datasetId: string) {
+      delete this.datasetMembersById[datasetId]
+      delete this.datasetMemberCounts[datasetId]
+      delete this.treeChildrenById[datasetId]
+    },
+    // --- Dataset mutations --------------------------------------------------
+    async createDataset(name: string, description?: string): Promise<DataEntity> {
+      this.error = null
+      const data: Record<string, unknown> = { name: name.trim() }
+      if (description && description.trim()) {
+        data.description = description.trim()
+      }
+      try {
+        const entity = await createEntityRequest({
+          id: generateUuid(),
+          metadata: [{ key: DATASET_METADATA_KEY, data, artifacts: [] }],
+        })
+        this.updateEntityState(entity)
+        this.treeRootIds = null
+        await this.loadTreeRoots()
+        return entity
+      } catch (error) {
+        this.error = error instanceof Error ? error.message : 'Failed to create dataset'
+        throw error
+      }
+    },
+    async deleteDataset(datasetId: string) {
+      this.error = null
+      try {
+        await deleteEntityRequest(datasetId)
+        this.removeEntityState(datasetId)
+        this.removeEntityFromTreeState(datasetId)
+        this.invalidateDatasetMembership(datasetId)
+        this.treeRootIds = null
+        await this.loadTreeRoots()
+      } catch (error) {
+        this.error = error instanceof Error ? error.message : 'Failed to delete dataset'
+        throw error
+      }
+    },
+    async moveDataset(datasetId: string, targetId: string | null) {
+      this.error = null
+      try {
+        // Refresh to get current parent links. A dataset's incoming `contains`
+        // links come only from parent datasets, so all of them are reparented.
+        const fresh = await fetchEntity(datasetId)
+        this.updateEntityState(fresh)
+        const parentLinks = (fresh.incoming_links ?? []).filter(
+          (link) => link.link_type === CONTAINS_LINK_TYPE,
+        )
+        for (const link of parentLinks) {
+          await deleteLinkRequest(link.source_id, link.id)
+          this.invalidateDatasetMembership(link.source_id)
+        }
+        if (targetId) {
+          await createLinkRequest(targetId, {
+            target_id: datasetId,
+            link_type: CONTAINS_LINK_TYPE,
+          })
+          this.invalidateDatasetMembership(targetId)
+        }
+        this.treeRootIds = null
+        await this.loadTreeRoots()
+        await Promise.all([this.fetchEntityById(datasetId)])
+      } catch (error) {
+        this.error = error instanceof Error ? error.message : 'Failed to move dataset'
+        throw error
+      }
+    },
+    async addMembers(datasetId: string, memberIds: string[]) {
+      this.error = null
+      let failures = 0
+      await Promise.all(
+        memberIds.map(async (memberId) => {
+          try {
+            await createLinkRequest(datasetId, {
+              target_id: memberId,
+              link_type: CONTAINS_LINK_TYPE,
+            })
+          } catch (error) {
+            // 409 = already a member → treat as a no-op.
+            if (isAxiosError(error) && error.response?.status === 409) {
+              return
+            }
+            failures += 1
+            console.warn('Failed to add member', memberId, error)
+          }
+        }),
+      )
+      this.invalidateDatasetMembership(datasetId)
+      await this.refreshAfterMembershipChange(datasetId)
+      if (failures) {
+        this.error = `Failed to add ${failures} of ${memberIds.length} entities`
+      }
+    },
+    async removeMembers(pairs: { parentId: string; memberId: string }[]) {
+      this.error = null
+      // Group by parent dataset; fetch each parent fresh to resolve link IDs.
+      const byParent = new Map<string, string[]>()
+      for (const { parentId, memberId } of pairs) {
+        byParent.set(parentId, [...(byParent.get(parentId) ?? []), memberId])
+      }
+      let failures = 0
+      for (const [parentId, memberIds] of byParent) {
+        try {
+          const parent = await fetchEntity(parentId)
+          this.updateEntityState(parent)
+          const memberSet = new Set(memberIds)
+          const links = (parent.outgoing_links ?? []).filter(
+            (link) => link.link_type === CONTAINS_LINK_TYPE && memberSet.has(link.target_id),
+          )
+          for (const link of links) {
+            try {
+              await deleteLinkRequest(parentId, link.id)
+            } catch (error) {
+              failures += 1
+              console.warn('Failed to remove member', link.target_id, error)
+            }
+          }
+        } catch (error) {
+          failures += memberIds.length
+          console.warn('Failed to load dataset for removal', parentId, error)
+        }
+        this.invalidateDatasetMembership(parentId)
+      }
+      this.clearMemberSelection()
+      if (this.treeSelectedId) {
+        await this.refreshAfterMembershipChange(this.treeSelectedId)
+      }
+      if (failures) {
+        this.error = `Failed to remove ${failures} membership link(s)`
+      }
+    },
+    async fetchMovableTargets(datasetId: string): Promise<{ id: string; name: string }[]> {
+      // Datasets the given dataset can be moved under: every dataset except
+      // itself and its own descendants (which would create a contains-cycle).
+      const [allDatasetIds, descendantIds] = await Promise.all([
+        this.fetchIdsForQuery(datasetKeyFilter()),
+        this.fetchIdsForQuery(descendantContainsFilter(datasetId)),
+      ])
+      const exclude = new Set<string>([datasetId, ...descendantIds])
+      const targetIds = allDatasetIds.filter((id) => !exclude.has(id))
+      await this.hydrateEntities(targetIds.slice(0, 500))
+      return targetIds.map((id) => ({
+        id,
+        name: datasetNameOf(this.entities[id]) ?? `${id.slice(0, 8)}…`,
+      }))
+    },
+    async refreshAfterMembershipChange(datasetId: string) {
+      await Promise.all([
+        this.loadDatasetMembers(datasetId),
+        this.fetchEntityById(datasetId),
+      ])
+      if (this.treeSelectedId === datasetId) {
+        await this.runEffectiveQuery({ silent: true })
+      }
+    },
+    async createLinkAction(sourceId: string, body: EntityLinkCreate): Promise<EntityLink> {
+      this.error = null
+      try {
+        const link = await createLinkRequest(sourceId, body)
+        // Refetch both endpoints so their incoming/outgoing arrays update.
+        await Promise.all([
+          this.fetchEntityById(sourceId),
+          this.fetchEntityById(link.target_id),
+        ])
+        if (link.link_type === CONTAINS_LINK_TYPE) {
+          delete this.treeChildrenById[sourceId]
+          this.treeRootIds = null
+        }
+        return link
+      } catch (error) {
+        this.error = error instanceof Error ? error.message : 'Failed to create link'
+        throw error
+      }
+    },
+    async deleteLinkAction(sourceId: string, link: EntityLink) {
+      this.error = null
+      try {
+        await deleteLinkRequest(sourceId, link.id)
+        await Promise.all([
+          this.fetchEntityById(sourceId),
+          this.fetchEntityById(link.target_id),
+        ])
+        if (link.link_type === CONTAINS_LINK_TYPE) {
+          delete this.treeChildrenById[sourceId]
+          this.treeRootIds = null
+        }
+      } catch (error) {
+        this.error = error instanceof Error ? error.message : 'Failed to delete link'
+        throw error
+      }
     },
   },
 })

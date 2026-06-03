@@ -3,6 +3,8 @@ import type {
   ArtifactPruneResponse,
   DataEntity,
   EntityIndexSnapshot,
+  EntityLink,
+  EntityLinkCreate,
   MetadataEntry,
   MetadataFieldListResponse,
   MetadataFieldValuesResponse,
@@ -11,6 +13,7 @@ import type {
   QueryRequest,
   QueryResponse,
   QueryIndexRequest,
+  StorageCoordinate,
 } from '@/types/domain'
 
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
@@ -51,6 +54,23 @@ export function buildArtifactUrl(entityId: string, metadataKey: string, artifact
 
 export async function executeQuery(payload: QueryRequest): Promise<QueryResponse> {
   const { data } = await api.post<QueryResponse>('/v1/entities/query', payload)
+  return data
+}
+
+export async function createEntity(payload: {
+  id: string
+  storage_coordinates?: StorageCoordinate[]
+  metadata: MetadataEntry[]
+}): Promise<DataEntity> {
+  // POST /entities is create-or-replace; it expects a full DataEntity shape.
+  const body = {
+    id: payload.id,
+    storage_coordinates: payload.storage_coordinates ?? [],
+    metadata: payload.metadata,
+    outgoing_links: [],
+    incoming_links: [],
+  }
+  const { data } = await api.post<DataEntity>('/v1/entities', body)
   return data
 }
 
@@ -144,4 +164,18 @@ export async function fetchMetadataFieldValues(key: string, path: string): Promi
 export async function pruneArtifacts(): Promise<ArtifactPruneResponse> {
   const { data } = await api.post<ArtifactPruneResponse>('/v1/artifacts/prune')
   return data
+}
+
+export async function createLink(sourceId: string, body: EntityLinkCreate): Promise<EntityLink> {
+  const { data } = await api.post<EntityLink>(
+    `/v1/entities/${encodeURIComponent(sourceId)}/links`,
+    body,
+  )
+  return data
+}
+
+export async function deleteLink(sourceId: string, linkId: string): Promise<void> {
+  await api.delete(
+    `/v1/entities/${encodeURIComponent(sourceId)}/links/${encodeURIComponent(linkId)}`,
+  )
 }

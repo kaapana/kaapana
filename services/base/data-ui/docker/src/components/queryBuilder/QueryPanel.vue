@@ -6,6 +6,7 @@ import QueryJsonEditor from './QueryJsonEditor.vue'
 import { queriesEqual } from './utils'
 import { useQueryClipboard } from './useQueryClipboard'
 import { useQueryHotkeys } from './useQueryHotkeys'
+import { QUERY_EXAMPLES } from './examples'
 
 const props = defineProps<{
   loading: boolean
@@ -176,6 +177,12 @@ function handleJsonRun(payload: QueryNode) {
 function handleJsonClear() {
   resetQueryBuilder()
 }
+
+function applyExample(node: QueryNode) {
+  expanded.value = true
+  builderMode.value = 'chips'
+  applyAndRunExternalQuery(node)
+}
 </script>
 
 <template>
@@ -234,6 +241,27 @@ function handleJsonClear() {
               </v-btn>
             </v-btn-toggle>
             <div class="builder-actions">
+              <v-menu>
+                <template #activator="{ props: menuProps }">
+                  <v-btn
+                    size="small"
+                    variant="text"
+                    prepend-icon="mdi-lightbulb-outline"
+                    v-bind="menuProps"
+                  >
+                    Examples
+                  </v-btn>
+                </template>
+                <v-list density="compact" max-width="360">
+                  <v-list-item
+                    v-for="example in QUERY_EXAMPLES"
+                    :key="example.label"
+                    :title="example.label"
+                    :subtitle="example.description"
+                    @click="applyExample(example.node)"
+                  />
+                </v-list>
+              </v-menu>
               <v-tooltip text="Copy query" location="bottom">
                 <template #activator="{ props: tooltipProps }">
                   <v-btn

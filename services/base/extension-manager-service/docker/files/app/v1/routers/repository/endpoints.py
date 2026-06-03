@@ -78,9 +78,13 @@ async def update_repository(
     update_repository: schemas.PutRepositoryRequest,
     db: AsyncSession = Depends(database.get_async_db),
 ):
-    encypted_auth = encryption.encrypt(
-        update_repository.username, update_repository.password.get_secret_value()
-    )
+    encypted_auth = None
+    if update_repository.username is not None and update_repository.password is not None:
+        encypted_auth = encryption.encrypt(
+            update_repository.username,
+            update_repository.password.get_secret_value(),
+        )
+
     try:
         db_registered_repository = await crud.update_registered_repository(
             db,

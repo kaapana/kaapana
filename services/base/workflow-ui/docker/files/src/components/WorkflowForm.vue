@@ -211,6 +211,13 @@
                                                 </template>
                                             </v-text-field>
 
+                                            <!-- Query Channel Field -->
+                                            <QueryChannelField
+                                                v-else-if="param.ui_form.type === 'query'"
+                                                :ui-form="(param.ui_form as QueryUIForm)"
+                                                v-model="formData[fieldKey(param)]"
+                                                class="parameter-field" />
+
                                             <!-- String Field (default) -->
                                             <v-text-field v-else-if="param.ui_form.type === 'str'"
                                                 v-model="formData[fieldKey(param)]"
@@ -280,13 +287,17 @@
 
             <v-divider />
 
+            <v-alert v-if="submitError" type="error" density="compact" variant="tonal" class="ma-4 mb-0">
+                {{ submitError }}
+            </v-alert>
+
             <v-card-actions class="pa-4">
                 <v-spacer />
-                <v-btn variant="text" size="large" @click="closeForm" :disabled="props.submitting">
+                <v-btn variant="text" size="large" @click="closeForm" :disabled="props.submitting || resolving">
                     Cancel
                 </v-btn>
-                <v-btn color="primary" variant="elevated" size="large" @click="submitForm" :disabled="loading"
-                    :loading="props.submitting">
+                <v-btn color="primary" variant="elevated" size="large" @click="submitForm"
+                    :disabled="loading" :loading="props.submitting || resolving">
                     <v-icon class="mr-2">mdi-play</v-icon>
                     Run Workflow
                 </v-btn>
@@ -297,14 +308,19 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import type { Workflow, WorkflowRunCreate, WorkflowParameter, UIForm, IntegerUIForm, FloatUIForm, StringUIForm, Dataset } from '@/types/schemas'
+import type { Workflow, WorkflowRunCreate, WorkflowParameter, UIForm, IntegerUIForm, FloatUIForm, StringUIForm, Dataset, QueryUIForm } from '@/types/schemas'
 import { fetchDatasets } from '@/api/datasetsApiClient'
+import { resolveQueryIndex } from '@/api/dataApiClient'
+import QueryChannelField from '@/components/QueryChannelField.vue'
+import type { QuerySelection } from '@/components/QueryChannelField.vue'
 
 const props = defineProps<{ workflow: Workflow; modelValue: boolean; submitting?: boolean }>()
 const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void; (e: 'submit', data: WorkflowRunCreate): void }>()
 
 const isOpen = computed({ get: () => props.modelValue, set: v => emit('update:modelValue', v) })
 const loading = ref(false)
+const resolving = ref(false)
+const submitError = ref<string | null>(null)
 const error = ref<string | null>(null)
 const formRef = ref<any>(null)
 const formData = ref<Record<string, any>>({})
@@ -414,6 +430,12 @@ watch(
                             break
                         case 'terms':
                             initialData[key] = false
+                            break
+                        case 'query':
+                            // Query channels carry a selection object, not a scalar.
+                            initialData[key] = {
+                                selected_dataset_id: (param.ui_form as QueryUIForm).selected_dataset_id ?? null,
+                            } as QuerySelection
                             break
                         default:
                             initialData[key] = ''
@@ -571,19 +593,74 @@ async function submitForm() {
     // Build parameters array from form data with updated default values
     const workflowParams: WorkflowParameter[] = (props.workflow as any).workflow_parameters || []
 
-    for (const param of workflowParams) {
-        const envName = param.env_variable_name
-        const value = formData.value[fieldKey(param)]
+    submitError.value = null
+    resolving.value = true
+    try {
+        for (const param of workflowParams) {
+            const envName = param.env_variable_name
+            const value = formData.value[fieldKey(param)]
 
-        // Create parameter with updated default value
-        payload.workflow_parameters!.push({
-            task_title: param.task_title,
-            env_variable_name: envName,
-            ui_form: {
-                ...param.ui_form,
-                default: value  // Update the default with the user-selected value
+            // Query channels: resolve the selection to the frozen entity-ID list
+            // client-side and submit it as the parameter's `default`, exactly like
+            // any other parameter.
+            if (param.ui_form.type === 'query') {
+                const selection = (value || {}) as QuerySelection
+                // Required-dataset channels: a dataset must be chosen.
+                if ((param.ui_form as QueryUIForm).dataset && !selection.selected_dataset_id) {
+                    submitError.value = `"${param.ui_form.title}" requires selecting a dataset.`
+                    return
+                }
+                const where = selection.effective_where ?? null
+                let ids: string[]
+                try {
+                    ids = await resolveQueryIndex(where)
+                } catch (err) {
+                    console.error('Failed to resolve query channel to entity IDs:', err)
+                    submitError.value = `Could not resolve input for "${param.ui_form.title}" from the Data API.`
+                    return
+                }
+                if (param.ui_form.required && ids.length === 0) {
+                    submitError.value = `"${param.ui_form.title}" matched no entities — adjust the selection.`
+                    return
+                }
+                // Single-cardinality channels expect at most one entity (0 allowed
+                // only when optional
+                if ((param.ui_form as QueryUIForm).cardinality === 'single' && ids.length > 1) {
+                    submitError.value = `"${param.ui_form.title}" expects a single entity but ${ids.length} are selected.`
+                    return
+                }
+                // Impure dataset: members failing the constraint are silently filtered
+                // out (the download operator would reject them), so require explicit
+                // consent before submitting.
+                const nonMatch = selection.non_match_count ?? 0
+                if (nonMatch > 0 && !selection.acknowledged_impurity) {
+                    submitError.value = `"${param.ui_form.title}": ${nonMatch} selected entities don't match the constraint. Tick the checkbox to filter them out, or change the dataset.`
+                    return
+                }
+                payload.workflow_parameters!.push({
+                    task_title: param.task_title,
+                    env_variable_name: envName,
+                    ui_form: {
+                        ...param.ui_form,
+                        // The frozen ID list travels as the env value (JSON), like any param.
+                        default: JSON.stringify(ids),
+                    }
+                } as any)
+                continue
             }
-        } as any)
+
+            // Create parameter with updated default value
+            payload.workflow_parameters!.push({
+                task_title: param.task_title,
+                env_variable_name: envName,
+                ui_form: {
+                    ...param.ui_form,
+                    default: value  // Update the default with the user-selected value
+                }
+            } as any)
+        }
+    } finally {
+        resolving.value = false
     }
 
     emit('submit', payload)
@@ -621,6 +698,11 @@ function closeForm() {
                     break
                 case 'terms':
                     initialData[key] = false
+                    break
+                case 'query':
+                    initialData[key] = {
+                        selected_dataset_id: (param.ui_form as QueryUIForm).selected_dataset_id ?? null,
+                    } as QuerySelection
                     break
                 default:
                     initialData[key] = ''

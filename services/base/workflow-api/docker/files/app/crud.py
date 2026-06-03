@@ -1,6 +1,6 @@
 import logging
 import uuid
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import Select, func, select
@@ -95,6 +95,41 @@ async def _get_or_create_labels(
             db_label = models.Label(key=label.key, value=label.value)
         db_labels.append(db_label)
     return db_labels
+
+
+# Any label whose key starts with this prefix is treated as immutable across revisions
+IMMUTABLE_LABEL_PREFIX = "kaapana.immutable."
+
+
+class ImmutableLabelViolation(Exception):
+    """Raised when a label update would change or remove an immutable label."""
+
+
+def check_immutable_labels(
+    current: List[Tuple[str, str]],
+    new: List[Tuple[str, str]],
+) -> None:
+    """Verify that all immutable labels are present in `current` are preserved in `new` with the same value.
+
+    Args:
+        current: (key, value) pairs from the current state.
+        new: (key, value) pairs proposed for the next state.
+
+    Raises:
+        ImmutableLabelViolation: if any `kaapana.immutable.*` label in `current` is missing or has a different value in `new`.
+    """
+    new_by_key = dict(new)
+    for key, value in current:
+        if not key.startswith(IMMUTABLE_LABEL_PREFIX):
+            continue
+        if key not in new_by_key:
+            raise ImmutableLabelViolation(
+                f"Cannot remove immutable label '{key}'. Labels with prefix '{IMMUTABLE_LABEL_PREFIX}' are immutable."
+            )
+        if new_by_key[key] != value:
+            raise ImmutableLabelViolation(
+                f"Cannot change value of immutable label '{key}' from '{value}' to '{new_by_key[key]}'."
+            )
 
 
 # Workflows

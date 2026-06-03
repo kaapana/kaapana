@@ -48,6 +48,27 @@ def _workflow_to_schema(db_workflow: models.Workflow) -> schemas.Workflow:
     )
 
 
+def _enforce_immutable_labels(
+    current_labels,
+    new_labels,
+    *,
+    detail_prefix: str = "",
+) -> None:
+    """
+    Enforce the `kaapana.immutable.*` invariant across two label sets.
+
+    Accepts any iterables of label-like objects with `.key` and `.value` (ORM `Label` rows or Pydantic `Label` schemas).
+    Raises `HTTPException(422)` on violation.
+    """
+    current_pairs = [(l.key, l.value) for l in current_labels]
+    new_pairs = [(l.key, l.value) for l in new_labels]
+    try:
+        crud.check_immutable_labels(current_pairs, new_pairs)
+    except crud.ImmutableLabelViolation as e:
+        detail = f"{detail_prefix}{e}" if detail_prefix else str(e)
+        raise HTTPException(status_code=422, detail=detail)
+
+
 # Workflow service operations
 
 
@@ -160,6 +181,12 @@ async def update_workflow(
                 detail=f"Cannot rename workflow: a workflow with title '{update.title}' already exists",
             )
 
+    # If the PATCH touches labels, enforce immutability of any kaapana.immutable.* label that's already on the latest revision
+    if update.labels is not None:
+        current_rev = crud.latest_revision(db_workflow)
+        assert current_rev is not None
+        _enforce_immutable_labels(current_rev.labels, update.labels)
+
     try:
         db_workflow = await crud.update_workflow(db, db_workflow, update)
     except IntegrityError as e:
@@ -202,6 +229,22 @@ async def restore_workflow_revision(
     db_workflow = await crud.get_workflow(db, filters={"id": workflow_id})
     if not db_workflow:
         raise NotFoundError("Workflow not found")
+
+    # Restore must satisfy the same immutability rule as update
+    target = next(
+        (r for r in db_workflow.revisions if r.increment == target_increment),
+        None,
+    )
+    current_rev = crud.latest_revision(db_workflow)
+    if target is not None and current_rev is not None:
+        _enforce_immutable_labels(
+            current_rev.labels,
+            target.labels,
+            detail_prefix=(
+                f"Cannot restore workflow {workflow_id} to increment "
+                f"{target_increment}: "
+            ),
+        )
 
     try:
         db_workflow = await crud.restore_workflow_revision(

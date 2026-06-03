@@ -377,7 +377,9 @@ async def get_task_run_log_lines(
     if not task_run:
         raise NotFoundError("Task run not found")
 
-    engine = get_workflow_engine(task_run.workflow_run.workflow.workflow_engine)
+    engine = get_workflow_engine(
+        task_run.workflow_run.workflow_revision.workflow.workflow_engine
+    )
     raw = await engine.get_task_run_logs(task_run.external_id)
     return engine.parse_task_run_logs(raw)
 

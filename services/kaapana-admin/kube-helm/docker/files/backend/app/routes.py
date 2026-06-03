@@ -12,7 +12,7 @@ from fastapi.templating import Jinja2Templates
 from kaapanapy.logger import get_logger
 
 from . import file_handler, helm_helper, schemas, utils
-from .auth_utils import UserRole, get_request_user_id, is_admin_request
+from .auth_utils import is_admin_request
 from .config import settings
 
 # TODO: add endpoint for /helm-delete-file
@@ -24,7 +24,7 @@ templates = Jinja2Templates(directory=join(dirname(str(__file__)), "templates"))
 logger = get_logger(__name__)
 
 
-async def _fetch_project_whitelist(project_id: str) -> list[str]:
+async def _fetch_project_whitelist(project_id: str) -> Optional[list[str]]:
     url = f"{settings.aii_service_url}/projects/{project_id}/multiinstallable-whitelist"
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
@@ -34,35 +34,13 @@ async def _fetch_project_whitelist(project_id: str) -> list[str]:
                 "Failed to fetch project whitelist from AII: status=%s",
                 response.status_code,
             )
-            return []
+            return None
         payload = response.json()
         if not isinstance(payload, list):
-            return []
+            return None
         return [str(app) for app in payload]
     except Exception:
         logger.warning("Failed to fetch project whitelist from AII for project %s", project_id)
-        return []
-
-
-async def _get_project_role_name(project_id: str, request: Request) -> Optional[str]:
-    user_id = get_request_user_id(request)
-    if not user_id:
-        return None
-
-    role_url = (
-        f"{settings.aii_service_url}/projects/{project_id}/users/{user_id}/roles"
-    )
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(role_url)
-        if response.status_code != 200:
-            return None
-        role = response.json()
-        return role.get("name")
-    except Exception:
-        logger.warning(
-            "Failed to fetch role for user %s in project %s", user_id, project_id
-        )
         return None
 
 
@@ -277,10 +255,18 @@ async def helm_delete_chart(request: Request):
 
         project_header = request.headers.get("Project")
         if project_header and not is_admin_request(request):
-            project_form = json.loads(project_header)
+            try:
+                project_form = json.loads(project_header)
+            except json.JSONDecodeError:
+                raise HTTPException(status_code=400, detail="Invalid Project header")
             project_id = project_form.get("id")
             if project_id:
                 whitelist = await _fetch_project_whitelist(project_id)
+                if whitelist is None:
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Could not verify application whitelist. Please try again later.",
+                    )
                 release = payload["release_name"]
                 is_whitelisted = any(release == e or release.startswith(e + "-") for e in whitelist)
                 if whitelist and not is_whitelisted:
@@ -337,23 +323,28 @@ async def helm_install_chart(request: Request):
         if "kaapanamultiinstallable" in keywords:
             project_header = request.headers.get("Project")
             if project_header:
-                project_form = json.loads(project_header)
+                try:
+                    project_form = json.loads(project_header)
+                except json.JSONDecodeError:
+                    raise HTTPException(status_code=400, detail="Invalid Project header")
                 project_id = project_form.get("id")
-                if project_id:
-                    role_name = await _get_project_role_name(project_id, request)
-                    # Admins can install anything; only PIs are restricted by the project whitelist
-                    if not is_admin_request(request) and role_name == UserRole.PRINCIPAL_INVESTIGATOR.value:
-                        app_name = payload["name"]
-                        project_whitelist = await _fetch_project_whitelist(project_id)
-                        if project_whitelist and app_name not in project_whitelist:
-                            raise HTTPException(
-                                status_code=403,
-                                detail=(
-                                    f"'{app_name}' is not whitelisted for this project. "
-                                    f"You do not have permission to launch it. "
-                                    f"Contact your project admin to add it to the whitelist."
-                                ),
-                            )
+                if project_id and not is_admin_request(request):
+                    app_name = payload["name"]
+                    project_whitelist = await _fetch_project_whitelist(project_id)
+                    if project_whitelist is None:
+                        raise HTTPException(
+                            status_code=503,
+                            detail="Could not verify application whitelist. Please try again later.",
+                        )
+                    if project_whitelist and app_name not in project_whitelist:
+                        raise HTTPException(
+                            status_code=403,
+                            detail=(
+                                f"'{app_name}' is not whitelisted for this project. "
+                                f"You do not have permission to launch it. "
+                                f"Contact your project admin to add it to the whitelist."
+                            ),
+                        )
 
                 payload["extension_params"] = payload.get("extension_params", {})
                 payload["extension_params"]["project_id"] = project_form.get("id")

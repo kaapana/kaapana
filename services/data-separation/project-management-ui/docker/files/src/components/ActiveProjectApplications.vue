@@ -236,14 +236,12 @@ const loadActiveApplications = async () => {
 // ── Lifecycle ──────────────────────────────────────────────────────────────
 
 onMounted(() => {
-    if (props.project?.id && props.expanded) loadActiveApplications();
+    if (props.project?.id) loadActiveApplications();
 });
 
 watch(
-    () => [props.project?.id, props.expanded] as const,
-    ([newId, newExpanded]) => {
-        if (newId && newExpanded && !activeApplications.value.length) loadActiveApplications();
-    }
+    () => props.project?.id,
+    (newId) => { if (newId) loadActiveApplications(); }
 );
 
 // ── Table headers ──────────────────────────────────────────────────────────

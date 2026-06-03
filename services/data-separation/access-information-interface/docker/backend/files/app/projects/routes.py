@@ -196,7 +196,7 @@ async def get_role_rights(
     return await crud.get_rights_by_role_id(session, role_id)
 
 
-@router.post("/roles/{role_id}/right/{right_id}", status_code=204, tags=["Projects"])
+@router.post("/roles/{role_id}/rights/{right_id}", status_code=204, tags=["Projects"])
 async def assign_right_to_role(
     role_id: int,
     right_id: int,
@@ -209,7 +209,7 @@ async def assign_right_to_role(
     return Response(status_code=204)
 
 
-@router.delete("/roles/{role_id}/right/{right_id}", status_code=204, tags=["Projects"])
+@router.delete("/roles/{role_id}/rights/{right_id}", status_code=204, tags=["Projects"])
 async def remove_right_from_role(
     role_id: int,
     right_id: int,

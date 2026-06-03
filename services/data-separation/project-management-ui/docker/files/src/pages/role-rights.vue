@@ -360,9 +360,9 @@ export default defineComponent({
             const [roleId, rightId] = key.split('-').map(Number);
             try {
               if (grant) {
-                await aiiApiPost(`projects/roles/${roleId}/right/${rightId}`, {});
+                await aiiApiPost(`projects/roles/${roleId}/rights/${rightId}`, {});
               } else {
-                await aiiApiDelete(`projects/roles/${roleId}/right/${rightId}`);
+                await aiiApiDelete(`projects/roles/${roleId}/rights/${rightId}`);
               }
               applied++;
             } catch (e: any) {

@@ -170,6 +170,8 @@ interface Extension {
         documentation?: string;
     };
     description: string;
+    version: string;
+    keywords: string[];
 }
 
 interface Props {

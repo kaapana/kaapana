@@ -16,7 +16,6 @@ class Projects(Base):
     name = Column(String, unique=True)
     description = Column(String)
     is_archived = Column(Boolean, nullable=False, default=False)
-    # Empty whitelist means noall multiinstallable apps are allowed.
     multiinstallable_whitelist = Column(JSON, nullable=False, default=list)
 
 

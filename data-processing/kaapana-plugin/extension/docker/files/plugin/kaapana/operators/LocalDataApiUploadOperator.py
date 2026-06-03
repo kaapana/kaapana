@@ -17,6 +17,8 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.settings import KaapanaSettings
 
+DATASET_NAME_TAG = "00120010 ClinicalTrialSponsorName_keyword"
+
 
 class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
     """
@@ -95,6 +97,13 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
                 DicomTags.custom_tag: {
                     "title": "Tags",
                     "description": "Free-text custom tags applied to the series.",
+                },
+                DATASET_NAME_TAG: {
+                    "title": "Dataset (Clinical Trial Sponsor Name)",
+                    "description": (
+                        "ClinicalTrialSponsorName (0012,0010); names the dataset the "
+                        "series belongs to."
+                    ),
                 },
                 # Derived/standard tags LocalDcm2JsonOperator emits (keys verified
                 # against the operator's normalization).
@@ -192,6 +201,7 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
             "additionalProperties": True,
         }
 
+        # Dataset schema is a system schema shipped with data api
         async with DataClient() as data_api:
             for schema_key, schema, label in (
                 ("dicom-series", dicom_schema, "DICOM"),
@@ -211,6 +221,8 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
                 Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
             )
             batch_folder = [f for f in glob.glob(os.path.join(batch_dir, "*"))]
+
+            dataset_cache: dict = {}
 
             for batch_element_dir in batch_folder:
                 json_dir = Path(batch_element_dir) / self.metadata_dir
@@ -320,6 +332,45 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
                             f"Error adding permissions metadata for entity {entity_id}: {e}"
                         )
 
+                # Add the series to datasets
+                if project:
+                    dataset_name = metadata.get(DATASET_NAME_TAG)
+                    if dataset_name:
+                        try:
+                            dataset_id = await _ensure_dataset_entity(
+                                data_api,
+                                dataset_name,
+                                project.get("id"),
+                                dataset_cache,
+                            )
+                            await data_api.create_link(dataset_id, entity_id)
+                            print(
+                                f"Added series {series_uid} to dataset '{dataset_name}' "
+                                f"({dataset_id}) in project {project.get('id')}"
+                            )
+                        except httpx.HTTPStatusError as e:
+                            if e.response.status_code == 409:
+                                # The contains link already exists (series re-processed).
+                                print(
+                                    f"Series {series_uid} already linked to dataset "
+                                    f"'{dataset_name}'"
+                                )
+                            else:
+                                print(
+                                    f"Error adding series {series_uid} to dataset "
+                                    f"'{dataset_name}': {e}"
+                                )
+                        except httpx.HTTPError as e:
+                            print(
+                                f"Error adding series {series_uid} to dataset "
+                                f"'{dataset_name}': {e}"
+                            )
+                    else:
+                        print(
+                            f"No dataset tag ({DATASET_NAME_TAG}) on series {series_uid}; "
+                            "skipping dataset assignment"
+                        )
+
                 # Add validation results
                 # Append validation metadata and upload HTML report artifacts.
                 validator_results_dir = Path(batch_element_dir) / self.validation_dir
@@ -396,3 +447,68 @@ class LocalDataApiUploadOperator(KaapanaPythonBaseOperator):
         self.thumbnail_dir = thumbnail_dir
         self.validation_dir = validation_dir
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)
+
+
+async def _ensure_dataset_entity(
+    data_api: DataClient,
+    dataset_name: str,
+    project_id: str,
+    cache: dict,
+) -> str:
+    """Resolve (or create) the dataset entity named ``dataset_name`` in ``project_id``.
+
+    A dataset is a plain data entity carrying a ``dataset`` metadata key
+    (``{"name": ...}``) plus the same ``permissions`` scoping used for series, so
+    it is found by querying those two metadata fields. Returns the dataset entity
+    id; members are then attached by the caller via a ``contains`` link.
+    """
+    key = (project_id, dataset_name)
+    if key in cache:
+        return cache[key]
+
+    where = {
+        "type": "group",
+        "op": "and",
+        "children": [
+            {
+                "type": "filter",
+                "field": "metadata.dataset.name",
+                "op": "eq",
+                "value": dataset_name,
+            },
+            {
+                "type": "filter",
+                "field": "metadata.permissions.project",
+                "op": "eq",
+                "value": project_id,
+            },
+        ],
+    }
+
+    result = await data_api.ensure_entity(
+        where=where,
+        entity={
+            "id": str(uuid4()),
+            "storage_coordinates": [],
+            "metadata": [
+                {
+                    "key": "dataset",
+                    "data": {"name": dataset_name},
+                    "artifacts": [],
+                },
+                {
+                    "key": "permissions",
+                    "data": {"project": project_id, "owner": None},
+                    "artifacts": [],
+                },
+            ],
+        },
+    )
+    dataset_id = result["entity"]["id"]
+    if result.get("created"):
+        print(
+            f"Created dataset entity {dataset_id} '{dataset_name}' for project {project_id}"
+        )
+
+    cache[key] = dataset_id
+    return dataset_id

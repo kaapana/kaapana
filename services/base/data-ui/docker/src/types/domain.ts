@@ -18,6 +18,21 @@ export interface StorageCoordinate {
   [key: string]: unknown
 }
 
+export interface EntityLink {
+  id: string
+  source_id: string
+  target_id: string
+  link_type: string
+  properties: Record<string, unknown>
+  created_at?: string | null
+}
+
+export interface EntityLinkCreate {
+  target_id: string
+  link_type: string
+  properties?: Record<string, unknown>
+}
+
 export interface DataEntity {
   id: string
   created_at?: string | null
@@ -86,12 +101,28 @@ export type QueryOp =
   | 'not_contains'
   | 'starts_with'
   | 'ends_with'
+  | 'has_key'
+  | 'has_outgoing_link'
+  | 'has_incoming_link'
+  | 'descendant_of'
+  | 'ancestor_of'
+  | 'no_incoming_link'
+
+export interface LinkOpValue {
+  entity_id: string
+  link_type: string
+}
+
+export interface NoIncomingLinkValue {
+  link_type: string
+}
 
 export interface FilterNode {
   type: 'filter'
   field: string
   op: QueryOp
-  value: unknown
+  // Omitted for value-less presence ops like `has_key`.
+  value?: unknown
 }
 
 export interface GroupNode {
@@ -119,7 +150,7 @@ export interface QueryResponse {
   total_count: number
 }
 
-export type EventResource = 'data_entity' | 'metadata_key'
+export type EventResource = 'data_entity' | 'metadata_key' | 'link'
 export type EventAction = 'created' | 'updated' | 'deleted'
 
 export interface EventMessage {

@@ -24,7 +24,11 @@ function chipLabel(node: FilterChip | GroupChip): string {
   if (node.kind !== 'filter') {
     return ''
   }
-  return `${node.field} ${node.op.replace('_', ' ')} ${formatChipValue(node.value)}`
+  const opLabel = node.op.replace(/_/g, ' ')
+  if (node.op === 'has_key') {
+    return `${node.field} ${opLabel}`
+  }
+  return `${node.field} ${opLabel} ${formatChipValue(node.value)}`
 }
 
 function formatChipValue(raw: string): string {
@@ -142,7 +146,8 @@ function isEditingChip(chipId: number): boolean {
                     @keydown.esc.prevent="ctx.handleComposerEscape"
                   />
 
-                  <template v-if="ctx.canShowValue.value">
+                  <template v-if="ctx.canShowValue.value || ctx.isPresenceOp.value">
+                    <template v-if="ctx.canShowValue.value">
                     <v-select
                       v-if="ctx.isArrayField.value"
                       :ref="ctx.setValueInputRef"
@@ -182,6 +187,7 @@ function isEditingChip(chipId: number): boolean {
                       @keydown.enter.prevent="ctx.advanceFromValue"
                       @keydown.esc.prevent="ctx.handleComposerEscape"
                     />
+                    </template>
 
                     <div class="composer-actions">
                       <v-tooltip text="Save constraint" location="bottom">
@@ -274,7 +280,8 @@ function isEditingChip(chipId: number): boolean {
               @keydown.esc.prevent="ctx.handleComposerEscape"
             />
 
-            <template v-if="ctx.canShowValue.value">
+            <template v-if="ctx.canShowValue.value || ctx.isPresenceOp.value">
+              <template v-if="ctx.canShowValue.value">
               <v-select
                 v-if="ctx.isArrayField.value"
                 :ref="ctx.setValueInputRef"
@@ -314,6 +321,7 @@ function isEditingChip(chipId: number): boolean {
                 @keydown.enter.prevent="ctx.advanceFromValue"
                 @keydown.esc.prevent="ctx.handleComposerEscape"
               />
+              </template>
 
               <div class="composer-actions">
                 <v-tooltip text="Save constraint" location="bottom">

@@ -20,7 +20,11 @@ const baseFieldItems: FieldItem[] = [
   { title: 'Entity ID', value: 'id', subtitle: 'Text operators' },
   { title: 'Has storage coordinate', value: 'storage.any', subtitle: 'True when any storage entry exists' },
   { title: 'Storage type', value: 'storage.type', subtitle: 'Matches any coordinate type (e.g. s3)' },
+  { title: 'Links / Hierarchy', value: 'links', subtitle: 'Filter by graph edges (descendant_of, has_outgoing_link, …)' },
 ]
+
+const LINK_FIELD = 'links'
+const CONTAINS_LINK_TYPE = 'contains'
 
 const metadataFieldInfos = ref<MetadataFieldInfo[]>([])
 const metadataFieldLoading = ref(false)
@@ -178,6 +182,22 @@ const arrayOperatorItems: { title: string; value: QueryOp }[] = [
   { title: 'Not includes', value: 'not_contains' },
 ]
 
+const linkOperatorItems: { title: string; value: QueryOp }[] = [
+  { title: 'Descendant of (recursive)', value: 'descendant_of' },
+  { title: 'Ancestor of (recursive)', value: 'ancestor_of' },
+  { title: 'Direct child of (linked from)', value: 'has_incoming_link' },
+  { title: 'Direct parent of (linked to)', value: 'has_outgoing_link' },
+  { title: 'No incoming link of type', value: 'no_incoming_link' },
+]
+const LINK_OPS = new Set<QueryOp>(linkOperatorItems.map((item) => item.value))
+
+// Presence op: applies to a metadata key, takes no value (the backend ignores
+// any value and the dotted path — it is key-level presence).
+const presenceOperatorItem: { title: string; value: QueryOp } = {
+  title: 'Has key (present)',
+  value: 'has_key',
+}
+
 const builderFieldInfo = computed(() => {
   const field = (builderField.value ?? '').trim()
   return field ? metadataFieldLookup.value[field] : undefined
@@ -185,21 +205,37 @@ const builderFieldInfo = computed(() => {
 
 const hasFieldSelection = computed(() => (builderField.value ?? '').trim().length > 0)
 const isArrayField = computed(() => builderFieldInfo.value?.value_type === 'array')
+const isPresenceOp = computed(() => builderOp.value === 'has_key')
 const effectiveOperatorItems = computed(() => {
+  const field = (builderField.value ?? '').trim()
+  if (field === LINK_FIELD) {
+    return linkOperatorItems
+  }
   const info = builderFieldInfo.value
+  let items: { title: string; value: QueryOp }[]
   if (info?.value_type === 'array') {
-    return arrayOperatorItems
+    items = arrayOperatorItems
+  } else if (info?.value_type === 'boolean') {
+    items = booleanOperatorItems
+  } else {
+    items = baseOperatorItems
   }
-  if (info?.value_type === 'boolean') {
-    return booleanOperatorItems
+  // Presence is key-level and only meaningful for metadata fields.
+  if (field.startsWith('metadata.')) {
+    return [...items, presenceOperatorItem]
   }
-  return baseOperatorItems
+  return items
 })
 const canShowOperator = hasFieldSelection
-const canShowValue = computed(() => canShowOperator.value && Boolean(builderOp.value))
+const canShowValue = computed(
+  () => canShowOperator.value && Boolean(builderOp.value) && !isPresenceOp.value,
+)
 const canCommitChip = computed(() => {
   if (!hasFieldSelection.value) {
     return false
+  }
+  if (isPresenceOp.value) {
+    return true
   }
   if (isArrayField.value) {
     return builderArraySelections.value.length > 0
@@ -588,7 +624,10 @@ function commitChip(): boolean {
     return false
   }
   let value = (builderValue.value ?? '').toString().trim()
-  if (isArrayField.value) {
+  if (isPresenceOp.value) {
+    // Presence op carries no value.
+    value = ''
+  } else if (isArrayField.value) {
     if (!builderArraySelections.value.length) {
       builderError.value = 'Select at least one list item'
       return false
@@ -647,7 +686,39 @@ function coerceValue(raw: string): unknown {
   return trimmed
 }
 
+function buildLinkOpValue(op: QueryOp, raw: string): Record<string, string> {
+  const trimmed = raw.trim()
+  // Allow JSON object passthrough for power users.
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (parsed && typeof parsed === 'object') {
+        return parsed as Record<string, string>
+      }
+    } catch (error) {
+      console.warn('Failed to parse link op JSON value', error)
+    }
+  }
+  if (op === 'no_incoming_link') {
+    return { link_type: trimmed || CONTAINS_LINK_TYPE }
+  }
+  // Single value treated as the entity_id; default link_type to 'contains'.
+  return { entity_id: trimmed, link_type: CONTAINS_LINK_TYPE }
+}
+
 function buildNodeFromFilter(chip: FilterChip): QueryNode {
+  if (chip.op === 'has_key') {
+    // Presence: emit field + op only; the backend ignores any value.
+    return { type: 'filter', field: chip.field, op: chip.op }
+  }
+  if (LINK_OPS.has(chip.op)) {
+    return {
+      type: 'filter',
+      field: chip.field || LINK_FIELD,
+      op: chip.op,
+      value: buildLinkOpValue(chip.op, chip.value),
+    }
+  }
   const rawValue = coerceValue(chip.value)
   const coercedValue = ['in', 'not_in'].includes(chip.op)
     ? Array.isArray(rawValue)
@@ -796,6 +867,7 @@ const builderContext: ChipBuilderContext = {
   metadataFieldError,
   effectiveOperatorItems,
   isArrayField,
+  isPresenceOp,
   builderField,
   builderOp,
   builderValue,

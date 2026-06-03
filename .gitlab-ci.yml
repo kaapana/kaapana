@@ -142,10 +142,36 @@ task_api_tests:
     reports:
       junit:
         - task_api_report.xml
+extensions_tests:
+  stage: prepare
+  needs:
+  - prepare_pipeline
+  script:
+  - python3 -m virtualenv $KAAPANA_DIR/lib/kaapana_extensions/.venv
+  - source $KAAPANA_DIR/lib/kaapana_extensions/.venv/bin/activate
+  - pip install -e "$KAAPANA_DIR/lib/kaapana_extensions[test]"
+  - pip install -e $KAAPANA_DIR/lib/kaapana_containers
+  - pytest $KAAPANA_DIR/lib/kaapana_extensions/tests/ --junitxml=kaapana_extensions_report.xml
+  artifacts:
+    when: always
+    paths:
+    - kaapana_extensions_report.xml
+    reports:
+      junit:
+        - kaapana_extensions_report.xml
 
-##############################################
-# Workflow API Tests
-##############################################
+install_helm_on_build:
+  stage: prepare
+  needs:
+  - prepare_pipeline
+  script:
+  - source /home/$USER/venv/bin/activate
+  - ansible localhost -m include_tasks -a "file=$REPO_DIR/setup_playbooks/task_templates/snap_install_helm.yaml" 2>&1 | tee $ARTIFACTS_DIR/ansible_install_helm.log
+  rules:
+  - if: $INSTALL_HELM_ON_BUILD == "true"
+    when: on_success
+  - when: never
+
 workflow_api_tests:
   extends: .test_template
   script:

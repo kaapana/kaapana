@@ -36,6 +36,7 @@ export interface ChipBuilderContext {
   metadataFieldError: Ref<string | null>
   effectiveOperatorItems: ComputedRef<{ title: string; value: QueryOp }[]>
   isArrayField: ComputedRef<boolean>
+  isPresenceOp: ComputedRef<boolean>
   builderField: Ref<string>
   builderOp: Ref<QueryOp>
   builderValue: Ref<string>

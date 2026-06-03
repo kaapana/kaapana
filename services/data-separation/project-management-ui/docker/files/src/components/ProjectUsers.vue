@@ -54,7 +54,7 @@
                 <v-data-table v-else-if="filteredUsers.length > 0" :headers="tableHeaders" :items="filteredUsers"
                     :sort-by="[{ key: 'username', order: 'asc' }]" multi-sort class="mt-4">
 
-                    <template #item.icon="{ item }">
+                    <template #item.icon>
                         <td>
                             <v-icon>mdi-account-circle</v-icon>
                         </td>

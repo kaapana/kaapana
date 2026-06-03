@@ -158,7 +158,7 @@ const loadAvailableUsers = async () => {
   isLoadingAvailableUsers.value = true;
   try {
     const existingIds = new Set(props.existingUserIds ?? []);
-    availableUsers.value = (await aiiApiGet('users')).filter(u => !existingIds.has(u.id) && !isSystemUser(u));
+    availableUsers.value = (await aiiApiGet('users')).filter((u: UserItem) => !existingIds.has(u.id) && !isSystemUser(u));
   } catch (error) {
     console.error('Failed to load users:', error);
   } finally {

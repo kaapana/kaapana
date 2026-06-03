@@ -4,8 +4,6 @@ import Vue from '@vitejs/plugin-vue'
 import Vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
 import ViteFonts from 'unplugin-fonts/vite'
 import VueRouter from 'unplugin-vue-router/vite'
-import vueDevTools from 'vite-plugin-vue-devtools'
-
 // Utilities
 import { defineConfig } from 'vite'
 import { fileURLToPath, URL } from 'node:url'
@@ -33,7 +31,6 @@ export default defineConfig(() => ({
         }],
       },
     }),
-    vueDevTools(),
   ],
   define: { 'process.env': {} },
   base: "/projects-ui",

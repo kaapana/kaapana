@@ -45,8 +45,8 @@
                 "cardinality": "single",
                 "dataset": false,
                 "display_fields": [
-                    "metadata.model-card.name",
-                    "metadata.model-card.framework",
+                    "metadata.model.name",
+                    "metadata.model.framework",
                     "metadata.provenance.produced_at"
                 ],
                 "constraint_query": {
@@ -55,7 +55,7 @@
                     "children": [
                         {
                             "type": "filter",
-                            "field": "metadata.model-card",
+                            "field": "metadata.model",
                             "op": "has_key"
                         },
                         {

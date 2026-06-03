@@ -124,8 +124,7 @@ const columnsOverride = computed(() => layoutStore.entityCustomColumns ?? undefi
 
 const treePanelVisible = computed(() => layoutStore.treePanelVisible)
 const treePanelWidth = computed(() => layoutStore.treePanelWidth)
-const isMobile = computed(() => display.mobile.value)
-const showTreePanel = computed(() => treePanelVisible.value && !isMobile.value)
+const showTreePanel = computed(() => treePanelVisible.value)
 
 function toggleTreePanel() {
   layoutStore.toggleTreePanel()
@@ -501,7 +500,7 @@ onBeforeUnmount(() => {
       </aside>
 
       <div class="content-layout__main">
-        <div v-if="treeSelectedId || !isMobile" class="tree-selection-bar">
+        <div class="tree-selection-bar">
           <template v-if="treeSelectedId">
             <v-chip
               color="primary"
@@ -542,7 +541,6 @@ onBeforeUnmount(() => {
           </template>
           <v-spacer />
           <v-btn
-            v-if="!isMobile"
             size="small"
             variant="text"
             :prepend-icon="treePanelVisible ? 'mdi-chevron-left' : 'mdi-chevron-right'"
@@ -747,11 +745,6 @@ onBeforeUnmount(() => {
   justify-content: flex-end;
 }
 
-@media (max-width: 960px) {
-  .tree-panel {
-    display: none;
-  }
-}
 
 
 </style>

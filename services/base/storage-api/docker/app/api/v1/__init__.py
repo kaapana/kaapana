@@ -11,6 +11,7 @@ from pydantic import TypeAdapter, ValidationError
 from app.models import DownloadItem, DownloadRequest, UploadResponse, UploadTarget
 from app.services.archive import stream_tar, stream_zip
 from app.services.backends import get_backend
+from app.services.backends.base import StorageError
 
 logger = logging.getLogger(__name__)
 
@@ -113,5 +114,9 @@ def upload(
         coordinates = backend.store(target, payload, token)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    except StorageError as exc:
+        # Store-level failure with a known status (e.g. MinIO AccessDenied -> 403);
+        # surface it instead of letting it fall through as a 500.
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail)
 
     return UploadResponse(coordinates=coordinates)

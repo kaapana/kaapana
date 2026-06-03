@@ -16,7 +16,7 @@
                 {
                     "name": "model",
                     "mounted_path": "/home/kaapana/model",
-                    "description": "Frozen base-model entity (has_key model-card) downloaded via the storage-api as <entity_id>/<files>"
+                    "description": "Frozen base-model entity (has_key model) downloaded via the storage-api as <entity_id>/<files>"
                 }
             ],
             "outputs": [

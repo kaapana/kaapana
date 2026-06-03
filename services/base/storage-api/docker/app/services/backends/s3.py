@@ -2,18 +2,39 @@ from __future__ import annotations
 
 import logging
 import xml.etree.ElementTree as ET
+from contextlib import contextmanager
 from io import BytesIO
 from typing import Iterable, Iterator, List, Optional, Tuple
 
 from app.config import get_settings
 from app.models import S3Coordinate
 
-from .base import StorageBackend
+from .base import StorageBackend, StorageError
 
 logger = logging.getLogger(__name__)
 
 _STS_NS = {"ns": "https://sts.amazonaws.com/doc/2011-06-15/"}
 _TIMEOUT = 30
+
+
+@contextmanager
+def _translate_s3_errors() -> Iterator[None]:
+    """Map a MinIO ``S3Error`` that carries a 4xx (e.g. ``AccessDenied`` -> 403)
+    to a neutral :class:`StorageError`, so the API returns that status instead
+    of a 500. Anything else (5xx, no status) propagates unchanged — a genuine
+    upstream failure should still surface as a 500.
+    """
+    from minio.error import S3Error
+
+    try:
+        yield
+    except S3Error as exc:
+        status = getattr(exc.response, "status", None)
+        if isinstance(status, int) and 400 <= status < 500:
+            raise StorageError(
+                status, exc.message or exc.code or "Object store request rejected"
+            ) from exc
+        raise
 
 
 def _safe_relpath(filename: str) -> str:
@@ -67,7 +88,8 @@ class S3Backend(StorageBackend):
     store_type = "s3"
 
     def _get_object(self, client, bucket: str, key: str) -> bytes:
-        response = client.get_object(bucket, key)
+        with _translate_s3_errors():
+            response = client.get_object(bucket, key)
         try:
             return response.read()
         finally:
@@ -97,14 +119,15 @@ class S3Backend(StorageBackend):
         prefix = coordinate.key
         if prefix and not prefix.endswith("/"):
             prefix += "/"
-        for obj in client.list_objects(
-            coordinate.bucket, prefix=prefix, recursive=True
-        ):
-            key = obj.object_name
-            if key.endswith("/"):  # skip explicit directory markers
-                continue
-            relpath = key[len(prefix) :] or key.rsplit("/", 1)[-1]
-            yield relpath, self._get_object(client, coordinate.bucket, key)
+        with _translate_s3_errors():
+            for obj in client.list_objects(
+                coordinate.bucket, prefix=prefix, recursive=True
+            ):
+                key = obj.object_name
+                if key.endswith("/"):  # skip explicit directory markers
+                    continue
+                relpath = key[len(prefix) :] or key.rsplit("/", 1)[-1]
+                yield relpath, self._get_object(client, coordinate.bucket, key)
 
     def store(
         self,
@@ -140,12 +163,13 @@ class S3Backend(StorageBackend):
             # its structure), but defend the object namespace against traversal.
             relpath = _safe_relpath(filename)
             key = f"{prefix}{relpath}"
-            client.put_object(
-                target.bucket,
-                key,
-                BytesIO(content),
-                length=len(content),
-            )
+            with _translate_s3_errors():
+                client.put_object(
+                    target.bucket,
+                    key,
+                    BytesIO(content),
+                    length=len(content),
+                )
             if unit == "file":
                 # Single object coordinate addressing exactly this key.
                 coordinates.append(S3Coordinate(bucket=target.bucket, key=key))

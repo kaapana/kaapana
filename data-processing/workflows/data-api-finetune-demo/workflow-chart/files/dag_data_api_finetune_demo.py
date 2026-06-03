@@ -18,14 +18,14 @@ first model from scratch (the download task then no-ops to an empty channel). Th
 dummy training task receives both channels via IOMapping, proves they arrived,
 and emits a dummy model + an ``upload_manifest.json``. The new ``upload_model``
 task writes that model back via the storage-api (bytes → S3) and registers a new
-Data API entity carrying ``model-card`` + ``provenance`` metadata — so a later
+Data API entity carrying ``model`` + ``provenance`` metadata — so a later
 run can select it (the model constraint scopes to this workflow's provenance).
 
 The ``ensure_schema`` root task ensures this workflow's *own* metadata key
 (``finetune-note``) is registered on the Data API before the write-back attaches
 it — the worked example of a workflow adding a workflow-specific key itself,
 rather than relying on the workflow-installer. (The platform-shipped keys
-``model-card`` + ``provenance`` need no such task; they ship via a data-api
+``model`` + ``provenance`` need no such task; they ship via a data-api
 migration.)
 """
 
@@ -57,7 +57,7 @@ MODEL_CARD_CONSTRAINT = {
     "type": "group",
     "op": "and",
     "children": [
-        {"type": "filter", "field": "metadata.model-card", "op": "has_key"},
+        {"type": "filter", "field": "metadata.model", "op": "has_key"},
         {
             "type": "filter",
             "field": "metadata.provenance.workflow_name",

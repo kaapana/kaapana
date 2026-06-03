@@ -1,4 +1,6 @@
 node_modules
+.claude/
+CLAUDE.md
 /build/
 /docs/build/
 venv

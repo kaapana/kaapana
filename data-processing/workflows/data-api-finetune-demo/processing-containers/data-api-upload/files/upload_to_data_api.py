@@ -7,7 +7,7 @@ Reads the files produced by an upstream task on its input channel plus an
    — model files / arbitrary bytes go to S3; DICOM would STOW-RS to PACS — and
    gets back concrete storage coordinates;
 2. mints a NEW Data API entity carrying those coordinates;
-3. attaches the manifest's domain metadata (e.g. ``model-card``);
+3. attaches the manifest's domain metadata (e.g. ``model``);
 4. stamps a ``provenance`` entry from the trusted run-context env injected by the
    KaapanaTaskOperator (which workflow / run / task / image), plus the manifest's
    upstream entity IDs (lineage).
@@ -28,6 +28,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Tuple
 
+import httpx
 from data_api import DataClient, StorageClient
 
 logging.basicConfig(level=logging.INFO)
@@ -88,30 +89,33 @@ def _build_provenance(upstream_entity_ids: List[str]) -> dict:
 
 
 def _project_bucket() -> str:
-    """Infer the project MinIO bucket from ``KAAPANA_PROJECT_IDENTIFIER``.
+    """Resolve the project's authoritative MinIO bucket from the Access Information
+    Interface (AII), keyed by the operator-injected ``KAAPANA_PROJECT_IDENTIFIER``
+    (the project UUID).
 
-    Re-derives AII's ``Project.s3_bucket`` convention locally — ``project-{short_id}``
-    where ``short_id = uuid.hex[:8]`` — instead of having workflow-api thread the
-    authoritative bucket through. The identifier injected by the operator is the
-    project UUID; if it is already a short_id, an explicit ``project-…`` bucket, or
-    the literal ``"admin"``, it is used as-is.
-
-    CAVEAT (intentional, dirty): the admin project's bucket is ``project-admin``,
-    which is NOT derivable from its UUID. If this workflow runs in the admin
-    project, set ``UPLOAD_S3_BUCKET=project-admin`` explicitly.
+    AII (``Project.s3_bucket``) is the single source of truth — the bucket name is
+    NOT derived locally, because the convention is not reconstructable for every
+    project: the admin project's bucket is ``project-admin``, which cannot be
+    derived from its UUID. AII is reachable from any task pod at ``KAAPANA_AII_URL``
+    (injected by the KaapanaTaskOperator) and needs no auth for the read; the
+    incoming-DICOM DAG resolves the bucket the same way. Callers may still override
+    with ``UPLOAD_S3_BUCKET``.
     """
     identifier = os.environ.get("KAAPANA_PROJECT_IDENTIFIER", "").strip()
     if not identifier:
         return ""
-    if identifier == "admin":
-        return "project-admin"
-    if identifier.startswith("project-"):
-        return identifier
-    try:
-        short_id = uuid.UUID(identifier).hex[:8]
-    except ValueError:
-        short_id = identifier  # already a short_id / custom name
-    return f"project-{short_id}"
+    aii_url = os.environ.get(
+        "KAAPANA_AII_URL", "http://aii-service.services.svc:8080"
+    ).rstrip("/")
+    resp = httpx.get(f"{aii_url}/projects/{identifier}", timeout=30)
+    resp.raise_for_status()
+    bucket = resp.json().get("s3_bucket", "")
+    if not bucket:
+        raise RuntimeError(
+            f"AII returned no s3_bucket for project {identifier!r}; "
+            "set UPLOAD_S3_BUCKET to override"
+        )
+    return bucket
 
 
 def _s3_target(entity_id: str) -> dict:
@@ -128,11 +132,9 @@ def _s3_target(entity_id: str) -> dict:
         raise RuntimeError(
             "No S3 bucket: set UPLOAD_S3_BUCKET or KAAPANA_PROJECT_IDENTIFIER"
         )
-    dag_id = os.environ.get("KAAPANA_DAG_ID", "workflow")
-    run_id = os.environ.get("KAAPANA_WORKFLOW_RUN_ID", "run")
     return {
         "bucket": bucket,
-        "key_prefix": f"{DATA_API_PREFIX}/models/{dag_id}/{run_id}/{entity_id}/",
+        "key_prefix": f"{DATA_API_PREFIX}/{entity_id}/",
     }
 
 

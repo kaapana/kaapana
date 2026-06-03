@@ -5,7 +5,7 @@
     "templates": [
         {
             "identifier": "data-api-upload",
-            "description": "Upload the produced files via the storage-api and register a new Data API entity with model-card + provenance metadata",
+            "description": "Upload the produced files via the storage-api and register a new Data API entity with model + provenance metadata",
             "env": [
                 {
                     "name": "UPLOAD_S3_BUCKET",

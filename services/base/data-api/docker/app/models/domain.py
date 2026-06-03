@@ -37,6 +37,11 @@ class S3StorageCoordinate(BaseStorageCoordinate):
     key: str
     region: Optional[str] = None
     endpoint_url: Optional[HttpUrl] = None
+    is_prefix: bool = Field(
+        False,
+        description="If true, `key` is a folder prefix addressing all objects under "
+        "it; if false, `key` is a single object",
+    )
 
 
 class FilesystemStorageCoordinate(BaseStorageCoordinate):

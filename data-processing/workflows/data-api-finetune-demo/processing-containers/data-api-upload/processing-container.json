@@ -1,0 +1,84 @@
+{
+    "name": "data-api-upload-processing-container",
+    "description": "Store-agnostic write-back of produced files to a store + a new Data API entity",
+    "api_version": 1,
+    "templates": [
+        {
+            "identifier": "data-api-upload",
+            "description": "Upload the produced files via the storage-api and register a new Data API entity with model-card + provenance metadata",
+            "env": [
+                {
+                    "name": "UPLOAD_S3_BUCKET",
+                    "value": "",
+                    "choices": [],
+                    "description": "Explicit S3/MinIO bucket override; when empty, the project bucket is inferred from KAAPANA_PROJECT_IDENTIFIER (project-{short_id}). Set to project-admin when running in the admin project."
+                },
+                {
+                    "name": "KAAPANA_STORAGE_API_URL",
+                    "value": "",
+                    "choices": [],
+                    "description": "Base URL of the storage-api service"
+                },
+                {
+                    "name": "KAAPANA_PROJECT_IDENTIFIER",
+                    "value": "",
+                    "choices": [],
+                    "description": "Project identifier"
+                },
+                {
+                    "name": "KAAPANA_PROJECT_USER_NAME",
+                    "value": "",
+                    "choices": [],
+                    "description": ""
+                },
+                {
+                    "name": "KAAPANA_PROJECT_USER_PASSWORD",
+                    "value": "",
+                    "choices": [],
+                    "description": ""
+                },
+                {
+                    "name": "KAAPANA_KEYCLOAK_URL",
+                    "value": "",
+                    "choices": [],
+                    "description": ""
+                },
+                {
+                    "name": "KAAPANA_CLIENT_SECRET",
+                    "value": "",
+                    "choices": [],
+                    "description": ""
+                },
+                {
+                    "name": "KAAPANA_CLIENT_ID",
+                    "value": "",
+                    "choices": [],
+                    "description": ""
+                }
+            ],
+            "inputs": [
+                {
+                    "name": "results",
+                    "mounted_path": "/home/kaapana/results",
+                    "description": "Files produced upstream plus an upload_manifest.json control file"
+                }
+            ],
+            "outputs": [],
+            "command": [
+                "python3",
+                "-u",
+                "upload_to_data_api.py",
+                "-i",
+                "/home/kaapana/results"
+            ],
+            "resources": {
+                "limits": {
+                    "memory": "1000Mi"
+                },
+                "requests": {
+                    "memory": "100Mi"
+                }
+            }
+        }
+    ]
+}

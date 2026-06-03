@@ -1,0 +1,64 @@
+{
+    "name": "data-api-ensure-schema-processing-container",
+    "description": "Register (ensure present) this workflow's own Data API metadata schema at run time",
+    "api_version": 1,
+    "templates": [
+        {
+            "identifier": "data-api-ensure-schema",
+            "description": "Register the workflow-specific 'finetune-note' metadata schema on the Data API (idempotent)",
+            "env": [
+                {
+                    "name": "KAAPANA_PROJECT_IDENTIFIER",
+                    "value": "",
+                    "choices": [],
+                    "description": "Project identifier"
+                },
+                {
+                    "name": "KAAPANA_PROJECT_USER_NAME",
+                    "value": "",
+                    "choices": [],
+                    "description": ""
+                },
+                {
+                    "name": "KAAPANA_PROJECT_USER_PASSWORD",
+                    "value": "",
+                    "choices": [],
+                    "description": ""
+                },
+                {
+                    "name": "KAAPANA_KEYCLOAK_URL",
+                    "value": "",
+                    "choices": [],
+                    "description": ""
+                },
+                {
+                    "name": "KAAPANA_CLIENT_SECRET",
+                    "value": "",
+                    "choices": [],
+                    "description": ""
+                },
+                {
+                    "name": "KAAPANA_CLIENT_ID",
+                    "value": "",
+                    "choices": [],
+                    "description": ""
+                }
+            ],
+            "inputs": [],
+            "outputs": [],
+            "command": [
+                "python3",
+                "-u",
+                "ensure_data_schema.py"
+            ],
+            "resources": {
+                "limits": {
+                    "memory": "500Mi"
+                },
+                "requests": {
+                    "memory": "50Mi"
+                }
+            }
+        }
+    ]
+}

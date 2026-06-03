@@ -1,0 +1,95 @@
+{
+    "name": "data-api-download-processing-container",
+    "description": "Store-agnostic download of selected Data API entities via the storage-api",
+    "api_version": 1,
+    "templates": [
+        {
+            "identifier": "data-api-download",
+            "description": "Validate selected entity IDs against the channel constraint, resolve to storage coordinates, and fetch them via the storage-api",
+            "env": [
+                {
+                    "name": "INPUT_ENTITY_IDS",
+                    "value": "[]",
+                    "choices": [],
+                    "description": "JSON list of Data API entity IDs selected client-side at submit"
+                },
+                {
+                    "name": "INPUT_CONSTRAINT_QUERY",
+                    "value": "",
+                    "choices": [],
+                    "description": "Optional Data API query tree (JSON) the supplied IDs are validated against; set by the DAG"
+                },
+                {
+                    "name": "INPUT_DOWNLOAD_CONCURRENCY",
+                    "value": "10",
+                    "choices": [],
+                    "description": "Max number of entities downloaded concurrently (simultaneous storage-api connections)"
+                },
+                {
+                    "name": "KAAPANA_STORAGE_API_URL",
+                    "value": "",
+                    "choices": [],
+                    "description": "Base URL of the storage-api service"
+                },
+                {
+                    "name": "KAAPANA_PROJECT_IDENTIFIER",
+                    "value": "",
+                    "choices": [],
+                    "description": "Project identifier"
+                },
+                {
+                    "name": "KAAPANA_PROJECT_USER_NAME",
+                    "value": "",
+                    "choices": [],
+                    "description": ""
+                },
+                {
+                    "name": "KAAPANA_PROJECT_USER_PASSWORD",
+                    "value": "",
+                    "choices": [],
+                    "description": ""
+                },
+                {
+                    "name": "KAAPANA_KEYCLOAK_URL",
+                    "value": "",
+                    "choices": [],
+                    "description": ""
+                },
+                {
+                    "name": "KAAPANA_CLIENT_SECRET",
+                    "value": "",
+                    "choices": [],
+                    "description": ""
+                },
+                {
+                    "name": "KAAPANA_CLIENT_ID",
+                    "value": "",
+                    "choices": [],
+                    "description": ""
+                }
+            ],
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "downloads",
+                    "mounted_path": "/home/kaapana/downloads"
+                }
+            ],
+            "command": [
+                "python3",
+                "-u",
+                "get_input_from_data_api.py",
+                "-o",
+                "/home/kaapana/downloads"
+            ],
+            "resources": {
+                "limits": {
+                    "memory": "1000Mi"
+                },
+                "requests": {
+                    "memory": "100Mi"
+                }
+            }
+        }
+    ]
+}

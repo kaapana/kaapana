@@ -10,6 +10,8 @@ dependencies:
     version: "0.0.0"
   - name: registration-workflow
     version: "0.0.0"
+  - name: data-api-finetune-demo
+    version: "0.0.0"
 
 annotations:
   documentation: "user_guide/extensions.html#task-api-workflows"

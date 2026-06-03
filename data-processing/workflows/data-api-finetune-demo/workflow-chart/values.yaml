@@ -1,0 +1,9 @@
+---
+global:
+  pull_policy_images: "IfNotPresent"
+
+processingContainers:
+  - data-api-ensure-schema
+  - data-api-download
+  - data-api-finetune-train
+  - data-api-upload

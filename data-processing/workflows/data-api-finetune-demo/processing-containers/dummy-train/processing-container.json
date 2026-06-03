@@ -1,0 +1,49 @@
+{
+    "name": "data-api-finetune-train-processing-container",
+    "description": "Dummy fine-tune task that proves both query-input channels arrive on disk",
+    "api_version": 1,
+    "templates": [
+        {
+            "identifier": "data-api-finetune-train",
+            "description": "List the segmentation and model input channels and emit a dummy fine-tuned model",
+            "env": [],
+            "inputs": [
+                {
+                    "name": "segmentations",
+                    "mounted_path": "/home/kaapana/segmentations",
+                    "description": "Frozen DICOM-SEG entities downloaded via the storage-api as <entity_id>/<files>"
+                },
+                {
+                    "name": "model",
+                    "mounted_path": "/home/kaapana/model",
+                    "description": "Frozen base-model entity (has_key model-card) downloaded via the storage-api as <entity_id>/<files>"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "trained-model",
+                    "mounted_path": "/home/kaapana/output"
+                }
+            ],
+            "command": [
+                "python3",
+                "-u",
+                "dummy_train.py",
+                "--segmentations",
+                "/home/kaapana/segmentations",
+                "--model",
+                "/home/kaapana/model",
+                "-o",
+                "/home/kaapana/output"
+            ],
+            "resources": {
+                "limits": {
+                    "memory": "500Mi"
+                },
+                "requests": {
+                    "memory": "100Mi"
+                }
+            }
+        }
+    ]
+}

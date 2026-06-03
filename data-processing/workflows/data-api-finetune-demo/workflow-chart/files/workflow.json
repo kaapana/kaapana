@@ -1,0 +1,72 @@
+{
+    "title": "data-api-finetune-demo",
+    "workflow_engine": "airflow",
+    "labels": [
+        {
+            "key": "category",
+            "value": "demo"
+        },
+        {
+            "key": "provider",
+            "value": "dkfz-mic"
+        }
+    ],
+    "workflow_parameters": [
+        {
+            "task_title": "download_segmentations",
+            "env_variable_name": "INPUT_ENTITY_IDS",
+            "ui_form": {
+                "type": "query",
+                "title": "Segmentations",
+                "description": "Select a dataset of DICOM-SEG entities to fine-tune on. Entities that don't match the constraint are filtered out.",
+                "required": true,
+                "cardinality": "multiple",
+                "dataset": true,
+                "display_fields": [
+                    "metadata.dicom-series.00080060 Modality_keyword",
+                    "metadata.dicom-series.0008103E SeriesDescription_keyword"
+                ],
+                "constraint_query": {
+                    "type": "filter",
+                    "field": "metadata.dicom-series.00080060 Modality_keyword",
+                    "op": "eq",
+                    "value": "SEG"
+                }
+            }
+        },
+        {
+            "task_title": "download_model",
+            "env_variable_name": "INPUT_ENTITY_IDS",
+            "ui_form": {
+                "type": "query",
+                "title": "Base model",
+                "description": "Optional base model to fine-tune. Leave empty on the first run to train from scratch. Only models produced by this workflow are selectable.",
+                "required": false,
+                "cardinality": "single",
+                "dataset": false,
+                "display_fields": [
+                    "metadata.model-card.name",
+                    "metadata.model-card.framework",
+                    "metadata.provenance.produced_at"
+                ],
+                "constraint_query": {
+                    "type": "group",
+                    "op": "and",
+                    "children": [
+                        {
+                            "type": "filter",
+                            "field": "metadata.model-card",
+                            "op": "has_key"
+                        },
+                        {
+                            "type": "filter",
+                            "field": "metadata.provenance.workflow_name",
+                            "op": "starts_with",
+                            "value": "data-api-finetune-demo"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

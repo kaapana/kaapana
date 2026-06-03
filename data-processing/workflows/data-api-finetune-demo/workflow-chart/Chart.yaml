@@ -1,0 +1,15 @@
+---
+apiVersion: v2
+appVersion: "1.0.0"
+description: "Demo two-channel fine-tune workflow driven by frozen Data API query input"
+name: data-api-finetune-demo
+version: "0.0.0"
+keywords:
+  - kaapanaworkflow-v2
+dependencies:
+  - name: workflow-helpers
+    version: "0.0.0"
+    repository: "file://../../helpers"
+annotations:
+  documentation: "user_guide/extensions.html#task-api-workflows"
+  ui-visible-name: "Data API Fine-tune Demo"

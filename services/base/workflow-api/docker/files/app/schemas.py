@@ -23,6 +23,16 @@ class TaskRunStatus(str, Enum):
     ERROR = "Error"
     COMPLETED = "Completed"
     SKIPPED = "Skipped"
+    UPSTREAM_FAILED = "Upstream Failed"
+
+
+class LogLine(BaseModel):
+    time: datetime
+    severity: str
+    message: str
+    metadata: dict[str, str] = {}
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Label(BaseModel):

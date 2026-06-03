@@ -10,6 +10,7 @@ Tests are organized by route/endpoint with clear markers:
 - GET /v1/workflow-runs/{workflow_run_id}/task-runs
 - GET /v1/workflow-runs/{workflow_run_id}/task-runs/{task_run_id}
 - GET /v1/workflow-runs/{workflow_run_id}/task-runs/{task_run_id}/logs
+- GET /v1/workflow-runs/{workflow_run_id}/task-runs/{task_run_id}/raw-logs
 """
 
 import sys
@@ -565,7 +566,7 @@ async def test_get_task_run_logs_not_found(session: AsyncSession, client: AsyncC
 
 @pytest.mark.asyncio
 async def test_get_task_run_logs(session: AsyncSession, client: AsyncClient):
-    """Test getting logs for a task run"""
+    """Test getting structured log lines for a task run"""
     # Create workflow, task, run, and task run
     workflow = models.Workflow(
         title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
@@ -597,7 +598,48 @@ async def test_get_task_run_logs(session: AsyncSession, client: AsyncClient):
         f"/v1/workflow-runs/{workflow_run.id}/task-runs/{task_run.id}/logs"
     )
 
-    # Should return 200 with logs (may be empty string)
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    for line in data:
+        assert "time" in line
+        assert "severity" in line
+        assert "message" in line
+
+
+@pytest.mark.asyncio
+async def test_get_task_run_raw_logs(session: AsyncSession, client: AsyncClient):
+    """Test getting raw log string for a task run"""
+    workflow = models.Workflow(
+        title="test-workflow", version=1, definition="test_def", workflow_engine="dummy"
+    )
+    session.add(workflow)
+    await session.commit()
+    await session.refresh(workflow)
+
+    task = models.Task(workflow_id=workflow.id, title="task1", type="DummyOperator")
+    session.add(task)
+    await session.commit()
+    await session.refresh(task)
+
+    workflow_run = models.WorkflowRun(workflow_id=workflow.id)
+    session.add(workflow_run)
+    await session.commit()
+    await session.refresh(workflow_run)
+
+    task_run = models.TaskRun(
+        task_id=task.id,
+        workflow_run_id=workflow_run.id,
+        external_id="task-external-id",
+    )
+    session.add(task_run)
+    await session.commit()
+    await session.refresh(task_run)
+
+    response = await client.get(
+        f"/v1/workflow-runs/{workflow_run.id}/task-runs/{task_run.id}/raw-logs"
+    )
+
     assert response.status_code == 200
     assert isinstance(response.text, str)
 

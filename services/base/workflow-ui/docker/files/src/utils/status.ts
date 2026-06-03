@@ -12,6 +12,8 @@ export function statusColor(status: string) {
             return 'green'
         case 'Error':
             return 'red'
+        case 'Upstream Failed':
+            return 'deep-orange'
         case 'Canceled':
             return 'orange' // deep-orange-darken-2
         default:

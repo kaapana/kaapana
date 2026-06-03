@@ -149,6 +149,7 @@
                     <p class="text-body-2 mb-3">Build queries by clicking in the query builder, selecting a field, and
                         choosing a
                         value.</p>
+                    <p class="text-body-2">Date filters support YYYY-MM-DD, DD.MM.YYYY and DD.MM.YY.</p>
                     <div class="mb-4">
                         <h3 class="text-subtitle-2 mb-2">How to use:</h3>
                         <ol class="text-body-2 ml-4">
@@ -175,7 +176,8 @@ import type { WorkflowRun } from '@/types/schemas'
 
 // Props
 const props = defineProps({
-    runs: { type: Array as PropType<WorkflowRun[]>, default: () => [] }
+    runs: { type: Array as PropType<WorkflowRun[]>, default: () => [] },
+    filterFields: { type: Array as PropType<string[]>, default: () => null }
 })
 const emit = defineEmits(['update:filters', 'apply:filtered'])
 
@@ -218,7 +220,10 @@ watch(() => props.runs, () => {
 // Field definitions
 const availableFields = [
     { key: 'status', label: 'Status', icon: 'mdi-clock-outline', type: 'enum' },
+    { key: 'task', label: 'Task', icon: 'mdi-checkbox-multiple-blank-outline', type: 'string' },
     { key: 'workflow', label: 'Workflow', icon: 'mdi-sitemap-outline', type: 'string' },
+    { key: 'created_at', label: 'Created Date', icon: 'mdi-calendar', type: 'string' },
+    { key: 'created_since', label: 'Since', icon: 'mdi-calendar-start', type: 'string' },
     { key: 'external_id', label: 'External ID', icon: 'mdi-identifier', type: 'string' }
 ]
 
@@ -227,12 +232,14 @@ function getValuesForField(field: string | null) {
         return [
             { value: 'created', label: 'Created' },
             { value: 'pending', label: 'Pending' },
-            { value: 'scheduled', label: 'Scheduled' },
             { value: 'running', label: 'Running' },
             { value: 'completed', label: 'Completed' },
             { value: 'error', label: 'Error' },
             { value: 'canceled', label: 'Canceled' }
         ]
+    } else if (field === 'task') {
+        const uniqueTasks = [...new Set(props.runs.flatMap(r => r.task_runs?.map(tr => tr.task_title) || []).filter(Boolean))]
+        return uniqueTasks.map(t => ({ value: t, label: t }))
     } else if (field === 'workflow') {
         const uniqueTitles = [...new Set(props.runs.map(r => r.workflow?.title).filter(Boolean))]
         return uniqueTitles.map(t => ({ value: t as string, label: t as string }))
@@ -248,9 +255,15 @@ const filteredValues = computed(() => {
 })
 
 const filteredFields = computed(() => {
-    if (!textSearchQuery.value) return availableFields
-    const q = textSearchQuery.value.toLowerCase()
-    return availableFields.filter(f => f.label.toLowerCase().includes(q) || f.key.toLowerCase().includes(q))
+    let filtered = availableFields.filter(f => 
+        !textSearchQuery.value || 
+        f.label.toLowerCase().includes(textSearchQuery.value.toLowerCase()) || 
+        f.key.toLowerCase().includes(textSearchQuery.value.toLowerCase())
+    )
+    if (props.filterFields && props.filterFields.length > 0) {
+        filtered = filtered.filter(f => props.filterFields.includes(f.key))
+    }
+    return filtered
 })
 
 function selectField(field: { key: string; label: string; icon: string; type: string }) {
@@ -344,6 +357,62 @@ function getValueLabel(field: string, value: string) {
     return v?.label || value
 }
 
+function parseSearchDate(value: string): Date | null {
+    const input = value.trim()
+
+    let year: number
+    let month: number
+    let day: number
+
+    const isoMatch = input.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+    if (isoMatch) {
+        year = Number(isoMatch[1])
+        month = Number(isoMatch[2])
+        day = Number(isoMatch[3])
+        return createValidLocalDate(year, month, day)
+    }
+
+    const germanMatch = input.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})$/)
+    if (germanMatch) {
+        day = Number(germanMatch[1])
+        month = Number(germanMatch[2])
+        year = normalizeYear(Number(germanMatch[3]))
+        return createValidLocalDate(year, month, day)
+    }
+
+    return null
+}
+
+function normalizeYear(year: number): number {
+    if (year < 100) {
+        return year >= 70 ? 1900 + year : 2000 + year
+    }
+
+    return year
+}
+
+function createValidLocalDate(year: number, month: number, day: number): Date | null {
+    const date = new Date(year, month - 1, day)
+
+    if (
+        date.getFullYear() !== year ||
+        date.getMonth() !== month - 1 ||
+        date.getDate() !== day
+    ) {
+        return null
+    }
+
+    return startOfDay(date)
+}
+
+function startOfDay(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+function startOfNextDay(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
+}
+
 // statusColor imported from utils/status
 
 // Emit filters to parent whenever they change
@@ -360,6 +429,9 @@ const filteredResults = computed(() => {
     appliedFilters.value.forEach(filter => {
         if (filter.field === 'status') {
             result = result.filter(r => (r.lifecycle_status || '').toLowerCase() === filter.value.toLowerCase())
+        } else if (filter.field === 'task') {
+            const t = filter.value.toLowerCase()
+            result = result.filter(r => r.task_runs?.some(tr => (tr.task_title || '').toLowerCase().includes(t)))
         } else if (filter.field === 'workflow') {
             const t = filter.value.toLowerCase()
             result = result.filter(r => (r.workflow?.title || '').toLowerCase().includes(t))
@@ -367,8 +439,34 @@ const filteredResults = computed(() => {
             const id = filter.value.toLowerCase()
             result = result.filter(r => (r.external_id || '').toLowerCase().includes(id))
         } else if (filter.field === 'created_at') {
-            const fd = filter.value.toLowerCase()
-            result = result.filter(r => new Date(r.created_at).toISOString().split('T')[0].includes(fd))
+            const filterDate = parseSearchDate(filter.value)
+
+            if (!filterDate) {
+                result = []
+                return
+            }
+
+            const start = startOfDay(filterDate)
+            const end = startOfNextDay(filterDate)
+
+            result = result.filter(r => {
+                const createdAt = new Date(r.created_at)
+                return createdAt >= start && createdAt < end
+            })
+        } else if (filter.field === 'created_since') {
+            const sinceDate = parseSearchDate(filter.value)
+
+            if (!sinceDate) {
+                result = []
+                return
+            }
+
+            const start = startOfDay(sinceDate)
+
+            result = result.filter(r => {
+                const createdAt = new Date(r.created_at)
+                return createdAt >= start
+            })
         }
     })
 

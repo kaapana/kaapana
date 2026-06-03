@@ -29,6 +29,7 @@ export enum TaskRunStatus {
     ERROR = "Error",
     COMPLETED = "Completed",
     SKIPPED = "Skipped",
+    UPSTREAM_FAILED = "Upstream Failed",
 }
 
 // ##########################
@@ -155,7 +156,7 @@ export interface TaskRun extends TaskRunBase {
     workflow_run_id: number
 }
 
-export interface TaskRunUpdate extends TaskRunBase{}
+export interface TaskRunUpdate extends TaskRunBase { }
 
 // ##########################
 // ######## Workflow ########
@@ -203,3 +204,22 @@ export interface WorkflowRun extends WorkflowRunBase {
     updated_at: string
 }
 
+// ##########################
+// ######## Log Entry #######
+// ##########################
+export interface LogEntry {
+    id: number
+    workflow: WorkflowRef
+    workflow_run_id: number
+    task_run: TaskRun
+    created_at: string
+    log_length: number
+    log_available: boolean
+}
+
+export interface LogLine {
+    time: string
+    severity: string
+    message: string
+    metadata: Record<string, string>
+}

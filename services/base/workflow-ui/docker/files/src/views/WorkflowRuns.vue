@@ -20,7 +20,7 @@
 					</div>
 
 					<!-- Search bar component -->
-					<SearchBar :runs="runs" @update:filters="onSearchUpdate" @apply:filtered="onSearchApply" />
+					<SearchBar :runs="runs" :filter-fields="['workflow', 'status', 'external_id']" @update:filters="onSearchUpdate" @apply:filtered="onSearchApply" />
 				</v-col>
 			</v-row>
 
@@ -104,7 +104,7 @@
 					<v-data-table v-else :headers="tableHeaders" :items="sortedFilteredRuns" density="comfortable"
 						class="workflow-runs-table" :items-per-page="25" :items-per-page-options="[10, 25, 50, 100]">
 						<template #item="{ item }">
-							<WorkflowRunRow :run="item" @cancel="cancelRun" @retry="retryRun" />
+							<WorkflowRunRow :run="item" @cancel="cancelRun" @retry="retryRun" @view-logs="viewLogs" />
 						</template>
 					</v-data-table>
 
@@ -117,7 +117,8 @@
 					</v-row>
 				</v-col>
 			</v-row>
-		</v-container>
+<LogViewer v-if="selectedWorkflowRunId !== null" v-model="logViewerOpen" :workflow-run-id="selectedWorkflowRunId" :workflow-title="selectedWorkflowTitle" :workflow-version="selectedWorkflowVersion" :run-status="selectedRunStatus" :task-runs="selectedTaskRuns" />
+</v-container>
 
 		<!-- Snackbar for notifications -->
 		<v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="4000" location="top right">
@@ -133,10 +134,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import LogViewer from '@/components/LogViewer.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import WorkflowRunRow from '@/components/WorkflowRun.vue'
 import { workflowRunsApi } from '@/api/workflowRuns'
-import type { WorkflowRun } from '@/types/schemas'
+import type { WorkflowRun, TaskRun } from '@/types/schemas'
 import { statusColor } from '@/utils/status'
 
 // --- STATE ---
@@ -149,6 +151,14 @@ const showInfo = ref(false)
 const isRefreshing = ref(false)
 const textSearchQuery = ref('')
 const valueSearchQuery = ref('')
+
+// LogViewer state
+const logViewerOpen = ref(false)
+const selectedWorkflowRunId = ref<number | null>(null)
+const selectedWorkflowTitle = ref('')
+const selectedWorkflowVersion = ref(0)
+const selectedRunStatus = ref('')
+const selectedTaskRuns = ref<TaskRun[]>([])
 
 const snackbar = ref({
 	show: false,
@@ -312,6 +322,15 @@ async function retryRun(run: WorkflowRun) {
 		const errorMessage = err?.response?.data?.detail || err?.message || 'Failed to retry workflow run'
 		showSnackbar(`Failed to retry: ${errorMessage}`, 'error')
 	}
+}
+
+function viewLogs(run: WorkflowRun) {
+  selectedWorkflowRunId.value = run.id
+  selectedWorkflowTitle.value = run.workflow.title
+  selectedWorkflowVersion.value = run.workflow.version
+  selectedRunStatus.value = run.lifecycle_status
+  selectedTaskRuns.value = run.task_runs as any
+  logViewerOpen.value = true
 }
 </script>
 

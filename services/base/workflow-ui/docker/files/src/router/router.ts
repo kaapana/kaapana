@@ -7,14 +7,14 @@ const routes = [
         path: '/workflows',
         name: 'Workflows',
         component: Workflows,
-        meta: { title: "Workflows" }
+        meta: { title: 'Workflows' }
     },
     {
         path: '/runs',
         name: 'WorkflowRuns',
         component: WorkflowRuns,
-        meta: { title: "Workflow Runs" }
-    }
+        meta: { title: 'Workflow Runs' }
+    },
 ]
 
 const router = createRouter({

@@ -202,11 +202,12 @@ async def test_read_workflows(
     assert response.status_code == 200
     assert len(data) == len(workflows_data)
 
-    # Verify each workflow matches
-    for i, expected_wf in enumerate(created_workflows):
-        assert data[i]["title"] == expected_wf.title
-        assert data[i]["version"] == expected_wf.version
-        assert data[i]["id"] == expected_wf.id
+    # Verify each workflow matches (API returns newest-first; sort by id for stable comparison)
+    data_by_id = {wf["id"]: wf for wf in data}
+    for expected_wf in created_workflows:
+        wf = data_by_id[expected_wf.id]
+        assert wf["title"] == expected_wf.title
+        assert wf["version"] == expected_wf.version
 
 
 @pytest.mark.GET
@@ -423,9 +424,7 @@ async def test_read_workflows_combined_query_params(
     await session.commit()
 
     # Combine skip=2, limit=3, order_by=title, order=asc
-    response = await client.get(
-        "/v1/workflows?skip=2&limit=3&order_by=title&order=asc"
-    )
+    response = await client.get("/v1/workflows?skip=2&limit=3&order_by=title&order=asc")
     data = response.json()
 
     assert response.status_code == 200
@@ -494,9 +493,7 @@ async def test_read_workflows_invalid_order_param(client: AsyncClient):
 @pytest.mark.GET
 @pytest.mark.get_workflows
 @pytest.mark.asyncio
-async def test_read_workflows_negative_skip(
-    session: AsyncSession, client: AsyncClient
-):
+async def test_read_workflows_negative_skip(session: AsyncSession, client: AsyncClient):
     """Test behavior with negative skip value"""
     # Create workflows
     for i in range(3):

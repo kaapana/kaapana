@@ -4,6 +4,8 @@ from typing import List
 from app import schemas
 from app.adapters.base import WorkflowEngineAdapter
 
+from datetime import datetime, timezone
+
 # module-level store for mocked statuses
 _MOCKED_RUN_STATUSES: dict[str, schemas.WorkflowRunStatus] = {}
 
@@ -117,7 +119,7 @@ class DummyAdapter(WorkflowEngineAdapter):
         Returns:
             WorkflowRunStatus: The updated status of the workflow run as canceled.
         """
-        
+
         return schemas.WorkflowRunStatus.CANCELED
 
     async def retry_workflow_run(
@@ -145,3 +147,14 @@ class DummyAdapter(WorkflowEngineAdapter):
         """
 
         return f"Dummy logs for TaskRun {task_run_external_id}"
+
+    def parse_task_run_logs(self, raw_log: str) -> list[schemas.LogLine]:
+        return [
+            schemas.LogLine(
+                time=datetime.now(tz=timezone.utc),
+                severity="INFO",
+                message=line,
+            )
+            for line in raw_log.splitlines()
+            if line.strip()
+        ]

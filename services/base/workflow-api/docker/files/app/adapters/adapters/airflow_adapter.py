@@ -3,16 +3,28 @@ import base64
 import os
 import shutil
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Any
+import json as jsonlib
 
 import httpx
 from app import schemas
 from app.adapters.base import WorkflowEngineAdapter
 from jinja2 import Template
 
+import re
+from ast import literal_eval
+from datetime import datetime, timezone
+
 
 class AirflowPluginAdapter(WorkflowEngineAdapter):
     workflow_engine = "airflow"  # TODO: change it to Airflow v2 when we have a separate adapter for Airflow v3
+    # Airflow log format: [2025-05-01T12:34:56.789+00:00] {file.py:42} INFO - message
+    _LOG_LINE_RE = re.compile(
+        r"^\[(?P<ts>[^\]]+)\]\s+\{(?P<loc>[^}]*)\}\s+(?P<level>[A-Z]+)\s+-\s*(?P<msg>.*)$"
+    )
+    _BARE_LEVEL_RE = re.compile(r"^(?P<level>[A-Z]+)\s+-\s*(?P<msg>.*)$")
+    _TS_OFFSET_RE = re.compile(r"([+-]\d{2})(\d{2})$")
+    _KNOWN_LEVELS = {"DEBUG", "INFO", "WARNING", "WARN", "ERROR", "CRITICAL"}
 
     def __init__(self):
         super().__init__()
@@ -92,7 +104,7 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         mapper = {
             "success": schemas.TaskRunStatus.COMPLETED,
             "failed": schemas.TaskRunStatus.ERROR,
-            "upstream_failed": schemas.TaskRunStatus.ERROR,
+            "upstream_failed": schemas.TaskRunStatus.UPSTREAM_FAILED,
             "queued": schemas.TaskRunStatus.SCHEDULED,
             "running": schemas.TaskRunStatus.RUNNING,
             "restarting": schemas.TaskRunStatus.RUNNING,
@@ -107,7 +119,13 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             raise RuntimeError(f"Unknown task run state: {state}")
         return mapper[state]
 
-    async def _request(self, method: str, endpoint: str, json: dict = {}) -> dict:
+    async def _request(
+        self,
+        method: str,
+        endpoint: str,
+        json: dict = {},
+        accepted_content_types: tuple[str, ...] = ("application/json",),
+    ) -> dict | Any:
         url = f"{self.base_url}{endpoint}"
         async with httpx.AsyncClient(timeout=10.0) as client:
 
@@ -120,6 +138,7 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Basic {encoded_auth}",
+                "Accept": "application/json",
             }
             resp = await client.request(
                 method,
@@ -130,7 +149,22 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             if resp.status_code == 404:
                 raise FileNotFoundError(f"Resource not found at {url}")
             resp.raise_for_status()
-            return resp.json()
+
+            content_type = resp.headers.get("content-type", "").split(";")[0].strip()
+
+            if content_type not in accepted_content_types:
+                raise RuntimeError(
+                    f"Unexpected response content type from {method} {url}: "
+                    f"{content_type or '<missing>'}"
+                )
+
+            if content_type == "application/json":
+                return resp.json()
+
+            if content_type == "text/plain":
+                return resp.text
+
+            raise RuntimeError(f"Unsupported response content type: {content_type}")
 
     async def submit_workflow(self, workflow: schemas.Workflow) -> schemas.Workflow:
         """
@@ -263,11 +297,23 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
 
         raise RuntimeError(f"DAG {dag_id} was not found in Airflow.")
 
+    async def _fetch_project(self, project_id: str) -> dict:
+        aii_url = os.getenv(
+            "ACCESS_INFORMATION_INTERFACE_URL", "http://aii-service.services.svc:8080"
+        )
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"{aii_url}/projects/{project_id}", timeout=10)
+            resp.raise_for_status()
+            return resp.json()
+
     async def submit_workflow_run(
         self, workflow_run: schemas.WorkflowRun, project_id: str
     ) -> schemas.WorkflowRunUpdate:
         dag_id = self._get_dag_id_from_workflow(workflow_run.workflow)
         payload: dict = {"conf": {}}
+
+        project = await self._fetch_project(project_id)
+        payload["conf"]["project_form"] = project
 
         # Inject project_id into all task envs
         tasks = await self.get_workflow_tasks(workflow_run.workflow)  # type: ignore
@@ -361,14 +407,102 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         if len(parts) != 3:
             return "Log unavailable: Invalid ID format"
         dag_id, run_id, task_id = parts
-        try_number = 1
+
+        try:
+            task_instance: dict = await self._request(
+                "GET",
+                f"/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}",
+            )
+            if (
+                isinstance(task_instance, dict)
+                and "try_number" in task_instance
+                and task_instance["try_number"] > 0
+            ):
+                try_number = int(task_instance["try_number"])
+            else:
+                return f"No logs available for task instance {task_run_external_id} because it has not run yet."
+        except Exception as e:
+            return f"Failed to fetch task instance for logs {e}"
+
+        resp = None
         try:
             resp = await self._request(
                 "GET",
                 f"/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/logs/{try_number}",
+                accepted_content_types=("application/json",),  # "text/plain"),
             )
             if isinstance(resp, dict) and "content" in resp:
                 return resp["content"]
             return str(resp)
         except Exception as e:
-            return f"Failed to fetch logs: {e}"
+            return f"Failed to fetch logs: {e}\nResponse: {resp}"
+
+    def parse_task_run_logs(self, raw_log: str) -> list[schemas.LogLine]:
+        entries: list[schemas.LogLine] = []
+        last_ts = datetime.now(tz=timezone.utc)
+
+        # Airflow wraps log content as a Python repr of [(host, log_text), ...].
+        # literal_eval is the intended way to decode this format.
+        try:
+            log_tuples: list[tuple[str, str]] = literal_eval(raw_log)
+        except (ValueError, SyntaxError):
+            # Not a tuple-list repr (e.g. plain-text error message) -> treat as single entry
+            log_tuples = [("unknown", raw_log)]
+        except Exception as e:
+            self.logger.warning(f"Unexpected error parsing log: {e}")
+            log_tuples = [("unknown", raw_log)]
+
+        for _host, log_text in log_tuples:
+            for raw_line in log_text.splitlines():
+                line = raw_line.strip()
+                if not line:
+                    continue
+
+                # Case 1: line is in the format as expected
+                m = self._LOG_LINE_RE.match(line)
+                if m and m.group("level") in self._KNOWN_LEVELS:
+                    last_ts = self._parse_ts(m.group("ts"))
+                    entries.append(
+                        schemas.LogLine(
+                            time=last_ts,
+                            severity=m.group("level"),
+                            message=m.group("msg"),
+                            metadata=(
+                                {"location": m.group("loc")} if m.group("loc") else {}
+                            ),
+                        )
+                    )
+                    continue
+
+                # Case 2: bare "INFO - ..."
+                bare = self._BARE_LEVEL_RE.match(line)
+                if bare and bare.group("level") in self._KNOWN_LEVELS:
+                    entries.append(
+                        schemas.LogLine(
+                            time=last_ts,
+                            severity=bare.group("level"),
+                            message=bare.group("msg"),
+                        )
+                    )
+                    continue
+
+                # Case 3: *** meta lines
+                if line.startswith("***"):
+                    entries.append(
+                        schemas.LogLine(
+                            time=last_ts,
+                            severity="DEBUG",
+                            message=line.lstrip("* ").strip(),
+                        )
+                    )
+        return entries
+
+    @classmethod
+    def _parse_ts(cls, ts: str) -> datetime:
+        # fromisoformat requires a colon in the UTC offset ("+00:00"), but Airflow
+        # sometimes emits "+0000" without it — normalize before parsing.
+        normalized = cls._TS_OFFSET_RE.sub(r"\1:\2", ts)
+        try:
+            return datetime.fromisoformat(normalized)
+        except ValueError:
+            return datetime.now(tz=timezone.utc)

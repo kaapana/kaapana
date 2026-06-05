@@ -195,6 +195,18 @@ class OfflineInstallerHelper:
                 level="ERROR",
             )
 
+    @staticmethod
+    def _offline_extra_target(offline_dir: Path, src: Path, dst: str) -> Path:
+        dst_path = Path(dst or src.name)
+        if dst_path.is_absolute():
+            raise ValueError(f"Offline extra destination must be relative: {dst}")
+
+        offline_root = offline_dir.resolve()
+        target = (offline_root / dst_path).resolve()
+        if not target.is_relative_to(offline_root):
+            raise ValueError(f"Offline extra destination escapes installer root: {dst}")
+        return target
+
     @classmethod
     def generate_microk8s_offline_version(cls, build_chart_dir: Path) -> None:
         """Assemble a complete Microk8s offline installer including snaps, Helm charts, and container images."""
@@ -270,7 +282,21 @@ class OfflineInstallerHelper:
         for entry in cls._build_config.offline_extra_files:
             src, _, dst = entry.partition(":")
             src = Path(src)
-            target = offline_dir / (dst or src.name)
+            try:
+                target = cls._offline_extra_target(offline_dir, src, dst)
+            except ValueError as exc:
+                msg = str(exc)
+                logger.error(msg)
+                IssueTracker.generate_issue(
+                    component="OfflineInstaller",
+                    name="Offline extra file",
+                    msg=msg,
+                    level="ERROR",
+                )
+                if cls._build_config.exit_on_error:
+                    raise RuntimeError(msg) from exc
+                continue
+
             target.parent.mkdir(parents=True, exist_ok=True)
             if src.is_dir():
                 copytree(src, target, dirs_exist_ok=True)

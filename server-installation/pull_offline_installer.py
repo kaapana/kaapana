@@ -83,6 +83,16 @@ def _safe_extract_archive(archive, target_dir):
         try:
             tar.extractall(target_dir, filter="data")
         except TypeError:
+            target_dir = Path(target_dir).resolve()
+            for member in tar.getmembers():
+                target_path = (target_dir / member.name).resolve()
+                if (
+                    not target_path.is_relative_to(target_dir)
+                    or member.issym()
+                    or member.islnk()
+                ):
+                    raise SystemExit(f"Refusing unsafe archive member: {member.name}")
+
             tar.extractall(target_dir)
 
 
@@ -96,7 +106,6 @@ def main(argv=None):
         username=args.username.strip() if args.username else None,
         password=args.password.strip() if args.password else None,
     )
-    
     if args.insecure:
         client.session.verify = False
     elif args.ca_cert:

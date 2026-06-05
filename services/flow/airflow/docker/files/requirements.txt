@@ -6,4 +6,4 @@ pint==0.24.4
 statsd==4.0.1
 cryptography==43.0.3
 jupyterlab==4.3.1
-task-api@git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@8334c63200684a934ed19db604311d2b35d6da5d#subdirectory=lib/task_api
+task-api@git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@3894bede07648c6e78bb03bd9b6c9e86c4c0d1bb#subdirectory=lib/task_api

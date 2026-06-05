@@ -86,6 +86,7 @@ autodoc_mock_imports = [
     "kubernetes",
     "dicomweb_client",
     "minio",
+    "kaapana.blueprints",
     "kaapanapy",
     "task_api",
 ]

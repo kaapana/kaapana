@@ -371,6 +371,7 @@ class WorkflowRevision(_MutableWorkflowBase):
     workflow_id: uuid.UUID
     workflow_title: str
     increment: int
+    spec_hash: str  # SHA-256 over (definition, parameters, labels).
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -384,6 +385,7 @@ class Workflow(_MutableWorkflowBase):
     workflow_engine: str
     created_at: datetime
     increment: int  # increment of the latest revision
+    spec_hash: str  # of the latest revision
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -100,6 +100,7 @@ class WorkflowRevision(Base):
     workflow_parameters: Mapped[list] = mapped_column(
         JSONB, nullable=True, default=list
     )
+    spec_hash: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from app import crud, models, schemas
 from app.adapters import WorkflowEngineAdapter, get_workflow_engine
@@ -27,6 +27,7 @@ def _revision_to_schema(rev: models.WorkflowRevision) -> schemas.WorkflowRevisio
         definition=rev.definition,
         workflow_parameters=rev.workflow_parameters or [],
         labels=rev.labels or [],
+        spec_hash=rev.spec_hash,
         created_at=rev.created_at,
     )
 
@@ -45,6 +46,7 @@ def _workflow_to_schema(db_workflow: models.Workflow) -> schemas.Workflow:
         definition=current.definition,
         workflow_parameters=current.workflow_parameters or [],
         labels=current.labels or [],
+        spec_hash=current.spec_hash,
     )
 
 
@@ -100,14 +102,62 @@ async def get_workflows(
 
 async def create_workflow(
     db: AsyncSession, workflow: schemas.WorkflowCreate
-) -> schemas.Workflow:
-    """
-    Create a new workflow with its first revision (increment=1), submit the revision's definition to the engine, and spawn a background task to parse the tasks.
-    Returns immediately with the created workflow, task list is filled in later via the background parser.
-    """
+) -> Tuple[schemas.Workflow, bool]:
+    """Idempotent create. Returns (workflow, created_new)."""
+    existing = await crud.get_workflow(db, filters={"title": workflow.title})
+    if existing is not None:
+        incoming_hash = crud.compute_spec_hash(
+            definition=workflow.definition,
+            workflow_parameters=workflow.workflow_parameters,
+            labels=workflow.labels,
+        )
+        if existing.workflow_engine != workflow.workflow_engine:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "message": (
+                        f"Workflow with title '{workflow.title}' exists with a "
+                        f"different engine ('{existing.workflow_engine}'); "
+                        f"engine is immutable."
+                    ),
+                    "existing_workflow": {
+                        "id": str(existing.id),
+                        "workflow_engine": existing.workflow_engine,
+                    },
+                    "incoming_workflow_engine": workflow.workflow_engine,
+                },
+            )
+        latest = crud.latest_revision(existing)
+        assert latest is not None
+        if latest.spec_hash == incoming_hash:
+            logger.info(
+                f"POST /workflows for existing title '{workflow.title}' matches "
+                f"latest revision (inc{latest.increment}) — returning existing"
+            )
+            return _workflow_to_schema(existing), False
+        # Same title, same engine, different content → 409
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": (
+                    f"Workflow with title '{workflow.title}' already exists with "
+                    "different content. PATCH to create a new revision, or DELETE "
+                    "and re-POST to create a fresh workflow."
+                ),
+                "existing_workflow": {
+                    "id": str(existing.id),
+                    "increment": latest.increment,
+                    "spec_hash": latest.spec_hash,
+                },
+                "incoming_spec_hash": incoming_hash,
+            },
+        )
+
     try:
         db_workflow = await crud.create_workflow(db, workflow=workflow)
     except IntegrityError as e:
+        # Backstop for a race between the pre-flight read and the insert
+        # (e.g. two concurrent POSTs creating the same title).
         await db.rollback()
         logger.warning(f"Workflow create rejected by DB constraint: {e}")
         raise HTTPException(
@@ -140,7 +190,7 @@ async def create_workflow(
         )
     )
     # return the created workflow immediately before tasks are known
-    return schema_workflow
+    return schema_workflow, True
 
 
 async def get_workflow_by_id(

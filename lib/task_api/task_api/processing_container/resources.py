@@ -137,6 +137,8 @@ def compute_pvc_target_size(
         "claim_name": io.volume_source.persistent_volume_claim.claim_name,
         "sub_path": io.sub_path,
         "scale_rule": {
+            "scale_factor": scale_rule.scale_factor,
+            "type": scale_rule.type.value,
             "mode": scale_rule.mode.value,
             "target_dir": scale_rule.target_dir,
             "target_regex": scale_rule.target_regex,
@@ -189,12 +191,12 @@ def compute_memory_resources(
     )
     for channel in task_instance.inputs:
         if rule := channel.scale_rule:
-            if rule.type == "limit":
+            if rule.type.value == "limit":
                 memory_limit = max(
                     memory_limit,
                     compute_memory_requirement(channel, namespace=task_instance.config.namespace),
                 )
-            elif rule.type == "request":
+            elif rule.type.value == "request":
                 memory_request = max(
                     memory_request,
                     compute_memory_requirement(channel, namespace=task_instance.config.namespace),

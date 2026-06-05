@@ -99,6 +99,7 @@ export default Vue.extend({
       "currentUser",
       "isAuthenticated",
       "commonData",
+      "selectedProject",
     ]),
   },
   methods: {
@@ -106,6 +107,7 @@ export default Vue.extend({
       kaapanaApiService
         .helmApiGet("/active-applications", {})
         .then((response: any) => {
+          const selectedProjectId = (this as any).$store.getters.selectedProject.id;
           // filter and format ingress routes
           const allActiveApplications = response.data
             .filter((item: any) => {
@@ -137,14 +139,14 @@ export default Vue.extend({
                 releaseName: item.release_name,
               };
             });
-          // get applications that are triggered from workflow runs
+          // get applications that are triggered from workflow runs, scoped to the selected project
           this.triggeredApplications = allActiveApplications.filter((item: any) => {
-            return item.fromWorkflowRun === true;
+            return item.fromWorkflowRun === true && item.project === selectedProjectId;
           });
           // get applications that are not triggered from a workflow run and includes current project name in all paths
           this.projectApplications = allActiveApplications.filter((item: any) => {
             const rulePattern = new RegExp(
-              `^\/applications\/project\/${this.$store.getters.selectedProject.id}\/release\/.+$`
+              `^\/applications\/project\/${selectedProjectId}\/release\/.+$`
             );
             let hasProjectURL = item.paths.every((path: string) => {
               return rulePattern.test(path);

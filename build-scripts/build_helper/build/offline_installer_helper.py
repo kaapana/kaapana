@@ -88,7 +88,7 @@ class OfflineInstallerHelper:
         )
 
     @classmethod
-    def download_gpu_operator_chart(cls, target_path: Path) -> None:
+    def download_gpu_operator_chart(cls, target_path: Path) -> bool:
         """Download and normalize the NVIDIA GPU Operator Helm chart."""
         logger.info("Downloading gpu-operator Helm chart...")
         target_path.mkdir(parents=True, exist_ok=True)
@@ -97,7 +97,7 @@ class OfflineInstallerHelper:
         cached_chart_path = target_path / chart_filename
         if cached_chart_path.exists():
             logger.info(f"Reusing cached GPU Operator chart: {cached_chart_path}")
-            return
+            return True
 
         helm_executable = cls._build_config.helm_executable or "helm"
         name = "nvidia/gpu-operator"
@@ -140,7 +140,7 @@ class OfflineInstallerHelper:
             )
             if output.returncode == 0 and versioned_chart_path.exists():
                 versioned_chart_path.rename(cached_chart_path)
-                return
+                return True
 
             last_error = output.stderr.strip() or output.stdout.strip()
             logger.warning(
@@ -164,6 +164,7 @@ class OfflineInstallerHelper:
         )
         if cls._build_config.exit_on_error:
             raise RuntimeError(error_msg)
+        return False
 
     @classmethod
     def export_image_list_into_tarball(
@@ -228,8 +229,8 @@ class OfflineInstallerHelper:
             cls.download_snap_package(name, version, offline_dir)
 
         # Download GPU Operator Helm chart
-        cls.download_gpu_operator_chart(offline_dir)
-        if build_chart_dir != offline_dir:
+        gpu_chart_available = cls.download_gpu_operator_chart(offline_dir)
+        if gpu_chart_available and build_chart_dir != offline_dir:
             copyfile(
                 src=offline_dir / "gpu-operator.tgz",
                 dst=build_chart_dir / "gpu-operator.tgz",

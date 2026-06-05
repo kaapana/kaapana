@@ -48,6 +48,8 @@ spec:
           value: "http://aii-service.{{  .Values.global.services_namespace  }}.svc:8080"
         - name: PLATFORM_PREFIX
           value: "{{ required `global.platform_prefix is required` .Values.global.platform_prefix }}"
+        - name: DEV_MODE
+          value: "{{ .Values.global.dev_mode }}"
 {{- if .Values.airflow.enabled }}
         # Airflow adapter config
         - name: AIRFLOW_API_URL

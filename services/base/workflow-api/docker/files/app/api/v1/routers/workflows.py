@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from app import schemas
 from app.api.v1.services import workflow_service as service
-from app.dependencies import get_async_db
+from app.dependencies import get_async_db, require_dev_mode
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -52,7 +52,11 @@ async def get_workflow_by_id(
     return await service.get_workflow_by_id(db, workflow_id)
 
 
-@router.patch("/workflows/{workflow_id}", response_model=schemas.Workflow)
+@router.patch(
+    "/workflows/{workflow_id}",
+    response_model=schemas.Workflow,
+    dependencies=[Depends(require_dev_mode)],
+)
 async def update_workflow(
     workflow_id: uuid.UUID,
     update: schemas.WorkflowUpdate,
@@ -101,6 +105,7 @@ async def get_workflow_revision(
 @router.post(
     "/workflows/{workflow_id}/revisions/{increment}/restore",
     response_model=schemas.Workflow,
+    dependencies=[Depends(require_dev_mode)],
 )
 async def restore_workflow_revision(
     workflow_id: uuid.UUID,

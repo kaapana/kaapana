@@ -4,6 +4,7 @@ from functools import cached_property
 
 class Settings(BaseSettings):
     DATABASE_URL: str
+    DEV_MODE: bool = False
 
     @cached_property
     def ASYNC_DATABASE_URL(self) -> str:

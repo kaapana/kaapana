@@ -247,5 +247,7 @@ spec:
         matchLabels:
           app.kubernetes.io/name: airflow
     ports:
-    - protocol: TCP
-      port: 5000
+      - protocol: TCP
+        port: 5000
+      - protocol: TCP
+        port: 5432

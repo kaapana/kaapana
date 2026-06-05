@@ -162,7 +162,8 @@ class OfflineInstallerHelper:
             msg=error_msg,
             level="ERROR",
         )
-        raise RuntimeError(error_msg)
+        if cls._build_config.exit_on_error:
+            raise RuntimeError(error_msg)
 
     @classmethod
     def export_image_list_into_tarball(

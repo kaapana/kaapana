@@ -24,6 +24,9 @@ def should_ignore_path(path: Path, patterns: list[str] | None) -> bool:
         if normalized in parts:
             return True
 
+        if fnmatch.fnmatch(path_str, f"{normalized}/*"):
+            return True
+
         if fnmatch.fnmatch(path_str, f"*/{normalized}/*"):
             return True
 

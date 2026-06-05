@@ -57,6 +57,9 @@ class BuildConfig(BaseModel):
     include_model_weights: bool = False
     push_to_microk8s: bool
     create_offline_installation: bool
+    publish_offline_installer: bool = False
+    no_images_tarball: bool = False
+    offline_extra_files: List[str] = Field(default_factory=list)
     platform_filter: str
     external_source_dirs: List[Path] = Field(default_factory=list)
     build_ignore_patterns: List[str] = Field(default_factory=list)

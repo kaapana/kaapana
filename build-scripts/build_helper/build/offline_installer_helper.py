@@ -1,27 +1,19 @@
 import json
-import os
+import sys
+import tarfile
 from pathlib import Path
-from shutil import copy2, copyfile, copytree
+from shutil import copyfile, copytree
 from subprocess import PIPE, run
 from time import sleep
 from typing import Optional
+from datetime import datetime, timezone
 
 from alive_progress import alive_bar
 from build_helper.build import BuildState, BuildConfig, IssueTracker
 from build_helper.container import ContainerHelper
-from build_helper.utils import CommandUtils, get_logger
+from build_helper.utils import get_logger
 
 logger = get_logger()
-
-RACOON_FILES_PATH_MAPPINGS = (
-    ("vm-setup/vm-files/configure-vm.sh", "configure-vm.sh"),
-    ("vm-setup/playbooks", "playbooks"),
-    (
-        "vm-setup/vm-files/template_node_config.yaml",
-        "installation-scripts/template_node_config.yaml",
-    ),
-    ("kaapana/server-installation/pull_image.sh", "pull_image.sh"),
-)
 
 
 class OfflineInstallerHelper:
@@ -203,90 +195,7 @@ class OfflineInstallerHelper:
             )
 
     @classmethod
-    def package_directory_as_container(
-        cls,
-        package_dir: Path,
-        image_name: str,
-        image_tag: str,
-        command: Optional[list[str]] = None,
-    ) -> str:
-        """Build a scratch image from a prepared directory and optionally push it."""
-        dockerfile_path = package_dir / "Dockerfile"
-        dockerignore_path = package_dir / ".dockerignore"
-        previous_dockerfile = (
-            dockerfile_path.read_text(encoding="utf-8")
-            if dockerfile_path.exists()
-            else None
-        )
-        previous_dockerignore = (
-            dockerignore_path.read_text(encoding="utf-8")
-            if dockerignore_path.exists()
-            else None
-        )
-
-        image_ref = f"{cls._build_config.default_registry}/{image_name}:{image_tag}"
-        build_command = command or [cls._build_config.container_engine, "build"]
-
-        try:
-            dockerfile_path.write_text(
-                "\n".join(
-                    [
-                        "FROM scratch",
-                        "COPY . /",
-                        f'CMD ["echo","{image_name}"]',
-                    ]
-                )
-                + "\n",
-                encoding="utf-8",
-            )
-            dockerignore_path.write_text(
-                "Dockerfile\n.dockerignore\n",
-                encoding="utf-8",
-            )
-
-            logger.info(f"Packaging offline installer as container image: {image_ref}")
-            CommandUtils.run(
-                [*build_command, "-t", image_ref, str(package_dir)],
-                timeout=cls._build_config.save_image_timeout,
-                logger=logger,
-                context=f"build-{image_name}",
-                exit_on_error=cls._build_config.exit_on_error,
-                env=dict(
-                    os.environ,
-                    DOCKER_BUILDKIT=f"{cls._build_config.enable_build_kit}",
-                ),
-            )
-
-            if cls._build_config.build_only:
-                logger.info(f"Skipping push for offline installer image: {image_ref}")
-                return image_ref
-
-            CommandUtils.run(
-                [cls._build_config.container_engine, "push", image_ref],
-                timeout=cls._build_config.save_image_timeout,
-                logger=logger,
-                context=f"push-{image_name}",
-                exit_on_error=cls._build_config.exit_on_error,
-            )
-            logger.info(f"Finished packaging offline installer image: {image_ref}")
-            return image_ref
-        finally:
-            if previous_dockerfile is None:
-                dockerfile_path.unlink(missing_ok=True)
-            else:
-                dockerfile_path.write_text(previous_dockerfile, encoding="utf-8")
-
-            if previous_dockerignore is None:
-                dockerignore_path.unlink(missing_ok=True)
-            else:
-                dockerignore_path.write_text(previous_dockerignore, encoding="utf-8")
-
-    @classmethod
-    def generate_microk8s_offline_version(
-        cls,
-        build_chart_dir: Path,
-        package_version: Optional[str] = None,
-    ) -> Optional[str]:
+    def generate_microk8s_offline_version(cls, build_chart_dir: Path) -> None:
         """Assemble a complete Microk8s offline installer including snaps, Helm charts, and container images."""
         offline_dir = Path(cls._build_config.build_dir) / "microk8s-offline-installer"
         offline_dir.mkdir(parents=True, exist_ok=True)
@@ -356,40 +265,79 @@ class OfflineInstallerHelper:
             # and make them executable
             (utils_dir / sh_file.name).chmod(0o755)
 
-        logger.info("Finished generating Microk8s offline installer.")
-        if not package_version:
-            return None
+        # Include any caller-provided extra files/dirs in the offline installer tar.
+        for entry in cls._build_config.offline_extra_files:
+            src, _, dst = entry.partition(":")
+            src = Path(src)
+            target = offline_dir / (dst or src.name)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if src.is_dir():
+                copytree(src, target, dirs_exist_ok=True)
+            elif src.is_file():
+                copyfile(src, target)
+            else:
+                logger.warning(f"Offline extra path not found, skipping: {src}")
 
-        return cls.package_directory_as_container(
-            package_dir=offline_dir,
-            image_name="kaapana-server-kit",
-            image_tag=package_version,
-        )
+        logger.info("Finished generating Microk8s offline installer.")
 
     @classmethod
-    def generate_racoon_files_version(
+    def _oci_registry_cls(cls):
+        """Import OCIRegistryDiscovery from the in-repo kaapana_containers lib (has dependency on pyhton requests)."""
+        try:
+            from kaapana_containers.registries.registry import OCIRegistryDiscovery
+        except ImportError:
+            lib_root = Path(cls._build_config.kaapana_dir) / "lib" / "kaapana_containers"
+            sys.path.insert(0, str(lib_root))
+            from kaapana_containers.registries.registry import OCIRegistryDiscovery
+        return OCIRegistryDiscovery
+
+    @classmethod
+    def publish_offline_installer(
         cls,
-        package_version: str,
+        offline_dir: Path,
+        version: str,
+        repository: str = "kaapana/offline-installer",
     ) -> str:
-        """Assemble and optionally push the racoon-files image used by offline installation."""
-        package_dir = Path(cls._build_config.build_dir) / "racoon-files"
-        package_dir.mkdir(parents=True, exist_ok=True)
+        """Tar the offline installer dir and publish it as <repo>:<version>."""
 
-        logger.info(f"Generating racoon-files package in {package_dir}")
-        racoon_root = Path(cls._build_config.kaapana_dir).parent
+        tarball = Path(cls._build_config.build_dir) / f"offline-installer-{version}.tar.gz"
+        logger.info(f"Packaging offline installer {offline_dir} -> {tarball}")
+        with tarfile.open(tarball, "w:gz") as tar:
+            tar.add(offline_dir, arcname=".")  # unpacks straight into the target dir
 
-        for source_relative_path, target_relative_path in RACOON_FILES_PATH_MAPPINGS:
-            source_path = racoon_root / source_relative_path
-            target_path = package_dir / target_relative_path
-            target_path.parent.mkdir(parents=True, exist_ok=True)
+        registry = cls._build_config.default_registry
+        scheme = "http" if cls._build_config.plain_http else "https"
+        url = registry if "://" in registry else f"{scheme}://{registry}"
 
-            if source_path.is_dir():
-                copytree(source_path, target_path, dirs_exist_ok=True)
-            else:
-                copy2(source_path, target_path)
-
-        return cls.package_directory_as_container(
-            package_dir=package_dir,
-            image_name="racoon-files",
-            image_tag=package_version,
+        client = cls._oci_registry_cls()(
+            registry_url=url,
+            repository=repository,
+            username=cls._build_config.registry_username,
+            password=cls._build_config.registry_password,
         )
+        published = client.create_or_update_tag(
+            tag=version,
+            user_metadata={
+                "kind": "kaapana-offline-installer",
+                "kaapana_version": version,
+                "built_at": datetime.now(timezone.utc).isoformat(),
+            },
+            files=[str(tarball)],
+        )
+
+        ref = f"{registry}/{repository}:{version}"
+        if published:
+            logger.info(f"Published offline installer to registry: {ref}")
+            return ref
+
+        msg = f"Failed to publish offline installer to {ref}"
+        logger.error(msg)
+        IssueTracker.generate_issue(
+            component="OfflineInstaller",
+            name="Publish offline installer",
+            msg=msg,
+            level="ERROR",
+        )
+        if cls._build_config.exit_on_error:
+            raise RuntimeError(msg)
+        return ref

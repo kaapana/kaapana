@@ -209,9 +209,52 @@ class OfflineInstallerHelper:
         return target
 
     @classmethod
+    def offline_dir(cls) -> Path:
+        return Path(cls._build_config.build_dir) / "microk8s-offline-installer"
+
+    @classmethod
+    def handle_offline_installation(cls, platform_chart) -> None:
+        offline_dir = cls.offline_dir()
+
+        if cls._build_config.create_offline_installation:
+            cls.generate_microk8s_offline_version(platform_chart.build_chart_dir)
+            cls.export_platform_images_tarball(platform_chart)
+
+        if cls._build_config.publish_offline_installer:
+            if cls._build_config.build_only:
+                logger.info("Skipping offline installer publish (--build-only).")
+                return
+
+            installer_ref = cls.publish_offline_installer(
+                offline_dir=offline_dir,
+                version=platform_chart.version,
+            )
+            if installer_ref:
+                logger.info(
+                    f"Finished: Published offline installer {installer_ref}."
+                )
+
+    @classmethod
+    def export_platform_images_tarball(cls, platform_chart) -> None:
+        if cls._build_config.no_images_tarball:
+            logger.info("Skipping platform images tarball (--no-images-tarball).")
+            return
+
+        images_tarball_path = (
+            platform_chart.build_chart_dir.parent
+            / f"{platform_chart.name}-{platform_chart.version}-images.tar"
+        )
+        cls.export_image_list_into_tarball(
+            image_list=[c.tag for c in cls._build_state.selected_containers],
+            images_tarball_path=images_tarball_path,
+            container_engine=cls._build_config.container_engine,
+        )
+        logger.info("Finished: Generating platform images tarball.")
+
+    @classmethod
     def generate_microk8s_offline_version(cls, build_chart_dir: Path) -> None:
         """Assemble a complete Microk8s offline installer including snaps, Helm charts, and container images."""
-        offline_dir = Path(cls._build_config.build_dir) / "microk8s-offline-installer"
+        offline_dir = cls.offline_dir()
         offline_dir.mkdir(parents=True, exist_ok=True)
         build_chart_dir.mkdir(parents=True, exist_ok=True)
 
@@ -310,7 +353,7 @@ class OfflineInstallerHelper:
 
     @classmethod
     def _oci_registry_cls(cls):
-        """Import OCIRegistryDiscovery from the in-repo kaapana_containers lib (has dependency on pyhton requests)."""
+        """Import OCIRegistryDiscovery from the in-repo kaapana_containers lib (has dependency on python requests)."""
         try:
             from kaapana_containers.registries.registry import OCIRegistryDiscovery
         except ImportError:
@@ -325,8 +368,24 @@ class OfflineInstallerHelper:
         offline_dir: Path,
         version: str,
         repository: str = "kaapana/offline-installer",
-    ) -> str:
+    ) -> Optional[str]:
         """Tar the offline installer dir and publish it as <repo>:<version>."""
+        if not offline_dir.is_dir():
+            msg = (
+                "Cannot publish offline installer: "
+                f"{offline_dir} does not exist. Run with "
+                "--create-offline-installation first."
+            )
+            logger.error(msg)
+            IssueTracker.generate_issue(
+                component="OfflineInstaller",
+                name="Publish offline installer",
+                msg=msg,
+                level="ERROR",
+            )
+            if cls._build_config.exit_on_error:
+                raise RuntimeError(msg)
+            return None
 
         tarball = Path(cls._build_config.build_dir) / f"offline-installer-{version}.tar.gz"
         logger.info(f"Packaging offline installer {offline_dir} -> {tarball}")
@@ -368,4 +427,4 @@ class OfflineInstallerHelper:
         )
         if cls._build_config.exit_on_error:
             raise RuntimeError(msg)
-        return ref
+        return None

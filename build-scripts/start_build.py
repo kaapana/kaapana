@@ -20,6 +20,7 @@ from build_helper.helm import HelmChartHelper
 from build_helper.utils.logger import get_logger, init_logger, set_console_level
 from build_helper.container.coordinator import BuildCoordinator
 
+
 def validate_registry_login_config(build_config: BuildConfig, logger) -> None:
     if build_config.build_only or build_config.no_login:
         return
@@ -129,39 +130,14 @@ def main(build_config: BuildConfig):
         coordinator = BuildCoordinator(containers)
         coordinator.start()
 
-        if build_config.create_offline_installation:
+        if (
+            build_config.create_offline_installation
+            or build_config.publish_offline_installer
+        ):
             OfflineInstallerHelper.init(
                 build_config=build_config, build_state=build_state
             )
-            OfflineInstallerHelper.generate_microk8s_offline_version(
-                platform_chart.build_chart_dir
-            )
-
-            # The platform-images tarball is only needed for true air-gap deploys. 
-            # Skip it when targets pull from the registry instead.
-            if build_config.no_images_tarball:
-                logger.info("Skipping platform images tarball (--no-images-tarball).")
-            else:
-                images_tarball_path = (
-                    platform_chart.build_chart_dir.parent
-                    / f"{platform_chart.name}-{platform_chart.version}-images.tar"
-                )
-                OfflineInstallerHelper.export_image_list_into_tarball(
-                    image_list=[c.tag for c in build_state.selected_containers],
-                    images_tarball_path=images_tarball_path,
-                    container_engine=build_config.container_engine,
-                )
-                logger.info("Finished: Generating platform images tarball.")
-
-            # Publish the offline installer tarball to registry.
-            if build_config.publish_offline_installer:
-                installer_ref = OfflineInstallerHelper.publish_offline_installer(
-                    offline_dir=Path(build_config.build_dir) / "microk8s-offline-installer",
-                    version=platform_chart.version,
-                )
-                logger.info(
-                    f"Finished: Published offline installer {installer_ref}."
-                )
+            OfflineInstallerHelper.handle_offline_installation(platform_chart)
 
     if len(IssueTracker.issues) > 0:
         logger.info("")

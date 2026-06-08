@@ -34,6 +34,7 @@ from kaapana.operators.LocalValidationResult2MetaOperator import (
     LocalValidationResult2MetaOperator,
 )
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.HelperThumbnails import NO_THUMBNAIL_MODALITIES, has_ref_series
 from kaapanapy.helper import get_minio_client
 from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.settings import KaapanaSettings
@@ -156,14 +157,22 @@ put_results_html_to_minio_admin_bucket = KaapanaPythonBaseOperator(
 )
 
 
-def has_ref_series(ds) -> bool:
-    return ds.Modality in ["SEG", "RTSTRUCT"]
-
+# Modalities without renderable pixel data — skip ref-series download, go directly
+# to generate_thumbnail which produces no output for these modalities
+skip_no_thumbnail = LocalDcmBranchingOperator(
+    dag=dag,
+    name="skip-no-thumbnail",
+    input_operator=get_input,
+    condition=lambda ds: str(ds.get("Modality", "")).strip().upper()
+    not in NO_THUMBNAIL_MODALITIES,
+    branch_true_operator="branch-has-ref",
+    branch_false_operator="generate-thumbnail",
+)
 
 branch_by_has_ref_series = LocalDcmBranchingOperator(
     dag=dag,
     name="branch-has-ref",
-    input_operator=get_input,
+    input_operator=skip_no_thumbnail,
     condition=has_ref_series,
     branch_true_operator="get-ref-series-ct",
     branch_false_operator="generate-thumbnail",
@@ -495,8 +504,11 @@ def upload_thumbnails_into_project_bucket(ds, **kwargs):
             for project in response.json()
             if project["short_id"] == project_short_id
         ][0]
+        if not thumbnail_dir.exists():
+            continue
         thumbnails = [f for f in thumbnail_dir.glob("*.png")]
-        assert len(thumbnails) == 1
+        if not thumbnails:
+            continue
         thumbnail_path = thumbnails[0]
         minio_object_path = f"thumbnails/{series_uid}.png"
         minio.fput_object(
@@ -544,13 +556,13 @@ remove_tags >> dcm_send
 ### Only continue if dicom data was successfully send to the PACS
 dcm_send >> (push_json, add_to_dataset, assign_to_project)
 
-push_json >> (validate, branch_by_has_ref_series)
+push_json >> (validate, skip_no_thumbnail)
 (
     validate
     >> save_to_meta
     >> (put_html_to_minio, put_results_html_to_minio_admin_bucket, generate_thumbnail)
 )
-branch_by_has_ref_series >> (get_ref_ct_series, generate_thumbnail)
+skip_no_thumbnail >> branch_by_has_ref_series >> (get_ref_ct_series, generate_thumbnail)
 
 
 (get_ref_ct_series >> generate_thumbnail >> put_thumbnail_to_project_bucket)

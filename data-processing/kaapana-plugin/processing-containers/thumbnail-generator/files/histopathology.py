@@ -35,7 +35,7 @@ def generate_histopathology_thumbnail(
 
     LuT = {}
     for file in dicom_files:
-        dcm_file = pd.dcmread(file)
+        dcm_file = pd.dcmread(file, stop_before_pixels=True)
         image_type = dcm_file["ImageType"][2]
         if image_type not in LuT:
             LuT[image_type] = [file]
@@ -50,10 +50,8 @@ def generate_histopathology_thumbnail(
         dicom_files_tuples = []
         # Iterate over the DICOM files to collect their number of frames and Rows
         for vol in LuT["VOLUME"]:
-            dcm_file = pd.dcmread(vol)
-            FramesOfFile = (
-                dcm_file.NumberOfFrames
-            )  # int(dcm_file[0x0028, 0x0008].value)
+            dcm_file = pd.dcmread(vol, stop_before_pixels=True)
+            FramesOfFile = dcm_file.NumberOfFrames
             CubicShape = dcm_file.Rows
             dicom_files_tuples.append((vol, FramesOfFile, CubicShape))
         # Sort the list of files in descending order by the number of frames

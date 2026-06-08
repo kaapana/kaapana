@@ -1,4 +1,6 @@
+import json
 import logging
+from urllib.parse import unquote
 from typing import List
 from uuid import UUID
 
@@ -40,9 +42,43 @@ async def assert_project_not_archived(project_id: UUID) -> None:
         )
 
 
+async def get_project_name_by_id(project_id: UUID) -> str | None:
+    """Return the name of a project by its ID, or None if not found.
+
+    Args:
+        project_id (UUID): The project ID to look up.
+
+    Returns:
+        str | None: The project name, or None if the request fails.
+    """
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{ACCESS_INFORMATION_INTERFACE_HOST}/projects/{project_id}"
+        )
+    if not response.is_success:
+        return None
+    return response.json().get("name")
+
+
 def get_user_project_ids(request: Request) -> list[UUID]:
     """Get the project IDs of the projects the user is associated with."""
     return [UUID(project["id"]) for project in request.scope.get("token")["projects"]]
+
+
+def get_project_id_from_cookie(request: Request) -> UUID | None:
+    """Extract the selected project UUID from the 'Project' browser cookie.
+
+    The Kaapana frontend stores the active project as JSON: {"name": "...", "id": "<uuid>"}.
+    Returns None if the cookie is absent or malformed.
+    """
+    raw = request.cookies.get("Project")
+    if not raw:
+        return None
+    try:
+        return UUID(json.loads(unquote(raw))["id"])
+    except (json.JSONDecodeError, KeyError, ValueError):
+        logger.warning("Could not parse Project cookie: %r", raw)
+        return None
 
 
 async def get_filtered_studies_mapped_to_projects(

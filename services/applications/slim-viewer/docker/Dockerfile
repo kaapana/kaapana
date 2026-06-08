@@ -9,11 +9,13 @@ RUN git clone -c advice.detachedHead=False --depth 1 --branch v0.35.0 https://gi
 WORKDIR /src
 
 COPY local.js public/config/
+COPY files/patch-dcmjs.js /src/
 ARG REACT_APP_CONFIG=local
 ARG PUBLIC_URL="/slim"
 
 RUN yarn install --frozen-lockfile --network-timeout 100000
-RUN NODE_OPTIONS=--max_old_space_size=8192 yarn run build 
+RUN node patch-dcmjs.js
+RUN NODE_OPTIONS=--max_old_space_size=8192 yarn run build
 
 FROM nginx:1.29.3-alpine AS app
 COPY --from=build /src/build/ /usr/share/nginx/html/slim/

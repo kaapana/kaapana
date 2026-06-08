@@ -241,7 +241,7 @@ function getValuesForField(field: string | null) {
         const uniqueTasks = [...new Set(props.runs.flatMap(r => r.task_runs?.map(tr => tr.task_title) || []).filter(Boolean))]
         return uniqueTasks.map(t => ({ value: t, label: t }))
     } else if (field === 'workflow') {
-        const uniqueTitles = [...new Set(props.runs.map(r => r.workflow?.id).filter(Boolean))]
+        const uniqueTitles = [...new Set(props.runs.map(r => r.workflow?.title).filter(Boolean))]
         return uniqueTitles.map(t => ({ value: t as string, label: t as string }))
     }
     return []
@@ -434,7 +434,7 @@ const filteredResults = computed(() => {
             result = result.filter(r => r.task_runs?.some(tr => (tr.task_title || '').toLowerCase().includes(t)))
         } else if (filter.field === 'workflow') {
             const t = filter.value.toLowerCase()
-            result = result.filter(r => (r.workflow?.id || '').toLowerCase().includes(t))
+            result = result.filter(r => (r.workflow?.title || '').toLowerCase().includes(t))
         } else if (filter.field === 'external_id') {
             const id = filter.value.toLowerCase()
             result = result.filter(r => (r.external_id || '').toLowerCase().includes(id))
@@ -473,7 +473,7 @@ const filteredResults = computed(() => {
     if (textSearchQuery.value && appliedFilters.value.length === 0) {
         const q = textSearchQuery.value.toLowerCase()
         result = result.filter(r => {
-            const text = [r.workflow?.id || '', r.external_id || '', r.lifecycle_status, String(r.id)].join(' ').toLowerCase()
+            const text = [r.workflow?.title || '', r.external_id || '', r.lifecycle_status, String(r.id)].join(' ').toLowerCase()
             return text.includes(q)
         })
     }
@@ -487,7 +487,7 @@ const filteredResults = computed(() => {
         } else if (sortField.value === 'status') {
             comparison = (a.lifecycle_status || '').localeCompare(b.lifecycle_status || '')
         } else if (sortField.value === 'workflow') {
-            comparison = (a.workflow?.id || '').localeCompare(b.workflow?.id || '')
+            comparison = (a.workflow?.title || '').localeCompare(b.workflow?.title || '')
         }
         
         return sortDirection.value === 'desc' ? -comparison : comparison

@@ -131,7 +131,7 @@ export interface TaskCreate extends TaskBase {
 
 export interface Task extends TaskBase {
     id: number
-    workflow_id: string
+    workflow_revision_id: string
     downstream_task_ids: number[]
 }
 

@@ -119,7 +119,7 @@ async function downloadLogs() {
         }
       })
     )
-    downloadAsZip(`${props.run.workflow.title}-v${props.run.workflow.version}-logs.zip`, entries)
+    downloadAsZip(`${props.run.workflow.title}-inc${props.run.workflow.increment}-logs.zip`, entries)
   } finally {
     downloading.value = false
   }

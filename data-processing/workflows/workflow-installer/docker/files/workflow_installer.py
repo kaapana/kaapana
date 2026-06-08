@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     max_retries: int = Field(
         default=5, description="Maximum number of retries for API calls"
     )
+    enforce_init_workflows: bool = Field(
+        default=True,
+        description="When True, PATCH an existing workflow with the same title; when False, leave it as-is.",
+    )
 
 
 def load_workflow_definition(workflow_dir: Path) -> str:
@@ -94,6 +98,7 @@ async def submit_workflow(
     client: httpx.AsyncClient,
     api_url: str,
     workflow_data: WorkflowCreate,
+    enforce: bool,
 ) -> bool:
     """
     Submit workflow to the Workflow API.
@@ -107,8 +112,9 @@ async def submit_workflow(
         True if submission successful, False otherwise
     """
     endpoint = f"{api_url}/workflows"
+    title = workflow_data.title
 
-    logger.info(f"Submitting workflow '{workflow_data.title}' to {endpoint}")
+    logger.info(f"Submitting workflow '{title}' to {endpoint}")
     logger.debug(f"Workflow data: {workflow_data.model_dump_json(indent=2)}")
 
     try:
@@ -117,24 +123,111 @@ async def submit_workflow(
             json=workflow_data.model_dump(mode="json"),
             headers={"Content-Type": "application/json"},
         )
-        response.raise_for_status()
-
-        result = response.json()
-        logger.info(
-            f"Successfully submitted workflow '{result.get('title')}' "
-            f"version {result.get('version')}"
-        )
-        return True
-
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code == 409:
-            logger.warning(f"Workflow already exists: {e.response.text}")
-            return True  # Consider existing workflow as success
-        logger.error(f"HTTP error submitting workflow: {e.response.text}")
-        return False
     except httpx.RequestError as e:
         logger.error(f"Error submitting workflow: {e}")
         return False
+
+    if response.status_code in (200, 201):
+        result = response.json()
+        action = "Created" if response.status_code == 201 else "Already up to date"
+        logger.info(
+            f"{action}: workflow '{result.get('title')}' "
+            f"(id={result.get('id')}, increment={result.get('increment')})"
+        )
+        return True
+
+    if response.status_code == 409:
+        return await _handle_conflict(client, api_url, workflow_data, response, enforce)
+
+    logger.error(
+        f"HTTP {response.status_code} submitting workflow '{title}': {response.text}"
+    )
+    return False
+
+
+async def _handle_conflict(
+    client: httpx.AsyncClient,
+    api_url: str,
+    workflow_data: WorkflowCreate,
+    conflict_response: httpx.Response,
+    enforce: bool,
+) -> bool:
+    """Dispatch 409 handling based on the response body shape and the enforce flag."""
+    title = workflow_data.title
+    try:
+        detail = conflict_response.json().get("detail", {})
+    except ValueError:
+        logger.error(
+            f"Conflict on '{title}' with unparseable body: {conflict_response.text}"
+        )
+        return False
+
+    existing = detail.get("existing_workflow", {}) if isinstance(detail, dict) else {}
+
+    if "workflow_engine" in existing:
+        logger.error(
+            f"Cannot install workflow '{title}': engine mismatch (existing workflow_engine='{existing.get('workflow_engine')}', incoming='{detail.get('incoming_workflow_engine')}'). Engine is immutable."
+        )
+        return False
+
+    if not enforce:
+        logger.warning(
+            f"Workflow '{title}' exists with different content; ENFORCE_INIT_WORKFLOWS=False, leaving as-is."
+        )
+        return True
+
+    existing_id = existing.get("id")
+    if not existing_id:
+        logger.error(
+            f"Conflict on '{title}' but no existing_workflow.id in body: {detail}"
+        )
+        return False
+
+    return await _patch_workflow(client, api_url, existing_id, workflow_data)
+
+
+async def _patch_workflow(
+    client: httpx.AsyncClient,
+    api_url: str,
+    workflow_id: str,
+    workflow_data: WorkflowCreate,
+) -> bool:
+    """PATCH content fields (definition, parameters, labels) onto an existing workflow."""
+    title = workflow_data.title
+    endpoint = f"{api_url}/workflows/{workflow_id}"
+    payload = workflow_data.model_dump(
+        mode="json", include={"definition", "workflow_parameters", "labels"}
+    )
+
+    logger.info(f"ENFORCE_INIT_WORKFLOWS=True — PATCHing '{title}' at {endpoint}")
+    try:
+        response = await client.patch(
+            endpoint, json=payload, headers={"Content-Type": "application/json"}
+        )
+    except httpx.RequestError as e:
+        logger.error(f"Error PATCHing workflow '{title}': {e}")
+        return False
+
+    if response.status_code == 200:
+        result = response.json()
+        logger.info(
+            f"PATCH succeeded: workflow '{result.get('title')}' "
+            f"now at increment={result.get('increment')}"
+        )
+        return True
+
+    if response.status_code == 403:
+        logger.error(
+            f"PATCH on '{title}' returned 403. The workflow-api has DEV_MODE=False, "
+            "but the installer is configured with ENFORCE_INIT_WORKFLOWS=True. "
+            "Resolve the conflicting config."
+        )
+        return False
+
+    logger.error(
+        f"PATCH on '{title}' returned HTTP {response.status_code}: {response.text}"
+    )
+    return False
 
 
 async def check_api_health(client: httpx.AsyncClient, api_url: str) -> bool:
@@ -284,7 +377,10 @@ async def process_workflow_submission(
             sys.exit(1)
 
         success = await submit_workflow(
-            client, settings.workflow_api_url, workflow_data
+            client,
+            settings.workflow_api_url,
+            workflow_data,
+            enforce=settings.enforce_init_workflows,
         )
         sys.exit(0 if success else 1)
 

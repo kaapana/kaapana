@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from app.api.v1.routers import (
     dummy_adapter_status,
@@ -10,10 +11,8 @@ from app.api.v1.routers import (
     workflows,
 )
 from app.api.v1.services import errors
-from app.database import async_engine
 from app.dependencies import get_connection_manager
 from app.logging_config import setup_logging
-from app.models import Base
 from app.sync import run_sync
 from fastapi import Depends, FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,11 +24,26 @@ logger = logging.getLogger(__name__)
 API_VERSION = "v1"
 
 
+def _run_alembic_migrations() -> None:
+    """Run Alembic migrations (stamp + upgrade) to head.
+
+    Delegates to alembic/migrate.py which handles three cases:
+    (1) DB at a known revision, (2) empty DB, (3) tables exist but no
+    alembic_version (legacy `create_all` schema → stamp then upgrade).
+    """
+    import importlib.util
+
+    migrate_path = Path(__file__).resolve().parent.parent / "alembic" / "migrate.py"
+    spec = importlib.util.spec_from_file_location("workflow_api_migrate", migrate_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.main()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: ensure DB tables exist (we've disabled Alembic for now)
-    async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # Startup: run migrations to head before serving requests.
+    await asyncio.to_thread(_run_alembic_migrations)
 
     # Start periodic sync in background without blocking the API
     sync_task = asyncio.create_task(run_sync(interval_seconds=30))

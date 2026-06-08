@@ -183,7 +183,7 @@ async def create_workflow(
         run_in_background_with_retries(
             _parse_revision_tasks,
             db=db,
-            db_revision=current,
+            revision_id=current.id,
             engine=engine,
             max_retries=5,
             delay_seconds=10,
@@ -249,15 +249,24 @@ async def update_workflow(
     current = crud.latest_revision(db_workflow)
     assert current is not None
 
-    # Submit the new revision to the engine if the definition was the change that triggered a new revision.
-    if update.definition is not None:
+    # Submit the new revision to the engine whenever a versioned field changed
+    # (definition / parameters / labels). Any of them appends a new revision, and
+    # the Airflow dag_id is keyed on (title, increment), so the matching DAG file
+    # must be (re-)registered for that new increment regardless of which field
+    # triggered the bump.
+    versioned_change = (
+        update.definition is not None
+        or update.workflow_parameters is not None
+        or update.labels is not None
+    )
+    if versioned_change:
         engine = get_workflow_engine(db_workflow.workflow_engine)
         await engine.submit_workflow_revision(revision=_revision_to_schema(current))
         asyncio.create_task(
             run_in_background_with_retries(
                 _parse_revision_tasks,
                 db=db,
-                db_revision=current,
+                revision_id=current.id,
                 engine=engine,
                 max_retries=5,
                 delay_seconds=10,
@@ -311,7 +320,7 @@ async def restore_workflow_revision(
         run_in_background_with_retries(
             _parse_revision_tasks,
             db=db,
-            db_revision=current,
+            revision_id=current.id,
             engine=engine,
             max_retries=5,
             delay_seconds=10,
@@ -384,7 +393,7 @@ async def get_workflow_tasks(
     )
     if not tasks:
         engine = get_workflow_engine(db_workflow.workflow_engine)
-        await _parse_revision_tasks(db=db, db_revision=target_revision, engine=engine)
+        await _parse_revision_tasks(db=db, revision_id=target_revision.id, engine=engine)
         tasks = await crud.get_tasks(
             db, filters={"workflow_revision_id": target_revision.id}
         )
@@ -451,10 +460,19 @@ async def get_task(
 
 async def _parse_revision_tasks(
     db: AsyncSession,
-    db_revision: models.WorkflowRevision,
+    revision_id: uuid.UUID,
     engine: WorkflowEngineAdapter,
 ):
-    """Fetch tasks from the engine for a specific revision and persist them."""
+    """Fetch tasks from the engine for a specific revision and persist them.
+
+    Reloads the revision from `db` (a fresh session opened by
+    run_in_background_with_retries) so we never read attributes off an ORM
+    instance bound to the request-scoped session that has already closed.
+    """
+    db_revision = await crud.get_workflow_revision_by_id(db, revision_id)
+    if db_revision is None:
+        logger.error(f"Revision {revision_id} disappeared before tasks could be parsed")
+        return
     schema_revision = _revision_to_schema(db_revision)
 
     tasks: List[schemas.TaskCreate] = await engine.get_workflow_tasks(

@@ -70,7 +70,7 @@ class Workflow(Base):
     title: Mapped[str] = mapped_column(String, index=True)
     workflow_engine: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     removed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 

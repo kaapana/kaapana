@@ -115,6 +115,12 @@ def build(
         envvar="NO_IMAGES_TARBALL",
         help="Skip the (large) platform images tarball. Use when targets pull these images from the registry instead of a true air-gap import.",
     ),
+    offline_image_platform: Optional[str] = typer.Option(
+        None,
+        "--offline-image-platform",
+        envvar="OFFLINE_IMAGE_PLATFORM",
+        help="Container image platform for offline installer tarballs, e.g. linux/amd64 or linux/arm64. Defaults to the build host platform.",
+    ),
     offline_extra_files: List[str] = typer.Option(
         [],
         "--offline-extra-file",
@@ -304,6 +310,7 @@ def build(
         create_offline_installation=create_offline_installation,
         publish_offline_installer=publish_offline_installer,
         no_images_tarball=no_images_tarball,
+        offline_image_platform=offline_image_platform,
         offline_extra_files=offline_extra_files,
         parallel_processes=parallel_processes,
         include_credentials=include_credentials,

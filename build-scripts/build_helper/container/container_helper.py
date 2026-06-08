@@ -199,15 +199,19 @@ class ContainerHelper:
                         exit(1)
 
     @classmethod
-    def pull_container_image(cls, image_tag: str):
+    def pull_container_image(cls, image_tag: str, platform: Optional[str] = None):
         """
         Pull a container image from a remote registry.
 
         Args:
             image_tag (str): Tag of the container image to pull.
+            platform (Optional[str]): Platform for the container image.
         """
 
-        command = [cls._build_config.container_engine, "pull", image_tag]
+        command = [cls._build_config.container_engine, "pull"]
+        if platform:
+            command += ["--platform", platform]
+        command.append(image_tag)
         logger.info(f"{image_tag}: Start pulling container image")
 
         CommandUtils.run(

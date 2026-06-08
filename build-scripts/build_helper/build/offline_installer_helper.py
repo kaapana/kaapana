@@ -1,4 +1,5 @@
 import json
+import platform
 import sys
 import tarfile
 from pathlib import Path
@@ -172,14 +173,15 @@ class OfflineInstallerHelper:
         image_list: list[str],
         images_tarball_path: Path,
         container_engine: str,
+        image_platform: Optional[str] = None,
     ) -> None:
         """Export specified container images into a tarball using the given container engine."""
         logger.info(f"Exporting images to tarball: {images_tarball_path}")
-        command = (
-            [container_engine, "save"]
-            + [i for i in image_list if not i.startswith("local-only")]
-            + ["-o", str(images_tarball_path)]
-        )
+        command = [container_engine, "save"]
+        if image_platform:
+            command += ["--platform", image_platform]
+        command += ["-o", str(images_tarball_path)]
+        command += [i for i in image_list if not i.startswith("local-only")]
         output = run(
             command,
             stdout=PIPE,
@@ -195,6 +197,19 @@ class OfflineInstallerHelper:
                 msg=f"Docker save failed {output.stderr}",
                 level="ERROR",
             )
+
+    @staticmethod
+    def _default_image_platform() -> str:
+        machine = platform.machine().lower()
+        if machine in ("x86_64", "amd64"):
+            return "linux/amd64"
+        if machine in ("aarch64", "arm64"):
+            return "linux/arm64"
+        raise RuntimeError(f"Unsupported offline image architecture: {machine}")
+
+    @classmethod
+    def offline_image_platform(cls) -> str:
+        return cls._build_config.offline_image_platform or cls._default_image_platform()
 
     @staticmethod
     def _offline_extra_target(offline_dir: Path, src: Path, dst: str) -> Path:
@@ -248,6 +263,7 @@ class OfflineInstallerHelper:
             image_list=[c.tag for c in cls._build_state.selected_containers],
             images_tarball_path=images_tarball_path,
             container_engine=cls._build_config.container_engine,
+            image_platform=cls.offline_image_platform(),
         )
         logger.info("Finished: Generating platform images tarball.")
 
@@ -258,7 +274,9 @@ class OfflineInstallerHelper:
         offline_dir.mkdir(parents=True, exist_ok=True)
         build_chart_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.info("Generating Microk8s offline installer...")
+        image_platform = cls.offline_image_platform()
+        (offline_dir / "offline-image-platform").write_text(f"{image_platform}\n")
+        logger.info(f"Generating Microk8s offline installer for {image_platform}...")
 
         # Download snap packages
         snaps = [
@@ -297,13 +315,14 @@ class OfflineInstallerHelper:
         ) as bar:
             for image in microk8s_base_images:
                 bar.text(f"Pull: {image}")
-                ContainerHelper.pull_container_image(image)
+                ContainerHelper.pull_container_image(image, platform=image_platform)
                 bar()
 
         cls.export_image_list_into_tarball(
             microk8s_base_images,
             images_tarball_path,
             container_engine=cls._build_config.container_engine,
+            image_platform=image_platform,
         )
 
         # Copy kaapanactl.sh script
@@ -367,7 +386,7 @@ class OfflineInstallerHelper:
         cls,
         offline_dir: Path,
         version: str,
-        repository: str = "kaapana/offline-installer",
+        repository: str = "offline-installer",
     ) -> Optional[str]:
         """Tar the offline installer dir and publish it as <repo>:<version>."""
         if not offline_dir.is_dir():
@@ -393,8 +412,15 @@ class OfflineInstallerHelper:
             tar.add(offline_dir, arcname=".")  # unpacks straight into the target dir
 
         registry = cls._build_config.default_registry
+        registry_host, _, repository_prefix = registry.partition("/")
         scheme = "http" if cls._build_config.plain_http else "https"
-        url = registry if "://" in registry else f"{scheme}://{registry}"
+        url = (
+            registry_host
+            if "://" in registry_host
+            else f"{scheme}://{registry_host}"
+        )
+        if repository_prefix:
+            repository = f"{repository_prefix}/{repository}"
 
         client = cls._oci_registry_cls()(
             registry_url=url,
@@ -412,7 +438,7 @@ class OfflineInstallerHelper:
             files=[str(tarball)],
         )
 
-        ref = f"{registry}/{repository}:{version}"
+        ref = f"{registry_host}/{repository}:{version}"
         if published:
             logger.info(f"Published offline installer to registry: {ref}")
             return ref

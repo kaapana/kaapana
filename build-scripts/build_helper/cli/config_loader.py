@@ -99,6 +99,11 @@ def parse_args() -> argparse.Namespace:
         default=os.getenv("CREATE_OFFLINE_INSTALLATION", False),
     )
     parser.add_argument(
+        "--offline-image-platform",
+        help="Container image platform for offline installer tarballs, e.g. linux/amd64 or linux/arm64.",
+        default=os.getenv("OFFLINE_IMAGE_PLATFORM", None),
+    )
+    parser.add_argument(
         "-pp",
         "--parallel-processes",
         help="Number of parallel processes for container build + push.",

@@ -59,6 +59,7 @@ class BuildConfig(BaseModel):
     create_offline_installation: bool
     publish_offline_installer: bool = False
     no_images_tarball: bool = False
+    offline_image_platform: Optional[str] = None
     offline_extra_files: List[str] = Field(default_factory=list)
     platform_filter: str
     external_source_dirs: List[Path] = Field(default_factory=list)

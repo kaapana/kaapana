@@ -107,6 +107,7 @@ const sharedDataSources = [
       name: "DicomWebFilter",
       qidoRoot: "https://" + hostname + "/dicom-web-filter",
       wadoRoot: "https://" + hostname + "/dicom-web-filter",
+      stowRoot: "https://" + hostname + "/dicom-web-filter",
       qidoSupportsIncludeField: true,
       supportsReject: true,
       imageRendering: "wadors",
@@ -145,6 +146,7 @@ window.config = {
   investigationalUseDialog: {
     option: "never",
   },
+  allowMultiSelectExport: true,
   // disableConfirmationPrompts: true,
   dataSources: sharedDataSources,
   whiteLabeling: {

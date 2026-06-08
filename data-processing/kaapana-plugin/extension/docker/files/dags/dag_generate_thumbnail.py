@@ -13,8 +13,8 @@ from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperato
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapana.operators.HelperThumbnails import NO_THUMBNAIL_MODALITIES, has_ref_series
 from kaapana.operators.LocalDcmBranchingOperator import LocalDcmBranchingOperator
-from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapanapy.helper import get_minio_client
 from kaapanapy.settings import KaapanaSettings
@@ -49,20 +49,21 @@ dag = DAG(dag_id="generate-thumbnail", default_args=args, schedule_interval=None
 get_dcm_input = GetInputOperator(dag=dag, name="get-dcm-input", data_type="dicom")
 
 
-def has_ref_series(ds) -> bool:
-    modality = str(ds.get("Modality", "")).strip().upper()
-    sop_class_uid = str(ds.get("SOPClassUID", ""))
-
-    return modality in {"SEG", "RTSTRUCT"} or sop_class_uid in {
-        "1.2.840.10008.5.1.4.1.1.66.4",  # Segmentation Storage
-        "1.2.840.10008.5.1.4.1.1.481.3",  # RT Structure Set Storage
-    }
-
+# Modalities without renderable pixel data — skip thumbnail generation entirely
+skip_no_thumbnail = LocalDcmBranchingOperator(
+    dag=dag,
+    name="skip-no-thumbnail",
+    input_operator=get_dcm_input,
+    condition=lambda ds: str(ds.get("Modality", "")).strip().upper()
+    not in NO_THUMBNAIL_MODALITIES,
+    branch_true_operator="has_ref_series",
+    branch_false_operator="clean",
+)
 
 branch_by_has_ref_series = LocalDcmBranchingOperator(
     dag=dag,
     name="has_ref_series",
-    input_operator=get_dcm_input,
+    input_operator=skip_no_thumbnail,
     condition=has_ref_series,
     branch_true_operator="get-ref-series-ct",
     branch_false_operator="generate-thumbnail",
@@ -109,6 +110,9 @@ def upload_thumbnails_into_project_bucket(ds, **kwargs):
 
         thumbnail_dir = Path(batch_element_dir) / generate_thumbnail.operator_out_dir
 
+        if not thumbnail_dir.exists():
+            continue
+
         thumbnails = [f for f in thumbnail_dir.glob("*.png")]
         for thumbnail_path in thumbnails:
             print(Path(thumbnail_path).name)
@@ -137,9 +141,14 @@ put_thumbnail_to_project_bucket = KaapanaPythonBaseOperator(
     dag=dag,
 )
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+clean = LocalWorkflowCleanerOperator(
+    dag=dag,
+    clean_workflow_dir=True,
+    trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
+)
 (
     get_dcm_input
+    >> skip_no_thumbnail
     >> branch_by_has_ref_series
     >> get_ref_ct_series
     >> generate_thumbnail
@@ -147,3 +156,4 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
     >> clean
 )
 (branch_by_has_ref_series >> generate_thumbnail)
+(skip_no_thumbnail >> clean)

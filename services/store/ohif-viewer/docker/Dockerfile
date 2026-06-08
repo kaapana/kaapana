@@ -20,7 +20,7 @@ ENV PUBLIC_URL="/ohif/"
 ENV APP_CONFIG="config/kaapana.js"
 
 COPY files/customization.patch /src/
-RUN git apply customization.patch
+RUN git apply --ignore-whitespace customization.patch
 
 RUN yarn install
 RUN yarn run build

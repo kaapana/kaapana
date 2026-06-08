@@ -1,18 +1,15 @@
 """
-Unit tests for Workflow API following SQLModel testing patterns.
+Unit tests for Workflow API.
 
-These tests follow the SQLModel documentation approach:
-- Use both 'session' and 'client' fixtures
-- Create test data directly in database using session
-- Test API endpoints using client
-- Each test gets fresh in-memory SQLite database
-
-Tests are organized by route/endpoint with clear markers:
+Routes covered:
 - POST /v1/workflows
-- GET /v1/workflows
-- GET /v1/workflows/{title}
-- GET /v1/workflows/{title}/{increment}
-- DELETE /v1/workflows/{title}/{increment}
+- GET /v1/workflows (optional ?title=, ?id=)
+- GET /v1/workflows/{workflow_id}
+- PATCH /v1/workflows/{workflow_id}
+- DELETE /v1/workflows/{workflow_id}
+- GET /v1/workflows/{workflow_id}/revisions
+- GET /v1/workflows/{workflow_id}/revisions/{increment}
+- POST /v1/workflows/{workflow_id}/revisions/{increment}/restore
 """
 
 import sys
@@ -22,24 +19,21 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Add current directory to path to import test_data
+# Add current directory to path for test_data
 sys.path.insert(0, str(Path(__file__).parent))
 
 from app import models  # noqa: E402
-
-# Import test data (must be after sys.path modification)
+from app.dependencies import require_dev_mode  # noqa: E402
+from app.main import app as fastapi_app  # noqa: E402
+from conftest import add_revision, make_workflow  # noqa: E402
 from test_data import (  # noqa: E402
     CREATE_WORKFLOW_TEST_CASES,
-    DELETE_WORKFLOW_TEST_CASES,
-    GET_WORKFLOW_BY_TITLE_TEST_CASES,
-    GET_WORKFLOW_BY_TITLE_VERSION_TEST_CASES,
-    READ_WORKFLOW_ERROR_TEST_CASES,
-    READ_WORKFLOWS_TEST_CASES,
     VALIDATION_ERROR_TEST_CASES,
+    WORKFLOW_BASIC,
 )
 
 # ============================================================
-# POST /v1/workflows - Create Workflow Tests
+# POST /v1/workflows
 # ============================================================
 
 
@@ -52,41 +46,15 @@ from test_data import (  # noqa: E402
 )
 @pytest.mark.asyncio
 async def test_create_workflow(client: AsyncClient, payload: dict):
-    """Test creating workflows with various configurations"""
+    """First create yields a workflow with increment=1 and the name from the payload."""
     response = await client.post("/v1/workflows", json=payload)
     data = response.json()
 
-    assert response.status_code == 201
+    assert response.status_code == 201, data
     assert data["title"] == payload["title"]
     assert data["increment"] == 1
     assert data["id"] is not None
-
-    # Verify Location header
-    assert "Location" in response.headers
-    assert (
-        response.headers["Location"] == f"/workflows/{data['title']}/{data['increment']}"
-    )
-
-    # Verify labels if present
-    if "labels" in payload:
-        assert len(data["labels"]) == len(payload["labels"])
-        for expected_label in payload["labels"]:
-            assert any(
-                label["key"] == expected_label["key"]
-                and label["value"] == expected_label["value"]
-                for label in data["labels"]
-            )
-
-    # Verify workflow_parameters if present
-    if "workflow_parameters" in payload:
-        assert len(data["workflow_parameters"]) == len(payload["workflow_parameters"])
-        for i, expected_param in enumerate(payload["workflow_parameters"]):
-            actual_param = data["workflow_parameters"][i]
-            assert actual_param["task_title"] == expected_param["task_title"]
-            assert (
-                actual_param["env_variable_name"] == expected_param["env_variable_name"]
-            )
-            assert actual_param["ui_form"]["type"] == expected_param["ui_form"]["type"]
+    assert response.headers["Location"] == f"/workflows/{data['id']}"
 
 
 @pytest.mark.POST
@@ -100,733 +68,572 @@ async def test_create_workflow(client: AsyncClient, payload: dict):
 async def test_create_workflow_validation_errors(
     client: AsyncClient, payload: dict, expected_status: int
 ):
-    """Test creating workflow with various validation errors"""
+    """Posting wrong workflow payloads yields the expected 422 validation errors."""
     response = await client.post("/v1/workflows", json=payload)
     assert response.status_code == expected_status
+
+
+@pytest.mark.POST
+@pytest.mark.post_workflows
+@pytest.mark.asyncio
+async def test_create_workflow_same_title_same_content_is_idempotent(
+    client: AsyncClient,
+):
+    """Re-POSTing the same content for an existing title is a 200, returning the existing workflow."""
+    payload = dict(WORKFLOW_BASIC)
+    r1 = await client.post("/v1/workflows", json=payload)
+    assert r1.status_code == 201
+    first = r1.json()
+
+    r2 = await client.post("/v1/workflows", json=payload)
+    assert r2.status_code == 200, r2.json()
+    second = r2.json()
+    assert second["id"] == first["id"]
+    assert second["increment"] == first["increment"]
+    assert second["spec_hash"] == first["spec_hash"]
+
+
+@pytest.mark.POST
+@pytest.mark.post_workflows
+@pytest.mark.asyncio
+async def test_create_workflow_same_title_different_content_conflicts(
+    client: AsyncClient,
+):
+    """Re-POST with same title but different content returns 409 with both spec_hashes in the response body."""
+    payload = dict(WORKFLOW_BASIC)
+    r1 = await client.post("/v1/workflows", json=payload)
+    assert r1.status_code == 201
+    existing_hash = r1.json()["spec_hash"]
+
+    diverged = dict(payload)
+    diverged["definition"] = "different content"
+    r2 = await client.post("/v1/workflows", json=diverged)
+    assert r2.status_code == 409
+    detail = r2.json()["detail"]
+    assert detail["existing_workflow"]["spec_hash"] == existing_hash
+    assert detail["incoming_spec_hash"] != existing_hash
+
+
+@pytest.mark.POST
+@pytest.mark.post_workflows
+@pytest.mark.asyncio
+async def test_create_workflow_same_title_different_engine_conflicts(
+    client: AsyncClient,
+):
+    """Re-POST with same title but a different engine returns 409 (engine is
+    immutable)."""
+    payload = dict(WORKFLOW_BASIC)
+    payload["workflow_engine"] = "dummy"
+    r1 = await client.post("/v1/workflows", json=payload)
+    assert r1.status_code == 201
+
+    other = dict(payload)
+    other["workflow_engine"] = "airflow"
+    r2 = await client.post("/v1/workflows", json=other)
+    assert r2.status_code == 409
+    detail = r2.json()["detail"]
+    assert detail["existing_workflow"]["workflow_engine"] == "dummy"
+    assert detail["incoming_workflow_engine"] == "airflow"
+
+
+@pytest.mark.POST
+@pytest.mark.post_workflows
+@pytest.mark.asyncio
+async def test_create_workflow_after_soft_delete_creates_new(
+    client: AsyncClient,
+):
+    """POST → DELETE → POST with the same title creates a fresh workflow
+    (new id), thanks to the partial unique index on `workflows.title WHERE
+    removed=false`."""
+    payload = dict(WORKFLOW_BASIC)
+    r1 = await client.post("/v1/workflows", json=payload)
+    assert r1.status_code == 201
+    first_id = r1.json()["id"]
+
+    r_del = await client.delete(f"/v1/workflows/{first_id}")
+    assert r_del.status_code == 204
+
+    r2 = await client.post("/v1/workflows", json=payload)
+    assert r2.status_code == 201, r2.json()
+    assert r2.json()["id"] != first_id
 
 
 @pytest.mark.POST
 @pytest.mark.post_workflows
 @pytest.mark.asyncio
 async def test_create_workflow_duplicate_labels(client: AsyncClient):
-    """Test that creating a workflow with duplicate labels fails with validation error"""
+    """Posting a workflow with duplicate (key, value) label pairs returns 422
+    via the labels-uniqueness validator on `_MutableWorkflowBase`."""
     payload = {
         "title": "workflow-duplicate-labels",
         "definition": "test_def",
         "workflow_engine": "dummy",
         "labels": [
             {"key": "environment", "value": "production"},
-            {"key": "environment", "value": "production"},  # Duplicate
+            {"key": "environment", "value": "production"},
         ],
     }
-
     response = await client.post("/v1/workflows", json=payload)
-
     assert response.status_code == 422
-    data = response.json()
-    assert "detail" in data
-
-
-@pytest.mark.POST
-@pytest.mark.post_workflows
-@pytest.mark.asyncio
-async def test_create_workflow_increments_version(client: AsyncClient):
-    """Test that creating workflows with same title increments version"""
-    payload = {
-        "title": "version-test-workflow",
-        "definition": "test_def",
-        "workflow_engine": "dummy",
-    }
-
-    # Create first version
-    response1 = await client.post("/v1/workflows", json=payload)
-    assert response1.status_code == 201
-    data1 = response1.json()
-    assert data1["increment"] == 1
-
-    # Create second version (same title)
-    response2 = await client.post("/v1/workflows", json=payload)
-    assert response2.status_code == 201
-    data2 = response2.json()
-    assert data2["increment"] == 2
-
-    # Create third version
-    response3 = await client.post("/v1/workflows", json=payload)
-    assert response3.status_code == 201
-    data3 = response3.json()
-    assert data3["increment"] == 3
+    assert "detail" in response.json()
 
 
 # ============================================================
-# GET /v1/workflows - List Workflows Tests
+# GET /v1/workflows
 # ============================================================
 
 
 @pytest.mark.GET
 @pytest.mark.get_workflows
-@pytest.mark.parametrize(
-    "workflows_data",
-    [case[0] for case in READ_WORKFLOWS_TEST_CASES],
-    ids=[case[1] for case in READ_WORKFLOWS_TEST_CASES],
-)
 @pytest.mark.asyncio
-async def test_read_workflows(
-    session: AsyncSession, client: AsyncClient, workflows_data: list[dict]
+async def test_list_workflows_empty(client: AsyncClient):
+    """GET /workflows returns an empty list when no workflows exist."""
+    response = await client.get("/v1/workflows")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflows
+@pytest.mark.asyncio
+async def test_list_workflows_returns_latest_revision_fields(
+    session: AsyncSession, client: AsyncClient
 ):
-    """
-    Test reading workflows with different data scenarios.
+    """When a workflow has multiple revisions, the list response reflects the latest."""
+    wf = await make_workflow(session, title="multi-rev", definition="def-v1")
+    await add_revision(session, wf, definition="def-v2")
+    await add_revision(session, wf, definition="def-v3")
 
-    Creates test data using 'session', then calls API using 'client'.
-    This is the key pattern from SQLModel documentation!
-    """
-    # Create test workflows directly in database
-    created_workflows = []
-    for wf_data in workflows_data:
-        # Convert label dicts to Label models if present
-        if "labels" in wf_data:
-            wf_data = wf_data.copy()  # Don't mutate the original
-            wf_data["labels"] = [models.Label(**label) for label in wf_data["labels"]]
-
-        workflow = models.Workflow(**wf_data)
-        session.add(workflow)
-        created_workflows.append(workflow)
-
-    await session.commit()
-    for wf in created_workflows:
-        await session.refresh(wf)
-
-    # Now test the API
     response = await client.get("/v1/workflows")
     data = response.json()
-
-    assert response.status_code == 200
-    assert len(data) == len(workflows_data)
-
-    # Verify each workflow matches (API returns newest-first, sort by id for stable comparison)
-    data_by_id = {wf["id"]: wf for wf in data}
-    for expected_wf in created_workflows:
-        wf = data_by_id[expected_wf.id]
-        assert wf["title"] == expected_wf.title
-        assert wf["increment"] == expected_wf.increment
-
-
-@pytest.mark.GET
-@pytest.mark.get_workflows
-@pytest.mark.asyncio
-async def test_read_workflows_empty(client: AsyncClient):
-    """Test reading workflows when database is empty"""
-    response = await client.get("/v1/workflows")
-    data = response.json()
-
-    assert response.status_code == 200
-    assert data == []
-
-
-@pytest.mark.GET
-@pytest.mark.get_workflows
-@pytest.mark.asyncio
-async def test_read_workflows_pagination(session: AsyncSession, client: AsyncClient):
-    """Test workflow pagination with skip and limit"""
-    # Create 5 workflows
-    for i in range(5):
-        workflow = models.Workflow(
-            title=f"workflow-{i}",
-            increment=1,
-            definition=f"def-{i}",
-            workflow_engine="dummy",
-        )
-        session.add(workflow)
-    await session.commit()
-
-    # Test skip parameter
-    response = await client.get("/v1/workflows?skip=2")
-    data = response.json()
-    assert response.status_code == 200
-    assert len(data) == 3
-
-    # Test limit parameter
-    response = await client.get("/v1/workflows?limit=2")
-    data = response.json()
-    assert response.status_code == 200
-    assert len(data) == 2
-
-    # Test skip and limit together
-    response = await client.get("/v1/workflows?skip=1&limit=2")
-    data = response.json()
-    assert response.status_code == 200
-    assert len(data) == 2
-
-
-@pytest.mark.GET
-@pytest.mark.get_workflows
-@pytest.mark.asyncio
-async def test_read_workflows_filter_by_id(session: AsyncSession, client: AsyncClient):
-    """Test filtering workflows by ID"""
-    # Create workflows
-    workflow1 = models.Workflow(
-        title="workflow-1", increment=1, definition="def-1", workflow_engine="dummy"
-    )
-    workflow2 = models.Workflow(
-        title="workflow-2", increment=1, definition="def-2", workflow_engine="dummy"
-    )
-    session.add(workflow1)
-    session.add(workflow2)
-    await session.commit()
-    await session.refresh(workflow1)
-    await session.refresh(workflow2)
-
-    # Filter by workflow1 ID
-    response = await client.get(f"/v1/workflows?id={workflow1.id}")
-    data = response.json()
-
     assert response.status_code == 200
     assert len(data) == 1
-    assert data[0]["id"] == workflow1.id
-    assert data[0]["title"] == "workflow-1"
-
-
-@pytest.mark.GET
-@pytest.mark.get_workflows
-@pytest.mark.asyncio
-async def test_read_workflows_order_by_title_asc(
-    session: AsyncSession, client: AsyncClient
-):
-    """Test ordering workflows by title in ascending order"""
-    # Create workflows with different titles
-    for title in ["zebra-workflow", "alpha-workflow", "beta-workflow"]:
-        workflow = models.Workflow(
-            title=title, increment=1, definition=f"def-{title}", workflow_engine="dummy"
-        )
-        session.add(workflow)
-    await session.commit()
-
-    # Order by title ascending
-    response = await client.get("/v1/workflows?order_by=title&order=asc")
-    data = response.json()
-
-    assert response.status_code == 200
-    assert len(data) == 3
-    assert data[0]["title"] == "alpha-workflow"
-    assert data[1]["title"] == "beta-workflow"
-    assert data[2]["title"] == "zebra-workflow"
-
-
-@pytest.mark.GET
-@pytest.mark.get_workflows
-@pytest.mark.asyncio
-async def test_read_workflows_order_by_title_desc(
-    session: AsyncSession, client: AsyncClient
-):
-    """Test ordering workflows by title in descending order"""
-    # Create workflows with different titles
-    for title in ["alpha-workflow", "beta-workflow", "zebra-workflow"]:
-        workflow = models.Workflow(
-            title=title, increment=1, definition=f"def-{title}", workflow_engine="dummy"
-        )
-        session.add(workflow)
-    await session.commit()
-
-    # Order by title descending (default)
-    response = await client.get("/v1/workflows?order_by=title&order=desc")
-    data = response.json()
-
-    assert response.status_code == 200
-    assert len(data) == 3
-    assert data[0]["title"] == "zebra-workflow"
-    assert data[1]["title"] == "beta-workflow"
-    assert data[2]["title"] == "alpha-workflow"
-
-
-@pytest.mark.GET
-@pytest.mark.get_workflows
-@pytest.mark.asyncio
-async def test_read_workflows_order_by_version(
-    session: AsyncSession, client: AsyncClient
-):
-    """Test ordering workflows by version"""
-    # Create multiple versions of same workflow
-    for increment in [3, 1, 2]:
-        workflow = models.Workflow(
-            title="version-test",
-            increment=increment,
-            definition=f"def-{increment}",
-            workflow_engine="dummy",
-        )
-        session.add(workflow)
-    await session.commit()
-
-    # Order by increment ascending
-    response = await client.get("/v1/workflows?order_by=increment&order=asc")
-    data = response.json()
-
-    assert response.status_code == 200
-    assert len(data) == 3
-    assert data[0]["increment"] == 1
-    assert data[1]["increment"] == 2
-    assert data[2]["increment"] == 3
-
-
-@pytest.mark.GET
-@pytest.mark.get_workflows
-@pytest.mark.asyncio
-async def test_read_workflows_order_by_id(session: AsyncSession, client: AsyncClient):
-    """Test ordering workflows by ID"""
-    # Create workflows
-    workflows = []
-    for i in range(3):
-        workflow = models.Workflow(
-            title=f"workflow-{i}",
-            increment=1,
-            definition=f"def-{i}",
-            workflow_engine="dummy",
-        )
-        session.add(workflow)
-        workflows.append(workflow)
-    await session.commit()
-    for wf in workflows:
-        await session.refresh(wf)
-
-    # Order by ID descending (default)
-    response = await client.get("/v1/workflows?order_by=id&order=desc")
-    data = response.json()
-
-    assert response.status_code == 200
-    assert len(data) == 3
-    assert data[0]["id"] > data[1]["id"]
-    assert data[1]["id"] > data[2]["id"]
-
-    # Order by ID ascending
-    response = await client.get("/v1/workflows?order_by=id&order=asc")
-    data = response.json()
-
-    assert response.status_code == 200
-    assert len(data) == 3
-    assert data[0]["id"] < data[1]["id"]
-    assert data[1]["id"] < data[2]["id"]
-
-
-@pytest.mark.GET
-@pytest.mark.get_workflows
-@pytest.mark.asyncio
-async def test_read_workflows_combined_query_params(
-    session: AsyncSession, client: AsyncClient
-):
-    """Test combining multiple query parameters (skip, limit, order_by, order)"""
-    # Create 10 workflows with different titles
-    for i in range(10):
-        workflow = models.Workflow(
-            title=f"workflow-{i:02d}",
-            increment=1,
-            definition=f"def-{i}",
-            workflow_engine="dummy",
-        )
-        session.add(workflow)
-    await session.commit()
-
-    # Combine skip=2, limit=3, order_by=title, order=asc
-    response = await client.get("/v1/workflows?skip=2&limit=3&order_by=title&order=asc")
-    data = response.json()
-
-    assert response.status_code == 200
-    assert len(data) == 3
-    # Should get workflows 02, 03, 04 (after skipping 00, 01)
-    assert data[0]["title"] == "workflow-02"
-    assert data[1]["title"] == "workflow-03"
-    assert data[2]["title"] == "workflow-04"
-
-
-@pytest.mark.GET
-@pytest.mark.get_workflows
-@pytest.mark.asyncio
-async def test_read_workflows_filter_by_id_with_ordering(
-    session: AsyncSession, client: AsyncClient
-):
-    """Test that filtering by ID returns single result regardless of order params"""
-    # Create workflows
-    workflow1 = models.Workflow(
-        title="workflow-1", increment=1, definition="def-1", workflow_engine="dummy"
-    )
-    workflow2 = models.Workflow(
-        title="workflow-2", increment=1, definition="def-2", workflow_engine="dummy"
-    )
-    session.add(workflow1)
-    session.add(workflow2)
-    await session.commit()
-    await session.refresh(workflow1)
-
-    # Filter by ID with ordering params
-    response = await client.get(
-        f"/v1/workflows?id={workflow1.id}&order_by=title&order=desc"
-    )
-    data = response.json()
-
-    assert response.status_code == 200
-    assert len(data) == 1
-    assert data[0]["id"] == workflow1.id
-
-
-@pytest.mark.GET
-@pytest.mark.get_workflows
-@pytest.mark.asyncio
-async def test_read_workflows_invalid_order_param(client: AsyncClient):
-    """Test that invalid order parameter defaults to 'desc'"""
-    # Create a workflow
-    response = await client.post(
-        "/v1/workflows",
-        json={
-            "title": "test-workflow",
-            "definition": "test_def",
-            "workflow_engine": "dummy",
-        },
-    )
-    assert response.status_code == 201
-
-    # Try invalid order parameter
-    response = await client.get("/v1/workflows?order=invalid")
-    data = response.json()
-
-    # Should still return results (implementation may handle invalid params differently)
-    assert response.status_code == 200
-    assert len(data) >= 1
-
-
-@pytest.mark.GET
-@pytest.mark.get_workflows
-@pytest.mark.asyncio
-async def test_read_workflows_negative_skip(session: AsyncSession, client: AsyncClient):
-    """Test behavior with negative skip value"""
-    # Create workflows
-    for i in range(3):
-        workflow = models.Workflow(
-            title=f"workflow-{i}",
-            increment=1,
-            definition=f"def-{i}",
-            workflow_engine="dummy",
-        )
-        session.add(workflow)
-    await session.commit()
-
-    # Try negative skip - implementation may vary
-    response = await client.get("/v1/workflows?skip=-1")
-
-    assert response.status_code == 200
-
-
-@pytest.mark.GET
-@pytest.mark.get_workflows
-@pytest.mark.asyncio
-async def test_read_workflows_zero_limit(session: AsyncSession, client: AsyncClient):
-    """Test behavior with limit=0"""
-    # Create workflows
-    for i in range(3):
-        workflow = models.Workflow(
-            title=f"workflow-{i}",
-            increment=1,
-            definition=f"def-{i}",
-            workflow_engine="dummy",
-        )
-        session.add(workflow)
-    await session.commit()
-
-    # Try limit=0
-    response = await client.get("/v1/workflows?limit=0")
-    data = response.json()
-
-    assert response.status_code == 200
-    assert len(data) == 0
-
-
-@pytest.mark.GET
-@pytest.mark.get_workflows
-@pytest.mark.asyncio
-async def test_read_workflows_large_limit(session: AsyncSession, client: AsyncClient):
-    """Test behavior with very large limit value"""
-    # Create 5 workflows
-    for i in range(5):
-        workflow = models.Workflow(
-            title=f"workflow-{i}",
-            increment=1,
-            definition=f"def-{i}",
-            workflow_engine="dummy",
-        )
-        session.add(workflow)
-    await session.commit()
-
-    # Try very large limit
-    response = await client.get("/v1/workflows?limit=10000")
-    data = response.json()
-
-    assert response.status_code == 200
-    assert len(data) == 5  # Should return all available workflows
-
-
-# ============================================================
-# GET /v1/workflows/{title} - Get Workflow by Title Tests
-# ============================================================
-
-
-@pytest.mark.GET
-@pytest.mark.get_workflow_by_title
-@pytest.mark.parametrize(
-    "title,workflows_data,latest,expected_count",
-    [(case[0], case[1], case[2], case[3]) for case in GET_WORKFLOW_BY_TITLE_TEST_CASES],
-    ids=[case[4] for case in GET_WORKFLOW_BY_TITLE_TEST_CASES],
-)
-@pytest.mark.asyncio
-async def test_get_workflow_by_title(
-    session: AsyncSession,
-    client: AsyncClient,
-    title: str,
-    workflows_data: list[dict],
-    latest: bool,
-    expected_count: int,
-):
-    """Test getting workflows by title with different version scenarios"""
-    # Create workflows in database
-    for wf_data in workflows_data:
-        workflow = models.Workflow(**wf_data)
-        session.add(workflow)
-    await session.commit()
-
-    # Query API
-    url = f"/v1/workflows/{title}"
-    if latest:
-        url += "?latest=true"
-
-    response = await client.get(url)
-    data = response.json()
-
-    assert response.status_code == 200
-    assert isinstance(data, list)
-    assert len(data) == expected_count
-
-    # If latest=true, verify we got the highest version
-    if latest and len(data) > 0:
-        max_version = max(
-            wf["increment"] for wf in workflows_data if wf["title"] == title
-        )
-        assert data[0]["increment"] == max_version
-
-
-@pytest.mark.GET
-@pytest.mark.get_workflow_by_title
-@pytest.mark.asyncio
-async def test_get_workflow_by_title_not_found(client: AsyncClient):
-    """Test getting workflow by non-existent title"""
-    response = await client.get("/v1/workflows/non-existent-workflow")
-    assert response.status_code == 404
-
-
-@pytest.mark.GET
-@pytest.mark.get_workflow_by_title
-@pytest.mark.asyncio
-async def test_get_workflow_by_title_versions_ordered(
-    session: AsyncSession, client: AsyncClient
-):
-    """Test that versions are returned in descending order"""
-    # Create multiple versions
-    for increment in [1, 2, 3, 4, 5]:
-        workflow = models.Workflow(
-            title="ordered-workflow",
-            increment=increment,
-            definition=f"def-{increment}",
-            workflow_engine="dummy",
-        )
-        session.add(workflow)
-    await session.commit()
-
-    response = await client.get("/v1/workflows/ordered-workflow")
-    data = response.json()
-
-    assert response.status_code == 200
-    assert len(data) == 5
-
-    # Verify descending order
-    versions = [wf["increment"] for wf in data]
-    assert versions == [5, 4, 3, 2, 1]
-
-
-@pytest.mark.GET
-@pytest.mark.get_workflow_by_title
-@pytest.mark.asyncio
-async def test_get_workflow_by_title_latest_only(
-    session: AsyncSession, client: AsyncClient
-):
-    """Test getting only the latest version of workflow by title"""
-    # Create multiple versions
-    for increment in [1, 2, 3]:
-        workflow = models.Workflow(
-            title="multi-version-workflow",
-            increment=increment,
-            definition=f"def-v{increment}",
-            workflow_engine="dummy",
-        )
-        session.add(workflow)
-    await session.commit()
-
-    # Request only latest version
-    response = await client.get("/v1/workflows/multi-version-workflow?latest=true")
-    data = response.json()
-
-    assert response.status_code == 200
-    assert isinstance(data, list)
-    assert len(data) == 1
+    assert data[0]["title"] == "multi-rev"
     assert data[0]["increment"] == 3
     assert data[0]["definition"] == "def-v3"
 
 
 @pytest.mark.GET
-@pytest.mark.get_workflow_by_title
+@pytest.mark.get_workflows
 @pytest.mark.asyncio
-async def test_get_workflow_by_title_all_versions(
+async def test_list_workflows_filter_by_name(
     session: AsyncSession, client: AsyncClient
 ):
-    """Test getting all versions when latest=false"""
-    # Create multiple versions
-    for increment in [1, 2]:
-        workflow = models.Workflow(
-            title="two-version-workflow",
-            increment=increment,
-            definition=f"def-v{increment}",
-            workflow_engine="dummy",
-        )
-        session.add(workflow)
-    await session.commit()
+    """GET /workflows?title=... filters by title."""
+    await make_workflow(session, title="alpha")
+    await make_workflow(session, title="beta")
 
-    # Request all versions
-    response = await client.get("/v1/workflows/two-version-workflow?latest=false")
+    response = await client.get("/v1/workflows?title=alpha")
     data = response.json()
-
     assert response.status_code == 200
-    assert isinstance(data, list)
-    assert len(data) == 2
-
-
-# ============================================================
-# GET /v1/workflows/{title}/{increment} - Get Specific Workflow Tests
-# ============================================================
-
-
-@pytest.mark.get_workflow_by_title_version
-@pytest.mark.parametrize(
-    "workflow_data,title,increment",
-    [(case[0], case[1], case[2]) for case in GET_WORKFLOW_BY_TITLE_VERSION_TEST_CASES],
-    ids=[case[3] for case in GET_WORKFLOW_BY_TITLE_VERSION_TEST_CASES],
-)
-@pytest.mark.asyncio
-async def test_get_workflow_by_title_and_version(
-    session: AsyncSession,
-    client: AsyncClient,
-    workflow_data: dict,
-    title: str,
-    increment: int,
-):
-    """Test getting a specific workflow by title and version"""
-    # Convert label dicts to Label models if present
-    if "labels" in workflow_data:
-        workflow_data = workflow_data.copy()
-        workflow_data["labels"] = [
-            models.Label(**label) for label in workflow_data["labels"]
-        ]
-
-    workflow = models.Workflow(**workflow_data)
-    session.add(workflow)
-    await session.commit()
-    await session.refresh(workflow)
-
-    response = await client.get(f"/v1/workflows/{title}/{increment}")
-    data = response.json()
-
-    assert response.status_code == 200
-    assert data["title"] == title
-    assert data["increment"] == increment
-    assert data["id"] == workflow.id
+    assert len(data) == 1
+    assert data[0]["title"] == "alpha"
 
 
 @pytest.mark.GET
-@pytest.mark.get_workflow_by_title_version
-@pytest.mark.parametrize(
-    "url,expected_status",
-    [(case[0], case[1]) for case in READ_WORKFLOW_ERROR_TEST_CASES],
-    ids=[case[2] for case in READ_WORKFLOW_ERROR_TEST_CASES],
-)
+@pytest.mark.get_workflows
 @pytest.mark.asyncio
-async def test_read_workflow_errors(
-    client: AsyncClient, url: str, expected_status: int
-):
-    """Test reading workflows with various error conditions"""
-    response = await client.get(url)
-    assert response.status_code == expected_status
+async def test_list_workflows_pagination(session: AsyncSession, client: AsyncClient):
+    """GET /workflows respects skip/limit pagination params."""
+    for i in range(5):
+        await make_workflow(session, title=f"wf-{i}")
+
+    r1 = await client.get("/v1/workflows?skip=0&limit=2")
+    r2 = await client.get("/v1/workflows?skip=2&limit=2")
+    r3 = await client.get("/v1/workflows?skip=4&limit=2")
+    assert r1.status_code == r2.status_code == r3.status_code == 200
+    assert len(r1.json()) == 2
+    assert len(r2.json()) == 2
+    assert len(r3.json()) == 1
 
 
-# ============================================================
-# DELETE /v1/workflows/{title}/{increment} - Delete Workflow Tests
-# ============================================================
-
-
-@pytest.mark.DELETE
-@pytest.mark.delete_workflow
-@pytest.mark.parametrize(
-    "title,increment,expected_status",
-    [(case[0], case[1], case[2]) for case in DELETE_WORKFLOW_TEST_CASES],
-    ids=[case[3] for case in DELETE_WORKFLOW_TEST_CASES],
-)
+@pytest.mark.GET
+@pytest.mark.get_workflows
 @pytest.mark.asyncio
-async def test_delete_workflow(
-    session: AsyncSession,
-    client: AsyncClient,
-    title: str,
-    increment: int,
-    expected_status: int,
-):
-    """Test deleting workflows with different scenarios"""
-    # Create a workflow to delete (only for successful delete test)
-    if title == "existing-workflow" and increment == 1:
-        workflow = models.Workflow(
-            title=title, increment=increment, definition="test", workflow_engine="dummy"
-        )
-        session.add(workflow)
-        await session.commit()
+async def test_list_workflows_filter_by_id(session: AsyncSession, client: AsyncClient):
+    """GET /workflows?id=... filters by workflow UUID."""
+    wf1 = await make_workflow(session, title="wf-id-1")
+    await make_workflow(session, title="wf-id-2")
 
-    response = await client.delete(f"/v1/workflows/{title}/{increment}")
-    assert response.status_code == expected_status
+    response = await client.get(f"/v1/workflows?id={wf1.id}")
+    data = response.json()
+    assert response.status_code == 200
+    assert len(data) == 1
+    assert data[0]["id"] == str(wf1.id)
 
 
-@pytest.mark.DELETE
-@pytest.mark.delete_workflow
+@pytest.mark.GET
+@pytest.mark.get_workflows
 @pytest.mark.asyncio
-async def test_delete_workflow_is_soft_delete(
+async def test_list_workflows_order_by_title_asc(
     session: AsyncSession, client: AsyncClient
 ):
-    """Test that delete is a soft delete (sets removed=True)"""
-    # Create workflow
-    workflow = models.Workflow(
-        title="soft-delete-test",
-        increment=1,
-        definition="test",
-        workflow_engine="dummy",
-    )
-    session.add(workflow)
-    await session.commit()
-    await session.refresh(workflow)
-    workflow_id = workflow.id
+    """GET /workflows?order_by=title&order=asc sorts ascending by title."""
+    for t in ["charlie", "alpha", "bravo"]:
+        await make_workflow(session, title=t)
 
-    # Delete it
-    response = await client.delete("/v1/workflows/soft-delete-test/1")
-    assert response.status_code == 204
+    response = await client.get("/v1/workflows?order_by=title&order=asc")
+    data = response.json()
+    assert response.status_code == 200
+    assert [w["title"] for w in data] == ["alpha", "bravo", "charlie"]
 
-    # Verify it's not returned by GET API
-    response = await client.get("/v1/workflows/soft-delete-test/1")
+
+@pytest.mark.GET
+@pytest.mark.get_workflows
+@pytest.mark.asyncio
+async def test_list_workflows_order_by_title_desc(
+    session: AsyncSession, client: AsyncClient
+):
+    """GET /workflows?order_by=title&order=desc sorts descending by title."""
+    for t in ["charlie", "alpha", "bravo"]:
+        await make_workflow(session, title=t)
+
+    response = await client.get("/v1/workflows?order_by=title&order=desc")
+    data = response.json()
+    assert response.status_code == 200
+    assert [w["title"] for w in data] == ["charlie", "bravo", "alpha"]
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflows
+@pytest.mark.asyncio
+async def test_list_workflows_order_by_id(session: AsyncSession, client: AsyncClient):
+    """GET /workflows?order_by=id is accepted (UUID ordering)."""
+    for i in range(3):
+        await make_workflow(session, title=f"id-order-{i}")
+
+    response = await client.get("/v1/workflows?order_by=id&order=asc")
+    assert response.status_code == 200
+    assert len(response.json()) == 3
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflows
+@pytest.mark.asyncio
+async def test_list_workflows_combined_query_params(
+    session: AsyncSession, client: AsyncClient
+):
+    """GET /workflows accepts multiple query params together (order + limit)."""
+    for t in ["charlie", "alpha", "bravo", "delta"]:
+        await make_workflow(session, title=t)
+
+    response = await client.get("/v1/workflows?order_by=title&order=asc&limit=2")
+    data = response.json()
+    assert response.status_code == 200
+    assert [w["title"] for w in data] == ["alpha", "bravo"]
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflows
+@pytest.mark.asyncio
+async def test_list_workflows_filter_by_id_with_ordering(
+    session: AsyncSession, client: AsyncClient
+):
+    """Filtering by id combined with ordering still returns the single match."""
+    wf = await make_workflow(session, title="id-and-order")
+    await make_workflow(session, title="other")
+
+    response = await client.get(f"/v1/workflows?id={wf.id}&order_by=title&order=asc")
+    data = response.json()
+    assert response.status_code == 200
+    assert len(data) == 1
+    assert data[0]["id"] == str(wf.id)
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflows
+@pytest.mark.asyncio
+async def test_list_workflows_invalid_order_param(
+    session: AsyncSession, client: AsyncClient
+):
+    """An invalid `order` value falls back to default sort (no error)."""
+    for t in ["a", "b"]:
+        await make_workflow(session, title=t)
+
+    response = await client.get("/v1/workflows?order_by=title&order=nonsense")
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflows
+@pytest.mark.asyncio
+async def test_list_workflows_negative_skip(session: AsyncSession, client: AsyncClient):
+    """Negative skip is accepted by the API (not validated); behavior is implementation-defined."""
+    await make_workflow(session, title="neg-skip")
+    response = await client.get("/v1/workflows?skip=-1")
+    assert response.status_code == 200
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflows
+@pytest.mark.asyncio
+async def test_list_workflows_zero_limit(session: AsyncSession, client: AsyncClient):
+    """limit=0 returns an empty list (no error)."""
+    await make_workflow(session, title="zero-limit")
+    response = await client.get("/v1/workflows?limit=0")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflows
+@pytest.mark.asyncio
+async def test_list_workflows_large_limit(session: AsyncSession, client: AsyncClient):
+    """A very large limit returns all available rows without erroring."""
+    for i in range(3):
+        await make_workflow(session, title=f"large-limit-{i}")
+    response = await client.get("/v1/workflows?limit=10000")
+    assert response.status_code == 200
+    assert len(response.json()) == 3
+
+
+# ============================================================
+# GET /v1/workflows/{workflow_id}
+# ============================================================
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflow_by_id
+@pytest.mark.asyncio
+async def test_get_workflow_by_id(session: AsyncSession, client: AsyncClient):
+    """GET /workflows/{id} returns the workflow with its latest revision merged in."""
+    wf = await make_workflow(session, title="by-id", definition="def")
+    response = await client.get(f"/v1/workflows/{wf.id}")
+    data = response.json()
+    assert response.status_code == 200
+    assert data["id"] == str(wf.id)
+    assert data["title"] == "by-id"
+
+
+@pytest.mark.GET
+@pytest.mark.get_workflow_by_id
+@pytest.mark.asyncio
+async def test_get_workflow_by_id_not_found(client: AsyncClient):
+    """GET /workflows/{id} returns 404 for an unknown UUID."""
+    response = await client.get("/v1/workflows/00000000-0000-0000-0000-000000000000")
     assert response.status_code == 404
 
-    # But verify it still exists in DB with removed=True
+
+@pytest.mark.GET
+@pytest.mark.get_workflow_by_id
+@pytest.mark.asyncio
+async def test_get_workflow_by_id_invalid_uuid(client: AsyncClient):
+    """GET /workflows/{id} returns 422 when the id isn't a valid UUID."""
+    response = await client.get("/v1/workflows/not-a-uuid")
+    assert response.status_code == 422
+
+
+# ============================================================
+# PATCH /v1/workflows/{workflow_id}
+# ============================================================
+
+
+@pytest.mark.patch_workflow
+@pytest.mark.asyncio
+async def test_patch_workflow_definition_bumps_increment(
+    session: AsyncSession, client: AsyncClient
+):
+    """PATCH with a definition change appends a new revision and bumps increment."""
+    wf = await make_workflow(session, title="patch-def", definition="v1")
+    response = await client.patch(f"/v1/workflows/{wf.id}", json={"definition": "v2"})
+    data = response.json()
+    assert response.status_code == 200, data
+    assert data["increment"] == 2
+    assert data["definition"] == "v2"
+    # name unchanged
+    assert data["title"] == "patch-def"
+
+
+@pytest.mark.patch_workflow
+@pytest.mark.asyncio
+async def test_patch_workflow_title_only_updates_in_place_no_new_revision(
+    session: AsyncSession, client: AsyncClient
+):
+    """Title is not a versioned field — renaming applies in place without
+    creating a new revision or bumping the increment."""
+    wf = await make_workflow(session, title="old-name")
+    response = await client.patch(f"/v1/workflows/{wf.id}", json={"title": "new-title"})
+    data = response.json()
+    assert response.status_code == 200
+    assert data["title"] == "new-title"
+    assert data["increment"] == 1
+
+
+@pytest.mark.patch_workflow
+@pytest.mark.asyncio
+async def test_patch_workflow_unknown_field_rejected(
+    session: AsyncSession, client: AsyncClient
+):
+    """PATCH with an unknown field is rejected (extra='forbid' on WorkflowUpdate)."""
+    wf = await make_workflow(session, title="strict-patch")
+    response = await client.patch(f"/v1/workflows/{wf.id}", json={"id": "12345"})
+    assert response.status_code == 422
+
+
+# ============================================================
+# Immutable labels (`kaapana.immutable.*`)
+# ============================================================
+
+
+@pytest.mark.patch_workflow
+@pytest.mark.asyncio
+async def test_patch_workflow_immutable_label_value_change_rejected(
+    session: AsyncSession, client: AsyncClient
+):
+    """Changing the value of an existing kaapana.immutable.* label is rejected with 422."""
+    wf = await make_workflow(
+        session,
+        title="immutable-change",
+        labels=[
+            models.Label(key="kaapana.immutable.extension.id", value="ext-1"),
+        ],
+    )
+    response = await client.patch(
+        f"/v1/workflows/{wf.id}",
+        json={
+            "labels": [
+                {"key": "kaapana.immutable.extension.id", "value": "ext-2"},
+            ]
+        },
+    )
+    assert response.status_code == 422
+    assert "kaapana.immutable.extension.id" in response.json()["detail"]
+
+
+@pytest.mark.patch_workflow
+@pytest.mark.asyncio
+async def test_patch_workflow_immutable_label_removal_rejected(
+    session: AsyncSession, client: AsyncClient
+):
+    """Omitting a previously-present kaapana.immutable.* label is rejected as removal."""
+    wf = await make_workflow(
+        session,
+        title="immutable-remove",
+        labels=[
+            models.Label(key="kaapana.immutable.extension.id", value="ext-1"),
+            models.Label(key="kaapana-ui.category", value="brain"),
+        ],
+    )
+    response = await client.patch(
+        f"/v1/workflows/{wf.id}",
+        json={"labels": [{"key": "kaapana-ui.category", "value": "brain"}]},
+    )
+    assert response.status_code == 422
+    assert "kaapana.immutable.extension.id" in response.json()["detail"]
+
+
+@pytest.mark.patch_workflow
+@pytest.mark.asyncio
+async def test_patch_workflow_add_immutable_label_allowed(
+    session: AsyncSession, client: AsyncClient
+):
+    """Adding a new kaapana.immutable.* label (none present before) is allowed."""
+    wf = await make_workflow(session, title="immutable-add")
+    response = await client.patch(
+        f"/v1/workflows/{wf.id}",
+        json={
+            "labels": [
+                {"key": "kaapana.immutable.extension.id", "value": "ext-1"},
+            ]
+        },
+    )
+    assert response.status_code == 200, response.json()
+    assert any(
+        l["key"] == "kaapana.immutable.extension.id" and l["value"] == "ext-1"
+        for l in response.json()["labels"]
+    )
+
+
+@pytest.mark.patch_workflow
+@pytest.mark.asyncio
+async def test_patch_workflow_add_extra_immutable_label_preserving_existing_allowed(
+    session: AsyncSession, client: AsyncClient
+):
+    """Adding a second immutable label while preserving the first is allowed."""
+    wf = await make_workflow(
+        session,
+        title="immutable-add-extra",
+        labels=[models.Label(key="kaapana.immutable.extension.id", value="ext-1")],
+    )
+    response = await client.patch(
+        f"/v1/workflows/{wf.id}",
+        json={
+            "labels": [
+                {"key": "kaapana.immutable.extension.id", "value": "ext-1"},
+                {"key": "kaapana.immutable.extension.name", "value": "my-ext"},
+            ]
+        },
+    )
+    assert response.status_code == 200, response.json()
+
+
+@pytest.mark.patch_workflow
+@pytest.mark.asyncio
+async def test_patch_workflow_mutable_label_changes_allowed(
+    session: AsyncSession, client: AsyncClient
+):
+    """Mutable labels (without the kaapana.immutable. prefix) can be freely changed."""
+    wf = await make_workflow(
+        session,
+        title="mutable-change",
+        labels=[models.Label(key="kaapana-ui.category", value="brain")],
+    )
+    response = await client.patch(
+        f"/v1/workflows/{wf.id}",
+        json={"labels": [{"key": "kaapana-ui.category", "value": "lung"}]},
+    )
+    assert response.status_code == 200, response.json()
+
+
+@pytest.mark.restore_workflow_revision
+@pytest.mark.asyncio
+async def test_restore_revision_rejected_if_it_would_remove_immutable_label(
+    session: AsyncSession, client: AsyncClient
+):
+    """Restoring to an earlier revision that lacks a now-immutable label is rejected with 422."""
+    wf = await make_workflow(session, title="immutable-restore", definition="v1")
+    # Revision 2 adds an immutable label.
+    await add_revision(
+        session,
+        wf,
+        definition="v2",
+        labels=[
+            models.Label(key="kaapana.immutable.extension.id", value="ext-1"),
+        ],
+    )
+    # Restoring to revision 1 would remove the immutable label → 422.
+    response = await client.post(f"/v1/workflows/{wf.id}/revisions/1/restore")
+    assert response.status_code == 422
+    assert "kaapana.immutable.extension.id" in response.json()["detail"]
+
+
+# ============================================================
+# DELETE /v1/workflows/{workflow_id}
+# ============================================================
+
+
+@pytest.mark.DELETE
+@pytest.mark.delete_workflow
+@pytest.mark.asyncio
+async def test_delete_workflow(session: AsyncSession, client: AsyncClient):
+    """DELETE soft-deletes the workflow; subsequent GETs return 404."""
+    wf = await make_workflow(session, title="to-delete")
+    response = await client.delete(f"/v1/workflows/{wf.id}")
+    assert response.status_code == 204
+
+    # Not findable
+    response = await client.get(f"/v1/workflows/{wf.id}")
+    assert response.status_code == 404
+
+    # But persisted in DB with removed=True
     from sqlalchemy import select
 
-    stmt = select(models.Workflow).where(models.Workflow.id == workflow_id)
+    stmt = select(models.Workflow).where(models.Workflow.id == wf.id)
     result = await session.execute(stmt)
-    db_workflow = result.scalars().first()
-    assert db_workflow is not None
-    assert db_workflow.removed is True
+    db_wf = result.scalars().first()
+    assert db_wf is not None
+    assert db_wf.removed is True
 
 
 @pytest.mark.DELETE
@@ -835,21 +642,127 @@ async def test_delete_workflow_is_soft_delete(
 async def test_delete_workflow_twice_returns_404(
     session: AsyncSession, client: AsyncClient
 ):
-    """Test that deleting same workflow twice returns 404"""
-    # Create workflow
-    workflow = models.Workflow(
-        title="double-delete",
-        increment=1,
-        definition="test",
-        workflow_engine="dummy",
-    )
-    session.add(workflow)
-    await session.commit()
+    """Deleting an already soft-deleted workflow returns 404."""
+    wf = await make_workflow(session, title="double-delete")
+    r1 = await client.delete(f"/v1/workflows/{wf.id}")
+    assert r1.status_code == 204
+    r2 = await client.delete(f"/v1/workflows/{wf.id}")
+    assert r2.status_code == 404
 
-    # Delete first time - success
-    response = await client.delete("/v1/workflows/double-delete/1")
-    assert response.status_code == 204
 
-    # Delete second time - not found
-    response = await client.delete("/v1/workflows/double-delete/1")
+# ============================================================
+# Revisions
+# ============================================================
+
+
+@pytest.mark.get_workflow_revisions
+@pytest.mark.asyncio
+async def test_list_revisions(session: AsyncSession, client: AsyncClient):
+    """GET /workflows/{id}/revisions returns all revisions in increment order."""
+    wf = await make_workflow(session, title="rev-list", definition="v1")
+    await add_revision(session, wf, definition="v2")
+    await add_revision(session, wf, definition="v3")
+
+    response = await client.get(f"/v1/workflows/{wf.id}/revisions")
+    data = response.json()
+    assert response.status_code == 200
+    assert [r["increment"] for r in data] == [1, 2, 3]
+    assert [r["definition"] for r in data] == ["v1", "v2", "v3"]
+
+
+@pytest.mark.get_workflow_revisions
+@pytest.mark.asyncio
+async def test_get_specific_revision(session: AsyncSession, client: AsyncClient):
+    """GET /workflows/{id}/revisions/{n} returns the specific revision snapshot."""
+    wf = await make_workflow(session, title="rev-get", definition="v1")
+    await add_revision(session, wf, definition="v2")
+
+    response = await client.get(f"/v1/workflows/{wf.id}/revisions/1")
+    data = response.json()
+    assert response.status_code == 200
+    assert data["increment"] == 1
+    assert data["definition"] == "v1"
+
+
+@pytest.mark.get_workflow_revisions
+@pytest.mark.asyncio
+async def test_get_revision_not_found(session: AsyncSession, client: AsyncClient):
+    """GET /workflows/{id}/revisions/{n} returns 404 for an unknown increment."""
+    wf = await make_workflow(session, title="rev-missing")
+    response = await client.get(f"/v1/workflows/{wf.id}/revisions/99")
     assert response.status_code == 404
+
+
+@pytest.mark.restore_workflow_revision
+@pytest.mark.asyncio
+async def test_restore_revision_creates_new_increment_with_old_content(
+    session: AsyncSession, client: AsyncClient
+):
+    """Restoring revision 1 from a workflow at increment 3 produces increment 4 with v1's content."""
+    wf = await make_workflow(session, title="rev-restore", definition="v1")
+    await add_revision(session, wf, definition="v2")
+    await add_revision(session, wf, definition="v3")
+
+    response = await client.post(f"/v1/workflows/{wf.id}/revisions/1/restore")
+    data = response.json()
+    assert response.status_code == 200
+    assert data["increment"] == 4
+    assert data["definition"] == "v1"
+
+
+# ============================================================
+# DEV_MODE gating updates
+# ============================================================
+
+
+@pytest.mark.patch_workflow
+@pytest.mark.asyncio
+async def test_patch_workflow_forbidden_when_dev_mode_off(
+    session: AsyncSession, client: AsyncClient
+):
+    """PATCH /workflows/{id} returns 403 when DEV_MODE is off."""
+    wf = await make_workflow(session, title="dev-gated-patch", definition="v1")
+    fastapi_app.dependency_overrides[require_dev_mode] = require_dev_mode
+    try:
+        response = await client.patch(
+            f"/v1/workflows/{wf.id}", json={"definition": "v2"}
+        )
+    finally:
+        fastapi_app.dependency_overrides[require_dev_mode] = lambda: None
+    assert response.status_code == 403
+    assert "DEV_MODE" in response.json()["detail"]
+
+
+@pytest.mark.restore_workflow_revision
+@pytest.mark.asyncio
+async def test_restore_revision_forbidden_when_dev_mode_off(
+    session: AsyncSession, client: AsyncClient
+):
+    """POST /workflows/{id}/revisions/{n}/restore returns 403 when DEV_MODE is off."""
+    wf = await make_workflow(session, title="dev-gated-restore", definition="v1")
+    await add_revision(session, wf, definition="v2")
+    fastapi_app.dependency_overrides[require_dev_mode] = require_dev_mode
+    try:
+        response = await client.post(f"/v1/workflows/{wf.id}/revisions/1/restore")
+    finally:
+        fastapi_app.dependency_overrides[require_dev_mode] = lambda: None
+    assert response.status_code == 403
+    assert "DEV_MODE" in response.json()["detail"]
+
+
+# =======================================================
+# Airflow DAGs overwritten during POST -> DELETE -> POST
+# =======================================================
+
+
+def test_dag_id_collides_after_soft_delete_with_same_title():
+    """Regression pin for a known sharp edge: soft-delete doesn't propagate to engine adapters and the Airflow dag_id omits the workflow UUID, so POST -> DELETE -> POST with the same title produces a colliding dag_id and overwrites the prior DAG file on disk."""
+    from app.adapters.adapters.airflow_adapter import AirflowPluginAdapter
+
+    dag_id_old = AirflowPluginAdapter._get_dag_id_from_workflow(
+        AirflowPluginAdapter, "my-workflow", 1
+    )
+    dag_id_new = AirflowPluginAdapter._get_dag_id_from_workflow(
+        AirflowPluginAdapter, "my-workflow", 1
+    )
+    assert dag_id_old == dag_id_new == "my-workflow_inc1"

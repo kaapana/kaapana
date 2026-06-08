@@ -57,7 +57,7 @@ async def test_create_and_get_workflows():
 @pytest.mark.asyncio
 async def test_get_workflows_by_title():
     """
-    Ensure GET /workflows/{title} returns latest or all increments
+    Ensure GET /workflows?title=X returns all increments of that title.
     """
     title = f"wf-title-{datetime.now().timestamp()}"
 
@@ -74,35 +74,37 @@ async def test_get_workflows_by_title():
     )
     assert resp2.status_code == 201
 
-    # latest=True should return only newest increment
-    response = await common.get_workflow_by_title(title, params={"latest": True})
+    # all increments for this title
+    response = await common.get_workflows_by_title(title)
+    assert response.status_code == 200
+    workflows = [schemas.Workflow(**wf) for wf in response.json()]
+    assert len(workflows) == 2
+
+    # latest only: order by increment desc, limit 1
+    response = await common.get_workflows_by_title(
+        title, params={"order_by": "increment", "order": "desc", "limit": 1}
+    )
     assert response.status_code == 200
     workflows = [schemas.Workflow(**wf) for wf in response.json()]
     assert len(workflows) == 1
     assert workflows[0].definition == "def-v2"
 
-    # latest=False should return both increments
-    response = await common.get_workflow_by_title(title, params={"latest": False})
-    assert response.status_code == 200
-    workflows = [schemas.Workflow(**wf) for wf in response.json()]
-    assert len(workflows) == 2
-
 
 @pytest.mark.asyncio
-async def test_get_workflow_by_title_increment():
+async def test_get_workflow_by_id():
     """
-    Ensure workflows can be fetched by title+increment.
+    Ensure workflows can be fetched by UUID.
     """
-    title = f"wf-byinc-test-{datetime.now().timestamp()}"
+    title = f"wf-byid-test-{datetime.now().timestamp()}"
     resp1 = await common.create_workflow(
         schemas.WorkflowCreate(
-            title=title, definition="test-by-increment", workflow_engine="Airflow"
+            title=title, definition="test-by-id", workflow_engine="Airflow"
         )
     )
     assert resp1.status_code == 201
     wf1 = schemas.Workflow(**resp1.json())
 
-    resp = await common.get_workflow_by_title_and_increment(wf1.title, wf1.increment)
+    resp = await common.get_workflow_by_id(wf1.id)
     assert resp.status_code == 200
     wf = schemas.Workflow(**resp.json())
     assert wf.id == wf1.id
@@ -123,10 +125,10 @@ async def test_delete_workflow():
     assert resp.status_code == 201
     wf = schemas.Workflow(**resp.json())
 
-    del_resp = await common.delete_workflow(wf.title, wf.increment)
+    del_resp = await common.delete_workflow(wf.id)
     assert del_resp.status_code == 204
 
-    get_resp = await common.get_workflow_by_title_and_increment(wf.title, wf.increment)
+    get_resp = await common.get_workflow_by_id(wf.id)
     assert get_resp.status_code == 404
 
 
@@ -141,7 +143,7 @@ async def test_get_workflow_tasks():
     assert resp1.status_code == 201
     wf1 = schemas.Workflow(**resp1.json())
 
-    resp1 = await common.get_workflow_by_title_and_increment(wf1.title, wf1.increment)
+    resp1 = await common.get_workflow_by_id(wf1.id)
     assert resp1.status_code == 200
     wf = schemas.Workflow(**resp1.json())
     assert wf.id == wf1.id
@@ -149,7 +151,7 @@ async def test_get_workflow_tasks():
 
     # get all tasks of the workflow
     async with httpx.AsyncClient(base_url=API_BASE_URL) as client:
-        resp2 = await client.get(f"/workflows/{wf1.title}/{wf1.increment}/tasks")
+        resp2 = await client.get(f"/workflows/{wf1.id}/tasks")
         assert resp2.status_code == 200
         tasks = resp2.json()
         assert len(tasks) == 2
@@ -163,7 +165,7 @@ async def test_get_workflow_tasks():
 
         # get specific task by title
         resp3 = await client.get(
-            f"/workflows/{wf1.title}/{wf1.increment}/tasks/dummy-task-1"
+            f"/workflows/{wf1.id}/tasks/dummy-task-1"
         )
         assert resp3.status_code == 200
         task = schemas.Task(**resp3.json())
@@ -217,27 +219,27 @@ async def test_soft_delete_hides_workflow_and_other_resources():
 
     # tasks should exist
     async with httpx.AsyncClient(base_url=API_BASE_URL) as client:
-        resp_tasks = await client.get(f"/workflows/{wf.title}/{wf.increment}/tasks")
+        resp_tasks = await client.get(f"/workflows/{wf.id}/tasks")
         assert resp_tasks.status_code == 200
         tasks = resp_tasks.json()
         assert len(tasks) >= 1  # dummy-task-1, dummy-task-2
 
     # delete workflow
-    del_resp = await common.delete_workflow(wf.title, wf.increment)
+    del_resp = await common.delete_workflow(wf.id)
     assert del_resp.status_code == 204
 
     # workflow can not be retrieved anymore
-    get_resp = await common.get_workflow_by_title_and_increment(wf.title, wf.increment)
+    get_resp = await common.get_workflow_by_id(wf.id)
     assert get_resp.status_code == 404
 
     # tasks cannot be retrieved anymore because workflow cannot be resolved
     async with httpx.AsyncClient(base_url=API_BASE_URL) as client:
-        resp_tasks = await client.get(f"/workflows/{wf.title}/{wf.increment}/tasks")
+        resp_tasks = await client.get(f"/workflows/{wf.id}/tasks")
         assert resp_tasks.status_code == 404
 
         # attempting to create a run should fail (no workflow)
         run_payload = {
-            "workflow": {"title": wf.title, "increment": wf.increment},
+            "workflow": {"id": str(wf.id), "increment": wf.increment},
             "labels": [],
             "workflow_parameters": [],
         }

@@ -469,30 +469,30 @@ async def create_generated_workflows_and_runs():
     except Exception:
         all_wfs = []
 
-    # group workflows by title -> available versions
-    wf_map = {}
+    # group workflows by title -> list of (uuid, increment)
+    wf_map: dict[str, list[tuple]] = {}
     for wf in all_wfs:
-        wf_map.setdefault(wf.title, []).append(wf.increment)
+        wf_map.setdefault(wf.title, []).append((wf.id, wf.increment))
 
     titles = list(wf_map.keys())[:10]
     for wf_title in titles:
-        versions = sorted(wf_map.get(wf_title, [1]))
-        # create 1-6 runs distributed across available versions
+        candidates = sorted(wf_map.get(wf_title, []), key=lambda p: p[1])
+        # create 1-6 runs distributed across available increments
         runs_to_create = randint(1, 6)
         for _ in range(runs_to_create):
             async with semaphore:
                 try:
-                    # pick a random existing version for this title
-                    chosen_version = choice(versions)
+                    # pick a random existing (uuid, increment) for this title
+                    chosen_id, chosen_increment = choice(candidates)
                     run_payload = schemas.WorkflowRunCreate(
                         workflow=schemas.WorkflowRef(
-                            title=wf_title, increment=chosen_version
+                            id=chosen_id, increment=chosen_increment
                         ),
                         labels=[],
                         workflow_parameters=PARAMETERS,
                     )
                     await create_workflow_run(run_payload)
-                    print(f"Created run for {wf_title} v{chosen_version}")
+                    print(f"Created run for {wf_title} inc{chosen_increment}")
                 except Exception as e:
                     print(f"Failed to create run for {wf_title}: {e}")
                     traceback.print_exc()
@@ -558,7 +558,7 @@ async def delete_all_workflows():
         response.raise_for_status()
         workflows = [Workflow(**wf) for wf in response.json()]
         for wf in workflows:
-            response = await delete_workflow(title=wf.title, increment=wf.increment)
+            response = await delete_workflow(workflow_id=wf.id)
             response.raise_for_status()
             print(f"DELETED WORKFLOW -> Title: {wf.title}, Version: {wf.increment}")
     except Exception as e:

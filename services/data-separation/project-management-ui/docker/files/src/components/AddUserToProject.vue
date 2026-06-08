@@ -58,6 +58,18 @@
           </template>
         </v-autocomplete>
 
+        <v-btn
+          v-if="isAdmin"
+          size="x-small"
+          variant="text"
+          :color="showSystemUsers ? 'warning' : 'medium-emphasis'"
+          :prepend-icon="showSystemUsers ? 'mdi-robot-off' : 'mdi-robot'"
+          class="mb-2"
+          @click="showSystemUsers = !showSystemUsers; loadAvailableUsers()"
+        >
+          {{ showSystemUsers ? 'Hide System Users' : 'Show System Users' }}
+        </v-btn>
+
         <p v-if="selectedUserIds.length > 0" class="text-body-2 text-medium-emphasis">
           <v-icon size="14" class="mr-1">mdi-information-outline</v-icon>
           {{ selectedUserIds.length }} user{{ selectedUserIds.length > 1 ? 's' : '' }} selected
@@ -67,12 +79,12 @@
       <!-- Role selector -->
       <p class="text-subtitle-2 font-weight-medium mb-2 mt-4">Project Role</p>
       <v-item-group v-model="selectedRole" mandatory class="d-flex flex-column ga-2">
-        <v-item v-for="role in availableRoles" :key="role.value" :value="role.value" v-slot="{ isSelected, toggle }">
+        <v-item v-for="role in availableRoles" :key="role.name" :value="role.name" v-slot="{ isSelected, toggle }">
           <v-card :variant="isSelected ? 'tonal' : 'elevated'" :color="isSelected ? 'primary' : undefined" rounded="lg" class="cursor-pointer" @click="toggle">
             <v-card-text class="d-flex align-center ga-3 pa-4">
-              <v-icon :color="isSelected ? 'primary' : 'medium-emphasis'" :icon="role.icon" size="28" />
+              <v-icon :color="isSelected ? 'primary' : 'medium-emphasis'" :icon="roleIcon(role.name)" size="28" />
               <div class="flex-grow-1">
-                <div class="text-subtitle-2 font-weight-semibold">{{ role.label }}</div>
+                <div class="text-subtitle-2 font-weight-semibold">{{ role.name }}</div>
                 <div class="text-body-2 text-medium-emphasis">{{ role.description }}</div>
               </div>
               <v-icon v-if="isSelected" color="primary">mdi-check-circle</v-icon>
@@ -102,6 +114,16 @@
 import { ref, computed, onMounted } from 'vue';
 import { UserItem, UserRole } from '@/common/types';
 import { aiiApiGet, aiiApiPost, aiiApiPut } from '@/common/services';
+import { isAdminUser, waitForStoreUser } from '@/common/userAccess';
+
+interface Role { id: number; name: string; description: string; }
+
+const ROLE_ICONS: Record<string, string> = {
+  'principal-investigator': 'mdi-shield-account',
+  'scientist': 'mdi-flask-outline',
+  'admin': 'mdi-shield-crown',
+};
+const roleIcon = (name: string) => ROLE_ICONS[name] ?? 'mdi-account-circle';
 
 interface ProjectRef { id?: string; name?: string; }
 
@@ -121,16 +143,16 @@ const emit = defineEmits<{
   (e: 'role-update-failed', rollback: () => void): void;
 }>();
 
-const availableRoles = [
-  { value: 'principal-investigator', label: 'Principal Investigator', description: 'Full control over the project.', icon: 'mdi-shield-account' },
-  { value: 'scientist', label: 'Scientist', description: 'Can use approved software and applications.', icon: 'mdi-flask-outline' },
-];
+const availableRoles = ref<Role[]>([]);
 
 const isSystemUser = (u: UserItem) => {
   const username = (u.username || '').toLowerCase();
   const lastName = (u.last_name || '').toLowerCase();
   return username === 'system' || lastName === 'system' || username.endsWith('-system-user');
 };
+
+const isAdmin = ref(false);
+const showSystemUsers = ref(false);
 
 const availableUsers = ref<UserItem[]>([]);
 const selectedUserIds = ref<string[]>([]);
@@ -151,14 +173,26 @@ const userSearchFilter = (_: string, query: string, item: { raw: UserItem }) => 
 
 const canSubmit = computed(() => selectedRole.value && (isAddMode.value ? selectedUserIds.value.length > 0 : true));
 
-onMounted(async () => { if (isAddMode.value) await loadAvailableUsers(); });
+onMounted(async () => {
+  waitForStoreUser(user => { isAdmin.value = isAdminUser(user); });
+  await loadRoles();
+  if (isAddMode.value) await loadAvailableUsers();
+});
+
+const loadRoles = async () => {
+  try {
+    availableRoles.value = await aiiApiGet('projects/roles');
+  } catch (error) {
+    console.error('Failed to load roles:', error);
+  }
+};
 
 const loadAvailableUsers = async () => {
   if (!props.project?.id) return;
   isLoadingAvailableUsers.value = true;
   try {
     const existingIds = new Set(props.existingUserIds ?? []);
-    availableUsers.value = (await aiiApiGet('users')).filter((u: UserItem) => !existingIds.has(u.id) && !isSystemUser(u));
+    availableUsers.value = (await aiiApiGet('users')).filter((u: UserItem) => !existingIds.has(u.id) && (showSystemUsers.value || !isSystemUser(u)));
   } catch (error) {
     console.error('Failed to load users:', error);
   } finally {

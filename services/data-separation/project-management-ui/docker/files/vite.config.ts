@@ -49,7 +49,7 @@ export default defineConfig(() => ({
     ],
   },
   server: {
-    allowedHosts: ["e230-pc11.inet.dkfz-heidelberg.de"],
+    allowedHosts: ["<hostname>"],
     port: 5174,
     host: true,
     strictPort: true,

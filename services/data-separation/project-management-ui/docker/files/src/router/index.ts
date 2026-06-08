@@ -40,7 +40,7 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory('/projects-ui'),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes,
 })
 

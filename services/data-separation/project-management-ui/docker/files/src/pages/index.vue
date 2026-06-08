@@ -1,5 +1,5 @@
 <template>
-  <v-snackbar v-model="showSnackbar" :timeout="3000" location="top" :color="snackbarColor" elevation="2" closable>
+  <v-snackbar v-model="showSnackbar" :timeout="6000" location="top" :color="snackbarColor" elevation="2">
     {{ snackbarText }}
   </v-snackbar>
   <v-container max-width="1200" class="bg-surface rounded-lg mt-2">
@@ -154,17 +154,17 @@ export default defineComponent({
   computed: {
     tableHeaders(): object[] {
       const base = [
+        { title: 'Short ID', key: 'short_id', sortable: true },
         { title: 'Name', key: 'name', sortable: true },
         { title: 'Description', key: 'description', sortable: false },
       ];
       const adminOnly = [
-        { title: 'Short ID', key: 'short_id', sortable: true },
         { title: 'External ID', key: 'external_id', sortable: true },
       ];
       const view = [{ title: 'View', key: 'view', sortable: false, align: 'center' as const }];
       const actions = [{ title: 'Actions', key: 'actions', sortable: false, align: 'center' as const }];
       return this.userHasAdminAccess
-        ? [...adminOnly.slice(0, 1), ...base, ...adminOnly.slice(1), ...view, ...actions]
+        ? [...base, ...adminOnly, ...view, ...actions]
         : [...base, ...view];
     },
   },

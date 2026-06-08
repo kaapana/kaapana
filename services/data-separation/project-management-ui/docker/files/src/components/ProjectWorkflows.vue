@@ -201,23 +201,30 @@ const discardChanges = () => { pending.value = {}; };
 const saveChanges = async () => {
     if (!props.project?.id) return;
     isSaving.value = true;
+
+    const toAdd = Object.entries(pending.value).filter(([, allow]) => allow).map(([dag]) => ({ software_uuid: dag }));
+    const toRemove = Object.entries(pending.value).filter(([, allow]) => !allow).map(([dag]) => ({ software_uuid: dag }));
+
     let saved = 0, failed = 0;
-    for (const [dagName, allow] of Object.entries(pending.value)) {
+
+    const apply = async (fn: () => Promise<void>, dags: string[], allow: boolean) => {
         try {
-            if (allow) {
-                await aiiApiPost(`projects/${props.project.id}/software-mappings`, [{ software_uuid: dagName }]);
-            } else {
-                await aiiApiDelete(`projects/${props.project.id}/software-mappings`, {}, [{ software_uuid: dagName }]);
-            }
-            // Update committed state
-            const wf = workflows.value.find(w => w.dag_name === dagName);
-            if (wf) wf.inAii = allow;
-            saved++;
+            await fn();
+            dags.forEach(dag => {
+                const wf = workflows.value.find(w => w.dag_name === dag);
+                if (wf) wf.inAii = allow;
+            });
+            saved += dags.length;
         } catch (error: any) {
-            console.error(`Failed to update ${dagName}:`, error);
-            failed++;
+            console.error('Batch update failed:', error);
+            failed += dags.length;
         }
-    }
+    };
+
+    const base = `projects/${props.project.id}/software-mappings`;
+    if (toAdd.length) await apply(() => aiiApiPost(base, toAdd), toAdd.map(x => x.software_uuid), true);
+    if (toRemove.length) await apply(() => aiiApiDelete(base, {}, toRemove), toRemove.map(x => x.software_uuid), false);
+
     pending.value = {};
     isSaving.value = false;
     if (failed > 0) {

@@ -25,6 +25,14 @@ class AiiProjectResponse(OrmBaseModel):
     description: str
     role_id: int
     role_name: str
+    is_archived: bool = False
+
+    @computed_field
+    @property
+    def short_id(self) -> str:
+        if self.name == "admin":
+            return "admin"
+        return self.id.hex[:8]
 
 
 class KeycloakUser(BaseModel):

@@ -1,11 +1,8 @@
 dag_id: "nnunet-training"
-ci_ignore: false
-instance_names:
-  - central
+ci_ignore: true
 conf_data:
   workflow_form:
     input: "SEG"
-    instance_names: "central"
     model: "3d_lowres"
     num_val_batches_per_epoch: 50
     prep_check_integrity: true

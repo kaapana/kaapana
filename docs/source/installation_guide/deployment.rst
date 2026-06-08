@@ -165,6 +165,7 @@ Namespace configurations
      - string
      - Prefix for namespace variables (e.g., ``SERVICES_NAMESPACE``) and suffix for ``FAST_DATA_DIR`` and ``SLOW_DATA_DIR``.
    * - ``PLATFORM_PREFIX``
+     - Required
      - string
      - Prefix used for project namespaces (``<prefix>-project-<short_id>``). Max 46 chars. Set via ``--platform-prefix`` flag, ``PLATFORM_PREFIX`` env var, or the interactive prompt.
    * - ``SERVICES_NAMESPACE``

@@ -7,6 +7,7 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Union
+import time
 
 import pydicom
 import pytz
@@ -47,6 +48,8 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
     DCM_DATETIME_FORMAT = "%Y%m%d%H%M%S.%f"
     DCM_DATE_FORMAT = "%Y%m%d"
     DCM_TIME_FORMAT = "%H%M%S.%f"
+    PACS_LOOKUP_RETRY_COUNT = 3
+    PACS_LOOKUP_RETRY_DELAY_SECONDS = 1
 
     def load_dicom_tag_dict(self):
         # kaapana/services/flow/airflow/docker/files/scripts/dicom_tag_dict.json
@@ -284,7 +287,21 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
         study_uid = str(study_uid_tag.value).strip()
         logger.info("Looking up existing PACS issuer for study %s.", study_uid)
-        archive_issuer = self._get_archive_issuer_of_study(study_uid)
+        try:
+            archive_issuer = self._get_archive_issuer_of_study_with_retry(study_uid)
+        except requests.RequestException as exc:
+            # PACS reconciliation is best-effort. If the archive cannot return
+            # usable metadata, continue with the configured default issuer so
+            # local metadata extraction does not fail for the whole series.
+            logger.warning(
+                "Could not reconcile IssuerOfPatientID from PACS for study %s. "
+                "Falling back to default issuer '%s'. Reason: %s",
+                study_uid,
+                target_issuer,
+                exc,
+            )
+            return target_issuer
+
         if archive_issuer:
             current_issuer = self._get_issuer_of_patient_id(dcm)
             if current_issuer and current_issuer != archive_issuer:
@@ -309,6 +326,46 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             target_issuer,
         )
         return target_issuer
+
+    def _get_archive_issuer_of_study_with_retry(self, study_uid: str) -> str:
+        """Retry PACS issuer lookup when DCMweb returns a transient invalid response.
+
+        Args:
+            study_uid: Study Instance UID used to look up existing instances.
+
+        Returns:
+            str: The resolved issuer from PACS, or an empty string if none is
+            stored for the study.
+
+        Raises:
+            requests.RequestException: Re-raised after the last failed attempt.
+            ValueError: Re-raised immediately for real PACS issuer conflicts.
+        """
+        last_error: requests.RequestException | None = None
+        for attempt in range(1, self.PACS_LOOKUP_RETRY_COUNT + 1):
+            try:
+                return self._get_archive_issuer_of_study(study_uid)
+            except ValueError:
+                raise
+            except requests.RequestException as exc:
+                last_error = exc
+                if attempt == self.PACS_LOOKUP_RETRY_COUNT:
+                    break
+
+                # Retry short-lived PACS or proxy response issues before
+                # falling back to the configured default issuer.
+                logger.warning(
+                    "PACS issuer lookup attempt %s/%s failed for study %s: %s. "
+                    "Retrying in %s second(s).",
+                    attempt,
+                    self.PACS_LOOKUP_RETRY_COUNT,
+                    study_uid,
+                    exc,
+                    self.PACS_LOOKUP_RETRY_DELAY_SECONDS,
+                )
+                time.sleep(self.PACS_LOOKUP_RETRY_DELAY_SECONDS)
+
+        raise last_error
 
     def _get_archive_issuer_of_study(self, study_uid: str) -> str:
         """Fetch the unique issuer used by already stored instances of a study.

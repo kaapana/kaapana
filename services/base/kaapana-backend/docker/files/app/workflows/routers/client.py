@@ -479,9 +479,11 @@ def ui_form_schemas(
                 for ds in db_kaapana_instance.allowed_datasets
             ]
 
-    if len(datasets) > 1:
+    multiple_instances = len(datasets) > 1
+    dataset_names = []
+    if multiple_instances:
         # if multiple instances are selected -> find intersection of their allowed datasets
-        # Only consider project dataests for federated workflow execution
+        # Only consider project datasets for federated workflow execution
 
         all_datasets = [
             {
@@ -532,7 +534,10 @@ def ui_form_schemas(
             and "properties" in form_schemas["data_form"]
             and "dataset_name" in form_schemas["data_form"]["properties"]
         ):
-            if len(dataset_names) < 1:
+            if len(dataset_names) < 1 and multiple_instances:
+                # Only block submission when multiple instances have no common datasets;
+                # for a single instance, an empty dataset list means no datasets exist
+                # in this project yet — let form validation handle the required field.
                 form_schemas["data_form"]["__empty__"] = "true"
             else:
                 form_schemas["data_form"]["properties"]["dataset_name"][

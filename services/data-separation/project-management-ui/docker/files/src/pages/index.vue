@@ -88,7 +88,7 @@
 
   </v-container>
   <v-dialog v-model="projectDialog" max-width="1000">
-    <CreateNewProjectForm :onsuccess="handleProjectCreate" :oncancel="() => (projectDialog = false)" />
+    <CreateNewProjectForm :onsuccess="() => (projectDialog = false)" :oncomplete="handleProjectCreate" :oncancel="() => (projectDialog = false)" />
   </v-dialog>
   <v-dialog v-model="editDialog" max-width="600">
     <EditProjectDialog v-if="selectedProject" :project="selectedProject"

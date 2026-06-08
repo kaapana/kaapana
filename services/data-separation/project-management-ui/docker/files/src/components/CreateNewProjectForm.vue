@@ -1,9 +1,6 @@
 <template>
     <v-card title="Create New Project">
       <template #prepend><v-icon color="primary">mdi-plus-box</v-icon></template>
-        <v-overlay v-model="fetching" class="align-center justify-center" contained>
-            <v-progress-circular color="primary" indeterminate></v-progress-circular>
-        </v-overlay>
 
         <v-card-text>
             <v-container>
@@ -54,13 +51,15 @@ const props = defineProps({
     },
     onsuccess: {
         type: Function,
+    },
+    oncomplete: {
+        type: Function,
     }
 });
 
 const name = ref('');
 const description = ref('');
 const external_id = ref('');
-const fetching = ref(false)
 
 const project_name_rules = ref(projectNameRules);
 
@@ -76,22 +75,18 @@ const valid = computed(() => {
     return (validate_name && (description.value.trim() !== ''));
 })
 
-const submit = async () => {
+const submit = () => {
     const data = {
         "external_id": external_id.value.trim(),
         "name": name.value.trim(),
         "description": description.value.trim()
     }
-    fetching.value = true;
 
-    try {
-        await aiiApiPost(`projects`, data);
-        fetching.value = false;
-        props.onsuccess?.();
-    } catch (error: unknown) {
-        fetching.value = false;
-        props.onsuccess?.(false);       
-    }
+    props.onsuccess?.();
+
+    aiiApiPost(`projects`, data)
+        .then(() => props.oncomplete?.())
+        .catch(() => props.oncomplete?.(false));
 }
 
 const cancel = () => {

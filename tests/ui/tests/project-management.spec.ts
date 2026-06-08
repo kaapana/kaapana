@@ -92,7 +92,7 @@ test.describe('Project Management UI', () => {
     await dialog.getByRole('button', { name: 'Create' }).click();
 
     // Wait for the dialog to close (happens for both success and API error).
-    await expect(dialog).not.toBeVisible({ timeout: 30_000 });
+    await expect(dialog).not.toBeVisible({ timeout: 5_000 });
 
     // When the backend returns an error the table is not auto-refreshed, but
     // the project may still have been created (e.g. the MinIO/K8s setup timed

@@ -261,7 +261,7 @@ spec:
           app.kubernetes.io/name: kaapana-backend
     ports:
     - protocol: TCP
-      port: 5432
+      port: 5000
   - to:
     - namespaceSelector:
         matchLabels:
@@ -272,8 +272,6 @@ spec:
     ports:
     - protocol: TCP
       port: 8080
-    - protocol: TCP
-      port: 5432
 ---
 ### Allow access to airflow-dag-sync-service for init containers syncing DAGs via wget
 apiVersion: networking.k8s.io/v1

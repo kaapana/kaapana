@@ -32,9 +32,15 @@
         mode: "0755"
 
     - name: Execute server installation script
-      ansible.builtin.shell: ./kaapanactl.sh install --quiet 2>&1 | tee server_installation.log
+      ansible.builtin.shell: |
+        set -o pipefail
+        ./kaapanactl.sh install --quiet 2>&1 | tee server_installation.log
       args:
         chdir: "{{ ansible_facts['env']['HOME'] }}"
+        executable: /bin/bash
+      environment:
+        DOCKER_IO_USER: "{{ lookup('ansible.builtin.env', 'DOCKER_IO_USER') }}"
+        DOCKER_IO_PASSWORD: "{{ lookup('ansible.builtin.env', 'DOCKER_IO_PASSWORD') }}"
       register: server_installation_output
       become: yes
       ignore_errors: true

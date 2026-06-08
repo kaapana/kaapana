@@ -3,8 +3,8 @@ set -e  # Exit immediately if a command exits with a non-zero status
 
 export PYTHONPATH="$PWD" 
 
-# Apply all migrations
-# python3 alembic/migrate.py
+# Apply all migrations once here, before launching the (multi-worker) server
+python3 alembic/migrate.py
 
 if [ -z "${DEV_FILES}" ]; then
     # Production

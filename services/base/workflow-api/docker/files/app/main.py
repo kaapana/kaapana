@@ -2,7 +2,6 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from app.api.v1.routers import (
     dummy_adapter_status,
@@ -24,26 +23,9 @@ logger = logging.getLogger(__name__)
 API_VERSION = "v1"
 
 
-def _run_alembic_migrations() -> None:
-    """Run Alembic migrations (stamp + upgrade) to head.
-
-    Delegates to alembic/migrate.py which handles three cases:
-    (1) DB at a known revision, (2) empty DB, (3) tables exist but no
-    alembic_version (legacy `create_all` schema → stamp then upgrade).
-    """
-    import importlib.util
-
-    migrate_path = Path(__file__).resolve().parent.parent / "alembic" / "migrate.py"
-    spec = importlib.util.spec_from_file_location("workflow_api_migrate", migrate_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    module.main()
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: run migrations to head before serving requests.
-    await asyncio.to_thread(_run_alembic_migrations)
+    # Migrations are applied once in boot.sh before the workers start
 
     # Start periodic sync in background without blocking the API
     sync_task = asyncio.create_task(run_sync(interval_seconds=30))
@@ -116,7 +98,6 @@ app.include_router(
 app.include_router(workflows.router, prefix=f"/{API_VERSION}", tags=["workflow"])
 app.include_router(health_check.router, prefix=f"/{API_VERSION}", tags=["health"])
 
-logger.info('test {os.getenv("ENABLE_TEST_ADAPTER", "false")}')
 if os.getenv("ENABLE_TEST_ADAPTER", "false").lower() == "true":
     logger.info("Enabling DummyAdapter test endpoints")
     app.include_router(

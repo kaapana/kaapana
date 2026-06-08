@@ -342,11 +342,23 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
 
         task_form = payload["conf"]["task_form"]
 
+        def _to_env_str(value) -> str:
+            # Env vars must be strings (BaseEnv.value: str); bools lowercased, lists/dicts JSON-encoded.
+            if isinstance(value, str):
+                return value
+            if isinstance(value, bool):
+                return "true" if value else "false"
+            if value is None:
+                return ""
+            if isinstance(value, (int, float)):
+                return str(value)
+            return jsonlib.dumps(value)
+
         def _extract_param(param: schemas.WorkflowParameter):
             task_title = param.task_title
             env_name = param.env_variable_name
             ui_form = param.ui_form
-            value = getattr(ui_form, "default", None)
+            value = _to_env_str(getattr(ui_form, "default", None))
             return task_title, env_name, value
 
         for param in workflow_run.workflow_parameters:

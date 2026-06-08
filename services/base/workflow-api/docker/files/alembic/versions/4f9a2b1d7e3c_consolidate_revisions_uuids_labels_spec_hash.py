@@ -160,14 +160,7 @@ def upgrade() -> None:
         )
         int_to_revision_uuid[w["id"]] = rev_uuid
 
-    # 4. workflow_revisions FK -> workflows.id_new (the column that will become workflows.id).
-    op.create_foreign_key(
-        "workflow_revisions_workflow_id_fkey",
-        "workflow_revisions",
-        "workflows",
-        ["workflow_id"],
-        ["id_new"],
-    )
+    # 4. workflow_revisions
 
     # 5. Repoint tasks: workflow_id (int -> workflows.id) becomes workflow_revision_id (UUID -> workflow_revisions.id).
     op.add_column(
@@ -187,15 +180,12 @@ def upgrade() -> None:
         "workflow_runs",
         sa.Column("workflow_revision_id", postgresql.UUID(as_uuid=True), nullable=True),
     )
-    op.add_column(
-        "workflow_runs",
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            nullable=True,
-        ),
+    # `updated_at` already exists from the initial migration (721d0352a128), only backfill it for legacy rows where it was never populated.
+    bind.execute(
+        sa.text(
+            "UPDATE workflow_runs SET updated_at = created_at WHERE updated_at IS NULL"
+        )
     )
-    bind.execute(sa.text("UPDATE workflow_runs SET updated_at = created_at"))
     for old_int, rev_uuid in int_to_revision_uuid.items():
         bind.execute(
             sa.text(
@@ -255,6 +245,15 @@ def upgrade() -> None:
     )
     op.create_primary_key("workflows_pkey", "workflows", ["id"])
     op.create_index("ix_workflows_id", "workflows", ["id"], unique=False)
+
+    # 9b. Now that workflows.id is the (unique) PK, add the workflow_revisions FK deferred from step 4
+    op.create_foreign_key(
+        "workflow_revisions_workflow_id_fkey",
+        "workflow_revisions",
+        "workflows",
+        ["workflow_id"],
+        ["id"],
+    )
 
     # 10. Add new FKs on the repointed columns (tasks, workflow_runs).
     op.create_foreign_key(

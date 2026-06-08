@@ -334,7 +334,7 @@ class WorkflowRef(BaseModel):
     """Lightweight reference to a Workflow."""
 
     id: uuid.UUID
-    title: str
+    title: Optional[str] = None
     increment: int
 
     model_config = ConfigDict(from_attributes=True)

@@ -28,10 +28,17 @@ def create_query(
 ) -> Select[Any]:
     query: Select[Any] = select(model)
 
-    # Apply eager loading
+    # Apply eager loading. A dotted entry (e.g. "workflow_run.workflow_revision.workflow") is loaded as a nested selectinload chain.
     if eager_load:
         for relation in eager_load:
-            query = query.options(selectinload(getattr(model, relation)))
+            parts = relation.split(".")
+            current_model = model
+            loader = None
+            for part in parts:
+                attr = getattr(current_model, part)
+                loader = loader.selectinload(attr) if loader else selectinload(attr)
+                current_model = attr.property.mapper.class_
+            query = query.options(loader)
 
     # Apply filters
     if filters:
@@ -607,7 +614,7 @@ async def get_task_run(
     query: Select[Any] = create_query(
         model=models.TaskRun,
         filters=filters or {},
-        eager_load=["task", "workflow_run"],
+        eager_load=["task", "workflow_run.workflow_revision.workflow"],
     )
     result = await db.execute(query)
 
@@ -667,10 +674,9 @@ async def create_or_update_task_run(
             raise ValueError(f"WorkflowRun {workflow_run_id} not found")
 
         logger.debug(
-            "workflow_run.id=%s workflow_id=%s workflow.title=%s",
+            "workflow_run.id=%s workflow_revision_id=%s",
             workflow_run.id,
-            workflow_run.workflow_id,
-            workflow_run.workflow.title if workflow_run.workflow else None,
+            workflow_run.workflow_revision_id,
         )
 
         # get task from title
@@ -678,7 +684,7 @@ async def create_or_update_task_run(
             db,
             filters={
                 "title": task_run_update.task_title,
-                "workflow_id": workflow_run.workflow_id,
+                "workflow_revision_id": workflow_run.workflow_revision_id,
             },
         )
         if not db_task:

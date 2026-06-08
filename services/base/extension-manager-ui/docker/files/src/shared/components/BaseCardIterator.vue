@@ -37,8 +37,7 @@ const emit = defineEmits<{
         role="button"
         tabindex="0"
         @click="emit('select', item)"
-        @keydown.enter.prevent="emit('select', item)"
-        @keydown.space.prevent="emit('select', item)"
+        @keydown.enter.space.prevent="emit('select', item)"
       >
         <slot name="cardBody" :item="item" />
       </v-card>

@@ -12,7 +12,7 @@ from task_api.processing_container.common import (
 )
 from task_api.runners.base import BaseRunner
 
-from typing import Optional, Tuple, List
+from typing import Tuple, List
 
 
 def generate_pod_name(base_name: str) -> str:
@@ -79,19 +79,11 @@ def get_volume_and_mounts(
 
 
 def get_container(
-    task_instance: task_models.TaskInstance,
-    volume_mounts: List[client.V1VolumeMount],
-    run_as_user: Optional[int] = None,
-    run_as_group: Optional[int] = None,
+    task_instance: task_models.TaskInstance, volume_mounts: List[client.V1VolumeMount]
 ) -> client.V1Container:
     env_vars = [
         client.V1EnvVar(name=env.name, value=env.value) for env in task_instance.env
     ]
-    security_context = (
-        client.V1SecurityContext(run_as_user=run_as_user, run_as_group=run_as_group)
-        if run_as_user is not None
-        else None
-    )
     return client.V1Container(
         name="main",
         image=task_instance.image,
@@ -103,7 +95,6 @@ def get_container(
             requests=task_instance.resources.requests,
         ),
         image_pull_policy=task_instance.config.imagePullPolicy,
-        security_context=security_context,
     )
 
 
@@ -112,7 +103,7 @@ class KubernetesRunner(BaseRunner):
     api = client.CoreV1Api()
 
     @classmethod
-    def run(cls, task: task_models.Task, dry_run: bool = False, run_as_user: Optional[int] = None, run_as_group: Optional[int] = None):
+    def run(cls, task: task_models.Task, dry_run: bool = False):
         """
         Create and execute a Kubernetes Pod for the given task.
 
@@ -176,10 +167,7 @@ class KubernetesRunner(BaseRunner):
         volume_mounts.extend(task_instance.config.volume_mounts)
         task_instance.resources = compute_memory_resources(task_instance)
         task_container = get_container(
-            task_instance=task_instance,
-            volume_mounts=volume_mounts,
-            run_as_user=run_as_user,
-            run_as_group=run_as_group,
+            task_instance=task_instance, volume_mounts=volume_mounts
         )
         task_container.env = task_container.env + task_instance.config.env_vars
 

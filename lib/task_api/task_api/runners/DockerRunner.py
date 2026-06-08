@@ -1,6 +1,5 @@
 import subprocess
 from pathlib import Path
-from typing import Optional
 import docker
 import sys, os
 import time
@@ -23,7 +22,7 @@ class DockerRunner(BaseRunner):
     client = docker.from_env()
 
     @classmethod
-    def run(cls, task: task_models.Task, user: Optional[str] = None):
+    def run(cls, task: task_models.Task):
         cls._logger.info("Running task in Docker...")
 
         if isinstance(task.taskTemplate, pc_models.TaskTemplate):
@@ -60,7 +59,6 @@ class DockerRunner(BaseRunner):
             detach=True,
             volumes={**input_volumes, **output_volumes},
             mem_limit=memory_limit,
-            user=user,
         )
 
         return task_models.TaskRun(

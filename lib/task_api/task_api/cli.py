@@ -1,5 +1,4 @@
 import json
-import os
 import pickle
 import logging
 from dotenv import load_dotenv
@@ -134,12 +133,6 @@ def run(
         False,
         help="Monitor memory utilization of the processing-container in Docker. Does not work in conjunction with watch!",
     ),
-    run_as_user: Optional[int] = typer.Option(
-        None, help="UID to run the container as. Defaults to image default."
-    ),
-    run_as_group: Optional[int] = typer.Option(
-        None, help="GID to run the container as. Defaults to image default."
-    ),
 ):
     """
     Start a container for a given task.json file
@@ -148,19 +141,14 @@ def run(
     if mode.value == Modes.docker.value:
         from task_api.runners.DockerRunner import DockerRunner
 
-        user = f"{run_as_user}:{run_as_group}" if run_as_user is not None else None
-        task_run = DockerRunner.run(task=parse_task(input), user=user)
         runner = DockerRunner
 
     elif mode.value == Modes.kubernetes.value:
         from task_api.runners.KubernetesRunner import KubernetesRunner
 
-        task_run = KubernetesRunner.run(
-            task=parse_task(input),
-            run_as_user=run_as_user,
-            run_as_group=run_as_group,
-        )
         runner = KubernetesRunner
+    task = parse_task(input)
+    task_run = runner.run(task)
     runner.dump(task_run, output=output)
 
     if watch:

@@ -30,6 +30,7 @@ variables:
   CI_EXEC_BUILD_ARGUMENTS: $CI_EXEC_BUILD_ARGUMENTS
   CI_EXEC_DEPLOY: $CI_EXEC_DEPLOY
   CI_EXEC_DESTROY_ON_SUCCESS: $CI_EXEC_DESTROY_ON_SUCCESS
+  CI_EXEC_DESTROY_DELAYED: $CI_EXEC_DESTROY_DELAYED
   CI_EXEC_DOCKER_PRUNE: $CI_EXEC_DOCKER_PRUNE
   CI_EXEC_INTEGRATION_TESTS: $CI_EXEC_INTEGRATION_TESTS
   CI_EXEC_UNIT_TESTS: $CI_EXEC_UNIT_TESTS  
@@ -474,7 +475,7 @@ setup_integration_tests:
     - |
       source artifacts/deployment.env
       source "$VENV_NAME/bin/activate"
-      python3 -m pytest -n auto -s "$CI_PROJECT_DIR/$PYTEST_FILE" $PYTEST_ARGS \
+      python3 -m pytest -n "${PYTEST_WORKERS:-auto}" -s "$CI_PROJECT_DIR/$PYTEST_FILE" $PYTEST_ARGS \
         --junitxml="$ARTIFACTS_DIR/$JUNIT_FILE" | tee "$ARTIFACTS_DIR/$LOG_FILE"
   artifacts:
     paths:
@@ -555,13 +556,16 @@ destroy_deployment:
   stage: clean
   interruptible: false
   rules:
-    - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN == "" && $CI_EXEC_DESTROY_ON_SUCCESS == "true"'
-      when: on_success
-    - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN == ""'
-      when: on_failure
-    - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN == ""'
+    # Never destroy externally-provided VMs
+    - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
+      when: never
+    # Opt-in delayed destruction (e.g. keep VM alive to inspect after success)
+    - if: '$CI_EXEC_DEPLOY == "true" && $CI_EXEC_DESTROY_DELAYED == "true"'
       when: delayed
       start_in: 4 hours
+    # Default: always destroy (on success and on failure)
+    - if: '$CI_EXEC_DEPLOY == "true"'
+      when: always
     - when: never
   tags:
     - deploy-runner

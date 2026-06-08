@@ -426,16 +426,14 @@ function install_microk8s {
         set -e
 
         if [ -n "${DOCKER_IO_USER:-}" ] && [ -n "${DOCKER_IO_PASSWORD:-}" ]; then
-            echo "${YELLOW}Configuring Docker Hub credentials for containerd ...${NC}"
-            DOCKER_AUTH=$(echo -n "$DOCKER_IO_USER:$DOCKER_IO_PASSWORD" | base64 -w 0)
-            mkdir -p /var/snap/microk8s/current/args/certs.d/registry-1.docker.io
-            cat > /var/snap/microk8s/current/args/certs.d/registry-1.docker.io/hosts.toml << DOCKEREOF
-server = "https://registry-1.docker.io"
+            echo "${YELLOW}Configuring Docker Hub credentials in containerd-template.toml ...${NC}"
+            CONTAINERD_TEMPLATE="/var/snap/microk8s/current/args/containerd-template.toml"
+            sed -i '/\[plugins\."io\.containerd\.grpc\.v1\.cri"\.registry\.configs\."registry-1\.docker\.io"\.auth\]/,/^$/d' "$CONTAINERD_TEMPLATE"
+            cat >> "$CONTAINERD_TEMPLATE" << DOCKEREOF
 
-[host."https://registry-1.docker.io"]
-  capabilities = ["pull", "resolve"]
-  [host."https://registry-1.docker.io".header]
-    authorization = "Basic $DOCKER_AUTH"
+[plugins."io.containerd.grpc.v1.cri".registry.configs."registry-1.docker.io".auth]
+  username = "$DOCKER_IO_USER"
+  password = "$DOCKER_IO_PASSWORD"
 DOCKEREOF
         fi
 

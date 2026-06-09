@@ -1096,10 +1096,23 @@ function install_microk8s {
         insert_text "# microk8s.kubectl --help > /dev/null 2>&1 && source <(microk8s.kubectl completion bash)" $USER_HOME/.bashrc
         set -e
 
+        if [ -n "${DOCKER_IO_USER:-}" ] && [ -n "${DOCKER_IO_PASSWORD:-}" ]; then
+            echo "${YELLOW}Configuring Docker Hub credentials in containerd-template.toml ...${NC}"
+            CONTAINERD_TEMPLATE="/var/snap/microk8s/current/args/containerd-template.toml"
+            # Remove any previous Docker Hub auth block before writing a fresh one
+            sed -i '/\[plugins\."io\.containerd\.grpc\.v1\.cri"\.registry\.configs\."registry-1\.docker\.io"\.auth\]/,/^$/d' "$CONTAINERD_TEMPLATE"
+            cat >> "$CONTAINERD_TEMPLATE" << DOCKEREOF
+
+[plugins."io.containerd.grpc.v1.cri".registry.configs."registry-1.docker.io".auth]
+  username = "$DOCKER_IO_USER"
+  password = "$DOCKER_IO_PASSWORD"
+DOCKEREOF
+        fi
+
         echo "${YELLOW}Starting microk8s${NC}"
         microk8s.start
         echo "${YELLOW}Wait until microk8s is ready ...${NC}"
-        microk8s.status --wait-ready >/dev/null 2>&1
+        timeout 300 microk8s.status --wait-ready
 
         echo "${YELLOW}Enable microk8s RBAC ...${NC}"
         microk8s.enable rbac

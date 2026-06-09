@@ -152,13 +152,11 @@ class KaapanaAuth:
             }
         )
 
-        for _ in range(retries):
-            # use the session and infer the method name from the provided request_type
-            method_name = getattr(request_type, "__name__", "get").lower()
-            func = getattr(self.session, method_name, None)
-            if func is None:
-                # fallback to requests.* function if session doesn't have it
-                func = request_type
+        method_name = getattr(request_type, "__name__", "get").lower()
+        func = getattr(self.session, method_name, None)
+        if func is None:
+            func = request_type
+        for attempt in range(retries):
             r = func(
                 url=f"https://{self.host}/{endpoint}",
                 json=_json,
@@ -170,6 +168,8 @@ class KaapanaAuth:
             )
             if r.status_code < 400:
                 break
+            if attempt < retries - 1:
+                time.sleep(2 ** attempt)  # exponential back-off: 1s, 2s, 4s, 8s
         if raise_for_status:
             r.raise_for_status()
         return r

@@ -53,7 +53,7 @@ function main() {
 }
 
 
-function detect_image_platform() {
+function detect_target_image_platform() {
     # MicroK8s supported platforms are amd64 and arm64: https://canonical.com/microk8s/docs/addons-test
     case "$(uname -m)" in
         x86_64|amd64)
@@ -74,7 +74,7 @@ function offline_image_platform() {
     if [ -f "$platform_file" ]; then
         tr -d '[:space:]' < "$platform_file"
     else
-        detect_image_platform
+        detect_target_image_platform
     fi
 }
 
@@ -1541,7 +1541,7 @@ function clean_up_kubernetes {
 
 function import_container_images_tar {
     echo "${RED}Importing the images from the tar, this might take a long time -> please be patient and wait.${NC}"
-    microk8s.ctr images import --platform "$(detect_ctr_platform)" "$TAR_PATH"
+    microk8s.ctr images import --platform "$(detect_target_image_platform)" "$TAR_PATH"
     echo "${GREEN}Finished image upload! You should now be able to deploy the platform by specifying the chart path.${NC}"
 }
 

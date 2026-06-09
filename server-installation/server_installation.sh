@@ -45,7 +45,7 @@ echo "${YELLOW:-}${BOLD:-}WARNING:${NC:-} server_installation.sh is deprecated a
 echo "${YELLOW:-}${BOLD:-}Please use './kaapanactl install' instead; it accepts the same options as this script.${NC:-}"
 
 
-function detect_ctr_platform() {
+function detect_target_image_platform() {
     # Supported platforms are amd64 and arm64: https://canonical.com/microk8s/docs/addons-test
     case "$(uname -m)" in
         x86_64|amd64)
@@ -66,7 +66,7 @@ function offline_image_platform() {
     if [ -f "$platform_file" ]; then
         tr -d '[:space:]' < "$platform_file"
     else
-        detect_ctr_platform
+        detect_target_image_platform
     fi
 }
 

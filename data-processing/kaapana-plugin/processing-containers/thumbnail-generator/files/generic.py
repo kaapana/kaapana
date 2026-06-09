@@ -11,6 +11,11 @@ import pydicom
 from kaapanapy.logger import get_logger
 from PIL import Image
 
+try:
+    from pydicom.pixel_data_handlers.util import apply_color_lut
+except ImportError:
+    from pydicom.pixels import apply_color_lut
+
 logger = get_logger(__name__)
 
 
@@ -268,51 +273,25 @@ def _convert_palette(dicom_ds: pydicom.FileDataset) -> Image.Image:
     """
     pixel_array = dcm2pixel_array(dicom_ds, 2)
 
-    if "PaletteColorLookupTableData" in dicom_ds:
-        # Apply the palette color LUT if present
-        palette_data = dicom_ds.PaletteColorLookupTableData
-        num_colors = len(palette_data) // 3  # Assuming RGB palette
-
-        # Reshape the palette data into an RGB lookup table
-        rgb_palette = np.array(palette_data, dtype=np.uint8).reshape(num_colors, 3)
-        # Use the pixel array as indices into the palette
-        palette_image = rgb_palette[pixel_array.astype(int)]
-
-        # Convert to Image and apply thumbnail size
-        img = Image.fromarray(palette_image)
-
-    elif (
-        "RedPaletteColorLookupTableData" in dicom_ds
-        and "GreenPaletteColorLookupTableData" in dicom_ds
-        and "BluePaletteColorLookupTableData" in dicom_ds
-    ):
-
-        # Extract the individual color components from the DICOM dataset
-        red_palette_data = dicom_ds.RedPaletteColorLookupTableData
-        green_palette_data = dicom_ds.GreenPaletteColorLookupTableData
-        blue_palette_data = dicom_ds.BluePaletteColorLookupTableData
-
-        num_colors = len(red_palette_data)  # Assuming each component is the same size
-
-        # Reshape each color component into a numpy array (assuming each is 1D)
-        red_palette = np.array(red_palette_data, dtype=np.uint8)
-        green_palette = np.array(green_palette_data, dtype=np.uint8)
-        blue_palette = np.array(blue_palette_data, dtype=np.uint8)
-
-        # Stack the components into an RGB palette
-        rgb_palette = np.stack([red_palette, green_palette, blue_palette], axis=-1)
-
-        # Use the pixel array as indices into the RGB palette
-        palette_image = rgb_palette[pixel_array.astype(int)]
-
-        # Convert to Image and apply thumbnail size
-        img = Image.fromarray(palette_image)
-    else:
+    try:
+        # Let pydicom interpret LUT descriptors and raw OW palette bytes instead of
+        # manually coercing the byte payload into uint8 arrays.
+        palette_image = apply_color_lut(pixel_array, dicom_ds)
+    except Exception:
         logger.warning(
-            "No PaletteColorLookupTableData found in DICOM for PALETTE COLOR."
+            "Failed to apply DICOM palette LUT; falling back to normalized grayscale thumbnail."
         )
-        img = Image.fromarray(pixel_array)
-    return img
+        logger.warning(traceback.format_exc())
+        normalized_pixels = _normalize_pixels(pixel_array.astype(np.float32))
+        return Image.fromarray(normalized_pixels).convert("L")
+
+    if palette_image.dtype != np.uint8:
+        palette_image = (
+            palette_image.astype(np.float32) / max(float(np.max(palette_image)), 1.0)
+        ) * 255.0
+        palette_image = palette_image.astype(np.uint8)
+
+    return Image.fromarray(palette_image)
 
 
 def convert_dicom_to_thumbnail(

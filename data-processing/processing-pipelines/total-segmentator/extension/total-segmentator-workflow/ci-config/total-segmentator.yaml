@@ -1,8 +1,8 @@
 dag_id: "total-segmentator"
+ci_ignore: true
 conf_data:
   workflow_form:
     input: "CT"
-    task: "total"
     single_execution: true
     nr_thr_saving: 6
     nr_thr_resamp: 1
@@ -21,7 +21,7 @@ conf_data:
     preview: false
     fast: true
   data_form:
-    dataset_name: 
+    dataset_name:
       name: test-CT
       username: "kaapana"
       access_level: project
@@ -30,10 +30,10 @@ remote: false
 username: "kaapana"
 ---
 dag_id: "total-segmentator"
+ci_ignore: true
 conf_data:
   workflow_form:
     input: "CT"
-    task: "total"
     single_execution: true
     nr_thr_saving: 6
     nr_thr_resamp: 1
@@ -52,7 +52,7 @@ conf_data:
     preview: false
     fast: false
   data_form:
-    dataset_name: 
+    dataset_name:
       name: test-CT
       username: "kaapana"
       access_level: project

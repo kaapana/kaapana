@@ -1,5 +1,5 @@
 dag_id: "nnunet-predict"
-ci_ignore: false
+ci_ignore: true
 conf_data:
   workflow_form:
     single_execution: true

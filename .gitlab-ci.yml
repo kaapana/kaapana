@@ -30,6 +30,7 @@ variables:
   CI_EXEC_BUILD_ARGUMENTS: $CI_EXEC_BUILD_ARGUMENTS
   CI_EXEC_DEPLOY: $CI_EXEC_DEPLOY
   CI_EXEC_DESTROY_ON_SUCCESS: $CI_EXEC_DESTROY_ON_SUCCESS
+  CI_EXEC_DESTROY_DELAYED: $CI_EXEC_DESTROY_DELAYED
   CI_EXEC_DOCKER_PRUNE: $CI_EXEC_DOCKER_PRUNE
   CI_EXEC_INTEGRATION_TESTS: $CI_EXEC_INTEGRATION_TESTS
   CI_EXEC_UNIT_TESTS: $CI_EXEC_UNIT_TESTS  
@@ -317,6 +318,7 @@ security:
 
 prepare_deployment:
   # Clone repo + Optional: Provision VM
+  interruptible: false
   extends: .remote_execution_template
   rules:
     - if: '$CI_EXEC_DEPLOY == "true"'
@@ -350,6 +352,7 @@ prepare_deployment:
       fi
 
   artifacts:
+    when: always
     reports:
       dotenv: artifacts/deployment.env
 
@@ -474,7 +477,7 @@ setup_integration_tests:
     - |
       source artifacts/deployment.env
       source "$VENV_NAME/bin/activate"
-      python3 -m pytest -n auto -s "$CI_PROJECT_DIR/$PYTEST_FILE" $PYTEST_ARGS \
+      python3 -m pytest -n "${PYTEST_WORKERS:-auto}" -s "$CI_PROJECT_DIR/$PYTEST_FILE" $PYTEST_ARGS \
         --junitxml="$ARTIFACTS_DIR/$JUNIT_FILE" | tee "$ARTIFACTS_DIR/$LOG_FILE"
   artifacts:
     paths:
@@ -512,6 +515,7 @@ install_extensions:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_install_extensions.py"
     JUNIT_FILE: "install_extensions.xml"
     LOG_FILE: "install_extensions.log"
+    PYTEST_WORKERS: "4"
   retry: 1
 
 send_data:
@@ -526,6 +530,7 @@ send_data:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_send_data.py"
     JUNIT_FILE: "send_data.xml"
     LOG_FILE: "send_data.log"
+    PYTEST_WORKERS: "4"
   retry: 1
 
 run_workflows:
@@ -544,6 +549,7 @@ run_workflows:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_run_workflows.py"
     JUNIT_FILE: "run_workflow.xml"
     LOG_FILE: "run_workflow.log"
+    PYTEST_WORKERS: "4"
 
 # #############################################
 # ############## CLEAN ########################
@@ -551,14 +557,21 @@ run_workflows:
 destroy_deployment:
   stage: clean
   interruptible: false
+  timeout: 6 hours
+  needs:
+    - job: prepare_deployment
+      artifacts: true
   rules:
-    - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN == "" && $CI_EXEC_DESTROY_ON_SUCCESS == "true"'
-      when: on_success
-    - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN == ""'
-      when: on_failure
-    - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN == ""'
+    # Never destroy externally-provided VMs
+    - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
+      when: never
+    # Opt-in delayed destruction (e.g. keep VM alive to inspect after success)
+    - if: '$CI_EXEC_DEPLOY == "true" && $CI_EXEC_DESTROY_DELAYED == "true"'
       when: delayed
       start_in: 4 hours
+    # Default: always destroy (on success and on failure)
+    - if: '$CI_EXEC_DEPLOY == "true"'
+      when: always
     - when: never
   tags:
     - deploy-runner
@@ -566,14 +579,7 @@ destroy_deployment:
     - VENV_PATH=$(eval echo "$ORCHESTRATOR_INSTANCE_PYTHON_VENV")
     - source "$VENV_PATH/bin/activate"
   script:
-    - |
-      if [[ "$DEPLOYMENT_INSTANCE_PROVISIONER" == "openstack" ]]; then
-        echo "Deleting VM with OpenStack"
-        ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/delete_openstack_vm.yaml"
-      else
-        echo "Deleting VM with Harvester"
-        ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/delete_harvester_vm.yaml"
-      fi
+    - bash "$CI_PROJECT_DIR/ci/ci-code/clean/wait_and_destroy.sh"
 
 if_ci_failing:
   stage: clean

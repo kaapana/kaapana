@@ -53,7 +53,7 @@ def parse_args(argv=None):
     p.add_argument(
         "--registry-url", required=True, help="e.g. https://registry.example.com"
     )
-    p.add_argument("--repository", default="kaapana/offline-installer")
+    p.add_argument("--repository", default="offline-installer")
     p.add_argument("--tag", required=True, help="Platform version / tag to pull")
     p.add_argument("--target-dir", required=True, type=Path)
     p.add_argument("--username", default=os.environ.get("KAAPANA_REGISTRY_USERNAME"))

@@ -11,9 +11,15 @@ processed_count = 0
 def unzip_file(zip_path, target_path):
     global processed_count
 
-    with zipfile.ZipFile(zip_path, "r") as zip_ref:
-        zip_ref.extractall(target_path)
-    processed_count += 1
+    try:
+        print(f"# Unzipping '{zip_path}' -> '{target_path}'")
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extractall(target_path)
+        processed_count += 1
+        print(f"# Finished unzipping '{zip_path}'")
+    except zipfile.BadZipFile as exc:
+        # Keep batch imports moving when a single upload contains a bad archive.
+        print(f"# WARNING: Skipping invalid zip file '{zip_path}': {exc}")
 
 
 def zip_dir(zip_dir_path, target_file):
@@ -161,7 +167,10 @@ if __name__ == "__main__":
                 print(f"Search dir: {element_input_dir}")
                 zip_files = glob.glob(join(element_input_dir, "*.zip"), recursive=True)
                 print(f"Files found: {zip_files}")
-                for zip_file in zip_files:
+                for zip_index, zip_file in enumerate(zip_files, start=1):
+                    print(
+                        f"# Progress: unzipping file {zip_index}/{len(zip_files)} for batch element '{batch_element_dir}'"
+                    )
                     unzip_file(zip_path=zip_file, target_path=element_output_dir)
 
         else:
@@ -173,8 +182,21 @@ if __name__ == "__main__":
             )
             pathlib.Path(batch_output_dir).mkdir(parents=True, exist_ok=True)
 
+            print(f"Search dir: {batch_input_dir}")
             zip_files = glob.glob(join(batch_input_dir, "*.zip"), recursive=True)
-            for zip_file in zip_files:
+            if len(zip_files) == 0:
+                # Upload workflows place archives below each batch element instead of the batch root.
+                for batch_element_dir in batch_folders:
+                    element_input_dir = join(
+                        batch_element_dir, os.environ["OPERATOR_IN_DIR"]
+                    )
+                    print(f"Search dir: {element_input_dir}")
+                    zip_files.extend(
+                        glob.glob(join(element_input_dir, "*.zip"), recursive=True)
+                    )
+            print(f"Files found: {zip_files}")
+            for zip_index, zip_file in enumerate(zip_files, start=1):
+                print(f"# Progress: unzipping file {zip_index}/{len(zip_files)}")
                 unzip_file(zip_path=zip_file, target_path=batch_output_dir)
 
     else:

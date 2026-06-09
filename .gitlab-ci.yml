@@ -318,6 +318,7 @@ security:
 
 prepare_deployment:
   # Clone repo + Optional: Provision VM
+  interruptible: false
   extends: .remote_execution_template
   rules:
     - if: '$CI_EXEC_DEPLOY == "true"'
@@ -351,6 +352,7 @@ prepare_deployment:
       fi
 
   artifacts:
+    when: always
     reports:
       dotenv: artifacts/deployment.env
 
@@ -555,6 +557,10 @@ run_workflows:
 destroy_deployment:
   stage: clean
   interruptible: false
+  timeout: 6 hours
+  needs:
+    - job: prepare_deployment
+      artifacts: true
   rules:
     # Never destroy externally-provided VMs
     - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
@@ -573,14 +579,7 @@ destroy_deployment:
     - VENV_PATH=$(eval echo "$ORCHESTRATOR_INSTANCE_PYTHON_VENV")
     - source "$VENV_PATH/bin/activate"
   script:
-    - |
-      if [[ "$DEPLOYMENT_INSTANCE_PROVISIONER" == "openstack" ]]; then
-        echo "Deleting VM with OpenStack"
-        ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/delete_openstack_vm.yaml"
-      else
-        echo "Deleting VM with Harvester"
-        ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/delete_harvester_vm.yaml"
-      fi
+    - bash "$CI_PROJECT_DIR/ci/ci-code/clean/wait_and_destroy.sh"
 
 if_ci_failing:
   stage: clean

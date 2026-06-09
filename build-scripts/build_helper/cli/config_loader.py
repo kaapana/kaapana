@@ -275,7 +275,7 @@ def parse_args() -> argparse.Namespace:
         "--cache-from-tag",
         help="Version tag to use as cache source when building each image (e.g. 'latest'). "
         "Each image will pull <registry>/<image>:<cache-from-tag> and use it as --cache-from.",
-        default=os.getenv("CACHE_FROM_TAG", None),
+        default=os.getenv("CACHE_FROM_TAG"),
     )
 
     parser.add_argument(

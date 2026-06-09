@@ -21,7 +21,7 @@ c_handler.setFormatter(c_format)
 logger.addHandler(c_handler)
 
 if "inference" in os.environ["WORKFLOW_NAME"]:
-    WORKFLOW_ID_OF_TRAINING = os.environ["MODEL"].split("/")[0]
+    WORKFLOW_ID_OF_TRAINING = os.environ["TASK_IDS"].split("/")[0]
 
     # Open the file for reading
     with open(

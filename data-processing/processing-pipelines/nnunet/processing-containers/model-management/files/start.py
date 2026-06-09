@@ -78,8 +78,10 @@ def _get_dataset_json(model_path, installed_task):
 
 
 def _get_plans_json(model_path, installed_task):
-    plans_json_path = join(model_path, installed_task, "plans.json")
-    with open(plans_json_path) as f:
+    candidates = glob(join(model_path, installed_task, "**", "plans.json"), recursive=True)
+    if not candidates:
+        raise FileNotFoundError(f"plans.json not found under {join(model_path, installed_task)}")
+    with open(candidates[0]) as f:
         plans_json = json.load(f)
     return plans_json
 
@@ -255,12 +257,13 @@ def install_tasks(target_models_dir):
     sync_models_in_database(installed_tasks)
 
     for name in os.listdir(tmp_models_dir):
-        shutil.move(
-            os.path.join(tmp_models_dir, name), os.path.join(target_models_dir, name)
-        )
-
-        logger.info(os.path.join(tmp_models_dir, name))
-        logger.info(os.path.join(target_models_dir, name))
+        src = os.path.join(tmp_models_dir, name)
+        dst = os.path.join(target_models_dir, name)
+        if os.path.exists(dst):
+            logger.info(f"Removing existing model dir before re-install: {dst}")
+            shutil.rmtree(dst)
+        shutil.move(src, dst)
+        logger.info(f"{src} -> {dst}")
 
     logger.info(f"----> {processed_count} FILES HAVE BEEN PROCESSED!")
 

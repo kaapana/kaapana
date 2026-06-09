@@ -558,6 +558,7 @@ def ui_form_schemas(
                     properties_template=form_schemas["workflow_form"][
                         "properties-template"
                     ],
+                    kind=form_schemas["workflow_form"].get("kind", "nnunet"),
                 )
             )
 
@@ -1028,17 +1029,17 @@ async def sync_installed_models(
 ):
     """Sync installed models (alternative endpoint using PUT semantics)."""
 
-    # 🌟 NEW: Extract the inner dictionary using the key from the client payload
     installed_tasks_data = installed_models_wrapper.get("installed_models", {})
+    kind = installed_models_wrapper.get("kind", "nnunet")
 
-    logging.info(f"installed_tasks received for sync: {installed_tasks_data}")
+    logging.info(f"installed_tasks received for sync (kind={kind}): {installed_tasks_data}")
 
     try:
-        # Pass the extracted inner dictionary
         created, failed = crud.update_installed_models(
             db=db,
             project_id=project.get("id"),
             installed_tasks=installed_tasks_data,
+            kind=kind,
         )
 
         return {

@@ -208,6 +208,7 @@ class InstalledModel(Base):
     # Metadata (less frequently accessed)
     input_mode = Column(String(50), default="all")
     info = Column(String(255), default="N/A")
+    kind = Column(String(50), default="nnunet")
 
     def to_dict(self):
         return {
@@ -227,4 +228,5 @@ class InstalledModel(Base):
             "model_network_trainer": self.model_network_trainer,
             "model_plan": self.model_plan,
             "task_ids": self.task_ids,
+            "kind": self.kind,
         }

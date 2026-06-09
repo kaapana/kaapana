@@ -44,13 +44,14 @@ def registry_url(docker_ip, docker_services):
 
 
 @pytest.fixture
-def client(registry_url):
-    return ExtensionUtilityLibrary(
+async def client(registry_url):
+    async with ExtensionUtilityLibrary(
         registry=registry_url,
         repo=_REPO,
         username=_USER,
         password=_PASSWORD,
-    )
+    ) as lib:
+        yield lib
 
 
 @pytest.fixture
@@ -72,6 +73,7 @@ def ext_dir(tmp_path):
     (charts / "Chart.yaml").write_text("apiVersion: v2\nname: my-ext\n")
     manifest = {
         "name": "my-ext",
+        "id": "aaaaaaaa-0000-0000-0000-000000000001",
         "version": "1.0.0",
         "contents": [
             {
@@ -87,6 +89,6 @@ def ext_dir(tmp_path):
 
 @pytest.fixture
 def ext_archive(ext_dir, tmp_path):
-    archives = ExtensionUtilityLibrary.build(str(ext_dir), output=tmp_path / "build")
+    archives = list(ExtensionUtilityLibrary.build(str(ext_dir), output=tmp_path / "build"))
     assert len(archives) == 1
     return archives[0][1]

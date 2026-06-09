@@ -14,7 +14,7 @@ dependencies = [
     "httpx>=0.25.0",
     "requests>=2.31.0",
     "gitpython>=3.1.0",
-    "kaapana-containers@git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@feature/2161-build-toolchain#subdirectory=lib/kaapana_containers"
+    "kaapana-containers@file:../kaapana_containers"
 ]
 
 [project.optional-dependencies]
@@ -23,6 +23,7 @@ test = [
     "pytest-cov>=6.0",
     "pytest-asyncio>=0.23",
     "pytest-docker>=3.0",
+    "pytest-xdist>=3.0",
 ]
 
 [project.scripts]
@@ -32,6 +33,7 @@ extensionctl = "kaapana_extensions.cli:app"
 where = ["."]
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
 markers = [
     "integration: requires Docker, spins up a local registry:2 container",
 ]

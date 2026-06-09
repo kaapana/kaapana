@@ -142,20 +142,18 @@ task_api_tests:
     reports:
       junit:
         - task_api_report.xml
-extensions_tests:
-  stage: prepare
-  needs:
-  - prepare_pipeline
+        
+kaapana_extensions_tests:
+  extends: .test_template
   script:
-  - python3 -m virtualenv $KAAPANA_DIR/lib/kaapana_extensions/.venv
-  - source $KAAPANA_DIR/lib/kaapana_extensions/.venv/bin/activate
-  - pip install -e "$KAAPANA_DIR/lib/kaapana_extensions[test]"
-  - pip install -e $KAAPANA_DIR/lib/kaapana_containers
-  - pytest $KAAPANA_DIR/lib/kaapana_extensions/tests/ --junitxml=kaapana_extensions_report.xml
+    - pip install -e "$KAAPANA_DIR/lib/kaapana_containers[test]"
+    - pip install -e "$KAAPANA_DIR/lib/kaapana_extensions[test]"
+    - pytest -n auto --asyncio-mode=auto
+        $KAAPANA_DIR/lib/kaapana_containers/tests/
+        $KAAPANA_DIR/lib/kaapana_extensions/tests/
+        --junitxml=kaapana_extensions_report.xml
   artifacts:
     when: always
-    paths:
-    - kaapana_extensions_report.xml
     reports:
       junit:
         - kaapana_extensions_report.xml

@@ -1,5 +1,6 @@
 """Client library for Kaapana OCI Extension Registry."""
 
+import asyncio
 import git
 import io
 import os
@@ -13,11 +14,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from kaapana_containers.registries.registry import OCIRegistryDiscovery
+from kaapana_containers.registries.registry import OCIError, OCIRegistryDiscovery
 
-# Parses: [git+]<URL>[@<ref>][#<subdir>]  (HTTPS and local paths only)
-_SOURCE_RE = re.compile(
-    r"^(?P<git>git\+)?"
+# Pip-style VCS URL: git+URL[@ref][#subdir]
+_PIP_SOURCE_RE = re.compile(
+    r"^git\+"
     r"(?P<url>[^@#]+)"
     r"(?:@(?P<ref>[^#]+))?"
     r"(?:#(?P<subdir>.+))?$"
@@ -52,15 +53,26 @@ class SourceRef:
 
     @classmethod
     def parse(cls, source: str) -> "SourceRef":
-        m = _SOURCE_RE.match(source)
-        if not m:
-            raise ValueError(f"Invalid source reference: {source!r}")
-        return cls(
-            url=m.group("url"),
-            is_git=bool(m.group("git")),
-            ref=m.group("ref") or None,
-            subdir=m.group("subdir") or None,
-        )
+        # Pip-style: git+URL[@ref][#subdir]
+        if source.startswith("git+"):
+            m = _PIP_SOURCE_RE.match(source)
+            if not m:
+                raise ValueError(f"Invalid pip-style source reference: {source!r}")
+            return cls(
+                url=m.group("url"),
+                is_git=True,
+                ref=m.group("ref") or None,
+                subdir=m.group("subdir") or None,
+            )
+
+        if source.startswith(("http://", "https://")):
+            raise ValueError(
+                f"Plain HTTP/HTTPS URLs are not accepted. "
+                f"Use pip-style format: git+{source}"
+            )
+
+        # Local path
+        return cls(url=source, is_git=False)
 
 
 class ExtensionUtilityLibrary:
@@ -87,43 +99,55 @@ class ExtensionUtilityLibrary:
         )
         self.logger = self._manager.logger
 
-    def list_tags(self) -> List[str]:
-        """List all extension tags in the repository."""
-        return self._manager.list_tags()
+    async def __aenter__(self) -> "ExtensionUtilityLibrary":
+        await self._manager.__aenter__()
+        return self
 
-    def get(self, tag: str) -> Dict[str, Any]:
-        """Return the extension manifest for a registry tag."""
-        return self._manager.get(tag)
+    async def __aexit__(self, *args: Any) -> None:
+        await self._manager.__aexit__(*args)
 
-    def get_all_metadata(self, tag: Optional[str] = None) -> List[Tuple[str, Any]]:
-        """Return extension_manifests for all tags, or a specific tag if given."""
-        return self._manager.get_all_metadata(tag)
+    async def check_login(self) -> bool:
+        """Verify that the current credentials are accepted by the registry.
 
-    def get_extension(self, tag: str) -> Dict[str, Any]:
-        """Return the extension manifest for a registry tag."""
-        return self._manager.get(tag)["user_metadata"]["extension_manifest"]
+        Returns:
+            ``True`` on success.
 
-    def get_extensions(self, tag: Optional[str] = None) -> List[Dict[str, Any]]:
+        Raises:
+            OCIError: If the credentials are rejected or the registry is unreachable.
+        """
+        return await self._manager.check_login()
+
+    async def list_tags(self) -> List[str]:
+        """List all extension tags in the repository.
+
+        Raises:
+            OCIError: On any registry error, including ``NAME_UNKNOWN`` when
+                      the repository does not exist yet.
+        """
+        return await self._manager.list_tags()
+
+    async def get(self, tag: str) -> Dict[str, Any]:
+        """Return the full OCI metadata for a registry tag."""
+        return await self._manager.get(tag)
+
+    async def get_all_metadata(self, tag: Optional[str] = None) -> List[Tuple[str, Any]]:
+        """Return OCI metadata for all tags, or a specific tag if given."""
+        return await self._manager.get_all_metadata(tag)
+
+    async def get_extension(self, tag: str) -> Dict[str, Any]:
+        """Return the extension_manifest payload stored under a registry tag."""
+        metadata = await self._manager.get(tag)
+        return metadata["user_metadata"]["extension_manifest"]
+
+    async def get_extensions(self, tag: Optional[str] = None) -> List[Dict[str, Any]]:
         """Return the extension manifests for a tag or for all tags."""
         if tag:
-            return [self.get_extension(tag)]
-        else:
-            return [self.get_extension(t) for t in self.list_tags()]
+            return [await self.get_extension(tag)]
+        return [await self.get_extension(t) for t in await self.list_tags()]
 
-    def delete_tag(self, tag: str) -> bool:
+    async def delete_tag(self, tag: str) -> bool:
         """Delete an extension tag from the registry."""
-        return self._manager.delete_tag(tag)
-
-    def check_login(self) -> bool:
-        """Return True if the current credentials are accepted by the registry."""
-        try:
-            resp = self._manager._request_with_auth_retry(
-                "GET",
-                f"{self._manager.registry_url}/v2/",
-            )
-            return resp.status_code < 400
-        except Exception:
-            return False
+        return await self._manager.delete_tag(tag)
 
     @staticmethod
     def build(
@@ -134,7 +158,8 @@ class ExtensionUtilityLibrary:
         """Build extension(s) from a source, returning ``[(ext_source, archive), ...]``.
 
         Args:
-            source: Local path, ``Path``, or ``git+URL[@ref][#subdir]``.
+            source: Local path, ``Path``, or pip-style VCS URL
+                    ``git+URL[@ref][#subdir]``.
             output: Output directory for archives. Defaults to cwd for git sources,
                     or the extension directory's parent for local sources.
             recursive: Discover all extensions under source, not just the top-level one.
@@ -151,34 +176,34 @@ class ExtensionUtilityLibrary:
                 ext_dir, clone_root, source_ref, recursive
             )
             return [
-                (ext_source, ExtensionUtilityLibrary._build_dir(d, effective_output))
+                (ext_source, ExtensionUtilityLibrary._build_dir(
+                    d, effective_output, require_stable_id=source_ref.is_git
+                ))
                 for d, ext_source in extensions
             ]
         finally:
             if tmpdir:
                 tmpdir.cleanup()
 
-    def pull(self, tag: str, output_dir: Path = Path(".")) -> Path:
+    async def pull(self, tag: str, output_dir: Path = Path(".")) -> Path:
         """Pull an extension from the registry.
 
-        Always saves the archive as <tag>.tar.gz in output_dir.
-
         Returns:
-            Path to the saved archive.
+            Path to the output directory.
+
+        Raises:
+            OCIError: If the tag does not exist or any registry call fails.
         """
         output_dir.mkdir(parents=True, exist_ok=True)
-
-        if not self._manager.download_files(tag, str(output_dir)):
-            raise RuntimeError(f"Failed to download files for tag '{tag}'")
-
-        metadata = self._manager.get(tag)
+        await self._manager.download_files(tag, str(output_dir))
+        metadata = await self._manager.get(tag)
         ext_manifest = metadata.get("user_metadata", {}).get("extension_manifest", {})
         (output_dir / "extension_manifest.json").write_text(
             json.dumps(ext_manifest, indent=2)
         )
         return output_dir
 
-    def push(
+    async def push(
         self,
         ext_path: Path,
         bump: Optional[str] = None,
@@ -230,7 +255,7 @@ class ExtensionUtilityLibrary:
 
             self._validate_extension_files(ext_dir, ext_manifest)
 
-            existing_tags = set(self._manager.list_tags())
+            existing_tags = set(await self.list_tags())
             ext_tag = f"{ext_id}-v{ext_version}"
 
             if ext_tag in existing_tags and not bump and not overwrite:
@@ -277,14 +302,9 @@ class ExtensionUtilityLibrary:
                 "apiVersion": self.API_VERSION,
             }
 
-            saved_dir = os.getcwd()
-            os.chdir(ext_dir)
-            try:
-                success = self._manager.create_or_update_tag(
-                    ext_tag, user_metadata, files=relative_paths
-                )
-            finally:
-                os.chdir(saved_dir)
+            success = await self._manager.create_or_update_tag(
+                ext_tag, user_metadata, files=relative_paths, base_dir=str(ext_dir)
+            )
 
             if not success:
                 raise RuntimeError("Registry push failed")
@@ -292,7 +312,7 @@ class ExtensionUtilityLibrary:
             self.logger.info(f"Pushed extension: {ext_tag}")
             return ext_tag
 
-    def publish(
+    async def publish(
         self,
         source: Union[str, "SourceRef", Path],
         recursive: bool = False,
@@ -302,15 +322,18 @@ class ExtensionUtilityLibrary:
         """Build and push extension(s), returning ``[(ext_source, ext_tag), ...]``.
 
         Args:
-            source: Local path, ``Path``, or ``git+URL[@ref][#subdir]``.
+            source: Local path, ``Path``, or pip-style VCS URL
+                    ``git+URL[@ref][#subdir]``.
             recursive: Publish all extensions found under source.
             bump: Auto-increment version: "major", "minor", or "patch".
             overwrite: Allow overwriting an existing tag.
         """
         with tempfile.TemporaryDirectory() as build_tmp:
-            archives = ExtensionUtilityLibrary.build(source, Path(build_tmp), recursive)
+            archives = await asyncio.to_thread(
+                ExtensionUtilityLibrary.build, source, Path(build_tmp), recursive
+            )
             return [
-                (ext_source, self.push(archive, bump=bump, overwrite=overwrite))
+                (ext_source, await self.push(archive, bump=bump, overwrite=overwrite))
                 for ext_source, archive in archives
             ]
 
@@ -446,10 +469,18 @@ class ExtensionUtilityLibrary:
         return [(ext_dir, str(source.url))]
 
     @staticmethod
-    def _build_dir(source_dir: Path, output: Optional[Path] = None) -> Path:
+    def _build_dir(
+        source_dir: Path,
+        output: Optional[Path] = None,
+        require_stable_id: bool = False,
+    ) -> Path:
         """Build a .tar.gz archive from a single extension directory.
 
-        Assigns a UUID ``id`` to the manifest if one is not already present.
+        For local sources, assigns a UUID ``id`` to the manifest if one is not
+        already present and writes it back so the developer can commit it.
+        For git sources (``require_stable_id=True``), raises if ``id`` is
+        missing — a fresh clone would otherwise produce a different tag every
+        time, silently bypassing duplicate detection.
 
         Returns:
             Path to the created archive (<name>-v<version>.tar.gz).
@@ -464,6 +495,12 @@ class ExtensionUtilityLibrary:
             raise RuntimeError(f"Failed to read manifest: {e}")
 
         if "id" not in manifest:
+            if require_stable_id:
+                raise ValueError(
+                    "extension_manifest.json is missing an 'id' field. "
+                    "Run 'extensionctl build' on a local copy first to generate one, "
+                    "then commit the updated manifest before pushing from a URL."
+                )
             manifest["id"] = str(uuid.uuid4())
             manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
 

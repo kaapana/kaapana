@@ -6,6 +6,7 @@ A Python library and CLI for packaging, publishing, and consuming Kaapana extens
 
 ```bash
 pip install -e lib/kaapana_extensions
+pip install -e lib/kaapana_containers
 ```
 
 The `extensionctl` command is available immediately after installation.
@@ -19,6 +20,7 @@ Every extension directory must contain an `extension_manifest.json` at its root:
 ```json
 {
   "name": "my-extension",
+  "id": "aaaaaaaa-0000-0000-0000-000000000001",
   "version": "1.0.0",
   "contents": [
     {
@@ -29,12 +31,12 @@ Every extension directory must contain an `extension_manifest.json` at its root:
         { "path": "workflow.json" }
       ]
     }
-  ],
-  "dependencies": []
+  ]
 }
 ```
 
-- `name` — unique identifier, alphanumeric plus `-` and `_`.
+- `name` — human-readable identifier, alphanumeric plus `-` and `_`.
+- `id` — stable UUID used to derive the registry tag. Generated automatically on first local `build` and written back into the file — **commit it**. Required before pushing from a URL.
 - `version` — semver string (`MAJOR.MINOR.PATCH`).
 - `contents[].name` — name of the subfolder containing the content files.
 - `contents[].files[].path` — file path **relative to the content subfolder**.
@@ -42,11 +44,11 @@ Every extension directory must contain an `extension_manifest.json` at its root:
 The on-disk layout matching the manifest above:
 
 ```
-example-extension/
+my-extension/
 ├── extension_manifest.json
-└── <content-name>/
-    ├── <content_file>
-    └── <content_file>
+└── my-workflow/
+    ├── workflow_definition.py
+    └── workflow.json
 ```
 
 ---
@@ -58,7 +60,7 @@ All commands that talk to a registry accept `--registry`, `--repo`, `--user`, an
 ### Authentication
 
 ```bash
-# Save credentials (required once before push/pull/publish/list)
+# Save credentials (required once before push/pull/list)
 extensionctl login \
   --registry registry.example.com \
   --repo     kaapana/extensions \
@@ -73,44 +75,44 @@ extensionctl logout    # clear saved credentials
 
 ### `build` — create a `.tar.gz` archive
 
-Packages an extension directory into a distributable archive.  
+Packages an extension directory into a distributable archive.
 The archive name is always derived from the manifest: `<name>-v<version>.tar.gz`.
 
 ```bash
-# Single extension directory → archive next to the source, expects extension_manifest.json in the root of the extension directory
+# Single extension directory
 extensionctl build ./my-extension
 
 # Write to a specific output directory
 extensionctl build ./my-extension --output ./dist/
 
-# All extensions inside a directory tree, searches recursively for extension_manifest.json
+# All extensions in a directory tree
 extensionctl build ./extensions/ --recursive --output ./dist/
 
-# From a remote git repository
-extensionctl build --git https://git.example.com/repo.git --output ./dist/
+# From a remote git repository (Docker URL format: url[#ref[:subdir]])
+extensionctl build https://git.example.com/repo.git
+extensionctl build https://git.example.com/repo.git#main
+extensionctl build https://git.example.com/repo.git#main:my-extension
+extensionctl build https://git.example.com/repo.git#a705abd:my-extension
+extensionctl build https://git.example.com/repo.git#:my-extension    # default branch, subdir only
 
-# Specific branch, tag, or commit hash
-extensionctl build --git https://git.example.com/repo.git \
-  --ref main --output ./dist/
-
-extensionctl build --git https://git.example.com/repo.git \
-  --ref a705abd809993d8b01a6b69adb410c7f4c6bd60c \
-  --output ./dist/
-
-# Extension lives in a subdirectory of the repo
-extensionctl build --git https://git.example.com/repo.git \
-  --subdir extensions/my-extension --output ./dist/
-
-# Every extension in the repo
-extensionctl build --git https://git.example.com/repo.git \
-  --recursive --output ./dist/
+# Build and push in one step
+extensionctl build https://git.example.com/repo.git#main:my-extension --push
+extensionctl build ./my-extension --push --bump patch
+extensionctl build ./my-extension --push --overwrite
 ```
+
+The `#ref:subdir` fragment mirrors the Docker build URL syntax:
+- `ref` — branch name, tag, or commit SHA (empty = default branch)
+- `subdir` — path inside the repo (empty = repo root)
+
+**Note:** pushing from a git URL requires `id` to be present in the committed manifest. Run `extensionctl build` on a local copy first, then commit the updated manifest.
 
 **Output**
 
 ```
   Source:  ./my-extension
   Archive: ./dist/my-extension-v1.0.0.tar.gz
+  Pushed:  aaaaaaaa-0000-0000-0000-000000000001-v1.0.0
 ```
 
 ---
@@ -120,7 +122,6 @@ extensionctl build --git https://git.example.com/repo.git \
 Accepts only `.tar.gz` archives produced by `build`.
 
 ```bash
-# Tag is always derived from the manifest: <name>-v<version>
 extensionctl push ./my-extension-v1.0.0.tar.gz
 
 # Bump patch version before pushing
@@ -130,45 +131,14 @@ extensionctl push ./my-extension-v1.0.0.tar.gz --bump patch
 extensionctl push ./my-extension-v1.0.0.tar.gz --overwrite
 ```
 
----
-
-### `publish` — build and push in one step
-
-`publish` = `build` + `push`.  All options from both commands are available.
-
-```bash
-# From a local directory
-extensionctl publish ./my-extension
-
-# Bump minor version on publish
-extensionctl publish ./my-extension --bump minor
-
-# From a git repo, specific commit
-extensionctl publish --git https://git.example.com/repo.git \
-  --ref a705abd --bump patch
-
-# Every extension in the repo
-extensionctl publish --git https://git.example.com/repo.git \
-  --recursive
-```
-
-**Output**
-
-```
-  Source:    https://git.example.com/repo.git :: my-extension
-  Published: my-extension-v1.2.0
-```
+The registry tag is always `<id>-v<version>` — derived from the manifest inside the archive.
 
 ---
 
-### `pull` — download an extension from the registry
+### `pull` — download extension files from the registry
 
 ```bash
-# Download archive
-extensionctl pull my-extension-v1.0.0 ./downloads/
-
-# Download and extract into a directory
-extensionctl pull my-extension-v1.0.0 ./extracted/ --extract
+extensionctl pull <tag> ./downloads/
 ```
 
 ---
@@ -176,31 +146,26 @@ extensionctl pull my-extension-v1.0.0 ./extracted/ --extract
 ### `list` — list all extension tags
 
 ```bash
-extensionctl list
+extensionctl list           # print one tag per line
+extensionctl list --full    # print full metadata JSON for each tag
 ```
 
 ---
 
-### `validate` — validate a manifest
+### `info` — inspect a tag (debug)
 
 ```bash
-extensionctl validate ./my-extension/
-extensionctl validate ./my-extension/extension_manifest.json
+extensionctl info <tag>    # show config JSON stored for the tag
 ```
 
 ---
 
-### `registry` — low-level registry inspection
-
-These commands bypass the extension abstraction and expose raw OCI objects. Useful for debugging.
+### `delete` — remove a tag from the registry
 
 ```bash
-extensionctl registry info     <tag>     # manifest digest, config digest, layer digests
-extensionctl registry manifest <tag>     # raw OCI manifest JSON
-extensionctl registry config   <tag>     # config blob with resolved file paths
-extensionctl registry blob     <digest>  # raw blob content
-extensionctl registry read     <tag>     # extension manifest + config side-by-side
-extensionctl registry delete   <tag>     # delete a tag
+extensionctl delete <tag>           # delete a single tag
+extensionctl delete --all           # delete all tags (prompts for confirmation)
+extensionctl delete --all --yes     # skip confirmation
 ```
 
 ---
@@ -213,13 +178,16 @@ extensionctl registry delete   <tag>     # delete a tag
 from pathlib import Path
 from kaapana_extensions.extensions import ExtensionUtilityLibrary
 
-# Build-only — no registry credentials needed
-archive = ExtensionUtilityLibrary.build_extension(
-    Path("my-extension"),
+# Build — no registry credentials needed
+# Returns [(source_str, archive_path), ...]
+archives = ExtensionUtilityLibrary.build(
+    "https://git.example.com/repo.git#main:my-extension",
     output=Path("dist/"),
 )
+archives = ExtensionUtilityLibrary.build(Path("my-extension"), output=Path("dist/"))
+archives = ExtensionUtilityLibrary.build(Path("extensions/"), output=Path("dist/"), recursive=True)
 
-# Registry operations
+# Registry client
 lib = ExtensionUtilityLibrary(
     registry="registry.example.com",
     repo="kaapana/extensions",
@@ -228,55 +196,32 @@ lib = ExtensionUtilityLibrary(
 )
 
 # Push
-tag = lib.push(archive)
-tag = lib.push(archive, bump="patch")          # auto-bump version
-tag = lib.push(archive, tag="custom-tag", overwrite=True)
+tag = lib.push(Path("dist/my-extension-v1.0.0.tar.gz"))
+tag = lib.push(Path("dist/my-extension-v1.0.0.tar.gz"), bump="patch")
+tag = lib.push(Path("dist/my-extension-v1.0.0.tar.gz"), overwrite=True)
 
-# Publish from a directory (build + push)
-tag, old_v, new_v = lib.publish_dir(Path("my-extension"), bump="minor")
-
-# Publish from git
-tag, old_v, new_v = lib.publish_from_git(
-    "https://git.example.com/repo.git",
-    ref="main",
-    bump="patch",
-)
+# Build + push in one call
+results = lib.publish("my-extension/", bump="minor")       # [(source, tag), ...]
+results = lib.publish("https://git.example.com/repo.git#main:my-extension")
 
 # Pull
-lib.pull("my-extension-v1.0.0", Path("downloads/"))
-lib.pull("my-extension-v1.0.0", Path("extracted/"), extract=True)
+out = lib.pull("aaaaaaaa-0000-0000-0000-000000000001-v1.0.0", Path("downloads/"))
 
-# Inspect
-tags = lib.list_extensions()
-info = lib.get_extension("my-extension-v1.0.0")
-config = lib.read_extension_config("my-extension-v1.0.0")
+# List / inspect
+tags = lib.list_tags()
+manifest = lib.get_extension(tags[0])          # extension_manifest dict
+manifests = lib.get_extensions()               # list of all manifests
+config = lib.get(tags[0])                      # full registry config blob
+all_meta = lib.get_all_metadata()              # [(tag, config), ...]
 
 # Delete
-lib.delete_extension("my-extension-v1.0.0")
+lib.delete_tag("aaaaaaaa-0000-0000-0000-000000000001-v1.0.0")
 
 # Validate
 ok, errors = ExtensionUtilityLibrary.validate(Path("my-extension/extension_manifest.json"))
 ok, errors = lib.validate_extension(Path("my-extension/"))
-```
 
-### Resolving a source (local path or git URL)
-
-`resolve_source` is a static context manager that transparently handles cloning remote repos into a temporary directory:
-
-```python
-with ExtensionUtilityLibrary.resolve_source(
-    "https://git.example.com/repo.git",
-    ref="main",
-    subdir="extensions/my-extension",
-) as (ext_dir, root_dir):
-    archive = ExtensionUtilityLibrary.build_extension(ext_dir, output=Path("dist/"))
-```
-
-For local paths no cloning happens — `ext_dir` and `root_dir` point directly into the filesystem.
-
-### Version bumping
-
-```python
+# Version bumping
 new_ver = ExtensionUtilityLibrary.bump_version("1.2.3", "patch")  # → "1.2.4"
 new_ver = ExtensionUtilityLibrary.bump_version("1.2.3", "minor")  # → "1.3.0"
 new_ver = ExtensionUtilityLibrary.bump_version("1.2.3", "major")  # → "2.0.0"
@@ -287,6 +232,17 @@ new_ver = ExtensionUtilityLibrary.bump_version("1.2.3", "major")  # → "2.0.0"
 ## Development
 
 ```bash
-pip install -e "lib/kaapana_extensions[dev]"
+pip install -e "lib/kaapana_extensions[test]"
+pip install -e lib/kaapana_containers
+
+# Unit tests only
+pytest lib/kaapana_extensions/tests/ -m "not integration"
+
+# Integration tests (requires Docker)
+pytest lib/kaapana_extensions/tests/ -m integration
+
+# All tests
 pytest lib/kaapana_extensions/tests/
 ```
+
+The integration tests spin up a local `registry:2` container via `pytest-docker`. Set `KAAPANA_TEST_REGISTRY=http://localhost:5001` to point the integration tests at a registry you started manually.

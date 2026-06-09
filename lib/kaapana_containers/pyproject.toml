@@ -17,10 +17,15 @@ dependencies = [
     "typer>=0.16.0",
     "docker>=7.1.0",
     "kubernetes>=25.0.0",
+    "httpx>=0.25.0",
 ]
 
-[tool.poetry.group.dev.dependencies]
+[project.optional-dependencies]
 test = [
-    "pytest>=8.4.1",
-    "pytest-cov>=6.2.1",
+    "pytest>=7.0",
+    "pytest-asyncio>=0.23",
+    "pytest-xdist>=3.0",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

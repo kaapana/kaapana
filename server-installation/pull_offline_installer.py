@@ -2,7 +2,7 @@
 """Pull and unpack the Kaapana offline installer payload from an OCI registry.
 
 Install-target counterpart to ``OfflineInstallerHelper.publish_offline_installer``:
-pulls ``kaapana/offline-installer:<version>`` and unpacks it into the layout that
+pulls ``offline-installer:<version>`` and unpacks it into the layout that
 ``kaapanactl install --offline`` expects -- no Docker daemon required. Credentials
 default to ``$KAAPANA_REGISTRY_USERNAME`` / ``$KAAPANA_REGISTRY_PASSWORD``.
 

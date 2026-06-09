@@ -251,8 +251,8 @@ class OfflineInstallerHelper:
 
     @classmethod
     def export_platform_images_tarball(cls, platform_chart) -> None:
-        if cls._build_config.no_images_tarball:
-            logger.info("Skipping platform images tarball (--no-images-tarball).")
+        if cls._build_config.skip_platform_images_tarball:
+            logger.info("Skipping platform images tarball (--skip-platform-images-tarball).")
             return
 
         images_tarball_path = (

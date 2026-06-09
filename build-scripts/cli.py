@@ -107,12 +107,12 @@ def build(
         False,
         "--publish-offline-installer",
         envvar="PUBLISH_OFFLINE_INSTALLER",
-        help="Also publish the offline installer as 'kaapana/offline-installer:<version>'. Requires --create-offline-installation and registry login.",
+        help="Also publish the offline installer as 'offline-installer:<version>'. Requires --create-offline-installation and registry login.",
     ),
-    no_images_tarball: bool = typer.Option(
+    skip_platform_images_tarball: bool = typer.Option(
         False,
-        "--no-images-tarball",
-        envvar="NO_IMAGES_TARBALL",
+        "--skip-platform-images-tarball",
+        envvar="SKIP_PLATFORM_IMAGES_TARBALL",
         help="Skip the (large) platform images tarball. Use when targets pull these images from the registry instead of a true air-gap import.",
     ),
     offline_image_platform: Optional[str] = typer.Option(
@@ -309,7 +309,7 @@ def build(
         push_to_microk8s=push_to_microk8s,
         create_offline_installation=create_offline_installation,
         publish_offline_installer=publish_offline_installer,
-        no_images_tarball=no_images_tarball,
+        skip_platform_images_tarball=skip_platform_images_tarball,
         offline_image_platform=offline_image_platform,
         offline_extra_files=offline_extra_files,
         parallel_processes=parallel_processes,

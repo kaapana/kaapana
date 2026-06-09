@@ -58,7 +58,7 @@ class BuildConfig(BaseModel):
     push_to_microk8s: bool
     create_offline_installation: bool
     publish_offline_installer: bool = False
-    no_images_tarball: bool = False
+    skip_platform_images_tarball: bool = False
     offline_image_platform: Optional[str] = None
     offline_extra_files: List[str] = Field(default_factory=list)
     platform_filter: str
@@ -89,6 +89,7 @@ class BuildConfig(BaseModel):
             "containers_to_build",
             "vulnerability_severity_level",
             "configuration_check_severity_level",
+            "offline_extra_files",
         ]:
             if field_name in data and isinstance(data[field_name], str):
                 data[field_name] = [

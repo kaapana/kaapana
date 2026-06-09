@@ -18,7 +18,7 @@
             <template #actions>
 
                 <!-- system users toggle -->
-                <v-tooltip location="top">
+                <v-tooltip v-if="isAdmin" location="top">
                     <template #activator="{ props }">
                         <div class="d-flex align-center ga-2" v-bind="props">
 
@@ -179,6 +179,7 @@ import { ref, onMounted, watch, computed } from 'vue';
 import { UserItem, UserRole } from '@/common/types';
 import { usePermissions } from '@/permissions/usePermissions';
 import { aiiApiDelete, aiiApiGet } from '@/common/services';
+import { isAdminUser, isSystemUser, waitForStoreUser } from '@/common/userAccess';
 import AddUserToProject from './AddUserToProject.vue';
 import SearchBar from '@/components/SearchBar.vue';
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -224,17 +225,7 @@ const userPendingRemoval = ref<UserWithRole | undefined>(undefined);
 
 // ── System user filtering ──────────────────────────────────────────────────
 
-// System users that should be hidden by default
-const isSystemUser = (u: UserItem) => {
-    const username = (u.username || '').toLowerCase();
-    const lastName = (u.last_name || '').toLowerCase();
-
-    return (
-        lastName === 'system' ||
-        username.endsWith('-system-user')
-    );
-};
-
+const isAdmin = ref(false);
 const showSystemUsers = ref(false);
 
 const filteredUsers = computed(() => {
@@ -273,6 +264,7 @@ const tableHeaders = [
 // ── Lifecycle ──────────────────────────────────────────────────────────────
 
 onMounted(() => {
+    waitForStoreUser(user => { isAdmin.value = isAdminUser(user); });
     if (props.project?.id) loadProjectUsers();
 });
 

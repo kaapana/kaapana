@@ -1,6 +1,12 @@
 import store from '@/common/store'
 import { UserItem } from '@/common/types'
 
+export function isSystemUser(u: UserItem): boolean {
+  const username = (u.username || '').toLowerCase();
+  const lastName = (u.last_name || '').toLowerCase();
+  return username === 'system' || lastName === 'system' || username.endsWith('-system-user');
+}
+
 export function isAdminUser(user: UserItem): boolean {
   return Boolean(
     user.realm_roles &&

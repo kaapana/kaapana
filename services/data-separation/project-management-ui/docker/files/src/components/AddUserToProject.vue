@@ -114,7 +114,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { UserItem, UserRole } from '@/common/types';
 import { aiiApiGet, aiiApiPost, aiiApiPut } from '@/common/services';
-import { isAdminUser, waitForStoreUser } from '@/common/userAccess';
+import { isAdminUser, isSystemUser, waitForStoreUser } from '@/common/userAccess';
 
 interface Role { id: number; name: string; description: string; }
 
@@ -144,12 +144,6 @@ const emit = defineEmits<{
 }>();
 
 const availableRoles = ref<Role[]>([]);
-
-const isSystemUser = (u: UserItem) => {
-  const username = (u.username || '').toLowerCase();
-  const lastName = (u.last_name || '').toLowerCase();
-  return username === 'system' || lastName === 'system' || username.endsWith('-system-user');
-};
 
 const isAdmin = ref(false);
 const showSystemUsers = ref(false);

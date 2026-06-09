@@ -54,8 +54,7 @@
                 :loading="searchLoading"
                 clearable
                 hide-details
-                @keydown.enter.exact.prevent="goToNextMatch"
-                @keydown.shift.enter.prevent="goToPrevMatch"
+                @keydown="onLogSearchKeydown"
               />
             </div>
             <v-divider />
@@ -364,6 +363,13 @@ const refreshLogs = () => { loadLogs() }
 function scrollToLogLine(lineIdx: number) {
   const el = logPanelContentRef.value?.querySelector(`[data-line-idx="${lineIdx}"]`) as HTMLElement | null
   el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+}
+
+function onLogSearchKeydown(e: KeyboardEvent) {
+  if (e.key !== 'Enter') return
+  e.preventDefault()
+  if (e.shiftKey) goToPrevMatch()
+  else goToNextMatch()
 }
 
 function goToNextMatch() {

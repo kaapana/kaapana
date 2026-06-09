@@ -156,13 +156,6 @@ spec:
 
 Use this template for volumes that are scoped for projects.
 
-### `dynamicSharedVolumes`
-
-This template enables sharing volumes across namespaces.
-
-**Important:**  
-`dynamicSharedVolumes` is deprecated and will be removed in a future release. It should only be used if no alternative solution is available.
-
 
 ### dynamicEnvs & dynamicEnvsFromSecretRef & dynamicLabels
 

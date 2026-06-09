@@ -13,6 +13,56 @@ The Airflow user interface offers comprehensive insights into DAGs, DAG runs, an
 The platform comes with several preinstalled DAGs and a large set of :term:`custom operators<operator>`.
 Additional DAGs can be installed as :term:`ẁorkflow-extensions<workflow-extension>` in the `Extensions` page.
 
+.. _airflow_execution_model:
+
+Execution model for local operators
+***********************************
+
+Kaapana uses Airflow's ``KubernetesExecutor`` for local-operator where tasks should run outside the scheduler, while non-local Kaapana operators continue to start their processing pods through the Kaapana Kubernetes runner.
+This distinction is important after moving Airflow data from node-local ``hostPath`` mounts to persistent volume claims (PVCs).
+
+Before this change, :term:`local operators<local-operator>` ran directly inside the Airflow scheduler container.
+That worked while the scheduler and task execution could rely on the same node-local ``hostPath`` mounts.
+With namespace separation and PVC-based storage, these host paths are no longer mounted across namespaces.
+Local operators therefore need their DAG and plugin code to be available in the namespace where the Airflow task is executed.
+
+The executor for local operators is selected from the DAG tags:
+
+.. code-block:: python
+
+    if "service" in dag.tags or "import" in dag.tags:
+        executor = "LocalExecutor"
+    else:
+        executor = "KubernetesExecutor"
+
+DAGs tagged with ``service`` or ``import`` run their local operators with ``LocalExecutor`` in the Airflow scheduler, which is located in the services namespace.
+This keeps service workflows close to services-namespace volumes and services-namespace resources.
+Local operators in other DAGs run with ``KubernetesExecutor`` and are executed in Airflow worker pods.
+
+Because KubernetesExecutor worker pods can run in project namespaces, they need access to the same DAG and plugin code that the scheduler used to parse the workflow.
+Each Airflow worker pod therefore starts an init container named ``sync-dags-plugins``.
+This init container copies the scheduler pod's DAG and plugin directories into the worker pod before the task container starts.
+This replaces the previous ``hostPath`` based sharing of DAGs and plugins across namespaces.
+
+Non-local operators are handled separately.
+They are Kaapana operators that start dedicated Kubernetes processing pods via the Kaapana Kubernetes runner.
+In service workflows, a non-local operator can be forced to run in the services namespace by passing ``namespace=SERVICES_NAMESPACE`` to the corresponding ``KaapanaBaseOperator`` child, for example:
+
+.. code-block:: python
+
+    validate = DcmValidatorOperator(
+        dag=dag,
+        input_operator=get_input,
+        exit_on_error=False,
+        namespace=SERVICES_NAMESPACE,
+    )
+
+Airflow task logs are no longer collected by mounting a node-local log directory into every task pod.
+Instead, when a task pod is created, the scheduler starts a best-effort log streamer for that pod.
+The streamer reads logs from the Kubernetes pod log API and writes them into the regular Airflow log file layout.
+If live streaming does not produce log content, a final non-following log fetch is used as a fallback.
+This keeps logs available in the Airflow UI while allowing task pods to run in different namespaces without shared ``hostPath`` log mounts.
+
 .. _preinstalled_dags:
 
 Preinstalled DAGs

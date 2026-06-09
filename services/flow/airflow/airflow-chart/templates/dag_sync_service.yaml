@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-dag-sync-service
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  selector:
+    app.kubernetes.io/name: airflow
+    app.kubernetes.io/component: scheduler
+  ports:
+    - port: 80
+      targetPort: 8080
+      name: http

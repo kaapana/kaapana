@@ -63,14 +63,14 @@ def schema_dataset_form(filter_keys: list = None):
     }
 
 
-def get_all_project_ids(without_admin_project: bool = True) -> list[str]:
-    """Return the UUIDs of all projects. Excludes the admin project by default."""
+def get_all_project_names(without_admin_project: bool = True) -> list[str]:
+    """Return the names of all projects. Excludes the admin project by default."""
     try:
         r = requests.get("http://aii-service.services.svc:8080/projects")
         projects = r.json()
         if without_admin_project:
             projects = [project for project in projects if project["name"] != "admin"]
-        return [project["id"] for project in projects]
+        return [project["name"] for project in projects]
 
     except Exception as e:
         print("Error in get projects: ", e)

@@ -8,6 +8,63 @@ from integration_tests.workflows import WorkflowEndpoints
 logger = get_logger(__name__, logging.INFO)
 
 
+def wait_for_workflows(
+    kaapana: WorkflowEndpoints, wait_for: list, timeout=3600
+) -> tuple:
+    """
+    Block until all prerequisite workflows have finished successfully.
+
+    Each entry in wait_for is either a plain dag_id string or a dict:
+        dag_id:   str   - name of the prerequisite DAG
+        min_jobs: int   - minimum number of jobs expected (default 1)
+
+    The workflow_name queried is "ci_<dag_id>".  All jobs sharing that name
+    must be in "finished" state and their count must reach min_jobs.
+    """
+    start_time = time.time()
+
+    requirements = []
+    for item in wait_for:
+        if isinstance(item, str):
+            requirements.append({"workflow_name": f"ci_{item}", "min_jobs": 1})
+        else:
+            requirements.append(
+                {
+                    "workflow_name": f"ci_{item['dag_id']}",
+                    "min_jobs": item.get("min_jobs", 1),
+                }
+            )
+
+    while abs(start_time - time.time()) < timeout:
+        all_done = True
+        for req in requirements:
+            try:
+                jobs_info = kaapana.get_jobs_info(workflow_name=req["workflow_name"])
+            except Exception:
+                all_done = False
+                break
+
+            jobs_status = [job.get("status") for job in jobs_info]
+
+            if len(jobs_info) < req["min_jobs"]:
+                all_done = False
+                break
+
+            if "failed" in jobs_status:
+                return False, f"Prerequisite workflow {req['workflow_name']} failed: {jobs_info}"
+
+            if not all(s == "finished" for s in jobs_status):
+                all_done = False
+                break
+
+        if all_done:
+            return True, "All prerequisite workflows succeeded"
+
+        time.sleep(5)
+
+    return False, f"Prerequisite workflows {[r['workflow_name'] for r in requirements]} exceeded timeout {timeout}s"
+
+
 def wait_for_workflow(kaapana: WorkflowEndpoints, workflow_name, timeout=3600) -> tuple:
     """
     Check the status of all jobs in workflow <workflow_name> until all jobs finished, the run-time exceeds self.timeout or a single job failed.
@@ -92,6 +149,15 @@ async def test_workflow(workflow_endpoints: WorkflowEndpoints, testconfig):
         testcase = set_task_form_environment(
             env_name=name, env_value=value, testcase=testcase
         )
+
+    ### Wait for prerequisite workflows before triggering
+    wait_for = testcase.get("wait_for", [])
+    if wait_for:
+        logger.info(f"Waiting for prerequisite workflows: {wait_for}")
+        success, msg = wait_for_workflows(kaapana, wait_for)
+        if not success:
+            pytest.fail(msg)
+        logger.info(msg)
 
     ### Trigger the workflow
     try:

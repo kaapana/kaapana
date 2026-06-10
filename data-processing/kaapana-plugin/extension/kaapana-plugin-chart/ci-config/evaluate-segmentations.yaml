@@ -27,6 +27,9 @@ remote: false
 username: "kaapana"
 ---
 dag_id: evaluate-segmentations
+wait_for:
+  - dag_id: "tag-dataset"
+    min_jobs: 2
 instance_names:
   - central
 conf_data:

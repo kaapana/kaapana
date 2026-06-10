@@ -20,11 +20,15 @@ spec:
         runAsUser: 0
       serviceAccountName: edk-serviceaccount
       initContainers:
-      # Preflight check: ensure kaniko-executor image is available before deploying EDK
-      - name: kaniko-preflight
-        image: "{{ .Values.global.registry_url }}/kaniko-executor:{{ .Values.global.kaapana_build_version }}"
+      # Preflight check: ensure buildah image is available before deploying EDK
+      - name: buildah-preflight
+        image: "{{ .Values.global.registry_url }}/buildah:{{ .Values.global.kaapana_build_version }}"
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
-        command: ["/kaniko/executor", "version"]
+        command: ["buildah", "version"]
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+          runAsNonRoot: true
         resources:
           requests:
             memory: "10Mi"

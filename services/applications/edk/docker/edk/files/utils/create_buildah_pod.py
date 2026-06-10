@@ -54,19 +54,6 @@ def get_image_info(dockerfile_path: str) -> tuple[str, str]:
     return name, version
 
 
-# TODO: this is not necessary unless entire kaapana is being built, just add a template Dockerfile with FROM <registry_url>/base-python-cpu
-# TODO: might be necessary when building base-python-gpu based on base-python-cpu
-def edit_dockerfile(dockerfile_path: str, reg_url: str) -> None:
-    with open(dockerfile_path, "r") as file:
-        lines = file.readlines()
-
-    with open(dockerfile_path, "w") as file:
-        for line in lines:
-            if line.startswith("FROM local-only/"):
-                # TODO
-                pass
-
-
 def replace_template_vars(content: str) -> str:
     """Replace Helm template variables with environment variable values."""
     import re
@@ -108,34 +95,27 @@ def make_pod_yaml(
     # copy Dockerfile & context dir to shared volume
     dest_dir = copy_files(dockerfile, context, image_name)
 
-    # update kaniko parameters in pod yaml
-    for i, arg in enumerate(pod_yaml["spec"]["containers"][0]["args"]):
-        if "--dockerfile=" in arg:
-            pod_yaml["spec"]["containers"][0]["args"][
-                i
-            ] = f"--dockerfile={dest_dir}/Dockerfile"
-        elif "--context=dir://" in arg:
-            pod_yaml["spec"]["containers"][0]["args"][i] = f"--context=dir://{dest_dir}"
-        elif "--destination=" in arg:
-            pod_yaml["spec"]["containers"][0]["args"][
-                i
-            ] = f"--destination={LOCAL_REGISTRY_URL}/{image_name}:{image_version}"
+    # update Buildah parameters via env vars
+    env_list = pod_yaml["spec"]["containers"][0]["env"]
+    for env_var in env_list:
+        if env_var["name"] == "BUILD_CONTEXT":
+            env_var["value"] = dest_dir
+        elif env_var["name"] == "BUILD_DESTINATION":
+            env_var["value"] = f"{LOCAL_REGISTRY_URL}/{image_name}:{image_version}"
 
-    # check proxy env vars and add to env and args
+    # propagate proxy env vars to the build pod and as Dockerfile build args
     proxy_vars = ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"]
+    proxy_build_args = []
     for proxy_key in proxy_vars:
         if proxy_key in os.environ:
             proxy_val = os.environ[proxy_key]
+            env_list.append({"name": proxy_key, "value": proxy_val})
+            proxy_build_args.append(f"--build-arg {proxy_key}={proxy_val}")
 
-            # add to env section
-            pod_yaml["spec"]["containers"][0]["env"].append(
-                {"name": proxy_key, "value": proxy_val}
-            )
-
-            # add to args section as --build-arg
-            pod_yaml["spec"]["containers"][0]["args"].append(
-                f"--build-arg={proxy_key}={proxy_val}"
-            )
+    if proxy_build_args:
+        for env_var in env_list:
+            if env_var["name"] == "BUILD_PROXY_ARGS":
+                env_var["value"] = " ".join(proxy_build_args)
 
     return pod_yaml, image_name, dest_dir
 
@@ -206,7 +186,7 @@ def monitor_pod(pod_name: str, dest_dir: str) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Create a Kaniko builder pod under the same namespace"
+        description="Create a Buildah builder pod under the same namespace"
     )
     parser.add_argument(
         "yaml_file", type=str, help="The YAML file to use as a template"
@@ -240,7 +220,7 @@ if __name__ == "__main__":
         args.image_version,
     )
 
-    # create kaniko builder pod
+    # create buildah builder pod
     create_pod(pod_yaml)
 
     pod_name = pod_yaml["metadata"]["name"]

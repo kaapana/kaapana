@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: buildah-builder
+  annotations:
+    container.apparmor.security.beta.kubernetes.io/buildah: unconfined
+spec:
+  containers:
+  - name: buildah
+    image: "{{ .Values.global.registry_url }}/buildah:{{ .Values.global.kaapana_build_version }}"
+    imagePullPolicy: Always
+    command:
+    - /start.sh
+    hostNetwork: true
+    securityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      runAsNonRoot: true
+    resources:
+      limits:
+        memory: 20Gi
+      requests:
+        memory: 2Gi
+    env:
+    - name: BUILD_CONTEXT
+      value: "CONTEXT_DIR"
+    - name: BUILD_DESTINATION
+      value: "DEST"
+    - name: BUILD_PROXY_ARGS
+      value: ""
+    - name: NO_PROXY
+      value: "localhost,127.0.0.1,.svc,.cluster.local"
+    - name: http_proxy
+      value: https_proxy=http://squid-proxy-service.admin.svc.cluster.local:3128
+    - name: https_proxy
+      value: https_proxy=http://squid-proxy-service.admin.svc.cluster.local:3128
+    volumeMounts:
+    - name: edk
+      mountPath: /kaapana/minio
+    - name: storage-conf
+      mountPath: /home/build/.config/containers/
+    - name: storage
+      mountPath: /storage
+  restartPolicy: Never
+  volumes:
+  - name: edk
+    persistentVolumeClaim:
+      claimName: edk-pv-claim
+  - name: storage-conf
+    configMap:
+      name: storage-conf
+  - name: storage
+    emptyDir:
+      sizeLimit: 10Gi
+  imagePullSecrets:
+  - name: registry-secret
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: storage-conf
+data:
+  storage.conf: |
+    [storage]
+    driver = "overlay"
+    runroot = "/storage/run/containers/storage"
+    graphroot = "/storage/.local/share/containers/storage"
+    rootless_storage_path = "/storage/.local/share/containers/storage"
+    [storage.options]
+    pull_options = {enable_partial_images = "true", use_hard_links = "false", ostree_repos=""}
+    [storage.options.overlay]
+---

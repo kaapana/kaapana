@@ -29,14 +29,8 @@ spec:
       value: "CONTEXT_DIR"
     - name: BUILD_DESTINATION
       value: "DEST"
-    - name: BUILD_PROXY_ARGS
-      value: ""
     - name: NO_PROXY
       value: "localhost,127.0.0.1,.svc,.cluster.local"
-    - name: http_proxy
-      value: https_proxy=http://squid-proxy-service.admin.svc.cluster.local:3128
-    - name: https_proxy
-      value: https_proxy=http://squid-proxy-service.admin.svc.cluster.local:3128
     volumeMounts:
     - name: edk
       mountPath: /kaapana/minio

@@ -1,9 +1,10 @@
 import argparse
-import yaml
-import shutil
 import os
+import shutil
 from datetime import datetime
-from typing import Dict, Any, Union
+from typing import Any, Dict, Union
+
+import yaml
 from kubernetes import client, config, watch
 from urllib3.exceptions import ProtocolError
 
@@ -103,19 +104,11 @@ def make_pod_yaml(
         elif env_var["name"] == "BUILD_DESTINATION":
             env_var["value"] = f"{LOCAL_REGISTRY_URL}/{image_name}:{image_version}"
 
-    # propagate proxy env vars to the build pod and as Dockerfile build args
-    proxy_vars = ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"]
-    proxy_build_args = []
-    for proxy_key in proxy_vars:
-        if proxy_key in os.environ:
-            proxy_val = os.environ[proxy_key]
-            env_list.append({"name": proxy_key, "value": proxy_val})
-            proxy_build_args.append(f"--build-arg {proxy_key}={proxy_val}")
-
-    if proxy_build_args:
-        for env_var in env_list:
-            if env_var["name"] == "BUILD_PROXY_ARGS":
-                env_var["value"] = " ".join(proxy_build_args)
+    # propagate proxy env vars to the build pod
+    if http_proxy := os.getenv("http_proxy"):
+        env_list.append({"name": http_proxy, "value": http_proxy})
+    if https_proxy := os.getenv("https_proxy"):
+        env_list.append({"name": https_proxy, "value": https_proxy})
 
     return pod_yaml, image_name, dest_dir
 

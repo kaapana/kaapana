@@ -12,7 +12,7 @@ from uuid import UUID
 from sqlalchemy import select, delete, update, func, cast
 from sqlalchemy.dialects.postgresql import JSONB, ARRAY, TEXT
 from typing import Annotated
-from datetime import datetime
+from datetime import datetime, timezone
 
 router = APIRouter()
 
@@ -188,7 +188,7 @@ async def mark_read(
     if not notification:
         raise HTTPException(404, f"Notification with id {notification_id} not found")
 
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.now(timezone.utc)
     stmt = (
         update(NotificationModel)
         .where(NotificationModel.id == notification_id)

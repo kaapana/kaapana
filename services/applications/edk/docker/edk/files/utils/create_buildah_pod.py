@@ -106,9 +106,9 @@ def make_pod_yaml(
 
     # propagate proxy env vars to the build pod
     if http_proxy := os.getenv("http_proxy"):
-        env_list.append({"name": http_proxy, "value": http_proxy})
+        env_list.append({"name": "http_proxy", "value": http_proxy})
     if https_proxy := os.getenv("https_proxy"):
-        env_list.append({"name": https_proxy, "value": https_proxy})
+        env_list.append({"name": "https_proxy", "value": https_proxy})
 
     return pod_yaml, image_name, dest_dir
 

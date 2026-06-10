@@ -133,7 +133,7 @@ unit_tests:
 task_api_tests:
   extends: .test_template
   script:
-    - pip install $KAAPANA_DIR/lib/kaapana_containers
+    - pip install --force-reinstall $KAAPANA_DIR/lib/kaapana_containers
     - pip install --no-deps $KAAPANA_DIR/lib/task_api
     - pip install pytest
     - pytest $KAAPANA_DIR/lib/task_api/task_api --junitxml=task_api_report.xml

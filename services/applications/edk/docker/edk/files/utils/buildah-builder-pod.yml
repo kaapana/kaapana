@@ -16,6 +16,9 @@ spec:
       runAsUser: 1000
       runAsGroup: 1000
       runAsNonRoot: true
+      capabilities:
+        add:
+          - SYS_ADMIN
     resources:
       limits:
         memory: 20Gi
@@ -37,8 +40,6 @@ spec:
     volumeMounts:
     - name: edk
       mountPath: /kaapana/minio
-    - name: storage-conf
-      mountPath: /home/build/.config/containers/
     - name: storage
       mountPath: /storage
   restartPolicy: Never
@@ -46,27 +47,8 @@ spec:
   - name: edk
     persistentVolumeClaim:
       claimName: edk-pv-claim
-  - name: storage-conf
-    configMap:
-      name: storage-conf
   - name: storage
     emptyDir:
-      sizeLimit: 10Gi
+      sizeLimit: 30Gi
   imagePullSecrets:
   - name: registry-secret
----
-kind: ConfigMap
-apiVersion: v1
-metadata:
-  name: storage-conf
-data:
-  storage.conf: |
-    [storage]
-    driver = "overlay"
-    runroot = "/storage/run/containers/storage"
-    graphroot = "/storage/.local/share/containers/storage"
-    rootless_storage_path = "/storage/.local/share/containers/storage"
-    [storage.options]
-    pull_options = {enable_partial_images = "true", use_hard_links = "false", ostree_repos=""}
-    [storage.options.overlay]
----

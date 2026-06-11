@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+from functools import wraps
 from typing import Optional, List
 import typer
 from kaapana_containers.registries.registry import OCIError, OCIRegistryDiscovery
@@ -27,8 +28,16 @@ def _make_client(
     )
 
 
+def _async_command(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        return asyncio.run(func(*args, **kwargs))
+    return wrapper
+
+
 @app.command()
-def publish(
+@_async_command
+async def publish(
     registry_url: str = typer.Argument(
         ..., help="Base registry URL (e.g., https://ghcr.io)"
     ),
@@ -44,17 +53,12 @@ def publish(
     """Publish metadata and optional files to the registry under a specific tag."""
     metadata = _load_json(metadata_json)
     client = _make_client(registry_url, repository, username, password)
-
-    async def _run():
-        async with client:
-            return await client.create_or_update_tag(tag, metadata, files)
-
     try:
-        success = asyncio.run(_run())
+        async with client:
+            success = await client.create_or_update_tag(tag, metadata, files)
     except OCIError as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
-
     if success:
         typer.echo(f"Successfully published tag '{tag}' to {repository}")
     else:
@@ -63,7 +67,8 @@ def publish(
 
 
 @app.command()
-def list_tags(
+@_async_command
+async def list_tags(
     registry_url: str = typer.Argument(...),
     repository: str = typer.Argument(...),
     username: Optional[str] = typer.Option(None),
@@ -71,17 +76,12 @@ def list_tags(
 ):
     """List all tags in a repository."""
     client = _make_client(registry_url, repository, username, password)
-
-    async def _run():
-        async with client:
-            return await client.list_tags()
-
     try:
-        tags = asyncio.run(_run())
+        async with client:
+            tags = await client.list_tags()
     except OCIError as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
-
     if tags:
         typer.echo(f"Tags in {repository}:")
         for tag in tags:
@@ -91,7 +91,8 @@ def list_tags(
 
 
 @app.command()
-def metadata(
+@_async_command
+async def metadata(
     registry_url: str = typer.Argument(...),
     repository: str = typer.Argument(...),
     tag: Optional[str] = typer.Argument(None, help="Specific tag (optional)"),
@@ -103,8 +104,7 @@ def metadata(
 ):
     """Show metadata for a specific tag or all tags in a repository."""
     client = _make_client(registry_url, repository, username, password)
-
-    async def _run():
+    try:
         async with client:
             metadata_list = await client.get_all_metadata(tag)
             if not metadata_list:
@@ -115,18 +115,20 @@ def metadata(
                 typer.echo(json.dumps(data, indent=2))
                 if download_dir:
                     typer.echo(f"Downloading files for {tag_name}...")
-                    tag_dir = os.path.join(download_dir, tag_name) if not tag else download_dir
+                    tag_dir = (
+                        os.path.join(download_dir, tag_name) if not tag else download_dir
+                    )
                     await client.download_files(tag_name, tag_dir)
-
-    try:
-        asyncio.run(_run())
+    except typer.Exit:
+        raise
     except OCIError as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
 
 
 @app.command()
-def delete(
+@_async_command
+async def delete(
     registry_url: str = typer.Argument(...),
     repository: str = typer.Argument(...),
     tag: str = typer.Argument(...),
@@ -135,17 +137,12 @@ def delete(
 ):
     """Delete a specific tag from the repository."""
     client = _make_client(registry_url, repository, username, password)
-
-    async def _run():
-        async with client:
-            return await client.delete_tag(tag)
-
     try:
-        success = asyncio.run(_run())
+        async with client:
+            success = await client.delete_tag(tag)
     except OCIError as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
-
     if success:
         typer.echo(f"Successfully deleted tag '{tag}' from {repository}")
     else:

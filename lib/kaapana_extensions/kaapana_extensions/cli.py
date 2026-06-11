@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from functools import wraps
 from pathlib import Path
 from typing import Optional
 import typer
@@ -47,6 +48,13 @@ def _make_client(
             typer.echo("Error: --user and --password are required", err=True)
             raise typer.Exit(1)
     return ExtensionUtilityLibrary(registry, repo, username, password)
+
+
+def _async_command(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        return asyncio.run(func(*args, **kwargs))
+    return wrapper
 
 
 @app.command(name="login")
@@ -116,7 +124,8 @@ def whoami():
 
 
 @app.command(name="pull")
-def pull(
+@_async_command
+async def pull(
     tag: str = typer.Argument(..., help="Extension tag"),
     output: Path = typer.Argument(
         Path("."), help="Output directory (default: current directory)"
@@ -131,13 +140,9 @@ def pull(
     By default downloads the archive (.tar.gz). Use --extract to unpack.
     """
     client = _make_client(repo, registry, username, password)
-
-    async def _run():
-        async with client:
-            return await client.pull(tag, output)
-
     try:
-        output_dir = asyncio.run(_run())
+        async with client:
+            output_dir = await client.pull(tag, output)
     except (OCIError, RuntimeError) as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
@@ -145,7 +150,8 @@ def pull(
 
 
 @app.command(name="push")
-def push(
+@_async_command
+async def push(
     source: str = typer.Argument(..., help="Extension tarball (.tar.gz)"),
     bump: Optional[str] = typer.Option(
         None, "--bump", help="Bump version: major, minor, or patch"
@@ -167,21 +173,18 @@ def push(
         raise typer.Exit(1)
 
     client = _make_client(repo, registry, username, password)
-
-    async def _run():
-        async with client:
-            return await client.push(ext_path, bump=bump, overwrite=overwrite)
-
     try:
-        ext_tag = asyncio.run(_run())
-        typer.echo(f"Pushed: {ext_tag}")
+        async with client:
+            ext_tag = await client.push(ext_path, bump=bump, overwrite=overwrite)
     except (OCIError, ValueError, RuntimeError) as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
+    typer.echo(f"Pushed: {ext_tag}")
 
 
 @app.command(name="build")
-def build(
+@_async_command
+async def build(
     source: str = typer.Argument(
         ...,
         help="Local path or URL[#ref:subdir]  e.g. https://host/repo.git#main:my-ext",
@@ -235,25 +238,19 @@ def build(
         return
 
     client = _make_client(repo, registry, username, password)
-
-    async def _run():
+    try:
         async with client:
-            tags = []
             for _, archive in archives:
                 ext_tag = await client.push(archive, bump=bump, overwrite=overwrite)
                 typer.echo(f"  Pushed:  {ext_tag}")
-                tags.append(ext_tag)
-            return tags
-
-    try:
-        asyncio.run(_run())
     except (ValueError, RuntimeError, OCIError) as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
 
 
 @app.command(name="list")
-def list_extensions(
+@_async_command
+async def list_extensions(
     full: bool = typer.Option(
         False, "--full", help="Show full metadata for each extension"
     ),
@@ -264,8 +261,7 @@ def list_extensions(
 ):
     """List all extensions in repository."""
     client = _make_client(repo, registry, username, password)
-
-    async def _run():
+    try:
         async with client:
             if not full:
                 tags = await client.list_tags()
@@ -281,16 +277,14 @@ def list_extensions(
                     return
                 for _, metadata in entries:
                     typer.echo(json.dumps(metadata, indent=2))
-
-    try:
-        asyncio.run(_run())
     except OCIError as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
 
 
 @app.command(name="info")
-def info(
+@_async_command
+async def info(
     tag: str = typer.Argument(..., help="Extension tag"),
     repo: Optional[str] = typer.Option(None, "--repo"),
     registry: Optional[str] = typer.Option(None, "--registry"),
@@ -299,13 +293,9 @@ def info(
 ):
     """[Debug] Show repository/tag, manifest digest, config digest, layer digests, and config JSON."""
     client = _make_client(repo, registry, username, password)
-
-    async def _run():
-        async with client:
-            return await client.get(tag)
-
     try:
-        config_data = asyncio.run(_run())
+        async with client:
+            config_data = await client.get(tag)
     except OCIError as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
@@ -313,7 +303,8 @@ def info(
 
 
 @app.command(name="delete")
-def delete(
+@_async_command
+async def delete(
     tag: Optional[str] = typer.Argument(
         None, help="Extension tag to delete"
     ),
@@ -345,41 +336,21 @@ def delete(
         raise typer.Exit(1)
 
     client = _make_client(repo, registry, username, password)
-
-    if tag:
-        async def _run():
-            async with client:
+    try:
+        async with client:
+            if tag:
                 await client.delete_tag(tag)
-
-        try:
-            asyncio.run(_run())
-        except OCIError as e:
-            typer.echo(f"Error: {e}", err=True)
-            raise typer.Exit(1)
-        typer.echo(f"Deleted: {tag}")
-
-    if all_tags:
-        async def _list():
-            async with client:
-                return await client.list_tags()
-
-        try:
-            tags = asyncio.run(_list())
-        except OCIError as e:
-            typer.echo(f"Error: {e}", err=True)
-            raise typer.Exit(1)
-
-        if not tags:
-            typer.echo("No extensions found.")
-            return
-        typer.echo(f"Found {len(tags)} extension(s):")
-        for t in tags:
-            typer.echo(f"  {t}")
-        if not yes:
-            typer.confirm("\nDelete all of the above?", abort=True)
-
-        async def _delete_all():
-            async with client:
+                typer.echo(f"Deleted: {tag}")
+            else:
+                tags = await client.list_tags()
+                if not tags:
+                    typer.echo("No extensions found.")
+                    return
+                typer.echo(f"Found {len(tags)} extension(s):")
+                for t in tags:
+                    typer.echo(f"  {t}")
+                if not yes:
+                    typer.confirm("\nDelete all of the above?", abort=True)
                 failed = []
                 for t in tags:
                     try:
@@ -388,11 +359,13 @@ def delete(
                     except OCIError as e:
                         typer.echo(f"Failed to delete {t}: {e}", err=True)
                         failed.append(t)
-                return failed
-
-        failed = asyncio.run(_delete_all())
-        if failed:
-            raise typer.Exit(1)
+                if failed:
+                    raise typer.Exit(1)
+    except (typer.Exit, typer.Abort):
+        raise
+    except OCIError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":

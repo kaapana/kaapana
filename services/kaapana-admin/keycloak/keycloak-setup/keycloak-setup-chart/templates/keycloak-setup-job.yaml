@@ -4,6 +4,9 @@ kind: Job
 metadata:
   name: "keycloak-setup"
   namespace: "{{ .Values.global.admin_namespace }}"
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation
 spec:
   template:
     metadata:
@@ -51,6 +54,11 @@ spec:
                 secretKeyRef:
                   name: system-user-password
                   key: system-user-password
+            - name: KEYCLOAK_SERVICE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: kaapana-service-password
+                  key: kaapana-service-password
             - name: REALM_OBJECTS_ROOT_DIR
               value: "/realm_objects/"
           volumeMounts:

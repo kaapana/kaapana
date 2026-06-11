@@ -418,22 +418,14 @@ def oidc_logout(request: Request):
     Response with a redirect to oauth2-proxy browser session logout url.
     """
 
-    def _get_access_token(
-        username: str,
-        password: str,
-        client_id: str,
-    ):
-        """
-        Get access token for the admin keycloak user.
-        """
+    def _get_access_token(client_secret: str):
         payload = {
-            "username": username,
-            "password": password,
-            "client_id": client_id,
-            "grant_type": "password",
+            "client_id": "kaapana-service",
+            "client_secret": client_secret,
+            "grant_type": "client_credentials",
         }
         r = requests.post(
-            f"{settings.keycloak_url}/auth/realms/master/protocol/openid-connect/token",
+            f"{settings.keycloak_url}/auth/realms/kaapana/protocol/openid-connect/token",
             verify="/etc/certs/kaapana.pem",
             data=payload,
         )
@@ -447,9 +439,7 @@ def oidc_logout(request: Request):
     user_id = decoded_access_token.get("sub")
 
     keycloak_admin_access_token = _get_access_token(
-        settings.keycloak_admin_username,
-        settings.keycloak_admin_password,
-        "admin-cli",
+        settings.keycloak_service_client_secret
     )
     security_headers = {"Authorization": f"Bearer {keycloak_admin_access_token}"}
 

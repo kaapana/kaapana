@@ -17,54 +17,44 @@ class KeycloakHelper:
 
     def __init__(
         self,
-        keycloak_user=None,
-        keycloak_password=None,
+        client_secret=None,
         keycloak_host=None,
         keycloak_https_port=None,
     ):
-        self.keycloak_user = keycloak_user or os.environ["KEYCLOAK_USER"]
-        self.keycloak_password = keycloak_password or os.environ["KEYCLOAK_PASSWORD"]
+        self.client_secret = (
+            client_secret or os.environ["KEYCLOAK_SERVICE_CLIENT_SECRET"]
+        )
         self.keycloak_host = keycloak_host or os.environ["KEYCLOAK_HOST"]
         self.keycloak_https_port = keycloak_https_port or os.getenv(
             "KEYCLOAK_HTTPS_PORT", 443
         )
         self.auth_url = f"https://{self.keycloak_host}:{self.keycloak_https_port}/auth/admin/realms/"
         self.master_access_token = self.get_access_token(
-            self.keycloak_user,
-            self.keycloak_password,
+            self.client_secret,
             "https",
             self.keycloak_host,
             self.keycloak_https_port,
             False,
-            "admin-cli",
         )
 
     def get_access_token(
         self,
-        username: str,
-        password: str,
+        client_secret: str,
         protocol: str,
         host: str,
         port: int,
         ssl_check: bool,
-        client_id: str,
-        realm: str = "master",
-        client_secret: str = None,
+        realm: str = "kaapana",
     ):
         payload = {
-            "username": username,
-            "password": password,
-            "client_id": client_id,
-            "grant_type": "password",
+            "client_id": "kaapana-service",
+            "client_secret": client_secret,
+            "grant_type": "client_credentials",
         }
-        if client_secret:
-            payload["client_secret"] = client_secret
-
         url = f"{protocol}://{host}:{port}/auth/realms/{realm}/protocol/openid-connect/token"
         r = requests.post(url, verify=ssl_check, data=payload)
         r.raise_for_status()
-        access_token = r.json()["access_token"]
-        return access_token
+        return r.json()["access_token"]
 
     def make_authorized_request(
         self,

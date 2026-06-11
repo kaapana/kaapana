@@ -1,7 +1,6 @@
 FROM local-only/base-model-installer:latest
 
 LABEL IMAGE="get-body-and-organ-analysis-models"
-LABEL VERSION="0.1.3"
 LABEL BUILD_IGNORE="False"
 
 ARG include_model_weights="false"

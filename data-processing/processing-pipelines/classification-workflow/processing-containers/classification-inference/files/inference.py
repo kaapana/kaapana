@@ -37,7 +37,7 @@ logger.addHandler(c_handler)
 with open(
     os.path.join(
         "/models/classification-training",
-        os.environ["MODEL"].split("/")[0],
+        os.environ["TASK_IDS"].split("/")[0],
         "config.json",
     ),
     "r",
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     )
 
     path_to_checkpoint_file = os.path.join(
-        "/models/classification-training", os.environ["MODEL"]
+        "/models/classification-training", os.environ["TASK_IDS"]
     )
 
     # load weights
@@ -157,7 +157,7 @@ if __name__ == "__main__":
 
     for id, tag in predictions.items():
         tag = (
-            f"{tag}-{WORKFLOW_ID}-{FOLD}-{'end' if 'end' in os.environ['MODEL'] else 'best'}"
+            f"{tag}-{WORKFLOW_ID}-{FOLD}-{'end' if 'end' in os.environ['TASK_IDS'] else 'best'}"
             if TAG_POSTFIX
             else tag
         )

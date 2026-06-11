@@ -1788,10 +1788,10 @@ def replace_installed_models_in_schemas(
     db: Session,
     project_id: str,
     properties_template: Dict[str, Any],
+    kind: str = "nnunet",
 ) -> List[Dict[str, Any]]:
     """Generate and return the installed models schema for workflow_form."""
-    # Get all models for this project
-    installed_models = get_installed_models_by_project(db, project_id)
+    installed_models = get_installed_models_by_project(db, project_id, kind=kind)
     logging.info(f"Installed models: {installed_models}")
     one_of = []
 
@@ -1851,20 +1851,24 @@ def update_installed_models(
     db: Session,
     project_id: UUID,
     installed_tasks: dict[str, dict],
+    kind: str = "nnunet",
 ) -> tuple[List[models.InstalledModel], List[dict]]:
-    """Update all installed models for a project (replace entire list).
+    """Update installed models for a project scoped to a specific kind.
 
-    Strategy: Delete all existing models for project, then create new ones.
-    This ensures clean state and handles removed models automatically.
+    Strategy: Delete existing models of this kind for the project, then create
+    new ones. Models of other kinds are left untouched.
     """
     created = []
     failed = []
 
     try:
-        # 1. Delete all existing models for this project
+        # 1. Delete existing models of this kind for this project only
         existing_models = (
             db.query(models.InstalledModel)
-            .filter(models.InstalledModel.project_id == project_id)
+            .filter(
+                models.InstalledModel.project_id == project_id,
+                models.InstalledModel.kind == kind,
+            )
             .all()
         )
 
@@ -1898,6 +1902,7 @@ def update_installed_models(
                     # Metadata
                     input_mode=task_data.get("input-mode", "all"),
                     info=task_data.get("info", "N/A"),
+                    kind=kind,
                 )
                 db.add(model)
                 created.append(model)
@@ -1926,10 +1931,11 @@ def update_installed_models(
 
 
 def get_installed_models_by_project(
-    db: Session, project_id: str
+    db: Session, project_id: str, kind: str = None
 ) -> List[models.InstalledModel]:
-    return (
-        db.query(models.InstalledModel)
-        .filter(models.InstalledModel.project_id == project_id)
-        .all()
+    query = db.query(models.InstalledModel).filter(
+        models.InstalledModel.project_id == project_id
     )
+    if kind:
+        query = query.filter(models.InstalledModel.kind == kind)
+    return query.all()

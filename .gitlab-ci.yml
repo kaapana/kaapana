@@ -623,6 +623,9 @@ destroy_deployment:
     - when: never
   tags:
     - deploy-runner
+  variables:
+    GIT_STRATEGY: fetch
+    GIT_DEPTH: 1
   before_script:
     - VENV_PATH=$(eval echo "$ORCHESTRATOR_INSTANCE_PYTHON_VENV")
     - source "$VENV_PATH/bin/activate"
@@ -633,6 +636,9 @@ if_ci_failing:
   stage: clean
   tags:
     - deploy-runner
+  variables:
+    GIT_STRATEGY: fetch
+    GIT_DEPTH: 1
   before_script:
     - VENV_PATH=$(eval echo "$ORCHESTRATOR_INSTANCE_PYTHON_VENV")
     - source "$VENV_PATH/bin/activate"

@@ -21,7 +21,7 @@ class ociService:
         Initializes the ociService instance.
 
         :param repository_url:
-        :param authentication: base64 encoded json string {"username": <>, "password": <>}
+        :param authentication: Fernet-encrypted JSON string {"username": <>, "password": <>}
         """
 
         self.repository_url = repository_url
@@ -51,7 +51,8 @@ class ociService:
         await self.extension_lib.__aenter__()
         try:
             await self.extension_lib.check_login()
-        except OCIError as e:
+        except BaseException as e:
+            await self.extension_lib.__aexit__(type(e), e, e.__traceback__)
             logger.error(f"Registry login failed for {self.repository_url}: {e}")
             raise
         return self
@@ -66,10 +67,15 @@ class ociService:
         Fetches the list of extensions available in the given repository.
 
         :rtype: set[str]
-        :raises OCIError: On any registry error, including NAME_UNKNOWN when
-                          the repository does not exist yet.
+        :raises OCIError: On any registry error except NAME_UNKNOWN (empty repository
+                          returns an empty set).
         """
-        return set(await self.extension_lib.list_tags())
+        try:
+            return set(await self.extension_lib.list_tags())
+        except OCIError as e:
+            if e.code == "NAME_UNKNOWN":
+                return set()
+            raise
 
     async def get_extension_manifests(
         self, tags: set[str] | None = None
@@ -81,20 +87,12 @@ class ociService:
         :return: Dictionary with tag as key and the extension manifest as value
         :rtype: dict[str, ExtensionManifest]
         """
-        manifests = {}
         existing_tags = await self.get_extensions_for_repository()
-        if tags:
-            filtered_tags = existing_tags.intersection(tags)
-
-            for tag in filtered_tags:
-                manifest = await self.get_extension_manifest(tag)
-                manifests[tag] = manifest
-        else:
-            for tag in existing_tags:
-                manifest = await self.get_extension_manifest(tag)
-                manifests[tag] = manifest
-
-        return manifests
+        target_tags = existing_tags.intersection(tags) if tags else existing_tags
+        return {
+            tag: ExtensionManifest(**await self.extension_lib.get_extension(tag))
+            for tag in target_tags
+        }
 
     async def get_extension_manifest(self, tag: str) -> ExtensionManifest:
         """

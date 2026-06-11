@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from kaapana_containers.registries.registry import OCIRegistryDiscovery
+from kaapana_containers.registries.registry import OCIError, OCIRegistryDiscovery
 
 # Pip-style VCS URL: git+URL[@ref][#subdir]
 _PIP_SOURCE_RE = re.compile(
@@ -254,7 +254,12 @@ class ExtensionUtilityLibrary:
 
             self._validate_extension_files(ext_dir, ext_manifest)
 
-            existing_tags = set(await self.list_tags())
+            try:
+                existing_tags = set(await self.list_tags())
+            except OCIError as e:
+                if e.code != "NAME_UNKNOWN":
+                    raise
+                existing_tags = set()
             ext_tag = f"{ext_id}-v{ext_version}"
 
             if ext_tag in existing_tags and not bump and not overwrite:

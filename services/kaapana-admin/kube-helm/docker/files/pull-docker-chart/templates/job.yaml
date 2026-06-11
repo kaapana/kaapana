@@ -1,14 +1,10 @@
 {{- $uuid := uuidv4 | trunc 10 }}
+apiVersion: batch/v1
 kind: Job
-apiVersion: apps/v1
 metadata:
   name: pull-{{ $uuid }}
   namespace: "{{ .Values.global.helm_namespace }}"
 spec:
-  restartPolicy: Never
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: pull-{{ .Values.image }}-{{ .Values.version }}
   template:
     metadata:
       labels:
@@ -21,5 +17,4 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
       imagePullSecrets:
         - name: registry-secret
-
-        
+      restartPolicy: Never

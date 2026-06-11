@@ -1,0 +1,13 @@
+{
+    "clientId": "kaapana-service",
+    "secret": "REPLACE",
+    "enabled": true,
+    "protocol": "openid-connect",
+    "clientAuthenticatorType": "client-secret",
+    "serviceAccountsEnabled": true,
+    "publicClient": false,
+    "standardFlowEnabled": false,
+    "implicitFlowEnabled": false,
+    "directAccessGrantsEnabled": false,
+    "bearerOnly": false
+}

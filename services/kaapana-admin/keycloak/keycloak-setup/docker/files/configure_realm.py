@@ -4,7 +4,6 @@ from logger import get_logger
 from pathlib import Path
 import logging
 
-
 REALM_OBJECTS_ROOT_DIR = Path(os.getenv("REALM_OBJECTS_ROOT_DIR", "/realm_objects"))
 DEV_MODE = os.getenv("DEV_MODE")
 log_level = logging.DEBUG if DEV_MODE.lower() == "true" else logging.INFO
@@ -94,3 +93,17 @@ if __name__ == "__main__":
         )
         redirect_uris.append(f"https://{hostname}:{https_port}/meta/auth/openid/login")
         keycloak.post_client(payload, redirectUris=redirect_uris)
+
+    ### Add services client
+    file = Path(REALM_OBJECTS_ROOT_DIR, "kaapana-service.json")
+    with open(file, "r") as f:
+        payload = json.load(f)
+        payload["secret"] = os.environ["KEYCLOAK_SERVICE_CLIENT_SECRET"]
+        keycloak.post_client(payload)
+
+    ### Assign realm-management roles to service account
+    service_account_user = "service-account-kaapana-service"
+    for role in ["manage-users", "query-users", "query-groups", "view-realm"]:
+        keycloak.post_client_role_mapping(
+            "realm-management", role, service_account_user
+        )

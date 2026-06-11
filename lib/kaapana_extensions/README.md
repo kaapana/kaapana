@@ -172,13 +172,15 @@ extensionctl delete --all --yes     # skip confirmation
 
 ## Python API
 
-`ExtensionUtilityLibrary` exposes every operation the CLI uses. Registry credentials are only needed for operations that contact the registry.
+`ExtensionUtilityLibrary` exposes every operation the CLI uses.
+`build()` is a plain static method. All registry operations are **async** and require the client to be used as an `async with` context manager.
 
 ```python
+import asyncio
 from pathlib import Path
 from kaapana_extensions.extensions import ExtensionUtilityLibrary
 
-# Build — no registry credentials needed
+# Build — synchronous static method, no registry credentials needed
 # Returns [(source_str, archive_path), ...]
 archives = ExtensionUtilityLibrary.build(
     "https://git.example.com/repo.git#main:my-extension",
@@ -187,44 +189,42 @@ archives = ExtensionUtilityLibrary.build(
 archives = ExtensionUtilityLibrary.build(Path("my-extension"), output=Path("dist/"))
 archives = ExtensionUtilityLibrary.build(Path("extensions/"), output=Path("dist/"), recursive=True)
 
-# Registry client
-lib = ExtensionUtilityLibrary(
-    registry="registry.example.com",
-    repo="kaapana/extensions",
-    username="myuser",
-    password="mytoken",
-)
-
-# Push
-tag = lib.push(Path("dist/my-extension-v1.0.0.tar.gz"))
-tag = lib.push(Path("dist/my-extension-v1.0.0.tar.gz"), bump="patch")
-tag = lib.push(Path("dist/my-extension-v1.0.0.tar.gz"), overwrite=True)
-
-# Build + push in one call
-results = lib.publish("my-extension/", bump="minor")       # [(source, tag), ...]
-results = lib.publish("https://git.example.com/repo.git#main:my-extension")
-
-# Pull
-out = lib.pull("aaaaaaaa-0000-0000-0000-000000000001-v1.0.0", Path("downloads/"))
-
-# List / inspect
-tags = lib.list_tags()
-manifest = lib.get_extension(tags[0])          # extension_manifest dict
-manifests = lib.get_extensions()               # list of all manifests
-config = lib.get(tags[0])                      # full registry config blob
-all_meta = lib.get_all_metadata()              # [(tag, config), ...]
-
-# Delete
-lib.delete_tag("aaaaaaaa-0000-0000-0000-000000000001-v1.0.0")
-
-# Validate
-ok, errors = ExtensionUtilityLibrary.validate(Path("my-extension/extension_manifest.json"))
-ok, errors = lib.validate_extension(Path("my-extension/"))
-
-# Version bumping
+# Version bumping — also synchronous
 new_ver = ExtensionUtilityLibrary.bump_version("1.2.3", "patch")  # → "1.2.4"
 new_ver = ExtensionUtilityLibrary.bump_version("1.2.3", "minor")  # → "1.3.0"
 new_ver = ExtensionUtilityLibrary.bump_version("1.2.3", "major")  # → "2.0.0"
+
+# All registry operations are async — use async with
+async def main():
+    async with ExtensionUtilityLibrary(
+        registry="registry.example.com",
+        repo="kaapana/extensions",
+        username="myuser",
+        password="mytoken",
+    ) as lib:
+        # Push
+        tag = await lib.push(Path("dist/my-extension-v1.0.0.tar.gz"))
+        tag = await lib.push(Path("dist/my-extension-v1.0.0.tar.gz"), bump="patch")
+        tag = await lib.push(Path("dist/my-extension-v1.0.0.tar.gz"), overwrite=True)
+
+        # Build + push in one call
+        results = await lib.publish("my-extension/", bump="minor")       # [(source, tag), ...]
+        results = await lib.publish("https://git.example.com/repo.git#main:my-extension")
+
+        # Pull
+        out = await lib.pull("aaaaaaaa-0000-0000-0000-000000000001-v1.0.0", Path("downloads/"))
+
+        # List / inspect
+        tags = await lib.list_tags()
+        manifest = await lib.get_extension(tags[0])       # extension_manifest dict
+        manifests = await lib.get_extensions()            # list of all manifests
+        config = await lib.get(tags[0])                   # full registry config blob
+        all_meta = await lib.get_all_metadata()           # [(tag, config), ...]
+
+        # Delete
+        await lib.delete_tag("aaaaaaaa-0000-0000-0000-000000000001-v1.0.0")
+
+asyncio.run(main())
 ```
 
 ---

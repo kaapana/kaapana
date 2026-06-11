@@ -4,7 +4,11 @@ import json
 from pathlib import Path
 from typing import Dict, Optional
 
+import logging
+
 from kaapana_extensions.extensions import ExtensionUtilityLibrary
+
+logger = logging.getLogger(__name__)
 
 _CREDENTIALS_FILE = Path.home() / ".kaapana" / "credentials.json"
 
@@ -70,12 +74,15 @@ async def oci_login(registry: str, repo: str, username: str, password: str) -> N
     if not registry_host.startswith(("http://", "https://")):
         registry_host = f"https://{registry_host}"
 
+    logger.debug("Verifying credentials against %s (repo=%s, user=%s)", registry_host, repo, username)
     try:
         async with ExtensionUtilityLibrary(registry_host, repo, username, password) as client:
             await client.check_login()
     except Exception as e:
+        logger.error("Login failed for %s: %s", registry_host, e)
         raise ValueError(f"Login failed: {e}") from e
 
+    logger.info("Login successful — credentials saved to %s", _CREDENTIALS_FILE)
     _save_all_credentials(username, password, registry_host, repo)
 
     os.chmod(_CREDENTIALS_FILE, stat.S_IRUSR | stat.S_IWUSR)

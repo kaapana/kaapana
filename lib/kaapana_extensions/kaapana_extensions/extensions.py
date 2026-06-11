@@ -3,7 +3,6 @@
 import asyncio
 import git
 import io
-import os
 import re
 import tarfile
 import json
@@ -14,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from kaapana_containers.registries.registry import OCIError, OCIRegistryDiscovery
+from kaapana_containers.registries.registry import OCIRegistryDiscovery
 
 # Pip-style VCS URL: git+URL[@ref][#subdir]
 _PIP_SOURCE_RE = re.compile(
@@ -534,7 +533,7 @@ class ExtensionUtilityLibrary:
                 for p in file_paths:
                     tar.add(p, arcname=p.relative_to(source_dir))
             tmp_path.rename(archive_path)
-        except:
+        except Exception:
             tmp_path.unlink(missing_ok=True)
             raise
 

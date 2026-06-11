@@ -1,42 +1,40 @@
-# Kaapana OCI
-<!-- TODO change name from kaapana_containers to kaapana_oci -->
+# kaapana_containers
 
-A lightweight library for interacting with OCI-compatible registries.
+Async OCI registry client used by **kaapana_extensions** to store and retrieve extension packages.
 
-## Purpose
+## Usage
 
-`kaapana_containers` is the OCI registry management component used by **kaapana_extensions** to store and retrieve extension packages as OCI artifacts.
-
-## Core Concepts
-
-### OCI Registry Operations
-- Authentication: HTTP Basic and Bearer token authentication
-- Blob Management: Upload/download arbitrary binary blobs
-- Manifest Operations: Create and retrieve OCI image manifests
-- Tag Management: Create/update tags and list available tags
-
-## API Reference
-
-### OCIRepositoryManager
+> **`OCIRegistryDiscovery` must always be used as `async with` — it will not work otherwise.**
 
 ```python
-class OCIRepositoryManager:
-    def __init__(self, registry_url: str, repository: str, username: Optional[str] = None, password: Optional[str] = None)
-    
-    def list_tags(self) -> List[str]
-    
-    def get(self, tag: str) -> Dict[str, Any]
-    
-    def get_all_metadata(self, specific_tag: Optional[str] = None) -> List[Tuple[str, Dict[str, Any]]]
-    
-    def create_or_update_tag(self, tag: str, user_metadata: Dict[str, Any], files: Optional[List[str]] = None) -> bool
-    
-    def delete_tag(self, tag: str) -> bool
-    
-    def download_files(self, tag: str, output_dir: str = ".") -> bool
+from kaapana_containers.registries.registry import OCIRegistryDiscovery, OCIError
+
+async with OCIRegistryDiscovery(
+    registry_url="https://registry.example.com",
+    repository="user/project",
+    username="myuser",
+    password="mytoken",
+) as client:
+    await client.check_login()
+    tags   = await client.list_tags()
+    meta   = await client.get("my-tag-v1.0.0")
+    await client.create_or_update_tag("my-tag-v1.0.0", user_metadata={...}, files=["file.tar.gz"])
+    await client.download_files("my-tag-v1.0.0", output_dir="/tmp/out")
+    await client.delete_tag("my-tag-v1.0.0")
+```
+
+## Errors
+
+All failures raise `OCIError(message, code=...)`. Error codes follow the [OCI Distribution Spec](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#error-codes).
+
+```python
+try:
+    await client.list_tags()
+except OCIError as e:
+    print(e.code)   # e.g. "UNAUTHORIZED", "NAME_UNKNOWN", "MANIFEST_UNKNOWN"
+    print(str(e))   # human-readable detail
 ```
 
 ## License
 
 Apache-2.0
-

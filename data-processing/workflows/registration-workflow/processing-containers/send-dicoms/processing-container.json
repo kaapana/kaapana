@@ -36,12 +36,12 @@
             "inputs": [
                 {
                     "name": "dicoms",
-                    "mounted_path": "/home/kaapana/dicoms",
+                    "mounted_path": "/kaapana/app/dicoms",
                     "description": "Expects a subdirectory for each dicom series that contains the .dcm files"
                 }],
             "outputs": [
             ],
-            "command": ["/bin/bash", "/home/kaapana/send-dicoms.sh"]
+            "command": ["/bin/bash", "/kaapana/app/send-dicoms.sh"]
         }
     ]
 }

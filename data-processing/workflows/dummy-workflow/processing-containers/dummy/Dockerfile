@@ -5,6 +5,6 @@ LABEL BUILD_IGNORE="False"
 
 COPY processing-container.json /
 
-WORKDIR /home/dummy
-COPY files/upstream.py /home/dummy/
-COPY files/downstream.py /home/dummy/
+WORKDIR /kaapana/app
+COPY files/upstream.py /kaapana/app/
+COPY files/downstream.py /kaapana/app/

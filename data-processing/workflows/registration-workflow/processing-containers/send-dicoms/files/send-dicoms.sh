@@ -11,4 +11,4 @@ dcmsend\
     --scan-pattern *.dcm\
     --no-halt \
     +r \
-    /home/kaapana/dicoms
+    /kaapana/app/dicoms

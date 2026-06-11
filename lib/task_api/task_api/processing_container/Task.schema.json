@@ -138,6 +138,18 @@
         "volume_source": {
           "$ref": "#/$defs/HostPathVolume",
           "title": "Volume Source"
+        },
+        "sub_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sub Path"
         }
       },
       "required": [

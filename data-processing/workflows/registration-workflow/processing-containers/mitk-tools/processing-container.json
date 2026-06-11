@@ -11,12 +11,12 @@
             "inputs": [
                 {
                     "name": "fixed",
-                    "mounted_path": "/home/kaapana/fixed",
+                    "mounted_path": "/kaapana/app/fixed",
                     "description": "Expects a single subdirectory with a single .nrrd file for the target image."
                 },
                 {
                     "name": "moving",
-                    "mounted_path": "/home/kaapana/moving",
+                    "mounted_path": "/kaapana/app/moving",
                     "description": "Expects for each image that should be registered a subdirectory that contains a single .nrrd file",
                     "scale_rule": {
                         "scale_factor": 100,
@@ -29,11 +29,11 @@
             "outputs": [
                 {
                     "name": "registered",
-                    "mounted_path": "/home/kaapana/registered",
+                    "mounted_path": "/kaapana/app/registered",
                     "description": "Creates for each subdirectory in moving a subdirectory with the same basename that contains a registered .nrrd file"
                 }
             ],
-            "command": ["/bin/bash", "/home/kaapana/register.sh"],
+            "command": ["/bin/bash", "/kaapana/app/register.sh"],
             "resources": {
                 "limits": {
                     "memory": "2000Mi"
@@ -51,7 +51,7 @@
             "inputs": [
                 {
                     "name": "dicom",
-                    "mounted_path": "/home/kaapana/dicom",
+                    "mounted_path": "/kaapana/app/dicom",
                     "scale_rule": {
                         "scale_factor": 10,
                         "type": "limit",
@@ -63,10 +63,10 @@
             "outputs": [
                 {
                     "name": "nrrd",
-                    "mounted_path": "/home/kaapana/nrrd"
+                    "mounted_path": "/kaapana/app/nrrd"
                 }
             ],
-            "command": ["/bin/bash", "/home/kaapana/convert.sh"],
+            "command": ["/bin/bash", "/kaapana/app/convert.sh"],
             "resources": {
                 "limits": {
                     "memory": "500Mi"

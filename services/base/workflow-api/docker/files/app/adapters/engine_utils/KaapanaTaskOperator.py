@@ -14,13 +14,17 @@ from kubernetes import client
 from kubernetes.client.exceptions import ApiException
 from pydantic import BaseModel, ConfigDict
 from task_api.processing_container import pc_models, task_models
-from task_api.processing_container.common import get_task_template, merge_env
+from task_api.processing_container.common import (
+    get_task_template,
+    merge_env,
+)
 from task_api.runners.KubernetesRunner import KubernetesRunner, PodPhase
 
-HOST_WORKFLOW_DIR = Path(os.getenv("DATADIR", "/home/kaapana/workflows/data"))
 AIRFLOW_HOME = Path(os.getenv("AIRFLOW_HOME"), "/kaapana/mounted/workflows")
 AIRFLOW_WORKFLOW_DIR = Path(AIRFLOW_HOME, "data")
+PROCESSING_WORKFLOW_DIR = Path("/kaapana/mounted/data")
 DEFAULT_NAMESPACE = f"{os.environ['PLATFORM_PREFIX']}-project-admin"  # environ will raise KeyError if not set
+SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", "services")
 USER_INPUT_KEY = "task_form"
 KAAPANA_SKIP_TASK_RUN_RETURN_CODE = 126
 
@@ -193,7 +197,6 @@ class KaapanaTaskOperator(BaseOperator):
 
     def execute(self, context: Context) -> Any:
         dag_run_id = context["dag_run"].run_id
-        self.host_workflow_dir = HOST_WORKFLOW_DIR / dag_run_id
         self.airflow_workflow_dir = AIRFLOW_WORKFLOW_DIR / dag_run_id
         self.task_run_file = KaapanaTaskOperator.task_run_file_path(context)
         self.set_namespace(context)
@@ -238,15 +241,13 @@ class KaapanaTaskOperator(BaseOperator):
             )
             if scheduler_path.exists() and scheduler_path.is_dir():
                 shutil.rmtree(scheduler_path)
+            scheduler_path.mkdir(parents=True, exist_ok=True)
 
             outputs.append(
                 task_models.IOVolume(
                     name=channel.name,
-                    volume_source=task_models.HostPathVolume(
-                        host_path=str(
-                            Path(self.host_workflow_dir / self.task_id / channel.name)
-                        ),
-                    ),
+                    volume_source=self._workflow_data_volume_source(),
+                    sub_path=str(Path(context["dag_run"].run_id, self.task_id, channel.name)),
                 )
             )
         inputs = []
@@ -263,9 +264,8 @@ class KaapanaTaskOperator(BaseOperator):
                 inputs.append(
                     task_models.IOVolume(
                         name=io_map.input_channel,
-                        volume_source=task_models.HostPathVolume(
-                            host_path=channel.volume_source.host_path
-                        ),
+                        volume_source=channel.volume_source,
+                        sub_path=channel.sub_path,
                     )
                 )
 
@@ -290,10 +290,21 @@ class KaapanaTaskOperator(BaseOperator):
                     **self.labels,
                 },
                 annotations=self.annotations,
+                volumes=[client.V1Volume(name="dshm", empty_dir=client.V1EmptyDirVolumeSource(medium="Memory"))],
+                volume_mounts=[client.V1VolumeMount(name="dshm", mount_path="/dev/shm")],
             ),
         )
 
         return self._merge_user_input(context, task)
+
+    def _workflow_data_volume_source(self) -> client.V1Volume:
+        return client.V1Volume(
+            name="workflow-data",
+            persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                claim_name="workflow-data-pv-claim",
+                read_only=False,
+            ),
+        )
 
     def _merge_user_input(
         self, context: Context, task: task_models.Task
@@ -402,6 +413,9 @@ class KaapanaTaskOperator(BaseOperator):
         """
         Make sure that the corresponding pod is removed.
         """
+        if not hasattr(self, "task_run"):
+            self.log.info("No processing pod to delete.")
+            return
         KubernetesRunner.stop(self.task_run)
         self.log.info("Pod deleted successfully!")
 

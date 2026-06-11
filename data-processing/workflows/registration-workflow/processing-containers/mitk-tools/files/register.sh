@@ -1,9 +1,9 @@
 #! /bin/bash
 set -eu -o pipefail
 
-ROOT_FIXED_DIR="/home/kaapana/fixed"
-ROOT_MOVING_DIR="/home/kaapana/moving"
-ROOT_OUTPUT_DIR="/home/kaapana/registered"
+ROOT_FIXED_DIR="/kaapana/app/fixed"
+ROOT_MOVING_DIR="/kaapana/app/moving"
+ROOT_OUTPUT_DIR="/kaapana/app/registered"
 
 FIXED_IMAGE=$( find ${ROOT_FIXED_DIR} -maxdepth 2 -mindepth 2 -type f -name *.nrrd)
 MOVING_IMAGES=$( find ${ROOT_MOVING_DIR} -maxdepth 2 -mindepth 2 -type f -name *.nrrd)

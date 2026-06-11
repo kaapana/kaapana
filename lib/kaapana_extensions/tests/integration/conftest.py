@@ -4,6 +4,7 @@ import pytest
 import requests
 from pathlib import Path
 
+from kaapana_containers.registries.registry import OCIError
 from kaapana_extensions.extensions import ExtensionUtilityLibrary
 
 _REPO = "test/extensions"
@@ -41,6 +42,17 @@ def registry_url(docker_ip, docker_services):
         pause=0.5,
     )
     return url
+
+
+@pytest.fixture(autouse=True)
+async def clean_registry(client):
+    """Wipe all tags before each test so tests start with a clean registry."""
+    try:
+        for tag in await client.list_tags():
+            await client.delete_tag(tag)
+    except OCIError:
+        pass
+    yield
 
 
 @pytest.fixture

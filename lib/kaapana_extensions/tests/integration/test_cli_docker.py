@@ -30,10 +30,17 @@ class TestCliPush:
         result = runner.invoke(app, ["push", "/does/not/exist.tar.gz"] + registry_opts)
         assert result.exit_code == 1
 
-    def test_push_duplicate_exits_1(self, registry_opts, ext_archive):
+    def test_push_duplicate_exits_1_with_error_message(self, registry_opts, ext_archive):
         _push(registry_opts, ext_archive)
         result = runner.invoke(app, ["push", str(ext_archive)] + registry_opts)
         assert result.exit_code == 1
+        assert "already exists" in result.output
+
+    def test_push_overwrite_exits_0_and_returns_same_tag(self, registry_opts, ext_archive):
+        tag = _push(registry_opts, ext_archive)
+        result = runner.invoke(app, ["push", str(ext_archive), "--overwrite"] + registry_opts)
+        assert result.exit_code == 0
+        assert f"Pushed: {tag}" in result.output
 
 
 class TestCliList:

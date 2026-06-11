@@ -54,7 +54,7 @@ def _clear_all_credentials() -> None:
         _CREDENTIALS_FILE.unlink()
 
 
-def oci_login(registry: str, repo: str, username: str, password: str) -> None:
+async def oci_login(registry: str, repo: str, username: str, password: str) -> None:
     """Login to registry and save credentials.
 
     Args:
@@ -70,9 +70,11 @@ def oci_login(registry: str, repo: str, username: str, password: str) -> None:
     if not registry_host.startswith(("http://", "https://")):
         registry_host = f"https://{registry_host}"
 
-    client = ExtensionUtilityLibrary(registry_host, repo, username, password)
-    if not client.check_login():
-        raise ValueError("Login failed: invalid credentials or registry unreachable")
+    try:
+        async with ExtensionUtilityLibrary(registry_host, repo, username, password) as client:
+            await client.check_login()
+    except Exception as e:
+        raise ValueError(f"Login failed: {e}") from e
 
     _save_all_credentials(username, password, registry_host, repo)
 

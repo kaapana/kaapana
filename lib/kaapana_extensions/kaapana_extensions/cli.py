@@ -62,7 +62,7 @@ def login(
 ):
     """Login to registry and save credentials."""
     try:
-        oci_login(registry, repo, username, password)
+        asyncio.run(oci_login(registry, repo, username, password))
     except Exception as e:
         typer.echo(f"Error: Login failed - {e}", err=True)
         raise typer.Exit(1)

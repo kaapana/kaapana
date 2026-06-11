@@ -158,18 +158,6 @@ kaapana_extensions_tests:
       junit:
         - kaapana_extensions_report.xml
 
-install_helm_on_build:
-  stage: prepare
-  needs:
-  - prepare_pipeline
-  script:
-  - source /home/$USER/venv/bin/activate
-  - ansible localhost -m include_tasks -a "file=$REPO_DIR/setup_playbooks/task_templates/snap_install_helm.yaml" 2>&1 | tee $ARTIFACTS_DIR/ansible_install_helm.log
-  rules:
-  - if: $INSTALL_HELM_ON_BUILD == "true"
-    when: on_success
-  - when: never
-
 workflow_api_tests:
   extends: .test_template
   script:
@@ -186,6 +174,8 @@ workflow_api_tests:
 extensions_api_tests:
   extends: .test_template
   script:
+    - pip install -e "$KAAPANA_DIR/lib/kaapana_containers"
+    - pip install -e "$KAAPANA_DIR/lib/kaapana_extensions"
     - pip install -r  $KAAPANA_DIR/services/base/extension-manager-service/docker/files/app/tests/requirements.txt
     - pytest  $KAAPANA_DIR/services/base/extension-manager-service/docker/files/app --junitxml=extensions_api_report.xml
   artifacts:

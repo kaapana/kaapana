@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -eu -o pipefail
 # default vals
 extension_path=""
 no_import=""
@@ -34,8 +34,10 @@ if [ -z "$extension_path" ]; then
     exit 1
 fi
 
-# get all Dockerfiles, build and push them to the registry
-image_paths=$(find $extension_path -type f \( -name "Dockerfile" -o -name "*.Dockerfile" \) -exec dirname {} \;)
+############################################
+### Build dag-installer-image if present ###
+############################################
+image_paths=$(find $extension_path/extension -type f \( -name "Dockerfile" -o -name "*.Dockerfile" \) -exec dirname {} \;)
 if [ -z "$image_paths" ]; then
     echo "ERROR: No dockerfiles found"
     exit 1
@@ -46,7 +48,24 @@ fi
 
 for image_path in $image_paths; do
     echo "Building image using Dockerfile in $image_path"
-    /usr/bin/bash /kaapana/app/build_image.sh --dir $image_path
+    /usr/bin/bash /kaapana/app/build_image.sh --dir $image_path --image-version 0.0.0
+done
+
+############################################
+### Build processing-container images ######
+############################################
+image_paths=$(find $extension_path/processing-containers -type f \( -name "Dockerfile" -o -name "*.Dockerfile" \) -exec dirname {} \;)
+if [ -z "$image_paths" ]; then
+    echo "ERROR: No dockerfiles found"
+    exit 1
+else
+    echo "Found Dockerfiles:"
+    echo "$image_paths"
+fi
+
+for image_path in $image_paths; do
+    echo "Building image using Dockerfile in $image_path"
+    /usr/bin/bash /kaapana/app/build_image.sh --dir $image_path --image-version ${KAAPANA_BUILD_VERSION}
 done
 
 # TODO: add `custom_registry_url: "localhost:32000"` to values.yaml if not there

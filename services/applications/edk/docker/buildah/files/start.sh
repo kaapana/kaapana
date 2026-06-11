@@ -1,5 +1,5 @@
 #!/bin/sh
-set -eux
+set -eu -o pipefail
 
 buildah bud \
   --isolation=chroot \

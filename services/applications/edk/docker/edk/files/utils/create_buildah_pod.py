@@ -1,6 +1,7 @@
 import argparse
 import os
 import shutil
+import sys
 from datetime import datetime
 from typing import Any, Dict, Union
 
@@ -164,14 +165,21 @@ def monitor_pod(pod_name: str, dest_dir: str) -> None:
                         if event_type == "DELETED":
                             print(f"Pod {pod_name} deleted unexpectedly")
                         if pod_status:
-                            if pod_status.phase in ["Failed", "Succeeded"]:
+                            if pod_status.phase == "Succeeded":
                                 print(
                                     f"Pod {pod_name} finished with status: {pod_status.phase}, deleting files at {dest_dir}"
                                 )
                                 delete_files(dest_dir)
                                 return
+                            elif pod_status.phase == "Failed":
+                                print(
+                                    f"Pod {pod_name} finished with status: {pod_status.phase}, deleting files at {dest_dir}"
+                                )
+                                delete_files(dest_dir)
+                                sys.exit(1)
                             else:
                                 print(f"Pod {pod_name} status: {pod_status.phase}")
+
     except ProtocolError as e:
         # watch client does not handle retry: https://github.com/kubernetes-client/python/issues/1693
         print(f"urllib3 raised ProtocolError: {e} due to long watch, continuing...")

@@ -37,7 +37,7 @@ fi
 
 # change version of Helm chart to Kaapana version
 cd $chart_path
-sed -i "s/^version: \".*\"/version: \"$KAAPANA_BUILD_VERSION\"/" "$chart_path/Chart.yaml"
+sed -i "s/^version: \".*\"/version: \"$KAAPANA_BUILD_VERSION\"/" "Chart.yaml"
 
 # build helm chart
 echo "building Helm chart $chart_path"

@@ -2,7 +2,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
-from kaapana.blueprints.json_schema_templates import get_all_project_ids
+from kaapana.blueprints.json_schema_templates import get_all_project_names
 from kaapana.operators.LocalMinioDataTransferOperator import (
     LocalMinioDataTransferOperator,
 )
@@ -20,7 +20,7 @@ ui_forms = {
                 "type": "array",
                 "items": {
                     "type": "string",
-                    "enum": get_all_project_ids(without_admin_project=False),
+                    "enum": get_all_project_names(without_admin_project=False),
                 },
                 "required": True,
             },

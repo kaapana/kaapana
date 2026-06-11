@@ -12,6 +12,7 @@ from body_and_organ_analysis.BodyAndOrganAnalysisOperator import (
     BodyAndOrganAnalysisOperator,
 )
 from body_and_organ_analysis.BoaOutputCheckOperator import BoaOutputCheckOperator
+from body_and_organ_analysis.GetZenodoModelOperator import GetZenodoModelOperator
 
 max_active_runs = 5
 
@@ -126,6 +127,30 @@ dag = DAG(
     schedule_interval=None,
 )
 
+get_models = GetZenodoModelOperator(
+    dag=dag,
+    model_dir="/models/total_segmentator/nnUNet",
+    task_ids=",".join(
+        [
+            "Task251_TotalSegmentator_part1_organs_1139subj",
+            "Task252_TotalSegmentator_part2_vertebrae_1139subj",
+            "Task253_TotalSegmentator_part3_cardiac_1139subj",
+            "Task254_TotalSegmentator_part4_muscles_1139subj",
+            "Task255_TotalSegmentator_part5_ribs_1139subj",
+            "Task256_TotalSegmentator_3mm_1139subj",
+            "Task258_lung_vessels_248subj",
+            "Task150_icb_v0",
+            "Task260_hip_implant_71subj",
+            "Task269_Body_extrem_6mm_1200subj",
+            "Task503_cardiac_motion",
+            "Task273_Body_extrem_1259subj",
+            "Task315_thoraxCT",
+            "Task008_HepaticVessel",
+            "Task542_BCA_inference",
+        ]
+    ),
+)
+
 get_input = GetInputOperator(dag=dag, parallel_downloads=5, check_modality=False)
 
 dcm2nifti = DcmConverterOperator(
@@ -165,4 +190,5 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 # --- Task flow ---
 get_input >> dcm2nifti >> boa >> boa_check >> seg2dicom >> send_task >> clean
+get_models >> boa
 boa_check >> push_to_minio >> clean

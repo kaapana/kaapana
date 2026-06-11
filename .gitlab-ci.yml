@@ -319,7 +319,7 @@ security:
     - VENV_PATH=$(eval echo "$ORCHESTRATOR_INSTANCE_PYTHON_VENV")
     - source "$VENV_PATH/bin/activate"
     - export ANSIBLE_HOST_KEY_CHECKING=False
-    - mkdir -p "$ARTIFACTS_DIR"
+    - mkdir -p $ARTIFACTS_DIR
     - VERSION_TAG=$(git describe --tags --always --dirty)
     - |
       if [[ "$CI_EXEC_BUILD_ARGUMENTS" =~ (--latest) && "$VERSION_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then

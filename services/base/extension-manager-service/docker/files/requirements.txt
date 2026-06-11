@@ -5,4 +5,5 @@ psycopg2-binary==2.9.12
 asyncpg==0.31.0
 httpx==0.28.1
 cryptography==48.0.0
-kaapana-extensions@git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@3b61c220528ce4b649466838bb1db3fde89ae394#subdirectory=lib/kaapana_extensions
+kaapana-containers @ file:///lib/kaapana_containers
+kaapana-extensions @ file:///lib/kaapana_extensions

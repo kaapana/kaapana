@@ -14,7 +14,7 @@ dependencies = [
     "httpx>=0.25.0",
     "requests>=2.31.0",
     "gitpython>=3.1.0",
-    "kaapana-containers@file:../kaapana_containers"
+    "kaapana-containers"
 ]
 
 [project.optional-dependencies]

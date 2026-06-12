@@ -17,9 +17,10 @@ RUN yarn install --frozen-lockfile --network-timeout 100000
 RUN node patch-dcmjs.js
 RUN NODE_OPTIONS=--max_old_space_size=8192 yarn run build
 
-FROM nginx:1.29.3-alpine AS app
+FROM nginx:1.31-alpine AS app
 COPY --from=build /src/build/ /usr/share/nginx/html/slim/
 
+RUN apk update && apk upgrade libxml2
 
 COPY files/conf /etc/nginx/conf.d/default.conf
 EXPOSE 80

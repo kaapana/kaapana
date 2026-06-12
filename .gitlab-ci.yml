@@ -531,7 +531,7 @@ send_data:
     JUNIT_FILE: "send_data.xml"
     LOG_FILE: "send_data.log"
     PYTEST_WORKERS: "4"
-  retry: 3
+  retry: 2
 
 run_workflows:
   extends: .integration_test_local

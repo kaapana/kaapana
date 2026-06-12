@@ -5,7 +5,7 @@
 {{- if $existingSecret }}
   {{- $fernetKey = index $existingSecret.data "CREDENTIAL_ENCRYPTION_KEY" | b64dec }}
 {{- else }}
-  {{- $fernetKey = randBytes 32 | b64enc | replace "+" "-" | replace "/" "_" }}
+  {{- $fernetKey = randBytes 32 | replace "+" "-" | replace "/" "_" }}
 {{- end }}
 ---
 apiVersion: v1

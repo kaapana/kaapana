@@ -151,7 +151,7 @@ get_models = GetZenodoModelOperator(
     ),
 )
 
-get_input = GetInputOperator(dag=dag, parallel_downloads=5, check_modality=False)
+get_input = GetInputOperator(dag=dag, parallel_downloads=5, check_modality=True)
 
 dcm2nifti = DcmConverterOperator(
     dag=dag, input_operator=get_input, output_format="nii.gz"

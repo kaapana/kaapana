@@ -147,11 +147,23 @@ class KeycloakHelper:
 
     def get_users(self):
         """
-        Get all the keycloak users
+        Get all the keycloak users with full details including email
         """
         url = self.auth_url + f"kaapana/users"
         r = self.make_authorized_request(url, requests.get)
-        users_dict = list_of_dict_camel_to_snake(r.json())
+        users_list = r.json()
+
+        users_dict = []
+        for user in users_list:
+            user_id = user.get("id")
+            if user_id:
+                try:
+                    full_user = self.get_user_by_id(user_id)
+                    users_dict.append(full_user)
+                except Exception as e:
+                    logger.warning(f"Could not fetch full details for user {user_id}: {e}")
+                    users_dict.append(dict_keys_camel_to_snake(user))
+
         return users_dict
 
     def get_user_groups(self, userid: str):
@@ -205,7 +217,6 @@ class KeycloakHelper:
         url = self.auth_url + f"kaapana/users/{userid}"
         user_response = self.make_authorized_request(url, requests.get)
         user_data = dict_keys_camel_to_snake(user_response.json())
-
         user_data["groups"] = self.get_user_groups(userid)
         user_data["realm_roles"] = self.get_user_realm_roles(userid)
         return user_data

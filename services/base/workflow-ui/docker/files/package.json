@@ -37,6 +37,7 @@
     "eslint": "^9.31.0",
     "eslint-plugin-playwright": "^2.2.0",
     "eslint-plugin-vue": "~10.3.0",
+    "vue-eslint-parser": "^10.0.0",
     "jiti": "^2.4.2",
     "jsdom": "^26.1.0",
     "npm-run-all2": "^8.0.4",

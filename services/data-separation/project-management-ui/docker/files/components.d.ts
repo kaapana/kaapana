@@ -7,12 +7,24 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    ActiveProjectApplications: typeof import('./src/components/ActiveProjectApplications.vue')['default']
     AddUserToProject: typeof import('./src/components/AddUserToProject.vue')['default']
+    ApplicationParametersDialog: typeof import('./src/components/ApplicationParametersDialog.vue')['default']
+    ArchiveProjectDialog: typeof import('./src/components/ArchiveProjectDialog.vue')['default']
     Confirm: typeof import('./src/components/Confirm.vue')['default']
     copy: typeof import('./src/components/CreateNewProjectForm copy.vue')['default']
     CreateNewProjectForm: typeof import('./src/components/CreateNewProjectForm.vue')['default']
+    DeleteProjectDialog: typeof import('./src/components/DeleteProjectDialog.vue')['default']
+    EditProjectDialog: typeof import('./src/components/EditProjectDialog.vue')['default']
     HelloWorld: typeof import('./src/components/HelloWorld.vue')['default']
+    LaunchApplication: typeof import('./src/components/LaunchApplication.vue')['default']
+    MultiinstallableApplications: typeof import('./src/components/MultiinstallableApplications.vue')['default']
+    ProjectUsers: typeof import('./src/components/ProjectUsers.vue')['default']
+    ProjectWorkflows: typeof import('./src/components/ProjectWorkflows.vue')['default']
+    RequirePermissions: typeof import('./src/components/RequirePermissions.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    SearchBar: typeof import('./src/components/SearchBar.vue')['default']
+    SectionHeader: typeof import('./src/components/SectionHeader.vue')['default']
   }
 }

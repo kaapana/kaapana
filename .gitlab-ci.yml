@@ -511,12 +511,13 @@ install_extensions:
       artifacts: true
     - first_login
     - platform_deployment
+    - playwright_ui_tests
   variables:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_install_extensions.py"
     JUNIT_FILE: "install_extensions.xml"
     LOG_FILE: "install_extensions.log"
     PYTEST_WORKERS: "4"
-  retry: 1
+  retry: 2
 
 send_data:
   extends: .integration_test_local
@@ -526,12 +527,13 @@ send_data:
     - job: setup_integration_tests
       artifacts: true
     - first_login
+    - install_extensions
   variables:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_send_data.py"
     JUNIT_FILE: "send_data.xml"
     LOG_FILE: "send_data.log"
     PYTEST_WORKERS: "4"
-  retry: 1
+  retry: 2
 
 run_workflows:
   extends: .integration_test_local
@@ -550,6 +552,38 @@ run_workflows:
     JUNIT_FILE: "run_workflow.xml"
     LOG_FILE: "run_workflow.log"
     PYTEST_WORKERS: "4"
+
+playwright_ui_tests:
+  extends: .remote_execution_template
+  stage: test
+  rules:
+    - if: '$CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"'
+      when: on_success
+    - when: never
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+    - platform_deployment
+    - first_login
+  script:
+    - source artifacts/deployment.env
+    - cd "$CI_PROJECT_DIR/tests/ui"
+    - npm ci
+    - npx playwright install --with-deps chromium
+    - |
+      KAAPANA_TEST_INSTANCE_UI="https://$VM_FQDN" \
+        npx playwright test \
+          --project auth-setup \
+          --project project-management \
+          --workers 1
+  artifacts:
+    when: always
+    paths:
+      - tests/ui/playwright-report/
+      - tests/ui/test-results/
+    expose_as: "Playwright UI Report"
+    reports:
+      junit: tests/ui/test-results/junit.xml
 
 # #############################################
 # ############## CLEAN ########################

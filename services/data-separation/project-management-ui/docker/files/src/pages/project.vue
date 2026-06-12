@@ -1,722 +1,274 @@
 <template>
-    <v-snackbar
-        v-model="showSnackbar"
-        :timeout="10000"
-        location="top"
-        :color="snackbarColor"
-        elevation="2"
-        >
-        {{ snackbarText }}
-    </v-snackbar>
-    <v-container max-width="1200">
-        <v-row no-gutters>
-            <v-btn size="x-small" variant="outlined" prepend-icon="mdi-arrow-left"
-                @click="goToProjectsList">Back</v-btn>
-        </v-row>
-        <v-row justify="space-between">
-            <v-col>
-                <h4 v-if="project" class="text-h4 pb-8">
-                    <v-btn class="ma-2" icon="mdi-card" fab readonly></v-btn>
-                    Project {{ project.name }}
-                    <v-chip v-if="project?.is_archived" color="warning" size="small" class="ml-2">Archived</v-chip>
-                </h4>
-                <p v-if="project">{{ project.description }}</p>
-                <v-skeleton-loader v-else :loading="!project" type="heading, paragraph" />
-            </v-col>
-            <v-col cols="auto" class="d-flex align-center gap-2" v-if="userHasAdminAccess && project?.name !== 'admin'">
-                <v-btn v-if="!project?.is_archived" prepend-icon="mdi-pencil" variant="outlined" @click="openEditDialog">Edit</v-btn>
-                <v-btn v-if="!project?.is_archived" prepend-icon="mdi-archive-arrow-down" variant="outlined" color="warning" @click="archiveDialog = true">Archive</v-btn>
-                <v-btn v-if="project?.is_archived" prepend-icon="mdi-archive-arrow-up" variant="outlined" color="success" @click="unarchiveProject">Unarchive</v-btn>
-                <v-btn prepend-icon="mdi-trash-can" variant="outlined" color="error" @click="openDeleteDialog">Delete</v-btn>
-            </v-col>
-        </v-row>
-        <v-row v-if="project?.is_archived">
-            <v-col>
-                <v-alert type="warning" density="compact" variant="tonal" icon="mdi-archive">
-                    This project is archived and is read-only. Unarchive it to make changes.
-                </v-alert>
-            </v-col>
-        </v-row>
-        <v-row>
-            <v-col>
-                <v-row justify="space-between">
-                    <v-col cols="6">
-                        <div class="d-flex align-center gap-2">
-                            <v-btn v-if="extendProjectUsers == false" icon="mdi-chevron-right" @click="extendProjectUsers = true">
-                            </v-btn>
-                            <v-btn v-if="extendProjectUsers == true" icon="mdi-chevron-down" @click="extendProjectUsers = false">
-                            </v-btn>
-                            <h5 class="text-h5 py-4">Project Users</h5>
-                        </div>
-                    </v-col>
-                    <v-col cols="3" class="d-flex justify-end align-center">
-                        <v-btn
-                            block
-                            @click="userDialog = true"
-                            size="large"
-                            min-width="260"
-                            prepend-icon="mdi-account-plus"
-                            :disabled="project?.is_archived"
-                            v-if="userHasAdminAccess || can(project?.id,'manage_project_users')">
-                            Add User to Project
-                        </v-btn>
-                    </v-col>
-                </v-row>
-                <v-table v-if="users.length > 0 && extendProjectUsers == true">
-                    <thead>
-                        <tr>
-                            <th></th>
-                            <th class="text-left">
-                                Username
-                            </th>
-                            <th class="text-left">
-                                First Name
-                            </th>
-                            <th class="text-left">
-                                Last Name
-                            </th>
-                            <th class="text-left">
-                                Verified Email
-                            </th>
-                            <th class="text-left">
-                                Role
-                            </th>
-                            <th class="text-center" v-if="userHasAdminAccess || can(project?.id,'manage_project_users')">
-                                Actions
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="item in users" :key="item.username">
-                            <td><v-icon>mdi-account-circle</v-icon></td>
-                            <td>{{ item.username }}</td>
-                            <td>{{ item.first_name }}</td>
-                            <td>{{ item.last_name }}</td>
-                            <td>{{ item.email_verified }}</td>
-                            <td>{{ item.role?.name }}</td>
-                            <td class="text-right" v-if="userHasAdminAccess || can(project?.id,'manage_project_users')">
-                                <v-btn @click="openUserEditDialog(item)" density="default" icon="mdi-link-edit"></v-btn>
-                                <v-btn @click="deleteUserProjectMapping(item.id)" density="default"
-                                    icon="mdi-trash-can"></v-btn>
-                            </td>
-                        </tr>
-                    </tbody>
-                </v-table>
-                <v-sheet rounded v-else-if="!fetchingUser && extendProjectUsers == true">
-                    <v-container>
-                        <v-row align="center" justify="center" no-gutters>
-                            <v-icon icon="mdi-information" size="x-large" class="large-font" </v-icon>
-                        </v-row>
-                        <v-row align="center" justify="center" no-gutters class="py-6">
-                            <div class="text-subtitle-1 font-weight-light text-center">
-                                No User found under this Project. Click the following button to Add new user.
-                            </div>
-                        </v-row>
-                        <v-row align="center" justify="center" no-gutters>
-                            <v-btn @click="userDialog = true" size="large" variant="outlined"
-                                prepend-icon="mdi-account-plus">
-                                Add User to Project
-                            </v-btn>
-                        </v-row>
-                    </v-container>
-                </v-sheet>
-            </v-col>
-        </v-row>
-        <v-row justify="space-between">
-            <v-col>
-                <v-row justify="space-between">
-                    <v-col cols="6">
-                        <div class="d-flex align-center gap-2">
-                            <v-btn v-if="extendProjectSoftware == false" icon="mdi-chevron-right" @click="extendProjectSoftware = true">
-                            </v-btn>
-                            <v-btn v-if="extendProjectSoftware == true" icon="mdi-chevron-down" @click="extendProjectSoftware = false">
-                            </v-btn>
-                            <h5 class="text-h5 py-4">Executable Workflows</h5>
-                        </div>
-                    </v-col>
-                    <v-col cols="4" class="d-flex justify-end align-center">
-                        <v-btn
-                            block
-                            @click="softwareDialog = true"
-                            size="large"
-                            prepend-icon="mdi-gamepad-variant"
-                            min-width="300"
-                            :disabled="project?.is_archived"
-                            v-if="userHasAdminAccess || can(project?.id,'manage_project_software')">
-                            Add executable workflow to project
-                        </v-btn>
-                    </v-col>
-                </v-row>
-                <v-table v-if="allowedSoftware.length > 0 && extendProjectSoftware == true">
-                    <thead>
-                        <tr>
-                            <th></th>
-                            <th class="text-left">
-                                Dag ID
-                            </th>
-                            <th class="text-center" v-if="userHasAdminAccess  || can(project?.id,'manage_project_software')">
-                                Actions
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="item in allowedSoftware" :key="item.software_uuid">
-                            <td><v-icon>mdi-gamepad-variant</v-icon></td>
-                            <td>{{ item.software_uuid }}</td>
-                            <td class="text-center" v-if="userHasAdminAccess || can(project?.id,'manage_project_software')">
-                                <v-btn @click="confirmSoftwareMappingDeletion(item.software_uuid)" density="default"
-                                    icon="mdi-trash-can"></v-btn>
-                            </td>
-                        </tr>
-                    </tbody>
-                </v-table>
-                <v-sheet rounded v-if="allowedSoftware.length == 0">
-                    <v-container>
-                        <v-row align="center" justify="center" no-gutters>
-                            <v-icon icon="mdi-information" size="x-large" class="large-font" </v-icon>
-                        </v-row>
-                        <v-row align="center" justify="center" no-gutters class="py-6">
-                            <div class="text-subtitle-1 font-weight-light text-center">
-                                No DAG allowed for this Project. Click the following button to allow a DAG.
-                            </div>
-                        </v-row>
-                        <v-row align="center" justify="center" no-gutters>
-                            <v-btn @click="softwareDialog = true" size="large" variant="outlined"
-                                prepend-icon="mdi-gamepad-variant">
-                                Add DAG to project
-                            </v-btn>
-                        </v-row>
-                    </v-container>
-                </v-sheet>
-            </v-col>
-        </v-row>
-        <v-row justify="space-between" v-if="userHasAdminAccess  || can(project?.id,'manage_project_extensions')">
-            <v-col>
-                <v-row justify="space-between">
-                    <v-col cols="6">
-                        <div class="d-flex align-center gap-2">
-                            <v-btn v-if="extendMultiinstallableExtensions == false" icon="mdi-chevron-right" @click="extendMultiinstallableExtensions = true">
-                            </v-btn>
-                            <v-btn v-if="extendMultiinstallableExtensions == true" icon="mdi-chevron-down" @click="extendMultiinstallableExtensions = false">
-                            </v-btn>
-                            <h5 class="text-h5 py-4">Multiinstallable Applications</h5>
-                        </div>
-                    </v-col>
-                </v-row>
-                <v-table v-if="extendMultiinstallableExtensions == true">
-                    <thead>
-                    <tr>
-                        <th></th>
-                        <th class="text-left">
-                            Name
-                        </th>
-                        <th>
-                            Description
-                        </th>
-                        <th class="text-center" v-if="userHasAdminAccess  || can(project?.id,'manage_project_extensions')">
-                            Launch
-                        </th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr v-for="item in multiinstallableExtensions" :key="item.releaseName">
-                        <td><v-icon>mdi-application-outline</v-icon></td>
-                        <td>
-                            <span>{{ item.annotations["ui-visible-name"] }}</span>
+  <v-snackbar v-model="isSnackbarVisible" :timeout="3000" location="top" :color="snackbarColor" elevation="2" closable>
+    {{ snackbarMessage }}
+  </v-snackbar>
 
-                            <!-- DOCUMENTATION LINK TOOLTIP -->
-                            <v-tooltip location="bottom">
-                                <template #activator="{ props }">
-                                <a
-                                    :href="getFullEndpoint('/docs/' + item.annotations.documentation)"
-                                    target="_blank"
-                                    v-bind="props"
-                                >
-                                    <v-icon
-                                    class="cell-icon"
-                                    color="primary"
-                                    >
-                                    mdi-information
-                                    </v-icon>
-                                </a>
-                                </template>
+  <v-container max-width="1200" class="bg-surface rounded-lg mt-2">
 
-                                <span>Link to the documentation.</span>
-                            </v-tooltip>
+    <!-- ── Back navigation ──────────────────────────────────────── -->
+    <v-row no-gutters class="mb-2" justify="space-between">
+      <v-col cols="auto">
+        <v-btn size="x-small" variant="outlined" prepend-icon="mdi-arrow-left" @click="goToProjectsList">
+          Projects
+        </v-btn>
+      </v-col>
+      <v-col cols="auto">
+        <v-btn size="x-small" variant="outlined" prepend-icon="mdi-refresh" @click="refresh">
+          Refresh
+        </v-btn>
+      </v-col>
+    </v-row>
 
-                        </td>
-                        <td>
-                            <v-tooltip location="bottom">
-                                <template #activator="{ props }">
-                                <div v-bind="props">
-                                    <span>
-                                    {{ item.description.length > 28 
-                                            ? item.description.slice(0, 28) + "..."
-                                            : item.description 
-                                    }}
-                                    </span>
-                                </div>
-                                </template>
+    <!-- ── Project header card ──────────────────────────────────── -->
+    <v-row>
+      <v-col>
+        <v-sheet class="pa-4 rounded-lg" border>
+          <div class="d-flex align-center justify-space-between mb-3">
+            <div v-if="project" class="d-flex align-center ga-3">
+              <v-icon icon="mdi-folder-multiple" color="primary" size="large" />
+              <div>
+                <div class="d-flex align-center ga-2">
+                  <span class="text-h5 font-weight-bold" style="font-family: monospace">{{ project.name }}</span>
+                  <v-chip v-if="project.is_archived" color="warning" size="small">Archived</v-chip>
+                </div>
+                <div v-if="project.external_id" class="text-caption text-medium-emphasis" style="font-family: monospace">
+                  {{ project.external_id }}
+                </div>
+              </div>
+            </div>
+            <v-skeleton-loader v-else :loading="!project" type="heading" width="200" />
+            <div v-if="userHasAdminAccess && project?.name !== 'admin'" class="d-flex ga-1">
+              <v-btn icon="mdi-pencil" size="default" variant="text" @click="openEditDialog" />
+              <v-btn v-if="!project?.is_archived" icon="mdi-archive-arrow-down" size="default" variant="text" color="warning" @click="archiveDialog = true" />
+              <v-btn v-if="project?.is_archived" icon="mdi-archive-arrow-up" size="default" variant="text" color="success" @click="unarchiveProject" />
+              <v-btn icon="mdi-trash-can" size="default" variant="text" color="error" @click="openDeleteDialog" />
+            </div>
+          </div>
+          <v-alert v-if="project?.is_archived" type="warning" density="compact" variant="tonal" class="mb-3">
+            This project is archived and read-only. Unarchive it to make changes.
+          </v-alert>
+          <v-sheet v-if="project?.description" class="pa-3 rounded mt-2" border>
+            <div class="text-caption text-medium-emphasis mb-1">Description</div>
+            <div class="text-body-2">{{ project.description }}</div>
+          </v-sheet>
+        </v-sheet>
+      </v-col>
+    </v-row>
 
-                                <span>{{ item.description }}</span>
-                            </v-tooltip>
-                        </td>
-                        <td class="text-center" v-if="userHasAdminAccess || can(project?.id,'manage_project_extensions')">
-                            <v-btn 
-                            density="default"
-                            @click="launchApplication(item)">
-                                Launch
-                            </v-btn>
-                        </td>
-                    </tr>
-                    </tbody>
-                </v-table>
-            </v-col>
-        </v-row>
-        <v-row v-if="userHasAdminAccess  || can(project?.id,'manage_project_extensions')">
-            <v-col>
-                <v-row justify="space-between">
-                    <v-col cols="6">
-                        <div class="d-flex align-center gap-2">
-                            <v-btn v-if="extendActiveApplications == false" icon="mdi-chevron-right" @click="extendActiveApplications = true">
-                            </v-btn>
-                            <v-btn v-if="extendActiveApplications == true" icon="mdi-chevron-down" @click="extendActiveApplications = false">
-                            </v-btn>
-                            <h5 class="text-h5 py-4">Active Project Applications</h5>
-                        </div>
-                    </v-col>
-                </v-row>
-                <v-table v-if="extendActiveApplications == true">
-                    <thead>
-                    <tr>
-                        <th></th>
-                        <th class="text-left">
-                            Name
-                        </th>
-                        <th>
-                            Status
-                        </th>
-                        <th>Links</th>
-                        <th class="text-center" v-if="userHasAdminAccess  || can(project?.id,'manage_project_extensions')">
-                            Uninstall
-                        </th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr v-for="item in activeApplications" :key="item.releaseName">
-                        <td><v-icon>mdi-application-outline</v-icon></td>
-                        <td>{{ item.annotations["kaapana.ai/display-name"] }}</td>
-                        <td>
-                            {{ installedExtensions[item.release_name].helmStatus }}
-                        </td>
-                        <td>
-                              <div class="flex gap-2 justify-center">
-                                <a 
-                                v-for="path in item.paths" 
-                                :key="path"
-                                :href="getFullEndpoint(path)"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                >
-                                <v-icon>mdi-open-in-new</v-icon>
-                                </a>
-                            </div>
-                        </td>
-                        <td class="text-center" v-if="userHasAdminAccess || can(project?.id,'manage_project_extensions')">
-                            <v-btn 
-                            density="default"
-                            icon="mdi-trash-can"
-                            @click="conformUninstallActiveApplication(item)"
-                            >
-                            </v-btn>
-                        </td>
-                    </tr>
-                </tbody>
-                </v-table>
-            </v-col>
-        </v-row>
+    <!-- ── Project Users ────────────────────────────────────────── -->
+    <v-row>
+      <ProjectUsers :key="`users-${refreshKey}`" :project="project" :expanded="isUsersSectionExpanded" @toggle="isUsersSectionExpanded = $event" />
+    </v-row>
 
-    </v-container>
-    <v-dialog v-model="softwareDialog" max-width="1000">
-        <AddSoftwareToProject :projectId="project?.id || ''" :projectName="project?.name || ''" :current-software="allowedSoftware"
-            :oncancel="resetSoftwareFormValues" :onsuccess="handleSoftwareSubmit" />
-    </v-dialog>
-    <v-dialog v-model="userDialog" max-width="1000">
-        <AddUserToProject :projectId="project?.id || ''" :projectName="project?.name || ''" :current-user-ids="userIds" :onsuccess="handleUserSubmit"
-            :oncancel="resetUserFormValues" />
-    </v-dialog>
-    <v-dialog v-model="userEditDialog" max-width="1000">
-        <AddUserToProject :projectId="project?.id || ''" :projectName="project?.name || ''" action-type="update" :selected-user="selectedUser"
-            :current-role="selectedUser?.role" :onsuccess="handleUserSubmit" :oncancel="resetUserFormValues" />
-    </v-dialog>
-    <v-dialog v-model="launchApplicationDialog" max-width="1000">
-        <LaunchApplication 
-        :extension="selectedExtension"
-        @submit="handleExtensionSubmit"
-        @close="launchApplicationDialog = false"
-        />
-    </v-dialog>
+    <v-divider class="my-4" />
+
+    <!-- ── Executable Workflows ─────────────────────────────────── -->
+    <v-row>
+      <ProjectWorkflows :key="`workflows-${refreshKey}`" :project="project" :expanded="isWorkflowsSectionExpanded"
+        @toggle="isWorkflowsSectionExpanded = $event" />
+    </v-row>
+
+    <template v-if="userHasAdminAccess || can(project?.id, 'view_applications')">
+      <v-divider class="my-4" />
+
+      <!-- ── Multiinstallable Applications ────────────────────────── -->
+      <v-row>
+        <MultiinstallableApplications :key="`apps-${refreshKey}`" :project="project" :expanded="isAppsSectionExpanded"
+          @toggle="isAppsSectionExpanded = $event" />
+      </v-row>
+    </template>
+
+    <template v-if="userHasAdminAccess || can(project?.id, 'view_active_apps')">
+      <v-divider class="my-4" />
+
+      <!-- ── Active Project Applications ──────────────────────────── -->
+      <v-row>
+        <ActiveProjectApplications :key="`active-${refreshKey}`" :project="project" :expanded="isActiveAppsSectionExpanded"
+          @toggle="isActiveAppsSectionExpanded = $event" @confirm-uninstall="confirmAppUninstall" />
+      </v-row>
+    </template>
+
+    <v-divider class="my-4" />
+
+    <!-- ── Dialogs ───────────────────────────────────────────────── -->
     <v-dialog v-model="deleteDialog" max-width="500">
-        <DeleteProjectDialog v-if="project" :project="project"
-            @confirm="handleDeleteConfirm" @cancel="deleteDialog = false" />
+      <DeleteProjectDialog v-if="project" :project="project"
+        @confirm="handleDeleteConfirm" @cancel="deleteDialog = false" />
     </v-dialog>
-    <confirm ref="confirm"></confirm>
+
     <v-dialog v-model="editDialog" max-width="600">
-        <EditProjectDialog v-if="project" :project="project"
-            @success="handleEditSuccess" @cancel="editDialog = false" @error="handleEditError" />
+      <EditProjectDialog v-if="project" :project="project"
+        @success="handleEditSuccess" @cancel="editDialog = false" @error="handleEditError" />
     </v-dialog>
+
     <v-dialog v-model="archiveDialog" max-width="560">
-        <ArchiveProjectDialog v-if="project" :project="project"
-            @confirm="confirmArchive" @cancel="archiveDialog = false" />
+      <ArchiveProjectDialog v-if="project" :project="project"
+        @confirm="confirmArchive" @cancel="archiveDialog = false" />
     </v-dialog>
+
+  </v-container>
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
-import { aiiApiGet, aiiApiDelete, aiiApiPost, kubeHelmGet, kubeHelmPost } from '@/common/aiiApi.service'
-import EditProjectDialog from '@/components/EditProjectDialog.vue'
-import DeleteProjectDialog from '@/components/DeleteProjectDialog.vue'
-import ArchiveProjectDialog from '@/components/ArchiveProjectDialog.vue'
-import { ProjectItem, UserItem, UserRole, Software } from '@/common/types'
-import { isAdminUser, waitForStoreUser } from '@/common/userAccess'
-import { useSnackbar } from '@/composables/useSnackbar'
-import AddUserToProject from '@/components/AddUserToProject.vue'
+import { defineComponent } from 'vue';
+import { aiiApiGet, aiiApiPost, aiiApiDelete, kubeHelmPost } from '@/common/services';
+import { ProjectItem } from '@/common/types';
+import ProjectUsers from '@/components/ProjectUsers.vue';
+import ProjectWorkflows from '@/components/ProjectWorkflows.vue';
+import MultiinstallableApplications from '@/components/MultiinstallableApplications.vue';
+import ActiveProjectApplications from '@/components/ActiveProjectApplications.vue';
+import DeleteProjectDialog from '@/components/DeleteProjectDialog.vue';
+import EditProjectDialog from '@/components/EditProjectDialog.vue';
+import ArchiveProjectDialog from '@/components/ArchiveProjectDialog.vue';
 import { usePermissions } from '@/permissions/usePermissions';
-import LaunchApplication from '@/components/LaunchApplication.vue';
-import { useCookies } from "vue3-cookies";
-
-interface User extends UserItem {
-    role?: UserRole
-}
+import { usePermissionsStore } from '@/permissions/permissions.store';
+import { useCookies } from 'vue3-cookies';
+import { isAdminUser, waitForStoreUser } from '@/common/userAccess';
 
 export default defineComponent({
-    components: {
-        AddUserToProject,
-        LaunchApplication,
-        EditProjectDialog,
-        DeleteProjectDialog,
-        ArchiveProjectDialog,
+  components: {
+    ProjectUsers,
+    ProjectWorkflows,
+    MultiinstallableApplications,
+    ActiveProjectApplications,
+    DeleteProjectDialog,
+    EditProjectDialog,
+    ArchiveProjectDialog,
+  },
+
+  setup() {
+    const { can } = usePermissions();
+    return { can };
+  },
+
+  data() {
+    return {
+      // @ts-ignore
+      projectId: this.$route.params.id as string,
+      project: null as ProjectItem | null,
+      userHasAdminAccess: false,
+
+      isUsersSectionExpanded: false,
+      isWorkflowsSectionExpanded: false,
+      isAppsSectionExpanded: false,
+      isActiveAppsSectionExpanded: false,
+
+      refreshKey: 0,
+
+      deleteDialog: false,
+      editDialog: false,
+      archiveDialog: false,
+
+      isSnackbarVisible: false,
+      snackbarMessage: '',
+      snackbarColor: 'info',
+    };
+  },
+
+  mounted() {
+    this.loadProject();
+    waitForStoreUser((user) => {
+      this.userHasAdminAccess = isAdminUser(user);
+    });
+  },
+
+  watch: {
+    '$route.params.id'(newId: string) {
+      this.projectId = newId;
+      this.loadProject();
     },
-    props: {},
-    setup () {
-        const { can } = usePermissions();
-        const { showSnackbar, snackbarText, snackbarColor, notify } = useSnackbar();
+  },
 
-        return { can, showSnackbar, snackbarText, snackbarColor, notify };
+  methods: {
+    notify(message: string, color = 'info'): void {
+      this.snackbarMessage = message;
+      this.snackbarColor = color;
+      this.isSnackbarVisible = true;
     },
-    data() {
-        return {
-            // @ts-ignore
-            projectId: this.$route.params.id as string, // Access the route param
-            project: null as ProjectItem | null,
-            users: [] as User[],
-            userDialog: false,
-            userIds: [] as string[],
-            fetchingUser: false,
-            userEditDialog: false,
-            selectedUser: undefined as User | undefined,
-            userHasAdminAccess: false,
-            allowedSoftware: [] as Software[],
-            softwareDialog: false,
-            multiinstallableExtensions: [] as any[],
-            installedExtensions: [] as any[],
-            activeApplications: [] as any[],
-            launchApplicationDialog: false,
-            selectedExtension: null as any,
-            extendProjectSoftware: false,
-            extendProjectUsers: false,
-            extendMultiinstallableExtensions: false,
-            extendActiveApplications: false,
-            editDialog: false,
-            deleteDialog: false,
-            archiveDialog: false,
-        };
+
+    goToProjectsList(): void {
+      this.$router.push('/');
     },
-    mounted() {
-        this.fetchProject();
-        this.fetchProjectUsers();
-        this.fetchProjectSoftware();
-        this.fetchMultiinstallableApplications();
-        this.fetchActiveApplications();
 
-        waitForStoreUser((user) => {
-            this.userHasAdminAccess = isAdminUser(user);
-        });
+    async refresh(): Promise<void> {
+      await this.loadProject({ silent: true });
+      this.refreshKey++;
     },
-    watch: {
-        // Watch the route to handle dynamic changes to the route param
-        '$route.params.id': function (newprojectId: string) {
-            this.projectId = newprojectId;
-        },
-        'users': function (newUsers: User[]) {
-            let tempUserIds: string[] = []
-            newUsers.forEach((user, index) => {
-                this.fetchProjectUserRole(user.id, index);
-                tempUserIds.push(user.id);
-            });
-            this.userIds = [...tempUserIds];
-        },
-        'project': function() {
-            this.fetchActiveApplications()
-        },
+
+    async loadProject({ silent = false } = {}): Promise<void> {
+      if (!this.projectId) return;
+      const { cookies } = useCookies();
+      try {
+        const project: ProjectItem = await aiiApiGet(`projects/${this.projectId}`);
+        this.project = project;
+        cookies.set('Project', JSON.stringify({ name: project.name, id: project.id }));
+        if (!silent) {
+          this.notify(`Selected project: ${project.name}. You may need to refresh other tabs.`, 'success');
+        }
+        usePermissionsStore().loadProjectWhitelist(this.projectId);
+      } catch (error) {
+        console.error('Failed to load project:', error);
+      }
     },
-    methods: {
-        getFullEndpoint(path: string) {
-         return `${window.location.origin}${path}`;
-        },
-        handleUserSubmit(success: boolean = true) {
-            if (success) {
-                this.fetchProjectUsers();
-            }
-            this.resetUserFormValues();
-        },
-        async deleteUserProjectMapping(userId: string) {
-            // @ts-ignore
-            if (await this.$refs.confirm.open('Delete User from Project', 'Are you sure?', { color: 'red' })) {
-                this.deleteProjectUsers(userId);
-            }
-        },
-        async conformUninstallActiveApplication(item: any) {
-            // @ts-ignore
-            if (await this.$refs.confirm.open('Uninstall application', 'Do you really want to uninstall ' + item.release_name +'?', { color: 'red' })) {
-                this.uninstallApplication(item);
-            }
-        },
-        async fetchMultiinstallableApplications() {
-            // Get all installable applications
-            try {
-                const extensions = await kubeHelmGet(`extensions`)
-                
-                const multiinstallableExtensions = extensions.filter((item:any) => {
-                    return item.multiinstallable === "yes"});
-                this.multiinstallableExtensions = multiinstallableExtensions.filter((item:any) => {
-                        return item.installed === "no";});
-                this.installedExtensions = multiinstallableExtensions
-                .filter((item:any) => {return item.installed === "yes";})
-                .reduce((map:any,item:any) => { map[item.releaseName] = item; return map;}, {});
-                console.log("installedExtensions:")
-                console.log(JSON.stringify(this.installedExtensions))
-            } catch (error: unknown) {
-                console.log(error);
-            }
-        },
-        async launchApplication(item :any) {
-            this.selectedExtension = item;
-            this.launchApplicationDialog = true;
-        },
-        async handleExtensionSubmit({ extension, values }: { extension: any; values: any }) {
-            // send to API here
-            const data = {
-                name: extension.name,
-                version: extension.version,
-                keywords: extension.keywords,
-                extension_params: values,
-            }
-            try {
-                await kubeHelmPost(`helm-install-chart`, data)
-            } catch (error: any) {
-                console.log(error);
-                this.notify(`There was an error launching the application ${extension.annotations["ui-visible-name"]}: ${error.response.data}`, 'error');
-            }
-            
-            this.launchApplicationDialog = false;
-        },
-        async uninstallApplication(item: any) {
-            const data = {
-                release_name: item.release_name,
-            }
-            try {
-                kubeHelmPost('helm-delete-chart', data)
-                this.fetchActiveApplications();
-            } catch (error: unknown) {
-                console.log(error);
-            }
-        },
-        async fetchActiveApplications() {
-            // Get all installable applications
-            if (this.project) {
-                const projectId = this.project.id
-                try {
-                    const applications = await kubeHelmGet(`active-applications`)
 
-                    this.activeApplications = applications.filter((item: any) => {return item.project === projectId});
-                } catch (error: unknown) {
-                    console.log(error);
-                }
-            }
-        },
-        openUserEditDialog(selectedUser: User) {
-            this.selectedUser = selectedUser;
-            this.userEditDialog = true;
-        },
-        resetUserFormValues() {
-            this.userDialog = false;
-            this.userEditDialog = false;
+    async confirmAppUninstall(app: any): Promise<void> {
+      try {
+        await kubeHelmPost('helm-delete-chart', { release_name: app.release_name });
+        this.notify(`Application "${app.release_name}" uninstalled successfully.`, 'success');
+        await this.refresh();
+      } catch (error: any) {
+        console.error('Failed to uninstall application:', error);
+        const detail = error?.response?.data?.detail ?? error?.message ?? 'Unknown error';
+        this.notify(`Failed to uninstall "${app.release_name}": ${detail}`, 'error');
+      }
+    },
 
-            this.selectedUser = undefined;
-        },
-        goToProjectsList() {
-            this.$router.push(`/`);
-        },
-        async fetchProject() {
-            if (!this.projectId) return;
-            const { cookies } = useCookies();
-            try {
-                const project: ProjectItem = await aiiApiGet(
-                    `projects/${this.projectId}`
-                );
+    openEditDialog(): void { this.editDialog = true; },
 
-                this.project = project;
+    async handleEditSuccess(): Promise<void> {
+      this.editDialog = false;
+      await this.loadProject();
+      this.notify('Project updated successfully.', 'success');
+    },
 
-                cookies.set("Project", JSON.stringify({
-                    name: project.name,
-                    id: project.id,
-                }));
-                this.notify(`The selected project changed to: ${project.name}. You might need to refresh your tabs.`, 'success');
-            } catch (error: unknown) {
-                console.error(error);
-            }
-        },
-        fetchProjectUsers() {
-            if (this.projectId) {
-                this.fetchingUser = true;
-                try {
-                    aiiApiGet(`projects/${this.projectId}/users`).then((users: UserItem[]) => {
-                        this.users = users;
-                        this.fetchingUser = false;
-                    })
-                } catch (error: unknown) {
-                    console.log(error);
-                    this.fetchingUser = false;
-                }
-            }
-        },
+    handleEditError(msg: string): void { this.notify(msg, 'error'); },
 
-        fetchProjectUserRole(userId: string, userIdx: number) {
-            if (this.projectId) {
-                try {
-                    aiiApiGet(`projects/${this.projectId}/users/${userId}/roles`).then((role: UserRole) => {
-                        this.users[userIdx].role = role
-                    })
-                } catch (error: unknown) {
-                    console.log(error);
-                }
-            }
-        },
-        deleteProjectUsers(userId: string) {
-            if (this.projectId) {
-                try {
-                    aiiApiDelete(`projects/${this.projectId}/user/${userId}/rolemapping`).then((success: boolean) => {
-                        if (success) {
-                            this.fetchProjectUsers();
-                        }
-                    })
-                } catch (error: unknown) {
-                    console.log(error);
-                }
-            }
-        },
-        fetchProjectSoftware() {
-            if (this.projectId) {
-                try {
-                    aiiApiGet(`projects/${this.projectId}/software-mappings`).then((software: any) => {
-                        this.allowedSoftware = software.sort((a: Software, b: Software) => {
-                            return a.software_uuid.localeCompare(b.software_uuid);
-                        });
-                    })
-                } catch (error: unknown) {
-                    console.log(error);
-                }
-            }
-        },
-        deleteSoftwareMapping(softwareUuid: string) {
-            const data = [
-                {
-                    software_uuid: softwareUuid,
-                },
-            ];
-            if (this.projectId) {
-                try {
-                    aiiApiDelete(`projects/${this.projectId}/software-mappings`, {}, data).then((success: boolean) => {
-                        if (success) {
-                            this.fetchProjectSoftware();
-                        }
-                    })
-                } catch (error: unknown) {
-                    console.log(error);
-                }
-            }
-        },
-        async confirmSoftwareMappingDeletion(softwareUuid: string) {
-            // @ts-ignore
-            if (await this.$refs.confirm.open('Delete Software from project', 'Are you sure?', { color: 'red' })) {
-                this.deleteSoftwareMapping(softwareUuid);
-            }
-        },
-        resetSoftwareFormValues() {
-            this.softwareDialog = false;
-        },
-        handleSoftwareSubmit(success: boolean = true) {
-            if (success) {
-                this.fetchProjectSoftware();
-            }
-            this.resetSoftwareFormValues();
-        },
-        openEditDialog() {
-            this.editDialog = true;
-        },
-        async handleEditSuccess() {
-            this.editDialog = false;
-            await this.fetchProject();
-            this.notify('Project updated successfully.', 'success');
-        },
-        handleEditError(msg: string) {
-            this.notify(msg, 'error');
-        },
-        openDeleteDialog() {
-            this.deleteDialog = true;
-        },
-        async handleDeleteConfirm() {
-            this.deleteDialog = false;
-            try {
-                await aiiApiDelete(`projects/${this.projectId}`);
-                this.$router.push('/');
-            } catch (error: unknown) {
-                console.error(error);
-                this.notify('Failed to delete project.', 'error');
-            }
-        },
-        async confirmArchive() {
-            this.archiveDialog = false;
-            await this.archiveProject();
-        },
-        async archiveProject() {
-            try {
-                await aiiApiPost(`projects/${this.projectId}/archive`, {});
-                await this.fetchProject();
-                this.notify(`Project "${this.project?.name}" archived.`, 'success');
-            } catch (error: unknown) {
-                console.error(error);
-                this.notify('Failed to archive project.', 'error');
-            }
-        },
-        async unarchiveProject() {
-            try {
-                await aiiApiPost(`projects/${this.projectId}/unarchive`, {});
-                await this.fetchProject();
-                this.notify(`Project "${this.project?.name}" unarchived.`, 'success');
-            } catch (error: unknown) {
-                console.error(error);
-                this.notify('Failed to unarchive project.', 'error');
-            }
-        },
-    }
-})
+    openDeleteDialog(): void { this.deleteDialog = true; },
+
+    async handleDeleteConfirm(): Promise<void> {
+      this.deleteDialog = false;
+      try {
+        await aiiApiDelete(`projects/${this.projectId}`);
+        this.$router.push('/');
+      } catch (error) {
+        console.error(error);
+        this.notify('Failed to delete project.', 'error');
+      }
+    },
+
+    async confirmArchive(): Promise<void> {
+      this.archiveDialog = false;
+      try {
+        await aiiApiPost(`projects/${this.projectId}/archive`, {});
+        await this.loadProject();
+        this.notify(`Project "${this.project?.name}" archived.`, 'success');
+      } catch (error) {
+        console.error(error);
+        this.notify('Failed to archive project.', 'error');
+      }
+    },
+
+    async unarchiveProject(): Promise<void> {
+      try {
+        await aiiApiPost(`projects/${this.projectId}/unarchive`, {});
+        await this.loadProject();
+        this.notify(`Project "${this.project?.name}" unarchived.`, 'success');
+      } catch (error) {
+        console.error(error);
+        this.notify('Failed to unarchive project.', 'error');
+      }
+    },
+
+  },
+});
 </script>
-
-<style scoped>
-.large-font {
-    font-size: 40px;
-}
-
-</style>

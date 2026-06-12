@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
+from sqlalchemy import JSON, Boolean, Column, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.schema import UniqueConstraint
@@ -16,6 +16,7 @@ class Projects(Base):
     name = Column(String, unique=True)
     description = Column(String)
     is_archived = Column(Boolean, nullable=False, default=False)
+    multiinstallable_whitelist = Column(JSON, nullable=False, default=list)
 
 
 class AdminProject(Base):

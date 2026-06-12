@@ -98,12 +98,12 @@ data:
             "endpoint": "/grafana",
             "linkTo": "/grafana/dashboards"
           },
-          "Projects": {
+          "projects": {
             "label": "Projects",
             "endpoint": "/projects-ui",
             "linkTo": "/projects-ui/"
           },
-          "Documentation": {
+          "documentation": {
             "label": "Documentation",
             "endpoint": "/docs/",
             "linkTo": "/docs/"

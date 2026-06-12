@@ -4,6 +4,7 @@ export type ProjectItem = {
     external_id?: number,
     name: string,
     description?: string,
+    multiinstallable_whitelist?: string[],
     is_archived: boolean,
 }
 
@@ -12,6 +13,7 @@ export type UserItem = {
     username: string,
     first_name: string,
     last_name: string,
+    email: string,
     email_verified: boolean,
     groups?: string[],
     realm_roles?: string[],

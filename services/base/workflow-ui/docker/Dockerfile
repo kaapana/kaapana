@@ -1,8 +1,9 @@
 FROM local-only/base-landing-page:latest AS base-landing-resource
 
 
-FROM docker.io/node:22.13.0-alpine3.20  AS build-stage
+FROM docker.io/node:26-alpine3.23  AS build-stage
 
+RUN npm install -g yarn
 WORKDIR /app
 
 COPY ./files ./
@@ -27,7 +28,9 @@ LABEL BUILD_IGNORE="False"
 ################################
 RUN yarn build
 
-FROM nginx:1.29.3-alpine
+FROM nginx:1.31-alpine
+
+RUN apk update && apk upgrade libxml2
 
 RUN mkdir /app
 COPY --from=build-stage /app/dist /app

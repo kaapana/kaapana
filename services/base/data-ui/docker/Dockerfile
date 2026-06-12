@@ -26,7 +26,9 @@ LABEL BUILD_IGNORE="False"
 ################################
 RUN yarn build
 
-FROM nginx:1.29.3-alpine
+FROM nginx:1.31-alpine
+
+RUN apk update && apk upgrade libxml2
 
 RUN mkdir /app
 COPY --from=build-stage /app/dist /app

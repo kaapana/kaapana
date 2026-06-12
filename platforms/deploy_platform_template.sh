@@ -28,8 +28,8 @@ PLAIN_HTTP={{ plain_http|default(false)|lower }} # Use plain HTTP for registry (
 
  # dev-mode -> containers will always be re-downloaded after pod-restart
 DEV_MODE={{ dev_mode|default(true)|lower }}
-# enforce-init-workflows -> on platform boot, PATCH existing workflows when their content has drifted from the shipped definition
-ENFORCE_INIT_WORKFLOWS={{ enforce_init_workflows|default(true)|lower }}
+# on platform boot, PATCH existing workflows when the title already exists with different content
+PATCH_WORKFLOWS_IF_CONFLICT={{ patch_workflows_if_conflict|default(true)|lower }}
 GPU_SUPPORT={{ gpu_support|default(false)|lower }}
 # Adjust enable nvidia command if using GPU Operator below v25.10.0+
 GPU_OPERATOR_VERSION="v25.10.0"
@@ -936,7 +936,7 @@ function deploy_chart {
     --set-string global.instance_uid="$INSTANCE_UID" \
     --set-string global.instance_name="$INSTANCE_NAME" \
     --set global.dev_mode=$DEV_MODE \
-    --set global.enforce_init_workflows=$ENFORCE_INIT_WORKFLOWS \
+    --set global.patch_workflows_if_conflict=$PATCH_WORKFLOWS_IF_CONFLICT \
     --set-string global.kaapana_init_password="$KAAPANA_INIT_PASSWORD" \
     --set-string global.pacs_memory_limit="$PACS_MEMORY_LIMIT" \
     --set-string global.airflow_memory_limit="$AIRFLOW_MEMORY_LIMIT" \

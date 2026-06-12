@@ -43,8 +43,6 @@ async def make_workflow(
     labels=None,
 ) -> models.Workflow:
     """Helper used by unit tests to create a Workflow with its first revision in one call."""
-    from app import crud
-
     workflow = models.Workflow(title=title, workflow_engine=workflow_engine)
     rev_params = workflow_parameters or []
     rev_labels = labels or []
@@ -54,11 +52,6 @@ async def make_workflow(
             definition=definition,
             workflow_parameters=rev_params,
             labels=rev_labels,
-            spec_hash=crud.compute_spec_hash(
-                definition=definition,
-                workflow_parameters=rev_params,
-                labels=rev_labels,
-            ),
         )
     ]
     session.add(workflow)
@@ -76,8 +69,6 @@ async def add_revision(
     labels=None,
 ) -> models.WorkflowRevision:
     """Append a new revision (next increment) snapshotting current state with overrides."""
-    from app import crud
-
     current = max(workflow.revisions, key=lambda r: r.increment)
     new_definition = definition if definition is not None else current.definition
     new_params = (
@@ -92,11 +83,6 @@ async def add_revision(
         definition=new_definition,
         workflow_parameters=new_params,
         labels=new_labels,
-        spec_hash=crud.compute_spec_hash(
-            definition=new_definition,
-            workflow_parameters=new_params,
-            labels=new_labels,
-        ),
     )
     session.add(rev)
     await session.commit()

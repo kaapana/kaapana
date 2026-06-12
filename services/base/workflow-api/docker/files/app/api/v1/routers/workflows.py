@@ -27,7 +27,7 @@ async def get_workflows(
     return await service.get_workflows(db, skip, limit, order_by, order, id, title)
 
 
-@router.post("/workflows", response_model=schemas.Workflow)
+@router.post("/workflows", response_model=schemas.Workflow, status_code=201)
 async def create_workflow(
     workflow: schemas.WorkflowCreate,
     response: Response,
@@ -35,12 +35,10 @@ async def create_workflow(
 ):
     """
     - 201 Created when a fresh workflow row is inserted.
-    - 200 OK when an active workflow with the same title already exists with identical content.
-    - 409 Conflict when the title exists with different content or a different engine.
+    - 409 Conflict when an active workflow with the same title already exists.
     """
-    workflow_res, created = await service.create_workflow(db, workflow)
+    workflow_res = await service.create_workflow(db, workflow)
     response.headers["Location"] = f"/workflows/{workflow_res.id}"
-    response.status_code = 201 if created else 200
     return workflow_res
 
 

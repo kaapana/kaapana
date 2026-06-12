@@ -1,8 +1,6 @@
-import hashlib
-import json
 import logging
 import uuid
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import Select, func, select
@@ -26,6 +24,15 @@ def create_query(
     skip: Optional[int] = None,
     limit: Optional[int] = None,
 ) -> Select[Any]:
+    """
+    Generic SELECT builder for SQLAlchemy models.
+
+    - model:      ORM class
+    - filters:    {column: value}. Dotted keys (e.g. "workflow_revision.workflow_id") join the relationship.
+    - eager_load: relationships to eager-load. Dotted entries become nested selectinloads.
+    - order_by:   SQLAlchemy ordering expression
+    - skip, limit: pagination
+    """
     query: Select[Any] = select(model)
 
     # Apply eager loading. A dotted entry (e.g. "workflow_run.workflow_revision.workflow") is loaded as a nested selectinload chain.
@@ -66,24 +73,20 @@ def create_query(
     return query
 
 
-def latest_revision(db_workflow: models.Workflow) -> Optional[models.WorkflowRevision]:
-    """
-    Return the WorkflowRevision with the highest `increment` for the given workflow.
-    """
-    if not db_workflow.revisions:
-        return None
+def latest_revision(db_workflow: models.Workflow) -> models.WorkflowRevision:
+    """Return the WorkflowRevision with the highest `increment` for the given workflow."""
     return max(db_workflow.revisions, key=lambda r: r.increment)
 
 
 # Labels
 
 
-async def _get_or_create_labels(
+async def upsert_labels(
     db: AsyncSession, labels: List[schemas.Label]
 ) -> List[models.Label]:
     """
-    Get or create `Label` rows for a list of (key, value) pairs.
-    Return the persisted ORM objects suitable for attaching to a relationship.
+    Insert any missing (key, value) label rows and return the full ORM set.
+    Existing rows are reused (UNIQUE on key+value, ON CONFLICT DO NOTHING).
     """
     db_labels: List[models.Label] = []
     for label in labels or []:
@@ -141,51 +144,6 @@ def check_immutable_labels(
             )
 
 
-def compute_spec_hash(
-    definition: str,
-    workflow_parameters: Optional[Iterable[Any]],
-    labels: Optional[Iterable[Any]],
-) -> str:
-    """
-    SHA-256 over (labels, workflow_parameters, definition).
-
-    Accepts any iterables of label/parameter-like objects (ORM rows, Pydantic models, dicts, or (key, value) tuples for labels).
-    """
-    label_pairs: List[Tuple[str, str]] = []
-    for label in labels or []:
-        if hasattr(label, "key") and hasattr(label, "value"):
-            label_pairs.append((label.key, label.value))
-        elif isinstance(label, dict):
-            label_pairs.append((label["key"], label["value"]))
-        else:
-            label_pairs.append((label[0], label[1]))
-    label_pairs.sort()
-
-    param_dicts: List[dict] = []
-    for param in workflow_parameters or []:
-        if hasattr(param, "model_dump"):
-            param_dicts.append(param.model_dump())
-        elif isinstance(param, dict):
-            param_dicts.append(param)
-        else:
-            param_dicts.append(jsonable_encoder(param))
-    param_dicts.sort(
-        key=lambda d: (d.get("task_title", ""), d.get("env_variable_name", ""))
-    )
-
-    canonical = json.dumps(
-        {
-            "definition": definition,
-            "workflow_parameters": param_dicts,
-            "labels": label_pairs,
-        },
-        sort_keys=True,
-        separators=(",", ":"),
-        default=str,
-    )
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-
-
 # Workflows
 
 
@@ -237,12 +195,7 @@ async def create_workflow(
 ) -> models.Workflow:
     """Create a new workflow with its first revision (increment=1)"""
     params_json = jsonable_encoder(workflow.workflow_parameters or [])
-    db_labels = await _get_or_create_labels(db, workflow.labels or [])
-    spec_hash = compute_spec_hash(
-        definition=workflow.definition,
-        workflow_parameters=workflow.workflow_parameters,
-        labels=workflow.labels,
-    )
+    db_labels = await upsert_labels(db, workflow.labels or [])
 
     db_workflow = models.Workflow(
         title=workflow.title,
@@ -254,7 +207,6 @@ async def create_workflow(
             definition=workflow.definition,
             workflow_parameters=params_json,
             labels=db_labels,
-            spec_hash=spec_hash,
         )
     ]
     db.add(db_workflow)
@@ -275,8 +227,6 @@ async def update_workflow(
     A title-only change updates the workflow row in place.
     """
     current = latest_revision(db_workflow)
-    if current is None:
-        raise ValueError(f"Workflow {db_workflow.id} has no revisions to update")
 
     versioned_change = (
         update.definition is not None
@@ -294,16 +244,11 @@ async def update_workflow(
             else current.workflow_parameters
         )
         new_labels = (
-            await _get_or_create_labels(db, update.labels)
+            await upsert_labels(db, update.labels)
             if update.labels is not None
             else list(current.labels)
         )
 
-        new_spec_hash = compute_spec_hash(
-            definition=new_definition,
-            workflow_parameters=new_params,
-            labels=new_labels,
-        )
         next_increment = current.increment + 1
         new_rev = models.WorkflowRevision(
             workflow_id=db_workflow.id,
@@ -311,7 +256,6 @@ async def update_workflow(
             definition=new_definition,
             workflow_parameters=new_params,
             labels=new_labels,
-            spec_hash=new_spec_hash,
         )
         db.add(new_rev)
 
@@ -357,7 +301,6 @@ async def restore_workflow_revision(
         definition=target.definition,
         workflow_parameters=target.workflow_parameters,
         labels=list(target.labels),
-        spec_hash=target.spec_hash,
     )
     db.add(new_rev)
     await db.commit()

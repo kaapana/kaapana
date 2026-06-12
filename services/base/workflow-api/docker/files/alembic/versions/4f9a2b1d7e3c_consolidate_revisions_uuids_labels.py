@@ -6,7 +6,6 @@ Transforms the initial single-table workflow into the revision-history model:
 - `workflow_label` is replaced by `workflow_revision_label` (M:M from revisions).
 - `workflow_runs.workflow_id` and `tasks.workflow_id` are repointed to
   `workflow_revision_id` (UUID).
-- `spec_hash` (SHA-256 of canonical JSON) is added to revisions and backfilled.
 - Partial unique index on `workflows.title WHERE removed = false` replaces the
   old `UNIQUE(title, version)` constraint.
 
@@ -19,7 +18,6 @@ Create Date: 2026-06-05
 
 from __future__ import annotations
 
-import hashlib
 import json
 import uuid
 from typing import Sequence, Union
@@ -32,24 +30,6 @@ revision: str = "4f9a2b1d7e3c"
 down_revision: Union[str, None] = "721d0352a128"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
-
-
-def _compute_spec_hash(definition, workflow_parameters, label_pairs) -> str:
-    """
-    Mirror of app.crud.compute_spec_hash. Inlined to keep the migration self-contained.
-    """
-    pairs = sorted([(k, v) for k, v in label_pairs])
-    params = sorted(
-        list(workflow_parameters or []),
-        key=lambda d: (d.get("task_title", ""), d.get("env_variable_name", "")),
-    )
-    canonical = json.dumps(
-        {"definition": definition, "workflow_parameters": params, "labels": pairs},
-        sort_keys=True,
-        separators=(",", ":"),
-        default=str,
-    )
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def upgrade() -> None:
@@ -94,7 +74,6 @@ def upgrade() -> None:
             postgresql.JSONB(astext_type=sa.Text()),
             nullable=True,
         ),
-        sa.Column("spec_hash", sa.String(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=True),
         sa.UniqueConstraint("workflow_id", "increment"),
     )
@@ -123,18 +102,6 @@ def upgrade() -> None:
     int_to_revision_uuid: dict[int, uuid.UUID] = {}
     for w in workflows:
         rev_uuid = uuid.uuid4()
-        label_pairs = bind.execute(
-            sa.text(
-                "SELECT l.key, l.value FROM workflow_label wl "
-                "JOIN labels l ON l.id = wl.label_id WHERE wl.workflow_id = :wid"
-            ),
-            {"wid": w["id"]},
-        ).all()
-        spec_hash = _compute_spec_hash(
-            w["definition"] or "",
-            w["workflow_parameters"] or [],
-            [(r[0], r[1]) for r in label_pairs],
-        )
         params_value = (
             json.dumps(w["workflow_parameters"])
             if w["workflow_parameters"] is not None
@@ -143,10 +110,8 @@ def upgrade() -> None:
         bind.execute(
             sa.text(
                 "INSERT INTO workflow_revisions "
-                "(id, workflow_id, increment, definition, workflow_parameters, "
-                " spec_hash, created_at) "
-                "VALUES (:rev_id, :wf_id, :inc, :def, CAST(:params AS jsonb), "
-                "        :hash, :ts)"
+                "(id, workflow_id, increment, definition, workflow_parameters, created_at) "
+                "VALUES (:rev_id, :wf_id, :inc, :def, CAST(:params AS jsonb), :ts)"
             ),
             {
                 "rev_id": rev_uuid,
@@ -154,7 +119,6 @@ def upgrade() -> None:
                 "inc": w["version"] or 1,
                 "def": w["definition"],
                 "params": params_value,
-                "hash": spec_hash,
                 "ts": w["created_at"],
             },
         )

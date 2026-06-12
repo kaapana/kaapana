@@ -69,12 +69,10 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
     @staticmethod
     def _sanitize_for_dag_id(title: str) -> str:
         """
-        Replace chars that are not accepted by Airflow `dag_id` with an underscore. 
-        """
+        Replace chars that are not accepted by Airflow `dag_id` with an underscore."""
         import re
 
-        cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", title).strip("_")
-        return cleaned or "workflow"
+        return re.sub(r"[^A-Za-z0-9._-]+", "_", title).strip("_")
 
     def _get_dag_id_from_workflow(self, title: str, increment: int) -> str:
         """Create a DAG ID from a workflow title and revision increment."""

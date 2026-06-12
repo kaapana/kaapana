@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import uuid
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from app import crud, models, schemas
 from app.adapters import WorkflowEngineAdapter, get_workflow_engine
@@ -27,7 +27,6 @@ def _revision_to_schema(rev: models.WorkflowRevision) -> schemas.WorkflowRevisio
         definition=rev.definition,
         workflow_parameters=rev.workflow_parameters or [],
         labels=rev.labels or [],
-        spec_hash=rev.spec_hash,
         created_at=rev.created_at,
     )
 
@@ -35,8 +34,6 @@ def _revision_to_schema(rev: models.WorkflowRevision) -> schemas.WorkflowRevisio
 def _workflow_to_schema(db_workflow: models.Workflow) -> schemas.Workflow:
     """Merge the latest revision's fields into the workflow series for the response."""
     current = crud.latest_revision(db_workflow)
-    if current is None:
-        raise InternalError(f"Workflow {db_workflow.id} has no revisions")
     return schemas.Workflow(
         id=db_workflow.id,
         title=db_workflow.title,
@@ -46,7 +43,6 @@ def _workflow_to_schema(db_workflow: models.Workflow) -> schemas.Workflow:
         definition=current.definition,
         workflow_parameters=current.workflow_parameters or [],
         labels=current.labels or [],
-        spec_hash=current.spec_hash,
     )
 
 
@@ -102,62 +98,24 @@ async def get_workflows(
 
 async def create_workflow(
     db: AsyncSession, workflow: schemas.WorkflowCreate
-) -> Tuple[schemas.Workflow, bool]:
-    """Idempotent create. Returns (workflow, created_new)."""
+) -> schemas.Workflow:
+    """
+    Create a workflow. 409 when the title already exists in another active workflow.
+    """
     existing = await crud.get_workflow(db, filters={"title": workflow.title})
     if existing is not None:
-        incoming_hash = crud.compute_spec_hash(
-            definition=workflow.definition,
-            workflow_parameters=workflow.workflow_parameters,
-            labels=workflow.labels,
-        )
-        if existing.workflow_engine != workflow.workflow_engine:
-            raise HTTPException(
-                status_code=409,
-                detail={
-                    "message": (
-                        f"Workflow with title '{workflow.title}' exists with a "
-                        f"different engine ('{existing.workflow_engine}'); "
-                        f"engine is immutable."
-                    ),
-                    "existing_workflow": {
-                        "id": str(existing.id),
-                        "workflow_engine": existing.workflow_engine,
-                    },
-                    "incoming_workflow_engine": workflow.workflow_engine,
-                },
-            )
-        latest = crud.latest_revision(existing)
-        assert latest is not None
-        if latest.spec_hash == incoming_hash:
-            logger.info(
-                f"POST /workflows for existing title '{workflow.title}' matches "
-                f"latest revision (inc{latest.increment}) — returning existing"
-            )
-            return _workflow_to_schema(existing), False
-        # Same title, same engine, different content → 409
         raise HTTPException(
             status_code=409,
             detail={
-                "message": (
-                    f"Workflow with title '{workflow.title}' already exists with "
-                    "different content. PATCH to create a new revision, or DELETE "
-                    "and re-POST to create a fresh workflow."
-                ),
-                "existing_workflow": {
-                    "id": str(existing.id),
-                    "increment": latest.increment,
-                    "spec_hash": latest.spec_hash,
-                },
-                "incoming_spec_hash": incoming_hash,
+                "message": f"Workflow with title '{workflow.title}' already exists.",
+                "existing_workflow": {"id": str(existing.id)},
             },
         )
 
     try:
         db_workflow = await crud.create_workflow(db, workflow=workflow)
     except IntegrityError as e:
-        # Backstop for a race between the pre-flight read and the insert
-        # (e.g. two concurrent POSTs creating the same title).
+        # another POST inserted the same title between the pre-flight read and the insert attempt
         await db.rollback()
         logger.warning(f"Workflow create rejected by DB constraint: {e}")
         raise HTTPException(
@@ -169,7 +127,6 @@ async def create_workflow(
         raise InternalError("Failed to create workflow")
 
     current = crud.latest_revision(db_workflow)
-    assert current is not None
     logger.info(f"Created workflow: {db_workflow.title} inc{current.increment}")
 
     schema_workflow = _workflow_to_schema(db_workflow)
@@ -189,8 +146,8 @@ async def create_workflow(
             delay_seconds=10,
         )
     )
-    # return the created workflow immediately before tasks are known
-    return schema_workflow, True
+    # return the created workflow immediately before tasks are parsed
+    return schema_workflow
 
 
 async def get_workflow_by_id(
@@ -234,7 +191,6 @@ async def update_workflow(
     # If the PATCH touches labels, enforce immutability of any kaapana.immutable.* label that's already on the latest revision
     if update.labels is not None:
         current_rev = crud.latest_revision(db_workflow)
-        assert current_rev is not None
         _enforce_immutable_labels(current_rev.labels, update.labels)
 
     try:
@@ -247,13 +203,9 @@ async def update_workflow(
             detail="Workflow update violates a database constraint",
         )
     current = crud.latest_revision(db_workflow)
-    assert current is not None
 
-    # Submit the new revision to the engine whenever a versioned field changed
-    # (definition / parameters / labels). Any of them appends a new revision, and
-    # the Airflow dag_id is keyed on (title, increment), so the matching DAG file
-    # must be (re-)registered for that new increment regardless of which field
-    # triggered the bump.
+    # Submit the new revision to the engine whenever a versioned field changed (definition / parameters / labels)
+    # Any of them appends a new revision, and the Airflow dag_id is based on (title, increment), so the matching DAG file must be (re-)registered for that new increment
     versioned_change = (
         update.definition is not None
         or update.workflow_parameters is not None
@@ -313,7 +265,6 @@ async def restore_workflow_revision(
         raise NotFoundError(str(e))
 
     current = crud.latest_revision(db_workflow)
-    assert current is not None
     engine = get_workflow_engine(db_workflow.workflow_engine)
     await engine.submit_workflow_revision(revision=_revision_to_schema(current))
     asyncio.create_task(
@@ -392,18 +343,14 @@ async def get_workflow_tasks(
         db, filters={"workflow_revision_id": target_revision.id}
     )
     if not tasks:
+        # Tasks may not have been parsed yet, parse just-in-time and re-query
         engine = get_workflow_engine(db_workflow.workflow_engine)
-        await _parse_revision_tasks(db=db, revision_id=target_revision.id, engine=engine)
+        await _parse_revision_tasks(
+            db=db, revision_id=target_revision.id, engine=engine
+        )
         tasks = await crud.get_tasks(
             db, filters={"workflow_revision_id": target_revision.id}
         )
-        if not tasks:
-            logger.warning(
-                f"No tasks found for workflow {workflow_id} revision inc{target_revision.increment} after parsing"
-            )
-            raise NotFoundError(
-                f"No tasks found for workflow {workflow_id} revision inc{target_revision.increment}"
-            )
 
     res = []
     for t in tasks:

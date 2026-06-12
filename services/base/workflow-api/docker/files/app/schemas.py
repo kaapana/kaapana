@@ -343,7 +343,7 @@ class WorkflowRef(BaseModel):
 class WorkflowCreate(_MutableWorkflowBase):
     """Payload to create a new workflow (and its initial revision)."""
 
-    title: str = Field(..., min_length=1)
+    title: str = Field(..., min_length=1, pattern=r".*[A-Za-z0-9._-].*")
     workflow_engine: str
 
     model_config = ConfigDict(extra="forbid")
@@ -357,7 +357,7 @@ class WorkflowUpdate(_MutableWorkflowBase):
     """
 
     # Override the base's required fields to be optional for the partial-update shape.
-    title: Optional[str] = Field(default=None, min_length=1)
+    title: Optional[str] = Field(default=None, min_length=1, pattern=r".*[A-Za-z0-9._-].*")
     definition: Optional[str] = None
     labels: Optional[List[Label]] = None
 
@@ -371,7 +371,6 @@ class WorkflowRevision(_MutableWorkflowBase):
     workflow_id: uuid.UUID
     workflow_title: str
     increment: int
-    spec_hash: str  # SHA-256 over (definition, parameters, labels).
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -385,7 +384,6 @@ class Workflow(_MutableWorkflowBase):
     workflow_engine: str
     created_at: datetime
     increment: int  # increment of the latest revision
-    spec_hash: str  # of the latest revision
 
     model_config = ConfigDict(from_attributes=True)
 

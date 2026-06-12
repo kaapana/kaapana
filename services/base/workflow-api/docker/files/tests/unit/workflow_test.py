@@ -76,64 +76,17 @@ async def test_create_workflow_validation_errors(
 @pytest.mark.POST
 @pytest.mark.post_workflows
 @pytest.mark.asyncio
-async def test_create_workflow_same_title_same_content_is_idempotent(
-    client: AsyncClient,
-):
-    """Re-POSTing the same content for an existing title is a 200, returning the existing workflow."""
+async def test_create_workflow_existing_title_conflicts(client: AsyncClient):
+    """Re-POSTing any payload for an existing title returns 409 with existing_workflow.id in the body."""
     payload = dict(WORKFLOW_BASIC)
     r1 = await client.post("/v1/workflows", json=payload)
     assert r1.status_code == 201
-    first = r1.json()
+    first_id = r1.json()["id"]
 
     r2 = await client.post("/v1/workflows", json=payload)
-    assert r2.status_code == 200, r2.json()
-    second = r2.json()
-    assert second["id"] == first["id"]
-    assert second["increment"] == first["increment"]
-    assert second["spec_hash"] == first["spec_hash"]
-
-
-@pytest.mark.POST
-@pytest.mark.post_workflows
-@pytest.mark.asyncio
-async def test_create_workflow_same_title_different_content_conflicts(
-    client: AsyncClient,
-):
-    """Re-POST with same title but different content returns 409 with both spec_hashes in the response body."""
-    payload = dict(WORKFLOW_BASIC)
-    r1 = await client.post("/v1/workflows", json=payload)
-    assert r1.status_code == 201
-    existing_hash = r1.json()["spec_hash"]
-
-    diverged = dict(payload)
-    diverged["definition"] = "different content"
-    r2 = await client.post("/v1/workflows", json=diverged)
-    assert r2.status_code == 409
+    assert r2.status_code == 409, r2.json()
     detail = r2.json()["detail"]
-    assert detail["existing_workflow"]["spec_hash"] == existing_hash
-    assert detail["incoming_spec_hash"] != existing_hash
-
-
-@pytest.mark.POST
-@pytest.mark.post_workflows
-@pytest.mark.asyncio
-async def test_create_workflow_same_title_different_engine_conflicts(
-    client: AsyncClient,
-):
-    """Re-POST with same title but a different engine returns 409 (engine is
-    immutable)."""
-    payload = dict(WORKFLOW_BASIC)
-    payload["workflow_engine"] = "dummy"
-    r1 = await client.post("/v1/workflows", json=payload)
-    assert r1.status_code == 201
-
-    other = dict(payload)
-    other["workflow_engine"] = "airflow"
-    r2 = await client.post("/v1/workflows", json=other)
-    assert r2.status_code == 409
-    detail = r2.json()["detail"]
-    assert detail["existing_workflow"]["workflow_engine"] == "dummy"
-    assert detail["incoming_workflow_engine"] == "airflow"
+    assert detail["existing_workflow"]["id"] == first_id
 
 
 @pytest.mark.POST

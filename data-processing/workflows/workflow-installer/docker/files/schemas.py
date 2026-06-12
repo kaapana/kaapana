@@ -310,7 +310,6 @@ class WorkflowCreate(WorkflowBase):
 class Workflow(WorkflowBase):
     id: uuid.UUID
     increment: int
-    spec_hash: str
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

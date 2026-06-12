@@ -68,8 +68,8 @@ spec:
           env:
             - name: WORKFLOW_API_URL
               value: "http://workflow-api.{{ .Values.global.services_namespace }}.svc:80/v1"
-            - name: ENFORCE_INIT_WORKFLOWS
-              value: {{ .Values.global.enforce_init_workflows | toString | default "true" | quote }}
+            - name: PATCH_WORKFLOWS_IF_CONFLICT
+              value: {{ .Values.global.patch_workflows_if_conflict | toString | default "true" | quote }}
           volumeMounts:
             - name: workflow-files
               mountPath: /workflows

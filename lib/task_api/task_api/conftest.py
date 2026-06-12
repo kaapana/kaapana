@@ -1,8 +1,7 @@
 import pytest
-import subprocess
+import tempfile
 from pathlib import Path
 import os
-from datetime import datetime
 import docker
 
 LOCAL_REGISTRY = "local-only"
@@ -12,11 +11,7 @@ TASK_DIR = Path(MODULE_PATH, "container_templates")
 
 @pytest.fixture(scope="session")
 def tmp_output_dir():
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR", MODULE_PATH))
-    path = ARTIFACTS_DIR / "tmp" / timestamp
-    os.makedirs(path, exist_ok=True)
-    yield path
+    yield Path(tempfile.mkdtemp(prefix="task_api_tests_"))
 
 
 @pytest.fixture(scope="session", autouse=True)

@@ -7,12 +7,12 @@ buildah bud \
   -t "${BUILD_DESTINATION}" \
   --root /storage \
   --runroot /storage/run/containers/storage \
-  --tls-verify=false \
+  --tls-verify=${TLS_VERIFY} \
   "${BUILD_CONTEXT}"
 
 
 buildah push \
   --root /storage \
   --runroot /storage/run/containers/storage \
-  --tls-verify=false \
+  --tls-verify=${TLS_VERIFY} \
   "${BUILD_DESTINATION}"

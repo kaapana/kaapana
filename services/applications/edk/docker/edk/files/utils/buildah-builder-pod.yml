@@ -8,7 +8,7 @@ spec:
   containers:
   - name: buildah
     image: "{{ .Values.global.registry_url }}/buildah:{{ .Values.global.kaapana_build_version }}"
-    imagePullPolicy: Always
+    imagePullPolicy: IfNotPresent
     command:
     - /start.sh
     hostNetwork: true
@@ -25,6 +25,8 @@ spec:
       requests:
         memory: 2Gi
     env:
+    - name: TLS_VERIFY
+      value: "false"
     - name: BUILD_CONTEXT
       value: "CONTEXT_DIR"
     - name: BUILD_DESTINATION

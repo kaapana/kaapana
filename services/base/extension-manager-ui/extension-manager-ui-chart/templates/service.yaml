@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: extension-manager-ui-service
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    app.kubernetes.io/name: extension-manager-ui-service
+spec:
+  selector:
+    app.kubernetes.io/name: extension-manager-ui-app
+  ports:
+{{- if .Values.global.dev_files }}
+    - name: http
+      port: 80
+      targetPort: 5173
+  type: ClusterIP
+{{- else }}
+    - name: http
+      port: 80
+      targetPort: 5000
+  type: ClusterIP
+{{- end }}
+---
+{{- if not .Values.global.dev_files }}
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix-extension-manager-ui
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  stripPrefix:
+    prefixes:
+    - /extension-manager-ui
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: extension-manager-ui-ingress
+  namespace: "{{ .Values.global.services_namespace }}"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+{{- if not .Values.global.dev_files }}
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.services_namespace }}-strip-prefix-extension-manager-ui@kubernetescrd
+{{- end }}
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /extension-manager-ui
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: extension-manager-ui-service
+            port:
+              number: 80
+---

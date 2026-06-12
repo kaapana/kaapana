@@ -238,6 +238,8 @@ if __name__ == "__main__":
             if model_already_provided:
                 logger.info(f"Model for {task_id} already already exists.")
             else:
+                if args.extract_models:
+                    model_target_dir.mkdir(parents=True, exist_ok=True)
                 worker_args.append(
                     {
                         "task_id": task_id,

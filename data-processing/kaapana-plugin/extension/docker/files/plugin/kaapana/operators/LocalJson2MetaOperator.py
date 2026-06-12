@@ -2,6 +2,7 @@
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
 import glob
 import json
+import math
 import os
 import requests
 from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
@@ -17,6 +18,18 @@ from opensearchpy.exceptions import NotFoundError
 logger = get_logger(__name__)
 
 SERVICES_NAMESPACE = KaapanaSettings().services_namespace
+NON_FINITE_NUMERIC_STRINGS = {
+    "inf",
+    "+inf",
+    "-inf",
+    "infinity",
+    "+infinity",
+    "-infinity",
+    "nan",
+}
+# OpenSearch maps these metadata fields as single-precision floats, so values
+# larger than IEEE-754 float32 range are parsed as Infinity during indexing.
+OPENSEARCH_FLOAT32_MAX = 3.4028235e38
 
 
 class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
@@ -111,7 +124,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                 new_document=meta_information,
                 opensearch_index=project.get("opensearch_index"),
             )
-        except:
+        except Exception:
             logger.warning(f"No project found for {clinical_trial_protocol_id}.")
 
         logger.info("Pushing document to admin-project index")
@@ -145,6 +158,88 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             refresh=True,
         )
 
+    def _sanitize_numeric_values_for_opensearch(self, value, key_path: str = ""):
+        """
+        Normalize numeric values before indexing into OpenSearch.
+
+        DICOM metadata can contain NaN/Infinity sentinels or numerically valid
+        values that overflow OpenSearch float mappings. Replace those values
+        with None while preserving the rest of the document structure.
+        """
+
+        if isinstance(value, dict):
+            return {
+                key: self._sanitize_numeric_values_for_opensearch(
+                    child_value,
+                    key_path=f"{key_path}.{key}" if key_path else key,
+                )
+                for key, child_value in value.items()
+            }
+
+        if isinstance(value, list):
+            return [
+                self._sanitize_numeric_values_for_opensearch(
+                    child_value, key_path=key_path
+                )
+                for child_value in value
+            ]
+
+        if key_path.endswith("_float"):
+            return self._sanitize_numeric_scalar_for_opensearch(
+                value, float, key_path
+            )
+
+        if key_path.endswith("_integer"):
+            return self._sanitize_numeric_scalar_for_opensearch(value, int, key_path)
+
+        return value
+
+    def _sanitize_numeric_scalar_for_opensearch(self, value, numeric_type, key_path: str):
+        """
+        Normalize a scalar value stored in a numeric OpenSearch field.
+
+        The local DICOM metadata path may leave numeric VRs as strings. Convert
+        compatible values and drop values that OpenSearch cannot store.
+        """
+
+        if value is None or isinstance(value, bool):
+            return value
+
+        if isinstance(value, str):
+            value = value.strip()
+            if value.lower() in NON_FINITE_NUMERIC_STRINGS:
+                logger.warning(
+                    "Replacing non-finite numeric value in OpenSearch document field %s.",
+                    key_path or "<root>",
+                )
+                return None
+
+        try:
+            parsed_value = float(value) if numeric_type is float else int(float(value))
+        except (TypeError, ValueError, OverflowError):
+            logger.warning(
+                "Replacing invalid numeric value in OpenSearch document field %s.",
+                key_path or "<root>",
+            )
+            return None
+
+        if numeric_type is float and not math.isfinite(parsed_value):
+            logger.warning(
+                "Replacing non-finite numeric value in OpenSearch document field %s.",
+                key_path or "<root>",
+            )
+            return None
+
+        if numeric_type is float and abs(parsed_value) > OPENSEARCH_FLOAT32_MAX:
+            logger.warning(
+                "Replacing out-of-range float value in OpenSearch document field %s: %r",
+                key_path or "<root>",
+                parsed_value,
+            )
+            return None
+
+        return parsed_value
+
     def sanitize_document(self, id, new_document, opensearch_index):
         """
         Sanitize some fields in the document.
@@ -160,6 +255,10 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         if bpr_algorithm_name in new_document:
             new_document[bpr_key] = new_document[bpr_algorithm_name]
             del new_document[bpr_algorithm_name]
+
+        # Normalize numeric metadata so OpenSearch float/integer mappings do
+        # not fail on NaN, Infinity, or float32 overflows.
+        new_document = self._sanitize_numeric_values_for_opensearch(new_document)
 
         if self.replace:
             return new_document

@@ -11,6 +11,8 @@ import pydicom
 from kaapanapy.logger import get_logger
 from PIL import Image
 
+# Support both older and newer pydicom import locations so the container can
+# decode palette-color studies across the versions used in Kaapana builds.
 try:
     from pydicom.pixel_data_handlers.util import apply_color_lut
 except ImportError:
@@ -200,6 +202,10 @@ def _convert_ybr(dicom_ds: pydicom.FileDataset) -> Image.Image:
     """
     Convert a DICOM image to a thumbnail using YBR format.
 
+    The YBR path keeps working copies of the chroma channels even when no
+    resize is needed, because some studies already provide matching planes and
+    the stack step must not depend on the resize branch running first.
+
     Args:
         dicom_ds (pydicom.dataset.FileDataset): The DICOM dataset containing metadata and pixel data.
 
@@ -222,6 +228,11 @@ def _convert_ybr(dicom_ds: pydicom.FileDataset) -> Image.Image:
         y_channel = pixel_array[:, :, 0]  # Y channel (luminance)
         cr_channel = pixel_array[:, :, 1]  # Cr channel (chrominance red)
         cb_channel = pixel_array[:, :, 2]  # Cb channel (chrominance blue)
+
+        # Default to the original channels so the stack step also works when no
+        # resize is required for the chroma planes.
+        cr_channel_resized = cr_channel
+        cb_channel_resized = cb_channel
 
         # Interpolate Cb and Cr channels to match Y channel size if necessary (for subsampling)
         if (
@@ -261,6 +272,10 @@ def _convert_ybr(dicom_ds: pydicom.FileDataset) -> Image.Image:
 def _convert_palette(dicom_ds: pydicom.FileDataset) -> Image.Image:
     """
     Convert a DICOM image to a thumbnail image using palette format, typically used by X-ray and ultrasound images.
+
+    Palette-color studies often store their lookup tables as raw OW byte
+    payloads. Use pydicom's LUT helper instead of manual NumPy conversion so the
+    descriptor and byte-width rules stay aligned with the DICOM standard.
 
     This function processes the DICOM file to apply windowing, rescaling, and normalization,
     and then converts the pixel data to an 8-bit color PNG image.

@@ -16,6 +16,9 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     stream=sys.stdout,
 )
+# Temporary disable notifications to avoid timeout-errors while
+# notification service is not reachable from any k8s namespace.
+NOTIFICATIONS_ENABLED = False
 
 
 def download_file(
@@ -177,18 +180,23 @@ def parse_arguments():
 if __name__ == "__main__":
     logger.info("Start main process.")
     args = parse_arguments()
-    try:
-        from kaapanapy.services.NotificationService import (
-            NotificationService,
-            Notification,
-        )
-        from kaapanapy.helper import load_workflow_config
+    if NOTIFICATIONS_ENABLED:
+        try:
+            from kaapanapy.services.NotificationService import (
+                NotificationService,
+                Notification,
+            )
+            from kaapanapy.helper import load_workflow_config
 
-        kaapana_notifier = NotificationService()
-        wf_config = load_workflow_config()
-        project_form = wf_config["project_form"]
-        kaapana_project_id = project_form["id"]
-    except:
+            kaapana_notifier = NotificationService()
+            wf_config = load_workflow_config()
+            project_form = wf_config["project_form"]
+            kaapana_project_id = project_form["id"]
+        except:
+            kaapana_notifier = None
+            kaapana_project_id = None
+    else:
+        logger.info("Notifications are disabled.")
         kaapana_notifier = None
         kaapana_project_id = None
 

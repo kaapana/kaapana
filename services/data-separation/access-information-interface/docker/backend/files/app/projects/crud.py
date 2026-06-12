@@ -76,6 +76,22 @@ async def create_rights(session: AsyncSession, right: schemas.CreateRight):
     return new_right
 
 
+async def update_right(session: AsyncSession, right_id: int, right: schemas.CreateRight):
+    stmt = (
+        update(Rights)
+        .where(Rights.id == right_id)
+        .values(
+            description=right.description,
+            claim_key=right.claim_key,
+            claim_value=right.claim_value,
+        )
+    )
+    await session.execute(stmt)
+    await session.commit()
+    result = await session.execute(select(Rights).where(Rights.id == right_id))
+    return result.scalar_one_or_none()
+
+
 async def get_rights(session: AsyncSession, name: Optional[str] = None):
     stmt = select(Rights)
     if name:
@@ -123,6 +139,30 @@ async def create_roles_rights_mapping(
     session.add(new_role_rights)
     await session.commit()
     return True
+
+
+async def delete_roles_rights_mapping(
+    session: AsyncSession, role_id: int, right_id: int
+):
+    stmt = delete(RolesRights).where(
+        RolesRights.role_id == role_id,
+        RolesRights.right_id == right_id,
+    )
+    await session.execute(stmt)
+    await session.commit()
+
+
+async def delete_right(session: AsyncSession, right_id: int):
+    await session.execute(delete(RolesRights).where(RolesRights.right_id == right_id))
+    stmt = delete(Rights).where(Rights.id == right_id)
+    await session.execute(stmt)
+    await session.commit()
+
+
+async def delete_all_rights_for_role(session: AsyncSession, role_id: int):
+    stmt = delete(RolesRights).where(RolesRights.role_id == role_id)
+    await session.execute(stmt)
+    await session.commit()
 
 
 async def get_users_projects_roles_mapping(
@@ -261,6 +301,29 @@ async def delete_software_mapping(
     await session.commit()
     return True
 
+
+async def get_multiinstallable_whitelist_by_project_id(
+    session: AsyncSession, project_id: UUID
+) -> list[str]:
+    stmt = select(Projects).where(Projects.id == project_id)
+    result = await session.execute(stmt)
+    project = result.scalars().first()
+    if not project:
+        return []
+    return project.multiinstallable_whitelist or []
+
+
+async def update_multiinstallable_whitelist_by_project_id(
+    session: AsyncSession, project_id: UUID, app_names: list[str]
+) -> list[str]:
+    stmt = (
+        update(Projects)
+        .where(Projects.id == project_id)
+        .values(multiinstallable_whitelist=app_names)
+    )
+    await session.execute(stmt)
+    await session.commit()
+    return app_names
 
 async def update_project(
     session: AsyncSession, project_id: UUID, project_update: schemas.UpdateProject

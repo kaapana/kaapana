@@ -1,14 +1,12 @@
 <template>
     <v-dialog v-model="dialog" :max-width="options.width" :style="{ zIndex: options.zIndex }" @keydown.esc="cancel">
-      <v-card>
-        <v-toolbar dark :color="options.color" dense flat>
-          <v-toolbar-title class="white--text">{{ title }}</v-toolbar-title>
-        </v-toolbar>
-        <v-card-text v-show="!!message" class="pa-4">{{ message }}</v-card-text>
-        <v-card-actions class="pt-0">
-          <v-spacer></v-spacer>
-          <v-btn color="primary darken-1" text @click.native="agree">Yes</v-btn>
-          <v-btn color="grey" text @click.native="cancel">Cancel</v-btn>
+      <v-card rounded="lg">
+        <v-card-title class="text-h6 pa-6 pb-2">{{ title }}</v-card-title>
+        <v-card-text v-show="!!message" class="pa-6 pt-2">{{ message }}</v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer />
+          <v-btn variant="text" @click="cancel">Cancel</v-btn>
+          <v-btn :color="options.color || 'primary'" variant="flat" @click="agree">Yes</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

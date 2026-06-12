@@ -7,13 +7,12 @@
 
     <v-card-text>
       <v-form ref="formRef" class="px-3">
-        <template v-for="(param, key) in extension.extension_params" :key="key">
+        <template v-for="(param, key) in (extension?.extension_params || {})" :key="key">
 
           <!-- Group title -->
           <span
             v-if="param.type === 'group_name'"
-            class="font-weight-bold"
-            style="font-size: 25px;"
+            class="font-weight-bold text-h6"
           >
             {{ param.default }}
           </span>
@@ -21,7 +20,7 @@
           <!-- Documentation block -->
           <div v-if="param.type === 'doc'">
             <br />
-            <span class="font-weight-bold" style="font-size: 25px;">
+            <span class="font-weight-bold text-h6">
               {{ param.title }}
             </span>
 
@@ -113,11 +112,11 @@
       <v-spacer></v-spacer>
 
       <v-btn color="error" @click="emitClose">
-        Abort
+        Cancel
       </v-btn>
 
       <v-btn color="primary" @click="submit">
-        {{ extension.multiinstallable === 'yes' ? 'Launch' : 'Install' }}
+        {{ extension?.multiinstallable === 'yes' ? 'Launch' : 'Install' }}
       </v-btn>
     </v-card-actions>
   </v-card>
@@ -131,7 +130,16 @@ import { ref, computed, watch } from "vue";
 const props = defineProps({
   extension: {
     type: Object,
-    required: true
+    required: false,
+    default: () => ({
+      multiinstallable: 'no',
+      name: '',
+      version: '',
+      keywords: [],
+      extension_params: {},
+      annotations: { 'ui-visible-name': '' },
+      releaseName: ''
+    })
   }
 });
 
@@ -210,7 +218,11 @@ function emitClose() {
 }
 
 async function submit() {
-  const valid = await formRef.value.validate();
+  // Guard against missing form reference (e.g., when component is destroyed)
+  let valid = true;
+  if (formRef.value && typeof formRef.value.validate === "function") {
+    valid = await formRef.value.validate();
+  }
   if (!valid) return;
 
   emit("submit", {

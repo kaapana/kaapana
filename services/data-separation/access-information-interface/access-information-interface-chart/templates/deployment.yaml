@@ -67,6 +67,8 @@ spec:
           value: "{{ .Values.global.kaapana_build_version  }}"
         - name: PLATFORM_PREFIX
           value: "{{ required `global.platform_prefix is required` .Values.global.platform_prefix }}"
+        - name: CONFIG_DIR
+          value: "/app/config"
         - name: KEYCLOAK_USER
           value: "{{ .Values.global.credentials_keycloak_admin_username }}"
         - name: KEYCLOAK_PASSWORD

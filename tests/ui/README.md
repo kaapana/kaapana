@@ -1,24 +1,82 @@
 # UI Tests
 
-## Setting things up
-- `cd ./tests/ui && npm install`
-- set `KAAPANA_TEST_INSTANCE_UI` to your instance e.g. `export KAAPANA_TEST_INSTANCE_UI=https://localhost`
+## Setup
 
+```bash
+cd tests/ui
+npm install
+export KAAPANA_TEST_INSTANCE_UI=https://<your-instance>   # required
+export KAAPANA_PROJECTS_UI_PATH=/projects-ui               # optional, this is the default
+```
 
-## Run tests
-- Run tests *headless* with `npx playwright test` show the results using `npx playwright show-report`
-- Run tests in UI mode using `npx playwright test --ui`
+## Test projects
 
-## Create tests
-- Have a look at the [playwright documentation](https://playwright.dev/docs/writing-tests) to get the basics
-- Record Tests CLI `npx playwright codegen` ([documentation](https://playwright.dev/docs/codegen-intro#recording-a-test))
-    1. run `npx playwright codegen $KAAPANA_TEST_INSTANCE_UI`
-    2. Record your test
-    3. Stop the recording by pressing the red recording button
-    4. Create a new file in the `test` dir and past the generated code (if the tastcase fits to other test cases in one file it can be added there)
-    5. Set a proper title (e.g. the first argument of the test function)
-- Record Tests VS Code ([documentation](https://playwright.dev/docs/getting-started-vscode))
-    1. Install `Playwright Test for VSCode` Extension in VSCode
-    2. In the testing sidebar (beaker on the sidebar left) A playwright menue should apear
-    3. Select `Record new` a browser will open to record the test and a new file is automatically created
-- Make sure that the first goto goes to `/` (e.g. the base url from the configuration) so that the base url (e.g. `KAAPANA_TEST_INSTANCE_UI` is picked up.)
+| Project | What it covers | Auth |
+|---|---|---|
+| `first-login` | Changes the default `kaapana` password to `admin` on a fresh instance | none |
+| `auth-setup` | Logs in as `kaapana`/`admin` and saves the session to `playwright/.auth/` | none (creates it) |
+| `project-management` | Full CRUD lifecycle of the project-management-ui (`/projects-ui`) | saved session |
+| `chromium` / `firefox` / `webkit` | All other spec files on three desktop browsers | none |
+
+## Running locally
+
+### Full suite (fresh instance where first-login hasn't been done yet)
+```bash
+npx playwright test
+```
+
+### Against an already-configured instance (password already `admin`)
+Skip `first-login` — run the setup and feature tests directly:
+```bash
+npx playwright test --project auth-setup --project project-management --workers 1
+```
+
+### Only project-management tests (auth-setup runs automatically as a dependency)
+```bash
+npx playwright test --project project-management
+```
+
+### Interactive UI mode
+```bash
+npx playwright test --ui
+```
+
+### View the last HTML report
+```bash
+npx playwright show-report
+```
+
+### View a trace from a failed test
+```bash
+npx playwright show-trace test-results/<test-name>/trace.zip
+```
+
+## On failure
+
+Failed tests automatically save:
+- **Screenshot** — `test-results/<name>/test-failed-*.png`
+- **Video** — `test-results/<name>/video.webm`
+- **Trace** — `test-results/<name>/trace.zip` (open with `npx playwright show-trace` or upload to https://trace.playwright.dev)
+
+## In CI
+
+The `playwright_ui_tests` GitLab CI job runs after `first_login` completes. It skips the
+playwright `first-login` project (the pytest job already handled password setup) and runs:
+
+```bash
+npx playwright test --project auth-setup --project project-management --workers 1
+```
+
+Artifacts (`playwright-report/` and `test-results/`) are uploaded to GitLab and exposed as
+**"Playwright UI Report"** in the pipeline sidebar. The JUnit XML is reported as test results
+in the pipeline view.
+
+## Creating new tests
+
+- Read the [Playwright docs](https://playwright.dev/docs/writing-tests) for basics.
+- Record a test: `npx playwright codegen $KAAPANA_TEST_INSTANCE_UI`
+- In VS Code: install the **Playwright Test for VS Code** extension and use "Record new".
+- Always use `await page.goto('/')` (not the literal `$KAAPANA_TEST_INSTANCE_UI` string) so the
+  `baseURL` from the config is picked up.
+- Tests for the project-management-ui belong in `tests/project-management.spec.ts` and should
+  navigate directly to `KAAPANA_PROJECTS_UI_PATH` rather than going through the portal nav.

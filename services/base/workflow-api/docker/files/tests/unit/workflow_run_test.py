@@ -23,12 +23,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 sys.path.insert(0, str(Path(__file__).parent))
 
 from app import models, schemas  # noqa: E402
-from conftest import add_revision, make_workflow  # noqa: E402
 from test_data import LABEL_ENVIRONMENT_PROD, LABEL_TEAM, PARAM_LIST_ORGAN  # noqa: E402
 
 
-def _first_revision_id(wf: models.Workflow):
-    return min(wf.revisions, key=lambda r: r.increment).id
+import uuid as _uuid
+
+
+async def _first_revision_id(client: AsyncClient, wf: dict) -> _uuid.UUID:
+    r = await client.get(f"/v1/workflows/{wf['id']}/revisions")
+    revs = r.json()
+    return _uuid.UUID(min(revs, key=lambda x: x["increment"])["id"])
 
 
 # ============================================================
@@ -40,10 +44,23 @@ def _first_revision_id(wf: models.Workflow):
 @pytest.mark.asyncio
 async def test_create_workflow_run_basic(session: AsyncSession, client: AsyncClient):
     """Creating a basic workflow run returns 201 with id, lifecycle CREATED and Location header."""
-    wf = await make_workflow(session, title="test-workflow")
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "test-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
 
     payload = {
-        "workflow": {"id": str(wf.id), "title": wf.title, "increment": 1},
+        "workflow": {"id": str(wf["id"]), "title": wf["title"], "increment": 1},
         "workflow_parameters": [],
         "labels": [],
     }
@@ -53,7 +70,7 @@ async def test_create_workflow_run_basic(session: AsyncSession, client: AsyncCli
 
     assert response.status_code == 201, data
     assert data["id"] is not None
-    assert data["workflow"]["id"] == str(wf.id)
+    assert data["workflow"]["id"] == str(wf["id"])
     assert data["workflow"]["increment"] == 1
     assert data["lifecycle_status"] == "Created"
     assert response.headers["Location"] == f"/v1/workflow-runs/{data['id']}"
@@ -64,10 +81,23 @@ async def test_create_workflow_run_with_labels(
     session: AsyncSession, client: AsyncClient
 ):
     """Creating a workflow run with labels persists them and surfaces them in the response."""
-    wf = await make_workflow(session, title="workflow-with-labels")
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "workflow-with-labels",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
 
     payload = {
-        "workflow": {"id": str(wf.id), "title": wf.title, "increment": 1},
+        "workflow": {"id": str(wf["id"]), "title": wf["title"], "increment": 1},
         "workflow_parameters": [],
         "labels": [LABEL_ENVIRONMENT_PROD, LABEL_TEAM],
     }
@@ -84,10 +114,23 @@ async def test_create_workflow_run_with_parameters(
     session: AsyncSession, client: AsyncClient
 ):
     """Workflow run created with workflow_parameters echoes them back unchanged."""
-    wf = await make_workflow(session, title="workflow-with-params")
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "workflow-with-params",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
 
     payload = {
-        "workflow": {"id": str(wf.id), "title": wf.title, "increment": 1},
+        "workflow": {"id": str(wf["id"]), "title": wf["title"], "increment": 1},
         "workflow_parameters": [PARAM_LIST_ORGAN],
         "labels": [],
     }
@@ -132,8 +175,21 @@ async def test_get_workflow_runs_empty(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_get_workflow_runs(session: AsyncSession, client: AsyncClient):
     """GET /workflow-runs lists all runs across workflows."""
-    wf = await make_workflow(session, title="test-workflow")
-    rev_id = _first_revision_id(wf)
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "test-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
+    rev_id = await _first_revision_id(client, wf)
     for _ in range(3):
         session.add(models.WorkflowRun(workflow_revision_id=rev_id))
     await session.commit()
@@ -149,17 +205,47 @@ async def test_get_workflow_runs_filter_by_workflow_id(
     session: AsyncSession, client: AsyncClient
 ):
     """GET /workflow-runs?workflow_id=... filters runs by source workflow id."""
-    wf1 = await make_workflow(session, title="workflow-1")
-    wf2 = await make_workflow(session, title="workflow-2")
-    session.add(models.WorkflowRun(workflow_revision_id=_first_revision_id(wf1)))
-    session.add(models.WorkflowRun(workflow_revision_id=_first_revision_id(wf2)))
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "workflow-1",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf1 = _r.json()
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "workflow-2",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf2 = _r.json()
+    session.add(
+        models.WorkflowRun(workflow_revision_id=await _first_revision_id(client, wf1))
+    )
+    session.add(
+        models.WorkflowRun(workflow_revision_id=await _first_revision_id(client, wf2))
+    )
     await session.commit()
 
-    response = await client.get(f"/v1/workflow-runs?workflow_id={wf1.id}")
+    response = await client.get(f"/v1/workflow-runs?workflow_id={wf1['id']}")
     data = response.json()
     assert response.status_code == 200
     assert len(data) == 1
-    assert data[0]["workflow"]["id"] == str(wf1.id)
+    assert data[0]["workflow"]["id"] == str(wf1["id"])
 
 
 @pytest.mark.asyncio
@@ -167,14 +253,36 @@ async def test_get_workflow_runs_filter_by_workflow_id_and_increment(
     session: AsyncSession, client: AsyncClient
 ):
     """Combining workflow_id + workflow_increment filters scopes runs to a specific revision."""
-    wf = await make_workflow(session, title="multi-rev-workflow")
-    rev2 = await add_revision(session, wf, definition="v2")
-    session.add(models.WorkflowRun(workflow_revision_id=_first_revision_id(wf)))
-    session.add(models.WorkflowRun(workflow_revision_id=rev2.id))
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "multi-rev-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
+    _r = await client.patch(f"/v1/workflows/{wf['id']}", json={"definition": "v2"})
+
+    assert _r.status_code == 200, _r.text
+
+    # PATCH returns the Workflow schema with the latest increment merged in.
+    # Look up the revision id for increment=2 separately.
+    _r = await client.get(f"/v1/workflows/{wf['id']}/revisions/2")
+    rev2_id = _uuid.UUID(_r.json()["id"])
+    session.add(
+        models.WorkflowRun(workflow_revision_id=await _first_revision_id(client, wf))
+    )
+    session.add(models.WorkflowRun(workflow_revision_id=rev2_id))
     await session.commit()
 
     response = await client.get(
-        f"/v1/workflow-runs?workflow_id={wf.id}&workflow_increment=2"
+        f"/v1/workflow-runs?workflow_id={wf['id']}&workflow_increment=2"
     )
     data = response.json()
     assert response.status_code == 200
@@ -190,8 +298,21 @@ async def test_get_workflow_runs_filter_by_workflow_id_and_increment(
 @pytest.mark.asyncio
 async def test_get_workflow_run_by_id(session: AsyncSession, client: AsyncClient):
     """GET /workflow-runs/{id} returns the requested run."""
-    wf = await make_workflow(session, title="test-workflow")
-    run = models.WorkflowRun(workflow_revision_id=_first_revision_id(wf))
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "test-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
+    run = models.WorkflowRun(workflow_revision_id=await _first_revision_id(client, wf))
     session.add(run)
     await session.commit()
     await session.refresh(run)
@@ -200,7 +321,7 @@ async def test_get_workflow_run_by_id(session: AsyncSession, client: AsyncClient
     data = response.json()
     assert response.status_code == 200
     assert data["id"] == run.id
-    assert data["workflow"]["id"] == str(wf.id)
+    assert data["workflow"]["id"] == str(wf["id"])
 
 
 @pytest.mark.asyncio
@@ -218,9 +339,22 @@ async def test_get_workflow_run_by_id_not_found(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_cancel_workflow_run(session: AsyncSession, client: AsyncClient):
     """PUT /workflow-runs/{id}/cancel transitions the run to CANCELED."""
-    wf = await make_workflow(session, title="test-workflow")
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "test-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
     run = models.WorkflowRun(
-        workflow_revision_id=_first_revision_id(wf),
+        workflow_revision_id=await _first_revision_id(client, wf),
         external_id="test-external-id",
         lifecycle_status=schemas.WorkflowRunStatus.RUNNING,
     )
@@ -245,8 +379,21 @@ async def test_cancel_workflow_run_not_found(client: AsyncClient):
 async def test_retry_workflow_run(session: AsyncSession, client: AsyncClient):
     """Retrying a failed workflow run goes through the engine adapter and the
     response carries the run id back."""
-    wf = await make_workflow(session, title="retry-workflow")
-    rev_id = _first_revision_id(wf)
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "retry-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
+    rev_id = await _first_revision_id(client, wf)
     workflow_run = models.WorkflowRun(
         workflow_revision_id=rev_id,
         lifecycle_status=schemas.WorkflowRunStatus.ERROR,
@@ -275,10 +422,23 @@ async def test_create_workflow_run_increments_correctly(
     session: AsyncSession, client: AsyncClient
 ):
     """Multiple POSTs for the same workflow revision produce distinct run ids."""
-    wf = await make_workflow(session, title="multi-run-workflow")
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "multi-run-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
 
     payload = {
-        "workflow": {"id": str(wf.id), "title": wf.title, "increment": 1},
+        "workflow": {"id": str(wf["id"]), "title": wf["title"], "increment": 1},
         "workflow_parameters": [],
         "labels": [],
     }
@@ -301,8 +461,21 @@ async def test_create_workflow_run_increments_correctly(
 @pytest.mark.asyncio
 async def test_get_workflow_run_task_runs(session: AsyncSession, client: AsyncClient):
     """GET /workflow-runs/{id}/task-runs lists the task runs for a workflow run."""
-    wf = await make_workflow(session, title="test-workflow")
-    rev_id = _first_revision_id(wf)
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "test-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
+    rev_id = await _first_revision_id(client, wf)
     task = models.Task(workflow_revision_id=rev_id, title="task1", type="DummyOperator")
     session.add(task)
     await session.commit()
@@ -338,8 +511,21 @@ async def test_get_workflow_run_task_runs_filter_by_title(
     session: AsyncSession, client: AsyncClient
 ):
     """GET /workflow-runs/{id}/task-runs?task_title=... scopes to one task."""
-    wf = await make_workflow(session, title="test-workflow")
-    rev_id = _first_revision_id(wf)
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "test-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
+    rev_id = await _first_revision_id(client, wf)
     t1 = models.Task(workflow_revision_id=rev_id, title="task1", type="Op")
     t2 = models.Task(workflow_revision_id=rev_id, title="task2", type="Op")
     session.add_all([t1, t2])
@@ -380,8 +566,21 @@ async def test_get_workflow_run_task_runs_not_found(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_get_task_run(session: AsyncSession, client: AsyncClient):
     """GET /workflow-runs/{id}/task-runs/{task_run_id} returns the specific task run."""
-    wf = await make_workflow(session, title="test-workflow")
-    rev_id = _first_revision_id(wf)
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "test-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
+    rev_id = await _first_revision_id(client, wf)
     task = models.Task(workflow_revision_id=rev_id, title="task1", type="Op")
     session.add(task)
     await session.commit()
@@ -407,8 +606,21 @@ async def test_get_task_run(session: AsyncSession, client: AsyncClient):
 @pytest.mark.asyncio
 async def test_get_task_run_not_found(session: AsyncSession, client: AsyncClient):
     """GET /task-runs/{id} returns 404 for an unknown task run."""
-    wf = await make_workflow(session, title="test-workflow")
-    run = models.WorkflowRun(workflow_revision_id=_first_revision_id(wf))
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "test-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
+    run = models.WorkflowRun(workflow_revision_id=await _first_revision_id(client, wf))
     session.add(run)
     await session.commit()
     await session.refresh(run)
@@ -420,8 +632,21 @@ async def test_get_task_run_not_found(session: AsyncSession, client: AsyncClient
 @pytest.mark.asyncio
 async def test_get_task_run_logs_not_found(session: AsyncSession, client: AsyncClient):
     """Logs lookup for a non-existent task run returns 404."""
-    wf = await make_workflow(session, title="test-workflow")
-    run = models.WorkflowRun(workflow_revision_id=_first_revision_id(wf))
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "test-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
+    run = models.WorkflowRun(workflow_revision_id=await _first_revision_id(client, wf))
     session.add(run)
     await session.commit()
     await session.refresh(run)
@@ -433,8 +658,21 @@ async def test_get_task_run_logs_not_found(session: AsyncSession, client: AsyncC
 @pytest.mark.asyncio
 async def test_get_task_run_logs(session: AsyncSession, client: AsyncClient):
     """GET /task-runs/{id}/logs returns parsed LogLine objects (time, severity, message)."""
-    wf = await make_workflow(session, title="test-workflow")
-    rev_id = _first_revision_id(wf)
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "test-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
+    rev_id = await _first_revision_id(client, wf)
     task = models.Task(workflow_revision_id=rev_id, title="task1", type="Op")
     session.add(task)
     await session.commit()
@@ -464,8 +702,21 @@ async def test_get_task_run_logs(session: AsyncSession, client: AsyncClient):
 @pytest.mark.asyncio
 async def test_get_task_run_raw_logs(session: AsyncSession, client: AsyncClient):
     """GET /task-runs/{id}/raw-logs returns the raw engine log string."""
-    wf = await make_workflow(session, title="test-workflow-raw")
-    rev_id = _first_revision_id(wf)
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "test-workflow-raw",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
+    rev_id = await _first_revision_id(client, wf)
     task = models.Task(workflow_revision_id=rev_id, title="task1", type="Op")
     session.add(task)
     await session.commit()
@@ -481,7 +732,9 @@ async def test_get_task_run_raw_logs(session: AsyncSession, client: AsyncClient)
     await session.commit()
     await session.refresh(tr)
 
-    response = await client.get(f"/v1/workflow-runs/{run.id}/task-runs/{tr.id}/raw-logs")
+    response = await client.get(
+        f"/v1/workflow-runs/{run.id}/task-runs/{tr.id}/raw-logs"
+    )
     assert response.status_code == 200
     assert isinstance(response.text, str)
 
@@ -529,9 +782,22 @@ async def test_retry_workflow_run_from_any_status(
     expected_status_after_retry: schemas.WorkflowRunStatus,
     expect_external_id: bool,
 ):
-    wf = await make_workflow(session, title="retry-workflow")
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "retry-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
     run = models.WorkflowRun(
-        workflow_revision_id=_first_revision_id(wf),
+        workflow_revision_id=await _first_revision_id(client, wf),
         external_id="test-external-id" if expect_external_id else None,
         lifecycle_status=initial_status,
     )
@@ -574,9 +840,22 @@ async def test_cancel_workflow_run_from_any_status(
     expected_status_after_cancel: schemas.WorkflowRunStatus,
     expect_external_id: bool,
 ):
-    wf = await make_workflow(session, title="cancel-workflow")
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "cancel-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
     run = models.WorkflowRun(
-        workflow_revision_id=_first_revision_id(wf),
+        workflow_revision_id=await _first_revision_id(client, wf),
         external_id="test-external-id" if expect_external_id else None,
         lifecycle_status=initial_status,
     )
@@ -603,9 +882,22 @@ async def test_cancel_workflow_run_from_any_status(
 async def test_workflow_run_with_multiple_labels(
     session: AsyncSession, client: AsyncClient
 ):
-    wf = await make_workflow(session, title="multi-label-workflow")
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "multi-label-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
     payload = {
-        "workflow": {"id": str(wf.id), "title": wf.title, "increment": 1},
+        "workflow": {"id": str(wf["id"]), "title": wf["title"], "increment": 1},
         "workflow_parameters": [],
         "labels": [
             {"key": "env", "value": "prod"},
@@ -622,8 +914,21 @@ async def test_workflow_run_with_multiple_labels(
 async def test_task_run_belongs_to_correct_workflow_run(
     session: AsyncSession, client: AsyncClient
 ):
-    wf = await make_workflow(session, title="affinity-workflow")
-    rev_id = _first_revision_id(wf)
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "affinity-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
+    rev_id = await _first_revision_id(client, wf)
     task = models.Task(workflow_revision_id=rev_id, title="task1", type="Op")
     session.add(task)
     await session.commit()
@@ -660,9 +965,22 @@ async def test_task_run_belongs_to_correct_workflow_run(
 @pytest.mark.asyncio
 async def test_get_workflow_run_with_labels(session: AsyncSession, client: AsyncClient):
     """A workflow run created with labels returns them on subsequent GET."""
-    wf = await make_workflow(session, title="labeled-run-workflow")
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "labeled-run-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
     run = models.WorkflowRun(
-        workflow_revision_id=_first_revision_id(wf),
+        workflow_revision_id=await _first_revision_id(client, wf),
         lifecycle_status=schemas.WorkflowRunStatus.COMPLETED,
     )
     session.add(run)
@@ -691,8 +1009,21 @@ async def test_get_workflow_run_with_labels(session: AsyncSession, client: Async
 async def test_get_workflow_runs_with_status_filter(
     session: AsyncSession, client: AsyncClient
 ):
-    wf = await make_workflow(session, title="status-filter-workflow")
-    rev_id = _first_revision_id(wf)
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "status-filter-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
+    rev_id = await _first_revision_id(client, wf)
     for status in [
         schemas.WorkflowRunStatus.COMPLETED,
         schemas.WorkflowRunStatus.RUNNING,
@@ -716,8 +1047,21 @@ async def test_get_workflow_runs_with_status_filter(
 @pytest.mark.asyncio
 async def test_task_run_lifecycle_status(session: AsyncSession, client: AsyncClient):
     """Task runs persisted in the DB return their lifecycle status verbatim."""
-    wf = await make_workflow(session, title="task-lifecycle-workflow")
-    rev_id = _first_revision_id(wf)
+    _r = await client.post(
+        "/v1/workflows",
+        json={
+            "title": "task-lifecycle-workflow",
+            "definition": "test_def",
+            "workflow_engine": "dummy",
+            "workflow_parameters": [],
+            "labels": [],
+        },
+    )
+
+    assert _r.status_code == 201, _r.text
+
+    wf = _r.json()
+    rev_id = await _first_revision_id(client, wf)
     task = models.Task(workflow_revision_id=rev_id, title="task1", type="Op")
     session.add(task)
     await session.commit()

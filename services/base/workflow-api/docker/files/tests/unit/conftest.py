@@ -29,65 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from app.dependencies import get_async_db, require_dev_mode
 from app.main import app
-from app import models
 from app.models import Base
-
-
-async def make_workflow(
-    session: AsyncSession,
-    *,
-    title: str,
-    definition: str = "test_def",
-    workflow_engine: str = "dummy",
-    workflow_parameters=None,
-    labels=None,
-) -> models.Workflow:
-    """Helper used by unit tests to create a Workflow with its first revision in one call."""
-    workflow = models.Workflow(title=title, workflow_engine=workflow_engine)
-    rev_params = workflow_parameters or []
-    rev_labels = labels or []
-    workflow.revisions = [
-        models.WorkflowRevision(
-            increment=1,
-            definition=definition,
-            workflow_parameters=rev_params,
-            labels=rev_labels,
-        )
-    ]
-    session.add(workflow)
-    await session.commit()
-    await session.refresh(workflow)
-    return workflow
-
-
-async def add_revision(
-    session: AsyncSession,
-    workflow: models.Workflow,
-    *,
-    definition: str | None = None,
-    workflow_parameters=None,
-    labels=None,
-) -> models.WorkflowRevision:
-    """Append a new revision (next increment) snapshotting current state with overrides."""
-    current = max(workflow.revisions, key=lambda r: r.increment)
-    new_definition = definition if definition is not None else current.definition
-    new_params = (
-        workflow_parameters
-        if workflow_parameters is not None
-        else current.workflow_parameters
-    )
-    new_labels = labels if labels is not None else current.labels
-    rev = models.WorkflowRevision(
-        workflow_id=workflow.id,
-        increment=current.increment + 1,
-        definition=new_definition,
-        workflow_parameters=new_params,
-        labels=new_labels,
-    )
-    session.add(rev)
-    await session.commit()
-    await session.refresh(workflow)
-    return rev
 
 
 def pytest_configure(config):

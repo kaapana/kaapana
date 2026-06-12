@@ -23,7 +23,9 @@ assert (
 ), "ERROR: env variable SHARED_VOLUME_PATH can not be empty"
 
 LOCAL_REGISTRY_URL = os.getenv("LOCAL_REGISTRY_URL", None)
-assert NAMESPACE is not None, "ERROR: env variable LOCAL_REGISTRY_URL can not be empty"
+assert (
+    LOCAL_REGISTRY_URL is not None
+), "ERROR: env variable LOCAL_REGISTRY_URL can not be empty"
 
 REGISTRY_URL = os.getenv("REGISTRY_URL", None)
 assert REGISTRY_URL is not None, "ERROR: env variable REGISTRY_URL can not be empty"

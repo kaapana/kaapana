@@ -48,17 +48,25 @@ NEW_SECRET=$(curl -sf -X POST \
 
 ENCODED_SECRET=$(echo -n "$NEW_SECRET" | base64 -w 0)
 
-echo "--- Updating Kubernetes Secret in namespace '$ADMIN_NAMESPACE'..."
-kubectl patch secret "$SECRET_NAME" \
-  -n "$ADMIN_NAMESPACE" \
-  --type='json' \
-  -p="[{\"op\":\"replace\",\"path\":\"/data/$SECRET_KEY\",\"value\":\"$ENCODED_SECRET\"}]"
+# Patch every namespace that holds the secret: admin (source), services, and all
+# project namespaces. Project namespaces are separate Helm releases that received a
+# copy via lookup, so they must be re-synced here or they keep the stale secret.
+echo "--- Discovering all namespaces containing secret '$SECRET_NAME'..."
+NAMESPACES=$(kubectl get secret "$SECRET_NAME" --all-namespaces \
+  -o jsonpath='{range .items[*]}{.metadata.namespace}{"\n"}{end}')
 
-echo "--- Updating Kubernetes Secret in namespace '$SERVICES_NAMESPACE'..."
-kubectl patch secret "$SECRET_NAME" \
-  -n "$SERVICES_NAMESPACE" \
-  --type='json' \
-  -p="[{\"op\":\"replace\",\"path\":\"/data/$SECRET_KEY\",\"value\":\"$ENCODED_SECRET\"}]"
+if [ -z "$NAMESPACES" ]; then
+  echo "ERROR: Secret '$SECRET_NAME' not found in any namespace." >&2
+  exit 1
+fi
+
+for NS in $NAMESPACES; do
+  echo "--- Updating Kubernetes Secret in namespace '$NS'..."
+  kubectl patch secret "$SECRET_NAME" \
+    -n "$NS" \
+    --type='json' \
+    -p="[{\"op\":\"replace\",\"path\":\"/data/$SECRET_KEY\",\"value\":\"$ENCODED_SECRET\"}]"
+done
 
 echo "--- Triggering rolling restart of affected deployments..."
 kubectl rollout restart deployment/kaapana-backend -n "$SERVICES_NAMESPACE"

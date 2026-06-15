@@ -49,5 +49,7 @@ RUN apt-get update && apt-get install -y python-dev-is-python3 \
     && python3.10 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt -r requirements.txt \
     && python3.10 setup.py install
 
+RUN python3.10 -m pip install pyradiomics
+
 # run the script
-CMD ["python3", "-u", "extract_features.py"]
+CMD ["python3.10", "-u", "extract_features.py"]

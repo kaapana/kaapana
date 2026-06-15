@@ -3,6 +3,7 @@ import glob
 import os
 import re
 from datetime import datetime
+from multiprocessing.pool import ThreadPool
 
 import pydicom
 from base import (
@@ -32,7 +33,15 @@ logger = get_logger(__name__)
 def get_series_description(all_dicoms: list, meta_key: str = "SeriesDescription"):
     desc = "Unnamed Series"
     for dcm in all_dicoms:
-        ds = pydicom.dcmread(dcm)
+        try:
+            # Only the requested tag is needed; skip pixel data to keep this
+            # a cheap header read.
+            ds = pydicom.dcmread(
+                dcm, stop_before_pixels=True, specific_tags=[meta_key]
+            )
+        except Exception as e:
+            logger.warning(f"Could not read {dcm} for {meta_key}: {e}")
+            continue
         try:
             elem = ds[meta_key]
         except KeyError:
@@ -79,9 +88,19 @@ def run_dicom_validation(
     exit_on_error: bool = False,
     results_2_meta: ValidationResult2Meta = None,
 ):
-    completeness_items = check_completeness(
-        Path(operator_in_dir), Path(operator_out_dir), update_os=True
-    )
+    try:
+        completeness_items = check_completeness(
+            Path(operator_in_dir), Path(operator_out_dir), update_os=True
+        )
+    except Exception as e:
+        logger.warning(f"Completeness check failed, continuing without it: {e}")
+        completeness_items = None
+
+    # check_completeness may return None or a (bool, msg) tuple instead of the
+    # metadata object; normalize anything unusable to None so downstream code
+    # (the attribute access below and generate_html) stays safe.
+    if not hasattr(completeness_items, "is_series_complete"):
+        completeness_items = None
 
     # The processing algorithm
     print(f"Checking {operator_in_dir} for dcm files")
@@ -94,25 +113,43 @@ def run_dicom_validation(
 
     logger.info(("Validating Dicom files, starting with: %s" % dcm_files[0]))
 
+    # Validate slices in parallel. The per-series loop is otherwise serial
+    # (the outer ThreadPool in process_single/process_batches parallelizes
+    # across series, not slices), so large series can exceed the operator's
+    # execution_timeout. dciodvfy runs as a subprocess and pydicom releases
+    # the GIL on I/O, so threads give a real speed-up here.
+    max_workers = max(1, int(os.getenv("VALIDATION_WORKERS", os.cpu_count() or 4)))
+
+    def _validate_one(dicom_path):
+        try:
+            errs, warns = validator.validate_dicom(dicom_path)
+        except Exception as e:
+            logger.warning(
+                f"Validation raised for {os.path.basename(dicom_path)}, "
+                f"skipping this file: {e}"
+            )
+            return os.path.basename(dicom_path), [], []
+        if len(tags_whitelist) > 0:
+            errs = filter_errors_by_tag_whitelist(errs, tags_whitelist)
+            warns = filter_errors_by_tag_whitelist(warns, tags_whitelist)
+        return os.path.basename(dicom_path), errs, warns
+
     n_valid = 0
     n_fail = 0
 
     all_errors = {}
     all_warnings = {}
-    for dicom_path in dcm_files:
-        errs, warns = validator.validate_dicom(dicom_path)
-        if len(tags_whitelist) > 0:
-            errs = filter_errors_by_tag_whitelist(errs, tags_whitelist)
-            warns = filter_errors_by_tag_whitelist(warns, tags_whitelist)
-        key = os.path.basename(dicom_path)
+    with ThreadPool(min(max_workers, len(dcm_files))) as pool:
+        for key, errs, warns in pool.imap_unordered(_validate_one, dcm_files):
+            if len(warns) > 0:
+                all_warnings[key] = warns
+            if len(errs) > 0:
+                all_errors[key] = errs
+                n_fail += 1
+            else:
+                n_valid += 1
 
-        if len(warns) > 0:
-            all_warnings[key] = warns
-        if len(errs) > 0:
-            all_errors[key] = errs
-            n_fail += 1
-        else:
-            n_valid += 1
+    logger.info(f"Validated {len(dcm_files)} slices ({n_valid} valid / {n_fail} failed)")
 
     errors = merge_similar_validation_items(all_errors)
     warnings = merge_similar_validation_items(all_warnings)
@@ -128,47 +165,59 @@ def run_dicom_validation(
         "Validataion Time": f"{validation_time} CEST",
     }
 
-    if not completeness_items.is_series_complete:
+    if completeness_items is not None and not completeness_items.is_series_complete:
         attributes["Series Complete"] = False
         attributes["Missing instances"] = len(
             completeness_items.missing_instance_numbers
         )
 
     if results_2_meta:
-        n_errors = len(errors.keys())
-        n_warnings = len(warnings.keys())
+        try:
+            n_errors = len(errors.keys())
+            n_warnings = len(warnings.keys())
 
-        tags_tuple = [
-            ValdationResultItem(
-                "Errors", "integer", n_errors
-            ),  # (key, opensearch datatype, value)
-            ValdationResultItem("Warnings", "integer", n_warnings),
-            ValdationResultItem("Date", "datetime", validation_time),
-        ]
+            tags_tuple = [
+                ValdationResultItem(
+                    "Errors", "integer", n_errors
+                ),  # (key, opensearch datatype, value)
+                ValdationResultItem("Warnings", "integer", n_warnings),
+                ValdationResultItem("Date", "datetime", validation_time),
+            ]
 
-        series_uid = get_series_description(dcm_files, meta_key="SeriesInstanceUID")
+            series_uid = get_series_description(
+                dcm_files, meta_key="SeriesInstanceUID"
+            )
 
-        results_2_meta.add_tags_to_opensearch(
-            series_uid,
-            validation_tags=tags_tuple,
-            clear_results=True,
-        )
+            results_2_meta.add_tags_to_opensearch(
+                series_uid,
+                validation_tags=tags_tuple,
+                clear_results=True,
+            )
+        except Exception as e:
+            logger.warning(
+                f"Failed to write validation results to OpenSearch: {e}"
+            )
 
     if len(errors.keys()) > 0 or len(warnings.keys()) > 0:
-        htmlout = generate_html(
-            title=f"Validation Report for dataset {seriesdsc}",
-            attrs=attributes,
-            errors=[errors[tag] for tag in errors.keys()],
-            warnings=[warnings[tag] for tag in warnings.keys()],
-            series_completete_stat=completeness_items,
-        )
+        try:
+            htmlout = generate_html(
+                title=f"Validation Report for dataset {seriesdsc}",
+                attrs=attributes,
+                errors=[errors[tag] for tag in errors.keys()],
+                warnings=[warnings[tag] for tag in warnings.keys()],
+                series_completete_stat=completeness_items,
+            )
 
-        with open(os.path.join(operator_out_dir, f"results-{run_id}.html"), "w") as f:
-            f.write(htmlout)
+            with open(
+                os.path.join(operator_out_dir, f"results-{run_id}.html"), "w"
+            ) as f:
+                f.write(htmlout)
 
-        logger.info(
-            f"Validation Results file created in {operator_out_dir} with the name results-{run_id}.html"
-        )
+            logger.info(
+                f"Validation Results file created in {operator_out_dir} with the name results-{run_id}.html"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to generate/write validation HTML report: {e}")
 
     if len(errors.keys()) > 0 and exit_on_error:
         raise ValueError(

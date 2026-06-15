@@ -1,12 +1,21 @@
+import os
 import re
 import subprocess
 
 from base import ValidationItem, DicomValidatorInterface
+from kaapanapy.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class DCIodValidator(DicomValidatorInterface):
     def __init__(self) -> None:
         super().__init__()
+        # Per-file timeout (seconds) for the dciodvfy subprocess. A single
+        # malformed DICOM can otherwise make dciodvfy block indefinitely and
+        # hang the whole validation run until the operator's execution_timeout
+        # kills the pod. Configurable via DCIODVFY_TIMEOUT.
+        self.timeout = int(os.getenv("DCIODVFY_TIMEOUT", "120"))
 
     @staticmethod
     def process_dciodvfy_output(output: str):
@@ -119,7 +128,16 @@ class DCIodValidator(DicomValidatorInterface):
         """
         cmd = ["dciodvfy", "-new", dicom_path]
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        _, err = process.communicate()
+        try:
+            _, err = process.communicate(timeout=self.timeout)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.communicate()
+            logger.warning(
+                f"dciodvfy timed out after {self.timeout}s validating "
+                f"{dicom_path}; skipping this file."
+            )
+            return [], []
         errs = self.process_dciodvfy_output(err.decode("utf-8"))
         vitems = [
             self.get_validataion_item_from_err_tuple(item, idx)

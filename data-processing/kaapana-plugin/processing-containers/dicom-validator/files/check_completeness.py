@@ -1,4 +1,5 @@
 import os
+from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from typing import List, Optional
 
@@ -110,9 +111,21 @@ def check_completeness(
     if not dicom_filenames:
         return False, "No DICOM files found in the directory."
 
-    dicom_files = [
-        pydicom.dcmread(dicom_filename) for dicom_filename in dicom_filenames
-    ]
+    # Completeness only needs three header tags. Skip pixel data and limit
+    # parsing to those tags, and read the files in parallel — for a large
+    # series this avoids loading hundreds of MB of pixels and serializing
+    # every read.
+    def _read_header(dicom_filename):
+        return pydicom.dcmread(
+            dicom_filename,
+            stop_before_pixels=True,
+            specific_tags=["SeriesInstanceUID", "Modality", "InstanceNumber"],
+        )
+
+    max_workers = max(1, int(os.getenv("VALIDATION_WORKERS", os.cpu_count() or 4)))
+    with ThreadPool(min(max_workers, len(dicom_filenames))) as pool:
+        dicom_files = list(pool.map(_read_header, dicom_filenames))
+
     series_uid = dicom_files[0].SeriesInstanceUID
     modality = dicom_files[0].Modality
 

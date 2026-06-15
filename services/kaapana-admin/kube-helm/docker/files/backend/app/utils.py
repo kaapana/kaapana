@@ -76,21 +76,9 @@ def helm_search_repo(keywords_filter):
         for helm_package in helm_packages:
             chart = helm_helper.helm_show_chart(package=helm_package)
             if "keywords" in chart and (set(chart["keywords"]) & keywords_filter):
-                chart = helm_helper.add_extension_params(chart)
                 charts_cached[f'{chart["name"]}-{chart["version"]}'] = chart
 
     return charts_cached
-
-
-def helm_get_values(release_name, helm_namespace=settings.helm_namespace):
-    logger.debug(f"in function: helm_get_values {release_name=}, {helm_namespace=}")
-    success, stdout = helm_helper.execute_shell_command(
-        f"{settings.helm_path} -n {helm_namespace} get values --all -o json {release_name}"
-    )
-    if success and stdout != b"null\n":
-        return json.loads(stdout)
-    else:
-        return dict()
 
 
 def helm_status(release_name, helm_namespace=settings.helm_namespace):
@@ -107,12 +95,9 @@ def helm_status(release_name, helm_namespace=settings.helm_namespace):
         logger.warning(f"Helm status returned no YAML result for: {release_name}")
         return {}
     return result.get("info", {})
-        
 
 
-def get_helm_status_name(
-    release_name, helm_namespace=settings.helm_namespace
-) -> str:
+def get_helm_status_name(release_name, helm_namespace=settings.helm_namespace) -> str:
     return helm_status(release_name, helm_namespace).get("status", "").lower()
 
 
@@ -168,10 +153,16 @@ CHART_INSTALL_MESSAGE_ALREADY_INSTALLED = "Chart is already installed"
 
 def decide_install_action(status_name, keywords, helm_delete_prefix):
     if "kaapanamultiinstallable" in keywords:
-        return CHART_INSTALL_ACTION_INSTALL, "Installing again since its kaapanamultiinstallable"
+        return (
+            CHART_INSTALL_ACTION_INSTALL,
+            "Installing again since its kaapanamultiinstallable",
+        )
 
     if helm_delete_prefix:
-        return CHART_INSTALL_ACTION_DELETE_THEN_INSTALL, "Deleting and then installing again!"
+        return (
+            CHART_INSTALL_ACTION_DELETE_THEN_INSTALL,
+            "Deleting and then installing again!",
+        )
 
     if status_name == "":
         return CHART_INSTALL_ACTION_INSTALL, "No previous installations were found"
@@ -191,7 +182,10 @@ def decide_install_action(status_name, keywords, helm_delete_prefix):
             f"Chart is in Helm transitional state '{status_name}' and must settle or be cleaned up before reinstalling",
         )
 
-    return CHART_INSTALL_ACTION_BLOCK, f"Chart is in unsupported Helm state '{status_name}'"
+    return (
+        CHART_INSTALL_ACTION_BLOCK,
+        f"Chart is in unsupported Helm state '{status_name}'",
+    )
 
 
 def build_helm_install_preflight(
@@ -213,7 +207,9 @@ def build_helm_install_preflight(
     name = payload["name"]
     version = payload["version"]
 
-    release_values = helm_get_values(settings.release_name, helm_namespace="default")
+    release_values = helm_helper.helm_get_values(
+        settings.release_name, helm_namespace="default"
+    )
 
     default_sets = {}
     if "global" in release_values:
@@ -279,7 +275,7 @@ def build_helm_install_preflight(
         suffix_param = default_sets.get("global.suffix_param_key")
         if suffix_param is not None:
             logger.info(f"suffix_param exists {suffix_param=}")
-            suffix = default_sets[f"global.{suffix_param}"][:20] # get first 20 chars
+            suffix = default_sets[f"global.{suffix_param}"][:20]  # get first 20 chars
         release_name = f"{name}-{suffix}"
         logger.info(f"suffixed {release_name=}")
     else:
@@ -334,7 +330,8 @@ def build_helm_install_preflight(
     helm_command = f"{settings.helm_path} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {labels} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}"
 
     return {
-        "should_install": install_action in {
+        "should_install": install_action
+        in {
             CHART_INSTALL_ACTION_INSTALL,
             CHART_INSTALL_ACTION_DELETE_THEN_INSTALL,
         },
@@ -373,9 +370,7 @@ def wait_for_release_state_change(
         )
         if status_name != previous_status:
             break
-    logger.info(
-        f"Helm release {release_name} state after waiting: '{status_name}'"
-    )
+    logger.info(f"Helm release {release_name} state after waiting: '{status_name}'")
     return status_name
 
 
@@ -419,9 +414,7 @@ def run_supervised_uninstall(
         logger.warning(
             f"Release {release_name} is still uninstalling after normal uninstall; retrying with --no-hooks"
         )
-        no_hooks_cmd = (
-            f"{settings.helm_path} -n {helm_namespace} uninstall {release_name} --no-hooks"
-        )
+        no_hooks_cmd = f"{settings.helm_path} -n {helm_namespace} uninstall {release_name} --no-hooks"
         success, stdout = helm_helper.execute_shell_command(
             no_hooks_cmd, shell=shell, blocking=blocking
         )
@@ -435,7 +428,9 @@ def run_supervised_uninstall(
             release_name, helm_namespace, status_name
         )
         if status_name == "":
-            logger.info(f"Release {release_name} was removed after --no-hooks uninstall")
+            logger.info(
+                f"Release {release_name} was removed after --no-hooks uninstall"
+            )
             return True, ""
 
     logger.warning(
@@ -547,10 +542,14 @@ def supervised_helm_install(
                 "",
             )
 
-        logger.info(f"Supervised recovery succeeded for {release_name}; retrying install")
+        logger.info(
+            f"Supervised recovery succeeded for {release_name}; retrying install"
+        )
         return helm_install(**install_kwargs)
 
-    logger.info(f"Supervised Helm install returning without install for {release_name}: {message}")
+    logger.info(
+        f"Supervised Helm install returning without install for {release_name}: {message}"
+    )
     return False, message, "", release_name, ""
 
 

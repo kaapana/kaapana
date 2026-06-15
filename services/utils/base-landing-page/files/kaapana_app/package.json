@@ -13,7 +13,7 @@
     "@koumoul/vjsf": "2.23.3",
     "@vueuse/core": "11.2.0",
     "apexcharts": "3.54.1",
-    "axios": "1.12.2",
+    "axios": "1.16.0",
     "babel-polyfill": "6.26.0",
     "filepond": "4.32.1",
     "filepond-plugin-file-validate-type": "1.2.9",
@@ -31,6 +31,10 @@
     "webpack": "5.96.1",
     "resize-observer-polyfill": "1.5.1",
     "postcss": "8.4.49"
+  },
+  "overrides": 
+  {    
+    "serialize-javascript": "7.0.5"
   },
   "devDependencies": {
     "@mdi/font": "7.4.47",

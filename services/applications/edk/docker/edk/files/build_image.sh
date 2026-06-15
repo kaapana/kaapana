@@ -1,4 +1,5 @@
 #!/bin/bash
+set -eu -o pipefail
 
 # default vals
 dockerfile=""
@@ -90,8 +91,8 @@ else
     exit 1
 fi
 
-# run python script for starting kaniko builder pod, this might take some time to finish as it builds and pushes the image to local registry
-python3 /kaapana/app/utils/create_kaniko_pod.py /kaapana/app/utils/kaniko-builder-pod.yml --dockerfile "$dockerfile" --context "$context_path" --image_name "$image_name" --image_version "$image_version"
+# run python script for starting buildah builder pod, this might take some time to finish as it builds and pushes the image to local registry
+python3 /kaapana/app/utils/create_buildah_pod.py /kaapana/app/utils/buildah-builder-pod.yml --dockerfile "$dockerfile" --context "$context_path" --image_name "$image_name" --image_version "$image_version"
 
 if [[ "$tar" == "true" || "$import" == "true" ]]; then
     # run skopeo command to copy from local reg to a tarball

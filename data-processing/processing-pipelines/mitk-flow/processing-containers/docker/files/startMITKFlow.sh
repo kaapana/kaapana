@@ -6,12 +6,15 @@ echo "Starting MTIK Flow"
 /mitk-flow/MitkFlowBench.sh /$WORKFLOW_DIR/$BATCH_NAME/tasklist.json &
 PID=$!
 
-tail -f  $USER/logfile | while read LOGLINE
-do
-	[[ "${LOGLINE}" == *"BlueBerry Workbench ready"* ]] && pkill -P $$ tail
+until grep -q "BlueBerry Workbench ready" $HOME/logfile 2>/dev/null; do
+	sleep 1
 done
 
 echo 'Setting fullscreen mode'
-wmctrl -r 'Segmentation' -b toggle,fullscreen
+for i in $(seq 1 30); do
+	wmctrl -l | grep -q 'Segmentation' && break
+	sleep 1
+done
+wmctrl -r 'Segmentation' -b add,fullscreen
 
 wait $PID

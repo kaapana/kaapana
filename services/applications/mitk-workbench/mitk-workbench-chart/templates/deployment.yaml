@@ -84,7 +84,7 @@ spec:
           requests:
             memory: "4Gi"
           limits:
-            memory: "8Gi"
+            memory: "12Gi"
         env:
         {{- if and (.Values.global.gpu_support) (.Values.global.gpu_container) }}
         - name: NVIDIA_VISIBLE_DEVICES

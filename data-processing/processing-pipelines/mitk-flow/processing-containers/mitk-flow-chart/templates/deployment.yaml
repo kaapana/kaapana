@@ -23,7 +23,7 @@ spec:
           requests:
             memory: "4Gi"
           limits:
-            memory: "8Gi"
+            memory: "12Gi"
         env:
         - name: INGRESS_PATH
           value: "applications/project/{{ .Values.global.project_id }}/release/{{ .Release.Name }}"

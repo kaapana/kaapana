@@ -116,6 +116,55 @@ def test_admin_secret_has_resource_policy_keep(template):
     )
 
 
+# --- F6: secret lookups must target admin_namespace, not .Release.Namespace ---
+
+
+@pytest.mark.parametrize("template", ADMIN_SECRET_TEMPLATES, ids=lambda p: p.name)
+def test_admin_secret_lookup_uses_admin_namespace(template):
+    text = _read(template)
+    assert ".Values.global.admin_namespace" in text, (
+        f"{template.name} lookup must use .Values.global.admin_namespace, not "
+        ".Release.Namespace — the Helm release namespace is 'default' but the "
+        "secret lives in the admin namespace. Wrong namespace causes a new random "
+        "secret on every deploy, desyncing Keycloak and K8s (bug F6 in #1918)."
+    )
+    assert (
+        ".Release.Namespace" not in text
+    ), f"{template.name} must not use .Release.Namespace in the secret lookup."
+
+
+# --- Fallback: configure_realm.py must sync dynamic secrets via service token --
+
+
+def test_configure_realm_has_manage_clients_role():
+    text = _read(
+        ROOT
+        / "services/kaapana-admin/keycloak/keycloak-setup/docker/files/configure_realm.py"
+    )
+    assert '"manage-clients"' in text, (
+        "configure_realm.py must assign the manage-clients role to the "
+        "kaapana-service service account so the fallback path can update the "
+        "OIDC client secret without admin credentials."
+    )
+
+
+def test_configure_realm_fallback_syncs_oidc_and_system_user():
+    text = _read(
+        ROOT
+        / "services/kaapana-admin/keycloak/keycloak-setup/docker/files/configure_realm.py"
+    )
+    assert "_update_oidc_client_secret" in text, (
+        "configure_realm.py fallback must call _update_oidc_client_secret — "
+        "deploy_platform.sh regenerates OIDC_CLIENT_SECRET on every run, so "
+        "the fallback path must push the new value into Keycloak."
+    )
+    assert "_reset_system_user_password" in text, (
+        "configure_realm.py fallback must call _reset_system_user_password — "
+        "the system user password can diverge between K8s secret and Keycloak "
+        "after failed deploys."
+    )
+
+
 # --- Core #1918 criterion: runtime services no longer use the admin password --
 
 

@@ -13,6 +13,8 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, call, patch
 
+import pytest
+
 # Set required env vars before module-level code in configure_realm runs
 os.environ.setdefault("DEV_MODE", "false")
 
@@ -31,8 +33,19 @@ import configure_realm as cr  # noqa: E402
 def test_service_client_functional_returns_true_on_200():
     resp = MagicMock()
     resp.status_code = 200
-    with patch.object(cr.requests, "post", return_value=resp):
+    with patch.object(cr.requests, "post", return_value=resp) as mock_post:
         assert cr._service_client_functional("host", 443, "secret") is True
+
+    mock_post.assert_called_once()
+    _, kwargs = mock_post.call_args
+    url = mock_post.call_args[0][0]
+    data = kwargs["data"]
+    assert data["grant_type"] == "client_credentials"
+    assert data["client_id"] == "kaapana-service"
+    assert data["client_secret"] == "secret"
+    assert "username" not in data and "password" not in data
+    assert "/realms/kaapana/protocol/openid-connect/token" in url
+    assert "master" not in url
 
 
 def test_service_client_functional_returns_false_on_401():
@@ -99,19 +112,39 @@ def test_reset_system_user_password_calls_get_then_put():
     assert put_json["temporary"] is False
 
 
-def test_reset_system_user_password_accepts_policy_rejection():
+def test_reset_system_user_password_accepts_keycloak_policy_rejection():
     get_resp = MagicMock()
     get_resp.json.return_value = [{"id": "user-uuid"}]
     get_resp.raise_for_status.return_value = None
 
     put_resp = MagicMock()
-    put_resp.status_code = 400  # password history policy — already set to this value
+    put_resp.status_code = 400
+    put_resp.json.return_value = {"errorMessage": "Password policy not met"}
 
     with patch.object(cr.requests, "get", return_value=get_resp), patch.object(
         cr.requests, "put", return_value=put_resp
     ):
         cr._reset_system_user_password("host", 443, "token", "same-password")
-        # Must not raise
+        # Must not raise — Keycloak rejected the reset due to password policy.
+
+
+def test_reset_system_user_password_raises_on_unexpected_400():
+    get_resp = MagicMock()
+    get_resp.json.return_value = [{"id": "user-uuid"}]
+    get_resp.raise_for_status.return_value = None
+
+    put_resp = MagicMock()
+    put_resp.status_code = 400
+    put_resp.json.return_value = {
+        "error": "invalid_parameter"
+    }  # no password/policy content
+    put_resp.raise_for_status.side_effect = Exception("400 Bad Request")
+
+    with patch.object(cr.requests, "get", return_value=get_resp), patch.object(
+        cr.requests, "put", return_value=put_resp
+    ):
+        with pytest.raises(Exception, match="400 Bad Request"):
+            cr._reset_system_user_password("host", 443, "token", "bad-password")
 
 
 # --- _run_fallback -------------------------------------------------------------

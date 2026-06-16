@@ -50,6 +50,7 @@ def test_get_keycloak_service_token_uses_client_credentials_against_kaapana_real
     with patch.object(routers.requests, "post", mock_post):
         token = routers._get_keycloak_service_token("s3cr3t")
 
+    mock_post.assert_called_once()
     assert token == "fake-token"
     _, kwargs = mock_post.call_args
     url = mock_post.call_args[0][0]

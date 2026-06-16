@@ -5,7 +5,7 @@ global:
   namespace: "{{ .Values.global.services_namespace }}"
   dynamicVolumes:
   - name: jupyterlab
-    mount_path: /kaapana/minio/
+    mount_path: /kaapana/.minio-share/
     storage: "1Gi"
   envVars:
   - name: WORKSPACE
@@ -19,11 +19,6 @@ extension_params:
       value: ""
   minio_prefix:
     default: "/"
-    definition: Directory in the project bucket to sync into the jupyterlab application/
+    definition: Directory in the project bucket to mount into the jupyterlab application/
     type: string
     value: "/"
-  exclude_patterns:
-    default: ".ipynb_checkpoints/*,thumbnails/,staticwebsiteresults/"
-    definition: Comma separated list of file patterns to exclude when syncing
-    type: string
-    value: ".ipynb_checkpoints/*,thumbnails/,staticwebsiteresults/"

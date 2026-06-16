@@ -6,6 +6,10 @@ LABEL CI_IGNORE="False"
 USER 0
 RUN curl https://rclone.org/install.sh | bash
 RUN chmod u+s /usr/bin/rclone
+
+RUN apt-get update && apt-get install -y --no-install-recommends fuse3 && \
+    rm -rf /var/lib/apt/lists/* && \
+    echo "user_allow_other" >> /etc/fuse.conf
 USER 1000
 
 COPY files/start.sh /kaapana/app/

@@ -120,11 +120,16 @@ def _reset_system_user_password(
         timeout=10,
     )
     if r.status_code == 400:
-        # Password policy rejection (e.g., same password already set) — password already matches
-        logger.warning(
-            "System user password reset rejected by policy — already set to target value."
-        )
-        return
+        try:
+            error_message = r.json().get("errorMessage", "")
+        except ValueError:
+            error_message = ""
+        if "password" in error_message.lower() and "policy" in error_message.lower():
+            # Keycloak password policy rejection, including passwordHistory cases.
+            logger.warning(
+                f"System user password reset rejected by policy: {error_message}"
+            )
+            return
     r.raise_for_status()
 
 

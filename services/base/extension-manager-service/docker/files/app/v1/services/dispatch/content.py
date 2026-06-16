@@ -1,3 +1,4 @@
+import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,6 +19,9 @@ class Content(BaseModel):
     content_type: str
     path: Optional[Path] = None
     location: Optional[str] = None
+    extension_id: Optional[uuid.UUID] = None
+    extension_name: Optional[str] = None
+    extension_version: Optional[str] = None
 
 
 class ContentInstaller(ABC):

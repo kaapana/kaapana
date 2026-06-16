@@ -1,4 +1,6 @@
+import json
 import logging
+from urllib.parse import urlencode
 from uuid import UUID
 
 import httpx
@@ -8,11 +10,43 @@ from app.database import get_session
 from app.streaming_helpers import metadata_replace_stream
 from app.utils import get_user_project_ids
 from fastapi import APIRouter, Depends, Request, Response
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.datastructures import QueryParams
 from starlette.status import HTTP_204_NO_CONTENT
 
 router = APIRouter()
+
+
+def pop_pagination_params(query_params: dict) -> tuple[int | None, int | None]:
+    """Remove QIDO pagination params and return them as integers if present."""
+    offset = query_params.pop("offset", None)
+    limit = query_params.pop("limit", None)
+
+    parsed_offset = int(offset) if offset is not None else None
+    parsed_limit = int(limit) if limit is not None else None
+
+    return parsed_offset, parsed_limit
+
+
+async def retrieve_studies_json(request: Request) -> list | None:
+    """Retrieve studies as JSON so non-admin filtering can paginate after PACS ordering."""
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{DICOMWEB_BASE_URL}/studies",
+            params=dict(request.query_params),
+            headers=dict(request.headers),
+        )
+
+    response.raise_for_status()
+
+    if response.status_code == HTTP_204_NO_CONTENT:
+        return None
+
+    # Mirror the byte-level PACS-path substitution of metadata_replace_stream
+    search = "/".join(DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]).encode()
+    body = response.content.replace(search, b"dicom-web-filter")
+    return json.loads(body)
 
 
 async def head_request(url: str, request: Request) -> Response:
@@ -149,6 +183,8 @@ async def query_studies(
         return await retrieve_studies(request=request)
 
     query_params = dict(request.query_params)
+    offset, limit = pop_pagination_params(query_params)
+
     if "SeriesInstanceUID" in request.query_params:
         requested_series_instance_uids = request.query_params.getlist(
             "SeriesInstanceUID"
@@ -168,6 +204,13 @@ async def query_studies(
         if not series:
             # return empty response with status code 204
             return Response(status_code=HTTP_204_NO_CONTENT)
+
+    # Project filtering must inspect the unpaginated query. Otherwise, large
+    # project result sets can ask PACS for page 2 before access filtering and
+    # incorrectly collapse to 204.
+    # Use QueryParams (not a plain dict) so that .getlist() remains available
+    # inside get_filtered_studies_mapped_to_projects
+    request._query_params = QueryParams(urlencode(query_params, doseq=True))
 
     studies = await utils.get_filtered_studies_mapped_to_projects(
         session=session,
@@ -189,7 +232,23 @@ async def query_studies(
         # return empty response with status code 204
         return Response(status_code=HTTP_204_NO_CONTENT)
 
-    return await retrieve_studies(request=request)
+    if offset is None and limit is None:
+        return await retrieve_studies(request=request)
+
+    studies_json = await retrieve_studies_json(request=request)
+    if studies_json is None:
+        return Response(status_code=HTTP_204_NO_CONTENT)
+
+    start = offset or 0
+    stop = start + limit if limit is not None else None
+    paginated_studies = studies_json[start:stop]
+    if not paginated_studies:
+        return Response(status_code=HTTP_204_NO_CONTENT)
+
+    return JSONResponse(
+        content=paginated_studies,
+        media_type="application/dicom+json",
+    )
 
 
 @router.get("/studies/{study}/series", tags=["QIDO-RS"])

@@ -411,34 +411,33 @@ def get_open_policy_data():
     return r.json().get("result")
 
 
+def _get_keycloak_service_token(client_secret: str) -> str:
+    r = requests.post(
+        f"{settings.keycloak_url}/auth/realms/kaapana/protocol/openid-connect/token",
+        verify="/etc/certs/kaapana.pem",
+        data={
+            "client_id": "kaapana-service",
+            "client_secret": client_secret,
+            "grant_type": "client_credentials",
+        },
+    )
+    r.raise_for_status()
+    return r.json()["access_token"]
+
+
 @router.get("/oidc-logout")
 def oidc_logout(request: Request):
     """
     Delete the keycloak session corresponding to the session of the access token in the request.
     Response with a redirect to oauth2-proxy browser session logout url.
     """
-
-    def _get_access_token(client_secret: str):
-        payload = {
-            "client_id": "kaapana-service",
-            "client_secret": client_secret,
-            "grant_type": "client_credentials",
-        }
-        r = requests.post(
-            f"{settings.keycloak_url}/auth/realms/kaapana/protocol/openid-connect/token",
-            verify="/etc/certs/kaapana.pem",
-            data=payload,
-        )
-        r.raise_for_status()
-        return r.json()["access_token"]
-
     access_token = request.headers.get("x-forwarded-access-token")
     decoded_access_token = jwt.decode(access_token, options={"verify_signature": False})
     token_session_id = decoded_access_token.get("sid")
     assert token_session_id, "Session id could not be determined from access token"
     user_id = decoded_access_token.get("sub")
 
-    keycloak_admin_access_token = _get_access_token(
+    keycloak_admin_access_token = _get_keycloak_service_token(
         settings.keycloak_service_client_secret
     )
     security_headers = {"Authorization": f"Bearer {keycloak_admin_access_token}"}

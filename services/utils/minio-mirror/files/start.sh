@@ -4,6 +4,11 @@ set -eu
 MINIO_BUCKET=$(echo "${MINIO_PATH}/" | cut -d'/' -f1)
 mc alias set minio http://${MINIO_SERVICE} ${MINIO_USER} ${MINIO_PASSWORD}
 mc mb --ignore-existing minio/${MINIO_BUCKET}
+
+if [[ ${ACTION} == "MOUNT" ]]; then
+    umount -l ${LOCAL_PATH} 2>/dev/null || fusermount3 -uz ${LOCAL_PATH} 2>/dev/null || true
+fi
+
 mkdir -p $LOCAL_PATH
 
 exclude=""
@@ -16,7 +21,9 @@ fi
 
 MINIO_PATH="$(printf '%s\n' "$MINIO_PATH" | sed -E 's#^/+##; s#/+#/#g; s#/$##')"
 mc cp /kaapana/app/README.txt minio/${MINIO_PATH}/README.txt
-cp /kaapana/app/README.txt ${LOCAL_PATH}
+if [[ ${ACTION} != "MOUNT" ]]; then
+    cp /kaapana/app/README.txt ${LOCAL_PATH}
+fi
 
 if [[ $ACTION == "FETCH" ]]; then
     echo "INFO: Start to mirror minio objects from ${MINIO_PATH} into local directory ${LOCAL_PATH}"
@@ -53,8 +60,24 @@ elif [[ $ACTION == "SYNC" ]]; then
             exit 1
         esac
     done
+elif [[ $ACTION == "MOUNT" ]]; then
+    echo "INFO: Mounting minio objects at ${MINIO_PATH} as FUSE filesystem at ${LOCAL_PATH}"
+
+    exec rclone mount ":s3:/${MINIO_PATH}" ${LOCAL_PATH} \
+        --s3-provider Minio \
+        --s3-endpoint http://${MINIO_SERVICE} \
+        --s3-access-key-id=${MINIO_USER} \
+        --s3-secret-access-key=${MINIO_PASSWORD} \
+        --vfs-cache-mode writes \
+        --vfs-cache-max-size ${VFS_CACHE_MAX_SIZE:-1G} \
+        --cache-dir ${RCLONE_CACHE_DIR:-/tmp/rclone-cache} \
+        --dir-cache-time ${DIR_CACHE_TIME:-30s} \
+        --allow-other \
+        --allow-non-empty \
+        --uid 1000 --gid 1000 --umask 002 \
+        -v
 else
     echo "ERROR: ACTION ${ACTION} not supported!!"
-    echo "ERROR: ACTION must be one of FETCH or PUSH"
+    echo "ERROR: ACTION must be one of FETCH, PUSH, SYNC or MOUNT"
     exit 1
 fi

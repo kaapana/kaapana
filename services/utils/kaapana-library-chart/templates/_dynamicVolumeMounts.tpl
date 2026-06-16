@@ -1,6 +1,10 @@
 {{/* Used to set volumeMounts dynamically given to global.dynamicVolumes as name, mount_path map */}}
+{{/* Can be called with the root context, or with (dict "root" $ "mountPropagation" "HostToContainer") */}}
+{{/* to set a mountPropagation mode on the dynamic volume mounts, e.g. for FUSE mount sidecars. */}}
 {{- define "dynamicVolumeMounts" }}
-{{- $dynamic := default (list) .Values.global.dynamicVolumes }}
+{{- $root := default . .root }}
+{{- $propagation := .mountPropagation | default "" }}
+{{- $dynamic := default (list) $root.Values.global.dynamicVolumes }}
 
 {{- range $volumeMount := $dynamic }}
 - name: {{ $volumeMount.name }}
@@ -8,11 +12,14 @@
 {{- if $volumeMount.sub_path }}
   subPath: "{{ $volumeMount.sub_path }}"
 {{- end }}
+{{- if $propagation }}
+  mountPropagation: {{ $propagation }}
+{{- end }}
 {{- end }}
 
-{{- if and .Values.global.workflow_config_mount_path (ne .Values.global.workflow_config_mount_path "") }}
+{{- if and $root.Values.global.workflow_config_mount_path (ne $root.Values.global.workflow_config_mount_path "") }}
 - name: workflowconf
-  mountPath: {{ .Values.global.workflow_config_mount_path }}
+  mountPath: {{ $root.Values.global.workflow_config_mount_path }}
   subPath: conf.json
 {{- end }}
 {{- end }}

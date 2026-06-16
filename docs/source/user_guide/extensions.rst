@@ -513,16 +513,13 @@ While JupyterLab is great for exploratory data analysis, for more complex calcul
 You can launch multiple instances of JupyterLab simultaneously for different usecases.
 Each instance has access to a directory inside the project bucket in MinIO.
 You can specify this directory, when you launch a new instance in the :ref:`extensions view <extensions>`.
-Files in this directory are periodically synced bidirectionally between MinIO and the JupyterLab instance.
-You can also specify a comma-separated list of file patterns that should be excluded during the syncing process.
-Note, that the sync interval is 20 seconds.
-If a file is simultaneously changed in MinIO and JupyterLab, rclone will resolve this conflict during the next syncronisation.
+This directory is mounted directly into the JupyterLab instance as a FUSE filesystem (via `rclone mount <https://rclone.org/commands/rclone_mount/>`_),
+so files are read from and written to MinIO on demand instead of being copied to the instance.
 
-* It does not overwrite either side.
-* It renames one version with a .conflict suffix.
-* The file changed in MinIO keeps the original filename.
-* The file changed in Jupyterlab gets the conflict rename.
-* For more information check the `rclone manual <https://rclone.org/bisync/>`_.
+* Changes made in JupyterLab are visible in MinIO as soon as the file is written.
+* Changes made directly in MinIO (e.g. by a workflow) become visible in JupyterLab after the directory cache expires (30 seconds).
+* Only files currently being written are buffered locally; reads are streamed from MinIO. This keeps memory and disk usage independent of the bucket size, so even very large buckets can be accessed.
+* Notebook checkpoints are stored locally in the instance and do not appear in MinIO.
 
 .. _extensions_minio_sync:
 

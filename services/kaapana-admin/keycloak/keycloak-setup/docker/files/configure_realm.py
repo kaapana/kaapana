@@ -72,6 +72,29 @@ def _update_oidc_client_secret(
     r.raise_for_status()
 
 
+_SERVICE_ACCOUNT_ROLES = [
+    "manage-users",
+    "query-users",
+    "query-groups",
+    "view-realm",
+    "manage-clients",
+]
+
+
+def _run_fallback(
+    host: str,
+    port: int,
+    service_secret: str,
+    oidc_secret: str,
+    system_user_password: str,
+) -> None:
+    service_token = _get_service_token(host, port, service_secret)
+    _update_oidc_client_secret(host, port, service_token, oidc_secret)
+    logger.info("OIDC client secret updated.")
+    _reset_system_user_password(host, port, service_token, system_user_password)
+    logger.info("System user password synced. Skipping full realm setup.")
+
+
 def _reset_system_user_password(
     host: str, port: int, service_token: str, new_password: str
 ) -> None:
@@ -120,19 +143,13 @@ if __name__ == "__main__":
             logger.info(
                 "kaapana-service client is functional — realm already configured. Syncing secrets..."
             )
-            oidc_client_secret = os.environ["OIDC_CLIENT_SECRET"]
-            system_user_password = os.environ["SYSTEM_USER_PASSWORD"]
-            service_token = _get_service_token(
-                keycloak_host, keycloak_port, service_secret
+            _run_fallback(
+                keycloak_host,
+                keycloak_port,
+                service_secret,
+                os.environ["OIDC_CLIENT_SECRET"],
+                os.environ["SYSTEM_USER_PASSWORD"],
             )
-            _update_oidc_client_secret(
-                keycloak_host, keycloak_port, service_token, oidc_client_secret
-            )
-            logger.info("OIDC client secret updated.")
-            _reset_system_user_password(
-                keycloak_host, keycloak_port, service_token, system_user_password
-            )
-            logger.info("System user password synced. Skipping full realm setup.")
             sys.exit(0)
         logger.error(
             "Admin authentication failed and kaapana-service client is not available. "
@@ -230,13 +247,7 @@ if __name__ == "__main__":
         keycloak.post_client(payload)
 
     ### Assign realm-management roles to service account
-    for role in [
-        "manage-users",
-        "query-users",
-        "query-groups",
-        "view-realm",
-        "manage-clients",
-    ]:
+    for role in _SERVICE_ACCOUNT_ROLES:
         keycloak.post_service_account_role_mapping(
             "kaapana-service", "realm-management", role
         )

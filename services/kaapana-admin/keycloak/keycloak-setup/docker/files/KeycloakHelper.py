@@ -246,6 +246,30 @@ class KeycloakHelper:
         )
         return self.make_authorized_request(url, requests.post, [role_representation])
 
+    def post_service_account_role_mapping(
+        self, service_client: str, managing_client: str, client_role: str
+    ):
+        """
+        Assign a role from managing_client to the service account of service_client.
+        Uses /clients/{uuid}/service-account-user which works for service accounts
+        (regular /users?username=... does not return service account users).
+        """
+        service_client_uuid = self.get_client_id(service_client)
+        url = (
+            self.auth_url
+            + f"kaapana/clients/{service_client_uuid}/service-account-user"
+        )
+        user_id = self.make_authorized_request(url, requests.get).json().get("id")
+        managing_client_uuid = self.get_client_id(managing_client)
+        role_representation = self.get_client_role(managing_client_uuid, client_role)
+        assign_url = (
+            self.auth_url
+            + f"kaapana/users/{user_id}/role-mappings/clients/{managing_client_uuid}"
+        )
+        return self.make_authorized_request(
+            assign_url, requests.post, [role_representation]
+        )
+
     def get_client_role(self, client_id: str, client_role: str):
         """
         Get the role represenation of a client role

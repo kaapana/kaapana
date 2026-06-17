@@ -9,7 +9,7 @@ from string import Template
 import jwt
 import requests
 from app.config import settings
-from app.dependencies import get_minio, get_opensearch
+from app.dependencies import get_minio, get_opensearch, get_project
 from app.logger import get_logger
 from app.workflows.utils import raise_kaapana_connection_error, requests_retry_session
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -46,16 +46,12 @@ logger = get_logger(__name__, logging.DEBUG)
 router = APIRouter()
 
 
-def _get_bucket_and_results_prefix(request: Request) -> tuple[str, str]:
+def _get_bucket_and_results_prefix(project: dict) -> tuple[str, str]:
     """Resolve the active bucket and the results root within that bucket."""
-    bucket_name = DEFAULT_STATIC_WEBSITE_BUCKET
-    project_header = request.headers.get("project")
-    project = json.loads(project_header) if project_header else None
-
     if project and "s3_bucket" in project:
         return project.get("s3_bucket"), f"{DEFAULT_STATIC_WEBSITE_BUCKET}/"
 
-    return bucket_name, ""
+    return DEFAULT_STATIC_WEBSITE_BUCKET, ""
 
 
 def _normalize_results_prefix(prefix: str) -> str:
@@ -146,18 +142,13 @@ def get_static_website_results_html(
 
 @router.get("/get-static-website-results")
 def get_static_website_results(
-    request: Request,
+    project=Depends(get_project),
     minioClient=Depends(get_minio),
 ):
     # Legacy compatibility endpoint.
     # Keep the recursive full-tree response stable until all callers are migrated
     # to the incremental browse and targeted lookup endpoints below.
-    # set the bucket_name automatically from the request header
-    bucket_name: str = DEFAULT_STATIC_WEBSITE_BUCKET
-    project_header = request.headers.get("project")
-    project = json.loads(project_header) if project_header else None
-    if project and "s3_bucket" in project:
-        bucket_name = project.get("s3_bucket")
+    bucket_name, bucket_results_prefix = _get_bucket_and_results_prefix(project)
 
     def build_tree(item, filepath, org_filepath):
         # Adapted from https://stackoverflow.com/questions/8484943/construct-a-tree-from-list-os-file-paths-python-performance-dependent
@@ -195,9 +186,7 @@ def get_static_website_results(
     # if bucket is not the default static website bucket,
     # fetch all the static websites from the directory with the `staticwebsiteresults`
     # directory inside project bucket.
-    prefix = None
-    if bucket_name != DEFAULT_STATIC_WEBSITE_BUCKET:
-        prefix = DEFAULT_STATIC_WEBSITE_BUCKET
+    prefix = bucket_results_prefix.rstrip("/") or None
 
     tree = {"vuetifyFiles": []}
 
@@ -216,24 +205,25 @@ def get_static_website_results(
 
 @router.get("/get-static-website-results-tree")
 def get_static_website_results_tree(
-    request: Request,
     prefix: str = "",
     limit: int = RESULTS_LOAD_MORE_PAGE_SIZE,
     continuation_token: str | None = None,
+    project=Depends(get_project),
     minioClient=Depends(get_minio),
 ):
     """
     Lazy workflow results browser. Returns one directory level per call;
     pass `continuation_token` from the previous response to get the next page.
     """
-    bucket_name, bucket_results_prefix = _get_bucket_and_results_prefix(request)
+    bucket_name, bucket_results_prefix = _get_bucket_and_results_prefix(project)
     relative_prefix = _normalize_results_prefix(prefix)
     results_prefix = f"{bucket_results_prefix}{relative_prefix}"
     page_size = max(1, min(limit, 500))
 
     list_kwargs = {"prefix": results_prefix, "recursive": False}
     if continuation_token:
-        # Resume past the previous page's last entry, and past anything inside it.
+        # MinIOs start_after is lexicographic. 
+        # We append "0" to skip the previous folder and its contents.
         list_kwargs["start_after"] = f"{bucket_results_prefix}{continuation_token}0"
 
     items = []
@@ -296,6 +286,7 @@ def get_static_website_results_tree(
 @router.get("/get-static-website-result-reports")
 def get_static_website_result_reports(
     request: Request,
+    project=Depends(get_project),
     minioClient=Depends(get_minio),
 ):
     """
@@ -312,7 +303,7 @@ def get_static_website_result_reports(
             detail="At least one series_id or series_ids query parameter is required.",
         )
 
-    bucket_name, bucket_results_prefix = _get_bucket_and_results_prefix(request)
+    bucket_name, bucket_results_prefix = _get_bucket_and_results_prefix(project)
     unresolved_ids = set(series_ids)
     results = {
         series_id: {

@@ -5,8 +5,8 @@ A Python library and CLI for packaging, publishing, and consuming Kaapana extens
 ## Installation
 
 ```bash
-pip install -e lib/kaapana_extensions
 pip install -e lib/kaapana_containers
+pip install -e lib/kaapana_extensions
 ```
 
 The `extensionctl` command is available immediately after installation.
@@ -62,7 +62,7 @@ All commands that talk to a registry accept `--registry`, `--repo`, `--user`, an
 ```bash
 # Save credentials (required once before push/pull/list)
 extensionctl login \
-  --registry registry.example.com \
+  --registry https://registry.example.com \
   --repo     kaapana/extensions \
   --user     myuser \
   --password mytoken
@@ -88,15 +88,15 @@ extensionctl build ./my-extension --output ./dist/
 # All extensions in a directory tree
 extensionctl build ./extensions/ --recursive --output ./dist/
 
-# From a remote git repository (Docker URL format: url[#ref[:subdir]])
-extensionctl build https://git.example.com/repo.git
-extensionctl build https://git.example.com/repo.git#main
-extensionctl build https://git.example.com/repo.git#main:my-extension
-extensionctl build https://git.example.com/repo.git#a705abd:my-extension
-extensionctl build https://git.example.com/repo.git#:my-extension    # default branch, subdir only
+# From a remote git repository (pip-style VCS URL: git+URL[@ref][#subdir])
+extensionctl build git+https://git.example.com/repo.git
+extensionctl build git+https://git.example.com/repo.git@main
+extensionctl build git+https://git.example.com/repo.git@main#my-extension
+extensionctl build git+https://git.example.com/repo.git@a705abd#my-extension
+extensionctl build git+https://git.example.com/repo.git#my-extension    # default branch, subdir only
 
 # Build and push in one step
-extensionctl build https://git.example.com/repo.git#main:my-extension --push
+extensionctl build git+https://git.example.com/repo.git@main#my-extension --push
 extensionctl build ./my-extension --push --bump patch
 extensionctl build ./my-extension --push --overwrite
 ```
@@ -183,7 +183,7 @@ from kaapana_extensions.extensions import ExtensionUtilityLibrary
 # Build — synchronous static method, no registry credentials needed
 # Returns [(source_str, archive_path), ...]
 archives = ExtensionUtilityLibrary.build(
-    "https://git.example.com/repo.git#main:my-extension",
+    "git+https://git.example.com/repo.git@main#my-extension",
     output=Path("dist/"),
 )
 archives = ExtensionUtilityLibrary.build(Path("my-extension"), output=Path("dist/"))
@@ -197,7 +197,7 @@ new_ver = ExtensionUtilityLibrary.bump_version("1.2.3", "major")  # → "2.0.0"
 # All registry operations are async — use async with
 async def main():
     async with ExtensionUtilityLibrary(
-        registry="registry.example.com",
+        registry="https://registry.example.com",
         repo="kaapana/extensions",
         username="myuser",
         password="mytoken",
@@ -209,7 +209,7 @@ async def main():
 
         # Build + push in one call
         results = await lib.publish("my-extension/", bump="minor")       # [(source, tag), ...]
-        results = await lib.publish("https://git.example.com/repo.git#main:my-extension")
+        results = await lib.publish("git+https://git.example.com/repo.git@main#my-extension")
 
         # Pull
         out = await lib.pull("aaaaaaaa-0000-0000-0000-000000000001-v1.0.0", Path("downloads/"))
@@ -232,8 +232,8 @@ asyncio.run(main())
 ## Development
 
 ```bash
-pip install -e "lib/kaapana_extensions[test]"
 pip install -e lib/kaapana_containers
+pip install -e "lib/kaapana_extensions[test]"
 
 # Unit tests only
 pytest lib/kaapana_extensions/tests/ -m "not integration"

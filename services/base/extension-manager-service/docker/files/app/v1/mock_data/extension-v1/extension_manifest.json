@@ -1,9 +1,9 @@
 {
-  "name": "dummy-workflow-extension",
+  "name": "mock-workflow-extension",
   "version": "0.0.0",
   "contents": [
     {
-      "name": "dummy-workflow",
+      "name": "mock-workflow",
       "contentType": "workflow-v1",
       "files": [
         {

@@ -31,6 +31,22 @@ def is_db_empty(engine):
         return len(tables) == 0
 
 
+def _detect_legacy_schema(engine) -> str | None:
+    """
+    Identify a DB created by `Base.metadata.create_all` without Alembic.
+
+    Returns the revision that matches the on-disk schema so it can be stamped.
+    """
+    with engine.connect() as conn:
+        inspector = inspect(conn)
+        tables = set(inspector.get_table_names())
+    if "workflows" not in tables:
+        return None
+    if "workflow_revisions" in tables:
+        return "4f9a2b1d7e3c"
+    return INITIAL_REVISION
+
+
 def main():
     alembic_cfg = Config(ALEMBIC_CFG_PATH)
     script = ScriptDirectory.from_config(alembic_cfg)
@@ -41,11 +57,22 @@ def main():
 
     if is_known_revision(current_revision, script):
         command.upgrade(alembic_cfg, "head")
-    elif is_db_empty(engine):
+        return
+    if is_db_empty(engine):
         print("No revision found in DB and DB is empty. Initializing DB.")
         command.upgrade(alembic_cfg, "head")
-    else:
-        print("DB revision is not part of current migration chain!")
+        return
+
+    legacy_rev = _detect_legacy_schema(engine)
+    if legacy_rev is not None:
+        print(
+            f"DB has tables but no alembic_version. Stamping as {legacy_rev} and upgrading to head."
+        )
+        command.stamp(alembic_cfg, legacy_rev)
+        command.upgrade(alembic_cfg, "head")
+        return
+
+    print("DB revision is not part of current migration chain!")
 
 
 if __name__ == "__main__":

@@ -66,13 +66,17 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         dag_id, run_id = external_id.split("::", 1)
         return dag_id, run_id
 
-    def _get_dag_id_from_workflow(
-        self, workflow: schemas.Workflow | schemas.WorkflowRef
-    ) -> str:
-        """Creates a DAG ID from the workflow title and version.
-        This is used in the Airflow as a file name as well,
-        as a templated value inside the DAG file as a DAG ID ."""
-        return f"{workflow.title}_v{workflow.version}"
+    @staticmethod
+    def _sanitize_for_dag_id(title: str) -> str:
+        """
+        Replace chars that are not accepted by Airflow `dag_id` with an underscore."""
+        import re
+
+        return re.sub(r"[^A-Za-z0-9._-]+", "_", title).strip("_")
+
+    def _get_dag_id_from_workflow(self, title: str, increment: int) -> str:
+        """Create a DAG ID from a workflow title and revision increment."""
+        return f"{self._sanitize_for_dag_id(title)}_inc{increment}"
 
     def _map_workflow_run_state(
         self, state: Optional[str]
@@ -166,13 +170,14 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
 
             raise RuntimeError(f"Unsupported response content type: {content_type}")
 
-    async def submit_workflow(self, workflow: schemas.Workflow) -> schemas.Workflow:
+    async def submit_workflow_revision(
+        self, revision: schemas.WorkflowRevision
+    ) -> schemas.WorkflowRevision:
         """
-        Writes the DAG definition directly to the shared PVC with versioned filename.
+        Writes a workflow revision's DAG definition directly to the shared PVC.
         Atomic-like write pattern (write temp -> rename) ensures Airflow doesn't pick up partial files.
         """
-        # Use versioned filename: <title>_v<version>.py
-        dag_id = self._get_dag_id_from_workflow(workflow)
+        dag_id = self._get_dag_id_from_workflow(revision.workflow_title, revision.increment)
         dag_filename = f"{dag_id}.py"
         temp_filename = f"{dag_id}.py.tmp"
 
@@ -180,11 +185,12 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         temp_path = self.airflow_dag_folder / temp_filename
 
         self.logger.info(
-            f"Rendering DAG template for {workflow.title} as {dag_filename}"
+            f"Rendering DAG template for workflow {revision.workflow_id} "
+            f"inc{revision.increment} as {dag_filename}"
         )
 
         try:
-            template = Template(workflow.definition)
+            template = Template(revision.definition)
             rendered_definition = template.render(dag_id=dag_id)
         except Exception as e:
             self.logger.error(f"Failed to render DAG template: {e}")
@@ -214,7 +220,7 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             self.logger.error(f"Failed to write DAG file: {e}")
             raise RuntimeError(f"Failed to persist DAG: {e}")
 
-        return workflow
+        return revision
 
     def _ensure_kaapana_task_operator(self) -> None:
         """Copy KaapanaTaskOperator.py into the Airflow DAGs folder if missing.
@@ -251,17 +257,23 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             raise RuntimeError(f"Failed to copy operator: {e}")
 
     async def get_workflow_tasks(
-        self, workflow: schemas.Workflow
+        self,
+        revision: schemas.WorkflowRevision | schemas.WorkflowRef,
     ) -> List[schemas.TaskCreate]:
         """
         Polls the Airflow API until the DAG is found or timeout is reached.
         Once found, retrieves the tasks of the DAG.
         Args:
-            workflow: The workflow whose tasks to retrieve
+            revision: Anything that resolves to a DAG id (WorkflowRevision or WorkflowRef).
         Raises:
             RuntimeError: If the DAG is not found within the timeout period
         """
-        dag_id = self._get_dag_id_from_workflow(workflow)
+        title = (
+            revision.workflow_title
+            if isinstance(revision, schemas.WorkflowRevision)
+            else revision.title
+        )
+        dag_id = self._get_dag_id_from_workflow(title, revision.increment)
         max_retries = 10
         delay = 5.0
         timeout = 120
@@ -309,7 +321,9 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
     async def submit_workflow_run(
         self, workflow_run: schemas.WorkflowRun, project_id: str
     ) -> schemas.WorkflowRunUpdate:
-        dag_id = self._get_dag_id_from_workflow(workflow_run.workflow)
+        # workflow_run.workflow is a WorkflowRef(id, title, increment) — enough for dag_id
+        ref = workflow_run.workflow
+        dag_id = self._get_dag_id_from_workflow(ref.title, ref.increment)
         payload: dict = {"conf": {}}
 
         project = await self._fetch_project(project_id)
@@ -326,11 +340,23 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
 
         task_form = payload["conf"]["task_form"]
 
+        def _to_env_str(value) -> str:
+            # Env vars must be strings (BaseEnv.value: str); bools lowercased, lists/dicts JSON-encoded.
+            if isinstance(value, str):
+                return value
+            if isinstance(value, bool):
+                return "true" if value else "false"
+            if value is None:
+                return ""
+            if isinstance(value, (int, float)):
+                return str(value)
+            return jsonlib.dumps(value)
+
         def _extract_param(param: schemas.WorkflowParameter):
             task_title = param.task_title
             env_name = param.env_variable_name
             ui_form = param.ui_form
-            value = getattr(ui_form, "default", None)
+            value = _to_env_str(getattr(ui_form, "default", None))
             return task_title, env_name, value
 
         for param in workflow_run.workflow_parameters:

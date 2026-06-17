@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from enum import Enum
 from typing import Any, List, Literal, Optional, Union
@@ -307,8 +308,8 @@ class WorkflowCreate(WorkflowBase):
 
 
 class Workflow(WorkflowBase):
-    id: int
-    version: int
+    id: uuid.UUID
+    increment: int
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -331,7 +332,7 @@ class TaskCreate(TaskBase):
 
 class Task(TaskBase):
     id: int
-    workflow_id: int
+    workflow_revision_id: uuid.UUID
     downstream_task_ids: List[int] = []
 
     model_config = ConfigDict(from_attributes=True)
@@ -373,8 +374,9 @@ class TaskRunUpdate(TaskRunBase):
 class WorkflowRef(BaseModel):
     """Lightweight reference to a Workflow for embedding in WorkflowRun."""
 
+    id: uuid.UUID
     title: str
-    version: int
+    increment: int
 
     model_config = ConfigDict(from_attributes=True)
 

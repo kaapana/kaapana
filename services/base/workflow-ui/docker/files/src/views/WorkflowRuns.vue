@@ -326,8 +326,8 @@ async function retryRun(run: WorkflowRun) {
 
 function viewLogs(run: WorkflowRun) {
   selectedWorkflowRunId.value = run.id
-  selectedWorkflowTitle.value = run.workflow.title
-  selectedWorkflowVersion.value = run.workflow.version
+  selectedWorkflowTitle.value = run.workflow.title ?? ''
+  selectedWorkflowVersion.value = run.workflow.increment
   selectedRunStatus.value = run.lifecycle_status
   selectedTaskRuns.value = run.task_runs as any
   logViewerOpen.value = true

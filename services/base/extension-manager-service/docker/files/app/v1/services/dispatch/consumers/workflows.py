@@ -20,7 +20,6 @@ class WorkflowInstaller(ContentInstaller):
         return content.content_type == "workflow-v1"
 
     async def install(self, content: Content) -> InstallationResult:
-        installation_success = False
         if not content.path:
             raise ContentError("No path found for content!")
         try:
@@ -39,6 +38,37 @@ class WorkflowInstaller(ContentInstaller):
         except json.JSONDecodeError as e:
             raise ContentError(f"Invalid JSON format in workflow.json: {e.msg}") from e
 
+        title = workflow.get("title", "<unknown>")
+
+        # add immutable extension identity labels to workflow
+        labels = [
+            l
+            for l in workflow.get("labels", [])
+            if not l.get("key", "").startswith("kaapana.immutable.extension.")
+        ]
+        if content.extension_id is not None:
+            labels.extend(
+                [
+                    {
+                        "key": "kaapana.immutable.extension.id",
+                        "value": str(content.extension_id),
+                    },
+                    {
+                        "key": "kaapana.immutable.extension.name",
+                        "value": content.extension_name,
+                    },
+                    {
+                        "key": "kaapana.immutable.extension.version",
+                        "value": content.extension_version,
+                    },
+                    {
+                        "key": "kaapana.immutable.extension.workflow_name",
+                        "value": content.name,
+                    },
+                ]
+            )
+        workflow["labels"] = labels
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{WorkflowInstaller.workflow_api_url}/workflows",
@@ -46,15 +76,15 @@ class WorkflowInstaller(ContentInstaller):
             )
         try:
             response.raise_for_status()
-            installation_success = True
         except httpx.HTTPStatusError as e:
             raise ConsumerError(
-                f"Failed to install workflow, API responded with status code {response.status_code}: {response.text}"
+                f"Failed to install workflow '{title}', API responded with "
+                f"status code {response.status_code}: {response.text}"
             ) from e
 
         return InstallationResult(
-            success=installation_success,
-            message=f"Workflow installed with status code {response.status_code}",
+            success=True,
+            message=f"Workflow '{title}' created",
             location=response.headers.get("Location"),
         )
 

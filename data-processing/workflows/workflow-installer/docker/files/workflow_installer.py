@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     max_retries: int = Field(
         default=5, description="Maximum number of retries for API calls"
     )
+    patch_workflows_if_conflict: bool = Field(
+        default=True,
+        description="When True, PATCH an existing workflow with the same title; when False, leave it as-is.",
+    )
 
 
 def load_workflow_definition(workflow_dir: Path) -> str:
@@ -94,6 +98,7 @@ async def submit_workflow(
     client: httpx.AsyncClient,
     api_url: str,
     workflow_data: WorkflowCreate,
+    patch_if_conflict: bool,
 ) -> bool:
     """
     Submit workflow to the Workflow API.
@@ -107,34 +112,95 @@ async def submit_workflow(
         True if submission successful, False otherwise
     """
     endpoint = f"{api_url}/workflows"
+    title = workflow_data.title
 
-    logger.info(f"Submitting workflow '{workflow_data.title}' to {endpoint}")
+    logger.info(f"Submitting workflow '{title}' to {endpoint}")
     logger.debug(f"Workflow data: {workflow_data.model_dump_json(indent=2)}")
 
-    try:
-        response = await client.post(
-            endpoint,
-            json=workflow_data.model_dump(mode="json"),
-            headers={"Content-Type": "application/json"},
-        )
-        response.raise_for_status()
+    response = await client.post(
+        endpoint,
+        json=workflow_data.model_dump(mode="json"),
+        headers={"Content-Type": "application/json"},
+    )
 
+    if response.status_code == 201:
         result = response.json()
         logger.info(
-            f"Successfully submitted workflow '{result.get('title')}' "
-            f"version {result.get('version')}"
+            f"Created: workflow '{result.get('title')}' "
+            f"(id={result.get('id')}, increment={result.get('increment')})"
         )
         return True
 
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code == 409:
-            logger.warning(f"Workflow already exists: {e.response.text}")
-            return True  # Consider existing workflow as success
-        logger.error(f"HTTP error submitting workflow: {e.response.text}")
+    if response.status_code == 409:
+        return await _handle_conflict(
+            client, api_url, workflow_data, response, patch_if_conflict
+        )
+
+    logger.error(
+        f"HTTP {response.status_code} submitting workflow '{title}': {response.text}"
+    )
+    return False
+
+
+async def _handle_conflict(
+    client: httpx.AsyncClient,
+    api_url: str,
+    workflow_data: WorkflowCreate,
+    conflict_response: httpx.Response,
+    patch_if_conflict: bool,
+) -> bool:
+    """Workflow with this title exists. PATCH it if patch_if_conflict, else skip."""
+    title = workflow_data.title
+
+    if not patch_if_conflict:
+        logger.warning(
+            f"Workflow '{title}' already exists; patch_workflows_if_conflict=False, leaving as-is."
+        )
+        return True
+
+    existing_id = (
+        (conflict_response.json().get("detail") or {})
+        .get("existing_workflow", {})
+        .get("id")
+    )
+    if not existing_id:
+        logger.error(
+            f"409 on '{title}' but no existing_workflow.id in body: {conflict_response.text}"
+        )
         return False
-    except httpx.RequestError as e:
-        logger.error(f"Error submitting workflow: {e}")
-        return False
+
+    return await _patch_workflow(client, api_url, existing_id, workflow_data)
+
+
+async def _patch_workflow(
+    client: httpx.AsyncClient,
+    api_url: str,
+    workflow_id: str,
+    workflow_data: WorkflowCreate,
+) -> bool:
+    """PATCH content fields (definition, parameters, labels) onto an existing workflow."""
+    title = workflow_data.title
+    endpoint = f"{api_url}/workflows/{workflow_id}"
+    payload = workflow_data.model_dump(
+        mode="json", include={"definition", "workflow_parameters", "labels"}
+    )
+
+    logger.info(f"PATCHing '{title}' at {endpoint}")
+    response = await client.patch(
+        endpoint, json=payload, headers={"Content-Type": "application/json"}
+    )
+
+    if response.status_code == 200:
+        result = response.json()
+        logger.info(
+            f"PATCH succeeded: workflow '{result.get('title')}' now at increment={result.get('increment')}"
+        )
+        return True
+
+    logger.error(
+        f"PATCH on '{title}' returned HTTP {response.status_code}: {response.text}"
+    )
+    return False
 
 
 async def check_api_health(client: httpx.AsyncClient, api_url: str) -> bool:
@@ -152,19 +218,10 @@ async def check_api_health(client: httpx.AsyncClient, api_url: str) -> bool:
 
     logger.info(f"Checking workflow API health at {health_endpoint}")
 
-    try:
-        response = await client.get(health_endpoint)
-        response.raise_for_status()
-        logger.info("Workflow API is healthy and reachable")
-        return True
-    except httpx.HTTPStatusError as e:
-        logger.error(
-            f"Workflow API health check failed with status {e.response.status_code}: {e.response.text}"
-        )
-        return False
-    except httpx.RequestError as e:
-        logger.error(f"Cannot reach Workflow API at {api_url}: {e}")
-        return False
+    response = await client.get(health_endpoint)
+    response.raise_for_status()
+    logger.info("Workflow API is healthy and reachable")
+    return True
 
 
 def load_and_validate_workflow(settings: Settings) -> tuple[str, dict]:
@@ -277,14 +334,13 @@ async def process_workflow_submission(
     timeout = httpx.Timeout(settings.timeout)
 
     async with httpx.AsyncClient(transport=transport, timeout=timeout) as client:
-        if not await check_api_health(client, settings.workflow_api_url):
-            logger.error(
-                "Workflow API health check failed. Please verify WORKFLOW_API_URL is correct."
-            )
-            sys.exit(1)
+        await check_api_health(client, settings.workflow_api_url)
 
         success = await submit_workflow(
-            client, settings.workflow_api_url, workflow_data
+            client,
+            settings.workflow_api_url,
+            workflow_data,
+            patch_if_conflict=settings.patch_workflows_if_conflict,
         )
         sys.exit(0 if success else 1)
 

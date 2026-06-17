@@ -1,5 +1,5 @@
 {
-    "title": "dummy-workflow",
+    "title": "mock-workflow",
     "workflow_engine": "airflow",
     "labels": [
         {

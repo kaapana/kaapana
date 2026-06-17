@@ -89,6 +89,9 @@ async def install_extension_background_task(
                                 name=content.name,
                                 content_type=content.content_type,
                                 path=extension_path / content.name,
+                                extension_id=extension_manifest["id"],
+                                extension_name=extension_manifest["name"],
+                                extension_version=extension_manifest["version"],
                             )
                         )
 

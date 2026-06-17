@@ -21,9 +21,10 @@ class DummyAdapter(WorkflowEngineAdapter):
         super().__init__()
 
     async def get_workflow_tasks(
-        self, workflow: schemas.Workflow
+        self,
+        revision: schemas.WorkflowRevision | schemas.WorkflowRef,
     ) -> List[schemas.TaskCreate]:
-        self.logger.info(f"Posting workflow to DummyAdapter: {workflow.title}")
+        self.logger.info(f"Fetching dummy tasks for revision ref: {revision}")
         task1 = schemas.TaskCreate(
             title="dummy-task-1",
             display_name="Dummy Task 1",
@@ -38,8 +39,10 @@ class DummyAdapter(WorkflowEngineAdapter):
         )
         return [task1, task2]
 
-    async def submit_workflow(self, workflow: schemas.Workflow) -> schemas.Workflow:
-        return workflow
+    async def submit_workflow_revision(
+        self, revision: schemas.WorkflowRevision
+    ) -> schemas.WorkflowRevision:
+        return revision
 
     async def submit_workflow_run(
         self, workflow_run: schemas.WorkflowRun, project_id: str

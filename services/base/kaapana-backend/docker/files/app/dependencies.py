@@ -71,8 +71,14 @@ def get_opensearch(request: Request):
 
 
 def get_project(request: Request):
-    project = request.headers.get("Project")
-    return json.loads(project)
+    project_header = request.headers.get("Project")
+    if not project_header:
+        raise HTTPException(status_code=400, detail="Missing Project header")
+    try:
+        project = json.loads(project_header)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid Project header")
+    return project
 
 
 def get_project_index(project=Depends(get_project)):

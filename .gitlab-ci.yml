@@ -206,8 +206,8 @@ build_packages:
   variables:
     GIT_STRATEGY: clone
     PYTHON_VENV_DIR: ".venv-build"
-    RUNNER_SCRIPT_TIMEOUT: 4h
-  timeout: 4 hours
+    RUNNER_SCRIPT_TIMEOUT: 8h
+  timeout: 8 hours
   rules:
     - if: '$CI_EXEC_BUILD == "true"'
       when: on_success

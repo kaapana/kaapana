@@ -239,6 +239,7 @@ function deploy() {
     _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
     _Flag: --remove-all-images-docker will delete all Docker images from the system
     _Flag: --nuke-pods will force-delete all pods of the Kaapana deployment namespaces.
+    _Flag: --keycloak-admin-password set a specific Keycloak admin password (prompts securely); without this flag a random password is generated on fresh install
     _Flag: --quiet, meaning non-interactive operation
     _Flag: --offline, using prebuilt tarball and chart (--chart-path required!)
     _Flag: --no-migration, disable automatic migration between versions
@@ -364,6 +365,11 @@ function deploy() {
                 echo -e "${GREEN}SET TAR_PATH: $TAR_PATH !${NC}";
                 import_container_images_tar
                 exit 0
+            ;;
+
+            --keycloak-admin-password)
+                KEYCLOAK_SET_ADMIN_PASSWORD=true
+                shift
             ;;
 
             --quiet)
@@ -1368,7 +1374,12 @@ function load_kaapana_config {
     GRAFANA_PASSWORD="admin"
 
     KEYCLOAK_ADMIN_USERNAME="admin"
-    KEYCLOAK_ADMIN_PASSWORD="Kaapana2020" #  Minimum policy for production: 1 specialChar + 1 upperCase + 1 lowerCase and 1 digit + min-length = 8
+    # KEYCLOAK_ADMIN_PASSWORD is determined at deploy time:
+    # - Fresh install: generated randomly, displayed after deploy
+    # - --keycloak-admin-password flag: prompted securely
+    # - Redeploy with working admin client: not needed (bootstrap skips)
+    # - Redeploy with broken admin client (Keycloak reachable): auto-prompted
+    KEYCLOAK_ADMIN_PASSWORD=""
 
     FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
     SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)
@@ -2088,6 +2099,65 @@ function deploy_chart {
     echo "${GREEN}Checking for version difference and migration options...${NC}"
     migrate
 
+    # --- Keycloak admin password setup -----------------------------------------
+    # Never hardcode a password: either the user sets one explicitly via the flag,
+    # a random one is generated on fresh install, or re-authentication is prompted
+    # automatically when the kaapana-admin client can no longer authenticate.
+    _keycloak_admin_cc_status() {
+        # 0 = CC works (no password needed)
+        # 1 = CC failed, Keycloak is reachable (re-auth required)
+        # 2 = Keycloak not reachable (bootstrap handles it)
+        local secret="$1"
+        local http_code
+        http_code=$(curl -sk -o /dev/null -w "%{http_code}" --connect-timeout 5 \
+            "https://localhost:${HTTPS_PORT:-443}/auth/realms/master/protocol/openid-connect/token" \
+            --data-urlencode "client_id=kaapana-admin" \
+            --data-urlencode "client_secret=${secret}" \
+            --data-urlencode "grant_type=client_credentials" 2>/dev/null || echo "000")
+        case "$http_code" in
+            200) return 0 ;;
+            000) return 2 ;;
+            *)   return 1 ;;
+        esac
+    }
+
+    _SHOW_KEYCLOAK_PASSWORD=false
+
+    if [ "${KEYCLOAK_SET_ADMIN_PASSWORD:-false}" = true ]; then
+        # User explicitly wants to set a specific admin password
+        read -rsp "$(echo -e "${YELLOW}Keycloak admin password (will be set): ${NC}")" KEYCLOAK_ADMIN_PASSWORD
+        echo
+    elif ! $KUBECTL_EXECUTABLE get secret kaapana-admin-password -n "$ADMIN_NAMESPACE" &>/dev/null 2>&1; then
+        # Fresh install: kaapana-admin-password Secret does not exist yet
+        KEYCLOAK_ADMIN_PASSWORD=$(tr -dc 'A-Za-z0-9!#$%^&*' </dev/urandom 2>/dev/null | head -c 20 || \
+            openssl rand -base64 20 | tr -dc 'A-Za-z0-9!#$%^&*' | head -c 20)
+        _SHOW_KEYCLOAK_PASSWORD=true
+        KEYCLOAK_ADMIN_PASSWORD_TEMPORARY=true
+        echo -e "${GREEN}Fresh install: generated Keycloak admin password (shown after deploy).${NC}"
+    else
+        # Existing install: check if the kaapana-admin client can still authenticate
+        _stored_secret=$($KUBECTL_EXECUTABLE get secret kaapana-admin-password \
+            -n "$ADMIN_NAMESPACE" -o jsonpath='{.data.kaapana-admin-password}' 2>/dev/null | base64 -d 2>/dev/null || true)
+        if [ -n "$_stored_secret" ]; then
+            _keycloak_admin_cc_status "$_stored_secret"
+            _cc_status=$?
+            if [ "$_cc_status" -eq 0 ]; then
+                KEYCLOAK_ADMIN_PASSWORD=""
+                echo -e "${GREEN}kaapana-admin client functional — no admin password required.${NC}"
+            elif [ "$_cc_status" -eq 1 ]; then
+                echo -e "${YELLOW}kaapana-admin client authentication failed. Admin password required for re-bootstrap.${NC}"
+                read -rsp "$(echo -e "${YELLOW}Keycloak admin password: ${NC}")" KEYCLOAK_ADMIN_PASSWORD
+                echo
+            else
+                # Keycloak not reachable (undeploy+deploy): bootstrap handles it
+                KEYCLOAK_ADMIN_PASSWORD=""
+            fi
+        else
+            KEYCLOAK_ADMIN_PASSWORD=""
+        fi
+    fi
+    # ---------------------------------------------------------------------------
+
     echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
 
@@ -2124,6 +2194,7 @@ function deploy_chart {
     --set-string global.credentials_grafana_password="$GRAFANA_PASSWORD" \
     --set-string global.credentials_keycloak_admin_username="$KEYCLOAK_ADMIN_USERNAME" \
     --set-string global.credentials_keycloak_admin_password="$KEYCLOAK_ADMIN_PASSWORD" \
+    --set global.keycloak_admin_password_temporary="${KEYCLOAK_ADMIN_PASSWORD_TEMPORARY:-false}" \
     --set-string global.dicom_port="$DICOM_PORT" \
     --set-string global.fast_data_dir="$FAST_DATA_DIR" \
     --set-string global.services_namespace=$SERVICES_NAMESPACE \
@@ -2175,6 +2246,16 @@ function deploy_chart {
     --set-string global.storage_node="$STORAGE_NODE" \
     "${kube_helm_timeout_args[@]}" \
     --name-template "$PLATFORM_NAME"
+
+    if [ "$_SHOW_KEYCLOAK_PASSWORD" = true ]; then
+        echo -e ""
+        echo -e "${YELLOW}══════════════════════════════════════════════════${NC}"
+        echo -e "${YELLOW}  Keycloak admin password (generated):${NC}"
+        echo -e "${GREEN}    $KEYCLOAK_ADMIN_PASSWORD${NC}"
+        echo -e "${YELLOW}  Please change this password in the Keycloak UI.${NC}"
+        echo -e "${YELLOW}══════════════════════════════════════════════════${NC}"
+        echo -e ""
+    fi
 
     # In case of timeout-issues in kube helm increase the default timeouts by setting
 

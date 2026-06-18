@@ -29,7 +29,7 @@ class KeycloakHelper:
             "KEYCLOAK_HTTPS_PORT", 443
         )
         self.auth_url = f"https://{self.keycloak_host}:{self.keycloak_https_port}/auth/admin/realms/"
-        self.master_access_token = self.get_access_token(
+        self.service_access_token = self.get_access_token(
             self.client_secret,
             "https",
             self.keycloak_host,
@@ -66,7 +66,7 @@ class KeycloakHelper:
         **kwargs,
     ):
         """
-        Make an authorized request to the keycloak api using the access token stored in self.master_access_token
+        Make an authorized request to the keycloak api using the access token stored in self.service_access_token
         """
         for key, val in kwargs.items():
             payload[key] = val
@@ -75,7 +75,7 @@ class KeycloakHelper:
             url,
             verify=False,
             json=payload,
-            headers={"Authorization": f"Bearer {self.master_access_token}"},
+            headers={"Authorization": f"Bearer {self.service_access_token}"},
             timeout=timeout,
         )
 

@@ -412,6 +412,7 @@ def get_open_policy_data():
 
 
 def _get_keycloak_service_token(client_secret: str) -> str:
+    """Obtain a bearer token for the kaapana-service client via client_credentials grant."""
     r = requests.post(
         f"{settings.keycloak_url}/auth/realms/kaapana/protocol/openid-connect/token",
         verify="/etc/certs/kaapana.pem",

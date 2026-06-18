@@ -1,6 +1,15 @@
 #!/bin/bash
-# One-time migration script for installations upgrading to the kaapana-service client_credentials setup.
-# Creates the kaapana-service Keycloak client and assigns realm-management roles if not already present.
+# One-time migration helper for installations upgrading to the two-client Keycloak setup.
+#
+# Manual equivalent of the keycloak-bootstrap + keycloak-setup jobs:
+#   1. Creates the kaapana-admin client in the MASTER realm (service account + master
+#      'admin' role). This is the only persisted credential; afterwards redeploys work
+#      without the admin password.
+#   2. Creates the kaapana-service client in the kaapana realm with the minimal
+#      realm-management roles (WITHOUT manage-clients).
+#
+# Normally the bootstrap/setup jobs do this automatically on deploy. Use this script
+# only when you need to bootstrap by hand.
 #
 # Required env vars:
 #   ADMIN_PASSWORD     — Keycloak admin password
@@ -14,9 +23,11 @@ KEYCLOAK_URL="${KEYCLOAK_URL:?KEYCLOAK_URL must be set (e.g. https://<hostname>/
 ADMIN_PASSWORD="${ADMIN_PASSWORD:?ADMIN_PASSWORD must be set}"
 ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
 ADMIN_NAMESPACE="${ADMIN_NAMESPACE:-kaapana-admin}"
-CLIENT_ID="kaapana-service"
-SECRET_NAME="kaapana-service-password"
-SECRET_KEY="kaapana-service-password"
+
+ADMIN_CLIENT_ID="kaapana-admin"
+ADMIN_SECRET_NAME="kaapana-admin-password"
+SERVICE_CLIENT_ID="kaapana-service"
+SERVICE_SECRET_NAME="kaapana-service-password"
 
 echo "--- Fetching admin token..."
 ADMIN_TOKEN=$(curl -sf -X POST \
@@ -27,35 +38,27 @@ ADMIN_TOKEN=$(curl -sf -X POST \
   -d "grant_type=password" \
   | jq -r '.access_token')
 
-echo "--- Checking if client '$CLIENT_ID' already exists..."
-EXISTING=$(curl -sf \
-  -H "Authorization: Bearer $ADMIN_TOKEN" \
-  "$KEYCLOAK_URL/admin/realms/kaapana/clients?clientId=$CLIENT_ID" \
-  | jq -r '.[0].id')
+read_secret() {
+  local name="$1"
+  local value
+  value=$(kubectl get secret "$name" -n "$ADMIN_NAMESPACE" \
+    -o jsonpath="{.data.$name}" | base64 -d)
+  if [ -z "$value" ]; then
+    echo "ERROR: Secret '$name/$name' not found in namespace '$ADMIN_NAMESPACE'." >&2
+    echo "Run 'helm upgrade' first so the Secret is created, then re-run this script." >&2
+    exit 1
+  fi
+  echo "$value"
+}
 
-if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
-  echo "Client '$CLIENT_ID' already exists (UUID: $EXISTING). Nothing to do."
-  exit 0
-fi
-
-echo "--- Reading client secret from Kubernetes Secret '$SECRET_NAME'..."
-CLIENT_SECRET=$(kubectl get secret "$SECRET_NAME" -n "$ADMIN_NAMESPACE" \
-  -o jsonpath="{.data.$SECRET_KEY}" | base64 -d)
-
-if [ -z "$CLIENT_SECRET" ]; then
-  echo "ERROR: Secret '$SECRET_NAME/$SECRET_KEY' not found in namespace '$ADMIN_NAMESPACE'." >&2
-  echo "Run 'helm upgrade' first so the Secret is created, then re-run this script." >&2
-  exit 1
-fi
-
-echo "--- Creating client '$CLIENT_ID'..."
-curl -sf -X POST \
-  -H "Authorization: Bearer $ADMIN_TOKEN" \
-  -H "Content-Type: application/json" \
-  "$KEYCLOAK_URL/admin/realms/kaapana/clients" \
-  -d "{
-    \"clientId\": \"$CLIENT_ID\",
-    \"secret\": \"$CLIENT_SECRET\",
+create_client() {
+  # create_client <realm> <clientId> <secret>
+  local realm="$1" client_id="$2" secret="$3" existing
+  existing=$(curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" \
+    "$KEYCLOAK_URL/admin/realms/$realm/clients?clientId=$client_id" | jq -r '.[0].id')
+  local payload="{
+    \"clientId\": \"$client_id\",
+    \"secret\": \"$secret\",
     \"enabled\": true,
     \"protocol\": \"openid-connect\",
     \"clientAuthenticatorType\": \"client-secret\",
@@ -66,39 +69,56 @@ curl -sf -X POST \
     \"directAccessGrantsEnabled\": false,
     \"bearerOnly\": false
   }"
+  if [ -z "$existing" ] || [ "$existing" = "null" ]; then
+    echo "--- Creating client '$client_id' in realm '$realm'..."
+    curl -sf -X POST -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+      "$KEYCLOAK_URL/admin/realms/$realm/clients" -d "$payload"
+  else
+    echo "--- Client '$client_id' already exists in realm '$realm' (UUID: $existing) — updating."
+    curl -sf -X PUT -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+      "$KEYCLOAK_URL/admin/realms/$realm/clients/$existing" -d "$payload"
+  fi
+}
 
-echo "--- Fetching service account user for '$CLIENT_ID'..."
-CLIENT_UUID=$(curl -sf \
-  -H "Authorization: Bearer $ADMIN_TOKEN" \
-  "$KEYCLOAK_URL/admin/realms/kaapana/clients?clientId=$CLIENT_ID" \
-  | jq -r '.[0].id')
+service_account_user_id() {
+  # service_account_user_id <realm> <clientId>
+  local realm="$1" client_id="$2" uuid
+  uuid=$(curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" \
+    "$KEYCLOAK_URL/admin/realms/$realm/clients?clientId=$client_id" | jq -r '.[0].id')
+  curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" \
+    "$KEYCLOAK_URL/admin/realms/$realm/clients/$uuid/service-account-user" | jq -r '.id'
+}
 
-SERVICE_ACCOUNT_USER_ID=$(curl -sf \
-  -H "Authorization: Bearer $ADMIN_TOKEN" \
-  "$KEYCLOAK_URL/admin/realms/kaapana/clients/$CLIENT_UUID/service-account-user" \
-  | jq -r '.id')
+# --- 1. Bootstrap the kaapana-admin client in the master realm -----------------
+ADMIN_CLIENT_SECRET=$(read_secret "$ADMIN_SECRET_NAME")
+create_client "master" "$ADMIN_CLIENT_ID" "$ADMIN_CLIENT_SECRET"
 
-echo "--- Fetching realm-management client ID..."
-REALM_MGMT_ID=$(curl -sf \
-  -H "Authorization: Bearer $ADMIN_TOKEN" \
-  "$KEYCLOAK_URL/admin/realms/kaapana/clients?clientId=realm-management" \
-  | jq -r '.[0].id')
+echo "--- Granting master 'admin' realm role to kaapana-admin service account..."
+ADMIN_SA_USER_ID=$(service_account_user_id "master" "$ADMIN_CLIENT_ID")
+ADMIN_ROLE_REP=$(curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" \
+  "$KEYCLOAK_URL/admin/realms/master/roles/admin")
+curl -sf -X POST -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  "$KEYCLOAK_URL/admin/realms/master/users/$ADMIN_SA_USER_ID/role-mappings/realm" \
+  -d "[$ADMIN_ROLE_REP]"
 
-echo "--- Assigning realm-management roles to service account..."
+# --- 2. Create the kaapana-service client in the kaapana realm ------------------
+SERVICE_CLIENT_SECRET=$(read_secret "$SERVICE_SECRET_NAME")
+create_client "kaapana" "$SERVICE_CLIENT_ID" "$SERVICE_CLIENT_SECRET"
+
+SERVICE_SA_USER_ID=$(service_account_user_id "kaapana" "$SERVICE_CLIENT_ID")
+REALM_MGMT_ID=$(curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" \
+  "$KEYCLOAK_URL/admin/realms/kaapana/clients?clientId=realm-management" | jq -r '.[0].id')
+
+echo "--- Assigning minimal realm-management roles to kaapana-service service account..."
 for ROLE in "manage-users" "query-users" "query-groups" "view-realm"; do
-  ROLE_REP=$(curl -sf \
-    -H "Authorization: Bearer $ADMIN_TOKEN" \
+  ROLE_REP=$(curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" \
     "$KEYCLOAK_URL/admin/realms/kaapana/clients/$REALM_MGMT_ID/roles/$ROLE")
-
-  curl -sf -X POST \
-    -H "Authorization: Bearer $ADMIN_TOKEN" \
-    -H "Content-Type: application/json" \
-    "$KEYCLOAK_URL/admin/realms/kaapana/users/$SERVICE_ACCOUNT_USER_ID/role-mappings/clients/$REALM_MGMT_ID" \
+  curl -sf -X POST -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+    "$KEYCLOAK_URL/admin/realms/kaapana/users/$SERVICE_SA_USER_ID/role-mappings/clients/$REALM_MGMT_ID" \
     -d "[$ROLE_REP]"
-
   echo "  Assigned: $ROLE"
 done
 
-echo "--- Migration complete. Client '$CLIENT_ID' created with required roles."
+echo "--- Migration complete. kaapana-admin (master) and kaapana-service (kaapana) are set up."
 echo "--- Restart affected deployments if they are already running the new version:"
 echo "    kubectl rollout restart deployment/kaapana-backend deployment/access-information-interface -n <services-namespace>"

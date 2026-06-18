@@ -1,10 +1,9 @@
 """
-Unit tests for the AII KeycloakHelper auth changeover (#1918).
+Unit tests for the AII KeycloakHelper authentication.
 
-Guards that the helper authenticates via the kaapana-service client using a
-client_credentials grant against the kaapana realm — not the old admin
-username/password grant against master. No live Keycloak: requests.post is
-mocked.
+Guards that the helper authenticates via the kaapana-service client
+(client_credentials grant) against the kaapana realm.
+No live Keycloak: requests.post is mocked.
 """
 
 import importlib

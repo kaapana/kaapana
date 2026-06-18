@@ -1,171 +1,31 @@
 from KeycloakHelper import KeycloakHelper
-import os, json, sys
-import requests
+import os, json, time
 from logger import get_logger
 from pathlib import Path
 import logging
+import requests
 
 REALM_OBJECTS_ROOT_DIR = Path(os.getenv("REALM_OBJECTS_ROOT_DIR", "/realm_objects"))
 DEV_MODE = os.getenv("DEV_MODE")
 log_level = logging.DEBUG if DEV_MODE.lower() == "true" else logging.INFO
 logger = get_logger(__name__, log_level)
 
-
-def _service_client_functional(host: str, port: int, secret: str) -> bool:
-    try:
-        r = requests.post(
-            f"https://{host}:{port}/auth/realms/kaapana/protocol/openid-connect/token",
-            verify=False,
-            data={
-                "client_id": "kaapana-service",
-                "client_secret": secret,
-                "grant_type": "client_credentials",
-            },
-            timeout=10,
-        )
-        return r.status_code == 200
-    except Exception:
-        return False
-
-
-def _get_service_token(host: str, port: int, secret: str) -> str:
-    r = requests.post(
-        f"https://{host}:{port}/auth/realms/kaapana/protocol/openid-connect/token",
-        verify=False,
-        data={
-            "client_id": "kaapana-service",
-            "client_secret": secret,
-            "grant_type": "client_credentials",
-        },
-        timeout=10,
-    )
-    r.raise_for_status()
-    return r.json()["access_token"]
-
-
-def _update_oidc_client_secret(
-    host: str, port: int, service_token: str, new_secret: str
-) -> None:
-    """Update the kaapana OIDC client secret using kaapana-service token (requires manage-clients role)."""
-    admin_url = f"https://{host}:{port}/auth/admin/realms/kaapana/"
-    headers = {"Authorization": f"Bearer {service_token}"}
-    r = requests.get(
-        f"{admin_url}clients?clientId=kaapana",
-        verify=False,
-        headers=headers,
-        timeout=10,
-    )
-    r.raise_for_status()
-    clients = r.json()
-    if not clients:
-        raise ValueError("kaapana OIDC client not found in Keycloak")
-    client_uuid = clients[0]["id"]
-    client_rep = clients[0]
-    client_rep["secret"] = new_secret
-    r = requests.put(
-        f"{admin_url}clients/{client_uuid}",
-        verify=False,
-        json=client_rep,
-        headers=headers,
-        timeout=10,
-    )
-    r.raise_for_status()
-
-
+# Minimal realm-management roles for the runtime kaapana-service client.
+# Deliberately WITHOUT manage-clients — the setup job authenticates as the
+# kaapana-admin client, so kaapana-service never needs to manage clients.
 _SERVICE_ACCOUNT_ROLES = [
     "manage-users",
     "query-users",
     "query-groups",
     "view-realm",
-    "manage-clients",
 ]
 
-
-def _run_fallback(
-    host: str,
-    port: int,
-    service_secret: str,
-    oidc_secret: str,
-    system_user_password: str,
-) -> None:
-    service_token = _get_service_token(host, port, service_secret)
-    _update_oidc_client_secret(host, port, service_token, oidc_secret)
-    logger.info("OIDC client secret updated.")
-    _reset_system_user_password(host, port, service_token, system_user_password)
-    logger.info("System user password synced. Skipping full realm setup.")
+_MAX_RETRIES = 5
+_RETRY_BASE_DELAY = 5  # seconds; doubles on each retry: 5, 10, 20, 40, 80
 
 
-def _reset_system_user_password(
-    host: str, port: int, service_token: str, new_password: str
-) -> None:
-    """Sync the system user's password using kaapana-service token (requires manage-users role)."""
-    admin_url = f"https://{host}:{port}/auth/admin/realms/kaapana/"
-    headers = {"Authorization": f"Bearer {service_token}"}
-    r = requests.get(
-        f"{admin_url}users?username=system&exact=true",
-        verify=False,
-        headers=headers,
-        timeout=10,
-    )
-    r.raise_for_status()
-    users = r.json()
-    if not users:
-        raise ValueError("system user not found in Keycloak")
-    user_id = users[0]["id"]
-    r = requests.put(
-        f"{admin_url}users/{user_id}/reset-password",
-        verify=False,
-        json={"type": "password", "value": new_password, "temporary": False},
-        headers=headers,
-        timeout=10,
-    )
-    if r.status_code == 400:
-        try:
-            error_message = r.json().get("errorMessage", "")
-        except ValueError:
-            error_message = ""
-        if "password" in error_message.lower() and "policy" in error_message.lower():
-            # Keycloak password policy rejection, including passwordHistory cases.
-            logger.warning(
-                f"System user password reset rejected by policy: {error_message}"
-            )
-            return
-    r.raise_for_status()
-
-
-if __name__ == "__main__":
-    logger.info("Starting configure_realm ...")
-
-    keycloak_host = os.environ.get("KEYCLOAK_HOST", "")
-    keycloak_port = int(os.getenv("KEYCLOAK_HTTPS_PORT", 443))
-    service_secret = os.environ.get("KEYCLOAK_SERVICE_CLIENT_SECRET", "")
-
-    try:
-        keycloak = KeycloakHelper()
-    except Exception as e:
-        logger.warning(f"Admin authentication failed: {e}")
-        if _service_client_functional(keycloak_host, keycloak_port, service_secret):
-            logger.info(
-                "kaapana-service client is functional — realm already configured. Syncing secrets..."
-            )
-            _run_fallback(
-                keycloak_host,
-                keycloak_port,
-                service_secret,
-                os.environ["OIDC_CLIENT_SECRET"],
-                os.environ["SYSTEM_USER_PASSWORD"],
-            )
-            sys.exit(0)
-        logger.error(
-            "Admin authentication failed and kaapana-service client is not available. "
-            "Cannot configure realm. Provide the current Keycloak admin password."
-        )
-        sys.exit(1)
-
-    oidc_client_secret = os.environ["OIDC_CLIENT_SECRET"]
-    KAAPANA_INIT_PASSWORD = os.getenv("KAAPANA_INIT_PASSWORD")
-    logger.info(f"{DEV_MODE=}")
-    logger.info(f"{KAAPANA_INIT_PASSWORD=}")
+def _run_setup(keycloak, oidc_client_secret, kaapana_init_password):
+    """Full realm configuration — all operations are idempotent (409 handled)."""
 
     ### Add realm
     file = Path(REALM_OBJECTS_ROOT_DIR, "kaapana-realm.json")
@@ -211,7 +71,7 @@ if __name__ == "__main__":
     file = Path(REALM_OBJECTS_ROOT_DIR, "kaapana-user.json")
     with open(file, "r") as f:
         payload = json.load(f)
-        payload["credentials"] = [{"type": "password", "value": KAAPANA_INIT_PASSWORD}]
+        payload["credentials"] = [{"type": "password", "value": kaapana_init_password}]
         keycloak.post_user(payload)
 
     ### Add system user
@@ -256,3 +116,41 @@ if __name__ == "__main__":
         keycloak.post_service_account_role_mapping(
             "kaapana-service", "realm-management", role
         )
+
+
+if __name__ == "__main__":
+    logger.info("Starting configure_realm ...")
+
+    oidc_client_secret = os.environ["OIDC_CLIENT_SECRET"]
+    kaapana_init_password = os.getenv("KAAPANA_INIT_PASSWORD")
+    logger.info(f"{DEV_MODE=}")
+    logger.info(f"{kaapana_init_password=}")
+
+    for _attempt in range(1, _MAX_RETRIES + 1):
+        try:
+            # A fresh token is obtained on every attempt to avoid expiry after retries.
+            # The admin password is never needed here — the bootstrap job created the
+            # kaapana-admin client and its secret is the only persisted credential.
+            keycloak = KeycloakHelper.from_client_credentials(
+                "kaapana-admin",
+                os.environ["KAAPANA_ADMIN_CLIENT_SECRET"],
+                realm="master",
+            )
+            _run_setup(keycloak, oidc_client_secret, kaapana_init_password)
+            break
+        except requests.exceptions.HTTPError as e:
+            delay = _RETRY_BASE_DELAY * (2 ** (_attempt - 1))
+            if (
+                e.response is not None
+                and e.response.status_code == 403
+                and _attempt < _MAX_RETRIES
+            ):
+                # Keycloak cold-start race: realm just created, admin API not yet ready.
+                # All operations are idempotent — safe to retry from scratch.
+                logger.warning(
+                    f"403 Forbidden on attempt {_attempt}/{_MAX_RETRIES} "
+                    f"(Keycloak initializing). Retrying in {delay}s ..."
+                )
+                time.sleep(delay)
+            else:
+                raise

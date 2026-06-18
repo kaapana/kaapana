@@ -1,10 +1,9 @@
 """
-Unit test for the kaapana-backend UserService auth changeover (#1918).
+Unit test for kaapana-backend UserService authentication.
 
-Guards that UserService logs in via the kaapana-service client
-(client_credentials) against the kaapana realm — not the old admin
-username/password against master. python-keycloak is stubbed so no live
-Keycloak is needed.
+Guards that UserService authenticates via the kaapana-service client
+(client_credentials grant) against the kaapana realm.
+python-keycloak is stubbed — no live Keycloak needed.
 """
 
 import sys

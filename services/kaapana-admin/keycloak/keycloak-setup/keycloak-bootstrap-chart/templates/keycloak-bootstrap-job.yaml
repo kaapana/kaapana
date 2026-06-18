@@ -1,0 +1,52 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "keycloak-bootstrap"
+  namespace: "{{ .Values.global.admin_namespace }}"
+spec:
+  template:
+    metadata:
+      name: keycloak-bootstrap
+    spec:
+        initContainers:
+        - name: wait-for-keycloak
+          image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
+          env:
+            - name: WAIT
+              value: "keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443"
+            - name: DELAY
+              value: "3"
+            - name: TIMEOUT
+              value: "100"
+        containers:
+        - name: keycloak-bootstrap
+          image: "{{ .Values.global.registry_url }}/keycloak-setup:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy:  "{{ .Values.global.pull_policy_images }}"
+          command: ["python3", "-u", "bootstrap_admin_client.py"]
+          resources:
+            requests:
+              memory: 200Mi
+            limits:
+              memory: 200Mi
+          env:
+            # Admin password is only consumed here, and only on the very first
+            # bootstrap (when the kaapana-admin client does not yet exist).
+            - name: KEYCLOAK_USER
+              value: "{{ .Values.global.credentials_keycloak_admin_username }}"
+            - name: KEYCLOAK_PASSWORD
+              value: "{{ .Values.global.credentials_keycloak_admin_password }}"
+            - name: KEYCLOAK_HOST
+              value: "keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc"
+            - name: KAAPANA_ADMIN_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: kaapana-admin-password
+                  key: kaapana-admin-password
+            - name: KAAPANA_ADMIN_PASSWORD_TEMPORARY
+              value: "{{ .Values.global.keycloak_admin_password_temporary | default false }}"
+        restartPolicy: Never
+        serviceAccountName: kaapana-kube-admin
+        imagePullSecrets:
+        - name: registry-secret

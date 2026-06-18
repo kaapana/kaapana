@@ -319,9 +319,14 @@
             </v-menu>
           </v-app-bar>
           <v-card-text v-if="validationResultItem != null">
+            <v-progress-circular
+              v-if="validationResultLookup.loading"
+              indeterminate
+              color="primary"
+            />
             <ElementsFromHTML
-              v-if="validationResultItem in resultPaths"
-              :rawHtmlURL="resultPaths[validationResultItem]"
+              v-else-if="validationResultUrl"
+              :rawHtmlURL="validationResultUrl"
             />
             <div class="container" v-else>
               <h1 class="pb-5">Validation Report</h1>
@@ -422,8 +427,8 @@ export default {
       editDatasetsDialog: false,
       datasetToAddTo: null,
       debouncedIdentifiers: [],
-      staticUrls: [],
       resultPaths: {},
+      resultLookupState: {},
       filteredDags: [],
       aggregatedSeriesNum: 100,
       pageIndex: 1,
@@ -495,7 +500,6 @@ export default {
         this.datasetName = this.queryParams.dataset_name;
       }
     }
-    this.getStaticWebsiteResults();
   },
   beforeDestroy() {
     window.removeEventListener("keydown", (event) => this.keyDownEventListener(event));
@@ -606,58 +610,78 @@ export default {
       this.datasets = datasets;
       this.datasetNames = datasets.map((dataset) => dataset.name);
     },
-    getStaticWebsiteResults() {
-      var staticWebUrl = "/get-static-website-results"
-      kaapanaApiService
-        .kaapanaApiGet(staticWebUrl)
-        .then((response) => {
-          this.staticUrls = response.data;
-          this.extractChildPaths(this.staticUrls);
-        })
-        .catch((err) => {
-          this.staticUrls = [];
-        });
-    },
-    extractChildPaths(urlObjs) {
-      urlObjs.forEach((i) => {
-        let rootPaths = this.extractRootPath(i);
-        for (let path of rootPaths) {
-          let seriesID = this.extractSeriesId(path);
-          this.resultPaths[seriesID] = path;
-          // this.readAndParseHTML(path)
-        }
+    async ensureValidationResultLoaded(resultItemID) {
+      if (!resultItemID) {
+        return null;
+      }
+
+      const cachedResult = this.resultLookupState[resultItemID];
+      if (cachedResult && (cachedResult.loading || cachedResult.loaded)) {
+        return cachedResult.url;
+      }
+
+      this.$set(this.resultLookupState, resultItemID, {
+        loading: true,
+        loaded: false,
+        found: false,
+        url: null,
+        object_name: null,
       });
-      this.resultPaths.__ob__.dep.notify();
-    },
-    extractRootPath(urlObj) {
-      let paths = [];
 
-      function traverseChild(node) {
-        if ("children" in node) {
-          for (let child of node.children) {
-            traverseChild(child);
-          }
-        } else if ("path" in node) {
-          paths.push(node.path);
-        } else {
-          paths.push(undefined);
+      try {
+        const response = await kaapanaApiService.kaapanaApiGet(
+          "/get-static-website-result-reports",
+          { series_id: resultItemID }
+        );
+        const lookupResult =
+          response &&
+          response.data &&
+          response.data.results &&
+          response.data.results[resultItemID]
+            ? response.data.results[resultItemID]
+            : { found: false, url: null, object_name: null };
+
+        this.$set(this.resultLookupState, resultItemID, {
+          loading: false,
+          loaded: true,
+          found: lookupResult.found,
+          url: lookupResult.url,
+          object_name: lookupResult.object_name,
+        });
+
+        if (lookupResult.found && lookupResult.url) {
+          this.$set(this.resultPaths, resultItemID, lookupResult.url);
+        } else if (resultItemID in this.resultPaths) {
+          this.$delete(this.resultPaths, resultItemID);
         }
+
+        return lookupResult.url;
+      } catch (error) {
+        console.error("Failed to resolve validation result:", error);
+        this.$set(this.resultLookupState, resultItemID, {
+          loading: false,
+          loaded: true,
+          found: false,
+          url: null,
+          object_name: null,
+        });
+        if (resultItemID in this.resultPaths) {
+          this.$delete(this.resultPaths, resultItemID);
+        }
+        return null;
+      }
+    },
+    invalidateValidationResultCache(resultItemID) {
+      if (!resultItemID) {
+        return;
       }
 
-      traverseChild(urlObj);
-      return paths;
-    },
-    extractSeriesId(urlStr) {
-      const seriesIdRegx = "^(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*$";
-      const subDirs = urlStr.split("/");
-      let matched = "";
-      for (let dir of subDirs.reverse()) {
-        if (dir.match(seriesIdRegx)) {
-          matched = dir;
-          break;
-        }
+      if (resultItemID in this.resultLookupState) {
+        this.$delete(this.resultLookupState, resultItemID);
       }
-      return matched;
+      if (resultItemID in this.resultPaths) {
+        this.$delete(this.resultPaths, resultItemID);
+      }
     },
     async updateDataset(name, identifiers, action = "UPDATE", access_level = "project") {
       try {
@@ -788,6 +812,7 @@ export default {
       this.editDatasetsDialog = false;
     },
     runValidationWorkflow(resultItemID) {
+      this.invalidateValidationResultCache(resultItemID);
       this.selectedSeriesInstanceUIDs = [resultItemID];
       this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
       this.filteredDags = ["validate-dicoms"];
@@ -795,14 +820,23 @@ export default {
       this.workflowDialog = true;
     },
     deleteValidationResult(resultItemID) {
+      this.invalidateValidationResultCache(resultItemID);
       this.selectedSeriesInstanceUIDs = [resultItemID];
       this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
       this.filteredDags = ["clear-validation-results"];
       this.onValidationResultClose();
       this.workflowDialog = true;
     },
-    downloadValidationResult(resultItemID) {
-      const resultUri = this.resultPaths[resultItemID];
+    async downloadValidationResult(resultItemID) {
+      const resultUri = await this.ensureValidationResultLoaded(resultItemID);
+      if (!resultUri) {
+        this.$notify({
+          title: "Validation report not found",
+          text: "No workflow report could be resolved for the selected series.",
+          type: "warning",
+        });
+        return;
+      }
       var link = document.createElement("a");
       link.download = resultItemID + ".html";
       link.href = resultUri;
@@ -817,6 +851,14 @@ export default {
       this.selectedSeriesInstanceUIDs = val;
       this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
     }, 200),
+    validationResultItem: {
+      immediate: false,
+      handler(value) {
+        if (value) {
+          this.ensureValidationResultLoaded(value);
+        }
+      },
+    },
   },
   computed: {
     identifiersOfInterest() {
@@ -837,6 +879,30 @@ export default {
     },
     validationResultItem() {
       return this.$store.getters.validationResultItem;
+    },
+    validationResultLookup() {
+      if (!this.validationResultItem) {
+        return {
+          loading: false,
+          loaded: false,
+          found: false,
+          url: null,
+          object_name: null,
+        };
+      }
+
+      return (
+        this.resultLookupState[this.validationResultItem] || {
+          loading: false,
+          loaded: false,
+          found: false,
+          url: null,
+          object_name: null,
+        }
+      );
+    },
+    validationResultUrl() {
+      return this.validationResultLookup.url;
     },
     displaySelectedItems() {
       if (

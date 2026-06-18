@@ -128,6 +128,12 @@ spec:
           value: "{{ .Values.global.oidc_client_secret }}"
         - name: KEYCLOAK_URL
           value: "http://keycloak-external-service.{{  .Values.global.admin_namespace  }}.svc:80"
+        - name: RESULTS_LAYOUT_TEMPLATE
+          value: "{{ .Values.workflow_results.layout_template }}"
+        - name: RESULTS_LAYOUT_FALLBACK_TO_SCAN
+          value: "{{ .Values.workflow_results.layout_fallback_to_scan }}"
+        - name: RESULTS_LOAD_MORE_PAGE_SIZE
+          value: "{{ .Values.workflow_results.load_more_page_size }}"
 {{- if .Values.global.dev_files }}
         - name: DEV_FILES
           value: "True"

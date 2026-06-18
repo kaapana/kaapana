@@ -320,6 +320,7 @@ security:
     - source "$VENV_PATH/bin/activate"
     - export ANSIBLE_HOST_KEY_CHECKING=False
     - mkdir -p $ARTIFACTS_DIR
+    - git fetch --tags --unshallow 2>/dev/null || git fetch --tags
     - VERSION_TAG=$(git describe --tags --always --dirty)
     - |
       if [[ "$CI_EXEC_BUILD_ARGUMENTS" =~ (--latest) && "$VERSION_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then

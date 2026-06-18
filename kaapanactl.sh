@@ -1433,7 +1433,13 @@ function get_domain {
 function delete_deployment {
     echo -e "${YELLOW}Undeploy releases${NC}"
     for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
-        $HELM_EXECUTABLE -n $namespace ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
+        # Pass 1: force-clear releases stuck in 'uninstalling' from a previous run — just drop the helm tracking.
+        $HELM_EXECUTABLE -n $namespace ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' \
+            | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall --no-hooks % 2>&1 || true"
+
+        # Pass 2: uninstall active releases in parallel.
+        $HELM_EXECUTABLE -n $namespace ls --deployed --failed --pending --superseded | awk 'NR > 1 { print  "-n "$2, $1}' \
+            | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall ${NO_HOOKS} --timeout 90s % 2>&1 || true"
     done
 
     echo -e "${YELLOW}Waiting until everything is terminated ...${NC}"
@@ -1444,7 +1450,10 @@ function delete_deployment {
         sleep 3
         if [ "$idx" -eq 2 ] && [ "$AUTO_NO_HOOKS" = "true" ]; then
             echo "Deleting helm charts in 'uninstalling' state with --no-hooks"
-            $HELM_EXECUTABLE -n $namespace ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall --no-hooks --wait --timeout 5m30s %; sleep 2"
+            for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+                $HELM_EXECUTABLE -n $namespace ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' \
+                    | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall --no-hooks --wait --timeout 60s % 2>&1 || true"
+            done
         fi
         TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E 'Terminating' | awk '{print \$1 \"/\" \$2}'")
         echo -e ""

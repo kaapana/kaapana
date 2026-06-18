@@ -71,6 +71,19 @@ def _should_clean(
     return status == schemas.WorkflowRunStatus.COMPLETED
 
 
+def _project_id_from_run(run: models.WorkflowRun) -> Optional[str]:
+    """Read the immutable project_id label pinned to the run at creation time.
+
+    Cleanup needs it to locate the project's data volume (the actual run data
+    lives in a project-namespace PVC, reachable only via that project's
+    runtime). Returns None if the label is absent — cleanup is then impossible.
+    """
+    for label in run.labels or []:
+        if label.key == crud.PROJECT_ID_LABEL_KEY:
+            return label.value
+    return None
+
+
 async def _apply_engine_status(
     db: AsyncSession,
     run: models.WorkflowRun,
@@ -129,13 +142,30 @@ async def _run_cleanup(workflow_run_id: int) -> None:
                 )
                 return
 
+            # Cleanup must reach the project's data volume; resolve the project
+            # from the immutable label pinned at creation. No label => we cannot
+            # locate the data and must not guess: mark FAILED and stop.
+            project_id = _project_id_from_run(run)
+            if project_id is None:
+                logger.error(
+                    f"_run_cleanup: workflow run {workflow_run_id} has no "
+                    f"'{crud.PROJECT_ID_LABEL_KEY}' label; cannot resolve its "
+                    f"project data volume. Marking cleanup FAILED."
+                )
+                await crud.update_workflow_run_cleanup_state(
+                    db, workflow_run_id, schemas.CleanupStatus.FAILED
+                )
+                return
+
             await crud.update_workflow_run_cleanup_state(
                 db, workflow_run_id, schemas.CleanupStatus.RUNNING
             )
             engine = get_workflow_engine(run.workflow_revision.workflow.workflow_engine)
             try:
-                await engine.clean_workflow_run_data(run.external_id)
-                verified = await engine.is_workflow_run_data_clean(run.external_id)
+                await engine.clean_workflow_run_data(run.external_id, project_id)
+                verified = await engine.is_workflow_run_data_clean(
+                    run.external_id, project_id
+                )
                 if not verified:
                     raise RuntimeError(
                         f"Cleanup verification failed for run {workflow_run_id}"
@@ -229,6 +259,16 @@ async def create_workflow_run(
     """
     logger.debug(f"Creating workflow run for {workflow_run=}")
 
+    # Pin the run to its project via an immutable label. Authoritative: drop any
+    # client-supplied value and set it from the request's project_id. Cleanup
+    # later reads this label to locate the project's data volume.
+    workflow_run.labels = [
+        l for l in (workflow_run.labels or []) if l.key != crud.PROJECT_ID_LABEL_KEY
+    ]
+    workflow_run.labels.append(
+        schemas.Label(key=crud.PROJECT_ID_LABEL_KEY, value=project_id)
+    )
+
     db_revision = await crud.get_workflow_revision(
         db,
         workflow_id=workflow_run.workflow.id,
@@ -264,7 +304,7 @@ async def get_workflow_run_by_id(
     db: AsyncSession, workflow_run_id: int
 ) -> schemas.WorkflowRun:
     """
-    Get a single workflow run by id. 
+    Get a single workflow run by id.
     For non-terminal runs, sync lifecycle status from the engine first so the returned schema reflects current state.
     """
     db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
@@ -373,7 +413,8 @@ async def get_workflow_run_task_runs(
 ) -> List[schemas.TaskRun]:
     """
     List the task runs of a workflow run, optionally filtered by task title.
-    For non-terminal runs, syncs task run state from the engine first so the returned list reflects the current state."""
+    For non-terminal runs, syncs task run state from the engine first so the returned list reflects the current state.
+    """
     db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
     if not db_run:
         logger.error(f"No workflow run found for id {workflow_run_id}")
@@ -445,7 +486,7 @@ async def get_task_run_logs(
     db: AsyncSession, workflow_run_id: int, task_run_id: int
 ) -> str:
     """
-    Fetch the engine logs for a specific task run. 
+    Fetch the engine logs for a specific task run.
     Routes through the engine adapter resolved from the parent workflow's engine.
     """
     task_run = await crud.get_task_run(
@@ -513,7 +554,7 @@ async def _submit_workflow_run_to_engine(
 
 async def _sync_single_workflow_run(db: AsyncSession, run: models.WorkflowRun) -> None:
     """
-    Pull the latest lifecycle status and task-run states for one run from the engine and persist them. 
+    Pull the latest lifecycle status and task-run states for one run from the engine and persist them.
     Skips runs in terminal/CREATED states.
     """
     if run.lifecycle_status in [
@@ -557,13 +598,26 @@ async def get_workflow_run_data_size(
     if not db_run:
         raise NotFoundError("Workflow run not found")
 
-    if db_run.external_id is None:
+    project_id = _project_id_from_run(db_run)
+    if db_run.external_id is None or project_id is None:
+        # No engine data yet, or no project label to locate it.
         return schemas.WorkflowRunDataSize(
             workflow_run_id=workflow_run_id, size_bytes=0, exists=False
         )
 
     engine = get_workflow_engine(db_run.workflow_revision.workflow.workflow_engine)
-    size = await engine.get_workflow_run_data_size(db_run.external_id)
+    try:
+        size = await engine.get_workflow_run_data_size(db_run.external_id, project_id)
+    except Exception:
+        # Measuring crosses the network (AII + project-runtime). This endpoint is
+        # an informational hint, so degrade to "unknown" rather than 500 the call.
+        logger.warning(
+            f"Could not measure data size for workflow run {workflow_run_id}",
+            exc_info=True,
+        )
+        return schemas.WorkflowRunDataSize(
+            workflow_run_id=workflow_run_id, size_bytes=0, exists=False
+        )
     return schemas.WorkflowRunDataSize(
         workflow_run_id=workflow_run_id,
         size_bytes=size,
@@ -630,7 +684,7 @@ async def trigger_cleanup(
 
 async def sync_active_runs(db: AsyncSession):
     """
-    Periodic sweep over all non-terminal workflow runs. 
+    Periodic sweep over all non-terminal workflow runs.
     Pulls engine state for each and updates lifecycle/task-run rows.
     """
     logger.info("Starting periodic sync of active workflow runs...")

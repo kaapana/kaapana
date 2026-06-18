@@ -138,12 +138,16 @@ async def _ensure_workflow(session: AsyncSession) -> models.WorkflowRevision:
     hitting "task not found" errors.
     """
     existing = (
-        await session.execute(
-            select(models.WorkflowRevision)
-            .join(models.Workflow)
-            .where(models.Workflow.title == "cleanup-wf")
+        (
+            await session.execute(
+                select(models.WorkflowRevision)
+                .join(models.Workflow)
+                .where(models.Workflow.title == "cleanup-wf")
+            )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     if existing:
         return existing
 
@@ -169,19 +173,47 @@ async def _ensure_workflow(session: AsyncSession) -> models.WorkflowRevision:
     return revision
 
 
+async def _project_label(session: AsyncSession, project_id: str) -> models.Label:
+    """Get-or-create the immutable project_id label (UNIQUE on key+value)."""
+    existing = (
+        (
+            await session.execute(
+                select(models.Label).where(
+                    models.Label.key == crud.PROJECT_ID_LABEL_KEY,
+                    models.Label.value == project_id,
+                )
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if existing:
+        return existing
+    label = models.Label(key=crud.PROJECT_ID_LABEL_KEY, value=project_id)
+    session.add(label)
+    await session.commit()
+    await session.refresh(label)
+    return label
+
+
 async def _make_workflow_and_run(
     session: AsyncSession,
     *,
     policy: schemas.CleanupPolicy = schemas.CleanupPolicy.ON_SUCCESS,
     lifecycle: schemas.WorkflowRunStatus = schemas.WorkflowRunStatus.RUNNING,
     external_id: str | None = "test-extid::run-1",
+    project_id: str | None = "proj-123",
 ) -> models.WorkflowRun:
     revision = await _ensure_workflow(session)
+    labels = (
+        [await _project_label(session, project_id)] if project_id is not None else []
+    )
     run = models.WorkflowRun(
         workflow_revision_id=revision.id,
         external_id=external_id,
         lifecycle_status=lifecycle,
         cleanup_policy=policy,
+        labels=labels,
     )
     session.add(run)
     await session.commit()
@@ -513,6 +545,29 @@ async def test_list_endpoint_returns_fresh_lifecycle_after_cleanup_dispatch(
     items = resp.json()
     target = next(item for item in items if item["id"] == run.id)
     assert target["lifecycle_status"] == schemas.WorkflowRunStatus.COMPLETED.value
+
+
+@pytest.mark.asyncio
+async def test_cleanup_without_project_label_marks_failed(session: AsyncSession):
+    """Without the kaapana.immutable.project_id label we cannot locate the run's
+    project data volume, so cleanup must fail rather than silently no-op."""
+    run = await _make_workflow_and_run(
+        session,
+        policy=schemas.CleanupPolicy.ALWAYS,
+        lifecycle=schemas.WorkflowRunStatus.COMPLETED,
+        project_id=None,
+    )
+    await crud.claim_workflow_run_for_cleanup(
+        session,
+        run_id=run.id,
+        allowed_from=[schemas.CleanupStatus.NOT_REQUIRED],
+    )
+
+    await service._run_cleanup(run.id)
+
+    failed = await _wait_for_cleanup(session, run.id, schemas.CleanupStatus.FAILED)
+    assert failed.cleaned_at is None
+    assert not DummyAdapter.was_cleaned(run.external_id)
 
 
 @pytest.mark.asyncio

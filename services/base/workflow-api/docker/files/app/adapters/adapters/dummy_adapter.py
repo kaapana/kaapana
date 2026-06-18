@@ -187,7 +187,9 @@ class DummyAdapter(WorkflowEngineAdapter):
     def was_cleaned(external_id: str) -> bool:
         return external_id in _CLEANED_RUNS
 
-    async def clean_workflow_run_data(self, workflow_run_external_id: str) -> None:
+    async def clean_workflow_run_data(
+        self, workflow_run_external_id: str, project_id: str
+    ) -> None:
         if workflow_run_external_id in _MOCKED_CLEAN_RAISES:
             _MOCKED_CLEAN_RAISES.discard(workflow_run_external_id)
             raise RuntimeError(
@@ -196,10 +198,14 @@ class DummyAdapter(WorkflowEngineAdapter):
         _CLEANED_RUNS.add(workflow_run_external_id)
         _MOCKED_CLEAN_SIZES.pop(workflow_run_external_id, None)
 
-    async def get_workflow_run_data_size(self, workflow_run_external_id: str) -> int:
+    async def get_workflow_run_data_size(
+        self, workflow_run_external_id: str, project_id: str
+    ) -> int:
         return _MOCKED_CLEAN_SIZES.get(workflow_run_external_id, 0)
 
-    async def is_workflow_run_data_clean(self, workflow_run_external_id: str) -> bool:
+    async def is_workflow_run_data_clean(
+        self, workflow_run_external_id: str, project_id: str
+    ) -> bool:
         return workflow_run_external_id in _CLEANED_RUNS or (
             _MOCKED_CLEAN_SIZES.get(workflow_run_external_id, 0) == 0
         )

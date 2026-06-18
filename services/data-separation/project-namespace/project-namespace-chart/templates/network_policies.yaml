@@ -197,7 +197,8 @@ spec:
     - protocol: TCP
       port: 8080
 ---
-### Allow Airflow scheduler to access project-runtime inside this project namespace
+### Allow the Airflow scheduler (scale-rule sizing) and workflow-api (run-data
+### cleanup) to access project-runtime inside this project namespace
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -218,6 +219,13 @@ spec:
         matchLabels:
           app.kubernetes.io/name: airflow
           app.kubernetes.io/component: scheduler
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: workflow-api
+          app.kubernetes.io/component: api
     ports:
     - protocol: TCP
       port: 8080

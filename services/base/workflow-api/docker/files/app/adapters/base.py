@@ -140,39 +140,55 @@ class WorkflowEngineAdapter(ABC):
         pass
 
     @abstractmethod
-    async def clean_workflow_run_data(self, workflow_run_external_id: str) -> None:
+    async def clean_workflow_run_data(
+        self, workflow_run_external_id: str, project_id: str
+    ) -> None:
         """
         Delete all on-disk data associated with a workflow run.
+
+        A run's data may live in more than one store (e.g. the engine's local
+        scheduler/pkl folder *and* a project-scoped data volume reachable only
+        from inside the project namespace). Implementations must remove every
+        store. `project_id` identifies the project whose runtime/volume holds
+        the data.
 
         Must be idempotent: a no-op if the data has already been removed.
         Raises on any other failure.
 
         Args:
             workflow_run_external_id (str): The external ID of the workflow run.
+            project_id (str): The project that owns the run's data.
         """
         pass
 
     @abstractmethod
-    async def get_workflow_run_data_size(self, workflow_run_external_id: str) -> int:
+    async def get_workflow_run_data_size(
+        self, workflow_run_external_id: str, project_id: str
+    ) -> int:
         """
-        Return the total on-disk size (bytes) of the workflow run's data.
+        Return the total on-disk size (bytes) of the workflow run's data,
+        summed across every store the run writes to.
 
         Args:
             workflow_run_external_id (str): The external ID of the workflow run.
+            project_id (str): The project that owns the run's data.
 
         Returns:
-            int: Total bytes; 0 if the data directory is missing.
+            int: Total bytes; 0 if no data exists.
         """
         pass
 
     @abstractmethod
-    async def is_workflow_run_data_clean(self, workflow_run_external_id: str) -> bool:
+    async def is_workflow_run_data_clean(
+        self, workflow_run_external_id: str, project_id: str
+    ) -> bool:
         """
-        Verify that the workflow run's data directory has been removed
-        (or is empty).
+        Verify that the workflow run's data has been removed (or is empty)
+        in every store the run writes to.
 
         Args:
             workflow_run_external_id (str): The external ID of the workflow run.
+            project_id (str): The project that owns the run's data.
 
         Returns:
             bool: True if no data remains, False otherwise.

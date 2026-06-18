@@ -113,6 +113,11 @@ async def upsert_labels(
 # Any label whose key starts with this prefix is treated as immutable across revisions
 IMMUTABLE_LABEL_PREFIX = "kaapana.immutable."
 
+# Immutable label that pins a workflow run to the project that triggered it.
+# Set at run creation; read at cleanup time to resolve the project's runtime
+# (and thus the project-namespace data volume). No label => cleanup impossible.
+PROJECT_ID_LABEL_KEY = f"{IMMUTABLE_LABEL_PREFIX}project_id"
+
 
 class ImmutableLabelViolation(Exception):
     """Raised when a label update would change or remove an immutable label."""

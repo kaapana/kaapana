@@ -42,6 +42,14 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         self.api_username = os.getenv("AIRFLOW_API_USERNAME")
         self.api_password = os.getenv("AIRFLOW_API_PASSWORD")
 
+        # The actual run data lives in the project-scoped `workflow-data-pv-claim`
+        # PVC, which is mounted only inside the project namespace. We reach it via
+        # that project's project-runtime service (see _project_runtime_request).
+        self.project_runtime_url_template = os.getenv(
+            "PROJECT_RUNTIME_URL_TEMPLATE",
+            "http://project-runtime-service.{namespace}.svc:8080",
+        )
+
         # check if volume is mounted (fail fast)
         if not self.airflow_dag_folder.exists():
             self.logger.error(
@@ -180,7 +188,9 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         Writes a workflow revision's DAG definition directly to the shared PVC.
         Atomic-like write pattern (write temp -> rename) ensures Airflow doesn't pick up partial files.
         """
-        dag_id = self._get_dag_id_from_workflow(revision.workflow_title, revision.increment)
+        dag_id = self._get_dag_id_from_workflow(
+            revision.workflow_title, revision.increment
+        )
         dag_filename = f"{dag_id}.py"
         temp_filename = f"{dag_id}.py.tmp"
 
@@ -537,43 +547,119 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             return datetime.now(tz=timezone.utc)
 
     def _data_dir_for_run(self, workflow_run_external_id: str) -> Path:
+        """Local scheduler/pkl folder for a run (services-namespace workflows PVC).
+
+        Holds the per-task `task_run-*.pkl` files. The *actual* processing
+        output lives in the project-namespace `workflow-data-pv-claim` PVC,
+        which is not mounted here and is handled via project-runtime.
+        """
         _, run_id = self._parse_composite_id(workflow_run_external_id)
         return self.airflow_workflow_data_dir / run_id
 
-    async def clean_workflow_run_data(self, workflow_run_external_id: str) -> None:
-        target = self._data_dir_for_run(workflow_run_external_id)
-        if not target.exists():
-            self.logger.info(f"No data directory to clean at {target}; skipping.")
-            return
-        self.logger.info(f"Cleaning workflow run data at {target}")
-        await asyncio.to_thread(shutil.rmtree, target)
+    async def _resolve_project_namespace(self, project_id: str) -> str:
+        """Resolve the Kubernetes namespace that owns a project's data volume.
 
-    async def get_workflow_run_data_size(self, workflow_run_external_id: str) -> int:
-        target = self._data_dir_for_run(workflow_run_external_id)
+        Uses the same AII project record that placed the processing pods, so
+        the namespace here matches where `workflow-data-pv-claim` actually lives.
+        """
+        project = await self._fetch_project(project_id)
+        namespace = project.get("kubernetes_namespace")
+        if not namespace:
+            raise RuntimeError(
+                f"Project '{project_id}' has no kubernetes_namespace; "
+                "cannot locate the workflow data volume for cleanup."
+            )
+        return namespace
 
-        def _walk(path: Path) -> int:
-            if not path.exists():
-                return 0
-            total = 0
-            for entry in path.rglob("*"):
-                try:
-                    if entry.is_file() and not entry.is_symlink():
-                        total += entry.stat().st_size
-                except (FileNotFoundError, PermissionError):
-                    continue
-            return total
+    async def _project_runtime_request(
+        self,
+        namespace: str,
+        method: str,
+        endpoint: str,
+        json: Optional[dict] = None,
+    ) -> dict:
+        """Call the project-runtime service in `namespace` (mounts the data PVC)."""
+        base_url = self.project_runtime_url_template.format(namespace=namespace)
+        url = f"{base_url}{endpoint}"
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.request(method, url, json=json or {})
+            resp.raise_for_status()
+            return resp.json()
 
-        return await asyncio.to_thread(_walk, target)
-
-    async def is_workflow_run_data_clean(self, workflow_run_external_id: str) -> bool:
-        target = self._data_dir_for_run(workflow_run_external_id)
-
-        def _check(path: Path) -> bool:
-            if not path.exists():
-                return True
+    @staticmethod
+    def _local_dir_size(path: Path) -> int:
+        if not path.exists():
+            return 0
+        total = 0
+        for entry in path.rglob("*"):
             try:
-                return not any(path.iterdir())
+                if entry.is_file() and not entry.is_symlink():
+                    total += entry.stat().st_size
             except (FileNotFoundError, PermissionError):
-                return True
+                continue
+        return total
 
-        return await asyncio.to_thread(_check, target)
+    @staticmethod
+    def _local_dir_clean(path: Path) -> bool:
+        if not path.exists():
+            return True
+        try:
+            return not any(path.iterdir())
+        except (FileNotFoundError, PermissionError):
+            return True
+
+    async def clean_workflow_run_data(
+        self, workflow_run_external_id: str, project_id: str
+    ) -> None:
+        _, run_id = self._parse_composite_id(workflow_run_external_id)
+
+        # Store 1 — actual run data in the project-namespace PVC. We can't mount
+        # it from here (different namespace), so delegate to project-runtime.
+        namespace = await self._resolve_project_namespace(project_id)
+        self.logger.info(
+            f"Deleting workflow run data '{run_id}' from workflow-data PVC via "
+            f"project-runtime in namespace '{namespace}'"
+        )
+        await self._project_runtime_request(
+            namespace, "POST", "/filesystem/delete", json={"sub_path": run_id}
+        )
+
+        # Store 2 — local scheduler/pkl folder (mounted here). Idempotent.
+        target = self._data_dir_for_run(workflow_run_external_id)
+        if target.exists():
+            self.logger.info(f"Cleaning local workflow run folder at {target}")
+            await asyncio.to_thread(shutil.rmtree, target)
+        else:
+            self.logger.info(f"No local data directory to clean at {target}; skipping.")
+
+    async def get_workflow_run_data_size(
+        self, workflow_run_external_id: str, project_id: str
+    ) -> int:
+        _, run_id = self._parse_composite_id(workflow_run_external_id)
+
+        namespace = await self._resolve_project_namespace(project_id)
+        usage = await self._project_runtime_request(
+            namespace, "POST", "/filesystem/usage", json={"sub_path": run_id}
+        )
+        pvc_size = int(usage.get("size_bytes", 0))
+
+        local_size = await asyncio.to_thread(
+            self._local_dir_size, self._data_dir_for_run(workflow_run_external_id)
+        )
+        return pvc_size + local_size
+
+    async def is_workflow_run_data_clean(
+        self, workflow_run_external_id: str, project_id: str
+    ) -> bool:
+        _, run_id = self._parse_composite_id(workflow_run_external_id)
+
+        namespace = await self._resolve_project_namespace(project_id)
+        usage = await self._project_runtime_request(
+            namespace, "POST", "/filesystem/usage", json={"sub_path": run_id}
+        )
+        pvc_clean = (not usage.get("exists", False)) or usage.get("empty", False)
+
+        local_clean = await asyncio.to_thread(
+            self._local_dir_clean, self._data_dir_for_run(workflow_run_external_id)
+        )
+        return pvc_clean and local_clean

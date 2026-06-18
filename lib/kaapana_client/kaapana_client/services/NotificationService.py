@@ -1,8 +1,8 @@
 from typing import List, Optional
 
 import requests
-from kaapanapy.settings import ServicesSettings
-from kaapanapy.logger import get_logger
+from kaapana_client.logger import get_logger
+from kaapana_client.settings import ServicesSettings
 from pydantic import BaseModel
 
 NOTIFICATION_SERVICE_URL = ServicesSettings().notification_url
@@ -39,14 +39,15 @@ class NotificationService:
                 f"{NOTIFICATION_SERVICE_URL}/v2/{project_id}",
                 json=data,
             )
+            response.raise_for_status()
         else:
             failed_for_users = []
             for user_id in user_ids:
+                response = requests.post(
+                    f"{NOTIFICATION_SERVICE_URL}/v2/{project_id}/{user_id}",
+                    json=data,
+                )
                 try:
-                    response = requests.post(
-                        f"{NOTIFICATION_SERVICE_URL}/v2/{project_id}/{user_id}",
-                        json=data,
-                    )
                     response.raise_for_status()
                 except requests.exceptions.HTTPError as e:
                     if response.status_code == 404:
@@ -62,4 +63,4 @@ class NotificationService:
                     f"{NOTIFICATION_SERVICE_URL}/v2/",
                     json=data,
                 )
-        response.raise_for_status()
+                response.raise_for_status()

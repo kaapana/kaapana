@@ -142,18 +142,6 @@ This is enforced through the following mechanisms:
 
 This design guarantees that processes inside containers can only interact with storage resources belonging to their project, preventing cross-project data access.
 
-Workflow Execution And Active Applications
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-* The Project Management UI allows to manage, which DAG can be executed as a Workflow by which Project.
-* This can be managed by creating or deleting porject-software mappings.
-* A default list of project-software-mappings can be configured before building your custom platform at <link>
-
-
-* Active Applications are also bound to a project-context
-* As active applications are spawned in the extension page, the selected project determines the project for which the application will be deployed.
-* Applications that are started by workflows like MITK-flow are automatically associated with the project of corresponding workflow.
-
 
 Workflow Execution and Active Applications  
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -172,3 +160,87 @@ This mechanism ensures that both workflow execution and application deployment i
 .. note::
     Only users within dedicated :ref:`global system groups<global_system_groups>` are able to manage project-software-mappings and to start applications.
     Check out the :ref:`Keycloak user guide<keycloak>` for more information.
+
+
+Client access to Kaapana APIs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can access all APIs in Kaapana from an external client using the ``KaapanaApiService`` class, which is provided by the ``kaapana_client`` Python package.
+Authentication is handled automatically via the `OAuth 2.0 Device Authorization Grant <https://datatracker.ietf.org/doc/html/rfc8628>`_.
+This flow is designed for clients that cannot open a browser themselves — the user approves access once in a browser, after which the service holds a long-lived refresh token and renews access tokens silently.
+
+**Prerequisites**
+
+* The ``kaapana_client`` package is installed (``pip install kaapana_client``).
+
+**Initialization**
+
+``KaapanaApiService`` requires four constructor arguments:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 80
+
+   * - Parameter
+     - Description
+   * - ``root_url``
+     - Base URL of the Kaapana instance (e.g. the Traefik gateway URL). All endpoint paths are appended to this value.
+   * - ``project_id``
+     - UUID of the project you want to operate in.
+   * - ``client_id``
+     - OAuth2 client ID registered in Keycloak.
+   * - ``client_secret``
+     - OAuth2 client secret for the given client, or ``None`` for public clients.
+
+When you create a ``KaapanaApiService`` instance, it immediately requests a device code from Keycloak and prints a verification URL to the log:
+
+.. code-block:: python
+
+    from kaapana_client.services.ApiService import KaapanaApiService
+
+    api = KaapanaApiService(
+        root_url="https://<host>",
+        project_id="d7e991b3-9463-48e7-98c2-661da8b83018",
+        client_id="kaapana",
+        client_secret=None,
+    )
+    # INFO - Open the following URL in a browser to grant the ApiService
+    #        access to Kaapana: https://<host>/auth/realms/kaapana/device?user_code=XXXX-YYYY
+
+As a convenience, if the required values are available as environment variables, you can use the ``get_api_service_from_env`` factory function instead:
+
+.. code-block:: python
+
+    from kaapana_client.services.ApiService import get_api_service_from_env
+
+    api = get_api_service_from_env()
+
+Open the printed URL in a browser and confirm access with a Kaapana account.
+You do **not** need to do this before calling a method — if the token has not been obtained yet, the first HTTP call will poll for approval automatically (up to 10 attempts, 5 seconds apart) and log the URL again on each retry.
+
+**Making requests**
+
+All five HTTP methods — ``get``, ``post``, ``put``, ``delete``, and ``head`` — accept an ``endpoint`` path relative to ``root_url``, followed by any keyword arguments accepted by the underlying ``requests`` library (e.g. ``json``, ``params``, ``data``, ``timeout``).
+Authentication headers and the project cookie are injected automatically.
+
+.. code-block:: python
+
+    # GET  /aii/projects
+    response = api.get("aii/projects")
+    projects = response.json()
+
+    # POST /workflow-api/v1/workflow-runs  with a JSON body
+    response = api.post("workflow-api/v1/workflow-runs", json={"workflow": "..."})
+
+    # PUT  /aii/projects/<id>
+    response = api.put(f"aii/projects/{project_id}", json={"name": "my-project"})
+
+    # DELETE a resource
+    response = api.delete(f"aii/projects/{project_id}")
+
+**Token lifecycle**
+
+The service manages tokens transparently:
+
+* **Access token absent** — triggers the device-code polling loop described above.
+* **Access token expired** — a silent refresh-token grant is performed before the request is sent. No user interaction is required.

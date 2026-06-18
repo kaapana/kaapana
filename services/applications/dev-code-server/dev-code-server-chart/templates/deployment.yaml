@@ -57,10 +57,18 @@ spec:
         command: ["sh", "-c", "code-server --disable-workspace-trust --auth none --bind-addr 0.0.0.0:8080 ${WORKSPACE}"]
         env:
 {{ include "dynamicEnvs" $ | indent 8 }}
+        - name: no_proxy
+          value: "traefik-{{ .Values.global.instance_uid | default 0 }}.{{ .Values.global.helm_namespace }}.svc"
         - name: http_proxy
           value: {{ .Values.global.http_proxy }}
         - name: https_proxy
           value: {{ .Values.global.https_proxy }}
+        - name: KAAPANA_PROJECT_ID
+          value: {{ .Values.global.project_id }}
+        - name: KAAPANA_CLIENT_SECRET
+          value: {{ .Values.global.oidc_client_secret }}
+        - name: KAAPANA_CLIENT_ID
+          value: "kaapana"
         resources:
           requests:
             memory: 200Mi

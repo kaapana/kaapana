@@ -1,6 +1,6 @@
 import logging
 from functools import wraps
-from kaapanapy.settings import KaapanaSettings
+from kaapana_client.settings import KaapanaSettings
 
 
 def get_logger(name, level=None):

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from threading import Lock
 
 import requests
-from kaapanapy.settings import KaapanaSettings
+from kaapana_client.settings import KaapanaSettings
 from minio import Minio
 
 from . import get_project_user_access_token

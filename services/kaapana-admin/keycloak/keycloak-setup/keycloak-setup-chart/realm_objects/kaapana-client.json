@@ -2,11 +2,12 @@
   "clientId" : "kaapana",
   "secret" : "REPLACE",
   "webOrigins" : [ "*" ],
-  "implicitFlowEnabled" : true,
+  "implicitFlowEnabled" : false,
   "directAccessGrantsEnabled" : true,
   "attributes" : {
     "access.token.lifespan" : "3600",
-    "login_theme" : "kaapana"
+    "login_theme" : "kaapana",
+    "oauth2.device.authorization.grant.enabled": true
   },
   "protocolMappers" : [ 
     {

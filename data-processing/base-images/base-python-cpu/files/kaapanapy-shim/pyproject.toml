@@ -1,0 +1,10 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kaapanapy"
+version = "0.0.1"
+dependencies = [
+    "kaapana-client@git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@85f8af6d2b8684365e93e371bf672c66f43e3bdf#subdirectory=lib/kaapana_client"
+]

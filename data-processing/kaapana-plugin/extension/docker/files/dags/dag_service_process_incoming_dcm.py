@@ -52,8 +52,8 @@ dag = DAG(
     dag_id="service-process-incoming-dcm",
     default_args=args,
     schedule_interval=None,
-    concurrency=50,
-    max_active_runs=20,
+    concurrency=15,
+    max_active_runs=5,
     tags=["service"],
 )
 

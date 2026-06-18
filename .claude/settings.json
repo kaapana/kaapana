@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /home/m395c/kaapana mv tests/ui tests/playwright)",
+      "Bash(git -C /home/m395c/kaapana rm -r tests/playwright/tests-examples)",
+      "Bash(git -C /home/m395c/kaapana rm tests/playwright/tests/example.spec.ts)",
+      "Bash(git -C /home/m395c/kaapana rm -rf tests/playwright/tests-examples)",
+      "Bash(git -C /home/m395c/kaapana rm -f tests/playwright/tests/example.spec.ts)",
+      "Bash(npx tsc *)",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(node_modules/@playwright/test/node_modules/.bin/tsc --noEmit)",
+      "Bash(node_modules/.bin/playwright test *)",
+      "Bash(xargs sed -i \"s|'../playwright/|'../helpers/|g\")"
+    ]
+  }
+}

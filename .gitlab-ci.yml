@@ -567,7 +567,7 @@ playwright_ui_tests:
     - first_login
   script:
     - source artifacts/deployment.env
-    - cd "$CI_PROJECT_DIR/tests/ui"
+    - cd "$CI_PROJECT_DIR/tests/playwright"
     - npm ci
     - npx playwright install --with-deps chromium
     - |
@@ -579,11 +579,11 @@ playwright_ui_tests:
   artifacts:
     when: always
     paths:
-      - tests/ui/playwright-report/
-      - tests/ui/test-results/
+      - tests/playwright/playwright-report/
+      - tests/playwright/test-results/
     expose_as: "Playwright UI Report"
     reports:
-      junit: tests/ui/test-results/junit.xml
+      junit: tests/playwright/test-results/junit.xml
 
 # #############################################
 # ############## CLEAN ########################

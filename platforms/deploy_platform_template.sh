@@ -105,6 +105,7 @@ MOUNT_POINTS_TO_MONITOR="{{ mount_points_to_monitor }}"
 INSTANCE_NAME="{{ instance_name|default('') }}"
 
 
+
 STORAGE_PROVIDER="{{ smtp_host|default('hostpath')}}" # e.g. "hostpath" (microk8s) or "longhorn
 # volume sizes relevant if STORAGE_PROVIDER is set to longhorn
 VOLUME_SLOW_DATA="{{ volume_slow_data|default('100Gi') }}" #size of volumes in slow data dir (e.g. 100Gi or 100Ti)

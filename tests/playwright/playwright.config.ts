@@ -1,15 +1,21 @@
 import { defineConfig, devices } from '@playwright/test';
 
-export const AUTH_FILE = 'playwright/.auth/kaapana.json';
+export const AUTH_FILE = 'helpers/.auth/kaapana.json';
+export const PI_AUTH_FILE = 'helpers/.auth/pi-user.json';
+export const SCIENTIST_AUTH_FILE = 'helpers/.auth/scientist-user.json';
 
 /**
  * See https://playwright.dev/docs/test-configuration.
  *
  * Required env vars:
- *   KAAPANA_TEST_INSTANCE_UI   — base URL of the running Kaapana instance
- *                                (default: https://localhost)
- *   KAAPANA_PROJECTS_UI_PATH   — path to project-management UI inside the portal
- *                                (default: /projects-ui)
+ *   KAAPANA_TEST_INSTANCE_UI        — base URL of the running Kaapana instance
+ *                                     (default: https://localhost)
+ *   KAAPANA_PROJECTS_UI_PATH        — path to project-management UI inside the portal
+ *                                     (default: /projects-ui)
+ *   KAAPANA_KEYCLOAK_ADMIN_USER     — Keycloak master-realm admin username
+ *                                     (default: admin)
+ *   KAAPANA_KEYCLOAK_ADMIN_PASSWORD — Keycloak master-realm admin password
+ *                                     (default: Kaapana2020)
  */
 export default defineConfig({
   testDir: './tests',
@@ -45,23 +51,30 @@ export default defineConfig({
 
   projects: [
     // ── Step 1: auth-setup ────────────────────────────────────────────────
-    // Logs in with kaapana/admin and writes the browser session to disk.
-    // First-login (password change) is handled by the pytest integration test
-    // that runs before this suite; the password is already 'admin' here.
+    // Logs in as kaapana/admin and writes the session to helpers/.auth/kaapana.json.
+    // Lives in helpers/auth.ts alongside the login() helper function.
     {
       name: 'auth-setup',
+      testDir: './helpers',
       testMatch: /auth\.setup\.ts/,
     },
 
-    // ── Step 2: project-management ────────────────────────────────────────
-    // End-to-end tests for /projects-ui. Runs on a single, high-resolution
-    // Chrome window (the UI is designed for desktop use, not mobile).
-    // Depends on auth-setup so Playwright runs it automatically when you call
-    //   npx playwright test --project project-management
+    // ── Step 2: users-setup ───────────────────────────────────────────────
+    // Creates two test users in Keycloak (PI and scientist) and saves their
+    // auth states to helpers/.auth/. Runs after auth-setup.
+    {
+      name: 'users-setup',
+      testMatch: /users\.setup\.ts/,
+      dependencies: ['auth-setup'],
+    },
+
+    // ── Step 3: project-management ────────────────────────────────────────
+    // End-to-end tests for /projects-ui on a full-HD Chrome window.
+    // Depends on auth-setup (admin session) and users-setup (test users).
     {
       name: 'project-management',
       testMatch: /project-management\.spec\.ts/,
-      dependencies: ['auth-setup'],
+      dependencies: ['auth-setup', 'users-setup'],
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1920, height: 1080 },
@@ -73,17 +86,29 @@ export default defineConfig({
     // Runs every other spec file on the three major desktop browsers.
     {
       name: 'chromium',
-      testIgnore: [/first-login\.spec\.ts/, /auth\.setup\.ts/, /project-management\.spec\.ts/],
+      testIgnore: [
+        /first-login\.spec\.ts/,
+        /users\.setup\.ts/,
+        /project-management\.spec\.ts/,
+      ],
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'firefox',
-      testIgnore: [/first-login\.spec\.ts/, /auth\.setup\.ts/, /project-management\.spec\.ts/],
+      testIgnore: [
+        /first-login\.spec\.ts/,
+        /users\.setup\.ts/,
+        /project-management\.spec\.ts/,
+      ],
       use: { ...devices['Desktop Firefox'] },
     },
     {
       name: 'webkit',
-      testIgnore: [/first-login\.spec\.ts/, /auth\.setup\.ts/, /project-management\.spec\.ts/],
+      testIgnore: [
+        /first-login\.spec\.ts/,
+        /users\.setup\.ts/,
+        /project-management\.spec\.ts/,
+      ],
       use: { ...devices['Desktop Safari'] },
     },
   ],

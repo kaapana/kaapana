@@ -142,7 +142,7 @@ function parse_chart_reference() {
 }
 
 function get_platform_prefix() {
-    PLATFORM_PREFIX="${PLATFORM_PREFIX:-}"
+    PLATFORM_PREFIX="${PLATFORM_PREFIX:-kaapana}"
 
     if [[ -n "$PLATFORM_PREFIX" ]]; then
         validate_platform_prefix

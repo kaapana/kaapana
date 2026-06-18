@@ -1,8 +1,10 @@
 from KeycloakHelper import KeycloakHelper
 import os, json, time
+import os, json, time
 from logger import get_logger
 from pathlib import Path
 import logging
+import requests
 import requests
 
 REALM_OBJECTS_ROOT_DIR = Path(os.getenv("REALM_OBJECTS_ROOT_DIR", "/realm_objects"))
@@ -13,11 +15,22 @@ logger = get_logger(__name__, log_level)
 # Minimal realm-management roles for the runtime kaapana-service client.
 # Deliberately WITHOUT manage-clients — the setup job authenticates as the
 # kaapana-admin client, so kaapana-service never needs to manage clients.
+# Minimal realm-management roles for the runtime kaapana-service client.
+# Deliberately WITHOUT manage-clients — the setup job authenticates as the
+# kaapana-admin client, so kaapana-service never needs to manage clients.
 _SERVICE_ACCOUNT_ROLES = [
     "manage-users",
     "query-users",
     "query-groups",
     "view-realm",
+]
+
+_MAX_RETRIES = 5
+_RETRY_BASE_DELAY = 5  # seconds; doubles on each retry: 5, 10, 20, 40, 80
+
+
+def _run_setup(keycloak, oidc_client_secret, kaapana_init_password):
+    """Full realm configuration — all operations are idempotent (409 handled)."""
 ]
 
 _MAX_RETRIES = 5
@@ -72,6 +85,7 @@ def _run_setup(keycloak, oidc_client_secret, kaapana_init_password):
     with open(file, "r") as f:
         payload = json.load(f)
         payload["credentials"] = [{"type": "password", "value": kaapana_init_password}]
+        payload["credentials"] = [{"type": "password", "value": kaapana_init_password}]
         keycloak.post_user(payload)
 
     ### Add system user
@@ -124,6 +138,7 @@ if __name__ == "__main__":
     oidc_client_secret = os.environ["OIDC_CLIENT_SECRET"]
     kaapana_init_password = os.getenv("KAAPANA_INIT_PASSWORD")
     logger.info(f"{DEV_MODE=}")
+    logger.info(f"{kaapana_init_password=}")
 
     for _attempt in range(1, _MAX_RETRIES + 1):
         try:

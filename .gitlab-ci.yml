@@ -368,6 +368,8 @@ prepare_deployment:
 
   artifacts:
     when: always
+    paths:
+      - artifacts/deployment.env
     reports:
       dotenv: artifacts/deployment.env
 

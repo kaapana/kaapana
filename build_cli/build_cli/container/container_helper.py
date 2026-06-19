@@ -6,9 +6,9 @@ from typing import Any, Dict, Optional, Set, TypeVar
 
 from alive_progress import alive_bar
 
-from build_helper.build import BuildConfig, BuildState, IssueTracker, Issue
-from build_helper.container import Container
-from build_helper.utils import CommandUtils, get_logger, should_ignore_path
+from build_cli.build import BuildConfig, BuildState, Issue, IssueTracker
+from build_cli.container import Container
+from build_cli.utils import CommandUtils, get_logger, should_ignore_path
 
 logger = get_logger()
 T = TypeVar("T")  # HelmChart or Container
@@ -278,9 +278,7 @@ class ContainerHelper:
 
         for c in all_containers:
             if not c.local_image:
-                c.cache_from_images = [
-                    f"{c.registry}/{c.image_name}:{cache_from_tag}"
-                ]
+                c.cache_from_images = [f"{c.registry}/{c.image_name}:{cache_from_tag}"]
             else:
                 non_local_deps = find_non_local_dependents(c)
                 c.cache_from_images = [
@@ -472,8 +470,8 @@ class ContainerHelper:
 
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Optional
 from queue import Queue
+from typing import Optional
 
 
 class BuildEventType(Enum):

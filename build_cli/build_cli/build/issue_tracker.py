@@ -3,8 +3,9 @@ import logging
 from pathlib import Path
 from typing import List, Optional
 
-from build_helper.utils import get_logger
 from pydantic import BaseModel
+
+from build_cli.utils import get_logger
 
 logger = get_logger()
 

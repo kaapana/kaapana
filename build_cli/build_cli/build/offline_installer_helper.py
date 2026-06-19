@@ -2,17 +2,19 @@ import json
 import platform
 import sys
 import tarfile
+from datetime import datetime, timezone
+from importlib.resources import files
 from pathlib import Path
 from shutil import copyfile, copytree
 from subprocess import PIPE, run
 from time import sleep
 from typing import Optional
-from datetime import datetime, timezone
 
 from alive_progress import alive_bar
-from build_helper.build import BuildState, BuildConfig, IssueTracker
-from build_helper.container import ContainerHelper
-from build_helper.utils import get_logger
+
+from build_cli.build import BuildConfig, BuildState, IssueTracker
+from build_cli.container import ContainerHelper
+from build_cli.utils import get_logger
 
 logger = get_logger()
 
@@ -109,7 +111,13 @@ class OfflineInstallerHelper:
 
         for attempt in range(1, retry_count + 1):
             for cmd in [
-                [helm_executable, "repo", "add", "nvidia", "https://helm.ngc.nvidia.com/nvidia"],
+                [
+                    helm_executable,
+                    "repo",
+                    "add",
+                    "nvidia",
+                    "https://helm.ngc.nvidia.com/nvidia",
+                ],
                 [helm_executable, "repo", "update"],
             ]:
                 output = run(
@@ -245,14 +253,14 @@ class OfflineInstallerHelper:
                 version=platform_chart.version,
             )
             if installer_ref:
-                logger.info(
-                    f"Finished: Published offline installer {installer_ref}."
-                )
+                logger.info(f"Finished: Published offline installer {installer_ref}.")
 
     @classmethod
     def export_platform_images_tarball(cls, platform_chart) -> None:
         if cls._build_config.skip_platform_images_tarball:
-            logger.info("Skipping platform images tarball (--skip-platform-images-tarball).")
+            logger.info(
+                "Skipping platform images tarball (--skip-platform-images-tarball)."
+            )
             return
 
         images_tarball_path = (
@@ -298,14 +306,8 @@ class OfflineInstallerHelper:
             )
 
         # Pull base images from JSON
-        microk8s_images_json = (
-            Path(cls._build_config.kaapana_dir)
-            / "build-scripts"
-            / "build_helper"
-            / "configs"
-            / "microk8s_images.json"
-        )
-        assert microk8s_images_json.exists()
+        microk8s_images_json = files("build_cli") / "configs" / "microk8s_images.json"
+        assert microk8s_images_json.is_file()
         with microk8s_images_json.open(encoding="utf-8") as f:
             microk8s_base_images = json.load(f)["microk8s_base_images"]
         images_tarball_path = offline_dir / "microk8s_base_images.tar"
@@ -376,7 +378,9 @@ class OfflineInstallerHelper:
         try:
             from kaapana_containers.registries.registry import OCIRegistryDiscovery
         except ImportError:
-            lib_root = Path(cls._build_config.kaapana_dir) / "lib" / "kaapana_containers"
+            lib_root = (
+                Path(cls._build_config.kaapana_dir) / "lib" / "kaapana_containers"
+            )
             sys.path.insert(0, str(lib_root))
             from kaapana_containers.registries.registry import OCIRegistryDiscovery
         return OCIRegistryDiscovery
@@ -406,7 +410,9 @@ class OfflineInstallerHelper:
                 raise RuntimeError(msg)
             return None
 
-        tarball = Path(cls._build_config.build_dir) / f"offline-installer-{version}.tar.gz"
+        tarball = (
+            Path(cls._build_config.build_dir) / f"offline-installer-{version}.tar.gz"
+        )
         logger.info(f"Packaging offline installer {offline_dir} -> {tarball}")
         with tarfile.open(tarball, "w:gz") as tar:
             tar.add(offline_dir, arcname=".")  # unpacks straight into the target dir
@@ -414,11 +420,7 @@ class OfflineInstallerHelper:
         registry = cls._build_config.default_registry
         registry_host, _, repository_prefix = registry.partition("/")
         scheme = "http" if cls._build_config.plain_http else "https"
-        url = (
-            registry_host
-            if "://" in registry_host
-            else f"{scheme}://{registry_host}"
-        )
+        url = registry_host if "://" in registry_host else f"{scheme}://{registry_host}"
         if repository_prefix:
             repository = f"{repository_prefix}/{repository}"
 

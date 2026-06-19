@@ -21,8 +21,7 @@ Single-Registry
 
 .. code-block:: bash
 
-   cd build-scripts
-   python cli.py \
+   kaapana-build \
      --default-registry registry.example.com \
      --username <USER> --registry-password <PASS> \
      --create-offline-installation \
@@ -74,8 +73,7 @@ Air-gap
 
 .. code-block:: bash
 
-   cd build-scripts
-   python cli.py \
+   kaapana-build \
      --default-registry registry.example.com \
      --username <USER> --registry-password <PASS> \
      --create-offline-installation

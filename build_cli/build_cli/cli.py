@@ -7,7 +7,9 @@ from time import time
 from typing import List, Optional
 
 import typer
-from build_helper.build import (
+from dotenv import load_dotenv
+
+from build_cli.build import (
     BuildConfig,
     BuildHelper,
     BuildState,
@@ -15,11 +17,28 @@ from build_helper.build import (
     OfflineInstallerHelper,
     TrivyHelper,
 )
-from build_helper.container import ContainerHelper
-from build_helper.container.coordinator import BuildCoordinator
-from build_helper.helm import HelmChartHelper
-from build_helper.utils.logger import get_logger, init_logger, set_console_level
-from dotenv import load_dotenv
+from build_cli.container import ContainerHelper
+from build_cli.container.coordinator import BuildCoordinator
+from build_cli.helm import HelmChartHelper
+from build_cli.utils.logger import get_logger, init_logger, set_console_level
+
+
+def _find_repo_root() -> Path:
+    """Locate the Kaapana repository root.
+
+    The CLI lives at ``<repo>/build_cli/build_cli/cli.py`` (editable install),
+    so the number of ``.parent`` hops to the repo root is fragile. Walk up
+    until we find the ``.git`` directory; fall back to the package's grandparent
+    (``<repo>``). ``KAAPANA_DIR`` / ``--kaapana-dir`` still override this.
+    """
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / ".git").exists():
+            return parent
+    return here.parents[2]
+
+
+_REPO_ROOT = _find_repo_root()
 
 app = typer.Typer(
     help="Kaapana Platform Builder",
@@ -210,14 +229,14 @@ def build(
         help="Check and refresh vulnerability database.",
     ),
     kaapana_dir: Path = typer.Option(
-        Path(__file__).resolve().parent.parent,
+        _REPO_ROOT,
         "-kd",
         "--kaapana-dir",
         envvar="KAAPANA_DIR",
         help="Path to Kaapana repository.",
     ),
     build_dir: Path = typer.Option(
-        Path(__file__).resolve().parent.parent / "build",
+        _REPO_ROOT / "build",
         "-bd",
         "--build-dir",
         envvar="BUILD_DIR",
@@ -522,6 +541,17 @@ def run_build(build_config: BuildConfig):
     sys.exit(EXIT_CODE)
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Console-script entrypoint (``kaapana-build``).
+
+    Loads ``.env`` from the current working directory before dispatching to the
+    Typer app. This must live in a function the ``[project.scripts]`` entrypoint
+    calls directly — code under ``if __name__ == "__main__"`` does NOT run when
+    the module is imported by the installed console script.
+    """
     load_dotenv(Path(os.getcwd(), ".env"))
     app()
+
+
+if __name__ == "__main__":
+    main()

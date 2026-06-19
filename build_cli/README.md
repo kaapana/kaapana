@@ -1,16 +1,26 @@
 # Installation
 
-To run a build script install python dependencies:
+`build_cli` is a pip-installable package. Install it (editable is recommended,
+since the tool builds the repository it lives in):
 
-`pip install -r build-scripts/requirements.txt`
+```
+pip install -e build_cli/
+```
+
+This installs the `kaapana-build` console command.
 
 # Usage
 
-The build is started through a single entry point, `build-scripts/cli.py`:
+The build is started through the installed command:
 
 ```
-python3 build-scripts/cli.py [OPTIONS]
+kaapana-build [OPTIONS]
 ```
+
+This is the supported entry point. (`python -m build_cli` also exists, but run
+it from outside the repository root — the project folder and the package share
+the name `build_cli`, so a bare `import build_cli` / `-m build_cli` started from
+the repo root resolves the empty outer folder instead of the package.)
 
 Every option can also be supplied via an environment variable (and therefore a
 `.env` file in the current working directory, which is loaded automatically).
@@ -18,11 +28,17 @@ See `.env_template` in the repository root for all supported variables and their
 defaults. For the full list of command-line flags run:
 
 ```
-python3 build-scripts/cli.py --help
+kaapana-build --help
 ```
 
 # Script Structure
 
+The package lives at `build_cli/build_cli/`. `cli.py` is the entry point
+(`kaapana-build` → `build_cli.cli:main`).
+
+├── __init__.py
+├── __main__.py        (enables `python -m build_cli`)
+├── cli.py             (entry point: Typer app + main())
 ├── build
 │   ├── __init__.py
 │   ├── build_config.py
@@ -31,10 +47,12 @@ python3 build-scripts/cli.py --help
 │   ├── issue_tracker.py
 │   ├── offline_installer_helper.py
 │   └── trivy_helper.py
-├── cli
+├── ui
+│   ├── __init__.py
 │   ├── progress.py
 │   └── selector.py
 ├── configs
+│   ├── .trivyignore.yaml
 │   ├── fake-values.yaml
 │   └── microk8s_images.json
 ├── container
@@ -88,7 +106,7 @@ Pure singleton class -> classes that are never initialized and have only class a
 - Helps with scans - misconfiguration scan, sbom and vuln scan
 
 
-## cli
+## ui
 
 #### progress.py
 - rich dashboard and alive_bar progressbar helper

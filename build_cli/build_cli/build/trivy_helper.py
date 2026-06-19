@@ -4,13 +4,15 @@ import shutil
 import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from importlib.resources import files
 from pathlib import Path
 
 from alive_progress import alive_bar
-from build_helper.build import BuildState, BuildConfig
-from build_helper.container import Container
-from build_helper.helm import HelmChart
-from build_helper.utils import get_logger
+
+from build_cli.build import BuildConfig, BuildState
+from build_cli.container import Container
+from build_cli.helm import HelmChart
+from build_cli.utils import get_logger
 
 logger = get_logger()
 
@@ -39,8 +41,13 @@ class TrivyHelper:
             dual_line=True,
             title="Trivy misconfiguration chart scan",
         ) as bar:
-            with ThreadPoolExecutor(max_workers=cls._build_config.parallel_processes) as executor:
-                futures = {executor.submit(cls._check_chart, chart): chart for chart in cls._build_state.selected_charts}
+            with ThreadPoolExecutor(
+                max_workers=cls._build_config.parallel_processes
+            ) as executor:
+                futures = {
+                    executor.submit(cls._check_chart, chart): chart
+                    for chart in cls._build_state.selected_charts
+                }
                 for future in as_completed(futures):
                     future.result()
                     bar()
@@ -50,8 +57,15 @@ class TrivyHelper:
             dual_line=True,
             title="Trivy misconfiguration container scan",
         ) as bar:
-            with ThreadPoolExecutor(max_workers=cls._build_config.parallel_processes) as executor:
-                futures = {executor.submit(cls._check_container, container): container for container in sorted(cls._build_state.selected_containers, key=lambda c: c.image_name)}
+            with ThreadPoolExecutor(
+                max_workers=cls._build_config.parallel_processes
+            ) as executor:
+                futures = {
+                    executor.submit(cls._check_container, container): container
+                    for container in sorted(
+                        cls._build_state.selected_containers, key=lambda c: c.image_name
+                    )
+                }
                 for future in as_completed(futures):
                     future.result()
                     bar()
@@ -181,7 +195,9 @@ class TrivyHelper:
         # Each worker gets its own DB copy: bbolt acquires an exclusive lock on
         # the DB file even for reads, so sharing the cache across parallel workers
         # causes lock timeouts.
-        worker_cache = Path(tempfile.mkdtemp(prefix=".trivy_worker_", dir=cls._reports_path))
+        worker_cache = Path(
+            tempfile.mkdtemp(prefix=".trivy_worker_", dir=cls._reports_path)
+        )
         try:
             shutil.copytree(cls._cache_path, worker_cache, dirs_exist_ok=True)
             cmd = [
@@ -240,8 +256,15 @@ class TrivyHelper:
             dual_line=True,
             title="Trivy SBOM generation",
         ) as bar:
-            with ThreadPoolExecutor(max_workers=cls._build_config.parallel_processes) as executor:
-                futures = {executor.submit(cls._create_sbom, container, report_path): container for container in sorted(cls._build_state.selected_containers, key=lambda c: c.image_name)}
+            with ThreadPoolExecutor(
+                max_workers=cls._build_config.parallel_processes
+            ) as executor:
+                futures = {
+                    executor.submit(cls._create_sbom, container, report_path): container
+                    for container in sorted(
+                        cls._build_state.selected_containers, key=lambda c: c.image_name
+                    )
+                }
                 for future in as_completed(futures):
                     path, skipped = future.result()
                     if skipped:
@@ -251,7 +274,9 @@ class TrivyHelper:
                     bar()
 
     @classmethod
-    def _scan_container_vuln(cls, container: Container, report_path: Path) -> tuple[Path, bool]:
+    def _scan_container_vuln(
+        cls, container: Container, report_path: Path
+    ) -> tuple[Path, bool]:
         """Run vulnerability scan for a single container. Returns (report_path, skipped)."""
         filename = f"vuln_report_{container.image_name}.json"
         if (report_path / filename).exists():
@@ -259,10 +284,13 @@ class TrivyHelper:
         # Each worker gets its own DB copy: bbolt acquires an exclusive lock on
         # the DB file even for reads, so sharing the cache across parallel workers
         # causes lock timeouts.
-        worker_cache = Path(tempfile.mkdtemp(prefix=".trivy_worker_", dir=cls._reports_path))
-        ignore_file = cls._build_config.kaapana_dir / "build-scripts" / ".trivyignore.yaml"
-        ignore_mount = ["-v", f"{ignore_file}:/.trivyignore.yaml"] if ignore_file.exists() else []
-        ignore_flag = ["--ignorefile", "/.trivyignore.yaml"] if ignore_file.exists() else []
+        worker_cache = Path(
+            tempfile.mkdtemp(prefix=".trivy_worker_", dir=cls._reports_path)
+        )
+        ignore_file = files("build_cli") / "configs" / ".trivyignore.yaml"
+        has_ignore = ignore_file.is_file()
+        ignore_mount = ["-v", f"{ignore_file}:/.trivyignore.yaml"] if has_ignore else []
+        ignore_flag = ["--ignorefile", "/.trivyignore.yaml"] if has_ignore else []
         try:
             shutil.copytree(cls._cache_path, worker_cache, dirs_exist_ok=True)
             cmd = [
@@ -324,7 +352,9 @@ class TrivyHelper:
         for report_file in sorted(report_path.glob("vuln_report_*.json")):
             with open(report_file) as f:
                 trivy_data = json.load(f)
-            artifact_name = trivy_data.get("ArtifactName") or report_file.stem.removeprefix("vuln_report_")
+            artifact_name = trivy_data.get(
+                "ArtifactName"
+            ) or report_file.stem.removeprefix("vuln_report_")
             for result in trivy_data.get("Results", []):
                 for vuln in result.get("Vulnerabilities") or []:
                     cve_id = vuln["VulnerabilityID"]
@@ -343,7 +373,9 @@ class TrivyHelper:
         output_path = cls._reports_path / "consolidated_vulnerability_report.json"
         with open(output_path, "w") as f:
             json.dump(consolidated, f, indent=2)
-        logger.info(f"Consolidated vulnerability report saved at {output_path} ({len(consolidated)} unique CVEs)")
+        logger.info(
+            f"Consolidated vulnerability report saved at {output_path} ({len(consolidated)} unique CVEs)"
+        )
         return output_path
 
     @classmethod
@@ -357,8 +389,17 @@ class TrivyHelper:
             dual_line=True,
             title="Trivy vulnerability scan",
         ) as bar:
-            with ThreadPoolExecutor(max_workers=cls._build_config.parallel_processes) as executor:
-                futures = {executor.submit(cls._scan_container_vuln, container, report_path): container for container in sorted(cls._build_state.selected_containers, key=lambda c: c.image_name)}
+            with ThreadPoolExecutor(
+                max_workers=cls._build_config.parallel_processes
+            ) as executor:
+                futures = {
+                    executor.submit(
+                        cls._scan_container_vuln, container, report_path
+                    ): container
+                    for container in sorted(
+                        cls._build_state.selected_containers, key=lambda c: c.image_name
+                    )
+                }
                 for future in as_completed(futures):
                     container = futures[future]
                     try:
@@ -368,7 +409,9 @@ class TrivyHelper:
                         else:
                             logger.info(f"Vulnerability report saved at {path.name}")
                     except subprocess.CalledProcessError as e:
-                        logger.error(f"Trivy vulnerability scan failed for {container.tag}:\n{e.stderr}")
+                        logger.error(
+                            f"Trivy vulnerability scan failed for {container.tag}:\n{e.stderr}"
+                        )
                         raise
                     bar()
         cls._consolidate_vuln_reports(report_path)

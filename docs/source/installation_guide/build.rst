@@ -48,9 +48,9 @@ You should also have the following packages installed on your build-system.
 
    | :code:`git clone -b master https://github.com/kaapana/kaapana.git`
 
-#. Python requirements
+#. Install the build CLI (provides the ``kaapana-build`` command)
 
-   :code:`python3 -m pip install -r kaapana/build-scripts/requirements.txt`
+   :code:`python3 -m pip install -e kaapana/build_cli`
 
    .. tip::
 
@@ -210,7 +210,7 @@ Start Build
 
       .. code-block:: python
 
-         python3 build-scripts/cli.py --default-registry <registry-url> registry-username --registry-pw <registry-password>
+         kaapana-build --default-registry <registry-url> registry-username --registry-pw <registry-password>
 
       .. note::
          1. If the username and password are not working, you may need to use an **access token** instead.
@@ -243,7 +243,7 @@ Start Build
 
          .. code-block:: python
 
-            python3 build-scripts/cli.py --registry-username <registry user> --registry-password <registry password> --default-registry "localhost:5000"
+            kaapana-build --registry-username <registry user> --registry-password <registry password> --default-registry "localhost:5000"
 
 
    .. tab:: Build Tarball
@@ -256,7 +256,7 @@ Start Build
 
       .. code-block:: python
 
-         python3 build-scripts/cli.py --build-only --create-offline-installation --default-registry offline
+         kaapana-build --build-only --create-offline-installation --default-registry offline
 
       | Installer will be available in ``kaapana/build/microk8s-offline-installer``
       | Tarball will be available in ``kaapana/build/kaapana-admin-chart/kaapana-admin-chart-<version>-images.tar``
@@ -267,7 +267,7 @@ You can find the build-logs and results at :code:`./kaapana/build`
 
 .. hint::
    You can also set parameters as environment variables or store them in a :code:`.env` file in your working directory.
-   For a full list of all options execute :code:`python3 build-scripts/cli --help`
+   For a full list of all options execute :code:`kaapana-build --help`
 
 
 The next step will explain how to install the Kubernetes cluster via the :code:`kaapanactl.sh` script.

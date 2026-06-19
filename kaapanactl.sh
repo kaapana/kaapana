@@ -227,6 +227,7 @@ function deploy() {
     fi
     export HELM_EXPERIMENTAL_OCI=1
     HELM_EXECUTABLE="${HELM_EXECUTABLE:-helm}"
+    KUBECTL_EXECUTABLE="${KUBECTL_EXECUTABLE:-microk8s.kubectl}"
 
     load_kaapana_config
     ### Parsing command line arguments:
@@ -2233,14 +2234,14 @@ function deploy_chart {
                 echo -e "${RED}A password is required — re-bootstrap needs the current admin password.${NC}"
                 continue
             fi
+            if [ "$mode" = set ] && ! _keycloak_password_ok "$pw"; then
+                echo -e "${RED}Password needs >=8 chars with an upper, lower, digit and special character.${NC}"
+                continue
+            fi
             read -rsp "$(echo -e "${YELLOW}Confirm password: ${NC}")" confirm
             echo
             if [ "$pw" != "$confirm" ]; then
                 echo -e "${RED}Passwords do not match — try again.${NC}"
-                continue
-            fi
-            if [ "$mode" = set ] && ! _keycloak_password_ok "$pw"; then
-                echo -e "${RED}Password needs >=8 chars with an upper, lower, digit and special character.${NC}"
                 continue
             fi
             KEYCLOAK_ADMIN_PASSWORD="$pw"

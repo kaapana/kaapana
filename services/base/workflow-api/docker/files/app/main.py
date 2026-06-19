@@ -76,8 +76,12 @@ async def websocket_endpoint(
 async def service_exception_handler(request: Request, exc: errors.ServiceError):
     if isinstance(exc, errors.NotFoundError):
         status_code = 404
+    elif isinstance(exc, errors.ValidationError):
+        status_code = 400
     elif isinstance(exc, errors.BadRequestError):
         status_code = 400
+    elif isinstance(exc, errors.ConflictError):
+        status_code = 409
     elif isinstance(exc, errors.DependencyError):
         status_code = 503
     elif isinstance(exc, errors.InternalError):

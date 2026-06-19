@@ -2,7 +2,6 @@
   <tr>
     <!-- Status -->
     <td class="text-center">
-      <!-- Outlined chip -->
       <v-chip :color="statusColor(run.lifecycle_status)" size="small" variant="outlined">
         {{ run.lifecycle_status }}
       </v-chip>
@@ -85,6 +84,17 @@
             Download all logs (ZIP)
           </span>
         </v-tooltip>
+
+        <!-- Clean Run tooltip -->
+        <v-tooltip v-if="canClean(run)" color="surface" location="top">
+          <template #activator="{ props: tooltipProps }">
+            <v-btn v-bind="tooltipProps" icon="mdi-broom" size="small" variant="text" color="warning"
+              @click="$emit('clean', run)" />
+          </template>
+          <span style="color: rgb(var(--v-theme-on-surface));" class="font-weight-medium">
+            {{ run.cleanup_status === 'failed' ? 'Retry cleanup' : 'Clean run data' }}
+          </span>
+        </v-tooltip>
       </div>
     </td>
 
@@ -101,7 +111,7 @@ import { downloadAsZip } from '@/utils/zipDownload'
 const props = defineProps({
   run: { type: Object as PropType<WorkflowRun>, required: true }
 })
-const emit = defineEmits(['cancel', 'retry', 'view-logs'])
+const emit = defineEmits(['cancel', 'retry', 'view-logs', 'clean'])
 
 const downloading = ref(false)
 
@@ -165,6 +175,17 @@ function canCancel(run: WorkflowRun) {
 
 function canRetry(run: WorkflowRun) {
   return ['Error', 'Canceled', 'Completed'].includes(run.lifecycle_status)
+}
+
+function canClean(run: WorkflowRun): boolean {
+  const terminal = ['Completed', 'Error', 'Canceled']
+  // Cleanup is dispatchable from NOT_REQUIRED (initial) or FAILED (retry).
+  // PENDING/RUNNING means cleanup is in flight; CLEANED means nothing to do.
+  const cleanable = ['not_required', 'failed']
+  return (
+    terminal.includes(run.lifecycle_status) &&
+    cleanable.includes(run.cleanup_status ?? 'not_required')
+  )
 }
 </script>
 

@@ -1,14 +1,17 @@
-import base64
 import json
 import os
 from pathlib import Path
 from urllib import parse
 
+from kaapana_containers.registries.registry import OCIError
 from kaapana_extensions.extensions import ExtensionUtilityLibrary
 from v1.services.encryption import decrypt
+from v1.services.logger import get_logger
 
-from .exceptions import ExtensionNotFoundException, ExtensionPullError
+from .exceptions import ExtensionNotFoundException
 from .models import ExtensionManifest
+
+logger = get_logger(__name__)
 
 
 class ociService:
@@ -18,7 +21,7 @@ class ociService:
         Initializes the ociService instance.
 
         :param repository_url:
-        :param authentication: base64 encoded json string {"username": <>, "password": <>}
+        :param authentication: Fernet-encrypted JSON string {"username": <>, "password": <>}
         """
 
         self.repository_url = repository_url
@@ -37,71 +40,63 @@ class ociService:
             username=auth["username"],
             password=auth["password"],
         )
-        self.extension_lib.check_login()
 
-    async def __aenter__(self):
-        """Enter async context – establish mock connection."""
-        # Placeholder for real async session setup (e.g., aiohttp.ClientSession)
-        self._session = None
+    async def __aenter__(self) -> "ociService":
+        """Enter async context — opens the HTTP client and verifies credentials.
+
+        Raises:
+            OCIError: If the registry rejects the credentials (``UNAUTHORIZED`` /
+                      ``DENIED``) or is unreachable.
+        """
+        await self.extension_lib.__aenter__()
+        try:
+            await self.extension_lib.check_login()
+        except BaseException as e:
+            await self.extension_lib.__aexit__(type(e), e, e.__traceback__)
+            logger.error(f"Registry login failed for {self.repository_url}: {e}")
+            raise
         return self
 
-    async def __aexit__(self, exc_type, exc, tb):
-        """Exit async context – cleanup mock connection."""
-        self._session = None
+    async def __aexit__(self, exc_type, exc, tb) -> bool:
+        """Exit async context — closes the HTTP client."""
+        await self.extension_lib.__aexit__(exc_type, exc, tb)
         return False
-
-    async def connect(self) -> bool:
-        """
-        Makes a head request to the registry to check if the repository exists and the authentication is valid.
-        If the request is successful, it returns True.
-        If the request fails, it returns False.
-        """
-
-        return self.extension_lib.check_login()
 
     async def get_extensions_for_repository(self) -> set[str]:
         """
         Fetches the list of extensions available in the given repository.
-        This is a placeholder implementation that returns a static list of extensions.
-        In a real implementation, this method would query the OCI registry for the given repository and return the list of extensions available there.
 
-        :rtype: list[str]
+        :rtype: set[str]
+        :raises OCIError: On any registry error except NAME_UNKNOWN (empty repository
+                          returns an empty set).
         """
-
-        return set(self.extension_lib.list_tags())
+        try:
+            return set(await self.extension_lib.list_tags())
+        except OCIError as e:
+            if e.code == "NAME_UNKNOWN":
+                return set()
+            raise
 
     async def get_extension_manifests(
         self, tags: set[str] | None = None
     ) -> dict[str, ExtensionManifest]:
         """
         Fetches the manifests of the extensions in the given repository.
-        This is a placeholder implementation that returns static manifests.
-        In a real implementation, this method would query the OCI registry for the given repository and return the manifests of the extensions available there.
 
         :param tags: Set of extension tags
         :return: Dictionary with tag as key and the extension manifest as value
         :rtype: dict[str, ExtensionManifest]
         """
-        manifests = {}
         existing_tags = await self.get_extensions_for_repository()
-        if tags:
-            filtered_tags = existing_tags.intersection(tags)
-
-            for tag in filtered_tags:
-                manifest = await self.get_extension_manifest(tag)
-                manifests[tag] = manifest
-        else:
-            for tag in existing_tags:
-                manifest = await self.get_extension_manifest(tag)
-                manifests[tag] = manifest
-
-        return manifests
+        target_tags = existing_tags.intersection(tags) if tags else existing_tags
+        return {
+            tag: ExtensionManifest(**await self.extension_lib.get_extension(tag))
+            for tag in target_tags
+        }
 
     async def get_extension_manifest(self, tag: str) -> ExtensionManifest:
         """
         Fetches the manifest of a specific extension in the given repository.
-        This is a placeholder implementation that returns a static manifest.
-        In a real implementation, this method would query the OCI registry for the given repository and return the manifest of the specified extension.
 
         :param tag: Tag of an extensions
         :return: Return the extension manifest for the extension tag
@@ -113,18 +108,17 @@ class ociService:
                 f"Extension with tag {tag} not found in {self.repository_url}"
             )
 
-        return ExtensionManifest(**self.extension_lib.get_extension(tag))
+        return ExtensionManifest(**await self.extension_lib.get_extension(tag))
 
     async def pull_extension(self, tag: str) -> Path:
         """
         Pulls a specific extension from the given repository.
-        This is a placeholder implementation that does nothing.
-        In a real implementation, this method would query the OCI registry for the given repository and pull the specified extension.
 
         :param tag: Tag of an extension
-        :return: The path, where the extension was downloaded to.
+        :return: The path where the extension was downloaded to.
         :rtype: Path
-        :raises ExtensionNotFoundException: If the tag is not installed it raises ExtensionNotFoundException.
+        :raises ExtensionNotFoundException: If the tag is not found in the repository.
+        :raises OCIError: If the registry pull fails.
         """
 
         existing_tags = await self.get_extensions_for_repository()
@@ -133,7 +127,6 @@ class ociService:
                 f"Extension with tag {tag} not found in {self.repository_url}"
             )
 
-        archive_path = self.extension_lib.pull(
+        return await self.extension_lib.pull(
             tag=tag, output_dir=self.extensions_download_dir / tag
         )
-        return Path(str(archive_path).rstrip(".tar.gz"))

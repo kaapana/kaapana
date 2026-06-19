@@ -2,6 +2,8 @@ import functools
 import json
 from task_api.processing_container import task_models
 from task_api.processing_container import pc_models
+from kaapana_containers.kubernetes.utils import KubernetsUtils
+from kaapana_containers.docker.utils import DockerUtils
 from typing import List
 from pathlib import Path
 from jinja2 import Environment, BaseLoader
@@ -153,7 +155,6 @@ def get_processing_container(
     registry_secret: str = "registry-secret",
 ) -> pc_models.ProcessingContainer:
     if mode == "k8s":
-        from kaapana_containers.kubernetes.utils import KubernetsUtils
 
         with KubernetsUtils.extract_file_from_image(
             image,
@@ -163,7 +164,6 @@ def get_processing_container(
         ) as f:
             return pc_models.ProcessingContainer(**json.load(f))
     elif mode == "docker":
-        from kaapana_containers.docker.utils import DockerUtils
 
         with DockerUtils.extract_file_from_image(
             image, "/processing-container.json"

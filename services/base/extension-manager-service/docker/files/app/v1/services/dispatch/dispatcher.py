@@ -26,4 +26,4 @@ class Dispatcher:
         for installer in self.installers:
             if installer.can_install(content):
                 return installer
-        raise Exception(f"No installer found for content type {content.content_type}")
+        raise RuntimeError(f"No installer found for content type {content.content_type!r}")

@@ -290,10 +290,14 @@ def trigger_services(settings: Settings) -> None:
             logger.warning("Skipping Airflow trigger: SERVICES_NAMESPACE not set.")
         else:
             logger.info("Triggering DAG update in Airflow...")
-            response = requests.post(settings.airflow_api, json={})
-            logger.info(
-                "Status: %d | Response: %s", response.status_code, response.text
-            )
+            try:
+                response = requests.post(settings.airflow_api, json={}, timeout=2)
+                logger.info(
+                    "Status: %d | Response: %s", response.status_code, response.text
+                )
+            except requests.exceptions.RequestException as e:
+                # Airflow may already be shutting down;
+                logger.warning("Airflow trigger failed (non-fatal during removal): %s", e)
 
 
 def main() -> None:

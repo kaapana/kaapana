@@ -44,6 +44,32 @@ fi
 echo "${YELLOW:-}${BOLD:-}WARNING:${NC:-} server_installation.sh is deprecated and will be removed in the next Kaapana release."
 echo "${YELLOW:-}${BOLD:-}Please use './kaapanactl install' instead; it accepts the same options as this script.${NC:-}"
 
+
+function detect_target_image_platform() {
+    # Supported platforms are amd64 and arm64: https://canonical.com/microk8s/docs/addons-test
+    case "$(uname -m)" in
+        x86_64|amd64)
+            echo "linux/amd64"
+            ;;
+        aarch64|arm64)
+            echo "linux/arm64"
+            ;;
+        *)
+            echo "Unsupported architecture for Microk8s image import: $(uname -m)" >&2
+            exit 1
+            ;;
+    esac
+}
+
+function offline_image_platform() {
+    local platform_file="$SCRIPT_DIR/offline-image-platform"
+    if [ -f "$platform_file" ]; then
+        tr -d '[:space:]' < "$platform_file"
+    else
+        detect_target_image_platform
+    fi
+}
+
 function proxy_environment {
     echo "${YELLOW}Checking proxy settings ...${NC}"
     if [ ! "$QUIET" = "true" ];then
@@ -384,7 +410,9 @@ function install_microk8s {
             echo "${YELLOW}Start Microk8s image import from $MICROK8S_BASE_IMAGES_TAR_PATH ... ${NC}"
             [ -f $MICROK8S_BASE_IMAGES_TAR_PATH ] && echo "${GREEN}MICROK8S_BASE_IMAGES_TAR exists ... ${NC}" || (echo "${RED}Images tar does not exist -> exit ${NC}" && exit 1)
             echo "${RED}This can take a long time! -> please be patient and wait. ${NC}"
-            microk8s.ctr images import $MICROK8S_BASE_IMAGES_TAR_PATH
+            OFFLINE_IMAGE_PLATFORM=$(offline_image_platform)
+            echo "${YELLOW}Importing Microk8s images for $OFFLINE_IMAGE_PLATFORM ... ${NC}"
+            microk8s.ctr images import --platform "$OFFLINE_IMAGE_PLATFORM" "$MICROK8S_BASE_IMAGES_TAR_PATH"
             microk8s kubectl apply -f /var/snap/microk8s/current/args/cni-network/cni.yaml
             echo "${GREEN}Microk8s offline installation done!${NC}"
         else

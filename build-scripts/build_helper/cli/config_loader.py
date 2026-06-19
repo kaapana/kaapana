@@ -99,6 +99,28 @@ def parse_args() -> argparse.Namespace:
         default=os.getenv("CREATE_OFFLINE_INSTALLATION", False),
     )
     parser.add_argument(
+        "--publish-offline-installer",
+        help="Also publish the offline installer as 'offline-installer:<version>'. Requires --create-offline-installation and registry login.",
+        action="store_true",
+        default=os.getenv("PUBLISH_OFFLINE_INSTALLER", False),
+    )
+    parser.add_argument(
+        "--skip-platform-images-tarball",
+        help="Skip the platform images tarball. Use when targets pull these images from the registry instead of a true air-gap import.",
+        action="store_true",
+        default=os.getenv("SKIP_PLATFORM_IMAGES_TARBALL", False),
+    )
+    parser.add_argument(
+        "--offline-image-platform",
+        help="Container image platform for offline installer tarballs, e.g. linux/amd64 or linux/arm64.",
+        default=os.getenv("OFFLINE_IMAGE_PLATFORM", None),
+    )
+    parser.add_argument(
+        "--offline-extra-files",
+        help="Comma-separated list of extra files/dirs to include in the offline installer tar as SRC[:DST] (DST is relative to the installer root, default = basename).",
+        default=os.getenv("OFFLINE_EXTRA_FILES", ""),
+    )
+    parser.add_argument(
         "-pp",
         "--parallel-processes",
         help="Number of parallel processes for container build + push.",
@@ -253,7 +275,7 @@ def parse_args() -> argparse.Namespace:
         "--cache-from-tag",
         help="Version tag to use as cache source when building each image (e.g. 'latest'). "
         "Each image will pull <registry>/<image>:<cache-from-tag> and use it as --cache-from.",
-        default=os.getenv("CACHE_FROM_TAG", None),
+        default=os.getenv("CACHE_FROM_TAG"),
     )
 
     parser.add_argument(

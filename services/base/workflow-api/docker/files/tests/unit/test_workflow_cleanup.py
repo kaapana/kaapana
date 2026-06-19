@@ -8,7 +8,6 @@ Covers:
   cleanup; cleanup_status walks NOT_REQUIRED → PENDING → CLEANED.
 - Manual /clean endpoint: 202 from NOT_REQUIRED/FAILED, 409 while
   PENDING/RUNNING, 200 once CLEANED.
-- /data-size endpoint.
 - Concurrency: only one of two racing claim attempts wins.
 - Edge case: terminal state with external_id=None marks CLEANED.
 """
@@ -424,46 +423,6 @@ async def test_clean_endpoint_retries_from_failed(
     assert resp.status_code == 202
 
     await _wait_for_cleanup(session, run.id, schemas.CleanupStatus.CLEANED)
-
-
-# ============================================================
-# /data-size endpoint
-# ============================================================
-
-
-@pytest.mark.asyncio
-async def test_data_size_endpoint(session: AsyncSession, client: AsyncClient):
-    run = await _make_workflow_and_run(session)
-    DummyAdapter.set_data_size(run.external_id, 12345)
-
-    resp = await client.get(f"/v1/workflow-runs/{run.id}/data-size")
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body == {
-        "workflow_run_id": run.id,
-        "size_bytes": 12345,
-        "exists": True,
-    }
-
-
-@pytest.mark.asyncio
-async def test_data_size_endpoint_no_external_id(
-    session: AsyncSession, client: AsyncClient
-):
-    run = await _make_workflow_and_run(
-        session,
-        lifecycle=schemas.WorkflowRunStatus.ERROR,
-        external_id=None,
-    )
-
-    resp = await client.get(f"/v1/workflow-runs/{run.id}/data-size")
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body == {
-        "workflow_run_id": run.id,
-        "size_bytes": 0,
-        "exists": False,
-    }
 
 
 # ============================================================

@@ -238,12 +238,6 @@ export interface WorkflowRun extends WorkflowRunBase {
     cleaned_at?: string | null
 }
 
-export interface WorkflowRunDataSize {
-    workflow_run_id: number
-    size_bytes: number
-    exists: boolean
-}
-
 // ##########################
 // ######## Log Entry #######
 // ##########################

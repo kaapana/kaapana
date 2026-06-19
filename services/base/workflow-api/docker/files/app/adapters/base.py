@@ -162,23 +162,6 @@ class WorkflowEngineAdapter(ABC):
         pass
 
     @abstractmethod
-    async def get_workflow_run_data_size(
-        self, workflow_run_external_id: str, project_id: str
-    ) -> int:
-        """
-        Return the total on-disk size (bytes) of the workflow run's data,
-        summed across every store the run writes to.
-
-        Args:
-            workflow_run_external_id (str): The external ID of the workflow run.
-            project_id (str): The project that owns the run's data.
-
-        Returns:
-            int: Total bytes; 0 if no data exists.
-        """
-        pass
-
-    @abstractmethod
     async def is_workflow_run_data_clean(
         self, workflow_run_external_id: str, project_id: str
     ) -> bool:

@@ -375,7 +375,9 @@ class WorkflowUpdate(_MutableWorkflowBase):
     """
 
     # Override the base's required fields to be optional for the partial-update shape.
-    title: Optional[str] = Field(default=None, min_length=1, pattern=r".*[A-Za-z0-9._-].*")
+    title: Optional[str] = Field(
+        default=None, min_length=1, pattern=r".*[A-Za-z0-9._-].*"
+    )
     definition: Optional[str] = None
     labels: Optional[List[Label]] = None
 
@@ -491,11 +493,3 @@ class WorkflowRunUpdate(BaseModel):
     # external_id is optional for updates that only change lifecycle_status
     external_id: Optional[str] = None
     lifecycle_status: Optional[WorkflowRunStatus] = None
-
-
-class WorkflowRunDataSize(BaseModel):
-    """Snapshot of the on-disk size of a workflow run's data directory."""
-
-    workflow_run_id: int
-    size_bytes: int
-    exists: bool

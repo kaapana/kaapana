@@ -590,41 +590,6 @@ async def _sync_single_workflow_run(db: AsyncSession, run: models.WorkflowRun) -
         raise InternalError(f"Error syncing workflow run {run.id}: {e}")
 
 
-async def get_workflow_run_data_size(
-    db: AsyncSession, workflow_run_id: int
-) -> schemas.WorkflowRunDataSize:
-    """Return the on-disk size (bytes) of a workflow run's data dir."""
-    db_run = await crud.get_workflow_run(db, filters={"id": workflow_run_id})
-    if not db_run:
-        raise NotFoundError("Workflow run not found")
-
-    project_id = _project_id_from_run(db_run)
-    if db_run.external_id is None or project_id is None:
-        # No engine data yet, or no project label to locate it.
-        return schemas.WorkflowRunDataSize(
-            workflow_run_id=workflow_run_id, size_bytes=0, exists=False
-        )
-
-    engine = get_workflow_engine(db_run.workflow_revision.workflow.workflow_engine)
-    try:
-        size = await engine.get_workflow_run_data_size(db_run.external_id, project_id)
-    except Exception:
-        # Measuring crosses the network (AII + project-runtime). This endpoint is
-        # an informational hint, so degrade to "unknown" rather than 500 the call.
-        logger.warning(
-            f"Could not measure data size for workflow run {workflow_run_id}",
-            exc_info=True,
-        )
-        return schemas.WorkflowRunDataSize(
-            workflow_run_id=workflow_run_id, size_bytes=0, exists=False
-        )
-    return schemas.WorkflowRunDataSize(
-        workflow_run_id=workflow_run_id,
-        size_bytes=size,
-        exists=size > 0,
-    )
-
-
 async def trigger_cleanup(
     db: AsyncSession, workflow_run_id: int
 ) -> schemas.WorkflowRun:

@@ -135,21 +135,6 @@ async def sync_workflow_runs(
     return
 
 
-@router.get(
-    "/workflow-runs/{workflow_run_id}/data-size",
-    response_model=schemas.WorkflowRunDataSize,
-)
-async def get_workflow_run_data_size(
-    workflow_run_id: int,
-    db: AsyncSession = Depends(get_async_db),
-):
-    """
-    Return the current on-disk size of a workflow run's data directory.
-    Computed on demand; may drift if the engine is still writing.
-    """
-    return await service.get_workflow_run_data_size(db, workflow_run_id)
-
-
 @router.post("/workflow-runs/{workflow_run_id}/clean")
 async def clean_workflow_run(
     workflow_run_id: int,

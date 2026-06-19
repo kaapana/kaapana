@@ -587,19 +587,6 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             return resp.json()
 
     @staticmethod
-    def _local_dir_size(path: Path) -> int:
-        if not path.exists():
-            return 0
-        total = 0
-        for entry in path.rglob("*"):
-            try:
-                if entry.is_file() and not entry.is_symlink():
-                    total += entry.stat().st_size
-            except (FileNotFoundError, PermissionError):
-                continue
-        return total
-
-    @staticmethod
     def _local_dir_clean(path: Path) -> bool:
         if not path.exists():
             return True
@@ -631,22 +618,6 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             await asyncio.to_thread(shutil.rmtree, target)
         else:
             self.logger.info(f"No local data directory to clean at {target}; skipping.")
-
-    async def get_workflow_run_data_size(
-        self, workflow_run_external_id: str, project_id: str
-    ) -> int:
-        _, run_id = self._parse_composite_id(workflow_run_external_id)
-
-        namespace = await self._resolve_project_namespace(project_id)
-        usage = await self._project_runtime_request(
-            namespace, "POST", "/filesystem/usage", json={"sub_path": run_id}
-        )
-        pvc_size = int(usage.get("size_bytes", 0))
-
-        local_size = await asyncio.to_thread(
-            self._local_dir_size, self._data_dir_for_run(workflow_run_external_id)
-        )
-        return pvc_size + local_size
 
     async def is_workflow_run_data_clean(
         self, workflow_run_external_id: str, project_id: str

@@ -1,7 +1,7 @@
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple, Type, cast
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import Select, func, select, update

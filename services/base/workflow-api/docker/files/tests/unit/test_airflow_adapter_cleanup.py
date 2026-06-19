@@ -96,24 +96,6 @@ def _seed_pvc(pvc_root: Path, run_id: str) -> Path:
 
 
 @pytest.mark.asyncio
-async def test_data_size_sums_both_stores(adapter, pvc_root):
-    _seed_local(adapter, "run-1")
-    _seed_pvc(pvc_root, "run-1")
-
-    size = await adapter.get_workflow_run_data_size("any-dag::run-1", PROJECT_ID)
-    # local: 1024 + 256, pvc: 4096
-    assert size == (1024 + 256) + 4096
-
-
-@pytest.mark.asyncio
-async def test_data_size_zero_when_missing(adapter):
-    size = await adapter.get_workflow_run_data_size(
-        "any-dag::does-not-exist", PROJECT_ID
-    )
-    assert size == 0
-
-
-@pytest.mark.asyncio
 async def test_is_clean_true_when_both_missing(adapter):
     assert (
         await adapter.is_workflow_run_data_clean("any-dag::missing", PROJECT_ID) is True
@@ -147,7 +129,6 @@ async def test_clean_removes_both_stores(adapter, pvc_root):
     assert not local.exists()
     assert not pvc.exists()
     assert await adapter.is_workflow_run_data_clean(external_id, PROJECT_ID) is True
-    assert await adapter.get_workflow_run_data_size(external_id, PROJECT_ID) == 0
 
 
 @pytest.mark.asyncio

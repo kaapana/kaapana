@@ -995,7 +995,7 @@ function dns_check {
     else
         if [ "$OFFLINE_SNAPS" != "true" ];then
             echo "${GREEN}Checking server DNS settings ...${NC}"
-            
+
             if command -v nslookup &> /dev/null; then
                 TOOL="nslookup"
             elif command -v dig &> /dev/null; then
@@ -1005,7 +1005,7 @@ function dns_check {
                 echo -e "${RED}Please install nslookup (bind-utils on AlmaLinux/RHEL, dnsutils on Ubuntu/Debian) or dig.${NC}"
                 exit 1
             fi
-            
+
             if command -v $TOOL dkfz.de &> /dev/null
             then
                 echo "${GREEN}DNS lookup was successful ...${NC}"
@@ -1460,8 +1460,19 @@ function get_domain {
 
 function delete_deployment {
     echo -e "${YELLOW}Undeploy releases${NC}"
+    local failed=0
+    local namespace
+    local helm_status_flags="--deployed --failed --pending --superseded"
+
+    if [ -n "${NO_HOOKS:-}" ]; then
+        helm_status_flags="$helm_status_flags --uninstalling"
+    fi
+
     for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
-        $HELM_EXECUTABLE -n $namespace ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
+        if ! $HELM_EXECUTABLE -n "$namespace" ls $helm_status_flags | awk 'NR > 1 { print  "-n "$2, $1}' \
+            | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall ${NO_HOOKS} --timeout 5m30s % 2>&1"; then
+            failed=1
+        fi
     done
 
     echo -e "${YELLOW}Waiting until everything is terminated ...${NC}"
@@ -1472,7 +1483,12 @@ function delete_deployment {
         sleep 3
         if [ "$idx" -eq 2 ] && [ "$AUTO_NO_HOOKS" = "true" ]; then
             echo "Deleting helm charts in 'uninstalling' state with --no-hooks"
-            $HELM_EXECUTABLE -n $namespace ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "$HELM_EXECUTABLE -n $namespace uninstall --no-hooks --wait --timeout 5m30s %; sleep 2"
+            for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+                if ! $HELM_EXECUTABLE -n "$namespace" ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' \
+                    | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall --no-hooks --wait --timeout 60s % 2>&1"; then
+                    failed=1
+                fi
+            done
         fi
         TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E 'Terminating' | awk '{print \$1 \"/\" \$2}'")
         echo -e ""
@@ -1492,19 +1508,50 @@ function delete_deployment {
         microk8s.kubectl delete pods --all -n $SERVICES_NAMESPACE --grace-period=0 --force 2>/dev/null || true
     fi
 
-    # Clean all project-* namespaces
-    PROJECT_NAMESPACES=$(microk8s.kubectl get namespaces --no-headers -o custom-columns=NAME:.metadata.name | grep "^${PLATFORM_PREFIX}-project-" || true)
-    for ns in $PROJECT_NAMESPACES; do
-        echo "Deleting all pods in $ns"
-        microk8s.kubectl delete pods --all -n $ns --grace-period=0 --force 2>/dev/null || true
+    # Clean all project-* namespaces when the platform prefix is known.
+    if [ -n "${PLATFORM_PREFIX:-}" ]; then
+        PROJECT_NAMESPACES=$(microk8s.kubectl get namespaces --no-headers -o custom-columns=NAME:.metadata.name | grep "^${PLATFORM_PREFIX}-project-" || true)
+        for ns in $PROJECT_NAMESPACES; do
+            echo "Deleting all pods in $ns"
+            microk8s.kubectl delete pods --all -n $ns --grace-period=0 --force 2>/dev/null || true
+        done
+    else
+        echo "${YELLOW}Skipping project namespace pod cleanup because PLATFORM_PREFIX is not set.${NC}"
+    fi
+
+    # Final state report:
+    local pods_still_terminating=0
+    if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
+        pods_still_terminating=1
+    fi
+
+    # Check whether any relevant Helm releases remain
+    local remaining_releases=0
+    local remaining_namespace_releases
+    for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+        if ! remaining_namespace_releases=$($HELM_EXECUTABLE -n "$namespace" ls --short --deployed --failed --pending --superseded --uninstalling); then
+            echo "${RED}Could not check remaining Helm releases in namespace $namespace.${NC}"
+            remaining_releases=1
+        elif [ -n "$remaining_namespace_releases" ]; then
+            remaining_releases=1
+        fi
     done
 
-    if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
-        echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
-        echo "${RED}kubectl get pods -A${NC}"
-        echo "${RED}kubectl get namespaces${NC}"
-        echo "${RED}Executing './kaapanactl.sh deploy --no-hooks' is an option to force the resources to be removed.${NC}"
-        echo "${RED}Once everything is deleted you can re-deploy the platform!${NC}"
+    if [ "$failed" -ne 0 ] || [ "$remaining_releases" -ne 0 ] || [ "$pods_still_terminating" -ne 0 ]; then
+        echo "${RED}Undeployment did not finish cleanly.${NC}"
+        if [ "$pods_still_terminating" -ne 0 ]; then
+            echo "${RED}Some pods are still terminating. Please check manually if there are still namespaces or pods floating around. Everything must be deleted before the deployment:${NC}"
+            echo "${RED}kubectl get pods -A${NC}"
+            echo "${RED}kubectl get namespaces${NC}"
+            echo "${RED}Executing './kaapanactl.sh deploy --no-hooks' is an option to force the resources to be removed.${NC}"
+            echo "${RED}Once everything is deleted you can re-deploy the platform!${NC}"
+        fi
+        if [ "$failed" -ne 0 ] || [ "$remaining_releases" -ne 0 ]; then
+            echo "${RED}Some Helm uninstalls failed or releases remain:${NC}"
+        fi
+        for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+            $HELM_EXECUTABLE -n "$namespace" ls --deployed --failed --pending --superseded --uninstalling || true
+        done
         exit 1
     fi
 
@@ -1728,7 +1775,7 @@ function prompt_user_backup() {
 
 function setup_storage_provider() {
     echo "Checking for storage provider: ${STORAGE_PROVIDER}"
-    
+
     is_provider_installed=false
 
     case "${STORAGE_PROVIDER}" in

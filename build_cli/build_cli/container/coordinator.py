@@ -1,23 +1,18 @@
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
-from queue import PriorityQueue, Empty
+from queue import Empty, PriorityQueue
 from threading import Lock
 from typing import Iterable, Set
-from build_helper.container import Container
-from build_helper.container.worker import BuildWorker
-from build_helper.container.container_helper import (
-    EventQueue,
+
+from build_cli.container import Container
+from build_cli.container.container_helper import (
+    BuildEvent,
     BuildEventType,
     ContainerHelper,
-    BuildEvent,
+    EventQueue,
 )
-from build_helper.cli.progress import ProgressBar
-from threading import Lock
-from concurrent.futures import (
-    ThreadPoolExecutor,
-    Future,
-    wait,
-    FIRST_COMPLETED,
-)
+from build_cli.container.worker import BuildWorker
+from build_cli.ui.progress import ProgressBar
 
 
 @dataclass(order=True)

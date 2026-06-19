@@ -30,7 +30,7 @@ __pycache__
 ## Linux
 *~
 history
-build-scripts/build-config.yaml
+build_cli/build-config.yaml
 *del.*
 platform_config.yaml
 platform_config.json

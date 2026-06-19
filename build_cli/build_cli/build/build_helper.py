@@ -1,18 +1,16 @@
 import hashlib
 import json
-import os
 from typing import Set
 
 import networkx as nx
-from build_helper.cli.selector import interactive_select
-from build_helper.build import BuildState, BuildConfig, IssueTracker
-from build_helper.container import Container, ContainerHelper
-from build_helper.helm import HelmChart, HelmChartHelper
-from build_helper.utils import get_logger
-
 from InquirerPy import inquirer
-from jinja2 import Environment, FileSystemLoader
 from treelib.tree import Tree
+
+from build_cli.build import BuildConfig, BuildState, IssueTracker
+from build_cli.container import Container, ContainerHelper
+from build_cli.helm import HelmChart, HelmChartHelper
+from build_cli.ui.selector import interactive_select
+from build_cli.utils import get_logger
 
 logger = get_logger()
 
@@ -139,46 +137,6 @@ class BuildHelper:
         logger.info(f"Build tree saved to: {build_tree_file}")
         for line in build_tree_file.read_text().splitlines():
             logger.info(line.strip())
-
-    @classmethod
-    def generate_deployment_script(
-        cls,
-        platform_chart: HelmChart,
-    ):
-        """
-        Generate deployment script from platform parameters using Jinja2 template.
-        """
-        platform_config = {
-            "platform_name": platform_chart.name,
-            "platform_build_version": platform_chart.version,
-            "container_registry_url": cls._build_config.default_registry,
-            "plain_http": cls._build_config.plain_http,
-        }
-        if platform_chart.deployment_config:
-            platform_config.update(platform_chart.deployment_config)
-        if cls._build_config.include_credentials:
-            platform_config.update(
-                {
-                    "container_registry_username": cls._build_config.registry_username,
-                    "container_registry_password": cls._build_config.registry_password,
-                }
-            )
-
-        file_loader = FileSystemLoader(cls._build_config.kaapana_dir / "platforms")
-        env = Environment(loader=file_loader)
-        template = env.get_template("deploy_platform_template.sh")
-
-        output = template.render(**platform_config)
-        deployment_script = (
-            cls._build_config.build_dir / platform_chart.name / "deploy_platform.sh"
-        )
-        deployment_script.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(deployment_script, "w") as f:
-            f.write(output)
-
-        os.chmod(deployment_script, 0o775)
-        logger.debug(f"Deployment script generated at {deployment_script}")
 
     @classmethod
     def get_platform_chart(cls) -> HelmChart:

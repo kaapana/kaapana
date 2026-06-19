@@ -230,7 +230,7 @@ build_packages:
     - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
     - python3 -m venv "$PYTHON_VENV_DIR"
     - source "$PYTHON_VENV_DIR/bin/activate"
-    - pip install --upgrade pip -r build-scripts/requirements.txt
+    - pip install --upgrade pip && pip install -e build_cli/
     - |-
       if [[ $CI_PIPELINE_SOURCE == "merge_request_event" ]]; then
         git checkout -B $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME $CI_COMMIT_SHA
@@ -267,7 +267,7 @@ build_packages:
       fi
 
     # Run build, capturing exit code so artifacts are always collected
-    - python3 build-scripts/cli.py --default-registry "$REGISTRY_URL" $CI_EXEC_BUILD_ARGUMENTS
+    - kaapana-build --default-registry "$REGISTRY_URL" $CI_EXEC_BUILD_ARGUMENTS
 
   artifacts:
     name: "build_$CI_COMMIT_SHORT_SHA"

@@ -9,8 +9,8 @@ from pathlib import Path
 from subprocess import PIPE, run
 from typing import List, Optional, Set
 
-from build_helper.build import BuildConfig, Issue, IssueTracker
-from build_helper.utils import GitUtils, get_logger
+from build_cli.build import BuildConfig, Issue, IssueTracker
+from build_cli.utils import GitUtils, get_logger
 
 logger = get_logger()
 
@@ -58,22 +58,24 @@ class BaseImage:
     def from_tag(cls, tag: str) -> BaseImage:
         # Regexes translated from https://github.com/distribution/reference/blob/main/regexp.go
         # re.compile() caches by pattern string, so each pattern is compiled only once.
-        alphanumeric     = r"[a-z0-9]+"
-        separator        = r"(?:[._]|__|[-]+)"
+        alphanumeric = r"[a-z0-9]+"
+        separator = r"(?:[._]|__|[-]+)"
         domain_component = r"(?:[a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])"
-        optional_port    = r"(?::[0-9]+)?"
-        tag_pat          = r"[\w][\w.-]{0,127}"
-        digest_pat       = r"[A-Za-z][A-Za-z0-9]*(?:[-_+.][A-Za-z][A-Za-z0-9]*)*:[a-fA-F0-9]{32,}"
-        ipv6             = r"\[(?:[a-fA-F0-9:]+)\]"
-        domain_name      = rf"{domain_component}(?:\.{domain_component})*"
-        host             = rf"(?:{domain_name}|{ipv6})"
-        domain_and_port  = rf"{host}{optional_port}"
-        path_component   = rf"{alphanumeric}(?:{separator}{alphanumeric})*"
-        remote_name      = rf"{path_component}(?:/{path_component})*"
-        name_pat         = rf"(?:{domain_and_port}/)?" + remote_name
+        optional_port = r"(?::[0-9]+)?"
+        tag_pat = r"[\w][\w.-]{0,127}"
+        digest_pat = (
+            r"[A-Za-z][A-Za-z0-9]*(?:[-_+.][A-Za-z][A-Za-z0-9]*)*:[a-fA-F0-9]{32,}"
+        )
+        ipv6 = r"\[(?:[a-fA-F0-9:]+)\]"
+        domain_name = rf"{domain_component}(?:\.{domain_component})*"
+        host = rf"(?:{domain_name}|{ipv6})"
+        domain_and_port = rf"{host}{optional_port}"
+        path_component = rf"{alphanumeric}(?:{separator}{alphanumeric})*"
+        remote_name = rf"{path_component}(?:/{path_component})*"
+        name_pat = rf"(?:{domain_and_port}/)?" + remote_name
 
         # referenceRegexp = anchored(capture(namePat), optional(":", capture(tag)), optional("@", capture(digest)))
-        ref_re  = re.compile(rf"^({name_pat})(?::({tag_pat}))?(?:@({digest_pat}))?$")
+        ref_re = re.compile(rf"^({name_pat})(?::({tag_pat}))?(?:@({digest_pat}))?$")
         # anchoredNameRegexp = anchored(optional(capture(domainAndPort), "/"), capture(remoteName))
         name_re = re.compile(rf"^(?:({domain_and_port})/)?({remote_name})$")
 
@@ -86,7 +88,11 @@ class BaseImage:
                 raise ValueError(f"{tag}: repository name must be lowercase")
             raise ValueError(f"{tag}: invalid reference format")
 
-        full_name, tag_val, digest_val = matches.group(1), matches.group(2), matches.group(3)
+        full_name, tag_val, digest_val = (
+            matches.group(1),
+            matches.group(2),
+            matches.group(3),
+        )
 
         name_match = name_re.match(full_name)
         if name_match:
@@ -95,7 +101,9 @@ class BaseImage:
             domain, path = "", full_name
 
         if len(path) > 255:  # RepositoryNameTotalLengthMax
-            raise ValueError(f"{tag}: repository name must not be more than 255 characters")
+            raise ValueError(
+                f"{tag}: repository name must not be more than 255 characters"
+            )
         if not tag_val and not digest_val:
             raise ValueError(f"{tag}: missing tag or digest")
 
@@ -217,7 +225,11 @@ class Container:
                 build_lib_context = val in {"true", "yes", "1"}
             elif line.startswith("FROM") and "#ignore" not in line:
                 base_tag = line.split("FROM", 1)[1].split()[0].strip().replace('"', "")
-                base_tag = re.sub(r"\$\{([^}]+)\}", lambda m: args.get(m.group(1), m.group(0)), base_tag)
+                base_tag = re.sub(
+                    r"\$\{([^}]+)\}",
+                    lambda m: args.get(m.group(1), m.group(0)),
+                    base_tag,
+                )
                 if re.search(r"\{\{|\{%|\$\{|\$[A-Z]", base_tag):
                     continue  # unresolved Jinja template or shell variable
                 base_img = BaseImage.from_tag(base_tag)

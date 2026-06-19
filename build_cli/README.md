@@ -1,11 +1,44 @@
 # Installation
 
-To run a build script install python dependencies:
+`build_cli` is a pip-installable package. Install it (editable is recommended,
+since the tool builds the repository it lives in):
 
-`pip install -r build-scripts/requirements.txt`
+```
+pip install -e build_cli/
+```
+
+This installs the `kaapana-build` console command.
+
+# Usage
+
+The build is started through the installed command:
+
+```
+kaapana-build [OPTIONS]
+```
+
+This is the supported entry point. (`python -m build_cli` also exists, but run
+it from outside the repository root — the project folder and the package share
+the name `build_cli`, so a bare `import build_cli` / `-m build_cli` started from
+the repo root resolves the empty outer folder instead of the package.)
+
+Every option can also be supplied via an environment variable (and therefore a
+`.env` file in the current working directory, which is loaded automatically).
+See `.env_template` in the repository root for all supported variables and their
+defaults. For the full list of command-line flags run:
+
+```
+kaapana-build --help
+```
 
 # Script Structure
 
+The package lives at `build_cli/build_cli/`. `cli.py` is the entry point
+(`kaapana-build` → `build_cli.cli:main`).
+
+├── __init__.py
+├── __main__.py        (enables `python -m build_cli`)
+├── cli.py             (entry point: Typer app + main())
 ├── build
 │   ├── __init__.py
 │   ├── build_config.py
@@ -14,17 +47,20 @@ To run a build script install python dependencies:
 │   ├── issue_tracker.py
 │   ├── offline_installer_helper.py
 │   └── trivy_helper.py
-├── cli
-│   ├── config_loader.py
+├── ui
+│   ├── __init__.py
 │   ├── progress.py
 │   └── selector.py
 ├── configs
+│   ├── .trivyignore.yaml
 │   ├── fake-values.yaml
 │   └── microk8s_images.json
 ├── container
 │   ├── __init__.py
 │   ├── container.py
-│   └── container_helper.py
+│   ├── container_helper.py
+│   ├── coordinator.py
+│   └── worker.py
 ├── helm
 │   ├── __init__.py
 │   ├── helm_chart.py
@@ -33,7 +69,8 @@ To run a build script install python dependencies:
     ├── __init__.py
     ├── command_utils.py
     ├── git_utils.py
-    └── logger.py
+    ├── logger.py
+    └── path_ignore.py
 
 ## Build 
 
@@ -72,11 +109,8 @@ Pure singleton class -> classes that are never initialized and have only class a
 - Helps with scans - misconfiguration scan, sbom and vuln scan
 
 
-## cli
+## ui
 
-#### config_loader.py
-- config parser and merger
- 
 #### progress.py
 - rich dashboard and alive_bar progressbar helper
 
@@ -98,7 +132,13 @@ Pure singleton class -> classes that are never initialized and have only class a
 #### container_helper.py
 - Pure singleton class
 - Contains build and other container orchestration helper functions -> multithreading build, base-image dependency resolution, progress bar, resolving string references into objects, etc.
-  
+
+#### coordinator.py
+- BuildCoordinator - orchestrates the multithreaded container build: holds the ready/waiting queue (QueueItem) and dispatches ready containers to worker threads; `start()` runs the build to completion.
+
+#### worker.py
+- BuildWorker - thread worker that builds and pushes a single container (`process_container`) and emits build events back to the coordinator.
+
 ## helm
 #### helm_chart.py
 - HelmChart parsed from chartfile and adjacent .yaml files
@@ -118,6 +158,8 @@ Pure singleton class -> classes that are never initialized and have only class a
 - get git version, and branch information
 #### logger.py 
 - Universal logger utility -> get_logger() by default return build logger
+#### path_ignore.py
+- should_ignore_path() - matches a path against build_ignore_patterns (wildcards); used when collecting Dockerfiles and charts.
 
 # Build Architecture
 
@@ -143,7 +185,6 @@ Pure singleton class -> classes that are never initialized and have only class a
    1. platform_chart = BuildHelper.get_platform_chart()
    2. BuildHelper.generate_build_graph(platform_chart)
    3. BuildHelper.generate_build_tree(platform_chart)
-   4. BuildHelper.generate_deployment_script(platform_chart)
     
 5. Build ALL helm charts
    1. As helm charts are fast to build, we always build all charts.

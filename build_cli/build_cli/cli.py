@@ -1,12 +1,44 @@
 #!/usr/bin/env python3
 import os
+import sys
 from pathlib import Path
+from shutil import rmtree
+from time import time
 from typing import List, Optional
 
-import start_build
 import typer
-from build_helper.build import build_config
 from dotenv import load_dotenv
+
+from build_cli.build import (
+    BuildConfig,
+    BuildHelper,
+    BuildState,
+    IssueTracker,
+    OfflineInstallerHelper,
+    TrivyHelper,
+)
+from build_cli.container import ContainerHelper
+from build_cli.container.coordinator import BuildCoordinator
+from build_cli.helm import HelmChartHelper
+from build_cli.utils.logger import get_logger, init_logger, set_console_level
+
+
+def _find_repo_root() -> Path:
+    """Locate the Kaapana repository root.
+
+    The CLI lives at ``<repo>/build_cli/build_cli/cli.py`` (editable install),
+    so the number of ``.parent`` hops to the repo root is fragile. Walk up
+    until we find the ``.git`` directory; fall back to the package's grandparent
+    (``<repo>``). ``KAAPANA_DIR`` / ``--kaapana-dir`` still override this.
+    """
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / ".git").exists():
+            return parent
+    return here.parents[2]
+
+
+_REPO_ROOT = _find_repo_root()
 
 app = typer.Typer(
     help="Kaapana Platform Builder",
@@ -134,13 +166,6 @@ def build(
         envvar="PARALLEL_PROCESSES",
         help="Number of parallel build processes.",
     ),
-    include_credentials: bool = typer.Option(
-        False,
-        "-ic",
-        "--include-credentials",
-        envvar="INCLUDE_CREDENTIALS",
-        help="Include registry credentials in deploy script.",
-    ),
     vulnerability_scan: bool = typer.Option(
         False,
         "-vs",
@@ -197,14 +222,14 @@ def build(
         help="Check and refresh vulnerability database.",
     ),
     kaapana_dir: Path = typer.Option(
-        Path(__file__).resolve().parent.parent,
+        _REPO_ROOT,
         "-kd",
         "--kaapana-dir",
         envvar="KAAPANA_DIR",
         help="Path to Kaapana repository.",
     ),
     build_dir: Path = typer.Option(
-        Path(__file__).resolve().parent.parent / "build",
+        _REPO_ROOT / "build",
         "-bd",
         "--build-dir",
         envvar="BUILD_DIR",
@@ -293,9 +318,7 @@ def build(
     """
     Kaapana Platform Builder entry point.
     """
-    # Business logic goes here
-
-    config = build_config.BuildConfig(
+    config = BuildConfig(
         default_registry=default_registry,
         registry_username=username,
         registry_password=password,
@@ -313,7 +336,6 @@ def build(
         offline_image_platform=offline_image_platform,
         offline_extra_files=offline_extra_files,
         parallel_processes=parallel_processes,
-        include_credentials=include_credentials,
         vulnerability_scan=vulnerability_scan,
         vulnerability_severity_level=vulnerability_severity_level,
         configuration_check=configuration_check,
@@ -337,9 +359,188 @@ def build(
         enable_inline_cache=enable_inline_cache,
         cache_from_tag=cache_from_tag,
     )
-    start_build.main(build_config=config)
+    run_build(build_config=config)
+
+
+def validate_registry_login_config(build_config: BuildConfig, logger) -> None:
+    if build_config.build_only or build_config.no_login:
+        return
+
+    missing = []
+    if not build_config.default_registry:
+        missing.append("--default-registry")
+    if not build_config.registry_username:
+        missing.append("--username/--registry-username")
+    if not build_config.registry_password:
+        missing.append("--registry-password")
+
+    if not missing:
+        return
+
+    logger.error(
+        "Registry login is enabled, but required registry settings are missing."
+    )
+    logger.error(f"Missing: {', '.join(missing)}")
+    logger.error("How to use this command:")
+    logger.error("  - Local build only: kaapana-build --latest --build-only --no-login")
+    logger.error(
+        "  - Build and push: kaapana-build --latest --default-registry <registry> --username <user> --registry-password <password>"
+    )
+    sys.exit(2)
+
+
+def run_build(build_config: BuildConfig):
+    EXIT_CODE = 0
+    if build_config.build_dir.exists():
+        rmtree(build_config.build_dir)
+
+    build_config.build_dir.mkdir(parents=True, exist_ok=True)
+    init_logger(build_config.build_dir, log_level="DEBUG")
+    logger = get_logger()
+    logger.info("-----------------------------------------------------------")
+    logger.info("--------------- loading build-configuration ---------------")
+    logger.info("-----------------------------------------------------------")
+
+    if not (build_config.kaapana_dir / "platforms").is_dir():
+        logger.error(
+            f"The directory `platforms` was not found in {build_config.kaapana_dir}."
+        )
+        exit(1)
+
+    set_console_level(build_config.log_level)
+
+    logger.info("")
+    logger.info("-----------------------------------------------------------")
+    logger.info("")
+    logger.info("                       BUILD CONFIG                        ")
+    logger.info("")
+    logger.info("-----------------------------------------------------------")
+    logger.info("")
+    build_config.log_self(logger)
+    validate_registry_login_config(build_config, logger)
+
+    build_state = BuildState(started_at=time())
+
+    logger.info("-----------------------------------------------------------")
+    ContainerHelper.init(build_config=build_config, build_state=build_state)
+    HelmChartHelper.init(build_config=build_config, build_state=build_state)
+    BuildHelper.init(build_config=build_config, build_state=build_state)
+    ContainerHelper.verify_container_engine_installed()
+    HelmChartHelper.verify_helm_installed()
+
+    if not build_config.build_only and not build_config.no_login:
+        ContainerHelper.container_registry_login(
+            username=build_config.registry_username,
+            password=build_config.registry_password,
+        )
+        HelmChartHelper.helm_registry_login(
+            username=build_config.registry_username,
+            password=build_config.registry_password,
+        )
+
+    logger.info("-----------------------------------------------------------")
+    ContainerHelper.collect_containers()
+    ContainerHelper.resolve_base_images_into_container()
+    if build_config.cache_from_tag:
+        ContainerHelper.resolve_cache_from_images(build_config.cache_from_tag)
+    HelmChartHelper.collect_charts()
+    HelmChartHelper.resolve_chart_dependencies()
+    HelmChartHelper.resolve_kaapana_collections()
+    HelmChartHelper.resolve_preinstall_extensions()
+
+    platform_chart = BuildHelper.get_platform_chart()
+    BuildHelper.generate_build_graph(platform_chart)
+    BuildHelper.generate_build_tree(platform_chart)
+
+    logger.info("")
+    logger.info("-----------------------------------------------------------")
+    logger.info("------------------ BUILD CHARTS ------------------")
+    logger.info("-----------------------------------------------------------")
+    logger.info("")
+    HelmChartHelper.build_and_push_charts(platform_chart=platform_chart)
+
+    if not build_config.only_charts:
+        logger.info("")
+        logger.info("-----------------------------------------------------------")
+        logger.info("------------------ BUILD CONTAINERS ------------------")
+        logger.info("-----------------------------------------------------------")
+        logger.info("")
+        BuildHelper.select_containers_to_build()
+        containers = ContainerHelper._build_state.selected_containers
+        coordinator = BuildCoordinator(containers)
+        coordinator.start()
+
+        if (
+            build_config.create_offline_installation
+            or build_config.publish_offline_installer
+        ):
+            OfflineInstallerHelper.init(
+                build_config=build_config, build_state=build_state
+            )
+            OfflineInstallerHelper.handle_offline_installation(platform_chart)
+
+    if len(IssueTracker.issues) > 0:
+        logger.info("")
+        logger.info("-----------------------------------------------------------")
+        logger.info("------------------------ ISSUES: --------------------------")
+        logger.info("-----------------------------------------------------------")
+        for issue in IssueTracker.issues:
+            issue.log_self(logger)
+
+        if build_config.exit_on_error:
+            EXIT_CODE = 1
+
+    build_state.mark_finished()
+    if build_state.duration:
+        hours, rem = divmod(build_state.duration, 3600)
+        minutes, seconds = divmod(rem, 60)
+        logger.info("")
+        logger.info("")
+        logger.info("")
+        logger.info("-----------------------------------------------------------")
+        logger.info(
+            "------------------ TIME NEEDED: {:0>2}:{:0>2}:{:0>2} -----------------".format(
+                int(hours), int(minutes), int(seconds)
+            )
+        )
+
+    logger.info("")
+    logger.info("-----------------------------------------------------------")
+    logger.info("--------------------GENERATE REPORT -----------------------")
+    logger.info("-----------------------------------------------------------")
+    logger.info("")
+
+    BuildHelper.generate_report()
+
+    if build_config.configuration_check:
+        TrivyHelper.init(build_config=build_config, build_state=build_state)
+        TrivyHelper.misconfiguration_check()
+
+    if build_config.create_sboms:
+        TrivyHelper.init(build_config=build_config, build_state=build_state)
+        TrivyHelper.create_sboms()
+
+    if build_config.vulnerability_scan:
+        TrivyHelper.init(build_config=build_config, build_state=build_state)
+        TrivyHelper.vulnerability_scan()
+
+    logger.info("-----------------------------------------------------------")
+    logger.info("-------------------------- DONE ---------------------------")
+    logger.info("-----------------------------------------------------------")
+    sys.exit(EXIT_CODE)
+
+
+def main() -> None:
+    """Console-script entrypoint (``kaapana-build``).
+
+    Loads ``.env`` from the current working directory before dispatching to the
+    Typer app. This must live in a function the ``[project.scripts]`` entrypoint
+    calls directly — code under ``if __name__ == "__main__"`` does NOT run when
+    the module is imported by the installed console script.
+    """
+    load_dotenv(Path(os.getcwd(), ".env"))
+    app()
 
 
 if __name__ == "__main__":
-    load_dotenv(Path(os.getcwd(), ".env"))
-    app()
+    main()

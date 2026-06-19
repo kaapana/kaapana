@@ -23,7 +23,7 @@ async def create_extension_repository(
     response: Response,
     db: AsyncSession = Depends(database.get_async_db),
 ):
-    encypted_auth = encryption.encrypt(
+    encrypted_auth = encryption.encrypt(
         extension_repository.username, extension_repository.password.get_secret_value()
     )
     try:
@@ -32,7 +32,7 @@ async def create_extension_repository(
             name=extension_repository.name,
             description=extension_repository.description,
             repository_url=extension_repository.repository_url,
-            authentication=encypted_auth,
+            authentication=encrypted_auth,
         )
     except db_exceptions.RepositoryExistsException as e:
         raise HTTPException(
@@ -78,9 +78,9 @@ async def update_repository(
     update_repository: schemas.PutRepositoryRequest,
     db: AsyncSession = Depends(database.get_async_db),
 ):
-    encypted_auth = None
+    encrypted_auth = None
     if update_repository.username is not None and update_repository.password is not None:
-        encypted_auth = encryption.encrypt(
+        encrypted_auth = encryption.encrypt(
             update_repository.username,
             update_repository.password.get_secret_value(),
         )
@@ -92,7 +92,7 @@ async def update_repository(
             name=update_repository.name,
             description=update_repository.description,
             repository_url=update_repository.repository_url,
-            authentication=encypted_auth,
+            authentication=encrypted_auth,
         )
 
     except NoResultFound:

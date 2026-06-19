@@ -1,3 +1,4 @@
+import inspect
 import logging
 import os
 from functools import wraps
@@ -6,9 +7,7 @@ LOG_LEVEL = os.getenv("KAAPANA_LOG_LEVEL") or os.getenv("DEBUG_LEVEL") or "INFO"
 
 
 def get_logger(name, level=None):
-    """
-    Return a custom Kaapana logger
-    """
+    """Return a custom Kaapana logger."""
     logger = logging.getLogger(name)
     level = level or LOG_LEVEL
     logger.setLevel(level)
@@ -26,14 +25,23 @@ def get_logger(name, level=None):
 
 
 def function_logger_factory(logger):
+    """Decorator factory that logs entry/exit for both sync and async functions."""
     def function_logger(fn):
-        @wraps(fn)
-        def wrapper(*args, **kwds):
-            logger.debug(f"!! Entering {fn.__name__}")
-            return_val = fn(*args, **kwds)
-            logger.debug(f"!! Exiting {fn.__name__}")
-            return return_val
-
-        return wrapper
+        if inspect.iscoroutinefunction(fn):
+            @wraps(fn)
+            async def async_wrapper(*args, **kwds):
+                logger.debug(f"!! Entering {fn.__name__}")
+                return_val = await fn(*args, **kwds)
+                logger.debug(f"!! Exiting {fn.__name__}")
+                return return_val
+            return async_wrapper
+        else:
+            @wraps(fn)
+            def sync_wrapper(*args, **kwds):
+                logger.debug(f"!! Entering {fn.__name__}")
+                return_val = fn(*args, **kwds)
+                logger.debug(f"!! Exiting {fn.__name__}")
+                return return_val
+            return sync_wrapper
 
     return function_logger

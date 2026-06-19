@@ -1,10 +1,13 @@
-# syntax=docker/dockerfile:1.3-labs
-
 FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="airflow"
 LABEL VERSION="2.11.0"
 LABEL BUILD_IGNORE="False"
+LABEL BUILD_LIB_CONTEXT="True"
+# This image requires the kaapana/lib directory as a named build context.
+# The build script handles this automatically.
+# To build manually:
+#   docker build --build-context lib=<path-to-kaapana>/lib -t <tag> .
 
 ENV SLUGIFY_USES_TEXT_UNIDECODE=yes
 
@@ -12,6 +15,10 @@ ENV DCMDICTPATH=/scripts/dicom.dic
 ENV DICT_PATH=/scripts/dicom_tag_dict.json
 
 WORKDIR /kaapana/app
+
+# Copy lib packages from the named build context (kaapana/lib/)
+COPY --from=lib kaapana_containers /lib/kaapana_containers
+COPY --from=lib task_api /lib/task_api
 
 COPY files/requirements.txt /files/requirements.txt
 COPY files/constraints-3.12.txt /files/constraints-3.12.txt

@@ -106,7 +106,13 @@ async def test_create_workflow_run_with_labels(
     data = response.json()
 
     assert response.status_code == 201
-    assert len(data["labels"]) == 2
+    # The run is auto-pinned to its project via an immutable label, on top of
+    # the two user labels.
+    user_labels = [
+        l for l in data["labels"] if l["key"] != "kaapana.immutable.project_id"
+    ]
+    assert len(user_labels) == 2
+    assert any(l["key"] == "kaapana.immutable.project_id" for l in data["labels"])
 
 
 @pytest.mark.asyncio
@@ -907,7 +913,11 @@ async def test_workflow_run_with_multiple_labels(
     response = await client.post("/v1/workflow-runs", json=payload)
     data = response.json()
     assert response.status_code == 201
-    assert len(data["labels"]) == 2
+    user_labels = [
+        l for l in data["labels"] if l["key"] != "kaapana.immutable.project_id"
+    ]
+    assert len(user_labels) == 2
+    assert any(l["key"] == "kaapana.immutable.project_id" for l in data["labels"])
 
 
 @pytest.mark.asyncio

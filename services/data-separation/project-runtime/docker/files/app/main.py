@@ -1,4 +1,5 @@
 import os
+import shutil
 from pathlib import Path
 from typing import Optional
 
@@ -9,12 +10,14 @@ from task_api.processing_container.resources import sum_of_file_sizes, max_file_
 
 
 WORKFLOW_DATA_DIR = Path(os.getenv("WORKFLOW_DATA_DIR", "/kaapana/mounted/data"))
+SUPPORTED_CLAIM_NAME = "workflow-data-pv-claim"
 
 
-class MeasureRequest(BaseModel):
-    claim_name: str = Field(default="workflow-data-pv-claim")
+class FilesystemPathRequest(BaseModel):
+    """A claim-scoped, sandboxed path into the mounted workflow-data PVC."""
+
+    claim_name: str = Field(default=SUPPORTED_CLAIM_NAME)
     sub_path: str
-    scale_rule: ScaleRule
 
     @field_validator("sub_path")
     @classmethod
@@ -25,8 +28,23 @@ class MeasureRequest(BaseModel):
         return value
 
 
+class MeasureRequest(FilesystemPathRequest):
+    scale_rule: ScaleRule
+
+
 class MeasureResponse(BaseModel):
     target_size: int
+
+
+class DeleteResponse(BaseModel):
+    # False if the path did not exist (idempotent no-op); True if it was removed.
+    deleted: bool
+
+
+class UsageResponse(BaseModel):
+    exists: bool
+    empty: bool
+    size_bytes: int
 
 
 app = FastAPI(title="Project Runtime", version="0.0.1")
@@ -39,11 +57,7 @@ def health():
 
 @app.post("/filesystem/measure", response_model=MeasureResponse)
 def measure(request: MeasureRequest):
-    if request.claim_name != "workflow-data-pv-claim":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported claim_name: {request.claim_name}",
-        )
+    _check_claim(request.claim_name)
 
     channel_path = _resolve_under_root(WORKFLOW_DATA_DIR, request.sub_path)
     target_path = _resolve_under_root(channel_path, request.scale_rule.target_dir or "")
@@ -85,6 +99,56 @@ def measure(request: MeasureRequest):
         )
 
     return MeasureResponse(target_size=target_size)
+
+
+@app.post("/filesystem/delete", response_model=DeleteResponse)
+def delete(request: FilesystemPathRequest):
+    """Recursively delete a sub-path of the workflow-data PVC.
+
+    Idempotent: deleting a missing path is a no-op (deleted=False). Refuses to
+    delete the volume root so a bug upstream can never wipe the whole PVC.
+    """
+    _check_claim(request.claim_name)
+
+    target = _resolve_under_root(WORKFLOW_DATA_DIR, request.sub_path)
+    if target == WORKFLOW_DATA_DIR.resolve():
+        raise HTTPException(
+            status_code=400, detail="Refusing to delete the volume root"
+        )
+
+    if not target.exists():
+        return DeleteResponse(deleted=False)
+
+    shutil.rmtree(target)
+    return DeleteResponse(deleted=True)
+
+
+@app.post("/filesystem/usage", response_model=UsageResponse)
+def usage(request: FilesystemPathRequest):
+    """Report existence, emptiness and total file size of a PVC sub-path."""
+    _check_claim(request.claim_name)
+
+    target = _resolve_under_root(WORKFLOW_DATA_DIR, request.sub_path)
+    if not target.exists():
+        return UsageResponse(exists=False, empty=True, size_bytes=0)
+
+    empty = target.is_dir() and not any(target.iterdir())
+    total = 0
+    for entry in target.rglob("*"):
+        try:
+            if entry.is_file() and not entry.is_symlink():
+                total += entry.stat().st_size
+        except (FileNotFoundError, PermissionError):
+            continue
+    return UsageResponse(exists=True, empty=empty, size_bytes=total)
+
+
+def _check_claim(claim_name: str) -> None:
+    if claim_name != SUPPORTED_CLAIM_NAME:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported claim_name: {claim_name}",
+        )
 
 
 def _resolve_under_root(root: Path, relative_path: str) -> Path:

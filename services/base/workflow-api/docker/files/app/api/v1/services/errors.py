@@ -17,3 +17,11 @@ class DependencyError(ServiceError):
 
 class InternalError(ServiceError):
     """Raised for unexpected internal logic errors."""
+
+
+class ConflictError(ServiceError):
+    """Raised when a request conflicts with current state (e.g. already in progress)."""
+
+
+class ValidationError(ServiceError):
+    """Raised when input is structurally valid but semantically rejected."""

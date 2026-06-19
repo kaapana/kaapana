@@ -36,6 +36,24 @@ class LogLine(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CleanupPolicy(str, Enum):
+    """When the workflow-api should clean a run's on-disk data."""
+
+    NEVER = "never"
+    ON_SUCCESS = "on_success"
+    ALWAYS = "always"
+
+
+class CleanupStatus(str, Enum):
+    """Lifecycle of the cleanup attempt for a single workflow run."""
+
+    NOT_REQUIRED = "not_required"
+    PENDING = "pending"
+    RUNNING = "running"
+    CLEANED = "cleaned"
+    FAILED = "failed"
+
+
 class Label(BaseModel):
     key: str
     value: str
@@ -357,7 +375,9 @@ class WorkflowUpdate(_MutableWorkflowBase):
     """
 
     # Override the base's required fields to be optional for the partial-update shape.
-    title: Optional[str] = Field(default=None, min_length=1, pattern=r".*[A-Za-z0-9._-].*")
+    title: Optional[str] = Field(
+        default=None, min_length=1, pattern=r".*[A-Za-z0-9._-].*"
+    )
     definition: Optional[str] = None
     labels: Optional[List[Label]] = None
 
@@ -451,7 +471,7 @@ class WorkflowRunBase(BaseModel):
 
 
 class WorkflowRunCreate(WorkflowRunBase):
-    pass
+    cleanup_policy: CleanupPolicy = CleanupPolicy.ON_SUCCESS
 
 
 class WorkflowRun(WorkflowRunBase):
@@ -462,6 +482,9 @@ class WorkflowRun(WorkflowRunBase):
     workflow: WorkflowRef
     task_runs: List[TaskRun] = Field(default_factory=list)
     updated_at: datetime
+    cleanup_policy: CleanupPolicy = CleanupPolicy.NEVER
+    cleanup_status: CleanupStatus = CleanupStatus.NOT_REQUIRED
+    cleaned_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 

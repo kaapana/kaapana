@@ -49,13 +49,6 @@
       ansible.builtin.debug:
         var: server_installation_output.stdout_lines
 
-    - name: Ensure artifacts directory exists on runner
-      ansible.builtin.file:
-        path: "{{ artifacts_dir }}"
-        state: directory
-        mode: "0755"
-      delegate_to: localhost
-
     - name: Save server installation log
       ansible.builtin.copy:
         content: |

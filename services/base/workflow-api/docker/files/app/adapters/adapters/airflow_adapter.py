@@ -479,6 +479,7 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
     def parse_task_run_logs(self, raw_log: str) -> list[schemas.LogLine]:
         entries: list[schemas.LogLine] = []
         last_ts = datetime.now(tz=timezone.utc)
+        last_severity = "INFO"
 
         # Airflow wraps log content as a Python repr of [(host, log_text), ...].
         # literal_eval is the intended way to decode this format.
@@ -501,10 +502,11 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
                 m = self._LOG_LINE_RE.match(line)
                 if m and m.group("level") in self._KNOWN_LEVELS:
                     last_ts = self._parse_ts(m.group("ts"))
+                    last_severity = m.group("level")
                     entries.append(
                         schemas.LogLine(
                             time=last_ts,
-                            severity=m.group("level"),
+                            severity=last_severity,
                             message=m.group("msg"),
                             metadata=(
                                 {"location": m.group("loc")} if m.group("loc") else {}
@@ -516,10 +518,11 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
                 # Case 2: bare "INFO - ..."
                 bare = self._BARE_LEVEL_RE.match(line)
                 if bare and bare.group("level") in self._KNOWN_LEVELS:
+                    last_severity = bare.group("level")
                     entries.append(
                         schemas.LogLine(
                             time=last_ts,
-                            severity=bare.group("level"),
+                            severity=last_severity,
                             message=bare.group("msg"),
                         )
                     )
@@ -534,6 +537,18 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
                             message=line.lstrip("* ").strip(),
                         )
                     )
+                    continue
+
+                # Case 4: continuation lines (e.g. traceback bodies) carry no level
+                # of their own; attach them to the preceding entry's timestamp and
+                # severity so they aren't dropped and stay grouped under it.
+                entries.append(
+                    schemas.LogLine(
+                        time=last_ts,
+                        severity=last_severity,
+                        message=line,
+                    )
+                )
         return entries
 
     @classmethod

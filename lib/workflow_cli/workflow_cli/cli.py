@@ -41,7 +41,7 @@ def load_build_config(
             else build_config
         )
     else:
-        default_cfg = kaapana_dir / "build-scripts" / "build-config.yaml"
+        default_cfg = kaapana_dir / "build_cli" / "build-config.yaml"
         if default_cfg.exists():
             config_path = default_cfg
 

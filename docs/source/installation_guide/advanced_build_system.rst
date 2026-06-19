@@ -11,7 +11,7 @@ Advanced: How the build-system works
 Assuming the kaapana repository was cloned into the :code:`kaapana/` directory the build process is usually
 started by executing
 
-:code:`python3 build-scripts/cli.py -u <registriy_username> -p <registry_password>`
+:code:`kaapana-build -u <registriy_username> -p <registry_password>`
 
 inside :code:`kaapana/`.
 
@@ -24,15 +24,20 @@ inside :code:`kaapana/`.
 Configuration steps
 -------------------
 
-At first step a path to the kaapana repository is determined.
-Then a config file is searched.
-The config file can be specified in the command line with the flag :code:`-c, --config <path-to-config-file>`.
-If no config file was specified in the command line a file called :code:`build-config.yaml` is searched in :code:`kaapana/build-scripts/`
-If this file is not present it will be created based on :code:`build-config-template.yaml` and the build proccess exits with an error message.
+First the path to the kaapana repository is determined by walking up from the installed CLI to the
+nearest directory containing a :code:`.git` folder. This can be overridden with the flag
+:code:`-kd, --kaapana-dir <path>` or the :code:`KAAPANA_DIR` environment variable.
 
-Now all directories for external sources are checked if they are available.
-Directories for external sources can either be specified in the command line after the flag :code:`-es, --external-sources <list-of-external-source-directories>` or in the config file as a comma-separated string for the key
-:code:`external_source_dirs`.
+The build is configured entirely through command-line flags and environment variables; there is no
+YAML config file. Every flag has a matching environment variable (for example
+:code:`--default-registry` / :code:`DEFAULT_REGISTRY`), and a :code:`.env` file placed in the
+current working directory is loaded automatically. Options that are not set fall back to built-in
+defaults. All resolved settings are merged and validated into a single :code:`BuildConfig` object
+that is shared across the whole build. For the full list of options run :code:`kaapana-build --help`.
+
+Directories for external sources are then checked for availability. They can be specified with the
+flag :code:`-es, --external-source-dirs <dir>` (repeatable) or via the :code:`EXTERNAL_SOURCE_DIRS`
+environment variable.
 
 
 Collecting available images and charts
@@ -74,7 +79,7 @@ e.g. :code:`kaapana/platforms/kaapana-admin-chart/deployment_config.yaml`.
   Platform charts are specified by the key-value pair :code:`kaapana_type: "platform"` in the :code:`Chart.yaml` file.
 
   A filter can be applied in order to build only a subset of platform-charts e.g. only the :code:`kaapana-platform-chart`.
-  To do so use the command line flag :code:`-pf, --platform-filter <platform-chart-name>` or adjust the value of :code:`platform_filter` in the config file.
+  To do so use the command line flag :code:`-pf, --platform-filter <platform-chart-name>` or set the :code:`PLATFORM_FILTER` environment variable.
 
 
 The actual build-proccess

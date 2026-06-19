@@ -4,7 +4,7 @@ from InquirerPy import inquirer
 from InquirerPy.base.list import BaseListPrompt
 from InquirerPy.prompts import fuzzy
 
-from build_helper.utils import get_logger
+from build_cli.utils import get_logger
 
 
 def patch_inquirerpy_safely():

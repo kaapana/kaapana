@@ -1,11 +1,13 @@
 import shutil
 from collections import Counter
+from importlib.resources import files
 from typing import Optional
 
 from alive_progress import alive_bar
-from build_helper.build import BuildConfig, BuildState, IssueTracker
-from build_helper.helm import HelmChart
-from build_helper.utils import CommandUtils, get_logger, should_ignore_path
+
+from build_cli.build import BuildConfig, BuildState, IssueTracker
+from build_cli.helm import HelmChart
+from build_cli.utils import CommandUtils, get_logger, should_ignore_path
 
 logger = get_logger()
 
@@ -307,10 +309,7 @@ class HelmChartHelper:
         platform_target_dir = (
             cls._build_config.build_dir / platform_chart.name / platform_chart.name
         )
-        fake_values = (
-            cls._build_config.kaapana_dir
-            / "build-scripts/build_helper/configs/fake-values.yaml"
-        )
+        fake_values = files("build_cli") / "configs" / "fake-values.yaml"
 
         with alive_bar(
             bar="classic",

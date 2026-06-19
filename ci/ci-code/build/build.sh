@@ -7,8 +7,8 @@ export https_proxy="$HTTPS_PROXY"
 
 echo "Build command line flags: $BUILD_ARGUMENTS"
 
-# --- Install Python requirements ---
-pip install -r "$KAAPANA_DIR/build-scripts/requirements.txt"
+# --- Install the build CLI (provides the `kaapana-build` command) ---
+pip install -e "$KAAPANA_DIR/build_cli"
 
 
 # --- Adjust exit_on_error if flags set ---
@@ -27,9 +27,9 @@ set -x
 
 # --- Start build process ---
 set +e
-python3 "$KAAPANA_DIR/build-scripts/cli.py" \
+kaapana-build \
     --default-registry $REGISTRY_URL \
-    $BUILD_ARGUMENTS 
+    $BUILD_ARGUMENTS
 BUILD_RC=$?
 set -e
 

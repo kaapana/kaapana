@@ -10,8 +10,8 @@ from rich.progress import BarColumn, Progress, TextColumn
 from rich.style import Style
 from rich.table import Table
 
-from build_helper.container import Container, Status
-from build_helper.utils import get_logger
+from build_cli.container import Container, Status
+from build_cli.utils import get_logger
 
 logger = get_logger()
 

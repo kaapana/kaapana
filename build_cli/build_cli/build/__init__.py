@@ -6,7 +6,6 @@ from .offline_installer_helper import OfflineInstallerHelper
 from .trivy_helper import TrivyHelper
 from .build_helper import BuildHelper
 
-
 __all__ = [
     "BuildConfig",
     "BuildHelper",

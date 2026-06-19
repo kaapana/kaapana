@@ -212,7 +212,7 @@ So far we have defined the Helm chart for kubernetes objects, a container image 
       .. tab:: Local Dev
 
         | **1.** build 3 base images from the Kaapana repository: :code:`base-python-cpu, base-python-gpu, base-installer`. This can be done in two ways:
-        | **1.a.** either running the build script :code:`cd <path-to-kaapana-repo>/build-scripts && python3 start_build.py` , however it also builds all the other images inside the platform so it can take some more time and storage space.
+        | **1.a.** either running the build script :code:`cd <path-to-kaapana-repo>/build-scripts && python3 cli.py` , however it also builds all the other images inside the platform so it can take some more time and storage space.
         | **1.b.** or building each image script for each image separately: 
         | - :code:`$ cd <path-to-kaapana-repo>`
         | - :code:`$ docker/podman build -t local-only/base-python-cpu:latest data-processing/base-images/base-python-cpu`

@@ -11,7 +11,7 @@ Advanced: How the build-system works
 Assuming the kaapana repository was cloned into the :code:`kaapana/` directory the build process is usually
 started by executing
 
-:code:`python3 build-scripts/start_build.py -u <registriy_username> -p <registry_password>`
+:code:`python3 build-scripts/cli.py -u <registriy_username> -p <registry_password>`
 
 inside :code:`kaapana/`.
 

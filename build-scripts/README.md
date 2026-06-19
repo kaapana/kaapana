@@ -4,6 +4,23 @@ To run a build script install python dependencies:
 
 `pip install -r build-scripts/requirements.txt`
 
+# Usage
+
+The build is started through a single entry point, `build-scripts/cli.py`:
+
+```
+python3 build-scripts/cli.py [OPTIONS]
+```
+
+Every option can also be supplied via an environment variable (and therefore a
+`.env` file in the current working directory, which is loaded automatically).
+See `.env_template` in the repository root for all supported variables and their
+defaults. For the full list of command-line flags run:
+
+```
+python3 build-scripts/cli.py --help
+```
+
 # Script Structure
 
 ├── build
@@ -15,7 +32,6 @@ To run a build script install python dependencies:
 │   ├── offline_installer_helper.py
 │   └── trivy_helper.py
 ├── cli
-│   ├── config_loader.py
 │   ├── progress.py
 │   └── selector.py
 ├── configs
@@ -74,9 +90,6 @@ Pure singleton class -> classes that are never initialized and have only class a
 
 ## cli
 
-#### config_loader.py
-- config parser and merger
- 
 #### progress.py
 - rich dashboard and alive_bar progressbar helper
 

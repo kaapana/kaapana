@@ -124,7 +124,6 @@ if __name__ == "__main__":
     oidc_client_secret = os.environ["OIDC_CLIENT_SECRET"]
     kaapana_init_password = os.getenv("KAAPANA_INIT_PASSWORD")
     logger.info(f"{DEV_MODE=}")
-    logger.info(f"{kaapana_init_password=}")
 
     for _attempt in range(1, _MAX_RETRIES + 1):
         try:

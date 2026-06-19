@@ -1508,7 +1508,7 @@ function delete_deployment {
     fi
 
     # Clean all project-* namespaces
-    PROJECT_NAMESPACES=$(microk8s.kubectl get namespaces --no-headers -o custom-columns=NAME:.metadata.name | grep "^${PLATFORM_PREFIX}-project-")
+    PROJECT_NAMESPACES=$(microk8s.kubectl get namespaces --no-headers -o custom-columns=NAME:.metadata.name | grep "^${PLATFORM_PREFIX}-project-" || true)
     for ns in $PROJECT_NAMESPACES; do
         echo "Deleting all pods in $ns"
         microk8s.kubectl delete pods --all -n $ns --grace-period=0 --force 2>/dev/null || true

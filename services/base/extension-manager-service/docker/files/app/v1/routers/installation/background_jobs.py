@@ -53,12 +53,13 @@ async def install_extension_background_task(
             try:
                 extension_path = await oci.pull_extension(tag=db_extension.tag)
             except Exception as e:
+                logger.error("Failed to pull extension '%s': %s", db_extension.tag, e, exc_info=True)
                 await crud.update_extension(
                     db,
                     extension_id=extension_id,
                     status=models.ExtensionStatus.PULLING_FAILED,
                 )
-                raise e
+                raise
 
             #### INSTALLING CONTENT ####
             db_extension = await crud.update_extension(
@@ -102,6 +103,7 @@ async def install_extension_background_task(
                             location=result.location,
                         )
                     except Exception as e:
+                        logger.error("Failed to install content '%s': %s", content.name, e, exc_info=True)
                         await crud.update_content(
                             db,
                             content_id=content.id,
@@ -110,15 +112,20 @@ async def install_extension_background_task(
                         content_exceptions.append(e)
 
             except Exception as e:
+                logger.error("Unexpected error during installation of extension '%s': %s", db_extension.tag, e, exc_info=True)
                 await crud.update_extension(
                     db,
                     extension_id=extension_id,
                     status=models.ExtensionStatus.INSTALLATION_FAILED,
                 )
                 shutil.rmtree(Path(extension_path))
-                raise e
+                raise
 
             if content_exceptions:
+                logger.error(
+                    "%d content(s) failed to install for extension '%s'",
+                    len(content_exceptions), db_extension.tag,
+                )
                 await crud.update_extension(
                     db,
                     extension_id=extension_id,
@@ -140,7 +147,7 @@ async def install_extension_background_task(
 async def uninstall_extension_background_task(
     extension_id: UUID,
 ):
-    logger.info(f"Unnstalling extension with id {extension_id} in background task")
+    logger.info(f"Uninstalling extension with id {extension_id} in background task")
 
     async with database.async_session() as db:
         db_extension = await crud.get_extension(db, extension_id=extension_id)
@@ -180,6 +187,7 @@ async def uninstall_extension_background_task(
                         status=models.ContentStatus.UNINSTALLED,
                     )
                 except Exception as e:
+                    logger.error("Failed to uninstall content '%s': %s", content.name, e, exc_info=True)
                     await crud.update_content(
                         db,
                         content_id=content.id,
@@ -188,21 +196,26 @@ async def uninstall_extension_background_task(
                     content_exceptions.append(e)
 
         except Exception as e:
+            logger.error("Unexpected error during uninstallation of extension id=%s: %s", extension_id, e, exc_info=True)
             await crud.update_extension(
                 db,
                 extension_id=extension_id,
                 status=models.ExtensionStatus.UNINSTALLING_FAILED,
             )
-            raise e
+            raise
 
         if content_exceptions:
+            logger.error(
+                "%d content(s) failed to uninstall for extension id=%s",
+                len(content_exceptions), extension_id,
+            )
             await crud.update_extension(
                 db,
                 extension_id=extension_id,
                 status=models.ExtensionStatus.UNINSTALLING_FAILED,
             )
             raise ExceptionGroup(
-                "One or more content installations failed",
+                "One or more content uninstallations failed",
                 content_exceptions,
             )
 

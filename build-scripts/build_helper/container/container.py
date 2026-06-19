@@ -124,6 +124,7 @@ class Container:
         missing_base_images: List[BaseImage | Container] | None = None,
         build_ignore: bool = False,
         local_image: bool = False,
+        build_lib_context: bool = False,
     ):
         self.dockerfile = dockerfile
         self.registry = registry
@@ -139,6 +140,7 @@ class Container:
         )
         self.build_ignore = build_ignore
         self.local_image = local_image
+        self.build_lib_context = build_lib_context
         self.status = Status.NOT_BUILT
         self.build_time: str | float = "-"
         self.push_time: str | float = "-"
@@ -191,6 +193,7 @@ class Container:
         repo_version = ""
         build_ignore = False
         local_image = False
+        build_lib_context = False
         base_images: set[BaseImage | Container] = set()
         args: dict[str, str] = {}
 
@@ -209,6 +212,9 @@ class Container:
             elif line.startswith("LABEL BUILD_IGNORE="):
                 val = cls._extract_label_value(line).lower()
                 build_ignore = val in {"true", "yes", "1"}
+            elif line.startswith("LABEL BUILD_LIB_CONTEXT="):
+                val = cls._extract_label_value(line).lower()
+                build_lib_context = val in {"true", "yes", "1"}
             elif line.startswith("FROM") and "#ignore" not in line:
                 base_tag = line.split("FROM", 1)[1].split()[0].strip().replace('"', "")
                 base_tag = re.sub(r"\$\{([^}]+)\}", lambda m: args.get(m.group(1), m.group(0)), base_tag)
@@ -259,6 +265,7 @@ class Container:
             base_images=base_images,
             build_ignore=build_ignore,
             local_image=local_image,
+            build_lib_context=build_lib_context,
         )
         return container
 
@@ -288,6 +295,9 @@ class Container:
             build_args.extend(["--build-arg", "include_model_weights=true"])
         if config.enable_inline_cache:
             build_args.extend(["--build-arg", "BUILDKIT_INLINE_CACHE=1"])
+        if self.build_lib_context:
+            lib_path = config.kaapana_dir / "lib"
+            build_args.extend(["--build-context", f"lib={lib_path}"])
 
         cache_from_args = []
         if config.cache_from_tag:

@@ -55,7 +55,7 @@ spec:
           - name: extensions-tmp
             mountPath: /tmp
 {{- if .Values.global.dev_files }}
-          - name: extension-api-dev
+          - name: extension-manager-dev
             mountPath: /app
 {{- end }}
         ports:
@@ -76,7 +76,7 @@ spec:
         persistentVolumeClaim:
           claimName: extensions-tmp-pv-claim
 {{- if .Values.global.dev_files }}
-      - name: extension-manager-api-dev
+      - name: extension-manager-dev
         persistentVolumeClaim:
           claimName: {{ .Chart.Name }}-dev-pv-claim
 {{- end }}

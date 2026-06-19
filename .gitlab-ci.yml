@@ -142,10 +142,22 @@ task_api_tests:
     reports:
       junit:
         - task_api_report.xml
+        
+kaapana_extensions_tests:
+  extends: .test_template
+  script:
+    - pip install -e "$KAAPANA_DIR/lib/kaapana_containers[test]"
+    - pip install -e "$KAAPANA_DIR/lib/kaapana_extensions[test]"
+    - pytest -n auto --asyncio-mode=auto
+        $KAAPANA_DIR/lib/kaapana_containers/tests/
+        $KAAPANA_DIR/lib/kaapana_extensions/tests/
+        --junitxml=kaapana_extensions_report.xml
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - kaapana_extensions_report.xml
 
-##############################################
-# Workflow API Tests
-##############################################
 workflow_api_tests:
   extends: .test_template
   script:
@@ -162,6 +174,8 @@ workflow_api_tests:
 extensions_api_tests:
   extends: .test_template
   script:
+    - pip install -e "$KAAPANA_DIR/lib/kaapana_containers"
+    - pip install -e "$KAAPANA_DIR/lib/kaapana_extensions"
     - pip install -r  $KAAPANA_DIR/services/base/extension-manager-service/docker/files/app/tests/requirements.txt
     - pytest  $KAAPANA_DIR/services/base/extension-manager-service/docker/files/app --junitxml=extensions_api_report.xml
   artifacts:
@@ -306,6 +320,7 @@ security:
     - source "$VENV_PATH/bin/activate"
     - export ANSIBLE_HOST_KEY_CHECKING=False
     - mkdir -p $ARTIFACTS_DIR
+    - git fetch --tags --unshallow 2>/dev/null || git fetch --tags
     - VERSION_TAG=$(git describe --tags --always --dirty)
     - |
       if [[ "$CI_EXEC_BUILD_ARGUMENTS" =~ (--latest) && "$VERSION_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
@@ -353,6 +368,8 @@ prepare_deployment:
 
   artifacts:
     when: always
+    paths:
+      - artifacts/deployment.env
     reports:
       dotenv: artifacts/deployment.env
 
@@ -609,6 +626,9 @@ destroy_deployment:
     - when: never
   tags:
     - deploy-runner
+  variables:
+    GIT_STRATEGY: fetch
+    GIT_DEPTH: 1
   before_script:
     - VENV_PATH=$(eval echo "$ORCHESTRATOR_INSTANCE_PYTHON_VENV")
     - source "$VENV_PATH/bin/activate"
@@ -619,6 +639,9 @@ if_ci_failing:
   stage: clean
   tags:
     - deploy-runner
+  variables:
+    GIT_STRATEGY: fetch
+    GIT_DEPTH: 1
   before_script:
     - VENV_PATH=$(eval echo "$ORCHESTRATOR_INSTANCE_PYTHON_VENV")
     - source "$VENV_PATH/bin/activate"

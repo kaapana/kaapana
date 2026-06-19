@@ -32,6 +32,14 @@ export enum TaskRunStatus {
     UPSTREAM_FAILED = "Upstream Failed",
 }
 
+export type CleanupPolicy = "never" | "on_success" | "always"
+export type CleanupStatus =
+    | "not_required"
+    | "pending"
+    | "running"
+    | "cleaned"
+    | "failed"
+
 // ##########################
 // #### UI Forms #############
 // ##########################
@@ -214,7 +222,9 @@ export interface WorkflowRunBase {
 }
 
 export interface WorkflowRunUpdate extends WorkflowRunBase { }
-export interface WorkflowRunCreate extends WorkflowRunBase { }
+export interface WorkflowRunCreate extends WorkflowRunBase {
+    cleanup_policy?: CleanupPolicy
+}
 
 export interface WorkflowRun extends WorkflowRunBase {
     id: number
@@ -223,6 +233,9 @@ export interface WorkflowRun extends WorkflowRunBase {
     lifecycle_status: WorkflowRunStatus
     task_runs: TaskRun[]
     updated_at: string
+    cleanup_policy: CleanupPolicy
+    cleanup_status: CleanupStatus
+    cleaned_at?: string | null
 }
 
 // ##########################

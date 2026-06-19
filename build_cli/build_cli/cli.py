@@ -389,12 +389,10 @@ def validate_registry_login_config(build_config: BuildConfig, logger) -> None:
         "Registry login is enabled, but required registry settings are missing."
     )
     logger.error(f"Missing: {', '.join(missing)}")
-    logger.error("How to use this script:")
+    logger.error("How to use this command:")
+    logger.error("  - Local build only: kaapana-build --latest --build-only --no-login")
     logger.error(
-        "  - Local build only: ./start_build.py --latest --build-only --no-login"
-    )
-    logger.error(
-        "  - Build and push: ./start_build.py --latest --default-registry <registry> --username <user> --registry-password <password>"
+        "  - Build and push: kaapana-build --latest --default-registry <registry> --username <user> --registry-password <password>"
     )
     sys.exit(2)
 

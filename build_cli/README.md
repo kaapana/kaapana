@@ -58,7 +58,9 @@ The package lives at `build_cli/build_cli/`. `cli.py` is the entry point
 ├── container
 │   ├── __init__.py
 │   ├── container.py
-│   └── container_helper.py
+│   ├── container_helper.py
+│   ├── coordinator.py
+│   └── worker.py
 ├── helm
 │   ├── __init__.py
 │   ├── helm_chart.py
@@ -67,7 +69,8 @@ The package lives at `build_cli/build_cli/`. `cli.py` is the entry point
     ├── __init__.py
     ├── command_utils.py
     ├── git_utils.py
-    └── logger.py
+    ├── logger.py
+    └── path_ignore.py
 
 ## Build 
 
@@ -129,7 +132,13 @@ Pure singleton class -> classes that are never initialized and have only class a
 #### container_helper.py
 - Pure singleton class
 - Contains build and other container orchestration helper functions -> multithreading build, base-image dependency resolution, progress bar, resolving string references into objects, etc.
-  
+
+#### coordinator.py
+- BuildCoordinator - orchestrates the multithreaded container build: holds the ready/waiting queue (QueueItem) and dispatches ready containers to worker threads; `start()` runs the build to completion.
+
+#### worker.py
+- BuildWorker - thread worker that builds and pushes a single container (`process_container`) and emits build events back to the coordinator.
+
 ## helm
 #### helm_chart.py
 - HelmChart parsed from chartfile and adjacent .yaml files
@@ -149,6 +158,8 @@ Pure singleton class -> classes that are never initialized and have only class a
 - get git version, and branch information
 #### logger.py 
 - Universal logger utility -> get_logger() by default return build logger
+#### path_ignore.py
+- should_ignore_path() - matches a path against build_ignore_patterns (wildcards); used when collecting Dockerfiles and charts.
 
 # Build Architecture
 

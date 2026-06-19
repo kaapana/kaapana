@@ -3,7 +3,8 @@ import base64
 import re
 import time
 from enum import Enum
-from kubernetes import client, config, watch
+from kubernetes import client, config
+from kubernetes.client.exceptions import ApiException
 from task_api.processing_container import task_models, pc_models
 from task_api.processing_container.resources import compute_memory_resources
 from task_api.processing_container.common import (
@@ -219,7 +220,6 @@ class KubernetesRunner(BaseRunner):
             log_timeout (int): Max time in seconds to stream logs before raising TimeoutError.
         """
         cls._logger.debug("Waiting for pod to start running...")
-        w = watch.Watch()
 
         # Wait until pod is in Running state
         cls.wait_for_task_status(
@@ -290,23 +290,38 @@ class KubernetesRunner(BaseRunner):
         Raise:
             TimeoutError: If Pod did not reach any of the PodPhases in states within timeout seconds.
         """
-        w = watch.Watch()
+        deadline = time.monotonic() + timeout
+        last_phase = None
 
-        for event in w.stream(
-            cls.api.list_namespaced_pod,
-            namespace=task_run.config.namespace,
-            field_selector=f"metadata.name={task_run.id}",
-            timeout_seconds=timeout,
-        ):
-            pod_obj = event["object"]
-            if pod_obj.status.phase in states:
-                cls._logger.debug(f"Pod entered phase: {pod_obj.status.phase}")
-                w.stop()
-                return pod_obj.status.phase
+        while True:
+            try:
+                # Poll the named pod directly to avoid kube-apiserver watch-cache
+                # resourceVersion failures for short-lived workflow task pods.
+                pod_obj = cls.api.read_namespaced_pod(
+                    name=task_run.id, namespace=task_run.config.namespace
+                )
+            except ApiException as e:
+                if e.status != 404:
+                    raise
+                cls._logger.debug(
+                    f"Pod {task_run.id} in namespace {task_run.config.namespace} is not visible yet."
+                )
             else:
-                cls._logger.warning(f"Pod in phase: {pod_obj.status.phase}")
+                phase = pod_obj.status.phase
+                if phase in states:
+                    cls._logger.debug(f"Pod entered phase: {phase}")
+                    return PodPhase(phase)
+                if phase != last_phase:
+                    cls._logger.warning(f"Pod in phase: {phase}")
+                    last_phase = phase
+
+            if time.monotonic() >= deadline:
+                break
+
+            time.sleep(min(1, max(0, deadline - time.monotonic())))
+
         raise TimeoutError(
-            f"Pod {task_run.id} in namespace {task_run.config.namespace} did not reach one of the states {states} in {timeout} seconds."
+            f"Pod {task_run.id} in namespace {task_run.config.namespace} did not reach one of the states {states} in {timeout} seconds. Last observed phase: {last_phase}."
         )
 
     @classmethod

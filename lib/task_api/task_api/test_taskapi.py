@@ -1,4 +1,5 @@
 import pytest
+import importlib
 from task_api.processing_container import task_models
 from task_api.processing_container import pc_models
 from pathlib import Path
@@ -6,6 +7,7 @@ import os
 from task_api.runners.DockerRunner import DockerRunner
 from task_api.processing_container import common
 import re
+from types import SimpleNamespace
 
 from conftest import LOCAL_REGISTRY, TASK_DIR, MODULE_PATH, k8s_cluster_available
 
@@ -59,6 +61,48 @@ def test_pod_name(input_name):
 )
 def test_invalid_examples(bad_name):
     assert not is_valid_pod_name(bad_name)
+
+
+def test_kubernetes_runner_wait_for_task_status_polls_named_pod(monkeypatch):
+    """Verify the task runner observes pod phases without opening a Kubernetes watch."""
+    from kubernetes import config
+
+    monkeypatch.setattr(config, "load_config", lambda: None)
+    kubernetes_runner_module = importlib.import_module(
+        "task_api.runners.KubernetesRunner"
+    )
+    KubernetesRunner = kubernetes_runner_module.KubernetesRunner
+    PodPhase = kubernetes_runner_module.PodPhase
+
+    phases = iter([PodPhase.PENDING, PodPhase.RUNNING])
+    calls = []
+
+    def read_namespaced_pod(name, namespace):
+        calls.append((name, namespace))
+        return SimpleNamespace(status=SimpleNamespace(phase=next(phases)))
+
+    monkeypatch.setattr(
+        KubernetesRunner,
+        "api",
+        SimpleNamespace(read_namespaced_pod=read_namespaced_pod),
+    )
+    monkeypatch.setattr(kubernetes_runner_module.time, "sleep", lambda _: None)
+
+    task_run = SimpleNamespace(
+        id="workflow-task-pod",
+        config=SimpleNamespace(namespace="project-admin"),
+    )
+
+    assert (
+        KubernetesRunner.wait_for_task_status(
+            task_run=task_run, states=[PodPhase.RUNNING], timeout=5
+        )
+        == PodPhase.RUNNING
+    )
+    assert calls == [
+        ("workflow-task-pod", "project-admin"),
+        ("workflow-task-pod", "project-admin"),
+    ]
 
 
 def test_merge_env():

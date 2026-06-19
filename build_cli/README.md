@@ -185,7 +185,6 @@ Pure singleton class -> classes that are never initialized and have only class a
    1. platform_chart = BuildHelper.get_platform_chart()
    2. BuildHelper.generate_build_graph(platform_chart)
    3. BuildHelper.generate_build_tree(platform_chart)
-   4. BuildHelper.generate_deployment_script(platform_chart)
     
 5. Build ALL helm charts
    1. As helm charts are fast to build, we always build all charts.

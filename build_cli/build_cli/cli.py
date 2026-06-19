@@ -166,13 +166,6 @@ def build(
         envvar="PARALLEL_PROCESSES",
         help="Number of parallel build processes.",
     ),
-    include_credentials: bool = typer.Option(
-        False,
-        "-ic",
-        "--include-credentials",
-        envvar="INCLUDE_CREDENTIALS",
-        help="Include registry credentials in deploy script.",
-    ),
     vulnerability_scan: bool = typer.Option(
         False,
         "-vs",
@@ -343,7 +336,6 @@ def build(
         offline_image_platform=offline_image_platform,
         offline_extra_files=offline_extra_files,
         parallel_processes=parallel_processes,
-        include_credentials=include_credentials,
         vulnerability_scan=vulnerability_scan,
         vulnerability_severity_level=vulnerability_severity_level,
         configuration_check=configuration_check,
@@ -459,7 +451,6 @@ def run_build(build_config: BuildConfig):
     platform_chart = BuildHelper.get_platform_chart()
     BuildHelper.generate_build_graph(platform_chart)
     BuildHelper.generate_build_tree(platform_chart)
-    BuildHelper.generate_deployment_script(platform_chart)
 
     logger.info("")
     logger.info("-----------------------------------------------------------")

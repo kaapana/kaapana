@@ -21,7 +21,6 @@ class BuildConfig(BaseModel):
     default_registry: str
     registry_username: str
     registry_password: str
-    include_credentials: bool
     no_login: bool = False
     plain_http: bool = False
 
@@ -159,7 +158,6 @@ class BuildConfig(BaseModel):
             exclude={
                 "registry_username",
                 "registry_password",
-                "include_credentials",
             }
         )
         for field_name, value in sorted(fields.items()):

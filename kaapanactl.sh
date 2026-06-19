@@ -239,7 +239,7 @@ function deploy() {
     _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
     _Flag: --remove-all-images-docker will delete all Docker images from the system
     _Flag: --nuke-pods will force-delete all pods of the Kaapana deployment namespaces.
-    _Flag: --keycloak-admin-password set a specific Keycloak admin password (prompts securely); without this flag a random password is generated on fresh install
+    _Flag: --keycloak-admin-password-file <path> read the Keycloak admin password from a file for non-interactive deploys (or export KEYCLOAK_ADMIN_PASSWORD); otherwise you are prompted, where an empty entry generates a random password
     _Flag: --quiet, meaning non-interactive operation
     _Flag: --offline, using prebuilt tarball and chart (--chart-path required!)
     _Flag: --no-migration, disable automatic migration between versions
@@ -367,9 +367,10 @@ function deploy() {
                 exit 0
             ;;
 
-            --keycloak-admin-password)
-                KEYCLOAK_SET_ADMIN_PASSWORD=true
-                shift
+            --keycloak-admin-password-file)
+                KEYCLOAK_ADMIN_PASSWORD_FILE="$2"
+                shift # past argument
+                shift # past value
             ;;
 
             --quiet)
@@ -1374,12 +1375,14 @@ function load_kaapana_config {
     GRAFANA_PASSWORD="admin"
 
     KEYCLOAK_ADMIN_USERNAME="admin"
-    # KEYCLOAK_ADMIN_PASSWORD is determined at deploy time:
-    # - Fresh install: generated randomly, displayed after deploy
-    # - --keycloak-admin-password flag: prompted securely
+    # KEYCLOAK_ADMIN_PASSWORD is resolved in the deploy function (see the password
+    # block). A value exported in the environment is honored as a non-interactive
+    # source, so do not clobber it here.
+    # - Fresh install: prompted (an empty entry generates a random password)
     # - Redeploy with working admin client: not needed (bootstrap skips)
-    # - Redeploy with broken admin client (Keycloak reachable): auto-prompted
-    KEYCLOAK_ADMIN_PASSWORD=""
+    # - Redeploy with broken admin client (Keycloak reachable): prompted for re-auth
+    # - Non-interactive: --keycloak-admin-password-file <path> or this env var
+    KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-}"
 
     FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
     SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)
@@ -2100,9 +2103,12 @@ function deploy_chart {
     migrate
 
     # --- Keycloak admin password setup -----------------------------------------
-    # Never hardcode a password: either the user sets one explicitly via the flag,
-    # a random one is generated on fresh install, or re-authentication is prompted
-    # automatically when the kaapana-admin client can no longer authenticate.
+    # The admin password is consumed ONLY by the bootstrap job, and only when it
+    # must (re-)create the kaapana-admin client. It is never hardcoded. Resolution:
+    #   1. Non-interactive source: --keycloak-admin-password-file / KEYCLOAK_ADMIN_PASSWORD
+    #      env (for CI/CD and for recovering a wiped Keycloak DB).
+    #   2. Interactive (a TTY and not --quiet): the operator is prompted per state.
+    #   3. Fresh install without a source: a random password is generated.
     _keycloak_admin_cc_status() {
         # 0 = CC works (no password needed)
         # 1 = CC failed, Keycloak is reachable (re-auth required)
@@ -2121,35 +2127,117 @@ function deploy_chart {
         esac
     }
 
-    _SHOW_KEYCLOAK_PASSWORD=false
+    # Keycloak production policy: >=8 chars, 1 upper, 1 lower, 1 digit, 1 special.
+    _keycloak_password_ok() {
+        local pw="$1"
+        if [ "${#pw}" -ge 8 ] \
+            && [[ "$pw" == *[[:upper:]]* ]] \
+            && [[ "$pw" == *[[:lower:]]* ]] \
+            && [[ "$pw" == *[[:digit:]]* ]] \
+            && [[ "$pw" == *[^[:alnum:]]* ]]; then
+            return 0
+        fi
+        return 1
+    }
 
-    if [ "${KEYCLOAK_SET_ADMIN_PASSWORD:-false}" = true ]; then
-        # User explicitly wants to set a specific admin password
-        read -rsp "$(echo -e "${YELLOW}Keycloak admin password (will be set): ${NC}")" KEYCLOAK_ADMIN_PASSWORD
-        echo
+    _generate_keycloak_password() {
+        # Mixed 20-char pool; regenerate until the policy is satisfied (converges
+        # on the first try in practice). || true guards SIGPIPE under pipefail.
+        local pw=""
+        while true; do
+            pw=$(tr -dc 'A-Za-z0-9!#$%^&*' </dev/urandom 2>/dev/null | head -c 20 || true)
+            if [ -z "$pw" ]; then
+                pw=$(openssl rand -base64 24 2>/dev/null | tr -dc 'A-Za-z0-9!#$%^&*' | head -c 20 || true)
+            fi
+            if _keycloak_password_ok "$pw"; then break; fi
+        done
+        printf '%s' "$pw"
+    }
+
+    # Prompt with a confirmation field.
+    #   mode "set":    an empty entry generates a random password (fresh install);
+    #                  a typed password is validated against the policy.
+    #   mode "reauth": a password is required (the current admin password); it is
+    #                  not validated, since it already exists in Keycloak.
+    _prompt_keycloak_password() {
+        local mode="$1" pw confirm hint="Keycloak admin password: "
+        [ "$mode" = set ] && hint="Keycloak admin password (empty = generate random): "
+        while true; do
+            read -rsp "$(echo -e "${YELLOW}${hint}${NC}")" pw
+            echo
+            if [ -z "$pw" ]; then
+                if [ "$mode" = set ]; then
+                    KEYCLOAK_ADMIN_PASSWORD=$(_generate_keycloak_password)
+                    _SHOW_KEYCLOAK_PASSWORD=true
+                    KEYCLOAK_ADMIN_PASSWORD_TEMPORARY=true
+                    echo -e "${GREEN}Generated a random Keycloak admin password (shown after deploy).${NC}"
+                    return 0
+                fi
+                echo -e "${RED}A password is required — re-bootstrap needs the current admin password.${NC}"
+                continue
+            fi
+            read -rsp "$(echo -e "${YELLOW}Confirm password: ${NC}")" confirm
+            echo
+            if [ "$pw" != "$confirm" ]; then
+                echo -e "${RED}Passwords do not match — try again.${NC}"
+                continue
+            fi
+            if [ "$mode" = set ] && ! _keycloak_password_ok "$pw"; then
+                echo -e "${RED}Password needs >=8 chars with an upper, lower, digit and special character.${NC}"
+                continue
+            fi
+            KEYCLOAK_ADMIN_PASSWORD="$pw"
+            return 0
+        done
+    }
+
+    _SHOW_KEYCLOAK_PASSWORD=false
+    _interactive=false
+    if [ -t 0 ] && [ "${QUIET:-false}" != true ]; then
+        _interactive=true
+    fi
+
+    if [ -n "${KEYCLOAK_ADMIN_PASSWORD_FILE:-}" ]; then
+        # Non-interactive: password from a file (CI/CD, or recovering a wiped DB).
+        if [ ! -r "$KEYCLOAK_ADMIN_PASSWORD_FILE" ]; then
+            echo -e "${RED}--keycloak-admin-password-file: cannot read $KEYCLOAK_ADMIN_PASSWORD_FILE${NC}"
+            exit 1
+        fi
+        KEYCLOAK_ADMIN_PASSWORD="$(cat "$KEYCLOAK_ADMIN_PASSWORD_FILE")"
+        echo -e "${GREEN}Using Keycloak admin password from file.${NC}"
+    elif [ -n "${KEYCLOAK_ADMIN_PASSWORD:-}" ]; then
+        # Non-interactive: password from the environment.
+        echo -e "${GREEN}Using Keycloak admin password from environment.${NC}"
     elif ! $KUBECTL_EXECUTABLE get secret kaapana-admin-password -n "$ADMIN_NAMESPACE" &>/dev/null 2>&1; then
-        # Fresh install: kaapana-admin-password Secret does not exist yet
-        KEYCLOAK_ADMIN_PASSWORD=$(tr -dc 'A-Za-z0-9!#$%^&*' </dev/urandom 2>/dev/null | head -c 20 || \
-            openssl rand -base64 20 | tr -dc 'A-Za-z0-9!#$%^&*' | head -c 20)
-        _SHOW_KEYCLOAK_PASSWORD=true
-        KEYCLOAK_ADMIN_PASSWORD_TEMPORARY=true
-        echo -e "${GREEN}Fresh install: generated Keycloak admin password (shown after deploy).${NC}"
+        # Fresh install: the kaapana-admin-password Secret does not exist yet.
+        if [ "$_interactive" = true ]; then
+            _prompt_keycloak_password set
+        else
+            KEYCLOAK_ADMIN_PASSWORD=$(_generate_keycloak_password)
+            _SHOW_KEYCLOAK_PASSWORD=true
+            KEYCLOAK_ADMIN_PASSWORD_TEMPORARY=true
+            echo -e "${GREEN}Fresh install (non-interactive): generated Keycloak admin password (shown after deploy).${NC}"
+        fi
     else
-        # Existing install: check if the kaapana-admin client can still authenticate
+        # Existing install: only (re-)authenticate when the admin client is broken.
         _stored_secret=$($KUBECTL_EXECUTABLE get secret kaapana-admin-password \
             -n "$ADMIN_NAMESPACE" -o jsonpath='{.data.kaapana-admin-password}' 2>/dev/null | base64 -d 2>/dev/null || true)
         if [ -n "$_stored_secret" ]; then
-            _keycloak_admin_cc_status "$_stored_secret"
-            _cc_status=$?
+            _cc_status=0
+            _keycloak_admin_cc_status "$_stored_secret" || _cc_status=$?
             if [ "$_cc_status" -eq 0 ]; then
                 KEYCLOAK_ADMIN_PASSWORD=""
                 echo -e "${GREEN}kaapana-admin client functional — no admin password required.${NC}"
             elif [ "$_cc_status" -eq 1 ]; then
-                echo -e "${YELLOW}kaapana-admin client authentication failed. Admin password required for re-bootstrap.${NC}"
-                read -rsp "$(echo -e "${YELLOW}Keycloak admin password: ${NC}")" KEYCLOAK_ADMIN_PASSWORD
-                echo
+                echo -e "${YELLOW}kaapana-admin client authentication failed — admin password required for re-bootstrap.${NC}"
+                if [ "$_interactive" = true ]; then
+                    _prompt_keycloak_password reauth
+                else
+                    echo -e "${RED}Non-interactive deploy needs the current admin password: set KEYCLOAK_ADMIN_PASSWORD or pass --keycloak-admin-password-file.${NC}"
+                    exit 1
+                fi
             else
-                # Keycloak not reachable (undeploy+deploy): bootstrap handles it
+                # Keycloak not reachable (undeploy+deploy): bootstrap handles it.
                 KEYCLOAK_ADMIN_PASSWORD=""
             fi
         else

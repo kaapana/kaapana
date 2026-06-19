@@ -5,6 +5,9 @@ metadata:
   name: "keycloak-setup"
   namespace: "{{ .Values.global.admin_namespace }}"
 spec:
+  # Ultimate backstop so the Job fails loudly instead of retrying its Pods
+  # indefinitely if the bootstrap never produces a working kaapana-admin client.
+  activeDeadlineSeconds: 1800
   template:
     metadata:
       name: keycloak-setup

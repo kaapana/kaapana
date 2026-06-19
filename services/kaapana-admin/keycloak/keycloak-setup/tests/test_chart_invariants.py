@@ -204,6 +204,46 @@ def test_bootstrap_script_is_admin_client_first():
     ), "bootstrap must fall back to the admin password when the client is missing."
 
 
+# --- Setup job must fail loudly, not hang forever (M3) ------------------------
+
+
+def test_setup_job_has_active_deadline():
+    text = _read(SETUP_JOB)
+    assert "activeDeadlineSeconds" in text, (
+        "keycloak-setup Job must set activeDeadlineSeconds so it fails loudly "
+        "instead of retrying its Pods forever when the bootstrap never produces "
+        "a working kaapana-admin client."
+    )
+
+
+def test_wait_for_admin_client_is_bounded():
+    text = _read(DOCKER_FILES / "wait_for_admin_client.py")
+    assert "while True" not in text, (
+        "wait_for_admin_client must not loop unbounded — a failed bootstrap would "
+        "hang the setup Pod in Init forever."
+    )
+    assert "sys.exit(1)" in text, (
+        "wait_for_admin_client must exit non-zero once the admin client never "
+        "becomes ready, so the Pod fails visibly instead of staying in Init."
+    )
+
+
+# --- configure_realm must not leak the init password into logs (m1) -----------
+
+
+def test_configure_realm_does_not_log_passwords():
+    text = _read(DOCKER_FILES / "configure_realm.py")
+    offending = [
+        line.strip()
+        for line in text.splitlines()
+        if "logger." in line and "password=}" in line
+    ]
+    assert not offending, (
+        'configure_realm.py must not log passwords — the f"{var=}" debug form '
+        f"leaks the value into the setup-job logs: {offending}"
+    )
+
+
 # --- Migration script: minimal roles, no manage-clients -----------------------
 
 

@@ -1,4 +1,3 @@
-import fnmatch
 import os
 from pathlib import Path
 from shutil import which
@@ -9,7 +8,7 @@ from alive_progress import alive_bar
 
 from build_helper.build import BuildConfig, BuildState, IssueTracker, Issue
 from build_helper.container import Container
-from build_helper.utils import CommandUtils, get_logger
+from build_helper.utils import CommandUtils, get_logger, should_ignore_path
 
 logger = get_logger()
 T = TypeVar("T")  # HelmChart or Container
@@ -160,9 +159,8 @@ class ContainerHelper:
         ) as bar:
             for dockerfile in dockerfiles_found:
                 bar()
-                if cls._build_config.build_ignore_patterns and any(
-                    fnmatch.fnmatch(dockerfile.as_posix(), pattern)
-                    for pattern in cls._build_config.build_ignore_patterns
+                if should_ignore_path(
+                    dockerfile, cls._build_config.build_ignore_patterns
                 ):
                     logger.debug(f"Ignoring Dockerfile {dockerfile}")
                     continue
@@ -201,15 +199,19 @@ class ContainerHelper:
                         exit(1)
 
     @classmethod
-    def pull_container_image(cls, image_tag: str):
+    def pull_container_image(cls, image_tag: str, platform: Optional[str] = None):
         """
         Pull a container image from a remote registry.
 
         Args:
             image_tag (str): Tag of the container image to pull.
+            platform (Optional[str]): Platform for the container image.
         """
 
-        command = [cls._build_config.container_engine, "pull", image_tag]
+        command = [cls._build_config.container_engine, "pull"]
+        if platform:
+            command += ["--platform", platform]
+        command.append(image_tag)
         logger.info(f"{image_tag}: Start pulling container image")
 
         CommandUtils.run(

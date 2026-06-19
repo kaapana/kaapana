@@ -10,13 +10,14 @@ Needs the registry client: install ``kaapana-containers`` (pip) or copy
 ``lib/kaapana_containers/kaapana_containers/registries/registry.py`` next to this
 script as ``registry.py``.
 """
+
 import argparse
 import os
 import sys
 import tarfile
 import tempfile
-from shutil import copy2
 from pathlib import Path
+from shutil import copy2
 from urllib.parse import urlparse
 
 
@@ -62,7 +63,9 @@ def parse_args(argv=None):
         "--ca-cert", help="CA bundle for TLS verification (HTTPS with a private CA)"
     )
     p.add_argument(
-        "--insecure", action="store_true", help="Disable TLS verification (NOT recommended)"
+        "--insecure",
+        action="store_true",
+        help="Disable TLS verification (NOT recommended)",
     )
     p.add_argument(
         "--keep-archive", action="store_true", help="Keep the .tar.gz after extraction"

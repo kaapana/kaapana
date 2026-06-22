@@ -678,7 +678,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             util_service_success,
                             gpu_device,
                         ) = UtilService.check_operator_scheduling(
-                            task_instance=task_instance, logger=self.log
+                            task_instance=task_instance,
+                            logger=self.log,
+                            session=session,
                         )
 
                         if util_service_success and gpu_device is not None:

@@ -66,6 +66,50 @@ class UtilService:
     node_gpu_queued_dict = {}
 
     @staticmethod
+    def get_active_gpu_reservations(session=None, logger=logging):
+        gpu_reserved_mb = defaultdict(int)
+        gpu_reserved_count = defaultdict(int)
+
+        if session is None:
+            return gpu_reserved_mb, gpu_reserved_count
+
+        from airflow.models.taskinstance import TaskInstance
+        from airflow.utils.state import TaskInstanceState
+
+        active_gpu_configs = (
+            session.query(TaskInstance.executor_config)
+            .filter(
+                TaskInstance.state.in_(
+                    (
+                        TaskInstanceState.SCHEDULED,
+                        TaskInstanceState.QUEUED,
+                        TaskInstanceState.RUNNING,
+                    )
+                )
+            )
+            .all()
+        )
+        for (executor_config,) in active_gpu_configs:
+            gpu_device = (executor_config or {}).get("gpu_device") or {}
+            gpu_id = gpu_device.get("gpu_id")
+            gpu_mem = gpu_device.get("gpu_mem")
+
+            if gpu_id is None or gpu_mem is None:
+                continue
+
+            try:
+                gpu_reserved_mb[str(gpu_id)] += int(gpu_mem)
+            except (TypeError, ValueError):
+                logger.warning(
+                    "Ignoring invalid gpu_device reservation in "
+                    f"executor_config: {gpu_device}"
+                )
+                continue
+            gpu_reserved_count[str(gpu_id)] += 1
+
+        return gpu_reserved_mb, gpu_reserved_count
+
+    @staticmethod
     def create_pool(pool_name, pool_slots, pool_description, logger=logging):
         command = [
             "airflow",
@@ -318,7 +362,7 @@ class UtilService:
             return False
 
     @staticmethod
-    def check_operator_scheduling(task_instance, logger=logging):
+    def check_operator_scheduling(task_instance, logger=logging, session=None):
         global schedule_lockfile, schedule_lockfile_max_duration_seconds
         logger.info(f"UtilService: check_operator_scheduling {task_instance.task_id=}")
         job_scheduler_delay = 5
@@ -373,26 +417,23 @@ class UtilService:
                 )
             else:
                 gpu_mem_mb = task_instance.executor_config["gpu_mem_mb"]
-                if len(UtilService.node_gpu_queued_dict) > 0:
-                    for i in range(
-                        0, len(UtilService.node_gpu_list)
-                    ):  # setting cached execution counts
-                        gpu_info = UtilService.node_gpu_list[i]
-                        pool_id = gpu_info["pool_id"]
-                        if pool_id in UtilService.node_gpu_queued_dict:
-                            if UtilService.node_gpu_queued_dict[pool_id] > 10:
-                                for (
-                                    key,
-                                    value,
-                                ) in UtilService.node_gpu_queued_dict.items():
-                                    UtilService.node_gpu_queued_dict[key] = 0
+                (gpu_reserved_mb, gpu_reserved_count) = UtilService.get_active_gpu_reservations(session=session, logger=logger)
+                logger.info("Active GPU reservations by gpu_id: "f"{dict(gpu_reserved_mb)}")
 
-                        UtilService.node_gpu_list[i]["queued_count"] = (
-                            UtilService.node_gpu_queued_dict[pool_id]
-                        )
+                for i in range(0, len(UtilService.node_gpu_list)):
+                    gpu_info = UtilService.node_gpu_list[i]
+                    gpu_id = str(gpu_info["gpu_id"])
+                    pool_id = gpu_info["pool_id"]
+                    reserved_mb = gpu_reserved_mb[gpu_id]
+                    reserved_count = gpu_reserved_count[gpu_id]
+
+                    UtilService.node_gpu_queued_dict[pool_id] = reserved_count
+                    UtilService.node_gpu_list[i]["queued_count"] = reserved_count
+                    UtilService.node_gpu_list[i]["queued_mb"] = reserved_mb
 
                 UtilService.node_gpu_list = sorted(
-                    UtilService.node_gpu_list, key=lambda d: d["queued_count"]
+                    UtilService.node_gpu_list,
+                    key=lambda d: (d["queued_count"], d["queued_mb"]),
                 )
                 logger.info(f"GPU status for {len(UtilService.node_gpu_list)} units:")
                 for gpu_info in UtilService.node_gpu_list:
@@ -408,7 +449,7 @@ class UtilService:
                     free = gpu_info["free"]
                     queued_count = gpu_info["queued_count"]
                     queued_mb = gpu_info["queued_mb"]
-                    queued_left = abs(capacity - queued_mb)
+                    queued_left = capacity - queued_mb
 
                     if (
                         capacity >= gpu_mem_mb
@@ -420,23 +461,6 @@ class UtilService:
                         UtilService.node_gpu_list[i]["queued_mb"] += gpu_mem_mb
                         logger.error(
                             f"1) Identified GPU for TI: {gpu_id=} {gpu_mem_mb=}"
-                        )
-                        return True, {"gpu_id": gpu_id, "gpu_mem": gpu_mem_mb}
-
-                for i in range(0, len(UtilService.node_gpu_list)):  # Check for capacity
-                    gpu_info = UtilService.node_gpu_list[i]
-                    gpu_id = gpu_info["gpu_id"]
-                    pool_id = gpu_info["pool_id"]
-                    capacity = gpu_info["capacity"]
-                    free = gpu_info["free"]
-
-                    logger.error(json.dumps(gpu_info, indent=4))
-                    if capacity >= gpu_mem_mb:
-                        UtilService.node_gpu_queued_dict[pool_id] += 1
-                        UtilService.node_gpu_list[i]["queued_count"] += 1
-                        UtilService.node_gpu_list[i]["queued_mb"] += gpu_mem_mb
-                        logger.error(
-                            f"2) Identified GPU for TI: {pool_id=} {gpu_mem_mb=}"
                         )
                         return True, {"gpu_id": gpu_id, "gpu_mem": gpu_mem_mb}
 

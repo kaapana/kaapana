@@ -276,7 +276,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                         if self.ram_mem_mb_lmt is not None
                         else self.ram_mem_mb + 100
                     ),
-                    "nvidia.com/gpu": 1 if self.gpu_mem_mb else 0,
                 },
                 requests={
                     "cpu": (
@@ -315,6 +314,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         if no_proxy is not None:
             envs.update({"no_proxy": no_proxy})
+
+        if self.gpu_mem_mb:
+            envs["NVIDIA_VISIBLE_DEVICES"] = "all"
 
         if hasattr(self, "operator_in_dir"):
             envs["OPERATOR_IN_DIR"] = str(self.operator_in_dir)
@@ -893,7 +895,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     )
                 }
             )
-        else:
+        elif not self.gpu_mem_mb:
             self.env_vars.update({"CUDA_VISIBLE_DEVICES": ""})
 
         if (

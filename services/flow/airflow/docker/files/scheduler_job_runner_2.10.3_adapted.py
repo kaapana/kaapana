@@ -698,6 +698,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             self.log.warning(
                                 f"Not executing {task_instance} since the UtilService check was negative!"
                             )
+                            continue
                         #################################################
                         ###### KAAPANA CUSTOM CODE ENDS #################
                         #################################################

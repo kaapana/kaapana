@@ -119,3 +119,61 @@ def test_create_admin_client_updates_existing_client():
     urls = [c.args[0] for c in kc.make_authorized_request.call_args_list]
     # Existing client is updated via its UUID, not created fresh.
     assert any(u.endswith("master/clients/existing-uuid") for u in urls)
+
+
+# --- _set_admin_password_temporary (temporary-flag) ---------------------------
+
+
+def _kc_with_admin_user(users):
+    """KeycloakHelper mock whose GET for the master admin user returns `users`."""
+    kc = MagicMock()
+    kc.auth_url = "https://h:443/auth/admin/realms/"
+    users_resp = MagicMock()
+    users_resp.json.return_value = users
+
+    def fake_request(url, request=None, payload=None, *args, **kwargs):
+        if "username=admin" in url:
+            return users_resp
+        return MagicMock()
+
+    kc.make_authorized_request.side_effect = fake_request
+    return kc
+
+
+def _put_calls(kc):
+    return [
+        c
+        for c in kc.make_authorized_request.call_args_list
+        if c.args[0].endswith("master/users/admin-id")
+    ]
+
+
+def test_set_admin_password_temporary_adds_required_action():
+    kc = _kc_with_admin_user([{"id": "admin-id", "requiredActions": []}])
+
+    boot._set_admin_password_temporary(kc)
+
+    puts = _put_calls(kc)
+    assert puts, "expected a PUT updating the master admin user"
+    updated_user = puts[0].args[2]
+    assert "UPDATE_PASSWORD" in updated_user["requiredActions"]
+
+
+def test_set_admin_password_temporary_is_idempotent():
+    # Already flagged on a previous bootstrap — must not write again.
+    kc = _kc_with_admin_user(
+        [{"id": "admin-id", "requiredActions": ["UPDATE_PASSWORD"]}]
+    )
+
+    boot._set_admin_password_temporary(kc)
+
+    assert not _put_calls(kc), "must not PUT when UPDATE_PASSWORD is already present"
+
+
+def test_set_admin_password_temporary_skips_when_no_admin_user():
+    # No master admin user (e.g. DEV_MODE installs): skip gracefully, no PUT.
+    kc = _kc_with_admin_user([])
+
+    boot._set_admin_password_temporary(kc)
+
+    assert kc.make_authorized_request.call_count == 1, "only the lookup GET, no PUT"

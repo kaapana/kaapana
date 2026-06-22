@@ -118,6 +118,44 @@ def _run_setup(keycloak, oidc_client_secret, kaapana_init_password):
         )
 
 
+def _setup_with_retries(
+    run, max_retries=_MAX_RETRIES, base_delay=_RETRY_BASE_DELAY, sleep=time.sleep
+):
+    """Run `run`, retrying transient Keycloak cold-start failures with exponential
+    backoff: connection errors, timeouts, HTTP 403 (admin API not ready right
+    after realm creation) and 5xx (still initializing). All setup operations are
+    idempotent, so retrying from scratch is safe. Any other error propagates."""
+    for attempt in range(1, max_retries + 1):
+        try:
+            run()
+            return
+        except (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.Timeout,
+            requests.exceptions.HTTPError,
+        ) as e:
+            status = (
+                e.response.status_code
+                if isinstance(e, requests.exceptions.HTTPError)
+                and e.response is not None
+                else None
+            )
+            retryable = (
+                not isinstance(e, requests.exceptions.HTTPError)
+                or status == 403
+                or (status is not None and 500 <= status < 600)
+            )
+            if not retryable or attempt >= max_retries:
+                raise
+            delay = base_delay * (2 ** (attempt - 1))
+            reason = f"HTTP {status}" if status is not None else e.__class__.__name__
+            logger.warning(
+                f"{reason} on attempt {attempt}/{max_retries} "
+                f"(Keycloak initializing). Retrying in {delay}s ..."
+            )
+            sleep(delay)
+
+
 if __name__ == "__main__":
     logger.info("Starting configure_realm ...")
 
@@ -125,31 +163,15 @@ if __name__ == "__main__":
     kaapana_init_password = os.getenv("KAAPANA_INIT_PASSWORD")
     logger.info(f"{DEV_MODE=}")
 
-    for _attempt in range(1, _MAX_RETRIES + 1):
-        try:
-            # A fresh token is obtained on every attempt to avoid expiry after retries.
-            # The admin password is never needed here — the bootstrap job created the
-            # kaapana-admin client and its secret is the only persisted credential.
-            keycloak = KeycloakHelper.from_client_credentials(
-                "kaapana-admin",
-                os.environ["KAAPANA_ADMIN_CLIENT_SECRET"],
-                realm="master",
-            )
-            _run_setup(keycloak, oidc_client_secret, kaapana_init_password)
-            break
-        except requests.exceptions.HTTPError as e:
-            delay = _RETRY_BASE_DELAY * (2 ** (_attempt - 1))
-            if (
-                e.response is not None
-                and e.response.status_code == 403
-                and _attempt < _MAX_RETRIES
-            ):
-                # Keycloak cold-start race: realm just created, admin API not yet ready.
-                # All operations are idempotent — safe to retry from scratch.
-                logger.warning(
-                    f"403 Forbidden on attempt {_attempt}/{_MAX_RETRIES} "
-                    f"(Keycloak initializing). Retrying in {delay}s ..."
-                )
-                time.sleep(delay)
-            else:
-                raise
+    # A fresh token is obtained on every attempt to avoid expiry after retries.
+    # The admin password is never needed here — the bootstrap job created the
+    # kaapana-admin client and its secret is the only persisted credential.
+    def _run():
+        keycloak = KeycloakHelper.from_client_credentials(
+            "kaapana-admin",
+            os.environ["KAAPANA_ADMIN_CLIENT_SECRET"],
+            realm="master",
+        )
+        _run_setup(keycloak, oidc_client_secret, kaapana_init_password)
+
+    _setup_with_retries(_run)

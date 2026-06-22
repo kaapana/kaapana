@@ -15,6 +15,9 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+import requests
+
 # Set required env vars before module-level code in configure_realm runs
 os.environ.setdefault("DEV_MODE", "false")
 
@@ -52,3 +55,55 @@ def test_fallback_helpers_removed():
         "_get_service_token",
     ):
         assert not hasattr(cr, name), f"{name} must be removed from configure_realm.py"
+
+
+def _http_error(status):
+    err = requests.exceptions.HTTPError()
+    err.response = type("_Resp", (), {"status_code": status})()
+    return err
+
+
+def test_setup_with_retries_recovers_from_403():
+    # 403 = admin API not ready right after realm creation (cold-start race).
+    calls = []
+
+    def run():
+        calls.append(1)
+        if len(calls) == 1:
+            raise _http_error(403)
+
+    cr._setup_with_retries(run, max_retries=3, base_delay=0, sleep=lambda _s: None)
+    assert len(calls) == 2
+
+
+def test_setup_with_retries_recovers_from_connection_error():
+    calls = []
+
+    def run():
+        calls.append(1)
+        if len(calls) == 1:
+            raise requests.exceptions.ConnectionError()
+
+    cr._setup_with_retries(run, max_retries=3, base_delay=0, sleep=lambda _s: None)
+    assert len(calls) == 2
+
+
+def test_setup_with_retries_recovers_from_5xx():
+    calls = []
+
+    def run():
+        calls.append(1)
+        if len(calls) == 1:
+            raise _http_error(503)
+
+    cr._setup_with_retries(run, max_retries=3, base_delay=0, sleep=lambda _s: None)
+    assert len(calls) == 2
+
+
+def test_setup_with_retries_does_not_retry_on_400():
+    # A genuine client error must surface immediately, not be retried away.
+    def run():
+        raise _http_error(400)
+
+    with pytest.raises(requests.exceptions.HTTPError):
+        cr._setup_with_retries(run, max_retries=3, base_delay=0, sleep=lambda _s: None)

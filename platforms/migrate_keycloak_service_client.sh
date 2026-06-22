@@ -30,11 +30,13 @@ SERVICE_CLIENT_ID="kaapana-service"
 SERVICE_SECRET_NAME="kaapana-service-password"
 
 echo "--- Fetching admin token..."
-ADMIN_TOKEN=$(curl -sf -X POST \
+# The password is piped via stdin (--data-urlencode @-) so it never appears in
+# the process argument list (ps / /proc/<pid>/cmdline).
+ADMIN_TOKEN=$(printf '%s' "$ADMIN_PASSWORD" | curl -sf -X POST \
   "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" \
   -d "client_id=admin-cli" \
-  -d "username=$ADMIN_USERNAME" \
-  -d "password=$ADMIN_PASSWORD" \
+  --data-urlencode "username=$ADMIN_USERNAME" \
+  --data-urlencode "password@-" \
   -d "grant_type=password" \
   | jq -r '.access_token')
 
@@ -69,14 +71,16 @@ create_client() {
     \"directAccessGrantsEnabled\": false,
     \"bearerOnly\": false
   }"
+  # The payload carries the client secret; send it via stdin (--data @-) so it
+  # stays out of the process argument list.
   if [ -z "$existing" ] || [ "$existing" = "null" ]; then
     echo "--- Creating client '$client_id' in realm '$realm'..."
     curl -sf -X POST -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
-      "$KEYCLOAK_URL/admin/realms/$realm/clients" -d "$payload"
+      "$KEYCLOAK_URL/admin/realms/$realm/clients" --data @- <<<"$payload"
   else
     echo "--- Client '$client_id' already exists in realm '$realm' (UUID: $existing) — updating."
     curl -sf -X PUT -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
-      "$KEYCLOAK_URL/admin/realms/$realm/clients/$existing" -d "$payload"
+      "$KEYCLOAK_URL/admin/realms/$realm/clients/$existing" --data @- <<<"$payload"
   fi
 }
 

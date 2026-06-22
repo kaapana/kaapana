@@ -315,13 +315,12 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         if no_proxy is not None:
             envs.update({"no_proxy": no_proxy})
 
-        if self.gpu_mem_mb:
-            envs["NVIDIA_VISIBLE_DEVICES"] = "all"
-
         if hasattr(self, "operator_in_dir"):
             envs["OPERATOR_IN_DIR"] = str(self.operator_in_dir)
 
         envs.update(self.env_vars)
+        if self.gpu_mem_mb:
+            envs["NVIDIA_VISIBLE_DEVICES"] = "all"
         self.env_vars = envs
         kwargs.setdefault("task_id", self.task_id)
         kwargs.setdefault("retries", self.retries)
@@ -888,12 +887,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     def execute(self, context: Context):
         self.set_context_variables(context)
         if "gpu_device" in context["task_instance"].executor_config:
+            gpu_device = context["task_instance"].executor_config["gpu_device"]
             self.env_vars.update(
-                {
-                    "CUDA_VISIBLE_DEVICES": str(
-                        context["task_instance"].executor_config["gpu_device"]["gpu_id"]
-                    )
-                }
+                {"CUDA_VISIBLE_DEVICES": str(gpu_device["gpu_id"])}
             )
         elif not self.gpu_mem_mb:
             self.env_vars.update({"CUDA_VISIBLE_DEVICES": ""})

@@ -66,6 +66,11 @@ class UtilService:
     node_gpu_queued_dict = {}
 
     @staticmethod
+    def get_gpu_reservation_key(gpu_config):
+        gpu_id = gpu_config.get("gpu_id")
+        return str(gpu_id) if gpu_id is not None else None
+
+    @staticmethod
     def get_active_gpu_reservations(session=None, logger=logging):
         gpu_reserved_mb = defaultdict(int)
         gpu_reserved_count = defaultdict(int)
@@ -91,21 +96,21 @@ class UtilService:
         )
         for (executor_config,) in active_gpu_configs:
             gpu_device = (executor_config or {}).get("gpu_device") or {}
-            gpu_id = gpu_device.get("gpu_id")
+            reservation_key = UtilService.get_gpu_reservation_key(gpu_device)
             gpu_mem = gpu_device.get("gpu_mem")
 
-            if gpu_id is None or gpu_mem is None:
+            if reservation_key is None or gpu_mem is None:
                 continue
 
             try:
-                gpu_reserved_mb[str(gpu_id)] += int(gpu_mem)
+                gpu_reserved_mb[reservation_key] += int(gpu_mem)
             except (TypeError, ValueError):
                 logger.warning(
                     "Ignoring invalid gpu_device reservation in "
                     f"executor_config: {gpu_device}"
                 )
                 continue
-            gpu_reserved_count[str(gpu_id)] += 1
+            gpu_reserved_count[reservation_key] += 1
 
         return gpu_reserved_mb, gpu_reserved_count
 
@@ -404,6 +409,38 @@ class UtilService:
             else:
                 return False, None
 
+        if UtilService.memory_pressure:
+            logger.error("UtilService.memory_pressure == TRUE -> not scheduling!")
+            return False, None
+
+        if UtilService.disk_pressure:
+            logger.error("UtilService.disk_pressure == TRUE -> not scheduling!")
+            return False, None
+
+        if UtilService.pid_pressure:
+            logger.error("UtilService.pid_pressure == TRUE -> not scheduling!")
+            return False, None
+
+        if (
+            "cpu_millicores" in task_instance.executor_config
+            and task_instance.executor_config["cpu_millicores"] != None
+        ):
+            # TODO
+            pass
+
+        if (
+            "ram_mem_mb" in task_instance.executor_config
+            and task_instance.executor_config["ram_mem_mb"] != None
+        ):
+            mem_offset = round(UtilService.mem_alloc * default_memory_offset_percent)
+            if task_instance.executor_config["ram_mem_mb"] >= (
+                UtilService.memory_available_req - mem_offset
+            ):
+                logger.error(
+                    "TI ram_mem_mb > UtilService.memory_available_req -> not scheduling!"
+                )
+                return False, None
+
         if (
             "gpu_mem_mb" in task_instance.executor_config
             and task_instance.executor_config["gpu_mem_mb"] != None
@@ -422,10 +459,14 @@ class UtilService:
 
                 for i in range(0, len(UtilService.node_gpu_list)):
                     gpu_info = UtilService.node_gpu_list[i]
-                    gpu_id = str(gpu_info["gpu_id"])
+                    reservation_key = UtilService.get_gpu_reservation_key(gpu_info)
+                    if reservation_key is None:
+                        logger.warning(f"Ignoring GPU without gpu_id: {gpu_info}")
+                        continue
+
                     pool_id = gpu_info["pool_id"]
-                    reserved_mb = gpu_reserved_mb[gpu_id]
-                    reserved_count = gpu_reserved_count[gpu_id]
+                    reserved_mb = gpu_reserved_mb[reservation_key]
+                    reserved_count = gpu_reserved_count[reservation_key]
 
                     UtilService.node_gpu_queued_dict[pool_id] = reserved_count
                     UtilService.node_gpu_list[i]["queued_count"] = reserved_count
@@ -465,38 +506,6 @@ class UtilService:
                         return True, {"gpu_id": gpu_id, "gpu_mem": gpu_mem_mb}
 
                 logger.error(f"No GPU for the TI found! -> Not scheduling !")
-                return False, None
-
-        if UtilService.memory_pressure:
-            logger.error("UtilService.memory_pressure == TRUE -> not scheduling!")
-            return False, None
-
-        if UtilService.disk_pressure:
-            logger.error("UtilService.disk_pressure == TRUE -> not scheduling!")
-            return False, None
-
-        if UtilService.pid_pressure:
-            logger.error("UtilService.pid_pressure == TRUE -> not scheduling!")
-            return False, None
-
-        if (
-            "cpu_millicores" in task_instance.executor_config
-            and task_instance.executor_config["cpu_millicores"] != None
-        ):
-            # TODO
-            pass
-
-        if (
-            "ram_mem_mb" in task_instance.executor_config
-            and task_instance.executor_config["ram_mem_mb"] != None
-        ):
-            mem_offset = round(UtilService.mem_alloc * default_memory_offset_percent)
-            if task_instance.executor_config["ram_mem_mb"] >= (
-                UtilService.memory_available_req - mem_offset
-            ):
-                logger.error(
-                    "TI ram_mem_mb > UtilService.memory_available_req -> not scheduling!"
-                )
                 return False, None
 
         return True, None

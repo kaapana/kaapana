@@ -1330,6 +1330,9 @@ function load_kaapana_config {
     AIRFLOW_MEMORY_REQUEST=$((AIRFLOW_MEMORY_LIMIT / 3))
     OPENSEARCH_MEMORY_REQUEST=$((OPENSEARCH_MEMORY_LIMIT / 3))
 
+    # Set Airflow scheduler parallelism (2x CPU count; tasks are I/O-bound)
+    AIRFLOW_PARALLELISM=$(($(nproc) * 2))
+
     ######################################################
     # Individual platform configuration
     ######################################################
@@ -2133,6 +2136,7 @@ function deploy_chart {
     --set-string global.opensearch_memory_limit="$OPENSEARCH_MEMORY_LIMIT" \
     --set-string global.pacs_memory_request="$PACS_MEMORY_REQUEST" \
     --set-string global.airflow_memory_request="$AIRFLOW_MEMORY_REQUEST" \
+    --set global.airflow_parallelism=$AIRFLOW_PARALLELISM \
     --set-string global.opensearch_memory_request="$OPENSEARCH_MEMORY_REQUEST" \
     --set-string global.smtp_host="$SMTP_HOST" \
     --set-string global.smtp_port="$SMTP_PORT" \
@@ -2289,6 +2293,7 @@ function print_resource_configs {
     echo ""
     echo "Airflow minimum memory request: $(awk "BEGIN {printf \"%.2f\", $AIRFLOW_MEMORY_REQUEST/1024}") Gi"
     echo "Airflow maximum memory limit: $(awk "BEGIN {printf \"%.2f\", $AIRFLOW_MEMORY_LIMIT/1024}") Gi"
+    echo "Airflow scheduler parallelism: $AIRFLOW_PARALLELISM ($(nproc) CPUs x2)"
     echo ""
     echo "Opensearch minimum memory request: $(awk "BEGIN {printf \"%.2f\", $OPENSEARCH_MEMORY_REQUEST/1024}") Gi"
     echo "Opensearch maximum memory limit: $(awk "BEGIN {printf \"%.2f\", $OPENSEARCH_MEMORY_LIMIT/1024}") Gi"

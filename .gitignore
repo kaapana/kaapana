@@ -44,3 +44,4 @@ tests/venv/*
 *.egg-info
 *.db
 .env
+.claude/*

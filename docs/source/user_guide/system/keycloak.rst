@@ -90,10 +90,10 @@ Administrative access and credentials
 Kaapana's Keycloak setup has an **admin account** and two internal **service
 clients**:
 
-* The **admin account** — the ``admin`` user of the *master* realm. This is the
+* The **admin account** - the ``admin`` user of the *master* realm. This is the
   human login for the Keycloak admin console and has full administrative rights.
   It is the credential you use to manage users, groups and clients by hand.
-* The **kaapana-admin** and **kaapana-service** clients — credentials the
+* The **kaapana-admin** and **kaapana-service** clients - credentials the
   platform uses internally, the first to configure Keycloak during deployment
   and the second for runtime user and group lookups. You never log in with
   these; they are kept separate from the admin account and from each other, and
@@ -104,44 +104,56 @@ As an operator you mainly manage the admin password.
 Setting the admin password
 --------------------------
 
-On the first deployment with :term:`kaapanactl` the admin password is resolved
-from the first available of these sources; later deployments reuse the stored
-password and do not ask again, unless the stored credential no longer works:
+Every deployment with :term:`kaapanactl` sets the password of the ``admin`` user
+in the *master* realm:
 
-#. **File** — ``--keycloak-admin-password-file <path>`` reads the password from
-   the file at that path (this pairs well with a mounted secret).
-#. **Environment variable** — ``KEYCLOAK_ADMIN_PASSWORD`` is taken straight from
-   the environment.
-#. **Interactive prompt** — if neither of the above is set and a terminal is
-   available (not ``--quiet``), you are prompted. Leave the prompt empty to
-   generate a random password, or enter your own; an entered password is
-   confirmed and must meet the Keycloak policy (at least 8 characters including
-   an upper-case letter, a lower-case letter, a digit and a special character).
-#. **Generated** — with no file, no environment variable and no terminal
-   (``--quiet``, CI/CD), a random password is generated.
+* **Without a flag** a new random password is generated.
+* **With** ``--set-keycloak-admin-password`` you are prompted for one. Leave the
+  prompt empty to generate a random password instead. The flag needs an
+  interactive terminal and is rejected under ``--quiet``.
 
-The file and the environment variable take precedence over the prompt, so an
-exported ``KEYCLOAK_ADMIN_PASSWORD`` is used even on an interactive deploy — you
-are not prompted in that case. A password from the file or the environment is
-used as-is and, unlike the interactive prompt, is **not** checked against the
-password policy, so make sure it meets the requirements yourself. A generated
-password is marked temporary, printed once after the deploy, and you are asked to
-change it on first login.
+An entered password is used as-is and is **not** checked against any password
+policy, so make sure it meets your own requirements. A generated password is
+policy-compliant (at least 8 characters with an upper-case letter, a lower-case
+letter, a digit and a special character) and is marked temporary, so it must be
+changed on the first login.
+
+In every case the resulting password is **printed once at the end of the
+deployment**. Note it down, especially a randomly generated one, as that is the
+only copy you get.
+
+.. note::
+
+   Because every deployment sets the password, a redeployment *without*
+   ``--set-keycloak-admin-password`` replaces the admin password with a new
+   random one. To keep a fixed password across deployments, pass the flag and
+   enter the same password each time, or set it afterwards with the
+   :ref:`set-keycloak-admin-password <set_keycloak_admin_password>` command.
+
+.. _set_keycloak_admin_password:
 
 Changing the admin password
 ---------------------------
 
-The admin password can be changed at any time through the *admin* user in the
-*master* realm of the Keycloak UI. A password that was generated automatically on
-a fresh install is temporary and should be replaced with one of your own.
-Changing the admin password has no further effect on the rest of the platform.
+You can change the admin password at any time, with no further effect on the rest
+of the platform. There are two ways:
+
+* **In the Keycloak UI** as the ``admin`` user in the *master* realm.
+* **With kaapanactl** by running ``./kaapanactl.sh set-keycloak-admin-password``
+  on a running platform. It prompts for the new password (an empty entry
+  generates a random one), applies it without a redeployment, and prints it. This
+  goes through the internal kaapana-admin client, so the current admin password
+  is not required.
+
+A password that was generated automatically is temporary and should be replaced
+with one of your own.
 
 Rotating service secrets
 ------------------------
 
 The ``kaapana-service``, ``system-user`` and OIDC client secrets are regenerated
 on every deployment and written into Keycloak by the setup job. The platform
-manages them for you — there is no need to rotate or copy them by hand.
+manages them for you - there is no need to rotate or copy them by hand.
 
 Adding your own Keycloak client
 *******************************
@@ -149,11 +161,11 @@ Adding your own Keycloak client
 To integrate your own application, register an additional client in the
 ``kaapana`` realm. There are two ways:
 
-* **In a running platform** — log in to the Keycloak admin console, select the
+* **In a running platform** - log in to the Keycloak admin console, select the
   ``kaapana`` realm, and create the client under *Clients > Create client*.
   Choose the OAuth2 flow your application needs and, for a confidential client,
   read its secret from the *Credentials* tab.
-* **Persisted across rebuilds** — add a client definition as a JSON file under the
+* **Persisted across rebuilds** - add a client definition as a JSON file under the
   keycloak-setup chart's realm objects directory
   (``services/kaapana-admin/keycloak/keycloak-setup/keycloak-setup-chart/realm_objects/``)
   and list it in that chart's ``realm-objects-configmap.yaml`` before building the

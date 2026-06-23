@@ -120,15 +120,17 @@ changed on the first login.
 
 In every case the resulting password is **printed once at the end of the
 deployment**. Note it down, especially a randomly generated one, as that is the
-only copy you get.
+only copy you get. Because it is printed to the terminal, it also lands in any
+captured deploy output (CI logs, ``tee``); treat that output as sensitive.
 
-.. note::
+.. warning::
 
    Because every deployment sets the password, a redeployment *without*
    ``--set-keycloak-admin-password`` replaces the admin password with a new
-   random one. To keep a fixed password across deployments, pass the flag and
-   enter the same password each time, or set it afterwards with the
-   :ref:`set-keycloak-admin-password <set_keycloak_admin_password>` command.
+   random one. A password you set earlier (on the command line, in the Keycloak
+   UI or with :ref:`set-keycloak-admin-password <set_keycloak_admin_password>`)
+   is then lost. To keep a fixed password across deployments, pass the flag and
+   enter the same password on every deploy.
 
 .. _set_keycloak_admin_password:
 
@@ -147,6 +149,12 @@ of the platform. There are two ways:
 
 A password that was generated automatically is temporary and should be replaced
 with one of your own.
+
+.. warning::
+
+   A password set here lasts only until the next deployment. A deploy *without*
+   ``--set-keycloak-admin-password`` regenerates a random one. If you need a
+   stable password, pass the flag and enter the same one on every deploy.
 
 Rotating service secrets
 ------------------------

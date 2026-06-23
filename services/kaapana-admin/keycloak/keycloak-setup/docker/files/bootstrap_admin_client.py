@@ -1,16 +1,36 @@
 """
-Bootstrap of the kaapana-admin Keycloak client (master realm).
+Bootstrap of the kaapana-admin Keycloak client (master realm) and (re)setting of
+the master-realm admin password.
 
-This is the only step that may need the Keycloak admin password, and only on the
-very first bootstrap: it follows an admin-client-first strategy. If the
-kaapana-admin client already authenticates via client_credentials, the bootstrap
-is a no-op and no admin password is required (redeploys, also after an admin
-password change).
+Every deploy hands this job a desired admin password (``KEYCLOAK_PASSWORD``) and
+the kaapana-admin client secret (``KAAPANA_ADMIN_CLIENT_SECRET``).
 
-The kaapana-admin client is a master-realm service-account client with the master
-'admin' realm role — i.e. full admin rights across realms. The setup job
-(configure_realm.py) authenticates as this client, so the admin password never
-reaches the setup job nor any runtime pod.
+What it expects (env):
+  ``KEYCLOAK_HOST`` / ``KEYCLOAK_HTTPS_PORT`` - the Keycloak address.
+  ``KAAPANA_ADMIN_CLIENT_SECRET``            - the kaapana-admin client secret.
+  ``KEYCLOAK_USER`` / ``KEYCLOAK_PASSWORD``  - the master admin user and the
+                                               password to apply to it.
+  ``KAAPANA_ADMIN_PASSWORD_TEMPORARY``       - "true" marks the password as
+                                               temporary (must be changed on the
+                                               next login; used for generated
+                                               passwords).
+
+What it guarantees after a successful run:
+  * the kaapana-admin client exists in the master realm with the given secret and
+    the master 'admin' realm role (full admin rights), so the setup job and all
+    later deploys authenticate via the client and never need the admin password;
+  * the master-realm admin user's password equals ``KEYCLOAK_PASSWORD``.
+
+Behaviour:
+  * Client secret already works -> authenticate via the client (no admin password
+    required) and reset the admin password to ``KEYCLOAK_PASSWORD``. If no
+    password was supplied, only warn - the connection works, but running without
+    a password is not the intended path.
+  * Client secret missing or stale -> authenticate with the admin password to
+    create/repair the client, then apply the admin password. Without an admin
+    password this is impossible and the job fails with a clear error.
+
+The admin password never reaches the setup job nor any runtime pod.
 """
 
 import logging
@@ -67,29 +87,34 @@ def _get_master_client_uuid(keycloak: KeycloakHelper) -> str:
     return None
 
 
-def _set_admin_password_temporary(keycloak: KeycloakHelper) -> None:
-    """Add UPDATE_PASSWORD required action to the master-realm admin user.
+def _set_admin_password(
+    keycloak: KeycloakHelper, username: str, password: str, temporary: bool
+) -> None:
+    """Set the master-realm admin user's password.
 
-    This forces a password change on the next Keycloak UI login without affecting
-    client_credentials flows — service accounts authenticate independently of
-    the admin user's login state.
+    With ``temporary`` it must be changed on the next login; a temporary
+    credential is what Keycloak 26 reliably enforces at the admin-console login
+    (the UPDATE_PASSWORD required action is not honoured for this user).
+    client_credentials flows are unaffected - service accounts authenticate
+    independently of the admin user's login state.
     """
     base = keycloak.auth_url
     users = keycloak.make_authorized_request(
-        base + "master/users?username=admin&exact=true", requests.get
+        base + f"master/users?username={username}&exact=true", requests.get
     ).json()
     if not users:
-        logger.warning("Master-realm admin user not found — skipping temporary flag.")
+        logger.warning("Master-realm admin user not found - skipping password set.")
         return
-    user = users[0]
-    if "UPDATE_PASSWORD" not in user.get("requiredActions", []):
-        user["requiredActions"] = user.get("requiredActions", []) + ["UPDATE_PASSWORD"]
-        keycloak.make_authorized_request(
-            base + f"master/users/{user['id']}", requests.put, user
-        )
-        logger.info(
-            "Admin password marked as temporary — must be changed on next UI login."
-        )
+    user_id = users[0]["id"]
+    keycloak.make_authorized_request(
+        base + f"master/users/{user_id}/reset-password",
+        requests.put,
+        {"type": "password", "value": password, "temporary": temporary},
+    )
+    logger.info(
+        "Master-realm admin password set (%s).",
+        "temporary" if temporary else "permanent",
+    )
 
 
 def _create_admin_client(keycloak: KeycloakHelper, client_secret: str) -> None:
@@ -99,7 +124,7 @@ def _create_admin_client(keycloak: KeycloakHelper, client_secret: str) -> None:
 
     client_uuid = _get_master_client_uuid(keycloak)
     if client_uuid:
-        logger.info("kaapana-admin client exists — updating secret.")
+        logger.info("kaapana-admin client exists - updating secret.")
         keycloak.make_authorized_request(
             base + f"master/clients/{client_uuid}", requests.put, payload
         )
@@ -130,28 +155,71 @@ if __name__ == "__main__":
     keycloak_host = os.environ["KEYCLOAK_HOST"]
     keycloak_port = int(os.getenv("KEYCLOAK_HTTPS_PORT", 443))
     admin_client_secret = os.environ["KAAPANA_ADMIN_CLIENT_SECRET"]
+    admin_user = os.environ["KEYCLOAK_USER"]
+    admin_password = os.getenv("KEYCLOAK_PASSWORD", "")
+    temporary = os.getenv("KAAPANA_ADMIN_PASSWORD_TEMPORARY", "false").lower() == "true"
 
     if _admin_client_functional(keycloak_host, keycloak_port, admin_client_secret):
         logger.info(
-            "kaapana-admin client already functional — skipping bootstrap "
-            "(no admin password required)."
+            "kaapana-admin client already functional - no admin password needed "
+            "to authenticate."
         )
+        if not admin_password:
+            logger.warning(
+                "No admin password supplied, but the kaapana-admin client works. "
+                "The connection is fine, but the admin password was NOT (re)set - "
+                "this job is not meant to run without a password."
+            )
+            sys.exit(0)
+        keycloak = KeycloakHelper.from_client_credentials(
+            ADMIN_CLIENT_ID,
+            admin_client_secret,
+            realm="master",
+            keycloak_host=keycloak_host,
+            keycloak_https_port=keycloak_port,
+        )
+        _set_admin_password(keycloak, admin_user, admin_password, temporary)
+        logger.info("Admin password (re)set via the kaapana-admin client.")
         sys.exit(0)
 
+    # Client secret missing or stale - the admin password is required to create it.
+    if not admin_password:
+        logger.error(
+            "kaapana-admin client is not functional and no admin password was "
+            "supplied - cannot bootstrap. Provide the current Keycloak admin "
+            "password (on a migration this is your existing one)."
+        )
+        sys.exit(1)
+
     logger.info(
-        "kaapana-admin client not available — bootstrapping with admin password."
+        "kaapana-admin client not available - bootstrapping with the admin password."
     )
     try:
         keycloak = KeycloakHelper.from_admin_password()
     except Exception as e:
         logger.error(
-            f"Admin authentication failed and kaapana-admin client is missing: {e}. "
-            "Provide the current Keycloak admin password to bootstrap."
+            f"Admin authentication failed and the kaapana-admin client is missing: "
+            f"{e}. Check that the supplied password matches the current Keycloak "
+            "admin password."
         )
         sys.exit(1)
 
-    _create_admin_client(keycloak, admin_client_secret)
-    logger.info("kaapana-admin client bootstrapped and granted master admin role.")
+    try:
+        _create_admin_client(keycloak, admin_client_secret)
+    except Exception as e:
+        logger.error(
+            f"Could not create the kaapana-admin client: {e}. Check the Keycloak "
+            "server logs and the admin user's permissions."
+        )
+        sys.exit(1)
 
-    if os.getenv("KAAPANA_ADMIN_PASSWORD_TEMPORARY", "false").lower() == "true":
-        _set_admin_password_temporary(keycloak)
+    try:
+        _set_admin_password(keycloak, admin_user, admin_password, temporary)
+    except Exception as e:
+        logger.error(
+            f"kaapana-admin client created, but applying the admin password "
+            f"failed: {e}."
+        )
+        sys.exit(1)
+
+    logger.info("kaapana-admin client bootstrapped and admin password set.")

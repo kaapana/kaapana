@@ -889,10 +889,18 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         if "gpu_device" in context["task_instance"].executor_config:
             gpu_device = context["task_instance"].executor_config["gpu_device"]
             self.env_vars.update(
-                {"CUDA_VISIBLE_DEVICES": str(gpu_device["gpu_id"])}
+                {
+                    "NVIDIA_VISIBLE_DEVICES": str(gpu_device["gpu_id"]),
+                    "CUDA_VISIBLE_DEVICES": "0",
+                }
             )
         elif not self.gpu_mem_mb:
-            self.env_vars.update({"CUDA_VISIBLE_DEVICES": ""})
+            self.env_vars.update(
+                {
+                    "NVIDIA_VISIBLE_DEVICES": "none",
+                    "CUDA_VISIBLE_DEVICES": "",
+                }
+            )
 
         if (
             context["dag_run"].conf is not None

@@ -31,8 +31,9 @@ spec:
             limits:
               memory: 200Mi
           env:
-            # Admin password is only consumed here, and only on the very first
-            # bootstrap (when the kaapana-admin client does not yet exist).
+            # The admin password is consumed only here (never by the setup job or
+            # any runtime pod): the job applies it to the master-realm admin user
+            # and, on the first bootstrap, uses it to create the kaapana-admin client.
             - name: KEYCLOAK_USER
               value: "{{ .Values.global.credentials_keycloak_admin_username }}"
             - name: KEYCLOAK_PASSWORD

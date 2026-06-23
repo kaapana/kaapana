@@ -121,7 +121,7 @@ def test_create_admin_client_updates_existing_client():
     assert any(u.endswith("master/clients/existing-uuid") for u in urls)
 
 
-# --- _set_admin_password_temporary (temporary-flag) ---------------------------
+# --- _set_admin_password ------------------------------------------------------
 
 
 def _kc_with_admin_user(users):
@@ -140,40 +140,43 @@ def _kc_with_admin_user(users):
     return kc
 
 
-def _put_calls(kc):
+def _reset_calls(kc):
     return [
         c
         for c in kc.make_authorized_request.call_args_list
-        if c.args[0].endswith("master/users/admin-id")
+        if c.args[0].endswith("master/users/admin-id/reset-password")
     ]
 
 
-def test_set_admin_password_temporary_adds_required_action():
-    kc = _kc_with_admin_user([{"id": "admin-id", "requiredActions": []}])
+def test_set_admin_password_temporary():
+    # A temporary credential is what Keycloak 26 actually enforces on login.
+    kc = _kc_with_admin_user([{"id": "admin-id"}])
 
-    boot._set_admin_password_temporary(kc)
+    boot._set_admin_password(kc, "admin", "s3cret!", temporary=True)
 
-    puts = _put_calls(kc)
-    assert puts, "expected a PUT updating the master admin user"
-    updated_user = puts[0].args[2]
-    assert "UPDATE_PASSWORD" in updated_user["requiredActions"]
-
-
-def test_set_admin_password_temporary_is_idempotent():
-    # Already flagged on a previous bootstrap — must not write again.
-    kc = _kc_with_admin_user(
-        [{"id": "admin-id", "requiredActions": ["UPDATE_PASSWORD"]}]
-    )
-
-    boot._set_admin_password_temporary(kc)
-
-    assert not _put_calls(kc), "must not PUT when UPDATE_PASSWORD is already present"
+    resets = _reset_calls(kc)
+    assert resets, "expected a reset-password PUT for the master admin user"
+    credential = resets[0].args[2]
+    assert credential["type"] == "password"
+    assert credential["temporary"] is True
+    assert credential["value"] == "s3cret!"
 
 
-def test_set_admin_password_temporary_skips_when_no_admin_user():
-    # No master admin user (e.g. DEV_MODE installs): skip gracefully, no PUT.
+def test_set_admin_password_permanent():
+    # An operator-supplied password is applied permanently (not temporary).
+    kc = _kc_with_admin_user([{"id": "admin-id"}])
+
+    boot._set_admin_password(kc, "admin", "s3cret!", temporary=False)
+
+    resets = _reset_calls(kc)
+    assert resets, "expected a reset-password PUT for the master admin user"
+    assert resets[0].args[2]["temporary"] is False
+
+
+def test_set_admin_password_skips_when_no_admin_user():
+    # No master admin user (e.g. DEV_MODE installs): skip gracefully, no reset.
     kc = _kc_with_admin_user([])
 
-    boot._set_admin_password_temporary(kc)
+    boot._set_admin_password(kc, "admin", "s3cret!", temporary=True)
 
-    assert kc.make_authorized_request.call_count == 1, "only the lookup GET, no PUT"
+    assert kc.make_authorized_request.call_count == 1, "only the lookup GET, no reset"

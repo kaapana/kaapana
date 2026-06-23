@@ -177,8 +177,8 @@ To integrate your own application, register an additional client in the
   keycloak-setup chart's realm objects directory
   (``services/kaapana-admin/keycloak/keycloak-setup/keycloak-setup-chart/realm_objects/``)
   and list it in that chart's ``realm-objects-configmap.yaml`` before building the
-  platform. The setup job applies it on every deploy. The bundled
-  ``kaapana-client.json`` can serve as a template.
+  platform. The setup job applies it on every deploy. The existing JSON files in
+  that directory show the expected structure.
 
 To call Kaapana's APIs from your client, see the *Client access to Kaapana APIs*
 section on the :ref:`Access Control <access_control_root>` page.

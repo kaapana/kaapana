@@ -57,6 +57,3 @@ Troubleshooting
   client could not be created, usually because the entered password did not match
   the current Keycloak admin password. Re-run the deployment with
   ``--set-keycloak-admin-password`` and enter the correct password.
-- **Manual provisioning:** to set the clients up by hand, run
-  ``platforms/migrate_keycloak_service_client.sh`` (it requires ``ADMIN_PASSWORD``
-  and ``KEYCLOAK_URL``).

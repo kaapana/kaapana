@@ -3,29 +3,31 @@
 # Run this whenever the client secret needs to be cycled.
 #
 # Required env vars:
-#   ADMIN_PASSWORD     — Keycloak admin password
-#   KEYCLOAK_URL       — e.g. https://<hostname>/auth  (no trailing slash)
-#   ADMIN_NAMESPACE    — Kubernetes namespace for admin resources (default: kaapana-admin)
-#   SERVICES_NAMESPACE — Kubernetes namespace for platform services (default: kaapana)
-#   ADMIN_USERNAME     — Keycloak admin username (default: admin)
+#   ADMIN_PASSWORD     - Keycloak admin password
+#   KEYCLOAK_URL       - e.g. https://<hostname>/auth  (no trailing slash)
+#   ADMIN_NAMESPACE    - Kubernetes namespace for admin resources (default: admin)
+#   SERVICES_NAMESPACE - Kubernetes namespace for platform services (default: services)
+#   ADMIN_USERNAME     - Keycloak admin username (default: admin)
 
 set -euo pipefail
 
 KEYCLOAK_URL="${KEYCLOAK_URL:?KEYCLOAK_URL must be set (e.g. https://<hostname>/auth)}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:?ADMIN_PASSWORD must be set}"
 ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
-ADMIN_NAMESPACE="${ADMIN_NAMESPACE:-kaapana-admin}"
-SERVICES_NAMESPACE="${SERVICES_NAMESPACE:-kaapana}"
+ADMIN_NAMESPACE="${ADMIN_NAMESPACE:-admin}"
+SERVICES_NAMESPACE="${SERVICES_NAMESPACE:-services}"
 CLIENT_ID="kaapana-service"
 SECRET_NAME="kaapana-service-password"
 SECRET_KEY="kaapana-service-password"
 
 echo "--- Fetching admin token..."
-ADMIN_TOKEN=$(curl -sf -X POST \
+# The password is piped via stdin (--data-urlencode @-) so it never appears in
+# the process argument list (ps / /proc/<pid>/cmdline).
+ADMIN_TOKEN=$(printf '%s' "$ADMIN_PASSWORD" | curl -sf -X POST \
   "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" \
   -d "client_id=admin-cli" \
-  -d "username=$ADMIN_USERNAME" \
-  -d "password=$ADMIN_PASSWORD" \
+  --data-urlencode "username=$ADMIN_USERNAME" \
+  --data-urlencode "password@-" \
   -d "grant_type=password" \
   | jq -r '.access_token')
 

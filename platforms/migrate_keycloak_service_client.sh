@@ -12,17 +12,17 @@
 # only when you need to bootstrap by hand.
 #
 # Required env vars:
-#   ADMIN_PASSWORD     — Keycloak admin password
-#   KEYCLOAK_URL       — e.g. https://<hostname>/auth  (no trailing slash)
-#   ADMIN_NAMESPACE    — Kubernetes namespace for admin resources (default: kaapana-admin)
-#   ADMIN_USERNAME     — Keycloak admin username (default: admin)
+#   ADMIN_PASSWORD     - Keycloak admin password
+#   KEYCLOAK_URL       - e.g. https://<hostname>/auth  (no trailing slash)
+#   ADMIN_NAMESPACE    - Kubernetes namespace for admin resources (default: admin)
+#   ADMIN_USERNAME     - Keycloak admin username (default: admin)
 
 set -euo pipefail
 
 KEYCLOAK_URL="${KEYCLOAK_URL:?KEYCLOAK_URL must be set (e.g. https://<hostname>/auth)}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:?ADMIN_PASSWORD must be set}"
 ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
-ADMIN_NAMESPACE="${ADMIN_NAMESPACE:-kaapana-admin}"
+ADMIN_NAMESPACE="${ADMIN_NAMESPACE:-admin}"
 
 ADMIN_CLIENT_ID="kaapana-admin"
 ADMIN_SECRET_NAME="kaapana-admin-password"
@@ -78,7 +78,7 @@ create_client() {
     curl -sf -X POST -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
       "$KEYCLOAK_URL/admin/realms/$realm/clients" --data @- <<<"$payload"
   else
-    echo "--- Client '$client_id' already exists in realm '$realm' (UUID: $existing) — updating."
+    echo "--- Client '$client_id' already exists in realm '$realm' (UUID: $existing) - updating."
     curl -sf -X PUT -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
       "$KEYCLOAK_URL/admin/realms/$realm/clients/$existing" --data @- <<<"$payload"
   fi

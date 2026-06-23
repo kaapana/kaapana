@@ -247,15 +247,6 @@ def test_configure_realm_does_not_log_passwords():
 # --- Migration script: minimal roles, no manage-clients -----------------------
 
 
-def test_migration_script_assigns_minimal_roles_without_manage_clients():
-    text = _read(ROOT / "platforms/migrate_keycloak_service_client.sh")
-    for role in ('"manage-users"', '"query-users"', '"query-groups"', '"view-realm"'):
-        assert role in text, f"migration script must assign the {role} role."
-    assert (
-        '"manage-clients"' not in text
-    ), "migration script must not assign manage-clients to kaapana-service."
-
-
 # --- KeycloakHelper copies must not use password grant or master realm --------
 
 

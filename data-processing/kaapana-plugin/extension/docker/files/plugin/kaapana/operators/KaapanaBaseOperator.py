@@ -888,9 +888,10 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.set_context_variables(context)
         if "gpu_device" in context["task_instance"].executor_config:
             gpu_device = context["task_instance"].executor_config["gpu_device"]
+            visible_device = gpu_device.get("gpu_uuid") or gpu_device["gpu_id"]
             self.env_vars.update(
                 {
-                    "NVIDIA_VISIBLE_DEVICES": str(gpu_device["gpu_id"]),
+                    "NVIDIA_VISIBLE_DEVICES": str(visible_device),
                     "CUDA_VISIBLE_DEVICES": "0",
                 }
             )

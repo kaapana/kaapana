@@ -67,6 +67,10 @@ class UtilService:
 
     @staticmethod
     def get_gpu_reservation_key(gpu_config):
+        gpu_uuid = gpu_config.get("gpu_uuid")
+        if gpu_uuid is not None:
+            return str(gpu_uuid)
+
         gpu_id = gpu_config.get("gpu_id")
         return str(gpu_id) if gpu_id is not None else None
 
@@ -455,18 +459,22 @@ class UtilService:
             else:
                 gpu_mem_mb = task_instance.executor_config["gpu_mem_mb"]
                 (gpu_reserved_mb, gpu_reserved_count) = UtilService.get_active_gpu_reservations(session=session, logger=logger)
-                logger.info("Active GPU reservations by gpu_id: "f"{dict(gpu_reserved_mb)}")
+                logger.info("Active GPU reservations: " f"{dict(gpu_reserved_mb)}")
 
                 for i in range(0, len(UtilService.node_gpu_list)):
                     gpu_info = UtilService.node_gpu_list[i]
                     reservation_key = UtilService.get_gpu_reservation_key(gpu_info)
                     if reservation_key is None:
-                        logger.warning(f"Ignoring GPU without gpu_id: {gpu_info}")
+                        logger.warning(f"Ignoring GPU without reservation key: {gpu_info}")
                         continue
 
                     pool_id = gpu_info["pool_id"]
+                    legacy_key = str(gpu_info["gpu_id"])
                     reserved_mb = gpu_reserved_mb[reservation_key]
                     reserved_count = gpu_reserved_count[reservation_key]
+                    if legacy_key != reservation_key:
+                        reserved_mb += gpu_reserved_mb[legacy_key]
+                        reserved_count += gpu_reserved_count[legacy_key]
 
                     UtilService.node_gpu_queued_dict[pool_id] = reserved_count
                     UtilService.node_gpu_list[i]["queued_count"] = reserved_count
@@ -503,7 +511,11 @@ class UtilService:
                         logger.error(
                             f"1) Identified GPU for TI: {gpu_id=} {gpu_mem_mb=}"
                         )
-                        return True, {"gpu_id": gpu_id, "gpu_mem": gpu_mem_mb}
+                        return True, {
+                            "gpu_id": gpu_id,
+                            "gpu_uuid": gpu_info.get("gpu_uuid"),
+                            "gpu_mem": gpu_mem_mb,
+                        }
 
                 logger.error(f"No GPU for the TI found! -> Not scheduling !")
                 return False, None

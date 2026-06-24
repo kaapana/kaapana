@@ -1359,10 +1359,14 @@ function load_kaapana_config {
     OPENSEARCH_MEMORY_REQUEST=$((OPENSEARCH_MEMORY_LIMIT / 3))
 
     CPU_CORES=$(nproc)
-    # LocalExecutor spawns one host process per task (no CPU isolation), 
+    # LocalExecutor spawns one host process per task (no CPU isolation),
     # Capping at CPU_CORES/2 leaves headroom for platform services
     # (Keycloak, OpenSearch, k8s) and prevents OOM kills under heavy ingestion bursts.
     AIRFLOW_PARALLELISM=$((CPU_CORES / 2))
+    # CPU limit for the scheduler pod (milliCores): cap all LocalExecutor task processes
+    # at (parallelism + 2) cores, reserving the rest for OpenSearch, Keycloak, k8s, etc.
+    AIRFLOW_CPU_LIMIT=$(( (CPU_CORES / 2 + 2) * 1000 ))
+    AIRFLOW_CPU_REQUEST=2000
 
     ######################################################
     # Individual platform configuration
@@ -2216,6 +2220,8 @@ function deploy_chart {
     --set-string global.airflow_memory_request="$AIRFLOW_MEMORY_REQUEST" \
     --set-string global.opensearch_memory_request="$OPENSEARCH_MEMORY_REQUEST" \
     --set-string global.airflow_parallelism="$AIRFLOW_PARALLELISM" \
+    --set-string global.airflow_cpu_limit="$AIRFLOW_CPU_LIMIT" \
+    --set-string global.airflow_cpu_request="$AIRFLOW_CPU_REQUEST" \
     --set-string global.smtp_host="$SMTP_HOST" \
     --set-string global.smtp_port="$SMTP_PORT" \
     --set-string global.smtp_username="$SMTP_USERNAME" \

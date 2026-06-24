@@ -7,7 +7,10 @@ import os
 SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", None)
 assert SERVICES_NAMESPACE
 
-prometheus_url = f"http://prometheus-service.{SERVICES_NAMESPACE}.svc:9090/prometheus/api/v1/query?query="
+prometheus_base_url = (
+    f"http://prometheus-service.{SERVICES_NAMESPACE}.svc:9090/prometheus/api/v1/query"
+)
+prometheus_url = f"{prometheus_base_url}?query="
 
 memory_query = "floor(node_memory_MemTotal_bytes{job='Node-Exporter'}/1048576)"
 mem_util_per_query = "sum(node_memory_MemTotal_bytes{job='Node-Exporter'} - node_memory_MemAvailable_bytes{job='Node-Exporter'}) / sum(node_memory_MemTotal_bytes{job='Node-Exporter'})"
@@ -28,8 +31,9 @@ gpu_mem_used_device_query = (
 gpu_mem_available_device_query = (
     "DCGM_FI_DEV_FB_FREE{kubernetes_name='nvidia-dcgm-exporter',gpu=~'<replace>'}"
 )
-gpu_infos_query_free = "DCGM_FI_DEV_FB_FREE{app='nvidia-dcgm-exporter'}"
-gpu_infos_query_used = "DCGM_FI_DEV_FB_USED{app='nvidia-dcgm-exporter'}"
+gpu_infos_query_memory = (
+    '{__name__=~"DCGM_FI_DEV_FB_(FREE|USED|RESERVED)",app="nvidia-dcgm-exporter"}'
+)
 
 
 def get_node_info(query, logger=logging):
@@ -62,59 +66,67 @@ def get_node_info(query, logger=logging):
 
 
 def get_node_gpu_infos(logger=logging):
-    free_request_url = f"{prometheus_url}{gpu_infos_query_free}"
-    used_request_url = f"{prometheus_url}{gpu_infos_query_used}"
     try:
-        free_response = requests.get(free_request_url, timeout=1)
-        free_result = free_response.json()
-        used_response = requests.get(used_request_url, timeout=1)
-        used_result = used_response.json()
+        response = requests.get(
+            prometheus_base_url,
+            params={"query": gpu_infos_query_memory},
+            timeout=1,
+        )
+        result = response.json()
     except:
         logger.error(f"+++++++++ Could not fetch node-info for GPUs - requests failed")
         return []
 
-    if (
-        "status" in free_result
-        and free_result["status"] == "success"
-        and "status" in used_result
-        and used_result["status"] == "success"
-    ):
-        free_gpu_infos = free_result["data"]["result"]
-        used_gpu_infos = used_result["data"]["result"]
-
-        gpu_list = []
-        for i in range(0, len(free_gpu_infos)):
-            free_gpu_info = free_gpu_infos[i]
-            used_gpu_info = used_gpu_infos[i]
-
-            node = free_gpu_info["metric"]["Hostname"]
-            gpu_id = free_gpu_info["metric"]["gpu"]
-            pool_id = f"NODE_GPU_{gpu_id}_MEM"
-            gpu_name = free_gpu_info["metric"]["modelName"]
-            free = int(free_gpu_info["value"][1])
-            used = int(used_gpu_info["value"][1])
-            capacity = free + used
-
-            gpu_list.append(
-                {
-                    "node": node,
-                    "gpu_id": gpu_id,
-                    "pool_id": pool_id,
-                    "gpu_name": gpu_name,
-                    "used": used,
-                    "free": free,
-                    "capacity": capacity,
-                    "queued_count": 0,
-                    "queued_mb": 0,
-                }
-            )
-
-        gpu_list = sorted(gpu_list, key=lambda d: d["capacity"])
-        return gpu_list
-
-    else:
+    if "status" not in result or result["status"] != "success":
         logger.error(f"+++++++++ Could not fetch node-info for GPUs - success != true")
         return []
+
+    gpu_metrics = {}
+    for gpu_info in result["data"]["result"]:
+        metric = gpu_info["metric"]
+        gpu_uuid = metric.get("UUID")
+        if gpu_uuid is None:
+            logger.warning(f"Ignoring GPU metric without UUID: {metric}")
+            continue
+
+        gpu = gpu_metrics.setdefault(
+            gpu_uuid,
+            {
+                "node": metric["Hostname"],
+                "gpu_id": metric["gpu"],
+                "gpu_uuid": gpu_uuid,
+                "pool_id": f"NODE_GPU_{metric['gpu']}_MEM",
+                "gpu_name": metric["modelName"],
+            },
+        )
+        value = int(float(gpu_info["value"][1]))
+
+        if metric["__name__"] == "DCGM_FI_DEV_FB_FREE":
+            gpu["free"] = value
+        elif metric["__name__"] == "DCGM_FI_DEV_FB_USED":
+            gpu["used"] = value
+        elif metric["__name__"] == "DCGM_FI_DEV_FB_RESERVED":
+            gpu["reserved"] = value
+
+    gpu_list = []
+    for gpu in gpu_metrics.values():
+        if "free" not in gpu or "used" not in gpu:
+            logger.warning(f"Ignoring GPU with incomplete memory metrics: {gpu}")
+            continue
+
+        reserved = gpu.get("reserved", 0)
+        gpu_list.append(
+            {
+                **gpu,
+                "reserved": reserved,
+                "capacity": gpu["free"] + gpu["used"] + reserved,
+                "queued_count": 0,
+                "queued_mb": 0,
+            }
+        )
+
+    gpu_list = sorted(gpu_list, key=lambda d: d["capacity"])
+    return gpu_list
 
 
 def get_node_memory(logger=None):

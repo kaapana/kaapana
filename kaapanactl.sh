@@ -2496,7 +2496,6 @@ function pull_chart {
             || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 )
         ((i++))
     done
-
     if [ ! -f "${dest_dir}/${chart_name}-${chart_version}.tgz" ]; then
         echo -e "${RED}Could not pull chart! -> abort${NC}"
         echo -e "${YELLOW}This can be related to issues on the registry side or connection issues.${NC}"
@@ -2510,9 +2509,9 @@ function check_credentials {
         if [ -z "$CONTAINER_REGISTRY_USERNAME" ] || [ -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
             echo -e "${YELLOW}Please enter the credentials for the Container-Registry!${NC}"
                 read -p '**** username: ' CONTAINER_REGISTRY_USERNAME
-                read -s -p '**** password: ' CONTAINER_REGISTRY_PASSWORD
+        read -s -p '**** password: ' CONTAINER_REGISTRY_PASSWORD
         else
-            echo -e "${GREEN}Credentials found!${NC}"
+    echo -e "${GREEN}Credentials found!${NC}"
             break
         fi
     done

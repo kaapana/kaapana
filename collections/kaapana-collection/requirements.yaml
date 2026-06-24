@@ -8,8 +8,8 @@ dependencies:
     version: 0.0.0
   - name: kaapana-workflows-core
     version: 0.0.0
-  - name: edk
-    version: 0.0.0
+  # - name: edk
+  #   version: 0.0.0
   - name: jupyterlab-chart
     version: 0.0.0
   - name: federated-setup-central-test-workflow
@@ -46,12 +46,12 @@ dependencies:
     version: 0.0.0
   # - name: openedc-chart
   #   version: 0.0.0
-  - name: classification-training-workflow
-    version: 0.0.0
-  - name: collabora-chart
-    version: 0.0.0
-  - name: minio-sync-chart
-    version: 0.0.0
+  # - name: classification-training-workflow
+  #   version: 0.0.0
+  # - name: collabora-chart
+  #   version: 0.0.0
+  # - name: minio-sync-chart
+  #   version: 0.0.0
   - name: project-namespace
     version: 0.0.0
   - name: custom-registry-chart
@@ -72,9 +72,9 @@ dependencies:
   #   version: 0.0.0
   # - name: hello-world-chart
   #   version: 0.0.0
-  - name: body-and-organ-analysis-workflow
-    version: 0.0.0
-  - name: total-segmentator-v2-workflow
-    version: 0.0.0
+  # - name: body-and-organ-analysis-workflow
+  #   version: 0.0.0
+  # - name: total-segmentator-v2-workflow
+  #   version: 0.0.0
   - name: extension-manager
     version: 0.0.0

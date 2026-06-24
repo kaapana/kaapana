@@ -93,7 +93,7 @@ class HelmChart:
         ignore_linting = chart_yaml.get("ignore_linting", False)
         if build_config.version_latest:
             version_str, *_ = GitUtils.get_repo_info(chartfile.parent)
-            base = version_str.split("-")[0]
+            base = re.sub(r"-\d+-g[0-9a-f]+.*$", "", version_str)
             version = f"{base}-latest"
         else:
             version = cls._resolve_repo_version(chart_yaml, chartfile)

@@ -1359,7 +1359,10 @@ function load_kaapana_config {
     OPENSEARCH_MEMORY_REQUEST=$((OPENSEARCH_MEMORY_LIMIT / 3))
 
     CPU_CORES=$(nproc)
-    AIRFLOW_PARALLELISM=$((CPU_CORES * 4))
+    # LocalExecutor spawns one host process per task (no CPU isolation), 
+    # Capping at CPU_CORES/2 leaves headroom for platform services
+    # (Keycloak, OpenSearch, k8s) and prevents OOM kills under heavy ingestion bursts.
+    AIRFLOW_PARALLELISM=$((CPU_CORES / 2))
 
     ######################################################
     # Individual platform configuration

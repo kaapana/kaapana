@@ -85,10 +85,17 @@ spec:
             memory: "5Gi"
           limits:
             memory: "8Gi"
-            {{- if and (.Values.global.gpu_support) (.Values.global.gpu_container) }}
-            nvidia.com/gpu: '1'
-            {{- end }}
         env:
+        {{- if and (.Values.global.gpu_support) (.Values.global.gpu_container) }}
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "all"
+        # Do wee need special driver capabilities?
+        # - name: NVIDIA_DRIVER_CAPABILITIES
+        #   value: "compute,utility,graphics,display,video"
+        {{- else }}
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "none"
+        {{- end }}
         - name: no_proxy
           value: "traefik-{{ .Values.global.instance_uid | default 0 }}.{{ .Values.global.helm_namespace }}.svc"
         - name: http_proxy

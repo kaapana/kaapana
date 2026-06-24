@@ -276,7 +276,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                         if self.ram_mem_mb_lmt is not None
                         else self.ram_mem_mb + 100
                     ),
-                    "nvidia.com/gpu": 1 if self.gpu_mem_mb else 0,
                 },
                 requests={
                     "cpu": (
@@ -320,6 +319,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             envs["OPERATOR_IN_DIR"] = str(self.operator_in_dir)
 
         envs.update(self.env_vars)
+        if self.gpu_mem_mb:
+            envs["NVIDIA_VISIBLE_DEVICES"] = "all"
         self.env_vars = envs
         kwargs.setdefault("task_id", self.task_id)
         kwargs.setdefault("retries", self.retries)
@@ -886,15 +887,21 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     def execute(self, context: Context):
         self.set_context_variables(context)
         if "gpu_device" in context["task_instance"].executor_config:
+            gpu_device = context["task_instance"].executor_config["gpu_device"]
+            visible_device = gpu_device.get("gpu_uuid") or gpu_device["gpu_id"]
             self.env_vars.update(
                 {
-                    "CUDA_VISIBLE_DEVICES": str(
-                        context["task_instance"].executor_config["gpu_device"]["gpu_id"]
-                    )
+                    "NVIDIA_VISIBLE_DEVICES": str(visible_device),
+                    "CUDA_VISIBLE_DEVICES": "0",
                 }
             )
-        else:
-            self.env_vars.update({"CUDA_VISIBLE_DEVICES": ""})
+        elif not self.gpu_mem_mb:
+            self.env_vars.update(
+                {
+                    "NVIDIA_VISIBLE_DEVICES": "none",
+                    "CUDA_VISIBLE_DEVICES": "",
+                }
+            )
 
         if (
             context["dag_run"].conf is not None

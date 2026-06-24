@@ -99,6 +99,8 @@ spec:
         env:
         - name: ADMIN_NAMESPACE
           value: "{{ .Values.global.admin_namespace }}"
+        - name: AIRFLOW__CORE__PARALLELISM
+          value: "{{ .Values.global.airflow_parallelism }}"
         - name: AIRFLOW__LOGGING__LOGGING_LEVEL
           value: "INFO"
         - name: AIRFLOW_HOME

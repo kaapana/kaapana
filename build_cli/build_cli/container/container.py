@@ -241,7 +241,7 @@ class Container:
             repo_version = "latest"
         elif build_config.version_latest:
             version_str, *_ = GitUtils.get_repo_info(dockerfile.parent)
-            base = version_str.split("-")[0]
+            base = re.sub(r"-\d+-g[0-9a-f]+.*$", "", version_str)
             repo_version = f"{base}-latest"
         else:
             repo_version, *_ = GitUtils.get_repo_info(dockerfile.parent)

@@ -31,6 +31,10 @@ spec:
           volumeMounts:
             - name: {{ .Release.Name }}-host-path
               mountPath: /mount
+              # Pick up (re)mounts the host performs under this path (e.g. a
+              # Windows/CIFS share mounted into the synced directory) instead of
+              # staying pinned to the mount namespace from pod creation time.
+              mountPropagation: HostToContainer
       containers:
         - name: minio-sync
           image: "{{ .Values.global.registry_url }}/minio-mirror:{{ .Values.global.kaapana_build_version }}"
@@ -58,6 +62,13 @@ spec:
           volumeMounts:
             - name: {{ .Release.Name }}-host-path
               mountPath: /host
+              # When the host (un)mounts a share underneath the synced directory
+              # (e.g. a Windows/CIFS mount that drops and comes back), propagate
+              # that mount into the running container. Without this the container
+              # keeps the filesystem view it had at startup, so a remount on the
+              # host becomes invisible and rclone keeps syncing against the stale
+              # view - which is why only deleting and recreating the pod recovered.
+              mountPropagation: HostToContainer
       imagePullSecrets:
         - name: registry-secret
       volumes:

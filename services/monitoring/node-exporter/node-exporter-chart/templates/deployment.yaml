@@ -52,8 +52,15 @@ spec:
           mountPropagation: HostToContainer
           name: sys
           readOnly: true
+        # mountPropagation: None (not HostToContainer) on purpose: with HostToContainer
+        # this rslave mount of host "/" receives every kubelet subPath bind-mount created
+        # under /var/lib/kubelet/pods/... and pins it, so kubelet's teardown fails with
+        # "device or resource busy", orphaning the pod and degrading kubelite over uptime
+        # (pods stuck Pending). None means node-exporter does not receive those mounts.
+        # Trade-off: filesystem metrics for volumes mounted after node-exporter starts are
+        # not reported; host filesystems present at start (/, data dirs) remain visible.
         - mountPath: /host/root
-          mountPropagation: HostToContainer
+          mountPropagation: None
           name: root
           readOnly: true
         - mountPath: /var/lib/node_exporter/textfile_collector

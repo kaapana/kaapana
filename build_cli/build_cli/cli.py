@@ -379,20 +379,27 @@ def validate_registry_login_config(build_config: BuildConfig, logger) -> None:
     if build_config.build_only or build_config.no_login:
         return
 
+    missing = []
     if not build_config.default_registry:
-        logger.error("Registry login is enabled, but --default-registry is missing.")
-        logger.error("How to use this command:")
-        logger.error("  - Local build only: kaapana-build --latest --build-only --no-login")
-        logger.error(
-            "  - Build and push: kaapana-build --latest --default-registry <registry>"
-        )
-        sys.exit(2)
+        missing.append("--default-registry")
+    if not build_config.registry_username:
+        missing.append("--username/--registry-username")
+    if not build_config.registry_password:
+        missing.append("--registry-password")
 
-    has_user = bool(build_config.registry_username)
-    has_pass = bool(build_config.registry_password)
-    if has_user != has_pass:
-        logger.error("Provide both --username and --registry-password, or neither for an unauthenticated registry.")
-        sys.exit(2)
+    if not missing:
+        return
+
+    logger.error(
+        "Registry login is enabled, but required registry settings are missing."
+    )
+    logger.error(f"Missing: {', '.join(missing)}")
+    logger.error("How to use this command:")
+    logger.error("  - Local build only: kaapana-build --latest --build-only --no-login")
+    logger.error(
+        "  - Build and push: kaapana-build --latest --default-registry <registry> --username <user> --registry-password <password>"
+    )
+    sys.exit(2)
 
 
 def run_build(build_config: BuildConfig):
@@ -434,12 +441,7 @@ def run_build(build_config: BuildConfig):
     ContainerHelper.verify_container_engine_installed()
     HelmChartHelper.verify_helm_installed()
 
-    if (
-        not build_config.build_only
-        and not build_config.no_login
-        and build_config.registry_username
-        and build_config.registry_password
-    ):
+    if not build_config.build_only and not build_config.no_login:
         ContainerHelper.container_registry_login(
             username=build_config.registry_username,
             password=build_config.registry_password,

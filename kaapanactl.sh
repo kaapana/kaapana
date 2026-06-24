@@ -2509,9 +2509,9 @@ function check_credentials {
         if [ -z "$CONTAINER_REGISTRY_USERNAME" ] || [ -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
             echo -e "${YELLOW}Please enter the credentials for the Container-Registry!${NC}"
                 read -p '**** username: ' CONTAINER_REGISTRY_USERNAME
-        read -s -p '**** password: ' CONTAINER_REGISTRY_PASSWORD
+                read -s -p '**** password: ' CONTAINER_REGISTRY_PASSWORD
         else
-    echo -e "${GREEN}Credentials found!${NC}"
+            echo -e "${GREEN}Credentials found!${NC}"
             break
         fi
     done

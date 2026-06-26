@@ -1,6 +1,6 @@
 ---
 global:
-  pull_policy_images: "IfNotPresent"
+  pull_policy_images: "Always"
 
 nninteractiveProxy:
   image: "nninteractive-proxy"

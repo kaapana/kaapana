@@ -528,6 +528,35 @@ def _forward_auth_headers(request: Request) -> dict[str, str]:
     return headers
 
 
+def _run_inference_request(entry: SeriesSession, mode: Any, data: dict[str, Any], start: float) -> Response:
+    if mode == "init":
+        seg, offset, full_shape, crop_shape = _crop_target(entry.target_buffer)
+        return _multipart(_meta(entry, b"", [0, 0, 0], full_shape, [0, 0, 0], start, "initialized"), b"")
+
+    if mode == "reset":
+        _reset(entry)
+        seg, offset, full_shape, crop_shape = _crop_target(entry.target_buffer)
+        return _multipart(_meta(entry, b"", offset, full_shape, crop_shape, start, "reset"), b"")
+
+    if mode == "undo":
+        ran = entry.session.undo()
+        if ran and entry.prompt_order:
+            entry.prompts_seen.discard(entry.prompt_order.pop())
+        seg, offset, full_shape, crop_shape = _crop_target(entry.target_buffer)
+        return _multipart(_meta(entry, seg, offset, full_shape, crop_shape, start, "undo"), seg)
+
+    if mode is not True and str(mode).lower() != "true":
+        raise HTTPException(400, "Only nnInteractive requests are supported")
+
+    if _jsonish(data.get("nninter_reset_first"), False):
+        _reset(entry)
+
+    counts = _apply_prompts(entry, data)
+    seg, offset, full_shape, crop_shape = _crop_target(entry.target_buffer)
+    prompt_info = ", ".join(f"{k}={v}" for k, v in counts.items() if v) or "no new prompts"
+    return _multipart(_meta(entry, seg, offset, full_shape, crop_shape, start, prompt_info), seg)
+
+
 @app.get("/healthz")
 def healthz() -> dict[str, Any]:
     return {"ok": True, "nninteractive_server": NNINTERACTIVE_SERVER_URL, "cached_sessions": len(sessions)}
@@ -556,38 +585,20 @@ async def infer_segmentation(request: Request) -> Response:
     if mode in {"medGemma", "gemini", "openai", "claude", "kimi", "qwen", "gemma", "vllm"}:
         raise HTTPException(501, f"Text/VLM mode '{mode}' is not implemented by this nnInteractive proxy")
 
-    entry = _get_series_session(study_uid, series_uid, _forward_auth_headers(request))
+    dicomweb_headers = _forward_auth_headers(request)
+    entry = _get_series_session(study_uid, series_uid, dicomweb_headers)
     try:
-        if mode == "init":
-            seg, offset, full_shape, crop_shape = _crop_target(entry.target_buffer)
-            return _multipart(_meta(entry, b"", [0, 0, 0], full_shape, [0, 0, 0], start, "initialized"), b"")
-
-        if mode == "reset":
-            _reset(entry)
-            seg, offset, full_shape, crop_shape = _crop_target(entry.target_buffer)
-            return _multipart(_meta(entry, b"", offset, full_shape, crop_shape, start, "reset"), b"")
-
-        if mode == "undo":
-            ran = entry.session.undo()
-            if ran and entry.prompt_order:
-                entry.prompts_seen.discard(entry.prompt_order.pop())
-            seg, offset, full_shape, crop_shape = _crop_target(entry.target_buffer)
-            return _multipart(_meta(entry, seg, offset, full_shape, crop_shape, start, "undo"), seg)
-
-        if mode is not True and str(mode).lower() != "true":
-            raise HTTPException(400, "Only nnInteractive requests are supported")
-
-        if _jsonish(data.get("nninter_reset_first"), False):
-            _reset(entry)
-
-        counts = _apply_prompts(entry, data)
-        seg, offset, full_shape, crop_shape = _crop_target(entry.target_buffer)
-        prompt_info = ", ".join(f"{k}={v}" for k, v in counts.items() if v) or "no new prompts"
-        return _multipart(_meta(entry, seg, offset, full_shape, crop_shape, start, prompt_info), seg)
+        return _run_inference_request(entry, mode, data, start)
 
     except SessionExpiredError:
+        logger.info("nnInteractive session expired for %s; recreating and retrying request once", series_uid)
         _close_entry(entry)
-        raise HTTPException(409, "nnInteractive session expired; please initialize again")
+        retry_entry = _get_series_session(study_uid, series_uid, dicomweb_headers)
+        try:
+            return _run_inference_request(retry_entry, mode, data, start)
+        except SessionExpiredError as e:
+            _close_entry(retry_entry)
+            raise HTTPException(409, "nnInteractive session expired after retry; please initialize again") from e
     except HTTPException:
         raise
     except Exception as e:

@@ -46,7 +46,7 @@ diff --git a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTView
 index 19cf891d0..f0c32550e 100644
 --- a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
 +++ b/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
-@@ -157,18 +157,10 @@ function OHIFCornerstoneRTViewport(props: withAppTypes) {
+@@ -157,18 +157,17 @@ function OHIFCornerstoneRTViewport(props: withAppTypes) {
      if (rtIsLoading) {
        return;
      }
@@ -65,7 +65,14 @@ index 19cf891d0..f0c32550e 100644
 +    // Always hydrate -> show rt struct by default when loading the
 +    // RT struct series. The default behaviour was to show just the CT
 +    // and click on the RT struct was necessarry (Even when using initialSeriesUID)
-+    setIsHydrated(true);
++    if (rtDisplaySet.isHydrated || isHydrated) {
++      return;
++    }
++    storePresentationState();
++    window.setTimeout(() => {
++      hydrateRTDisplaySet({ rtDisplaySet, viewportId });
++      setIsHydrated(true);
++    }, 0);
    }, [servicesManager, viewportId, rtDisplaySet, rtIsLoading]);
  
    useEffect(() => {
@@ -73,7 +80,7 @@ diff --git a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGVi
 index 2d7ae9105..0fcb8a73f 100644
 --- a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
 +++ b/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
-@@ -170,18 +170,10 @@ function OHIFCornerstoneSEGViewport(props: withAppTypes) {
+@@ -170,18 +170,17 @@ function OHIFCornerstoneSEGViewport(props: withAppTypes) {
      if (segIsLoading) {
        return;
      }
@@ -92,10 +99,44 @@ index 2d7ae9105..0fcb8a73f 100644
 +    // Always hydrate -> show SEG by default when loading the
 +    // SEG series. The default behaviour was to show just the CT
 +    // and click on the SEG was necessarry (Even when using initialSeriesUID)
-+    setIsHydrated(true)
++    if (segDisplaySet.isHydrated || isHydrated) {
++      return;
++    }
++    storePresentationState();
++    window.setTimeout(() => {
++      hydrateSEG();
++      setIsHydrated(true);
++    }, 0);
    }, [servicesManager, viewportId, segDisplaySet, segIsLoading, hydrateSEG]);
  
    useEffect(() => {
+diff --git a/backup/esm/SegmentationRenderingEngine.js b/backup/esm/SegmentationRenderingEngine.js
+index f2e02859c..a8d05d32b 100644
+--- a/backup/esm/SegmentationRenderingEngine.js
++++ b/backup/esm/SegmentationRenderingEngine.js
+@@ -141,7 +141,21 @@ class SegmentationRenderingEngine {
+                     if(data===undefined){
+                         continue;
+                     }
+-                    let prompts = JSON.parse(data.SegmentDescription)
++                    const segmentDescription = data.SegmentDescription;
++                    if (typeof segmentDescription !== 'string') {
++                        continue;
++                    }
++                    const trimmedSegmentDescription = segmentDescription.trim();
++                    if (!trimmedSegmentDescription.startsWith('{') && !trimmedSegmentDescription.startsWith('[')) {
++                        continue;
++                    }
++                    let prompts;
++                    try {
++                        prompts = JSON.parse(trimmedSegmentDescription)
++                    } catch (error) {
++                        console.debug('Skipping non-JSON segment prompt metadata', error);
++                        continue;
++                    }
+                     let SegmentNumber = data.SegmentNumber
+                     let segmentationId = segmentationDetails[0].segmentationId
+                     
 diff --git a/extensions/default/src/ViewerLayout/ViewerHeader.tsx b/extensions/default/src/ViewerLayout/ViewerHeader.tsx
 index 6e1afb651..24f790292 100644
 --- a/extensions/default/src/ViewerLayout/ViewerHeader.tsx

@@ -35,25 +35,10 @@ const getPanelModule = ({ commandsManager, servicesManager, extensionManager }: 
   const wrappedPanelSegmentationWithTools = ({ configuration }) => {
     return (
       <>
-      <Toolbox
+        <Toolbox
           buttonSectionId="aiToolBox"
-          title="Interactive Segmentation (OHIF-AI)"
+          title="nnInteractive Segmentation"
           defaultOpen={true}
-        />
-        <Toolbox
-          buttonSectionId="textPromptSegmentationToolbox"
-          title="Text-Prompt Segmentation"
-          defaultOpen={false}
-        />
-        <Toolbox
-          buttonSectionId="testMedgemmaToolbox"
-          title="VLM Report Generation"
-          defaultOpen={false}
-        />
-        <Toolbox
-          buttonSectionId="segmentationToolbox"
-          title="Non-Interactive Segmentation (Legacy)"
-          defaultOpen={false}
         />
         <PanelSegmentation
           commandsManager={commandsManager}

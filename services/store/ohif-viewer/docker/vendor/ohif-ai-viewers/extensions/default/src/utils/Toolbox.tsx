@@ -144,6 +144,10 @@ export function Toolbox({ buttonSectionId, title, defaultOpen = true }: { button
 
   // Sync local state with global state changes
   useEffect(() => {
+    if (isAIToolBox && toolboxState.getSelectedModel() !== 'nnInteractive') {
+      toolboxState.setSelectedModel('nnInteractive');
+    }
+
     const updateLocalState = () => {
       setLiveMode(toolboxState.getLiveMode());
       setPosNeg(toolboxState.getPosNeg());
@@ -450,28 +454,6 @@ export function Toolbox({ buttonSectionId, title, defaultOpen = true }: { button
                         console.log('Pos/Neg:', checked);
                       }}
                      />
-                   </div>
-                   <div className="flex items-center gap-2">
-                     <Label htmlFor="model-selection">Model</Label>
-                     <Select
-                       value={selectedModel}
-                       onValueChange={(value) => {
-                         const model = value as 'nnInteractive' | 'sam2' | 'medsam2' | 'sam3';
-                         setSelectedModel(model);
-                         toolboxState.setSelectedModel(model);
-                         console.log('Model selection:', model);
-                       }}
-                     >
-                       <SelectTrigger id="model-selection" className="w-[140px]">
-                         <SelectValue placeholder="Select model" />
-                       </SelectTrigger>
-                       <SelectContent>
-                         <SelectItem value="nnInteractive">nnInteractive</SelectItem>
-                         <SelectItem value="sam2">SAM2</SelectItem>
-                         <SelectItem value="medsam2">MedSAM2</SelectItem>
-                         <SelectItem value="sam3">SAM3</SelectItem>
-                       </SelectContent>
-                    </Select>
                    </div>
                  </div>
                 )}

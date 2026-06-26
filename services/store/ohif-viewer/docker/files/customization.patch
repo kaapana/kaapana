@@ -42,6 +42,54 @@ index b3f2d1fc..00000000 100644
        const dataSource = dataSources[0];
        const measurementData = measurementService.getMeasurements(measurementFilter);
 
+diff --git a/platform/core/src/services/ToolBarService/ToolbarService.ts b/platform/core/src/services/ToolBarService/ToolbarService.ts
+index 39a41cb9d..00000000 100644
+--- a/platform/core/src/services/ToolBarService/ToolbarService.ts
++++ b/platform/core/src/services/ToolBarService/ToolbarService.ts
+@@ -238,7 +238,10 @@ export default class ToolbarService extends PubSubService {
+         const { disabled, disabledText, className, isActive } = evaluationResults.get(button.id);
+         return { ...props, disabled, disabledText, className, isActive };
+       } else {
+-        const evaluated = props.evaluate?.({ ...refreshProps, button });
++        const evaluated =
++          typeof props.evaluate === 'function'
++            ? props.evaluate({ ...refreshProps, button })
++            : undefined;
+         const updatedProps = {
+           ...props,
+           ...evaluated,
+diff --git a/extensions/cornerstone/src/init.tsx b/extensions/cornerstone/src/init.tsx
+index 59479cafb..00000000 100644
+--- a/extensions/cornerstone/src/init.tsx
++++ b/extensions/cornerstone/src/init.tsx
+@@ -259,7 +259,9 @@ export default async function init({
+    */
+   const imageLoadFailedHandler = ({ detail }) => {
+     const handler = errorHandler.getHTTPErrorHandler();
+-    handler(detail.error);
++    if (typeof handler === 'function') {
++      handler(detail.error);
++    }
+   };
+ 
+   eventTarget.addEventListener(EVENTS.IMAGE_LOAD_FAILED, imageLoadFailedHandler);
+diff --git a/extensions/cornerstone/src/initWADOImageLoader.js b/extensions/cornerstone/src/initWADOImageLoader.js
+index 4c6918944..00000000 100644
+--- a/extensions/cornerstone/src/initWADOImageLoader.js
++++ b/extensions/cornerstone/src/initWADOImageLoader.js
+@@ -46,7 +46,10 @@ export default function initWADOImageLoader(
+       return xhrRequestHeaders;
+     },
+     errorInterceptor: error => {
+-      errorHandler.getHTTPErrorHandler(error);
++      const handler = errorHandler.getHTTPErrorHandler();
++      if (typeof handler === 'function') {
++        handler(error);
++      }
+     },
+   });
+ }
+
 diff --git a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx b/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
 index 19cf891d0..f0c32550e 100644
 --- a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx

@@ -4,9 +4,6 @@ LABEL IMAGE="ohif"
 LABEL VERSION="v3.10.4-ohif-ai"
 LABEL BUILD_IGNORE="False"
 
-ARG OHIF_AI_REPOSITORY=https://github.com/CCI-Bonn/OHIF-AI.git
-ARG OHIF_AI_COMMIT=dc17dcfa7f9ffd1416e3a03ad6bb5b70c3101a8c
-
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates git build-essential python3 \
     && rm -rf /var/lib/apt/lists/*
@@ -14,11 +11,7 @@ RUN apt-get update \
 RUN corepack enable && corepack prepare yarn@1.22.22 --activate
 RUN yarn config set workspaces-experimental true
 
-RUN git clone "${OHIF_AI_REPOSITORY}" /tmp/ohif-ai \
-    && cd /tmp/ohif-ai \
-    && git checkout "${OHIF_AI_COMMIT}" \
-    && mv /tmp/ohif-ai/Viewers /src \
-    && rm -rf /tmp/ohif-ai
+COPY vendor/ohif-ai-viewers /src
 
 WORKDIR /src
 
@@ -77,11 +70,21 @@ RUN rm -f node_modules/@cornerstonejs/tools/dist/esm/tools/base/AnnotationTool.j
 
 RUN yarn run build
 
+# Preserve vendored OSS notices in the distributable image.
+RUN mkdir -p /src/vendor-licenses/ohif-ai-viewers \
+    && find /src -path '*/LICENSE' -type f -exec sh -c '\
+        for license_file do \
+            rel_path="${license_file#/src/}"; \
+            mkdir -p "/src/vendor-licenses/ohif-ai-viewers/$(dirname "${rel_path}")"; \
+            cp "${license_file}" "/src/vendor-licenses/ohif-ai-viewers/${rel_path}"; \
+        done' sh {} +
+
 FROM docker.io/nginx:1.31-alpine AS production-stage
 
 RUN apk update && apk upgrade libxml2
 
 COPY --from=build /src/platform/app/dist/ /usr/share/nginx/html/ohif/
+COPY --from=build /src/vendor-licenses/ /usr/share/nginx/html/ohif/vendor-licenses/
 
 COPY files/ /usr/share/nginx/html/
 COPY files/kaapana.js /usr/share/nginx/html/ohif/app-config.js

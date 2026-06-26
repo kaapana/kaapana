@@ -1,0 +1,23 @@
+{
+  "Previous": "Test < Previous",
+  "AccessionNumber": "Test Accession #",
+  "Accession": "Test Accession",
+  "Description": "Test Description",
+  "Empty": "Test Empty",
+  "Filter list to 100 studies or less to enable sorting": "Test Filter list to 100 studies or less to enable sorting",
+  "Instances": "Test Instances",
+  "MRN": "Test MRN",
+  "Modality": "Test Modality",
+  "Next": "Test Next >",
+  "No studies available": "Test No studies available",
+  "Number of studies": "Test Number of studies",
+  "PatientName": "Test PatientName",
+  "Patient Name": "Test Patient Name",
+  "Results per page": "Test Results per page",
+  "StudyDate": "Test Study Date",
+  "Study date": "Test Study Date",
+  "Series": "Test Series",
+  "Study List": "Test Study List",
+  "Study list": "Test Study list",
+  "Upload": "Test Upload"
+}

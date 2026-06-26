@@ -1,0 +1,49 @@
+{
+  "name": "@ohif/mode-basic-dev-mode",
+  "version": "3.10.4",
+  "description": "Basic OHIF Viewer Using Cornerstone",
+  "author": "OHIF",
+  "license": "MIT",
+  "repository": "OHIF/Viewers",
+  "main": "dist/ohif-mode-basic-dev-mode.umd.js",
+  "module": "src/index.ts",
+  "engines": {
+    "node": ">=10",
+    "npm": ">=6",
+    "yarn": ">=1.16.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "clean": "shx rm -rf dist",
+    "clean:deep": "yarn run clean && shx rm -rf node_modules",
+    "dev": "cross-env NODE_ENV=development webpack --config .webpack/webpack.dev.js --watch --output-pathinfo",
+    "dev:cornerstone": "yarn run dev",
+    "build": "cross-env NODE_ENV=production webpack --config .webpack/webpack.prod.js",
+    "build:package": "yarn run build",
+    "start": "yarn run dev",
+    "test:unit": "jest --watchAll",
+    "test:unit:ci": "jest --ci --runInBand --collectCoverage --passWithNoTests"
+  },
+  "peerDependencies": {
+    "@ohif/core": "3.10.4",
+    "@ohif/extension-cornerstone": "3.10.4",
+    "@ohif/extension-cornerstone-dicom-sr": "3.10.4",
+    "@ohif/extension-default": "3.10.4",
+    "@ohif/extension-dicom-pdf": "3.10.4",
+    "@ohif/extension-dicom-video": "3.10.4"
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.20.13",
+    "i18next": "^17.0.3"
+  },
+  "devDependencies": {
+    "webpack": "5.104.1",
+    "webpack-merge": "^5.7.3"
+  }
+}

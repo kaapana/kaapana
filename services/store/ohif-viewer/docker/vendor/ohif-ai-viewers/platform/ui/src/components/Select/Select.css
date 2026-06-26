@@ -1,0 +1,113 @@
+.customSelect__wrapper .customSelect__control {
+  @apply border-secondary-light w-full rounded border bg-black text-sm leading-tight text-white shadow transition duration-300;
+  min-height: 28px;
+}
+.customSelect__wrapper .customSelect__control:hover {
+  @apply border-gray-500;
+}
+
+.customSelect__control {
+  height: 32px;
+}
+
+.customSelect__value-container {
+  padding-top: 0px !important;
+  padding-bottom: 0px !important;
+}
+
+.customSelect__input {
+  @apply text-white !important;
+  font-size: 0.75rem !important;
+  line-height: 1.25 !important;
+}
+
+.customSelect__wrapper .customSelect__control:focus,
+.customSelect__wrapper .customSelect__control--menu-is-open {
+  @apply border-gray-500 outline-none;
+}
+
+.customSelect--is-disabled .customSelect__control--is-disabled {
+  @apply pointer-events-none;
+}
+
+.css-1hwfws3 {
+  padding: 0;
+}
+
+.customSelect__wrapper .customSelect__indicator-separator {
+  @apply hidden;
+}
+
+.customSelect__wrapper .customSelect__dropdown-indicator {
+  padding: 4px;
+}
+
+ .customSelect__option {
+  color: #d6d6d6 !important;
+  font-size: 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  @apply flex flex-row items-center !important;
+}
+
+.customSelect__option--is-selected {
+  @apply bg-transparent !important;
+}
+
+.customSelect__wrapper .customSelect__single-value {
+  @apply text-aqua-pale pl-1;
+  max-width: calc(100% - 20px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customSelect__wrapper.customSelect--is-disabled {
+  @apply pointer-events-auto cursor-not-allowed;
+}
+
+.customSelect__wrapper .customSelect__value-container--is-multi {
+  @apply inline-block truncate px-3 py-2;
+}
+
+.customSelect__menu-portal .customSelect__menu {
+  background-color: transparent !important;
+  border-radius: 6px;
+}
+
+.customSelect__menu-portal .customSelect__menu-list {
+  overflow-x: hidden !important;
+  margin: 4px;
+  padding-top: 0px !important;
+}
+
+.customSelect__menu-portal .customSelect__menu-list::-webkit-scrollbar {
+  width: 6px;
+  border-radius: 10px;
+}
+.customSelect__menu-portal .customSelect__placeholder {
+  @apply text-aqua-pale pl-1.5;
+}
+
+.customSelect__menu-portal .customSelect__menu-list::-webkit-scrollbar-thumb {
+  background-color: #0944b3;
+  border-radius: 10px;
+}
+
+.customSelect__option--is-focused {
+  background-color: #0944b391 !important;
+}
+
+.customSelect__menu-portal .customSelect__option:hover {
+  background-color: #0944b391;
+}
+
+.customSelect__menu-portal .customSelect__menu {
+  border: 2px solid #0944b3;
+  border-radius: 6px;
+  background-color: #151515 !important;
+}
+
+.css-1hwfws3 {
+  all: unset !important;
+}

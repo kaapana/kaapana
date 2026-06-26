@@ -1,0 +1,11 @@
+---
+apiVersion: v1
+appVersion: "0.1.0"
+description: Lightweight OHIF-to-nnInteractive proxy
+name: nninteractive-proxy
+version: "0.0.0"
+keywords:
+- kaapanaapplication
+- kaapanaexperimental
+annotations:
+  ui-visible-name: "nnInteractive Proxy"

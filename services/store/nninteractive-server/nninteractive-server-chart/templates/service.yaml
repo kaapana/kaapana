@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nninteractive-server-service
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    app.kubernetes.io/name: nninteractive-server
+spec:
+  selector:
+    app.kubernetes.io/name: nninteractive-server
+  ports:
+    - name: nninteractive
+      port: {{ .Values.nninteractive.port }}
+      targetPort: {{ .Values.nninteractive.port }}
+      protocol: TCP
+  type: ClusterIP

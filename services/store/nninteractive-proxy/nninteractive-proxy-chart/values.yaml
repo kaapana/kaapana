@@ -1,0 +1,13 @@
+---
+global:
+  pull_policy_images: "IfNotPresent"
+
+nninteractiveProxy:
+  image: "nninteractive-proxy"
+  port: 8002
+  dicomwebRoot: ""
+  nninteractiveServerUrl: ""
+  apiKey: ""
+  maxCachedSessions: 1
+  memoryRequest: 512Mi
+  memoryLimit: 4Gi

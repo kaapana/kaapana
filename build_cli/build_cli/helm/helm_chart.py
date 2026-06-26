@@ -285,7 +285,8 @@ class HelmChart:
             collection_container = ContainerHelper.get_container(
                 registry=build_config.default_registry, image_name=name, version=version
             )
-            chart_containers.add(collection_container)
+            if collection_container is not None:
+                chart_containers.add(collection_container)
 
         if kaapana_type == KaapanaType.KAAPANA_WORKFLOW and values:
             # Check for workflow v1 style (global.image)
@@ -296,7 +297,8 @@ class HelmChart:
                     image_name=image,
                     version=version,
                 )
-                chart_containers.add(workflow_container)
+                if workflow_container is not None:
+                    chart_containers.add(workflow_container)
 
             # Scan for operator containers in Python files
             operator_containers = cls.collect_operator_containers(
@@ -316,7 +318,8 @@ class HelmChart:
                     image_name=container_name,
                     version=version,
                 )
-                chart_containers.add(processing_container)
+                if processing_container is not None:
+                    chart_containers.add(processing_container)
 
         templates_containers = HelmChart.extract_images_from_templates(
             chartfile=chartfile,
@@ -362,7 +365,8 @@ class HelmChart:
                         image_name=image_name,
                         version=actual_version,
                     )
-                    operator_containers.add(operator_container)
+                    if operator_container is not None:
+                        operator_containers.add(operator_container)
         return operator_containers
 
     @staticmethod
@@ -452,12 +456,25 @@ class HelmChart:
                     )
                     container_name = container_tag.split("/")[-1].split(":")[0]
 
+                    # Skip references that are not built in this repo: unresolved
+                    # value templates (e.g. ".Values.foo.image") and external
+                    # images pulled directly from another registry.
+                    if (
+                        ".Values" in container_name
+                        or container_registry != default_registry
+                    ):
+                        logger.debug(
+                            f"Skipping non-built image reference: {container_tag}"
+                        )
+                        continue
+
                     container = ContainerHelper.get_container(
                         registry=container_registry,
                         image_name=container_name,
                         version=version,
                     )
-                    containers.add(container)
+                    if container is not None:
+                        containers.add(container)
 
             except Exception as e:
                 logger.error(f"Failed reading {yaml_file}: {e}")
@@ -526,7 +543,8 @@ class HelmChart:
                     image_name=container_name,
                     version=version,
                 )
-                containers.add(container)
+                if container is not None:
+                    containers.add(container)
 
         except Exception as e:
             logger.error(f"Failed reading {values_file}: {e}")

@@ -40,6 +40,15 @@ import { callInputDialog } from './utils/callInputDialog';
 /** Tracks the last series initialized by initNninter to detect study/series changes. */
 let _lastInitSeries: string | undefined = undefined;
 
+/**
+ * A 409 from the nnInteractive proxy means the backend session is gone (never
+ * initialized, or reaped after the idle/liveness timeout). Mark it inactive so
+ * the AI toolbox re-gates prompts until the user clicks Initialize again.
+ */
+function _isSessionExpiredError(error: any): boolean {
+  return error?.response?.status === 409;
+}
+
 /** Safely parse a numeric timing field from multipart response metadata. */
 function metaNum(meta: Record<string, unknown>, key: string): number | undefined {
   const v = meta[key];
@@ -1153,7 +1162,9 @@ const commandsModule = ({
           const _zMax = z_range.length > 0 ? Math.max(...z_range) + 1 : (merged_derivedImages?.length ?? 0);
           segments[segmentNumber] = {
             segmentIndex: segmentNumber,
-            label: label_name,
+            // Keep a pre-existing (or user-renamed) label; only name brand-new
+            // segments by their index ("Segment 1", "Segment 2", …).
+            label: existingSegments[segmentNumber]?.label || `Segment ${segmentNumber}`,
             locked: false,
             active: false,
             cachedStats: {
@@ -1266,13 +1277,85 @@ const commandsModule = ({
       try {
         const response = await initPromise;
         if (response.status === 200) {
+          // Mark the session live so the AI toolbox enables prompts/tools.
+          toolboxState.setSessionActive(true);
+          toolboxState.setSessionSeries(currentDisplaySets.SeriesInstanceUID);
           return response;
         }
       } catch (error) {
+        toolboxState.setSessionActive(false);
         console.error('Init nninter error:', error);
         throw error;
       }
 
+    },
+    /**
+     * Poll the proxy for whether a live backend session exists for the active
+     * series (without creating one). Keeps toolboxState.sessionActive in sync so
+     * the UI can gate prompts, and doubles as the browser→proxy heartbeat.
+     */
+    async nninterSessionStatus() {
+      const { activeViewportId, viewports } = viewportGridService.getState();
+      const activeViewportSpecificData = viewports.get(activeViewportId);
+      if (!activeViewportSpecificData) {
+        return false;
+      }
+      const { displaySetInstanceUIDs } = activeViewportSpecificData;
+      const displaySets = displaySetService.activeDisplaySets;
+      const currentDisplaySets = displaySets.filter(
+        e => e.displaySetInstanceUID == displaySetInstanceUIDs[0]
+      )[0];
+      if (!currentDisplaySets || currentDisplaySets.Modality === 'SEG') {
+        return false;
+      }
+      try {
+        const url = `/monai/infer/session?image=${currentDisplaySets.SeriesInstanceUID}&studyInstanceUID=${currentDisplaySets.StudyInstanceUID}`;
+        const response = await axios.get(url);
+        const active = !!response?.data?.active;
+        toolboxState.setSessionActive(active);
+        if (active) {
+          toolboxState.setSessionSeries(currentDisplaySets.SeriesInstanceUID);
+        }
+        return active;
+      } catch (error) {
+        // A transient network error shouldn't tear down a session the user is
+        // mid-interaction with; leave sessionActive as-is.
+        console.warn('nninter session status check failed:', error);
+        return toolboxState.getSessionActive();
+      }
+    },
+    /**
+     * Release the backend lease when the user leaves the page. Uses sendBeacon so
+     * the request survives unload; falls back to keepalive fetch.
+     */
+    closeNninterSession() {
+      const { activeViewportId, viewports } = viewportGridService.getState();
+      const activeViewportSpecificData = viewports.get(activeViewportId);
+      if (!activeViewportSpecificData) {
+        return;
+      }
+      const { displaySetInstanceUIDs } = activeViewportSpecificData;
+      const displaySets = displaySetService.activeDisplaySets;
+      const currentDisplaySets = displaySets.filter(
+        e => e.displaySetInstanceUID == displaySetInstanceUIDs[0]
+      )[0];
+      if (!currentDisplaySets) {
+        return;
+      }
+      const url = `/monai/infer/close?image=${currentDisplaySets.SeriesInstanceUID}&studyInstanceUID=${currentDisplaySets.StudyInstanceUID}`;
+      toolboxState.setSessionActive(false);
+      try {
+        const body = new FormData();
+        body.append('image', currentDisplaySets.SeriesInstanceUID);
+        body.append('studyInstanceUID', currentDisplaySets.StudyInstanceUID);
+        if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+          navigator.sendBeacon(url, body);
+        } else {
+          fetch(url, { method: 'POST', body, keepalive: true }).catch(() => {});
+        }
+      } catch (error) {
+        console.warn('closeNninterSession failed:', error);
+      }
     },
     async undoNninter() {
       if (toolboxState.getLocked()) {
@@ -1483,6 +1566,14 @@ const commandsModule = ({
         });
         return response;
       } catch (error) {
+        if (_isSessionExpiredError(error)) {
+          toolboxState.setSessionActive(false);
+          uiNotificationService?.show({
+            title: 'nnInteractive',
+            message: 'Session expired — please Initialize again.',
+            type: 'warning',
+          });
+        }
         console.error('Undo nninter error:', error);
         throw error;
       }
@@ -1531,6 +1622,9 @@ const commandsModule = ({
           return response;
         }
       } catch (error) {
+        if (_isSessionExpiredError(error)) {
+          toolboxState.setSessionActive(false);
+        }
         console.error('Reset nninter error:', error);
         throw error;
       }
@@ -2694,7 +2788,10 @@ const commandsModule = ({
           console.log(`Just after derivedImageIds: ${(Date.now() - start)/1000} Seconds`);
           segments[segmentNumber] = {
             segmentIndex: segmentNumber,
-            label: label_name,
+            // Keep a pre-existing (or user-renamed) label; only name brand-new
+            // segments by their index ("Segment 1", "Segment 2", …) instead of
+            // labelling every object "nnInteractive".
+            label: existingSegments[segmentNumber]?.label || `Segment ${segmentNumber}`,
             locked: false,
             active: false,
             cachedStats: {
@@ -2734,6 +2831,14 @@ const commandsModule = ({
           return response;
         }
       } catch (error) {
+        if (_isSessionExpiredError(error)) {
+          toolboxState.setSessionActive(false);
+          uiNotificationService?.show({
+            title: 'nnInteractive',
+            message: 'Session expired — please Initialize again.',
+            type: 'warning',
+          });
+        }
         console.error('Nninter segmentation error:', error);
         throw error;
       }
@@ -3139,6 +3244,8 @@ const commandsModule = ({
     runAiSegmentation: actions.runAiSegmentation,
     sam2: actions.sam2,
     initNninter: actions.initNninter,
+    nninterSessionStatus: actions.nninterSessionStatus,
+    closeNninterSession: actions.closeNninterSession,
     undoNninter: actions.undoNninter,
     resetNninter: actions.resetNninter,
     resetSegment: actions.resetSegment,

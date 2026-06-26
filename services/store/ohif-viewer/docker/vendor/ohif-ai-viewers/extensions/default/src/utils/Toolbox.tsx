@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Icons, PanelSection, ToolSettings, Switch, Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Button, Input } from '@ohif/ui-next';
+import { Icons, PanelSection, ToolSettings, Switch, Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Button, Input, ToggleGroup, ToggleGroupItem } from '@ohif/ui-next';
 import { Lock, LockOpen } from 'lucide-react';
 import { useSystem, useToolbar } from '@ohif/core';
 import classnames from 'classnames';
@@ -31,7 +31,7 @@ export function Toolbox({ buttonSectionId, title, defaultOpen = true }: { button
   const { servicesManager, commandsManager } = useSystem();
   const { t } = useTranslation();
 
-  const { toolbarService, customizationService, segmentationService, viewportGridService, measurementService } = servicesManager.services;
+  const { toolbarService, customizationService, segmentationService, viewportGridService, measurementService, displaySetService, uiNotificationService } = servicesManager.services;
   const onInteractionRef = React.useRef<((args: { itemId: string }) => void) | null>(null);
   const isAIToolBox = buttonSectionId === 'aiToolBox';
   const isTextPromptToolbox = buttonSectionId === 'textPromptSegmentationToolbox';
@@ -45,6 +45,25 @@ export function Toolbox({ buttonSectionId, title, defaultOpen = true }: { button
   const [posNeg, setPosNeg] = useState(toolboxState.getPosNeg());
   const [textPromptReplaceNew, setTextPromptReplaceNew] = useState(toolboxState.getTextPromptReplaceNew());
   const [selectedModel, setSelectedModel] = useState<'nnInteractive' | 'sam2' | 'medsam2' | 'sam3'>(toolboxState.getSelectedModel());
+  // nnInteractive backend session state — gates every prompt/tool in the AI toolbox.
+  const [sessionActive, setSessionActive] = useState(toolboxState.getSessionActive());
+  const lastSeriesRef = useRef<string>('');
+  // napari-style "Manual Control" section is collapsed by default.
+  const [showManualControl, setShowManualControl] = useState(false);
+
+  // SeriesInstanceUID currently shown in the active viewport ('' if none).
+  const getActiveSeriesUID = (): string => {
+    try {
+      const { activeViewportId, viewports } = viewportGridService.getState();
+      const dsUID = viewports.get(activeViewportId)?.displaySetInstanceUIDs?.[0];
+      const ds = displaySetService.activeDisplaySets.find(
+        (d: any) => d.displaySetInstanceUID === dsUID
+      );
+      return ds?.SeriesInstanceUID ?? '';
+    } catch {
+      return '';
+    }
+  };
   const [medgemmaResult, setMedgemmaResult] = useState(toolboxState.getMedgemmaResult());
   const [medgemmaInstruction, setMedgemmaInstruction] = useState(toolboxState.getMedgemmaInstruction());
   const [medgemmaQuery, setMedgemmaQuery] = useState(toolboxState.getMedgemmaQuery());
@@ -154,6 +173,18 @@ export function Toolbox({ buttonSectionId, title, defaultOpen = true }: { button
       setTextPromptReplaceNew(toolboxState.getTextPromptReplaceNew());
       setSelectedModel(toolboxState.getSelectedModel());
       setIsLocked(toolboxState.getLocked());
+      if (isAIToolBox) {
+        // A series switch invalidates the backend session (it is keyed per series),
+        // so force the user to Initialize again for the new series.
+        const series = getActiveSeriesUID();
+        if (series && lastSeriesRef.current && series !== lastSeriesRef.current) {
+          toolboxState.setSessionActive(false);
+        }
+        if (series) {
+          lastSeriesRef.current = series;
+        }
+        setSessionActive(toolboxState.getSessionActive());
+      }
     };
 
     // Update immediately
@@ -167,6 +198,10 @@ export function Toolbox({ buttonSectionId, title, defaultOpen = true }: { button
       // Reset volatile interaction state when the user leaves the viewer (e.g. back to study list).
       // This ensures the next mount always reads the default (positive) regardless of series UID.
       toolboxState.setPosNeg(false);
+      // Leaving the viewer releases the backend lease so the GPU slot is freed.
+      if (isAIToolBox && toolboxState.getSessionActive()) {
+        commandsManager.run('closeNninterSession');
+      }
     };
   }, []);
 
@@ -319,6 +354,33 @@ export function Toolbox({ buttonSectionId, title, defaultOpen = true }: { button
   }, [isLocked]);
 
 
+  // Poll the proxy for backend session liveness while the AI toolbox is visible
+  // (browser→proxy heartbeat). Disables prompts if the session was reaped
+  // server-side, and releases the lease when the tab is closed/navigated away
+  // (pagehide survives unload via sendBeacon).
+  useEffect(() => {
+    if (!isAIToolBox) {
+      return;
+    }
+    const poll = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+        return;
+      }
+      commandsManager.run('nninterSessionStatus');
+    };
+    const interval = setInterval(poll, 20000);
+    const onPageHide = () => {
+      if (toolboxState.getSessionActive()) {
+        commandsManager.run('closeNninterSession');
+      }
+    };
+    window.addEventListener('pagehide', onPageHide);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('pagehide', onPageHide);
+    };
+  }, [isAIToolBox]);
+
   const { toolbarButtons: toolboxSections, onInteraction } = useToolbar({
     servicesManager,
     buttonSection: buttonSectionId,
@@ -372,7 +434,68 @@ export function Toolbox({ buttonSectionId, title, defaultOpen = true }: { button
       commandsManager?.run?.('setToolActive', { toolName: 'Pan' });
       return;
     }
+    if (isAIToolBox && !sessionActive && itemId !== 'Pan') {
+      // No live backend session — prompts are unusable until the user initializes.
+      uiNotificationService?.show?.({
+        title: 'nnInteractive',
+        message: 'Click Initialize to start a session first.',
+        type: 'info',
+      });
+      return;
+    }
     onInteraction?.({ itemId });
+  };
+
+  // The four prompt tools rendered under "Interaction Tools" (napari layout).
+  const PROMPT_TOOL_IDS = ['Probe2', 'RectangleROI2', 'PlanarFreehandROI2', 'PlanarFreehandROI3'];
+
+  // Resolve the active (or first) segmentation for object-level actions.
+  const aiActiveSegmentation = () => {
+    const { activeViewportId: avId } = viewportGridService.getState();
+    return (
+      segmentationService.getActiveSegmentation(avId) ??
+      segmentationService.getSegmentations()?.[0]
+    );
+  };
+
+  const handleInitialize = () => commandsManager.run('initNninter');
+  const handleRun = () => commandsManager.run('nninter');
+  const handleUndo = () => commandsManager.run('undoNninter');
+
+  const handleResetObject = () => {
+    const { activeViewportId: avId } = viewportGridService.getState();
+    const seg = segmentationService.getActiveSegmentation(avId);
+    const segm = segmentationService.getActiveSegment(avId);
+    if (seg?.segmentationId && segm?.segmentIndex != null) {
+      commandsManager.run('resetSegment', {
+        segmentationId: seg.segmentationId,
+        segmentIndex: segm.segmentIndex,
+      });
+    }
+  };
+
+  const handleNextObject = () => {
+    const seg = aiActiveSegmentation();
+    if (seg?.segmentationId) {
+      commandsManager.run('addSegment', { segmentationId: seg.segmentationId });
+      // A new object always starts in positive mode.
+      if (toolboxState.getPosNeg()) {
+        toolboxState.setPosNeg(false);
+      }
+    }
+  };
+
+  const handleExport = () => {
+    const seg = aiActiveSegmentation();
+    if (seg?.segmentationId) {
+      // Registered as 'storeSegmentation' in the CORNERSTONE context (the wrapper
+      // that prompts for a series description and STOWs to the DICOMweb source).
+      commandsManager.run({
+        commandName: 'storeSegmentation',
+        commandOptions: { segmentationId: seg.segmentationId },
+        context: 'CORNERSTONE',
+      });
+    }
   };
 
   const CustomConfigComponent = customizationService.getCustomization(`${buttonSectionId}.config`);
@@ -430,32 +553,131 @@ export function Toolbox({ buttonSectionId, title, defaultOpen = true }: { button
           return (
             <React.Fragment key={sectionId}>
               {isAIToolBox && (
-                <div className="flex justify-center items-center gap-4 py-2 px-1">
-                   <div className="flex items-center gap-2">
-                     <Label htmlFor="live-mode">Live Mode [Q]</Label>
-                     <Switch
-                       id="live-mode"
-                       checked={liveMode}
-                       onCheckedChange={(checked) => {
-                        setLiveMode(checked);
-                        toolboxState.setLiveMode(checked);
-                        console.log('Live mode:', checked);
-                       }}
-                     />
-                   </div>
-                   <div className="flex items-center gap-2">
-                     <Label htmlFor="pos-neg">Pos/Neg [T]</Label>
-                     <Switch
-                       id="pos-neg"
-                       checked={posNeg}
-                       onCheckedChange={(checked) => {
-                        setPosNeg(checked);
-                        toolboxState.setPosNeg(checked);
-                        console.log('Pos/Neg:', checked);
+                <div className="flex flex-col gap-3 py-2 px-2">
+                  {/* Model (only nnInteractive is wired in this build) */}
+                  <div className="text-muted-foreground text-sm">Model: nnInteractive v1.0</div>
+
+                  {/* Initialize / session status */}
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="w-full"
+                    disabled={sessionActive}
+                    onClick={handleInitialize}
+                  >
+                    {sessionActive ? 'Session ready' : 'Initialize'}
+                  </Button>
+                  <div className={classnames('text-xs', sessionActive ? 'text-green-500' : 'text-muted-foreground')}>
+                    {sessionActive ? 'Session ready' : 'Initialize to start a session'}
+                  </div>
+
+                  <div className="border-t border-primary/20" />
+
+                  {/* Prompt Type */}
+                  <div className="flex flex-col gap-1">
+                    <Label>Prompt Type</Label>
+                    <ToggleGroup
+                      type="single"
+                      size="sm"
+                      className="w-full"
+                      value={posNeg ? 'negative' : 'positive'}
+                      disabled={!sessionActive}
+                      onValueChange={(value) => {
+                        if (!value) return;
+                        const neg = value === 'negative';
+                        setPosNeg(neg);
+                        toolboxState.setPosNeg(neg);
                       }}
-                     />
-                   </div>
-                 </div>
+                    >
+                      <ToggleGroupItem value="positive" className="flex-1">positive</ToggleGroupItem>
+                      <ToggleGroupItem value="negative" className="flex-1">negative</ToggleGroupItem>
+                    </ToggleGroup>
+                  </div>
+
+                  {/* Interaction Tools (Point / BBox / Scribble / Lasso) */}
+                  <div className="flex flex-col gap-1">
+                    <Label>Interaction Tools</Label>
+                    <div
+                      className={classnames('flex flex-wrap gap-1', {
+                        'opacity-40 pointer-events-none': !sessionActive,
+                      })}
+                    >
+                      {buttons
+                        .filter(tool => tool && PROMPT_TOOL_IDS.includes(tool.id))
+                        .map(tool => {
+                          const { id, Component, componentProps } = tool;
+                          return (
+                            <div key={id} className="ml-1">
+                              <Component
+                                {...componentProps}
+                                id={id}
+                                onInteraction={handleInteraction}
+                                size="toolbox"
+                                servicesManager={servicesManager}
+                              />
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+
+                  {/* Object actions */}
+                  <div className="flex flex-wrap gap-1">
+                    <Button variant="secondary" size="sm" disabled={!sessionActive} onClick={handleUndo}>
+                      Undo
+                    </Button>
+                    <Button variant="secondary" size="sm" disabled={!sessionActive} onClick={handleResetObject}>
+                      Reset Object
+                    </Button>
+                    <Button variant="secondary" size="sm" disabled={!sessionActive} onClick={handleNextObject}>
+                      Next Object
+                    </Button>
+                  </div>
+
+                  {/* Manual Control (collapsed by default, like napari) */}
+                  <div className="flex flex-col gap-1">
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 text-sm text-primary hover:opacity-80"
+                      onClick={() => setShowManualControl(v => !v)}
+                    >
+                      <span>{showManualControl ? '▾' : '▸'}</span>
+                      <span>Manual Control</span>
+                    </button>
+                    {showManualControl && (
+                      <div className="flex flex-col gap-2 pl-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <Label htmlFor="auto-run">Auto Run Prediction [Q]</Label>
+                          <Switch
+                            id="auto-run"
+                            checked={liveMode}
+                            disabled={!sessionActive}
+                            onCheckedChange={(checked) => {
+                              setLiveMode(checked);
+                              toolboxState.setLiveMode(checked);
+                            }}
+                          />
+                        </div>
+                        <Button variant="secondary" size="sm" disabled={!sessionActive} onClick={handleRun}>
+                          Run
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t border-primary/20" />
+
+                  {/* Export → DICOM SEG (keeps confirm dialog) */}
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="w-full"
+                    disabled={!sessionActive}
+                    onClick={handleExport}
+                  >
+                    Export → DICOM SEG
+                  </Button>
+                </div>
                 )}
               {isTextPromptToolbox && (
                 <div className="flex justify-center items-center gap-4 py-2 px-1">
@@ -473,6 +695,7 @@ export function Toolbox({ buttonSectionId, title, defaultOpen = true }: { button
                    </div>
                  </div>
                 )}
+              {!isAIToolBox && (
               <div
                 className="bg-muted flex flex-wrap space-x-2 py-2 px-1"
               >
@@ -503,6 +726,7 @@ export function Toolbox({ buttonSectionId, title, defaultOpen = true }: { button
                 );
               })}
             </div>
+              )}
             {isTestMedgemmaToolbox && (
               <div className="flex flex-col gap-3 py-3 px-2 border-t border-primary/20">
                 <div className="flex flex-col gap-2">

@@ -276,7 +276,8 @@ const OHIFCornerstoneViewport = React.memo(
           displaySetOptions,
           presentations
         );
-        commandsManager.run('initNninter', { viewportId });
+        // nnInteractive sessions are now started explicitly via the AI toolbox
+        // "Initialize" button (no auto-init on viewport load).
       };
 
       loadViewportData();

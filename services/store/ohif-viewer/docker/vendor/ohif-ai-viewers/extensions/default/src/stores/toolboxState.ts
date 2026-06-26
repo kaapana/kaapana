@@ -8,6 +8,12 @@ let selectedModel: 'nnInteractive' | 'sam2' | 'medsam2' | 'sam3' = 'nnInteractiv
 let locked = false;
 let promptsVisible = false; // default: hide prompts after each inference; pencil toggle to always-show
 let currentActiveSegment = 1;
+// nnInteractive backend session lifecycle (volatile). `sessionActive` gates the
+// AI toolbox: prompts/tools stay disabled until the user clicks Initialize and the
+// backend confirms a live session. `sessionSeries` records which series that
+// session belongs to so a series switch forces a fresh Initialize.
+let sessionActive = false;
+let sessionSeries = '';
 let medgemmaResult: string | null = null;
 let medgemmaInstruction: string = '';
 let medgemmaQuery: string = '';
@@ -113,6 +119,14 @@ export const toolboxState = {
   getCurrentActiveSegment: () => currentActiveSegment,
   setCurrentActiveSegment: (segment: number) => {
     currentActiveSegment = segment;
+  },
+  getSessionActive: () => sessionActive,
+  setSessionActive: (active: boolean) => {
+    sessionActive = active;
+  },
+  getSessionSeries: () => sessionSeries,
+  setSessionSeries: (series: string) => {
+    sessionSeries = series;
   },
   getMedgemmaResult: () => medgemmaResult,
   setMedgemmaResult: (result: string | null) => {

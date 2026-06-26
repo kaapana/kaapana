@@ -52,6 +52,7 @@ class SeriesSession:
     prompts_seen: set[str] = field(default_factory=set)
     prompt_order: list[str] = field(default_factory=list)
     last_used: float = field(default_factory=time.time)
+    last_browser_seen: float = field(default_factory=time.time)
 
 
 sessions: dict[str, SeriesSession] = {}
@@ -562,6 +563,60 @@ def healthz() -> dict[str, Any]:
     return {"ok": True, "nninteractive_server": NNINTERACTIVE_SERVER_URL, "cached_sessions": len(sessions)}
 
 
+@app.get("/infer/session")
+def session_status(image: str | None = None, studyInstanceUID: str | None = None) -> dict[str, Any]:
+    """Non-creating liveness probe used by the OHIF UI to gate prompts.
+
+    Returns ``{"active": False}`` when no session exists for the series or the
+    upstream lease has expired (the dead entry is dropped); otherwise
+    ``{"active": True, "remaining_seconds": <idle seconds left>}``. Doubles as the
+    browser heartbeat: it stamps ``last_browser_seen`` so the proxy knows the tab
+    is still around.
+    """
+    if not image or not studyInstanceUID:
+        raise HTTPException(400, "Missing required query parameters: image, studyInstanceUID")
+    entry = sessions.get(f"{studyInstanceUID}|{image}")
+    if entry is None:
+        return {"active": False}
+    entry.last_browser_seen = time.time()
+    try:
+        status_info = entry.session.lease_status()
+    except SessionExpiredError:
+        _close_entry(entry)
+        return {"active": False}
+    except Exception:
+        # Treat an unreachable upstream as "unknown but still ours"; don't drop the
+        # entry on a transient blip — the next real request will surface a hard error.
+        logger.warning("lease_status() failed for %s", image, exc_info=True)
+        return {"active": True}
+    return {"active": True, "remaining_seconds": status_info.get("remaining_seconds")}
+
+
+@app.post("/infer/close")
+async def close_session(request: Request) -> dict[str, Any]:
+    """Release the nnInteractive lease when the user leaves the OHIF page.
+
+    Accepts the series/study via query params or a ``navigator.sendBeacon`` form
+    body (beacons can't set query strings reliably during unload). Idempotent.
+    """
+    series_uid = request.query_params.get("image")
+    study_uid = request.query_params.get("studyInstanceUID")
+    if not series_uid or not study_uid:
+        try:
+            form = await request.form()
+            series_uid = series_uid or form.get("image")
+            study_uid = study_uid or form.get("studyInstanceUID")
+        except Exception:
+            pass
+    if not series_uid or not study_uid:
+        raise HTTPException(400, "Missing required parameters: image, studyInstanceUID")
+    entry = sessions.get(f"{study_uid}|{series_uid}")
+    if entry is None:
+        return {"closed": False}
+    _close_entry(entry)
+    return {"closed": True}
+
+
 @app.post("/infer/segmentation")
 async def infer_segmentation(request: Request) -> Response:
     start = time.time()
@@ -586,7 +641,17 @@ async def infer_segmentation(request: Request) -> Response:
         raise HTTPException(501, f"Text/VLM mode '{mode}' is not implemented by this nnInteractive proxy")
 
     dicomweb_headers = _forward_auth_headers(request)
-    entry = _get_series_session(study_uid, series_uid, dicomweb_headers)
+    # Only an explicit "init" request may create a session. Every other mode
+    # (inference / undo / reset) requires the user to have initialized first, so
+    # the OHIF UI can gate prompts on a live session instead of silently spinning
+    # one up on the first click.
+    if mode == "init":
+        entry = _get_series_session(study_uid, series_uid, dicomweb_headers)
+    else:
+        entry = sessions.get(f"{study_uid}|{series_uid}")
+        if entry is None:
+            raise HTTPException(409, "no active nnInteractive session; initialize first")
+        entry.last_used = time.time()
     try:
         return _run_inference_request(entry, mode, data, start)
 

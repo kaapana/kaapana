@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Icons, Label, PanelSection, Switch, Button, ToggleGroup, ToggleGroupItem } from '@ohif/ui-next';
-import { Brush, Lasso, Lock, LockOpen } from 'lucide-react';
+import { Brush, Lock, LockOpen } from 'lucide-react';
 import { useSystem, useToolbar } from '@ohif/core';
 import classnames from 'classnames';
 import { useTranslation } from 'react-i18next';
@@ -42,7 +42,6 @@ export function Toolbox({
   const [sessionActive, setSessionActive] = useState(toolboxState.getSessionActive());
   const [nnInteractiveAvailable, setNnInteractiveAvailable] = useState<boolean | null>(null);
   const [showManualControl, setShowManualControl] = useState(false);
-  const [manualTool, setManualTool] = useState<'lasso' | 'brush'>('brush');
   const [brushSize, setBrushSize] = useState(12);
   const lastSeriesRef = useRef<string>('');
   const hotkeysDisabled = isAIToolBox && isLocked;
@@ -136,6 +135,7 @@ export function Toolbox({
           }
           event.preventDefault();
           event.stopPropagation();
+          toolboxState.setManualCorrectionMode(false);
           onInteractionRef.current?.({ itemId: 'Probe2' });
           break;
         case 'b':
@@ -144,6 +144,7 @@ export function Toolbox({
           }
           event.preventDefault();
           event.stopPropagation();
+          toolboxState.setManualCorrectionMode(false);
           onInteractionRef.current?.({ itemId: 'RectangleROI2' });
           break;
         case 's':
@@ -152,6 +153,7 @@ export function Toolbox({
           }
           event.preventDefault();
           event.stopPropagation();
+          toolboxState.setManualCorrectionMode(false);
           onInteractionRef.current?.({ itemId: 'PlanarFreehandROI2' });
           break;
         case 'l':
@@ -160,6 +162,7 @@ export function Toolbox({
           }
           event.preventDefault();
           event.stopPropagation();
+          toolboxState.setManualCorrectionMode(false);
           onInteractionRef.current?.({ itemId: 'PlanarFreehandROI3' });
           break;
         case 'm': {
@@ -402,6 +405,9 @@ export function Toolbox({
       });
       return;
     }
+    if (isAIToolBox && promptToolIds.includes(itemId)) {
+      toolboxState.setManualCorrectionMode(false);
+    }
     onInteraction?.({ itemId });
   };
 
@@ -480,7 +486,7 @@ export function Toolbox({
     return !!seg?.segmentationId && segment?.segmentIndex != null;
   };
 
-  const setManualCorrectionTool = (tool: 'lasso' | 'brush') => {
+  const setManualCorrectionBrush = () => {
     if (!nnInteractiveReady || !sessionActive || !hasActiveAiSegment()) {
       uiNotificationService?.show?.({
         title: 'Manual correction',
@@ -490,14 +496,7 @@ export function Toolbox({
       return;
     }
 
-    setManualTool(tool);
-    if (tool === 'lasso') {
-      toolboxState.setManualCorrectionMode(true);
-      onInteractionRef.current?.({ itemId: 'PlanarFreehandROI3' });
-      return;
-    }
-
-    toolboxState.setManualCorrectionMode(false);
+    toolboxState.setManualCorrectionMode(true);
     commandsManager.run('setBrushSize', {
       value: brushSize,
       toolNames: ['CircularBrush', 'CircularEraser'],
@@ -666,7 +665,7 @@ export function Toolbox({
                         const neg = value === 'negative';
                         setPosNeg(neg);
                         toolboxState.setPosNeg(neg);
-                        if (manualTool === 'brush' && sessionActive) {
+                        if (toolboxState.getManualCorrectionMode() && sessionActive) {
                           commandsManager.run('setToolActive', {
                             toolName: neg ? 'CircularEraser' : 'CircularBrush',
                           });
@@ -776,31 +775,16 @@ export function Toolbox({
 
                   <div className="flex flex-col gap-2">
                     <div className="text-muted-foreground text-sm">Manual Correction</div>
-                    <div
-                      className={classnames('flex gap-1', {
-                        'opacity-40 pointer-events-none':
-                          !nnInteractiveReady || !sessionActive || !hasActiveAiSegment(),
-                      })}
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="w-full"
+                      disabled={!nnInteractiveReady || !sessionActive || !hasActiveAiSegment()}
+                      onClick={setManualCorrectionBrush}
                     >
-                      <Button
-                        variant={manualTool === 'lasso' ? 'default' : 'secondary'}
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => setManualCorrectionTool('lasso')}
-                      >
-                        <Lasso className="mr-1 h-4 w-4" />
-                        Lasso
-                      </Button>
-                      <Button
-                        variant={manualTool === 'brush' ? 'default' : 'secondary'}
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => setManualCorrectionTool('brush')}
-                      >
-                        <Brush className="mr-1 h-4 w-4" />
-                        Brush
-                      </Button>
-                    </div>
+                      <Brush className="mr-1 h-4 w-4" />
+                      Brush
+                    </Button>
                     <div
                       className={classnames('flex flex-col gap-1', {
                         'opacity-40 pointer-events-none':

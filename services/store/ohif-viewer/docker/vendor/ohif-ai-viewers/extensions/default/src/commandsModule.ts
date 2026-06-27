@@ -88,6 +88,41 @@ function getImageWidth(image: any, displaySet: any, sliceIndex: number): number 
   );
 }
 
+function getClosedFreehandBoundaryIJK(measurement: any, viewport: any): number[][] | undefined {
+  const dataValues = Object.values(measurement?.data ?? {});
+  const cachedBoundary = dataValues.find((value: any) => value?.boundary?.length)?.boundary;
+  if (cachedBoundary?.length) {
+    return cachedBoundary.map((point: number[]) => point.map(value => Math.round(value)));
+  }
+
+  const worldPoints =
+    measurement?.points ??
+    measurement?.data?.contour?.polyline ??
+    dataValues.find((value: any) => value?.points?.length)?.points ??
+    dataValues.find((value: any) => value?.polyline?.length)?.polyline;
+
+  if (!worldPoints?.length) {
+    return undefined;
+  }
+
+  const imageData = viewport?.getImageData?.()?.imageData ?? viewport?.getImageData?.();
+  if (!imageData || !csUtils.transformWorldToIndex) {
+    return undefined;
+  }
+
+  const viewportImageIds = viewport?.getImageIds?.() ?? [];
+  const referencedSliceIndex = viewportImageIds.indexOf(measurement?.referencedImageId);
+
+  return worldPoints
+    .map((point: number[]) => csUtils.transformWorldToIndex(imageData, point))
+    .filter((point: number[]) => point?.length >= 3 && point.every(Number.isFinite))
+    .map((point: number[]) => [
+      Math.round(point[0]),
+      Math.round(point[1]),
+      referencedSliceIndex >= 0 ? referencedSliceIndex : Math.round(point[2]),
+    ]);
+}
+
 
 export type HangingProtocolParams = {
   protocolId?: string;
@@ -117,27 +152,125 @@ const commandsModule = ({
     multiMonitorService,
   } = servicesManager.services;
 
+  const aiPromptToolNames = ['Probe2', 'PlanarFreehandROI2', 'PlanarFreehandROI3', 'RectangleROI2'];
+  const pendingLivePrompts = new Map<string, { unsubscribe?: () => void; rafId?: number }>();
+
+  const getMeasurementDataValues = (measurement: any): any[] => {
+    return Object.values(measurement?.data ?? {});
+  };
+
+  const measurementHasPromptPayload = (measurement: any): boolean => {
+    const values = getMeasurementDataValues(measurement);
+
+    switch (measurement?.toolName) {
+      case 'Probe2':
+        return values.some((value: any) => value?.index?.length === 3);
+      case 'RectangleROI2':
+        return values.some((value: any) => value?.pointsInShape?.length);
+      case 'PlanarFreehandROI3':
+        return values.some((value: any) => value?.boundary?.length);
+      case 'PlanarFreehandROI2':
+        return values.some((value: any) => value?.scribble?.length);
+      default:
+        return true;
+    }
+  };
+
+  const runLiveNninter = () => {
+    if (toolboxState.getLocked() || !toolboxState.getLiveMode()) {
+      return;
+    }
+
+    commandsManager.run('nninter');
+  };
+
+  const waitForPromptPayloadAndRun = (measurementUID: string) => {
+    if (!measurementUID || pendingLivePrompts.has(measurementUID)) {
+      return;
+    }
+
+    let framesWaited = 0;
+    const maxFrames = 12;
+
+    const cleanup = () => {
+      const pending = pendingLivePrompts.get(measurementUID);
+      if (pending?.unsubscribe) {
+        pending.unsubscribe();
+      }
+      if (pending?.rafId != null) {
+        cancelAnimationFrame(pending.rafId);
+      }
+      pendingLivePrompts.delete(measurementUID);
+    };
+
+    const tryRun = (measurement?: any): boolean => {
+      const currentMeasurement = measurement ?? measurementService.getMeasurement(measurementUID);
+      if (!currentMeasurement) {
+        cleanup();
+        return true;
+      }
+
+      if (measurementHasPromptPayload(currentMeasurement)) {
+        cleanup();
+        runLiveNninter();
+        return true;
+      }
+
+      return false;
+    };
+
+    const subscription = measurementService.subscribe(
+      measurementService.EVENTS.MEASUREMENT_UPDATED,
+      ({ measurement }) => {
+        if (measurement?.uid !== measurementUID) {
+          return;
+        }
+        tryRun(measurement);
+      }
+    );
+
+    const waitFrame = () => {
+      if (tryRun()) {
+        return;
+      }
+
+      framesWaited += 1;
+      if (framesWaited >= maxFrames) {
+        console.warn('Prompt payload was not populated after render frames; running nnInteractive with current measurements.');
+        cleanup();
+        runLiveNninter();
+        return;
+      }
+
+      const pending = pendingLivePrompts.get(measurementUID);
+      if (pending) {
+        pending.rafId = requestAnimationFrame(waitFrame);
+      }
+    };
+
+    pendingLivePrompts.set(measurementUID, {
+      unsubscribe: () => subscription.unsubscribe(),
+      rafId: requestAnimationFrame(waitFrame),
+    });
+  };
+
   // Listen for measurement added events to trigger nninter() when live mode is enabled
   measurementService.subscribe(
     measurementService.EVENTS.MEASUREMENT_ADDED,
     (evt) => {
       if (toolboxState.getLiveMode() &&
+      !toolboxState.getManualCorrectionMode() &&
       !evt.measurement?.metadata?.manualCorrection &&
-      ['Probe2', 'PlanarFreehandROI2', 'PlanarFreehandROI3', 'RectangleROI2'].includes(
+      aiPromptToolNames.includes(
         evt.measurement.toolName
       )) {
         console.log('Live mode enabled, triggering nninter() for new measurement');
-        // Defer past the render cycle so _calculateCachedStats can populate
-        // cachedStats[targetId].scribble before nninter reads measurement data.
-        // Promise.resolve() (microtask) is too early — scribble data is set
-        // during the requestAnimationFrame render cycle that follows MEASUREMENT_ADDED.
-        setTimeout(() => {
-          if (toolboxState.getLocked()) {
-            return;
-          }
+        if (!measurementHasPromptPayload(evt.measurement)) {
+          waitForPromptPayloadAndRun(evt.measurement.uid);
+          return;
+        }
 
-          commandsManager.run('nninter');
-        }, 50);
+        runLiveNninter();
       }
     }
   );
@@ -1342,10 +1475,26 @@ const commandsModule = ({
         return;
       }
 
-      const images = labelmapImageIds.map(imageId => cache.getImage(imageId)).filter(Boolean);
-      if (images.length === 0) {
+      const images = await Promise.all(
+        labelmapImageIds.map(async imageId => {
+          const cachedImage = cache.getImage(imageId);
+          if (cachedImage) {
+            return cachedImage;
+          }
+
+          try {
+            return await imageLoader.loadAndCacheImage(imageId);
+          } catch {
+            return undefined;
+          }
+        })
+      );
+      const firstImage = images.find(Boolean);
+      if (!firstImage) {
         return;
       }
+      const activeViewport =
+        servicesManager.services.cornerstoneViewportService.getCornerstoneViewport(activeViewportId);
 
       const dirtySlices = new Set<number>();
       const correctionMeasurements = measurementService.getMeasurements().filter((measurement: any) => {
@@ -1357,9 +1506,11 @@ const commandsModule = ({
             measurement.metadata?.SegmentNumber === segmentNumber)
         );
       });
+      let usableCorrectionCount = 0;
+      let changedPixelCount = 0;
 
       for (const measurement of correctionMeasurements) {
-        const boundary = Object.values(measurement.data ?? {})[0]?.boundary as number[][] | undefined;
+        const boundary = getClosedFreehandBoundaryIJK(measurement, activeViewport);
         if (!boundary?.length) {
           continue;
         }
@@ -1374,6 +1525,7 @@ const commandsModule = ({
         if (!width) {
           continue;
         }
+        usableCorrectionCount += 1;
         const height = Math.floor(scalarData.length / width);
         const xValues = boundary.map(point => Math.round(point[0]));
         const yValues = boundary.map(point => Math.round(point[1]));
@@ -1393,9 +1545,13 @@ const commandsModule = ({
             if (remove) {
               if (scalarData[offset] === segmentNumber) {
                 scalarData[offset] = 0;
+                changedPixelCount += 1;
               }
             } else {
-              scalarData[offset] = segmentNumber;
+              if (scalarData[offset] !== segmentNumber) {
+                scalarData[offset] = segmentNumber;
+                changedPixelCount += 1;
+              }
             }
           }
         }
@@ -1403,10 +1559,35 @@ const commandsModule = ({
         dirtySlices.add(sliceIndex);
       }
 
-      const maskBytes = new Uint8Array(images.length * images[0].voxelManager.getScalarData().length);
+      if (correctionMeasurements.length > 0 && usableCorrectionCount === 0) {
+        uiNotificationService.show({
+          title: 'Manual correction',
+          message: 'Could not convert the drawn lasso into labelmap pixels.',
+          type: 'warning',
+          duration: 4000,
+        });
+        return;
+      }
+      if (correctionMeasurements.length > 0 && changedPixelCount === 0) {
+        uiNotificationService.show({
+          title: 'Manual correction',
+          message: 'The drawn lasso did not change any labelmap pixels.',
+          type: 'warning',
+          duration: 4000,
+        });
+        return;
+      }
+
+      const firstScalarData = (firstImage.voxelManager as csTypes.IVoxelManager<number>).getScalarData();
+      const maskBytes = new Uint8Array(images.length * firstScalarData.length);
       let cursor = 0;
       for (let sliceIndex = 0; sliceIndex < images.length; sliceIndex++) {
-        const scalarData = (images[sliceIndex].voxelManager as csTypes.IVoxelManager<number>).getScalarData();
+        const image = images[sliceIndex];
+        const scalarData = (image?.voxelManager as csTypes.IVoxelManager<number> | undefined)?.getScalarData();
+        if (!scalarData) {
+          cursor += firstScalarData.length;
+          continue;
+        }
         let sliceDirty = dirtySlices.has(sliceIndex);
         for (let i = 0; i < scalarData.length; i++) {
           if (scalarData[i] === segmentNumber) {
@@ -1489,7 +1670,9 @@ const commandsModule = ({
       const displaySetInstanceUID = displaySetInstanceUIDs[0];
       const currentDisplaySets = displaySets.find(e => e.displaySetInstanceUID === displaySetInstanceUID);
       if (!currentDisplaySets) return;
-      const currentMeasurements = measurementService.getMeasurements()
+      const currentMeasurements = measurementService
+        .getMeasurements()
+        .filter((measurement: any) => !measurement.metadata?.manualCorrection);
 
       const unAssignedMeasurements = currentMeasurements.filter(e => {
           return e.metadata.SegmentNumber === undefined;
@@ -1576,17 +1759,25 @@ const commandsModule = ({
       for (const e of currentMeasurements) {
         if (e.referenceSeriesUID !== seriesUID || e.metadata.SegmentNumber !== segmentNumber) continue;
         const isNeg = !!e.metadata.neg;
+        const dataValues = getMeasurementDataValues(e);
         if (e.toolName === 'Probe2') {
-          (isNeg ? neg_points : pos_points).push(Object.values(e.data)[0].index);
+          const index = dataValues.find((value: any) => value?.index?.length === 3)?.index;
+          if (!index) {
+            continue;
+          }
+          (isNeg ? neg_points : pos_points).push(index);
           if (!isNeg && !textPrompts) probe2Labels.push(e.label);
         } else if (e.toolName === 'RectangleROI2') {
-          const pts = Object.values(e.data)[0].pointsInShape;
+          const pts = dataValues.find((value: any) => value?.pointsInShape?.length)?.pointsInShape;
+          if (!pts?.length) {
+            continue;
+          }
           (isNeg ? neg_boxes : pos_boxes).push([pts.at(0).pointIJK, pts.at(-1).pointIJK]);
         } else if (e.toolName === 'PlanarFreehandROI3') {
-          const b = Object.values(e.data)[0]?.boundary;
+          const b = dataValues.find((value: any) => value?.boundary?.length)?.boundary;
           if (b) (isNeg ? neg_lassos : pos_lassos).push(b);
         } else if (e.toolName === 'PlanarFreehandROI2') {
-          const s = Object.values(e.data)[0]?.scribble;
+          const s = dataValues.find((value: any) => value?.scribble?.length)?.scribble;
           if (s) (isNeg ? neg_scribbles : pos_scribbles).push(s);
         }
       }

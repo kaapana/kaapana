@@ -467,12 +467,18 @@ def _apply_prompts(entry: SeriesSession, data: dict[str, Any]) -> dict[str, int]
 
 
 def _crop_target(target_buffer: np.ndarray) -> tuple[bytes, list[int], list[int], list[int]]:
-    coords = np.nonzero(target_buffer)
     full_shape = [int(x) for x in target_buffer.shape]
-    if coords[0].size == 0:
+    z_has = np.any(target_buffer, axis=(1, 2))
+    if not z_has.any():
         return b"", [0, 0, 0], full_shape, [0, 0, 0]
-    z0, y0, x0 = (int(axis.min()) for axis in coords)
-    z1, y1, x1 = (int(axis.max()) + 1 for axis in coords)
+    y_has = np.any(target_buffer, axis=(0, 2))
+    x_has = np.any(target_buffer, axis=(0, 1))
+    z_idx = np.flatnonzero(z_has)
+    y_idx = np.flatnonzero(y_has)
+    x_idx = np.flatnonzero(x_has)
+    z0, z1 = int(z_idx[0]), int(z_idx[-1]) + 1
+    y0, y1 = int(y_idx[0]), int(y_idx[-1]) + 1
+    x0, x1 = int(x_idx[0]), int(x_idx[-1]) + 1
     crop = np.ascontiguousarray(target_buffer[z0:z1, y0:y1, x0:x1])
     return crop.tobytes(order="C"), [z0, y0, x0], full_shape, [z1 - z0, y1 - y0, x1 - x0]
 

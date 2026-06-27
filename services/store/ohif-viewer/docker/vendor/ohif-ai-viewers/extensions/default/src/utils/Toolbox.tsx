@@ -280,7 +280,7 @@ export function Toolbox({
     let mounted = true;
     const checkAvailability = async () => {
       try {
-        const response = await fetch('/monai/infer/availability', {
+        const response = await fetch('/nninteractive/infer/availability', {
           cache: 'no-store',
           headers: { accept: 'application/json' },
         });

@@ -822,7 +822,7 @@ const commandsModule = ({
         toolboxState.setPosNeg(false);
       }
 
-      let url = `/monai/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
+      let url = `/nninteractive/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
       let params = {
         largest_cc: false,
         result_extension: '.nii.gz',
@@ -898,7 +898,7 @@ const commandsModule = ({
         return false;
       }
       try {
-        const url = `/monai/infer/session?image=${currentDisplaySets.SeriesInstanceUID}&studyInstanceUID=${currentDisplaySets.StudyInstanceUID}`;
+        const url = `/nninteractive/infer/session?image=${currentDisplaySets.SeriesInstanceUID}&studyInstanceUID=${currentDisplaySets.StudyInstanceUID}`;
         const response = await axios.get(url);
         const active = !!response?.data?.active;
         toolboxState.setSessionActive(active);
@@ -931,7 +931,7 @@ const commandsModule = ({
       if (!currentDisplaySets) {
         return;
       }
-      const url = `/monai/infer/close?image=${currentDisplaySets.SeriesInstanceUID}&studyInstanceUID=${currentDisplaySets.StudyInstanceUID}`;
+      const url = `/nninteractive/infer/close?image=${currentDisplaySets.SeriesInstanceUID}&studyInstanceUID=${currentDisplaySets.StudyInstanceUID}`;
       toolboxState.setSessionActive(false);
       try {
         const body = new FormData();
@@ -976,7 +976,7 @@ const commandsModule = ({
         return;
       }
 
-      const url = `/monai/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
+      const url = `/nninteractive/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
       const params = {
         largest_cc: false,
         result_extension: '.nii.gz',
@@ -1025,7 +1025,7 @@ const commandsModule = ({
         const sUndoCore  = metaNum(meta as Record<string, unknown>, 'nninter_core_elapsed');
         const sResult    = metaNum(meta as Record<string, unknown>, 'server_result_elapsed');
         const postInFlightMs     = (sRequestTs != null) ? sRequestTs * 1000 - beforePost : undefined;
-        const monaiPrepMs        = (sRequestTs != null && sBeginTs != null) ? (sBeginTs - sRequestTs) * 1000 : undefined;
+        const nninteractivePrepMs        = (sRequestTs != null && sBeginTs != null) ? (sBeginTs - sRequestTs) * 1000 : undefined;
         const serverProcessMs    = (sBeginTs != null && sEndTs != null) ? (sEndTs - sBeginTs) * 1000 : undefined;
         const responseInFlightMs = (sEndTs != null) ? afterPost - sEndTs * 1000 : undefined;
         console.log(
@@ -1033,7 +1033,7 @@ const commandsModule = ({
           `  client → undoNninter():          ${((beforePost - start) / 1000).toFixed(3)}s\n` +
           `  ── round-trip total:              ${(networkRoundTripMs / 1000).toFixed(3)}s\n` +
           (postInFlightMs     != null ? `     POST in flight:               ${(postInFlightMs / 1000).toFixed(3)}s\n` : '') +
-          (monaiPrepMs        != null ? `     MONAI pre-processing:          ${(monaiPrepMs / 1000).toFixed(3)}s\n` : '') +
+          (nninteractivePrepMs        != null ? `     nnInteractive pre-processing:          ${(nninteractivePrepMs / 1000).toFixed(3)}s\n` : '') +
           (serverProcessMs    != null ? `     server processing (undo):      ${(serverProcessMs / 1000).toFixed(3)}s\n` : '') +
           (sUndoCore != null ? `       ↳ session.undo():            ${sUndoCore.toFixed(3)}s\n` : '') +
           (sResult   != null ? `       ↳ result retrieve:           ${sResult.toFixed(3)}s\n` : '') +
@@ -1177,7 +1177,7 @@ const commandsModule = ({
       const currentDisplaySets = displaySets.filter(e => {
         return e.displaySetInstanceUID == displaySetInstanceUID;
       })[0];
-      let url = `/monai/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
+      let url = `/nninteractive/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
       let params = {
         largest_cc: false,
         result_extension: '.nii.gz',
@@ -1418,7 +1418,7 @@ const commandsModule = ({
         document.dispatchEvent(new Event('measurement-state-changed'));
       }
 
-      let url = `/monai/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
+      let url = `/nninteractive/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
       let params = {
         largest_cc: false,
       //  device: response.data.trainers.segmentation.config.device,
@@ -1492,11 +1492,11 @@ const commandsModule = ({
 
             // Four-leg split (all server timestamps share the same host clock as the container):
             //   leg1: POST in flight          = server_request_ts - beforePost (client clock vs server clock; same host → accurate)
-            //   leg2: MONAI pre-processing    = server_begin_ts - server_request_ts (DICOM download from Orthanc, entirely server-side)
+            //   leg2: nnInteractive pre-processing    = server_begin_ts - server_request_ts (DICOM download from Orthanc, entirely server-side)
             //   leg3: our infer()             = server_end_ts - server_begin_ts (same clock, exact)
             //   leg4: response in flight      = afterPost - server_end_ts (same host → accurate)
             const postInFlightMs    = (sRequestTs != null) ? sRequestTs * 1000 - beforePost                     : undefined;
-            const monaiPrepMs       = (sRequestTs != null && sBeginTs != null) ? (sBeginTs - sRequestTs) * 1000 : undefined;
+            const nninteractivePrepMs       = (sRequestTs != null && sBeginTs != null) ? (sBeginTs - sRequestTs) * 1000 : undefined;
             const serverProcessMs   = (sBeginTs   != null && sEndTs   != null) ? (sEndTs   - sBeginTs)   * 1000 : undefined;
             const responseInFlightMs= (sEndTs     != null)                     ? afterPost - sEndTs * 1000      : undefined;
 
@@ -1505,7 +1505,7 @@ const commandsModule = ({
               `  client → nninter():              ${((beforePost - start)/1000).toFixed(3)}s\n` +
               `  ── round-trip total:              ${(networkRoundTripMs/1000).toFixed(3)}s\n` +
               (postInFlightMs     != null ? `     POST in flight:               ${(postInFlightMs/1000).toFixed(3)}s\n` : '') +
-              (monaiPrepMs        != null ? `     MONAI pre-processing:          ${(monaiPrepMs/1000).toFixed(3)}s  (Orthanc DICOM download)\n` : '') +
+              (nninteractivePrepMs        != null ? `     nnInteractive pre-processing:          ${(nninteractivePrepMs/1000).toFixed(3)}s  (Orthanc DICOM download)\n` : '') +
               (serverProcessMs    != null ? `     server processing (infer):     ${(serverProcessMs/1000).toFixed(3)}s\n` : '') +
               (sLoad        != null ? `       ↳ DICOM load:                ${sLoad.toFixed(3)}s\n` : '') +
               (sImgConvert  != null ? `       ↳ img→numpy:                 ${sImgConvert.toFixed(3)}s\n` : '') +

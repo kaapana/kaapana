@@ -896,6 +896,8 @@ def get_kube_objects(
             # based on the kind of resource, extract relevant information
             kind = config["kind"]
             if kind == "Ingress":
+                if annotations.get("kaapana.ai/hide-link", "").lower() == "true":
+                    continue
                 path = config["spec"]["rules"][0]["http"]["paths"][0]["path"]
                 paths.append(path)
             elif (

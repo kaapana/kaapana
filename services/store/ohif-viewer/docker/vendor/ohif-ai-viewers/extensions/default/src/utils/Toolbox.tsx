@@ -40,6 +40,7 @@ export function Toolbox({
   const [liveMode, setLiveMode] = useState(toolboxState.getLiveMode());
   const [posNeg, setPosNeg] = useState(toolboxState.getPosNeg());
   const [sessionActive, setSessionActive] = useState(toolboxState.getSessionActive());
+  const [nnInteractiveAvailable, setNnInteractiveAvailable] = useState<boolean | null>(null);
   const [showManualControl, setShowManualControl] = useState(false);
   const lastSeriesRef = useRef<string>('');
   const hotkeysDisabled = isAIToolBox && isLocked;
@@ -105,6 +106,9 @@ export function Toolbox({
 
       switch (event.key.toLowerCase()) {
         case 'q': {
+          if (!nnInteractiveAvailable) {
+            return;
+          }
           event.preventDefault();
           event.stopPropagation();
           const newLiveMode = !toolboxState.getLiveMode();
@@ -113,6 +117,9 @@ export function Toolbox({
           break;
         }
         case 't': {
+          if (!nnInteractiveAvailable) {
+            return;
+          }
           event.preventDefault();
           event.stopPropagation();
           const newPosNeg = !toolboxState.getPosNeg();
@@ -121,26 +128,41 @@ export function Toolbox({
           break;
         }
         case 'p':
+          if (!nnInteractiveAvailable) {
+            return;
+          }
           event.preventDefault();
           event.stopPropagation();
           onInteractionRef.current?.({ itemId: 'Probe2' });
           break;
         case 'b':
+          if (!nnInteractiveAvailable) {
+            return;
+          }
           event.preventDefault();
           event.stopPropagation();
           onInteractionRef.current?.({ itemId: 'RectangleROI2' });
           break;
         case 's':
+          if (!nnInteractiveAvailable) {
+            return;
+          }
           event.preventDefault();
           event.stopPropagation();
           onInteractionRef.current?.({ itemId: 'PlanarFreehandROI2' });
           break;
         case 'l':
+          if (!nnInteractiveAvailable) {
+            return;
+          }
           event.preventDefault();
           event.stopPropagation();
           onInteractionRef.current?.({ itemId: 'PlanarFreehandROI3' });
           break;
         case 'm': {
+          if (!nnInteractiveAvailable) {
+            return;
+          }
           event.preventDefault();
           event.stopPropagation();
           const { activeViewportId: avId } = viewportGridService.getState();
@@ -156,6 +178,9 @@ export function Toolbox({
           break;
         }
         case 'r': {
+          if (!nnInteractiveAvailable) {
+            return;
+          }
           event.preventDefault();
           event.stopPropagation();
           const { activeViewportId: avId } = viewportGridService.getState();
@@ -170,6 +195,9 @@ export function Toolbox({
           break;
         }
         case 'o': {
+          if (!nnInteractiveAvailable) {
+            return;
+          }
           event.preventDefault();
           event.stopPropagation();
           const next = !toolboxState.getPromptsVisible();
@@ -183,6 +211,9 @@ export function Toolbox({
           break;
         }
         case 'z': {
+          if (!nnInteractiveAvailable) {
+            return;
+          }
           if (event.ctrlKey && !event.shiftKey) {
             event.preventDefault();
             event.stopPropagation();
@@ -191,6 +222,9 @@ export function Toolbox({
           break;
         }
         case 'delete': {
+          if (!nnInteractiveAvailable) {
+            return;
+          }
           event.preventDefault();
           event.stopPropagation();
           const { activeViewportId: avId } = viewportGridService.getState();
@@ -220,7 +254,7 @@ export function Toolbox({
 
     document.addEventListener('keydown', handleKeyDown, true);
     return () => document.removeEventListener('keydown', handleKeyDown, true);
-  }, [hotkeysDisabled, isAIToolBox]);
+  }, [hotkeysDisabled, isAIToolBox, nnInteractiveAvailable]);
 
   useEffect(() => {
     if (!isLocked) {
@@ -243,6 +277,48 @@ export function Toolbox({
       return;
     }
 
+    let mounted = true;
+    const checkAvailability = async () => {
+      try {
+        const response = await fetch('/monai/infer/availability', {
+          cache: 'no-store',
+          headers: { accept: 'application/json' },
+        });
+        if (!mounted) {
+          return;
+        }
+        if (!response.ok) {
+          setNnInteractiveAvailable(false);
+          toolboxState.setSessionActive(false);
+          return;
+        }
+        const data = await response.json();
+        const available = !!data?.available;
+        setNnInteractiveAvailable(available);
+        if (!available) {
+          toolboxState.setSessionActive(false);
+        }
+      } catch {
+        if (mounted) {
+          setNnInteractiveAvailable(false);
+          toolboxState.setSessionActive(false);
+        }
+      }
+    };
+
+    checkAvailability();
+    const interval = setInterval(checkAvailability, 30000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [isAIToolBox]);
+
+  useEffect(() => {
+    if (!isAIToolBox || !nnInteractiveAvailable) {
+      return;
+    }
+
     const poll = () => {
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
         return;
@@ -262,7 +338,7 @@ export function Toolbox({
       clearInterval(interval);
       window.removeEventListener('pagehide', onPageHide);
     };
-  }, [isAIToolBox]);
+  }, [isAIToolBox, nnInteractiveAvailable]);
 
   const { toolbarButtons: toolboxSections, onInteraction } = useToolbar({
     servicesManager,
@@ -312,6 +388,9 @@ export function Toolbox({
       commandsManager?.run?.('setToolActive', { toolName: 'Pan' });
       return;
     }
+    if (isAIToolBox && !nnInteractiveAvailable && itemId !== 'Pan') {
+      return;
+    }
     if (isAIToolBox && !sessionActive && itemId !== 'Pan') {
       uiNotificationService?.show?.({
         title: 'nnInteractive',
@@ -333,12 +412,27 @@ export function Toolbox({
     );
   };
 
-  const handleInitialize = () => commandsManager.run('initNninter');
-  const handleRun = () => commandsManager.run('nninter');
-  const handleUndo = () => commandsManager.run('undoNninter');
+  const handleInitialize = () => {
+    if (nnInteractiveAvailable) {
+      commandsManager.run('initNninter');
+    }
+  };
+  const handleRun = () => {
+    if (nnInteractiveAvailable) {
+      commandsManager.run('nninter');
+    }
+  };
+  const handleUndo = () => {
+    if (nnInteractiveAvailable) {
+      commandsManager.run('undoNninter');
+    }
+  };
 
   const handleResetObject = () => {
     const { activeViewportId: avId } = viewportGridService.getState();
+    if (!nnInteractiveAvailable) {
+      return;
+    }
     const seg = segmentationService.getActiveSegmentation(avId);
     const segment = segmentationService.getActiveSegment(avId);
     if (seg?.segmentationId && segment?.segmentIndex != null) {
@@ -351,6 +445,9 @@ export function Toolbox({
 
   const handleNextObject = () => {
     const seg = aiActiveSegmentation();
+    if (!nnInteractiveAvailable) {
+      return;
+    }
     if (seg?.segmentationId) {
       commandsManager.run('addSegment', { segmentationId: seg.segmentationId });
       if (toolboxState.getPosNeg()) {
@@ -361,6 +458,9 @@ export function Toolbox({
 
   const handleExport = () => {
     const seg = aiActiveSegmentation();
+    if (!nnInteractiveAvailable) {
+      return;
+    }
     if (seg?.segmentationId) {
       commandsManager.run({
         commandName: 'storeSegmentation',
@@ -371,6 +471,8 @@ export function Toolbox({
   };
 
   const CustomConfigComponent = customizationService.getCustomization(`${buttonSectionId}.config`);
+  const nnInteractiveReady = nnInteractiveAvailable === true;
+  const nnInteractiveChecking = nnInteractiveAvailable === null;
   const shouldCollapse = isAIToolBox && isLocked;
 
   const renderGenericToolbox = () =>
@@ -463,12 +565,19 @@ export function Toolbox({
               return (
                 <div key={sectionId} className="flex flex-col gap-3 py-2 px-2">
                   <div className="text-muted-foreground text-sm">Model: nnInteractive</div>
+                  {!nnInteractiveReady && (
+                    <div className="text-muted-foreground rounded border border-primary/20 p-2 text-xs">
+                      {nnInteractiveChecking
+                        ? 'Checking nnInteractive availability...'
+                        : 'nnInteractive is not installed or the backend is unavailable.'}
+                    </div>
+                  )}
 
                   <Button
                     variant="default"
                     size="sm"
                     className="w-full"
-                    disabled={sessionActive}
+                    disabled={!nnInteractiveReady || sessionActive}
                     onClick={handleInitialize}
                   >
                     {sessionActive ? 'Session ready' : 'Initialize'}
@@ -479,7 +588,11 @@ export function Toolbox({
                       sessionActive ? 'text-green-500' : 'text-muted-foreground'
                     )}
                   >
-                    {sessionActive ? 'Session ready' : 'Initialize to start a session'}
+                    {sessionActive
+                      ? 'Session ready'
+                      : nnInteractiveReady
+                        ? 'Initialize to start a session'
+                        : 'Optional nnInteractive backend unavailable'}
                   </div>
 
                   <div className="border-t border-primary/20" />
@@ -491,7 +604,7 @@ export function Toolbox({
                       size="sm"
                       className="w-full"
                       value={posNeg ? 'negative' : 'positive'}
-                      disabled={!sessionActive}
+                      disabled={!nnInteractiveReady || !sessionActive}
                       onValueChange={value => {
                         if (!value) {
                           return;
@@ -514,7 +627,7 @@ export function Toolbox({
                     <Label>Interaction Tools</Label>
                     <div
                       className={classnames('flex flex-wrap gap-1', {
-                        'opacity-40 pointer-events-none': !sessionActive,
+                        'opacity-40 pointer-events-none': !nnInteractiveReady || !sessionActive,
                       })}
                     >
                       {buttons
@@ -537,13 +650,13 @@ export function Toolbox({
                   </div>
 
                   <div className="flex flex-wrap gap-1">
-                    <Button variant="secondary" size="sm" disabled={!sessionActive} onClick={handleUndo}>
+                    <Button variant="secondary" size="sm" disabled={!nnInteractiveReady || !sessionActive} onClick={handleUndo}>
                       Undo
                     </Button>
                     <Button
                       variant="secondary"
                       size="sm"
-                      disabled={!sessionActive}
+                      disabled={!nnInteractiveReady || !sessionActive}
                       onClick={handleResetObject}
                     >
                       Reset Object
@@ -551,7 +664,7 @@ export function Toolbox({
                     <Button
                       variant="secondary"
                       size="sm"
-                      disabled={!sessionActive}
+                      disabled={!nnInteractiveReady || !sessionActive}
                       onClick={handleNextObject}
                     >
                       Next Object
@@ -574,14 +687,14 @@ export function Toolbox({
                           <Switch
                             id="auto-run"
                             checked={liveMode}
-                            disabled={!sessionActive}
+                            disabled={!nnInteractiveReady || !sessionActive}
                             onCheckedChange={checked => {
                               setLiveMode(checked);
                               toolboxState.setLiveMode(checked);
                             }}
                           />
                         </div>
-                        <Button variant="secondary" size="sm" disabled={!sessionActive} onClick={handleRun}>
+                        <Button variant="secondary" size="sm" disabled={!nnInteractiveReady || !sessionActive} onClick={handleRun}>
                           Run
                         </Button>
                       </div>
@@ -594,7 +707,7 @@ export function Toolbox({
                     variant="default"
                     size="sm"
                     className="w-full"
-                    disabled={!sessionActive}
+                    disabled={!nnInteractiveReady || !sessionActive}
                     onClick={handleExport}
                   >
                     Export DICOM SEG

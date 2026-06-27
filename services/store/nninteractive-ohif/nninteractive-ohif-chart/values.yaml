@@ -11,3 +11,13 @@ nninteractiveProxy:
   maxCachedSessions: 1
   memoryRequest: 512Mi
   memoryLimit: 4Gi
+
+nninteractiveServer:
+  image: ghcr.io/mic-dkfz/nninteractive-server
+  tag: 2.5.0-nninteractive_v1.0
+  port: 1527
+  apiKey: ""
+  gpuCount: 1
+  memoryRequest: 6Gi
+  memoryLimit: 16Gi
+  extraArgs: []

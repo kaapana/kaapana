@@ -563,6 +563,26 @@ def healthz() -> dict[str, Any]:
     return {"ok": True, "nninteractive_server": NNINTERACTIVE_SERVER_URL, "cached_sessions": len(sessions)}
 
 
+@app.get("/infer/availability")
+def availability() -> dict[str, Any]:
+    try:
+        response = requests.get(NNINTERACTIVE_SERVER_URL, timeout=2)
+        server_available = response.status_code < 500
+        return {
+            "available": server_available,
+            "proxy": True,
+            "nninteractive_server": NNINTERACTIVE_SERVER_URL,
+            "server_status": response.status_code,
+        }
+    except Exception as e:
+        return {
+            "available": False,
+            "proxy": True,
+            "nninteractive_server": NNINTERACTIVE_SERVER_URL,
+            "error": str(e),
+        }
+
+
 @app.get("/infer/session")
 def session_status(image: str | None = None, studyInstanceUID: str | None = None) -> dict[str, Any]:
     """Non-creating liveness probe used by the OHIF UI to gate prompts.

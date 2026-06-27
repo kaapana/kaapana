@@ -1,3 +1,4 @@
+{{- if .Values.global.gpu_support }}
 ---
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
@@ -30,3 +31,4 @@ spec:
                 name: nninteractive-proxy-service
                 port:
                   number: {{ .Values.nninteractiveProxy.port }}
+{{- end }}

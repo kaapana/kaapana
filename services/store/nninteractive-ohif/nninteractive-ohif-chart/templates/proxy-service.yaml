@@ -1,3 +1,4 @@
+{{- if .Values.global.gpu_support }}
 ---
 apiVersion: v1
 kind: Service
@@ -6,6 +7,7 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
   labels:
     app.kubernetes.io/name: nninteractive-proxy
+    app.kubernetes.io/part-of: nninteractive-ohif
 spec:
   selector:
     app.kubernetes.io/name: nninteractive-proxy
@@ -15,3 +17,4 @@ spec:
       targetPort: {{ .Values.nninteractiveProxy.port }}
       protocol: TCP
   type: ClusterIP
+{{- end }}

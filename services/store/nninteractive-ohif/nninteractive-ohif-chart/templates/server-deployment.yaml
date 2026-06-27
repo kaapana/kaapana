@@ -1,3 +1,4 @@
+{{- if .Values.global.gpu_support }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -15,34 +16,34 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: nninteractive-server
+        app.kubernetes.io/part-of: nninteractive-ohif
     spec:
       containers:
         - name: nninteractive-server
-          image: "{{ .Values.nninteractive.image }}:{{ .Values.nninteractive.tag }}"
+          image: "{{ .Values.nninteractiveServer.image }}:{{ .Values.nninteractiveServer.tag }}"
           imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
-{{- if .Values.nninteractive.extraArgs }}
+{{- if .Values.nninteractiveServer.extraArgs }}
           args:
-{{ toYaml .Values.nninteractive.extraArgs | indent 12 }}
+{{ toYaml .Values.nninteractiveServer.extraArgs | indent 12 }}
 {{- end }}
           env:
             - name: NNINTERACTIVE_HOST
               value: "0.0.0.0"
             - name: NNINTERACTIVE_PORT
-              value: "{{ .Values.nninteractive.port }}"
-{{- if .Values.nninteractive.apiKey }}
+              value: "{{ .Values.nninteractiveServer.port }}"
+{{- if .Values.nninteractiveServer.apiKey }}
             - name: NN_INTERACTIVE_API_KEY
-              value: "{{ .Values.nninteractive.apiKey }}"
+              value: "{{ .Values.nninteractiveServer.apiKey }}"
 {{- end }}
           ports:
-            - containerPort: {{ .Values.nninteractive.port }}
+            - containerPort: {{ .Values.nninteractiveServer.port }}
           resources:
             requests:
-              memory: "{{ .Values.nninteractive.memoryRequest }}"
+              memory: "{{ .Values.nninteractiveServer.memoryRequest }}"
             limits:
-              memory: "{{ .Values.nninteractive.memoryLimit }}"
-{{- if .Values.global.gpu_support }}
-              nvidia.com/gpu: "{{ .Values.nninteractive.gpuCount }}"
-{{- end }}
+              memory: "{{ .Values.nninteractiveServer.memoryLimit }}"
+              nvidia.com/gpu: "{{ .Values.nninteractiveServer.gpuCount }}"
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
         - name: registry-secret
+{{- end }}

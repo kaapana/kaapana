@@ -1,11 +1,12 @@
 ---
 apiVersion: v1
 appVersion: "2.5.0-nninteractive_v1.0"
-description: Standalone nnInteractive inference server
-name: nninteractive-server
+description: nnInteractive backend bundle for OHIF
+name: nninteractive-ohif
 version: "0.0.0"
 keywords:
 - kaapanaapplication
 - kaapanaexperimental
+- gpurequired
 annotations:
-  ui-visible-name: "nnInteractive Server"
+  ui-visible-name: "nnInteractive OHIF"

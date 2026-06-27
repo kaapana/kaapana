@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Icons, Label, PanelSection, Switch, Button, ToggleGroup, ToggleGroupItem } from '@ohif/ui-next';
-import { Lock, LockOpen } from 'lucide-react';
+import { Brush, Lasso, Lock, LockOpen } from 'lucide-react';
 import { useSystem, useToolbar } from '@ohif/core';
 import classnames from 'classnames';
 import { useTranslation } from 'react-i18next';
@@ -42,6 +42,8 @@ export function Toolbox({
   const [sessionActive, setSessionActive] = useState(toolboxState.getSessionActive());
   const [nnInteractiveAvailable, setNnInteractiveAvailable] = useState<boolean | null>(null);
   const [showManualControl, setShowManualControl] = useState(false);
+  const [manualTool, setManualTool] = useState<'lasso' | 'brush'>('brush');
+  const [brushSize, setBrushSize] = useState(12);
   const lastSeriesRef = useRef<string>('');
   const hotkeysDisabled = isAIToolBox && isLocked;
 
@@ -81,6 +83,7 @@ export function Toolbox({
 
     return () => {
       clearInterval(interval);
+      toolboxState.setManualCorrectionMode(false);
       toolboxState.setPosNeg(false);
       if (isAIToolBox && toolboxState.getSessionActive()) {
         commandsManager.run('closeNninterSession');
@@ -470,6 +473,57 @@ export function Toolbox({
     }
   };
 
+  const hasActiveAiSegment = () => {
+    const { activeViewportId: avId } = viewportGridService.getState();
+    const seg = segmentationService.getActiveSegmentation(avId);
+    const segment = segmentationService.getActiveSegment(avId);
+    return !!seg?.segmentationId && segment?.segmentIndex != null;
+  };
+
+  const setManualCorrectionTool = (tool: 'lasso' | 'brush') => {
+    if (!nnInteractiveReady || !sessionActive || !hasActiveAiSegment()) {
+      uiNotificationService?.show?.({
+        title: 'Manual correction',
+        message: 'Select an active nnInteractive segment first.',
+        type: 'info',
+      });
+      return;
+    }
+
+    setManualTool(tool);
+    if (tool === 'lasso') {
+      toolboxState.setManualCorrectionMode(true);
+      onInteractionRef.current?.({ itemId: 'PlanarFreehandROI3' });
+      return;
+    }
+
+    toolboxState.setManualCorrectionMode(false);
+    commandsManager.run('setBrushSize', {
+      value: brushSize,
+      toolNames: ['CircularBrush', 'CircularEraser'],
+    });
+    commandsManager.run('setToolActive', {
+      toolName: toolboxState.getPosNeg() ? 'CircularEraser' : 'CircularBrush',
+    });
+  };
+
+  const handleBrushSizeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const nextSize = Number(event.target.value);
+    setBrushSize(nextSize);
+    commandsManager.run('setBrushSize', {
+      value: nextSize,
+      toolNames: ['CircularBrush', 'CircularEraser'],
+    });
+  };
+
+  const handleApplyManualCorrection = async () => {
+    if (!nnInteractiveReady || !sessionActive || !hasActiveAiSegment()) {
+      return;
+    }
+    toolboxState.setManualCorrectionMode(false);
+    await commandsManager.run('applyNninterManualCorrection');
+  };
+
   const CustomConfigComponent = customizationService.getCustomization(`${buttonSectionId}.config`);
   const nnInteractiveReady = nnInteractiveAvailable === true;
   const nnInteractiveChecking = nnInteractiveAvailable === null;
@@ -612,6 +666,11 @@ export function Toolbox({
                         const neg = value === 'negative';
                         setPosNeg(neg);
                         toolboxState.setPosNeg(neg);
+                        if (manualTool === 'brush' && sessionActive) {
+                          commandsManager.run('setToolActive', {
+                            toolName: neg ? 'CircularEraser' : 'CircularBrush',
+                          });
+                        }
                       }}
                     >
                       <ToggleGroupItem value="positive" className="flex-1">
@@ -712,6 +771,66 @@ export function Toolbox({
                   >
                     Export DICOM SEG
                   </Button>
+
+                  <div className="border-t border-primary/20" />
+
+                  <div className="flex flex-col gap-2">
+                    <div className="text-muted-foreground text-sm">Manual Correction</div>
+                    <div
+                      className={classnames('flex gap-1', {
+                        'opacity-40 pointer-events-none':
+                          !nnInteractiveReady || !sessionActive || !hasActiveAiSegment(),
+                      })}
+                    >
+                      <Button
+                        variant={manualTool === 'lasso' ? 'default' : 'secondary'}
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setManualCorrectionTool('lasso')}
+                      >
+                        <Lasso className="mr-1 h-4 w-4" />
+                        Lasso
+                      </Button>
+                      <Button
+                        variant={manualTool === 'brush' ? 'default' : 'secondary'}
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setManualCorrectionTool('brush')}
+                      >
+                        <Brush className="mr-1 h-4 w-4" />
+                        Brush
+                      </Button>
+                    </div>
+                    <div
+                      className={classnames('flex flex-col gap-1', {
+                        'opacity-40 pointer-events-none':
+                          !nnInteractiveReady || !sessionActive || !hasActiveAiSegment(),
+                      })}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <Label htmlFor="nninter-brush-size">Brush size</Label>
+                        <span className="text-muted-foreground text-xs">{brushSize}px</span>
+                      </div>
+                      <input
+                        id="nninter-brush-size"
+                        type="range"
+                        min="1"
+                        max="60"
+                        step="1"
+                        value={brushSize}
+                        onChange={handleBrushSizeChange}
+                      />
+                    </div>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="w-full"
+                      disabled={!nnInteractiveReady || !sessionActive || !hasActiveAiSegment()}
+                      onClick={handleApplyManualCorrection}
+                    >
+                      Apply Manual Correction
+                    </Button>
+                  </div>
                 </div>
               );
             })}

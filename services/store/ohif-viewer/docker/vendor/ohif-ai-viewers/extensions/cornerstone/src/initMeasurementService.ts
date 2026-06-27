@@ -256,6 +256,9 @@ const connectToolsToMeasurementService = (servicesManager: AppTypes.ServicesMana
         }else{
           annotationAddedEventDetail.annotation.metadata.neg = false;
         }
+        if (toolboxState.getManualCorrectionMode?.()) {
+          annotationAddedEventDetail.annotation.metadata.manualCorrection = true;
+        }
       }
       const {
         annotation: { metadata, annotationUID },

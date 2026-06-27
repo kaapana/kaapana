@@ -546,6 +546,26 @@ def _run_inference_request(entry: SeriesSession, mode: Any, data: dict[str, Any]
         seg, offset, full_shape, crop_shape = _crop_target(entry.target_buffer)
         return _multipart(_meta(entry, seg, offset, full_shape, crop_shape, start, "undo"), seg)
 
+    if mode == "set_mask":
+        mask_bytes = data.get("mask_bytes")
+        if not isinstance(mask_bytes, (bytes, bytearray)):
+            raise HTTPException(400, "Missing required mask file for set_mask")
+        expected_size = int(np.prod(entry.target_buffer.shape))
+        if len(mask_bytes) != expected_size:
+            raise HTTPException(
+                400,
+                f"Mask byte length {len(mask_bytes)} does not match target volume size {expected_size}",
+            )
+        mask = np.frombuffer(mask_bytes, dtype=np.uint8).reshape(entry.target_buffer.shape)
+        if entry.flipped:
+            mask = mask[::-1]
+        entry.target_buffer[...] = (mask > 0).astype(np.uint8)
+        entry.session.set_target_buffer(entry.target_buffer)
+        entry.prompts_seen.clear()
+        entry.prompt_order.clear()
+        seg, offset, full_shape, crop_shape = _crop_target(entry.target_buffer)
+        return _multipart(_meta(entry, seg, offset, full_shape, crop_shape, start, "manual correction"), seg)
+
     if mode is not True and str(mode).lower() != "true":
         raise HTTPException(400, "Only nnInteractive requests are supported")
 
@@ -652,6 +672,9 @@ async def infer_segmentation(request: Request) -> Response:
             raise HTTPException(400, "Form field 'params' must contain a JSON object")
         data.update(params)
     data.update({key: form.get(key) for key in form.keys() if key != "params"})
+    mask_file = form.get("mask")
+    if hasattr(mask_file, "read"):
+        data["mask_bytes"] = await mask_file.read()
     study_uid = str(data.get("studyInstanceUID") or "")
     if not study_uid:
         raise HTTPException(400, "Missing required form field: studyInstanceUID")

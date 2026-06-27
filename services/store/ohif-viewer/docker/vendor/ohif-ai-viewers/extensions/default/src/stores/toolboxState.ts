@@ -6,6 +6,7 @@ let promptsVisible = false;
 let currentActiveSegment = 1;
 let sessionActive = false;
 let sessionSeries = '';
+let manualCorrectionMode = false;
 
 export const toolboxState = {
   getLiveMode: () => liveMode,
@@ -42,5 +43,9 @@ export const toolboxState = {
   getSessionSeries: () => sessionSeries,
   setSessionSeries: (series: string) => {
     sessionSeries = series;
+  },
+  getManualCorrectionMode: () => manualCorrectionMode,
+  setManualCorrectionMode: (enabled: boolean) => {
+    manualCorrectionMode = enabled;
   },
 };

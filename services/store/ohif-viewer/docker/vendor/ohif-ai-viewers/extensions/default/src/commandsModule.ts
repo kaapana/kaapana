@@ -63,6 +63,31 @@ function constructInferenceFormData(params: Record<string, unknown>, files?: any
   return formData;
 }
 
+function pointInPolygon(x: number, y: number, polygon: number[][]): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i][0];
+    const yi = polygon[i][1];
+    const xj = polygon[j][0];
+    const yj = polygon[j][1];
+    const intersects = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi || 1) + xi;
+    if (intersects) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function getImageWidth(image: any, displaySet: any, sliceIndex: number): number {
+  return (
+    image?.columns ||
+    image?.width ||
+    displaySet?.instances?.[sliceIndex]?.Columns ||
+    displaySet?.images?.[sliceIndex]?.Columns ||
+    0
+  );
+}
+
 
 export type HangingProtocolParams = {
   protocolId?: string;
@@ -97,6 +122,7 @@ const commandsModule = ({
     measurementService.EVENTS.MEASUREMENT_ADDED,
     (evt) => {
       if (toolboxState.getLiveMode() &&
+      !evt.measurement?.metadata?.manualCorrection &&
       ['Probe2', 'PlanarFreehandROI2', 'PlanarFreehandROI3', 'RectangleROI2'].includes(
         evt.measurement.toolName
       )) {
@@ -1283,6 +1309,165 @@ const commandsModule = ({
         );
       }, 0);
     },
+    async applyNninterManualCorrection() {
+      if (toolboxState.getLocked()) {
+        return;
+      }
+
+      const { activeViewportId, viewports } = viewportGridService.getState();
+      const activeViewportSpecificData = viewports.get(activeViewportId);
+      const displaySetInstanceUID = activeViewportSpecificData?.displaySetInstanceUIDs?.[0];
+      const currentDisplaySets = displaySetService.activeDisplaySets.find(
+        e => e.displaySetInstanceUID === displaySetInstanceUID
+      );
+      if (!currentDisplaySets) {
+        return;
+      }
+
+      const activeSegmentation =
+        servicesManager.services.segmentationService.getActiveSegmentation(activeViewportId);
+      const activeSegment = servicesManager.services.segmentationService.getActiveSegment(activeViewportId);
+      const segmentationId = activeSegmentation?.segmentationId;
+      const segmentNumber = activeSegment?.segmentIndex;
+      const labelmapImageIds: string[] =
+        (activeSegmentation?.representationData?.Labelmap as any)?.imageIds ?? [];
+
+      if (!segmentationId || segmentNumber == null || labelmapImageIds.length === 0) {
+        uiNotificationService.show({
+          title: 'Manual correction',
+          message: 'Select an nnInteractive segment before applying manual corrections.',
+          type: 'warning',
+          duration: 4000,
+        });
+        return;
+      }
+
+      const images = labelmapImageIds.map(imageId => cache.getImage(imageId)).filter(Boolean);
+      if (images.length === 0) {
+        return;
+      }
+
+      const dirtySlices = new Set<number>();
+      const correctionMeasurements = measurementService.getMeasurements().filter((measurement: any) => {
+        return (
+          measurement.referenceSeriesUID === currentDisplaySets.SeriesInstanceUID &&
+          measurement.toolName === 'PlanarFreehandROI3' &&
+          measurement.metadata?.manualCorrection === true &&
+          (measurement.metadata?.SegmentNumber == null ||
+            measurement.metadata?.SegmentNumber === segmentNumber)
+        );
+      });
+
+      for (const measurement of correctionMeasurements) {
+        const boundary = Object.values(measurement.data ?? {})[0]?.boundary as number[][] | undefined;
+        if (!boundary?.length) {
+          continue;
+        }
+        const sliceIndex = Math.round(boundary[0][2]);
+        const image = images[sliceIndex];
+        const voxelManager = image?.voxelManager as csTypes.IVoxelManager<number>;
+        if (!voxelManager) {
+          continue;
+        }
+        const scalarData = voxelManager.getScalarData();
+        const width = getImageWidth(image, currentDisplaySets, sliceIndex);
+        if (!width) {
+          continue;
+        }
+        const height = Math.floor(scalarData.length / width);
+        const xValues = boundary.map(point => Math.round(point[0]));
+        const yValues = boundary.map(point => Math.round(point[1]));
+        const xMin = Math.max(0, Math.min(...xValues));
+        const xMax = Math.min(width - 1, Math.max(...xValues));
+        const yMin = Math.max(0, Math.min(...yValues));
+        const yMax = Math.min(height - 1, Math.max(...yValues));
+        const remove = !!measurement.metadata?.neg;
+
+        for (let y = yMin; y <= yMax; y++) {
+          const row = y * width;
+          for (let x = xMin; x <= xMax; x++) {
+            if (!pointInPolygon(x + 0.5, y + 0.5, boundary)) {
+              continue;
+            }
+            const offset = row + x;
+            if (remove) {
+              if (scalarData[offset] === segmentNumber) {
+                scalarData[offset] = 0;
+              }
+            } else {
+              scalarData[offset] = segmentNumber;
+            }
+          }
+        }
+        voxelManager.setScalarData(scalarData);
+        dirtySlices.add(sliceIndex);
+      }
+
+      const maskBytes = new Uint8Array(images.length * images[0].voxelManager.getScalarData().length);
+      let cursor = 0;
+      for (let sliceIndex = 0; sliceIndex < images.length; sliceIndex++) {
+        const scalarData = (images[sliceIndex].voxelManager as csTypes.IVoxelManager<number>).getScalarData();
+        let sliceDirty = dirtySlices.has(sliceIndex);
+        for (let i = 0; i < scalarData.length; i++) {
+          if (scalarData[i] === segmentNumber) {
+            maskBytes[cursor + i] = 1;
+            sliceDirty = true;
+          }
+        }
+        if (sliceDirty) {
+          dirtySlices.add(sliceIndex);
+        }
+        cursor += scalarData.length;
+      }
+
+      const segment = activeSegmentation.segments?.[segmentNumber];
+      if (segment) {
+        segment.cachedStats = {
+          ...(segment.cachedStats ?? {}),
+          dirtySlices: Array.from(dirtySlices).sort((a, b) => a - b),
+        };
+      }
+
+      if (correctionMeasurements.length > 0) {
+        measurementService.removeMany(correctionMeasurements.map((measurement: any) => measurement.uid));
+      }
+
+      eventTarget.dispatchEvent(
+        new CustomEvent(csToolsEnums.Events.SEGMENTATION_DATA_MODIFIED, {
+          detail: { segmentationId },
+        })
+      );
+      servicesManager.services.cornerstoneViewportService.getRenderingEngine()?.render();
+
+      const params = {
+        studyInstanceUID: currentDisplaySets.StudyInstanceUID,
+        nninter: 'set_mask',
+        segmentNumber,
+      };
+      const data = constructInferenceFormData(params, [
+        {
+          name: 'mask',
+          data: new Blob([maskBytes], { type: 'application/octet-stream' }),
+          fileName: 'mask.raw',
+        },
+      ]);
+
+      await axios.post(
+        `/nninteractive/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`,
+        data,
+        {
+          responseType: 'arraybuffer',
+          headers: { accept: 'application/octet-stream' },
+        }
+      );
+
+      uiNotificationService.show({
+        title: 'Manual correction',
+        message: 'Mask synced as nnInteractive baseline.',
+        type: 'success',
+        duration: 2500,
+      });
+    },
     async nninter(textPrompts?: string | string[]) {
       if (toolboxState.getLocked()) {
         return;
@@ -2022,6 +2207,7 @@ const commandsModule = ({
     undoNninter: actions.undoNninter,
     resetNninter: actions.resetNninter,
     resetSegment: actions.resetSegment,
+    applyNninterManualCorrection: actions.applyNninterManualCorrection,
     nninter: actions.nninter,
     jumpToSegment: actions.jumpToSegment,
     toggleCurrentSegment: actions.toggleCurrentSegment,

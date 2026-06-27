@@ -154,29 +154,11 @@ function modeFactory({ modeConfiguration }) {
         'PlanarFreehandROI2',
         'PlanarFreehandROI3',
         'RectangleROI2',
-        //'sam2',
         'nninter',
         'undoNninter',
         //'resetNninter',
         //'jumpToSegment',
         //'toggleCurrentSegment',
-      ]);
-
-      toolbarService.createButtonSection('textPromptSegmentationToolbox', [
-        'textPromptSegmentationContainer',
-      ]);
-
-
-      toolbarService.createButtonSection('testMedgemmaToolbox', [
-        'testMedgemmaContainer',
-      ]);
-
-      toolbarService.createButtonSection('testMedgemmaSection', [
-        'testMedgemma',
-      ]);
-
-      toolbarService.createButtonSection('textPromptSegmentationSection', [
-        'textPromptSegmentation',
       ]);
       toolbarService.createButtonSection('segmentationToolboxUtilitySection', [
         //'LabelmapSlicePropagation',

@@ -24,18 +24,10 @@ import { updateLabelmapSegmentationImageReferences } from '@cornerstonejs/tools/
 import { cache, imageLoader, metaData, Types as csTypes, utilities as csUtils, VolumeViewport3D, eventTarget } from '@cornerstonejs/core';
 import { adaptersSEG } from '@cornerstonejs/adapters';
 const LABELMAP = csToolsEnums.SegmentationRepresentations.Labelmap;
-import MonaiLabelClient from '../../monai-label/src/services/MonaiLabelClient';
 import { updateSegmentationStats } from '../../cornerstone/src/utils/updateSegmentationStats';
 import axios from 'axios';
-import {
-  toolboxState,
-  type VlmProviderId,
-  type VllmFamilyId,
-  type VllmThinkingLevel,
-  type MedgemmaVariantId,
-} from './stores/toolboxState';
+import { toolboxState } from './stores/toolboxState';
 import { parseMultipart } from './utils/multipart';
-import { callInputDialog } from './utils/callInputDialog';
 
 /** Tracks the last series initialized by initNninter to detect study/series changes. */
 let _lastInitSeries: string | undefined = undefined;
@@ -55,6 +47,20 @@ function metaNum(meta: Record<string, unknown>, key: string): number | undefined
   if (v === undefined || v === null) return undefined;
   const n = typeof v === 'number' ? v : parseFloat(String(v));
   return isFinite(n) ? n : undefined;
+}
+
+function constructInferenceFormData(params: Record<string, unknown>, files?: any[] | null) {
+  const formData = new FormData();
+  formData.append('params', JSON.stringify(params));
+
+  if (files) {
+    const fileList = Array.isArray(files) ? files : [files];
+    for (const file of fileList) {
+      formData.append(file.name, file.data, file.fileName);
+    }
+  }
+
+  return formData;
 }
 
 
@@ -104,16 +110,7 @@ const commandsModule = ({
             return;
           }
 
-          const selectedModel = toolboxState.getSelectedModel();
-          if (selectedModel === 'nnInteractive') {
-            commandsManager.run('nninter');
-          } else if (selectedModel === 'sam2') {
-            commandsManager.run('sam2');
-          } else if (selectedModel === 'medsam2') {
-            commandsManager.run('sam2');
-          } else if (selectedModel === 'sam3') {
-            commandsManager.run('sam2');
-          }
+          commandsManager.run('nninter');
         }, 50);
       }
     }
@@ -320,11 +317,6 @@ const commandsModule = ({
     runAiSegmentation: () => {
       if (toolboxState.getLocked()) {
         return;
-      }
-
-      const selectedModel = toolboxState.getSelectedModel();
-      if (selectedModel === 'sam2' || selectedModel === 'medsam2' || selectedModel === 'sam3') {
-        return commandsManager.run('sam2');
       }
 
       return commandsManager.run('nninter');
@@ -799,409 +791,6 @@ const commandsModule = ({
       });
     },
 
-    async sam2() {
-      if (toolboxState.getLocked()) {
-        return;
-      }
-
-      const overlap = false
-      const selectedModel = toolboxState.getSelectedModel();
-      const medsam2 = selectedModel //Check at monailabel server;
-      const start = Date.now();
-
-      const segs = servicesManager.services.segmentationService.getSegmentations()
-      const { activeViewportId, viewports } = viewportGridService.getState();
-      const activeViewportSpecificData = viewports.get(activeViewportId);
-
-      const { setViewportGridState } = useViewportGridStore.getState();
-      const currentImageIdIndex = servicesManager.services.cornerstoneViewportService.getCornerstoneViewport(activeViewportId).getCurrentImageIdIndex();
-      setViewportGridState('currentImageIdIndex', currentImageIdIndex);
-      const { displaySetInstanceUIDs } = activeViewportSpecificData;
-      const displaySets = displaySetService.activeDisplaySets;
-
-      const displaySetInstanceUID = displaySetInstanceUIDs[0];
-      const currentDisplaySets = displaySets.find(e => e.displaySetInstanceUID === displaySetInstanceUID);
-      if (!currentDisplaySets) return;
-
-      const currentMeasurements = measurementService.getMeasurements()
-
-      const unAssignedMeasurements = currentMeasurements.filter(e => {
-        return e.metadata.SegmentNumber === undefined;
-      })
-
-
-    const activeSegmentation = servicesManager.services.segmentationService.getActiveSegmentation(activeViewportId)
-    let segmentNumber = 1;
-    let segments: { [segmentIndex: string]: cstTypes.Segment } = {};
-    let segmentationId = `${csUtils.uuidv4()}`
-    if (activeSegmentation !== undefined){
-      segments = activeSegmentation.segments;
-    if (Object.values(segments).length > 0) {
-      // Find the minimum available segment number
-      const existingSegmentNumbers = Object.values(segments).map(e => e.segmentIndex).sort((a, b) => a - b);
-      let minAvailableNumber = 1;
-      // Find the first gap in segment numbers, or use the next number after the highest
-      for (let i = 0; i < existingSegmentNumbers.length; i++) {
-        if (existingSegmentNumbers[i] !== minAvailableNumber) {
-          break;
-        }
-        minAvailableNumber++;
-      }
-      segmentNumber = minAvailableNumber;
-      if (!toolboxState.getRefineNew()) {
-        const activeSegment = servicesManager.services.segmentationService.getActiveSegment(activeViewportId);
-        if (activeSegment !== undefined){
-          for (let i = 0; i < unAssignedMeasurements.length; i++) {
-            const e = unAssignedMeasurements[i];
-            e.metadata.SegmentNumber = activeSegment.segmentIndex;
-            e.metadata.segmentationId = activeSegmentation.segmentationId;
-          }
-          segmentNumber = activeSegment.segmentIndex;
-          if (toolboxState.getCurrentActiveSegment() !== segmentNumber){
-            await commandsManager.run('resetNninter');
-            toolboxState.setCurrentActiveSegment(segmentNumber);
-          }
-        } else {
-          uiNotificationService.show({
-            title: 'Click Segment to refine',
-            message: 'No active segment found, please click segment to refine',
-            type: 'warning',
-            duration: 4000,
-          });
-          return
-        }
-      } else {
-        // For new Segment
-        for (let i = 0; i < unAssignedMeasurements.length; i++) {
-          const e = unAssignedMeasurements[i];
-          e.metadata.SegmentNumber = segmentNumber;
-          e.metadata.segmentationId = activeSegmentation.segmentationId;
-        }
-      }
-    } else{
-      // No existing segments in current active segmentation
-      for (let i = 0; i < unAssignedMeasurements.length; i++) {
-        const e = unAssignedMeasurements[i];
-        e.metadata.SegmentNumber = segmentNumber;
-        e.metadata.segmentationId = activeSegmentation.segmentationId;
-      }
-    }
-    
-  } else {
-    // No existing segmentation
-    for (let i = 0; i < unAssignedMeasurements.length; i++) {
-      const e = unAssignedMeasurements[i];
-      e.metadata.SegmentNumber = segmentNumber;
-      e.metadata.segmentationId = segmentationId;
-    }
-  }
-
-      const pos_points: any[] = [];
-      const neg_points: any[] = [];
-      const pos_boxes: any[] = [];
-      const seriesUID = currentDisplaySets.SeriesInstanceUID;
-      for (const e of currentMeasurements) {
-        if (e.referenceSeriesUID !== seriesUID || e.metadata.SegmentNumber !== segmentNumber) continue;
-        if (e.toolName === 'Probe2') {
-          (e.metadata.neg ? neg_points : pos_points).push(Object.values(e.data)[0].index);
-        } else if (e.toolName === 'RectangleROI2' && !e.metadata.neg) {
-          const pts = Object.values(e.data)[0].pointsInShape;
-          pos_boxes.push([pts.at(0).pointIJK, pts.at(-1).pointIJK]);
-        }
-      }
-
-
-
-      //Disable text prompts for SAM2
-      const text_prompts = []//currentMeasurements
-      //.filter(e => { return e.toolName === 'Probe2' && e.referenceSeriesUID === currentDisplaySets.SeriesInstanceUID && e.metadata.neg === false && e.metadata.SegmentNumber === segmentNumber; })
-      //.map(e => { return e.label })
-
-      // Hide measurements after inference unless user has set prompts to always-show
-      if (!toolboxState.getPromptsVisible()) {
-        currentMeasurements
-          .filter(e => e.referenceSeriesUID === currentDisplaySets.SeriesInstanceUID)
-          .forEach(e => measurementService.toggleVisibilityMeasurement(e.uid, false));
-        document.dispatchEvent(new Event('measurement-state-changed'));
-      }
-      if (pos_points.length == 0 && neg_points.length == 0 && pos_boxes.length == 0 && text_prompts.length == 0){
-        uiNotificationService.show({
-          title: 'Prompt warning',
-          message: 'Only pos/neg points and bbox are available for SAM2-based models',
-          type: 'warning',
-          duration: 4000,
-        });
-        return;
-      }
-
-      uiNotificationService.show({
-        title: 'Prompt info',
-        message: 'Only pos/neg points and bbox are accepted for SAM2-based models, other prompt types are ignored',
-        type: 'info',
-        duration: 4000,
-      });
-
-      let url = `/monai/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
-      let params = {
-        largest_cc: false,
-        result_extension: '.nii.gz',
-        result_dtype: 'uint16',
-        result_compress: false,
-        studyInstanceUID: currentDisplaySets.StudyInstanceUID,
-        restore_label_idx: false,
-        pos_points: pos_points,
-        neg_points: neg_points,
-        pos_boxes: pos_boxes,
-        texts: text_prompts,
-        nninter: false,
-        medsam2: medsam2,
-      };
-
-      let data = MonaiLabelClient.constructFormData(params, null);
-
-      // Create the axios promise
-      const segmentationPromise = axios.post(url, data, {
-        responseType: 'arraybuffer',
-        headers: {
-          accept: 'application/json, multipart/form-data',
-        },
-      });
-
-      // Show notification with promise support
-      uiNotificationService.show({
-        title: 'MONAI Label',
-        message: 'Processing segmentation...',
-        type: 'info',
-        promise: segmentationPromise,
-        promiseMessages: {
-          loading: 'Processing segmentation...',
-          success: () => 'Run Segmentation - Successful',
-          error: (error) => `Run Segmentation - Failed: ${error.message || 'Unknown error'}`,
-        },
-      });
-
-            try {
-        // Process the response
-        const response = await segmentationPromise;
-        console.debug(response);
-        if (response.status === 200) {
-          const afterPost = Date.now();
-          console.log(`Just after Post request: ${(afterPost - start)/1000} Seconds`);
-          const ct = response.headers["content-type"] as string;
-
-          if (ct.includes('application/json') && new TextDecoder("utf-8").decode(response.data).includes("sam3_not_found.nii.gz")){
-            uiNotificationService.show({
-              title: 'SAM3 not found',
-              message: 'SAM3 model not found, please check the checkpoint path',
-              type: 'warning',
-              duration: 4000,
-            });
-            return;
-          }
-
-          const { meta, seg } = await parseMultipart(response.data, ct);
-          console.log(`Just after parseMultipart: ${(Date.now() - start)/1000} Seconds`);
-          //const arrayBuffer = response.data
-          const flipped = meta.flipped.toLowerCase() === "true"
-          const sam_elapsed = meta.sam_elapsed
-          const prompt_info = meta.prompt_info
-          const label_name = meta.label_name
-          const raw = seg
-          const new_arrayBuffer = new Uint8Array(raw);
-
-          let imageIds = currentDisplaySets.imageIds
-          let existingSegments: { [segmentIndex: string]: cstTypes.Segment } = {};
-            
-          let segImageIds = [];
-
-          let existing = false;
-          // Find existing segmentation with matching seriesInstanceUid
-          if (activeSegmentation !== undefined){
-            let existingseriesInstanceUid = activeSegmentation.cachedStats?.seriesInstanceUid;
-            
-            if (existingseriesInstanceUid === undefined) {
-              const segments = Object.values(activeSegmentation.segments);
-              for (let j = 0; j < segments.length; j++) {
-                const segment = segments[j];
-                if (segment.cachedStats?.algorithmType !== undefined) {
-                  existingseriesInstanceUid = segment.cachedStats.algorithmType;
-                }
-              }
-            }
-            
-            if (existingseriesInstanceUid === currentDisplaySets.SeriesInstanceUID) {
-              existingSegments = activeSegmentation.segments || {};
-              segmentationId = activeSegmentation.segmentationId;
-              segImageIds = activeSegmentation.representationData.Labelmap.imageIds;
-              existing = true;
-            }
-          }
-          
-          let merged_derivedImages = [];
-          let z_range = [];
-          if(overlap){
-          let derivedImages_new = await imageLoader.createAndCacheDerivedLabelmapImages(imageIds);
-          console.log(`Just after createAndCacheDerivedLabelmapImages: ${(Date.now() - start)/1000} Seconds`);
-          let derivedImages = [];
-          if (segImageIds.length > 0){
-            derivedImages = segImageIds.map(imageId => cache.getImage(imageId));
-          }
-          if(flipped){
-            derivedImages_new.reverse();
-          }
-          for (let i = 0; i < derivedImages_new.length; i++) {
-            const voxelManager = derivedImages_new[i]
-              .voxelManager as csTypes.IVoxelManager<number>;
-            let scalarData = voxelManager.getScalarData();
-            const sliceData = new_arrayBuffer.slice(i * scalarData.length, (i + 1) * scalarData.length);
-            if (sliceData.some(v => v === 1)){
-              voxelManager.setScalarData(sliceData.map(v => v === 1 ? segmentNumber : v));
-              z_range.push(i);
-            }
-          }
-          console.log(`After slice assignment: ${(Date.now() - start)/1000} Seconds`);
-
-
-          let filteredDerivedImages = []
-          const imgLength = imageIds.length;
-          let updatedIndices = new Set<number>();
-
-          // If toolboxState.getRefineNew() is false (Refine), exclude derivedImages that contain segmentNumber
-          // Each derivedImage is binary mask of a single slice ([0],[0,1],[0,2],[0,3].. etc)
-          // derivedImages size is imgLength * the number of segment
-          // We need to filter out the derivedImages block that contain segmentNumber (consists of [0] or [0, segmentNumber] masks)
-          // If filter out which contains segmentNumber and all [0] masks, it can lead to incorrect calculation of the segment. e.g. bidirectional measurement
-          if (!toolboxState.getRefineNew() && derivedImages.length > 0) {
-            let addFlag = true;
-            for (let i=0; i<derivedImages.length; i++){
-              const image = derivedImages[i];
-              const voxelManager = image.voxelManager as csTypes.IVoxelManager<number>;
-              const scalarData = voxelManager.getScalarData();
-              if (scalarData.some(value => value === segmentNumber)){
-                const updatedScalarData = scalarData.map(v => v === segmentNumber ? 0 : v)
-                voxelManager.setScalarData(updatedScalarData);
-                if (addFlag) {
-                  for (let j = 0; j < imgLength; j++) {
-                    updatedIndices.add(Math.floor(i / imgLength) * imgLength + j);
-                  }
-                  addFlag = false;
-                }
-
-              }
-            }
-            for (let i = 0; i < derivedImages.length; i++) {
-              if (!updatedIndices.has(i)) {
-                filteredDerivedImages.push(derivedImages[i]);
-              }
-            }            
-          } else if (derivedImages.length > 0) {
-            filteredDerivedImages = derivedImages;
-          }
-          merged_derivedImages = [...filteredDerivedImages, ...derivedImages_new]
-        } else {
-          if (segImageIds.length == 0){
-            const _tCreate2 = Date.now();
-            let derivedImages_new = await imageLoader.createAndCacheDerivedLabelmapImages(imageIds);
-
-            if(flipped){
-              derivedImages_new.reverse();
-            }
-            for (let i = 0; i < derivedImages_new.length; i++) {
-              const voxelManager = derivedImages_new[i]
-                .voxelManager as csTypes.IVoxelManager<number>;
-              let scalarData = voxelManager.getScalarData();
-              const sliceData = new_arrayBuffer.slice(i * scalarData.length, (i + 1) * scalarData.length);
-              if (sliceData.some(v => v === 1)){
-                voxelManager.setScalarData(sliceData.map(v => v === 1 ? segmentNumber : v));
-                if (flipped) {
-                  z_range.push(derivedImages_new.length - i - 1);
-                } else {
-                  z_range.push(i);
-                }
-              }
-            }
-            if(flipped){
-              derivedImages_new.reverse();
-            }
-            merged_derivedImages = derivedImages_new
-          } else {
-            merged_derivedImages = segImageIds.map(imageId => cache.getImage(imageId));
-            if(flipped){
-              merged_derivedImages.reverse();
-            }
-            for (let i = 0; i < merged_derivedImages.length; i++) {
-              const voxelManager = merged_derivedImages[i]
-                .voxelManager as csTypes.IVoxelManager<number>;
-              let scalarData = voxelManager.getScalarData();
-              const sliceData = new_arrayBuffer.slice(i * scalarData.length, (i + 1) * scalarData.length);
-              if (!toolboxState.getRefineNew()){
-                if (scalarData.some(v => v === segmentNumber)){
-                  voxelManager.setScalarData(scalarData.map(v => v === segmentNumber ? 0 : v));
-                  scalarData = voxelManager.getScalarData();
-                }
-              }
-              if (sliceData.some(v => v === 1)){
-                voxelManager.setScalarData(sliceData.map((v, idx) => v === 1 ? segmentNumber : scalarData[idx]));
-                if (flipped) {
-                  z_range.push(merged_derivedImages.length - i - 1);
-                } else {
-                  z_range.push(i);
-                }
-              }
-            }
-            if(flipped){
-              merged_derivedImages.reverse();
-            }
-          }
-        }
-          
-                    
-          const derivedImageIds = merged_derivedImages.map(image => image.imageId);  
-          console.log(`Just after derivedImageIds: ${(Date.now() - start)/1000} Seconds`);
-          const _zMin = z_range.length > 0 ? Math.min(...z_range) : 0;
-          const _zMax = z_range.length > 0 ? Math.max(...z_range) + 1 : (merged_derivedImages?.length ?? 0);
-          segments[segmentNumber] = {
-            segmentIndex: segmentNumber,
-            // Keep a pre-existing (or user-renamed) label; only name brand-new
-            // segments by their index ("Segment 1", "Segment 2", …).
-            label: existingSegments[segmentNumber]?.label || `Segment ${segmentNumber}`,
-            locked: false,
-            active: false,
-            cachedStats: {
-              modifiedTime: utils.formatDate(Date.now(), 'YYYYMMDD'),
-              algorithmType: currentDisplaySets.SeriesInstanceUID,
-              algorithmName: selectedModel+"_"+sam_elapsed,
-              description: prompt_info,
-              center:  z_range.length > 0 ? z_range.reduce((sum, z) => sum + z, 0) / z_range.length : 0,
-              segZ0: _zMin,
-              segZ1: _zMax,
-            }
-          };
-
-          // Post-segmentation processing: update representations, handle viewports, trigger events
-          await postSegmentationProcessing({
-            activeViewportId,
-            segmentationId,
-            segmentNumber,
-            segments,
-            derivedImageIds,
-            currentDisplaySets,
-            imageIds,
-            existingSegments,
-            existing,
-            activeSegmentation,
-            currentImageIdIndex,
-            z_range,
-          });
-          const end = Date.now();
-          console.log(`Time taken: ${(end - start)/1000} Seconds`);
-          return response;
-        }
-      } catch (error) {
-        console.error('Segmentation error:', error);
-        throw error;
-      }
-    },
     async initNninter( options: {viewportId: string} = {viewportId: undefined} ){
 
       let { activeViewportId, viewports } = viewportGridService.getState();
@@ -1250,7 +839,7 @@ const commandsModule = ({
       // so a single _seriesChanged gate is sufficient — no need to check viewport type.
       const _showNotification = _seriesChanged;
 
-      let data = MonaiLabelClient.constructFormData(params, null);
+      let data = constructInferenceFormData(params, null);
 
       // Create the axios promise
       const initPromise = axios.post(url, data, {
@@ -1361,10 +950,6 @@ const commandsModule = ({
       if (toolboxState.getLocked()) {
         return;
       }
-      if (toolboxState.getSelectedModel() !== 'nnInteractive') {
-        return;
-      }
-
       const start = Date.now();
       const { activeViewportId, viewports } = viewportGridService.getState();
       const activeViewportSpecificData = viewports.get(activeViewportId);
@@ -1401,7 +986,7 @@ const commandsModule = ({
         restore_label_idx: false,
         nninter: 'undo',
       };
-      const data = MonaiLabelClient.constructFormData(params, null);
+      const data = constructInferenceFormData(params, null);
 
       const beforePost = Date.now();
       const undoPromise = axios.post(url, data, {
@@ -1410,7 +995,7 @@ const commandsModule = ({
       });
 
       uiNotificationService.show({
-        title: 'MONAI Label',
+        title: 'nnInteractive',
         message: 'Undoing last interaction...',
         type: 'info',
         promise: undoPromise,
@@ -1459,7 +1044,7 @@ const commandsModule = ({
         const undone = String((meta as any).undone).toLowerCase() === 'true';
         if (!undone) {
           uiNotificationService.show({
-            title: 'MONAI Label',
+            title: 'nnInteractive',
             message: 'Nothing to undo',
             type: 'info',
           });
@@ -1560,7 +1145,7 @@ const commandsModule = ({
         );
         console.log(`[nninter undo timing] total client: ${((Date.now() - start) / 1000).toFixed(3)}s`);
         uiNotificationService.show({
-          title: 'MONAI Label',
+          title: 'nnInteractive',
           message: 'Undo - Successful',
           type: 'success',
         });
@@ -1603,7 +1188,7 @@ const commandsModule = ({
         nninter: "reset",
       };
 
-      let data = MonaiLabelClient.constructFormData(params, null);
+      let data = constructInferenceFormData(params, null);
 
       // Create the axios promise
       const resetPromise = axios.post(url, data, {
@@ -1697,571 +1282,6 @@ const commandsModule = ({
           new CustomEvent(csToolsEnums.Events.SEGMENTATION_DATA_MODIFIED, { detail: { segmentationId } })
         );
       }, 0);
-    },
-    async medGemma(
-      query: string,
-      instruction?: string,
-      startSlice?: number,
-      endSlice?: number,
-      medgemmaVariant?: MedgemmaVariantId,
-      medgemmaThinkingEnabled?: boolean
-    ) {
-      const { activeViewportId, viewports } = viewportGridService.getState();
-      const activeViewportSpecificData = viewports.get(activeViewportId);
-      const { displaySetInstanceUIDs } = activeViewportSpecificData;
-      const displaySets = displaySetService.activeDisplaySets;
-      const displaySetInstanceUID = displaySetInstanceUIDs[0];
-      const currentDisplaySets = displaySets.filter(e => {
-        return e.displaySetInstanceUID == displaySetInstanceUID;
-      })[0];
-      let url = `/monai/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
-      const variant =
-        medgemmaVariant !== undefined
-          ? medgemmaVariant
-          : toolboxState.getMedgemmaVariant();
-      const thinking =
-        medgemmaThinkingEnabled !== undefined
-          ? medgemmaThinkingEnabled
-          : toolboxState.getMedgemmaThinkingEnabled();
-      let params: Record<string, unknown> = {
-        largest_cc: false,
-        result_extension: '.nii.gz',
-        result_dtype: 'uint16',
-        result_compress: false,
-        studyInstanceUID: currentDisplaySets.StudyInstanceUID,
-        restore_label_idx: false,
-        nninter: "medGemma",
-        texts: [query],
-        instruction: instruction || undefined,
-        startSlice: startSlice !== undefined ? startSlice : undefined,
-        endSlice: endSlice !== undefined ? endSlice : undefined,
-        medgemma_variant: variant,
-        medgemma_thinking_enabled: thinking,
-      };
-
-      let data = MonaiLabelClient.constructFormData(params, null);
-
-      // Create the axios promise
-      // For medGemma, we expect a text/string response, not arraybuffer
-      const medgemmaPromise = axios.post(url, data, {
-        responseType: 'text',
-        headers: {
-          accept: 'application/json, text/plain',
-        },
-      });
-
-      const medgemmaTitle =
-        variant === '27b'
-          ? 'MedGemma 1-27B'
-          : 'MedGemma 1.5-4B';
-
-      // Show notification with promise support
-      uiNotificationService.show({
-        title: medgemmaTitle,
-        message: 'Processing medgemma request...',
-        type: 'info',
-        promise: medgemmaPromise,
-        promiseMessages: {
-          loading: 'Processing medgemma request...',
-          success: () => 'Medgemma request - Successful',
-          error: (error) => `Medgemma request - Failed: ${error.message || 'Unknown error'}`,
-        },
-      });
-
-      try {
-        const response = await medgemmaPromise;
-        if (response.status === 200) {
-          return response;
-        }
-      } catch (error) {
-        console.error('Medgemma error:', error);
-        throw error;
-      }
-    },
-    async gemini(
-      query: string,
-      instruction?: string,
-      startSlice?: number,
-      endSlice?: number,
-      geminiModel?: string,
-      geminiThinkingLevel?: '' | 'low' | 'medium' | 'high'
-    ) {
-      const { activeViewportId, viewports } = viewportGridService.getState();
-      const activeViewportSpecificData = viewports.get(activeViewportId);
-      const { displaySetInstanceUIDs } = activeViewportSpecificData;
-      const displaySets = displaySetService.activeDisplaySets;
-      const displaySetInstanceUID = displaySetInstanceUIDs[0];
-      const currentDisplaySets = displaySets.filter(e => {
-        return e.displaySetInstanceUID == displaySetInstanceUID;
-      })[0];
-      let url = `/monai/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
-      const level =
-        geminiThinkingLevel !== undefined
-          ? geminiThinkingLevel
-          : toolboxState.getGeminiThinkingLevel();
-      let params: Record<string, unknown> = {
-        largest_cc: false,
-        result_extension: '.nii.gz',
-        result_dtype: 'uint16',
-        result_compress: false,
-        studyInstanceUID: currentDisplaySets.StudyInstanceUID,
-        restore_label_idx: false,
-        nninter: 'gemini',
-        texts: [query],
-        instruction: instruction || undefined,
-        startSlice: startSlice !== undefined ? startSlice : undefined,
-        endSlice: endSlice !== undefined ? endSlice : undefined,
-        gemini_model: geminiModel || 'gemini-3-flash-preview',
-      };
-      if (level) {
-        params.gemini_thinking_level = level;
-      }
-
-      let data = MonaiLabelClient.constructFormData(params, null);
-
-      const geminiPromise = axios.post(url, data, {
-        responseType: 'text',
-        headers: {
-          accept: 'application/json, text/plain',
-        },
-      });
-
-      uiNotificationService.show({
-        title: 'Gemini VLM',
-        message: 'Processing Gemini request...',
-        type: 'info',
-        promise: geminiPromise,
-        promiseMessages: {
-          loading: 'Processing Gemini request...',
-          success: () => 'Gemini request - Successful',
-          error: (error) => `Gemini request - Failed: ${error.message || 'Unknown error'}`,
-        },
-      });
-
-      try {
-        const response = await geminiPromise;
-        if (response.status === 200) {
-          return response;
-        }
-      } catch (error) {
-        console.error('Gemini error:', error);
-        throw error;
-      }
-    },
-    async openai(
-      query: string,
-      instruction?: string,
-      startSlice?: number,
-      endSlice?: number,
-      openaiModel?: string,
-      openaiReasoningEffort?: string
-    ) {
-      const { activeViewportId, viewports } = viewportGridService.getState();
-      const activeViewportSpecificData = viewports.get(activeViewportId);
-      const { displaySetInstanceUIDs } = activeViewportSpecificData;
-      const displaySets = displaySetService.activeDisplaySets;
-      const displaySetInstanceUID = displaySetInstanceUIDs[0];
-      const currentDisplaySets = displaySets.filter(e => {
-        return e.displaySetInstanceUID == displaySetInstanceUID;
-      })[0];
-      const url = `/monai/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
-      const params: Record<string, unknown> = {
-        largest_cc: false,
-        result_extension: '.nii.gz',
-        result_dtype: 'uint16',
-        result_compress: false,
-        studyInstanceUID: currentDisplaySets.StudyInstanceUID,
-        restore_label_idx: false,
-        nninter: 'openai',
-        texts: [query],
-        instruction: instruction || undefined,
-        startSlice: startSlice !== undefined ? startSlice : undefined,
-        endSlice: endSlice !== undefined ? endSlice : undefined,
-        openai_model: openaiModel || toolboxState.getOpenaiModel(),
-        openai_reasoning_effort:
-          openaiReasoningEffort ?? toolboxState.getOpenaiReasoningEffort(),
-      };
-
-      const data = MonaiLabelClient.constructFormData(params, null);
-
-      const openaiPromise = axios.post(url, data, {
-        responseType: 'text',
-        headers: {
-          accept: 'application/json, text/plain',
-        },
-      });
-
-      uiNotificationService.show({
-        title: 'OpenAI VLM',
-        message: 'Processing OpenAI request...',
-        type: 'info',
-        promise: openaiPromise,
-        promiseMessages: {
-          loading: 'Processing OpenAI request...',
-          success: () => 'OpenAI request - Successful',
-          error: (error) => `OpenAI request - Failed: ${error.message || 'Unknown error'}`,
-        },
-      });
-
-      try {
-        const response = await openaiPromise;
-        if (response.status === 200) {
-          return response;
-        }
-      } catch (error) {
-        console.error('OpenAI error:', error);
-        throw error;
-      }
-    },
-    async claude(
-      query: string,
-      instruction?: string,
-      startSlice?: number,
-      endSlice?: number,
-      claudeModel?: string,
-      claudeThinkingEffort?: '' | 'low' | 'medium' | 'high' | 'max'
-    ) {
-      const { activeViewportId, viewports } = viewportGridService.getState();
-      const activeViewportSpecificData = viewports.get(activeViewportId);
-      const { displaySetInstanceUIDs } = activeViewportSpecificData;
-      const displaySets = displaySetService.activeDisplaySets;
-      const displaySetInstanceUID = displaySetInstanceUIDs[0];
-      const currentDisplaySets = displaySets.filter(e => {
-        return e.displaySetInstanceUID == displaySetInstanceUID;
-      })[0];
-      const url = `/monai/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
-      const effort =
-        claudeThinkingEffort !== undefined
-          ? claudeThinkingEffort
-          : toolboxState.getClaudeThinkingEffort();
-      const params: Record<string, unknown> = {
-        largest_cc: false,
-        result_extension: '.nii.gz',
-        result_dtype: 'uint16',
-        result_compress: false,
-        studyInstanceUID: currentDisplaySets.StudyInstanceUID,
-        restore_label_idx: false,
-        nninter: 'claude',
-        texts: [query],
-        instruction: instruction || undefined,
-        startSlice: startSlice !== undefined ? startSlice : undefined,
-        endSlice: endSlice !== undefined ? endSlice : undefined,
-        claude_model: claudeModel || toolboxState.getClaudeModel(),
-      };
-      if (effort) {
-        params.claude_thinking_effort = effort;
-      }
-
-      const data = MonaiLabelClient.constructFormData(params, null);
-
-      const claudePromise = axios.post(url, data, {
-        responseType: 'text',
-        headers: {
-          accept: 'application/json, text/plain',
-        },
-      });
-
-      uiNotificationService.show({
-        title: 'Claude (Anthropic)',
-        message: 'Processing Claude request...',
-        type: 'info',
-        promise: claudePromise,
-        promiseMessages: {
-          loading: 'Processing Claude request...',
-          success: () => 'Claude request - Successful',
-          error: (error) => `Claude request - Failed: ${error.message || 'Unknown error'}`,
-        },
-      });
-
-      try {
-        const response = await claudePromise;
-        if (response.status === 200) {
-          return response;
-        }
-      } catch (error) {
-        console.error('Claude error:', error);
-        throw error;
-      }
-    },
-    async kimi(
-      query: string,
-      instruction?: string,
-      startSlice?: number,
-      endSlice?: number,
-      kimiModel?: string,
-      kimiReasoningEnabled?: boolean
-    ) {
-      const { activeViewportId, viewports } = viewportGridService.getState();
-      const activeViewportSpecificData = viewports.get(activeViewportId);
-      const { displaySetInstanceUIDs } = activeViewportSpecificData;
-      const displaySets = displaySetService.activeDisplaySets;
-      const displaySetInstanceUID = displaySetInstanceUIDs[0];
-      const currentDisplaySets = displaySets.filter(e => {
-        return e.displaySetInstanceUID == displaySetInstanceUID;
-      })[0];
-      const url = `/monai/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
-      const reasoning =
-        kimiReasoningEnabled !== undefined
-          ? kimiReasoningEnabled
-          : toolboxState.getKimiReasoningEnabled();
-      const params: Record<string, unknown> = {
-        largest_cc: false,
-        result_extension: '.nii.gz',
-        result_dtype: 'uint16',
-        result_compress: false,
-        studyInstanceUID: currentDisplaySets.StudyInstanceUID,
-        restore_label_idx: false,
-        nninter: 'kimi',
-        texts: [query],
-        instruction: instruction || undefined,
-        startSlice: startSlice !== undefined ? startSlice : undefined,
-        endSlice: endSlice !== undefined ? endSlice : undefined,
-        kimi_model: kimiModel || toolboxState.getKimiModel(),
-        kimi_disable_thinking: !reasoning,
-      };
-
-      const data = MonaiLabelClient.constructFormData(params, null);
-
-      const kimiPromise = axios.post(url, data, {
-        responseType: 'text',
-        headers: {
-          accept: 'application/json, text/plain',
-        },
-      });
-
-      uiNotificationService.show({
-        title: 'Kimi (HF router)',
-        message: 'Processing Kimi request...',
-        type: 'info',
-        promise: kimiPromise,
-        promiseMessages: {
-          loading: 'Processing Kimi request...',
-          success: () => 'Kimi request - Successful',
-          error: (error) => `Kimi request - Failed: ${error.message || 'Unknown error'}`,
-        },
-      });
-
-      try {
-        const response = await kimiPromise;
-        if (response.status === 200) {
-          return response;
-        }
-      } catch (error) {
-        console.error('Kimi error:', error);
-        throw error;
-      }
-    },
-    async qwen(
-      query: string,
-      instruction?: string,
-      startSlice?: number,
-      endSlice?: number,
-      qwenModel?: string,
-      qwenThinkingEnabled?: boolean
-    ) {
-      const { activeViewportId, viewports } = viewportGridService.getState();
-      const activeViewportSpecificData = viewports.get(activeViewportId);
-      const { displaySetInstanceUIDs } = activeViewportSpecificData;
-      const displaySets = displaySetService.activeDisplaySets;
-      const displaySetInstanceUID = displaySetInstanceUIDs[0];
-      const currentDisplaySets = displaySets.filter(e => {
-        return e.displaySetInstanceUID == displaySetInstanceUID;
-      })[0];
-      const url = `/monai/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
-      const thinking =
-        qwenThinkingEnabled !== undefined
-          ? qwenThinkingEnabled
-          : toolboxState.getQwenThinkingEnabled();
-      const params: Record<string, unknown> = {
-        largest_cc: false,
-        result_extension: '.nii.gz',
-        result_dtype: 'uint16',
-        result_compress: false,
-        studyInstanceUID: currentDisplaySets.StudyInstanceUID,
-        restore_label_idx: false,
-        nninter: 'qwen',
-        texts: [query],
-        instruction: instruction || undefined,
-        startSlice: startSlice !== undefined ? startSlice : undefined,
-        endSlice: endSlice !== undefined ? endSlice : undefined,
-        qwen_model: qwenModel || toolboxState.getQwenModel(),
-        qwen_thinking_enabled: thinking,
-      };
-
-      const data = MonaiLabelClient.constructFormData(params, null);
-
-      const qwenPromise = axios.post(url, data, {
-        responseType: 'text',
-        headers: {
-          accept: 'application/json, text/plain',
-        },
-      });
-
-      uiNotificationService.show({
-        title: 'Qwen (HF router)',
-        message: 'Processing Qwen request...',
-        type: 'info',
-        promise: qwenPromise,
-        promiseMessages: {
-          loading: 'Processing Qwen request...',
-          success: () => 'Qwen request - Successful',
-          error: (error) => `Qwen request - Failed: ${error.message || 'Unknown error'}`,
-        },
-      });
-
-      try {
-        const response = await qwenPromise;
-        if (response.status === 200) {
-          return response;
-        }
-      } catch (error) {
-        console.error('Qwen error:', error);
-        throw error;
-      }
-    },
-    async gemma(
-      query: string,
-      instruction?: string,
-      startSlice?: number,
-      endSlice?: number,
-      gemmaModel?: string,
-      gemmaThinkingEnabled?: boolean
-    ) {
-      const { activeViewportId, viewports } = viewportGridService.getState();
-      const activeViewportSpecificData = viewports.get(activeViewportId);
-      const { displaySetInstanceUIDs } = activeViewportSpecificData;
-      const displaySets = displaySetService.activeDisplaySets;
-      const displaySetInstanceUID = displaySetInstanceUIDs[0];
-      const currentDisplaySets = displaySets.filter(e => {
-        return e.displaySetInstanceUID == displaySetInstanceUID;
-      })[0];
-      const url = `/monai/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
-      const thinking =
-        gemmaThinkingEnabled !== undefined
-          ? gemmaThinkingEnabled
-          : toolboxState.getGemmaThinkingEnabled();
-      const params: Record<string, unknown> = {
-        largest_cc: false,
-        result_extension: '.nii.gz',
-        result_dtype: 'uint16',
-        result_compress: false,
-        studyInstanceUID: currentDisplaySets.StudyInstanceUID,
-        restore_label_idx: false,
-        nninter: 'gemma',
-        texts: [query],
-        instruction: instruction || undefined,
-        startSlice: startSlice !== undefined ? startSlice : undefined,
-        endSlice: endSlice !== undefined ? endSlice : undefined,
-        gemma_model: gemmaModel || toolboxState.getGemmaModel(),
-        gemma_thinking_enabled: thinking,
-      };
-
-      const data = MonaiLabelClient.constructFormData(params, null);
-
-      const gemmaPromise = axios.post(url, data, {
-        responseType: 'text',
-        headers: {
-          accept: 'application/json, text/plain',
-        },
-      });
-
-      uiNotificationService.show({
-        title: 'Gemma 4 (HF router)',
-        message: 'Processing Gemma request...',
-        type: 'info',
-        promise: gemmaPromise,
-        promiseMessages: {
-          loading: 'Processing Gemma request...',
-          success: () => 'Gemma request - Successful',
-          error: (error) => `Gemma request - Failed: ${error.message || 'Unknown error'}`,
-        },
-      });
-
-      try {
-        const response = await gemmaPromise;
-        if (response.status === 200) {
-          return response;
-        }
-      } catch (error) {
-        console.error('Gemma error:', error);
-        throw error;
-      }
-    },
-    async vllm(
-      query: string,
-      instruction?: string,
-      startSlice?: number,
-      endSlice?: number,
-      vllmBaseUrl?: string,
-      vllmFamily?: VllmFamilyId,
-      vllmThinkingLevel?: VllmThinkingLevel
-    ) {
-      const { activeViewportId, viewports } = viewportGridService.getState();
-      const activeViewportSpecificData = viewports.get(activeViewportId);
-      const { displaySetInstanceUIDs } = activeViewportSpecificData;
-      const displaySets = displaySetService.activeDisplaySets;
-      const displaySetInstanceUID = displaySetInstanceUIDs[0];
-      const currentDisplaySets = displaySets.filter(e => {
-        return e.displaySetInstanceUID == displaySetInstanceUID;
-      })[0];
-      const url = `/monai/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
-      const baseUrl =
-        (vllmBaseUrl ?? toolboxState.getVllmBaseUrl()).trim() ||
-        'http://host.docker.internal:8000/v1';
-      const family = vllmFamily !== undefined ? vllmFamily : toolboxState.getVllmFamily();
-      const thinking =
-        vllmThinkingLevel !== undefined
-          ? vllmThinkingLevel
-          : toolboxState.getVllmThinkingLevel();
-      const params: Record<string, unknown> = {
-        largest_cc: false,
-        result_extension: '.nii.gz',
-        result_dtype: 'uint16',
-        result_compress: false,
-        studyInstanceUID: currentDisplaySets.StudyInstanceUID,
-        restore_label_idx: false,
-        nninter: 'vllm',
-        texts: [query],
-        instruction: instruction || undefined,
-        startSlice: startSlice !== undefined ? startSlice : undefined,
-        endSlice: endSlice !== undefined ? endSlice : undefined,
-        vllm_base_url: baseUrl,
-        vllm_thinking_level: thinking,
-      };
-      if (family) {
-        params.vllm_family = family;
-      }
-
-      const data = MonaiLabelClient.constructFormData(params, null);
-
-      const vllmPromise = axios.post(url, data, {
-        responseType: 'text',
-        headers: {
-          accept: 'application/json, text/plain',
-        },
-      });
-
-      uiNotificationService.show({
-        title: 'vLLM (OpenAI API)',
-        message: 'Processing vLLM request...',
-        type: 'info',
-        promise: vllmPromise,
-        promiseMessages: {
-          loading: 'Processing vLLM request...',
-          success: () => 'vLLM request - Successful',
-          error: (error) => `vLLM request - Failed: ${error.message || 'Unknown error'}`,
-        },
-      });
-
-      try {
-        const response = await vllmPromise;
-        if (response.status === 200) {
-          return response;
-        }
-      } catch (error) {
-        console.error('vLLM error:', error);
-        throw error;
-      }
     },
     async nninter(textPrompts?: string | string[]) {
       if (toolboxState.getLocked()) {
@@ -2420,7 +1440,7 @@ const commandsModule = ({
         nninter_reset_first: _needsReset,
       };
 
-      let data = MonaiLabelClient.constructFormData(params, null);
+      let data = constructInferenceFormData(params, null);
 
       
       const beforePost = Date.now();
@@ -2436,7 +1456,7 @@ const commandsModule = ({
 
       // Show notification with promise support
       uiNotificationService.show({
-        title: 'MONAI Label',
+        title: 'nnInteractive',
         message: 'Processing nninter segmentation...',
         type: 'info',
         promise: segmentationPromise,
@@ -2844,252 +1864,6 @@ const commandsModule = ({
       }
     },
 
-    async textPromptSegmentation() {
-      if (toolboxState.getLocked()) {
-        return;
-      }
-
-      const { uiDialogService } = servicesManager.services;
-
-      try {
-        // Open dialog to get text input
-        const textInput = await callInputDialog({
-          uiDialogService,
-          defaultValue: '',
-          title: 'Text Prompt Segmentation (VoxTell)',
-          placeholder: 'Enter text prompt for segmentation',
-          submitOnEnter: true,
-        });
-
-        // If user cancelled or entered empty text, return early
-        if (!textInput || textInput.trim() === '') {
-          return;
-        }
-
-        // Temporarily override refineNew with textPromptReplaceNew for this operation
-        const originalRefineNew = toolboxState.getRefineNew();
-        const textPromptReplaceNew = toolboxState.getTextPromptReplaceNew();
-        toolboxState.setRefineNew(textPromptReplaceNew);
-
-        try {
-          // Call nninter with the text prompt
-          // Reference actions.nninter - this works because the function executes
-          // after the actions object is fully created
-          return await actions.nninter(textInput.trim());
-        } finally {
-          // Restore original refineNew state
-          toolboxState.setRefineNew(originalRefineNew);
-        }
-      } catch (error) {
-        // User cancelled the dialog - callInputDialog may throw or return empty string
-        console.error('Text prompt segmentation error:', error);
-        return;
-      }
-    },
-    async testVlm(options?: {
-      vlmProvider?: VlmProviderId;
-      instruction?: string;
-      query?: string;
-      startSlice?: number | null;
-      endSlice?: number | null;
-      medgemmaVariant?: MedgemmaVariantId;
-      medgemmaThinkingEnabled?: boolean;
-      geminiModel?: string;
-      geminiThinkingLevel?: '' | 'low' | 'medium' | 'high';
-      openaiModel?: string;
-      openaiReasoningEffort?: string;
-      claudeModel?: string;
-      claudeThinkingEffort?: '' | 'low' | 'medium' | 'high' | 'max';
-      kimiModel?: string;
-      kimiReasoningEnabled?: boolean;
-      qwenModel?: string;
-      qwenThinkingEnabled?: boolean;
-      gemmaModel?: string;
-      gemmaThinkingEnabled?: boolean;
-      vllmBaseUrl?: string;
-      vllmFamily?: VllmFamilyId;
-      vllmThinkingLevel?: VllmThinkingLevel;
-    }) {
-      const vlm: VlmProviderId = options?.vlmProvider ?? toolboxState.getVlmProvider();
-      const instruction = options?.instruction;
-      const query = options?.query;
-      const startSlice = options?.startSlice;
-      const endSlice = options?.endSlice;
-      const geminiModel = options?.geminiModel ?? toolboxState.getGeminiModel();
-      const geminiThinkingLevel =
-        options?.geminiThinkingLevel ?? toolboxState.getGeminiThinkingLevel();
-      const openaiModel = options?.openaiModel ?? toolboxState.getOpenaiModel();
-      const openaiReasoningEffort =
-        options?.openaiReasoningEffort ?? toolboxState.getOpenaiReasoningEffort();
-      const claudeModel = options?.claudeModel ?? toolboxState.getClaudeModel();
-      const claudeThinkingEffort =
-        options?.claudeThinkingEffort ?? toolboxState.getClaudeThinkingEffort();
-      const kimiModel = options?.kimiModel ?? toolboxState.getKimiModel();
-      const kimiReasoningEnabled =
-        options?.kimiReasoningEnabled ?? toolboxState.getKimiReasoningEnabled();
-      const qwenModel = options?.qwenModel ?? toolboxState.getQwenModel();
-      const qwenThinkingEnabled =
-        options?.qwenThinkingEnabled ?? toolboxState.getQwenThinkingEnabled();
-      const gemmaModel = options?.gemmaModel ?? toolboxState.getGemmaModel();
-      const gemmaThinkingEnabled =
-        options?.gemmaThinkingEnabled ?? toolboxState.getGemmaThinkingEnabled();
-      const vllmBaseUrl = options?.vllmBaseUrl ?? toolboxState.getVllmBaseUrl();
-      const vllmFamily = options?.vllmFamily ?? toolboxState.getVllmFamily();
-      const vllmThinkingLevel =
-        options?.vllmThinkingLevel ?? toolboxState.getVllmThinkingLevel();
-      const medgemmaVariant =
-        options?.medgemmaVariant ?? toolboxState.getMedgemmaVariant();
-      const medgemmaThinkingEnabled =
-        options?.medgemmaThinkingEnabled ?? toolboxState.getMedgemmaThinkingEnabled();
-      const { uiDialogService } = servicesManager.services;
-
-      const queryDialogTitles: Record<VlmProviderId, string> = {
-        medGemma: 'MedGemma — Query',
-        gemini: 'Gemini — Query',
-        openai: 'OpenAI — Query',
-        claude: 'Claude — Query',
-        kimi: 'Kimi — Query',
-        qwen: 'Qwen — Query',
-        gemma: 'Gemma 4 — Query',
-        vllm: 'vLLM — Query',
-      };
-      const queryDialogTitle = queryDialogTitles[vlm];
-
-      try {
-        let instructionText = instruction;
-        if (!instructionText?.trim()) {
-          instructionText =
-            'You are an instructor teaching medical students. You are analyzing the following CT slices. Please review the slices provided below carefully.';
-        }
-        toolboxState.setMedgemmaInstruction(instructionText.trim());
-
-        let queryText = query;
-        if (!queryText) {
-          queryText = await callInputDialog({
-            uiDialogService,
-            defaultValue: toolboxState.getMedgemmaQuery() || '',
-            title: queryDialogTitle,
-            placeholder: 'Enter your query/question',
-            submitOnEnter: true,
-          });
-
-          if (!queryText || queryText.trim() === '') {
-            return;
-          }
-          toolboxState.setMedgemmaQuery(queryText.trim());
-        }
-
-        if (startSlice !== undefined) {
-          toolboxState.setMedgemmaStartSlice(startSlice);
-        }
-        if (endSlice !== undefined) {
-          toolboxState.setMedgemmaEndSlice(endSlice);
-        }
-
-        toolboxState.setMedgemmaResult(null);
-
-        let response;
-        if (vlm === 'gemini') {
-          response = await actions.gemini(
-            queryText.trim(),
-            instructionText.trim(),
-            startSlice ?? undefined,
-            endSlice ?? undefined,
-            geminiModel,
-            geminiThinkingLevel
-          );
-        } else if (vlm === 'openai') {
-          response = await actions.openai(
-            queryText.trim(),
-            instructionText.trim(),
-            startSlice ?? undefined,
-            endSlice ?? undefined,
-            openaiModel,
-            openaiReasoningEffort
-          );
-        } else if (vlm === 'claude') {
-          response = await actions.claude(
-            queryText.trim(),
-            instructionText.trim(),
-            startSlice ?? undefined,
-            endSlice ?? undefined,
-            claudeModel,
-            claudeThinkingEffort
-          );
-        } else if (vlm === 'kimi') {
-          response = await actions.kimi(
-            queryText.trim(),
-            instructionText.trim(),
-            startSlice ?? undefined,
-            endSlice ?? undefined,
-            kimiModel,
-            kimiReasoningEnabled
-          );
-        } else if (vlm === 'qwen') {
-          response = await actions.qwen(
-            queryText.trim(),
-            instructionText.trim(),
-            startSlice ?? undefined,
-            endSlice ?? undefined,
-            qwenModel,
-            qwenThinkingEnabled
-          );
-        } else if (vlm === 'gemma') {
-          response = await actions.gemma(
-            queryText.trim(),
-            instructionText.trim(),
-            startSlice ?? undefined,
-            endSlice ?? undefined,
-            gemmaModel,
-            gemmaThinkingEnabled
-          );
-        } else if (vlm === 'vllm') {
-          response = await actions.vllm(
-            queryText.trim(),
-            instructionText.trim(),
-            startSlice ?? undefined,
-            endSlice ?? undefined,
-            vllmBaseUrl,
-            vllmFamily,
-            vllmThinkingLevel
-          );
-        } else {
-          response = await actions.medGemma(
-            queryText.trim(),
-            instructionText.trim(),
-            startSlice ?? undefined,
-            endSlice ?? undefined,
-            medgemmaVariant,
-            medgemmaThinkingEnabled
-          );
-        }
-
-        let responseText = '';
-        if (response && response.data) {
-          responseText = typeof response.data === 'string' ? response.data : String(response.data);
-          toolboxState.setMedgemmaResult(responseText);
-        } else {
-          toolboxState.setMedgemmaResult('No response received');
-        }
-      } catch (error) {
-        console.error('VLM request error:', error);
-        toolboxState.setMedgemmaResult(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        return;
-      }
-    },
-    async testMedgemma(options?: { instruction?: string; query?: string; startSlice?: number | null; endSlice?: number | null }) {
-      return actions.testVlm({ ...options, vlmProvider: 'medGemma' });
-    },
-    async testGemini(options?: {
-      instruction?: string;
-      query?: string;
-      startSlice?: number | null;
-      endSlice?: number | null;
-      geminiModel?: string;
-      geminiThinkingLevel?: '' | 'low' | 'medium' | 'high';
-    }) {
-      return actions.testVlm({ ...options, vlmProvider: 'gemini' });
-    },
     jumpToSegment: () => {
       const activeViewportId = viewportGridService.getState().activeViewportId;
       const segmentationService = servicesManager.services.segmentationService;
@@ -3242,26 +2016,13 @@ const commandsModule = ({
     openDICOMTagViewer: actions.openDICOMTagViewer,
     setAiToolActive: actions.setAiToolActive,
     runAiSegmentation: actions.runAiSegmentation,
-    sam2: actions.sam2,
     initNninter: actions.initNninter,
     nninterSessionStatus: actions.nninterSessionStatus,
     closeNninterSession: actions.closeNninterSession,
     undoNninter: actions.undoNninter,
     resetNninter: actions.resetNninter,
     resetSegment: actions.resetSegment,
-    medGemma: actions.medGemma,
-    gemini: actions.gemini,
-    openai: actions.openai,
-    claude: actions.claude,
-    kimi: actions.kimi,
-    qwen: actions.qwen,
-    gemma: actions.gemma,
-    vllm: actions.vllm,
     nninter: actions.nninter,
-    textPromptSegmentation: actions.textPromptSegmentation,
-    testVlm: actions.testVlm,
-    testMedgemma: actions.testMedgemma,
-    testGemini: actions.testGemini,
     jumpToSegment: actions.jumpToSegment,
     toggleCurrentSegment: actions.toggleCurrentSegment,
     updateViewportDisplaySet: actions.updateViewportDisplaySet,

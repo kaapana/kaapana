@@ -37,7 +37,7 @@ const getPanelModule = ({ commandsManager, servicesManager, extensionManager }: 
       <>
         <Toolbox
           buttonSectionId="aiToolBox"
-          title="nnInteractive Segmentation"
+          title="nnInteractive OHIF"
           defaultOpen={true}
         />
         <PanelSegmentation

@@ -5,7 +5,6 @@
   "workspaces": {
     "packages": [
       "platform/app",
-      "platform/cli",
       "platform/ui-next",
       "platform/ui",
       "platform/core",
@@ -31,7 +30,6 @@
     "build:qa": "lerna run build:viewer:qa --stream",
     "clean": "npx lerna run clean --stream",
     "clean:deep": "npx lerna run clean:deep --stream",
-    "cli": "node ./platform/cli/src/index.js",
     "build:ui:deploy-preview": "lerna run build:ui:deploy-preview --stream",
     "build:demo": "lerna run build:viewer:demo --stream",
     "build:package-all": "lerna run build:package --parallel --stream",

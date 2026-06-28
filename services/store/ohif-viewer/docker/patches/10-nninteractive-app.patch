@@ -118,7 +118,7 @@
  export type HangingProtocolParams = {
    protocolId?: string;
    stageIndex?: number;
-@@ -47,10 +152,335 @@
+@@ -47,10 +152,347 @@
      multiMonitorService,
    } = servicesManager.services;
  
@@ -151,7 +151,13 @@
 +      return;
 +    }
 +
-+    commandsManager.run('nninter');
++    // Live mode fires nninter() speculatively as the user draws. A transient failure
++    // (e.g. an empty prompt that the backend answers with a zero-length seg part, which
++    // surfaces as "seg part not found") must NOT propagate to the route error boundary
++    // and crash the viewer. Swallow and log — the next complete measurement fires again.
++    Promise.resolve(commandsManager.run('nninter')).catch(error => {
++      console.warn('Live nninter() attempt failed (non-fatal):', error?.message || error);
++    });
 +  };
 +
 +  const waitForPromptPayloadAndRun = (measurementUID: string) => {
@@ -160,7 +166,10 @@
 +    }
 +
 +    let framesWaited = 0;
-+    const maxFrames = 12;
++    // Freehand/lasso prompt payloads populate asynchronously over several frames; give
++    // them ample time so a slow draw is caught by the wait loop (tryRun) rather than
++    // timing out into a spurious empty fire.
++    const maxFrames = 60;
 +
 +    const cleanup = () => {
 +      const pending = pendingLivePrompts.get(measurementUID);
@@ -206,9 +215,12 @@
 +
 +      framesWaited += 1;
 +      if (framesWaited >= maxFrames) {
-+        console.warn('Prompt payload was not populated after render frames; running nnInteractive with current measurements.');
++        // Payload never populated (e.g. an abandoned/incomplete freehand draw). Do NOT
++        // fire with an empty prompt: the backend returns a zero-length seg part that
++        // surfaces as a fatal "seg part not found". A completed measurement fires nninter()
++        // via the MEASUREMENT_ADDED / MEASUREMENT_UPDATED (tryRun) paths instead.
++        console.debug('Prompt payload not populated after render frames; skipping live nninter().');
 +        cleanup();
-+        runLiveNninter();
 +        return;
 +      }
 +
@@ -454,7 +466,7 @@
      /**
       * Runs a command in multi-monitor mode.  No-op if not multi-monitor.
       */
-@@ -520,6 +950,1316 @@
+@@ -520,6 +962,1316 @@
        });
      },
  
@@ -1771,7 +1783,7 @@
      /**
       * Toggle viewport overlay (the information panel shown on the four corners
       * of the viewport)
-@@ -650,6 +2390,18 @@
+@@ -650,6 +2402,18 @@
      setViewportGridLayout: actions.setViewportGridLayout,
      toggleOneUp: actions.toggleOneUp,
      openDICOMTagViewer: actions.openDICOMTagViewer,

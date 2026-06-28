@@ -1,1 +1,0 @@
-export { ThemeWrapper } from './ThemeWrapper';

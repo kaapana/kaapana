@@ -11,23 +11,39 @@ RUN apt-get update \
 RUN corepack enable && corepack prepare yarn@1.22.22 --activate
 RUN yarn config set workspaces-experimental true
 
-COPY vendor/ohif-ai-viewers /src
+# Fetch PRISTINE upstream OHIF at the OHIF-AI fork's exact base commit (2 trivial commits
+# behind tag v3.10.4). No OHIF source is committed to this repo; it is fetched at build time.
+# To upgrade OHIF: bump OHIF_COMMIT and re-validate ohif-ai.patch / the backup overrides.
+ARG OHIF_COMMIT=d383be7c720ec61f5bb1262ebe70893873718951
+RUN git init /src \
+    && cd /src \
+    && git remote add origin https://github.com/OHIF/Viewers.git \
+    && git fetch --depth 1 origin ${OHIF_COMMIT} \
+    && git checkout -q FETCH_HEAD
 
 WORKDIR /src
 
+# 1) OHIF-AI fork source delta (nnInteractive feature + supporting edits) applied to pristine.
+COPY ohif-ai.patch /src/
+RUN git apply --ignore-whitespace ohif-ai.patch
+
+# 2) Fork-only build inputs: Cornerstone/dcmjs/vtk runtime overrides, our plugin config, app config.
+COPY backup /src/backup
+COPY pluginConfig.json /src/platform/app/pluginConfig.json
 COPY files/kaapana.js /src/platform/app/public/config/kaapana.js
 
 ENV HTML_TEMPLATE="index.html"
 ENV PUBLIC_URL="/ohif/"
 ENV APP_CONFIG="config/kaapana.js"
 
+# 3) Kaapana customization patch (embedding toggles, auto-hydrate, robustness; also patches backup/).
 COPY files/customization.patch /src/
 RUN git apply --ignore-whitespace customization.patch
 
 RUN yarn install
 
-# OHIF-AI carries patched Cornerstone/dcmjs/vtk runtime files that enable the
-# prompt tools and labelmap update path used by nnInteractive.
+# 4) OHIF-AI patched Cornerstone/dcmjs/vtk runtime files that enable the prompt tools and the
+# labelmap update path used by nnInteractive.
 RUN rm -f node_modules/@cornerstonejs/tools/dist/esm/tools/base/AnnotationTool.js \
     node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/ProbeTool.js \
     node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/RectangleROITool.js \
@@ -70,7 +86,7 @@ RUN rm -f node_modules/@cornerstonejs/tools/dist/esm/tools/base/AnnotationTool.j
 
 RUN yarn run build
 
-# Preserve vendored OSS notices in the distributable image.
+# Preserve OSS notices from the OHIF source tree + node_modules in the distributable image.
 RUN mkdir -p /src/vendor-licenses/ohif-ai-viewers \
     && find /src -path '*/LICENSE' -type f -exec sh -c '\
         for license_file do \

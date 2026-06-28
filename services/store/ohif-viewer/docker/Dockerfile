@@ -23,10 +23,11 @@ RUN git init /src \
 
 WORKDIR /src
 
-# 1) OHIF-AI fork source delta (nnInteractive feature + supporting edits) applied to pristine.
+# 1) OHIF-AI fork source delta, split by concern, applied to pristine in filename order.
 #    Includes package.json/resolutions changes so dependency resolution matches the fork.
-COPY ohif-ai.patch /src/
-RUN git apply --ignore-whitespace ohif-ai.patch
+#    Combined result is identical to the historical single ohif-ai.patch. See patches/README.md.
+COPY patches /src/patches
+RUN for p in patches/*.patch; do echo "==> applying $p"; git apply --ignore-whitespace "$p" || exit 1; done
 
 # 1b) Drop workspace packages the fork removed, so the fork yarn.lock applies cleanly.
 RUN rm -rf platform/cli extensions/test-extension modes/basic-dev-mode modes/basic-test-mode

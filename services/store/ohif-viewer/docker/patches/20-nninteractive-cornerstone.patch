@@ -1,0 +1,1148 @@
+--- a/extensions/cornerstone/src/commandsModule.ts
++++ b/extensions/cornerstone/src/commandsModule.ts
+@@ -145,7 +145,7 @@
+ 
+       // Process each bidirectional measurement
+       bidirectionalData.forEach(measurement => {
+-        const { segmentIndex, majorAxis, minorAxis } = measurement;
++        const { segmentIndex, majorAxis, minorAxis, referencedImageId } = measurement;
+ 
+         // Create annotation
+         const annotation = cornerstoneTools.SegmentBidirectionalTool.hydrate(
+@@ -154,11 +154,21 @@
+           {
+             segmentIndex,
+             segmentationId: targetId,
++            referencedImageId: referencedImageId,
+           }
+         );
+ 
+         measurement.annotationUID = annotation.annotationUID;
+ 
++        const isVisible = cornerstoneTools.annotation.visibility.isAnnotationVisible(
++          annotation.annotationUID
++        );
++        if (isVisible) {
++          cornerstoneTools.annotation.visibility.setAnnotationVisibility(
++            annotation.annotationUID,
++            !isVisible
++          );
++        }
+         // Update segmentation stats
+         const updatedSegmentation = updateSegmentBidirectionalStats({
+           segmentationId: targetId,
+@@ -178,12 +188,12 @@
+       });
+ 
+       // get the active segmentIndex bidirectional annotation and jump to it
+-      const activeBidirectional = bidirectionalData.find(
+-        measurement => measurement.segmentIndex === targetIndex
+-      );
+-      commandsManager.run('jumpToMeasurement', {
+-        uid: activeBidirectional.annotationUID,
+-      });
++      // const activeBidirectional = bidirectionalData.find(
++      //   measurement => measurement.segmentIndex === targetIndex
++      // );
++      // commandsManager.run('jumpToMeasurement', {
++      //   uid: activeBidirectional.annotationUID,
++      // });
+     },
+     interpolateLabelmap: () => {
+       const { segmentationId, segmentIndex } = _getActiveSegmentationInfo();
+@@ -237,8 +247,13 @@
+       commandsManager.run(options, optionsToUse);
+     },
+     updateStoredSegmentationPresentation: ({ displaySet, type }) => {
+-      const { addSegmentationPresentationItem } = useSegmentationPresentationStore.getState();
+-
++      const { addSegmentationPresentationItem, clearSegmentationPresentationStore } =
++      useSegmentationPresentationStore.getState();
++      //Focus the current SEG DisplaySet
++      //Do not need to load previous segmentation presentation.
++      //Clear all measurements before loading the current SEG DisplaySet
++      clearSegmentationPresentationStore();
++      commandsManager.run('clearMeasurements');
+       const referencedDisplaySetInstanceUID = displaySet.referencedDisplaySetInstanceUID;
+       addSegmentationPresentationItem(referencedDisplaySetInstanceUID, {
+         segmentationId: displaySet.displaySetInstanceUID,
+@@ -706,6 +721,30 @@
+         actions.setToolActive({ toolName, toolGroupId });
+       });
+     },
++    toggleToolActiveToolbar: ({ value, itemId, toolName, toolGroupIds = [] }) => {
++      toolName = toolName || itemId || value;
++      toolGroupIds = toolGroupIds.length ? toolGroupIds : toolGroupService.getToolGroupIds();
++
++      // Check active viewport to decide toggle direction
++      const { activeViewportId } = viewportGridService.getState();
++      const activeToolGroup = toolGroupService.getToolGroupForViewport(activeViewportId);
++      const isCurrentlyActive = activeToolGroup?.getActivePrimaryMouseButtonTool() === toolName;
++
++      if (isCurrentlyActive) {
++        // Deactivate: set passive and fall back to Pan
++        toolGroupIds.forEach(toolGroupId => {
++          const tg = toolGroupService.getToolGroup(toolGroupId);
++          if (tg?.hasTool(toolName)) {
++            tg.setToolPassive(toolName);
++          }
++          if (tg?.hasTool('Pan')) {
++            actions.setToolActive({ toolName: 'Pan', toolGroupId });
++          }
++        });
++      } else {
++        actions.setToolActiveToolbar({ value, itemId, toolName, toolGroupIds });
++      }
++    },
+     setToolActive: ({ toolName, toolGroupId = null }) => {
+       const { viewports } = viewportGridService.getState();
+ 
+@@ -1287,6 +1326,20 @@
+     },
+ 
+     /**
++     * Toggles the visibility of a segment measurement
++     * @param props.segmentationId - The ID of the segmentation
++     * @param props.segmentIndex - The index of the segment
++     */
++
++    toggleSegmentMeasurementCommand: ({ segmentationId, segmentIndex }) => {
++      const { segmentationService } = servicesManager.services;
++      segmentationService.toggleSegmentMeasurement(
++        segmentationId,
++        segmentIndex
++      );
++    },
++
++    /**
+      * Toggles the lock state of a segment
+      * @param props.segmentationId - The ID of the segmentation
+      * @param props.segmentIndex - The index of the segment
+@@ -1310,6 +1363,41 @@
+     },
+ 
+     /**
++     * Toggles the visibility of a segmentation representation for all viewports
++     * If segmentationId is not provided, uses the active segmentation
++     * @param props.segmentationId - The ID of the segmentation (optional, defaults to active segmentation)
++     * @param props.type - The type of representation (optional, defaults to Labelmap)
++     */
++    toggleSegmentationVisibilityAllViewportsCommand: ({ segmentationId, type }) => {
++      const { segmentationService, cornerstoneViewportService, viewportGridService } = servicesManager.services;
++      const viewportIds = cornerstoneViewportService.getViewportIds();
++      
++      // If segmentationId is not provided, get the active segmentation
++      let targetSegmentationId = segmentationId;
++      if (!targetSegmentationId) {
++        const activeViewportId = viewportGridService.getActiveViewportId();
++        const activeSegmentation = segmentationService.getActiveSegmentation(activeViewportId);
++        if (!activeSegmentation) {
++          console.warn('No active segmentation found');
++          return;
++        }
++        targetSegmentationId = activeSegmentation.segmentationId;
++      }
++      
++      // Default to Labelmap if type is not provided
++      const representationType = type || Enums.SegmentationRepresentations.Labelmap;
++      
++      // Toggle visibility for all viewports
++      for (let i = 0; i < viewportIds.length; i++) {
++        const viewportId = viewportIds[i];
++        segmentationService.toggleSegmentationRepresentationVisibility(
++          viewportId,
++          { segmentationId: targetSegmentationId, type: representationType }
++        );
++      }
++    },
++
++    /**
+      * Downloads a segmentation
+      * @param props.segmentationId - The ID of the segmentation to download
+      */
+@@ -1336,6 +1424,15 @@
+ 
+       if (displaySetInstanceUIDs) {
+         segmentationService.remove(segmentationId);
++        // update the segmentationId of the measurements fore newly created segmentation
++        measurementService
++        .getMeasurements()
++        .filter(measurement => {
++          return measurement.metadata.segmentationId === segmentationId;
++        })
++        .forEach(measurement => {
++          measurement.metadata.segmentationId = displaySetInstanceUIDs[0];
++        });
+         viewportGridService.setDisplaySetsForViewport({
+           viewportId: viewportGridService.getActiveViewportId(),
+           displaySetInstanceUIDs,
+@@ -1389,6 +1486,8 @@
+      */
+     removeSegmentationFromViewportCommand: ({ segmentationId }) => {
+       const { segmentationService, viewportGridService } = servicesManager.services;
++        // Clear all measurements before removing a segmentation
++       commandsManager.runCommand('resetNninter', { clearMeasurements: true });
+       segmentationService.removeSegmentationRepresentations(
+         viewportGridService.getActiveViewportId(),
+         { segmentationId }
+@@ -1808,6 +1907,9 @@
+     setToolActiveToolbar: {
+       commandFn: actions.setToolActiveToolbar,
+     },
++    toggleToolActiveToolbar: {
++      commandFn: actions.toggleToolActiveToolbar,
++    },
+     setToolEnabled: {
+       commandFn: actions.setToolEnabled,
+     },
+@@ -1941,12 +2043,18 @@
+     toggleSegmentVisibility: {
+       commandFn: actions.toggleSegmentVisibilityCommand,
+     },
++    toggleSegmentMeasurement: {
++      commandFn: actions.toggleSegmentMeasurementCommand,
++    },
+     toggleSegmentLock: {
+       commandFn: actions.toggleSegmentLockCommand,
+     },
+     toggleSegmentationVisibility: {
+       commandFn: actions.toggleSegmentationVisibilityCommand,
+     },
++    toggleSegmentationVisibilityAllViewports: {
++      commandFn: actions.toggleSegmentationVisibilityAllViewportsCommand,
++    },
+     downloadSegmentation: {
+       commandFn: actions.downloadSegmentationCommand,
+     },
+--- a/extensions/cornerstone/src/components/ViewportDataOverlaySettingMenu/ViewportSegmentationMenu.tsx
++++ b/extensions/cornerstone/src/components/ViewportDataOverlaySettingMenu/ViewportSegmentationMenu.tsx
+@@ -5,6 +5,7 @@
+ function ViewportSegmentationMenu({
+   viewportId,
+   servicesManager,
++  commandsManager,
+ }: withAppTypes<{ viewportId: string }>) {
+   const { segmentationService } = servicesManager.services;
+   const [activeSegmentations, setActiveSegmentations] = useState([]);
+@@ -50,6 +51,8 @@
+   };
+ 
+   const removeSegmentationFromViewport = segmentationId => {
++    // Clear all measurements before removing a segmentation
++    commandsManager.run('resetNninter', { clearMeasurements: true });
+     segmentationService.removeSegmentationRepresentations(viewportId, {
+       segmentationId,
+     });
+--- a/extensions/cornerstone/src/customizations/CustomSegmentStatisticsHeader.tsx
++++ b/extensions/cornerstone/src/customizations/CustomSegmentStatisticsHeader.tsx
+@@ -1,5 +1,5 @@
+ import * as cornerstoneTools from '@cornerstonejs/tools';
+-import React from 'react';
++import React, { useState, useEffect } from 'react';
+ import { Separator, Button, Tooltip, TooltipTrigger, TooltipContent, Icons } from '@ohif/ui-next';
+ import { useTranslation } from 'react-i18next';
+ import { roundNumber } from '@ohif/core/src/utils';
+@@ -20,6 +20,9 @@
+   const { servicesManager, commandsManager } = useSystem();
+   const { segmentationService } = servicesManager.services;
+   const { t } = useTranslation('SegmentationTable');
++  
++  // Add state to track if bidirectional has been computed
++  const [bidirectionalComputed, setBidirectionalComputed] = useState(false);
+ 
+   const segmentation = segmentationService.getSegmentation(segmentationId);
+   const segment = segmentation.segments[segmentIndex];
+@@ -29,10 +32,20 @@
+   if (!namedStats) {
+     return null;
+   }
++  
+ 
+-  const bidirectional = namedStats.bidirectional;
++  // Use useEffect to run bidirectional computation only once
++  useEffect(() => {
++    if (!namedStats.bidirectional && !bidirectionalComputed) {
++      setBidirectionalComputed(true);
++      commandsManager.run('runSegmentBidirectional', {
++        segmentationId,
++        segmentIndex,
++      });
++    }
++  }, [namedStats.bidirectional, bidirectionalComputed, segmentationId, segmentIndex, commandsManager]);
+ 
+-  if (!bidirectional) {
++  if (!namedStats.bidirectional) {
+     return (
+       <div className="-mt-2 space-y-2">
+         <div className="flex">
+@@ -41,25 +54,18 @@
+               <Button
+                 variant="ghost"
+                 size="sm"
+-                className="text-primary flex items-center gap-2"
+-                onClick={() => {
+-                  commandsManager.run('runSegmentBidirectional', {
+-                    segmentationId,
+-                    segmentIndex,
+-                  });
+-                }}
++                className="text-primary flex items-center px-0"
+               >
+-                <Icons.ToolBidirectionalSegment className="h-5 w-5" />
+-                <span>{t('Compute Largest Bidirectional')}</span>
++                <span>{t('Can\'t compute bidirectional measurement')}</span>
+               </Button>
+             </TooltipTrigger>
+-            <TooltipContent side="bottom">{t('Add bidirectional measurement')}</TooltipContent>
+           </Tooltip>
+         </div>
+         <Separator className="bg-input" />
+       </div>
+     );
+   }
++  const bidirectional = namedStats.bidirectional;
+ 
+   const { value, unit } = bidirectional;
+   const maxMajor = value.maxMajor;
+@@ -99,8 +105,13 @@
+ 
+                   segmentationService.addOrUpdateSegmentation({
+                     segmentationId,
+-                    segmentIndex,
+                   });
++
++                  if (isVisible === false) {
++                    commandsManager.run('jumpToMeasurement', {
++                      uid: bidirectional.annotationUID,
++                    });
++                  }
+                 }}
+               >
+                 {isVisible ? (
+@@ -112,24 +123,6 @@
+             </TooltipTrigger>
+             <TooltipContent side="bottom">{t('Toggle visibility')}</TooltipContent>
+           </Tooltip>
+-          <Tooltip>
+-            <TooltipTrigger asChild>
+-              <Button
+-                variant="ghost"
+-                size="icon"
+-                onClick={() => {
+-                  if (bidirectional.annotationUID) {
+-                    commandsManager.run('jumpToMeasurement', {
+-                      uid: bidirectional.annotationUID,
+-                    });
+-                  }
+-                }}
+-              >
+-                <Icons.JumpToSlice />
+-              </Button>
+-            </TooltipTrigger>
+-            <TooltipContent side="bottom">{t('Jump to measurement')}</TooltipContent>
+-          </Tooltip>
+         </div>
+       </div>
+       <Separator className="bg-input" />
+--- a/extensions/cornerstone/src/getPanelModule.tsx
++++ b/extensions/cornerstone/src/getPanelModule.tsx
+@@ -36,8 +36,9 @@
+     return (
+       <>
+         <Toolbox
+-          buttonSectionId="segmentationToolbox"
+-          title="Segmentation Tools"
++          buttonSectionId="aiToolBox"
++          title="nnInteractive OHIF"
++          defaultOpen={true}
+         />
+         <PanelSegmentation
+           commandsManager={commandsManager}
+--- a/extensions/cornerstone/src/initCornerstoneTools.js
++++ b/extensions/cornerstone/src/initCornerstoneTools.js
+@@ -46,6 +46,18 @@
+ import CalibrationLineTool from './tools/CalibrationLineTool';
+ import ImageOverlayViewerTool from './tools/ImageOverlayViewerTool';
+ 
++class Probe2Tool extends ProbeTool {}
++Probe2Tool.toolName = 'Probe2';
++
++class RectangleROI2Tool extends RectangleROITool {}
++RectangleROI2Tool.toolName = 'RectangleROI2';
++
++class PlanarFreehandROI2Tool extends PlanarFreehandROITool {}
++PlanarFreehandROI2Tool.toolName = 'PlanarFreehandROI2';
++
++class PlanarFreehandROI3Tool extends PlanarFreehandROITool {}
++PlanarFreehandROI3Tool.toolName = 'PlanarFreehandROI3';
++
+ export default function initCornerstoneTools(configuration = {}) {
+   CrosshairsTool.isAnnotation = false;
+   LabelmapSlicePropagationTool.isAnnotation = false;
+@@ -71,9 +83,11 @@
+   addTool(VolumeRotateTool);
+   addTool(ZoomTool);
+   addTool(ProbeTool);
++  addTool(Probe2Tool);
+   addTool(MIPJumpToClickTool);
+   addTool(LengthTool);
+   addTool(RectangleROITool);
++  addTool(RectangleROI2Tool);
+   addTool(RectangleROIThresholdTool);
+   addTool(EllipticalROITool);
+   addTool(CircleROITool);
+@@ -96,6 +110,8 @@
+   addTool(AdvancedMagnifyTool);
+   addTool(UltrasoundDirectionalTool);
+   addTool(PlanarFreehandROITool);
++  addTool(PlanarFreehandROI2Tool);
++  addTool(PlanarFreehandROI3Tool);
+   addTool(SplineROITool);
+   addTool(LivewireContourTool);
+   addTool(OrientationMarkerTool);
+@@ -131,7 +147,9 @@
+   Length: LengthTool.toolName,
+   DragProbe: DragProbeTool.toolName,
+   Probe: ProbeTool.toolName,
++  Probe2: Probe2Tool.toolName,
+   RectangleROI: RectangleROITool.toolName,
++  RectangleROI2: RectangleROI2Tool.toolName,
+   RectangleROIThreshold: RectangleROIThresholdTool.toolName,
+   EllipticalROI: EllipticalROITool.toolName,
+   CircleROI: CircleROITool.toolName,
+@@ -154,6 +172,8 @@
+   SplineROI: SplineROITool.toolName,
+   LivewireContour: LivewireContourTool.toolName,
+   PlanarFreehandROI: PlanarFreehandROITool.toolName,
++  PlanarFreehandROI2: PlanarFreehandROI2Tool.toolName,
++  PlanarFreehandROI3: PlanarFreehandROI3Tool.toolName,
+   OrientationMarker: OrientationMarkerTool.toolName,
+   WindowLevelRegion: WindowLevelRegionTool.toolName,
+   PlanarFreehandContourSegmentation: PlanarFreehandContourSegmentationTool.toolName,
+--- a/extensions/cornerstone/src/initMeasurementService.ts
++++ b/extensions/cornerstone/src/initMeasurementService.ts
+@@ -13,6 +13,7 @@
+ } from '@cornerstonejs/tools/utilities';
+ import getActiveViewportEnabledElement from './utils/getActiveViewportEnabledElement';
+ 
++import { toolboxState } from '@ohif/extension-default/src/stores/toolboxState';
+ const { CORNERSTONE_3D_TOOLS_SOURCE_NAME, CORNERSTONE_3D_TOOLS_SOURCE_VERSION } = CSExtensionEnums;
+ const { removeAnnotation } = annotation.state;
+ const csToolsEvents = Enums.Events;
+@@ -33,10 +34,14 @@
+     Angle,
+     CobbAngle,
+     RectangleROI,
++    RectangleROI2,
+     PlanarFreehandROI,
++    PlanarFreehandROI2,
++    PlanarFreehandROI3,
+     SplineROI,
+     LivewireContour,
+     Probe,
++    Probe2,
+     UltrasoundDirectional,
+     SegmentBidirectional,
+   } = measurementServiceMappingsFactory(
+@@ -129,6 +134,14 @@
+ 
+   measurementService.addMapping(
+     csTools3DVer1MeasurementSource,
++    'RectangleROI2',
++    RectangleROI2.matchingCriteria,
++    RectangleROI2.toAnnotation,
++    RectangleROI2.toMeasurement
++  );
++
++  measurementService.addMapping(
++    csTools3DVer1MeasurementSource,
+     'PlanarFreehandROI',
+     PlanarFreehandROI.matchingCriteria,
+     PlanarFreehandROI.toAnnotation,
+@@ -137,6 +150,22 @@
+ 
+   measurementService.addMapping(
+     csTools3DVer1MeasurementSource,
++    'PlanarFreehandROI2',
++    PlanarFreehandROI2.matchingCriteria,
++    PlanarFreehandROI2.toAnnotation,
++    PlanarFreehandROI2.toMeasurement
++  );
++
++  measurementService.addMapping(
++    csTools3DVer1MeasurementSource,
++    'PlanarFreehandROI3',
++    PlanarFreehandROI3.matchingCriteria,
++    PlanarFreehandROI3.toAnnotation,
++    PlanarFreehandROI3.toMeasurement
++  );
++
++  measurementService.addMapping(
++    csTools3DVer1MeasurementSource,
+     'SplineROI',
+     SplineROI.matchingCriteria,
+     SplineROI.toAnnotation,
+@@ -171,6 +200,14 @@
+ 
+   measurementService.addMapping(
+     csTools3DVer1MeasurementSource,
++    'Probe2',
++    Probe2.matchingCriteria,
++    Probe2.toAnnotation,
++    Probe2.toMeasurement
++  );
++
++  measurementService.addMapping(
++    csTools3DVer1MeasurementSource,
+     'UltrasoundDirectionalTool',
+     UltrasoundDirectional.matchingCriteria,
+     UltrasoundDirectional.toAnnotation,
+@@ -213,6 +250,16 @@
+   function addMeasurement(csToolsEvent) {
+     try {
+       const annotationAddedEventDetail = csToolsEvent.detail;
++      if (annotationAddedEventDetail.annotation.metadata.toolLoad !== true) {
++        if (toolboxState.getPosNeg()) {
++          annotationAddedEventDetail.annotation.metadata.neg = true;
++        }else{
++          annotationAddedEventDetail.annotation.metadata.neg = false;
++        }
++        if (toolboxState.getManualCorrectionMode?.()) {
++          annotationAddedEventDetail.annotation.metadata.manualCorrection = true;
++        }
++      }
+       const {
+         annotation: { metadata, annotationUID },
+       } = annotationAddedEventDetail;
+--- a/extensions/cornerstone/src/panels/PanelSegmentation.tsx
++++ b/extensions/cornerstone/src/panels/PanelSegmentation.tsx
+@@ -1,12 +1,25 @@
+-import React from 'react';
++import React, { useState, useEffect } from 'react';
+ import { SegmentationTable } from '@ohif/ui-next';
+ import { useActiveViewportSegmentationRepresentations } from '../hooks/useActiveViewportSegmentationRepresentations';
+ import { metaData } from '@cornerstonejs/core';
+ import { useSystem } from '@ohif/core/src';
++import { toolboxState } from '@ohif/extension-default/src/stores/toolboxState';
++
++const AI_PROMPT_TOOLS = ['Probe2', 'RectangleROI2', 'PlanarFreehandROI2', 'PlanarFreehandROI3'];
+ 
+ export default function PanelSegmentation({ children }: withAppTypes) {
+   const { commandsManager, servicesManager } = useSystem();
+-  const { customizationService, displaySetService } = servicesManager.services;
++  const { customizationService, displaySetService, measurementService, uiNotificationService } = servicesManager.services;
++  const [promptsVisible, setPromptsVisible] = useState(toolboxState.getPromptsVisible());
++
++  // Sync promptsVisible when changed externally (e.g. O hotkey updates toolboxState directly)
++  useEffect(() => {
++    const id = setInterval(() => {
++      const current = toolboxState.getPromptsVisible();
++      setPromptsVisible(prev => prev !== current ? current : prev);
++    }, 100);
++    return () => clearInterval(id);
++  }, []);
+ 
+   const { segmentationsWithRepresentations, disabled } =
+     useActiveViewportSegmentationRepresentations({
+@@ -37,6 +50,10 @@
+     },
+     onSegmentAdd: segmentationId => {
+       commandsManager.run('addSegment', { segmentationId });
++      // Always start a new segment in positive (include) mode
++      if (toolboxState.getPosNeg()) {
++        toolboxState.setPosNeg(false);
++      }
+     },
+     onSegmentClick: (segmentationId, segmentIndex) => {
+       commandsManager.run('setActiveSegmentAndCenter', { segmentationId, segmentIndex });
+@@ -50,12 +67,65 @@
+     onSegmentColorClick: (segmentationId, segmentIndex) => {
+       commandsManager.run('editSegmentColor', { segmentationId, segmentIndex });
+     },
++    onSegmentReset: (segmentationId, segmentIndex) => {
++      commandsManager.run('resetSegment', { segmentationId, segmentIndex });
++    },
+     onSegmentDelete: (segmentationId, segmentIndex) => {
+-      commandsManager.run('deleteSegment', { segmentationId, segmentIndex });
++      const deletePromise = new Promise<void>((resolve, reject) => {
++        setTimeout(() => {
++          try {
++            const measurementUIDs = measurementService
++              .getMeasurements()
++              .filter(
++                e =>
++                  e?.metadata?.segmentationId === segmentationId &&
++                  e?.metadata?.SegmentNumber === segmentIndex
++              )
++              .map(e => e?.uid);
++            if (measurementUIDs.length > 0) {
++              measurementService.removeMany(measurementUIDs);
++            }
++            commandsManager.run('resetNninter', { clearMeasurements: false });
++
++            // When loaded existing segDisplaySet, need to remove the segment from the displaySet
++            const segDisplaySet = displaySetService.getDisplaySetByUID(segmentationId);
++            const data = segDisplaySet?.segMetadata?.data;
++            // Keep undefined entries; only remove matching segment objects
++            if (Array.isArray(data)) {
++              for (let i = data.length - 1; i >= 0; i--) {
++                const e = data[i];
++                if (e?.SegmentNumber === segmentIndex) {
++                  data.splice(i, 1);
++                }
++              }
++            }
++
++            commandsManager.run('deleteSegment', { segmentationId, segmentIndex });
++            resolve();
++          } catch (error) {
++            reject(error);
++          }
++        }, 100);
++      });
++
++      uiNotificationService.show({
++        title: `Deleting ${segmentIndex}`,
++        message: `Deleting segment ${segmentIndex}...`,
++        type: 'info',
++        promise: deletePromise,
++        promiseMessages: {
++          loading: `Deleting ${segmentIndex}...`,
++          success: () => `Deleted ${segmentIndex} successfully`,
++          error: error => `Delete ${segmentIndex} failed: ${error?.message || 'Unknown error'}`,
++        },
++      });
+     },
+     onToggleSegmentVisibility: (segmentationId, segmentIndex, type) => {
+       commandsManager.run('toggleSegmentVisibility', { segmentationId, segmentIndex, type });
+     },
++    onToggleSegmentMeasurement: (segmentationId, segmentIndex) => {
++      commandsManager.run('toggleSegmentMeasurement', { segmentationId, segmentIndex });
++    },
+     onToggleSegmentLock: (segmentationId, segmentIndex) => {
+       commandsManager.run('toggleSegmentLock', { segmentationId, segmentIndex });
+     },
+@@ -77,6 +147,16 @@
+     onSegmentationDelete: segmentationId => {
+       commandsManager.run('deleteSegmentation', { segmentationId });
+     },
++    onTogglePromptsVisibility: () => {
++      const next = !toolboxState.getPromptsVisible();
++      toolboxState.setPromptsVisible(next);
++      setPromptsVisible(next);
++      const uids = measurementService
++        .getMeasurements()
++        .filter(m => AI_PROMPT_TOOLS.includes(m.toolName))
++        .map(m => m.uid);
++      measurementService.toggleVisibilityMeasurementMany(uids, next);
++    },
+     setFillAlpha: ({ type }, value) => {
+       commandsManager.run('setFillAlpha', { type, value });
+     },
+@@ -138,6 +218,7 @@
+     onSegmentationAdd,
+     showAddSegment,
+     renderInactiveSegmentations: handlers.getRenderInactiveSegmentations(),
++    promptsVisible,
+     ...handlers,
+   };
+ 
+@@ -196,7 +277,6 @@
+     <SegmentationTable {...tableProps}>
+       {children}
+       <SegmentationTable.Config />
+-      <SegmentationTable.AddSegmentationRow />
+       {renderModeContent()}
+     </SegmentationTable>
+   );
+--- a/extensions/cornerstone/src/services/SegmentationService/SegmentationService.ts
++++ b/extensions/cornerstone/src/services/SegmentationService/SegmentationService.ts
+@@ -76,6 +76,8 @@
+   SEGMENT_LOADING_COMPLETE: 'event::segment_loading_complete',
+   // loading completed for all segments
+   SEGMENTATION_LOADING_COMPLETE: 'event::segmentation_loading_complete',
++  // fired when measurement visibility changes
++  MEASUREMENT_VISIBILITY_CHANGED: 'event::measurement_visibility_changed',
+ };
+ 
+ const VALUE_TYPES = {};
+@@ -469,6 +471,7 @@
+         SegmentLabel,
+         SegmentAlgorithmType,
+         SegmentAlgorithmName,
++        SegmentDescription,
+         SegmentedPropertyTypeCodeSequence,
+         rgba,
+       } = segmentInfo;
+@@ -500,6 +503,7 @@
+             : '',
+           algorithmType: SegmentAlgorithmType,
+           algorithmName: SegmentAlgorithmName,
++          description: SegmentDescription,
+         },
+       };
+     });
+@@ -952,6 +956,27 @@
+     this._setSegmentVisibility(viewportId, segmentationId, segmentIndex, !isVisible, type);
+   }
+ 
++  public toggleSegmentMeasurement(segmentationId: string, segmentIndex: number): void {
++   const measurements = this.servicesManager.services.measurementService.getMeasurements()
++   const selectedMeasurements = measurements.filter(e => e.metadata.segmentationId === segmentationId && e.metadata.SegmentNumber === segmentIndex)
++   selectedMeasurements.forEach(e => {
++    this.servicesManager.services.measurementService.toggleVisibilityMeasurement(e.uid, !e.isVisible)
++   })
++   
++  }
++
++  public getSegmentMeasurementVisibility(segmentationId: string, segmentIndex: number): boolean {
++   const measurements = this.servicesManager.services.measurementService.getMeasurements()
++   const selectedMeasurements = measurements.filter(e => e.metadata.segmentationId === segmentationId && e.metadata.SegmentNumber === segmentIndex)
++   
++   if (selectedMeasurements.length === 0) {
++     return false; // Default to visible if no measurements found
++   }
++   
++   // Return true if any measurement is visible, false if all are hidden
++   return selectedMeasurements.some(e => e.isVisible)
++  }
++
+   /**
+    * Sets the color of a specific segment in a segmentation.
+    *
+@@ -1183,6 +1208,32 @@
+       console.warn('No center found for segmentation', segmentationId, segmentIndex);
+       return;
+     }
++    if (typeof center === 'number') {
++          // need to find which viewports are displaying the segmentation
++        const viewportIds = viewportId
++        ? [viewportId]
++        : this.getViewportIdsWithSegmentation(segmentationId);
++
++      viewportIds.forEach(viewportId => {
++        const { viewport } = getEnabledElementByViewportId(viewportId);
++        if (viewport.type === ViewportType.STACK) {
++          (viewport as csTypes.IStackViewport).setImageIdIndex(Math.round(center));
++          viewport.render()
++        } else {
++          console.warn('Does not support other viewports than stack')
++        }
++        highlightSegment &&
++          this.highlightSegment(
++            segmentationId,
++            segmentIndex,
++            viewportId,
++            highlightAlpha,
++            animationLength,
++            highlightHideOthers
++          );
++      });
++      return;
++    }
+ 
+     const { world } = center as { world: csTypes.Point3 };
+ 
+--- a/extensions/cornerstone/src/utils/measurementServiceMappings/constants/supportedTools.js
++++ b/extensions/cornerstone/src/utils/measurementServiceMappings/constants/supportedTools.js
+@@ -7,8 +7,12 @@
+   'Angle',
+   'CobbAngle',
+   'Probe',
++  'Probe2',
+   'RectangleROI',
++  'RectangleROI2',
+   'PlanarFreehandROI',
++  'PlanarFreehandROI2',
++  'PlanarFreehandROI3',
+   'SplineROI',
+   'LivewireContour',
+   'UltrasoundDirectionalTool',
+--- a/extensions/cornerstone/src/utils/measurementServiceMappings/measurementServiceMappingsFactory.ts
++++ b/extensions/cornerstone/src/utils/measurementServiceMappings/measurementServiceMappingsFactory.ts
+@@ -40,7 +40,10 @@
+       EllipticalROI: ELLIPSE,
+       CircleROI: CIRCLE,
+       RectangleROI: RECTANGLE,
++      RectangleROI2: RECTANGLE,
+       PlanarFreehandROI: POLYLINE,
++      PlanarFreehandROI2: POLYLINE,
++      PlanarFreehandROI3: POLYLINE,
+       Bidirectional: BIDIRECTIONAL,
+       ArrowAnnotate: POINT,
+       CobbAngle: ANGLE,
+@@ -48,6 +51,7 @@
+       SplineROI: POLYLINE,
+       LivewireContour: POLYLINE,
+       Probe: POINT,
++      Probe2: POINT,
+       UltrasoundDirectional: POLYLINE,
+       SegmentBidirectional: BIDIRECTIONAL,
+     };
+@@ -165,6 +169,24 @@
+         },
+       ],
+     },
++
++    RectangleROI2: {
++      toAnnotation: RectangleROI.toAnnotation,
++      toMeasurement: csToolsAnnotation =>
++        RectangleROI.toMeasurement(
++          csToolsAnnotation,
++          displaySetService,
++          cornerstoneViewportService,
++          _getValueTypeFromToolType,
++          customizationService
++        ),
++      matchingCriteria: [
++        {
++          valueType: MeasurementService.VALUE_TYPES.POLYLINE,
++        },
++      ],
++    },
++
+     PlanarFreehandROI: {
+       toAnnotation: PlanarFreehandROI.toAnnotation,
+       toMeasurement: csToolsAnnotation =>
+@@ -181,6 +203,41 @@
+         },
+       ],
+     },
++
++    PlanarFreehandROI2: {
++      toAnnotation: PlanarFreehandROI.toAnnotation,
++      toMeasurement: csToolsAnnotation =>
++        PlanarFreehandROI.toMeasurement(
++          csToolsAnnotation,
++          displaySetService,
++          cornerstoneViewportService,
++          _getValueTypeFromToolType,
++          customizationService
++        ),
++      matchingCriteria: [
++        {
++          valueType: MeasurementService.VALUE_TYPES.POLYLINE,
++        },
++      ],
++    },
++
++    PlanarFreehandROI3: {
++      toAnnotation: PlanarFreehandROI.toAnnotation,
++      toMeasurement: csToolsAnnotation =>
++        PlanarFreehandROI.toMeasurement(
++          csToolsAnnotation,
++          displaySetService,
++          cornerstoneViewportService,
++          _getValueTypeFromToolType,
++          customizationService
++        ),
++      matchingCriteria: [
++        {
++          valueType: MeasurementService.VALUE_TYPES.POLYLINE,
++        },
++      ],
++    },
++
+     SplineROI: {
+       toAnnotation: SplineROI.toAnnotation,
+       toMeasurement: csToolsAnnotation =>
+@@ -234,6 +291,23 @@
+       toAnnotation: Probe.toAnnotation,
+       toMeasurement: csToolsAnnotation =>
+         Probe.toMeasurement(
++          csToolsAnnotation,
++          displaySetService,
++          cornerstoneViewportService,
++          _getValueTypeFromToolType,
++          customizationService
++        ),
++      matchingCriteria: [
++        {
++          valueType: MeasurementService.VALUE_TYPES.POINT,
++          points: 1,
++        },
++      ],
++    },
++    Probe2: {
++      toAnnotation: Probe.toAnnotation,
++      toMeasurement: csToolsAnnotation =>
++        Probe.toMeasurement(
+           csToolsAnnotation,
+           displaySetService,
+           cornerstoneViewportService,
+--- a/extensions/cornerstone/src/utils/updateSegmentationStats.ts
++++ b/extensions/cornerstone/src/utils/updateSegmentationStats.ts
+@@ -86,12 +86,12 @@
+ 
+       if (readableText.volume) {
+         // Add volume if it exists but isn't in the array
+-        if (segmentStats.volume && !namedStats.volume) {
++        if (segmentStats.volume) {
+           namedStats.volume = {
+             name: 'volume',
+             label: 'Volume',
+-            value: segmentStats.volume.value,
+-            unit: segmentStats.volume.unit,
++            value: segmentStats.volume.value/1000,
++            unit: 'cm³',//segmentStats.volume.unit,
+             order: Object.keys(readableText).indexOf('volume'),
+           };
+         }
+--- a/extensions/cornerstone/src/Viewport/OHIFCornerstoneViewport.tsx
++++ b/extensions/cornerstone/src/Viewport/OHIFCornerstoneViewport.tsx
+@@ -276,6 +276,8 @@
+           displaySetOptions,
+           presentations
+         );
++        // nnInteractive sessions are now started explicitly via the AI toolbox
++        // "Initialize" button (no auto-init on viewport load).
+       };
+ 
+       loadViewportData();
+--- a/extensions/cornerstone/src/Viewport/Overlays/CustomizableViewportOverlay.tsx
++++ b/extensions/cornerstone/src/Viewport/Overlays/CustomizableViewportOverlay.tsx
+@@ -343,7 +343,10 @@
+   const isAcquisitionPlane = vec3.length(cross) < EPSILON;
+ 
+   if (isAcquisitionPlane) {
+-    const imageId = imageIds[imageIndex];
++    // Use getCurrentImageId() to get the actual imageId being displayed,
++    // rather than indexing into imageIds array, since imageIds might not
++    // be sorted in the same order as slice positions
++    const imageId = cornerstoneViewport.getCurrentImageId?.();
+ 
+     if (!imageId) {
+       return {};
+--- a/extensions/cornerstone-dicom-seg/src/commandsModule.ts
++++ b/extensions/cornerstone-dicom-seg/src/commandsModule.ts
+@@ -1,6 +1,6 @@
+ import dcmjs from 'dcmjs';
+ import { classes, Types } from '@ohif/core';
+-import { cache, metaData } from '@cornerstonejs/core';
++import { cache, metaData, imageLoader } from '@cornerstonejs/core';
+ import { segmentation as cornerstoneToolsSegmentation } from '@cornerstonejs/tools';
+ import { adaptersRT, helpers, adaptersSEG } from '@cornerstonejs/adapters';
+ import { createReportDialogPrompt } from '@ohif/extension-default';
+@@ -90,13 +90,43 @@
+      *
+      * @returns Returns the generated segmentation data.
+      */
+-    generateSegmentation: ({ segmentationId, options = {} }) => {
++    generateSegmentation: async ({ segmentationId, options = {} }) => {
+       const segmentation = cornerstoneToolsSegmentation.state.getSegmentation(segmentationId);
+ 
+       const { imageIds } = segmentation.representationData.Labelmap;
+ 
+       const segImages = imageIds.map(imageId => cache.getImage(imageId));
+-      const referencedImages = segImages.map(image => cache.getImage(image.referencedImageId));
++      
++      // Collect all referenced image IDs (maintaining array structure to match segImages)
++      const referencedImageIds = segImages.map(image => image?.referencedImageId);
++      
++      // Load all referenced images that exist but may not be in cache yet
++      // This is necessary because lazy loading may not have loaded all slices yet
++      await Promise.all(
++        referencedImageIds.map(referencedImageId => {
++          if (!referencedImageId) {
++            return Promise.resolve(null);
++          }
++          // Check if already in cache
++          const cachedImage = cache.getImage(referencedImageId);
++          if (cachedImage) {
++            return Promise.resolve(cachedImage);
++          }
++          // Load if not in cache
++          return imageLoader.loadAndCacheImage(referencedImageId).catch(error => {
++            console.warn(`Failed to load referenced image ${referencedImageId}:`, error);
++            return null;
++          });
++        })
++      );
++      
++      // Now get all referenced images from cache, maintaining the same order as segImages
++      const referencedImages = segImages.map(image => {
++        if (!image?.referencedImageId) {
++          return null;
++        }
++        return cache.getImage(image.referencedImageId);
++      });
+ 
+       const labelmaps2D = [];
+ 
+@@ -153,23 +183,51 @@
+           color.slice(0, 3).map(value => value / 255)
+         ).map(value => Math.round(value));
+ 
+-        const segmentMetadata = {
+-          SegmentNumber: segmentIndex.toString(),
+-          SegmentLabel: label,
+-          SegmentAlgorithmType: segment?.algorithmType || 'MANUAL',
+-          SegmentAlgorithmName: segment?.algorithmName || 'OHIF Brush',
+-          RecommendedDisplayCIELabValue,
+-          SegmentedPropertyCategoryCodeSequence: {
+-            CodeValue: 'T-D0050',
+-            CodingSchemeDesignator: 'SRT',
+-            CodeMeaning: 'Tissue',
+-          },
+-          SegmentedPropertyTypeCodeSequence: {
+-            CodeValue: 'T-D0050',
+-            CodingSchemeDesignator: 'SRT',
+-            CodeMeaning: 'Tissue',
+-          },
+-        };
++        let segmentMetadata = {};
++        if (segmentation.cachedStats.data !== undefined && segmentation.cachedStats.data.length > 1) {
++          segmentMetadata = segmentation.cachedStats.data
++          .filter(e => e !== undefined && e !== null)
++          .find(e => e.SegmentNumber == segmentIndex);
++          if (segmentMetadata !== undefined && Object.keys(segmentMetadata).length !== 0){ 
++            segmentMetadata.SegmentNumber = segmentIndex.toString();
++            segmentMetadata.SegmentLabel = label;
++            segmentMetadata.RecommendedDisplayCIELabValue = RecommendedDisplayCIELabValue;
++            segmentMetadata.SegmentAlgorithmType = segmentation.cachedStats.seriesInstanceUid;
++          }
++        }
++
++        if (segmentMetadata === undefined || Object.keys(segmentMetadata).length === 0) {
++          segmentMetadata = {
++            SegmentNumber: segmentIndex.toString(),
++            SegmentLabel: label,
++            SegmentAlgorithmType: segment?.algorithmType || 'MANUAL',
++            SegmentAlgorithmName: segment?.algorithmName || 'OHIF Brush',
++            RecommendedDisplayCIELabValue,
++            SegmentedPropertyCategoryCodeSequence: {
++              CodeValue: 'T-D0050',
++              CodingSchemeDesignator: 'SRT',
++              CodeMeaning: 'Tissue',
++            },
++            SegmentedPropertyTypeCodeSequence: {
++              CodeValue: 'T-D0050',
++              CodingSchemeDesignator: 'SRT',
++              CodeMeaning: 'Tissue',
++            },
++          };
++        }
++        if (segment.cachedStats.description !== undefined){
++          segmentMetadata.SegmentDescription = segment.cachedStats.description;
++        }
++        if (segment.cachedStats.algorithmName !== undefined){
++          segmentMetadata.SegmentAlgorithmName = segment.cachedStats.algorithmName;
++        }
++        if (segment.cachedStats.algorithmType !== undefined){
++          segmentMetadata.SegmentAlgorithmType = segment.cachedStats.algorithmType;
++        }
++        if (segmentation.cachedStats.seriesInstanceUid !== undefined){
++          segmentMetadata.SegmentAlgorithmType = segmentation.cachedStats.seriesInstanceUid;
++        }
++        
+         labelmap3D.metadata[segmentIndex] = segmentMetadata;
+       });
+ 
+@@ -192,9 +250,9 @@
+      * @param params.segmentationId - ID of the segmentation to be downloaded.
+      *
+      */
+-    downloadSegmentation: ({ segmentationId }) => {
++    downloadSegmentation: async ({ segmentationId }) => {
+       const segmentationInOHIF = segmentationService.getSegmentation(segmentationId);
+-      const generatedSegmentation = actions.generateSegmentation({
++      const generatedSegmentation = await actions.generateSegmentation({
+         segmentationId,
+       });
+ 
+@@ -238,7 +296,7 @@
+             ? extensionManager.getDataSources(selectedDataSource)[0]
+             : defaultDataSource;
+ 
+-          const generatedData = actions.generateSegmentation({
++          const generatedData = await actions.generateSegmentation({
+             segmentationId,
+             options: {
+               SeriesDescription: reportName || label || 'Research Derived Series',
+@@ -250,11 +308,17 @@
+           }
+ 
+           const { dataset: naturalizedReport } = generatedData;
+-
+-          await selectedDataSourceConfig.store.dicom(naturalizedReport);
+-
++          let selectedDataSourceConfig_new = undefined;
++          if (selectedDataSourceConfig.store == undefined) {
++            selectedDataSourceConfig_new = selectedDataSourceConfig[0];
++          } else {
++            selectedDataSourceConfig_new = selectedDataSourceConfig;
++          }
++          
++          await selectedDataSourceConfig_new.store.dicom(naturalizedReport);
++          
+           // add the information for where we stored it to the instance as well
+-          naturalizedReport.wadoRoot = selectedDataSourceConfig.getConfig().wadoRoot;
++          naturalizedReport.wadoRoot = selectedDataSourceConfig_new.getConfig().wadoRoot;
+ 
+           DicomMetadataStore.addInstances([naturalizedReport], true);
+ 
+--- a/extensions/cornerstone-dicom-seg/src/utils/initSEGToolGroup.ts
++++ b/extensions/cornerstone-dicom-seg/src/utils/initSEGToolGroup.ts
+@@ -1,7 +1,9 @@
++import initCornerstoneTools from '../../../cornerstone/src/initCornerstoneTools';
++
+ function createSEGToolGroupAndAddTools(ToolGroupService, customizationService, toolGroupId) {
+-  const tools = customizationService.getCustomization('cornerstone.overlayViewportTools');
++  //const { tools } = customizationService.get('cornerstone.overlayViewportTools') ?? {};
+ 
+-  return ToolGroupService.createToolGroupAndAddTools(toolGroupId, tools);
++  return initCornerstoneTools()//ToolGroupService.createToolGroupAndAddTools(toolGroupId, tools);
+ }
+ 
+ export default createSEGToolGroupAndAddTools;
+--- a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
++++ b/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
+@@ -373,33 +373,20 @@
+ }
+ 
+ function _getReferencedDisplaySetMetadata(referencedDisplaySet, segDisplaySet) {
+-  const { SharedFunctionalGroupsSequence } = segDisplaySet.instance;
+-
+-  const SharedFunctionalGroup = Array.isArray(SharedFunctionalGroupsSequence)
+-    ? SharedFunctionalGroupsSequence[0]
+-    : SharedFunctionalGroupsSequence;
+-
+-  const { PixelMeasuresSequence } = SharedFunctionalGroup;
+-
+-  const PixelMeasures = Array.isArray(PixelMeasuresSequence)
+-    ? PixelMeasuresSequence[0]
+-    : PixelMeasuresSequence;
+-
+-  const { SpacingBetweenSlices, SliceThickness } = PixelMeasures;
+-
++  
+   const image0 = referencedDisplaySet.images[0];
+   const referencedDisplaySetMetadata = {
+     PatientID: image0.PatientID,
+     PatientName: image0.PatientName,
+     PatientSex: image0.PatientSex,
+     PatientAge: image0.PatientAge,
+-    SliceThickness: image0.SliceThickness || SliceThickness,
++    SliceThickness: image0.SliceThickness,
+     StudyDate: image0.StudyDate,
+     SeriesDescription: image0.SeriesDescription,
+     SeriesInstanceUID: image0.SeriesInstanceUID,
+     SeriesNumber: image0.SeriesNumber,
+     ManufacturerModelName: image0.ManufacturerModelName,
+-    SpacingBetweenSlices: image0.SpacingBetweenSlices || SpacingBetweenSlices,
++    SpacingBetweenSlices: image0.SpacingBetweenSlices,
+   };
+ 
+   return referencedDisplaySetMetadata;
+--- a/extensions/measurement-tracking/src/contexts/TrackedMeasurementsContext/TrackedMeasurementsContext.tsx
++++ b/extensions/measurement-tracking/src/contexts/TrackedMeasurementsContext/TrackedMeasurementsContext.tsx
+@@ -277,6 +277,9 @@
+     sendTrackedMeasurementsEvent('UPDATE_ACTIVE_VIEWPORT_ID', {
+       activeViewportId,
+     });
++    commandsManager.run('initNninter', {
++      viewportId: activeViewportId,
++    });
+   }, [activeViewportId, sendTrackedMeasurementsEvent]);
+ 
+   // ~~ Listen for changes to ViewportGrid for potential SRs hung in panes when idle

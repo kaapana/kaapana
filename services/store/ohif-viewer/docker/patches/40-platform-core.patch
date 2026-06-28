@@ -1,0 +1,173 @@
+--- a/platform/app/public/config/docker-nginx-orthanc.js
++++ b/platform/app/public/config/docker-nginx-orthanc.js
+@@ -8,6 +8,12 @@
+   showWarningMessageForCrossOrigin: true,
+   showCPUFallbackMessage: true,
+   showLoadingIndicator: true,
++  disableConfirmationPrompts: true,
++  // Allow drawing in any viewport on the first pointer event without needing
++  // a prior click to "activate" it. Essential for MPR multi-viewport workflows.
++  activateViewportBeforeInteraction: false,
++  showPatientInfo: 'disabled',
++  measurementTrackingMode: 'none',
+   experimentalStudyBrowserSort: false,
+   strictZSpacingForVolumeViewport: true,
+   studyPrefetcher: {
+@@ -17,6 +23,9 @@
+     order: 'closest',
+   },
+   defaultDataSourceName: 'dicomweb',
++  investigationalUseDialog: {
++    option: 'never',
++  },
+   dataSources: [
+     {
+       namespace: '@ohif/extension-default.dataSourcesModule.dicomweb',
+@@ -30,7 +39,10 @@
+         qidoSupportsIncludeField: false,
+         imageRendering: 'wadors',
+         thumbnailRendering: 'wadors',
++        enableStudyLazyLoad: true,
+         dicomUploadEnabled: true,
++        supportsFuzzyMatching: true,
++        supportsWildcard: true,
+         omitQuotationForMultipartRequest: true,
+       },
+     },
+--- a/platform/app/src/components/ViewportGrid.tsx
++++ b/platform/app/src/components/ViewportGrid.tsx
+@@ -351,7 +351,15 @@
+       });
+ 
+       const onInteractionHandler = event => {
+-        if (isActive) {
++        // Read current active viewport directly from the service instead of the
++        // stale closure value. This matters for onMouseEnter: setActiveViewportId
++        // updates the service synchronously, but the React re-render (which would
++        // update `isActive` in the closure) is async. Without this, the first
++        // pointerDown after a hover-activate still sees isActive=false and swallows
++        // the event.
++        const alreadyActive =
++          viewportGridService.getState().activeViewportId === viewportId;
++        if (alreadyActive) {
+           return;
+         }
+ 
+--- a/platform/core/src/classes/MetadataProvider.ts
++++ b/platform/core/src/classes/MetadataProvider.ts
+@@ -577,8 +577,8 @@
+       sliceThickness: toNumber(instance.SliceThickness),
+       sliceLocation: toNumber(instance.SliceLocation),
+       pixelSpacing: toNumber(PixelSpacing || 1),
+-      rowPixelSpacing,
+-      columnPixelSpacing,
++      rowPixelSpacing: rowPixelSpacing ? toNumber(rowPixelSpacing) : null,
++      columnPixelSpacing: columnPixelSpacing ? toNumber(columnPixelSpacing) : null,
+       usingDefaultValues,
+     };
+   },
+--- a/platform/core/src/defaults/hotkeyBindings.ts
++++ b/platform/core/src/defaults/hotkeyBindings.ts
+@@ -27,13 +27,13 @@
+   {
+     commandName: 'rotateViewportCW',
+     label: 'Rotate Right',
+-    keys: ['r'],
++    keys: ['ctrl+r'],
+     isEditable: true,
+   },
+   {
+     commandName: 'rotateViewportCCW',
+     label: 'Rotate Left',
+-    keys: ['l'],
++    keys: ['ctrl+l'],
+     isEditable: true,
+   },
+   {
+@@ -45,6 +45,12 @@
+   {
+     commandName: 'flipViewportVertical',
+     label: 'Flip Vertically',
++    keys: ['ctrl+v'],
++    isEditable: true,
++  },
++  {
++    commandName: 'toggleSegmentationVisibilityAllViewports',
++    label: 'Toggle Segmentation Visibility (All Viewports)',
+     keys: ['v'],
+     isEditable: true,
+   },
+@@ -180,6 +186,12 @@
+   {
+     commandName: 'undo',
+     label: 'Undo',
++    keys: ['ctrl+shift+z'],
++    isEditable: true,
++  },
++  {
++    commandName: 'undoNninter',
++    label: 'Undo NNInteractive',
+     keys: ['ctrl+z'],
+     isEditable: true,
+   },
+@@ -190,9 +202,15 @@
+     isEditable: true,
+   },
+   {
++    commandName: 'resetNninter',
++    label: 'Reset NNInteractive',
++    keys: ['g'],
++    isEditable: true,
++  },
++  {
+     commandName: 'interpolateScrollForMarkerLabelmap',
+     label: 'Interpolate Scroll',
+-    keys: ['n'],
++    keys: ['ctrl+n'],
+     isEditable: true,
+   },
+   {
+@@ -218,13 +236,7 @@
+     commandName: 'setToolActive',
+     commandOptions: { toolName: 'CircularBrush' },
+     label: 'Brush',
+-    keys: ['b'],
+-    isEditable: true,
+-  },
+-  {
+-    commandName: 'addNewSegment',
+-    label: 'Add New Segment',
+-    keys: ['a'],
++    keys: ['ctrl+b'],
+     isEditable: true,
+   },
+ ];
+--- a/platform/core/src/services/MeasurementService/MeasurementService.ts
++++ b/platform/core/src/services/MeasurementService/MeasurementService.ts
+@@ -1,6 +1,7 @@
+ import log from '../../log';
+ import guid from '../../utils/guid';
+ import { PubSubService } from '../_shared/pubSubServiceInterface';
++import { visibility as csVisibility } from '@cornerstonejs/tools/annotation';
+ 
+ /**
+  * Measurement source schema
+@@ -509,6 +510,18 @@
+       }
+ 
+       measurement.source = source;
++      // Make the measurement hidden when the annotation is initially loaded (created)
++      if (sourceAnnotationDetail.annotation.metadata.toolLoad === true && isUpdate === false) {
++      if (
++        csVisibility.isAnnotationVisible(sourceAnnotationDetail.annotation.annotationUID) === true
++      ) {
++        csVisibility.setAnnotationVisibility(
++          sourceAnnotationDetail.annotation.annotationUID,
++          false
++        );
++      }
++      measurement.isVisible = false;
++    }
+     } catch (error) {
+       // Todo: handle other
+       this.unmappedMeasurements.set(sourceAnnotationDetail.uid, {

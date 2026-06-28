@@ -24,8 +24,16 @@ RUN git init /src \
 WORKDIR /src
 
 # 1) OHIF-AI fork source delta (nnInteractive feature + supporting edits) applied to pristine.
+#    Includes package.json/resolutions changes so dependency resolution matches the fork.
 COPY ohif-ai.patch /src/
 RUN git apply --ignore-whitespace ohif-ai.patch
+
+# 1b) Drop workspace packages the fork removed, so the fork yarn.lock applies cleanly.
+RUN rm -rf platform/cli extensions/test-extension modes/basic-dev-mode modes/basic-test-mode
+
+# 1c) Pin EXACTLY the fork's resolved dependency tree (Cornerstone 3.33.5, react-router 6.30.4, ...).
+#     Critical: the backup/ overrides below are built against these exact versions.
+COPY yarn.lock /src/yarn.lock
 
 # 2) Fork-only build inputs: Cornerstone/dcmjs/vtk runtime overrides, our plugin config, app config.
 COPY backup /src/backup
@@ -40,7 +48,12 @@ ENV APP_CONFIG="config/kaapana.js"
 COPY files/customization.patch /src/
 RUN git apply --ignore-whitespace customization.patch
 
-RUN yarn install
+RUN yarn install --frozen-lockfile
+
+# Sanity: the backup/ overrides require these exact versions; fail early if resolution drifted.
+RUN V=$(node -e "console.log(JSON.parse(require('fs').readFileSync('node_modules/@cornerstonejs/tools/package.json','utf8')).version)") \
+    && echo "Resolved @cornerstonejs/tools: $V" \
+    && case "$V" in 3.33.*) ;; *) echo "ERROR: expected Cornerstone 3.33.x (backup/ overrides target it), got $V"; exit 1;; esac
 
 # 4) OHIF-AI patched Cornerstone/dcmjs/vtk runtime files that enable the prompt tools and the
 # labelmap update path used by nnInteractive.

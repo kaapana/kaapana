@@ -24,6 +24,8 @@ dependencies:
     version: 0.0.0
   - name: node-exporter-chart
     version: 0.0.0
+  - name: subpath-reaper-chart
+    version: 0.0.0
   - name: loki-promtail-chart
     version: 0.0.0
   # FLOW

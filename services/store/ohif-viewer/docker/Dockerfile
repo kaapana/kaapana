@@ -37,6 +37,8 @@ RUN rm -rf platform/cli extensions/test-extension modes/basic-dev-mode modes/bas
 COPY yarn.lock /src/yarn.lock
 
 # 2) Fork-only build inputs: our plugin config and app config.
+COPY packages/extension-nninteractive /src/extensions/nninteractive
+COPY packages/mode-nninteractive /src/modes/nninteractive
 COPY pluginConfig.json /src/platform/app/pluginConfig.json
 COPY files/kaapana.js /src/platform/app/public/config/kaapana.js
 

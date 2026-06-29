@@ -425,7 +425,7 @@
  } from '@cornerstonejs/tools/utilities';
  import getActiveViewportEnabledElement from './utils/getActiveViewportEnabledElement';
  
-+import { toolboxState } from '@ohif/extension-default/src/stores/toolboxState';
++import { toolboxState } from '@kaapana/extension-nninteractive/src/utils/toolboxState';
  const { CORNERSTONE_3D_TOOLS_SOURCE_NAME, CORNERSTONE_3D_TOOLS_SOURCE_VERSION } = CSExtensionEnums;
  const { removeAnnotation } = annotation.state;
  const csToolsEvents = Enums.Events;
@@ -523,7 +523,7 @@
  import { useActiveViewportSegmentationRepresentations } from '../hooks/useActiveViewportSegmentationRepresentations';
  import { metaData } from '@cornerstonejs/core';
  import { useSystem } from '@ohif/core/src';
-+import { toolboxState } from '@ohif/extension-default/src/stores/toolboxState';
++import { toolboxState } from '@kaapana/extension-nninteractive/src/utils/toolboxState';
 +
 +const AI_PROMPT_TOOLS = ['Probe2', 'RectangleROI2', 'PlanarFreehandROI2', 'PlanarFreehandROI3'];
  

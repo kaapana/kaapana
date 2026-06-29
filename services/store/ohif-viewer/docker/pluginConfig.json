@@ -23,6 +23,9 @@
       "version": "3.0.0"
     },
     {
+      "packageName": "@kaapana/extension-nninteractive"
+    },
+    {
       "packageName": "@ohif/extension-cornerstone-dicom-pmap",
       "default": false,
       "version": "3.0.0"
@@ -60,7 +63,11 @@
   ],
   "modes": [
     {
-      "packageName": "@ohif/mode-longitudinal"
+      "packageName": "@kaapana/mode-nninteractive"
+    },
+    {
+      "packageName": "@ohif/mode-longitudinal",
+      "default": false
     },
     {
       "packageName": "@ohif/mode-segmentation",

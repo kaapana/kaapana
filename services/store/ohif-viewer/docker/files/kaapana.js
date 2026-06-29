@@ -141,6 +141,7 @@ const selected = configVariants[mode] || configVariants.default;
 window.config = {
   routerBasename: "/ohif/",
   defaultDataSourceName: "dicomweb",
+  activateViewportBeforeInteraction: false,
   extensions: [],
   modes: [],
   investigationalUseDialog: {

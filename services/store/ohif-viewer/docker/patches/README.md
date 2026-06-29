@@ -38,7 +38,7 @@ custom mode, using OHIF mechanisms that already exist at this version:
 | `10-nninteractive-app` | default study sort + right panel width residue | **Mostly extracted** | Commands, AI toolbox, `toolboxState`, and `multipart` now live in `@kaapana/extension-nninteractive`; only two OHIF default-layout/default-sort edits remain. |
 | `20-nninteractive-cornerstone` | small core SEG/stat/jump fixes after panel extraction | **Mostly extracted** | Command overrides, prompt tools, measurement mappings, stats header customization, SEG overlay tools, prompt metadata stamping, active-viewport init, and the segmentation panel now live in `@kaapana/extension-nninteractive`; only small core residue remains. |
 | `30-nninteractive-ui` | platform UI residue after table/icon extraction | **Mostly extracted** | Icons → `Icons.addIcon()` in `preRegistration`; SegmentationTable/DataRow fork → `@kaapana/extension-nninteractive`; remaining hunks are SidePanel styling/scrolling, default sort, and hover activation. |
-| `40-platform-core` | hotkeys, MeasurementService visibility-on-load, MetadataProvider, ViewportGrid | **Partly** | Hotkeys → custom-mode `hotkeys`. `docker-nginx-orthanc.js` is **dead** → delete. Rest → **upstream PR**. |
+| `40-platform-core` | hotkeys, MeasurementService visibility-on-load, MetadataProvider, ViewportGrid | **Extracted — patch removed** | Hotkeys → mode customization; MeasurementService visibility-on-load → extension subscriber; MetadataProvider → extension metadata provider; ViewportGrid stale closure → app config `activateViewportBeforeInteraction:false` with hover activation. |
 | `50-mode` | `aiToolBox` toolbar section, prompt-tool buttons, tool groups | **Extracted — patch removed** | `@kaapana/mode-nninteractive` owns the layout, toolbar sections, prompt-tool buttons, tool groups, and now points at the kaapana panel composition. |
 | `60-version-bump` | version strings | **No (cosmetic)** | Dockerfile `ARG`/`sed` instead of a tracked patch. |
 
@@ -64,7 +64,7 @@ Dockerfile already shows the seam — it `COPY`s `pluginConfig.json` and could `
      active-viewport subscription (replacing the `TrackedMeasurementsContext` edit).
 2. **`@kaapana/mode-nninteractive`** — owns the `aiToolBox` toolbar sections, tool-group
    memberships, layout (`rightPanelClosed:false`), and declares the extension above as a dependency.
-   This absorbs patch 50; patch 40's hotkeys are still a remaining migration target.
+   This absorbs patch 50 and the former patch-40 hotkey overrides.
 
    *UX caveat:* the feature is meant to appear in the **default** workflow Kaapana already routes to.
    A separate mode adds a route/mode-selector step — preserve current UX by making it the default
@@ -79,10 +79,11 @@ behavior *identically*. Under that lens a small residue remains, most of it best
 
 - **`00-deps-build`** — dependency pins / `resolutions` / build config. Structural; must match
   `../yarn.lock`. *This is the patch most likely to break on an OHIF bump.*
-- **A handful of core bug-fixes / behavior hooks** with no extension seam (patch 20 & 40): the
-  `MeasurementService` "hide on load when `toolLoad===true`" hook; `MetadataProvider` numeric
-  pixel-spacing coercion; the `ViewportGrid` + `ViewportPane` hover-activate pair;
-  `CustomizableViewportOverlay`'s unsorted-imageIds instance-number fix. → **upstream PR candidates**
+- **A handful of core bug-fixes / behavior hooks** with no extension seam (mostly patch 20): the
+  `CustomizableViewportOverlay`'s unsorted-imageIds instance-number fix and related tiny
+  Cornerstone/SEG residue. The former patch-40 `MeasurementService`, `MetadataProvider`, hotkey, and
+  `ViewportGrid` edits now have relaxed equivalents in the extension/mode/app config.
+  → remaining in-place residue is an **upstream PR candidate**
   (several are genuine correctness fixes useful to everyone).
 - **Small platform UI defaults** (patch 10 & 30): default study-browser sort, right panel width,
   SidePanel scroll/background tweaks, and `ViewportPane` hover activation. These are now the main
@@ -207,7 +208,7 @@ the extension-owned `PanelSegmentation` feeds.
 | 4 NEW `Icons/Sources/Tool*.tsx` + `Icons.tsx` (+12) + `Tools.tsx` (+3) | **Extracted — patch removed** | `packages/extension-nninteractive/src/preRegistration.ts` registers the icons with `Icons.addIcon(name, component)`. | — already clean |
 | `StudyBrowserSort.tsx` (+2/−1) | **CONFIG/redundant** | already applied at runtime by patch 10; likely removable. | — already clean |
 | `SegmentStatistics.tsx`, `DataRow.tsx`, `SegmentationSegments.tsx`, `AddSegmentRow.tsx`, `SegmentationTableContext.tsx` | **EXTRACTED** | copied into `packages/extension-nninteractive/src/panels/SegmentationTable/*` and consumed by the extension panel. | accept UI drift from upstream table updates |
-| `SidePanel.tsx` (+10), `ViewportPane.tsx` (+1) | **upstream-PR** | scrollable panel; hover-to-activate (pairs w/ patch-40 `ViewportGrid`). | `SidePanel` → **shipped CSS**; `ViewportPane` → **config** (`activateViewportBeforeInteraction`) / viewport wrapper |
+| `SidePanel.tsx` (+10), `ViewportPane.tsx` (+1) | **upstream-PR** | scrollable panel; hover-to-activate (now paired with `activateViewportBeforeInteraction:false` in app config). | `SidePanel` → **shipped CSS**; `ViewportPane` → **config** / viewport wrapper |
 
 **Quality flags (fix regardless of patch-vs-extension):** `SegmentationSegments.tsx` uses a **500 ms
 `setInterval` poll** (on top of a live `document` `measurement-state-changed` listener) to re-render,
@@ -218,15 +219,15 @@ polling. This is no longer an in-place-patch blocker because the table is now ex
 it still deserves cleanup. `SidePanel.tsx` hardcodes
 `backgroundColor:'#090c29'` (use a theme token).
 
-### `40-platform-core.patch` — high for the bulk, small residue
+### `40-platform-core.patch` — ✅ extracted and removed
 
 | File | Strict verdict | Clean home | Relaxed-equivalent |
 |---|---|---|---|
 | `platform/app/public/config/docker-nginx-orthanc.js` (+12) | **DEAD — ✅ removed** | never loaded (kaapana uses `kaapana.js`); hunk deleted. | — |
-| `core/src/defaults/hotkeyBindings.ts` (+22/−10) | **CUSTOM-MODE** | a mode supplies its own `hotkeys` array — move it there; the core edit vanishes. | — already clean |
-| `core/.../MeasurementService.ts` (+13) | **IRREDUCIBLE (strict)** | "hide on load when `metadata.toolLoad===true`"; no create-time hook (`toggleVisibilityMeasurement`/`Many`/`isVisible` are stock). *(block is correctly braced, just untidy; inner guard redundant.)* | **`MEASUREMENT_ADDED` subscriber** in `preRegistration` — accept a possible 1-frame flicker |
-| `core/src/classes/MetadataProvider.ts` (+2/−2) | **upstream-PR** | numeric pixel-spacing coercion (correctness fix). | **custom metadata provider** (`metaData.addProvider`) — verify consumers read the chain |
-| `platform/app/.../ViewportGrid.tsx` (+9/−1) | **upstream-PR** | live active-viewport read (stale-closure fix); pairs w/ `ViewportPane`. | partly **config** (`activateViewportBeforeInteraction`); else keep as a small upstream-bound patch |
+| `core/src/defaults/hotkeyBindings.ts` (+22/−10) | **EXTRACTED** | `packages/mode-nninteractive/src/index.ts` sets `ohif.hotkeyBindings` during mode entry. | — |
+| `core/.../MeasurementService.ts` (+13) | **EXTRACTED** | `packages/extension-nninteractive/src/preRegistration.ts` subscribes to `MEASUREMENT_ADDED` and hides `metadata.toolLoad` measurements. | accepts possible 1-frame flicker versus core inline hide |
+| `core/src/classes/MetadataProvider.ts` (+2/−2) | **EXTRACTED** | `preRegistration` registers a high-priority Cornerstone metadata provider returning numeric spacing. | — |
+| `platform/app/.../ViewportGrid.tsx` (+9/−1) | **EXTRACTED** | `files/kaapana.js` sets `activateViewportBeforeInteraction:false`, so hover activation from patch 30 does not swallow the first pointer event while React catches up. | — |
 
 ### `50-mode.patch` — ✅ extracted into `@kaapana/mode-nninteractive`
 
@@ -268,9 +269,9 @@ Dockerfile's `OHIF_COMMIT`; the `version.txt` hunk is effectively a no-op). Coul
    utilities + AI panel (10), icons via `addIcon` (30), measurement mappings + `addTool` +
    customization overrides `CustomSegmentStatisticsHeader` / `overlayViewportTools` (20). Register in
    `pluginConfig.json`; `COPY` the package in the Dockerfile.
-3. **Scaffold `mode-nninteractive`** for toolbar sections, tool groups, and layout. ✅ *Done for
-   patch 50:* the package is copied into the OHIF workspace and registered as the default mode.
-   *Remaining:* move patch-40 hotkeys into the mode.
+3. **Scaffold `mode-nninteractive`** for toolbar sections, tool groups, layout, and hotkeys. ✅ *Done
+   for patch 50 and patch 40:* the package is copied into the OHIF workspace, registered as the
+   default mode, and owns the former core hotkey overrides through `ohif.hotkeyBindings`.
 4. **Close the strict-residue gaps — two options.** Either **upstream PRs** for the genuine hooks (a
    study-browser default-sort + panel-width customization; an "initial measurement visibility" hook;
    and the `CustomizableViewportOverlay` / `MetadataProvider` / `ViewportGrid` correctness fixes);

@@ -2,6 +2,7 @@ import { eventTarget, metaData } from '@cornerstonejs/core';
 import {
   Enums,
   addTool,
+  annotation as cornerstoneAnnotation,
   ProbeTool,
   RectangleROITool,
   PlanarFreehandROITool,
@@ -37,6 +38,7 @@ const PROMPT_TOOL_NAMES = ['Probe2', 'RectangleROI2', 'PlanarFreehandROI2', 'Pla
 let annotationMetadataStampingRegistered = false;
 let activeViewportInitRegistered = false;
 let metadataProviderRegistered = false;
+let toolLoadMeasurementVisibilityRegistered = false;
 
 function safeAddTool(tool) {
   try {
@@ -201,6 +203,33 @@ function registerMetadataProvider() {
   }, 9999);
 }
 
+function registerToolLoadMeasurementVisibility(measurementService) {
+  if (toolLoadMeasurementVisibilityRegistered || !measurementService?.subscribe) {
+    return;
+  }
+  toolLoadMeasurementVisibilityRegistered = true;
+
+  measurementService.subscribe(measurementService.EVENTS.MEASUREMENT_ADDED, ({ measurement }) => {
+    if (!measurement?.metadata?.toolLoad || measurement.isVisible === false) {
+      return;
+    }
+
+    try {
+      measurementService.toggleVisibilityMeasurement?.(measurement.uid, false);
+    } catch (error) {
+      console.warn('Failed to hide toolLoad measurement through MeasurementService:', error);
+    }
+
+    try {
+      if (cornerstoneAnnotation.visibility.isAnnotationVisible(measurement.uid)) {
+        cornerstoneAnnotation.visibility.setAnnotationVisibility(measurement.uid, false);
+      }
+    } catch (error) {
+      console.warn('Failed to hide toolLoad annotation:', error);
+    }
+  });
+}
+
 export default function preRegistration({ servicesManager, commandsManager }: any = {}) {
   Icons.addIcon('tool-nninter', ToolNninter);
   Icons.addIcon('tool-sam', ToolSam);
@@ -215,6 +244,7 @@ export default function preRegistration({ servicesManager, commandsManager }: an
   const measurementService = servicesManager?.services?.measurementService;
   if (measurementService) {
     addPromptToolMappings(measurementService);
+    registerToolLoadMeasurementVisibility(measurementService);
   }
 
   registerAnnotationMetadataStamping();

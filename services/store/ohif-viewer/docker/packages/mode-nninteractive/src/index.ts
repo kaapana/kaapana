@@ -65,6 +65,98 @@ const extensionDependencies = {
   '@kaapana/extension-nninteractive': '^3.10.4',
 };
 
+const HOTKEY_PREFERENCES_VERSION = 'nninteractive-move40-v1';
+
+function resetStaleHotkeyPreferences() {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return;
+  }
+
+  const versionKey = 'kaapana-nninteractive-hotkeys-version';
+  if (window.localStorage.getItem(versionKey) === HOTKEY_PREFERENCES_VERSION) {
+    return;
+  }
+
+  window.localStorage.removeItem('user-preferred-keys');
+  window.localStorage.removeItem('hotkey-definitions');
+  window.localStorage.setItem('hotkeys-migrated', 'true');
+  window.localStorage.setItem(versionKey, HOTKEY_PREFERENCES_VERSION);
+}
+
+function migrateHotkeyBindings(bindings = []) {
+  return bindings
+    .filter(binding => {
+      if (binding.commandName === 'addNewSegment') {
+        return false;
+      }
+
+      return !(
+        binding.commandName === 'setToolActive' &&
+        binding.commandOptions?.toolName === 'CircularBrush'
+      );
+    })
+    .map(binding => {
+      switch (binding.commandName) {
+        case 'rotateViewportCW':
+          return { ...binding, keys: ['ctrl+r'] };
+        case 'rotateViewportCCW':
+          return { ...binding, keys: ['ctrl+l'] };
+        case 'flipViewportVertical':
+          return { ...binding, keys: ['ctrl+v'] };
+        case 'undo':
+          return { ...binding, keys: ['ctrl+shift+z'] };
+        case 'interpolateScrollForMarkerLabelmap':
+          return { ...binding, keys: ['ctrl+n'] };
+        default:
+          return binding;
+      }
+    })
+    .concat([
+      {
+        commandName: 'toggleSegmentationVisibilityAllViewports',
+        label: 'Toggle Segmentation Visibility (All Viewports)',
+        keys: ['v'],
+        isEditable: true,
+      },
+      {
+        commandName: 'undoNninter',
+        label: 'Undo NNInteractive',
+        keys: ['ctrl+z'],
+        isEditable: true,
+      },
+      {
+        commandName: 'resetNninter',
+        label: 'Reset NNInteractive',
+        keys: ['g'],
+        isEditable: true,
+      },
+      {
+        commandName: 'setToolActive',
+        commandOptions: { toolName: 'CircularBrush' },
+        label: 'Brush',
+        keys: ['ctrl+b'],
+        isEditable: true,
+      },
+    ]);
+}
+
+function installHotkeyRegistrationGuard(extensionManager) {
+  const hotkeysManager = extensionManager?._hotkeysManager;
+  if (!hotkeysManager || hotkeysManager.__nnInteractiveHotkeyGuardInstalled) {
+    return;
+  }
+
+  const registerHotkeys = hotkeysManager.registerHotkeys.bind(hotkeysManager);
+  hotkeysManager.registerHotkeys = definition => {
+    try {
+      registerHotkeys(definition);
+    } catch (error) {
+      console.error('Failed to register nnInteractive hotkey definition:', definition, error);
+    }
+  };
+  hotkeysManager.__nnInteractiveHotkeyGuardInstalled = true;
+}
+
 function modeFactory({ modeConfiguration }) {
   let _activatePanelTriggersSubscriptions = [];
 
@@ -77,6 +169,9 @@ function modeFactory({ modeConfiguration }) {
         servicesManager.services;
 
       measurementService.clearMeasurements();
+
+      resetStaleHotkeyPreferences();
+      installHotkeyRegistrationGuard(extensionManager);
 
       initToolGroups(extensionManager, toolGroupService, commandsManager);
       toolbarService.addButtons(toolbarButtons);
@@ -128,6 +223,9 @@ function modeFactory({ modeConfiguration }) {
       customizationService.setCustomizations({
         'panelSegmentation.disableEditing': {
           $set: false,
+        },
+        'ohif.hotkeyBindings': {
+          $apply: migrateHotkeyBindings,
         },
       });
 

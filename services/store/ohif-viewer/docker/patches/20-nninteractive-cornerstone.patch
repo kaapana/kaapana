@@ -657,15 +657,6 @@
    );
 --- a/extensions/cornerstone/src/services/SegmentationService/SegmentationService.ts
 +++ b/extensions/cornerstone/src/services/SegmentationService/SegmentationService.ts
-@@ -76,6 +76,8 @@
-   SEGMENT_LOADING_COMPLETE: 'event::segment_loading_complete',
-   // loading completed for all segments
-   SEGMENTATION_LOADING_COMPLETE: 'event::segmentation_loading_complete',
-+  // fired when measurement visibility changes
-+  MEASUREMENT_VISIBILITY_CHANGED: 'event::measurement_visibility_changed',
- };
- 
- const VALUE_TYPES = {};
 @@ -469,6 +471,7 @@
          SegmentLabel,
          SegmentAlgorithmType,
@@ -888,17 +879,6 @@
              order: Object.keys(readableText).indexOf('volume'),
            };
          }
---- a/extensions/cornerstone/src/Viewport/OHIFCornerstoneViewport.tsx
-+++ b/extensions/cornerstone/src/Viewport/OHIFCornerstoneViewport.tsx
-@@ -276,6 +276,8 @@
-           displaySetOptions,
-           presentations
-         );
-+        // nnInteractive sessions are now started explicitly via the AI toolbox
-+        // "Initialize" button (no auto-init on viewport load).
-       };
- 
-       loadViewportData();
 --- a/extensions/cornerstone/src/Viewport/Overlays/CustomizableViewportOverlay.tsx
 +++ b/extensions/cornerstone/src/Viewport/Overlays/CustomizableViewportOverlay.tsx
 @@ -343,7 +343,10 @@

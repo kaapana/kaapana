@@ -2707,6 +2707,49 @@ function rm_chart_path {
 # Params: none.
 # Returns: 0 when all bundled CRDs are ready or no CRDs are bundled.
 # Side effects: applies CRD manifests to the cluster and waits on each CRD name.
+# Wait until a CRD is usable, tolerating a CRD whose `Established` condition lags
+# under control-plane load and failing fast with actionable guidance when a CRD is
+# stuck terminating or the control plane is not progressing — instead of the opaque
+# multi-minute `kubectl wait` timeout that aborts the whole deploy via `set -e`.
+function wait_for_crd_established() {
+    local crd_name="$1"
+    local timeout="${2:-180s}"
+    local deletion_ts=""
+
+    # A CRD left mid-deletion can never become Established; detect it up front so we
+    # surface the fix immediately rather than blocking for the full timeout.
+    deletion_ts="$(microk8s.kubectl get crd "$crd_name" -o jsonpath='{.metadata.deletionTimestamp}' 2>/dev/null || true)"
+    if [[ -n "$deletion_ts" ]]; then
+        echo "${RED}CRD ${crd_name} is stuck terminating (deletionTimestamp=${deletion_ts}).${NC}"
+        echo "${RED}It cannot be re-established while a delete is pending. Clear its finalizers, then redeploy:${NC}"
+        echo "  microk8s.kubectl patch crd ${crd_name} --type=merge -p '{\"metadata\":{\"finalizers\":[]}}'"
+        exit 1
+    fi
+
+    echo "${GREEN}Waiting for CRD ${crd_name} to become Established (timeout ${timeout})...${NC}"
+    # `|| true` keeps a non-zero wait from tripping `set -e`; we classify the result ourselves.
+    if microk8s.kubectl wait --for=condition=Established "crd/${crd_name}" --timeout="${timeout}" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    # The condition did not flip in time. Tolerate the common case where the CRD is in
+    # fact already served (Established can lag/flap under control-plane load) by probing
+    # the API directly — if the resource type answers, it is usable and we continue.
+    if microk8s.kubectl get "$crd_name" >/dev/null 2>&1; then
+        echo "${YELLOW}CRD ${crd_name} did not report Established within ${timeout}, but the API is already serving it -> continuing.${NC}"
+        return 0
+    fi
+
+    # Genuinely not served: dump the conditions and give the control-plane remediation.
+    echo "${RED}CRD ${crd_name} is neither Established nor served after ${timeout}.${NC}"
+    echo "${RED}Current conditions:${NC}"
+    microk8s.kubectl get crd "$crd_name" -o jsonpath='{range .status.conditions[*]}  {.type}={.status} ({.reason}) {.message}{"\n"}{end}' 2>/dev/null || true
+    echo "${RED}This usually means the microk8s control plane (apiextensions / k8s-dqlite) is not progressing.${NC}"
+    echo "${RED}Restart microk8s, then redeploy:${NC}"
+    echo "  sudo microk8s stop && sudo microk8s start && microk8s status --wait-ready"
+    exit 1
+}
+
 function apply_chart_crds() {
     local crd_manifest=""
     local -a crd_names=()
@@ -2736,8 +2779,7 @@ function apply_chart_crds() {
 
     for crd_name in "${crd_names[@]}"; do
         [[ -n "$crd_name" ]] || continue
-        echo "${GREEN}Waiting for CRD ${crd_name} to become Established...${NC}"
-        microk8s.kubectl wait --for=condition=Established "crd/${crd_name}" --timeout=600s
+        wait_for_crd_established "$crd_name" "${CRD_ESTABLISH_TIMEOUT:-180s}"
     done
 }
 

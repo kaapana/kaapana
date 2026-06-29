@@ -1603,6 +1603,67 @@ function get_domain {
     fi
 }
 
+# Platform namespaces whose workloads undeploy is responsible for removing. PVCs and
+# the namespaces themselves are preserved by design; everything else in them is fair
+# game once the Helm releases are uninstalled.
+function platform_namespaces_for_undeploy {
+    echo "$ADMIN_NAMESPACE $SERVICES_NAMESPACE $EXTENSIONS_NAMESPACE"
+    if [ -n "${PLATFORM_PREFIX:-}" ]; then
+        microk8s.kubectl get namespaces --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | grep "^${PLATFORM_PREFIX}-project-" || true
+    fi
+}
+
+# Force-remove workloads that survived `helm uninstall` as orphans — e.g. ReplicaSets
+# whose release record is already gone, so Kubernetes' owner-reference GC never
+# cascade-deleted them and nothing retries. Keeps PVCs and namespaces. Helm releases
+# are already uninstalled at this point, so any workload still in these namespaces is
+# a leftover that would otherwise corrupt or deadlock a redeploy.
+function reap_orphaned_platform_resources {
+    local reap_kinds="deployment,statefulset,daemonset,replicaset,job,cronjob,pod"
+    local ns deleted n total=0
+    echo -e "${YELLOW}Reaping orphaned platform workloads (keeps PVCs + namespaces) ...${NC}"
+    for ns in $(platform_namespaces_for_undeploy); do
+        microk8s.kubectl get namespace "$ns" >/dev/null 2>&1 || continue
+        # `-o name` lists deleted objects as `kind/name`; keep only those lines so the
+        # "No resources found" message (printed to stdout for empty namespaces) is dropped.
+        deleted=$(microk8s.kubectl -n "$ns" delete ${reap_kinds} --all --ignore-not-found --force --grace-period=0 -o name 2>/dev/null | grep '/' || true)
+        if [ -n "$deleted" ]; then
+            n=$(printf '%s\n' "$deleted" | grep -c .)
+            total=$((total + n))
+            echo -e "  ${RED}$ns${NC}: force-removed $n orphaned workload(s) that 'helm uninstall' left behind:"
+            printf '%s\n' "$deleted" | sed 's/^/        /'
+        else
+            echo -e "  ${GREEN}$ns${NC}: clean"
+        fi
+    done
+    if [ "$total" -eq 0 ]; then
+        echo -e "${GREEN}No orphaned workloads found — helm uninstall removed everything.${NC}"
+    else
+        echo -e "${YELLOW}Reaped $total orphaned workload(s) total (these would have blocked/corrupted a redeploy).${NC}"
+    fi
+}
+
+# Honest completion check: confirm no platform workloads remain. Orphaned ReplicaSets/
+# Pods whose release record is already gone are invisible to the helm-release and
+# terminating-pod checks, so verify the actual workloads. Prints survivors and returns
+# non-zero if any are still present.
+function verify_undeploy_clean {
+    local check_kinds="deployment,statefulset,daemonset,replicaset,job,pod"
+    local ns survivors="" ns_left
+    for ns in $(platform_namespaces_for_undeploy); do
+        microk8s.kubectl get namespace "$ns" >/dev/null 2>&1 || continue
+        ns_left=$(microk8s.kubectl -n "$ns" get ${check_kinds} --no-headers --ignore-not-found 2>/dev/null \
+            | awk -v ns="$ns" '$1 != "" {print "  "ns"/"$1}' || true)
+        [ -n "$ns_left" ] && survivors="${survivors}${ns_left}"$'\n'
+    done
+    if [ -n "$survivors" ]; then
+        echo -e "${RED}Platform workloads still present after undeploy:${NC}"
+        echo -e "$survivors"
+        return 1
+    fi
+    return 0
+}
+
 function delete_deployment {
     echo -e "${YELLOW}Undeploy releases${NC}"
     local failed=0
@@ -1664,6 +1725,11 @@ function delete_deployment {
         echo "${YELLOW}Skipping project namespace pod cleanup because PLATFORM_PREFIX is not set.${NC}"
     fi
 
+    # Force-remove workloads that helm uninstall left orphaned (e.g. ReplicaSets whose
+    # release record is already gone). These are invisible to the release/terminating
+    # checks below but would corrupt or deadlock a redeploy.
+    reap_orphaned_platform_resources
+
     # Final state report:
     local pods_still_terminating=0
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
@@ -1682,7 +1748,13 @@ function delete_deployment {
         fi
     done
 
-    if [ "$failed" -ne 0 ] || [ "$remaining_releases" -ne 0 ] || [ "$pods_still_terminating" -ne 0 ]; then
+    # Check whether any platform workloads survived the reap (degraded control plane).
+    local workloads_remaining=0
+    if ! verify_undeploy_clean; then
+        workloads_remaining=1
+    fi
+
+    if [ "$failed" -ne 0 ] || [ "$remaining_releases" -ne 0 ] || [ "$pods_still_terminating" -ne 0 ] || [ "$workloads_remaining" -ne 0 ]; then
         echo "${RED}Undeployment did not finish cleanly.${NC}"
         if [ "$pods_still_terminating" -ne 0 ]; then
             echo "${RED}Some pods are still terminating. Please check manually if there are still namespaces or pods floating around. Everything must be deleted before the deployment:${NC}"
@@ -1690,6 +1762,10 @@ function delete_deployment {
             echo "${RED}kubectl get namespaces${NC}"
             echo "${RED}Executing './kaapanactl.sh deploy --no-hooks' is an option to force the resources to be removed.${NC}"
             echo "${RED}Once everything is deleted you can re-deploy the platform!${NC}"
+        fi
+        if [ "$workloads_remaining" -ne 0 ]; then
+            echo "${RED}Platform workloads could not be force-removed; the cluster control plane may be degraded. Restart microk8s and retry:${NC}"
+            echo "${RED}  sudo microk8s stop && sudo microk8s start && microk8s status --wait-ready${NC}"
         fi
         if [ "$failed" -ne 0 ] || [ "$remaining_releases" -ne 0 ]; then
             echo "${RED}Some Helm uninstalls failed or releases remain:${NC}"

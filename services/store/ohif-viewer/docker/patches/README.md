@@ -40,7 +40,7 @@ custom mode, using OHIF mechanisms that already exist at this version:
 | `30-nninteractive-ui` | platform UI residue after table/icon extraction | **Mostly extracted** | Icons → `Icons.addIcon()` in `preRegistration`; SegmentationTable/DataRow fork → `@kaapana/extension-nninteractive`; remaining hunks are SidePanel styling/scrolling, default sort, and hover activation. |
 | `40-platform-core` | hotkeys, MeasurementService visibility-on-load, MetadataProvider, ViewportGrid | **Extracted — patch removed** | Hotkeys → mode customization; MeasurementService visibility-on-load → extension subscriber; MetadataProvider → extension metadata provider; ViewportGrid stale closure → app config `activateViewportBeforeInteraction:false` with hover activation. |
 | `50-mode` | `aiToolBox` toolbar section, prompt-tool buttons, tool groups | **Extracted — patch removed** | `@kaapana/mode-nninteractive` owns the layout, toolbar sections, prompt-tool buttons, tool groups, and now points at the kaapana panel composition. |
-| `60-version-bump` | version strings | **No (cosmetic)** | Dockerfile `ARG`/`sed` instead of a tracked patch. |
+| `60-version-bump` | version strings | **Removed** | Dockerfile `OHIF_VERSION`/`OHIF_COMMIT` args now generate `version.json`, `version.txt`, and `commit.txt`. |
 
 ### The target architecture ("derive and extend", not overwrite)
 
@@ -138,8 +138,8 @@ guards around `commit.txt` reads in `rsbuild.config.ts` / `.webpack/webpack.base
 
 **Needed?** Yes. Versions, `resolutions`, lerna and the workspace/script edits are build-level and
 cannot be expressed as an extension. The only non-build content is the scrollbar CSS (could ship in
-an extension's stylesheet — negligible payoff). The `commit.txt` guards could be replaced by a
-`touch commit.txt` in the Dockerfile.
+an extension's stylesheet — negligible payoff). The Dockerfile now writes `commit.txt` from
+`OHIF_COMMIT`, so the guards are a fallback rather than the normal path.
 
 **Future work.** Keep as-is. **Re-validate against `../yarn.lock` on every OHIF bump** — the
 `resolutions` block in particular will drift with upstream and CVE advisories.
@@ -250,11 +250,12 @@ appear in the default viewer Kaapana routes to, not behind a new mode tile. Pres
 the custom mode the default in `pluginConfig.json` (or accept one extra selection step). Effort:
 **low** for the mode shell; **medium-high** for the full extension+mode refactor.
 
-### `60-version-bump.patch` — cosmetic
+### `60-version-bump.patch` — ✅ removed
 
-`version.json`/`version.txt` strings shown in the viewer's About info (the commit hash duplicates the
-Dockerfile's `OHIF_COMMIT`; the `version.txt` hunk is effectively a no-op). Could be a Dockerfile
-`ARG`/`sed` step instead of a tracked patch. Low priority.
+`version.json`, `version.txt`, and `commit.txt` are generated in the Dockerfile from `OHIF_VERSION`
+and `OHIF_COMMIT`, then copied into the final nginx image. The same args also populate final-image
+labels (`VERSION`, `OHIF_VERSION`, `OHIF_COMMIT`). This keeps source pinning and displayed/build
+metadata in one place, and avoids a tracked patch whose `version.txt` hunk was effectively a no-op.
 
 ---
 
@@ -285,9 +286,10 @@ Dockerfile's `OHIF_COMMIT`; the `version.txt` hunk is effectively a no-op). Coul
 
 ## Upgrading OHIF
 
-Bump `OHIF_COMMIT` in the `Dockerfile`, then re-validate each patch applies (regenerate the
-hunks for any whose target files upstream moved). The dependency layer (`00`) must stay in
-sync with `../yarn.lock` and the `../node-module-patches/` Cornerstone/vtk patches (currently 3.33.5 / 32.12.0).
+Bump `OHIF_VERSION` and `OHIF_COMMIT` in the `Dockerfile`, then re-validate each patch applies
+(regenerate the hunks for any whose target files upstream moved). The dependency layer (`00`) must
+stay in sync with `../yarn.lock` and the `../node-module-patches/` Cornerstone/vtk patches (currently
+3.33.5 / 32.12.0).
 
 Every in-place patch above is a re-validation cost on each upgrade; the smaller the in-place residue
 (see "future work"), the cheaper the next bump.

@@ -1,7 +1,10 @@
 FROM docker.io/node:20.18.1-slim AS build
 
+ARG OHIF_VERSION=3.10.4
+ARG OHIF_COMMIT=d383be7c720ec61f5bb1262ebe70893873718951
+
 LABEL IMAGE="ohif"
-LABEL VERSION="v3.10.4-ohif-ai"
+LABEL VERSION="v${OHIF_VERSION}-ohif-ai"
 LABEL BUILD_IGNORE="False"
 
 RUN apt-get update \
@@ -14,7 +17,6 @@ RUN yarn config set workspaces-experimental true
 # Fetch PRISTINE upstream OHIF at the OHIF-AI fork's exact base commit (2 trivial commits
 # behind tag v3.10.4). No OHIF source is committed to this repo; it is fetched at build time.
 # To upgrade OHIF: bump OHIF_COMMIT and re-validate patches/ + node-module-patches/.
-ARG OHIF_COMMIT=d383be7c720ec61f5bb1262ebe70893873718951
 RUN git init /src \
     && cd /src \
     && git remote add origin https://github.com/OHIF/Viewers.git \
@@ -22,6 +24,10 @@ RUN git init /src \
     && git checkout -q FETCH_HEAD
 
 WORKDIR /src
+
+RUN printf '{\n  "version": "%s",\n  "commit": "%s"\n}\n' "$OHIF_VERSION" "$OHIF_COMMIT" > version.json \
+    && printf '%s\n' "$OHIF_VERSION" > version.txt \
+    && printf '%s\n' "$OHIF_COMMIT" > commit.txt
 
 # 1) OHIF-AI fork source delta, split by concern, applied to pristine in filename order.
 #    Includes package.json/resolutions changes so dependency resolution matches the fork.
@@ -52,10 +58,8 @@ RUN git apply --ignore-whitespace customization.patch
 
 RUN yarn install --frozen-lockfile
 
-# Sanity: the node-module patches target these exact versions; fail early if resolution drifted.
-RUN V=$(node -e "console.log(JSON.parse(require('fs').readFileSync('node_modules/@cornerstonejs/tools/package.json','utf8')).version)") \
-    && echo "Resolved @cornerstonejs/tools: $V" \
-    && case "$V" in 3.33.*) ;; *) echo "ERROR: expected Cornerstone 3.33.x (node-module-patches target it), got $V"; exit 1;; esac
+# Sanity: node-module-patches target these exact package versions; fail early if resolution drifted.
+RUN node -e "const fs=require('fs'); const expected={'@cornerstonejs/core':'3.33.5','@cornerstonejs/tools':'3.33.5','@kitware/vtk.js':'32.12.0'}; for (const [name, version] of Object.entries(expected)) { const actual=JSON.parse(fs.readFileSync('node_modules/' + name + '/package.json', 'utf8')).version; console.log('Resolved ' + name + ': ' + actual); if (actual !== version) { console.error('ERROR: expected ' + name + ' ' + version + ' (node-module-patches target it), got ' + actual); process.exit(1); } }"
 
 # 4) Apply the OHIF-AI Cornerstone/vtk runtime modifications as readable, version-named
 # patch-package diffs (the prompt tools + labelmap update path used by nnInteractive). These
@@ -78,10 +82,22 @@ RUN mkdir -p /src/vendor-licenses/ohif-ai-viewers \
 
 FROM docker.io/nginx:1.31-alpine AS production-stage
 
+ARG OHIF_VERSION=3.10.4
+ARG OHIF_COMMIT=d383be7c720ec61f5bb1262ebe70893873718951
+
+LABEL IMAGE="ohif"
+LABEL VERSION="v${OHIF_VERSION}-ohif-ai"
+LABEL BUILD_IGNORE="False"
+LABEL OHIF_VERSION="${OHIF_VERSION}"
+LABEL OHIF_COMMIT="${OHIF_COMMIT}"
+
 RUN apk update && apk upgrade libxml2
 
 COPY --from=build /src/platform/app/dist/ /usr/share/nginx/html/ohif/
 COPY --from=build /src/vendor-licenses/ /usr/share/nginx/html/ohif/vendor-licenses/
+COPY --from=build /src/version.json /usr/share/nginx/html/ohif/version.json
+COPY --from=build /src/version.txt /usr/share/nginx/html/ohif/version.txt
+COPY --from=build /src/commit.txt /usr/share/nginx/html/ohif/commit.txt
 
 COPY files/ /usr/share/nginx/html/
 COPY files/kaapana.js /usr/share/nginx/html/ohif/app-config.js

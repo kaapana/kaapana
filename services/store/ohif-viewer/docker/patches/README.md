@@ -1,315 +1,149 @@
-# OHIF-AI source patches
+# OHIF Source Patches
 
-These patches are applied (in filename order) with `git apply` to a **pristine** upstream
-OHIF checkout at build time — see the parent `Dockerfile`. Together they reproduce the
-CCI-Bonn/OHIF-AI fork's source delta vs pristine OHIF `d383be7c` (the additive nnInteractive
-feature + its supporting in-place edits). They are split by concern so each piece can be
-reviewed and re-validated independently when upgrading OHIF.
+These patches are applied with `git apply` to a pristine upstream OHIF checkout during the Docker
+build. They should stay small. The nnInteractive feature itself should live in the local extension
+and mode packages, not as edits inside OHIF source files.
 
-This started as a split of the historical single `ohif-ai.patch`; after the extension/mode
-extraction, the remaining patch files now only carry the in-place residue that still touches
-upstream OHIF source.
+## Patch Order
 
-> **Why this document exists.** Every patch here edits OHIF's *own source files in place*
-> (a true fork-by-overwrite), rather than adding functionality through OHIF's supported
-> extension points. That works, but it makes every OHIF upgrade a manual re-validation of
-> ~3,000 changed lines, and it lets bugs hide as diffs buried inside OHIF files (e.g. the
-> DICOM-SEG `SegmentAlgorithmType` regression — a one-line corruption inside a 90-line
-> in-place rewrite of `generateSegmentation`). This README documents, per patch, **why it
-> exists, whether it is truly needed, and whether a cleaner "derive-and-extend" alternative
-> exists** so the in-place residue can be shrunk over time. The audit was verified against the
-> pristine upstream tree at `d383be7c` and the OHIF docs
-> (<https://docs.ohif.org/platform/extensions/>, <https://docs.ohif.org/platform/modes/>).
+Patches apply in filename order:
 
----
+1. `00-deps-build.patch`
+2. `10-nninteractive-app.patch`
+3. `20-nninteractive-cornerstone.patch`
+4. `30-nninteractive-ui.patch`
 
-## TL;DR — the big picture
+Removed historical patch buckets:
 
-`platform/app/pluginConfig.json` now registers `@kaapana/extension-nninteractive` and
-`@kaapana/mode-nninteractive` beside the standard `@ohif/extension-*` packages. The historical fork
-was delivered by patching built-in packages (`extension-default`, `extension-cornerstone`,
-`extension-cornerstone-dicom-seg`, `platform/ui-next`, `platform/core`, `mode-longitudinal`) in
-place; the current work is shrinking that in-place residue into the kaapana extension + mode.
-
-The large majority of that delta is **purely additive** and could live in a dedicated extension +
-custom mode, using OHIF mechanisms that already exist at this version:
-
-| Patch | Concern | Truly needs a patch? | Clean home (future work) |
-|---|---|---|---|
-| `00-deps-build` | dep version pins, root `resolutions`, lerna, tailwind CSS, webpack/rsbuild guards | **Yes — build/deps** | Unavoidable (must match `../yarn.lock`). Only the 23-line scrollbar CSS could ship in an extension. |
-| `10-nninteractive-app` | default study sort + right panel width residue | **Mostly extracted** | Commands, AI toolbox, `toolboxState`, and `multipart` now live in `@kaapana/extension-nninteractive`; only two OHIF default-layout/default-sort edits remain. |
-| `20-nninteractive-cornerstone` | small core SEG/stat/jump fixes after panel extraction | **Mostly extracted** | Command overrides, prompt tools, measurement mappings, stats header customization, SEG overlay tools, prompt metadata stamping, active-viewport init, and the segmentation panel now live in `@kaapana/extension-nninteractive`; only small core residue remains. |
-| `30-nninteractive-ui` | platform UI residue after table/icon extraction | **Mostly extracted** | Icons → `Icons.addIcon()` in `preRegistration`; SegmentationTable/DataRow fork → `@kaapana/extension-nninteractive`; remaining hunks are SidePanel styling/scrolling and hover activation. |
-| `40-platform-core` | hotkeys, MeasurementService visibility-on-load, MetadataProvider, ViewportGrid | **Extracted — patch removed** | Hotkeys → mode customization; MeasurementService visibility-on-load → extension subscriber; MetadataProvider → extension metadata provider; ViewportGrid stale closure → app config `activateViewportBeforeInteraction:false` with hover activation. |
-| `50-mode` | `aiToolBox` toolbar section, prompt-tool buttons, tool groups | **Extracted — patch removed** | `@kaapana/mode-nninteractive` owns the layout, toolbar sections, prompt-tool buttons, tool groups, and now points at the kaapana panel composition. |
-| `60-version-bump` | version strings | **Removed** | Dockerfile `OHIF_VERSION`/`OHIF_COMMIT` args now generate `version.json`, `version.txt`, and `commit.txt`. |
-
-### Current in-place residue register
-
-Only `00`, `10`, `20`, and `30` are still in the Dockerfile patch path. `40`, `50`, and `60` have
-been removed from `patches/*.patch`; their former behavior now lives in the extension, mode, app
-config, or Dockerfile metadata generation.
-
-| Patch/file | Why it remains in-place |
+| Former bucket | Current home |
 |---|---|
-| `00-deps-build.patch` | Build/dependency layer: package pins, root `resolutions`, workspace scripts, and version-specific node-module patches must match `yarn.lock`. |
-| `10` / `PanelStudyBrowser.tsx` | OHIF v3.10 has no extension/mode hook for default study-browser sort; this is a small default-UX override. |
-| `10` / `ViewerLayout/constants/panels.ts` | OHIF v3.10 keeps default panel widths in layout constants; the nnInteractive right panel needs more room. |
-| `20` / `OHIFCornerstoneSEGViewport.tsx` | SEG reload should preserve source-series spacing metadata instead of falling back to SEG pixel measures; small correctness fix. |
-| `20` / `CustomizableViewportOverlay.tsx` | Uses `getCurrentImageId()` so overlay instance numbers follow the displayed image, even when imageIds and slice positions are ordered differently. |
-| `20` / `commandsModule.ts` | Keeps measurements attached to the replacement stored-SEG display set after store/export flow swaps segmentation ids. |
-| `20` / `ViewportSegmentationMenu.tsx` | Removing a segmentation must also clear nnInteractive prompt measurements; no menu-level extension hook exists here. |
-| `20` / `SegmentationService.ts` | Hydrates `SegmentDescription` for SEG source-series round-trip and supports nnInteractive's numeric STACK slice center in jump/highlight. |
-| `20` / `updateSegmentationStats.ts` | Displays segment volume in `cm3` in OHIF's stock stats surface; can move only with a fully owned stats surface. |
-| `30` / `SidePanel.tsx` | Wraps the right side panel in a scroll container and applies the Kaapana panel background; no narrow styling hook in OHIF v3.10. |
-| `30` / `ViewportPane.tsx` | Hover activation pairs with `activateViewportBeforeInteraction:false` so tool interactions land on the active viewport without stealing the first pointer event. |
+| platform hotkeys / metadata provider / measurement visibility | `packages/mode-nninteractive/src/index.ts` and `packages/extension-nninteractive/src/preRegistration.ts` |
+| toolbar sections, prompt-tool buttons, tool groups, mode layout | `packages/mode-nninteractive/` |
+| version files | generated by `Dockerfile` from `OHIF_VERSION` and `OHIF_COMMIT` |
 
-### The target architecture ("derive and extend", not overwrite)
+## Ownership Rules
 
-Introduce **two new packages, COPYed into the build and registered in `pluginConfig.json`** (the
-Dockerfile already shows the seam — it `COPY`s `pluginConfig.json` and could `COPY` package dirs):
+| Kind of change | Preferred home |
+|---|---|
+| nnInteractive commands, panels, prompt logic, icons, measurement mappings, subscriptions | `packages/extension-nninteractive/` |
+| toolbar buttons, hotkeys, tool-group composition, layout | `packages/mode-nninteractive/` |
+| OHIF app/package dependency pins and workspace build changes | `00-deps-build.patch` |
+| tiny OHIF source behavior gaps with no extension hook in OHIF 3.10 | smallest possible `patches/*.patch` hunk |
+| Cornerstone/vtk internals | `../node-module-patches/` |
 
-1. **`@kaapana/extension-nninteractive`**
-   - `getCommandsModule` → the 12 `nninter*` commands (patch 10) **and** same-named overrides of
-     `generateSegmentation` / `downloadSegmentation` / `storeSegmentation` (patch 20). *(Override all
-     three together: `download`/`store` call `actions.generateSegmentation` directly, not via
-     `commandsManager`.)*
-   - `getPanelModule` → the AI Toolbox panel (patch 10's `isAIToolBox` branch) + the fork's
-     `PanelSegmentation` (patch 20), so OHIF's `Toolbox.tsx`/`getPanelModule`/`PanelSegmentation`
-     stay pristine.
-   - `getUtilityModule` → `toolboxState`, `multipart` (patch 10).
-   - `getCustomizationModule` → replace `panelSegmentation.customSegmentStatisticsHeader` (patch 20),
-     extend `cornerstone.overlayViewportTools` (patch 20, currently *bypassed*).
-   - `preRegistration` → `cornerstoneTools.addTool(Probe2Tool, …)`, `measurementService.addMapping(…)`
-     for the prompt-tool mappings, `Icons.addIcon('tool-nninter', …)` (patch 30 icons),
-     `measurementService` live-mode subscriptions, and a `viewportGridService`
-     active-viewport subscription (replacing the `TrackedMeasurementsContext` edit).
-2. **`@kaapana/mode-nninteractive`** — owns the `aiToolBox` toolbar sections, tool-group
-   memberships, layout (`rightPanelClosed:false`), and declares the extension above as a dependency.
-   This absorbs patch 50 and the former patch-40 hotkey overrides.
+If a patch hunk starts growing feature logic, move that logic into the extension or mode and leave
+only the hook/residue in this directory.
 
-   *UX caveat:* the feature is meant to appear in the **default** workflow Kaapana already routes to.
-   A separate mode adds a route/mode-selector step — preserve current UX by making it the default
-   (only) mode in `pluginConfig.json`.
+## Current Residue Register
 
-### What stays in-place — the **strict** lens (exact hooks only)
+### `00-deps-build.patch`
 
-The verdicts in this README come in two flavors, because "extensionizable" depends on how strict you
-are. The **strict** lens calls something extensionizable only when an exact OHIF hook reproduces its
-behavior *identically*. Under that lens a small residue remains, most of it best fixed by
-**upstreaming a hook to OHIF**:
+Purpose: make the fetched OHIF workspace resolve and build with the pinned dependency tree in
+`../yarn.lock`.
 
-- **`00-deps-build`** — dependency pins / `resolutions` / build config. Structural; must match
-  `../yarn.lock`. *This is the patch most likely to break on an OHIF bump.*
-- **A handful of core bug-fixes / behavior hooks** with no extension seam (mostly patch 20): the
-  `CustomizableViewportOverlay`'s unsorted-imageIds instance-number fix and related tiny
-  Cornerstone/SEG residue. The former patch-40 `MeasurementService`, `MetadataProvider`, hotkey, and
-  `ViewportGrid` edits now have relaxed equivalents in the extension/mode/app config.
-  → remaining in-place residue is an **upstream PR candidate**
-  (several are genuine correctness fixes useful to everyone).
-- **Small platform UI defaults** (patch 10 & 30): default study-browser sort, right panel width,
-  SidePanel scroll/background tweaks, and `ViewportPane` hover activation. These are now the main
-  non-core UX residue.
+Why it remains:
 
-### The **relaxed** lens: reimplement *beside* OHIF, don't edit *inside* it
+- pins OHIF workspace package versions and peer versions
+- pins Cornerstone/vtk versions targeted by `../node-module-patches/`
+- carries root `resolutions`
+- removes unused workspace packages from the build path
+- keeps build tooling compatible with the frozen lockfile
+- includes the shared scrollbar CSS consumed by the side panel residue
 
-If you relax "identical behavior" to **"functionally equivalent, may look/behave a little
-differently,"** almost everything except `00-deps-build` can leave the in-place patches. The trick is
-to run an equivalent path *beside* OHIF rather than editing OHIF's own path:
+Move? No, except the CSS could move later if the side panel patch is removed.
 
-| Instead of editing OHIF's… | …ship your own equivalent | Delta you accept |
-|---|---|---|
-| shared component (SegmentationTable, overlay item) | your own component via `getPanelModule` / a `CustomizationService` slot | looks slightly different; a maintained fork that won't auto-inherit OHIF's UI fixes |
-| inline hook in a service handler (`toolLoad` hide, `neg`/`manualCorrection` stamp) | a **parallel event listener** (`MEASUREMENT_ADDED` / `ANNOTATION_ADDED`) in `preRegistration` | possible 1-frame flicker / handler-ordering quirk |
-| `MetadataProvider` internals (pixel-spacing coercion) | a **registered metadata provider** (`cornerstone.metaData.addProvider`, higher priority) | must confirm consumers read the provider chain |
-| internal overlay helper (instance-number) | a **custom overlay item** via the `viewportOverlay` customization | none material |
-| shared component styling (`SidePanel` scroll/color) | **CSS you ship** (the `.side-panel-scrollable` class already exists) | none material |
-| a new service method | a **command or util** in your extension | callers must be redirected to it |
-| a hardcoded default (panel width, study-browser sort, viewport activation) | a **config flag** (`activateViewportBeforeInteraction`) or a runtime apply on `DISPLAY_SETS_CHANGED` (patch 10 already does the sort this way) | none material |
+### `10-nninteractive-app.patch`
 
-Under the relaxed lens the irreducible residue collapses to essentially **just `00-deps-build`** (plus
-anything you *choose* to keep in-place). The per-file tables below carry a **"Relaxed-equivalent"**
-column showing where each strict-residue item moves.
+Purpose: small default-app UI residue.
 
-**Rule of thumb for which lens to apply:**
-- **Large additive / UI chunks** (most of 10, 20, 30, 50) and anything you'd fork anyway → the
-  **relaxed extension** is the clear win: OHIF upgrades stop conflicting *in OHIF's tree*.
-- **Tiny core correctness one-liners** (`MetadataProvider`, the overlay instance-number, the
-  `ViewportGrid` stale-closure) → a 2-line in-place patch is fine, and these are genuine bugs that
-  belong **upstream** anyway; owning a whole custom provider/overlay to change one value is more code
-  for little gain.
-- **Behavioral deltas are real:** the parallel-listener approaches can flicker or reorder — verify in
-  the viewer before adopting.
+Remaining hunks:
 
----
+| File | Why it remains |
+|---|---|
+| `extensions/default/src/Panels/StudyBrowser/PanelStudyBrowser.tsx` | Applies Kaapana's default study-browser series sort. OHIF 3.10 has no narrow config hook for this default. |
+| `extensions/default/src/ViewerLayout/constants/panels.ts` | Gives the right panel enough width for the combined segmentation + nnInteractive controls. OHIF 3.10 stores this as a constant. |
 
-## Per-patch detail
+Move? Optional. A custom study-browser panel and fully owned layout could remove this patch, but the
+current two hunks are small and easy to revalidate.
 
-### `00-deps-build.patch` — BUILD/DEPS · unavoidable
+### `20-nninteractive-cornerstone.patch`
 
-**Goal.** Make dependency resolution reproduce the fork's pinned tree so `../yarn.lock` and
-`../node-module-patches/` (Cornerstone 3.33.5 / vtk 32.12.0) apply cleanly.
+Purpose: small Cornerstone/OHIF integration residue after the nnInteractive behavior moved into the
+extension.
 
-**What it does.** Mechanical `@ohif/* 3.10.2 → 3.10.4` bump across ~25 `package.json` + `lerna.json`
-(keeps workspace peers self-consistent); real pins — `@cornerstonejs/* ^3.11.7`, `dcmjs 0.42.0`,
-`webpack 5.104.1`, `webpack-dev-server 5.2.1`, `swiper ^12`, `lucide-react ^0.394`; a root
-`resolutions` block (+27 entries — mostly CVE/transitive hygiene, plus `axios`/`protobufjs` used by
-the nnInteractive client); workspace edits (`packageManager: yarn@1.22.22`, remove `platform/cli`,
-`--skip-nx-cache`); 23 lines of `.side-panel-scrollable` CSS in `tailwind.css`; and `existsSync`
-guards around `commit.txt` reads in `rsbuild.config.ts` / `.webpack/webpack.base.js`.
+Extracted behavior now lives in:
 
-**Needed?** Yes. Versions, `resolutions`, lerna and the workspace/script edits are build-level and
-cannot be expressed as an extension. The only non-build content is the scrollbar CSS (could ship in
-an extension's stylesheet — negligible payoff). The Dockerfile now writes `commit.txt` from
-`OHIF_COMMIT`, so the guards are a fallback rather than the normal path.
+- `packages/extension-nninteractive/src/commandsModule.ts`
+- `packages/extension-nninteractive/src/preRegistration.ts`
+- `packages/extension-nninteractive/src/tools/promptTools.ts`
+- `packages/extension-nninteractive/src/panels/PanelSegmentation.tsx`
+- `packages/extension-nninteractive/src/panels/SegmentationTable/`
+- `packages/extension-nninteractive/src/customizations/CustomSegmentStatisticsHeader.tsx`
 
-**Future work.** Keep as-is. **Re-validate against `../yarn.lock` on every OHIF bump** — the
-`resolutions` block in particular will drift with upstream and CVE advisories.
+Remaining hunks:
 
-### `10-nninteractive-app.patch` — mostly extracted; tiny residue
+| Area | Why it remains |
+|---|---|
+| SEG viewport spacing/source metadata | Keeps SEG reload aligned with the source series instead of trusting derived SEG spacing in all cases. |
+| viewport overlay image id lookup | Uses the displayed image id for instance metadata when image order and slice order diverge. |
+| store/export SEG metadata residue | Keeps measurements attached to the stored SEG display set after ids are replaced. |
+| segmentation removal cleanup | Clears prompt measurements when a segmentation is removed from the stock menu. |
+| `SegmentationService` SegmentDescription hydration | Preserves stored prompt metadata and supports numeric STACK slice centers for jump/highlight. |
+| stock stats volume display | Shows segment volume in `cm3` in the stock stats path. |
 
-**Goal.** Historically this added the nnInteractive *behavior* (commands), the *panel UI* (AI
-Toolbox), and two helper modules in `extensions/default`. Those additive parts now live in
-`@kaapana/extension-nninteractive`; this patch only carries the two remaining default-UI tweaks.
+Move? Some can move if we fully own the affected UI path. The source-series and overlay fixes are
+also good upstream candidates because they are not specific to nnInteractive.
 
-**What it does.**
-- `PanelStudyBrowser.tsx` (+14): default series sort on load. Kaapana residue: OHIF v3.10 has no
-  extension hook for the default study-browser sort.
-- `panels.ts` (+3/−2): wider right panel. Kaapana residue: OHIF v3.10 keeps default panel widths in
-  layout constants.
+### `30-nninteractive-ui.patch`
 
-**Moved out of this patch.**
-- `packages/extension-nninteractive/src/commandsModule.ts`: 12 nnInteractive commands — session
-  lifecycle (`initNninter`, `nninterSessionStatus`, `closeNninterSession`), the core `nninter`
-  inference call, `undoNninter`/`resetNninter`/`resetSegment`,
-  `applyNninterManualCorrection`, `setAiToolActive`/`runAiSegmentation`,
-  `jumpToSegment`/`toggleCurrentSegment`, plus the live-mode measurement subscriptions.
-- `packages/extension-nninteractive/src/panels/NnInteractivePanel.tsx`: the AI toolbox UI, hotkeys,
-  availability/session polling, prompt tools, manual correction controls, and export button.
-- `packages/extension-nninteractive/src/utils/toolboxState.ts` and `src/utils/multipart.ts`: the
-  module-singleton UI-state store and multipart/gzip response parser.
-- `packages/extension-nninteractive/src/getPanelModule.tsx`: exposes both `aiToolBox` and a
-  `panelSegmentationWithTools` composition that renders the extension-owned AI toolbox before the
-  cornerstone segmentation panel.
-- `packages/mode-nninteractive/src/index.ts`: now selects
-  `@kaapana/extension-nninteractive.panelModule.panelSegmentationWithTools`.
+Purpose: tiny platform UI residue after icons and the segmentation table moved into the extension.
 
-**Needed as a patch?** Only the two small residue hunks remain. Both are unrelated to nnInteractive
-proper and are **upstream-PR candidates** unless OHIF gains a mode/config hook for default
-study-browser sorting and panel widths.
+Extracted behavior now lives in:
 
-### `20-nninteractive-cornerstone.patch` — mostly extracted; panel/core residue
+- icon registration: `packages/extension-nninteractive/src/preRegistration.ts`
+- icon components: `packages/extension-nninteractive/src/icons/`
+- table/panel fork: `packages/extension-nninteractive/src/panels/SegmentationTable/`
 
-Integration glue into `extension-cornerstone` + `extension-cornerstone-dicom-seg`. Per-file verdict:
+Remaining hunks:
 
-| File | Strict verdict | Clean home | Relaxed-equivalent |
-|---|---|---|---|
-| `customizations/CustomSegmentStatisticsHeader.tsx` | **EXTRACTED** | `packages/extension-nninteractive/src/customizations/CustomSegmentStatisticsHeader.tsx` registered by `getCustomizationModule`. | — |
-| `cornerstone-dicom-seg/.../initSEGToolGroup.ts` | **EXTRACTED** | restored upstream hook; `getCustomizationModule` provides `cornerstone.overlayViewportTools`. | — |
-| `measurementServiceMappingsFactory.ts`, `constants/supportedTools.js`, `initMeasurementService.ts` (mappings) | **EXTRACTED** | prompt tool aliases are registered with `measurementService.addMapping(…)` in `preRegistration`. | — |
-| `initCornerstoneTools.js` | **EXTRACTED** | prompt tool subclasses are registered with `cornerstoneTools.addTool(…)` in `preRegistration`; the mode uses literal tool names instead of patched `toolNames.*` exports. | — |
-| `extensions/cornerstone/commandsModule.ts`, `cornerstone-dicom-seg/commandsModule.ts` | **MOSTLY EXTRACTED** | command overrides live in `packages/extension-nninteractive/src/commandsModule.ts`; one tiny core residue keeps measurement metadata pointed at the stored SEG display set after `createReportAsync`. | move with a forked store flow later |
-| `getPanelModule.tsx`, `panels/PanelSegmentation.tsx` | **EXTRACTED** | `packages/extension-nninteractive/src/panels/PanelSegmentation.tsx` owns the segmentation panel and passes nnInteractive-specific handlers into the local table fork. | — |
-| `Viewport/OHIFCornerstoneViewport.tsx` | **NO-OP — ✅ removed** | hunk deleted. | — |
-| `services/SegmentationService/SegmentationService.ts` | **small in-place / upstream-PR** | SegmentDescription hydration plus a numeric-center STACK jump path. The public measurement-visibility methods and dead `MEASUREMENT_VISIBILITY_CHANGED` event are **✅ removed**. | custom SEG metadata hydration / extension jump helper if we want zero core edit |
-| `initMeasurementService.ts` (metadata stamp) | **EXTRACTED** | `preRegistration` registers a parallel `ANNOTATION_ADDED` listener that stamps `metadata.neg`/`manualCorrection`. | verify ordering in browser; move into a forked prompt-tool adapter if needed |
-| `ViewportSegmentationMenu.tsx`, `updateSegmentationStats.ts` (cm³), `CustomizableViewportOverlay.tsx`, `OHIFCornerstoneSEGViewport.tsx`, `TrackedMeasurementsContext.tsx` | **small in-place / upstream-PR** | mostly bug-fixes → upstream; `TrackedMeasurementsContext` is now replaced by a `viewportGridService` subscription in `preRegistration`. | overlay → **custom overlay item**; cm³ → **own stats component**; SEG spacing → **custom metadata provider** |
+| File | Why it remains |
+|---|---|
+| `platform/ui-next/src/components/SidePanel.tsx` | Adds right-panel scrolling/background behavior needed by the combined panel. |
+| `platform/app/src/routes/Mode/ViewerViewportGrid/ViewportPane.tsx` | Activates the viewport on hover, paired with `activateViewportBeforeInteraction:false` in `files/kaapana.js`. |
 
-**Why command-override beats in-place rewrite:** the recently-fixed `SegmentAlgorithmName = seriesInstanceUid`
-bug lived buried inside this patch's 90-line in-place `generateSegmentation` rewrite. As an
-extension command-override it is now a self-contained, reviewable unit. Remaining effort is the
-handful of small upstream-style fixes above.
+Move? Optional. This can be removed if the extension/mode owns the whole side panel experience or if
+OHIF gains styling/activation hooks.
 
-### `30-nninteractive-ui.patch` — mostly extracted; tiny platform UI residue
+## Extension/Mode Boundary
 
-**Goal.** Render the prompt-tool icons and the per-segment/multi-select SegmentationTable UI that
-the extension-owned `PanelSegmentation` feeds.
+`@kaapana/extension-nninteractive` owns:
 
-| File(s) | Strict verdict | Clean home | Relaxed-equivalent |
-|---|---|---|---|
-| 4 NEW `Icons/Sources/Tool*.tsx` + `Icons.tsx` (+12) + `Tools.tsx` (+3) | **Extracted — patch removed** | `packages/extension-nninteractive/src/preRegistration.ts` registers the icons with `Icons.addIcon(name, component)`. | — already clean |
-| `StudyBrowserSort.tsx` (+2/−1) | **Removed** | runtime/default sort is already covered by patch 10; no platform UI hunk needed. | — already clean |
-| `SegmentStatistics.tsx`, `DataRow.tsx`, `SegmentationSegments.tsx`, `AddSegmentRow.tsx`, `SegmentationTableContext.tsx` | **EXTRACTED** | copied into `packages/extension-nninteractive/src/panels/SegmentationTable/*` and consumed by the extension panel. | accept UI drift from upstream table updates |
-| `SidePanel.tsx` (+10), `ViewportPane.tsx` (+1) | **upstream-PR** | scrollable panel; hover-to-activate (now paired with `activateViewportBeforeInteraction:false` in app config). | `SidePanel` → **shipped CSS**; `ViewportPane` → **config** / viewport wrapper |
+- backend session lifecycle and inference commands
+- prompt measurement collection and nnInteractive request payloads
+- SEG store/download command overrides
+- AI toolbox panel
+- segmentation panel/table fork
+- prompt tool subclasses
+- icon registration
+- measurement mappings and runtime metadata stamping
+- metadata providers and visibility subscriptions
+- customization slots for stats header and overlay tools
 
-**Quality flags (fix regardless of patch-vs-extension):** ✅ `SegmentationSegments.tsx` no longer
-uses a **500 ms `setInterval` poll** to re-render measurement visibility; it now listens only to the
-shared `measurement-state-changed` signal, and all known visibility-change sites dispatch that
-signal. Remaining table cleanup: it still reaches into `commandsManager` from a shared
-presentational component; visibility would be cleaner if passed through context. `SidePanel.tsx`
-hardcodes `backgroundColor:'#090c29'` (use a theme token).
+`@kaapana/mode-nninteractive` owns:
 
-### `40-platform-core.patch` — ✅ extracted and removed
+- mode id and route behavior
+- default layout panel composition
+- toolbar sections and buttons
+- prompt/manual brush tool-group membership
+- hotkey preferences
 
-| File | Strict verdict | Clean home | Relaxed-equivalent |
-|---|---|---|---|
-| `platform/app/public/config/docker-nginx-orthanc.js` (+12) | **DEAD — ✅ removed** | never loaded (kaapana uses `kaapana.js`); hunk deleted. | — |
-| `core/src/defaults/hotkeyBindings.ts` (+22/−10) | **EXTRACTED** | `packages/mode-nninteractive/src/index.ts` sets `ohif.hotkeyBindings` during mode entry. | — |
-| `core/.../MeasurementService.ts` (+13) | **EXTRACTED** | `packages/extension-nninteractive/src/preRegistration.ts` subscribes to `MEASUREMENT_ADDED` and hides `metadata.toolLoad` measurements. | accepts possible 1-frame flicker versus core inline hide |
-| `core/src/classes/MetadataProvider.ts` (+2/−2) | **EXTRACTED** | `preRegistration` registers a high-priority Cornerstone metadata provider returning numeric spacing. | — |
-| `platform/app/.../ViewportGrid.tsx` (+9/−1) | **EXTRACTED** | `files/kaapana.js` sets `activateViewportBeforeInteraction:false`, so hover activation from patch 30 does not swallow the first pointer event while React catches up. | — |
+## Upgrade Checklist
 
-### `50-mode.patch` — ✅ extracted into `@kaapana/mode-nninteractive`
+On every OHIF bump:
 
-**Goal.** Wire the feature into the longitudinal workflow: swap to `panelSegmentationWithTools`,
-open the right panel by default, and (in `onModeEnter`) `createButtonSection(…)` for the `aiToolBox`
-sections; add tool-group memberships (`initToolGroups.js`) and ~483 lines of button definitions
-(`toolbarButtons.ts`).
-
-**Needed as a patch?** No — toolbar sections, `onModeEnter` tool-group setup, and layout are exactly
-what a **custom mode** owns. This patch has been removed. Its patched `initToolGroups.js`,
-`toolbarButtons.ts`, and longitudinal layout changes now live in `packages/mode-nninteractive/`,
-which the Dockerfile copies to `/src/modes/nninteractive` before `yarn install`.
-
-**Current bridge.** The mode now references
-`@kaapana/extension-nninteractive.panelModule.panelSegmentationWithTools`. That kaapana panel
-composition owns both the AI toolbox and the segmentation panel/table fork.
-
-**UX tradeoff.** Editing `longitudinal` directly is a deliberate *delivery* choice: the tools must
-appear in the default viewer Kaapana routes to, not behind a new mode tile. Preserve that by making
-the custom mode the default in `pluginConfig.json` (or accept one extra selection step). Effort:
-**low** for the mode shell; **medium-high** for the full extension+mode refactor.
-
-### `60-version-bump.patch` — ✅ removed
-
-`version.json`, `version.txt`, and `commit.txt` are generated in the Dockerfile from `OHIF_VERSION`
-and `OHIF_COMMIT`, then copied into the final nginx image. The same args also populate final-image
-labels (`VERSION`, `OHIF_VERSION`, `OHIF_COMMIT`). This keeps source pinning and displayed/build
-metadata in one place, and avoids a tracked patch whose `version.txt` hunk was effectively a no-op.
-
----
-
-## Recommended sequencing (future work)
-
-1. **Quick wins, no upstream needed.** ✅ *Done:* deleted the dead `docker-nginx-orthanc.js` hunk,
-   the no-op `OHIFCornerstoneViewport.tsx` comment, the dead `MEASUREMENT_VISIBILITY_CHANGED`
-   service event, the patch-20/30 segmentation panel/table coupling, and the extension-owned
-   `SegmentationSegments` 500 ms poll. *Needs a UI smoke test:* confirm measurement visibility icons
-   update immediately after per-segment toggles, prompt hide/show, and generated bidirectional stats.
-2. **Scaffold `extension-nninteractive` and move the additive bulk.** ✅ *Done:* commands (10, 20),
-   utilities + AI panel (10), icons via `addIcon` (30), measurement mappings + `addTool`,
-   customization overrides, SEG command overrides, behavioral subscribers, and the segmentation panel
-   now live in the copied/registered package.
-3. **Scaffold `mode-nninteractive`** for toolbar sections, tool groups, layout, and hotkeys. ✅ *Done:*
-   the package is copied into the OHIF workspace, registered as the default mode, and owns the former
-   patch-50 mode changes plus the former patch-40 hotkey overrides through `ohif.hotkeyBindings`.
-4. **Close the strict-residue gaps — optional next step.** Either **upstream PRs** for the genuine hooks (a
-   study-browser default-sort + panel-width customization; an "initial measurement visibility" hook;
-   and the `CustomizableViewportOverlay` / `MetadataProvider` / `ViewportGrid` correctness fixes);
-   **or** apply the **relaxed-equivalent** reimplementations now (own table components, parallel event
-   listeners, a custom metadata provider, a custom overlay item, shipped CSS, config flags) to avoid
-   waiting on upstream — accepting the UI-drift / flicker tradeoffs noted in the relaxed-lens section.
-   Heuristic: tiny correctness one-liners → upstream; large UI chunks → relaxed extension.
-5. **Residue that stays a patch under *either* lens:** `00-deps-build` (and `../node-module-patches/`).
-
----
-
-## Upgrading OHIF
-
-Bump `OHIF_VERSION` and `OHIF_COMMIT` in the `Dockerfile`, then re-validate each patch applies
-(regenerate the hunks for any whose target files upstream moved). The dependency layer (`00`) must
-stay in sync with `../yarn.lock` and the `../node-module-patches/` Cornerstone/vtk patches (currently
-3.33.5 / 32.12.0).
-
-Every in-place patch above is a re-validation cost on each upgrade; the smaller the in-place residue
-(see "future work"), the cheaper the next bump.
+1. Apply `patches/*.patch` to the new pristine OHIF checkout.
+2. For each failed hunk, decide whether it still belongs as a patch or should move into the extension/mode.
+3. Keep hunks small and documented in the residue register above.
+4. Rebuild the Docker image.
+5. Smoke test point, box, scribble, lasso, negative prompts, manual brush add/erase, store/export SEG,
+   stored SEG reload, and generated stats.

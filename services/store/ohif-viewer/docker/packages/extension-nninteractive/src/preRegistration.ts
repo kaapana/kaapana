@@ -3,9 +3,6 @@ import {
   Enums,
   addTool,
   annotation as cornerstoneAnnotation,
-  ProbeTool,
-  RectangleROITool,
-  PlanarFreehandROITool,
 } from '@cornerstonejs/tools';
 import { Icons } from '@ohif/ui-next';
 
@@ -13,27 +10,17 @@ import ToolNninter from './icons/ToolNninter';
 import ToolSam from './icons/ToolSam';
 import ToolTarget from './icons/ToolTarget';
 import ToolVoxTell from './icons/ToolVoxTell';
+import {
+  Probe2Tool,
+  RectangleROI2Tool,
+  PlanarFreehandROI2Tool,
+  PlanarFreehandROI3Tool,
+} from './tools/promptTools';
 import { dispatchMeasurementStateChanged } from './utils/measurementStateChanged';
 import { toolboxState } from './utils/toolboxState';
 
 const CORNERSTONE_3D_TOOLS_SOURCE_NAME = 'Cornerstone3DTools';
 const CORNERSTONE_3D_TOOLS_SOURCE_VERSION = '0.1';
-
-class Probe2Tool extends ProbeTool {
-  static toolName = 'Probe2';
-}
-
-class RectangleROI2Tool extends RectangleROITool {
-  static toolName = 'RectangleROI2';
-}
-
-class PlanarFreehandROI2Tool extends PlanarFreehandROITool {
-  static toolName = 'PlanarFreehandROI2';
-}
-
-class PlanarFreehandROI3Tool extends PlanarFreehandROITool {
-  static toolName = 'PlanarFreehandROI3';
-}
 
 const PROMPT_TOOL_NAMES = ['Probe2', 'RectangleROI2', 'PlanarFreehandROI2', 'PlanarFreehandROI3'];
 let annotationMetadataStampingRegistered = false;

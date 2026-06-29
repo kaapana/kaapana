@@ -6,7 +6,9 @@ CCI-Bonn/OHIF-AI fork's source delta vs pristine OHIF `d383be7c` (the additive n
 feature + its supporting in-place edits). They are split by concern so each piece can be
 reviewed and re-validated independently when upgrading OHIF.
 
-The combined result is byte-for-byte identical to the historical single `ohif-ai.patch`.
+This started as a split of the historical single `ohif-ai.patch`; after the extension/mode
+extraction, the remaining patch files now only carry the in-place residue that still touches
+upstream OHIF source.
 
 > **Why this document exists.** Every patch here edits OHIF's *own source files in place*
 > (a true fork-by-overwrite), rather than adding functionality through OHIF's supported
@@ -37,10 +39,30 @@ custom mode, using OHIF mechanisms that already exist at this version:
 | `00-deps-build` | dep version pins, root `resolutions`, lerna, tailwind CSS, webpack/rsbuild guards | **Yes — build/deps** | Unavoidable (must match `../yarn.lock`). Only the 23-line scrollbar CSS could ship in an extension. |
 | `10-nninteractive-app` | default study sort + right panel width residue | **Mostly extracted** | Commands, AI toolbox, `toolboxState`, and `multipart` now live in `@kaapana/extension-nninteractive`; only two OHIF default-layout/default-sort edits remain. |
 | `20-nninteractive-cornerstone` | small core SEG/stat/jump fixes after panel extraction | **Mostly extracted** | Command overrides, prompt tools, measurement mappings, stats header customization, SEG overlay tools, prompt metadata stamping, active-viewport init, and the segmentation panel now live in `@kaapana/extension-nninteractive`; only small core residue remains. |
-| `30-nninteractive-ui` | platform UI residue after table/icon extraction | **Mostly extracted** | Icons → `Icons.addIcon()` in `preRegistration`; SegmentationTable/DataRow fork → `@kaapana/extension-nninteractive`; remaining hunks are SidePanel styling/scrolling, default sort, and hover activation. |
+| `30-nninteractive-ui` | platform UI residue after table/icon extraction | **Mostly extracted** | Icons → `Icons.addIcon()` in `preRegistration`; SegmentationTable/DataRow fork → `@kaapana/extension-nninteractive`; remaining hunks are SidePanel styling/scrolling and hover activation. |
 | `40-platform-core` | hotkeys, MeasurementService visibility-on-load, MetadataProvider, ViewportGrid | **Extracted — patch removed** | Hotkeys → mode customization; MeasurementService visibility-on-load → extension subscriber; MetadataProvider → extension metadata provider; ViewportGrid stale closure → app config `activateViewportBeforeInteraction:false` with hover activation. |
 | `50-mode` | `aiToolBox` toolbar section, prompt-tool buttons, tool groups | **Extracted — patch removed** | `@kaapana/mode-nninteractive` owns the layout, toolbar sections, prompt-tool buttons, tool groups, and now points at the kaapana panel composition. |
 | `60-version-bump` | version strings | **Removed** | Dockerfile `OHIF_VERSION`/`OHIF_COMMIT` args now generate `version.json`, `version.txt`, and `commit.txt`. |
+
+### Current in-place residue register
+
+Only `00`, `10`, `20`, and `30` are still in the Dockerfile patch path. `40`, `50`, and `60` have
+been removed from `patches/*.patch`; their former behavior now lives in the extension, mode, app
+config, or Dockerfile metadata generation.
+
+| Patch/file | Why it remains in-place |
+|---|---|
+| `00-deps-build.patch` | Build/dependency layer: package pins, root `resolutions`, workspace scripts, and version-specific node-module patches must match `yarn.lock`. |
+| `10` / `PanelStudyBrowser.tsx` | OHIF v3.10 has no extension/mode hook for default study-browser sort; this is a small default-UX override. |
+| `10` / `ViewerLayout/constants/panels.ts` | OHIF v3.10 keeps default panel widths in layout constants; the nnInteractive right panel needs more room. |
+| `20` / `OHIFCornerstoneSEGViewport.tsx` | SEG reload should preserve source-series spacing metadata instead of falling back to SEG pixel measures; small correctness fix. |
+| `20` / `CustomizableViewportOverlay.tsx` | Uses `getCurrentImageId()` so overlay instance numbers follow the displayed image, even when imageIds and slice positions are ordered differently. |
+| `20` / `commandsModule.ts` | Keeps measurements attached to the replacement stored-SEG display set after store/export flow swaps segmentation ids. |
+| `20` / `ViewportSegmentationMenu.tsx` | Removing a segmentation must also clear nnInteractive prompt measurements; no menu-level extension hook exists here. |
+| `20` / `SegmentationService.ts` | Hydrates `SegmentDescription` for SEG source-series round-trip and supports nnInteractive's numeric STACK slice center in jump/highlight. |
+| `20` / `updateSegmentationStats.ts` | Displays segment volume in `cm3` in OHIF's stock stats surface; can move only with a fully owned stats surface. |
+| `30` / `SidePanel.tsx` | Wraps the right side panel in a scroll container and applies the Kaapana panel background; no narrow styling hook in OHIF v3.10. |
+| `30` / `ViewportPane.tsx` | Hover activation pairs with `activateViewportBeforeInteraction:false` so tool interactions land on the active viewport without stealing the first pointer event. |
 
 ### The target architecture ("derive and extend", not overwrite)
 
@@ -264,14 +286,14 @@ metadata in one place, and avoids a tracked patch whose `version.txt` hunk was e
    service event, the patch-20/30 segmentation panel/table coupling, and the extension-owned
    `SegmentationSegments` 500 ms poll. *Needs a UI smoke test:* confirm measurement visibility icons
    update immediately after per-segment toggles, prompt hide/show, and generated bidirectional stats.
-2. **Scaffold `extension-nninteractive`** and move the additive bulk: commands (10, 20),
-   utilities + AI panel (10), icons via `addIcon` (30), measurement mappings + `addTool` +
-   customization overrides `CustomSegmentStatisticsHeader` / `overlayViewportTools` (20). Register in
-   `pluginConfig.json`; `COPY` the package in the Dockerfile.
-3. **Scaffold `mode-nninteractive`** for toolbar sections, tool groups, layout, and hotkeys. ✅ *Done
-   for patch 50 and patch 40:* the package is copied into the OHIF workspace, registered as the
-   default mode, and owns the former core hotkey overrides through `ohif.hotkeyBindings`.
-4. **Close the strict-residue gaps — two options.** Either **upstream PRs** for the genuine hooks (a
+2. **Scaffold `extension-nninteractive` and move the additive bulk.** ✅ *Done:* commands (10, 20),
+   utilities + AI panel (10), icons via `addIcon` (30), measurement mappings + `addTool`,
+   customization overrides, SEG command overrides, behavioral subscribers, and the segmentation panel
+   now live in the copied/registered package.
+3. **Scaffold `mode-nninteractive`** for toolbar sections, tool groups, layout, and hotkeys. ✅ *Done:*
+   the package is copied into the OHIF workspace, registered as the default mode, and owns the former
+   patch-50 mode changes plus the former patch-40 hotkey overrides through `ohif.hotkeyBindings`.
+4. **Close the strict-residue gaps — optional next step.** Either **upstream PRs** for the genuine hooks (a
    study-browser default-sort + panel-width customization; an "initial measurement visibility" hook;
    and the `CustomizableViewportOverlay` / `MetadataProvider` / `ViewportGrid` correctness fixes);
    **or** apply the **relaxed-equivalent** reimplementations now (own table components, parallel event

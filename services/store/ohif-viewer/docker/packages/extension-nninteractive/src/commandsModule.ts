@@ -130,6 +130,111 @@ function getClosedFreehandBoundaryIJK(measurement: any, viewport: any): number[]
     ]);
 }
 
+function getMeasurementWorldPoints(measurement: any): number[][] {
+  const candidates = [
+    measurement?.points,
+    measurement?.data?.handles?.points,
+    measurement?.data?.contour?.polyline,
+    ...Object.values(measurement?.data ?? {}).flatMap((value: any) => [
+      value?.points,
+      value?.polyline,
+      value?.handles?.points,
+      value?.contour?.polyline,
+    ]),
+  ];
+
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate) || candidate.length === 0) {
+      continue;
+    }
+
+    const points = candidate
+      .filter(point => Array.isArray(point) && point.length >= 3)
+      .map(point => point.slice(0, 3).map(Number))
+      .filter(point => point.every(Number.isFinite));
+
+    if (points.length > 0) {
+      return points;
+    }
+  }
+
+  return [];
+}
+
+function worldToIJKForMeasurement(point: number[], measurement: any, viewport: any): number[] | undefined {
+  const imageData = viewport?.getImageData?.()?.imageData ?? viewport?.getImageData?.();
+  if (!imageData || !csUtils.transformWorldToIndex) {
+    return;
+  }
+
+  const ijk = csUtils.transformWorldToIndex(imageData, point);
+  if (!ijk?.length || !ijk.every(Number.isFinite)) {
+    return;
+  }
+
+  const viewportImageIds = viewport?.getImageIds?.() ?? [];
+  const referencedSliceIndex = viewportImageIds.indexOf(measurement?.referencedImageId);
+
+  return [
+    Math.round(ijk[0]),
+    Math.round(ijk[1]),
+    referencedSliceIndex >= 0 ? referencedSliceIndex : Math.round(ijk[2]),
+  ];
+}
+
+function getPromptPointIJK(measurement: any, viewport: any): number[] | undefined {
+  const cachedIndex = Object.values(measurement?.data ?? {}).find(
+    (value: any) => value?.index?.length === 3
+  ) as any;
+  if (cachedIndex?.index?.length === 3) {
+    return cachedIndex.index.map((value: number) => Math.round(value));
+  }
+
+  const [worldPoint] = getMeasurementWorldPoints(measurement);
+  return worldPoint ? worldToIJKForMeasurement(worldPoint, measurement, viewport) : undefined;
+}
+
+function getRectangleBoxIJK(measurement: any, viewport: any): number[][] | undefined {
+  const cachedPoints = Object.values(measurement?.data ?? {}).find(
+    (value: any) => value?.pointsInShape?.length
+  ) as any;
+  if (cachedPoints?.pointsInShape?.length) {
+    return [cachedPoints.pointsInShape.at(0).pointIJK, cachedPoints.pointsInShape.at(-1).pointIJK];
+  }
+
+  const ijkPoints = getMeasurementWorldPoints(measurement)
+    .map(point => worldToIJKForMeasurement(point, measurement, viewport))
+    .filter(Boolean) as number[][];
+
+  if (ijkPoints.length === 0) {
+    return;
+  }
+
+  const xValues = ijkPoints.map(point => point[0]);
+  const yValues = ijkPoints.map(point => point[1]);
+  const z = ijkPoints[0][2];
+
+  return [
+    [Math.min(...xValues), Math.min(...yValues), z],
+    [Math.max(...xValues), Math.max(...yValues), z],
+  ];
+}
+
+function getOpenFreehandIJK(measurement: any, viewport: any): number[][] | undefined {
+  const cachedScribble = Object.values(measurement?.data ?? {}).find(
+    (value: any) => value?.scribble?.length
+  ) as any;
+  if (cachedScribble?.scribble?.length) {
+    return cachedScribble.scribble.map((point: number[]) => point.map(value => Math.round(value)));
+  }
+
+  const ijkPoints = getMeasurementWorldPoints(measurement)
+    .map(point => worldToIJKForMeasurement(point, measurement, viewport))
+    .filter(Boolean) as number[][];
+
+  return ijkPoints.length ? ijkPoints : undefined;
+}
+
 
 
 const commandsModule = ({
@@ -155,18 +260,28 @@ const commandsModule = ({
     return Object.values(measurement?.data ?? {});
   };
 
+  const getActiveCornerstoneViewport = () => {
+    const { activeViewportId } = viewportGridService.getState();
+    return cornerstoneViewportService.getCornerstoneViewport(activeViewportId);
+  };
+
   const measurementHasPromptPayload = (measurement: any): boolean => {
     const values = getMeasurementDataValues(measurement);
+    const activeViewport = getActiveCornerstoneViewport();
 
     switch (measurement?.toolName) {
       case 'Probe2':
-        return values.some((value: any) => value?.index?.length === 3);
+        return values.some((value: any) => value?.index?.length === 3) ||
+          !!getPromptPointIJK(measurement, activeViewport);
       case 'RectangleROI2':
-        return values.some((value: any) => value?.pointsInShape?.length);
+        return values.some((value: any) => value?.pointsInShape?.length) ||
+          !!getRectangleBoxIJK(measurement, activeViewport);
       case 'PlanarFreehandROI3':
-        return values.some((value: any) => value?.boundary?.length);
+        return values.some((value: any) => value?.boundary?.length) ||
+          !!getClosedFreehandBoundaryIJK(measurement, activeViewport);
       case 'PlanarFreehandROI2':
-        return values.some((value: any) => value?.scribble?.length);
+        return values.some((value: any) => value?.scribble?.length) ||
+          !!getOpenFreehandIJK(measurement, activeViewport);
       default:
         return true;
     }
@@ -1644,28 +1759,28 @@ const commandsModule = ({
       const neg_scribbles: any[] = [];
       const probe2Labels: string[] = [];
       const seriesUID = currentDisplaySets.SeriesInstanceUID;
+      const activeViewport = cornerstoneViewportService.getCornerstoneViewport(activeViewportId);
       for (const e of currentMeasurements) {
         if (e.referenceSeriesUID !== seriesUID || e.metadata.SegmentNumber !== segmentNumber) continue;
         const isNeg = !!e.metadata.neg;
-        const dataValues = getMeasurementDataValues(e);
         if (e.toolName === 'Probe2') {
-          const index = dataValues.find((value: any) => value?.index?.length === 3)?.index;
+          const index = getPromptPointIJK(e, activeViewport);
           if (!index) {
             continue;
           }
           (isNeg ? neg_points : pos_points).push(index);
           if (!isNeg && !textPrompts) probe2Labels.push(e.label);
         } else if (e.toolName === 'RectangleROI2') {
-          const pts = dataValues.find((value: any) => value?.pointsInShape?.length)?.pointsInShape;
-          if (!pts?.length) {
+          const box = getRectangleBoxIJK(e, activeViewport);
+          if (!box?.length) {
             continue;
           }
-          (isNeg ? neg_boxes : pos_boxes).push([pts.at(0).pointIJK, pts.at(-1).pointIJK]);
+          (isNeg ? neg_boxes : pos_boxes).push(box);
         } else if (e.toolName === 'PlanarFreehandROI3') {
-          const b = dataValues.find((value: any) => value?.boundary?.length)?.boundary;
+          const b = getClosedFreehandBoundaryIJK(e, activeViewport);
           if (b) (isNeg ? neg_lassos : pos_lassos).push(b);
         } else if (e.toolName === 'PlanarFreehandROI2') {
-          const s = dataValues.find((value: any) => value?.scribble?.length)?.scribble;
+          const s = getOpenFreehandIJK(e, activeViewport);
           if (s) (isNeg ? neg_scribbles : pos_scribbles).push(s);
         }
       }

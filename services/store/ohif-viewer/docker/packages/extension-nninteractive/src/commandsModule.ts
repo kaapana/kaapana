@@ -1,25 +1,39 @@
-import { utils, Types } from '@ohif/core';
+import dcmjs from 'dcmjs';
+import { DicomMetadataStore, utils, Types } from '@ohif/core';
 import {
   Enums as csToolsEnums,
   Types as cstTypes,
   segmentation as csToolsSegmentation,
 } from '@cornerstonejs/tools';
+import * as cornerstoneTools from '@cornerstonejs/tools';
 import { updateLabelmapSegmentationImageReferences } from '@cornerstonejs/tools/segmentation/updateLabelmapSegmentationImageReferences';
 import {
   cache,
   imageLoader,
+  metaData,
   Types as csTypes,
   utilities as csUtils,
   VolumeViewport3D,
   eventTarget,
 } from '@cornerstonejs/core';
+import { adaptersSEG, helpers } from '@cornerstonejs/adapters';
+import { createReportDialogPrompt } from '@ohif/extension-default';
 import axios from 'axios';
 
+import PROMPT_RESPONSES from '../../default/src/utils/_shared/PROMPT_RESPONSES';
 import { updateSegmentationStats } from '../../cornerstone/src/utils/updateSegmentationStats';
+import { updateSegmentBidirectionalStats } from '../../cornerstone/src/utils/updateSegmentationStats';
+import { useSegmentationPresentationStore } from '../../cornerstone/src/stores';
 import { toolboxState } from './utils/toolboxState';
 import { parseMultipart } from './utils/multipart';
 
 const LABELMAP = csToolsEnums.SegmentationRepresentations.Labelmap;
+const { downloadDICOMData } = helpers;
+const {
+  Cornerstone3D: {
+    Segmentation: { generateSegmentation: generateSEGFromLabelmap },
+  },
+} = adaptersSEG;
 
 /** Tracks the last series initialized by initNninter to detect study/series changes. */
 let _lastInitSeries: string | undefined = undefined;
@@ -120,6 +134,7 @@ function getClosedFreehandBoundaryIJK(measurement: any, viewport: any): number[]
 const commandsModule = ({
   servicesManager,
   commandsManager,
+  extensionManager,
 }: Types.Extensions.ExtensionParams): Types.Extensions.CommandsModule => {
   const {
     customizationService,
@@ -127,6 +142,9 @@ const commandsModule = ({
     uiNotificationService,
     viewportGridService,
     displaySetService,
+    segmentationService,
+    cornerstoneViewportService,
+    toolGroupService,
   } = servicesManager.services;
 
   const aiPromptToolNames = ['Probe2', 'PlanarFreehandROI2', 'PlanarFreehandROI3', 'RectangleROI2'];
@@ -448,6 +466,343 @@ const commandsModule = ({
 
 
   const actions = {
+    runSegmentBidirectional: async ({ segmentationId, segmentIndex } = {}) => {
+      const activeViewportId = viewportGridService.getActiveViewportId();
+      const activeSegmentation = segmentationService.getActiveSegmentation(activeViewportId);
+      const activeSegment = segmentationService.getActiveSegment(activeViewportId);
+      const targetId = segmentationId || activeSegmentation?.segmentationId;
+      const targetIndex = segmentIndex ?? activeSegment?.segmentIndex;
+
+      if (!targetId || targetIndex == null) {
+        return;
+      }
+
+      const bidirectionalData = await cornerstoneTools.utilities.segmentation.getSegmentLargestBidirectional({
+        segmentationId: targetId,
+        segmentIndices: [targetIndex],
+      });
+
+      bidirectionalData.forEach(measurement => {
+        const { segmentIndex, majorAxis, minorAxis, referencedImageId } = measurement;
+        const annotation = cornerstoneTools.SegmentBidirectionalTool.hydrate(
+          activeViewportId,
+          [majorAxis, minorAxis],
+          {
+            segmentIndex,
+            segmentationId: targetId,
+            referencedImageId,
+          }
+        );
+
+        measurement.annotationUID = annotation.annotationUID;
+
+        const isVisible = cornerstoneTools.annotation.visibility.isAnnotationVisible(
+          annotation.annotationUID
+        );
+        if (isVisible) {
+          cornerstoneTools.annotation.visibility.setAnnotationVisibility(
+            annotation.annotationUID,
+            false
+          );
+        }
+
+        const updatedSegmentation = updateSegmentBidirectionalStats({
+          segmentationId: targetId,
+          segmentIndex: targetIndex,
+          bidirectionalData: measurement,
+          segmentationService,
+          annotation,
+        });
+
+        if (updatedSegmentation) {
+          segmentationService.addOrUpdateSegmentation({
+            segmentationId: targetId,
+            segments: updatedSegmentation.segments,
+          });
+        }
+      });
+    },
+
+    updateStoredSegmentationPresentation: ({ displaySet, type }) => {
+      const { addSegmentationPresentationItem, clearSegmentationPresentationStore } =
+        useSegmentationPresentationStore.getState();
+
+      clearSegmentationPresentationStore();
+      commandsManager.run('clearMeasurements');
+
+      const referencedDisplaySetInstanceUID = displaySet.referencedDisplaySetInstanceUID;
+      addSegmentationPresentationItem(referencedDisplaySetInstanceUID, {
+        segmentationId: displaySet.displaySetInstanceUID,
+        hydrated: true,
+        type,
+      });
+    },
+
+    toggleToolActiveToolbar: ({ value, itemId, toolName, toolGroupIds = [] }) => {
+      toolName = toolName || itemId || value;
+      toolGroupIds = toolGroupIds.length ? toolGroupIds : toolGroupService.getToolGroupIds();
+
+      const { activeViewportId } = viewportGridService.getState();
+      const activeToolGroup = toolGroupService.getToolGroupForViewport(activeViewportId);
+      const isCurrentlyActive = activeToolGroup?.getActivePrimaryMouseButtonTool() === toolName;
+
+      if (isCurrentlyActive) {
+        toolGroupIds.forEach(toolGroupId => {
+          const tg = toolGroupService.getToolGroup(toolGroupId);
+          if (tg?.hasTool(toolName)) {
+            tg.setToolPassive(toolName);
+          }
+          if (tg?.hasTool('Pan')) {
+            commandsManager.run('setToolActive', { toolName: 'Pan', toolGroupId });
+          }
+        });
+        return;
+      }
+
+      commandsManager.run('setToolActiveToolbar', { value, itemId, toolName, toolGroupIds });
+    },
+
+    toggleSegmentMeasurement: ({ segmentationId, segmentIndex }) => {
+      measurementService
+        .getMeasurements()
+        .filter(
+          measurement =>
+            measurement?.metadata?.segmentationId === segmentationId &&
+            measurement?.metadata?.SegmentNumber === segmentIndex
+        )
+        .forEach(measurement => {
+          measurementService.toggleVisibilityMeasurement(measurement.uid, !measurement.isVisible);
+        });
+    },
+
+    getSegmentMeasurementVisibility: ({ segmentationId, segmentIndex }) => {
+      const selectedMeasurements = measurementService
+        .getMeasurements()
+        .filter(
+          measurement =>
+            measurement?.metadata?.segmentationId === segmentationId &&
+            measurement?.metadata?.SegmentNumber === segmentIndex
+        );
+
+      return selectedMeasurements.some(measurement => measurement.isVisible);
+    },
+
+    toggleSegmentationVisibilityAllViewports: ({ segmentationId, type }) => {
+      const viewportIds = cornerstoneViewportService.getViewportIds();
+      let targetSegmentationId = segmentationId;
+
+      if (!targetSegmentationId) {
+        const activeViewportId = viewportGridService.getActiveViewportId();
+        const activeSegmentation = segmentationService.getActiveSegmentation(activeViewportId);
+        if (!activeSegmentation) {
+          console.warn('No active segmentation found');
+          return;
+        }
+        targetSegmentationId = activeSegmentation.segmentationId;
+      }
+
+      const representationType = type || LABELMAP;
+      viewportIds.forEach(viewportId => {
+        segmentationService.toggleSegmentationRepresentationVisibility(viewportId, {
+          segmentationId: targetSegmentationId,
+          type: representationType,
+        });
+      });
+    },
+
+    removeSegmentationFromViewport: ({ segmentationId }) => {
+      commandsManager.runCommand('resetNninter', { clearMeasurements: true });
+      segmentationService.removeSegmentationRepresentations(viewportGridService.getActiveViewportId(), {
+        segmentationId,
+      });
+    },
+
+    async generateSegmentation({ segmentationId, options = {} }) {
+      const segmentation = csToolsSegmentation.state.getSegmentation(segmentationId);
+      const { imageIds } = segmentation.representationData.Labelmap;
+      const segImages = imageIds.map(imageId => cache.getImage(imageId));
+      const referencedImageIds = segImages.map(image => image?.referencedImageId);
+
+      await Promise.all(
+        referencedImageIds.map(referencedImageId => {
+          if (!referencedImageId || cache.getImage(referencedImageId)) {
+            return Promise.resolve();
+          }
+          return imageLoader.loadAndCacheImage(referencedImageId).catch(error => {
+            console.warn(`Failed to load referenced image ${referencedImageId}:`, error);
+          });
+        })
+      );
+
+      const referencedImages = segImages.map(image =>
+        image?.referencedImageId ? cache.getImage(image.referencedImageId) : null
+      );
+      const labelmaps2D = [];
+
+      let z = 0;
+      for (const segImage of segImages) {
+        const segmentsOnLabelmap = new Set();
+        const pixelData = segImage.getPixelData();
+        const { rows, columns } = segImage;
+
+        for (let i = 0; i < pixelData.length; i++) {
+          const segment = pixelData[i];
+          if (segment !== 0) {
+            segmentsOnLabelmap.add(segment);
+          }
+        }
+
+        labelmaps2D[z++] = {
+          segmentsOnLabelmap: Array.from(segmentsOnLabelmap),
+          pixelData,
+          rows,
+          columns,
+        };
+      }
+
+      const allSegmentsOnLabelmap = labelmaps2D.map(labelmap => labelmap.segmentsOnLabelmap);
+      const labelmap3D = {
+        segmentsOnLabelmap: Array.from(new Set(allSegmentsOnLabelmap.flat())),
+        metadata: [],
+        labelmaps2D,
+      };
+      const segmentationInOHIF = segmentationService.getSegmentation(segmentationId);
+      const representations = segmentationService.getRepresentationsForSegmentation(segmentationId);
+
+      Object.entries(segmentationInOHIF.segments).forEach(([segmentIndex, segment]: [string, any]) => {
+        if (!segment) {
+          return;
+        }
+
+        const firstRepresentation = representations[0];
+        const color = segmentationService.getSegmentColor(
+          firstRepresentation.viewportId,
+          segmentationId,
+          segment.segmentIndex
+        );
+        const RecommendedDisplayCIELabValue = dcmjs.data.Colors.rgb2DICOMLAB(
+          color.slice(0, 3).map(value => value / 255)
+        ).map(value => Math.round(value));
+
+        let segmentMetadata: any = {};
+        if (segmentation.cachedStats.data !== undefined && segmentation.cachedStats.data.length > 1) {
+          segmentMetadata = segmentation.cachedStats.data
+            .filter(e => e !== undefined && e !== null)
+            .find(e => e.SegmentNumber == segmentIndex);
+          if (segmentMetadata !== undefined && Object.keys(segmentMetadata).length !== 0) {
+            segmentMetadata.SegmentNumber = segmentIndex.toString();
+            segmentMetadata.SegmentLabel = segment.label;
+            segmentMetadata.RecommendedDisplayCIELabValue = RecommendedDisplayCIELabValue;
+            segmentMetadata.SegmentAlgorithmType = 'SEMIAUTOMATIC';
+          }
+        }
+
+        if (segmentMetadata === undefined || Object.keys(segmentMetadata).length === 0) {
+          segmentMetadata = {
+            SegmentNumber: segmentIndex.toString(),
+            SegmentLabel: segment.label,
+            SegmentAlgorithmType: segment?.algorithmType || 'MANUAL',
+            SegmentAlgorithmName: segment?.algorithmName || 'OHIF Brush',
+            RecommendedDisplayCIELabValue,
+            SegmentedPropertyCategoryCodeSequence: {
+              CodeValue: 'T-D0050',
+              CodingSchemeDesignator: 'SRT',
+              CodeMeaning: 'Tissue',
+            },
+            SegmentedPropertyTypeCodeSequence: {
+              CodeValue: 'T-D0050',
+              CodingSchemeDesignator: 'SRT',
+              CodeMeaning: 'Tissue',
+            },
+          };
+        }
+
+        if (segment.cachedStats?.description !== undefined) {
+          segmentMetadata.SegmentDescription = segment.cachedStats.description;
+        }
+        if (segment.cachedStats?.algorithmName !== undefined) {
+          segmentMetadata.SegmentAlgorithmName = segment.cachedStats.algorithmName;
+        }
+        if (segment.cachedStats?.algorithmType !== undefined) {
+          segmentMetadata.SegmentAlgorithmType = ['AUTOMATIC', 'SEMIAUTOMATIC', 'MANUAL'].includes(
+            segment.cachedStats.algorithmType
+          )
+            ? segment.cachedStats.algorithmType
+            : 'SEMIAUTOMATIC';
+        }
+        if (segmentation.cachedStats.seriesInstanceUid !== undefined) {
+          segmentMetadata.SegmentAlgorithmName = segmentation.cachedStats.seriesInstanceUid;
+        }
+
+        labelmap3D.metadata[segmentIndex] = segmentMetadata;
+      });
+
+      return generateSEGFromLabelmap(referencedImages, labelmap3D, metaData, options);
+    },
+
+    async downloadSegmentation({ segmentationId }) {
+      const segmentationInOHIF = segmentationService.getSegmentation(segmentationId);
+      const generatedSegmentation = await actions.generateSegmentation({ segmentationId });
+
+      downloadDICOMData(generatedSegmentation.dataset, `${segmentationInOHIF.label}`);
+    },
+
+    async storeSegmentation({ segmentationId, dataSource }) {
+      const segmentation = segmentationService.getSegmentation(segmentationId);
+
+      if (!segmentation) {
+        throw new Error('No segmentation found');
+      }
+
+      const { label } = segmentation;
+      const defaultDataSource = dataSource ?? extensionManager.getActiveDataSource();
+      const {
+        value: reportName,
+        dataSourceName: selectedDataSource,
+        action,
+      } = await createReportDialogPrompt({
+        servicesManager,
+        extensionManager,
+        title: 'Store Segmentation',
+      });
+
+      if (action !== PROMPT_RESPONSES.CREATE_REPORT) {
+        return;
+      }
+
+      try {
+        const selectedDataSourceConfig = selectedDataSource
+          ? extensionManager.getDataSources(selectedDataSource)[0]
+          : defaultDataSource;
+        const generatedData = await actions.generateSegmentation({
+          segmentationId,
+          options: {
+            SeriesDescription: reportName || label || 'Research Derived Series',
+          },
+        });
+
+        if (!generatedData || !generatedData.dataset) {
+          throw new Error('Error during segmentation generation');
+        }
+
+        const { dataset: naturalizedReport } = generatedData;
+        const selectedDataSourceConfigNew =
+          selectedDataSourceConfig.store === undefined
+            ? selectedDataSourceConfig[0]
+            : selectedDataSourceConfig;
+
+        await selectedDataSourceConfigNew.store.dicom(naturalizedReport);
+
+        naturalizedReport.wadoRoot = selectedDataSourceConfigNew.getConfig().wadoRoot;
+        DicomMetadataStore.addInstances([naturalizedReport], true);
+
+        return naturalizedReport;
+      } catch (error) {
+        console.debug('Error storing segmentation:', error);
+        throw error;
+      }
+    },
+
     setAiToolActive: ({ toolName }: { toolName: string }) => {
       if (!toolName) {
         return;
@@ -1794,7 +2149,7 @@ const commandsModule = ({
     'toggleCurrentSegment',
   ];
 
-  const definitions = commandNames.reduce((commandDefinitions, commandName) => {
+  const definitions: Record<string, any> = commandNames.reduce((commandDefinitions, commandName) => {
     const commandFn = actions[commandName];
     if (typeof commandFn !== 'function') {
       throw new Error(`Missing nnInteractive command action: ${commandName}`);
@@ -1803,6 +2158,49 @@ const commandsModule = ({
     commandDefinitions[commandName] = { commandFn };
     return commandDefinitions;
   }, {});
+
+  Object.assign(definitions, {
+    runSegmentBidirectional: {
+      commandFn: actions.runSegmentBidirectional,
+      context: 'CORNERSTONE',
+    },
+    updateStoredSegmentationPresentation: {
+      commandFn: actions.updateStoredSegmentationPresentation,
+      context: 'CORNERSTONE',
+    },
+    toggleToolActiveToolbar: {
+      commandFn: actions.toggleToolActiveToolbar,
+      context: 'CORNERSTONE',
+    },
+    toggleSegmentMeasurement: {
+      commandFn: actions.toggleSegmentMeasurement,
+      context: 'CORNERSTONE',
+    },
+    getSegmentMeasurementVisibility: {
+      commandFn: actions.getSegmentMeasurementVisibility,
+      context: 'CORNERSTONE',
+    },
+    toggleSegmentationVisibilityAllViewports: {
+      commandFn: actions.toggleSegmentationVisibilityAllViewports,
+      context: 'CORNERSTONE',
+    },
+    removeSegmentationFromViewport: {
+      commandFn: actions.removeSegmentationFromViewport,
+      context: 'CORNERSTONE',
+    },
+    generateSegmentation: {
+      commandFn: actions.generateSegmentation,
+      context: 'SEGMENTATION',
+    },
+    downloadSegmentation: {
+      commandFn: actions.downloadSegmentation,
+      context: 'SEGMENTATION',
+    },
+    storeSegmentation: {
+      commandFn: actions.storeSegmentation,
+      context: 'SEGMENTATION',
+    },
+  });
 
   return {
     actions,

@@ -12,6 +12,13 @@ const colorsByOrientation = {
   coronal: 'rgb(0, 200, 0)',
 };
 
+const nnInteractiveToolNames = {
+  Probe2: 'Probe2',
+  RectangleROI2: 'RectangleROI2',
+  PlanarFreehandROI2: 'PlanarFreehandROI2',
+  PlanarFreehandROI3: 'PlanarFreehandROI3',
+};
+
 function initDefaultToolGroup(extensionManager, toolGroupService, commandsManager, toolGroupId) {
   const utilityModule = extensionManager.getModuleEntry(
     '@ohif/extension-cornerstone.utilityModule.tools'
@@ -64,11 +71,11 @@ function initDefaultToolGroup(extensionManager, toolGroupService, commandsManage
       { toolName: toolNames.Bidirectional },
       { toolName: toolNames.DragProbe },
       { toolName: toolNames.Probe },
-      { toolName: toolNames.Probe2 },
+      { toolName: nnInteractiveToolNames.Probe2 },
       { toolName: toolNames.EllipticalROI },
       { toolName: toolNames.CircleROI },
       { toolName: toolNames.RectangleROI },
-      { toolName: toolNames.RectangleROI2 },
+      { toolName: nnInteractiveToolNames.RectangleROI2 },
       { toolName: toolNames.StackScroll },
       { toolName: toolNames.Angle },
       { toolName: toolNames.CobbAngle },
@@ -161,8 +168,8 @@ function initDefaultToolGroup(extensionManager, toolGroupService, commandsManage
       },
       { toolName: toolNames.UltrasoundDirectional },
       { toolName: toolNames.PlanarFreehandROI },
-      { toolName: toolNames.PlanarFreehandROI2 },
-      { toolName: toolNames.PlanarFreehandROI3 },
+      { toolName: nnInteractiveToolNames.PlanarFreehandROI2 },
+      { toolName: nnInteractiveToolNames.PlanarFreehandROI3 },
       { toolName: toolNames.SplineROI },
       { toolName: toolNames.LivewireContour },
       { toolName: toolNames.WindowLevelRegion },
@@ -304,17 +311,17 @@ function initMPRToolGroup(extensionManager, toolGroupService, commandsManager) {
       { toolName: toolNames.Bidirectional },
       { toolName: toolNames.DragProbe },
       { toolName: toolNames.Probe },
-      { toolName: toolNames.Probe2 },
+      { toolName: nnInteractiveToolNames.Probe2 },
       { toolName: toolNames.EllipticalROI },
       { toolName: toolNames.CircleROI },
       { toolName: toolNames.RectangleROI },
-      { toolName: toolNames.RectangleROI2 },
+      { toolName: nnInteractiveToolNames.RectangleROI2 },
       { toolName: toolNames.StackScroll },
       { toolName: toolNames.Angle },
       { toolName: toolNames.CobbAngle },
       { toolName: toolNames.PlanarFreehandROI },
-      { toolName: toolNames.PlanarFreehandROI2 },
-      { toolName: toolNames.PlanarFreehandROI3 },
+      { toolName: nnInteractiveToolNames.PlanarFreehandROI2 },
+      { toolName: nnInteractiveToolNames.PlanarFreehandROI3 },
       { toolName: toolNames.SplineROI },
       { toolName: toolNames.LivewireContour },
       { toolName: toolNames.WindowLevelRegion },

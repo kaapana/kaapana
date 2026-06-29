@@ -36,7 +36,7 @@ custom mode, using OHIF mechanisms that already exist at this version:
 |---|---|---|---|
 | `00-deps-build` | dep version pins, root `resolutions`, lerna, tailwind CSS, webpack/rsbuild guards | **Yes — build/deps** | Unavoidable (must match `../yarn.lock`). Only the 23-line scrollbar CSS could ship in an extension. |
 | `10-nninteractive-app` | default study sort + right panel width residue | **Mostly extracted** | Commands, AI toolbox, `toolboxState`, and `multipart` now live in `@kaapana/extension-nninteractive`; only two OHIF default-layout/default-sort edits remain. |
-| `20-nninteractive-cornerstone` | command overrides, measurement mappings, prompt tools, segmentation/measurement service edits | **Partly (~60–70% movable)** | Command-overrides + `getCustomizationModule` + `measurementService.addMapping`/`addTool` in `preRegistration`. |
+| `20-nninteractive-cornerstone` | segmentation panel/table coupling + small core SEG/stat/jump fixes | **Mostly extracted** | Command overrides, prompt tools, measurement mappings, stats header customization, SEG overlay tools, prompt metadata stamping, and active-viewport init now live in `@kaapana/extension-nninteractive`; residue remains until the segmentation table is forked/upstreamed. |
 | `30-nninteractive-ui` | prompt-tool icons, SegmentationTable/DataRow UI | **Partly** | Icons → `Icons.addIcon()` in `preRegistration`. SegmentationTable edits → **upstream PR** (no slot). |
 | `40-platform-core` | hotkeys, MeasurementService visibility-on-load, MetadataProvider, ViewportGrid | **Partly** | Hotkeys → custom-mode `hotkeys`. `docker-nginx-orthanc.js` is **dead** → delete. Rest → **upstream PR**. |
 | `50-mode` | `aiToolBox` toolbar section, prompt-tool buttons, tool groups | **Extracted — patch removed** | `@kaapana/mode-nninteractive` owns the layout, toolbar sections, prompt-tool buttons, tool groups, and now points at the kaapana panel composition. |
@@ -178,27 +178,27 @@ Toolbox), and two helper modules in `extensions/default`. Those additive parts n
 proper and are **upstream-PR candidates** unless OHIF gains a mode/config hook for default
 study-browser sorting and panel widths.
 
-### `20-nninteractive-cornerstone.patch` — ~60–70% movable; the hardest patch
+### `20-nninteractive-cornerstone.patch` — mostly extracted; panel/core residue
 
 Integration glue into `extension-cornerstone` + `extension-cornerstone-dicom-seg`. Per-file verdict:
 
 | File | Strict verdict | Clean home | Relaxed-equivalent |
 |---|---|---|---|
-| `customizations/CustomSegmentStatisticsHeader.tsx` | **CUSTOMIZATION-SERVICE** | re-register `panelSegmentation.customSegmentStatisticsHeader` via `getCustomizationModule`. **Clean win.** | — already clean |
-| `cornerstone-dicom-seg/.../initSEGToolGroup.ts` | **CUSTOMIZATION-SERVICE** | use the `cornerstone.overlayViewportTools` hook it currently **bypasses** (also kills a fragile `../../../cornerstone/...` import). **Clean win.** | — already clean |
-| `measurementServiceMappingsFactory.ts`, `constants/supportedTools.js`, `initMeasurementService.ts` (mappings) | **EXTENSION-ADDITIVE** | thin aliases of base tools; `measurementService.addMapping(…)` in `preRegistration`. | — already clean |
-| `initCornerstoneTools.js` | **EXTENSION-ADDITIVE** | `cornerstoneTools.addTool(Probe2Tool, …)` in `preRegistration` (verify no `toolNames.Probe2` imports). | — already clean |
-| `extensions/cornerstone/commandsModule.ts`, `cornerstone-dicom-seg/commandsModule.ts` | **EXTENSION-COMMAND-OVERRIDE** | re-register commands (override `generate`+`download`+`store` **together**). | — already clean |
+| `customizations/CustomSegmentStatisticsHeader.tsx` | **EXTRACTED** | `packages/extension-nninteractive/src/customizations/CustomSegmentStatisticsHeader.tsx` registered by `getCustomizationModule`. | — |
+| `cornerstone-dicom-seg/.../initSEGToolGroup.ts` | **EXTRACTED** | restored upstream hook; `getCustomizationModule` provides `cornerstone.overlayViewportTools`. | — |
+| `measurementServiceMappingsFactory.ts`, `constants/supportedTools.js`, `initMeasurementService.ts` (mappings) | **EXTRACTED** | prompt tool aliases are registered with `measurementService.addMapping(…)` in `preRegistration`. | — |
+| `initCornerstoneTools.js` | **EXTRACTED** | prompt tool subclasses are registered with `cornerstoneTools.addTool(…)` in `preRegistration`; the mode uses literal tool names instead of patched `toolNames.*` exports. | — |
+| `extensions/cornerstone/commandsModule.ts`, `cornerstone-dicom-seg/commandsModule.ts` | **MOSTLY EXTRACTED** | command overrides live in `packages/extension-nninteractive/src/commandsModule.ts`; one tiny core residue keeps measurement metadata pointed at the stored SEG display set after `createReportAsync`. | move with a forked panel/store flow later |
 | `getPanelModule.tsx`, `panels/PanelSegmentation.tsx` | **PARTLY BRIDGED** | the mode now uses `@kaapana/extension-nninteractive.panelModule.panelSegmentationWithTools`, which composes the extracted AI toolbox with the existing cornerstone segmentation panel. | next step: own panel + own table/row components → drops the patch-30 dependency entirely |
 | `Viewport/OHIFCornerstoneViewport.tsx` | **NO-OP — ✅ removed** | hunk deleted. | — |
 | `services/SegmentationService/SegmentationService.ts` | **IRREDUCIBLE (strict)** | 2 public methods used by patch 30 + a numeric-center STACK jump path. (dead `MEASUREMENT_VISIBILITY_CHANGED` **✅ removed**.) | **commands/utils** in the extension; redirect patch-30 UI to call them |
-| `initMeasurementService.ts` (metadata stamp) | **IRREDUCIBLE (strict)** | stamps `metadata.neg`/`manualCorrection` inside OHIF's `ANNOTATION_ADDED` handler. | **parallel `ANNOTATION_ADDED` listener** in `preRegistration` (ordering caveat) |
-| `ViewportSegmentationMenu.tsx`, `updateSegmentationStats.ts` (cm³), `CustomizableViewportOverlay.tsx`, `OHIFCornerstoneSEGViewport.tsx`, `TrackedMeasurementsContext.tsx` | **small in-place / upstream-PR** | mostly bug-fixes → upstream; `TrackedMeasurementsContext` → `viewportGridService` subscription. | overlay → **custom overlay item**; cm³ → **own stats component**; SEG spacing → **custom metadata provider**; active-viewport → **`viewportGridService` sub** |
+| `initMeasurementService.ts` (metadata stamp) | **EXTRACTED** | `preRegistration` registers a parallel `ANNOTATION_ADDED` listener that stamps `metadata.neg`/`manualCorrection`. | verify ordering in browser; move into a forked prompt-tool adapter if needed |
+| `ViewportSegmentationMenu.tsx`, `updateSegmentationStats.ts` (cm³), `CustomizableViewportOverlay.tsx`, `OHIFCornerstoneSEGViewport.tsx`, `TrackedMeasurementsContext.tsx` | **small in-place / upstream-PR** | mostly bug-fixes → upstream; `TrackedMeasurementsContext` is now replaced by a `viewportGridService` subscription in `preRegistration`. | overlay → **custom overlay item**; cm³ → **own stats component**; SEG spacing → **custom metadata provider** |
 
 **Why command-override beats in-place rewrite:** the recently-fixed `SegmentAlgorithmName = seriesInstanceUid`
 bug lived buried inside this patch's 90-line in-place `generateSegmentation` rewrite. As an
-extension command-override it would be a self-contained, reviewable unit. Effort: **medium**
-(several full command bodies + registration order; the `ui-next` coupling is the blocker).
+extension command-override it is now a self-contained, reviewable unit. Remaining effort is the
+`ui-next` segmentation table coupling and the handful of small upstream-style fixes above.
 
 ### `30-nninteractive-ui.patch` — moderate-to-high; icons are a clean win
 

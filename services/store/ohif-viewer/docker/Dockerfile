@@ -13,7 +13,7 @@ RUN yarn config set workspaces-experimental true
 
 # Fetch PRISTINE upstream OHIF at the OHIF-AI fork's exact base commit (2 trivial commits
 # behind tag v3.10.4). No OHIF source is committed to this repo; it is fetched at build time.
-# To upgrade OHIF: bump OHIF_COMMIT and re-validate ohif-ai.patch / the backup overrides.
+# To upgrade OHIF: bump OHIF_COMMIT and re-validate patches/ + node-module-patches/.
 ARG OHIF_COMMIT=d383be7c720ec61f5bb1262ebe70893873718951
 RUN git init /src \
     && cd /src \
@@ -33,11 +33,10 @@ RUN for p in patches/*.patch; do echo "==> applying $p"; git apply --ignore-whit
 RUN rm -rf platform/cli extensions/test-extension modes/basic-dev-mode modes/basic-test-mode
 
 # 1c) Pin EXACTLY the fork's resolved dependency tree (Cornerstone 3.33.5, react-router 6.30.4, ...).
-#     Critical: the backup/ overrides below are built against these exact versions.
+#     Critical: the node-module-patches applied below are version-specific to this tree.
 COPY yarn.lock /src/yarn.lock
 
-# 2) Fork-only build inputs: Cornerstone/dcmjs/vtk runtime overrides, our plugin config, app config.
-COPY backup /src/backup
+# 2) Fork-only build inputs: our plugin config and app config.
 COPY pluginConfig.json /src/platform/app/pluginConfig.json
 COPY files/kaapana.js /src/platform/app/public/config/kaapana.js
 
@@ -45,58 +44,24 @@ ENV HTML_TEMPLATE="index.html"
 ENV PUBLIC_URL="/ohif/"
 ENV APP_CONFIG="config/kaapana.js"
 
-# 3) Kaapana customization patch (embedding toggles, auto-hydrate, robustness; also patches backup/).
+# 3) Kaapana customization patch (embedding toggles, auto-hydrate, robustness).
 COPY files/customization.patch /src/
 RUN git apply --ignore-whitespace customization.patch
 
 RUN yarn install --frozen-lockfile
 
-# Sanity: the backup/ overrides require these exact versions; fail early if resolution drifted.
+# Sanity: the node-module patches target these exact versions; fail early if resolution drifted.
 RUN V=$(node -e "console.log(JSON.parse(require('fs').readFileSync('node_modules/@cornerstonejs/tools/package.json','utf8')).version)") \
     && echo "Resolved @cornerstonejs/tools: $V" \
-    && case "$V" in 3.33.*) ;; *) echo "ERROR: expected Cornerstone 3.33.x (backup/ overrides target it), got $V"; exit 1;; esac
+    && case "$V" in 3.33.*) ;; *) echo "ERROR: expected Cornerstone 3.33.x (node-module-patches target it), got $V"; exit 1;; esac
 
-# 4) OHIF-AI patched Cornerstone/dcmjs/vtk runtime files that enable the prompt tools and the
-# labelmap update path used by nnInteractive.
-RUN rm -f node_modules/@cornerstonejs/tools/dist/esm/tools/base/AnnotationTool.js \
-    node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/ProbeTool.js \
-    node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/RectangleROITool.js \
-    node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/PlanarFreehandROITool.js \
-    node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/planarFreehandROITool/renderMethods.js \
-    node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/planarFreehandROITool/drawLoop.js \
-    node_modules/@cornerstonejs/tools/dist/esm/tools/displayTools/Labelmap/labelmapDisplay.js \
-    node_modules/@cornerstonejs/tools/dist/esm/tools/displayTools/Labelmap/addLabelmapToElement.js \
-    node_modules/@cornerstonejs/tools/dist/esm/tools/displayTools/Labelmap/removeLabelmapFromElement.js \
-    node_modules/@cornerstonejs/tools/dist/esm/cursors/elementCursor.js \
-    node_modules/@cornerstonejs/tools/dist/esm/stateManagement/segmentation/SegmentationRenderingEngine.js \
-    node_modules/@cornerstonejs/tools/dist/esm/stateManagement/segmentation/helpers/clearSegmentValue.js \
-    node_modules/@cornerstonejs/tools/dist/esm/utilities/segmentation/getSegmentLargestBidirectional.js \
-    node_modules/@cornerstonejs/tools/dist/esm/utilities/segmentation/findLargestBidirectional.js \
-    node_modules/@cornerstonejs/tools/dist/esm/workers/computeWorker.js \
-    node_modules/@cornerstonejs/tools/dist/esm/utilities/segmentation/getOrCreateImageVolume.js \
-    node_modules/@cornerstonejs/core/dist/esm/utilities/VoxelManager.js \
-    node_modules/dcmjs/build/dcmjs.es.js \
-    node_modules/@kitware/vtk.js/Filters/General/ImageMarchingSquares.js \
-    && cp backup/esm/AnnotationTool.js node_modules/@cornerstonejs/tools/dist/esm/tools/base/ \
-    && cp backup/esm/ProbeTool.js node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/ \
-    && cp backup/esm/RectangleROITool.js node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/ \
-    && cp backup/esm/PlanarFreehandROITool.js node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/ \
-    && cp backup/esm/renderMethods.js node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/planarFreehandROITool/ \
-    && cp backup/esm/drawLoop.js node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/planarFreehandROITool/ \
-    && cp backup/esm/labelmapDisplay.js node_modules/@cornerstonejs/tools/dist/esm/tools/displayTools/Labelmap/labelmapDisplay.js \
-    && cp backup/esm/addLabelmapToElement.js node_modules/@cornerstonejs/tools/dist/esm/tools/displayTools/Labelmap/addLabelmapToElement.js \
-    && cp backup/esm/removeLabelmapFromElement.js node_modules/@cornerstonejs/tools/dist/esm/tools/displayTools/Labelmap/removeLabelmapFromElement.js \
-    && cp backup/esm/performStackLabelmapUpdate.js node_modules/@cornerstonejs/tools/dist/esm/eventListeners/segmentation/labelmap/performStackLabelmapUpdate.js \
-    && cp backup/esm/elementCursor.js node_modules/@cornerstonejs/tools/dist/esm/cursors/elementCursor.js \
-    && cp backup/esm/SegmentationRenderingEngine.js node_modules/@cornerstonejs/tools/dist/esm/stateManagement/segmentation/ \
-    && cp backup/esm/clearSegmentValue.js node_modules/@cornerstonejs/tools/dist/esm/stateManagement/segmentation/helpers/ \
-    && cp backup/esm/getSegmentLargestBidirectional.js node_modules/@cornerstonejs/tools/dist/esm/utilities/segmentation/getSegmentLargestBidirectional.js \
-    && cp backup/esm/findLargestBidirectional.js node_modules/@cornerstonejs/tools/dist/esm/utilities/segmentation/findLargestBidirectional.js \
-    && cp backup/esm/computeWorker.js node_modules/@cornerstonejs/tools/dist/esm/workers/computeWorker.js \
-    && cp backup/esm/getOrCreateImageVolume.js node_modules/@cornerstonejs/tools/dist/esm/utilities/segmentation/getOrCreateImageVolume.js \
-    && cp backup/esm/VoxelManager.js node_modules/@cornerstonejs/core/dist/esm/utilities/VoxelManager.js \
-    && cp backup/dcmjs/dcmjs.es.js node_modules/dcmjs/build/dcmjs.es.js \
-    && cp backup/vtkjs/ImageMarchingSquares.js node_modules/@kitware/vtk.js/Filters/General/ImageMarchingSquares.js
+# 4) Apply the OHIF-AI Cornerstone/vtk runtime modifications as readable, version-named
+# patch-package diffs (the prompt tools + labelmap update path used by nnInteractive). These
+# REPLACE the former opaque backup/ file overwrites. patch-package fails loudly if a target
+# package's installed version drifts from the patch filename. The dcmjs override was dropped
+# (it carried no nnInteractive changes; stock dcmjs already provides SegmentDescription).
+COPY node-module-patches /src/node-module-patches
+RUN npx --yes patch-package --patch-dir node-module-patches
 
 RUN yarn run build
 

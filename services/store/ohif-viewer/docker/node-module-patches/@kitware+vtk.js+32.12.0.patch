@@ -1,0 +1,32 @@
+diff --git a/node_modules/@kitware/vtk.js/Filters/General/ImageMarchingSquares.js b/node_modules/@kitware/vtk.js/Filters/General/ImageMarchingSquares.js
+index cd00cd7..c7559cf 100644
+--- a/node_modules/@kitware/vtk.js/Filters/General/ImageMarchingSquares.js
++++ b/node_modules/@kitware/vtk.js/Filters/General/ImageMarchingSquares.js
+@@ -149,7 +149,9 @@ function vtkImageMarchingSquares(publicAPI, model) {
+           xyz[kernelY] = x0[1] + t * (x1[1] - x0[1]);
+           xyz[model.slicingMode] = z;
+           pId = points.length / 3;
+-          points.push(xyz[0], xyz[1], xyz[2]);
++          // push ijk points instead of world points, conversion is done in computeWorker.js, here it ignores the direction matrix
++          //points.push(xyz[0], xyz[1], xyz[2]);
++          points.push(ijk[0], ijk[1], ijk[2]);
+           if (model.mergePoints) {
+             edgeLocator.insertEdge(ids[edgeVerts[0]], ids[edgeVerts[1]], pId);
+           }
+@@ -169,8 +171,6 @@ function vtkImageMarchingSquares(publicAPI, model) {
+       vtkErrorMacro('Invalid or missing slicing mode');
+       return;
+     }
+-    console.time('msquares');
+-
+     // Retrieve output and volume data
+     const origin = input.getOrigin();
+     const spacing = input.getSpacing();
+@@ -212,7 +212,6 @@ function vtkImageMarchingSquares(publicAPI, model) {
+     polydata.getLines().setData(new Uint32Array(lines));
+     outData[0] = polydata;
+     vtkDebugMacro('Produced output');
+-    console.timeEnd('msquares');
+   };
+ }
+ 

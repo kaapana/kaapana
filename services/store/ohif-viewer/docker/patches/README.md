@@ -22,4 +22,4 @@ The combined result is byte-for-byte identical to the historical single `ohif-ai
 
 Bump `OHIF_COMMIT` in the `Dockerfile`, then re-validate each patch applies (regenerate the
 hunks for any whose target files upstream moved). The dependency layer (`00`) must stay in
-sync with `../yarn.lock` and the `backup/` Cornerstone overrides (currently 3.33.5).
+sync with `../yarn.lock` and the `../node-module-patches/` Cornerstone/vtk patches (currently 3.33.5 / 32.12.0).

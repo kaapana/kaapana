@@ -1,0 +1,1865 @@
+diff --git a/node_modules/@cornerstonejs/tools/dist/esm/cursors/elementCursor.js b/node_modules/@cornerstonejs/tools/dist/esm/cursors/elementCursor.js
+index 8e0b9ad..6dbe8ab 100644
+--- a/node_modules/@cornerstonejs/tools/dist/esm/cursors/elementCursor.js
++++ b/node_modules/@cornerstonejs/tools/dist/esm/cursors/elementCursor.js
+@@ -13,10 +13,12 @@ function _setElementCursor(element, cursor) {
+         : MouseCursor.getDefinedCursor('auto')).getStyleProperty();
+ }
+ function resetElementCursor(element) {
+-    _setElementCursor(element, _getElementCursors(element)[1]);
++    return;
++    //_setElementCursor(element, _getElementCursors(element)[1]);
+ }
+ function hideElementCursor(element) {
+-    _setElementCursor(element, MouseCursor.getDefinedCursor('none'));
++    return;
++    //_setElementCursor(element, MouseCursor.getDefinedCursor('none'));
+ }
+ function _getElementCursors(element) {
+     let map = _getElementCursors[ELEMENT_CURSORS_MAP];
+diff --git a/node_modules/@cornerstonejs/tools/dist/esm/eventListeners/segmentation/labelmap/performStackLabelmapUpdate.js b/node_modules/@cornerstonejs/tools/dist/esm/eventListeners/segmentation/labelmap/performStackLabelmapUpdate.js
+index c304fd8..dc72a74 100644
+--- a/node_modules/@cornerstonejs/tools/dist/esm/eventListeners/segmentation/labelmap/performStackLabelmapUpdate.js
++++ b/node_modules/@cornerstonejs/tools/dist/esm/eventListeners/segmentation/labelmap/performStackLabelmapUpdate.js
+@@ -25,10 +25,18 @@ export function performStackLabelmapUpdate({ viewportIds, segmentationId, }) {
+             if (!actorEntries?.length) {
+                 return;
+             }
++            const currentSegmentationImageIds = getCurrentLabelmapImageIdsForViewport(viewportId, segmentationId);
+             actorEntries.forEach((actorEntry, i) => {
+                 const segImageData = actorEntry.actor.getMapper().getInputData();
+-                const currentSegmentationImageIds = getCurrentLabelmapImageIdsForViewport(viewportId, segmentationId);
+-                const segmentationImage = cache.getImage(currentSegmentationImageIds[i]);
++                // Resolve each actor's labelmap image by its own referencedId; positional
++                // indexing breaks when the viewport holds more labelmap actors than current
++                // labelmap imageIds, yielding an undefined imageId that throws in cache.getImage
++                // and aborts the render trigger downstream.
++                const imageId = actorEntry.referencedId ?? currentSegmentationImageIds?.[i];
++                const segmentationImage = imageId ? cache.getImage(imageId) : undefined;
++                if (!segmentationImage) {
++                    return;
++                }
+                 segImageData.modified();
+                 csUtils.updateVTKImageDataWithCornerstoneImage(segImageData, segmentationImage);
+             });
+diff --git a/node_modules/@cornerstonejs/tools/dist/esm/stateManagement/segmentation/SegmentationRenderingEngine.js b/node_modules/@cornerstonejs/tools/dist/esm/stateManagement/segmentation/SegmentationRenderingEngine.js
+index c693c9c..3eb5919 100644
+--- a/node_modules/@cornerstonejs/tools/dist/esm/stateManagement/segmentation/SegmentationRenderingEngine.js
++++ b/node_modules/@cornerstonejs/tools/dist/esm/stateManagement/segmentation/SegmentationRenderingEngine.js
+@@ -9,6 +9,8 @@ import { addTool } from '../../store/addTool';
+ import { state } from '../../store/state';
+ import PlanarFreehandContourSegmentationTool from '../../tools/annotation/PlanarFreehandContourSegmentationTool';
+ import { getToolGroupForViewport } from '../../store/ToolGroupManager';
++import { setAnnotationSelected } from '../annotation/annotationSelection';
++
+ const renderers = {
+     [Representations.Labelmap]: labelmapDisplay,
+     [Representations.Contour]: contourDisplay,
+@@ -18,7 +20,6 @@ const planarContourToolName = PlanarFreehandContourSegmentationTool.toolName;
+ class SegmentationRenderingEngine {
+     constructor() {
+         this._needsRender = new Set();
+-        this._pendingRenderQueue = [];
+         this._animationFrameSet = false;
+         this._animationFrameHandle = null;
+         this._getAllViewports = () => {
+@@ -34,12 +35,6 @@ class SegmentationRenderingEngine {
+             this._needsRender.clear();
+             this._animationFrameSet = false;
+             this._animationFrameHandle = null;
+-            if (this._pendingRenderQueue.length > 0) {
+-                const nextViewportIds = this._pendingRenderQueue.shift();
+-                if (nextViewportIds && nextViewportIds.length > 0) {
+-                    this._setViewportsToBeRenderedNextFrame(nextViewportIds);
+-                }
+-            }
+         };
+     }
+     renderSegmentationsForViewport(viewportId) {
+@@ -78,10 +73,6 @@ class SegmentationRenderingEngine {
+         }
+     }
+     _setViewportsToBeRenderedNextFrame(viewportIds) {
+-        if (this._animationFrameSet) {
+-            this._pendingRenderQueue.push(viewportIds);
+-            return;
+-        }
+         viewportIds.forEach((viewportId) => {
+             this._needsRender.add(viewportId);
+         });
+@@ -141,6 +132,135 @@ class SegmentationRenderingEngine {
+             const element = viewport.element;
+             element.addEventListener(Enums.Events.IMAGE_RENDERED, onSegmentationRender);
+             viewport.render();
++            if(window.services.displaySetService.getDisplaySetByUID(segmentationDetails[0].segmentationId) !==undefined && window.services.measurementService.getMeasurements().length==0){
++                
++                if(window.services.displaySetService.getDisplaySetByUID(segmentationDetails[0].segmentationId).segMetadata.data.length>1 &&
++                window.services.displaySetService.getDisplaySetByUID(segmentationDetails[0].segmentationId).segMetadata.data[1].SegmentDescription !==undefined){
++                for (const data of window.services.displaySetService.getDisplaySetByUID(segmentationDetails[0].segmentationId).segMetadata.data){
++
++                    if(data===undefined){
++                        continue;
++                    }
++                    const segmentDescription = data.SegmentDescription;
++                    if (typeof segmentDescription !== 'string') {
++                        continue;
++                    }
++                    const trimmedSegmentDescription = segmentDescription.trim();
++                    if (!trimmedSegmentDescription.startsWith('{') && !trimmedSegmentDescription.startsWith('[')) {
++                        continue;
++                    }
++                    let prompts;
++                    try {
++                        prompts = JSON.parse(trimmedSegmentDescription)
++                    } catch (error) {
++                        console.debug('Skipping non-JSON segment prompt metadata', error);
++                        continue;
++                    }
++                    let SegmentNumber = data.SegmentNumber
++                    let segmentationId = segmentationDetails[0].segmentationId
++                    
++                    let posPoints = prompts.pos_points
++                    let negPoints = prompts.neg_points
++                    
++                    let pos_boxes = prompts.pos_boxes
++                    let neg_boxes = prompts.neg_boxes
++
++                    let pos_scribbles = prompts.pos_scribbles
++                    let neg_scribbles = prompts.neg_scribbles
++
++                    let pos_lassos = prompts.pos_lassos
++                    let neg_lassos = prompts.neg_lassos
++
++                    if (posPoints!== undefined && posPoints.length !== 0){
++                        const toolGroup = getToolGroupForViewport(viewport.id);
++                        const posPointTool = toolGroup.getToolInstance('Probe2')
++                        if (posPointTool!==undefined){
++                            for (const posPos of posPoints){
++                                let annotation = posPointTool._addNewAnnotationFromIndex(element, posPos, false, SegmentNumber, segmentationId)
++                                setAnnotationSelected(annotation.annotationUID);
++                            }
++                        }
++                    }
++
++                    if (negPoints!== undefined && negPoints.length !== 0){
++                        const toolGroup = getToolGroupForViewport(viewport.id);
++                        const negPointTool = toolGroup.getToolInstance('Probe2')
++                        if (negPointTool!==undefined){
++                            for (const negPos of negPoints){
++                                let annotation = negPointTool._addNewAnnotationFromIndex(element, negPos, true, SegmentNumber, segmentationId)
++                                setAnnotationSelected(annotation.annotationUID);
++                            }
++                        }
++                    }
++
++                    if (pos_boxes!== undefined && pos_boxes.length !== 0){
++                        const toolGroup = getToolGroupForViewport(viewport.id);
++                        const bboxTool = toolGroup.getToolInstance('RectangleROI2')
++                        if (bboxTool!==undefined){
++                            for (const box of pos_boxes){
++                                let annotation = bboxTool._addNewAnnotationFromIndex(element, box, false, SegmentNumber, segmentationId)
++                                setAnnotationSelected(annotation.annotationUID);
++                            }
++                        }
++                    }
++
++                    if (neg_boxes!== undefined && neg_boxes.length !== 0){
++                        const toolGroup = getToolGroupForViewport(viewport.id);
++                        const bboxTool = toolGroup.getToolInstance('RectangleROI2')
++                        if (bboxTool!==undefined){
++                            for (const box of neg_boxes){
++                                let annotation = bboxTool._addNewAnnotationFromIndex(element, box, true, SegmentNumber, segmentationId)
++                                setAnnotationSelected(annotation.annotationUID);
++                            }
++                        }
++                    }
++
++                    if (pos_lassos!== undefined && pos_lassos.length !== 0){
++                        const toolGroup = getToolGroupForViewport(viewport.id);
++                        const freehandTool = toolGroup.getToolInstance('PlanarFreehandROI3')
++                        if (freehandTool!==undefined){
++                            for (const spline of pos_lassos){
++                                let annotation = freehandTool._addNewAnnotationFromIndex(element, spline, true, false, SegmentNumber, segmentationId)
++                                setAnnotationSelected(annotation.annotationUID);
++                            }
++                        }
++                    }
++
++                    if (neg_lassos!== undefined && neg_lassos.length !== 0){
++                        const toolGroup = getToolGroupForViewport(viewport.id);
++                        const freehandTool = toolGroup.getToolInstance('PlanarFreehandROI3')
++                        if (freehandTool!==undefined){
++                            for (const spline of neg_lassos){
++                                let annotation = freehandTool._addNewAnnotationFromIndex(element, spline, true, true, SegmentNumber, segmentationId)
++                                setAnnotationSelected(annotation.annotationUID);
++                            }
++                        }
++                    }
++
++                    if (pos_scribbles!== undefined && pos_scribbles.length !== 0){
++                        const toolGroup = getToolGroupForViewport(viewport.id);
++                        const freehandTool = toolGroup.getToolInstance('PlanarFreehandROI2')
++                        if (freehandTool!==undefined){
++                            for (const polyline of pos_scribbles){
++                                let annotation = freehandTool._addNewAnnotationFromIndex(element, polyline, false, false, SegmentNumber, segmentationId)
++                                setAnnotationSelected(annotation.annotationUID);
++                            }
++                        }
++                    }
++
++                    if (neg_scribbles!== undefined && neg_scribbles.length !== 0){
++                        const toolGroup = getToolGroupForViewport(viewport.id);
++                        const freehandTool = toolGroup.getToolInstance('PlanarFreehandROI2')
++                        if (freehandTool!==undefined){
++                            for (const polyline of neg_scribbles){
++                                let annotation = freehandTool._addNewAnnotationFromIndex(element, polyline, false, true, SegmentNumber, segmentationId)
++                                setAnnotationSelected(annotation.annotationUID);
++                            }
++                        }
++                    }
++                }
++            }
++            }
+         });
+     }
+     _addPlanarFreeHandToolIfAbsent(viewport) {
+diff --git a/node_modules/@cornerstonejs/tools/dist/esm/stateManagement/segmentation/helpers/clearSegmentValue.js b/node_modules/@cornerstonejs/tools/dist/esm/stateManagement/segmentation/helpers/clearSegmentValue.js
+index ec9dad3..fa0316c 100644
+--- a/node_modules/@cornerstonejs/tools/dist/esm/stateManagement/segmentation/helpers/clearSegmentValue.js
++++ b/node_modules/@cornerstonejs/tools/dist/esm/stateManagement/segmentation/helpers/clearSegmentValue.js
+@@ -15,11 +15,17 @@ export function clearSegmentValue(segmentationId, segmentIndex) {
+                     return;
+                 }
+                 const { voxelManager } = item;
+-                voxelManager.forEach(({ value, index }) => {
+-                    if (value === segmentIndex) {
+-                        voxelManager.setAtIndex(index, 0);
+-                    }
+-                });
++                const scalarData = voxelManager.getScalarData();
++              // Check if scalarData contains segmentNumber
++              //return !scalarData.some(value => value === segmentNumber);
++              if (scalarData.some(value => value === segmentIndex)){
++                voxelManager.setScalarData(scalarData.map(v => v === segmentIndex ? 0 : v));
++              }
++              //  voxelManager.forEach(({ value, index }) => {
++              //      if (value === segmentIndex) {
++              //          voxelManager.setAtIndex(index, 0);
++              //      }
++              //  });
+             });
+         }
+         triggerSegmentationDataModified(segmentationId);
+diff --git a/node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/PlanarFreehandROITool.js b/node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/PlanarFreehandROITool.js
+index 7974efd..73bc330 100644
+--- a/node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/PlanarFreehandROITool.js
++++ b/node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/PlanarFreehandROITool.js
+@@ -1,5 +1,4 @@
+-import { AnnotationTool } from '../base';
+-import { CONSTANTS, getEnabledElement, VolumeViewport, utilities as csUtils, metaData, } from '@cornerstonejs/core';
++import { CONSTANTS, getEnabledElement, VolumeViewport, utilities as csUtils, } from '@cornerstonejs/core';
+ import { vec3 } from 'gl-matrix';
+ import { getCalibratedLengthUnitsAndScale } from '../../utilities/getCalibratedUnits';
+ import * as math from '../../utilities/math';
+@@ -80,6 +79,39 @@ class PlanarFreehandROITool extends ContourSegmentationBaseTool {
+             triggerAnnotationRenderForViewportIds(viewportIdsToRender);
+             return annotation;
+         };
++        this._addNewAnnotationFromIndex = (element, idxPos, closed = false, neg = false, SegmentNumber, segmentationId) => {
++            const enabledElement = getEnabledElement(element);
++            const { viewport, renderingEngine } = enabledElement;
++            const image = this.getTargetImageData(this.getTargetId(viewport));
++            const { imageData } = image;
++            let boundary = idxPos.map(array => csUtils.transformIndexToWorld(imageData, array));
++            const annotation = (this.constructor).createAnnotation({ metadata: viewport.getViewReference({sliceIndex: idxPos[0][2]}) },{
++                data: {
++                    contour: {
++                        polyline: [...boundary],
++                        closed: closed,
++                    },
++                    label: '',
++                    cachedStats: {[this.getTargetId(viewport)]: {}},
++                },
++                interpolationUID: '',
++                autoGenerated: false,
++            });
++            annotation.metadata.neg = neg;
++            annotation.metadata.SegmentNumber = SegmentNumber;
++            annotation.metadata.segmentationId = segmentationId;
++            annotation.metadata.toolLoad = true;
++            this._calculateCachedStats(annotation, viewport, renderingEngine, enabledElement);
++            this.addAnnotation(annotation, element);
++            const viewportIdsToRender = getViewportIdsWithToolToRender(element, this.getToolName());
++            this.editData = {
++                annotation,
++                viewportIdsToRender,
++                newAnnotation: true,
++            };
++            triggerAnnotationRenderForViewportIds(viewportIdsToRender);
++            return annotation;
++        }
+         this.handleSelectedCallback = (evt, annotation, handle) => {
+             const eventDetail = evt.detail;
+             const { element } = eventDetail;
+@@ -144,6 +176,12 @@ class PlanarFreehandROITool extends ContourSegmentationBaseTool {
+                 if (!image) {
+                     continue;
+                 }
++
++                let sliceIndex = 0
++                if (targetId.startsWith('imageId:') || targetId.startsWith('volumeId:')) {
++                    sliceIndex = viewport.getCurrentImageIdIndex();
++                }
++
+                 const { imageData, metadata } = image;
+                 const canvasCoordinates = points.map((p) => viewport.worldToCanvas(p));
+                 const modalityUnitOptions = {
+@@ -168,19 +206,20 @@ class PlanarFreehandROITool extends ContourSegmentationBaseTool {
+                     const bottomRightBBIndex = csUtils.transformWorldToIndex(imageData, bottomRightBBWorld);
+                     return [topLeftBBIndex, bottomRightBBIndex];
+                 });
+-                const canvasPoint = canvasCoordinates[0];
+-                const originalWorldPoint = viewport.canvasToWorld(canvasPoint);
+-                const deltaXPoint = viewport.canvasToWorld([
+-                    canvasPoint[0] + 1,
+-                    canvasPoint[1],
+-                ]);
+-                const deltaYPoint = viewport.canvasToWorld([
+-                    canvasPoint[0],
+-                    canvasPoint[1] + 1,
+-                ]);
+-                const deltaInX = vec3.distance(originalWorldPoint, deltaXPoint);
+-                const deltaInY = vec3.distance(originalWorldPoint, deltaYPoint);
+-                if (closed) {
++                if(annotation.metadata.toolName === 'PlanarFreehandROI2'){
++                    this.updateOpenCachedStats({
++                        metadata,
++                        imageData,
++                        canvasCoordinates,
++                        points,
++                        sliceIndex,
++                        targetId,
++                        cachedStats,
++                        modalityUnit,
++                        calibratedScale,
++                    });
++                }
++                else if (closed) {
+                     this.updateClosedCachedStats({
+                         targetId,
+                         viewport,
+@@ -191,20 +230,20 @@ class PlanarFreehandROITool extends ContourSegmentationBaseTool {
+                         cachedStats,
+                         modalityUnit,
+                         calibratedScale,
+-                        deltaInX,
+-                        deltaInY,
++                        sliceIndex,
+                     });
+                 }
+                 else {
+                     this.updateOpenCachedStats({
+                         metadata,
++                        imageData,
+                         canvasCoordinates,
++                        points,
++                        sliceIndex,
+                         targetId,
+                         cachedStats,
+                         modalityUnit,
+                         calibratedScale,
+-                        deltaInX,
+-                        deltaInY,
+                     });
+                 }
+             }
+@@ -225,6 +264,8 @@ class PlanarFreehandROITool extends ContourSegmentationBaseTool {
+                 annotationUID: annotation.annotationUID,
+             };
+             const options = this.getLinkedTextBoxStyle(styleSpecifier, annotation);
++            // Do not render text box for now
++            options.visibility = false;
+             if (!options.visibility) {
+                 return;
+             }
+@@ -277,30 +318,7 @@ class PlanarFreehandROITool extends ContourSegmentationBaseTool {
+     filterAnnotationsWithinSlice(annotations, camera, spacingInNormalDirection) {
+         const { viewPlaneNormal } = camera;
+         const annotationsWithParallelNormals = annotations.filter((td) => {
+-            let annotationViewPlaneNormal = td.metadata.viewPlaneNormal;
+-            if (!td.metadata.referencedImageId &&
+-                !annotationViewPlaneNormal &&
+-                td.metadata.FrameOfReferenceUID) {
+-                for (const point of td.data.contour.polyline) {
+-                    const vector = vec3.sub(vec3.create(), point, camera.focalPoint);
+-                    const dotProduct = vec3.dot(vector, camera.viewPlaneNormal);
+-                    if (!csUtils.isEqual(dotProduct, 0)) {
+-                        return false;
+-                    }
+-                }
+-                td.metadata.viewPlaneNormal = camera.viewPlaneNormal;
+-                td.metadata.cameraFocalPoint = camera.focalPoint;
+-                return true;
+-            }
+-            if (!annotationViewPlaneNormal) {
+-                const { referencedImageId } = td.metadata;
+-                const { imageOrientationPatient } = metaData.get('imagePlaneModule', referencedImageId);
+-                const rowCosineVec = vec3.fromValues(imageOrientationPatient[0], imageOrientationPatient[1], imageOrientationPatient[2]);
+-                const colCosineVec = vec3.fromValues(imageOrientationPatient[3], imageOrientationPatient[4], imageOrientationPatient[5]);
+-                annotationViewPlaneNormal = vec3.create();
+-                vec3.cross(annotationViewPlaneNormal, rowCosineVec, colCosineVec);
+-                td.metadata.viewPlaneNormal = annotationViewPlaneNormal;
+-            }
++            const annotationViewPlaneNormal = td.metadata.viewPlaneNormal;
+             const isParallel = Math.abs(vec3.dot(viewPlaneNormal, annotationViewPlaneNormal)) >
+                 PARALLEL_THRESHOLD;
+             return annotationViewPlaneNormal && isParallel;
+@@ -358,6 +376,9 @@ class PlanarFreehandROITool extends ContourSegmentationBaseTool {
+         const isDrawing = this.isDrawing;
+         const isEditingOpen = this.isEditingOpen;
+         const isEditingClosed = this.isEditingClosed;
++        if(annotation.metadata.toolName === 'PlanarFreehandROI3'){
++            this.configuration.allowOpenContours = false;
++        }
+         if (!(isDrawing || isEditingOpen || isEditingClosed)) {
+             if (this.configuration.displayOnePointAsCrosshairs &&
+                 annotation.data.contour.polyline.length === 1) {
+@@ -426,9 +447,69 @@ class PlanarFreehandROITool extends ContourSegmentationBaseTool {
+             }
+         }
+     }
+-    updateClosedCachedStats({ viewport, points, imageData, metadata, cachedStats, targetId, modalityUnit, canvasCoordinates, calibratedScale, deltaInX, deltaInY, }) {
++    updateClosedCachedStats({ viewport, points, imageData, metadata, cachedStats, targetId, modalityUnit, canvasCoordinates, calibratedScale,sliceIndex }) {
+         const { scale, areaUnit, unit } = calibratedScale;
++        let boundary = points.map(array => csUtils.transformWorldToIndex(imageData, array));
++        // z-coordinate should be assigned differently for stack viewport (imageId) and volume viewport (volumeId)
++        if (targetId.startsWith('imageId:')){
++            boundary = boundary.map(array => [Math.round(array[0]),Math.round(array[1]),sliceIndex]);
++        }
++        else if (targetId.startsWith('volumeId:')){
++            const axialViewport = services.cornerstoneViewportService.getCornerstoneViewport('mpr-axial') 
++                || services.cornerstoneViewportService.getCornerstoneViewport('default');
++            
++            if (!axialViewport) {
++                return;
++            }
++
++            const imageIdsInVolume = axialViewport.getImageIds();
++            if (!imageIdsInVolume?.length) {
++                return;
++            }
++
++            // Get active viewport data
++            const { activeViewportId, viewports } = services.viewportGridService.getState();
++            const activeViewportData = viewports.get(activeViewportId);
++            const displaySetInstanceUID = activeViewportData?.displaySetInstanceUIDs?.[0];
++            
++            if (!displaySetInstanceUID) {
++                return;
++            }
++
++            // Find matching display set (manual loop for optimal performance)
++            let currentDisplaySet;
++            const displaySets = services.displaySetService.activeDisplaySets;
++            for (let i = 0; i < displaySets.length; i++) {
++                if (displaySets[i].displaySetInstanceUID === displaySetInstanceUID) {
++                    currentDisplaySet = displaySets[i];
++                    break;
++                }
++            }
++
++            // Check if imageIds are flipped and correct z-coordinate if needed
++            if (currentDisplaySet?.imageIds?.[0] && 
++                imageIdsInVolume[0] !== currentDisplaySet.imageIds[0]) {
++                const imageIdsLength = imageIdsInVolume.length;
++                boundary = boundary.map(array => [
++                    Math.round(array[0]),
++                    Math.round(array[1]),
++                    imageIdsLength - Math.round(array[2]) - 1
++                ]);
++            }            
++        }
+         const { voxelManager } = viewport.getImageData();
++        const canvasPoint = canvasCoordinates[0];
++        const originalWorldPoint = viewport.canvasToWorld(canvasPoint);
++        const deltaXPoint = viewport.canvasToWorld([
++            canvasPoint[0] + 1,
++            canvasPoint[1],
++        ]);
++        const deltaYPoint = viewport.canvasToWorld([
++            canvasPoint[0],
++            canvasPoint[1] + 1,
++        ]);
++        const deltaInX = vec3.distance(originalWorldPoint, deltaXPoint);
++        const deltaInY = vec3.distance(originalWorldPoint, deltaYPoint);
+         const worldPosIndex = csUtils.transformWorldToIndex(imageData, points[0]);
+         worldPosIndex[0] = Math.floor(worldPosIndex[0]);
+         worldPosIndex[1] = Math.floor(worldPosIndex[1]);
+@@ -457,8 +538,6 @@ class PlanarFreehandROITool extends ContourSegmentationBaseTool {
+         worldPosIndex2[2] = Math.floor(worldPosIndex2[2]);
+         let area = polyline.getArea(canvasCoordinates) / scale / scale;
+         area *= deltaInX * deltaInY;
+-        let perimeter = calculatePerimeter(canvasCoordinates, closed) / scale;
+-        perimeter *= Math.sqrt(Math.pow(deltaInX, 2) + Math.pow(deltaInY, 2));
+         const iDelta = 0.01 * (iMax - iMin);
+         const jDelta = 0.01 * (jMax - jMin);
+         const kDelta = 0.01 * (kMax - kMin);
+@@ -478,94 +557,138 @@ class PlanarFreehandROITool extends ContourSegmentationBaseTool {
+         let curRow = 0;
+         let intersections = [];
+         let intersectionCounter = 0;
+-        let pointsInShape;
+-        if (voxelManager) {
+-            pointsInShape = voxelManager.forEach(this.configuration.statsCalculator.statsCallback, {
+-                imageData,
+-                isInObject: (pointLPS, _pointIJK) => {
+-                    let result = true;
+-                    const point = viewport.worldToCanvas(pointLPS);
+-                    if (point[1] != curRow) {
+-                        intersectionCounter = 0;
+-                        curRow = point[1];
+-                        intersections = getLineSegmentIntersectionsCoordinates(canvasCoordinates, point, [canvasPosEnd[0], point[1]]);
+-                        intersections.sort((function (index) {
+-                            return function (a, b) {
+-                                return a[index] === b[index]
+-                                    ? 0
+-                                    : a[index] < b[index]
+-                                        ? -1
+-                                        : 1;
+-                            };
+-                        })(0));
+-                    }
+-                    if (intersections.length && point[0] > intersections[0][0]) {
+-                        intersections.shift();
+-                        intersectionCounter++;
+-                    }
+-                    if (intersectionCounter % 2 === 0) {
+-                        result = false;
+-                    }
+-                    return result;
+-                },
+-                boundsIJK,
+-                returnPoints: this.configuration.storePointData,
+-            });
+-        }
++        const pointsInShape = voxelManager.forEach(this.configuration.statsCalculator.statsCallback, {
++            imageData,
++            isInObject: (pointLPS, _pointIJK) => {
++                let result = true;
++                const point = viewport.worldToCanvas(pointLPS);
++                if (point[1] != curRow) {
++                    intersectionCounter = 0;
++                    curRow = point[1];
++                    intersections = getLineSegmentIntersectionsCoordinates(canvasCoordinates, point, [canvasPosEnd[0], point[1]]);
++                    intersections.sort((function (index) {
++                        return function (a, b) {
++                            return a[index] === b[index]
++                                ? 0
++                                : a[index] < b[index]
++                                    ? -1
++                                    : 1;
++                        };
++                    })(0));
++                }
++                if (intersections.length && point[0] > intersections[0][0]) {
++                    intersections.shift();
++                    intersectionCounter++;
++                }
++                if (intersectionCounter % 2 === 0) {
++                    result = false;
++                }
++                return result;
++            },
++            boundsIJK,
++            returnPoints: this.configuration.storePointData,
++        });
+         const stats = this.configuration.statsCalculator.getStatistics();
+         cachedStats[targetId] = {
+             Modality: metadata.Modality,
+             area,
+-            perimeter,
++            perimeter: calculatePerimeter(canvasCoordinates, closed) / scale,
+             mean: stats.mean?.value,
+             max: stats.max?.value,
+-            min: stats.min?.value,
+             stdDev: stats.stdDev?.value,
+             statsArray: stats.array,
+             pointsInShape: pointsInShape,
++            boundary: boundary,
+             areaUnit,
+             modalityUnit,
+             unit,
+         };
+     }
+-    updateOpenCachedStats({ targetId, metadata, canvasCoordinates, cachedStats, modalityUnit, calibratedScale, deltaInX, deltaInY, }) {
++    updateOpenCachedStats({ targetId, metadata, imageData, canvasCoordinates, points, sliceIndex, cachedStats, modalityUnit, calibratedScale, }) {
+         const { scale, unit } = calibratedScale;
+-        let length = calculatePerimeter(canvasCoordinates, closed) / scale;
+-        length *= Math.sqrt(Math.pow(deltaInX, 2) + Math.pow(deltaInY, 2));
++        let polyline = points.map(array => csUtils.transformWorldToIndex(imageData, array));
++        // for StackViewport, the z-coordinate is the sliceIndex
++        if (targetId.startsWith('imageId:')) {
++            polyline = polyline.map(array => [Math.round(array[0]),Math.round(array[1]),sliceIndex]);
++        }
++        // for VolumeViewport in MPR
++        if (targetId.startsWith('volumeId:')) {
++            // Try to get axial viewport (mpr-axial first, then default fallback)
++            const axialViewport = services.cornerstoneViewportService.getCornerstoneViewport('mpr-axial') 
++                || services.cornerstoneViewportService.getCornerstoneViewport('default');
++            
++            if (!axialViewport) {
++                return;
++            }
++
++            const imageIdsInVolume = axialViewport.getImageIds();
++            if (!imageIdsInVolume?.length) {
++                return;
++            }
++
++            // Get active viewport data
++            const { activeViewportId, viewports } = services.viewportGridService.getState();
++            const activeViewportData = viewports.get(activeViewportId);
++            const displaySetInstanceUID = activeViewportData?.displaySetInstanceUIDs?.[0];
++            
++            if (!displaySetInstanceUID) {
++                return;
++            }
++
++            // Find matching display set (manual loop for optimal performance)
++            let currentDisplaySet;
++            const displaySets = services.displaySetService.activeDisplaySets;
++            for (let i = 0; i < displaySets.length; i++) {
++                if (displaySets[i].displaySetInstanceUID === displaySetInstanceUID) {
++                    currentDisplaySet = displaySets[i];
++                    break;
++                }
++            }
++
++            // Check if imageIds are flipped and correct z-coordinate if needed
++            if (currentDisplaySet?.imageIds?.[0] && 
++                imageIdsInVolume[0] !== currentDisplaySet.imageIds[0]) {
++                const imageIdsLength = imageIdsInVolume.length;
++                polyline = polyline.map(array => [
++                    Math.round(array[0]),
++                    Math.round(array[1]),
++                    imageIdsLength - Math.round(array[2]) - 1
++                ]);
++            }
++        }
++        
+         cachedStats[targetId] = {
+             Modality: metadata.Modality,
+-            length,
++            length: calculatePerimeter(canvasCoordinates, false) / scale,
+             modalityUnit,
+             unit,
++            scribble: polyline,
+         };
+     }
+ }
+ function defaultGetTextLines(data, targetId) {
+     const cachedVolumeStats = data.cachedStats[targetId];
+-    const { area, mean, stdDev, length, perimeter, max, min, isEmptyArea, unit, areaUnit, modalityUnit, } = cachedVolumeStats || {};
++    const { area, mean, stdDev, length, perimeter, max, isEmptyArea, unit, areaUnit, modalityUnit, } = cachedVolumeStats || {};
+     const textLines = [];
+-    if (csUtils.isNumber(area)) {
++    if (area) {
+         const areaLine = isEmptyArea
+             ? `Area: Oblique not supported`
+             : `Area: ${csUtils.roundNumber(area)} ${areaUnit}`;
+         textLines.push(areaLine);
+     }
+-    if (csUtils.isNumber(mean)) {
++    if (mean) {
+         textLines.push(`Mean: ${csUtils.roundNumber(mean)} ${modalityUnit}`);
+     }
+-    if (csUtils.isNumber(max)) {
++    if (Number.isFinite(max)) {
+         textLines.push(`Max: ${csUtils.roundNumber(max)} ${modalityUnit}`);
+     }
+-    if (csUtils.isNumber(min)) {
+-        textLines.push(`Min: ${csUtils.roundNumber(min)} ${modalityUnit}`);
+-    }
+-    if (csUtils.isNumber(stdDev)) {
++    if (stdDev) {
+         textLines.push(`Std Dev: ${csUtils.roundNumber(stdDev)} ${modalityUnit}`);
+     }
+-    if (csUtils.isNumber(perimeter)) {
++    if (perimeter) {
+         textLines.push(`Perimeter: ${csUtils.roundNumber(perimeter)} ${unit}`);
+     }
+-    if (csUtils.isNumber(length)) {
++    if (length) {
+         textLines.push(`${csUtils.roundNumber(length)} ${unit}`);
+     }
+     return textLines;
+diff --git a/node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/ProbeTool.js b/node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/ProbeTool.js
+index 524c91f..168edbd 100644
+--- a/node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/ProbeTool.js
++++ b/node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/ProbeTool.js
+@@ -1,44 +1,60 @@
+ import { vec2, vec3 } from 'gl-matrix';
+-import { getEnabledElement, VolumeViewport, utilities as csUtils, getEnabledElementByViewportId, } from '@cornerstonejs/core';
++import {
++    getEnabledElement,
++    VolumeViewport,
++    utilities as csUtils,
++    getEnabledElementByViewportId,
++} from '@cornerstonejs/core';
+ import { AnnotationTool } from '../base';
+-import { addAnnotation, getAnnotations, removeAnnotation, } from '../../stateManagement/annotation/annotationState';
+-import { triggerAnnotationCompleted, triggerAnnotationModified, } from '../../stateManagement/annotation/helpers/state';
++import {
++    addAnnotation,
++    getAnnotations,
++    removeAnnotation,
++} from '../../stateManagement/annotation/annotationState';
++import {
++    triggerAnnotationCompleted,
++    triggerAnnotationModified,
++} from '../../stateManagement/annotation/helpers/state';
+ import { getCalibratedProbeUnitsAndValue } from '../../utilities/getCalibratedUnits';
+-import { drawHandles as drawHandlesSvg, drawTextBox as drawTextBoxSvg, } from '../../drawingSvg';
++import { drawHandles as drawHandlesSvg, drawTextBox as drawTextBoxSvg } from '../../drawingSvg';
+ import { state } from '../../store/state';
+ import { ChangeTypes, Events } from '../../enums';
+ import { getViewportIdsWithToolToRender } from '../../utilities/viewportFilters';
+-import { resetElementCursor, hideElementCursor, } from '../../cursors/elementCursor';
++import { resetElementCursor, hideElementCursor } from '../../cursors/elementCursor';
+ import { isAnnotationVisible } from '../../stateManagement/annotation/annotationVisibility';
+ import triggerAnnotationRenderForViewportIds from '../../utilities/triggerAnnotationRenderForViewportIds';
+ import { getPixelValueUnits } from '../../utilities/getPixelValueUnits';
+ import { isViewportPreScaled } from '../../utilities/viewport/isViewportPreScaled';
+ const { transformWorldToIndex } = csUtils;
+ class ProbeTool extends AnnotationTool {
+-    static { this.toolName = 'Probe'; }
+-    static { this.probeDefaults = {
+-        supportedInteractionTypes: ['Mouse', 'Touch'],
+-        configuration: {
+-            shadow: true,
+-            preventHandleOutsideImage: false,
+-            getTextLines: defaultGetTextLines,
+-            handleRadius: '6',
+-            textCanvasOffset: {
+-                x: 6,
+-                y: -6,
++    static {
++        this.toolName = 'Probe';
++    }
++    static {
++        this.probeDefaults = {
++            supportedInteractionTypes: ['Mouse', 'Touch'],
++            configuration: {
++                shadow: true,
++                preventHandleOutsideImage: false,
++                getTextLines: defaultGetTextLines,
++                handleRadius: '6',
++                textCanvasOffset: {
++                    x: 6,
++                    y: -6,
++                },
+             },
+-        },
+-    }; }
++        };
++    }
+     constructor(toolProps = {}, defaultToolProps) {
+         super(toolProps, AnnotationTool.mergeDefaultProps(ProbeTool.probeDefaults, defaultToolProps));
+-        this.addNewAnnotation = (evt) => {
++        this.addNewAnnotation = evt => {
+             const eventDetail = evt.detail;
+             const { currentPoints, element } = eventDetail;
+             const worldPos = currentPoints.world;
+             const enabledElement = getEnabledElement(element);
+             const { viewport } = enabledElement;
+             this.isDrawing = true;
+-            const annotation = (this.constructor).createAnnotationForViewport(viewport, {
++            const annotation = this.constructor.createAnnotationForViewport(viewport, {
+                 data: {
+                     handles: { points: [[...worldPos]] },
+                 },
+@@ -56,7 +72,42 @@ class ProbeTool extends AnnotationTool {
+             triggerAnnotationRenderForViewportIds(viewportIdsToRender);
+             return annotation;
+         };
+-        this._endCallback = (evt) => {
++        this._addNewAnnotationFromIndex = (
++            element,
++            idxPos,
++            neg = false,
++            SegmentNumber,
++            segmentationId
++        ) => {
++            const enabledElement = getEnabledElement(element);
++            const { viewport, renderingEngine } = enabledElement;
++            const worldPos = viewport.getImageData().imageData.indexToWorld(idxPos);
++            this.isDrawing = true;
++            const annotation = this.constructor.createAnnotation(
++                { metadata: viewport.getViewReference({ sliceIndex: idxPos[2] }) },
++                {
++                    data: {
++                        handles: { points: [[...worldPos]] },
++                        cachedStats: { [this.getTargetId(viewport)]: {} },
++                    },
++                }
++            );
++            annotation.metadata.neg = neg;
++            annotation.metadata.SegmentNumber = SegmentNumber;
++            annotation.metadata.segmentationId = segmentationId;
++            annotation.metadata.toolLoad = true;
++            this._calculateCachedStats(annotation, renderingEngine, enabledElement);
++            addAnnotation(annotation, element);
++            const viewportIdsToRender = getViewportIdsWithToolToRender(element, this.getToolName());
++            this.editData = {
++                annotation,
++                newAnnotation: true,
++                viewportIdsToRender,
++            };
++            triggerAnnotationRenderForViewportIds(viewportIdsToRender);
++            return annotation;
++        };
++        this._endCallback = evt => {
+             const eventDetail = evt.detail;
+             const { element } = eventDetail;
+             const { annotation, viewportIdsToRender, newAnnotation } = this.editData;
+@@ -73,8 +124,7 @@ class ProbeTool extends AnnotationTool {
+             this.editData = null;
+             this.isDrawing = false;
+             this.doneEditMemo();
+-            if (this.isHandleOutsideImage &&
+-                this.configuration.preventHandleOutsideImage) {
++            if (this.isHandleOutsideImage && this.configuration.preventHandleOutsideImage) {
+                 removeAnnotation(annotation.annotationUID);
+             }
+             triggerAnnotationRenderForViewportIds(viewportIdsToRender);
+@@ -82,7 +132,7 @@ class ProbeTool extends AnnotationTool {
+                 triggerAnnotationCompleted(annotation);
+             }
+         };
+-        this._dragCallback = (evt) => {
++        this._dragCallback = evt => {
+             this.isDrawing = true;
+             const eventDetail = evt.detail;
+             const { currentPoints, element } = eventDetail;
+@@ -94,7 +144,7 @@ class ProbeTool extends AnnotationTool {
+             annotation.invalidated = true;
+             triggerAnnotationRenderForViewportIds(viewportIdsToRender);
+         };
+-        this.cancel = (element) => {
++        this.cancel = element => {
+             if (this.isDrawing) {
+                 this.isDrawing = false;
+                 this._deactivateModify(element);
+@@ -111,7 +161,7 @@ class ProbeTool extends AnnotationTool {
+                 return annotation.annotationUID;
+             }
+         };
+-        this._activateModify = (element) => {
++        this._activateModify = element => {
+             state.isInteractingWithTool = true;
+             element.addEventListener(Events.MOUSE_UP, this._endCallback);
+             element.addEventListener(Events.MOUSE_DRAG, this._dragCallback);
+@@ -120,7 +170,7 @@ class ProbeTool extends AnnotationTool {
+             element.addEventListener(Events.TOUCH_DRAG, this._dragCallback);
+             element.addEventListener(Events.TOUCH_TAP, this._endCallback);
+         };
+-        this._deactivateModify = (element) => {
++        this._deactivateModify = element => {
+             state.isInteractingWithTool = false;
+             element.removeEventListener(Events.MOUSE_UP, this._endCallback);
+             element.removeEventListener(Events.MOUSE_DRAG, this._dragCallback);
+@@ -141,7 +191,7 @@ class ProbeTool extends AnnotationTool {
+             if (!annotations?.length) {
+                 return renderStatus;
+             }
+-            const targetId = this.getTargetId(viewport);
++            let targetId = this.getTargetId(viewport);
+             const renderingEngine = viewport.getRenderingEngine();
+             const styleSpecifier = {
+                 toolGroupId: this.toolGroupId,
+@@ -162,23 +212,29 @@ class ProbeTool extends AnnotationTool {
+                 if (!data.cachedStats) {
+                     data.cachedStats = {};
+                 }
+-                if (!data.cachedStats[targetId] ||
+-                    data.cachedStats[targetId].value === null) {
++                if (annotation.metadata.referencedImageId && !targetId.startsWith('volumeId:')) {
++                    targetId = `imageId:${annotation.metadata.referencedImageId}`;
++                }
++                if (!data.cachedStats[targetId] || data.cachedStats[targetId].value === null) {
+                     data.cachedStats[targetId] = {
+                         Modality: null,
+                         index: null,
+                         value: null,
+                     };
+-                    this._calculateCachedStats(annotation, renderingEngine, enabledElement, ChangeTypes.StatsUpdated);
+-                }
+-                else if (annotation.invalidated) {
++                    this._calculateCachedStats(
++                        annotation,
++                        renderingEngine,
++                        enabledElement,
++                        ChangeTypes.StatsUpdated
++                    );
++                } else if (annotation.invalidated) {
+                     this._calculateCachedStats(annotation, renderingEngine, enabledElement);
+                     if (viewport instanceof VolumeViewport) {
+                         const { referencedImageId } = annotation.metadata;
+                         for (const targetId in data.cachedStats) {
+                             if (targetId.startsWith('imageId')) {
+                                 const viewports = renderingEngine.getStackViewports();
+-                                const invalidatedStack = viewports.find((vp) => {
++                                const invalidatedStack = viewports.find(vp => {
+                                     const referencedImageURI = csUtils.imageIdToURI(referencedImageId);
+                                     const hasImageURI = vp.hasImageURI(referencedImageURI);
+                                     const currentImageURI = csUtils.imageIdToURI(vp.getCurrentImageId());
+@@ -199,9 +255,15 @@ class ProbeTool extends AnnotationTool {
+                     continue;
+                 }
+                 const handleGroupUID = '0';
+-                drawHandlesSvg(svgDrawingHelper, annotationUID, handleGroupUID, [canvasCoordinates], { color, lineWidth, handleRadius: this.configuration.handleRadius });
++                drawHandlesSvg(svgDrawingHelper, annotationUID, handleGroupUID, [canvasCoordinates], {
++                    color,
++                    lineWidth,
++                    handleRadius: this.configuration.handleRadius,
++                });
+                 renderStatus = true;
+                 const options = this.getLinkedTextBoxStyle(styleSpecifier, annotation);
++                // Do not render text box for now
++                options.visibility = false;
+                 if (!options.visibility) {
+                     continue;
+                 }
+@@ -212,7 +274,14 @@ class ProbeTool extends AnnotationTool {
+                         canvasCoordinates[1] + this.configuration.textCanvasOffset.y,
+                     ];
+                     const textUID = '0';
+-                    drawTextBoxSvg(svgDrawingHelper, annotationUID, textUID, textLines, [textCanvasCoordinates[0], textCanvasCoordinates[1]], options);
++                    drawTextBoxSvg(
++                        svgDrawingHelper,
++                        annotationUID,
++                        textUID,
++                        textLines,
++                        [textCanvasCoordinates[0], textCanvasCoordinates[1]],
++                        options
++                    );
+                 }
+             }
+             return renderStatus;
+@@ -227,36 +296,45 @@ class ProbeTool extends AnnotationTool {
+         return vec2.distance(canvasCoords, annotationCanvasCoordinate) < proximity;
+     }
+     toolSelectedCallback() { }
+-    static { this.hydrate = (viewportId, points, options) => {
+-        const enabledElement = getEnabledElementByViewportId(viewportId);
+-        if (!enabledElement) {
+-            return;
+-        }
+-        const { FrameOfReferenceUID, referencedImageId, viewPlaneNormal, viewUp, instance, viewport, } = this.hydrateBase(ProbeTool, enabledElement, points, options);
+-        const { toolInstance, ...serializableOptions } = options || {};
+-        const annotation = {
+-            annotationUID: options?.annotationUID || csUtils.uuidv4(),
+-            data: {
+-                handles: {
+-                    points,
+-                },
+-            },
+-            highlighted: false,
+-            autoGenerated: false,
+-            invalidated: false,
+-            isLocked: false,
+-            isVisible: true,
+-            metadata: {
+-                toolName: instance.getToolName(),
+-                viewPlaneNormal,
++    static {
++        this.hydrate = (viewportId, points, options) => {
++            const enabledElement = getEnabledElementByViewportId(viewportId);
++            if (!enabledElement) {
++                return;
++            }
++            const {
+                 FrameOfReferenceUID,
+                 referencedImageId,
+-                ...serializableOptions,
+-            },
++                viewPlaneNormal,
++                viewUp,
++                instance,
++                viewport,
++            } = this.hydrateBase(ProbeTool, enabledElement, points, options);
++            const { toolInstance, ...serializableOptions } = options || {};
++            const annotation = {
++                annotationUID: options?.annotationUID || csUtils.uuidv4(),
++                data: {
++                    handles: {
++                        points,
++                    },
++                },
++                highlighted: false,
++                autoGenerated: false,
++                invalidated: false,
++                isLocked: false,
++                isVisible: true,
++                metadata: {
++                    toolName: instance.getToolName(),
++                    viewPlaneNormal,
++                    FrameOfReferenceUID,
++                    referencedImageId,
++                    ...serializableOptions,
++                },
++            };
++            addAnnotation(annotation, viewport.element);
++            triggerAnnotationRenderForViewportIds([viewport.id]);
+         };
+-        addAnnotation(annotation, viewport.element);
+-        triggerAnnotationRenderForViewportIds([viewport.id]);
+-    }; }
++    }
+     getHandleNearImagePoint(element, annotation, canvasCoords, proximity) {
+         const enabledElement = getEnabledElement(element);
+         const { viewport } = enabledElement;
+@@ -282,7 +360,12 @@ class ProbeTool extends AnnotationTool {
+         triggerAnnotationRenderForViewportIds(viewportIdsToRender);
+         evt.preventDefault();
+     }
+-    _calculateCachedStats(annotation, renderingEngine, enabledElement, changeType = ChangeTypes.StatsUpdated) {
++    _calculateCachedStats(
++        annotation,
++        renderingEngine,
++        enabledElement,
++        changeType = ChangeTypes.StatsUpdated
++    ) {
+         const data = annotation.data;
+         const { renderingEngineId, viewport } = enabledElement;
+         const { element } = viewport;
+@@ -312,20 +395,60 @@ class ProbeTool extends AnnotationTool {
+                     const viewports = csUtils.getViewportsWithImageURI(imageURI);
+                     const viewport = viewports[0];
+                     ijk[2] = viewport.getCurrentImageIdIndex();
++                } else if (targetId.startsWith('volumeId:')) {
++                    const axialViewport =
++                        services.cornerstoneViewportService.getCornerstoneViewport('mpr-axial') ||
++                        services.cornerstoneViewportService.getCornerstoneViewport('default');
++
++                    if (!axialViewport) {
++                        return;
++                    }
++
++                    const imageIdsInVolume = axialViewport.getImageIds();
++                    if (!imageIdsInVolume?.length) {
++                        return;
++                    }
++
++                    // Get active viewport data
++                    const { activeViewportId, viewports } = services.viewportGridService.getState();
++                    const activeViewportData = viewports.get(activeViewportId);
++                    const displaySetInstanceUID = activeViewportData?.displaySetInstanceUIDs?.[0];
++
++                    if (!displaySetInstanceUID) {
++                        return;
++                    }
++
++                    // Find matching display set (manual loop for optimal performance)
++                    let currentDisplaySet;
++                    const displaySets = services.displaySetService.activeDisplaySets;
++                    for (let i = 0; i < displaySets.length; i++) {
++                        if (displaySets[i].displaySetInstanceUID === displaySetInstanceUID) {
++                            currentDisplaySet = displaySets[i];
++                            break;
++                        }
++                    }
++
++                    // Check if imageIds are flipped and correct z-coordinate if needed
++                    if (
++                        currentDisplaySet?.imageIds?.[0] &&
++                        imageIdsInVolume[0] !== currentDisplaySet.imageIds[0]
++                    ) {
++                        const imageIdsLength = imageIdsInVolume.length;
++                        ijk[2] = imageIdsLength - Math.round(ijk[2]) - 1;
++                    }
+                 }
+                 let modalityUnit;
+                 if (modality === 'US') {
+-                    const calibratedResults = getCalibratedProbeUnitsAndValue(image, [
+-                        ijk,
+-                    ]);
+-                    const hasEnhancedRegionValues = calibratedResults.values.every((value) => value !== null);
+-                    value = (hasEnhancedRegionValues ? calibratedResults.values : value);
+-                    modalityUnit = hasEnhancedRegionValues
+-                        ? calibratedResults.units
+-                        : 'raw';
+-                }
+-                else {
+-                    modalityUnit = getPixelValueUnits(modality, annotation.metadata.referencedImageId, pixelUnitsOptions);
++                    const calibratedResults = getCalibratedProbeUnitsAndValue(image, [ijk]);
++                    const hasEnhancedRegionValues = calibratedResults.values.every(value => value !== null);
++                    value = hasEnhancedRegionValues ? calibratedResults.values : value;
++                    modalityUnit = hasEnhancedRegionValues ? calibratedResults.units : 'raw';
++                } else {
++                    modalityUnit = getPixelValueUnits(
++                        modality,
++                        annotation.metadata.referencedImageId,
++                        pixelUnitsOptions
++                    );
+                 }
+                 cachedStats[targetId] = {
+                     index: ijk,
+@@ -333,9 +456,7 @@ class ProbeTool extends AnnotationTool {
+                     Modality: modality,
+                     modalityUnit,
+                 };
+-                annotation.invalidated = true;
+-            }
+-            else {
++            } else {
+                 this.isHandleOutsideImage = true;
+                 cachedStats[targetId] = {
+                     index: ijk,
+@@ -363,8 +484,7 @@ function defaultGetTextLines(data, targetId) {
+         for (let i = 0; i < value.length; i++) {
+             textLines.push(`${csUtils.roundNumber(value[i])} ${modalityUnit[i]}`);
+         }
+-    }
+-    else {
++    } else {
+         textLines.push(`${csUtils.roundNumber(value)} ${modalityUnit}`);
+     }
+     return textLines;
+diff --git a/node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/RectangleROITool.js b/node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/RectangleROITool.js
+index df9ffed..a9c0999 100644
+--- a/node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/RectangleROITool.js
++++ b/node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/RectangleROITool.js
+@@ -24,7 +24,7 @@ class RectangleROITool extends AnnotationTool {
+     constructor(toolProps = {}, defaultToolProps = {
+         supportedInteractionTypes: ['Mouse', 'Touch'],
+         configuration: {
+-            storePointData: false,
++            storePointData: true,
+             shadow: true,
+             preventHandleOutsideImage: false,
+             calculateStats: true,
+@@ -79,6 +79,57 @@ class RectangleROITool extends AnnotationTool {
+             triggerAnnotationRenderForViewportIds(viewportIdsToRender);
+             return annotation;
+         };
++        this._addNewAnnotationFromIndex = (element, idxPos, neg = false, SegmentNumber, segmentationId) => {
++            const enabledElement = getEnabledElement(element);
++            const { viewport, renderingEngine } = enabledElement;
++        
++            const tl = viewport.getImageData().imageData.indexToWorld(idxPos[0])
++            const tr = viewport.getImageData().imageData.indexToWorld([idxPos[1][0],idxPos[0][1],idxPos[0][2]])
++            const bl = viewport.getImageData().imageData.indexToWorld([idxPos[0][0],idxPos[1][1],idxPos[0][2]])
++            const br = viewport.getImageData().imageData.indexToWorld(idxPos[1])
++            
++            const annotation = (this.constructor).createAnnotation({ metadata: viewport.getViewReference({sliceIndex: idxPos[0][2]}) }, {
++                data: {
++                    handles: {
++                        points: [
++                            [...tl],
++                            [...tr],
++                            [...bl],
++                            [...br],
++                        ],
++                        textBox: {
++                            hasMoved: false,
++                            worldPosition: [0, 0, 0],
++                            worldBoundingBox: {
++                                topLeft: [0, 0, 0],
++                                topRight: [0, 0, 0],
++                                bottomLeft: [0, 0, 0],
++                                bottomRight: [0, 0, 0],
++                            },
++                        },
++                    },
++                    cachedStats: {[this.getTargetId(viewport)]: {}},
++                },
++            });
++            annotation.metadata.neg = neg;
++            annotation.metadata.SegmentNumber = SegmentNumber;
++            annotation.metadata.segmentationId = segmentationId;
++            annotation.metadata.toolLoad = true;
++            const { viewPlaneNormal, viewUp } = viewport.getCamera();
++            this._calculateCachedStats(annotation, viewPlaneNormal, viewUp, renderingEngine, enabledElement);
++            addAnnotation(annotation, element);
++            const viewportIdsToRender = getViewportIdsWithToolToRender(element, this.getToolName());
++            this.editData = {
++                annotation,
++                viewportIdsToRender,
++                handleIndex: 3,
++                movingTextBox: false,
++                newAnnotation: true,
++                hasMoved: false,
++            };
++            triggerAnnotationRenderForViewportIds(viewportIdsToRender);
++            return annotation;
++        }
+         this.isPointNearTool = (element, annotation, canvasCoords, proximity) => {
+             const enabledElement = getEnabledElement(element);
+             const { viewport } = enabledElement;
+@@ -376,8 +427,7 @@ class RectangleROITool extends AnnotationTool {
+                 }
+                 if (!isAnnotationLocked(annotationUID) &&
+                     !this.editData &&
+-                    activeHandleIndex !== null &&
+-                    activeHandleIndex !== undefined) {
++                    activeHandleIndex !== null) {
+                     activeHandleCanvasCoords = [canvasCoordinates[activeHandleIndex]];
+                 }
+                 if (activeHandleCanvasCoords) {
+@@ -395,6 +445,8 @@ class RectangleROITool extends AnnotationTool {
+                 }, dataId);
+                 renderStatus = true;
+                 const options = this.getLinkedTextBoxStyle(styleSpecifier, annotation);
++                 // Do not render text box for now
++                 options.visibility = false;
+                 if (!options.visibility) {
+                     data.handles.textBox = {
+                         hasMoved: false,
+@@ -457,6 +509,13 @@ class RectangleROITool extends AnnotationTool {
+                     continue;
+                 }
+                 const { dimensions, imageData, metadata, voxelManager } = image;
++
++                let sliceIndex = 0
++                if (targetId.startsWith('imageId:') || targetId.startsWith('volumeId:')) {
++                    sliceIndex = viewport.getCurrentImageIdIndex();
++                    dimensions[2]= sliceIndex+1
++                }
++
+                 const pos1Index = transformWorldToIndex(imageData, worldPos1);
+                 pos1Index[0] = Math.floor(pos1Index[0]);
+                 pos1Index[1] = Math.floor(pos1Index[1]);
+@@ -487,14 +546,54 @@ class RectangleROITool extends AnnotationTool {
+                         isSuvScaled: this.isSuvScaled(viewport, targetId, annotation.metadata.referencedImageId),
+                     };
+                     const modalityUnit = getPixelValueUnits(metadata.Modality, annotation.metadata.referencedImageId, pixelUnitsOptions);
+-                    let pointsInShape;
+-                    if (voxelManager) {
+-                        pointsInShape = voxelManager.forEach(this.configuration.statsCalculator.statsCallback, {
+-                            boundsIJK,
+-                            imageData,
+-                            returnPoints: this.configuration.storePointData,
++                    let pointsInShape = voxelManager.forEach(this.configuration.statsCalculator.statsCallback, {
++                        boundsIJK,
++                        imageData,
++                        returnPoints: this.configuration.storePointData,
++                    });
++                    if (targetId.startsWith('imageId:')){
++                        pointsInShape.forEach(element => {
++                            element.pointIJK[2]=sliceIndex                        
+                         });
+                     }
++                    else if (targetId.startsWith('volumeId:')){
++                        const axialViewport = services.cornerstoneViewportService.getCornerstoneViewport('mpr-axial') 
++                            || services.cornerstoneViewportService.getCornerstoneViewport('default');
++                        if (!axialViewport) {
++                            continue;
++                        }
++                        const imageIdsInVolume = axialViewport.getImageIds();
++                        if (!imageIdsInVolume?.length) {
++                            continue;
++                        }
++                        // Get active viewport data
++                        const { activeViewportId, viewports } = services.viewportGridService.getState();
++                        const activeViewportData = viewports.get(activeViewportId);
++                        const displaySetInstanceUID = activeViewportData?.displaySetInstanceUIDs?.[0];
++                        
++                        if (!displaySetInstanceUID) {
++                            return;
++                        }
++
++                        // Find matching display set (manual loop for optimal performance)
++                        let currentDisplaySet;
++                        const displaySets = services.displaySetService.activeDisplaySets;
++                        for (let i = 0; i < displaySets.length; i++) {
++                            if (displaySets[i].displaySetInstanceUID === displaySetInstanceUID) {
++                                currentDisplaySet = displaySets[i];
++                                break;
++                            }
++                        }
++
++                        // Check if imageIds are flipped and correct z-coordinate if needed
++                        if (currentDisplaySet?.imageIds?.[0] && 
++                            imageIdsInVolume[0] !== currentDisplaySet.imageIds[0]) {
++                            const imageIdsLength = imageIdsInVolume.length;
++                            pointsInShape.forEach(element => {
++                                element.pointIJK[2] = imageIdsLength - Math.round(element.pointIJK[2]) - 1;
++                            });
++                        }
++                    }
+                     const stats = this.configuration.statsCalculator.getStatistics();
+                     cachedStats[targetId] = {
+                         Modality: metadata.Modality,
+@@ -502,7 +601,6 @@ class RectangleROITool extends AnnotationTool {
+                         mean: stats.mean?.value,
+                         stdDev: stats.stdDev?.value,
+                         max: stats.max?.value,
+-                        min: stats.min?.value,
+                         statsArray: stats.array,
+                         pointsInShape: pointsInShape,
+                         areaUnit,
+@@ -511,8 +609,12 @@ class RectangleROITool extends AnnotationTool {
+                 }
+                 else {
+                     this.isHandleOutsideImage = true;
++                    let pointsInShape = [];
++                    pointsInShape.push({pointIJK: pos1Index});
++                    pointsInShape.push({pointIJK: pos2Index});
+                     cachedStats[targetId] = {
+                         Modality: metadata.Modality,
++                        pointsInShape: pointsInShape,
+                     };
+                 }
+             }
+@@ -565,26 +667,15 @@ class RectangleROITool extends AnnotationTool {
+ }
+ function defaultGetTextLines(data, targetId) {
+     const cachedVolumeStats = data.cachedStats[targetId];
+-    const { area, mean, max, stdDev, areaUnit, modalityUnit, min } = cachedVolumeStats;
++    const { area, mean, max, stdDev, areaUnit, modalityUnit } = cachedVolumeStats;
+     if (mean === undefined || mean === null) {
+         return;
+     }
+     const textLines = [];
+-    if (csUtils.isNumber(area)) {
+-        textLines.push(`Area: ${csUtils.roundNumber(area)} ${areaUnit}`);
+-    }
+-    if (csUtils.isNumber(mean)) {
+-        textLines.push(`Mean: ${csUtils.roundNumber(mean)} ${modalityUnit}`);
+-    }
+-    if (csUtils.isNumber(max)) {
+-        textLines.push(`Max: ${csUtils.roundNumber(max)} ${modalityUnit}`);
+-    }
+-    if (csUtils.isNumber(min)) {
+-        textLines.push(`Max: ${csUtils.roundNumber(min)} ${modalityUnit}`);
+-    }
+-    if (csUtils.isNumber(stdDev)) {
+-        textLines.push(`Std Dev: ${csUtils.roundNumber(stdDev)} ${modalityUnit}`);
+-    }
++    textLines.push(`Area: ${csUtils.roundNumber(area)} ${areaUnit}`);
++    textLines.push(`Mean: ${csUtils.roundNumber(mean)} ${modalityUnit}`);
++    textLines.push(`Max: ${csUtils.roundNumber(max)} ${modalityUnit}`);
++    textLines.push(`Std Dev: ${csUtils.roundNumber(stdDev)} ${modalityUnit}`);
+     return textLines;
+ }
+ export default RectangleROITool;
+diff --git a/node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/planarFreehandROITool/drawLoop.js b/node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/planarFreehandROITool/drawLoop.js
+index 38bb28c..5e65aeb 100644
+--- a/node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/planarFreehandROITool/drawLoop.js
++++ b/node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/planarFreehandROITool/drawLoop.js
+@@ -46,7 +46,7 @@ function activateDraw(evt, annotation, viewportIdsToRender) {
+     element.addEventListener(Events.TOUCH_END, this.mouseUpDrawCallback);
+     element.addEventListener(Events.TOUCH_DRAG, this.mouseDragDrawCallback);
+     element.addEventListener(Events.TOUCH_TAP, this.mouseUpDrawCallback);
+-    hideElementCursor(element);
++ // hideElementCursor(element); //cursor visible
+ }
+ function deactivateDraw(element) {
+     state.isInteractingWithTool = false;
+@@ -56,7 +56,7 @@ function deactivateDraw(element) {
+     element.removeEventListener(Events.TOUCH_END, this.mouseUpDrawCallback);
+     element.removeEventListener(Events.TOUCH_DRAG, this.mouseDragDrawCallback);
+     element.removeEventListener(Events.TOUCH_TAP, this.mouseUpDrawCallback);
+-    resetElementCursor(element);
++ // resetElementCursor(element); //cursor visible
+ }
+ function mouseDragDrawCallback(evt) {
+     const eventDetail = evt.detail;
+@@ -89,15 +89,15 @@ function mouseDragDrawCallback(evt) {
+         textBox.hasMoved = true;
+     }
+     else {
+-        const crossingIndex = this.findCrossingIndexDuringCreate(evt);
+-        if (crossingIndex !== undefined) {
+-            this.applyCreateOnCross(evt, crossingIndex);
+-        }
+-        else {
+-            const numPointsAdded = addCanvasPointsToArray(element, canvasPoints, canvasPos, this.commonData);
+-            this.drawData.polylineIndex = polylineIndex + numPointsAdded;
+-        }
+-        annotation.invalidated = true;
++            const crossingIndex = this.findCrossingIndexDuringCreate(evt);
++            if (crossingIndex !== undefined && annotation.metadata.toolName !== 'PlanarFreehandROI2') {
++                this.applyCreateOnCross(evt, crossingIndex);
++            }
++            else {
++                const numPointsAdded = addCanvasPointsToArray(element, canvasPoints, canvasPos, this.commonData);
++                this.drawData.polylineIndex = polylineIndex + numPointsAdded;
++            }
++            annotation.invalidated = true;
+     }
+     triggerAnnotationRenderForViewportIds(viewportIdsToRender);
+     if (annotation.invalidated) {
+@@ -254,7 +254,8 @@ function cancelDrawing(element) {
+     }
+ }
+ function shouldHaltDrawing(canvasPoints, subPixelResolution) {
+-    const minPoints = Math.max(subPixelResolution * 3, 3);
++    // We need to support tiny scribbles as well
++    const minPoints = 3; //Math.max(subPixelResolution * 3, 3);
+     return canvasPoints.length < minPoints;
+ }
+ function haltDrawing(element, canvasPoints) {
+diff --git a/node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/planarFreehandROITool/renderMethods.js b/node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/planarFreehandROITool/renderMethods.js
+index 964611c..1433240 100644
+--- a/node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/planarFreehandROITool/renderMethods.js
++++ b/node_modules/@cornerstonejs/tools/dist/esm/tools/annotation/planarFreehandROITool/renderMethods.js
+@@ -63,6 +63,7 @@ function renderClosedContour(enabledElement, svgDrawingHelper, annotation) {
+ function renderOpenContour(enabledElement, svgDrawingHelper, annotation) {
+     const { viewport } = enabledElement;
+     const options = this._getRenderingOptions(enabledElement, annotation);
++    options.width = 2;
+     const canvasPoints = annotation.data.contour.polyline.map((worldPos) => viewport.worldToCanvas(worldPos));
+     const polylineUID = '1';
+     drawPolylineSvg(svgDrawingHelper, annotation.annotationUID, polylineUID, canvasPoints, options);
+diff --git a/node_modules/@cornerstonejs/tools/dist/esm/tools/base/AnnotationTool.js b/node_modules/@cornerstonejs/tools/dist/esm/tools/base/AnnotationTool.js
+index bf0bb80..ac07fec 100644
+--- a/node_modules/@cornerstonejs/tools/dist/esm/tools/base/AnnotationTool.js
++++ b/node_modules/@cornerstonejs/tools/dist/esm/tools/base/AnnotationTool.js
+@@ -158,7 +158,10 @@ class AnnotationTool extends AnnotationDisplayTool {
+         const lineWidth = getStyle('lineWidth');
+         const lineDash = getStyle('lineDash');
+         const angleArcLineDash = getStyle('angleArcLineDash');
+-        const color = getStyle('color');
++        let color = getStyle('color');
++        if (annotation.metadata.neg === true) {
++            color = 'rgb(255, 0, 0)';
++        }
+         const markerSize = getStyle('markerSize');
+         const shadow = getStyle('shadow');
+         const textboxStyle = this.getLinkedTextBoxStyle(styleSpecifier, annotation);
+diff --git a/node_modules/@cornerstonejs/tools/dist/esm/tools/displayTools/Labelmap/addLabelmapToElement.js b/node_modules/@cornerstonejs/tools/dist/esm/tools/displayTools/Labelmap/addLabelmapToElement.js
+index 180d108..a2dfc74 100644
+--- a/node_modules/@cornerstonejs/tools/dist/esm/tools/displayTools/Labelmap/addLabelmapToElement.js
++++ b/node_modules/@cornerstonejs/tools/dist/esm/tools/displayTools/Labelmap/addLabelmapToElement.js
+@@ -5,7 +5,7 @@ import { triggerSegmentationDataModified, triggerSegmentationModified, } from '.
+ import { SegmentationRepresentations } from '../../../enums';
+ import { addVolumesAsIndependentComponents } from './addVolumesAsIndependentComponents';
+ const { uuidv4 } = utilities;
+-async function addLabelmapToElement(element, labelMapData, segmentationId, config) {
++async function addLabelmapToElement(element, labelMapData, segmentationId, config, suppressTriggerModificationEvents = false) {
+     const enabledElement = getEnabledElement(element);
+     const { renderingEngine, viewport } = enabledElement;
+     const { id: viewportId } = viewport;
+@@ -57,13 +57,20 @@ async function addLabelmapToElement(element, labelMapData, segmentationId, confi
+     }
+     else {
+         const segmentationImageIds = getCurrentLabelmapImageIdsForViewport(viewport.id, segmentationId);
+-        const stackInputs = segmentationImageIds.map((imageId) => ({
+-            imageId,
+-            representationUID: `${segmentationId}-${SegmentationRepresentations.Labelmap}-${imageId}`,
+-        }));
++        const stackInputs = segmentationImageIds.map((imageId) => {
++            //Specifiy actorUID to be the same as the representationUID
++            const representationUID = `${segmentationId}-${SegmentationRepresentations.Labelmap}-${imageId}`;
++            return {
++                imageId,
++                representationUID,
++                actorUID: representationUID,
++            };
++        });
+         addImageSlicesToViewports(renderingEngine, stackInputs, [viewportId]);
+     }
+-    triggerSegmentationDataModified(segmentationId);
++    if (!suppressTriggerModificationEvents) {
++        triggerSegmentationDataModified(segmentationId);
++    }
+ }
+ function _ensureVolumeHasVolumeId(labelMapData, segmentationId) {
+     let { volumeId } = labelMapData;
+diff --git a/node_modules/@cornerstonejs/tools/dist/esm/tools/displayTools/Labelmap/labelmapDisplay.js b/node_modules/@cornerstonejs/tools/dist/esm/tools/displayTools/Labelmap/labelmapDisplay.js
+index c30e41b..2536ed6 100644
+--- a/node_modules/@cornerstonejs/tools/dist/esm/tools/displayTools/Labelmap/labelmapDisplay.js
++++ b/node_modules/@cornerstonejs/tools/dist/esm/tools/displayTools/Labelmap/labelmapDisplay.js
+@@ -1,4 +1,4 @@
+-import { getEnabledElementByViewportId, VolumeViewport, } from '@cornerstonejs/core';
++import { getEnabledElementByViewportId, VolumeViewport, cache, } from '@cornerstonejs/core';
+ import addLabelmapToElement from './addLabelmapToElement';
+ import removeLabelmapFromElement from './removeLabelmapFromElement';
+ import { getActiveSegmentation } from '../../../stateManagement/segmentation/activeSegmentation';
+@@ -16,9 +16,11 @@ import { triggerSegmentationDataModified } from '../../../stateManagement/segmen
+ import { defaultSegmentationStateManager } from '../../../stateManagement/segmentation/SegmentationStateManager';
+ export const MAX_NUMBER_COLORS = 255;
+ const labelMapConfigCache = new Map();
++const stackAddLabelmapLastSlice = new Map();
+ let polySegConversionInProgress = false;
+ function removeRepresentation(viewportId, segmentationId, renderImmediate = false) {
+     const enabledElement = getEnabledElementByViewportId(viewportId);
++    stackAddLabelmapLastSlice.delete(`${viewportId}-${segmentationId}`);
+     labelMapConfigCache.forEach((value, key) => {
+         if (key.includes(segmentationId)) {
+             labelMapConfigCache.delete(key);
+@@ -76,8 +78,14 @@ async function render(viewport, representation) {
+         if (!labelmapImageIds?.length) {
+             return;
+         }
+-        if (!labelmapActorEntries) {
+-            await _addLabelmapToViewport(viewport, labelmapData, segmentationId, config);
++        const currentImageId = viewport.getCurrentImageId();
++        const sliceKey = `${viewport.id}-${segmentationId}`;
++        const lastRunImageId = stackAddLabelmapLastSlice.get(sliceKey);
++        const sliceChanged = lastRunImageId !== currentImageId;
++        const suppressTriggerModificationEvents = labelmapActorEntries?.length > 0;
++        if (sliceChanged) {
++            stackAddLabelmapLastSlice.set(sliceKey, currentImageId);
++            await _addLabelmapToViewport(viewport, labelmapData, segmentationId, config, suppressTriggerModificationEvents);
+         }
+         labelmapActorEntries = getLabelmapActorEntries(viewport.id, segmentationId);
+     }
+@@ -172,15 +180,41 @@ function _setLabelmapColorAndOpacity(viewportId, labelmapActorEntry, segmentatio
+                     : outlineWidth;
+         }
+         labelmapActor.getProperty().setLabelOutlineThickness(outlineWidths);
+-        labelmapActor.modified();
+-        labelmapActor.getProperty().modified();
+-        labelmapActor.getMapper().modified();
+     }
+     else {
+         labelmapActor
+             .getProperty()
+             .setLabelOutlineThickness(new Array(numColors - 1).fill(0));
+     }
++    // Sync cache→VTK copy and mark the pipeline dirty so the GPU texture is
++    // re-uploaded on every segmentation render event.
++    //
++    // Root cause: StackViewport.createVTKImageData() allocates a NEW empty
++    // TypedArray (not a reference to the cache buffer).  updateVTKImageDataWithCornerstoneImage
++    // copies cache→VTK via scalarData.set(pixelData) — but only when scrolling.
++    // After brush/inference modifies the cache, VTK's copy is stale.
++    // Calling scalars.modified() alone is wrong: it marks the stale copy as
++    // "changed" but re-uploads the same stale data.  We must copy first.
++    const inputData = labelmapActor.getMapper()?.getInputData?.();
++    if (inputData) {
++        const imageId = labelmapActorEntry.referencedId;
++        const csImage = imageId ? cache.getImage(imageId) : null;
++        if (csImage) {
++            const pixelData = csImage.voxelManager?.getScalarData?.();
++            const vtkScalars = inputData.getPointData?.()?.getScalars?.();
++            if (pixelData && vtkScalars) {
++                const vtkData = vtkScalars.getData?.();
++                if (vtkData && vtkData.length === pixelData.length) {
++                    vtkData.set(pixelData);
++                }
++                vtkScalars.modified();
++            }
++        }
++        inputData.modified();
++    }
++    labelmapActor.modified();
++    labelmapActor.getProperty().modified();
++    labelmapActor.getMapper().modified();
+     const visible = isActiveLabelmap || renderInactiveSegmentations;
+     labelmapActor.setVisibility(visible);
+ }
+@@ -261,8 +295,8 @@ function _needsTransferFunctionUpdate(viewportId, segmentationId, segmentIndex,
+         forceColorUpdate,
+     };
+ }
+-async function _addLabelmapToViewport(viewport, labelmapData, segmentationId, config) {
+-    const result = await addLabelmapToElement(viewport.element, labelmapData, segmentationId, config);
++async function _addLabelmapToViewport(viewport, labelmapData, segmentationId, config, suppressTriggerModificationEvents = false) {
++    const result = await addLabelmapToElement(viewport.element, labelmapData, segmentationId, config, suppressTriggerModificationEvents);
+     return result || undefined;
+ }
+ export default {
+diff --git a/node_modules/@cornerstonejs/tools/dist/esm/tools/displayTools/Labelmap/removeLabelmapFromElement.js b/node_modules/@cornerstonejs/tools/dist/esm/tools/displayTools/Labelmap/removeLabelmapFromElement.js
+index 99c961b..ce3e1c5 100644
+--- a/node_modules/@cornerstonejs/tools/dist/esm/tools/displayTools/Labelmap/removeLabelmapFromElement.js
++++ b/node_modules/@cornerstonejs/tools/dist/esm/tools/displayTools/Labelmap/removeLabelmapFromElement.js
+@@ -1,8 +1,20 @@
+ import { getEnabledElement } from '@cornerstonejs/core';
+-import { getLabelmapActorUID } from '../../../stateManagement/segmentation/helpers/getSegmentationActor';
++import { getLabelmapActorEntries } from '../../../stateManagement/segmentation/helpers/getSegmentationActor';
+ function removeLabelmapFromElement(element, segmentationId) {
+     const enabledElement = getEnabledElement(element);
+     const { viewport } = enabledElement;
+-    viewport.removeActors([getLabelmapActorUID(viewport.id, segmentationId)]);
++    // Remove ALL labelmap actors for this segmentation, not just the first match.
++    // A viewport can end up with more than one labelmap actor for the same
++    // segmentation (e.g. a leftover volume-style actor whose uid is a UUID
++    // alongside the visible stack-style actor `${segmentationId}-Labelmap-${imageId}`,
++    // typically after a stack<->volume viewport conversion). The stock
++    // getLabelmapActorUID returns only the first match, so removeActors would
++    // delete one and leave the other orphaned on the canvas until the viewport
++    // is rebuilt. Removing every matching entry guarantees a clean unload.
++    const entries = getLabelmapActorEntries(viewport.id, segmentationId) || [];
++    const uids = entries.map((entry) => entry.uid).filter(Boolean);
++    if (uids.length > 0) {
++        viewport.removeActors(uids);
++    }
+ }
+ export default removeLabelmapFromElement;
+diff --git a/node_modules/@cornerstonejs/tools/dist/esm/utilities/segmentation/findLargestBidirectional.js b/node_modules/@cornerstonejs/tools/dist/esm/utilities/segmentation/findLargestBidirectional.js
+index 8da5340..9f26367 100644
+--- a/node_modules/@cornerstonejs/tools/dist/esm/utilities/segmentation/findLargestBidirectional.js
++++ b/node_modules/@cornerstonejs/tools/dist/esm/utilities/segmentation/findLargestBidirectional.js
+@@ -1,5 +1,6 @@
+ import { vec3 } from 'gl-matrix';
+ import { createIsInSegment, isLineInSegment } from './isLineInSegment';
++const thetaTol = (5 * Math.PI) / 180;
+ const EPSILON = 1e-2;
+ export default function findLargestBidirectional(contours, segVolumeId, segment) {
+     const { sliceContours } = contours;
+@@ -18,78 +19,82 @@ export default function findLargestBidirectional(contours, segVolumeId, segment)
+     }
+     return maxBidirectional;
+ }
+-export function createBidirectionalForSlice(sliceContour, isInSegment, currentMax = { maxMajor: 0, maxMinor: 0 }) {
++export function createBidirectionalForSlice(
++    sliceContour,
++    isInSegment,
++    currentMax = { maxMajor: 0, maxMinor: 0 }
++  ) {
+     const { points } = sliceContour.polyData;
++    const { sliceIndex } = sliceContour;
+     const { maxMinor: currentMaxMinor, maxMajor: currentMaxMajor } = currentMax;
+-    let maxMajor = currentMaxMajor * currentMaxMajor;
+-    let maxMinor = currentMaxMinor * currentMaxMinor;
++    let maxMajor = currentMaxMajor ** 2;
++    let maxMinor = currentMaxMinor ** 2;
++    let areaMax = maxMajor * maxMinor;
+     let maxMajorPoints;
+-    for (let index1 = 0; index1 < points.length; index1++) {
+-        for (let index2 = index1 + 1; index2 < points.length; index2++) {
+-            const point1 = points[index1];
+-            const point2 = points[index2];
+-            const distance2 = vec3.sqrDist(point1, point2);
+-            if (distance2 < maxMajor) {
+-                continue;
+-            }
+-            if (distance2 - EPSILON < maxMajor + EPSILON && maxMajorPoints) {
+-                continue;
+-            }
+-            if (!isInSegment.testCenter(point1, point2)) {
+-                continue;
+-            }
+-            if (!isLineInSegment(point1, point2, isInSegment)) {
+-                continue;
+-            }
+-            maxMajor = distance2 - EPSILON;
+-            maxMajorPoints = [index1, index2];
+-            maxMinor = 0;
++    let maxMinorPoints;
++    for (let major_index1 = 0; major_index1 < points.length; major_index1++) {
++      for (let major_index2 = major_index1 + 1; major_index2 < points.length; major_index2++) {
++        const major_point1 = points[major_index1];
++        const major_point2 = points[major_index2];
++        const major_distance2 = vec3.sqrDist(major_point1, major_point2);
++        if (major_distance2 < maxMajor) {
++          continue;
++        }
++        if (major_distance2 - EPSILON < maxMajor + EPSILON && maxMajorPoints) {
++          // Consider adding to the set of points rather than continuing here
++          // so that all minor axis can be tested
++          continue;
+         }
++     
++        maxMajor = major_distance2;
++        maxMajorPoints = [major_index1, major_index2];
++        areaMax = maxMajor * maxMinor;
++      }
+     }
+     if (!maxMajorPoints) {
+-        return;
++      return;
+     }
+-    maxMajor = Math.sqrt(maxMajor + EPSILON);
+     const handle0 = points[maxMajorPoints[0]];
+     const handle1 = points[maxMajorPoints[1]];
+     const unitMajor = vec3.sub(vec3.create(), handle0, handle1);
+-    vec3.scale(unitMajor, unitMajor, 1 / maxMajor);
+-    let maxMinorPoints;
+-    for (let index1 = 0; index1 < points.length; index1++) {
+-        for (let index2 = index1 + 1; index2 < points.length; index2++) {
+-            const point1 = points[index1];
+-            const point2 = points[index2];
+-            const distance2 = vec3.sqrDist(point1, point2);
+-            if (distance2 <= maxMinor) {
+-                continue;
+-            }
+-            const delta = vec3.sub(vec3.create(), point1, point2);
+-            const dot = Math.abs(vec3.dot(delta, unitMajor)) / Math.sqrt(distance2);
+-            if (dot > EPSILON) {
+-                continue;
+-            }
+-            if (!isInSegment.testCenter(point1, point2)) {
+-                continue;
+-            }
+-            if (!isLineInSegment(point1, point2, isInSegment)) {
+-                continue;
+-            }
+-            maxMinor = distance2;
+-            maxMinorPoints = [index1, index2];
++    vec3.scale(unitMajor, unitMajor, 1 / Math.sqrt(maxMajor));
++    for (let minor_index1 = 0; minor_index1 < points.length; minor_index1++) {
++      for (let minor_index2 = minor_index1 + 1; minor_index2 < points.length; minor_index2++) {
++        const minor_point1 = points[minor_index1];
++        const minor_point2 = points[minor_index2];
++        const minor_distance2 = vec3.sqrDist(minor_point1, minor_point2);
++        if (minor_distance2 * maxMajor < areaMax) {
++          //pass, already smaller than current max area
++          continue;
+         }
++        const delta = vec3.sub(vec3.create(), minor_point1, minor_point2);
++        const dot = Math.abs(vec3.dot(delta, unitMajor)) / Math.sqrt(minor_distance2);
++        if (dot > Math.cos(Math.PI / 2 - thetaTol)) {
++          //pass, not perpendicular to major axis
++          continue;
++        }
++        const wouldBeat = minor_distance2 * maxMajor > areaMax;
++        if (wouldBeat) {
++          maxMinor = minor_distance2;
++          maxMinorPoints = [minor_index1, minor_index2];
++          areaMax = maxMajor * maxMinor;
++        }
++      }
+     }
+-    if (!maxMinorPoints) {
+-        return;
++  
++    if (!maxMinorPoints || !maxMajorPoints) {
++      return;
+     }
+-    maxMinor = Math.sqrt(maxMinor);
++  
+     const handle2 = points[maxMinorPoints[0]];
+     const handle3 = points[maxMinorPoints[1]];
+     const bidirectional = {
+-        majorAxis: [handle0, handle1],
+-        minorAxis: [handle2, handle3],
+-        maxMajor,
+-        maxMinor,
+-        ...sliceContour,
++      sliceIndex: sliceIndex,
++      majorAxis: [handle0, handle1],
++      minorAxis: [handle2, handle3],
++      maxMajor: Math.sqrt(maxMajor),
++      maxMinor: Math.sqrt(maxMinor),
++      ...sliceContour,
+     };
+     return bidirectional;
+-}
++  }
+diff --git a/node_modules/@cornerstonejs/tools/dist/esm/utilities/segmentation/getOrCreateImageVolume.js b/node_modules/@cornerstonejs/tools/dist/esm/utilities/segmentation/getOrCreateImageVolume.js
+index 217024e..26daea7 100644
+--- a/node_modules/@cornerstonejs/tools/dist/esm/utilities/segmentation/getOrCreateImageVolume.js
++++ b/node_modules/@cornerstonejs/tools/dist/esm/utilities/segmentation/getOrCreateImageVolume.js
+@@ -9,10 +9,20 @@ function getOrCreateImageVolume(referencedImageIds) {
+     }
+     const volumeId = cache.generateVolumeId(referencedImageIds);
+     let imageVolume = cache.getVolume(volumeId);
+-    if (imageVolume) {
++    if(imageVolume && imageVolume?.voxelManager?.getCompleteScalarDataArray()?.length>0){
+         return imageVolume;
+     }
+     imageVolume = volumeLoader.createAndCacheVolumeFromImagesSync(volumeId, referencedImageIds);
++    //if (!imageVolume.voxelManager.scalarData) {
++    //const voxelManager = csUtils.VoxelManager.createImageVolumeVoxelManager({
++    //    imageIds: referencedImageIds,
++    //    dimensions: imageVolume.dimensions,
++    //    numberOfComponents: 1,
++    //    id: volumeId,
++    //  });
++    //imageVolume.voxelManager = voxelManager;
++    //}
++    
+     return imageVolume;
+ }
+ export default getOrCreateImageVolume;
+diff --git a/node_modules/@cornerstonejs/tools/dist/esm/utilities/segmentation/getSegmentLargestBidirectional.js b/node_modules/@cornerstonejs/tools/dist/esm/utilities/segmentation/getSegmentLargestBidirectional.js
+index fb438f8..30075e9 100644
+--- a/node_modules/@cornerstonejs/tools/dist/esm/utilities/segmentation/getSegmentLargestBidirectional.js
++++ b/node_modules/@cornerstonejs/tools/dist/esm/utilities/segmentation/getSegmentLargestBidirectional.js
+@@ -4,7 +4,7 @@ import { registerComputeWorker } from '../registerComputeWorker';
+ import { triggerWorkerProgress, getSegmentationDataForWorker, prepareVolumeStrategyDataForWorker, prepareStackDataForWorker, } from './utilsForWorker';
+ export async function getSegmentLargestBidirectional({ segmentationId, segmentIndices, mode = 'individual', }) {
+     registerComputeWorker();
+-    triggerWorkerProgress(WorkerTypes.COMPUTE_LARGEST_BIDIRECTIONAL, 0);
++    //triggerWorkerProgress(WorkerTypes.COMPUTE_LARGEST_BIDIRECTIONAL, 0);
+     const segData = getSegmentationDataForWorker(segmentationId, segmentIndices);
+     if (!segData) {
+         return;
+@@ -21,8 +21,22 @@ export async function getSegmentLargestBidirectional({ segmentationId, segmentIn
+             indices,
+             mode,
+         });
+-    triggerWorkerProgress(WorkerTypes.COMPUTE_LARGEST_BIDIRECTIONAL, 100);
+-    return bidirectionalData;
++    //if (bidirectionalData?.length === 0) {
++    //    console.error(new Error('No bidirectional data found'));
++    //}
++    //triggerWorkerProgress(WorkerTypes.COMPUTE_LARGEST_BIDIRECTIONAL, 100);
++    
++    return bidirectionalData.map(measurement => {
++        let referencedImageId = undefined;
++        if (operationData?.segmentationVoxelManager && measurement.sliceIndex !== undefined) {
++            referencedImageId =
++              operationData.segmentationVoxelManager.getImageIds()[measurement.sliceIndex];
++          }
++        return {
++          ...measurement,
++          referencedImageId: referencedImageId,
++        };
++      });
+ }
+ async function calculateVolumeBidirectional({ operationData, indices, mode }) {
+     const strategyData = prepareVolumeStrategyDataForWorker(operationData);
+diff --git a/node_modules/@cornerstonejs/tools/dist/esm/workers/computeWorker.js b/node_modules/@cornerstonejs/tools/dist/esm/workers/computeWorker.js
+index b31c098..862a513 100644
+--- a/node_modules/@cornerstonejs/tools/dist/esm/workers/computeWorker.js
++++ b/node_modules/@cornerstonejs/tools/dist/esm/workers/computeWorker.js
+@@ -83,6 +83,7 @@ const computeWorker = {
+             const contours = findContoursFromReducedSet(reducedSet.lines);
+             return {
+                 contours,
++                sliceIndex,
+                 polyData: reducedSet,
+             };
+         }
+@@ -212,12 +213,14 @@ const computeWorker = {
+             maxBidirectional = bidirectional;
+         }
+         if (maxBidirectional) {
++            //Should add sliceIndex below, otherwise, it is missing in the bidirectional data
+             return {
+                 segmentIndex,
+                 majorAxis: maxBidirectional.majorAxis,
+                 minorAxis: maxBidirectional.minorAxis,
+                 maxMajor: maxBidirectional.maxMajor,
+                 maxMinor: maxBidirectional.maxMinor,
++                sliceIndex: maxBidirectional.sliceIndex,
+             };
+         }
+         return null;
+@@ -256,6 +259,10 @@ const computeWorker = {
+                 try {
+                     const msOutput = computeWorker.performMarchingSquares(imageData, null, 2);
+                     const contourData = computeWorker.createContoursFromPolyData(msOutput);
++                    //contourData.points are ijk, we need to convert to world points
++                    contourData.polyData.points = contourData.polyData.points.map(p =>
++                        imageData.indexToWorld(p)
++                    );
+                     if (contourData) {
+                         sliceContours.push(contourData);
+                     }
+@@ -328,7 +335,7 @@ const computeWorker = {
+             if (!segment) {
+                 continue;
+             }
+-            const segmentIndex = segment.segmentIndex;
++            const segmentIndex = Number(segment.segmentIndex);
+             const sliceContours = [];
+             const scalars = vtkDataArray.newInstance({
+                 name: 'Scalars',
+@@ -356,6 +363,10 @@ const computeWorker = {
+                     imageDataCopy.getPointData().setScalars(scalars);
+                     const msOutput = computeWorker.performMarchingSquares(imageDataCopy, sliceIndex);
+                     const contourData = computeWorker.createContoursFromPolyData(msOutput, sliceIndex);
++                    //contourData.points are ijk, we need to convert to world points
++                    contourData.polyData.points = contourData.polyData.points.map(p =>
++                        imageData.indexToWorld(p)
++                    );
+                     if (contourData) {
+                         sliceContours.push(contourData);
+                     }

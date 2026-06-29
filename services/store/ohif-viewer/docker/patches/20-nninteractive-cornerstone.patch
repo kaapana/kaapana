@@ -999,7 +999,7 @@
 +            segmentMetadata.SegmentNumber = segmentIndex.toString();
 +            segmentMetadata.SegmentLabel = label;
 +            segmentMetadata.RecommendedDisplayCIELabValue = RecommendedDisplayCIELabValue;
-+            segmentMetadata.SegmentAlgorithmType = segmentation.cachedStats.seriesInstanceUid;
++            segmentMetadata.SegmentAlgorithmType = 'SEMIAUTOMATIC';
 +          }
 +        }
 +
@@ -1029,10 +1029,10 @@
 +          segmentMetadata.SegmentAlgorithmName = segment.cachedStats.algorithmName;
 +        }
 +        if (segment.cachedStats.algorithmType !== undefined){
-+          segmentMetadata.SegmentAlgorithmType = segment.cachedStats.algorithmType;
++          segmentMetadata.SegmentAlgorithmType = ['AUTOMATIC','SEMIAUTOMATIC','MANUAL'].includes(segment.cachedStats.algorithmType) ? segment.cachedStats.algorithmType : 'SEMIAUTOMATIC';
 +        }
 +        if (segmentation.cachedStats.seriesInstanceUid !== undefined){
-+          segmentMetadata.SegmentAlgorithmType = segmentation.cachedStats.seriesInstanceUid;
++          segmentMetadata.SegmentAlgorithmName = segmentation.cachedStats.seriesInstanceUid;
 +        }
 +        
          labelmap3D.metadata[segmentIndex] = segmentMetadata;

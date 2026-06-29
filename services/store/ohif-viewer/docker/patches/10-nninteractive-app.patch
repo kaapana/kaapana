@@ -1464,8 +1464,8 @@
 +                const segments = Object.values(activeSegmentation.segments);
 +                for (let j = 0; j < segments.length; j++) {
 +                  const segment = segments[j];
-+                  if (segment.cachedStats?.algorithmType !== undefined) {
-+                    existingseriesInstanceUid = segment.cachedStats.algorithmType;
++                  if (segment.cachedStats?.algorithmName !== undefined) {
++                    existingseriesInstanceUid = segment.cachedStats.algorithmName;
 +                  }
 +                }
 +              }
@@ -1712,9 +1712,9 @@
 +            active: false,
 +            cachedStats: {
 +              modifiedTime: utils.formatDate(Date.now(), 'YYYYMMDD'),
-+              algorithmType: currentDisplaySets.SeriesInstanceUID,
-+              algorithmName: "nninter_"+nninter_elapsed,
-+              description: prompt_info,
++              algorithmType: 'SEMIAUTOMATIC',
++              algorithmName: currentDisplaySets.SeriesInstanceUID,
++              description: prompt_info + " (nninter " + nninter_elapsed + "s)",
 +              center:  z_range.length > 0 ? z_range.reduce((sum, z) => sum + z, 0) / z_range.length : 0,
 +              // z-range kept for fallback; dirtySlices is the fast-path clear target
 +              segZ0: _hasCropGeom ? _segZ0 : 0,

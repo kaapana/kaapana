@@ -10,9 +10,9 @@ is fetched at build time and our changes are layered on top as patches.
 |---|---|
 | `Dockerfile` | Fetches pristine OHIF, applies the patches, builds, serves via nginx. |
 | `patches/` | The CCI-Bonn/OHIF-AI fork's **source delta** vs pristine OHIF (nnInteractive feature + supporting edits), split by concern and applied in order with `git apply`. See `patches/README.md`. |
-| `yarn.lock` | The fork's resolved dependency tree (pins Cornerstone 3.33.5 etc.). `yarn install --frozen-lockfile` reproduces it exactly — required because the `backup/` overrides target those versions. |
+| `yarn.lock` | The fork's resolved dependency tree (pins Cornerstone 3.33.5 etc.). `yarn install --frozen-lockfile` reproduces it exactly — required because `node-module-patches/` are version-specific. |
 | `files/customization.patch` | Kaapana customizations on top of the fork: embedding toggles (`showHeader`/`showLeftPanel`/`showRightPanel`), SEG/RT auto-hydration, robustness guards. |
-| `backup/` | OHIF-AI patched **Cornerstone3D / dcmjs / vtk.js runtime files** (prompt tools + labelmap update path). Copied over `node_modules` after `yarn install`. Not OHIF source — these are dependency overrides. |
+| `node-module-patches/` | OHIF-AI modifications to **Cornerstone3D / vtk.js** dependency internals (prompt tools + labelmap update path), as readable, version-named `patch-package` diffs applied to `node_modules` after `yarn install`. Replaces the former opaque `backup/` file overwrites. (dcmjs override dropped — stock provides `SegmentDescription`.) |
 | `pluginConfig.json` | Which OHIF extensions/modes are compiled into the app. |
 | `files/kaapana.js` | OHIF app config (data sources, hotkeys, embedding flags). Becomes `app-config.js`. |
 | `conf/` | nginx config. |
@@ -26,8 +26,8 @@ Pinned via the `OHIF_COMMIT` build arg to `d383be7c…` — the fork's exact bas
 ## Upgrading OHIF
 
 1. Bump `OHIF_COMMIT` in the `Dockerfile`.
-2. Re-validate `ohif-ai.patch` and `files/customization.patch` apply (regenerate hunks if upstream moved the touched files).
-3. Confirm the `backup/` overrides still match the resolved `@cornerstonejs/*` / `dcmjs` versions.
+2. Re-validate `patches/*.patch` and `files/customization.patch` apply (regenerate hunks if upstream moved the touched files).
+3. If the resolved `@cornerstonejs/*` / `@kitware/vtk.js` version changes, `patch-package` will fail loudly — regenerate `node-module-patches/` for the new version (install deps, re-apply the changes, `npx patch-package <pkg> --patch-dir node-module-patches`) and rename the patch files.
 4. Rebuild and run the nnInteractive parity test (prompt tools, run segmentation, reopen a saved SEG to confirm prompt reconstruction).
 
 > Longer term, the additive nnInteractive code in `ohif-ai.patch` (commands, Toolbox,

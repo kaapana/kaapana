@@ -158,33 +158,6 @@ index 2d7ae9105..0fcb8a73f 100644
    }, [servicesManager, viewportId, segDisplaySet, segIsLoading, hydrateSEG]);
  
    useEffect(() => {
-diff --git a/backup/esm/SegmentationRenderingEngine.js b/backup/esm/SegmentationRenderingEngine.js
-index f2e02859c..a8d05d32b 100644
---- a/backup/esm/SegmentationRenderingEngine.js
-+++ b/backup/esm/SegmentationRenderingEngine.js
-@@ -141,7 +141,21 @@ class SegmentationRenderingEngine {
-                     if(data===undefined){
-                         continue;
-                     }
--                    let prompts = JSON.parse(data.SegmentDescription)
-+                    const segmentDescription = data.SegmentDescription;
-+                    if (typeof segmentDescription !== 'string') {
-+                        continue;
-+                    }
-+                    const trimmedSegmentDescription = segmentDescription.trim();
-+                    if (!trimmedSegmentDescription.startsWith('{') && !trimmedSegmentDescription.startsWith('[')) {
-+                        continue;
-+                    }
-+                    let prompts;
-+                    try {
-+                        prompts = JSON.parse(trimmedSegmentDescription)
-+                    } catch (error) {
-+                        console.debug('Skipping non-JSON segment prompt metadata', error);
-+                        continue;
-+                    }
-                     let SegmentNumber = data.SegmentNumber
-                     let segmentationId = segmentationDetails[0].segmentationId
-                     
 diff --git a/extensions/default/src/ViewerLayout/ViewerHeader.tsx b/extensions/default/src/ViewerLayout/ViewerHeader.tsx
 index 6e1afb651..24f790292 100644
 --- a/extensions/default/src/ViewerLayout/ViewerHeader.tsx

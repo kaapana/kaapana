@@ -47,9 +47,9 @@ index 38da73c99..ff08d3b68 100644
  
    if (isAcquisitionPlane) {
 -    const imageId = imageIds[imageIndex];
-+    // Use getCurrentImageId() to get the actual imageId being displayed,
-+    // rather than indexing into imageIds array, since imageIds might not
-+    // be sorted in the same order as slice positions
++    // Kaapana residue: use the actual displayed imageId instead of indexing imageIds,
++    // because imageIds may be sorted differently from slice positions in volume viewports.
++    // Upstream candidate: this is a general overlay correctness fix.
 +    const imageId = cornerstoneViewport.getCurrentImageId?.();
  
      if (!imageId) {
@@ -62,7 +62,7 @@ index 237e78df0..062d6b801 100644
  
        if (displaySetInstanceUIDs) {
          segmentationService.remove(segmentationId);
-+        // Keep existing measurements associated with the stored SEG display set after replacement.
++        // Kaapana residue: keep measurements associated with the stored SEG display set after replacement.
 +        measurementService
 +        .getMeasurements()
 +        .filter(measurement => {
@@ -90,7 +90,7 @@ index b247dbc96..c4e4091f6 100644
    };
  
    const removeSegmentationFromViewport = segmentationId => {
-+    // Clear all measurements before removing a segmentation
++    // Kaapana residue: clear nnInteractive prompt measurements before removing a segmentation.
 +    commandsManager.run('resetNninter', { clearMeasurements: true });
      segmentationService.removeSegmentationRepresentations(viewportId, {
        segmentationId,
@@ -120,7 +120,7 @@ index e19f0ecc8..d97794ac7 100644
        return;
      }
 +    if (typeof center === 'number') {
-+          // need to find which viewports are displaying the segmentation
++          // Kaapana residue: nnInteractive stores a STACK slice index as the segment center.
 +        const viewportIds = viewportId
 +        ? [viewportId]
 +        : this.getViewportIdsWithSegmentation(segmentationId);
@@ -155,7 +155,8 @@ index 936c822b4..68fdf7f23 100644
 @@ -86,12 +86,12 @@ export async function updateSegmentationStats({
  
        if (readableText.volume) {
-         // Add volume if it exists but isn't in the array
+-        // Add volume if it exists but isn't in the array
++        // Kaapana residue: show all segment volumes in cm3 in the stock stats surface.
 -        if (segmentStats.volume && !namedStats.volume) {
 +        if (segmentStats.volume) {
            namedStats.volume = {

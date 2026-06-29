@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import os
 import sys
 from pathlib import Path
 from shutil import rmtree
@@ -23,22 +22,22 @@ from build_cli.helm import HelmChartHelper
 from build_cli.utils.logger import get_logger, init_logger, set_console_level
 
 
-def _find_repo_root() -> Path:
-    """Locate the Kaapana repository root.
+def _find_kaapana_root(start: Optional[Path] = None) -> Optional[Path]:
+    """Walk up from ``start`` (default: cwd) to the nearest Kaapana repo root.
 
-    The CLI lives at ``<repo>/build_cli/build_cli/cli.py`` (editable install),
-    so the number of ``.parent`` hops to the repo root is fragile. Walk up
-    until we find the ``.git`` directory; fall back to the package's grandparent
-    (``<repo>``). ``KAAPANA_DIR`` / ``--kaapana-dir`` still override this.
+    A Kaapana checkout is identified by a top-level ``platforms/`` directory — the
+    same marker ``run_build`` and ``BuildConfig.validate_all`` already validate.
+    Resolving from the cwd (not ``__file__``) means an editable-installed CLI builds
+    whichever worktree it is invoked from. Returns None when no ancestor qualifies
+    (i.e. invoked outside a Kaapana worktree). ``KAAPANA_DIR`` / ``--kaapana-dir``
+    still override this.
     """
-    here = Path(__file__).resolve()
-    for parent in here.parents:
-        if (parent / ".git").exists():
+    start = (start or Path.cwd()).resolve()
+    for parent in (start, *start.parents):
+        if (parent / "platforms").is_dir():
             return parent
-    return here.parents[2]
+    return None
 
-
-_REPO_ROOT = _find_repo_root()
 
 app = typer.Typer(
     help="Kaapana Platform Builder",
@@ -221,19 +220,19 @@ def build(
         envvar="CHECK_EXPIRED_VULNERABILITY_DB",
         help="Check and refresh vulnerability database.",
     ),
-    kaapana_dir: Path = typer.Option(
-        _REPO_ROOT,
+    kaapana_dir: Optional[Path] = typer.Option(
+        None,
         "-kd",
         "--kaapana-dir",
         envvar="KAAPANA_DIR",
-        help="Path to Kaapana repository.",
+        help="Path to Kaapana repository. Defaults to the worktree containing the current directory.",
     ),
-    build_dir: Path = typer.Option(
-        _REPO_ROOT / "build",
+    build_dir: Optional[Path] = typer.Option(
+        None,
         "-bd",
         "--build-dir",
         envvar="BUILD_DIR",
-        help="Directory for build artifacts.",
+        help="Directory for build artifacts. Defaults to <kaapana-dir>/build.",
     ),
     no_login: bool = typer.Option(
         False,
@@ -318,6 +317,20 @@ def build(
     """
     Kaapana Platform Builder entry point.
     """
+    if kaapana_dir is None:
+        kaapana_dir = _find_kaapana_root()
+        if kaapana_dir is None:
+            typer.secho(
+                "kaapana-build must be run from inside a Kaapana worktree "
+                "(no 'platforms/' directory found in the current directory or any parent).\n"
+                "cd into a Kaapana worktree, or pass --kaapana-dir / set KAAPANA_DIR.",
+                err=True,
+                fg=typer.colors.RED,
+            )
+            raise typer.Exit(1)
+    if build_dir is None:
+        build_dir = kaapana_dir / "build"
+
     config = BuildConfig(
         default_registry=default_registry,
         registry_username=username,
@@ -538,7 +551,8 @@ def main() -> None:
     calls directly — code under ``if __name__ == "__main__"`` does NOT run when
     the module is imported by the installed console script.
     """
-    load_dotenv(Path(os.getcwd(), ".env"))
+    root = _find_kaapana_root() or Path.cwd()
+    load_dotenv(root / ".env")
     app()
 
 

@@ -4,6 +4,7 @@ import { Separator, Button, Tooltip, TooltipTrigger, TooltipContent, Icons } fro
 import { useTranslation } from 'react-i18next';
 import { roundNumber } from '@ohif/core/src/utils';
 import { useSystem } from '@ohif/core/src';
+import { dispatchMeasurementStateChanged } from '../utils/measurementStateChanged';
 
 interface CustomSegmentStatisticsHeaderProps {
   segmentationId: string;
@@ -91,6 +92,7 @@ export const CustomSegmentStatisticsHeader = ({
                   segmentationService.addOrUpdateSegmentation({
                     segmentationId,
                   });
+                  dispatchMeasurementStateChanged();
 
                   if (isVisible === false) {
                     commandsManager.run('jumpToMeasurement', {

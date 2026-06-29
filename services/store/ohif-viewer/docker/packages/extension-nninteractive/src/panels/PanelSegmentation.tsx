@@ -4,6 +4,7 @@ import { useSystem } from '@ohif/core/src';
 
 import { useActiveViewportSegmentationRepresentations } from '../../../cornerstone/src/hooks/useActiveViewportSegmentationRepresentations';
 import { toolboxState } from '../utils/toolboxState';
+import { dispatchMeasurementStateChanged } from '../utils/measurementStateChanged';
 import { SegmentationTable } from './SegmentationTable';
 import { SegmentationDropdownMenuContent } from './SegmentationTable/SegmentationDropdownMenuContent';
 
@@ -125,7 +126,6 @@ export default function PanelSegmentation({ children }: withAppTypes) {
     },
     onToggleSegmentMeasurement: (segmentationId, segmentIndex) => {
       commandsManager.run('toggleSegmentMeasurement', { segmentationId, segmentIndex });
-      document.dispatchEvent(new Event('measurement-state-changed'));
     },
     onToggleSegmentLock: (segmentationId, segmentIndex) => {
       commandsManager.run('toggleSegmentLock', { segmentationId, segmentIndex });
@@ -159,7 +159,7 @@ export default function PanelSegmentation({ children }: withAppTypes) {
         .map(m => m.uid);
 
       measurementService.toggleVisibilityMeasurementMany(uids, next);
-      document.dispatchEvent(new Event('measurement-state-changed'));
+      dispatchMeasurementStateChanged();
     },
     setFillAlpha: ({ type }, value) => {
       commandsManager.run('setFillAlpha', { type, value });

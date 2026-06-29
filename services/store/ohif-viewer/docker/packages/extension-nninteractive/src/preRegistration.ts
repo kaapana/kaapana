@@ -13,6 +13,7 @@ import ToolNninter from './icons/ToolNninter';
 import ToolSam from './icons/ToolSam';
 import ToolTarget from './icons/ToolTarget';
 import ToolVoxTell from './icons/ToolVoxTell';
+import { dispatchMeasurementStateChanged } from './utils/measurementStateChanged';
 import { toolboxState } from './utils/toolboxState';
 
 const CORNERSTONE_3D_TOOLS_SOURCE_NAME = 'Cornerstone3DTools';
@@ -227,6 +228,8 @@ function registerToolLoadMeasurementVisibility(measurementService) {
     } catch (error) {
       console.warn('Failed to hide toolLoad annotation:', error);
     }
+
+    dispatchMeasurementStateChanged();
   });
 }
 

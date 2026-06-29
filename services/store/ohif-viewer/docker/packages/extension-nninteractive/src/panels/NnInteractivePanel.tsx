@@ -4,6 +4,7 @@ import { Brush, Lock, LockOpen } from 'lucide-react';
 import { useSystem, useToolbar } from '@ohif/core';
 import classnames from 'classnames';
 import { useTranslation } from 'react-i18next';
+import { dispatchMeasurementStateChanged } from '../utils/measurementStateChanged';
 import { toolboxState } from '../utils/toolboxState';
 
 interface ButtonProps {
@@ -214,6 +215,7 @@ export default function NnInteractivePanel({
             .filter(m => promptTools.includes(m.toolName))
             .map(m => m.uid);
           measurementService.toggleVisibilityMeasurementMany(uids, next);
+          dispatchMeasurementStateChanged();
           break;
         }
         case 'z': {

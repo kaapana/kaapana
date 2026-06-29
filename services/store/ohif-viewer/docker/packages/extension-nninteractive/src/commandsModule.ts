@@ -26,6 +26,7 @@ import { updateSegmentBidirectionalStats } from '../../cornerstone/src/utils/upd
 import { useSegmentationPresentationStore } from '../../cornerstone/src/stores';
 import { toolboxState } from './utils/toolboxState';
 import { parseMultipart } from './utils/multipart';
+import { dispatchMeasurementStateChanged } from './utils/measurementStateChanged';
 
 const LABELMAP = csToolsEnums.SegmentationRepresentations.Labelmap;
 const { downloadDICOMData } = helpers;
@@ -482,6 +483,8 @@ const commandsModule = ({
         segmentIndices: [targetIndex],
       });
 
+      let measurementVisibilityChanged = false;
+
       bidirectionalData.forEach(measurement => {
         const { segmentIndex, majorAxis, minorAxis, referencedImageId } = measurement;
         const annotation = cornerstoneTools.SegmentBidirectionalTool.hydrate(
@@ -504,6 +507,7 @@ const commandsModule = ({
             annotation.annotationUID,
             false
           );
+          measurementVisibilityChanged = true;
         }
 
         const updatedSegmentation = updateSegmentBidirectionalStats({
@@ -521,6 +525,10 @@ const commandsModule = ({
           });
         }
       });
+
+      if (measurementVisibilityChanged) {
+        dispatchMeasurementStateChanged();
+      }
     },
 
     updateStoredSegmentationPresentation: ({ displaySet, type }) => {
@@ -563,6 +571,8 @@ const commandsModule = ({
     },
 
     toggleSegmentMeasurement: ({ segmentationId, segmentIndex }) => {
+      let measurementVisibilityChanged = false;
+
       measurementService
         .getMeasurements()
         .filter(
@@ -572,7 +582,12 @@ const commandsModule = ({
         )
         .forEach(measurement => {
           measurementService.toggleVisibilityMeasurement(measurement.uid, !measurement.isVisible);
+          measurementVisibilityChanged = true;
         });
+
+      if (measurementVisibilityChanged) {
+        dispatchMeasurementStateChanged();
+      }
     },
 
     getSegmentMeasurementVisibility: ({ segmentationId, segmentIndex }) => {
@@ -1664,7 +1679,7 @@ const commandsModule = ({
         currentMeasurements
           .filter(e => e.referenceSeriesUID === currentDisplaySets.SeriesInstanceUID)
           .forEach(e => measurementService.toggleVisibilityMeasurement(e.uid, false));
-        document.dispatchEvent(new Event('measurement-state-changed'));
+        dispatchMeasurementStateChanged();
       }
 
       let url = `/nninteractive/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;

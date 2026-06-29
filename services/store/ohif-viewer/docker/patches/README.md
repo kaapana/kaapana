@@ -210,14 +210,12 @@ the extension-owned `PanelSegmentation` feeds.
 | `SegmentStatistics.tsx`, `DataRow.tsx`, `SegmentationSegments.tsx`, `AddSegmentRow.tsx`, `SegmentationTableContext.tsx` | **EXTRACTED** | copied into `packages/extension-nninteractive/src/panels/SegmentationTable/*` and consumed by the extension panel. | accept UI drift from upstream table updates |
 | `SidePanel.tsx` (+10), `ViewportPane.tsx` (+1) | **upstream-PR** | scrollable panel; hover-to-activate (now paired with `activateViewportBeforeInteraction:false` in app config). | `SidePanel` → **shipped CSS**; `ViewportPane` → **config** / viewport wrapper |
 
-**Quality flags (fix regardless of patch-vs-extension):** `SegmentationSegments.tsx` uses a **500 ms
-`setInterval` poll** (on top of a live `document` `measurement-state-changed` listener) to re-render,
-and reaches into `servicesManager` directly from a shared presentational component — it should
-receive visibility via context and rely solely on the `measurement-state-changed` signal (now fired
-from the extracted `commandsModule.ts`), fired at *every* visibility-change site, instead of
-polling. This is no longer an in-place-patch blocker because the table is now extension-owned, but
-it still deserves cleanup. `SidePanel.tsx` hardcodes
-`backgroundColor:'#090c29'` (use a theme token).
+**Quality flags (fix regardless of patch-vs-extension):** ✅ `SegmentationSegments.tsx` no longer
+uses a **500 ms `setInterval` poll** to re-render measurement visibility; it now listens only to the
+shared `measurement-state-changed` signal, and all known visibility-change sites dispatch that
+signal. Remaining table cleanup: it still reaches into `commandsManager` from a shared
+presentational component; visibility would be cleaner if passed through context. `SidePanel.tsx`
+hardcodes `backgroundColor:'#090c29'` (use a theme token).
 
 ### `40-platform-core.patch` — ✅ extracted and removed
 
@@ -263,9 +261,9 @@ metadata in one place, and avoids a tracked patch whose `version.txt` hunk was e
 
 1. **Quick wins, no upstream needed.** ✅ *Done:* deleted the dead `docker-nginx-orthanc.js` hunk,
    the no-op `OHIFCornerstoneViewport.tsx` comment, the dead `MEASUREMENT_VISIBILITY_CHANGED`
-   service event, and the patch-20/30 segmentation panel/table coupling. *Remaining (needs a UI
-   test):* replace the extension-owned `SegmentationSegments` 500 ms poll with the already-live
-   `measurement-state-changed` signal, ensuring it is dispatched at every visibility-change site.
+   service event, the patch-20/30 segmentation panel/table coupling, and the extension-owned
+   `SegmentationSegments` 500 ms poll. *Needs a UI smoke test:* confirm measurement visibility icons
+   update immediately after per-segment toggles, prompt hide/show, and generated bidirectional stats.
 2. **Scaffold `extension-nninteractive`** and move the additive bulk: commands (10, 20),
    utilities + AI panel (10), icons via `addIcon` (30), measurement mappings + `addTool` +
    customization overrides `CustomSegmentStatisticsHeader` / `overlayViewportTools` (20). Register in

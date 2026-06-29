@@ -1,15 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useSystem } from '@ohif/core';
-import {
-  Button,
-  Icons,
-  ScrollArea,
-} from '@ohif/ui-next';
+import { Button, Icons, ScrollArea } from '@ohif/ui-next';
 import { DataRow } from './DataRow';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from './HoverCard';
 import { useSegmentationTableContext, useSegmentationExpanded } from './contexts';
 import { SegmentStatistics } from './SegmentStatistics';
 import { useDynamicMaxHeight } from './useDynamicMaxHeight';
+import { MEASUREMENT_STATE_CHANGED_EVENT } from '../../utils/measurementStateChanged';
 
 export const SegmentationSegments = ({ children = null }: { children?: React.ReactNode }) => {
   const { commandsManager } = useSystem();
@@ -29,22 +26,17 @@ export const SegmentationSegments = ({ children = null }: { children?: React.Rea
   } = useSegmentationTableContext('SegmentationSegments');
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setForceUpdate(prev => prev + 1);
-    }, 500);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
     const handleMeasurementVisibilityChange = () => {
       setForceUpdate(prev => prev + 1);
     };
 
-    document.addEventListener('measurement-state-changed', handleMeasurementVisibilityChange);
+    document.addEventListener(MEASUREMENT_STATE_CHANGED_EVENT, handleMeasurementVisibilityChange);
 
     return () => {
-      document.removeEventListener('measurement-state-changed', handleMeasurementVisibilityChange);
+      document.removeEventListener(
+        MEASUREMENT_STATE_CHANGED_EVENT,
+        handleMeasurementVisibilityChange
+      );
     };
   }, []);
 

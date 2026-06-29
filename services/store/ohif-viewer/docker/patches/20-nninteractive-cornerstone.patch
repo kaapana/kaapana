@@ -1,10 +1,10 @@
 diff --git a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx b/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
-index 2d7ae9105..1747bb20d 100644
+index 2d7ae9105..9582c24b7 100644
 --- a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
 +++ b/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
-@@ -373,33 +373,20 @@ function OHIFCornerstoneSEGViewport(props: withAppTypes) {
+@@ -373,19 +373,6 @@ function OHIFCornerstoneSEGViewport(props: withAppTypes) {
  }
- 
+
  function _getReferencedDisplaySetMetadata(referencedDisplaySet, segDisplaySet) {
 -  const { SharedFunctionalGroupsSequence } = segDisplaySet.instance;
 -
@@ -19,11 +19,10 @@ index 2d7ae9105..1747bb20d 100644
 -    : PixelMeasuresSequence;
 -
 -  const { SpacingBetweenSlices, SliceThickness } = PixelMeasures;
--
-+
+
    const image0 = referencedDisplaySet.images[0];
    const referencedDisplaySetMetadata = {
-     PatientID: image0.PatientID,
+@@ -393,13 +380,13 @@ function _getReferencedDisplaySetMetadata(referencedDisplaySet, segDisplaySet) {
      PatientName: image0.PatientName,
      PatientSex: image0.PatientSex,
      PatientAge: image0.PatientAge,
@@ -96,151 +95,8 @@ index b247dbc96..c4e4091f6 100644
      segmentationService.removeSegmentationRepresentations(viewportId, {
        segmentationId,
      });
-diff --git a/extensions/cornerstone/src/panels/PanelSegmentation.tsx b/extensions/cornerstone/src/panels/PanelSegmentation.tsx
-index 91ce81fe4..2d5eda6ad 100644
---- a/extensions/cornerstone/src/panels/PanelSegmentation.tsx
-+++ b/extensions/cornerstone/src/panels/PanelSegmentation.tsx
-@@ -1,12 +1,25 @@
--import React from 'react';
-+import React, { useState, useEffect } from 'react';
- import { SegmentationTable } from '@ohif/ui-next';
- import { useActiveViewportSegmentationRepresentations } from '../hooks/useActiveViewportSegmentationRepresentations';
- import { metaData } from '@cornerstonejs/core';
- import { useSystem } from '@ohif/core/src';
-+import { toolboxState } from '@kaapana/extension-nninteractive/src/utils/toolboxState';
-+
-+const AI_PROMPT_TOOLS = ['Probe2', 'RectangleROI2', 'PlanarFreehandROI2', 'PlanarFreehandROI3'];
- 
- export default function PanelSegmentation({ children }: withAppTypes) {
-   const { commandsManager, servicesManager } = useSystem();
--  const { customizationService, displaySetService } = servicesManager.services;
-+  const { customizationService, displaySetService, measurementService, uiNotificationService } = servicesManager.services;
-+  const [promptsVisible, setPromptsVisible] = useState(toolboxState.getPromptsVisible());
-+
-+  // Sync promptsVisible when changed externally (e.g. O hotkey updates toolboxState directly)
-+  useEffect(() => {
-+    const id = setInterval(() => {
-+      const current = toolboxState.getPromptsVisible();
-+      setPromptsVisible(prev => prev !== current ? current : prev);
-+    }, 100);
-+    return () => clearInterval(id);
-+  }, []);
- 
-   const { segmentationsWithRepresentations, disabled } =
-     useActiveViewportSegmentationRepresentations({
-@@ -37,6 +50,10 @@ export default function PanelSegmentation({ children }: withAppTypes) {
-     },
-     onSegmentAdd: segmentationId => {
-       commandsManager.run('addSegment', { segmentationId });
-+      // Always start a new segment in positive (include) mode
-+      if (toolboxState.getPosNeg()) {
-+        toolboxState.setPosNeg(false);
-+      }
-     },
-     onSegmentClick: (segmentationId, segmentIndex) => {
-       commandsManager.run('setActiveSegmentAndCenter', { segmentationId, segmentIndex });
-@@ -50,12 +67,65 @@ export default function PanelSegmentation({ children }: withAppTypes) {
-     onSegmentColorClick: (segmentationId, segmentIndex) => {
-       commandsManager.run('editSegmentColor', { segmentationId, segmentIndex });
-     },
-+    onSegmentReset: (segmentationId, segmentIndex) => {
-+      commandsManager.run('resetSegment', { segmentationId, segmentIndex });
-+    },
-     onSegmentDelete: (segmentationId, segmentIndex) => {
--      commandsManager.run('deleteSegment', { segmentationId, segmentIndex });
-+      const deletePromise = new Promise<void>((resolve, reject) => {
-+        setTimeout(() => {
-+          try {
-+            const measurementUIDs = measurementService
-+              .getMeasurements()
-+              .filter(
-+                e =>
-+                  e?.metadata?.segmentationId === segmentationId &&
-+                  e?.metadata?.SegmentNumber === segmentIndex
-+              )
-+              .map(e => e?.uid);
-+            if (measurementUIDs.length > 0) {
-+              measurementService.removeMany(measurementUIDs);
-+            }
-+            commandsManager.run('resetNninter', { clearMeasurements: false });
-+
-+            // When loaded existing segDisplaySet, need to remove the segment from the displaySet
-+            const segDisplaySet = displaySetService.getDisplaySetByUID(segmentationId);
-+            const data = segDisplaySet?.segMetadata?.data;
-+            // Keep undefined entries; only remove matching segment objects
-+            if (Array.isArray(data)) {
-+              for (let i = data.length - 1; i >= 0; i--) {
-+                const e = data[i];
-+                if (e?.SegmentNumber === segmentIndex) {
-+                  data.splice(i, 1);
-+                }
-+              }
-+            }
-+
-+            commandsManager.run('deleteSegment', { segmentationId, segmentIndex });
-+            resolve();
-+          } catch (error) {
-+            reject(error);
-+          }
-+        }, 100);
-+      });
-+
-+      uiNotificationService.show({
-+        title: `Deleting ${segmentIndex}`,
-+        message: `Deleting segment ${segmentIndex}...`,
-+        type: 'info',
-+        promise: deletePromise,
-+        promiseMessages: {
-+          loading: `Deleting ${segmentIndex}...`,
-+          success: () => `Deleted ${segmentIndex} successfully`,
-+          error: error => `Delete ${segmentIndex} failed: ${error?.message || 'Unknown error'}`,
-+        },
-+      });
-     },
-     onToggleSegmentVisibility: (segmentationId, segmentIndex, type) => {
-       commandsManager.run('toggleSegmentVisibility', { segmentationId, segmentIndex, type });
-     },
-+    onToggleSegmentMeasurement: (segmentationId, segmentIndex) => {
-+      commandsManager.run('toggleSegmentMeasurement', { segmentationId, segmentIndex });
-+    },
-     onToggleSegmentLock: (segmentationId, segmentIndex) => {
-       commandsManager.run('toggleSegmentLock', { segmentationId, segmentIndex });
-     },
-@@ -77,6 +147,16 @@ export default function PanelSegmentation({ children }: withAppTypes) {
-     onSegmentationDelete: segmentationId => {
-       commandsManager.run('deleteSegmentation', { segmentationId });
-     },
-+    onTogglePromptsVisibility: () => {
-+      const next = !toolboxState.getPromptsVisible();
-+      toolboxState.setPromptsVisible(next);
-+      setPromptsVisible(next);
-+      const uids = measurementService
-+        .getMeasurements()
-+        .filter(m => AI_PROMPT_TOOLS.includes(m.toolName))
-+        .map(m => m.uid);
-+      measurementService.toggleVisibilityMeasurementMany(uids, next);
-+    },
-     setFillAlpha: ({ type }, value) => {
-       commandsManager.run('setFillAlpha', { type, value });
-     },
-@@ -138,6 +218,7 @@ export default function PanelSegmentation({ children }: withAppTypes) {
-     onSegmentationAdd,
-     showAddSegment,
-     renderInactiveSegmentations: handlers.getRenderInactiveSegmentations(),
-+    promptsVisible,
-     ...handlers,
-   };
- 
-@@ -196,7 +277,6 @@ export default function PanelSegmentation({ children }: withAppTypes) {
-     <SegmentationTable {...tableProps}>
-       {children}
-       <SegmentationTable.Config />
--      <SegmentationTable.AddSegmentationRow />
-       {renderModeContent()}
-     </SegmentationTable>
-   );
 diff --git a/extensions/cornerstone/src/services/SegmentationService/SegmentationService.ts b/extensions/cornerstone/src/services/SegmentationService/SegmentationService.ts
-index e19f0ecc8..c3a8f97f3 100644
+index e19f0ecc8..d97794ac7 100644
 --- a/extensions/cornerstone/src/services/SegmentationService/SegmentationService.ts
 +++ b/extensions/cornerstone/src/services/SegmentationService/SegmentationService.ts
 @@ -469,6 +469,7 @@ class SegmentationService extends PubSubService {
@@ -259,35 +115,7 @@ index e19f0ecc8..c3a8f97f3 100644
          },
        };
      });
-@@ -952,6 +954,27 @@ class SegmentationService extends PubSubService {
-     this._setSegmentVisibility(viewportId, segmentationId, segmentIndex, !isVisible, type);
-   }
- 
-+  public toggleSegmentMeasurement(segmentationId: string, segmentIndex: number): void {
-+   const measurements = this.servicesManager.services.measurementService.getMeasurements()
-+   const selectedMeasurements = measurements.filter(e => e.metadata.segmentationId === segmentationId && e.metadata.SegmentNumber === segmentIndex)
-+   selectedMeasurements.forEach(e => {
-+    this.servicesManager.services.measurementService.toggleVisibilityMeasurement(e.uid, !e.isVisible)
-+   })
-+
-+  }
-+
-+  public getSegmentMeasurementVisibility(segmentationId: string, segmentIndex: number): boolean {
-+   const measurements = this.servicesManager.services.measurementService.getMeasurements()
-+   const selectedMeasurements = measurements.filter(e => e.metadata.segmentationId === segmentationId && e.metadata.SegmentNumber === segmentIndex)
-+
-+   if (selectedMeasurements.length === 0) {
-+     return false; // Default to visible if no measurements found
-+   }
-+
-+   // Return true if any measurement is visible, false if all are hidden
-+   return selectedMeasurements.some(e => e.isVisible)
-+  }
-+
-   /**
-    * Sets the color of a specific segment in a segmentation.
-    *
-@@ -1183,6 +1206,32 @@ class SegmentationService extends PubSubService {
+@@ -1183,6 +1185,32 @@ class SegmentationService extends PubSubService {
        console.warn('No center found for segmentation', segmentationId, segmentIndex);
        return;
      }

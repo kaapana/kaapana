@@ -1,13 +1,9 @@
 import React from 'react';
 
 import NnInteractivePanel from './panels/NnInteractivePanel';
+import PanelSegmentation from './panels/PanelSegmentation';
 
-export default function getPanelModule({ extensionManager }) {
-  const cornerstoneSegmentationPanel = extensionManager.getModuleEntry(
-    '@ohif/extension-cornerstone.panelModule.panelSegmentation'
-  );
-
-  const PanelSegmentation = cornerstoneSegmentationPanel.component;
+export default function getPanelModule() {
   const PanelSegmentationWithTools = ({ configuration }) => {
     return (
       <>

@@ -34,7 +34,9 @@ class PlanarFreehandROI3Tool extends PlanarFreehandROITool {
 }
 
 const PROMPT_TOOL_NAMES = ['Probe2', 'RectangleROI2', 'PlanarFreehandROI2', 'PlanarFreehandROI3'];
-let registered = false;
+let annotationMetadataStampingRegistered = false;
+let activeViewportInitRegistered = false;
+let metadataProviderRegistered = false;
 
 function safeAddTool(tool) {
   try {
@@ -62,7 +64,7 @@ function addPromptToolMappings(measurementService) {
       CORNERSTONE_3D_TOOLS_SOURCE_VERSION
     ) ?? [];
 
-  const addAlias = (alias, baseTool) => {
+  const addAlias = (alias: string, baseTool: string) => {
     if (mappings.some(mapping => mapping.annotationType === alias)) {
       return;
     }
@@ -73,12 +75,59 @@ function addPromptToolMappings(measurementService) {
       return;
     }
 
+    const toAnnotationSchema = measurement => {
+      const baseMeasurement = {
+        ...measurement,
+        toolName: baseTool,
+        metadata: {
+          ...measurement?.metadata,
+          toolName: baseTool,
+        },
+      };
+      const annotation = baseMapping.toAnnotationSchema(baseMeasurement);
+
+      if (annotation?.metadata) {
+        annotation.metadata.toolName = alias;
+      }
+
+      return annotation;
+    };
+
+    const toMeasurementSchema = sourceAnnotationDetail => {
+      const annotation = sourceAnnotationDetail?.annotation;
+      const baseSourceAnnotationDetail = {
+        ...sourceAnnotationDetail,
+        annotation: {
+          ...annotation,
+          metadata: {
+            ...annotation?.metadata,
+            toolName: baseTool,
+          },
+        },
+      };
+      const measurement = baseMapping.toMeasurementSchema(baseSourceAnnotationDetail);
+
+      if (!measurement) {
+        return measurement;
+      }
+
+      return {
+        ...measurement,
+        toolName: alias,
+        metadata: {
+          ...measurement.metadata,
+          ...annotation?.metadata,
+          toolName: alias,
+        },
+      };
+    };
+
     measurementService.addMapping(
       source,
       alias,
       baseMapping.matchingCriteria,
-      baseMapping.toAnnotationSchema,
-      baseMapping.toMeasurementSchema
+      toAnnotationSchema,
+      toMeasurementSchema
     );
   };
 
@@ -89,6 +138,11 @@ function addPromptToolMappings(measurementService) {
 }
 
 function registerAnnotationMetadataStamping() {
+  if (annotationMetadataStampingRegistered) {
+    return;
+  }
+  annotationMetadataStampingRegistered = true;
+
   eventTarget.addEventListener(Enums.Events.ANNOTATION_ADDED, evt => {
     const annotation = (evt as any)?.detail?.annotation;
     const metadata = annotation?.metadata;
@@ -104,10 +158,16 @@ function registerAnnotationMetadataStamping() {
 }
 
 function registerActiveViewportInit({ servicesManager, commandsManager }) {
+  if (activeViewportInitRegistered) {
+    return;
+  }
+
   const viewportGridService = servicesManager?.services?.viewportGridService;
   if (!viewportGridService?.subscribe || !commandsManager?.run) {
     return;
   }
+
+  activeViewportInitRegistered = true;
 
   viewportGridService.subscribe(
     viewportGridService.EVENTS.ACTIVE_VIEWPORT_ID_CHANGED,
@@ -118,6 +178,11 @@ function registerActiveViewportInit({ servicesManager, commandsManager }) {
 }
 
 function registerMetadataProvider() {
+  if (metadataProviderRegistered) {
+    return;
+  }
+  metadataProviderRegistered = true;
+
   metaData.addProvider((type, imageId) => {
     if (type !== 'imagePlaneModule' || !imageId) {
       return;
@@ -146,11 +211,6 @@ export default function preRegistration({ servicesManager, commandsManager }: an
   safeAddTool(RectangleROI2Tool);
   safeAddTool(PlanarFreehandROI2Tool);
   safeAddTool(PlanarFreehandROI3Tool);
-
-  if (registered) {
-    return;
-  }
-  registered = true;
 
   const measurementService = servicesManager?.services?.measurementService;
   if (measurementService) {

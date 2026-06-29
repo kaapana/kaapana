@@ -1,7 +1,3 @@
-// multipart.ts
-// Optional fallback (uncomment the import and the line in gunzip() if you install pako):
-// import { ungzip as pakoUngzip } from "pako";
-
 function uint8ToString(u8: Uint8Array): string {
     return new TextDecoder("utf-8").decode(u8);
   }
@@ -38,10 +34,7 @@ function uint8ToString(u8: Uint8Array): string {
       const ab = await new Response(stream).arrayBuffer();
       return new Uint8Array(ab);
     }
-    // Fallback: use pako if you installed it
-    // return pakoUngzip(u8);
-    // If no fallback is available, throw to avoid silent JSON.parse errors:
-    throw new Error("Gzip content received but no DecompressionStream (install pako for fallback).");
+    throw new Error("Gzip content received but DecompressionStream is not available in this browser.");
   }
   
   async function gunzipIfNeeded(u8: Uint8Array, headers: Record<string, string>): Promise<Uint8Array> {
@@ -176,4 +169,3 @@ function uint8ToString(u8: Uint8Array): string {
   
     return { meta: metaObj, seg };
   }
-  

@@ -25,20 +25,6 @@ index 2721b4ee3..04607e081 100644
          </>
        ) : (
          <React.Fragment>{getCloseStateComponent()}</React.Fragment>
-diff --git a/platform/ui-next/src/components/StudyBrowserSort/StudyBrowserSort.tsx b/platform/ui-next/src/components/StudyBrowserSort/StudyBrowserSort.tsx
-index e9f871715..5b6ecde25 100644
---- a/platform/ui-next/src/components/StudyBrowserSort/StudyBrowserSort.tsx
-+++ b/platform/ui-next/src/components/StudyBrowserSort/StudyBrowserSort.tsx
-@@ -14,7 +14,8 @@ export function StudyBrowserSort({ servicesManager }: withAppTypes) {
-   const { customizationService, displaySetService } = servicesManager.services;
-   const sortFunctions = customizationService.getCustomization('studyBrowser.sortFunctions');
- 
--  const [selectedSort, setSelectedSort] = useState(sortFunctions[0]);
-+  const defaultSort = sortFunctions.find(sf => sf.label === 'Series Number') || sortFunctions[0];
-+  const [selectedSort, setSelectedSort] = useState(defaultSort);
-   const [sortDirection, setSortDirection] = useState('ascending');
- 
-   const handleSortChange = sortFunction => {
 diff --git a/platform/ui/src/components/ViewportPane/ViewportPane.tsx b/platform/ui/src/components/ViewportPane/ViewportPane.tsx
 index c7f1b12e5..63dee4607 100644
 --- a/platform/ui/src/components/ViewportPane/ViewportPane.tsx

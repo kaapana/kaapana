@@ -206,7 +206,7 @@ the extension-owned `PanelSegmentation` feeds.
 | File(s) | Strict verdict | Clean home | Relaxed-equivalent |
 |---|---|---|---|
 | 4 NEW `Icons/Sources/Tool*.tsx` + `Icons.tsx` (+12) + `Tools.tsx` (+3) | **Extracted — patch removed** | `packages/extension-nninteractive/src/preRegistration.ts` registers the icons with `Icons.addIcon(name, component)`. | — already clean |
-| `StudyBrowserSort.tsx` (+2/−1) | **CONFIG/redundant** | already applied at runtime by patch 10; likely removable. | — already clean |
+| `StudyBrowserSort.tsx` (+2/−1) | **Removed** | runtime/default sort is already covered by patch 10; no platform UI hunk needed. | — already clean |
 | `SegmentStatistics.tsx`, `DataRow.tsx`, `SegmentationSegments.tsx`, `AddSegmentRow.tsx`, `SegmentationTableContext.tsx` | **EXTRACTED** | copied into `packages/extension-nninteractive/src/panels/SegmentationTable/*` and consumed by the extension panel. | accept UI drift from upstream table updates |
 | `SidePanel.tsx` (+10), `ViewportPane.tsx` (+1) | **upstream-PR** | scrollable panel; hover-to-activate (now paired with `activateViewportBeforeInteraction:false` in app config). | `SidePanel` → **shipped CSS**; `ViewportPane` → **config** / viewport wrapper |
 

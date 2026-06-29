@@ -503,7 +503,7 @@ export default function NnInteractivePanel({
       value: brushSize,
       toolNames: ['CircularBrush', 'CircularEraser'],
     });
-    commandsManager.run('setToolActive', {
+    commandsManager.run('setToolActiveToolbar', {
       toolName: toolboxState.getPosNeg() ? 'CircularEraser' : 'CircularBrush',
     });
   };
@@ -668,7 +668,7 @@ export default function NnInteractivePanel({
                         setPosNeg(neg);
                         toolboxState.setPosNeg(neg);
                         if (toolboxState.getManualCorrectionMode() && sessionActive) {
-                          commandsManager.run('setToolActive', {
+                          commandsManager.run('setToolActiveToolbar', {
                             toolName: neg ? 'CircularEraser' : 'CircularBrush',
                           });
                         }

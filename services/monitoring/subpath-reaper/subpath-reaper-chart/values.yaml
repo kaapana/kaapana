@@ -1,0 +1,20 @@
+---
+global:
+  pull_policy_images: "IfNotPresent"
+
+subpathReaper:
+  # Seconds between sweeps.
+  interval: 60
+  # Pod dirs younger than this many minutes are never touched (avoids racing a
+  # just-started pod whose UID is not yet in the API snapshot).
+  graceMinutes: 2
+  # Host path of the kubelet pods directory (snap microk8s default). Override only
+  # if the node uses a non-standard kubelet root.
+  kubeletPodsDir: "/var/snap/microk8s/common/var/lib/kubelet/pods"
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi

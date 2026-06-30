@@ -72,6 +72,7 @@ check whether the change affects:
 - generated bidirectional stats
 - prompt cleanup when segments/segmentations are removed
 - manual correction brush add/erase workflows
+- single-step nnInteractive undo; the backend can undo only the latest interaction
 
 ## Runtime Assumptions
 
@@ -90,7 +91,7 @@ Verify:
 - negative prompts subtract instead of add
 - run segmentation and see mask update
 - manual correction brush add/erase
-- undo/reset/next object
+- single-step undo/reset/next object
 - store/export SEG
 - reload stored SEG and see prompts reconstructed
 - generated bidirectional/stat display

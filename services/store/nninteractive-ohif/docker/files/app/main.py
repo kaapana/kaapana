@@ -501,9 +501,18 @@ def _multipart(meta: dict[str, Any], seg: bytes) -> Response:
     return Response(body, media_type=f'multipart/form-data; boundary="{boundary}"')
 
 
-def _meta(entry: SeriesSession, seg: bytes, offset: list[int], full_shape: list[int], crop_shape: list[int], start: float, prompt_info: str) -> dict[str, str]:
+def _meta(
+    entry: SeriesSession,
+    seg: bytes,
+    offset: list[int],
+    full_shape: list[int],
+    crop_shape: list[int],
+    start: float,
+    prompt_info: str,
+    extra: dict[str, Any] | None = None,
+) -> dict[str, str]:
     now = time.time()
-    return {
+    meta = {
         "flipped": str(entry.flipped).lower(),
         "nninter_elapsed": f"{now - start:.3f}",
         "nninter_core_elapsed": f"{now - start:.3f}",
@@ -522,6 +531,14 @@ def _meta(entry: SeriesSession, seg: bytes, offset: list[int], full_shape: list[
         "pred_crop_shape": json.dumps(crop_shape),
         "seg_bytes": str(len(seg)),
     }
+    if extra:
+        meta.update(
+            {
+                key: str(value).lower() if isinstance(value, bool) else str(value)
+                for key, value in extra.items()
+            }
+        )
+    return meta
 
 
 def _forward_auth_headers(request: Request) -> dict[str, str]:
@@ -550,7 +567,7 @@ def _run_inference_request(entry: SeriesSession, mode: Any, data: dict[str, Any]
         if ran and entry.prompt_order:
             entry.prompts_seen.discard(entry.prompt_order.pop())
         seg, offset, full_shape, crop_shape = _crop_target(entry.target_buffer)
-        return _multipart(_meta(entry, seg, offset, full_shape, crop_shape, start, "undo"), seg)
+        return _multipart(_meta(entry, seg, offset, full_shape, crop_shape, start, "undo", {"undone": ran}), seg)
 
     if mode == "set_mask":
         mask_bytes = data.get("mask_bytes")

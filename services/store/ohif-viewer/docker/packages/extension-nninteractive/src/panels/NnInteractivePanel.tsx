@@ -763,18 +763,6 @@ export default function NnInteractivePanel({
 
                   <div className="border-t border-primary/20" />
 
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="w-full"
-                    disabled={!nnInteractiveReady || !sessionActive}
-                    onClick={handleExport}
-                  >
-                    Export DICOM SEG
-                  </Button>
-
-                  <div className="border-t border-primary/20" />
-
                   <div className="flex flex-col gap-2">
                     <div className="text-muted-foreground text-sm">Manual Correction</div>
                     <Button
@@ -817,6 +805,18 @@ export default function NnInteractivePanel({
                       Apply Manual Correction
                     </Button>
                   </div>
+
+                  <div className="border-t border-primary/20" />
+
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="w-full"
+                    disabled={!nnInteractiveReady || !sessionActive}
+                    onClick={handleExport}
+                  >
+                    Export DICOM SEG
+                  </Button>
                 </div>
               );
             })}

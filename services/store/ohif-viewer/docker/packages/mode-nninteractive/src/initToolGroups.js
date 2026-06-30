@@ -331,6 +331,56 @@ function initMPRToolGroup(extensionManager, toolGroupService, commandsManager) {
           displayOnePointAsCrosshairs: true,
         },
       },
+      // Manual-correction brush/eraser tools — registered here so the nnInteractive "Manual
+      // Correction" brush works in MPR/volume viewports (previously only the stack 'default' group
+      // had them, so activating CircularBrush in MPR silently no-oped and left the lasso active).
+      {
+        toolName: 'CircularBrush',
+        parentTool: 'Brush',
+        configuration: { activeStrategy: 'FILL_INSIDE_CIRCLE' },
+      },
+      {
+        toolName: 'CircularEraser',
+        parentTool: 'Brush',
+        configuration: { activeStrategy: 'ERASE_INSIDE_CIRCLE' },
+      },
+      {
+        toolName: 'SphereBrush',
+        parentTool: 'Brush',
+        configuration: { activeStrategy: 'FILL_INSIDE_SPHERE' },
+      },
+      {
+        toolName: 'SphereEraser',
+        parentTool: 'Brush',
+        configuration: { activeStrategy: 'ERASE_INSIDE_SPHERE' },
+      },
+      {
+        toolName: 'ThresholdCircularBrush',
+        parentTool: 'Brush',
+        configuration: { activeStrategy: 'THRESHOLD_INSIDE_CIRCLE' },
+      },
+      {
+        toolName: 'ThresholdSphereBrush',
+        parentTool: 'Brush',
+        configuration: { activeStrategy: 'THRESHOLD_INSIDE_SPHERE' },
+      },
+      {
+        toolName: 'ThresholdCircularBrushDynamic',
+        parentTool: 'Brush',
+        configuration: {
+          activeStrategy: 'THRESHOLD_INSIDE_CIRCLE',
+          threshold: { isDynamic: true, dynamicRadius: 3 },
+        },
+      },
+      {
+        toolName: 'ThresholdSphereBrushDynamic',
+        parentTool: 'Brush',
+        configuration: {
+          activeStrategy: 'THRESHOLD_INSIDE_SPHERE',
+          threshold: { isDynamic: true, dynamicRadius: 3 },
+        },
+      },
+      { toolName: toolNames.SegmentSelect },
     ],
     disabled: [
       {

@@ -10,9 +10,11 @@ import {
   cache,
   imageLoader,
   metaData,
+  volumeLoader,
   Types as csTypes,
   utilities as csUtils,
   BaseVolumeViewport,
+  VolumeViewport3D,
   eventTarget,
 } from '@cornerstonejs/core';
 import { adaptersSEG, helpers } from '@cornerstonejs/adapters';
@@ -113,11 +115,20 @@ function constructInferenceFormData(params: Record<string, unknown>, files?: any
   return formData;
 }
 
-function getClosedFreehandBoundaryIJK(measurement: any, viewport: any): number[][] | undefined {
+function getClosedFreehandBoundaryIJK(
+  measurement: any,
+  viewport: any,
+  displaySetImageIds?: string[]
+): number[][] | undefined {
+  const isVolume = viewport instanceof BaseVolumeViewport;
   const dataValues = Object.values(measurement?.data ?? {});
-  const cachedBoundary = dataValues.find((value: any) => value?.boundary?.length)?.boundary;
-  if (cachedBoundary?.length) {
-    return cachedBoundary.map((point: number[]) => point.map(value => Math.round(value)));
+  // The patched-tool cached payload is only trusted for stack viewports — its volumeId branch is
+  // unreliable (depends on a global `services`) and was the source of mis-placed MPR segments.
+  if (!isVolume) {
+    const cachedBoundary = dataValues.find((value: any) => value?.boundary?.length)?.boundary;
+    if (cachedBoundary?.length) {
+      return cachedBoundary.map((point: number[]) => point.map(value => Math.round(value)));
+    }
   }
 
   const worldPoints =
@@ -130,22 +141,11 @@ function getClosedFreehandBoundaryIJK(measurement: any, viewport: any): number[]
     return undefined;
   }
 
-  const imageData = viewport?.getImageData?.()?.imageData ?? viewport?.getImageData?.();
-  if (!imageData || !csUtils.transformWorldToIndex) {
-    return undefined;
-  }
+  const ijkPoints = worldPoints
+    .map((point: number[]) => worldToIJKForMeasurement(point, measurement, viewport, displaySetImageIds))
+    .filter(Boolean) as number[][];
 
-  const viewportImageIds = viewport?.getImageIds?.() ?? [];
-  const referencedSliceIndex = viewportImageIds.indexOf(measurement?.referencedImageId);
-
-  return worldPoints
-    .map((point: number[]) => csUtils.transformWorldToIndex(imageData, point))
-    .filter((point: number[]) => point?.length >= 3 && point.every(Number.isFinite))
-    .map((point: number[]) => [
-      Math.round(point[0]),
-      Math.round(point[1]),
-      referencedSliceIndex >= 0 ? referencedSliceIndex : Math.round(point[2]),
-    ]);
+  return ijkPoints.length ? ijkPoints : undefined;
 }
 
 function getMeasurementWorldPoints(measurement: any): number[][] {
@@ -179,7 +179,24 @@ function getMeasurementWorldPoints(measurement: any): number[][] {
   return [];
 }
 
-function worldToIJKForMeasurement(point: number[], measurement: any, viewport: any): number[] | undefined {
+/**
+ * Convert a world point to the [x, y, z] index the nnInteractive proxy expects, for ANY draw plane.
+ *
+ * - STACK viewport: getImageData().imageData is the single displayed slice ([cols,rows,1]); x/y come
+ *   from it and z is the slice's index within the stack (via referencedImageId).
+ * - VOLUME / MPR viewport: getImageData().imageData is the full 3D volume; transformWorldToIndex gives
+ *   the full volume index [i=col, j=row, k=slice] for the point regardless of which plane it was drawn
+ *   on. The proxy expects z in the SOURCE display-set (InstanceNumber) slice order — the same convention
+ *   the known-correct axial-stack path uses — NOT the volume's geometric k order. We convert by looking
+ *   up the source imageId at volume slice k in the display-set order: z = displaySetImageIds.indexOf(
+ *   volumeImageIds[k]). This reduces to the working axial invariant and needs no flip guessing.
+ */
+function worldToIJKForMeasurement(
+  point: number[],
+  measurement: any,
+  viewport: any,
+  displaySetImageIds?: string[]
+): number[] | undefined {
   const imageData = viewport?.getImageData?.()?.imageData ?? viewport?.getImageData?.();
   if (!imageData || !csUtils.transformWorldToIndex) {
     return;
@@ -190,64 +207,105 @@ function worldToIJKForMeasurement(point: number[], measurement: any, viewport: a
     return;
   }
 
+  const x = Math.round(ijk[0]);
+  const y = Math.round(ijk[1]);
+
+  if (viewport instanceof BaseVolumeViewport) {
+    // Volume / MPR: map the volume slice k → source display-set (stack) index.
+    const k = Math.round(ijk[2]);
+    const volumeImageIds: string[] = viewport?.getImageIds?.() ?? [];
+    let z = k;
+    const srcImageId = volumeImageIds[k];
+    if (srcImageId && displaySetImageIds?.length) {
+      const stackIdx = displaySetImageIds.indexOf(srcImageId);
+      if (stackIdx >= 0) {
+        z = stackIdx;
+      } else {
+        console.debug(
+          `[nninter] worldToIJK volume: imageId at volume k=${k} not found in display-set order; using raw k=${k}`
+        );
+      }
+    } else if (!displaySetImageIds?.length) {
+      console.debug('[nninter] worldToIJK volume: no displaySetImageIds passed; using raw volume k for z');
+    }
+    return [x, y, z];
+  }
+
+  // Stack viewport: z is the drawn slice's index within the stack.
   const viewportImageIds = viewport?.getImageIds?.() ?? [];
   const referencedSliceIndex = viewportImageIds.indexOf(measurement?.referencedImageId);
-
-  return [
-    Math.round(ijk[0]),
-    Math.round(ijk[1]),
-    referencedSliceIndex >= 0 ? referencedSliceIndex : Math.round(ijk[2]),
-  ];
+  return [x, y, referencedSliceIndex >= 0 ? referencedSliceIndex : Math.round(ijk[2])];
 }
 
-function getPromptPointIJK(measurement: any, viewport: any): number[] | undefined {
-  const cachedIndex = Object.values(measurement?.data ?? {}).find(
-    (value: any) => value?.index?.length === 3
-  ) as any;
-  if (cachedIndex?.index?.length === 3) {
-    return cachedIndex.index.map((value: number) => Math.round(value));
+function getPromptPointIJK(
+  measurement: any,
+  viewport: any,
+  displaySetImageIds?: string[]
+): number[] | undefined {
+  // Trust the patched-tool cached index only for stack viewports (see note in getClosedFreehandBoundaryIJK).
+  if (!(viewport instanceof BaseVolumeViewport)) {
+    const cachedIndex = Object.values(measurement?.data ?? {}).find(
+      (value: any) => value?.index?.length === 3
+    ) as any;
+    if (cachedIndex?.index?.length === 3) {
+      return cachedIndex.index.map((value: number) => Math.round(value));
+    }
   }
 
   const [worldPoint] = getMeasurementWorldPoints(measurement);
-  return worldPoint ? worldToIJKForMeasurement(worldPoint, measurement, viewport) : undefined;
+  return worldPoint ? worldToIJKForMeasurement(worldPoint, measurement, viewport, displaySetImageIds) : undefined;
 }
 
-function getRectangleBoxIJK(measurement: any, viewport: any): number[][] | undefined {
-  const cachedPoints = Object.values(measurement?.data ?? {}).find(
-    (value: any) => value?.pointsInShape?.length
-  ) as any;
-  if (cachedPoints?.pointsInShape?.length) {
-    return [cachedPoints.pointsInShape.at(0).pointIJK, cachedPoints.pointsInShape.at(-1).pointIJK];
+function getRectangleBoxIJK(
+  measurement: any,
+  viewport: any,
+  displaySetImageIds?: string[]
+): number[][] | undefined {
+  if (!(viewport instanceof BaseVolumeViewport)) {
+    const cachedPoints = Object.values(measurement?.data ?? {}).find(
+      (value: any) => value?.pointsInShape?.length
+    ) as any;
+    if (cachedPoints?.pointsInShape?.length) {
+      return [cachedPoints.pointsInShape.at(0).pointIJK, cachedPoints.pointsInShape.at(-1).pointIJK];
+    }
   }
 
   const ijkPoints = getMeasurementWorldPoints(measurement)
-    .map(point => worldToIJKForMeasurement(point, measurement, viewport))
+    .map(point => worldToIJKForMeasurement(point, measurement, viewport, displaySetImageIds))
     .filter(Boolean) as number[][];
 
   if (ijkPoints.length === 0) {
     return;
   }
 
+  // 3D bounding box over ALL corners — for off-axial (sagittal/coronal) boxes the corners span a
+  // z-range, so z must NOT be collapsed to a single slice. For axial boxes min==max z (unchanged).
   const xValues = ijkPoints.map(point => point[0]);
   const yValues = ijkPoints.map(point => point[1]);
-  const z = ijkPoints[0][2];
+  const zValues = ijkPoints.map(point => point[2]);
 
   return [
-    [Math.min(...xValues), Math.min(...yValues), z],
-    [Math.max(...xValues), Math.max(...yValues), z],
+    [Math.min(...xValues), Math.min(...yValues), Math.min(...zValues)],
+    [Math.max(...xValues), Math.max(...yValues), Math.max(...zValues)],
   ];
 }
 
-function getOpenFreehandIJK(measurement: any, viewport: any): number[][] | undefined {
-  const cachedScribble = Object.values(measurement?.data ?? {}).find(
-    (value: any) => value?.scribble?.length
-  ) as any;
-  if (cachedScribble?.scribble?.length) {
-    return cachedScribble.scribble.map((point: number[]) => point.map(value => Math.round(value)));
+function getOpenFreehandIJK(
+  measurement: any,
+  viewport: any,
+  displaySetImageIds?: string[]
+): number[][] | undefined {
+  if (!(viewport instanceof BaseVolumeViewport)) {
+    const cachedScribble = Object.values(measurement?.data ?? {}).find(
+      (value: any) => value?.scribble?.length
+    ) as any;
+    if (cachedScribble?.scribble?.length) {
+      return cachedScribble.scribble.map((point: number[]) => point.map(value => Math.round(value)));
+    }
   }
 
   const ijkPoints = getMeasurementWorldPoints(measurement)
-    .map(point => worldToIJKForMeasurement(point, measurement, viewport))
+    .map(point => worldToIJKForMeasurement(point, measurement, viewport, displaySetImageIds))
     .filter(Boolean) as number[][];
 
   return ijkPoints.length ? ijkPoints : undefined;
@@ -273,6 +331,75 @@ const commandsModule = ({
 
   const aiPromptToolNames = ['Probe2', 'PlanarFreehandROI2', 'PlanarFreehandROI3', 'RectangleROI2'];
   const pendingLivePrompts = new Map<string, { unsubscribe?: () => void; rafId?: number }>();
+
+  // ── MPR manual-correction sync state ──────────────────────────────────────────────────────────
+  // The MPR overlay is a derived labelmap VOLUME (display copy); the per-slice stack labelmap is the
+  // source of truth for DICOM-SEG export/store. A manual brush in an MPR viewport edits the VOLUME,
+  // so we track that the volume has unsynced edits and copy them back into the stack labelmap before
+  // export. _mprRefVolumeIdBySeg remembers each segmentation's source CT volumeId for the reverse map.
+  const _mprRefVolumeIdBySeg = new Map<string, string>();
+  let _mprDirtySegId: string | undefined;
+
+  /** Get the labelmap volumeId used for the MPR overlay of a segmentation. */
+  const mprLabelmapVolumeId = (segmentationId: string) => `${segmentationId}-mpr-labelmap`;
+
+  /**
+   * Copy the MPR labelmap VOLUME back into the per-slice STACK labelmap images (the inverse of
+   * buildAndSyncLabelmapVolume), so manual brush corrections done in MPR persist to DICOM-SEG
+   * export/store and the stack view. Geometric, guarded; no-op (returns false) if there is no
+   * volume labelmap or the geometry can't be resolved.
+   */
+  const syncVolumeLabelmapToStack = (segmentationId: string): boolean => {
+    try {
+      const labelmapVol: any = cache.getVolume(mprLabelmapVolumeId(segmentationId));
+      if (!labelmapVol?.voxelManager?.getCompleteScalarDataArray) {
+        return false;
+      }
+      const seg = csToolsSegmentation.state.getSegmentation(segmentationId);
+      const stackImageIds: string[] = (seg?.representationData?.[LABELMAP] as any)?.imageIds ?? [];
+      if (!stackImageIds.length) {
+        return false;
+      }
+      const refVolumeId: string | undefined =
+        labelmapVol.referencedVolumeId || _mprRefVolumeIdBySeg.get(segmentationId);
+      const srcVol: any = refVolumeId ? cache.getVolume(refVolumeId) : null;
+      const srcVolImageIds: string[] = srcVol?.imageIds ?? [];
+      if (!srcVolImageIds.length) {
+        console.warn('[nninter] sync volume→stack: source volume imageIds unavailable; skipping');
+        return false;
+      }
+      const kByImageId = new Map<string, number>();
+      for (let k = 0; k < srcVolImageIds.length; k++) {
+        kByImageId.set(srcVolImageIds[k], k);
+      }
+
+      const [nx, ny, nz] = labelmapVol.dimensions;
+      const sliceLen = nx * ny;
+      const arr = labelmapVol.voxelManager.getCompleteScalarDataArray();
+
+      let written = 0;
+      for (const stackImageId of stackImageIds) {
+        const segImg: any = cache.getImage(stackImageId);
+        const refImageId: string | undefined = segImg?.referencedImageId;
+        const k = refImageId != null ? kByImageId.get(refImageId) : undefined;
+        if (k == null || k < 0 || k >= nz) {
+          continue;
+        }
+        const sd = (segImg.voxelManager as csTypes.IVoxelManager<number>)?.getScalarData?.();
+        if (!sd || sd.length !== sliceLen) {
+          continue;
+        }
+        (sd as any).set((arr as any).subarray(k * sliceLen, (k + 1) * sliceLen));
+        segImg.voxelManager?.setScalarData?.(sd);
+        written++;
+      }
+      console.info(`[nninter] synced MPR volume→stack labelmap: ${written}/${stackImageIds.length} slices`);
+      return written > 0;
+    } catch (error) {
+      console.warn('[nninter] sync volume→stack labelmap failed; export uses the stack labelmap as-is:', error);
+      return false;
+    }
+  };
 
   const getMeasurementDataValues = (measurement: any): any[] => {
     return Object.values(measurement?.data ?? {});
@@ -416,15 +543,45 @@ const commandsModule = ({
     }
   );
 
+  // Track which labelmap is authoritative during MANUAL CORRECTION so MPR brush edits persist.
+  // A brush stroke fires SEGMENTATION_DATA_MODIFIED: if the active viewport is a volume/MPR pane the
+  // edit landed in the VOLUME labelmap (mark it dirty → sync to the stack labelmap before export); if
+  // it's the stack pane the stack labelmap was edited directly (it stays authoritative → clear dirty).
+  // Gated on manual-correction mode so it ignores the events our own inference path dispatches.
+  eventTarget.addEventListener(csToolsEnums.Events.SEGMENTATION_DATA_MODIFIED, (evt: any) => {
+    if (!toolboxState.getManualCorrectionMode()) {
+      return;
+    }
+    const segId = evt?.detail?.segmentationId;
+    if (!segId) {
+      return;
+    }
+    if (getActiveCornerstoneViewport() instanceof BaseVolumeViewport) {
+      _mprDirtySegId = segId;
+    } else if (_mprDirtySegId === segId) {
+      _mprDirtySegId = undefined;
+    }
+  });
+
   /**
    * Helper function to handle post-segmentation processing after segmentation data is created/updated.
    * This includes updating representations, handling viewports, and triggering events.
    */
-  // NOTE: nnInteractive overlay in volume/MPR viewports is intentionally NOT supported yet.
-  // It needs both a volume labelmap AND correct prompt→server coordinates for off-axial planes;
-  // an earlier attempt to build/render a volume labelmap here crashed the VTK volume/surface
-  // pipeline and mis-placed segments. postSegmentationProcessing therefore skips volume viewports
-  // and the overlay shows in the stack (single) view only.
+  // nnInteractive builds an image/STACK labelmap (per-slice derived images). Stack viewports render
+  // it natively. ORTHOGRAPHIC MPR viewports (plain VolumeViewport) need a VOLUME labelmap, so we
+  // derive one from the SOURCE CT volume (createAndCacheDerivedLabelmapVolume), copy the stack
+  // labelmap into it by GEOMETRY (each source slice's ImagePositionPatient → volume k), and set
+  // representationData.Labelmap.volumeId. OHIF then treats it as isVolumeSegmentation and renders it
+  // natively (skipping its own broken stack→volume conversion). VolumeViewport3D panes are SKIPPED:
+  // OHIF auto-converts a labelmap rep there into a Surface (polySeg), which crashes on these synthetic
+  // labelmaps. The stack labelmap remains the source of truth (DICOM-SEG export, refine, undo); the
+  // volume labelmap is display-only and re-synced from the stack labelmap on every inference.
+  //
+  // Prompt→server coordinates for off-axial planes are computed in the extension's coordinate helpers
+  // (worldToIJKForMeasurement + the getters above): for volume/MPR viewports they take the volume index
+  // and convert the volume slice k → the source display-set (stack) slice index the proxy expects. The
+  // patched Cornerstone tools' own `volumeId:` branches are NOT relied on (they depend on a global
+  // `services` and silently fell back, sending raw volume k as z → mis-placed MPR segments).
 
   async function postSegmentationProcessing({
     activeViewportId,
@@ -532,17 +689,148 @@ const commandsModule = ({
       toolboxState.setRefineNew(false);
     }
 
-    // Classify viewports as stack vs volume. nnInteractive produces an image/stack labelmap that
-    // renders only in stack viewports; volume/MPR viewports (orthographic MPR + VolumeViewport3D,
-    // both BaseVolumeViewport) are skipped below — see the note above postSegmentationProcessing.
+    // Classify viewports. The nnInteractive labelmap is stack-based; stack viewports render the
+    // per-slice images directly. Orthographic MPR viewports (plain VolumeViewport) get a derived
+    // labelmap VOLUME built from the source CT (see buildAndSyncLabelmapVolume). VolumeViewport3D
+    // panes are skipped — OHIF turns a labelmap rep there into a Surface (polySeg), which crashes.
     const currentViewportIds = servicesManager.services.cornerstoneViewportService.getViewportIds();
     const stackViewportIds: string[] = [];
-    const volumeViewportIds: string[] = [];
+    const mprVolumeViewportIds: string[] = [];
+    const volume3DViewportIds: string[] = [];
     for (const viewportId of currentViewportIds) {
       const vp = servicesManager.services.cornerstoneViewportService.getCornerstoneViewport(viewportId);
-      if (vp instanceof BaseVolumeViewport) volumeViewportIds.push(viewportId);
+      if (vp instanceof VolumeViewport3D) volume3DViewportIds.push(viewportId);
+      else if (vp instanceof BaseVolumeViewport) mprVolumeViewportIds.push(viewportId);
       else stackViewportIds.push(viewportId);
     }
+
+    // Build/sync the derived labelmap VOLUME from the source CT volume and copy the stack labelmap
+    // into it by geometry, then set representationData.Labelmap.volumeId so OHIF renders it natively
+    // in the MPR panes. Returns true if a renderable volume labelmap is ready. Fully guarded: any
+    // failure logs and leaves the stack overlay untouched (never throws to the route error boundary).
+    const buildAndSyncLabelmapVolume = async (): Promise<boolean> => {
+      if (!mprVolumeViewportIds.length) {
+        return false;
+      }
+      const labelmapVolumeId = `${segmentationId}-mpr-labelmap`;
+      try {
+        // Source CT volumeId from any MPR pane (all MPR panes share one source volume). After the
+        // first inference our labelmap volume is ALSO an actor in the viewport, so exclude it — never
+        // derive a labelmap from the labelmap.
+        let refVolumeId: string | undefined;
+        for (const vpId of mprVolumeViewportIds) {
+          const vp = servicesManager.services.cornerstoneViewportService.getCornerstoneViewport(vpId);
+          const allIds: string[] = (vp as any)?.getAllVolumeIds?.() ?? [];
+          let candidate = allIds.find(id => id && id !== labelmapVolumeId);
+          if (!candidate) {
+            const single = (vp as any)?.getVolumeId?.();
+            candidate = single && single !== labelmapVolumeId ? single : undefined;
+          }
+          if (candidate) {
+            refVolumeId = candidate;
+            break;
+          }
+        }
+        if (!refVolumeId) {
+          console.warn('[nninter] MPR: no source volumeId found on MPR viewports; skipping volume overlay');
+          return false;
+        }
+        // Remember the source CT volume for the reverse (volume→stack) sync used by manual correction.
+        _mprRefVolumeIdBySeg.set(segmentationId, refVolumeId);
+
+        let vol: any = cache.getVolume(labelmapVolumeId);
+        if (!vol) {
+          vol = volumeLoader.createAndCacheDerivedLabelmapVolume(refVolumeId, { volumeId: labelmapVolumeId });
+        }
+        const vm = vol?.voxelManager;
+        if (!vol || !vm?.getCompleteScalarDataArray || !vm?.setCompleteScalarDataArray) {
+          console.warn('[nninter] MPR: derived labelmap volume unavailable or not image-backed; skipping');
+          return false;
+        }
+
+        const [nx, ny, nz] = vol.dimensions;
+        const sliceLen = nx * ny;
+        const volImageData = vol.imageData;
+
+        // Map each source slice → volume k using the SOURCE VOLUME's own imageId ordering, which IS
+        // the authoritative geometric order Cornerstone placed slices in (IPP-projected). The derived
+        // labelmap volume shares that geometry, so slice k of the source = slice k of the labelmap.
+        // This is robust to the high-priority imagePlaneModule provider in preRegistration that returns
+        // only pixel spacing (no imagePositionPatient). Geometric transformWorldToIndex is the fallback.
+        const srcVol: any = cache.getVolume(refVolumeId);
+        const srcVolImageIds: string[] = srcVol?.imageIds ?? [];
+        const kByImageId = new Map<string, number>();
+        for (let k = 0; k < srcVolImageIds.length; k++) {
+          kByImageId.set(srcVolImageIds[k], k);
+        }
+
+        // Read (copy), zero, then write each stack labelmap slice into its volume k.
+        const arr = vm.getCompleteScalarDataArray();
+        (arr as any).fill?.(0);
+
+        let written = 0;
+        let skipped = 0;
+        let usedFallback = 0;
+        const kSeen: number[] = [];
+        for (let idx = 0; idx < derivedImageIds.length; idx++) {
+          // derivedImageIds[idx] is the labelmap slice for source slice imageIds[idx] (parallel arrays).
+          const srcImageId = imageIds[idx];
+          const derived = cache.getImage(derivedImageIds[idx]);
+          if (!srcImageId || !derived) { skipped++; continue; }
+
+          let k = kByImageId.has(srcImageId) ? (kByImageId.get(srcImageId) as number) : -1;
+          if (k < 0) {
+            // Fallback: derive k from the slice's ImagePositionPatient via the volume geometry.
+            const plane: any = metaData.get('imagePlaneModule', srcImageId);
+            const ipp = plane?.imagePositionPatient;
+            if (ipp) {
+              const kk = csUtils.transformWorldToIndex(volImageData, ipp)[2];
+              if (Number.isFinite(kk)) { k = kk; usedFallback++; }
+            }
+          }
+          if (k < 0 || k >= nz) { skipped++; continue; }
+
+          const sd = (derived.voxelManager as csTypes.IVoxelManager<number>)?.getScalarData?.();
+          if (!sd || sd.length !== sliceLen) { skipped++; continue; }
+          (arr as any).set(sd, k * sliceLen);
+          written++;
+          if (kSeen.length < 3) kSeen.push(k);
+        }
+        vm.setCompleteScalarDataArray(arr);
+        console.info(
+          `[nninter] MPR labelmap volume ${labelmapVolumeId}: dims=${nx}x${ny}x${nz}, ` +
+          `wrote ${written}/${derivedImageIds.length} slices (skipped ${skipped}, fallback ${usedFallback}); ` +
+          `sample k=${kSeen.join(',')}`
+        );
+
+        // Attach volumeId to the segmentation's labelmap representation (preserve imageIds + other reps).
+        const seg = csToolsSegmentation.state.getSegmentation(segmentationId);
+        const repData: any = seg?.representationData || {};
+        const lm: any = repData[LABELMAP] || {};
+        if (lm.volumeId !== labelmapVolumeId) {
+          csToolsSegmentation.updateSegmentations([
+            {
+              segmentationId,
+              payload: {
+                representationData: {
+                  ...repData,
+                  [LABELMAP]: { ...lm, volumeId: labelmapVolumeId },
+                },
+              },
+            },
+          ]);
+        }
+        // The volume was just rebuilt from the stack labelmap, so they match again — drop any pending
+        // manual-correction dirty marker for this segmentation.
+        if (_mprDirtySegId === segmentationId) {
+          _mprDirtySegId = undefined;
+        }
+        return true;
+      } catch (error) {
+        console.warn('[nninter] MPR volume labelmap build/sync failed; MPR overlay skipped:', error);
+        return false;
+      }
+    };
 
     if (!existing) {
       // ── First-ever inference: no actors exist yet, must do full viewport setup ──
@@ -560,13 +848,24 @@ const commandsModule = ({
       for (const viewportId of currentViewportIds) {
         servicesManager.services.segmentationService.removeSegmentationRepresentations(viewportId, { segmentationId });
       }
+      // Add the STACK representation first, while representationData.Labelmap has NO volumeId, so
+      // OHIF treats it as a stack segmentation for these viewports.
       await Promise.all(stackViewportIds.map(viewportId =>
         servicesManager.services.segmentationService.addSegmentationRepresentation(viewportId, { segmentationId })
       ));
-      // Volume/MPR viewports are intentionally skipped (see note above postSegmentationProcessing):
-      // the nnInteractive labelmap is stack-based and rendering it as a volume crashed the pipeline.
-      if (volumeViewportIds.length) {
-        console.info('[nninter] MPR/volume viewports skipped — nnInteractive overlay shows in the stack view only');
+      // Then build the volume labelmap (sets volumeId) and add the representation to MPR panes, which
+      // OHIF now renders natively (isVolumeSegmentation). Done AFTER the stack add so the stack path
+      // is unaffected by the volumeId.
+      const volumeReady = await buildAndSyncLabelmapVolume();
+      if (volumeReady) {
+        await Promise.all(mprVolumeViewportIds.map(viewportId =>
+          servicesManager.services.segmentationService
+            .addSegmentationRepresentation(viewportId, { segmentationId })
+            .catch((error: any) => console.warn(`[nninter] MPR add representation failed for ${viewportId}:`, error))
+        ));
+      }
+      if (volume3DViewportIds.length) {
+        console.info('[nninter] 3D viewport(s) skipped — labelmap→surface generation disabled to avoid the polySeg crash');
       }
 
       // Scroll-away-back so Cornerstone creates the VTK actors for the current slice
@@ -587,9 +886,10 @@ const commandsModule = ({
       );
     } else {
       // ── Refinement / update (existing segment) — fast path ──
-      // The stack labelmap images were updated in place by the voxel-writing loop, and the
-      // labelmap volume (if any) was re-synced from them above. Dispatching SEGMENTATION_DATA_MODIFIED
-      // re-uploads the GPU texture for both stack and volume viewports on the next render.
+      // The stack labelmap images were updated in place by the voxel-writing loop. Re-sync the volume
+      // labelmap from them so the MPR panes update too, then dispatch SEGMENTATION_DATA_MODIFIED to
+      // re-upload the GPU texture for both stack and volume viewports on the next render.
+      await buildAndSyncLabelmapVolume();
       eventTarget.dispatchEvent(
         new CustomEvent(csToolsEnums.Events.SEGMENTATION_DATA_MODIFIED, {
           detail: { segmentationId },
@@ -766,6 +1066,12 @@ const commandsModule = ({
     },
 
     async generateSegmentation({ segmentationId, options = {} }) {
+      // If a manual correction was made in an MPR pane (volume labelmap), fold it back into the stack
+      // labelmap that this export reads, then clear the dirty marker. No-op for stack-only sessions.
+      if (_mprDirtySegId === segmentationId) {
+        syncVolumeLabelmapToStack(segmentationId);
+        _mprDirtySegId = undefined;
+      }
       const segmentation = csToolsSegmentation.state.getSegmentation(segmentationId);
       const { imageIds } = segmentation.representationData.Labelmap;
       const segImages = imageIds.map(imageId => cache.getImage(imageId));
@@ -1603,27 +1909,40 @@ const commandsModule = ({
       const probe2Labels: string[] = [];
       const seriesUID = currentDisplaySets.SeriesInstanceUID;
       const activeViewport = cornerstoneViewportService.getCornerstoneViewport(activeViewportId);
+      // The proxy expects z in the source display-set (InstanceNumber) slice order. For MPR/volume
+      // viewports the coordinate helpers convert the volume's geometric k → this order using these ids.
+      const seriesImageIds: string[] = currentDisplaySets.imageIds ?? [];
+      const _isVolumeVp = activeViewport instanceof BaseVolumeViewport;
+      if (_isVolumeVp) {
+        const _volIds: string[] = (activeViewport as any)?.getImageIds?.() ?? [];
+        const _flipInfo = _volIds.length && seriesImageIds.length
+          ? `volIds[0]===dsIds[0]? ${_volIds[0] === seriesImageIds[0]} (reversed=${_volIds[0] === seriesImageIds[seriesImageIds.length - 1]})`
+          : 'n/a';
+        console.log(
+          `[nninter coords] volume viewport ${activeViewportId}: volumeN=${_volIds.length} displaySetN=${seriesImageIds.length}; ${_flipInfo}`
+        );
+      }
       for (const e of currentMeasurements) {
         if (e.referenceSeriesUID !== seriesUID || e.metadata.SegmentNumber !== segmentNumber) continue;
         const isNeg = !!e.metadata.neg;
         if (e.toolName === 'Probe2') {
-          const index = getPromptPointIJK(e, activeViewport);
+          const index = getPromptPointIJK(e, activeViewport, seriesImageIds);
           if (!index) {
             continue;
           }
           (isNeg ? neg_points : pos_points).push(index);
           if (!isNeg && !textPrompts) probe2Labels.push(e.label);
         } else if (e.toolName === 'RectangleROI2') {
-          const box = getRectangleBoxIJK(e, activeViewport);
+          const box = getRectangleBoxIJK(e, activeViewport, seriesImageIds);
           if (!box?.length) {
             continue;
           }
           (isNeg ? neg_boxes : pos_boxes).push(box);
         } else if (e.toolName === 'PlanarFreehandROI3') {
-          const b = getClosedFreehandBoundaryIJK(e, activeViewport);
+          const b = getClosedFreehandBoundaryIJK(e, activeViewport, seriesImageIds);
           if (b) (isNeg ? neg_lassos : pos_lassos).push(b);
         } else if (e.toolName === 'PlanarFreehandROI2') {
-          const s = getOpenFreehandIJK(e, activeViewport);
+          const s = getOpenFreehandIJK(e, activeViewport, seriesImageIds);
           if (s) (isNeg ? neg_scribbles : pos_scribbles).push(s);
         }
       }
@@ -1631,6 +1950,42 @@ const commandsModule = ({
       const text_prompts: string[] = textPrompts
         ? (Array.isArray(textPrompts) ? textPrompts : [textPrompts])
         : probe2Labels;
+
+      // [nninter debug] Fast-feedback path for verifying prompt coordinates without a rebuild: log the
+      // exact IJK payloads being sent to the proxy and the active viewport type. For an off-axial (MPR)
+      // prompt, compare these values against the same prompt drawn in the axial stack — they should map
+      // to the same anatomy. Points/boxes are logged in full; scribbles/lassos as lengths + a sample.
+      const _vpKind = activeViewport instanceof VolumeViewport3D
+        ? 'volume3d'
+        : activeViewport instanceof BaseVolumeViewport
+          ? 'mpr/volume'
+          : 'stack';
+      // Helper: report the x/y/z index ranges across a flat list of [x,y,z] points, so we can verify the
+      // volume-k → stack-index conversion produced sensible slice indices for off-axial prompts.
+      const _range = (pts: any[]): string => {
+        const valid = pts.filter(p => Array.isArray(p) && p.length >= 3);
+        if (!valid.length) return '∅';
+        const r = (i: number) => {
+          const a = valid.map(p => p[i]).filter(Number.isFinite);
+          return a.length ? `${Math.min(...a)}..${Math.max(...a)}` : '∅';
+        };
+        return `x[${r(0)}] y[${r(1)}] z[${r(2)}]`;
+      };
+      console.log(
+        `[nninter prompts] viewport=${activeViewportId} kind=${_vpKind} segment=${segmentNumber}\n` +
+        `  pos_points=${JSON.stringify(pos_points)} neg_points=${JSON.stringify(neg_points)}\n` +
+        `  pos_boxes=${JSON.stringify(pos_boxes)} neg_boxes=${JSON.stringify(neg_boxes)}\n` +
+        `  pos_lassos(len)=${JSON.stringify(pos_lassos.map(l => l.length))} ` +
+        `neg_lassos(len)=${JSON.stringify(neg_lassos.map(l => l.length))} ` +
+        `pos_scribbles(len)=${JSON.stringify(pos_scribbles.map(s => s.length))} ` +
+        `neg_scribbles(len)=${JSON.stringify(neg_scribbles.map(s => s.length))}\n` +
+        `  ranges: points=${_range([...pos_points, ...neg_points])} ` +
+        `scribbles=${_range([...pos_scribbles, ...neg_scribbles].flat())} ` +
+        `lassos=${_range([...pos_lassos, ...neg_lassos].flat())} ` +
+        `boxes=${_range([...pos_boxes, ...neg_boxes].flat())}` +
+        (pos_scribbles[0]?.length ? `\n  pos_scribble[0] sample=${JSON.stringify(pos_scribbles[0].slice(0, 3))}…` : '') +
+        (pos_lassos[0]?.length ? `\n  pos_lasso[0] sample=${JSON.stringify(pos_lassos[0].slice(0, 3))}…` : '')
+      );
 
       // Hide measurements after inference unless user has set prompts to always-show
       if (!toolboxState.getPromptsVisible()) {

@@ -6,14 +6,13 @@ import {
   segmentation as csToolsSegmentation,
 } from '@cornerstonejs/tools';
 import * as cornerstoneTools from '@cornerstonejs/tools';
-import { updateLabelmapSegmentationImageReferences } from '@cornerstonejs/tools/segmentation/updateLabelmapSegmentationImageReferences';
 import {
   cache,
   imageLoader,
   metaData,
   Types as csTypes,
   utilities as csUtils,
-  VolumeViewport3D,
+  BaseVolumeViewport,
   eventTarget,
 } from '@cornerstonejs/core';
 import { adaptersSEG, helpers } from '@cornerstonejs/adapters';
@@ -112,31 +111,6 @@ function constructInferenceFormData(params: Record<string, unknown>, files?: any
   }
 
   return formData;
-}
-
-function pointInPolygon(x: number, y: number, polygon: number[][]): boolean {
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const xi = polygon[i][0];
-    const yi = polygon[i][1];
-    const xj = polygon[j][0];
-    const yj = polygon[j][1];
-    const intersects = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi || 1) + xi;
-    if (intersects) {
-      inside = !inside;
-    }
-  }
-  return inside;
-}
-
-function getImageWidth(image: any, displaySet: any, sliceIndex: number): number {
-  return (
-    image?.columns ||
-    image?.width ||
-    displaySet?.instances?.[sliceIndex]?.Columns ||
-    displaySet?.images?.[sliceIndex]?.Columns ||
-    0
-  );
 }
 
 function getClosedFreehandBoundaryIJK(measurement: any, viewport: any): number[][] | undefined {
@@ -446,6 +420,12 @@ const commandsModule = ({
    * Helper function to handle post-segmentation processing after segmentation data is created/updated.
    * This includes updating representations, handling viewports, and triggering events.
    */
+  // NOTE: nnInteractive overlay in volume/MPR viewports is intentionally NOT supported yet.
+  // It needs both a volume labelmap AND correct prompt→server coordinates for off-axial planes;
+  // an earlier attempt to build/render a volume labelmap here crashed the VTK volume/surface
+  // pipeline and mis-placed segments. postSegmentationProcessing therefore skips volume viewports
+  // and the overlay shows in the stack (single) view only.
+
   async function postSegmentationProcessing({
     activeViewportId,
     segmentationId,
@@ -552,6 +532,18 @@ const commandsModule = ({
       toolboxState.setRefineNew(false);
     }
 
+    // Classify viewports as stack vs volume. nnInteractive produces an image/stack labelmap that
+    // renders only in stack viewports; volume/MPR viewports (orthographic MPR + VolumeViewport3D,
+    // both BaseVolumeViewport) are skipped below — see the note above postSegmentationProcessing.
+    const currentViewportIds = servicesManager.services.cornerstoneViewportService.getViewportIds();
+    const stackViewportIds: string[] = [];
+    const volumeViewportIds: string[] = [];
+    for (const viewportId of currentViewportIds) {
+      const vp = servicesManager.services.cornerstoneViewportService.getCornerstoneViewport(viewportId);
+      if (vp instanceof BaseVolumeViewport) volumeViewportIds.push(viewportId);
+      else stackViewportIds.push(viewportId);
+    }
+
     if (!existing) {
       // ── First-ever inference: no actors exist yet, must do full viewport setup ──
 
@@ -565,31 +557,16 @@ const commandsModule = ({
         }
       }
 
-      // Add representations for all viewports
-      const currentViewportIds = servicesManager.services.cornerstoneViewportService.getViewportIds();
-      const regularViewportIds: string[] = [];
-      const volume3DViewportIds: string[] = [];
-      for (const viewportId of currentViewportIds) {
-        const vp = servicesManager.services.cornerstoneViewportService.getCornerstoneViewport(viewportId);
-        if (vp instanceof VolumeViewport3D) volume3DViewportIds.push(viewportId);
-        else regularViewportIds.push(viewportId);
-      }
-
       for (const viewportId of currentViewportIds) {
         servicesManager.services.segmentationService.removeSegmentationRepresentations(viewportId, { segmentationId });
       }
-      await Promise.all(regularViewportIds.map(viewportId =>
+      await Promise.all(stackViewportIds.map(viewportId =>
         servicesManager.services.segmentationService.addSegmentationRepresentation(viewportId, { segmentationId })
       ));
-      for (const viewportId of volume3DViewportIds) {
-        const vp = servicesManager.services.cornerstoneViewportService.getCornerstoneViewport(viewportId);
-        updateLabelmapSegmentationImageReferences(viewportId, segmentationId);
-        await servicesManager.services.segmentationService.addSegmentationRepresentation(viewportId, {
-          segmentationId,
-          type: csToolsEnums.SegmentationRepresentations.Labelmap,
-        });
-        await new Promise(resolve => setTimeout(resolve, 100));
-        requestAnimationFrame(() => vp?.render());
+      // Volume/MPR viewports are intentionally skipped (see note above postSegmentationProcessing):
+      // the nnInteractive labelmap is stack-based and rendering it as a volume crashed the pipeline.
+      if (volumeViewportIds.length) {
+        console.info('[nninter] MPR/volume viewports skipped — nnInteractive overlay shows in the stack view only');
       }
 
       // Scroll-away-back so Cornerstone creates the VTK actors for the current slice
@@ -610,12 +587,9 @@ const commandsModule = ({
       );
     } else {
       // ── Refinement / update (existing segment) — fast path ──
-      // VTK actors for all viewports already exist and reference the same image
-      // buffers that were updated by the voxel-writing loop above.
-      // labelmapDisplay._setLabelmapColorAndOpacity now calls
-      // scalars.modified() + inputData.modified() unconditionally, so the GPU
-      // texture is re-uploaded on the next rAF render triggered by the event.
-      // No remove/re-add or scroll needed — saves ~300–350 ms per inference.
+      // The stack labelmap images were updated in place by the voxel-writing loop, and the
+      // labelmap volume (if any) was re-synced from them above. Dispatching SEGMENTATION_DATA_MODIFIED
+      // re-uploads the GPU texture for both stack and volume viewports on the next render.
       eventTarget.dispatchEvent(
         new CustomEvent(csToolsEnums.Events.SEGMENTATION_DATA_MODIFIED, {
           detail: { segmentationId },
@@ -1521,213 +1495,6 @@ const commandsModule = ({
         );
       }, 0);
     },
-    async applyNninterManualCorrection() {
-      if (toolboxState.getLocked()) {
-        return;
-      }
-
-      const { activeViewportId, viewports } = viewportGridService.getState();
-      const activeViewportSpecificData = viewports.get(activeViewportId);
-      const displaySetInstanceUID = activeViewportSpecificData?.displaySetInstanceUIDs?.[0];
-      const currentDisplaySets = displaySetService.activeDisplaySets.find(
-        e => e.displaySetInstanceUID === displaySetInstanceUID
-      );
-      if (!currentDisplaySets) {
-        return;
-      }
-
-      const activeSegmentation =
-        servicesManager.services.segmentationService.getActiveSegmentation(activeViewportId);
-      const activeSegment = servicesManager.services.segmentationService.getActiveSegment(activeViewportId);
-      const segmentationId = activeSegmentation?.segmentationId;
-      const segmentNumber = activeSegment?.segmentIndex;
-      const labelmapImageIds: string[] =
-        (activeSegmentation?.representationData?.Labelmap as any)?.imageIds ?? [];
-
-      if (!segmentationId || segmentNumber == null || labelmapImageIds.length === 0) {
-        uiNotificationService.show({
-          title: 'Manual correction',
-          message: 'Select an nnInteractive segment before applying manual corrections.',
-          type: 'warning',
-          duration: 4000,
-        });
-        return;
-      }
-
-      const images = await Promise.all(
-        labelmapImageIds.map(async imageId => {
-          const cachedImage = cache.getImage(imageId);
-          if (cachedImage) {
-            return cachedImage;
-          }
-
-          try {
-            return await imageLoader.loadAndCacheImage(imageId);
-          } catch {
-            return undefined;
-          }
-        })
-      );
-      const firstImage = images.find(Boolean);
-      if (!firstImage) {
-        return;
-      }
-      const activeViewport =
-        servicesManager.services.cornerstoneViewportService.getCornerstoneViewport(activeViewportId);
-
-      const dirtySlices = new Set<number>();
-      const correctionMeasurements = measurementService.getMeasurements().filter((measurement: any) => {
-        return (
-          measurement.referenceSeriesUID === currentDisplaySets.SeriesInstanceUID &&
-          measurement.toolName === 'PlanarFreehandROI3' &&
-          measurement.metadata?.manualCorrection === true &&
-          (measurement.metadata?.SegmentNumber == null ||
-            measurement.metadata?.SegmentNumber === segmentNumber)
-        );
-      });
-      let usableCorrectionCount = 0;
-      let changedPixelCount = 0;
-
-      for (const measurement of correctionMeasurements) {
-        const boundary = getClosedFreehandBoundaryIJK(measurement, activeViewport);
-        if (!boundary?.length) {
-          continue;
-        }
-        const sliceIndex = Math.round(boundary[0][2]);
-        const image = images[sliceIndex];
-        const voxelManager = image?.voxelManager as csTypes.IVoxelManager<number>;
-        if (!voxelManager) {
-          continue;
-        }
-        const scalarData = voxelManager.getScalarData();
-        const width = getImageWidth(image, currentDisplaySets, sliceIndex);
-        if (!width) {
-          continue;
-        }
-        usableCorrectionCount += 1;
-        const height = Math.floor(scalarData.length / width);
-        const xValues = boundary.map(point => Math.round(point[0]));
-        const yValues = boundary.map(point => Math.round(point[1]));
-        const xMin = Math.max(0, Math.min(...xValues));
-        const xMax = Math.min(width - 1, Math.max(...xValues));
-        const yMin = Math.max(0, Math.min(...yValues));
-        const yMax = Math.min(height - 1, Math.max(...yValues));
-        const remove = !!measurement.metadata?.neg;
-
-        for (let y = yMin; y <= yMax; y++) {
-          const row = y * width;
-          for (let x = xMin; x <= xMax; x++) {
-            if (!pointInPolygon(x + 0.5, y + 0.5, boundary)) {
-              continue;
-            }
-            const offset = row + x;
-            if (remove) {
-              if (scalarData[offset] === segmentNumber) {
-                scalarData[offset] = 0;
-                changedPixelCount += 1;
-              }
-            } else {
-              if (scalarData[offset] !== segmentNumber) {
-                scalarData[offset] = segmentNumber;
-                changedPixelCount += 1;
-              }
-            }
-          }
-        }
-        voxelManager.setScalarData(scalarData);
-        dirtySlices.add(sliceIndex);
-      }
-
-      if (correctionMeasurements.length > 0 && usableCorrectionCount === 0) {
-        uiNotificationService.show({
-          title: 'Manual correction',
-          message: 'Could not convert the drawn lasso into labelmap pixels.',
-          type: 'warning',
-          duration: 4000,
-        });
-        return;
-      }
-      if (correctionMeasurements.length > 0 && changedPixelCount === 0) {
-        uiNotificationService.show({
-          title: 'Manual correction',
-          message: 'The drawn lasso did not change any labelmap pixels.',
-          type: 'warning',
-          duration: 4000,
-        });
-        return;
-      }
-
-      const firstScalarData = (firstImage.voxelManager as csTypes.IVoxelManager<number>).getScalarData();
-      const maskBytes = new Uint8Array(images.length * firstScalarData.length);
-      let cursor = 0;
-      for (let sliceIndex = 0; sliceIndex < images.length; sliceIndex++) {
-        const image = images[sliceIndex];
-        const scalarData = (image?.voxelManager as csTypes.IVoxelManager<number> | undefined)?.getScalarData();
-        if (!scalarData) {
-          cursor += firstScalarData.length;
-          continue;
-        }
-        let sliceDirty = dirtySlices.has(sliceIndex);
-        for (let i = 0; i < scalarData.length; i++) {
-          if (scalarData[i] === segmentNumber) {
-            maskBytes[cursor + i] = 1;
-            sliceDirty = true;
-          }
-        }
-        if (sliceDirty) {
-          dirtySlices.add(sliceIndex);
-        }
-        cursor += scalarData.length;
-      }
-
-      const segment = activeSegmentation.segments?.[segmentNumber];
-      if (segment) {
-        segment.cachedStats = {
-          ...(segment.cachedStats ?? {}),
-          dirtySlices: Array.from(dirtySlices).sort((a, b) => a - b),
-        };
-      }
-
-      if (correctionMeasurements.length > 0) {
-        measurementService.removeMany(correctionMeasurements.map((measurement: any) => measurement.uid));
-      }
-
-      eventTarget.dispatchEvent(
-        new CustomEvent(csToolsEnums.Events.SEGMENTATION_DATA_MODIFIED, {
-          detail: { segmentationId },
-        })
-      );
-      servicesManager.services.cornerstoneViewportService.getRenderingEngine()?.render();
-
-      const params = {
-        studyInstanceUID: currentDisplaySets.StudyInstanceUID,
-        nninter: 'set_mask',
-        segmentNumber,
-      };
-      const data = constructInferenceFormData(params, [
-        {
-          name: 'mask',
-          data: new Blob([maskBytes], { type: 'application/octet-stream' }),
-          fileName: 'mask.raw',
-        },
-      ]);
-
-      await axios.post(
-        `/nninteractive/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`,
-        data,
-        {
-          responseType: 'arraybuffer',
-          headers: { accept: 'application/octet-stream' },
-        }
-      );
-
-      uiNotificationService.show({
-        title: 'Manual correction',
-        message: 'Mask synced as nnInteractive baseline.',
-        type: 'success',
-        duration: 2500,
-      });
-    },
     async nninter(textPrompts?: string | string[]) {
       if (toolboxState.getLocked()) {
         return;
@@ -2353,7 +2120,6 @@ const commandsModule = ({
     'undoNninter',
     'resetNninter',
     'resetSegment',
-    'applyNninterManualCorrection',
     'nninter',
     'jumpToSegment',
     'toggleCurrentSegment',

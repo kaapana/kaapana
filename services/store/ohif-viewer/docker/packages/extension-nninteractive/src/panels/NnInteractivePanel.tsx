@@ -42,7 +42,6 @@ export default function NnInteractivePanel({
   const [posNeg, setPosNeg] = useState(toolboxState.getPosNeg());
   const [sessionActive, setSessionActive] = useState(toolboxState.getSessionActive());
   const [initializing, setInitializing] = useState(false);
-  const [applyingCorrection, setApplyingCorrection] = useState(false);
   const [nnInteractiveAvailable, setNnInteractiveAvailable] = useState<boolean | null>(null);
   const [showManualControl, setShowManualControl] = useState(false);
   const [brushSize, setBrushSize] = useState(12);
@@ -527,23 +526,6 @@ export default function NnInteractivePanel({
     });
   };
 
-  const handleApplyManualCorrection = async () => {
-    if (!nnInteractiveReady || !sessionActive || !hasActiveAiSegment() || applyingCorrection) {
-      return;
-    }
-    // Block the button while the correction is being applied so a slow request
-    // can't be spammed. The finally re-enables it whether it succeeds or fails.
-    setApplyingCorrection(true);
-    toolboxState.setManualCorrectionMode(false);
-    try {
-      await commandsManager.run('applyNninterManualCorrection');
-    } catch (error) {
-      console.error('applyNninterManualCorrection failed:', error);
-    } finally {
-      setApplyingCorrection(false);
-    }
-  };
-
   const CustomConfigComponent = customizationService.getCustomization(`${buttonSectionId}.config`);
   const nnInteractiveReady = nnInteractiveAvailable === true;
   const nnInteractiveChecking = nnInteractiveAvailable === null;
@@ -816,20 +798,6 @@ export default function NnInteractivePanel({
                         onChange={handleBrushSizeChange}
                       />
                     </div>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="w-full"
-                      disabled={
-                        !nnInteractiveReady ||
-                        !sessionActive ||
-                        !hasActiveAiSegment() ||
-                        applyingCorrection
-                      }
-                      onClick={handleApplyManualCorrection}
-                    >
-                      {applyingCorrection ? 'Applying...' : 'Apply Manual Correction'}
-                    </Button>
                   </div>
 
                   <div className="border-t border-primary/20" />

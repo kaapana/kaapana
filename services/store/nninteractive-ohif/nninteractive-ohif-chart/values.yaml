@@ -11,6 +11,16 @@ nninteractiveProxy:
   maxCachedSessions: 8
   memoryRequest: 512Mi
   memoryLimit: 4Gi
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 20
 
 nninteractiveServer:
   image: ghcr.io/mic-dkfz/nninteractive-server

@@ -39,14 +39,18 @@ spec:
             httpGet:
               path: /healthz
               port: {{ .Values.nninteractiveProxy.port }}
-            initialDelaySeconds: 5
-            periodSeconds: 10
+            initialDelaySeconds: {{ .Values.nninteractiveProxy.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.nninteractiveProxy.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.nninteractiveProxy.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.nninteractiveProxy.readinessProbe.failureThreshold }}
           livenessProbe:
             httpGet:
               path: /healthz
               port: {{ .Values.nninteractiveProxy.port }}
-            initialDelaySeconds: 30
-            periodSeconds: 20
+            initialDelaySeconds: {{ .Values.nninteractiveProxy.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.nninteractiveProxy.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.nninteractiveProxy.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.nninteractiveProxy.livenessProbe.failureThreshold }}
           resources:
             requests:
               memory: "{{ .Values.nninteractiveProxy.memoryRequest }}"

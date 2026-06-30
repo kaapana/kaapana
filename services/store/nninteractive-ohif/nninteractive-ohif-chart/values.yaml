@@ -8,7 +8,7 @@ nninteractiveProxy:
   dicomwebRoot: ""
   nninteractiveServerUrl: ""
   apiKey: ""
-  maxCachedSessions: 1
+  maxCachedSessions: 8
   memoryRequest: 512Mi
   memoryLimit: 4Gi
 

@@ -38,6 +38,8 @@ const {
 
 /** Tracks the last series initialized by initNninter to detect study/series changes. */
 let _lastInitSeries: string | undefined = undefined;
+let _nnInteractiveClientSessionId: string | undefined = undefined;
+const NNINTERACTIVE_CLIENT_SESSION_KEY = 'kaapana.nninteractive.clientSessionId';
 
 /**
  * A 409 from the nnInteractive proxy means the backend session is gone (never
@@ -56,9 +58,49 @@ function metaNum(meta: Record<string, unknown>, key: string): number | undefined
   return isFinite(n) ? n : undefined;
 }
 
+function getNnInteractiveClientSessionId(): string {
+  if (_nnInteractiveClientSessionId) {
+    return _nnInteractiveClientSessionId;
+  }
+
+  try {
+    const stored = globalThis?.sessionStorage?.getItem(NNINTERACTIVE_CLIENT_SESSION_KEY);
+    if (stored) {
+      _nnInteractiveClientSessionId = stored;
+      return stored;
+    }
+  } catch {
+    // sessionStorage is unavailable in some embedded/private contexts.
+  }
+
+  const id =
+    globalThis?.crypto?.randomUUID?.() ??
+    `nninteractive-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  _nnInteractiveClientSessionId = id;
+
+  try {
+    globalThis?.sessionStorage?.setItem(NNINTERACTIVE_CLIENT_SESSION_KEY, id);
+  } catch {
+    // Best effort only; the in-memory id still isolates this JS runtime.
+  }
+
+  return id;
+}
+
+function withNnInteractiveClientSession(url: string): string {
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}clientSessionID=${encodeURIComponent(getNnInteractiveClientSessionId())}`;
+}
+
 function constructInferenceFormData(params: Record<string, unknown>, files?: any[] | null) {
   const formData = new FormData();
-  formData.append('params', JSON.stringify(params));
+  formData.append(
+    'params',
+    JSON.stringify({
+      ...params,
+      clientSessionID: params.clientSessionID ?? getNnInteractiveClientSessionId(),
+    })
+  );
 
   if (files) {
     const fileList = Array.isArray(files) ? files : [files];
@@ -1003,13 +1045,25 @@ const commandsModule = ({
 
       let data = constructInferenceFormData(params, null);
 
+      const recoverInitializedSession = async (error: any) => {
+        const statusUrl = withNnInteractiveClientSession(
+          `/nninteractive/infer/session?image=${currentDisplaySets.SeriesInstanceUID}&studyInstanceUID=${currentDisplaySets.StudyInstanceUID}`
+        );
+        const statusResponse = await axios.get(statusUrl);
+        if (statusResponse?.data?.active) {
+          console.warn('Init nninter response failed, but session is active; continuing.', error);
+          return statusResponse;
+        }
+        throw error;
+      };
+
       // Create the axios promise
       const initPromise = axios.post(url, data, {
         responseType: 'arraybuffer',
         headers: {
           accept: 'application/json, multipart/form-data',
         },
-      });
+      }).catch(recoverInitializedSession);
 
       if (_showNotification) {
         uiNotificationService.show({
@@ -1060,7 +1114,9 @@ const commandsModule = ({
         return false;
       }
       try {
-        const url = `/nninteractive/infer/session?image=${currentDisplaySets.SeriesInstanceUID}&studyInstanceUID=${currentDisplaySets.StudyInstanceUID}`;
+        const url = withNnInteractiveClientSession(
+          `/nninteractive/infer/session?image=${currentDisplaySets.SeriesInstanceUID}&studyInstanceUID=${currentDisplaySets.StudyInstanceUID}`
+        );
         const response = await axios.get(url);
         const active = !!response?.data?.active;
         toolboxState.setSessionActive(active);
@@ -1076,8 +1132,8 @@ const commandsModule = ({
       }
     },
     /**
-     * Release the backend lease when the user leaves the page. Uses sendBeacon so
-     * the request survives unload; falls back to keepalive fetch.
+     * Release the backend lease when the user leaves the page. Uses keepalive fetch
+     * with credentials so the request passes through the authenticated ingress.
      */
     closeNninterSession() {
       const { activeViewportId, viewports } = viewportGridService.getState();
@@ -1093,17 +1149,21 @@ const commandsModule = ({
       if (!currentDisplaySets) {
         return;
       }
-      const url = `/nninteractive/infer/close?image=${currentDisplaySets.SeriesInstanceUID}&studyInstanceUID=${currentDisplaySets.StudyInstanceUID}`;
+      const url = withNnInteractiveClientSession(
+        `/nninteractive/infer/close?image=${currentDisplaySets.SeriesInstanceUID}&studyInstanceUID=${currentDisplaySets.StudyInstanceUID}`
+      );
       toolboxState.setSessionActive(false);
       try {
         const body = new FormData();
         body.append('image', currentDisplaySets.SeriesInstanceUID);
         body.append('studyInstanceUID', currentDisplaySets.StudyInstanceUID);
-        if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
-          navigator.sendBeacon(url, body);
-        } else {
-          fetch(url, { method: 'POST', body, keepalive: true }).catch(() => {});
-        }
+        body.append('clientSessionID', getNnInteractiveClientSessionId());
+        fetch(url, {
+          method: 'POST',
+          body,
+          keepalive: true,
+          credentials: 'include',
+        }).catch(() => {});
       } catch (error) {
         console.warn('closeNninterSession failed:', error);
       }

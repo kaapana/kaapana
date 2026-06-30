@@ -46,6 +46,7 @@ class SeriesSession:
     key: str
     study_uid: str
     series_uid: str
+    client_session_id: str
     session: nnInteractiveRemoteInferenceSession
     target_buffer: np.ndarray
     flipped: bool
@@ -56,6 +57,7 @@ class SeriesSession:
 
 
 sessions: dict[str, SeriesSession] = {}
+LEGACY_CLIENT_SESSION_ID = "legacy"
 
 
 def _jsonish(value: Any, default: Any) -> Any:
@@ -84,6 +86,18 @@ def _as_list(value: Any) -> list:
 
 def _prompt_key(kind: str, prompt: Any) -> str:
     return f"{kind}:{json.dumps(prompt, sort_keys=True, separators=(',', ':'))}"
+
+
+def _client_session_id(value: Any) -> str:
+    parsed = _jsonish(value, "")
+    if parsed is None:
+        return LEGACY_CLIENT_SESSION_ID
+    text = str(parsed).strip()
+    return text or LEGACY_CLIENT_SESSION_ID
+
+
+def _session_key(study_uid: str, series_uid: str, client_session_id: str) -> str:
+    return f"{study_uid}|{series_uid}|{client_session_id}"
 
 
 def _auth() -> tuple[str, str] | None:
@@ -196,9 +210,10 @@ def _evict_if_needed() -> None:
 def _get_series_session(
     study_uid: str,
     series_uid: str,
+    client_session_id: str,
     dicomweb_headers: dict[str, str] | None,
 ) -> SeriesSession:
-    key = f"{study_uid}|{series_uid}"
+    key = _session_key(study_uid, series_uid, client_session_id)
     existing = sessions.get(key)
     if existing is not None:
         existing.last_used = time.time()
@@ -210,8 +225,9 @@ def _get_series_session(
         image_4d, flipped = _load_image(study_uid, series_uid, dicomweb_headers)
         session, target_buffer = _new_remote_session(image_4d)
         logger.info(
-            "Initialized nnInteractive session for %s in %.3fs; image shape=%s flipped=%s",
+            "Initialized nnInteractive session for %s client=%s in %.3fs; image shape=%s flipped=%s",
             series_uid,
+            client_session_id,
             time.time() - load_start,
             image_4d.shape,
             flipped,
@@ -223,7 +239,7 @@ def _get_series_session(
     except Exception as e:
         raise HTTPException(502, f"Could not initialize nnInteractive session: {e}") from e
 
-    entry = SeriesSession(key, study_uid, series_uid, session, target_buffer, flipped)
+    entry = SeriesSession(key, study_uid, series_uid, client_session_id, session, target_buffer, flipped)
     sessions[key] = entry
     return entry
 
@@ -627,7 +643,11 @@ def availability() -> dict[str, Any]:
 
 
 @app.get("/infer/session")
-def session_status(image: str | None = None, studyInstanceUID: str | None = None) -> dict[str, Any]:
+def session_status(
+    image: str | None = None,
+    studyInstanceUID: str | None = None,
+    clientSessionID: str | None = None,
+) -> dict[str, Any]:
     """Non-creating liveness probe used by the OHIF UI to gate prompts.
 
     Returns ``{"active": False}`` when no session exists for the series or the
@@ -638,7 +658,7 @@ def session_status(image: str | None = None, studyInstanceUID: str | None = None
     """
     if not image or not studyInstanceUID:
         raise HTTPException(400, "Missing required query parameters: image, studyInstanceUID")
-    entry = sessions.get(f"{studyInstanceUID}|{image}")
+    entry = sessions.get(_session_key(studyInstanceUID, image, _client_session_id(clientSessionID)))
     if entry is None:
         return {"active": False}
     entry.last_browser_seen = time.time()
@@ -664,16 +684,18 @@ async def close_session(request: Request) -> dict[str, Any]:
     """
     series_uid = request.query_params.get("image")
     study_uid = request.query_params.get("studyInstanceUID")
+    client_session_id = request.query_params.get("clientSessionID")
     if not series_uid or not study_uid:
         try:
             form = await request.form()
             series_uid = series_uid or form.get("image")
             study_uid = study_uid or form.get("studyInstanceUID")
+            client_session_id = client_session_id or form.get("clientSessionID")
         except Exception:
             pass
     if not series_uid or not study_uid:
         raise HTTPException(400, "Missing required parameters: image, studyInstanceUID")
-    entry = sessions.get(f"{study_uid}|{series_uid}")
+    entry = sessions.get(_session_key(str(study_uid), str(series_uid), _client_session_id(client_session_id)))
     if entry is None:
         return {"closed": False}
     _close_entry(entry)
@@ -701,6 +723,7 @@ async def infer_segmentation(request: Request) -> Response:
     study_uid = str(data.get("studyInstanceUID") or "")
     if not study_uid:
         raise HTTPException(400, "Missing required form field: studyInstanceUID")
+    client_session_id = _client_session_id(data.get("clientSessionID"))
 
     mode = _jsonish(data.get("nninter"), False)
     if mode in {"medGemma", "gemini", "openai", "claude", "kimi", "qwen", "gemma", "vllm"}:
@@ -712,9 +735,9 @@ async def infer_segmentation(request: Request) -> Response:
     # the OHIF UI can gate prompts on a live session instead of silently spinning
     # one up on the first click.
     if mode == "init":
-        entry = _get_series_session(study_uid, series_uid, dicomweb_headers)
+        entry = _get_series_session(study_uid, series_uid, client_session_id, dicomweb_headers)
     else:
-        entry = sessions.get(f"{study_uid}|{series_uid}")
+        entry = sessions.get(_session_key(study_uid, series_uid, client_session_id))
         if entry is None:
             raise HTTPException(409, "no active nnInteractive session; initialize first")
         entry.last_used = time.time()
@@ -724,7 +747,7 @@ async def infer_segmentation(request: Request) -> Response:
     except SessionExpiredError:
         logger.info("nnInteractive session expired for %s; recreating and retrying request once", series_uid)
         _close_entry(entry)
-        retry_entry = _get_series_session(study_uid, series_uid, dicomweb_headers)
+        retry_entry = _get_series_session(study_uid, series_uid, client_session_id, dicomweb_headers)
         try:
             return _run_inference_request(retry_entry, mode, data, start)
         except SessionExpiredError as e:

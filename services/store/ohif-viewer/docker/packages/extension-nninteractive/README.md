@@ -73,10 +73,12 @@ check whether the change affects:
 - prompt cleanup when segments/segmentations are removed
 - manual correction brush add/erase workflows
 - single-step nnInteractive undo; the backend can undo only the latest interaction
+- per-tab nnInteractive session ids; one user's close request must not close another user's lease
 
 ## Runtime Assumptions
 
 - The backend proxy is reachable under `/nninteractive/infer/...`.
+- The proxy keys sessions by study, series, and the OHIF tab's `clientSessionID`.
 - The mode registers the prompt tools in the active tool groups.
 - The app config uses `activateViewportBeforeInteraction:false`; viewport hover activation is patched
   in `../../patches/30-nninteractive-ui.patch`.

@@ -41,6 +41,8 @@ export default function NnInteractivePanel({
   const [liveMode, setLiveMode] = useState(toolboxState.getLiveMode());
   const [posNeg, setPosNeg] = useState(toolboxState.getPosNeg());
   const [sessionActive, setSessionActive] = useState(toolboxState.getSessionActive());
+  const [initializing, setInitializing] = useState(false);
+  const [applyingCorrection, setApplyingCorrection] = useState(false);
   const [nnInteractiveAvailable, setNnInteractiveAvailable] = useState<boolean | null>(null);
   const [showManualControl, setShowManualControl] = useState(false);
   const [brushSize, setBrushSize] = useState(12);
@@ -85,9 +87,6 @@ export default function NnInteractivePanel({
       clearInterval(interval);
       toolboxState.setManualCorrectionMode(false);
       toolboxState.setPosNeg(false);
-      if (isAIToolBox && toolboxState.getSessionActive()) {
-        commandsManager.run('closeNninterSession');
-      }
     };
   }, []);
 
@@ -423,9 +422,20 @@ export default function NnInteractivePanel({
     );
   };
 
-  const handleInitialize = () => {
-    if (nnInteractiveAvailable) {
-      commandsManager.run('initNninter');
+  const handleInitialize = async () => {
+    if (!nnInteractiveAvailable || initializing || sessionActive) {
+      return;
+    }
+    // Block the button while the backend session is being created so a slow
+    // init can't be spammed. The finally re-enables it if anything goes wrong;
+    // on success sessionActive keeps it disabled ("Session ready").
+    setInitializing(true);
+    try {
+      await commandsManager.run('initNninter');
+    } catch (error) {
+      console.error('initNninter failed:', error);
+    } finally {
+      setInitializing(false);
     }
   };
   const handleRun = () => {
@@ -518,11 +528,20 @@ export default function NnInteractivePanel({
   };
 
   const handleApplyManualCorrection = async () => {
-    if (!nnInteractiveReady || !sessionActive || !hasActiveAiSegment()) {
+    if (!nnInteractiveReady || !sessionActive || !hasActiveAiSegment() || applyingCorrection) {
       return;
     }
+    // Block the button while the correction is being applied so a slow request
+    // can't be spammed. The finally re-enables it whether it succeeds or fails.
+    setApplyingCorrection(true);
     toolboxState.setManualCorrectionMode(false);
-    await commandsManager.run('applyNninterManualCorrection');
+    try {
+      await commandsManager.run('applyNninterManualCorrection');
+    } catch (error) {
+      console.error('applyNninterManualCorrection failed:', error);
+    } finally {
+      setApplyingCorrection(false);
+    }
   };
 
   const CustomConfigComponent = customizationService.getCustomization(`${buttonSectionId}.config`);
@@ -632,10 +651,10 @@ export default function NnInteractivePanel({
                     variant="default"
                     size="sm"
                     className="w-full"
-                    disabled={!nnInteractiveReady || sessionActive}
+                    disabled={!nnInteractiveReady || sessionActive || initializing}
                     onClick={handleInitialize}
                   >
-                    {sessionActive ? 'Session ready' : 'Initialize'}
+                    {sessionActive ? 'Session ready' : initializing ? 'Initializing...' : 'Initialize'}
                   </Button>
                   <div
                     className={classnames(
@@ -645,9 +664,11 @@ export default function NnInteractivePanel({
                   >
                     {sessionActive
                       ? 'Session ready'
-                      : nnInteractiveReady
-                        ? 'Initialize to start a session'
-                        : 'Optional nnInteractive backend unavailable'}
+                      : initializing
+                        ? 'Initializing session...'
+                        : nnInteractiveReady
+                          ? 'Initialize to start a session'
+                          : 'Optional nnInteractive backend unavailable'}
                   </div>
 
                   <div className="border-t border-primary/20" />
@@ -799,10 +820,15 @@ export default function NnInteractivePanel({
                       variant="default"
                       size="sm"
                       className="w-full"
-                      disabled={!nnInteractiveReady || !sessionActive || !hasActiveAiSegment()}
+                      disabled={
+                        !nnInteractiveReady ||
+                        !sessionActive ||
+                        !hasActiveAiSegment() ||
+                        applyingCorrection
+                      }
                       onClick={handleApplyManualCorrection}
                     >
-                      Apply Manual Correction
+                      {applyingCorrection ? 'Applying...' : 'Apply Manual Correction'}
                     </Button>
                   </div>
 

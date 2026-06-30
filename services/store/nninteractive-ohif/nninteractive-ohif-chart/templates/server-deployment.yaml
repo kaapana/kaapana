@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: nninteractive-server
-          image: "{{ .Values.nninteractiveServer.image }}:{{ .Values.nninteractiveServer.tag }}"
+          image: "{{ .Values.global.registry_url }}/nninteractive-server:{{ .Values.global.kaapana_build_version }}"
           imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
 {{- if .Values.nninteractiveServer.extraArgs }}
           args:

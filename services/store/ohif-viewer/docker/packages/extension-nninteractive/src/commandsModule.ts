@@ -39,6 +39,8 @@ const {
 /** Tracks the last series initialized by initNninter to detect study/series changes. */
 let _lastInitSeries: string | undefined = undefined;
 let _nnInteractiveClientSessionId: string | undefined = undefined;
+let _pendingInitKey: string | undefined = undefined;
+let _pendingInitPromise: Promise<any> | undefined = undefined;
 const NNINTERACTIVE_CLIENT_SESSION_KEY = 'kaapana.nninteractive.clientSessionId';
 
 /**
@@ -1044,6 +1046,11 @@ const commandsModule = ({
       const _showNotification = _seriesChanged;
 
       let data = constructInferenceFormData(params, null);
+      const _initKey = `${currentDisplaySets.StudyInstanceUID}|${currentDisplaySets.SeriesInstanceUID}`;
+
+      if (_pendingInitPromise && _pendingInitKey === _initKey) {
+        return _pendingInitPromise;
+      }
 
       const recoverInitializedSession = async (error: any) => {
         const statusUrl = withNnInteractiveClientSession(
@@ -1058,12 +1065,21 @@ const commandsModule = ({
       };
 
       // Create the axios promise
-      const initPromise = axios.post(url, data, {
+      const requestPromise = axios.post(url, data, {
         responseType: 'arraybuffer',
         headers: {
           accept: 'application/json, multipart/form-data',
         },
       }).catch(recoverInitializedSession);
+
+      const initPromise = requestPromise.finally(() => {
+        if (_pendingInitPromise === initPromise) {
+          _pendingInitPromise = undefined;
+          _pendingInitKey = undefined;
+        }
+      });
+      _pendingInitKey = _initKey;
+      _pendingInitPromise = initPromise;
 
       if (_showNotification) {
         uiNotificationService.show({

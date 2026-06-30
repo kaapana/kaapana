@@ -186,9 +186,7 @@ class BuildHelper:
         # If any containers are specified, we do not resolve charts.
         if selected_container_names:
             containers = {
-                c
-                for name in selected_container_names
-                if (c := ContainerHelper.get_container(name)) is not None
+                ContainerHelper.get_container(name) for name in selected_container_names
             }
             cls._build_state.selected_containers = (
                 ContainerHelper.collect_all_local_base_containers(containers)

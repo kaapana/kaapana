@@ -5,6 +5,8 @@ kind: Service
 metadata:
   name: nninteractive-proxy-service
   namespace: "{{ .Values.global.services_namespace }}"
+  annotations:
+    traefik.ingress.kubernetes.io/service.serverstransport: {{ .Values.global.services_namespace }}-nninteractive-proxy-transport@kubernetescrd
   labels:
     app.kubernetes.io/name: nninteractive-proxy
     app.kubernetes.io/part-of: nninteractive-ohif

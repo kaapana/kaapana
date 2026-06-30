@@ -3,6 +3,7 @@ import logging
 import math
 import os
 import tempfile
+import threading
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -14,6 +15,7 @@ import numpy as np
 import pydicom
 import requests
 import SimpleITK as sitk
+import anyio
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import Response
 from nnInteractive.inference.remote import (
@@ -54,10 +56,26 @@ class SeriesSession:
     prompt_order: list[str] = field(default_factory=list)
     last_used: float = field(default_factory=time.time)
     last_browser_seen: float = field(default_factory=time.time)
+    lock: threading.RLock = field(default_factory=threading.RLock, repr=False)
+
+
+@dataclass
+class CachedImage:
+    key: str
+    image_4d: np.ndarray
+    flipped: bool
+    timings: dict[str, float]
+    last_used: float = field(default_factory=time.time)
 
 
 sessions: dict[str, SeriesSession] = {}
+sessions_lock = threading.RLock()
+init_locks: dict[str, threading.Lock] = {}
+image_cache: dict[str, CachedImage] = {}
+image_cache_lock = threading.RLock()
+image_locks: dict[str, threading.Lock] = {}
 LEGACY_CLIENT_SESSION_ID = "legacy"
+MAX_CACHED_IMAGES = int(os.environ.get("MAX_CACHED_IMAGES", "2"))
 
 
 def _jsonish(value: Any, default: Any) -> Any:
@@ -98,6 +116,10 @@ def _client_session_id(value: Any) -> str:
 
 def _session_key(study_uid: str, series_uid: str, client_session_id: str) -> str:
     return f"{study_uid}|{series_uid}|{client_session_id}"
+
+
+def _image_key(study_uid: str, series_uid: str) -> str:
+    return f"{study_uid}|{series_uid}"
 
 
 def _auth() -> tuple[str, str] | None:
@@ -158,16 +180,29 @@ def _fetch_series_to_tempdir(
     return files
 
 
-def _load_image(study_uid: str, series_uid: str, headers: dict[str, str] | None) -> tuple[np.ndarray, bool]:
+def _load_image(
+    study_uid: str,
+    series_uid: str,
+    headers: dict[str, str] | None,
+) -> tuple[np.ndarray, bool, dict[str, float]]:
+    timings: dict[str, float] = {}
     with tempfile.TemporaryDirectory(prefix="nninteractive-proxy-") as tempdir:
+        fetch_start = time.time()
         _fetch_series_to_tempdir(study_uid, series_uid, tempdir, headers)
+        timings["dicomweb_fetch"] = time.time() - fetch_start
+
+        sitk_series_start = time.time()
         reader = sitk.ImageSeriesReader()
         series_ids = reader.GetGDCMSeriesIDs(tempdir)
         if not series_ids:
             raise HTTPException(502, "SimpleITK could not identify a DICOM series")
         files = list(reader.GetGDCMSeriesFileNames(tempdir, series_ids[0]))
+        timings["sitk_series"] = time.time() - sitk_series_start
+
+        sitk_execute_start = time.time()
         reader.SetFileNames(files)
         image = reader.Execute()
+        timings["sitk_execute"] = time.time() - sitk_execute_start
 
         flipped = False
         if len(files) >= 2:
@@ -178,11 +213,18 @@ def _load_image(study_uid: str, series_uid: str, headers: dict[str, str] | None)
             except Exception:
                 logger.warning("Could not determine slice flip from InstanceNumber", exc_info=True)
 
-        volume = sitk.GetArrayFromImage(image).astype(np.float32, copy=False)
-        return np.ascontiguousarray(volume[None]), flipped
+        numpy_start = time.time()
+        volume = sitk.GetArrayFromImage(image)
+        volume_4d = np.ascontiguousarray(volume[None])
+        timings["numpy_convert"] = time.time() - numpy_start
+        return volume_4d, flipped, timings
 
 
-def _new_remote_session(image_4d: np.ndarray) -> tuple[nnInteractiveRemoteInferenceSession, np.ndarray]:
+def _new_remote_session(
+    image_4d: np.ndarray,
+) -> tuple[nnInteractiveRemoteInferenceSession, np.ndarray, dict[str, float]]:
+    timings: dict[str, float] = {}
+    create_start = time.time()
     session = nnInteractiveRemoteInferenceSession(
         server_url=NNINTERACTIVE_SERVER_URL,
         api_key=NNINTERACTIVE_API_KEY,
@@ -191,10 +233,68 @@ def _new_remote_session(image_4d: np.ndarray) -> tuple[nnInteractiveRemoteInfere
         set_image_read_timeout=float(os.environ.get("NNINTERACTIVE_SET_IMAGE_TIMEOUT", "900")),
         write_timeout=float(os.environ.get("NNINTERACTIVE_WRITE_TIMEOUT", "300")),
     )
+    timings["remote_create"] = time.time() - create_start
+
+    set_image_start = time.time()
     session.set_image(image_4d)
+    timings["remote_set_image"] = time.time() - set_image_start
+
+    target_start = time.time()
     target_buffer = np.zeros(image_4d.shape[1:], dtype=np.uint8)
     session.set_target_buffer(target_buffer)
-    return session, target_buffer
+    timings["remote_set_target"] = time.time() - target_start
+    return session, target_buffer, timings
+
+
+def _get_init_lock(key: str) -> threading.Lock:
+    with sessions_lock:
+        lock = init_locks.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            init_locks[key] = lock
+        return lock
+
+
+def _get_image_lock(key: str) -> threading.Lock:
+    with image_cache_lock:
+        lock = image_locks.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            image_locks[key] = lock
+        return lock
+
+
+def _evict_images_if_needed() -> None:
+    while len(image_cache) > MAX_CACHED_IMAGES:
+        oldest_key = min(image_cache, key=lambda k: image_cache[k].last_used)
+        image_cache.pop(oldest_key, None)
+
+
+def _get_cached_image(
+    study_uid: str,
+    series_uid: str,
+    dicomweb_headers: dict[str, str] | None,
+) -> tuple[np.ndarray, bool, dict[str, float]]:
+    key = _image_key(study_uid, series_uid)
+    with image_cache_lock:
+        cached = image_cache.get(key)
+        if cached is not None:
+            cached.last_used = time.time()
+            return cached.image_4d, cached.flipped, {"image_cache": 0.0}
+
+    image_lock = _get_image_lock(key)
+    with image_lock:
+        with image_cache_lock:
+            cached = image_cache.get(key)
+            if cached is not None:
+                cached.last_used = time.time()
+                return cached.image_4d, cached.flipped, {"image_cache": 0.0}
+
+        image_4d, flipped, timings = _load_image(study_uid, series_uid, dicomweb_headers)
+        with image_cache_lock:
+            image_cache[key] = CachedImage(key, image_4d, flipped, timings)
+            _evict_images_if_needed()
+        return image_4d, flipped, timings
 
 
 def _evict_if_needed() -> None:
@@ -202,7 +302,8 @@ def _evict_if_needed() -> None:
         oldest_key = min(sessions, key=lambda k: sessions[k].last_used)
         old = sessions.pop(oldest_key)
         try:
-            old.session.close()
+            with old.lock:
+                old.session.close()
         except Exception:
             logger.warning("Failed to close old nnInteractive session", exc_info=True)
 
@@ -214,40 +315,63 @@ def _get_series_session(
     dicomweb_headers: dict[str, str] | None,
 ) -> SeriesSession:
     key = _session_key(study_uid, series_uid, client_session_id)
-    existing = sessions.get(key)
-    if existing is not None:
-        existing.last_used = time.time()
-        return existing
+    with sessions_lock:
+        existing = sessions.get(key)
+        if existing is not None:
+            existing.last_used = time.time()
+            return existing
 
-    _evict_if_needed()
-    try:
-        load_start = time.time()
-        image_4d, flipped = _load_image(study_uid, series_uid, dicomweb_headers)
-        session, target_buffer = _new_remote_session(image_4d)
-        logger.info(
-            "Initialized nnInteractive session for %s client=%s in %.3fs; image shape=%s flipped=%s",
-            series_uid,
-            client_session_id,
-            time.time() - load_start,
-            image_4d.shape,
-            flipped,
-        )
-    except ServerAtCapacityError as e:
-        raise HTTPException(503, "nnInteractive server is at capacity") from e
-    except requests.HTTPError as e:
-        raise HTTPException(502, f"DICOMweb request failed: {e}") from e
-    except Exception as e:
-        raise HTTPException(502, f"Could not initialize nnInteractive session: {e}") from e
+    init_lock = _get_init_lock(key)
+    with init_lock:
+        with sessions_lock:
+            existing = sessions.get(key)
+            if existing is not None:
+                existing.last_used = time.time()
+                return existing
 
-    entry = SeriesSession(key, study_uid, series_uid, client_session_id, session, target_buffer, flipped)
-    sessions[key] = entry
-    return entry
+        with sessions_lock:
+            _evict_if_needed()
+        try:
+            load_start = time.time()
+            image_4d, flipped, load_timings = _get_cached_image(
+                study_uid,
+                series_uid,
+                dicomweb_headers,
+            )
+            session, target_buffer, remote_timings = _new_remote_session(image_4d)
+            total = time.time() - load_start
+            timings = {**load_timings, **remote_timings}
+            logger.info(
+                (
+                    "Initialized nnInteractive session for %s client=%s in %.3fs; "
+                    "image shape=%s flipped=%s timings=%s"
+                ),
+                series_uid,
+                client_session_id,
+                total,
+                image_4d.shape,
+                flipped,
+                ", ".join(f"{key}={value:.3f}s" for key, value in timings.items()),
+            )
+        except ServerAtCapacityError as e:
+            raise HTTPException(503, "nnInteractive server is at capacity") from e
+        except requests.HTTPError as e:
+            raise HTTPException(502, f"DICOMweb request failed: {e}") from e
+        except Exception as e:
+            raise HTTPException(502, f"Could not initialize nnInteractive session: {e}") from e
+
+        entry = SeriesSession(key, study_uid, series_uid, client_session_id, session, target_buffer, flipped)
+        with sessions_lock:
+            sessions[key] = entry
+        return entry
 
 
 def _close_entry(entry: SeriesSession) -> None:
-    sessions.pop(entry.key, None)
+    with sessions_lock:
+        sessions.pop(entry.key, None)
     try:
-        entry.session.close()
+        with entry.lock:
+            entry.session.close()
     except Exception:
         logger.warning("Failed to close nnInteractive session", exc_info=True)
 
@@ -617,9 +741,50 @@ def _run_inference_request(entry: SeriesSession, mode: Any, data: dict[str, Any]
     return _multipart(_meta(entry, seg, offset, full_shape, crop_shape, start, prompt_info), seg)
 
 
+def _infer_segmentation_sync(
+    study_uid: str,
+    series_uid: str,
+    client_session_id: str,
+    data: dict[str, Any],
+    dicomweb_headers: dict[str, str] | None,
+    mode: Any,
+    start: float,
+) -> Response:
+    # Only an explicit "init" request may create a session. Every other mode
+    # (inference / undo / reset) requires the user to have initialized first, so
+    # the OHIF UI can gate prompts on a live session instead of silently spinning
+    # one up on the first click.
+    if mode == "init":
+        entry = _get_series_session(study_uid, series_uid, client_session_id, dicomweb_headers)
+    else:
+        with sessions_lock:
+            entry = sessions.get(_session_key(study_uid, series_uid, client_session_id))
+            if entry is not None:
+                entry.last_used = time.time()
+        if entry is None:
+            raise HTTPException(409, "no active nnInteractive session; initialize first")
+
+    try:
+        with entry.lock:
+            return _run_inference_request(entry, mode, data, start)
+
+    except SessionExpiredError:
+        logger.info("nnInteractive session expired for %s; recreating and retrying request once", series_uid)
+        _close_entry(entry)
+        retry_entry = _get_series_session(study_uid, series_uid, client_session_id, dicomweb_headers)
+        try:
+            with retry_entry.lock:
+                return _run_inference_request(retry_entry, mode, data, start)
+        except SessionExpiredError as e:
+            _close_entry(retry_entry)
+            raise HTTPException(409, "nnInteractive session expired after retry; please initialize again") from e
+
+
 @app.get("/healthz")
 def healthz() -> dict[str, Any]:
-    return {"ok": True, "nninteractive_server": NNINTERACTIVE_SERVER_URL, "cached_sessions": len(sessions)}
+    with sessions_lock:
+        cached_sessions = len(sessions)
+    return {"ok": True, "nninteractive_server": NNINTERACTIVE_SERVER_URL, "cached_sessions": cached_sessions}
 
 
 @app.get("/infer/availability")
@@ -658,12 +823,14 @@ def session_status(
     """
     if not image or not studyInstanceUID:
         raise HTTPException(400, "Missing required query parameters: image, studyInstanceUID")
-    entry = sessions.get(_session_key(studyInstanceUID, image, _client_session_id(clientSessionID)))
+    with sessions_lock:
+        entry = sessions.get(_session_key(studyInstanceUID, image, _client_session_id(clientSessionID)))
     if entry is None:
         return {"active": False}
     entry.last_browser_seen = time.time()
     try:
-        status_info = entry.session.lease_status()
+        with entry.lock:
+            status_info = entry.session.lease_status()
     except SessionExpiredError:
         _close_entry(entry)
         return {"active": False}
@@ -695,10 +862,13 @@ async def close_session(request: Request) -> dict[str, Any]:
             pass
     if not series_uid or not study_uid:
         raise HTTPException(400, "Missing required parameters: image, studyInstanceUID")
-    entry = sessions.get(_session_key(str(study_uid), str(series_uid), _client_session_id(client_session_id)))
+    with sessions_lock:
+        entry = sessions.get(
+            _session_key(str(study_uid), str(series_uid), _client_session_id(client_session_id))
+        )
     if entry is None:
         return {"closed": False}
-    _close_entry(entry)
+    await anyio.to_thread.run_sync(_close_entry, entry)
     return {"closed": True}
 
 
@@ -729,30 +899,17 @@ async def infer_segmentation(request: Request) -> Response:
     if mode in {"medGemma", "gemini", "openai", "claude", "kimi", "qwen", "gemma", "vllm"}:
         raise HTTPException(501, f"Text/VLM mode '{mode}' is not implemented by this nnInteractive proxy")
 
-    dicomweb_headers = _forward_auth_headers(request)
-    # Only an explicit "init" request may create a session. Every other mode
-    # (inference / undo / reset) requires the user to have initialized first, so
-    # the OHIF UI can gate prompts on a live session instead of silently spinning
-    # one up on the first click.
-    if mode == "init":
-        entry = _get_series_session(study_uid, series_uid, client_session_id, dicomweb_headers)
-    else:
-        entry = sessions.get(_session_key(study_uid, series_uid, client_session_id))
-        if entry is None:
-            raise HTTPException(409, "no active nnInteractive session; initialize first")
-        entry.last_used = time.time()
     try:
-        return _run_inference_request(entry, mode, data, start)
-
-    except SessionExpiredError:
-        logger.info("nnInteractive session expired for %s; recreating and retrying request once", series_uid)
-        _close_entry(entry)
-        retry_entry = _get_series_session(study_uid, series_uid, client_session_id, dicomweb_headers)
-        try:
-            return _run_inference_request(retry_entry, mode, data, start)
-        except SessionExpiredError as e:
-            _close_entry(retry_entry)
-            raise HTTPException(409, "nnInteractive session expired after retry; please initialize again") from e
+        return await anyio.to_thread.run_sync(
+            _infer_segmentation_sync,
+            study_uid,
+            series_uid,
+            client_session_id,
+            data,
+            _forward_auth_headers(request),
+            mode,
+            start,
+        )
     except HTTPException:
         raise
     except Exception as e:

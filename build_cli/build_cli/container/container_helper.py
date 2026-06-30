@@ -229,19 +229,18 @@ class ContainerHelper:
         Replace local BaseImage references in containers with actual Container objects.
         """
         for c in cls._build_state.containers_available:
-            resolved = set()
-            for b in c.base_images:
-                if not b.local_image:
-                    resolved.add(b)
-                    continue
-                resolved_base = cls.get_container(
-                    registry=b.registry,
-                    image_name=b.image_name,
-                    version=b.version,
+            c.base_images = {
+                (
+                    cls.get_container(
+                        registry=b.registry,
+                        image_name=b.image_name,
+                        version=b.version,
+                    )
+                    if b.local_image
+                    else b
                 )
-                if resolved_base is not None:
-                    resolved.add(resolved_base)
-            c.base_images = resolved
+                for b in c.base_images
+            }
 
     @classmethod
     def resolve_cache_from_images(cls, cache_from_tag: str):
@@ -293,8 +292,7 @@ class ContainerHelper:
         image_name: str,
         registry: Optional[str] = None,
         version: Optional[str] = None,
-        required: bool = True,
-    ) -> Optional[Container]:
+    ) -> Container:
         """
         Resolve a container reference to a collected Container object.
 
@@ -302,15 +300,9 @@ class ContainerHelper:
             registry (str): Registry name.
             image_name (str): Image name.
             version (str): Version or tag of the image.
-            required (bool): When True (default), a missing or ambiguous match
-                is logged as an error and reported as an issue. Set to False for
-                best-effort lookups (e.g. images referenced in charts but not
-                built in this repo), where a miss is expected and should be
-                skipped silently.
 
         Returns:
-            Optional[Container]: The resolved container, or None if no unique
-            match exists.
+            Container: Resolved container object.
         """
 
         matches = [
@@ -322,25 +314,19 @@ class ContainerHelper:
         ]
 
         if len(matches) != 1:
-            if required:
-                logger.error(
-                    f"{image_name}: expected 1 container for {registry}/{image_name}, found {len(matches)}"
-                )
-                for match in matches:
-                    logger.error(f"Dockerfile found: {match.dockerfile}")
+            logger.error(
+                f"{image_name}: expected 1 container for {registry}/{image_name}, found {len(matches)}"
+            )
+            for match in matches:
+                logger.error(f"Dockerfile found: {match.dockerfile}")
 
-                IssueTracker.generate_issue(
-                    component=ContainerHelper.__name__,
-                    name=f"{registry}/{image_name}:{version}",
-                    msg=f"Container not found or ambiguous: {image_name}",
-                    level="ERROR",
-                    path=str(),
-                )
-            else:
-                logger.debug(
-                    f"{image_name}: no unique container ({len(matches)} matches) -> skip"
-                )
-            return matches[0] if matches else None
+            IssueTracker.generate_issue(
+                component=ContainerHelper.__name__,
+                name=f"{registry}/{image_name}:{version}",
+                msg=f"Container not found or ambiguous: {image_name}",
+                level="ERROR",
+                path=str(),
+            )
 
         container = matches[0]
         logger.debug(f"{image_name}: container found: {container.tag}")

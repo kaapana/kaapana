@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: nninteractive-proxy
-          image: "{{ .Values.global.registry_url }}/{{ .Values.nninteractiveProxy.image }}:{{ .Values.global.kaapana_build_version }}"
+          image: "{{ .Values.global.registry_url }}/nninteractive-proxy:{{ .Values.global.kaapana_build_version }}"
           imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
           env:
             - name: DICOMWEB_ROOT
@@ -29,6 +29,8 @@ spec:
               value: "{{ .Values.nninteractiveProxy.nninteractiveServerUrl | default (printf "http://nninteractive-server-service.%s.svc:1527" .Values.global.services_namespace) }}"
             - name: MAX_CACHED_SESSIONS
               value: "{{ .Values.nninteractiveProxy.maxCachedSessions }}"
+            - name: MAX_CACHED_IMAGES
+              value: "{{ .Values.nninteractiveProxy.maxCachedImages }}"
 {{- if .Values.nninteractiveProxy.apiKey }}
             - name: NN_INTERACTIVE_API_KEY
               value: "{{ .Values.nninteractiveProxy.apiKey }}"

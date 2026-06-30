@@ -1,0 +1,12 @@
+{{- if .Values.global.gpu_support }}
+---
+apiVersion: traefik.io/v1alpha1
+kind: ServersTransport
+metadata:
+  name: nninteractive-proxy-transport
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  forwardingTimeouts:
+    responseHeaderTimeout: "{{ .Values.nninteractiveProxy.traefik.responseHeaderTimeout }}"
+    idleConnTimeout: "{{ .Values.nninteractiveProxy.traefik.idleConnTimeout }}"
+{{- end }}

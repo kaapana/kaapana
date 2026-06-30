@@ -24,7 +24,6 @@ const CORNERSTONE_3D_TOOLS_SOURCE_VERSION = '0.1';
 
 const PROMPT_TOOL_NAMES = ['Probe2', 'RectangleROI2', 'PlanarFreehandROI2', 'PlanarFreehandROI3'];
 let annotationMetadataStampingRegistered = false;
-let activeViewportInitRegistered = false;
 let metadataProviderRegistered = false;
 let toolLoadMeasurementVisibilityRegistered = false;
 
@@ -147,26 +146,6 @@ function registerAnnotationMetadataStamping() {
   });
 }
 
-function registerActiveViewportInit({ servicesManager, commandsManager }) {
-  if (activeViewportInitRegistered) {
-    return;
-  }
-
-  const viewportGridService = servicesManager?.services?.viewportGridService;
-  if (!viewportGridService?.subscribe || !commandsManager?.run) {
-    return;
-  }
-
-  activeViewportInitRegistered = true;
-
-  viewportGridService.subscribe(
-    viewportGridService.EVENTS.ACTIVE_VIEWPORT_ID_CHANGED,
-    ({ viewportId }) => {
-      commandsManager.run('initNninter', { viewportId });
-    }
-  );
-}
-
 function registerMetadataProvider() {
   if (metadataProviderRegistered) {
     return;
@@ -238,6 +217,5 @@ export default function preRegistration({ servicesManager, commandsManager }: an
   }
 
   registerAnnotationMetadataStamping();
-  registerActiveViewportInit({ servicesManager, commandsManager });
   registerMetadataProvider();
 }

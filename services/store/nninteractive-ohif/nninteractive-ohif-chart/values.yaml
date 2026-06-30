@@ -3,12 +3,12 @@ global:
   pull_policy_images: "Always"
 
 nninteractiveProxy:
-  image: "nninteractive-proxy"
   port: 8002
   dicomwebRoot: ""
   nninteractiveServerUrl: ""
   apiKey: ""
   maxCachedSessions: 8
+  maxCachedImages: 2
   memoryRequest: 512Mi
   memoryLimit: 4Gi
   readinessProbe:
@@ -21,10 +21,14 @@ nninteractiveProxy:
     periodSeconds: 30
     timeoutSeconds: 5
     failureThreshold: 20
+  traefik:
+    responseHeaderTimeout: 180s
+    idleConnTimeout: 180s
 
 nninteractiveServer:
-  image: ghcr.io/mic-dkfz/nninteractive-server
-  tag: 2.5.0-nninteractive_v1.0
+  # The server image is built/mirrored by docker/nninteractive-server/Dockerfile and
+  # served from the platform registry (registry_url/nninteractive-server:kaapana_build_version),
+  # like the proxy. The image name is referenced directly in server-deployment.yaml.
   port: 1527
   apiKey: ""
   gpuCount: 1

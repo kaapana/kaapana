@@ -2145,7 +2145,9 @@ const commandsModule = ({
                   const srcRow = cropSliceBase + cy * _cropX;
                   const dstRow = (_y0 + cy) * _fullX + _x0;
                   for (let cx = 0; cx < _cropX; cx++) {
-                    if (cropBytes[srcRow + cx] === 1) {
+                    // Only claim background voxels — never overwrite a voxel that
+                    // already belongs to another segment (existing segments win).
+                    if (cropBytes[srcRow + cx] === 1 && scalarData[dstRow + cx] === 0) {
                       scalarData[dstRow + cx] = segmentNumber;
                       wrote = true;
                     }
@@ -2158,7 +2160,7 @@ const commandsModule = ({
                 const sliceLen = scalarData.length;
                 const sliceData = new_arrayBuffer.subarray(i * sliceLen, (i + 1) * sliceLen);
                 if (sliceData.some(v => v === 1)){
-                  for (let j = 0; j < sliceLen; j++) { if (sliceData[j] === 1) scalarData[j] = segmentNumber; }
+                  for (let j = 0; j < sliceLen; j++) { if (sliceData[j] === 1 && scalarData[j] === 0) scalarData[j] = segmentNumber; }
                   z_range.push(flipped ? derivedImages_new.length - i - 1 : i);
                 }
               }
@@ -2231,7 +2233,9 @@ const commandsModule = ({
                   const srcRow = cropSliceBase + cy * _cropX;
                   const dstRow = (_y0 + cy) * _fullX + _x0;
                   for (let cx = 0; cx < _cropX; cx++) {
-                    if (cropBytes[srcRow + cx] === 1) {
+                    // Only claim background voxels — never overwrite a voxel that
+                    // already belongs to another segment (existing segments win).
+                    if (cropBytes[srcRow + cx] === 1 && scalarData[dstRow + cx] === 0) {
                       scalarData[dstRow + cx] = segmentNumber;
                       wrote = true;
                     }
@@ -2244,7 +2248,7 @@ const commandsModule = ({
                 const sd = (merged_derivedImages[i].voxelManager as csTypes.IVoxelManager<number>).getScalarData();
                 const sliceData = new_arrayBuffer.subarray(i * sd.length, (i + 1) * sd.length);
                 if (sliceData.some(v => v === 1)){
-                  for (let j = 0; j < sd.length; j++) { if (sliceData[j] === 1) sd[j] = segmentNumber; }
+                  for (let j = 0; j < sd.length; j++) { if (sliceData[j] === 1 && sd[j] === 0) sd[j] = segmentNumber; }
                   z_range.push(flipped ? merged_derivedImages.length - i - 1 : i);
                 }
               }

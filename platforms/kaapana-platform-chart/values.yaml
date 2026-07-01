@@ -23,6 +23,31 @@ extension_params:
         definition: Only valid if multiple instances for the same Kaapana platform are deployed
         type: string
         value: ""
+    login_header:
+        default: "Kaapana"
+        definition: "Login page: bold title shown on the Keycloak login page"
+        type: string
+        value: "Kaapana"
+    login_subheader:
+        default: "End-to-End medical image analysis"
+        definition: "Login page: muted subtitle shown under the title"
+        type: string
+        value: "End-to-End medical image analysis"
+    login_notice:
+        default: ""
+        definition: "Login page: longer notice text (single line, basic HTML allowed)"
+        type: string
+        value: ""
+    login_institution_name:
+        default: ""
+        definition: "Login page: alt text for the institution logo"
+        type: string
+        value: ""
+    login_institution_logo:
+        default: ""
+        definition: "Login page: URL or data: URI of a logo shown next to the Kaapana logo"
+        type: string
+        value: ""
     kaapana_build_version:
         default: ""
         definition: The current build version of the platform

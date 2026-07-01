@@ -2,6 +2,7 @@
   "id" : "kaapana",
   "realm" : "kaapana",
   "enabled" : true,
+  "loginTheme" : "kaapana",
   "roles" : {
     "realm" : [ 
       {

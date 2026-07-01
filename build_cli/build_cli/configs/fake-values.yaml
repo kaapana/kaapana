@@ -37,6 +37,11 @@ global:
   slow_data_dir: "placeholder"
   instance_uid: "placeholder"
   instance_name: "placeholder"
+  login_header: ""
+  login_subheader: ""
+  login_notice: ""
+  login_institution_name: ""
+  login_institution_logo: ""
   dev_mode: false
   kaapana_init_password: "placeholder"
   pacs_memory_limit: "placeholder"

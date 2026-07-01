@@ -1,3 +1,31 @@
 ---
 global:
     pull_policy_images: "IfNotPresent"
+
+# Session storage for oauth2-proxy. Introduced to fix "400 Request Header Or Cookie
+# Too Large": moving the session server-side (redis) and capping CSRF cookies keeps
+# browser cookies below nginx header limits during normal navigation.
+session_storage:
+    # Single switch for the session store: "redis" (server-side) or "cookie" (browser).
+    type: "redis"
+    cookie_expire: "6h"
+    cookie_refresh: "5m"
+    # Upper bound on per-request CSRF cookies (prevents unbounded accumulation).
+    csrf_per_request_limit: 8
+    # Only used when type == "cookie"; must stay false (see configmap note).
+    cookie_minimal: false
+    redis:
+        # "type" above is the single switch for the session store. Redis is deployed
+        # (and referenced by the config) only when type == "redis"; set type to
+        # "cookie" to disable it. A separate "enabled" flag was removed because it
+        # could disagree with "type" and silently break login.
+        service_name: "oauth2-proxy-redis"
+        port: 6379
+        # Image is mirrored into the Kaapana registry via redis-docker/Dockerfile
+        # and pulled as {{ global.registry_url }}/redis:{{ global.kaapana_build_version }}
+        # so it is available on offline/air-gapped sites.
+        resources:
+            requests:
+                memory: "32Mi"
+            limits:
+                memory: "128Mi"

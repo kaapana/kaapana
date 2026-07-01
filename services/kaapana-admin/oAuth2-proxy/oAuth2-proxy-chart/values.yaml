@@ -8,8 +8,13 @@ global:
 session_storage:
     # Single switch for the session store: "redis" (server-side) or "cookie" (browser).
     type: "redis"
-    cookie_expire: "6h"
-    cookie_refresh: "5m"
+    # Aligned with Keycloak realm: matches the SSO session lifetime
+    # (ssoSessionIdleTimeout = ssoSessionMaxLifespan = 10h) so the oauth2-proxy
+    # session does not expire before Keycloak's and users are not logged out early.
+    cookie_expire: "10h"
+    # Kept below the access-token lifespan (Keycloak default 5m) so tokens are
+    # refreshed before they expire; each refresh also resets the SSO idle timer.
+    cookie_refresh: "4m"
     # Upper bound on per-request CSRF cookies (prevents unbounded accumulation).
     csrf_per_request_limit: 8
     # Only used when type == "cookie"; must stay false (see configmap note).

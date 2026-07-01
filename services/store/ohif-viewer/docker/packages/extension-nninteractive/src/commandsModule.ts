@@ -563,6 +563,97 @@ const commandsModule = ({
     }
   });
 
+  // ── Layout-switch guard ────────────────────────────────────────────────────────────────────────
+  // If a segmentation was created in a STACK-only layout it has imageIds but NO volumeId. When the user
+  // switches to an MPR layout, OHIF re-adds that hydrated rep to the new volume panes and runs its own
+  // (broken) stack→volume conversion → null scalars → vtkVolumeFS shader crash ("i is null"). The
+  // crashing render is deferred to the next animation frame, so this handler — which fires synchronously
+  // when the MPR volume loads — builds a proper volume labelmap, sets volumeId, and replaces the rep
+  // BEFORE that render. Idempotent: a no-op once volumeId is set (normal MPR/refine, and 2nd+ events).
+  // Note: VolumeViewport3D panes are not handled here (labelmap→surface is disabled to avoid polySeg).
+  const ensureMprLabelmapForActiveSegmentations = async () => {
+    try {
+      const cvs = servicesManager.services.cornerstoneViewportService;
+      const segSvc = servicesManager.services.segmentationService;
+      const viewportIds: string[] = cvs.getViewportIds?.() ?? [];
+      const mprVolumeViewportIds = viewportIds.filter(id => {
+        const vp = cvs.getCornerstoneViewport(id);
+        return vp instanceof BaseVolumeViewport && !(vp instanceof VolumeViewport3D);
+      });
+      if (!mprVolumeViewportIds.length) {
+        return;
+      }
+      // Quietly bail until at least one MPR pane actually has a source (non-labelmap) volume loaded.
+      const anyVolumeReady = mprVolumeViewportIds.some(id => {
+        const vp: any = cvs.getCornerstoneViewport(id);
+        const ids: string[] = vp?.getAllVolumeIds?.() ?? (vp?.getVolumeId?.() ? [vp.getVolumeId()] : []);
+        return ids.some(v => v && !v.endsWith('-mpr-labelmap'));
+      });
+      if (!anyVolumeReady) {
+        return;
+      }
+
+      const segmentations = (csToolsSegmentation.state.getSegmentations?.() ?? []) as any[];
+      for (const seg of segmentations) {
+        const lm: any = seg?.representationData?.[LABELMAP];
+        if (!lm?.imageIds?.length || lm.volumeId) {
+          continue; // not a stack labelmap, or already volume-ready (normal MPR/refine)
+        }
+        const sourceImageIds: string[] = lm.referencedImageIds ?? [];
+        if (!sourceImageIds.length) {
+          continue;
+        }
+        const ok = await buildAndSyncLabelmapVolumeFor(
+          seg.segmentationId,
+          lm.imageIds,
+          sourceImageIds,
+          mprVolumeViewportIds
+        );
+        if (!ok) {
+          continue;
+        }
+        // Replace any stack-style rep OHIF added to the volume panes with the now-valid volume rep.
+        for (const vpId of mprVolumeViewportIds) {
+          try {
+            segSvc.removeSegmentationRepresentations(vpId, { segmentationId: seg.segmentationId });
+            await segSvc.addSegmentationRepresentation(vpId, { segmentationId: seg.segmentationId });
+          } catch (e) {
+            console.warn(`[nninter] MPR re-add on layout switch failed for ${vpId}:`, e);
+          }
+        }
+        eventTarget.dispatchEvent(
+          new CustomEvent(csToolsEnums.Events.SEGMENTATION_DATA_MODIFIED, {
+            detail: { segmentationId: seg.segmentationId },
+          })
+        );
+        console.info(`[nninter] layout switch: built MPR volume labelmap + re-added rep for ${seg.segmentationId}`);
+      }
+    } catch (error) {
+      console.warn('[nninter] ensureMprLabelmapForActiveSegmentations failed:', error);
+    }
+  };
+
+  // Subscribe to whichever viewport/grid events exist on this OHIF build (constants guarded so a name
+  // mismatch degrades to "not subscribed" rather than throwing). The handler is idempotent, so multiple
+  // overlapping triggers are harmless.
+  const _runMprGuard = () => { void ensureMprLabelmapForActiveSegmentations(); };
+  try {
+    const cvsEvents: any = (cornerstoneViewportService as any).EVENTS || {};
+    [cvsEvents.VIEWPORT_VOLUMES_CHANGED, cvsEvents.VIEWPORT_DATA_CHANGED]
+      .filter(Boolean)
+      .forEach(evtName => cornerstoneViewportService.subscribe(evtName, _runMprGuard));
+  } catch (error) {
+    console.warn('[nninter] could not subscribe to cornerstoneViewportService events for MPR guard:', error);
+  }
+  try {
+    const gridEvents: any = (viewportGridService as any).EVENTS || {};
+    [gridEvents.GRID_STATE_CHANGED, gridEvents.GRID_SIZE_CHANGED, gridEvents.LAYOUT_CHANGED]
+      .filter(Boolean)
+      .forEach(evtName => viewportGridService.subscribe(evtName, _runMprGuard));
+  } catch (error) {
+    console.warn('[nninter] could not subscribe to viewportGridService events for MPR guard:', error);
+  }
+
   /**
    * Helper function to handle post-segmentation processing after segmentation data is created/updated.
    * This includes updating representations, handling viewports, and triggering events.
@@ -582,6 +673,141 @@ const commandsModule = ({
   // and convert the volume slice k → the source display-set (stack) slice index the proxy expects. The
   // patched Cornerstone tools' own `volumeId:` branches are NOT relied on (they depend on a global
   // `services` and silently fell back, sending raw volume k as z → mis-placed MPR segments).
+
+  /**
+   * Build (or reuse) the derived labelmap VOLUME for a segmentation from the source CT volume, copy the
+   * per-slice STACK labelmap into it by geometry, and set representationData.Labelmap.volumeId so OHIF
+   * renders it natively in MPR/volume panes. Reusable from inference (postSegmentationProcessing) and
+   * from the layout-switch guard (ensureMprLabelmapForActiveSegmentations). Fully guarded; returns true
+   * iff a renderable volume labelmap is ready (so the caller may add the volume representation).
+   */
+  const buildAndSyncLabelmapVolumeFor = async (
+    segmentationId: string,
+    derivedImageIds: string[],
+    sourceImageIds: string[],
+    mprVolumeViewportIds: string[]
+  ): Promise<boolean> => {
+    if (!mprVolumeViewportIds.length) {
+      return false;
+    }
+    const labelmapVolumeId = `${segmentationId}-mpr-labelmap`;
+    try {
+      // Source CT volumeId from any MPR pane (all MPR panes share one source volume). After the first
+      // inference our labelmap volume is ALSO an actor in the viewport, so exclude it — never derive a
+      // labelmap from the labelmap.
+      let refVolumeId: string | undefined;
+      for (const vpId of mprVolumeViewportIds) {
+        const vp = servicesManager.services.cornerstoneViewportService.getCornerstoneViewport(vpId);
+        const allIds: string[] = (vp as any)?.getAllVolumeIds?.() ?? [];
+        let candidate = allIds.find(id => id && id !== labelmapVolumeId);
+        if (!candidate) {
+          const single = (vp as any)?.getVolumeId?.();
+          candidate = single && single !== labelmapVolumeId ? single : undefined;
+        }
+        if (candidate) {
+          refVolumeId = candidate;
+          break;
+        }
+      }
+      if (!refVolumeId) {
+        console.warn('[nninter] MPR: no source volumeId found on MPR viewports; skipping volume overlay');
+        return false;
+      }
+      // Remember the source CT volume for the reverse (volume→stack) sync used by manual correction.
+      _mprRefVolumeIdBySeg.set(segmentationId, refVolumeId);
+
+      let vol: any = cache.getVolume(labelmapVolumeId);
+      if (!vol) {
+        vol = volumeLoader.createAndCacheDerivedLabelmapVolume(refVolumeId, { volumeId: labelmapVolumeId });
+      }
+      const vm = vol?.voxelManager;
+      if (!vol || !vm?.getCompleteScalarDataArray || !vm?.setCompleteScalarDataArray) {
+        console.warn('[nninter] MPR: derived labelmap volume unavailable or not image-backed; skipping');
+        return false;
+      }
+
+      const [nx, ny, nz] = vol.dimensions;
+      const sliceLen = nx * ny;
+      const volImageData = vol.imageData;
+
+      // Map each source slice → volume k using the SOURCE VOLUME's own imageId ordering, which IS the
+      // authoritative geometric order Cornerstone placed slices in (IPP-projected). The derived labelmap
+      // volume shares that geometry, so slice k of the source = slice k of the labelmap. Robust to the
+      // high-priority imagePlaneModule provider (pixel spacing only); transformWorldToIndex is fallback.
+      const srcVol: any = cache.getVolume(refVolumeId);
+      const srcVolImageIds: string[] = srcVol?.imageIds ?? [];
+      const kByImageId = new Map<string, number>();
+      for (let k = 0; k < srcVolImageIds.length; k++) {
+        kByImageId.set(srcVolImageIds[k], k);
+      }
+
+      // Read (copy), zero, then write each stack labelmap slice into its volume k.
+      const arr = vm.getCompleteScalarDataArray();
+      (arr as any).fill?.(0);
+
+      let written = 0;
+      let skipped = 0;
+      let usedFallback = 0;
+      const kSeen: number[] = [];
+      for (let idx = 0; idx < derivedImageIds.length; idx++) {
+        // derivedImageIds[idx] is the labelmap slice for source slice sourceImageIds[idx] (parallel).
+        const srcImageId = sourceImageIds[idx];
+        const derived = cache.getImage(derivedImageIds[idx]);
+        if (!srcImageId || !derived) { skipped++; continue; }
+
+        let k = kByImageId.has(srcImageId) ? (kByImageId.get(srcImageId) as number) : -1;
+        if (k < 0) {
+          // Fallback: derive k from the slice's ImagePositionPatient via the volume geometry.
+          const plane: any = metaData.get('imagePlaneModule', srcImageId);
+          const ipp = plane?.imagePositionPatient;
+          if (ipp) {
+            const kk = csUtils.transformWorldToIndex(volImageData, ipp)[2];
+            if (Number.isFinite(kk)) { k = kk; usedFallback++; }
+          }
+        }
+        if (k < 0 || k >= nz) { skipped++; continue; }
+
+        const sd = (derived.voxelManager as csTypes.IVoxelManager<number>)?.getScalarData?.();
+        if (!sd || sd.length !== sliceLen) { skipped++; continue; }
+        (arr as any).set(sd, k * sliceLen);
+        written++;
+        if (kSeen.length < 3) kSeen.push(k);
+      }
+      vm.setCompleteScalarDataArray(arr);
+      console.info(
+        `[nninter] MPR labelmap volume ${labelmapVolumeId}: dims=${nx}x${ny}x${nz}, ` +
+        `wrote ${written}/${derivedImageIds.length} slices (skipped ${skipped}, fallback ${usedFallback}); ` +
+        `sample k=${kSeen.join(',')}`
+      );
+
+      // Attach volumeId to the segmentation's labelmap representation (preserve imageIds + other reps).
+      const seg = csToolsSegmentation.state.getSegmentation(segmentationId);
+      const repData: any = seg?.representationData || {};
+      const lm: any = repData[LABELMAP] || {};
+      if (lm.volumeId !== labelmapVolumeId) {
+        csToolsSegmentation.updateSegmentations([
+          {
+            segmentationId,
+            payload: {
+              representationData: {
+                ...repData,
+                [LABELMAP]: { ...lm, volumeId: labelmapVolumeId },
+              },
+            },
+          },
+        ]);
+      }
+      // The volume was just rebuilt from the stack labelmap, so they match again — drop any pending
+      // manual-correction dirty marker for this segmentation.
+      if (_mprDirtySegId === segmentationId) {
+        _mprDirtySegId = undefined;
+      }
+      return true;
+    } catch (error) {
+      console.warn('[nninter] MPR volume labelmap build/sync failed; MPR overlay skipped:', error);
+      return false;
+    }
+  };
 
   async function postSegmentationProcessing({
     activeViewportId,
@@ -704,133 +930,10 @@ const commandsModule = ({
       else stackViewportIds.push(viewportId);
     }
 
-    // Build/sync the derived labelmap VOLUME from the source CT volume and copy the stack labelmap
-    // into it by geometry, then set representationData.Labelmap.volumeId so OHIF renders it natively
-    // in the MPR panes. Returns true if a renderable volume labelmap is ready. Fully guarded: any
-    // failure logs and leaves the stack overlay untouched (never throws to the route error boundary).
-    const buildAndSyncLabelmapVolume = async (): Promise<boolean> => {
-      if (!mprVolumeViewportIds.length) {
-        return false;
-      }
-      const labelmapVolumeId = `${segmentationId}-mpr-labelmap`;
-      try {
-        // Source CT volumeId from any MPR pane (all MPR panes share one source volume). After the
-        // first inference our labelmap volume is ALSO an actor in the viewport, so exclude it — never
-        // derive a labelmap from the labelmap.
-        let refVolumeId: string | undefined;
-        for (const vpId of mprVolumeViewportIds) {
-          const vp = servicesManager.services.cornerstoneViewportService.getCornerstoneViewport(vpId);
-          const allIds: string[] = (vp as any)?.getAllVolumeIds?.() ?? [];
-          let candidate = allIds.find(id => id && id !== labelmapVolumeId);
-          if (!candidate) {
-            const single = (vp as any)?.getVolumeId?.();
-            candidate = single && single !== labelmapVolumeId ? single : undefined;
-          }
-          if (candidate) {
-            refVolumeId = candidate;
-            break;
-          }
-        }
-        if (!refVolumeId) {
-          console.warn('[nninter] MPR: no source volumeId found on MPR viewports; skipping volume overlay');
-          return false;
-        }
-        // Remember the source CT volume for the reverse (volume→stack) sync used by manual correction.
-        _mprRefVolumeIdBySeg.set(segmentationId, refVolumeId);
-
-        let vol: any = cache.getVolume(labelmapVolumeId);
-        if (!vol) {
-          vol = volumeLoader.createAndCacheDerivedLabelmapVolume(refVolumeId, { volumeId: labelmapVolumeId });
-        }
-        const vm = vol?.voxelManager;
-        if (!vol || !vm?.getCompleteScalarDataArray || !vm?.setCompleteScalarDataArray) {
-          console.warn('[nninter] MPR: derived labelmap volume unavailable or not image-backed; skipping');
-          return false;
-        }
-
-        const [nx, ny, nz] = vol.dimensions;
-        const sliceLen = nx * ny;
-        const volImageData = vol.imageData;
-
-        // Map each source slice → volume k using the SOURCE VOLUME's own imageId ordering, which IS
-        // the authoritative geometric order Cornerstone placed slices in (IPP-projected). The derived
-        // labelmap volume shares that geometry, so slice k of the source = slice k of the labelmap.
-        // This is robust to the high-priority imagePlaneModule provider in preRegistration that returns
-        // only pixel spacing (no imagePositionPatient). Geometric transformWorldToIndex is the fallback.
-        const srcVol: any = cache.getVolume(refVolumeId);
-        const srcVolImageIds: string[] = srcVol?.imageIds ?? [];
-        const kByImageId = new Map<string, number>();
-        for (let k = 0; k < srcVolImageIds.length; k++) {
-          kByImageId.set(srcVolImageIds[k], k);
-        }
-
-        // Read (copy), zero, then write each stack labelmap slice into its volume k.
-        const arr = vm.getCompleteScalarDataArray();
-        (arr as any).fill?.(0);
-
-        let written = 0;
-        let skipped = 0;
-        let usedFallback = 0;
-        const kSeen: number[] = [];
-        for (let idx = 0; idx < derivedImageIds.length; idx++) {
-          // derivedImageIds[idx] is the labelmap slice for source slice imageIds[idx] (parallel arrays).
-          const srcImageId = imageIds[idx];
-          const derived = cache.getImage(derivedImageIds[idx]);
-          if (!srcImageId || !derived) { skipped++; continue; }
-
-          let k = kByImageId.has(srcImageId) ? (kByImageId.get(srcImageId) as number) : -1;
-          if (k < 0) {
-            // Fallback: derive k from the slice's ImagePositionPatient via the volume geometry.
-            const plane: any = metaData.get('imagePlaneModule', srcImageId);
-            const ipp = plane?.imagePositionPatient;
-            if (ipp) {
-              const kk = csUtils.transformWorldToIndex(volImageData, ipp)[2];
-              if (Number.isFinite(kk)) { k = kk; usedFallback++; }
-            }
-          }
-          if (k < 0 || k >= nz) { skipped++; continue; }
-
-          const sd = (derived.voxelManager as csTypes.IVoxelManager<number>)?.getScalarData?.();
-          if (!sd || sd.length !== sliceLen) { skipped++; continue; }
-          (arr as any).set(sd, k * sliceLen);
-          written++;
-          if (kSeen.length < 3) kSeen.push(k);
-        }
-        vm.setCompleteScalarDataArray(arr);
-        console.info(
-          `[nninter] MPR labelmap volume ${labelmapVolumeId}: dims=${nx}x${ny}x${nz}, ` +
-          `wrote ${written}/${derivedImageIds.length} slices (skipped ${skipped}, fallback ${usedFallback}); ` +
-          `sample k=${kSeen.join(',')}`
-        );
-
-        // Attach volumeId to the segmentation's labelmap representation (preserve imageIds + other reps).
-        const seg = csToolsSegmentation.state.getSegmentation(segmentationId);
-        const repData: any = seg?.representationData || {};
-        const lm: any = repData[LABELMAP] || {};
-        if (lm.volumeId !== labelmapVolumeId) {
-          csToolsSegmentation.updateSegmentations([
-            {
-              segmentationId,
-              payload: {
-                representationData: {
-                  ...repData,
-                  [LABELMAP]: { ...lm, volumeId: labelmapVolumeId },
-                },
-              },
-            },
-          ]);
-        }
-        // The volume was just rebuilt from the stack labelmap, so they match again — drop any pending
-        // manual-correction dirty marker for this segmentation.
-        if (_mprDirtySegId === segmentationId) {
-          _mprDirtySegId = undefined;
-        }
-        return true;
-      } catch (error) {
-        console.warn('[nninter] MPR volume labelmap build/sync failed; MPR overlay skipped:', error);
-        return false;
-      }
-    };
+    // Build/sync the derived labelmap VOLUME (delegates to the reusable closure-level helper, passing
+    // this inference's local slice arrays). Returns true if a renderable volume labelmap is ready.
+    const buildAndSyncLabelmapVolume = () =>
+      buildAndSyncLabelmapVolumeFor(segmentationId, derivedImageIds, imageIds, mprVolumeViewportIds);
 
     if (!existing) {
       // ── First-ever inference: no actors exist yet, must do full viewport setup ──

@@ -1904,6 +1904,179 @@ const commandsModule = ({
         );
       }, 0);
     },
+    /**
+     * Load an existing segment into the nnInteractive backend as the CURRENT object, so the user can
+     * keep refining it with new prompts. Uploads the segment's current mask via the proxy's `set_mask`
+     * mode (which resets interactions + sets the server target buffer), then marks it the active
+     * segment WITHOUT a reset-first so the next prompt refines rather than restarts. Works for
+     * nnInteractive segments and (best-effort) for opened DICOM-SEG segments whose labelmap covers the
+     * source series. Triggered on segment selection in the panel; silent no-op if no live session.
+     */
+    async loadSegmentForRefinement({ segmentationId, segmentIndex }: { segmentationId: string; segmentIndex: number }) {
+      if (toolboxState.getLocked()) {
+        return;
+      }
+      if (!segmentationId || segmentIndex == null) {
+        return;
+      }
+      const start = Date.now();
+
+      const { activeViewportId, viewports } = viewportGridService.getState();
+      const activeViewportSpecificData = viewports.get(activeViewportId);
+      if (!activeViewportSpecificData) {
+        return;
+      }
+      const displaySetInstanceUID = activeViewportSpecificData.displaySetInstanceUIDs?.[0];
+      const displaySets = displaySetService.activeDisplaySets;
+      const currentDisplaySets = displaySets.find(e => e.displaySetInstanceUID === displaySetInstanceUID);
+      // Need the SOURCE (CT) series in the active viewport to target its session.
+      if (!currentDisplaySets || currentDisplaySets.Modality === 'SEG') {
+        return;
+      }
+      // A live backend session for this series is required (set_mask resets/sets its target buffer).
+      // Silent no-op otherwise — this fires on every segment click, so avoid notification spam.
+      if (!toolboxState.getSessionActive()) {
+        return;
+      }
+
+      const segState = csToolsSegmentation.state.getSegmentation(segmentationId);
+      const segStackImageIds: string[] =
+        (segState?.representationData?.[LABELMAP] as any)?.imageIds ?? [];
+      if (!segStackImageIds.length) {
+        uiNotificationService.show({
+          title: 'nnInteractive',
+          message: 'This segmentation has no per-slice labelmap to load for refinement.',
+          type: 'warning',
+        });
+        return;
+      }
+
+      const ctImageIds: string[] = currentDisplaySets.imageIds ?? [];
+      const numSlices = ctImageIds.length;
+      const idxByCtImageId = new Map<string, number>();
+      for (let i = 0; i < numSlices; i++) {
+        idxByCtImageId.set(ctImageIds[i], i);
+      }
+
+      const firstSeg = cache.getImage(segStackImageIds[0]);
+      const rows = firstSeg?.rows;
+      const cols = firstSeg?.columns;
+      if (!rows || !cols || !numSlices) {
+        console.warn('[nninter] loadSegmentForRefinement: could not resolve mask geometry');
+        return;
+      }
+      const sliceLen = rows * cols;
+
+      // Build the full-volume mask in SOURCE display-set (InstanceNumber) slice order. The proxy
+      // reshapes to (z,y,x) and reverses z when the series is flipped — the same convention the
+      // inference write path uses — so display-set order is correct here. Each labelmap slice is
+      // placed at its source slice's display-set index via referencedImageId (positional fallback).
+      const mask = new Uint8Array(numSlices * sliceLen);
+      const dirty: number[] = [];
+      let voxelCount = 0;
+      for (let i = 0; i < segStackImageIds.length; i++) {
+        const segImg: any = cache.getImage(segStackImageIds[i]);
+        if (!segImg) continue;
+        const refId: string | undefined = segImg.referencedImageId;
+        let z = refId != null && idxByCtImageId.has(refId) ? (idxByCtImageId.get(refId) as number) : i;
+        if (z < 0 || z >= numSlices) continue;
+        const sd = (segImg.voxelManager as csTypes.IVoxelManager<number>)?.getScalarData?.();
+        if (!sd || sd.length !== sliceLen) continue;
+        const base = z * sliceLen;
+        let any = false;
+        for (let j = 0; j < sliceLen; j++) {
+          if (sd[j] === segmentIndex) {
+            mask[base + j] = 1;
+            voxelCount++;
+            any = true;
+          }
+        }
+        if (any) dirty.push(z);
+      }
+
+      if (voxelCount === 0) {
+        // Nothing to continue from — just make it active (server stays as-is).
+        segmentationService.setActiveSegment(segmentationId, segmentIndex);
+        toolboxState.setCurrentActiveSegment(segmentIndex);
+        toolboxState.setRefineNew(false);
+        return;
+      }
+
+      const url = `/nninteractive/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
+      const params = {
+        largest_cc: false,
+        result_extension: '.nii.gz',
+        result_dtype: 'uint16',
+        result_compress: false,
+        studyInstanceUID: currentDisplaySets.StudyInstanceUID,
+        restore_label_idx: false,
+        nninter: 'set_mask',
+      };
+      const data = constructInferenceFormData(params, [
+        { name: 'mask', data: new Blob([mask]), fileName: 'mask.raw' },
+      ]);
+
+      const loadPromise = axios.post(url, data, {
+        responseType: 'arraybuffer',
+        headers: { accept: 'application/octet-stream' },
+      });
+
+      uiNotificationService.show({
+        title: 'nnInteractive',
+        message: `Loading Segment ${segmentIndex} for refinement…`,
+        type: 'info',
+        promise: loadPromise,
+        promiseMessages: {
+          loading: `Loading Segment ${segmentIndex} for refinement…`,
+          success: () => `Segment ${segmentIndex} ready — draw prompts to refine it`,
+          error: error => `Load segment failed: ${error.message || 'Unknown error'}`,
+        },
+      });
+
+      try {
+        const response = await loadPromise;
+        if (response.status !== 200) {
+          return;
+        }
+        console.log(
+          `[nninter] loaded segment ${segmentIndex} into backend via set_mask: ` +
+          `${voxelCount} voxels over ${dirty.length} slices, mask=${(mask.length / 1e6).toFixed(1)}MB, ` +
+          `${((Date.now() - start) / 1000).toFixed(3)}s`
+        );
+
+        // Make this the active segment and mark it current so the NEXT prompt refines (no reset-first,
+        // and not a new-object). refineNew=false ensures nninter() refines this segment rather than
+        // creating a new one even if the user had just armed "next object".
+        segmentationService.setActiveSegment(segmentationId, segmentIndex);
+        toolboxState.setCurrentActiveSegment(segmentIndex);
+        toolboxState.setRefineNew(false);
+
+        // Prime the refine clear so the next inference removes this segment's current voxels before
+        // writing the refined result. dirtySlices gives the fast path; segZ0/segZ1 force a full-range
+        // value-based clear fallback (order-independent) if the fast path can't resolve slices.
+        // Set it on the object nninter's refine path reads (segmentationService.getActiveSegmentation),
+        // falling back to the cs-tools state segmentation.
+        const activeSegForStats = segmentationService.getActiveSegmentation(activeViewportId);
+        const segObj = (activeSegForStats?.segments?.[segmentIndex] ??
+          segState?.segments?.[segmentIndex]) as any;
+        if (segObj) {
+          segObj.cachedStats = segObj.cachedStats || {};
+          segObj.cachedStats.dirtySlices = dirty;
+          segObj.cachedStats.segZ0 = 0;
+          segObj.cachedStats.segZ1 = numSlices;
+        }
+      } catch (error) {
+        if (_isSessionExpiredError(error)) {
+          toolboxState.setSessionActive(false);
+          uiNotificationService?.show({
+            title: 'nnInteractive',
+            message: 'Session expired — please Initialize again.',
+            type: 'warning',
+          });
+        }
+        console.error('loadSegmentForRefinement error:', error);
+      }
+    },
     async nninter(textPrompts?: string | string[]) {
       if (toolboxState.getLocked()) {
         return;
@@ -2578,6 +2751,7 @@ const commandsModule = ({
     'undoNninter',
     'resetNninter',
     'resetSegment',
+    'loadSegmentForRefinement',
     'nninter',
     'jumpToSegment',
     'toggleCurrentSegment',

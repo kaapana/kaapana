@@ -1,22 +1,23 @@
 .. _develop_guide:
 
-Development Guide
+Extending Kaapana
 #################
 
+* Kaapana is meant to be extended by its users
+* Extensions can be 
+    * Algorithms packaged as OCI containers
+    * Data-processing pipelines as workflows
+    * Server applications with backend and frontend services
+* The legacy development guide shows how workflow- and application-extensions can be developed on deployments older than 0.7.0
+
 .. toctree::
-    :maxdepth: 3
+    :maxdepth: 2
+    :hidden:
 
-    development_guide/general_dev_guide
     development_guide/processing_container_dev_guide
-    development_guide/workflow_dev_guide
-    development_guide/application_dev_guide
-    development_guide/workflow_extension_with_custom_registry
-    development_guide/drag_and_drop_workflow_extension
-    development_guide/upgrading_extensions_in_kaapana_extension_collection
-    development_guide/operators
-    development_guide/services
-    development_guide/helm_charts
-    development_guide/best_practices_root
+    development_guide/workflow_development
+    development_guide/extension_packaging
+    development_guide/legacy_workflow_migration
+    development_guide/legacy_dev_guide_root
 
 
-    

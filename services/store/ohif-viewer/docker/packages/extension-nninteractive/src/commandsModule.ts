@@ -340,6 +340,247 @@ const commandsModule = ({
   const _mprRefVolumeIdBySeg = new Map<string, string>();
   let _mprDirtySegId: string | undefined;
 
+  // ── Segment (overlap) model ──────────────────────────────────────────────────────────────────
+  // ONE Cornerstone segmentation per source series; each object is a SEGMENT stored as a contiguous
+  // per-slice BLOCK in that segmentation's stack labelmap (block k holds pixel value = segment index
+  // k). Because each slice appears once per segment (its own block), two segments can mark the same
+  // voxel → overlap, rendered as stacked labelmap layers. This is exactly how OHIF hydrates an
+  // overlapping DICOM SEG on import (N segments, imageIds = N × sliceCount), so authoring and import
+  // share one shape and round-trip cleanly.
+  //
+  // The nnInteractive proxy tracks ONE object per session, so we remember which SEGMENT the backend
+  // currently holds (segmentationId#segmentIndex) and drive reset_first / set_mask from it.
+  let _serverObjectId: string | undefined; // `${segmentationId}#${segmentIndex}` or undefined (blank)
+  const serverObjKey = (segId: string, segIdx: number) => `${segId}#${segIdx}`;
+  const _objectSegmentationIdsBySeries = new Map<string, string[]>();
+
+  const rememberObjectSegmentation = (seriesUID: string | undefined, segmentationId: string | undefined) => {
+    if (!seriesUID || !segmentationId) {
+      return;
+    }
+
+    const ids = _objectSegmentationIdsBySeries.get(seriesUID) ?? [];
+    if (!ids.includes(segmentationId)) {
+      ids.push(segmentationId);
+      _objectSegmentationIdsBySeries.set(seriesUID, ids);
+    }
+  };
+
+  const getSegmentationStateById = (segmentationId: string | undefined): any => {
+    if (!segmentationId) {
+      return undefined;
+    }
+
+    const csSeg = csToolsSegmentation.state.getSegmentation(segmentationId);
+    const serviceSeg = segmentationService.getSegmentation(segmentationId);
+    if (!csSeg) {
+      return serviceSeg;
+    }
+    if (!serviceSeg) {
+      return csSeg;
+    }
+
+    return {
+      ...serviceSeg,
+      ...csSeg,
+      cachedStats: {
+        ...(serviceSeg.cachedStats ?? {}),
+        ...(csSeg.cachedStats ?? {}),
+      },
+      representationData: {
+        ...(serviceSeg.representationData ?? {}),
+        ...(csSeg.representationData ?? {}),
+      },
+      segments: {
+        ...(serviceSeg.segments ?? {}),
+        ...(csSeg.segments ?? {}),
+      },
+    };
+  };
+
+  /** The source (CT) SeriesInstanceUID a segmentation was authored on / imported for, or undefined. */
+  const segSeriesUID = (seg: any): string | undefined => {
+    if (!seg) return undefined;
+    if (seg.cachedStats?.seriesInstanceUid) return seg.cachedStats.seriesInstanceUid;
+    for (const s of Object.values(seg.segments ?? {}) as any[]) {
+      if (s?.cachedStats?.algorithmName) return s.cachedStats.algorithmName;
+    }
+    const refIds: string[] = (seg.representationData?.[LABELMAP] as any)?.referencedImageIds ?? [];
+    if (refIds[0]) {
+      const inst: any = metaData.get('instance', refIds[0]);
+      if (inst?.SeriesInstanceUID) return inst.SeriesInstanceUID;
+    }
+    return undefined;
+  };
+
+  const segReferencedImageIds = (seg: any): string[] => {
+    const lm: any = seg?.representationData?.[LABELMAP];
+    if (lm?.referencedImageIds?.length) {
+      return lm.referencedImageIds;
+    }
+
+    const imageIds: string[] = lm?.imageIds ?? [];
+    return imageIds
+      .map(imageId => cache.getImage(imageId)?.referencedImageId)
+      .filter(Boolean);
+  };
+
+  const sameReferencedImageStack = (a: string[] = [], b: string[] = []): boolean => {
+    if (!a.length || !b.length || a.length !== b.length) {
+      return false;
+    }
+
+    return a[0] === b[0] && a[a.length - 1] === b[b.length - 1];
+  };
+
+  const allSegmentationStates = (): any[] => {
+    const byId = new Map<string, any>();
+    const add = (seg: any) => {
+      if (!seg?.segmentationId) {
+        return;
+      }
+
+      const previous = byId.get(seg.segmentationId) ?? {};
+      byId.set(seg.segmentationId, {
+        ...previous,
+        ...seg,
+        cachedStats: {
+          ...(previous.cachedStats ?? {}),
+          ...(seg.cachedStats ?? {}),
+        },
+        representationData: {
+          ...(previous.representationData ?? {}),
+          ...(seg.representationData ?? {}),
+        },
+        segments: {
+          ...(previous.segments ?? {}),
+          ...(seg.segments ?? {}),
+        },
+      });
+    };
+
+    ((csToolsSegmentation.state.getSegmentations?.() ?? []) as any[]).forEach(add);
+    ((segmentationService.getSegmentations?.() ?? []) as any[]).forEach(add);
+    for (const ids of _objectSegmentationIdsBySeries.values()) {
+      ids.map(getSegmentationStateById).forEach(add);
+    }
+    try {
+      const viewportIds = cornerstoneViewportService.getViewportIds?.() ?? [];
+      for (const viewportId of viewportIds) {
+        const reps =
+          (segmentationService as any).getSegmentationRepresentations?.(viewportId) ?? [];
+        reps.map((rep: any) => getSegmentationStateById(rep?.segmentationId)).forEach(add);
+      }
+    } catch (error) {
+      console.warn('[nninter] could not scan viewport segmentation representations:', error);
+    }
+
+    return Array.from(byId.values());
+  };
+
+  /** True if a segmentation is an nnInteractive object for the given source series. */
+  const segBelongsToSeries = (
+    seg: any,
+    seriesUID: string,
+    sourceImageIds: string[] = []
+  ): boolean => {
+    if (!seriesUID) {
+      return false;
+    }
+
+    if (segSeriesUID(seg) === seriesUID) {
+      return true;
+    }
+
+    const refIds = segReferencedImageIds(seg);
+    if (sameReferencedImageStack(refIds, sourceImageIds)) {
+      return true;
+    }
+
+    const firstRef = refIds[0];
+    const inst: any = firstRef ? metaData.get('instance', firstRef) : undefined;
+    return inst?.SeriesInstanceUID === seriesUID;
+  };
+
+  /** All segmentations (objects) that belong to a given source series. */
+  const seriesSegmentations = (seriesUID: string, sourceImageIds: string[] = []): any[] => {
+    const byId = new Map<string, any>();
+    const addIfBelongs = (seg: any) => {
+      if (!seg?.segmentationId) {
+        return;
+      }
+      if (segBelongsToSeries(seg, seriesUID, sourceImageIds)) {
+        byId.set(seg.segmentationId, seg);
+      }
+    };
+
+    (_objectSegmentationIdsBySeries.get(seriesUID) ?? [])
+      .map(getSegmentationStateById)
+      .forEach(addIfBelongs);
+    allSegmentationStates().forEach(addIfBelongs);
+
+    return Array.from(byId.values());
+  };
+
+  const objectColorPalette = [
+    [230, 25, 75, 255],
+    [60, 180, 75, 255],
+    [0, 130, 200, 255],
+    [245, 130, 48, 255],
+    [145, 30, 180, 255],
+    [70, 240, 240, 255],
+    [240, 50, 230, 255],
+    [210, 245, 60, 255],
+    [250, 190, 190, 255],
+    [0, 128, 128, 255],
+  ];
+
+  const objectColorForOrdinal = (ordinal: number | undefined): number[] => {
+    const index = Math.max(0, (ordinal ?? 1) - 1) % objectColorPalette.length;
+    return objectColorPalette[index];
+  };
+
+  const getObjectSegmentColor = (
+    segmentation: any,
+    segmentIndex: number
+  ): number[] | undefined => {
+    const segment = segmentation?.segments?.[segmentIndex];
+    return segment?.cachedStats?.color || segment?.color;
+  };
+
+  const setObjectSegmentColor = (
+    segmentationId: string,
+    segmentIndex: number,
+    color: number[] | undefined,
+    viewportIds: string[]
+  ) => {
+    const setSegmentColor = (segmentationService as any)?.setSegmentColor;
+    if (!color || typeof setSegmentColor !== 'function') {
+      return;
+    }
+
+    for (const viewportId of viewportIds) {
+      try {
+        setSegmentColor.call(segmentationService, viewportId, segmentationId, segmentIndex, color);
+      } catch (error) {
+        console.warn(`[nninter] could not set object color for ${segmentationId} in ${viewportId}:`, error);
+      }
+    }
+  };
+
+  const getCurrentStackImageIdIndex = (viewportId: string): number | undefined => {
+    try {
+      const viewport = servicesManager.services.cornerstoneViewportService.getCornerstoneViewport(viewportId);
+      if (!viewport || viewport instanceof BaseVolumeViewport) {
+        return undefined;
+      }
+      return viewport.getCurrentImageIdIndex?.();
+    } catch (error) {
+      console.warn(`[nninter] could not read stack image index for ${viewportId}:`, error);
+      return undefined;
+    }
+  };
+
   /** Get the labelmap volumeId used for the MPR overlay of a segmentation. */
   const mprLabelmapVolumeId = (segmentationId: string) => `${segmentationId}-mpr-labelmap`;
 
@@ -570,7 +811,10 @@ const commandsModule = ({
   // crashing render is deferred to the next animation frame, so this handler — which fires synchronously
   // when the MPR volume loads — builds a proper volume labelmap, sets volumeId, and replaces the rep
   // BEFORE that render. Idempotent: a no-op once volumeId is set (normal MPR/refine, and 2nd+ events).
-  // Note: VolumeViewport3D panes are not handled here (labelmap→surface is disabled to avoid polySeg).
+  // VolumeViewport3D panes are actively cleared because labelmap→surface conversion is unsafe here.
+  let _mprGuardPromise: Promise<void> | undefined;
+  let _mprGuardQueued = false;
+
   const ensureMprLabelmapForActiveSegmentations = async () => {
     try {
       const cvs = servicesManager.services.cornerstoneViewportService;
@@ -580,6 +824,34 @@ const commandsModule = ({
         const vp = cvs.getCornerstoneViewport(id);
         return vp instanceof BaseVolumeViewport && !(vp instanceof VolumeViewport3D);
       });
+      const volume3DViewportIds = viewportIds.filter(id => {
+        const vp = cvs.getCornerstoneViewport(id);
+        return vp instanceof VolumeViewport3D;
+      });
+      if (!mprVolumeViewportIds.length && !volume3DViewportIds.length) {
+        return;
+      }
+      const segmentations = (csToolsSegmentation.state.getSegmentations?.() ?? []) as any[];
+
+      if (volume3DViewportIds.length) {
+        for (const seg of segmentations) {
+          const lm: any = seg?.representationData?.[LABELMAP];
+          if (!lm?.imageIds?.length) {
+            continue;
+          }
+          for (const vpId of volume3DViewportIds) {
+            try {
+              await Promise.resolve(
+                segSvc.removeSegmentationRepresentations(vpId, {
+                  segmentationId: seg.segmentationId,
+                })
+              );
+            } catch (error) {
+              console.warn(`[nninter] 3D segmentation removal failed for ${vpId}:`, error);
+            }
+          }
+        }
+      }
       if (!mprVolumeViewportIds.length) {
         return;
       }
@@ -593,30 +865,65 @@ const commandsModule = ({
         return;
       }
 
-      const segmentations = (csToolsSegmentation.state.getSegmentations?.() ?? []) as any[];
       for (const seg of segmentations) {
         const lm: any = seg?.representationData?.[LABELMAP];
-        if (!lm?.imageIds?.length || lm.volumeId) {
-          continue; // not a stack labelmap, or already volume-ready (normal MPR/refine)
+        if (!lm?.imageIds?.length) {
+          continue;
         }
         const sourceImageIds: string[] = lm.referencedImageIds ?? [];
         if (!sourceImageIds.length) {
           continue;
         }
-        const ok = await buildAndSyncLabelmapVolumeFor(
-          seg.segmentationId,
-          lm.imageIds,
-          sourceImageIds,
-          mprVolumeViewportIds
-        );
-        if (!ok) {
-          continue;
+
+        const expectedVolumeId = mprLabelmapVolumeId(seg.segmentationId);
+        const hadVolumeId = lm.volumeId === expectedVolumeId;
+        const segmentIndex = 1;
+        const segmentColor = getObjectSegmentColor(seg, segmentIndex);
+        if (!hadVolumeId) {
+          const ok = await buildAndSyncLabelmapVolumeFor(
+            seg.segmentationId,
+            lm.imageIds,
+            sourceImageIds,
+            mprVolumeViewportIds
+          );
+          if (!ok) {
+            continue;
+          }
         }
-        // Replace any stack-style rep OHIF added to the volume panes with the now-valid volume rep.
+
+        // Replace stack-style reps OHIF may have auto-added before volumeId existed. For segmentations
+        // that were already volume-ready, only add the representation if this MPR viewport is missing it.
         for (const vpId of mprVolumeViewportIds) {
           try {
-            segSvc.removeSegmentationRepresentations(vpId, { segmentationId: seg.segmentationId });
-            await segSvc.addSegmentationRepresentation(vpId, { segmentationId: seg.segmentationId });
+            const reps =
+              segSvc.getSegmentationRepresentations?.(vpId, { segmentationId: seg.segmentationId }) ??
+              [];
+            const hasRep = reps.some((rep: any) => rep?.segmentationId === seg.segmentationId);
+            if (hadVolumeId && hasRep) {
+              setObjectSegmentColor(seg.segmentationId, segmentIndex, segmentColor, [vpId]);
+              continue;
+            }
+
+            if (!hadVolumeId && hasRep) {
+              await Promise.resolve(
+                segSvc.removeSegmentationRepresentations(vpId, {
+                  segmentationId: seg.segmentationId,
+                })
+              );
+            }
+
+            const afterRemove =
+              segSvc.getSegmentationRepresentations?.(vpId, { segmentationId: seg.segmentationId }) ??
+              [];
+            const stillHasRep = afterRemove.some(
+              (rep: any) => rep?.segmentationId === seg.segmentationId
+            );
+            if (!stillHasRep) {
+              await segSvc.addSegmentationRepresentation(vpId, {
+                segmentationId: seg.segmentationId,
+              });
+            }
+            setObjectSegmentColor(seg.segmentationId, segmentIndex, segmentColor, [vpId]);
           } catch (e) {
             console.warn(`[nninter] MPR re-add on layout switch failed for ${vpId}:`, e);
           }
@@ -636,7 +943,20 @@ const commandsModule = ({
   // Subscribe to whichever viewport/grid events exist on this OHIF build (constants guarded so a name
   // mismatch degrades to "not subscribed" rather than throwing). The handler is idempotent, so multiple
   // overlapping triggers are harmless.
-  const _runMprGuard = () => { void ensureMprLabelmapForActiveSegmentations(); };
+  const _runMprGuard = () => {
+    if (_mprGuardPromise) {
+      _mprGuardQueued = true;
+      return;
+    }
+
+    _mprGuardPromise = ensureMprLabelmapForActiveSegmentations().finally(() => {
+      _mprGuardPromise = undefined;
+      if (_mprGuardQueued) {
+        _mprGuardQueued = false;
+        setTimeout(_runMprGuard, 0);
+      }
+    });
+  };
   try {
     const cvsEvents: any = (cornerstoneViewportService as any).EVENTS || {};
     [cvsEvents.VIEWPORT_VOLUMES_CHANGED, cvsEvents.VIEWPORT_DATA_CHANGED]
@@ -652,6 +972,102 @@ const commandsModule = ({
       .forEach(evtName => viewportGridService.subscribe(evtName, _runMprGuard));
   } catch (error) {
     console.warn('[nninter] could not subscribe to viewportGridService events for MPR guard:', error);
+  }
+
+  // ── Diagnostic logging ───────────────────────────────────────────────────────────────────────
+  // Greppable logging so a real user workflow reveals runtime behavior we can't verify statically.
+  // The BIG unknown: how OHIF hydrates an OVERLAPPING DICOM SEG on IMPORT — as ONE segmentation with
+  // many segments (would break the 1-object-per-segmentation refine model + lose overlap), or as MANY
+  // segmentations with one segment each (matches our authoring model → round-trip works). Grep console
+  // for "[nninter/dbg]".
+  const _segSummary = (seg: any): string => {
+    if (!seg) return 'null';
+    const lm: any = seg.representationData?.[LABELMAP] || {};
+    const segIdx = Object.keys(seg.segments ?? {});
+    let refSeries: string | undefined;
+    try { refSeries = segSeriesUID(seg); } catch { /* ignore */ }
+    return `id=${seg.segmentationId} label=${JSON.stringify(seg.label)} segments=[${segIdx.join(',')}] ` +
+      `stackImgs=${lm.imageIds?.length ?? 0} volumeId=${lm.volumeId ? 'yes' : 'no'} ` +
+      `refImgs=${(lm.referencedImageIds ?? []).length} refSeries=${refSeries ?? '?'}`;
+  };
+  const dumpSegmentations = (tag: string) => {
+    try {
+      const segs = (csToolsSegmentation.state.getSegmentations?.() ?? []) as any[];
+      const totalSegments = segs.reduce((n, s) => n + Object.keys(s.segments ?? {}).length, 0);
+      console.log(`[nninter/dbg] ${tag}: ${segs.length} segmentation(s), ${totalSegments} segment(s) total`);
+      segs.forEach((s, i) => console.log(`[nninter/dbg]   [${i}] ${_segSummary(s)}`));
+    } catch (e) {
+      console.warn(`[nninter/dbg] dumpSegmentations(${tag}) failed:`, e);
+    }
+  };
+  // Reveal how a multi-segment (imported) labelmap lays out its per-slice images: for a SAMPLE of
+  // imageIds, print which source slice each references and the distinct nonzero values it holds. This
+  // shows whether segments are stored as contiguous blocks ([seg1 slices..., seg2 slices...]) and what
+  // pixel value each block uses — the info needed to write refinements into the CORRECT block.
+  const dumpLabelmapLayout = (seg: any) => {
+    try {
+      const lm: any = seg?.representationData?.[LABELMAP] || {};
+      const imageIds: string[] = lm.imageIds ?? [];
+      const refIds: string[] = lm.referencedImageIds ?? [];
+      if (!imageIds.length) {
+        return;
+      }
+      const refIndex = new Map<string, number>();
+      refIds.forEach((id, i) => refIndex.set(id, i));
+      const n = imageIds.length;
+      // Sample around the start, the suspected block boundaries (multiples of refIds.length), and end.
+      const idxs = new Set<number>();
+      const add = (i: number) => { if (i >= 0 && i < n) idxs.add(i); };
+      [0, 1, 2].forEach(add);
+      if (refIds.length) {
+        for (let b = refIds.length; b < n; b += refIds.length) { add(b - 1); add(b); add(b + 1); }
+      }
+      [n - 3, n - 2, n - 1].forEach(add);
+      const sorted = Array.from(idxs).sort((a, b) => a - b);
+      console.log(`[nninter/dbg] layout ${seg.segmentationId}: imageIds=${n} refIds=${refIds.length} segments=[${Object.keys(seg.segments ?? {}).join(',')}]`);
+      for (const i of sorted) {
+        const img: any = cache.getImage(imageIds[i]);
+        const rid: string | undefined = img?.referencedImageId;
+        const ri = rid != null && refIndex.has(rid) ? refIndex.get(rid) : '?';
+        let vals = 'uncached';
+        const sd = img?.voxelManager?.getScalarData?.();
+        if (sd) {
+          const s = new Set<number>();
+          for (let j = 0; j < sd.length; j++) { const v = sd[j]; if (v) { s.add(v); if (s.size > 4) break; } }
+          vals = s.size ? Array.from(s).join('|') : '∅';
+        }
+        console.log(`[nninter/dbg]   img#${i} -> refSlice#${ri} nonzeroValues=${vals}`);
+      }
+    } catch (e) {
+      console.warn('[nninter/dbg] dumpLabelmapLayout failed:', e);
+    }
+  };
+  // Observe segmentation lifecycle from BOTH layers (OHIF service + cs-tools eventTarget) so we catch
+  // an import regardless of which one fires it. ADDED/REMOVED only — MODIFIED is far too chatty.
+  try {
+    const segEvents: any = (segmentationService as any).EVENTS || {};
+    ['SEGMENTATION_ADDED', 'SEGMENTATION_REMOVED'].forEach(name => {
+      const evtName = segEvents[name];
+      if (!evtName) return;
+      segmentationService.subscribe(evtName, (payload: any) => {
+        const id = payload?.segmentationId ?? payload?.segmentation?.segmentationId ?? '?';
+        console.log(`[nninter/dbg] svc ${name}: segmentationId=${id}`);
+        dumpSegmentations(`after svc ${name}`);
+      });
+    });
+  } catch (e) {
+    console.warn('[nninter/dbg] could not subscribe to segmentationService lifecycle events:', e);
+  }
+  try {
+    const E: any = (csToolsEnums as any).Events || {};
+    [E.SEGMENTATION_ADDED, E.SEGMENTATION_REMOVED].filter(Boolean).forEach((evtName: string) => {
+      eventTarget.addEventListener(evtName, (evt: any) => {
+        console.log(`[nninter/dbg] cstools ${evtName}: ${JSON.stringify(evt?.detail ?? {}).slice(0, 200)}`);
+        dumpSegmentations(`after cstools ${evtName}`);
+      });
+    });
+  } catch (e) {
+    console.warn('[nninter/dbg] could not subscribe to cs-tools segmentation events:', e);
   }
 
   /**
@@ -692,17 +1108,18 @@ const commandsModule = ({
     }
     const labelmapVolumeId = `${segmentationId}-mpr-labelmap`;
     try {
-      // Source CT volumeId from any MPR pane (all MPR panes share one source volume). After the first
-      // inference our labelmap volume is ALSO an actor in the viewport, so exclude it — never derive a
-      // labelmap from the labelmap.
+      // Source CT volumeId from any MPR pane (all MPR panes share one source volume). Our labelmap
+      // volumes are ALSO actors in the viewport, so exclude ANY *-mpr-labelmap id (with overlapping
+      // objects there are several) — never derive a labelmap from a labelmap.
+      const _isLabelmapVol = (id: string) => !id || id.endsWith('-mpr-labelmap');
       let refVolumeId: string | undefined;
       for (const vpId of mprVolumeViewportIds) {
         const vp = servicesManager.services.cornerstoneViewportService.getCornerstoneViewport(vpId);
         const allIds: string[] = (vp as any)?.getAllVolumeIds?.() ?? [];
-        let candidate = allIds.find(id => id && id !== labelmapVolumeId);
+        let candidate = allIds.find(id => !_isLabelmapVol(id));
         if (!candidate) {
           const single = (vp as any)?.getVolumeId?.();
-          candidate = single && single !== labelmapVolumeId ? single : undefined;
+          candidate = single && !_isLabelmapVol(single) ? single : undefined;
         }
         if (candidate) {
           refVolumeId = candidate;
@@ -750,10 +1167,13 @@ const commandsModule = ({
       let usedFallback = 0;
       const kSeen: number[] = [];
       for (let idx = 0; idx < derivedImageIds.length; idx++) {
-        // derivedImageIds[idx] is the labelmap slice for source slice sourceImageIds[idx] (parallel).
-        const srcImageId = sourceImageIds[idx];
         const derived = cache.getImage(derivedImageIds[idx]);
-        if (!srcImageId || !derived) { skipped++; continue; }
+        if (!derived) { skipped++; continue; }
+        // Segment model: imageIds is N per-segment BLOCKS, each block re-referencing the same source
+        // slices. Map to the volume slice by the derived image's OWN referencedImageId (works for every
+        // block) and only fall back to positional sourceImageIds[idx] for a 1:1 single-block labelmap.
+        const srcImageId = (derived as any).referencedImageId ?? sourceImageIds[idx];
+        if (!srcImageId) { skipped++; continue; }
 
         let k = kByImageId.has(srcImageId) ? (kByImageId.get(srcImageId) as number) : -1;
         if (k < 0) {
@@ -769,7 +1189,11 @@ const commandsModule = ({
 
         const sd = (derived.voxelManager as csTypes.IVoxelManager<number>)?.getScalarData?.();
         if (!sd || sd.length !== sliceLen) { skipped++; continue; }
-        (arr as any).set(sd, k * sliceLen);
+        // MERGE nonzero voxels (do NOT .set() the whole slice) so overlapping segment blocks sharing a
+        // source slice don't erase one another. The volume is single-value, so a later block wins on
+        // shared voxels — MPR overlap is best-effort; the stack view shows the true overlap.
+        const base = k * sliceLen;
+        for (let j = 0; j < sliceLen; j++) { if (sd[j] !== 0) (arr as any)[base + j] = sd[j]; }
         written++;
         if (kSeen.length < 3) kSeen.push(k);
       }
@@ -819,6 +1243,7 @@ const commandsModule = ({
     imageIds,
     existingSegments,
     existing,
+    mode,
     activeSegmentation,
     currentImageIdIndex,
     z_range,
@@ -832,14 +1257,20 @@ const commandsModule = ({
     imageIds: string[];
     existingSegments: { [segmentIndex: string]: cstTypes.Segment };
     existing: boolean;
+    mode?: 'new-segmentation' | 'new-segment' | 'refine';
     activeSegmentation: any;
     currentImageIdIndex?: number;
     z_range: number[];
   }) {
+    rememberObjectSegmentation(currentDisplaySets?.SeriesInstanceUID, segmentationId);
+
     // Get the representations for the segmentation to recover the visibility of the segments
     const representations = servicesManager.services.segmentationService.getSegmentationRepresentations(activeViewportId, { segmentationId });
+    const segmentColor = getObjectSegmentColor({ segments }, segmentNumber);
 
-    if (segmentNumber === 1 && Object.keys(existingSegments).length === 0 && !existing) {
+    if (!existing) {
+      // New object → its own segmentation (single segment, index 1). Tag it with the source series so
+      // siblings can be discovered (overlapping export, MPR guard, refine resolution).
       csToolsSegmentation.addSegmentations([
         {
           segmentationId,
@@ -853,9 +1284,10 @@ const commandsModule = ({
           },
           config: {
             cachedStats: {
-              center: z_range.length > 0 ? z_range.reduce((sum, z) => sum + z, 0) / z_range.length : 0
+              center: z_range.length > 0 ? z_range.reduce((sum, z) => sum + z, 0) / z_range.length : 0,
+              seriesInstanceUid: currentDisplaySets.SeriesInstanceUID,
             },
-            label: currentDisplaySets.SeriesDescription,
+            label: segments[segmentNumber]?.label ?? currentDisplaySets.SeriesDescription,
             segments,
           },
         }
@@ -908,13 +1340,6 @@ const commandsModule = ({
       });
     }
 
-    servicesManager.services.segmentationService.setActiveSegment(segmentationId, segmentNumber);
-    toolboxState.setCurrentActiveSegment(segmentNumber);
-
-    if (toolboxState.getRefineNew()) {
-      toolboxState.setRefineNew(false);
-    }
-
     // Classify viewports. The nnInteractive labelmap is stack-based; stack viewports render the
     // per-slice images directly. Orthographic MPR viewports (plain VolumeViewport) get a derived
     // labelmap VOLUME built from the source CT (see buildAndSyncLabelmapVolume). VolumeViewport3D
@@ -935,8 +1360,9 @@ const commandsModule = ({
     const buildAndSyncLabelmapVolume = () =>
       buildAndSyncLabelmapVolumeFor(segmentationId, derivedImageIds, imageIds, mprVolumeViewportIds);
 
-    if (!existing) {
-      // ── First-ever inference: no actors exist yet, must do full viewport setup ──
+    if (!existing || mode === 'new-segment') {
+      // ── First segment OR a newly-appended segment block: (re)build the representation so the new
+      // block renders. A refine (same block, in-place voxel edit) takes the fast path in the else. ──
 
       // Recover the visibility of any pre-existing segments
       for (let i = 0; i < representations.length; i++) {
@@ -956,6 +1382,7 @@ const commandsModule = ({
       await Promise.all(stackViewportIds.map(viewportId =>
         servicesManager.services.segmentationService.addSegmentationRepresentation(viewportId, { segmentationId })
       ));
+      setObjectSegmentColor(segmentationId, segmentNumber, segmentColor, stackViewportIds);
       // Then build the volume labelmap (sets volumeId) and add the representation to MPR panes, which
       // OHIF now renders natively (isVolumeSegmentation). Done AFTER the stack add so the stack path
       // is unaffected by the volumeId.
@@ -966,6 +1393,7 @@ const commandsModule = ({
             .addSegmentationRepresentation(viewportId, { segmentationId })
             .catch((error: any) => console.warn(`[nninter] MPR add representation failed for ${viewportId}:`, error))
         ));
+        setObjectSegmentColor(segmentationId, segmentNumber, segmentColor, mprVolumeViewportIds);
       }
       if (volume3DViewportIds.length) {
         console.info('[nninter] 3D viewport(s) skipped — labelmap→surface generation disabled to avoid the polySeg crash');
@@ -999,10 +1427,58 @@ const commandsModule = ({
         })
       );
     }
+
+    try {
+      await commandsManager.run('setActiveSegmentation', { segmentationId });
+    } catch (error) {
+      console.warn(`[nninter] could not activate segmentation ${segmentationId}:`, error);
+    }
+    servicesManager.services.segmentationService.setActiveSegment(segmentationId, segmentNumber);
+    toolboxState.setCurrentActiveSegment(segmentNumber);
+
+    if (toolboxState.getRefineNew()) {
+      toolboxState.setRefineNew(false);
+    }
   }
 
 
   const actions = {
+    async armNextNninterObject() {
+      if (toolboxState.getLocked()) {
+        return;
+      }
+      // Segment model: "next object" just arms a NEW segment. The next prompt appends a fresh block to
+      // the series segmentation (nninter, mode='new-segment') — no empty segment created up front.
+      const { activeViewportId, viewports } = viewportGridService.getState();
+      const activeViewportSpecificData = viewports.get(activeViewportId);
+      const displaySetInstanceUID = activeViewportSpecificData?.displaySetInstanceUIDs?.[0];
+      const currentDisplaySets = displaySetService.activeDisplaySets.find(
+        e => e.displaySetInstanceUID === displaySetInstanceUID
+      );
+      if (!currentDisplaySets || currentDisplaySets.Modality === 'SEG') {
+        uiNotificationService.show({
+          title: 'nnInteractive',
+          message: 'Select the source image viewport before creating the next object.',
+          type: 'warning',
+        });
+        return;
+      }
+
+      toolboxState.setRefineNew(true);
+      toolboxState.setPosNeg(false);
+      const nextOrdinal = (() => {
+        const seg = seriesSegmentations(currentDisplaySets.SeriesInstanceUID)[0];
+        const idx = seg ? Object.keys(seg.segments ?? {}).map(Number).filter(n => n > 0) : [];
+        return (idx.length ? Math.max(...idx) : 0) + 1;
+      })();
+      console.log(`[nninter/dbg] armNextNninterObject: armed new segment ${nextOrdinal} (lazy — draw a prompt)`);
+      uiNotificationService.show({
+        title: 'nnInteractive',
+        message: `Draw a prompt to create Segment ${nextOrdinal}.`,
+        type: 'info',
+      });
+    },
+
     runSegmentBidirectional: async ({ segmentationId, segmentIndex } = {}) => {
       const activeViewportId = viewportGridService.getActiveViewportId();
       const activeSegmentation = segmentationService.getActiveSegmentation(activeViewportId);
@@ -1169,19 +1645,110 @@ const commandsModule = ({
     },
 
     async generateSegmentation({ segmentationId, options = {} }) {
-      // If a manual correction was made in an MPR pane (volume labelmap), fold it back into the stack
-      // labelmap that this export reads, then clear the dirty marker. No-op for stack-only sessions.
-      if (_mprDirtySegId === segmentationId) {
-        syncVolumeLabelmapToStack(segmentationId);
-        _mprDirtySegId = undefined;
+      // Overlapping DICOM SEG export. Each nnInteractive object is its OWN segmentation, so gather all
+      // sibling objects for this source series and emit ONE SEG whose segments MAY overlap: every object
+      // becomes its own DICOM segment, and overlapping voxels are encoded as separate frames referencing
+      // the same source frame (the adapter appends per-segment frames). Falls back to a single-object
+      // export when siblings can't be discovered.
+      const targetSeg =
+        csToolsSegmentation.state.getSegmentation(segmentationId) ??
+        segmentationService.getSegmentation(segmentationId);
+      const { activeViewportId: exportActiveViewportId, viewports: exportViewports } = viewportGridService.getState();
+      const exportViewportData = exportViewports.get(exportActiveViewportId);
+      const exportDisplaySetInstanceUID = exportViewportData?.displaySetInstanceUIDs?.[0];
+      const exportDisplaySet = displaySetService.activeDisplaySets.find(
+        (displaySet: any) => displaySet.displaySetInstanceUID === exportDisplaySetInstanceUID
+      );
+      const activeSourceSeries =
+        exportDisplaySet && exportDisplaySet.Modality !== 'SEG'
+          ? exportDisplaySet.SeriesInstanceUID
+          : undefined;
+      const activeSourceImageIds: string[] =
+        exportDisplaySet && exportDisplaySet.Modality !== 'SEG'
+          ? (exportDisplaySet.imageIds ?? [])
+          : [];
+      const targetReferencedImageIds = segReferencedImageIds(targetSeg);
+      const targetFirstInstance: any = targetReferencedImageIds[0]
+        ? metaData.get('instance', targetReferencedImageIds[0])
+        : undefined;
+      const targetSeries =
+        segSeriesUID(targetSeg) || targetFirstInstance?.SeriesInstanceUID || activeSourceSeries;
+      const sourceImageIdsForDiscovery = targetReferencedImageIds.length
+        ? targetReferencedImageIds
+        : activeSourceImageIds;
+      let siblings = targetSeries
+        ? seriesSegmentations(targetSeries, sourceImageIdsForDiscovery)
+        : allSegmentationStates().filter(seg =>
+            sameReferencedImageStack(segReferencedImageIds(seg), sourceImageIdsForDiscovery)
+          );
+      if (targetSeg && !siblings.some((s: any) => s.segmentationId === segmentationId)) {
+        siblings = [targetSeg, ...siblings];
       }
-      const segmentation = csToolsSegmentation.state.getSegmentation(segmentationId);
-      const { imageIds } = segmentation.representationData.Labelmap;
-      const segImages = imageIds.map(imageId => cache.getImage(imageId));
-      const referencedImageIds = segImages.map(image => image?.referencedImageId);
+      if (!siblings.length) {
+        throw new Error('No segmentation found to export');
+      }
+      dumpSegmentations('export: before build');
+      console.log(
+        `[nninter/dbg] export: target=${segmentationId} targetSeries=${targetSeries ?? '?'} ` +
+        `siblings=${siblings.length} [${siblings.map((s: any) =>
+          `${s.segmentationId}:${Object.keys(s.segments ?? {}).length}seg`).join(', ')}]`
+      );
 
+      // Fold any pending MPR (volume-labelmap) edits back into the stack labelmaps we read below.
+      for (const sib of siblings) {
+        if (_mprDirtySegId === sib.segmentationId) {
+          syncVolumeLabelmapToStack(sib.segmentationId);
+          _mprDirtySegId = undefined;
+        }
+      }
+
+      // Segment model: the series segmentation stores N segments as contiguous per-slice BLOCKS
+      // (imageIds = N × sliceCount; block rank r = the r-th segment, value = its index). Expand each
+      // real segmentation into one PSEUDO-segmentation per segment block so the per-object loop below
+      // (which treats each unit as a single binary object → one DICOM segment) emits one segment/block.
+      const _exportS = sourceImageIdsForDiscovery.length || activeSourceImageIds.length || 0;
+      const expandToSegmentBlocks = (segs: any[]): any[] => {
+        const units: any[] = [];
+        for (const seg of segs) {
+          const ids: string[] = (seg.representationData?.[LABELMAP] as any)?.imageIds ?? [];
+          const refIds: string[] = segReferencedImageIds(seg);
+          const indices = Object.keys(seg.segments ?? {}).map(Number).filter(n => n > 0).sort((a, b) => a - b);
+          if (!ids.length || !indices.length) {
+            continue;
+          }
+          const S = refIds.length || _exportS || Math.floor(ids.length / indices.length);
+          const isMultiBlock = S > 0 && ids.length !== S && ids.length % S === 0 && ids.length / S === indices.length;
+          if (isMultiBlock) {
+            indices.forEach((k, rank) => {
+              units.push({
+                segmentationId: seg.segmentationId,
+                representationData: { [LABELMAP]: { imageIds: ids.slice(rank * S, rank * S + S), referencedImageIds: refIds.slice(0, S) } },
+                segments: seg.segments,
+              });
+            });
+          } else {
+            // One segment (single block) or a non-block layout — emit the segmentation as one unit.
+            units.push({
+              segmentationId: seg.segmentationId,
+              representationData: { [LABELMAP]: { imageIds: ids, referencedImageIds: refIds } },
+              segments: seg.segments,
+            });
+          }
+        }
+        return units.length ? units : segs;
+      };
+      const exportUnits = expandToSegmentBlocks(siblings);
+      console.log(`[nninter/dbg] export: expanded ${siblings.length} segmentation(s) → ${exportUnits.length} segment block(s)`);
+
+      // Shared source images (all blocks reference the same series); built from the first block (S images).
+      const sourceSibling =
+        exportUnits.find((sib: any) => ((sib.representationData?.[LABELMAP] as any)?.imageIds ?? []).length) ??
+        exportUnits[0];
+      const firstImageIds: string[] = (sourceSibling.representationData?.[LABELMAP] as any)?.imageIds ?? [];
+      const firstSegImages = firstImageIds.map((imageId: string) => cache.getImage(imageId));
+      const referencedImageIds = firstSegImages.map((image: any) => image?.referencedImageId);
       await Promise.all(
-        referencedImageIds.map(referencedImageId => {
+        referencedImageIds.map((referencedImageId: string) => {
           if (!referencedImageId || cache.getImage(referencedImageId)) {
             return Promise.resolve();
           }
@@ -1190,65 +1757,245 @@ const commandsModule = ({
           });
         })
       );
-
-      const referencedImages = segImages.map(image =>
+      const referencedImages = firstSegImages.map((image: any) =>
         image?.referencedImageId ? cache.getImage(image.referencedImageId) : null
       );
-      const labelmaps2D = [];
+      const numFrames = referencedImages.length;
 
-      let z = 0;
-      for (const segImage of segImages) {
-        const segmentsOnLabelmap = new Set();
-        const pixelData = segImage.getPixelData();
-        const { rows, columns } = segImage;
-
-        for (let i = 0; i < pixelData.length; i++) {
-          const segment = pixelData[i];
-          if (segment !== 0) {
-            segmentsOnLabelmap.add(segment);
-          }
+      // Build one binary labelmap3D per object. This is the DICOM-SEG overlapping representation:
+      // each object is its own binary channel, and multiple channels may contain the same voxel.
+      const refIndexByImageId = new Map<string, number>();
+      referencedImageIds.forEach((imageId: string, index: number) => {
+        if (imageId) {
+          refIndexByImageId.set(imageId, index);
         }
-
-        labelmaps2D[z++] = {
-          segmentsOnLabelmap: Array.from(segmentsOnLabelmap),
-          pixelData,
+      });
+      const makeEmptyLabelmaps2D = () => firstSegImages.map((image: any) => {
+        const rows = image?.rows;
+        const columns = image?.columns;
+        return {
+          segmentsOnLabelmap: [] as number[],
+          pixelData: new Uint8Array((rows ?? 0) * (columns ?? 0)),
           rows,
           columns,
         };
-      }
+      });
 
-      const allSegmentsOnLabelmap = labelmaps2D.map(labelmap => labelmap.segmentsOnLabelmap);
-      const labelmap3D = {
-        segmentsOnLabelmap: Array.from(new Set(allSegmentsOnLabelmap.flat())),
-        metadata: [],
-        labelmaps2D,
+      const asArray = (value: any): any[] => {
+        if (!value) {
+          return [];
+        }
+        return Array.isArray(value) ? value : [value];
       };
-      const segmentationInOHIF = segmentationService.getSegmentation(segmentationId);
-      const representations = segmentationService.getRepresentationsForSegmentation(segmentationId);
 
-      Object.entries(segmentationInOHIF.segments).forEach(([segmentIndex, segment]: [string, any]) => {
-        if (!segment) {
+      const clonePlain = (value: any): any =>
+        value == null ? value : JSON.parse(JSON.stringify(value));
+
+      const pixelDataBytes = (pixelData: any): Uint8Array => {
+        if (!pixelData) {
+          return new Uint8Array(0);
+        }
+        if (pixelData instanceof Uint8Array) {
+          return pixelData;
+        }
+        if (pixelData instanceof ArrayBuffer) {
+          return new Uint8Array(pixelData);
+        }
+        if (ArrayBuffer.isView(pixelData)) {
+          return new Uint8Array(pixelData.buffer, pixelData.byteOffset, pixelData.byteLength);
+        }
+        if (Array.isArray(pixelData)) {
+          return new Uint8Array(pixelData);
+        }
+        return new Uint8Array(0);
+      };
+
+      const readBit = (bytes: Uint8Array, bitIndex: number): number =>
+        (bytes[Math.floor(bitIndex / 8)] >> (bitIndex % 8)) & 1;
+
+      const writeBit = (bytes: Uint8Array, bitIndex: number, value: number) => {
+        if (!value) {
           return;
         }
+        bytes[Math.floor(bitIndex / 8)] |= 1 << (bitIndex % 8);
+      };
 
-        const firstRepresentation = representations[0];
-        const color = segmentationService.getSegmentColor(
-          firstRepresentation.viewportId,
-          segmentationId,
-          segment.segmentIndex
+      const setFrameSegmentNumber = (frame: any, segmentNumber: number): any => {
+        const frameCopy = clonePlain(frame);
+        const segmentIdSequence = asArray(frameCopy.SegmentIdentificationSequence);
+        if (segmentIdSequence[0]) {
+          segmentIdSequence[0].ReferencedSegmentNumber = segmentNumber;
+          frameCopy.SegmentIdentificationSequence = Array.isArray(frameCopy.SegmentIdentificationSequence)
+            ? segmentIdSequence
+            : segmentIdSequence[0];
+        }
+
+        const frameContentSequence = asArray(frameCopy.FrameContentSequence);
+        if (frameContentSequence[0]?.DimensionIndexValues?.length) {
+          frameContentSequence[0].DimensionIndexValues[0] = segmentNumber;
+          frameCopy.FrameContentSequence = Array.isArray(frameCopy.FrameContentSequence)
+            ? frameContentSequence
+            : frameContentSequence[0];
+        }
+        return frameCopy;
+      };
+
+      const combineSingleObjectSegs = (singleObjectResults: any[]): any => {
+        const firstDataset = singleObjectResults[0]?.dataset;
+        if (!firstDataset) {
+          throw new Error('No single-object SEG dataset available to combine');
+        }
+
+        const frameBitLength =
+          Number(firstDataset.Rows ?? referencedImages[0]?.rows ?? 0) *
+          Number(firstDataset.Columns ?? referencedImages[0]?.columns ?? 0);
+        const combinedSegmentSequence: any[] = [];
+        const combinedFrameSequence: any[] = [];
+        let totalFrames = 0;
+
+        for (const { dataset } of singleObjectResults) {
+          totalFrames += Number(dataset.NumberOfFrames ?? asArray(dataset.PerFrameFunctionalGroupsSequence).length);
+        }
+
+        const combinedPixelDataLength = Math.ceil((frameBitLength * totalFrames) / 8);
+        const combinedPixelData = new Uint8Array(
+          combinedPixelDataLength + (combinedPixelDataLength % 2)
         );
-        const RecommendedDisplayCIELabValue = dcmjs.data.Colors.rgb2DICOMLAB(
-          color.slice(0, 3).map(value => value / 255)
-        ).map(value => Math.round(value));
+        let frameOffset = 0;
+        let segmentNumber = 1;
+
+        for (const { dataset } of singleObjectResults) {
+          const segment = clonePlain(asArray(dataset.SegmentSequence)[0]);
+          if (!segment) {
+            continue;
+          }
+          segment.SegmentNumber = segmentNumber;
+          combinedSegmentSequence.push(segment);
+
+          const frames = asArray(dataset.PerFrameFunctionalGroupsSequence);
+          const bytes = pixelDataBytes(dataset.PixelData);
+          const sourceBitCount = frameBitLength * frames.length;
+          for (let bit = 0; bit < sourceBitCount; bit++) {
+            writeBit(combinedPixelData, frameOffset * frameBitLength + bit, readBit(bytes, bit));
+          }
+
+          for (const frame of frames) {
+            combinedFrameSequence.push(setFrameSegmentNumber(frame, segmentNumber));
+          }
+
+          frameOffset += frames.length;
+          segmentNumber++;
+        }
+
+        return {
+          dataset: {
+            ...firstDataset,
+            SegmentSequence: combinedSegmentSequence,
+            PerFrameFunctionalGroupsSequence: combinedFrameSequence,
+            NumberOfFrames: String(combinedFrameSequence.length),
+            PixelData: combinedPixelData.buffer,
+            SegmentsOverlap: combinedSegmentSequence.length > 1 ? 'YES' : 'NO',
+          },
+        };
+      };
+
+      let outputSegmentNumber = 0;
+      let expectedFrameCount = 0;
+      const labelmaps3D: any[] = [];
+      const singleObjectLabelmaps3D: any[] = [];
+
+      for (const sib of exportUnits) {
+        const sibId = sib.segmentationId;
+        const sibImageIds: string[] = (sib.representationData?.[LABELMAP] as any)?.imageIds ?? [];
+        if (!sibImageIds.length) {
+          continue;
+        }
+        const sibSegImages = sibImageIds.map((imageId: string) => cache.getImage(imageId));
+        if (sibSegImages.length !== numFrames) {
+          console.warn(
+            `[nninter] export: object ${sibId} has ${sibSegImages.length} slices vs ${numFrames}; skipping (geometry mismatch)`
+          );
+          continue;
+        }
+        const csSeg: any = csToolsSegmentation.state.getSegmentation(sibId);
+        const ohifSeg: any = segmentationService.getSegmentation(sibId);
+        const representations = segmentationService.getRepresentationsForSegmentation(sibId);
+
+        const labelmaps2D = makeEmptyLabelmaps2D();
+        const sliceSegmentSets = labelmaps2D.map(() => new Set<number>());
+        const sibReferencedImageIds = segReferencedImageIds(csSeg ?? ohifSeg ?? sib);
+        let objectHadPixels = false;
+        let localSegmentValue: number | undefined;
+
+        for (let z = 0; z < sibSegImages.length; z++) {
+          const segImage = sibSegImages[z];
+          if (!segImage) {
+            continue;
+          }
+          const src = segImage.getPixelData();
+          const refImageId = segImage.referencedImageId ?? sibReferencedImageIds[z];
+          const frameIndex =
+            refImageId && refIndexByImageId.has(refImageId)
+              ? (refIndexByImageId.get(refImageId) as number)
+              : z;
+          const dst = labelmaps2D[frameIndex];
+          const onLabelmap = sliceSegmentSets[frameIndex];
+          if (!dst?.pixelData || !onLabelmap) {
+            continue;
+          }
+
+          for (let i = 0; i < src.length; i++) {
+            const v = src[i];
+            if (v !== 0) {
+              if (localSegmentValue === undefined) {
+                localSegmentValue = v;
+              }
+              dst.pixelData[i] = 1;
+              onLabelmap.add(1);
+              objectHadPixels = true;
+            }
+          }
+        }
+        if (!objectHadPixels) {
+          continue;
+        }
+        outputSegmentNumber++;
+
+        labelmaps2D.forEach((labelmap2D: any, index: number) => {
+          labelmap2D.segmentsOnLabelmap = Array.from(sliceSegmentSets[index]);
+        });
+        const objectFrameCount = labelmaps2D.filter(
+          (labelmap2D: any) => labelmap2D.segmentsOnLabelmap.length
+        ).length;
+        expectedFrameCount += objectFrameCount;
+
+        const localVal = localSegmentValue ?? 1;
+        const segment: any =
+          sib?.segments?.[localVal] ?? ohifSeg?.segments?.[localVal] ?? csSeg?.segments?.[localVal];
+        const firstRepresentation = representations[0];
+        let RecommendedDisplayCIELabValue = [0, 0, 0];
+        try {
+          const color =
+            getObjectSegmentColor(csSeg ?? ohifSeg ?? sib, localVal) ??
+            (firstRepresentation
+              ? segmentationService.getSegmentColor(firstRepresentation.viewportId, sibId, localVal)
+              : [255, 255, 255, 255]);
+          RecommendedDisplayCIELabValue = dcmjs.data.Colors.rgb2DICOMLAB(
+            color.slice(0, 3).map((value: number) => value / 255)
+          ).map((value: number) => Math.round(value));
+        } catch (e) {
+          console.warn(`[nninter] export: color lookup failed for ${sibId}#${localVal}:`, e);
+        }
 
         let segmentMetadata: any = {};
-        if (segmentation.cachedStats.data !== undefined && segmentation.cachedStats.data.length > 1) {
-          segmentMetadata = segmentation.cachedStats.data
-            .filter(e => e !== undefined && e !== null)
-            .find(e => e.SegmentNumber == segmentIndex);
-          if (segmentMetadata !== undefined && Object.keys(segmentMetadata).length !== 0) {
-            segmentMetadata.SegmentNumber = segmentIndex.toString();
-            segmentMetadata.SegmentLabel = segment.label;
+        const cachedData = (csSeg ?? sib)?.cachedStats?.data;
+        if (cachedData !== undefined && cachedData.length > 1) {
+          const found = cachedData
+            .filter((e: any) => e !== undefined && e !== null)
+            .find((e: any) => e.SegmentNumber == localVal);
+          if (found !== undefined && Object.keys(found).length !== 0) {
+            segmentMetadata = { ...found };
+            segmentMetadata.SegmentLabel = segment?.label;
             segmentMetadata.RecommendedDisplayCIELabValue = RecommendedDisplayCIELabValue;
             segmentMetadata.SegmentAlgorithmType = 'SEMIAUTOMATIC';
           }
@@ -1256,45 +2003,79 @@ const commandsModule = ({
 
         if (segmentMetadata === undefined || Object.keys(segmentMetadata).length === 0) {
           segmentMetadata = {
-            SegmentNumber: segmentIndex.toString(),
-            SegmentLabel: segment.label,
+            SegmentLabel: segment?.label ?? `Object ${outputSegmentNumber}`,
             SegmentAlgorithmType: segment?.algorithmType || 'MANUAL',
             SegmentAlgorithmName: segment?.algorithmName || 'OHIF Brush',
             RecommendedDisplayCIELabValue,
             SegmentedPropertyCategoryCodeSequence: {
-              CodeValue: 'T-D0050',
-              CodingSchemeDesignator: 'SRT',
-              CodeMeaning: 'Tissue',
+              CodeValue: 'T-D0050', CodingSchemeDesignator: 'SRT', CodeMeaning: 'Tissue',
             },
             SegmentedPropertyTypeCodeSequence: {
-              CodeValue: 'T-D0050',
-              CodingSchemeDesignator: 'SRT',
-              CodeMeaning: 'Tissue',
+              CodeValue: 'T-D0050', CodingSchemeDesignator: 'SRT', CodeMeaning: 'Tissue',
             },
           };
         }
 
-        if (segment.cachedStats?.description !== undefined) {
+        if (segment?.cachedStats?.description !== undefined) {
           segmentMetadata.SegmentDescription = segment.cachedStats.description;
         }
-        if (segment.cachedStats?.algorithmName !== undefined) {
+        if (segment?.cachedStats?.algorithmName !== undefined) {
           segmentMetadata.SegmentAlgorithmName = segment.cachedStats.algorithmName;
         }
-        if (segment.cachedStats?.algorithmType !== undefined) {
+        if (segment?.cachedStats?.algorithmType !== undefined) {
           segmentMetadata.SegmentAlgorithmType = ['AUTOMATIC', 'SEMIAUTOMATIC', 'MANUAL'].includes(
             segment.cachedStats.algorithmType
-          )
-            ? segment.cachedStats.algorithmType
-            : 'SEMIAUTOMATIC';
+          ) ? segment.cachedStats.algorithmType : 'SEMIAUTOMATIC';
         }
-        if (segmentation.cachedStats.seriesInstanceUid !== undefined) {
-          segmentMetadata.SegmentAlgorithmName = segmentation.cachedStats.seriesInstanceUid;
+        segmentMetadata.SegmentNumber = outputSegmentNumber.toString();
+
+        const labelmap3D = {
+          segmentsOnLabelmap: [1],
+          metadata: [undefined, segmentMetadata],
+          labelmaps2D,
+        };
+        labelmaps3D.push(labelmap3D);
+        singleObjectLabelmaps3D.push(labelmap3D);
+      }
+
+      if (!labelmaps3D.length) {
+        throw new Error('No exportable labelmap data found');
+      }
+
+      let result = generateSEGFromLabelmap(referencedImages, labelmaps3D, metaData, options);
+      const segmentSequenceLength = asArray(result?.dataset?.SegmentSequence).length;
+      const frameSequenceLength = asArray(result?.dataset?.PerFrameFunctionalGroupsSequence).length;
+      const generatedFrameCount = Number(result?.dataset?.NumberOfFrames ?? frameSequenceLength);
+      if (
+        labelmaps3D.length > 1 &&
+        (segmentSequenceLength < labelmaps3D.length || generatedFrameCount < expectedFrameCount)
+      ) {
+        console.warn(
+          `[nninter] adapter collapsed overlapping labelmaps ` +
+            `(segments ${segmentSequenceLength}/${labelmaps3D.length}, ` +
+            `frames ${generatedFrameCount}/${expectedFrameCount}); ` +
+            'combining single-object SEG datasets manually.'
+        );
+        const singleObjectResults = singleObjectLabelmaps3D.map(labelmap3D =>
+          generateSEGFromLabelmap(referencedImages, labelmap3D, metaData, options)
+        );
+        result = combineSingleObjectSegs(singleObjectResults);
+      }
+
+      try {
+        if (result?.dataset) {
+          result.dataset.SegmentsOverlap = labelmaps3D.length > 1 ? 'YES' : 'NO';
         }
-
-        labelmap3D.metadata[segmentIndex] = segmentMetadata;
-      });
-
-      return generateSEGFromLabelmap(referencedImages, labelmap3D, metaData, options);
+      } catch (e) {
+        console.warn('[nninter] export: could not set SegmentsOverlap:', e);
+      }
+      console.log(
+        `[nninter/dbg] export result: objects=${labelmaps3D.length} ` +
+        `SegmentSequence=${asArray(result?.dataset?.SegmentSequence).length} ` +
+        `NumberOfFrames=${result?.dataset?.NumberOfFrames ?? '?'} ` +
+        `SegmentsOverlap=${result?.dataset?.SegmentsOverlap}`
+      );
+      return result;
     },
 
     async downloadSegmentation({ segmentationId }) {
@@ -1358,6 +2139,14 @@ const commandsModule = ({
         console.debug('Error storing segmentation:', error);
         throw error;
       }
+    },
+
+    async downloadNninterSegmentation({ segmentationId }) {
+      return actions.downloadSegmentation({ segmentationId });
+    },
+
+    async storeNninterSegmentation({ segmentationId, dataSource }) {
+      return actions.storeSegmentation({ segmentationId, dataSource });
     },
 
     setAiToolActive: ({ toolName }: { toolName: string }) => {
@@ -1484,6 +2273,8 @@ const commandsModule = ({
           // Mark the session live so the AI toolbox enables prompts/tools.
           toolboxState.setSessionActive(true);
           toolboxState.setSessionSeries(currentDisplaySets.SeriesInstanceUID);
+          // Fresh backend session holds no object yet.
+          _serverObjectId = undefined;
           return response;
         }
       } catch (error) {
@@ -1596,6 +2387,15 @@ const commandsModule = ({
       if (segImageIds.length === 0) {
         return;
       }
+      // Segment model: operate on THIS segment's contiguous block, not the whole multi-block labelmap.
+      const _undoS = (currentDisplaySets.imageIds ?? []).length || segImageIds.length;
+      const _undoIdxs = Object.keys(activeSegmentation.segments ?? {}).map(Number).filter(n => n > 0).sort((a, b) => a - b);
+      const _undoRank = _undoIdxs.indexOf(segmentNumber);
+      const _undoBlockIds =
+        _undoRank >= 0 && segImageIds.length >= (_undoRank + 1) * _undoS
+          ? segImageIds.slice(_undoRank * _undoS, _undoRank * _undoS + _undoS)
+          : segImageIds;
+      console.log(`[nninter/dbg] undo: segment ${segmentNumber} blockRank=${_undoRank} block=${_undoBlockIds.length}/${segImageIds.length}`);
 
       const url = `/nninteractive/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
       const params = {
@@ -1690,7 +2490,7 @@ const commandsModule = ({
           _hasCropGeom = true;
         }
 
-        let merged = segImageIds.map(imageId => cache.getImage(imageId));
+        let merged = _undoBlockIds.map(imageId => cache.getImage(imageId));
         if (flipped) merged.reverse();
 
         // Pass 1: clear all voxels of the active segment (use dirtySlices when available).
@@ -1822,6 +2622,8 @@ const commandsModule = ({
       try {
         const response = await resetPromise;
         if (response.status === 200) {
+          // Backend target buffer + interactions were wiped; it no longer holds any object.
+          _serverObjectId = undefined;
           if (options.clearMeasurements) {
             commandsManager.run('clearMeasurements')
           }
@@ -1919,7 +2721,6 @@ const commandsModule = ({
       if (!segmentationId || segmentIndex == null) {
         return;
       }
-      const start = Date.now();
 
       const { activeViewportId, viewports } = viewportGridService.getState();
       const activeViewportSpecificData = viewports.get(activeViewportId);
@@ -1934,14 +2735,35 @@ const commandsModule = ({
         return;
       }
       // A live backend session for this series is required (set_mask resets/sets its target buffer).
-      // Silent no-op otherwise — this fires on every segment click, so avoid notification spam.
+      // If the user selects an existing/imported object first, initialize on demand so the click really
+      // makes that object refinement-ready.
       if (!toolboxState.getSessionActive()) {
-        return;
+        try {
+          await actions.initNninter({ viewportId: activeViewportId });
+        } catch (error) {
+          console.warn('[nninter] loadSegmentForRefinement: init before set_mask failed:', error);
+          return;
+        }
+        if (!toolboxState.getSessionActive()) {
+          return;
+        }
       }
 
       const segState = csToolsSegmentation.state.getSegmentation(segmentationId);
       const segStackImageIds: string[] =
         (segState?.representationData?.[LABELMAP] as any)?.imageIds ?? [];
+      const _lsfrSegCount = segState ? Object.keys(segState.segments ?? {}).length : 0;
+      console.log(
+        `[nninter/dbg] loadSegmentForRefinement: segmentationId=${segmentationId} segmentIndex=${segmentIndex} ` +
+        `segmentsInThisSegmentation=${_lsfrSegCount} ` +
+        `${_lsfrSegCount > 1 ? '(MULTI-SEGMENT — likely an imported SEG; refine model expects 1 object/segmentation)' : '(single-object)'} ` +
+        `stackImgs=${segStackImageIds.length}`
+      );
+      // For a multi-segment (imported) labelmap, reveal the block/value layout so we can write refines
+      // into the correct segment block. Also report which images actually hold the clicked segmentIndex.
+      if (segStackImageIds.length > (currentDisplaySets.imageIds?.length ?? 0)) {
+        dumpLabelmapLayout(segState);
+      }
       if (!segStackImageIds.length) {
         uiNotificationService.show({
           title: 'nnInteractive',
@@ -1995,10 +2817,17 @@ const commandsModule = ({
       }
 
       if (voxelCount === 0) {
-        // Nothing to continue from — just make it active (server stays as-is).
+        // Empty object — nothing to load. Make it active and force the next prompt to reset the
+        // backend fresh (it may still hold another object) by clearing the tracked server object.
+        try {
+          await commandsManager.run('setActiveSegmentation', { segmentationId });
+        } catch (error) {
+          console.warn(`[nninter] loadSegmentForRefinement: could not activate ${segmentationId}:`, error);
+        }
         segmentationService.setActiveSegment(segmentationId, segmentIndex);
         toolboxState.setCurrentActiveSegment(segmentIndex);
         toolboxState.setRefineNew(false);
+        _serverObjectId = undefined;
         return;
       }
 
@@ -2038,18 +2867,21 @@ const commandsModule = ({
         if (response.status !== 200) {
           return;
         }
-        console.log(
-          `[nninter] loaded segment ${segmentIndex} into backend via set_mask: ` +
-          `${voxelCount} voxels over ${dirty.length} slices, mask=${(mask.length / 1e6).toFixed(1)}MB, ` +
-          `${((Date.now() - start) / 1000).toFixed(3)}s`
-        );
 
         // Make this the active segment and mark it current so the NEXT prompt refines (no reset-first,
         // and not a new-object). refineNew=false ensures nninter() refines this segment rather than
         // creating a new one even if the user had just armed "next object".
+        try {
+          await commandsManager.run('setActiveSegmentation', { segmentationId });
+        } catch (error) {
+          console.warn(`[nninter] loadSegmentForRefinement: could not activate ${segmentationId}:`, error);
+        }
         segmentationService.setActiveSegment(segmentationId, segmentIndex);
         toolboxState.setCurrentActiveSegment(segmentIndex);
         toolboxState.setRefineNew(false);
+        // The backend now holds THIS segment's mask (set_mask). The next prompt refines it without a
+        // reset (which would wipe the just-loaded mask).
+        _serverObjectId = serverObjKey(segmentationId, segmentIndex);
 
         // Prime the refine clear so the next inference removes this segment's current voxels before
         // writing the refined result. dirtySlices gives the fast path; segZ0/segZ1 force a full-range
@@ -2082,15 +2914,12 @@ const commandsModule = ({
         return;
       }
 
-      const overlap = false;
       const start = Date.now();
 
       const { activeViewportId, viewports } = viewportGridService.getState();
       const activeViewportSpecificData = viewports.get(activeViewportId);
 
-      const currentImageIdIndex = servicesManager.services.cornerstoneViewportService
-        .getCornerstoneViewport(activeViewportId)
-        ?.getCurrentImageIdIndex?.();
+      const currentImageIdIndex = getCurrentStackImageIdIndex(activeViewportId);
       const { displaySetInstanceUIDs } = activeViewportSpecificData;
 
       const displaySets = displaySetService.activeDisplaySets;
@@ -2107,71 +2936,64 @@ const commandsModule = ({
         })
 
 
-      const activeSegmentation = servicesManager.services.segmentationService.getActiveSegmentation(activeViewportId)
+      const _seriesUID = currentDisplaySets.SeriesInstanceUID;
+      const activeSegmentation = servicesManager.services.segmentationService.getActiveSegmentation(activeViewportId);
+
+      // ── Per-series segment resolution ────────────────────────────────────────────────────────
+      // ONE segmentation per series; each object is a SEGMENT (a per-slice block in that
+      // segmentation's labelmap, value = segment index). Refine the ACTIVE segment unless the user
+      // armed "next object"; else append a new segment. First prompt on a fresh series creates it.
+      const _sliceCount = (currentDisplaySets.imageIds ?? []).length;
+      const seriesSeg = seriesSegmentations(_seriesUID)[0];
+      const activeSegmentObj = servicesManager.services.segmentationService.getActiveSegment(activeViewportId);
+
+      let segmentationId = `${csUtils.uuidv4()}`;
       let segmentNumber = 1;
+      let mode: 'new-segmentation' | 'new-segment' | 'refine' = 'new-segmentation';
       let segments: { [segmentIndex: string]: cstTypes.Segment } = {};
-      let segmentationId = `${csUtils.uuidv4()}`
-      let _needsReset = false; // set true when switching segments; folded into inference POST
-      if (activeSegmentation !== undefined){
-        segments = activeSegmentation.segments;
-      if (Object.values(segments).length > 0) {
-        // Find the minimum available segment number
-        const existingSegmentNumbers = Object.values(segments).map(e => e.segmentIndex).sort((a, b) => a - b);
-        let minAvailableNumber = 1;
-        // Find the first gap in segment numbers, or use the next number after the highest
-        for (let i = 0; i < existingSegmentNumbers.length; i++) {
-          if (existingSegmentNumbers[i] !== minAvailableNumber) {
-            break;
-          }
-          minAvailableNumber++;
-        }
-        segmentNumber = minAvailableNumber;
-        if (!toolboxState.getRefineNew()) {
-          const activeSegment = servicesManager.services.segmentationService.getActiveSegment(activeViewportId);
-          if (activeSegment !== undefined){
-            for (let i = 0; i < unAssignedMeasurements.length; i++) {
-              const e = unAssignedMeasurements[i];
-              e.metadata.SegmentNumber = activeSegment.segmentIndex;
-              e.metadata.segmentationId = activeSegmentation.segmentationId;
-            }
-            segmentNumber = activeSegment.segmentIndex;
-            _needsReset = toolboxState.getCurrentActiveSegment() !== segmentNumber;
-            if (_needsReset) {
-              toolboxState.setCurrentActiveSegment(segmentNumber);
-            }
-          } else {
-            uiNotificationService.show({
-              title: 'Click Segment to refine',
-              message: 'No active segment found, please click segment to refine',
-              type: 'warning',
-              duration: 4000,
-            });
-            return
-          }
+      let existingSegments: { [segmentIndex: string]: cstTypes.Segment } = {};
+      let priorImageIds: string[] = [];
+      if (seriesSeg) {
+        segmentationId = seriesSeg.segmentationId;
+        existingSegments = seriesSeg.segments || {};
+        segments = existingSegments;
+        priorImageIds = (seriesSeg.representationData?.[LABELMAP] as any)?.imageIds ?? [];
+        const _indices = Object.keys(existingSegments).map(Number).filter(n => n > 0).sort((a, b) => a - b);
+        const _activeIdx =
+          activeSegmentation?.segmentationId === segmentationId && activeSegmentObj
+            ? activeSegmentObj.segmentIndex
+            : undefined;
+        if (!toolboxState.getRefineNew() && _activeIdx != null && _indices.includes(_activeIdx)) {
+          segmentNumber = _activeIdx;
+          mode = 'refine';
         } else {
-          // For new Segment
-          for (let i = 0; i < unAssignedMeasurements.length; i++) {
-            const e = unAssignedMeasurements[i];
-            e.metadata.SegmentNumber = segmentNumber;
-            e.metadata.segmentationId = activeSegmentation.segmentationId;
-          }
-        }
-      } else{
-        // No existing segments in current active segmentation
-        for (let i = 0; i < unAssignedMeasurements.length; i++) {
-          const e = unAssignedMeasurements[i];
-          e.metadata.SegmentNumber = segmentNumber;
-          e.metadata.segmentationId = activeSegmentation.segmentationId;
+          segmentNumber = (_indices.length ? _indices[_indices.length - 1] : 0) + 1;
+          mode = 'new-segment';
         }
       }
-    } else {
-      // No existing segmentation
-      for (let i = 0; i < unAssignedMeasurements.length; i++) {
-        const e = unAssignedMeasurements[i];
+      const existing = mode !== 'new-segmentation';
+      // 0-based rank of this segment's block within the labelmap (ascending by index); a NEW segment is
+      // appended at the end.
+      const _sortedIndicesBefore = Object.keys(existingSegments).map(Number).filter(n => n > 0).sort((a, b) => a - b);
+      const _blockRank = mode === 'refine' ? _sortedIndicesBefore.indexOf(segmentNumber) : _sortedIndicesBefore.length;
+      const _objectOrdinal = segmentNumber;
+      // Tag freshly-drawn (unassigned) prompts with THIS segment. The prompt-collection loop isolates a
+      // segment's prompts by (segmentationId, SegmentNumber).
+      for (const e of unAssignedMeasurements) {
         e.metadata.SegmentNumber = segmentNumber;
         e.metadata.segmentationId = segmentationId;
       }
-    }
+      // reset_first wipes the backend before applying prompts — needed whenever it is not already
+      // holding THIS segment (a new segment, or a switch not preceded by a set_mask load). Continued
+      // prompts on the same segment accumulate (reset_first = false) → a negative prompt can shrink it.
+      const _needsReset = _serverObjectId !== serverObjKey(segmentationId, segmentNumber);
+      console.log(
+        `[nninter/dbg] resolve: refineNew=${toolboxState.getRefineNew()} ` +
+        `activeSeg=${activeSegmentation?.segmentationId ?? 'none'} activeSegIdx=${activeSegmentObj?.segmentIndex ?? 'none'} ` +
+        `seriesSeg=${seriesSeg?.segmentationId ?? 'none'} => mode=${mode} target=${segmentationId} ` +
+        `segmentNumber=${segmentNumber} blockRank=${_blockRank} priorImgs=${priorImageIds.length} sliceCount=${_sliceCount} ` +
+        `serverObjectId=${_serverObjectId ?? 'none'} reset_first=${_needsReset}`
+      );
 
 
       const pos_points: any[] = [];
@@ -2188,18 +3010,11 @@ const commandsModule = ({
       // The proxy expects z in the source display-set (InstanceNumber) slice order. For MPR/volume
       // viewports the coordinate helpers convert the volume's geometric k → this order using these ids.
       const seriesImageIds: string[] = currentDisplaySets.imageIds ?? [];
-      const _isVolumeVp = activeViewport instanceof BaseVolumeViewport;
-      if (_isVolumeVp) {
-        const _volIds: string[] = (activeViewport as any)?.getImageIds?.() ?? [];
-        const _flipInfo = _volIds.length && seriesImageIds.length
-          ? `volIds[0]===dsIds[0]? ${_volIds[0] === seriesImageIds[0]} (reversed=${_volIds[0] === seriesImageIds[seriesImageIds.length - 1]})`
-          : 'n/a';
-        console.log(
-          `[nninter coords] volume viewport ${activeViewportId}: volumeN=${_volIds.length} displaySetN=${seriesImageIds.length}; ${_flipInfo}`
-        );
-      }
       for (const e of currentMeasurements) {
-        if (e.referenceSeriesUID !== seriesUID || e.metadata.SegmentNumber !== segmentNumber) continue;
+        // Every object uses SegmentNumber 1, so the discriminator across objects is segmentationId.
+        // Isolate THIS segment's prompts: same segmentation AND same segment number.
+        if (e.referenceSeriesUID !== seriesUID || e.metadata.segmentationId !== segmentationId ||
+            e.metadata.SegmentNumber !== segmentNumber) continue;
         const isNeg = !!e.metadata.neg;
         if (e.toolName === 'Probe2') {
           const index = getPromptPointIJK(e, activeViewport, seriesImageIds);
@@ -2226,42 +3041,6 @@ const commandsModule = ({
       const text_prompts: string[] = textPrompts
         ? (Array.isArray(textPrompts) ? textPrompts : [textPrompts])
         : probe2Labels;
-
-      // [nninter debug] Fast-feedback path for verifying prompt coordinates without a rebuild: log the
-      // exact IJK payloads being sent to the proxy and the active viewport type. For an off-axial (MPR)
-      // prompt, compare these values against the same prompt drawn in the axial stack — they should map
-      // to the same anatomy. Points/boxes are logged in full; scribbles/lassos as lengths + a sample.
-      const _vpKind = activeViewport instanceof VolumeViewport3D
-        ? 'volume3d'
-        : activeViewport instanceof BaseVolumeViewport
-          ? 'mpr/volume'
-          : 'stack';
-      // Helper: report the x/y/z index ranges across a flat list of [x,y,z] points, so we can verify the
-      // volume-k → stack-index conversion produced sensible slice indices for off-axial prompts.
-      const _range = (pts: any[]): string => {
-        const valid = pts.filter(p => Array.isArray(p) && p.length >= 3);
-        if (!valid.length) return '∅';
-        const r = (i: number) => {
-          const a = valid.map(p => p[i]).filter(Number.isFinite);
-          return a.length ? `${Math.min(...a)}..${Math.max(...a)}` : '∅';
-        };
-        return `x[${r(0)}] y[${r(1)}] z[${r(2)}]`;
-      };
-      console.log(
-        `[nninter prompts] viewport=${activeViewportId} kind=${_vpKind} segment=${segmentNumber}\n` +
-        `  pos_points=${JSON.stringify(pos_points)} neg_points=${JSON.stringify(neg_points)}\n` +
-        `  pos_boxes=${JSON.stringify(pos_boxes)} neg_boxes=${JSON.stringify(neg_boxes)}\n` +
-        `  pos_lassos(len)=${JSON.stringify(pos_lassos.map(l => l.length))} ` +
-        `neg_lassos(len)=${JSON.stringify(neg_lassos.map(l => l.length))} ` +
-        `pos_scribbles(len)=${JSON.stringify(pos_scribbles.map(s => s.length))} ` +
-        `neg_scribbles(len)=${JSON.stringify(neg_scribbles.map(s => s.length))}\n` +
-        `  ranges: points=${_range([...pos_points, ...neg_points])} ` +
-        `scribbles=${_range([...pos_scribbles, ...neg_scribbles].flat())} ` +
-        `lassos=${_range([...pos_lassos, ...neg_lassos].flat())} ` +
-        `boxes=${_range([...pos_boxes, ...neg_boxes].flat())}` +
-        (pos_scribbles[0]?.length ? `\n  pos_scribble[0] sample=${JSON.stringify(pos_scribbles[0].slice(0, 3))}…` : '') +
-        (pos_lassos[0]?.length ? `\n  pos_lasso[0] sample=${JSON.stringify(pos_lassos[0].slice(0, 3))}…` : '')
-      );
 
       // Hide measurements after inference unless user has set prompts to always-show
       if (!toolboxState.getPromptsVisible()) {
@@ -2404,136 +3183,27 @@ const commandsModule = ({
               new_arrayBuffer = cropBytes;
             }
 
-            let imageIds = currentDisplaySets.imageIds
-
-
-
-            let existingSegments: { [segmentIndex: string]: cstTypes.Segment } = {};
-
-            let segImageIds = [];
-
-            let existing = false;
-            // Find existing segmentation with matching seriesInstanceUid
-            if (activeSegmentation !== undefined){
-              let existingseriesInstanceUid = activeSegmentation.cachedStats?.seriesInstanceUid;
-
-              if (existingseriesInstanceUid === undefined) {
-                const segments = Object.values(activeSegmentation.segments);
-                for (let j = 0; j < segments.length; j++) {
-                  const segment = segments[j];
-                  if (segment.cachedStats?.algorithmName !== undefined) {
-                    existingseriesInstanceUid = segment.cachedStats.algorithmName;
-                  }
-                }
-              }
-
-              if (existingseriesInstanceUid === currentDisplaySets.SeriesInstanceUID) {
-                existingSegments = activeSegmentation.segments || {};
-                segmentationId = activeSegmentation.segmentationId;
-                segImageIds = activeSegmentation.representationData.Labelmap.imageIds;
-                existing = true;
-              }
-            }
+            const imageIds = currentDisplaySets.imageIds;
+            const S = imageIds.length; // source slices per segment block
+            let fullImageIds: string[] = []; // the segmentation's full labelmap imageIds after this op
 
 
           let merged_derivedImages = [];
           let z_range = [];
-          if(overlap){
-          const _tCreate = Date.now();
-          let derivedImages_new = await imageLoader.createAndCacheDerivedLabelmapImages(imageIds);
-          let derivedImages = [];
-          if (segImageIds.length > 0){
-            derivedImages = segImageIds.map(imageId => cache.getImage(imageId));
-          }
-
-          if(flipped){
-            derivedImages_new.reverse();
-          }
-          for (let i = 0; i < derivedImages_new.length; i++) {
-            if (_hasCropGeom && (i < _segZ0 || i >= _segZ1)) continue;
-            const voxelManager = derivedImages_new[i].voxelManager as csTypes.IVoxelManager<number>;
-            if (_hasCropGeom && i >= _segZ0 && i < _segZ1) {
-              const scalarData = voxelManager.getScalarData();
-              const c = i - _segZ0;
-              const cropSliceBase = c * _cropY * _cropX;
-              let wrote = false;
-              for (let cy = 0; cy < _cropY; cy++) {
-                const srcRow = cropSliceBase + cy * _cropX;
-                const dstRow = (_y0 + cy) * _fullX + _x0;
-                for (let cx = 0; cx < _cropX; cx++) {
-                  if (cropBytes[srcRow + cx] === 1) {
-                    scalarData[dstRow + cx] = segmentNumber;
-                    wrote = true;
-                  }
-                }
-              }
-              if (wrote) z_range.push(flipped ? derivedImages_new.length - i - 1 : i);
-            } else if (!_hasCropGeom && new_arrayBuffer) {
-              // Legacy: full-slice scan
-              const scalarData = voxelManager.getScalarData();
-              const sliceLen = scalarData.length;
-              const sliceData = new_arrayBuffer.slice(i * sliceLen, (i + 1) * sliceLen);
-              if (sliceData.some(v => v === 1)) {
-                voxelManager.setScalarData(sliceData.map(v => v === 1 ? segmentNumber : v));
-                z_range.push(flipped ? derivedImages_new.length - i - 1 : i);
-              }
-            }
-          }
-          console.log(`After slice assignment: ${(Date.now() - start)/1000} Seconds`);
-
-
-          let filteredDerivedImages = [];
-          const imgLength = imageIds.length;
-          let updatedIndices = new Set<number>();
-
-          // If toolboxState.getRefineNew() is false (Refine), exclude derivedImages that contain segmentNumber
-          // Each derivedImage is binary mask of a single slice ([0],[0,1],[0,2],[0,3].. etc)
-          // derivedImages size is imgLength * the number of segment
-          // We need to filter out the derivedImages block that contain segmentNumber (consists of [0] or [0, segmentNumber] masks)
-          // If filter out which contains segmentNumber and all [0] masks, it can lead to incorrect calculation of the segment. e.g. bidirectional measurement
-          if (!toolboxState.getRefineNew() && derivedImages.length > 0) {
-            let addFlag = true;
-            for (let i = 0; i < derivedImages.length; i++) {
-              const image = derivedImages[i];
-              const voxelManager = image.voxelManager as csTypes.IVoxelManager<number>;
-              const scalarData = voxelManager.getScalarData();
-              if (scalarData.some(value => value === segmentNumber)) {
-                const updatedScalarData = scalarData.map(v => (v === segmentNumber ? 0 : v));
-                voxelManager.setScalarData(updatedScalarData);
-                if (addFlag) {
-                  for (let j = 0; j < imgLength; j++) {
-                    updatedIndices.add(Math.floor(i / imgLength) * imgLength + j);
-                  }
-                  addFlag = false;
-                }
-              }
-            }
-            for (let i = 0; i < derivedImages.length; i++) {
-              if (!updatedIndices.has(i)) {
-                filteredDerivedImages.push(derivedImages[i]);
-              }
-            }
-          } else if (derivedImages.length > 0) {
-            filteredDerivedImages = derivedImages;
-          }
-
-          merged_derivedImages = [...filteredDerivedImages, ...derivedImages_new]
-        } else {
-          const _tElse = Date.now();
-          if (segImageIds.length == 0){
+          // Segment model: each object is a per-slice BLOCK in the segmentation's labelmap holding value
+          // = segmentNumber. Writes are unconditional (blocks overlap freely); refine mutates its OWN
+          // block; a new segment appends a fresh block.
+          if (mode !== 'refine') {
+            // ── New segment (or new segmentation): fresh S-image block, write the crop into it ──
             const _tCreate2 = Date.now();
             let derivedImages_new = await imageLoader.createAndCacheDerivedLabelmapImages(imageIds);
             console.log(`[nninter] createAndCache: ${((Date.now()-_tCreate2)/1000).toFixed(3)}s (${imageIds.length} slices)`);
 
-            if(flipped){
-              derivedImages_new.reverse();
-            }
+            if (flipped) derivedImages_new.reverse();
             const _tWrite2 = Date.now();
             for (let i = 0; i < derivedImages_new.length; i++) {
               if (_hasCropGeom && (i < _segZ0 || i >= _segZ1)) continue;
-              const voxelManager = derivedImages_new[i]
-                .voxelManager as csTypes.IVoxelManager<number>;              // Write directly from cropBytes into the slice's scalar buffer.
-              // Iterates only cropY×cropX elements (fits in L2 cache) vs 262K full-slice scan.
+              const voxelManager = derivedImages_new[i].voxelManager as csTypes.IVoxelManager<number>;
               if (_hasCropGeom && i >= _segZ0 && i < _segZ1) {
                 const scalarData = voxelManager.getScalarData();
                 const c = i - _segZ0;
@@ -2543,9 +3213,7 @@ const commandsModule = ({
                   const srcRow = cropSliceBase + cy * _cropX;
                   const dstRow = (_y0 + cy) * _fullX + _x0;
                   for (let cx = 0; cx < _cropX; cx++) {
-                    // Only claim background voxels — never overwrite a voxel that
-                    // already belongs to another segment (existing segments win).
-                    if (cropBytes[srcRow + cx] === 1 && scalarData[dstRow + cx] === 0) {
+                    if (cropBytes[srcRow + cx] === 1) {
                       scalarData[dstRow + cx] = segmentNumber;
                       wrote = true;
                     }
@@ -2558,27 +3226,33 @@ const commandsModule = ({
                 const sliceLen = scalarData.length;
                 const sliceData = new_arrayBuffer.subarray(i * sliceLen, (i + 1) * sliceLen);
                 if (sliceData.some(v => v === 1)){
-                  for (let j = 0; j < sliceLen; j++) { if (sliceData[j] === 1 && scalarData[j] === 0) scalarData[j] = segmentNumber; }
+                  for (let j = 0; j < sliceLen; j++) { if (sliceData[j] === 1) scalarData[j] = segmentNumber; }
                   z_range.push(flipped ? derivedImages_new.length - i - 1 : i);
                 }
               }
             }
-            if(flipped){
-              derivedImages_new.reverse();
-            }
+            if (flipped) derivedImages_new.reverse();
             console.log(`[nninter] pixel write (first): ${((Date.now()-_tWrite2)/1000).toFixed(3)}s`);
-            merged_derivedImages = derivedImages_new
+            merged_derivedImages = derivedImages_new;
+            fullImageIds = mode === 'new-segment'
+              ? [...priorImageIds, ...derivedImages_new.map((im: any) => im.imageId)]
+              : derivedImages_new.map((im: any) => im.imageId);
           } else {
+            // ── Refine: extract THIS segment's block from the multi-block labelmap, clear + rewrite ──
             const _tCacheGet = Date.now();
-            merged_derivedImages = segImageIds.map(imageId => cache.getImage(imageId));
-            console.log(`[nninter] cache.getImage (refine): ${((Date.now()-_tCacheGet)/1000).toFixed(3)}s`);
-            if(flipped){
-              merged_derivedImages.reverse();
-            }
+            const _blockStart = _blockRank * S;
+            merged_derivedImages = priorImageIds
+              .slice(_blockStart, _blockStart + S)
+              .map(imageId => cache.getImage(imageId));
+            fullImageIds = priorImageIds;
+            console.log(
+              `[nninter] refine segment ${segmentNumber}: blockRank=${_blockRank} start=${_blockStart} ` +
+              `block=${merged_derivedImages.length}/${priorImageIds.length} (${((Date.now()-_tCacheGet)/1000).toFixed(3)}s)`
+            );
+            if (flipped) merged_derivedImages.reverse();
 
-            // ── Pass 1: Clear old pixels ─────────────────────────────────────
-            // Use dirtySlices (exact indices that have pixels) when available.
-            // Falls back to the range-based scan on first refinement or old data.
+            // ── Pass 1: Clear this object's old pixels ───────────────────────
+            // dirtySlices (exact indices) fast path; else bounding-box range scan.
             const _prevDirtySlices = (existingSegments[segmentNumber] as any)
               ?.cachedStats?.dirtySlices as number[] | undefined;
             const _tClear = Date.now();
@@ -2588,7 +3262,6 @@ const commandsModule = ({
               _prevCachedStats?.segZ0 != null || _prevCachedStats?.segZ1 != null;
 
             if (_prevDirtySlices?.length) {
-              // Fast path: only touch slices that actually contain pixels (~20-50 vs 500+)
               for (const origIdx of _prevDirtySlices) {
                 const arrIdx = flipped ? (merged_derivedImages.length - 1 - origIdx) : origIdx;
                 const vm = merged_derivedImages[arrIdx]?.voxelManager as csTypes.IVoxelManager<number>;
@@ -2600,7 +3273,6 @@ const commandsModule = ({
               }
               console.log(`[nninter] clear (${_prevDirtySlices.length} dirty slices): ${((Date.now()-_tClear)/1000).toFixed(3)}s`);
             } else if (_hasPrevData) {
-              // Fallback: bounding-box range scan (dirtySlices not yet stored, e.g. first run after migration)
               const _prevZ0: number = (_hasCropGeom && _prevCachedStats?.segZ0 != null)
                 ? _prevCachedStats.segZ0 as number : 0;
               const _prevZ1: number = (_hasCropGeom && _prevCachedStats?.segZ1 != null)
@@ -2615,11 +3287,10 @@ const commandsModule = ({
               }
               console.log(`[nninter] clear fallback (${scanZ1-scanZ0} slices): ${((Date.now()-_tClear)/1000).toFixed(3)}s`);
             } else {
-              // Brand-new segment — nothing to clear, skip entirely
-              console.log(`[nninter] clear skipped (new segment)`);
+              console.log(`[nninter] clear skipped (no prior data)`);
             }
 
-            // ── Pass 2: Write new pixels from crop only ───────────────────────
+            // ── Pass 2: Write new pixels from crop only (no background guard) ──
             const _tWrite3 = Date.now();
             if (_hasCropGeom) {
               for (let i = _segZ0; i < _segZ1; i++) {
@@ -2631,9 +3302,7 @@ const commandsModule = ({
                   const srcRow = cropSliceBase + cy * _cropX;
                   const dstRow = (_y0 + cy) * _fullX + _x0;
                   for (let cx = 0; cx < _cropX; cx++) {
-                    // Only claim background voxels — never overwrite a voxel that
-                    // already belongs to another segment (existing segments win).
-                    if (cropBytes[srcRow + cx] === 1 && scalarData[dstRow + cx] === 0) {
+                    if (cropBytes[srcRow + cx] === 1) {
                       scalarData[dstRow + cx] = segmentNumber;
                       wrote = true;
                     }
@@ -2646,29 +3315,35 @@ const commandsModule = ({
                 const sd = (merged_derivedImages[i].voxelManager as csTypes.IVoxelManager<number>).getScalarData();
                 const sliceData = new_arrayBuffer.subarray(i * sd.length, (i + 1) * sd.length);
                 if (sliceData.some(v => v === 1)){
-                  for (let j = 0; j < sd.length; j++) { if (sliceData[j] === 1 && sd[j] === 0) sd[j] = segmentNumber; }
+                  for (let j = 0; j < sd.length; j++) { if (sliceData[j] === 1) sd[j] = segmentNumber; }
                   z_range.push(flipped ? merged_derivedImages.length - i - 1 : i);
                 }
               }
             }
             console.log(`[nninter] write (${z_range.length} slices): ${((Date.now()-_tWrite3)/1000).toFixed(3)}s`);
 
-            if(flipped){
-              merged_derivedImages.reverse();
-            }
+            if (flipped) merged_derivedImages.reverse();
           }
 
-        }
 
-
-          const derivedImageIds = merged_derivedImages.map(image => image.imageId);
-          console.log(`Just after derivedImageIds: ${(Date.now() - start)/1000} Seconds`);
+          const derivedImageIds = fullImageIds;
+          const _uniqImgs = new Set(fullImageIds).size;
+          console.log(
+            `[nninter/dbg] write done: mode=${mode} segment=${segmentNumber} full=${fullImageIds.length} ` +
+            `unique=${_uniqImgs} block=${merged_derivedImages.length} zSlices=${z_range.length}` +
+            (_uniqImgs !== fullImageIds.length
+              ? ' ⚠ DUPLICATE imageIds — createAndCacheDerivedLabelmapImages returned aliased ids; blocks collide!'
+              : '')
+          );
+          const objectColor =
+            ((existingSegments[segmentNumber] as any)?.cachedStats?.color as number[] | undefined) ||
+            objectColorForOrdinal(_objectOrdinal);
           segments[segmentNumber] = {
             segmentIndex: segmentNumber,
-            // Keep a pre-existing (or user-renamed) label; only name brand-new
-            // segments by their index ("Segment 1", "Segment 2", …) instead of
-            // labelling every object "nnInteractive".
-            label: existingSegments[segmentNumber]?.label || `Segment ${segmentNumber}`,
+            color: objectColor,
+            // Keep a pre-existing (or user-renamed) label; name a brand-new object "Object N"
+            // (each object is its own segmentation, so the index is always 1 and unhelpful).
+            label: existingSegments[segmentNumber]?.label || `Object ${_objectOrdinal ?? 1}`,
             locked: false,
             active: false,
             cachedStats: {
@@ -2681,8 +3356,9 @@ const commandsModule = ({
               segZ0: _hasCropGeom ? _segZ0 : 0,
               segZ1: _hasCropGeom ? _segZ1 : (merged_derivedImages?.length ?? 0),
               dirtySlices: z_range,
+              color: objectColor,
             }
-          };
+          } as any;
           console.log(`Before add or update segs: ${(Date.now() - start)/1000} Seconds`);
           // Post-segmentation processing: update representations, handle viewports, trigger events
           await postSegmentationProcessing({
@@ -2695,10 +3371,13 @@ const commandsModule = ({
             imageIds,
             existingSegments,
             existing,
+            mode,
             activeSegmentation,
             currentImageIdIndex,
             z_range,
           });
+          // The backend now holds THIS segment's interactions (reset_first applied if we switched).
+          _serverObjectId = serverObjKey(segmentationId, segmentNumber);
           const tViz = Date.now();
           console.log(
             `[nninter timing]\n` +
@@ -2752,6 +3431,7 @@ const commandsModule = ({
     'resetNninter',
     'resetSegment',
     'loadSegmentForRefinement',
+    'armNextNninterObject',
     'nninter',
     'jumpToSegment',
     'toggleCurrentSegment',
@@ -2806,6 +3486,14 @@ const commandsModule = ({
     },
     storeSegmentation: {
       commandFn: actions.storeSegmentation,
+      context: 'SEGMENTATION',
+    },
+    downloadNninterSegmentation: {
+      commandFn: actions.downloadNninterSegmentation,
+      context: 'SEGMENTATION',
+    },
+    storeNninterSegmentation: {
+      commandFn: actions.storeNninterSegmentation,
       context: 'SEGMENTATION',
     },
   });

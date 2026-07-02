@@ -170,16 +170,7 @@ export default function NnInteractivePanel({
           }
           event.preventDefault();
           event.stopPropagation();
-          const { activeViewportId: avId } = viewportGridService.getState();
-          const activeSeg =
-            segmentationService.getActiveSegmentation(avId) ??
-            segmentationService.getSegmentations()?.[0];
-          if (activeSeg?.segmentationId) {
-            commandsManager.run('addSegment', { segmentationId: activeSeg.segmentationId });
-            if (toolboxState.getPosNeg()) {
-              toolboxState.setPosNeg(false);
-            }
-          }
+          commandsManager.run('armNextNninterObject');
           break;
         }
         case 'r': {
@@ -464,16 +455,11 @@ export default function NnInteractivePanel({
   };
 
   const handleNextObject = () => {
-    const seg = aiActiveSegmentation();
     if (!nnInteractiveAvailable) {
       return;
     }
-    if (seg?.segmentationId) {
-      commandsManager.run('addSegment', { segmentationId: seg.segmentationId });
-      if (toolboxState.getPosNeg()) {
-        toolboxState.setPosNeg(false);
-      }
-    }
+
+    commandsManager.run('armNextNninterObject');
   };
 
   const handleExport = () => {
@@ -483,9 +469,9 @@ export default function NnInteractivePanel({
     }
     if (seg?.segmentationId) {
       commandsManager.run({
-        commandName: 'storeSegmentation',
+        commandName: 'storeNninterSegmentation',
         commandOptions: { segmentationId: seg.segmentationId },
-        context: 'CORNERSTONE',
+        context: 'SEGMENTATION',
       });
     }
   };

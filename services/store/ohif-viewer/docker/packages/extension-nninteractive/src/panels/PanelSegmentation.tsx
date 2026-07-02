@@ -17,6 +17,7 @@ export default function PanelSegmentation({ children }: withAppTypes) {
     displaySetService,
     measurementService,
     uiNotificationService,
+    segmentationService,
   } = servicesManager.services;
   const [promptsVisible, setPromptsVisible] = useState(toolboxState.getPromptsVisible());
 
@@ -49,17 +50,21 @@ export default function PanelSegmentation({ children }: withAppTypes) {
   const handlers = {
     onSegmentationClick: (segmentationId: string) => {
       commandsManager.run('setActiveSegmentation', { segmentationId });
-    },
-    onSegmentAdd: segmentationId => {
-      commandsManager.run('addSegment', { segmentationId });
-      if (toolboxState.getPosNeg()) {
-        toolboxState.setPosNeg(false);
+      // Selecting an object (card) also loads it into the backend so the next prompt refines it.
+      // Overlap model: each object is its own segmentation with a single segment — find its index.
+      const seg = segmentationService.getSegmentation(segmentationId);
+      const firstIndex = seg?.segments ? Number(Object.keys(seg.segments)[0]) : NaN;
+      if (Number.isFinite(firstIndex)) {
+        commandsManager.run('loadSegmentForRefinement', { segmentationId, segmentIndex: firstIndex });
       }
+    },
+    onSegmentAdd: () => {
+      commandsManager.run('armNextNninterObject');
     },
     onSegmentClick: (segmentationId, segmentIndex) => {
       commandsManager.run('setActiveSegmentAndCenter', { segmentationId, segmentIndex });
-      // Load the selected segment into the nnInteractive backend as the current object so the user can
-      // keep refining it (reset interactions + set_mask). No-op when there's no live session.
+      // Load the selected object into the nnInteractive backend as the current object so the user can
+      // keep refining it (set_mask + no reset-first). No-op when there's no live session.
       commandsManager.run('loadSegmentForRefinement', { segmentationId, segmentIndex });
     },
     onSegmentEdit: (segmentationId, segmentIndex) => {
@@ -137,7 +142,11 @@ export default function PanelSegmentation({ children }: withAppTypes) {
       commandsManager.run('toggleSegmentationVisibility', { segmentationId, type });
     },
     onSegmentationDownload: segmentationId => {
-      commandsManager.run('downloadSegmentation', { segmentationId });
+      commandsManager.run({
+        commandName: 'downloadNninterSegmentation',
+        commandOptions: { segmentationId },
+        context: 'SEGMENTATION',
+      });
     },
     setStyle: (segmentationId, type, key, value) => {
       commandsManager.run('setSegmentationStyle', { segmentationId, type, key, value });

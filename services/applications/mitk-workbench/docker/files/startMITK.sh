@@ -3,6 +3,10 @@ echo "Starting MITK Workbench"
 /mitk/MitkWorkbench.sh &
 PID=$!
 
+until grep -q "BlueBerry Workbench ready" $HOME/logfile 2>/dev/null; do
+	sleep 1
+done
+
 echo 'Setting fullscreen mode'
 for i in $(seq 1 60); do
 	wmctrl -l | grep -q 'Research' && break

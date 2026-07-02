@@ -40,7 +40,9 @@ async def _fetch_project_whitelist(project_id: str) -> Optional[list[str]]:
             return None
         return [str(app) for app in payload]
     except Exception:
-        logger.warning("Failed to fetch project whitelist from AII for project %s", project_id)
+        logger.warning(
+            "Failed to fetch project whitelist from AII for project %s", project_id
+        )
         return None
 
 
@@ -268,7 +270,9 @@ async def helm_delete_chart(request: Request):
                         detail="Could not verify application whitelist. Please try again later.",
                     )
                 release = payload["release_name"]
-                is_whitelisted = any(release == e or release.startswith(e + "-") for e in whitelist)
+                is_whitelisted = any(
+                    release == e or release.startswith(e + "-") for e in whitelist
+                )
                 if whitelist and not is_whitelisted:
                     raise HTTPException(
                         status_code=403,
@@ -326,7 +330,9 @@ async def helm_install_chart(request: Request):
                 try:
                     project_form = json.loads(project_header)
                 except json.JSONDecodeError:
-                    raise HTTPException(status_code=400, detail="Invalid Project header")
+                    raise HTTPException(
+                        status_code=400, detail="Invalid Project header"
+                    )
                 project_id = project_form.get("id")
                 if project_id and not is_admin_request(request):
                     app_name = payload["name"]
@@ -474,17 +480,30 @@ async def get_active_applications() -> List[schemas.ActiveApplication]:
         for active_app in active_apps:
             # get the release name of the chart from ingress
             release_name = active_app["release_name"]
-            # get all k8s objects of the chart and the ready status
-            _, ready, _, _ = helm_helper.get_kube_objects(release_name)
+            # get all k8s objects of the chart, the ready status and per-pod info
+            _, ready, _, kube_info = helm_helper.get_kube_objects(release_name)
             # find the deployed chart inside the extension object
             active_app["ready"] = ready
-            
+            # surface per-pod status so the frontend can tell initializing apart from errors
+            active_app["pods"] = [
+                {"name": n, "ready": r, "status": s, "restarts": rs, "age": a}
+                for n, r, s, rs, a in zip(
+                    kube_info.name,
+                    kube_info.ready,
+                    kube_info.status,
+                    kube_info.restarts,
+                    kube_info.age,
+                )
+            ]
+
             try:
                 values = helm_helper.helm_get_values(release_name)
                 if values:
                     active_app["values"] = values
             except Exception as values_error:
-                logger.warning(f"Could not fetch helm values for {release_name}: {values_error}")
+                logger.warning(
+                    f"Could not fetch helm values for {release_name}: {values_error}"
+                )
 
         return active_apps
     except Exception as e:

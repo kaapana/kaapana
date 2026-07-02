@@ -29,8 +29,32 @@
               )
                 v-icon(color="primary") mdi-open-in-new
           template(v-slot:item.ready="{ item }")
-            v-icon(v-if="item.ready===true" color='green') mdi-check-circle
-            v-icon(v-if="item.ready===false" color='red') mdi-alert-circle
+            v-tooltip(right)
+              template(v-slot:activator="{ on, attrs }")
+                v-progress-circular(
+                  v-if="podStatus(item) === 'pending'"
+                  indeterminate,
+                  size="24",
+                  width="3",
+                  color="primary",
+                  v-bind="attrs",
+                  v-on="on"
+                )
+                v-icon(
+                  v-else-if="podStatus(item) === 'error'"
+                  color="red",
+                  v-bind="attrs",
+                  v-on="on"
+                ) mdi-alert-circle
+                v-icon(
+                  v-else
+                  color="green",
+                  v-bind="attrs",
+                  v-on="on"
+                ) mdi-check-circle
+              span(v-if="item.pods && item.pods.length")
+                div(v-for="pod in item.pods" :key="pod.name") {{ pod.name }}: {{ pod.status }} ({{ pod.ready }}, restarts: {{ pod.restarts }})
+              span(v-else) No pods found
           template(v-slot:item.releaseName="{ item }")
             v-btn(
               @click="deleteChart(item.releaseName)",
@@ -56,8 +80,32 @@
             )
               v-icon(color="primary") mdi-open-in-new
           template(v-slot:item.ready="{ item }")
-            v-icon(v-if="item.ready===true" color='green') mdi-check-circle
-            v-icon(v-if="item.ready===false" color='red') mdi-alert-circle
+            v-tooltip(right)
+              template(v-slot:activator="{ on, attrs }")
+                v-progress-circular(
+                  v-if="podStatus(item) === 'pending'"
+                  indeterminate,
+                  size="24",
+                  width="3",
+                  color="primary",
+                  v-bind="attrs",
+                  v-on="on"
+                )
+                v-icon(
+                  v-else-if="podStatus(item) === 'error'"
+                  color="red",
+                  v-bind="attrs",
+                  v-on="on"
+                ) mdi-alert-circle
+                v-icon(
+                  v-else
+                  color="green",
+                  v-bind="attrs",
+                  v-on="on"
+                ) mdi-check-circle
+              span(v-if="item.pods && item.pods.length")
+                div(v-for="pod in item.pods" :key="pod.name") {{ pod.name }}: {{ pod.status }} ({{ pod.ready }}, restarts: {{ pod.restarts }})
+              span(v-else) No pods found
 </template>
 
 <script lang="ts">
@@ -103,6 +151,47 @@ export default Vue.extend({
     ]),
   },
   methods: {
+    // Classify an app into 'ready' | 'pending' | 'error' from its pods' kube status.
+    // A pod counts as ready when it is completed, or running with all containers ready
+    // (N/N); normal lifecycle states (pending, creating, initializing, terminating,
+    // running-but-not-yet-ready) are 'pending'; anything else is treated as an error.
+    podStatus(item: any) {
+      const pods = item.pods || [];
+      if (pods.length === 0) {
+        return "pending";
+      }
+      const transient = [
+        "pending",
+        "containercreating",
+        "podinitializing",
+        "terminating",
+      ];
+      let hasError = false;
+      let hasPending = false;
+      for (const pod of pods) {
+        const status = (pod.status || "").toLowerCase();
+        const [readyCount, wantCount] = (pod.ready || "").split("/");
+        if (status === "completed") {
+          continue;
+        }
+        if (status === "running" && readyCount === wantCount) {
+          continue;
+        }
+        if (
+          status === "running" ||
+          /^init:\d/.test(status) || // Init:0/2 is progress; Init:Error/OOMKilled are failures
+          transient.includes(status)
+        ) {
+          hasPending = true;
+        } else {
+          hasError = true;
+        }
+      }
+      if (hasError) return "error";
+      if (hasPending) return "pending";
+      return "ready";
+    },
+
     getActiveApplications() {
       kaapanaApiService
         .helmApiGet("/active-applications", {})
@@ -134,6 +223,7 @@ export default Vue.extend({
                 fromWorkflowRun: item.from_workflow_run,
                 name: name,
                 paths: item.paths,
+                pods: item.pods,
                 project: item.project,
                 ready: item.ready,
                 releaseName: item.release_name,

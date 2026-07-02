@@ -78,6 +78,13 @@ spec:
       - name: mitk
         securityContext:
           runAsUser: 0
+        # Gate traffic until nginx serves the loading page, so traefik never 502s a not-yet-listening pod.
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          periodSeconds: 5
+          failureThreshold: 30
         image: "{{ .Values.global.registry_url }}/mitk-workbench:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
         resources:

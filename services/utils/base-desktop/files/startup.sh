@@ -1,11 +1,16 @@
 #!/bin/bash
 
+log() { echo "[base-desktop $(date -u +%H:%M:%S)] $*"; }
+
+log "startup: begin"
+
 if [ -n "$VNC_PASSWORD" ]; then
     echo -n "$VNC_PASSWORD" > /.password1
     x11vnc -storepasswd $(cat /.password1) /.password2
     chmod 400 /.password*
     sed -i 's/^command=x11vnc.*/& -rfbauth \/.password2/' /etc/supervisor/conf.d/supervisord.conf
     export VNC_PASSWORD=
+    log "vnc: password authentication enabled"
 fi
 
 if [ -n "$X11VNC_ARGS" ]; then
@@ -20,7 +25,7 @@ fi
 USER=${USER:-root}
 HOME=/root
 if [ "$USER" != "root" ]; then
-    echo "* enable custom user: $USER"
+    log "user: enabling custom user '$USER'"
     # useradd --create-home --shell /bin/bash --user-group --groups adm,sudo $USER
     # if [ -z "$PASSWORD" ]; then
     #     echo "  set default password to \"ubuntu\""
@@ -38,7 +43,10 @@ sed -i -e "s|%USER%|$USER|g" -e "s|%HOME%|$HOME|g" /etc/supervisor/conf.d/*.conf
 if [ ! -x "$HOME/.config/pcmanfm/LXDE/" ]; then
     mkdir -p $HOME/.config/pcmanfm/LXDE/
     ln -sf /usr/local/share/lxde-wallpapers/desktop-items-0.conf $HOME/.config/pcmanfm/LXDE/
+    log "home: first start, chown -R $HOME (this blocks nginx startup)"
+    SECONDS=0
     chown -R $USER:$USER $HOME
+    log "home: chown finished in ${SECONDS}s"
 fi
 
 # nginx workers
@@ -46,14 +54,14 @@ sed -i 's|worker_processes .*|worker_processes 1;|' /etc/nginx/nginx.conf
 
 # nginx ssl
 if [ -n "$SSL_PORT" ] && [ -e "/etc/nginx/ssl/nginx.key" ]; then
-    echo "* enable SSL"
+    log "nginx: enabling SSL on port $SSL_PORT"
 	sed -i 's|#_SSL_PORT_#\(.*\)443\(.*\)|\1'$SSL_PORT'\2|' /etc/nginx/sites-enabled/default
 	sed -i 's|#_SSL_PORT_#||' /etc/nginx/sites-enabled/default
 fi
 
 # nginx http base authentication
 if [ -n "$HTTP_PASSWORD" ]; then
-    echo "* enable HTTP base authentication"
+    log "nginx: enabling HTTP basic authentication"
     htpasswd -bc /etc/nginx/.htpasswd $USER $HTTP_PASSWORD
 	sed -i 's|#_HTTP_PASSWORD_#||' /etc/nginx/sites-enabled/default
 fi
@@ -65,12 +73,12 @@ if [ -n "$INGRESS_PATH" ]; then
     else
         RELATIVE_URL_ROOT="$INGRESS_PATH"
     fi
-    echo "RELATIVE_URL_ROOT: $RELATIVE_URL_ROOT"
+    log "ingress: RELATIVE_URL_ROOT=$RELATIVE_URL_ROOT"
 fi
 
 # dynamic prefix path renaming
 if [ -n "$RELATIVE_URL_ROOT" ]; then
-    echo "* enable RELATIVE_URL_ROOT: $RELATIVE_URL_ROOT"
+    log "nginx: enabling RELATIVE_URL_ROOT=$RELATIVE_URL_ROOT"
 	sed -i 's|#_RELATIVE_URL_ROOT_||' /etc/nginx/sites-enabled/default
 	sed -i 's|_RELATIVE_URL_ROOT_|'$RELATIVE_URL_ROOT'|' /etc/nginx/sites-enabled/default
 fi
@@ -79,4 +87,5 @@ fi
 PASSWORD=
 HTTP_PASSWORD=
 
+log "startup: handing off to supervisord"
 exec /bin/tini -- supervisord -n -c /etc/supervisor/supervisord.conf

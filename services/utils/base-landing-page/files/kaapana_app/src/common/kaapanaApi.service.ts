@@ -2,10 +2,18 @@ import Vue from 'vue'
 import AuthService from '@/common/auth.service'
 import httpClient from './httpClient'
 
+  // Forward the selected project so kube-helm can inject project-scoped Helm
+  // values (e.g. global.project_name for MinIO paths). The /kube-helm-api route
+  // is not behind the auth proxy that would otherwise add the Project header.
+  const projectHeader = () => {
+    const project = Vue.$cookies.get('Project')
+    return project ? { Project: JSON.stringify(project) } : {}
+  }
+
   const helmApiPost = (subUrl: any, payload: any, timeout: any = 10000) => {
     return new Promise((resolve, reject) => {
       httpClient.defaults.timeout = timeout
-      httpClient.post('/kube-helm-api' + subUrl, payload).then((response: any) => {
+      httpClient.post('/kube-helm-api' + subUrl, payload, { headers: projectHeader() }).then((response: any) => {
         console.log(response)
         resolve(response)
       }).catch((error: any) => {
@@ -18,7 +26,7 @@ import httpClient from './httpClient'
   const helmApiGet = (subUrl: any, params: any, timeout: any = 10000) => {
     return new Promise((resolve, reject) => {
       httpClient.defaults.timeout = timeout
-      httpClient.get('/kube-helm-api' + subUrl, { params }).then((response: any) => {
+      httpClient.get('/kube-helm-api' + subUrl, { params, headers: projectHeader() }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
         console.log('Failed: ' + error.response.data)

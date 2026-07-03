@@ -354,6 +354,10 @@ const commandsModule = ({
   // The nnInteractive proxy tracks ONE object per session, so we remember which OBJECT the backend
   // currently holds (segmentationId#1) and drive reset_first / set_mask from it.
   let _serverObjectId: string | undefined; // `${segmentationId}#${segmentIndex}` or undefined (blank)
+  // True only when the server's single-level undo snapshot belongs to THIS object (a prompt was
+  // applied since the last init/reset/set_mask load). Undo right after a set_mask load would
+  // restore the PRE-load snapshot — i.e. the previous object's state — into this object's labelmap.
+  let _undoableSinceLoad = false;
   const serverObjKey = (segId: string, segIdx: number) => `${segId}#${segIdx}`;
   const _objectSegmentationIdsBySeries = new Map<string, string[]>();
   // Segmentations WE own (created by inference or by the import-split). The import-split guard uses
@@ -1507,6 +1511,27 @@ const commandsModule = ({
     }
   };
 
+  /**
+   * Re-sync a segmentation's MPR volume labelmap from its stack labelmap if any MPR panes are open.
+   * The stack labelmap is the source of truth; every in-place voxel edit outside the inference path
+   * (undo, reset segment) must call this or MPR panes keep rendering the stale volume.
+   */
+  const syncMprLabelmapFromStack = async (
+    segmentationId: string,
+    derivedImageIds: string[],
+    sourceImageIds: string[]
+  ): Promise<boolean> => {
+    const ids = servicesManager.services.cornerstoneViewportService.getViewportIds();
+    const mprVolumeViewportIds = ids.filter(id => {
+      const vp = servicesManager.services.cornerstoneViewportService.getCornerstoneViewport(id);
+      return vp instanceof BaseVolumeViewport && !(vp instanceof VolumeViewport3D);
+    });
+    if (!mprVolumeViewportIds.length) {
+      return false;
+    }
+    return buildAndSyncLabelmapVolumeFor(segmentationId, derivedImageIds, sourceImageIds, mprVolumeViewportIds);
+  };
+
   async function postSegmentationProcessing({
     activeViewportId,
     segmentationId,
@@ -2557,6 +2582,7 @@ const commandsModule = ({
           toolboxState.setSessionSeries(currentDisplaySets.SeriesInstanceUID);
           // Fresh backend session holds no object yet.
           _serverObjectId = undefined;
+          _undoableSinceLoad = false;
           return response;
         }
       } catch (error) {
@@ -2671,6 +2697,16 @@ const commandsModule = ({
       }
       // Per-object model: the active segmentation IS this object's whole labelmap (single map).
       const _undoBlockIds = segImageIds;
+      // The server's undo is single-level and its snapshot may predate the last set_mask load
+      // (i.e. hold ANOTHER object's state). Only allow undo once a prompt was applied here.
+      if (!_undoableSinceLoad) {
+        uiNotificationService.show({
+          title: 'nnInteractive',
+          message: 'Nothing to undo',
+          type: 'info',
+        });
+        return;
+      }
       console.log(`[nninter/dbg] undo: object ${segmentationId} map=${_undoBlockIds.length}`);
 
       const url = `/nninteractive/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
@@ -2818,14 +2854,21 @@ const commandsModule = ({
           (activeSegmentation.segments[segmentNumber] as any).cachedStats.segZ1 = _hasCropGeom ? _segZ1 : merged.length;
         }
 
-        // Remove the most-recently-added prompt measurement for this series.
+        // The stack labelmap changed in place — re-sync the MPR volume labelmap or MPR panes keep
+        // rendering the pre-undo state.
+        await syncMprLabelmapFromStack(segmentationId, _undoBlockIds, currentDisplaySets.imageIds ?? []);
+
+        // Remove the most-recently-added prompt measurement of THIS object (the server undid its own
+        // last interaction; the series' last prompt may belong to a different object).
         const AI_PROMPT_TOOLS = ['Probe2', 'RectangleROI2', 'PlanarFreehandROI2', 'PlanarFreehandROI3'];
         const promptsForSeries = measurementService
           .getMeasurements()
           .filter(
             m =>
               AI_PROMPT_TOOLS.includes(m.toolName) &&
-              m.referenceSeriesUID === currentDisplaySets.SeriesInstanceUID
+              m.referenceSeriesUID === currentDisplaySets.SeriesInstanceUID &&
+              m.metadata?.segmentationId === segmentationId &&
+              m.metadata?.SegmentNumber === segmentNumber
           );
         const lastPrompt = promptsForSeries[promptsForSeries.length - 1];
         if (lastPrompt?.uid) {
@@ -2841,6 +2884,8 @@ const commandsModule = ({
           })
         );
         console.log(`[nninter undo timing] total client: ${((Date.now() - start) / 1000).toFixed(3)}s`);
+        // Single-level undo: the popped snapshot is spent; block further undos until a new prompt.
+        _undoableSinceLoad = false;
         uiNotificationService.show({
           title: 'nnInteractive',
           message: 'Undo - Successful',
@@ -2900,6 +2945,7 @@ const commandsModule = ({
         if (response.status === 200) {
           // Backend target buffer + interactions were wiped; it no longer holds any object.
           _serverObjectId = undefined;
+          _undoableSinceLoad = false;
           if (options.clearMeasurements) {
             commandsManager.run('clearMeasurements')
           }
@@ -2967,7 +3013,7 @@ const commandsModule = ({
       (activeVp as any)?.render?.();   // synchronous WebGL render — instant visual removal
 
       // 3. Background: zero all remaining slices, remove measurements, reset server.
-      setTimeout(() => {
+      setTimeout(async () => {
         for (const imageId of imageIds) {
           if (!visibleImageIds.has(imageId)) _zeroImageId(imageId);
         }
@@ -2977,6 +3023,12 @@ const commandsModule = ({
           .map(e => e?.uid);
         if (measurementUIDs.length > 0) measurementService.removeMany(measurementUIDs);
         commandsManager.run('resetNninter', { clearMeasurements: false }).catch(() => {});
+        // The stack labelmap is now empty — re-sync the MPR volume labelmap (zeroes it) or MPR
+        // panes keep showing the object.
+        const { viewports } = viewportGridService.getState();
+        const _dsUID = viewports.get(activeViewportId)?.displaySetInstanceUIDs?.[0];
+        const _ds = displaySetService.activeDisplaySets.find((e: any) => e.displaySetInstanceUID === _dsUID);
+        await syncMprLabelmapFromStack(segmentationId, imageIds, _ds?.imageIds ?? []);
         eventTarget.dispatchEvent(
           new CustomEvent(csToolsEnums.Events.SEGMENTATION_DATA_MODIFIED, { detail: { segmentationId } })
         );
@@ -3109,6 +3161,7 @@ const commandsModule = ({
         toolboxState.setCurrentActiveSegment(_effIndex);
         toolboxState.setRefineNew(false);
         _serverObjectId = undefined;
+        _undoableSinceLoad = false;
         return;
       }
 
@@ -3161,8 +3214,10 @@ const commandsModule = ({
         toolboxState.setCurrentActiveSegment(_effIndex);
         toolboxState.setRefineNew(false);
         // The backend now holds THIS segment's mask (set_mask). The next prompt refines it without a
-        // reset (which would wipe the just-loaded mask).
+        // reset (which would wipe the just-loaded mask). The server's undo snapshot still points at
+        // the PRE-load state, so undo is blocked until a prompt is applied to this object.
         _serverObjectId = serverObjKey(segmentationId, _effIndex);
+        _undoableSinceLoad = false;
 
         // The uploaded mask already reflects every existing prompt of this object — mark them baked
         // so nninter() never replays them (set_mask cleared the server's dedup cache).
@@ -3675,6 +3730,7 @@ const commandsModule = ({
           });
           // The backend now holds THIS segment's interactions (reset_first applied if we switched).
           _serverObjectId = serverObjKey(segmentationId, segmentNumber);
+          _undoableSinceLoad = true;
           const tViz = Date.now();
           console.log(
             `[nninter timing]\n` +

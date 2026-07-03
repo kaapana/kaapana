@@ -722,11 +722,11 @@ def _run_inference_request(entry: SeriesSession, mode: Any, data: dict[str, Any]
         mask = np.frombuffer(mask_bytes, dtype=np.uint8).reshape(entry.target_buffer.shape)
         if entry.flipped:
             mask = mask[::-1]
-        # Drop the previous object's interactions BEFORE writing the mask (reset may zero the
-        # buffer) — the uploaded mask is the sole starting state for the next prompts.
-        entry.session.reset_interactions()
-        entry.target_buffer[...] = (mask > 0).astype(np.uint8)
-        entry.session.set_target_buffer(entry.target_buffer)
+        seg01 = np.ascontiguousarray((mask > 0).astype(np.uint8))
+        # Feed the mask into the model's prev_seg channel AND the target buffer (resets interactions,
+        # commits an undo snapshot). Poking only the output buffer leaves the model's prior EMPTY, so
+        # the next prompt predicts from nothing and wipes the object.
+        entry.session.add_initial_seg_interaction(seg01, run_prediction=False)
         entry.prompts_seen.clear()
         entry.prompt_order.clear()
         seg, offset, full_shape, crop_shape = _crop_target(entry.target_buffer)

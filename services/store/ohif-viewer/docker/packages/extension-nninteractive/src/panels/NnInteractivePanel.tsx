@@ -12,6 +12,49 @@ interface ButtonProps {
   options?: unknown;
 }
 
+const BRUSH_SIZE_MIN = 1;
+const BRUSH_SIZE_MAX = 60;
+const BRUSH_SIZE_STEP = 1;
+
+function ShortcutKey({
+  keys,
+  title,
+  className,
+}: {
+  keys: string;
+  title: string;
+  className?: string;
+}) {
+  return (
+    <kbd
+      title={`${title} (${keys})`}
+      aria-label={`${title}: ${keys}`}
+      className={classnames(
+        'border-primary/30 bg-background text-muted-foreground inline-flex h-5 min-w-5 items-center justify-center rounded border px-1 text-[10px] font-semibold leading-none',
+        className
+      )}
+    >
+      {keys}
+    </kbd>
+  );
+}
+
+function ShortcutHint({ keys, label, title }: { keys: string; label: string; title: string }) {
+  return (
+    <span
+      title={`${title} (${keys})`}
+      className="border-primary/20 text-muted-foreground inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px]"
+    >
+      <ShortcutKey
+        keys={keys}
+        title={title}
+        className="border-transparent bg-transparent p-0 text-[11px]"
+      />
+      <span>{label}</span>
+    </span>
+  );
+}
+
 export default function NnInteractivePanel({
   buttonSectionId,
   title,
@@ -164,13 +207,42 @@ export default function NnInteractivePanel({
           toolboxState.setManualCorrectionMode(false);
           onInteractionRef.current?.({ itemId: 'PlanarFreehandROI3' });
           break;
-        case 'm': {
+        case 'n': {
           if (!nnInteractiveAvailable) {
             return;
           }
           event.preventDefault();
           event.stopPropagation();
           commandsManager.run('armNextNninterObject');
+          break;
+        }
+        case 'c': {
+          if (!nnInteractiveAvailable) {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          setManualCorrectionBrush();
+          break;
+        }
+        case '+':
+        case '=': {
+          if (!nnInteractiveAvailable || event.ctrlKey || event.metaKey) {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          adjustBrushSize(BRUSH_SIZE_STEP);
+          break;
+        }
+        case '-':
+        case '_': {
+          if (!nnInteractiveAvailable || event.ctrlKey || event.metaKey) {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          adjustBrushSize(-BRUSH_SIZE_STEP);
           break;
         }
         case 'r': {
@@ -224,26 +296,7 @@ export default function NnInteractivePanel({
           }
           event.preventDefault();
           event.stopPropagation();
-          const { activeViewportId: avId } = viewportGridService.getState();
-          const activeSeg = segmentationService.getActiveSegmentation(avId);
-          const activeSegment = segmentationService.getActiveSegment(avId);
-          if (activeSeg?.segmentationId && activeSegment?.segmentIndex != null) {
-            const { segmentationId } = activeSeg;
-            const { segmentIndex } = activeSegment;
-            const measurementUIDs = measurementService
-              .getMeasurements()
-              .filter(
-                m =>
-                  m?.metadata?.segmentationId === segmentationId &&
-                  m?.metadata?.SegmentNumber === segmentIndex
-              )
-              .map(m => m?.uid);
-            if (measurementUIDs.length > 0) {
-              measurementService.removeMany(measurementUIDs);
-            }
-            commandsManager.run('resetNninter', { clearMeasurements: false });
-            commandsManager.run('deleteSegment', { segmentationId, segmentIndex });
-          }
+          handleDeleteObject();
           break;
         }
       }
@@ -251,7 +304,7 @@ export default function NnInteractivePanel({
 
     document.addEventListener('keydown', handleKeyDown, true);
     return () => document.removeEventListener('keydown', handleKeyDown, true);
-  }, [hotkeysDisabled, isAIToolBox, nnInteractiveAvailable]);
+  }, [brushSize, hotkeysDisabled, isAIToolBox, nnInteractiveAvailable, sessionActive]);
 
   useEffect(() => {
     if (!isLocked) {
@@ -462,6 +515,33 @@ export default function NnInteractivePanel({
     commandsManager.run('armNextNninterObject');
   };
 
+  const handleDeleteObject = () => {
+    if (!nnInteractiveAvailable) {
+      return;
+    }
+
+    const { activeViewportId: avId } = viewportGridService.getState();
+    const activeSeg = segmentationService.getActiveSegmentation(avId);
+    const activeSegment = segmentationService.getActiveSegment(avId);
+    if (activeSeg?.segmentationId && activeSegment?.segmentIndex != null) {
+      const { segmentationId } = activeSeg;
+      const { segmentIndex } = activeSegment;
+      const measurementUIDs = measurementService
+        .getMeasurements()
+        .filter(
+          m =>
+            m?.metadata?.segmentationId === segmentationId &&
+            m?.metadata?.SegmentNumber === segmentIndex
+        )
+        .map(m => m?.uid);
+      if (measurementUIDs.length > 0) {
+        measurementService.removeMany(measurementUIDs);
+      }
+      commandsManager.run('resetNninter', { clearMeasurements: false });
+      commandsManager.run('deleteSegment', { segmentationId, segmentIndex });
+    }
+  };
+
   const handleExport = () => {
     const seg = aiActiveSegmentation();
     if (!nnInteractiveAvailable) {
@@ -483,6 +563,23 @@ export default function NnInteractivePanel({
     return !!seg?.segmentationId && segment?.segmentIndex != null;
   };
 
+  const applyBrushSize = (nextSize: number) => {
+    const clampedSize = Math.min(BRUSH_SIZE_MAX, Math.max(BRUSH_SIZE_MIN, nextSize));
+    setBrushSize(clampedSize);
+    commandsManager.run('setBrushSize', {
+      value: clampedSize,
+      toolNames: ['CircularBrush', 'CircularEraser'],
+    });
+  };
+
+  const adjustBrushSize = (delta: number) => {
+    if (!nnInteractiveReady || !sessionActive || !hasActiveAiSegment()) {
+      return;
+    }
+
+    applyBrushSize(brushSize + delta);
+  };
+
   const setManualCorrectionBrush = () => {
     if (!nnInteractiveReady || !sessionActive || !hasActiveAiSegment()) {
       uiNotificationService?.show?.({
@@ -494,22 +591,14 @@ export default function NnInteractivePanel({
     }
 
     toolboxState.setManualCorrectionMode(true);
-    commandsManager.run('setBrushSize', {
-      value: brushSize,
-      toolNames: ['CircularBrush', 'CircularEraser'],
-    });
+    applyBrushSize(brushSize);
     commandsManager.run('setToolActiveToolbar', {
       toolName: toolboxState.getPosNeg() ? 'CircularEraser' : 'CircularBrush',
     });
   };
 
   const handleBrushSizeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const nextSize = Number(event.target.value);
-    setBrushSize(nextSize);
-    commandsManager.run('setBrushSize', {
-      value: nextSize,
-      toolNames: ['CircularBrush', 'CircularEraser'],
-    });
+    applyBrushSize(Number(event.target.value));
   };
 
   const CustomConfigComponent = customizationService.getCustomization(`${buttonSectionId}.config`);
@@ -642,7 +731,13 @@ export default function NnInteractivePanel({
                   <div className="border-t border-primary/20" />
 
                   <div className="flex flex-col gap-1">
-                    <Label>Prompt Type</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label>Prompt Type</Label>
+                      <ShortcutKey
+                        keys="T"
+                        title="Toggle positive or negative prompt"
+                      />
+                    </div>
                     <ToggleGroup
                       type="single"
                       size="sm"
@@ -696,27 +791,54 @@ export default function NnInteractivePanel({
                           );
                         })}
                     </div>
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      <ShortcutHint keys="P" label="Point" title="Activate point prompt" />
+                      <ShortcutHint keys="B" label="BBox" title="Activate bounding box prompt" />
+                      <ShortcutHint keys="S" label="Scribble" title="Activate scribble prompt" />
+                      <ShortcutHint keys="L" label="Lasso" title="Activate lasso prompt" />
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap gap-1">
-                    <Button variant="secondary" size="sm" disabled={!nnInteractiveReady || !sessionActive} onClick={handleUndo}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="gap-1.5"
+                      disabled={!nnInteractiveReady || !sessionActive}
+                      onClick={handleUndo}
+                    >
                       Undo
+                      <ShortcutKey keys="Ctrl+Z" title="Undo last nnInteractive prompt" />
                     </Button>
                     <Button
                       variant="secondary"
                       size="sm"
+                      className="gap-1.5"
                       disabled={!nnInteractiveReady || !sessionActive}
                       onClick={handleResetObject}
                     >
                       Reset Object
+                      <ShortcutKey keys="R" title="Reset current object" />
                     </Button>
                     <Button
                       variant="secondary"
                       size="sm"
+                      className="gap-1.5"
                       disabled={!nnInteractiveReady || !sessionActive}
                       onClick={handleNextObject}
                     >
                       Next Object
+                      <ShortcutKey keys="N" title="Move to next object" />
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="gap-1.5"
+                      disabled={!nnInteractiveReady || !sessionActive || !hasActiveAiSegment()}
+                      onClick={handleDeleteObject}
+                    >
+                      Delete Object
+                      <ShortcutKey keys="Delete" title="Delete current object" />
                     </Button>
                   </div>
 
@@ -732,7 +854,10 @@ export default function NnInteractivePanel({
                     {showManualControl && (
                       <div className="flex flex-col gap-2 pl-3">
                         <div className="flex items-center justify-between gap-2">
-                          <Label htmlFor="auto-run">Auto Run Prediction [Q]</Label>
+                          <Label htmlFor="auto-run" className="flex items-center gap-1.5">
+                            Auto Run Prediction
+                            <ShortcutKey keys="Q" title="Toggle auto-run prediction" />
+                          </Label>
                           <Switch
                             id="auto-run"
                             checked={liveMode}
@@ -757,12 +882,19 @@ export default function NnInteractivePanel({
                     <Button
                       variant="default"
                       size="sm"
-                      className="w-full"
+                      className="relative w-full justify-center gap-2"
                       disabled={!nnInteractiveReady || !sessionActive || !hasActiveAiSegment()}
                       onClick={setManualCorrectionBrush}
                     >
-                      <Brush className="mr-1 h-4 w-4" />
-                      Brush
+                      <span className="flex items-center gap-1">
+                        <Brush className="h-4 w-4" />
+                        Brush
+                      </span>
+                      <ShortcutKey
+                        keys="C"
+                        title="Activate manual correction brush"
+                        className="absolute right-2"
+                      />
                     </Button>
                     <div
                       className={classnames('flex flex-col gap-1', {
@@ -772,14 +904,18 @@ export default function NnInteractivePanel({
                     >
                       <div className="flex items-center justify-between gap-2">
                         <Label htmlFor="nninter-brush-size">Brush size</Label>
-                        <span className="text-muted-foreground text-xs">{brushSize}px</span>
+                        <div className="flex items-center gap-1">
+                          <ShortcutKey keys="-" title="Make brush smaller" />
+                          <ShortcutKey keys="+" title="Make brush bigger" />
+                          <span className="text-muted-foreground text-xs">{brushSize}px</span>
+                        </div>
                       </div>
                       <input
                         id="nninter-brush-size"
                         type="range"
-                        min="1"
-                        max="60"
-                        step="1"
+                        min={BRUSH_SIZE_MIN}
+                        max={BRUSH_SIZE_MAX}
+                        step={BRUSH_SIZE_STEP}
                         value={brushSize}
                         onChange={handleBrushSizeChange}
                       />

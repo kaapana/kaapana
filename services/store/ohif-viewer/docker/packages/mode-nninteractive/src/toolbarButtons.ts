@@ -234,7 +234,7 @@ const toolbarButtons: Button[] = [
     props: {
       icon: 'tool-nninteractive-point',
       label: 'Point',
-      tooltip: 'Point [P]',
+      tooltip: 'Point prompt - press P',
       commands: toggleToolActiveToolbar,
       evaluate: 'evaluate.cornerstoneTool',
     },
@@ -434,7 +434,7 @@ const toolbarButtons: Button[] = [
     props: {
       icon: 'tool-nninteractive-bbox',
       label: 'BBox',
-      tooltip: 'Bounding Box [B]',
+      tooltip: 'Bounding box prompt - press B',
       commands: toggleToolActiveToolbar,
       evaluate: 'evaluate.cornerstoneTool',
     },
@@ -467,7 +467,7 @@ const toolbarButtons: Button[] = [
     props: {
       icon: 'tool-nninteractive-lasso',
       label: 'Lasso',
-      tooltip: 'Lasso [L]',
+      tooltip: 'Lasso prompt - press L',
       commands: toggleToolActiveToolbar,
       evaluate: 'evaluate.cornerstoneTool',
     },
@@ -478,7 +478,7 @@ const toolbarButtons: Button[] = [
     props: {
       icon: 'tool-nninteractive-scribble',
       label: 'Scribble',
-      tooltip: 'Scribble [S]',
+      tooltip: 'Scribble prompt - press S',
       commands: toggleToolActiveToolbar,
       evaluate: 'evaluate.cornerstoneTool',
     },
@@ -620,7 +620,7 @@ const toolbarButtons: Button[] = [
       type: 'tool',
       icon: 'Undo',
       label: 'Undo',
-      tooltip: 'Undo (Ctrl+Z)',
+      tooltip: 'Undo last nnInteractive prompt - press Ctrl+Z',
       commands: 'undoNninter',
     },
   },
@@ -630,8 +630,8 @@ const toolbarButtons: Button[] = [
     props: {
       type: 'tool',
       icon: 'tool-reset',
-      label: 'resetNninter',
-      tooltip: 'resetNninter',
+      label: 'Reset',
+      tooltip: 'Reset current nnInteractive object - press R',
       commands: 'resetNninter',
     },
   },

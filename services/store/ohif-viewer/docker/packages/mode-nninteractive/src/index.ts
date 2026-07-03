@@ -105,8 +105,6 @@ function migrateHotkeyBindings(bindings = []) {
           return { ...binding, keys: ['ctrl+v'] };
         case 'undo':
           return { ...binding, keys: ['ctrl+shift+z'] };
-        case 'interpolateScrollForMarkerLabelmap':
-          return { ...binding, keys: ['ctrl+n'] };
         default:
           return binding;
       }

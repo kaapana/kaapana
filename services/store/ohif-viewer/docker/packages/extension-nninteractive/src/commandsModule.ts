@@ -3346,7 +3346,7 @@ const commandsModule = ({
         console.error('loadSegmentForRefinement error:', error);
       }
     },
-    async nninter(textPrompts?: string | string[]) {
+    async nninter() {
       if (toolboxState.getLocked()) {
         return;
       }
@@ -3449,7 +3449,6 @@ const commandsModule = ({
       const neg_lassos: any[] = [];
       const pos_scribbles: any[] = [];
       const neg_scribbles: any[] = [];
-      const probe2Labels: string[] = [];
       const seriesUID = currentDisplaySets.SeriesInstanceUID;
       const activeViewport = cornerstoneViewportService.getCornerstoneViewport(activeViewportId);
       // The proxy expects z in the source display-set (InstanceNumber) slice order. For MPR/volume
@@ -3468,7 +3467,6 @@ const commandsModule = ({
             continue;
           }
           (isNeg ? neg_points : pos_points).push(index);
-          if (!isNeg && !textPrompts) probe2Labels.push(e.label);
         } else if (e.toolName === 'RectangleROI2') {
           const box = getRectangleBoxIJK(e, activeViewport, seriesImageIds);
           if (!box?.length) {
@@ -3483,11 +3481,6 @@ const commandsModule = ({
           if (s) (isNeg ? neg_scribbles : pos_scribbles).push(s);
         }
       }
-      //VoxTell - Use provided textPrompts or extract from measurements
-      const text_prompts: string[] = textPrompts
-        ? (Array.isArray(textPrompts) ? textPrompts : [textPrompts])
-        : probe2Labels;
-
       // Hide measurements after inference unless user has set prompts to always-show
       if (!toolboxState.getPromptsVisible()) {
         currentMeasurements
@@ -3499,7 +3492,6 @@ const commandsModule = ({
       let url = `/nninteractive/infer/segmentation?image=${currentDisplaySets.SeriesInstanceUID}&output=dicom_seg`;
       let params = {
         largest_cc: false,
-      //  device: response.data.trainers.segmentation.config.device,
         result_extension: '.nii.gz',
         result_dtype: 'uint16',
         result_compress: false,
@@ -3513,7 +3505,6 @@ const commandsModule = ({
         neg_lassos: neg_lassos,
         pos_scribbles: pos_scribbles,
         neg_scribbles: neg_scribbles,
-        texts: text_prompts,
         nninter: true,
         nninter_reset_first: _needsReset,
       };
@@ -3527,7 +3518,6 @@ const commandsModule = ({
       const segmentationPromise = axios.post(url, data, {
         responseType: 'arraybuffer',
         headers: {
-          //accept: 'application/json, multipart/form-data',
           accept: 'application/octet-stream',
         },
       });

@@ -95,15 +95,6 @@ function initDefaultToolGroup(extensionManager, toolGroupService, commandsManage
         },
       },
       {
-        toolName: toolNames.LabelmapSlicePropagation,
-      },
-      {
-        toolName: toolNames.MarkerLabelmap,
-      },
-      {
-        toolName: toolNames.RegionSegmentPlus,
-      },
-      {
         toolName: 'CircularEraser',
         parentTool: 'Brush',
         configuration: {

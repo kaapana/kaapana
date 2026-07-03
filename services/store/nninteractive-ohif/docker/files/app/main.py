@@ -1,3 +1,4 @@
+import gzip
 import json
 import logging
 import math
@@ -531,17 +532,29 @@ def _prepare_lasso(volume_shape_zyx: tuple[int, int, int], points_xyz: np.ndarra
     return None, None
 
 
-def _add_prompt(entry: SeriesSession, kind: str, prompt: Any, callback) -> bool:
+def _add_prompt(entry: SeriesSession, kind: str, prompt: Any, callback) -> tuple[bool, Any]:
+    """Apply a prompt once (dedup by key). Returns (applied, changed_bbox_or_None)."""
     key = _prompt_key(kind, prompt)
     if key in entry.prompts_seen:
-        return False
-    callback()
+        return False, None
+    bbox = callback()
     entry.prompts_seen.add(key)
     entry.prompt_order.append(key)
-    return True
+    return True, bbox
 
 
-def _apply_prompts(entry: SeriesSession, data: dict[str, Any]) -> dict[str, int]:
+def _union_bbox(a: Any, b: Any) -> Any:
+    if a is None:
+        return b
+    if b is None:
+        return a
+    return [[min(a[i][0], b[i][0]), max(a[i][1], b[i][1])] for i in range(3)]
+
+
+def _apply_prompts(entry: SeriesSession, data: dict[str, Any]) -> tuple[dict[str, int], Any]:
+    """Apply new prompts. Returns (counts, changed_bbox) — the union of the changed-region bboxes
+    the session reports per interaction ([[z0,z1],[y0,y1],[x0,x1]] in raw buffer coords, same
+    convention as _crop_target's offset), or None if nothing visibly changed."""
     counts = {
         "pos_points": 0,
         "neg_points": 0,
@@ -553,13 +566,16 @@ def _apply_prompts(entry: SeriesSession, data: dict[str, Any]) -> dict[str, int]
         "neg_scribbles": 0,
     }
     shape = tuple(int(x) for x in entry.target_buffer.shape)
+    changed: Any = None
 
     for kind, include in (("pos_points", True), ("neg_points", False)):
         for point in _as_list(data.get(kind)):
             def cb(point=point, include=include):
-                entry.session.add_point_interaction(_viewer_point_to_model(point, entry), include_interaction=include)
-            if _add_prompt(entry, kind, point, cb):
+                return entry.session.add_point_interaction(_viewer_point_to_model(point, entry), include_interaction=include)
+            applied, bbox = _add_prompt(entry, kind, point, cb)
+            if applied:
                 counts[kind] += 1
+                changed = _union_bbox(changed, bbox)
 
     for kind, include in (("pos_boxes", True), ("neg_boxes", False)):
         for box in _as_list(data.get(kind)):
@@ -569,9 +585,11 @@ def _apply_prompts(entry: SeriesSession, data: dict[str, Any]) -> dict[str, int]
                 p0 = _viewer_point_to_model(box[0], entry)
                 p1 = _viewer_point_to_model(box[1], entry)
                 bbox = [[min(p0[i], p1[i]), max(p0[i], p1[i]) + 1] for i in range(3)]
-                entry.session.add_bbox_interaction(bbox, include_interaction=include)
-            if _add_prompt(entry, kind, box, cb):
+                return entry.session.add_bbox_interaction(bbox, include_interaction=include)
+            applied, bbox = _add_prompt(entry, kind, box, cb)
+            if applied:
                 counts[kind] += 1
+                changed = _union_bbox(changed, bbox)
 
     for kind, include in (("pos_lassos", True), ("neg_lassos", False)):
         for lasso in _as_list(data.get(kind)):
@@ -579,14 +597,17 @@ def _apply_prompts(entry: SeriesSession, data: dict[str, Any]) -> dict[str, int]
                 cleaned = clean_and_densify_polyline(lasso)
                 points = np.round(np.asarray(cleaned)).astype(int)
                 if points.size == 0:
-                    return
+                    return None
                 if entry.flipped:
                     points[:, 2] = entry.target_buffer.shape[0] - 1 - points[:, 2]
                 mask, bbox = _prepare_lasso(shape, points)
-                if mask is not None:
-                    entry.session.add_lasso_interaction(mask, include_interaction=include, interaction_bbox=bbox)
-            if _add_prompt(entry, kind, lasso, cb):
+                if mask is None:
+                    return None
+                return entry.session.add_lasso_interaction(mask, include_interaction=include, interaction_bbox=bbox)
+            applied, bbox = _add_prompt(entry, kind, lasso, cb)
+            if applied:
                 counts[kind] += 1
+                changed = _union_bbox(changed, bbox)
 
     for kind, include in (("pos_scribbles", True), ("neg_scribbles", False)):
         for scribble in _as_list(data.get(kind)):
@@ -594,16 +615,19 @@ def _apply_prompts(entry: SeriesSession, data: dict[str, Any]) -> dict[str, int]
                 cleaned = clean_and_densify_polyline(scribble)
                 points = np.round(np.asarray(cleaned)).astype(int)
                 if points.size == 0:
-                    return
+                    return None
                 if entry.flipped:
                     points[:, 2] = entry.target_buffer.shape[0] - 1 - points[:, 2]
                 mask, bbox = _prepare_scribble(shape, points)
-                if mask is not None:
-                    entry.session.add_scribble_interaction(mask, include_interaction=include, interaction_bbox=bbox)
-            if _add_prompt(entry, kind, scribble, cb):
+                if mask is None:
+                    return None
+                return entry.session.add_scribble_interaction(mask, include_interaction=include, interaction_bbox=bbox)
+            applied, bbox = _add_prompt(entry, kind, scribble, cb)
+            if applied:
                 counts[kind] += 1
+                changed = _union_bbox(changed, bbox)
 
-    return counts
+    return counts, changed
 
 
 def _crop_target(target_buffer: np.ndarray) -> tuple[bytes, list[int], list[int], list[int]]:
@@ -619,6 +643,21 @@ def _crop_target(target_buffer: np.ndarray) -> tuple[bytes, list[int], list[int]
     z0, z1 = int(z_idx[0]), int(z_idx[-1]) + 1
     y0, y1 = int(y_idx[0]), int(y_idx[-1]) + 1
     x0, x1 = int(x_idx[0]), int(x_idx[-1]) + 1
+    crop = np.ascontiguousarray(target_buffer[z0:z1, y0:y1, x0:x1])
+    return crop.tobytes(order="C"), [z0, y0, x0], full_shape, [z1 - z0, y1 - y0, x1 - x0]
+
+
+def _crop_target_bbox(
+    target_buffer: np.ndarray, bbox: Any
+) -> tuple[bytes, list[int], list[int], list[int]]:
+    """Slice the given changed-region bbox out of the buffer — no full-volume nonzero scan.
+    Same return shape/convention as _crop_target."""
+    full_shape = [int(x) for x in target_buffer.shape]
+    z0, z1 = max(0, int(bbox[0][0])), min(full_shape[0], int(bbox[0][1]))
+    y0, y1 = max(0, int(bbox[1][0])), min(full_shape[1], int(bbox[1][1]))
+    x0, x1 = max(0, int(bbox[2][0])), min(full_shape[2], int(bbox[2][1]))
+    if z1 <= z0 or y1 <= y0 or x1 <= x0:
+        return b"", [0, 0, 0], full_shape, [0, 0, 0]
     crop = np.ascontiguousarray(target_buffer[z0:z1, y0:y1, x0:x1])
     return crop.tobytes(order="C"), [z0, y0, x0], full_shape, [z1 - z0, y1 - y0, x1 - x0]
 
@@ -706,13 +745,33 @@ def _run_inference_request(entry: SeriesSession, mode: Any, data: dict[str, Any]
         ran = entry.session.undo()
         if ran and entry.prompt_order:
             entry.prompts_seen.discard(entry.prompt_order.pop())
-        seg, offset, full_shape, crop_shape = _crop_target(entry.target_buffer)
-        return _multipart(_meta(entry, seg, offset, full_shape, crop_shape, start, "undo", {"undone": ran}), seg)
+        # undo() only returns a bool; the changed-region bbox of the restore is exposed via the
+        # remote client's _last_paste_bbox (private, but it mirrors the server response verbatim).
+        undo_bbox = getattr(entry.session, "_last_paste_bbox", None) if ran else None
+        if undo_bbox is not None:
+            seg, offset, full_shape, crop_shape = _crop_target_bbox(entry.target_buffer, undo_bbox)
+        else:
+            # Nothing to undo / no visible change — empty delta (client exits early on undone=false).
+            seg, offset, full_shape, crop_shape = (
+                b"", [0, 0, 0], [int(x) for x in entry.target_buffer.shape], [0, 0, 0]
+            )
+        return _multipart(
+            _meta(entry, seg, offset, full_shape, crop_shape, start, "undo",
+                  {"undone": ran, "pred_scope": "delta"}),
+            seg,
+        )
 
     if mode == "set_mask":
         mask_bytes = data.get("mask_bytes")
         if not isinstance(mask_bytes, (bytes, bytearray)):
             raise HTTPException(400, "Missing required mask file for set_mask")
+        # The client gzips the (very sparse) full-volume mask when the browser supports
+        # CompressionStream; raw uploads remain valid (fallback / older clients).
+        if bytes(mask_bytes[:2]) == b"\x1f\x8b":
+            try:
+                mask_bytes = gzip.decompress(bytes(mask_bytes))
+            except Exception as e:
+                raise HTTPException(400, f"Failed to decompress gzipped mask: {e}") from e
         expected_size = int(np.prod(entry.target_buffer.shape))
         if len(mask_bytes) != expected_size:
             raise HTTPException(
@@ -730,18 +789,34 @@ def _run_inference_request(entry: SeriesSession, mode: Any, data: dict[str, Any]
         entry.prompts_seen.clear()
         entry.prompt_order.clear()
         seg, offset, full_shape, crop_shape = _crop_target(entry.target_buffer)
-        return _multipart(_meta(entry, seg, offset, full_shape, crop_shape, start, "manual correction"), seg)
+        return _multipart(
+            _meta(entry, seg, offset, full_shape, crop_shape, start, "manual correction", {"pred_scope": "full"}), seg
+        )
 
     if mode is not True and str(mode).lower() != "true":
         raise HTTPException(400, "Only nnInteractive requests are supported")
 
-    if _jsonish(data.get("nninter_reset_first"), False):
+    reset_ran = _jsonish(data.get("nninter_reset_first"), False)
+    if reset_ran:
         _reset(entry)
 
-    counts = _apply_prompts(entry, data)
-    seg, offset, full_shape, crop_shape = _crop_target(entry.target_buffer)
+    counts, changed_bbox = _apply_prompts(entry, data)
+    if reset_ran:
+        # Replay from scratch — the client must rebuild the whole object.
+        seg, offset, full_shape, crop_shape = _crop_target(entry.target_buffer)
+        scope = "full"
+    else:
+        # Ship only the changed region the session reported (empty if nothing visibly changed).
+        seg, offset, full_shape, crop_shape = (
+            _crop_target_bbox(entry.target_buffer, changed_bbox)
+            if changed_bbox is not None
+            else (b"", [0, 0, 0], [int(x) for x in entry.target_buffer.shape], [0, 0, 0])
+        )
+        scope = "delta"
     prompt_info = ", ".join(f"{k}={v}" for k, v in counts.items() if v) or "no new prompts"
-    return _multipart(_meta(entry, seg, offset, full_shape, crop_shape, start, prompt_info), seg)
+    return _multipart(
+        _meta(entry, seg, offset, full_shape, crop_shape, start, prompt_info, {"pred_scope": scope}), seg
+    )
 
 
 def _infer_segmentation_sync(

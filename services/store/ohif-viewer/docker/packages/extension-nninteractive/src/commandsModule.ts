@@ -1381,7 +1381,10 @@ const commandsModule = ({
     segmentationId: string,
     derivedImageIds: string[],
     sourceImageIds: string[],
-    mprVolumeViewportIds: string[]
+    mprVolumeViewportIds: string[],
+    // Display-set slice indices to re-sync. Honored only when the volume labelmap already exists;
+    // then ONLY those slices are zeroed + recopied instead of the full zero + 180-slice rebuild.
+    changedStackIdxs?: number[]
   ): Promise<boolean> => {
     if (!mprVolumeViewportIds.length) {
       return false;
@@ -1414,6 +1417,8 @@ const commandsModule = ({
       _mprRefVolumeIdBySeg.set(segmentationId, refVolumeId);
 
       let vol: any = cache.getVolume(labelmapVolumeId);
+      // Partial sync only makes sense on an already-built volume; a fresh one needs the full copy.
+      const partial = Array.isArray(changedStackIdxs) && !!vol;
       if (!vol) {
         vol = volumeLoader.createAndCacheDerivedLabelmapVolume(refVolumeId, { volumeId: labelmapVolumeId });
       }
@@ -1439,14 +1444,21 @@ const commandsModule = ({
       }
 
       // Read (copy), zero, then write each stack labelmap slice into its volume k.
+      // Partial sync: keep the existing volume contents and refresh ONLY the changed slices
+      // (zero that slice's range, then re-merge) — skips the full-volume fill + 180-slice copy.
       const arr = vm.getCompleteScalarDataArray();
-      (arr as any).fill?.(0);
+      if (!partial) {
+        (arr as any).fill?.(0);
+      }
 
       let written = 0;
       let skipped = 0;
       let usedFallback = 0;
       const kSeen: number[] = [];
-      for (let idx = 0; idx < derivedImageIds.length; idx++) {
+      const idxList: number[] = partial
+        ? (changedStackIdxs as number[]).filter(i => i >= 0 && i < derivedImageIds.length)
+        : Array.from({ length: derivedImageIds.length }, (_, i) => i);
+      for (const idx of idxList) {
         const derived = cache.getImage(derivedImageIds[idx]);
         if (!derived) { skipped++; continue; }
         // Segment model: imageIds is N per-segment BLOCKS, each block re-referencing the same source
@@ -1473,6 +1485,10 @@ const commandsModule = ({
         // source slice don't erase one another. The volume is single-value, so a later block wins on
         // shared voxels — MPR overlap is best-effort; the stack view shows the true overlap.
         const base = k * sliceLen;
+        if (partial) {
+          // Changed slice: drop its previous contents first so cleared voxels disappear.
+          (arr as any).fill?.(0, base, base + sliceLen);
+        }
         for (let j = 0; j < sliceLen; j++) { if (sd[j] !== 0) (arr as any)[base + j] = sd[j]; }
         written++;
         if (kSeen.length < 3) kSeen.push(k);
@@ -1480,7 +1496,8 @@ const commandsModule = ({
       vm.setCompleteScalarDataArray(arr);
       console.info(
         `[nninter] MPR labelmap volume ${labelmapVolumeId}: dims=${nx}x${ny}x${nz}, ` +
-        `wrote ${written}/${derivedImageIds.length} slices (skipped ${skipped}, fallback ${usedFallback}); ` +
+        `wrote ${written}/${partial ? `${idxList.length} changed` : derivedImageIds.length} slices ` +
+        `(skipped ${skipped}, fallback ${usedFallback}${partial ? ', partial' : ''}); ` +
         `sample k=${kSeen.join(',')}`
       );
 
@@ -1519,7 +1536,8 @@ const commandsModule = ({
   const syncMprLabelmapFromStack = async (
     segmentationId: string,
     derivedImageIds: string[],
-    sourceImageIds: string[]
+    sourceImageIds: string[],
+    changedStackIdxs?: number[]
   ): Promise<boolean> => {
     const ids = servicesManager.services.cornerstoneViewportService.getViewportIds();
     const mprVolumeViewportIds = ids.filter(id => {
@@ -1529,7 +1547,9 @@ const commandsModule = ({
     if (!mprVolumeViewportIds.length) {
       return false;
     }
-    return buildAndSyncLabelmapVolumeFor(segmentationId, derivedImageIds, sourceImageIds, mprVolumeViewportIds);
+    return buildAndSyncLabelmapVolumeFor(
+      segmentationId, derivedImageIds, sourceImageIds, mprVolumeViewportIds, changedStackIdxs
+    );
   };
 
   async function postSegmentationProcessing({
@@ -1546,6 +1566,7 @@ const commandsModule = ({
     activeSegmentation,
     currentImageIdIndex,
     z_range,
+    changedSlices,
   }: {
     activeViewportId: string;
     segmentationId: string;
@@ -1560,6 +1581,9 @@ const commandsModule = ({
     activeSegmentation: any;
     currentImageIdIndex?: number;
     z_range: number[];
+    // Display-set slice indices this operation touched; lets the MPR volume sync only those
+    // slices instead of a full rebuild. Only honored on the refine fast path.
+    changedSlices?: number[];
   }) {
     rememberObjectSegmentation(currentDisplaySets?.SeriesInstanceUID, segmentationId);
     _nninterManagedSegIds.add(segmentationId); // ours — the import-split must not re-split it
@@ -1657,8 +1681,8 @@ const commandsModule = ({
 
     // Build/sync the derived labelmap VOLUME (delegates to the reusable closure-level helper, passing
     // this inference's local slice arrays). Returns true if a renderable volume labelmap is ready.
-    const buildAndSyncLabelmapVolume = () =>
-      buildAndSyncLabelmapVolumeFor(segmentationId, derivedImageIds, imageIds, mprVolumeViewportIds);
+    const buildAndSyncLabelmapVolume = (changedStackIdxs?: number[]) =>
+      buildAndSyncLabelmapVolumeFor(segmentationId, derivedImageIds, imageIds, mprVolumeViewportIds, changedStackIdxs);
 
     if (!existing) {
       // ── New object: build the segmentation + representations so it renders. A refine (in-place
@@ -1723,7 +1747,7 @@ const commandsModule = ({
       // The stack labelmap images were updated in place by the voxel-writing loop. Re-sync the volume
       // labelmap from them so the MPR panes update too, then dispatch SEGMENTATION_DATA_MODIFIED to
       // re-upload the GPU texture for both stack and volume viewports on the next render.
-      await buildAndSyncLabelmapVolume();
+      await buildAndSyncLabelmapVolume(changedSlices);
       eventTarget.dispatchEvent(
         new CustomEvent(csToolsEnums.Events.SEGMENTATION_DATA_MODIFIED, {
           detail: { segmentationId },
@@ -2805,58 +2829,102 @@ const commandsModule = ({
         let merged = _undoBlockIds.map(imageId => cache.getImage(imageId));
         if (flipped) merged.reverse();
 
-        // Pass 1: clear all voxels of the active segment (use dirtySlices when available).
         const prevStats = (activeSegmentation.segments?.[segmentNumber] as any)?.cachedStats;
         const prevDirty: number[] | undefined = prevStats?.dirtySlices;
-        const clearSlice = (arrIdx: number) => {
-          const vm = merged[arrIdx]?.voxelManager;
-          if (!vm) return;
-          const sd = vm.getScalarData();
-          for (let j = 0; j < sd.length; j++) {
-            if (sd[j] !== 0) sd[j] = 0;
-          }
-        };
-        if (prevDirty?.length) {
-          for (const origIdx of prevDirty) {
-            clearSlice(flipped ? merged.length - 1 - origIdx : origIdx);
-          }
-        } else {
-          for (let i = 0; i < merged.length; i++) clearSlice(i);
-        }
-
-        // Pass 2: write the restored crop (skipped entirely when the object is now empty).
+        // Delta undo (pred_scope=delta): the proxy ships only the diff region between the pre- and
+        // post-undo buffers. Copy it wholesale (zeros clear voxels the undo removed); everything
+        // outside is untouched. 'full' (older proxy) keeps the clear-all + rewrite behavior.
+        const _undoScope = String((meta as any).pred_scope || 'full');
+        const isDelta = _undoScope === 'delta';
         const z_range: number[] = [];
-        if (_hasCropGeom) {
-          for (let i = _segZ0; i < _segZ1; i++) {
-            const sd = merged[i].voxelManager.getScalarData();
-            const c = i - _segZ0;
-            const cropSliceBase = c * _cropY * _cropX;
-            let wrote = false;
-            for (let cy = 0; cy < _cropY; cy++) {
-              const srcRow = cropSliceBase + cy * _cropX;
-              const dstRow = (_y0 + cy) * _fullX + _x0;
-              for (let cx = 0; cx < _cropX; cx++) {
-                if (cropBytes[srcRow + cx] === 1) {
-                  sd[dstRow + cx] = segmentNumber;
-                  wrote = true;
+        let _dirtyOut: number[] | null = null;
+        let _changedForSync: number[] | undefined;
+
+        if (isDelta) {
+          if (_hasCropGeom) {
+            const deltaIdxs: number[] = [];
+            for (let i = _segZ0; i < _segZ1; i++) {
+              const sd = merged[i].voxelManager.getScalarData();
+              const c = i - _segZ0;
+              const cropSliceBase = c * _cropY * _cropX;
+              for (let cy = 0; cy < _cropY; cy++) {
+                const srcRow = cropSliceBase + cy * _cropX;
+                const dstRow = (_y0 + cy) * _fullX + _x0;
+                for (let cx = 0; cx < _cropX; cx++) {
+                  sd[dstRow + cx] = cropBytes[srcRow + cx] ? segmentNumber : 0;
                 }
               }
+              deltaIdxs.push(flipped ? merged.length - i - 1 : i);
             }
-            if (wrote) z_range.push(flipped ? merged.length - i - 1 : i);
+            _dirtyOut = Array.from(new Set([...(prevDirty ?? []), ...deltaIdxs]));
+            _changedForSync = deltaIdxs;
+          } else {
+            // Empty delta — the undo changed nothing visible; leave stack + stats untouched.
+            _changedForSync = [];
+          }
+        } else {
+          // Pass 1: clear all voxels of the active segment (use dirtySlices when available).
+          const clearSlice = (arrIdx: number) => {
+            const vm = merged[arrIdx]?.voxelManager;
+            if (!vm) return;
+            const sd = vm.getScalarData();
+            for (let j = 0; j < sd.length; j++) {
+              if (sd[j] !== 0) sd[j] = 0;
+            }
+          };
+          if (prevDirty?.length) {
+            for (const origIdx of prevDirty) {
+              clearSlice(flipped ? merged.length - 1 - origIdx : origIdx);
+            }
+          } else {
+            for (let i = 0; i < merged.length; i++) clearSlice(i);
+          }
+
+          // Pass 2: write the restored crop (skipped entirely when the object is now empty).
+          if (_hasCropGeom) {
+            for (let i = _segZ0; i < _segZ1; i++) {
+              const sd = merged[i].voxelManager.getScalarData();
+              const c = i - _segZ0;
+              const cropSliceBase = c * _cropY * _cropX;
+              let wrote = false;
+              for (let cy = 0; cy < _cropY; cy++) {
+                const srcRow = cropSliceBase + cy * _cropX;
+                const dstRow = (_y0 + cy) * _fullX + _x0;
+                for (let cx = 0; cx < _cropX; cx++) {
+                  if (cropBytes[srcRow + cx] === 1) {
+                    sd[dstRow + cx] = segmentNumber;
+                    wrote = true;
+                  }
+                }
+              }
+              if (wrote) z_range.push(flipped ? merged.length - i - 1 : i);
+            }
           }
         }
         if (flipped) merged.reverse();
 
-        // Keep cachedStats.dirtySlices in sync so the next interaction clears correctly.
+        // Keep cachedStats.dirtySlices in sync so the next interaction clears correctly. Delta
+        // undos keep these cumulative; a full response replaces them.
         if ((activeSegmentation.segments?.[segmentNumber] as any)?.cachedStats) {
-          (activeSegmentation.segments[segmentNumber] as any).cachedStats.dirtySlices = z_range;
-          (activeSegmentation.segments[segmentNumber] as any).cachedStats.segZ0 = _hasCropGeom ? _segZ0 : 0;
-          (activeSegmentation.segments[segmentNumber] as any).cachedStats.segZ1 = _hasCropGeom ? _segZ1 : merged.length;
+          const cs = (activeSegmentation.segments[segmentNumber] as any).cachedStats;
+          if (isDelta) {
+            if (_dirtyOut) cs.dirtySlices = _dirtyOut;
+            if (_hasCropGeom) {
+              cs.segZ0 = cs.segZ0 != null ? Math.min(cs.segZ0, _segZ0) : _segZ0;
+              cs.segZ1 = cs.segZ1 != null ? Math.max(cs.segZ1, _segZ1) : _segZ1;
+            }
+          } else {
+            cs.dirtySlices = z_range;
+            cs.segZ0 = _hasCropGeom ? _segZ0 : 0;
+            cs.segZ1 = _hasCropGeom ? _segZ1 : merged.length;
+          }
         }
 
         // The stack labelmap changed in place — re-sync the MPR volume labelmap or MPR panes keep
-        // rendering the pre-undo state.
-        await syncMprLabelmapFromStack(segmentationId, _undoBlockIds, currentDisplaySets.imageIds ?? []);
+        // rendering the pre-undo state (delta → only the changed slices).
+        await syncMprLabelmapFromStack(
+          segmentationId, _undoBlockIds, currentDisplaySets.imageIds ?? [], _changedForSync
+        );
 
         // Remove the most-recently-added prompt measurement of THIS object (the server undid its own
         // last interaction; the series' last prompt may belong to a different object).
@@ -3175,8 +3243,28 @@ const commandsModule = ({
         restore_label_idx: false,
         nninter: 'set_mask',
       };
+      // Gzip the (very sparse) full-volume mask when the browser supports it — ~47 MB raw shrinks
+      // to well under 1 MB. The proxy sniffs the gzip magic bytes, so raw stays a valid fallback.
+      let maskUpload: Blob = new Blob([mask]);
+      let maskFileName = 'mask.raw';
+      if (typeof CompressionStream !== 'undefined') {
+        try {
+          const _tGz = Date.now();
+          const gz = await new Response(
+            maskUpload.stream().pipeThrough(new CompressionStream('gzip'))
+          ).blob();
+          console.log(
+            `[nninter] set_mask gzip: ${mask.byteLength} → ${gz.size} bytes ` +
+            `(${((Date.now() - _tGz) / 1000).toFixed(3)}s)`
+          );
+          maskUpload = gz;
+          maskFileName = 'mask.raw.gz';
+        } catch (e) {
+          console.warn('[nninter] set_mask gzip failed — uploading raw:', e);
+        }
+      }
       const data = constructInferenceFormData(params, [
-        { name: 'mask', data: new Blob([mask]), fileName: 'mask.raw' },
+        { name: 'mask', data: maskUpload, fileName: maskFileName },
       ]);
 
       const loadPromise = axios.post(url, data, {
@@ -3546,7 +3634,20 @@ const commandsModule = ({
 
 
           let merged_derivedImages = [];
-          let z_range = [];
+          let z_range: number[] = [];
+          // Delta responses (pred_scope=delta): the proxy ships only the CHANGED region the model
+          // reported for this prompt, not the whole object. The client then copies that region
+          // wholesale (zeros clear removed voxels) and leaves everything outside untouched.
+          // Missing pred_scope (older proxy) → 'full' (clear + rewrite whole object).
+          const predScope = String((meta as any).pred_scope || 'full');
+          const isDelta = mode === 'refine' && predScope === 'delta' && _hasCropGeom;
+          // Slices the MPR volume must re-sync (display-set indices); undefined → full rebuild.
+          let _changedForSync: number[] | undefined;
+          // Cumulative stats for delta writes (dirtySlices/segZ0/segZ1 must stay a superset of the
+          // object's extent, not just this prompt's region).
+          let _dirtyOut: number[] | null = null;
+          let _statsZ0: number | null = null;
+          let _statsZ1: number | null = null;
           // Per-object model: each object is its OWN segmentation, a single S-image labelmap holding
           // value 1. A new object → fresh S images; a refine → clear this object's map (all nonzero)
           // and rewrite. No blocks.
@@ -3603,8 +3704,6 @@ const commandsModule = ({
             );
             if (flipped) merged_derivedImages.reverse();
 
-            // ── Pass 1: Clear this object's old pixels ───────────────────────
-            // dirtySlices (exact indices) fast path; else bounding-box range scan.
             const _prevDirtySlices = (existingSegments[segmentNumber] as any)
               ?.cachedStats?.dirtySlices as number[] | undefined;
             const _tClear = Date.now();
@@ -3613,6 +3712,39 @@ const commandsModule = ({
             const _hasPrevData = _prevDirtySlices?.length ||
               _prevCachedStats?.segZ0 != null || _prevCachedStats?.segZ1 != null;
 
+            if (isDelta) {
+              // ── Delta: single pass — copy the changed region wholesale (zeros clear removed
+              // voxels); no whole-object clear, nothing outside the region is touched. ──
+              const _tDelta = Date.now();
+              const deltaDisplayIdxs: number[] = [];
+              for (let i = _segZ0; i < _segZ1; i++) {
+                const scalarData = (merged_derivedImages[i].voxelManager as csTypes.IVoxelManager<number>).getScalarData();
+                const c = i - _segZ0;
+                const cropSliceBase = c * _cropY * _cropX;
+                for (let cy = 0; cy < _cropY; cy++) {
+                  const srcRow = cropSliceBase + cy * _cropX;
+                  const dstRow = (_y0 + cy) * _fullX + _x0;
+                  for (let cx = 0; cx < _cropX; cx++) {
+                    scalarData[dstRow + cx] = cropBytes[srcRow + cx] ? segmentNumber : 0;
+                  }
+                }
+                deltaDisplayIdxs.push(flipped ? merged_derivedImages.length - i - 1 : i);
+              }
+              // Cumulative bookkeeping: the object may extend beyond this prompt's region.
+              _dirtyOut = Array.from(new Set([...(_prevDirtySlices ?? []), ...deltaDisplayIdxs]));
+              const _prevZ0v = _prevCachedStats?.segZ0;
+              const _prevZ1v = _prevCachedStats?.segZ1;
+              _statsZ0 = _prevZ0v != null ? Math.min(_prevZ0v, _segZ0) : _segZ0;
+              _statsZ1 = _prevZ1v != null ? Math.max(_prevZ1v, _segZ1) : _segZ1;
+              z_range = _dirtyOut;
+              _changedForSync = deltaDisplayIdxs;
+              console.log(
+                `[nninter] delta write (${deltaDisplayIdxs.length} slices, ` +
+                `${_cropY}x${_cropX} region): ${((Date.now()-_tDelta)/1000).toFixed(3)}s`
+              );
+            } else
+            // ── Pass 1: Clear this object's old pixels ───────────────────────
+            // dirtySlices (exact indices) fast path; else bounding-box range scan.
             if (_prevDirtySlices?.length) {
               for (const origIdx of _prevDirtySlices) {
                 const arrIdx = flipped ? (merged_derivedImages.length - 1 - origIdx) : origIdx;
@@ -3643,8 +3775,9 @@ const commandsModule = ({
             }
 
             // ── Pass 2: Write new pixels from crop only (no background guard) ──
+            // (delta path already wrote its region above — single pass)
             const _tWrite3 = Date.now();
-            if (_hasCropGeom) {
+            if (!isDelta && _hasCropGeom) {
               for (let i = _segZ0; i < _segZ1; i++) {
                 const scalarData = (merged_derivedImages[i].voxelManager as csTypes.IVoxelManager<number>).getScalarData();
                 const c = i - _segZ0;
@@ -3672,7 +3805,11 @@ const commandsModule = ({
                 }
               }
             }
-            console.log(`[nninter] write (${z_range.length} slices): ${((Date.now()-_tWrite3)/1000).toFixed(3)}s`);
+            if (!isDelta) {
+              console.log(`[nninter] write (${z_range.length} slices): ${((Date.now()-_tWrite3)/1000).toFixed(3)}s`);
+              // Full rewrite touched everything previously dirty (cleared) plus the new writes.
+              _changedForSync = Array.from(new Set([...(_prevDirtySlices ?? []), ...z_range]));
+            }
 
             if (flipped) merged_derivedImages.reverse();
           }
@@ -3704,10 +3841,12 @@ const commandsModule = ({
               algorithmName: currentDisplaySets.SeriesInstanceUID,
               description: prompt_info + " (nninter " + nninter_elapsed + "s)",
               center:  z_range.length > 0 ? z_range.reduce((sum, z) => sum + z, 0) / z_range.length : 0,
-              // z-range kept for fallback; dirtySlices is the fast-path clear target
-              segZ0: _hasCropGeom ? _segZ0 : 0,
-              segZ1: _hasCropGeom ? _segZ1 : (merged_derivedImages?.length ?? 0),
-              dirtySlices: z_range,
+              // z-range kept for fallback; dirtySlices is the fast-path clear target.
+              // Delta writes keep these CUMULATIVE (union with the previous extent) — the object
+              // extends beyond the changed region.
+              segZ0: _statsZ0 ?? (_hasCropGeom ? _segZ0 : 0),
+              segZ1: _statsZ1 ?? (_hasCropGeom ? _segZ1 : (merged_derivedImages?.length ?? 0)),
+              dirtySlices: _dirtyOut ?? z_range,
               color: objectColor,
             }
           } as any;
@@ -3727,6 +3866,7 @@ const commandsModule = ({
             activeSegmentation,
             currentImageIdIndex,
             z_range,
+            changedSlices: _changedForSync,
           });
           // The backend now holds THIS segment's interactions (reset_first applied if we switched).
           _serverObjectId = serverObjKey(segmentationId, segmentNumber);

@@ -3164,6 +3164,19 @@ const commandsModule = ({
         // reset (which would wipe the just-loaded mask).
         _serverObjectId = serverObjKey(segmentationId, _effIndex);
 
+        // The uploaded mask already reflects every existing prompt of this object — mark them baked
+        // so nninter() never replays them (set_mask cleared the server's dedup cache).
+        measurementService
+          .getMeasurements()
+          .filter(
+            e =>
+              e?.metadata?.segmentationId === segmentationId &&
+              e?.metadata?.SegmentNumber === _effIndex
+          )
+          .forEach(e => {
+            e.metadata.baked = true;
+          });
+
         // Prime the refine clear so the next inference removes this segment's current voxels before
         // writing the refined result. dirtySlices gives the fast path; segZ0/segZ1 force a full-range
         // value-based clear fallback (order-independent) if the fast path can't resolve slices.
@@ -3250,6 +3263,22 @@ const commandsModule = ({
       const _objectOrdinal = existing
         ? Math.max(1, _siblings.findIndex((s: any) => s.segmentationId === segmentationId) + 1)
         : _siblings.length + 1;
+      // If the backend doesn't hold THIS object (session re-init, reset, or a switch that skipped
+      // the panel click), sync it via set_mask instead of replaying prompts — a replay would
+      // re-apply baked (possibly mistaken) prompts out of order onto a wiped buffer. Must run
+      // BEFORE the unassigned prompts are tagged below, so the freshly-drawn prompt is not
+      // marked baked by the load. On failure _serverObjectId stays stale → reset_first fallback.
+      if (
+        mode === 'refine' &&
+        priorImageIds.length > 0 &&
+        _serverObjectId !== serverObjKey(segmentationId, segmentNumber)
+      ) {
+        try {
+          await actions.loadSegmentForRefinement({ segmentationId, segmentIndex: segmentNumber });
+        } catch (error) {
+          console.warn('[nninter] pre-refine set_mask sync failed — falling back to reset_first:', error);
+        }
+      }
       // Tag freshly-drawn (unassigned) prompts with THIS object. The prompt-collection loop isolates
       // an object's prompts by (segmentationId, SegmentNumber=1).
       for (const e of unAssignedMeasurements) {
@@ -3285,9 +3314,10 @@ const commandsModule = ({
       const seriesImageIds: string[] = currentDisplaySets.imageIds ?? [];
       for (const e of currentMeasurements) {
         // Every object uses SegmentNumber 1, so the discriminator across objects is segmentationId.
-        // Isolate THIS segment's prompts: same segmentation AND same segment number.
+        // Isolate THIS segment's prompts: same segmentation AND same segment number. Baked prompts
+        // are already reflected in a mask uploaded via set_mask — never replay them.
         if (e.referenceSeriesUID !== seriesUID || e.metadata.segmentationId !== segmentationId ||
-            e.metadata.SegmentNumber !== segmentNumber) continue;
+            e.metadata.SegmentNumber !== segmentNumber || e.metadata.baked) continue;
         const isNeg = !!e.metadata.neg;
         if (e.toolName === 'Probe2') {
           const index = getPromptPointIJK(e, activeViewport, seriesImageIds);

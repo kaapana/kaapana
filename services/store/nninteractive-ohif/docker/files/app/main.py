@@ -722,6 +722,9 @@ def _run_inference_request(entry: SeriesSession, mode: Any, data: dict[str, Any]
         mask = np.frombuffer(mask_bytes, dtype=np.uint8).reshape(entry.target_buffer.shape)
         if entry.flipped:
             mask = mask[::-1]
+        # Drop the previous object's interactions BEFORE writing the mask (reset may zero the
+        # buffer) — the uploaded mask is the sole starting state for the next prompts.
+        entry.session.reset_interactions()
         entry.target_buffer[...] = (mask > 0).astype(np.uint8)
         entry.session.set_target_buffer(entry.target_buffer)
         entry.prompts_seen.clear()

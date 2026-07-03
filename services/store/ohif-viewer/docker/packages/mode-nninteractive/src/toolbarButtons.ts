@@ -232,7 +232,7 @@ const toolbarButtons: Button[] = [
     id: 'Probe2',
     uiType: 'ohif.toolBoxButton',
     props: {
-      icon: 'tool-probe',
+      icon: 'tool-nninteractive-point',
       label: 'Point',
       tooltip: 'Point [P]',
       commands: toggleToolActiveToolbar,
@@ -432,7 +432,7 @@ const toolbarButtons: Button[] = [
     id: 'RectangleROI2',
     uiType: 'ohif.toolBoxButton',
     props: {
-      icon: 'tool-rectangle',
+      icon: 'tool-nninteractive-bbox',
       label: 'BBox',
       tooltip: 'Bounding Box [B]',
       commands: toggleToolActiveToolbar,
@@ -465,7 +465,7 @@ const toolbarButtons: Button[] = [
     id: 'PlanarFreehandROI3',
     uiType: 'ohif.toolBoxButton',
     props: {
-      icon: 'tool-freehand-polygon',
+      icon: 'tool-nninteractive-lasso',
       label: 'Lasso',
       tooltip: 'Lasso [L]',
       commands: toggleToolActiveToolbar,
@@ -476,7 +476,7 @@ const toolbarButtons: Button[] = [
     id: 'PlanarFreehandROI2',
     uiType: 'ohif.toolBoxButton',
     props: {
-      icon: 'icon-tool-freehand-roi',
+      icon: 'tool-nninteractive-scribble',
       label: 'Scribble',
       tooltip: 'Scribble [S]',
       commands: toggleToolActiveToolbar,

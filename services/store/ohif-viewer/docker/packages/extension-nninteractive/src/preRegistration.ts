@@ -6,6 +6,12 @@ import {
 } from '@cornerstonejs/tools';
 import { Icons } from '@ohif/ui-next';
 
+import {
+  ToolNnInteractiveBbox,
+  ToolNnInteractiveLasso,
+  ToolNnInteractivePoint,
+  ToolNnInteractiveScribble,
+} from './icons/PromptIcons';
 import ToolNninter from './icons/ToolNninter';
 import ToolTarget from './icons/ToolTarget';
 import {
@@ -199,6 +205,10 @@ function registerToolLoadMeasurementVisibility(measurementService) {
 
 export default function preRegistration({ servicesManager, commandsManager }: any = {}) {
   Icons.addIcon('tool-nninter', ToolNninter);
+  Icons.addIcon('tool-nninteractive-point', ToolNnInteractivePoint);
+  Icons.addIcon('tool-nninteractive-bbox', ToolNnInteractiveBbox);
+  Icons.addIcon('tool-nninteractive-scribble', ToolNnInteractiveScribble);
+  Icons.addIcon('tool-nninteractive-lasso', ToolNnInteractiveLasso);
   Icons.addIcon('tool-target', ToolTarget);
 
   safeAddTool(Probe2Tool);

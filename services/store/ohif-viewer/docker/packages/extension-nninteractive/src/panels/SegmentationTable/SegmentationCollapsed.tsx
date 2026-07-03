@@ -16,6 +16,7 @@ import {
   SelectValue,
   PanelSection,
 } from '@ohif/ui-next';
+import { getSegmentationDisplayColor, SegmentationColorSwatch } from './SegmentationColorSwatch';
 
 // Main header component
 const SegmentationCollapsedHeader = ({ children }: { children: React.ReactNode }) => {
@@ -57,6 +58,7 @@ const SegmentationCollapsedSelector = () => {
   const segmentations = data.map(seg => ({
     id: seg.segmentation.segmentationId,
     label: seg.segmentation.label,
+    color: getSegmentationDisplayColor(seg.segmentation, seg.representation),
   }));
 
   return (
@@ -65,6 +67,8 @@ const SegmentationCollapsedSelector = () => {
       value={activeSegmentationId}
     >
       <SelectTrigger className="w-full overflow-hidden">
+        {/* Radix portals the SELECTED item's content (swatch + label) into SelectValue, so the
+            trigger shows the active object's color without a second, duplicate swatch here. */}
         <SelectValue placeholder={t('Select a segmentation')} />
       </SelectTrigger>
       <SelectContent>
@@ -73,7 +77,10 @@ const SegmentationCollapsedSelector = () => {
             key={seg.id}
             value={seg.id}
           >
-            {seg.label}
+            <span className="flex min-w-0 flex-1 items-center gap-2">
+              <SegmentationColorSwatch color={seg.color} />
+              <span className="truncate">{seg.label}</span>
+            </span>
           </SelectItem>
         ))}
       </SelectContent>

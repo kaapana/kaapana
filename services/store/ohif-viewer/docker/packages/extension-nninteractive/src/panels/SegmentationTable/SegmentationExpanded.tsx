@@ -16,6 +16,7 @@ import {
   TooltipTrigger,
 } from '@ohif/ui-next';
 import { useDynamicMaxHeight } from './useDynamicMaxHeight';
+import { getSegmentationDisplayColor, SegmentationColorSwatch } from './SegmentationColorSwatch';
 
 // The Header container component
 const SegmentationExpandedHeader = ({ children }: { children: React.ReactNode }) => {
@@ -56,9 +57,15 @@ const SegmentationExpandedDropdownMenu = ({ children }: { children: React.ReactN
 
 // Label component - for displaying the segmentation label
 const SegmentationExpandedLabel = () => {
-  const { segmentation } = useSegmentationExpanded('SegmentationExpandedLabel');
+  const { segmentation, representation } = useSegmentationExpanded('SegmentationExpandedLabel');
+  const color = getSegmentationDisplayColor(segmentation, representation);
 
-  return <div className="pl-1.5">{segmentation.label}</div>;
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-2 pl-1.5">
+      <SegmentationColorSwatch color={color} />
+      <span className="truncate">{segmentation.label}</span>
+    </div>
+  );
 };
 
 // Info component - for the info tooltip

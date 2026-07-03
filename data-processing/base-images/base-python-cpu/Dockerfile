@@ -50,7 +50,7 @@ RUN python3 -m pip install --upgrade setuptools pip && pip3 install -c https://c
 
 # Install code server and python extension
 RUN wget https://code-server.dev/install.sh
-RUN /bin/bash install.sh --version 4.121.0
+RUN /bin/bash install.sh --version 4.127.0
 RUN code-server --install-extension ms-python.python
 
 # Fix CVE-2026-44240: replace basic-ftp 5.3.0 with 5.3.1 in all extension node_modules

@@ -1,111 +1,117 @@
 <template lang="pug">
   .workflow-applications
     IdleTracker
-    v-container(grid-list-lg text-left fluid)
-      v-card
-        v-card-title
-          | Applications triggered from a workflow &nbsp;
-          v-tooltip(bottom='')
-            template(v-slot:activator='{ on, attrs }')
-              v-icon(color='primary' dark='' v-bind='attrs' v-on='on')
-                | mdi-information-outline
-            span If a workflow has started an application, you will find a link to it here. Use 'Complete Interaction' button to continue workflow.
-          v-spacer
-          v-text-field(v-model='search' append-icon='mdi-magnify' label='Search' single-line='' hide-details='')
-        v-data-table.elevation-1(
-          :headers="headers",
-          :items="triggeredApplications",
-          :items-per-page="20",
-          :loading="loadingTriggered",
-          sort-by='releaseName',
-          loading-text="Loading applications..."
-        )
-          template(v-slot:item.paths="{ item }")
-              a(
-                :href="path",
-                target="_blank",
-                v-for="path in item.paths",
-                :key="item.path"
-              )
-                v-icon(color="primary") mdi-open-in-new
-          template(v-slot:item.ready="{ item }")
-            v-tooltip(right)
-              template(v-slot:activator="{ on, attrs }")
-                v-progress-circular(
-                  v-if="podStatus(item) === 'pending'"
-                  indeterminate,
-                  size="24",
-                  width="3",
-                  color="primary",
-                  v-bind="attrs",
-                  v-on="on"
-                )
-                v-icon(
-                  v-else-if="podStatus(item) === 'error'"
-                  color="red",
-                  v-bind="attrs",
-                  v-on="on"
-                ) mdi-alert-circle
-                v-icon(
-                  v-else
-                  color="green",
-                  v-bind="attrs",
-                  v-on="on"
-                ) mdi-check-circle
-              span(v-if="item.pods && item.pods.length")
-                div(v-for="pod in item.pods" :key="pod.name") {{ pod.name }}: {{ pod.status }} ({{ pod.ready }}, restarts: {{ pod.restarts }})
-              span(v-else) No pods found
-          template(v-slot:item.releaseName="{ item }")
-            v-btn(
-              @click="deleteChart(item.releaseName)",
-              color="primary",
-            ) Complete interaction
+    v-container(grid-list-lg text-left fluid style="max-width: 1000px")
+      v-expansion-panels(multiple v-model="openPanels")
+        v-expansion-panel
+          v-expansion-panel-header
+            div
+              .text-subtitle-1.font-weight-medium Applications requesting your input
+              .text-caption.grey--text If a workflow has started an application, you will find a link to it here. Use the 'Finish Interaction' button to continue the workflow.
+          v-expansion-panel-content
+            .d-flex.align-center.justify-end.mb-2
+              span.text-caption.mr-2 Sort by:
+              v-btn-toggle(v-model="sortKey" mandatory dense)
+                v-btn(value="name" small) Name
+                v-btn(value="startedAt" small) Started
+              v-btn.ml-2(icon small @click="sortDesc = !sortDesc")
+                v-icon {{ sortDesc ? 'mdi-sort-descending' : 'mdi-sort-ascending' }}
+            v-progress-linear(v-if="loadingTriggered" indeterminate)
+            v-list(v-else two-line)
+              template(v-if="sortedApps(triggeredApplications).length")
+                v-list-item(v-for="item in sortedApps(triggeredApplications)" :key="item.releaseName")
+                  v-list-item-icon.align-self-center
+                    v-icon mdi-application
+                  v-list-item-content
+                    v-list-item-title.font-weight-bold {{ item.name }}
+                    v-list-item-subtitle Started {{ item.createdAt }}
+                  .d-flex.align-center.flex-wrap
+                    v-tooltip(right)
+                      template(v-slot:activator="{ on, attrs }")
+                        span(v-bind="attrs" v-on="on")
+                          v-btn(v-for="path in item.paths" :key="path" outlined :color="linkColor(item)" class="ma-1" @click="onLinkClick(item, path)")
+                            v-progress-circular(v-if="podStatus(item) === 'pending'" indeterminate size="16" width="2" color="grey" class="mr-2")
+                            v-icon(v-else-if="podStatus(item) === 'error'" left small) mdi-alert-circle
+                            v-icon(v-else left small) mdi-open-in-new
+                            | {{ linkLabel(item) }}
+                      span(v-if="item.pods && item.pods.length")
+                        div(v-for="pod in item.pods" :key="pod.name") {{ pod.name }}: {{ pod.status }} ({{ pod.ready }}, restarts: {{ pod.restarts }})
+                      span(v-else) No pods found
+                    v-btn(color="green" outlined class="ma-1" @click="openFinishDialog(item)")
+                      v-icon(left small) mdi-check-circle-outline
+                      | Finish Interaction
+              v-list-item(v-else)
+                v-list-item-content
+                  v-list-item-title.grey--text No applications requesting your input.
+        v-expansion-panel
+          v-expansion-panel-header
+            div
+              .text-subtitle-1.font-weight-medium Applications
+              .text-caption.grey--text These are applications which are installed project wide for project {{ selectedProject.name }}.
+          v-expansion-panel-content
+            .d-flex.align-center.justify-end.mb-2
+              span.text-caption.mr-2 Sort by:
+              v-btn-toggle(v-model="sortKey" mandatory dense)
+                v-btn(value="name" small) Name
+                v-btn(value="startedAt" small) Started
+              v-btn.ml-2(icon small @click="sortDesc = !sortDesc")
+                v-icon {{ sortDesc ? 'mdi-sort-descending' : 'mdi-sort-ascending' }}
+            v-progress-linear(v-if="loadingProject" indeterminate)
+            v-list(v-else two-line)
+              template(v-if="sortedApps(projectApplications).length")
+                v-list-item(v-for="item in sortedApps(projectApplications)" :key="item.releaseName")
+                  v-list-item-icon.align-self-center
+                    v-icon mdi-application
+                  v-list-item-content
+                    v-list-item-title.font-weight-bold {{ item.name }}
+                    v-list-item-subtitle Started {{ item.createdAt }}
+                  .d-flex.align-center.flex-wrap
+                    v-tooltip(right)
+                      template(v-slot:activator="{ on, attrs }")
+                        span(v-bind="attrs" v-on="on")
+                          v-btn(v-for="path in item.paths" :key="path" outlined :color="linkColor(item)" class="ma-1" @click="onLinkClick(item, path)")
+                            v-progress-circular(v-if="podStatus(item) === 'pending'" indeterminate size="16" width="2" color="grey" class="mr-2")
+                            v-icon(v-else-if="podStatus(item) === 'error'" left small) mdi-alert-circle
+                            v-icon(v-else left small) mdi-open-in-new
+                            | {{ linkLabel(item) }}
+                      span(v-if="item.pods && item.pods.length")
+                        div(v-for="pod in item.pods" :key="pod.name") {{ pod.name }}: {{ pod.status }} ({{ pod.ready }}, restarts: {{ pod.restarts }})
+                      span(v-else) No pods found
+              v-list-item(v-else)
+                v-list-item-content
+                  v-list-item-title.grey--text No applications installed.
 
-      v-card
-        v-card-title Applications installed in project: {{ this.$store.getters.selectedProject.name }}
-        v-data-table.elevation-1(
-          :headers="activeHeaders",
-          :items="projectApplications",
-          :items-per-page="20",
-          :loading="loadingProject",
-          sort-by='name',
-          loading-text="Loading applications..."
-        )
-          template(v-slot:item.paths="{ item }")
-            a(
-              :href="path",
-              target="_blank",
-              v-for="path in item.paths",
-              :key="item.path"
-            )
-              v-icon(color="primary") mdi-open-in-new
-          template(v-slot:item.ready="{ item }")
-            v-tooltip(right)
-              template(v-slot:activator="{ on, attrs }")
-                v-progress-circular(
-                  v-if="podStatus(item) === 'pending'"
-                  indeterminate,
-                  size="24",
-                  width="3",
-                  color="primary",
-                  v-bind="attrs",
-                  v-on="on"
-                )
-                v-icon(
-                  v-else-if="podStatus(item) === 'error'"
-                  color="red",
-                  v-bind="attrs",
-                  v-on="on"
-                ) mdi-alert-circle
-                v-icon(
-                  v-else
-                  color="green",
-                  v-bind="attrs",
-                  v-on="on"
-                ) mdi-check-circle
-              span(v-if="item.pods && item.pods.length")
-                div(v-for="pod in item.pods" :key="pod.name") {{ pod.name }}: {{ pod.status }} ({{ pod.ready }}, restarts: {{ pod.restarts }})
-              span(v-else) No pods found
+      v-dialog(v-model="dialog" max-width="480")
+        v-card(v-if="dialogItem")
+          v-card-title
+            v-progress-circular(v-if="dialogStatus === 'pending'" indeterminate size="24" width="3" color="primary")
+            v-icon(v-else-if="dialogStatus === 'error'" color="red") mdi-alert-circle
+            v-icon(v-else color="green") mdi-check-circle
+            span.ml-3 {{ dialogStatus === 'error' ? 'Problem starting the application' : (dialogStatus === 'ready' ? 'Application is ready' : 'Application is starting') }}
+          v-card-text
+            template(v-if="dialogStatus === 'pending'")
+              p The application "{{ dialogItem.name }}" is still starting and may take some more time. Visiting it now is possible but might show errors until it is ready.
+            template(v-else-if="dialogStatus === 'error'")
+              p Unfortunately there is an issue starting the application "{{ dialogItem.name }}".
+              div.mb-3(v-if="problemPods(dialogItem).length")
+                div(v-for="pod in problemPods(dialogItem)" :key="pod.name") {{ pod.name }}: {{ pod.status }} ({{ pod.ready }}, restarts: {{ pod.restarts }})
+              p Please reach out to the operator of this instance. Visiting the application anyway could show errors.
+            template(v-else)
+              p The application "{{ dialogItem.name }}" is now ready.
+          v-card-actions
+            v-spacer
+            v-btn(text @click="dialog = false") {{ dialogStatus === 'error' ? 'Ok' : (dialogStatus === 'pending' ? 'Back' : 'Cancel') }}
+            v-btn(color="primary" @click="visitDialogPath") {{ dialogStatus === 'ready' ? 'Visit' : 'Visit anyway' }}
+
+      v-dialog(v-model="finishDialog" max-width="480")
+        v-card
+          v-card-title Finish interaction?
+          v-card-text
+            p Is the work in this step done? Finishing the interaction will close this application and continue the workflow.
+          v-card-actions
+            v-spacer
+            v-btn(text @click="finishDialog = false") Back
+            v-btn(color="green" @click="confirmFinish") Yes
 </template>
 
 <script lang="ts">
@@ -123,24 +129,25 @@ export default Vue.extend({
     loadingProject: true,
     projectApplications: [] as any,
     triggeredApplications: [] as any,
-    search: "",
-    headers: [
-      { text: "Name", align: "start", value: "name" },
-      { text: "Links", align: "start", value: "paths" },
-      { text: "Ready", align: "start", value: "ready" },
-      { text: "Installed At", align: "start", value: "createdAt" },
-      { text: "Action", value: "releaseName" },
-    ],
-    activeHeaders: [
-      { text: "Name", align: "start", value: "name" },
-      { text: "Links", align: "start", value: "paths" },
-      { text: "Ready", align: "start", value: "ready" },
-      { text: "Project", align: "start", value: "project" },
-      { text: "Installed At", align: "start", value: "createdAt" },
-    ],
+    polling: 0,
+    fetching: false,
+    dialog: false,
+    dialogReleaseName: "",
+    dialogPath: "",
+    finishDialog: false,
+    finishReleaseName: "",
+    openPanels: [0, 1],
+    sortKey: "name",
+    sortDesc: false,
   }),
   mounted() {
     this.getActiveApplications();
+    this.polling = window.setInterval(() => {
+      this.getActiveApplications();
+    }, 2000);
+  },
+  beforeDestroy() {
+    window.clearInterval(this.polling);
   },
   computed: {
     ...mapGetters([
@@ -149,6 +156,16 @@ export default Vue.extend({
       "commonData",
       "selectedProject",
     ]),
+    // Re-derive the dialog's app from the freshly polled lists (not a snapshot),
+    // so an open dialog updates live as the app moves pending -> ready/error.
+    dialogItem(): any {
+      if (!this.dialogReleaseName) return null;
+      const all = [...this.projectApplications, ...this.triggeredApplications];
+      return all.find((a: any) => a.releaseName === this.dialogReleaseName) || null;
+    },
+    dialogStatus(): string {
+      return this.dialogItem ? this.podStatus(this.dialogItem) : "pending";
+    },
   },
   methods: {
     // Classify an app into 'ready' | 'pending' | 'error' from its pods' kube status.
@@ -192,7 +209,84 @@ export default Vue.extend({
       return "ready";
     },
 
+    // Sort a list of apps by the shared sort controls (name or start date).
+    sortedApps(apps: any) {
+      const key = this.sortKey;
+      const dir = this.sortDesc ? -1 : 1;
+      return [...apps].sort((a: any, b: any) => {
+        let av: any;
+        let bv: any;
+        if (key === "startedAt") {
+          av = new Date(a.startedAt).getTime();
+          bv = new Date(b.startedAt).getTime();
+        } else {
+          av = (a.name || "").toLowerCase();
+          bv = (b.name || "").toLowerCase();
+        }
+        if (av < bv) return -dir;
+        if (av > bv) return dir;
+        return 0;
+      });
+    },
+
+    // Outlined "Open" button color: grey while starting, red on error, blue when ready.
+    linkColor(item: any) {
+      const status = this.podStatus(item);
+      if (status === "pending") return "grey";
+      if (status === "error") return "red";
+      return "primary";
+    },
+
+    // Button label mirrors the state: starting / error / ready.
+    linkLabel(item: any) {
+      const status = this.podStatus(item);
+      if (status === "pending") return "Starting...";
+      if (status === "error") return "Error";
+      return "Open";
+    },
+
+    // Ready apps open in a new tab; otherwise show the status dialog.
+    onLinkClick(item: any, path: string) {
+      if (this.podStatus(item) === "ready") {
+        window.open(path, "_blank");
+        return;
+      }
+      this.dialogReleaseName = item.releaseName;
+      this.dialogPath = path;
+      this.dialog = true;
+    },
+
+    visitDialogPath() {
+      window.open(this.dialogPath, "_blank");
+      this.dialog = false;
+    },
+
+    // Confirm before finishing a workflow-triggered interaction.
+    openFinishDialog(item: any) {
+      this.finishReleaseName = item.releaseName;
+      this.finishDialog = true;
+    },
+
+    confirmFinish() {
+      this.finishDialog = false;
+      this.deleteChart(this.finishReleaseName);
+    },
+
+    // Pods that are neither completed nor running-and-ready, i.e. the ones to surface as the error detail.
+    problemPods(item: any) {
+      const pods = item.pods || [];
+      return pods.filter((pod: any) => {
+        const status = (pod.status || "").toLowerCase();
+        const [readyCount, wantCount] = (pod.ready || "").split("/");
+        if (status === "completed") return false;
+        if (status === "running" && readyCount === wantCount) return false;
+        return true;
+      });
+    },
+
     getActiveApplications() {
+      if (this.fetching) return;
+      this.fetching = true;
       kaapanaApiService
         .helmApiGet("/active-applications", {})
         .then((response: any) => {
@@ -220,6 +314,7 @@ export default Vue.extend({
               return {
                 annotations: item.annotations,
                 createdAt: formattedDate,
+                startedAt: item.created_at,
                 fromWorkflowRun: item.from_workflow_run,
                 name: name,
                 paths: item.paths,
@@ -245,11 +340,13 @@ export default Vue.extend({
           });
           this.loadingProject = false;
           this.loadingTriggered = false;
+          this.fetching = false;
         })
         .catch((err: any) => {
           console.log(err);
           this.loadingProject = false;
           this.loadingTriggered = false;
+          this.fetching = false;
         });
     },
 

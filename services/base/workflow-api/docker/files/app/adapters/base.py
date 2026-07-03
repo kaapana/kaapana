@@ -133,18 +133,6 @@ class WorkflowEngineAdapter(ABC):
         pass
 
     @abstractmethod
-    async def get_task_run_raw_logs(self, task_run_external_id: str) -> str:
-        """
-        Gets the raw, unparsed logs of a task run from the engine.
-
-        Args:
-            task_run_external_id (str): The ID of the task run in the engine.
-        Returns:
-            str: The raw log text as returned by the engine.
-        """
-        pass
-
-    @abstractmethod
     async def clean_workflow_run_data(
         self, workflow_run_external_id: str, project_id: str
     ) -> None:

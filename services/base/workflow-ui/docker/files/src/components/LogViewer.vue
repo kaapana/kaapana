@@ -206,6 +206,7 @@ import { workflowRunsApi } from '@/api/workflowRuns'
 import type { TaskRun, LogLine } from '@/types/schemas'
 import { statusColor } from '@/utils/status'
 import { downloadAsZip } from '@/utils/zipDownload'
+import { logLinesToText } from '@/utils/logFormat'
 
 // ── Search ────────────────────────────────────────────────────────────────────
 const taskSearch       = ref('')
@@ -430,23 +431,16 @@ watch(model, async (isOpen: boolean) => {
 // UTILITIES
 // ============================================================
 
-function logLinesToText(): string {
-  return logLines.value
-    .map((l: LogLine) => `${l.time.slice(0, 19).replace('T', ' ')}  ${l.severity.padEnd(8)}  ${l.message}`)
-    .join('\n')
-}
-
 const copyToClipboard = () => {
-  navigator.clipboard.writeText(logLinesToText()).then(() => { copySnackbar.value = true })
+  navigator.clipboard.writeText(logLinesToText(logLines.value)).then(() => { copySnackbar.value = true })
 }
 
 async function downloadLog() {
   if (!selectedTaskRunId.value || downloading.value) return
   downloading.value = true
   try {
-    // Fetch raw log for download to preserve original formatting
-    const raw = await workflowRunsApi.getTaskRunLogs(props.workflowRunId, selectedTaskRunId.value)
-    const blob = new Blob([decodeNewlines(raw)], { type: 'text/plain' })
+    const lines = await workflowRunsApi.getTaskRunLogLines(props.workflowRunId, selectedTaskRunId.value)
+    const blob = new Blob([logLinesToText(lines)], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -467,8 +461,8 @@ async function downloadAllApiLogs() {
     const entries = await Promise.all(
       props.taskRuns.map(async (task: TaskRun) => {
         try {
-          const raw = await workflowRunsApi.getTaskRunLogs(props.workflowRunId, task.id)
-          return { name: `${task.task_title}.log`, content: decodeNewlines(raw) }
+          const lines = await workflowRunsApi.getTaskRunLogLines(props.workflowRunId, task.id)
+          return { name: `${task.task_title}.log`, content: logLinesToText(lines) }
         } catch {
           return { name: `${task.task_title}.log`, content: 'Failed to fetch logs.' }
         }
@@ -478,11 +472,6 @@ async function downloadAllApiLogs() {
   } finally {
     downloadingAllApi.value = false
   }
-}
-
-const decodeNewlines = (text: string) => {
-  if (!text) return ''
-  return text.replace(/\\n/g, '\n')
 }
 
 // ── Log content search ────────────────────────────────────────────────────────

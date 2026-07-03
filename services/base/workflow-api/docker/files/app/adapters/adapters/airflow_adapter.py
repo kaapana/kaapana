@@ -444,10 +444,10 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
     async def get_task_run_logs(
         self, task_run_external_id: str
     ) -> list[schemas.LogLine]:
-        raw_log = await self.get_task_run_raw_logs(task_run_external_id)
+        raw_log = await self._fetch_raw_logs(task_run_external_id)
         return self._parse_task_run_logs(raw_log)
 
-    async def get_task_run_raw_logs(self, task_run_external_id: str) -> str:
+    async def _fetch_raw_logs(self, task_run_external_id: str) -> str:
         parts = task_run_external_id.split("::")
         if len(parts) != 3:
             return "Log unavailable: Invalid ID format"

@@ -107,6 +107,7 @@ import { statusColor } from '@/utils/status'
 import type { WorkflowRun, TaskRun } from '@/types/schemas'
 import { workflowRunsApi } from '@/api/workflowRuns'
 import { downloadAsZip } from '@/utils/zipDownload'
+import { logLinesToText } from '@/utils/logFormat'
 
 const props = defineProps({
   run: { type: Object as PropType<WorkflowRun>, required: true }
@@ -122,8 +123,8 @@ async function downloadLogs() {
     const entries = await Promise.all(
       props.run.task_runs.map(async (task: TaskRun) => {
         try {
-          const raw = await workflowRunsApi.getTaskRunLogs(props.run.id, task.id)
-          return { name: `${task.task_title}.log`, content: raw.replace(/\\n/g, '\n') }
+          const lines = await workflowRunsApi.getTaskRunLogLines(props.run.id, task.id)
+          return { name: `${task.task_title}.log`, content: logLinesToText(lines) }
         } catch {
           return { name: `${task.task_title}.log`, content: 'Failed to fetch logs.' }
         }

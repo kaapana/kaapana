@@ -10,7 +10,6 @@ Routes covered:
 - GET /v1/workflow-runs/{workflow_run_id}/task-runs
 - GET /v1/workflow-runs/{workflow_run_id}/task-runs/{task_run_id}
 - GET /v1/workflow-runs/{workflow_run_id}/task-runs/{task_run_id}/logs
-- GET /v1/workflow-runs/{workflow_run_id}/task-runs/{task_run_id}/raw-logs
 """
 
 import sys
@@ -703,46 +702,6 @@ async def test_get_task_run_logs(session: AsyncSession, client: AsyncClient):
         assert "time" in line
         assert "severity" in line
         assert "message" in line
-
-
-@pytest.mark.asyncio
-async def test_get_task_run_raw_logs(session: AsyncSession, client: AsyncClient):
-    """GET /task-runs/{id}/raw-logs returns the raw engine log string."""
-    _r = await client.post(
-        "/v1/workflows",
-        json={
-            "title": "test-workflow-raw",
-            "definition": "test_def",
-            "workflow_engine": "dummy",
-            "workflow_parameters": [],
-            "labels": [],
-        },
-    )
-
-    assert _r.status_code == 201, _r.text
-
-    wf = _r.json()
-    rev_id = await _first_revision_id(client, wf)
-    task = models.Task(workflow_revision_id=rev_id, title="task1", type="Op")
-    session.add(task)
-    await session.commit()
-    await session.refresh(task)
-
-    run = models.WorkflowRun(workflow_revision_id=rev_id)
-    session.add(run)
-    await session.commit()
-    await session.refresh(run)
-
-    tr = models.TaskRun(task_id=task.id, workflow_run_id=run.id, external_id="task-ext")
-    session.add(tr)
-    await session.commit()
-    await session.refresh(tr)
-
-    response = await client.get(
-        f"/v1/workflow-runs/{run.id}/task-runs/{tr.id}/raw-logs"
-    )
-    assert response.status_code == 200
-    assert isinstance(response.text, str)
 
 
 @pytest.mark.asyncio

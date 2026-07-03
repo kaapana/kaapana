@@ -1,7 +1,7 @@
 <template lang="pug">
-  .workflow-applications
+  .workflow-applications(style="max-width: 1000px; margin: 0 auto")
     IdleTracker
-    v-container(grid-list-lg text-left fluid style="max-width: 1000px")
+    v-container(grid-list-lg text-left fluid)
       v-expansion-panels(multiple v-model="openPanels")
         v-expansion-panel
           v-expansion-panel-header

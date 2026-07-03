@@ -116,26 +116,31 @@ class WorkflowEngineAdapter(ABC):
         pass
 
     @abstractmethod
-    async def get_task_run_logs(self, task_run_external_id: str) -> str:
+    async def get_task_run_logs(
+        self, task_run_external_id: str
+    ) -> list[schemas.LogLine]:
         """
-        Gets the logs of a task run from the engine.
+        Gets the parsed, structured logs of a task run from the engine.
+
+        How the engine's raw log format is fetched and parsed is an
+        implementation detail of the concrete adapter.
 
         Args:
             task_run_external_id (str): The ID of the task run in the engine.
         Returns:
-            str: The logs of the task run.
+            list[LogLine]: Parsed and normalized log lines.
         """
         pass
 
     @abstractmethod
-    def parse_task_run_logs(self, raw_log: str) -> list[schemas.LogLine]:
+    async def get_task_run_raw_logs(self, task_run_external_id: str) -> str:
         """
-        Parses the raw log string from the engine into structured LogLine objects.
+        Gets the raw, unparsed logs of a task run from the engine.
 
         Args:
-            raw_log (str): Raw log text as returned by get_task_run_logs().
+            task_run_external_id (str): The ID of the task run in the engine.
         Returns:
-            list[LogLine]: Parsed and normalized log lines.
+            str: The raw log text as returned by the engine.
         """
         pass
 

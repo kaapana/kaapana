@@ -143,19 +143,25 @@ class DummyAdapter(WorkflowEngineAdapter):
         """
         return schemas.WorkflowRunStatus.PENDING
 
-    async def get_task_run_logs(self, task_run_external_id: str) -> str:
+    async def get_task_run_logs(
+        self, task_run_external_id: str
+    ) -> list[schemas.LogLine]:
+        raw_log = await self.get_task_run_raw_logs(task_run_external_id)
+        return self._parse_task_run_logs(raw_log)
+
+    async def get_task_run_raw_logs(self, task_run_external_id: str) -> str:
         """
-        Gets the logs of a task run from the engine.
+        Gets the raw logs of a task run from the engine.
 
         Args:
             task_run_external_id (str): The ID of the task run in the engine.
         Returns:
-            str: The logs of the task run.
+            str: The raw logs of the task run.
         """
 
         return f"Dummy logs for TaskRun {task_run_external_id}"
 
-    def parse_task_run_logs(self, raw_log: str) -> list[schemas.LogLine]:
+    def _parse_task_run_logs(self, raw_log: str) -> list[schemas.LogLine]:
         return [
             schemas.LogLine(
                 time=datetime.now(tz=timezone.utc),

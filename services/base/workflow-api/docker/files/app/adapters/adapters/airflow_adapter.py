@@ -441,7 +441,13 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             raise RuntimeError("Could not retry workflow. Run not found.")
         return schemas.WorkflowRunStatus.PENDING
 
-    async def get_task_run_logs(self, task_run_external_id: str) -> str:
+    async def get_task_run_logs(
+        self, task_run_external_id: str
+    ) -> list[schemas.LogLine]:
+        raw_log = await self.get_task_run_raw_logs(task_run_external_id)
+        return self._parse_task_run_logs(raw_log)
+
+    async def get_task_run_raw_logs(self, task_run_external_id: str) -> str:
         parts = task_run_external_id.split("::")
         if len(parts) != 3:
             return "Log unavailable: Invalid ID format"
@@ -476,7 +482,7 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         except Exception as e:
             return f"Failed to fetch logs: {e}\nResponse: {resp}"
 
-    def parse_task_run_logs(self, raw_log: str) -> list[schemas.LogLine]:
+    def _parse_task_run_logs(self, raw_log: str) -> list[schemas.LogLine]:
         entries: list[schemas.LogLine] = []
         last_ts = datetime.now(tz=timezone.utc)
         last_severity = "INFO"

@@ -120,7 +120,7 @@ async def get_task_run_raw_logs(
     task_run_id: int,
     db: AsyncSession = Depends(get_async_db),
 ):
-    return await service.get_task_run_logs(db, workflow_run_id, task_run_id)
+    return await service.get_task_run_raw_logs(db, workflow_run_id, task_run_id)
 
 
 @router.post("/workflow-runs/sync", status_code=204)

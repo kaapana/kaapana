@@ -1,4 +1,4 @@
-"""Unit tests for Airflow log parsing (AirflowPluginAdapter.parse_task_run_logs).
+"""Unit tests for Airflow log parsing (AirflowPluginAdapter._parse_task_run_logs).
 
 Regression coverage for #2226: continuation lines without a log level (e.g.
 Python traceback bodies) must not be dropped.
@@ -16,7 +16,7 @@ from app.adapters.adapters.airflow_adapter import AirflowPluginAdapter  # noqa: 
 
 @pytest.fixture
 def adapter() -> AirflowPluginAdapter:
-    # Bypass __init__ to avoid filesystem/env side effects; parse_task_run_logs
+    # Bypass __init__ to avoid filesystem/env side effects; _parse_task_run_logs
     # only relies on class-level regexes and the _parse_ts classmethod.
     return AirflowPluginAdapter.__new__(AirflowPluginAdapter)
 
@@ -35,7 +35,7 @@ def test_traceback_lines_are_preserved(adapter):
         "pydantic_core._pydantic_core.ValidationError: 1 validation error for BaseEnv"
     )
 
-    lines = adapter.parse_task_run_logs(_wrap(log_text))
+    lines = adapter._parse_task_run_logs(_wrap(log_text))
 
     messages = [line.message for line in lines]
     assert len(lines) == 5
@@ -49,7 +49,7 @@ def test_continuation_inherits_preceding_severity_and_timestamp(adapter):
         '  File "x.py", line 1, in <module>'
     )
 
-    lines = adapter.parse_task_run_logs(_wrap(log_text))
+    lines = adapter._parse_task_run_logs(_wrap(log_text))
 
     assert lines[1].severity == "ERROR"
     assert lines[1].time == lines[0].time
@@ -57,7 +57,7 @@ def test_continuation_inherits_preceding_severity_and_timestamp(adapter):
 
 def test_leading_continuation_defaults_to_info(adapter):
     # A continuation line before any level-bearing line falls back to INFO.
-    lines = adapter.parse_task_run_logs(_wrap("orphan line without level"))
+    lines = adapter._parse_task_run_logs(_wrap("orphan line without level"))
 
     assert len(lines) == 1
     assert lines[0].severity == "INFO"
@@ -71,7 +71,7 @@ def test_standard_lines_still_parse(adapter):
         "WARNING - bare level line"
     )
 
-    lines = adapter.parse_task_run_logs(_wrap(log_text))
+    lines = adapter._parse_task_run_logs(_wrap(log_text))
 
     severities = [line.severity for line in lines]
     assert severities == ["INFO", "DEBUG", "WARNING"]

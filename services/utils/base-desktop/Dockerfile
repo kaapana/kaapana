@@ -23,6 +23,7 @@ RUN apt-get update \
         gpgconf \
         gtk2-engines-murrine \
         gtk2-engines-pixbuf \
+        jgmenu \
         libgl1-mesa-dri \
         libglu1-mesa-dev \
         libgomp1 \
@@ -55,8 +56,10 @@ RUN apt-get update \
         software-properties-common \
         sudo \
         supervisor \
+        tint2 \
         ttf-wqy-zenhei \
         vim-tiny \
+        webp-pixbuf-loader \
         wmctrl \
         x11-utils \
         x11vnc \
@@ -83,10 +86,23 @@ ARG NOVNC_VERSION=v1.5.0
 RUN git clone --depth 1 --branch ${NOVNC_VERSION} https://github.com/novnc/noVNC.git /opt/novnc
 COPY files/index.html /opt/novnc/index.html
 COPY files/logo.png /opt/novnc/logo.png
+COPY files/favicon.png /opt/novnc/favicon.png
 RUN git clone --depth 1 --branch v0.12.0 https://github.com/novnc/websockify /opt/novnc/utils/websockify
 COPY /files/etc /etc
 COPY /files/root /root
 COPY /files/usr /usr
+
+# kaapana menu launcher icon (brain mark, reused from the noVNC loading logo)
+COPY files/logo.png /usr/share/kaapana/kaapana.png
+
+# single desktop (removes the workspace pager view) + dark openbox window decorations
+RUN sed -i \
+        -e 's|<number>4</number>|<number>1</number>|' \
+        -e 's|<name>Clearlooks</name>|<name>Onyx</name>|' \
+        /etc/xdg/openbox/rc.xml
+
+# register the webp gdk-pixbuf loader so pcmanfm can render the .webp wallpaper
+RUN /usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/gdk-pixbuf-query-loaders --update-cache
 
 RUN python3 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt -r /usr/local/lib/backend/requirements.txt
 

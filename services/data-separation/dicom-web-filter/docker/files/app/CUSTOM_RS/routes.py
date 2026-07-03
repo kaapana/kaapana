@@ -14,6 +14,32 @@ from starlette.status import HTTP_204_NO_CONTENT
 router = APIRouter()
 
 
+def _request_can_manage_project_delete(request: Request, project_id: UUID, project_ids):
+    """Allow internal admin automation to delete project data without a project claim.
+
+    Service workflows in the shared services namespace authenticate as the internal
+    `system` user, which carries the admin realm role but no `projects` claim.
+    Keep the regular project-membership check for end users and only bypass it for
+    already-authenticated admin tokens so shared maintenance workflows can delete
+    PACS content after they finish processing it.
+    """
+
+    if project_id in project_ids:
+        return True
+
+    if request.scope.get("admin"):
+        logging.info(
+            "Allowing project delete for admin token without explicit project claim: project_id=%s, username=%s",
+            project_id,
+            request.scope.get("token", {}).get("preferred_username"),
+        )
+        return True
+
+    projects = request.scope.get("token", {}).get("projects", [])
+    logging.info(f"User not in project: {project_id}: {projects=}")
+    return False
+
+
 async def delete_study_dcm4chee(study: str, request: Request):
     with httpx.Client() as client:
         response = client.post(
@@ -100,7 +126,12 @@ async def del_study(
         response: Response object
     """
 
-    if project_id not in project_ids_of_user:
+    # Shared service workflows run with the internal admin token, which does not
+    # carry per-project membership claims even though the request is authorized to
+    # manage project data. Preserve the stricter membership check for normal users.
+    if not _request_can_manage_project_delete(
+        request=request, project_id=project_id, project_ids=project_ids_of_user
+    ):
         return Response(status_code=403)
 
     await assert_project_not_archived(project_id)
@@ -169,9 +200,11 @@ async def del_series(
     """
 
     # Check if user is in the project
-    if project_id not in project_ids_of_user:
-        projects = request.scope.get("token")["projects"]
-        logging.info(f"User not in project: {project_id}: {projects=}")
+    # Match the study-delete authorization path so service automation and manual
+    # delete workflows use the same admin-aware project check.
+    if not _request_can_manage_project_delete(
+        request=request, project_id=project_id, project_ids=project_ids_of_user
+    ):
         return Response(status_code=403, content=f"User not in project {project_id}")
 
     await assert_project_not_archived(project_id)

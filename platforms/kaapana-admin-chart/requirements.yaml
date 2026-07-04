@@ -16,6 +16,9 @@ dependencies:
     version: 0.0.0
   - name: keycloak-setup-chart
     version: 0.0.0
+  - name: post-deploy-reconcile-chart
+    version: 0.0.0
+    condition: post-deploy-reconcile-chart.enabled
   - name: kaapana-library-chart
     version: 0.0.0
   - name: auth-backend-chart

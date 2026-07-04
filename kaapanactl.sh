@@ -2220,6 +2220,7 @@ function deploy_chart {
     --set-string global.main_node_name="$MAIN_NODE_NAME" \
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
     --set-string global.storage_node="$STORAGE_NODE" \
+    --set post-deploy-reconcile-chart.enabled="${POST_DEPLOY_RECONCILE_ENABLED:-true}" \
     "${kube_helm_timeout_args[@]}" \
     --name-template "$PLATFORM_NAME"
 

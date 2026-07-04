@@ -13,5 +13,10 @@ global:
 
 migration-chart:
   enabled: false
+# One-shot post-deploy reconcile job (Keycloak LDAP-mapper fix + legacy AII
+# role migration). Disabled by default; the deploy script enables it via
+# --set when post-deploy reconciliation is active.
+post-deploy-reconcile-chart:
+  enabled: false
 kaapana-storage-chart:
   enabled: false

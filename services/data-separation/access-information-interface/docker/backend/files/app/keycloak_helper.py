@@ -96,7 +96,10 @@ class KeycloakHelper:
         request=requests.post,
         payload={},
         update_url="",
-        timeout=2,
+        # Default raised 2 -> 30: during redeploys Keycloak answers slowly
+        # (e.g. while its LDAP federation endpoint is unreachable); a 2s
+        # timeout made these requests fail spuriously.
+        timeout=30,
         **kwargs,
     ):
         """

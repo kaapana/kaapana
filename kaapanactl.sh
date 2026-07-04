@@ -216,6 +216,10 @@ function deploy() {
     CONTAINER_REGISTRY_PASSWORD="${CONTAINER_REGISTRY_PASSWORD:-}"
     CHART_REFERENCE="${CHART_REFERENCE:-}"
     PLAIN_HTTP="${PLAIN_HTTP:-false}"
+    # Optional comma-separated CIDRs of external LDAP endpoint(s) that
+    # Keycloak may reach despite the admin namespace's restrict-egress
+    # policy. Empty (default) renders no extra NetworkPolicy.
+    KEYCLOAK_LDAP_EGRESS_CIDRS="${KEYCLOAK_LDAP_EGRESS_CIDRS:-}"
     KUBE_HELM_INSTALL_TIMEOUT="${KUBE_HELM_INSTALL_TIMEOUT:-}"
     KUBE_HELM_DELETION_TIMEOUT="${KUBE_HELM_DELETION_TIMEOUT:-}"
 
@@ -2220,6 +2224,7 @@ function deploy_chart {
     --set-string global.main_node_name="$MAIN_NODE_NAME" \
     --set-string global.volume_slow_data="$VOLUME_SLOW_DATA" \
     --set-string global.storage_node="$STORAGE_NODE" \
+    ${KEYCLOAK_LDAP_EGRESS_CIDRS:+--set global.keycloak_ldap_egress_cidrs="{$KEYCLOAK_LDAP_EGRESS_CIDRS}"} \
     "${kube_helm_timeout_args[@]}" \
     --name-template "$PLATFORM_NAME"
 

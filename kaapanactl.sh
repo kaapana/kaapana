@@ -2811,6 +2811,31 @@ microk8s.kubectl describe pods -A
 --- "k8s Node Status"
 microk8s.kubectl describe node
 
+--- "k8s Container Logs"
+# Dump the logs of every container (incl. init containers) cluster-wide, so a
+# report captures the actual failure output instead of only pod states. For
+# containers that already restarted, the crashed PREVIOUS instance usually
+# holds the relevant log, so it is dumped explicitly (a bare --previous
+# fallback would miss it whenever the current instance serves logs again).
+# stderr is redirected into the report so kubectl errors are captured too.
+microk8s.kubectl get pods -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"\t"}{.metadata.name}{"\n"}{end}' \
+| while IFS=$'\t' read -r ns pod; do
+  for ctr in $(microk8s.kubectl get pod -n "$ns" "$pod" -o jsonpath='{range .spec.initContainers[*]}{.name}{" "}{end}{range .spec.containers[*]}{.name}{" "}{end}' 2>/dev/null); do
+    restarts="$(microk8s.kubectl get pod -n "$ns" "$pod" -o jsonpath="{range .status.containerStatuses[?(@.name=='$ctr')]}{.restartCount}{end}{range .status.initContainerStatuses[?(@.name=='$ctr')]}{.restartCount}{end}" 2>/dev/null)"
+    echo "===== $ns/$pod [$ctr] (restarts: ${restarts:-0}) ====="
+    if [ "${restarts:-0}" -gt 0 ] 2>/dev/null; then
+      echo "--- previous (crashed) instance ---"
+      microk8s.kubectl logs -n "$ns" "$pod" -c "$ctr" --timestamps --tail=5000 --previous 2>&1
+      echo "--- current instance ---"
+      microk8s.kubectl logs -n "$ns" "$pod" -c "$ctr" --timestamps --tail=5000 2>&1
+    else
+      microk8s.kubectl logs -n "$ns" "$pod" -c "$ctr" --timestamps --tail=5000 2>&1 \
+      || microk8s.kubectl logs -n "$ns" "$pod" -c "$ctr" --timestamps --tail=5000 --previous 2>&1
+    fi
+    echo
+  done
+done
+
 --- "GPU Hardware"
 lshw -C Display
 

@@ -242,6 +242,8 @@ function deploy() {
     _Flag: --quiet, meaning non-interactive operation
     _Flag: --offline, using prebuilt tarball and chart (--chart-path required!)
     _Flag: --no-migration, disable automatic migration between versions
+    _Flag: --ignore-domain-reachability-check, continue deployment even if DOMAIN validation cannot be completed
+    _Flag: --ignore-certificate-state, continue deployment even if existing certificate files or secrets have hostname/validity issues
     _Flag: --check-system, check health of all resources in kaapana-admin-chart and kaapana-platform-chart
     _Flag: --report, create a report of the state of the microk8s cluster
     _Flag: --plain-http, use insecure HTTP when talking to the registry (default HTTPS, use --no-plain-http to force it)
@@ -262,6 +264,9 @@ function deploy() {
     QUIET=false
     DO_UNDEPLOY=false
     DO_CHECK_SYSTEM=false
+    # Preflight overrides (settable via env or the --ignore-* flags below).
+    IGNORE_CERTIFICATE_STATE="${IGNORE_CERTIFICATE_STATE:-false}"
+    IGNORE_DOMAIN_REACHABILITY_CHECK="${IGNORE_DOMAIN_REACHABILITY_CHECK:-false}"
 
     POSITIONAL=()
     while [[ $# -gt 0 ]]
@@ -387,6 +392,21 @@ function deploy() {
                 MIGRATION_ENABLED=false
                 echo -e "${YELLOW}Migration disabled via CLI (--no-migration).${NC}"
                 shift # past argument
+            ;;
+
+            # Overrides for the DOMAIN/certificate preflights in get_domain:
+            # allow deploys to proceed when validation cannot be completed
+            # (e.g. air-gapped DNS) or when a certificate mismatch is expected.
+            --ignore-domain-reachability-check)
+                IGNORE_DOMAIN_REACHABILITY_CHECK=true
+                echo -e "${YELLOW}Domain validation failures will be ignored (override active).${NC}"
+                shift
+            ;;
+
+            --ignore-certificate-state)
+                IGNORE_CERTIFICATE_STATE=true
+                echo -e "${YELLOW}Certificate state mismatches will be ignored (override active).${NC}"
+                shift
             ;;
 
             --install-certs)
@@ -1418,6 +1438,195 @@ function delete_all_images_microk8s {
     done
 }
 
+function is_ipv4 {
+    local ip="${1:-}"
+    [[ "$ip" =~ ^(([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))\.){3}([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))$ ]]
+}
+
+# Informational DOMAIN preflight: verify the chosen DOMAIN resolves via DNS
+# and compare the resolved addresses with the host's own IPv4 addresses.
+# Resolution failure blocks the deploy (unless overridden); a mismatch with
+# the local addresses is only a WARNING because routed/NAT deployments
+# legitimately terminate the published domain on an upstream IP.
+function check_domain_reachable_to_host {
+    local domain="${1:-}"
+    local ignore_domain_check="${IGNORE_DOMAIN_REACHABILITY_CHECK:-false}"
+    local resolved_ips=""
+    local resolved_ip_csv=""
+    local local_ips_raw=""
+    local local_ip_csv=""
+    local resolved_ip=""
+    local host_ip=""
+    local match=false
+    local -a local_ips=()
+
+    function _domain_check_fail_or_override {
+        if [[ "${ignore_domain_check,,}" == "true" ]]; then
+            echo -e "${YELLOW}WARNING: Continuing because --ignore-domain-reachability-check is set.${NC}" > /dev/stderr
+            return 0
+        fi
+        return 1
+    }
+
+    if [ -z "$domain" ]; then
+        echo -e "${RED}================================================================================${NC}" > /dev/stderr
+        echo -e "${RED}ERROR: DOMAIN reachability check failed because DOMAIN is not set.${NC}" > /dev/stderr
+        echo -e "${RED}================================================================================${NC}" > /dev/stderr
+        if ! _domain_check_fail_or_override; then
+            return 1
+        fi
+        return 0
+    fi
+
+    if is_ipv4 "$domain"; then
+        echo -e "${GREEN}INFO: Skipping DNS reachability check because DOMAIN is an IP address: $domain${NC}" > /dev/stderr
+        return 0
+    fi
+
+    if ! command -v getent &> /dev/null; then
+        echo -e "${RED}================================================================================${NC}" > /dev/stderr
+        echo -e "${RED}ERROR: Could not validate DOMAIN reachability because 'getent' is unavailable.${NC}" > /dev/stderr
+        echo -e "${RED}ERROR: Install libc-bin / glibc-common (distribution dependent) to enable checks.${NC}" > /dev/stderr
+        echo -e "${RED}================================================================================${NC}" > /dev/stderr
+        if ! _domain_check_fail_or_override; then
+            return 1
+        fi
+        return 0
+    fi
+
+    resolved_ips=$(getent ahostsv4 "$domain" 2>/dev/null | awk '{print $1}' | sort -u || true)
+    if [ -z "$resolved_ips" ]; then
+        echo -e "${RED}================================================================================${NC}" > /dev/stderr
+        echo -e "${RED}ERROR: DOMAIN reachability check failed.${NC}" > /dev/stderr
+        echo -e "${RED}ERROR: Could not resolve DOMAIN '$domain' to an IPv4 address.${NC}" > /dev/stderr
+        echo -e "${RED}ERROR: Please fix DNS or use a correct --domain value.${NC}" > /dev/stderr
+        echo -e "${RED}================================================================================${NC}" > /dev/stderr
+        if ! _domain_check_fail_or_override; then
+            return 1
+        fi
+        return 0
+    fi
+
+    local_ips_raw=$(hostname -I 2>/dev/null || true)
+    for host_ip in $local_ips_raw; do
+        if is_ipv4 "$host_ip" && [[ ! "$host_ip" =~ ^127\. ]]; then
+            if ! printf '%s\n' "${local_ips[@]}" | grep -qx "$host_ip"; then
+                local_ips+=("$host_ip")
+            fi
+        fi
+    done
+
+    if [ "${#local_ips[@]}" -eq 0 ]; then
+        echo -e "${YELLOW}================================================================================${NC}" > /dev/stderr
+        echo -e "${YELLOW}WARNING: DOMAIN validation could not compare DNS to local IPv4 addresses.${NC}" > /dev/stderr
+        echo -e "${YELLOW}WARNING: Could not determine non-loopback local IPv4 addresses.${NC}" > /dev/stderr
+        echo -e "${YELLOW}WARNING: Continuing because DOMAIN resolved successfully and routed installs can terminate on an upstream IP.${NC}" > /dev/stderr
+        echo -e "${YELLOW}================================================================================${NC}" > /dev/stderr
+        return 0
+    fi
+
+    for resolved_ip in $resolved_ips; do
+        for host_ip in "${local_ips[@]}"; do
+            if [ "$resolved_ip" = "$host_ip" ]; then
+                match=true
+                break 2
+            fi
+        done
+    done
+
+    if [ "$match" = "false" ]; then
+        resolved_ip_csv=$(echo "$resolved_ips" | tr '\n' ',' | sed 's/,$//')
+        local_ip_csv=$(printf '%s\n' "${local_ips[@]}" | tr '\n' ',' | sed 's/,$//')
+
+        # In routed/NAT deployments the published clinic-side IP can
+        # legitimately differ from the VM's own interface addresses. Treat
+        # the mismatch as informational as long as DNS resolution itself works.
+        echo -e "${YELLOW}================================================================================${NC}" > /dev/stderr
+        echo -e "${YELLOW}WARNING: DOMAIN resolves to a non-local IPv4 address.${NC}" > /dev/stderr
+        echo -e "${YELLOW}WARNING: Entered DOMAIN: $domain${NC}" > /dev/stderr
+        echo -e "${YELLOW}WARNING: Resolved IPv4: $resolved_ip_csv${NC}" > /dev/stderr
+        echo -e "${YELLOW}WARNING: Local IPv4:    $local_ip_csv${NC}" > /dev/stderr
+        echo -e "${YELLOW}WARNING: Continuing because routed/NAT/RAS deployments can forward DOMAIN traffic to this VM via an upstream IP.${NC}" > /dev/stderr
+        echo -e "${YELLOW}WARNING: Verify that the required ports are forwarded from the published DOMAIN endpoint to this host.${NC}" > /dev/stderr
+        echo -e "${YELLOW}================================================================================${NC}" > /dev/stderr
+        return 0
+    fi
+
+    echo -e "${GREEN}INFO: DOMAIN reachability check passed: $domain resolves to this host.${NC}" > /dev/stderr
+    return 0
+}
+
+# Certificate preflight: run utils/reset_certificate_state.sh in analyze-only
+# mode against the chosen hostname. The helper's exit code 2 means
+# "certificate issues found" and blocks the deploy with reset instructions;
+# other non-zero exits are helper execution problems and only warn.
+# Fresh installs pass because no certificate state exists yet.
+function analyze_existing_certificate_state {
+    local expected_hostname="$1"
+    local script_dir=""
+    local reset_script=""
+    local analysis_status=0
+
+    if [[ -z "$expected_hostname" ]]; then
+        return 0
+    fi
+
+    script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    reset_script="${script_dir}/utils/reset_certificate_state.sh"
+    if [[ ! -f "$reset_script" ]]; then
+        reset_script="${script_dir}/../utils/reset_certificate_state.sh"
+    fi
+
+    if [[ ! -f "$reset_script" ]]; then
+        echo -e "${YELLOW}Certificate analysis helper not found, skipping existing certificate check.${NC}" > /dev/stderr
+        return 0
+    fi
+
+    echo -e "${GREEN}Analyzing existing certificate state for hostname ${expected_hostname}...${NC}" > /dev/stderr
+    local ignore_certificate_state="${IGNORE_CERTIFICATE_STATE:-false}"
+    if [[ "${ignore_certificate_state,,}" == "true" ]]; then
+        # Keep the analysis visible in override mode so operators still see the
+        # mismatch details even when they intentionally force the deployment.
+        echo -e "${YELLOW}WARNING: Continuing because --ignore-certificate-state is set.${NC}" > /dev/stderr
+        bash "$reset_script" \
+            --analyze-only \
+            --hostname "$expected_hostname" \
+            --fast-dir "$FAST_DATA_DIR" \
+            --kubectl microk8s.kubectl \
+            --admin-namespace "$ADMIN_NAMESPACE" \
+            --services-namespace "$SERVICES_NAMESPACE" || \
+            echo -e "${YELLOW}Existing certificate analysis reported an execution problem, continuing deploy anyway.${NC}" > /dev/stderr
+        return 0
+    fi
+
+    analysis_status=0
+    bash "$reset_script" \
+        --analyze-only \
+        --fail-on-issues \
+        --hostname "$expected_hostname" \
+        --fast-dir "$FAST_DATA_DIR" \
+        --kubectl microk8s.kubectl \
+        --admin-namespace "$ADMIN_NAMESPACE" \
+        --services-namespace "$SERVICES_NAMESPACE" || analysis_status=$?
+
+    if [[ "$analysis_status" -eq 0 ]]; then
+        return 0
+    fi
+
+    if [[ "$analysis_status" -eq 2 ]]; then
+        echo -e "${RED}Existing certificate state does not match the selected hostname or validity requirements.${NC}" > /dev/stderr
+        echo -e "${RED}Clear the persisted certificate state before deploying, for example:${NC}" > /dev/stderr
+        echo -e "${RED}  sudo bash ${reset_script} --yes${NC}" > /dev/stderr
+        # Installing a foreign certificate is safer after the reset so no stale
+        # Kaapana-generated files or OpenSearch trust artifacts survive.
+        echo -e "${RED}If you want to use a foreign certificate, reset first and then run ./kaapanactl.sh deploy --install-certs before deploying again.${NC}" > /dev/stderr
+        echo -e "${RED}Or re-run deploy with --ignore-certificate-state to override this preflight.${NC}" > /dev/stderr
+        exit 1
+    fi
+
+    echo -e "${YELLOW}Existing certificate analysis reported an execution problem, continuing deploy anyway.${NC}" > /dev/stderr
+}
+
 function get_domain {
 
     if [ -z ${DOMAIN+x} ]; then
@@ -1453,9 +1662,18 @@ function get_domain {
         echo -e "${RED}DOMAIN not set!";  > /dev/stderr;
         echo -e "Please restart the process. ${NC}";  > /dev/stderr;
         exit 1
-    else
-        echo -e "${GREEN}Server domain (FQDN): $DOMAIN ${NC}" > /dev/stderr;
     fi
+
+    # Run the preflights on the FINAL domain value (after the interactive
+    # prompt above may have changed it).
+    check_domain_reachable_to_host "$DOMAIN"
+    # Validate any persisted cert files or certificate secrets against the
+    # chosen hostname before Helm starts. This catches stale TLS state from
+    # previous deployments or reinstalls early, while still allowing fresh
+    # installs where no certificate state exists yet.
+    analyze_existing_certificate_state "$DOMAIN"
+
+    echo -e "${GREEN}Server domain (FQDN): $DOMAIN ${NC}" > /dev/stderr;
 }
 
 function delete_deployment {
@@ -2334,6 +2552,13 @@ function install_certs {
         cp ./tls.key ./tls.crt "$FAST_DATA_DIR/tls/"
         chmod 600 "$FAST_DATA_DIR/tls/tls.key"
     fi
+
+    # Manual certificate installation deliberately does not infer an expected
+    # hostname or CA trust model here, so point operators to the explicit
+    # analysis helper when they need to validate the installed certificate.
+    echo -e "\n${YELLOW}WARNING: The installed certificate was not checked here for hostname match or validity.${NC}"
+    echo -e "${YELLOW}If you run into certificate issues, verify it manually with:${NC}"
+    echo -e "${YELLOW}  bash $(dirname "${BASH_SOURCE[0]}")/utils/reset_certificate_state.sh --analyze-only --hostname <expected-hostname>${NC}"
 
     echo -e "\n${GREEN}DONE${NC}"
 }

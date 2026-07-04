@@ -1464,13 +1464,31 @@ function delete_deployment {
     local namespace
     local helm_status_flags="--deployed --failed --pending --superseded"
 
+    # Overall per-release uninstall timeout. Large platforms with many hooked
+    # charts regularly exceed the previous 5m30s; make it configurable and
+    # default to 15m so slow-but-healthy uninstalls are not aborted midway.
+    HELM_UNINSTALL_TIMEOUT="${HELM_UNINSTALL_TIMEOUT:-15m0s}"
+    # --ignore-not-found: parallel uninstalls plus retries can race on the
+    # same release; a release that vanished in the meantime is a success.
+    # The flag only exists since Helm 3.13 - probe for it (this script
+    # supports Helm 3 and 4) instead of failing every uninstall on old v3.
+    HELM_IGNORE_NOT_FOUND_FLAG=""
+    if $HELM_EXECUTABLE uninstall --help 2>/dev/null | grep -q -- '--ignore-not-found'; then
+        HELM_IGNORE_NOT_FOUND_FLAG="--ignore-not-found"
+    fi
+    HELM_UNINSTALL_BASE_FLAGS="${NO_HOOKS} ${HELM_IGNORE_NOT_FOUND_FLAG} --timeout ${HELM_UNINSTALL_TIMEOUT}"
+    if $HELM_EXECUTABLE version --short 2>/dev/null | grep -qE '^v4\.' && [[ "${HELM_UNINSTALL_BASE_FLAGS}" != *"--no-hooks"* ]]; then
+        # Helm v4 waits for uninstall hooks by default (hookOnly), which can stall undeploy.
+        HELM_UNINSTALL_BASE_FLAGS="--no-hooks ${HELM_UNINSTALL_BASE_FLAGS}"
+    fi
+
     if [ -n "${NO_HOOKS:-}" ]; then
         helm_status_flags="$helm_status_flags --uninstalling"
     fi
 
     for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
         if ! $HELM_EXECUTABLE -n "$namespace" ls $helm_status_flags | awk 'NR > 1 { print  "-n "$2, $1}' \
-            | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall ${NO_HOOKS} --timeout 5m30s % 2>&1"; then
+            | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall ${HELM_UNINSTALL_BASE_FLAGS} % 2>&1"; then
             failed=1
         fi
     done
@@ -1485,18 +1503,42 @@ function delete_deployment {
             echo "Deleting helm charts in 'uninstalling' state with --no-hooks"
             for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
                 if ! $HELM_EXECUTABLE -n "$namespace" ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' \
-                    | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall --no-hooks --wait --timeout 60s % 2>&1"; then
+                    | xargs -r -P 0 -I % sh -c "$HELM_EXECUTABLE uninstall --no-hooks ${HELM_IGNORE_NOT_FOUND_FLAG} --wait --timeout 60s % 2>&1"; then
                     failed=1
                 fi
             done
         fi
-        TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E 'Terminating' | awk '{print \$1 \"/\" \$2}'")
+        # Query pods via microk8s.kubectl directly: the previous interactive
+        # bash + kubectl alias failed when the alias was not configured for
+        # the invoking user (e.g. sudo/automation).
+        TERMINATING_PODS=$(microk8s.kubectl get pods --all-namespaces --no-headers 2>/dev/null | awk '$4 == "Terminating" { print $1 "/" $2 }')
+        # Also wait for Helm releases stuck in 'uninstalling': their hooks may
+        # still be deleting resources even when no pod is terminating yet, and
+        # a follow-up deploy over such a release fails.
+        UNINSTALLING_RELEASES=""
+        for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+            NS_UNINSTALLING=$($HELM_EXECUTABLE -n "$namespace" ls --uninstalling --short 2>/dev/null || true)
+            if [ -n "$NS_UNINSTALLING" ]; then
+                while IFS= read -r release; do
+                    if [ -n "$release" ]; then
+                        UNINSTALLING_RELEASES="${UNINSTALLING_RELEASES}${namespace}/${release} "
+                    fi
+                done <<< "$NS_UNINSTALLING"
+            fi
+        done
         echo -e ""
-        UNINSTALL_TEST=$TERMINATING_PODS
+        # Undeploy is done only when no pods are terminating and no Helm
+        # release remains in uninstalling state.
+        UNINSTALL_TEST="${TERMINATING_PODS}${UNINSTALLING_RELEASES}"
         if [ -z "$UNINSTALL_TEST" ]; then
             break
         else
-            echo -e "${YELLOW}Waiting for $TERMINATING_PODS ${NC}"
+            if [ -n "$TERMINATING_PODS" ]; then
+                echo -e "${YELLOW}Waiting for terminating pods: $TERMINATING_PODS ${NC}"
+            fi
+            if [ -n "$UNINSTALLING_RELEASES" ]; then
+                echo -e "${YELLOW}Waiting for uninstalling releases: $UNINSTALLING_RELEASES ${NC}"
+            fi
         fi
     done
 

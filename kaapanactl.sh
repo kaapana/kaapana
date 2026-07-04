@@ -198,6 +198,21 @@ function validate_hostpath_reclaim_policy() {
     esac
 }
 
+function require_retain_hostpath_reclaim_policy_for_recovery() {
+    # Recovery may delete/recreate PVCs and depends on retained hostpath PVs or
+    # retained backing directories. Do not silently change deletion semantics.
+    validate_hostpath_reclaim_policy
+
+    if [[ "$HOSTPATH_RECLAIM_POLICY" == "Retain" ]]; then
+        return 0
+    fi
+
+    echo -e "${RED}Post-reinstall recovery requires --hostpath-reclaim-policy Retain.${NC}"
+    echo -e "${RED}Current effective hostpath reclaim policy is '${HOSTPATH_RECLAIM_POLICY}'.${NC}"
+    echo -e "${RED}Rerun with --hostpath-reclaim-policy Retain to opt into retained hostpath PVs before recovery.${NC}"
+    return 1
+}
+
 function get_platform_prefix() {
     PLATFORM_PREFIX="${PLATFORM_PREFIX:-}"
 
@@ -277,6 +292,9 @@ function deploy() {
     _Flag: --report, create a report of the state of the microk8s cluster
     _Flag: --plain-http, use insecure HTTP when talking to the registry (default HTTPS, use --no-plain-http to force it)
     _Flag: --install-storage-classes, installs only kaapana storage classes (pass --chart and credentials before this flag)
+    _Flag: --recover-after-reinstall, run detected post-reinstall recovery helper before chart install
+    _Argument: --fast-data-dir [Path to fast data dir on host]
+    _Argument: --slow-data-dir [Path to slow data dir on host]
 
     _Argument: --chart [registry/path/chart:version]
     _Argument: --platform-name [Helm chart name]
@@ -362,6 +380,34 @@ function deploy() {
                 echo -e "${GREEN}SET DOMAIN!${NC}";
                 shift # past argument
                 shift # past value
+            ;;
+
+            # Allow overriding the data directories on the command line instead
+            # of editing the script/config. Required by the post-reinstall
+            # recovery helper (post-server-reinstall.sh passes the surviving
+            # data dirs through to the nested --install-storage-classes run).
+            --fast-data-dir)
+                FAST_DATA_DIR="$2"
+                echo -e "${GREEN}SET FAST_DATA_DIR: $FAST_DATA_DIR ${NC}";
+                shift # past argument
+                shift # past value
+            ;;
+
+            --slow-data-dir)
+                SLOW_DATA_DIR="$2"
+                echo -e "${GREEN}SET SLOW_DATA_DIR: $SLOW_DATA_DIR ${NC}";
+                shift # past argument
+                shift # past value
+            ;;
+
+            # Explicit opt-in for the post-reinstall data recovery flow
+            # (requires --hostpath-reclaim-policy Retain, validated early in
+            # deploy()). Without this flag, recovery only runs after an
+            # interactive confirmation when the reinstall marker is present.
+            --recover-after-reinstall|--recover)
+                POST_REINSTALL_RECOVERY_REQUESTED=true
+                echo -e "${GREEN}Post-reinstall recovery requested via CLI flag.${NC}"
+                shift
             ;;
 
             # Reclaim policy for the Kaapana hostpath StorageClasses. Delete
@@ -605,6 +651,11 @@ function deploy() {
     fi
 
     preflight_checks
+
+    # Fail early: explicit recovery is only valid with retained hostpath PVs.
+    if [[ "${POST_REINSTALL_RECOVERY_REQUESTED,,}" == "true" ]]; then
+        require_retain_hostpath_reclaim_policy_for_recovery || exit 1
+    fi
 
     echo -e "${YELLOW}Get helm deployments...${NC}"
     deployments=$(
@@ -1248,6 +1299,11 @@ DOCKEREOF
         echo ""
         echo ""
         echo ""
+
+        # A fresh MicroK8s install on a host that still has Kaapana data dirs
+        # is the post-OS-reinstall situation. Leave a marker so the next
+        # deploy can offer data recovery (see maybe_run_post_reinstall_recovery).
+        create_post_reinstall_recovery_marker
     fi
     echo ""
     echo "${GREEN} DONE ${NC}"
@@ -1458,6 +1514,16 @@ function load_kaapana_config {
     STORAGE_PROVIDER="hostpath" # e.g. "hostpath" (microk8s) or "longhorn"
     VOLUME_SLOW_DATA="100Gi" # size of volumes in slow data dir (e.g. 100Gi or 100Ti)
     HOSTPATH_RECLAIM_POLICY="${HOSTPATH_RECLAIM_POLICY:-Delete}" # Delete or Retain for Kaapana hostpath StorageClasses
+
+    ######################################################
+    # Post-reinstall recovery
+    ######################################################
+    # Explicit request via --recover-after-reinstall; marker-based detection
+    # is handled in maybe_run_post_reinstall_recovery.
+    POST_REINSTALL_RECOVERY_REQUESTED="${POST_REINSTALL_RECOVERY_REQUESTED:-false}"
+    POST_REINSTALL_RECOVERY_MARKER=""
+    # Platform release the recovered data belongs to (kaapana-* or racoon-*).
+    POST_REINSTALL_PLATFORM_RELEASE_NAME="${POST_REINSTALL_PLATFORM_RELEASE_NAME:-kaapana-platform-chart}"
 }
 
 function delete_all_images_docker {
@@ -1654,6 +1720,225 @@ function import_container_images_tar {
     echo "${RED}Importing the images from the tar, this might take a long time -> please be patient and wait.${NC}"
     microk8s.ctr images import --platform "$(detect_target_image_platform)" "$TAR_PATH"
     echo "${GREEN}Finished image upload! You should now be able to deploy the platform by specifying the chart path.${NC}"
+}
+
+# Marker handling: a fresh server installation leaves a per-user marker file
+# so the next deploy can detect the "OS reinstalled, data dirs survived"
+# situation and offer recovery. The marker lives in the invoking user's home
+# (resolved through SUDO_USER when the install ran under sudo).
+function create_post_reinstall_recovery_marker {
+    local real_user_home="$HOME"
+    local marker_path
+    [[ -n "${SUDO_USER:-}" ]] && real_user_home="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
+    marker_path="${real_user_home}/.kaapana/post-reinstall-recovery-pending"
+    if [[ -n "${SUDO_USER:-}" && "$EUID" -eq 0 ]]; then
+        # Create the marker as the invoking user, not root, so a later
+        # non-sudo deploy can remove it again.
+        sudo -u "$SUDO_USER" mkdir -p "$(dirname "$marker_path")"
+        sudo -u "$SUDO_USER" touch "$marker_path"
+    else
+        mkdir -p "$(dirname "$marker_path")"
+        : > "$marker_path"
+    fi
+    echo -e "${YELLOW}Marked fresh server install for optional post-reinstall recovery: ${marker_path}${NC}"
+}
+
+function clear_post_reinstall_recovery_marker {
+    local real_user_home="$HOME"
+    local marker_path
+    [[ -n "${SUDO_USER:-}" ]] && real_user_home="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
+    marker_path="${POST_REINSTALL_RECOVERY_MARKER:-${real_user_home}/.kaapana/post-reinstall-recovery-pending}"
+    if [[ -f "$marker_path" ]]; then
+        if rm -f "$marker_path" 2>/dev/null; then
+            echo -e "${GREEN}Cleared post-reinstall recovery marker: ${marker_path}${NC}"
+        else
+            echo -e "${YELLOW}Could not clear post-reinstall recovery marker without sudo: ${marker_path}${NC}"
+        fi
+    fi
+}
+
+# Recovery-content detection depends on the real data-dir layout (extension
+# dirs, project dirs, hostpath PVC dirs); do not simplify without validating
+# against live installs.
+function data_dir_has_recovery_content {
+    local data_dir="$1"
+
+    if [ -z "$data_dir" ] || [ ! -d "$data_dir" ]; then
+        return 1
+    fi
+
+    if find "$data_dir" -maxdepth 3 \
+        \( -name 'extensions' -o -name 'project-*' -o -name '*pvc-*' -o -name '*pv-claim*' \) \
+        -print -quit 2>/dev/null | grep -q .; then
+        return 0
+    fi
+
+    return 1
+}
+
+function recovery_data_detected {
+    data_dir_has_recovery_content "$FAST_DATA_DIR" || data_dir_has_recovery_content "$SLOW_DATA_DIR"
+}
+
+# Cluster-state detection depends on live helm/kubectl state; recovery must
+# not run when any platform state already exists in the cluster.
+function platform_state_already_exists {
+    if $HELM_EXECUTABLE -n "$ADMIN_NAMESPACE" ls --short 2>/dev/null | grep -q .; then
+        return 0
+    fi
+
+    if $HELM_EXECUTABLE -n "$HELM_NAMESPACE" ls --short 2>/dev/null | grep -q .; then
+        return 0
+    fi
+
+    if microk8s.kubectl get namespace "$ADMIN_NAMESPACE" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    if microk8s.kubectl get namespace "$SERVICES_NAMESPACE" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    # Project namespaces: match both current prefixed (<prefix>-project-*) and
+    # legacy unprefixed (project-*) forms.
+    if microk8s.kubectl get ns --no-headers 2>/dev/null | awk '{print $1}' | grep -qE "^(${PLATFORM_PREFIX:-}-)?project-"; then
+        return 0
+    fi
+
+    return 1
+}
+
+# Delegate post-reinstall recovery work to the helper script before deploy.
+function run_post_reinstall_recovery {
+    local script_dir
+    local post_reinstall_script
+    local chart_ref
+    local recovery_cmd=()
+
+    require_retain_hostpath_reclaim_policy_for_recovery || return 1
+
+    script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    post_reinstall_script="${script_dir}/utils/post-server-reinstall.sh"
+    if [[ ! -r "${post_reinstall_script}" ]]; then
+        post_reinstall_script="${script_dir}/../utils/post-server-reinstall.sh"
+    fi
+
+    if [[ ! -r "${post_reinstall_script}" ]]; then
+        echo -e "${RED}Post-reinstall recovery helper missing or not readable: ${post_reinstall_script}${NC}"
+        return 1
+    fi
+
+    chart_ref="${CONTAINER_REGISTRY_URL}/${PLATFORM_NAME}:${PLATFORM_VERSION}"
+
+    echo -e "${YELLOW}Running delegated post-reinstall recovery before deployment...${NC}"
+    recovery_cmd=(
+        # Run helpers through bash so deployments do not depend on the executable bit.
+        bash "$post_reinstall_script"
+        --chart "$chart_ref"
+        --registry-username "$CONTAINER_REGISTRY_USERNAME"
+        --registry-password "$CONTAINER_REGISTRY_PASSWORD"
+        --fast-dir "$FAST_DATA_DIR"
+        --slow-dir "$SLOW_DATA_DIR"
+        --hostpath-reclaim-policy "$HOSTPATH_RECLAIM_POLICY"
+        --admin-release-name "$PLATFORM_NAME"
+        --platform-release-name "$POST_REINSTALL_PLATFORM_RELEASE_NAME"
+        # Project namespaces are prefixed on current kaapana; the helper needs
+        # the prefix to match/recreate them correctly.
+        --platform-prefix "${PLATFORM_PREFIX:-}"
+    )
+
+    # Explicit status check: this function is invoked as
+    # `run_post_reinstall_recovery || exit 1`, which suppresses errexit for
+    # the whole function body - without the check a failed helper would be
+    # reported as success and the one-shot marker would be cleared below.
+    if ! "${recovery_cmd[@]}"; then
+        echo -e "${RED}Post-reinstall recovery helper failed. Keeping the recovery marker for a retry.${NC}"
+        return 1
+    fi
+
+    # Consumed by the post-deploy project-namespace reconciliation (separate
+    # feature); harmless when that feature is not installed.
+    POST_DEPLOY_RECONCILE_ENABLED=true
+    echo -e "${GREEN}Post-reinstall recovery finished. Project namespace reconciliation will run after deploy.${NC}"
+    clear_post_reinstall_recovery_marker
+}
+
+# Decide whether post-reinstall recovery should run before the Helm deploy:
+# - explicit --recover-after-reinstall always runs it;
+# - otherwise only when the fresh-install marker exists AND recovery data is
+#   present AND no platform state exists yet AND Retain is active - and even
+#   then only after interactive confirmation (quiet mode refuses instead).
+function maybe_run_post_reinstall_recovery {
+    local marker_path
+    local has_marker=false
+    local has_data=false
+    local force_recovery="${POST_REINSTALL_RECOVERY_REQUESTED:-false}"
+    local answer=""
+
+    local real_user_home="$HOME"
+    [[ -n "${SUDO_USER:-}" ]] && real_user_home="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
+    marker_path="${real_user_home}/.kaapana/post-reinstall-recovery-pending"
+    POST_REINSTALL_RECOVERY_MARKER="$marker_path"
+
+    if [ -f "$marker_path" ]; then
+        has_marker=true
+    fi
+
+    if recovery_data_detected; then
+        has_data=true
+    fi
+
+    if [[ "${force_recovery,,}" == "true" ]]; then
+        echo -e "${YELLOW}Post-reinstall recovery requested explicitly.${NC}"
+        run_post_reinstall_recovery || exit 1
+        return 0
+    fi
+
+    if [[ "$has_marker" != true ]]; then
+        return 0
+    fi
+
+    if [[ "$has_data" != true ]]; then
+        echo -e "${YELLOW}Fresh server-install marker found, but no Kaapana data was detected in the configured data dirs.${NC}"
+        clear_post_reinstall_recovery_marker
+        return 0
+    fi
+
+    if platform_state_already_exists; then
+        echo -e "${YELLOW}Post-reinstall recovery marker found, but platform state already exists in the cluster. Skipping automatic recovery.${NC}"
+        clear_post_reinstall_recovery_marker
+        return 0
+    fi
+
+    # Marker-based recovery is automatic, so keep it conservative: notify the
+    # operator instead of enabling Retain implicitly.
+    if [[ "$HOSTPATH_RECLAIM_POLICY" != "Retain" ]]; then
+        echo -e "${YELLOW}Post-reinstall recovery marker found, but hostpath reclaim policy is '${HOSTPATH_RECLAIM_POLICY}'.${NC}"
+        echo -e "${YELLOW}Skipping automatic recovery. Rerun deploy with --hostpath-reclaim-policy Retain --recover-after-reinstall to opt into retained hostpath PVs.${NC}"
+        return 0
+    fi
+
+    if [[ "${QUIET,,}" == "true" ]]; then
+        echo -e "${RED}Detected a post-reinstall recovery situation, but quiet mode cannot ask for confirmation.${NC}"
+        echo -e "${RED}Re-run deploy with --recover-after-reinstall to execute recovery explicitly.${NC}"
+        exit 1
+    fi
+
+    echo -e "${YELLOW}Detected a fresh server install plus existing Kaapana data directories.${NC}"
+    echo -e "${YELLOW}Run post-reinstall recovery now before Helm deploy? [yes/no]${NC}"
+    read -r answer
+    case "${answer,,}" in
+        y|yes)
+            run_post_reinstall_recovery || exit 1
+            ;;
+        n|no)
+            echo -e "${YELLOW}Skipping post-reinstall recovery. The marker will be kept so you can retry on the next deploy.${NC}"
+            ;;
+        *)
+            echo -e "${RED}Please answer yes or no. Re-run deploy to choose again, or pass --recover-after-reinstall.${NC}"
+            exit 1
+            ;;
+    esac
 }
 
 function run_migration_chart() {
@@ -2178,6 +2463,34 @@ function get_chart {
     fi
 }
 
+# Make sure a usable chart archive is present before migration/install.
+# Post-reinstall recovery triggers a nested storage-class setup
+# (--install-storage-classes) which removes the previously pulled local chart
+# archive via rm_chart_path; refresh it in that case.
+function ensure_chart_for_deploy {
+    if [[ "${OFFLINE_MODE,,}" == true ]]; then
+        if [[ -z "$CHART_PATH" || ! -f "$CHART_PATH" ]]; then
+            echo "${RED}ERROR: Expected chart archive not found in offline mode: $CHART_PATH${NC}"
+            echo "${RED}Provide a valid --chart-path file and retry.${NC}"
+            exit 1
+        fi
+        return 0
+    fi
+
+    # Online mode: keep existing chart if it still exists.
+    if [[ -n "$CHART_PATH" && -f "$CHART_PATH" ]]; then
+        return 0
+    fi
+
+    CHART_PATH=""
+    get_chart
+
+    if [[ -z "$CHART_PATH" || ! -f "$CHART_PATH" ]]; then
+        echo "${RED}ERROR: Chart archive missing after refresh: $CHART_PATH${NC}"
+        exit 1
+    fi
+}
+
 # Remove the locally pulled chart archive again. Pure extraction of the former
 # inline cleanup at the end of deploy_chart (only removes the archive when it
 # was pulled from a registry with credentials, i.e. not a user-provided
@@ -2282,6 +2595,14 @@ function deploy_chart {
 
     echo " Installing kaapana strorage class ..."
     setup_storage_classes
+
+    # Offer/run post-reinstall data recovery before migration and Helm
+    # install; recovery must complete while the cluster is still empty.
+    maybe_run_post_reinstall_recovery
+
+    # Recovery may have consumed/removed the pulled chart archive via its
+    # nested --install-storage-classes run; make sure it is present again.
+    ensure_chart_for_deploy
 
     echo "${GREEN}Checking for version difference and migration options...${NC}"
     migrate

@@ -126,7 +126,11 @@ for _ in range(1800):
                 f"Some Kubernetes objects for release {release_name} are not successful yet"
             )
         releases_installed[release_name] = {
-            "version": extension["version"],
+            # release_version, not extension["version"]: `extension` is a
+            # stale leftover of the preinstall loop above and always points at
+            # the LAST processed extension, corrupting the recorded version of
+            # every other release in this status loop.
+            "version": release_version,
             "installed": installed,
             "is_platform": is_platform,
         }

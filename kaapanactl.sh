@@ -245,6 +245,7 @@ function deploy() {
     _Flag: --check-system, check health of all resources in kaapana-admin-chart and kaapana-platform-chart
     _Flag: --report, create a report of the state of the microk8s cluster
     _Flag: --plain-http, use insecure HTTP when talking to the registry (default HTTPS, use --no-plain-http to force it)
+    _Flag: --prefetch-bootstrap-images, prefetch selected bootstrap images before chart install
 
     _Argument: --chart [registry/path/chart:version]
     _Argument: --platform-name [Helm chart name]
@@ -387,6 +388,15 @@ function deploy() {
                 MIGRATION_ENABLED=false
                 echo -e "${YELLOW}Migration disabled via CLI (--no-migration).${NC}"
                 shift # past argument
+            ;;
+
+            # Opt-in: pull the bootstrap-critical images into containerd
+            # before the Helm install so first-boot pods do not run into
+            # ImagePullBackOff on slow/flaky registry connections.
+            --prefetch-bootstrap-images)
+                BOOTSTRAP_IMAGE_PREFETCH_ENABLED=true
+                echo -e "${GREEN}Bootstrap image prefetch enabled via CLI flag.${NC}"
+                shift
             ;;
 
             --install-certs)
@@ -1394,6 +1404,26 @@ function load_kaapana_config {
     ######################################################
     STORAGE_PROVIDER="hostpath" # e.g. "hostpath" (microk8s) or "longhorn"
     VOLUME_SLOW_DATA="100Gi" # size of volumes in slow data dir (e.g. 100Gi or 100Ti)
+
+    ######################################################
+    # Bootstrap image-pull hardening
+    ######################################################
+    # Auto-heal deletes bootstrap pods stuck in ImagePullBackOff after the
+    # Helm install so kubelet retries the pull immediately instead of waiting
+    # out its exponential backoff (up to 5 min per retry).
+    IMAGE_PULL_AUTOHEAL_ENABLED="${IMAGE_PULL_AUTOHEAL_ENABLED:-true}"
+    IMAGE_PULL_AUTOHEAL_TIMEOUT_SECONDS="${IMAGE_PULL_AUTOHEAL_TIMEOUT_SECONDS:-1200}"
+    IMAGE_PULL_AUTOHEAL_INTERVAL_SECONDS="${IMAGE_PULL_AUTOHEAL_INTERVAL_SECONDS:-30}"
+    # Empty default on purpose: the namespaces are resolved at use time from
+    # ADMIN_NAMESPACE/SERVICES_NAMESPACE, which deploy() may still rewrite
+    # (e.g. INSTANCE_UID prefixing) after this config runs.
+    IMAGE_PULL_AUTOHEAL_NAMESPACES="${IMAGE_PULL_AUTOHEAL_NAMESPACES:-}"
+    # Only bootstrap-critical pods are auto-healed; everything else keeps
+    # normal kubelet backoff behavior.
+    IMAGE_PULL_AUTOHEAL_POD_REGEX="${IMAGE_PULL_AUTOHEAL_POD_REGEX:-^(kube-helm-deployment-|init-extensions-|init-collections-|keycloak-|auth-backend-|oauth2-proxy-|ollama-).*$}"
+    # Bootstrap image prefetch is opt-in via --prefetch-bootstrap-images.
+    BOOTSTRAP_IMAGE_PREFETCH_ENABLED="${BOOTSTRAP_IMAGE_PREFETCH_ENABLED:-false}"
+    BOOTSTRAP_IMAGE_PREFETCH_IMAGES="${BOOTSTRAP_IMAGE_PREFETCH_IMAGES:-service-checker kube-helm auth-backend keycloak keycloak-init oauth2-proxy ollama}"
 }
 
 function delete_all_images_docker {
@@ -2060,6 +2090,44 @@ function rm_chart_path {
     fi
 }
 
+# Pre-apply chart CRDs and wait until the Kubernetes API reports them as established.
+# This avoids a race where Helm has submitted the CRD declaration, but the API server
+# has not yet registered the new kind. Without this preflight, the same install can
+# fail with "no matches for kind ..." for resources that depend on freshly created CRDs.
+function apply_chart_crds() {
+    local crd_manifest=""
+    local -a crd_names=()
+    local crd_name=""
+
+    if ! crd_manifest="$($HELM_EXECUTABLE show crds "$CHART_PATH" 2>/dev/null)"; then
+        echo "${RED}Failed to read CRDs from chart archive: $CHART_PATH${NC}"
+        exit 1
+    fi
+
+    if [[ -z "$crd_manifest" ]]; then
+        echo "${YELLOW}No bundled CRDs found in chart archive.${NC}"
+        return 0
+    fi
+
+    echo "${GREEN}Pre-applying bundled chart CRDs before platform install to avoid API registration races...${NC}"
+    printf '%s\n' "$crd_manifest" | microk8s.kubectl apply -f -
+    echo "${YELLOW}If CRDs were already created by a previous attempt, kubectl apply will reconcile them and Helm may later skip existing CRDs.${NC}"
+
+    # Wait for each declared CRD so Helm does not race the API registration.
+    mapfile -t crd_names < <(
+        printf '%s\n' "$crd_manifest" | awk '
+            $1 == "kind:" { kind = $2; next }
+            kind == "CustomResourceDefinition" && $1 == "name:" { print $2; kind = "" }
+        '
+    )
+
+    for crd_name in "${crd_names[@]}"; do
+        [[ -n "$crd_name" ]] || continue
+        echo "${GREEN}Waiting for CRD ${crd_name} to become Established...${NC}"
+        microk8s.kubectl wait --for=condition=Established "crd/${crd_name}" --timeout=600s
+    done
+}
+
 function deploy_chart {
     if [ -z "$CONTAINER_REGISTRY_URL" ]; then
         echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the kaapanactl.sh script!${NC}"
@@ -2158,8 +2226,15 @@ function deploy_chart {
     echo "${GREEN}Checking for version difference and migration options...${NC}"
     migrate
 
+    # Best-effort image prefetch (opt-in, see --prefetch-bootstrap-images);
+    # never blocks the deploy.
+    prefetch_bootstrap_images || true
+
     echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
+
+    # Register bundled CRDs before the Helm install (see apply_chart_crds).
+    apply_chart_crds
 
     local -a kube_helm_timeout_args=()
     if [[ -n "$KUBE_HELM_INSTALL_TIMEOUT" ]]; then
@@ -2255,6 +2330,9 @@ function deploy_chart {
 
     print_deployment_done
     update_coredns_rewrite
+    # Watch the bootstrap pods after install and reset ImagePullBackOff pods;
+    # best-effort - a timeout here must not fail an otherwise good deploy.
+    autoheal_bootstrap_imagepullbackoff || true
     CONTAINER_REGISTRY_USERNAME=""
     CONTAINER_REGISTRY_PASSWORD=""
 }
@@ -2587,6 +2665,179 @@ function preflight_checks {
     fi
 
     echo -e "${GREEN}################################  PREFLIGHT CHECKS COMPLETED  #########################################${NC}"
+}
+
+function list_imagepullbackoff_pods {
+    local namespace="$1"
+    microk8s.kubectl get pods -n "$namespace" --no-headers 2>/dev/null \
+        | awk '$3 == "ImagePullBackOff" || $3 == "Init:ImagePullBackOff" { print $1 }' || true
+}
+
+function list_bootstrap_imagepullbackoff_pods {
+    local namespace="$1"
+    list_imagepullbackoff_pods "$namespace" | grep -E "$IMAGE_PULL_AUTOHEAL_POD_REGEX" || true
+}
+
+# Delete matching ImagePullBackOff pods once so their controllers recreate
+# them and kubelet retries the pull immediately (skipping its exponential
+# backoff). Echoes the number of deleted pods on stdout.
+function reset_bootstrap_imagepullbackoff_once {
+    local namespaces="$1"
+    local deleted=0
+
+    for namespace in $namespaces; do
+        local pods
+        pods=$(list_bootstrap_imagepullbackoff_pods "$namespace")
+        if [ -z "$pods" ]; then
+            continue
+        fi
+
+        # Keep helper output numeric on stdout so callers can use command substitution safely.
+        echo -e "${YELLOW}Resetting ImagePullBackOff in namespace $namespace:${NC}" >&2
+        while IFS= read -r pod; do
+            if [ -z "$pod" ]; then
+                continue
+            fi
+            echo "  - deleting pod/$pod" >&2
+            microk8s.kubectl -n "$namespace" delete pod "$pod" --ignore-not-found=true --grace-period=0 --force >/dev/null 2>&1 || true
+            deleted=$((deleted + 1))
+        done <<< "$pods"
+    done
+
+    echo "$deleted"
+}
+
+# One-line status of the bootstrap-critical workloads, used for progress
+# logging during the auto-heal loop.
+function check_bootstrap_pull_progress {
+    local kube_helm_running=false
+    local init_extensions_backoff=0
+    local init_collections_backoff=0
+
+    if microk8s.kubectl -n "$ADMIN_NAMESPACE" get pods -l app.kubernetes.io/name=kube-helm --no-headers 2>/dev/null | awk '$3 == "Running" { found=1 } END { exit(found ? 0 : 1) }'; then
+        kube_helm_running=true
+    fi
+
+    init_extensions_backoff=$(microk8s.kubectl -n "$ADMIN_NAMESPACE" get pods -l job-name=init-extensions --no-headers 2>/dev/null | awk '$3 == "ImagePullBackOff" || $3 == "Init:ImagePullBackOff" { c++ } END { print c+0 }')
+    init_collections_backoff=$(microk8s.kubectl -n "$ADMIN_NAMESPACE" get pods -l job-name=init-collections --no-headers 2>/dev/null | awk '$3 == "ImagePullBackOff" || $3 == "Init:ImagePullBackOff" { c++ } END { print c+0 }')
+
+    echo "kube_helm_running=${kube_helm_running}, init_extensions_backoff=${init_extensions_backoff}, init_collections_backoff=${init_collections_backoff}"
+}
+
+# Opt-in prefetch of the bootstrap-critical images into microk8s containerd
+# before the Helm install. Failures only warn: the regular pull path and the
+# auto-heal loop still cover the pods afterwards.
+function prefetch_bootstrap_images {
+    if [[ "${BOOTSTRAP_IMAGE_PREFETCH_ENABLED,,}" != "true" ]]; then
+        echo -e "${YELLOW}Bootstrap image prefetch disabled (BOOTSTRAP_IMAGE_PREFETCH_ENABLED=${BOOTSTRAP_IMAGE_PREFETCH_ENABLED}).${NC}"
+        return 0
+    fi
+
+    if [ -z "${CONTAINER_REGISTRY_USERNAME:-}" ] || [ -z "${CONTAINER_REGISTRY_PASSWORD:-}" ]; then
+        echo -e "${YELLOW}Bootstrap image prefetch skipped: missing registry credentials.${NC}"
+        return 0
+    fi
+
+    local image_version="$PLATFORM_VERSION"
+    local images="$BOOTSTRAP_IMAGE_PREFETCH_IMAGES"
+
+    if [ -z "$image_version" ] || [ -z "$images" ]; then
+        return 0
+    fi
+
+    echo -e "${YELLOW}Prefetching bootstrap images into microk8s containerd (version=${image_version}).${NC}"
+    for image_name in $images; do
+        local image_ref="${CONTAINER_REGISTRY_URL}/${image_name}:${image_version}"
+        local pull_ok=false
+
+        if microk8s ctr images ls 2>/dev/null | awk '{print $1}' | grep -Fxq "$image_ref"; then
+            echo -e "${GREEN}Bootstrap image already cached:${NC} $image_ref"
+            continue
+        fi
+
+        for attempt in 1 2; do
+            echo -e "${YELLOW}Prefetch attempt ${attempt}: ${image_ref}${NC}"
+            # Note: --user exposes the credentials in the process list for
+            # the duration of the pull; accepted for this opt-in feature
+            # (ctr offers no stdin/credential-file alternative here).
+            if microk8s ctr images pull --user "${CONTAINER_REGISTRY_USERNAME}:${CONTAINER_REGISTRY_PASSWORD}" "$image_ref"; then
+                pull_ok=true
+                break
+            fi
+            sleep 2
+        done
+
+        if [[ "$pull_ok" != true ]]; then
+            echo -e "${YELLOW}Bootstrap image prefetch failed for ${image_ref}. Deployment will continue.${NC}"
+        fi
+    done
+}
+
+# Post-install watchdog: while bootstrap pods (matching
+# IMAGE_PULL_AUTOHEAL_POD_REGEX) sit in ImagePullBackOff, delete them so the
+# pull is retried immediately; give up after the configured timeout. Without
+# this, a single flaky pull can delay the first platform start by the full
+# kubelet backoff ladder.
+function autoheal_bootstrap_imagepullbackoff {
+    if [[ "${IMAGE_PULL_AUTOHEAL_ENABLED,,}" != "true" ]]; then
+        echo -e "${YELLOW}Image pull auto-heal disabled (IMAGE_PULL_AUTOHEAL_ENABLED=${IMAGE_PULL_AUTOHEAL_ENABLED}).${NC}"
+        return 0
+    fi
+
+    local timeout="$IMAGE_PULL_AUTOHEAL_TIMEOUT_SECONDS"
+    local interval="$IMAGE_PULL_AUTOHEAL_INTERVAL_SECONDS"
+    # Resolve the effective namespaces here, not in load_kaapana_config:
+    # deploy() rewrites SERVICES_NAMESPACE for INSTANCE_UID deployments after
+    # the config ran, and a stale literal would watch a nonexistent namespace.
+    local namespaces="${IMAGE_PULL_AUTOHEAL_NAMESPACES:-$ADMIN_NAMESPACE $SERVICES_NAMESPACE}"
+    local start_ts
+    local now_ts
+    local cycle=0
+    local total_deleted=0
+    local remaining
+
+    start_ts=$(date +%s)
+    echo -e "${YELLOW}Starting bootstrap image pull auto-heal (timeout=${timeout}s, interval=${interval}s).${NC}"
+    echo -e "${YELLOW}Namespaces: ${namespaces}${NC}"
+    echo -e "${YELLOW}Pod regex: ${IMAGE_PULL_AUTOHEAL_POD_REGEX}${NC}"
+
+    while true; do
+        cycle=$((cycle + 1))
+        remaining=""
+
+        for namespace in $namespaces; do
+            local pods
+            pods=$(list_bootstrap_imagepullbackoff_pods "$namespace")
+            if [ -n "$pods" ]; then
+                while IFS= read -r pod; do
+                    [ -z "$pod" ] && continue
+                    remaining="${remaining} ${namespace}/${pod}"
+                done <<< "$pods"
+            fi
+        done
+
+        if [ -z "$remaining" ]; then
+            echo -e "${GREEN}Bootstrap image pull auto-heal finished: no matching ImagePullBackOff pods left.${NC}"
+            echo -e "${GREEN}Progress: $(check_bootstrap_pull_progress)${NC}"
+            return 0
+        fi
+
+        echo -e "${YELLOW}[auto-heal cycle ${cycle}] remaining:${NC}${remaining}"
+        local deleted_this_cycle
+        deleted_this_cycle=$(reset_bootstrap_imagepullbackoff_once "$namespaces")
+        total_deleted=$((total_deleted + deleted_this_cycle))
+        echo -e "${YELLOW}[auto-heal cycle ${cycle}] deleted pods: ${deleted_this_cycle}, total deleted: ${total_deleted}${NC}"
+        echo -e "${YELLOW}[auto-heal cycle ${cycle}] progress: $(check_bootstrap_pull_progress)${NC}"
+
+        now_ts=$(date +%s)
+        if [ $((now_ts - start_ts)) -ge "$timeout" ]; then
+            echo -e "${RED}Bootstrap image pull auto-heal timed out after ${timeout}s.${NC}"
+            echo -e "${RED}Remaining:${NC}${remaining}"
+            return 1
+        fi
+
+        sleep "$interval"
+    done
 }
 
 function update_coredns_rewrite() {

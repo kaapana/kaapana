@@ -1,5 +1,9 @@
 ---
-{{- if not .Values.global.dev_mode}}
+{{- /* Toggleable via global.enable_privileged_pod_admission_policy so
+deployments can disable the policy without switching to dev_mode.
+NOTE: compared as lower-cased string because `| default true` would swallow
+an explicit `false` (Helm treats false as empty). Unset still enforces. */ -}}
+{{- if and (not .Values.global.dev_mode) (ne (lower (toString .Values.global.enable_privileged_pod_admission_policy)) "false") }}
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: ValidatingAdmissionPolicy
 metadata:

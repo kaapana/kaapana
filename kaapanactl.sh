@@ -640,6 +640,13 @@ function server_installation() {
     OFFLINE_SNAPS=NA
     DNS=""
 
+    # Allow preseeding the DNS servers via the NAMESERVERS environment
+    # variable for hosts where autodetection (nmcli/resolvectl) fails or
+    # returns the wrong resolvers (e.g. VPN/split-DNS setups).
+    if [[ -z "$DNS" && -n "${NAMESERVERS:-}" ]]; then
+        DNS="$NAMESERVERS"
+    fi
+
     POSITIONAL=()
     while [[ $# -gt 0 ]]
     do
@@ -1050,6 +1057,144 @@ function dns_check {
     fi
 }
 
+# Update the Calico veth/CNI MTU and restart calico-node to apply it.
+# Background: with VXLAN encapsulation the pod MTU must be smaller than the
+# underlay interface MTU; a too-large MTU causes silently dropped/stalling
+# large packets (image pulls, registry pushes, OpenSearch bulk requests).
+function apply_calico_mtu {
+    local mtu_value="$1"
+
+    if [[ -z "$mtu_value" ]]; then
+        echo "${YELLOW}Calico MTU not set, skipping configmap update.${NC}"
+        return 0
+    fi
+
+    # Guard: a future microk8s channel may ship a different/renamed CNI;
+    # in that case skip MTU tuning with a warning instead of aborting the
+    # whole installation (set -e).
+    if ! microk8s.kubectl -n kube-system get configmap calico-config >/dev/null 2>&1; then
+        echo "${YELLOW}calico-config configmap not found, skipping Calico MTU tuning.${NC}"
+        return 0
+    fi
+
+    echo "${YELLOW}Setting Calico veth_mtu to ${mtu_value} ...${NC}"
+    microk8s.kubectl -n kube-system patch configmap calico-config --type merge \
+        -p "{\"data\":{\"veth_mtu\":\"${mtu_value}\"}}"
+
+    # Only veth_mtu is patched: calico's install-cni renders the __CNI_MTU__
+    # placeholder in cni_network_config from veth_mtu on the calico-node
+    # restart below. Patching the rendered value into cni_network_config
+    # directly would destroy the placeholder and freeze the MTU forever.
+
+    echo "${YELLOW}Restarting calico-node to apply MTU ...${NC}"
+    microk8s.kubectl -n kube-system rollout restart ds/calico-node
+    # Non-fatal: wait_for_microk8s_network_ready (called right after this
+    # function) is the authoritative readiness gate with taint handling;
+    # a slow rollout here must not abort the installation.
+    microk8s.kubectl -n kube-system rollout status ds/calico-node --timeout=120s || true
+}
+
+# Wait until the node reports a usable pod network. Also clears a stale
+# node.kubernetes.io/network-unavailable taint that can survive a calico-node
+# restart and would keep all workloads unschedulable forever.
+function wait_for_microk8s_network_ready {
+    local timeout_seconds="${1:-180}"
+    local node_name=""
+    local deadline=0
+    local now=0
+    local taint=""
+    local network_unavailable=""
+    local calico_ready=""
+    local taint_cleared=false
+
+    node_name="$(microk8s.kubectl get nodes -o jsonpath='{.items[0].metadata.name}')"
+    if [[ -z "$node_name" ]]; then
+        echo "${RED}Could not determine the microk8s node name.${NC}"
+        exit 1
+    fi
+
+    echo "${YELLOW}Waiting for node ${node_name} network readiness ...${NC}"
+    deadline=$((SECONDS + timeout_seconds))
+
+    while (( SECONDS < deadline )); do
+        taint="$(microk8s.kubectl get node "$node_name" -o jsonpath='{range .spec.taints[*]}{.key}={.effect}{"\n"}{end}' 2>/dev/null || true)"
+        network_unavailable="$(microk8s.kubectl get node "$node_name" -o jsonpath='{range .status.conditions[?(@.type=="NetworkUnavailable")]}{.status}{end}' 2>/dev/null || true)"
+        calico_ready="$(microk8s.kubectl -n kube-system get pods -l k8s-app=calico-node --field-selector "spec.nodeName=${node_name}" -o jsonpath='{range .items[*].status.conditions[?(@.type=="Ready")]}{.status}{end}' 2>/dev/null || true)"
+
+        if [[ "$taint" != *"node.kubernetes.io/network-unavailable=NoSchedule"* && "$network_unavailable" != "True" ]]; then
+            echo "${GREEN}Node ${node_name} network is ready.${NC}"
+            return 0
+        fi
+
+        if [[ "$calico_ready" == "True" && "$taint" == *"node.kubernetes.io/network-unavailable=NoSchedule"* && "$taint_cleared" == false ]]; then
+            echo "${YELLOW}Calico is ready but node ${node_name} still has a stale network-unavailable taint. Clearing it ...${NC}"
+            microk8s.kubectl taint nodes "$node_name" node.kubernetes.io/network-unavailable:NoSchedule- || true
+            taint_cleared=true
+        fi
+
+        sleep 5
+    done
+
+    echo "${RED}Timed out waiting for node ${node_name} network readiness.${NC}"
+    microk8s.kubectl describe node "$node_name" || true
+    exit 1
+}
+
+function detect_calico_mtu {
+    # Returns a best-guess MTU for Calico VXLAN
+    # Priority:
+    #   1) existing vxlan.calico MTU (most truthful if calico already up)
+    #   2) underlay iface MTU - VXLAN overhead (default 50)
+    local overhead="${1:-50}"
+
+    # Try to read MTU from vxlan.calico if it exists
+    local vxlan_mtu
+    vxlan_mtu="$(ip -o link show vxlan.calico 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="mtu"){print $(i+1); exit}}')"
+    if [[ -n "$vxlan_mtu" && "$vxlan_mtu" =~ ^[0-9]+$ ]]; then
+        echo "$vxlan_mtu"
+        return 0
+    fi
+
+    # Fallback: detect primary interface used for default route
+    local iface
+    iface="$(ip route show default 0.0.0.0/0 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
+    if [[ -z "$iface" ]]; then
+        iface="eth0"
+    fi
+
+    local underlay_mtu
+    underlay_mtu="$(ip -o link show "$iface" 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="mtu"){print $(i+1); exit}}')"
+
+    if [[ -z "$underlay_mtu" || ! "$underlay_mtu" =~ ^[0-9]+$ ]]; then
+        # Conservative last resort
+        echo "1400"
+        return 0
+    fi
+
+    local guess=$((underlay_mtu - overhead))
+    if (( guess < 576 )); then
+        guess=576
+    fi
+    echo "$guess"
+}
+
+function compute_safer_mtu {
+    # Lowers detected MTU by a margin, but never below a minimum
+    local detected="$1"
+    local margin="${2:-50}"
+    local min_mtu="${3:-1200}"
+
+    if [[ -z "$detected" || ! "$detected" =~ ^[0-9]+$ ]]; then
+        detected="$min_mtu"
+    fi
+
+    local safer=$((detected - margin))
+    if (( safer < min_mtu )); then
+        safer="$min_mtu"
+    fi
+    echo "$safer"
+}
+
 function install_microk8s {
     if command -v microk8s &> /dev/null
     then
@@ -1141,6 +1286,27 @@ DOCKEREOF
         microk8s.start
         echo "${YELLOW}Wait until microk8s is ready ...${NC}"
         timeout 300 microk8s.status --wait-ready
+
+        # MTU tuning
+        # If CALICO_VETH_MTU is set externally, respect it.
+        # Otherwise autodetect and subtract a safety margin. A pod MTU larger
+        # than underlay-MTU minus VXLAN overhead breaks large transfers
+        # (image pulls, uploads) with hard-to-debug stalls.
+        CALICO_MTU_SAFETY_MARGIN="${CALICO_MTU_SAFETY_MARGIN:-50}"
+        CALICO_MTU_MIN="${CALICO_MTU_MIN:-1300}"
+        VXLAN_OVERHEAD="${VXLAN_OVERHEAD:-50}"
+
+        if [[ -n "${CALICO_VETH_MTU:-}" ]]; then
+            echo "${YELLOW}CALICO_VETH_MTU is set externally to ${CALICO_VETH_MTU} (no autodetect).${NC}"
+        else
+            detected_mtu="$(detect_calico_mtu "$VXLAN_OVERHEAD")"
+            safer_mtu="$(compute_safer_mtu "$detected_mtu" "$CALICO_MTU_SAFETY_MARGIN" "$CALICO_MTU_MIN")"
+            CALICO_VETH_MTU="$safer_mtu"
+            echo "${YELLOW}Autodetected Calico MTU: ${detected_mtu}. Applying safety margin ${CALICO_MTU_SAFETY_MARGIN} -> using ${CALICO_VETH_MTU}.${NC}"
+        fi
+
+        apply_calico_mtu "$CALICO_VETH_MTU"
+        wait_for_microk8s_network_ready "${CALICO_NETWORK_READY_TIMEOUT_SECONDS:-180}"
 
         echo "${YELLOW}Enable microk8s RBAC ...${NC}"
         microk8s.enable rbac

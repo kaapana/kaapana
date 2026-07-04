@@ -36,8 +36,22 @@ spec:
           value: "{{ .Values.global.services_namespace }}"
         - name: ADMIN_NAMESPACE
           value: "{{ .Values.global.admin_namespace }}"    
+        # Helm release names of the deployment; the migration writes its
+        # namespace ownership annotations for these (see NS_HELM_MAP in the
+        # migration script). Defaults to the kaapana-* names when unset.
+        - name: ADMIN_RELEASE_NAME
+          value: "{{ .Values.global.admin_release_name }}"
+        - name: PLATFORM_RELEASE_NAME
+          value: "{{ .Values.global.platform_release_name }}"
         - name: VOLUME_SLOW_DATA
           value: "{{ .Values.global.volume_slow_data }}"
+        - name: KEYCLOAK_ADMIN_USERNAME
+          # `quote` (not bare interpolation): credentials may contain YAML
+          # metacharacters like " or \ which would break the manifest or
+          # silently change the value.
+          value: {{ .Values.global.credentials_keycloak_admin_username | quote }}
+        - name: KEYCLOAK_ADMIN_PASSWORD
+          value: {{ .Values.global.credentials_keycloak_admin_password | quote }}
         - name: MIGRATION_IMAGE
           value: "{{ .Values.global.registry_url }}/migration:{{ .Values.global.kaapana_build_version }}"
         volumeMounts:

@@ -8,9 +8,81 @@ STORAGE_CLASS_WORKFLOW="${STORAGE_CLASS_WORKFLOW}"
 SERVICES_NAMESPACE="${SERVICES_NAMESPACE}"
 ADMIN_NAMESPACE="${ADMIN_NAMESPACE}"
 VOLUME_SLOW_DATA="${VOLUME_SLOW_DATA}"
+# Helm release names are configurable in Kaapana (the admin release is named
+# after the platform chart via --name-template, the platform release name can
+# differ per distribution/build). The Helm ownership annotations written by
+# this migration must match the releases that will actually be installed,
+# otherwise the follow-up install is blocked by ownership errors. Defaults
+# keep the previous hardcoded kaapana-* behavior.
+ADMIN_RELEASE_NAME="${ADMIN_RELEASE_NAME:-kaapana-admin-chart}"
+PLATFORM_RELEASE_NAME="${PLATFORM_RELEASE_NAME:-kaapana-platform-chart}"
+# Optional: when provided, the configured Keycloak admin password is validated
+# against the migrated Keycloak BEFORE the deploy continues (see
+# sync_keycloak_admin_password below).
+KEYCLOAK_ADMIN_USERNAME="${KEYCLOAK_ADMIN_USERNAME:-}"
+KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-}"
 
 echo "Using STORAGE_PROVIDER:${STORAGE_PROVIDER}"
 
+# Validate that the Keycloak admin password configured for the deployment
+# matches the password in the migrated Keycloak database. A mismatch would
+# only surface AFTER the deploy as platform-wide 401s (keycloak-init cannot
+# authenticate) with nothing pointing at the password - abort the migration
+# with remediation steps instead. Skips (with a message) when no credentials
+# were provided or no Keycloak pod is running.
+sync_keycloak_admin_password() {
+    if [[ -z "$KEYCLOAK_ADMIN_USERNAME" || -z "$KEYCLOAK_ADMIN_PASSWORD" ]]; then
+        echo "[INFO] Keycloak credentials not provided, skipping admin password validation."
+        return 0
+    fi
+
+    local kc_pod
+    kc_pod=$(kubectl get pods -n "$ADMIN_NAMESPACE" --no-headers \
+        -o custom-columns=':metadata.name' 2>/dev/null \
+        | grep keycloak | grep -v init | head -1 || true)
+
+    if [[ -z "$kc_pod" ]]; then
+        echo "[WARN] No Keycloak pod found in namespace $ADMIN_NAMESPACE - skipping password validation."
+        return 0
+    fi
+
+    echo "[INFO] Validating Keycloak admin password against pod ${kc_pod}..."
+    local rc=0
+    kubectl exec -n "$ADMIN_NAMESPACE" "$kc_pod" -- \
+        /opt/keycloak/bin/kcadm.sh config credentials \
+        --server http://localhost:8080/auth \
+        --realm master \
+        --user "$KEYCLOAK_ADMIN_USERNAME" \
+        --password "$KEYCLOAK_ADMIN_PASSWORD" >/dev/null 2>&1 || rc=$?
+
+    if [[ $rc -eq 0 ]]; then
+        echo "[INFO] Keycloak admin password matches new configuration."
+        return 0
+    fi
+
+    echo ""
+    echo "============================================================"
+    echo "ERROR: Keycloak admin password mismatch."
+    echo ""
+    echo "The Keycloak database has a different admin password than the"
+    echo "KEYCLOAK_ADMIN_PASSWORD configured for this deployment."
+    echo "This will cause keycloak-init to fail with 401 after deployment."
+    echo ""
+    echo "Fix: reset the password to match your config before re-running migration:"
+    echo ""
+    echo "  OLD_PASSWORD=<your-previous-keycloak-admin-password>"
+    echo "  KC_POD=\$(kubectl get pods -n $ADMIN_NAMESPACE --no-headers -o custom-columns=':metadata.name' | grep keycloak | grep -v init | head -1)"
+    echo "  kubectl exec -n $ADMIN_NAMESPACE \$KC_POD -- /opt/keycloak/bin/kcadm.sh config credentials \\"
+    echo "    --server http://localhost:8080/auth --realm master --user $KEYCLOAK_ADMIN_USERNAME --password \"\$OLD_PASSWORD\""
+    echo "  kubectl exec -n $ADMIN_NAMESPACE \$KC_POD -- /opt/keycloak/bin/kcadm.sh set-password \\"
+    echo "    --server http://localhost:8080/auth --realm master --user $KEYCLOAK_ADMIN_USERNAME --new-password \"$KEYCLOAK_ADMIN_PASSWORD\""
+    echo "============================================================"
+    echo ""
+    exit 1
+}
+
+
+sync_keycloak_admin_password
 
 echo "### Starting migration 0.5.x → 0.6.x ###"
 
@@ -25,12 +97,48 @@ fi
 
 
 declare -A PVC_CONFIG
+# namespace -> "<helm release that owns it>|<helm release namespace>", used
+# for the meta.helm.sh ownership annotations written by ensure_namespace.
+# Release names come from the configurable env above instead of hardcoded
+# kaapana-* defaults.
 declare -A NS_HELM_MAP=(
-  [$SERVICES_NAMESPACE]="kaapana-platform-chart|admin"
-  [project-admin]="project-admin|admin"
-  [$ADMIN_NAMESPACE]="kaapana-admin-chart|default"
+  [$SERVICES_NAMESPACE]="$PLATFORM_RELEASE_NAME|$ADMIN_NAMESPACE"
+  [project-admin]="project-admin|$ADMIN_NAMESPACE"
+  [$ADMIN_NAMESPACE]="$ADMIN_RELEASE_NAME|default"
 )
 PARALLEL_MIGRATIONS=4
+
+# Derive the Helm ownership mapping for a namespace that is not in the static
+# map: project namespaces are their own release, everything else belongs to
+# the platform release.
+add_namespace_helm_mapping() {
+    local namespace="$1"
+    if [[ "$namespace" =~ ^project- ]]; then
+        NS_HELM_MAP["$namespace"]="$namespace|$ADMIN_NAMESPACE"
+    else
+        NS_HELM_MAP["$namespace"]="$PLATFORM_RELEASE_NAME|$ADMIN_NAMESPACE"
+    fi
+}
+
+reconcile_project_namespaces() {
+    # Ensure existing project namespaces are managed with the expected Helm
+    # ownership annotations after storage migration.
+    echo "Reconciling project namespaces..."
+    local found=false
+
+    while IFS= read -r ns; do
+        [[ -n "$ns" ]] || continue
+        [[ "$ns" =~ ^project- ]] || continue
+        found=true
+        add_namespace_helm_mapping "$ns"
+        ensure_namespace "$ns" || true
+    done < <(kubectl get ns -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')
+
+    if [[ "$found" == false ]]; then
+        echo "No project-* namespaces found to reconcile."
+    fi
+}
+
 define_pvcs() {
     #Services namespace
     PVC_CONFIG[access-information-interface-pv-claim]="$SERVICES_NAMESPACE|$STORAGE_CLASS_FAST|10Gi|${FAST_DATA_DIR}/access-information-interface-postgres-data:data"
@@ -56,11 +164,14 @@ define_pvcs() {
 ensure_namespace() {
     local namespace="$1"
 
-    local helm_meta="${NS_HELM_MAP[$namespace]}"
+    local helm_meta="${NS_HELM_MAP[$namespace]:-}"
 
+    # Unknown namespaces previously hard-failed the whole migration; derive a
+    # sensible ownership mapping instead so additional namespaces (e.g. extra
+    # projects) do not abort it.
     if [[ -z "$helm_meta" ]]; then
-        echo "[ERROR] No Helm mapping defined for namespace '$namespace'"
-        return 1
+        add_namespace_helm_mapping "$namespace"
+        helm_meta="${NS_HELM_MAP[$namespace]:-}"
     fi
 
     local release_name="${helm_meta%%|*}"
@@ -150,39 +261,32 @@ create_all_pvcs() {
         IFS='|' read -r namespace storage_class storage rest <<< "${PVC_CONFIG[$pvc_name]}"
         
         if create_pvc_from_config "$pvc_name" "$namespace" "$storage_class" "$storage"; then
-            ((created++)) || true
+            created=$((created + 1))
             echo "[$counter/$total] PVC $pvc_name created successfully"
         else
-            ((failed++)) || true
+            failed=$((failed + 1))
             echo "[$counter/$total] PVC $pvc_name creation failed"
         fi
-        ((counter++)) || true
+        counter=$((counter + 1))
     done
 
     echo "PVC creation completed: $created created, $failed failed out of $total total"
-    
-    if [[ $failed -gt 0 ]]; then
-        return 1
-    fi
-    return 0
+
+    # Propagate partial failures: a single missing PVC previously went
+    # unnoticed and the migration reported overall success.
+    [[ $failed -eq 0 ]]
 }
 
 create_dummy_pods() {
-    # Build a unique list of namespaces from PVC_CONFIG
-    local namespaces=()
-    for pvc_name in "${!PVC_CONFIG[@]}"; do
-        IFS='|' read -r ns _ <<< "${PVC_CONFIG[$pvc_name]}"
-        local seen=false
-        for existing in "${namespaces[@]}"; do
-            if [[ "$existing" == "$ns" ]]; then
-                seen=true
-                break
-            fi
-        done
-        if [[ "$seen" == false ]]; then
-            namespaces+=("$ns")
-        fi
-    done
+    # Unique list of namespaces used by PVC_CONFIG (sort -u replaces the
+    # previous quadratic seen-loop; behavior unchanged).
+    local namespaces
+    mapfile -t namespaces < <(
+        for pvc_name in "${!PVC_CONFIG[@]}"; do
+            IFS='|' read -r ns _ <<< "${PVC_CONFIG[$pvc_name]}"
+            printf '%s\n' "$ns"
+        done | sort -u
+    )
 
     for ns in "${namespaces[@]}"; do
         create_dummy_pod_for_namespace "$ns"
@@ -217,7 +321,7 @@ create_dummy_pod_for_namespace() {
         - name: $vol_name
           mountPath: /mnt/$pvc_name"
 
-        ((idx++)) || true
+        idx=$((idx + 1))
     done
 
     # No PVCs for this namespace → skip
@@ -243,14 +347,16 @@ spec:
 EOF
 
     echo "Waiting for dummy pod '$pod_name' to be Scheduled/Running..."
-
-    for i in {1..60}; do
+    local attempt=0
+    local max_attempts=60
+    while [[ $attempt -lt $max_attempts ]]; do
         phase=$(kubectl get pod "$pod_name" -n "$namespace" -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
         echo "Dummy pod '$pod_name' phase: $phase"
         if [[ "$phase" == "Running" || "$phase" == "Pending" ]]; then
             break
         fi
         sleep 2
+        attempt=$((attempt + 1))
     done
 }
 
@@ -269,7 +375,7 @@ wait_for_pvcs() {
             IFS='|' read -r namespace rest <<< "${PVC_CONFIG[$pvc_name]}"
             
             if kubectl get pvc "$pvc_name" -n "$namespace" -o jsonpath='{.status.phase}' 2>/dev/null | grep -q "Bound"; then
-                ((bound++)) || true
+                bound=$((bound + 1))
             fi
         done
         
@@ -280,7 +386,7 @@ wait_for_pvcs() {
         
         echo "Waiting for PVCs to bind... ($bound/$total)"
         sleep 2
-        ((attempt++)) || true
+        attempt=$((attempt + 1))
     done
     
     echo "Timeout waiting for PVCs to be bound"
@@ -319,7 +425,6 @@ get_pv_hostpath() {
 migrate_data() {
     local source="$1"
     local target="$2"
-    local pvc_name="$3"
 
     # Check if source exists
     if [[ ! -d "$source" ]]; then
@@ -327,12 +432,9 @@ migrate_data() {
         return 0
     fi
 
-    # Ensure target directory exists
-    if [[ ! -d "$target" ]]; then
-        if ! mkdir -p "$target" 2>/dev/null; then
-            echo "Failed to create target directory: $target"
-            return 1
-        fi
+    if ! mkdir -p "$target" 2>/dev/null; then
+        echo "Failed to create target directory: $target"
+        return 1
     fi
 
     # Calculate source size
@@ -347,15 +449,15 @@ migrate_data() {
     fi
 
     local mv_output
-    shopt -s dotglob # include hidden files
-    if mv_output=$(mv "$source"/* "$target/" 2>&1); then
-        shopt -u dotglob
+    # find -exec mv instead of `mv "$source"/* + dotglob`: also moves hidden
+    # entries, does not fail on empty source dirs, and is safe for names with
+    # spaces/leading dashes.
+    if mv_output=$(find "$source" -mindepth 1 -maxdepth 1 -exec mv -t "$target/" -- {} + 2>&1); then
         echo "Moved data via mv: $source/* -> $target"
         rmdir "$source" 2>/dev/null || true
         return 0
     fi
- 
-    shopt -u dotglob
+
     echo "Failed to migrate data from $source to $target"
     echo "mv output: $mv_output"
     return 1
@@ -402,10 +504,10 @@ migrate_pvc_data() {
 
         echo "Migrating mount '$source' -> '$target_dir' for PVC $pvc_name"
 
-        if migrate_data "$source" "$target_dir" "$pvc_name"; then
-            ((mount_count++)) || true
+        if migrate_data "$source" "$target_dir"; then
+            mount_count=$((mount_count + 1))
         else
-            ((mount_failed++)) || true
+            mount_failed=$((mount_failed + 1))
         fi
     done < <(echo "$mount_specs" | tr '|' '\n')
 
@@ -417,7 +519,6 @@ migrate_pvc_data() {
 
     echo "$pvc_name:OK" >> "./migration_status"
     echo "Migration completed for $pvc_name ($mount_count mounts)"
-    return 0
 }
 
 
@@ -435,7 +536,7 @@ migrate_all_data() {
             sleep 0.5
         done
 
-        migrate_pvc_data "$pvc_name" "$status_file" &
+        migrate_pvc_data "$pvc_name" &
         pids+=($!)
     done
 
@@ -443,14 +544,20 @@ migrate_all_data() {
     local failed=0
     for pid in "${pids[@]}"; do
         if ! wait "$pid" 2>/dev/null; then
-            ((failed++)) || true
+            failed=$((failed + 1))
         fi
     done
 
     echo "Data migration completed"
     print_migration_summary "$status_file"
 
-    return 0 #$failed
+    # Propagate per-PVC failures to the job exit code: the migration
+    # previously always returned 0, so partial data migrations were reported
+    # as success and the deploy continued on incomplete data.
+    if [[ "$failed" -gt 0 ]]; then
+        return 1
+    fi
+    return 0
 }
 
 print_migration_summary() {
@@ -512,6 +619,10 @@ main() {
     create_dummy_pods         
     wait_for_pvcs 
     migrate_all_data
+    # Last step: make sure all existing project namespaces carry the expected
+    # Helm ownership annotations so the follow-up platform install can adopt
+    # them (see reconcile_project_namespaces).
+    reconcile_project_namespaces
 
 }
 

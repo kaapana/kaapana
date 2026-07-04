@@ -1613,7 +1613,20 @@ function run_migration_chart() {
         HELM_CMD="$HELM_CMD --plain-http"
     fi
 
+    # admin/platform_release_name: Helm release names are configurable (the
+    # admin release is named after the platform chart via --name-template),
+    # so the migration must write its Helm ownership annotations for the
+    # releases that will actually be installed - not the hardcoded kaapana-*
+    # defaults - or the follow-up install is blocked by ownership errors.
+    # The keycloak admin credentials let the migration job validate the
+    # configured password against the running Keycloak and abort with clear
+    # instructions instead of producing a broken (401) platform after deploy.
+    PLATFORM_RELEASE_NAME="${PLATFORM_RELEASE_NAME:-kaapana-platform-chart}"
     $HELM_CMD kaapana-migration "$MIGRATION_CHART_PATH" \
+        --set-string global.admin_release_name="$PLATFORM_NAME" \
+        --set-string global.platform_release_name="$PLATFORM_RELEASE_NAME" \
+        --set-string global.credentials_keycloak_admin_username="$KEYCLOAK_ADMIN_USERNAME" \
+        --set-string global.credentials_keycloak_admin_password="$KEYCLOAK_ADMIN_PASSWORD" \
         --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \
         --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
         --set-string global.fast_data_dir="$FAST_DATA_DIR" \
@@ -1751,6 +1764,14 @@ function prompt_user_backup() {
     echo "   cp -a $FAST_DATA_DIR /path/to/fast/backup"
     echo "   cp -a $SLOW_DATA_DIR /path/to/slow/backup"
     echo
+
+    # Non-interactive deploys (--quiet) cannot answer the prompt below; a
+    # blocked read would stall automated migrations forever.
+    if [[ "${QUIET:-false}" == true ]]; then
+        echo -e "${YELLOW}QUIET-MODE active: skipping backup confirmation prompt and proceeding with migration.${NC}"
+        return 0
+    fi
+
     while true; do
         read -p "Proceed with migration? (yes/no/skip): " answer
         case "$answer" in
@@ -1903,12 +1924,33 @@ function setup_storage_provider() {
     esac
 }
 
+# Decide whether the fast data dir holds real platform data that requires
+# migration. A bare "ls -A" is wrong here: known non-platform artifacts that
+# tooling may leave in the data dir must not make an otherwise-fresh
+# installation look like a migration candidate (currently ignored:
+# recover-data-quarantine, written by the data-recovery tooling).
+function fast_data_dir_has_migration_content() {
+    local data_dir="$1"
+
+    if [[ -z "$data_dir" || ! -d "$data_dir" ]]; then
+        return 1
+    fi
+
+    if find "$data_dir" -mindepth 1 -maxdepth 1 \
+        ! -name 'recover-data-quarantine' \
+        -print -quit 2>/dev/null | grep -q .; then
+        return 0
+    fi
+
+    return 1
+}
+
 function migrate() {
     VERSION_FILE="$FAST_DATA_DIR/version"
 
     echo "${YELLOW}Checking ${VERSION_FILE} status...${NC}"
 
-    if [[ ! -d "$FAST_DATA_DIR" || -z "$(ls -A "$FAST_DATA_DIR" 2>/dev/null)" ]]; then
+    if [[ ! -d "$FAST_DATA_DIR" ]] || ! fast_data_dir_has_migration_content "$FAST_DATA_DIR"; then
         echo "${GREEN}Fresh installation detected.${NC}"
         echo "${GREEN}Skipping migration for fresh installation. Version file will be created during deployment.${NC}"
 
@@ -1945,7 +1987,7 @@ function migrate() {
             fi
         fi
 
-    elif [[ -d "$FAST_DATA_DIR" && -n "$(ls -A "$FAST_DATA_DIR")" ]]; then
+    elif [[ -d "$FAST_DATA_DIR" ]] && fast_data_dir_has_migration_content "$FAST_DATA_DIR"; then
         echo "${YELLOW}No version file and directory is not empty!${NC}"
 
         if [[ "$MIGRATION_ENABLED" == true ]]; then

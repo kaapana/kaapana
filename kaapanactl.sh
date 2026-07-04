@@ -167,6 +167,37 @@ function parse_chart_reference() {
     echo -e "${GREEN}Using chart ${PLATFORM_NAME}:${PLATFORM_VERSION} from ${CONTAINER_REGISTRY_URL}${NC}"
 }
 
+function resolve_extracted_chart_dependency_path() {
+    # Locate a bundled dependency chart inside an extracted platform chart
+    # archive instead of hardcoding the directory layout: the path of a
+    # subchart within the tgz depends on the platform chart name and can
+    # change between distributions (e.g. renamed platform charts).
+    local workdir="$1"
+    local dependency_name="$2"
+    local dependency_path=""
+
+    dependency_path="$(find "$workdir" -type f -path "*/${dependency_name}/Chart.yaml" -print -quit 2>/dev/null || true)"
+    if [[ -z "$dependency_path" ]]; then
+        echo -e "${RED}Dependency chart '${dependency_name}' not found in extracted chart archive under ${workdir}.${NC}" >&2
+        return 1
+    fi
+
+    dirname "$dependency_path"
+}
+
+function validate_hostpath_reclaim_policy() {
+    # Keep the CLI and Helm chart validation aligned. The value is passed
+    # directly into kaapana-storage-chart during storage-class setup.
+    case "$HOSTPATH_RECLAIM_POLICY" in
+        Delete|Retain)
+            ;;
+        *)
+            echo -e "${RED}Invalid hostpath reclaim policy '${HOSTPATH_RECLAIM_POLICY}'. Use Delete or Retain.${NC}"
+            exit 1
+            ;;
+    esac
+}
+
 function get_platform_prefix() {
     PLATFORM_PREFIX="${PLATFORM_PREFIX:-}"
 
@@ -245,6 +276,7 @@ function deploy() {
     _Flag: --check-system, check health of all resources in kaapana-admin-chart and kaapana-platform-chart
     _Flag: --report, create a report of the state of the microk8s cluster
     _Flag: --plain-http, use insecure HTTP when talking to the registry (default HTTPS, use --no-plain-http to force it)
+    _Flag: --install-storage-classes, installs only kaapana storage classes (pass --chart and credentials before this flag)
 
     _Argument: --chart [registry/path/chart:version]
     _Argument: --platform-name [Helm chart name]
@@ -254,6 +286,7 @@ function deploy() {
     _Argument: --username [Docker registry username]
     _Argument: --password [Docker registry password]
     _Argument: --port [Set main https-port]
+    _Argument: --hostpath-reclaim-policy [Delete|Retain] (default: Delete)
     _Argument: --chart-path [path-to-chart-tgz]
     _Argument: --kube-helm-install-timeout [seconds]
     _Argument: --kube-helm-deletion-timeout [seconds]
@@ -331,6 +364,18 @@ function deploy() {
                 shift # past value
             ;;
 
+            # Reclaim policy for the Kaapana hostpath StorageClasses. Delete
+            # (default) keeps upstream behavior; Retain keeps the PV + backing
+            # hostpath data when a PVC is deleted, which is the prerequisite
+            # for any data recovery after undeploy or OS reinstall.
+            --hostpath-reclaim-policy)
+                HOSTPATH_RECLAIM_POLICY="$2"
+                validate_hostpath_reclaim_policy
+                echo -e "${GREEN}SET HOSTPATH_RECLAIM_POLICY: $HOSTPATH_RECLAIM_POLICY ${NC}";
+                shift # past argument
+                shift # past value
+            ;;
+
             --port)
                 HTTPS_PORT="$2"
                 echo -e "${GREEN}SET PORT!${NC}";
@@ -387,6 +432,24 @@ function deploy() {
                 MIGRATION_ENABLED=false
                 echo -e "${YELLOW}Migration disabled via CLI (--no-migration).${NC}"
                 shift # past argument
+            ;;
+
+            # Install/refresh only the Kaapana storage classes without a full
+            # platform deploy. Requires --chart (and credentials) EARLIER on
+            # the command line so the storage chart can be taken from the
+            # platform chart archive (--chart-path is resolved only after the
+            # argument loop and does NOT work here). Used standalone e.g.
+            # before data recovery.
+            --install-storage-classes)
+                if [[ -z "$PLATFORM_NAME" || -z "$PLATFORM_VERSION" || -z "$CONTAINER_REGISTRY_URL" ]]; then
+                    echo -e "${RED}--install-storage-classes requires --chart <registry/path/chart:version> BEFORE it on the command line.${NC}"
+                    exit 1
+                fi
+                setup_storage_provider
+                get_chart
+                setup_storage_classes
+                rm_chart_path
+                exit 0
             ;;
 
             --install-certs)
@@ -1394,6 +1457,7 @@ function load_kaapana_config {
     ######################################################
     STORAGE_PROVIDER="hostpath" # e.g. "hostpath" (microk8s) or "longhorn"
     VOLUME_SLOW_DATA="100Gi" # size of volumes in slow data dir (e.g. 100Gi or 100Ti)
+    HOSTPATH_RECLAIM_POLICY="${HOSTPATH_RECLAIM_POLICY:-Delete}" # Delete or Retain for Kaapana hostpath StorageClasses
 }
 
 function delete_all_images_docker {
@@ -1980,17 +2044,81 @@ function migrate() {
     fi
 }
 
+function patch_existing_kaapana_hostpath_pvs_to_retain() {
+    validate_hostpath_reclaim_policy
+
+    if [[ "$HOSTPATH_RECLAIM_POLICY" != "Retain" ]]; then
+        return 0
+    fi
+
+    # StorageClass reclaimPolicy only affects newly provisioned PVs. When an
+    # operator opts into Retain, update existing Kaapana hostpath PVs too, but
+    # never patch PVs back to Delete.
+    local pv_name
+    local storage_class
+    local reclaim_policy
+    local patched=false
+
+    echo "${YELLOW}Ensuring existing Kaapana hostpath PVs use Retain reclaim policy.${NC}"
+    while IFS=$'\t' read -r pv_name storage_class reclaim_policy; do
+        [[ -z "$pv_name" ]] && continue
+
+        case "$storage_class" in
+            kaapana-hostpath-fast-data-dir|kaapana-hostpath-slow-data-dir)
+                ;;
+            *)
+                continue
+                ;;
+        esac
+
+        if [[ "$reclaim_policy" == "Delete" ]]; then
+            echo "${YELLOW}Patching PV ${pv_name} from Delete to Retain.${NC}"
+            microk8s.kubectl patch pv "$pv_name" -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}' >/dev/null
+            patched=true
+        fi
+    done < <(microk8s.kubectl get pv -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.storageClassName}{"\t"}{.spec.persistentVolumeReclaimPolicy}{"\n"}{end}' 2>/dev/null || true)
+
+    if [[ "$patched" != true ]]; then
+        echo "${GREEN}No existing Kaapana hostpath PVs needed reclaim-policy patching.${NC}"
+    fi
+}
+
 function setup_storage_classes() {
+    validate_hostpath_reclaim_policy
+
+    local WORKDIR
+    local KAAPANA_STORAGE_CHARTPATH
+
     WORKDIR=$(mktemp -d)
     tar -xzf "$CHART_PATH" -C "$WORKDIR"
-    KAAPANA_STORAGE_CHARTPATH="$WORKDIR/$PLATFORM_NAME/charts/kaapana-storage-chart"
+    # Resolve the subchart location instead of hardcoding
+    # "$PLATFORM_NAME/charts/...": the layout depends on the platform chart
+    # name and breaks for renamed distributions.
+    KAAPANA_STORAGE_CHARTPATH="$(resolve_extracted_chart_dependency_path "$WORKDIR" "kaapana-storage-chart")"
+
+    # StorageClasses are immutable in the fields we template (reclaimPolicy),
+    # so refresh them via delete+recreate. This only replaces the class
+    # definitions; existing PVCs/PVs and their data are not touched.
+    echo "${YELLOW}Refreshing Kaapana StorageClass definitions while preserving PVCs/PVs/data.${NC}"
+    microk8s.kubectl delete storageclass \
+        kaapana-hostpath-fast-data-dir \
+        kaapana-hostpath-slow-data-dir \
+        kaapana-longhorn-fast-db \
+        kaapana-longhorn-slow-data \
+        kaapana-longhorn-fast-workflow \
+        --ignore-not-found
 
     $HELM_EXECUTABLE -n kaapana-system upgrade --install kaapana-storageclass $KAAPANA_STORAGE_CHARTPATH \
         --create-namespace \
         --set-string global.main_node_name="$MAIN_NODE_NAME" \
         --set-string global.replica_count="$REPLICA_COUNT" \
         --set-string global.fast_data_dir="$FAST_DATA_DIR" \
-        --set-string global.slow_data_dir="$SLOW_DATA_DIR"
+        --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
+        --set-string global.hostpath_reclaim_policy="$HOSTPATH_RECLAIM_POLICY"
+
+    # Apply Retain to already existing hostpath PVs only when Retain is the
+    # explicit effective policy for this deploy invocation.
+    patch_existing_kaapana_hostpath_pvs_to_retain
 }
 
 # Obtain the platform chart archive and set CHART_PATH.

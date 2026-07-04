@@ -167,6 +167,47 @@ function parse_chart_reference() {
     echo -e "${GREEN}Using chart ${PLATFORM_NAME}:${PLATFORM_VERSION} from ${CONTAINER_REGISTRY_URL}${NC}"
 }
 
+function normalize_release_family_name() {
+    # Strip the distribution prefix from a release name so that renamed
+    # distributions of the same platform (e.g. 'racoon-platform-chart' vs
+    # 'kaapana-platform-chart') can be recognized as the same installation.
+    # Deploying a platform chart under a new name next to an existing release
+    # of the same family would create a second, conflicting platform install
+    # on the same cluster (same namespaces, same storage).
+    local release_name="$1"
+
+    case "$release_name" in
+        racoon-*|kaapana-*)
+            echo "${release_name#*-}"
+            ;;
+        *)
+            echo "$release_name"
+            ;;
+    esac
+}
+
+function find_release_name_conflict() {
+    # Scan the existing helm releases for one that belongs to the same
+    # release family (see normalize_release_family_name) as the requested
+    # platform name but is named differently. Returns the conflicting
+    # release name on stdout (exit 0) or exit 1 if there is no conflict.
+    local target_release="$1"
+    local release_list="$2"
+    local target_family
+    local release_name
+
+    target_family="$(normalize_release_family_name "$target_release")"
+    while IFS= read -r release_name; do
+        [[ -z "$release_name" || "$release_name" == "$target_release" ]] && continue
+        if [[ "$(normalize_release_family_name "$release_name")" == "$target_family" ]]; then
+            echo "$release_name"
+            return 0
+        fi
+    done <<< "$release_list"
+
+    return 1
+}
+
 function get_platform_prefix() {
     PLATFORM_PREFIX="${PLATFORM_PREFIX:-}"
 
@@ -556,6 +597,40 @@ function deploy() {
     )
     echo "Current deployments: "
     echo $deployments
+
+    # Guard against deploying the platform under a new name while a release of
+    # the same family (e.g. 'racoon-*' vs 'kaapana-*' with the same suffix) is
+    # still installed: both would manage the same namespaces/storage and
+    # corrupt each other. Detect that case before the regular
+    # "already deployed" handling below and force an explicit decision.
+    conflicting_release="$(find_release_name_conflict "$PLATFORM_NAME" "$deployments" || true)"
+    if [[ -n "$conflicting_release" ]]; then
+        echo -e "${RED}Found existing release '$conflicting_release', which conflicts with requested platform name '$PLATFORM_NAME'.${NC}"
+        echo -e "${RED}This script treats 'racoon-*' and 'kaapana-*' releases with the same suffix as the same installation.${NC}"
+        if [[ "$QUIET" == true ]]; then
+            echo -e "${RED}Use --platform-name $conflicting_release, or undeploy the existing release before switching names.${NC}"
+            exit 1
+        fi
+
+        while true; do
+            # delete_deployment removes ALL releases in the admin/helm
+            # namespaces (it is not scoped to a single release) - say so.
+            read -e -p "Undeploy the existing platform (ALL releases, incl. '$conflicting_release') now?" -i "no" yn
+            case $yn in
+                [Yy]* )
+                    echo -e "${YELLOW}Starting undeployment of the existing platform ...${NC}"
+                    delete_deployment
+                    echo -e "${GREEN}Undeployment finished. Re-run the deploy command to install '$PLATFORM_NAME'.${NC}"
+                    exit 0
+                    ;;
+                [Nn]* )
+                    echo -e "${YELLOW}Abort. Re-run with --platform-name $conflicting_release if you want to reuse the existing release name.${NC}"
+                    exit 1
+                    ;;
+                * ) echo "Please answer yes or no.";;
+            esac
+        done
+    fi
 
     if [[ $deployments == *"$PLATFORM_NAME"* ]] && [[ ! $QUIET = true ]];then
         echo -e "${YELLOW}$PLATFORM_NAME already deployed!${NC}"

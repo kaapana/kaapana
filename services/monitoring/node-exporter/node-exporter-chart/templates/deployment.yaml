@@ -42,11 +42,11 @@ spec:
             protocol: TCP
         resources:
           limits:
-            cpu: 250m
-            memory: 180Mi
+            cpu: {{ .Values.nodeExporter.resources.limits.cpu }}
+            memory: {{ .Values.nodeExporter.resources.limits.memory }}
           requests:
-            cpu: 102m
-            memory: 180Mi
+            cpu: {{ .Values.nodeExporter.resources.requests.cpu }}
+            memory: {{ .Values.nodeExporter.resources.requests.memory }}
         volumeMounts:
         - mountPath: /host/sys
           mountPropagation: HostToContainer
@@ -82,9 +82,9 @@ spec:
           readOnly: true
         resources:
           requests:
-            memory: 50Mi
+            memory: {{ .Values.nodeExporter.sidecarResources.requests.memory }}
           limits:
-            memory: 50Mi
+            memory: {{ .Values.nodeExporter.sidecarResources.limits.memory }}
         securityContext:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
@@ -107,4 +107,3 @@ spec:
           type: Directory
       imagePullSecrets:
       - name: registry-secret
-      

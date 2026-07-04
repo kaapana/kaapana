@@ -37,9 +37,11 @@ spec:
             memory: 10Gi
  {{- else }}
           requests:
-            memory: 10Mi
+            # Raised 10Mi -> 100Mi: nginx was OOM-killed at 10Mi when serving
+            # concurrent requests during platform startup.
+            memory: 100Mi
           limits:
-            memory: 10Mi
+            memory: 100Mi
  {{- end }}
         volumeMounts:
           - name: common-data-file

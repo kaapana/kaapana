@@ -30,4 +30,6 @@ spec:
       restartPolicy: Never
       imagePullSecrets:
       - name: registry-secret
-  backoffLimit: 0
+  # Retry transient startup failures (image pull, node pressure) instead of
+  # failing the whole analysis on the first hiccup.
+  backoffLimit: 10

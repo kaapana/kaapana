@@ -82,8 +82,10 @@ spec:
             requests:
               memory: 600Mi
             limits:
-              memory: 700Mi
-          volumeMounts:        
+              # Raised 700Mi -> 4Gi: Keycloak was OOM-killed during LDAP user
+              # federation syncs and redeploy login storms.
+              memory: 4Gi
+          volumeMounts:
             - name: ssl-config-files
               mountPath: /etc/x509/https
               readOnly: true

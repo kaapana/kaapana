@@ -71,11 +71,6 @@ def main():
     existing_projects = get_existing_projects(auth_header)
     existing_project_names = {project["name"] for project in existing_projects}
 
-    # Create projects that exist in AII service
-    for project in existing_projects:
-        logger.info(f"Request creation of {project['name']}")
-        create_project_if_not_exists(project, auth_header)
-
     # Load initial projects
     initial_projects = load_initial_projects()
 

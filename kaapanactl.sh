@@ -242,6 +242,7 @@ function deploy() {
     _Flag: --quiet, meaning non-interactive operation
     _Flag: --offline, using prebuilt tarball and chart (--chart-path required!)
     _Flag: --no-migration, disable automatic migration between versions
+    _Flag: --no-reconcile-project-namespaces, skip post-deploy project namespace reconciliation
     _Flag: --check-system, check health of all resources in kaapana-admin-chart and kaapana-platform-chart
     _Flag: --report, create a report of the state of the microk8s cluster
     _Flag: --plain-http, use insecure HTTP when talking to the registry (default HTTPS, use --no-plain-http to force it)
@@ -387,6 +388,14 @@ function deploy() {
                 MIGRATION_ENABLED=false
                 echo -e "${YELLOW}Migration disabled via CLI (--no-migration).${NC}"
                 shift # past argument
+            ;;
+
+            # Skip the post-deploy project-namespace reconciliation (see
+            # run_post_deploy_reconcile); it is enabled by default.
+            --no-reconcile-project-namespaces)
+                POST_DEPLOY_RECONCILE_ENABLED=false
+                echo -e "${YELLOW}Post-deploy project namespace reconciliation disabled via CLI flag.${NC}"
+                shift
             ;;
 
             --install-certs)
@@ -1394,6 +1403,13 @@ function load_kaapana_config {
     ######################################################
     STORAGE_PROVIDER="hostpath" # e.g. "hostpath" (microk8s) or "longhorn"
     VOLUME_SLOW_DATA="100Gi" # size of volumes in slow data dir (e.g. 100Gi or 100Ti)
+
+    ######################################################
+    # Post-deploy project-namespace reconciliation
+    ######################################################
+    # Enabled by default; disable via --no-reconcile-project-namespaces.
+    POST_DEPLOY_RECONCILE_ENABLED="${POST_DEPLOY_RECONCILE_ENABLED:-true}"
+    POST_DEPLOY_RECONCILE_WAIT_SECONDS="${POST_DEPLOY_RECONCILE_WAIT_SECONDS:-1200}"
 }
 
 function delete_all_images_docker {
@@ -2233,6 +2249,9 @@ function deploy_chart {
 
     print_deployment_done
     update_coredns_rewrite
+    # Reconcile AII project metadata with the project-* namespaces once the
+    # core services are up (no-op when disabled).
+    run_post_deploy_reconcile
     CONTAINER_REGISTRY_USERNAME=""
     CONTAINER_REGISTRY_PASSWORD=""
 }
@@ -2624,6 +2643,112 @@ function update_coredns_rewrite() {
         echo "Failed to restart CoreDNS deployment."
         return 1
     fi
+}
+
+# Run the post-deploy project namespace reconciliation step when enabled.
+# Waits for the core deployments the helper depends on (airflow-webserver,
+# access-information-interface, kube-helm), then runs
+# utils/reconcile_project_namespaces.sh. Needed because after recovery or a
+# partial deploy the AII project metadata and the project-* namespaces can
+# diverge (missing namespaces, PVCs, bootstrap secrets, Helm ownership).
+function run_post_deploy_reconcile {
+    if [[ "${POST_DEPLOY_RECONCILE_ENABLED,,}" != "true" ]]; then
+        echo -e "${YELLOW}Post-deploy project reconciliation disabled via --no-reconcile-project-namespaces.${NC}"
+        return 0
+    fi
+
+    local timeout_seconds="${POST_DEPLOY_RECONCILE_WAIT_SECONDS}"
+    local start_ts
+    local deadline_ts
+    local script_dir
+    local reconcile_script
+
+    print_reconcile_retry_hint() {
+        echo -e "${YELLOW}Reconciliation may have failed because the platform is still coming up.${NC}"
+        echo -e "${YELLOW}Wait until pods are in Running/Completed state, then run:${NC}"
+        # The env vars are part of the hint on purpose: without
+        # PLATFORM_PREFIX the helper only matches legacy unprefixed
+        # project-* namespaces and would find nothing on this platform.
+        echo -e "${YELLOW}  PLATFORM_PREFIX=${PLATFORM_PREFIX:-} SERVICES_NAMESPACE=${SERVICES_NAMESPACE} ADMIN_NAMESPACE=${ADMIN_NAMESPACE} bash ./kaapana/utils/reconcile_project_namespaces.sh${NC}"
+    }
+
+    wait_for_deployment_ready() {
+        local ns="$1"
+        local dep="$2"
+        local deadline="$3"
+        local now
+        local remaining
+        local attempt=0
+
+        while true; do
+            now=$(date +%s)
+            remaining=$((deadline - now))
+
+            if (( remaining <= 0 )); then
+                echo -e "${RED}Timed out waiting for deployment/${dep} in namespace ${ns}.${NC}"
+                print_reconcile_retry_hint
+                return 1
+            fi
+
+            if microk8s.kubectl -n "${ns}" get deployment "${dep}" >/dev/null 2>&1; then
+                echo ""
+                echo -e "${YELLOW}Waiting for deployment/${dep} in namespace ${ns} (remaining=${remaining}s)...${NC}"
+                if microk8s.kubectl -n "${ns}" rollout status "deployment/${dep}" --timeout="${remaining}s"; then
+                    return 0
+                fi
+                echo -e "${RED}Required deployment not ready for reconciliation: ${ns}/${dep}${NC}"
+                print_reconcile_retry_hint
+                return 1
+            fi
+
+            attempt=$((attempt + 1))
+            printf "\r${YELLOW}Waiting for deployment/%s in namespace %s to appear (attempt %d, %ss remaining)...${NC}" "${dep}" "${ns}" "${attempt}" "${remaining}"
+            if (( attempt % 12 == 0 )); then
+                echo ""
+                echo -e "${YELLOW}Still waiting for deployment/${dep} in namespace ${ns}...${NC}"
+            fi
+            sleep 5
+        done
+    }
+
+    script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    reconcile_script="${script_dir}/utils/reconcile_project_namespaces.sh"
+    if [[ ! -r "${reconcile_script}" ]]; then
+        reconcile_script="${script_dir}/../utils/reconcile_project_namespaces.sh"
+    fi
+
+    if [[ ! -r "${reconcile_script}" ]]; then
+        echo -e "${RED}Post-deploy reconcile script missing or not readable: ${reconcile_script}${NC}"
+        return 1
+    fi
+
+    echo -e "${YELLOW}Running post-deploy project reconciliation (timeout=${timeout_seconds}s)...${NC}"
+    start_ts=$(date +%s)
+    deadline_ts=$((start_ts + timeout_seconds))
+
+    for dep_ref in \
+        "${SERVICES_NAMESPACE}/airflow-webserver" \
+        "${SERVICES_NAMESPACE}/access-information-interface" \
+        "${ADMIN_NAMESPACE}/kube-helm-deployment"; do
+        local ns="${dep_ref%%/*}"
+        local dep="${dep_ref##*/}"
+
+        if ! wait_for_deployment_ready "${ns}" "${dep}" "${deadline_ts}"; then
+            return 1
+        fi
+    done
+
+    # Invoke the helper through bash so a missing executable bit does not block recovery.
+    # PLATFORM_PREFIX is forwarded because project namespaces are prefixed on
+    # current kaapana (<prefix>-project-<id>).
+    if ! SERVICES_NAMESPACE="${SERVICES_NAMESPACE}" ADMIN_NAMESPACE="${ADMIN_NAMESPACE}" PLATFORM_PREFIX="${PLATFORM_PREFIX:-}" WAIT_TIMEOUT_SECONDS="${timeout_seconds}" bash "${reconcile_script}"; then
+        echo -e "${RED}Post-deploy project reconciliation failed.${NC}"
+        print_reconcile_retry_hint
+        return 1
+    fi
+
+    echo -e "${GREEN}Post-deploy project reconciliation finished successfully.${NC}"
+    return 0
 }
 
 function check_system() {

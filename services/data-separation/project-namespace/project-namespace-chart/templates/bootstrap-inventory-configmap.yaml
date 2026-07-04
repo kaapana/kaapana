@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: project-bootstrap-inventory
+  namespace: "{{ .Values.global.project_namespace }}"
+data:
+  # Publish the chart's bootstrap contract explicitly so reconciliation can
+  # validate project namespaces without parsing arbitrary Secrets/PVCs.
+  requiredProjectPvcs: |
+    {{- range $volume := .Values.global.dynamicVolumes }}
+    {{ $volume.name }}-pv-claim
+    {{- end }}
+  requiredProjectSecrets: |
+    registry-secret
+    system-user-password
+    project-user-credentials
+    oidc-client-secret

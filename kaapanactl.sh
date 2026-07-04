@@ -1993,6 +1993,73 @@ function setup_storage_classes() {
         --set-string global.slow_data_dir="$SLOW_DATA_DIR"
 }
 
+# Obtain the platform chart archive and set CHART_PATH.
+# Pure extraction of the former inline block at the top of deploy_chart so the
+# chart fetch can be reused outside of deploy_chart (e.g. standalone
+# storage-class installation). No behavior change.
+# Offline mode (--chart-path): validates the archive name against
+# PLATFORM_NAME/PLATFORM_VERSION and checks that the expected number of images
+# is already present in microk8s. Online mode: logs in and pulls the chart
+# from the OCI registry.
+function get_chart {
+    if [ ! -z "$CHART_PATH" ]; then # Note: OFFLINE_MODE requires CHART_PATH
+        echo -e "${YELLOW}We assume that that all images are already presented inside the microk8s.${NC}"
+        echo -e "${YELLOW}Images are uploaded either with a previous deployment from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
+
+        if [ $(basename "$CHART_PATH") != "$PLATFORM_NAME-$PLATFORM_VERSION.tgz" ]; then
+            echo "${RED} Version of chart_path $CHART_PATH differs from PROJECT_NAME: $PLATFORM_NAME and PLATFORM_VERSION: $PLATFORM_VERSION in the deployment script.${NC}"
+            exit 1
+        fi
+
+        if [ ! "$QUIET" = "true" ];then
+            while true; do
+            echo -e "${YELLOW}You are deploying the platform in offline mode!${NC}"
+                read -p "${YELLOW}Please confirm that you are sure that all images are present in microk8s (yes/no): ${NC}" yn
+                    case $yn in
+                        [Yy]* ) echo "${GREEN}Confirmed${NC}"; break;;
+                        [Nn]* ) echo "${RED}Cancel${NC}"; exit;;
+                        * ) echo "Please answer yes or no.";;
+                    esac
+            done
+        else
+            echo -e "${GREEN}QUIET: true -> SKIP USER INPUT ${NC}";
+        fi
+
+        echo -e "${YELLOW}Checking available images with version: $PLATFORM_VERSION ${NC}"
+        set +e
+        PRESENT_IMAGE_COUNT=$( microk8s.ctr images ls | grep $PLATFORM_VERSION | wc -l)
+        set -e
+        echo -e "${YELLOW}PRESENT_IMAGE_COUNT: $PRESENT_IMAGE_COUNT ${NC}"
+        if [ "$PRESENT_IMAGE_COUNT" -lt "$VERSION_IMAGE_COUNT" ];then
+            echo -e "${RED}There are only $PRESENT_IMAGE_COUNT present with the version $PLATFORM_VERSION - there seems to be an issue. ${NC}"
+            exit 1
+        else
+            echo -e "${GREEN}PRESENT_IMAGE_COUNT: OK ${NC}"
+        fi
+
+        PREFETCH_EXTENSIONS=false
+        CONTAINER_REGISTRY_USERNAME=""
+        CONTAINER_REGISTRY_PASSWORD=""
+    else
+        echo "${YELLOW}Helm login registry...${NC}"
+        check_credentials
+        echo "${GREEN}Pulling platform chart from registry...${NC}"
+        SCRIPT_PATH=$(dirname "$(realpath $0)")
+        pull_chart "$PLATFORM_NAME" "$PLATFORM_VERSION" "$SCRIPT_PATH"
+        CHART_PATH="$SCRIPT_PATH/$PLATFORM_NAME-$PLATFORM_VERSION.tgz"
+    fi
+}
+
+# Remove the locally pulled chart archive again. Pure extraction of the former
+# inline cleanup at the end of deploy_chart (only removes the archive when it
+# was pulled from a registry with credentials, i.e. not a user-provided
+# --chart-path file). No behavior change.
+function rm_chart_path {
+    if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
+        rm $CHART_PATH
+    fi
+}
+
 function deploy_chart {
     if [ -z "$CONTAINER_REGISTRY_URL" ]; then
         echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the kaapanactl.sh script!${NC}"
@@ -2070,52 +2137,8 @@ function deploy_chart {
     echo "${YELLOW}Removing configmap kube-public/local-registry-hosting if exists...${NC}"
     microk8s.kubectl delete configmap -n kube-public local-registry-hosting --ignore-not-found=true
 
-    if [ ! -z "$CHART_PATH" ]; then # Note: OFFLINE_MODE requires CHART_PATH
-        echo -e "${YELLOW}We assume that that all images are already presented inside the microk8s.${NC}"
-        echo -e "${YELLOW}Images are uploaded either with a previous deployment from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
-
-        if [ $(basename "$CHART_PATH") != "$PLATFORM_NAME-$PLATFORM_VERSION.tgz" ]; then
-            echo "${RED} Version of chart_path $CHART_PATH differs from PROJECT_NAME: $PLATFORM_NAME and PLATFORM_VERSION: $PLATFORM_VERSION in the deployment script.${NC}"
-            exit 1
-        fi
-
-        if [ ! "$QUIET" = "true" ];then
-            while true; do
-            echo -e "${YELLOW}You are deploying the platform in offline mode!${NC}"
-                read -p "${YELLOW}Please confirm that you are sure that all images are present in microk8s (yes/no): ${NC}" yn
-                    case $yn in
-                        [Yy]* ) echo "${GREEN}Confirmed${NC}"; break;;
-                        [Nn]* ) echo "${RED}Cancel${NC}"; exit;;
-                        * ) echo "Please answer yes or no.";;
-                    esac
-            done
-        else
-            echo -e "${GREEN}QUIET: true -> SKIP USER INPUT ${NC}";
-        fi
-
-        echo -e "${YELLOW}Checking available images with version: $PLATFORM_VERSION ${NC}"
-        set +e
-        PRESENT_IMAGE_COUNT=$( microk8s.ctr images ls | grep $PLATFORM_VERSION | wc -l)
-        set -e
-        echo -e "${YELLOW}PRESENT_IMAGE_COUNT: $PRESENT_IMAGE_COUNT ${NC}"
-        if [ "$PRESENT_IMAGE_COUNT" -lt "$VERSION_IMAGE_COUNT" ];then
-            echo -e "${RED}There are only $PRESENT_IMAGE_COUNT present with the version $PLATFORM_VERSION - there seems to be an issue. ${NC}"
-            exit 1
-        else
-            echo -e "${GREEN}PRESENT_IMAGE_COUNT: OK ${NC}"
-        fi
-
-        PREFETCH_EXTENSIONS=false
-        CONTAINER_REGISTRY_USERNAME=""
-        CONTAINER_REGISTRY_PASSWORD=""
-    else
-        echo "${YELLOW}Helm login registry...${NC}"
-        check_credentials
-        echo "${GREEN}Pulling platform chart from registry...${NC}"
-        SCRIPT_PATH=$(dirname "$(realpath $0)")
-        pull_chart "$PLATFORM_NAME" "$PLATFORM_VERSION" "$SCRIPT_PATH"
-        CHART_PATH="$SCRIPT_PATH/$PLATFORM_NAME-$PLATFORM_VERSION.tgz"
-    fi
+    # Chart fetch extracted into get_chart (see above); behavior unchanged.
+    get_chart
 
     # Kubernetes API endpoint
     INTERNAL_CIDR=$(microk8s.kubectl get endpoints kubernetes -n default -o jsonpath="{.subsets[0].addresses[0].ip}/32")
@@ -2227,9 +2250,8 @@ function deploy_chart {
 
 
     # pull_policy_jobs and pull_policy_pods only there for backward compatibility as of version 0.2.0
-    if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
-        rm $CHART_PATH
-    fi
+    # Chart cleanup extracted into rm_chart_path (see above); behavior unchanged.
+    rm_chart_path
 
     print_deployment_done
     update_coredns_rewrite

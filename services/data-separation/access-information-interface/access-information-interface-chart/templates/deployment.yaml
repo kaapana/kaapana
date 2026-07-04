@@ -81,6 +81,31 @@ spec:
         {{- end }}
         ports:
           - containerPort: 8080
+        # Probes against the dedicated /healthz endpoint: without them a hung
+        # or still-starting AII keeps receiving traffic and dependent services
+        # (project reconciliation, init jobs) fail with opaque errors during
+        # redeploys. startupProbe allows up to 5 min for slow first starts.
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          failureThreshold: 30
+          periodSeconds: 10
+          timeoutSeconds: 2
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          periodSeconds: 5
+          timeoutSeconds: 2
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          periodSeconds: 10
+          timeoutSeconds: 2
+          failureThreshold: 3
         resources:
           limits:
             memory: "5Gi"

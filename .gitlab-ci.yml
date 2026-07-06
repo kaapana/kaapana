@@ -322,8 +322,13 @@ security:
       artifacts: true
   tags:
     - build-runner
+  variables:
+    PYTHON_VENV_DIR: ".venv-build"
+  before_script:
+    - python3 -m venv "$PYTHON_VENV_DIR"
+    - source "$PYTHON_VENV_DIR/bin/activate"
+    - pip install jsonschema requests
   script:
-    - pip install jsonschema requests -q
     - CONSOLIDATED="$CI_PROJECT_DIR/security-reports/consolidated_vulnerability_report.json"
     - python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
         "$CONSOLIDATED"

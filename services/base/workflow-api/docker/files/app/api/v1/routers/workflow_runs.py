@@ -111,18 +111,6 @@ async def get_task_run_log_lines(
     return await service.get_task_run_log_lines(db, workflow_run_id, task_run_id)
 
 
-@router.get(
-    "/workflow-runs/{workflow_run_id}/task-runs/{task_run_id}/raw-logs",
-    response_model=str,
-)
-async def get_task_run_raw_logs(
-    workflow_run_id: int,
-    task_run_id: int,
-    db: AsyncSession = Depends(get_async_db),
-):
-    return await service.get_task_run_logs(db, workflow_run_id, task_run_id)
-
-
 @router.post("/workflow-runs/sync", status_code=204)
 async def sync_workflow_runs(
     db: AsyncSession = Depends(get_async_db),

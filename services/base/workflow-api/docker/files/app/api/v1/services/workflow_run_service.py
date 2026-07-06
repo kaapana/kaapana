@@ -482,27 +482,6 @@ async def get_task_run(
     )
 
 
-async def get_task_run_logs(
-    db: AsyncSession, workflow_run_id: int, task_run_id: int
-) -> str:
-    """
-    Fetch the engine logs for a specific task run.
-    Routes through the engine adapter resolved from the parent workflow's engine.
-    """
-    task_run = await crud.get_task_run(
-        db, filters={"id": task_run_id, "workflow_run_id": workflow_run_id}
-    )
-    if not task_run:
-        logger.error(f"Task run not found for {workflow_run_id=} and {task_run_id=}")
-        raise NotFoundError("Task run not found")
-
-    engine = get_workflow_engine(
-        task_run.workflow_run.workflow_revision.workflow.workflow_engine
-    )
-    logs = await engine.get_task_run_logs(task_run.external_id)
-    return logs
-
-
 async def get_task_run_log_lines(
     db: AsyncSession, workflow_run_id: int, task_run_id: int
 ) -> list[schemas.LogLine]:
@@ -527,8 +506,7 @@ async def get_task_run_log_lines(
     engine = get_workflow_engine(
         task_run.workflow_run.workflow_revision.workflow.workflow_engine
     )
-    raw = await engine.get_task_run_logs(task_run.external_id)
-    return engine.parse_task_run_logs(raw)
+    return await engine.get_task_run_logs(task_run.external_id)
 
 
 async def _submit_workflow_run_to_engine(

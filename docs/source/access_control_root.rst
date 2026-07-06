@@ -244,3 +244,96 @@ The service manages tokens transparently:
 
 * **Access token absent** — triggers the device-code polling loop described above.
 * **Access token expired** — a silent refresh-token grant is performed before the request is sent. No user interaction is required.
+
+
+.. _service_to_service_auth:
+
+Service-to-service authentication
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Besides authenticating end users, Kaapana authenticates against Keycloak on its
+own behalf, for two distinct purposes:
+
+* **Administering Keycloak** - the setup and bootstrap jobs create and configure
+  the realm, its clients, groups and users.
+* **Runtime lookups** - services such as ``kaapana-backend`` and the
+  :term:`AII<access-information-interface>` read and manage users and groups
+  while the platform is running.
+
+These purposes require very different privilege levels, so Kaapana uses two
+separate Keycloak clients instead of one shared credential:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 15 35 30
+
+   * - Client
+     - Realm
+     - Roles
+     - Used by
+   * - ``kaapana-admin``
+     - ``master``
+     - master ``admin`` role
+     - the setup and bootstrap jobs (admin namespace)
+   * - ``kaapana-service``
+     - ``kaapana``
+     - ``manage-users``, ``query-users``, ``query-groups``, ``view-realm``
+     - runtime services (``kaapana-backend``, the :term:`AII<access-information-interface>`, project-namespace)
+
+Both clients authenticate via the OAuth2 ``client_credentials`` grant. The
+``kaapana-admin`` secret is mounted only into the setup and bootstrap jobs, not
+into runtime pods. It is the only persisted credential; the ``kaapana-service``,
+OIDC and ``system-user`` secrets are regenerated on every deploy.
+
+Bootstrap and setup jobs
+************************
+
+Two jobs provision and configure Keycloak on every deploy.
+
+**Bootstrap job** (``keycloak-bootstrap-chart``) establishes the ``kaapana-admin``
+client and applies the admin password. It runs on every deploy.
+
+*What it expects:*
+
+* the ``kaapana-admin`` client secret, from the ``kaapana-admin-password`` secret
+  in the admin namespace;
+* the admin password to apply, supplied by the deploy (a random one, or the value
+  entered with ``--set-keycloak-admin-password``), and whether that password is
+  temporary.
+
+*What it does:*
+
+* If the ``kaapana-admin`` client already authenticates, the job authenticates
+  through the client - no admin password is required - and resets the master-realm
+  admin password to the supplied value. This is the normal path on every redeploy.
+* If the client is missing or its secret no longer works, the job authenticates
+  with the supplied admin password, (re)creates the client, grants it the master
+  ``admin`` role, and then applies the password. This is the path on a fresh
+  install and on the first 0.7 deploy of an upgraded installation.
+
+*What it guarantees after a successful run:*
+
+* the ``kaapana-admin`` client exists in the *master* realm with full admin
+  rights, so the setup job and every later deploy authenticate through it;
+* the master-realm admin password equals the value the deploy supplied;
+* the admin password never reaches the setup job or any runtime pod.
+
+*Warnings and errors:*
+
+* *No admin password supplied, but the client works* - the job ran without a
+  password (for example when started by hand). The connection is fine, but the
+  password was not (re)set. A normal deploy always supplies one.
+* *Client not functional and no admin password supplied* - the client does not
+  exist yet and no password was given, so the job cannot bootstrap. Re-run the
+  deploy with ``--set-keycloak-admin-password`` and provide the current admin
+  password (on an upgrade, your existing one).
+* *Admin authentication failed* - the client is missing and the supplied password
+  does not match the current Keycloak admin password. Re-run with the correct one.
+* *Could not create the client* / *applying the admin password failed* -
+  authentication succeeded but provisioning did not. Check the Keycloak server
+  logs and the admin user's permissions.
+
+**Setup job** (``keycloak-setup-chart``) authenticates as the ``kaapana-admin``
+client and applies the full realm configuration. It also writes the rotating
+secrets (OIDC, ``kaapana-service``, ``system-user``) into Keycloak on every
+deploy, keeping the Kubernetes secrets and Keycloak in sync.

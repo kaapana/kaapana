@@ -17,6 +17,9 @@ data:
   kaapana-client.json: |
 {{ .Files.Get "realm_objects/kaapana-client.json" | indent 4 }}
 
+  kaapana-service.json: |
+{{ .Files.Get "realm_objects/kaapana-service.json" | indent 4 }}
+
   kaapana-realm.json: |
 {{ .Files.Get "realm_objects/kaapana-realm.json" | indent 4 }}
 

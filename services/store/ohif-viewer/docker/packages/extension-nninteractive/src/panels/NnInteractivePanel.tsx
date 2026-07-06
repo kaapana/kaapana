@@ -137,6 +137,12 @@ export default function NnInteractivePanel({
       return;
     }
 
+    const activatePromptTool = (toolName: string) => {
+      toolboxState.setManualCorrectionMode(false);
+      toolboxState.setTool(toolName);
+      commandsManager.run('setAiToolActive', { toolName });
+    };
+
     const handleKeyDown = (event: KeyboardEvent) => {
       const activeElement = document.activeElement;
       const isInputField =
@@ -177,8 +183,7 @@ export default function NnInteractivePanel({
           }
           event.preventDefault();
           event.stopPropagation();
-          toolboxState.setManualCorrectionMode(false);
-          onInteractionRef.current?.({ itemId: 'Probe2' });
+          activatePromptTool('Probe2');
           break;
         case 'b':
           if (!nnInteractiveAvailable) {
@@ -186,8 +191,7 @@ export default function NnInteractivePanel({
           }
           event.preventDefault();
           event.stopPropagation();
-          toolboxState.setManualCorrectionMode(false);
-          onInteractionRef.current?.({ itemId: 'RectangleROI2' });
+          activatePromptTool('RectangleROI2');
           break;
         case 's':
           if (!nnInteractiveAvailable) {
@@ -195,8 +199,7 @@ export default function NnInteractivePanel({
           }
           event.preventDefault();
           event.stopPropagation();
-          toolboxState.setManualCorrectionMode(false);
-          onInteractionRef.current?.({ itemId: 'PlanarFreehandROI2' });
+          activatePromptTool('PlanarFreehandROI2');
           break;
         case 'l':
           if (!nnInteractiveAvailable) {
@@ -204,8 +207,7 @@ export default function NnInteractivePanel({
           }
           event.preventDefault();
           event.stopPropagation();
-          toolboxState.setManualCorrectionMode(false);
-          onInteractionRef.current?.({ itemId: 'PlanarFreehandROI3' });
+          activatePromptTool('PlanarFreehandROI3');
           break;
         case 'n': {
           if (!nnInteractiveAvailable) {

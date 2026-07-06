@@ -3,12 +3,14 @@
 Extending Kaapana
 #################
 
-* Kaapana is meant to be extended by its users
-* Extensions can be 
-    * Algorithms packaged as OCI containers
-    * Data-processing pipelines as workflows
-    * Server applications with backend and frontend services
-* The legacy development guide shows how workflow- and application-extensions can be developed on deployments older than 0.7.0
+Kaapana is designed to be extended by its users. Extensions can take the form of
+algorithms packaged as :doc:`OCI containers <development_guide/processing_container_dev_guide>`,
+data-processing pipelines as :doc:`workflows <development_guide/workflow_development>`, or
+server applications with backend and frontend services.
+
+For deployments older than version 0.7.0, refer to the
+:doc:`Legacy Development Guide <development_guide/legacy_dev_guide_root>`,
+which covers workflow and application extension development for those releases.
 
 .. toctree::
     :maxdepth: 2
@@ -17,6 +19,7 @@ Extending Kaapana
     development_guide/processing_container_dev_guide
     development_guide/workflow_development
     development_guide/extension_packaging
+    development_guide/extension_manager
     development_guide/legacy_workflow_migration
     development_guide/legacy_dev_guide_root
 

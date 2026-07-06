@@ -113,6 +113,7 @@ It depends on ``kaapana_containers``.
 Install it via pip from the Kaapana repository:
 
 .. code-block:: bash
+  
    pip install ./kaapana/lib/kaapana_containers
    pip install ./kaapana/lib/kaapana_extensions
 

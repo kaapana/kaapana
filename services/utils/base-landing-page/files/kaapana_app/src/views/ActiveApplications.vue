@@ -29,7 +29,7 @@
                     v-tooltip(right)
                       template(v-slot:activator="{ on, attrs }")
                         span(v-bind="attrs" v-on="on")
-                          v-btn(v-for="path in item.paths" :key="path" outlined :color="linkColor(item)" class="ma-1" @click="onLinkClick(item, path)")
+                          v-btn(v-for="path in item.paths" :key="path" outlined :color="isFinishing(item) ? 'grey' : linkColor(item)" class="ma-1" @click="onLinkClick(item, path)")
                             v-progress-circular(v-if="podStatus(item) === 'pending'" indeterminate size="16" width="2" color="grey" class="mr-2")
                             v-icon(v-else-if="podStatus(item) === 'error'" left small) mdi-alert-circle
                             v-icon(v-else left small) mdi-open-in-new
@@ -37,7 +37,7 @@
                       span(v-if="item.pods && item.pods.length")
                         div(v-for="pod in item.pods" :key="pod.name") {{ pod.name }}: {{ pod.status }} ({{ pod.ready }}, restarts: {{ pod.restarts }})
                       span(v-else) No pods found
-                    v-btn(color="green" outlined class="ma-1" @click="openFinishDialog(item)")
+                    v-btn(color="green" outlined class="ma-1" :loading="isFinishing(item)" @click="openFinishDialog(item)")
                       v-icon(left small) mdi-check-circle-outline
                       | Finish Interaction
               v-list-item(v-else)
@@ -112,6 +112,18 @@
             v-spacer
             v-btn(text @click="finishDialog = false") Back
             v-btn(color="green" @click="confirmFinish") Yes
+
+      v-dialog(v-model="finishErrorDialog" max-width="480")
+        v-card
+          v-card-title
+            v-icon(color="red") mdi-alert-circle
+            span.ml-3 Could not finish interaction
+          v-card-text
+            p Could not finish interaction on "{{ finishErrorName }}", please retry or contact the sites operator.
+            p.text-caption.grey--text error: {{ finishErrorMessage }}
+          v-card-actions
+            v-spacer
+            v-btn(text @click="finishErrorDialog = false") Ok
 </template>
 
 <script lang="ts">
@@ -135,7 +147,12 @@ export default Vue.extend({
     dialogReleaseName: "",
     dialogPath: "",
     finishDialog: false,
-    finishReleaseName: "",
+    finishItem: null as any,
+    finishing: [] as string[],
+    finished: [] as string[],
+    finishErrorDialog: false,
+    finishErrorName: "",
+    finishErrorMessage: "",
     openPanels: [0, 1],
     sortKey: "name",
     sortDesc: false,
@@ -263,13 +280,18 @@ export default Vue.extend({
 
     // Confirm before finishing a workflow-triggered interaction.
     openFinishDialog(item: any) {
-      this.finishReleaseName = item.releaseName;
+      this.finishItem = item;
       this.finishDialog = true;
     },
 
     confirmFinish() {
       this.finishDialog = false;
-      this.deleteChart(this.finishReleaseName);
+      this.finishInteraction(this.finishItem);
+    },
+
+    // Whether this app's finish request is currently in flight.
+    isFinishing(item: any) {
+      return this.finishing.includes(item.releaseName);
     },
 
     // Pods that are neither completed nor running-and-ready, i.e. the ones to surface as the error detail.
@@ -326,7 +348,7 @@ export default Vue.extend({
             });
           // get applications that are triggered from workflow runs, scoped to the selected project
           this.triggeredApplications = allActiveApplications.filter((item: any) => {
-            return item.fromWorkflowRun === true && item.project === selectedProjectId;
+            return item.fromWorkflowRun === true && item.project === selectedProjectId && !this.finished.includes(item.releaseName);
           });
           // get applications that are not triggered from a workflow run and includes current project name in all paths
           this.projectApplications = allActiveApplications.filter((item: any) => {
@@ -350,28 +372,32 @@ export default Vue.extend({
         });
     },
 
-    deleteChart(releaseName: any) {
-      let params = {
-        release_name: releaseName,
-      };
-      this.loadingTriggered = true;
+    // Finish a single interaction without reloading the whole list: spin the
+    // item's Finish button (and grey its Open button) via `finishing`, then on
+    // success drop it from the list and remember it in `finished` so the 2s poll
+    // can't re-add it before the backend uninstall completes. On failure, clear
+    // the finishing state (resetting the item to its default look) and surface
+    // the error in a dialog.
+    finishInteraction(item: any) {
+      const releaseName = item.releaseName;
+      this.finishing.push(releaseName);
       kaapanaApiService
-        .helmApiPost("/complete-active-application", params)
-        .then((response: any) => {
-          setTimeout(() => {
-            this.getActiveApplications();
-          }, 1000);
+        .helmApiPost("/complete-active-application", { release_name: releaseName })
+        .then(() => {
+          this.finished.push(releaseName);
+          this.triggeredApplications = this.triggeredApplications.filter(
+            (app: any) => app.releaseName !== releaseName
+          );
+          this.finishing = this.finishing.filter((r: string) => r !== releaseName);
         })
         .catch((err: any) => {
-          this.getActiveApplications();
-          this.loadingTriggered = false;
           console.log(err);
+          this.finishing = this.finishing.filter((r: string) => r !== releaseName);
+          this.finishErrorName = item.name;
+          this.finishErrorMessage =
+            err?.response?.data?.detail ?? err?.response?.data ?? err?.message ?? String(err);
+          this.finishErrorDialog = true;
         });
-
-      // project needs to be deleted from the already fetched project list after deleteing the chart.
-      // update the project application list by deleting the application with release name.
-      const filteredProjectApps = this.projectApplications.filter((project: any) => project.name !== releaseName);
-      this.projectApplications = filteredProjectApps;
     },
   },
 });

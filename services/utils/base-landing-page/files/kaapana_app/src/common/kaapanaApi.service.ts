@@ -17,7 +17,7 @@ import httpClient from './httpClient'
         console.log(response)
         resolve(response)
       }).catch((error: any) => {
-        console.log('Failed: ' + error.response.data)
+        console.log('Failed: ' + error?.response?.data)
         reject(error)
       })
     })
@@ -29,7 +29,7 @@ import httpClient from './httpClient'
       httpClient.get('/kube-helm-api' + subUrl, { params, headers: projectHeader() }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
-        console.log('Failed: ' + error.response.data)
+        console.log('Failed: ' + error?.response?.data)
         reject(error)
       })
     })

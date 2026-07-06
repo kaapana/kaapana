@@ -15,56 +15,87 @@ class KeycloakHelper:
     The base api endpoint is based on KEYCLOAK environment variables.
     """
 
-    def __init__(
-        self,
-        keycloak_user=None,
-        keycloak_password=None,
-        keycloak_host=None,
-        keycloak_https_port=None,
-    ):
-        self.keycloak_user = keycloak_user or os.environ["KEYCLOAK_USER"]
-        self.keycloak_password = keycloak_password or os.environ["KEYCLOAK_PASSWORD"]
+    def __init__(self, access_token, keycloak_host=None, keycloak_https_port=None):
         self.keycloak_host = keycloak_host or os.environ["KEYCLOAK_HOST"]
         self.keycloak_https_port = keycloak_https_port or os.getenv(
             "KEYCLOAK_HTTPS_PORT", 443
         )
         self.auth_url = f"https://{self.keycloak_host}:{self.keycloak_https_port}/auth/admin/realms/"
-        self.master_access_token = self.get_access_token(
-            self.keycloak_user,
-            self.keycloak_password,
-            "https",
-            self.keycloak_host,
-            self.keycloak_https_port,
-            False,
-            "admin-cli",
-        )
+        self.access_token = access_token
 
-    def get_access_token(
-        self,
-        username: str,
-        password: str,
-        protocol: str,
-        host: str,
-        port: int,
-        ssl_check: bool,
-        client_id: str,
-        realm: str = "master",
-        client_secret: str = None,
+    @classmethod
+    def from_admin_password(
+        cls,
+        keycloak_user=None,
+        keycloak_password=None,
+        keycloak_host=None,
+        keycloak_https_port=None,
     ):
-        payload = {
-            "username": username,
-            "password": password,
-            "client_id": client_id,
-            "grant_type": "password",
-        }
-        if client_secret:
-            payload["client_secret"] = client_secret
+        """Authenticate against the master realm via admin user credentials (password grant, admin-cli client)."""
+        keycloak_user = keycloak_user or os.environ["KEYCLOAK_USER"]
+        keycloak_password = keycloak_password or os.environ["KEYCLOAK_PASSWORD"]
+        keycloak_host = keycloak_host or os.environ["KEYCLOAK_HOST"]
+        keycloak_https_port = keycloak_https_port or os.getenv(
+            "KEYCLOAK_HTTPS_PORT", 443
+        )
+        token = cls._fetch_token(
+            keycloak_host,
+            keycloak_https_port,
+            realm="master",
+            client_id="admin-cli",
+            grant_type="password",
+            username=keycloak_user,
+            password=keycloak_password,
+        )
+        return cls(token, keycloak_host, keycloak_https_port)
 
-        url = f"{protocol}://{host}:{port}/auth/realms/{realm}/protocol/openid-connect/token"
+    @classmethod
+    def from_client_credentials(
+        cls,
+        client_id,
+        client_secret,
+        realm="master",
+        keycloak_host=None,
+        keycloak_https_port=None,
+    ):
+        """Authenticate via a service-account client (client_credentials grant)."""
+        keycloak_host = keycloak_host or os.environ["KEYCLOAK_HOST"]
+        keycloak_https_port = keycloak_https_port or os.getenv(
+            "KEYCLOAK_HTTPS_PORT", 443
+        )
+        token = cls._fetch_token(
+            keycloak_host,
+            keycloak_https_port,
+            realm=realm,
+            client_id=client_id,
+            grant_type="client_credentials",
+            client_secret=client_secret,
+        )
+        return cls(token, keycloak_host, keycloak_https_port)
+
+    @staticmethod
+    def _fetch_token(
+        host,
+        port,
+        realm,
+        client_id,
+        grant_type,
+        username=None,
+        password=None,
+        client_secret=None,
+        ssl_check=False,
+    ):
+        payload = {"client_id": client_id, "grant_type": grant_type}
+        if username is not None:
+            payload["username"] = username
+        if password is not None:
+            payload["password"] = password
+        if client_secret is not None:
+            payload["client_secret"] = client_secret
+        url = f"https://{host}:{port}/auth/realms/{realm}/protocol/openid-connect/token"
         r = requests.post(url, verify=ssl_check, data=payload)
         r.raise_for_status()
-        access_token = r.json()["access_token"]
-        return access_token
+        return r.json()["access_token"]
 
     def make_authorized_request(
         self,
@@ -76,7 +107,7 @@ class KeycloakHelper:
         **kwargs,
     ):
         """
-        Make an authorized request to the keycloak api using the access token stored in self.master_access_token
+        Make an authorized request to the keycloak api using the access token stored in self.access_token
         """
         for key, val in kwargs.items():
             payload[key] = val
@@ -85,7 +116,7 @@ class KeycloakHelper:
             url,
             verify=False,
             json=payload,
-            headers={"Authorization": f"Bearer {self.master_access_token}"},
+            headers={"Authorization": f"Bearer {self.access_token}"},
             timeout=timeout,
         )
 
@@ -246,11 +277,35 @@ class KeycloakHelper:
         )
         return self.make_authorized_request(url, requests.post, [role_representation])
 
+    def post_service_account_role_mapping(
+        self, service_client: str, managing_client: str, client_role: str
+    ):
+        """
+        Assign a role from managing_client to the service account of service_client.
+        Uses /clients/{uuid}/service-account-user which works for service accounts
+        (regular /users?username=... does not return service account users).
+        """
+        service_client_uuid = self.get_client_id(service_client)
+        url = (
+            self.auth_url
+            + f"kaapana/clients/{service_client_uuid}/service-account-user"
+        )
+        user_id = self.make_authorized_request(url, requests.get).json().get("id")
+        managing_client_uuid = self.get_client_id(managing_client)
+        role_representation = self.get_client_role(managing_client_uuid, client_role)
+        assign_url = (
+            self.auth_url
+            + f"kaapana/users/{user_id}/role-mappings/clients/{managing_client_uuid}"
+        )
+        return self.make_authorized_request(
+            assign_url, requests.post, [role_representation]
+        )
+
     def get_client_role(self, client_id: str, client_role: str):
         """
         Get the role represenation of a client role
         client_id: the id of the client the role belongs to (not the name)
-        client_role: the name of the client
+        client_role: the name of the role
         """
         url = self.auth_url + f"kaapana/clients/{client_id}/roles"
         r = self.make_authorized_request(url, requests.get)

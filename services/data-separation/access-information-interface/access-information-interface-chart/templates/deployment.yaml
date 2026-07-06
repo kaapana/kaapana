@@ -46,10 +46,11 @@ spec:
           value: "kaapana"
         - name: KEYCLOAK_KAAPANA_REALM_USER_NAME
           value: "kaapana"
-        - name: KEYCLOAK_ADMIN_USER_NAME
-          value: "{{ .Values.global.credentials_keycloak_admin_username }}"
-        - name: KEYCLOAK_ADMIN_USER_PASSWORD
-          value: "{{ .Values.global.credentials_keycloak_admin_password }}"
+        - name: KEYCLOAK_SERVICE_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: kaapana-service-password
+              key: kaapana-service-password
         - name: KAAPANA_CLIENT_SECRET
           value: "{{ .Values.global.oidc_client_secret }}"
         - name: KAAPANA_PROJECT_USER_NAME
@@ -69,10 +70,6 @@ spec:
           value: "{{ required `global.platform_prefix is required` .Values.global.platform_prefix }}"
         - name: CONFIG_DIR
           value: "/app/config"
-        - name: KEYCLOAK_USER
-          value: "{{ .Values.global.credentials_keycloak_admin_username }}"
-        - name: KEYCLOAK_PASSWORD
-          value: "{{ .Values.global.credentials_keycloak_admin_password }}"
         - name: KEYCLOAK_HOST
           value: "keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc"
         {{- if .Values.global.dev_files }}

@@ -31,8 +31,7 @@ def get_monitoring_service() -> MonitoringService:
 def get_user_service() -> UserService:
     yield UserService(
         settings.keycloak_url,
-        settings.keycloak_admin_username,
-        settings.keycloak_admin_password,
+        settings.keycloak_service_client_secret,
     )
 
 

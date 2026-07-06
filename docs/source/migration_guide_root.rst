@@ -7,6 +7,8 @@ Migration Guide
 +-------+-------+---------------------------+----------------------------------------------+
 | From  | To    | What is preserved?        | What is lost?                                |
 +=======+=======+===========================+==============================================+
+| 0.6.X | 0.7.X | - All platform data       |                                              |
++-------+-------+---------------------------+----------------------------------------------+
 | 0.4.X | 0.5.X | - PACS images             | - CT thumbnails                              |
 |       |       | - Opensearch metadata     | - Datasets scoped to admin project only      |
 |       |       | - Keycloak users          | - Airflow logs scoped to admin project only  |
@@ -32,6 +34,7 @@ Migration Guide
 .. toctree::
     :maxdepth: 3
 
+    migration_guide/migration_guide_0.7
     migration_guide/migration_guide_0.5
     migration_guide/migration_guide_0.4
     migration_guide/migration_guide_0.3

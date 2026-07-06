@@ -14,7 +14,7 @@ function main() {
                 subcommand="help"
                 shift
                 ;;
-            deploy|install|report|offline-gpu)
+            deploy|install|report|offline-gpu|set-keycloak-admin-password)
                 subcommand="$1"
                 shift
                 ;;
@@ -44,6 +44,9 @@ function main() {
             ;;
         offline-gpu)
             install_gpu_operator "$(dirname "$0")"
+            ;;
+        set-keycloak-admin-password)
+            set_keycloak_admin_password
             ;;
         *)
             print_usage
@@ -89,6 +92,8 @@ Commands:
   install              Run the server installation helper.
   report               Generate a microk8s state report without deploying.
   offline-gpu          Install the GPU Operator for offline environments.
+  set-keycloak-admin-password
+                       Change the Keycloak admin password on a running platform.
 
 Run '$script_name <command> --help' for command-specific options.
 EOF
@@ -207,6 +212,117 @@ function validate_platform_prefix() {
     echo -e "${GREEN}Using PLATFORM_PREFIX: $PLATFORM_PREFIX${NC}"
 }
 
+# Keycloak production policy: >=8 chars, 1 upper, 1 lower, 1 digit, 1 special.
+# Only used to keep the *generated* password policy-compliant; entered passwords
+# are never validated.
+function _keycloak_password_ok() {
+    local pw="$1"
+    if [ "${#pw}" -ge 8 ] \
+        && [[ "$pw" == *[[:upper:]]* ]] \
+        && [[ "$pw" == *[[:lower:]]* ]] \
+        && [[ "$pw" == *[[:digit:]]* ]] \
+        && [[ "$pw" == *[^[:alnum:]]* ]]; then
+        return 0
+    fi
+    return 1
+}
+
+function _generate_keycloak_password() {
+    # Mixed 20-char pool; regenerate until policy-compliant (first try in
+    # practice). || true guards SIGPIPE under pipefail.
+    local pw=""
+    while true; do
+        pw=$(tr -dc 'A-Za-z0-9!#$%^&*' </dev/urandom 2>/dev/null | head -c 20 || true)
+        if [ -z "$pw" ]; then
+            pw=$(openssl rand -base64 24 2>/dev/null | tr -dc 'A-Za-z0-9!#$%^&*' | head -c 20 || true)
+        fi
+        if _keycloak_password_ok "$pw"; then break; fi
+    done
+    printf '%s' "$pw"
+}
+
+# Change the Keycloak admin password on a running platform without a full
+# redeploy by re-running the bootstrap job with a new password. This reuses the
+# bootstrap logic (the single source of truth): it authenticates via the
+# kaapana-admin client, so the current admin password is not needed.
+function set_keycloak_admin_password() {
+    KUBECTL_EXECUTABLE="${KUBECTL_EXECUTABLE:-microk8s.kubectl}"
+    ADMIN_NAMESPACE="${ADMIN_NAMESPACE:-admin}"
+    local job_name="keycloak-bootstrap"
+
+    if ! command -v jq >/dev/null 2>&1; then
+        echo -e "${RED}jq is required for this command but was not found.${NC}"
+        exit 1
+    fi
+    if [ ! -t 0 ]; then
+        echo -e "${RED}set-keycloak-admin-password needs an interactive terminal.${NC}"
+        exit 1
+    fi
+
+    # 1. Fetch the existing bootstrap job; it carries the full, correct spec
+    #    (image, client secret, host) that we re-run with a new password.
+    local job_json
+    job_json=$($KUBECTL_EXECUTABLE get job "$job_name" -n "$ADMIN_NAMESPACE" -o json 2>/dev/null || true)
+    if [ -z "$job_json" ]; then
+        echo -e "${RED}Bootstrap job '$job_name' not found in namespace '$ADMIN_NAMESPACE'. The platform does not appear to be deployed.${NC}"
+        exit 1
+    fi
+
+    # 2. Resolve the new password (empty entry generates a random, temporary one).
+    local temporary=false new_pw
+    read -rsp "$(echo -e "${YELLOW}New Keycloak admin password (empty = generate random): ${NC}")" new_pw
+    echo
+    if [ -z "$new_pw" ]; then
+        new_pw=$(_generate_keycloak_password)
+        temporary=true
+    fi
+
+    # 3. Patch the password env values and strip the runtime/immutable fields so
+    #    the job can be re-applied. The Helm annotations are kept, so the release
+    #    stays consistent and the next deploy reconciles the job normally.
+    local patched
+    patched=$(printf '%s' "$job_json" | jq \
+        --arg pw "$new_pw" --arg tmp "$temporary" '
+        .spec.template.spec.containers[0].env |= map(
+            if .name == "KEYCLOAK_PASSWORD" then .value = $pw
+            elif .name == "KAAPANA_ADMIN_PASSWORD_TEMPORARY" then .value = $tmp
+            else . end)
+        | del(
+            .status,
+            .metadata.uid, .metadata.resourceVersion, .metadata.creationTimestamp,
+            .metadata.generation, .metadata.managedFields,
+            .spec.selector,
+            .spec.template.metadata.labels["controller-uid"],
+            .spec.template.metadata.labels["batch.kubernetes.io/controller-uid"],
+            .spec.template.metadata.labels["job-name"],
+            .spec.template.metadata.labels["batch.kubernetes.io/job-name"])')
+
+    # 4. Recreate the job and wait for it to finish.
+    echo -e "${GREEN}Re-running the bootstrap job to apply the new password ...${NC}"
+    $KUBECTL_EXECUTABLE delete job "$job_name" -n "$ADMIN_NAMESPACE" --wait=true >/dev/null 2>&1 || true
+    if ! printf '%s' "$patched" | $KUBECTL_EXECUTABLE apply -f - >/dev/null; then
+        echo -e "${RED}Could not re-create the bootstrap job.${NC}"
+        exit 1
+    fi
+
+    if ! $KUBECTL_EXECUTABLE wait --for=condition=complete "job/$job_name" \
+        -n "$ADMIN_NAMESPACE" --timeout=120s >/dev/null 2>&1; then
+        echo -e "${RED}The bootstrap job did not complete. Logs:${NC}"
+        $KUBECTL_EXECUTABLE logs "job/$job_name" -n "$ADMIN_NAMESPACE" --tail=30 2>/dev/null || true
+        exit 1
+    fi
+
+    echo -e ""
+    echo -e "${YELLOW}══════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}  Keycloak admin password updated:${NC}"
+    echo -e "${GREEN}    $new_pw${NC}"
+    if [ "$temporary" = true ]; then
+        echo -e "${YELLOW}  Temporary - change it on first login in the Keycloak UI.${NC}"
+    fi
+    echo -e "${YELLOW}══════════════════════════════════════════════════${NC}"
+    echo -e ""
+}
+
 function deploy() {
 
     PLATFORM_NAME="${PLATFORM_NAME:-}"
@@ -227,6 +343,7 @@ function deploy() {
     fi
     export HELM_EXPERIMENTAL_OCI=1
     HELM_EXECUTABLE="${HELM_EXECUTABLE:-helm}"
+    KUBECTL_EXECUTABLE="${KUBECTL_EXECUTABLE:-microk8s.kubectl}"
 
     load_kaapana_config
     ### Parsing command line arguments:
@@ -239,6 +356,7 @@ function deploy() {
     _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
     _Flag: --remove-all-images-docker will delete all Docker images from the system
     _Flag: --nuke-pods will force-delete all pods of the Kaapana deployment namespaces.
+    _Flag: --set-keycloak-admin-password prompt for the Keycloak admin password (an empty entry generates a random one); without this flag a random password is generated. The password is always printed after the deploy
     _Flag: --quiet, meaning non-interactive operation
     _Flag: --offline, using prebuilt tarball and chart (--chart-path required!)
     _Flag: --no-migration, disable automatic migration between versions
@@ -364,6 +482,11 @@ function deploy() {
                 echo -e "${GREEN}SET TAR_PATH: $TAR_PATH !${NC}";
                 import_container_images_tar
                 exit 0
+            ;;
+
+            --set-keycloak-admin-password)
+                SET_KEYCLOAK_ADMIN_PASSWORD=true
+                shift # past argument
             ;;
 
             --quiet)
@@ -1378,7 +1501,10 @@ function load_kaapana_config {
     GRAFANA_PASSWORD="admin"
 
     KEYCLOAK_ADMIN_USERNAME="admin"
-    KEYCLOAK_ADMIN_PASSWORD="Kaapana2020" #  Minimum policy for production: 1 specialChar + 1 upperCase + 1 lowerCase and 1 digit + min-length = 8
+    # KEYCLOAK_ADMIN_PASSWORD is resolved in the deploy function (see the password
+    # block): a random password unless --set-keycloak-admin-password is given, in
+    # which case the operator is prompted for one.
+    SET_KEYCLOAK_ADMIN_PASSWORD=false
 
     FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
     SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)
@@ -2145,6 +2271,33 @@ function deploy_chart {
     echo "${GREEN}Checking for version difference and migration options...${NC}"
     migrate
 
+    # --- Keycloak admin password -----------------------------------------------
+    # Every deploy sets the master-realm admin password and hands it to the
+    # bootstrap job, which applies it to the admin user. Without a flag a fresh
+    # random password is generated; with --set-keycloak-admin-password the
+    # operator is prompted for one (an empty entry falls back to random). The
+    # password is always printed after the deploy and is never validated against
+    # a policy - an entered value is accepted as-is.
+    KEYCLOAK_ADMIN_PASSWORD_TEMPORARY=false
+    if [ "${SET_KEYCLOAK_ADMIN_PASSWORD:-false}" = true ]; then
+        if [ ! -t 0 ] || [ "${QUIET:-false}" = true ]; then
+            echo -e "${RED}--set-keycloak-admin-password needs an interactive terminal (not --quiet).${NC}"
+            exit 1
+        fi
+        read -rsp "$(echo -e "${YELLOW}Keycloak admin password (empty = generate random): ${NC}")" KEYCLOAK_ADMIN_PASSWORD
+        echo
+        if [ -z "$KEYCLOAK_ADMIN_PASSWORD" ]; then
+            KEYCLOAK_ADMIN_PASSWORD=$(_generate_keycloak_password)
+            KEYCLOAK_ADMIN_PASSWORD_TEMPORARY=true
+            echo -e "${GREEN}No password entered - generated a random one (shown after deploy).${NC}"
+        fi
+    else
+        KEYCLOAK_ADMIN_PASSWORD=$(_generate_keycloak_password)
+        KEYCLOAK_ADMIN_PASSWORD_TEMPORARY=true
+        echo -e "${GREEN}Generated a random Keycloak admin password (shown after deploy).${NC}"
+    fi
+    # ---------------------------------------------------------------------------
+
     echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
 
@@ -2181,6 +2334,7 @@ function deploy_chart {
     --set-string global.credentials_grafana_password="$GRAFANA_PASSWORD" \
     --set-string global.credentials_keycloak_admin_username="$KEYCLOAK_ADMIN_USERNAME" \
     --set-string global.credentials_keycloak_admin_password="$KEYCLOAK_ADMIN_PASSWORD" \
+    --set global.keycloak_admin_password_temporary="${KEYCLOAK_ADMIN_PASSWORD_TEMPORARY:-false}" \
     --set-string global.dicom_port="$DICOM_PORT" \
     --set-string global.fast_data_dir="$FAST_DATA_DIR" \
     --set-string global.services_namespace=$SERVICES_NAMESPACE \
@@ -2235,6 +2389,16 @@ function deploy_chart {
     --set-string global.storage_node="$STORAGE_NODE" \
     "${kube_helm_timeout_args[@]}" \
     --name-template "$PLATFORM_NAME"
+
+    echo -e ""
+    echo -e "${YELLOW}══════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}  Keycloak admin password:${NC}"
+    echo -e "${GREEN}    $KEYCLOAK_ADMIN_PASSWORD${NC}"
+    if [ "$KEYCLOAK_ADMIN_PASSWORD_TEMPORARY" = true ]; then
+        echo -e "${YELLOW}  Temporary - change it on first login in the Keycloak UI.${NC}"
+    fi
+    echo -e "${YELLOW}══════════════════════════════════════════════════${NC}"
+    echo -e ""
 
     # In case of timeout-issues in kube helm increase the default timeouts by setting
 

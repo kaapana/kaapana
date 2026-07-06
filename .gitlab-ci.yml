@@ -184,6 +184,45 @@ extensions_api_tests:
         - extensions_api_report.xml
 
 ##############################################
+# Keycloak Backend Tests
+##############################################
+kaapana_backend_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/base/kaapana-backend/docker/files/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/base/kaapana-backend/docker/files/tests/ --junitxml=kaapana_backend_report.xml
+  artifacts:
+    reports:
+      junit:
+        - kaapana_backend_report.xml
+
+##############################################
+# Access Information Interface Tests
+##############################################
+access_information_interface_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/data-separation/access-information-interface/docker/backend/files/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/data-separation/access-information-interface/docker/backend/files/tests/test_keycloak_helper.py --junitxml=aii_report.xml
+  artifacts:
+    reports:
+      junit:
+        - aii_report.xml
+
+##############################################
+# Keycloak Setup Tests
+##############################################
+keycloak_setup_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/kaapana-admin/keycloak/keycloak-setup/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/kaapana-admin/keycloak/keycloak-setup/tests/ --junitxml=keycloak_setup_report.xml
+  artifacts:
+    reports:
+      junit:
+        - keycloak_setup_report.xml
+
+##############################################
 # Documentation Build
 ##############################################
 build_documentation:

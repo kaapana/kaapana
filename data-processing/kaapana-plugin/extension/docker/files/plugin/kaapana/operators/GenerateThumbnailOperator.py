@@ -25,5 +25,7 @@ class GenerateThumbnailOperator(KaapanaBaseOperator):
             execution_timeout=timedelta(minutes=15),
             ram_mem_mb=4000,
             ram_mem_mb_lmt=12000,
+            cpu_millicores=200,
+            cpu_millicores_lmt=500,
             **kwargs,
         )

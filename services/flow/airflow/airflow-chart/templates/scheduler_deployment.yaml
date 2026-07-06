@@ -99,6 +99,8 @@ spec:
         env:
         - name: ADMIN_NAMESPACE
           value: "{{ .Values.global.admin_namespace }}"
+        - name: AIRFLOW__CORE__PARALLELISM
+          value: "{{ .Values.global.airflow_parallelism }}"
         - name: AIRFLOW__LOGGING__LOGGING_LEVEL
           value: "INFO"
         - name: AIRFLOW_HOME
@@ -199,8 +201,10 @@ spec:
         resources:
           requests:
             memory: "{{ .Values.global.airflow_memory_request }}Mi"
+            cpu: "{{ .Values.global.airflow_cpu_request }}m"
           limits:
             memory: "{{ .Values.global.airflow_memory_limit }}Mi"
+            cpu: "{{ .Values.global.airflow_cpu_limit }}m"
         volumeMounts:
         - name: airflow-configmap
           mountPath: /kaapana/mounted/workflows/airflow.cfg

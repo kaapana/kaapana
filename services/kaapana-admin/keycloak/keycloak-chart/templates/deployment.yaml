@@ -61,8 +61,6 @@ spec:
             value: "/etc/x509/https/tls.crt"
           - name: KC_HTTP_MAX_QUEUED_REQUESTS
             value: "100"
-          - name: JAVA_OPTS
-            value: "-Xmx400m"
           - name: KC_METRICS_ENABLED
             value: "true"
           - name: KC_HEALTH_ENABLED
@@ -80,9 +78,11 @@ spec:
             containerPort: 9000
           resources:
             requests:
-              memory: 600Mi
+              memory: 1250Mi
+              cpu: "500m"
             limits:
-              memory: 700Mi
+              memory: 1400Mi
+              cpu: "2000m"
           volumeMounts:        
             - name: ssl-config-files
               mountPath: /etc/x509/https

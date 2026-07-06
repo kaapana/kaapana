@@ -1,7 +1,15 @@
 diff --git a/node_modules/@cornerstonejs/core/dist/esm/utilities/VoxelManager.js b/node_modules/@cornerstonejs/core/dist/esm/utilities/VoxelManager.js
-index 7701b73..0edf60d 100644
+index 7701b73..25036cb 100644
 --- a/node_modules/@cornerstonejs/core/dist/esm/utilities/VoxelManager.js
 +++ b/node_modules/@cornerstonejs/core/dist/esm/utilities/VoxelManager.js
+@@ -412,7 +412,6 @@ export default class VoxelManager {
+             }
+             const image = cache.getImage(imageId);
+             if (!image) {
+-                console.warn(`Image not found for imageId: ${imageId}`);
+                 return { pixelData: null, pixelIndex: null };
+             }
+             const voxelManager = image.voxelManager;
 @@ -440,12 +440,36 @@ export default class VoxelManager {
              imageVoxelManager.setAtIndex(pixelIndex, v);
              return true;

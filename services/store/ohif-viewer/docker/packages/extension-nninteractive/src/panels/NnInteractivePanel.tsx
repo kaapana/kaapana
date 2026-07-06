@@ -4,7 +4,7 @@ import { Brush, Lock, LockOpen } from 'lucide-react';
 import { useSystem, useToolbar } from '@ohif/core';
 import classnames from 'classnames';
 import { useTranslation } from 'react-i18next';
-import { dispatchMeasurementStateChanged } from '../utils/measurementStateChanged';
+import * as promptModel from '../model/promptModel';
 import { toolboxState } from '../utils/toolboxState';
 
 interface ButtonProps {
@@ -270,13 +270,8 @@ export default function NnInteractivePanel({
           event.stopPropagation();
           const next = !toolboxState.getPromptsVisible();
           toolboxState.setPromptsVisible(next);
-          const promptTools = ['Probe2', 'RectangleROI2', 'PlanarFreehandROI2', 'PlanarFreehandROI3'];
-          const uids = measurementService
-            .getMeasurements()
-            .filter(m => promptTools.includes(m.toolName))
-            .map(m => m.uid);
-          measurementService.toggleVisibilityMeasurementMany(uids, next);
-          dispatchMeasurementStateChanged();
+          // Prompts are Cornerstone annotations (not measurements) — toggle them directly.
+          promptModel.setPromptsVisible(next);
           break;
         }
         case 'z': {
@@ -526,18 +521,7 @@ export default function NnInteractivePanel({
     if (activeSeg?.segmentationId && activeSegment?.segmentIndex != null) {
       const { segmentationId } = activeSeg;
       const { segmentIndex } = activeSegment;
-      const measurementUIDs = measurementService
-        .getMeasurements()
-        .filter(
-          m =>
-            m?.metadata?.segmentationId === segmentationId &&
-            m?.metadata?.SegmentNumber === segmentIndex
-        )
-        .map(m => m?.uid);
-      if (measurementUIDs.length > 0) {
-        measurementService.removeMany(measurementUIDs);
-      }
-      commandsManager.run('resetNninter', { clearMeasurements: false });
+      // deleteSegment clears the object's prompt annotations and resets the backend.
       commandsManager.run('deleteSegment', { segmentationId, segmentIndex });
     }
   };

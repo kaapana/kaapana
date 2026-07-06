@@ -7,11 +7,15 @@ import {
   utilities as csToolsUtils,
 } from '@cornerstonejs/tools';
 
+import { applyPromptAnnotationStyle, lockPromptAnnotation } from '../utils/promptAnnotationStyle';
+
 function markPromptAnnotation(annotation: any, neg: boolean, segmentNumber: number, segmentationId: string) {
   annotation.metadata.neg = neg;
   annotation.metadata.SegmentNumber = segmentNumber;
   annotation.metadata.segmentationId = segmentationId;
   annotation.metadata.toolLoad = true;
+  // Programmatic prompts carry their final geometry from the start.
+  annotation.metadata.promptCompleted = true;
 }
 
 function getViewportContext(element: HTMLDivElement) {
@@ -34,6 +38,11 @@ function triggerToolRender(tool: any, element: HTMLDivElement, annotation: any) 
     viewportIdsToRender,
     newAnnotation: true,
   };
+
+  // Tool-loaded prompts were already consumed by the server (or by a mask upload) —
+  // show the committed pos/neg shade and lock them so they can never be dragged out of sync.
+  applyPromptAnnotationStyle(annotation.annotationUID, !!annotation.metadata?.neg, { committed: true });
+  lockPromptAnnotation(annotation.annotationUID, true);
 
   csToolsUtils.triggerAnnotationRenderForViewportIds(viewportIdsToRender);
 }

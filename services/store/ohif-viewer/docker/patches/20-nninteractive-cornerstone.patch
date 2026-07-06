@@ -54,6 +54,81 @@ index 38da73c99..ff08d3b68 100644
  
      if (!imageId) {
        return {};
+diff --git a/extensions/cornerstone/src/Viewport/Overlays/ViewportImageScrollbar.tsx b/extensions/cornerstone/src/Viewport/Overlays/ViewportImageScrollbar.tsx
+index 2c7f029..c4b4dd7 100644
+--- a/extensions/cornerstone/src/Viewport/Overlays/ViewportImageScrollbar.tsx
++++ b/extensions/cornerstone/src/Viewport/Overlays/ViewportImageScrollbar.tsx
+@@ -5,2 +5,31 @@ import { ImageScrollbar } from '@ohif/ui-next';
+
++function getPrimaryVolumeId(viewportData) {
++  if (viewportData?.viewportType !== Enums.ViewportType.ORTHOGRAPHIC) {
++    return;
++  }
++
++  return viewportData.data?.[0]?.volume?.volumeId;
++}
++
++function hasVolumeActor(viewport, volumeId) {
++  if (!volumeId) {
++    return true;
++  }
++
++  return !!viewport
++    ?.getActors?.()
++    ?.some(actorEntry => actorEntry?.referencedId === volumeId || actorEntry?.uid === volumeId);
++}
++
++function getCurrentImageIdIndex(viewport, viewportData) {
++  const volumeId = getPrimaryVolumeId(viewportData);
++  if (volumeId && !hasVolumeActor(viewport, volumeId)) {
++    return;
++  }
++
++  return volumeId
++    ? viewport.getCurrentImageIdIndex(volumeId)
++    : viewport.getCurrentImageIdIndex();
++}
++
+ function CornerstoneImageScrollbar({
+@@ -20,2 +49,5 @@ function CornerstoneImageScrollbar({
+     const viewport = cornerstoneViewportService.getCornerstoneViewport(viewportId);
++    if (!viewport) {
++      return;
++    }
+
+@@ -29,2 +61,7 @@ function CornerstoneImageScrollbar({
+
++    const volumeId = getPrimaryVolumeId(viewportData);
++    if (volumeId && !hasVolumeActor(viewport, volumeId)) {
++      return;
++    }
++
+     csUtils.jumpToSlice(viewport.element, {
+@@ -32,2 +69,3 @@ function CornerstoneImageScrollbar({
+       debounceLoading: true,
++      volumeId,
+     });
+@@ -47,3 +85,6 @@ function CornerstoneImageScrollbar({
+     try {
+-      const imageIndex = viewport.getCurrentImageIdIndex();
++      const imageIndex = getCurrentImageIdIndex(viewport, viewportData);
++      if (imageIndex === undefined) {
++        return;
++      }
+       const numberOfSlices = viewport.getNumberOfSlices();
+@@ -75,2 +116,7 @@ function CornerstoneImageScrollbar({
+       const { imageIndex, newImageIdIndex = imageIndex } = event.detail;
++      const resolvedImageIndex =
++        newImageIdIndex ?? getCurrentImageIdIndex(viewport, viewportData);
++      if (resolvedImageIndex === undefined) {
++        return;
++      }
+       const numberOfSlices = viewport.getNumberOfSlices();
+@@ -78,3 +124,3 @@ function CornerstoneImageScrollbar({
+       setImageSliceData({
+-        imageIndex: newImageIdIndex,
++        imageIndex: resolvedImageIndex,
+         numberOfSlices,
 diff --git a/extensions/cornerstone/src/commandsModule.ts b/extensions/cornerstone/src/commandsModule.ts
 index 237e78df0..062d6b801 100644
 --- a/extensions/cornerstone/src/commandsModule.ts
@@ -152,7 +227,40 @@ diff --git a/extensions/cornerstone/src/utils/updateSegmentationStats.ts b/exten
 index 936c822b4..68fdf7f23 100644
 --- a/extensions/cornerstone/src/utils/updateSegmentationStats.ts
 +++ b/extensions/cornerstone/src/utils/updateSegmentationStats.ts
-@@ -86,12 +86,12 @@ export async function updateSegmentationStats({
+@@ -39,14 +39,25 @@ export async function updateSegmentationStats({
+   if (segmentIndices.length === 0) {
+     console.debug('No segments found in segmentation:', segmentationId);
+     return null;
+   }
+-
+-  const stats = await cornerstoneTools.utilities.segmentation.getStatistics({
+-    segmentationId,
+-    segmentIndices,
+-    mode: 'individual',
+-  });
+-
++
++  let stats;
++  try {
++    stats = await cornerstoneTools.utilities.segmentation.getStatistics({
++      segmentationId,
++      segmentIndices,
++      mode: 'individual',
++    });
++  } catch (error) {
++    // Kaapana residue: stats are panel metadata; missing transient viewport imageData
++    // must not route-error after a segmentation has already rendered correctly.
++    console.warn('Skipping segmentation stats update after Cornerstone statistics failure', {
++      segmentationId,
++      error,
++    });
++    return null;
++  }
++
+   if (!stats) {
+     return null;
+   }
+@@ -86,12 +97,12 @@ export async function updateSegmentationStats({
  
        if (readableText.volume) {
 -        // Add volume if it exists but isn't in the array

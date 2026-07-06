@@ -1,9 +1,5 @@
-import { eventTarget, metaData } from '@cornerstonejs/core';
-import {
-  Enums,
-  addTool,
-  annotation as cornerstoneAnnotation,
-} from '@cornerstonejs/tools';
+import { eventTarget, metaData, VolumeViewport3D } from '@cornerstonejs/core';
+import { Enums, addTool } from '@cornerstonejs/tools';
 import { Icons } from '@ohif/ui-next';
 
 import {
@@ -20,153 +16,84 @@ import {
   PlanarFreehandROI2Tool,
   PlanarFreehandROI3Tool,
 } from './tools/promptTools';
-import { dispatchMeasurementStateChanged } from './utils/measurementStateChanged';
+import * as objectModel from './model/objectModel';
+import * as promptModel from './model/promptModel';
+import * as bridge from './model/segmentationBridge';
+import { installDebugHook } from './model/debugTools';
+import { objectKeyOf, PROMPT_TOOL_NAMES } from './model/types';
 import { toolboxState } from './utils/toolboxState';
 
-const CORNERSTONE_3D_TOOLS_SOURCE_NAME = 'Cornerstone3DTools';
-const CORNERSTONE_3D_TOOLS_SOURCE_VERSION = '0.1';
+const PROMPT_NAMES = PROMPT_TOOL_NAMES as readonly string[];
 
-const PROMPT_TOOL_NAMES = ['Probe2', 'RectangleROI2', 'PlanarFreehandROI2', 'PlanarFreehandROI3'];
-let annotationMetadataStampingRegistered = false;
+let annotationListenersRegistered = false;
 let metadataProviderRegistered = false;
-let toolLoadMeasurementVisibilityRegistered = false;
+let focusGuardRegistered = false;
 
-function safeAddTool(tool) {
+function safeAddTool(tool: any) {
   try {
     addTool(tool);
   } catch (error) {
-    if (!String(error?.message || error).includes('already')) {
+    if (!String((error as any)?.message || error).includes('already')) {
       console.warn(`Failed to register ${tool.toolName}:`, error);
     }
   }
 }
 
-function addPromptToolMappings(measurementService) {
-  const source =
-    measurementService.getSource(
-      CORNERSTONE_3D_TOOLS_SOURCE_NAME,
-      CORNERSTONE_3D_TOOLS_SOURCE_VERSION
-    ) ??
-    measurementService.createSource(
-      CORNERSTONE_3D_TOOLS_SOURCE_NAME,
-      CORNERSTONE_3D_TOOLS_SOURCE_VERSION
-    );
-  const mappings =
-    measurementService.getSourceMappings(
-      CORNERSTONE_3D_TOOLS_SOURCE_NAME,
-      CORNERSTONE_3D_TOOLS_SOURCE_VERSION
-    ) ?? [];
-
-  const addAlias = (alias: string, baseTool: string) => {
-    if (mappings.some(mapping => mapping.annotationType === alias)) {
-      return;
-    }
-
-    const baseMapping = mappings.find(mapping => mapping.annotationType === baseTool);
-    if (!baseMapping) {
-      console.warn(`Cannot register ${alias}; ${baseTool} measurement mapping is not available.`);
-      return;
-    }
-
-    const toAnnotationSchema = measurement => {
-      const baseMeasurement = {
-        ...measurement,
-        toolName: baseTool,
-        metadata: {
-          ...measurement?.metadata,
-          toolName: baseTool,
-        },
-      };
-      const annotation = baseMapping.toAnnotationSchema(baseMeasurement);
-
-      if (annotation?.metadata) {
-        annotation.metadata.toolName = alias;
-      }
-
-      return annotation;
-    };
-
-    const toMeasurementSchema = sourceAnnotationDetail => {
-      const annotation = sourceAnnotationDetail?.annotation;
-      const baseSourceAnnotationDetail = {
-        ...sourceAnnotationDetail,
-        annotation: {
-          ...annotation,
-          metadata: {
-            ...annotation?.metadata,
-            toolName: baseTool,
-          },
-        },
-      };
-      const measurement = baseMapping.toMeasurementSchema(baseSourceAnnotationDetail);
-
-      if (!measurement) {
-        return measurement;
-      }
-
-      return {
-        ...measurement,
-        toolName: alias,
-        metadata: {
-          ...measurement.metadata,
-          ...annotation?.metadata,
-          toolName: alias,
-        },
-      };
-    };
-
-    measurementService.addMapping(
-      source,
-      alias,
-      baseMapping.matchingCriteria,
-      toAnnotationSchema,
-      toMeasurementSchema
-    );
-  };
-
-  addAlias('Probe2', 'Probe');
-  addAlias('RectangleROI2', 'RectangleROI');
-  addAlias('PlanarFreehandROI2', 'PlanarFreehandROI');
-  addAlias('PlanarFreehandROI3', 'PlanarFreehandROI');
-}
-
-function registerAnnotationMetadataStamping() {
-  if (annotationMetadataStampingRegistered) {
+/**
+ * Prompt annotations ARE the runtime prompt display (never OHIF measurements). Stamp the
+ * sign on draw and give pending style; on completion mark complete and — in live mode —
+ * submit immediately. ANNOTATION_ADDED fires at draw START where box/freehand geometry is
+ * a mid-drag transient, so we submit only on ANNOTATION_COMPLETED (final geometry).
+ */
+function registerAnnotationListeners(commandsManager: any, servicesManager: any) {
+  if (annotationListenersRegistered) {
     return;
   }
-  annotationMetadataStampingRegistered = true;
+  annotationListenersRegistered = true;
 
-  eventTarget.addEventListener(Enums.Events.ANNOTATION_ADDED, evt => {
-    const annotation = (evt as any)?.detail?.annotation;
+  eventTarget.addEventListener(Enums.Events.ANNOTATION_ADDED, (evt: any) => {
+    const annotation = evt?.detail?.annotation;
     const metadata = annotation?.metadata;
-    if (!metadata || metadata.toolLoad === true || !PROMPT_TOOL_NAMES.includes(metadata.toolName)) {
+    if (!metadata || metadata.toolLoad === true || !PROMPT_NAMES.includes(metadata.toolName)) {
       return;
     }
+    const active = objectModel.getActiveObject(servicesManager);
+    const objectKey =
+      active && bridge.isManaged(active.segmentationId)
+        ? objectKeyOf(active.segmentationId, active.segmentIndex)
+        : undefined;
+    promptModel.stampNew(annotation, { neg: !!toolboxState.getPosNeg(), objectKey });
+  });
 
-    metadata.neg = !!toolboxState.getPosNeg();
-    if (toolboxState.getManualCorrectionMode?.()) {
-      metadata.manualCorrection = true;
+  eventTarget.addEventListener(Enums.Events.ANNOTATION_COMPLETED, (evt: any) => {
+    const annotation = evt?.detail?.annotation;
+    const metadata = annotation?.metadata;
+    if (!metadata || !PROMPT_NAMES.includes(metadata.toolName)) {
+      return;
+    }
+    metadata.promptCompleted = true;
+    if (toolboxState.getLiveMode() && !toolboxState.getLocked() && !metadata.submitted) {
+      commandsManager.run('nninter');
     }
   });
 }
 
+/** Provide row/column pixel spacing so annotation stats work when only PixelSpacing is present. */
 function registerMetadataProvider() {
   if (metadataProviderRegistered) {
     return;
   }
   metadataProviderRegistered = true;
 
-  metaData.addProvider((type, imageId) => {
+  metaData.addProvider((type: string, imageId: string) => {
     if (type !== 'imagePlaneModule' || !imageId) {
       return;
     }
-
-    const image = metaData.get('generalImageModule', imageId);
+    const image: any = metaData.get('generalImageModule', imageId);
     const pixelSpacing = image?.PixelSpacing || image?.pixelSpacing;
     if (!Array.isArray(pixelSpacing)) {
       return;
     }
-
     return {
       rowPixelSpacing: Number(pixelSpacing[0]),
       columnPixelSpacing: Number(pixelSpacing[1]),
@@ -174,33 +101,48 @@ function registerMetadataProvider() {
   }, 9999);
 }
 
-function registerToolLoadMeasurementVisibility(measurementService) {
-  if (toolLoadMeasurementVisibilityRegistered || !measurementService?.subscribe) {
+/**
+ * 3D focus state machine: a 3D viewport is never promptable. When focus returns from a 3D
+ * pane to a 2D pane with a prompt tool armed, the first mousedown only focuses the viewport
+ * (it is swallowed) so it does not place a prompt.
+ */
+function registerFocusGuard(servicesManager: any) {
+  if (focusGuardRegistered || typeof document === 'undefined') {
     return;
   }
-  toolLoadMeasurementVisibilityRegistered = true;
+  focusGuardRegistered = true;
 
-  measurementService.subscribe(measurementService.EVENTS.MEASUREMENT_ADDED, ({ measurement }) => {
-    if (!measurement?.metadata?.toolLoad || measurement.isVisible === false) {
-      return;
-    }
+  const { viewportGridService, cornerstoneViewportService } = servicesManager.services;
+  let wasVolume3D = false;
+  let swallowNext = false;
 
-    try {
-      measurementService.toggleVisibilityMeasurement?.(measurement.uid, false);
-    } catch (error) {
-      console.warn('Failed to hide toolLoad measurement through MeasurementService:', error);
-    }
-
-    try {
-      if (cornerstoneAnnotation.visibility.isAnnotationVisible(measurement.uid)) {
-        cornerstoneAnnotation.visibility.setAnnotationVisibility(measurement.uid, false);
+  viewportGridService?.subscribe?.(
+    viewportGridService.EVENTS.ACTIVE_VIEWPORT_ID_CHANGED,
+    ({ viewportId }: any) => {
+      const vp = cornerstoneViewportService.getCornerstoneViewport(viewportId);
+      const is3D = vp instanceof VolumeViewport3D;
+      if (wasVolume3D && !is3D) {
+        swallowNext = true;
       }
-    } catch (error) {
-      console.warn('Failed to hide toolLoad annotation:', error);
+      wasVolume3D = is3D;
     }
+  );
 
-    dispatchMeasurementStateChanged();
-  });
+  document.addEventListener(
+    'mousedown',
+    (event: MouseEvent) => {
+      if (!swallowNext) {
+        return;
+      }
+      swallowNext = false;
+      const tool = toolboxState.getTool();
+      if (tool && tool !== 'none') {
+        event.stopPropagation();
+        (event as any).stopImmediatePropagation?.();
+      }
+    },
+    true
+  );
 }
 
 export default function preRegistration({ servicesManager, commandsManager }: any = {}) {
@@ -216,12 +158,10 @@ export default function preRegistration({ servicesManager, commandsManager }: an
   safeAddTool(PlanarFreehandROI2Tool);
   safeAddTool(PlanarFreehandROI3Tool);
 
-  const measurementService = servicesManager?.services?.measurementService;
-  if (measurementService) {
-    addPromptToolMappings(measurementService);
-    registerToolLoadMeasurementVisibility(measurementService);
+  if (servicesManager && commandsManager) {
+    installDebugHook(servicesManager);
+    registerAnnotationListeners(commandsManager, servicesManager);
+    registerFocusGuard(servicesManager);
   }
-
-  registerAnnotationMetadataStamping();
   registerMetadataProvider();
 }

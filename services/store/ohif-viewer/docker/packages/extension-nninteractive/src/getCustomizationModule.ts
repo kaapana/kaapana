@@ -1,13 +1,10 @@
 import { Enums } from '@cornerstonejs/tools';
 
-import { CustomSegmentStatisticsHeader } from './customizations/CustomSegmentStatisticsHeader';
-
 export default function getCustomizationModule() {
   return [
     {
       name: 'default',
       value: {
-        'panelSegmentation.customSegmentStatisticsHeader': CustomSegmentStatisticsHeader,
         'cornerstone.overlayViewportTools': {
           active: [
             {

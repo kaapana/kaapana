@@ -29,4 +29,65 @@ index cd00cd7..c7559cf 100644
 -    console.timeEnd('msquares');
    };
  }
- 
+
+diff --git a/node_modules/@kitware/vtk.js/Rendering/OpenGL/VolumeMapper.js b/node_modules/@kitware/vtk.js/Rendering/OpenGL/VolumeMapper.js
+index f8d3ba5..14b03a5 100644
+--- a/node_modules/@kitware/vtk.js/Rendering/OpenGL/VolumeMapper.js
++++ b/node_modules/@kitware/vtk.js/Rendering/OpenGL/VolumeMapper.js
+@@ -218,8 +218,10 @@ function vtkOpenGLVolumeMapper(publicAPI, model) {
+     const spc = model.currentInput.getSpacing();
+     const vsize = new Float64Array(3);
+     vec3.set(vsize, (ext[1] - ext[0]) * spc[0], (ext[3] - ext[2]) * spc[1], (ext[5] - ext[4]) * spc[2]);
++    const fallbackMaxSamples = model.renderable.getMaximumSamplesPerRay() || 1000;
+     const maxSamples = vec3.length(vsize) / publicAPI.getCurrentSampleDistance(ren);
+-    FSSource = vtkShaderProgram.substitute(FSSource, '//VTK::MaximumSamplesValue', `${Math.ceil(maxSamples)}`).result;
++    const maximumSamplesValue = Number.isFinite(maxSamples) && maxSamples > 0 ? Math.ceil(maxSamples) : fallbackMaxSamples;
++    FSSource = vtkShaderProgram.substitute(FSSource, '//VTK::MaximumSamplesValue', `${maximumSamplesValue}`).result;
+
+     // set light complexity
+     FSSource = vtkShaderProgram.substitute(FSSource, '//VTK::LightComplexity', `#define vtkLightComplexity ${model.lightComplexity}`).result;
+@@ -346,7 +348,9 @@ function vtkOpenGLVolumeMapper(publicAPI, model) {
+     const spc = model.currentInput.getSpacing();
+     const vsize = new Float64Array(3);
+     vec3.set(vsize, (ext[1] - ext[0]) * spc[0], (ext[3] - ext[2]) * spc[1], (ext[5] - ext[4]) * spc[2]);
++    const fallbackMaxSamples = model.renderable.getMaximumSamplesPerRay() || 1000;
+     const maxSamples = vec3.length(vsize) / publicAPI.getCurrentSampleDistance(ren);
++    const maximumSamplesValue = Number.isFinite(maxSamples) && maxSamples > 0 ? Math.ceil(maxSamples) : fallbackMaxSamples;
+     const hasZBufferTexture = !!model.zBufferTexture;
+     const state = {
+       iComps: actorProps.getIndependentComponents(),
+@@ -354,7 +358,7 @@ function vtkOpenGLVolumeMapper(publicAPI, model) {
+       interpolationType: actorProps.getInterpolationType(),
+       useLabelOutline: publicAPI.isLabelmapOutlineRequired(actor),
+       numComp,
+-      maxSamples,
++      maxSamples: maximumSamplesValue,
+       useGradientOpacity: actorProps.getUseGradientOpacity(0),
+       blendMode: model.renderable.getBlendMode(),
+       hasZBufferTexture,
+@@ -508,7 +512,7 @@ function vtkOpenGLVolumeMapper(publicAPI, model) {
+     mat3.multiply(model.idxNormalMatrix, keyMats.normalMatrix, actMats.normalMatrix);
+     mat3.multiply(model.idxNormalMatrix, model.idxNormalMatrix, model.currentInput.getDirectionByReference());
+     const maxSamples = vec3.length(vsize) / publicAPI.getCurrentSampleDistance(ren);
+-    if (maxSamples > model.renderable.getMaximumSamplesPerRay()) {
++    if (Number.isFinite(maxSamples) && maxSamples > model.renderable.getMaximumSamplesPerRay()) {
+       vtkWarningMacro(`The number of steps required ${Math.ceil(maxSamples)} is larger than the
+         specified maximum number of steps ${model.renderable.getMaximumSamplesPerRay()}.
+         Please either change the
+@@ -831,11 +835,13 @@ function vtkOpenGLVolumeMapper(publicAPI, model) {
+   publicAPI.getCurrentSampleDistance = ren => {
+     const rwi = ren.getVTKWindow().getInteractor();
+     const baseSampleDistance = model.renderable.getSampleDistance();
++    const safeBaseSampleDistance = Number.isFinite(baseSampleDistance) && baseSampleDistance > 0 ? baseSampleDistance : 1.0;
+     if (rwi.isAnimating()) {
+       const factor = model.renderable.getInteractionSampleDistanceFactor();
+-      return baseSampleDistance * factor;
+-    }
+-    return baseSampleDistance;
++      const safeFactor = Number.isFinite(factor) && factor > 0 ? factor : 1.0;
++      return safeBaseSampleDistance * safeFactor;
++    }
++    return safeBaseSampleDistance;
+   };
+   publicAPI.renderPieceStart = (ren, actor) => {
+     const rwi = ren.getVTKWindow().getInteractor();

@@ -3,12 +3,10 @@ import { metaData } from '@cornerstonejs/core';
 import { useSystem } from '@ohif/core/src';
 
 import { useActiveViewportSegmentationRepresentations } from '../../../cornerstone/src/hooks/useActiveViewportSegmentationRepresentations';
+import * as promptModel from '../model/promptModel';
 import { toolboxState } from '../utils/toolboxState';
-import { dispatchMeasurementStateChanged } from '../utils/measurementStateChanged';
 import { SegmentationTable } from './SegmentationTable';
 import { SegmentationDropdownMenuContent } from './SegmentationTable/SegmentationDropdownMenuContent';
-
-const AI_PROMPT_TOOLS = ['Probe2', 'RectangleROI2', 'PlanarFreehandROI2', 'PlanarFreehandROI3'];
 
 export default function PanelSegmentation({ children }: withAppTypes) {
   const { commandsManager, servicesManager } = useSystem();
@@ -49,23 +47,17 @@ export default function PanelSegmentation({ children }: withAppTypes) {
 
   const handlers = {
     onSegmentationClick: (segmentationId: string) => {
-      commandsManager.run('setActiveSegmentation', { segmentationId });
-      // Selecting an object (card) also loads it into the backend so the next prompt refines it.
-      // Overlap model: each object is its own segmentation with a single segment — find its index.
       const seg = segmentationService.getSegmentation(segmentationId);
       const firstIndex = seg?.segments ? Number(Object.keys(seg.segments)[0]) : NaN;
       if (Number.isFinite(firstIndex)) {
-        commandsManager.run('loadSegmentForRefinement', { segmentationId, segmentIndex: firstIndex });
+        void commandsManager.run('loadSegmentForRefinement', { segmentationId, segmentIndex: firstIndex });
       }
     },
     onSegmentAdd: () => {
       commandsManager.run('armNextNninterObject');
     },
     onSegmentClick: (segmentationId, segmentIndex) => {
-      commandsManager.run('setActiveSegmentAndCenter', { segmentationId, segmentIndex });
-      // Load the selected object into the nnInteractive backend as the current object so the user can
-      // keep refining it (set_mask + no reset-first). No-op when there's no live session.
-      commandsManager.run('loadSegmentForRefinement', { segmentationId, segmentIndex });
+      void commandsManager.run('loadSegmentForRefinement', { segmentationId, segmentIndex });
     },
     onSegmentEdit: (segmentationId, segmentIndex) => {
       commandsManager.run('editSegmentLabel', { segmentationId, segmentIndex });
@@ -83,32 +75,8 @@ export default function PanelSegmentation({ children }: withAppTypes) {
       const deletePromise = new Promise<void>((resolve, reject) => {
         setTimeout(() => {
           try {
-            const measurementUIDs = measurementService
-              .getMeasurements()
-              .filter(
-                e =>
-                  e?.metadata?.segmentationId === segmentationId &&
-                  e?.metadata?.SegmentNumber === segmentIndex
-              )
-              .map(e => e?.uid);
-
-            if (measurementUIDs.length > 0) {
-              measurementService.removeMany(measurementUIDs);
-            }
-
-            commandsManager.run('resetNninter', { clearMeasurements: false });
-
-            const segDisplaySet = displaySetService.getDisplaySetByUID(segmentationId);
-            const data = segDisplaySet?.segMetadata?.data;
-            if (Array.isArray(data)) {
-              for (let i = data.length - 1; i >= 0; i--) {
-                const e = data[i];
-                if (e?.SegmentNumber === segmentIndex) {
-                  data.splice(i, 1);
-                }
-              }
-            }
-
+            // deleteSegment removes the object's prompt annotations and resets the
+            // backend if it currently holds this object.
             commandsManager.run('deleteSegment', { segmentationId, segmentIndex });
             resolve();
           } catch (error) {
@@ -164,14 +132,8 @@ export default function PanelSegmentation({ children }: withAppTypes) {
       const next = !toolboxState.getPromptsVisible();
       toolboxState.setPromptsVisible(next);
       setPromptsVisible(next);
-
-      const uids = measurementService
-        .getMeasurements()
-        .filter(m => AI_PROMPT_TOOLS.includes(m.toolName))
-        .map(m => m.uid);
-
-      measurementService.toggleVisibilityMeasurementMany(uids, next);
-      dispatchMeasurementStateChanged();
+      // Prompts are Cornerstone annotations (not measurements) — toggle them directly.
+      promptModel.setPromptsVisible(next);
     },
     setFillAlpha: ({ type }, value) => {
       commandsManager.run('setFillAlpha', { type, value });
@@ -239,9 +201,11 @@ export default function PanelSegmentation({ children }: withAppTypes) {
   const renderSegments = () => {
     return (
       <SegmentationTable.Segments>
-        <SegmentationTable.SegmentStatistics.Header>
-          <CustomSegmentStatisticsHeader />
-        </SegmentationTable.SegmentStatistics.Header>
+        {CustomSegmentStatisticsHeader ? (
+          <SegmentationTable.SegmentStatistics.Header>
+            <CustomSegmentStatisticsHeader />
+          </SegmentationTable.SegmentStatistics.Header>
+        ) : null}
         <SegmentationTable.SegmentStatistics.Body />
       </SegmentationTable.Segments>
     );

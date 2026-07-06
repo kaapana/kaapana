@@ -182,13 +182,13 @@ const commandsModule = ({ servicesManager, commandsManager }: any) => {
         }
         (neg ? arrays.neg_boxes : arrays.pos_boxes).push(b);
       } else if (kind === 'lasso') {
-        const l = coord.freehandIJK(viewport, annotation, source.imageIds);
+        const l = coord.freehandPromptIJK(viewport, annotation, source.imageIds);
         if (!l) {
           continue;
         }
         (neg ? arrays.neg_lassos : arrays.pos_lassos).push(l);
       } else if (kind === 'scribble') {
-        const s = coord.freehandIJK(viewport, annotation, source.imageIds);
+        const s = coord.freehandPromptIJK(viewport, annotation, source.imageIds);
         if (!s) {
           continue;
         }

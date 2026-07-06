@@ -42,16 +42,25 @@ export interface PredictionCrop {
   meta: Record<string, any>;
 }
 
+export interface FreehandPromptPayload {
+  /** Voxel polyline in viewer/source order [x, y, slice]. */
+  points: number[][];
+  /** Constant plane axis in the same [x, y, slice] coordinate order. */
+  axis?: number;
+}
+
+export type FreehandPrompt = number[][] | FreehandPromptPayload;
+
 /** The prompt payload the proxy accepts. Each entry is in viewer order [x, y, slice]. */
 export interface PromptArrays {
   pos_points: number[][];
   neg_points: number[][];
   pos_boxes: number[][][];
   neg_boxes: number[][][];
-  pos_lassos: number[][][];
-  neg_lassos: number[][][];
-  pos_scribbles: number[][][];
-  neg_scribbles: number[][][];
+  pos_lassos: FreehandPrompt[];
+  neg_lassos: FreehandPrompt[];
+  pos_scribbles: FreehandPrompt[];
+  neg_scribbles: FreehandPrompt[];
 }
 
 export function emptyPromptArrays(): PromptArrays {

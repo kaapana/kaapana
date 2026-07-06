@@ -395,28 +395,52 @@ def _viewer_point_to_model(point: list[float], entry: SeriesSession) -> list[int
     return [int(round(v)) for v in _flip_z_if_needed(point, entry)[::-1]]
 
 
-def clean_and_densify_polyline(polyline: list, max_segment_length: int = 1) -> list[list[int]]:
-    if not polyline or len(polyline) < 2:
+def clean_and_densify_polyline(
+    polyline: list,
+    max_segment_length: int = 1,
+    close: bool = False,
+) -> list[list[float]]:
+    if not polyline:
         return []
-    cleaned = []
-    for i in range(len(polyline)):
-        x1, y1, z = polyline[i]
-        x2, y2, _ = polyline[(i + 1) % len(polyline)]
-        if x1 == x2 and y1 == y2:
+
+    points: list[list[float]] = []
+    for point in polyline:
+        if not isinstance(point, (list, tuple)) or len(point) < 3:
             continue
-        if not cleaned or cleaned[-1][0] != x1 or cleaned[-1][1] != y1:
-            cleaned.append([x1, y1, z])
-        dx, dy = x2 - x1, y2 - y1
-        distance = math.hypot(dx, dy)
-        if distance > max_segment_length:
-            steps = math.floor(distance)
-            for j in range(1, steps):
-                t = j / steps
-                px, py = round(x1 + dx * t), round(y1 + dy * t)
-                if cleaned[-1][0] != px or cleaned[-1][1] != py:
-                    cleaned.append([px, py, z])
-    if cleaned and (cleaned[0][0] != cleaned[-1][0] or cleaned[0][1] != cleaned[-1][1]):
-        cleaned.append([cleaned[0][0], cleaned[0][1], cleaned[-1][2]])
+        try:
+            xyz = [float(point[0]), float(point[1]), float(point[2])]
+        except (TypeError, ValueError):
+            continue
+        if all(math.isfinite(v) for v in xyz):
+            points.append(xyz)
+
+    if not points:
+        return []
+    if len(points) == 1:
+        return [points[0]]
+    if close and len(points) > 2 and points[0] != points[-1]:
+        points = [*points, points[0]]
+
+    step_limit = max(1.0, float(max_segment_length))
+    cleaned: list[list[float]] = []
+
+    def append_unique(point: list[float]) -> None:
+        rounded = [round(point[0]), round(point[1]), round(point[2])]
+        if cleaned and [round(v) for v in cleaned[-1]] == rounded:
+            return
+        cleaned.append(point)
+
+    for start, end in zip(points[:-1], points[1:]):
+        delta = [end[i] - start[i] for i in range(3)]
+        distance = max(abs(v) for v in delta)
+        if distance == 0:
+            append_unique(start)
+            continue
+        steps = max(1, math.ceil(distance / step_limit))
+        for j in range(steps):
+            t = j / steps
+            append_unique([start[i] + delta[i] * t for i in range(3)])
+    append_unique(points[-1])
     return cleaned
 
 
@@ -427,6 +451,14 @@ def scribble_constant_axis(points: np.ndarray) -> int | None:
         if np.unique(points[:, axis]).size == 1:
             return axis
     return None
+
+
+def _coerce_flat_axis(axis: Any) -> int | None:
+    try:
+        coerced = int(axis)
+    except (TypeError, ValueError):
+        return None
+    return coerced if coerced in (0, 1, 2) else None
 
 
 def _rasterize_polygon_2d(rows: np.ndarray, cols: np.ndarray, height: int, width: int) -> np.ndarray:
@@ -449,18 +481,26 @@ def _bbox_from_mask(mask: np.ndarray) -> list[list[int]] | None:
     return [[int(axis.min()), int(axis.max()) + 1] for axis in coords]
 
 
-def _prepare_scribble(volume_shape_zyx: tuple[int, int, int], points_xyz: np.ndarray) -> tuple[np.ndarray | None, list[list[int]] | None]:
-    flat_axis = scribble_constant_axis(points_xyz)
+def _prepare_scribble(
+    volume_shape_zyx: tuple[int, int, int],
+    points_xyz: np.ndarray,
+    brush_radius: int = 1,
+    flat_axis_xyz: int | None = None,
+) -> tuple[np.ndarray | None, list[list[int]] | None]:
+    flat_axis = _coerce_flat_axis(flat_axis_xyz)
+    if flat_axis is None:
+        flat_axis = scribble_constant_axis(points_xyz)
     z_size, y_size, x_size = volume_shape_zyx
     x_arr, y_arr, z_arr = points_xyz[:, 0], points_xyz[:, 1], points_xyz[:, 2]
-    kernel = np.ones((2, 2), dtype=bool)
+    radius = max(0, int(brush_radius))
+    kernel = np.ones((2 * radius + 1, 2 * radius + 1), dtype=bool)
 
     if flat_axis == 2:
         z_val = int(z_arr[0])
         mask = np.zeros((y_size, x_size), dtype=bool)
         valid = (x_arr >= 0) & (x_arr < x_size) & (y_arr >= 0) & (y_arr < y_size)
         mask[y_arr[valid], x_arr[valid]] = True
-        dil = binary_dilation(mask, structure=kernel)
+        dil = binary_dilation(mask, structure=kernel) if radius else mask
         bbox_2d = _bbox_from_mask(dil)
         if bbox_2d is None:
             return None, None
@@ -472,7 +512,7 @@ def _prepare_scribble(volume_shape_zyx: tuple[int, int, int], points_xyz: np.nda
         mask = np.zeros((z_size, x_size), dtype=bool)
         valid = (x_arr >= 0) & (x_arr < x_size) & (z_arr >= 0) & (z_arr < z_size)
         mask[z_arr[valid], x_arr[valid]] = True
-        dil = binary_dilation(mask, structure=kernel)
+        dil = binary_dilation(mask, structure=kernel) if radius else mask
         bbox_2d = _bbox_from_mask(dil)
         if bbox_2d is None:
             return None, None
@@ -484,7 +524,7 @@ def _prepare_scribble(volume_shape_zyx: tuple[int, int, int], points_xyz: np.nda
         mask = np.zeros((z_size, y_size), dtype=bool)
         valid = (y_arr >= 0) & (y_arr < y_size) & (z_arr >= 0) & (z_arr < z_size)
         mask[z_arr[valid], y_arr[valid]] = True
-        dil = binary_dilation(mask, structure=kernel)
+        dil = binary_dilation(mask, structure=kernel) if radius else mask
         bbox_2d = _bbox_from_mask(dil)
         if bbox_2d is None:
             return None, None
@@ -498,11 +538,22 @@ def _prepare_scribble(volume_shape_zyx: tuple[int, int, int], points_xyz: np.nda
         & (z_arr >= 0) & (z_arr < z_size)
     )
     point_mask[z_arr[valid], y_arr[valid], x_arr[valid]] = True
-    return binary_dilation(point_mask, structure=np.ones((2, 2, 2), dtype=bool)).astype(np.uint8), None
+    if radius:
+        point_mask = binary_dilation(
+            point_mask,
+            structure=np.ones((2 * radius + 1, 2 * radius + 1, 2 * radius + 1), dtype=bool),
+        )
+    return point_mask.astype(np.uint8), None
 
 
-def _prepare_lasso(volume_shape_zyx: tuple[int, int, int], points_xyz: np.ndarray) -> tuple[np.ndarray | None, list[list[int]] | None]:
-    flat_axis = scribble_constant_axis(points_xyz)
+def _prepare_lasso(
+    volume_shape_zyx: tuple[int, int, int],
+    points_xyz: np.ndarray,
+    flat_axis_xyz: int | None = None,
+) -> tuple[np.ndarray | None, list[list[int]] | None]:
+    flat_axis = _coerce_flat_axis(flat_axis_xyz)
+    if flat_axis is None:
+        flat_axis = scribble_constant_axis(points_xyz)
     z_size, y_size, x_size = volume_shape_zyx
     x_arr, y_arr, z_arr = points_xyz[:, 0], points_xyz[:, 1], points_xyz[:, 2]
     if flat_axis == 2:
@@ -551,6 +602,29 @@ def _union_bbox(a: Any, b: Any) -> Any:
     return [[min(a[i][0], b[i][0]), max(a[i][1], b[i][1])] for i in range(3)]
 
 
+def _preferred_scribble_radius(entry: SeriesSession, flat_axis_xyz: int | None) -> int:
+    # nnInteractive reports preferred thickness in target-buffer axis order [z, y, x].
+    # OHIF prompt points are [x, y, z], so map the constant interaction axis back first.
+    axis_zyx = {2: 0, 1: 1, 0: 2}.get(flat_axis_xyz, 0)
+    preferred = getattr(entry.session, "preferred_scribble_thickness", None)
+    value: Any = None
+    if isinstance(preferred, (list, tuple)) and len(preferred) > axis_zyx:
+        value = preferred[axis_zyx]
+    elif isinstance(preferred, (int, float)):
+        value = preferred
+    try:
+        radius = int(round(float(value)))
+    except (TypeError, ValueError):
+        radius = 1
+    return max(0, radius)
+
+
+def _prompt_points_and_flat_axis(prompt: Any) -> tuple[Any, int | None]:
+    if not isinstance(prompt, dict):
+        return prompt, None
+    return prompt.get("points", []), _coerce_flat_axis(prompt.get("axis"))
+
+
 def _apply_prompts(entry: SeriesSession, data: dict[str, Any]) -> tuple[dict[str, int], Any]:
     """Apply new prompts. Returns (counts, changed_bbox) — the union of the changed-region bboxes
     the session reports per interaction ([[z0,z1],[y0,y1],[x0,x1]] in raw buffer coords, same
@@ -594,13 +668,14 @@ def _apply_prompts(entry: SeriesSession, data: dict[str, Any]) -> tuple[dict[str
     for kind, include in (("pos_lassos", True), ("neg_lassos", False)):
         for lasso in _as_list(data.get(kind)):
             def cb(lasso=lasso, include=include):
-                cleaned = clean_and_densify_polyline(lasso)
+                lasso_points, flat_axis = _prompt_points_and_flat_axis(lasso)
+                cleaned = clean_and_densify_polyline(lasso_points, close=True)
                 points = np.round(np.asarray(cleaned)).astype(int)
                 if points.size == 0:
                     return None
                 if entry.flipped:
                     points[:, 2] = entry.target_buffer.shape[0] - 1 - points[:, 2]
-                mask, bbox = _prepare_lasso(shape, points)
+                mask, bbox = _prepare_lasso(shape, points, flat_axis_xyz=flat_axis)
                 if mask is None:
                     return None
                 return entry.session.add_lasso_interaction(mask, include_interaction=include, interaction_bbox=bbox)
@@ -612,13 +687,21 @@ def _apply_prompts(entry: SeriesSession, data: dict[str, Any]) -> tuple[dict[str
     for kind, include in (("pos_scribbles", True), ("neg_scribbles", False)):
         for scribble in _as_list(data.get(kind)):
             def cb(scribble=scribble, include=include):
-                cleaned = clean_and_densify_polyline(scribble)
+                scribble_points, flat_axis = _prompt_points_and_flat_axis(scribble)
+                cleaned = clean_and_densify_polyline(scribble_points, close=False)
                 points = np.round(np.asarray(cleaned)).astype(int)
                 if points.size == 0:
                     return None
                 if entry.flipped:
                     points[:, 2] = entry.target_buffer.shape[0] - 1 - points[:, 2]
-                mask, bbox = _prepare_scribble(shape, points)
+                if flat_axis is None:
+                    flat_axis = scribble_constant_axis(points)
+                mask, bbox = _prepare_scribble(
+                    shape,
+                    points,
+                    brush_radius=_preferred_scribble_radius(entry, flat_axis),
+                    flat_axis_xyz=flat_axis,
+                )
                 if mask is None:
                     return None
                 return entry.session.add_scribble_interaction(mask, include_interaction=include, interaction_bbox=bbox)

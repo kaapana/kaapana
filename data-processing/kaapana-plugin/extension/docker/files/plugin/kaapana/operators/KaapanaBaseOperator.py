@@ -267,7 +267,11 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             self.pod_resources = pc_models.Resources(
                 limits={
                     "cpu": (
-                        "{}m".format(self.cpu_millicores + 100)
+                        "{}m".format(
+                            self.cpu_millicores_lmt
+                            if self.cpu_millicores_lmt is not None
+                            else self.cpu_millicores + 100
+                        )
                         if self.cpu_millicores != None
                         else None
                     ),

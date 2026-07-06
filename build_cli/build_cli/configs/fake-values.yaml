@@ -45,6 +45,7 @@ global:
   pacs_memory_request: "placeholder"
   airflow_memory_request: "placeholder"
   opensearch_memory_request: "placeholder"
+  airflow_parallelism: "50"
   smtp_host: 11113
   smtp_port: 11113
   smtp_username: "placeholder"

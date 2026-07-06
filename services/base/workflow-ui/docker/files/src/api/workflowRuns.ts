@@ -101,11 +101,6 @@ export const workflowRunsApi = {
     return response.data
   },
 
-  async getTaskRunLogs(workflowRunId: number, taskRunId: number): Promise<string> {
-    const response = await apiClient.get<string>(`${API_BASE}/${workflowRunId}/task-runs/${taskRunId}/raw-logs`)
-    return response.data
-  },
-
   async getTaskRunLogLines(workflowRunId: number, taskRunId: number): Promise<LogLine[]> {
     const response = await apiClient.get<LogLine[]>(`${API_BASE}/${workflowRunId}/task-runs/${taskRunId}/logs`)
     return response.data

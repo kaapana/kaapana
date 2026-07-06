@@ -28,6 +28,7 @@
     "start": "yarn run dev"
   },
   "peerDependencies": {
+    "@cornerstonejs/adapters": "^3.33.5",
     "@cornerstonejs/core": "^3.33.5",
     "@cornerstonejs/tools": "^3.33.5",
     "axios": "^1.16.0",

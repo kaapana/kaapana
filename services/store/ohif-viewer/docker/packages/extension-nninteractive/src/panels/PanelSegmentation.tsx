@@ -48,7 +48,12 @@ export default function PanelSegmentation({ children }: withAppTypes) {
   const handlers = {
     onSegmentationClick: (segmentationId: string) => {
       const seg = segmentationService.getSegmentation(segmentationId);
-      const firstIndex = seg?.segments ? Number(Object.keys(seg.segments)[0]) : NaN;
+      const firstIndex =
+        seg?.cachedStats?.nninteractiveManaged === true
+          ? 1
+          : seg?.segments
+            ? Number(Object.keys(seg.segments)[0])
+            : NaN;
       if (Number.isFinite(firstIndex)) {
         void commandsManager.run('loadSegmentForRefinement', { segmentationId, segmentIndex: firstIndex });
       }
@@ -126,6 +131,11 @@ export default function PanelSegmentation({ children }: withAppTypes) {
       commandsManager.run('removeSegmentationFromViewport', { segmentationId });
     },
     onSegmentationDelete: segmentationId => {
+      const seg = segmentationService.getSegmentation(segmentationId);
+      if (seg?.cachedStats?.nninteractiveManaged === true) {
+        commandsManager.run('deleteSegment', { segmentationId, segmentIndex: 1 });
+        return;
+      }
       commandsManager.run('deleteSegmentation', { segmentationId });
     },
     onTogglePromptsVisibility: () => {

@@ -1,10 +1,9 @@
 // segmentationBridge: the only module that reads or writes native OHIF/Cornerstone
 // segmentation labelmap data.
 //
-// Data model (docs/nninteractive-ohif-ideal-architecture.md §11): ONE OHIF
-// segmentation per source series, ONE segment per nnInteractive object. Segment value
-// N in the shared labelmap is object N. This is native to OHIF, fast with many
-// objects, and makes the brush target unambiguous (active segment = active object).
+// Data model: ONE OHIF segmentation per nnInteractive object. Each managed
+// segmentation has exactly one segment, segmentIndex=1, so objects can overlap
+// without competing for values in a shared labelmap.
 //
 // The authoritative voxel store is OHIF's native labelmap volume. Stack labelmap images
 // are kept only as OHIF/export compatibility mirrors.
@@ -28,8 +27,8 @@ import { PredictionCrop, SourceImage } from './types';
 const LABELMAP = csToolsEnums.SegmentationRepresentations.Labelmap;
 const STREAMING_VOLUME_PREFIX = 'cornerstoneStreamingImageVolume:';
 
-// One nnInteractive segmentation per source series.
-const segIdBySeries = new Map<string, string>();
+// nnInteractive object segmentations grouped by source series.
+const managedSegIdsBySeries = new Map<string, Set<string>>();
 // Segmentations whose MPR volume has unsynced manual (brush) edits.
 const mprDirtySegIds = new Set<string>();
 // Segmentations this module created (so import logic never re-processes them).
@@ -38,6 +37,12 @@ const managedSegIds = new Set<string>();
 const textureKicked = new Set<string>();
 const pendingMprLogKeys = new Set<string>();
 const geometryNormalizedLogKeys = new Set<string>();
+// Externally-hydrated segmentations already split into per-object segmentations. Their state is
+// KEPT (deleting it crashes OHIF's presentation store / toolbar evaluators); a later rep re-add
+// (viewport remount, re-hydration of the same SEG) is just re-stripped, never re-split.
+const splitConsumedIds = new Set<string>();
+// Reentrancy guard while a split runs for one hydrated segmentation.
+const splitInProgress = new Set<string>();
 
 export interface ApplyCropResult {
   changedSlices: number[];
@@ -63,24 +68,84 @@ export function objectColorForOrdinal(ordinal: number): number[] {
 }
 
 export function isManaged(segmentationId: string): boolean {
-  return managedSegIds.has(segmentationId);
+  if (managedSegIds.has(segmentationId)) {
+    return true;
+  }
+  const seg = csToolsSegmentation.state.getSegmentation(segmentationId);
+  if (isTaggedManagedSegmentation(seg)) {
+    registerManagedSegmentation(segmentationId, getSeriesInstanceUIDForSegmentation(segmentationId));
+    return true;
+  }
+  return false;
 }
 
 export function getSegmentationIdForSeries(seriesInstanceUID: string): string | undefined {
-  const known = segIdBySeries.get(seriesInstanceUID);
-  if (known && csToolsSegmentation.state.getSegmentation(known)) {
-    return known;
+  return getManagedSegmentationIdsForSeries(seriesInstanceUID)[0];
+}
+
+function isTaggedManagedSegmentation(seg: any): boolean {
+  return seg?.cachedStats?.nninteractiveManaged === true;
+}
+
+function registerManagedSegmentation(
+  segmentationId: string,
+  seriesInstanceUID?: string
+): void {
+  managedSegIds.add(segmentationId);
+  if (!seriesInstanceUID) {
+    return;
   }
-  // Recover after a state reset by scanning for a managed segmentation tagged with the series.
+  let ids = managedSegIdsBySeries.get(seriesInstanceUID);
+  if (!ids) {
+    ids = new Set<string>();
+    managedSegIdsBySeries.set(seriesInstanceUID, ids);
+  }
+  ids.add(segmentationId);
+}
+
+export function unregisterManagedSegmentation(segmentationId: string): void {
+  managedSegIds.delete(segmentationId);
+  mprDirtySegIds.delete(segmentationId);
+  textureKicked.delete(segmentationId);
+  for (const ids of managedSegIdsBySeries.values()) {
+    ids.delete(segmentationId);
+  }
+}
+
+export function getSeriesInstanceUIDForSegmentation(segmentationId: string): string | undefined {
+  const seg = csToolsSegmentation.state.getSegmentation(segmentationId);
+  const value = seg?.cachedStats?.seriesInstanceUid;
+  return typeof value === 'string' && value ? value : undefined;
+}
+
+function getObjectOrdinal(segmentationId: string): number {
+  const seg = csToolsSegmentation.state.getSegmentation(segmentationId);
+  const ordinal = Number(seg?.cachedStats?.objectOrdinal);
+  return Number.isInteger(ordinal) && ordinal > 0 ? ordinal : Number.MAX_SAFE_INTEGER;
+}
+
+export function getManagedSegmentationIdsForSeries(seriesInstanceUID: string): string[] {
+  const ids = new Set<string>(managedSegIdsBySeries.get(seriesInstanceUID) ?? []);
+
+  // Recover after a state reset by scanning for managed segmentations tagged with the series.
   const all = (csToolsSegmentation.state.getSegmentations?.() ?? []) as any[];
-  const match = all.find(
-    seg => managedSegIds.has(seg.segmentationId) && seg?.cachedStats?.seriesInstanceUid === seriesInstanceUID
-  );
-  if (match) {
-    segIdBySeries.set(seriesInstanceUID, match.segmentationId);
-    return match.segmentationId;
+  for (const seg of all) {
+    if (isTaggedManagedSegmentation(seg) && seg?.cachedStats?.seriesInstanceUid === seriesInstanceUID) {
+      registerManagedSegmentation(seg.segmentationId, seriesInstanceUID);
+      ids.add(seg.segmentationId);
+    }
   }
-  return undefined;
+
+  return Array.from(ids)
+    .filter(segmentationId => !!csToolsSegmentation.state.getSegmentation(segmentationId))
+    .sort((a, b) => getObjectOrdinal(a) - getObjectOrdinal(b) || a.localeCompare(b));
+}
+
+function nextObjectOrdinal(seriesInstanceUID: string): number {
+  const ordinals = getManagedSegmentationIdsForSeries(seriesInstanceUID)
+    .map(segmentationId => getObjectOrdinal(segmentationId))
+    .filter(ordinal => Number.isInteger(ordinal) && ordinal > 0 && ordinal < Number.MAX_SAFE_INTEGER);
+  return ordinals.length ? Math.max(...ordinals) + 1 : 1;
 }
 
 function dispatchModified(segmentationId: string): void {
@@ -568,27 +633,73 @@ function getRepresentationsMissing(
   });
 }
 
-function setSegmentColorsForViewports(
+function rgbMatches(a: unknown, b: unknown): boolean {
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length < 3 || b.length < 3) {
+    return false;
+  }
+  for (let i = 0; i < 3; i++) {
+    if (Math.round(Number(a[i])) !== Math.round(Number(b[i]))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Apply each object's palette color to its representation in the given viewports,
+// but only where the representation's current color differs. Returns true if any
+// color was actually changed.
+//
+// This must re-check on every MPR guard pass rather than run once at rep-add time:
+// switching layout makes OHIF auto-propagate the labelmap representation into the new
+// MPR viewports, and those reps never appear as "missing". If we only colored
+// freshly-added reps, every object would keep Cornerstone's default segment-index-1
+// color (red) in MPR — both the render and the panel (which reads the active
+// viewport's representation color) then show all-red. The current-color check keeps
+// this cheap (a no-op once colored) and self-heals a rep OHIF re-added at default.
+function applyMprSegmentColors(
   servicesManager: any,
   segmentationId: string,
   viewportIds: string[]
-): void {
+): boolean {
+  const service: any = servicesManager.services.segmentationService;
+  if (typeof service.setSegmentColor !== 'function') {
+    return false;
+  }
   const seg = csToolsSegmentation.state.getSegmentation(segmentationId);
   const segments = Object.values(seg?.segments ?? {}) as any[];
+  let applied = false;
   for (const segment of segments) {
     const segmentIndex = Number(segment?.segmentIndex);
     const color = segment?.cachedStats?.color ?? segment?.color;
-    if (Number.isInteger(segmentIndex) && Array.isArray(color)) {
-      setSegmentColor(servicesManager, viewportIds, segmentationId, segmentIndex, color);
+    if (!Number.isInteger(segmentIndex) || !Array.isArray(color)) {
+      continue;
+    }
+    for (const viewportId of viewportIds) {
+      let current: unknown;
+      try {
+        current = service.getSegmentColor?.(viewportId, segmentationId, segmentIndex);
+      } catch {
+        current = undefined;
+      }
+      if (rgbMatches(current, color)) {
+        continue;
+      }
+      try {
+        service.setSegmentColor(viewportId, segmentationId, segmentIndex, color);
+        applied = true;
+      } catch {
+        // ignore — color is a display nicety
+      }
     }
   }
+  return applied;
 }
 
 async function ensureMprRepresentations(
   servicesManager: any,
   segmentationId: string,
   mprViewportIds: string[]
-): Promise<void> {
+): Promise<boolean> {
   const service = servicesManager.services.segmentationService;
   const missing = getRepresentationsMissing(servicesManager, segmentationId, mprViewportIds);
   for (const viewportId of missing) {
@@ -598,9 +709,9 @@ async function ensureMprRepresentations(
       failHard(`could not add MPR representation for ${segmentationId} in ${viewportId}`, error);
     }
   }
-  if (missing.length) {
-    setSegmentColorsForViewports(servicesManager, segmentationId, missing);
-  }
+  // Color ALL MPR viewports, not just freshly-added ones — see applyMprSegmentColors.
+  const colored = applyMprSegmentColors(servicesManager, segmentationId, mprViewportIds);
+  return missing.length > 0 || colored;
 }
 
 function ensureNativeVolumeReferenceForMpr(servicesManager: any, segmentationId: string): void {
@@ -816,14 +927,11 @@ async function runLoadSegmentationsForViewport(
 async function ensureNativeSegmentation(
   servicesManager: any,
   commandsManager: any,
-  source: SourceImage
+  source: SourceImage,
+  objectOrdinal: number
 ): Promise<{ segmentationId: string; created: boolean }> {
-  let segmentationId = getSegmentationIdForSeries(source.seriesInstanceUID);
-  if (segmentationId) {
-    return { segmentationId, created: false };
-  }
-
-  segmentationId = csUtils.uuidv4();
+  const segmentationId = csUtils.uuidv4();
+  const label = `Object ${objectOrdinal}`;
   const segmentation = {
     segmentationId,
     representation: {
@@ -831,10 +939,12 @@ async function ensureNativeSegmentation(
     },
     config: {
       cachedStats: {
+        nninteractiveManaged: true,
         seriesInstanceUid: source.seriesInstanceUID,
         displaySetInstanceUID: source.displaySetInstanceUID,
+        objectOrdinal,
       },
-      label: source.seriesDescription || 'nnInteractive',
+      label,
       segments: {},
     },
   } as any;
@@ -860,40 +970,60 @@ async function ensureNativeSegmentation(
   };
   ensureLabelmapReferenceData(segmentationId, labelmapData);
   await ensureNativeLabelmapVolume(servicesManager, segmentationId, labelmapData);
-  managedSegIds.add(segmentationId);
-  segIdBySeries.set(source.seriesInstanceUID, segmentationId);
+  registerManagedSegmentation(segmentationId, source.seriesInstanceUID);
   return { segmentationId, created: true };
 }
 
 /**
- * Ensure a segmentation exists for the series and add a new object segment to it.
- * Returns the object's identity and whether the segmentation was just created.
+ * Create a new one-segment OHIF segmentation for one nnInteractive object.
  */
 export async function addObject(
   servicesManager: any,
   commandsManager: any,
   source: SourceImage
 ): Promise<{ segmentationId: string; segmentIndex: number; created: boolean }> {
-  const ensured = await ensureNativeSegmentation(servicesManager, commandsManager, source);
+  const objectOrdinal = nextObjectOrdinal(source.seriesInstanceUID);
+  const ensured = await ensureNativeSegmentation(
+    servicesManager,
+    commandsManager,
+    source,
+    objectOrdinal
+  );
   const { segmentationId, created } = ensured;
   await ensureNativeLabelmapVolume(servicesManager, segmentationId);
 
   const seg = csToolsSegmentation.state.getSegmentation(segmentationId);
-  const existing = created ? {} : { ...(seg?.segments ?? {}) };
-  const indices = Object.keys(existing).map(Number).filter(n => Number.isInteger(n) && n > 0);
-  const segmentIndex = indices.length ? Math.max(...indices) + 1 : 1;
-  const color = objectColorForOrdinal(segmentIndex);
+  const segmentIndex = 1;
+  const color = objectColorForOrdinal(objectOrdinal);
+  const label = `Object ${objectOrdinal}`;
 
-  existing[segmentIndex] = {
-    segmentIndex,
-    color,
-    label: `Object ${segmentIndex}`,
-    locked: false,
-    active: true,
-    cachedStats: { color, dirtySlices: [] },
-  } as any;
+  const segments = {
+    [segmentIndex]: {
+      segmentIndex,
+      color,
+      label,
+      locked: false,
+      active: true,
+      cachedStats: { color, dirtySlices: [], objectOrdinal },
+    } as any,
+  };
 
-  csToolsSegmentation.updateSegmentations([{ segmentationId, payload: { segments: existing } }]);
+  csToolsSegmentation.updateSegmentations([
+    {
+      segmentationId,
+      payload: {
+        label,
+        cachedStats: {
+          ...(seg?.cachedStats ?? {}),
+          nninteractiveManaged: true,
+          seriesInstanceUid: source.seriesInstanceUID,
+          displaySetInstanceUID: source.displaySetInstanceUID,
+          objectOrdinal,
+        },
+        segments,
+      },
+    },
+  ]);
 
   if (created) {
     await attachRepresentations(servicesManager, segmentationId);
@@ -906,7 +1036,7 @@ export async function addObject(
 }
 
 /**
- * Write a prediction crop into the shared stack labelmap for one object segment.
+ * Write a prediction crop into one object's private labelmap.
  * Coordinates in the crop are model order [z, y, x]; `flipped` reverses z to viewer order.
  * Returns the display-set slice indices that changed (for incremental MPR sync).
  */
@@ -1061,13 +1191,11 @@ function applyCropToVolume(
         const v = cropBytes[srcRow + cx];
         const dst = dstRow + cx;
         if (v) {
-          if (ctx.arr[dst] === 0 || ctx.arr[dst] === segmentIndex) {
-            if (ctx.arr[dst] !== segmentIndex) {
-              ctx.arr[dst] = segmentIndex;
-              wrote = true;
-            }
-            written.add(displaySlice);
+          if (ctx.arr[dst] !== segmentIndex) {
+            ctx.arr[dst] = segmentIndex;
+            wrote = true;
           }
+          written.add(displaySlice);
         } else if (crop.scope === 'delta' && ctx.arr[dst] === segmentIndex) {
           ctx.arr[dst] = 0;
           wrote = true;
@@ -1201,6 +1329,9 @@ export async function removeSegment(
   segmentIndex: number
 ): Promise<void> {
   await clearSegment(servicesManager, segmentationId, segmentIndex);
+  if (isManaged(segmentationId)) {
+    return;
+  }
   const seg = csToolsSegmentation.state.getSegmentation(segmentationId);
   const segments = { ...(seg?.segments ?? {}) };
   delete segments[segmentIndex];
@@ -1223,9 +1354,15 @@ export function getMprDirtySegIds(): string[] {
 }
 
 export function getManagedSegmentationIds(): string[] {
-  return Array.from(managedSegIds).filter(segmentationId =>
-    !!csToolsSegmentation.state.getSegmentation(segmentationId)
-  );
+  const all = (csToolsSegmentation.state.getSegmentations?.() ?? []) as any[];
+  for (const seg of all) {
+    if (isTaggedManagedSegmentation(seg)) {
+      registerManagedSegmentation(seg.segmentationId, seg?.cachedStats?.seriesInstanceUid);
+    }
+  }
+  return Array.from(managedSegIds)
+    .filter(segmentationId => !!csToolsSegmentation.state.getSegmentation(segmentationId))
+    .sort((a, b) => getObjectOrdinal(a) - getObjectOrdinal(b) || a.localeCompare(b));
 }
 
 /**
@@ -1253,13 +1390,259 @@ export async function ensureMprForManagedSegmentations(servicesManager: any): Pr
     }
 
     ensureNativeVolumeReferenceForMpr(servicesManager, segmentationId);
-    const missing = getRepresentationsMissing(servicesManager, segmentationId, mpr);
-    if (!missing.length && !mprDirtySegIds.has(segmentationId)) {
-      continue;
-    }
-    await ensureMprRepresentations(servicesManager, segmentationId, mpr);
-    if (missing.length || mprDirtySegIds.has(segmentationId)) {
+    // Runs every pass now (no early-out on "reps already present"): reps OHIF
+    // auto-propagated on the layout switch still need their per-object color, and
+    // ensureMprRepresentations is cheap when nothing is missing and colors already match.
+    const changed = await ensureMprRepresentations(servicesManager, segmentationId, mpr);
+    if (changed || mprDirtySegIds.has(segmentationId)) {
       dispatchModified(segmentationId);
     }
+  }
+}
+
+// ── Import-split ────────────────────────────────────────────────────────────────────────────
+// OHIF hydrates a saved DICOM SEG as ONE segmentation with N segments (overlapping SEG → N blocks
+// of source-length imageIds, block r holding value = its segment index; non-overlapping → one
+// block with values 1..N). The per-object model wants each object as its OWN single-segment
+// segmentation, so a loaded SEG must be split back into N managed objects. This mirrors the
+// pre-rewrite maybeSplitHydratedSegmentation, but builds each object via the model's own addObject
+// (which owns creation + volume + representations) instead of hand-rolling derived images.
+
+export type ImportSplitResult =
+  | { status: 'skip' }
+  | { status: 'consumed' }
+  | { status: 'retry'; reason: string }
+  | { status: 'done'; created: string[] };
+
+function stripRepresentationsEverywhere(servicesManager: any, segmentationId: string): void {
+  const cvs = servicesManager?.services?.cornerstoneViewportService;
+  const service = servicesManager?.services?.segmentationService;
+  for (const viewportId of cvs?.getViewportIds?.() ?? []) {
+    try {
+      service?.removeSegmentationRepresentations?.(viewportId, { segmentationId });
+    } catch {
+      // ignore — representation may already be gone
+    }
+  }
+}
+
+function applyObjectLabelAndColor(
+  servicesManager: any,
+  segmentationId: string,
+  label: string,
+  color: number[]
+): void {
+  const seg = csToolsSegmentation.state.getSegmentation(segmentationId);
+  const existing: any = seg?.segments?.[1] ?? seg?.segments?.['1'] ?? {};
+  const objectOrdinal = seg?.cachedStats?.objectOrdinal;
+  csToolsSegmentation.updateSegmentations([
+    {
+      segmentationId,
+      payload: {
+        label,
+        segments: {
+          1: {
+            ...existing,
+            segmentIndex: 1,
+            label,
+            color,
+            cachedStats: { ...(existing.cachedStats ?? {}), color, objectOrdinal },
+          },
+        },
+      },
+    },
+  ]);
+  const { stack, mpr } = classifyViewports(servicesManager);
+  setSegmentColor(servicesManager, [...stack, ...mpr], segmentationId, 1, color);
+}
+
+// Write a viewer/display-set-order binary mask (1 byte/voxel) into an object's native labelmap
+// volume. Returns the display-set slice indices that changed.
+function writeFullObjectMask(
+  servicesManager: any,
+  segmentationId: string,
+  segmentIndex: number,
+  mask: Uint8Array
+): number[] {
+  const ctx = getVolumeContext(servicesManager, segmentationId);
+  if (!ctx) {
+    failHard(`import-split write requires a native OHIF labelmap volume for ${segmentationId}`);
+  }
+  const expected = ctx.sourceImageIds.length * ctx.sliceLen;
+  if (mask.length !== expected) {
+    failHard(
+      `import-split mask size ${mask.length} does not match volume ${expected} for ${segmentationId}`
+    );
+  }
+  const changed = new Set<number>();
+  for (let displaySlice = 0; displaySlice < ctx.sourceImageIds.length; displaySlice++) {
+    const k = volumeKForDisplaySlice(ctx.vol, ctx.sourceImageIds, displaySlice);
+    if (k < 0 || k >= ctx.nz) {
+      continue;
+    }
+    const base = k * ctx.sliceLen;
+    const srcBase = displaySlice * ctx.sliceLen;
+    let wrote = false;
+    for (let j = 0; j < ctx.sliceLen; j++) {
+      if (mask[srcBase + j]) {
+        ctx.arr[base + j] = segmentIndex;
+        wrote = true;
+      }
+    }
+    if (wrote) {
+      changed.add(displaySlice);
+    }
+  }
+  ctx.vol.voxelManager.setCompleteScalarDataArray(ctx.arr);
+  return Array.from(changed).sort((a, b) => a - b);
+}
+
+/**
+ * Split a freshly-hydrated multi-segment OHIF segmentation into N managed one-segment objects,
+ * preserving each segment's label + color, then hide the original (strip its representations,
+ * keep its state). No-op for segmentations this module manages. Returns a status so the caller
+ * can retry while hydration data is still settling.
+ */
+export async function importSplitSegmentation(
+  servicesManager: any,
+  commandsManager: any,
+  hydratedSegmentationId: string,
+  source: SourceImage | null
+): Promise<ImportSplitResult> {
+  if (
+    !hydratedSegmentationId ||
+    isManaged(hydratedSegmentationId) ||
+    splitInProgress.has(hydratedSegmentationId)
+  ) {
+    return { status: 'skip' };
+  }
+  if (splitConsumedIds.has(hydratedSegmentationId)) {
+    // Already split before — a re-add of its reps just gets re-stripped (never split twice).
+    stripRepresentationsEverywhere(servicesManager, hydratedSegmentationId);
+    return { status: 'consumed' };
+  }
+
+  const seg: any = csToolsSegmentation.state.getSegmentation(hydratedSegmentationId);
+  const lm: any = seg?.representationData?.[LABELMAP];
+  const ids: string[] = lm?.imageIds ?? [];
+  if (!ids.length) {
+    return { status: 'skip' }; // volume-only / not a readable stack labelmap
+  }
+  const segIndices = Object.keys(seg?.segments ?? {})
+    .map(Number)
+    .filter(n => Number.isInteger(n) && n > 0)
+    .sort((a, b) => a - b);
+  if (!segIndices.length) {
+    return { status: 'skip' };
+  }
+  if (!source?.imageIds?.length) {
+    return { status: 'retry', reason: 'active source not resolved yet' };
+  }
+  const refIds: string[] =
+    Array.isArray(lm.referencedImageIds) && lm.referencedImageIds.length
+      ? lm.referencedImageIds
+      : source.imageIds;
+  // Only split a SEG that references the active source series.
+  if (refIds.length !== source.imageIds.length) {
+    return { status: 'skip' };
+  }
+  if (ids.some(id => !cache.getImage(id))) {
+    return { status: 'retry', reason: 'labelmap images not cached yet' };
+  }
+  const cvs = servicesManager?.services?.cornerstoneViewportService;
+  if (!cvs?.getViewportIds?.().length) {
+    return { status: 'retry', reason: 'no viewports ready' };
+  }
+
+  splitInProgress.add(hydratedSegmentationId);
+  try {
+    const firstImg: any = cache.getImage(ids[0]);
+    const sliceLen: number =
+      firstImg?.voxelManager?.getScalarData?.()?.length ??
+      (firstImg?.rows ?? 0) * (firstImg?.columns ?? 0);
+    if (!sliceLen) {
+      return { status: 'retry', reason: 'labelmap slice geometry not ready' };
+    }
+
+    // Layout-agnostic value routing: OHIF's block layout varies (shared block for non-overlapping
+    // segments, separate blocks only where they overlap), so never index by block — make ONE pass
+    // over ALL block images, route each voxel by its VALUE to that segment's mask at the slice its
+    // referencedImageId maps to. Several block images can target the same slice (OR-merge).
+    // Index by source.imageIds order (what writeFullObjectMask reads back), NOT the SEG's
+    // referencedImageIds order — same set, but the order is not guaranteed to match.
+    const zByRefId = new Map<string, number>();
+    source.imageIds.forEach((rid, z) => zByRefId.set(rid, z));
+    const masks = new Map<number, Uint8Array>();
+    for (const k of segIndices) {
+      masks.set(k, new Uint8Array(source.imageIds.length * sliceLen));
+    }
+    let totalCopied = 0;
+    for (const id of ids) {
+      const img: any = cache.getImage(id);
+      const sd = img?.voxelManager?.getScalarData?.();
+      if (!sd) {
+        continue;
+      }
+      const z = zByRefId.get(img.referencedImageId);
+      if (z === undefined) {
+        continue;
+      }
+      const dstBase = z * sliceLen;
+      const n = Math.min(sd.length, sliceLen);
+      for (let j = 0; j < n; j++) {
+        const v = sd[j];
+        if (v > 0) {
+          const mask = masks.get(v);
+          if (mask) {
+            mask[dstBase + j] = 1;
+            totalCopied++;
+          }
+        }
+      }
+    }
+    // Zero voxels means hydration hasn't written the pixel data yet — retry, leave original intact.
+    if (totalCopied === 0) {
+      return { status: 'retry', reason: 'hydration pixel data not written yet' };
+    }
+
+    const created: string[] = [];
+    for (const k of segIndices) {
+      const srcSegment: any = seg.segments?.[k] ?? seg.segments?.[String(k)];
+      const label = srcSegment?.label || `Object ${k}`;
+      const color =
+        (Array.isArray(srcSegment?.color) && srcSegment.color) ||
+        (Array.isArray(srcSegment?.cachedStats?.color) && srcSegment.cachedStats.color) ||
+        objectColorForOrdinal(created.length + 1);
+
+      const { segmentationId: newId } = await addObject(servicesManager, commandsManager, source);
+      created.push(newId);
+      applyObjectLabelAndColor(servicesManager, newId, label, color);
+
+      const changed = writeFullObjectMask(servicesManager, newId, 1, masks.get(k) as Uint8Array);
+      updateSegmentDirtyStats(newId, 1, changed);
+      flushAuthoritativeLabelmap(servicesManager, newId, 'volumeToStack', changed);
+      dispatchModified(newId);
+    }
+    kickStackTexture(servicesManager);
+
+    // Hide the original: strip reps everywhere, keep state, remember it so a re-add is re-stripped.
+    splitConsumedIds.add(hydratedSegmentationId);
+    stripRepresentationsEverywhere(servicesManager, hydratedSegmentationId);
+
+    // Make the first object active so the next prompt refines it (the hidden original may have been
+    // the active segmentation).
+    if (created.length) {
+      try {
+        await commandsManager.run('setActiveSegmentation', { segmentationId: created[0] });
+      } catch {
+        // ignore
+      }
+    }
+    console.info(
+      `[nninteractive] import-split: ${hydratedSegmentationId} → ${created.length} objects (${totalCopied} voxels)`
+    );
+    return { status: 'done', created };
+  } finally {
+    splitInProgress.delete(hydratedSegmentationId);
   }
 }

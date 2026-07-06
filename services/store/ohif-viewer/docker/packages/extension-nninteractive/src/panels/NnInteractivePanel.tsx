@@ -496,10 +496,12 @@ export default function NnInteractivePanel({
     }
     const seg = segmentationService.getActiveSegmentation(avId);
     const segment = segmentationService.getActiveSegment(avId);
-    if (seg?.segmentationId && segment?.segmentIndex != null) {
+    const segmentIndex =
+      seg?.cachedStats?.nninteractiveManaged === true ? 1 : segment?.segmentIndex;
+    if (seg?.segmentationId && segmentIndex != null) {
       commandsManager.run('resetSegment', {
         segmentationId: seg.segmentationId,
-        segmentIndex: segment.segmentIndex,
+        segmentIndex,
       });
     }
   };
@@ -520,9 +522,10 @@ export default function NnInteractivePanel({
     const { activeViewportId: avId } = viewportGridService.getState();
     const activeSeg = segmentationService.getActiveSegmentation(avId);
     const activeSegment = segmentationService.getActiveSegment(avId);
-    if (activeSeg?.segmentationId && activeSegment?.segmentIndex != null) {
+    const segmentIndex =
+      activeSeg?.cachedStats?.nninteractiveManaged === true ? 1 : activeSegment?.segmentIndex;
+    if (activeSeg?.segmentationId && segmentIndex != null) {
       const { segmentationId } = activeSeg;
-      const { segmentIndex } = activeSegment;
       // deleteSegment clears the object's prompt annotations and resets the backend.
       commandsManager.run('deleteSegment', { segmentationId, segmentIndex });
     }
@@ -546,7 +549,8 @@ export default function NnInteractivePanel({
     const { activeViewportId: avId } = viewportGridService.getState();
     const seg = segmentationService.getActiveSegmentation(avId);
     const segment = segmentationService.getActiveSegment(avId);
-    return !!seg?.segmentationId && segment?.segmentIndex != null;
+    const segmentIndex = seg?.cachedStats?.nninteractiveManaged === true ? 1 : segment?.segmentIndex;
+    return !!seg?.segmentationId && segmentIndex != null;
   };
 
   const applyBrushSize = (nextSize: number) => {

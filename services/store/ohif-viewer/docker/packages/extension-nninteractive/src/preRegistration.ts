@@ -102,9 +102,17 @@ function registerMetadataProvider() {
 }
 
 /**
- * 3D focus state machine: a 3D viewport is never promptable. When focus returns from a 3D
- * pane to a 2D pane with a prompt tool armed, the first mousedown only focuses the viewport
- * (it is swallowed) so it does not place a prompt.
+ * 3D focus guard: a 3D viewport is never promptable. When the active pane is 3D and the user
+ * clicks a 2D pane to switch to it, that click must ONLY focus the 2D pane — not immediately
+ * place a prompt.
+ *
+ * We detect the transition at INPUT time by reading the currently-active viewport (the pane the
+ * click is leaving). Reacting to ACTIVE_VIEWPORT_ID_CHANGED instead — as an earlier version did —
+ * is too late: that event fires as a *result* of this same click, after the prompt tool has
+ * already handled it, so the guard ended up swallowing the *next* click rather than the
+ * transition one. When the active pane is 3D and the click lands on a different pane with a tool
+ * armed, we swallow the whole pointer interaction (so neither pointer- nor mouse-driven tools
+ * act) and move focus explicitly, so swallowing can never strand the user on the 3D pane.
  */
 function registerFocusGuard(servicesManager: any) {
   if (focusGuardRegistered || typeof document === 'undefined') {
@@ -113,36 +121,72 @@ function registerFocusGuard(servicesManager: any) {
   focusGuardRegistered = true;
 
   const { viewportGridService, cornerstoneViewportService } = servicesManager.services;
-  let wasVolume3D = false;
-  let swallowNext = false;
 
-  viewportGridService?.subscribe?.(
-    viewportGridService.EVENTS.ACTIVE_VIEWPORT_ID_CHANGED,
-    ({ viewportId }: any) => {
-      const vp = cornerstoneViewportService.getCornerstoneViewport(viewportId);
-      const is3D = vp instanceof VolumeViewport3D;
-      if (wasVolume3D && !is3D) {
-        swallowNext = true;
-      }
-      wasVolume3D = is3D;
+  // If the active viewport is 3D and `event` targets a DIFFERENT viewport, return that pane's id
+  // (the transition target); otherwise undefined.
+  const transitionTargetId = (event: Event): string | undefined => {
+    const activeId = viewportGridService?.getActiveViewportId?.();
+    if (!activeId) {
+      return undefined;
     }
-  );
+    const activeVp = cornerstoneViewportService.getCornerstoneViewport(activeId);
+    if (!(activeVp instanceof VolumeViewport3D)) {
+      return undefined;
+    }
+    const target = event.target as Node | null;
+    if (!target) {
+      return undefined;
+    }
+    for (const id of cornerstoneViewportService.getViewportIds?.() ?? []) {
+      const el = cornerstoneViewportService.getCornerstoneViewport(id)?.element;
+      if (el && el.contains(target)) {
+        return id === activeId ? undefined : id; // inside the 3D pane itself → not a transition
+      }
+    }
+    return undefined;
+  };
+
+  // True from the transition pointerdown until the next pointerdown, so the entire click
+  // interaction (mousedown/up, pointerup, click) is suppressed for exactly that one transition.
+  let swallowInteraction = false;
 
   document.addEventListener(
-    'mousedown',
-    (event: MouseEvent) => {
-      if (!swallowNext) {
+    'pointerdown',
+    (event: PointerEvent) => {
+      swallowInteraction = false;
+      const targetId = transitionTargetId(event);
+      if (!targetId) {
         return;
       }
-      swallowNext = false;
       const tool = toolboxState.getTool();
-      if (tool && tool !== 'none') {
-        event.stopPropagation();
-        (event as any).stopImmediatePropagation?.();
+      if (!tool || tool === 'none') {
+        return; // nothing armed → the click just focuses; nothing to suppress
+      }
+      swallowInteraction = true;
+      event.stopPropagation();
+      (event as any).stopImmediatePropagation?.();
+      try {
+        viewportGridService.setActiveViewportId?.(targetId);
+      } catch {
+        // ignore — worst case the user clicks once more to focus
       }
     },
     true
   );
+
+  for (const type of ['mousedown', 'mouseup', 'pointerup', 'click']) {
+    document.addEventListener(
+      type,
+      (event: Event) => {
+        if (!swallowInteraction) {
+          return;
+        }
+        event.stopPropagation();
+        (event as any).stopImmediatePropagation?.();
+      },
+      true
+    );
+  }
 }
 
 export default function preRegistration({ servicesManager, commandsManager }: any = {}) {

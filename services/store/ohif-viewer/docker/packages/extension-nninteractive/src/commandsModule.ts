@@ -3,33 +3,81 @@
 //
 // See docs/nninteractive-ohif-ideal-architecture.md §6 (Commands) and §16 (module map).
 
-import { BaseVolumeViewport, VolumeViewport3D, eventTarget } from '@cornerstonejs/core';
+import dcmjs from 'dcmjs';
+import {
+  BaseVolumeViewport,
+  VolumeViewport3D,
+  cache,
+  eventTarget,
+  metaData,
+} from '@cornerstonejs/core';
 import { Enums as csToolsEnums } from '@cornerstonejs/tools';
+import { adaptersSEG, helpers } from '@cornerstonejs/adapters';
+import { DicomMetadataStore } from '@ohif/core';
+import { createReportDialogPrompt } from '@ohif/extension-default';
+// PROMPT_RESPONSES is not re-exported from the package index; reach into OHIF's default
+// extension source (this extension lives alongside it under packages/, so the relative
+// path resolves at build time — same import the pre-rewrite commandsModule used).
+import PROMPT_RESPONSES from '../../default/src/utils/_shared/PROMPT_RESPONSES';
 
 import * as sessionModel from './model/sessionModel';
 import * as serverApi from './model/serverApi';
 import * as objectModel from './model/objectModel';
 import * as promptModel from './model/promptModel';
+import * as imageModel from './model/imageModel';
 import * as coord from './model/coordinateMapping';
 import * as bridge from './model/segmentationBridge';
 import { debugSnapshot, installDebugHook } from './model/debugTools';
-import { emptyPromptArrays, objectKeyOf } from './model/types';
+import { emptyPromptArrays, objectKeyOf, type SourceImage } from './model/types';
 import { toolboxState } from './utils/toolboxState';
 
 const LABELMAP = csToolsEnums.SegmentationRepresentations.Labelmap;
+const {
+  Cornerstone3D: {
+    Segmentation: { generateSegmentation },
+  },
+} = adaptersSEG;
+const { downloadDICOMData } = helpers;
 
 // Guard so the MPR/brush event subscriptions are installed only once, even if
 // getCommandsModule is ever invoked more than once.
 let subscriptionsInstalled = false;
 
-const commandsModule = ({ servicesManager, commandsManager }: any) => {
+const commandsModule = ({ servicesManager, commandsManager, extensionManager }: any) => {
   const services = servicesManager.services;
   const {
     viewportGridService,
     cornerstoneViewportService,
     segmentationService,
     uiNotificationService,
+    displaySetService,
   } = services;
+
+  // Resolve the source image series for a segmentation from its OWN referenced images (so a SEG
+  // imported into a multi-series study splits onto the right series regardless of which viewport
+  // is active), falling back to the active viewport's source.
+  const sourceForSegmentation = (segmentationId: string): SourceImage | null => {
+    const seg = segmentationService.getSegmentation(segmentationId);
+    const refIds = seg?.representationData?.[LABELMAP]?.referencedImageIds ?? [];
+    const firstRef = refIds[0];
+    const instance = firstRef ? metaData.get('instance', firstRef) : null;
+    const SOPInstanceUID = instance?.SOPInstanceUID || instance?.SopInstanceUID;
+    const SeriesInstanceUID = instance?.SeriesInstanceUID;
+    const displaySet =
+      SOPInstanceUID && displaySetService?.getDisplaySetForSOPInstanceUID
+        ? displaySetService.getDisplaySetForSOPInstanceUID(SOPInstanceUID, SeriesInstanceUID)
+        : null;
+    if (displaySet?.SeriesInstanceUID && Array.isArray(displaySet.imageIds) && displaySet.imageIds.length) {
+      return {
+        studyInstanceUID: displaySet.StudyInstanceUID,
+        seriesInstanceUID: displaySet.SeriesInstanceUID,
+        displaySetInstanceUID: displaySet.displaySetInstanceUID,
+        imageIds: displaySet.imageIds,
+        seriesDescription: displaySet.SeriesDescription,
+      };
+    }
+    return imageModel.getActiveSource(servicesManager);
+  };
 
   const notify = (message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') =>
     uiNotificationService?.show?.({ title: 'nnInteractive', message, type });
@@ -41,7 +89,175 @@ const commandsModule = ({ servicesManager, commandsManager }: any) => {
 
   installDebugHook(servicesManager);
 
+  const resolveManagedExportSegmentationIds = (args: any): string[] => {
+    const requestedId = args?.segmentationId;
+    if (requestedId && !bridge.isManaged(requestedId)) {
+      return [];
+    }
+
+    const source = sessionModel.getSource();
+    const seriesInstanceUID =
+      (requestedId && bridge.getSeriesInstanceUIDForSegmentation(requestedId)) ||
+      source?.seriesInstanceUID;
+    const ids = seriesInstanceUID
+      ? bridge.getManagedSegmentationIdsForSeries(seriesInstanceUID)
+      : bridge.getManagedSegmentationIds();
+
+    return ids.length ? ids : requestedId ? [requestedId] : [];
+  };
+
+  const getImagePixelData = (image: any): ArrayLike<number> | null =>
+    image?.getPixelData?.() ?? image?.voxelManager?.getScalarData?.() ?? null;
+
+  const getExportColor = (segmentationId: string, segment: any, fallbackOrdinal: number): number[] => {
+    const representations = segmentationService.getRepresentationsForSegmentation?.(segmentationId) ?? [];
+    const viewportId = representations[0]?.viewportId ?? viewportGridService.getActiveViewportId?.();
+    if (viewportId && typeof segmentationService.getSegmentColor === 'function') {
+      try {
+        const color = segmentationService.getSegmentColor(viewportId, segmentationId, 1);
+        if (Array.isArray(color) && color.length >= 3) {
+          return color;
+        }
+      } catch {
+        // fall through to metadata color
+      }
+    }
+    const color = segment?.cachedStats?.color ?? segment?.color;
+    return Array.isArray(color) && color.length >= 3
+      ? color
+      : bridge.objectColorForOrdinal(fallbackOrdinal);
+  };
+
+  const buildMergedNninterSegmentation = (segmentationIds: string[], options: any = {}) => {
+    const firstSeg = segmentationService.getSegmentation(segmentationIds[0]);
+    const firstLabelmap = firstSeg?.representationData?.[LABELMAP];
+    const firstImageIds = firstLabelmap?.imageIds ?? [];
+    if (!firstImageIds.length) {
+      throw new Error('No labelmap images found for nnInteractive export.');
+    }
+
+    const firstSegImages = firstImageIds.map((imageId: string) => cache.getImage(imageId));
+    const referencedImages = firstSegImages.map((segImage: any, index: number) => {
+      const referencedImageId =
+        segImage?.referencedImageId ?? firstLabelmap?.referencedImageIds?.[index];
+      return referencedImageId ? cache.getImage(referencedImageId) : null;
+    });
+    if (referencedImages.some((image: any) => !image)) {
+      throw new Error('Referenced source images are not cached for nnInteractive export.');
+    }
+
+    const labelmaps: any[] = [];
+    let exportSegmentNumber = 1;
+
+    for (const segmentationId of segmentationIds) {
+      const segmentation = segmentationService.getSegmentation(segmentationId);
+      const labelmap = segmentation?.representationData?.[LABELMAP];
+      const imageIds = labelmap?.imageIds ?? [];
+      if (!segmentation || imageIds.length !== firstImageIds.length) {
+        throw new Error(`Segmentation ${segmentationId} does not match the export source series.`);
+      }
+
+      const segment = segmentation.segments?.[1] ?? segmentation.segments?.['1'];
+      const labelmaps2D: any[] = [];
+      let hasVoxels = false;
+
+      for (let z = 0; z < imageIds.length; z++) {
+        const segImage: any = cache.getImage(imageIds[z]);
+        const referencedImage: any = referencedImages[z];
+        const sourcePixels = getImagePixelData(segImage);
+        if (!segImage || !sourcePixels) {
+          throw new Error(`Labelmap image ${z} is not cached for nnInteractive export.`);
+        }
+        const rows = segImage.rows ?? referencedImage?.rows;
+        const columns = segImage.columns ?? referencedImage?.columns;
+        if (!rows || !columns) {
+          throw new Error(`Labelmap image ${z} is missing rows/columns for nnInteractive export.`);
+        }
+
+        const PixelArray = exportSegmentNumber > 255 ? Uint16Array : Uint8Array;
+        const pixelData = new PixelArray(sourcePixels.length);
+        let hasSliceVoxels = false;
+        for (let i = 0; i < sourcePixels.length; i++) {
+          if (sourcePixels[i] !== 0) {
+            pixelData[i] = exportSegmentNumber;
+            hasSliceVoxels = true;
+          }
+        }
+        if (hasSliceVoxels) {
+          hasVoxels = true;
+        }
+
+        labelmaps2D[z] = {
+          segmentsOnLabelmap: hasSliceVoxels ? [exportSegmentNumber] : [],
+          pixelData,
+          rows,
+          columns,
+        };
+      }
+
+      if (!hasVoxels) {
+        continue;
+      }
+
+      const color = getExportColor(segmentationId, segment, exportSegmentNumber);
+      const RecommendedDisplayCIELabValue = dcmjs.data.Colors.rgb2DICOMLAB(
+        color.slice(0, 3).map((value: number) => value / 255)
+      ).map((value: number) => Math.round(value));
+      const metadata: any[] = [];
+      metadata[exportSegmentNumber] = {
+        SegmentNumber: exportSegmentNumber.toString(),
+        SegmentLabel: segment?.label || segmentation.label || `Object ${exportSegmentNumber}`,
+        SegmentAlgorithmType: segment?.algorithmType || 'MANUAL',
+        SegmentAlgorithmName: segment?.algorithmName || 'nnInteractive',
+        RecommendedDisplayCIELabValue,
+        SegmentedPropertyCategoryCodeSequence: {
+          CodeValue: 'T-D0050',
+          CodingSchemeDesignator: 'SRT',
+          CodeMeaning: 'Tissue',
+        },
+        SegmentedPropertyTypeCodeSequence: {
+          CodeValue: 'T-D0050',
+          CodingSchemeDesignator: 'SRT',
+          CodeMeaning: 'Tissue',
+        },
+      };
+
+      labelmaps.push({
+        segmentsOnLabelmap: [exportSegmentNumber],
+        metadata,
+        labelmaps2D,
+      });
+      exportSegmentNumber++;
+    }
+
+    if (!labelmaps.length) {
+      throw new Error('No non-empty nnInteractive objects to export.');
+    }
+
+    const label =
+      options.SeriesDescription ||
+      firstSeg?.cachedStats?.seriesDescription ||
+      `nnInteractive ${labelmaps.length} objects`;
+    const generated = generateSegmentation(referencedImages, labelmaps, metaData, {
+      ...options,
+      SeriesDescription: label,
+    });
+    return { generated, label };
+  };
+
+  const resolveDataSource = (dataSource: any) => {
+    if (dataSource && typeof dataSource === 'string') {
+      return extensionManager?.getDataSources?.(dataSource)?.[0];
+    }
+    // extensionManager.getActiveDataSource() returns an ARRAY of data source
+    // instances in OHIF 3.x (a single definition can back several), so unwrap it —
+    // otherwise `.store.dicom` is undefined and export bails.
+    const resolved = dataSource ?? extensionManager?.getActiveDataSource?.();
+    return Array.isArray(resolved) ? resolved[0] : resolved;
+  };
+
   async function setActiveObject(segmentationId: string, segmentIndex: number) {
+    const resolvedSegmentIndex = bridge.isManaged(segmentationId) ? 1 : segmentIndex;
     try {
       const viewportId = viewportGridService.getActiveViewportId?.();
       if (viewportId) {
@@ -51,11 +267,11 @@ const commandsModule = ({ servicesManager, commandsManager }: any) => {
       // ignore — the segment set below still targets the right segmentation
     }
     try {
-      segmentationService.setActiveSegment?.(segmentationId, segmentIndex);
+      segmentationService.setActiveSegment?.(segmentationId, resolvedSegmentIndex);
     } catch {
       // ignore
     }
-    toolboxState.setCurrentActiveSegment(segmentIndex);
+    toolboxState.setCurrentActiveSegment(resolvedSegmentIndex);
   }
 
   function handleServerError(error: any, prompts?: any[]) {
@@ -150,7 +366,10 @@ const commandsModule = ({ servicesManager, commandsManager }: any) => {
       objectModel.markEmpty(target.segmentationId, target.segmentIndex);
       toolboxState.setRefineNew(false);
     } else {
-      target = active as { segmentationId: string; segmentIndex: number };
+      target = {
+        segmentationId: active.segmentationId,
+        segmentIndex: bridge.isManaged(active.segmentationId) ? 1 : active.segmentIndex,
+      };
     }
     await setActiveObject(target.segmentationId, target.segmentIndex);
     const targetKey = objectKeyOf(target.segmentationId, target.segmentIndex);
@@ -327,6 +546,48 @@ const commandsModule = ({ servicesManager, commandsManager }: any) => {
       }
     };
     subscribeGuard(cornerstoneViewportService, ['VIEWPORT_VOLUMES_CHANGED', 'VIEWPORT_DATA_CHANGED']);
+
+    // Import-split: a saved DICOM SEG is hydrated as ONE multi-segment segmentation; split it back
+    // into N managed one-segment objects (the per-object model). Deferred OUT of the hydration /
+    // viewport-mount call stack (SEGMENTATION_ADDED fires synchronously inside
+    // createSegmentationForSEGDisplaySet; mutating segmentation state mid-flow crashes the viewer),
+    // with bounded retries while hydration pixel data settles.
+    const splitRetries = new Map<string, number>();
+    const trySplit = (segmentationId: string) => {
+      bridge
+        .importSplitSegmentation(
+          servicesManager,
+          commandsManager,
+          segmentationId,
+          sourceForSegmentation(segmentationId)
+        )
+        .then(result => {
+          if (result.status === 'retry') {
+            const n = (splitRetries.get(segmentationId) ?? 0) + 1;
+            splitRetries.set(segmentationId, n);
+            if (n <= 15) {
+              setTimeout(() => trySplit(segmentationId), 300);
+            } else {
+              console.warn(
+                `[nninteractive] import-split: giving up on ${segmentationId} (${result.reason}); original left as-is`
+              );
+              splitRetries.delete(segmentationId);
+            }
+          } else {
+            splitRetries.delete(segmentationId);
+          }
+        })
+        .catch(e => console.warn('[nninteractive] import-split error:', e));
+    };
+    const segEvents: any = (segmentationService as any).EVENTS || {};
+    if (segEvents.SEGMENTATION_ADDED && typeof segmentationService.subscribe === 'function') {
+      segmentationService.subscribe(segEvents.SEGMENTATION_ADDED, (payload: any) => {
+        const id = payload?.segmentationId ?? payload?.segmentation?.segmentationId;
+        if (id) {
+          setTimeout(() => trySplit(id), 250);
+        }
+      });
+    }
   }
 
   const actions = {
@@ -458,19 +719,29 @@ const commandsModule = ({ servicesManager, commandsManager }: any) => {
     },
 
     async resetSegment({ segmentationId, segmentIndex }: any) {
-      await bridge.clearSegment(servicesManager, segmentationId, segmentIndex);
-      promptModel.clearForObject(objectKeyOf(segmentationId, segmentIndex));
-      objectModel.markEmpty(segmentationId, segmentIndex);
-      if (objectModel.holdsObject(segmentationId, segmentIndex)) {
+      const resolvedSegmentIndex = bridge.isManaged(segmentationId) ? 1 : segmentIndex;
+      await bridge.clearSegment(servicesManager, segmentationId, resolvedSegmentIndex);
+      promptModel.clearForObject(objectKeyOf(segmentationId, resolvedSegmentIndex));
+      objectModel.markEmpty(segmentationId, resolvedSegmentIndex);
+      if (objectModel.holdsObject(segmentationId, resolvedSegmentIndex)) {
         await actions.resetNninter();
       }
     },
 
     async deleteSegment({ segmentationId, segmentIndex }: any) {
-      const held = objectModel.holdsObject(segmentationId, segmentIndex);
-      await bridge.removeSegment(servicesManager, segmentationId, segmentIndex);
-      promptModel.clearForObject(objectKeyOf(segmentationId, segmentIndex));
-      objectModel.forgetObject(segmentationId, segmentIndex);
+      const resolvedSegmentIndex = bridge.isManaged(segmentationId) ? 1 : segmentIndex;
+      const held = objectModel.holdsObject(segmentationId, resolvedSegmentIndex);
+      const managed = bridge.isManaged(segmentationId);
+      await bridge.removeSegment(servicesManager, segmentationId, resolvedSegmentIndex);
+      promptModel.clearForObject(objectKeyOf(segmentationId, resolvedSegmentIndex));
+      objectModel.forgetObject(segmentationId, resolvedSegmentIndex);
+      if (managed) {
+        try {
+          await commandsManager.run('deleteSegmentation', { segmentationId });
+        } finally {
+          bridge.unregisterManagedSegmentation(segmentationId);
+        }
+      }
       if (held) {
         await actions.resetNninter();
       }
@@ -505,7 +776,8 @@ const commandsModule = ({ servicesManager, commandsManager }: any) => {
 
     /** Select an existing object and make the backend hold its mask for refinement. */
     async loadSegmentForRefinement({ segmentationId, segmentIndex }: any) {
-      await setActiveObject(segmentationId, segmentIndex);
+      const resolvedSegmentIndex = bridge.isManaged(segmentationId) ? 1 : segmentIndex;
+      await setActiveObject(segmentationId, resolvedSegmentIndex);
       toolboxState.setRefineNew(false);
       if (!bridge.isManaged(segmentationId)) {
         return { loaded: false, reason: 'unmanaged-segmentation' };
@@ -527,7 +799,12 @@ const commandsModule = ({ servicesManager, commandsManager }: any) => {
       toolboxState.setSessionSeries(source.seriesInstanceUID);
 
       try {
-        const resetFirst = await ensureBackendHoldsObject(source, segmentationId, segmentIndex, false);
+        const resetFirst = await ensureBackendHoldsObject(
+          source,
+          segmentationId,
+          resolvedSegmentIndex,
+          false
+        );
         if (resetFirst) {
           await serverApi.resetInteractions(source);
           sessionModel.bumpGeneration();
@@ -588,19 +865,62 @@ const commandsModule = ({ servicesManager, commandsManager }: any) => {
       }
     },
 
-    /** Export the nnInteractive segmentation to DICOM SEG (native OHIF multi-segment SEG). */
+    /** Export nnInteractive objects to one overlapping DICOM SEG. */
     async storeNninterSegmentation(args: any) {
-      for (const segId of bridge.getManagedSegmentationIds()) {
+      const managedIds = resolveManagedExportSegmentationIds(args);
+      if (!managedIds.length) {
+        return commandsManager.run('storeSegmentation', args);
+      }
+
+      // Prompt for a series name (and, if configured, a target data source) before storing —
+      // same dialog OHIF uses for its own SEG export.
+      const {
+        value: reportName,
+        dataSourceName: selectedDataSourceName,
+        action,
+      } = await createReportDialogPrompt({
+        servicesManager,
+        extensionManager,
+        title: 'Store nnInteractive Segmentation',
+      });
+      if (action !== PROMPT_RESPONSES.CREATE_REPORT) {
+        return;
+      }
+
+      for (const segId of managedIds) {
         bridge.flushAuthoritativeLabelmap(servicesManager, segId, 'volumeToStack');
       }
-      return commandsManager.run('storeSegmentation', args);
+      const options = {
+        ...args?.options,
+        ...(reportName ? { SeriesDescription: reportName } : {}),
+      };
+      const { generated } = buildMergedNninterSegmentation(managedIds, options);
+      const dataSource = resolveDataSource(selectedDataSourceName ?? args?.dataSource);
+      if (!dataSource?.store?.dicom) {
+        throw new Error('No DICOM store data source is available for nnInteractive export.');
+      }
+      const naturalizedReport = generated.dataset;
+      await dataSource.store.dicom(naturalizedReport);
+      const wadoRoot = dataSource.getConfig?.().wadoRoot;
+      if (wadoRoot) {
+        naturalizedReport.wadoRoot = wadoRoot;
+      }
+      DicomMetadataStore.addInstances([naturalizedReport], true);
+      notify('Stored merged nnInteractive DICOM SEG.', 'success');
+      return naturalizedReport;
     },
 
     async downloadNninterSegmentation(args: any) {
-      for (const segId of bridge.getManagedSegmentationIds()) {
+      const managedIds = resolveManagedExportSegmentationIds(args);
+      if (!managedIds.length) {
+        return commandsManager.run('downloadSegmentation', args);
+      }
+      for (const segId of managedIds) {
         bridge.flushAuthoritativeLabelmap(servicesManager, segId, 'volumeToStack');
       }
-      return commandsManager.run('downloadSegmentation', args);
+      const { generated, label } = buildMergedNninterSegmentation(managedIds, args?.options);
+      downloadDICOMData(generated.dataset, label);
+      return generated.dataset;
     },
 
     debugSnapshot: () => debugSnapshot(servicesManager),

@@ -3,6 +3,10 @@ import React, { createContext, useContext } from 'react';
 export interface SegmentStats {
   info: string;
   namedStats?: Record<string, number | string>;
+  nninteractiveManaged?: boolean;
+  seriesInstanceUid?: string;
+  displaySetInstanceUID?: string;
+  objectOrdinal?: number;
 }
 
 export interface Segment {

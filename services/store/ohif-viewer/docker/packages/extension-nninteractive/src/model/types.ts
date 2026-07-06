@@ -1,7 +1,7 @@
 // Shared types and constants for the nnInteractive model layer.
 //
-// The design follows docs/nninteractive-ohif-ideal-architecture.md:
-// one OHIF segmentation per source series, one segment per nnInteractive object,
+// The design follows the nnInteractive object model:
+// one OHIF segmentation per nnInteractive object, segmentIndex=1 for each object,
 // prompts as locked Cornerstone annotations plus a small PromptState ledger, and a
 // thin serverApi facade over the Kaapana proxy.
 

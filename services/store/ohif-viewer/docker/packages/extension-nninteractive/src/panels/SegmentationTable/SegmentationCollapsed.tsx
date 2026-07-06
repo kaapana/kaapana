@@ -55,21 +55,35 @@ const SegmentationCollapsedSelector = () => {
     return null;
   }
 
-  const segmentations = data.map(seg => ({
-    id: seg.segmentation.segmentationId,
-    label: seg.segmentation.label,
-    color: getSegmentationDisplayColor(seg.segmentation, seg.representation),
-  }));
+  const managedData = data.filter(
+    seg => seg.segmentation.cachedStats?.nninteractiveManaged === true
+  );
+  const selectorData = managedData.length ? managedData : data;
+  const segmentations = selectorData.map(seg => {
+    const firstSegment = Object.values(seg.segmentation.segments ?? {})[0] as any;
+    return {
+      id: seg.segmentation.segmentationId,
+      label: seg.segmentation.label || firstSegment?.label,
+      color: getSegmentationDisplayColor(seg.segmentation, seg.representation),
+    };
+  });
+  const activeSegmentation = segmentations.find(seg => seg.id === activeSegmentationId);
+  const selectValue = activeSegmentation ? activeSegmentationId : undefined;
 
   return (
     <Select
       onValueChange={value => onSegmentationClick(value)}
-      value={activeSegmentationId}
+      value={selectValue}
     >
       <SelectTrigger className="w-full overflow-hidden">
-        {/* Radix portals the SELECTED item's content (swatch + label) into SelectValue, so the
-            trigger shows the active object's color without a second, duplicate swatch here. */}
-        <SelectValue placeholder={t('Select a segmentation')} />
+        <SelectValue placeholder={t('Select a segmentation')}>
+          {activeSegmentation ? (
+            <span className="flex min-w-0 flex-1 items-center gap-2">
+              <SegmentationColorSwatch color={activeSegmentation.color} />
+              <span className="truncate">{activeSegmentation.label}</span>
+            </span>
+          ) : null}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         {segmentations.map(seg => (

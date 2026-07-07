@@ -63,7 +63,7 @@ export const usePermissionsStore = defineStore("permissions", {
     // Handles both exact names (launch) and suffixed release names (delete)
     isResourceAllowed(projectId: string, resourceName: string): boolean {
       const whitelist = this.whitelistByProject[projectId];
-      if (whitelist === undefined) return true; // not loaded yet — optimistic
+      if (whitelist === undefined) return false; // not loaded yet — fail closed
       if (whitelist.length === 0) return true;  // empty = all allowed
       return whitelist.some(
         entry => resourceName === entry || resourceName.startsWith(entry + '-')

@@ -711,6 +711,7 @@ playwright_ui_tests:
   script:
     - source artifacts/deployment.env
     - cd "$CI_PROJECT_DIR/tests/ui"
+    - sudo apt-get install -y zip
     - npm ci
     - npx playwright install --with-deps chromium
     - |

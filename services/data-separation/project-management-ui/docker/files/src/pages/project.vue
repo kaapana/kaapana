@@ -205,7 +205,7 @@ export default defineComponent({
         if (!silent) {
           this.notify(`Selected project: ${project.name}. You may need to refresh other tabs.`, 'success');
         }
-        usePermissionsStore().loadProjectWhitelist(this.projectId);
+        await usePermissionsStore().loadProjectWhitelist(this.projectId);
       } catch (error) {
         console.error('Failed to load project:', error);
       }

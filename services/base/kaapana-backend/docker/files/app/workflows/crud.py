@@ -336,8 +336,13 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
         service_job=job.service_job,
     )
 
-    db_kaapana_instance.jobs.append(db_job)
-    db.add(db_kaapana_instance)
+    # PERF: do NOT append via db_kaapana_instance.jobs — with SQLAlchemy's default
+    # lazy loading that pulls the instance's ENTIRE job collection (>150k rows on
+    # long-running sites) into the session on EVERY job creation. This made batch
+    # scheduling O(new_jobs * total_jobs), slowed job creation to a crawl and drove
+    # the backend into OOM kills. The FK is already set on db_job via
+    # kaapana_id=job.kaapana_instance_id above, so adding the job alone is enough.
+    db.add(db_job)
     try:
         db.commit()  # writing, if kaapana_id and external_job_id already exists will fail due to duplicate error
     except IntegrityError as e:
@@ -1550,6 +1555,39 @@ def get_workflow(
     # return db_workfloq
 
 
+def cleanup_terminal_service_jobs(db: Session, retention_days: int = None):
+    """Bulk-delete service jobs that reached a terminal state some time ago.
+
+    Service DAGs (e.g. service-process-incoming-dcm) create one job per incoming
+    series; over months this accumulates >100k rows that slow down every ORM
+    operation touching the job table and were a main driver of backend OOM kills.
+    Terminal service jobs are only of short-term diagnostic interest, so remove
+    them after a retention period (env SERVICE_JOB_RETENTION_DAYS, default 30).
+    Uses a bulk DELETE so no ORM objects are loaded into memory.
+    """
+    if retention_days is None:
+        retention_days = int(os.getenv("SERVICE_JOB_RETENTION_DAYS", "30"))
+    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+        days=retention_days
+    )
+    deleted_count = (
+        db.query(models.Job)
+        .filter(
+            models.Job.service_job.is_(True),
+            models.Job.status.in_(["finished", "failed", "deleted"]),
+            models.Job.time_updated < cutoff,
+        )
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    if deleted_count:
+        logging.info(
+            f"Service-job cleanup: removed {deleted_count} terminal service jobs "
+            f"older than {retention_days} days."
+        )
+    return deleted_count
+
+
 def get_workflows(
     db: Session,
     instance_name: Optional[str] = None,
@@ -1749,9 +1787,16 @@ def put_workflow_jobs(db: Session, workflow=schemas.WorkflowUpdate):
             db_job = get_job(db, workflow_job.id)
         db_jobs.append(db_job)
 
-    # add dat shit to dat workflow
-    db_workflow.workflow_jobs.extend(db_jobs)
-    # TODO: create set of db_workflow.workflow_jobs to avoid double listed jobs
+    # PERF: attach jobs by writing the FK directly instead of
+    # db_workflow.workflow_jobs.extend(db_jobs) — extending the relationship
+    # lazy-loads the workflow's ENTIRE job collection first. For service
+    # workflows (e.g. service-process-incoming-dcm with >100k jobs) this ran on
+    # every incoming DICOM series and was a main driver of backend OOM kills.
+    # Setting workflow_id directly is equivalent and also inherently idempotent
+    # (re-assigning the same FK is a no-op, so no double-listed jobs).
+    for db_job in db_jobs:
+        if db_job is not None:
+            db_job.workflow_id = db_workflow.workflow_id
 
     db_workflow.time_updated = utc_timestamp
     db.commit()

@@ -17,7 +17,11 @@ from .monitoring import routers as monitoring
 from .settings import routers as settings
 from .storage import routers as storage
 from .workflows import models
-from .workflows.crud import get_remote_updates, sync_states_from_airflow
+from .workflows.crud import (
+    cleanup_terminal_service_jobs,
+    get_remote_updates,
+    sync_states_from_airflow,
+)
 from .workflows.routers import client, remote
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -67,6 +71,23 @@ def periodically_sync_states_from_airflow():
         except Exception:
             logging.warning(
                 "Something went wrong updating in crud.sync_states_from_airflow()"
+            )
+            logging.warning(traceback.format_exc())
+
+
+# Purge old terminal service jobs (e.g. service-process-incoming-dcm) so the job
+# table stays small. >100k accumulated service jobs made job creation O(n^2)-slow
+# and drove the backend into OOM kills. Runs at startup and then periodically.
+@app.on_event("startup")
+@repeat_every(seconds=float(os.getenv("SERVICE_JOB_CLEANUP_INTERVAL", 6 * 3600)))
+@only_one_process(lock_file="/tmp/service_job_cleanup.lock")
+def periodically_cleanup_terminal_service_jobs():
+    with SessionLocal() as db:
+        try:
+            cleanup_terminal_service_jobs(db)
+        except Exception:
+            logging.warning(
+                "Something went wrong in crud.cleanup_terminal_service_jobs()"
             )
             logging.warning(traceback.format_exc())
 

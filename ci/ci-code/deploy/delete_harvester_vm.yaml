@@ -5,8 +5,17 @@
   connection: local
 
   vars:
-    vm_fqdn: "{{ lookup('env', 'VM_FQDN') }}"
-    vm_name: "{{ vm_fqdn.split('.')[0] }}"
+    # VM_FQDN is only set after provisioning; before that (e.g. pre-provisioning
+    # cleanup) derive the same name provision_harvester_vm.yaml would use.
+    vm_dns_domain: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DOMAIN') }}"
+    _raw_vm_name: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_VM_NAME') }}"
+    _truncated_vm_name: "{{ _raw_vm_name[: 57 - 1 - (vm_dns_domain | length)] | regex_replace('-+$', '') }}"
+    vm_name: >-
+      {{
+        (lookup('env', 'VM_FQDN').split('.')[0])
+        if lookup('env', 'VM_FQDN')
+        else (_truncated_vm_name if (_raw_vm_name | length) > (57 - 1 - (vm_dns_domain | length)) else _raw_vm_name)
+      }}
     harvester_namespace: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE') }}"
     harvester_kubeconfig: "{{ lookup('env', 'ORCHESTRATOR_INSTANCE_HARVESTER_KUBECONFIG') }}"
 

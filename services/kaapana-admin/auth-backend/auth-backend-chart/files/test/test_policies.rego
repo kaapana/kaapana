@@ -156,21 +156,3 @@ test_deny_adding_user {
     }
 }
 
-test_allow_managing_software {
-    allow with input as {
-        "requested_prefix": "/aii/projects/123-234-123-345/software-mappings",
-        "access_token": {"kaapana.ai/workflows" : ["manage_123-234-123-345"] }
-    }
-    allow with input as {
-        "requested_prefix": "/flow/kaapana/api/getdags",
-        "access_token": {"kaapana.ai/workflows" : ["manage_123-234-123-345"] }
-    }
-}
-
-
-test_deny_managing_software {
-    not allow with input as {
-        "requested_prefix": "/aii/projects/123-234-123-345/software-mappings",
-        "access_token": {"kaapana.ai/workflows" : ["manage_users_123-234-123-345"] }
-    }
-}

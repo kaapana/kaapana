@@ -18,24 +18,21 @@ The current pins are enforced by the Dockerfile before patching:
   public extension hook: labelmap cache-to-VTK sync, duplicate labelmap actors, VoxelManager scalar
   data access, worker geometry, marching-squares coordinate space.
 - **Move to `@kaapana/extension-nninteractive`** when the behavior is nnInteractive feature logic:
-  prompt tool metadata, prompt creation from stored SEG metadata, prompt payload extraction, prompt
+  prompt-annotation metadata/stamping, prompt payload extraction from annotation geometry, prompt
   visibility/coloring.
 - **Upstream candidate** when the patch is a general correctness fix useful beyond nnInteractive.
 
 ## Current State
 
-Some prompt-tool feature code has now moved into the extension:
+Prompt-tool feature code lives in the extension:
 
 - `packages/extension-nninteractive/src/tools/promptTools.ts` owns the `Probe2`,
-  `RectangleROI2`, `PlanarFreehandROI2`, and `PlanarFreehandROI3` subclasses.
-- Those subclasses now provide `_addNewAnnotationFromIndex(...)`, which was previously patched into
-  Cornerstone's base `ProbeTool`, `RectangleROITool`, and `PlanarFreehandROITool`.
-- `packages/extension-nninteractive/src/commandsModule.ts` now derives prompt payloads from
-  measurement geometry when patched cached fields such as `index`, `pointsInShape`, `boundary`, or
-  `scribble` are absent.
+  `RectangleROI2`, `PlanarFreehandROI2`, and `PlanarFreehandROI3` subclasses, which provide
+  `_addNewAnnotationFromIndex(...)`.
+- `packages/extension-nninteractive/src/model/coordinateMapping.ts` derives prompt payloads from
+  each annotation's geometry.
 
-That move reduces the need for feature-specific base-tool patching, but it does **not** remove the
-need for node-module patches completely.
+The labelmap, VoxelManager, vtk, and worker fixes below stay as node-module patches.
 
 ## Patch Inventory
 
@@ -81,7 +78,7 @@ The most clearly extension-owned helper moved out of the package patch:
 | `ProbeTool._addNewAnnotationFromIndex` | `Probe2Tool` in `extension-nninteractive/src/tools/promptTools.ts` | Only nnInteractive prompt reload needs it. |
 | `RectangleROITool._addNewAnnotationFromIndex` | `RectangleROI2Tool` in `extension-nninteractive/src/tools/promptTools.ts` | Only nnInteractive prompt reload needs it. |
 | `PlanarFreehandROITool._addNewAnnotationFromIndex` | `PlanarFreehandROI2Tool` / `PlanarFreehandROI3Tool` in `extension-nninteractive/src/tools/promptTools.ts` | Only nnInteractive prompt reload needs it. |
-| Prompt payload fallback extraction | `commandsModule.ts` | The extension should be responsible for turning prompt measurements into nnInteractive request payloads. |
+| Prompt payload extraction | `model/coordinateMapping.ts` | The extension turns prompt annotations into nnInteractive request payloads from annotation geometry. |
 
 ## Recommended Next Moves
 

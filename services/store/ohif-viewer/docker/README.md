@@ -9,7 +9,7 @@ packages and the small set of remaining in-place patches needed for this OHIF/Co
 | Path | Purpose |
 |---|---|
 | `Dockerfile` | Fetches upstream OHIF, applies source patches, copies local packages/config, applies dependency patches, builds the static viewer, and serves it with nginx. |
-| `packages/extension-nninteractive/` | Kaapana OHIF extension that owns nnInteractive commands, panels, prompt-tool subclasses, customizations, icons, metadata providers, and runtime subscriptions. |
+| `packages/extension-nninteractive/` | Kaapana OHIF extension that owns nnInteractive behavior: a `model/` layer (session, image, object, prompt, coordinate-mapping, segmentation-bridge) under a thin command layer, plus panels, prompt-tool subclasses, customizations, icons, metadata providers, and runtime subscriptions. |
 | `packages/mode-nninteractive/` | Kaapana OHIF mode that owns layout, toolbar sections/buttons, hotkeys, and tool-group setup for the nnInteractive workflow. |
 | `patches/` | Remaining source patches applied to the fetched OHIF tree with `git apply`. These are intentionally small residue, not the main feature implementation. |
 | `node-module-patches/` | `patch-package` diffs for pinned Cornerstone/vtk packages. These are low-level runtime fixes that cannot cleanly live in an OHIF extension. |
@@ -75,9 +75,9 @@ After each patch/package change, verify at least:
 - run segmentation and confirm mask updates
 - use manual correction brush in add and erase mode
 - undo/reset/next object
-- store/export SEG
-- reload stored SEG and confirm prompt reconstruction
-- generated bidirectional/stat display still works
+- store/export SEG (a series-name prompt appears before storing)
+- reload stored SEG and confirm it splits back into per-object segmentations for further refinement
+- segment statistics display
 
 ## Upgrade Checklist
 

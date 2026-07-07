@@ -25,7 +25,7 @@ Removed historical patch buckets:
 
 | Kind of change | Preferred home |
 |---|---|
-| nnInteractive commands, panels, prompt logic, icons, measurement mappings, subscriptions | `packages/extension-nninteractive/` |
+| nnInteractive commands, panels, prompt logic, icons, prompt-annotation stamping, subscriptions | `packages/extension-nninteractive/` |
 | toolbar buttons, hotkeys, tool-group composition, layout | `packages/mode-nninteractive/` |
 | OHIF app/package dependency pins and workspace build changes | `00-deps-build.patch` |
 | tiny OHIF source behavior gaps with no extension hook in OHIF 3.10 | smallest possible `patches/*.patch` hunk |
@@ -74,11 +74,11 @@ extension.
 Extracted behavior now lives in:
 
 - `packages/extension-nninteractive/src/commandsModule.ts`
+- `packages/extension-nninteractive/src/model/` (session/image/object/prompt/coordinate-mapping/segmentation-bridge)
 - `packages/extension-nninteractive/src/preRegistration.ts`
 - `packages/extension-nninteractive/src/tools/promptTools.ts`
 - `packages/extension-nninteractive/src/panels/PanelSegmentation.tsx`
 - `packages/extension-nninteractive/src/panels/SegmentationTable/`
-- `packages/extension-nninteractive/src/customizations/CustomSegmentStatisticsHeader.tsx`
 
 Remaining hunks:
 
@@ -119,15 +119,16 @@ OHIF gains styling/activation hooks.
 `@kaapana/extension-nninteractive` owns:
 
 - backend session lifecycle and inference commands
-- prompt measurement collection and nnInteractive request payloads
-- SEG store/download command overrides
+- prompt-annotation collection and nnInteractive request payloads (via the `coordinateMapping` model)
+- SEG store/download command overrides (merged per-object → one overlapping SEG, with a series-name prompt on store)
+- import-split of a hydrated multi-segment SEG back into per-object segmentations
 - AI toolbox panel
 - segmentation panel/table fork
 - prompt tool subclasses
 - icon registration
-- measurement mappings and runtime metadata stamping
+- prompt-annotation stamping and runtime metadata
 - metadata providers and visibility subscriptions
-- customization slots for stats header and overlay tools
+- customization slots for Cornerstone overlay tools
 
 `@kaapana/mode-nninteractive` owns:
 

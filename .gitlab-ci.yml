@@ -700,6 +700,8 @@ playwright_ui_tests:
   extends: .remote_execution_template
   stage: test
   rules:
+    - if: '$CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true" && $CI_EXEC_PLAYWRIGHT_TEST == "false"'
+      when: never
     - if: '$CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"'
       when: on_success
     - when: never
@@ -716,6 +718,7 @@ playwright_ui_tests:
     - npx playwright install --with-deps chromium
     - |
       KAAPANA_TEST_INSTANCE_UI="https://$VM_FQDN" \
+      NODE_OPTIONS="--no-warnings" \
         npx playwright test \
           --workers 1
   artifacts:

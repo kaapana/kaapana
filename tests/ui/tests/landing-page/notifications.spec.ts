@@ -44,14 +44,16 @@ test.describe('Landing Page — Notifications', () => {
 
     await portal.notificationsButton.click();
     await expect(portal.notificationsDialog).toBeVisible({ timeout: 5_000 });
-    await expect(portal.notificationItem(title1)).toBeVisible({ timeout: 15_000 });
+    // Delivery is via a websocket push from the notification-service, not
+    // polling — normally near-instant, but give it real headroom under load.
+    await expect(portal.notificationItem(title1)).toBeVisible({ timeout: 30_000 });
 
     await portal.notificationReadButton(title1).click();
     await expect(portal.notificationItem(title1)).not.toBeVisible({ timeout: 10_000 });
 
     const title2 = `e2e-notification-2-${Date.now()}`;
     await createNotification(title2);
-    await expect(portal.notificationItem(title2)).toBeVisible({ timeout: 15_000 });
+    await expect(portal.notificationItem(title2)).toBeVisible({ timeout: 30_000 });
 
     await portal.markAllAsReadButton.click();
     await expect(portal.notificationItem(title2)).not.toBeVisible({ timeout: 10_000 });

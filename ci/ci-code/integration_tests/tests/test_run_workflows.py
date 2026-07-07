@@ -3,6 +3,7 @@ import time
 
 import pytest
 from integration_tests.utils.logger import get_logger
+from integration_tests.utils.pod_logs import fetch_failed_pod_logs
 from integration_tests.workflows import WorkflowEndpoints
 
 logger = get_logger(__name__, logging.INFO)
@@ -23,6 +24,8 @@ def wait_for_workflow(kaapana: WorkflowEndpoints, workflow_name, timeout=3600) -
         logger.debug(f"jobs_info: {jobs_status}")
         if "failed" in jobs_status:
             msg = f"Workflow {workflow_name} failed: {jobs_info}"
+            namespace = kaapana.admin_project.get("kubernetes_namespace")
+            logger.error(fetch_failed_pod_logs(namespace))
             return False, msg
         elif jobs_status and jobs_status == ["finished" for _ in jobs_info]:
             msg = f"Workflow {workflow_name} succeeded."

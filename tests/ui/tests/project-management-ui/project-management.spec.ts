@@ -94,17 +94,17 @@ test.describe('Project Management UI', () => {
     // Wait for the dialog to close (happens for both success and API error).
     await expect(dialog).not.toBeVisible({ timeout: 5_000 });
 
-    // When the backend returns an error the table is not auto-refreshed, but
-    // the project may still have been created (e.g. the MinIO/K8s setup timed
-    // out but the DB record was committed). Reload to get a fresh table state.
-    if (await page.getByText('Project could not be created').isVisible()) {
+    const projectRow = page.locator('tr').filter({ hasText: TEST_PROJECT }).first();
+
+    // Project creation provisions real MinIO/K8s resources on the backend and
+    // isn't always reflected in the table immediately — whether or not an
+    // error was shown, reload until the row appears (or we give up for good).
+    if (!(await projectRow.isVisible({ timeout: 10_000 }).catch(() => false))) {
       await page.reload();
       await expect(page.getByText('Available Projects')).toBeVisible({ timeout: 20_000 });
     }
 
-    await expect(page.locator('tr').filter({ hasText: TEST_PROJECT }).first()).toBeVisible({
-      timeout: 10_000,
-    });
+    await expect(projectRow).toBeVisible({ timeout: 20_000 });
   });
 
   // ── 3. Name validation ─────────────────────────────────────────────────────

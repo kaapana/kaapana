@@ -31,6 +31,9 @@ test.describe.configure({ mode: 'serial' });
 
 test.describe("Project Management UI — Change a user's role", () => {
   test.beforeAll(async ({ browser }) => {
+    // Keycloak user creation + project setup is several sequential API round
+    // trips — heavier than the 20s default (see app-whitelist.spec.ts).
+    test.setTimeout(40_000);
     await createKeycloakUser({
       username: TEST_USER,
       password: PASSWORD,

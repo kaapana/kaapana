@@ -262,8 +262,10 @@ rego_policy_tests:
     OPA_VERSION: "0.70.0"
     AUTH_BACKEND_DIR: "$KAAPANA_DIR/services/kaapana-admin/auth-backend/auth-backend-chart"
   script:
-    - curl -sL -o opa "https://openpolicyagent.org/downloads/v${OPA_VERSION}/opa_linux_amd64_static"
+    - export http_proxy="$HTTP_PROXY" https_proxy="$HTTPS_PROXY"
+    - curl -f -S -L -o opa "https://openpolicyagent.org/downloads/v${OPA_VERSION}/opa_linux_amd64_static"
     - chmod +x opa
+    - ./opa version
     - >
       ./opa test -b "$AUTH_BACKEND_DIR/files" -f json > opa_test_results.json;
       OPA_EXIT=$?;
@@ -694,7 +696,7 @@ run_workflows:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_run_workflows.py"
     JUNIT_FILE: "run_workflow.xml"
     LOG_FILE: "run_workflow.log"
-    PYTEST_WORKERS: "4"
+    PYTEST_WORKERS: "1"
 
 playwright_ui_tests:
   extends: .remote_execution_template

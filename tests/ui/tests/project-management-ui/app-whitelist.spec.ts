@@ -11,8 +11,10 @@ const SCIENTIST_USER = 'pw-appw-scientist';
 const PASSWORD = 'pw-test-1234';
 
 let projectId: string;
-// Set by beforeAll once we know which app got whitelisted; tests skip
-// gracefully if the instance has no not-yet-installed multiinstallable app.
+// Set by beforeAll to the first not-yet-installed multiinstallable app found.
+// The catalog always ships several (jupyterlab-chart, mitk-workbench-chart,
+// ...), so an empty result means something is actually broken — the tests
+// below fail hard on it rather than skipping.
 let whitelistedAppName: string | null = null;
 
 /** Launch button state for a given app row on an already-open project detail page. */
@@ -63,13 +65,13 @@ test.describe('Project Management UI — Restrict access to applications (whitel
   });
 
   test('admin: Launch is enabled regardless of whitelist', async ({ page }) => {
-    test.skip(!whitelistedAppName, 'No not-yet-installed multiinstallable application available on this instance');
+    expect(whitelistedAppName, 'No not-yet-installed multiinstallable application available on this instance').not.toBeNull();
     await gotoProjectDetail(page, TEST_PROJECT);
     expect(await launchButtonEnabled(page, whitelistedAppName!)).toBe(true);
   });
 
   test('principal-investigator: Launch is enabled only for the whitelisted app', async ({ browser }) => {
-    test.skip(!whitelistedAppName, 'No not-yet-installed multiinstallable application available on this instance');
+    expect(whitelistedAppName, 'No not-yet-installed multiinstallable application available on this instance').not.toBeNull();
     // Fresh login + page navigation is heavier than the 20s default.
     test.setTimeout(40_000);
     const page = await loginAsUser(browser, BASE_URL, PI_USER, PASSWORD);
@@ -88,7 +90,7 @@ test.describe('Project Management UI — Restrict access to applications (whitel
   });
 
   test('scientist: Launch is disabled entirely, even for the whitelisted app', async ({ browser }) => {
-    test.skip(!whitelistedAppName, 'No not-yet-installed multiinstallable application available on this instance');
+    expect(whitelistedAppName, 'No not-yet-installed multiinstallable application available on this instance').not.toBeNull();
     // Fresh login + page navigation is heavier than the 20s default.
     test.setTimeout(40_000);
     const page = await loginAsUser(browser, BASE_URL, SCIENTIST_USER, PASSWORD);

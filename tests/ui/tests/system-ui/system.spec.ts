@@ -10,8 +10,8 @@ test.describe('System — External System Pages', () => {
 
   test('Airflow navigates to System > Airflow and shows DAGs list or login page', async ({ page }) => {
     await page.goto('/flow/home');
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(5_000);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1_000);
 
     const bodyText = await page.locator('body').innerText();
     expect(bodyText.length).toBeGreaterThan(50);
@@ -27,7 +27,7 @@ test.describe('System — External System Pages', () => {
   test('Traefik Dashboard shows HTTP routers and entrypoints overview', async ({ page }) => {
     await page.goto('/traefik/dashboard/');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2_000);
+    await page.waitForTimeout(1_000);
 
     const bodyText = await page.locator('body').innerText();
     expect(bodyText.length).toBeGreaterThan(0);
@@ -41,8 +41,8 @@ test.describe('System — External System Pages', () => {
   });
 
   test('Prometheus page loads and provides access to expression browser or status page', async ({ page }) => {
-    await page.goto('/prometheus/', { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(8_000);
+    await page.goto('/prometheus/', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1_000);
 
     const bodyText = await page.locator('body').innerText();
     expect(bodyText.length).toBeGreaterThan(50);
@@ -57,8 +57,8 @@ test.describe('System — External System Pages', () => {
 
   test('Grafana loads dashboards page or redirects to login', async ({ page }) => {
     await page.goto('/grafana/dashboards');
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(5_000);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1_000);
 
     const bodyText = await page.locator('body').innerText();
     expect(bodyText.length).toBeGreaterThan(0);
@@ -74,7 +74,7 @@ test.describe('System — External System Pages', () => {
   test('Keycloak Admin Console loads and shows realm overview or login', async ({ page }) => {
     await page.goto('/auth/admin/master/console/#/kaapana');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3_000);
+    await page.waitForTimeout(1_000);
 
     const bodyText = await page.locator('body').innerText();
     expect(bodyText.length).toBeGreaterThan(0);

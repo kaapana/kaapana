@@ -12,7 +12,7 @@ test.describe('Portal Extensions Page', () => {
     const portal = new LandingPage(page);
     await portal.extensionsLink.click();
     await expect(page).toHaveURL(/\/extensions/, { timeout: 15_000 });
-    await page.waitForTimeout(2_000);
+    await page.waitForTimeout(1_000);
 
     const bodyText = await page.locator('body').innerText();
     expect(bodyText.length).toBeGreaterThan(50);
@@ -30,7 +30,7 @@ test.describe('Portal Extensions Page', () => {
     const portal = new LandingPage(page);
     await portal.extensionsLink.click();
     await expect(page).toHaveURL(/\/extensions/, { timeout: 15_000 });
-    await page.waitForTimeout(3_000);
+    await page.waitForTimeout(1_000);
 
     // Collect text content from cards/table rows
     const cardTexts = await page.locator('.v-card .v-card__title, .v-card .v-card__subtitle, .v-card .v-card__text').allTextContents();
@@ -48,7 +48,7 @@ test.describe('Portal Extensions Page', () => {
     const portal = new LandingPage(page);
     await portal.extensionsLink.click();
     await expect(page).toHaveURL(/\/extensions/, { timeout: 15_000 });
-    await page.waitForTimeout(2_000);
+    await page.waitForTimeout(1_000);
 
     const searchInput = page.locator('input[type="text"]').first();
     const isVisible = await searchInput.isVisible({ timeout: 5_000 }).catch(() => false);

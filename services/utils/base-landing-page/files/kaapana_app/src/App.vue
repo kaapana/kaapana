@@ -10,8 +10,8 @@
         <div class="blue py-2 mb-5">
           <v-list-item class="px-2 pb-2">
             <router-link to="/" class="d-inline-block">
-              <v-list-item-avatar>
-                <v-img src="/favicon.ico" title="Kaapana"></v-img>
+              <v-list-item-avatar color="white" class="logo-avatar">
+                <v-img src="/favicon.ico" title="Kaapana" contain></v-img>
               </v-list-item-avatar>
             </router-link>
 
@@ -439,6 +439,13 @@ export default Vue.extend({
 
 .uppercase-text .v-input__control {
   text-transform: uppercase;
+}
+
+.logo-avatar .v-image {
+  width: 75%;
+  height: 75%;
+  flex: none;
+  margin: auto;
 }
 
 body {

@@ -1526,6 +1526,15 @@ function load_kaapana_config {
     INSTANCE_NAME=""
 
     ######################################################
+    # Login page branding (shown on the Keycloak login page)
+    ######################################################
+    LOGIN_HEADER="Kaapana"                              # bold title on the login page
+    LOGIN_SUBHEADER="End-to-End medical image analysis" # muted line under the title
+    LOGIN_NOTICE=""             # longer notice text (single line; basic HTML allowed)
+    LOGIN_INSTITUTION_NAME=""   # alt text for the institution logo
+    LOGIN_INSTITUTION_LOGO=""   # URL or "data:" URI of a logo shown next to the Kaapana logo
+
+    ######################################################
     # Storage
     ######################################################
     STORAGE_PROVIDER="hostpath" # e.g. "hostpath" (microk8s) or "longhorn"
@@ -2364,6 +2373,11 @@ function deploy_chart {
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.instance_uid="$INSTANCE_UID" \
     --set-string global.instance_name="$INSTANCE_NAME" \
+    --set-string global.login_header="$LOGIN_HEADER" \
+    --set-string global.login_subheader="$LOGIN_SUBHEADER" \
+    --set-string global.login_notice="$LOGIN_NOTICE" \
+    --set-string global.login_institution_name="$LOGIN_INSTITUTION_NAME" \
+    --set-string global.login_institution_logo="$LOGIN_INSTITUTION_LOGO" \
     --set global.dev_mode=$DEV_MODE \
     --set global.patch_workflows_if_conflict=$PATCH_WORKFLOWS_IF_CONFLICT \
     --set-string global.kaapana_init_password="$KAAPANA_INIT_PASSWORD" \

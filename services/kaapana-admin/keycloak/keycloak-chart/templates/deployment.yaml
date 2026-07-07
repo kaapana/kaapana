@@ -67,6 +67,17 @@ spec:
             value: "true"
           - name: USER_SYNC_CONFIG_PATH
             value: "/opt/keycloak/config/config.json"
+          # Deployment-provided login-page branding (consumed by theme.properties ${env.*})
+          - name: KC_LOGIN_HEADER
+            value: {{ .Values.global.login_header | default "" | quote }}
+          - name: KC_LOGIN_SUBHEADER
+            value: {{ .Values.global.login_subheader | default "" | quote }}
+          - name: KC_LOGIN_NOTICE
+            value: {{ .Values.global.login_notice | default "" | quote }}
+          - name: KC_LOGIN_INSTITUTION_NAME
+            value: {{ .Values.global.login_institution_name | default "" | quote }}
+          - name: KC_LOGIN_INSTITUTION_LOGO
+            value: {{ .Values.global.login_institution_logo | default "" | quote }}
           ports:
           - name: http
             containerPort: 8080

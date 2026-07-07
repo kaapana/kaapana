@@ -38,7 +38,7 @@ RUN mvn clean package
 FROM local-only/base-python-cpu:latest AS builder
 
 WORKDIR /app
-RUN git clone --single-branch --depth 1 --branch 26.4.6 https://github.com/keycloak/keycloak.git /app/keycloak-repo
+RUN git clone --single-branch --depth 1 --branch 26.6.4 https://github.com/keycloak/keycloak.git /app/keycloak-repo
 RUN cp -r /app/keycloak-repo/themes/src/main/resources/theme/keycloak/ /app/kaapana
 COPY files/login.css /app/kaapana/login/resources/css/login.css
 COPY files/template.ftl /app/kaapana/login/template.ftl
@@ -59,9 +59,9 @@ RUN sed -i '/^stylesCommon=/c\stylesCommon=vendor/patternfly-v4/patternfly.min.c
 RUN printf '\nkaapanaLoginHeader=${env.KC_LOGIN_HEADER:Kaapana}\nkaapanaLoginSubheader=${env.KC_LOGIN_SUBHEADER:End-to-End medical image analysis}\nkaapanaLoginNotice=${env.KC_LOGIN_NOTICE:}\nkaapanaInstitutionName=${env.KC_LOGIN_INSTITUTION_NAME:}\nkaapanaInstitutionLogo=${env.KC_LOGIN_INSTITUTION_LOGO:}\n' >> /app/kaapana/login/theme.properties
 
 # Stage 4: Build the final Keycloak image with the custom theme and provider
-FROM quay.io/keycloak/keycloak:26.4.6
+FROM quay.io/keycloak/keycloak:26.6.4
 LABEL IMAGE="keycloak"
-LABEL VERSION="26.4.6"
+LABEL VERSION="26.6.4"
 LABEL BUILD_IGNORE="False"
 
 COPY --from=builder /app/kaapana /opt/keycloak/themes/kaapana

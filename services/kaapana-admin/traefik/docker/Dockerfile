@@ -1,5 +1,5 @@
-FROM docker.io/traefik:v3.5.6@sha256:16acb89c6db341182970d6fdafece31303b0a380a8ed7aa51682e225229bf1d2
+FROM docker.io/traefik:v3.7.6@sha256:21a3d83696379bac6434bb32e1dde0aff0e84ef2abd053ed3db87d3f45e749b2
 
 LABEL IMAGE="traefik"
-LABEL VERSION="v3.5.6"
+LABEL VERSION="v3.7.6"
 LABEL BUILD_IGNORE="False"

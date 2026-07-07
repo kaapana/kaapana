@@ -16,7 +16,7 @@ RUN make html
 ###############################
 ######### Production ##########
 ###############################
-FROM nginxinc/nginx-unprivileged:1.27.2-alpine
+FROM nginxinc/nginx-unprivileged:1.31.2-alpine
 WORKDIR /app
 
 COPY --from=build-stage /src/build/html/ /app/docs

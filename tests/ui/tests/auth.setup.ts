@@ -24,5 +24,15 @@ setup('authenticate as kaapana admin', async ({ page }) => {
     timeout: 20_000,
   });
 
+  // The landing page dispatches GET_SELECTED_PROJECT in its created() hook.
+  // That action fetches the user's projects from /aii/projects and then calls
+  // Vue.$cookies.set("Project", { id, name }) asynchronously.
+  // Several backend services (e.g. workflow-api POST /workflow-runs) require
+  // this cookie to exist.  Wait for it before saving the storage state.
+  await page.waitForFunction(
+    () => document.cookie.split('; ').some(c => c.startsWith('Project=')),
+    { timeout: 15_000 }
+  );
+
   await page.context().storageState({ path: AUTH_FILE });
 });

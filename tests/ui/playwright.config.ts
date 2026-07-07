@@ -10,9 +10,43 @@ export const AUTH_FILE = 'playwright/.auth/kaapana.json';
  *                                (default: https://localhost)
  *   KAAPANA_PROJECTS_UI_PATH   — path to project-management UI inside the portal
  *                                (default: /projects-ui)
+ *
+ * Optional:
+ *   PLAYWRIGHT_BROWSER         — chromium (default) | firefox | webkit
+ *                                Install the binary first: npx playwright install <browser>
  */
+
+// ── Browser ────────────────────────────────────────────────────────────────────
+// Defaults to Chromium; override with PLAYWRIGHT_BROWSER=firefox|webkit to test
+// against a different engine. Applies to every service suite below.
+type BrowserName = 'chromium' | 'firefox' | 'webkit';
+
+const BROWSER_NAME: BrowserName = (() => {
+  const b = process.env.PLAYWRIGHT_BROWSER;
+  if (b === 'firefox' || b === 'webkit' || b === 'chromium') return b;
+  return 'chromium';
+})();
+
+const BROWSER_DEVICE: Record<BrowserName, (typeof devices)[string]> = {
+  chromium: devices['Desktop Chrome'],
+  firefox:  devices['Desktop Firefox'],
+  webkit:   devices['Desktop Safari'],
+};
+
+// ── Service suites ────────────────────────────────────────────────────────────
+// Each entry becomes a named project that depends on auth-setup and runs on a
+// single, high-resolution browser window (the UI is designed for desktop use).
+const SERVICE_SPECS: Array<{ name: string; testMatch: RegExp }> = [
+  { name: 'project-management', testMatch: /project-management-ui\/.*\.spec\.ts/ },
+  { name: 'landing-page',       testMatch: /landing-page\/.*\.spec\.ts/ },
+  { name: 'workflow-ui',        testMatch: /workflow-ui\/.*\.spec\.ts/ },
+  { name: 'system-ui',          testMatch: /system-ui\/.*\.spec\.ts/ },
+  { name: 'extensions-ui',      testMatch: /extensions-ui\/.*\.spec\.ts/ },
+];
+
 export default defineConfig({
   testDir: './tests',
+  timeout: 20_000,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -53,38 +87,18 @@ export default defineConfig({
       testMatch: /auth\.setup\.ts/,
     },
 
-    // ── Step 2: project-management ────────────────────────────────────────
-    // End-to-end tests for /projects-ui. Runs on a single, high-resolution
-    // Chrome window (the UI is designed for desktop use, not mobile).
+    // ── Step 2: service suites ──────────────────────────────────────────────
     // Depends on auth-setup so Playwright runs it automatically when you call
-    //   npx playwright test --project project-management
-    {
-      name: 'project-management',
-      testMatch: /project-management\.spec\.ts/,
+    //   npx playwright test --project <suite-name>
+    ...SERVICE_SPECS.map(spec => ({
+      name: spec.name,
+      testMatch: spec.testMatch,
       dependencies: ['auth-setup'],
       use: {
-        ...devices['Desktop Chrome'],
+        ...BROWSER_DEVICE[BROWSER_NAME],
         viewport: { width: 1920, height: 1080 },
         storageState: AUTH_FILE,
       },
-    },
-
-    // ── Generic browser matrix ─────────────────────────────────────────────
-    // Runs every other spec file on the three major desktop browsers.
-    {
-      name: 'chromium',
-      testIgnore: [/first-login\.spec\.ts/, /auth\.setup\.ts/, /project-management\.spec\.ts/],
-      use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'firefox',
-      testIgnore: [/first-login\.spec\.ts/, /auth\.setup\.ts/, /project-management\.spec\.ts/],
-      use: { ...devices['Desktop Firefox'] },
-    },
-    {
-      name: 'webkit',
-      testIgnore: [/first-login\.spec\.ts/, /auth\.setup\.ts/, /project-management\.spec\.ts/],
-      use: { ...devices['Desktop Safari'] },
-    },
+    })),
   ],
 });

@@ -78,7 +78,66 @@ test_allow_project_application {
 test_deny_project_application_because_project_does_not_match {
     not allow with input as {
         "requested_prefix": "/applications/project/234-asd-234-dfg-23r/release/jupyterlab-chart",
-        "access_token": {"kaapana.ai/applications": ["open_123-234-345-456"]} 
+        "access_token": {"kaapana.ai/applications": ["open_123-234-345-456"]}
+    }
+}
+
+test_allow_view_applications {
+    allow with input as {
+        "requested_prefix": "/kube-helm-api/extensions",
+        "method": "GET",
+        "project": {"id": "234-asd-234-dfg-23r"},
+        "access_token": {"kaapana.ai/applications": ["view_234-asd-234-dfg-23r"]}
+    }
+}
+
+test_deny_view_applications_because_project_does_not_match {
+    not allow with input as {
+        "requested_prefix": "/kube-helm-api/extensions",
+        "method": "GET",
+        "project": {"id": "234-asd-234-dfg-23r"},
+        "access_token": {"kaapana.ai/applications": ["view_123-234-345-456"]}
+    }
+}
+
+test_deny_view_applications_for_wrong_method {
+    not allow with input as {
+        "requested_prefix": "/kube-helm-api/extensions",
+        "method": "POST",
+        "project": {"id": "234-asd-234-dfg-23r"},
+        "access_token": {"kaapana.ai/applications": ["view_234-asd-234-dfg-23r"]}
+    }
+}
+
+test_allow_launch_application {
+    allow with input as {
+        "requested_prefix": "/kube-helm-api/helm-install-chart",
+        "project": {"id": "234-asd-234-dfg-23r"},
+        "access_token": {"kaapana.ai/applications": ["launch_234-asd-234-dfg-23r"]}
+    }
+}
+
+test_deny_launch_application_because_project_does_not_match {
+    not allow with input as {
+        "requested_prefix": "/kube-helm-api/helm-install-chart",
+        "project": {"id": "234-asd-234-dfg-23r"},
+        "access_token": {"kaapana.ai/applications": ["launch_123-234-345-456"]}
+    }
+}
+
+test_allow_delete_active_apps {
+    allow with input as {
+        "requested_prefix": "/kube-helm-api/helm-delete-chart",
+        "project": {"id": "234-asd-234-dfg-23r"},
+        "access_token": {"kaapana.ai/applications": ["delete_234-asd-234-dfg-23r"]}
+    }
+}
+
+test_deny_delete_active_apps_because_project_does_not_match {
+    not allow with input as {
+        "requested_prefix": "/kube-helm-api/helm-delete-chart",
+        "project": {"id": "234-asd-234-dfg-23r"},
+        "access_token": {"kaapana.ai/applications": ["delete_123-234-345-456"]}
     }
 }
 
@@ -100,11 +159,11 @@ test_deny_adding_user {
 test_allow_managing_software {
     allow with input as {
         "requested_prefix": "/aii/projects/123-234-123-345/software-mappings",
-        "access_token": {"kaapana.ai/aii" : ["manage_software_123-234-123-345"] } 
+        "access_token": {"kaapana.ai/workflows" : ["manage_123-234-123-345"] }
     }
     allow with input as {
         "requested_prefix": "/flow/kaapana/api/getdags",
-        "access_token": {"kaapana.ai/aii" : ["manage_software_123-234-123-345"] } 
+        "access_token": {"kaapana.ai/workflows" : ["manage_123-234-123-345"] }
     }
 }
 
@@ -112,6 +171,6 @@ test_allow_managing_software {
 test_deny_managing_software {
     not allow with input as {
         "requested_prefix": "/aii/projects/123-234-123-345/software-mappings",
-        "access_token": {"kaapana.ai/aii" : ["manage_users_123-234-123-345"] } 
+        "access_token": {"kaapana.ai/workflows" : ["manage_users_123-234-123-345"] }
     }
 }

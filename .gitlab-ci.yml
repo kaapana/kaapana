@@ -254,6 +254,28 @@ keycloak_setup_tests:
         - keycloak_setup_report.xml
 
 ##############################################
+# Rego Policy Tests (OPA authorization policies)
+##############################################
+rego_policy_tests:
+  extends: .test_template
+  variables:
+    OPA_VERSION: "0.70.0"
+    AUTH_BACKEND_DIR: "$KAAPANA_DIR/services/kaapana-admin/auth-backend/auth-backend-chart"
+  script:
+    - curl -sL -o opa "https://openpolicyagent.org/downloads/v${OPA_VERSION}/opa_linux_amd64_static"
+    - chmod +x opa
+    - >
+      ./opa test -b "$AUTH_BACKEND_DIR/files" -f json > opa_test_results.json;
+      OPA_EXIT=$?;
+      python3 "$AUTH_BACKEND_DIR/files/test/rego_to_junit.py" opa_test_results.json rego_test_report.xml;
+      exit $OPA_EXIT
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - rego_test_report.xml
+
+##############################################
 # Documentation Build
 ##############################################
 build_documentation:
@@ -694,8 +716,6 @@ playwright_ui_tests:
     - |
       KAAPANA_TEST_INSTANCE_UI="https://$VM_FQDN" \
         npx playwright test \
-          --project auth-setup \
-          --project project-management \
           --workers 1
   artifacts:
     when: always

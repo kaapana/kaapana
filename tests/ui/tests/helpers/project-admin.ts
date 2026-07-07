@@ -72,9 +72,18 @@ export async function gotoProjectDetail(page: Page, projectName: string) {
   await expect(page.getByText(projectName, { exact: true })).toBeVisible({ timeout: 10_000 });
 }
 
-/** Expands a collapsible detail-page section by its title (Project Users, Project Workflows, ...). */
+/**
+ * Expands a collapsible detail-page section by its title (Project Users, Project Workflows, ...).
+ * No-op if the section is already expanded — the header is a toggle, and
+ * clicking it twice would collapse a section a caller expanded earlier.
+ */
 async function expandSection(page: Page, title: string) {
   const header = page.locator('h5').filter({ hasText: title }).first();
+  const alreadyExpanded = await header.locator('xpath=ancestor::div[contains(@class, "cursor-pointer")][1]')
+    .locator('.mdi-chevron-down')
+    .isVisible()
+    .catch(() => false);
+  if (alreadyExpanded) return;
   await header.click();
   await page.waitForTimeout(300);
 }

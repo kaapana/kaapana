@@ -46,6 +46,4 @@ tests/venv/*
 *.db
 .env
 lib/workflow_cli/build/
-migration_status
 test-results/
-CLAUDE.md

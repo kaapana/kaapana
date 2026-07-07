@@ -21,6 +21,13 @@ const AUTH_FILE = path.join(__dirname, '..', '..', 'playwright', '.auth', 'kaapa
 
 const BASE_URL = process.env.KAAPANA_TEST_INSTANCE_UI || 'https://localhost';
 
+// Node's global `fetch` (undici) does its own TLS verification and ignores
+// Playwright's `ignoreHTTPSErrors` config — the test instance uses a
+// self-signed cert, so without this every fetch() call below fails with
+// "self-signed certificate". Browser/APIRequestContext traffic in this suite
+// already trusts the same cert via `ignoreHTTPSErrors: true`.
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 export type RealmRole = 'admin' | 'user' | 'project-manager';
 
 export interface KeycloakUserPayload {

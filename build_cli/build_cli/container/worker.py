@@ -45,10 +45,6 @@ class BuildWorker:
             return
 
         if ContainerHelper._build_config.build_only:
-            self._emit_event(
-                BuildEvent(type=BuildEventType.BUILT, container=container),
-                event_queue,
-            )
             return
 
         # Push phase

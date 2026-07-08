@@ -12,6 +12,8 @@ Connecting to DICOM Data
 Neither viewer has a PACS address baked in -- they speak DICOMweb against whatever ``/dicom-web-filter`` resolves to on the platform that served them.
 Because of this, if the platform's :ref:`DICOM Web Filter<concepts_external_pacs>` is pointed at an external DICOMweb store instead of the internal PACS, both viewers follow transparently; there is nothing viewer-specific to reconfigure.
 
+The same endpoint handles annotations going back in. Both viewers are configured with STOW-RS write access (OHIF's ``stowRoot``, Slim's ``write: true`` server flag) against the same ``/dicom-web-filter`` URL used for reading, so an annotation created in the viewer -- a Slim Viewer measurement or an OHIF structured report -- is saved as a DICOM SR object back through the same route the viewer reads from.
+
 Connecting to MinIO
 =======================
 

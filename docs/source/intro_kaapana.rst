@@ -58,9 +58,9 @@ Currently the most widely used platform based on Kaapana is in the `Radiological
 
 Kaapana has also been successfully adopted across a range of other national and international research initiatives. Some deployments include:
 
-* `CCE-DART consortium <https://cce-dart.com>_` 
-* `German Cancer Consortium (DKTK) <https://dktk.dkfz.de>_`
-* `NeuroRad project <https://stroke.ccibonn.ai>_`
+* `CCE-DART consortium <https://cce-dart.com>`_
+* `German Cancer Consortium (DKTK) <https://dktk.dkfz.de>`_
+* `NeuroRad project <https://stroke.ccibonn.ai>`_
 
 .. raw:: html
 

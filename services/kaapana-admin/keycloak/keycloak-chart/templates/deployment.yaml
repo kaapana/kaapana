@@ -41,18 +41,18 @@ spec:
           image: "{{ .Values.global.registry_url }}/keycloak:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           env:
-          - name: KC_BOOTSTRAP_ADMIN_USERNAME 
-            value: {{ .Values.global.credentials_keycloak_admin_username }}
+          - name: KC_BOOTSTRAP_ADMIN_USERNAME
+            value: {{ .Values.global.credentials_keycloak_admin_username | quote }}
           - name: KC_BOOTSTRAP_ADMIN_PASSWORD
-            value: {{ .Values.global.credentials_keycloak_admin_password }}
+            value: {{ .Values.global.credentials_keycloak_admin_password | quote }}
           - name: KC_DB 
             value: "postgres"
           - name: KC_DB_URL 
             value: "jdbc:postgresql://{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{  .Values.global.admin_namespace  }}.svc/keycloak" 
-          - name: KC_DB_USERNAME 
-            value: {{ .Values.kaapana_database.postgres_user }}
+          - name: KC_DB_USERNAME
+            value: {{ .Values.kaapana_database.postgres_user | quote }}
           - name: KC_DB_PASSWORD
-            value: {{ .Values.kaapana_database.postgres_password }}
+            value: {{ .Values.kaapana_database.postgres_password | quote }}
           - name: KC_LOG_LEVEL
             value: "DEBUG"
           - name: KC_HTTPS_CERTIFICATE_KEY_FILE

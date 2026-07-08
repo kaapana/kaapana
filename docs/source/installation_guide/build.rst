@@ -173,7 +173,10 @@ You should also have the following packages installed on your build-system.
 
 #. Docker
 
-   :code:`sudo snap install docker --classic --channel=latest/stable`
+   Install Docker following the `official Docker installation guide <https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository>`_.
+
+   .. attention::
+      Installing Docker via ``snap`` is not recommended -- it fails to work correctly on many systems. Use the official installation method linked above.
 
 #. In order to execute docker commands as non-root user you need to execute the following steps:
 

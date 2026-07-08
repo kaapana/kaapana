@@ -144,4 +144,4 @@ To do this, you can use :term:`kaapanactl`.
 .. hint::
 
   | **Server Dependency Uninstallation**
-  | To uninstall the server-packages, you can use :code:`sudo ./kaapanactl.sh uninstall`
+  | To uninstall the server-packages, you can use :code:`sudo ./kaapanactl.sh install uninstall`

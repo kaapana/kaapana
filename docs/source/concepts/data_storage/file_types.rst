@@ -19,5 +19,6 @@ Data API (Work in Progress)
 ===============================
 
 The :ref:`Data API<concepts_architecture_data_api>` is meant to eventually catalog these files as data entities too -- a filesystem path, an S3 object, or a plain URL, with metadata validated against a JSON Schema rather than assumed to be DICOM-shaped -- but that work is still in progress. The Data API will not itself move or mount data between locations; getting bytes in or out of an external location is still the responsibility of the workflow's own operators.
+This would bring non-DICOM files the same guarantees -- schema-validated metadata, a stable identifier, discoverability -- that DICOM already gets from its dedicated ingestion pipeline.
 
 

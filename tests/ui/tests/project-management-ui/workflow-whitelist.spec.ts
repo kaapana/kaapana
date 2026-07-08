@@ -39,7 +39,7 @@ async function listDagDropdownOptions(page: Page): Promise<string[]> {
 
 test.describe.configure({ mode: 'serial' });
 
-test.describe('Project Management UI — Restrict access to workflows (whitelist)', () => {
+test.describe('Project Management UI — Restrict access to workflows (whitelist)', { tag: '@functional' }, () => {
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(60_000);
     await createKeycloakUser({ username: PI_USER, password: PASSWORD, firstName: 'WF', lastName: 'PI', realmRoles: ['user'] });

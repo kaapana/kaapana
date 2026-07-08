@@ -1,14 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { LandingPage } from '../helpers/LandingPage';
 
-test.describe('Landing Page — Notifications', () => {
+test.describe('Landing Page — Notifications', { tag: '@functional' }, () => {
   test.beforeEach(async ({ page }) => {
     const portal = new LandingPage(page);
     await portal.goto();
     await portal.waitForLoad();
   });
 
-  test('Notifications dialog — opens and closes', async ({ page }) => {
+  test('Notifications dialog — opens and closes', { tag: '@ui' }, async ({ page }) => {
     const portal = new LandingPage(page);
 
     await portal.notificationsButton.click();

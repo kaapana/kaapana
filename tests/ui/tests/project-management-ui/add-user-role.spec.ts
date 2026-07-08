@@ -13,7 +13,7 @@ let projectId: string;
 
 test.describe.configure({ mode: 'serial' });
 
-test.describe('Project Management UI — Add user with role', () => {
+test.describe('Project Management UI — Add user with role', { tag: '@functional' }, () => {
   test.beforeAll(async ({ browser }) => {
     await createKeycloakUser({ username: PI_USER, password: 'pw-test-1234', firstName: 'PI', lastName: 'User', realmRoles: ['user'] });
     await createKeycloakUser({ username: SCIENTIST_USER, password: 'pw-test-1234', firstName: 'Scientist', lastName: 'User', realmRoles: ['user'] });

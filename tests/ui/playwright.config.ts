@@ -44,6 +44,17 @@ const SERVICE_SPECS: Array<{ name: string; testMatch: RegExp }> = [
   { name: 'extensions-ui',      testMatch: /extensions-ui\/.*\.spec\.ts/ },
 ];
 
+// Every test is tagged either @ui or @functional:
+//   @ui         — superficial UI state only (element visibility, dialog open/close,
+//                 loose "shows some expected text" checks). No real data/permission
+//                 integrity is verified.
+//   @functional — exercises real backend behavior: data lifecycle, RBAC/whitelist
+//                 enforcement, workflow runs actually completing, etc.
+// @ui tests are skipped by default to keep the suite fast; set RUN_UI_TESTS=true
+// to include them too (e.g. for a full pre-release pass). To run ONLY @ui tests,
+// combine both: RUN_UI_TESTS=true npx playwright test --grep @ui
+const RUN_UI_TESTS = process.env.RUN_UI_TESTS === 'true';
+
 export default defineConfig({
   testDir: './tests',
   timeout: 20_000,
@@ -51,6 +62,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
+  grepInvert: RUN_UI_TESTS ? undefined : /@ui/,
 
   // In CI: emit both an HTML report (downloadable) and JUnit XML (shown inline in GitLab).
   // Locally: just the interactive HTML report.

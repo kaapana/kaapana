@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Landing Page — unauthenticated', () => {
+test.describe('Landing Page — unauthenticated', { tag: '@functional' }, () => {
   test('unauthenticated visit to / redirects to Keycloak login', async ({ browser }) => {
     const ctx = await browser.newContext({
       ignoreHTTPSErrors: true,

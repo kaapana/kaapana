@@ -57,7 +57,7 @@ async function cleanupTestProject(browser: Browser): Promise<void> {
 // used by the next). Running in parallel would cause race conditions.
 test.describe.configure({ mode: 'serial' });
 
-test.describe('Project Management UI', () => {
+test.describe('Project Management UI', { tag: '@functional' }, () => {
   test.beforeAll(async ({ browser }) => {
     await cleanupTestProject(browser);
   });

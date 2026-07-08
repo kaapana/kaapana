@@ -14,7 +14,7 @@ let projectId: string;
 
 test.describe.configure({ mode: 'serial' });
 
-test.describe('Project Management UI — Remove a user from a project', () => {
+test.describe('Project Management UI — Remove a user from a project', { tag: '@functional' }, () => {
   test.beforeAll(async ({ browser }) => {
     // Keycloak user creation + project setup is several sequential API round
     // trips — heavier than the 20s default (see app-whitelist.spec.ts).

@@ -21,6 +21,12 @@ const AUTH_FILE = path.join(__dirname, '..', '..', 'playwright', '.auth', 'kaapa
 
 const BASE_URL = process.env.KAAPANA_TEST_INSTANCE_UI || 'https://localhost';
 
+// Since the "replace admin password with service client credentials" hotfix,
+// the Keycloak admin API is authenticated via the kaapana-service client's
+// client_credentials grant against the kaapana realm — the master-realm
+// admin/admin-cli password grant this used to use no longer exists.
+const KEYCLOAK_SERVICE_CLIENT_SECRET = process.env.KEYCLOAK_SERVICE_CLIENT_SECRET;
+
 // Node's global `fetch` (undici) does its own TLS verification and ignores
 // Playwright's `ignoreHTTPSErrors` config — the test instance uses a
 // self-signed cert, so without this every fetch() call below fails with
@@ -50,6 +56,31 @@ function storageCookieHeader(): string {
     .join('; ');
 }
 
+/** Gets a Keycloak admin API Bearer token via the kaapana-service client_credentials grant. */
+async function getAdminToken(cookie: string): Promise<string> {
+  if (!KEYCLOAK_SERVICE_CLIENT_SECRET) {
+    throw new Error('KEYCLOAK_SERVICE_CLIENT_SECRET env var is required to authenticate against the Keycloak admin API');
+  }
+  const tokenUrl = `${BASE_URL}/auth/realms/kaapana/protocol/openid-connect/token`;
+  const tokenRes = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      Cookie: cookie,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      client_id: 'kaapana-service',
+      client_secret: KEYCLOAK_SERVICE_CLIENT_SECRET,
+      grant_type: 'client_credentials',
+    }),
+  });
+  if (!tokenRes.ok) {
+    throw new Error(`Keycloak token request failed (${tokenRes.status}): ${await tokenRes.text()}`);
+  }
+  const tokenData = (await tokenRes.json()) as { access_token: string };
+  return tokenData.access_token;
+}
+
 /**
  * Create a Keycloak user via the Admin REST API.
  * Uses the saved Playwright auth session cookies to pass through the ingress
@@ -59,31 +90,12 @@ export async function createKeycloakUser(payload: KeycloakUserPayload): Promise<
   const cookie = storageCookieHeader();
 
   const adminUrl = `${BASE_URL}/auth/admin/realms/kaapana`;
-
-  // Get admin Bearer token (password grant) — needed for Keycloak API auth
-  const tokenUrl = `${BASE_URL}/auth/realms/master/protocol/openid-connect/token`;
-  const tokenRes = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: {
-      Cookie: cookie,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      client_id: 'admin-cli',
-      username: process.env.KEYCLOAK_USER || 'admin',
-      password: process.env.KEYCLOAK_PASSWORD || 'Kaapana2020',
-      grant_type: 'password',
-    }),
-  });
-  if (!tokenRes.ok) {
-    throw new Error(`Keycloak token request failed (${tokenRes.status}): ${await tokenRes.text()}`);
-  }
-  const tokenData = (await tokenRes.json()) as { access_token: string };
+  const token = await getAdminToken(cookie);
 
   // Use BOTH cookies (to pass the Traefik auth-check) and Bearer token (for Keycloak auth)
   const baseHeaders: Record<string, string> = {
     Cookie: cookie,
-    Authorization: `Bearer ${tokenData.access_token}`,
+    Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
   };
 
@@ -170,27 +182,16 @@ export async function deleteKeycloakUser(username: string): Promise<void> {
   const cookie = storageCookieHeader();
   const adminUrl = `${BASE_URL}/auth/admin/realms/kaapana`;
 
-  // Get admin Bearer token (same as createKeycloakUser)
-  const tokenUrl = `${BASE_URL}/auth/realms/master/protocol/openid-connect/token`;
-  const tokenRes = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: {
-      Cookie: cookie,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      client_id: 'admin-cli',
-      username: process.env.KEYCLOAK_USER || 'admin',
-      password: process.env.KEYCLOAK_PASSWORD || 'Kaapana2020',
-      grant_type: 'password',
-    }),
-  });
-  if (!tokenRes.ok) return;
-  const tokenData = (await tokenRes.json()) as { access_token: string };
+  let token: string;
+  try {
+    token = await getAdminToken(cookie);
+  } catch {
+    return;
+  }
 
   const headers: Record<string, string> = {
     Cookie: cookie,
-    Authorization: `Bearer ${tokenData.access_token}`,
+    Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
   };
 

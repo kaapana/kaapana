@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { LandingPage } from '../helpers/LandingPage';
 
-test.describe('System — External System Pages', () => {
+test.describe('System — External System Pages', { tag: '@ui' }, () => {
   test.beforeEach(async ({ page }) => {
     const portal = new LandingPage(page);
     await portal.goto();

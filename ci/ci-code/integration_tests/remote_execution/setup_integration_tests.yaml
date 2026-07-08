@@ -68,10 +68,20 @@
       register: client_secret
       changed_when: false
 
+    # kaapana-service is a separate Keycloak client (client_credentials grant,
+    # no user involved) used for machine-to-machine calls to the Keycloak Admin
+    # API — its secret is distinct from oidc_client_secret above.
+    - name: Fetch kaapana-service client secret from remote VM
+      ansible.builtin.shell: |
+        microk8s kubectl get secret kaapana-service-password -n admin -o jsonpath='{.data.kaapana-service-password}' 2>/dev/null | base64 -d || true
+      register: keycloak_service_client_secret
+      changed_when: false
+
     - name: Write client_secret to dotenv file
       ansible.builtin.copy:
         dest: "{{ artifacts_dir }}/integration_test_setup.env"
         content: |
           CLIENT_SECRET={{ client_secret.stdout }}
+          KEYCLOAK_SERVICE_CLIENT_SECRET={{ keycloak_service_client_secret.stdout }}
       become: false
       delegate_to: localhost

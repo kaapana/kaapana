@@ -29,7 +29,7 @@ async function hasManageUsersRights(page: import('@playwright/test').Page, usern
 
 test.describe.configure({ mode: 'serial' });
 
-test.describe("Project Management UI — Change a user's role", () => {
+test.describe("Project Management UI — Change a user's role", { tag: '@functional' }, () => {
   test.beforeAll(async ({ browser }) => {
     // Keycloak user creation + project setup is several sequential API round
     // trips — heavier than the 20s default (see app-whitelist.spec.ts).

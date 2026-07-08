@@ -6,7 +6,7 @@ import { WorkflowUIPage } from '../helpers/WorkflowUIPage';
 // Tests in this group run SERIALLY because each depends on the previous one.
 // ══════════════════════════════════════════════════════════════════════════════
 
-test.describe('Workflow UI — Submit and verify a workflow run', () => {
+test.describe('Workflow UI — Submit and verify a workflow run', { tag: '@functional' }, () => {
   test.describe.configure({ mode: 'serial' });
 
   test('start dummy-workflow, verify run created, navigate to Runs view', async ({ page }) => {
@@ -239,7 +239,7 @@ test.describe('Workflow UI — Runs view', () => {
     await page.keyboard.press('Escape');
   });
 
-  test('toolbar, info, clean, refresh, stats, SearchBar field dropdown, workflow filter, and status chip filter', async ({ page }) => {
+  test('toolbar, info, clean, refresh, stats, SearchBar field dropdown, workflow filter, and status chip filter', { tag: '@ui' }, async ({ page }) => {
     const ui = new WorkflowUIPage(page);
 
     // ── Toolbar elements ──────────────────────────────────────────────────────

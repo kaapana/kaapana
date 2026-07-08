@@ -708,6 +708,8 @@ playwright_ui_tests:
   needs:
     - job: prepare_deployment
       artifacts: true
+    - job: setup_integration_tests
+      artifacts: true
     - platform_deployment
     - first_login
   script:
@@ -718,6 +720,7 @@ playwright_ui_tests:
     - npx playwright install --with-deps chromium
     - |
       KAAPANA_TEST_INSTANCE_UI="https://$VM_FQDN" \
+      KEYCLOAK_SERVICE_CLIENT_SECRET="$KEYCLOAK_SERVICE_CLIENT_SECRET" \
       NODE_OPTIONS="--no-warnings" \
         npx playwright test \
           --workers 1

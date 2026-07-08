@@ -6,7 +6,7 @@ import { createKeycloakUser, deleteKeycloakUser, loginAsUser } from '../helpers/
 const TEST_DATASET = 'pw-e2e-dataset';
 const TEST_RESTRICTED_USER = 'pw-restricted-user';
 
-test.describe('Datasets — project isolation', () => {
+test.describe('Datasets — project isolation', { tag: '@functional' }, () => {
   test.describe.configure({ mode: 'serial' });
 
   async function ensureDatasetExists(page: Page): Promise<void> {

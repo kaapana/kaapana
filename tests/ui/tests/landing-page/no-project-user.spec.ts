@@ -4,7 +4,7 @@ import { createKeycloakUser, deleteKeycloakUser, loginAsUser } from '../helpers/
 
 const TEST_USER = 'pw-no-project-user';
 
-test.describe('Landing Page — user with no project', () => {
+test.describe('Landing Page — user with no project', { tag: '@functional' }, () => {
   test.beforeAll(async () => {
     await createKeycloakUser({
       username: TEST_USER,

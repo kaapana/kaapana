@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { ExtensionManagerPage } from '../helpers/ExtensionManagerPage';
 import { EXTENSION_MGR } from '../helpers/env';
 
-test.describe('Extension Manager UI — Catalog view', () => {
+test.describe('Extension Manager UI — Catalog view', { tag: '@ui' }, () => {
   test.beforeEach(async ({ page }) => {
     const em = new ExtensionManagerPage(page);
     await em.gotoCatalog();
@@ -49,7 +49,7 @@ test.describe('Extension Manager UI — Catalog view', () => {
   });
 });
 
-test.describe('Extension Manager UI — Extensions view', () => {
+test.describe('Extension Manager UI — Extensions view', { tag: '@ui' }, () => {
   test.beforeEach(async ({ page }) => {
     const em = new ExtensionManagerPage(page);
     await em.gotoExtensions();
@@ -67,7 +67,7 @@ test.describe('Extension Manager UI — Extensions view', () => {
   });
 });
 
-test.describe('Extension Manager UI — Repositories view', () => {
+test.describe('Extension Manager UI — Repositories view', { tag: '@ui' }, () => {
   test.beforeEach(async ({ page }) => {
     const em = new ExtensionManagerPage(page);
     await em.gotoRepositories();

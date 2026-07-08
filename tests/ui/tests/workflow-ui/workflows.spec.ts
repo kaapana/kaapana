@@ -17,7 +17,7 @@ async function getWorkflowCardTitles(page: Page): Promise<string[]> {
 // Workflows view — all UI components verified in one test
 // ══════════════════════════════════════════════════════════════════════════════
 
-test.describe('Workflow UI — Workflows view', () => {
+test.describe('Workflow UI — Workflows view', { tag: '@functional' }, () => {
   test.beforeEach(async ({ page }) => {
     const ui = new WorkflowUIPage(page);
     await ui.gotoWorkflows();
@@ -34,7 +34,7 @@ test.describe('Workflow UI — Workflows view', () => {
     await page.keyboard.press('Escape');
   });
 
-  test('toolbar, filter panel, sort menu, refresh, START button and Run Workflow form', async ({ page }) => {
+  test('toolbar, filter panel, sort menu, refresh, START button and Run Workflow form', { tag: '@ui' }, async ({ page }) => {
     const ui = new WorkflowUIPage(page);
 
     // ── Toolbar elements ──────────────────────────────────────────────────────
@@ -148,7 +148,7 @@ test.describe('Workflow UI — Workflows view', () => {
 // Installing a brand-new workflow definition (not just running an existing one)
 // ══════════════════════════════════════════════════════════════════════════════
 
-test.describe('Workflow UI — Install a new workflow', () => {
+test.describe('Workflow UI — Install a new workflow', { tag: '@functional' }, () => {
   // Scenario 1: valid workflow-api metadata, but the `definition` isn't a
   // real Airflow DAG. The install itself succeeds and the workflow is
   // listed — Airflow just never has anything to sync, so it stays

@@ -56,7 +56,7 @@ async function submitWorkflowAndVerify(page: any, portal: LandingPage, workflowN
   await portal.waitForNamedWorkflowSuccess(workflowName, 90_000);
 }
 
-test.describe('Landing Page — End-to-End Data Lifecycle', () => {
+test.describe('Landing Page — End-to-End Data Lifecycle', { tag: '@functional' }, () => {
   test('upload a series, delete it, and delete its dataset', async ({ page }, testInfo) => {
     test.setTimeout(240_000);
     const portal = new LandingPage(page);

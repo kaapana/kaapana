@@ -12,7 +12,7 @@ const PASSWORD = 'pw-test-1234';
 
 let projectId: string;
 
-test.describe('Landing Page — non-admin user with a project (scientist)', () => {
+test.describe('Landing Page — non-admin user with a project (scientist)', { tag: '@functional' }, () => {
   test.beforeAll(async ({ browser }) => {
     await createKeycloakUser({
       username: TEST_USER,

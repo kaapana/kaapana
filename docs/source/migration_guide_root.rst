@@ -35,6 +35,7 @@ Migration Guide
 +-------+-------+---------------------------+----------------------------------------------+
 
 .. toctree::
+    :hidden:
     :maxdepth: 3
 
     migration_guide/migration_guide_0.7

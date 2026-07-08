@@ -28,7 +28,7 @@ Building on other operating systems or architectures has not been tested and may
   | For the complete build of the project ~90GB (~110GB including build cache) of container images will be stored at :code:`/var/snap/docker/common/var-lib-docker`.
   | When creating offline installation tarball, ~80GB additional disk space is needed.
 
-Before you get started you should be familiar with the basic concepts and components of Kaapana (see :ref:`about_kaapana`).
+Before you get started you should be familiar with the basic concepts and components of Kaapana (see :ref:`What is Kaapana?<about_kaapana>`).
 You should also have the following packages installed on your build-system.
 
 #. Dependencies
@@ -202,6 +202,8 @@ You should also have the following packages installed on your build-system.
 Start Build
 ------------
 
+Choose the tab that matches your installation path: **Remote Registry** for a normal online install, **Local Registry** for a registry-only setup with no external access, and **Tarball** for a fully offline (air-gapped) installation.
+
 .. tabs::
 
    .. tab:: Build With Remote Registry
@@ -239,7 +241,7 @@ Start Build
             docker run -d -p 5000:5000 --restart unless-stopped --name registry -v "$(pwd)"/auth:/auth -e "REGISTRY_AUTH=htpasswd" -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd registry:2.8.3
 
 
-      3. Configure ``build_config.yaml``:
+      3. Run the build against the local registry:
 
          .. code-block:: python
 
@@ -260,6 +262,8 @@ Start Build
 
       | Installer will be available in ``kaapana/build/microk8s-offline-installer``
       | Tarball will be available in ``kaapana/build/kaapana-admin-chart/kaapana-admin-chart-<version>-images.tar``
+
+      | To bundle AI model weights into the container images themselves, so they are already present on the offline machine, add the ``--include-model-weights`` flag (or set ``INCLUDE_MODEL_WEIGHTS=true`` in your ``.env``) to the command above.
 
 
 This takes usually (depending on your hardware) around 1h.

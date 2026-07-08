@@ -73,7 +73,7 @@ There is no dedicated support for ML models specifically yet -- no model registr
 Extension Manager
 ================================================
 
-The **Extension Manager** -- ``extension-manager-service``, FastAPI + PostgreSQL, paired with the ``extension-manager-ui`` Vue 3 frontend -- is a service responsible for distributing software -- tasks, workflows and applications -- pulled from an OCI registry. Currently, it lives alongside the existing Helm-chart upload path (still handled by **Kube-Helm**, above) and supports an installer for the ``workflow-v1`` content type; installers for tasks and applications are anticipated. See :ref:`concepts_extensions_system` for the manifest format and installation lifecycle.
+Introduced in Kaapana 0.7.0, the **Extension Manager** -- ``extension-manager-service``, FastAPI + PostgreSQL, paired with the ``extension-manager-ui`` Vue 3 frontend -- is a service responsible for distributing software -- tasks, workflows and applications -- pulled from an OCI registry. Currently, it lives alongside the existing Helm-chart upload path (still handled by **Kube-Helm**, above) and supports an installer for the ``workflow-v1`` content type; installers for tasks and applications are anticipated. See :ref:`concepts_extensions_system` for how this fits alongside the Helm-chart upload path.
 
 Access Information Interface (AII)
 ================================================

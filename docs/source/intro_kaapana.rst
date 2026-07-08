@@ -11,9 +11,6 @@
     <br />
     <br />
 
-.. _about_kaapana:
-
-
 What is Kaapana?
 ================
 
@@ -52,6 +49,8 @@ Core technologies used in Kaapana:
 * `Keycloak <https://www.keycloak.org/>`_: User authentication
 * `FastAPI <https://fastapi.tiangolo.com/>`_: Web framework for building APIs with Python 
 * `Open Policy Agent (OPA) <https://www.openpolicyagent.org/>`_: Policy based access control for projects
+
+See :ref:`use_cases` for a snapshot of the workflows and applications available out of the box.
 
 For more information about Kaapana, take a look at the `Kaapana publication <https://www.arxiv.org/abs/2512.09644>`_.
 

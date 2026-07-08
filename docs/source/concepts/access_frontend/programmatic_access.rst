@@ -10,7 +10,10 @@ Authentication
 ================
 
 The supported client, ``KaapanaApiService`` from the ``kaapana_client`` package, implements exactly one OAuth2 flow: the **Device Authorization Grant**.
-There is no client-credentials grant, so nothing -- not even code running inside the cluster -- can silently mint a token for itself; a human has to approve access once in a browser, after which a long-lived refresh token keeps the client authenticated.
+There is no client-credentials grant, so nothing -- not even code running inside the cluster -- can silently mint a token for itself; a human has to approve access once in a browser, after which a refresh token keeps the client authenticated.
+
+.. note::
+   The ``offline_access`` scope is **deprecated** and will be removed in the next release. It is being phased out step by step -- the initial device-authorization request no longer includes it, though it is still requested during token exchange for this release. Do not rely on it remaining available.
 
 .. note::
    A JupyterLab session launched from the :ref:`Extensions page<extensions>` is handed ``KAAPANA_PROJECT_ID``, ``KAAPANA_CLIENT_ID`` and ``KAAPANA_CLIENT_SECRET`` as environment variables, so ``get_api_service_from_env()`` works out of the box.
@@ -23,7 +26,7 @@ Setting up the client
 
 **Prerequisites**
 
-* The ``kaapana_client`` package is installed (``pip install kaapana_client``).
+* The ``kaapana_client`` package is installed from the Kaapana repository (``pip install ./kaapana/lib/kaapana_client``).
 
 **Initialization**
 

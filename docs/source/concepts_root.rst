@@ -64,7 +64,7 @@ Access & Frontend
 * :ref:`Access Control<access_control_root>` -- controlling access to data, workflows and other resources.
 * :ref:`concepts_authorization_flow` -- how a request is authenticated and authorized on its way to a backend service.
 * :ref:`concepts_programmatic_access` -- calling Kaapana's workflow APIs from a script or notebook.
-* :ref:`concepts_viewing_and_frontend` -- why connecting a viewer or application is a matter of configuration, not code.
+* :ref:`concepts_connect_apps_and_data` -- why connecting a viewer or application is a matter of configuration, not code.
 
 .. toctree::
    :hidden:
@@ -74,4 +74,4 @@ Access & Frontend
    concepts/access_frontend/access_control_root
    concepts/access_frontend/authorization_flow
    concepts/access_frontend/programmatic_access
-   concepts/access_frontend/viewing_and_frontend
+   concepts/access_frontend/connect_apps_and_data

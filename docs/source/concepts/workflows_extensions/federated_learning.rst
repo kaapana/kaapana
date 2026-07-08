@@ -10,6 +10,7 @@ Coordinator and Remote Instance Roles
 ==========================================
 
 A federation consists of one **coordinator** instance and one or more **remote** instances, registered with each other through the :ref:`Instance Overview<instance_overview>` component (shared instance tokens and, optionally, Fernet encryption for the data exchanged between them).
+The web interface calls these the same roles by different names: the coordinator is the job's **Owner Instance**, and the remote instances it distributes work to are the **Runner instances**.
 Each remote instance independently decides which of its own DAGs and datasets it makes available to the federation -- the coordinator cannot execute or read anything the remote instance hasn't explicitly allowed.
 
 The orchestration flow
@@ -47,7 +48,8 @@ Kaapana ships a handful of federated example workflows built on this base: feder
 Security model
 ================
 
-Federation relies on the same building blocks as everything else in Kaapana: mutual instance registration with shared secrets, encrypted transport for sensitive payloads, and project-scoped access to the underlying data (see :ref:`Access Control<access_control_root>`).
+Federation relies on the same building blocks as everything else in Kaapana: mutual instance registration with shared secrets and encrypted transport for sensitive payloads (see :ref:`Access Control<access_control_root>`).
+However, federated capabilities are currently only supported in the ``admin`` project and only enabled for system admin users.
 A remote instance is never given direct access to the coordinator's data or vice versa -- all it receives is a job to run against its own data, and all it returns is the artifact its local workflow produced.
 
 Building a new federated workflow

@@ -71,7 +71,7 @@ As a convenience, if the required values are available as environment variables,
     api = get_api_service_from_env()
 
 Open the printed URL in a browser and confirm access with a Kaapana account.
-You do **not** need to do this before calling a method -- if the token has not been obtained yet, the first HTTP call will poll for approval automatically (up to 10 attempts, 5 seconds apart) and log the URL again on each retry.
+You do **not** need to do this before calling a method -- if the token has not been obtained yet, the first HTTP call will poll for approval automatically, with no limit on how long it waits. If the device code expires before you approve it, the client silently starts a new device authorization grant and prints a fresh URL, rather than giving up.
 
 **Token lifecycle**
 
@@ -121,8 +121,3 @@ Submitting a run is a single call to the Workflow API:
 
 The project the run executes in is taken from the authenticated session, not from the request body.
 Poll ``GET workflow-api/v1/workflow-runs/{run_id}`` for its lifecycle status, and ``.../task-runs`` for per-task status and logs.
-
-Future Direction
-================
-
-The Workflow API has a ``POST /workflows`` endpoint that registers a workflow definition, but creating a *runnable* workflow today still means building DAG code and a Helm chart and installing them through the Workflow CLI (see :ref:`concepts_workflow_distribution`) -- an external client cannot go from nothing to a runnable workflow through the API alone. Extending programmatic access to cover that full path is a planned future enhancement.

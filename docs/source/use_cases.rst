@@ -91,7 +91,7 @@ Those results can then be opened again in the same viewers used earlier in the p
 -- **OHIF** or **MITK/3D Slicer** for DICOM segmentations, **SLIM Viewer** for
 whole-slide results -- and documents or reports can be opened and edited directly in
 **Collabora**.
-See :ref:`store` and :ref:`concepts_viewing_and_frontend` for how these viewers connect
+See :ref:`store` and :ref:`concepts_connect_apps_and_data` for how these viewers connect
 back to the platform.
 
 Federated Execution

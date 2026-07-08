@@ -13,7 +13,7 @@ DICOM is the primary supported type. It reaches the internal PACS via classic DI
 Arbitrary Non-DICOM Files
 ============================
 
-Arbitrary non-DICOM files are currently uploaded through the web interface's :ref:`Data Upload page<data_upload>` and land in **MinIO**, where they can be browsed and managed as ordinary bucket objects. This is the current path for anything that is not DICOM.
+Arbitrary non-DICOM files are currently uploaded directly through the **MinIO** web interface (see :ref:`store`), where they land in a bucket and can be browsed and managed as ordinary objects.
 
 Data API (Work in Progress)
 ===============================

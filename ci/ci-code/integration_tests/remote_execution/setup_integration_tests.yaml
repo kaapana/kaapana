@@ -73,9 +73,12 @@
     # API — its secret is distinct from oidc_client_secret above.
     - name: Fetch kaapana-service client secret from remote VM
       ansible.builtin.shell: |
-        microk8s kubectl get secret kaapana-service-password -n admin -o jsonpath='{.data.kaapana-service-password}' 2>/dev/null | base64 -d || true
+        set -o pipefail
+        microk8s kubectl get secret kaapana-service-password -n admin -o jsonpath='{.data.kaapana-service-password}' | base64 -d
       register: keycloak_service_client_secret
       changed_when: false
+      become: true
+      failed_when: keycloak_service_client_secret.rc != 0 or keycloak_service_client_secret.stdout == ''
 
     - name: Write client_secret to dotenv file
       ansible.builtin.copy:

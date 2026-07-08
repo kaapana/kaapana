@@ -202,7 +202,7 @@ You should also have the following packages installed on your build-system.
 Start Build
 ------------
 
-Choose the tab that matches your installation path: **Remote Registry** for a normal online install, **Local Registry** for a registry-only setup with no external access, and **Tarball** for a fully offline (air-gapped) installation.
+Choose the tab that matches how you build: **Remote Registry** for a normal build pushed to your own registry, **Local Registry** for a disposable local registry for one-off testing, and **Tarball** for producing offline installation artifacts. For installing onto the target server afterwards -- online, registry-only, or fully air-gapped -- see :ref:`faq_offline_installation` for the registry-only and offline paths specifically.
 
 .. tabs::
 

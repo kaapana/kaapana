@@ -31,11 +31,6 @@ class BuildWorker:
                 event_queue,
             )
             return
-        else:
-            self._emit_event(
-                BuildEvent(type=BuildEventType.BUILT, container=container),
-                event_queue,
-            )
 
         if container.status in {Status.SKIPPED, Status.BUILT_ONLY}:
             self._emit_event(
@@ -43,6 +38,11 @@ class BuildWorker:
                 event_queue,
             )
             return
+
+        self._emit_event(
+            BuildEvent(type=BuildEventType.BUILT, container=container),
+            event_queue,
+        )
 
         if ContainerHelper._build_config.build_only:
             return

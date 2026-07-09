@@ -46,6 +46,7 @@ test.describe('Landing Page — user with no project', { tag: '@functional' }, (
 
       // The account menu and logout must still work for a project-less user.
       await portal.userMenuTrigger.click();
+      await page.waitForTimeout(500);
       await expect(portal.userMenuLogoutButton).toBeVisible({ timeout: 5_000 });
     } finally {
       await page.context().close();

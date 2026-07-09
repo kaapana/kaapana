@@ -180,10 +180,10 @@ export async function setWorkflowWhitelisted(page: Page, dagName: string, allowe
 }
 
 /**
- * Whitelists the first available multiinstallable application in the
- * currently-open project. Returns its display name — the only identifier
- * visible in the DOM — so callers can re-locate the same row by text in a
- * different user's session.
+ * Whitelists exactly the first available multiinstallable application and
+ * de-whitelists all others, so callers can test that non-whitelisted apps
+ * have their Launch button disabled.
+ * Returns the whitelisted app's display name.
  * Assumes `gotoProjectDetail` has already run.
  */
 export async function whitelistFirstApplication(page: Page): Promise<string> {
@@ -192,17 +192,33 @@ export async function whitelistFirstApplication(page: Page): Promise<string> {
   const table = page.locator('table').filter({ has: page.getByText('Allowed') });
   const firstRow = table.locator('tbody tr').first();
   await expect(firstRow).toBeVisible({ timeout: 10_000 });
-  const displayName = (await firstRow.locator('td').nth(1).innerText()).trim();
+  const whitelistedName = (await firstRow.locator('td').nth(1).innerText()).trim();
 
-  const checkbox = firstRow.getByRole('checkbox').last();
-  if (!(await checkbox.isChecked())) {
-    await checkbox.click();
-    // Project Workflows has its own (currently-disabled) "Save Changes"
-    // button elsewhere on the same page — only ours, just enabled by the
-    // checkbox click above, should match.
+  // Ensure the first app is whitelisted (Allowed = checked).
+  const firstCheckbox = firstRow.getByRole('checkbox').last();
+  let changed = false;
+  if (!(await firstCheckbox.isChecked())) {
+    await firstCheckbox.click();
+    changed = true;
+  }
+
+  // De-whitelist all remaining apps so there's exactly one allowed row.
+  const rows = table.locator('tbody tr');
+  const rowCount = await rows.count();
+  for (let i = 0; i < rowCount; i++) {
+    const name = (await rows.nth(i).locator('td').nth(1).innerText()).trim();
+    if (name === whitelistedName) continue;
+    const cb = rows.nth(i).getByRole('checkbox').last();
+    if (await cb.isChecked()) {
+      await cb.click();
+      changed = true;
+    }
+  }
+
+  if (changed) {
     await page.locator('button:not(.v-btn--disabled)').filter({ hasText: 'Save Changes' }).click();
     await expect(page.getByText(/whitelist saved successfully/i)).toBeVisible({ timeout: 10_000 });
   }
 
-  return displayName;
+  return whitelistedName;
 }

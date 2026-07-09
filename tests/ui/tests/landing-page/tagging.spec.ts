@@ -39,7 +39,7 @@ test('tag a series in the phantom dataset, filter/search by it, then with multip
       await portal.pickFromAutocomplete(portal.searchFilterValueSelect, tag1);
       await portal.searchButton.click();
       await expect(card).toBeVisible({ timeout: 5_000 });
-    }).toPass({ timeout: 20_000, intervals: [3_000] });
+    }).toPass({ timeout: 20_000, intervals: [1_000] });
     await expect(portal.seriesCards).toHaveCount(1);
 
     await portal.searchFilterRow.locator('.mdi-delete').click();

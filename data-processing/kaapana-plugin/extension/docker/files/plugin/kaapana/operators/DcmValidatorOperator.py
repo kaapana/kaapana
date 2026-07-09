@@ -21,7 +21,7 @@ class DcmValidatorOperator(KaapanaBaseOperator):
         self,
         dag,
         name="dicom-validator",
-        execution_timeout=timedelta(seconds=30),
+        execution_timeout=timedelta(minutes=15),
         validator_alg="dciodvfy",
         exit_on_error=False,
         env_vars=None,

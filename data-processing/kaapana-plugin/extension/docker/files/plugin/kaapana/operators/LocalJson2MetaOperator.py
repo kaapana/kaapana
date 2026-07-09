@@ -103,17 +103,20 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                     opensearch_index=project.get("opensearch_index"),
                 )
             return
+        clinical_trial_protocol_id = meta_information.get(
+            "00120020 ClinicalTrialProtocolID_keyword"
+        )
         try:
-            clinical_trial_protocol_id = meta_information.get(
-                "00120020 ClinicalTrialProtocolID_keyword"
-            )
             project = get_project_by_id_or_name(clinical_trial_protocol_id)
+        except Exception:
+            logger.warning(f"No project found for {clinical_trial_protocol_id}.")
+        else:
+            # outside the except: a failed push must fail the task instead of
+            # silently leaving the series out of the project index
             self.push_to_opensearch_index(
                 new_document=meta_information,
                 opensearch_index=project.get("opensearch_index"),
             )
-        except:
-            logger.warning(f"No project found for {clinical_trial_protocol_id}.")
 
         logger.info("Pushing document to admin-project index")
         self.push_to_opensearch_index(
@@ -143,7 +146,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             index=opensearch_index,
             body=new_document,
             id=document_id,
-            refresh=True,
+            refresh=False,
         )
 
     def sanitize_document(self, id, new_document, opensearch_index):

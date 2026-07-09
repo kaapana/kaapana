@@ -239,7 +239,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
                 },
                 "doc_as_upsert": False,  # Do not insert if not exist and fail instead
             },
-            refresh=True,
+            refresh=False,
         )
         logger.info(f"Adding to the index {index}")
         logger.info(f"Updated OpenSearch for Series {series_uid}")

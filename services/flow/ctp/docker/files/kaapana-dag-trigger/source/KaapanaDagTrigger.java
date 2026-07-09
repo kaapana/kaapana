@@ -48,6 +48,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
     String removeTags = "no";
     final Object syncObject;
     String dagRunUrl;
+    static final int maxTriggerAttempts = 8;
 
     /**
      * Class constructor; creates a new instance of the ExportService.
@@ -125,6 +126,12 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                 File storedFileParentDir;
                 synchronized (syncObject) {
                     FileObject storedFileObject = super.store(fileObject);
+                    if (storedFileObject == null) {
+                        // super.store() quarantines the object and returns null on failure
+                        // (e.g. disk full, path too long)
+                        logger.error(name + ": storing failed for: " + fileObject.getFile());
+                        return null;
+                    }
                     File storedFile = storedFileObject.getFile();
                     storedFileParentDir = storedFile.getParentFile();
                     // get number of Files in Folder, if this is the first file trigger/retrigger
@@ -419,7 +426,26 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                     logger.info("Dicom Folder send to airflow: " + dicomPath);
                     renameFolder();
                 }
-                triggerAirflow(postData, dag_id);
+                // the folder is already renamed, so retrying is safe: files of the
+                // same series arriving in between start a new folder with its own
+                // trigger. Retry transient Airflow errors (e.g. an overloaded
+                // webserver during a large ingest) instead of quarantining directly.
+                boolean triggered = false;
+                for (int attempt = 1; attempt <= maxTriggerAttempts && !triggered; attempt++) {
+                    if (attempt > 1)
+                        Thread.sleep(Math.min(30000L * (attempt - 1), 120000L));
+                    try {
+                        triggered = triggerAirflow(postData, dag_id);
+                    } catch (Exception e) {
+                        logger.warn(name + ": trigger attempt " + attempt + "/" + maxTriggerAttempts
+                                + " failed for: " + dicomPath, e);
+                    }
+                }
+                if (!triggered) {
+                    logger.error(name + ": Airflow was not triggered after " + maxTriggerAttempts
+                            + " attempts, series moved to quarantine: " + dicomPath);
+                    folderFilesToQuarantine(storedFileParentDir);
+                }
             } catch (Exception e) {
                 logger.error(name + ": Unable to trigger Airflow for: " + dicomPath);
                 logger.error(e);
@@ -514,7 +540,12 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
         private void renameFolder() {
             if (storedFileParentDir.isDirectory()) {
                 File dirNew = new File(storedFileParentDir.getParent() + File.separator + dicomPath);
-                storedFileParentDir.renameTo(dirNew);
+                if (!storedFileParentDir.renameTo(dirNew)) {
+                    // fail here so the series is quarantined instead of triggering
+                    // Airflow with a non-existent dicom_path and stranding the folder
+                    throw new RuntimeException(
+                            "Unable to rename " + storedFileParentDir + " to " + dirNew);
+                }
                 storedFileParentDir = dirNew;
             }
         }
@@ -529,6 +560,9 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
             String url = trigger_url + "/" + dag_id;
             URL object = new URL(url);
             HttpURLConnection con = (HttpURLConnection) object.openConnection();
+            // without timeouts a hung POST parks the renamed folder forever
+            con.setConnectTimeout(10000);
+            con.setReadTimeout(60000);
             con.setDoOutput(true);
             con.setDoInput(true);
             con.setRequestProperty("Content-Type", "application/json");
@@ -551,6 +585,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                     sb.append(line + "\n");
                 }
                 br.close();
+                return true;
             } else {
                 logger.warn(name + " HttpResult: " + HttpResult);
                 logger.warn("Airflow was not triggered!");
@@ -558,9 +593,8 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                 logger.warn(name + ": URL: " + url);
                 logger.warn("Response message: ");
                 logger.warn(con.getResponseMessage());
-                folderFilesToQuarantine(storedFileParentDir);
+                return false;
             }
-            return true;
         }
     }
 }

@@ -43,40 +43,39 @@ class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
                 dag_run_id = generate_run_id(self.trigger_dag_id)
                 print("MOVE with dag run id: ", dag_run_id)
                 target_list = set()
-                try:
-                    for dcm_file in path_list_part:
+                for dcm_file in path_list_part:
+                    try:
                         series_uid = pydicom.dcmread(dcm_file, force=True)[
                             0x0020, 0x000E
                         ].value
-                        target = os.path.join(
-                            self.airflow_workflow_dir,
-                            dag_run_id,
-                            "batch",
-                            series_uid,
-                            self.target_dir,
-                        )
-                        if not os.path.exists(target):
-                            os.makedirs(target)
-                        print("SRC: {}".format(dcm_file))
-                        print("TARGET: {}".format(target))
-                        target_list.add(target)
-                        shutil.move(str(dcm_file), target)
-                    conf = {"dataInputDirs": list(target_list)}
-                except Exception as e:
-                    print("An exception occurred, when moving files:")
-                    print(e)
-                    print("Please have a look at this file:" + str(dcm_file))
-                    print("Remove or future process unvaild file")
-                    if target_list:
-                        print("Trigger all already moved files.")
-                        conf = {"dataInputDirs": list(target_list)}
-                        trigger(
-                            dag_id=self.trigger_dag_id,
-                            run_id=dag_run_id,
-                            conf=conf,
-                            replace_microseconds=False,
-                        )
-                    exit(1)
+                    except Exception as e:
+                        print("An exception occurred, when reading file:")
+                        print(e)
+                        print("Please have a look at this file:" + str(dcm_file))
+                        # mark the file as invalid and keep going, so one bad file
+                        # does not block recovery of everything behind it
+                        # (".invalid" also takes it out of the "*.dcm" rglob above)
+                        invalid_file = str(dcm_file) + ".invalid"
+                        print("Renaming it to: " + invalid_file)
+                        os.rename(str(dcm_file), invalid_file)
+                        continue
+                    target = os.path.join(
+                        self.airflow_workflow_dir,
+                        dag_run_id,
+                        "batch",
+                        series_uid,
+                        self.target_dir,
+                    )
+                    if not os.path.exists(target):
+                        os.makedirs(target)
+                    print("SRC: {}".format(dcm_file))
+                    print("TARGET: {}".format(target))
+                    shutil.move(str(dcm_file), target)
+                    target_list.add(target)
+
+                if not target_list:
+                    continue
+                conf = {"dataInputDirs": list(target_list)}
 
                 print(
                     (

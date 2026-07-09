@@ -1,0 +1,3 @@
+[Default Applications]
+text/plain=org.xfce.mousepad.desktop
+application/pdf=qpdfview.desktop

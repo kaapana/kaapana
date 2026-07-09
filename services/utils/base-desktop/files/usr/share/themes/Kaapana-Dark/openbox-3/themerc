@@ -1,0 +1,72 @@
+!! Kaapana-Dark — flat, dark, non-glossy Openbox theme
+
+# geometry
+border.width: 1
+padding.width: 6
+padding.height: 4
+window.handle.width: 0
+window.client.padding.width: 0
+window.client.padding.height: 0
+
+# window borders
+window.active.border.color: #14161a
+window.inactive.border.color: #14161a
+window.active.client.color: #2b2f36
+window.inactive.client.color: #2b2f36
+
+# title bar (flat)
+window.active.title.bg: flat solid
+window.active.title.bg.color: #2b2f36
+window.inactive.title.bg: flat solid
+window.inactive.title.bg.color: #23262c
+
+# title text
+window.active.label.bg: parentrelative
+window.active.label.text.color: #e8eaed
+window.inactive.label.bg: parentrelative
+window.inactive.label.text.color: #7f868f
+window.label.text.justify: center
+
+# buttons (flat)
+window.active.button.unpressed.bg: flat solid
+window.active.button.unpressed.bg.color: #2b2f36
+window.active.button.unpressed.image.color: #c8ccd2
+window.active.button.hover.bg: flat solid
+window.active.button.hover.bg.color: #3a3f48
+window.active.button.hover.image.color: #ffffff
+window.active.button.pressed.bg: flat solid
+window.active.button.pressed.bg.color: #14161a
+window.active.button.pressed.image.color: #ffffff
+window.inactive.button.unpressed.bg: flat solid
+window.inactive.button.unpressed.bg.color: #23262c
+window.inactive.button.unpressed.image.color: #6b7178
+window.inactive.button.hover.bg: flat solid
+window.inactive.button.hover.bg.color: #3a3f48
+window.inactive.button.hover.image.color: #d0d0d0
+
+# menu
+menu.border.width: 1
+menu.border.color: #14161a
+menu.title.bg: flat solid
+menu.title.bg.color: #2b2f36
+menu.title.text.color: #e8eaed
+menu.title.text.justify: center
+menu.items.bg: flat solid
+menu.items.bg.color: #23262c
+menu.items.text.color: #d6d9dd
+menu.items.disabled.text.color: #5a6068
+menu.items.active.bg: flat solid
+menu.items.active.bg.color: #3d6fb0
+menu.items.active.text.color: #ffffff
+menu.separator.color: #3a3f48
+
+# on-screen display
+osd.border.width: 1
+osd.border.color: #14161a
+osd.bg: flat solid
+osd.bg.color: #2b2f36
+osd.label.text.color: #e8eaed
+osd.hilight.bg: flat solid
+osd.hilight.bg.color: #3d6fb0
+osd.unhilight.bg: flat solid
+osd.unhilight.bg.color: #23262c

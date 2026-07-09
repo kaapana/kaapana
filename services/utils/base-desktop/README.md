@@ -16,19 +16,36 @@ environment=DISPLAY=":1",HOME="%HOME%",USER="%USER%"
 ```
 
 ## How does it work
-On a blank container a virtual framebuffer `xvfb` is installed. When the container is started (e.g. `files/startup.sh`) `supervisord` is run to run a collection of tools:
-- nginx: Reverse Proxy uniying different services and delivering the static fiels for novnc
-- backend: resizing of xvfb (currently no server side resizing is implemented in x11vnc this is why this workaround is done)
+A virtual framebuffer `xvfb` (display `:1`) hosts the desktop. When the container starts
+(`files/startup.sh`) `supervisord` launches:
+- `xvfb` / `wm` (openbox) / `tint2` / `pcmanfm`: the X server + LXDE desktop (all as `%USER%`)
+- `pulseaudio`: virtual audio sink for Selkies audio
+- `selkies`: streams display `:1` as H.264/JPEG stripes over a single WebSocket
+  ([Selkies](https://github.com/selkies-project/selkies) v2 / `pixelflux`, decoded in-browser
+  via WebCodecs). Native RANDR resize — no server-side resize workaround needed. The encoder is
+  chosen per launch by `startup.sh`: hardware full-frame H.264 (NVENC) when the container has an
+  NVENC-capable GPU, otherwise the CPU striped encoder (only changed stripes — cheap on CPU).
+- `nginx`: serves the prebuilt Selkies web client and proxies the `.../websockets` upgrade to
+  the Selkies server (`:8082`); handles the ingress sub-path (`INGRESS_PATH`) and optional
+  HTTP basic auth (`HTTP_PASSWORD`).
 
-## Run this localy
-- Build:
-- Run: `docker run -p 6080:80 -p 5900:5900 local-only/base-desktop:latest``
-- Connect via VNC using port 5900
-- Connect via HTTP VNC Client using port 6080
+The Selkies server and web client are pinned to a single upstream commit (`SELKIES_COMMIT`):
+the server is pip-installed from it and the web dashboard SPA is built from source from the same
+commit in a `selkies-frontend` builder stage. The dashboard is not part of the pip package and
+has no release artifact, so it must be built with npm/Vite (this mirrors the LinuxServer selkies
+build; we previously copied their prebuilt dashboard by digest instead of building it ourselves).
+
+Note: WebCodecs require a **secure context** — the browser must reach the page over HTTPS or
+via `localhost` (in the platform this is provided by the HTTPS ingress).
+
+## Run this locally
+- Build: `docker build -t local-only/base-desktop:latest .`
+- Run: `docker run -p 8080:80 local-only/base-desktop:latest`
+- Open `http://localhost:8080/` (use `localhost`, or an SSH tunnel to it, so the browser has a
+  secure context for WebCodecs).
 
 ## Sources
-- https://github.com/novnc/websockify
-- https://github.com/novnc/noVNC
-- https://github.com/Tiryoh/docker-ubuntu-vnc-desktop
+- https://github.com/selkies-project/selkies
+- https://github.com/linuxserver/docker-baseimage-selkies
 
 

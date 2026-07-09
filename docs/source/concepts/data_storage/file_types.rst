@@ -3,22 +3,30 @@
 File Types
 ################################
 
-What file types Kaapana handles, and through which mechanism, differs by type.
+How is data ingested into Kaapana and what file types are supported?
+
+Files
+============================
+
+Binary models, documents, PDFs, and other non-DICOM files are uploaded
+through the **MinIO** web interface (see :ref:`store`), where they land in a
+bucket and are managed as ordinary objects. Workflows access them through the
+same underlying storage.
 
 DICOM
 ========
+DICOM file is stored in the internal PACS via DIMSE C-STORE or DICOMweb STOW-RS.
+Both paths converge on the :ref:`Clinical Trial Processor (CTP)<store>`, which receives
+the DICOM before the :ref:`service-process-incoming-dcm<service_process_incoming_dcm>` ingestion workflow (Airflow DAG) picks it up, validates it, extracts and indexes metadata, sets the correct access rights for the series, and creates a thumbnail. Other automatic pipelines can be autotriggered  here — pseudoanonymization, whole-slide
+microscopy conversion, or radiomics feature extraction. The ingestion DAG
+then hands the DICOM off to the PACS for storage and indexing.
 
-DICOM is the primary supported type. It reaches the internal PACS via classic DIMSE C-STORE or DICOMweb STOW-RS (through the :ref:`DICOM Web Filter<concepts_external_pacs>`). Both paths converge on the :ref:`Clinical Trial Processor (CTP)<store>`, which receives the DICOM directly (DIMSE) or via the DICOM Web Filter's forwarded STOW-RS traffic, before the :ref:`service-process-incoming-dcm<service_process_incoming_dcm>` ingestion DAG picks it up, validates it, and creates a thumbnail. Other automatic pipelines can be autotriggered here like pseudoanonymization, whole-slide microscopy conversion, or radiomics feature extraction. The ingestion DAG then hands the DICOM off to the PACS for storage and indexing.
-
-Arbitrary Non-DICOM Files
-============================
-
-Arbitrary non-DICOM files are currently uploaded directly through the **MinIO** web interface (see :ref:`store`), where they land in a bucket and can be browsed and managed as ordinary objects.
 
 Data API (Work in Progress)
 ===============================
 
-The :ref:`Data API<concepts_architecture_data_api>` is meant to eventually catalog these files as data entities too -- a filesystem path, an S3 object, or a plain URL, with metadata validated against a JSON Schema rather than assumed to be DICOM-shaped -- but that work is still in progress. The Data API will not itself move or mount data between locations; getting bytes in or out of an external location is still the responsibility of the workflow's own operators.
-This would bring non-DICOM files the same guarantees -- schema-validated metadata, a stable identifier, discoverability -- that DICOM already gets from its dedicated ingestion pipeline.
+The :ref:`Data API<concepts_architecture_data_api>` will eventually catalog
+all file types as data entities — a filesystem path, an S3
+object, PACS coordinates, or a plain URL — with metadata validated against a JSON Schema. Workflow will be responsible for getting the data from the coordinates provided by the Data API. This gives all file types the same guarantees: schema-validated metadata, a stable identifier, and discoverability.
 
 

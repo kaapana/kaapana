@@ -44,7 +44,7 @@ spec:
         - name: LOCAL_PATH
           value: /kaapana/minio/input
         - name: MINIO_PATH
-          value: {{ .Release.Name }}/input
+          value: "project-{{ .Values.global.project_name }}/{{ .Release.Name }}/input"
         - name: MINIO_USER
           value: {{ .Values.global.credentials_minio_username  | default "" }}
         - name: MINIO_PASSWORD
@@ -67,7 +67,7 @@ spec:
         - name: LOCAL_PATH
           value: /kaapana/minio/output
         - name: MINIO_PATH
-          value: {{ .Release.Name }}/output
+          value: "project-{{ .Values.global.project_name }}/{{ .Release.Name }}/output"
         - name: MINIO_USER
           value: {{ .Values.global.credentials_minio_username  | default "" }}
         - name: MINIO_PASSWORD
@@ -103,12 +103,14 @@ spec:
         - name: NVIDIA_VISIBLE_DEVICES
           value: "none"
         {{- end }}
+        - name: no_proxy
+          value: "traefik-{{ .Values.global.instance_uid | default 0 }}.{{ .Values.global.helm_namespace }}.svc"
+        - name: http_proxy
+          value: {{ .Values.global.http_proxy }}
+        - name: https_proxy
+          value: {{ .Values.global.https_proxy }}
         - name: INGRESS_PATH
-          value: {{ .Release.Name }}
-        - name: USER
-          value: desktop
-        - name: PASSWORD
-          value: desktop
+          value: "applications/project/{{ .Values.global.project_id }}/release/{{ .Release.Name }}"
         volumeMounts:
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
       volumes:

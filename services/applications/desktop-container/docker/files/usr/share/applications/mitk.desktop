@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=MITK Workbench
+Comment=Medical Imaging Interaction Toolkit
+Exec=/usr/local/bin/launch-mitk.sh
+Icon=/usr/share/pixmaps/mitk.png
+Terminal=false
+Categories=Science;Graphics;

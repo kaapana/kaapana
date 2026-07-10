@@ -7,8 +7,8 @@ LABEL BUILD_IGNORE="False"
 WORKDIR /app
 
 # Set versions for cli tools
-ENV KUBE_VERSION="v1.33.0"
-ENV HELM_VERSION="v3.17.3"
+ENV KUBE_VERSION="v1.34.9"
+ENV HELM_VERSION="v3.21.2"
 ENV CONTAINERD_VERSION="1.7.27"
 
 # Install kubectl and helm cli tools

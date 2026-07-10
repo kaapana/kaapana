@@ -58,9 +58,11 @@ RUN code-server --install-extension ms-python.python
 # replace the following in all extension node_modules with patched versions
 #   - undici      7.24.4 -> 7.28.0   (CVE-2026-12151, CVE-2026-6734, CVE-2026-9697)
 #   - ws          8.19.0 -> 8.21.0   (CVE-2026-48779)
+#   - shell-quote 1.8.3  -> 1.8.4    (CVE-2026-9277)
 RUN for pkg_spec in \
         "undici:7.28.0" \
-        "ws:8.21.0"; do \
+        "ws:8.21.0" \
+        "shell-quote:1.8.4"; do \
         name="${pkg_spec%%:*}"; ver="${pkg_spec##*:}"; \
         wget -q "https://registry.npmjs.org/${name}/-/${name}-${ver}.tgz" -O /tmp/npmpkg.tgz && \
         rm -rf /tmp/package && tar -xzf /tmp/npmpkg.tgz -C /tmp && \

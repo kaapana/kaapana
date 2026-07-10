@@ -29,6 +29,9 @@ RUN pip3 uninstall -y torch torchtext torchaudio &&  \
     pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt /kaapana/app/BodyPartRegression/ && \
     pip3 install pytorch-lightning==2.6.5
 
+# Fix CVE-2024-8019/CVE-2024-8020 (critical): force patched pytorch-lightning.
+RUN pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt "pytorch-lightning==2.4.0"
+
 
 WORKDIR /kaapana/app/BodyPartRegression
 

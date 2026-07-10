@@ -7,7 +7,10 @@ Migration Guide
 +-------+-------+---------------------------+----------------------------------------------+
 | From  | To    | What is preserved?        | What is lost?                                |
 +=======+=======+===========================+==============================================+
-| 0.6.X | 0.7.X | - All platform data       |                                              |
+| 0.6.X | 0.7.X | - PACS images             | - Non-admin project workflow volumes         |
+|       |       | - Opensearch metadata     |   (e.g. installed models in the namespace)   |
+|       |       | - MinIO objects           | - External DICOM senders must switch         |
+|       |       | - Users, roles and rights |   ``--call kp-<name>`` to ``kp-<short_id>``  |
 +-------+-------+---------------------------+----------------------------------------------+
 | 0.4.X | 0.5.X | - PACS images             | - CT thumbnails                              |
 |       |       | - Opensearch metadata     | - Datasets scoped to admin project only      |

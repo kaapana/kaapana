@@ -12,6 +12,7 @@ from app.utils import (
     assert_project_not_archived,
     get_default_project_id,
     get_project_id_from_cookie,
+    get_project_short_id_by_id,
     get_user_project_ids,
 )
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -140,7 +141,7 @@ def _dataset_name_from_referer(request: Request) -> str:
 def enrich_dicom_parts_with_project(
     body: bytes,
     content_type: str,
-    project_id: str,
+    project_short_id: str,
     dataset_name: str = "dicom-web",
 ) -> bytes:
     """Re-encode each DICOM part in the multipart body with project and dataset tags set.
@@ -153,7 +154,7 @@ def enrich_dicom_parts_with_project(
     Args:
         body (bytes): Raw multipart/related request body
         content_type (str): Content-Type header (must contain boundary parameter)
-        project_id (str): Kaapana project UUID to write into tag (0012,0020)
+        project_short_id (str): Kaapana project short_id to write into tag (0012,0020)
         dataset_name (str): Dataset name to write into tag (0012,0010). Defaults to "dicom-web".
 
     Returns:
@@ -177,7 +178,7 @@ def enrich_dicom_parts_with_project(
         mime_headers, dicom_bytes = parsed
         try:
             ds = pydicom.dcmread(io.BytesIO(dicom_bytes))
-            ds.ClinicalTrialProtocolID = project_id  # (0012,0020) → project assignment
+            ds.ClinicalTrialProtocolID = project_short_id  # (0012,0020) → project assignment
             ds.ClinicalTrialSponsorName = dataset_name  # (0012,0010) → dataset name
             buf = io.BytesIO()
             ds.save_as(buf)
@@ -321,10 +322,16 @@ async def store_instances(
         body = await request.body()
         series_info = extract_uids_from_multipart(body, content_type)
         await __map_viewer_series_to_project(session, series_info, viewer_project_id)
+        project_short_id = await get_project_short_id_by_id(viewer_project_id)
+        if project_short_id is None:
+            raise HTTPException(
+                status_code=500,
+                detail="Could not resolve project short_id for DICOM tagging.",
+            )
         enriched = enrich_dicom_parts_with_project(
             body,
             content_type,
-            project_id=str(viewer_project_id),
+            project_short_id=project_short_id,
             dataset_name=_dataset_name_from_referer(request),
         )
         await __forward_to_ctp(enriched, dict(request.headers), url="studies")
@@ -370,10 +377,16 @@ async def store_instances_in_study(
         body = await request.body()
         series_info = extract_uids_from_multipart(body, content_type)
         await __map_viewer_series_to_project(session, series_info, viewer_project_id)
+        project_short_id = await get_project_short_id_by_id(viewer_project_id)
+        if project_short_id is None:
+            raise HTTPException(
+                status_code=500,
+                detail="Could not resolve project short_id for DICOM tagging.",
+            )
         enriched = enrich_dicom_parts_with_project(
             body,
             content_type,
-            project_id=str(viewer_project_id),
+            project_short_id=project_short_id,
             dataset_name=_dataset_name_from_referer(request),
         )
         await __forward_to_ctp(enriched, dict(request.headers), url=f"studies/{study}")

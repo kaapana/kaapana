@@ -3,57 +3,137 @@
 Migration from Version 0.6.x to 0.7.x
 *************************************
 
-Keycloak: two-client authentication
-===================================
+In 0.7 each project is identified internally by a short, stable ``short_id`` instead of its name, and the bundled PostgreSQL is upgraded from 17 to 18.
+Your projects, users and data are preserved, but **one manual step is required after the upgrade**: re-keying each project's storage to its ``short_id``.
 
-From 0.7, platform services authenticate to Keycloak through two dedicated
-clients instead of the Keycloak admin password
-(see :ref:`service_to_service_auth`):
+Read this page fully before you start.
 
-- ``kaapana-admin`` (master realm) - used only by the setup and bootstrap jobs.
-- ``kaapana-service`` (kaapana realm) - used by the runtime services.
+.. note::
 
-Your Keycloak realm, users and groups are preserved; only the way services
-authenticate internally changes. No user data is migrated or lost.
+   Migration runs during ``deploy`` when the version recorded in ``<FAST_DATA_DIR>/version`` is 0.6.x.
 
-On the first 0.7 deployment
----------------------------
+Before you start
+================
 
-The two clients are created automatically by the bootstrap job. To create the
-``kaapana-admin`` client it needs your **current** Keycloak admin password
-**once**; afterwards every later deployment runs without it.
+- **Back up your data directories**, the upgrade does not back them up for you:
 
-Run the migration deployment with ``--set-keycloak-admin-password`` and enter
-your current admin password at the prompt:
+  .. code-block:: bash
 
-.. code-block:: bash
+     sudo cp -a <FAST_DATA_DIR> /path/to/backup/fast
+     sudo cp -a <SLOW_DATA_DIR> /path/to/backup/slow   # skip if same as fast
 
-   ./kaapanactl.sh deploy --set-keycloak-admin-password --chart <KAAPANA_ADMIN_CHART> ...
+- Check your current version (should read ``0.6.x``):
 
-The entered password is used as-is and is not validated, so an existing password
-that does not meet the new policy is still accepted.
+  .. code-block:: bash
 
-.. warning::
+     cat <FAST_DATA_DIR>/version
 
-   Do not run the migration deployment *without* ``--set-keycloak-admin-password``.
-   A plain deployment generates a new random password and hands it to the
-   bootstrap, which then cannot authenticate against your existing Keycloak and
-   fails.
+Performing the migration
+========================
 
-After the ``kaapana-admin`` client exists, all later deployments run without the
-admin password.
+1. **Undeploy** the running 0.6.x platform:
 
-.. tip::
+   .. code-block:: bash
 
-   From 0.7 the admin password can be changed through the Keycloak UI or with
-   ``./kaapanactl.sh set-keycloak-admin-password`` without disrupting running
-   services (in earlier versions it left them unable to authenticate). See
-   :ref:`Keycloak admin password <keycloak_admin_password>`.
+      ./kaapanactl.sh --undeploy
+
+2. **Deploy 0.7.x.** Migration runs automatically after you confirm the prompt.
+   See :ref:`deployment` for the full deploy command.
+
+   .. code-block:: bash
+
+      ./kaapanactl.sh deploy ...
+
+   During migration 
+   * the bundled PostgreSQL is upgraded in place (17 → 18, the previous cluster is kept alongside as ``<cluster>_pg17_bak``) 
+   * the admin project's namespace and workflow volumes are moved to their new prefixed name 
+   * no Keycloak admin password is required (see `Keycloak`_ below).
+
+3. **Wait** until the platform is fully up:
+
+   .. code-block:: bash
+
+      kubectl get pods -A | grep -vE 'Running|Completed'   # should print nothing
+
+4. **Re-key project storage (required).** Before you do anything else with the platform, run the re-key script. 
+   This moves each project's MinIO bucket and OpenSearch index from its name to its ``short_id``. 
+   Run it once, with the platform up. It is idempotent (safe to re-run) , and skips the admin project (whose ``short_id`` is unchanged).
+   The access-information-interface container has a read-only filesystem, so the script is piped in on stdin rather than copied:
+
+   .. code-block:: bash
+
+      NS=<SERVICES_NAMESPACE>   # usually "services"
+      POD=$(kubectl get pods -n $NS -l app.kubernetes.io/name=access-information-interface -o name | head -1)
+      kubectl exec -i -n $NS "$POD" -c access-information-interface \
+        -- sh -c 'cd /app && python3 -' < utils/migration-chart/docker/files/rekey_projects.py
+
+   Watch for ``Project re-key finished``; each project logs the number of objects copied and the alias created.
+
+   .. warning::
+
+      Do not ingest new data into a project until its re-key has finished.
+
+5. **Verify:** each project shows its images, metadata and thumbnails in the UI, and users can log in and see their projects.
+
+What changes in 0.7.0
+=====================
+
+Project identifier: name → short_id
+-----------------------------------
+
+A project's ``short_id`` is the first 8 characters of its UUID (the admin project keeps the literal ``admin``). 
+You can find each project's ``short_id`` under **System → Projects** in the UI. 
+Every project-scoped datastore is keyed by it:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Datastore
+     - 0.6.x (by name)
+     - 0.7.x (by short_id)
+   * - Kubernetes namespace
+     - ``project-<name>``
+     - ``<platform_prefix>-project-<short_id>``
+   * - MinIO bucket
+     - ``project-<name>``
+     - ``project-<short_id>``
+   * - OpenSearch index
+     - ``project_<name>``
+     - ``project_<short_id>``
+   * - DICOM AE title
+     - ``kp-<name>``
+     - ``kp-<short_id>``
+   * - DICOM tag (0012,0020)
+     - ``<name>``
+     - ``<short_id>``
+
+Namespaces and buckets/indexes are handled by the migration and the re-key step above. 
+If you push from an **external** DICOM node, update its called-AE title from ``kp-<name>`` to ``kp-<short_id>``.
+
+Keycloak
+--------
+
+Your Keycloak realm, users and groups are preserved. 
+From 0.7.0, services authenticate through dedicated clients instead of the admin password (see :ref:`service_to_service_auth`). 
+These clients are created **automatically** during the migration deployment.
+
+The admin password is (re)set on each deploy and printed at the end. 
+You can change it later through the Keycloak UI or with ``./kaapanactl.sh set-keycloak-admin-password``.
+See :ref:`Keycloak admin password <keycloak_admin_password>`.
+
+Access rights
+-------------
+
+Several permission names changed in 0.7 (for example ``manage_project_users`` → ``manage_users``), and the multi-installable-extension permission was split into separate application permissions. 
+Default roles are updated automatically on startup. 
+Custom roles keep their existing access, but do not gain the new application permissions automatically.
+Add those under **System → Roles** if needed.
 
 Troubleshooting
----------------
+===============
 
-- **Bootstrap fails or the kaapana realm is missing:** the ``kaapana-admin``
-  client could not be created, usually because the entered password did not match
-  the current Keycloak admin password. Re-run the deployment with
-  ``--set-keycloak-admin-password`` and enter the correct password.
+- **A project's datasets look empty after the upgrade:** the re-key step (step 4) has not run yet, or did not finish. Re-run it, it is idempotent.
+
+- **A pod does not come up:** ``kubectl get pods -A | grep -vE 'Running|Completed'``, then ``kubectl logs -n <ns> <pod> --previous``. The access-information-interface pod applies the rights update on startup and is the usual first place to look.
+
+- **Roll back:** restore the backup taken in `Before you start`_ and redeploy 0.6.x.

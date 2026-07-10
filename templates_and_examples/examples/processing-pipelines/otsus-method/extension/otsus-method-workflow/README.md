@@ -8,7 +8,7 @@ An example workflow extension for Kaapana. Uses [Otsu's method](https://en.wikip
     * generates a notebook pdf and a html inside Minio under `<project-name>/staticwebsiteresults/generate-otsus-report/otsus_report_otsus-method-<uid>.<html/pdf>`. Html file is also visible under `Workflow Results` section of the UI
 
 
-![otsus-method-workflow](https://build-deps-dd81e0.pages.hzdr.de/stable/img/otsus-method-workflow.png "otsus-method-workflow")
+![otsus-method-workflow](https://kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/otsus-method-workflow.png "otsus-method-workflow")
 
 Custom operators:
 * `otsus-method` (class: `OtsusMethodOperator`)

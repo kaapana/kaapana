@@ -2,23 +2,13 @@
 set -eu -o pipefail
 
 # ============================================================================
-# Kaapana migration 0.6.x -> 0.7.x
+# Kaapana migration 0.6.x -> 0.7.x   (see docs/.../migration_guide_0.7.rst)
 #
-# In 0.7 the project identifier changed from `name` to `short_id`, and project
-# namespaces gained the platform prefix:
-#     0.6.x: namespace  = project-<name>
-#     0.7.x: namespace  = <PLATFORM_PREFIX>-project-<short_id>
+# upgrade the on-disk PostgreSQL clusters 17 -> 18
+# move the admin project namespace + its workflow PVCs from `project-admin` to `<PLATFORM_PREFIX>-project-admin`. 
+# the PVCs are on dynamically-provisioned hostpath volumes bound to the old namespace, so their data must be moved or it is orphaned.
 #
-# The admin project (short_id == "admin") therefore moves from `project-admin`
-# to `<PLATFORM_PREFIX>-project-admin`. Its workflow PVCs (installed models,
-# tensorboard, workflow scratch) live on dynamically-provisioned volumes bound
-# to the old namespace, so they must be moved to the new namespace or the data
-# is orphaned after the upgrade.
-#
-# MinIO buckets and OpenSearch indexes are NOT re-keyed here: they are handled
-# after redeploy by the project-rekey job (services must be running for that).
-# Non-admin project namespaces are not migrated here (their short_id can only be
-# derived from the running AII) - see migration_guide_0.7.rst.
+# MinIO buckets, OpenSearch indexes and non-admin project namespaces are NOT handled here, they need the running platform and are done post-deploy.
 # ============================================================================
 
 STORAGE_PROVIDER="${STORAGE_PROVIDER}"
@@ -167,20 +157,10 @@ delete_dummy_pods() {
 # ============================================================================
 # PostgreSQL 17 -> 18 major-version upgrade
 #
-# 0.7 bumps the shared postgres image to 18.4-alpine. PostgreSQL refuses to
-# start on a data directory written by an older major version, so every
-# persisted PG17 cluster (keycloak + the service DBs + dcm4che) must be dumped
-# and reloaded into a fresh PG18 cluster before the 0.7 services start.
-#
-# The platform is DOWN during migration (no postgres Deployments to talk to),
-# so this runs entirely via helper pods that mount the fast-data-dir PVC and
-# operate on the on-disk cluster directories under FAST_DATA_DIR. The original
-# PG17 cluster is preserved as <cluster>_pg17_bak; nothing is deleted.
-#
-# No plaintext DB passwords are needed: the dump runs under a temporary
-# trust-auth pg_hba, and pg_dumpall carries role password *hashes* through.
-#
-# NOTE: hostpath layouts only (guarded by the STORAGE_PROVIDER check above).
+# PG refuses to start on a data dir written by an older major, so each persisted PG17 cluster must be dumped and reloaded into a fresh PG18 cluster
+# The platform is down, so this runs via helper pods that mount the fast-data-dir PVC and operate on the on-disk clusters directly
+# the PG17 cluster is preserved as <cluster>_pg17_bak
+# dump uses a temporary trust-auth pg_hba (no plaintext passwords, pg_dumpall carries role password hashes)
 # ============================================================================
 PG17_IMAGE="docker.io/postgres:17-alpine"
 PG18_IMAGE="docker.io/postgres:18-alpine"

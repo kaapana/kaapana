@@ -7,12 +7,9 @@ LABEL BUILD_IGNORE="False"
 WORKDIR /app
 
 # Set versions for cli tools
-ENV KUBE_VERSION="v1.34.9"
+ENV KUBE_VERSION="v1.36.2"
 ENV HELM_VERSION="v3.21.2"
-# Security version bump: ctr 1.7.27 -> 1.7.33 — fixes critical Go stdlib CVE-2025-68121
-# Deliberately stays on the 1.7.x line to match the containerd daemon shipped by
-# microk8s 1.33/stable (v1.7.29).
-ENV CONTAINERD_VERSION="1.7.33"
+ENV CONTAINERD_VERSION="2.2.6"
 
 # Install kubectl and helm cli tools
 RUN curl -LO https://dl.k8s.io/release/${KUBE_VERSION}/bin/linux/amd64/kubectl && chmod +x kubectl && mv ./kubectl /usr/local/bin/kubectl

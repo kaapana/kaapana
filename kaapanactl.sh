@@ -739,7 +739,7 @@ function server_installation() {
     echo -e "${GREEN}USER_HOME: $USER_HOME ${NC}";
     echo ""
 
-    DEFAULT_MICRO_VERSION=1.33/stable
+    DEFAULT_MICRO_VERSION=1.36/stable
     DEFAULT_HELM_VERSION=latest/stable
 
     ### Parsing command line arguments:
@@ -1220,9 +1220,9 @@ function install_microk8s {
         set +e
         echo "${YELLOW}Enable node_port-range=80-32000 ...${NC}";
         insert_text "--service-node-port-range=80-32000" /var/snap/microk8s/current/args/kube-apiserver
-        echo "${YELLOW}Disable insecure port ...${NC}";
-        insert_text "--insecure-port=0" /var/snap/microk8s/current/args/kube-apiserver
-        insert_text "--runtime-config=admissionregistration.k8s.io/v1beta1=true" /var/snap/microk8s/current/args/kube-apiserver
+        # NOTE: removed two previous insert_text lines:
+        # --insecure-port=0 (does not exist anymore)
+        # --runtime-config=admissionregistration.k8s.io/v1beta1=true (replaced v1beta1 with stable v1)
 
         echo "${YELLOW}Set limit of completed pods to 200 ...${NC}";
         insert_text "--terminated-pod-gc-threshold=200" /var/snap/microk8s/current/args/kube-controller-manager
@@ -2200,7 +2200,11 @@ function deploy_chart {
                 fi
             else
 
+                # microk8s >= 1.36 no longer sets nvidia as the default containerd runtime
+                # we therefore set nvidia as default (so that not every deployment needs to set the runtimeClassName individually)
+                # (the offline path does the same via CONTAINERD_SET_AS_DEFAULT=1).
                 microk8s enable nvidia --gpu-operator-driver host --gpu-operator-version $GPU_OPERATOR_VERSION \
+                    --gpu-operator-set-as-default-runtime \
                     --gpu-operator-set cdi.enabled=false \
                     --gpu-operator-set toolkit.env[3].name=RUNTIME_CONFIG_SOURCE --gpu-operator-set \
                     toolkit.env[3].value='file=/var/snap/microk8s/current/args/containerd.toml'

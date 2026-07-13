@@ -53,7 +53,7 @@ Performing the migration
 
    .. code-block:: bash
 
-      kubectl get pods -A | grep -vE 'Running|Completed'   # should print nothing
+      kubectl get pods -A | grep -vE 'Running|Completed'   # should be empty for the namespaces of the latest deployed platform
 
 4. **Re-key project storage (required).** Before you do anything else with the platform, run the re-key script. 
    This moves each project's MinIO bucket and OpenSearch index from its name to its ``short_id``. 

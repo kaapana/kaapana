@@ -329,16 +329,18 @@ main() {
             continue
         fi
 
+        # check if the old PVC has any data to migrate, if not, skip it
+        old_path=$(get_pv_hostpath "$pvc_name" "$OLD_NAMESPACE") || true
+        if [[ -z "$old_path" || ! -d "$old_path" || -z "$(ls -A "$old_path" 2>/dev/null)" ]]; then
+            echo "PVC $pvc_name has no data to migrate in $OLD_NAMESPACE, skipping."
+            continue
+        fi
+
         create_pvc "$pvc_name" "$NEW_NAMESPACE" "${PVC_SIZE[$pvc_name]}"
         bind_pvc_with_dummy_pod "$pvc_name" "$NEW_NAMESPACE"
 
-        old_path=$(get_pv_hostpath "$pvc_name" "$OLD_NAMESPACE") || {
-            echo "ERROR: could not resolve old hostPath for $pvc_name"
-            failures=$((failures + 1))
-            continue
-        }
         new_path=$(get_pv_hostpath "$pvc_name" "$NEW_NAMESPACE") || {
-            echo "ERROR: could not resolve new hostPath for $pvc_name"
+            echo "ERROR: $pvc_name has data at $old_path but the new hostPath could not be resolved; not moved."
             failures=$((failures + 1))
             continue
         }

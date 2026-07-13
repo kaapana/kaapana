@@ -29,7 +29,7 @@ datasets view.
 
 **Quantitative imaging biomarkers**: extract shape, intensity and texture
 biomarkers from segmented images with the radiomics workflow (PyRadiomics),
-storing results as CSV, JSON or XML.
+storing results as CSV, JSON or XML. Correlate your findings with additional data using the interactive analysis environments (JupyterLab) and present the results in easily accessible reports.
 
 Collaborative, multi-centre research
 --------------------------------------
@@ -70,11 +70,12 @@ biomarkers (RESCUE).
 Data management, review & platform
 --------------------------------------
 
-**Live scientific / research imaging database**: a central, always-on
-database which researchers can work against daily. The integrated PACS
-(dcm4chee) plus the OpenSearch metadata index and MinIO object store,
-explored through the datasets view.
-Example: wDB
+**Live scientific / research imaging database**: run a central, always-on
+database which researchers can work against daily, as in the case of
+DKFZ's scientific database wDB, currently hosting ~400,000 series. The
+database is built on the integrated PACS (dcm4chee), the OpenSearch
+metadata index and the MinIO object store, and is explored through the
+datasets view.
 
 **Cohort building, curation & metadata exploration**: filter, tag and
 visualize DICOM images by metadata in the datasets view to carve out study

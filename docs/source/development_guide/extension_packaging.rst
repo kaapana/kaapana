@@ -50,7 +50,7 @@ subdirectory named after the content item:
 
 .. code-block:: text
 
-   my-workflow/
+   my-workflow-extension/
    ├── extension_manifest.json
    └── my-workflow/
        ├── workflow_definition.py
@@ -66,7 +66,7 @@ Example for a single-workflow extension:
 .. code-block:: json
 
    {
-     "name": "my-workflow",
+     "name": "my-workflow-extension",
      "id": "aaaaaaaa-0000-0000-0000-000000000001",
      "version": "1.0.0",
      "contents": [
@@ -132,7 +132,7 @@ validates the manifest and produces a ``.tar.gz`` archive:
 
 .. code-block:: bash
 
-   extensionctl build ./my-workflow/ --output ./dist/
+   extensionctl build ./my-workflow-extension/ --output ./dist/
 
 The archive is named from the extension ``name`` and version, for example
 ``my-workflow-extension-v1.0.0.tar.gz``.
@@ -178,7 +178,7 @@ To build and push in a single step with an automatic version bump:
 
 .. code-block:: bash
 
-   extensionctl build ./my-workflow/ --push --bump patch
+   extensionctl build ./my-workflow-extension/ --push --bump patch
 
 The ``--bump`` flag accepts ``major``, ``minor``, or ``patch`` and increments
 the latest version in the repository before pushing.

@@ -38,5 +38,7 @@
     "validation.gif": "https://kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/validation.gif",
     "wms_instance_overview.png": "https://kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/wms_instance_overview.png",
     "wms_workflow_list.png": "https://kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/wms_workflow_list.png",
-    "workflow.gif": "https://kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/workflow.gif"
+    "workflow.gif": "https://kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/workflow.gif",
+    "extension_manager_add_repository_light.png": "https://kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/extension_manager_add_repository_light.png",
+    "extension_manager_browse_catalog_light.png": "https://kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/extension_manager_browse_catalog_light.png"
 }

@@ -46,9 +46,26 @@ data:
     ssl_insecure_skip_verify = true
     ssl_upstream_insecure_skip_verify = true
 
-    # Cookie settings
-    cookie_expire = "6h"
-    cookie_refresh = "5m"
+    # Cookie / session settings.
+    # These values were made configurable to fix "400 Request Header Or Cookie Too
+    # Large": browser cookies grew past nginx header limits during normal navigation.
+    cookie_expire = "{{ .Values.session_storage.cookie_expire }}"
+    cookie_refresh = "{{ .Values.session_storage.cookie_refresh }}"
+    # Caps the number of per-request CSRF cookies; without a limit an SPA firing many
+    # parallel auth requests accumulates them until the header size overflows.
+    cookie_csrf_per_request_limit = {{ .Values.session_storage.csrf_per_request_limit }}
+    # Where the session (incl. the access token) is stored: "cookie" (in the browser)
+    # or "redis" (server-side, browser keeps only a small ticket). "redis" is the fix.
+    session_store_type = "{{ .Values.session_storage.type }}"
+    {{- if eq .Values.session_storage.type "cookie" }}
+    # Cookie store only: drop tokens from the cookie to keep it small. NOTE: must stay
+    # false here because it is incompatible with pass_access_token/cookie_refresh below.
+    session_cookie_minimal = {{ .Values.session_storage.cookie_minimal }}
+    {{- else if eq .Values.session_storage.type "redis" }}
+    # Gated on the same single "type" switch as the redis Deployment/Service, so the
+    # config never points at a Redis that was not deployed.
+    redis_connection_url = "redis://{{ .Values.session_storage.redis.service_name }}.{{ .Values.global.helm_namespace }}.svc.cluster.local:{{ .Values.session_storage.redis.port }}"
+    {{- end }}
 
     # Additional flags
     custom_templates_dir = "/usr/share/oauth2-proxy"

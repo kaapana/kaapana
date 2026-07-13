@@ -2,10 +2,6 @@
 
 Kaapana OHIF extension for the nnInteractive segmentation workflow.
 
-This package owns product behavior. If a change is about talking to the nnInteractive backend,
-creating or reading prompts, showing the AI toolbox, managing nnInteractive segment state, or
-customizing segmentation UI behavior, it belongs here before it belongs in `../../patches`.
-
 ## Entry Points
 
 | File | Role |

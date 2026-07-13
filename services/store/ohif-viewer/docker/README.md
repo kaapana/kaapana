@@ -87,3 +87,7 @@ After each patch/package change, verify at least:
 4. If Cornerstone/vtk versions change, regenerate `node-module-patches/` for the new package versions.
 5. Build the image.
 6. Run the smoke test above before deploying broadly.
+
+## Acknowledgments
+
+This project builds upon [OHIF-AI](https://github.com/CCI-Bonn/OHIF-AI).

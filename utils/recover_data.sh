@@ -864,6 +864,16 @@ process_single_pvc() {
     echo "  [2/7] Ensuring namespace"
     ensure_namespace "$namespace" || return 1
 
+    # Wait for the namespace's default ServiceAccount before creating the binder
+    # pod. Kubernetes provisions the default SA asynchronously, so on a freshly
+    # created namespace pod creation is briefly rejected with
+    # "serviceaccount default not found", which then causes a PVC binding
+    # timeout. Poll up to 30s for the SA to appear.
+    for _sa_wait in {1..30}; do
+        $KUBE get sa default -n "$namespace" >/dev/null 2>&1 && break
+        sleep 1
+    done
+
     local helm_meta="${NS_HELM_MAP[$namespace]}"
     local release_name="${helm_meta%%|*}"
     local release_ns="${helm_meta##*|}"

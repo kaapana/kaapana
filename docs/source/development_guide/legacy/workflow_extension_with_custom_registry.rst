@@ -54,7 +54,7 @@ This will create the registry-secret in the selected active project.
 .. important::
       
       The *Absolute Registry URL* for the New Registry has to contain the protocol, either *http* or *https*.
-      For more information about installation errors and configuration options checkout the :ref:`documentation <extensions_new_registry>.`
+      For more information about installation errors and configuration options checkout the :ref:`documentation <extensions_new_registry>`.
 
 Prepraing the extension-chart
 ===============================

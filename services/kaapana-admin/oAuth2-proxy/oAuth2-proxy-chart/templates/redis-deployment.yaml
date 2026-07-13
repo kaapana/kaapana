@@ -1,0 +1,61 @@
+# Redis backing store for oauth2-proxy sessions. Added to fix "400 Request Header
+# Or Cookie Too Large": with the redis store the access token lives server-side and
+# the browser only keeps a small session ticket, instead of a large chunked cookie.
+# Deployed only when the single "type" switch selects redis.
+{{- if eq .Values.session_storage.type "redis" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy-redis
+  namespace: "{{ .Values.global.helm_namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: oauth2-proxy-redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: oauth2-proxy-redis
+    spec:
+      containers:
+        - name: redis
+          # Pulled from the Kaapana registry (mirrored via redis-docker/Dockerfile) so
+          # it is available on offline/air-gapped sites; needs the registry pull secret.
+          image: "{{ .Values.global.registry_url }}/redis:{{ .Values.global.kaapana_build_version }}"
+          imagePullPolicy: {{ .Values.global.pull_policy_images }}
+          # Sessions are ephemeral cache data, so persistence is disabled (no RDB
+          # snapshots, no AOF). A restart clears sessions and forces re-login, which
+          # is acceptable and avoids needing a PVC.
+          args:
+            - redis-server
+            - --save
+            - ""
+            - --appendonly
+            - "no"
+          ports:
+            - name: redis
+              containerPort: {{ .Values.session_storage.redis.port }}
+          # Probes added so the Service does not route to a not-yet-ready Redis
+          # (readiness) and so a hung Redis is restarted (liveness). Without them,
+          # oauth2-proxy sessions could fail intermittently. redis-cli ships in the image.
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              memory: {{ .Values.session_storage.redis.resources.requests.memory }}
+            limits:
+              memory: {{ .Values.session_storage.redis.resources.limits.memory }}
+      priorityClassName: kaapana-high-priority
+      # Required to pull the mirrored redis image from the private Kaapana registry.
+      imagePullSecrets:
+      - name: registry-secret
+{{- end }}

@@ -27,8 +27,10 @@ spec:
         image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version }}"
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
         env:
+          # Wait for keycloak, plus redis when it is the session store, so oauth2-proxy
+          # does not start before its session backend is reachable.
           - name: WAIT
-            value: "keycloak,keycloak-internal-service.{{ .Values.global.admin_namespace }}.svc,443"
+            value: "keycloak,keycloak-internal-service.{{ .Values.global.admin_namespace }}.svc,443{{- if eq .Values.session_storage.type "redis" }};redis,{{ .Values.session_storage.redis.service_name }}.{{ .Values.global.helm_namespace }}.svc,{{ .Values.session_storage.redis.port }}{{- end }}"
           - name: DELAY
             value: "3"
           - name: TIMEOUT

@@ -353,7 +353,10 @@ build_packages:
 
   script:
     - |
-      [[ $CI_EXEC_DOCKER_PRUNE == "true" ]] && docker system prune --all --volumes -f
+      if [[ $CI_EXEC_DOCKER_PRUNE == "true" ]]; then
+        docker system prune --all --volumes -f
+        docker buildx prune --all -f
+      fi
 
     # Disable exit-on-error for scan/check modes
     - |

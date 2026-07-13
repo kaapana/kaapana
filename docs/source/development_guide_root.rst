@@ -16,11 +16,8 @@ which covers workflow and application extension development for those releases.
     :maxdepth: 2
     :hidden:
 
-    development_guide/processing_container_dev_guide
-    development_guide/workflow_development
-    development_guide/extension_packaging
-    development_guide/extension_manager
-    development_guide/legacy_workflow_migration
+    
     development_guide/legacy_dev_guide_root
-
+    development_guide/feature_preview_root
+    development_guide/legacy_workflow_migration
 

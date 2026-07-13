@@ -4,6 +4,10 @@
 Workflow Development
 ====================
 
+Kaapana uses `Apache Airflow <https://airflow.apache.org/>`_ as its workflow engine to orchestrate the execution of processing pipelines.
+Every workflow available in Kaapana is implemented as an Airflow DAG (Directed Acyclic Graph), where each node in the DAG represents a task that typically runs a processing-container.
+When a user triggers a workflow, e.g. from the Kaapana UI, this starts a DAG run, which executes the individual tasks according to the dependencies defined in the DAG.
+
 Using a processing-container in an Airflow DAG
 ###############################################
 
@@ -23,7 +27,7 @@ The following is a minimal DAG with a single task:
 .. code:: python
 
     from airflow.models import DAG
-    from task_api_operator.KaapanaTaskOperator import KaapanaTaskOperator
+    from task_api_operators.KaapanaTaskOperator import KaapanaTaskOperator
     from kaapana.blueprints.kaapana_global_variables import (
         DEFAULT_REGISTRY,
         KAAPANA_BUILD_VERSION,
@@ -102,7 +106,7 @@ The DAG file would look like this
 .. code:: python
 
     from airflow.models import DAG
-    from task_api_operator.KaapanaTaskOperator import KaapanaTaskOperator, IOMapping
+    from task_api_operators.KaapanaTaskOperator import KaapanaTaskOperator, IOMapping
     from kaapana.blueprints.kaapana_global_variables import (
         DEFAULT_REGISTRY,
         KAAPANA_BUILD_VERSION,

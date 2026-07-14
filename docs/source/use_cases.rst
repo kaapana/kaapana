@@ -62,8 +62,6 @@ Governance, extensibility & building your own
 
 **On-premises or in the cloud**: Kaapana supports a wide range of deployment environments, from a single virtual machine or multi-VM setup to local Kubernetes clusters and public cloud platforms. This flexibility enables Kaapana to integrate into the heterogeneous IT infrastructures commonly found in research institutions, whether you prefer to operate the platform on your own hardware or deploy it using cloud resources.
 
-**Build your own platforms**: Kaapana is built on Kubernetes and a microservice architecture, allowing it to be adapted to a wide range of deployment scenarios. Use the complete feature set to create a comprehensive imaging and AI platform for your research group or institution, or remove unnecessary components to build a lightweight web-based showcase for your AI methods.
-
-.. TODO link to neurrad
+**Build your own platforms**: Kaapana is built on Kubernetes and a microservice architecture, allowing it to be adapted to a wide range of deployment scenarios. Use the complete feature set to create a comprehensive imaging and AI platform for your research group or institution, or remove unnecessary components to build a lightweight web-based showcase for your AI methods, such as the `stroke imaging platform <https://stroke.ccibonn.ai/>`_ of the Division for Computational Radiology & Clinical AI (CCIBonn.ai) at the University Hospital Bonn.
 
 **Extend the platform to meet your needs**: Add algorithms through the extensions mechanism, plug in a custom workflow, or ship a new custom application (e.g. another viewer or tool) into the platform. Develop and deploy interactively inside the platform with the integrated VS Code Server and Extension Development Kit (EDK).

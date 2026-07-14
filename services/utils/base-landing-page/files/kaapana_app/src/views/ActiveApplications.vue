@@ -161,7 +161,7 @@ export default Vue.extend({
     this.getActiveApplications();
     this.polling = window.setInterval(() => {
       this.getActiveApplications();
-    }, 2000);
+    }, 10000);
   },
   beforeDestroy() {
     window.clearInterval(this.polling);

@@ -2653,7 +2653,7 @@ function preflight_checks {
     local USER_KUBE_SYSTEM_UID
     local MICROK8S_KUBE_SYSTEM_UID
     local KUBECONFIG_MATCHES=false
-    USER_KUBE_CONFIG="$(cat "/home/$USER/.kube/config" 2>/dev/null)"
+    USER_KUBE_CONFIG="$(microk8s.kubectl --kubeconfig "/home/$USER/.kube/config" config view --raw 2>/dev/null)"
     MICROK8S_KUBE_CONFIG="$(microk8s.kubectl config view --raw 2>/dev/null)"
     if [ -n "$USER_KUBE_CONFIG" ] && [ "$USER_KUBE_CONFIG" = "$MICROK8S_KUBE_CONFIG" ]; then
         KUBECONFIG_MATCHES=true

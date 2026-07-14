@@ -6,7 +6,14 @@ Migration from Version 0.6.x to 0.7.x
 In 0.7 each project is identified internally by a short, stable ``short_id`` instead of its name, and the bundled PostgreSQL is upgraded from 17 to 18.
 Your projects, users and data are preserved, but **one manual step is required after the upgrade**: re-keying each project's storage to its ``short_id``.
 
-Read this page fully before you start.
+The migration has two phases:
+
+* **Phase A - Platform migration**: upgrade the Kaapana platform 0.6.x -> 0.7.x (still on MicroK8s 1.33).
+* **Phase B - MicroK8s migration**: upgrade MicroK8s 1.33 -> 1.36, then redeploy.
+
+**NOTE**: If you are not running your Kaapana platform on MicroK8s, Phase B is not needed.
+
+Read this page fully before you start. Complete and verify Phase A before starting Phase B.
 
 .. note::
 
@@ -28,8 +35,8 @@ Before you start
 
      cat <FAST_DATA_DIR>/version
 
-Performing the migration
-========================
+Phase A: Platform migration
+===========================
 
 1. **Undeploy** the running 0.6.x platform:
 
@@ -75,6 +82,55 @@ Performing the migration
       Do not ingest new data into a project until its re-key has finished.
 
 5. **Verify:** each project shows its images, metadata and thumbnails in the UI, and users can log in and see their projects.
+
+Phase B: MicroK8s migration
+===========================
+
+Kaapana 0.7.0 targets MicroK8s 1.36; a platform migrated in Phase A still runs on the 1.33 cluster it was installed with.
+Upgrade MicroK8s **after** Phase A is verified. The platform is undeployed during the upgrade, the data on disk is untouched.
+
+Run ``kaapanactl.sh`` as your normal user, not with ``sudo``.
+
+1. **Undeploy** the platform:
+
+   .. code-block:: bash
+
+      ./kaapanactl.sh deploy --undeploy
+
+2. **Remove obsolete API-server arguments** left by the 1.33 installer. This must happen **before** the refresh. A MicroK8s ≥ 1.34 API server does not start while they are present:
+
+   .. code-block:: bash
+
+      sudo sed -i -e "/--insecure-port=0/d" -e "/--runtime-config=admissionregistration.k8s.io.*v1beta1=true/d" /var/snap/microk8s/current/args/kube-apiserver
+      grep -cE 'insecure-port|v1beta1' /var/snap/microk8s/current/args/kube-apiserver   # must print 0
+
+3. **Refresh MicroK8s one minor version at a time** and wait for readiness after each step:
+
+   .. code-block:: bash
+
+      sudo snap refresh microk8s --channel=1.34/stable && sudo microk8s status --wait-ready
+      sudo snap refresh microk8s --channel=1.35/stable && sudo microk8s status --wait-ready
+      sudo snap refresh microk8s --channel=1.36/stable && sudo microk8s status --wait-ready
+
+4. **Verify cluster access**:
+
+   .. code-block:: bash
+
+      kubectl get nodes   # should show the node Ready at v1.36.x
+
+   Only if this fails, refresh your kubeconfig: ``microk8s kubectl config view --raw > ~/.kube/config`` (``kaapanactl`` itself tolerates a kubeconfig that points at the same cluster under a different address).
+
+5. **Redeploy** with your usual deploy command and the **same chart you deployed in Phase A**. The platform migration is skipped automatically (the version file already reads 0.7):
+
+   .. code-block:: bash
+
+      ./kaapanactl.sh deploy ...
+
+   .. note::
+
+      If you pull images from a local or plain-HTTP (insecure) registry, re-create your containerd hosts.toml for it under ``/var/snap/microk8s/current/args/certs.d/<registry>/`` after the refresh, then ``sudo microk8s stop && sudo microk8s start``. Not needed for HTTPS registries.
+
+6. **Verify:** all pods Running/Completed, login works, DICOM ingestion and other workflows run as expected.
 
 What changes in 0.7.0
 =====================
@@ -137,4 +193,8 @@ Troubleshooting
 
 - **A pod does not come up:** ``kubectl get pods -A | grep -vE 'Running|Completed'``, then ``kubectl logs -n <ns> <pod> --previous``. The access-information-interface pod applies the rights update on startup and is the usual first place to look.
 
-- **Roll back:** restore the backup taken in `Before you start`_ and redeploy 0.6.x.
+- **GPU pods fail after the MicroK8s upgrade** (runtime errors): the nvidia addon enabled under 1.33 did not set the default containerd runtime that ≥ 1.36 requires. Disable and re-enable it, then redeploy: ``microk8s disable nvidia``, then run the deploy again (it re-enables the addon with ``--gpu-operator-set-as-default-runtime``).
+
+- **Roll back Phase A:** restore the backup taken in `Before you start`_ and redeploy 0.6.x.
+
+- **Roll back Phase B:** ``sudo snap revert microk8s`` returns to the previous MicroK8s revision and its cluster state; the platform can then be redeployed on 1.33.

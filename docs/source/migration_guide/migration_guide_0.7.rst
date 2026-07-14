@@ -35,7 +35,7 @@ Performing the migration
 
    .. code-block:: bash
 
-      ./kaapanactl.sh --undeploy
+      ./kaapanactl.sh deploy --undeploy
 
 2. **Deploy 0.7.x.** Migration runs automatically after you confirm the prompt.
    See :ref:`deployment` for the full deploy command.
@@ -44,9 +44,10 @@ Performing the migration
 
       ./kaapanactl.sh deploy ...
 
-   During migration 
-   * the bundled PostgreSQL is upgraded in place (17 → 18, the previous cluster is kept alongside as ``<cluster>_pg17_bak``) 
-   * the admin project's namespace and workflow volumes are moved to their new prefixed name 
+   During migration
+
+   * the bundled PostgreSQL is upgraded in place (17 → 18, the previous cluster is kept alongside as ``<cluster>_pg17_bak``)
+   * the admin project's namespace and workflow volumes are moved to their new prefixed name
    * no Keycloak admin password is required (see `Keycloak`_ below).
 
 3. **Wait** until the platform is fully up:

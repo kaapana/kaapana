@@ -37,7 +37,7 @@ spec:
           - name: TIMEOUT
             value: "10"
       {{- if .Values.global.keycloak_migration_bootstrap }}
-      # Migration-only: create the kaapana-admin client in the DB (server stopped) so the bootstrap job can log in without the old admin password. Idempotent.
+      # Migration-only: bring the keycloak DB schema up to date (a brief start) and create the kaapana-admin client offline, so the bootstrap job can log in without the old admin password. Idempotent.
       - name: migration-bootstrap-admin-client
         image: "{{ .Values.global.registry_url }}/keycloak:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
@@ -61,14 +61,22 @@ spec:
                 name: kaapana-admin-password
                 key: kaapana-admin-password
         command:
-          - "/opt/keycloak/bin/kc.sh"
-          - "bootstrap-admin"
-          - "service"
-          - "--client-id"
-          - "kaapana-admin"
-          - "--client-secret:env"
-          - "KAAPANA_ADMIN_CLIENT_SECRET"
-          - "--optimized"
+          - /bin/bash
+          - -ce
+          - |
+            /opt/keycloak/bin/kc.sh start --optimized --http-enabled=true --hostname-strict=false >/tmp/kc-migrate.log 2>&1 &
+            kc_pid=$!
+            ready=""
+            n=0
+            while [ "$n" -lt 150 ]; do
+              if grep -q "Listening on:" /tmp/kc-migrate.log; then ready=1; break; fi
+              kill -0 "$kc_pid" 2>/dev/null || { echo "keycloak exited during schema migration:"; tail -20 /tmp/kc-migrate.log; exit 1; }
+              n=$((n + 1)); sleep 2
+            done
+            [ -n "$ready" ] || { echo "timed out waiting for keycloak schema migration:"; tail -20 /tmp/kc-migrate.log; exit 1; }
+            kill "$kc_pid" 2>/dev/null || true
+            wait "$kc_pid" 2>/dev/null || true
+            /opt/keycloak/bin/kc.sh bootstrap-admin service --client-id kaapana-admin --client-secret:env KAAPANA_ADMIN_CLIENT_SECRET --optimized
       {{- end }}
       containers:
         - name: keycloak-container

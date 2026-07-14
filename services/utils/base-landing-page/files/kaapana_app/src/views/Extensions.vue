@@ -302,6 +302,7 @@ import { mapGetters } from "vuex";
 import kaapanaApiService from "@/common/kaapanaApi.service";
 import Upload from "@/components/Upload.vue";
 import IdleTracker from "@/components/IdleTracker.vue";
+import { CHECK_AVAILABLE_WEBSITES } from "@/store/actions.type";
 
 export default Vue.extend({
   components: {
@@ -323,6 +324,8 @@ export default Vue.extend({
     loading: true,
     polling: 0,
     launchedAppLinks: [] as any,
+    readySignature: null as string | null,
+    sidebarRefreshTicks: 0,
     search: "",
     selectedFilters: [
       "Stable",
@@ -588,12 +591,33 @@ export default Vue.extend({
           // console.log(JSON.stringify(this.launchedAppLinks));
           if (this.launchedAppLinks !== null) {
             this.loading = false;
+            this.refreshSidebarOnReadyChange();
           }
         })
         .catch((err: any) => {
           this.loading = false;
           console.log(err);
         });
+    },
+    refreshSidebarOnReadyChange() {
+      // A newly-ready extension may register a sidebar route (e.g. SLIM Viewer);
+      // refresh the sidebar so it appears without navigating away, and disappears
+      // on uninstall. The Traefik route can be enabled a few seconds after the
+      // deployment reports ready, so refresh over a short settle window rather
+      // than once, otherwise a late route registration is missed until navigation.
+      const signature = (this.launchedAppLinks || [])
+        .filter((item: any) => this.checkDeploymentReady(item))
+        .map((item: any) => item.releaseName)
+        .sort()
+        .join(",");
+      if (this.readySignature !== null && signature !== this.readySignature) {
+        this.sidebarRefreshTicks = 4;
+      }
+      this.readySignature = signature;
+      if (this.sidebarRefreshTicks > 0) {
+        this.sidebarRefreshTicks--;
+        this.$store.dispatch(CHECK_AVAILABLE_WEBSITES);
+      }
     },
     startExtensionsInterval() {
       this.polling = window.setInterval(() => {

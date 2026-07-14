@@ -77,9 +77,16 @@ const actions = {
     return new Promise((resolve: any) => {
       httpClient.get("/aii/users/current").then((response: any) => {
         const current_user: any = response.data
-        const get_users_projects_url = "/aii/users/" + current_user.id + "/projects"
+
+        // mirror GET_SELECTED_PROJECT: admins list all projects, others only their own
+        let get_users_projects_url = "/aii/users/" + current_user.id + "/projects"
+        if (current_user.realm_roles.includes("admin")) {
+          get_users_projects_url = "/aii/projects"
+        }
+
         httpClient.get(get_users_projects_url).then((response: any) => {
           context.commit(SET_AVAILABLE_PROJECTS, response.data)
+          resolve(true)
         }).catch((error: any) => {
           console.error("Error fetching projects:", error);
           resolve(false)

@@ -101,6 +101,7 @@
                   label="Project"
                   return-object
                   @change="update_selected_project"
+                  @focus="refreshAvailableProjects"
                 >
                   <template v-slot:selection="{ item }">
                     {{ item.name }}<span v-if="item.short_id" style="text-transform: none"> ({{ item.short_id }})</span>
@@ -235,6 +236,7 @@ import {
   GET_SELECTED_PROJECT,
   CLEAR_SELECTED_PROJECT,
   UPDATE_SELECTED_PROJECT,
+  UPDATE_AVAILABLE_PROJECTS,
 } from "@/store/actions.type";
 import { checkAuthR } from "@/utils/utils.js";
 
@@ -263,6 +265,9 @@ export default Vue.extend({
   methods: {
     update_selected_project(newProject:any){
       this.$store.dispatch(UPDATE_SELECTED_PROJECT, newProject);
+    },
+    refreshAvailableProjects() {
+      this.$store.dispatch(UPDATE_AVAILABLE_PROJECTS);
     },
     _checkAuthR(policyData: any, endpoint: string, currentUser: any): boolean {
       "Check if the user has a role that authorizes him to access the requested endpoint";
@@ -336,6 +341,14 @@ export default Vue.extend({
             console.log(err);
           });
       }
+    },
+  },
+  watch: {
+    // Refresh sidebar data on navigation so newly created projects and newly
+    // enabled extensions (e.g. SLIM Viewer) appear without a full page reload.
+    $route() {
+      this.$store.dispatch(UPDATE_AVAILABLE_PROJECTS);
+      this.$store.dispatch(CHECK_AVAILABLE_WEBSITES);
     },
   },
   beforeCreate() {

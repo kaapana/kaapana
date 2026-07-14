@@ -42,7 +42,7 @@ spec:
         - name: LOCAL_PATH
           value: /kaapana/minio/
         - name: MINIO_PATH
-          value: project-{{ .Values.global.project_name }}/{{ .Values.global.minio_prefix }}
+          value: project-{{ .Values.global.project_short_id }}/{{ .Values.global.minio_prefix }}
         - name: MINIO_USER
           value: {{ .Values.global.credentials_minio_username  | default "" }}
         - name: MINIO_PASSWORD

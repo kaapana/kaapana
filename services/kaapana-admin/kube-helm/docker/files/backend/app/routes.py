@@ -24,6 +24,26 @@ templates = Jinja2Templates(directory=join(dirname(str(__file__)), "templates"))
 logger = get_logger(__name__)
 
 
+async def _fetch_project(project_id: str) -> Optional[dict]:
+    url = f"{settings.aii_service_url}/projects/{project_id}"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(url)
+        if response.status_code != 200:
+            logger.warning(
+                "Failed to fetch project from AII: status=%s",
+                response.status_code,
+            )
+            return None
+        payload = response.json()
+        if not isinstance(payload, dict):
+            return None
+        return payload
+    except Exception:
+        logger.warning("Failed to fetch project %s from AII", project_id)
+        return None
+
+
 async def _fetch_project_whitelist(project_id: str) -> Optional[list[str]]:
     url = f"{settings.aii_service_url}/projects/{project_id}/multiinstallable-whitelist"
     try:
@@ -352,10 +372,22 @@ async def helm_install_chart(request: Request):
                             ),
                         )
 
+                # The Project header from the frontend only carries {name, id};
+                # resolve the full project from AII to get the derived fields
+                # (short_id for the MinIO bucket, kubernetes_namespace).
+                project = await _fetch_project(project_id) if project_id else None
+                if project is None:
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Could not resolve the project. Please try again later.",
+                    )
                 payload["extension_params"] = payload.get("extension_params", {})
-                payload["extension_params"]["project_id"] = project_form.get("id")
-                payload["extension_params"]["project_name"] = project_form.get("name")
-                payload["extension_params"]["project_namespace"] = project_form.get(
+                payload["extension_params"]["project_id"] = project.get("id")
+                payload["extension_params"]["project_name"] = project.get("name")
+                payload["extension_params"]["project_short_id"] = project.get(
+                    "short_id"
+                )
+                payload["extension_params"]["project_namespace"] = project.get(
                     "kubernetes_namespace"
                 )
 

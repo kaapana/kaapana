@@ -3,7 +3,7 @@ import AuthService from '@/common/auth.service'
 import httpClient from './httpClient'
 
   // Forward the selected project so kube-helm can inject project-scoped Helm
-  // values (e.g. global.project_name for MinIO paths). The /kube-helm-api route
+  // values (e.g. global.project_short_id for MinIO paths). The /kube-helm-api route
   // is not behind the auth proxy that would otherwise add the Project header.
   const projectHeader = () => {
     const project = Vue.$cookies.get('Project')

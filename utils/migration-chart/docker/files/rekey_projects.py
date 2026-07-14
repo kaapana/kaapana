@@ -21,7 +21,7 @@ It reuses that pod's MinIO/OpenSearch clients, credentials and database connecti
 import asyncio
 import logging
 
-from minio.commonconfig import CopySource
+from minio.commonconfig import ComposeSource, CopySource
 
 from app.database import async_session
 from app.projects.crud import get_projects
@@ -33,6 +33,9 @@ from kaapanapy.helper import get_project_user_access_token
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("project-rekey")
+
+# S3 single-request server-side copy is limited to 5 GiB
+MAX_SINGLE_COPY_SIZE = 5 * 1024**3
 
 
 async def _rekey_minio(minio_helper, project: Project, session) -> None:
@@ -51,9 +54,16 @@ async def _rekey_minio(minio_helper, project: Project, session) -> None:
 
     copied = 0
     for obj in client.list_objects(old_bucket, recursive=True):
-        client.copy_object(
-            new_bucket, obj.object_name, CopySource(old_bucket, obj.object_name)
-        )
+        if (obj.size or 0) > MAX_SINGLE_COPY_SIZE:
+            client.compose_object(
+                new_bucket,
+                obj.object_name,
+                [ComposeSource(old_bucket, obj.object_name)],
+            )
+        else:
+            client.copy_object(
+                new_bucket, obj.object_name, CopySource(old_bucket, obj.object_name)
+            )
         copied += 1
     logger.info(f"[{project.name}] MinIO: copied {copied} objects {old_bucket} -> {new_bucket}")
 
@@ -102,6 +112,7 @@ async def rekey_all_projects() -> None:
     async with async_session() as session:
         orm_projects = await get_projects(session)
 
+    failures = []
     for orm in orm_projects:
         try:
             project = Project.model_validate(orm)
@@ -114,10 +125,21 @@ async def rekey_all_projects() -> None:
             continue
 
         logger.info(f"[{project.name}] re-keying to short_id {project.short_id}")
-        async with async_session() as session:
-            await _rekey_minio(minio_helper, project, session)
-        await _rekey_opensearch(os_helper, project)
+        # a failing project must not block the remaining ones
+        try:
+            async with async_session() as session:
+                await _rekey_minio(minio_helper, project, session)
+            await _rekey_opensearch(os_helper, project)
+        except Exception:
+            logger.exception(f"[{project.name}] re-key FAILED, continuing with remaining projects")
+            failures.append(project.name)
 
+    if failures:
+        logger.error(
+            f"Project re-key finished with failures: {', '.join(failures)}. "
+            "Fix the cause and re-run (idempotent)."
+        )
+        raise SystemExit(1)
     logger.info("Project re-key finished.")
 
 

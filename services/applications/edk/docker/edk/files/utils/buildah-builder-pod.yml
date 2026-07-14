@@ -2,20 +2,21 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: buildah-builder
-  annotations:
-    container.apparmor.security.beta.kubernetes.io/buildah: unconfined
 spec:
+  # hostNetwork: true
   containers:
   - name: buildah
     image: "{{ .Values.global.registry_url }}/buildah:{{ .Values.global.kaapana_build_version }}"
     imagePullPolicy: IfNotPresent
     command:
     - /start.sh
-    hostNetwork: true
     securityContext:
       runAsUser: 1000
       runAsGroup: 1000
       runAsNonRoot: true
+      # replaces deprecated annotation: container.apparmor.security.beta.kubernetes.io/buildah: unconfined
+      appArmorProfile:
+        type: Unconfined
       capabilities:
         add:
           - SYS_ADMIN

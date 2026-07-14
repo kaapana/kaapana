@@ -3,7 +3,7 @@ kind: Pod
 metadata:
   name: buildah-builder
 spec:
-  hostNetwork: true
+  # hostNetwork: true
   containers:
   - name: buildah
     image: "{{ .Values.global.registry_url }}/buildah:{{ .Values.global.kaapana_build_version }}"

@@ -76,7 +76,11 @@ spec:
             [ -n "$ready" ] || { echo "timed out waiting for keycloak schema migration:"; tail -20 /tmp/kc-migrate.log; exit 1; }
             kill "$kc_pid" 2>/dev/null || true
             wait "$kc_pid" 2>/dev/null || true
-            /opt/keycloak/bin/kc.sh bootstrap-admin service --client-id kaapana-admin --client-secret:env KAAPANA_ADMIN_CLIENT_SECRET --optimized
+            # tolerate an already-created client (pod restarts re-run this initContainer)
+            out=$(/opt/keycloak/bin/kc.sh bootstrap-admin service --client-id kaapana-admin --client-secret:env KAAPANA_ADMIN_CLIENT_SECRET --optimized 2>&1) || {
+              echo "$out" | grep -qi "already exist" || { echo "bootstrap-admin failed:"; echo "$out" | tail -20; exit 1; }
+              echo "kaapana-admin client already exists - nothing to do"
+            }
       {{- end }}
       containers:
         - name: keycloak-container

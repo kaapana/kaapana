@@ -365,21 +365,25 @@ def upload_series_to_data_api(ds, **kwargs):
                 print(f"Error uploading thumbnail for series {series_uid}: {e}")
 
         # Add permissions metadata if project was found
-        # Extract project name and fetch project details
-        project_id = metadata.get(DicomTags.clinical_trial_protocol_id_tag)
+        # Extract project short_id and fetch project details
+        project_short_id = metadata.get(DicomTags.clinical_trial_protocol_id_tag)
         project = None
-        if project_id:
+        if project_short_id:
             try:
                 response = requests.get(
                     f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects"
                 )
                 response.raise_for_status()
                 projects = response.json()
-                matching_projects = [p for p in projects if p.get("id") == project_id]
+                matching_projects = [
+                    p for p in projects if p.get("short_id") == project_short_id
+                ]
                 if matching_projects:
                     project = matching_projects[0]
                 else:
-                    print(f"Warning: Project with id '{project_id}' not found")
+                    print(
+                        f"Warning: Project with short_id '{project_short_id}' not found"
+                    )
             except requests.exceptions.RequestException as e:
                 print(f"Warning: Failed to fetch projects: {e}")
 

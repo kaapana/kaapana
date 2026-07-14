@@ -168,10 +168,6 @@ def main():
             )
             sys.exit(e.returncode)
 
-        logger.info(f"Output:\n{result.stdout}")
-        if result.stderr:
-            logger.info(f"Warnings/errors:\n{result.stderr}")
-
         logger.info("Check version file is the newest version")
         minor_final = (fast_data_dir / "version").read_text().split(".")[1]
         assert int(minor_final) == int(

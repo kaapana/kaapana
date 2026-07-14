@@ -26,6 +26,16 @@
       {{- $storage = $volume.storage | default $global.volume_slow_data -}}
     {{- end }}
 
+    {{- /* Keep existing PVC's requested size. 
+           A non-expandable storageclass (e.g. hostpath) forbids resizing.
+           So if a chart default grew between ver.s, reconciling an existing claim to the new sizefails the deployment. 
+           New PVCs still use the declared size. */}}
+    {{- $pvc_name := printf "%s%s-pv-claim" $volume.name $postfix }}
+    {{- $existing_pvc := lookup "v1" "PersistentVolumeClaim" $namespace $pvc_name }}
+    {{- if $existing_pvc }}
+      {{- $storage = $existing_pvc.spec.resources.requests.storage -}}
+    {{- end }}
+
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

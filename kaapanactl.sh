@@ -1769,6 +1769,7 @@ function run_migration_chart() {
         --set-string global.storage_class_workflow="$STORAGE_CLASS_WORKFLOW" \
         --set-string global.services_namespace="$SERVICES_NAMESPACE" \
         --set-string global.admin_namespace="$ADMIN_NAMESPACE" \
+        --set-string global.platform_prefix="$PLATFORM_PREFIX" \
         --set-string global.pull_policy_images="$PULL_POLICY_IMAGES" \
         --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
         --set-string global.kaapana_build_version="$PLATFORM_VERSION" \
@@ -1795,6 +1796,10 @@ function run_migration_chart() {
 
         if [[ "${SUCCEEDED:-0}" -ge 1 ]]; then
             echo -e "${GREEN}Migration job completed successfully!${NC}"
+            # Migration kept the old keycloak realm but not the new kaapana-admin client. 
+            # Tell the keycloak chart to create that client (its migration init container).
+            # Then the bootstrap job can log in without the old admin password, which we no longer require.
+            KEYCLOAK_MIGRATION_BOOTSTRAP=true
             PODS=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o name)
             for pod in $PODS; do
                 microk8s.kubectl logs "$pod" -n "$NAMESPACE"
@@ -1896,6 +1901,10 @@ function prompt_user_backup() {
     echo "   cp -a $FAST_DATA_DIR /path/to/fast/backup"
     echo "   cp -a $SLOW_DATA_DIR /path/to/slow/backup"
     echo
+    if [ "${QUIET:-false}" = true ]; then
+        echo "Quiet mode: proceeding with migration (use --no-migration to skip)."
+        return 0
+    fi
     while true; do
         read -p "Proceed with migration? (yes/no/skip): " answer
         case "$answer" in
@@ -2278,6 +2287,9 @@ function deploy_chart {
     setup_storage_classes
 
     echo "${GREEN}Checking for version difference and migration options...${NC}"
+    # set to true by run_migration_chart when a migration actually runs 
+    # consumed by the keycloak chart to bootstrap the kaapana-admin client on upgrades
+    KEYCLOAK_MIGRATION_BOOTSTRAP=false
     migrate
 
     # --- Keycloak admin password -----------------------------------------------
@@ -2344,6 +2356,7 @@ function deploy_chart {
     --set-string global.credentials_keycloak_admin_username="$KEYCLOAK_ADMIN_USERNAME" \
     --set-string global.credentials_keycloak_admin_password="$KEYCLOAK_ADMIN_PASSWORD" \
     --set global.keycloak_admin_password_temporary="${KEYCLOAK_ADMIN_PASSWORD_TEMPORARY:-false}" \
+    --set global.keycloak_migration_bootstrap="${KEYCLOAK_MIGRATION_BOOTSTRAP:-false}" \
     --set-string global.dicom_port="$DICOM_PORT" \
     --set-string global.fast_data_dir="$FAST_DATA_DIR" \
     --set-string global.services_namespace=$SERVICES_NAMESPACE \

@@ -35,7 +35,9 @@ spec:
         - name: SERVICES_NAMESPACE
           value: "{{ .Values.global.services_namespace }}"
         - name: ADMIN_NAMESPACE
-          value: "{{ .Values.global.admin_namespace }}"    
+          value: "{{ .Values.global.admin_namespace }}"
+        - name: PLATFORM_PREFIX
+          value: "{{ .Values.global.platform_prefix }}"
         - name: VOLUME_SLOW_DATA
           value: "{{ .Values.global.volume_slow_data }}"
         - name: MIGRATION_IMAGE

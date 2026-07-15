@@ -72,51 +72,57 @@ The adapter is responsible for all communication with external engines:
 
 #### Adapter Interface (simplified)
 ```python
-class SubmitWorkflowResult(BaseModel):
-    tasks: list[TaskCreate]
-    external_id: Optional[str] = None
-
-class WorkflowEngineAdapter(Protocol):
-    async def submit_workflow(self, workflow: Workflow) -> SubmitWorkflowResult: ...
-    async def get_workflow_tasks(self, workflow: Workflow) -> list[TaskCreate]: ...
+class WorkflowEngineAdapter(ABC):
+    async def submit_workflow_revision(self, revision: WorkflowRevision) -> WorkflowRevision: ...
+    async def get_workflow_tasks(self, revision: WorkflowRevision | WorkflowRef) -> list[TaskCreate]: ...
+    async def submit_workflow_run(self, run: WorkflowRun, project_id: str) -> WorkflowRunUpdate: ...
+    async def get_workflow_run_status(self, external_id: str) -> WorkflowRunStatus: ...
+    async def cancel_workflow_run(self, external_id: str) -> WorkflowRunStatus: ...
+    async def retry_workflow_run(self, external_id: str) -> WorkflowRunStatus: ...
+    async def get_task_run_logs(self, external_id: str) -> str: ...
 ```
 
 ---
 
 ## Database Relations
-* **Workflow**
-    * `Workflow 1 — n WorkflowRun` (a workflow can have many runs).
-    * `Workflow 1 — n Task` (a workflow has many tasks).
-    * `Workflow m — n Label` (workflows can have multiple labels via workflow_label).
+* **Workflow** (stable identity: `id`, `title`, `workflow_engine`, `removed`)
+    * `Workflow 1 — n WorkflowRevision` (append-only revision history).
+    * `title` is unique among active workflows (partial index `WHERE removed = false`).
+
+* **WorkflowRevision** (per-increment snapshot of `definition`, `workflow_parameters`, `labels`)
+    * `WorkflowRevision n — 1 Workflow`.
+    * `WorkflowRevision 1 — n Task` (tasks belong to a specific revision).
+    * `WorkflowRevision 1 — n WorkflowRun` (runs pin to the revision they were submitted under).
+    * `WorkflowRevision m — n Label` (via `workflow_revision_label`).
+    * `UNIQUE(workflow_id, increment)`.
 
 * **WorkflowRun**
-    * `WorkflowRun n — 1 Workflow` (each run belongs to a specific workflow).
-    * `WorkflowRun m — n Label` (runs can have labels via workflowrun_label).
-    * `WorkflowRun 1 — n TaskRun` (each run has multiple task runs).
+    * `WorkflowRun n — 1 WorkflowRevision`.
+    * `WorkflowRun m — n Label` (via `workflowrun_label`).
+    * `WorkflowRun 1 — n TaskRun`.
 
 * **Task**
-    * `Task n — 1 Workflow` (belongs to a workflow).
-    * `Task 1 — n TaskRun` (each task can spawn multiple runs).
-    * `Task m — n Task` (via DownstreamTask) (dependency graph between tasks).
-    * `DownstreamTask` Association table between Task.task_id and Task.downstream_task_id. Enforces unique pair.
+    * `Task n — 1 WorkflowRevision`.
+    * `Task 1 — n TaskRun`.
+    * `Task m — n Task` (via `DownstreamTask`, dependency graph).
 
 * **TaskRun**
-    * `TaskRun n — 1 Task` (links to task definition).
-    * `TaskRun n — 1 WorkflowRun` (links to workflow execution instance).
+    * `TaskRun n — 1 Task`.
+    * `TaskRun n — 1 WorkflowRun`.
 
 * **Label**
-    * `Label m — n Workflow`
-    * `Label m — n WorkflowRun`
+    * `Label m — n WorkflowRevision`.
+    * `Label m — n WorkflowRun`.
 
 ---
 
 ## Workflow Execution & Syncing
 
 ### Inline execution
-- On workflow creation:
-  1. Workflow is persisted in DB.  
-  2. Adapter submits workflow to the engine.  
-  3. Adapter returns tasks, which are persisted in DB.  
+- On workflow creation (or any PATCH that bumps the increment):
+  1. Workflow and its new revision are persisted in DB.
+  2. Adapter submits the revision to the engine (`submit_workflow_revision`).
+  3. Tasks are parsed from the engine in the background and persisted against the revision.
 
 ### Lazy evaluation
 - On fetching a workflow run (`GET /workflow-runs/{id}`):  
@@ -135,10 +141,24 @@ This ensures eventual consistency even if inline updates fail.
 
 ## Design Decisions
 
+### Revisions
+- `Workflow` carries stable identity (`id`, `title`, `workflow_engine`). All mutable content (`definition`, `workflow_parameters`, `labels`) lives on `WorkflowRevision`.
+- Any PATCH to a versioned field appends a new revision and bumps `increment`. A title-only PATCH updates the workflow row in place.
+- `WorkflowRun` pins to the `WorkflowRevision` it was submitted under, so in-flight runs are immune to subsequent PATCHes.
+- Soft-deleted workflows free their title (partial unique index `WHERE removed = false`); re-POSTing the same title mints a fresh workflow.
+
+### POST conflicts
+`POST /v1/workflows` returns **409** when the title already exists with `detail.existing_workflow.id` in the body. Clients decide whether to PATCH the existing workflow or treat it as a no-op.
+
+### Mutation gating (`DEV_MODE`)
+`PATCH /v1/workflows/{id}` and `POST /v1/workflows/{id}/revisions/{n}/restore` return **403** when the `DEV_MODE` env var is unset / false. POST (create) and DELETE (soft-delete) are always allowed.
+
 ### Labels
-Workflows, runs, and tasks can be labeled arbitrarily. Labels enable flexible grouping and filtering:  
-- Adapters may only schedule runs with a certain label.  
+Workflows, runs, and tasks can be labeled arbitrarily. Labels enable flexible grouping and filtering:
+- Adapters may only schedule runs with a certain label.
 - Experiments can be grouped by a label (e.g., `kaapana.experiment`).
+
+Any label whose key starts with `kaapana.immutable.` is treated as **immutable**: it cannot be removed or have its value changed across revisions. PATCHing an immutable label returns **422**. New immutable labels may be added at any time.
 
 ### Audit Trail
 - API logs all key actions (creation, retrieval, updates) with workflow/run IDs.  

@@ -28,11 +28,12 @@ async def create_workflow(workflow_create: schemas.WorkflowCreate) -> httpx.Resp
         )
 
 
-async def get_workflow_by_title(
+async def get_workflows_by_title(
     title: str, params: Optional[dict] = None
 ) -> httpx.Response:
     async with httpx.AsyncClient(base_url=API_BASE_URL, verify=False) as client:
-        return await client.get(f"/workflows/{title}", params=params)
+        merged = {"title": title, **(params or {})}
+        return await client.get("/workflows", params=merged)
 
 
 async def get_all_workflows(params: Optional[dict] = None) -> httpx.Response:
@@ -40,16 +41,14 @@ async def get_all_workflows(params: Optional[dict] = None) -> httpx.Response:
         return await client.get("/workflows", params=params)
 
 
-async def get_workflow_by_title_and_version(
-    title: str, version: int
-) -> httpx.Response:
+async def get_workflow_by_id(workflow_id) -> httpx.Response:
     async with httpx.AsyncClient(base_url=API_BASE_URL, verify=False) as client:
-        return await client.get(f"/workflows/{title}/{version}")
+        return await client.get(f"/workflows/{workflow_id}")
 
 
-async def delete_workflow(title: str, version: int) -> httpx.Response:
+async def delete_workflow(workflow_id) -> httpx.Response:
     async with httpx.AsyncClient(base_url=API_BASE_URL, verify=False) as client:
-        return await client.delete(f"/workflows/{title}/{version}")
+        return await client.delete(f"/workflows/{workflow_id}")
 
 
 async def create_workflow_run(

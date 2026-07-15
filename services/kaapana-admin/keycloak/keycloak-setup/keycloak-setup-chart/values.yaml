@@ -1,0 +1,10 @@
+---
+global:
+    pull_policy_images: "IfNotPresent"
+
+keycloak:
+    # Keycloak realm session timeouts (seconds), injected into kaapana-realm.json.
+    # Idle == Max = 10h: a session lasts a full workday with no idle logout, capped
+    # at 10h. Raise/lower both together to change the session length.
+    sso_session_idle_timeout: 36000
+    sso_session_max_lifespan: 36000

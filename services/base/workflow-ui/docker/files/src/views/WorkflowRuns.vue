@@ -12,6 +12,12 @@
 								<v-icon size="32">mdi-information</v-icon>
 							</v-btn>
 
+							<v-btn small color="warning" aria-label="clean"
+								:disabled="eligibleForCleanup.length === 0" @click="openBulkCleanup">
+								<v-icon left size="18">mdi-broom</v-icon>
+								CLEAN
+							</v-btn>
+
 							<v-btn small color="primary" aria-label="refresh" @click="loadData" :loading="isRefreshing">
 								<v-icon left size="18">mdi-refresh</v-icon>
 								REFRESH
@@ -20,7 +26,7 @@
 					</div>
 
 					<!-- Search bar component -->
-					<SearchBar :runs="runs" @update:filters="onSearchUpdate" @apply:filtered="onSearchApply" />
+					<SearchBar :runs="runs" :filter-fields="['workflow', 'status', 'external_id']" @update:filters="onSearchUpdate" @apply:filtered="onSearchApply" />
 				</v-col>
 			</v-row>
 
@@ -78,6 +84,38 @@
 				</v-card>
 			</v-dialog>
 
+			<!-- Cleanup confirmation dialog (shared for single + bulk) -->
+			<v-dialog v-model="confirmCleanup.open" max-width="520">
+				<v-card>
+					<v-card-title class="d-flex align-center">
+						<v-icon class="mr-2" color="warning">mdi-broom</v-icon>
+						{{ confirmCleanup.mode === 'bulk' ? 'Clean finished workflow runs' : 'Clean workflow run' }}
+					</v-card-title>
+					<v-card-text>
+						<template v-if="confirmCleanup.mode === 'bulk'">
+							This will delete the on-disk data directory for
+							<strong>{{ confirmCleanup.count }} finished run(s)</strong>.
+							The action is irreversible. Logs and run metadata are kept.
+						</template>
+						<template v-else-if="confirmCleanup.target">
+							This will delete the on-disk data directory for workflow run
+							<strong>{{ confirmCleanup.target.id }}</strong>
+							(<code>{{ confirmCleanup.target.workflow?.title }}</code>).
+							The action is irreversible. Logs and run metadata are kept.
+						</template>
+					</v-card-text>
+					<v-card-actions>
+						<v-spacer />
+						<v-btn text @click="confirmCleanup.open = false" :disabled="cleanupRunning">Cancel</v-btn>
+						<v-btn color="warning" variant="elevated" :loading="cleanupRunning"
+							@click="executeCleanup">
+							<v-icon left>mdi-broom</v-icon>
+							Clean
+						</v-btn>
+					</v-card-actions>
+				</v-card>
+			</v-dialog>
+
 			<v-row>
 				<!-- WORKFLOW RUNS TABLE -->
 				<v-col cols="12">
@@ -104,7 +142,8 @@
 					<v-data-table v-else :headers="tableHeaders" :items="sortedFilteredRuns" density="comfortable"
 						class="workflow-runs-table" :items-per-page="25" :items-per-page-options="[10, 25, 50, 100]">
 						<template #item="{ item }">
-							<WorkflowRunRow :run="item" @cancel="cancelRun" @retry="retryRun" />
+							<WorkflowRunRow :run="item" @cancel="cancelRun" @retry="retryRun" @view-logs="viewLogs"
+								@clean="openSingleCleanup" />
 						</template>
 					</v-data-table>
 
@@ -117,7 +156,8 @@
 					</v-row>
 				</v-col>
 			</v-row>
-		</v-container>
+<LogViewer v-if="selectedWorkflowRunId !== null" v-model="logViewerOpen" :workflow-run-id="selectedWorkflowRunId" :workflow-title="selectedWorkflowTitle" :workflow-version="selectedWorkflowVersion" :run-status="selectedRunStatus" :task-runs="selectedTaskRuns" />
+</v-container>
 
 		<!-- Snackbar for notifications -->
 		<v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="4000" location="top right">
@@ -133,10 +173,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import LogViewer from '@/components/LogViewer.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import WorkflowRunRow from '@/components/WorkflowRun.vue'
 import { workflowRunsApi } from '@/api/workflowRuns'
-import type { WorkflowRun } from '@/types/schemas'
+import type { WorkflowRun, TaskRun } from '@/types/schemas'
 import { statusColor } from '@/utils/status'
 
 // --- STATE ---
@@ -149,6 +190,14 @@ const showInfo = ref(false)
 const isRefreshing = ref(false)
 const textSearchQuery = ref('')
 const valueSearchQuery = ref('')
+
+// LogViewer state
+const logViewerOpen = ref(false)
+const selectedWorkflowRunId = ref<number | null>(null)
+const selectedWorkflowTitle = ref('')
+const selectedWorkflowVersion = ref(0)
+const selectedRunStatus = ref('')
+const selectedTaskRuns = ref<TaskRun[]>([])
 
 const snackbar = ref({
 	show: false,
@@ -311,6 +360,87 @@ async function retryRun(run: WorkflowRun) {
 	} catch (err: any) {
 		const errorMessage = err?.response?.data?.detail || err?.message || 'Failed to retry workflow run'
 		showSnackbar(`Failed to retry: ${errorMessage}`, 'error')
+	}
+}
+
+function viewLogs(run: WorkflowRun) {
+  selectedWorkflowRunId.value = run.id
+  selectedWorkflowTitle.value = run.workflow.title ?? ''
+  selectedWorkflowVersion.value = run.workflow.increment
+  selectedRunStatus.value = run.lifecycle_status
+  selectedTaskRuns.value = run.task_runs as any
+  logViewerOpen.value = true
+}
+
+// --- CLEANUP ---
+const TERMINAL_LIFECYCLE = ['Completed', 'Error', 'Canceled']
+const CLEANABLE_CLEANUP = ['not_required', 'failed']
+
+function canCleanRun(run: WorkflowRun): boolean {
+	return (
+		TERMINAL_LIFECYCLE.includes(run.lifecycle_status) &&
+		CLEANABLE_CLEANUP.includes(run.cleanup_status ?? 'not_required')
+	)
+}
+
+const eligibleForCleanup = computed(() => runs.value.filter(canCleanRun))
+
+interface CleanupDialogState {
+	open: boolean
+	mode: 'single' | 'bulk'
+	target?: WorkflowRun
+	count?: number
+}
+
+const confirmCleanup = ref<CleanupDialogState>({
+	open: false,
+	mode: 'single',
+})
+const cleanupRunning = ref(false)
+
+function openSingleCleanup(run: WorkflowRun) {
+	confirmCleanup.value = { open: true, mode: 'single', target: run }
+}
+
+function openBulkCleanup() {
+	confirmCleanup.value = {
+		open: true,
+		mode: 'bulk',
+		count: eligibleForCleanup.value.length,
+	}
+}
+
+async function executeCleanup() {
+	cleanupRunning.value = true
+	try {
+		if (confirmCleanup.value.mode === 'single' && confirmCleanup.value.target) {
+			try {
+				await workflowRunsApi.clean(confirmCleanup.value.target.id)
+				showSnackbar('Cleanup queued.', 'success')
+			} catch (err: any) {
+				showSnackbar(`Failed to clean: ${err?.message || err}`, 'error')
+			}
+		} else if (confirmCleanup.value.mode === 'bulk') {
+			const targets = eligibleForCleanup.value.slice()
+			const results = await Promise.allSettled(
+				targets.map(r => workflowRunsApi.clean(r.id))
+			)
+			const succeeded = results.filter(r => r.status === 'fulfilled').length
+			const failed = results.length - succeeded
+			if (failed === 0) {
+				showSnackbar(`Cleanup queued for ${succeeded} run(s).`, 'success')
+			} else {
+				showSnackbar(
+					`Cleanup queued for ${succeeded} run(s); ${failed} failed.`,
+					failed === results.length ? 'error' : 'warning'
+				)
+			}
+		}
+		confirmCleanup.value.open = false
+		await new Promise(resolve => setTimeout(resolve, 500))
+		await loadData()
+	} finally {
+		cleanupRunning.value = false
 	}
 }
 </script>

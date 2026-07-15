@@ -3,13 +3,12 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
-import type { Plugin } from 'vite'
 
 export default defineConfig(() => ({
   base: "/workflow-ui",
   plugins: [
     vue(),
-    vueDevTools(),    
+    vueDevTools(),
   ],
   resolve: {
     alias: {
@@ -26,7 +25,7 @@ export default defineConfig(() => ({
     ],
   },
   server: {
-    allowedHosts: ["e230-pc25.inet.dkfz-heidelberg.de"],
+    allowedHosts: ["<hostname>"],
     port: 5173,
     host: true,
     strictPort: true,

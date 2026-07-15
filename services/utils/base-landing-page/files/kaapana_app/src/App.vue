@@ -10,8 +10,8 @@
         <div class="blue py-2 mb-5">
           <v-list-item class="px-2 pb-2">
             <router-link to="/" class="d-inline-block">
-              <v-list-item-avatar>
-                <v-img src="/favicon.ico" title="Kaapana"></v-img>
+              <v-list-item-avatar color="white" class="logo-avatar">
+                <v-img src="/favicon.ico" title="Kaapana" contain></v-img>
               </v-list-item-avatar>
             </router-link>
 
@@ -102,6 +102,14 @@
                   return-object
                   @change="update_selected_project"
                 >
+                  <template v-slot:selection="{ item }">
+                    {{ item.name }}<span v-if="item.short_id" style="text-transform: none"> ({{ item.short_id }})</span>
+                    <v-chip v-if="item.is_archived" x-small color="warning" class="ml-1" style="text-transform: none">Archived</v-chip>
+                  </template>
+                  <template v-slot:item="{ item }">
+                    {{ item.name }}<span v-if="item.short_id" style="text-transform: none">&nbsp;({{ item.short_id }})</span>
+                    <v-chip v-if="item.is_archived" x-small color="warning" class="ml-1" style="text-transform: none">Archived</v-chip>
+                  </template>
                 </v-select>
               </v-col>
             </v-row>
@@ -431,6 +439,13 @@ export default Vue.extend({
 
 .uppercase-text .v-input__control {
   text-transform: uppercase;
+}
+
+.logo-avatar .v-image {
+  width: 75%;
+  height: 75%;
+  flex: none;
+  margin: auto;
 }
 
 body {

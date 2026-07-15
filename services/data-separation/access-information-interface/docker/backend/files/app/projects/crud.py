@@ -11,25 +11,23 @@ from app.models import (
     UsersProjectsRoles,
 )
 from app.projects import schemas
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select, update, func, cast
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.dialects.postgresql import TEXT
 
 
-async def create_project(session: AsyncSession, project: schemas.CreateProject):
-    kubernetes_namespace = f"project-{project.name}"
-    s3_bucket = f"project-{project.name}"
-    opensearch_index = f"project_{project.name}"
+async def create_project(
+    session: AsyncSession, project: schemas.CreateProject
+) -> Projects:
 
     new_project = Projects(
         name=project.name,
         description=project.description,
         external_id=project.external_id,
-        kubernetes_namespace=kubernetes_namespace,
-        s3_bucket=s3_bucket,
-        opensearch_index=opensearch_index,
     )
     session.add(new_project)
     await session.commit()
+    await session.refresh(new_project)
     return new_project
 
 
@@ -51,14 +49,19 @@ async def get_projects(
     session: AsyncSession,
     project_id: Optional[UUID] = None,
     project_name: Optional[str] = None,
-):
+    project_short_id: Optional[str] = None,
+) -> list[schemas.Project]:
     stmt = select(Projects)
-    if project_id:
+    if project_id is not None:
         stmt = stmt.where(Projects.id == project_id)
-    if project_name:
+    if project_short_id is not None:
+        # check if first 8 chars of project id matches the provided short id
+        stmt = stmt.where(func.left(cast(Projects.id, TEXT), 8) == project_short_id)
+    if project_name is not None:
         stmt = stmt.where(Projects.name == project_name)
     result = await session.execute(stmt)
-    return result.scalars().all()
+    rows = result.scalars().all()
+    return [schemas.Project.model_validate(row) for row in rows]
 
 
 async def create_rights(session: AsyncSession, right: schemas.CreateRight):
@@ -71,6 +74,22 @@ async def create_rights(session: AsyncSession, right: schemas.CreateRight):
     session.add(new_right)
     await session.commit()
     return new_right
+
+
+async def update_right(session: AsyncSession, right_id: int, right: schemas.CreateRight):
+    stmt = (
+        update(Rights)
+        .where(Rights.id == right_id)
+        .values(
+            description=right.description,
+            claim_key=right.claim_key,
+            claim_value=right.claim_value,
+        )
+    )
+    await session.execute(stmt)
+    await session.commit()
+    result = await session.execute(select(Rights).where(Rights.id == right_id))
+    return result.scalar_one_or_none()
 
 
 async def get_rights(session: AsyncSession, name: Optional[str] = None):
@@ -120,6 +139,30 @@ async def create_roles_rights_mapping(
     session.add(new_role_rights)
     await session.commit()
     return True
+
+
+async def delete_roles_rights_mapping(
+    session: AsyncSession, role_id: int, right_id: int
+):
+    stmt = delete(RolesRights).where(
+        RolesRights.role_id == role_id,
+        RolesRights.right_id == right_id,
+    )
+    await session.execute(stmt)
+    await session.commit()
+
+
+async def delete_right(session: AsyncSession, right_id: int):
+    await session.execute(delete(RolesRights).where(RolesRights.right_id == right_id))
+    stmt = delete(Rights).where(Rights.id == right_id)
+    await session.execute(stmt)
+    await session.commit()
+
+
+async def delete_all_rights_for_role(session: AsyncSession, role_id: int):
+    stmt = delete(RolesRights).where(RolesRights.role_id == role_id)
+    await session.execute(stmt)
+    await session.commit()
 
 
 async def get_users_projects_roles_mapping(
@@ -255,5 +298,73 @@ async def delete_software_mapping(
         SoftwareMappings.software_uuid == software_uuid,
     )
     await session.execute(stmt)
+    await session.commit()
+    return True
+
+
+async def get_multiinstallable_whitelist_by_project_id(
+    session: AsyncSession, project_id: UUID
+) -> list[str]:
+    stmt = select(Projects).where(Projects.id == project_id)
+    result = await session.execute(stmt)
+    project = result.scalars().first()
+    if not project:
+        return []
+    return project.multiinstallable_whitelist or []
+
+
+async def update_multiinstallable_whitelist_by_project_id(
+    session: AsyncSession, project_id: UUID, app_names: list[str]
+) -> list[str]:
+    stmt = (
+        update(Projects)
+        .where(Projects.id == project_id)
+        .values(multiinstallable_whitelist=app_names)
+    )
+    await session.execute(stmt)
+    await session.commit()
+    return app_names
+
+async def update_project(
+    session: AsyncSession, project_id: UUID, project_update: schemas.UpdateProject
+):
+    stmt = (
+        update(Projects)
+        .where(Projects.id == project_id)
+        .values(**project_update.model_dump(exclude_none=True))
+    )
+    await session.execute(stmt)
+    await session.commit()
+
+    result = await session.execute(select(Projects).where(Projects.id == project_id))
+    row = result.scalars().first()
+    return schemas.Project.model_validate(row)
+
+
+async def set_project_archived(
+    session: AsyncSession, project_id: UUID, archived: bool
+) -> schemas.Project:
+    stmt = (
+        update(Projects)
+        .where(Projects.id == project_id)
+        .values(is_archived=archived)
+    )
+    await session.execute(stmt)
+    await session.commit()
+
+    result = await session.execute(select(Projects).where(Projects.id == project_id))
+    row = result.scalars().first()
+    return schemas.Project.model_validate(row)
+
+
+async def delete_project(session: AsyncSession, project_id: UUID):
+    # Delete dependent rows first to avoid FK violations
+    await session.execute(
+        delete(UsersProjectsRoles).where(UsersProjectsRoles.project_id == project_id)
+    )
+    await session.execute(
+        delete(SoftwareMappings).where(SoftwareMappings.project_id == project_id)
+    )
+    await session.execute(delete(Projects).where(Projects.id == project_id))
     await session.commit()
     return True

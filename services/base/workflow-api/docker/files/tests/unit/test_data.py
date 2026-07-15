@@ -1,9 +1,4 @@
-"""
-Shared test data for unit tests.
-
-This module contains reusable test data that can be imported by multiple test files.
-All workflow definitions are centralized here to avoid redundancy.
-"""
+"""Shared test data for unit tests."""
 
 # ========== LABELS ==========
 
@@ -85,9 +80,7 @@ PARAM_STR_MODEL_NAME = {
     },
 }
 
-# ========== BASE WORKFLOW DEFINITIONS ==========
-# These workflow definitions are for API CREATE requests (no version field)
-# When inserting directly into DB, add version=1 to the dict
+# ========== WORKFLOW CREATE PAYLOADS ==========
 
 WORKFLOW_BASIC = {
     "title": "test-workflow",
@@ -131,46 +124,6 @@ WORKFLOW_WITH_LABELS_AND_PARAMS = {
     "workflow_parameters": [PARAM_STR_MODEL_NAME],
 }
 
-# Additional workflow definitions for specific tests
-WORKFLOW_1 = {
-    "title": "workflow-1",
-    "definition": "def-1",
-    "workflow_engine": "dummy",
-}
-WORKFLOW_2 = {
-    "title": "workflow-2",
-    "definition": "def-2",
-    "workflow_engine": "dummy",
-}
-WORKFLOW_A_V1 = {
-    "title": "workflow-a",
-    "definition": "def-a1",
-    "workflow_engine": "dummy",
-}
-WORKFLOW_A_V2 = {
-    "title": "workflow-a",
-    "version": 2,
-    "definition": "def-a2",
-    "workflow_engine": "dummy",
-}
-WORKFLOW_B_V1 = {
-    "title": "workflow-b",
-    "definition": "def-b1",
-    "workflow_engine": "dummy",
-}
-
-
-def create_workflow_variant(base_workflow: dict, **overrides) -> dict:
-    """
-    Create a variant of a workflow with overrides.
-    Useful for creating multiple versions or slight variations.
-    """
-    workflow = base_workflow.copy()
-    workflow.update(overrides)
-    return workflow
-
-
-# ========== PARAMETRIZE DATA FOR CREATE TESTS ==========
 
 CREATE_WORKFLOW_TEST_CASES = [
     (WORKFLOW_BASIC, "basic"),
@@ -186,16 +139,16 @@ VALIDATION_ERROR_TEST_CASES = [
     ({"title": "incomplete"}, 422, "missing_definition"),
     ({"definition": "test"}, 422, "missing_title"),
     ({"title": "test", "definition": "test"}, 422, "missing_engine"),
-    # Invalid data types
+    # Unknown field — Pydantic extra=forbid rejects
     (
         {
             "title": "test",
-            "version": "not-an-integer",
+            "increment": "not-an-integer",
             "definition": "test",
             "workflow_engine": "dummy",
         },
         422,
-        "invalid_version_type",
+        "increment_not_settable_on_create",
     ),
     (
         {"title": 123, "definition": "test", "workflow_engine": "dummy"},
@@ -207,143 +160,4 @@ VALIDATION_ERROR_TEST_CASES = [
         422,
         "invalid_definition_type",
     ),
-]
-
-READ_WORKFLOW_ERROR_TEST_CASES = [
-    ("/v1/workflows/non-existent-title", 404, "title_not_found"),
-    ("/v1/workflows/non-existent-title/1", 404, "title_version_not_found"),
-    ("/v1/workflows/non-existent-title/999", 404, "high_version_not_found"),
-    ("/v1/workflows/test/not-an-int", 422, "invalid_version_type"),
-]
-
-# ========== READ WORKFLOWS TEST DATA ==========
-
-READ_WORKFLOWS_TEST_CASES = [
-    ([create_workflow_variant(WORKFLOW_1, version=1)], "single"),
-    ([create_workflow_variant(WORKFLOW_1, version=1), create_workflow_variant(WORKFLOW_2, version=1)], "multiple"),
-    (
-        [
-            create_workflow_variant(WORKFLOW_1, version=1),
-            create_workflow_variant(WORKFLOW_1, version=2, definition="def-2"),
-            create_workflow_variant(WORKFLOW_1, version=3, definition="def-3"),
-        ],
-        "versions",
-    ),
-    ([create_workflow_variant(WORKFLOW_A_V1, version=1), WORKFLOW_A_V2, create_workflow_variant(WORKFLOW_B_V1, version=1)], "mixed"),
-    (
-        [
-            create_workflow_variant(
-                WORKFLOW_1,
-                version=1,
-                title="workflow-labeled-1",
-                labels=[{"key": "env", "value": "dev"}],
-            ),
-            create_workflow_variant(
-                WORKFLOW_2,
-                version=1,
-                title="workflow-labeled-2",
-                labels=[
-                    {"key": "team", "value": "backend"},
-                    {"key": "priority", "value": "high"},
-                ],
-            ),
-        ],
-        "with_labels",
-    ),
-    (
-        [
-            create_workflow_variant(
-                WORKFLOW_1,
-                version=1,
-                title="workflow-params-1",
-                workflow_parameters=[
-                    {
-                        "task_title": "task1",
-                        "env_variable_name": "PARAM1",
-                        "ui_form": {
-                            "type": "bool",
-                            "title": "Param 1",
-                            "description": "Boolean parameter",
-                            "default": True,
-                        },
-                    }
-                ],
-            ),
-            create_workflow_variant(
-                WORKFLOW_2,
-                version=1,
-                title="workflow-params-2",
-                workflow_parameters=[PARAM_LIST_ORGAN],
-            ),
-        ],
-        "with_params",
-    ),
-]
-
-# ========== DELETE WORKFLOW TEST DATA ==========
-
-DELETE_WORKFLOW_TEST_CASES = [
-    ("existing-workflow", 1, 204, "successful_delete"),
-    ("non-existent", 1, 404, "workflow_not_found"),
-    ("existing-workflow", 999, 404, "version_not_found"),
-]
-
-# ========== GET WORKFLOW BY TITLE TEST DATA ==========
-
-GET_WORKFLOW_BY_TITLE_TEST_CASES = [
-    (
-        "single-version-workflow",
-        [create_workflow_variant(WORKFLOW_1, version=1, title="single-version-workflow")],
-        False,  # latest parameter
-        1,  # expected count
-        "single_version",
-    ),
-    (
-        "multi-version-workflow",
-        [
-            create_workflow_variant(WORKFLOW_1, version=1, title="multi-version-workflow"),
-            create_workflow_variant(
-                WORKFLOW_1,
-                title="multi-version-workflow",
-                version=2,
-                definition="def-2",
-            ),
-            create_workflow_variant(
-                WORKFLOW_1,
-                title="multi-version-workflow",
-                version=3,
-                definition="def-3",
-            ),
-        ],
-        False,
-        3,
-        "multiple_versions_all",
-    ),
-    (
-        "latest-version-workflow",
-        [
-            create_workflow_variant(WORKFLOW_1, version=1, title="latest-version-workflow"),
-            create_workflow_variant(
-                WORKFLOW_1,
-                title="latest-version-workflow",
-                version=2,
-                definition="def-2",
-            ),
-        ],
-        True,
-        1,
-        "latest_version_only",
-    ),
-]
-
-# ========== GET WORKFLOW BY TITLE AND VERSION TEST DATA ==========
-
-GET_WORKFLOW_BY_TITLE_VERSION_TEST_CASES = [
-    (
-        create_workflow_variant(WORKFLOW_1, version=1, title="specific-workflow"),
-        "specific-workflow",
-        1,
-        "basic",
-    ),
-    (create_workflow_variant(WORKFLOW_WITH_LABELS, version=1), "workflow-with-labels", 1, "with_labels"),
 ]

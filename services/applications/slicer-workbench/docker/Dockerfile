@@ -4,6 +4,9 @@ LABEL IMAGE="slicer-workbench"
 LABEL VERSION="0.0.0"
 LABEL BUILD_IGNORE="False"
 
+# browser-tab title -> "Kaapana App - 3D Slicer" (startup.sh writes the dashboard manifest)
+ENV KAAPANA_APP_NAME="3D Slicer"
+
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     libpulse-dev \
     libglu1-mesa \
@@ -26,7 +29,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 # Slicer 5.8.1
 RUN set -eux; \
     SLICER_URL="https://download.slicer.org/bitstream/67c51fc129825655577cfee9"; \
-    curl -k -v -sS -L -f --retry 5 --retry-delay 5 --retry-connrefused \
+    curl -k -v -sS -L -f -C - --retry 20 --retry-all-errors --retry-delay 10 \
       -o /tmp/slicer.tar.gz "$SLICER_URL"; \
     tar -xzf /tmp/slicer.tar.gz -C /tmp; \
     mv /tmp/Slicer* /opt/slicer; \

@@ -34,6 +34,7 @@ from kaapana.operators.LocalValidationResult2MetaOperator import (
     LocalValidationResult2MetaOperator,
 )
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.HelperThumbnails import NO_THUMBNAIL_MODALITIES, has_ref_series
 from kaapanapy.helper import get_minio_client
 from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.settings import KaapanaSettings
@@ -121,26 +122,28 @@ def fetch_bucket_name_and_put_html_to_minio_admin_bucket(ds, **kwargs):
         with open(metadata_file, "r") as f:
             metadata = json.load(f)
 
-        project_name = metadata.get(DicomTags.clinical_trial_protocol_id_tag)
+        project_short_id = metadata.get(DicomTags.clinical_trial_protocol_id_tag)
 
         validator_results_dir = Path(batch_element_dir) / validate.operator_out_dir
         result_files = [f for f in validator_results_dir.glob("*.html")]
 
-        if len(result_files) > 0 and project_name != "admin":
-            response = requests.get(
-                f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/admin"
-            )
-            response.raise_for_status()
+        # get admin project id
+        response = requests.get(
+            f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/admin"
+        )
+        response.raise_for_status()
 
-            project = response.json()
+        admin_project = response.json()
+        admin_project_short_id = admin_project.get("short_id")
 
+        if len(result_files) > 0 and project_short_id != admin_project_short_id:
             root_path = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id
             for file_path in result_files:
                 object_path = (
                     f"{target_dir_prefix}/{str(file_path.relative_to(root_path))}"
                 )
                 minio.fput_object(
-                    bucket_name=project.get("s3_bucket"),
+                    bucket_name=admin_project.get("s3_bucket"),
                     object_name=object_path,
                     file_path=file_path,
                 )
@@ -154,14 +157,22 @@ put_results_html_to_minio_admin_bucket = KaapanaPythonBaseOperator(
 )
 
 
-def has_ref_series(ds) -> bool:
-    return ds.Modality in ["SEG", "RTSTRUCT"]
-
+# Modalities without renderable pixel data — skip ref-series download, go directly
+# to generate_thumbnail which produces no output for these modalities
+skip_no_thumbnail = LocalDcmBranchingOperator(
+    dag=dag,
+    name="skip-no-thumbnail",
+    input_operator=get_input,
+    condition=lambda ds: str(ds.get("Modality", "")).strip().upper()
+    not in NO_THUMBNAIL_MODALITIES,
+    branch_true_operator="branch-has-ref",
+    branch_false_operator="generate-thumbnail",
+)
 
 branch_by_has_ref_series = LocalDcmBranchingOperator(
     dag=dag,
     name="branch-has-ref",
-    input_operator=get_input,
+    input_operator=skip_no_thumbnail,
     condition=has_ref_series,
     branch_true_operator="get-ref-series-ct",
     branch_false_operator="generate-thumbnail",
@@ -354,10 +365,10 @@ def upload_series_to_data_api(ds, **kwargs):
                 print(f"Error uploading thumbnail for series {series_uid}: {e}")
 
         # Add permissions metadata if project was found
-        # Extract project name and fetch project details
-        project_name = metadata.get(DicomTags.clinical_trial_protocol_id_tag)
+        # Extract project short_id and fetch project details
+        project_short_id = metadata.get(DicomTags.clinical_trial_protocol_id_tag)
         project = None
-        if project_name:
+        if project_short_id:
             try:
                 response = requests.get(
                     f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects"
@@ -365,12 +376,14 @@ def upload_series_to_data_api(ds, **kwargs):
                 response.raise_for_status()
                 projects = response.json()
                 matching_projects = [
-                    p for p in projects if p.get("name") == project_name
+                    p for p in projects if p.get("short_id") == project_short_id
                 ]
                 if matching_projects:
                     project = matching_projects[0]
                 else:
-                    print(f"Warning: Project '{project_name}' not found")
+                    print(
+                        f"Warning: Project with short_id '{project_short_id}' not found"
+                    )
             except requests.exceptions.RequestException as e:
                 print(f"Warning: Failed to fetch projects: {e}")
 
@@ -484,17 +497,22 @@ def upload_thumbnails_into_project_bucket(ds, **kwargs):
         with open(metadata_file, "r") as f:
             metadata = json.load(f)
 
-        project_name = metadata.get(DicomTags.clinical_trial_protocol_id_tag)
+        project_short_id = metadata.get(DicomTags.clinical_trial_protocol_id_tag)
         series_uid = metadata.get(DicomTags.series_uid_tag)
 
         response = requests.get(
             f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects"
         )
         project = [
-            project for project in response.json() if project["name"] == project_name
+            project
+            for project in response.json()
+            if project["short_id"] == project_short_id
         ][0]
+        if not thumbnail_dir.exists():
+            continue
         thumbnails = [f for f in thumbnail_dir.glob("*.png")]
-        assert len(thumbnails) == 1
+        if not thumbnails:
+            continue
         thumbnail_path = thumbnails[0]
         minio_object_path = f"thumbnails/{series_uid}.png"
         minio.fput_object(
@@ -542,13 +560,13 @@ remove_tags >> dcm_send
 ### Only continue if dicom data was successfully send to the PACS
 dcm_send >> (push_json, add_to_dataset, assign_to_project)
 
-push_json >> (validate, branch_by_has_ref_series)
+push_json >> (validate, skip_no_thumbnail)
 (
     validate
     >> save_to_meta
     >> (put_html_to_minio, put_results_html_to_minio_admin_bucket, generate_thumbnail)
 )
-branch_by_has_ref_series >> (get_ref_ct_series, generate_thumbnail)
+skip_no_thumbnail >> branch_by_has_ref_series >> (get_ref_ct_series, generate_thumbnail)
 
 
 (get_ref_ct_series >> generate_thumbnail >> put_thumbnail_to_project_bucket)

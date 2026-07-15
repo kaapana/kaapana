@@ -42,7 +42,12 @@ def create_empty_ref_series(operator_ref_dir: Path, operator_in_dir: Path):
     seg_ds = pydicom.dcmread(file_name)
 
     # SEG references to source image slices
-    ref_series = seg_ds.ReferencedSeriesSequence[0].ReferencedInstanceSequence
+    try:
+        ref_series = seg_ds.ReferencedSeriesSequence[0].ReferencedInstanceSequence
+    except Exception as e:
+        raise ValueError(
+            f"SEG has no ReferencedSeriesSequence/ReferencedInstanceSequence: {file_name}"
+        ) from e
     num_slices = len(ref_series)
 
     # Extract info from the SEG
@@ -344,6 +349,39 @@ def _thumbnail_from_labelmap(
     )
 
 
+def _same_geometry(a: sitk.Image, b: sitk.Image) -> bool:
+    return (
+        a.GetSize() == b.GetSize()
+        and a.GetSpacing() == b.GetSpacing()
+        and a.GetOrigin() == b.GetOrigin()
+        and a.GetDirection() == b.GetDirection()
+    )
+
+
+def _extract_ref_slice_zyx(ref_img: sitk.Image, slice_idx: int) -> np.ndarray:
+    """
+    Extract a single z-slice from a 3D SimpleITK image as a 2D numpy array (y, x).
+    SimpleITK indexing is (x, y, z).
+    """
+    sx, sy, sz = ref_img.GetSize()
+    slice_idx = int(np.clip(slice_idx, 0, sz - 1))
+
+    slice_img = sitk.Extract(ref_img, (sx, sy, 0), (0, 0, slice_idx))
+    arr = sitk.GetArrayFromImage(slice_img)  # typically shape (1, y, x)
+    return arr[0] if arr.ndim == 3 else arr
+
+
+def _first_dicom_file(folder: str) -> str:
+    files = sorted(
+        os.path.join(folder, f)
+        for f in os.listdir(folder)
+        if f.lower().endswith(".dcm")
+    )
+    if not files:
+        raise FileNotFoundError(f"No .dcm files found in {folder}")
+    return files[0]
+
+
 def resample_to_reference_image(
     ref_image: sitk.Image, segmentation: sitk.Image
 ) -> sitk.Image:
@@ -369,9 +407,11 @@ def resample_to_reference_image(
     segmentation_resampled = resample.Execute(segmentation)
 
     # Check if the resampled segmentation has the same size as the reference image
-    assert (
-        ref_image.GetSize() == segmentation_resampled.GetSize()
-    ), f"Image and segmentation have different sizes: Image: {ref_image.GetSize()}, Segmentation: {segmentation_resampled.GetSize()}"
+    if ref_image.GetSize() != segmentation_resampled.GetSize():
+        raise ValueError(
+            f"Image and segmentation have different sizes: "
+            f"Image: {ref_image.GetSize()}, Segmentation: {segmentation_resampled.GetSize()}"
+        )
 
     return segmentation_resampled
 
@@ -381,7 +421,7 @@ def generate_segmentation_thumbnail(
     operator_ref_dir: Path,
     thumbnail_size: int,
     candidate_slices_count: int = 12,
-) -> Image:
+) -> Image.Image:
     """
     Generate an overlay thumbnail for a DICOM SEG object.
 
@@ -404,11 +444,13 @@ def generate_segmentation_thumbnail(
     Returns:
         Image: A PIL Image object representing the selected slice with segmentation overlay.
     """
-    dicom_image, image_array, result, segment_colors = load_ref_series_and_segmentation(
+    dicom_image, result, segment_colors = load_ref_series_and_segmentation(
         str(operator_ref_dir), str(operator_in_dir)
     )
 
-    target_shape = image_array.shape  # (z,y,x)
+    # SimpleITK size is (x, y, z) -> we want numpy-style (z, y, x)
+    sx, sy, sz = dicom_image.GetSize()
+    target_shape = (sz, sy, sx)
     z, h, w = target_shape
 
     # ---------- PASS 1: cheap metrics (exact classes, approximate area) ----------
@@ -417,21 +459,31 @@ def generate_segmentation_thumbnail(
         z, dtype=np.int64
     )  # sum of per-segment areas (overcounts overlaps)
 
-    for seg_num in sorted(result.available_segments):
-        seg_arr = result.segment_data(seg_num)
+    segments = [int(s) for s in sorted(result.available_segments)]
 
-        if seg_arr.shape != target_shape:
+    seg_needs_resample: dict[int, bool] = {}
+    for seg_num in segments:
+        seg_img = result.segment_image(seg_num)
+        seg_needs_resample[int(seg_num)] = not _same_geometry(seg_img, dicom_image)
+
+    for seg_num in sorted(result.available_segments):
+        if seg_needs_resample[int(seg_num)]:
             seg_rs = resample_to_reference_image(
                 ref_image=dicom_image,
                 segmentation=result.segment_image(seg_num),
             )
             seg_arr = sitk.GetArrayFromImage(seg_rs)
+            del seg_rs
+        else:
+            seg_arr = result.segment_data(seg_num)
 
-        fg = seg_arr > 0
-        classes_per_slice += np.any(fg, axis=(1, 2)).astype(np.int16)
-        area_sum_per_slice += np.sum(fg, axis=(1, 2)).astype(np.int64)
+        present = np.any(seg_arr, axis=(1, 2))
+        classes_per_slice += present.astype(np.int16)
 
-        del seg_arr, fg
+        # counts non-zero pixels per slice (works for 0/1 masks and label-like masks)
+        area_sum_per_slice += np.count_nonzero(seg_arr, axis=(1, 2)).astype(np.int64)
+
+        del seg_arr, present
 
     # Pick top-M candidate slices by (classes, approx area)
     candidate_count = max(1, min(candidate_slices_count, z))
@@ -441,21 +493,26 @@ def generate_segmentation_thumbnail(
     candidate_slices = np.sort(candidate_slices)  # helps stable behavior
 
     # ---------- PASS 2: exact union area for candidates only ----------
+    # Preallocate memory
+    tmp = np.empty((candidate_slices.size, h, w), dtype=bool)
     # union_candidates shape: (M, h, w)
     union_candidates = np.zeros((candidate_slices.size, h, w), dtype=bool)
 
-    for seg_num in sorted(result.available_segments):
-        seg_arr = result.segment_data(seg_num)
-
-        if seg_arr.shape != target_shape:
+    for seg_num in segments:
+        if seg_needs_resample[int(seg_num)]:
             seg_rs = resample_to_reference_image(
                 ref_image=dicom_image,
                 segmentation=result.segment_image(seg_num),
             )
             seg_arr = sitk.GetArrayFromImage(seg_rs)
+            del seg_rs
+        else:
+            seg_arr = result.segment_data(seg_num)
 
         # Only touch candidate slices -> (M, h, w)
-        union_candidates |= seg_arr[candidate_slices] > 0
+        # No allocation only filling in
+        np.greater(seg_arr[candidate_slices], 0, out=tmp)
+        np.logical_or(union_candidates, tmp, out=union_candidates)
 
         del seg_arr
 
@@ -475,23 +532,23 @@ def generate_segmentation_thumbnail(
         f"and {best_area} foreground pixels (exact union, candidates={candidate_count})"
     )
 
-    # Keep only the chosen slice from the reference to free memory
-    base_slice = image_array[best_slice].copy()
-    del image_array
+    # Extract only the chosen slice (avoid a full numpy copy of the ref volume)
+    base_slice = _extract_ref_slice_zyx(dicom_image, best_slice).copy()
 
     # ---------- PASS 3: collect 2D masks only for the chosen slice ----------
     masks_2d = []
     overlap_map = np.zeros((h, w), dtype=np.uint16)
 
-    for seg_num in sorted(result.available_segments):
-        seg_arr = result.segment_data(seg_num)
-
-        if seg_arr.shape != target_shape:
+    for seg_num in segments:
+        if seg_needs_resample[int(seg_num)]:
             seg_rs = resample_to_reference_image(
                 ref_image=dicom_image,
                 segmentation=result.segment_image(seg_num),
             )
             seg_arr = sitk.GetArrayFromImage(seg_rs)
+            del seg_rs
+        else:
+            seg_arr = result.segment_data(seg_num)
 
         m2 = seg_arr[best_slice] > 0
         if m2.any():
@@ -524,12 +581,11 @@ def load_ref_series_and_segmentation(image_dir: str, seg_dir: str) -> tuple:
     Returns:
         tuple:
             - dicom_image (sitk.Image): Reference series as a SimpleITK image.
-            - image_array (numpy.ndarray): Reference series as a NumPy array (z, y, x).
             - result (pydicom_seg.reader.SegmentReadResult): Parsed SEG result used to access per-segment data.
             - segment_colors (dict): Mapping {segment_number: {"label": str, "color_type": str, "color": [r,g,b]}}.
     """
     # Load the segmentation first (we may use it to determine the correct reference slices)
-    file_name = os.path.join(seg_dir, os.listdir(seg_dir)[0])
+    file_name = _first_dicom_file(seg_dir)
     dicom_seg = pydicom.dcmread(file_name)
 
     reader = pydicom_seg.SegmentReader()
@@ -552,10 +608,15 @@ def load_ref_series_and_segmentation(image_dir: str, seg_dir: str) -> tuple:
         logger.info(f"Found {len(dicom_names)} DICOM files (fallback scan)")
         image_reader.SetFileNames(dicom_names)
 
-    dicom_image = image_reader.Execute()
-    image_array = sitk.GetArrayFromImage(dicom_image)
+    try:
+        dicom_image = image_reader.Execute()
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to load reference series from {image_dir}. "
+            f"ref_paths={len(ref_paths)} seg_file={file_name}"
+        ) from e
 
-    return dicom_image, image_array, result, segment_colors
+    return dicom_image, result, segment_colors
 
 
 def overlay_thumbnail(image_array, seg_arrays, segment_colors) -> Image.Image:

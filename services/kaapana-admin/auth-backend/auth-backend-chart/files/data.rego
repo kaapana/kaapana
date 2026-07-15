@@ -36,7 +36,7 @@ allowed_user_endpoints := [
     {"path": "^/kube-helm-api/complete-active-application", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/web/meta/.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/web/store/.*", "methods": ["GET","POST","PUT","DELETE"]},
-    {"path": "^/web/system/Projects.*", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/web/system/projects.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/kube-helm-api/active-applications", "methods": ["GET"]},
     {"path": "^/thumbnails/.*", "methods": ["GET"]},
     {"path": "^/aii/.*", "methods": ["GET"]},
@@ -50,7 +50,7 @@ allowed_user_endpoints := [
 
 allowed_project_manager_endpoints := [
     {"path": "^/aii/.*" ,"methods": ["GET","POST","PUT","DELETE"]},
-    {"path": "^/web/system/Projects.*", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/web/system/projects.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/projects-ui.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/kaapana-backend/open-policy-data", "methods": ["GET"]},
     {"path": "^/kaapana-backend/settings", "methods": ["GET"]},

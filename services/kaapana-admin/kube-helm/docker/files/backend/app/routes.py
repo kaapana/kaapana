@@ -12,19 +12,58 @@ from fastapi.templating import Jinja2Templates
 from kaapanapy.logger import get_logger
 
 from . import file_handler, helm_helper, schemas, utils
+from .auth_utils import is_admin_request
 from .config import settings
 
 # TODO: add endpoint for /helm-delete-file
 # TODO: add dependency injection
 
 router = APIRouter()
-# router = APIRouter(prefix=settings.application_root)
-# templates = Jinja2Templates(
-#     directory=os.path.abspath(os.path.expanduser('app/templates'))
-# )
 templates = Jinja2Templates(directory=join(dirname(str(__file__)), "templates"))
 
 logger = get_logger(__name__)
+
+
+async def _fetch_project(project_id: str) -> Optional[dict]:
+    url = f"{settings.aii_service_url}/projects/{project_id}"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(url)
+        if response.status_code != 200:
+            logger.warning(
+                "Failed to fetch project from AII: status=%s",
+                response.status_code,
+            )
+            return None
+        payload = response.json()
+        if not isinstance(payload, dict):
+            return None
+        return payload
+    except Exception:
+        logger.warning("Failed to fetch project %s from AII", project_id)
+        return None
+
+
+async def _fetch_project_whitelist(project_id: str) -> Optional[list[str]]:
+    url = f"{settings.aii_service_url}/projects/{project_id}/multiinstallable-whitelist"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(url)
+        if response.status_code != 200:
+            logger.warning(
+                "Failed to fetch project whitelist from AII: status=%s",
+                response.status_code,
+            )
+            return None
+        payload = response.json()
+        if not isinstance(payload, list):
+            return None
+        return [str(app) for app in payload]
+    except Exception:
+        logger.warning(
+            "Failed to fetch project whitelist from AII for project %s", project_id
+        )
+        return None
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -235,6 +274,33 @@ async def helm_delete_chart(request: Request):
             multiinstallable = True
         if "platforms" in payload:
             platforms = payload["platforms"]
+
+        project_header = request.headers.get("Project")
+        if project_header and not is_admin_request(request):
+            try:
+                project_form = json.loads(project_header)
+            except json.JSONDecodeError:
+                raise HTTPException(status_code=400, detail="Invalid Project header")
+            project_id = project_form.get("id")
+            if project_id:
+                whitelist = await _fetch_project_whitelist(project_id)
+                if whitelist is None:
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Could not verify application whitelist. Please try again later.",
+                    )
+                release = payload["release_name"]
+                is_whitelisted = any(
+                    release == e or release.startswith(e + "-") for e in whitelist
+                )
+                if whitelist and not is_whitelisted:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=(
+                            f"'{release}' is not whitelisted for this project. "
+                            f"Only admins can uninstall non-whitelisted applications."
+                        ),
+                    )
         success, stdout = utils.helm_delete(
             release_name=payload["release_name"],
             release_version=release_version,
@@ -270,18 +336,62 @@ async def helm_install_chart(request: Request):
             cmd_addons = "--create-namespace"
         if ("blocking" in payload) and (str(payload["blocking"]).lower() == "true"):
             blocking = True
-        if (
-            keywords := payload.get("keywords")
-        ) and "kaapanamultiinstallable" in keywords:
-            project_form = json.loads(request.headers.get("Project"))
-            payload["extension_params"] = payload.get("extension_params", {})
-            payload["extension_params"]["project_id"] = project_form.get("id")
-            payload["extension_params"]["project_name"] = project_form.get("name")
-            payload["extension_params"]["project_namespace"] = project_form.get(
-                "kubernetes_namespace"
+        keywords = payload.get("keywords")
+        if not keywords:
+            chart = helm_helper.helm_show_chart(
+                name=payload["name"], version=payload["version"], platforms=platforms
             )
+            keywords = chart.get("keywords", [])
+            payload["keywords"] = keywords
 
-        not_installed, _, keywords, release_name, cmd = utils.helm_install(
+        if "kaapanamultiinstallable" in keywords:
+            project_header = request.headers.get("Project")
+            if project_header:
+                try:
+                    project_form = json.loads(project_header)
+                except json.JSONDecodeError:
+                    raise HTTPException(
+                        status_code=400, detail="Invalid Project header"
+                    )
+                project_id = project_form.get("id")
+                if project_id and not is_admin_request(request):
+                    app_name = payload["name"]
+                    project_whitelist = await _fetch_project_whitelist(project_id)
+                    if project_whitelist is None:
+                        raise HTTPException(
+                            status_code=503,
+                            detail="Could not verify application whitelist. Please try again later.",
+                        )
+                    if project_whitelist and app_name not in project_whitelist:
+                        raise HTTPException(
+                            status_code=403,
+                            detail=(
+                                f"'{app_name}' is not whitelisted for this project. "
+                                f"You do not have permission to launch it. "
+                                f"Contact your project admin to add it to the whitelist."
+                            ),
+                        )
+
+                # The Project header from the frontend only carries {name, id};
+                # resolve the full project from AII to get the derived fields
+                # (short_id for the MinIO bucket, kubernetes_namespace).
+                project = await _fetch_project(project_id) if project_id else None
+                if project is None:
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Could not resolve the project. Please try again later.",
+                    )
+                payload["extension_params"] = payload.get("extension_params", {})
+                payload["extension_params"]["project_id"] = project.get("id")
+                payload["extension_params"]["project_name"] = project.get("name")
+                payload["extension_params"]["project_short_id"] = project.get(
+                    "short_id"
+                )
+                payload["extension_params"]["project_namespace"] = project.get(
+                    "kubernetes_namespace"
+                )
+
+        should_install, message, keywords, release_name, cmd = utils.helm_install(
             payload,
             shell=True,
             blocking=blocking,
@@ -289,8 +399,8 @@ async def helm_install_chart(request: Request):
             helm_command_addons=cmd_addons,
             execute_cmd=False,
         )
-        if not not_installed:
-            return Response(f"Chart is already installed {release_name}", 200)
+        if not should_install:
+            return Response(message, 200)
         success, stdout = await utils.helm_install_cmd_run_async(
             release_name, payload["version"], cmd, keywords
         )
@@ -302,6 +412,8 @@ async def helm_install_chart(request: Request):
     except AssertionError as e:
         logger.error(f"/helm-install-chart failed: {str(e)}", exc_info=True)
         return Response(f"Chart install failed, bad request {str(e)}", 400)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"/helm-install-chart failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Chart install failed {str(e)}")
@@ -400,10 +512,30 @@ async def get_active_applications() -> List[schemas.ActiveApplication]:
         for active_app in active_apps:
             # get the release name of the chart from ingress
             release_name = active_app["release_name"]
-            # get all k8s objects of the chart and the ready status
-            _, ready, _, _ = helm_helper.get_kube_objects(release_name)
+            # get all k8s objects of the chart, the ready status and per-pod info
+            _, ready, _, kube_info = helm_helper.get_kube_objects(release_name)
             # find the deployed chart inside the extension object
             active_app["ready"] = ready
+            # surface per-pod status so the frontend can tell initializing apart from errors
+            active_app["pods"] = [
+                {"name": n, "ready": r, "status": s, "restarts": rs, "age": a}
+                for n, r, s, rs, a in zip(
+                    kube_info.name,
+                    kube_info.ready,
+                    kube_info.status,
+                    kube_info.restarts,
+                    kube_info.age,
+                )
+            ]
+
+            try:
+                values = helm_helper.helm_get_values(release_name)
+                if values:
+                    active_app["values"] = values
+            except Exception as values_error:
+                logger.warning(
+                    f"Could not fetch helm values for {release_name}: {values_error}"
+                )
 
         return active_apps
     except Exception as e:
@@ -524,4 +656,4 @@ async def view_chart_status(release_name: str):
     if status:
         return status
     else:
-        return Response(f"Release not found", 404)
+        return Response("Release not found", 404)

@@ -9,14 +9,14 @@ WORKDIR /src
 
 # RUN apk add --update alpine-sdk zlib-dev jpeg-dev freetype-dev lcms2-dev openjpeg-dev tiff-dev tk-dev tcl-dev
 
-RUN python3 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.4.0/constraints.txt --no-cache-dir -r requirements.txt
+RUN python3 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt --no-cache-dir -r requirements.txt
 RUN make html
 
 
 ###############################
 ######### Production ##########
 ###############################
-FROM nginxinc/nginx-unprivileged:1.27.2-alpine
+FROM nginxinc/nginx-unprivileged:1.31.2-alpine
 WORKDIR /app
 
 COPY --from=build-stage /src/build/html/ /app/docs

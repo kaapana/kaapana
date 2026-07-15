@@ -19,15 +19,18 @@ class WorkflowEngineAdapter(ABC):
         return f"{dag_id}-{run_id}"
 
     @abstractmethod
-    async def submit_workflow(self, workflow: schemas.Workflow) -> schemas.Workflow:
+    async def submit_workflow_revision(
+        self, revision: schemas.WorkflowRevision
+    ) -> schemas.WorkflowRevision:
         """
-        Create a workflow in the engine
+        Create a workflow revision in the engine
         """
         pass
 
     @abstractmethod
     async def get_workflow_tasks(
-        self, workflow: schemas.Workflow
+        self,
+        revision: "schemas.WorkflowRevision | schemas.WorkflowRef",
     ) -> List[schemas.TaskCreate]:
         """
         Get tasks with task-to-downstream mappings by task titles
@@ -113,13 +116,57 @@ class WorkflowEngineAdapter(ABC):
         pass
 
     @abstractmethod
-    async def get_task_run_logs(self, task_run_external_id: str) -> str:
+    async def get_task_run_logs(
+        self, task_run_external_id: str
+    ) -> list[schemas.LogLine]:
         """
-        Gets the logs of a task run from the engine.
+        Gets the parsed, structured logs of a task run from the engine.
+
+        How the engine's raw log format is fetched and parsed is an
+        implementation detail of the concrete adapter.
 
         Args:
             task_run_external_id (str): The ID of the task run in the engine.
         Returns:
-            str: The logs of the task run.
+            list[LogLine]: Parsed and normalized log lines.
+        """
+        pass
+
+    @abstractmethod
+    async def clean_workflow_run_data(
+        self, workflow_run_external_id: str, project_id: str
+    ) -> None:
+        """
+        Delete all on-disk data associated with a workflow run.
+
+        A run's data may live in more than one store (e.g. the engine's local
+        scheduler/pkl folder *and* a project-scoped data volume reachable only
+        from inside the project namespace). Implementations must remove every
+        store. `project_id` identifies the project whose runtime/volume holds
+        the data.
+
+        Must be idempotent: a no-op if the data has already been removed.
+        Raises on any other failure.
+
+        Args:
+            workflow_run_external_id (str): The external ID of the workflow run.
+            project_id (str): The project that owns the run's data.
+        """
+        pass
+
+    @abstractmethod
+    async def is_workflow_run_data_clean(
+        self, workflow_run_external_id: str, project_id: str
+    ) -> bool:
+        """
+        Verify that the workflow run's data has been removed (or is empty)
+        in every store the run writes to.
+
+        Args:
+            workflow_run_external_id (str): The external ID of the workflow run.
+            project_id (str): The project that owns the run's data.
+
+        Returns:
+            bool: True if no data remains, False otherwise.
         """
         pass

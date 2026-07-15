@@ -1,6 +1,6 @@
-from pydantic_settings  import BaseSettings
-from pydantic import computed_field
 import os
+from pydantic import computed_field
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     helm_namespace: str = os.getenv("HELM_NAMESPACE", None)
     release_name: str = os.getenv("RELEASE_NAME", None)
     registry_url: str = os.getenv("REGISTRY_URL", None)
+    aii_service_url: str = os.getenv(
+        "AII_SERVICE_URL", "http://aii-service.services.svc:8080"
+    )
 
     offline_mode: bool = (
         True if os.environ.get("OFFLINE_MODE", None) in ["true", "True"] else False
@@ -47,10 +50,12 @@ class Settings(BaseSettings):
 
 
 class TimeoutConfig(BaseSettings):
-    shell_cmd_default_timeout: int = 10  # 5
-    helm_pull_container_timeout: int = 2 * 60 * 60
-    helm_install_timeout: int = 15
-    helm_deletion_timeout: int = 20
+    shell_cmd_default_timeout: int = 20
+    helm_pull_container_timeout: int = 7200
+    helm_install_timeout: int = 30
+    helm_deletion_timeout: int = 40
+    helm_release_status_check_count: int = 3
+    helm_release_status_check_interval: int = 5
 
     # old: helm_install_platform_timeout: int = 45
     @computed_field

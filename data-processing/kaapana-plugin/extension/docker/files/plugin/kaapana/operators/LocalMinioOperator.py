@@ -27,14 +27,18 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
     Operator to communicate with MinIO buckets
     """
 
-    def get_project_by_name(self, project_name: str):
+    def get_project_by_id_or_name(self, project_identifier: str):
+        """
+        Return the project object from the access-information-point database with name project_identifier (can be name or id)
+
+        Raises:
+            HttpException: If the response from the access-information code has status code >= 400.
+        """
         response = requests.get(
-            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_name}",
-            params={"name": project_name},
+            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_identifier}"
         )
         response.raise_for_status()
-        project = response.json()
-        return project
+        return response.json()
 
     def get_project_bucket_from_meta_json(self, json_dict):
         logger.info(f"Applying action to project bucket")
@@ -42,7 +46,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
             "00120020 ClinicalTrialProtocolID_keyword"
         )
 
-        project = self.get_project_by_name(clinical_trial_protocol_id)
+        project = self.get_project_by_id_or_name(clinical_trial_protocol_id)
 
         if project:
             return project["s3_bucket"]

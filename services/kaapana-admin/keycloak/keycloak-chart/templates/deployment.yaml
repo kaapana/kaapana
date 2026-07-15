@@ -36,23 +36,69 @@ spec:
             value: "2"
           - name: TIMEOUT
             value: "10"
-      containers: 
+      {{- if .Values.global.keycloak_migration_bootstrap }}
+      # Migration-only: bring the keycloak DB schema up to date (a brief start) and create the kaapana-admin client offline, so the bootstrap job can log in without the old admin password. Idempotent.
+      - name: migration-bootstrap-admin-client
+        image: "{{ .Values.global.registry_url }}/keycloak:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+        resources:
+          requests:
+            memory: 512Mi  # Without an explicit limit the keycloak VM defaults to 50Mi and the container is OOMKilled
+          limits:
+            memory: 1400Mi
+        env:
+          - name: KC_DB
+            value: "postgres"
+          - name: KC_DB_URL
+            value: "jdbc:postgresql://{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{  .Values.global.admin_namespace  }}.svc/keycloak"
+          - name: KC_DB_USERNAME
+            value: "{{ .Values.kaapana_database.postgres_user }}"
+          - name: KC_DB_PASSWORD
+            value: "{{ .Values.kaapana_database.postgres_password }}"
+          - name: KAAPANA_ADMIN_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: kaapana-admin-password
+                key: kaapana-admin-password
+        command:
+          - /bin/bash
+          - -ce
+          - |
+            /opt/keycloak/bin/kc.sh start --optimized --http-enabled=true --hostname-strict=false >/tmp/kc-migrate.log 2>&1 &
+            kc_pid=$!
+            ready=""
+            n=0
+            while [ "$n" -lt 150 ]; do
+              if grep -q "Listening on:" /tmp/kc-migrate.log; then ready=1; break; fi
+              kill -0 "$kc_pid" 2>/dev/null || { echo "keycloak exited during schema migration:"; tail -20 /tmp/kc-migrate.log; exit 1; }
+              n=$((n + 1)); sleep 2
+            done
+            [ -n "$ready" ] || { echo "timed out waiting for keycloak schema migration:"; tail -20 /tmp/kc-migrate.log; exit 1; }
+            kill "$kc_pid" 2>/dev/null || true
+            wait "$kc_pid" 2>/dev/null || true
+            # tolerate an already-created client (pod restarts re-run this initContainer)
+            out=$(/opt/keycloak/bin/kc.sh bootstrap-admin service --client-id kaapana-admin --client-secret:env KAAPANA_ADMIN_CLIENT_SECRET --optimized 2>&1) || {
+              echo "$out" | grep -qi "already exist" || { echo "bootstrap-admin failed:"; echo "$out" | tail -20; exit 1; }
+              echo "kaapana-admin client already exists - nothing to do"
+            }
+      {{- end }}
+      containers:
         - name: keycloak-container
           image: "{{ .Values.global.registry_url }}/keycloak:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           env:
-          - name: KC_BOOTSTRAP_ADMIN_USERNAME 
-            value: {{ .Values.global.credentials_keycloak_admin_username }}
+          - name: KC_BOOTSTRAP_ADMIN_USERNAME
+            value: {{ .Values.global.credentials_keycloak_admin_username | quote }}
           - name: KC_BOOTSTRAP_ADMIN_PASSWORD
-            value: {{ .Values.global.credentials_keycloak_admin_password }}
+            value: {{ .Values.global.credentials_keycloak_admin_password | quote }}
           - name: KC_DB 
             value: "postgres"
           - name: KC_DB_URL 
             value: "jdbc:postgresql://{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{  .Values.global.admin_namespace  }}.svc/keycloak" 
-          - name: KC_DB_USERNAME 
-            value: {{ .Values.kaapana_database.postgres_user }}
+          - name: KC_DB_USERNAME
+            value: {{ .Values.kaapana_database.postgres_user | quote }}
           - name: KC_DB_PASSWORD
-            value: {{ .Values.kaapana_database.postgres_password }}
+            value: {{ .Values.kaapana_database.postgres_password | quote }}
           - name: KC_LOG_LEVEL
             value: "DEBUG"
           - name: KC_HTTPS_CERTIFICATE_KEY_FILE
@@ -61,12 +107,23 @@ spec:
             value: "/etc/x509/https/tls.crt"
           - name: KC_HTTP_MAX_QUEUED_REQUESTS
             value: "100"
-          - name: JAVA_OPTS
-            value: "-Xmx400m"
           - name: KC_METRICS_ENABLED
             value: "true"
           - name: KC_HEALTH_ENABLED
             value: "true"
+          - name: USER_SYNC_CONFIG_PATH
+            value: "/opt/keycloak/config/config.json"
+          # Deployment-provided login-page branding (consumed by theme.properties ${env.*})
+          - name: KC_LOGIN_HEADER
+            value: {{ .Values.global.login_header | default "" | quote }}
+          - name: KC_LOGIN_SUBHEADER
+            value: {{ .Values.global.login_subheader | default "" | quote }}
+          - name: KC_LOGIN_NOTICE
+            value: {{ .Values.global.login_notice | default "" | quote }}
+          - name: KC_LOGIN_INSTITUTION_NAME
+            value: {{ .Values.global.login_institution_name | default "" | quote }}
+          - name: KC_LOGIN_INSTITUTION_LOGO
+            value: {{ .Values.global.login_institution_logo | default "" | quote }}
           ports:
           - name: http
             containerPort: 8080
@@ -78,12 +135,17 @@ spec:
             containerPort: 9000
           resources:
             requests:
-              memory: 600Mi
+              memory: 1250Mi
+              cpu: "500m"
             limits:
-              memory: 700Mi
+              memory: 1400Mi
+              cpu: "2000m"
           volumeMounts:        
             - name: ssl-config-files
               mountPath: /etc/x509/https
+              readOnly: true
+            - name: default-project-role-user-mapping
+              mountPath: /opt/keycloak/config/
               readOnly: true
           command: 
           - "/opt/keycloak/bin/kc.sh"
@@ -116,6 +178,9 @@ spec:
       - name: ssl-config-files
         secret:
           secretName: certificate
+      - name: default-project-role-user-mapping
+        configMap:
+          name: default-project-role-user-mapping
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret

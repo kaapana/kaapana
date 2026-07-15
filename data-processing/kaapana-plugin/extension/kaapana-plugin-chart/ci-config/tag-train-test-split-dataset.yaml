@@ -3,7 +3,10 @@ instance_names:
   - central
 conf_data:
   data_form:
-    dataset_name: test-SEG
+    dataset_name:
+      name: test-SEG
+      access_level: "project"
+      username: "kaapana"
   workflow_form:
     split: 0.5
     test_tag: TEST_TAG

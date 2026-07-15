@@ -82,6 +82,8 @@ spec:
           value: "{{ .Values.global.instance_name }}"
         - name: KAAPANA_BUILD_VERSION
           value: "{{ .Values.global.kaapana_build_version }}"
+        - name: PLATFORM_PREFIX
+          value: "{{ required `global.platform_prefix is required` .Values.global.platform_prefix }}"
         - name: PULL_POLICY_IMAGES
           value: "{{ .Values.global.pull_policy_images }}"
         - name: SERVICES_NAMESPACE
@@ -97,14 +99,14 @@ spec:
         env:
         - name: ADMIN_NAMESPACE
           value: "{{ .Values.global.admin_namespace }}"
+        - name: AIRFLOW__CORE__PARALLELISM
+          value: "{{ .Values.global.airflow_parallelism }}"
         - name: AIRFLOW__LOGGING__LOGGING_LEVEL
           value: "INFO"
         - name: AIRFLOW_HOME
           value: "/kaapana/mounted/workflows"
         - name: AIRFLOW__API__AUTH_BACKENDS
           value: "airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth"
-        - name: DATADIR
-          value: "{{ .Values.global.fast_data_dir }}/workflows/data"
         - name: DEFAULT_REGISTRY
           value: "{{ .Values.global.registry_url }}"
         - name: EXTENSIONS_NAMESPACE
@@ -121,6 +123,8 @@ spec:
           value: "{{ .Values.global.instance_name }}"
         - name: KAAPANA_BUILD_VERSION
           value: "{{ .Values.global.kaapana_build_version }}"
+        - name: PLATFORM_PREFIX
+          value: "{{ required `global.platform_prefix is required` .Values.global.platform_prefix }}"
         - name: MINIODIR
           value: "{{ .Values.global.slow_data_dir }}/minio"
         - name: MINIOUSER
@@ -197,8 +201,10 @@ spec:
         resources:
           requests:
             memory: "{{ .Values.global.airflow_memory_request }}Mi"
+            cpu: "{{ .Values.global.airflow_cpu_request }}m"
           limits:
             memory: "{{ .Values.global.airflow_memory_limit }}Mi"
+            cpu: "{{ .Values.global.airflow_cpu_limit }}m"
         volumeMounts:
         - name: airflow-configmap
           mountPath: /kaapana/mounted/workflows/airflow.cfg
@@ -236,6 +242,21 @@ spec:
         securityContext:
           # readOnlyRootFilesystem: true localexecuter, runs multiproccesse an allocs mem
           allowPrivilegeEscalation: false
+      - name: dag-sync
+        image: "{{ .Values.global.registry_url }}/airflow-dag-sync:{{ .Values.global.kaapana_build_version }}"
+        imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
+        ports:
+          - containerPort: 8080
+        volumeMounts:
+          - name: nginx-dag-sync-conf
+            mountPath: /etc/nginx/conf.d/default.conf
+            subPath: default.conf
+          - name: airflow-dags
+            mountPath: /data/dags
+            readOnly: true
+          - name: airflow-plugins
+            mountPath: /data/plugins
+            readOnly: true
       volumes:
       - name: uploads
         persistentVolumeClaim:
@@ -255,6 +276,9 @@ spec:
       - name: airflow-statsd-config
         configMap:
           name: airflow-statsd-config
+      - name: nginx-dag-sync-conf
+        configMap:
+          name: airflow-dag-sync-nginx-conf
       - name: airflow-dags
         persistentVolumeClaim:
           claimName: dags-pv-claim

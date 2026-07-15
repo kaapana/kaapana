@@ -1,8 +1,10 @@
 apiVersion: v1
 appVersion: "0.0.1"
-description: Launches a desktop app in the browser
+description: Browser-based Linux Desktop with basic tools to demonstrate tool-streaming support
 name: desktop-container-chart
 version: "0.0.0"
 keywords:
 - kaapanaapplication
 - kaapanamultiinstallable
+annotations:
+  ui-visible-name: "Desktop Demo"

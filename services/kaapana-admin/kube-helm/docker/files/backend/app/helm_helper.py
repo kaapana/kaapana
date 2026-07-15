@@ -16,7 +16,6 @@ from kaapanapy.logger import get_logger
 
 from . import schemas
 from .config import settings, timeouts
-from .utils import helm_get_values
 
 logger = get_logger(__name__)
 
@@ -47,6 +46,17 @@ global_recently_updated: Set[str] = (
     set()
 )  # list of keys for recently updated ( < refresh_delay) extensions
 global_extensions_release_names: Set[str] = set()
+
+
+def helm_get_values(release_name, helm_namespace=settings.helm_namespace):
+    logger.debug(f"in function: helm_get_values {release_name=}, {helm_namespace=}")
+    success, stdout = execute_shell_command(
+        f"{settings.helm_path} -n {helm_namespace} get values --all -o json {release_name}"
+    )
+    if success and stdout != b"null\n":
+        return json.loads(stdout)
+    else:
+        return dict()
 
 
 async def exec_shell_cmd_async(

@@ -19,16 +19,10 @@ data:
         "claim_value": "admin_project"
       },
       {
-        "name": "manage_project_users",
+        "name": "manage_users",
         "description": "User can manage user roles in this project",
         "claim_key": "kaapana.ai/aii",
         "claim_value": "manage_users"
-      },
-      {
-        "name": "manage_project_software",
-        "description": "User can manage software availabel to this project",
-        "claim_key": "kaapana.ai/aii",
-        "claim_value": "manage_software"
       },
       {
         "name": "kaapana_backend",
@@ -37,16 +31,46 @@ data:
         "claim_value": "all"
       },
       {
-        "name": "open_project_applications",
-        "description": "User can access multiinstallable applications in the selected project.",
+        "name": "open_applications",
+        "description": "User can open running applications in the selected project.",
         "claim_key": "kaapana.ai/applications",
         "claim_value": "open"
       },
       {
-        "name": "manage_project_extensions",
-        "description": "User can install projects in the extensions view",
-        "claim_key": "kaapana.ai/extensions",
+        "name": "manage_workflow_whitelist",
+        "description": "User can edit the project workflow whitelist",
+        "claim_key": "kaapana.ai/workflows",
         "claim_value": "manage"
+      },
+      {
+        "name": "manage_applications_whitelist",
+        "description": "User can edit the application whitelist",
+        "claim_key": "kaapana.ai/applications_whitelist",
+        "claim_value": "manage"
+      },
+      {
+        "name": "view_applications",
+        "description": "User can view the list of available applications",
+        "claim_key": "kaapana.ai/applications",
+        "claim_value": "view"
+      },
+      {
+        "name": "launch_application",
+        "description": "User can launch whitelisted applications",
+        "claim_key": "kaapana.ai/applications",
+        "claim_value": "launch"
+      },
+      {
+        "name": "delete_active_apps",
+        "description": "User can delete active whitelisted applications",
+        "claim_key": "kaapana.ai/applications",
+        "claim_value": "delete"
+      },
+      {
+        "name": "view_active_apps",
+        "description": "User can view active applications in a project",
+        "claim_key": "kaapana.ai/active_apps",
+        "claim_value": "view"
       }
     ]
   initial_roles.json: | # This is the initial roles that will be created
@@ -66,6 +90,11 @@ data:
         "name": "admin",
         "description": "Initial admin project",
         "default": true
+      },
+      {
+        "name": "public",
+        "description": "Public project. Users are automatically added to this project",
+        "default": true
       }
     ]
   initial_roles_rights_mapping.json: | # This is the mapping of roles to rights
@@ -76,19 +105,21 @@ data:
           "opensearch_access",
           "minio_access",
           "kaapana_backend",
-          "open_project_applications"
+          "open_applications"
         ]
       },
       {
         "role": "principal-investigator",
         "rights": [
-          "opensearch_access", 
-          "minio_access", 
-          "kaapana_backend", 
-          "manage_project_users", 
-          "manage_project_software", 
-          "open_project_applications",
-          "manage_project_extensions"
+          "opensearch_access",
+          "minio_access",
+          "kaapana_backend",
+          "manage_users",
+          "open_applications",
+          "view_applications",
+          "launch_application",
+          "delete_active_apps",
+          "view_active_apps"
         ]
       }
     ]

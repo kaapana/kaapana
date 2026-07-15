@@ -28,12 +28,17 @@ The Extensions page also displays the current Helm and Kubernetes status of each
 
 .. note::
 
-  Kaapana supports multi-installable extensions, which will have a "Launch" button instead of "Install". 
+  Kaapana supports multi-installable extensions, which will have a "Launch" button instead of "Install".
   Each time a multi-installable extension is launched, it is deployed as a separate Helm release.
+  Which multi-installable extensions are available to launch is controlled per project through a whitelist, managed by an admin from the Project Management interface.
 
 .. hint::
 
   To install a specific version of an extension, use the dropdown in the version column.
+
+.. hint::
+
+  The platform can be configured to prefetch the container images of cached extensions in the background as soon as it starts up, so they are already available locally the first time you install or launch one.
 
 The section :ref:`workflow_dev_guide` also explains how to write and add your own extensions.
 
@@ -76,7 +81,7 @@ If you have any issues regarding the upload mechanism, check :ref:`extension_con
 Extension Parameters
 ^^^^^^^^^^^^^^^^^^^^
 
-Introduced in version 0.2.0, Extensions support specifying parameters as environment variables. This functionality can be customized according to the requirements of the extension. Some examples of available parameters are :code:`task_ID`s for **nnUNet** and the :code:`service_type`` field for **MITK Workbench**. Parameters can be of type :code:`string`, :code:`boolean`, :code:`single_selectable`, or :code:`multi_selectable`. Parameters should be defined in the values.yaml file of the chart. Each of them should follow this structure:
+Introduced in version 0.2.0, Extensions support specifying parameters as environment variables. This functionality can be customized according to the requirements of the extension. Some examples of available parameters are :code:`task_ID`s for **nnUNet** and the :code:`gpu_container` field for **MITK Workbench**. Parameters can be of type :code:`string`, :code:`boolean`, :code:`single_selectable`, or :code:`multi_selectable`. Parameters should be defined in the values.yaml file of the chart. Each of them should follow this structure:
 
 .. code-block::
 

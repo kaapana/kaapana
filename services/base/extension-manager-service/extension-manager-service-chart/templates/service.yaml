@@ -1,0 +1,13 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: extension-manager-api
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  selector:
+    app.kubernetes.io/name: extension-manager
+    app.kubernetes.io/component: api
+  ports:
+    - port: 80
+      targetPort: 8000

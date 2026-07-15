@@ -24,7 +24,7 @@ async def test_sync_full_lifecycle():
 
     # create a new workflow run for that workflow
     new_run = schemas.WorkflowRunCreate(
-        workflow=schemas.WorkflowRef(title=wf.title, version=wf.version)
+        workflow=schemas.WorkflowRef(id=wf.id, increment=wf.increment)
     )
     wf_run_resp = await common.create_workflow_run(new_run)
     assert wf_run_resp.status_code == 201
@@ -87,7 +87,7 @@ async def test_sync_updates_tasks():
 
     wf_run_resp = await common.create_workflow_run(
         schemas.WorkflowRunCreate(
-            workflow=schemas.WorkflowRef(title=wf.title, version=wf.version)
+            workflow=schemas.WorkflowRef(id=wf.id, increment=wf.increment)
         )
     )
     run_id = wf_run_resp.json()["id"]

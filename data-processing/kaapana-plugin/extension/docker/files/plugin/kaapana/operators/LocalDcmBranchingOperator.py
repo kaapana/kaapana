@@ -54,24 +54,57 @@ class LocalDcmBranchingOperator(KaapanaBranchPythonBaseOperator):
         Returns:
             str: The task_id of the operator to branch to based on the condition.
         """
-        batch_folders = (
+        batch_root = (
             Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name
-        ).glob("*")
+        )
+        batch_folders = batch_root.glob("*")
 
         none_satisfies_condition = True
+        checked_files = 0
+        readable_dicoms = 0
+        matched_files = 0
+
+        self.log.info("Checking DICOM branch condition in %s", batch_root)
 
         for batch_element_dir in batch_folders:
-            dcm_files: List[Path] = sorted(
-                list((batch_element_dir / self.operator_in_dir).rglob("*.dcm"))
-            )
+            input_dir = batch_element_dir / self.operator_in_dir
+            dcm_files: List[Path] = sorted(list(input_dir.rglob("*.dcm")))
+
+            if not dcm_files:
+                dcm_files = sorted([p for p in input_dir.rglob("*") if p.is_file()])
+
+            self.log.debug("Found %d candidate files in %s", len(dcm_files), input_dir)
+
             for dcm_file in dcm_files:
-                ds = pydicom.dcmread(dcm_file, stop_before_pixels=True)
-                if self.condition(ds):
-                    Path(batch_element_dir / self.operator_out_dir).mkdir(exist_ok=True)
-                    dst = batch_element_dir / self.operator_out_dir / dcm_file.name
+                checked_files += 1
+
+                try:
+                    dicom_ds = pydicom.dcmread(dcm_file, stop_before_pixels=True)
+                except Exception:
+                    self.log.debug("Skipping unreadable/non-DICOM file: %s", dcm_file)
+                    continue
+
+                readable_dicoms += 1
+
+                if self.condition(dicom_ds):
+                    out_dir = batch_element_dir / self.operator_out_dir
+                    out_dir.mkdir(exist_ok=True, parents=True)
+                    dst = out_dir / dcm_file.name
                     shutil.copy(dcm_file, dst)
+
+                    matched_files += 1
                     none_satisfies_condition = False
 
+        self.log.info(
+            "Branch condition check finished: checked=%d readable_dicoms=%d matched=%d",
+            checked_files,
+            readable_dicoms,
+            matched_files,
+        )
+
         if none_satisfies_condition:
+            self.log.info("Branching to %s", self.branch_false_operator)
             return self.branch_false_operator
+
+        self.log.info("Branching to %s", self.branch_true_operator)
         return self.branch_true_operator

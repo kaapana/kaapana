@@ -1,0 +1,177 @@
+from KeycloakHelper import KeycloakHelper
+import os, json, time
+from logger import get_logger
+from pathlib import Path
+import logging
+import requests
+
+REALM_OBJECTS_ROOT_DIR = Path(os.getenv("REALM_OBJECTS_ROOT_DIR", "/realm_objects"))
+DEV_MODE = os.getenv("DEV_MODE")
+log_level = logging.DEBUG if DEV_MODE.lower() == "true" else logging.INFO
+logger = get_logger(__name__, log_level)
+
+# Minimal realm-management roles for the runtime kaapana-service client.
+# Deliberately WITHOUT manage-clients — the setup job authenticates as the
+# kaapana-admin client, so kaapana-service never needs to manage clients.
+_SERVICE_ACCOUNT_ROLES = [
+    "manage-users",
+    "query-users",
+    "query-groups",
+    "view-realm",
+]
+
+_MAX_RETRIES = 5
+_RETRY_BASE_DELAY = 5  # seconds; doubles on each retry: 5, 10, 20, 40, 80
+
+
+def _run_setup(keycloak, oidc_client_secret, kaapana_init_password):
+    """Full realm configuration — all operations are idempotent (409 handled)."""
+
+    ### Add realm
+    file = Path(REALM_OBJECTS_ROOT_DIR, "kaapana-realm.json")
+    with open(file, "r") as f:
+        payload = json.load(f)
+        if DEV_MODE.lower() == "true":
+            payload["passwordPolicy"] = ""
+            logger.warning("!! DEV_MODE: Set password policies to empty string.")
+        logger.debug(f"{payload=}")
+        keycloak.post_realm(payload)
+
+    ### Add user role to default-roles-kaapana
+    keycloak.post_composite_role("default-roles-kaapana", ["user"])
+
+    ### Add group kaapana_admin
+    file = Path(REALM_OBJECTS_ROOT_DIR, "group-kaapana_admin.json")
+    payload = json.load(open(file, "r"))
+    keycloak.post_group(payload)
+
+    ### Add role mappings to group kaapana_admin
+    roles = ["admin", "project-manager", "user"]
+    keycloak.post_role_mapping(roles_to_add=roles, group="kaapana_admin")
+
+    ### Add group kaapana_user
+    file = Path(REALM_OBJECTS_ROOT_DIR, "group-kaapana_user.json")
+    payload = json.load(open(file, "r"))
+    keycloak.post_group(payload)
+
+    ### Add role mappings to group kaapana_user
+    roles = ["user"]
+    keycloak.post_role_mapping(roles_to_add=roles, group="kaapana_user")
+
+    ### Add group kaapana_project_manager
+    file = Path(REALM_OBJECTS_ROOT_DIR, "group-kaapana_project_manager.json")
+    payload = json.load(open(file, "r"))
+    keycloak.post_group(payload)
+
+    ### Add role mappings to group kaapana_project_manager
+    roles = ["project-manager", "user"]
+    keycloak.post_role_mapping(roles_to_add=roles, group="kaapana_project_manager")
+
+    ### Add user
+    file = Path(REALM_OBJECTS_ROOT_DIR, "kaapana-user.json")
+    with open(file, "r") as f:
+        payload = json.load(f)
+        payload["credentials"] = [{"type": "password", "value": kaapana_init_password}]
+        keycloak.post_user(payload)
+
+    ### Add system user
+    file = Path(REALM_OBJECTS_ROOT_DIR, "system-user.json")
+    with open(file, "r") as f:
+        system_user_password = os.getenv("SYSTEM_USER_PASSWORD")
+        assert system_user_password
+        payload = json.load(f)
+        payload["credentials"] = [{"type": "password", "value": system_user_password}]
+        keycloak.post_user(payload, reset_password=True)
+
+    ### Add impersonation role to system user
+    keycloak.post_client_role_mapping("realm-management", "impersonation", "system")
+    ### Add dcm4chee-admin-role to system user
+    keycloak.post_role_mapping(["dcm4chee-admin"], user="system")
+
+    ### Add client
+    file = Path(REALM_OBJECTS_ROOT_DIR, "kaapana-client.json")
+    with open(file, "r") as f:
+        payload = json.load(f)
+        payload["secret"] = oidc_client_secret
+        redirect_uris = []
+        redirect_uris.append(f"/oauth2/callback")
+        hostname = os.getenv("HOSTNAME")
+        https_port = os.getenv("HTTPS_PORT")
+        redirect_uris.append(f"https://{hostname}:{https_port}/oauth2/callback")
+        redirect_uris.append(
+            f"https://{hostname}:{https_port}/minio-console/oauth_callback/"
+        )
+        redirect_uris.append(f"https://{hostname}:{https_port}/meta/auth/openid/login")
+        keycloak.post_client(payload, redirectUris=redirect_uris)
+
+    ### Add services client
+    file = Path(REALM_OBJECTS_ROOT_DIR, "kaapana-service.json")
+    with open(file, "r") as f:
+        payload = json.load(f)
+        payload["secret"] = os.environ["KEYCLOAK_SERVICE_CLIENT_SECRET"]
+        keycloak.post_client(payload)
+
+    ### Assign realm-management roles to service account
+    for role in _SERVICE_ACCOUNT_ROLES:
+        keycloak.post_service_account_role_mapping(
+            "kaapana-service", "realm-management", role
+        )
+
+
+def _setup_with_retries(
+    run, max_retries=_MAX_RETRIES, base_delay=_RETRY_BASE_DELAY, sleep=time.sleep
+):
+    """Run `run`, retrying transient Keycloak cold-start failures with exponential
+    backoff: connection errors, timeouts, HTTP 403 (admin API not ready right
+    after realm creation) and 5xx (still initializing). All setup operations are
+    idempotent, so retrying from scratch is safe. Any other error propagates."""
+    for attempt in range(1, max_retries + 1):
+        try:
+            run()
+            return
+        except (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.Timeout,
+            requests.exceptions.HTTPError,
+        ) as e:
+            status = (
+                e.response.status_code
+                if isinstance(e, requests.exceptions.HTTPError)
+                and e.response is not None
+                else None
+            )
+            retryable = (
+                not isinstance(e, requests.exceptions.HTTPError)
+                or status == 403
+                or (status is not None and 500 <= status < 600)
+            )
+            if not retryable or attempt >= max_retries:
+                raise
+            delay = base_delay * (2 ** (attempt - 1))
+            reason = f"HTTP {status}" if status is not None else e.__class__.__name__
+            logger.warning(
+                f"{reason} on attempt {attempt}/{max_retries} "
+                f"(Keycloak initializing). Retrying in {delay}s ..."
+            )
+            sleep(delay)
+
+
+if __name__ == "__main__":
+    logger.info("Starting configure_realm ...")
+
+    oidc_client_secret = os.environ["OIDC_CLIENT_SECRET"]
+    kaapana_init_password = os.getenv("KAAPANA_INIT_PASSWORD")
+    logger.info(f"{DEV_MODE=}")
+
+    # A fresh token is obtained on every attempt to avoid expiry after retries.
+    # The admin password is never needed here — the bootstrap job created the
+    # kaapana-admin client and its secret is the only persisted credential.
+    def _run():
+        keycloak = KeycloakHelper.from_client_credentials(
+            "kaapana-admin",
+            os.environ["KAAPANA_ADMIN_CLIENT_SECRET"],
+            realm="master",
+        )
+        _run_setup(keycloak, oidc_client_secret, kaapana_init_password)
+
+    _setup_with_retries(_run)

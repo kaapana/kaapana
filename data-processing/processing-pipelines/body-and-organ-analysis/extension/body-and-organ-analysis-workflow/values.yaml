@@ -2,3 +2,46 @@
 global:
     image: "dag-body-and-organ-analysis"
     action: "copy"
+
+model_installer_chart:
+    image: "get-body-and-organ-analysis-models"
+    model_dir: "/models/total_segmentator/nnUNet"
+
+extension_params:
+    task_ids:
+        definition: "Multi-selectable BOA and TotalSegmentator nnU-Net weights used by the workflow"
+        type: "list_multi"
+        value: [
+            "Task251_TotalSegmentator_part1_organs_1139subj",
+            "Task252_TotalSegmentator_part2_vertebrae_1139subj",
+            "Task253_TotalSegmentator_part3_cardiac_1139subj",
+            "Task254_TotalSegmentator_part4_muscles_1139subj",
+            "Task255_TotalSegmentator_part5_ribs_1139subj",
+            "Task256_TotalSegmentator_3mm_1139subj",
+            "Task258_lung_vessels_248subj",
+            "Task150_icb_v0",
+            "Task260_hip_implant_71subj",
+            "Task269_Body_extrem_6mm_1200subj",
+            "Task503_cardiac_motion",
+            "Task273_Body_extrem_1259subj",
+            "Task315_thoraxCT",
+            "Task008_HepaticVessel",
+            "Task542_BCA_inference"
+        ]
+        default: [
+            "Task251_TotalSegmentator_part1_organs_1139subj",
+            "Task252_TotalSegmentator_part2_vertebrae_1139subj",
+            "Task253_TotalSegmentator_part3_cardiac_1139subj",
+            "Task254_TotalSegmentator_part4_muscles_1139subj",
+            "Task255_TotalSegmentator_part5_ribs_1139subj",
+            "Task256_TotalSegmentator_3mm_1139subj",
+            "Task258_lung_vessels_248subj",
+            "Task150_icb_v0",
+            "Task260_hip_implant_71subj",
+            "Task269_Body_extrem_6mm_1200subj",
+            "Task503_cardiac_motion",
+            "Task273_Body_extrem_1259subj",
+            "Task315_thoraxCT",
+            "Task008_HepaticVessel",
+            "Task542_BCA_inference"
+        ]

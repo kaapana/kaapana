@@ -175,7 +175,16 @@
       v-row(v-if="edit_allowed_datasets" align="center")
         v-col(cols=4 align="left") Allowed Datasets:
         v-col(align="left")
-          v-select(v-model='instancePost.allowed_datasets' :items='datasets' label='Allowed datasets' multiple='' chips='' hint='Which datasets are allowed to be used' persistent-hint='')
+          v-select(
+            v-model='instancePost.allowed_datasets'
+            :items='datasets'
+            :item-text="item => `${item.name} (${item.access_level})`"
+            item-value='name'
+            label='Allowed datasets'
+            multiple='' 
+            chips='' 
+            hint='Which datasets are allowed to be used' 
+            persistent-hint='')
         v-col(cols=1 align="center")
           v-btn(@click="edit_allowed_datasets = !edit_allowed_datasets; updateInstanceForm();" small icon)
             v-icon mdi-content-save
@@ -311,8 +320,8 @@
           });
       },
       getDatasets() {
-        loadDatasets().then(_datasetNames => {
-          this.datasets = _datasetNames;
+        loadDatasets(false).then(_datasetNames => {
+          this.datasets = _datasetNames.filter(dataset => dataset.access_level === "project");
         })
       },
       updateInstanceForm() {

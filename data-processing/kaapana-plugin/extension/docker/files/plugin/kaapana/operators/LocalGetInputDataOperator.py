@@ -137,8 +137,6 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         if not exists(target) or not any(
             fname.endswith(".dcm") for fname in os.listdir(target)
         ):
-            if not os.path.isdir(dcm_path):
-                raise ValueError(f"Could not find dicom dir: {dcm_path}. Abort!")
             self.move_series(src_dcm_path=dcm_path, target=target)
         else:
             logger.warning("Files have already been moved -> skipping")

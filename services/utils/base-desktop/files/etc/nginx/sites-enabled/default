@@ -10,44 +10,34 @@ server {
 	#_HTTP_PASSWORD_#auth_basic "Private Property";
 	#_HTTP_PASSWORD_#auth_basic_user_file /etc/nginx/.htpasswd;
 
-	root /opt/novnc/;
-	index index.html index.htm;
+	# Selkies prebuilt web client (SPA).
+	root /usr/share/selkies/selkies-dashboard/;
+	index index.html;
 
-	#_RELATIVE_URL_ROOT_location /_RELATIVE_URL_ROOT_/ {
-	#_RELATIVE_URL_ROOT_	rewrite /_RELATIVE_URL_ROOT_/(.*) /$1 break;
-	#_RELATIVE_URL_ROOT_	root /opt/novnc/;
-	#_RELATIVE_URL_ROOT_}
-
-	location ~ .*/(api/.*|websockify|resize) {
-		try_files $uri @api$http_upgrade;
-	}
-
-	location / {
-		rewrite /approot/(.*) /$1 break;
-		root /opt/novnc/;
-	}
-
-	location @apiwebsocket {
-		#_RELATIVE_URL_ROOT_rewrite /_RELATIVE_URL_ROOT_/(.*) $1 break;
+	# Selkies data websocket (pixelflux stripes). The client connects to "<base>websockets";
+	# match that suffix (singular or plural) under any ingress prefix. Selkies accepts the
+	# upgrade on any path, so no rewrite is needed. This regex location is evaluated before
+	# the prefix locations.
+	location ~ /websockets?$ {
 		proxy_connect_timeout       7d;
 		proxy_send_timeout          7d;
 		proxy_read_timeout          7d;
-		proxy_buffering                         off;
+		proxy_buffering             off;
 
 		proxy_http_version 1.1;
 		proxy_set_header Upgrade $http_upgrade;
 		proxy_set_header Connection "upgrade";
-		proxy_pass http://127.0.0.1:6080; # websockify
+		proxy_set_header Host $host;
+		proxy_pass http://127.0.0.1:8082; # selkies
 	}
 
-	location @api {
-		#_RELATIVE_URL_ROOT_rewrite /_RELATIVE_URL_ROOT_/api/(.*) /$1 break;
-		rewrite ^/api/(.*)$ /$1 break;
-		proxy_set_header X-Real-IP  $remote_addr;
-		proxy_set_header X-Forwarded-For $remote_addr;
-		proxy_set_header Host $host;
-		max_ranges 0;
-		proxy_pass http://127.0.0.1:8000; # resize backend
+	#_RELATIVE_URL_ROOT_location /_RELATIVE_URL_ROOT_/ {
+	#_RELATIVE_URL_ROOT_	rewrite /_RELATIVE_URL_ROOT_/(.*) /$1 break;
+	#_RELATIVE_URL_ROOT_	root /usr/share/selkies/selkies-dashboard/;
+	#_RELATIVE_URL_ROOT_	try_files $uri $uri/ /index.html;
+	#_RELATIVE_URL_ROOT_}
+
+	location / {
+		try_files $uri $uri/ /index.html;
 	}
 }
-

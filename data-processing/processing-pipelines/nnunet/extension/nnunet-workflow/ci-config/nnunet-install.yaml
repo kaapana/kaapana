@@ -3,7 +3,10 @@ instance_names:
   - central
 conf_data:
   data_form:
-    dataset_name: test-MODELS  ## task name will be "Dataset451_10.135.76.131_061124-144541---nnUNetTrainer__nnUNetResEncUNetMPlans__3d_fullres"
+    dataset_name: 
+      name: test-MODELS  ## task name will be "Dataset451_10.135.76.131_061124-144541---nnUNetTrainer__nnUNetResEncUNetMPlans__3d_fullres"
+      username: "kaapana"
+      access_level: project
   workflow_form:
     input: "OT"
 remote: false

@@ -65,11 +65,20 @@ The platform is deployed using the script :code:`kaapanactl.sh` also used during
       You should enter the **domain, hostname or IP-address** where the server is accessible from client workstations.
       **Keep in mind, that valid SSL-certificates are only working with FQDN domains.**
 
-   2. *Enable GPU support?*
+      For non-interactive runs, pass it via the ``--domain`` flag or set the ``DOMAIN`` env var.
+
+   2. *platform prefix:*
+
+      Prefix for every project namespace on the Kubernetes cluster (namespaces are ``<prefix>-project-<short_id>``).
+      Choose a short, lowercase label (e.g. ``kaapana``, ``site-a``, ``dkfz``). If empty or invalid, the script exits.
+
+      For non-interactive runs, pass it via the ``--platform-prefix`` flag or set the ``PLATFORM_PREFIX`` env var.
+
+   3. *Enable GPU support?*
 
       Answer *yes* if you have a Nvidia GPU, installed drivers and enabled GPU for Microk8s.
 
-   3. *Please enter the credentials for the Container-Registry:*
+   4. *Please enter the credentials for the Container-Registry:*
 
       Use the credentials to your own registry or the ones provided to you by the Kaapana team.
 
@@ -155,6 +164,10 @@ Namespace configurations
      - ``""``
      - string
      - Prefix for namespace variables (e.g., ``SERVICES_NAMESPACE``) and suffix for ``FAST_DATA_DIR`` and ``SLOW_DATA_DIR``.
+   * - ``PLATFORM_PREFIX``
+     - Required
+     - string
+     - Prefix used for project namespaces (``<prefix>-project-<short_id>``). Max 46 chars. Set via ``--platform-prefix`` flag, ``PLATFORM_PREFIX`` env var, or the interactive prompt.
    * - ``SERVICES_NAMESPACE``
      - ``"services"``
      - string
@@ -222,9 +235,10 @@ Credentials
 
 .. important::
 
-   The following variables are used as credentials for system users for components within the platform.
-   They **must** be changed **before** running the deployment script.
-   After deployment you cannot change them without breaking the platform.
+   The following variables are used as credentials for system users of platform components.
+   They **must** be set **before** the first deployment - afterwards they cannot be changed
+   without breaking the platform. The Keycloak admin password is the exception (see the
+   note below the table).
 
 .. list-table::
    :header-rows: 1
@@ -249,9 +263,13 @@ Credentials
    * - ``KEYCLOAK_ADMIN_USERNAME``
      - ``"admin"``
      - Username for Keycloak administrator.
-   * - ``KEYCLOAK_ADMIN_PASSWORD``
-     - ``"Kaapana2020"``
-     - Password for Keycloak administrator. **Minimum policy for production: 1 specialChar + 1 upperCase + 1 lowerCase and 1 digit + min-length = 8**
+
+.. note::
+
+   The Keycloak admin password is not a fixed credential. Every deployment sets it
+   (random by default, or prompted with ``--set-keycloak-admin-password``), prints
+   it, and it can be changed afterwards. See
+   :ref:`Keycloak admin password <keycloak_admin_password>`.
 
 Initial Kaapana Login Credentials
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

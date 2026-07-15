@@ -98,7 +98,7 @@
             "outputs": [
                 {
                     "name": "downloads",
-                    "mounted_path": "/home/kaapana/downloads"
+                    "mounted_path": "/kaapana/app/downloads"
                 }
             ],
             "command": [
@@ -106,7 +106,7 @@
                 "-u",
                 "download_dicoms.py",
                 "-o",
-                "/home/kaapana/downloads"
+                "/kaapana/app/downloads"
             ],
             "resources": {
                 "limits": {

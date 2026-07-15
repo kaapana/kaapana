@@ -1,11 +1,16 @@
 import json
+import logging
+import os
+import re
 import uuid
 from datetime import datetime, timezone
+from string import Template
 
 import jwt
 import requests
 from app.config import settings
-from app.dependencies import get_minio, get_opensearch
+from app.dependencies import get_minio, get_opensearch, get_project
+from app.logger import get_logger
 from app.workflows.utils import raise_kaapana_connection_error, requests_retry_session
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -13,8 +18,74 @@ from minio.error import S3Error
 from starlette.responses import StreamingResponse
 
 DEFAULT_STATIC_WEBSITE_BUCKET = "staticwebsiteresults"
+RESULTS_LOAD_MORE_PAGE_SIZE = int(os.environ.get("RESULTS_LOAD_MORE_PAGE_SIZE", 500))
+SERIES_ID_PATTERN = re.compile(r"^(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*$")
+
+# Per-series prefix appended to the bucket's results root. Must contain
+# $series_id. Override via env var if the writer-side layout changes.
+RESULTS_LAYOUT_TEMPLATE = Template(
+    os.environ.get("RESULTS_LAYOUT_TEMPLATE", "batch/$series_id/")
+)
+if (
+    "$series_id" not in RESULTS_LAYOUT_TEMPLATE.template
+    and "${series_id}" not in RESULTS_LAYOUT_TEMPLATE.template
+):
+    raise ValueError(
+        f"RESULTS_LAYOUT_TEMPLATE must contain $series_id, got "
+        f"{RESULTS_LAYOUT_TEMPLATE.template!r}"
+    )
+
+# Fall back to a batched recursive scan when the prefix lookup misses.
+# Set to "false" to fail fast on layout drift instead.
+RESULTS_LAYOUT_FALLBACK_TO_SCAN = (
+    os.environ.get("RESULTS_LAYOUT_FALLBACK_TO_SCAN", "true").lower() == "true"
+)
+
+logger = get_logger(__name__, logging.DEBUG)
 
 router = APIRouter()
+
+
+def _get_bucket_and_results_prefix(project: dict) -> tuple[str, str]:
+    """Resolve the active bucket and the results root within that bucket."""
+    if project and "s3_bucket" in project:
+        return project.get("s3_bucket"), f"{DEFAULT_STATIC_WEBSITE_BUCKET}/"
+
+    return DEFAULT_STATIC_WEBSITE_BUCKET, ""
+
+
+def _normalize_results_prefix(prefix: str) -> str:
+    if not prefix:
+        return ""
+
+    normalized_prefix = prefix.strip("/")
+    if not normalized_prefix:
+        return ""
+
+    return f"{normalized_prefix}/"
+
+
+def _build_results_file_url(object_name: str) -> str:
+    return (
+        "/kaapana-backend/get-static-website-results-html"
+        f"?object_name={object_name}"
+    )
+
+
+def _extract_series_id_from_path(path: str) -> str | None:
+    for part in reversed(path.split("/")):
+        if SERIES_ID_PATTERN.match(part):
+            return part
+    return None
+
+
+def _parse_series_ids(request: Request) -> list[str]:
+    series_ids = request.query_params.getlist("series_id")
+    if series_ids:
+        return [series_id for series_id in series_ids if series_id]
+
+    series_ids_csv = request.query_params.get("series_ids", "")
+    return [series_id.strip() for series_id in series_ids_csv.split(",") if series_id]
 
 
 @router.get("/")
@@ -71,14 +142,13 @@ def get_static_website_results_html(
 
 @router.get("/get-static-website-results")
 def get_static_website_results(
-    request: Request,
+    project=Depends(get_project),
     minioClient=Depends(get_minio),
 ):
-    # set the bucket_name automatically from the request header
-    bucket_name: str = (DEFAULT_STATIC_WEBSITE_BUCKET,)
-    project = json.loads(request.headers.get("project"))
-    if project and "s3_bucket" in project:
-        bucket_name = project.get("s3_bucket")
+    # Legacy compatibility endpoint.
+    # Keep the recursive full-tree response stable until all callers are migrated
+    # to the incremental browse and targeted lookup endpoints below.
+    bucket_name, bucket_results_prefix = _get_bucket_and_results_prefix(project)
 
     def build_tree(item, filepath, org_filepath):
         # Adapted from https://stackoverflow.com/questions/8484943/construct-a-tree-from-list-os-file-paths-python-performance-dependent
@@ -116,9 +186,7 @@ def get_static_website_results(
     # if bucket is not the default static website bucket,
     # fetch all the static websites from the directory with the `staticwebsiteresults`
     # directory inside project bucket.
-    prefix = None
-    if bucket_name != DEFAULT_STATIC_WEBSITE_BUCKET:
-        prefix = DEFAULT_STATIC_WEBSITE_BUCKET
+    prefix = bucket_results_prefix.rstrip("/") or None
 
     tree = {"vuetifyFiles": []}
 
@@ -128,6 +196,172 @@ def get_static_website_results(
             if obj.object_name.endswith("html") and obj.object_name != "index.html":
                 build_tree(tree, obj.object_name, obj.object_name)
         return _get_vuetify_tree_structure(tree)
+    except S3Error:
+        raise HTTPException(
+            status_code=404,
+            detail="Bucket name not found or Dont have access to the bucket",
+        )
+
+
+@router.get("/get-static-website-results-tree")
+def get_static_website_results_tree(
+    prefix: str = "",
+    limit: int = RESULTS_LOAD_MORE_PAGE_SIZE,
+    continuation_token: str | None = None,
+    project=Depends(get_project),
+    minioClient=Depends(get_minio),
+):
+    """
+    Lazy workflow results browser. Returns one directory level per call;
+    pass `continuation_token` from the previous response to get the next page.
+    """
+    bucket_name, bucket_results_prefix = _get_bucket_and_results_prefix(project)
+    relative_prefix = _normalize_results_prefix(prefix)
+    results_prefix = f"{bucket_results_prefix}{relative_prefix}"
+    page_size = max(1, min(limit, 500))
+
+    list_kwargs = {"prefix": results_prefix, "recursive": False}
+    if continuation_token:
+        # MinIOs start_after is lexicographic. 
+        # We append "0" to skip the previous folder and its contents.
+        list_kwargs["start_after"] = f"{bucket_results_prefix}{continuation_token}0"
+
+    items = []
+    next_continuation_token = None
+
+    try:
+        for obj in minioClient.list_objects(bucket_name, **list_kwargs):
+            object_name = obj.object_name
+            if object_name == results_prefix:
+                continue
+
+            rel_path = object_name[len(results_prefix):]
+            if not rel_path:
+                continue
+
+            rel_path_clean = rel_path.rstrip("/")
+            # With recursive=False, synthetic folders end in "/", real objects don't.
+            is_directory = object_name.endswith("/")
+
+            if is_directory:
+                directory_name = rel_path_clean.split("/")[0]
+                item = {
+                    "name": directory_name,
+                    "path": f"{relative_prefix}{directory_name}".rstrip("/"),
+                    "file": False,
+                    "children": [],
+                    "hasChildren": True,
+                }
+            else:
+                if not object_name.endswith(".html"):
+                    continue
+
+                item = {
+                    "name": rel_path,
+                    "path": f"{relative_prefix}{rel_path}".rstrip("/"),
+                    "file": "html",
+                    "children": [],
+                    "hasChildren": False,
+                    "url": _build_results_file_url(object_name),
+                }
+
+            if len(items) >= page_size:
+                next_continuation_token = items[-1]["path"]
+                break
+
+            items.append(item)
+
+        return {
+            "items": items,
+            "nextContinuationToken": next_continuation_token,
+            "prefix": relative_prefix.rstrip("/"),
+        }
+    except S3Error:
+        raise HTTPException(
+            status_code=404,
+            detail="Bucket name not found or Dont have access to the bucket",
+        )
+
+
+@router.get("/get-static-website-result-reports")
+def get_static_website_result_reports(
+    request: Request,
+    project=Depends(get_project),
+    minioClient=Depends(get_minio),
+):
+    """
+    Resolve report URLs for one or more series_ids.
+
+    Fast path: one prefix lookup per series under RESULTS_LAYOUT_TEMPLATE.
+    Fallback (opt out via RESULTS_LAYOUT_FALLBACK_TO_SCAN=false): one batched
+    recursive scan that resolves any series the fast path missed.
+    """
+    series_ids = _parse_series_ids(request)
+    if not series_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="At least one series_id or series_ids query parameter is required.",
+        )
+
+    bucket_name, bucket_results_prefix = _get_bucket_and_results_prefix(project)
+    unresolved_ids = set(series_ids)
+    results = {
+        series_id: {
+            "found": False,
+            "url": None,
+            "object_name": None,
+        }
+        for series_id in series_ids
+    }
+
+    try:
+        # Pass 1: per-series prefix lookup.
+        for series_id in series_ids:
+            series_prefix = (
+                f"{bucket_results_prefix}"
+                f"{RESULTS_LAYOUT_TEMPLATE.substitute(series_id=series_id)}"
+            )
+            for obj in minioClient.list_objects(
+                bucket_name, prefix=series_prefix, recursive=True
+            ):
+                if not obj.object_name.endswith(".html"):
+                    continue
+                results[series_id] = {
+                    "found": True,
+                    "url": _build_results_file_url(obj.object_name),
+                    "object_name": obj.object_name,
+                }
+                unresolved_ids.discard(series_id)
+                break
+
+        # Pass 2: batched fallback scan for any series the fast path missed.
+        if unresolved_ids and RESULTS_LAYOUT_FALLBACK_TO_SCAN:
+            logger.warning(
+                "Fast lookup miss for %d of %d series under template %r; "
+                "falling back to a batched recursive bucket scan. Layout drift?",
+                len(unresolved_ids),
+                len(series_ids),
+                RESULTS_LAYOUT_TEMPLATE.template,
+            )
+            for obj in minioClient.list_objects(
+                bucket_name, prefix=bucket_results_prefix, recursive=True
+            ):
+                object_name = obj.object_name
+                if not object_name.endswith(".html"):
+                    continue
+                series_id = _extract_series_id_from_path(object_name)
+                if not series_id or series_id not in unresolved_ids:
+                    continue
+                results[series_id] = {
+                    "found": True,
+                    "url": _build_results_file_url(object_name),
+                    "object_name": object_name,
+                }
+                unresolved_ids.remove(series_id)
+                if not unresolved_ids:
+                    break
+
+        return {"results": results}
     except S3Error:
         raise HTTPException(
             status_code=404,
@@ -151,7 +385,7 @@ def get_os_dashboards(os_client=Depends(get_opensearch)):
         return {"Error message": str(e)}, 500
 
     hits = res["hits"]["hits"]
-    dashboards = list(sorted([hit["_source"]["dashboard"]["title"] for hit in hits]))
+    dashboards = list(sorted({hit["_source"]["dashboard"]["title"] for hit in hits}))
     return {"dashboards": dashboards}
 
 
@@ -177,45 +411,35 @@ def get_open_policy_data():
     return r.json().get("result")
 
 
+def _get_keycloak_service_token(client_secret: str) -> str:
+    """Obtain a bearer token for the kaapana-service client via client_credentials grant."""
+    r = requests.post(
+        f"{settings.keycloak_url}/auth/realms/kaapana/protocol/openid-connect/token",
+        verify="/etc/certs/kaapana.pem",
+        data={
+            "client_id": "kaapana-service",
+            "client_secret": client_secret,
+            "grant_type": "client_credentials",
+        },
+    )
+    r.raise_for_status()
+    return r.json()["access_token"]
+
+
 @router.get("/oidc-logout")
 def oidc_logout(request: Request):
     """
     Delete the keycloak session corresponding to the session of the access token in the request.
     Response with a redirect to oauth2-proxy browser session logout url.
     """
-
-    def _get_access_token(
-        username: str,
-        password: str,
-        client_id: str,
-    ):
-        """
-        Get access token for the admin keycloak user.
-        """
-        payload = {
-            "username": username,
-            "password": password,
-            "client_id": client_id,
-            "grant_type": "password",
-        }
-        r = requests.post(
-            f"{settings.keycloak_url}/auth/realms/master/protocol/openid-connect/token",
-            verify="/etc/certs/kaapana.pem",
-            data=payload,
-        )
-        r.raise_for_status()
-        return r.json()["access_token"]
-
     access_token = request.headers.get("x-forwarded-access-token")
     decoded_access_token = jwt.decode(access_token, options={"verify_signature": False})
     token_session_id = decoded_access_token.get("sid")
     assert token_session_id, "Session id could not be determined from access token"
     user_id = decoded_access_token.get("sub")
 
-    keycloak_admin_access_token = _get_access_token(
-        settings.keycloak_admin_username,
-        settings.keycloak_admin_password,
-        "admin-cli",
+    keycloak_admin_access_token = _get_keycloak_service_token(
+        settings.keycloak_service_client_secret
     )
     security_headers = {"Authorization": f"Bearer {keycloak_admin_access_token}"}
 

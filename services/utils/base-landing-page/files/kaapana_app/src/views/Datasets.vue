@@ -12,15 +12,17 @@
                 </v-col>
                 <v-col cols="10">
                   <v-autocomplete
-                    v-model="datasetName"
-                    :items="datasetNames"
+                    v-model="selectedDataset"
+                    :items="datasets"
+                    :item-text="item => `${item.name} (${item.access_level})`"
+                    :item-value="item => item"
                     label="Select Dataset"
                     clearable
                     hide-details
                     return-object
                     single-line
                     dense
-                    @click:clear="datasetName = null"
+                    @click:clear="selectedDataset = null"
                   >
                   </v-autocomplete>
                 </v-col>
@@ -30,7 +32,7 @@
               </v-row>
               <Search
                 ref="search"
-                :datasetName="datasetName"
+                :selectedDataset="selectedDataset"
                 @search="(query) => updateData(query)"
               />
             </div>
@@ -132,7 +134,7 @@
                           <span v-on="on">
                             <v-btn
                               :disabled="
-                                identifiersOfInterest.length == 0 || !datasetName
+                                identifiersOfInterest.length == 0 || !selectedDataset
                               "
                               icon
                             >
@@ -236,7 +238,7 @@
       </ConfirmationDialog>
       <SaveDatasetDialog
         v-model="saveAsDatasetDialog"
-        @save="(name) => saveDatasetFromDialog(name)"
+        @save="(name, access_level) => saveDatasetFromDialog(name, access_level)"
         @cancel="() => (this.saveAsDatasetDialog = false)"
       />
       <v-dialog v-model="addToDatasetDialog" width="500">
@@ -245,7 +247,9 @@
           <v-card-text>
             <v-select
               v-model="datasetToAddTo"
-              :items="datasetNames"
+              :items="datasets"
+              :item-text="item => `${item.name} (${item.access_level})`"
+              :item-value="item => item"
               label="Dataset"
             ></v-select>
           </v-card-text>
@@ -271,6 +275,7 @@
         />
       </v-dialog>
       <EditDatasetsDialog
+        v-if="editDatasetsDialog"
         v-model="editDatasetsDialog"
         @close="(reloadDatasets) => editedDatasets(reloadDatasets)"
       />
@@ -314,9 +319,14 @@
             </v-menu>
           </v-app-bar>
           <v-card-text v-if="validationResultItem != null">
+            <v-progress-circular
+              v-if="validationResultLookup.loading"
+              indeterminate
+              color="primary"
+            />
             <ElementsFromHTML
-              v-if="validationResultItem in resultPaths"
-              :rawHtmlURL="resultPaths[validationResultItem]"
+              v-else-if="validationResultUrl"
+              :rawHtmlURL="validationResultUrl"
             />
             <div class="container" v-else>
               <h1 class="pb-5">Validation Report</h1>
@@ -407,6 +417,8 @@ export default {
       message: "Loading...",
       settings: settings,
       datasetNames: [],
+      datasets: [],
+      selectedDataset: null,
       datasetName: null,
       saveAsDatasetDialog: false,
       addToDatasetDialog: false,
@@ -415,8 +427,8 @@ export default {
       editDatasetsDialog: false,
       datasetToAddTo: null,
       debouncedIdentifiers: [],
-      staticUrls: [],
       resultPaths: {},
+      resultLookupState: {},
       filteredDags: [],
       aggregatedSeriesNum: 100,
       pageIndex: 1,
@@ -488,7 +500,6 @@ export default {
         this.datasetName = this.queryParams.dataset_name;
       }
     }
-    this.getStaticWebsiteResults();
   },
   beforeDestroy() {
     window.removeEventListener("keydown", (event) => this.keyDownEventListener(event));
@@ -595,72 +606,95 @@ export default {
       });
     },
     async updateDatasetNames() {
-      this.datasetNames = await loadDatasets();
+      let datasets = await loadDatasets();
+      this.datasets = datasets;
+      this.datasetNames = datasets.map((dataset) => dataset.name);
     },
-    getStaticWebsiteResults() {
-      var staticWebUrl = "/get-static-website-results"
-      kaapanaApiService
-        .kaapanaApiGet(staticWebUrl)
-        .then((response) => {
-          this.staticUrls = response.data;
-          this.extractChildPaths(this.staticUrls);
-        })
-        .catch((err) => {
-          this.staticUrls = [];
-        });
-    },
-    extractChildPaths(urlObjs) {
-      urlObjs.forEach((i) => {
-        let rootPaths = this.extractRootPath(i);
-        for (let path of rootPaths) {
-          let seriesID = this.extractSeriesId(path);
-          this.resultPaths[seriesID] = path;
-          // this.readAndParseHTML(path)
-        }
+    async ensureValidationResultLoaded(resultItemID) {
+      if (!resultItemID) {
+        return null;
+      }
+
+      const cachedResult = this.resultLookupState[resultItemID];
+      if (cachedResult && (cachedResult.loading || cachedResult.loaded)) {
+        return cachedResult.url;
+      }
+
+      this.$set(this.resultLookupState, resultItemID, {
+        loading: true,
+        loaded: false,
+        found: false,
+        url: null,
+        object_name: null,
       });
-      this.resultPaths.__ob__.dep.notify();
-    },
-    extractRootPath(urlObj) {
-      let paths = [];
 
-      function traverseChild(node) {
-        if ("children" in node) {
-          for (let child of node.children) {
-            traverseChild(child);
-          }
-        } else if ("path" in node) {
-          paths.push(node.path);
-        } else {
-          paths.push(undefined);
+      try {
+        const response = await kaapanaApiService.kaapanaApiGet(
+          "/get-static-website-result-reports",
+          { series_id: resultItemID }
+        );
+        const lookupResult =
+          response &&
+          response.data &&
+          response.data.results &&
+          response.data.results[resultItemID]
+            ? response.data.results[resultItemID]
+            : { found: false, url: null, object_name: null };
+
+        this.$set(this.resultLookupState, resultItemID, {
+          loading: false,
+          loaded: true,
+          found: lookupResult.found,
+          url: lookupResult.url,
+          object_name: lookupResult.object_name,
+        });
+
+        if (lookupResult.found && lookupResult.url) {
+          this.$set(this.resultPaths, resultItemID, lookupResult.url);
+        } else if (resultItemID in this.resultPaths) {
+          this.$delete(this.resultPaths, resultItemID);
         }
+
+        return lookupResult.url;
+      } catch (error) {
+        console.error("Failed to resolve validation result:", error);
+        this.$set(this.resultLookupState, resultItemID, {
+          loading: false,
+          loaded: true,
+          found: false,
+          url: null,
+          object_name: null,
+        });
+        if (resultItemID in this.resultPaths) {
+          this.$delete(this.resultPaths, resultItemID);
+        }
+        return null;
+      }
+    },
+    invalidateValidationResultCache(resultItemID) {
+      if (!resultItemID) {
+        return;
       }
 
-      traverseChild(urlObj);
-      return paths;
-    },
-    extractSeriesId(urlStr) {
-      const seriesIdRegx = "^(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*$";
-      const subDirs = urlStr.split("/");
-      let matched = "";
-      for (let dir of subDirs.reverse()) {
-        if (dir.match(seriesIdRegx)) {
-          matched = dir;
-          break;
-        }
+      if (resultItemID in this.resultLookupState) {
+        this.$delete(this.resultLookupState, resultItemID);
       }
-      return matched;
+      if (resultItemID in this.resultPaths) {
+        this.$delete(this.resultPaths, resultItemID);
+      }
     },
-    async updateDataset(name, identifiers, action = "UPDATE") {
+    async updateDataset(name, identifiers, action = "UPDATE", access_level = "project") {
       try {
         const body = {
           action: action,
           name: name,
           identifiers: identifiers,
+          access_level: access_level,
         };
         await updateDataset(body);
         this.$notify({
           title: `Dataset updated`,
-          text: `Successfully updated dataset ${name}.`,
+          text: `Successfully updated dataset ${name} (${access_level}).`,
           type: "success",
         });
         return true;
@@ -675,9 +709,10 @@ export default {
     },
     async addToDataset() {
       const successful = await this.updateDataset(
-        this.datasetToAddTo,
+        this.datasetToAddTo.name,
         this.identifiersOfInterest,
-        "ADD"
+        "ADD",
+        this.datasetToAddTo.access_level
       );
       if (successful) {
         this.addToDatasetDialog = false;
@@ -685,9 +720,10 @@ export default {
     },
     async removeFromDataset() {
       const successful = await this.updateDataset(
-        this.datasetName,
+        this.selectedDataset.name,
         this.identifiersOfInterest,
-        "DELETE"
+        "DELETE",
+        this.selectedDataset.access_level
       );
 
       this.removeFromDatasetDialog = false;
@@ -727,17 +763,18 @@ export default {
 
       if (this.seriesInstanceUIDs.length === 0) this.message = "No data found.";
     },
-    async saveDatasetFromDialog(name) {
-      const successful = await this.saveDataset(name, this.identifiersOfInterest);
+    async saveDatasetFromDialog(name, access_level) {
+      const successful = await this.saveDataset(name, this.identifiersOfInterest, access_level);
       if (successful) {
         this.saveAsDatasetDialog = false;
       }
     },
-    async saveDataset(name, identifiers) {
+    async saveDataset(name, identifiers, access_level) {
       try {
         const body = {
           name: name,
           identifiers: identifiers,
+          access_level: access_level,
         };
         await createDataset(body);
         this.$notify({
@@ -764,8 +801,9 @@ export default {
     },
     editedDatasets(reloadDatasets) {
       if (reloadDatasets) {
-        loadDatasets().then((_datasetNames) => {
-          this.datasetNames = _datasetNames;
+        loadDatasets().then((_datasets) => {
+          this.datasets = _datasets;
+          this.datasetNames = _datasets.map((d) => d.name);
           if (!this.datasetNames.includes(this.datasetName)) {
             this.datasetName = null;
           }
@@ -774,6 +812,7 @@ export default {
       this.editDatasetsDialog = false;
     },
     runValidationWorkflow(resultItemID) {
+      this.invalidateValidationResultCache(resultItemID);
       this.selectedSeriesInstanceUIDs = [resultItemID];
       this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
       this.filteredDags = ["validate-dicoms"];
@@ -781,14 +820,23 @@ export default {
       this.workflowDialog = true;
     },
     deleteValidationResult(resultItemID) {
+      this.invalidateValidationResultCache(resultItemID);
       this.selectedSeriesInstanceUIDs = [resultItemID];
       this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
       this.filteredDags = ["clear-validation-results"];
       this.onValidationResultClose();
       this.workflowDialog = true;
     },
-    downloadValidationResult(resultItemID) {
-      const resultUri = this.resultPaths[resultItemID];
+    async downloadValidationResult(resultItemID) {
+      const resultUri = await this.ensureValidationResultLoaded(resultItemID);
+      if (!resultUri) {
+        this.$notify({
+          title: "Validation report not found",
+          text: "No workflow report could be resolved for the selected series.",
+          type: "warning",
+        });
+        return;
+      }
       var link = document.createElement("a");
       link.download = resultItemID + ".html";
       link.href = resultUri;
@@ -803,6 +851,14 @@ export default {
       this.selectedSeriesInstanceUIDs = val;
       this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
     }, 200),
+    validationResultItem: {
+      immediate: false,
+      handler(value) {
+        if (value) {
+          this.ensureValidationResultLoaded(value);
+        }
+      },
+    },
   },
   computed: {
     identifiersOfInterest() {
@@ -823,6 +879,30 @@ export default {
     },
     validationResultItem() {
       return this.$store.getters.validationResultItem;
+    },
+    validationResultLookup() {
+      if (!this.validationResultItem) {
+        return {
+          loading: false,
+          loaded: false,
+          found: false,
+          url: null,
+          object_name: null,
+        };
+      }
+
+      return (
+        this.resultLookupState[this.validationResultItem] || {
+          loading: false,
+          loaded: false,
+          found: false,
+          url: null,
+          object_name: null,
+        }
+      );
+    },
+    validationResultUrl() {
+      return this.validationResultLookup.url;
     },
     displaySelectedItems() {
       if (

@@ -1,9 +1,15 @@
 import datetime
 from typing import List, Optional, Union
+from enum import Enum
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 from typing_extensions import Self
+
+
+class AccessLevel(Enum):
+    private = "private"
+    project = "project"
 
 
 class KaapanaInstanceBase(BaseModel):
@@ -42,9 +48,10 @@ class AllowedDataset(BaseModel):
     name: str
     username: Optional[str] = None
     identifiers: List[str]
+    access_level: AccessLevel = AccessLevel.project
 
 
-AllowedDataset = List[AllowedDataset]
+AllowedDatasets = List[AllowedDataset]
 
 
 class KaapanaInstance(KaapanaInstanceBase):
@@ -59,7 +66,7 @@ class KaapanaInstance(KaapanaInstanceBase):
     encryption_key: str
     remote: bool
     allowed_dags: Union[dict, list, None] = None
-    allowed_datasets: Optional[AllowedDataset] = None
+    allowed_datasets: Optional[AllowedDatasets] = None
     time_created: datetime.datetime
     time_updated: datetime.datetime
     workflow_in_which_involved: Optional[str]
@@ -195,11 +202,13 @@ class DatasetCreate(DatasetBase):
     kaapana_instance_id: Optional[int] = None
     username: Optional[str] = None
     identifiers: List[str] = []
+    access_level: AccessLevel = AccessLevel.project
 
 
 class DatasetUpdate(DatasetBase):
     action: str = ""
     identifiers: List[str] = []
+    access_level: AccessLevel = AccessLevel.project
 
 
 class Dataset(DatasetBase):
@@ -207,6 +216,7 @@ class Dataset(DatasetBase):
     time_updated: datetime.datetime
     username: Optional[str] = None
     identifiers: Optional[List[str]]
+    access_level: AccessLevel = AccessLevel.project
 
     @field_validator("time_updated", mode="before")
     @classmethod
@@ -299,7 +309,7 @@ class WorkflowWithJobs(Workflow):
 class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
     # workflow_jobs: List[Job] = []
     workflow_jobs: Optional[List]
-    dataset_name: Optional[str] = None
+    dataset_name: Optional[dict] = None
 
     @model_validator(mode="after")
     def get_dataset(self) -> Self:
@@ -332,7 +342,6 @@ class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
         return self
 
 
-
 class InstalledModelResponse(BaseModel):
     id: int
     project_id: str
@@ -349,6 +358,7 @@ class InstalledModelResponse(BaseModel):
 
 class UpdateInstalledModelsResponse(BaseModel):
     """Response for update operations."""
+
     created: List[InstalledModelResponse]
     failed: List[dict]
     deleted: int  # number of previously existing models

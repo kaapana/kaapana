@@ -1,0 +1,91 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "keycloak-setup"
+  namespace: "{{ .Values.global.admin_namespace }}"
+spec:
+  # Ultimate backstop so the Job fails loudly instead of retrying its Pods
+  # indefinitely if the bootstrap never produces a working kaapana-admin client.
+  activeDeadlineSeconds: 1800
+  template:
+    metadata:
+      name: keycloak-setup
+    spec:
+        initContainers:
+        - name: wait-for-keycloak
+          image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
+          env:
+            - name: WAIT
+              value: "keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443"
+            - name: DELAY
+              value: "3"
+            - name: TIMEOUT
+              value: "100"
+        # Block until the bootstrap job has created the kaapana-admin client.
+        # This enforces ordering between the two plain Jobs without a Helm hook.
+        - name: wait-for-admin-client
+          image: "{{ .Values.global.registry_url }}/keycloak-setup:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
+          command: ["python3", "-u", "wait_for_admin_client.py"]
+          env:
+            - name: KEYCLOAK_HOST
+              value: "keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc"
+            - name: KAAPANA_ADMIN_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: kaapana-admin-password
+                  key: kaapana-admin-password
+        containers:
+        - name: keycloak-setup
+          image: "{{ .Values.global.registry_url }}/keycloak-setup:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy:  "{{ .Values.global.pull_policy_images }}"
+          resources:
+            requests:
+              memory: 200Mi
+            limits:
+              memory: 200Mi
+          env:
+            # Authenticates as the kaapana-admin client (client_credentials).
+            # No admin password is mounted here.
+            - name: KAAPANA_ADMIN_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: kaapana-admin-password
+                  key: kaapana-admin-password
+            - name: KEYCLOAK_HOST
+              value: "keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc"
+            - name: OIDC_CLIENT_SECRET
+              value: "{{ .Values.global.oidc_client_secret }}"
+            - name: DEV_MODE
+              value: "{{ .Values.global.dev_mode }}"
+            - name: KAAPANA_INIT_PASSWORD
+              value: "{{ .Values.global.kaapana_init_password }}"
+            - name: HOSTNAME
+              value: "{{ .Values.global.hostname }}"
+            - name: HTTPS_PORT
+              value: "{{ .Values.global.https_port}}"
+            - name: SYSTEM_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: system-user-password
+                  key: system-user-password
+            - name: KEYCLOAK_SERVICE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: kaapana-service-password
+                  key: kaapana-service-password
+            - name: REALM_OBJECTS_ROOT_DIR
+              value: "/realm_objects/"
+          volumeMounts:
+            - name: realm-objects
+              mountPath: /realm_objects/
+        restartPolicy: Never
+        serviceAccountName: kaapana-kube-admin
+        imagePullSecrets:
+        - name: registry-secret
+        volumes:
+        - name: realm-objects
+          configMap:
+            name: keycloak-realm-objects

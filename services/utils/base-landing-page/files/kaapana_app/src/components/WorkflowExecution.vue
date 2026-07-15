@@ -256,7 +256,7 @@ export default {
 
       if (this.schemas["data_form"] !== null && this.schemas["data_form"] !== undefined) {
         Object.entries(this.schemas["data_form"]).forEach(([key, value]) => {
-          if (key.startsWith("__emtpy__")) {
+          if (key.startsWith("__empty__")) {
             this.datasets_available = false;
             this.$notify({
               type: "error",

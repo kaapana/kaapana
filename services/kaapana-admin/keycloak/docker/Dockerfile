@@ -20,6 +20,10 @@ COPY --from=settings /tmp/settings.xml /root/.m2/settings.xml
 ADD projects-token-mapper /app/projects-token-mapper
 ADD rights-token-mapper /app/rights-token-mapper
 ADD admin-mapper /app/admin-mapper
+ADD user-created-listener /app/user-created-listener
+
+WORKDIR /app/user-created-listener
+RUN mvn clean package
 
 WORKDIR /app/projects-token-mapper
 RUN mvn clean package
@@ -34,25 +38,38 @@ RUN mvn clean package
 FROM local-only/base-python-cpu:latest AS builder
 
 WORKDIR /app
-RUN git clone --single-branch --depth 1 --branch 26.4.6 https://github.com/keycloak/keycloak.git /app/keycloak-repo
+RUN git clone --single-branch --depth 1 --branch 26.6.4 https://github.com/keycloak/keycloak.git /app/keycloak-repo
 RUN cp -r /app/keycloak-repo/themes/src/main/resources/theme/keycloak/ /app/kaapana
 COPY files/login.css /app/kaapana/login/resources/css/login.css
-COPY files/login.jpg /app/kaapana/login/resources/img/kaapana-bg.png
 COPY files/template.ftl /app/kaapana/login/template.ftl
+COPY files/login.ftl /app/kaapana/login/login.ftl
+COPY files/login-update-password.ftl /app/kaapana/login/login-update-password.ftl
+COPY files/login-reset-password.ftl /app/kaapana/login/login-reset-password.ftl
+COPY files/login-otp.ftl /app/kaapana/login/login-otp.ftl
+COPY files/js/bg-animation.js /app/kaapana/login/resources/js/bg-animation.js
+COPY files/img/kaapana-logo.png /app/kaapana/login/resources/img/kaapana-logo.png
+COPY files/img/favicon.ico /app/kaapana/login/resources/img/favicon.ico
+COPY files/img/icons /app/kaapana/login/resources/img/icons
 
 # Paths changed after 26.0.6 -> https://www.keycloak.org/docs/26.0.0/upgrading/#paths-for-common-theme-resources-have-changed
 RUN sed -i '/^stylesCommon=/c\stylesCommon=vendor/patternfly-v4/patternfly.min.css vendor/patternfly-v3/css/patternfly.min.css vendor/patternfly-v3/css/patternfly-additions.min.css lib/pficon/pficon.css' /app/kaapana/login/theme.properties
 
+# Deployment-provided branding, read at runtime from env vars (empty default = feature off).
+# Set via global.login_* -> KC_LOGIN_* in the keycloak deployment.
+RUN printf '\nkaapanaLoginHeader=${env.KC_LOGIN_HEADER:Kaapana}\nkaapanaLoginSubheader=${env.KC_LOGIN_SUBHEADER:End-to-End medical image analysis}\nkaapanaLoginNotice=${env.KC_LOGIN_NOTICE:}\nkaapanaInstitutionName=${env.KC_LOGIN_INSTITUTION_NAME:}\nkaapanaInstitutionLogo=${env.KC_LOGIN_INSTITUTION_LOGO:}\n' >> /app/kaapana/login/theme.properties
+
 # Stage 4: Build the final Keycloak image with the custom theme and provider
-FROM quay.io/keycloak/keycloak:26.4.6
+FROM quay.io/keycloak/keycloak:26.6.4
 LABEL IMAGE="keycloak"
-LABEL VERSION="26.4.6"
+LABEL VERSION="26.6.4"
 LABEL BUILD_IGNORE="False"
 
 COPY --from=builder /app/kaapana /opt/keycloak/themes/kaapana
 COPY --from=maven-builder /app/rights-token-mapper/target/kaapana-rights-token-mapper-1.0.jar /opt/keycloak/providers/kaapana-rights-token-mapper-1.0.jar
 COPY --from=maven-builder /app/projects-token-mapper/target/kaapana-projects-token-mapper-1.0.jar /opt/keycloak/providers/kaapana-projects-token-mapper-1.0.jar
 COPY --from=maven-builder /app/admin-mapper/target/kaapana-admin-mapper-1.0.jar /opt/keycloak/providers/kaapana-admin-mapper-1.0.jar
+COPY --from=maven-builder /app/user-created-listener/target/user-created-listener-1.0.0.jar /opt/keycloak/providers/user-created-listener-1.0.0.jar
+
 
 ENV KC_METRICS_ENABLED=true
 ENV KC_HEALTH_ENABLED=true

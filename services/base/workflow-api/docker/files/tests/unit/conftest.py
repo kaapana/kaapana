@@ -27,7 +27,7 @@ postgresql.JSONB = JSON
 # Add parent directories to path to import app
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from app.dependencies import get_async_db
+from app.dependencies import get_async_db, require_dev_mode
 from app.main import app
 from app.models import Base
 
@@ -39,23 +39,61 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "POST: Tests for POST requests")
     config.addinivalue_line("markers", "PUT: Tests for PUT requests")
     config.addinivalue_line("markers", "DELETE: Tests for DELETE requests")
-    
+
     # Route-specific markers
     config.addinivalue_line("markers", "post_workflows: Tests for POST /v1/workflows")
     config.addinivalue_line("markers", "get_workflows: Tests for GET /v1/workflows")
-    config.addinivalue_line("markers", "get_workflow_by_title: Tests for GET /v1/workflows/{title}")
-    config.addinivalue_line("markers", "get_workflow_by_title_version: Tests for GET /v1/workflows/{title}/{version}")
-    config.addinivalue_line("markers", "delete_workflow: Tests for DELETE /v1/workflows/{title}/{version}")
-    config.addinivalue_line("markers", "get_workflow_tasks: Tests for GET /v1/workflows/{title}/{version}/tasks")
-    config.addinivalue_line("markers", "get_task: Tests for GET /v1/workflows/{title}/{version}/tasks/{task_title}")
-    config.addinivalue_line("markers", "post_workflow_runs: Tests for POST /v1/workflow-runs")
-    config.addinivalue_line("markers", "get_workflow_runs: Tests for GET /v1/workflow-runs")
-    config.addinivalue_line("markers", "get_workflow_run_by_id: Tests for GET /v1/workflow-runs/{id}")
-    config.addinivalue_line("markers", "cancel_workflow_run: Tests for PUT /v1/workflow-runs/{id}/cancel")
-    config.addinivalue_line("markers", "retry_workflow_run: Tests for PUT /v1/workflow-runs/{id}/retry")
-    config.addinivalue_line("markers", "get_workflow_run_task_runs: Tests for GET /v1/workflow-runs/{id}/task-runs")
-    config.addinivalue_line("markers", "get_task_run: Tests for GET /v1/workflow-runs/{id}/task-runs/{task_run_id}")
-    config.addinivalue_line("markers", "get_task_run_logs: Tests for GET /v1/workflow-runs/{id}/task-runs/{task_run_id}/logs")
+    config.addinivalue_line(
+        "markers", "get_workflow_by_id: Tests for GET /v1/workflows/{workflow_id}"
+    )
+    config.addinivalue_line(
+        "markers", "patch_workflow: Tests for PATCH /v1/workflows/{workflow_id}"
+    )
+    config.addinivalue_line(
+        "markers", "delete_workflow: Tests for DELETE /v1/workflows/{workflow_id}"
+    )
+    config.addinivalue_line(
+        "markers",
+        "get_workflow_revisions: Tests for GET /v1/workflows/{workflow_id}/revisions",
+    )
+    config.addinivalue_line(
+        "markers",
+        "restore_workflow_revision: Tests for POST /v1/workflows/{workflow_id}/revisions/{n}/restore",
+    )
+    config.addinivalue_line(
+        "markers", "get_workflow_tasks: Tests for GET /v1/workflows/{workflow_id}/tasks"
+    )
+    config.addinivalue_line(
+        "markers",
+        "get_task: Tests for GET /v1/workflows/{workflow_id}/tasks/{task_title}",
+    )
+    config.addinivalue_line(
+        "markers", "post_workflow_runs: Tests for POST /v1/workflow-runs"
+    )
+    config.addinivalue_line(
+        "markers", "get_workflow_runs: Tests for GET /v1/workflow-runs"
+    )
+    config.addinivalue_line(
+        "markers", "get_workflow_run_by_id: Tests for GET /v1/workflow-runs/{id}"
+    )
+    config.addinivalue_line(
+        "markers", "cancel_workflow_run: Tests for PUT /v1/workflow-runs/{id}/cancel"
+    )
+    config.addinivalue_line(
+        "markers", "retry_workflow_run: Tests for PUT /v1/workflow-runs/{id}/retry"
+    )
+    config.addinivalue_line(
+        "markers",
+        "get_workflow_run_task_runs: Tests for GET /v1/workflow-runs/{id}/task-runs",
+    )
+    config.addinivalue_line(
+        "markers",
+        "get_task_run: Tests for GET /v1/workflow-runs/{id}/task-runs/{task_run_id}",
+    )
+    config.addinivalue_line(
+        "markers",
+        "get_task_run_logs: Tests for GET /v1/workflow-runs/{id}/task-runs/{task_run_id}/logs",
+    )
 
 
 @pytest_asyncio.fixture(name="session")
@@ -68,6 +106,8 @@ async def session_fixture():
     - Fresh database for each test
     - Automatic cleanup after test
     """
+    import asyncio
+
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -86,6 +126,18 @@ async def session_fixture():
     # Yield session for test
     async with async_session_maker() as session:
         yield session
+
+    # Cancel any background tasks spawned during the test (e.g. by
+    # workflow_service.create_workflow / update_workflow), otherwise their
+    # retry-with-backoff loops keep the loop alive and stall test teardown.
+    current = asyncio.current_task()
+    for task in asyncio.all_tasks():
+        if task is not current and not task.done():
+            task.cancel()
+    # Give cancelled tasks a chance to settle
+    pending = [t for t in asyncio.all_tasks() if t is not current and not t.done()]
+    if pending:
+        await asyncio.gather(*pending, return_exceptions=True)
 
     # Cleanup
     async with engine.begin() as conn:
@@ -109,6 +161,8 @@ async def client_fixture(session: AsyncSession):
         yield session
 
     app.dependency_overrides[get_async_db] = get_async_db_override
+    # Default to DEV_MODE=on for tests so updates work.
+    app.dependency_overrides[require_dev_mode] = lambda: None
 
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
@@ -119,5 +173,5 @@ async def client_fixture(session: AsyncSession):
         cookie_val = quote(json.dumps({"name": "test-project", "id": "test-id"}))
         ac.cookies.set("Project", cookie_val)
         yield ac
-    
+
     app.dependency_overrides.clear()

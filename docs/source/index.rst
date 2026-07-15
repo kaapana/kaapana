@@ -7,20 +7,50 @@
 KAAPANA Documentation
 #####################
 
+.. _about_kaapana:
+
+.. include:: intro_kaapana.rst
+
 .. toctree::
+   :hidden:
    :maxdepth: 2
-   
+   :caption: About
+
    intro_kaapana
+   use_cases
+
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: Getting Started
+
    installation_guide_root
    user_guide_root
    development_guide_root
-   access_control_root
+
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: Concepts
+
+   concepts_root
+
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: Reference
+
    faq_root
-   publication_citation
+   glossary
    releases
    migration_guide_root
+
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: Legal & More
+
+   publication_citation
    license
-   glossary
    acknowledgments
    contact
-   

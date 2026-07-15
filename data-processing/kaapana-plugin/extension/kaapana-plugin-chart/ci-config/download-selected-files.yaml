@@ -1,7 +1,10 @@
 dag_id: "download-selected-files"
 conf_data:
   data_form: 
-    dataset_name: "test-CT"
+    dataset_name: 
+      name: "test-CT"
+      access_level: "project"
+      username: "kaapana"
     dataset_limit: 2
   workflow_form:
     zip_files: false
@@ -13,7 +16,10 @@ username: "kaapana"
 dag_id: "download-selected-files"
 conf_data:
   data_form: 
-    dataset_name: "test-CT"
+    dataset_name: 
+      name: "test-CT"
+      access_level: "project"
+      username: "kaapana"
     dataset_limit: 2
   workflow_form:
     zip_files: true
@@ -25,7 +31,10 @@ username: "kaapana"
 dag_id: "download-selected-files"
 conf_data:
   data_form: 
-    dataset_name: "test-CT"
+    dataset_name: 
+      name: "test-CT"
+      access_level: "project"
+      username: "kaapana"
     dataset_limit: 2
   workflow_form:
     zip_files: true

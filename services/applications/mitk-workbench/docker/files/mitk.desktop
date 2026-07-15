@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=MITK Workbench
+Comment=Medical Imaging Interaction Toolkit
+Exec=/mitk/launch-mitk.sh
+Icon=/usr/share/kaapana/mitk-logo.png
+Terminal=false
+Categories=Radiology;

@@ -18,7 +18,7 @@ This command builds all container images (searching for all `Dockerfile` files) 
 
 `./build_image.sh --dir /kaapana/app/dag/pyradiomics-feature-extractor/processing-containers/pyradiomics-feature-extractor`
 
-Builds the container image under the path by creating a separate kaniko pod, and pushes the image to the local registry. By default it does not put the image inside microk8s runtime.
+Builds the container image under the path by creating a separate buildah pod, and pushes the image to the local registry. By default it does not put the image inside microk8s runtime.
 
 If you want to use an image in the local registry in an operator, you need to change the `{DEFAULT_REGISTRY}` parameter in image tag to `localhost:32000`. For example in the PyradiomicsExtractorOperator file you can see it as `image=localhost:32000/pyradiomics-extract-features:{KAAPANA_BUILD_VERSION}`. `DEFAULT_REGISTRY` refers to the registry url from which the platform is deployed. You can still keep `{KAAPANA_BUILD_VERSION}` at the end since the image is also built with the same version as your Kaapana instance.
 

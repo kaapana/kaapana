@@ -1,3 +1,47 @@
+diff --git a/modes/segmentation/src/index.tsx b/modes/segmentation/src/index.tsx
+--- a/modes/segmentation/src/index.tsx
++++ b/modes/segmentation/src/index.tsx
+@@ -23,14 +23,19 @@ const segmentation = {
+ const dicomRT = {
+   viewport: '@ohif/extension-cornerstone-dicom-rt.viewportModule.dicom-rt',
+   sopClassHandler: '@ohif/extension-cornerstone-dicom-rt.sopClassHandlerModule.dicom-rt',
+ };
+-/**
++
++const sr = {
++  sopClassHandler: '@ohif/extension-cornerstone-dicom-sr.sopClassHandlerModule.dicom-sr',
++};
++/**
+  * Just two dependencies to be able to render a viewport with panels in order
+  * to make sure that the mode is working.
+  */
+ const extensionDependencies = {
+   '@ohif/extension-default': '^3.0.0',
+   '@ohif/extension-cornerstone': '^3.0.0',
+   '@ohif/extension-cornerstone-dicom-seg': '^3.0.0',
+   '@ohif/extension-cornerstone-dicom-rt': '^3.0.0',
++  '@ohif/extension-cornerstone-dicom-sr': '^3.0.0',
+ };
+@@ -196,4 +202,4 @@ function modeFactory({ modeConfiguration }) {
+     /** SopClassHandlers used by the mode */
+-    sopClassHandlers: [ohif.sopClassHandler, segmentation.sopClassHandler, dicomRT.sopClassHandler],
++    sopClassHandlers: [ohif.sopClassHandler, segmentation.sopClassHandler, dicomRT.sopClassHandler, sr.sopClassHandler],
+   };
+ }
+
+diff --git a/extensions/default/src/utils/promptSaveReport.tsx b/extensions/default/src/utils/promptSaveReport.tsx
+index b3f2d1fc..00000000 100644
+--- a/extensions/default/src/utils/promptSaveReport.tsx
++++ b/extensions/default/src/utils/promptSaveReport.tsx
+@@ -40,7 +40,7 @@
+     });
+
+     if (promptResult.action === PROMPT_RESPONSES.CREATE_REPORT) {
+-      const dataSources = extensionManager.getDataSources(promptResult.dataSourceName);
++      const dataSources = extensionManager.getDataSources(promptResult.dataSourceName ?? undefined);
+       const dataSource = dataSources[0];
+       const measurementData = measurementService.getMeasurements(measurementFilter);
+
 diff --git a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx b/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
 index 19cf891d0..f0c32550e 100644
 --- a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx

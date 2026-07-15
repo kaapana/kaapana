@@ -29,7 +29,16 @@ export enum TaskRunStatus {
     ERROR = "Error",
     COMPLETED = "Completed",
     SKIPPED = "Skipped",
+    UPSTREAM_FAILED = "Upstream Failed",
 }
+
+export type CleanupPolicy = "never" | "on_success" | "always"
+export type CleanupStatus =
+    | "not_required"
+    | "pending"
+    | "running"
+    | "cleaned"
+    | "failed"
 
 // ##########################
 // #### UI Forms #############
@@ -130,7 +139,7 @@ export interface TaskCreate extends TaskBase {
 
 export interface Task extends TaskBase {
     id: number
-    workflow_id: number
+    workflow_revision_id: string
     downstream_task_ids: number[]
 }
 
@@ -155,25 +164,44 @@ export interface TaskRun extends TaskRunBase {
     workflow_run_id: number
 }
 
-export interface TaskRunUpdate extends TaskRunBase{}
+export interface TaskRunUpdate extends TaskRunBase { }
 
 // ##########################
 // ######## Workflow ########
 // ##########################
 
-export interface WorkflowBase {
-    title: string
+// Versioned content of a workflow
+export interface MutableWorkflowBase {
     definition: string
-    workflow_engine: string
     workflow_parameters?: WorkflowParameter[]
     labels: Label[]
 }
 
-export interface WorkflowCreate extends WorkflowBase { }
+export interface WorkflowCreate extends MutableWorkflowBase {
+    title: string
+    workflow_engine: string
+}
 
-export interface Workflow extends WorkflowBase {
-    id: number
-    version: number
+// Partial update to a workflow
+export interface WorkflowUpdate extends Partial<MutableWorkflowBase> {
+    title?: string
+}
+
+// Workflow object with stable identity + the latest revision's content merged in.
+export interface Workflow extends MutableWorkflowBase {
+    id: string
+    title: string
+    workflow_engine: string
+    created_at: string
+    increment: number
+}
+
+// A specific revision (snapshot) of a workflow.
+export interface WorkflowRevision extends MutableWorkflowBase {
+    id: string
+    workflow_id: string
+    workflow_title: string
+    increment: number
     created_at: string
 }
 
@@ -181,8 +209,10 @@ export interface Workflow extends WorkflowBase {
 // ###### Workflow Run ######
 // ##########################
 export interface WorkflowRef {
-    title: string
-    version: number
+    id: string
+    // Filled by server on responses; not required on POST /workflow-runs.
+    title?: string
+    increment: number
 }
 
 export interface WorkflowRunBase {
@@ -192,7 +222,9 @@ export interface WorkflowRunBase {
 }
 
 export interface WorkflowRunUpdate extends WorkflowRunBase { }
-export interface WorkflowRunCreate extends WorkflowRunBase { }
+export interface WorkflowRunCreate extends WorkflowRunBase {
+    cleanup_policy?: CleanupPolicy
+}
 
 export interface WorkflowRun extends WorkflowRunBase {
     id: number
@@ -201,5 +233,27 @@ export interface WorkflowRun extends WorkflowRunBase {
     lifecycle_status: WorkflowRunStatus
     task_runs: TaskRun[]
     updated_at: string
+    cleanup_policy: CleanupPolicy
+    cleanup_status: CleanupStatus
+    cleaned_at?: string | null
 }
 
+// ##########################
+// ######## Log Entry #######
+// ##########################
+export interface LogEntry {
+    id: number
+    workflow: WorkflowRef
+    workflow_run_id: number
+    task_run: TaskRun
+    created_at: string
+    log_length: number
+    log_available: boolean
+}
+
+export interface LogLine {
+    time: string
+    severity: string
+    message: string
+    metadata: Record<string, string>
+}

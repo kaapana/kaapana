@@ -9,18 +9,8 @@ global:
   dynamicVolumes:
   - name: mitk
     mount_path: /kaapana/minio
-  nodePortMITKWorkbench: 22223
-  service_type: "ClusterIP"
 
 extension_params:
-    service_type: 
-        definition: "Service type"
-        type: "list_single"
-        value: [
-           "ClusterIP",
-            "NodePort"
-        ]
-        default: "ClusterIP"
     gpu_container:
         definition: "Pod with GPU - only if instance has GPU support"
         type: "boolean"

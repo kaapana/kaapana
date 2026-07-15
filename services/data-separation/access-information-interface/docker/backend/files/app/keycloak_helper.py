@@ -41,54 +41,44 @@ class KeycloakHelper:
 
     def __init__(
         self,
-        keycloak_user=None,
-        keycloak_password=None,
+        client_secret=None,
         keycloak_host=None,
         keycloak_https_port=None,
     ):
-        self.keycloak_user = keycloak_user or os.environ["KEYCLOAK_USER"]
-        self.keycloak_password = keycloak_password or os.environ["KEYCLOAK_PASSWORD"]
+        self.client_secret = (
+            client_secret or os.environ["KEYCLOAK_SERVICE_CLIENT_SECRET"]
+        )
         self.keycloak_host = keycloak_host or os.environ["KEYCLOAK_HOST"]
         self.keycloak_https_port = keycloak_https_port or os.getenv(
             "KEYCLOAK_HTTPS_PORT", 443
         )
         self.auth_url = f"https://{self.keycloak_host}:{self.keycloak_https_port}/auth/admin/realms/"
-        self.master_access_token = self.get_access_token(
-            self.keycloak_user,
-            self.keycloak_password,
+        self.service_access_token = self.get_access_token(
+            self.client_secret,
             "https",
             self.keycloak_host,
             self.keycloak_https_port,
             False,
-            "admin-cli",
         )
 
     def get_access_token(
         self,
-        username: str,
-        password: str,
+        client_secret: str,
         protocol: str,
         host: str,
         port: int,
         ssl_check: bool,
-        client_id: str,
-        realm: str = "master",
-        client_secret: str = None,
+        realm: str = "kaapana",
     ):
         payload = {
-            "username": username,
-            "password": password,
-            "client_id": client_id,
-            "grant_type": "password",
+            "client_id": "kaapana-service",
+            "client_secret": client_secret,
+            "grant_type": "client_credentials",
         }
-        if client_secret:
-            payload["client_secret"] = client_secret
-
         url = f"{protocol}://{host}:{port}/auth/realms/{realm}/protocol/openid-connect/token"
         r = requests.post(url, verify=ssl_check, data=payload)
         r.raise_for_status()
-        access_token = r.json()["access_token"]
-        return access_token
+        return r.json()["access_token"]
 
     def make_authorized_request(
         self,
@@ -100,7 +90,7 @@ class KeycloakHelper:
         **kwargs,
     ):
         """
-        Make an authorized request to the keycloak api using the access token stored in self.master_access_token
+        Make an authorized request to the keycloak api using the access token stored in self.service_access_token
         """
         for key, val in kwargs.items():
             payload[key] = val
@@ -110,7 +100,7 @@ class KeycloakHelper:
             url,
             verify=False,
             json=payload,
-            headers={"Authorization": f"Bearer {self.master_access_token}"},
+            headers={"Authorization": f"Bearer {self.service_access_token}"},
             timeout=timeout,
         )
 
@@ -147,11 +137,23 @@ class KeycloakHelper:
 
     def get_users(self):
         """
-        Get all the keycloak users
+        Get all the keycloak users with full details including email
         """
         url = self.auth_url + f"kaapana/users"
         r = self.make_authorized_request(url, requests.get)
-        users_dict = list_of_dict_camel_to_snake(r.json())
+        users_list = r.json()
+
+        users_dict = []
+        for user in users_list:
+            user_id = user.get("id")
+            if user_id:
+                try:
+                    full_user = self.get_user_by_id(user_id)
+                    users_dict.append(full_user)
+                except Exception as e:
+                    logger.warning(f"Could not fetch full details for user {user_id}: {e}")
+                    users_dict.append(dict_keys_camel_to_snake(user))
+
         return users_dict
 
     def get_user_groups(self, userid: str):
@@ -205,7 +207,6 @@ class KeycloakHelper:
         url = self.auth_url + f"kaapana/users/{userid}"
         user_response = self.make_authorized_request(url, requests.get)
         user_data = dict_keys_camel_to_snake(user_response.json())
-
         user_data["groups"] = self.get_user_groups(userid)
         user_data["realm_roles"] = self.get_user_realm_roles(userid)
         return user_data

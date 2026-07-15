@@ -7,7 +7,10 @@ conf_data:
       - "bca"
     input: "CT"
   data_form:
-    dataset_name: test-CT
+    dataset_name: 
+      name: test-CT
+      username: "kaapana"
+      access_level: project
     dataset_limit: 2
 remote: false
 username: "kaapana"

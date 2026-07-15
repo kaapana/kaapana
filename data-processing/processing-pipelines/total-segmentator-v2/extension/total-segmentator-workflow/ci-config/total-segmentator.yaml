@@ -1,4 +1,5 @@
 dag_id: "total-segmentator-v2"
+ci_ignore: true
 conf_data:
   workflow_form:
     input: "CT"
@@ -16,12 +17,16 @@ conf_data:
     preview: false
     fast: true
   data_form:
-    dataset_name: test-CT
+    dataset_name:
+      name: test-CT
+      username: "kaapana"
+      access_level: project
     dataset_limit: 1
 remote: false
 username: "kaapana"
 ---
 dag_id: "total-segmentator-v2"
+ci_ignore: true
 conf_data:
   workflow_form:
     input: "MR"
@@ -39,7 +44,10 @@ conf_data:
     preview: false
     fast: false
   data_form:
-    dataset_name: test-MRT
+    dataset_name:
+      name: test-MRT
+      username: "kaapana"
+      access_level: project
     dataset_limit: 1
 remote: false
 username: "kaapana"

@@ -1,0 +1,78 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: project-runtime
+  namespace: "{{ .Values.global.project_namespace }}"
+  labels:
+    app.kubernetes.io/name: project-runtime
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: project-runtime
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: project-runtime
+    spec:
+      containers:
+      - name: project-runtime
+        image: "{{ .Values.global.registry_url }}/project-runtime:{{ .Values.global.kaapana_build_version }}"
+        imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
+        env:
+        - name: APPLICATION_ROOT
+          value: ""
+        - name: WORKERS
+          value: "1"
+        - name: PORT
+          value: "8080"
+        - name: WORKFLOW_DATA_DIR
+          value: "/kaapana/mounted/data"
+{{- if .Values.global.dev_files }}
+        - name: DEV_FILES
+          value: "True"
+{{- end }}
+        ports:
+        - containerPort: 8080
+          name: http
+        resources:
+          requests:
+            memory: 50Mi
+          limits:
+            memory: 250Mi
+        volumeMounts:
+{{- if .Values.global.dev_files }}
+        - name: kaapana-dev-files
+          mountPath: /app
+{{- end }}
+        - name: workflow-data
+          mountPath: /kaapana/mounted/data
+      volumes:
+      - name: workflow-data
+        persistentVolumeClaim:
+          claimName: workflow-data-pv-claim
+{{- if .Values.global.dev_files }}
+      - name: kaapana-dev-files
+        persistentVolumeClaim:
+          claimName: {{ .Chart.Name }}-dev-pv-claim
+{{- end }}
+      imagePullSecrets:
+      - name: registry-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: project-runtime-service
+  namespace: "{{ .Values.global.project_namespace }}"
+  labels:
+    app.kubernetes.io/name: project-runtime
+spec:
+  selector:
+    app.kubernetes.io/name: project-runtime
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: http
+    name: http
+  type: ClusterIP

@@ -97,6 +97,7 @@ async def get_all_projects_by_user_id(
             description=project.description,
             role_id=role.id,
             role_name=role.name,
+            is_archived=project.is_archived,
         )
         projects.append(response)
 

@@ -12,7 +12,7 @@ from uuid import UUID
 from sqlalchemy import select, delete, update, func, cast
 from sqlalchemy.dialects.postgresql import JSONB, ARRAY, TEXT
 from typing import Annotated
-from datetime import datetime
+from datetime import datetime, timezone
 
 router = APIRouter()
 
@@ -34,8 +34,10 @@ async def get_users(project_id: str, access_service):
         users = await access_service.fetch_user_ids(project_id)
     except Exception as e:
         raise HTTPException(502, "Upsream AII request failed")
-    if not users:
+    if users is None:
         raise HTTPException(404, f"Project {project_id} not found")
+    if not users:
+        raise HTTPException(422, f"Project {project_id} has no non-system users")
     return users
 
 
@@ -186,7 +188,7 @@ async def mark_read(
     if not notification:
         raise HTTPException(404, f"Notification with id {notification_id} not found")
 
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.now(timezone.utc)
     stmt = (
         update(NotificationModel)
         .where(NotificationModel.id == notification_id)

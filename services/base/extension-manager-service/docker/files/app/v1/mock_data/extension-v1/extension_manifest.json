@@ -1,0 +1,20 @@
+{
+  "name": "mock-workflow-extension",
+  "version": "0.0.0",
+  "contents": [
+    {
+      "name": "mock-workflow",
+      "contentType": "workflow-v1",
+      "files": [
+        {
+          "path": "workflow_definition.py"
+        },
+        {
+          "path": "workflow.json"
+        }
+      ]
+    }
+  ],
+  "dependencies": [],
+  "id": "7055548e-5d86-4b73-8d91-cd6b3e17e67a"
+}

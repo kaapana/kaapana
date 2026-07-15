@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=3D Slicer
+Comment=Medical image visualization and analysis
+Exec=/opt/slicer/Slicer
+Icon=/opt/slicer/lib/Slicer-5.8/qt-scripted-modules/Resources/docroot/images/3DSlicer-DesktopIcon.png
+Terminal=false
+Categories=Science;Graphics;

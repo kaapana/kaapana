@@ -16,7 +16,7 @@ Here is an example of sending images with DCMTK:
 
 .. code-block:: bash
  
-  dcmsend -v <ip-address-or-hostname-of-server> 11112 --aetitle kp-<dataset-name> --call kp-<project-name> --scan-directories --scan-pattern '*.dcm' --recurse <data-dir-of-DICOM-images>
+  dcmsend -v <ip-address-or-hostname-of-server> 11112 --aetitle kp-<dataset-name> --call kp-<project-short-id> --scan-directories --scan-pattern '*.dcm' --recurse <data-dir-of-DICOM-images>
 
 .. hint::
     | The `aetitle` is used to specify the :term:`dataset`. If the dataset already exist on the platform the new images will be appended.

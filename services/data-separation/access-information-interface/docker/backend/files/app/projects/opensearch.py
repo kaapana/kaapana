@@ -97,8 +97,8 @@ class OpenSearchHelper:
         """
         Create an opensearch role
 
-        :param claim_value: Name of the
-        :param index: Name of the index the role should grant access to
+        :param role_name: Name of the opensearch role
+        :param payload: Role definition payload
 
         Return:
         Name of the role in opensearch.
@@ -139,18 +139,73 @@ class OpenSearchHelper:
             )
         response.raise_for_status()
 
+    def _alias_name(self, project_name: str) -> str:
+        """
+        Return the human-readable OpenSearch alias for the given project name.
+        """
+        return f"project-{project_name.lower()}"
+
+    async def _set_alias(self, index: str, alias: str):
+        """
+        Create (or replace) the alias alias pointing to index.
+        """
+        url = (
+            f"https://{self.settings.opensearch_host}:{self.settings.opensearch_port}"
+            f"/{index}/_alias/{alias}"
+        )
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.put(
+                url,
+                headers={"Authorization": f"Bearer {self.access_token}"},
+            )
+        if response.status_code not in (200, 201, 204):
+            logger.warning(
+                f"Failed to create alias {alias} -> {index}: {response.text}"
+            )
+        else:
+            logger.info(f"Alias: {alias} -> Index: {index}")
+
+    async def _remove_alias(self, index: str, alias: str):
+        """
+        Remove the alias alias from index if it exists.
+        """
+        url = (
+            f"https://{self.settings.opensearch_host}:{self.settings.opensearch_port}"
+            f"/{index}/_alias/{alias}"
+        )
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.delete(
+                url,
+                headers={"Authorization": f"Bearer {self.access_token}"},
+            )
+        if response.status_code == 404:
+            logger.info(f"Alias {alias!r} did not exist, skipping removal.")
+        elif response.status_code not in (200, 201):
+            logger.warning(f"Failed to remove alias {alias!r}: {response.text}")
+        else:
+            logger.info(f"Alias {alias!r} removed.")
+
     async def setup_new_project(self, project: Project, session):
         """
-        Create index, roles and rolemappings for a new project
+        Create index, alias, roles and rolemappings for a new project
         """
+        logger.info(f"opensearch index setting for {project.__dict__}")
         index = project.opensearch_index
+        alias = self._alias_name(project.name)
+
+        # Create the physical index
         try:
             self.os_client.indices.create(index)
+            logger.info(f"Created OpenSearch index {index!r}")
         except RequestError as e:
             if "resource_already_exists_exception" in str(e):
-                logger.warning("Resource already exists")
+                logger.warning(f"Index {index!r} already exists")
+            elif "already exists as alias" in str(e):
+                logger.warning(f"Index {index!r} already exists as an alias")
             else:
                 raise e
+        await self._set_alias(index, alias)
+
         logger.info("Create opensearch roles and rolemappings")
 
         db_rights = await get_rights(session)
@@ -160,9 +215,11 @@ class OpenSearchHelper:
                 continue
             claim_value = right.claim_value
             assert claim_value
+            # backend_role and role_name are UUID-based → stable across renames
             backend_role = f"{claim_value}_{project.id}"
-            role_name = f"{claim_value}_{project.name}"
+            role_name = f"{claim_value}_{project.id}"
 
+            # give access to both the real index and the alias
             payload = get_payload_for_claim_and_index(claim_value, index)
             await self.create_role(role_name=role_name, payload=payload)
             await self.create_rolemappings(
@@ -170,6 +227,74 @@ class OpenSearchHelper:
             )
 
         return index
+
+    async def update_project_alias(self, project: Project, old_name: str):
+        """
+        Rename the human-readable alias when a project is renamed.
+
+        Removes the old alias and creates a new one pointing to the same index
+
+        :param project: Updated project object (project.name is the *new* name)
+        :param old_name: Previous project name
+        """
+        index = project.opensearch_index
+        old_alias = self._alias_name(old_name)
+        new_alias = self._alias_name(project.name)
+
+        if old_alias == new_alias:
+            return  # Name unchanged
+
+        await self._remove_alias(index, old_alias)
+        await self._set_alias(index, new_alias)
+        logger.info(
+            f"Renamed OpenSearch alias from {old_alias!r} to {new_alias!r} "
+            f"(index {index!r} unchanged)"
+        )
+
+    async def teardown_project(self, project: Project, session):
+        """
+        Remove roles, rolemappings, alias and the physical index of the project.
+        """
+        db_rights = await get_rights(session)
+
+        for right in db_rights:
+            if not right.claim_key == "opensearch":
+                continue
+            claim_value = right.claim_value
+            role_name = f"{claim_value}_{project.id}"
+            logger.info(f"Deleting opensearch rolemapping and role for {role_name=}")
+
+            async with httpx.AsyncClient(verify=False) as client:
+                # delete rolemapping first
+                try:
+                    response = await client.delete(
+                        f"{self.security_api_url}/rolesmapping/{role_name}",
+                        headers={"Authorization": f"Bearer {self.access_token}"},
+                    )
+                    response.raise_for_status()
+                except Exception as e:
+                    logger.warning(f"Failed to delete rolemapping {role_name}: {e}")
+
+                # then delete the role
+                try:
+                    response = await client.delete(
+                        f"{self.security_api_url}/roles/{role_name}",
+                        headers={"Authorization": f"Bearer {self.access_token}"},
+                    )
+                    response.raise_for_status()
+                except Exception as e:
+                    logger.warning(f"Failed to delete role {role_name}: {e}")
+
+        # Always remove the human-readable alias
+        alias = self._alias_name(project.name)
+        await self._remove_alias(project.opensearch_index, alias)
+
+        index = project.opensearch_index
+        logger.info(f"Deleting opensearch index {index}")
+        try:
+            self.os_client.indices.delete(index)
+        except Exception as e:
+            logger.warning(f"Failed to delete index {index}: {e}")
 
 
 def get_opensearch_helper() -> OpenSearchHelper:

@@ -128,6 +128,40 @@ class MinioHelper:
                     logger.error(f"Minio not available after {max_retries} retries!")
                     raise e
 
+    async def teardown_project(self, project: Project, session):
+        """
+        Remove all policies for the project and delete the project bucket and its contents.
+        """
+        db_rights = await get_rights(session)
+
+        for right in db_rights:
+            if not right.claim_key == "policy":
+                continue
+            claim_value = right.claim_value
+            policy_name = f"{claim_value}_{project.id}"
+            logger.info(f"Deleting policy {policy_name=}")
+            try:
+                headers = {"Content-Type": "application/json"}
+                headers.update(self.minio_console_header)
+                r = requests.delete(
+                    f"{self.minio_console_url}/api/v1/policies/{policy_name}",
+                    headers=headers,
+                )
+                r.raise_for_status()
+            except Exception as e:
+                logger.warning(f"Failed to delete policy {policy_name}: {e}")
+
+        bucket_name = project.s3_bucket
+        logger.info(f"Deleting bucket {bucket_name} and all its contents")
+        try:
+            # minio requires the bucket to be empty before deletion
+            objects = self.minio_client.list_objects(bucket_name, recursive=True)
+            for obj in objects:
+                self.minio_client.remove_object(bucket_name, obj.object_name)
+            self.minio_client.remove_bucket(bucket_name)
+        except Exception as e:
+            logger.warning(f"Failed to delete bucket {bucket_name}: {e}")
+
 
 def get_policy_for_role_and_bucket(claim_value, bucket_name):
     """

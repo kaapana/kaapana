@@ -45,7 +45,7 @@ spec:
         - name: LOCAL_PATH
           value: /kaapana/mounted/tb-logs/minio
         - name: MINIO_PATH
-          value: project-{{ .Values.global.project_name }}/tensorboard
+          value: project-{{ .Values.global.project_short_id }}/tensorboard
         - name: MINIO_USER
           value: {{ .Values.global.credentials_minio_username  | default "" }}
         - name: MINIO_PASSWORD

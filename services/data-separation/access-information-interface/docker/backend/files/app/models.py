@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy import JSON, Boolean, Column, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.schema import UniqueConstraint
@@ -15,9 +15,8 @@ class Projects(Base):
     int_id = Column(Integer, nullable=True)
     name = Column(String, unique=True)
     description = Column(String)
-    kubernetes_namespace = Column(String, unique=True)
-    s3_bucket = Column(String, unique=True)
-    opensearch_index = Column(String, unique=True)
+    is_archived = Column(Boolean, nullable=False, default=False)
+    multiinstallable_whitelist = Column(JSON, nullable=False, default=list)
 
 
 class AdminProject(Base):

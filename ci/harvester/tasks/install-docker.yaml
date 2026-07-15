@@ -1,0 +1,83 @@
+- name: Gather facts
+  ansible.builtin.setup:
+
+- name: Update apt and install prerequisites
+  become: yes
+  ansible.builtin.apt:
+    state: present
+    update_cache: yes
+    pkg:
+      - ca-certificates
+      - curl
+
+- name: Create keyrings directory
+  become: yes
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Download Docker GPG key
+  become: yes
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: '0644'
+
+- name: Add Docker repository
+  become: yes
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/docker.sources
+    content: |
+      Types: deb
+      URIs: https://download.docker.com/linux/ubuntu
+      Suites: {{ ansible_facts.distribution_release }}
+      Components: stable
+      Signed-By: /etc/apt/keyrings/docker.asc
+    mode: '0644'
+
+- name: Update apt cache
+  become: yes
+  ansible.builtin.apt:
+    update_cache: yes
+
+- name: Install Docker packages
+  become: yes
+  ansible.builtin.apt:
+    state: latest
+    pkg:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+
+- name: Start docker
+  become: yes
+  command: systemctl restart docker
+  ignore_errors: no
+
+- name: Ensure docker group exists
+  become: yes
+  ansible.builtin.group:
+    name: docker
+    state: present
+
+- name: usermod
+  command: usermod -aG docker ubuntu
+  become: yes
+  ignore_errors: yes
+
+- name: Create docker directory
+  become: yes
+  ansible.builtin.file:
+    path: /home/{{ ansible_ssh_user }}/.docker
+    state: directory
+    owner: "{{ ansible_ssh_user }}"
+    group: "{{ ansible_ssh_user }}"
+    mode: '0755'
+
+- name: Reboot machine to apply docker group membership
+  become: yes
+  ansible.builtin.reboot:
+    reboot_timeout: 120

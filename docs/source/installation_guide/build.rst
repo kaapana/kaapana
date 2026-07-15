@@ -28,7 +28,7 @@ Building on other operating systems or architectures has not been tested and may
   | For the complete build of the project ~90GB (~110GB including build cache) of container images will be stored at :code:`/var/snap/docker/common/var-lib-docker`.
   | When creating offline installation tarball, ~80GB additional disk space is needed.
 
-Before you get started you should be familiar with the basic concepts and components of Kaapana (see :ref:`about_kaapana`).
+Before you get started you should be familiar with the basic concepts and components of Kaapana (see :ref:`What is Kaapana?<about_kaapana>`).
 You should also have the following packages installed on your build-system.
 
 #. Dependencies
@@ -48,9 +48,9 @@ You should also have the following packages installed on your build-system.
 
    | :code:`git clone -b master https://github.com/kaapana/kaapana.git`
 
-#. Python requirements
+#. Install the build CLI (provides the ``kaapana-build`` command)
 
-   :code:`python3 -m pip install -r kaapana/build-scripts/requirements.txt`
+   :code:`python3 -m pip install -e kaapana/build_cli`
 
    .. tip::
 
@@ -173,7 +173,10 @@ You should also have the following packages installed on your build-system.
 
 #. Docker
 
-   :code:`sudo snap install docker --classic --channel=latest/stable`
+   Install Docker following the `official Docker installation guide <https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository>`_.
+
+   .. attention::
+      Installing Docker via ``snap`` is not recommended -- it fails to work correctly on many systems. Use the official installation method linked above.
 
 #. In order to execute docker commands as non-root user you need to execute the following steps:
 
@@ -202,6 +205,8 @@ You should also have the following packages installed on your build-system.
 Start Build
 ------------
 
+Choose the tab that matches how you build: **Remote Registry** for a normal build pushed to your own registry, **Local Registry** for a disposable local registry for one-off testing, and **Tarball** for producing offline installation artifacts. For installing onto the target server afterwards -- online, registry-only, or fully air-gapped -- see :ref:`faq_offline_installation` for the registry-only and offline paths specifically.
+
 .. tabs::
 
    .. tab:: Build With Remote Registry
@@ -210,7 +215,7 @@ Start Build
 
       .. code-block:: python
 
-         python3 build-scripts/cli.py --default-registry <registry-url> registry-username --registry-pw <registry-password>
+         kaapana-build --default-registry <registry-url> registry-username --registry-pw <registry-password>
 
       .. note::
          1. If the username and password are not working, you may need to use an **access token** instead.
@@ -239,11 +244,11 @@ Start Build
             docker run -d -p 5000:5000 --restart unless-stopped --name registry -v "$(pwd)"/auth:/auth -e "REGISTRY_AUTH=htpasswd" -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd registry:2.8.3
 
 
-      3. Configure ``build_config.yaml``:
+      3. Run the build against the local registry:
 
          .. code-block:: python
 
-            python3 build-scripts/cli.py --registry-username <registry user> --registry-password <registry password> --default-registry "localhost:5000"
+            kaapana-build --registry-username <registry user> --registry-password <registry password> --default-registry "localhost:5000"
 
 
    .. tab:: Build Tarball
@@ -256,10 +261,12 @@ Start Build
 
       .. code-block:: python
 
-         python3 build-scripts/cli.py --build-only --create-offline-installation --default-registry offline
+         kaapana-build --build-only --create-offline-installation --default-registry offline
 
       | Installer will be available in ``kaapana/build/microk8s-offline-installer``
       | Tarball will be available in ``kaapana/build/kaapana-admin-chart/kaapana-admin-chart-<version>-images.tar``
+
+      | To bundle AI model weights into the container images themselves, so they are already present on the offline machine, add the ``--include-model-weights`` flag (or set ``INCLUDE_MODEL_WEIGHTS=true`` in your ``.env``) to the command above.
 
 
 This takes usually (depending on your hardware) around 1h.
@@ -267,7 +274,7 @@ You can find the build-logs and results at :code:`./kaapana/build`
 
 .. hint::
    You can also set parameters as environment variables or store them in a :code:`.env` file in your working directory.
-   For a full list of all options execute :code:`python3 build-scripts/cli --help`
+   For a full list of all options execute :code:`kaapana-build --help`
 
 
 The next step will explain how to install the Kubernetes cluster via the :code:`kaapanactl.sh` script.

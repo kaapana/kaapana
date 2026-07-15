@@ -20,7 +20,7 @@ TASK_NUM = WORKFLOW_CONFIG.get("workflow_form").get("task_num")
 if AETITLE is not None and TASK_NUM is not None:
     AETITLE = AETITLE + str(TASK_NUM)
 PROJECT = WORKFLOW_CONFIG.get("project_form")
-PROJECT_NAME = PROJECT.get("name")
+PROJECT_SHORT_ID = PROJECT.get("short_id")
 
 # if PACS_HOST is "", it will send to the platform itself
 PACS_HOST = os.getenv("PACS_HOST") or f"ctp-dicom-service.{SERVICES_NAMESPACE}.svc"
@@ -36,7 +36,7 @@ print(f"LEVEL: {LEVEL}")
 dicom_sent_count = 0
 
 
-def send_dicom_data(send_dir, project_name, aetitle=AETITLE, timeout=60):
+def send_dicom_data(send_dir, project_short_id, aetitle=AETITLE, timeout=60):
     global dicom_sent_count
 
     dicom_list: List[Path] = sorted(
@@ -87,7 +87,7 @@ def send_dicom_data(send_dir, project_name, aetitle=AETITLE, timeout=60):
         if PACS_HOST == f"ctp-dicom-service.{SERVICES_NAMESPACE}.svc":
             dataset = aetitle if aetitle.startswith("kp-") else f"kp-{aetitle}"
             if CALLED_AE_TITLE_SCP == DEFAULT_SCP:
-                aec = project_name
+                aec = project_short_id
             aec = aec if aec.startswith("kp-") else f"kp-{aec}"
         else:
             dataset = aetitle
@@ -161,14 +161,14 @@ if LEVEL == "element":
         element_input_dir = os.path.join(
             batch_element_dir, os.environ["OPERATOR_IN_DIR"]
         )
-        send_dicom_data(element_input_dir, project_name=PROJECT_NAME, timeout=600)
+        send_dicom_data(element_input_dir, project_short_id=PROJECT_SHORT_ID, timeout=600)
 
 elif LEVEL == "batch":
     batch_input_dir = os.path.join(
         "/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]
     )
     print(f"Sending DICOM data from batch-level: {batch_input_dir}")
-    send_dicom_data(batch_input_dir, project_name=PROJECT_NAME, timeout=3600)
+    send_dicom_data(batch_input_dir, project_short_id=PROJECT_SHORT_ID, timeout=3600)
 else:
     raise NameError(
         'level must be either "element" or "batch". \

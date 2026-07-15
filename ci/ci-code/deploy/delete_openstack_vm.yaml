@@ -1,0 +1,55 @@
+# ============================================================================
+# Delete Kaapana VM on OpenStack
+# ============================================================================
+- name: Delete VM on OpenStack
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  vars:
+    vm_name: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_VM_NAME') }}"
+    os_username: "{{ lookup('env', 'OS_USERNAME') }}"
+    os_project_name: "{{ lookup('env', 'OS_PROJECT_NAME') }}"
+    os_auth_url: "{{ lookup('env', 'OS_AUTH_URL') }}"
+    os_tenant_id: "{{ lookup('env', 'OS_TENANT_ID') }}"
+
+  tasks:
+    - name: Read OpenStack password
+      ansible.builtin.slurp:
+        src: "{{ ansible_env.HOME }}/.os_password"
+      register: result_slurp
+      no_log: true
+
+    - name: Set OpenStack password fact
+      ansible.builtin.set_fact:
+        os_password: "{{ result_slurp.content | b64decode | regex_replace('[\\r\\n\\t]+', '') }}"
+      no_log: true
+
+    - name: Check if VM exists
+      openstack.cloud.server_info:
+        auth:
+          auth_url: "{{ os_auth_url }}"
+          username: "{{ os_username }}"
+          password: "{{ os_password }}"
+          project_name: "{{ os_project_name }}"
+          project_id: "{{ os_tenant_id }}"
+        server: "{{ vm_name }}"
+      register: vm_check
+      failed_when: false
+
+    - name: Delete VM
+      when: vm_check.servers | length > 0
+      openstack.cloud.server:
+        auth:
+          auth_url: "{{ os_auth_url }}"
+          username: "{{ os_username }}"
+          password: "{{ os_password }}"
+          project_name: "{{ os_project_name }}"
+          project_id: "{{ os_tenant_id }}"
+        name: "{{ vm_name }}"
+        state: absent
+        wait: true
+      register: delete_result
+
+    - name: Display result
+      ansible.builtin.debug:
+        msg: "{{ 'VM ' + vm_name + ' deleted successfully' if vm_check.servers | length > 0 else 'VM ' + vm_name + ' did not exist, nothing to delete' }}"

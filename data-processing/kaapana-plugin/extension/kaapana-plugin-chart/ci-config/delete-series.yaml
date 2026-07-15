@@ -3,7 +3,10 @@ instance_names:
   - central
 conf_data:
   data_form: 
-    dataset_name: "test-DELETE"
+    dataset_name: 
+      name: "test-DELETE"
+      access_level: "project"
+      username: "kaapana"
   workflow_form:
     delete_complete_study: false
     single_execution: true

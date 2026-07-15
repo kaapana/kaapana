@@ -1,5 +1,5 @@
 dag_id: "nnunet-predict"
-ci_ignore: false
+ci_ignore: true
 conf_data:
   workflow_form:
     single_execution: true
@@ -15,7 +15,10 @@ conf_data:
     model_plan: "nnUNetResEncUNetMPlans"
     model_network_trainer: "nnUNetTrainer"
   data_form:
-    dataset_name: test-CT
+    dataset_name: 
+      name: test-CT
+      username: "kaapana"
+      access_level: project
     dataset_limit: 2
 remote: false
 username: "kaapana"

@@ -6,4 +6,5 @@ pint==0.24.4
 statsd==4.0.1
 cryptography==43.0.3
 jupyterlab==4.3.1
-task-api@git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@40d994822#subdirectory=lib/task_api
+kaapana-containers @ file:///lib/kaapana_containers
+task-api @ file:///lib/task_api

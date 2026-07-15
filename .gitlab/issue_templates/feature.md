@@ -1,5 +1,10 @@
 /label ~"New Feature"
 
+## Rational
+<!--
+Provide one sentence why this new functionality is required, or why Kaapana would benfit having such feature.
+-->
+
 ## User Story
 
 <!-- 

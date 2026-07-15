@@ -144,11 +144,12 @@ import { mapGetters } from "vuex";
 export default {
   name: "Search",
   props: {
-    datasetName: null,
+    selectedDataset: null,
   },
   data() {
     return {
-      datasetNameLocal: this.datasetName,
+      datasetNameLocal: this.selectedDataset ? this.selectedDataset.name : null,
+      localAccessLevel: this.selectedDataset ? this.selectedDataset.access_level : null,
       query_string: "",
       display_filters: true,
       filters: [],
@@ -374,8 +375,8 @@ export default {
      */
     async processQueryParams() {
       if (this.queryParams.dataset_name) {
-        const datasetNames = await loadDatasets();
-        if (datasetNames.includes(this.queryParams.dataset_name)) {
+        const datasets = await loadDatasets();
+        if (datasets.some((d) => d.name === this.queryParams.dataset_name)) {
           this.datasetNameLocal = this.queryParams.dataset_name;
           await this.initSearch();
         }
@@ -439,7 +440,7 @@ export default {
       this.filters = [];
       this.dataset =
         this.datasetNameLocal &&
-        (await loadDatasetByName(this.datasetNameLocal));
+        (await loadDatasetByName(this.datasetNameLocal, this.localAccessLevel));
       // not sure if the awaits are necessary
       await this.search();
       await this.initializeMapping();
@@ -483,8 +484,9 @@ export default {
     await this.processQueryParams();
   },
   watch: {
-    async datasetName(newVal) {
-      this.datasetNameLocal = newVal;
+    async selectedDataset(newVal) {
+      this.datasetNameLocal = newVal ? newVal.name : null;
+      this.localAccessLevel = newVal ? newVal.access_level : null;
       await this.initSearch();
     },
   },

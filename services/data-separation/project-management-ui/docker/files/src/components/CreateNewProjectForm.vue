@@ -1,8 +1,6 @@
 <template>
-    <v-card prepend-icon="mdi-plus-box" title="Add New Project">
-        <v-overlay v-model="fetching" class="align-center justify-center" contained>
-            <v-progress-circular color="primary" indeterminate></v-progress-circular>
-        </v-overlay>
+    <v-card title="Create New Project">
+      <template #prepend><v-icon color="primary">mdi-plus-box</v-icon></template>
 
         <v-card-text>
             <v-container>
@@ -27,12 +25,12 @@
             <v-container>
                 <v-row>
                     <v-col cols="6">
-                        <v-btn color="surface-variant" size="large" variant="elevated" block
+                        <v-btn size="large" variant="tonal" block
                             @click="cancel">Cancel</v-btn>
                     </v-col>
                     <v-col cols="6">
-                        <v-btn :disabled="!valid" color="success" size="large" variant="elevated" block
-                            @click="submit">Submit</v-btn>
+                        <v-btn :disabled="!valid" color="primary" size="large" variant="flat" block
+                            @click="submit">Create</v-btn>
                     </v-col>
                 </v-row>
             </v-container>
@@ -42,8 +40,8 @@
 
 <script lang="ts" setup>
 import { ref, computed } from 'vue';
-import { aiiApiPost } from '@/common/aiiApi.service';
-// import {AxiosError} from axios;
+import { aiiApiPost } from '@/common/services';
+import { projectNameRules } from '@/common/validation';
 
 
 
@@ -53,21 +51,17 @@ const props = defineProps({
     },
     onsuccess: {
         type: Function,
+    },
+    oncomplete: {
+        type: Function,
     }
 });
 
 const name = ref('');
 const description = ref('');
 const external_id = ref('');
-const fetching = ref(false)
 
-// Early validation rules for project naming from the UI
-const project_name_rules = ref<Array<(value: string) => boolean | string>>([
-  (value) => !!value || 'Required.',
-  (value) => (value && value.length <= 13) || 'Max 13 characters',
-  (value) => (value == value.toLowerCase()) || 'Only lowercase alphanumeric characters are supported',
-  (value) => (!value.includes(" ")) || 'Space are not allowed',
-]);
+const project_name_rules = ref(projectNameRules);
 
 const valid = computed(() => {
     let validate_name = true;
@@ -81,22 +75,18 @@ const valid = computed(() => {
     return (validate_name && (description.value.trim() !== ''));
 })
 
-const submit = async () => {
+const submit = () => {
     const data = {
         "external_id": external_id.value.trim(),
         "name": name.value.trim(),
         "description": description.value.trim()
     }
-    fetching.value = true;
 
-    try {
-        await aiiApiPost(`projects`, data);
-        fetching.value = false;
-        props.onsuccess?.();
-    } catch (error: unknown) {
-        fetching.value = false;
-        props.onsuccess?.(false);       
-    }
+    props.onsuccess?.();
+
+    aiiApiPost(`projects`, data)
+        .then(() => props.oncomplete?.())
+        .catch(() => props.oncomplete?.(false));
 }
 
 const cancel = () => {

@@ -10,10 +10,8 @@ from app.api.v1.routers import (
     workflows,
 )
 from app.api.v1.services import errors
-from app.database import async_engine
 from app.dependencies import get_connection_manager
 from app.logging_config import setup_logging
-from app.models import Base
 from app.sync import run_sync
 from fastapi import Depends, FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,9 +25,7 @@ API_VERSION = "v1"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: ensure DB tables exist (we've disabled Alembic for now)
-    async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # Migrations are applied once in boot.sh before the workers start
 
     # Start periodic sync in background without blocking the API
     sync_task = asyncio.create_task(run_sync(interval_seconds=30))
@@ -80,8 +76,12 @@ async def websocket_endpoint(
 async def service_exception_handler(request: Request, exc: errors.ServiceError):
     if isinstance(exc, errors.NotFoundError):
         status_code = 404
+    elif isinstance(exc, errors.ValidationError):
+        status_code = 400
     elif isinstance(exc, errors.BadRequestError):
         status_code = 400
+    elif isinstance(exc, errors.ConflictError):
+        status_code = 409
     elif isinstance(exc, errors.DependencyError):
         status_code = 503
     elif isinstance(exc, errors.InternalError):
@@ -102,7 +102,6 @@ app.include_router(
 app.include_router(workflows.router, prefix=f"/{API_VERSION}", tags=["workflow"])
 app.include_router(health_check.router, prefix=f"/{API_VERSION}", tags=["health"])
 
-logger.info('test {os.getenv("ENABLE_TEST_ADAPTER", "false")}')
 if os.getenv("ENABLE_TEST_ADAPTER", "false").lower() == "true":
     logger.info("Enabling DummyAdapter test endpoints")
     app.include_router(

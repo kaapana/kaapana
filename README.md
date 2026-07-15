@@ -1,6 +1,6 @@
 
 <p align="center">
- <img src="https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/kaapana_logo_2.png" height=170 alt="kaapana" border="0" />
+ <img src="https://kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/kaapana_logo_2.png" height=170 alt="kaapana" border="0" />
 </p>
 
 [![Documentation Status](https://readthedocs.org/projects/kaapana/badge/?version=latest)](https://kaapana.readthedocs.io/en/latest/?badge=latest)
@@ -9,8 +9,8 @@
 ## What is Kaapana?
 
 <p>
-  <a href="https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/kaapana-v0.2.1-showcase.mp4" target="_blank">
-    <img src="https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/thumbnail_kaapana_vid.png" />
+  <a href="https://kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/kaapana-v0.2.1-showcase.mp4" target="_blank">
+    <img src="https://kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/thumbnail_kaapana_vid.png" />
   </a>
 </p>
 
@@ -96,21 +96,26 @@ If you want to contribute to Kaapana by submitting an issue or code please have 
 
 ## Acknowledgments
 
+[**Helmholtz Federated IT Services - HIFIS**](https://hifis.net/services/software/helmholtzgitlab/): We thank HIFIS for the Helmholtz GitLab Service hosting our issue tracker, repository and container registry and all the support.
+
 ### Supporting projects
 
-**Building Data Rich Clinical Trials - CCE_DART**: This project has received funding from the European Union’s Horizon 2020 research and innovation program under grant agreement No 965397. Website: <https://cce-dart.com/>
+[**Radiological Cooperative Network - RACOON**](https://www.netzwerk-universitaetsmedizin.de/projekte/racoon): This work was partially supported by RACOON, funded by the German Federal Ministry of Education and ResearchDieses in the Netzwerk Universitätsmedizin (NUM; funding code 01KX2021).
 
-**Capturing Tumor Heterogeneity in Hepatocellular Carcinoma - A Radiomics Approach Systematically Tested in Transgenic Mice** This project is partially funded by the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) – 410981386. Website: <https://gepris.dfg.de/gepris/projekt/410981386>
+[**Building Data Rich Clinical Trials - CCE_DART**](https://cce-dart.com/): This project has received funding from the European Union’s Horizon 2020 research and innovation program under grant agreement No 965397.
 
-**Data Science Driven Surgical Oncology Project**: This work was partially supported by the Data Science Driven Surgical Oncology Project (DSdSO), funded by the Surgical Oncology Program at the National Center for Tumor Diseases (NCT), Heidelberg, a partnership by DKFZ, UKHD, Heidelberg University. Website: <https://www.nct-heidelberg.de/forschung/precision-local-therapy-and-image-guidance/surgical-oncology.html>
+[**Capturing Tumor Heterogeneity in Hepatocellular Carcinoma - A Radiomics Approach Systematically Tested in Transgenic Mice**](https://gepris.dfg.de/gepris/projekt/410981386) This project is partially funded by the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) – 410981386.
 
-**Joint Imaging Platform**: This work was partially supported by Joint Imaging Platform, funded by the German Cancer Consortium. Website: <https://jip.dktk.dkfz.de/jiphomepage/>
+[**Data Science Driven Surgical Oncology Project**](https://www.nct-heidelberg.de/forschung/precision-local-therapy-and-image-guidance/surgical-oncology.html): This work was partially supported by the Data Science Driven Surgical Oncology Project (DSdSO), funded by the Surgical Oncology Program at the National Center for Tumor Diseases (NCT), Heidelberg, a partnership by DKFZ, UKHD, Heidelberg University.
 
-**HiGHmed**: This work was partially supported by the HiGHmed Consortium, funded by the German Federal Ministry of Education and Research (BMBF, funding code 01ZZ1802A). Website: <https://highmed.org/>
+[**Joint Imaging Platform - JIP**](https://jip.dktk.dkfz.de/jiphomepage/): This work was partially supported by Joint Imaging Platform, funded by the German Cancer Consortium.
 
-**RACOON**: This work was partially supported by RACOON, funded by the German Federal Ministry of Education and ResearchDieses in the Netzwerk Universitätsmedizin (NUM; funding code 01KX2021). Website: <https://www.netzwerk-universitaetsmedizin.de/projekte/racoon>
+[**HiGHmed**](https://highmed.org/): This work was partially supported by the HiGHmed Consortium, funded by the German Federal Ministry of Education and Research (BMBF, funding code 01ZZ1802A).
 
-**Trustworthy Federated Data Analysis - TFDA**: This work is partially funded by the Helmholtz Association within the project "Trustworthy Federated Data Analytics” (TFDA) (funding number
-ZT-I-OO1 4). Website: <https://tfda.hmsp.center/>
+[**Trustworthy Federated Data Analysis - TFDA**](https://tfda.hmsp.center/): This work is partially funded by the Helmholtz Association within the project "Trustworthy Federated Data Analytics” (TFDA) (funding number
+ZT-I-OO1 4).
 
-Copyright (C) 2025  German Cancer Research Center (DKFZ)
+
+## Copyright
+
+Copyright (C) 2026  German Cancer Research Center (DKFZ)

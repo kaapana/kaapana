@@ -5,7 +5,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker as sync_sessionmaker
 
 
-print(settings.ASYNC_DATABASE_URL)
 # Async engine for FastAPI (uses asyncpg)
 async_engine = create_async_engine(settings.ASYNC_DATABASE_URL, future=True, echo=False)
 async_session = async_sessionmaker(

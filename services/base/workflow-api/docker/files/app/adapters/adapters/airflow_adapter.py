@@ -3,16 +3,28 @@ import base64
 import os
 import shutil
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Any
+import json as jsonlib
 
 import httpx
 from app import schemas
 from app.adapters.base import WorkflowEngineAdapter
 from jinja2 import Template
 
+import re
+from ast import literal_eval
+from datetime import datetime, timezone
+
 
 class AirflowPluginAdapter(WorkflowEngineAdapter):
     workflow_engine = "airflow"  # TODO: change it to Airflow v2 when we have a separate adapter for Airflow v3
+    # Airflow log format: [2025-05-01T12:34:56.789+00:00] {file.py:42} INFO - message
+    _LOG_LINE_RE = re.compile(
+        r"^\[(?P<ts>[^\]]+)\]\s+\{(?P<loc>[^}]*)\}\s+(?P<level>[A-Z]+)\s+-\s*(?P<msg>.*)$"
+    )
+    _BARE_LEVEL_RE = re.compile(r"^(?P<level>[A-Z]+)\s+-\s*(?P<msg>.*)$")
+    _TS_OFFSET_RE = re.compile(r"([+-]\d{2})(\d{2})$")
+    _KNOWN_LEVELS = {"DEBUG", "INFO", "WARNING", "WARN", "ERROR", "CRITICAL"}
 
     def __init__(self):
         super().__init__()
@@ -24,8 +36,19 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         self.airflow_dag_folder = Path(
             os.getenv("AIRFLOW_DAG_FOLDER", "/kaapana/mounted/workflows/dags")
         )
+        self.airflow_workflow_data_dir = Path(
+            os.getenv("AIRFLOW_WORKFLOW_DATA_DIR", "/kaapana/mounted/workflows/data")
+        )
         self.api_username = os.getenv("AIRFLOW_API_USERNAME")
         self.api_password = os.getenv("AIRFLOW_API_PASSWORD")
+
+        # The actual run data lives in the project-scoped `workflow-data-pv-claim`
+        # PVC, which is mounted only inside the project namespace. We reach it via
+        # that project's project-runtime service (see _project_runtime_request).
+        self.project_runtime_url_template = os.getenv(
+            "PROJECT_RUNTIME_URL_TEMPLATE",
+            "http://project-runtime-service.{namespace}.svc:8080",
+        )
 
         # check if volume is mounted (fail fast)
         if not self.airflow_dag_folder.exists():
@@ -54,13 +77,17 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         dag_id, run_id = external_id.split("::", 1)
         return dag_id, run_id
 
-    def _get_dag_id_from_workflow(
-        self, workflow: schemas.Workflow | schemas.WorkflowRef
-    ) -> str:
-        """Creates a DAG ID from the workflow title and version.
-        This is used in the Airflow as a file name as well,
-        as a templated value inside the DAG file as a DAG ID ."""
-        return f"{workflow.title}_v{workflow.version}"
+    @staticmethod
+    def _sanitize_for_dag_id(title: str) -> str:
+        """
+        Replace chars that are not accepted by Airflow `dag_id` with an underscore."""
+        import re
+
+        return re.sub(r"[^A-Za-z0-9._-]+", "_", title).strip("_")
+
+    def _get_dag_id_from_workflow(self, title: str, increment: int) -> str:
+        """Create a DAG ID from a workflow title and revision increment."""
+        return f"{self._sanitize_for_dag_id(title)}_inc{increment}"
 
     def _map_workflow_run_state(
         self, state: Optional[str]
@@ -92,7 +119,7 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         mapper = {
             "success": schemas.TaskRunStatus.COMPLETED,
             "failed": schemas.TaskRunStatus.ERROR,
-            "upstream_failed": schemas.TaskRunStatus.ERROR,
+            "upstream_failed": schemas.TaskRunStatus.UPSTREAM_FAILED,
             "queued": schemas.TaskRunStatus.SCHEDULED,
             "running": schemas.TaskRunStatus.RUNNING,
             "restarting": schemas.TaskRunStatus.RUNNING,
@@ -107,7 +134,13 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             raise RuntimeError(f"Unknown task run state: {state}")
         return mapper[state]
 
-    async def _request(self, method: str, endpoint: str, json: dict = {}) -> dict:
+    async def _request(
+        self,
+        method: str,
+        endpoint: str,
+        json: dict = {},
+        accepted_content_types: tuple[str, ...] = ("application/json",),
+    ) -> dict | Any:
         url = f"{self.base_url}{endpoint}"
         async with httpx.AsyncClient(timeout=10.0) as client:
 
@@ -120,6 +153,7 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Basic {encoded_auth}",
+                "Accept": "application/json",
             }
             resp = await client.request(
                 method,
@@ -130,15 +164,33 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             if resp.status_code == 404:
                 raise FileNotFoundError(f"Resource not found at {url}")
             resp.raise_for_status()
-            return resp.json()
 
-    async def submit_workflow(self, workflow: schemas.Workflow) -> schemas.Workflow:
+            content_type = resp.headers.get("content-type", "").split(";")[0].strip()
+
+            if content_type not in accepted_content_types:
+                raise RuntimeError(
+                    f"Unexpected response content type from {method} {url}: "
+                    f"{content_type or '<missing>'}"
+                )
+
+            if content_type == "application/json":
+                return resp.json()
+
+            if content_type == "text/plain":
+                return resp.text
+
+            raise RuntimeError(f"Unsupported response content type: {content_type}")
+
+    async def submit_workflow_revision(
+        self, revision: schemas.WorkflowRevision
+    ) -> schemas.WorkflowRevision:
         """
-        Writes the DAG definition directly to the shared PVC with versioned filename.
+        Writes a workflow revision's DAG definition directly to the shared PVC.
         Atomic-like write pattern (write temp -> rename) ensures Airflow doesn't pick up partial files.
         """
-        # Use versioned filename: <title>_v<version>.py
-        dag_id = self._get_dag_id_from_workflow(workflow)
+        dag_id = self._get_dag_id_from_workflow(
+            revision.workflow_title, revision.increment
+        )
         dag_filename = f"{dag_id}.py"
         temp_filename = f"{dag_id}.py.tmp"
 
@@ -146,11 +198,12 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
         temp_path = self.airflow_dag_folder / temp_filename
 
         self.logger.info(
-            f"Rendering DAG template for {workflow.title} as {dag_filename}"
+            f"Rendering DAG template for workflow {revision.workflow_id} "
+            f"inc{revision.increment} as {dag_filename}"
         )
 
         try:
-            template = Template(workflow.definition)
+            template = Template(revision.definition)
             rendered_definition = template.render(dag_id=dag_id)
         except Exception as e:
             self.logger.error(f"Failed to render DAG template: {e}")
@@ -180,7 +233,7 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             self.logger.error(f"Failed to write DAG file: {e}")
             raise RuntimeError(f"Failed to persist DAG: {e}")
 
-        return workflow
+        return revision
 
     def _ensure_kaapana_task_operator(self) -> None:
         """Copy KaapanaTaskOperator.py into the Airflow DAGs folder if missing.
@@ -217,17 +270,23 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             raise RuntimeError(f"Failed to copy operator: {e}")
 
     async def get_workflow_tasks(
-        self, workflow: schemas.Workflow
+        self,
+        revision: schemas.WorkflowRevision | schemas.WorkflowRef,
     ) -> List[schemas.TaskCreate]:
         """
         Polls the Airflow API until the DAG is found or timeout is reached.
         Once found, retrieves the tasks of the DAG.
         Args:
-            workflow: The workflow whose tasks to retrieve
+            revision: Anything that resolves to a DAG id (WorkflowRevision or WorkflowRef).
         Raises:
             RuntimeError: If the DAG is not found within the timeout period
         """
-        dag_id = self._get_dag_id_from_workflow(workflow)
+        title = (
+            revision.workflow_title
+            if isinstance(revision, schemas.WorkflowRevision)
+            else revision.title
+        )
+        dag_id = self._get_dag_id_from_workflow(title, revision.increment)
         max_retries = 10
         delay = 5.0
         timeout = 120
@@ -263,11 +322,25 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
 
         raise RuntimeError(f"DAG {dag_id} was not found in Airflow.")
 
+    async def _fetch_project(self, project_id: str) -> dict:
+        aii_url = os.getenv(
+            "ACCESS_INFORMATION_INTERFACE_URL", "http://aii-service.services.svc:8080"
+        )
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"{aii_url}/projects/{project_id}", timeout=10)
+            resp.raise_for_status()
+            return resp.json()
+
     async def submit_workflow_run(
         self, workflow_run: schemas.WorkflowRun, project_id: str
     ) -> schemas.WorkflowRunUpdate:
-        dag_id = self._get_dag_id_from_workflow(workflow_run.workflow)
+        # workflow_run.workflow is a WorkflowRef(id, title, increment) — enough for dag_id
+        ref = workflow_run.workflow
+        dag_id = self._get_dag_id_from_workflow(ref.title, ref.increment)
         payload: dict = {"conf": {}}
+
+        project = await self._fetch_project(project_id)
+        payload["conf"]["project_form"] = project
 
         # Inject project_id into all task envs
         tasks = await self.get_workflow_tasks(workflow_run.workflow)  # type: ignore
@@ -280,11 +353,23 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
 
         task_form = payload["conf"]["task_form"]
 
+        def _to_env_str(value) -> str:
+            # Env vars must be strings (BaseEnv.value: str); bools lowercased, lists/dicts JSON-encoded.
+            if isinstance(value, str):
+                return value
+            if isinstance(value, bool):
+                return "true" if value else "false"
+            if value is None:
+                return ""
+            if isinstance(value, (int, float)):
+                return str(value)
+            return jsonlib.dumps(value)
+
         def _extract_param(param: schemas.WorkflowParameter):
             task_title = param.task_title
             env_name = param.env_variable_name
             ui_form = param.ui_form
-            value = getattr(ui_form, "default", None)
+            value = _to_env_str(getattr(ui_form, "default", None))
             return task_title, env_name, value
 
         for param in workflow_run.workflow_parameters:
@@ -356,19 +441,217 @@ class AirflowPluginAdapter(WorkflowEngineAdapter):
             raise RuntimeError("Could not retry workflow. Run not found.")
         return schemas.WorkflowRunStatus.PENDING
 
-    async def get_task_run_logs(self, task_run_external_id: str) -> str:
+    async def get_task_run_logs(
+        self, task_run_external_id: str
+    ) -> list[schemas.LogLine]:
+        raw_log = await self._fetch_raw_logs(task_run_external_id)
+        return self._parse_task_run_logs(raw_log)
+
+    async def _fetch_raw_logs(self, task_run_external_id: str) -> str:
         parts = task_run_external_id.split("::")
         if len(parts) != 3:
             return "Log unavailable: Invalid ID format"
         dag_id, run_id, task_id = parts
-        try_number = 1
+
+        try:
+            task_instance: dict = await self._request(
+                "GET",
+                f"/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}",
+            )
+            if (
+                isinstance(task_instance, dict)
+                and "try_number" in task_instance
+                and task_instance["try_number"] > 0
+            ):
+                try_number = int(task_instance["try_number"])
+            else:
+                return f"No logs available for task instance {task_run_external_id} because it has not run yet."
+        except Exception as e:
+            return f"Failed to fetch task instance for logs {e}"
+
+        resp = None
         try:
             resp = await self._request(
                 "GET",
                 f"/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/logs/{try_number}",
+                accepted_content_types=("application/json",),  # "text/plain"),
             )
             if isinstance(resp, dict) and "content" in resp:
                 return resp["content"]
             return str(resp)
         except Exception as e:
-            return f"Failed to fetch logs: {e}"
+            return f"Failed to fetch logs: {e}\nResponse: {resp}"
+
+    def _parse_task_run_logs(self, raw_log: str) -> list[schemas.LogLine]:
+        entries: list[schemas.LogLine] = []
+        last_ts = datetime.now(tz=timezone.utc)
+        last_severity = "INFO"
+
+        # Airflow wraps log content as a Python repr of [(host, log_text), ...].
+        # literal_eval is the intended way to decode this format.
+        try:
+            log_tuples: list[tuple[str, str]] = literal_eval(raw_log)
+        except (ValueError, SyntaxError):
+            # Not a tuple-list repr (e.g. plain-text error message) -> treat as single entry
+            log_tuples = [("unknown", raw_log)]
+        except Exception as e:
+            self.logger.warning(f"Unexpected error parsing log: {e}")
+            log_tuples = [("unknown", raw_log)]
+
+        for _host, log_text in log_tuples:
+            for raw_line in log_text.splitlines():
+                line = raw_line.strip()
+                if not line:
+                    continue
+
+                # Case 1: line is in the format as expected
+                m = self._LOG_LINE_RE.match(line)
+                if m and m.group("level") in self._KNOWN_LEVELS:
+                    last_ts = self._parse_ts(m.group("ts"))
+                    last_severity = m.group("level")
+                    entries.append(
+                        schemas.LogLine(
+                            time=last_ts,
+                            severity=last_severity,
+                            message=m.group("msg"),
+                            metadata=(
+                                {"location": m.group("loc")} if m.group("loc") else {}
+                            ),
+                        )
+                    )
+                    continue
+
+                # Case 2: bare "INFO - ..."
+                bare = self._BARE_LEVEL_RE.match(line)
+                if bare and bare.group("level") in self._KNOWN_LEVELS:
+                    last_severity = bare.group("level")
+                    entries.append(
+                        schemas.LogLine(
+                            time=last_ts,
+                            severity=last_severity,
+                            message=bare.group("msg"),
+                        )
+                    )
+                    continue
+
+                # Case 3: *** meta lines
+                if line.startswith("***"):
+                    entries.append(
+                        schemas.LogLine(
+                            time=last_ts,
+                            severity="DEBUG",
+                            message=line.lstrip("* ").strip(),
+                        )
+                    )
+                    continue
+
+                # Case 4: continuation lines (e.g. traceback bodies) carry no level
+                # of their own; attach them to the preceding entry's timestamp and
+                # severity so they aren't dropped and stay grouped under it.
+                entries.append(
+                    schemas.LogLine(
+                        time=last_ts,
+                        severity=last_severity,
+                        message=line,
+                    )
+                )
+        return entries
+
+    @classmethod
+    def _parse_ts(cls, ts: str) -> datetime:
+        # fromisoformat requires a colon in the UTC offset ("+00:00"), but Airflow
+        # sometimes emits "+0000" without it — normalize before parsing.
+        normalized = cls._TS_OFFSET_RE.sub(r"\1:\2", ts)
+        try:
+            return datetime.fromisoformat(normalized)
+        except ValueError:
+            return datetime.now(tz=timezone.utc)
+
+    def _data_dir_for_run(self, workflow_run_external_id: str) -> Path:
+        """Local scheduler/pkl folder for a run (services-namespace workflows PVC).
+
+        Holds the per-task `task_run-*.pkl` files. The *actual* processing
+        output lives in the project-namespace `workflow-data-pv-claim` PVC,
+        which is not mounted here and is handled via project-runtime.
+        """
+        _, run_id = self._parse_composite_id(workflow_run_external_id)
+        return self.airflow_workflow_data_dir / run_id
+
+    async def _resolve_project_namespace(self, project_id: str) -> str:
+        """Resolve the Kubernetes namespace that owns a project's data volume.
+
+        Uses the same AII project record that placed the processing pods, so
+        the namespace here matches where `workflow-data-pv-claim` actually lives.
+        """
+        project = await self._fetch_project(project_id)
+        namespace = project.get("kubernetes_namespace")
+        if not namespace:
+            raise RuntimeError(
+                f"Project '{project_id}' has no kubernetes_namespace; "
+                "cannot locate the workflow data volume for cleanup."
+            )
+        return namespace
+
+    async def _project_runtime_request(
+        self,
+        namespace: str,
+        method: str,
+        endpoint: str,
+        json: Optional[dict] = None,
+    ) -> dict:
+        """Call the project-runtime service in `namespace` (mounts the data PVC)."""
+        base_url = self.project_runtime_url_template.format(namespace=namespace)
+        url = f"{base_url}{endpoint}"
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.request(method, url, json=json or {})
+            resp.raise_for_status()
+            return resp.json()
+
+    @staticmethod
+    def _local_dir_clean(path: Path) -> bool:
+        if not path.exists():
+            return True
+        try:
+            return not any(path.iterdir())
+        except (FileNotFoundError, PermissionError):
+            return True
+
+    async def clean_workflow_run_data(
+        self, workflow_run_external_id: str, project_id: str
+    ) -> None:
+        _, run_id = self._parse_composite_id(workflow_run_external_id)
+
+        # Store 1 — actual run data in the project-namespace PVC. We can't mount
+        # it from here (different namespace), so delegate to project-runtime.
+        namespace = await self._resolve_project_namespace(project_id)
+        self.logger.info(
+            f"Deleting workflow run data '{run_id}' from workflow-data PVC via "
+            f"project-runtime in namespace '{namespace}'"
+        )
+        await self._project_runtime_request(
+            namespace, "POST", "/filesystem/delete", json={"sub_path": run_id}
+        )
+
+        # Store 2 — local scheduler/pkl folder (mounted here). Idempotent.
+        target = self._data_dir_for_run(workflow_run_external_id)
+        if target.exists():
+            self.logger.info(f"Cleaning local workflow run folder at {target}")
+            await asyncio.to_thread(shutil.rmtree, target)
+        else:
+            self.logger.info(f"No local data directory to clean at {target}; skipping.")
+
+    async def is_workflow_run_data_clean(
+        self, workflow_run_external_id: str, project_id: str
+    ) -> bool:
+        _, run_id = self._parse_composite_id(workflow_run_external_id)
+
+        namespace = await self._resolve_project_namespace(project_id)
+        usage = await self._project_runtime_request(
+            namespace, "POST", "/filesystem/usage", json={"sub_path": run_id}
+        )
+        pvc_clean = (not usage.get("exists", False)) or usage.get("empty", False)
+
+        local_clean = await asyncio.to_thread(
+            self._local_dir_clean, self._data_dir_for_run(workflow_run_external_id)
+        )
+        return pvc_clean and local_clean

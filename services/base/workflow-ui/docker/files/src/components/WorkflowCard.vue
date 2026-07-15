@@ -28,7 +28,7 @@
     <v-card-actions class="pt-0">
       <v-row dense>
         <v-col cols="6" v-if="versions && versions.length > 1">
-          <v-select v-model="selectedVersion" :items="versions.map(v => ({ title: `v${v.version}`, value: v.version }))"
+          <v-select v-model="selectedVersion" :items="versions.map(v => ({ title: `v${v.increment}`, value: v.increment }))"
             label="Version" density="compact" variant="outlined" hide-details />
         </v-col>
         <v-col :cols="versions && versions.length > 1 ? 6 : 12">
@@ -94,13 +94,13 @@ const description = computed(() => {
 })
 
 const selectedVersion = ref<number | null>(
-  props.versions?.[0]?.version ?? null
+  props.versions?.[0]?.increment ?? null
 )
 
 // Get the selected workflow based on version
 const selectedWorkflow = computed(() => {
   if (!selectedVersion.value || !props.versions) return props.workflow
-  return props.versions.find(v => v.version === selectedVersion.value) || props.workflow
+  return props.versions.find(v => v.increment === selectedVersion.value) || props.workflow
 })
 
 // Form dialog state
@@ -119,7 +119,7 @@ async function loadTasksForSelected() {
   tasksLoading.value = true
   tasksError.value = null
   try {
-    const tasks = await fetchWorkflowTasks(wf.title, wf.version)
+    const tasks = await fetchWorkflowTasks(wf.id)
     hasTasks.value = Array.isArray(tasks) && tasks.length > 0
   } catch (err) {
     console.error('Failed to fetch tasks for workflow:', err)

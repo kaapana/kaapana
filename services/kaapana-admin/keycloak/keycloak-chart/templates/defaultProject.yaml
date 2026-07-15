@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: default-project-role-user-mapping
+  namespace: "{{  .Values.global.admin_namespace  }}"
+data:
+  config.json: |
+    {
+      "project_name": "public",
+      "role_name": "scientist"
+    }

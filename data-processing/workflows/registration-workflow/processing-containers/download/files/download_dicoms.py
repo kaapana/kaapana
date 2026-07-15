@@ -100,7 +100,7 @@ def parse_arguments():
         "--output",
         type=Path,
         help="Output directory.",
-        default="/home/kaapana/downloads",
+        default="/kaapana/app/downloads",
     )
     parser.add_argument(
         "-n",

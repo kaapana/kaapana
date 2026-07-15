@@ -25,9 +25,14 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: kube-system
-    - podSelector:
+      podSelector:
         matchLabels:
-          app.kubernetes.io/name: kube-dns
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
 ---
 ## Allow access to external IPs
 kind: NetworkPolicy
@@ -67,7 +72,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.admin_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: squid-proxy
 ---
@@ -88,7 +93,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: ctp
 ---
@@ -107,7 +112,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.admin_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: 'traefik'
 ---
@@ -128,12 +133,57 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: opensearch
     ports:
     - protocol: TCP
       port: 9200
+---
+### Allow all pods in project namespace to reach access-information-interface
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-aii-egress
+  namespace: {{ .Values.global.project_namespace }}
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: access-information-interface
+          app.kubernetes.io/component: backend
+    ports:
+    - protocol: TCP
+      port: 8080
+---
+### Allow all pods in project namespace to reach notification-service
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-notification-service-egress
+  namespace: {{ .Values.global.project_namespace }}
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: notification-service
+    ports:
+    - protocol: TCP
+      port: 8080
 ---
 ### Allow access to keycloak and access-information-interface for create-project-user job
 apiVersion: networking.k8s.io/v1
@@ -152,7 +202,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.admin_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: keycloak
     ports:
@@ -162,9 +212,42 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: access-information-interface
+    ports:
+    - protocol: TCP
+      port: 8080
+---
+### Allow the Airflow scheduler (scale-rule sizing) and workflow-api (run-data
+### cleanup) to access project-runtime inside this project namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-project-runtime
+  namespace: {{ .Values.global.project_namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: project-runtime
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: airflow
+          app.kubernetes.io/component: scheduler
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: workflow-api
+          app.kubernetes.io/component: api
     ports:
     - protocol: TCP
       port: 8080
@@ -186,7 +269,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.admin_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: keycloak
     ports:
@@ -198,7 +281,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: opensearch
     ports:
@@ -208,7 +291,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: dicom-web-filter
     ports:
@@ -218,7 +301,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: minio
     ports:
@@ -228,19 +311,55 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: kaapana-backend
     ports:
     - protocol: TCP
-      port: 5432
+      port: 5000
   - to:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
+      podSelector:
         matchLabels:
           app.kubernetes.io/name: airflow
     ports:
     - protocol: TCP
-      port: 5000
+      port: 8080
+---
+### Allow access to airflow-dag-sync-service for init containers syncing DAGs via wget
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: egress-to-internal-services
+  namespace: {{ .Values.global.project_namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      network-access-internal-services: "true"
+  policyTypes:
+    - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: airflow
+          app.kubernetes.io/component: scheduler
+    ports:
+    - protocol: TCP
+      port: 8080
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: airflow
+          app.kubernetes.io/component: database
+    ports:
+    - protocol: TCP
+      port: 5432

@@ -4,8 +4,14 @@ from typing import List
 from app import schemas
 from app.adapters.base import WorkflowEngineAdapter
 
+from datetime import datetime, timezone
+
 # module-level store for mocked statuses
 _MOCKED_RUN_STATUSES: dict[str, schemas.WorkflowRunStatus] = {}
+# module-level stores for mocked cleanup state — tests can force a run's
+# cleanup to raise, and inspect which runs were cleaned.
+_MOCKED_CLEAN_RAISES: set[str] = set()
+_CLEANED_RUNS: set[str] = set()
 
 
 class DummyAdapter(WorkflowEngineAdapter):
@@ -19,9 +25,10 @@ class DummyAdapter(WorkflowEngineAdapter):
         super().__init__()
 
     async def get_workflow_tasks(
-        self, workflow: schemas.Workflow
+        self,
+        revision: schemas.WorkflowRevision | schemas.WorkflowRef,
     ) -> List[schemas.TaskCreate]:
-        self.logger.info(f"Posting workflow to DummyAdapter: {workflow.title}")
+        self.logger.info(f"Fetching dummy tasks for revision ref: {revision}")
         task1 = schemas.TaskCreate(
             title="dummy-task-1",
             display_name="Dummy Task 1",
@@ -36,8 +43,10 @@ class DummyAdapter(WorkflowEngineAdapter):
         )
         return [task1, task2]
 
-    async def submit_workflow(self, workflow: schemas.Workflow) -> schemas.Workflow:
-        return workflow
+    async def submit_workflow_revision(
+        self, revision: schemas.WorkflowRevision
+    ) -> schemas.WorkflowRevision:
+        return revision
 
     async def submit_workflow_run(
         self, workflow_run: schemas.WorkflowRun, project_id: str
@@ -117,7 +126,7 @@ class DummyAdapter(WorkflowEngineAdapter):
         Returns:
             WorkflowRunStatus: The updated status of the workflow run as canceled.
         """
-        
+
         return schemas.WorkflowRunStatus.CANCELED
 
     async def retry_workflow_run(
@@ -134,14 +143,60 @@ class DummyAdapter(WorkflowEngineAdapter):
         """
         return schemas.WorkflowRunStatus.PENDING
 
-    async def get_task_run_logs(self, task_run_external_id: str) -> str:
+    async def get_task_run_logs(
+        self, task_run_external_id: str
+    ) -> list[schemas.LogLine]:
+        raw_log = await self._fetch_raw_logs(task_run_external_id)
+        return self._parse_task_run_logs(raw_log)
+
+    async def _fetch_raw_logs(self, task_run_external_id: str) -> str:
         """
-        Gets the logs of a task run from the engine.
+        Gets the raw logs of a task run from the engine.
 
         Args:
             task_run_external_id (str): The ID of the task run in the engine.
         Returns:
-            str: The logs of the task run.
+            str: The raw logs of the task run.
         """
 
         return f"Dummy logs for TaskRun {task_run_external_id}"
+
+    def _parse_task_run_logs(self, raw_log: str) -> list[schemas.LogLine]:
+        return [
+            schemas.LogLine(
+                time=datetime.now(tz=timezone.utc),
+                severity="INFO",
+                message=line,
+            )
+            for line in raw_log.splitlines()
+            if line.strip()
+        ]
+
+    @staticmethod
+    def make_cleanup_raise(external_id: str) -> None:
+        """Tests force the next cleanup call for this run to raise."""
+        _MOCKED_CLEAN_RAISES.add(external_id)
+
+    @staticmethod
+    def reset_cleanup_state() -> None:
+        _MOCKED_CLEAN_RAISES.clear()
+        _CLEANED_RUNS.clear()
+
+    @staticmethod
+    def was_cleaned(external_id: str) -> bool:
+        return external_id in _CLEANED_RUNS
+
+    async def clean_workflow_run_data(
+        self, workflow_run_external_id: str, project_id: str
+    ) -> None:
+        if workflow_run_external_id in _MOCKED_CLEAN_RAISES:
+            _MOCKED_CLEAN_RAISES.discard(workflow_run_external_id)
+            raise RuntimeError(
+                f"Simulated cleanup failure for {workflow_run_external_id}"
+            )
+        _CLEANED_RUNS.add(workflow_run_external_id)
+
+    async def is_workflow_run_data_clean(
+        self, workflow_run_external_id: str, project_id: str
+    ) -> bool:
+        return workflow_run_external_id in _CLEANED_RUNS

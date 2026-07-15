@@ -3,7 +3,10 @@ conf_data:
   workflow_form:
     single_execution: true
   data_form:
-    dataset_name: test-SEG
+    dataset_name: 
+      name: test-SEG
+      username: "kaapana"
+      access_level: project
     dataset_limit: 1
 remote: false
 username: "kaapana"

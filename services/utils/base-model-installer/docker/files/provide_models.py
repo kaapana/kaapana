@@ -191,6 +191,7 @@ if __name__ == "__main__":
     except:
         kaapana_notifier = None
         kaapana_project_id = None
+        logger.info("Notifications are disabled.")
 
     with open(Path("/model_lookup.json"), "r") as f:
         model_lookup = json.load(f)
@@ -222,9 +223,12 @@ if __name__ == "__main__":
                     topic="Model download failed",
                     description=msg,
                 )
-                kaapana_notifier.send(
-                    project_id=kaapana_project_id, notification=notification
-                )
+                try:
+                    kaapana_notifier.send(
+                        project_id=kaapana_project_id, notification=notification
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to send notification: {e}")
             continue
 
         for model in model_info["models"]:
@@ -235,6 +239,8 @@ if __name__ == "__main__":
             if model_already_provided:
                 logger.info(f"Model for {task_id} already already exists.")
             else:
+                if args.extract_models:
+                    model_target_dir.mkdir(parents=True, exist_ok=True)
                 worker_args.append(
                     {
                         "task_id": task_id,
@@ -257,6 +263,14 @@ if __name__ == "__main__":
         for success, task_id in results:
             if success:
                 logger.info(f"Model for {task_id=} provided successfully!")
+                if args.extract_models:
+                    model_info = model_lookup.get(task_id, {})
+                    check_file = model_info.get("check_file")
+                    if check_file:
+                        for model in model_info.get("models", []):
+                            sentinel = Path(args.extraction_dir, model, task_id, check_file)
+                            sentinel.parent.mkdir(parents=True, exist_ok=True)
+                            sentinel.touch()
                 topic = "Model download"
                 title = "Model download finished"
                 description = f"Model download for {task_id} finished"
@@ -272,6 +286,9 @@ if __name__ == "__main__":
                     title=title,
                     description=description,
                 )
-                kaapana_notifier.send(
-                    project_id=kaapana_project_id, notification=notification
-                )
+                try:
+                    kaapana_notifier.send(
+                        project_id=kaapana_project_id, notification=notification
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to send notification: {e}")

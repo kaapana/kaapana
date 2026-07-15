@@ -1,9 +1,11 @@
+import json
 import logging
+from urllib.parse import unquote
 from typing import List
 from uuid import UUID
 
 import httpx
-from fastapi import Request
+from fastapi import HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_204_NO_CONTENT
 
@@ -24,9 +26,77 @@ async def get_default_project_id() -> UUID:
     return UUID(project["id"])
 
 
+async def assert_project_not_archived(project_id: UUID) -> None:
+    """
+    Raise 403 if the project is archived in AII.
+    """
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{ACCESS_INFORMATION_INTERFACE_HOST}/projects/{project_id}"
+        )
+    response.raise_for_status()
+    if response.json().get("is_archived"):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Project {project_id} is archived (read-only).",
+        )
+
+
+async def get_project_name_by_id(project_id: UUID) -> str | None:
+    """Return the name of a project by its ID, or None if not found.
+
+    Args:
+        project_id (UUID): The project ID to look up.
+
+    Returns:
+        str | None: The project name, or None if the request fails.
+    """
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{ACCESS_INFORMATION_INTERFACE_HOST}/projects/{project_id}"
+        )
+    if not response.is_success:
+        return None
+    return response.json().get("name")
+
+
+async def get_project_short_id_by_id(project_id: UUID) -> str | None:
+    """Return the short_id of a project by its ID, or None if not found.
+
+    Args:
+        project_id (UUID): The project ID to look up.
+
+    Returns:
+        str | None: The project short_id, or None if the request fails.
+    """
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{ACCESS_INFORMATION_INTERFACE_HOST}/projects/{project_id}"
+        )
+    if not response.is_success:
+        return None
+    return response.json().get("short_id")
+
+
 def get_user_project_ids(request: Request) -> list[UUID]:
     """Get the project IDs of the projects the user is associated with."""
     return [UUID(project["id"]) for project in request.scope.get("token")["projects"]]
+
+
+def get_project_id_from_cookie(request: Request) -> UUID | None:
+    """Extract the selected project UUID from the 'Project' browser cookie.
+
+    The Kaapana frontend stores the active project as JSON: {"name": "...", "id": "<uuid>"}.
+    Returns None if the cookie is absent or malformed.
+    """
+    raw = request.cookies.get("Project")
+    if not raw:
+        return None
+    try:
+        return UUID(json.loads(unquote(raw))["id"])
+    except (json.JSONDecodeError, KeyError, ValueError):
+        logger.warning("Could not parse Project cookie: %r", raw)
+        return None
 
 
 async def get_filtered_studies_mapped_to_projects(

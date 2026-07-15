@@ -1,1 +1,2 @@
 jupyterlab==4.2.5
+kaapana-client@git+https://codebase.helmholtz.cloud/kaapana/kaapana.git@85f8af6d2b8684365e93e371bf672c66f43e3bdf#subdirectory=lib/kaapana_client

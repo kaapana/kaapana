@@ -3,7 +3,9 @@ node_modules
 /docs/build/
 venv
 security-reports/*.json
+security-reports/*.html
 security-reports/*/
+ci/ci-code/integration_tests/build/
 tmpcharts
 migrations
 .trivy_cache/*
@@ -28,7 +30,7 @@ __pycache__
 ## Linux
 *~
 history
-build-scripts/build-config.yaml
+build_cli/build-config.yaml
 *del.*
 platform_config.yaml
 platform_config.json
@@ -42,3 +44,5 @@ tests/venv/*
 *.egg-info
 *.db
 .env
+lib/workflow_cli/build/
+migration_status

@@ -14,6 +14,12 @@
               label="Name"
               clearable
           ></v-text-field>
+          <v-select
+              v-model="access_level"
+              label="Access Level"
+              default="private"
+              :items="['private', 'project']"
+          ></v-select>
         </v-card-text>
         <v-divider></v-divider>
 
@@ -33,12 +39,14 @@ export default {
     value: Boolean
   },
   data: () => ({
-    name: ""
+    name: "",
+    access_level: "private"
   }),
   methods: {
     save() {
-      this.$emit('save', this.name)
+      this.$emit('save', this.name, this.access_level)
       this.name = ""
+      this.access_level = "private"
     }
   },
   computed: {
@@ -48,6 +56,7 @@ export default {
       },
       set(value) {
         this.name = ""
+        this.access_level = "private"
         this.$emit('cancel', value)
       }
     }

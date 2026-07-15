@@ -31,8 +31,7 @@ def get_monitoring_service() -> MonitoringService:
 def get_user_service() -> UserService:
     yield UserService(
         settings.keycloak_url,
-        settings.keycloak_admin_username,
-        settings.keycloak_admin_password,
+        settings.keycloak_service_client_secret,
     )
 
 
@@ -71,12 +70,33 @@ def get_opensearch(request: Request):
 
 
 def get_project(request: Request):
-    project = request.headers.get("Project")
-    return json.loads(project)
+    project_header = request.headers.get("Project")
+    if not project_header:
+        raise HTTPException(status_code=400, detail="Missing Project header")
+    try:
+        project = json.loads(project_header)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid Project header")
+    return project
 
 
 def get_project_index(project=Depends(get_project)):
     return project.get("opensearch_index")
+
+
+ARCHIVED_PROJECT_DAG_WHITELIST = {
+    "project-dicom-transfer",
+    "download-selected-files",
+}
+
+
+def _aii_project(project_id: str) -> dict:
+    """
+    Fetch a project from AII server-side so `is_archived` is checked instead of e.g. relying on the `Project` req header
+    """
+    return httpx.get(
+        f"http://aii-service.services.svc:8080/projects/{project_id}"
+    ).json()
 
 
 def get_allowed_software(project=Depends(get_project)) -> list:
@@ -84,7 +104,17 @@ def get_allowed_software(project=Depends(get_project)) -> list:
     enabled_software_in_project = httpx.get(
         f"http://aii-service.services.svc:8080/projects/{project_id}/software-mappings"
     ).json()
-    return [software.get("software_uuid") for software in enabled_software_in_project]
+    software_uuids = [
+        software.get("software_uuid") for software in enabled_software_in_project
+    ]
+
+    # only the whitelisted dags are runnable on archived projects
+    if _aii_project(project_id).get("is_archived"):
+        software_uuids = [
+            s for s in software_uuids if s in ARCHIVED_PROJECT_DAG_WHITELIST
+        ]
+
+    return software_uuids
 
 
 def get_access_token(request: Request):

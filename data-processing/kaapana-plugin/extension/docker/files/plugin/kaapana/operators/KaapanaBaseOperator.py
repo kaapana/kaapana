@@ -21,6 +21,7 @@ from kaapana.blueprints.kaapana_global_variables import (
     SERVICES_NAMESPACE,
     AIRFLOW_WORKFLOW_DIR,
     BATCH_NAME,
+    DEFAULT_PROJECT_NAMESPACE,
     DEFAULT_REGISTRY,
     GPU_SUPPORT,
     KAAPANA_BUILD_VERSION,
@@ -266,7 +267,11 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             self.pod_resources = pc_models.Resources(
                 limits={
                     "cpu": (
-                        "{}m".format(self.cpu_millicores + 100)
+                        "{}m".format(
+                            self.cpu_millicores_lmt
+                            if self.cpu_millicores_lmt is not None
+                            else self.cpu_millicores + 100
+                        )
                         if self.cpu_millicores != None
                         else None
                     ),
@@ -275,7 +280,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                         if self.ram_mem_mb_lmt is not None
                         else self.ram_mem_mb + 100
                     ),
-                    "nvidia.com/gpu": 1 if self.gpu_mem_mb else 0,
                 },
                 requests={
                     "cpu": (
@@ -319,6 +323,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             envs["OPERATOR_IN_DIR"] = str(self.operator_in_dir)
 
         envs.update(self.env_vars)
+        if self.gpu_mem_mb:
+            envs["NVIDIA_VISIBLE_DEVICES"] = "all"
         self.env_vars = envs
         kwargs.setdefault("task_id", self.task_id)
         kwargs.setdefault("retries", self.retries)
@@ -581,7 +587,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             project_form = conf.get("project_form")
             self.namespace = project_form.get("kubernetes_namespace")
         except (KeyError, AttributeError):
-            self.namespace = "project-admin"
+            self.namespace = DEFAULT_PROJECT_NAMESPACE
 
         dynamic_volumes_dict = {
             "workflow-data": PROCESSING_WORKFLOW_DIR,
@@ -885,15 +891,21 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     def execute(self, context: Context):
         self.set_context_variables(context)
         if "gpu_device" in context["task_instance"].executor_config:
+            gpu_device = context["task_instance"].executor_config["gpu_device"]
+            visible_device = gpu_device.get("gpu_uuid") or gpu_device["gpu_id"]
             self.env_vars.update(
                 {
-                    "CUDA_VISIBLE_DEVICES": str(
-                        context["task_instance"].executor_config["gpu_device"]["gpu_id"]
-                    )
+                    "NVIDIA_VISIBLE_DEVICES": str(visible_device),
+                    "CUDA_VISIBLE_DEVICES": "0",
                 }
             )
-        else:
-            self.env_vars.update({"CUDA_VISIBLE_DEVICES": ""})
+        elif not self.gpu_mem_mb:
+            self.env_vars.update(
+                {
+                    "NVIDIA_VISIBLE_DEVICES": "none",
+                    "CUDA_VISIBLE_DEVICES": "",
+                }
+            )
 
         if (
             context["dag_run"].conf is not None
@@ -931,7 +943,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             self.namespace = (
                 project_form.get("kubernetes_namespace")
                 if project_form and project_form.get("kubernetes_namespace")
-                else "project-admin"
+                else DEFAULT_PROJECT_NAMESPACE
             )
 
         self.create_conf_configmap(context)
@@ -966,6 +978,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 name=KaapanaBaseOperator.unique_task_identifer(context),
                 image=self.image,
                 taskTemplate=task_template,
+                command=(self.cmds + self.arguments) if self.cmds else None,
                 inputs=[],
                 outputs=[],
                 resources=self.pod_resources,
@@ -981,7 +994,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     volume_mounts=self.volume_mounts,
                     labels=self.labels,
                     annotations=self.annotations,
-                    image_pull_policy=self.image_pull_policy,
+                    imagePullPolicy=self.image_pull_policy,
                 ),
             )
         )

@@ -2,7 +2,6 @@
   <tr>
     <!-- Status -->
     <td class="text-center">
-      <!-- Outlined chip -->
       <v-chip :color="statusColor(run.lifecycle_status)" size="small" variant="outlined">
         {{ run.lifecycle_status }}
       </v-chip>
@@ -12,7 +11,7 @@
     <td class="text-start">
       <div>
         <div class="text-body-2 font-weight-medium">{{ run.workflow?.title || 'Unknown' }}</div>
-        <div class="text-caption text-medium-emphasis">v{{ run.workflow?.version || 0 }}</div>
+        <div class="text-caption text-medium-emphasis">v{{ run.workflow?.increment || 0 }}</div>
       </div>
     </td>
 
@@ -62,6 +61,40 @@
             </span>
           </template>
         </v-tooltip>
+
+        <!-- View Logs tooltip -->
+        <v-tooltip color="surface" location="top">
+          <template #activator="{ props: tooltipProps }">
+            <v-btn v-bind="tooltipProps" icon="mdi-text-box-outline" size="small" variant="text" color="primary"
+              @click="$emit('view-logs', run)" />
+          </template>
+
+          <span style="color: rgb(var(--v-theme-on-surface));" class="font-weight-medium">
+            View Logs
+          </span>
+        </v-tooltip>
+
+        <!-- Download all logs as ZIP -->
+        <v-tooltip v-if="run.task_runs.length > 1" color="surface" location="top">
+          <template #activator="{ props: tooltipProps }">
+            <v-btn v-bind="tooltipProps" icon="mdi-zip-box" size="small" variant="text" color="primary"
+              :loading="downloading" @click="downloadLogs" />
+          </template>
+          <span style="color: rgb(var(--v-theme-on-surface));" class="font-weight-medium">
+            Download all logs (ZIP)
+          </span>
+        </v-tooltip>
+
+        <!-- Clean Run tooltip -->
+        <v-tooltip v-if="canClean(run)" color="surface" location="top">
+          <template #activator="{ props: tooltipProps }">
+            <v-btn v-bind="tooltipProps" icon="mdi-broom" size="small" variant="text" color="warning"
+              @click="$emit('clean', run)" />
+          </template>
+          <span style="color: rgb(var(--v-theme-on-surface));" class="font-weight-medium">
+            {{ run.cleanup_status === 'failed' ? 'Retry cleanup' : 'Clean run data' }}
+          </span>
+        </v-tooltip>
       </div>
     </td>
 
@@ -69,14 +102,39 @@
 </template>
 
 <script setup lang="ts">
-import type { PropType } from 'vue'
+import { ref, type PropType } from 'vue'
 import { statusColor } from '@/utils/status'
-import type { WorkflowRun } from '@/types/schemas'
+import type { WorkflowRun, TaskRun } from '@/types/schemas'
+import { workflowRunsApi } from '@/api/workflowRuns'
+import { downloadAsZip } from '@/utils/zipDownload'
+import { logLinesToText } from '@/utils/logFormat'
 
 const props = defineProps({
   run: { type: Object as PropType<WorkflowRun>, required: true }
 })
-const emit = defineEmits(['cancel', 'retry'])
+const emit = defineEmits(['cancel', 'retry', 'view-logs', 'clean'])
+
+const downloading = ref(false)
+
+async function downloadLogs() {
+  if (downloading.value || !props.run.task_runs.length) return
+  downloading.value = true
+  try {
+    const entries = await Promise.all(
+      props.run.task_runs.map(async (task: TaskRun) => {
+        try {
+          const lines = await workflowRunsApi.getTaskRunLogLines(props.run.id, task.id)
+          return { name: `${task.task_title}.log`, content: logLinesToText(lines) }
+        } catch {
+          return { name: `${task.task_title}.log`, content: 'Failed to fetch logs.' }
+        }
+      })
+    )
+    downloadAsZip(`${props.run.workflow.title}-inc${props.run.workflow.increment}-logs.zip`, entries)
+  } finally {
+    downloading.value = false
+  }
+}
 
 function formatDate(d: string) {
   try {
@@ -118,6 +176,17 @@ function canCancel(run: WorkflowRun) {
 
 function canRetry(run: WorkflowRun) {
   return ['Error', 'Canceled', 'Completed'].includes(run.lifecycle_status)
+}
+
+function canClean(run: WorkflowRun): boolean {
+  const terminal = ['Completed', 'Error', 'Canceled']
+  // Cleanup is dispatchable from NOT_REQUIRED (initial) or FAILED (retry).
+  // PENDING/RUNNING means cleanup is in flight; CLEANED means nothing to do.
+  const cleanable = ['not_required', 'failed']
+  return (
+    terminal.includes(run.lifecycle_status) &&
+    cleanable.includes(run.cleanup_status ?? 'not_required')
+  )
 }
 </script>
 

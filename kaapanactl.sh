@@ -212,6 +212,27 @@ function validate_platform_prefix() {
     echo -e "${GREEN}Using PLATFORM_PREFIX: $PLATFORM_PREFIX${NC}"
 }
 
+# Recover PLATFORM_PREFIX from the already-deployed kaapana-admin-chart release
+# (global.platform_prefix) instead of asking the operator, e.g. when undeploying
+# without --platform-prefix. Returns 1 without setting PLATFORM_PREFIX if the
+# release or the value cannot be found.
+function get_platform_prefix_from_release() {
+    local release="kaapana-admin-chart"
+    local namespace="$HELM_NAMESPACE"
+    local values_json
+    values_json=$($HELM_EXECUTABLE get values "$release" -n "$namespace" -o json 2>/dev/null)
+    if [ -z "$values_json" ]; then
+        return 1
+    fi
+    local prefix
+    prefix=$(printf '%s' "$values_json" | jq -r '.global.platform_prefix // empty' 2>/dev/null)
+    if [ -z "$prefix" ]; then
+        return 1
+    fi
+    PLATFORM_PREFIX="$prefix"
+    echo -e "${GREEN}Read PLATFORM_PREFIX from release '$release' (namespace '$namespace'): $PLATFORM_PREFIX${NC}"
+}
+
 # Keycloak production policy: >=8 chars, 1 upper, 1 lower, 1 digit, 1 special.
 # Only used to keep the *generated* password policy-compliant; entered passwords
 # are never validated.
@@ -1604,6 +1625,14 @@ function get_domain {
 }
 
 function delete_deployment {
+    if [ -z "${PLATFORM_PREFIX:-}" ]; then
+        if get_platform_prefix_from_release; then
+            validate_platform_prefix
+        else
+            echo -e "${YELLOW}Could not determine PLATFORM_PREFIX from release 'kaapana-admin-chart' in namespace '$HELM_NAMESPACE'; project namespace cleanup will be skipped.${NC}"
+        fi
+    fi
+
     echo -e "${YELLOW}Undeploy releases${NC}"
     local failed=0
     local namespace

@@ -1730,6 +1730,10 @@ function delete_deployment {
     fi
 
 
+    echo -e "${YELLOW}Note: Kubernetes garbage collection may still be cleaning up remaining objects (e.g. Pods, ReplicaSets, Jobs) in the background.${NC}"
+    echo -e "${YELLOW}Please wait until no resources are left before re-deploying the platform. Resources in namespaces default and kube-system are supposed to persist.${NC}"
+    echo -e "${YELLOW}You can check the progress with:${NC}"
+    echo -e "${YELLOW}watch microk8s.kubectl get all -A${NC}"
     echo -e "${GREEN}####################################  UNDEPLOYMENT DONE  ############################################${NC}"
 }
 

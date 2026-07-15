@@ -63,6 +63,10 @@ Interaction actions for the Gallery View are located above it. The first row is 
 .. note::
    Deleting a dataset does *not* erase its contained data from the platform.
 
+Access Levels
+"""""""""""""
+A dataset is either **project**-level or **private**. A project-level dataset is shared with every member of the project and named uniquely within it; a private dataset is scoped to the user who created it, letting you build and save your own selections without exposing them to the rest of the project. New datasets default to project-level.
+
 The second row is dedicated to filtering and searching. We offer a Lucene-based full-text search. 
 
 .. note::

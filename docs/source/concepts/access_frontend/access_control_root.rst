@@ -33,14 +33,20 @@ Kaapana contains strong authorization features that allow to control access to t
 How Access Control Works
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Every web request to Kaapana is subject to authorization checks that determine whether access to a resource is permitted. 
-The authorization decision is based on:
+Every web request to Kaapana is subject to authorization checks that determine whether access to a resource is permitted, based on the access token included with the request and a set of configurable policies, evaluated as Rego policies at the **Policy Decision Point (PDP)** -- an instance of **Open Policy Agent (OPA)**.
+See :ref:`concepts_authorization_flow` for the full request chain (Keycloak, Traefik, the Auth Backend and OPA) that produces this decision; the rest of this page is about *what* can be controlled, not how a request gets authorized.
 
-* The access token included with the request
-* Configurable policies that define the access rules
+.. _two_levels_of_roles:
 
-Authorization decisions are evaluated at the **Policy Decision Point (PDP)**, which is an instance of an **Open Policy Agent (OPA)**. 
-Access policies are written using the Rego policy language.
+Two Levels of Roles
+^^^^^^^^^^^^^^^^^^^^
+
+Kaapana has two role types:
+
+* **Realm roles** -- ``user``, ``project-manager``, ``admin``. Global, assigned via :ref:`Keycloak group membership<keycloak_groups>`. ``user`` is the default role for every account. ``admin`` grants unrestricted access to all projects and platform features. ``project-manager`` grants access to the project-managing API (``System > Projects``); rarely assigned without ``admin``.
+* **Project roles** -- ``scientist``, ``principal-investigator`` by default. Assigned per project: a user can hold a different project role in each project. Each project role maps to a fixed set of :ref:`AII rights<aii>`.
+
+A realm role determines which projects and platform areas a user can reach. A project role determines what a user can do inside a project they have access to. ``admin`` bypasses project-role checks (see note below).
 
 .. _global_system_groups:
 
@@ -70,8 +76,12 @@ This mechanism ensures consistent, project-aware access control.
 Custom rights can be created in the `confimap <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/0.5.0/services/data-separation/access-information-interface/access-information-interface-chart/templates/configmap.yaml?ref_type=tags>`_ 
 of the :term:`Access Information Interface (AII)<access-information-interface>` before the platform is build.
 
+.. _aii:
+
 Access Information Interface (AII)
 **********************************
+
+See :ref:`concepts_architecture` for the AII's tech stack and how it fits alongside Kaapana's other custom services; this section is about what it manages.
 
 The AII provides a REST API for managing:
 
@@ -84,41 +94,12 @@ During authentication, **Keycloak** queries the AII to determine a user's rights
 For each right granted to the user (based on their project-specific roles), Keycloak populates the user's access token with the corresponding claim.
 User-Project-Role mappings can be managed via the :ref:`Project Management Interface<projects>`.
 
-This mechanism enables precise, project-specific authorization. 
+This mechanism enables precise, project-specific authorization.
 It allows you to define different permission levels for users on resources associated with projects, such as:
 
 * Read-only access to datasets
 * Permission to submit workflows for specific DAGs
 * Administrative control over project resources
-
-
-Authorization flow
-^^^^^^^^^^^^^^^^^^
-
-The following sequence diagram gives a simplified overview of the authorization flow for web requests.
-
-.. mermaid::
-    
-    sequenceDiagram
-        participant C as Client
-        participant R as reverse-proxy
-        participant K as Keycloak
-        participant P as PDP
-        participant I as AII
-
-        C->>R: Web request
-        K->>I: Request rights
-        I-->>K: Return rights
-        K-->>R: Return access token
-        R->>P: Forward request for authorization
-        P-->>R: Return authorization decision
-        alt Authorized
-            Note right of R: If authorized, forward<br/> request to Kubernetes
-            R-->>C: Relay response <br/> from Kubernetes service
-        else Unauthorized
-            R-->>C: Relay 403
-        end
-
 
 Access Control Within Processing-Containers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -165,85 +146,8 @@ This mechanism ensures that both workflow execution and application deployment i
 Client access to Kaapana APIs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You can access all APIs in Kaapana from an external client using the ``KaapanaApiService`` class, which is provided by the ``kaapana_client`` Python package.
-Authentication is handled automatically via the `OAuth 2.0 Device Authorization Grant <https://datatracker.ietf.org/doc/html/rfc8628>`_.
-This flow is designed for clients that cannot open a browser themselves — the user approves access once in a browser, after which the service holds a long-lived refresh token and renews access tokens silently.
-
-**Prerequisites**
-
-* The ``kaapana_client`` package is installed (``pip install kaapana_client``).
-
-**Initialization**
-
-``KaapanaApiService`` requires four constructor arguments:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 20 80
-
-   * - Parameter
-     - Description
-   * - ``root_url``
-     - Base URL of the Kaapana instance (e.g. the Traefik gateway URL). All endpoint paths are appended to this value.
-   * - ``project_id``
-     - UUID of the project you want to operate in.
-   * - ``client_id``
-     - OAuth2 client ID registered in Keycloak.
-   * - ``client_secret``
-     - OAuth2 client secret for the given client, or ``None`` for public clients.
-
-When you create a ``KaapanaApiService`` instance, it immediately requests a device code from Keycloak and prints a verification URL to the log:
-
-.. code-block:: python
-
-    from kaapana_client.services.ApiService import KaapanaApiService
-
-    api = KaapanaApiService(
-        root_url="https://<host>",
-        project_id="d7e991b3-9463-48e7-98c2-661da8b83018",
-        client_id="kaapana",
-        client_secret=None,
-    )
-    # INFO - Open the following URL in a browser to grant the ApiService
-    #        access to Kaapana: https://<host>/auth/realms/kaapana/device?user_code=XXXX-YYYY
-
-As a convenience, if the required values are available as environment variables, you can use the ``get_api_service_from_env`` factory function instead:
-
-.. code-block:: python
-
-    from kaapana_client.services.ApiService import get_api_service_from_env
-
-    api = get_api_service_from_env()
-
-Open the printed URL in a browser and confirm access with a Kaapana account.
-You do **not** need to do this before calling a method — if the token has not been obtained yet, the first HTTP call will poll for approval automatically (up to 10 attempts, 5 seconds apart) and log the URL again on each retry.
-
-**Making requests**
-
-All five HTTP methods — ``get``, ``post``, ``put``, ``delete``, and ``head`` — accept an ``endpoint`` path relative to ``root_url``, followed by any keyword arguments accepted by the underlying ``requests`` library (e.g. ``json``, ``params``, ``data``, ``timeout``).
-Authentication headers and the project cookie are injected automatically.
-
-.. code-block:: python
-
-    # GET  /aii/projects
-    response = api.get("aii/projects")
-    projects = response.json()
-
-    # POST /workflow-api/v1/workflow-runs  with a JSON body
-    response = api.post("workflow-api/v1/workflow-runs", json={"workflow": "..."})
-
-    # PUT  /aii/projects/<id>
-    response = api.put(f"aii/projects/{project_id}", json={"name": "my-project"})
-
-    # DELETE a resource
-    response = api.delete(f"aii/projects/{project_id}")
-
-**Token lifecycle**
-
-The service manages tokens transparently:
-
-* **Access token absent** — triggers the device-code polling loop described above.
-* **Access token expired** — a silent refresh-token grant is performed before the request is sent. No user interaction is required.
+Every API in Kaapana is also reachable from an external client, project-scoped the same way as everything else on this page.
+See :ref:`concepts_programmatic_access` for how to authenticate and call the APIs with ``KaapanaApiService``.
 
 
 .. _service_to_service_auth:

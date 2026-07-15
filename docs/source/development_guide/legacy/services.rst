@@ -10,7 +10,7 @@ You can access Kaapana services in processing containers:
 - **notifications**: Manage user or project notifications
 - **minio**: Manage files in the persistent object store
 
-There is a ``kaapanapy`` library package that should allow you to easily use these services.
+There is a ``kaapana_client`` library package that should allow you to easily use these services (the package was previously named ``kaapanapy``; that name still works via a deprecated compatibility shim, but new code should import ``kaapana_client``).
 
 
 Notification Service
@@ -29,7 +29,7 @@ Example usage:
 
 .. code-block:: python
 
-    from kaapanapy.services import Notification, NotificationService
+    from kaapana_client.services import Notification, NotificationService
 
     NotificationService.send(
         project_id: str, user_id: str, notification: Notification

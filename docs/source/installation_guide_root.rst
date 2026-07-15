@@ -18,6 +18,9 @@ Getting Kaapana deployed on your server consists of three streps:
 The following flowchart should illustrate which steps you have to take to deploy a Kaapana platform on your server.
 We assume that you have a server at hand, that satisfies the :ref:`hardware and network requirements<requirements>`.
 
+.. note::
+   The flowchart below simplifies to "does the server have internet access". A target that can reach an OCI registry but nothing else is a third, in-between case -- see :ref:`faq_offline_installation` for that **registry-only** path alongside the fully **air-gapped** one.
+
 
 .. mermaid::
 

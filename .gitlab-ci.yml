@@ -243,8 +243,8 @@ build_documentation:
   artifacts:
     expose_as: "Documentation"
     paths:
-      - $KAAPANA_DIR/ci/ci-code/build/public/docs/
-      - "$build_documentation_html.log"
+      - $KAAPANA_DIR/docs/build/html/
+      - "$KAAPANA_DIR/docs/build_documentation_html.log"
 
 ##############################################
 # BUILD

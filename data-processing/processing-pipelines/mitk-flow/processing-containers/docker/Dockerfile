@@ -4,6 +4,9 @@ LABEL IMAGE="mitk-flow"
 LABEL VERSION="2025.08"
 LABEL BUILD_IGNORE="False"
 
+# browser-tab title -> "Kaapana App - MITK Flow" (startup.sh writes the dashboard manifest)
+ENV KAAPANA_APP_NAME="MITK Flow"
+
 RUN mkdir -p /mitk-flow \
     && wget https://www.mitk.org/download/kaapana/flowbench/MITK-v2025.12.2-ubuntu-22.04-x86_64.tar.gz -O /mitk-flow/mitk.tar.gz \
     && tar -xzf /mitk-flow/mitk.tar.gz --strip 1 -C /mitk-flow/ \

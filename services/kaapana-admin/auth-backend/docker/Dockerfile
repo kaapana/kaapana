@@ -12,11 +12,18 @@ RUN pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.
 COPY ./files/*.py /kaapana/app/
 COPY ./files/*.html /kaapana/app/
 
-RUN curl -L -o opa https://openpolicyagent.org/downloads/v0.70.0/opa_linux_amd64_static
+# Version bump v0.70.0 -> v1.18.2 — fixes critical CVEs in the Go:
+#   - Go stdlib:               CVE-2025-68121
+#   - google.golang.org/grpc:  CVE-2026-33186
+# Extra Infos:
+#   - Required by the opa-build initContainer (auth-backend-chart/templates/deployment.yaml) 
+#   - Compatibility is ensured with flag --v0-compatible there.
+#   - Version should match with open-policy-agent service image (1.18.2)
+RUN curl -L -o opa https://openpolicyagent.org/downloads/v1.18.2/opa_linux_amd64_static
 RUN chmod 755 ./opa
 
 COPY files/bundle/ bundle/
-RUN mkdir -p /kaapana/app/authz 
+RUN mkdir -p /kaapana/app/authz
 # RUN ./opa build -b bundle/ -o authz/endpoints.tar.gz
 
 COPY files/boot.sh /kaapana/app

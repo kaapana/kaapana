@@ -50,16 +50,27 @@ RUN python3 -m pip install --upgrade setuptools pip && pip3 install -c https://c
 
 # Install code server and python extension
 RUN wget https://code-server.dev/install.sh
-RUN /bin/bash install.sh --version 4.121.0
+RUN /bin/bash install.sh --version 4.127.0
 RUN code-server --install-extension ms-python.python
 
-# Fix CVE-2026-44240: replace basic-ftp 5.3.0 with 5.3.1 in all extension node_modules
-RUN wget -q "https://registry.npmjs.org/basic-ftp/-/basic-ftp-5.3.1.tgz" -O /tmp/basic-ftp.tgz && \
-    tar -xzf /tmp/basic-ftp.tgz -C /tmp && \
-    for dir in $(find /usr/lib/code-server /root/.local/share/code-server -path "*/node_modules/basic-ftp" -type d 2>/dev/null); do \
-        cp -rf /tmp/package/. "$dir/"; \
-    done && \
-    rm -rf /tmp/package /tmp/basic-ftp.tgz
+
+# Fix bundled code-server node_module CVEs
+# replace the following in all extension node_modules with patched versions
+#   - undici      7.24.4 -> 7.28.0   (CVE-2026-12151, CVE-2026-6734, CVE-2026-9697)
+#   - ws          8.19.0 -> 8.21.0   (CVE-2026-48779)
+#   - shell-quote 1.8.3  -> 1.8.4    (CVE-2026-9277)
+RUN for pkg_spec in \
+        "undici:7.28.0" \
+        "ws:8.21.0" \
+        "shell-quote:1.8.4"; do \
+        name="${pkg_spec%%:*}"; ver="${pkg_spec##*:}"; \
+        wget -q "https://registry.npmjs.org/${name}/-/${name}-${ver}.tgz" -O /tmp/npmpkg.tgz && \
+        rm -rf /tmp/package && tar -xzf /tmp/npmpkg.tgz -C /tmp && \
+        for dir in $(find /usr/lib/code-server /root/.local/share/code-server -path "*/node_modules/${name}" -type d 2>/dev/null); do \
+            cp -rf /tmp/package/. "$dir/"; \
+        done; \
+        rm -rf /tmp/package /tmp/npmpkg.tgz; \
+    done
 
 # Copy and install kaapana_federated directly from source
 COPY files/kaapana_federated /app/kaapana_federated

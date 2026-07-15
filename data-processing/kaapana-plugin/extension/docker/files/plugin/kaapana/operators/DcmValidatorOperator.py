@@ -49,6 +49,8 @@ class DcmValidatorOperator(KaapanaBaseOperator):
             execution_timeout=execution_timeout,
             env_vars=env_vars,
             ram_mem_mb=1000,  # Histopathology image from deletion-dataset was failing with OOM
+            cpu_millicores=200,
+            cpu_millicores_lmt=500,
             *args,
             **kwargs,
         )

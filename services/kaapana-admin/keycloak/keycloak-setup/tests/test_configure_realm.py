@@ -1,0 +1,109 @@
+"""
+Behavioral tests for configure_realm.py.
+
+The setup job authenticates as the kaapana-admin client (client_credentials) and
+runs a full, idempotent realm configuration. The unit-testable surface covers
+the kaapana-service role set and the retry behaviour on 403 responses.
+No live Keycloak needed.
+
+Run from anywhere:
+    pytest services/kaapana-admin/keycloak/keycloak-setup/tests/test_configure_realm.py
+"""
+
+import os
+import sys
+from pathlib import Path
+from unittest.mock import MagicMock
+
+import pytest
+import requests
+
+# Set required env vars before module-level code in configure_realm runs
+os.environ.setdefault("DEV_MODE", "false")
+
+FILES_DIR = Path(__file__).resolve().parent.parent / "docker" / "files"
+sys.path.insert(0, str(FILES_DIR))
+
+# Stub local modules not installed in the test environment
+sys.modules.setdefault("KeycloakHelper", MagicMock())
+sys.modules.setdefault("logger", MagicMock())
+
+import configure_realm as cr  # noqa: E402
+
+
+def test_service_account_roles_are_minimal():
+    assert cr._SERVICE_ACCOUNT_ROLES == [
+        "manage-users",
+        "query-users",
+        "query-groups",
+        "view-realm",
+    ]
+
+
+def test_service_account_roles_exclude_manage_clients():
+    # kaapana-service is the weak runtime client; it must not be able to manage clients.
+    assert "manage-clients" not in cr._SERVICE_ACCOUNT_ROLES
+
+
+def test_fallback_helpers_removed():
+    # The fallback path was replaced by the admin-client / two-job design.
+    for name in (
+        "_run_fallback",
+        "_update_oidc_client_secret",
+        "_reset_system_user_password",
+        "_service_client_functional",
+        "_get_service_token",
+    ):
+        assert not hasattr(cr, name), f"{name} must be removed from configure_realm.py"
+
+
+def _http_error(status):
+    err = requests.exceptions.HTTPError()
+    err.response = type("_Resp", (), {"status_code": status})()
+    return err
+
+
+def test_setup_with_retries_recovers_from_403():
+    # 403 = admin API not ready right after realm creation (cold-start race).
+    calls = []
+
+    def run():
+        calls.append(1)
+        if len(calls) == 1:
+            raise _http_error(403)
+
+    cr._setup_with_retries(run, max_retries=3, base_delay=0, sleep=lambda _s: None)
+    assert len(calls) == 2
+
+
+def test_setup_with_retries_recovers_from_connection_error():
+    calls = []
+
+    def run():
+        calls.append(1)
+        if len(calls) == 1:
+            raise requests.exceptions.ConnectionError()
+
+    cr._setup_with_retries(run, max_retries=3, base_delay=0, sleep=lambda _s: None)
+    assert len(calls) == 2
+
+
+def test_setup_with_retries_recovers_from_5xx():
+    calls = []
+
+    def run():
+        calls.append(1)
+        if len(calls) == 1:
+            raise _http_error(503)
+
+    cr._setup_with_retries(run, max_retries=3, base_delay=0, sleep=lambda _s: None)
+    assert len(calls) == 2
+
+
+def test_setup_with_retries_does_not_retry_on_400():
+    # A genuine client error must surface immediately, not be retried away.
+    def run():
+        raise _http_error(400)
+
+    with pytest.raises(requests.exceptions.HTTPError):
+        cr._setup_with_retries(run, max_retries=3, base_delay=0, sleep=lambda _s: None)

@@ -4,3 +4,6 @@ version: "0.0.0"
 appVersion: "0.1.4"
 name: kaapana-platform-chart
 description: kaapana Platform
+kaapana_type: "platform"
+keywords:
+- kaapanaplatform

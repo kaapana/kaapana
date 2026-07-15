@@ -678,7 +678,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             util_service_success,
                             gpu_device,
                         ) = UtilService.check_operator_scheduling(
-                            task_instance=task_instance, logger=self.log
+                            task_instance=task_instance,
+                            logger=self.log,
+                            session=session,
                         )
 
                         if util_service_success and gpu_device is not None:
@@ -698,6 +700,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             self.log.warning(
                                 f"Not executing {task_instance} since the UtilService check was negative!"
                             )
+                            continue
                         #################################################
                         ###### KAAPANA CUSTOM CODE ENDS #################
                         #################################################

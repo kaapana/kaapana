@@ -14,7 +14,7 @@ function main() {
                 subcommand="help"
                 shift
                 ;;
-            deploy|install|report|offline-gpu)
+            deploy|install|report|offline-gpu|set-keycloak-admin-password)
                 subcommand="$1"
                 shift
                 ;;
@@ -44,6 +44,9 @@ function main() {
             ;;
         offline-gpu)
             install_gpu_operator "$(dirname "$0")"
+            ;;
+        set-keycloak-admin-password)
+            set_keycloak_admin_password
             ;;
         *)
             print_usage
@@ -89,6 +92,8 @@ Commands:
   install              Run the server installation helper.
   report               Generate a microk8s state report without deploying.
   offline-gpu          Install the GPU Operator for offline environments.
+  set-keycloak-admin-password
+                       Change the Keycloak admin password on a running platform.
 
 Run '$script_name <command> --help' for command-specific options.
 EOF
@@ -207,6 +212,138 @@ function validate_platform_prefix() {
     echo -e "${GREEN}Using PLATFORM_PREFIX: $PLATFORM_PREFIX${NC}"
 }
 
+# Recover PLATFORM_PREFIX from the already-deployed kaapana-admin-chart release
+# (global.platform_prefix) instead of asking the operator, e.g. when undeploying
+# without --platform-prefix. Returns 1 without setting PLATFORM_PREFIX if the
+# release or the value cannot be found.
+function get_platform_prefix_from_release() {
+    local release="kaapana-admin-chart"
+    local namespace="$HELM_NAMESPACE"
+    local values_json
+    values_json=$($HELM_EXECUTABLE get values "$release" -n "$namespace" -o json 2>/dev/null)
+    if [ -z "$values_json" ]; then
+        return 1
+    fi
+    local prefix
+    prefix=$(printf '%s' "$values_json" | jq -r '.global.platform_prefix // empty' 2>/dev/null)
+    if [ -z "$prefix" ]; then
+        return 1
+    fi
+    PLATFORM_PREFIX="$prefix"
+    echo -e "${GREEN}Read PLATFORM_PREFIX from release '$release' (namespace '$namespace'): $PLATFORM_PREFIX${NC}"
+}
+
+# Keycloak production policy: >=8 chars, 1 upper, 1 lower, 1 digit, 1 special.
+# Only used to keep the *generated* password policy-compliant; entered passwords
+# are never validated.
+function _keycloak_password_ok() {
+    local pw="$1"
+    if [ "${#pw}" -ge 8 ] \
+        && [[ "$pw" == *[[:upper:]]* ]] \
+        && [[ "$pw" == *[[:lower:]]* ]] \
+        && [[ "$pw" == *[[:digit:]]* ]] \
+        && [[ "$pw" == *[^[:alnum:]]* ]]; then
+        return 0
+    fi
+    return 1
+}
+
+function _generate_keycloak_password() {
+    # Mixed 20-char pool; regenerate until policy-compliant (first try in
+    # practice). || true guards SIGPIPE under pipefail.
+    local pw=""
+    while true; do
+        pw=$(tr -dc 'A-Za-z0-9!#$%^&*' </dev/urandom 2>/dev/null | head -c 20 || true)
+        if [ -z "$pw" ]; then
+            pw=$(openssl rand -base64 24 2>/dev/null | tr -dc 'A-Za-z0-9!#$%^&*' | head -c 20 || true)
+        fi
+        if _keycloak_password_ok "$pw"; then break; fi
+    done
+    printf '%s' "$pw"
+}
+
+# Change the Keycloak admin password on a running platform without a full
+# redeploy by re-running the bootstrap job with a new password. This reuses the
+# bootstrap logic (the single source of truth): it authenticates via the
+# kaapana-admin client, so the current admin password is not needed.
+function set_keycloak_admin_password() {
+    KUBECTL_EXECUTABLE="${KUBECTL_EXECUTABLE:-microk8s.kubectl}"
+    ADMIN_NAMESPACE="${ADMIN_NAMESPACE:-admin}"
+    local job_name="keycloak-bootstrap"
+
+    if ! command -v jq >/dev/null 2>&1; then
+        echo -e "${RED}jq is required for this command but was not found.${NC}"
+        exit 1
+    fi
+    if [ ! -t 0 ]; then
+        echo -e "${RED}set-keycloak-admin-password needs an interactive terminal.${NC}"
+        exit 1
+    fi
+
+    # 1. Fetch the existing bootstrap job; it carries the full, correct spec
+    #    (image, client secret, host) that we re-run with a new password.
+    local job_json
+    job_json=$($KUBECTL_EXECUTABLE get job "$job_name" -n "$ADMIN_NAMESPACE" -o json 2>/dev/null || true)
+    if [ -z "$job_json" ]; then
+        echo -e "${RED}Bootstrap job '$job_name' not found in namespace '$ADMIN_NAMESPACE'. The platform does not appear to be deployed.${NC}"
+        exit 1
+    fi
+
+    # 2. Resolve the new password (empty entry generates a random, temporary one).
+    local temporary=false new_pw
+    read -rsp "$(echo -e "${YELLOW}New Keycloak admin password (empty = generate random): ${NC}")" new_pw
+    echo
+    if [ -z "$new_pw" ]; then
+        new_pw=$(_generate_keycloak_password)
+        temporary=true
+    fi
+
+    # 3. Patch the password env values and strip the runtime/immutable fields so
+    #    the job can be re-applied. The Helm annotations are kept, so the release
+    #    stays consistent and the next deploy reconciles the job normally.
+    local patched
+    patched=$(printf '%s' "$job_json" | jq \
+        --arg pw "$new_pw" --arg tmp "$temporary" '
+        .spec.template.spec.containers[0].env |= map(
+            if .name == "KEYCLOAK_PASSWORD" then .value = $pw
+            elif .name == "KAAPANA_ADMIN_PASSWORD_TEMPORARY" then .value = $tmp
+            else . end)
+        | del(
+            .status,
+            .metadata.uid, .metadata.resourceVersion, .metadata.creationTimestamp,
+            .metadata.generation, .metadata.managedFields,
+            .spec.selector,
+            .spec.template.metadata.labels["controller-uid"],
+            .spec.template.metadata.labels["batch.kubernetes.io/controller-uid"],
+            .spec.template.metadata.labels["job-name"],
+            .spec.template.metadata.labels["batch.kubernetes.io/job-name"])')
+
+    # 4. Recreate the job and wait for it to finish.
+    echo -e "${GREEN}Re-running the bootstrap job to apply the new password ...${NC}"
+    $KUBECTL_EXECUTABLE delete job "$job_name" -n "$ADMIN_NAMESPACE" --wait=true >/dev/null 2>&1 || true
+    if ! printf '%s' "$patched" | $KUBECTL_EXECUTABLE apply -f - >/dev/null; then
+        echo -e "${RED}Could not re-create the bootstrap job.${NC}"
+        exit 1
+    fi
+
+    if ! $KUBECTL_EXECUTABLE wait --for=condition=complete "job/$job_name" \
+        -n "$ADMIN_NAMESPACE" --timeout=120s >/dev/null 2>&1; then
+        echo -e "${RED}The bootstrap job did not complete. Logs:${NC}"
+        $KUBECTL_EXECUTABLE logs "job/$job_name" -n "$ADMIN_NAMESPACE" --tail=30 2>/dev/null || true
+        exit 1
+    fi
+
+    echo -e ""
+    echo -e "${YELLOW}══════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}  Keycloak admin password updated:${NC}"
+    echo -e "${GREEN}    $new_pw${NC}"
+    if [ "$temporary" = true ]; then
+        echo -e "${YELLOW}  Temporary - change it on first login in the Keycloak UI.${NC}"
+    fi
+    echo -e "${YELLOW}══════════════════════════════════════════════════${NC}"
+    echo -e ""
+}
+
 function deploy() {
 
     PLATFORM_NAME="${PLATFORM_NAME:-}"
@@ -227,6 +364,7 @@ function deploy() {
     fi
     export HELM_EXPERIMENTAL_OCI=1
     HELM_EXECUTABLE="${HELM_EXECUTABLE:-helm}"
+    KUBECTL_EXECUTABLE="${KUBECTL_EXECUTABLE:-microk8s.kubectl}"
 
     load_kaapana_config
     ### Parsing command line arguments:
@@ -239,6 +377,7 @@ function deploy() {
     _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
     _Flag: --remove-all-images-docker will delete all Docker images from the system
     _Flag: --nuke-pods will force-delete all pods of the Kaapana deployment namespaces.
+    _Flag: --set-keycloak-admin-password prompt for the Keycloak admin password (an empty entry generates a random one); without this flag a random password is generated. The password is always printed after the deploy
     _Flag: --quiet, meaning non-interactive operation
     _Flag: --offline, using prebuilt tarball and chart (--chart-path required!)
     _Flag: --no-migration, disable automatic migration between versions
@@ -366,6 +505,11 @@ function deploy() {
                 exit 0
             ;;
 
+            --set-keycloak-admin-password)
+                SET_KEYCLOAK_ADMIN_PASSWORD=true
+                shift # past argument
+            ;;
+
             --quiet)
                 QUIET=true
                 shift # past argument
@@ -479,7 +623,7 @@ function deploy() {
     if [ "$DO_CHECK_SYSTEM" = "true" ]; then
         validate_platform_prefix
         check_system kaapana-admin-chart default
-        check_system kaapana-platform-chart admin
+        check_system kaapana-platform-chart default
         check_system "${PLATFORM_PREFIX}-project-admin" admin
         exit 0
     fi
@@ -616,7 +760,7 @@ function server_installation() {
     echo -e "${GREEN}USER_HOME: $USER_HOME ${NC}";
     echo ""
 
-    DEFAULT_MICRO_VERSION=1.33/stable
+    DEFAULT_MICRO_VERSION=1.36/stable
     DEFAULT_HELM_VERSION=latest/stable
 
     ### Parsing command line arguments:
@@ -1097,9 +1241,9 @@ function install_microk8s {
         set +e
         echo "${YELLOW}Enable node_port-range=80-32000 ...${NC}";
         insert_text "--service-node-port-range=80-32000" /var/snap/microk8s/current/args/kube-apiserver
-        echo "${YELLOW}Disable insecure port ...${NC}";
-        insert_text "--insecure-port=0" /var/snap/microk8s/current/args/kube-apiserver
-        insert_text "--runtime-config=admissionregistration.k8s.io/v1beta1=true" /var/snap/microk8s/current/args/kube-apiserver
+        # NOTE: removed two previous insert_text lines:
+        # --insecure-port=0 (does not exist anymore)
+        # --runtime-config=admissionregistration.k8s.io/v1beta1=true (replaced v1beta1 with stable v1)
 
         echo "${YELLOW}Set limit of completed pods to 200 ...${NC}";
         insert_text "--terminated-pod-gc-threshold=200" /var/snap/microk8s/current/args/kube-controller-manager
@@ -1358,6 +1502,16 @@ function load_kaapana_config {
     AIRFLOW_MEMORY_REQUEST=$((AIRFLOW_MEMORY_LIMIT / 3))
     OPENSEARCH_MEMORY_REQUEST=$((OPENSEARCH_MEMORY_LIMIT / 3))
 
+    CPU_CORES=$(nproc)
+    # LocalExecutor spawns one host process per task (no CPU isolation),
+    # Capping at CPU_CORES/2 leaves headroom for platform services
+    # (Keycloak, OpenSearch, k8s) and prevents OOM kills under heavy ingestion bursts.
+    AIRFLOW_PARALLELISM=$((CPU_CORES / 2))
+    # CPU limit for the scheduler pod (milliCores): cap all LocalExecutor task processes
+    # at (parallelism + 2) cores, reserving the rest for OpenSearch, Keycloak, k8s, etc.
+    AIRFLOW_CPU_LIMIT=$(( (CPU_CORES / 2 + 2) * 1000 ))
+    AIRFLOW_CPU_REQUEST=2000
+
     ######################################################
     # Individual platform configuration
     ######################################################
@@ -1368,7 +1522,10 @@ function load_kaapana_config {
     GRAFANA_PASSWORD="admin"
 
     KEYCLOAK_ADMIN_USERNAME="admin"
-    KEYCLOAK_ADMIN_PASSWORD="Kaapana2020" #  Minimum policy for production: 1 specialChar + 1 upperCase + 1 lowerCase and 1 digit + min-length = 8
+    # KEYCLOAK_ADMIN_PASSWORD is resolved in the deploy function (see the password
+    # block): a random password unless --set-keycloak-admin-password is given, in
+    # which case the operator is prompted for one.
+    SET_KEYCLOAK_ADMIN_PASSWORD=false
 
     FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
     SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)
@@ -1388,6 +1545,15 @@ function load_kaapana_config {
     MOUNT_POINTS_TO_MONITOR=""
 
     INSTANCE_NAME=""
+
+    ######################################################
+    # Login page branding (shown on the Keycloak login page)
+    ######################################################
+    LOGIN_HEADER="Kaapana"                              # bold title on the login page
+    LOGIN_SUBHEADER="End-to-End medical image analysis" # muted line under the title
+    LOGIN_NOTICE=""             # longer notice text (single line; basic HTML allowed)
+    LOGIN_INSTITUTION_NAME=""   # alt text for the institution logo
+    LOGIN_INSTITUTION_LOGO=""   # URL or "data:" URI of a logo shown next to the Kaapana logo
 
     ######################################################
     # Storage
@@ -1459,6 +1625,14 @@ function get_domain {
 }
 
 function delete_deployment {
+    if [ -z "${PLATFORM_PREFIX:-}" ]; then
+        if get_platform_prefix_from_release; then
+            validate_platform_prefix
+        else
+            echo -e "${YELLOW}Could not determine PLATFORM_PREFIX from release 'kaapana-admin-chart' in namespace '$HELM_NAMESPACE'; project namespace cleanup will be skipped.${NC}"
+        fi
+    fi
+
     echo -e "${YELLOW}Undeploy releases${NC}"
     local failed=0
     local namespace
@@ -1556,6 +1730,10 @@ function delete_deployment {
     fi
 
 
+    echo -e "${YELLOW}Note: Kubernetes garbage collection may still be cleaning up remaining objects (e.g. Pods, ReplicaSets, Jobs) in the background.${NC}"
+    echo -e "${YELLOW}Please wait until no resources are left before re-deploying the platform. Resources in namespaces default and kube-system are supposed to persist.${NC}"
+    echo -e "${YELLOW}You can check the progress with:${NC}"
+    echo -e "${YELLOW}watch microk8s.kubectl get all -A${NC}"
     echo -e "${GREEN}####################################  UNDEPLOYMENT DONE  ############################################${NC}"
 }
 
@@ -1624,6 +1802,7 @@ function run_migration_chart() {
         --set-string global.storage_class_workflow="$STORAGE_CLASS_WORKFLOW" \
         --set-string global.services_namespace="$SERVICES_NAMESPACE" \
         --set-string global.admin_namespace="$ADMIN_NAMESPACE" \
+        --set-string global.platform_prefix="$PLATFORM_PREFIX" \
         --set-string global.pull_policy_images="$PULL_POLICY_IMAGES" \
         --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
         --set-string global.kaapana_build_version="$PLATFORM_VERSION" \
@@ -1650,6 +1829,10 @@ function run_migration_chart() {
 
         if [[ "${SUCCEEDED:-0}" -ge 1 ]]; then
             echo -e "${GREEN}Migration job completed successfully!${NC}"
+            # Migration kept the old keycloak realm but not the new kaapana-admin client.
+            # Tell the keycloak chart to create that client (its migration init container).
+            # Then the bootstrap job can log in without the old admin password, which we no longer require.
+            KEYCLOAK_MIGRATION_BOOTSTRAP=true
             PODS=$(microk8s.kubectl get pods -n "$NAMESPACE" -l job-name="$JOB_NAME" -o name)
             for pod in $PODS; do
                 microk8s.kubectl logs "$pod" -n "$NAMESPACE"
@@ -1751,6 +1934,10 @@ function prompt_user_backup() {
     echo "   cp -a $FAST_DATA_DIR /path/to/fast/backup"
     echo "   cp -a $SLOW_DATA_DIR /path/to/slow/backup"
     echo
+    if [ "${QUIET:-false}" = true ]; then
+        echo "Quiet mode: proceeding with migration (use --no-migration to skip)."
+        return 0
+    fi
     while true; do
         read -p "Proceed with migration? (yes/no/skip): " answer
         case "$answer" in
@@ -2046,7 +2233,11 @@ function deploy_chart {
                 fi
             else
 
+                # microk8s >= 1.36 no longer sets nvidia as the default containerd runtime
+                # we therefore set nvidia as default (so that not every deployment needs to set the runtimeClassName individually)
+                # (the offline path does the same via CONTAINERD_SET_AS_DEFAULT=1).
                 microk8s enable nvidia --gpu-operator-driver host --gpu-operator-version $GPU_OPERATOR_VERSION \
+                    --gpu-operator-set-as-default-runtime \
                     --gpu-operator-set cdi.enabled=false \
                     --gpu-operator-set toolkit.env[3].name=RUNTIME_CONFIG_SOURCE --gpu-operator-set \
                     toolkit.env[3].value='file=/var/snap/microk8s/current/args/containerd.toml'
@@ -2133,7 +2324,37 @@ function deploy_chart {
     setup_storage_classes
 
     echo "${GREEN}Checking for version difference and migration options...${NC}"
+    # set to true by run_migration_chart when a migration actually runs
+    # consumed by the keycloak chart to bootstrap the kaapana-admin client on upgrades
+    KEYCLOAK_MIGRATION_BOOTSTRAP=false
     migrate
+
+    # --- Keycloak admin password -----------------------------------------------
+    # Every deploy sets the master-realm admin password and hands it to the
+    # bootstrap job, which applies it to the admin user. Without a flag a fresh
+    # random password is generated; with --set-keycloak-admin-password the
+    # operator is prompted for one (an empty entry falls back to random). The
+    # password is always printed after the deploy and is never validated against
+    # a policy - an entered value is accepted as-is.
+    KEYCLOAK_ADMIN_PASSWORD_TEMPORARY=false
+    if [ "${SET_KEYCLOAK_ADMIN_PASSWORD:-false}" = true ]; then
+        if [ ! -t 0 ] || [ "${QUIET:-false}" = true ]; then
+            echo -e "${RED}--set-keycloak-admin-password needs an interactive terminal (not --quiet).${NC}"
+            exit 1
+        fi
+        read -rsp "$(echo -e "${YELLOW}Keycloak admin password (empty = generate random): ${NC}")" KEYCLOAK_ADMIN_PASSWORD
+        echo
+        if [ -z "$KEYCLOAK_ADMIN_PASSWORD" ]; then
+            KEYCLOAK_ADMIN_PASSWORD=$(_generate_keycloak_password)
+            KEYCLOAK_ADMIN_PASSWORD_TEMPORARY=true
+            echo -e "${GREEN}No password entered - generated a random one (shown after deploy).${NC}"
+        fi
+    else
+        KEYCLOAK_ADMIN_PASSWORD=$(_generate_keycloak_password)
+        KEYCLOAK_ADMIN_PASSWORD_TEMPORARY=true
+        echo -e "${GREEN}Generated a random Keycloak admin password (shown after deploy).${NC}"
+    fi
+    # ---------------------------------------------------------------------------
 
     echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
@@ -2171,6 +2392,8 @@ function deploy_chart {
     --set-string global.credentials_grafana_password="$GRAFANA_PASSWORD" \
     --set-string global.credentials_keycloak_admin_username="$KEYCLOAK_ADMIN_USERNAME" \
     --set-string global.credentials_keycloak_admin_password="$KEYCLOAK_ADMIN_PASSWORD" \
+    --set global.keycloak_admin_password_temporary="${KEYCLOAK_ADMIN_PASSWORD_TEMPORARY:-false}" \
+    --set global.keycloak_migration_bootstrap="${KEYCLOAK_MIGRATION_BOOTSTRAP:-false}" \
     --set-string global.dicom_port="$DICOM_PORT" \
     --set-string global.fast_data_dir="$FAST_DATA_DIR" \
     --set-string global.services_namespace=$SERVICES_NAMESPACE \
@@ -2200,6 +2423,11 @@ function deploy_chart {
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.instance_uid="$INSTANCE_UID" \
     --set-string global.instance_name="$INSTANCE_NAME" \
+    --set-string global.login_header="$LOGIN_HEADER" \
+    --set-string global.login_subheader="$LOGIN_SUBHEADER" \
+    --set-string global.login_notice="$LOGIN_NOTICE" \
+    --set-string global.login_institution_name="$LOGIN_INSTITUTION_NAME" \
+    --set-string global.login_institution_logo="$LOGIN_INSTITUTION_LOGO" \
     --set global.dev_mode=$DEV_MODE \
     --set global.patch_workflows_if_conflict=$PATCH_WORKFLOWS_IF_CONFLICT \
     --set-string global.kaapana_init_password="$KAAPANA_INIT_PASSWORD" \
@@ -2209,6 +2437,9 @@ function deploy_chart {
     --set-string global.pacs_memory_request="$PACS_MEMORY_REQUEST" \
     --set-string global.airflow_memory_request="$AIRFLOW_MEMORY_REQUEST" \
     --set-string global.opensearch_memory_request="$OPENSEARCH_MEMORY_REQUEST" \
+    --set-string global.airflow_parallelism="$AIRFLOW_PARALLELISM" \
+    --set-string global.airflow_cpu_limit="$AIRFLOW_CPU_LIMIT" \
+    --set-string global.airflow_cpu_request="$AIRFLOW_CPU_REQUEST" \
     --set-string global.smtp_host="$SMTP_HOST" \
     --set-string global.smtp_port="$SMTP_PORT" \
     --set-string global.smtp_username="$SMTP_USERNAME" \
@@ -2222,6 +2453,16 @@ function deploy_chart {
     --set-string global.storage_node="$STORAGE_NODE" \
     "${kube_helm_timeout_args[@]}" \
     --name-template "$PLATFORM_NAME"
+
+    echo -e ""
+    echo -e "${YELLOW}══════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}  Keycloak admin password:${NC}"
+    echo -e "${GREEN}    $KEYCLOAK_ADMIN_PASSWORD${NC}"
+    if [ "$KEYCLOAK_ADMIN_PASSWORD_TEMPORARY" = true ]; then
+        echo -e "${YELLOW}  Temporary - change it on first login in the Keycloak UI.${NC}"
+    fi
+    echo -e "${YELLOW}══════════════════════════════════════════════════${NC}"
+    echo -e ""
 
     # In case of timeout-issues in kube helm increase the default timeouts by setting
 
@@ -2438,13 +2679,30 @@ function preflight_checks {
     fi
 
     SEVERITY+=(100)
-    TEST_NAMES+=("Check if ~/.kube/config matches microk8s config")
-    if [ "$(cat /home/$USER/.kube/config)" == "$(microk8s.kubectl config view --raw)" ]; then
+    TEST_NAMES+=("Check if ~/.kube/config matches this microk8s cluster")
+    # Allow for the server address to differ, if it points to the same cluster (same kube-system namespace uid)
+    local USER_KUBE_CONFIG
+    local MICROK8S_KUBE_CONFIG
+    local USER_KUBE_SYSTEM_UID
+    local MICROK8S_KUBE_SYSTEM_UID
+    local KUBECONFIG_MATCHES=false
+    USER_KUBE_CONFIG="$(microk8s.kubectl --kubeconfig "/home/$USER/.kube/config" config view --raw 2>/dev/null)"
+    MICROK8S_KUBE_CONFIG="$(microk8s.kubectl config view --raw 2>/dev/null)"
+    if [ -n "$USER_KUBE_CONFIG" ] && [ "$USER_KUBE_CONFIG" = "$MICROK8S_KUBE_CONFIG" ]; then
+        KUBECONFIG_MATCHES=true
+    elif [ "$(sed -E "s#^([[:space:]]*server:[[:space:]]*https://)[^:]+(:[0-9]+)\$#\1<host>\2#" <<<"$USER_KUBE_CONFIG")" = "$(sed -E "s#^([[:space:]]*server:[[:space:]]*https://)[^:]+(:[0-9]+)\$#\1<host>\2#" <<<"$MICROK8S_KUBE_CONFIG")" ]; then
+        USER_KUBE_SYSTEM_UID="$(microk8s.kubectl --kubeconfig "/home/$USER/.kube/config" get namespace kube-system -o "jsonpath={.metadata.uid}" 2>/dev/null)"
+        MICROK8S_KUBE_SYSTEM_UID="$(microk8s.kubectl get namespace kube-system -o "jsonpath={.metadata.uid}" 2>/dev/null)"
+        if [ -n "$USER_KUBE_SYSTEM_UID" ] && [ "$USER_KUBE_SYSTEM_UID" = "$MICROK8S_KUBE_SYSTEM_UID" ]; then
+            KUBECONFIG_MATCHES=true
+        fi
+    fi
+    if [ "$KUBECONFIG_MATCHES" = true ]; then
         TEST_FAILDS+=(false)
         RESULT_MSGS+=("")
     else
         TEST_FAILDS+=(true)
-        RESULT_MSGS+=("Your kubeconfig differs from the microk8s version.")
+        RESULT_MSGS+=("Your kubeconfig differs from the microk8s config beyond its server address or points to another cluster.")
     fi
 
     SEVERITY+=(100)

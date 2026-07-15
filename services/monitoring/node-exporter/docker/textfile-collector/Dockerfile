@@ -1,4 +1,4 @@
-FROM docker.io/alpine:3.19
+FROM docker.io/alpine:3.24.1
 
 LABEL IMAGE="node-exporter-textfile-collector"
 LABEL BUILD_IGNORE="False"

@@ -200,6 +200,8 @@ class OpenSearchHelper:
         except RequestError as e:
             if "resource_already_exists_exception" in str(e):
                 logger.warning(f"Index {index!r} already exists")
+            elif "already exists as alias" in str(e):
+                logger.warning(f"Index {index!r} already exists as an alias")
             else:
                 raise e
         await self._set_alias(index, alias)

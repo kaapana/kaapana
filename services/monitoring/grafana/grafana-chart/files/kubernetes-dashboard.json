@@ -439,7 +439,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(kube_endpoint_info)",
+          "expr": "sum(kube_endpointslice_info)",
           "interval": "",
           "legendFormat": "Endpoints",
           "refId": "D"

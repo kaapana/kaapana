@@ -176,10 +176,11 @@
         v-col(cols=4 align="left") Allowed Datasets:
         v-col(align="left")
           v-select(
-            v-model='instancePost.allowed_datasets' 
-            :items='datasets' 
-            :item-text="item => `${item.name} (${item.access_level})`" 
-            label='Allowed datasets' 
+            v-model='instancePost.allowed_datasets'
+            :items='datasets'
+            :item-text="item => `${item.name} (${item.access_level})`"
+            item-value='name'
+            label='Allowed datasets'
             multiple='' 
             chips='' 
             hint='Which datasets are allowed to be used' 

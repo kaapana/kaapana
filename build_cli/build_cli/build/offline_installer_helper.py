@@ -290,7 +290,7 @@ class OfflineInstallerHelper:
         snaps = [
             ("core20", "latest/stable"),
             ("core24", "latest/stable"),
-            ("microk8s", "1.33/stable"),
+            ("microk8s", "1.36/stable"),
             ("snapd", "latest/stable"),
             ("helm", "latest/stable"),
         ]

@@ -1,0 +1,17 @@
+# Service that oauth2-proxy uses to reach the redis session store (see redis_connection_url
+# in the configmap). Created only when the single "type" switch selects redis.
+{{- if eq .Values.session_storage.type "redis" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.session_storage.redis.service_name }}
+  namespace: "{{ .Values.global.helm_namespace }}"
+spec:
+  selector:
+    app.kubernetes.io/name: oauth2-proxy-redis
+  ports:
+    - protocol: TCP
+      port: {{ .Values.session_storage.redis.port }}
+      targetPort: redis
+      name: redis
+{{- end }}

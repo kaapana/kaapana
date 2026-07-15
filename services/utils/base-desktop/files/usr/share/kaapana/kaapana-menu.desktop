@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Applications
+Comment=Open the applications menu
+Icon=/usr/share/kaapana/kaapana.png
+Exec=jgmenu_run
+Terminal=false
+Categories=System;

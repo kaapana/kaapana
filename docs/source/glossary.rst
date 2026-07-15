@@ -132,6 +132,30 @@ Glossary
     kaapana-platform-chart
       This :term:`Helm<helm>` chart consists of most of the interactive components of Kaapana, such as Airflow, PACS, Minio, landing-page and Kaapana backend.
 
+    kaapana-backend
+      The original, still largely monolithic backend service of the :term:`kaapana-platform`.
+      It continues to serve dataset/DICOM metadata search, settings, file upload, and federated instance synchronization, while newer, more narrowly scoped services such as the :term:`workflow-api` and :term:`data-api` take over other responsibilities.
+      See :ref:`concepts_architecture`.
+
+    workflow-api
+      A service, introduced in Kaapana 0.6.0, that manages :term:`workflows<workflow>` and their runs independently of the underlying execution engine through an adapter interface (an Airflow adapter today).
+      It is gradually taking over workflow responsibilities from :term:`kaapana-backend`.
+      See :ref:`concepts_architecture`.
+
+    data-api
+      A service, introduced in Kaapana 0.6.0, that stores generic, UUID-identified data entities with backend-agnostic storage coordinates (PACS, S3, filesystem, or URL), schema-validated metadata, and attached artifacts.
+      It complements, rather than replaces, the DICOM/OpenSearch metadata search served by :term:`kaapana-backend`.
+      See :ref:`concepts_architecture`.
+
+    task-api
+      A Python library and JSON schema that defines a declarative contract between Kaapana and a :term:`processing-container`: a container ships a ``processing-container.json`` file describing its task templates, inputs/outputs and command, instead of being wired into a workflow purely through Python code.
+      See :ref:`concepts_architecture` and :ref:`processing_container_dev_guide`.
+
+    extension-manager
+      A service and web interface that installs and uninstalls :term:`extensions<extension>` pulled as OCI artifacts from a registered container registry, based on a manifest describing the extension's contents.
+      It runs alongside, not instead of, the Helm-chart upload mechanism described under :ref:`extensions`.
+      See :ref:`concepts_extensions_system`.
+
     containerd
       We use `containerd <https://containerd.io/>`_ as runtime environment for the :term:`containers<container>` in the :term:`Kubernetes<kubernetes>` cluster.
       It manages the lifecycle of a container.
@@ -151,9 +175,8 @@ Glossary
 
     server-installation-script
       Deprecated since Kaapana 0.6.0, replaced by :term:`kaapanactl`
-      This script is used to install all required dependencies on the :term:`server`.
-      It can be found within the Kaapana-repository: :code:`./kaapana/server-installation/server_installation.sh`.
-      It will execute the following steps:
+      This script installed all required dependencies on the :term:`server`; it was located at :code:`./kaapana/server-installation/server_installation.sh` and is no longer part of the repository.
+      It executed the following steps:
 
         #. Configure a proxy (if needed)
         #. Install packages if not present: snap, nano, jq, curl, net-tools, core20, core24, helm

@@ -14,7 +14,6 @@
             "test_pull_image": "-"
     },
     "mitk-workbench-chart": {
-        "service_type": "ClusterIP",
         "gpu_container": false
     }
 }

@@ -36,7 +36,7 @@ RUN python -m pip install --upgrade setuptools pip && pip3 install -c https://co
 
 # Code server
 RUN wget https://code-server.dev/install.sh
-RUN /bin/bash install.sh --version 4.2.0
+RUN /bin/bash install.sh --version 4.127.0
 RUN code-server --install-extension ms-python.python
 
 WORKDIR /kaapana/app

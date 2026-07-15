@@ -16,6 +16,9 @@ workflow:
       when: always
     - if: $CI_PIPELINE_SOURCE == "trigger"
       when: always
+    # Release build: maintainer pushes a protected release
+    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
+      when: always
     - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"
       when: always
     - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "schedule"
@@ -33,7 +36,7 @@ variables:
   CI_EXEC_DESTROY_DELAYED: $CI_EXEC_DESTROY_DELAYED
   CI_EXEC_DOCKER_PRUNE: $CI_EXEC_DOCKER_PRUNE
   CI_EXEC_INTEGRATION_TESTS: $CI_EXEC_INTEGRATION_TESTS
-  CI_EXEC_UNIT_TESTS: $CI_EXEC_UNIT_TESTS  
+  CI_EXEC_UNIT_TESTS: $CI_EXEC_UNIT_TESTS
 
   # Deployment instance configuration
   DEPLOYMENT_INSTANCE_FQDN: $DEPLOYMENT_INSTANCE_FQDN
@@ -142,7 +145,7 @@ task_api_tests:
     reports:
       junit:
         - task_api_report.xml
-        
+
 kaapana_extensions_tests:
   extends: .test_template
   script:
@@ -184,6 +187,45 @@ extensions_api_tests:
         - extensions_api_report.xml
 
 ##############################################
+# Keycloak Backend Tests
+##############################################
+kaapana_backend_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/base/kaapana-backend/docker/files/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/base/kaapana-backend/docker/files/tests/ --junitxml=kaapana_backend_report.xml
+  artifacts:
+    reports:
+      junit:
+        - kaapana_backend_report.xml
+
+##############################################
+# Access Information Interface Tests
+##############################################
+access_information_interface_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/data-separation/access-information-interface/docker/backend/files/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/data-separation/access-information-interface/docker/backend/files/tests/test_keycloak_helper.py --junitxml=aii_report.xml
+  artifacts:
+    reports:
+      junit:
+        - aii_report.xml
+
+##############################################
+# Keycloak Setup Tests
+##############################################
+keycloak_setup_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/kaapana-admin/keycloak/keycloak-setup/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/kaapana-admin/keycloak/keycloak-setup/tests/ --junitxml=keycloak_setup_report.xml
+  artifacts:
+    reports:
+      junit:
+        - keycloak_setup_report.xml
+
+##############################################
 # Documentation Build
 ##############################################
 build_documentation:
@@ -204,8 +246,8 @@ build_documentation:
   artifacts:
     expose_as: "Documentation"
     paths:
-      - $KAAPANA_DIR/ci/ci-code/build/public/docs/
-      - "$build_documentation_html.log"
+      - $KAAPANA_DIR/docs/build/html/
+      - "$KAAPANA_DIR/docs/build_documentation_html.log"
 
 ##############################################
 # BUILD
@@ -223,6 +265,16 @@ build_packages:
     RUNNER_SCRIPT_TIMEOUT: 8h
   timeout: 8 hours
   rules:
+    # Release build: triggered by pushing a protected release tag. Publishes to
+    # kaapana/releases with the deploy-token credentials (protected CI variables).
+    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
+      when: on_success
+      variables:
+        REGISTRY_URL: "registry.hzdr.de/kaapana/releases"
+        REGISTRY_USER: $RELEASE_REGISTRY_USER
+        REGISTRY_TOKEN: $RELEASE_REGISTRY_TOKEN
+        REGISTRY_ENV: "HZDR_RELEASES_REGISTRY"
+        CI_EXEC_DOCKER_PRUNE: "true"
     - if: '$CI_EXEC_BUILD == "true"'
       when: on_success
     - when: never
@@ -234,6 +286,9 @@ build_packages:
     - |-
       if [[ $CI_PIPELINE_SOURCE == "merge_request_event" ]]; then
         git checkout -B $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME $CI_COMMIT_SHA
+      elif [[ -n "$CI_COMMIT_TAG" ]]; then
+        # Tag pipeline: no branch ref; stay detached, git describe resolves the tag
+        git checkout $CI_COMMIT_SHA
       else
         git checkout -B $CI_COMMIT_BRANCH $CI_COMMIT_SHA
       fi
@@ -283,8 +338,13 @@ security:
       artifacts: true
   tags:
     - build-runner
+  variables:
+    PYTHON_VENV_DIR: ".venv-build"
+  before_script:
+    - python3 -m venv "$PYTHON_VENV_DIR"
+    - source "$PYTHON_VENV_DIR/bin/activate"
+    - pip install jsonschema requests
   script:
-    - pip install jsonschema requests -q
     - CONSOLIDATED="$CI_PROJECT_DIR/security-reports/consolidated_vulnerability_report.json"
     - python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
         "$CONSOLIDATED"

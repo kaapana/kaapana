@@ -235,9 +235,10 @@ Credentials
 
 .. important::
 
-   The following variables are used as credentials for system users for components within the platform.
-   They **must** be changed **before** running the deployment script.
-   After deployment you cannot change them without breaking the platform.
+   The following variables are used as credentials for system users of platform components.
+   They **must** be set **before** the first deployment - afterwards they cannot be changed
+   without breaking the platform. The Keycloak admin password is the exception (see the
+   note below the table).
 
 .. list-table::
    :header-rows: 1
@@ -262,9 +263,13 @@ Credentials
    * - ``KEYCLOAK_ADMIN_USERNAME``
      - ``"admin"``
      - Username for Keycloak administrator.
-   * - ``KEYCLOAK_ADMIN_PASSWORD``
-     - ``"Kaapana2020"``
-     - Password for Keycloak administrator. **Minimum policy for production: 1 specialChar + 1 upperCase + 1 lowerCase and 1 digit + min-length = 8**
+
+.. note::
+
+   The Keycloak admin password is not a fixed credential. Every deployment sets it
+   (random by default, or prompted with ``--set-keycloak-admin-password``), prints
+   it, and it can be changed afterwards. See
+   :ref:`Keycloak admin password <keycloak_admin_password>`.
 
 Initial Kaapana Login Credentials
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

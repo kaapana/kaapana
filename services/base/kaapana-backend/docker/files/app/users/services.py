@@ -8,41 +8,23 @@ class UserService:
     def __init__(
         self,
         server_url: str,
-        username: str,
-        password: str,
+        client_secret: str,
         realm_name: str = "kaapana",
-        user_realm_name: str = "master",
         verify: bool = False,
     ):
         self.server_url = server_url
-        self.username = username
-        self.password = password
+        self.client_secret = client_secret
         self.realm_name = realm_name
-        self.user_realm_name = user_realm_name
         self.verify = verify
         self._login()
 
     def _login(self):
-        # Option 1 - Use Admin from Master (insecure)
-        # keycloak_admin = KeycloakAdmin(server_url="https://localhost/auth/", #server_url="https://localhost/auth/",
-        #                               username='admin',
-        #                               password='Kaapana2020',
-        #                               realm_name="kaapana",
-        #                               user_realm_name="master",
-        #                               verify=False)
-        #
-
-        # Option 2 - Create a User in Kaapana for this
-        #
-        # HowTo (Source: https://stackoverflow.com/questions/56743109/keycloak-create-admin-user-in-a-realm)
-        # 1. Create a user and set a password
-        # 2. Under Roles>Client Roles select `realm-managment` and add all roles `query-*` and `view-*`
         self.keycloak_admin = KeycloakAdmin(
             server_url=self.server_url,
-            username=self.username,
-            password=self.password,
+            client_id="kaapana-service",
+            client_secret_key=self.client_secret,
             realm_name=self.realm_name,
-            user_realm_name=self.user_realm_name,
+            user_realm_name=self.realm_name,
             verify=self.verify,
         )
 

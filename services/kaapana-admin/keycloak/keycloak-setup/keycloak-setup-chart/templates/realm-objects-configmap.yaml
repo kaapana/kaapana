@@ -17,8 +17,12 @@ data:
   kaapana-client.json: |
 {{ .Files.Get "realm_objects/kaapana-client.json" | indent 4 }}
 
+  kaapana-service.json: |
+{{ .Files.Get "realm_objects/kaapana-service.json" | indent 4 }}
+
   kaapana-realm.json: |
-{{ .Files.Get "realm_objects/kaapana-realm.json" | indent 4 }}
+{{/* tpl expands the {{ }} placeholders in kaapana-realm.json (e.g. session timeouts) from values */}}
+{{ tpl (.Files.Get "realm_objects/kaapana-realm.json") . | indent 4 }}
 
   kaapana-user.json: |
 {{ .Files.Get "realm_objects/kaapana-user.json" | indent 4 }}

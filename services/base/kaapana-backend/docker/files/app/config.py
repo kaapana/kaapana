@@ -33,8 +33,7 @@ class Settings(BaseSettings):
     minio_password: str
 
     keycloak_url: str
-    keycloak_admin_username: str
-    keycloak_admin_password: str
+    keycloak_service_client_secret: str
 
     traefik_url: str
 

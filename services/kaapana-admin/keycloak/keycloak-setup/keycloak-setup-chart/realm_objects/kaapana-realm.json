@@ -1,7 +1,10 @@
 {
   "id" : "kaapana",
   "realm" : "kaapana",
+  "ssoSessionIdleTimeout" : {{ .Values.keycloak.sso_session_idle_timeout }},
+  "ssoSessionMaxLifespan" : {{ .Values.keycloak.sso_session_max_lifespan }},
   "enabled" : true,
+  "loginTheme" : "kaapana",
   "roles" : {
     "realm" : [ 
       {

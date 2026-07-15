@@ -28,7 +28,7 @@ LABEL BUILD_IGNORE="False"
 ################################
 RUN yarn build
 
-FROM nginx:1.29.3-alpine
+FROM nginx:1.31.2-alpine
 
 RUN mkdir /app
 COPY --from=build-stage /app/dist /app

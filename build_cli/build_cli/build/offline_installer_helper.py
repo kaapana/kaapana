@@ -104,7 +104,7 @@ class OfflineInstallerHelper:
 
         helm_executable = cls._build_config.helm_executable or "helm"
         name = "nvidia/gpu-operator"
-        version = "v25.3.0"
+        version = "v25.10.0"
         versioned_chart_path = target_path / f"gpu-operator-{version}.tgz"
         retry_count = 3
         last_error: Optional[str] = None

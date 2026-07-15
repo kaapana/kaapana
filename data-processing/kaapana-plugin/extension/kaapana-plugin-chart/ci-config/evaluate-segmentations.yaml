@@ -27,6 +27,7 @@ remote: false
 username: "kaapana"
 ---
 dag_id: evaluate-segmentations
+ci_ignore: true
 instance_names:
   - central
 conf_data:

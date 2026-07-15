@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<preferences name="">
+    <property name="showIntro" value="false"/>
+    <preferences name="org.mitk.startupdialog">
+        <property name="skip" value="true"/>
+    </preferences>
+</preferences>

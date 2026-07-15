@@ -1,0 +1,4 @@
+{
+    "_comment": "chromium.desktop launches with --no-sandbox (the sandbox can't init as non-root in the pod, see base-desktop Dockerfile). That normally shows an 'unsupported command-line flag: --no-sandbox' security banner on every start; this managed policy suppresses that banner without changing any other behaviour.",
+    "CommandLineFlagSecurityWarningsEnabled": false
+}

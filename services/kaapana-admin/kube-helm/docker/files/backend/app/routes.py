@@ -24,6 +24,26 @@ templates = Jinja2Templates(directory=join(dirname(str(__file__)), "templates"))
 logger = get_logger(__name__)
 
 
+async def _fetch_project(project_id: str) -> Optional[dict]:
+    url = f"{settings.aii_service_url}/projects/{project_id}"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(url)
+        if response.status_code != 200:
+            logger.warning(
+                "Failed to fetch project from AII: status=%s",
+                response.status_code,
+            )
+            return None
+        payload = response.json()
+        if not isinstance(payload, dict):
+            return None
+        return payload
+    except Exception:
+        logger.warning("Failed to fetch project %s from AII", project_id)
+        return None
+
+
 async def _fetch_project_whitelist(project_id: str) -> Optional[list[str]]:
     url = f"{settings.aii_service_url}/projects/{project_id}/multiinstallable-whitelist"
     try:
@@ -40,7 +60,9 @@ async def _fetch_project_whitelist(project_id: str) -> Optional[list[str]]:
             return None
         return [str(app) for app in payload]
     except Exception:
-        logger.warning("Failed to fetch project whitelist from AII for project %s", project_id)
+        logger.warning(
+            "Failed to fetch project whitelist from AII for project %s", project_id
+        )
         return None
 
 
@@ -268,7 +290,9 @@ async def helm_delete_chart(request: Request):
                         detail="Could not verify application whitelist. Please try again later.",
                     )
                 release = payload["release_name"]
-                is_whitelisted = any(release == e or release.startswith(e + "-") for e in whitelist)
+                is_whitelisted = any(
+                    release == e or release.startswith(e + "-") for e in whitelist
+                )
                 if whitelist and not is_whitelisted:
                     raise HTTPException(
                         status_code=403,
@@ -326,7 +350,9 @@ async def helm_install_chart(request: Request):
                 try:
                     project_form = json.loads(project_header)
                 except json.JSONDecodeError:
-                    raise HTTPException(status_code=400, detail="Invalid Project header")
+                    raise HTTPException(
+                        status_code=400, detail="Invalid Project header"
+                    )
                 project_id = project_form.get("id")
                 if project_id and not is_admin_request(request):
                     app_name = payload["name"]
@@ -346,10 +372,22 @@ async def helm_install_chart(request: Request):
                             ),
                         )
 
+                # The Project header from the frontend only carries {name, id};
+                # resolve the full project from AII to get the derived fields
+                # (short_id for the MinIO bucket, kubernetes_namespace).
+                project = await _fetch_project(project_id) if project_id else None
+                if project is None:
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Could not resolve the project. Please try again later.",
+                    )
                 payload["extension_params"] = payload.get("extension_params", {})
-                payload["extension_params"]["project_id"] = project_form.get("id")
-                payload["extension_params"]["project_name"] = project_form.get("name")
-                payload["extension_params"]["project_namespace"] = project_form.get(
+                payload["extension_params"]["project_id"] = project.get("id")
+                payload["extension_params"]["project_name"] = project.get("name")
+                payload["extension_params"]["project_short_id"] = project.get(
+                    "short_id"
+                )
+                payload["extension_params"]["project_namespace"] = project.get(
                     "kubernetes_namespace"
                 )
 
@@ -474,17 +512,30 @@ async def get_active_applications() -> List[schemas.ActiveApplication]:
         for active_app in active_apps:
             # get the release name of the chart from ingress
             release_name = active_app["release_name"]
-            # get all k8s objects of the chart and the ready status
-            _, ready, _, _ = helm_helper.get_kube_objects(release_name)
+            # get all k8s objects of the chart, the ready status and per-pod info
+            _, ready, _, kube_info = helm_helper.get_kube_objects(release_name)
             # find the deployed chart inside the extension object
             active_app["ready"] = ready
-            
+            # surface per-pod status so the frontend can tell initializing apart from errors
+            active_app["pods"] = [
+                {"name": n, "ready": r, "status": s, "restarts": rs, "age": a}
+                for n, r, s, rs, a in zip(
+                    kube_info.name,
+                    kube_info.ready,
+                    kube_info.status,
+                    kube_info.restarts,
+                    kube_info.age,
+                )
+            ]
+
             try:
                 values = helm_helper.helm_get_values(release_name)
                 if values:
                     active_app["values"] = values
             except Exception as values_error:
-                logger.warning(f"Could not fetch helm values for {release_name}: {values_error}")
+                logger.warning(
+                    f"Could not fetch helm values for {release_name}: {values_error}"
+                )
 
         return active_apps
     except Exception as e:

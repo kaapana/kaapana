@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=QuPath
+Comment=Whole-slide image analysis for digital pathology
+Exec=/opt/qupath/bin/QuPath
+Icon=/opt/qupath/lib/QuPath.png
+Terminal=false
+Categories=Science;Graphics;

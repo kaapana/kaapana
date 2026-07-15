@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=napari
+Comment=Multi-dimensional image viewer for scientific image analysis
+Exec=/opt/napari-venv/bin/napari
+Icon=/usr/share/pixmaps/napari.png
+Terminal=false
+Categories=Science;Graphics;

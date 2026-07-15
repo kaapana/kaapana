@@ -623,7 +623,7 @@ function deploy() {
     if [ "$DO_CHECK_SYSTEM" = "true" ]; then
         validate_platform_prefix
         check_system kaapana-admin-chart default
-        check_system kaapana-platform-chart admin
+        check_system kaapana-platform-chart default
         check_system "${PLATFORM_PREFIX}-project-admin" admin
         exit 0
     fi
@@ -1829,7 +1829,7 @@ function run_migration_chart() {
 
         if [[ "${SUCCEEDED:-0}" -ge 1 ]]; then
             echo -e "${GREEN}Migration job completed successfully!${NC}"
-            # Migration kept the old keycloak realm but not the new kaapana-admin client. 
+            # Migration kept the old keycloak realm but not the new kaapana-admin client.
             # Tell the keycloak chart to create that client (its migration init container).
             # Then the bootstrap job can log in without the old admin password, which we no longer require.
             KEYCLOAK_MIGRATION_BOOTSTRAP=true
@@ -2324,7 +2324,7 @@ function deploy_chart {
     setup_storage_classes
 
     echo "${GREEN}Checking for version difference and migration options...${NC}"
-    # set to true by run_migration_chart when a migration actually runs 
+    # set to true by run_migration_chart when a migration actually runs
     # consumed by the keycloak chart to bootstrap the kaapana-admin client on upgrades
     KEYCLOAK_MIGRATION_BOOTSTRAP=false
     migrate
@@ -2496,7 +2496,7 @@ function pull_chart {
             || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 )
         ((i++))
     done
-    
+
     if [ ! -f "${dest_dir}/${chart_name}-${chart_version}.tgz" ]; then
         echo -e "${RED}Could not pull chart! -> abort${NC}"
         echo -e "${YELLOW}This can be related to issues on the registry side or connection issues.${NC}"

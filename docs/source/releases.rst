@@ -3,6 +3,89 @@
 Changelog
 #########
 
+.. _release-0.7.0:
+
+------------------------
+
+********************
+Release Notes v0.7.0
+********************
+
+July 15, 2026
+
+---------------------------
+
+Extension Manager
+-----------------
+
+The centerpiece of 0.7.0 is the new Extension Manager, continuing the platform modernization started with the core APIs (Workflow API, Task API and Data API) in 0.6.0. It provides a central service and a new frontend for managing extensions on the platform and within projects. The Workflow API is integrated as its first consumer, and workflows installed through the Extension Manager are available in the Workflow API.
+
+Around it, extension development has also toolchain updates:
+
+* **kaapana_extensions library**: shared library used by the Extension Manager, the EDK and the build system
+* Extensions can be prefetched during deployment for air-gapped operation
+* **EDK (Extension Development Kit)**: now uses buildah for a more consistent extension development in the platform
+
+Note that the Extension Manager, like the Workflow, Data and Task APIs, is still experimental. The legacy extension backend (kube-helm) and the kaapana-backend remain the primary services in this release, but they are deprecated. From the next major release on, the Extension Manager and the Workflow, Data and Task APIs will be the first-class citizens and the legacy services will be removed.
+
+Other New Features
+------------------
+
+* **Project identity by short_id**: all project datastores (Kubernetes namespace, MinIO bucket, OpenSearch index, DICOM AE title and tag (0012,0020)) are keyed by a stable ``short_id`` (first 8 characters of the project UUID, shown under **System → Projects**) instead of the project name, so projects can now be renamed, edited and deleted. External DICOM nodes must update their called-AE title from ``kp-<name>`` to ``kp-<short_id>``
+* **Service-to-service authentication**: services authenticate through dedicated Keycloak clients instead of the admin password, supported by a new authentication client library. The admin password is set on each deploy and can be changed with ``./kaapanactl.sh set-keycloak-admin-password``
+* **Private user datasets** and a **default project** that new users are automatically assigned to
+* **Project-scoped active applications**: applications started in a project are now managed and visible within that project, with status indicators (starting / ready / error) instead of Bad Gateway errors during startup, and no full page reloads
+* **Viewer annotations to PACS**: OHIF/Slim annotations can be saved back to the PACS via STOW-RS
+* **Workflow run log viewer** in the experimental Workflow UI, and policy-driven cleanup of workflow-run data
+* **Offline installation**: the offline installer is packaged as registry-delivered artifacts, including BOA and TotalSegmentator model weights
+
+Enhancements / Bug Fixes on Existing Features
+---------------------------------------------
+
+* More stable DICOM ingestion under load: tuned Keycloak resources, Airflow parallelism and DAG CPU limits
+* More robust deployment lifecycle: Helm 4 status parsing during install/deploy, introducing ``platform_prefix`` for namespace robustness in Kubernetes clusters, fixed image pull policy and faster undeployment
+* Faster UI on large deployments: lazy loading of workflow results, lightweight dataset listing, fixed DICOMweb study pagination for non-admin users in Slim
+* OAuth2-proxy sessions moved to Redis, fixing login failures from oversized cookies
+* Fixed multi-GPU task scheduling and container command/argument handling in the Task API
+* Workflow fixes: new ``UPSTREAM_FAILED`` run status and complete log parsing in the experimental Workflow API, executor-context fix for branch operators
+* Selkies streaming for desktop applications: browser-based applications (MITK Flow, MITK Workbench, 3D Slicer, the reworked Desktop Demo) now stream via Selkies v2 instead of the noVNC/x11vnc stack, for a much smoother remote UI
+* MITK: increased memory limits, fixed fullscreen mode, unified startup scripts and a new Workbench launcher that skips the startup dialog
+* Fixed repeated model downloads on workflow runs and out-of-memory errors during thumbnail generation
+* Tightened NetworkPolicies and fixed notification-service access from project namespaces
+* Redesigned login page
+* More fine-grained application permissions, with simplified permission names (e.g. ``manage_project_users`` → ``manage_users``)
+* Many small fixes, among others: dataset creation from queries, notification read-state, classification workflow model selection, Airflow login redirect after login, dataset selection in project management, Keycloak credential quoting
+* The build system moved fully to the ``kaapana-build`` CLI introduced in 0.6.0, with fixes for ``--build-only``, worktree resolution from the working directory and build-dependency download URLs
+
+Deprecated and Removed Features
+-------------------------------
+
+* Deprecated the legacy extension backend (kube-helm) and the kaapana-backend; they remain the primary services in 0.7.0 but will be removed in the next major release in favor of the Extension Manager and the Workflow, Data and Task APIs
+* Removed the deprecated TotalSegmentator (V1) workflow — use TotalSegmentator V2, introduced in 0.6.0
+* Removed the deprecated ``build-scripts`` in favor of the build CLI
+
+Updates and Security Fixes
+--------------------------
+
+* microk8s 1.36
+* PostgreSQL 18
+* Keycloak 26.6.4
+* OpenSearch 3.7.0 / OpenSearch Dashboards 3.6.0
+* OAuth2-proxy 7.15.2
+* Traefik 3.7
+* Nginx 1.31
+* Open Policy Agent 1.18
+* Docker registry 3.1 (local/offline installations)
+* Monitoring stack: Prometheus 3.13, Grafana 11.6, Loki 3.7, Promtail 3.6, updated exporters
+* Updated containerd in kube-helm and numerous CVE patches across base images, the local registry and the landing page
+* Updated pytorch-lightning, fixing the body-part-regression workflow
+* Restructured and extended documentation: new API reference docs and a reorganized development guide
+
+Migration from 0.6.x to 0.7.0
+-----------------------------
+
+Upgrading from 0.6.x to 0.7.0 is fully supported. On deploy, ``kaapanactl.sh`` detects the version change and runs the migration automatically, including the in-place PostgreSQL 17 → 18 upgrade, the Keycloak schema migration and the re-keying of project storage to ``short_id``. Projects, users and data are preserved. Follow the :ref:`migration guide <migration_guide_0.7>` — and back up your data directories first, this is not done automatically.
+
 .. _release-0.6.1:
 
 ------------------------

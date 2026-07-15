@@ -1,12 +1,12 @@
 {
-    "description": "Kaapana release v0.6.1",
-    "title": "kaapana/kaapana: v0.6.1",
-    "version": "0.6.1",
+    "description": "Kaapana release v0.7.0",
+    "title": "kaapana/kaapana: v0.7.0",
+    "version": "0.7.0",
     "license": {
         "id": "AGPL-3.0"
     },
     "upload_type": "software",
-    "publication_date": "2026-02-23",
+    "publication_date": "2026-07-15",
     "creators": [
         {
             "affiliation": "German Cancer Research Center",
@@ -35,10 +35,6 @@
         {
             "affiliation": "German Cancer Research Center",
             "name": "Julian Ziegler"
-        },
-        {
-            "affiliation": "German Cancer Research Center",
-            "name": "Stefan Denner"
         },
         {
             "affiliation": "German Cancer Research Center",

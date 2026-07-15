@@ -16,6 +16,9 @@ workflow:
       when: always
     - if: $CI_PIPELINE_SOURCE == "trigger"
       when: always
+    # Release build: maintainer pushes a protected release
+    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
+      when: always
     - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"
       when: always
     - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "schedule"
@@ -33,7 +36,7 @@ variables:
   CI_EXEC_DESTROY_DELAYED: $CI_EXEC_DESTROY_DELAYED
   CI_EXEC_DOCKER_PRUNE: $CI_EXEC_DOCKER_PRUNE
   CI_EXEC_INTEGRATION_TESTS: $CI_EXEC_INTEGRATION_TESTS
-  CI_EXEC_UNIT_TESTS: $CI_EXEC_UNIT_TESTS  
+  CI_EXEC_UNIT_TESTS: $CI_EXEC_UNIT_TESTS
 
   # Deployment instance configuration
   DEPLOYMENT_INSTANCE_FQDN: $DEPLOYMENT_INSTANCE_FQDN
@@ -142,7 +145,7 @@ task_api_tests:
     reports:
       junit:
         - task_api_report.xml
-        
+
 kaapana_extensions_tests:
   extends: .test_template
   script:
@@ -262,6 +265,16 @@ build_packages:
     RUNNER_SCRIPT_TIMEOUT: 8h
   timeout: 8 hours
   rules:
+    # Release build: triggered by pushing a protected release tag. Publishes to
+    # kaapana/releases with the deploy-token credentials (protected CI variables).
+    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
+      when: on_success
+      variables:
+        REGISTRY_URL: "registry.hzdr.de/kaapana/releases"
+        REGISTRY_USER: $RELEASE_REGISTRY_USER
+        REGISTRY_TOKEN: $RELEASE_REGISTRY_TOKEN
+        REGISTRY_ENV: "HZDR_RELEASES_REGISTRY"
+        CI_EXEC_DOCKER_PRUNE: "true"
     - if: '$CI_EXEC_BUILD == "true"'
       when: on_success
     - when: never
@@ -273,6 +286,9 @@ build_packages:
     - |-
       if [[ $CI_PIPELINE_SOURCE == "merge_request_event" ]]; then
         git checkout -B $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME $CI_COMMIT_SHA
+      elif [[ -n "$CI_COMMIT_TAG" ]]; then
+        # Tag pipeline: no branch ref; stay detached, git describe resolves the tag
+        git checkout $CI_COMMIT_SHA
       else
         git checkout -B $CI_COMMIT_BRANCH $CI_COMMIT_SHA
       fi

@@ -385,7 +385,7 @@ def get_os_dashboards(os_client=Depends(get_opensearch)):
         return {"Error message": str(e)}, 500
 
     hits = res["hits"]["hits"]
-    dashboards = list(sorted([hit["_source"]["dashboard"]["title"] for hit in hits]))
+    dashboards = list(sorted({hit["_source"]["dashboard"]["title"] for hit in hits}))
     return {"dashboards": dashboards}
 
 

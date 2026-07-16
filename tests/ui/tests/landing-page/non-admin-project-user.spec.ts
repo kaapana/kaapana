@@ -44,7 +44,11 @@ test.describe('Landing Page — non-admin user with a project (scientist)', { ta
       const portal = new LandingPage(page);
       await portal.waitForLoad();
 
-      // Selected project auto-set to the one this user belongs to.
+      // The selector auto-picks the first project returned by the AII
+      // (usually "public", which every user belongs to) — switch to the
+      // test project explicitly. This also verifies the user actually
+      // belongs to it, since it must appear in the dropdown.
+      await portal.switchProject(TEST_PROJECT);
       await expect(portal.projectSelector).toContainText(TEST_PROJECT, { timeout: 10_000 });
 
       // Sidebar visibility here is governed by the Open Policy Agent policy

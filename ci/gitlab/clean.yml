@@ -1,0 +1,51 @@
+##############################################
+# CLEAN
+##############################################
+destroy_deployment:
+  stage: clean
+  interruptible: false
+  timeout: 6 hours
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+  rules:
+    # Never destroy externally-provided VMs
+    - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
+      when: never
+    - if: '$CI_EXEC_DEPLOY == "true" && $CI_EXEC_DESTROY_DELAYED == "true"'
+      when: delayed
+      start_in: 4 hours
+    - if: '$CI_EXEC_DEPLOY == "true"'
+      when: always
+    - when: never
+  tags:
+    - deploy-runner
+  variables:
+    GIT_STRATEGY: fetch
+    GIT_DEPTH: 1
+  before_script:
+    # When deployment.env is missing (prepare failed early), the delete
+    # playbooks resolve the VM by its truncated name instead of VM_FQDN.
+    - !reference [.truncate_vm_name, script]
+    - VENV_PATH=$(eval echo "$ORCHESTRATOR_INSTANCE_PYTHON_VENV")
+    - source "$VENV_PATH/bin/activate"
+  script:
+    - bash "$CI_PROJECT_DIR/ci/ci-code/clean/wait_and_destroy.sh"
+
+if_ci_failing:
+  stage: clean
+  tags:
+    - deploy-runner
+  variables:
+    GIT_STRATEGY: fetch
+    GIT_DEPTH: 1
+  before_script:
+    - VENV_PATH=$(eval echo "$ORCHESTRATOR_INSTANCE_PYTHON_VENV")
+    - source "$VENV_PATH/bin/activate"
+  script:
+    - cd "$CI_PROJECT_DIR/ci/ci-code/clean"
+    - python3 create_ticket_if_ci_failed.py
+    - python3 notify_slack.py
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+      when: on_failure

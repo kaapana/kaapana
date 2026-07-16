@@ -51,18 +51,12 @@
         - "artifacts_dir={{ artifacts_dir }}"
 
   # dcmsend imposes a 57-character limit on the peerhost (FQDN) field.
-  # Truncate vm_name here, before any resources are created, so the
-  # resulting FQDN (vm_name.vm_dns_domain) stays within that limit.
-  - name: Truncate vm_name so FQDN stays within 57 characters
-    ansible.builtin.set_fact:
-      vm_name: "{{ vm_name[: 57 - 1 - (vm_dns_domain | length)] | regex_replace('-+$', '') }}"
-      _vm_name_truncated: true
-    when: (vm_name | length) > (57 - 1 - (vm_dns_domain | length))
-
-  - name: Warn that vm_name was truncated to satisfy FQDN limit
-    ansible.builtin.debug:
-      msg: "WARNING: vm_name was truncated; FQDN will be {{ vm_name }}.{{ vm_dns_domain }} ({{ (vm_name + '.' + vm_dns_domain) | length }} chars)"
-    when: _vm_name_truncated | default(false)
+  # Truncation happens once in CI (.truncate_vm_name in ci/gitlab/deploy.yml);
+  # fail fast here in case the playbook is run without it.
+  - name: Assert FQDN stays within the 57-character dcmsend limit
+    ansible.builtin.assert:
+      that: (vm_name + '.' + vm_dns_domain) | length <= 57
+      fail_msg: "FQDN {{ vm_name }}.{{ vm_dns_domain }} exceeds 57 characters — shorten DEPLOYMENT_INSTANCE_VM_NAME"
 
   - name: Fetch image by label selector
     kubernetes.core.k8s_info:

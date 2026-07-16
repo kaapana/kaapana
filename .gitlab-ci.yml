@@ -684,7 +684,6 @@ send_data:
 run_workflows:
   extends: .integration_test_local
   timeout: 2 hours
-  allow_failure: true
   needs:
     - job: prepare_deployment
       artifacts: true

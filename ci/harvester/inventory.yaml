@@ -51,6 +51,11 @@ all:
           # runners stay on the shell default until their own flip.
           runner_executor: docker
           runner_docker_image: "python:3.12"
+          # /builds shared with services + privileged allowed for dind only:
+          # task_api_tests runs real task containers against a per-job dind.
+          runner_docker_volumes: ["/cache", "/builds"]
+          runner_docker_services_privileged: true
+          runner_docker_allowed_privileged_services: ["docker.io/library/docker:*"]
           runner_global_concurrency: 4
 
     build_instances:

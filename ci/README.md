@@ -79,7 +79,7 @@ graph TB
 - **Small VM (tests-runner)**: Runs unit tests and documentation builds in parallel
 - **Big VM (build-runner)**: Builds Docker container images
 - **Orchestrator (deploy-runner)**: Controls deployment and cleanup flow via Ansible
-- **Deployment Instance**: Target server where Kaapana runs (auto-created via Harvester/OpenStack or pre-specified)
+- **Deployment Instance**: Target server where Kaapana runs (auto-created via Harvester or pre-specified)
 
 ### Execution Flow
 1. **Tests Stage** (Small VM): Unit/API tests + docs build run **in parallel**
@@ -113,7 +113,7 @@ graph TB
 2. Install Ansible and collection:
    ```bash
    sudo apt install ansible -y
-   ansible-galaxy collection install openstack.cloud
+   ansible-galaxy collection install kubernetes.core
    ```
 
 3. Set required environment variables for runner provisioning:

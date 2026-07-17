@@ -118,9 +118,15 @@ variables:
   # --- Documentation (scheduled readthedocs check)
   KAAPANA_READTHEDOCS_TOKEN: $KAAPANA_READTHEDOCS_TOKEN # secret — project variable (masked)
 
-  # --- DKFZ network proxy
+  # --- DKFZ network proxy. NO_PROXY is mandatory alongside: requests/httpx
+  # honor the proxy vars for EVERY destination incl. 127.0.0.1, so without the
+  # exemptions the pytest-docker registries (kaapana_extensions_tests) and all
+  # internal targets (test VMs on vms.dkfz.de, Harvester API, internal mirror)
+  # hairpin through www-int2 and time out.
   HTTP_PROXY: "http://www-int2.dkfz-heidelberg.de:80"
   HTTPS_PROXY: "http://www-int2.dkfz-heidelberg.de:80"
+  NO_PROXY: "localhost,127.0.0.1,.dkfz.de,.dkfz-heidelberg.de"
+  no_proxy: "$NO_PROXY" # lowercase twin — some tools read only one casing
 
   # --- Fixed settings
   ANSIBLE_VERBOSITY: 0 # read natively by ansible-playbook
@@ -174,22 +180,17 @@ build_ci_image:
   stage: tests
   tags:
     - tests-runner
+  # Docker executor: each job gets a fresh container — no venv juggling, no
+  # per-job clone paths, no workspace GC (that was shell-executor hygiene).
+  image: python:3.12
   rules:
     - if: '$CI_EXEC_UNIT_TESTS == "true"'
       when: always
     - when: never
   variables:
-    KAAPANA_DIR: "$GIT_CLONE_PATH"
-    # Due to parallel execution on the same machine, each job needs its own clone path.
-    GIT_CLONE_PATH: "$CI_BUILDS_DIR/$CI_COMMIT_SHORT_SHA/$CI_JOB_NAME-$CI_JOB_ID"
+    KAAPANA_DIR: "$CI_PROJECT_DIR"
     GIT_STRATEGY: fetch
     GIT_DEPTH: 1
-  before_script:
-    # Concurrent jobs GC the same directories — ENOENT races must not fail the job
-    - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \; || true
-    - PYTHON_VENV_DIR=~/.venvs/$CI_JOB_NAME
-    - python3 -m venv "$PYTHON_VENV_DIR"
-    - source "$PYTHON_VENV_DIR/bin/activate"
 
 ##############################################
 # Unit Tests: General Platform Tests
@@ -222,6 +223,21 @@ task_api_tests:
 
 kaapana_extensions_tests:
   extends: .test_template
+  # The integration tests need an OCI registry. Locally pytest-docker starts
+  # one per xdist worker; here a single shared service container serves all
+  # workers (KAAPANA_TEST_REGISTRY skips pytest-docker, conftest isolates
+  # workers by repo) — keeps the tests runner free of any docker socket.
+  services:
+    - name: registry:3.1.1
+      alias: registry
+      variables:
+        REGISTRY_STORAGE_DELETE_ENABLED: "true"
+  variables:
+    KAAPANA_TEST_REGISTRY: "http://registry:5000"
+    # Both casings set explicitly: the service must not hairpin through the
+    # DKFZ proxy, and requests reads no_proxy before NO_PROXY.
+    NO_PROXY: "localhost,127.0.0.1,registry,.dkfz.de,.dkfz-heidelberg.de"
+    no_proxy: "localhost,127.0.0.1,registry,.dkfz.de,.dkfz-heidelberg.de"
   script:
     - pip install -e "$KAAPANA_DIR/lib/kaapana_containers[test]"
     - pip install -e "$KAAPANA_DIR/lib/kaapana_extensions[test]"
@@ -322,6 +338,7 @@ build_documentation:
 ##############################################
 check_readthedocs:
   extends: .test_template
+  image: $CI_BASE_IMAGE # needs curl + jq
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop"
       when: always

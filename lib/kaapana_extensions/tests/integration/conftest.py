@@ -7,7 +7,10 @@ from pathlib import Path
 from kaapana_containers.registries.registry import OCIError
 from kaapana_extensions.extensions import ExtensionUtilityLibrary
 
-_REPO = "test/extensions"
+# Repo unique per xdist worker: when KAAPANA_TEST_REGISTRY points all workers
+# at one shared registry, clean_registry must not wipe another worker's tags
+# (the client — and thus the wipe — is repo-scoped).
+_REPO = f"test/extensions-{os.environ.get('PYTEST_XDIST_WORKER', 'main')}"
 _USER = "user"
 _PASSWORD = "pass"
 
@@ -25,15 +28,18 @@ def docker_compose_file():
 
 
 @pytest.fixture(scope="session")
-def registry_url(docker_ip, docker_services):
+def registry_url(request):
     # Set KAAPANA_TEST_REGISTRY=http://localhost:5001 to skip Docker and use
-    # a registry you started manually — useful for inspecting state mid-run.
+    # a registry you started manually (or the CI service container) — the
+    # docker fixtures are requested lazily so no docker daemon is needed then.
     external = os.environ.get("KAAPANA_TEST_REGISTRY", "").strip()
     if external:
         if not _registry_responsive(external):
             pytest.fail(f"KAAPANA_TEST_REGISTRY={external!r} is not reachable")
         return external
 
+    docker_ip = request.getfixturevalue("docker_ip")
+    docker_services = request.getfixturevalue("docker_services")
     port = docker_services.port_for("registry", 5000)
     url = f"http://{docker_ip}:{port}"
     docker_services.wait_until_responsive(
@@ -69,10 +75,14 @@ async def client(registry_url):
 @pytest.fixture
 def registry_opts(registry_url):
     return [
-        "--registry", registry_url,
-        "--repo", _REPO,
-        "--user", _USER,
-        "--password", _PASSWORD,
+        "--registry",
+        registry_url,
+        "--repo",
+        _REPO,
+        "--user",
+        _USER,
+        "--password",
+        _PASSWORD,
     ]
 
 
@@ -101,6 +111,8 @@ def ext_dir(tmp_path):
 
 @pytest.fixture
 def ext_archive(ext_dir, tmp_path):
-    archives = list(ExtensionUtilityLibrary.build(str(ext_dir), output=tmp_path / "build"))
+    archives = list(
+        ExtensionUtilityLibrary.build(str(ext_dir), output=tmp_path / "build")
+    )
     assert len(archives) == 1
     return archives[0][1]

@@ -69,6 +69,15 @@ all:
           runner_tags: ["build-runner"]
           runner_limit: 1
           runner_concurrency: 2
+          runner_executor: docker
+          # Default image only carries pipelines from unrebased branches whose
+          # build jobs declare no image: — needs python + git + docker CLI.
+          runner_docker_image: "registry.hzdr.de/kaapana/ci-base:v2"
+          # Socket: warm host-daemon layer cache (CI-ARCHITECTURE.md,
+          # constraint 5). No other host mounts — trivy runs in-process and
+          # scans registry images, not daemon state.
+          runner_docker_volumes:
+            ["/var/run/docker.sock:/var/run/docker.sock", "/cache"]
           runner_global_concurrency: 1
         
         # build-02:

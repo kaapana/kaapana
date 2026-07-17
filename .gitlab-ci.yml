@@ -69,6 +69,15 @@ variables:
   DOCKER_IO_USER: $DOCKER_IO_USER # project variable, paired with the password
   DOCKER_IO_PASSWORD: $DOCKER_IO_PASSWORD # secret — project variable (masked)
 
+  # --- CI job image (docker executor, CI-ARCHITECTURE.md phase 2). One image
+  # for all jobs, build jobs included. Runners pull with pull_policy =
+  # ["if-not-present"], so bump CI_IMAGES_TAG in the same MR that changes
+  # ci/images/** — re-pushing an existing tag leaves warm runners on the stale
+  # image. Always $CI_REGISTRY_URL, never the release registry (REGISTRY_URL
+  # is swapped on tag pipelines, this must not be).
+  CI_IMAGES_TAG: "v1"
+  CI_BASE_IMAGE: "$CI_REGISTRY_URL/ci-base:$CI_IMAGES_TAG"
+
   # Purpose-specific tokens (CI-AUDIT.md S2). Both currently alias the shared
   # CI_REGISTRY_TOKEN secret. To move a purpose onto its own credential, create
   # a project-level CI variable with the same name — project variables take
@@ -120,6 +129,43 @@ variables:
   ARTIFACTS_DIR: "$CI_PROJECT_DIR/artifacts"
   # Not declared here: CLIENT_SECRET is extracted from the deployed platform by
   # setup_integration_tests and passed downstream via a dotenv artifact.
+
+##############################################
+# CI IMAGE
+##############################################
+# Rebuilds the CI job image when its inputs change. Bootstrap is a manual
+# build+push (CI-ARCHITECTURE.md phase 2, step 0); this job handles updates.
+# Note: jobs of the same pipeline don't wait for this rebuild — land image
+# changes with a CI_IMAGES_TAG bump, jobs pull the new tag on first use.
+build_ci_image:
+  stage: tests
+  tags:
+    - build-runner
+  rules:
+    # rules:changes only has a diff basis on push/MR pipelines — it evaluates
+    # to true on schedule/web/api/trigger, which would rebuild every run.
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop")
+      changes:
+        - ci/images/**/*
+        - ci/harvester/tasks/requirements.txt
+        - ci/ci-code/integration_tests/pyproject.toml
+      when: on_success
+    - when: never
+  variables:
+    GIT_STRATEGY: fetch
+    GIT_DEPTH: 1
+  script:
+    - |
+      set +x
+      echo "$CI_REGISTRY_TOKEN" | docker login "$CI_REGISTRY_URL" -u "$CI_REGISTRY_USER" --password-stdin
+    # Context is ci/, not the repo root — no .dockerignore exists, the root
+    # would ship the entire checkout as build context.
+    - docker build --build-arg http_proxy="$HTTP_PROXY" --build-arg https_proxy="$HTTPS_PROXY"
+        -f ci/images/ci-base/Dockerfile -t "$CI_BASE_IMAGE" ci
+    - docker push "$CI_BASE_IMAGE"
+  after_script:
+    # Don't leave docker login sessions on the shared runner (CI-AUDIT.md S2)
+    - docker logout "$CI_REGISTRY_URL" || true
 
 ##############################################
 # TESTS AND DOCS
@@ -753,6 +799,7 @@ if_ci_failing:
   # job never downloads secrets (integration-test dotenv) or bulky reports.
   # When adding a job to the pipeline, add it here too.
   needs:
+    - { job: build_ci_image, optional: true, artifacts: false }
     - { job: unit_tests, optional: true, artifacts: false }
     - { job: task_api_tests, optional: true, artifacts: false }
     - { job: kaapana_extensions_tests, optional: true, artifacts: false }

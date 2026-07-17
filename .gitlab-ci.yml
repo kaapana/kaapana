@@ -139,7 +139,8 @@ variables:
     GIT_STRATEGY: fetch
     GIT_DEPTH: 1
   before_script:
-    - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
+    # Concurrent jobs GC the same directories — ENOENT races must not fail the job
+    - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \; || true
     - PYTHON_VENV_DIR=~/.venvs/$CI_JOB_NAME
     - python3 -m venv "$PYTHON_VENV_DIR"
     - source "$PYTHON_VENV_DIR/bin/activate"
@@ -305,7 +306,8 @@ build_packages:
       when: on_success
     - when: never
   before_script:
-    - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
+    # Concurrent jobs GC the same directories — ENOENT races must not fail the job
+    - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \; || true
     - python3 -m venv "$PYTHON_VENV_DIR"
     - source "$PYTHON_VENV_DIR/bin/activate"
     - pip install --upgrade pip && pip install -e build_cli/
@@ -433,7 +435,8 @@ prepare_deployment:
   variables:
     GIT_STRATEGY: "clone"
   script:
-    - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
+    # Concurrent jobs GC the same directories — ENOENT races must not fail the job
+    - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \; || true
     - |
       if [[ "$CI_EXEC_DEPLOY" == "true" && -z "$DEPLOYMENT_INSTANCE_FQDN" ]]; then
         # vm_name is truncated inside the provisioning playbook to keep the FQDN

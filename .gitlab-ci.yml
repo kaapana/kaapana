@@ -210,10 +210,30 @@ unit_tests:
 ##############################################
 task_api_tests:
   extends: .test_template
+  # These tests build and run real task containers (DockerRunner bind-mounts
+  # paths and asserts on the outputs), so they get a per-job docker daemon as
+  # a privileged dind service — the only job that needs one. Bind mounts
+  # resolve because the runner shares the /builds volume with services, so
+  # all mounted paths (TASK_DIR, TMPDIR) must live under $CI_PROJECT_DIR.
+  services:
+    - name: docker:28-dind
+      alias: docker
+      variables:
+        DOCKER_TLS_CERTDIR: ""
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+    TMPDIR: "$CI_PROJECT_DIR/tmp"
+    # docker-py goes through requests — the dind service must not hairpin
+    # through the DKFZ proxy (requests reads no_proxy before NO_PROXY).
+    NO_PROXY: "localhost,127.0.0.1,docker,.dkfz.de,.dkfz-heidelberg.de"
+    no_proxy: "localhost,127.0.0.1,docker,.dkfz.de,.dkfz-heidelberg.de"
   script:
-    - pip install $KAAPANA_DIR/lib/task_api
-    - pip install --force-reinstall $KAAPANA_DIR/lib/kaapana_containers
-    - pip install pytest
+    - mkdir -p "$TMPDIR"
+    # One pip invocation: task_api depends on the local sibling package
+    # kaapana-containers — installing them together makes pip resolve it from
+    # the repo instead of PyPI (installing task_api alone only worked on the
+    # shell runner because the persistent venv already contained it).
+    - pip install $KAAPANA_DIR/lib/kaapana_containers $KAAPANA_DIR/lib/task_api pytest
     - pytest $KAAPANA_DIR/lib/task_api/task_api --junitxml=task_api_report.xml
 
   artifacts:

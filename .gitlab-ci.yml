@@ -69,6 +69,13 @@ variables:
   DOCKER_IO_USER: $DOCKER_IO_USER
   DOCKER_IO_PASSWORD: $DOCKER_IO_PASSWORD
 
+  # Purpose-specific tokens (CI-AUDIT.md S2). Both currently alias the shared
+  # REGISTRY_TOKEN secret. To move a purpose onto its own credential, create a
+  # project-level CI variable with the same name — project variables take
+  # precedence over these YAML defaults, so no pipeline change is needed.
+  GITLAB_API_TOKEN: $REGISTRY_TOKEN
+  BLABLADOR_API_TOKEN: $REGISTRY_TOKEN
+
   # Notification settings
   SLACK_BOT_TOKEN: $SLACK_BOT_TOKEN
   SLACK_CHANNEL_ID: $SLACK_CHANNEL_ID
@@ -322,6 +329,14 @@ build_packages:
 
     # Run build, capturing exit code so artifacts are always collected
     - kaapana-build --default-registry "$REGISTRY_URL" $CI_EXEC_BUILD_ARGUMENTS
+
+  after_script:
+    # Don't leave docker login sessions on the shared runner (CI-AUDIT.md S2).
+    # after_script runs in a fresh shell, so $REGISTRY_URL may not be the
+    # release registry in a tag pipeline — log out of it explicitly too.
+    - docker logout "$REGISTRY_URL" || true
+    - docker logout registry.hzdr.de/kaapana/releases || true
+    - docker logout docker.io || true
 
   artifacts:
     name: "build_$CI_COMMIT_SHORT_SHA"

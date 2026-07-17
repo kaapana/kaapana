@@ -21,10 +21,5 @@ for name in active:
     sleep 30
 done
 
-if [[ "$DEPLOYMENT_INSTANCE_PROVISIONER" == "openstack" ]]; then
-    echo "Deleting VM with OpenStack"
-    ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/delete_openstack_vm.yaml"
-else
-    echo "Deleting VM with Harvester"
-    ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/delete_harvester_vm.yaml"
-fi
+echo "Deleting VM with Harvester"
+ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/delete_harvester_vm.yaml"

@@ -18,7 +18,7 @@ def main():
     # Load secrets and env vars
     slack_token = os.getenv("SLACK_BOT_TOKEN")
     slack_channel = os.getenv("SLACK_CHANNEL_ID")
-    registry_token = os.getenv("REGISTRY_TOKEN")
+    gitlab_api_token = os.getenv("GITLAB_API_TOKEN")
     project_id = os.getenv("CI_PROJECT_ID")
     pipeline_url = os.getenv("CI_PIPELINE_URL")
     commit_sha = os.getenv("CI_COMMIT_SHORT_SHA")
@@ -28,8 +28,8 @@ def main():
     slack_client = WebClient(token=slack_token)
     gl = gitlab.Gitlab(
         url="https://codebase.helmholtz.cloud",
-        private_token=registry_token,
-        ssl_verify=False,
+        private_token=gitlab_api_token,
+        ssl_verify=True,
     )
 
     # Logic

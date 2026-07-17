@@ -4,24 +4,26 @@ set -euf -o pipefail
 TOKEN=$KAAPANA_READTHEDOCS_TOKEN
 COMMIT=$CI_COMMIT_SHA
 
-curl -s -H "Authorization: Token $TOKEN" https://readthedocs.org/api/v3/projects/kaapana/builds/ -o builds.json
-NUM_BUILDS=$( cat builds.json | jq ".results | length" )
+curl -sf -H "Authorization: Token $TOKEN" \
+    https://readthedocs.org/api/v3/projects/kaapana/builds/ -o builds.json
 
-for (( c=0; c<=$NUM_BUILDS; c++ ))
-do
-    output=$( cat builds.json | jq ".results | .[$c] | .version, .success, .commit" )
-    declare -a arr=( $output )
-    
-    if [[ ${arr[0]} == *"latest"* ]] && [[ ${arr[1]} == "true" ]] && [[ ${arr[2]} == *"$COMMIT"* ]] 
-    then
+# Newest completed "latest" build for this commit; builds still running have
+# success == null and are skipped.
+result=$(jq -r --arg commit "$COMMIT" \
+    '[.results[] | select(.version == "latest" and .commit == $commit and .success != null)][0].success' \
+    builds.json)
+
+case "$result" in
+    true)
         echo "Build for ${COMMIT} on https://readthedocs.org/projects/kaapana/ succeeded!"
         exit 0
-    elif [[ ${arr[0]} == *"latest"* ]] && [[ ${arr[1]} == "false" ]] && [[ ${arr[2]} == *"$COMMIT"* ]] 
-    then
+        ;;
+    false)
         echo "Build for ${COMMIT} on https://readthedocs.org/projects/kaapana/ failed!"
         exit 1
-    fi;
-done
-
-echo "No build found for ${COMMIT} on https://readthedocs.org/projects/kaapana/!"
-exit 1
+        ;;
+    *)
+        echo "No build found for ${COMMIT} on https://readthedocs.org/projects/kaapana/!"
+        exit 1
+        ;;
+esac

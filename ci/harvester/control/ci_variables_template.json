@@ -1,63 +1,27 @@
 [
   {
-    "key": "CI_EXEC_BUILD",
-    "value": "true",
+    "key": "CI_REGISTRY_URL",
+    "value": "registry.git.dkfz.de/mic/personal/group1/kaapana-fallback",
     "masked": false,
-    "comment": "Toggles the build stage"
+    "comment": "Registry for normal CI builds. RELEASE_REGISTRY_URL/USER/TOKEN (protected) are managed manually - this script cannot set protected variables"
   },
   {
-    "key": "CI_EXEC_BUILD_ARGUMENTS",
-    "value": "",
+    "key": "CI_REGISTRY_USER",
+    "value": "changeme",
     "masked": false,
-    "comment": "Extra flags for the build CLI"
+    "comment": "Shadows the GitLab-predefined CI_REGISTRY_USER (gitlab-ci-token); the project variable takes precedence"
   },
   {
-    "key": "CI_EXEC_DEPLOY",
-    "value": "true",
+    "key": "CI_REGISTRY_TOKEN",
+    "value": "changeme",
+    "masked": true,
+    "comment": "Registry push credential; also the default for GITLAB_API_TOKEN and BLABLADOR_API_TOKEN (see .gitlab-ci.yml)"
+  },
+  {
+    "key": "DOCKER_IO_USER",
+    "value": "dockeruser",
     "masked": false,
-    "comment": "Toggles the deployment stage"
-  },
-  {
-    "key": "CI_EXEC_DOCKER_PRUNE",
-    "value": "false",
-    "masked": false,
-    "comment": "Clean up runner docker state before build"
-  },
-  {
-    "key": "CI_EXEC_INTEGRATION_TESTS",
-    "value": "true",
-    "masked": false,
-    "comment": "Toggles the integration test stage (formerly TEST_STAGE)"
-  },
-  {
-    "key": "DEPLOYMENT_INSTANCE_CPU",
-    "value": "32",
-    "masked": false
-  },
-  {
-    "key": "DEPLOYMENT_INSTANCE_DISK",
-    "value": "512Gi",
-    "masked": false
-  },
-  {
-    "key": "DEPLOYMENT_INSTANCE_MEMORY",
-    "value": "256Gi",
-    "masked": false
-  },
-  {
-    "key": "DEPLOYMENT_INSTANCE_SSH_KEY",
-    "value": ".ssh/kaapana.pem",
-    "masked": false
-  },
-  {
-    "key": "DEPLOYMENT_INSTANCE_SSH_PORT",
-    "value": "22",
-    "masked": false
-  },
-  {
-    "key": "DEPLOYMENT_INSTANCE_USER",
-    "value": "",
-    "masked": false
+    "comment": "docker.io account, paired with DOCKER_IO_PASSWORD"
   },
   {
     "key": "DOCKER_IO_PASSWORD",
@@ -65,44 +29,9 @@
     "masked": true
   },
   {
-    "key": "DOCKER_IO_USER",
-    "value": "dockeruser",
-    "masked": false
-  },
-  {
-    "key": "HTTPS_PROXY",
-    "value": "http://www-int2.dkfz-heidelberg.de:80",
-    "masked": false
-  },
-  {
-    "key": "HTTP_PROXY",
-    "value": "http://www-int2.dkfz-heidelberg.de:80",
-    "masked": false
-  },
-  {
-    "key": "KAAPANA_READTHEDOCS_TOKEN",
-    "value": "changeme",
+    "key": "SLACK_BOT_TOKEN",
+    "value": "REPLACE_WITH_SLACK_BOT_TOKEN",
     "masked": true
-  },
-  {
-    "key": "REGISTRY_TOKEN",
-    "value": "changeme",
-    "masked": true
-  },
-  {
-    "key": "REGISTRY_URL",
-    "value": "https://registry.example.com",
-    "masked": false
-  },
-  {
-    "key": "HARVESTER_INSTANCE_HARVESTER_KUBECONFIG",
-    "value": "/home/user/.kube/harvester.yaml",
-    "masked": false
-  },
-  {
-    "key": "HARVESTER_INSTANCE_HARVESTER_NAMESPACE",
-    "value": "kaapana-ci",
-    "masked": false
   },
   {
     "key": "SLACK_CHANNEL_ID",
@@ -110,8 +39,8 @@
     "masked": false
   },
   {
-    "key": "SLACK_BOT_TOKEN",
-    "value": "REPLACE_WITH_SLACK_BOT_TOKEN",
+    "key": "KAAPANA_READTHEDOCS_TOKEN",
+    "value": "changeme",
     "masked": true
   }
 ]

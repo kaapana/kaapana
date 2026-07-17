@@ -264,18 +264,24 @@ build_documentation:
   script:
     - cd $KAAPANA_DIR/docs
     - pip install -r requirements.txt
-    - cd $KAAPANA_DIR/docs
     - make html 2>&1 | tee "build_documentation_html.log"
-    - |
-      if [[ $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop" ]]; then
-        cd $KAAPANA_DIR/ci/ci-code/build
-        bash check_readthedocs.sh
-      fi
   artifacts:
     expose_as: "Documentation"
     paths:
       - $KAAPANA_DIR/docs/build/html/
       - "$KAAPANA_DIR/docs/build_documentation_html.log"
+
+##############################################
+# ReadTheDocs Build Check (scheduled pipelines on develop only)
+##############################################
+check_readthedocs:
+  extends: .test_template
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop"
+      when: always
+    - when: never
+  script:
+    - bash $KAAPANA_DIR/ci/ci-code/build/check_readthedocs.sh
 
 ##############################################
 # BUILD
@@ -363,7 +369,12 @@ build_packages:
     when: always
     paths:
       - "$CI_PROJECT_DIR/build/build.log"
-      - "$CI_PROJECT_DIR/build/security-reports/"
+      # Trivy writes to <repo>/security-reports/ (trivy_helper.py), not build/
+      - "$CI_PROJECT_DIR/security-reports/"
+    exclude:
+      # Trivy DB cache lives inside the reports dir — not a report
+      - "$CI_PROJECT_DIR/security-reports/.trivy_cache/**/*"
+      - "$CI_PROJECT_DIR/security-reports/.trivy_worker_*/**/*"
 
 security:
   stage: build
@@ -374,10 +385,14 @@ security:
     - build-runner
   variables:
     PYTHON_VENV_DIR: ".venv-build"
+    # The report script + vendored schema come from the repo, the reports from
+    # the build_packages artifact — no reliance on runner disk state (B2).
+    GIT_STRATEGY: fetch
+    GIT_DEPTH: 1
   before_script:
     - python3 -m venv "$PYTHON_VENV_DIR"
     - source "$PYTHON_VENV_DIR/bin/activate"
-    - pip install jsonschema requests
+    - pip install jsonschema
   script:
     - CONSOLIDATED="$CI_PROJECT_DIR/security-reports/consolidated_vulnerability_report.json"
     - python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
@@ -731,10 +746,43 @@ if_ci_failing:
   variables:
     GIT_STRATEGY: fetch
     GIT_DEPTH: 1
+  # Every job of the earlier stages must be listed here (optional: true keeps
+  # reduced pipeline shapes valid): with needs, when: on_failure triggers on
+  # failures among the needed jobs only. artifacts: true marks the jobs whose
+  # logs feed the issue report — everything else is explicitly excluded so this
+  # job never downloads secrets (integration-test dotenv) or bulky reports.
+  # When adding a job to the pipeline, add it here too.
+  needs:
+    - { job: unit_tests, optional: true, artifacts: false }
+    - { job: task_api_tests, optional: true, artifacts: false }
+    - { job: kaapana_extensions_tests, optional: true, artifacts: false }
+    - { job: workflow_api_tests, optional: true, artifacts: false }
+    - { job: extensions_api_tests, optional: true, artifacts: false }
+    - { job: kaapana_backend_tests, optional: true, artifacts: false }
+    - { job: access_information_interface_tests, optional: true, artifacts: false }
+    - { job: keycloak_setup_tests, optional: true, artifacts: false }
+    - { job: build_documentation, optional: true, artifacts: false }
+    - { job: check_readthedocs, optional: true, artifacts: false }
+    - { job: build_packages, optional: true, artifacts: true }
+    - { job: security, optional: true, artifacts: false }
+    - { job: prepare_deployment, optional: true, artifacts: false }
+    - { job: server_installation, optional: true, artifacts: true }
+    - { job: platform_deployment, optional: true, artifacts: true }
+    - { job: setup_integration_tests, optional: true, artifacts: false }
+    - { job: scan_ports, optional: true, artifacts: true }
+    - { job: first_login, optional: true, artifacts: true }
+    - { job: install_extensions, optional: true, artifacts: true }
+    - { job: send_data, optional: true, artifacts: true }
+    - { job: run_workflows, optional: true, artifacts: true }
+    - { job: playwright_ui_tests, optional: true, artifacts: false }
   before_script:
     - VENV_PATH=$(eval echo "$ORCHESTRATOR_INSTANCE_PYTHON_VENV")
     - source "$VENV_PATH/bin/activate"
   script:
+    - mkdir -p "$ARTIFACTS_DIR"
+    # build.log is delivered outside artifacts/ — move it into the dir the
+    # ticket script scans for *.log files
+    - '[[ -f "$CI_PROJECT_DIR/build/build.log" ]] && cp "$CI_PROJECT_DIR/build/build.log" "$ARTIFACTS_DIR/" || true'
     - cd "$CI_PROJECT_DIR/ci/ci-code/clean"
     - python3 create_ticket_if_ci_failed.py
     - python3 notify_slack.py

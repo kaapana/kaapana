@@ -426,7 +426,7 @@ def main():
     gl = gitlab.Gitlab(
         url="https://codebase.helmholtz.cloud",
         private_token=gitlab_api_token,
-        ssl_verify=False,
+        ssl_verify=True,
     )
 
     project_kaapana = gl.projects.get(id=project_id)

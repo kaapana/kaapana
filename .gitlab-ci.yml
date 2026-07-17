@@ -56,7 +56,6 @@ variables:
   DEPLOYMENT_INSTANCE_NETWORK: $DEPLOYMENT_INSTANCE_NETWORK
   DEPLOYMENT_INSTANCE_USER: $DEPLOYMENT_INSTANCE_USER
   DEPLOYMENT_INSTANCE_PLATFORM_PREFIX: $DEPLOYMENT_INSTANCE_PLATFORM_PREFIX
-  DEPLOYMENT_INSTANCE_PROVISIONER: $DEPLOYMENT_INSTANCE_PROVISIONER
   DEPLOYMENT_INSTANCE_STORAGE_CLASS: $DEPLOYMENT_INSTANCE_STORAGE_CLASS
   DEPLOYMENT_INSTANCE_USER: $DEPLOYMENT_INSTANCE_USER
 
@@ -408,11 +407,7 @@ prepare_deployment:
       if [[ "$CI_EXEC_DEPLOY" == "true" && -z "$DEPLOYMENT_INSTANCE_FQDN" ]]; then
         # vm_name is truncated inside the provisioning playbook to keep the FQDN
         # within 57 characters (dcmsend peerhost limit).
-        if [[ "$DEPLOYMENT_INSTANCE_PROVISIONER" == "openstack" ]]; then
-          ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/provision_openstack_vm.yaml"
-        else
-          ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/provision_harvester_vm.yaml"
-        fi
+        ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/provision_harvester_vm.yaml"
       else
         # Fail early when a pre-provided FQDN is too long — dcmsend will reject it
         # during tests and the failure would surface much later otherwise.

@@ -1,5 +1,4 @@
 import json
-import os
 import shutil
 import subprocess
 import tempfile
@@ -26,12 +25,36 @@ class TrivyHelper:
     @classmethod
     def init(cls, build_config: BuildConfig, build_state: BuildState) -> None:
         """Initialize Trivy helper with configuration and build state, setting up report and cache directories."""
+        if shutil.which(build_config.trivy_executable) is None:
+            logger.error(f"{build_config.trivy_executable} was not found!")
+            logger.error(
+                "-> install trivy: https://trivy.dev/latest/getting-started/installation/"
+            )
+            exit(1)
         cls._build_config = build_config
         cls._build_state = build_state
         cls._reports_path = build_config.kaapana_dir / "security-reports"
         cls._reports_path.mkdir(parents=True, exist_ok=True)
         cls._cache_path = cls._reports_path / ".trivy_cache"
         cls._cache_path.mkdir(parents=True, exist_ok=True)
+
+    @classmethod
+    def _scan_targets(cls) -> list[Container]:
+        """Containers to scan, sorted. In scan-only mode local-only images are
+        skipped: they never reach the registry, and their layers are scanned as
+        part of every derived image."""
+        targets = sorted(
+            cls._build_state.selected_containers, key=lambda c: c.image_name
+        )
+        if cls._build_config.scan_only:
+            skipped = [c for c in targets if c.tag.startswith("local-only")]
+            if skipped:
+                logger.info(
+                    f"Scan-only: skipping {len(skipped)} local-only base images "
+                    "(layers are scanned within derived images)"
+                )
+            targets = [c for c in targets if not c.tag.startswith("local-only")]
+        return targets
 
     @classmethod
     def misconfiguration_check(cls) -> None:
@@ -79,28 +102,17 @@ class TrivyHelper:
         if (report_path / filename).exists():
             return
         cmd = [
-            "docker",
-            "run",
-            "--rm",
-            "-v",
-            f"{chart.chartfile.parent}:/chart",
-            "-v",
-            f"{report_path}:/reports",
-            "-v",
-            f"{cls._cache_path}:/.cache",
-            "--user",
-            f"{os.getuid()}:{os.getgid()}",
-            cls._build_config.trivy_image,
+            cls._build_config.trivy_executable,
             "config",
             "--cache-dir",
-            "/.cache",
+            str(cls._cache_path),
             "--severity",
             ",".join(cls._build_config.configuration_check_severity_level),
-            "/chart",
+            str(chart.chartfile.parent),
             "--format",
             "json",
             "--output",
-            f"/reports/{filename}",
+            str(report_path / filename),
         ]
         result = subprocess.run(
             cmd, capture_output=True, text=True, timeout=cls._build_config.trivy_timeout
@@ -122,28 +134,17 @@ class TrivyHelper:
             return
 
         cmd = [
-            "docker",
-            "run",
-            "--rm",
-            "-v",
-            f"{container.dockerfile.parent}:/container",
-            "-v",
-            f"{report_path}:/reports",
-            "-v",
-            f"{cls._cache_path}:/.cache",
-            "--user",
-            f"{os.getuid()}:{os.getgid()}",
-            cls._build_config.trivy_image,
+            cls._build_config.trivy_executable,
             "config",
             "--cache-dir",
-            "/.cache",
+            str(cls._cache_path),
             "--severity",
             ",".join(cls._build_config.configuration_check_severity_level),
-            "/container",
+            str(container.dockerfile.parent),
             "--format",
             "json",
             "--output",
-            f"/reports/{filename}",
+            str(report_path / filename),
         ]
         result = subprocess.run(
             cmd, capture_output=True, text=True, timeout=cls._build_config.trivy_timeout
@@ -158,26 +159,15 @@ class TrivyHelper:
         )
 
     @classmethod
-    def _docker_sock_gid(cls) -> int:
-        return os.stat("/var/run/docker.sock").st_gid
-
-    @classmethod
     def _ensure_db(cls) -> None:
         """Download/update the Trivy vulnerability DB once before parallel scans.
         Parallel workers all share the same cache dir, so concurrent DB updates
         deadlock on Trivy's file lock — pre-fetching avoids this."""
         cmd = [
-            "docker",
-            "run",
-            "--rm",
-            "-v",
-            f"{cls._cache_path}:/.cache",
-            "--user",
-            f"{os.getuid()}:{os.getgid()}",
-            cls._build_config.trivy_image,
+            cls._build_config.trivy_executable,
             "image",
             "--cache-dir",
-            "/.cache",
+            str(cls._cache_path),
             "--download-db-only",
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
@@ -200,27 +190,13 @@ class TrivyHelper:
         )
         try:
             shutil.copytree(cls._cache_path, worker_cache, dirs_exist_ok=True)
+            # Trivy resolves the image via the local daemon first, then the
+            # registry — daemon-less runners scan the pushed registry images.
             cmd = [
-                "docker",
-                "run",
-                "--rm",
-                # Docker socket needed for local-only images (never pushed to registry,
-                # only accessible via the daemon). --group-add grants socket access
-                # without running as root.
-                "-v",
-                "/var/run/docker.sock:/var/run/docker.sock",
-                "-v",
-                f"{worker_cache}:/.cache",
-                "-v",
-                f"{report_path}:/reports",
-                "--user",
-                f"{os.getuid()}:{os.getgid()}",
-                "--group-add",
-                str(cls._docker_sock_gid()),
-                cls._build_config.trivy_image,
+                cls._build_config.trivy_executable,
                 "image",
                 "--cache-dir",
-                "/.cache",
+                str(worker_cache),
                 "--skip-db-update",
                 "--format",
                 "cyclonedx",
@@ -228,7 +204,7 @@ class TrivyHelper:
                 "--timeout",
                 str(cls._build_config.trivy_timeout) + "s",
                 "--output",
-                f"/reports/{filename}",
+                str(report_path / filename),
                 container.tag,
             ]
             result = subprocess.run(
@@ -251,8 +227,9 @@ class TrivyHelper:
         report_path = cls._reports_path / "sboms"
         report_path.mkdir(parents=True, exist_ok=True)
         cls._ensure_db()
+        targets = cls._scan_targets()
         with alive_bar(
-            len(cls._build_state.selected_containers),
+            len(targets),
             dual_line=True,
             title="Trivy SBOM generation",
         ) as bar:
@@ -261,9 +238,7 @@ class TrivyHelper:
             ) as executor:
                 futures = {
                     executor.submit(cls._create_sbom, container, report_path): container
-                    for container in sorted(
-                        cls._build_state.selected_containers, key=lambda c: c.image_name
-                    )
+                    for container in targets
                 }
                 for future in as_completed(futures):
                     path, skipped = future.result()
@@ -289,32 +264,16 @@ class TrivyHelper:
         )
         ignore_file = files("build_cli") / "configs" / ".trivyignore.yaml"
         has_ignore = ignore_file.is_file()
-        ignore_mount = ["-v", f"{ignore_file}:/.trivyignore.yaml"] if has_ignore else []
-        ignore_flag = ["--ignorefile", "/.trivyignore.yaml"] if has_ignore else []
+        ignore_flag = ["--ignorefile", str(ignore_file)] if has_ignore else []
         try:
             shutil.copytree(cls._cache_path, worker_cache, dirs_exist_ok=True)
+            # Trivy resolves the image via the local daemon first, then the
+            # registry — daemon-less runners scan the pushed registry images.
             cmd = [
-                "docker",
-                "run",
-                "--rm",
-                # Docker socket needed for local-only images (never pushed to registry,
-                # only accessible via the daemon). --group-add grants socket access
-                # without running as root.
-                "-v",
-                "/var/run/docker.sock:/var/run/docker.sock",
-                "-v",
-                f"{worker_cache}:/.cache",
-                "-v",
-                f"{report_path}:/reports",
-                "--user",
-                f"{os.getuid()}:{os.getgid()}",
-                "--group-add",
-                str(cls._docker_sock_gid()),
-                *ignore_mount,
-                cls._build_config.trivy_image,
+                cls._build_config.trivy_executable,
                 "image",
                 "--cache-dir",
-                "/.cache",
+                str(worker_cache),
                 "--skip-db-update",
                 "--timeout",
                 f"{cls._build_config.trivy_timeout}s",
@@ -326,7 +285,7 @@ class TrivyHelper:
                 "--format",
                 "json",
                 "--output",
-                f"/reports/{filename}",
+                str(report_path / filename),
                 container.tag,
             ]
             result = subprocess.run(
@@ -384,8 +343,9 @@ class TrivyHelper:
         report_path = cls._reports_path / "vuln_scan"
         report_path.mkdir(parents=True, exist_ok=True)
         cls._ensure_db()
+        targets = cls._scan_targets()
         with alive_bar(
-            len(cls._build_state.selected_containers),
+            len(targets),
             dual_line=True,
             title="Trivy vulnerability scan",
         ) as bar:
@@ -396,9 +356,7 @@ class TrivyHelper:
                     executor.submit(
                         cls._scan_container_vuln, container, report_path
                     ): container
-                    for container in sorted(
-                        cls._build_state.selected_containers, key=lambda c: c.image_name
-                    )
+                    for container in targets
                 }
                 for future in as_completed(futures):
                     container = futures[future]

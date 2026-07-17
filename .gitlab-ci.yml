@@ -47,6 +47,12 @@ variables:
   CI_EXEC_BUILD_ARGUMENTS: "" # extra kaapana-build flags, e.g. "--vulnerability-scan"
   CI_EXEC_DEPLOY: "true" # deploy stage: provision test VM + server install + platform deploy
   CI_EXEC_INTEGRATION_TESTS: "true" # test stage: pytest + Playwright against the test VM
+  # Security scan of the images this pipeline pushed (registry-based, runs
+  # beside deploy — nightly schedules set this to "true"). Replaces passing
+  # --vulnerability-scan via CI_EXEC_BUILD_ARGUMENTS: scans no longer run
+  # inside the build job.
+  CI_EXEC_SECURITY_SCAN: "false"
+  CI_EXEC_SECURITY_SCAN_ARGUMENTS: "--vulnerability-scan --configuration-check"
   CI_EXEC_DOCKER_PRUNE: "false" # "true" = wipe the runner docker cache first (cold build)
   CI_EXEC_DESTROY_DELAYED: "false" # "true" = keep the test VM for 4h after the pipeline for inspection
   MAINTENANCE: "false" # "true" pauses push/schedule/MR pipelines (workflow:rules)
@@ -75,7 +81,7 @@ variables:
   # ci/images/** — re-pushing an existing tag leaves warm runners on the stale
   # image. Always $CI_REGISTRY_URL, never the release registry (REGISTRY_URL
   # is swapped on tag pipelines, this must not be).
-  CI_IMAGES_TAG: "v1"
+  CI_IMAGES_TAG: "v2"
   CI_BASE_IMAGE: "$CI_REGISTRY_URL/ci-base:$CI_IMAGES_TAG"
 
   # Purpose-specific tokens (CI-AUDIT.md S2). Both currently alias the shared
@@ -147,6 +153,10 @@ build_ci_image:
   stage: tests
   tags:
     - build-runner
+  # Not ci-base: the image that builds ci-base must not be ci-base, or a tag
+  # bump could never bootstrap itself. Checkout happens in the runner helper,
+  # so the job image only needs the docker CLI.
+  image: docker.io/library/docker:28-cli
   rules:
     # rules:changes only has a diff basis on push/MR pipelines — it evaluates
     # to true on schedule/web/api/trigger, which would rebuild every run.
@@ -372,14 +382,37 @@ check_readthedocs:
 ##############################################
 # BUILD
 ##############################################
-build_packages:
-  stage: build
-  dependencies: []
+# Shared by build_packages and security_scan: both run kaapana-build, which
+# derives the version tag from git describe — full clone + tags, plus the
+# branch checkout dance, keep that deterministic per commit.
+.build_cli_env:
   tags:
     - build-runner
+  image: $CI_BASE_IMAGE
   variables:
     GIT_STRATEGY: clone
-    PYTHON_VENV_DIR: ".venv-build"
+  before_script:
+    - pip install -e build_cli/
+    - |-
+      if [[ $CI_PIPELINE_SOURCE == "merge_request_event" ]]; then
+        git checkout -B $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME $CI_COMMIT_SHA
+      elif [[ -n "$CI_COMMIT_TAG" ]]; then
+        # Tag pipeline: no branch ref; stay detached, git describe resolves the tag
+        git checkout $CI_COMMIT_SHA
+      else
+        git checkout -B $CI_COMMIT_BRANCH $CI_COMMIT_SHA
+      fi
+    - git status
+    - git fetch --tags
+
+build_packages:
+  extends: .build_cli_env
+  stage: build
+  dependencies: []
+  # Docker CLI in the job container talks to the host daemon (socket mount on
+  # the build runner) — warm layer cache across jobs, docker login state dies
+  # with the container.
+  variables:
     RUNNER_SCRIPT_TIMEOUT: 8h
   timeout: 8 hours
   rules:
@@ -397,33 +430,9 @@ build_packages:
     - if: '$CI_EXEC_BUILD == "true"'
       when: on_success
     - when: never
-  before_script:
-    # Concurrent jobs GC the same directories — ENOENT races must not fail the job
-    - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \; || true
-    - python3 -m venv "$PYTHON_VENV_DIR"
-    - source "$PYTHON_VENV_DIR/bin/activate"
-    - pip install --upgrade pip && pip install -e build_cli/
-    - |-
-      if [[ $CI_PIPELINE_SOURCE == "merge_request_event" ]]; then
-        git checkout -B $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME $CI_COMMIT_SHA
-      elif [[ -n "$CI_COMMIT_TAG" ]]; then
-        # Tag pipeline: no branch ref; stay detached, git describe resolves the tag
-        git checkout $CI_COMMIT_SHA
-      else
-        git checkout -B $CI_COMMIT_BRANCH $CI_COMMIT_SHA
-      fi
-    - git status
-    - git fetch --tags
-
   script:
     - |
       [[ $CI_EXEC_DOCKER_PRUNE == "true" ]] && docker system prune --all --volumes -f
-
-    # Disable exit-on-error for scan/check modes
-    - |
-      if [[ "$CI_EXEC_BUILD_ARGUMENTS" =~ (-vs|--vulnerability-scan|-cc|--configuration-check) ]]; then
-        export EXIT_ON_ERROR="false"
-      fi
 
     # Docker logins (set +x to hide credentials from job log)
     - |
@@ -442,20 +451,42 @@ build_packages:
     # Run build, capturing exit code so artifacts are always collected
     - kaapana-build --default-registry "$REGISTRY_URL" $CI_EXEC_BUILD_ARGUMENTS
 
-  after_script:
-    # Don't leave docker login sessions on the shared runner (CI-AUDIT.md S2).
-    # after_script runs in a fresh shell, so $REGISTRY_URL may not be the
-    # release registry in a tag pipeline — log out of it explicitly too.
-    - docker logout "$REGISTRY_URL" || true
-    - '[[ -n "$RELEASE_REGISTRY_URL" ]] && docker logout "$RELEASE_REGISTRY_URL" || true'
-    - docker logout docker.io || true
+  # No docker logout needed: login state lives in the job container's
+  # ~/.docker/config.json and dies with it (CI-AUDIT.md S2, structurally).
 
   artifacts:
     name: "build_$CI_COMMIT_SHORT_SHA"
     when: always
     paths:
       - "$CI_PROJECT_DIR/build/build.log"
-      # Trivy writes to <repo>/security-reports/ (trivy_helper.py), not build/
+
+# Trivy scans of the images this pipeline pushed — coupled to the build only
+# through the registry: kaapana-build --scan-only re-resolves the identical
+# image list + version tag (git describe of the same commit) and trivy pulls
+# via the registry API (daemon-first when one is around, e.g. warm build VM).
+security_scan:
+  extends: .build_cli_env
+  stage: build
+  timeout: 4 hours
+  needs:
+    # Only the registry state is needed, not artifacts
+    - job: build_packages
+      artifacts: false
+  rules:
+    - if: '$CI_EXEC_SECURITY_SCAN == "true" && $CI_EXEC_BUILD == "true"'
+      when: on_success
+    - when: never
+  script:
+    # kaapana-build performs the registry logins itself (client-side, no
+    # daemon needed) — trivy picks the credentials up from the docker config.
+    - |
+      set +x
+      export REGISTRY_PW="$REGISTRY_TOKEN"
+    - kaapana-build --scan-only $CI_EXEC_SECURITY_SCAN_ARGUMENTS --default-registry "$REGISTRY_URL"
+  artifacts:
+    name: "security_$CI_COMMIT_SHORT_SHA"
+    when: always
+    paths:
       - "$CI_PROJECT_DIR/security-reports/"
     exclude:
       # Trivy DB cache lives inside the reports dir — not a report
@@ -465,19 +496,17 @@ build_packages:
 security:
   stage: build
   needs:
-    - job: build_packages
+    - job: security_scan
       artifacts: true
   tags:
     - build-runner
+  image: $CI_BASE_IMAGE
   variables:
-    PYTHON_VENV_DIR: ".venv-build"
     # The report script + vendored schema come from the repo, the reports from
-    # the build_packages artifact — no reliance on runner disk state (B2).
+    # the security_scan artifact — no reliance on runner disk state (B2).
     GIT_STRATEGY: fetch
     GIT_DEPTH: 1
   before_script:
-    - python3 -m venv "$PYTHON_VENV_DIR"
-    - source "$PYTHON_VENV_DIR/bin/activate"
     - pip install jsonschema
   script:
     - CONSOLIDATED="$CI_PROJECT_DIR/security-reports/consolidated_vulnerability_report.json"
@@ -497,7 +526,7 @@ security:
       container_scanning: "$CI_PROJECT_DIR/gl-container-scanning-report.json"
   allow_failure: true
   rules:
-    - if: $CI_EXEC_BUILD == "true" && $CI_EXEC_BUILD_ARGUMENTS =~ /--vulnerability-scan/
+    - if: '$CI_EXEC_SECURITY_SCAN == "true" && $CI_EXEC_BUILD == "true"'
       when: on_success
     - when: never
 ##############################################
@@ -851,6 +880,7 @@ if_ci_failing:
     - { job: build_documentation, optional: true, artifacts: false }
     - { job: check_readthedocs, optional: true, artifacts: false }
     - { job: build_packages, optional: true, artifacts: true }
+    - { job: security_scan, optional: true, artifacts: false }
     - { job: security, optional: true, artifacts: false }
     - { job: prepare_deployment, optional: true, artifacts: false }
     - { job: server_installation, optional: true, artifacts: true }

@@ -106,6 +106,13 @@ def build(
         envvar="BUILD_ONLY",
         help="Only build containers and charts (do not push).",
     ),
+    scan_only: bool = typer.Option(
+        False,
+        "-so",
+        "--scan-only",
+        envvar="SCAN_ONLY",
+        help="Skip building/pushing; run the selected Trivy scans against the registry images of this version.",
+    ),
     enable_linting: bool = typer.Option(
         True,
         "-el/--no-linting",
@@ -339,6 +346,7 @@ def build(
         external_source_dirs=[Path(d) for d in external_source_dirs],
         build_ignore_patterns=build_ignore_patterns,
         build_only=build_only,
+        scan_only=scan_only,
         enable_linting=enable_linting,
         exit_on_error=exit_on_error,
         log_level=log_level,
@@ -465,32 +473,36 @@ def run_build(build_config: BuildConfig):
     BuildHelper.generate_build_graph(platform_chart)
     BuildHelper.generate_build_tree(platform_chart)
 
-    logger.info("")
-    logger.info("-----------------------------------------------------------")
-    logger.info("------------------ BUILD CHARTS ------------------")
-    logger.info("-----------------------------------------------------------")
-    logger.info("")
-    HelmChartHelper.build_and_push_charts(platform_chart=platform_chart)
+    if not build_config.scan_only:
+        logger.info("")
+        logger.info("-----------------------------------------------------------")
+        logger.info("------------------ BUILD CHARTS ------------------")
+        logger.info("-----------------------------------------------------------")
+        logger.info("")
+        HelmChartHelper.build_and_push_charts(platform_chart=platform_chart)
 
     if not build_config.only_charts:
-        logger.info("")
-        logger.info("-----------------------------------------------------------")
-        logger.info("------------------ BUILD CONTAINERS ------------------")
-        logger.info("-----------------------------------------------------------")
-        logger.info("")
         BuildHelper.select_containers_to_build()
-        containers = ContainerHelper._build_state.selected_containers
-        coordinator = BuildCoordinator(containers)
-        coordinator.start()
+        if build_config.scan_only:
+            logger.info("Scan-only: skipping chart and container builds")
+        else:
+            logger.info("")
+            logger.info("-----------------------------------------------------------")
+            logger.info("------------------ BUILD CONTAINERS ------------------")
+            logger.info("-----------------------------------------------------------")
+            logger.info("")
+            containers = ContainerHelper._build_state.selected_containers
+            coordinator = BuildCoordinator(containers)
+            coordinator.start()
 
-        if (
-            build_config.create_offline_installation
-            or build_config.publish_offline_installer
-        ):
-            OfflineInstallerHelper.init(
-                build_config=build_config, build_state=build_state
-            )
-            OfflineInstallerHelper.handle_offline_installation(platform_chart)
+            if (
+                build_config.create_offline_installation
+                or build_config.publish_offline_installer
+            ):
+                OfflineInstallerHelper.init(
+                    build_config=build_config, build_state=build_state
+                )
+                OfflineInstallerHelper.handle_offline_installation(platform_chart)
 
     if len(IssueTracker.issues) > 0:
         logger.info("")
@@ -517,13 +529,14 @@ def run_build(build_config: BuildConfig):
             )
         )
 
-    logger.info("")
-    logger.info("-----------------------------------------------------------")
-    logger.info("--------------------GENERATE REPORT -----------------------")
-    logger.info("-----------------------------------------------------------")
-    logger.info("")
+    if not build_config.scan_only:
+        logger.info("")
+        logger.info("-----------------------------------------------------------")
+        logger.info("--------------------GENERATE REPORT -----------------------")
+        logger.info("-----------------------------------------------------------")
+        logger.info("")
 
-    BuildHelper.generate_report()
+        BuildHelper.generate_report()
 
     if build_config.configuration_check:
         TrivyHelper.init(build_config=build_config, build_state=build_state)

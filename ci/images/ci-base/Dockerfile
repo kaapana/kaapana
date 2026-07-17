@@ -19,8 +19,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
     && echo "deb [signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bookworm stable" \
         > /etc/apt/sources.list.d/docker.list \
-    && apt-get update && apt-get install -y --no-install-recommends docker-ce-cli \
+    && apt-get update && apt-get install -y --no-install-recommends docker-ce-cli docker-buildx-plugin \
     && rm -rf /var/lib/apt/lists/*
+
+# helm + kubeval plugin: kaapana-build hard-fails without both
+# (build_cli HelmChartHelper — chart lint + rendered-manifest validation).
+ARG HELM_VERSION=3.19.0
+RUN curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
+        | tar -xzO linux-amd64/helm > /usr/local/bin/helm \
+    && chmod +x /usr/local/bin/helm \
+    && helm plugin install https://github.com/instrumenta/helm-kubeval
+
+# trivy: kaapana-build runs it as a plain process (build_cli TrivyHelper) —
+# same pinned version the retired aquasec/trivy image had.
+ARG TRIVY_VERSION=0.70.0
+RUN curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" \
+        | tar -xz -C /usr/local/bin trivy
 
 # Same pinned dependency set as the runner-VM venvs (ci/harvester provisioning)
 # so both worlds stay in sync during the migration.

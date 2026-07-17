@@ -47,6 +47,10 @@ class BuildConfig(BaseModel):
     # Build Target
     interactive: bool = False
     build_only: bool
+    # Resolve the build tree but skip building/pushing; Trivy scans run against
+    # the registry images of this version (local-only images are skipped — their
+    # layers are scanned as part of every derived image).
+    scan_only: bool = False
     containers_to_build_by_charts: List[str] = Field(default_factory=list)
     containers_to_build: List[str] = Field(default_factory=list)
     only_charts: bool = False
@@ -71,7 +75,7 @@ class BuildConfig(BaseModel):
     configuration_check_severity_level: list[str]
     enable_image_stats: bool
     create_sboms: bool
-    trivy_image: str = "aquasec/trivy:0.70.0"
+    trivy_executable: str = "trivy"
     trivy_timeout: int = 10000
 
     snap_download_timeout: int = 120

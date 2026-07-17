@@ -47,6 +47,10 @@ all:
           runner_tags: ["tests-runner"]
           runner_limit: 4
           runner_concurrency: 4
+          # Phase 2 (CI-ARCHITECTURE.md): containerized jobs. build/deploy
+          # runners stay on the shell default until their own flip.
+          runner_executor: docker
+          runner_docker_image: "python:3.12"
           runner_global_concurrency: 4
 
     build_instances:

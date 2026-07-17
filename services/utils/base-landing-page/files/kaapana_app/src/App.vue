@@ -153,6 +153,18 @@
             <v-list-item dense
               v-if="
                 !mini &&
+                section.internalSubSections &&
+                _checkAuthR(policyData, internalSubSection.linkTo, currentUser)
+              "
+              v-for="(internalSubSection, internalSubSectionKey) in section.internalSubSections"
+              :key="'internal-' + internalSubSectionKey"
+              :to="internalSubSection.linkTo">
+              <v-list-item-action></v-list-item-action>
+              <v-list-item-title v-text="internalSubSection.label"></v-list-item-title>
+            </v-list-item>
+            <v-list-item dense
+              v-if="
+                !mini &&
                 section.subSections &&
                 _checkAuthR(policyData, subSection.linkTo, currentUser)
               "
@@ -270,9 +282,10 @@ export default Vue.extend({
     },
     checkAuthSection(policyData: any, section: any, currentUser: any): boolean {
       "Check if the user has a role that grants access to any subsection of the section";
-      let endpoints = Object.values(section.subSections).map(
-        (subsection: any) => subsection.linkTo
-      );
+      let endpoints = [
+        ...Object.values(section.internalSubSections || {}),
+        ...Object.values(section.subSections || {}),
+      ].map((subsection: any) => subsection.linkTo);
       return endpoints.some((endpoint: string) =>
         this._checkAuthR(policyData, endpoint, currentUser)
       );

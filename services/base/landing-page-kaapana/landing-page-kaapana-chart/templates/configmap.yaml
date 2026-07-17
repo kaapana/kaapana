@@ -137,6 +137,33 @@ data:
             "linkTo": "/extension-manager-ui/"
           }
         }
+      },
+      "demo": {
+        "label": "Demo",
+        "icon": "mdi-monitor-star",
+        "internalSubSections": {
+          "datasets": {
+            "label": "Datasets",
+            "linkTo": "/datasets"
+          }
+        },
+        "subSections": {
+          "workflows": {
+            "label": "Workflows V2",
+            "endpoint": "/workflow-ui",
+            "linkTo": "/workflow-ui/workflows"
+          },
+          "runs": {
+            "label": "Workflow Runs V2",
+            "endpoint": "/workflow-ui",
+            "linkTo": "/workflow-ui/runs"
+          },
+          "extensionManager": {
+            "label": "Extension Manager",
+            "endpoint": "/extension-manager-ui",
+            "linkTo": "/extension-manager-ui/"
+          }
+        }
       }
     }
 kind: ConfigMap

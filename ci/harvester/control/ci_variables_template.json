@@ -104,36 +104,6 @@
     "value": "kaapana-ci",
     "masked": false
   },
-    {
-    "key": "OS_AUTH_URL",
-    "value": "https://cloud.hdf.dkfz-heidelberg.de:13000",
-    "masked": false
-  },
-  {
-    "key": "OS_IMAGE",
-    "value": "Base-Ubuntu-2204-LTS-DKFZ",
-    "masked": false
-  },
-  {
-    "key": "OS_INSTANCE_FLAVOR",
-    "value": "dkfz-40.128",
-    "masked": false
-  },
-  {
-    "key": "OS_TENANT_ID",
-    "value": "a1b78789404a4238a587075cb7b5ae69",
-    "masked": false
-  },
-  {
-    "key": "OS_USERNAME",
-    "value": "kaapana-ci",
-    "masked": false
-  },
-  {
-    "key": "OS_PROJECT_NAME",
-    "value": "E230-GPU-Kaapana",
-    "masked": false
-  },	
   {
     "key": "SLACK_CHANNEL_ID",
     "value": "REPLACE_WITH_CHANNEL_ID",

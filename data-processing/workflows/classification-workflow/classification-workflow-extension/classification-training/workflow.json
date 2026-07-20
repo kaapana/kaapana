@@ -1,0 +1,145 @@
+{
+    "title": "classification-training",
+    "workflow_engine": "airflow",
+    "labels": [
+        {
+            "key": "category",
+            "value": "classification"
+        },
+        {
+            "key": "gpu",
+            "value": "required"
+        },
+        {
+            "key": "provider",
+            "value": "dkfz-mic"
+        }
+    ],
+    "workflow_parameters": [
+        {
+            "task_title": "download",
+            "env_variable_name": "DATASET",
+            "ui_form": {
+                "type": "dataset",
+                "title": "Dataset",
+                "description": "Select the dataset for training",
+                "required": true
+            }
+        },
+        {
+            "task_title": "training",
+            "env_variable_name": "TAG_TO_CLASS_MAPPING_JSON",
+            "ui_form": {
+                "type": "str",
+                "title": "Tags for mapping classes",
+                "description": "Specify the labels as tags (e.g. tag0,tag1)",
+                "regex_pattern": ".*",
+                "default": "tag1,tag2",
+                "required": true
+            }
+        },
+        {
+            "task_title": "training",
+            "env_variable_name": "TASK",
+            "ui_form": {
+                "type": "list",
+                "title": "Classification task",
+                "description": "Choose which classification task you want to train",
+                "options": [
+                    "binary",
+                    "multiclass",
+                    "multilabel"
+                ],
+                "default": "binary",
+                "multiselectable": false,
+                "required": true
+            }
+        },
+        {
+            "task_title": "training",
+            "env_variable_name": "DIMENSIONS",
+            "ui_form": {
+                "type": "list",
+                "title": "Dimensions",
+                "description": "Choose which input dimension you want to train",
+                "options": [
+                    "2D",
+                    "3D"
+                ],
+                "default": "3D",
+                "multiselectable": false,
+                "required": true
+            }
+        },
+        {
+            "task_title": "training",
+            "env_variable_name": "PATCH_SIZE",
+            "ui_form": {
+                "type": "str",
+                "title": "Patch size",
+                "description": "Specify the patch size used for training",
+                "regex_pattern": ".*",
+                "default": "(128, 128, 128)",
+                "required": true
+            }
+        },
+        {
+            "task_title": "preprocessing",
+            "env_variable_name": "PATCH_SIZE",
+            "ui_form": {
+                "type": "str",
+                "title": "Patch size",
+                "description": "Specify the patch size used for training",
+                "regex_pattern": ".*",
+                "default": "(128, 128, 128)",
+                "required": true
+            }
+        },
+        {
+            "task_title": "training",
+            "env_variable_name": "BATCH_SIZE",
+            "ui_form": {
+                "type": "str",
+                "title": "Batch size",
+                "description": "Specify the batch size used for training",
+                "regex_pattern": ".*",
+                "default": "1",
+                "required": true
+            }
+        },
+        {
+            "task_title": "training",
+            "env_variable_name": "NUM_EPOCHS",
+            "ui_form": {
+                "type": "str",
+                "title": "Number of epochs",
+                "description": "Specify the number of epochs used for training",
+                "regex_pattern": ".*",
+                "default": "1600",
+                "required": true
+            }
+        },
+        {
+            "task_title": "training",
+            "env_variable_name": "WORKFLOW_ID",
+            "ui_form": {
+                "type": "str",
+                "title": "Training run ID",
+                "description": "Unique identifier for this training run; names its checkpoint subdirectory under /models and is the value later needed (as part of TASK_IDS) to select this run's checkpoint for inference. Not injected automatically (see migration-notes.md) — pick something unique per run.",
+                "regex_pattern": ".*",
+                "required": true
+            }
+        },
+        {
+            "task_title": "training",
+            "env_variable_name": "RUN_ID",
+            "ui_form": {
+                "type": "str",
+                "title": "Run ID",
+                "description": "Used only for this run's TensorBoard log subdirectory. Not injected automatically (see migration-notes.md) — pick something unique per run to avoid overwriting a previous run's TensorBoard logs.",
+                "regex_pattern": ".*",
+                "required": true
+            }
+        }
+    ]
+}

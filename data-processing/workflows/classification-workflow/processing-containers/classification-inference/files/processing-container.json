@@ -1,0 +1,55 @@
+{
+    "name": "classification-inference",
+    "description": "Processing container for running inference with a trained classification model on preprocessed numpy volumes",
+    "api_version": 1,
+    "templates": [
+        {
+            "identifier": "infer",
+            "description": "Predict tags for preprocessed volumes and write them back to OpenSearch",
+            "env": [
+                {
+                    "name": "TAG_POSTFIX",
+                    "value": "False",
+                    "description": "If 'True', append the training workflow id/fold/checkpoint kind to the predicted tag."
+                },
+                {
+                    "name": "DAG_ID",
+                    "value": "classification-inference",
+                    "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — used by the untouched legacy script's RESULTS_DIR construction. Statically overridden per DAG in workflow_definition.py."
+                },
+                {
+                    "name": "RUN_ID",
+                    "value": "",
+                    "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — used only for an unused RESULTS_DIR side effect in the untouched legacy script. Set via the RUN_ID workflow_parameter; required."
+                },
+                {
+                    "name": "TASK_IDS",
+                    "value": "",
+                    "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — identifies which trained checkpoint to load, as '<training-workflow-id>-fold-<fold>/<model-best.pth.tar|model-end.pth.tar>'. No dynamic model picker exists yet (see migration-notes.md); set manually via the TASK_IDS workflow_parameter, shared with the preprocessing task. Required."
+                },
+                {
+                    "name": "SERVICES_NAMESPACE",
+                    "value": "services",
+                    "description": "Read directly by the untouched opensearch_helper.py (legacy convention, unprefixed) — KaapanaTaskOperator only injects the KAAPANA_-prefixed KAAPANA_SERVICES_NAMESPACE (see migration-notes.md). 'services' is the correct real-cluster value and normally does not need overriding."
+                }
+            ],
+            "inputs": [
+                {
+                    "name": "preprocessed",
+                    "mounted_path": "/kaapana/app/preprocessed",
+                    "description": "Expects one subdirectory per case, named after the case identifier, containing a single <identifier>.npy file."
+                }
+            ],
+            "outputs": [],
+            "command": ["python3", "-u", "/kaapana/inference.py"],
+            "resources": {
+                "requests": {
+                    "memory": "16000Mi"
+                },
+                "limits": {
+                    "memory": "18000Mi"
+                }
+            }
+        }
+    ]
+}

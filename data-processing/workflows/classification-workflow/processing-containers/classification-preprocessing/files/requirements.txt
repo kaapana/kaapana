@@ -1,0 +1,4 @@
+pynrrd
+numpy
+scikit-image
+SimpleITK

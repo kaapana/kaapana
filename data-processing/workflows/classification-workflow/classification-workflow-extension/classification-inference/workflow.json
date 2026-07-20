@@ -1,0 +1,74 @@
+{
+    "title": "classification-inference",
+    "workflow_engine": "airflow",
+    "labels": [
+        {
+            "key": "category",
+            "value": "classification"
+        },
+        {
+            "key": "gpu",
+            "value": "required"
+        },
+        {
+            "key": "provider",
+            "value": "dkfz-mic"
+        }
+    ],
+    "workflow_parameters": [
+        {
+            "task_title": "download",
+            "env_variable_name": "DATASET",
+            "ui_form": {
+                "type": "dataset",
+                "title": "Dataset",
+                "description": "Select the dataset for inference.",
+                "required": true
+            }
+        },
+        {
+            "task_title": "inference",
+            "env_variable_name": "TAG_POSTFIX",
+            "ui_form": {
+                "type": "bool",
+                "title": "tag postfix",
+                "description": "Give the inference tag the model ID as postfix",
+                "default": false,
+                "required": false
+            }
+        },
+        {
+            "task_title": "preprocessing",
+            "env_variable_name": "TASK_IDS",
+            "ui_form": {
+                "type": "str",
+                "title": "Trained model (task IDs)",
+                "description": "Identifies which trained checkpoint to use, as '<training-run-WORKFLOW_ID>-fold-<fold>/<model-best.pth.tar|model-end.pth.tar>' (fold is always 0 currently). No dynamic model picker exists yet (see migration-notes.md) — copy this from the training run whose checkpoint you want to use.",
+                "regex_pattern": ".*",
+                "required": true
+            }
+        },
+        {
+            "task_title": "inference",
+            "env_variable_name": "TASK_IDS",
+            "ui_form": {
+                "type": "str",
+                "title": "Trained model (task IDs)",
+                "description": "Same value as the preprocessing task's TASK_IDS parameter above — identifies which trained checkpoint to load for inference.",
+                "regex_pattern": ".*",
+                "required": true
+            }
+        },
+        {
+            "task_title": "inference",
+            "env_variable_name": "RUN_ID",
+            "ui_form": {
+                "type": "str",
+                "title": "Run ID",
+                "description": "Not injected automatically (see migration-notes.md); only affects an unused directory the legacy script creates as a side effect. Any value is fine.",
+                "regex_pattern": ".*",
+                "required": true
+            }
+        }
+    ]
+}

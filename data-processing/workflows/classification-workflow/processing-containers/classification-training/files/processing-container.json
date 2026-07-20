@@ -1,0 +1,80 @@
+{
+    "name": "classification-training",
+    "description": "Processing container for training a classification model on preprocessed numpy volumes",
+    "api_version": 1,
+    "templates": [
+        {
+            "identifier": "train",
+            "description": "Train a ResNet classification model against tags fetched from OpenSearch",
+            "env": [
+                {
+                    "name": "TAG_TO_CLASS_MAPPING_JSON",
+                    "value": "tag1,tag2",
+                    "description": "Comma-separated list of at least two tags to classify (used to build the tag-to-class-index mapping)."
+                },
+                {
+                    "name": "TASK",
+                    "value": "binary",
+                    "description": "Classification task type: one of 'binary', 'multiclass', 'multilabel'."
+                },
+                {
+                    "name": "DIMENSIONS",
+                    "value": "3D",
+                    "description": "Spatial dimensionality of the input volumes, e.g. '3D' or '2D'."
+                },
+                {
+                    "name": "PATCH_SIZE",
+                    "value": "(128, 128, 128)",
+                    "description": "Patch shape (as a Python tuple literal string) matching the preprocessing container's output shape."
+                },
+                {
+                    "name": "BATCH_SIZE",
+                    "value": "1",
+                    "description": "Training batch size."
+                },
+                {
+                    "name": "NUM_EPOCHS",
+                    "value": "1600",
+                    "description": "Number of training epochs."
+                },
+                {
+                    "name": "DAG_ID",
+                    "value": "classification-training",
+                    "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — used by the untouched legacy script to build its /models/<DAG_ID>/... checkpoint path. Statically overridden per DAG in workflow_definition.py."
+                },
+                {
+                    "name": "WORKFLOW_ID",
+                    "value": "",
+                    "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — user-chosen identifier for this training run, used to name its checkpoint subdirectory. Set via the WORKFLOW_ID workflow_parameter; required."
+                },
+                {
+                    "name": "RUN_ID",
+                    "value": "",
+                    "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — used only for the TensorBoard log subdirectory and a debug log line, not for checkpoint identity. Set via the RUN_ID workflow_parameter; required to avoid TensorBoard log collisions between runs."
+                },
+                {
+                    "name": "SERVICES_NAMESPACE",
+                    "value": "services",
+                    "description": "Read directly by the untouched opensearch_helper.py (legacy convention, unprefixed) — KaapanaTaskOperator only injects the KAAPANA_-prefixed KAAPANA_SERVICES_NAMESPACE (see migration-notes.md). 'services' is the correct real-cluster value and normally does not need overriding."
+                }
+            ],
+            "inputs": [
+                {
+                    "name": "preprocessed",
+                    "mounted_path": "/kaapana/app/preprocessed",
+                    "description": "Expects one subdirectory per case, named after the case identifier, containing a single <identifier>.npy file."
+                }
+            ],
+            "outputs": [],
+            "command": ["python3", "-u", "/kaapana/training.py"],
+            "resources": {
+                "requests": {
+                    "memory": "16000Mi"
+                },
+                "limits": {
+                    "memory": "18000Mi"
+                }
+            }
+        }
+    ]
+}

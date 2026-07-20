@@ -1,0 +1,32 @@
+{
+  "name": "classification-workflow-extension",
+  "version": "0.1.0",
+  "contents": [
+    {
+      "name": "classification-training",
+      "contentType": "workflow-v1",
+      "files": [
+        {
+          "path": "workflow_definition.py"
+        },
+        {
+          "path": "workflow.json"
+        }
+      ]
+    },
+    {
+      "name": "classification-inference",
+      "contentType": "workflow-v1",
+      "files": [
+        {
+          "path": "workflow_definition.py"
+        },
+        {
+          "path": "workflow.json"
+        }
+      ]
+    }
+  ],
+  "dependencies": [],
+  "id": "8ea6af63-aa00-429f-804c-37859500e45f"
+}

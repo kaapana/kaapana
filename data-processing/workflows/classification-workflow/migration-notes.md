@@ -33,10 +33,11 @@ deploying the two DAGs (`classification-training`, `classification-inference`).
 2. **No dynamic, backend-populated "model picker."** The legacy inference DAG's `ui_forms.workflow_form`
    (`oneOf: []`, `models: True`, `kind: "classification"`) dynamically listed installed models for the user
    to pick from. `workflow.json.workflow_parameters` only supports statically-defined field types — there is
-   no equivalent. **Workaround shipped:** the inference DAG's `TASK_IDS` workflow_parameter is a plain
-   free-text string the user must type in manually (format:
+   no equivalent. **Workaround shipped (superseded):** the inference DAG's `TASK_IDS` workflow_parameter was
+   a plain free-text string the user had to type in manually (format:
    `<training-run-WORKFLOW_ID>-fold-<fold>/<model-best.pth.tar|model-end.pth.tar>`), restoring bare
-   functionality at the cost of the nice picker UI.
+   functionality at the cost of the nice picker UI. **Resolved 2026-07-21** — see "Dynamic model picker for
+   classification-inference" below for the real fix (a new `ModelUIForm` type plus a `model-download` task).
 3. **No Airflow run-identity env vars injected into task pods.** `KaapanaTaskOperator`'s `KAAPANA_ENVIRONMENT`
    constant (service URLs/credentials only) is everything it injects automatically — `RUN_ID`, `DAG_ID`,
    `TASK_ID`, `WORKFLOW_ID`, `WORKFLOW_NAME`, `TASK_IDS` are not among them, but the legacy scripts read all
@@ -221,3 +222,82 @@ end-to-end — against fixtures locally or on the real cluster — as of this ch
     `/tensorboard/<RUN_ID>` and nothing downstream consumes them. Unlike the model checkpoint, this path was
     left as-is rather than routed through an output channel, since nothing in this DAG needs to read
     TensorBoard logs back (they're for a human to open directly, e.g. via the `tensorboard-pv-claim` mount).
+
+## 2026-07-21 — Dynamic model picker for classification-inference (resolves gap #2)
+
+Gap #2 above (no dynamic, backend-populated model picker; `TASK_IDS` on `preprocessing`/`inference` was a
+free-text field) is resolved. Scope is limited to the **inference** DAG — training doesn't select a model and
+was not changed.
+
+- **New `model-download` processing-container** (`processing-containers/model-download/`), wired as a source
+  task (like `download`, no `iochannel_maps`) in `classification-inference`'s DAG only. It reads a `TASK_IDS`
+  env var (the same `<WORKFLOW_ID>-fold-<FOLD>/<model-best.pth.tar|model-end.pth.tar>` string `persist-model`
+  already produces and registers) and copies exactly that checkpoint plus its sibling `config.json` from the
+  hardcoded `/models/classification-training/` prefix into a new `model` output channel
+  (`/kaapana/app/model`) — the only task in this workflow that still touches `/models` directly. No network
+  call needed: `task_ids` is a self-sufficient relative path once combined with that hardcoded prefix.
+- **`preprocessing` and `inference` no longer read `/models` themselves.** Both gained a second `IOMapping`
+  (`model_download`'s `model` output → their own `model` input channel) alongside their existing channels.
+  `inference.py` now reads `config.json` and globs for the one `*.pth.tar` file under its `model` input
+  channel instead of hardcoding `/models/classification-training/<TASK_IDS>`; `classification_preprocessing.py`'s
+  existing `WORKFLOW_NAME`-gated inference-only branch does the same for `config.json`'s `PATCH_SIZE`. Since
+  `classification-preprocessing`'s template/image is shared with the training DAG, the new `model` input
+  channel is declared on the template but only ever wired via `IOMapping` on the inference DAG — confirmed
+  safe by reading `merge_io_channels` (`lib/task_api/task_api/processing_container/common.py:101-126`)
+  directly: a template input channel with no matching `IOVolume` simply produces no `IOChannel` (no error),
+  so the training DAG's `preprocessing` task — which never takes the `WORKFLOW_NAME`-gated branch that would
+  read it — is unaffected by the channel being declared but unmounted there.
+- **`inference.py`'s dead `DAG_ID`/`RUN_ID`-driven `RESULTS_DIR` line** (created a directory, never read it
+  again — the real checkpoint path was already built from a hardcoded string, not `DAG_ID`) **was removed**,
+  along with the now-fully-unused `DAG_ID`/`RUN_ID`/`TASK_IDS` env vars and workflow_parameters on the
+  inference DAG's `inference`/`preprocessing` tasks.
+- **New `ModelUIForm` type** (`type: "model"`, optional `kind` field to scope by installed-model kind) added
+  to `services/base/workflow-api/docker/files/app/schemas.py`'s `UIForm` union — the actual dynamic-picker
+  mechanism this gap needed, following the same minimal-discriminator shape as the existing `DatasetUIForm`.
+  Confirmed this workflow installs via `extension-manager-service`'s `WorkflowInstaller`
+  (`services/base/extension-manager-service/docker/files/app/v1/services/dispatch/consumers/workflows.py`),
+  which forwards `workflow.json` as a raw dict straight to workflow-api's `POST /workflows` with no
+  validation of its own — so only `services/base/workflow-api`'s schema needed updating for this workflow.
+  (There is a separate, unrelated `data-processing/workflows/workflow-installer/` Kubernetes-Job mechanism
+  with its own duplicate `UIForm` schema copy, used only by Helm-installed "core" workflows like
+  `dummy-workflow`/`registration-workflow` under `kaapana-workflows-core` — it has no code path to/from
+  extension-manager-service and does not need updating for this OCI-extension-installed workflow. Worth
+  checking if this ever needs to apply to a Helm-installed core workflow instead.)
+- **New kaapana-backend endpoint `GET /client/installed_models`** (`kind` query param, project-scoped via the
+  existing `get_project` dependency), added next to the existing `PUT /client/installed_models/sync` in
+  `services/base/kaapana-backend/docker/files/app/workflows/routers/client.py`. Delegates to
+  `crud.get_installed_models_by_project`, which already existed but was previously only used internally by a
+  different legacy feature (`replace_installed_models_in_schemas`, for the legacy JSON-schema `workflow_form`
+  generation). No DB migration needed — `kind`/`task_ids`/`friendly_name`/`project_id` all already existed on
+  `InstalledModel`.
+- **Frontend** (`services/base/workflow-ui`): `ModelUIForm`/`InstalledModel` types added to
+  `types/schemas.ts`; new `api/modelsApiClient.ts` (mirrors `datasetsApiClient.ts` exactly — separate axios
+  instance against `VITE_KAAPANA_BACKEND_URL`); `components/WorkflowForm.vue` gained a `model` field branch
+  mirroring the existing `dataset` branch (`item-value="task_ids"`, so the value bound into the trigger
+  form's `TASK_IDS` env var is exactly what `model-download` needs), with loading state keyed per `kind`
+  (unlike datasets, which have no filter dimension) since a workflow could in principle declare `model`
+  parameters of more than one kind.
+- `workflow.json` (classification-inference only): removed the `preprocessing`/`TASK_IDS`,
+  `inference`/`TASK_IDS`, and `inference`/`RUN_ID` entries; added one entry — `task_title: "model-download"`,
+  `env_variable_name: "TASK_IDS"`, `ui_form.type: "model"`, `ui_form.kind: "classification"`.
+
+**What was tested:** `task_api.cli validate --schema pc` on all three touched/new `processing-container.json`
+files; `py_compile` on all touched/new Python; a direct Pydantic construction of the updated `workflow.json`
+against workflow-api's own `WorkflowCreate` (the actual schema the real extension-manager install path
+validates against — this exercises the one gate that matters for this workflow); `vue-tsc --build` and
+`eslint` on the frontend changes (zero new errors — the pre-existing `no-explicit-any`/`no-empty-object-type`
+lint debt elsewhere in this frontend predates this change and was left alone).
+
+**Not tested:** `model_download.py`'s actual `/models` read end-to-end (the Task API CLI can't mount a
+non-channel path — see `task-api-contract.md`'s known-issues section — this needs a plain
+`docker run -v <fixture>:/models:ro ...` or a real deployment); the DAG end-to-end on a live
+Airflow/Kubernetes cluster; the new kaapana-backend endpoint against a real database.
+
+**Known limitations, flagged not fixed:**
+- `model-download` does no existence check before copying — a stale/renamed `task_ids` value (e.g. an
+  `InstalledModel` row surviving after its files were pruned from `/models`) surfaces as a pod-level
+  `FileNotFoundError`, not a friendlier pre-flight UI error.
+- The pre-existing `InstalledModelResponse` bug (its `to_dict()`-sourced `"input"` key doesn't match the
+  schema's `input_modalities` field; `kind` isn't declared on the schema at all, so both are silently dropped
+  from any `to_dict()`-based response) is unrelated to this change and was left as-is — the new picker only
+  needs `friendly_name`/`task_ids`, both of which round-trip correctly today.

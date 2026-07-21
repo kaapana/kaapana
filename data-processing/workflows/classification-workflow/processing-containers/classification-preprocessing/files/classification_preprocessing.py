@@ -21,23 +21,16 @@ c_handler.setFormatter(c_format)
 logger.addHandler(c_handler)
 
 # Fixed mount paths, defined by this container's processing-container.json
-# ("preprocess" template: "nrrd" input channel, "preprocessed" output channel).
+# ("preprocess" template: "nrrd"/"model" input channels, "preprocessed" output channel).
 NRRD_MOUNT = "/kaapana/app/nrrd"
 PREPROCESSED_MOUNT = "/kaapana/app/preprocessed"
+MODEL_MOUNT = "/kaapana/app/model"
 
 if "inference" in os.environ["WORKFLOW_NAME"]:
-    WORKFLOW_ID_OF_TRAINING = os.environ["TASK_IDS"].split("/")[0]
-
-    # Open the file for reading
-    with open(
-        os.path.join(
-            "/models/classification-training",
-            WORKFLOW_ID_OF_TRAINING,
-            "config.json",
-        ),
-        "r",
-    ) as file:
-        # Load the JSON content from the file
+    # Only the inference DAG wires the "model" input channel (from the model-download
+    # task); the training DAG never takes this branch, so the channel being unmounted
+    # there is fine.
+    with open(os.path.join(MODEL_MOUNT, "config.json"), "r") as file:
         os.environ["PATCH_SIZE"] = json.load(file)["PATCH_SIZE"]
 
 

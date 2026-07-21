@@ -1,0 +1,35 @@
+{
+    "name": "model-download",
+    "description": "Processing container for fetching a selected, previously persisted classification model checkpoint from the shared models volume and republishing it as a Task API output channel",
+    "api_version": 1,
+    "templates": [
+        {
+            "identifier": "download",
+            "description": "Copy a persisted classification model checkpoint (selected via its task_ids identifier) into the model output channel",
+            "env": [
+                {
+                    "name": "TASK_IDS",
+                    "value": "",
+                    "description": "Identifies which persisted checkpoint to fetch, as '<training-run-WORKFLOW_ID>-fold-<fold>/<model-best.pth.tar|model-end.pth.tar>' — the same value stored in the kaapana-backend's installed_models registry. Set via the TASK_IDS workflow_parameter (a 'model' UIForm-backed picker); required."
+                }
+            ],
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "model",
+                    "mounted_path": "/kaapana/app/model",
+                    "description": "The selected model's config.json and single checkpoint file, consumed downstream by the preprocessing and inference tasks."
+                }
+            ],
+            "command": ["python3", "-u", "/kaapana/model_download.py"],
+            "resources": {
+                "requests": {
+                    "memory": "500Mi"
+                },
+                "limits": {
+                    "memory": "1000Mi"
+                }
+            }
+        }
+    ]
+}

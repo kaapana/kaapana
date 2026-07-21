@@ -3,7 +3,6 @@ import ast
 import json
 import logging
 import os
-from pathlib import Path
 
 import numpy as np
 import torch
@@ -16,8 +15,9 @@ from batchgenerators_dataloader import PREPROCESSED_MOUNT, ClassificationDataset
 from monai.networks.nets import resnet18
 from opensearch_helper import OpenSearchHelper
 
-RESULTS_DIR = Path("/models", os.environ["DAG_ID"], os.environ["RUN_ID"])
-RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+# Fixed mount path, defined by this container's processing-container.json
+# ("infer" template: "model" input channel, provided by the model-download task).
+MODEL_MOUNT = "/kaapana/app/model"
 
 # Create a custom logger
 logging.getLogger().setLevel(logging.DEBUG)
@@ -34,14 +34,7 @@ logger.addHandler(c_handler)
 
 # load config
 
-with open(
-    os.path.join(
-        "/models/classification-training",
-        os.environ["TASK_IDS"].split("/")[0],
-        "config.json",
-    ),
-    "r",
-) as file:
+with open(os.path.join(MODEL_MOUNT, "config.json"), "r") as file:
     # Load the JSON content from the file
     CONFIG = json.load(file)
 
@@ -102,9 +95,15 @@ if __name__ == "__main__":
         num_classes=NUM_CLASSES,
     )
 
-    path_to_checkpoint_file = os.path.join(
-        "/models/classification-training", os.environ["TASK_IDS"]
-    )
+    checkpoint_candidates = [
+        f for f in os.listdir(MODEL_MOUNT) if f.endswith(".pth.tar")
+    ]
+    if len(checkpoint_candidates) != 1:
+        raise FileNotFoundError(
+            f"Expected exactly one checkpoint file in {MODEL_MOUNT}, found {checkpoint_candidates}"
+        )
+    checkpoint_filename = checkpoint_candidates[0]
+    path_to_checkpoint_file = os.path.join(MODEL_MOUNT, checkpoint_filename)
 
     # load weights
     # using weights_only=False for backwards compatability to keep torch <2.6 behavior
@@ -157,7 +156,7 @@ if __name__ == "__main__":
 
     for id, tag in predictions.items():
         tag = (
-            f"{tag}-{WORKFLOW_ID}-{FOLD}-{'end' if 'end' in os.environ['TASK_IDS'] else 'best'}"
+            f"{tag}-{WORKFLOW_ID}-{FOLD}-{'end' if 'end' in checkpoint_filename else 'best'}"
             if TAG_POSTFIX
             else tag
         )

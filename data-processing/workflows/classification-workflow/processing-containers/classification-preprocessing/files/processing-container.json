@@ -15,12 +15,7 @@
                 {
                     "name": "WORKFLOW_NAME",
                     "value": "classification-training",
-                    "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — gates the untouched legacy inference-only branch that reads a trained model's PATCH_SIZE from /models. Statically overridden per DAG in workflow_definition.py; the default here matches the training DAG, where that branch is never taken."
-                },
-                {
-                    "name": "TASK_IDS",
-                    "value": "",
-                    "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — only read when WORKFLOW_NAME contains 'inference', to look up the selected training run's PATCH_SIZE under /models. No dynamic model picker exists yet (see migration-notes.md); set manually via the TASK_IDS workflow_parameter on the inference DAG, shared with the inference task."
+                    "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — gates the untouched legacy inference-only branch that reads a trained model's PATCH_SIZE from the model input channel. Statically overridden per DAG in workflow_definition.py; the default here matches the training DAG, where that branch is never taken and the model input channel is never wired."
                 }
             ],
             "inputs": [
@@ -28,6 +23,11 @@
                     "name": "nrrd",
                     "mounted_path": "/kaapana/app/nrrd",
                     "description": "Expects one subdirectory per case, named after the case identifier, containing a single <identifier>.nrrd file."
+                },
+                {
+                    "name": "model",
+                    "mounted_path": "/kaapana/app/model",
+                    "description": "Only wired on the inference DAG (from the model-download task) — provides the selected model's config.json, read for its PATCH_SIZE. Not wired on the training DAG; the inference-only branch above never runs there so the absent mount is never accessed."
                 }
             ],
             "outputs": [

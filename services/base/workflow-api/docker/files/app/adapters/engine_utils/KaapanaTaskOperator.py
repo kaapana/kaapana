@@ -247,7 +247,9 @@ class KaapanaTaskOperator(BaseOperator):
                 task_models.IOVolume(
                     name=channel.name,
                     volume_source=self._workflow_data_volume_source(),
-                    sub_path=str(Path(context["dag_run"].run_id, self.task_id, channel.name)),
+                    sub_path=str(
+                        Path(context["dag_run"].run_id, self.task_id, channel.name)
+                    ),
                 )
             )
         inputs = []
@@ -290,8 +292,41 @@ class KaapanaTaskOperator(BaseOperator):
                     **self.labels,
                 },
                 annotations=self.annotations,
-                volumes=[client.V1Volume(name="dshm", empty_dir=client.V1EmptyDirVolumeSource(medium="Memory"))],
-                volume_mounts=[client.V1VolumeMount(name="dshm", mount_path="/dev/shm")],
+                volumes=[
+                    client.V1Volume(
+                        name="dshm",
+                        empty_dir=client.V1EmptyDirVolumeSource(medium="Memory"),
+                    ),
+                    client.V1Volume(
+                        name="models",
+                        persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                            claim_name="models-pv-claim",
+                            read_only=False,
+                        ),
+                    ),
+                    client.V1Volume(
+                        name="tensorboard",
+                        persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                            claim_name="tensorboard-pv-claim",
+                            read_only=False,
+                        ),
+                    ),
+                ],
+                volume_mounts=[
+                    client.V1VolumeMount(name="dshm", mount_path="/dev/shm"),
+                    client.V1VolumeMount(
+                        name="models",
+                        mount_path="/models",
+                        sub_path=None,
+                        read_only=False,
+                    ),
+                    client.V1VolumeMount(
+                        name="tensorboard",
+                        mount_path="/tensorboard",
+                        sub_path=None,
+                        read_only=False,
+                    ),
+                ],
             ),
         )
 

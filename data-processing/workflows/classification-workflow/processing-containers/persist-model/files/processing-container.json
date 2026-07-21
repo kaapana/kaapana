@@ -1,0 +1,35 @@
+{
+    "name": "persist-model",
+    "description": "Processing container for persisting a newly trained classification model into the shared models volume and syncing it into the kaapana-backend database",
+    "api_version": 1,
+    "templates": [
+        {
+            "identifier": "persist",
+            "description": "Store a training run's model output in the shared /models volume, then sync all installed classification models for the DAG into the kaapana-backend",
+            "env": [
+                {
+                    "name": "DAG_ID",
+                    "value": "classification-training",
+                    "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — the subdirectory of the shared /models volume this DAG's checkpoints live under. Statically overridden per DAG in workflow_definition.py."
+                }
+            ],
+            "inputs": [
+                {
+                    "name": "model",
+                    "mounted_path": "/kaapana/app/model",
+                    "description": "The training task's output: checkpoint(s), config.json, and training.log for this run."
+                }
+            ],
+            "outputs": [],
+            "command": ["python3", "-u", "/kaapana/persist_model.py"],
+            "resources": {
+                "requests": {
+                    "memory": "500Mi"
+                },
+                "limits": {
+                    "memory": "1000Mi"
+                }
+            }
+        }
+    ]
+}

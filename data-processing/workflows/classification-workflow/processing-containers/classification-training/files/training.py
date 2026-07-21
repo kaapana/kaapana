@@ -6,9 +6,7 @@ import os
 from pathlib import Path
 
 import numpy as np
-import requests
 import torch
-from kaapanapy.settings import ServicesSettings
 from batchgenerators.dataloading.multi_threaded_augmenter import MultiThreadedAugmenter
 from batchgenerators.transforms.abstract_transforms import Compose
 from batchgenerators.transforms.sample_normalization_transforms import (
@@ -22,11 +20,9 @@ from torchmetrics import Accuracy, F1Score
 
 os.environ["FOLD"] = "0"
 
-RESULTS_DIR = Path(
-    "/models",
-    os.environ["DAG_ID"],
-    f"{os.environ['WORKFLOW_ID']}-fold-{os.environ['FOLD']}",
-)
+# Handed downstream to the persist-model task via the "model" output channel/IOMapping —
+# training is not responsible for persisting into the shared /models volume itself.
+RESULTS_DIR = Path("/kaapana/app/model")
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Create a custom logger
@@ -109,66 +105,6 @@ else:
     accuracy_metric = Accuracy(task=os.environ["TASK"], num_classes=NUM_CLASSES + 1).to(
         DEVICE
     )
-
-
-def _get_installed_classification_models(models_dir):
-    installed = {}
-    models_path = Path(models_dir)
-    if not models_path.exists():
-        return installed
-    for folder in sorted(models_path.iterdir()):
-        if not folder.is_dir():
-            continue
-        config_file = folder / "config.json"
-        if not config_file.exists():
-            continue
-        best_model = folder / "model-best.pth.tar"
-        end_model = folder / "model-end.pth.tar"
-        if best_model.exists():
-            model_file = best_model.name
-        elif end_model.exists():
-            model_file = end_model.name
-        else:
-            logger.warning(f"Skipping {folder.name}: no model checkpoint found (training still running or failed)")
-            continue
-        with open(config_file) as f:
-            cfg = json.load(f)
-        workflow_id = cfg.get("WORKFLOW_ID", folder.name)
-        fold = cfg.get("FOLD", "0")
-        tag_map = ast.literal_eval(cfg.get("TAG_TO_CLASS_MAPPING_JSON", "{}"))
-        friendly_name = f"classification_{workflow_id}_fold_{fold}"
-        installed[friendly_name] = {
-            "description": f"Classification ({cfg.get('TASK', 'N/A')})",
-            "task_ids": f"{folder.name}/{model_file}",
-            "targets": list(tag_map.keys()),
-            "task": cfg.get("TASK", "N/A"),
-        }
-    return installed
-
-
-def sync_models_in_database(models_dir):
-    installed = _get_installed_classification_models(models_dir)
-    if not installed:
-        logger.warning("No classification models found to sync.")
-        return
-    logger.info(f"Syncing {len(installed)} classification model(s) to database...")
-    for name, meta in installed.items():
-        logger.info(f"  -> {name}: task_ids={meta['task_ids']}, targets={meta['targets']}")
-    query_url = f"{ServicesSettings().kaapana_backend_url}/client/installed_models/sync"
-    # load_workflow_config() cannot be used under KaapanaTaskOperator (see migration-notes.md) —
-    # it reads <workflow_dir>/conf/conf.json, a file only the legacy per-run workflow-directory
-    # mount ever produced. There is currently no non-interactive way to recover the DAG-run's
-    # project_form under KaapanaTaskOperator (the interactive KaapanaApiService device-code flow
-    # in kaapana_client.services.ApiService is not usable from an unattended task pod), so this
-    # call is made without a Project header. If the backend requires project scoping for this
-    # endpoint, this call will fail until a non-interactive way to supply it exists.
-    res = requests.put(
-        query_url,
-        json={"installed_models": installed, "kind": "classification"},
-    )
-    if res.status_code != 200:
-        raise Exception(f"sync_models_in_database failed [{res.status_code}]: {res.text}")
-    logger.info(f"Successfully synced {len(installed)} classification model(s) to database.")
 
 
 def save_checkpoint(model, optimizer, filename="my_checkpoint.pth.tar"):
@@ -443,5 +379,3 @@ if __name__ == "__main__":
 
     mt_train._finish()
     mt_val._finish()
-
-    sync_models_in_database(models_dir=f"/models/{os.environ['DAG_ID']}")

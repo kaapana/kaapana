@@ -11,6 +11,11 @@
                     "name": "DAG_ID",
                     "value": "classification-training",
                     "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — the subdirectory of the shared /models volume this DAG's checkpoints live under. Statically overridden per DAG in workflow_definition.py."
+                },
+                {
+                    "name": "KAAPANA_PROJECT_IDENTIFIER",
+                    "value": "",
+                    "description": "Injected per-task by the workflow-api (see airflow_adapter.py) with the triggering DAG run's project id. Used to fetch the full project object from the access-information-interface and build the Project header required by kaapana-backend's /client/installed_models/sync endpoint."
                 }
             ],
             "inputs": [

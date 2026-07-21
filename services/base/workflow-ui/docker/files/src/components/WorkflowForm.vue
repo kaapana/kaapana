@@ -189,6 +189,36 @@
                                                 </template>
                                             </v-select>
 
+                                            <!-- Model Field -->
+                                            <v-select v-else-if="param.ui_form.type === 'model'"
+                                                v-model="formData[fieldKey(param)]"
+                                                :label="param.ui_form.title + (param.ui_form.required ? ' *' : '')"
+                                                :hint="param.ui_form.description"
+                                                :items="modelOptionsByKind[modelKind(param)] || []"
+                                                item-title="friendly_name" item-value="task_ids" density="comfortable"
+                                                variant="outlined" class="parameter-field"
+                                                :rules="getRequiredRules(param.ui_form)"
+                                                :required="param.ui_form.required" validate-on="blur"
+                                                :loading="modelsLoadingByKind[modelKind(param)]"
+                                                :disabled="modelsLoadingByKind[modelKind(param)] || !!modelsErrorByKind[modelKind(param)]">
+                                                <template #prepend-inner>
+                                                    <v-icon size="small" color="grey">mdi-brain</v-icon>
+                                                </template>
+                                                <template v-if="param.ui_form.help" #append-inner>
+                                                    <v-tooltip location="top">
+                                                        <template #activator="{ props: tooltipProps }">
+                                                            <v-icon v-bind="tooltipProps" size="small" color="grey">
+                                                                mdi-help-circle-outline
+                                                            </v-icon>
+                                                        </template>
+                                                        {{ param.ui_form.help }}
+                                                    </v-tooltip>
+                                                </template>
+                                                <template v-if="modelsErrorByKind[modelKind(param)]" #message>
+                                                    <span class="text-error">{{ modelsErrorByKind[modelKind(param)] }}</span>
+                                                </template>
+                                            </v-select>
+
                                             <!-- Data Entity Field -->
                                             <v-text-field v-else-if="param.ui_form.type === 'data_entity'"
                                                 v-model="formData[fieldKey(param)]"
@@ -319,8 +349,9 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import type { CleanupPolicy, Workflow, WorkflowRunCreate, WorkflowParameter, UIForm, IntegerUIForm, FloatUIForm, StringUIForm, Dataset } from '@/types/schemas'
+import type { CleanupPolicy, Workflow, WorkflowRunCreate, WorkflowParameter, UIForm, IntegerUIForm, FloatUIForm, StringUIForm, Dataset, ModelUIForm, InstalledModel } from '@/types/schemas'
 import { fetchDatasets } from '@/api/datasetsApiClient'
+import { fetchInstalledModels } from '@/api/modelsApiClient'
 
 const props = defineProps<{ workflow: Workflow; modelValue: boolean; submitting?: boolean }>()
 const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void; (e: 'submit', data: WorkflowRunCreate): void }>()
@@ -376,6 +407,47 @@ const hasDatasetParameters = computed(() => {
 watch(isOpen, (newValue) => {
     if (newValue && hasDatasetParameters.value && datasetOptions.value.length === 0) {
         loadDatasets()
+    }
+})
+
+// Model loading state — grouped by ui_form.kind, since (unlike datasets) model options
+// are filtered by kind (e.g. "classification" vs "nnunet").
+function modelKind(param: WorkflowParameter): string {
+    return (param.ui_form as ModelUIForm).kind ?? ''
+}
+
+const modelOptionsByKind = ref<Record<string, InstalledModel[]>>({})
+const modelsLoadingByKind = ref<Record<string, boolean>>({})
+const modelsErrorByKind = ref<Record<string, string | null>>({})
+
+// Load installed models of one kind from kaapana-backend
+async function loadModels(kind: string) {
+    modelsLoadingByKind.value[kind] = true
+    modelsErrorByKind.value[kind] = null
+    try {
+        modelOptionsByKind.value[kind] = await fetchInstalledModels(kind || undefined)
+    } catch (err: any) {
+        console.error('Failed to load models:', err)
+        modelsErrorByKind.value[kind] = 'Failed to load models from kaapana-backend'
+        modelOptionsByKind.value[kind] = []
+    } finally {
+        modelsLoadingByKind.value[kind] = false
+    }
+}
+
+// Distinct kinds needed by this workflow's model-type parameters
+const modelKindsNeeded = computed(() => {
+    const workflowParams: WorkflowParameter[] = (props.workflow as any).workflow_parameters || []
+    return [...new Set(workflowParams.filter(p => p.ui_form.type === 'model').map(modelKind))]
+})
+
+// Load models when dialog opens if there are model parameters, one request per distinct kind
+watch(isOpen, (newValue) => {
+    if (!newValue) return
+    for (const kind of modelKindsNeeded.value) {
+        if (!(kind in modelOptionsByKind.value)) {
+            loadModels(kind)
+        }
     }
 })
 

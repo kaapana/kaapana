@@ -11,6 +11,17 @@ export interface Dataset {
     identifiers: string[]
 }
 
+export interface InstalledModel {
+    id: number
+    project_id: string
+    friendly_name: string
+    models_name: string
+    task_ids: string
+    description: string
+    targets: string[]
+    input_modalities: string[]
+}
+
 export enum WorkflowRunStatus {
     CREATED = "Created",
     PENDING = "Pending",
@@ -85,6 +96,11 @@ export interface DatasetUIForm extends BaseUIForm {
     type: "dataset";
 }
 
+export interface ModelUIForm extends BaseUIForm {
+    type: "model";
+    kind?: string;
+}
+
 export interface DataEntitiesUIForm extends BaseUIForm {
     type: "data_entity";
     query: string;
@@ -111,6 +127,7 @@ export type UIForm =
     | ListUIForm
     | StringUIForm
     | DatasetUIForm
+    | ModelUIForm
     | DataEntitiesUIForm
     | FileUIForm
     | TermsUIForm;

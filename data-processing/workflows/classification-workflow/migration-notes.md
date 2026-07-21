@@ -13,15 +13,23 @@ deploying the two DAGs (`classification-training`, `classification-inference`).
 
 ## Hard gaps — no Task API equivalent exists today
 
-1. **No persistent cross-run volume mechanism.** `training` writes model checkpoints to
-   `/models/<DAG_ID>/<WORKFLOW_ID>-fold-<FOLD>/` and TensorBoard logs to `/tensorboard/<RUN_ID>`;
-   `inference` reads a checkpoint back from that same `/models` tree by `TASK_IDS`. `KaapanaTaskOperator`'s
-   `IOMount`/`IOMapping` channel model only covers per-task-run I/O within a single DAG run — there's no
-   channel that lets one DAG run's task write somewhere a *different, later* DAG run's task can read from.
-   Both `/models` and `/tensorboard` are left as literal, unconverted host paths in `training.py`/
-   `inference.py`/`classification_preprocessing.py`; whoever deploys this workflow must arrange for these
-   paths to actually be mounted into the task pods some other way (there is no Task API-native way to do
-   this yet).
+1. **No persistent cross-run volume mechanism — since resolved at the operator level.** Originally,
+   `training` wrote model checkpoints to `/models/<DAG_ID>/<WORKFLOW_ID>-fold-<FOLD>/` and TensorBoard logs
+   to `/tensorboard/<RUN_ID>` as literal, unconverted host paths — `KaapanaTaskOperator`'s `IOMount`/
+   `IOMapping` channel model only covers per-task-run I/O within a single DAG run, so there was no
+   Task API-native way to make either path actually resolve to real, persistent storage inside a task pod.
+   **Resolved:** `KaapanaTaskOperator._create_task` (`services/base/workflow-api/.../KaapanaTaskOperator.py`)
+   now unconditionally mounts two additional PVCs into every task pod, alongside the pre-existing `dshm`
+   `emptyDir`: `models-pv-claim` at `/models` and `tensorboard-pv-claim` at `/tensorboard`, both read-write,
+   both shared (no per-run/per-project `sub_path`). This is a platform-level fix outside this workflow's own
+   files — it applies to every `KaapanaTaskOperator` task pod, not just this workflow's. As a direct
+   consequence:
+   - `inference.py`'s existing `/models/classification-training/...` `TASK_IDS` read (unchanged, still not
+     touched by this workflow) now resolves to real, persistent, cross-DAG-run storage instead of a phantom
+     path — gap #2 below (the free-text `TASK_IDS` workaround) is otherwise unaffected.
+   - `training.py`'s own `/tensorboard/<RUN_ID>` write (unchanged) is now genuinely persisted too.
+   - Model checkpoints specifically are **not** written into `/models` by `training` itself anymore — see
+     "Post-migration changes" below for the `training` → `persist-model` split that now owns that write.
 2. **No dynamic, backend-populated "model picker."** The legacy inference DAG's `ui_forms.workflow_form`
    (`oneOf: []`, `models: True`, `kind: "classification"`) dynamically listed installed models for the user
    to pick from. `workflow.json.workflow_parameters` only supports statically-defined field types — there is
@@ -55,15 +63,26 @@ deploying the two DAGs (`classification-training`, `classification-inference`).
      override is still possible via an env var/`workflow_parameters` entry if ever needed. What *is* lost:
      a per-project-configured `opensearch_index` (from the DAG-run's `project_form`) is no longer honored —
      the container always uses the platform's configured default index.
-   - `training.py`'s `sync_models_in_database()` previously built a `Project` HTTP header from
-     `load_workflow_config()["project_form"]` before PUTting to the kaapana-backend's
-     `/client/installed_models/sync`. **Fixed:** the `load_workflow_config()` call and `Project` header are
-     removed; the PUT is now made without project scoping. `kaapana_client.services.ApiService`'s
-     `KaapanaApiService`/`get_api_service_from_env()` was considered and rejected as a substitute — it drives
-     an interactive OAuth2 device-code flow meant for a human at a CLI/notebook and would hang forever in an
-     unattended task pod. **Not fully resolved**: if the backend enforces project scoping on this endpoint,
-     the sync call may be rejected server-side; there is currently no non-interactive way to supply a project
-     context from inside a `KaapanaTaskOperator` task pod.
+   - `persist_model.py`'s `sync_models_in_database()` (originally part of `training.py`, then split out into
+     its own `persist-model` container/task — see "Post-migration changes" below) previously built a
+     `Project` HTTP header from `load_workflow_config()["project_form"]` before PUTting to the
+     kaapana-backend's `/client/installed_models/sync`. **Fixed:** the `load_workflow_config()` call and
+     `Project` header are removed; the PUT is now made without project scoping. `kaapana_client.services.
+     ApiService`'s `KaapanaApiService`/`get_api_service_from_env()` was considered and rejected as a
+     substitute — it drives an interactive OAuth2 device-code flow meant for a human at a CLI/notebook and
+     would hang forever in an unattended task pod. **Confirmed broken, not resolved**: the backend *does*
+     enforce project scoping on this endpoint — `sync_installed_models` in
+     `services/base/kaapana-backend/docker/files/app/workflows/routers/client.py` depends on `get_project`
+     (`app/dependencies.py`), which 400s with `"Missing Project header"` if the header is absent. This was
+     observed on an actual cluster deployment of this DAG (`dag_id=classification-training_inc1`,
+     `run_id=manual__2026-07-20T13:54:37...`): training completed and saved a checkpoint, but the task
+     still failed with `sync_models_in_database failed [400]: {"detail":"Missing Project header"}`. There is
+     still no non-interactive way to supply a project context from inside a `KaapanaTaskOperator` task pod;
+     until one exists, this call will keep failing on any real deployment. Separately worth knowing if
+     changing sync semantics later: `crud.update_installed_models` (`app/workflows/crud.py`) does a full
+     delete-then-recreate of all `InstalledModel` rows scoped to `(project_id, kind)` per call — it is not
+     an upsert, so whatever `installed_models` dict is PUT on a given call becomes the *entire* registered
+     set for that project+kind, not a merge into it.
    - `kaapanapy.helper.get_opensearch_client()` (also imported in `opensearch_helper.py`) is unaffected by any
      of this — verified by reading it directly, it only needs `OpensearchSettings`/`KeycloakSettings`/
      `ProjectSettings`, all backed by `KAAPANA_*`-prefixed env vars that `KaapanaTaskOperator` does inject.
@@ -145,3 +164,49 @@ deployment attempt, not by local testing — local testing never exercises `Kaap
 The DAGs themselves (`workflow_definition.py` as actually interpreted by `KaapanaTaskOperator.execute()`)
 were still not run against a live Airflow/Kubernetes cluster after these fixes — that verification requires
 an actual deployment, which is outside what this migration could do locally.
+
+The `training`/`persist-model` split and the `models`/`tensorboard` PVC mounts (see gap #1 and
+"Post-migration changes") were verified only as far as: `training.py`/`persist_model.py` both `py_compile`
+clean, and both containers' `processing-container.json` pass `task_api.cli validate --schema pc`. Neither
+`persist-model` nor the new `model` `IOMapping` between `training` and `persist-model` have been run
+end-to-end — against fixtures locally or on the real cluster — as of this change.
+
+## Post-migration changes
+
+- **`classification-training` split into `training` + `persist-model` tasks (two processing-containers),
+  wired via a Task API `IOMapping` output/input channel.** `training.py` originally trained the model,
+  wrote the checkpoint directly to `/models/<DAG_ID>/<WORKFLOW_ID>-fold-<FOLD>/`, and then called
+  `sync_models_in_database()` to PUT the newly installed checkpoints to the kaapana-backend, all in one
+  script. This coupled a long-running GPU job to both a filesystem convention and a network call, and on an
+  actual deployment the network call's failure (see gap #4 above — `"Missing Project header"`) made the
+  whole `training` task report as failed even though the model had already trained and saved successfully.
+  - `training` is no longer responsible for persisting into the shared `/models` volume at all. It writes
+    its checkpoint(s) (`model-best.pth.tar`/`model-end.pth.tar`), `config.json`, and `training.log` to a new
+    `model` **output channel** (`processing-container.json` → `templates[].outputs`, `mounted_path:
+    "/kaapana/app/model"` — the same Task API-native mechanism `download`→`convert`→`preprocessing`→
+    `training` already used for `downloads`/`nrrd`/`preprocessed`). `training.py`'s `RESULTS_DIR` now points
+    there directly (`/kaapana/app/model`, flat — no `<DAG_ID>/<WORKFLOW_ID>-fold-<FOLD>` nesting needed,
+    since the channel's underlying storage is already namespaced per run+task by `KaapanaTaskOperator`
+    itself). Since `training` no longer builds a `/models/<DAG_ID>/...` path, its `DAG_ID` env var was
+    removed (from both `processing-container.json` and `workflow_definition.py`) — nothing in `training.py`
+    reads it anymore. `WORKFLOW_ID` is still required: it's written into `config.json` as metadata for
+    `persist-model` to read back.
+  - `_get_installed_classification_models()` and `sync_models_in_database()` were moved verbatim into a new,
+    separate **`persist-model`** processing-container (renamed from an earlier, never-shipped
+    `classification-model-sync`; `processing-containers/persist-model/files/persist_model.py`), run as a new
+    `persist-model` task after `training` (`training >> persist_model` in
+    `classification-training/workflow_definition.py`), connected by an actual `IOMapping`
+    (`upstream_output_channel="model"` → `input_channel="model"`) rather than a shared hardcoded path.
+    `persist-model` does two things in sequence, matching its name: (1) `persist_model()` reads the
+    `model`-channel-mounted directory's `config.json` for `WORKFLOW_ID`/`FOLD` and copies its contents into
+    `/models/<DAG_ID>/<WORKFLOW_ID>-fold-<FOLD>/` — this is now a real write, since (see gap #1 above)
+    `KaapanaTaskOperator` mounts a genuine `models-pv-claim` PVC at `/models`; (2) `sync_models_in_database()`
+    (unchanged from before) re-scans the whole `/models/<DAG_ID>` tree and PUTs the accumulated set to the
+    kaapana-backend — still subject to the unresolved "Missing Project header" gap above, but that failure
+    no longer masks `training`'s own success/failure status.
+  - `persist-model` uses `local-only/base-python-cpu:latest` (not the GPU base `training`/`inference` use)
+    since it does no ML work, only a filesystem copy + one HTTP PUT.
+  - TensorBoard logs remain unhandled by this split, as before — `training.py` still writes them to
+    `/tensorboard/<RUN_ID>` and nothing downstream consumes them. Unlike the model checkpoint, this path was
+    left as-is rather than routed through an output channel, since nothing in this DAG needs to read
+    TensorBoard logs back (they're for a human to open directly, e.g. via the `tensorboard-pv-claim` mount).

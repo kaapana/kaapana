@@ -64,10 +64,6 @@ with DAG("{{ dag_id }}", default_args=args) as dag:
             pc_models.BaseEnv(name="PATCH_SIZE", value="(128, 128, 128)"),
             pc_models.BaseEnv(name="BATCH_SIZE", value="1"),
             pc_models.BaseEnv(name="NUM_EPOCHS", value="1600"),
-            # DAG_ID is statically known and not injected by KaapanaTaskOperator (see
-            # migration-notes.md) — hardcoded here so the container's untouched
-            # /models/<DAG_ID>/... path construction resolves correctly.
-            pc_models.BaseEnv(name="DAG_ID", value="classification-training"),
         ],
         iochannel_maps=[
             IOMapping(
@@ -79,5 +75,24 @@ with DAG("{{ dag_id }}", default_args=args) as dag:
         labels={"network-access-opensearch": "true"},
     )
 
+    persist_model = KaapanaTaskOperator(
+        task_id="persist-model",
+        image=f"{DEFAULT_REGISTRY}/persist-model:{KAAPANA_BUILD_VERSION}",
+        taskTemplate="persist",
+        env=[
+            # DAG_ID is statically known and not injected by KaapanaTaskOperator (see
+            # migration-notes.md) — the subdirectory of the shared /models volume this
+            # DAG's checkpoints are persisted under.
+            pc_models.BaseEnv(name="DAG_ID", value="classification-training"),
+        ],
+        iochannel_maps=[
+            IOMapping(
+                upstream_operator=training,
+                upstream_output_channel="model",
+                input_channel="model",
+            )
+        ],
+    )
 
-download >> convert >> preprocessing >> training
+
+download >> convert >> preprocessing >> training >> persist_model

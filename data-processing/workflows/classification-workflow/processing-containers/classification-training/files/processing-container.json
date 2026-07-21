@@ -38,14 +38,9 @@
                     "description": "Number of training epochs."
                 },
                 {
-                    "name": "DAG_ID",
-                    "value": "classification-training",
-                    "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — used by the untouched legacy script to build its /models/<DAG_ID>/... checkpoint path. Statically overridden per DAG in workflow_definition.py."
-                },
-                {
                     "name": "WORKFLOW_ID",
                     "value": "",
-                    "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — user-chosen identifier for this training run, used to name its checkpoint subdirectory. Set via the WORKFLOW_ID workflow_parameter; required."
+                    "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — user-chosen identifier for this training run. Written into this run's config.json (part of the \"model\" output) so persist-model can name the checkpoint's subdirectory under the shared /models volume. Set via the WORKFLOW_ID workflow_parameter; required."
                 },
                 {
                     "name": "RUN_ID",
@@ -65,7 +60,13 @@
                     "description": "Expects one subdirectory per case, named after the case identifier, containing a single <identifier>.npy file."
                 }
             ],
-            "outputs": [],
+            "outputs": [
+                {
+                    "name": "model",
+                    "mounted_path": "/kaapana/app/model",
+                    "description": "Checkpoint(s) (model-best.pth.tar and/or model-end.pth.tar), config.json, and training.log for this run. Consumed by persist-model's \"model\" input, which stores it in the shared /models volume and syncs it into the kaapana-backend database."
+                }
+            ],
             "command": ["python3", "-u", "/kaapana/training.py"],
             "resources": {
                 "requests": {

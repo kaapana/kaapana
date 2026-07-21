@@ -66,23 +66,34 @@ deploying the two DAGs (`classification-training`, `classification-inference`).
    - `persist_model.py`'s `sync_models_in_database()` (originally part of `training.py`, then split out into
      its own `persist-model` container/task — see "Post-migration changes" below) previously built a
      `Project` HTTP header from `load_workflow_config()["project_form"]` before PUTting to the
-     kaapana-backend's `/client/installed_models/sync`. **Fixed:** the `load_workflow_config()` call and
-     `Project` header are removed; the PUT is now made without project scoping. `kaapana_client.services.
-     ApiService`'s `KaapanaApiService`/`get_api_service_from_env()` was considered and rejected as a
-     substitute — it drives an interactive OAuth2 device-code flow meant for a human at a CLI/notebook and
-     would hang forever in an unattended task pod. **Confirmed broken, not resolved**: the backend *does*
-     enforce project scoping on this endpoint — `sync_installed_models` in
+     kaapana-backend's `/client/installed_models/sync`. An intermediate version of this migration removed the
+     `load_workflow_config()` call and the `Project` header entirely and made the PUT without project
+     scoping — this was deployed and confirmed broken: the backend *does* enforce project scoping on this
+     endpoint (`sync_installed_models` in
      `services/base/kaapana-backend/docker/files/app/workflows/routers/client.py` depends on `get_project`
-     (`app/dependencies.py`), which 400s with `"Missing Project header"` if the header is absent. This was
-     observed on an actual cluster deployment of this DAG (`dag_id=classification-training_inc1`,
-     `run_id=manual__2026-07-20T13:54:37...`): training completed and saved a checkpoint, but the task
-     still failed with `sync_models_in_database failed [400]: {"detail":"Missing Project header"}`. There is
-     still no non-interactive way to supply a project context from inside a `KaapanaTaskOperator` task pod;
-     until one exists, this call will keep failing on any real deployment. Separately worth knowing if
-     changing sync semantics later: `crud.update_installed_models` (`app/workflows/crud.py`) does a full
-     delete-then-recreate of all `InstalledModel` rows scoped to `(project_id, kind)` per call — it is not
-     an upsert, so whatever `installed_models` dict is PUT on a given call becomes the *entire* registered
-     set for that project+kind, not a merge into it.
+     in `app/dependencies.py`, which 400s with `"Missing Project header"` if the header is absent), observed
+     on an actual cluster deployment of this DAG (`dag_id=classification-training_inc1`,
+     `run_id=manual__2026-07-20T13:54:37...`): training completed and saved a checkpoint, but the task still
+     failed with `sync_models_in_database failed [400]: {"detail":"Missing Project header"}`.
+     **Actually resolved:** the claim above that there is "no non-interactive way to supply a project context
+     from inside a `KaapanaTaskOperator` task pod" was an investigation gap, not a real platform limitation —
+     `airflow_adapter.py`'s `submit_workflow_run` (confirmed by reading it and by `git blame`, predating this
+     migration) already injects `KAAPANA_PROJECT_IDENTIFIER` (the triggering DAG run's project id) into every
+     task's env unconditionally, for every task in every DAG. The already-migrated
+     `registration-workflow`'s `download` task (`download_dicoms.py`) already relies on exactly this and
+     demonstrates the fix: read `KAAPANA_PROJECT_IDENTIFIER`, `GET {KAAPANA_AII_URL}/projects/{identifier}` to
+     resolve the full project object, then send it as `headers={"Project": json.dumps(project)}`.
+     `persist_model.py` now follows the same pattern via a local `get_project()` helper (same signature as
+     `download_dicoms.py`'s); `KAAPANA_PROJECT_IDENTIFIER` is declared in `processing-container.json`'s `env[]`
+     (empty default — always overridden by the platform injection above) so the read doesn't silently pass
+     `None` if ever run outside that injection path. `kaapana_client.services.ApiService`'s
+     `KaapanaApiService`/`get_api_service_from_env()` remains correctly rejected as a substitute — it drives an
+     interactive OAuth2 device-code flow meant for a human at a CLI/notebook and would hang forever in an
+     unattended task pod; it was never needed here. Separately worth knowing if changing sync semantics later:
+     `crud.update_installed_models` (`app/workflows/crud.py`) does a full delete-then-recreate of all
+     `InstalledModel` rows scoped to `(project_id, kind)` per call — it is not an upsert, so whatever
+     `installed_models` dict is PUT on a given call becomes the *entire* registered set for that project+kind,
+     not a merge into it.
    - `kaapanapy.helper.get_opensearch_client()` (also imported in `opensearch_helper.py`) is unaffected by any
      of this — verified by reading it directly, it only needs `OpensearchSettings`/`KeycloakSettings`/
      `ProjectSettings`, all backed by `KAAPANA_*`-prefixed env vars that `KaapanaTaskOperator` does inject.

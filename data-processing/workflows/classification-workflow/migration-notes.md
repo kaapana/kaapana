@@ -45,11 +45,19 @@ deploying the two DAGs (`classification-training`, `classification-inference`).
    - `DAG_ID` is statically knowable per DAG → hardcoded via `env=` in each `workflow_definition.py`.
    - `WORKFLOW_NAME` is statically knowable per DAG (used only to gate the inference-only branch in
      `classification_preprocessing.py`) → hardcoded via `env=`.
-   - `WORKFLOW_ID`, `RUN_ID`, `TASK_IDS` are genuinely per-run values with no static substitute → exposed as
-     required `workflow_parameters` so the user supplies them at trigger time. There is no enforced
-     uniqueness — if a user reuses a `WORKFLOW_ID`/`RUN_ID`, a previous run's checkpoint/TensorBoard log gets
-     silently overwritten. Legacy Airflow guaranteed `RUN_ID` uniqueness automatically; this is a real
-     behavior regression, not just a documentation gap.
+   - `WORKFLOW_ID` (renamed **2026-07-22** to `MODEL_CHECKPOINT_NAME` — see dated section below) and `TASK_IDS`
+     are genuinely per-run values with no static substitute → exposed as required `workflow_parameters` so the
+     user supplies them at trigger time. There is no enforced uniqueness — if a user reuses a
+     `MODEL_CHECKPOINT_NAME`, a previous run's checkpoint gets silently overwritten. Legacy Airflow guaranteed
+     `RUN_ID` uniqueness automatically; this remains a real behavior regression for `MODEL_CHECKPOINT_NAME`,
+     not just a documentation gap — partially mitigated **2026-07-22** by a generated human-readable default
+     (see dated section below), which lowers the odds of an accidental collision but does not prevent one.
+   - `RUN_ID` was originally in this same "no static substitute" bucket too, on the theory that it needed to
+     be unique per run like `WORKFLOW_ID`. As of **2026-07-22** that theory no longer holds: nothing downstream
+     ever reads `training`'s TensorBoard logs (unchanged since the "Post-migration changes" section below), so
+     per-run uniqueness was never actually required — a fixed value is fine. Reclassified alongside
+     `DAG_ID`/`WORKFLOW_NAME` above → hardcoded via `env=`, no longer a `workflow_parameter`. See dated section
+     below.
 4. **`kaapanapy.helper.load_workflow_config()` cannot work under `KaapanaTaskOperator` at all.** It reads
    `<OperatorSettings().workflow_dir>/conf/conf.json` — a file that only ever existed because
    `KaapanaBaseOperator.execute()` mounted the entire legacy workflow directory and wrote the DAG-run `conf`
@@ -146,7 +154,11 @@ corresponding declared default in that container's `processing-container.json` `
   this — the template ships `""`, and there's no platform-level auto-fill for "which dataset to download,"
   unlike its other env vars which line up with platform-injected `KAAPANA_*` values). Present in both DAGs'
   `workflow.json`, `ui_form.type: "dataset"` (a real dataset picker, not free text).
-- `training`/`inference`/`preprocessing` tasks: `WORKFLOW_ID`, `RUN_ID`, `TASK_IDS` — see gap #3.
+- `training` task (classification-training DAG only): `MODEL_CHECKPOINT_NAME` — see gap #3. (This list was not
+  kept in sync with the "Dynamic model picker" and "RUN_ID"/"MODEL_CHECKPOINT_NAME" dated sections below when
+  they landed — corrected here as of **2026-07-22**: `RUN_ID` is no longer in this list at all (hardcoded, see
+  gap #3), and `inference`/`preprocessing`'s `TASK_IDS` moved to a `model-download` task as a `model`-type
+  picker back on 2026-07-21, so it no longer belongs in this free-text-parameters list either.)
 
 ## What was tested
 
@@ -301,3 +313,81 @@ Airflow/Kubernetes cluster; the new kaapana-backend endpoint against a real data
   schema's `input_modalities` field; `kind` isn't declared on the schema at all, so both are silently dropped
   from any `to_dict()`-based response) is unrelated to this change and was left as-is — the new picker only
   needs `friendly_name`/`task_ids`, both of which round-trip correctly today.
+
+## 2026-07-22 — Drop `RUN_ID` from the UI, rename `WORKFLOW_ID` → `MODEL_CHECKPOINT_NAME`, generated defaults
+
+Prompted by a UX review of `classification-training`'s trigger form: `WORKFLOW_ID`/`RUN_ID` sat side by side as
+two required free-text fields with titles ("Training run ID", "Run ID") that read as near-duplicates and gave
+the user no indication of what either one actually controlled or what reusing a value would silently do. Scope
+is limited to `classification-training` — `classification-inference`/`model-download` never had either field
+(see gap #2/dynamic-model-picker section above) and were not touched.
+
+- **`RUN_ID` removed from `workflow_parameters` entirely, hardcoded instead.** Per gap #3's "Post-migration
+  changes" section, `training.py`'s `/tensorboard/<RUN_ID>` write has never been consumed by anything
+  downstream since the migration — no task reads it back, nothing routes it through an output channel, it
+  exists only for a human to open the PVC-mounted TensorBoard directory directly. Given that, requiring the
+  user to invent a unique value per run bought nothing: a collision only overwrites logs nobody was
+  programmatically depending on. `workflow.json`'s `RUN_ID` parameter block was deleted; `training`'s `env=` in
+  `workflow_definition.py` now hardcodes `RUN_ID="classification-training"` (same pattern, and same literal
+  value, as `DAG_ID`/`WORKFLOW_NAME` elsewhere in this file); `processing-container.json`'s `RUN_ID` template
+  default changed from `""` to `"classification-training"` to match, so a standalone/direct container run gets
+  the same value the DAG supplies. `training.py` itself is unchanged — it still reads `os.environ["RUN_ID"]`
+  in two places, it now just always resolves to the same constant rather than a user-supplied one. If a real
+  need to inspect distinct per-run TensorBoard logs ever arises, this decision should be revisited — right now
+  every run overwrites the same log directory.
+- **`WORKFLOW_ID` renamed to `MODEL_CHECKPOINT_NAME`, end to end, no behavior change.** The old name gave no
+  hint that this value names a model checkpoint specifically (as opposed to some generic per-DAG-run concept);
+  it was also easy to confuse with `RUN_ID` for exactly that reason. Renamed everywhere this identifier
+  appears — it is a stable contract between four files, all updated together: the `workflow.json` parameter's
+  `env_variable_name`, `processing-container.json`'s declared env var (`classification-training`), the
+  `os.environ[...]` read/write and `config.json` key in `training.py`, the `config.json` key read (and local
+  variable) in `persist_model.py`, and the `CONFIG[...]` read (and local variable, including its use inside the
+  `TAG_POSTFIX` tag string) in `inference.py`. `model-download`'s `processing-container.json` description
+  (which documents the `<training-run-...>-fold-<fold>/...` `task_ids` format for a human reader) was updated
+  to match; `model-download.py` itself never reads this key directly — it treats `task_ids` as an opaque path
+  string — so no code change was needed there. Purely a rename: the value that ends up in `config.json` and in
+  the kaapana-backend's `installed_models` registry is unaffected, only the key/env-var name it travels under.
+- **New `ui_form` split for `MODEL_CHECKPOINT_NAME`: persistent `description` + tooltip-only `help`.**
+  `WorkflowForm.vue` already renders `ui_form.description` as an always-visible hint (`persistent-hint`) and
+  `ui_form.help` as an opt-in tooltip behind a small info icon — this was previously unused by this field, which
+  crammed everything (purpose, consequence of reuse, and an internal cross-reference to this file) into one
+  dense `description` sentence. Split so the always-visible text states plainly what the field does and what
+  reusing a value costs, and moved the deeper detail (the TASK_IDS cross-reference, the migration-notes.md
+  pointer) into `help`. No schema change needed — both fields already existed on `BaseUIForm`
+  (`services/base/workflow-api/docker/files/app/schemas.py`) and `BaseUIForm`
+  (`services/base/workflow-ui/docker/files/src/types/schemas.ts`); this was a `workflow.json` content-only
+  change.
+- **New generated-default mechanism for `str`-type fields (`ui_form.random_default: bool`), used by
+  `MODEL_CHECKPOINT_NAME`.** Investigated whether the checkpoint-name field could be pre-filled with a
+  memorable suggested value instead of starting empty. Added the `unique-names-generator` npm package (MIT,
+  zero runtime dependencies, ships its own TypeScript types, ~850KB unpacked including all its word-list
+  dictionaries) to `services/base/workflow-ui/docker/files/package.json` rather than hand-writing/curating a
+  wordlist. A new `generateRandomDefault()` helper in `WorkflowForm.vue` calls it with the `adjectives` +
+  `animals` dictionaries plus a 3-digit `NumberDictionary` (e.g. `"fancy_elephant_482"`) — the extra number
+  cuts accidental-collision odds further, since this is still just a starting suggestion the user can freely
+  overwrite, not an enforced-unique value (that gap remains open, see gap #3's note above). Wired in as a new
+  optional field on `StringUIForm` — `random_default: Optional[bool] = False` in `schemas.py`,
+  `random_default?: boolean` in `types/schemas.ts` — checked in `WorkflowForm.vue`'s two form-data
+  initialization sites (initial load and `closeForm`'s reset-on-close, which are separate, near-duplicate code
+  blocks in this file today) right after the existing static-`default` check and before the per-type `switch`.
+  Purely additive to the shared `UIForm` schema (affects no other workflow's fields unless they opt in) and
+  purely a frontend nicety — the generated value is regular editable form input, no different from anything
+  else the user could have typed. Only `workflow.json`'s `MODEL_CHECKPOINT_NAME` entry sets
+  `"random_default": true` today.
+  - Caveat, not fixed: `unique-names-generator`'s stock `adjectives` dictionary (1202 entries, generic/broad)
+    occasionally produces an awkward combination (nationality- or business-jargon-flavored adjectives like
+    "christian"/"ltd" paired with an animal) — not offensive, just occasionally odd-sounding. Not worth
+    hand-filtering the dictionary for this; flagging rather than fixing.
+
+**What was tested:** `task_api.cli validate --schema pc` on `classification-training`'s (only touched)
+`processing-container.json`; `py_compile` on all touched Python; a direct Pydantic construction of the updated
+`workflow.json` against `WorkflowCreate` (confirms `MODEL_CHECKPOINT_NAME`'s `ui_form`, including the new
+`random_default` field, round-trips correctly, and that `RUN_ID` no longer appears as a parameter at all);
+`vue-tsc --build` and `eslint` on the frontend changes, diffed against the same lint run on the pre-change tree
+to confirm the pre-existing 27 `no-explicit-any`/`no-unused-vars` errors are unchanged in count (only line
+numbers shifted) — zero new lint errors introduced.
+
+**Not tested:** the DAG end-to-end on a live Airflow/Kubernetes cluster (as with every other change in this
+file, this requires an actual deployment); `generateRandomDefault()` was exercised standalone via a Node
+one-liner (see this change's conversation), not by actually opening `WorkflowForm.vue` in a browser — no UI
+smoke test was performed.

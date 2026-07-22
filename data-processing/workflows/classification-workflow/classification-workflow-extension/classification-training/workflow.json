@@ -121,23 +121,14 @@
         },
         {
             "task_title": "training",
-            "env_variable_name": "WORKFLOW_ID",
+            "env_variable_name": "MODEL_CHECKPOINT_NAME",
             "ui_form": {
                 "type": "str",
-                "title": "Training run ID",
-                "description": "Unique identifier for this training run; names its checkpoint subdirectory under /models and is the value later needed (as part of TASK_IDS) to select this run's checkpoint for inference. Not injected automatically (see migration-notes.md) — pick something unique per run.",
+                "title": "Checkpoint name",
+                "description": "Names this model's checkpoint. Reusing a name overwrites that model.",
+                "help": "Also the value you'll enter later in classification-inference to pick this model. Not injected automatically (see migration-notes.md) — pick something unique per run.",
                 "regex_pattern": ".*",
-                "required": true
-            }
-        },
-        {
-            "task_title": "training",
-            "env_variable_name": "RUN_ID",
-            "ui_form": {
-                "type": "str",
-                "title": "Run ID",
-                "description": "Used only for this run's TensorBoard log subdirectory. Not injected automatically (see migration-notes.md) — pick something unique per run to avoid overwriting a previous run's TensorBoard logs.",
-                "regex_pattern": ".*",
+                "random_default": true,
                 "required": true
             }
         }

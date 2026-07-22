@@ -38,14 +38,14 @@
                     "description": "Number of training epochs."
                 },
                 {
-                    "name": "WORKFLOW_ID",
+                    "name": "MODEL_CHECKPOINT_NAME",
                     "value": "",
-                    "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — user-chosen identifier for this training run. Written into this run's config.json (part of the \"model\" output) so persist-model can name the checkpoint's subdirectory under the shared /models volume. Set via the WORKFLOW_ID workflow_parameter; required."
+                    "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — user-chosen identifier for this training run's checkpoint. Written into this run's config.json (part of the \"model\" output) so persist-model can name the checkpoint's subdirectory under the shared /models volume. Set via the MODEL_CHECKPOINT_NAME workflow_parameter; required."
                 },
                 {
                     "name": "RUN_ID",
-                    "value": "",
-                    "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — used only for the TensorBoard log subdirectory and a debug log line, not for checkpoint identity. Set via the RUN_ID workflow_parameter; required to avoid TensorBoard log collisions between runs."
+                    "value": "classification-training",
+                    "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — used only for the TensorBoard log subdirectory and a debug log line, not for checkpoint identity. Statically overridden per DAG in workflow_definition.py rather than exposed as a workflow_parameter, since nothing downstream reads training's TensorBoard logs (see migration-notes.md) — collisions between runs are harmless."
                 },
                 {
                     "name": "SERVICES_NAMESPACE",

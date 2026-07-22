@@ -79,7 +79,7 @@ try:
     data["PATCH_SIZE"] = os.environ["PATCH_SIZE"]
     data["BATCH_SIZE"] = os.environ["BATCH_SIZE"]
     data["TASK"] = os.environ["TASK"]
-    data["WORKFLOW_ID"] = os.environ["WORKFLOW_ID"]
+    data["MODEL_CHECKPOINT_NAME"] = os.environ["MODEL_CHECKPOINT_NAME"]
     data["FOLD"] = os.environ["FOLD"]
 
     with open(os.path.join(RESULTS_DIR, "config.json"), "w") as f:

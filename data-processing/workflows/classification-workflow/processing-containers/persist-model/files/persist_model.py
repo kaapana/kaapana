@@ -30,7 +30,7 @@ def persist_model(model_dir, models_dir):
     with open(config_file) as f:
         cfg = json.load(f)
 
-    dest_dir = Path(models_dir, f"{cfg['WORKFLOW_ID']}-fold-{cfg['FOLD']}")
+    dest_dir = Path(models_dir, f"{cfg['MODEL_CHECKPOINT_NAME']}-fold-{cfg['FOLD']}")
     dest_dir.mkdir(parents=True, exist_ok=True)
     for item in model_path.iterdir():
         shutil.copy2(item, dest_dir / item.name)
@@ -60,10 +60,10 @@ def _get_installed_classification_models(models_dir):
             continue
         with open(config_file) as f:
             cfg = json.load(f)
-        workflow_id = cfg.get("WORKFLOW_ID", folder.name)
+        model_checkpoint_name = cfg.get("MODEL_CHECKPOINT_NAME", folder.name)
         fold = cfg.get("FOLD", "0")
         tag_map = ast.literal_eval(cfg.get("TAG_TO_CLASS_MAPPING_JSON", "{}"))
-        friendly_name = f"classification_{workflow_id}_fold_{fold}"
+        friendly_name = f"classification_{model_checkpoint_name}_fold_{fold}"
         installed[friendly_name] = {
             "description": f"Classification ({cfg.get('TASK', 'N/A')})",
             "task_ids": f"{folder.name}/{model_file}",

@@ -1,0 +1,45 @@
+{
+  "name": "Local BodyPartRegression prediction",
+  "image": "local-only/bodypartregression-task-api:latest",
+  "api_version": 1,
+  "taskTemplate": "predict-body-parts",
+  "inputs": [
+    {
+      "name": "nrrd",
+      "volume_source": {
+        "host_path": "{{ env.input_dir }}/nrrd"
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "name": "bpr-json",
+      "volume_source": {
+        "host_path": "{{ env.output_dir }}/bpr-json"
+      }
+    }
+  ],
+  "command": [
+    "python3",
+    "-u",
+    "/kaapana/app/run_bpreg.py",
+    "--input-root",
+    "/kaapana/app/nrrd",
+    "--output-root",
+    "/kaapana/app/bpr-json",
+    "--model-dir",
+    "/kaapana/app/BodyPartRegression/src/models/public_bpr_model"
+  ],
+  "resources": {
+    "requests": {
+      "memory": "3Gi"
+    },
+    "limits": {
+      "memory": "6Gi"
+    }
+  },
+  "config": {
+    "type": "docker",
+    "labels": {}
+  }
+}

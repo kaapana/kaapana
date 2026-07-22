@@ -1,0 +1,48 @@
+{
+  "name": "bodypartregression-task-api",
+  "description": "Locate body regions in CT NRRD volumes with BodyPartRegression.",
+  "api_version": 1,
+  "templates": [
+    {
+      "identifier": "predict-body-parts",
+      "description": "Run BodyPartRegression once for every SeriesInstanceUID item.",
+      "inputs": [
+        {
+          "name": "nrrd",
+          "mounted_path": "/kaapana/app/nrrd",
+          "description": "One directory per SeriesInstanceUID containing NRRD volumes."
+        }
+      ],
+      "outputs": [
+        {
+          "name": "bpr-json",
+          "mounted_path": "/kaapana/app/bpr-json",
+          "description": "One directory per SeriesInstanceUID containing native BodyPartRegression JSON."
+        }
+      ],
+      "env": [],
+      "command": [
+        "python3",
+        "-u",
+        "/kaapana/app/run_bpreg.py",
+        "--input-root",
+        "/kaapana/app/nrrd",
+        "--output-root",
+        "/kaapana/app/bpr-json",
+        "--model-dir",
+        "/kaapana/app/BodyPartRegression/src/models/public_bpr_model",
+        "--gpu"
+      ],
+      "resources": {
+        "requests": {
+          "memory": "3Gi",
+          "nvidia.com/gpu": "1"
+        },
+        "limits": {
+          "memory": "6Gi",
+          "nvidia.com/gpu": "1"
+        }
+      }
+    }
+  ]
+}

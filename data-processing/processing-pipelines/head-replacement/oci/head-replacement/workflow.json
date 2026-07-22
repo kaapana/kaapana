@@ -1,0 +1,42 @@
+{
+  "title": "head-replacement",
+  "workflow_engine": "airflow",
+  "labels": [
+    {
+      "key": "category",
+      "value": "preprocessing"
+    },
+    {
+      "key": "modality",
+      "value": "CT"
+    },
+    {
+      "key": "provider",
+      "value": "dkfz-mic"
+    }
+  ],
+  "workflow_parameters": [
+    {
+      "task_title": "download_dataset",
+      "env_variable_name": "DATASET",
+      "ui_form": {
+        "type": "dataset",
+        "title": "Input dataset",
+        "description": "Select a dataset containing conventional single-frame adult CT series.",
+        "required": true
+      }
+    },
+    {
+      "task_title": "send_derived_dicoms",
+      "env_variable_name": "DATASET",
+      "ui_form": {
+        "type": "str",
+        "title": "Output dataset",
+        "description": "Dataset in the admin project for the derived head-replaced DICOM series (13 characters maximum).",
+        "regex_pattern": "^[A-Za-z0-9_-]{1,13}$",
+        "default": "head-sphere",
+        "required": true
+      }
+    }
+  ]
+}

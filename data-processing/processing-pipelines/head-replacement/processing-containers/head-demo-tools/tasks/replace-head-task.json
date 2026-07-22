@@ -1,0 +1,39 @@
+{
+    "name": "Local demo head replacement",
+    "api_version": 1,
+    "image": "local-only/head-demo-tools:latest",
+    "taskTemplate": "replace-head",
+    "inputs": [
+        {
+            "name": "nrrd",
+            "volume_source": {
+                "host_path": "{{ env.input_dir }}/nrrd"
+            }
+        },
+        {
+            "name": "bpr-json",
+            "volume_source": {
+                "host_path": "{{ env.input_dir }}/bpr-json"
+            }
+        }
+    ],
+    "outputs": [
+        {
+            "name": "nrrd",
+            "volume_source": {
+                "host_path": "{{ env.output_dir }}/nrrd"
+            }
+        }
+    ],
+    "resources": {
+        "requests": {
+            "memory": "1Gi"
+        },
+        "limits": {
+            "memory": "6Gi"
+        }
+    },
+    "config": {
+        "type": "docker"
+    }
+}

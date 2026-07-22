@@ -1,0 +1,20 @@
+{
+  "name": "head-replacement-extension",
+  "id": "d8079635-3b67-48e3-b8b5-2bea9d6fa109",
+  "version": "0.2.1",
+  "contents": [
+    {
+      "name": "head-replacement",
+      "contentType": "workflow-v1",
+      "files": [
+        {
+          "path": "workflow_definition.py"
+        },
+        {
+          "path": "workflow.json"
+        }
+      ]
+    }
+  ],
+  "dependencies": []
+}

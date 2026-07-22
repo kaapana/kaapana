@@ -1,0 +1,42 @@
+{
+    "name": "head-demo-tools",
+    "description": "Minimal synthetic head replacement for LPS-oriented NRRD volumes.",
+    "api_version": 1,
+    "templates": [
+        {
+            "identifier": "replace-head",
+            "description": "Orient NRRD to LPS and replace BPR head foreground with a clipped physical sphere.",
+            "env": [],
+            "inputs": [
+                {
+                    "name": "nrrd",
+                    "mounted_path": "/kaapana/app/input-nrrd"
+                },
+                {
+                    "name": "bpr-json",
+                    "mounted_path": "/kaapana/app/bpr-json"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "nrrd",
+                    "mounted_path": "/kaapana/app/output-nrrd"
+                }
+            ],
+            "command": [
+                "python3",
+                "-u",
+                "/kaapana/app/demo_tools.py",
+                "replace-head"
+            ],
+            "resources": {
+                "requests": {
+                    "memory": "1Gi"
+                },
+                "limits": {
+                    "memory": "6Gi"
+                }
+            }
+        }
+    ]
+}

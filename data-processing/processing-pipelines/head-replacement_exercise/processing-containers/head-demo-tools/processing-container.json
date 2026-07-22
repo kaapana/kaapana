@@ -1,0 +1,53 @@
+{
+    "name": "head-demo-tools",
+    "description": "Minimal synthetic head replacement for LPS-oriented NRRD volumes.",
+    "api_version": 1,
+    "templates": [
+        {
+            // ###########################
+            // Exercise: define the replace-head task template.
+            //
+            // It consumes the channels "nrrd" and "bpr-json",
+            // produces "nrrd", and invokes demo_tools.py replace-head.
+            // Inspect files/demo_tools.py to find the correct CLI arguments
+            // for the command array.
+            // ###########################
+
+            "identifier": "TODO",
+            "description": "Orient NRRD to LPS and replace BPR head foreground with a clipped physical sphere.",
+            "env": [],
+            "inputs": [
+                {
+                    "name": "TODO",
+                    "mounted_path": "TODO"
+                },
+                {
+                    "name": "TODO",
+                    "mounted_path": "TODO"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "TODO",
+                    "mounted_path": "TODO"
+                }
+            ],
+            "command": [
+                "TODO"
+            ],
+
+            // ###########################
+            // End exercise
+            // ###########################
+
+            "resources": {
+                "requests": {
+                    "memory": "1Gi"
+                },
+                "limits": {
+                    "memory": "6Gi"
+                }
+            }
+        }
+    ]
+}

@@ -76,7 +76,7 @@ The head-replacement workflow we want to create and add to the Kaapana platform,
 
 .. code-block:: text
 
-   head-replacement/
+   head-replacement_exercise/
    |--- processing-containers/
    |    `--- head-demo-tools/
    |         |--- Dockerfile
@@ -89,7 +89,7 @@ The head-replacement workflow we want to create and add to the Kaapana platform,
              |--- workflow_definition.py
              `--- workflow.json
 
-You can find the relevant code under ``data-processing/processing-pipelines/head-replacement``.
+You can find the relevant code under ``data-processing/processing-pipelines/head-replacement_exercise``.
 
 Here, we for one have the ``head-demo-tools`` processing-container. It contains the code of our head-replacement method that we want to add in ``files/demo_tools.py``, as well as everyting
 needed to run it with Kaapana's Task API. 
@@ -122,14 +122,15 @@ You do not need to modify the algorithm; you only need to package it.
 
 
 2.2 Defining the processing-container.json
-=========================================
+==========================================
 
 
 
 .. code-block:: text
    :caption: You can find the processing-container.json in:
 
-   data-processing/processing-pipelines/head-replacement/processing-containers/head-demo-tools/processing-container.json
+   data-processing/processing-pipelines/head-replacement_exercise/processing-containers/head-demo-tools/processing-container.json
+
 Define the task template in three parts:
 
 | **Input channels**
@@ -155,6 +156,9 @@ the method.
   replacement. Ensure that the script's input and output paths match the
   mounted channel paths.
 
+The starter manifest intentionally contains ``TODO`` values and instructional
+comments. Replace the values and remove the comments to produce valid JSON.
+
 .. tabs::
 
    .. tab:: Exercise
@@ -172,7 +176,8 @@ the method.
                //
                // It consumes the channels "nrrd" and "bpr-json",
                // produces "nrrd", and invokes demo_tools.py replace-head.
-               // Look inside the files/demo_tools.py script to find the correct cli flags to declare in the command array.
+               // Inspect files/demo_tools.py to find the correct CLI arguments
+               // for the command array.
                // ###########################
 
                "identifier": "TODO",
@@ -272,7 +277,7 @@ Validate the completed contract:
 .. code-block:: bash
 
    python3 -m task_api.cli validate \
-     data-processing/processing-pipelines/head-replacement/processing-containers/head-demo-tools/processing-container.json \
+     data-processing/processing-pipelines/head-replacement_exercise/processing-containers/head-demo-tools/processing-container.json \
      --schema pc
 
 The command must exit without schema errors before you continue.
@@ -300,7 +305,7 @@ Since a task is run in its own isolated container, the method is packaged as a D
 .. code-block:: text
    :caption: You can find the Dockerfile here:
 
-   data-processing/processing-pipelines/head-replacement/processing-containers/head-demo-tools/Dockerfile
+   data-processing/processing-pipelines/head-replacement_exercise/processing-containers/head-demo-tools/Dockerfile
 
 
 When the platform then later wants to run the task, it will pull the image, do some **magic** and start a container. 
@@ -314,10 +319,14 @@ We can use the ``kaapana-build`` cli to archieve this.
      --default-registry REGISTRY \
      --registry-username USER \
      --registry-password TOKEN \
+     --build-ignore-patterns "*templates_and_examples/*,*ci/*,*lib/task_api/*,head-replacement" \
      --containers-to-build head-demo-tools
 
 Instead of passigng the registry, username and password as cli arguments, you can also set them as environment variables
 or use a ``.env`` file in the root of your Kaapana checkout.
+
+The ignore pattern excludes the completed reference pipeline, which uses the
+same ``head-demo-tools`` image name as the exercise.
 
 
 3. Create the head-replacement workflow
@@ -331,7 +340,7 @@ Next up we need to create the actual workflow that connects the different tasks 
 .. code-block:: text
    :caption: You can find the workflow_definition.py here:
 
-   data-processing/processing-pipelines/head-replacement/oci/head-replacement/workflow_definition.py
+   data-processing/processing-pipelines/head-replacement_exercise/oci/head-replacement/workflow_definition.py
 
 Complete the ``replace_head`` operator. It needs the NRRD from
 ``convert_to_nrrd`` and the JSON result from ``localize_head``.
@@ -431,11 +440,11 @@ Build, push, and verify the supplied version:
 .. code-block:: bash
 
    extensionctl build \
-     data-processing/processing-pipelines/head-replacement/oci \
-     --output data-processing/processing-pipelines/head-replacement/dist
+     data-processing/processing-pipelines/head-replacement_exercise/oci \
+     --output data-processing/processing-pipelines/head-replacement_exercise/dist
 
    extensionctl push \
-     data-processing/processing-pipelines/head-replacement/dist/head-replacement-extension-v{Resulting Build Version}.tar.gz
+     data-processing/processing-pipelines/head-replacement_exercise/dist/head-replacement-extension-v{Resulting Build Version}.tar.gz
 
    extensionctl list --full
 

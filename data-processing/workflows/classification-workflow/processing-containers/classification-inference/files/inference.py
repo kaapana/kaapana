@@ -48,7 +48,7 @@ NUM_WORKERS = 4
 BATCH_SIZE = int(CONFIG["BATCH_SIZE"])
 os.environ["TASK"] = CONFIG["TASK"]
 TAG_POSTFIX = os.environ["TAG_POSTFIX"] == "True"
-WORKFLOW_ID = CONFIG["WORKFLOW_ID"]
+MODEL_CHECKPOINT_NAME = CONFIG["MODEL_CHECKPOINT_NAME"]
 FOLD = CONFIG["FOLD"]
 
 # Log config
@@ -60,7 +60,7 @@ logger.debug(f"DIMENSIONS={CONFIG['DIMENSIONS']}")
 logger.debug(f"PATCH_SIZE={CONFIG['PATCH_SIZE']}")
 logger.debug(f"BATCH_SIZE={CONFIG['BATCH_SIZE']}")
 logger.debug(f"TASK={CONFIG['TASK']}")
-logger.debug(f"WORKFLOW_ID of training={CONFIG['WORKFLOW_ID']}")
+logger.debug(f"MODEL_CHECKPOINT_NAME of training={CONFIG['MODEL_CHECKPOINT_NAME']}")
 logger.debug(f"FOLD={CONFIG['FOLD']}")
 
 
@@ -156,7 +156,7 @@ if __name__ == "__main__":
 
     for id, tag in predictions.items():
         tag = (
-            f"{tag}-{WORKFLOW_ID}-{FOLD}-{'end' if 'end' in checkpoint_filename else 'best'}"
+            f"{tag}-{MODEL_CHECKPOINT_NAME}-{FOLD}-{'end' if 'end' in checkpoint_filename else 'best'}"
             if TAG_POSTFIX
             else tag
         )

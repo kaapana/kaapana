@@ -90,6 +90,9 @@ export interface ListUIForm extends BaseUIForm {
 export interface StringUIForm extends BaseUIForm {
     type: "str";
     regex_pattern: string;
+    // If true and no static `default` is set, the form pre-fills this field with a
+    // generated human-readable random value instead of an empty string.
+    random_default?: boolean;
 }
 
 export interface DatasetUIForm extends BaseUIForm {

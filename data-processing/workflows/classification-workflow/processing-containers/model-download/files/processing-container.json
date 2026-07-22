@@ -10,7 +10,7 @@
                 {
                     "name": "TASK_IDS",
                     "value": "",
-                    "description": "Identifies which persisted checkpoint to fetch, as '<training-run-WORKFLOW_ID>-fold-<fold>/<model-best.pth.tar|model-end.pth.tar>' — the same value stored in the kaapana-backend's installed_models registry. Set via the TASK_IDS workflow_parameter (a 'model' UIForm-backed picker); required."
+                    "description": "Identifies which persisted checkpoint to fetch, as '<training-run-MODEL_CHECKPOINT_NAME>-fold-<fold>/<model-best.pth.tar|model-end.pth.tar>' — the same value stored in the kaapana-backend's installed_models registry. Set via the TASK_IDS workflow_parameter (a 'model' UIForm-backed picker); required."
                 }
             ],
             "inputs": [],

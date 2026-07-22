@@ -349,9 +349,21 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { uniqueNamesGenerator, adjectives, animals, NumberDictionary } from 'unique-names-generator'
 import type { CleanupPolicy, Workflow, WorkflowRunCreate, WorkflowParameter, UIForm, IntegerUIForm, FloatUIForm, StringUIForm, Dataset, ModelUIForm, InstalledModel } from '@/types/schemas'
 import { fetchDatasets } from '@/api/datasetsApiClient'
 import { fetchInstalledModels } from '@/api/modelsApiClient'
+
+// Generates a memorable placeholder like "fancy_elephant_482" for str fields with
+// ui_form.random_default set — still freely editable, just a friendlier starting point
+// than an empty string for values that must be unique per run (see migration-notes.md).
+function generateRandomDefault(): string {
+    return uniqueNamesGenerator({
+        dictionaries: [adjectives, animals, NumberDictionary.generate({ min: 100, max: 999 })],
+        separator: '_',
+        style: 'lowerCase',
+    })
+}
 
 const props = defineProps<{ workflow: Workflow; modelValue: boolean; submitting?: boolean }>()
 const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void; (e: 'submit', data: WorkflowRunCreate): void }>()
@@ -500,6 +512,8 @@ watch(
                 // Set default value based on type
                 if (defaultValue !== undefined && defaultValue !== null) {
                     initialData[key] = defaultValue
+                } else if (param.ui_form.type === 'str' && (param.ui_form as StringUIForm).random_default) {
+                    initialData[key] = generateRandomDefault()
                 } else {
                     switch (param.ui_form.type) {
                         case 'bool':
@@ -708,6 +722,8 @@ function closeForm() {
 
         if (defaultValue !== undefined && defaultValue !== null) {
             initialData[key] = defaultValue
+        } else if (param.ui_form.type === 'str' && (param.ui_form as StringUIForm).random_default) {
+            initialData[key] = generateRandomDefault()
         } else {
             switch (param.ui_form.type) {
                 case 'bool':

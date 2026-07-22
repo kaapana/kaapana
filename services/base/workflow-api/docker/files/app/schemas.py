@@ -187,11 +187,20 @@ class StringUIForm(BaseUIForm):
     Attributes:
         type (Literal["str"]): Discriminator identifying this as a string field.
         regex_pattern (str): Regular expression pattern used to validate the input value.
+        random_default (bool): Whether the frontend should pre-fill this field with a
+            generated human-readable random value (e.g. "fancy_elephant_482") instead of
+            an empty string, when no static `default` is set. Purely a frontend
+            convenience — the generated value is still freely editable and this flag has
+            no effect on validation.
     """
 
     type: Literal["str"] = "str"
     regex_pattern: str = Field(
         ..., description="Regex pattern for validating the string input."
+    )
+    random_default: Optional[bool] = Field(
+        False,
+        description="If true and no static default is set, the frontend pre-fills this field with a generated human-readable random value instead of an empty string.",
     )
 
 

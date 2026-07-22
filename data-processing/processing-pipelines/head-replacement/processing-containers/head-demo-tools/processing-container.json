@@ -27,7 +27,13 @@
                 "python3",
                 "-u",
                 "/kaapana/app/demo_tools.py",
-                "replace-head"
+                "replace-head",
+                "--input-root",
+                "/kaapana/app/input-nrrd",
+                "--bpr-root",
+                "/kaapana/app/bpr-json",
+                "--output-root",
+                "/kaapana/app/output-nrrd"
             ],
             "resources": {
                 "requests": {

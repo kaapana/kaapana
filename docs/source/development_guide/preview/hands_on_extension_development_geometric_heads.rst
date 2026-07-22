@@ -113,7 +113,10 @@ It accepts an NRRD CT volume and a BodyPartRegression JSON result as inputs, and
 .. code-block:: bash
    :caption: Its container command is:
 
-   python3 /kaapana/app/demo_tools.py replace-head
+   python3 -u /kaapana/app/demo_tools.py replace-head \
+     --input-root /kaapana/app/input-nrrd \
+     --bpr-root /kaapana/app/bpr-json \
+     --output-root /kaapana/app/output-nrrd
 
 You do not need to modify the algorithm; you only need to package it.
 
@@ -244,7 +247,13 @@ the method.
                  "python3",
                  "-u",
                  "/kaapana/app/demo_tools.py",
-                 "replace-head"
+                 "replace-head",
+                 "--input-root",
+                 "/kaapana/app/input-nrrd",
+                 "--bpr-root",
+                 "/kaapana/app/bpr-json",
+                 "--output-root",
+                 "/kaapana/app/output-nrrd"
                ],
                "resources": {
                  "requests": {

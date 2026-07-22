@@ -18,6 +18,8 @@ All channels retain the `<channel>/<SeriesInstanceUID>/...` item layout. The
 MITK-produced NRRD is passed directly to BodyPartRegression and the replacement
 task. Both custom tasks orient the image to LPS consistently; BPR uses a
 temporary NIfTI internally but does not expose a NIfTI channel.
+The `head-demo-tools` command receives the two input `mounted_path` values and
+the output `mounted_path` explicitly as CLI arguments.
 
 The input dataset selector targets `download_dataset.DATASET`. The output
 dataset field targets `send_derived_dicoms.DATASET` and is limited to 13

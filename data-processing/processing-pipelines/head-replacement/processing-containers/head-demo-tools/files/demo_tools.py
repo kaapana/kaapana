@@ -12,11 +12,6 @@ import numpy as np
 import SimpleITK as sitk
 
 
-INPUT_ROOT = Path("/kaapana/app/input-nrrd")
-BPR_ROOT = Path("/kaapana/app/bpr-json")
-OUTPUT_ROOT = Path("/kaapana/app/output-nrrd")
-
-
 def _one_file(directory: Path, suffix: str) -> Path:
     files = sorted(path for path in directory.iterdir() if path.name.endswith(suffix))
     if len(files) != 1:
@@ -75,9 +70,9 @@ def process_batch(input_root: Path, bpr_root: Path, output_root: Path) -> None:
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
     result.add_argument("command", choices=("replace-head",))
-    result.add_argument("--input-root", type=Path, default=INPUT_ROOT)
-    result.add_argument("--bpr-root", type=Path, default=BPR_ROOT)
-    result.add_argument("--output-root", type=Path, default=OUTPUT_ROOT)
+    result.add_argument("--input-root", type=Path, required=True)
+    result.add_argument("--bpr-root", type=Path, required=True)
+    result.add_argument("--output-root", type=Path, required=True)
     return result
 
 

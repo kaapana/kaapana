@@ -75,6 +75,25 @@ kaapana-build \
 
 The final ignore entry excludes the completed reference pipeline, which uses
 the same image name as this exercise.
+
+Alternatively, build and push the image directly with Docker. The
+`local-only/base-python-cpu:latest` base image must already be available in the
+local Docker daemon:
+
+```bash
+docker login REGISTRY_HOST --username USER
+
+docker build \
+  --tag REGISTRY/head-demo-tools:PLATFORM_VERSION \
+  data-processing/processing-pipelines/head-replacement_exercise/processing-containers/head-demo-tools
+
+docker push REGISTRY/head-demo-tools:PLATFORM_VERSION
+```
+
+Replace `REGISTRY_HOST` with the registry hostname, `REGISTRY` with the image
+prefix used by the platform, and `PLATFORM_VERSION` with the target platform's
+`KAAPANA_BUILD_VERSION`.
+
 Validate the custom Task API manifests and local fixtures with:
 
 ```bash

@@ -311,22 +311,44 @@ Since a task is run in its own isolated container, the method is packaged as a D
 When the platform then later wants to run the task, it will pull the image, do some **magic** and start a container. 
 We therefore need to make sure that the image is built and pushed to a registry so that the platform can pull it during execution.
 
-We can use the ``kaapana-build`` cli to archieve this.
+Choose either Docker or ``kaapana-build`` to build and push the image:
 
-.. code-block:: bash
+.. tabs::
 
-   kaapana-build \
-     --default-registry REGISTRY \
-     --registry-username USER \
-     --registry-password TOKEN \
-     --build-ignore-patterns "*templates_and_examples/*,*ci/*,*lib/task_api/*,head-replacement" \
-     --containers-to-build head-demo-tools
+   .. tab:: Docker
 
-Instead of passigng the registry, username and password as cli arguments, you can also set them as environment variables
-or use a ``.env`` file in the root of your Kaapana checkout.
+      This requires ``local-only/base-python-cpu:latest`` to be available in
+      your local Docker daemon.
 
-The ignore pattern excludes the completed reference pipeline, which uses the
-same ``head-demo-tools`` image name as the exercise.
+      .. code-block:: bash
+
+         docker login localhost:5000 --username kaapana --password kaapana
+
+         docker build \
+           --tag localhost:5000/head-demo-tools:0.7.0-latest \
+           data-processing/processing-pipelines/head-replacement_exercise/processing-containers/head-demo-tools
+
+         docker push localhost:5000/head-demo-tools:0.7.0-latest
+
+   .. tab:: kaapana-build
+
+      Use the ``kaapana-build`` CLI to build and push the image:
+
+      .. code-block:: bash
+
+         kaapana-build \
+           --default-registry REGISTRY \
+           --registry-username USER \
+           --registry-password TOKEN \
+           --build-ignore-patterns "*templates_and_examples/*,*ci/*,*lib/task_api/*,head-replacement" \
+           --containers-to-build head-demo-tools
+
+      Instead of passing the registry, username, and password as CLI
+      arguments, you can set them as environment variables or use a ``.env``
+      file in the root of your Kaapana checkout.
+
+      The ignore pattern excludes the completed reference pipeline, which uses
+      the same ``head-demo-tools`` image name as the exercise.
 
 
 3. Create the head-replacement workflow

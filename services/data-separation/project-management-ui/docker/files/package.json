@@ -18,6 +18,9 @@
     "vue3-cookies": "^1.0.6",
     "vuetify": "3.6.11"
   },
+  "resolutions": {
+    "vue": "3.4.31"
+  },
   "devDependencies": {
     "@babel/types": "7.24.7",
     "@types/node": "20.14.10",

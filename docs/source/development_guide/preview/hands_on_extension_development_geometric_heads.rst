@@ -51,6 +51,11 @@ Processing images and the workflow extension are separate artifacts. They may
 use the same registry host, but the images are pushed as container images while
 the workflow is pushed to the OCI repository configured in Extension Manager.
 
+.. important::
+   The ``bodypartregression-task-api`` image is a prerequisite and must be
+   built and pushed manually. See the BodyPartRegression task README in
+   `data-processing/kaapana-plugin/processing-containers/bodypart-regression-task/README.md`.
+
 Create a virtual environment and install the development commands in the order listed:
 
 .. code-block:: bash
@@ -76,7 +81,7 @@ The head-replacement workflow we want to create and add to the Kaapana platform,
 
 .. code-block:: text
 
-   head-replacement_exercise/
+   head-replacement-exercise/
    |--- processing-containers/
    |    `--- head-demo-tools/
    |         |--- Dockerfile
@@ -89,7 +94,7 @@ The head-replacement workflow we want to create and add to the Kaapana platform,
              |--- workflow_definition.py
              `--- workflow.json
 
-You can find the relevant code under ``data-processing/processing-pipelines/head-replacement_exercise``.
+You can find the relevant code under ``data-processing/workflows/head-replacement-exercise``.
 
 Here, we for one have the ``head-demo-tools`` processing-container. It contains the code of our head-replacement method that we want to add in ``files/demo_tools.py``, as well as everyting
 needed to run it with Kaapana's Task API. 
@@ -129,7 +134,7 @@ You do not need to modify the algorithm; you only need to package it.
 .. code-block:: text
    :caption: You can find the processing-container.json in:
 
-   data-processing/processing-pipelines/head-replacement_exercise/processing-containers/head-demo-tools/processing-container.json
+   data-processing/workflows/head-replacement-exercise/processing-containers/head-demo-tools/processing-container.json
 
 Define the task template in three parts:
 
@@ -277,7 +282,7 @@ Validate the completed contract:
 .. code-block:: bash
 
    python3 -m task_api.cli validate \
-     data-processing/processing-pipelines/head-replacement_exercise/processing-containers/head-demo-tools/processing-container.json \
+     data-processing/workflows/head-replacement-exercise/processing-containers/head-demo-tools/processing-container.json \
      --schema pc
 
 The command must exit without schema errors before you continue.
@@ -305,7 +310,7 @@ Since a task is run in its own isolated container, the method is packaged as a D
 .. code-block:: text
    :caption: You can find the Dockerfile here:
 
-   data-processing/processing-pipelines/head-replacement_exercise/processing-containers/head-demo-tools/Dockerfile
+   data-processing/workflows/head-replacement-exercise/processing-containers/head-demo-tools/Dockerfile
 
 
 When the platform then later wants to run the task, it will pull the image, do some **magic** and start a container. 
@@ -326,7 +331,7 @@ Choose either Docker or ``kaapana-build`` to build and push the image:
 
          docker build \
            --tag localhost:5000/head-demo-tools:0.7.0-latest \
-           data-processing/processing-pipelines/head-replacement_exercise/processing-containers/head-demo-tools
+           data-processing/workflows/head-replacement-exercise/processing-containers/head-demo-tools
 
          docker push localhost:5000/head-demo-tools:0.7.0-latest
 
@@ -362,7 +367,7 @@ Next up we need to create the actual workflow that connects the different tasks 
 .. code-block:: text
    :caption: You can find the workflow_definition.py here:
 
-   data-processing/processing-pipelines/head-replacement_exercise/oci/head-replacement/workflow_definition.py
+   data-processing/workflows/head-replacement-exercise/oci/head-replacement/workflow_definition.py
 
 Complete the ``replace_head`` operator. It needs the NRRD from
 ``convert_to_nrrd`` and the JSON result from ``localize_head``.
@@ -462,11 +467,11 @@ Build, push, and verify the supplied version:
 .. code-block:: bash
 
    extensionctl build \
-     data-processing/processing-pipelines/head-replacement_exercise/oci \
-     --output data-processing/processing-pipelines/head-replacement_exercise/dist
+     data-processing/workflows/head-replacement-exercise/oci \
+     --output data-processing/workflows/head-replacement-exercise/dist
 
    extensionctl push \
-     data-processing/processing-pipelines/head-replacement_exercise/dist/head-replacement-extension-v{Resulting Build Version}.tar.gz
+     data-processing/workflows/head-replacement-exercise/dist/head-replacement-extension-v{Resulting Build Version}.tar.gz
 
    extensionctl list --full
 

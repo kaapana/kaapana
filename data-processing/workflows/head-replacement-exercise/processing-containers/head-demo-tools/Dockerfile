@@ -8,4 +8,3 @@ COPY processing-container.json /
 COPY files/demo_tools.py /kaapana/app/demo_tools.py
 
 WORKDIR /kaapana/app
-

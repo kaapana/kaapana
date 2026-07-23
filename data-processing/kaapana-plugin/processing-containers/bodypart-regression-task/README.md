@@ -15,21 +15,20 @@ SimpleITK, written to a temporary NIfTI for the upstream inference API, and then
 discarded. The native JSON is written to the separate output channel while item
 and file names are preserved.
 
-The Docker fixture at
-`processing-container/tasks/predict-body-parts-task.json` uses a CPU-only command
-override for local Task API testing. The production processing-container
-template remains GPU-enabled.
+The Docker fixture at `tasks/predict-body-parts-task.json` uses a CPU-only
+command override for local Task API testing. The production
+processing-container template remains GPU-enabled.
 
-Build the standalone image with the repository build CLI:
+This image is a prerequisite for workflows that reference
+`bodypartregression-task-api`. It is discovered by `kaapana-build`, but it is
+not selected automatically by the platform's Helm build graph. Build and push
+it explicitly before installing or running such a workflow:
 
 ```bash
 kaapana-build \
   --default-registry REGISTRY \
   --registry-username USER \
   --registry-password TOKEN \
-  --build-ignore-patterns "*templates_and_examples/*,*ci/*,*lib/task_api/*,*-backup/*" \
+  --build-ignore-patterns "*templates_and_examples/*,*ci/*,*lib/task_api/*" \
   --containers-to-build bodypartregression-task-api
 ```
-
-The final ignore entry keeps the preserved `bodypart-regression-task-backup`
-Dockerfile out of build discovery without modifying the backup itself.

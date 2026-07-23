@@ -1,7 +1,21 @@
-# Head replacement Workflow API extension
+# Head replacement Workflow API exercise
 
-This directory contains an OCI `workflow-v1` demo that replaces the
-BodyPartRegression head region of CT volumes with a synthetic sphere.
+This directory is the starter project for the Geometric Heads hands-on guide.
+It contains an OCI `workflow-v1` demo that replaces the BodyPartRegression head
+region of CT volumes with a synthetic sphere.
+
+Complete the two marked exercises before validating or building the project:
+
+- define the task template in
+  `processing-containers/head-demo-tools/processing-container.json`;
+- connect the `replace_head` task in
+  `oci/head-replacement/workflow_definition.py`.
+
+The `processing-container.json` starter intentionally contains instructional
+comments and is invalid JSON until the exercise is completed. The algorithm,
+Dockerfile, task fixture, workflow metadata, and OCI manifest are provided.
+
+Run the commands below from the root of the Kaapana checkout.
 
 ## Workflow
 
@@ -45,7 +59,9 @@ Workflow images:
 - `nrrd-to-dicom`
 - `send-dicoms`
 
-as well as the `bodypartregression-task-api` image.
+as well as the `bodypartregression-task-api` image. This image must be built
+and pushed separately; see the
+[BodyPartRegression task README](../../kaapana-plugin/processing-containers/bodypart-regression-task/README.md).
 
 Build and push the image with Kaapana's build CLI:
 
@@ -55,18 +71,40 @@ kaapana-build \
   --default-registry REGISTRY \
   --registry-username USER \
   --registry-password TOKEN \
-  --build-ignore-patterns "*templates_and_examples/*,*ci/*,*lib/task_api/*" \
+  --build-ignore-patterns "*templates_and_examples/*,*ci/*,*lib/task_api/*,head-replacement" \
   --containers-to-build head-demo-tools
 ```
+
+The final ignore entry excludes the completed reference pipeline, which uses
+the same image name as this exercise.
+
+Alternatively, build and push the image directly with Docker. The
+`local-only/base-python-cpu:latest` base image must already be available in the
+local Docker daemon:
+
+```bash
+docker login REGISTRY_HOST --username USER
+
+docker build \
+  --tag REGISTRY/head-demo-tools:PLATFORM_VERSION \
+  data-processing/workflows/head-replacement-exercise/processing-containers/head-demo-tools
+
+docker push REGISTRY/head-demo-tools:PLATFORM_VERSION
+```
+
+Replace `REGISTRY_HOST` with the registry hostname, `REGISTRY` with the image
+prefix used by the platform, and `PLATFORM_VERSION` with the target platform's
+`KAAPANA_BUILD_VERSION`.
+
 Validate the custom Task API manifests and local fixtures with:
 
 ```bash
 python3 -m task_api.cli validate \
-  processing-containers/head-demo-tools/processing-container.json \
+  data-processing/workflows/head-replacement-exercise/processing-containers/head-demo-tools/processing-container.json \
   --schema pc
 
 python3 -m task_api.cli validate \
-  processing-containers/head-demo-tools/tasks/replace-head-task.json \
+  data-processing/workflows/head-replacement-exercise/processing-containers/head-demo-tools/tasks/replace-head-task.json \
   --schema task
 ```
 
@@ -74,8 +112,11 @@ Build and publish the OCI workflow artifact with:
 
 ```bash
 extensionctl login --registry REGISTRY --repo REPOSITORY --user USER --password TOKEN
-extensionctl build ./oci --output ./dist
-extensionctl push ./dist/head-replacement-extension-v0.2.1.tar.gz
+extensionctl build \
+  data-processing/workflows/head-replacement-exercise/oci \
+  --output data-processing/workflows/head-replacement-exercise/dist
+extensionctl push \
+  data-processing/workflows/head-replacement-exercise/dist/head-replacement-extension-v0.2.1.tar.gz
 extensionctl list --full
 ```
 

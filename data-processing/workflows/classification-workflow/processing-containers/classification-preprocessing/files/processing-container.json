@@ -1,0 +1,51 @@
+{
+    "name": "classification-preprocessing",
+    "description": "Processing container for preprocessing nrrd images for classification training/inference",
+    "api_version": 1,
+    "templates": [
+        {
+            "identifier": "preprocess",
+            "description": "Resample and z-score normalize nrrd images into numpy arrays",
+            "env": [
+                {
+                    "name": "PATCH_SIZE",
+                    "value": "(128, 128, 128)",
+                    "description": "Target shape (as a Python tuple literal string, e.g. '(128, 128, 128)') the input volume is resampled to before normalization."
+                },
+                {
+                    "name": "WORKFLOW_NAME",
+                    "value": "classification-training",
+                    "description": "Not injected by KaapanaTaskOperator (see migration-notes.md) — gates the untouched legacy inference-only branch that reads a trained model's PATCH_SIZE from the model input channel. Statically overridden per DAG in workflow_definition.py; the default here matches the training DAG, where that branch is never taken and the model input channel is never wired."
+                }
+            ],
+            "inputs": [
+                {
+                    "name": "nrrd",
+                    "mounted_path": "/kaapana/app/nrrd",
+                    "description": "Expects one subdirectory per case, named after the case identifier, containing a single <identifier>.nrrd file."
+                },
+                {
+                    "name": "model",
+                    "mounted_path": "/kaapana/app/model",
+                    "description": "Only wired on the inference DAG (from the model-download task) — provides the selected model's config.json, read for its PATCH_SIZE. Not wired on the training DAG; the inference-only branch above never runs there so the absent mount is never accessed."
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "preprocessed",
+                    "mounted_path": "/kaapana/app/preprocessed",
+                    "description": "Creates for each input case a subdirectory with the same identifier containing a single <identifier>.npy file."
+                }
+            ],
+            "command": ["python3", "-u", "/kaapana/preprocess.py"],
+            "resources": {
+                "requests": {
+                    "memory": "4000Mi"
+                }, 
+                "limits": {
+                    "memory": "8000Mi"
+                }
+            }
+        }
+    ]
+}

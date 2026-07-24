@@ -28,71 +28,98 @@ workflow:
     - when: never
 
 variables:
-  # Execution control flags
-  CI_EXEC_BUILD: $CI_EXEC_BUILD
-  CI_EXEC_BUILD_ARGUMENTS: $CI_EXEC_BUILD_ARGUMENTS
-  CI_EXEC_DEPLOY: $CI_EXEC_DEPLOY
-  CI_EXEC_DESTROY_ON_SUCCESS: $CI_EXEC_DESTROY_ON_SUCCESS
-  CI_EXEC_DESTROY_DELAYED: $CI_EXEC_DESTROY_DELAYED
-  CI_EXEC_DOCKER_PRUNE: $CI_EXEC_DOCKER_PRUNE
-  CI_EXEC_INTEGRATION_TESTS: $CI_EXEC_INTEGRATION_TESTS
-  CI_EXEC_UNIT_TESTS: $CI_EXEC_UNIT_TESTS
+  ############################################################################
+  # All pipeline variables are declared here with their defaults — this block
+  # is the reference documentation for the CI configuration.
+  #
+  # Precedence (highest wins): schedule/manual/trigger pipeline variables >
+  # project UI variables > job rules:variables > job variables > these global
+  # defaults. Keep project-level UI variables to the secrets and the registry
+  # configuration marked below — a project variable silently overrides every
+  # YAML value of the same name (that is what broke the 0.7.0 release build,
+  # see RELEASING.md).
+  ############################################################################
 
-  # Deployment instance configuration
-  DEPLOYMENT_INSTANCE_FQDN: $DEPLOYMENT_INSTANCE_FQDN
-  DEPLOYMENT_INSTANCE_PLATFORM_PREFIX: $DEPLOYMENT_INSTANCE_PLATFORM_PREFIX
+  # --- Execution toggles: which stages a pipeline runs.
+  # Override per-run via "Run pipeline" or per-schedule via schedule variables.
+  CI_EXEC_UNIT_TESTS: "true" # tests stage: unit tests + documentation build
+  CI_EXEC_BUILD: "true" # build stage: full platform build
+  CI_EXEC_BUILD_ARGUMENTS: "" # extra kaapana-build flags, e.g. "--vulnerability-scan"
+  CI_EXEC_DEPLOY: "true" # deploy stage: provision test VM + server install + platform deploy
+  CI_EXEC_INTEGRATION_TESTS: "true" # test stage: pytest + Playwright against the test VM
+  CI_EXEC_DOCKER_PRUNE: "false" # "true" = wipe the runner docker cache first (cold build)
+  CI_EXEC_DESTROY_DELAYED: "false" # "true" = keep the test VM for 4h after the pipeline for inspection
+  MAINTENANCE: "false" # "true" pauses push/schedule/MR pipelines (workflow:rules)
+
+  # --- Registries. Two registries are configured entirely (including URL) as
+  # project variables (Settings → CI/CD → Variables):
+  #   CI_REGISTRY_URL / CI_REGISTRY_USER / CI_REGISTRY_TOKEN — normal CI builds
+  #   RELEASE_REGISTRY_URL / RELEASE_REGISTRY_USER / RELEASE_REGISTRY_TOKEN —
+  #     protected; used only by release tag pipelines (build_packages rules)
+  # Jobs and playbooks consume the effective REGISTRY_* values below; the tag
+  # rule on build_packages swaps in the release triple via rules:variables.
+  # NB: CI_REGISTRY_USER shadows a GitLab-predefined variable — the project
+  # variable takes precedence, but if it is ever deleted, jobs silently get
+  # the predefined value "gitlab-ci-token".
+  REGISTRY_URL: $CI_REGISTRY_URL
+  REGISTRY_USER: $CI_REGISTRY_USER
+  REGISTRY_TOKEN: $CI_REGISTRY_TOKEN # secret — project variable (masked)
+
+  # --- docker.io pull credentials (avoids anonymous pull rate limits)
+  DOCKER_IO_USER: $DOCKER_IO_USER # project variable, paired with the password
+  DOCKER_IO_PASSWORD: $DOCKER_IO_PASSWORD # secret — project variable (masked)
+
+  # Purpose-specific tokens (CI-AUDIT.md S2). Both currently alias the shared
+  # CI_REGISTRY_TOKEN secret. To move a purpose onto its own credential, create
+  # a project-level CI variable with the same name — project variables take
+  # precedence over these YAML defaults, so no pipeline change is needed.
+  GITLAB_API_TOKEN: $CI_REGISTRY_TOKEN
+  BLABLADOR_API_TOKEN: $CI_REGISTRY_TOKEN
+
+  # --- Deployment instance: the per-pipeline test VM on Harvester.
+  # Leave DEPLOYMENT_INSTANCE_FQDN empty to provision a fresh VM. Set it (plus
+  # DEPLOYMENT_INSTANCE_USER) to deploy onto an existing machine instead;
+  # externally-provided VMs are never destroyed by the clean stage.
+  DEPLOYMENT_INSTANCE_FQDN: ""
+  DEPLOYMENT_INSTANCE_USER: "ubuntu"
+  # vm_name is truncated in the provisioning playbook so the FQDN
+  # (<vm_name>.<domain>) stays within the 57-char dcmsend peerhost limit.
   DEPLOYMENT_INSTANCE_VM_NAME: "ci-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"
   DEPLOYMENT_INSTANCE_DOMAIN: "vms.dkfz.de"
-  DEPLOYMENT_INSTANCE_USER: $DEPLOYMENT_INSTANCE_USER
-  DEPLOYMENT_INSTANCE_SSH_PORT: $DEPLOYMENT_INSTANCE_SSH_PORT
-  DEPLOYMENT_INSTANCE_MEMORY: $DEPLOYMENT_INSTANCE_MEMORY
-  DEPLOYMENT_INSTANCE_CPU: $DEPLOYMENT_INSTANCE_CPU
-  DEPLOYMENT_INSTANCE_DISK: $DEPLOYMENT_INSTANCE_DISK
-  DEPLOYMENT_INSTANCE_DOMAIN: $DEPLOYMENT_INSTANCE_DOMAIN
-  DEPLOYMENT_INSTANCE_FQDN: $DEPLOYMENT_INSTANCE_FQDN
-  DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE: $DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE
-  DEPLOYMENT_INSTANCE_IMAGE_ID: $DEPLOYMENT_INSTANCE_IMAGE_ID
-  DEPLOYMENT_INSTANCE_MEMORY: $DEPLOYMENT_INSTANCE_MEMORY
-  DEPLOYMENT_INSTANCE_NETWORK: $DEPLOYMENT_INSTANCE_NETWORK
-  DEPLOYMENT_INSTANCE_USER: $DEPLOYMENT_INSTANCE_USER
-  DEPLOYMENT_INSTANCE_PLATFORM_PREFIX: $DEPLOYMENT_INSTANCE_PLATFORM_PREFIX
-  DEPLOYMENT_INSTANCE_PROVISIONER: $DEPLOYMENT_INSTANCE_PROVISIONER
-  DEPLOYMENT_INSTANCE_STORAGE_CLASS: $DEPLOYMENT_INSTANCE_STORAGE_CLASS
-  DEPLOYMENT_INSTANCE_USER: $DEPLOYMENT_INSTANCE_USER
+  DEPLOYMENT_INSTANCE_IMAGE_ID: "ubuntu24"
+  DEPLOYMENT_INSTANCE_CPU: "32"
+  DEPLOYMENT_INSTANCE_MEMORY: "256Gi"
+  DEPLOYMENT_INSTANCE_DISK: "512Gi"
+  DEPLOYMENT_INSTANCE_NETWORK: "harvester-public/dkfz-net"
+  DEPLOYMENT_INSTANCE_STORAGE_CLASS: "px-fa-direct-access"
+  DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE: "kaapana-ci"
+  DEPLOYMENT_INSTANCE_SSH_KEYPAIR: "kaapana" # Harvester KeyPair resource in the namespace
+  DEPLOYMENT_INSTANCE_PLATFORM_PREFIX: "ci-dep" # project namespaces become <prefix>-project-<short_id>
 
-  # Generated
-  DEPLOYMENT_INSTANCE_VM_NAME: "ci-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"
+  # --- Orchestrator: machine-local paths on the deploy runner, as provisioned
+  # by ci/harvester/setup_ci.yaml (tasks/configure-deploy-instance.yaml)
+  ORCHESTRATOR_INSTANCE_PYTHON_VENV: "~/venv"
+  ORCHESTRATOR_INSTANCE_HARVESTER_KUBECONFIG: "/home/ubuntu/.kube/harvester.yaml"
+  ORCHESTRATOR_INSTANCE_PRIVATE_SSH_KEY: "~/.ssh/kaapana.pem"
 
-  # Registry and container credentials
-  REGISTRY_TOKEN: $REGISTRY_TOKEN
-  REGISTRY_URL: $REGISTRY_URL
-  REGISTRY_USER: $GITLAB_USER_LOGIN
-  DOCKER_IO_USER: $DOCKER_IO_USER
-  DOCKER_IO_PASSWORD: $DOCKER_IO_PASSWORD
+  # --- Notifications (if_ci_failing on develop)
+  SLACK_BOT_TOKEN: $SLACK_BOT_TOKEN # secret — project variable (masked)
+  SLACK_CHANNEL_ID: $SLACK_CHANNEL_ID # project variable
 
-  # Notification settings
-  SLACK_BOT_TOKEN: $SLACK_BOT_TOKEN
-  SLACK_CHANNEL_ID: $SLACK_CHANNEL_ID
+  # --- Documentation (scheduled readthedocs check)
+  KAAPANA_READTHEDOCS_TOKEN: $KAAPANA_READTHEDOCS_TOKEN # secret — project variable (masked)
 
-  # Network and SSH configuration
-  HTTP_PROXY: $HTTP_PROXY
-  HTTPS_PROXY: $HTTPS_PROXY
-  SSH_FILE: $SSH_FILE
+  # --- DKFZ network proxy
+  HTTP_PROXY: "http://www-int2.dkfz-heidelberg.de:80"
+  HTTPS_PROXY: "http://www-int2.dkfz-heidelberg.de:80"
 
-  # Orchestrator instance configuration
-  ORCHESTRATOR_INSTANCE_HARVESTER_KUBECONFIG: $ORCHESTRATOR_INSTANCE_HARVESTER_KUBECONFIG
-  ORCHESTRATOR_INSTANCE_PRIVATE_SSH_KEY: $ORCHESTRATOR_INSTANCE_PRIVATE_SSH_KEY
-  ORCHESTRATOR_INSTANCE_PUBLIC_SSH_KEY: $ORCHESTRATOR_INSTANCE_PUBLIC_SSH_KEY
-  ORCHESTRATOR_INSTANCE_PYTHON_VENV: $ORCHESTRATOR_INSTANCE_PYTHON_VENV
-
-  # Documentation
-  KAAPANA_READTHEDOCS_TOKEN: $KAAPANA_READTHEDOCS_TOKEN
-
-  # Fixed settings
-  ANSIBLE_VERBOSITY: 0
+  # --- Fixed settings
+  ANSIBLE_VERBOSITY: 0 # read natively by ansible-playbook
   GIT_STRATEGY: "none" # Don't clone repo on each job by default; individual jobs will override as needed
   GIT_CLONE_PATH: "$CI_BUILDS_DIR/$CI_COMMIT_SHORT_SHA"
   ARTIFACTS_DIR: "$CI_PROJECT_DIR/artifacts"
+  # Not declared here: CLIENT_SECRET is extracted from the deployed platform by
+  # setup_integration_tests and passed downstream via a dotenv artifact.
 
 ##############################################
 # TESTS AND DOCS
@@ -112,7 +139,8 @@ variables:
     GIT_STRATEGY: fetch
     GIT_DEPTH: 1
   before_script:
-    - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
+    # Concurrent jobs GC the same directories — ENOENT races must not fail the job
+    - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \; || true
     - PYTHON_VENV_DIR=~/.venvs/$CI_JOB_NAME
     - python3 -m venv "$PYTHON_VENV_DIR"
     - source "$PYTHON_VENV_DIR/bin/activate"
@@ -236,18 +264,24 @@ build_documentation:
   script:
     - cd $KAAPANA_DIR/docs
     - pip install -r requirements.txt
-    - cd $KAAPANA_DIR/docs
     - make html 2>&1 | tee "build_documentation_html.log"
-    - |
-      if [[ $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop" ]]; then
-        cd $KAAPANA_DIR/ci/ci-code/build
-        bash check_readthedocs.sh
-      fi
   artifacts:
     expose_as: "Documentation"
     paths:
       - $KAAPANA_DIR/docs/build/html/
       - "$KAAPANA_DIR/docs/build_documentation_html.log"
+
+##############################################
+# ReadTheDocs Build Check (scheduled pipelines on develop only)
+##############################################
+check_readthedocs:
+  extends: .test_template
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop"
+      when: always
+    - when: never
+  script:
+    - bash $KAAPANA_DIR/ci/ci-code/build/check_readthedocs.sh
 
 ##############################################
 # BUILD
@@ -257,8 +291,6 @@ build_packages:
   dependencies: []
   tags:
     - build-runner
-  environment:
-    name: $REGISTRY_ENV
   variables:
     GIT_STRATEGY: clone
     PYTHON_VENV_DIR: ".venv-build"
@@ -266,20 +298,22 @@ build_packages:
   timeout: 8 hours
   rules:
     # Release build: triggered by pushing a protected release tag. Publishes to
-    # kaapana/releases with the deploy-token credentials (protected CI variables).
+    # the release registry (protected RELEASE_REGISTRY_* project variables).
+    # This override only works because no REGISTRY_* project variables exist —
+    # project variables would outrank rules:variables (broke the 0.7.0 release).
     - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
       when: on_success
       variables:
-        REGISTRY_URL: "registry.hzdr.de/kaapana/releases"
+        REGISTRY_URL: $RELEASE_REGISTRY_URL
         REGISTRY_USER: $RELEASE_REGISTRY_USER
         REGISTRY_TOKEN: $RELEASE_REGISTRY_TOKEN
-        REGISTRY_ENV: "HZDR_RELEASES_REGISTRY"
         CI_EXEC_DOCKER_PRUNE: "true"
     - if: '$CI_EXEC_BUILD == "true"'
       when: on_success
     - when: never
   before_script:
-    - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
+    # Concurrent jobs GC the same directories — ENOENT races must not fail the job
+    - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \; || true
     - python3 -m venv "$PYTHON_VENV_DIR"
     - source "$PYTHON_VENV_DIR/bin/activate"
     - pip install --upgrade pip && pip install -e build_cli/
@@ -315,21 +349,32 @@ build_packages:
     # Fix, for when registry.hzdr.de is unreachable — pre-pull collabora base image from internal mirror
     # so that the FROM in the Dockerfile resolves locally without needing the public registry.
     - |
-      if [[ "$REGISTRY_ENV" == "DKFZ_CONTAINER_REGISTRY" ]]; then
-        docker pull registry.git.dkfz.de/mic/personal/group1/kaapana-fallback/collabora-code-patched:23.05.5.4.1
-        docker tag  registry.git.dkfz.de/mic/personal/group1/kaapana-fallback/collabora-code-patched:23.05.5.4.1 \
-                    registry.hzdr.de/kaapana/public/collabora-code-patched:23.05.5.4.1
-      fi
+      docker pull registry.git.dkfz.de/mic/personal/group1/kaapana-fallback/collabora-code-patched:23.05.5.4.1
+      docker tag  registry.git.dkfz.de/mic/personal/group1/kaapana-fallback/collabora-code-patched:23.05.5.4.1 \
+                  registry.hzdr.de/kaapana/public/collabora-code-patched:23.05.5.4.1
 
     # Run build, capturing exit code so artifacts are always collected
     - kaapana-build --default-registry "$REGISTRY_URL" $CI_EXEC_BUILD_ARGUMENTS
+
+  after_script:
+    # Don't leave docker login sessions on the shared runner (CI-AUDIT.md S2).
+    # after_script runs in a fresh shell, so $REGISTRY_URL may not be the
+    # release registry in a tag pipeline — log out of it explicitly too.
+    - docker logout "$REGISTRY_URL" || true
+    - '[[ -n "$RELEASE_REGISTRY_URL" ]] && docker logout "$RELEASE_REGISTRY_URL" || true'
+    - docker logout docker.io || true
 
   artifacts:
     name: "build_$CI_COMMIT_SHORT_SHA"
     when: always
     paths:
       - "$CI_PROJECT_DIR/build/build.log"
-      - "$CI_PROJECT_DIR/build/security-reports/"
+      # Trivy writes to <repo>/security-reports/ (trivy_helper.py), not build/
+      - "$CI_PROJECT_DIR/security-reports/"
+    exclude:
+      # Trivy DB cache lives inside the reports dir — not a report
+      - "$CI_PROJECT_DIR/security-reports/.trivy_cache/**/*"
+      - "$CI_PROJECT_DIR/security-reports/.trivy_worker_*/**/*"
 
 security:
   stage: build
@@ -340,10 +385,14 @@ security:
     - build-runner
   variables:
     PYTHON_VENV_DIR: ".venv-build"
+    # The report script + vendored schema come from the repo, the reports from
+    # the build_packages artifact — no reliance on runner disk state (B2).
+    GIT_STRATEGY: fetch
+    GIT_DEPTH: 1
   before_script:
     - python3 -m venv "$PYTHON_VENV_DIR"
     - source "$PYTHON_VENV_DIR/bin/activate"
-    - pip install jsonschema requests
+    - pip install jsonschema
   script:
     - CONSOLIDATED="$CI_PROJECT_DIR/security-reports/consolidated_vulnerability_report.json"
     - python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
@@ -372,8 +421,6 @@ security:
 .remote_execution_template:
   tags:
     - deploy-runner
-  environment:
-    name: $REGISTRY_ENV
   before_script:
     - export ARTIFACTS_DIR="$ARTIFACTS_DIR"
     - VENV_PATH=$(eval echo "$ORCHESTRATOR_INSTANCE_PYTHON_VENV")
@@ -403,16 +450,13 @@ prepare_deployment:
   variables:
     GIT_STRATEGY: "clone"
   script:
-    - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
+    # Concurrent jobs GC the same directories — ENOENT races must not fail the job
+    - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \; || true
     - |
       if [[ "$CI_EXEC_DEPLOY" == "true" && -z "$DEPLOYMENT_INSTANCE_FQDN" ]]; then
         # vm_name is truncated inside the provisioning playbook to keep the FQDN
         # within 57 characters (dcmsend peerhost limit).
-        if [[ "$DEPLOYMENT_INSTANCE_PROVISIONER" == "openstack" ]]; then
-          ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/provision_openstack_vm.yaml"
-        else
-          ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/provision_harvester_vm.yaml"
-        fi
+        ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/provision_harvester_vm.yaml"
       else
         # Fail early when a pre-provided FQDN is too long — dcmsend will reject it
         # during tests and the failure would surface much later otherwise.
@@ -702,10 +746,43 @@ if_ci_failing:
   variables:
     GIT_STRATEGY: fetch
     GIT_DEPTH: 1
+  # Every job of the earlier stages must be listed here (optional: true keeps
+  # reduced pipeline shapes valid): with needs, when: on_failure triggers on
+  # failures among the needed jobs only. artifacts: true marks the jobs whose
+  # logs feed the issue report — everything else is explicitly excluded so this
+  # job never downloads secrets (integration-test dotenv) or bulky reports.
+  # When adding a job to the pipeline, add it here too.
+  needs:
+    - { job: unit_tests, optional: true, artifacts: false }
+    - { job: task_api_tests, optional: true, artifacts: false }
+    - { job: kaapana_extensions_tests, optional: true, artifacts: false }
+    - { job: workflow_api_tests, optional: true, artifacts: false }
+    - { job: extensions_api_tests, optional: true, artifacts: false }
+    - { job: kaapana_backend_tests, optional: true, artifacts: false }
+    - { job: access_information_interface_tests, optional: true, artifacts: false }
+    - { job: keycloak_setup_tests, optional: true, artifacts: false }
+    - { job: build_documentation, optional: true, artifacts: false }
+    - { job: check_readthedocs, optional: true, artifacts: false }
+    - { job: build_packages, optional: true, artifacts: true }
+    - { job: security, optional: true, artifacts: false }
+    - { job: prepare_deployment, optional: true, artifacts: false }
+    - { job: server_installation, optional: true, artifacts: true }
+    - { job: platform_deployment, optional: true, artifacts: true }
+    - { job: setup_integration_tests, optional: true, artifacts: false }
+    - { job: scan_ports, optional: true, artifacts: true }
+    - { job: first_login, optional: true, artifacts: true }
+    - { job: install_extensions, optional: true, artifacts: true }
+    - { job: send_data, optional: true, artifacts: true }
+    - { job: run_workflows, optional: true, artifacts: true }
+    - { job: playwright_ui_tests, optional: true, artifacts: false }
   before_script:
     - VENV_PATH=$(eval echo "$ORCHESTRATOR_INSTANCE_PYTHON_VENV")
     - source "$VENV_PATH/bin/activate"
   script:
+    - mkdir -p "$ARTIFACTS_DIR"
+    # build.log is delivered outside artifacts/ — move it into the dir the
+    # ticket script scans for *.log files
+    - '[[ -f "$CI_PROJECT_DIR/build/build.log" ]] && cp "$CI_PROJECT_DIR/build/build.log" "$ARTIFACTS_DIR/" || true'
     - cd "$CI_PROJECT_DIR/ci/ci-code/clean"
     - python3 create_ticket_if_ci_failed.py
     - python3 notify_slack.py

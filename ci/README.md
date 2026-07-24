@@ -79,7 +79,7 @@ graph TB
 - **Small VM (tests-runner)**: Runs unit tests and documentation builds in parallel
 - **Big VM (build-runner)**: Builds Docker container images
 - **Orchestrator (deploy-runner)**: Controls deployment and cleanup flow via Ansible
-- **Deployment Instance**: Target server where Kaapana runs (auto-created via Harvester/OpenStack or pre-specified)
+- **Deployment Instance**: Target server where Kaapana runs (auto-created via Harvester or pre-specified)
 
 ### Execution Flow
 1. **Tests Stage** (Small VM): Unit/API tests + docs build run **in parallel**
@@ -113,7 +113,7 @@ graph TB
 2. Install Ansible and collection:
    ```bash
    sudo apt install ansible -y
-   ansible-galaxy collection install openstack.cloud
+   ansible-galaxy collection install kubernetes.core
    ```
 
 3. Set required environment variables for runner provisioning:
@@ -148,22 +148,53 @@ graph TB
    ansible-playbook create-build-runner-instances.yaml -i inventory.yaml -e force_recreate=true
    ```
 
-### Variables Reference
+### Project CI/CD variables
 
-| Variable | Type | Default | Description |
+All pipeline variables are declared **with their defaults in `.gitlab-ci.yml`** —
+that block is the reference documentation for toggles, VM sizing, runner paths
+etc. Project-level variables (Settings → CI/CD → Variables) hold **only secrets
+and the registry configuration**. Do not mirror config values there: a project
+variable silently overrides the YAML value of the same name (this precedence
+bug broke the 0.7.0 release build, see `RELEASING.md`).
+
+The following project variables must be present:
+
+| Variable | Masked | Protected | Description |
 | --- | --- | --- | --- |
-| `CI_EXEC_UNIT_TESTS` | Bool | `true` | Run unit tests |
-| `CI_EXEC_BUILD` | Bool | `true` | Build Docker images |
-| `CI_EXEC_SERVER_INSTALL` | Bool | `true` | Install server |
-| `CI_EXEC_DEPLOY` | Bool | `true` | Deploy platform |
-| `CI_EXEC_INTEGRATION_TESTS` | Bool | `true` | Run integration tests |
-| `CI_EXEC_DOCKER_PRUNE` | Bool | `false` | Clean Docker |
-| `REGISTRY_URL` | URL | - | Image registry |
-| `REGISTRY_USER` | String | - | Registry user |
-| `REGISTRY_TOKEN` | String | - | Registry token |
-| `DEPLOYMENT_INSTANCE_FQDN` | Host | - | Deployment target |
-| `DEPLOYMENT_INSTANCE_PLATFORM_PREFIX` | String | `ci-dep` | Prefix for project namespaces (`<prefix>-project-<short_id>`) |
-| `DEPLOYMENT_INSTANCE_USER` | String | ubuntu | SSH user |
+| `CI_REGISTRY_URL` | no | no | Registry for normal CI builds, e.g. `registry.git.dkfz.de/mic/personal/group1/kaapana-fallback` |
+| `CI_REGISTRY_USER` | no | no | Username paired with `CI_REGISTRY_TOKEN`. Shadows the GitLab-predefined `CI_REGISTRY_USER` — if deleted, jobs silently get `gitlab-ci-token` |
+| `CI_REGISTRY_TOKEN` | yes | no | Registry push credential; also the default for `GITLAB_API_TOKEN` and `BLABLADOR_API_TOKEN` (see `.gitlab-ci.yml`) |
+| `RELEASE_REGISTRY_URL` | no | yes | Release registry, e.g. `registry.hzdr.de/kaapana/releases`. Used only by release tag pipelines |
+| `RELEASE_REGISTRY_USER` | no | yes | Username of the release deploy token |
+| `RELEASE_REGISTRY_TOKEN` | yes | yes | Secret of the release deploy token |
+| `DOCKER_IO_USER` | no | no | docker.io account (avoids anonymous pull rate limits) |
+| `DOCKER_IO_PASSWORD` | yes | no | docker.io password |
+| `SLACK_BOT_TOKEN` | yes | no | Slack bot for pipeline-failure notifications on develop |
+| `SLACK_CHANNEL_ID` | no | no | Slack channel for those notifications |
+| `KAAPANA_READTHEDOCS_TOKEN` | yes | no | ReadTheDocs API token for the scheduled docs check |
+
+Optional: create `GITLAB_API_TOKEN` and/or `BLABLADOR_API_TOKEN` as project
+variables to move issue creation / AI reports onto their own credentials
+instead of the shared `CI_REGISTRY_TOKEN` (see the comment in `.gitlab-ci.yml`).
+
+**How to set them:** either manually in the GitLab UI (Settings → CI/CD →
+Variables, check *Mask variable* / *Protect variable* per the table), or in
+bulk from the template:
+
+```bash
+export GITLAB_API_TOKEN="your-gitlab-api-token"
+export GITLAB_PROJECT_ID="your-project-id"
+export GITLAB_URL="https://codebase.helmholtz.cloud"
+
+# Fill in the real values first:
+cp ci/harvester/control/ci_variables_template.json /tmp/ci_variables.json
+
+python3 ci/harvester/control/set_ci_variables.py \
+  --ci-vars-file /tmp/ci_variables.json --dry-run   # drop --dry-run to upload
+```
+
+The script cannot set protected variables — create the `RELEASE_REGISTRY_*`
+triple manually in the UI.
 
 ---
 
@@ -173,5 +204,7 @@ graph TB
 
 ## Run CI on custom VM
 
-Run pipeline in the UI and specify: `DEPLOYMENT_INSTANCE_HOSTNAME`
+Run pipeline in the UI and specify: `DEPLOYMENT_INSTANCE_FQDN` (and
+`DEPLOYMENT_INSTANCE_USER` if not `ubuntu`). Externally-provided VMs are never
+destroyed by the clean stage.
 

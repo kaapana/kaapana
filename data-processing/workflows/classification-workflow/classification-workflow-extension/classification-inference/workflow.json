@@ -1,0 +1,52 @@
+{
+    "title": "classification-inference",
+    "workflow_engine": "airflow",
+    "labels": [
+        {
+            "key": "category",
+            "value": "classification"
+        },
+        {
+            "key": "gpu",
+            "value": "required"
+        },
+        {
+            "key": "provider",
+            "value": "dkfz-mic"
+        }
+    ],
+    "workflow_parameters": [
+        {
+            "task_title": "download",
+            "env_variable_name": "DATASET",
+            "ui_form": {
+                "type": "dataset",
+                "title": "Dataset",
+                "description": "Select the dataset for inference.",
+                "required": true
+            }
+        },
+        {
+            "task_title": "inference",
+            "env_variable_name": "TAG_POSTFIX",
+            "ui_form": {
+                "type": "bool",
+                "title": "tag postfix",
+                "description": "Give the inference tag the model ID as postfix",
+                "default": false,
+                "required": false
+            }
+        },
+        {
+            "task_title": "model-download",
+            "env_variable_name": "TASK_IDS",
+            "ui_form": {
+                "type": "model",
+                "kind": "classification",
+                "title": "Model",
+                "description": "Select a trained classification model checkpoint to use for inference.",
+                "required": true
+            }
+        }
+    ]
+}

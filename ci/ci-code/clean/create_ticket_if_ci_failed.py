@@ -304,7 +304,7 @@ def create_description(
     project: gitlab.v4.objects.Project,
     ci_pipeline_url: str,
     ci_pipeline_id: int,
-    registry_token: str,
+    blablador_token: str,
     artifacts_dir: Path,
 ):
     """
@@ -317,7 +317,7 @@ def create_description(
         project (gitlab.v4.objects.Project): The project object from the GitLab API.
         ci_pipeline_url (str): The URL for the CI pipeline.
         ci_pipeline_id (str): The ID for the CI pipeline.
-        registry_token (str): The token to access the Docker registry.
+        blablador_token (str): The token for the BlaBlaDor API.
         artifacts_dir (Path): The directory containing the artifacts.
 
     Returns:
@@ -329,7 +329,7 @@ def create_description(
 
     error_logs = extract_error_logs(artifacts_dir)
     error_logs_report = create_error_logs_report(error_logs)
-    ai_report = create_ai_report(error_logs_report, registry_token)
+    ai_report = create_ai_report(error_logs_report, blablador_token)
     description = f"""
 # CI pipeline failed
 
@@ -358,7 +358,7 @@ def create_description(
 
 def create_issue_for_commit(
     project: gitlab.v4.objects.Project,
-    registry_token: str,
+    blablador_token: str,
     ci_pipeline_url: str,
     ci_pipeline_id: int,
     commit_sha: str,
@@ -379,7 +379,7 @@ def create_issue_for_commit(
     issue_title = create_title(project, commit_sha)
     issue_description = create_description(
         project=project,
-        registry_token=registry_token,
+        blablador_token=blablador_token,
         ci_pipeline_id=ci_pipeline_id,
         ci_pipeline_url=ci_pipeline_url,
         artifacts_dir=artifacts_dir,
@@ -415,7 +415,8 @@ def update_issue_title(
 
 
 def main():
-    registry_token = os.getenv("REGISTRY_TOKEN")
+    gitlab_api_token = os.getenv("GITLAB_API_TOKEN")
+    blablador_token = os.getenv("BLABLADOR_API_TOKEN")
     project_id = os.getenv("CI_PROJECT_ID")
     ci_pipeline_url = os.getenv("CI_PIPELINE_URL")
     ci_pipeline_id = os.getenv("CI_PIPELINE_ID")
@@ -424,8 +425,8 @@ def main():
 
     gl = gitlab.Gitlab(
         url="https://codebase.helmholtz.cloud",
-        private_token=registry_token,
-        ssl_verify=False,
+        private_token=gitlab_api_token,
+        ssl_verify=True,
     )
 
     project_kaapana = gl.projects.get(id=project_id)
@@ -441,7 +442,7 @@ def main():
             ci_pipeline_url=ci_pipeline_url,
             ci_pipeline_id=ci_pipeline_id,
             commit_sha=commit_sha,
-            registry_token=registry_token,
+            blablador_token=blablador_token,
             artifacts_dir=artifacts_dir,
         )
     else:

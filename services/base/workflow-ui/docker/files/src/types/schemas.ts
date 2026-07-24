@@ -11,6 +11,17 @@ export interface Dataset {
     identifiers: string[]
 }
 
+export interface InstalledModel {
+    id: number
+    project_id: string
+    friendly_name: string
+    models_name: string
+    task_ids: string
+    description: string
+    targets: string[]
+    input_modalities: string[]
+}
+
 export enum WorkflowRunStatus {
     CREATED = "Created",
     PENDING = "Pending",
@@ -79,10 +90,18 @@ export interface ListUIForm extends BaseUIForm {
 export interface StringUIForm extends BaseUIForm {
     type: "str";
     regex_pattern: string;
+    // If true and no static `default` is set, the form pre-fills this field with a
+    // generated human-readable random value instead of an empty string.
+    random_default?: boolean;
 }
 
 export interface DatasetUIForm extends BaseUIForm {
     type: "dataset";
+}
+
+export interface ModelUIForm extends BaseUIForm {
+    type: "model";
+    kind?: string;
 }
 
 export interface DataEntitiesUIForm extends BaseUIForm {
@@ -111,6 +130,7 @@ export type UIForm =
     | ListUIForm
     | StringUIForm
     | DatasetUIForm
+    | ModelUIForm
     | DataEntitiesUIForm
     | FileUIForm
     | TermsUIForm;

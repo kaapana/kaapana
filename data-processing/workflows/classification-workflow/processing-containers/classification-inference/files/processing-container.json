@@ -1,0 +1,45 @@
+{
+    "name": "classification-inference",
+    "description": "Processing container for running inference with a trained classification model on preprocessed numpy volumes",
+    "api_version": 1,
+    "templates": [
+        {
+            "identifier": "infer",
+            "description": "Predict tags for preprocessed volumes and write them back to OpenSearch",
+            "env": [
+                {
+                    "name": "TAG_POSTFIX",
+                    "value": "False",
+                    "description": "If 'True', append the training workflow id/fold/checkpoint kind to the predicted tag."
+                },
+                {
+                    "name": "SERVICES_NAMESPACE",
+                    "value": "services",
+                    "description": "Read directly by the untouched opensearch_helper.py (legacy convention, unprefixed) — KaapanaTaskOperator only injects the KAAPANA_-prefixed KAAPANA_SERVICES_NAMESPACE (see migration-notes.md). 'services' is the correct real-cluster value and normally does not need overriding."
+                }
+            ],
+            "inputs": [
+                {
+                    "name": "preprocessed",
+                    "mounted_path": "/kaapana/app/preprocessed",
+                    "description": "Expects one subdirectory per case, named after the case identifier, containing a single <identifier>.npy file."
+                },
+                {
+                    "name": "model",
+                    "mounted_path": "/kaapana/app/model",
+                    "description": "The selected model's config.json and single checkpoint file, provided by the model-download task."
+                }
+            ],
+            "outputs": [],
+            "command": ["python3", "-u", "/kaapana/inference.py"],
+            "resources": {
+                "requests": {
+                    "memory": "16000Mi"
+                },
+                "limits": {
+                    "memory": "18000Mi"
+                }
+            }
+        }
+    ]
+}

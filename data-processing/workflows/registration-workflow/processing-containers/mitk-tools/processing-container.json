@@ -69,7 +69,7 @@
             "command": ["/bin/bash", "/kaapana/app/convert.sh"],
             "resources": {
                 "limits": {
-                    "memory": "500Mi"
+                    "memory": "5Gi"
                 },
                 "requests": {
                     "memory": "100Mi"

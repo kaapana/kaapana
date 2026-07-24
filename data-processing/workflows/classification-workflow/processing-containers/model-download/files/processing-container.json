@@ -27,7 +27,7 @@
                     "memory": "500Mi"
                 },
                 "limits": {
-                    "memory": "1000Mi"
+                    "memory": "10Gi"
                 }
             }
         }

@@ -46,8 +46,6 @@ dependencies:
     version: 0.0.0
   # - name: openedc-chart
   #   version: 0.0.0
-  - name: classification-training-workflow
-    version: 0.0.0
   - name: collabora-chart
     version: 0.0.0
   - name: minio-sync-chart

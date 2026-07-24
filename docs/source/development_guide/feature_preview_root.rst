@@ -23,5 +23,6 @@ The result is a simpler development loop: extensions are easier to write, packag
     preview/extension_packaging
     preview/extension_manager
     Hands On Extension Development: Short Walkthrough <preview/hands_on_extension_development_geometric_heads>
+    Hands On Extension Development: Demo <preview/hands_on_extension_development_geometric_heads_short_demo>
 
 

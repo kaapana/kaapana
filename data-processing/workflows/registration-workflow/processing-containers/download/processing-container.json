@@ -110,10 +110,10 @@
             ],
             "resources": {
                 "limits": {
-                    "memory": "500Mi"
+                    "memory": "11Gi"
                 },
                 "requests": {
-                    "memory": "100Mi"
+                    "memory": "5Gi"
                 }
             }
         }

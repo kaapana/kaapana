@@ -47,7 +47,7 @@ PATCH_SIZE = np.array(ast.literal_eval(CONFIG["PATCH_SIZE"]))
 NUM_WORKERS = 4
 BATCH_SIZE = int(CONFIG["BATCH_SIZE"])
 os.environ["TASK"] = CONFIG["TASK"]
-TAG_POSTFIX = os.environ["TAG_POSTFIX"] == "True"
+TAG_POSTFIX = os.environ["TAG_POSTFIX"].lower() == "true"
 MODEL_CHECKPOINT_NAME = CONFIG["MODEL_CHECKPOINT_NAME"]
 FOLD = CONFIG["FOLD"]
 

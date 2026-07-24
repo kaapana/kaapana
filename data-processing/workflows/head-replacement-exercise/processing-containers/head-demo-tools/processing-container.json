@@ -13,7 +13,7 @@
             // for the command array.
             // ###########################
 
-            "identifier": "TODO",
+            "identifier": "replace-head",
             "description": "Orient NRRD to LPS and replace BPR head foreground with a clipped physical sphere.",
             "env": [],
             "inputs": [

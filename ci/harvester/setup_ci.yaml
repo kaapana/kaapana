@@ -212,10 +212,9 @@
     - name: Configure GitLab Runner
       ansible.builtin.include_tasks: tasks/configure-gitlab-runner.yaml
 
-    - name: Configure deploy instance (Harvester credentials)
-      ansible.builtin.include_tasks: tasks/configure-deploy-instance.yaml
-      when: "'deploy-runner' in runner_tags"
-
+    # Deploy runners need no machine-local credentials anymore: jobs run in
+    # the CI image and get the Harvester kubeconfig + SSH key from File-type
+    # CI variables (HARVESTER_KUBECONFIG, CI_SSH_PRIVATE_KEY).
 
     - name: Display completion message
       ansible.builtin.debug:

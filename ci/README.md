@@ -78,6 +78,11 @@ destroyed by the clean stage.
 `CI_EXEC_DESTROY_DELAYED=true`. The VM survives 4 h; the delayed
 `destroy_deployment` job can be cancelled for longer, or started manually.
 
+**Retrying deploy-stage jobs does NOT re-trigger teardown** — GitLab never
+cascades retries, so a `destroy_deployment` that already ran stays in its
+old state. If a retried `prepare_deployment` provisioned a VM, retry
+`destroy_deployment` manually afterwards (↻ on the job) or the VM leaks.
+
 **SSH into the test VM** — FQDN is in the `prepare_deployment` log/artifact;
 the key is the `CI_SSH_PRIVATE_KEY` File variable (matches the Harvester
 `kaapana` KeyPair):
@@ -123,6 +128,7 @@ jobs with ↻; you rarely need the whole pipeline.
 | Integration test failed, VM already gone | Re-run with `CI_EXEC_DESTROY_DELAYED=true`, SSH in (recipe above). |
 | `install_extensions` / `send_data` flaky | Known flakiness, `retry: 2` masks most of it. Fails 3× → real; check the JUnit/log artifacts. |
 | `playwright_ui_tests` fails | Download the Playwright HTML report artifact — traces and screenshots. |
+| Job dies in prepare: `failed to pull image ... ci-base ... access forbidden` | `DOCKER_AUTH_CONFIG` missing an entry for the active registry host, or its token was minted on the wrong GitLab instance ([section 8](#8-project-cicd-variables-secrets)). |
 | Job stuck "pending" | No runner with the required tag picking it up ([section 6](#6-runners)). |
 | Everything fails weirdly after a CI-image change | Tag wasn't bumped — bump `CI_IMAGES_TAG` and re-run ([section 5](#5-the-ci-image-ci-base)). |
 
@@ -212,6 +218,19 @@ the precedence trap above).
 | `KAAPANA_READTHEDOCS_TOKEN` | yes | no | Scheduled docs check |
 | `HARVESTER_KUBECONFIG` | File | no | Harvester cluster access — VM provisioning/deletion |
 | `CI_SSH_PRIVATE_KEY` | File | no | SSH key for test VMs (Harvester `kaapana` KeyPair) |
+| `DOCKER_AUTH_CONFIG` | no | no | Pull auth for private job images (ci-base) — see below |
+
+**`DOCKER_AUTH_CONFIG` and switching registries.** The CI has used two registries over time , `CI_REGISTRY_URL` selects the active one. 
+Runners pulling the ci-base job image authenticate with `DOCKER_AUTH_CONFIG`:
+
+```json
+{"auths":{"registry-1":{"auth":"<base64 user:token>"},"registry-2":{"auth":"<base64 user:token>"}}}
+```
+
+- Keep an entry for every registry in rotation, then switching `CI_REGISTRY_URL` never breaks image pulls. If you add a new registry, add its entry here in the same change.
+- Each token must be a deploy token with `read_registry` on the GitLab instance that owns that registry.
+- Symptom of a missing/mismatched entry: job dies in *prepare* with `failed to pull image ... access forbidden`, and the log does **not** show `Authenticating with credentials from $DOCKER_AUTH_CONFIG`.
+- The environment-scoped variable rows (e.g. `DFKZ_CONTAINER_REGISTRY` / `HIFIS_CONTAINER_REGISTRY` scopes) are not directly used; no job declares an `environment`, so only "All (default)" rows ever reach a job. They serve as a parking lot for the inactive registry's values.
 
 Bulk upload from a template:
 

@@ -5,8 +5,6 @@
   connection: local
 
   vars:
-    # DEPLOYMENT_INSTANCE_VM_NAME is already truncated to the 57-character
-    # FQDN limit by .truncate_vm_name in ci/gitlab/deploy.yml.
     vm_name: >-
       {{
         (lookup('env', 'VM_FQDN').split('.')[0])

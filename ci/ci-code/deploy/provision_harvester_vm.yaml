@@ -248,7 +248,7 @@
       kubeconfig: "{{ harvester_kubeconfig }}"
 
   - name: Wait for DNS to resolve
-    ansible.builtin.command: host {{ vm_name }}.{{ vm_dns_domain }}
+    ansible.builtin.command: getent hosts {{ vm_name }}.{{ vm_dns_domain }}
     register: dns_result
     until: dns_result.rc == 0
     retries: 30

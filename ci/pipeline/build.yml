@@ -66,13 +66,6 @@ build_packages:
       fi
       export REGISTRY_PW="$REGISTRY_TOKEN"
 
-    # Fix, for when registry.hzdr.de is unreachable — pre-pull collabora base image from internal mirror
-    # so that the FROM in the Dockerfile resolves locally without needing the public registry.
-    - |
-      docker pull registry.git.dkfz.de/mic/personal/group1/kaapana-fallback/collabora-code-patched:23.05.5.4.1
-      docker tag  registry.git.dkfz.de/mic/personal/group1/kaapana-fallback/collabora-code-patched:23.05.5.4.1 \
-                  registry.hzdr.de/kaapana/public/collabora-code-patched:23.05.5.4.1
-
     # Run build, capturing exit code so artifacts are always collected
     - kaapana-build --default-registry "$REGISTRY_URL" $CI_EXEC_BUILD_ARGUMENTS
 

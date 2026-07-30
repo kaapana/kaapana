@@ -111,7 +111,8 @@ def check_completeness(
         return False, "No DICOM files found in the directory."
 
     dicom_files = [
-        pydicom.dcmread(dicom_filename) for dicom_filename in dicom_filenames
+        pydicom.dcmread(dicom_filename, stop_before_pixels=True)
+        for dicom_filename in dicom_filenames
     ]
     series_uid = dicom_files[0].SeriesInstanceUID
     modality = dicom_files[0].Modality

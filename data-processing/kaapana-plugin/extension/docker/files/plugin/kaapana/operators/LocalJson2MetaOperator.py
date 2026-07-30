@@ -106,6 +106,9 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         clinical_trial_protocol_id = meta_information.get(
             "00120020 ClinicalTrialProtocolID_keyword"
         )
+        # Only the project lookup may fail softly; a failed push to the
+        # project index must fail the task, otherwise the series is silently
+        # missing from the project index (data loss).
         try:
             project = get_project_by_id_or_name(clinical_trial_protocol_id)
         except Exception:
@@ -142,6 +145,9 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             new_document=new_document,
             opensearch_index=opensearch_index,
         )
+        # refresh=False: downstream updates access the document by id
+        # (realtime), searches only happen much later - an immediate index
+        # refresh per series is unnecessary load on OpenSearch.
         response = self.os_client.index(
             index=opensearch_index,
             body=new_document,

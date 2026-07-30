@@ -36,6 +36,7 @@ class BodyAndOrganAnalysisOperator(KaapanaBaseOperator):
             ram_mem_mb=24000,
             ram_mem_mb_lmt=25000,
             gpu_mem_mb=11000,
+            unbounded_cpu=True,
             env_vars=env_vars,
             enable_proxy=True,
             **kwargs,

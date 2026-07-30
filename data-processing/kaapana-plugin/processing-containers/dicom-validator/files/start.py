@@ -3,11 +3,11 @@ import glob
 import os
 import re
 from datetime import datetime
+from multiprocessing.pool import ThreadPool
 
 import pydicom
 from base import (
     ValidationItem,
-    ensure_dir,
     merge_similar_validation_items,
     DicomValidatorInterface,
 )
@@ -15,7 +15,7 @@ from check_completeness import check_completeness
 from dciodvfy import DCIodValidator
 from htmlgen import generate_html
 from kaapanapy.logger import get_logger
-from kaapanapy.settings import OpensearchSettings, OperatorSettings
+from kaapanapy.settings import OperatorSettings
 from kaapanapy.utils import (
     ConfigError,
     is_batch_mode,
@@ -32,12 +32,12 @@ logger = get_logger(__name__)
 def get_series_description(all_dicoms: list, meta_key: str = "SeriesDescription"):
     desc = "Unnamed Series"
     for dcm in all_dicoms:
-        ds = pydicom.dcmread(dcm)
         try:
+            ds = pydicom.dcmread(dcm, stop_before_pixels=True)
             elem = ds[meta_key]
-        except KeyError:
-            print(f"{meta_key} not found for dicoms")
-            break
+        except Exception:
+            logger.warning(f"{meta_key} could not be read from {dcm}")
+            continue
         if elem:
             desc = elem.value
             break
@@ -79,9 +79,19 @@ def run_dicom_validation(
     exit_on_error: bool = False,
     results_2_meta: ValidationResult2Meta = None,
 ):
-    completeness_items = check_completeness(
-        Path(operator_in_dir), Path(operator_out_dir), update_os=True
-    )
+    # The completeness check must not fail the whole validation task
+    # (e.g. OpenSearch hiccup or missing InstanceNumber tags).
+    try:
+        completeness_items = check_completeness(
+            Path(operator_in_dir), Path(operator_out_dir), update_os=True
+        )
+    except Exception:
+        logger.exception("Completeness check failed, continuing without it")
+        completeness_items = None
+    # check_completeness returns a tuple or None when it could not determine
+    # completeness; treat both as "no completeness information"
+    if not hasattr(completeness_items, "is_series_complete"):
+        completeness_items = None
 
     # The processing algorithm
     print(f"Checking {operator_in_dir} for dcm files")
@@ -97,10 +107,32 @@ def run_dicom_validation(
     n_valid = 0
     n_fail = 0
 
+    def validate_single_dicom(dicom_path: str):
+        # A single malformed slice must not fail the whole series validation
+        try:
+            errs, warns = validator.validate_dicom(dicom_path)
+        except Exception:
+            logger.exception(f"Validation crashed for {dicom_path}, skipping slice")
+            errs = []
+            warns = [
+                ValidationItem(
+                    "general",
+                    "Warning",
+                    "Validator crashed on this file, slice skipped",
+                )
+            ]
+        return dicom_path, errs, warns
+
+    # Validate slices in parallel; the THREADS setting only parallelizes
+    # across series, so large series (hundreds of slices) would otherwise
+    # be validated serially and run into the task execution_timeout.
+    slice_thread_count = int(os.getenv("SLICE_VALIDATION_THREADS", "8"))
+    with ThreadPool(slice_thread_count) as pool:
+        validation_results = pool.map(validate_single_dicom, dcm_files)
+
     all_errors = {}
     all_warnings = {}
-    for dicom_path in dcm_files:
-        errs, warns = validator.validate_dicom(dicom_path)
+    for dicom_path, errs, warns in validation_results:
         if len(tags_whitelist) > 0:
             errs = filter_errors_by_tag_whitelist(errs, tags_whitelist)
             warns = filter_errors_by_tag_whitelist(warns, tags_whitelist)
@@ -128,7 +160,7 @@ def run_dicom_validation(
         "Validataion Time": f"{validation_time} CEST",
     }
 
-    if not completeness_items.is_series_complete:
+    if completeness_items is not None and not completeness_items.is_series_complete:
         attributes["Series Complete"] = False
         attributes["Missing instances"] = len(
             completeness_items.missing_instance_numbers
@@ -148,27 +180,39 @@ def run_dicom_validation(
 
         series_uid = get_series_description(dcm_files, meta_key="SeriesInstanceUID")
 
-        results_2_meta.add_tags_to_opensearch(
-            series_uid,
-            validation_tags=tags_tuple,
-            clear_results=True,
-        )
+        # A failed metadata push must not fail the whole validation task
+        try:
+            results_2_meta.add_tags_to_opensearch(
+                series_uid,
+                validation_tags=tags_tuple,
+                clear_results=True,
+            )
+        except Exception:
+            logger.exception(
+                f"Could not push validation results to OpenSearch for {series_uid}"
+            )
 
     if len(errors.keys()) > 0 or len(warnings.keys()) > 0:
-        htmlout = generate_html(
-            title=f"Validation Report for dataset {seriesdsc}",
-            attrs=attributes,
-            errors=[errors[tag] for tag in errors.keys()],
-            warnings=[warnings[tag] for tag in warnings.keys()],
-            series_completete_stat=completeness_items,
-        )
+        # A failed report generation must not fail the whole validation task
+        try:
+            htmlout = generate_html(
+                title=f"Validation Report for dataset {seriesdsc}",
+                attrs=attributes,
+                errors=[errors[tag] for tag in errors.keys()],
+                warnings=[warnings[tag] for tag in warnings.keys()],
+                series_completete_stat=completeness_items,
+            )
 
-        with open(os.path.join(operator_out_dir, f"results-{run_id}.html"), "w") as f:
-            f.write(htmlout)
+            with open(
+                os.path.join(operator_out_dir, f"results-{run_id}.html"), "w"
+            ) as f:
+                f.write(htmlout)
 
-        logger.info(
-            f"Validation Results file created in {operator_out_dir} with the name results-{run_id}.html"
-        )
+            logger.info(
+                f"Validation Results file created in {operator_out_dir} with the name results-{run_id}.html"
+            )
+        except Exception:
+            logger.exception("Could not generate the validation report")
 
     if len(errors.keys()) > 0 and exit_on_error:
         raise ValueError(

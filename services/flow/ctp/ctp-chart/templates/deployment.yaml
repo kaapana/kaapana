@@ -26,8 +26,12 @@ spec:
           resources:
             requests:
               memory: 1024Mi
+              cpu: 500m
             limits:
               memory: 3000Mi
+              # keep heavy ingest (e.g. dcmsend of many series) from
+              # saturating the node and starving other services
+              cpu: 4000m
           volumeMounts:
             - name: ctp-data
               mountPath: /data/

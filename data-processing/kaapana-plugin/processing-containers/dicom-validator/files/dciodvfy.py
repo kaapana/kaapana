@@ -1,7 +1,12 @@
+import os
 import re
 import subprocess
 
 from base import ValidationItem, DicomValidatorInterface
+
+# A malformed DICOM can make dciodvfy hang forever; without a timeout a single
+# bad slice blocks the whole validation task until the Airflow task times out.
+DCIODVFY_TIMEOUT_SECONDS = int(os.getenv("DCIODVFY_TIMEOUT_SECONDS", "60"))
 
 
 class DCIodValidator(DicomValidatorInterface):
@@ -119,7 +124,18 @@ class DCIodValidator(DicomValidatorInterface):
         """
         cmd = ["dciodvfy", "-new", dicom_path]
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        _, err = process.communicate()
+        try:
+            _, err = process.communicate(timeout=DCIODVFY_TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.communicate()
+            timeout_item = ValidationItem(
+                "general",
+                "Error",
+                f"dciodvfy timed out after {DCIODVFY_TIMEOUT_SECONDS}s, "
+                "file could not be validated",
+            )
+            return [timeout_item], []
         errs = self.process_dciodvfy_output(err.decode("utf-8"))
         vitems = [
             self.get_validataion_item_from_err_tuple(item, idx)

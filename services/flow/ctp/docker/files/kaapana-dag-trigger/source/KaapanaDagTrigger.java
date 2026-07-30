@@ -33,6 +33,10 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
     int callingAETTag = 0;
     int connectionIPTag = 0;
     int unchangedCounter = 2;
+    int diskUsageLimitPercent = 90;
+    int httpConnectTimeoutMs = 10000;
+    int httpReadTimeoutMs = 60000;
+    int triggerMaxRetries = 3;
     String callingAET;
     String calledAET;
     String connectionIP;
@@ -73,6 +77,9 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
         String unChangedString = element.getAttribute("unchangedCounter");
         if (!unChangedString.isEmpty())
             unchangedCounter = Integer.parseInt(unChangedString.trim());
+        String diskUsageLimitString = element.getAttribute("diskUsageLimitPercent");
+        if (!diskUsageLimitString.isEmpty())
+            diskUsageLimitPercent = Integer.parseInt(diskUsageLimitString.trim());
         syncObject = new Object();
         handleOldDicomStorageDir();
         logger.info("Kaapana Dag Trigger ready!");
@@ -121,15 +128,27 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
 
                 if (!fix_aetitle.equals(""))
                     calledAET = fix_aetitle;
+
+                // Backpressure: stop accepting new data when the storage disk
+                // is almost full, otherwise the disk fills up completely and
+                // the whole platform becomes unusable.
+                if (isDiskUsageAboveLimit()) {
+                    logger.error(name + ": storage disk usage above " + diskUsageLimitPercent
+                            + "% - refusing to store: " + fileObject);
+                    if (quarantine != null)
+                        quarantine.insert(fileObject);
+                    return null;
+                }
+
                 // store after changing tags, but before triggering airflow
                 int fileCount;
                 File storedFileParentDir;
                 synchronized (syncObject) {
                     FileObject storedFileObject = super.store(fileObject);
                     if (storedFileObject == null) {
-                        // super.store() quarantines the object and returns null on failure
-                        // (e.g. disk full, path too long)
-                        logger.error(name + ": storing failed for: " + fileObject.getFile());
+                        // super.store() failed and quarantined the object;
+                        // dereferencing it would throw an NPE
+                        logger.warn(name + ": storing failed (quarantined): " + fileObject);
                         return null;
                     }
                     File storedFile = storedFileObject.getFile();
@@ -223,6 +242,26 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                     logger.warn(ex);
                 }
             }
+        }
+    }
+
+    /**
+     * Checks whether the disk holding the storage directory is filled above
+     * the configured limit (diskUsageLimitPercent, default 90%).
+     */
+    private boolean isDiskUsageAboveLimit() {
+        try {
+            File storageDir = super.root;
+            long totalSpace = storageDir.getTotalSpace();
+            if (totalSpace <= 0)
+                return false;
+            long usedSpace = totalSpace - storageDir.getUsableSpace();
+            long usedPercent = (usedSpace * 100) / totalSpace;
+            return usedPercent >= diskUsageLimitPercent;
+        } catch (Exception e) {
+            logger.warn(name + ": could not determine disk usage");
+            logger.warn(e);
+            return false;
         }
     }
 
@@ -483,6 +522,8 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                 String url = String.format(dagRunUrl, part);
                 URL object = new URL(url);
                 HttpURLConnection con = (HttpURLConnection) object.openConnection();
+                con.setConnectTimeout(httpConnectTimeoutMs);
+                con.setReadTimeout(httpReadTimeoutMs);
                 con.setDoOutput(true);
                 con.setDoInput(true);
                 con.setRequestProperty("Content-Type", "application/json");
@@ -537,20 +578,24 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
         /**
          *
          */
-        private void renameFolder() {
+        private void renameFolder() throws IOException {
             if (storedFileParentDir.isDirectory()) {
                 File dirNew = new File(storedFileParentDir.getParent() + File.separator + dicomPath);
+                // if the rename fails, Airflow would be triggered with a
+                // dicom_path that does not exist
                 if (!storedFileParentDir.renameTo(dirNew)) {
-                    // fail here so the series is quarantined instead of triggering
-                    // Airflow with a non-existent dicom_path and stranding the folder
-                    throw new RuntimeException(
-                            "Unable to rename " + storedFileParentDir + " to " + dirNew);
+                    throw new IOException("Could not rename " + storedFileParentDir
+                            + " to " + dirNew);
                 }
                 storedFileParentDir = dirNew;
             }
         }
 
         /**
+         * Triggers Airflow with retries and backoff: transient errors
+         * (connection problems, timeouts, 5xx) must not immediately
+         * quarantine an otherwise fine series.
+         *
          * @param content
          * @param dag_id
          * @return
@@ -558,11 +603,46 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
          */
         private boolean triggerAirflow(JSONObject content, String dag_id) throws Exception {
             String url = trigger_url + "/" + dag_id;
+            Exception lastException = null;
+            for (int attempt = 1; attempt <= triggerMaxRetries; attempt++) {
+                try {
+                    int httpResult = postToAirflow(content, url);
+                    if (httpResult == HttpURLConnection.HTTP_OK)
+                        return true;
+                    logger.warn(name + " HttpResult: " + httpResult);
+                    logger.warn("Airflow was not triggered (attempt " + attempt + "/"
+                            + triggerMaxRetries + ")");
+                    logger.warn(name + ": URL: " + url);
+                    if (httpResult < 500) {
+                        // permanent client error, retrying will not help
+                        logger.warn("Dicom Folder not send to airflow: " + dicomPath);
+                        folderFilesToQuarantine(storedFileParentDir);
+                        return false;
+                    }
+                } catch (IOException e) {
+                    lastException = e;
+                    logger.warn(name + ": Airflow trigger failed (attempt " + attempt + "/"
+                            + triggerMaxRetries + "): " + e);
+                }
+                if (attempt < triggerMaxRetries)
+                    Thread.sleep(5000L * attempt);
+            }
+            logger.warn("Airflow was not triggered after " + triggerMaxRetries + " attempts!");
+            logger.warn("Dicom Folder not send to airflow: " + dicomPath);
+            if (lastException != null)
+                logger.warn(lastException);
+            folderFilesToQuarantine(storedFileParentDir);
+            return false;
+        }
+
+        /**
+         * Single POST to Airflow, returns the HTTP status code.
+         */
+        private int postToAirflow(JSONObject content, String url) throws IOException {
             URL object = new URL(url);
             HttpURLConnection con = (HttpURLConnection) object.openConnection();
-            // without timeouts a hung POST parks the renamed folder forever
-            con.setConnectTimeout(10000);
-            con.setReadTimeout(60000);
+            con.setConnectTimeout(httpConnectTimeoutMs);
+            con.setReadTimeout(httpReadTimeoutMs);
             con.setDoOutput(true);
             con.setDoInput(true);
             con.setRequestProperty("Content-Type", "application/json");
@@ -573,28 +653,20 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
             wr.write(content.toString());
             wr.flush();
 
-            // display what returns the POST request
-
-            StringBuilder sb = new StringBuilder();
-            int HttpResult = con.getResponseCode();
-            if (HttpResult == HttpURLConnection.HTTP_OK) {
+            int httpResult = con.getResponseCode();
+            if (httpResult == HttpURLConnection.HTTP_OK) {
                 BufferedReader br = new BufferedReader(
                         new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8));
-                String line = null;
-                while ((line = br.readLine()) != null) {
-                    sb.append(line + "\n");
+                while (br.readLine() != null) {
+                    // drain the response
                 }
                 br.close();
                 return true;
             } else {
-                logger.warn(name + " HttpResult: " + HttpResult);
-                logger.warn("Airflow was not triggered!");
-                logger.warn("Dicom Folder not send to airflow: " + dicomPath);
-                logger.warn(name + ": URL: " + url);
                 logger.warn("Response message: ");
                 logger.warn(con.getResponseMessage());
-                return false;
             }
+            return httpResult;
         }
     }
 }

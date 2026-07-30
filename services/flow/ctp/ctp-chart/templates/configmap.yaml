@@ -36,6 +36,7 @@ data:
             setStandardExtensions="yes"
             structure="(0020,000E)"
             unchangedCounter = "1"
+            diskUsageLimitPercent="90"
             dagRunUrl="/dags/%s/dagRuns/state/queued/count"
             whitespaceReplacement="_"/>
         </Pipeline>
@@ -67,6 +68,7 @@ data:
             setStandardExtensions="yes"
             structure="(0020,000E)"
             unchangedCounter = "1"
+            diskUsageLimitPercent="90"
             dagRunUrl="/dags/%s/dagRuns/state/queued/count"
             fix_aetitle="DICOM_WEB"
             whitespaceReplacement="_"/>

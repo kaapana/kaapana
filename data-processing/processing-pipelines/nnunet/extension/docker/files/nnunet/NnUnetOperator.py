@@ -127,6 +127,7 @@ class NnUnetOperator(KaapanaBaseOperator):
             ram_mem_mb_lmt=ram_mem_mb_lmt,
             pod_resources=pod_resources,
             gpu_mem_mb=gpu_mem_mb,
+            unbounded_cpu=True,
             env_vars=env_vars,
             dev_server=dev_server,
             **kwargs,

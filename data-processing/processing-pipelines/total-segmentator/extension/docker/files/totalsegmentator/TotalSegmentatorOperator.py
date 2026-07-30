@@ -7,12 +7,12 @@ from kaapana.blueprints.kaapana_global_variables import (
 )
 
 
-class TotalSegmentatorV2Operator(KaapanaBaseOperator):
+class TotalSegmentatorOperator(KaapanaBaseOperator):
     """
-    Executes the total segmentator algorithm on a given 3D CT or MR nifti image.
-    The algorithm segments 117 (CT) and 50 (MR) body structures and stores them in single file nifti format.
+    Executes the total segmentator algorithm on a given 3D CT nifti image.
+    The algorithm segments 104 body structures and stores them in single file nifti format.
 
-    Expects the pretrained weights already to be downloaded (use GetZenodoModelOperator for that).
+    Expects the pretrained weights already to be downloaded (use LocalGetTotalSegmentatorModels for that).
 
     - Publication:
       Wasserthal, J., Meyer, M., Breit, H. C., Cyriac, J., Yang, S., & Segeroth, M. (2022).
@@ -21,17 +21,17 @@ class TotalSegmentatorV2Operator(KaapanaBaseOperator):
 
     - Code: https://github.com/wasserth/TotalSegmentator
 
-    :param task: Task to execute.
+    :param task: Task to execute. Currently, on 'total' is supported.
     :type task: str
     """
 
     def __init__(
         self,
         dag,
-        task=None,
-        name="total-segmentator-v2",
+        task,
+        name="total-segmentator",
         output_type="nifti",
-        multilabel=True,
+        multilabel=False,
         fast=False,
         preview=False,
         statistics=True,
@@ -43,7 +43,6 @@ class TotalSegmentatorV2Operator(KaapanaBaseOperator):
         roi_subset=None,
         nr_thr_resamp=1,
         nr_thr_saving=6,
-        modality='CT',
         env_vars=None,
         execution_timeout=timedelta(minutes=120),
         **kwargs,
@@ -51,7 +50,27 @@ class TotalSegmentatorV2Operator(KaapanaBaseOperator):
         if env_vars is None:
             env_vars = {}
 
+        # Tasks available:
+        # total
+        # lung_vessels
+        # cerebral_bleed
+        # hip_implant
+        # coronary_arteries
+        # body
+        # pleural_pericard_effusion
+        # liver_vessels
+        # bones_extremities
+        # tissue_types
+        # heartchambers_highres
+        # head
+        # aortic_branches
+        # heartchambers_test
+        # bones_tissue_test
+        # aortic_branches_test
+        # test
+
         envs = {
+            "TASK": str(task),
             "OUTPUT_TYPE": str(output_type),
             "MULTILABEL": str(multilabel),
             "FAST": str(fast),
@@ -65,17 +84,18 @@ class TotalSegmentatorV2Operator(KaapanaBaseOperator):
             "ROI_SUBSET": "None" if not roi_subset else " ".join(roi_subset),
             "NR_THR_RESAMP": str(nr_thr_resamp),
             "NR_THR_SAVING": str(nr_thr_saving),
-            "TASK_MODALITY": str(modality)
         }
-        if task:
-            envs['TASK'] = str(task)
-        ram_mem_mb = 16000
-        gpu_mem_mb = 11900
+        if task == "combine-masks":
+            ram_mem_mb = 5000
+            gpu_mem_mb = None
+        else:
+            ram_mem_mb = 13000
+            gpu_mem_mb = 11900
 
         env_vars.update(envs)
         super().__init__(
             dag=dag,
-            image=f"{DEFAULT_REGISTRY}/total-segmentator-v2:{KAAPANA_BUILD_VERSION}",
+            image=f"{DEFAULT_REGISTRY}/total-segmentator:{KAAPANA_BUILD_VERSION}",
             name=name,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,

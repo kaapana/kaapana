@@ -48,9 +48,10 @@ class DcmValidatorOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             env_vars=env_vars,
-            ram_mem_mb=1000,  # Histopathology image from deletion-dataset was failing with OOM
+            # Histopathology image from deletion-dataset was failing with OOM
+            ram_mem_mb=1000,
             cpu_millicores=200,
-            cpu_millicores_lmt=500,
+            cpu_millicores_lmt=2000,
             *args,
             **kwargs,
         )

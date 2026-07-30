@@ -107,6 +107,11 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     HELM_API = f"http://kube-helm-service.{ADMIN_NAMESPACE}.svc:5000"
     TIMEOUT = 60 * 60 * 12
     CURE_INVALID_NAME_REGEX = r"[a-z]([-a-z0-9]*[a-z0-9])?"
+    # CPU request/limit applied to every processing pod that does not set
+    # cpu_millicores itself; opt out per operator with unbounded_cpu=True
+    # (training etc.)
+    DEFAULT_CPU_MILLICORES = 100
+    DEFAULT_CPU_MILLICORES_LMT = 2000
 
     def __init__(
         self,
@@ -126,6 +131,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         ram_mem_mb_lmt=None,
         cpu_millicores=None,
         cpu_millicores_lmt=None,
+        unbounded_cpu=False,
         gpu_mem_mb=None,
         gpu_mem_mb_lmt=None,
         retries=1,
@@ -262,6 +268,15 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         # Namespaces
         self.services_namespace = SERVICES_NAMESPACE
         self.admin_namespace = ADMIN_NAMESPACE
+
+        # Every processing pod gets a CPU request/limit by default; operators
+        # that must not be throttled (training, inference, ...) opt out
+        # explicitly with unbounded_cpu=True.
+        self.unbounded_cpu = unbounded_cpu
+        if self.cpu_millicores is None and not unbounded_cpu:
+            self.cpu_millicores = self.DEFAULT_CPU_MILLICORES
+            if self.cpu_millicores_lmt is None:
+                self.cpu_millicores_lmt = self.DEFAULT_CPU_MILLICORES_LMT
 
         if self.pod_resources is None:
             self.pod_resources = pc_models.Resources(

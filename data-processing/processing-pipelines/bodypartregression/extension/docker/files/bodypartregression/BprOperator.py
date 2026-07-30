@@ -54,6 +54,7 @@ class BprOperator(KaapanaBaseOperator):
             ram_mem_mb=3000,
             ram_mem_mb_lmt=6000,
             gpu_mem_mb=5000,
+            unbounded_cpu=True,
             env_vars=env_vars,
             **kwargs,
         )

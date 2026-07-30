@@ -28,6 +28,8 @@ build_ci_image:
   script:
     - |
       set +x
+      # # DOCKER_AUTH_CONFIG shadows CLI logins, unset it so build/scan pushes use their logins
+      unset DOCKER_AUTH_CONFIG
       echo "$CI_REGISTRY_TOKEN" | docker login "$CI_REGISTRY_URL" -u "$CI_REGISTRY_USER" --password-stdin
     # context is ci/, not the repo root (no .dockerignore exists)
     - docker build --build-arg http_proxy="$HTTP_PROXY" --build-arg https_proxy="$HTTPS_PROXY"

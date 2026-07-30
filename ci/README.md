@@ -230,6 +230,7 @@ Runners pulling the ci-base job image authenticate with `DOCKER_AUTH_CONFIG`:
 - Keep an entry for every registry in rotation, then switching `CI_REGISTRY_URL` never breaks image pulls. If you add a new registry, add its entry here in the same change.
 - Each token must be a deploy token with `read_registry` on the GitLab instance that owns that registry.
 - Symptom of a missing/mismatched entry: job dies in *prepare* with `failed to pull image ... access forbidden`, and the log does **not** show `Authenticating with credentials from $DOCKER_AUTH_CONFIG`.
+- docker ≥ 28 reads `DOCKER_AUTH_CONFIG` from the **job environment** too, overriding `docker login`. Jobs that push images must `unset DOCKER_AUTH_CONFIG` before logging in (the build jobs do). Symptom: `Login Succeeded` followed by `denied` on push.
 - The environment-scoped variable rows (e.g. `DFKZ_CONTAINER_REGISTRY` / `HIFIS_CONTAINER_REGISTRY` scopes) are not directly used; no job declares an `environment`, so only "All (default)" rows ever reach a job. They serve as a parking lot for the inactive registry's values.
 
 Bulk upload from a template:

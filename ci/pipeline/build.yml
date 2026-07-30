@@ -15,6 +15,8 @@
     GIT_STRATEGY: clone
     GIT_DEPTH: "0" # full history — the global depth 1 would shallow the clone and break git describe
   before_script:
+    # DOCKER_AUTH_CONFIG shadows CLI logins, unset it so build/scan pushes use their logins
+    - unset DOCKER_AUTH_CONFIG
     - pip install -e build_cli/
     - |-
       if [[ $CI_PIPELINE_SOURCE == "merge_request_event" ]]; then

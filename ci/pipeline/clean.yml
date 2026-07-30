@@ -1,0 +1,88 @@
+# Stage: clean — VM teardown + failure notification
+# In:  deployment.env dotenv (VM_FQDN); job statuses via needs;
+#      HARVESTER_KUBECONFIG (File-type CI variable)
+# Out: VM + PVCs deleted; on develop failures a GitLab issue + Slack message
+# #############################################
+# ############## CLEAN ########################
+# #############################################
+destroy_deployment:
+  stage: clean
+  interruptible: false
+  timeout: 1 hour
+  # The needs list is the teardown barrier: with `when: always` this starts
+  # once every listed job is terminal. Jobs that use the test VM must be
+  # listed here (optional: true keeps reduced pipeline shapes valid).
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+    - { job: server_installation, optional: true, artifacts: false }
+    - { job: platform_deployment, optional: true, artifacts: false }
+    - { job: setup_integration_tests, optional: true, artifacts: false }
+    - { job: scan_ports, optional: true, artifacts: false }
+    - { job: first_login, optional: true, artifacts: false }
+    - { job: install_extensions, optional: true, artifacts: false }
+    - { job: send_data, optional: true, artifacts: false }
+    - { job: run_workflows, optional: true, artifacts: false }
+    - { job: playwright_ui_tests, optional: true, artifacts: false }
+  rules:
+    # Never destroy externally-provided VMs
+    - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
+      when: never
+    # Opt-in delayed destruction (e.g. keep VM alive to inspect after success)
+    - if: '$CI_EXEC_DEPLOY == "true" && $CI_EXEC_DESTROY_DELAYED == "true"'
+      when: delayed
+      start_in: 4 hours
+    # Default: always destroy (on success and on failure)
+    - if: '$CI_EXEC_DEPLOY == "true"'
+      when: always
+    - when: never
+  tags:
+    - deploy-runner
+  image: $CI_BASE_IMAGE
+  script:
+    - ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/delete_harvester_vm.yaml"
+
+if_ci_failing:
+  stage: clean
+  tags:
+    - deploy-runner
+  image: $CI_BASE_IMAGE
+  # Every pipeline job must be listed (with needs, when: on_failure watches
+  # the needed jobs only). artifacts: true marks the jobs whose logs feed the
+  # issue report — never set it on jobs whose artifacts contain secrets.
+  needs:
+    - { job: build_ci_image, optional: true, artifacts: false }
+    - { job: unit_tests, optional: true, artifacts: false }
+    - { job: task_api_tests, optional: true, artifacts: false }
+    - { job: kaapana_extensions_tests, optional: true, artifacts: false }
+    - { job: workflow_api_tests, optional: true, artifacts: false }
+    - { job: extensions_api_tests, optional: true, artifacts: false }
+    - { job: kaapana_backend_tests, optional: true, artifacts: false }
+    - { job: access_information_interface_tests, optional: true, artifacts: false }
+    - { job: keycloak_setup_tests, optional: true, artifacts: false }
+    - { job: build_documentation, optional: true, artifacts: false }
+    - { job: check_readthedocs, optional: true, artifacts: false }
+    - { job: build_packages, optional: true, artifacts: true }
+    - { job: security_scan, optional: true, artifacts: false }
+    - { job: security, optional: true, artifacts: false }
+    - { job: prepare_deployment, optional: true, artifacts: false }
+    - { job: server_installation, optional: true, artifacts: true }
+    - { job: platform_deployment, optional: true, artifacts: true }
+    - { job: setup_integration_tests, optional: true, artifacts: false }
+    - { job: scan_ports, optional: true, artifacts: true }
+    - { job: first_login, optional: true, artifacts: true }
+    - { job: install_extensions, optional: true, artifacts: true }
+    - { job: send_data, optional: true, artifacts: true }
+    - { job: run_workflows, optional: true, artifacts: true }
+    - { job: playwright_ui_tests, optional: true, artifacts: false }
+  script:
+    - mkdir -p "$ARTIFACTS_DIR"
+    # move build.log into the dir the ticket script scans for *.log
+    - '[[ -f "$CI_PROJECT_DIR/build/build.log" ]] && cp "$CI_PROJECT_DIR/build/build.log" "$ARTIFACTS_DIR/" || true'
+    - cd "$CI_PROJECT_DIR/ci/ci-code/clean"
+    - python3 create_ticket_if_ci_failed.py
+    - python3 notify_slack.py
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+      when: on_failure
+

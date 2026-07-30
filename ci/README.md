@@ -1,194 +1,222 @@
-# Kaapana CI/CD Documentation
+# Kaapana CI
 
-## CI/CD Pipeline Overview
+How to run, debug, and extend the Kaapana CI pipeline.
 
-Kaapana uses **GitLab CI** with five stages across multiple runners:
+Configuration lives in [`.gitlab-ci.yml`](../.gitlab-ci.yml) (variables with
+defaults and comments) plus one file per stage under
+[`ci/pipeline/`](pipeline/). Each stage file's header states what the stage
+takes in and hands out — an MR that adds an undeclared dependency must
+extend that header.
 
-```mermaid
-graph TB
-    subgraph "GitLab"
-        GH["Pipeline Trigger"]
-    end
-    
-    subgraph UTRVM["Unit Tests Runner VM (Small)"]
-        A1["unit_tests"]
-        A2["task_api_tests"]
-        A3["workflow_api_tests"]
-        A4["build_documentation"]
-    end
-    
-    subgraph "Build Runner VM (Large)"
-        B["build_packages"]
-    end
-    
-    subgraph "Orchestrator (deploy-runner)"
-        C1["prepare_deployment"]
-        E["destroy_deployment"]
-        F1["if_ci_failing<br/>(on_failure)"]
-        F2["security<br/>(if --vulnerability-scan)"]
-    end
-    
-    subgraph DVM["Deployment Instance"]
-        C2["server_installation<br/>via SSH"]
-        C3["platform_deployment<br/>via SSH"]
-        D1["scan_ports<br/>via SSH"]
-        D2["first_login<br/>via SSH"]
-        D3["install_extensions<br/>via SSH"]
-        D4["send_data<br/>via SSH"]
-        D5["run_workflows<br/>via SSH"]
-    end
-    
-    GH -->|parallel| A1 & A2 & A3 & A4
-    UTRVM -->|all pass| B
-    B -->|images ready| C1
-    C1 -->|provision/use existing| DVM
-    C2 --> C3
-    C3 -->|sequentially| D1 --> D2 --> D3 --> D4 --> D5
-    D5 -->|if auto-created, delayed in 4 hours| E
-    E --> F1
-    E --> F2
-    
-    style A1 fill:#4CAF50,stroke:#2d5016,color:#fff
-    style A2 fill:#4CAF50,stroke:#2d5016,color:#fff
-    style A3 fill:#4CAF50,stroke:#2d5016,color:#fff
-    style A4 fill:#4CAF50,stroke:#2d5016,color:#fff
-    style B fill:#2196F3,stroke:#0d47a1,color:#fff
-    style C1 fill:#FF9800,stroke:#e65100,color:#fff
-    style C2 fill:#FF9800,stroke:#e65100,color:#fff
-    style C3 fill:#FF9800,stroke:#e65100,color:#fff
-    style D1 fill:#9C27B0,stroke:#4a148c,color:#fff
-    style D2 fill:#9C27B0,stroke:#4a148c,color:#fff
-    style D3 fill:#9C27B0,stroke:#4a148c,color:#fff
-    style D4 fill:#9C27B0,stroke:#4a148c,color:#fff
-    style D5 fill:#9C27B0,stroke:#4a148c,color:#fff
-    style E fill:#f44336,stroke:#b71c1c,color:#fff
-    style F1 fill:#f44336,stroke:#b71c1c,color:#fff
-    style F2 fill:#f44336,stroke:#b71c1c,color:#fff
-```
+## 1. What the pipeline does
 
-### Color Legend
-- 🟢 **Green**: Tests stage (unit tests, API tests, documentation)
-- 🔵 **Blue**: Build stage (build images)
-- 🟠 **Orange**: Deploy stage (prepare deployment, server installation, platform deployment)
-- 🟣 **Purple**: Test stage (integration tests)
-- 🔴 **Red**: Clean stage (destroy deployment, notifications, security reports)
+Test the code → build the platform images → deploy them on a fresh throwaway
+VM → test that live deployment → delete the VM.
 
-## Architecture
+| Stage | Jobs | Runs on | Duration |
+|---|---|---|---|
+| `tests` | 8 unit-test suites, docs build | tests runner | minutes |
+| `build` | `build_packages` (+ security scan on nightly) | build runner | hours (warm cache: much less) |
+| `deploy` | `prepare_deployment` → `server_installation` → `platform_deployment` | deploy runner (Ansible over SSH) | ~1 h |
+| `test` | integration tests: login, ports, UI (Playwright), extensions, DICOM data, workflows | deploy runner, against the live VM | 1–3 h |
+| `clean` | `destroy_deployment`, `if_ci_failing` | deploy runner | minutes |
 
-### Hardware Setup
-- **Small VM (tests-runner)**: Runs unit tests and documentation builds in parallel
-- **Big VM (build-runner)**: Builds Docker container images
-- **Orchestrator (deploy-runner)**: Controls deployment and cleanup flow via Ansible
-- **Deployment Instance**: Target server where Kaapana runs (auto-created via Harvester or pre-specified)
+Three facts explain most of the design:
 
-### Execution Flow
-1. **Tests Stage** (Small VM): Unit/API tests + docs build run **in parallel**
-   - Artifacts: `tests/` → uploaded to GitLab
-2. **Build Stage** (Big VM): Docker images built
-   - Artifacts: `build/build.log`, `build/security-reports/` → uploaded to GitLab
-3. **Deploy Stage** (via Orchestrator + SSH):
-   - `prepare_deployment`: Provisions or uses existing deployment instance (via Harvester kubeconfig) 
-   - `server_installation`: Installs dependencies on deployment instance via SSH
-   - `platform_deployment`: Deploys Kaapana via SSH
-   - Artifacts: `artifacts/` → uploaded to GitLab
-4. **Test Stage** (via Orchestrator + SSH): Each integration test runs sequentially on deployment instance
-   - Artifacts: `artifacts/` → uploaded to GitLab
-5. **Clean Stage** (via Orchestrator):
-   - `destroy_deployment`: Destroys deployment instance (runs **after 4 hours** if auto-provisioned, using Harvester kubeconfig)
-   - `if_ci_failing`: Creates issue on develop branch if pipeline fails (runs on failure)
-   - `security`: Generates vulnerability report if `--vulnerability-scan` flag used
-   - Artifacts: All uploaded to GitLab (1 week retention)
+- **Every job runs in a fresh container** (docker executor on all runners) —
+  nothing persists on the machines; credentials come from File-type CI
+  variables.
+- **The registry is the only handoff between build and deploy.** Both derive
+  the same tag from `git describe`; `prepare_deployment` verifies the chart
+  exists (fail-fast, before any VM is created) and hands the tag to later
+  jobs via the `deployment.env` dotenv artifact.
+- **The test VM is disposable.** `destroy_deployment` deletes it even on
+  failure — except externally-provided VMs (never destroyed) or when you
+  asked to keep it (see recipes).
 
-## Setting Up GitLab CI
+## 2. What runs when
 
-### Requirements
-- Maintainer access to GitLab project
-- Harvester Kube config (for VM provisioning)
-- GitLab API token
+| Trigger | What runs |
+|---|---|
+| Merge request | Full pipeline. `Draft:` MRs run nothing. |
+| Push to `develop` | Full pipeline. |
+| Nightly schedule | Full pipeline + security scan + ReadTheDocs check. |
+| Release tag `X.Y.Z` | Full pipeline, publishing to the release registry with a cold cache ([section 7](#7-releases)). |
+| Web UI / API / trigger | Always allowed; you pick the toggles. |
 
-### Setup Steps
+Stage toggles (set per run via **CI/CD → Pipelines → Run pipeline**, or
+scripted with `python3 ci/utils/trigger_pipeline.py`):
 
-1. Clone: `git clone https://codebase.helmholtz.cloud/kaapana/kaapana`
+| Variable | Default | Effect |
+|---|---|---|
+| `CI_EXEC_UNIT_TESTS` | `true` | tests stage |
+| `CI_EXEC_BUILD` | `true` | build stage |
+| `CI_EXEC_BUILD_ARGUMENTS` | empty | extra `kaapana-build` flags |
+| `CI_EXEC_DEPLOY` | `true` | deploy stage |
+| `CI_EXEC_SERVER_INSTALLATION` | `true` | `false` skips the OS/microk8s install — for already-prepared targets |
+| `CI_EXEC_INTEGRATION_TESTS` | `true` | test stage (needs deploy) |
+| `CI_EXEC_SECURITY_SCAN` | `false` | trivy scan of the built images |
+| `CI_EXEC_DOCKER_PRUNE` | `false` | wipe the build cache first (cold, multi-hour build) |
+| `CI_EXEC_DESTROY_DELAYED` | `false` | keep the test VM for 4 h after the pipeline |
+| `MAINTENANCE` | `false` | project variable; pauses MR/push/schedule pipelines (web/API still work) |
 
-2. Install Ansible and collection:
-   ```bash
-   sudo apt install ansible -y
-   ansible-galaxy collection install kubernetes.core
-   ```
+## 3. Recipes
 
-3. Set required environment variables for runner provisioning:
-   ```bash
-   export GITLAB_API_TOKEN="your-gitlab-api-token"
-   export GITLAB_PROJECT_ID="your-project-id"
-   export GITLAB_URL="https://your-gitlab-instance.com"
-   export SSH_PUBLIC_KEY="~/.ssh/kaapana-pub.pem"
-   export SSH_PRIVATE_KEY="~/.ssh/kaapana.pem"
-   export HARVESTER_KUBECONFIG="~/.kube/harvester.yaml"
-   ```
-   Or use DOTENV file:
-   ```bash
-   set -a
-   source .env
-   set +a
-   ```
-4. Run ansible-playbook to provision runners:
-   ```bash
-   cd ci/harvester
-   
-   # Create build runners
-   ansible-playbook create-build-runner-instances.yaml -i inventory.yaml
-   
-   # Create deploy runners
-   ansible-playbook create-deploy-runner-instances.yaml -i inventory.yaml
-   
-   # Create test runners
-   ansible-playbook create-tests-runner-instances.yaml -i inventory.yaml
-   
-   # Force recreate (deletes and recreates existing instances)
-   ansible-playbook create-build-runner-instances.yaml -i inventory.yaml -e force_recreate=true
-   ```
+**Unit tests only** — `CI_EXEC_BUILD=false CI_EXEC_DEPLOY=false CI_EXEC_INTEGRATION_TESTS=false`
 
-### Project CI/CD variables
+**Build only** — `CI_EXEC_UNIT_TESTS=false CI_EXEC_DEPLOY=false CI_EXEC_INTEGRATION_TESTS=false`
 
-All pipeline variables are declared **with their defaults in `.gitlab-ci.yml`** —
-that block is the reference documentation for toggles, VM sizing, runner paths
-etc. Project-level variables (Settings → CI/CD → Variables) hold **only secrets
-and the registry configuration**. Do not mirror config values there: a project
-variable silently overrides the YAML value of the same name (this precedence
-bug broke the 0.7.0 release build, see `RELEASING.md`).
+**Deploy without rebuilding** — `CI_EXEC_UNIT_TESTS=false CI_EXEC_BUILD=false`.
+Works only if the commit was built and pushed by an earlier pipeline.
 
-The following project variables must be present:
+**Deploy onto my own VM** — set `DEPLOYMENT_INSTANCE_FQDN` (and
+`DEPLOYMENT_INSTANCE_USER` if not `ubuntu`). FQDN must be ≤ 57 chars (dcmsend
+limit) and reachable via SSH with the CI keypair. External VMs are never
+destroyed by the clean stage.
 
-| Variable | Masked | Protected | Description |
-| --- | --- | --- | --- |
-| `CI_REGISTRY_URL` | no | no | Registry for normal CI builds, e.g. `registry.git.dkfz.de/mic/personal/group1/kaapana-fallback` |
-| `CI_REGISTRY_USER` | no | no | Username paired with `CI_REGISTRY_TOKEN`. Shadows the GitLab-predefined `CI_REGISTRY_USER` — if deleted, jobs silently get `gitlab-ci-token` |
-| `CI_REGISTRY_TOKEN` | yes | no | Registry push credential; also the default for `GITLAB_API_TOKEN` and `BLABLADOR_API_TOKEN` (see `.gitlab-ci.yml`) |
-| `RELEASE_REGISTRY_URL` | no | yes | Release registry, e.g. `registry.hzdr.de/kaapana/releases`. Used only by release tag pipelines |
-| `RELEASE_REGISTRY_USER` | no | yes | Username of the release deploy token |
-| `RELEASE_REGISTRY_TOKEN` | yes | yes | Secret of the release deploy token |
-| `DOCKER_IO_USER` | no | no | docker.io account (avoids anonymous pull rate limits) |
-| `DOCKER_IO_PASSWORD` | yes | no | docker.io password |
-| `SLACK_BOT_TOKEN` | yes | no | Slack bot for pipeline-failure notifications on develop |
-| `SLACK_CHANNEL_ID` | no | no | Slack channel for those notifications |
-| `KAAPANA_READTHEDOCS_TOKEN` | yes | no | ReadTheDocs API token for the scheduled docs check |
+**Keep the test VM to debug a failure** — re-run with
+`CI_EXEC_DESTROY_DELAYED=true`. The VM survives 4 h; the delayed
+`destroy_deployment` job can be cancelled for longer, or started manually.
 
-Optional: create `GITLAB_API_TOKEN` and/or `BLABLADOR_API_TOKEN` as project
-variables to move issue creation / AI reports onto their own credentials
-instead of the shared `CI_REGISTRY_TOKEN` (see the comment in `.gitlab-ci.yml`).
-
-**How to set them:** either manually in the GitLab UI (Settings → CI/CD →
-Variables, check *Mask variable* / *Protect variable* per the table), or in
-bulk from the template:
+**SSH into the test VM** — FQDN is in the `prepare_deployment` log/artifact;
+the key is the `CI_SSH_PRIVATE_KEY` File variable (matches the Harvester
+`kaapana` KeyPair):
 
 ```bash
-export GITLAB_API_TOKEN="your-gitlab-api-token"
-export GITLAB_PROJECT_ID="your-project-id"
-export GITLAB_URL="https://codebase.helmholtz.cloud"
+ssh -i <kaapana-key> ubuntu@<vm-fqdn>
+```
 
-# Fill in the real values first:
-cp ci/harvester/control/ci_variables_template.json /tmp/ci_variables.json
+The platform UI is at `https://<vm-fqdn>`.
 
+**Security scan on demand** — `CI_EXEC_SECURITY_SCAN=true` (with build).
+Reports: `security_scan` artifacts (JSON per image), the `security` job's
+`vulnerability_report.html`, and GitLab's Security tab.
+
+**Delete a leftover test VM manually** (normally never needed):
+
+```bash
+export HARVESTER_KUBECONFIG=~/.kube/harvester.yaml   # File variable holds it
+kubectl --kubeconfig $HARVESTER_KUBECONFIG -n kaapana-ci get vm   # ci-<branch>-<sha>
+ansible-playbook -i localhost, ci/ci-code/deploy/delete_harvester_vm.yaml -e vm_name=<name>
+```
+
+**Pause the CI** — set project variable `MAINTENANCE=true`
+(Settings → CI/CD → Variables); remove it to resume.
+
+## 4. When a job is red
+
+Every job uploads its logs/reports as artifacts (job page → Browse) — look
+there before re-running. Failures on `develop` automatically create a GitLab
+issue with collected logs and post to Slack (`if_ci_failing`). Re-run single
+jobs with ↻; you rarely need the whole pipeline.
+
+| Symptom | Likely cause / what to do |
+|---|---|
+| Unit-test job fails in `pip install` | Dependency change in the component. Reproduce locally — the job runs plain `python:3.12`. |
+| `task_api_tests`: "connection refused" to `docker:2375` | Its dind service died. Usual cause: the service image name must stay **fully qualified** (`docker.io/library/docker:…`) — the privileged-service allowlist matches the literal string. |
+| Test job times out talking to a service (e.g. `registry:5000`) | DKFZ proxy. The alias must be in `NO_PROXY` **and** `no_proxy` (both casings) in the job variables. |
+| `build_packages` fails immediately | Registry login (`CI_REGISTRY_*` variables) or the build VM's docker daemon. Full log in the `build.log` artifact. |
+| `build_packages` fails on one image | Read `build.log`; usually reproducible locally with `kaapana-build`. |
+| Build very slow | Cold layer cache (`CI_EXEC_DOCKER_PRUNE`? new build VM?). |
+| `prepare_deployment` fails provisioning | Harvester capacity or API — check the job log. |
+| `prepare_deployment`: "chart … not found in registry" | The commit was never built. Build it first. |
+| Integration test failed, VM already gone | Re-run with `CI_EXEC_DESTROY_DELAYED=true`, SSH in (recipe above). |
+| `install_extensions` / `send_data` flaky | Known flakiness, `retry: 2` masks most of it. Fails 3× → real; check the JUnit/log artifacts. |
+| `playwright_ui_tests` fails | Download the Playwright HTML report artifact — traces and screenshots. |
+| Job stuck "pending" | No runner with the required tag picking it up ([section 6](#6-runners)). |
+| Everything fails weirdly after a CI-image change | Tag wasn't bumped — bump `CI_IMAGES_TAG` and re-run ([section 5](#5-the-ci-image-ci-base)). |
+
+## 5. The CI image (`ci-base`)
+
+One tool image for all jobs that need CI tooling:
+[`ci/images/ci-base/Dockerfile`](images/ci-base/Dockerfile) (build context
+`ci/`, not the repo root). Contains git, docker CLI, helm, trivy, dcmtk,
+nmap, ansible, node/npm, chromium, and the pinned Python test dependencies.
+Lives at `$CI_REGISTRY_URL/ci-base:$CI_IMAGES_TAG`; rebuilt automatically by
+`build_ci_image` when its inputs change.
+
+**The one rule: change the image → bump `CI_IMAGES_TAG` in the same MR.**
+Runners pull with `if-not-present`, so re-pushing an existing tag leaves warm
+runners on the stale image, silently. With a bump, `build_ci_image` (tests
+stage) pushes the new tag before the later stages pull it.
+
+Bootstrap from scratch (empty registry / broken automation):
+
+```bash
+docker login $CI_REGISTRY_URL
+docker build -f ci/images/ci-base/Dockerfile -t $CI_REGISTRY_URL/ci-base:<tag> ci
+docker push $CI_REGISTRY_URL/ci-base:<tag>
+```
+
+## 6. Runners
+
+Three runner VMs on Harvester (namespace `kaapana-ci`), defined in
+[`ci/harvester/inventory.yaml`](harvester/inventory.yaml). All use the docker
+executor.
+
+| Runner | Tag | Special configuration |
+|---|---|---|
+| kaapana-tests-01 | `tests-runner` | Allows privileged **services** matching `docker.io/library/docker:*` (dind for `task_api_tests`); `/builds` shared between job and services |
+| kaapana-build-01 | `build-runner` | Host docker socket mounted into jobs → warm layer cache across pipelines |
+| kaapana-deploy-01 | `deploy-runner` | No machine state; credentials from File-type CI variables |
+
+Provision / re-provision (also how you add a runner — add it to the
+inventory first):
+
+```bash
+export GITLAB_API_TOKEN=...      # api scope
+export GITLAB_PROJECT_ID=...
+export GITLAB_URL=https://codebase.helmholtz.cloud
+export SSH_PUBLIC_KEY=~/.ssh/kaapana.pub
+export SSH_PRIVATE_KEY=~/.ssh/kaapana.pem
+export HARVESTER_KUBECONFIG=~/.kube/harvester.yaml
+
+ansible-playbook -i ci/harvester/inventory.yaml ci/harvester/setup_ci.yaml
+# FORCE_RECREATE=true → delete and recreate existing VMs
+```
+
+On-VM troubleshooting: `sudo gitlab-runner verify`,
+`sudo systemctl status gitlab-runner`, config at
+`/etc/gitlab-runner/config.toml`.
+
+## 7. Releases
+
+Pushing a protected tag `X.Y.Z` runs a pipeline where `build_packages` swaps
+its registry credentials to the protected `RELEASE_REGISTRY_*` variables
+(via `rules:variables`) and forces a cold build. Images and charts land in
+the release registry tagged `X.Y.Z`.
+
+**The precedence trap (broke the 0.7.0 release):** a project-level UI
+variable silently outranks `rules:variables`. The release swap only works
+because no `REGISTRY_URL`/`REGISTRY_USER`/`REGISTRY_TOKEN` project variables
+exist — never create them. The CI registry is configured via the
+`CI_REGISTRY_*` names instead.
+
+## 8. Project CI/CD variables (secrets)
+
+Only secrets and registry configuration live as project variables
+(Settings → CI/CD → Variables); everything else defaults in
+`.gitlab-ci.yml`. Do not mirror config values into project variables (see
+the precedence trap above).
+
+| Variable | Masked | Protected | Description |
+|---|---|---|---|
+| `CI_REGISTRY_URL` | no | no | Registry for CI builds |
+| `CI_REGISTRY_USER` | no | no | Username for `CI_REGISTRY_TOKEN` (shadows a GitLab-predefined variable — if deleted, jobs silently get `gitlab-ci-token`) |
+| `CI_REGISTRY_TOKEN` | yes | no | Registry push credential; also the default for `GITLAB_API_TOKEN` and `BLABLADOR_API_TOKEN` |
+| `RELEASE_REGISTRY_URL` | no | yes | Release registry (release tag pipelines only) |
+| `RELEASE_REGISTRY_USER` | no | yes | Release deploy-token username |
+| `RELEASE_REGISTRY_TOKEN` | yes | yes | Release deploy-token secret |
+| `DOCKER_IO_USER` / `DOCKER_IO_PASSWORD` | no / yes | no | docker.io account (avoids pull rate limits) |
+| `SLACK_BOT_TOKEN` / `SLACK_CHANNEL_ID` | yes / no | no | Failure notifications on develop |
+| `KAAPANA_READTHEDOCS_TOKEN` | yes | no | Scheduled docs check |
+| `HARVESTER_KUBECONFIG` | File | no | Harvester cluster access — VM provisioning/deletion |
+| `CI_SSH_PRIVATE_KEY` | File | no | SSH key for test VMs (Harvester `kaapana` KeyPair) |
+
+Bulk upload from a template:
+
+```bash
+cp ci/harvester/control/ci_variables_template.json /tmp/ci_variables.json  # fill in values
 python3 ci/harvester/control/set_ci_variables.py \
   --ci-vars-file /tmp/ci_variables.json --dry-run   # drop --dry-run to upload
 ```
@@ -196,15 +224,61 @@ python3 ci/harvester/control/set_ci_variables.py \
 The script cannot set protected variables — create the `RELEASE_REGISTRY_*`
 triple manually in the UI.
 
----
+## 9. Adding a job
 
-### TBD
+1. Extend the right template (`.test_template`, `.build_cli_env`,
+   `.remote_execution_template`, `.integration_test_local`) — they carry the
+   runner tag, image, and rules conventions.
+2. Gate it with `rules:` on the matching `CI_EXEC_*` toggle.
+3. Need docker? Prefer a plain daemonless service; a privileged dind service
+   must use the fully-qualified image name (see `task_api_tests`).
+4. **Add the job to `if_ci_failing`'s `needs:` list** (`optional: true`;
+   `artifacts: true` only if its logs should feed the failure ticket — never
+   for jobs whose artifacts contain secrets). If the job uses the test VM,
+   **also add it to `destroy_deployment`'s `needs:` list** — that list is
+   the teardown barrier.
+5. Job talks to anything internal or job-local? Extend `NO_PROXY`/`no_proxy`
+   (both casings).
+6. New dependency between jobs? Declare it in the header of the stage file
+   that consumes it.
+7. Update this README if the job adds an operational surface.
 
-1. Configurable destruction delay -> [start_in does not support CI variable expansion](https://gitlab.com/gitlab-org/gitlab/-/work_items/363069)
+## 10. Running the pipeline locally
 
-## Run CI on custom VM
+The `tests` stage runs on any machine with docker — no runner, no GitLab —
+via [gitlab-ci-local](https://github.com/firecow/gitlab-ci-local)
+(`npm install -g gitlab-ci-local`). From the repo root:
 
-Run pipeline in the UI and specify: `DEPLOYMENT_INSTANCE_FQDN` (and
-`DEPLOYMENT_INSTANCE_USER` if not `ubuntu`). Externally-provided VMs are never
-destroyed by the clean stage.
+```bash
+# everything the tests stage runs in CI (9 jobs)
+gitlab-ci-local --stage tests --variable CI_PIPELINE_SOURCE=web --privileged
 
+# a single job
+gitlab-ci-local unit_tests --variable CI_PIPELINE_SOURCE=web
+
+# see which jobs would run
+gitlab-ci-local --list --variable CI_PIPELINE_SOURCE=web
+```
+
+- `CI_PIPELINE_SOURCE=web` is required — without it `workflow:rules` falls
+  through to `when: never` and no jobs match.
+- `--privileged` is only needed for `task_api_tests` (its dind service);
+  drop it when running other jobs individually.
+- Jobs run against your **working tree**: uncommitted changes to tracked
+  files are included, untracked files are not.
+- Logs, artifacts, and the copied tree land in `.gitlab-ci-local/`
+  (gitignored).
+- The global variables bake in the DKFZ proxy. Off the DKFZ network, drop
+  it: `--unset-variable HTTP_PROXY --unset-variable HTTPS_PROXY`.
+- Only the `tests` stage is meant to run locally — build/deploy/test/clean
+  need registry credentials, Harvester access, and a test VM.
+
+## Known gaps
+
+- The integration tests pass platform state to each other by run order alone
+  (`first_login` → `install_extensions` → `send_data` → `run_workflows`);
+  nothing checks preconditions yet.
+- `install_extensions` and `send_data` carry `retry: 2` — known flakiness.
+- `ci/docs/local-ci.md` predates the current variable set (it references
+  variables that no longer exist) — for local runs use
+  [section 10](#10-running-the-pipeline-locally) instead.

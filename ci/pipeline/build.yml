@@ -1,0 +1,151 @@
+# Stage: build — platform images + charts, and their security scan
+# In:  the job's own checkout; REGISTRY_* credentials
+# Out: images + charts in the registry, tagged git describe of this commit
+#      (the ONLY handover to deploy); build.log + security report artifacts
+##############################################
+# BUILD
+##############################################
+# Shared by build_packages and security_scan: both run kaapana-build, which
+# derives the version tag from git describe — full clone + tags, plus the
+# branch checkout dance, keep that deterministic per commit.
+.build_cli_env:
+  tags:
+    - build-runner
+  image: $CI_BASE_IMAGE
+  variables:
+    GIT_STRATEGY: clone
+  before_script:
+    - pip install -e build_cli/
+    - |-
+      if [[ $CI_PIPELINE_SOURCE == "merge_request_event" ]]; then
+        git checkout -B $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME $CI_COMMIT_SHA
+      elif [[ -n "$CI_COMMIT_TAG" ]]; then
+        # Tag pipeline: no branch ref; stay detached, git describe resolves the tag
+        git checkout $CI_COMMIT_SHA
+      else
+        git checkout -B $CI_COMMIT_BRANCH $CI_COMMIT_SHA
+      fi
+    - git status
+    - git fetch --tags
+
+build_packages:
+  extends: .build_cli_env
+  stage: build
+  dependencies: []
+  # Docker CLI in the job container talks to the host daemon (socket mount on
+  # the build runner) — warm layer cache across jobs, docker login state dies
+  # with the container.
+  variables:
+    RUNNER_SCRIPT_TIMEOUT: 8h
+  timeout: 8 hours
+  rules:
+    # Release build: triggered by pushing a protected release tag. Publishes to
+    # the release registry (protected RELEASE_REGISTRY_* project variables).
+    # This override only works because no REGISTRY_* project variables exist —
+    # project variables would outrank rules:variables (broke the 0.7.0 release).
+    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
+      when: on_success
+      variables:
+        REGISTRY_URL: $RELEASE_REGISTRY_URL
+        REGISTRY_USER: $RELEASE_REGISTRY_USER
+        REGISTRY_TOKEN: $RELEASE_REGISTRY_TOKEN
+        CI_EXEC_DOCKER_PRUNE: "true"
+    - if: '$CI_EXEC_BUILD == "true"'
+      when: on_success
+    - when: never
+  script:
+    - |
+      [[ $CI_EXEC_DOCKER_PRUNE == "true" ]] && docker system prune --all --volumes -f
+
+    # Docker logins (set +x to hide credentials from job log)
+    - |
+      set +x
+      echo "$REGISTRY_TOKEN" | docker login "$REGISTRY_URL" -u "$REGISTRY_USER" --password-stdin
+      echo "$DOCKER_IO_PASSWORD" | docker login docker.io -u "$DOCKER_IO_USER" --password-stdin
+      export REGISTRY_PW="$REGISTRY_TOKEN"
+
+    # Fix, for when registry.hzdr.de is unreachable — pre-pull collabora base image from internal mirror
+    # so that the FROM in the Dockerfile resolves locally without needing the public registry.
+    - |
+      docker pull registry.git.dkfz.de/mic/personal/group1/kaapana-fallback/collabora-code-patched:23.05.5.4.1
+      docker tag  registry.git.dkfz.de/mic/personal/group1/kaapana-fallback/collabora-code-patched:23.05.5.4.1 \
+                  registry.hzdr.de/kaapana/public/collabora-code-patched:23.05.5.4.1
+
+    # Run build, capturing exit code so artifacts are always collected
+    - kaapana-build --default-registry "$REGISTRY_URL" $CI_EXEC_BUILD_ARGUMENTS
+
+  # No docker logout needed: login state lives in the job container's
+  # ~/.docker/config.json and dies with it (CI-AUDIT.md S2, structurally).
+
+  artifacts:
+    name: "build_$CI_COMMIT_SHORT_SHA"
+    when: always
+    paths:
+      - "$CI_PROJECT_DIR/build/build.log"
+
+# Trivy scans of the images this pipeline pushed — coupled to the build only
+# through the registry: kaapana-build --scan-only re-resolves the identical
+# image list + version tag (git describe of the same commit) and trivy pulls
+# via the registry API (daemon-first when one is around, e.g. warm build VM).
+security_scan:
+  extends: .build_cli_env
+  stage: build
+  timeout: 4 hours
+  needs:
+    # Only the registry state is needed, not artifacts
+    - job: build_packages
+      artifacts: false
+  rules:
+    - if: '$CI_EXEC_SECURITY_SCAN == "true" && $CI_EXEC_BUILD == "true"'
+      when: on_success
+    - when: never
+  script:
+    # kaapana-build performs the registry logins itself (client-side, no
+    # daemon needed) — trivy picks the credentials up from the docker config.
+    - |
+      set +x
+      export REGISTRY_PW="$REGISTRY_TOKEN"
+    - kaapana-build --scan-only $CI_EXEC_SECURITY_SCAN_ARGUMENTS --default-registry "$REGISTRY_URL"
+  artifacts:
+    name: "security_$CI_COMMIT_SHORT_SHA"
+    when: always
+    paths:
+      - "$CI_PROJECT_DIR/security-reports/"
+    exclude:
+      # Trivy DB cache lives inside the reports dir — not a report
+      - "$CI_PROJECT_DIR/security-reports/.trivy_cache/**/*"
+      - "$CI_PROJECT_DIR/security-reports/.trivy_worker_*/**/*"
+
+security:
+  stage: build
+  needs:
+    - job: security_scan
+      artifacts: true
+  tags:
+    - build-runner
+  image: $CI_BASE_IMAGE
+  # The report script + vendored schema come from the job's own checkout, the
+  # reports from the security_scan artifact — no reliance on runner disk state.
+  before_script:
+    - pip install jsonschema
+  script:
+    - CONSOLIDATED="$CI_PROJECT_DIR/security-reports/consolidated_vulnerability_report.json"
+    - python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
+        "$CONSOLIDATED"
+        "$CI_PROJECT_DIR/gl-container-scanning-report.json"
+        --output json
+    - python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
+        "$CONSOLIDATED"
+        "$CI_PROJECT_DIR/vulnerability_report.html"
+        --output html
+    - echo "Access the report at https://kaapana.pages.hzdr.de/-/kaapana/-/jobs/${CI_JOB_ID}/artifacts/vulnerability_report.html"
+  artifacts:
+    paths:
+      - "$CI_PROJECT_DIR/vulnerability_report.html"
+    reports:
+      container_scanning: "$CI_PROJECT_DIR/gl-container-scanning-report.json"
+  allow_failure: true
+  rules:
+    - if: '$CI_EXEC_SECURITY_SCAN == "true" && $CI_EXEC_BUILD == "true"'
+      when: on_success
+    - when: never

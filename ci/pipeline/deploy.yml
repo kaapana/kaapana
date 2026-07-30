@@ -33,7 +33,8 @@ prepare_deployment:
     - when: never
   stage: deploy
   variables:
-    GIT_STRATEGY: "clone" # full history + tags for git describe
+    GIT_STRATEGY: "clone"
+    GIT_DEPTH: "0" # full history + tags for git describe — global depth 1 would shallow the clone
   script:
     # Resolve the version this pipeline deploys, once, for every later job.
     # Must equal what build_packages pushed — same git describe formula.

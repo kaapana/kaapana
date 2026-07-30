@@ -5,15 +5,15 @@
 ##############################################
 # BUILD
 ##############################################
-# Shared by build_packages and security_scan: both run kaapana-build, which
-# derives the version tag from git describe — full clone + tags, plus the
-# branch checkout dance, keep that deterministic per commit.
+# Shared by build_packages and security_scan: both run kaapana-build, whose
+# version tag comes from git describe — full clone + tags keep it deterministic.
 .build_cli_env:
   tags:
     - build-runner
   image: $CI_BASE_IMAGE
   variables:
     GIT_STRATEGY: clone
+    GIT_DEPTH: "0" # full history — the global depth 1 would shallow the clone and break git describe
   before_script:
     - pip install -e build_cli/
     - |-
@@ -32,17 +32,15 @@ build_packages:
   extends: .build_cli_env
   stage: build
   dependencies: []
-  # Docker CLI in the job container talks to the host daemon (socket mount on
-  # the build runner) — warm layer cache across jobs, docker login state dies
-  # with the container.
+  # Docker CLI talks to the host daemon (socket mount on the build runner):
+  # warm layer cache across pipelines, login state dies with the container.
   variables:
     RUNNER_SCRIPT_TIMEOUT: 8h
   timeout: 8 hours
   rules:
-    # Release build: triggered by pushing a protected release tag. Publishes to
-    # the release registry (protected RELEASE_REGISTRY_* project variables).
-    # This override only works because no REGISTRY_* project variables exist —
-    # project variables would outrank rules:variables (broke the 0.7.0 release).
+    # Release tag pipeline → publish to the release registry. Works only
+    # because no REGISTRY_* project variables exist — they would outrank
+    # rules:variables (broke the 0.7.0 release).
     - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
       when: on_success
       variables:
@@ -61,7 +59,9 @@ build_packages:
     - |
       set +x
       echo "$REGISTRY_TOKEN" | docker login "$REGISTRY_URL" -u "$REGISTRY_USER" --password-stdin
-      echo "$DOCKER_IO_PASSWORD" | docker login docker.io -u "$DOCKER_IO_USER" --password-stdin
+      if [[ -n "$DOCKER_IO_USER" ]]; then
+        echo "$DOCKER_IO_PASSWORD" | docker login docker.io -u "$DOCKER_IO_USER" --password-stdin
+      fi
       export REGISTRY_PW="$REGISTRY_TOKEN"
 
     # Fix, for when registry.hzdr.de is unreachable — pre-pull collabora base image from internal mirror
@@ -74,8 +74,7 @@ build_packages:
     # Run build, capturing exit code so artifacts are always collected
     - kaapana-build --default-registry "$REGISTRY_URL" $CI_EXEC_BUILD_ARGUMENTS
 
-  # No docker logout needed: login state lives in the job container's
-  # ~/.docker/config.json and dies with it (CI-AUDIT.md S2, structurally).
+  # No docker logout needed: login state dies with the job container.
 
   artifacts:
     name: "build_$CI_COMMIT_SHORT_SHA"
@@ -84,9 +83,8 @@ build_packages:
       - "$CI_PROJECT_DIR/build/build.log"
 
 # Trivy scans of the images this pipeline pushed — coupled to the build only
-# through the registry: kaapana-build --scan-only re-resolves the identical
-# image list + version tag (git describe of the same commit) and trivy pulls
-# via the registry API (daemon-first when one is around, e.g. warm build VM).
+# through the registry: --scan-only re-resolves the same image list + tag and
+# trivy pulls via the registry API.
 security_scan:
   extends: .build_cli_env
   stage: build
@@ -100,8 +98,7 @@ security_scan:
       when: on_success
     - when: never
   script:
-    # kaapana-build performs the registry logins itself (client-side, no
-    # daemon needed) — trivy picks the credentials up from the docker config.
+    # kaapana-build logs in client-side; trivy reads the docker config
     - |
       set +x
       export REGISTRY_PW="$REGISTRY_TOKEN"
@@ -124,8 +121,6 @@ security:
   tags:
     - build-runner
   image: $CI_BASE_IMAGE
-  # The report script + vendored schema come from the job's own checkout, the
-  # reports from the security_scan artifact — no reliance on runner disk state.
   before_script:
     - pip install jsonschema
   script:

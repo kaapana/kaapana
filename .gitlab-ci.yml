@@ -122,7 +122,8 @@ variables:
 
   # --- Fixed settings
   ANSIBLE_VERBOSITY: 0 # read natively by ansible-playbook
-  # Shallow checkout per job; jobs needing history/tags override with clone.
+  # Shallow checkout per job; jobs needing history/tags (git describe) must
+  # override with clone AND GIT_DEPTH "0"
   GIT_STRATEGY: "fetch"
   GIT_DEPTH: "1"
   ARTIFACTS_DIR: "$CI_PROJECT_DIR/artifacts"

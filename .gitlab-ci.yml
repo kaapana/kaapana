@@ -47,6 +47,7 @@ variables:
   CI_EXEC_BUILD_ARGUMENTS: "" # extra kaapana-build flags, e.g. "--vulnerability-scan"
   CI_EXEC_DEPLOY: "true" # deploy stage: provision test VM + server install + platform deploy
   CI_EXEC_INTEGRATION_TESTS: "true" # test stage: pytest + Playwright against the test VM
+  CI_EXEC_PLAYWRIGHT_TEST: "true" # "false" = skip the Playwright UI job within the test stage
   CI_EXEC_DOCKER_PRUNE: "false" # "true" = wipe the runner docker cache first (cold build)
   CI_EXEC_DESTROY_DELAYED: "false" # "true" = keep the test VM for 4h after the pipeline for inspection
   MAINTENANCE: "false" # "true" pauses push/schedule/MR pipelines (workflow:rules)
@@ -702,9 +703,7 @@ playwright_ui_tests:
   extends: .remote_execution_template
   stage: test
   rules:
-    - if: '$CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true" && $CI_EXEC_PLAYWRIGHT_TEST == "false"'
-      when: never
-    - if: '$CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"'
+    - if: '$CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true" && $CI_EXEC_PLAYWRIGHT_TEST == "true"'
       when: on_success
     - when: never
   needs:

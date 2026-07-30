@@ -8,7 +8,7 @@
     vm_fqdn: "{{ lookup('env', 'VM_FQDN') }}"
     vm_name: "{{ vm_fqdn.split('.')[0] }}"
     harvester_namespace: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE') }}"
-    harvester_kubeconfig: "{{ lookup('env', 'ORCHESTRATOR_INSTANCE_HARVESTER_KUBECONFIG') }}"
+    harvester_kubeconfig: "{{ lookup('env', 'HARVESTER_KUBECONFIG') }}"
 
   tasks:
 

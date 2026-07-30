@@ -42,6 +42,7 @@ variables:
   CI_EXEC_SECURITY_SCAN_ARGUMENTS: "--vulnerability-scan --configuration-check"
   CI_EXEC_DOCKER_PRUNE: "false" # "true" = wipe the runner docker cache first (cold build)
   CI_EXEC_DESTROY_DELAYED: "false" # "true" = keep the test VM for 4h after the pipeline for inspection
+  CI_EXEC_BENCHMARKING: "false" # "true" = run the ingestion-pipeline benchmark suite against the deployed platform
   MAINTENANCE: "false" # "true" pauses push/schedule/MR pipelines (workflow:rules)
 
   # --- Registries, both configured as project variables: CI_REGISTRY_* for

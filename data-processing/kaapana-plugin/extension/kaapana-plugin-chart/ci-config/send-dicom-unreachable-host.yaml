@@ -1,17 +1,15 @@
 dag_id: "send-dicom"
+expected_status: failed
 assert_cleanup: true
 conf_data:
   workflow_form:
     aetitle: kp-Send2OwnPacs
     called_ae_title_scp: "kp-admin"
-    pacs_host: "ctp-dicom-service.services.svc"
+    pacs_host: "unreachable-host.invalid"
     pacs_port: 11112
     single_execution: false
   data_form:
-    dataset_name: 
-      name: test-CT
-      access_level: "project"
-      username: "kaapana"
+    dataset_name: test-CT
     dataset_limit: 2
 remote: false
 username: "kaapana"

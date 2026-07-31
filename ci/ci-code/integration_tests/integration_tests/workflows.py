@@ -63,6 +63,18 @@ class WorkflowEndpoints(KaapanaAuth):
         )
         return r.json()
 
+    def get_job_taskinstances(self, job_id) -> dict:
+        """
+        Get {task_id: [execution_date, state]} for a job's Airflow task instances.
+        Queries Airflow directly, so this is accurate even after the job has finished.
+        """
+        r = self.request(
+            "kaapana-backend/client/get-job-taskinstances",
+            request_type=requests.get,
+            params={"job_id": job_id},
+        )
+        return r.json()
+
     def trigger_multiple_testcases(self, testcases):
         """
         Trigger multiple dags from a list of testcases.

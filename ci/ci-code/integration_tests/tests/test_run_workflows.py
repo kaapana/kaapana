@@ -7,10 +7,16 @@ from integration_tests.workflows import WorkflowEndpoints
 
 logger = get_logger(__name__, logging.INFO)
 
+CLEANER_TASK_ID = "workflow-cleaner"
 
-def wait_for_workflow(kaapana: WorkflowEndpoints, workflow_name, timeout=3600) -> tuple:
+
+def wait_for_workflow(
+    kaapana: WorkflowEndpoints, workflow_name, timeout=3600, expected_status="finished"
+) -> tuple:
     """
-    Check the status of all jobs in workflow <workflow_name> until all jobs finished, the run-time exceeds self.timeout or a single job failed.
+    Poll the jobs in workflow <workflow_name> until they all reach a terminal state
+    (finished/failed), the run-time exceeds timeout, or a job reaches an unexpected
+    terminal state. Returns (True, msg) only if every job ends in expected_status.
     """
     start_time = time.time()
     jobs_info = []
@@ -21,16 +27,40 @@ def wait_for_workflow(kaapana: WorkflowEndpoints, workflow_name, timeout=3600) -
             pass
         jobs_status = [job.get("status") for job in jobs_info]
         logger.debug(f"jobs_info: {jobs_status}")
-        if "failed" in jobs_status:
-            msg = f"Workflow {workflow_name} failed: {jobs_info}"
+        if jobs_status and all(
+            status in ("finished", "failed") for status in jobs_status
+        ):
+            if all(status == expected_status for status in jobs_status):
+                msg = f"Workflow {workflow_name} reached expected status {expected_status!r}."
+                return True, msg
+            msg = (
+                f"Workflow {workflow_name} reached {jobs_status}, "
+                f"expected all jobs in {expected_status!r}: {jobs_info}"
+            )
             return False, msg
-        elif jobs_status and jobs_status == ["finished" for _ in jobs_info]:
-            msg = f"Workflow {workflow_name} succeeded."
-            return True, msg
-        else:
-            time.sleep(5)
+        time.sleep(5)
     msg = f"Workflow {workflow_name} exceeds timeout {timeout}"
     return False, msg
+
+
+def assert_cleanup_ran(kaapana: WorkflowEndpoints, workflow_name):
+    """
+    Assert that the workflow-cleaner task succeeded for every job in <workflow_name>,
+    regardless of whether the workflow itself succeeded or failed.
+    """
+    jobs_info = kaapana.get_jobs_info(workflow_name=workflow_name)
+    assert jobs_info, f"No job info found for workflow {workflow_name}"
+    for job in jobs_info:
+        task_instances = kaapana.get_job_taskinstances(job["id"])
+        cleaner_state = task_instances.get(CLEANER_TASK_ID)
+        assert cleaner_state is not None, (
+            f"No {CLEANER_TASK_ID!r} task instance found for job {job['id']} "
+            f"of workflow {workflow_name}"
+        )
+        assert cleaner_state[1] == "success", (
+            f"Expected {CLEANER_TASK_ID!r} to succeed regardless of workflow outcome, "
+            f"got state {cleaner_state[1]!r} for job {job['id']} of workflow {workflow_name}"
+        )
 
 
 def set_task_form_environment(env_name: str, env_value: str, testcase: dict):
@@ -102,6 +132,12 @@ async def test_workflow(workflow_endpoints: WorkflowEndpoints, testconfig):
     workflow_name = response["workflow_name"]
     logger.info(f"Workflow {workflow_name} started for dag {dag_id}.")
     ### Wait for workflow to finish
-    success, msg = wait_for_workflow(kaapana, workflow_name)
-    assert success
+    expected_status = testcase.get("expected_status", "finished")
+    success, msg = wait_for_workflow(
+        kaapana, workflow_name, expected_status=expected_status
+    )
+    assert success, msg
     logger.info(msg)
+
+    if testcase.get("assert_cleanup", False):
+        assert_cleanup_ran(kaapana, workflow_name)

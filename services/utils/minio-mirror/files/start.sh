@@ -1,11 +1,31 @@
 #!/bin/bash
 set -eu
 
-MINIO_BUCKET=$(echo "${MINIO_PATH}/" | cut -d'/' -f1)
-mc alias set minio http://${MINIO_SERVICE} ${MINIO_USER} ${MINIO_PASSWORD}
-mc mb --ignore-existing minio/${MINIO_BUCKET}
-mkdir -p $LOCAL_PATH
+# "Other" is rclone's generic S3-compatible profile (no vendor-specific
+# quirks/defaults). Override via S3_PROVIDER if a specific backend needs one
+# of rclone's named provider profiles (e.g. AWS, Minio, Ceph).
+rclone_s3_args=(
+    --s3-provider "${S3_PROVIDER:-Other}"
+    --s3-endpoint "http://$S3_SERVICE"
+    --s3-access-key-id "$S3_USER"
+    --s3-secret-access-key "$S3_PASSWORD"
+)
 
+S3_BUCKET=$(echo "${S3_PATH}/" | cut -d'/' -f1)
+mkdir -p $LOCAL_PATH
+rclone mkdir "${rclone_s3_args[@]}" ":s3:/${S3_BUCKET}"
+
+# run_consistency_check
+#
+# Runs a slow, read-only checksum-based `rclone check` between the S3
+# remote (":s3:/$S3_PATH") and $LOCAL_PATH, logging the first 200 lines of
+# any mismatch report. Intended to be called occasionally (see
+# CHECK_INTERVAL_SECONDS) to catch silent drift that size+modtime comparisons
+# would miss, without mutating either side.
+#
+# Arguments: none
+# Returns: always 0 - mismatches are only logged, never propagated, so this
+#   never aborts the caller's sync loop.
 run_consistency_check() {
     local check_output
     check_output=$(mktemp)
@@ -13,13 +33,10 @@ run_consistency_check() {
     set +e
     rclone check \
         "${rclone_exclude_args[@]}" \
-        --s3-provider Minio \
-        --s3-endpoint "http://$MINIO_SERVICE" \
-        --s3-access-key-id "$MINIO_USER" \
-        --s3-secret-access-key "$MINIO_PASSWORD" \
+        "${rclone_s3_args[@]}" \
         --checkers 16 \
         --combined "$check_output" \
-        ":s3:/$MINIO_PATH" \
+        ":s3:/$S3_PATH" \
         "$LOCAL_PATH"
     local result=$?
     set -e
@@ -34,6 +51,17 @@ run_consistency_check() {
     rm -f "$check_output"
 }
 
+# check_sync_endpoints
+#
+# Pre-flight connectivity/credentials check: verifies $LOCAL_PATH is
+# writable by creating and removing a temp file, then verifies the S3 store
+# remote is reachable by listing ":s3:/$S3_PATH". Meant to be called once
+# before entering any sync loop.
+#
+# Arguments: none
+# Returns: exit status of `rclone lsf`. Called under `set -eu` without error
+#   suppression, so a failure here aborts the whole script rather than being
+#   handled by the caller.
 check_sync_endpoints() {
     local local_check_file
     local_check_file=$(mktemp "${LOCAL_PATH}/.minio-mirror-writable.XXXXXX")
@@ -41,21 +69,31 @@ check_sync_endpoints() {
 
     rclone lsf \
         "${rclone_exclude_args[@]}" \
-        --s3-provider Minio \
-        --s3-endpoint "http://$MINIO_SERVICE" \
-        --s3-access-key-id "$MINIO_USER" \
-        --s3-secret-access-key "$MINIO_PASSWORD" \
-        ":s3:/$MINIO_PATH" >/dev/null
+        "${rclone_s3_args[@]}" \
+        ":s3:/$S3_PATH" >/dev/null
 }
 
+# run_sync_round_quietly
+#
+# Runs one polling round of a sync command and suppresses its output unless
+# there's something worth seeing, so steady-state polling doesn't spam logs
+# every SYNC_INTERVAL seconds.
+#
+# Arguments:
+#   $1   - no_op_pattern: a grep pattern matched against the command's
+#          combined stdout/stderr; when it matches (e.g. "No changes found"),
+#          the round is considered a quiet no-op and its output is dropped.
+#   $@   - (after shift) the sync command to run, e.g. "${RCLONE_SYNC_CMD[@]}".
+# Returns: the command's own exit code on failure (output is printed first);
+#   0 on success, whether or not the no-op pattern matched (non-matching
+#   output is printed so unexpected activity is still visible).
 run_sync_round_quietly() {
+    local no_op_pattern="$1"
+    shift
     local output_file
     output_file=$(mktemp)
-
-    set +e
-    "$@" >"$output_file" 2>&1
-    local result=$?
-    set -e
+    local result=0
+    "$@" >"$output_file" 2>&1 && result=0 || result=$?
 
     if [[ $result -ne 0 ]]; then
         cat "$output_file"
@@ -63,7 +101,7 @@ run_sync_round_quietly() {
         return $result
     fi
 
-    if grep -q "No changes found" "$output_file"; then
+    if grep -q "$no_op_pattern" "$output_file"; then
         rm -f "$output_file"
         return 0
     fi
@@ -111,23 +149,20 @@ if [ -v EXCLUDE ]; then
     done
 fi
 
-MINIO_PATH="$(printf '%s\n' "$MINIO_PATH" | sed -E 's#^/+##; s#/+#/#g; s#/$##')"
+S3_PATH="$(printf '%s\n' "$S3_PATH" | sed -E 's#^/+##; s#/+#/#g; s#/$##')"
 check_sync_endpoints
 
 if [[ $ACTION == "FETCH" ]]; then
-    echo "INFO: Start to mirror minio objects from ${MINIO_PATH} into local directory ${LOCAL_PATH}"
+    echo "INFO: Start to mirror minio objects from ${S3_PATH} into local directory ${LOCAL_PATH}"
     cp /kaapana/app/README.txt ${LOCAL_PATH}
-    mc cp /kaapana/app/README.txt minio/${MINIO_PATH}/README.txt
+    rclone copyto "${rclone_s3_args[@]}" /kaapana/app/README.txt ":s3:/${S3_PATH}/README.txt"
     # Poll with one-way sync instead of `mc mirror --watch` so FETCH keeps
     # picking up new objects even when object notification streams are unstable.
     FETCH_SYNC_CMD=(
         rclone sync
         "${rclone_exclude_args[@]}"
-        --s3-provider Minio
-        --s3-endpoint "http://$MINIO_SERVICE"
-        --s3-access-key-id "$MINIO_USER"
-        --s3-secret-access-key "$MINIO_PASSWORD"
-        ":s3:/$MINIO_PATH"
+        "${rclone_s3_args[@]}"
+        ":s3:/$S3_PATH"
         "$LOCAL_PATH"
         --create-empty-src-dirs
         # Use modtime+size comparisons for faster repeated polling on local
@@ -141,23 +176,22 @@ if [[ $ACTION == "FETCH" ]]; then
     "${FETCH_SYNC_CMD[@]}"
     while [[ true ]]; do
         sleep ${SYNC_INTERVAL:-5}
-        run_sync_round_quietly "${FETCH_SYNC_CMD[@]}"
+        if ! run_sync_round_quietly "There was nothing to transfer" "${FETCH_SYNC_CMD[@]}"; then
+            echo "WARN: FETCH sync round failed - will retry after ${SYNC_INTERVAL:-5}s"
+        fi
     done
 elif [[ $ACTION == "PUSH" ]]; then
-    echo "INFO: Start to mirror data from local directory ${LOCAL_PATH} into  minio objects at ${MINIO_PATH}"
+    echo "INFO: Start to mirror data from local directory ${LOCAL_PATH} into  minio objects at ${S3_PATH}"
     cp /kaapana/app/README.txt ${LOCAL_PATH}
-    mc cp /kaapana/app/README.txt minio/${MINIO_PATH}/README.txt
+    rclone copyto "${rclone_s3_args[@]}" /kaapana/app/README.txt ":s3:/${S3_PATH}/README.txt"
     # Poll with one-way sync instead of `mc mirror --watch` so PUSH follows the
     # same rclone-based sync path as the bidirectional mode.
     PUSH_SYNC_CMD=(
         rclone sync
         "${rclone_exclude_args[@]}"
-        --s3-provider Minio
-        --s3-endpoint "http://$MINIO_SERVICE"
-        --s3-access-key-id "$MINIO_USER"
-        --s3-secret-access-key "$MINIO_PASSWORD"
+        "${rclone_s3_args[@]}"
         "$LOCAL_PATH"
-        ":s3:/$MINIO_PATH"
+        ":s3:/$S3_PATH"
         --create-empty-src-dirs
         # Use modtime+size comparisons for faster repeated polling on local
         # filesystems.
@@ -170,10 +204,12 @@ elif [[ $ACTION == "PUSH" ]]; then
     "${PUSH_SYNC_CMD[@]}"
     while [[ true ]]; do
         sleep ${SYNC_INTERVAL:-5}
-        run_sync_round_quietly "${PUSH_SYNC_CMD[@]}"
+        if ! run_sync_round_quietly "There was nothing to transfer" "${PUSH_SYNC_CMD[@]}"; then
+            echo "WARN: PUSH sync round failed - will retry after ${SYNC_INTERVAL:-5}s"
+        fi
     done
 elif [[ $ACTION == "SYNC" ]]; then
-    echo "INFO: Start bidirectional sync from local directory ${LOCAL_PATH} into  minio objects at ${MINIO_PATH}"
+    echo "INFO: Start bidirectional sync from local directory ${LOCAL_PATH} into  minio objects at ${S3_PATH}"
     # Keep retry timing consistent across the initial resync and follow-up
     # polling rounds.
     SYNC_INTERVAL_SECONDS=${SYNC_INTERVAL:-5}
@@ -200,16 +236,12 @@ elif [[ $ACTION == "SYNC" ]]; then
     RCLONE_SYNC_CMD=(
         rclone bisync
         "${rclone_exclude_args[@]}"
-        --s3-provider Minio
-        --s3-endpoint "http://$MINIO_SERVICE"
-        --s3-access-key-id "$MINIO_USER"
-        --s3-secret-access-key "$MINIO_PASSWORD"
-        ":s3:/$MINIO_PATH"
+        "${rclone_s3_args[@]}"
+        ":s3:/$S3_PATH"
         "$LOCAL_PATH"
         --create-empty-src-dirs
-        # Use modtime+size for delta detection to avoid the local checksum cost
-        # on every bisync round.
-        --compare size,modtime
+        --compare size,checksum
+        --slow-hash-sync-only
         --resilient
         --recover
         -Mv
@@ -227,10 +259,8 @@ elif [[ $ACTION == "SYNC" ]]; then
 
     while [[ true ]]; do
         sleep ${SYNC_INTERVAL_SECONDS}
-        set +e
-        run_sync_round_quietly "${RCLONE_SYNC_CMD[@]}"
-        RESULT=$?
-        set -e
+        RESULT=0
+        run_sync_round_quietly "No changes found" "${RCLONE_SYNC_CMD[@]}" || RESULT=$?
 
         case $RESULT in
         0)

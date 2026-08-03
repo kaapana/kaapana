@@ -21,7 +21,35 @@ spec:
           - name: TIMEOUT
             value: "10"
       containers:
-      - name: minio-init
+      - name: minio-buckets
+        image: "{{ .Values.global.registry_url }}/minio-mirror:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
+        resources:
+          requests:
+            memory: 150Mi
+          limits:
+            memory: 150Mi
+        env:
+          - name: S3_SERVICE
+            value: "minio-service.{{ .Values.global.services_namespace }}.svc:9000"
+          - name: S3_USER
+            value: {{ .Values.global.credentials_minio_username }}
+          - name: S3_PASSWORD
+            value: {{ .Values.global.credentials_minio_password }}
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            set -eu
+            rclone_s3_args=(
+                --s3-provider Other
+                --s3-endpoint "http://$S3_SERVICE"
+                --s3-access-key-id "$S3_USER"
+                --s3-secret-access-key "$S3_PASSWORD"
+            )
+            for bucket in uploads staticwebsiteresults template-analysis-scripts; do
+                rclone mkdir "${rclone_s3_args[@]}" ":s3:/$bucket"
+            done
+      - name: minio-policy
         image: "{{ .Values.global.registry_url }}/minio-init:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
         resources:
@@ -30,13 +58,27 @@ spec:
           limits:
             memory: 150Mi
         env:
-          - name: MINIO_ACCESS_KEY
+          - name: S3_SERVICE
+            value: "minio-service.{{ .Values.global.services_namespace }}.svc:9000"
+          - name: S3_USER
             value: {{ .Values.global.credentials_minio_username }}
-          - name: MINIO_SECRET_KEY
+          - name: S3_PASSWORD
             value: {{ .Values.global.credentials_minio_password }}
-          - name: SERVICES_NAMESPACE
-            value: {{ .Values.global.services_namespace }}
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            set -eu
+            mc alias set kaapana "http://$S3_SERVICE" "$S3_USER" "$S3_PASSWORD"
+            mc admin policy create kaapana kaapanaUser /kaapana/app/user-policy.json
+        volumeMounts:
+          - name: user-policy
+            mountPath: /kaapana/app/user-policy.json
+            subPath: user-policy.json
       restartPolicy: Never
       imagePullSecrets:
       - name: registry-secret
+      volumes:
+        - name: user-policy
+          configMap:
+            name: minio-init-user-policy
   backoffLimit: 0

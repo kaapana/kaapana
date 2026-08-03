@@ -1,7 +1,7 @@
-import glob
 import json
 import logging
 import os
+from pathlib import Path
 
 import requests
 from integration_tests.utils.KaapanaAuth import KaapanaAuth
@@ -91,18 +91,10 @@ def read_payload_from_yaml(file_path):
     return testcases
 
 
-def collect_all_testcases(testcase_dir):
+def collect_testcase_files(testcase_dir):
     """
-    Create a list of testcases, where each testcase is specified by the dag_id and a JSON string.
-    Search through the testcase_dir and process all YAML files.
+    Search through the testcase_dir and return all YAML files in a deterministic order.
     """
-    list_of_yaml_files = glob.glob(
-        os.path.join(testcase_dir, "**/*.yaml"), recursive=True
-    )
+    list_of_yaml_files = sorted(Path(testcase_dir).rglob("*.yaml"))
     logger.debug(f"yaml files: {list_of_yaml_files}")
-    list_of_testcases = []
-
-    for file in list_of_yaml_files:
-        if testcases := read_payload_from_yaml(file):
-            list_of_testcases += testcases
-    return list_of_testcases
+    return list_of_yaml_files

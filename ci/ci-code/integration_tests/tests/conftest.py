@@ -15,7 +15,7 @@ from integration_tests.utils.KaapanaPlaywrightDriver import (
 )
 from integration_tests.workflows import (
     WorkflowEndpoints,
-    collect_all_testcases,
+    collect_testcase_files,
     read_payload_from_yaml,
 )
 
@@ -263,20 +263,25 @@ def generate_workflow_tests(metafunc):
     test_dir = metafunc.config.getoption("test_dir")
 
     if files and len(files) != 0:
-        testcases = []
-        for file in files:
-            testcases += read_payload_from_yaml(file)
+        testcase_files = [Path(file) for file in files]
     elif test_dir:
-        testdir = os.path.join(os.getcwd(), test_dir)
-        testcases = collect_all_testcases(testdir)
+        testcase_files = collect_testcase_files(os.path.join(os.getcwd(), test_dir))
     else:
-        testcases = []
-        for file in Path(__file__).parents[4].rglob("ci-config/*.yaml"):
-            testcases.extend(read_payload_from_yaml(file))
+        testcase_files = sorted(Path(__file__).parents[4].rglob("ci-config/*.yaml"))
 
-    metafunc.parametrize(
-        "testconfig", testcases, ids=[tc.get("dag_id") for tc in testcases]
-    )
+    params = []
+    ids = []
+    for file in testcase_files:
+        for testcase in read_payload_from_yaml(file):
+            # The documents of one config file build on each other, e.g. tagging a
+            # dataset before a workflow consumes that tag. Pinning them to a shared
+            # xdist group keeps them on one worker, in file order.
+            params.append(
+                pytest.param(testcase, marks=pytest.mark.xdist_group(file.stem))
+            )
+            ids.append(testcase.get("dag_id"))
+
+    metafunc.parametrize("testconfig", params, ids=ids)
 
 
 def pytest_generate_tests(metafunc):

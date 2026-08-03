@@ -7,7 +7,7 @@ global:
       mount_path: /kaapana/minio/
       host_path: "/applications/dev-code-server"
       storage: "10Gi"
-      minio_mirror: true
+      s3_mirror: true
   envVars:
     - name: WORKSPACE
       value: "/kaapana"

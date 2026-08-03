@@ -1,5 +1,5 @@
 FROM local-only/base-rclone:latest
-LABEL IMAGE="minio-mirror"
+LABEL IMAGE="s3-mirror"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 

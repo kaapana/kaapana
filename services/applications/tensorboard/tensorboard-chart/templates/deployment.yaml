@@ -30,7 +30,7 @@ spec:
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
       containers:
       - name: minio-input
-        image: "{{ .Values.global.registry_url }}/minio-mirror:{{ .Values.global.kaapana_build_version  }}"
+        image: "{{ .Values.global.registry_url }}/s3-mirror:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
         resources:
           requests:

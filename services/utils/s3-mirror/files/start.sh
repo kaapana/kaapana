@@ -64,7 +64,7 @@ run_consistency_check() {
 #   handled by the caller.
 check_sync_endpoints() {
     local local_check_file
-    local_check_file=$(mktemp "${LOCAL_PATH}/.minio-mirror-writable.XXXXXX")
+    local_check_file=$(mktemp "${LOCAL_PATH}/.s3-mirror-writable.XXXXXX")
     rm -f "$local_check_file"
 
     rclone lsf \

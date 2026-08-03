@@ -17,7 +17,9 @@ The same endpoint handles annotations going back in. Both viewers are configured
 Connecting to MinIO
 =======================
 
-Applications that need non-DICOM data connect to MinIO one of two ways, depending on what the application itself expects. **Collabora** talks to MinIO's S3 API directly, using per-user, token-scoped credentials obtained via ``AssumeRoleWithWebIdentity``. Applications that instead expect a plain filesystem, such as **MITK Workbench**, get one via a ``minio-mirror`` sidecar container: it is given the MinIO service address, project credentials, and a bucket path (``MINIO_SERVICE``, ``MINIO_USER``, ``MINIO_PASSWORD``, ``MINIO_PATH``), and mirrors that bucket path to and from a local directory the application reads and writes as an ordinary filesystem.
+Applications that need non-DICOM data connect to MinIO one of two ways, depending on what the application itself expects.
+**Collabora** talks to MinIO's S3 API directly, using per-user, token-scoped credentials obtained via ``AssumeRoleWithWebIdentity``.
+Applications that instead expect a plain filesystem, such as **MITK Workbench**, get one via a ``s3-mirror`` sidecar container: it is given the MinIO service address, project credentials, and a bucket path (``S3_SERVICE``, ``S3_USER``, ``S3_PASSWORD``, ``S3_PATH``), and mirrors that bucket path to and from a local directory the application reads and writes as an ordinary filesystem.
 
 Future Direction
 ====================

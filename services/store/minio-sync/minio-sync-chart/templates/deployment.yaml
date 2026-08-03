@@ -43,7 +43,7 @@ spec:
           - name: LOCAL_PATH
             value: /host
           - name: S3_PATH
-            value: project-{{ .Values.global.project_name }}/{{ .Values.global.minio_path }}
+            value: project-{{ .Values.global.project_short_id }}/{{ .Values.global.minio_path }}
           - name: ACTION
             value: {{ if eq .Values.global.sync_strategy "Minio2Host" }}"FETCH"{{ else if eq .Values.global.sync_strategy "Host2Minio"}}"PUSH"{{ else if eq .Values.global.sync_strategy "Bidirectional" }}"SYNC"{{ else }}{{.Values.global.sync_strategy }}{{ end }}
           - name: S3_SERVICE

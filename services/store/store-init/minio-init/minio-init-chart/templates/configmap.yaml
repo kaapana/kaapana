@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minio-init-user-policy
+  namespace: "{{ .Values.global.services_namespace }}"
+data:
+  user-policy.json: |
+{{ .Files.Get "files/user-policy.json" | indent 4 }}

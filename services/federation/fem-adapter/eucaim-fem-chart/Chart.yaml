@@ -1,0 +1,11 @@
+---
+apiVersion: v1
+appVersion: "0.0.1"
+description: Registers this platform as a Tier-3 EUCAIM Federated Data Node (FEM-client + a fem-adapter bridge to workflow-api)
+name: eucaim-fem-chart
+version: "0.0.0"
+keywords:
+- kaapanaapplication
+- kaapanaexperimental
+annotations:
+  ui-visible-name: "EUCAIM FEM Adapter"

@@ -1,0 +1,5 @@
+{
+  "submit_run": {
+    "cmd": "curl -sS -X POST '%%api_base_url%%/fem/submit_run' -H 'Content-Type: application/json' -d '{\"execution_id\": \"%%execution_id%%\", \"task_id\": \"%%task_id%%\", \"user_id\": \"%%user_id%%\", \"node_name\": \"%%node_name%%\", \"sandbox_host\": \"%%sandbox_host%%\", \"sandbox_fem\": \"%%sandbox_fem%%\", \"data_path\": \"%%data_path%%\", \"token\": \"%%token%%\", \"command\": \"%%TASK_COMMAND%%\"}'"
+  }
+}

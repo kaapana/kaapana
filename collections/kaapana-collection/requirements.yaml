@@ -78,3 +78,5 @@ dependencies:
     version: 0.0.0
   - name: extension-manager
     version: 0.0.0
+  - name: eucaim-fem-chart
+    version: 0.0.0

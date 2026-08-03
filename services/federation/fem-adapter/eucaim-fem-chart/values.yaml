@@ -1,0 +1,133 @@
+---
+global:
+  # extension_params
+  node_name: ""
+  rabbitmq_host: ""
+  rabbitmq_port: "5671"
+  rabbitmq_vhost: "/"
+  ssl_active: true
+  credentials_node_user: ""
+  credentials_node_password: ""
+  credentials_ssl_cafile: ""
+  credentials_ssl_client_cert: ""
+  credentials_ssl_client_key: ""
+  sandbox_host_directory: "/eucaim-fem-sandbox"
+  data_host_directory: "/eucaim-fem-data"
+
+extension_params:
+  doc:
+    type: "doc"
+    title: "EUCAIM FEM Adapter"
+    html: >
+      Registers this Kaapana platform as a Tier-3 EUCAIM Federated Data Node
+      behind the EUCAIM FEM-orchestrator. Installs the FEM-client (which
+      connects out to the federation's RabbitMQ broker and pulls federated
+      task submissions) together with a small fem-adapter bridge service
+      (which turns each submission into a Kaapana Workflow/WorkflowRun via
+      workflow-api, so tasks execute as ordinary Kaapana pods).
+      <br/><br/>
+      The connection details below come from the restricted, per-federation
+      <code>{project}-fem-client-config</code> repository -- ask your
+      EUCAIM/federation project manager for these values before installing.
+
+  separator_configuration:
+    type: "doc"
+    title: "FEM-orchestrator connection"
+
+  node_name:
+    definition: "FEM node name"
+    help: >
+      <h1>Node name</h1><br/>
+      <p>The unique name this Federated Data Node is registered under with
+      the FEM-orchestrator. Used as the RabbitMQ queue name FEM-client
+      consumes from.</p>
+    type: "string"
+    value: ""
+    default: ""
+
+  rabbitmq_host:
+    definition: "FEM-orchestrator RabbitMQ host"
+    help: "IP or FQDN of the central FEM-orchestrator's RabbitMQ broker."
+    type: "string"
+    value: ""
+    default: ""
+
+  rabbitmq_port:
+    definition: "FEM-orchestrator RabbitMQ port"
+    help: "5671 (AMQPS/TLS) is the EUCAIM default."
+    type: "string"
+    value: ""
+    default: "5671"
+
+  rabbitmq_vhost:
+    definition: "FEM-orchestrator RabbitMQ vhost"
+    type: "string"
+    value: ""
+    default: "/"
+
+  ssl_active:
+    definition: "Use TLS (AMQPS) to reach the FEM-orchestrator"
+    help: >
+      Disable only for local testing against a plain-AMQP broker (see the
+      service's dev-sandbox). Never disable against a real
+      FEM-orchestrator.
+    type: "boolean"
+    default: true
+
+  separator_credentials:
+    type: "doc"
+    title: "Credentials"
+
+  credentials_node_user:
+    definition: "RabbitMQ username"
+    type: "string"
+    value: ""
+    default: ""
+
+  credentials_node_password:
+    definition: "RabbitMQ password"
+    type: "string"
+    value: ""
+    default: ""
+
+  credentials_ssl_cafile:
+    definition: "CA certificate (PEM)"
+    help: "Paste the full contents of the federation's CA certificate PEM file."
+    type: "string"
+    value: ""
+    default: ""
+
+  credentials_ssl_client_cert:
+    definition: "Client certificate (PEM)"
+    help: "Paste the full contents of this node's client certificate PEM file."
+    type: "string"
+    value: ""
+    default: ""
+
+  credentials_ssl_client_key:
+    definition: "Client private key (PEM)"
+    help: "Paste the full contents of this node's client private key PEM file."
+    type: "string"
+    value: ""
+    default: ""
+
+  separator_storage:
+    type: "doc"
+    title: "Storage"
+
+  sandbox_host_directory:
+    definition: "Sandbox directory (inside $FAST_DATA_DIR)"
+    help: >
+      Shared working directory for federated task stage-in/stage-out
+      (FEM-client's per-execution folders), mounted read-write into both
+      the FEM-client and fem-adapter pods.
+    type: "string"
+    value: ""
+    default: "/eucaim-fem-sandbox"
+
+  data_host_directory:
+    definition: "Data directory (inside $FAST_DATA_DIR, read-only)"
+    help: "Local dataset directory FEM-client's file actions may read from."
+    type: "string"
+    value: ""
+    default: "/eucaim-fem-data"

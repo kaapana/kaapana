@@ -1,0 +1,96 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-fem-client
+  namespace: {{ .Values.global.services_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Release.Name }}-fem-client
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Release.Name }}-fem-client
+    spec:
+      # No pod/container securityContext is set here on purpose: FEM-client's
+      # entrypoint.sh must start as root (it runs groupadd/usermod/chown to
+      # reconcile the container user to UID/GID/DOCKER_GID) and only then
+      # gosu-drops to that user to run receiver.py. It never touches
+      # /var/run/docker.sock -- that socket is intentionally not mounted
+      # anywhere in this chart (see ../fem-client-image/Dockerfile).
+      containers:
+        - name: fem-client
+          image: "{{ .Values.global.registry_url }}/fem-client:{{ .Values.global.kaapana_build_version }}"
+          imagePullPolicy: {{ .Values.global.pull_policy_images }}
+          env:
+            - name: UID
+              value: "1000"
+            - name: GID
+              value: "1000"
+            - name: USER_NAME
+              value: "femclient"
+            # entrypoint.sh unconditionally runs
+            # `groupadd -g "$DOCKER_GID" docker`; without this env var it
+            # fails under `set -e` and the container exits immediately. This
+            # is a dummy GID: no real docker.sock is mounted, and none of
+            # json_launcher.json's commands invoke docker.
+            - name: DOCKER_GID
+              value: "999"
+            - name: SANDBOX_PATH
+              value: "/sandbox"
+            - name: DATA_PATH
+              value: "/data"
+            - name: LOG_FILE
+              value: "/app/receiver.log"
+            - name: NODE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-broker-credentials
+                  key: NODE_USER
+            - name: NODE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-broker-credentials
+                  key: NODE_PASSWORD
+          volumeMounts:
+            - name: fem-client-config
+              mountPath: /app/config
+            - name: broker-tls
+              mountPath: /app/config/tls
+              readOnly: true
+            - name: sandbox
+              mountPath: /sandbox
+            - name: data
+              mountPath: /data
+              readOnly: true
+          resources:
+            limits:
+              memory: "512Mi"
+            requests:
+              memory: "128Mi"
+      imagePullSecrets:
+        - name: registry-secret
+      volumes:
+        - name: fem-client-config
+          configMap:
+            name: {{ .Release.Name }}-fem-client-config
+        - name: broker-tls
+          secret:
+            secretName: {{ .Release.Name }}-broker-credentials
+            items:
+              - key: ca.pem
+                path: ca.pem
+              - key: client-cert.pem
+                path: client-cert.pem
+              - key: client-key.pem
+                path: client-key.pem
+        - name: sandbox
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-sandbox-pv-claim
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-data-pv-claim

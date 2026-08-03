@@ -1,0 +1,121 @@
+---
+# Local, fully offline (no EUCAIM access needed) sandbox that proves the
+# fem-adapter <-> workflow-api integration end-to-end against the REAL
+# FEM-client software talking the real pipe-delimited/chunked RabbitMQ wire
+# protocol. See ./README.md for how to run it and what success looks like.
+#
+# This intentionally differs from ../eucaim-fem-chart (the production Helm
+# chart) in two ways:
+#   1. FEM-client is built directly from a local clone of the public
+#      gitlab.bsc.es/fl/fem-client repo (unmodified upstream Dockerfile),
+#      not from ../fem-client-image's pinned-commit git-clone build. Point
+#      FEM_CLIENT_SRC_DIR at wherever you've cloned it.
+#   2. RabbitMQ is a local, plain-AMQP `rabbitmq:3-management` container
+#      with throwaway guest/guest credentials -- config/config.py sets
+#      ssl_active=False accordingly. A real FEM-orchestrator connection
+#      always uses ssl_active=True (AMQPS) with the chart's TLS secret.
+#
+# What's the same as production: no /var/run/docker.sock is mounted here
+# either -- FEM-client's docker executor is unused in both.
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: fem-sandbox-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres:
+    image: docker.io/postgres:17.7-alpine
+    container_name: fem-sandbox-postgres
+    environment:
+      - POSTGRES_USER=kaapanauser
+      - POSTGRES_PASSWORD=kaapanapassword
+      - POSTGRES_DB=kaapanauser
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kaapanauser"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  workflow-api:
+    build:
+      context: ../../../base/workflow-api/docker
+    container_name: fem-sandbox-workflow-api
+    ports:
+      - "8080:8080"
+    environment:
+      - APPLICATION_ROOT=/
+      - DATABASE_URL=postgresql://kaapanauser:kaapanapassword@postgres:5432/kaapanauser
+      - DEV_FILES=True
+      - PORT=8080
+      # Enables the DummyAdapter test router (POST
+      # /v1/adapter-test/set-status/{external_id}) that fem-adapter's
+      # DUMMY_ENGINE_AUTOCOMPLETE relies on below to reach a terminal
+      # status without a real workflow engine.
+      - ENABLE_TEST_ADAPTER=true
+      - WORKERS=1
+      - LOG_LEVEL=INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  fem-adapter:
+    build:
+      context: ../docker
+    container_name: fem-sandbox-fem-adapter
+    ports:
+      - "8090:8090"
+    environment:
+      - PORT=8090
+      - FEM_ADAPTER_WORKFLOW_API_BASE_URL=http://workflow-api:8080/v1
+      - FEM_ADAPTER_PROJECT_ID=fem-sandbox
+      - FEM_ADAPTER_WORKFLOW_ENGINE=dummy
+      # Sandbox-only: nudges workflow-api's DummyAdapter to Completed once a
+      # run is picked up, since DummyAdapter otherwise always reports
+      # RUNNING. Never set against a real workflow engine.
+      - FEM_ADAPTER_DUMMY_ENGINE_AUTOCOMPLETE=true
+    volumes:
+      # Not read or written by fem-adapter's application code yet -- see
+      # the service README's "known gap" (staging Kaapana workflow outputs
+      # back into this same path for FEM-client's send_files action).
+      - sandbox:/sandbox
+    depends_on:
+      - workflow-api
+
+  fem-client:
+    build:
+      context: ${FEM_CLIENT_SRC_DIR:-/tmp/claude-541186/-home-m395c-parallel-kaapana/d1db8120-1237-4770-a359-8bc566819382/scratchpad/fem-client}
+    container_name: fem-sandbox-fem-client
+    environment:
+      - UID=1000
+      - GID=1000
+      - USER_NAME=femclient
+      # entrypoint.sh unconditionally runs `groupadd -g "$DOCKER_GID" docker`;
+      # this is a dummy GID -- no docker.sock is mounted here, and none of
+      # json_launcher.json's commands invoke docker.
+      - DOCKER_GID=999
+      - SANDBOX_PATH=/sandbox
+      - DATA_PATH=/data
+      - LOG_FILE=/app/receiver.log
+    volumes:
+      - ./config:/app/config
+      - sandbox:/sandbox
+      - ./local-data:/data:ro
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      fem-adapter:
+        condition: service_started
+    restart: on-failure
+
+volumes:
+  sandbox:

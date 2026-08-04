@@ -272,13 +272,13 @@ def generate_workflow_tests(metafunc):
     params = []
     ids = []
     for file in testcase_files:
-        for testcase in read_payload_from_yaml(file):
-            # The documents of one config file build on each other, e.g. tagging a
-            # dataset before a workflow consumes that tag. Pinning them to a shared
-            # xdist group keeps them on one worker, in file order.
-            params.append(
-                pytest.param(testcase, marks=pytest.mark.xdist_group(file.stem))
-            )
+        for index, testcase in enumerate(read_payload_from_yaml(file)):
+            # Testcases declaring the same ci_group stay on one xdist worker and run
+            # in collection order, for sequences such as tagging a dataset before a
+            # workflow consumes that tag. Everything else gets a group of its own and
+            # is distributed freely. ci_group is collection metadata, not payload.
+            group = testcase.pop("ci_group", None) or f"{file}#{index}"
+            params.append(pytest.param(testcase, marks=pytest.mark.xdist_group(group)))
             ids.append(testcase.get("dag_id"))
 
     metafunc.parametrize("testconfig", params, ids=ids)

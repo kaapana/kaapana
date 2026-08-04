@@ -1,9 +1,10 @@
 dag_id: "tag-seg-ct-tuples"
+ci_group: tag-seg-ct-tuples
 instance_names:
   - central
 conf_data:
   workflow_form:
-    single_execution: false 
+    single_execution: false
     input: SEG
     action: "add"
     tags: "TestSegTag"
@@ -17,11 +18,12 @@ remote: false
 username: "kaapana"
 ---
 dag_id: "tag-seg-ct-tuples"
+ci_group: tag-seg-ct-tuples
 instance_names:
   - central
 conf_data:
   workflow_form:
-    single_execution: false 
+    single_execution: false
     input: SEG
     action: "delete"
     tags: "TestSegTag"

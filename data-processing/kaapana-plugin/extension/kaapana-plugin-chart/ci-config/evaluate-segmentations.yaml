@@ -1,9 +1,10 @@
 dag_id: "tag-dataset"
+ci_group: evaluate-segmentations
 instance_names:
   - central
 conf_data:
   workflow_form:
-    single_execution: false 
+    single_execution: false
     action: "add"
     tags: "TEST"
   data_form:
@@ -13,11 +14,12 @@ remote: false
 username: "kaapana"
 ---
 dag_id: "tag-dataset"
+ci_group: evaluate-segmentations
 instance_names:
   - central
 conf_data:
   workflow_form:
-    single_execution: false 
+    single_execution: false
     action: "add"
     tags: "PRED"
   data_form:
@@ -27,6 +29,7 @@ remote: false
 username: "kaapana"
 ---
 dag_id: evaluate-segmentations
+ci_group: evaluate-segmentations
 instance_names:
   - central
 conf_data:

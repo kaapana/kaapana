@@ -182,7 +182,6 @@
       loop: "{{ vms_to_provision }}"
       loop_control:
         loop_var: item
-        
 
 - name: Configure all provisioned VMs
   hosts: provisioned_vms
@@ -205,16 +204,12 @@
 
     - name: Install kubectl
       ansible.builtin.include_tasks: tasks/install-kubectl.yaml
-      
+
     - name: Install Helm
       ansible.builtin.include_tasks: tasks/install-helm.yaml
 
     - name: Configure GitLab Runner
       ansible.builtin.include_tasks: tasks/configure-gitlab-runner.yaml
-
-    # Deploy runners need no machine-local credentials anymore: jobs run in
-    # the CI image and get the Harvester kubeconfig + SSH key from File-type
-    # CI variables (HARVESTER_KUBECONFIG, CI_SSH_PRIVATE_KEY).
 
     - name: Display completion message
       ansible.builtin.debug:

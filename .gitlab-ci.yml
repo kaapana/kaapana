@@ -28,15 +28,6 @@ workflow:
     - when: never
 
 variables:
-  ############################################################################
-  # All pipeline variables with their defaults — the reference for the CI
-  # configuration. Precedence (highest wins): pipeline variables > project UI
-  # variables > rules:variables > job variables > these defaults.
-  # Keep project UI variables to secrets and registry config only — a project
-  # variable silently overrides every same-named YAML value (broke the 0.7.0
-  # release build).
-  ############################################################################
-
   # --- Execution toggles: which stages a pipeline runs.
   # Override per-run via "Run pipeline" or per-schedule via schedule variables.
   CI_EXEC_UNIT_TESTS: "true" # tests stage: unit tests + documentation build

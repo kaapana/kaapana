@@ -47,9 +47,6 @@ class BuildConfig(BaseModel):
     # Build Target
     interactive: bool = False
     build_only: bool
-    # Resolve the build tree but skip building/pushing; Trivy scans run against
-    # the registry images of this version (local-only images are skipped — their
-    # layers are scanned as part of every derived image).
     scan_only: bool = False
     containers_to_build_by_charts: List[str] = Field(default_factory=list)
     containers_to_build: List[str] = Field(default_factory=list)

@@ -46,3 +46,4 @@ tests/venv/*
 .env
 lib/workflow_cli/build/
 migration_status
+ci.env

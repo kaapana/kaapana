@@ -277,7 +277,13 @@ def generate_workflow_tests(metafunc):
             # in collection order, for sequences such as tagging a dataset before a
             # workflow consumes that tag. Everything else gets a group of its own and
             # is distributed freely. ci_group is collection metadata, not payload.
-            group = testcase.pop("ci_group", None) or f"{file}#{index}"
+            # xdist appends the group to the test id, so the generated key holds no
+            # runner specific path, but still separates equally named config files of
+            # different charts.
+            group = (
+                testcase.pop("ci_group", None)
+                or f"{file.parent.parent.name}/{file.stem}#{index}"
+            )
             params.append(pytest.param(testcase, marks=pytest.mark.xdist_group(group)))
             ids.append(testcase.get("dag_id"))
 

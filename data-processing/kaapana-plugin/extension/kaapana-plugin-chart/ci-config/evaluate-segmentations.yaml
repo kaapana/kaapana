@@ -1,5 +1,5 @@
 dag_id: "tag-dataset"
-ci_group: evaluate-segmentations
+ci_step: evaluate-segmentations-tag-test
 instance_names:
   - central
 conf_data:
@@ -14,7 +14,7 @@ remote: false
 username: "kaapana"
 ---
 dag_id: "tag-dataset"
-ci_group: evaluate-segmentations
+ci_step: evaluate-segmentations-tag-pred
 instance_names:
   - central
 conf_data:
@@ -29,7 +29,10 @@ remote: false
 username: "kaapana"
 ---
 dag_id: evaluate-segmentations
-ci_group: evaluate-segmentations
+ci_step: evaluate-segmentations
+ci_after:
+  - evaluate-segmentations-tag-test
+  - evaluate-segmentations-tag-pred
 instance_names:
   - central
 conf_data:

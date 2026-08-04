@@ -1,5 +1,5 @@
 dag_id: "tag-seg-ct-tuples"
-ci_group: tag-seg-ct-tuples
+ci_step: tag-seg-ct-tuples
 instance_names:
   - central
 conf_data:
@@ -18,7 +18,9 @@ remote: false
 username: "kaapana"
 ---
 dag_id: "tag-seg-ct-tuples"
-ci_group: tag-seg-ct-tuples
+ci_step: tag-seg-ct-tuples-cleanup
+ci_after:
+  - tag-seg-ct-tuples
 instance_names:
   - central
 conf_data:

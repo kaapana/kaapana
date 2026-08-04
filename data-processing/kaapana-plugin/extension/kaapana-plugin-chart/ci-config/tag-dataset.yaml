@@ -1,5 +1,5 @@
 dag_id: "tag-dataset"
-ci_group: tag-dataset
+ci_step: tag-dataset
 instance_names:
   - central
 conf_data:
@@ -17,7 +17,9 @@ remote: false
 username: "kaapana"
 ---
 dag_id: "tag-dataset"
-ci_group: tag-dataset
+ci_step: tag-dataset-cleanup
+ci_after:
+  - tag-dataset
 instance_names:
   - central
 conf_data:

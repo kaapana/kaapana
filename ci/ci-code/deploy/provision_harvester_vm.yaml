@@ -24,8 +24,7 @@
 
     # Harvester connection
     harvester_namespace: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE', default=undef()) }}"
-    harvester_kubeconfig: "{{ lookup('env', 'ORCHESTRATOR_INSTANCE_HARVESTER_KUBECONFIG', default=undef()) }}"
-    ssh_private_key: "{{ lookup('env', 'ORCHESTRATOR_INSTANCE_PRIVATE_SSH_KEY', default=undef()) }}"
+    harvester_kubeconfig: "{{ lookup('env', 'HARVESTER_KUBECONFIG', default=undef()) }}"
     artifacts_dir: "{{ lookup('env', 'ARTIFACTS_DIR', default=undef()) }}"
 
     # Optional behavior
@@ -47,7 +46,6 @@
         - "vm_disk_size={{ vm_disk_size }}"
         - "harvester_namespace={{ harvester_namespace }}"
         - "harvester_kubeconfig={{ harvester_kubeconfig }}"
-        - "ssh_private_key={{ ssh_private_key }}"
         - "artifacts_dir={{ artifacts_dir }}"
 
   # dcmsend imposes a 57-character limit on the peerhost (FQDN) field.
@@ -250,7 +248,7 @@
       kubeconfig: "{{ harvester_kubeconfig }}"
 
   - name: Wait for DNS to resolve
-    ansible.builtin.command: host {{ vm_name }}.{{ vm_dns_domain }}
+    ansible.builtin.command: getent hosts {{ vm_name }}.{{ vm_dns_domain }}
     register: dns_result
     until: dns_result.rc == 0
     retries: 30

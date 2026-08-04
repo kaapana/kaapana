@@ -1,0 +1,149 @@
+# Stage: deploy — test VM lifecycle start + platform installation
+# In:  registry (chart/images @ VERSION_TAG); HARVESTER_KUBECONFIG +
+#      CI_SSH_PRIVATE_KEY (File-type CI variables)
+# Out: artifacts/deployment.env (dotenv: VM_FQDN, VM_USER, VERSION_TAG) —
+#      the single source of "where is the test system" for all later jobs;
+#      the running platform on the VM (checked, not passed)
+##############################################
+# DEPLOY
+##############################################
+
+.remote_execution_template:
+  tags:
+    - deploy-runner
+  # Everything these jobs need is baked into the CI image. VM_FQDN / VM_USER /
+  # VERSION_TAG arrive via the deployment.env dotenv from prepare_deployment.
+  image: $CI_BASE_IMAGE
+  variables:
+    ANSIBLE_HOST_KEY_CHECKING: "False"
+  before_script:
+    - mkdir -p "$ARTIFACTS_DIR"
+    # ssh refuses group/world-readable keys; File variables arrive too open
+    - chmod 600 "$CI_SSH_PRIVATE_KEY"
+
+##############################################
+
+prepare_deployment:
+  # Clone repo + Optional: Provision VM
+  interruptible: false
+  extends: .remote_execution_template
+  rules:
+    - if: '$CI_EXEC_DEPLOY == "true"'
+      when: on_success
+    - when: never
+  stage: deploy
+  variables:
+    GIT_STRATEGY: "clone"
+    GIT_DEPTH: "0" # full history + tags for git describe — global depth 1 would shallow the clone
+  script:
+    # Resolve the version this pipeline deploys, once, for every later job.
+    # Must equal what build_packages pushed — same git describe formula.
+    - git fetch --tags
+    - VERSION_TAG=$(git describe --tags --always)
+    - |
+      if [[ "$CI_EXEC_BUILD_ARGUMENTS" =~ (--latest) && "$VERSION_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+        BASE_TAG=$(echo "$VERSION_TAG" | sed -E 's/-[0-9]+-g[0-9a-f]+.*//')
+        VERSION_TAG="${BASE_TAG}-latest"
+      fi
+    - echo "Resolved VERSION_TAG=$VERSION_TAG"
+
+    # Fail fast if the chart was never pushed — before any VM is created.
+    - |
+      set +x
+      helm registry login "${REGISTRY_URL%%/*}" -u "$REGISTRY_USER" -p "$REGISTRY_TOKEN" >/dev/null 2>&1
+      if ! helm show chart "oci://$REGISTRY_URL/kaapana-admin-chart" --version "$VERSION_TAG" >/dev/null; then
+        echo "ERROR: kaapana-admin-chart '$VERSION_TAG' not found in $REGISTRY_URL — was this commit built and pushed?"
+        exit 1
+      fi
+
+    - mkdir -p artifacts
+    - |
+      if [[ -z "$DEPLOYMENT_INSTANCE_FQDN" ]]; then
+        ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/provision_harvester_vm.yaml"
+      else
+        # dcmsend rejects peerhosts > 57 chars — fail now, not mid-tests
+        if [[ ${#DEPLOYMENT_INSTANCE_FQDN} -gt 57 ]]; then
+          echo "ERROR: DEPLOYMENT_INSTANCE_FQDN '${DEPLOYMENT_INSTANCE_FQDN}' is ${#DEPLOYMENT_INSTANCE_FQDN} characters, exceeding the 57-character dcmsend peerhost limit."
+          exit 1
+        fi
+        echo "Skipping VM provisioning and using existing deployment target: $DEPLOYMENT_INSTANCE_FQDN"
+        echo "VM_FQDN=$DEPLOYMENT_INSTANCE_FQDN" > artifacts/deployment.env
+        echo "VM_USER=$DEPLOYMENT_INSTANCE_USER" >> artifacts/deployment.env
+      fi
+    - echo "VERSION_TAG=$VERSION_TAG" >> artifacts/deployment.env
+
+  artifacts:
+    when: always
+    paths:
+      - artifacts/deployment.env
+    reports:
+      dotenv: artifacts/deployment.env
+
+##############################################
+
+server_installation:
+  extends: .remote_execution_template
+  stage: deploy
+  # The only job needing sudo on the target. CI_EXEC_SERVER_INSTALLATION=false
+  # skips it for already-prepared targets (e.g. local workstations).
+  rules:
+    - if: '$CI_EXEC_DEPLOY == "true" && $CI_EXEC_SERVER_INSTALLATION == "true"'
+      when: on_success
+    - when: never
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+  script:
+    - |
+      ansible-playbook "$CI_PROJECT_DIR/ci/ci-code/deploy/server_installation.yaml" \
+        -i "$VM_FQDN," \
+        -u "$VM_USER" \
+        --private-key "$CI_SSH_PRIVATE_KEY"
+  artifacts:
+    paths:
+      - "artifacts/server_installation.log"
+    when: always
+    access: developer
+
+##############################################
+
+platform_deployment:
+  extends: .remote_execution_template
+  stage: deploy
+  needs:
+    - job: server_installation
+      optional: true
+    - job: prepare_deployment
+      artifacts: true
+  script:
+    - |
+      if [ -z "$VM_FQDN" ]; then
+        echo "ERROR: VM_FQDN is empty. No deployment target."
+        exit 1
+      fi
+    - |
+      ansible-playbook "$CI_PROJECT_DIR/ci/ci-code/deploy/deploy_platform.yaml" \
+        -i "$VM_FQDN," \
+        -u "$VM_USER" \
+        --private-key "$CI_SSH_PRIVATE_KEY"
+
+    - echo "Kaapana Platform Deployed Successfully"
+    - echo "Access the platform at https://$VM_FQDN"
+    - |
+      echo "<html>
+      <body>
+      <h1>Kaapana Platform Deployed</h1>
+      <p>Access it here: <a href=\"https://$VM_FQDN\">https://$VM_FQDN</a></p>
+      </body>
+      </html>" > artifacts/deployment.html
+  rules:
+    - if: '$CI_EXEC_DEPLOY == "true"'
+      when: on_success
+    - when: never
+  artifacts:
+    paths:
+      - "artifacts/deployment.log"
+      - "artifacts/system_check.log"
+      - "artifacts/deployment.html"
+    when: always
+    expose_as: "Kaapana Deployment Report"

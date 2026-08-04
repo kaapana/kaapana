@@ -1,0 +1,188 @@
+# Stage: tests — unit tests + docs
+# In:  the job's own checkout, nothing else
+# Out: JUnit/HTML report artifacts for humans and the MR UI — no pipeline
+#      job consumes anything from this stage
+##############################################
+# TESTS AND DOCS
+##############################################
+.test_template:
+  stage: tests
+  tags:
+    - tests-runner
+  image: python:3.12
+  rules:
+    - if: '$CI_EXEC_UNIT_TESTS == "true"'
+      when: always
+    - when: never
+  variables:
+    KAAPANA_DIR: "$CI_PROJECT_DIR"
+
+##############################################
+# Unit Tests: General Platform Tests
+##############################################
+unit_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/tests/requirements.txt
+    - pytest $KAAPANA_DIR/tests/ --junitxml=unittest_report.xml
+  artifacts:
+    reports:
+      junit:
+        - unittest_report.xml
+
+##############################################
+# Task API Tests
+##############################################
+task_api_tests:
+  extends: .test_template
+  # These tests build and run real task containers, so they get a per-job
+  # docker daemon as a privileged dind service — the only job that needs one.
+  # Bind mounts resolve because the runner shares /builds with services, so
+  # all mounted paths (TASK_DIR, TMPDIR) must live under $CI_PROJECT_DIR.
+  services:
+    # Must stay fully qualified: the runner's privileged-service allowlist
+    # matches the literal string — a bare "docker:28-dind" silently loses
+    # privileged and dind dies.
+    - name: docker.io/library/docker:28-dind
+      alias: docker
+      variables:
+        DOCKER_TLS_CERTDIR: ""
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+    TMPDIR: "$CI_PROJECT_DIR/tmp"
+    # both casings: the dind service must not hairpin through the DKFZ proxy
+    NO_PROXY: "localhost,127.0.0.1,docker,.dkfz.de,.dkfz-heidelberg.de"
+    no_proxy: "localhost,127.0.0.1,docker,.dkfz.de,.dkfz-heidelberg.de"
+  script:
+    - mkdir -p "$TMPDIR"
+    # One pip invocation: task_api depends on the sibling kaapana-containers —
+    # installing both together resolves it from the repo instead of PyPI.
+    - pip install $KAAPANA_DIR/lib/kaapana_containers $KAAPANA_DIR/lib/task_api pytest
+    - pytest $KAAPANA_DIR/lib/task_api/task_api --junitxml=task_api_report.xml
+
+  artifacts:
+    reports:
+      junit:
+        - task_api_report.xml
+
+kaapana_extensions_tests:
+  extends: .test_template
+  # One shared registry service for all xdist workers (KAAPANA_TEST_REGISTRY
+  # skips pytest-docker; conftest isolates workers by repo).
+  services:
+    - name: registry:3.1.1
+      alias: registry
+      variables:
+        REGISTRY_STORAGE_DELETE_ENABLED: "true"
+  variables:
+    KAAPANA_TEST_REGISTRY: "http://registry:5000"
+    # both casings: the service must not hairpin through the DKFZ proxy
+    NO_PROXY: "localhost,127.0.0.1,registry,.dkfz.de,.dkfz-heidelberg.de"
+    no_proxy: "localhost,127.0.0.1,registry,.dkfz.de,.dkfz-heidelberg.de"
+  script:
+    - pip install -e "$KAAPANA_DIR/lib/kaapana_containers[test]"
+    - pip install -e "$KAAPANA_DIR/lib/kaapana_extensions[test]"
+    - pytest -n auto --asyncio-mode=auto
+        $KAAPANA_DIR/lib/kaapana_containers/tests/
+        $KAAPANA_DIR/lib/kaapana_extensions/tests/
+        --junitxml=kaapana_extensions_report.xml
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - kaapana_extensions_report.xml
+
+workflow_api_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/base/workflow-api/docker/files/tests/unit/requirements.txt
+    - pytest $KAAPANA_DIR/services/base/workflow-api/docker/files/tests/unit --junitxml=workflow_api_report.xml
+  artifacts:
+    reports:
+      junit:
+        - workflow_api_report.xml
+
+##############################################
+# Extension API Tests
+##############################################
+extensions_api_tests:
+  extends: .test_template
+  script:
+    - pip install -e "$KAAPANA_DIR/lib/kaapana_containers"
+    - pip install -e "$KAAPANA_DIR/lib/kaapana_extensions"
+    - pip install -r  $KAAPANA_DIR/services/base/extension-manager-service/docker/files/app/tests/requirements.txt
+    - pytest  $KAAPANA_DIR/services/base/extension-manager-service/docker/files/app --junitxml=extensions_api_report.xml
+  artifacts:
+    reports:
+      junit:
+        - extensions_api_report.xml
+
+##############################################
+# Keycloak Backend Tests
+##############################################
+kaapana_backend_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/base/kaapana-backend/docker/files/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/base/kaapana-backend/docker/files/tests/ --junitxml=kaapana_backend_report.xml
+  artifacts:
+    reports:
+      junit:
+        - kaapana_backend_report.xml
+
+##############################################
+# Access Information Interface Tests
+##############################################
+access_information_interface_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/data-separation/access-information-interface/docker/backend/files/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/data-separation/access-information-interface/docker/backend/files/tests/test_keycloak_helper.py --junitxml=aii_report.xml
+  artifacts:
+    reports:
+      junit:
+        - aii_report.xml
+
+##############################################
+# Keycloak Setup Tests
+##############################################
+keycloak_setup_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/kaapana-admin/keycloak/keycloak-setup/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/kaapana-admin/keycloak/keycloak-setup/tests/ --junitxml=keycloak_setup_report.xml
+  artifacts:
+    reports:
+      junit:
+        - keycloak_setup_report.xml
+
+##############################################
+# Documentation Build
+##############################################
+build_documentation:
+  stage: tests
+  extends: .test_template
+  tags:
+    - tests-runner
+  script:
+    - cd $KAAPANA_DIR/docs
+    - pip install -r requirements.txt
+    - make html 2>&1 | tee "build_documentation_html.log"
+  artifacts:
+    expose_as: "Documentation"
+    paths:
+      - $KAAPANA_DIR/docs/build/html/
+      - "$KAAPANA_DIR/docs/build_documentation_html.log"
+
+##############################################
+# ReadTheDocs Build Check (scheduled pipelines on develop only)
+##############################################
+check_readthedocs:
+  extends: .test_template
+  image: $CI_BASE_IMAGE # needs curl + jq
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop"
+      when: always
+    - when: never
+  script:
+    - bash $KAAPANA_DIR/ci/ci-code/build/check_readthedocs.sh

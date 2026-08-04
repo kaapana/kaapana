@@ -1,0 +1,40 @@
+# Stage: tests (build_ci_image) — rebuild of the CI job image
+# In:  ci/images/**, pinned dependency files (rules:changes)
+# Out: $CI_BASE_IMAGE pushed to the CI registry (consumed by all other jobs
+#      from the NEXT pipeline on — same-pipeline jobs use the previous tag)
+##############################################
+# CI IMAGE
+##############################################
+# Rebuilds the CI job image when its inputs change (bootstrap from an empty
+# registry is a manual build+push, see README section 5). Land image changes
+# with a CI_IMAGES_TAG bump — jobs pull the new tag on first use.
+build_ci_image:
+  stage: tests
+  tags:
+    - build-runner
+  # Not ci-base: the image that builds ci-base must not be ci-base, or a tag
+  # bump could never bootstrap itself.
+  image: docker.io/library/docker:28-cli
+  rules:
+    # changes: only has a diff basis on push/MR pipelines — it evaluates to
+    # true on schedule/web/api/trigger and would rebuild every run
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop")
+      changes:
+        - ci/images/**/*
+        - ci/harvester/tasks/requirements.txt
+        - ci/ci-code/integration_tests/pyproject.toml
+      when: on_success
+    - when: never
+  script:
+    - |
+      set +x
+      # # DOCKER_AUTH_CONFIG shadows CLI logins, unset it so build/scan pushes use their logins
+      unset DOCKER_AUTH_CONFIG
+      echo "$CI_REGISTRY_TOKEN" | docker login "$CI_REGISTRY_URL" -u "$CI_REGISTRY_USER" --password-stdin
+    # context is ci/, not the repo root (no .dockerignore exists)
+    - docker build --build-arg http_proxy="$HTTP_PROXY" --build-arg https_proxy="$HTTPS_PROXY"
+        -f ci/images/ci-base/Dockerfile -t "$CI_BASE_IMAGE" ci
+    - docker push "$CI_BASE_IMAGE"
+  after_script:
+    # don't leave docker login sessions on the shared runner
+    - docker logout "$CI_REGISTRY_URL" || true

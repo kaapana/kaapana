@@ -14,6 +14,11 @@
     runner_tags: "{{ runner_tags | default(['ci-runner']) }}"
     runner_limit: "{{ runner_limit | default(4) }}"
     runner_concurrency: "{{ runner_concurrency | default(4) }}"
+    runner_executor: "{{ runner_executor | default('shell') }}"
+    runner_docker_image: "{{ runner_docker_image | default('python:3.12') }}"
+    runner_docker_volumes: "{{ runner_docker_volumes | default(['/cache']) }}"
+    runner_docker_services_privileged: "{{ runner_docker_services_privileged | default(false) }}"
+    runner_docker_allowed_privileged_services: "{{ runner_docker_allowed_privileged_services | default([]) }}"
   become: no
 
 - name: Set global concurrency fact if not defined
@@ -142,8 +147,22 @@
     --url "{{ gitlab_url }}"
     --token "{{ new_runner.runner.token }}"
     --name "{{ runner_description }}"
-    --executor shell
+    --executor {{ runner_executor }}
+    {% if runner_executor == 'docker' %}
+    --docker-image "{{ runner_docker_image }}"
+    --docker-pull-policy if-not-present
+    {% for volume in runner_docker_volumes %}
+    --docker-volumes "{{ volume }}"
+    {% endfor %}
+    {% if runner_docker_services_privileged | bool %}
+    --docker-services_privileged true
+    {% endif %}
+    {% for service in runner_docker_allowed_privileged_services %}
+    --docker-allowed-privileged-services "{{ service }}"
+    {% endfor %}
+    {% else %}
     --shell bash
+    {% endif %}
     --config "{{ runner_config_path }}"
   register: register_local
   changed_when: "'Runner registered successfully' in register_local.stdout"

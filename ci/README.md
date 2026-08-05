@@ -346,9 +346,16 @@ otherwise, so a broken order is never silent. This holds because a group always
 runs in one process.
 
 **`PYTEST_DIST: "loadgroup"` is required** and set on the `run_workflows` job.
-It is what binds a group to one worker; with `--dist load` the declarations
-would be ignored, so collection refuses to run. A sequential run without `-n`
-needs nothing, the collection order already satisfies the declarations.
+The xdist default `load` gives each test to the next free worker and never looks
+at the group, which would split a group and fail every testcase whose
+prerequisite ran on another worker; collection therefore aborts when a
+`ci_after` is declared without `loadgroup`. And `loadgroup` guarantees only that
+a group stays on one worker, not the order within it, which is why the order
+comes from the declarations and is checked at runtime. Scheduling details in the
+[xdist distribution
+modes](https://pytest-xdist.readthedocs.io/en/stable/distribution.html). A run
+without `-n` needs nothing: one process keeps every group together and runs it
+in collection order.
 
 **Limits worth knowing.** A `ci_after` across files only resolves if both files
 are collected in the same run, which matters when narrowing a run with
@@ -366,10 +373,12 @@ pytest -s ci/ci-code/integration_tests/tests/test_run_workflows.py \
 
 ## Known gaps
 
-- The integration test *jobs* pass platform state to each other by run order
-  alone (`first_login` → `install_extensions` → `send_data` → `run_workflows`);
-  nothing checks preconditions between jobs. Within `run_workflows` the
-  testcases do, see [section 11](#11-workflow-testcases-ci-config).
+- Between the integration test jobs `needs:` order is the only guarantee:
+  `first_login` → `install_extensions` → `send_data` → `run_workflows` pass
+  platform state along, no job verifies what it expects to find. Inside
+  `run_workflows` the testcases do ([section 11](#11-workflow-testcases-ci-config)).
+- A workflow testcase whose DAG the platform does not know counts as passed, so a
+  failed extension install can leave `run_workflows` green.
 - `install_extensions` and `send_data` carry `retry: 2` — known flakiness.
 - `ci/docs/local-ci.md` predates the current variable set (it references
   variables that no longer exist) — for local runs use

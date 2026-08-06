@@ -65,6 +65,16 @@ def _normalize_results_prefix(prefix: str) -> str:
     return f"{normalized_prefix}/"
 
 
+def _resolve_static_website_bucket(raw_project_header: str | None) -> str:
+    """Bucket for static website results: the project bucket for
+    project-scoped requests, the shared default bucket otherwise."""
+    if raw_project_header:
+        project = json.loads(raw_project_header)
+        if project and "s3_bucket" in project:
+            return project["s3_bucket"]
+    return DEFAULT_STATIC_WEBSITE_BUCKET
+
+
 def _build_results_file_url(object_name: str) -> str:
     return (
         "/kaapana-backend/get-static-website-results-html" f"?object_name={object_name}"
@@ -125,11 +135,7 @@ def get_static_website_results_html(
             status_code=400, detail="object_name query parameter is required."
         )
 
-    # set the bucket_name automatically from the request header
-    bucket_name: str = (DEFAULT_STATIC_WEBSITE_BUCKET,)
-    project = json.loads(request.headers.get("project"))
-    if project and "s3_bucket" in project:
-        bucket_name = project.get("s3_bucket")
+    bucket_name = _resolve_static_website_bucket(request.headers.get("project"))
 
     try:
         html_file = minioClient.get_object(bucket_name, object_name)

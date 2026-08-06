@@ -1,0 +1,303 @@
+"""Seam tests for auth_check, the traefik forwardAuth endpoint.
+
+The AII fetch and OPA call are monkeypatched so no live services are needed;
+what is under test is how auth_check wires them together: prefix stripping,
+project enrichment, the trusted Project response header, and the security
+guards (shape validation, deny-safe fetch failures, auth gating).
+"""
+
+import asyncio
+import json
+
+import jwt
+import pytest
+from fastapi.testclient import TestClient
+
+import main
+
+PROJECT = {"id": "11111111-2222-3333-4444-555555555555", "short_id": "11111111"}
+# Member token: carries PROJECT in its `projects` claim (the AII-sourced shape).
+TOKEN = jwt.encode(
+    {"sub": "user", "projects": [{"id": PROJECT["id"], "name": "p"}]},
+    "secret",
+    algorithm="HS256",
+)
+# Non-member: authenticated, but no matching project membership.
+NON_MEMBER_TOKEN = jwt.encode(
+    {"sub": "user", "projects": [{"id": "99999999-0000-0000-0000-000000000000"}]},
+    "secret",
+    algorithm="HS256",
+)
+ADMIN_TOKEN = jwt.encode(
+    {"sub": "admin", "projects": [], "realm_access": {"roles": ["admin"]}},
+    "secret",
+    algorithm="HS256",
+)
+
+client = TestClient(main.app)
+
+
+@pytest.fixture
+def opa_recorder(monkeypatch):
+    """Capture the OPA input; default the decision to allow (200)."""
+    captured = {}
+
+    async def fake_check_endpoint(input):
+        captured["input"] = input["input"]
+        return captured.get("decision", True)
+
+    monkeypatch.setattr(main, "check_endpoint", fake_check_endpoint)
+    return captured
+
+
+def _auth_check(uri, *, token=TOKEN):
+    headers = {"x-forwarded-uri": uri, "x-forwarded-method": "GET"}
+    if token is not None:
+        headers["x-forwarded-access-token"] = token
+    return client.get("/auth-check", headers=headers)
+
+
+def test_resolved_project_strips_prefix_and_sets_header(monkeypatch, opa_recorder):
+    async def fake_fetch(identifier):
+        assert identifier == "11111111"
+        return PROJECT
+
+    monkeypatch.setattr(main, "fetch_project", fake_fetch)
+
+    resp = _auth_check("/project/11111111/data-gallery-ui?limit=10")
+
+    assert resp.status_code == 200
+    assert opa_recorder["input"]["requested_prefix"] == "/data-gallery-ui?limit=10"
+    assert opa_recorder["input"]["project"] == PROJECT
+    # (c) Project header present only when a project was resolved.
+    assert json.loads(resp.headers["Project"]) == PROJECT
+
+
+def test_unresolvable_id_leaves_prefix_unstripped_and_no_header(
+    monkeypatch, opa_recorder
+):
+    # (a) authenticated so the finding-2 gate does not mask the None path:
+    # this isolates fetch_project returning None (unknown id).
+    async def fake_fetch(identifier):
+        return None
+
+    monkeypatch.setattr(main, "fetch_project", fake_fetch)
+
+    resp = _auth_check("/project/deadbeef/data-gallery-ui")
+
+    assert resp.status_code == 200
+    assert (
+        opa_recorder["input"]["requested_prefix"] == "/project/deadbeef/data-gallery-ui"
+    )
+    assert "project" not in opa_recorder["input"]
+    assert "Project" not in resp.headers
+
+
+def test_aii_request_exception_is_deny_safe(monkeypatch, opa_recorder):
+    # (b) AII unreachable -> no enrichment; request is still evaluated, and
+    # with the path unstripped the (mocked) policy denies -> 403.
+    async def boom(identifier):
+        raise main.httpx.RequestError("aii down")
+
+    monkeypatch.setattr(main, "fetch_project", boom)
+    opa_recorder["decision"] = False
+
+    resp = _auth_check("/project/11111111/data-gallery-ui")
+
+    assert resp.status_code == 403
+    assert (
+        opa_recorder["input"]["requested_prefix"] == "/project/11111111/data-gallery-ui"
+    )
+    assert "project" not in opa_recorder["input"]
+
+
+def test_aii_list_response_is_not_treated_as_project(monkeypatch, opa_recorder):
+    # (d) /projects/rights returns a JSON list; the real fetch_project must
+    # reject it so no array reaches the trusted Project header.
+    class FakeResponse:
+        is_success = True
+
+        def json(self):
+            return [{"id": 1, "name": "read"}]
+
+    async def fake_get(url, timeout=None):
+        return FakeResponse()
+
+    monkeypatch.setattr(main.client, "get", fake_get)
+
+    resp = _auth_check("/project/rights/x")
+
+    assert resp.status_code == 200
+    assert opa_recorder["input"]["requested_prefix"] == "/project/rights/x"
+    assert "project" not in opa_recorder["input"]
+    assert "Project" not in resp.headers
+
+
+def test_unauthenticated_request_is_not_enriched(monkeypatch, opa_recorder):
+    # (e) no token -> enrichment must not run at all (no AII probe, no header).
+    called = False
+
+    async def fake_fetch(identifier):
+        nonlocal called
+        called = True
+        return PROJECT
+
+    monkeypatch.setattr(main, "fetch_project", fake_fetch)
+
+    resp = _auth_check("/project/11111111/data-gallery-ui", token=None)
+
+    assert resp.status_code == 200
+    assert called is False
+    assert (
+        opa_recorder["input"]["requested_prefix"] == "/project/11111111/data-gallery-ui"
+    )
+    assert "project" not in opa_recorder["input"]
+    assert "Project" not in resp.headers
+
+
+# --- gateway membership enforcement (finding-3 fix) ---
+
+
+def test_non_member_scoped_service_request_is_denied(monkeypatch, opa_recorder):
+    # Non-admin who is not a member of the resolved project: 403 before OPA,
+    # and crucially no Project header leaked in the response.
+    async def fake_fetch(identifier):
+        return PROJECT
+
+    monkeypatch.setattr(main, "fetch_project", fake_fetch)
+
+    resp = _auth_check("/project/11111111/data-gallery-ui", token=NON_MEMBER_TOKEN)
+
+    assert resp.status_code == 403
+    assert "Project" not in resp.headers
+    # Denied before OPA -> the policy was never consulted.
+    assert "input" not in opa_recorder
+
+
+def test_member_scoped_service_request_is_allowed(monkeypatch, opa_recorder):
+    async def fake_fetch(identifier):
+        return PROJECT
+
+    monkeypatch.setattr(main, "fetch_project", fake_fetch)
+
+    resp = _auth_check("/project/11111111/data-gallery-ui", token=TOKEN)
+
+    assert resp.status_code == 200
+    assert opa_recorder["input"]["project"] == PROJECT
+    assert json.loads(resp.headers["Project"]) == PROJECT
+
+
+def test_admin_scoped_to_foreign_project_is_allowed(monkeypatch, opa_recorder):
+    # Admin has no membership of PROJECT (empty projects claim) but may scope
+    # anywhere; downstream services still apply their own read/write rules.
+    async def fake_fetch(identifier):
+        return PROJECT
+
+    monkeypatch.setattr(main, "fetch_project", fake_fetch)
+
+    resp = _auth_check("/project/11111111/data-gallery-ui", token=ADMIN_TOKEN)
+
+    assert resp.status_code == 200
+    assert opa_recorder["input"]["project"] == PROJECT
+    assert json.loads(resp.headers["Project"]) == PROJECT
+
+
+@pytest.mark.parametrize(
+    "uri, expected_prefix",
+    [
+        ("/project/11111111", "/"),  # bare shell document
+        ("/project/11111111/", "/"),  # trailing slash
+        ("/project/11111111?x=1", "/?x=1"),  # query string
+    ],
+)
+def test_shell_document_route_is_not_membership_gated(
+    monkeypatch, opa_recorder, uri, expected_prefix
+):
+    # The bare /project/<id> SPA shell document carries no project data of its
+    # own, so the membership gate skips it: all three shapes normalize to a
+    # stripped path of "/" (plus any query) and go on to OPA instead of being
+    # 403'd here. There is no soft fallback to the user's own project -- a
+    # foreign *deep link* is still denied (see the test below).
+    #
+    # Scope: this pins the GATE, not the platform. The OPA decision is mocked to
+    # allow, and the policy layer does NOT treat the three shapes alike --
+    # auth-policies.rego exact-matches `input.requested_prefix == "/"`, so
+    # "/?x=1" is denied for `user` and `project-manager` (measured with opa
+    # 1.18.2: allow=false; only `admin` passes, via its `^/.*` catch-all). Do
+    # not read the third case as "/project/<id>?x=1 works end to end" -- on a
+    # live platform it 403s at the policy layer.
+    async def fake_fetch(identifier):
+        return PROJECT
+
+    monkeypatch.setattr(main, "fetch_project", fake_fetch)
+
+    resp = _auth_check(uri, token=NON_MEMBER_TOKEN)
+
+    assert resp.status_code == 200
+    assert opa_recorder["input"]["requested_prefix"] == expected_prefix
+
+
+@pytest.mark.parametrize(
+    "claim",
+    [
+        {},  # projects key absent
+        {"projects": None},  # present but null
+        {"projects": "nonsense"},  # present but not a list (iterable str)
+        {"projects": 5},  # present but non-iterable
+        {"projects": [{"name": "no-id"}]},  # entries missing id
+        {"projects": [{"id": ["x"]}]},  # entry id unhashable/non-str
+        {"realm_access": None},  # realm_access present but null
+        {"realm_access": "nonsense"},  # truthy but not a dict -> would raise
+        {"realm_access": 5},  # truthy but not a dict -> would raise
+        # `in` on a str matches substrings and on a dict matches keys, so these
+        # would each be read as the admin role and skip the gate entirely.
+        {"realm_access": {"roles": "admin"}},
+        {"realm_access": {"roles": "xadminx"}},
+        {"realm_access": {"roles": {"admin": 1}}},
+    ],
+)
+def test_malformed_membership_claim_fails_closed(monkeypatch, opa_recorder, claim):
+    # A non-admin whose membership claim is missing/null/malformed is denied on
+    # a scoped service request -- fail closed, never crash.
+    async def fake_fetch(identifier):
+        return PROJECT
+
+    monkeypatch.setattr(main, "fetch_project", fake_fetch)
+    token = jwt.encode({"sub": "user", **claim}, "secret", algorithm="HS256")
+
+    resp = _auth_check("/project/11111111/data-gallery-ui", token=token)
+
+    assert resp.status_code == 403
+    assert "Project" not in resp.headers
+
+
+# --- fetch_project shape validation (the finding-1 fix), tested directly ---
+
+
+class _Resp:
+    def __init__(self, payload, is_success=True):
+        self._payload = payload
+        self.is_success = is_success
+
+    def json(self):
+        return self._payload
+
+
+@pytest.mark.parametrize(
+    "payload, is_success, expected",
+    [
+        (PROJECT, True, PROJECT),  # real project object
+        ([{"id": 1}], True, None),  # rights/roles list shape
+        ({"detail": "nope"}, True, None),  # dict without id/short_id
+        ({"id": "x"}, True, None),  # missing short_id
+        (PROJECT, False, None),  # non-2xx
+    ],
+)
+def test_fetch_project_shape_validation(monkeypatch, payload, is_success, expected):
+    async def fake_get(url, timeout=None):
+        return _Resp(payload, is_success=is_success)
+
+    monkeypatch.setattr(main.client, "get", fake_get)
+
+    result = asyncio.run(main.fetch_project("someid"))
+    assert result == expected

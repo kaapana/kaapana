@@ -10,7 +10,7 @@ LABEL BUILD_IGNORE="False"
 
 WORKDIR /kaapana/app
 COPY files/kaapana_app/package*.json ./
-RUN npm install -g npm@10.9.0 && npm install
+RUN npm install -g npm@10.9.0 && npm ci
 
 COPY files/kaapana_app .
 

@@ -1,0 +1,17 @@
+# Strips the platform-wide /project/<id> URL prefix from project-scoped routes
+# (see the project-scoped IngressRoutes of kaapana-backend, workflow-api,
+# dicom-web-filter, ohif and slim; later MRs add the view UIs). auth-backend
+# resolves the <id> for authorization before the strip happens, so services
+# receive the plain path plus the enriched Project header. Cross-namespace
+# middleware references are disabled, hence one copy per namespace - kube-helm
+# is project-scoped too but sits in the admin namespace, so it references the
+# copy in the traefik chart of the admin chart.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-project-prefix
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  stripPrefixRegex:
+    regex:
+      - "^/project/[^/]+"

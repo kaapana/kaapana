@@ -30,6 +30,22 @@ spec:
     authResponseHeaders:
       - Project
 ---
+# Strips the platform-wide /project/<id> URL prefix from the project-scoped
+# IngressRoute of kube-helm. auth-backend resolves the <id> for authorization
+# before the strip happens, so the service receives the plain path plus the
+# enriched Project header. Cross-namespace middleware references are disabled,
+# hence one copy per namespace - the services-namespace copy is owned by the
+# platform chart, which creates that namespace.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-project-prefix
+  namespace: "{{  .Values.global.admin_namespace  }}"
+spec:
+  stripPrefixRegex:
+    regex:
+      - "^/project/[^/]+"
+---
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:

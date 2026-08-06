@@ -55,5 +55,26 @@ spec:
         backend:
           service:
             name: kaapana-backend-service
-            port: 
+            port:
               number: 5000
+---
+# Project-scoped route (/project/<id>/kaapana-backend/...): auth-backend
+# authorizes against the <id> and injects the enriched Project header, the
+# middlewares strip both prefixes before the request reaches the service.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: kaapana-backend-project-ingressroute
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: PathRegexp(`^/project/[^/]+/kaapana-backend(/|$)`)
+      middlewares:
+        - name: strip-project-prefix
+        - name: strip-prefix-kaapana-backend
+      services:
+        - name: kaapana-backend-service
+          port: 5000

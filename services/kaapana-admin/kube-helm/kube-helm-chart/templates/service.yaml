@@ -46,3 +46,24 @@ spec:
             port:
               number: 5000
 ---
+# Project-scoped route (/project/<id>/kube-helm-api/...): auth-backend
+# authorizes against the <id> and injects the enriched Project header, the
+# middlewares strip both prefixes before the request reaches the service.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: kube-helm-project-ingressroute
+  namespace: "{{  .Values.global.admin_namespace  }}"
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: PathRegexp(`^/project/[^/]+/kube-helm-api(/|$)`)
+      middlewares:
+        - name: strip-project-prefix
+        - name: kh-strip-prefix
+      services:
+        - name: kube-helm-service
+          port: 5000
+---

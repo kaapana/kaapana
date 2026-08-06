@@ -1,0 +1,9 @@
+files/ui/node_modules
+files/ui/dist
+.git
+.gitignore
+Dockerfile
+build.log
+npm-debug.log*
+/.cache
+.DS_Store

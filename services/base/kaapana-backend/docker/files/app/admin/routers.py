@@ -67,8 +67,7 @@ def _normalize_results_prefix(prefix: str) -> str:
 
 def _build_results_file_url(object_name: str) -> str:
     return (
-        "/kaapana-backend/get-static-website-results-html"
-        f"?object_name={object_name}"
+        "/kaapana-backend/get-static-website-results-html" f"?object_name={object_name}"
     )
 
 
@@ -203,6 +202,86 @@ def get_static_website_results(
         )
 
 
+def _results_start_after(continuation_token: str) -> str:
+    """Where to resume the listing: the ``start_after`` key for the next page.
+
+    The token is the previous page's last ``object_name``. ``start_after`` is
+    exclusive, so a file key can be used as-is.
+
+    A folder token ends in ``/`` and needs one extra step. The level is listed
+    non-recursively, so a folder's children are hidden behind its ``/`` marker:
+    resuming right after ``results/a/`` would place the next page at
+    ``results/a/<first child>``, which collapses back into the marker
+    ``results/a/`` -- the folder would appear twice. Bumping the trailing ``/``
+    to the next character gives ``results/a0``, which sorts above every
+    ``results/a/...`` child and below the next sibling: the page continues at
+    the first sibling, nothing dropped, nothing repeated.
+    """
+    if continuation_token.endswith("/"):
+        # "/" + 1 == "0": the smallest key above every "<folder>/..." child
+        return continuation_token[:-1] + chr(ord("/") + 1)
+    return continuation_token
+
+
+def _list_results_tree_page(
+    objects, results_prefix, relative_prefix, page_size, url_for
+):
+    """Build one directory-level page from a (already ``start_after``-narrowed)
+    MinIO listing.
+
+    Returns ``(items, next_continuation_token)`` where the token is the raw
+    ``object_name`` of the page's last item, so the next call can resume with an
+    exclusive ``start_after`` (see :func:`_results_start_after`).
+    """
+    items = []
+    next_continuation_token = None
+    last_object_name = None
+
+    for obj in objects:
+        object_name = obj.object_name
+        if object_name == results_prefix:
+            continue
+
+        rel_path = object_name[len(results_prefix) :]
+        if not rel_path:
+            continue
+
+        rel_path_clean = rel_path.rstrip("/")
+        # With recursive=False, synthetic folders end in "/", real objects don't.
+        is_directory = object_name.endswith("/")
+
+        if is_directory:
+            directory_name = rel_path_clean.split("/")[0]
+            item = {
+                "name": directory_name,
+                "path": f"{relative_prefix}{directory_name}".rstrip("/"),
+                "file": False,
+                "children": [],
+                "hasChildren": True,
+            }
+        else:
+            if not object_name.endswith(".html"):
+                continue
+
+            item = {
+                "name": rel_path,
+                "path": f"{relative_prefix}{rel_path}".rstrip("/"),
+                "file": "html",
+                "children": [],
+                "hasChildren": False,
+                "url": url_for(object_name),
+            }
+
+        if len(items) >= page_size:
+            next_continuation_token = last_object_name
+            break
+
+        items.append(item)
+        last_object_name = object_name
+
+    return items, next_continuation_token
+
+
 @router.get("/get-static-website-results-tree")
 def get_static_website_results_tree(
     prefix: str = "",
@@ -222,55 +301,19 @@ def get_static_website_results_tree(
 
     list_kwargs = {"prefix": results_prefix, "recursive": False}
     if continuation_token:
-        # MinIOs start_after is lexicographic. 
-        # We append "0" to skip the previous folder and its contents.
-        list_kwargs["start_after"] = f"{bucket_results_prefix}{continuation_token}0"
-
-    items = []
-    next_continuation_token = None
+        # start_after is lexicographic and exclusive; resume right after the
+        # previous page's last object (a folder additionally skips its subtree).
+        list_kwargs["start_after"] = _results_start_after(continuation_token)
 
     try:
-        for obj in minioClient.list_objects(bucket_name, **list_kwargs):
-            object_name = obj.object_name
-            if object_name == results_prefix:
-                continue
-
-            rel_path = object_name[len(results_prefix):]
-            if not rel_path:
-                continue
-
-            rel_path_clean = rel_path.rstrip("/")
-            # With recursive=False, synthetic folders end in "/", real objects don't.
-            is_directory = object_name.endswith("/")
-
-            if is_directory:
-                directory_name = rel_path_clean.split("/")[0]
-                item = {
-                    "name": directory_name,
-                    "path": f"{relative_prefix}{directory_name}".rstrip("/"),
-                    "file": False,
-                    "children": [],
-                    "hasChildren": True,
-                }
-            else:
-                if not object_name.endswith(".html"):
-                    continue
-
-                item = {
-                    "name": rel_path,
-                    "path": f"{relative_prefix}{rel_path}".rstrip("/"),
-                    "file": "html",
-                    "children": [],
-                    "hasChildren": False,
-                    "url": _build_results_file_url(object_name),
-                }
-
-            if len(items) >= page_size:
-                next_continuation_token = items[-1]["path"]
-                break
-
-            items.append(item)
-
+        objects = minioClient.list_objects(bucket_name, **list_kwargs)
+        items, next_continuation_token = _list_results_tree_page(
+            objects,
+            results_prefix,
+            relative_prefix,
+            page_size,
+            _build_results_file_url,
+        )
         return {
             "items": items,
             "nextContinuationToken": next_continuation_token,

@@ -8,6 +8,7 @@ guards (shape validation, deny-safe fetch failures, auth gating).
 
 import asyncio
 import json
+import urllib.parse
 
 import jwt
 import pytest
@@ -50,10 +51,11 @@ def opa_recorder(monkeypatch):
     return captured
 
 
-def _auth_check(uri, *, token=TOKEN):
+def _auth_check(uri, *, token=TOKEN, extra_headers=None):
     headers = {"x-forwarded-uri": uri, "x-forwarded-method": "GET"}
     if token is not None:
         headers["x-forwarded-access-token"] = token
+    headers.update(extra_headers or {})
     return client.get("/auth-check", headers=headers)
 
 
@@ -295,6 +297,183 @@ def test_malformed_membership_claim_fails_closed(monkeypatch, opa_recorder, clai
 
     assert resp.status_code == 403
     assert "Project" not in resp.headers
+
+
+# --- legacy `Project` cookie derivation, retained for the shipping UI ---
+#
+# These pin the standalone-safety premise of the URL-prefix work: unprefixed
+# requests must behave exactly as before it. The legacy landing page carries the
+# selection in a `Project` cookie while services already read the enriched
+# header, so dropping the derivation would unscope every one of them. Delete
+# these together with the cookie branch in main.py when the legacy UI goes.
+
+
+def _cookie_header(value):
+    # Sent as a raw Cookie header, the way a browser does; the shared TestClient
+    # must not accumulate cookie state between tests.
+    return {"cookie": f"Project={value}"}
+
+
+def _project_cookie(project_id=PROJECT["id"]):
+    # Shape the legacy UI writes: URL-encoded JSON with name + id.
+    return _cookie_header(
+        urllib.parse.quote(json.dumps({"name": "p", "id": project_id}))
+    )
+
+
+def test_legacy_project_cookie_scopes_unprefixed_requests(monkeypatch, opa_recorder):
+    seen = {}
+
+    async def fake_fetch(identifier):
+        seen["identifier"] = identifier
+        return PROJECT
+
+    monkeypatch.setattr(main, "fetch_project", fake_fetch)
+
+    resp = _auth_check(
+        "/kaapana-backend/client/datasets", extra_headers=_project_cookie()
+    )
+
+    assert resp.status_code == 200
+    assert seen["identifier"] == PROJECT["id"]
+    # Path passed through verbatim -- no prefix to strip.
+    assert (
+        opa_recorder["input"]["requested_prefix"] == "/kaapana-backend/client/datasets"
+    )
+    assert opa_recorder["input"]["project"] == PROJECT
+    assert json.loads(resp.headers["Project"]) == PROJECT
+
+
+def test_unprefixed_request_without_cookie_carries_no_project(
+    monkeypatch, opa_recorder
+):
+    called = False
+
+    async def fake_fetch(identifier):
+        nonlocal called
+        called = True
+        return PROJECT
+
+    monkeypatch.setattr(main, "fetch_project", fake_fetch)
+
+    resp = _auth_check("/kaapana-backend/client/datasets")
+
+    assert resp.status_code == 200
+    assert called is False
+    assert (
+        opa_recorder["input"]["requested_prefix"] == "/kaapana-backend/client/datasets"
+    )
+    assert "project" not in opa_recorder["input"]
+    assert "Project" not in resp.headers
+
+
+def test_legacy_cookie_is_deliberately_not_membership_gated(monkeypatch, opa_recorder):
+    # The gate fails closed on a missing `projects` claim, so applying it to the
+    # cookie would deny traffic that works today. Consequence, pinned so its
+    # removal is a conscious act: a non-member can still scope via the cookie.
+    async def fake_fetch(identifier):
+        return PROJECT
+
+    monkeypatch.setattr(main, "fetch_project", fake_fetch)
+
+    resp = _auth_check(
+        "/kaapana-backend/client/datasets",
+        token=NON_MEMBER_TOKEN,
+        extra_headers=_project_cookie(),
+    )
+
+    assert resp.status_code == 200
+    assert json.loads(resp.headers["Project"]) == PROJECT
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "not-json",  # JSONDecodeError
+        urllib.parse.quote(json.dumps({"name": "p"})),  # KeyError on id
+    ],
+)
+def test_malformed_project_cookie_is_ignored(monkeypatch, opa_recorder, value):
+    async def fake_fetch(identifier):
+        raise AssertionError("must not resolve a malformed cookie")
+
+    monkeypatch.setattr(main, "fetch_project", fake_fetch)
+
+    resp = _auth_check(
+        "/kaapana-backend/client/datasets", extra_headers=_cookie_header(value)
+    )
+
+    assert resp.status_code == 200
+    assert "project" not in opa_recorder["input"]
+    assert "Project" not in resp.headers
+
+
+# A *different* project, so a cookie-sourced resolution would be visible rather
+# than indistinguishable from the URL-prefix one.
+COOKIE_PROJECT = {"id": "77777777-8888-9999-aaaa-bbbbbbbbbbbb", "short_id": "77777777"}
+
+
+@pytest.mark.parametrize(
+    "uri, token, identifier, expected_project, expected_status",
+    [
+        # Resolvable prefix id: the cookie's project must not win.
+        ("/project/11111111/datasets", TOKEN, "11111111", PROJECT, 200),
+        # Prefix branch attaches nothing (unresolvable id) -- still no cookie
+        # fallback, so the request carries no project at all.
+        ("/project/deadbeef/datasets", TOKEN, "deadbeef", None, 200),
+        # Non-member on a foreign deep link: 403 at the membership gate, and the
+        # cookie must not smuggle the scope in behind it.
+        ("/project/11111111/datasets", NON_MEMBER_TOKEN, "11111111", None, 403),
+    ],
+    # The tokens are JWT strings; without ids the test ids are unreadable.
+    ids=["member", "unresolvable-prefix-id", "non-member-gated"],
+)
+def test_url_prefix_takes_precedence_over_the_legacy_cookie(
+    monkeypatch, opa_recorder, uri, token, identifier, expected_project, expected_status
+):
+    # The cookie derivation is an `elif project_identifier is None` fallback, so
+    # a request that carries a /project/<id>/ prefix must never consult it -- not
+    # even when the prefix resolves to nothing, and not even when the membership
+    # gate 403s it. That is what stops the ungated cookie from smuggling a
+    # foreign scope past the gate: the gate runs on the prefix id, and no second
+    # resolution ever follows.
+    seen = []
+
+    async def fake_fetch(ident):
+        seen.append(ident)
+        if ident == "deadbeef":
+            return None
+        return COOKIE_PROJECT if ident == COOKIE_PROJECT["id"] else PROJECT
+
+    monkeypatch.setattr(main, "fetch_project", fake_fetch)
+
+    resp = _auth_check(
+        uri, token=token, extra_headers=_project_cookie(COOKIE_PROJECT["id"])
+    )
+
+    assert resp.status_code == expected_status
+    # Exactly one AII resolution, of the URL-prefix id -- never the cookie's.
+    assert seen == [identifier]
+    if expected_project is None:
+        assert "project" not in opa_recorder.get("input", {})
+        assert "Project" not in resp.headers
+    else:
+        assert opa_recorder["input"]["project"] == expected_project
+        assert json.loads(resp.headers["Project"]) == expected_project
+
+
+def test_client_supplied_x_forwarded_prefix_is_ignored(monkeypatch, opa_recorder):
+    # auth-check runs as an entrypoint middleware, so traefik never sets
+    # x-forwarded-prefix -- only a client can. Honouring it would let a caller
+    # substitute "/" (allowed unconditionally by the policy) for the real path.
+    resp = _auth_check(
+        "/kaapana-backend/client/datasets", extra_headers={"x-forwarded-prefix": "/"}
+    )
+
+    assert resp.status_code == 200
+    assert (
+        opa_recorder["input"]["requested_prefix"] == "/kaapana-backend/client/datasets"
+    )
 
 
 # --- fetch_project shape validation (the finding-1 fix), tested directly ---

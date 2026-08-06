@@ -34,3 +34,39 @@ spec:
             port:
               name: ohif-port
 ---
+# The bare shape /project/<id>/ohif (no trailing slash) has no matching nginx
+# location after the prefix strip, so OHIF would 301 to /ohif/ -- dropping the
+# project scope and downgrading to http:// (blocked as mixed content behind TLS).
+# Redirect it in-scope to /project/<id>/ohif/ before stripping the prefix.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: ohif-project-trailing-slash
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  redirectRegex:
+    regex: "^.*/project/([^/]+)/ohif$"
+    replacement: "/project/${1}/ohif/"
+    permanent: true
+---
+# Project-scoped route (/project/<id>/ohif/...): auth-backend authorizes
+# against the <id>, the middleware strips the prefix, and the app derives its
+# router basename and DICOMweb roots from the document URL (kaapana.js).
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ohif-project-ingressroute
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: PathRegexp(`^/project/[^/]+/ohif(/|$)`)
+      middlewares:
+        - name: ohif-project-trailing-slash
+        - name: strip-project-prefix
+      services:
+        - name: ohif-service
+          port: 80
+---

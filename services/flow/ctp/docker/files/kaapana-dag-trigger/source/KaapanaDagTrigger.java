@@ -661,7 +661,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                     // drain the response
                 }
                 br.close();
-                return true;
+                return httpResult;
             } else {
                 logger.warn("Response message: ");
                 logger.warn(con.getResponseMessage());

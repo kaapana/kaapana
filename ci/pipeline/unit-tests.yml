@@ -131,6 +131,37 @@ kaapana_backend_tests:
         - kaapana_backend_report.xml
 
 ##############################################
+# Auth Backend Tests
+##############################################
+auth_backend_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/kaapana-admin/auth-backend/docker/files/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/kaapana-admin/auth-backend/docker/files/tests/ --junitxml=auth_backend_report.xml
+  artifacts:
+    reports:
+      junit:
+        - auth_backend_report.xml
+
+##############################################
+# OPA Policy Tests
+##############################################
+# The rego files carry no Helm templating, so opa loads the chart's files/ dir
+# as a bundle directly. Version and --v0-compatible must track the opa the
+# platform runs (services/kaapana-admin/open-policy-agent/docker/Dockerfile and
+# auth-backend's opa-build step): the policies are written in v0 syntax, which
+# opa 1.x rejects by default. opa emits no JUnit, hence no report artifact.
+# curl -f: without it a 404 or a proxy error page is saved as the "binary" and
+# only surfaces as an "exec format error" two lines down.
+opa_policy_tests:
+  extends: .test_template
+  script:
+    - curl -fL -o /usr/local/bin/opa https://openpolicyagent.org/downloads/v1.18.2/opa_linux_amd64_static
+    - chmod +x /usr/local/bin/opa
+    - cd $KAAPANA_DIR/services/kaapana-admin/auth-backend/auth-backend-chart
+    - opa test --v0-compatible -b files
+
+##############################################
 # Access Information Interface Tests
 ##############################################
 access_information_interface_tests:

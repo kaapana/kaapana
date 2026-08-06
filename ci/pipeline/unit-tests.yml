@@ -222,6 +222,9 @@ ui_e2e_tests:
           - data-upload-ui
           - data-gallery-ui
           - results-ui
+          - federated-ui
+          - workflow-execution-ui
+          - workflow-list-ui
   script:
     - APP_DIR="services/base/$APP/docker/files"
     # Apps consuming @kaapana/base-ui (an npm file: link) import its built

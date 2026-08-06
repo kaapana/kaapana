@@ -103,6 +103,19 @@ workflow_api_tests:
         - workflow_api_report.xml
 
 ##############################################
+# Portal API Tests
+##############################################
+portal_api_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/base/portal-api/docker/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/base/portal-api/docker/tests/ --junitxml=portal_api_report.xml
+  artifacts:
+    reports:
+      junit:
+        - portal_api_report.xml
+
+##############################################
 # Extension API Tests
 ##############################################
 extensions_api_tests:

@@ -238,6 +238,32 @@ def test_shell_document_route_is_not_membership_gated(
 
 
 @pytest.mark.parametrize(
+    "uri",
+    [
+        "/project/11111111/datasets",  # shared deep link into a foreign project
+        "/project/11111111/datasets/abc",  # nested route
+        "/project/11111111/datasets?search=x",  # deep path plus query string
+    ],
+)
+def test_foreign_deep_link_is_denied_for_non_member(monkeypatch, opa_recorder, uri):
+    # Counterpart to the bare-shell exemption above: anything *under* the
+    # prefix is a scoped request, so a non-member following a shared deep link
+    # gets a hard 403 rather than being silently re-scoped. The bare shapes are
+    # the only exemption -- a deep path never normalizes to "/".
+    async def fake_fetch(identifier):
+        return PROJECT
+
+    monkeypatch.setattr(main, "fetch_project", fake_fetch)
+
+    resp = _auth_check(uri, token=NON_MEMBER_TOKEN)
+
+    assert resp.status_code == 403
+    assert "Project" not in resp.headers
+    # Denied before OPA -> the policy was never consulted.
+    assert "input" not in opa_recorder
+
+
+@pytest.mark.parametrize(
     "claim",
     [
         {},  # projects key absent

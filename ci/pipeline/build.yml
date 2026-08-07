@@ -5,9 +5,6 @@
 ##############################################
 # BUILD
 ##############################################
-# Shared by build_packages and security_scan (ci/pipeline/security.yml): both
-# run kaapana-build, whose version tag comes from git describe — full clone
-# + tags keep it deterministic.
 .build_cli_env:
   tags:
     - build-runner

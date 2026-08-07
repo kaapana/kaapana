@@ -64,7 +64,6 @@ if_ci_failing:
     - { job: check_readthedocs, optional: true, artifacts: false }
     - { job: build_packages, optional: true, artifacts: true }
     - { job: security_scan, optional: true, artifacts: false }
-    - { job: security, optional: true, artifacts: false }
     - { job: prepare_deployment, optional: true, artifacts: false }
     - { job: server_installation, optional: true, artifacts: true }
     - { job: platform_deployment, optional: true, artifacts: true }

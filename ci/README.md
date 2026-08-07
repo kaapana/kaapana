@@ -16,7 +16,7 @@ VM → test that live deployment → delete the VM.
 | Stage | Jobs | Runs on | Duration |
 |---|---|---|---|
 | `tests` | 8 unit-test suites, docs build | tests runner | minutes |
-| `build` | `build_packages` + `security_scan`/`security` (nightly) | build runner | hours (warm cache: much less) |
+| `build` | `build_packages` + `security_scan` (nightly) | build runner | hours (warm cache: much less) |
 | `deploy` | `prepare_deployment` → `server_installation` → `platform_deployment` | deploy runner (Ansible over SSH) | ~1 h |
 | `test` | integration tests: login, ports, UI (Playwright), extensions, DICOM data, workflows | deploy runner, against the live VM | 1–3 h |
 | `clean` | `destroy_deployment`, `if_ci_failing` | deploy runner | minutes |
@@ -47,9 +47,9 @@ Three facts explain most of the design:
 **The nightly schedule** is a GitLab CI/CD → Schedules entry (external config,
 not in this repo) targeting `develop` with `CI_EXEC_SECURITY_SCAN=true` set as
 a schedule variable — every other toggle stays at its pipeline default. That
-schedule variable is the only thing that turns on `security_scan`/`security`
-on the nightly run; `check_readthedocs` instead gates on `CI_PIPELINE_SOURCE
-== "schedule"` directly (see `ci/pipeline/unit-tests.yml`).
+schedule variable is the only thing that turns on `security_scan` on the
+nightly run; `check_readthedocs` instead gates on `CI_PIPELINE_SOURCE ==
+"schedule"` directly (see `ci/pipeline/unit-tests.yml`).
 
 Stage toggles (set per run via **CI/CD → Pipelines → Run pipeline**, or
 scripted with `python3 ci/utils/trigger_pipeline.py`):
@@ -100,20 +100,27 @@ ssh -i <kaapana-key> ubuntu@<vm-fqdn>
 
 The platform UI is at `https://<vm-fqdn>`.
 
-**Security scan on demand** — `CI_EXEC_SECURITY_SCAN=true`. Jobs live in
-[`ci/pipeline/security.yml`](pipeline/security.yml) and don't require a build
-in the same pipeline: with `CI_EXEC_BUILD=false` they scan whatever tag
+**Security scan on demand** — `CI_EXEC_SECURITY_SCAN=true`. One job,
+`security_scan` ([`ci/pipeline/security.yml`](pipeline/security.yml)): it
+scans, then always formats the report — regardless of scan outcome — then
+re-raises the scan's own exit code last, so the job still fails on a bad
+scan but never skips reporting. It doesn't require a build in the same
+pipeline either: with `CI_EXEC_BUILD=false` it scans whatever tag
 `git describe` resolves on the current checkout, as long as an earlier
 pipeline already pushed it (same idea as "Deploy without rebuilding" above).
-If that tag isn't in the registry, `security_scan` fails — but only after
-scanning everything that *is* there: reports for the containers that were
-found are still generated and uploaded (`artifacts: when: always`), so one
-missing image doesn't erase results for the rest. Reports:
-`security_scan` artifacts — vulnerability + misconfiguration JSON per image,
-plus SBOMs and license data (`security-reports/sboms/*.json`, CycloneDX, from
-`kaapana-build --create-sboms`) — kept indefinitely (`expire_in: never`) so
-past scans stay available for planning; the `security` job's
-`vulnerability_report.html`; and GitLab's Security tab.
+
+If a tag isn't in the registry, the job fails — but only after scanning
+everything that *is* there: `TrivyHelper` (`build_cli`) collects per-image
+scan failures instead of aborting on the first one, still writes the
+consolidated report from whatever succeeded, and only then fails the
+`kaapana-build` call. The job script captures that exit code, runs the report
+generation unconditionally against the partial data, and only re-raises the
+failure as its own exit code at the very end — so one missing image costs
+you a red job, not a missing report. Artifacts (all `expire_in: never`, kept
+indefinitely for planning): vulnerability + misconfiguration JSON per image;
+SBOMs and license data (`security-reports/sboms/*.json`, CycloneDX, from
+`kaapana-build --create-sboms`); `vulnerability_report.html`; and GitLab's
+Security tab (`gl-container-scanning-report.json`).
 
 The Trivy vulnerability DB is cached across runs on the build runner
 (`cache: key: trivy-db` in `security_scan`) — without it, every job's fresh

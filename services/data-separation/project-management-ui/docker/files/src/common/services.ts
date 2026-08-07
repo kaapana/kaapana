@@ -8,29 +8,29 @@ const AccessInformationInterfaceClient = axios.create({ baseURL: ACCESS_INFORMAT
 const kubeHelmClient = axios.create({ baseURL: KUBE_HELM });
 const kaapanaBackendClient = axios.create({ baseURL: KAAPANA_BACKEND });
 
+// Project-scoped calls use the platform-wide /project/<short_id>/ prefix,
+// applied via baseURL here. The scope is the project MANAGED on the detail
+// page (not the shell's selection): set by setScopedProject(), cleared on
+// leave; the overview stays unscoped.
+let scopedProjectSlug: string | null = null;
+
+function setScopedProject(project: { short_id?: string; id?: string } | null): void {
+    scopedProjectSlug = project?.short_id ?? project?.id ?? null;
+}
+
+function prefixProjectScope(config: AxiosRequestConfig): any {
+    const slug = scopedProjectSlug;
+    if (slug && config.baseURL && config.baseURL.startsWith('/') && !config.baseURL.startsWith('/project/')) {
+        config.baseURL = `/project/${slug}${config.baseURL}`;
+    }
+    return config;
+}
+kubeHelmClient.interceptors.request.use(prefixProjectScope);
+kaapanaBackendClient.interceptors.request.use(prefixProjectScope);
 
 const token = "";
 
-function get_project_header() {
-    if (typeof document === "undefined") {
-        return null;
-    }
-    const projectCookie = document.cookie
-        .split("; ")
-        .find((cookie) => cookie.startsWith("Project="));
-    if (!projectCookie) {
-        return null;
-    }
-    return decodeURIComponent(projectCookie.slice("Project=".length));
-}
-
 function header_with_auth_token(header_dict: any) {
-    // Forward the selected project explicitly so kube-helm can inject
-    // project-scoped Helm values even when the auth proxy does not add it.
-    const project = get_project_header();
-    if (project) {
-        header_dict["Project"] = project;
-    }
     if (token) {
         header_dict['Authorization'] = `Bearer ${token}`;
     }
@@ -200,4 +200,5 @@ export {
     kubeHelmGet,
     kubeHelmPost,
     kaapanaBackendGetDags,
+    setScopedProject,
 };

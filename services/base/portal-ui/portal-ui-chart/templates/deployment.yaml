@@ -1,0 +1,60 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: portal-ui
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    app.kubernetes.io/name: portal-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: portal-ui
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: portal-ui
+    spec:
+{{- include "kaapana.nodeSelector" . | indent 6 }}
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+      - name: portal-ui
+        image: "{{ .Values.global.registry_url }}/portal-ui:{{ .Values.global.kaapana_build_version }}"
+        imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
+        ports:
+        - name: portal-ui-http
+          containerPort: 5000
+        livenessProbe:
+          httpGet:
+            path: /
+            port: portal-ui-http
+          initialDelaySeconds: 10
+          periodSeconds: 20
+        resources:
+          requests:
+            memory: 10Mi
+          limits:
+            memory: 100Mi
+        volumeMounts:
+          - name: common-data-file
+            mountPath: /kaapana/app/jsons
+          - name: tmp
+            mountPath: /tmp
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+      volumes:
+      - name: common-data-file
+        configMap:
+          name: portal-ui-config
+      - name: tmp
+        emptyDir: {}
+      priorityClassName: kaapana-high-priority
+      imagePullSecrets:
+      - name: registry-secret

@@ -1,4 +1,4 @@
-# Stage: build (security) — trivy scans of the tag this commit resolves to
+# Stage: build (security) — trivy scan + report of the tag this commit resolves to
 # In:  registry state — either just pushed by build_packages in this same
 #      pipeline, or pushed by an earlier one (CI_EXEC_BUILD=false: standalone
 #      rescan of an already-built tag); REGISTRY_* credentials via
@@ -37,33 +37,14 @@ security_scan:
     paths:
       - "$CI_PROJECT_DIR/security-reports/.trivy_cache/"
   script:
-    # kaapana-build logs in client-side; trivy reads the docker config
+    - pip install jsonschema
+    # kaapana-build logs in client-side; trivy reads the docker config.
     - |
       set +x
+      set +e
       export REGISTRY_PW="$REGISTRY_TOKEN"
-    - kaapana-build --scan-only $CI_EXEC_SECURITY_SCAN_ARGUMENTS --default-registry "$REGISTRY_URL"
-  artifacts:
-    name: "security_$CI_COMMIT_SHORT_SHA"
-    when: always
-    expire_in: never
-    paths:
-      - "$CI_PROJECT_DIR/security-reports/"
-    exclude:
-      # Trivy DB cache lives inside the reports dir — not a report
-      - "$CI_PROJECT_DIR/security-reports/.trivy_cache/**/*"
-      - "$CI_PROJECT_DIR/security-reports/.trivy_worker_*/**/*"
-
-security:
-  stage: build
-  needs:
-    - job: security_scan
-      artifacts: true
-  tags:
-    - build-runner
-  image: $CI_BASE_IMAGE
-  before_script:
-    - pip install jsonschema
-  script:
+      kaapana-build --scan-only $CI_EXEC_SECURITY_SCAN_ARGUMENTS --default-registry "$REGISTRY_URL"
+      export SCAN_EXIT_CODE=$?
     - CONSOLIDATED="$CI_PROJECT_DIR/security-reports/consolidated_vulnerability_report.json"
     - python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
         "$CONSOLIDATED"
@@ -74,12 +55,17 @@ security:
         "$CI_PROJECT_DIR/vulnerability_report.html"
         --output html
     - echo "Access the report at https://kaapana.pages.hzdr.de/-/kaapana/-/jobs/${CI_JOB_ID}/artifacts/vulnerability_report.html"
+    - exit $SCAN_EXIT_CODE
   artifacts:
+    name: "security_$CI_COMMIT_SHORT_SHA"
+    when: always
+    expire_in: never
     paths:
+      - "$CI_PROJECT_DIR/security-reports/"
       - "$CI_PROJECT_DIR/vulnerability_report.html"
     reports:
       container_scanning: "$CI_PROJECT_DIR/gl-container-scanning-report.json"
-  rules:
-    - if: '$CI_EXEC_SECURITY_SCAN == "true"'
-      when: on_success
-    - when: never
+    exclude:
+      # Trivy DB cache lives inside the reports dir — not a report
+      - "$CI_PROJECT_DIR/security-reports/.trivy_cache/**/*"
+      - "$CI_PROJECT_DIR/security-reports/.trivy_worker_*/**/*"

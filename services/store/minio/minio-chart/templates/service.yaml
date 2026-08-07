@@ -49,6 +49,13 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.services_namespace }}-rewrite-minio-console@kubernetescrd,{{ .Values.global.services_namespace }}-minio-console-x-frame-options@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+    kaapana.ai/ui.name: "Minio"
+    # trailing slash is mandatory: rewrite-minio-console only matches
+    # ^/minio-console/(.*), so the slashless rule path reaches the console
+    # unstripped and renders a blank page
+    kaapana.ai/ui.path: "/minio-console/"
+    kaapana.ai/ui.section: "store"
+    kaapana.ai/ui.order: "30"
 spec:
   rules:
   - host:

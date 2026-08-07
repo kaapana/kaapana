@@ -41,6 +41,10 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+    kaapana.ai/ui.name: "PACS"
+    kaapana.ai/ui.section: "system"
+    kaapana.ai/ui.order: "60"
+    kaapana.ai/ui.path: "/dcm4chee-arc/ui2/"
 spec:
   rules:
   - host:

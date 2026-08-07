@@ -21,9 +21,21 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+    kaapana.ai/ui.name: "OHIF"
+    # trailing slash avoids OHIF's own /ohif -> /ohif/ redirect, which downgrades
+    # to http:// behind the TLS-terminating gateway and gets blocked as mixed content
+    kaapana.ai/ui.path: "/ohif/"
+    kaapana.ai/ui.section: "store"
+    kaapana.ai/ui.section-label: "Store"
+    kaapana.ai/ui.section-icon: "mdi-store"
+    kaapana.ai/ui.section-order: "20"
+    kaapana.ai/ui.order: "10"
+    # The viewer URL decides the DICOMweb scope (see kaapana.js), so the shell
+    # serves it under /project/<short_id>/ohif/ and reloads it on a switch.
+    kaapana.ai/ui.project: "path"
 spec:
   rules:
-  - host: 
+  - host:
     http:
       paths:
       - path: /ohif

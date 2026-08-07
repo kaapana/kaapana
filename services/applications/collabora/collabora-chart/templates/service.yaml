@@ -97,6 +97,10 @@ metadata:
     traefik.ingress.kubernetes.io/preserve-host: "true"
     traefik.ingress.kubernetes.io/router.middlewares: {{ tpl .Values.global.namespace . }}-strip-prefix-{{ .Release.Name }}-wopi@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+    kaapana.ai/ui.name: "Documents"
+    kaapana.ai/ui.section: "store"
+    kaapana.ai/ui.order: "40"
+    kaapana.ai/ui.path: "{{ .Values.global.collabora_prefix }}-wopi/"
 spec:
   rules:
   - host: 

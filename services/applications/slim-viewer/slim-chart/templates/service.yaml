@@ -25,6 +25,15 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
     traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.services_namespace }}-slim-upgrade-insecure-requests@kubernetescrd
+    kaapana.ai/ui.name: "SLIM"
+    # trailing slash so the shell composes the iframe src explicitly rather than
+    # relying on nginx try_files to resolve the slashless /slim
+    kaapana.ai/ui.path: "/slim/"
+    kaapana.ai/ui.section: "store"
+    kaapana.ai/ui.order: "20"
+    # The viewer URL decides the DICOMweb scope (see local.js), so the shell
+    # serves it under /project/<short_id>/slim and reloads it on a switch.
+    kaapana.ai/ui.project: "path"
 spec:
   rules:
   - host:

@@ -45,6 +45,10 @@ metadata:
     ingress.kubernetes.io/auth-remove-header: 'true'
     ingress.kubernetes.io/custom-request-headers: "Authorization:||cookie:"
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+    kaapana.ai/ui.name: "Kubernetes"
+    kaapana.ai/ui.section: "system"
+    kaapana.ai/ui.order: "20"
+    kaapana.ai/ui.path: "/kubernetes/#/pod?namespace={{ .Values.global.services_namespace }}"
 spec:
   rules:
   - host:

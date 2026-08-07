@@ -73,6 +73,7 @@ if_ci_failing:
     - { job: kaapana_backend_tests, optional: true, artifacts: false }
     - { job: auth_backend_tests, optional: true, artifacts: false }
     - { job: opa_policy_tests, optional: true, artifacts: false }
+    - { job: kube_helm_tests, optional: true, artifacts: false }
     - { job: access_information_interface_tests, optional: true, artifacts: false }
     - { job: keycloak_setup_tests, optional: true, artifacts: false }
     - { job: ui_e2e_tests, optional: true, artifacts: false }

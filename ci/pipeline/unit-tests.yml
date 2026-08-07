@@ -195,6 +195,21 @@ opa_policy_tests:
     - opa test --v0-compatible -b files
 
 ##############################################
+# Kube-Helm Tests
+##############################################
+# test_ttl_cache.py by name: its siblings are integration tests needing a live
+# kube-helm + cluster and fail at collection here.
+kube_helm_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/kaapana-admin/kube-helm/docker/files/backend/app/tests/test_ttl_cache.py --junitxml=kube_helm_report.xml
+  artifacts:
+    reports:
+      junit:
+        - kube_helm_report.xml
+
+##############################################
 # Access Information Interface Tests
 ##############################################
 access_information_interface_tests:
@@ -239,8 +254,11 @@ ui_e2e_tests:
   parallel:
     matrix:
       - APP:
+          - app-ui
           - data-upload-ui
+          - extensions-ui
           - data-gallery-ui
+          - home-ui
           - results-ui
           - federated-ui
           - workflow-execution-ui

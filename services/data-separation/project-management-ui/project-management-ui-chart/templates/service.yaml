@@ -44,6 +44,10 @@ metadata:
     traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-strip-prefix-proj-management-ui@kubernetescrd
 {{- end }}
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+    kaapana.ai/ui.name: "Projects"
+    kaapana.ai/ui.section: "system"
+    kaapana.ai/ui.order: "90"
+    kaapana.ai/ui.dev-links: "AII=/aii/docs,Kube-Helm API=/kube-helm-api/docs,Kaapana Backend=/kaapana-backend/docs"
 spec:
   rules:
   - host: 

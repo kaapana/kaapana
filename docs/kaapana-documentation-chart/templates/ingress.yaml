@@ -9,6 +9,10 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+    kaapana.ai/ui.name: "Documentation"
+    kaapana.ai/ui.section: "system"
+    kaapana.ai/ui.order: "100"
+    kaapana.ai/ui.id: "Documentation"
 spec:
   rules:
   - host: 

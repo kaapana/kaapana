@@ -20,6 +20,13 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+    kaapana.ai/ui.name: "Airflow"
+    kaapana.ai/ui.section: "system"
+    kaapana.ai/ui.section-label: "System"
+    kaapana.ai/ui.section-icon: "mdi-view-dashboard-variant"
+    kaapana.ai/ui.section-order: "30"
+    kaapana.ai/ui.order: "10"
+    kaapana.ai/ui.path: "/flow/home"
 spec:
   rules:
   - host: 

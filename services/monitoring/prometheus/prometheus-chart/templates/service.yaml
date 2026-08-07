@@ -20,6 +20,9 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+    kaapana.ai/ui.name: "Prometheus"
+    kaapana.ai/ui.section: "system"
+    kaapana.ai/ui.order: "70"
 spec:
   rules:
   - host:

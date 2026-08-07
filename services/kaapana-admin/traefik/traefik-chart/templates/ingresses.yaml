@@ -36,6 +36,10 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.helm_namespace  }}-traefik-redirect@kubernetescrd,{{  .Values.global.helm_namespace  }}-traefik-strip-prefix@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+    kaapana.ai/ui.name: "Traefik"
+    kaapana.ai/ui.section: "system"
+    kaapana.ai/ui.order: "40"
+    kaapana.ai/ui.path: "/traefik/dashboard/"
 spec:
   rules:
   - host: 

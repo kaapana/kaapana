@@ -5,7 +5,7 @@ import httpx
 from app import crud
 from app.config import DICOMWEB_BASE_URL
 from app.database import get_session
-from app.utils import get_user_project_ids
+from app.utils import get_scoped_project_ids, is_unscoped_admin
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,11 +27,11 @@ async def retrieve_instance_thumbnail(
     instance: str,
     request: Request,
     session: AsyncSession = Depends(get_session),
-    project_ids_of_user=Depends(get_user_project_ids),
+    project_ids_of_user=Depends(get_scoped_project_ids),
 ):
-    if request.scope.get(
-        "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
+    if is_unscoped_admin(
+        request
+    ) or await crud.check_if_series_in_given_study_is_mapped_to_projects(
         session=session,
         project_ids=project_ids_of_user,
         study_instance_uid=study,
@@ -66,11 +66,11 @@ async def retrieve_series_thumbnail(
     series: str,
     request: Request,
     session: AsyncSession = Depends(get_session),
-    project_ids_of_user=Depends(get_user_project_ids),
+    project_ids_of_user=Depends(get_scoped_project_ids),
 ):
-    if request.scope.get(
-        "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
+    if is_unscoped_admin(
+        request
+    ) or await crud.check_if_series_in_given_study_is_mapped_to_projects(
         session=session,
         project_ids=project_ids_of_user,
         study_instance_uid=study,

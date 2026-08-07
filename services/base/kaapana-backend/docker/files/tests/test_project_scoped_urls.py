@@ -1,11 +1,11 @@
 """
-Regression tests for resolving the static website bucket from the Project header.
+Regression tests for project-scoped resource URLs (thumbnails, result reports).
 
-The Project header is optional on /get-static-website-results-html, so bucket
-resolution must survive its absence: the previous inline code annotated
-`bucket_name: str` but assigned the one-element TUPLE
-`(DEFAULT_STATIC_WEBSITE_BUCKET,)`, and unconditionally called
-`json.loads(request.headers.get("project"))`, which raises on a missing header.
+<img src> and iframe/document requests bypass the views' request interceptor,
+so every URL the backend hands to a frontend must already carry the
+/project/<short_id>/ prefix — otherwise the request arrives without a Project
+header and the serving route fails. Guards the data-gallery-ui thumbnail 500 and
+the results-browser report equivalent.
 No live services: fastapi/minio/opensearch are stubbed like in
 test_admin_routers.py.
 """
@@ -21,6 +21,8 @@ sys.path.insert(0, str(FILES_DIR))
 for mod in (
     "app.config",
     "app.dependencies",
+    "app.datasets.utils",
+    "app.middlewares",
     "app.workflows.utils",
     "fastapi",
     "fastapi.responses",
@@ -29,12 +31,38 @@ for mod in (
     "minio.error",
     "starlette",
     "starlette.responses",
+    "starlette.types",
+    "starlette.datastructures",
     "opensearchpy",
     "requests",
 ):
     sys.modules.setdefault(mod, MagicMock())
 
 import app.admin.routers as admin_routers  # noqa: E402
+import app.datasets.routers as datasets_routers  # noqa: E402
+
+PROJECT = {"short_id": "abc12345", "s3_bucket": "project-abc12345"}
+
+
+def test_thumbnail_url_is_project_scoped():
+    url = datasets_routers._build_thumbnail_url(PROJECT, "1.2.3")
+    assert url == "/project/abc12345/kaapana-backend/dataset/series/1.2.3/thumbnail"
+
+
+def test_results_file_url_is_project_scoped():
+    url = admin_routers._build_results_file_url(PROJECT, "batch/1.2.3/report.html")
+    assert url == (
+        "/project/abc12345/kaapana-backend/get-static-website-results-html"
+        "?object_name=batch/1.2.3/report.html"
+    )
+
+
+def test_results_file_url_encodes_special_characters():
+    url = admin_routers._build_results_file_url(PROJECT, "batch/a b&c/report.html")
+    assert url == (
+        "/project/abc12345/kaapana-backend/get-static-website-results-html"
+        "?object_name=batch/a%20b%26c/report.html"
+    )
 
 
 def test_static_website_bucket_without_project_header_is_default():

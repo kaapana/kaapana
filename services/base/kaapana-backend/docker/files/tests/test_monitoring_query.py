@@ -1,5 +1,5 @@
 """
-Regression test for the /monitoring/query passthrough.
+Regression test for the /monitoring/query and /monitoring/query-range passthroughs.
 
 The SanitizeQueryParams middleware HTML-escapes every query parameter, so a
 client asking for `a{b="c"}` reaches the handler as `a{b=&quot;c&quot;}` --
@@ -11,6 +11,13 @@ Dropping the unescape is silently broken, not loudly.
 Same run asserts the second half of the fix: an empty Prometheus result must
 raise 404 (develop's `raise HTTPException(...)` had no import at all, so that
 path was a guaranteed 500, and a 204 must not carry a body).
+
+/query-range is the sparkline backfill home-ui calls once per utilization
+metric. It shares both properties -- the same unescape and the same 404 -- and
+additionally forwards the window: `minutes` and `step` must reach
+`MonitoringService.query_range` positionally in that order, or the chart
+silently renders the wrong span. Its consumer swallows failures (returns null,
+sparklines start empty), so nothing else would surface a regression here.
 
 No live services: fastapi/app.dependencies are stubbed like in
 test_admin_routers.py. The stubbed router's `get()` is made an identity
@@ -57,4 +64,23 @@ def test_custom_query_passes_unescaped_promql_and_404s_on_empty_result():
     client.query.return_value = None
     with pytest.raises(HTTPExceptionStub) as excinfo:
         routers.custom_query("up", client=client)
+    assert excinfo.value.status_code == 404
+
+
+def test_custom_query_range_forwards_the_window_and_404s_on_empty_result():
+    client = MagicMock()
+    client.query_range.return_value = [{"metric": "custom-query-range", "value": 1.0}]
+
+    routers.custom_query_range("a{b=&quot;c&quot;}", minutes=30, step=15, client=client)
+
+    client.query_range.assert_called_once_with("custom-query-range", 'a{b="c"}', 30, 15)
+
+    # Defaults are the hour-at-minute-resolution window home-ui's charts assume.
+    client.query_range.reset_mock()
+    routers.custom_query_range("up", client=client)
+    client.query_range.assert_called_once_with("custom-query-range", "up", 60, 60)
+
+    client.query_range.return_value = []
+    with pytest.raises(HTTPExceptionStub) as excinfo:
+        routers.custom_query_range("up", client=client)
     assert excinfo.value.status_code == 404

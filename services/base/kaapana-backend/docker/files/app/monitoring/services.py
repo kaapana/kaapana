@@ -1,6 +1,6 @@
 from typing import List
 from .schemas import Measurement
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.config import settings
 from prometheus_api_client import PrometheusConnect
 from prometheus_client import CollectorRegistry, Info, Gauge, generate_latest
@@ -26,6 +26,25 @@ class MonitoringService:
             value=float(result[0]["value"][1]),
             timestamp=datetime.fromtimestamp(result[0]["value"][0]),
         )
+
+    def query_range(
+        self, name: str, q: str, minutes: int, step: int
+    ) -> List[Measurement]:
+        end = datetime.now()
+        start = end - timedelta(minutes=minutes)
+        result = self.con.custom_query_range(
+            query=q, start_time=start, end_time=end, step=step
+        )
+        if not result:
+            return []
+        return [
+            Measurement(
+                metric=name,
+                value=float(value[1]),
+                timestamp=datetime.fromtimestamp(value[0]),
+            )
+            for value in result[0]["values"]
+        ]
 
     def all_metrics(self) -> List[str]:
         return self.con.all_metrics()

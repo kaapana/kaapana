@@ -67,3 +67,17 @@ def custom_query(q: str, client=Depends(get_monitoring_service)):
         raise HTTPException(status_code=404, detail="No data for query")
     else:
         return result
+
+
+@router.get("/query-range/{query}", response_model=List[Measurement])
+def custom_query_range(
+    q: str,
+    minutes: int = 60,
+    step: int = 60,
+    client=Depends(get_monitoring_service),
+):
+    """Custom range query: PromQL evaluated over the last `minutes` at `step` seconds resolution."""
+    result = client.query_range("custom-query-range", html.unescape(q), minutes, step)
+    if not result:
+        raise HTTPException(status_code=404, detail="No data for query")
+    return result

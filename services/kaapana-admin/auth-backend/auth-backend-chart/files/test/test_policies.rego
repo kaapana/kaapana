@@ -127,6 +127,27 @@ test_deny_adding_user {
 test_deny_managing_software {
     not allow with input as {
         "requested_prefix": "/aii/projects/123-234-123-345/software-mappings",
-        "access_token": {"kaapana.ai/aii" : ["manage_users_123-234-123-345"] } 
+        "access_token": {"kaapana.ai/aii" : ["manage_users_123-234-123-345"] }
     }
+}
+
+# The user-role /extensions shell rule must cover the shell page loads but must
+# NOT prefix-match the extension-manager API mounted at /extensions-api/...
+test_allow_user_extensions_shell {
+    allow with input as {"access_token": {"realm_access" : {"roles": ["user"] } }, "requested_prefix": "/extensions", "method": "GET"}
+    allow with input as {"access_token": {"realm_access" : {"roles": ["user"] } }, "requested_prefix": "/extensions/repositories", "method": "GET"}
+    allow with input as {"access_token": {"realm_access" : {"roles": ["user"] } }, "requested_prefix": "/extensions?tab=repos", "method": "GET"}
+}
+
+test_deny_user_extensions_api {
+    not allow with input as {"access_token": {"realm_access" : {"roles": ["user"] } }, "requested_prefix": "/extensions-api/repositories", "method": "GET"}
+    not allow with input as {"access_token": {"realm_access" : {"roles": ["user"] } }, "requested_prefix": "/extensions-api/extensions", "method": "GET"}
+}
+
+# split_project_prefix normalizes /project/<id>?<query> to "/?<query>"; the
+# bare-root rule must accept that, or every shell deep link is a 403.
+test_allow_shell_root_with_query {
+    allow with input as {"access_token": {"realm_access" : {"roles": ["user"] } }, "requested_prefix": "/", "method": "GET"}
+    allow with input as {"access_token": {"realm_access" : {"roles": ["user"] } }, "requested_prefix": "/?view=datasets", "method": "GET"}
+    allow with input as {"access_token": {"realm_access" : {"roles": ["project-manager"] } }, "requested_prefix": "/?view=datasets", "method": "GET"}
 }

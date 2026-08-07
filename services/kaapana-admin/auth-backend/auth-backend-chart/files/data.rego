@@ -8,6 +8,9 @@ whitelisted_endpoints := [
     {"path": "^/kaapana-backend/oidc-logout", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/docs/", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/web/system/Documentation", "methods": ["GET","POST","PUT","DELETE"]},
+    # landing-page v2 shell routes (docs are whitelisted, so their shell wrappers are too)
+    {"path": "^/system/Documentation", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/help", "methods": ["GET"]},
 ]
 
 allowed_user_endpoints := [
@@ -48,7 +51,7 @@ allowed_user_endpoints := [
     {"path": "^/collabora/.*", "methods": ["GET","PUT" ,"POST", "HEAD", "PATCH","DELETE"]},
     {"path": "^/notifications/.*", "methods": ["GET", "POST", "PUT"]},
     {"path": "^/portal-api/.*", "methods": ["GET"]},
-    # landing-page v2 view containers (all nine views)
+    # landing-page v2: shell + extracted view containers and the shell URLs users navigate to
     {"path": "^/home-ui", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/data-gallery-ui", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/data-upload-ui", "methods": ["GET","POST","PUT","DELETE"]},
@@ -58,6 +61,18 @@ allowed_user_endpoints := [
     {"path": "^/results-ui", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/app-ui", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/extensions-ui", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/web/workflows/.*", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/web/-/extensions", "methods": ["GET","POST","PUT","DELETE"]},
+    # prefix-less shell routes (/web/* kept above only for old bookmarks);
+    # /workflows/* and /meta/* are already covered by the monolith rules
+    {"path": "^/assets/.*", "methods": ["GET"]},
+    {"path": "^/home", "methods": ["GET"]},
+    # anchored tail so this does NOT prefix-match /extensions-api/... (the
+    # extension-manager API); still covers /extensions, /extensions/<rest> and
+    # /extensions?<query> shell page loads.
+    {"path": "^/extensions($|[/?])", "methods": ["GET"]},
+    {"path": "^/store/.*", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/system/projects.*", "methods": ["GET","POST","PUT","DELETE"]},
 ]
 
 allowed_project_manager_endpoints := [

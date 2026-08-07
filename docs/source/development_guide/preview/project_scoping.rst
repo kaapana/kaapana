@@ -15,9 +15,11 @@ URL**.
 
    /project/3f9ac81b/kaapana-backend/client/datasets
    /project/3f9ac81b/kube-helm-api/extensions
+   /project/3f9ac81b/datasets            <- portal-ui shell route
 
-``<id>`` may be the project's 8-character ``short_id`` (preferred), its UUID, or
-its name — AII's ``GET /projects/{identifier}`` resolves all three.
+``<id>`` may be the project's 8-character ``short_id`` (preferred, and what all
+UIs emit), its UUID, or its name — AII's ``GET /projects/{identifier}`` resolves
+all three.
 
 Because the scope is in the URL, it works for *every* kind of request — XHR,
 iframe document loads, DICOMweb media fetches, downloads, ``curl`` — and a URL
@@ -44,12 +46,12 @@ forward-auth middleware, which calls **auth-backend**:
    it safe — *not* a policy miss: role ``admin``'s catch-all ``^/.*`` matches an
    unstripped ``/project/<bogus>/…`` path.
 
-   Enrichment from the URL prefix additionally requires an access token.
-   Unauthenticated requests reach the gateway only on oauth2-proxy's
-   ``skip_auth_routes`` (``^/auth/.*``, ``^/kaapana-backend/remote/.*``,
-   ``^/oauth2/metrics$``), none of which read the ``Project`` header. The legacy
-   cookie branch (see the note below) is *not* token-gated, so on one of those
-   routes an anonymous request carrying a ``Project`` cookie does reach AII.
+   Enrichment additionally requires an access token, and the URL prefix is now
+   the only thing that triggers it (see the note below), so an unauthenticated
+   caller cannot reach AII through the gateway at all. Unauthenticated requests
+   get that far only on oauth2-proxy's ``skip_auth_routes`` (``^/auth/.*``,
+   ``^/kaapana-backend/remote/.*``, ``^/oauth2/metrics$``), none of which read
+   the ``Project`` header either.
 3. **Membership is enforced here.** Resolving a project proves it exists, not
    that the caller may use it. A non-admin may scope only to projects listed in
    their access token's ``projects`` claim; admins may scope anywhere. A missing,
@@ -91,17 +93,15 @@ canonical example).
 
 .. note::
 
-   **Legacy ``Project`` cookie.** Requests *without* a ``/project/<id>`` prefix
-   still take their scope from the ``Project`` browser cookie, which the current
-   landing page writes: auth-backend resolves it via AII and injects the same
-   enriched header. That path is deliberately **not** membership-gated — the
-   gate fails closed on a missing ``projects`` claim, which would deny traffic
-   that works today — so it remains possible to scope to a foreign project by
-   setting the cookie. Both the derivation and that residual gap go away when
-   the UI moves to the URL prefix. ``workflow-api`` and ``dicom-web-filter``
-   additionally read the cookie *themselves* rather than the header; until they
-   switch, their project-scoped routes carry the scope in the URL but do not yet
-   act on it.
+   **The legacy ``Project`` cookie is gone**, together with the Vue 2 landing
+   page that wrote it — nothing writes or reads it any more, and auth-backend no
+   longer derives a scope from it. The URL is now the only source, so a request
+   without a ``/project/<id>`` prefix simply carries no project context:
+   project-requiring endpoints answer **400**, and dicom-web-filter reads fall
+   back to all of the user's projects (its writes stay members-only). That also
+   closes the one gap the derivation left open — a non-member could scope to a
+   foreign project by setting the cookie on an *unprefixed* route, which the
+   membership gate above deliberately did not cover.
 
 
 Making a service project-scoped
@@ -147,7 +147,10 @@ In the service, read the project from the enriched header:
        return json.loads(project_header)
 
 Currently scoped services: ``kaapana-backend``, ``kube-helm-api``,
-``workflow-api``, ``dicom-web-filter``.
+``workflow-api`` and ``dicom-web-filter``, which read the header; the two
+``path``-scoped viewers ``ohif`` and ``slim`` (below); and every UI served
+under the prefix — the ``portal-ui`` shell and the nine ``*-ui`` view charts,
+which take their scope from their own document URL rather than from the header.
 
 OHIF and Slim are ``path``-scoped viewers: their document URL decides the scope.
 Served under ``/project/<id>/ohif/`` or ``/project/<id>/slim/`` their runtime
@@ -166,3 +169,61 @@ exactly as before.
    ``^.*/project/([^/]+)/ohif$`` — ``$``-anchored, so it repairs
    ``/project/<id>/ohif`` and *not* ``/project/<id>/ohif?mode=x``, which degrades
    exactly like Slim's slashless shape.
+
+
+The portal-ui shell and embedded views
+======================================
+
+**Shell URL.** The shell keeps the selected project as the first segment of
+its own route: ``/project/<short_id>/<section>/<entry>/...``. Deep links are
+therefore project-scoped and shareable. URLs without the prefix (old
+bookmarks, ``/``) are re-targeted onto the currently selected project by the
+router guard, which also rewrites a prefix naming a project the user cannot
+see — that client-side rewrite applies to the **shell document route only**,
+which the gateway lets through for any authenticated caller (see the warning
+above); a ``/project/<id>/<service>`` deep link into a foreign project is still
+a hard 403 and never reaches the shell. With no selected project at all the
+shell falls back to ``/``. The project selector simply swaps the URL prefix —
+the router syncs everything else. (If the current view reported unsaved changes
+it asks for confirmation first; see :ref:`view_dirty`.)
+
+**Views.** Embedded views are themselves served under the project prefix
+(``/project/<short_id>/<view>/`` — each view's chart declares an extra
+IngressRoute with the ``strip-project-prefix`` middleware). A view derives its
+scope from its own document URL and rewrites its API calls onto the
+convention with a small axios request interceptor
+(``@kaapana/base-ui``'s ``httpClient`` for the views, ``src/api/http.ts`` in
+the shell):
+
+.. code-block:: typescript
+
+   const PROJECT_SCOPED = /^\/(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)\//
+
+   function prefixProjectScope(config: InternalAxiosRequestConfig) {
+     if (config.url && PROJECT_SCOPED.test(config.url)) {
+       const base = getProjectBase()   // '/project/<short_id>' from window.location
+       if (base) config.url = `${base}${config.url}`
+     }
+     return config
+   }
+
+The pattern is ``^``-anchored, so a path that already carries a
+``/project/<slug>`` prefix is left alone: a view is free to query *any* project
+it may access by writing the prefix itself, and the per-request URL is the only
+scope. The same anchoring is why annotations such as ``kaapana.ai/ui.badge-path``
+must stay **unprefixed** — the interceptor is what scopes them at runtime, and a
+static Helm annotation could not carry a per-user slug anyway.
+
+**Reacting to a project switch.** The shell swaps the ``/project/<short_id>``
+prefix on the iframe URL, which reloads the view under the new scope. Because
+the document URL is the only carrier of the selection, every browser tab is
+independently scoped — there is no shared client-side project state. Whether a
+view participates is declared per menu entry via the ``kaapana.ai/ui.project``
+annotation (``path`` = served under the prefix, reloaded on switch, ``none`` =
+project-agnostic); see :ref:`landing_page_integration`.
+
+**Triggering a switch from inside a view.** A view must not set
+``window.top.location`` itself — it posts ``kaapana:project-switch`` and lets
+the shell swap the prefix, so the unsaved-changes confirm still runs and only
+the iframe reloads. Use ``switchProject(slug)`` from ``@kaapana/base-ui``; see
+:ref:`project_switch_message`.

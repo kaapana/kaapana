@@ -12,8 +12,11 @@ allow {
     regex.match(whitelisted_endpoints[j].path, input.requested_prefix)
 }
 
+# auth-backend normalizes the shell route /project/<id>?<query> to /?<query>,
+# so an exact "/" match would 403 every query-bearing deep link. No new
+# surface — "/" is already allowed unconditionally.
 allow {
-    input.requested_prefix == "/"
+    regex.match("^/(\\?.*)?$", input.requested_prefix)
 }
 
 ### Allow access to endpoints depending on the realm-role

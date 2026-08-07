@@ -221,13 +221,15 @@ def test_shell_document_route_is_not_membership_gated(
     # 403'd here. There is no soft fallback to the user's own project -- a
     # foreign *deep link* is still denied (see the test below).
     #
-    # Scope: this pins the GATE, not the platform. The OPA decision is mocked to
-    # allow, and the policy layer does NOT treat the three shapes alike --
-    # auth-policies.rego exact-matches `input.requested_prefix == "/"`, so
-    # "/?x=1" is denied for `user` and `project-manager` (measured with opa
-    # 1.18.2: allow=false; only `admin` passes, via its `^/.*` catch-all). Do
-    # not read the third case as "/project/<id>?x=1 works end to end" -- on a
-    # live platform it 403s at the policy layer.
+    # Scope: this pins the GATE, not the platform -- the OPA decision is mocked
+    # to allow. The policy layer does agree with all three shapes, but only
+    # since the shell landed: `auth-policies.rego` used to exact-match
+    # `input.requested_prefix == "/"`, which denied "/?x=1" for `user` and
+    # `project-manager`. It now matches `^/(\?.*)?$`, and
+    # `test_allow_shell_root_with_query` asserts that (measured with opa 1.18.2:
+    # allow=true for both roles). The widening is what makes the third case work
+    # end to end; the query is re-appended here, so the shell's own
+    # /project/<id>?view=... deep links depend on it.
     async def fake_fetch(identifier):
         return PROJECT
 

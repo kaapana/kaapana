@@ -1,0 +1,37 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: portal-ui-service
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  selector:
+    app.kubernetes.io/name: portal-ui
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: portal-ui-http
+      name: portal-ui-http
+  type: ClusterIP
+---
+# Root ingress: portal-ui serves "/" (vite base "/"), so no strip-prefix middleware.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: portal-ui-root
+  namespace: "{{ .Values.global.services_namespace }}"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/preserve-host: "true"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: portal-ui-service
+            port:
+              number: 5000

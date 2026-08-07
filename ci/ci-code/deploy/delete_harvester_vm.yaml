@@ -52,7 +52,10 @@
       ansible.builtin.debug:
         var: vm_pvcs
 
-    - name: Delete VM
+    # wait=true polls the resource itself for full removal, instead of a
+    # hand-rolled k8s_info/until loop — a failed poll no longer crashes the
+    # play, it just fails this task with a clear timeout message.
+    - name: Delete VM and wait for full removal
       when:
         - vm_check.resources is defined
         - vm_check.resources | length > 0
@@ -63,24 +66,11 @@
         namespace: "{{ harvester_namespace }}"
         kubeconfig: "{{ harvester_kubeconfig }}"
         state: absent
+        wait: true
+        wait_timeout: 600
+        wait_sleep: 10
 
-    - name: Wait until VM is deleted
-      when:
-        - vm_check.resources is defined
-        - vm_check.resources | length > 0
-      kubernetes.core.k8s_info:
-        api_version: kubevirt.io/v1
-        kind: VirtualMachine
-        name: "{{ vm_name }}"
-        namespace: "{{ harvester_namespace }}"
-        kubeconfig: "{{ harvester_kubeconfig }}"
-      register: delete_check
-      until: delete_check.resources | length == 0
-      retries: 60
-      delay: 10
-      changed_when: false
-
-    - name: Delete PVCs attached to VM
+    - name: Delete PVCs attached to VM and wait for full removal
       when:
         - vm_pvcs is defined
         - vm_pvcs | length > 0
@@ -91,25 +81,49 @@
         namespace: "{{ harvester_namespace }}"
         kubeconfig: "{{ harvester_kubeconfig }}"
         state: absent
+        wait: true
+        wait_timeout: 150
+        wait_sleep: 5
+      register: pvc_delete
+      failed_when: false
       loop: "{{ vm_pvcs }}"
-      ignore_errors: true
 
-    - name: Wait until PVCs are deleted
-      when:
-        - vm_pvcs is defined
-        - vm_pvcs | length > 0
-      kubernetes.core.k8s_info:
+    # PVCs can be stuck in Terminating behind a finalizer (e.g. pvc-protection
+    # not yet released by the VM teardown). Clear the finalizers on whichever
+    # PVCs timed out above, then retry the delete.
+    - name: Strip finalizers from PVCs still stuck in Terminating
+      when: item.failed | default(false)
+      kubernetes.core.k8s:
         api_version: v1
         kind: PersistentVolumeClaim
-        name: "{{ item }}"
+        name: "{{ item.item }}"
         namespace: "{{ harvester_namespace }}"
         kubeconfig: "{{ harvester_kubeconfig }}"
-      register: pvc_delete_check
-      until: pvc_delete_check.resources | length == 0
-      retries: 30
-      delay: 5
-      changed_when: false
-      loop: "{{ vm_pvcs }}"
+        state: patched
+        merge_type: merge
+        definition:
+          metadata:
+            finalizers: []
+      loop: "{{ pvc_delete.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # No failed_when: false here — if a PVC is still around after finalizers
+    # are cleared, that's a real problem and the play should fail loudly.
+    - name: Force-delete PVCs after clearing finalizers
+      when: item.failed | default(false)
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: PersistentVolumeClaim
+        name: "{{ item.item }}"
+        namespace: "{{ harvester_namespace }}"
+        kubeconfig: "{{ harvester_kubeconfig }}"
+        state: absent
+        wait: true
+        wait_timeout: 120
+      loop: "{{ pvc_delete.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
 
     - name: Display result
       ansible.builtin.debug:

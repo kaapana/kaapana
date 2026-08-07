@@ -1,10 +1,6 @@
 /**
  * Kaapana design tokens — single source of truth for colors and defaults.
  *
- * TO USE IN base-landing-page (Vue 2 / Vuetify 2):
- *   import { kaapanaLight, kaapanaDark } from './kaapana-theme'
- *   new Vuetify({ theme: { themes: { light: kaapanaLight, dark: kaapanaDark } } })
- *
  * TO USE IN any micro-frontend (Vue 3 / Vuetify 3):
  *   import { vuetifyThemeConfig } from './kaapana-theme'
  *   createVuetify({ theme: vuetifyThemeConfig })
@@ -17,27 +13,6 @@
  *   --kaapana-warning:     #EF6C00
  *   --kaapana-success:     #2E7D32
  */
-
-// ── Vuetify 2 (base-landing-page) ──────────────────────────────────────────
-export const kaapanaLight = {
-  primary:   '#005BA0',
-  secondary: '#5A696E',
-  accent:    '#005BA0',
-  error:     '#C62828',
-  warning:   '#EF6C00',
-  success:   '#2E7D32',
-  info:      '#0277BD',
-};
-
-export const kaapanaDark = {
-  primary:   '#1E88E5',
-  secondary: '#78909C',
-  accent:    '#1E88E5',
-  error:     '#EF5350',
-  warning:   '#FFA726',
-  success:   '#66BB6A',
-  info:      '#29B6F6',
-};
 
 // ── Vuetify 3 (project-management-ui and future micro-frontends) ────────────
 export const vuetifyThemeConfig = {

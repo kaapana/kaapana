@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import WorkflowRuns from '../views/WorkflowRuns.vue'
 import Workflows from '../views/Workflows.vue'
+import { getProjectBase } from '../utils/projectScope'
 
 const routes = [
     {
@@ -17,8 +18,11 @@ const routes = [
     },
 ]
 
+// BASE_URL is the build-time "/workflow-ui"; the shell serves the bundle at
+// /project/<short_id>/workflow-ui/, so the history base must pick the prefix
+// up from the document URL — without it no route matches and nothing renders.
 const router = createRouter({
-    history: createWebHistory(import.meta.env.BASE_URL),
+    history: createWebHistory(getProjectBase() + import.meta.env.BASE_URL),
     routes
 })
 

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { prefixProjectScope } from '@/utils/projectScope'
 
 
 const apiClient = axios.create({
@@ -8,6 +9,10 @@ const apiClient = axios.create({
         'Content-Type': 'application/json',
     },
 })
+
+// workflow-api's POST /workflow-runs requires the trusted Project header, and
+// auth-backend only injects it for a /project/<short_id>/ URL.
+apiClient.interceptors.request.use(prefixProjectScope)
 
 apiClient.interceptors.response.use(
     (response) => response,

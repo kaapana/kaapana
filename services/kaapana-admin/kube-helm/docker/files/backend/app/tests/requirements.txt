@@ -1,0 +1,4 @@
+# test_ttl_cache.py is pure-python (stdlib + pytest) and is the only file here
+# the kube_helm_tests CI job runs; the four siblings are integration tests that
+# need a live kube-helm server on localhost:5000 and a cluster.
+pytest==8.3.3

@@ -27,6 +27,16 @@ prepare_deployment:
   # Clone repo + Optional: Provision VM
   interruptible: false
   extends: .remote_execution_template
+  # Deploy must not wait on security_scan/security (ci/pipeline/security.yml)
+  # — same "build" stage, but an unrelated concern. needs: switches this job
+  # to DAG scheduling: it starts once build_packages succeeds, regardless of
+  # whether the security jobs are still running or have failed. optional:
+  # true covers the "deploy without rebuilding" recipe, where CI_EXEC_BUILD
+  # is false and build_packages never runs at all.
+  needs:
+    - job: build_packages
+      artifacts: false
+      optional: true
   rules:
     - if: '$CI_EXEC_DEPLOY == "true"'
       when: on_success

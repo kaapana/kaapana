@@ -177,6 +177,22 @@ class TrivyHelper:
             )
 
     @classmethod
+    def _fail_on_scan_errors(
+        cls, action: str, failures: list[tuple[Container, str]]
+    ) -> None:
+        """Raise once, after every container has had its chance to scan, summarizing
+        every image that couldn't be pulled/scanned — most commonly a tag not present
+        in the registry. Reports already written for the other containers are left in
+        place; this only makes sure the gap isn't silent."""
+        if not failures:
+            return
+        summary = "\n".join(f"  - {container.tag}" for container, _ in failures)
+        raise RuntimeError(
+            f"{action} failed for {len(failures)} image(s) — most likely not present "
+            f"in the registry:\n{summary}"
+        )
+
+    @classmethod
     def _create_sbom(cls, container: Container, report_path: Path) -> tuple[Path, bool]:
         """Generate SBOM for a single container. Returns (report_path, skipped)."""
         filename = f"sbom_{container.image_name}.json"
@@ -223,11 +239,15 @@ class TrivyHelper:
 
     @classmethod
     def create_sboms(cls) -> None:
-        """Generate SBOMs for all selected containers."""
+        """Generate SBOMs for all selected containers. Images that can't be
+        pulled (e.g. not present in the registry) are logged and skipped so
+        the rest still get an SBOM; if any failed, fails at the end so the
+        gap isn't silent."""
         report_path = cls._reports_path / "sboms"
         report_path.mkdir(parents=True, exist_ok=True)
         cls._ensure_db()
         targets = cls._scan_targets()
+        failures: list[tuple[Container, str]] = []
         with alive_bar(
             len(targets),
             dual_line=True,
@@ -241,12 +261,19 @@ class TrivyHelper:
                     for container in targets
                 }
                 for future in as_completed(futures):
-                    path, skipped = future.result()
-                    if skipped:
-                        logger.info(f"SBOM already exists, skipping: {path.name}")
+                    container = futures[future]
+                    try:
+                        path, skipped = future.result()
+                    except subprocess.CalledProcessError as e:
+                        logger.error(f"SBOM generation failed for {container.tag}:\n{e.stderr}")
+                        failures.append((container, e.stderr))
                     else:
-                        logger.info(f"SBOM saved at {path.name}")
+                        if skipped:
+                            logger.info(f"SBOM already exists, skipping: {path.name}")
+                        else:
+                            logger.info(f"SBOM saved at {path.name}")
                     bar()
+        cls._fail_on_scan_errors("SBOM generation", failures)
 
     @classmethod
     def _scan_container_vuln(
@@ -339,11 +366,14 @@ class TrivyHelper:
 
     @classmethod
     def vulnerability_scan(cls) -> None:
-        """Perform Trivy vulnerability scan on all selected containers with configured severity levels."""
+        """Perform Trivy vulnerability scan on all selected containers with configured severity levels.
+        Images that can't be pulled (e.g. not present in the registry) are logged and skipped so the
+        rest still get scanned and consolidated; if any failed, fails at the end so the gap isn't silent."""
         report_path = cls._reports_path / "vuln_scan"
         report_path.mkdir(parents=True, exist_ok=True)
         cls._ensure_db()
         targets = cls._scan_targets()
+        failures: list[tuple[Container, str]] = []
         with alive_bar(
             len(targets),
             dual_line=True,
@@ -362,14 +392,18 @@ class TrivyHelper:
                     container = futures[future]
                     try:
                         path, skipped = future.result()
-                        if skipped:
-                            logger.info(f"Skipping (exists): {path.name}")
-                        else:
-                            logger.info(f"Vulnerability report saved at {path.name}")
                     except subprocess.CalledProcessError as e:
                         logger.error(
                             f"Trivy vulnerability scan failed for {container.tag}:\n{e.stderr}"
                         )
-                        raise
+                        failures.append((container, e.stderr))
+                    else:
+                        if skipped:
+                            logger.info(f"Skipping (exists): {path.name}")
+                        else:
+                            logger.info(f"Vulnerability report saved at {path.name}")
                     bar()
+        # Consolidate whatever scanned successfully before failing on the rest —
+        # the security job's report generation still gets a usable, if partial, report.
         cls._consolidate_vuln_reports(report_path)
+        cls._fail_on_scan_errors("Vulnerability scan", failures)

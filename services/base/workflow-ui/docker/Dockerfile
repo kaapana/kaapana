@@ -1,14 +1,9 @@
-FROM local-only/base-landing-page:latest AS base-landing-resource
-
-
 FROM docker.io/node:26-alpine3.23  AS build-stage
 
 WORKDIR /app
 
 COPY ./files ./
 
-COPY --from=base-landing-resource /kaapana/app/public/favicon.ico ./public/favicon.ico
-COPY --from=base-landing-resource /kaapana/app/src/assets/img/kaapana.png ./public/assets/img/logo.png
 RUN npm install -g npm@11.16.0 && npm ci
 
 LABEL IMAGE="workflow-ui"

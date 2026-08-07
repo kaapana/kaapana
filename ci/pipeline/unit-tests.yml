@@ -234,6 +234,7 @@ ui_e2e_tests:
   parallel:
     matrix:
       - APP:
+          - portal-ui
           - app-ui
           - data-upload-ui
           - extensions-ui
@@ -266,6 +267,33 @@ ui_e2e_tests:
     reports:
       junit:
         - "services/**/test-results/junit.xml"
+
+##############################################
+# UI Unit Tests (vitest — portal-ui shell suites)
+##############################################
+# Runs the shell's vitest unit suites (src/**/__tests__), which the
+# Playwright-only ui_e2e_tests job does not cover. portal-ui is the only app
+# with a test:unit script, so this is a single job, not a matrix; it consumes
+# no @kaapana/base-ui, so no library pre-build step is needed.
+ui_unit_tests:
+  extends: .test_template
+  # Node job: the template's python:3.12 image lacks the node the app requires
+  # (engines), same reason ui_e2e_tests runs on node:22.
+  image: node:22
+  variables:
+    # both casings: keep npm off the DKFZ proxy for the local registry
+    NO_PROXY: "localhost,127.0.0.1"
+    no_proxy: "localhost,127.0.0.1"
+  script:
+    - cd "$KAAPANA_DIR/services/base/portal-ui/docker/files"
+    - npm ci
+    - npm run test:unit -- --reporter=default --reporter=junit --outputFile.junit=test-results/junit.xml
+  # Relative, like every sibling job's report path — see ui_e2e_tests above.
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "services/base/portal-ui/docker/files/test-results/junit.xml"
 
 ##############################################
 # Documentation Build

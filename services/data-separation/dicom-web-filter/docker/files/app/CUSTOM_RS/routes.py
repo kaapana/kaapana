@@ -5,7 +5,11 @@ import httpx
 from app import crud
 from app.config import DICOMWEB_BASE_URL
 from app.database import get_session
-from app.utils import assert_project_not_archived, get_user_project_ids
+from app.utils import (
+    assert_project_not_archived,
+    get_scoped_project_ids,
+    is_unscoped_admin,
+)
 from fastapi import APIRouter, Depends, Path, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -85,7 +89,7 @@ async def del_study(
     study: str,
     request: Request,
     session: AsyncSession = Depends(get_session),
-    project_ids_of_user=Depends(get_user_project_ids),
+    project_ids_of_user=Depends(get_scoped_project_ids),
 ):
     """
     This endpoint is used to delete a study.
@@ -155,7 +159,7 @@ async def del_series(
     series: str,
     request: Request,
     session: AsyncSession = Depends(get_session),
-    project_ids_of_user=Depends(get_user_project_ids),
+    project_ids_of_user=Depends(get_scoped_project_ids),
 ):
     """This endpoint is used to delete a series.
 
@@ -207,7 +211,7 @@ async def del_series(
 async def get_series(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    project_ids_of_user=Depends(get_user_project_ids),
+    project_ids_of_user=Depends(get_scoped_project_ids),
 ):
 
     if not "StudyInstanceUID" in request.query_params:
@@ -219,7 +223,9 @@ async def get_series(
 
     # Get all series mapped to the project
     series = set(
-        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(session, project_ids_of_user, study)
+        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
+            session, project_ids_of_user, study
+        )
     )
 
     # Remove SeriesInstanceUID from the query parameters
@@ -253,11 +259,13 @@ async def get_instances(
     study: str,
     request: Request,
     session: AsyncSession = Depends(get_session),
-    project_ids_of_user=Depends(get_user_project_ids),
+    project_ids_of_user=Depends(get_scoped_project_ids),
 ):
     # Get all series mapped to the project
     series = set(
-        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(session, project_ids_of_user, study)
+        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
+            session, project_ids_of_user, study
+        )
     )
 
     # Remove SeriesInstanceUID from the query parameters
@@ -296,14 +304,14 @@ async def get_bulkdata(
     instance: str,
     tag: str = Path(...),
     session: AsyncSession = Depends(get_session),
-    project_ids_of_user=Depends(get_user_project_ids),
+    project_ids_of_user=Depends(get_scoped_project_ids),
 ):
     if not await crud.check_if_series_in_given_study_is_mapped_to_projects(
         session=session,
         project_ids=project_ids_of_user,
         study_instance_uid=study,
         series_instance_uid=series,
-    ) and not request.scope.get("admin"):
+    ) and not is_unscoped_admin(request):
         return Response(status_code=HTTP_204_NO_CONTENT)
 
     async def stream_fn(request: Request):

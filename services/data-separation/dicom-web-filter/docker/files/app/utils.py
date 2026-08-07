@@ -1,6 +1,5 @@
 import json
 import logging
-from urllib.parse import unquote
 from typing import List
 from uuid import UUID
 
@@ -83,20 +82,56 @@ def get_user_project_ids(request: Request) -> list[UUID]:
     return [UUID(project["id"]) for project in request.scope.get("token")["projects"]]
 
 
-def get_project_id_from_cookie(request: Request) -> UUID | None:
-    """Extract the selected project UUID from the 'Project' browser cookie.
+def get_selected_project_id(request: Request) -> UUID | None:
+    """Extract the selected project UUID from the 'Project' request header.
 
-    The Kaapana frontend stores the active project as JSON: {"name": "...", "id": "<uuid>"}.
-    Returns None if the cookie is absent or malformed.
+    The header is injected by the traefik forward-auth middleware: auth-backend
+    resolves the project from the /project/<id>/ URL prefix and returns it as
+    enriched project JSON. Returns None only if the header is absent; a present
+    but unparseable header raises 400 rather than silently widening scope.
     """
-    raw = request.cookies.get("Project")
+    raw = request.headers.get("Project")
     if not raw:
         return None
     try:
-        return UUID(json.loads(unquote(raw))["id"])
+        return UUID(json.loads(raw)["id"])
     except (json.JSONDecodeError, KeyError, ValueError):
-        logger.warning("Could not parse Project cookie: %r", raw)
-        return None
+        logger.warning("Could not parse Project header: %r", raw)
+        raise HTTPException(status_code=400, detail="Invalid Project header")
+
+
+def get_scoped_project_ids(request: Request) -> list[UUID]:
+    """Project scope for read requests.
+
+    Requests carrying a project context (the enriched 'Project' header derived
+    from the /project/<id>/ URL prefix) are scoped to that single project:
+    non-admins must be members of it, while admins may read-scope to any
+    project. Requests without a context fall back to all of the user's
+    projects, keeping unscoped clients (dcmweb tooling) working. This governs
+    reads only; the write path in STOW stays strict for everyone (members
+    only, admins included).
+    """
+    user_project_ids = get_user_project_ids(request)
+    selected = get_selected_project_id(request)
+    if selected is None:
+        return user_project_ids
+    if request.scope.get("admin") is not True and selected not in user_project_ids:
+        raise HTTPException(
+            status_code=403,
+            detail="User does not have access to the selected project.",
+        )
+    return [selected]
+
+
+def is_unscoped_admin(request: Request) -> bool:
+    """True for admin requests without a project context.
+
+    Only those bypass project filtering ("admin sees everything"); an explicit
+    /project/<id> scope wins over the role.
+    """
+    return (
+        request.scope.get("admin") is True and get_selected_project_id(request) is None
+    )
 
 
 async def get_filtered_studies_mapped_to_projects(

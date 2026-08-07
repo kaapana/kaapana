@@ -11,7 +11,7 @@ from app.database import get_session
 from app.utils import (
     assert_project_not_archived,
     get_default_project_id,
-    get_project_id_from_cookie,
+    get_selected_project_id,
     get_project_short_id_by_id,
     get_user_project_ids,
 )
@@ -178,7 +178,9 @@ def enrich_dicom_parts_with_project(
         mime_headers, dicom_bytes = parsed
         try:
             ds = pydicom.dcmread(io.BytesIO(dicom_bytes))
-            ds.ClinicalTrialProtocolID = project_short_id  # (0012,0020) → project assignment
+            ds.ClinicalTrialProtocolID = (
+                project_short_id  # (0012,0020) → project assignment
+            )
             ds.ClinicalTrialSponsorName = dataset_name  # (0012,0010) → dataset name
             buf = io.BytesIO()
             ds.save_as(buf)
@@ -307,7 +309,7 @@ async def store_instances(
         await __map_dicom_series_to_project(session, request, project_id)
         await __stream_data(request, url="studies")
     else:
-        viewer_project_id = get_project_id_from_cookie(request)
+        viewer_project_id = get_selected_project_id(request)
         if viewer_project_id is None:
             raise HTTPException(
                 status_code=400,
@@ -362,7 +364,7 @@ async def store_instances_in_study(
         await __map_dicom_series_to_project(session, request, project_id)
         await __stream_data(request, url=f"studies/{study}")
     else:
-        viewer_project_id = get_project_id_from_cookie(request)
+        viewer_project_id = get_selected_project_id(request)
         if viewer_project_id is None:
             raise HTTPException(
                 status_code=400,

@@ -7,7 +7,7 @@ from app import crud
 from app.config import DICOMWEB_BASE_URL
 from app.database import get_session
 from app.streaming_helpers import metadata_replace_stream
-from app.utils import get_user_project_ids
+from app.utils import get_scoped_project_ids, is_unscoped_admin
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -170,7 +170,7 @@ async def proxy_series_requests(
     remaining_path: str,
     request: Request,
     session: AsyncSession = Depends(get_session),
-    project_ids_of_user=Depends(get_user_project_ids),
+    project_ids_of_user=Depends(get_scoped_project_ids),
 ):
     """
     Proxy any series-level DICOMWeb requests (e.g. including /instances/{instance},
@@ -185,7 +185,7 @@ async def proxy_series_requests(
     Returns:
         response: Response object
     """
-    is_admin = request.scope.get("admin") is True
+    is_admin = is_unscoped_admin(request)
     is_mapped = await crud.check_if_series_in_given_study_is_mapped_to_projects(
         session=session,
         project_ids=project_ids_of_user,
@@ -233,7 +233,7 @@ async def retrieve_study_metadata(
     study: str,
     request: Request,
     session: AsyncSession = Depends(get_session),
-    project_ids_of_user=Depends(get_user_project_ids),
+    project_ids_of_user=Depends(get_scoped_project_ids),
 ):
     """Retrieve the metadata of the study. If all series of the study are mapped to the project, the metadata is returned. If only some series are mapped, the metadata is filtered and only the mapped series are returned.
        Metadata contains routes to the series and instances of the study. These point to dcm4chee, which is why we need to replace the base URL.
@@ -247,7 +247,7 @@ async def retrieve_study_metadata(
         StreamingResponse: Response object
     """
 
-    if request.scope.get("admin") is True:
+    if is_unscoped_admin(request):
         return stream_study_metadata(study, request)
 
     # Retrieve series mapped to the project for the given study
@@ -317,6 +317,7 @@ async def retrieve_study_or_rendered(
     rendered_path: str,
     request: Request,
     session: AsyncSession = Depends(get_session),
+    project_ids_of_user=Depends(get_scoped_project_ids),
 ):
     """Retrieve the study from the DICOMWeb server. If all series of the study are mapped to the project, the study is returned. If only some series are mapped, the study is filtered and only the mapped series are returned.
         If there is a rendered path, the rendered study is returned.
@@ -329,16 +330,13 @@ async def retrieve_study_or_rendered(
         StreamingResponse: Response object
     """
 
-    # Get the project IDs of the projects the user is associated with
-    project_ids_of_user = [p["id"] for p in request.scope.get("token")["projects"]]
-
     query_string = request.url.query
 
     def append_query(url: str) -> str:
         return f"{url}?{query_string}" if query_string else url
 
     # If user is admin, stream the entire study or rendered
-    if request.scope.get("admin") is True:
+    if is_unscoped_admin(request):
         forward_url = append_query(
             f"{DICOMWEB_BASE_URL}/studies/{study}{rendered_path}"
         )

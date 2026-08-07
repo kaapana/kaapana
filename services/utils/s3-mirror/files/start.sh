@@ -126,11 +126,7 @@ rclone_exclude_args=(
     --exclude "**/*.swo"
     --exclude "**/*~"
     --exclude "**/.nfs*"
-    # bisync's own state directory (see BISYNC_WORKDIR below) lives inside
-    # $LOCAL_PATH so it rides the same persistent volume; it must never be
-    # treated as sync content itself. Anchored to the root (leading "/") since
-    # that's always where we create it - an unanchored "**/" pattern does not
-    # exclude a top-level match in rclone's filter syntax.
+    # Exclude bisync's own state dir (BISYNC_WORKDIR below) from sync content.
     --exclude "/.rclone-bisync-state/**"
 )
 if [ -v EXCLUDE ]; then
@@ -239,11 +235,8 @@ elif [[ $ACTION == "SYNC" ]]; then
     #        kubectl -n services set env deployment/<release-name> AUTO_RESYNC_ON_ERROR-
     #        kubectl -n services rollout restart deployment/<release-name>
     AUTO_RESYNC_ON_ERROR=${AUTO_RESYNC_ON_ERROR:-false}
-    # bisync's own workdir defaults to the container's writable layer, which is
-    # lost on every restart/OOMKill/reschedule - keep it on $LOCAL_PATH instead
-    # (already the persistent volume backing this sync) so prior listings
-    # survive restarts and the initial sync below doesn't have to resync every
-    # single time it starts.
+    # Keep bisync's state on $LOCAL_PATH (persistent) instead of the default
+    # container-local cache dir, so listings survive restarts.
     BISYNC_WORKDIR="$LOCAL_PATH/.rclone-bisync-state"
     mkdir -p "$BISYNC_WORKDIR"
     RCLONE_SYNC_CMD=(
@@ -267,33 +260,19 @@ elif [[ $ACTION == "SYNC" ]]; then
 
     echo "INFO: Inital sync"
     while true; do
-        initial_sync_output=$(mktemp)
-        set +e
-        "${RCLONE_SYNC_CMD[@]}" >"$initial_sync_output" 2>&1
-        initial_sync_result=$?
-        set -e
-        cat "$initial_sync_output"
-
-        if [[ $initial_sync_result -eq 0 ]]; then
-            rm -f "$initial_sync_output"
-            break
-        fi
-
-        # This exact message is bisync's own signal that $BISYNC_WORKDIR has no
-        # usable prior listings - either a genuine first-ever start, or the
-        # persistent volume was wiped/replaced. Only this case justifies an
-        # automatic resync; any other failure (e.g. S3 unreachable) is retried
-        # as-is so a transient error can never trigger a union-copy resync.
-        if grep -q "Must run --resync to recover" "$initial_sync_output"; then
-            rm -f "$initial_sync_output"
+        # bisync requires both listing files in $BISYNC_WORKDIR to run without
+        # --resync; their absence means this is a fresh bootstrap.
+        if ls "$BISYNC_WORKDIR"/*.path1.lst >/dev/null 2>&1 && ls "$BISYNC_WORKDIR"/*.path2.lst >/dev/null 2>&1; then
+            if "${RCLONE_SYNC_CMD[@]}"; then
+                break
+            fi
+            echo "ERROR: Initial sync failed with exit code $? - will retry after ${SYNC_INTERVAL_SECONDS}s"
+        else
             echo "INFO: No prior bisync state found in ${BISYNC_WORKDIR} - running one-time bootstrap resync"
             if "${RCLONE_SYNC_CMD[@]}" --resync; then
                 break
             fi
             echo "ERROR: Bootstrap resync failed with exit code $? - will retry after ${SYNC_INTERVAL_SECONDS}s"
-        else
-            rm -f "$initial_sync_output"
-            echo "ERROR: Initial sync failed with exit code ${initial_sync_result} - will retry after ${SYNC_INTERVAL_SECONDS}s"
         fi
 
         sleep ${SYNC_INTERVAL_SECONDS}

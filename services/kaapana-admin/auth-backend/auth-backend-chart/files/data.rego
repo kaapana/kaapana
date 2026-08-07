@@ -81,7 +81,6 @@ allowed_project_manager_endpoints := [
     {"path": "^/projects-ui.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/kaapana-backend/open-policy-data", "methods": ["GET"]},
     {"path": "^/kaapana-backend/settings", "methods": ["GET"]},
-    {"path": "^/kaapana-backend/get-traefik-routes", "methods": ["GET"]},
     {"path": "^/portal-api/.*", "methods": ["GET"]},
 ]
 

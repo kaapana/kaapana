@@ -24,7 +24,6 @@ from pathlib import Path
 import random
 from starlette.responses import StreamingResponse
 from time import gmtime, strftime
-import json
 
 MAX_DOWNLOAD_FILE_SIZE_MB = 256
 
@@ -192,16 +191,27 @@ async def get_aggregatedSeriesNum(
     return JSONResponse(res)
 
 
+def _build_thumbnail_url(project: dict, series_instance_uid: str) -> str:
+    # Project-prefixed so the URL also works as a plain <img src> request:
+    # those bypass the views' request interceptor and would otherwise reach the
+    # backend without any project context.
+    return (
+        f"/project/{project['short_id']}"
+        f"/kaapana-backend/dataset/series/{series_instance_uid}/thumbnail"
+    )
+
+
 @router.get("/series/{series_instance_uid}/thumbnail")
 def get_thumbnail_png(
-    request: Request,
     series_instance_uid: str,
+    project=Depends(get_project),
     minioClient=Depends(get_minio),
 ) -> StreamingResponse:
     """Get the PNG file from the thumbnails bucket.
 
     Args:
         series_instance_uid (str): Series instance UID.
+        project (dict): Enriched project context (Project header).
         minioClient (Minio): Minio client.
 
     Raises:
@@ -210,8 +220,6 @@ def get_thumbnail_png(
     Returns:
         StreamingResponse: Streaming response of the PNG file.
     """
-    project = json.loads(request.headers.get("project"))
-
     bucket = project["s3_bucket"]
     object_name = f"thumbnails/{series_instance_uid}.png"
 
@@ -227,13 +235,14 @@ def get_thumbnail_png(
 async def get_data(
     series_instance_uid,
     os_client=Depends(get_opensearch),
+    project=Depends(get_project),
     project_index=Depends(get_project_index),
 ):
     metadata = await utils.get_metadata(os_client, project_index, series_instance_uid)
     # sanitize path params
     series_instance_uid = sanitize_inputs(series_instance_uid)
 
-    thumbnail_src = f"/kaapana-backend/dataset/series/{series_instance_uid}/thumbnail"
+    thumbnail_src = _build_thumbnail_url(project, series_instance_uid)
     if os.path.exists(thumbnail_src):
         #  If not, we could either point to the default dcm4chee thumbnail or trigger the process
         return thumbnail_src
@@ -414,17 +423,18 @@ async def get_search_fields(
     try:
         fields = utils.get_present_searchable_fields(os_client, project_index)
         max_clause_count = utils.get_max_clause_count(os_client)
-        
-        return JSONResponse({
-            "fields": fields,
-            "field_count": len(fields),
-            "max_clause_count": max_clause_count,
-        })
+
+        return JSONResponse(
+            {
+                "fields": fields,
+                "field_count": len(fields),
+                "max_clause_count": max_clause_count,
+            }
+        )
     except Exception as e:
         logger.error(f"Failed to get search fields: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to retrieve searchable fields: {str(e)}"
+            status_code=500, detail=f"Failed to retrieve searchable fields: {str(e)}"
         )
 
 

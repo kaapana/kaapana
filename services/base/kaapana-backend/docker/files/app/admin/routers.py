@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import urllib.parse
 import uuid
 from datetime import datetime, timezone
 from string import Template
@@ -74,9 +75,15 @@ def _resolve_static_website_bucket(raw_project_header: str | None) -> str:
     return DEFAULT_STATIC_WEBSITE_BUCKET
 
 
-def _build_results_file_url(object_name: str) -> str:
+def _build_results_file_url(project: dict, object_name: str) -> str:
+    # Project-prefixed so the URL also works as an iframe/document request:
+    # those bypass the views' request interceptor and would otherwise reach the
+    # backend without any project context.
+    quoted_object_name = urllib.parse.quote(object_name, safe="/")
     return (
-        "/kaapana-backend/get-static-website-results-html" f"?object_name={object_name}"
+        f"/project/{project['short_id']}"
+        "/kaapana-backend/get-static-website-results-html"
+        f"?object_name={quoted_object_name}"
     )
 
 
@@ -162,7 +169,7 @@ def get_static_website_results(
                 {
                     "name": splits[0],
                     "file": "html",
-                    "path": f"/kaapana-backend/get-static-website-results-html?object_name={org_filepath}",
+                    "path": _build_results_file_url(project, org_filepath),
                 }
             )
         else:
@@ -317,7 +324,7 @@ def get_static_website_results_tree(
             results_prefix,
             relative_prefix,
             page_size,
-            _build_results_file_url,
+            lambda object_name: _build_results_file_url(project, object_name),
         )
         return {
             "items": items,
@@ -376,7 +383,7 @@ def get_static_website_result_reports(
                     continue
                 results[series_id] = {
                     "found": True,
-                    "url": _build_results_file_url(obj.object_name),
+                    "url": _build_results_file_url(project, obj.object_name),
                     "object_name": obj.object_name,
                 }
                 unresolved_ids.discard(series_id)
@@ -402,7 +409,7 @@ def get_static_website_result_reports(
                     continue
                 results[series_id] = {
                     "found": True,
-                    "url": _build_results_file_url(object_name),
+                    "url": _build_results_file_url(project, object_name),
                     "object_name": object_name,
                 }
                 unresolved_ids.remove(series_id)

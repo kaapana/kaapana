@@ -38,6 +38,7 @@ allowed_user_endpoints := [
     {"path": "^/web/store/.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/web/system/projects.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/kube-helm-api/active-applications", "methods": ["GET"]},
+    {"path": "^/kube-helm-api/pending-applications-count", "methods": ["GET"]},
     {"path": "^/thumbnails/.*", "methods": ["GET"]},
     {"path": "^/aii/.*", "methods": ["GET"]},
     {"path": "^/projects-ui.*", "methods": ["GET"]},

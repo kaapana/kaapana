@@ -14,6 +14,7 @@ from kaapanapy.logger import get_logger
 from . import file_handler, helm_helper, schemas, utils
 from .auth_utils import is_admin_request
 from .config import settings
+from .ttl_cache import SingleValueTTLCache
 
 # TODO: add endpoint for /helm-delete-file
 # TODO: add dependency injection
@@ -542,6 +543,55 @@ async def get_active_applications() -> List[schemas.ActiveApplication]:
         logger.error(f"/active-applications failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Getting active applications failed: {str(e)}"
+        )
+
+
+# The expensive part (listing ingresses cluster-wide) is project-independent,
+# so cache the parsed listing once and filter per request; TTL matches
+# portal-api's menu cache. Cached entries are shared across requests — callers
+# must only READ them (/active-applications mutates its results in place).
+_triggered_apps_cache = SingleValueTTLCache(ttl_seconds=10)
+
+
+@router.get("/pending-applications-count")
+async def get_pending_applications_count(request: Request) -> dict[str, int]:
+    """Number of workflow-triggered applications awaiting input in the requesting project.
+
+    Backs the generic ui.badge-path menu badge on the "Tasks" entry. The project
+    comes from the gateway-injected `Project` header (the resolved AII project),
+    the same mechanism the frontend's project-scoped calls rely on. The count
+    mirrors the Tasks view's filter (from_workflow_run + project id match), so a
+    request carrying no usable project (no header, or a header with no `id`)
+    yields 0. The triggered-ingress listing comes from the shared 10s TTL cache
+    above; only the per-project filter runs per request.
+    """
+    try:
+        project_header = request.headers.get("Project")
+        if not project_header:
+            return {"count": 0}
+        try:
+            project_id = json.loads(project_header).get("id")
+        except (json.JSONDecodeError, AttributeError):
+            raise HTTPException(status_code=400, detail="Invalid Project header")
+        # An empty id must not be compared: utils._extract_project_name returns
+        # "" for every triggered ingress whose path does not parse, so `{"id":""}`
+        # would match that catch-all bucket and count foreign applications.
+        if not project_id:
+            return {"count": 0}
+        triggered = await _triggered_apps_cache.get_async(
+            lambda: utils.get_active_apps_from_ingresses(
+                [{"kaapana.ai/type": "triggered"}]
+            )
+        )
+        count = sum(1 for app in triggered if str(app["project"]) == str(project_id))
+        return {"count": count}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"/pending-applications-count failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Getting pending applications count failed: {str(e)}",
         )
 
 

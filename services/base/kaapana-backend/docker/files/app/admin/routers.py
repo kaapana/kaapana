@@ -11,7 +11,6 @@ import requests
 from app.config import settings
 from app.dependencies import get_minio, get_opensearch, get_project
 from app.logger import get_logger
-from app.workflows.utils import raise_kaapana_connection_error, requests_retry_session
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from minio.error import S3Error
@@ -436,20 +435,6 @@ def get_os_dashboards(os_client=Depends(get_opensearch)):
     hits = res["hits"]["hits"]
     dashboards = list(sorted({hit["_source"]["dashboard"]["title"] for hit in hits}))
     return {"dashboards": dashboards}
-
-
-@router.get("/get-traefik-routes")
-def get_traefik_routes():
-    try:
-        with requests.Session() as s:
-            r = requests_retry_session(session=s).get(
-                f"{settings.traefik_url}/api/http/routers"
-            )
-        raise_kaapana_connection_error(r)
-        return r.json()
-    except Exception as e:
-        print("ERROR in getting traefik routes!")
-        return {"Error message": str(e)}, 500
 
 
 @router.get("/open-policy-data")

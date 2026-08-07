@@ -57,13 +57,14 @@ Current flow
             O-->>B: Set session cookie
         end
 
-        B->>O: Request with session cookie + project cookie
+        B->>O: Request with session cookie (URL may carry a /project/id prefix)
         O->>T: Forward + x-forwarded headers
-        T->>F: ForwardAuth check (headers, cookies, path)
+        T->>F: ForwardAuth check (headers, path)
 
-        alt Project cookie present
-            F->>A: Fetch project resource (Project ID)
+        alt URL carries a /project/id prefix
+            F->>A: Fetch project resource (short_id, UUID or name)
             A-->>F: Project details (JSON)
+            F->>F: Membership gate against the token's projects claim
         end
 
         F->>P: Evaluate policy (user, project, resource)
@@ -86,17 +87,17 @@ Four things happen, in order, on every authenticated request:
 
 #. **Authentication at the edge.** OAuth2-Proxy terminates the Authorization Code Grant with Keycloak and reduces the result to a session cookie -- everything after this step works with the cookie, not with Keycloak directly.
 #. **Claim enrichment.** During login, Keycloak calls the **Access Information Interface (AII)** to attach project- and role-related attributes to the token as claims, rather than each backend service looking them up independently.
-#. **Policy enforcement at Traefik.** Traefik acts as the **Policy Enforcement Point (PEP)**: it forwards every request to an **Auth Backend**, which decodes the token, optionally fetches project details from the AII if a project cookie is set, and asks the **Open Policy Agent (OPA)** -- the **Policy Decision Point (PDP)** -- for an allow/deny decision.
+#. **Policy enforcement at Traefik.** Traefik acts as the **Policy Enforcement Point (PEP)**: it forwards every request to an **Auth Backend**, which decodes the token, fetches project details from the AII when the requested URL carries a ``/project/<short_id>/`` prefix (and refuses the request unless the caller is a member of that project), and asks the **Open Policy Agent (OPA)** -- the **Policy Decision Point (PDP)** -- for an allow/deny decision.
 #. **Header-based trust downstream.** Once allowed, Traefik attaches the resolved project (and other claims) as headers on the forwarded request; backend services trust these headers rather than re-deriving them.
 
 .. important::
-   The web interface -- and any authorization decision that depends on a project -- only works correctly once a :term:`project` is selected, because the project cookie is what triggers step 3's project-scoped policy evaluation.
+   The web interface -- and any authorization decision that depends on a project -- only works correctly once a :term:`project` is selected, because the ``/project/<short_id>/`` URL prefix that selection produces is what triggers step 3's project-scoped policy evaluation. A request without the prefix carries no project context at all: project-requiring endpoints answer **400**. See :doc:`../../development_guide/preview/project_scoping` for the mechanism.
 
 Known limitations of this design
 ===================================
 
 * **Runtime coupling.** If the AII, Auth Backend, or OPA is unavailable, the request chain breaks -- there is no fallback path, and the extra hops add latency to every request.
-* **Design-time coupling.** Keycloak depends on the AII during login; the Auth Backend depends on both the AII and a client-supplied project cookie; backend services depend on a header set by the Auth Backend. A change to any one link can silently break the others.
+* **Design-time coupling.** Keycloak depends on the AII during login; the Auth Backend depends on the AII and on the client putting the project in the request URL; backend services depend on a header set by the Auth Backend. A change to any one link can silently break the others.
 * **Scattered authorization data.** Project-to-data mappings exist in more than one place (:term:`kaapana-backend`, the AII, the DicomWebFilter), so there is more than one place that can disagree about who owns what.
 * **No standard pattern for in-cluster, service-to-service calls** -- today's design is built around a browser session, not a service calling another service without a human in the loop.
 

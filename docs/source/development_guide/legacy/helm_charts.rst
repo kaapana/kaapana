@@ -52,10 +52,10 @@ Kaapana components have different folder structures based on their type:
 
 .. code-block::
 
-    landing-page-kaapana
+    portal-ui
     │──── docker
     |     │──── Dockerfile
-    │──── landing-page-kaapana-chart
+    │──── portal-ui-chart
           │──── templates
           |     │──── configmap.yaml
           |     │──── deployment.yaml
@@ -122,7 +122,6 @@ Chart Dependency Tree
     │           │               ├── grafana-chart
     │           │               ├── kaapana-backend-chart
     │           │               ├── kaapana-plugin-chart
-    │           │               ├── landing-page-kaapana-chart
     │           │               ├── meta-init-chart
     │           │               ├── minio-chart
     │           │               ├── minio-console-chart
@@ -133,6 +132,7 @@ Chart Dependency Tree
     │           │               ├── ohif-iframe-chart
     │           │               ├── opensearch-chart
     │           │               ├── os-dashboards-chart
+    │           │               ├── portal-ui-chart
     │           │               ├── prometheus-chart
     │           │               ├── static-website-chart
     │           ├── mitk-flow-chart

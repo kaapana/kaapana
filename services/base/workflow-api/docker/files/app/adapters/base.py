@@ -48,7 +48,7 @@ class WorkflowEngineAdapter(ABC):
 
         Args:
             workflow_run (schemas.WorkflowRun): The workflow run to submit
-            project_id (str): project_id extracted from the cookies
+            project_id (str): project_id extracted from the Project header
 
         Returns:
             schemas.WorkflowRunUpdate: externa_id and lifecycle_status of the submitted workflow run

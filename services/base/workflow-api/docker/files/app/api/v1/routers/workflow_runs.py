@@ -2,12 +2,11 @@ import json
 import logging
 import uuid
 from typing import List, Optional
-from urllib.parse import unquote
 
 from app import schemas
 from app.api.v1.services import workflow_run_service as service
 from app.dependencies import get_async_db
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -38,7 +37,17 @@ async def create_workflow_run(
     workflow_run: schemas.WorkflowRunCreate,
     db: AsyncSession = Depends(get_async_db),
 ):
-    project = json.loads(unquote(request.cookies["Project"]))
+    # Trusted project context injected by the traefik forward-auth middleware
+    # (auth-backend resolves it from the /project/<id>/ URL prefix).
+    project_header = request.headers.get("Project")
+    if not project_header:
+        raise HTTPException(status_code=400, detail="Missing Project header")
+    try:
+        project = json.loads(project_header)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid Project header")
+    if "id" not in project:
+        raise HTTPException(status_code=400, detail="Invalid Project header")
     project_id = project["id"]
     workflow_run_res = await service.create_workflow_run(
         db, workflow_run, project_id=project_id

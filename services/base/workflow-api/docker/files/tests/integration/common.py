@@ -1,3 +1,4 @@
+import json
 import os
 from typing import Optional
 
@@ -58,6 +59,9 @@ async def create_workflow_run(
         return await client.post(
             "/workflow-runs",
             json=workflow_run_create.model_dump(),
+            # Mirror the enriched header the traefik forward-auth middleware
+            # injects on the platform; the endpoint now requires it.
+            headers={"Project": json.dumps({"name": "test-project", "id": "test-id"})},
         )
 
 

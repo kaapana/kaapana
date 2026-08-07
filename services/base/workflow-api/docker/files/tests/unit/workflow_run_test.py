@@ -164,6 +164,42 @@ async def test_create_workflow_run_workflow_not_found(client: AsyncClient):
     assert response.status_code == 404
 
 
+@pytest.mark.asyncio
+async def test_create_workflow_run_missing_project_header(client: AsyncClient):
+    """POST /workflow-runs without a Project header returns 400."""
+    client.headers.pop("Project", None)
+    payload = {
+        "workflow": {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "title": "any",
+            "increment": 1,
+        },
+        "workflow_parameters": [],
+        "labels": [],
+    }
+    response = await client.post("/v1/workflow-runs", json=payload)
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Missing Project header"
+
+
+@pytest.mark.asyncio
+async def test_create_workflow_run_malformed_project_header(client: AsyncClient):
+    """POST /workflow-runs with a non-JSON Project header returns 400."""
+    client.headers["Project"] = "not-json"
+    payload = {
+        "workflow": {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "title": "any",
+            "increment": 1,
+        },
+        "workflow_parameters": [],
+        "labels": [],
+    }
+    response = await client.post("/v1/workflow-runs", json=payload)
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid Project header"
+
+
 # ============================================================
 # GET /v1/workflow-runs
 # ============================================================

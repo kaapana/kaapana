@@ -1,0 +1,97 @@
+# Stage: build (security) — trivy scan + report of the tag this commit resolves to
+# In:  registry state — either just pushed by build_packages in this same
+#      pipeline, or pushed by an earlier one (CI_EXEC_BUILD=false: standalone
+#      rescan of an already-built tag); REGISTRY_* credentials via
+#      .build_cli_env (defined in build.yml)
+# Out: security-reports/ (vuln scan, misconfig, SBOMs) as persistent
+#      artifacts; vulnerability_report.html; GitLab container-scanning report
+##############################################
+# SECURITY
+##############################################
+security_scan:
+  extends: .build_cli_env
+  stage: build
+  timeout: 4 hours
+  needs:
+    # optional: true — lets this run standalone (CI_EXEC_BUILD=false) against
+    # a tag an earlier pipeline already pushed; still ordered after
+    # build_packages when both run in the same pipeline.
+    - job: build_packages
+      artifacts: false
+      optional: true
+  rules:
+    # No dependency on CI_EXEC_BUILD: this scans whatever git describe
+    # resolves on the current checkout, whether or not this pipeline is the
+    # one that built it.
+    - if: '$CI_EXEC_SECURITY_SCAN == "true"'
+      when: on_success
+    - when: never
+  # Trivy DB persisted across runs on this runner: GIT_STRATEGY: clone wipes
+  # the checkout every job, so without this every run cold-pulls the ~1GB db
+  # from the upstream OCI registry. With runner_concurrency: 2 on the build
+  # runner (ci/harvester/inventory.yaml), two cold pulls landing at once was
+  # hitting TooManyRequests. Trivy itself skips the download once the cached
+  # copy is fresh, so this reduces most runs to a metadata check.
+  cache:
+    key: trivy-db
+    paths:
+      - "$CI_PROJECT_DIR/security-reports/.trivy_cache/"
+  script:
+    - pip install jsonschema
+    # kaapana-build logs in client-side; trivy reads the docker config.
+    - |
+      set +x
+      set +e
+      export REGISTRY_PW="$REGISTRY_TOKEN"
+      kaapana-build --scan-only $CI_EXEC_SECURITY_SCAN_ARGUMENTS --default-registry "$REGISTRY_URL"
+      export SCAN_EXIT_CODE=$?
+    - CONSOLIDATED="$CI_PROJECT_DIR/security-reports/consolidated_vulnerability_report.json"
+    - python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
+        "$CONSOLIDATED"
+        "$CI_PROJECT_DIR/gl-container-scanning-report.json"
+        --output json
+    - python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
+        "$CONSOLIDATED"
+        "$CI_PROJECT_DIR/vulnerability_report.html"
+        --output html
+    # Snap packages bundled by the offline installer aren't containers, so the
+    # scan above never touches them; pack-and-scan each one separately. Keep
+    # this list in sync with the `snaps` list in
+    # build_cli/build_cli/build/offline_installer_helper.py. Best-effort and
+    # non-fatal — new, unverified pipeline dependency (snap store reachability,
+    # nested docker-in-docker) — never flips SCAN_EXIT_CODE.
+    - |
+      set +x
+      if [[ -n "$DOCKER_IO_USER" ]]; then
+        echo "$DOCKER_IO_PASSWORD" | docker login docker.io -u "$DOCKER_IO_USER" --password-stdin
+      fi
+    - |
+      set +e
+      mkdir -p "$CI_PROJECT_DIR/security-reports/snap_scans"
+      for spec in "core20:latest/stable" "core24:latest/stable" "microk8s:1.36/stable" "snapd:latest/stable" "helm:latest/stable"; do
+        name="${spec%%:*}"; channel="${spec#*:}"
+        bash "$CI_PROJECT_DIR/ci/ci-code/clean/trivy_scan_anything.sh" \
+          --format json snap "$name" "$channel" \
+          > "$CI_PROJECT_DIR/security-reports/snap_scans/${name}.json" \
+          2> "$CI_PROJECT_DIR/security-reports/snap_scans/${name}.log"
+        echo "snap scan '$name' ($channel): exit $?"
+      done
+    - exit $SCAN_EXIT_CODE
+  artifacts:
+    name: "security_$CI_COMMIT_SHORT_SHA"
+    when: always
+    expire_in: never
+    paths:
+      - "$CI_PROJECT_DIR/security-reports/"
+      - "$CI_PROJECT_DIR/vulnerability_report.html"
+    reports:
+      container_scanning: "$CI_PROJECT_DIR/gl-container-scanning-report.json"
+    exclude:
+      # Trivy DB cache lives inside the reports dir — not a report
+      - "$CI_PROJECT_DIR/security-reports/.trivy_cache/**/*"
+      - "$CI_PROJECT_DIR/security-reports/.trivy_worker_*/**/*"
+      # Full raw per-container Trivy vuln output — one file per image, all
+      # findings duplicated in full detail; too large to keep expire_in: never.
+      # consolidated_vulnerability_report.json (deduplicated by CVE) already
+      # carries everything a dashboard or the HTML report needs.
+      - "$CI_PROJECT_DIR/security-reports/vuln_scan/**/*"

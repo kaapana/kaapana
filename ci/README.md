@@ -63,6 +63,7 @@ scripted with `python3 ci/utils/trigger_pipeline.py`):
 | `CI_EXEC_SERVER_INSTALLATION` | `true` | `false` skips the OS/microk8s install — for already-prepared targets |
 | `CI_EXEC_INTEGRATION_TESTS` | `true` | test stage (needs deploy) |
 | `CI_EXEC_SECURITY_SCAN` | `false` | trivy scan of the built images |
+| `CI_EXEC_SECURITY_SCAN_ARGUMENTS` | `--vulnerability-scan` | extra `kaapana-build --scan-only` flags; add `--configuration-check` / `--create-sboms` to also produce those reports |
 | `CI_EXEC_DOCKER_PRUNE` | `false` | wipe the build cache first (cold, multi-hour build) |
 | `CI_EXEC_DESTROY_DELAYED` | `false` | keep the test VM for 4 h after the pipeline |
 | `MAINTENANCE` | `false` | project variable; pauses MR/push/schedule pipelines (web/API still work) |
@@ -101,7 +102,7 @@ ssh -i <kaapana-key> ubuntu@<vm-fqdn>
 The platform UI is at `https://<vm-fqdn>`.
 
 **Security scan on demand** — `CI_EXEC_SECURITY_SCAN=true`. One job,
-`security_scan` ([`ci/pipeline/build.yml`](pipeline/build.yml)): it
+`security_scan` ([`ci/pipeline/security.yml`](pipeline/security.yml)): it
 scans, then always formats the report — regardless of scan outcome — then
 re-raises the scan's own exit code last, so the job still fails on a bad
 scan but never skips reporting. It doesn't require a build in the same
@@ -117,10 +118,34 @@ consolidated report from whatever succeeded, and only then fails the
 generation unconditionally against the partial data, and only re-raises the
 failure as its own exit code at the very end — so one missing image costs
 you a red job, not a missing report. Artifacts (all `expire_in: never`, kept
-indefinitely for planning): vulnerability + misconfiguration JSON per image;
-SBOMs and license data (`security-reports/sboms/*.json`, CycloneDX, from
-`kaapana-build --create-sboms`); `vulnerability_report.html`; and GitLab's
-Security tab (`gl-container-scanning-report.json`).
+indefinitely for planning): `consolidated_vulnerability_report.json`
+(deduplicated by CVE — the fetch target for external tooling, e.g. a
+dashboard that polls this artifact across nightlies), `vulnerability_report.html`,
+and GitLab's Security tab (`gl-container-scanning-report.json`) — always
+produced. **Not** kept: the full per-container raw Trivy output
+(`security-reports/vuln_scan/*.json`, one file per image with every finding in
+full, undeduplicated detail) — excluded from artifacts, too large to persist
+`expire_in: never`; the consolidated report already carries what's needed.
+Misconfiguration JSON and SBOMs/license data (`security-reports/sboms/*.json`,
+CycloneDX) are opt-in: add `--configuration-check` / `--create-sboms` to
+`CI_EXEC_SECURITY_SCAN_ARGUMENTS` (e.g. as a schedule variable override for
+the nightly run) to also produce them.
+
+**Snap-package scanning** — the offline installer bundles raw `.snap` files
+(`core20`, `core24`, `microk8s`, `snapd`, `helm` — see the `snaps` list in
+[`offline_installer_helper.py`](../build_cli/build_cli/build/offline_installer_helper.py)),
+which the container scan above never touches. `security_scan` additionally
+runs each one through
+[`ci/ci-code/clean/trivy_scan_anything.sh`](ci-code/clean/trivy_scan_anything.sh):
+it downloads the snap (without installing it — no snapd daemon needed),
+unpacks it with `unsquashfs`, packs the filesystem into a scratch `FROM
+scratch` docker image, and runs `trivy image` against that — `trivy fs` alone
+can't analyze the Go binaries inside snaps. Per-snap JSON results (and stderr
+logs) land in `security-reports/snap_scans/<name>.json` / `.log`, kept
+alongside the container scan artifacts. This depends on new, unverified
+pipeline plumbing (snap store reachability, nested docker-in-docker via the
+mounted socket) — every snap is scanned independently and failures are
+logged but never fail the job or the container scan.
 
 The Trivy vulnerability DB is cached across runs on the build runner
 (`cache: key: trivy-db` in `security_scan`) — without it, every job's fresh
@@ -173,7 +198,9 @@ jobs with ↻; you rarely need the whole pipeline.
 One tool image for all jobs that need CI tooling:
 [`ci/images/ci-base/Dockerfile`](images/ci-base/Dockerfile) (build context
 `ci/`, not the repo root). Contains git, docker CLI, helm, trivy, dcmtk,
-nmap, ansible, node/npm, chromium, and the pinned Python test dependencies.
+nmap, ansible, node/npm, chromium, snapd + squashfs-tools (snap-package
+scanning — see [section 2](#2-what-runs-when)), and the pinned Python test
+dependencies.
 Lives at `$CI_REGISTRY_URL/ci-base:$CI_IMAGES_TAG`; rebuilt automatically by
 `build_ci_image` when its inputs change.
 

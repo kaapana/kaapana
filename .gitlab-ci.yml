@@ -63,7 +63,7 @@ variables:
   # CI_IMAGES_TAG in the same MR that changes ci/images/** — re-pushing an
   # existing tag leaves warm runners on the stale image. Always
   # $CI_REGISTRY_URL, never the release registry.
-  CI_IMAGES_TAG: "v3"
+  CI_IMAGES_TAG: "v4"
   CI_BASE_IMAGE: "$CI_REGISTRY_URL/ci-base:$CI_IMAGES_TAG"
 
   # Purpose-specific tokens, currently aliasing the shared CI_REGISTRY_TOKEN.
@@ -127,6 +127,7 @@ include:
   - local: /ci/pipeline/ci-image.yml
   - local: /ci/pipeline/unit-tests.yml
   - local: /ci/pipeline/build.yml
+  - local: /ci/pipeline/security.yml
   - local: /ci/pipeline/deploy.yml
   - local: /ci/pipeline/integration-tests.yml
   - local: /ci/pipeline/clean.yml

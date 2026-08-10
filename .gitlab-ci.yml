@@ -127,7 +127,6 @@ include:
   - local: /ci/pipeline/ci-image.yml
   - local: /ci/pipeline/unit-tests.yml
   - local: /ci/pipeline/build.yml
-  - local: /ci/pipeline/security.yml
   - local: /ci/pipeline/deploy.yml
   - local: /ci/pipeline/integration-tests.yml
   - local: /ci/pipeline/clean.yml

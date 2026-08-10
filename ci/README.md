@@ -101,7 +101,7 @@ ssh -i <kaapana-key> ubuntu@<vm-fqdn>
 The platform UI is at `https://<vm-fqdn>`.
 
 **Security scan on demand** — `CI_EXEC_SECURITY_SCAN=true`. One job,
-`security_scan` ([`ci/pipeline/security.yml`](pipeline/security.yml)): it
+`security_scan` ([`ci/pipeline/build.yml`](pipeline/build.yml)): it
 scans, then always formats the report — regardless of scan outcome — then
 re-raises the scan's own exit code last, so the job still fails on a bad
 scan but never skips reporting. It doesn't require a build in the same

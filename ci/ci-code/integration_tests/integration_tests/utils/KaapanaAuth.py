@@ -1,11 +1,18 @@
-import json
 import logging
 import os
+import re
 import time
 
 import requests
 
 logger = logging.getLogger(__name__)
+
+# Services exposed under a /project/<id>/ IngressRoute that read the injected
+# `Project` header. Keep in step with the other two copies of this list:
+# base-ui's httpClient interceptor and docs .../preview/project_scoping.rst.
+PROJECT_SCOPED = re.compile(
+    r"^/?(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)(/|$)"
+)
 
 
 class KaapanaAuth:
@@ -29,16 +36,30 @@ class KaapanaAuth:
         self.session.verify = verify
         if not verify:
             from requests.packages.urllib3.exceptions import InsecureRequestWarning
+
             requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
         # --- NEW: WARM-UP PHASE ---
         if wait_for_platform:
             self.wait_for_ready()
-        
+
         # obtain tokens and project info
         self.access_token = self.get_access_token()
         self.admin_project = self.get_admin_project()
 
+    def _scoped(self, endpoint):
+        """Prefix `endpoint` with /project/<short_id>/ if its service is scoped.
+
+        Project scope travels in the URL: the gateway resolves the id, checks
+        membership and injects the trusted `Project` header, which it strips off
+        any client-sent copy first — so a `Project` header set here could never
+        have had an effect. Endpoints of unscoped services (`aii/...`) have no
+        such route and must stay as they are.
+        """
+        if PROJECT_SCOPED.match(endpoint):
+            slug = self.admin_project["short_id"]
+            return f"project/{slug}/{endpoint.lstrip('/')}"
+        return endpoint
 
     def get_admin_project(self):
         url = f"https://{self.host}/aii/projects/admin"
@@ -137,20 +158,7 @@ class KaapanaAuth:
         retries=5,
         headers={},
     ):
-        project_header = {
-            "id": self.admin_project["id"],
-            "external_id": self.admin_project["external_id"],
-            "name": self.admin_project["name"],
-            "description": self.admin_project["description"],
-        }
-        headers.update({"Project": json.dumps(project_header)})
         headers.update({"Authorization": f"Bearer {self.access_token}"})
-        project_cookie = json.dumps(
-            {
-                "name": self.admin_project["name"],
-                "id": self.admin_project["id"],
-            }
-        )
 
         method_name = getattr(request_type, "__name__", "get").lower()
         func = getattr(self.session, method_name, None)
@@ -158,18 +166,17 @@ class KaapanaAuth:
             func = request_type
         for attempt in range(retries):
             r = func(
-                url=f"https://{self.host}/{endpoint}",
+                url=f"https://{self.host}/{self._scoped(endpoint)}",
                 json=_json,
                 data=data,
                 params=params,
                 headers=headers,
                 timeout=timeout,
-                cookies={"Project": project_cookie},
             )
             if r.status_code < 400:
                 break
             if attempt < retries - 1:
-                time.sleep(2 ** attempt)  # exponential back-off: 1s, 2s, 4s, 8s
+                time.sleep(2**attempt)  # exponential back-off: 1s, 2s, 4s, 8s
         if raise_for_status:
             r.raise_for_status()
         return r

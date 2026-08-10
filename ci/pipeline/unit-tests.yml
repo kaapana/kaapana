@@ -92,6 +92,18 @@ kaapana_extensions_tests:
       junit:
         - kaapana_extensions_report.xml
 
+kaapana_client_tests:
+  extends: .test_template
+  script:
+    # No `[test]` extra: the suite needs only pytest on top of the package's own
+    # dependencies, so this also proves it against the shipped install.
+    - pip install $KAAPANA_DIR/lib/kaapana_client pytest
+    - pytest $KAAPANA_DIR/lib/kaapana_client/tests --junitxml=kaapana_client_report.xml
+  artifacts:
+    reports:
+      junit:
+        - kaapana_client_report.xml
+
 workflow_api_tests:
   extends: .test_template
   script:
@@ -219,9 +231,7 @@ keycloak_setup_tests:
 # UI e2e Tests (mock-backed Playwright, no platform)
 ##############################################
 # One matrix job per frontend app; each suite starts its app on its own fixed
-# port (4300-4309; the registry lives in each app's playwright.config.ts header).
-# Jobs run containerized, so ports and browser caches are per-job; chromium is
-# fetched on every run.
+# port (4300-4309, see each app's playwright.config.ts).
 ui_e2e_tests:
   extends: .test_template
   # Node job: the template's python:3.12 image lacks the node >=20.19 the apps
@@ -257,9 +267,8 @@ ui_e2e_tests:
     - npx playwright install --with-deps chromium
     - npm run build
     - npx playwright test
-  # Relative, like every sibling job's report path: artifact paths are resolved
-  # against $CI_PROJECT_DIR (= $KAAPANA_DIR), not against the script's cwd, so
-  # the script's cd into the app does not move them.
+  # artifact paths resolve against $CI_PROJECT_DIR, not the script's cwd, so
+  # the cd into the app does not move them
   artifacts:
     when: always
     paths:
@@ -271,10 +280,8 @@ ui_e2e_tests:
 ##############################################
 # UI Unit Tests (vitest — portal-ui shell suites)
 ##############################################
-# Runs the shell's vitest unit suites (src/**/__tests__), which the
-# Playwright-only ui_e2e_tests job does not cover. portal-ui is the only app
-# with a test:unit script, so this is a single job, not a matrix; it consumes
-# no @kaapana/base-ui, so no library pre-build step is needed.
+# The shell's vitest unit suites (src/**/__tests__); portal-ui is the only app
+# with a test:unit script, so a single job, not a matrix.
 ui_unit_tests:
   extends: .test_template
   # Node job: the template's python:3.12 image lacks the node the app requires

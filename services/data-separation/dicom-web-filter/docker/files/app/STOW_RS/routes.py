@@ -253,7 +253,7 @@ async def __map_viewer_series_to_project(
     Args:
         session (AsyncSession): Database session
         series_info (dict[str, str]): Mapping of SeriesInstanceUID → StudyInstanceUID
-        project_id (UUID): Target project UUID (from the Project cookie)
+        project_id (UUID): Target project UUID (from the Project header)
     """
     for series_uid, study_uid in series_info.items():
         try:

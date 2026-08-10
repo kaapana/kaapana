@@ -1,5 +1,5 @@
-import json
 import os
+import re
 import time
 from typing import Optional
 
@@ -16,6 +16,13 @@ logger = get_logger(__name__)
 _DEVICE_POLL_INTERVAL = 5  # fallback if the IdP omits `interval`
 # Refresh slightly before the actual expiry to avoid races.
 _EXPIRY_BUFFER_SECONDS = 10
+
+# Services exposed under a /project/<id>/ IngressRoute that read the injected
+# `Project` header. Keep in step with the other two copies of this list:
+# base-ui's httpClient interceptor and docs .../preview/project_scoping.rst.
+_PROJECT_SCOPED = re.compile(
+    r"^/?(kaapana-backend|kube-helm-api|workflow-api|dicom-web-filter)(/|$)"
+)
 
 
 class KaapanaApiService:
@@ -37,15 +44,16 @@ class KaapanaApiService:
     ):
         """Initialize the service and start the OAuth2 device code flow.
 
-        Fetches the project cookie and initiates device authorization. The user
-        must visit the printed URL to grant access before the first API call is
-        made.
+        Initiates device authorization. The user must visit the printed URL to
+        grant access before the first API call is made.
 
         Args:
             root_url: Base URL of the Kaapana instance (e.g. the Traefik gateway
                 URL). All endpoint paths are appended to this value.
             project_id: Kaapana project identifier used to scope requests to the
-                correct project.
+                correct project. Becomes the ``/project/<id>/`` URL prefix on
+                calls to project-scoped services; may be the project's UUID, its
+                8-character ``short_id`` or its name.
             client_id: OAuth2 client ID registered in Keycloak.
             client_secret: OAuth2 client secret for the given client, or ``None``
                 for public clients.
@@ -59,7 +67,6 @@ class KaapanaApiService:
 
         self.token = {}
         self._token_expiry: float | None = None
-        self.project_cookie = {}
         self._fetch_oidc_metadata()
         self._get_device_code()
 
@@ -78,8 +85,7 @@ class KaapanaApiService:
         Returns:
             requests.Response: The response from the server.
         """
-        kwargs["url"] = f"{self.root_url}/{endpoint}"
-        kwargs = self._set_project_cookie(kwargs)
+        kwargs["url"] = self._url_for(endpoint)
         return requests.get(**self._with_auth(kwargs))
 
     def post(self, endpoint, **kwargs):
@@ -93,8 +99,7 @@ class KaapanaApiService:
         Returns:
             requests.Response: The response from the server.
         """
-        kwargs["url"] = f"{self.root_url}/{endpoint}"
-        kwargs = self._set_project_cookie(kwargs)
+        kwargs["url"] = self._url_for(endpoint)
         return requests.post(**self._with_auth(kwargs))
 
     def put(self, endpoint, **kwargs):
@@ -108,8 +113,7 @@ class KaapanaApiService:
         Returns:
             requests.Response: The response from the server.
         """
-        kwargs["url"] = f"{self.root_url}/{endpoint}"
-        kwargs = self._set_project_cookie(kwargs)
+        kwargs["url"] = self._url_for(endpoint)
         return requests.put(**self._with_auth(kwargs))
 
     def delete(self, endpoint, **kwargs):
@@ -123,8 +127,7 @@ class KaapanaApiService:
         Returns:
             requests.Response: The response from the server.
         """
-        kwargs["url"] = f"{self.root_url}/{endpoint}"
-        kwargs = self._set_project_cookie(kwargs)
+        kwargs["url"] = self._url_for(endpoint)
         return requests.delete(**self._with_auth(kwargs))
 
     def head(self, endpoint, **kwargs):
@@ -138,8 +141,7 @@ class KaapanaApiService:
         Returns:
             requests.Response: The response from the server (no body).
         """
-        kwargs["url"] = f"{self.root_url}/{endpoint}"
-        kwargs = self._set_project_cookie(kwargs)
+        kwargs["url"] = self._url_for(endpoint)
         return requests.head(**self._with_auth(kwargs))
 
     # ------------------------------------------------------------------
@@ -164,57 +166,41 @@ class KaapanaApiService:
         self.token_url = metadata["token_endpoint"]
         self.device_code_url = metadata["device_authorization_endpoint"]
 
-    def _set_project_cookie(self, kwargs: dict):
-        """
-        Set the project-cookie in the kwargs.
-        """
+    def _url_for(self, endpoint: str) -> str:
+        """Build the absolute URL for ``endpoint``, project-scoping it if needed.
 
-        cookies = kwargs.pop("cookies", {})
-        cookies.update(self.project_cookie or self._get_project_cookie())
-        kwargs["cookies"] = cookies
-        return kwargs
+        Project-scoped services take their scope from the URL: the request goes
+        to ``{root_url}/project/{project_id}/{endpoint}``, where the gateway
+        resolves ``project_id``, authorizes the caller against it and injects
+        the trusted ``Project`` header before traefik strips the prefix again.
+        Endpoints of other services (``aii/…``, ``auth/…``) have no such route
+        and must stay unprefixed, or they would 404.
 
-    def _get_project_cookie(self):
-        """Fetch project metadata and build the ``Project`` cookie dict.
-
-        Calls the AII projects endpoint and constructs a cookie containing the project
-        name and ID in JSON form, which must accompany every API request.
+        Args:
+            endpoint: API path relative to ``root_url``, e.g.
+                ``"kaapana-backend/client/datasets"``.
 
         Returns:
-            dict: A single-key dict ``{"Project": "<json-string>"}`` ready to
-                be passed as the ``cookies`` argument to ``requests``.
+            str: The absolute request URL.
         """
-        r = requests.get(
-            **self._with_auth(
-                {
-                    "url": f"{self.root_url}/aii/projects/{self.project_id}",
-                    "verify": False,
-                }
-            )
-        )
-
-        project_response = r.json()
-        self.project_cookie = {
-            "Project": json.dumps(
-                {"name": project_response.get("name"), "id": self.project_id}
-            )
-        }
-        return self.project_cookie
+        if _PROJECT_SCOPED.match(endpoint):
+            return f"{self.root_url}/project/{self.project_id}/{endpoint.lstrip('/')}"
+        return f"{self.root_url}/{endpoint}"
 
     def _with_auth(self, kwargs: dict) -> dict:
-        """Inject authentication headers and the project cookie into a kwargs dict.
+        """Inject authentication headers into a kwargs dict.
 
         Ensures the access token is valid (refreshing it if necessary), then
-        adds ``Authorization`` and ``x-forwarded-access-token`` headers and
-        merges the project cookie. TLS verification defaults to ``False`` if
-        not already provided by the caller.
+        adds ``Authorization`` and ``x-forwarded-access-token`` headers. TLS
+        verification defaults to ``False`` if not already provided by the
+        caller.
 
         Args:
             kwargs: Keyword arguments intended for a ``requests`` call. Modified
                 in-place and returned. Must already contain the ``url`` key.
 
         Returns:
-            dict: The same ``kwargs`` dict with auth headers and cookies added.
+            dict: The same ``kwargs`` dict with auth headers added.
         """
         self._ensure_valid_token()
         headers = kwargs.pop("headers", {})

@@ -55,6 +55,7 @@ if_ci_failing:
     - { job: unit_tests, optional: true, artifacts: false }
     - { job: task_api_tests, optional: true, artifacts: false }
     - { job: kaapana_extensions_tests, optional: true, artifacts: false }
+    - { job: kaapana_client_tests, optional: true, artifacts: false }
     - { job: workflow_api_tests, optional: true, artifacts: false }
     - { job: portal_api_tests, optional: true, artifacts: false }
     - { job: extensions_api_tests, optional: true, artifacts: false }

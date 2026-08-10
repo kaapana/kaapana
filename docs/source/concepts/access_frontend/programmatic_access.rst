@@ -41,7 +41,7 @@ Setting up the client
    * - ``root_url``
      - Base URL of the Kaapana instance (e.g. the Traefik gateway URL). All endpoint paths are appended to this value.
    * - ``project_id``
-     - UUID of the project you want to operate in.
+     - The project you want to operate in: its UUID, its 8-character ``short_id`` or its name. It becomes the ``/project/<id>/`` URL prefix on calls to project-scoped services (see below).
    * - ``client_id``
      - OAuth2 client ID registered in Keycloak.
    * - ``client_secret``
@@ -84,7 +84,7 @@ Making requests
 ==================
 
 All five HTTP methods -- ``get``, ``post``, ``put``, ``delete``, and ``head`` -- accept an ``endpoint`` path relative to ``root_url``, followed by any keyword arguments accepted by the underlying ``requests`` library (e.g. ``json``, ``params``, ``data``, ``timeout``).
-Authentication headers and the project cookie are injected automatically.
+Authentication headers are injected automatically, and so is the project scope.
 
 .. code-block:: python
 
@@ -97,6 +97,32 @@ Authentication headers and the project cookie are injected automatically.
 
     # DELETE a resource
     response = api.delete(f"aii/projects/{project_id}")
+
+**Project scope**
+
+Kaapana carries the project in the URL -- see :ref:`project_scoping` for the mechanism -- and the client applies that convention for you.
+A call to one of the project-scoped services (``kaapana-backend``, ``kube-helm-api``, ``workflow-api``, ``dicom-web-filter``) is sent to ``/project/<project_id>/<endpoint>``; every other endpoint is sent unprefixed, because no project-scoped route exists for it.
+
+.. code-block:: python
+
+    # sent as GET /project/<project_id>/kaapana-backend/client/datasets
+    response = api.get("kaapana-backend/client/datasets")
+
+    # sent as GET /aii/projects -- not a project-scoped service
+    response = api.get("aii/projects")
+
+The gateway resolves the id, verifies that the authenticated user is a member of that project, and injects the resolved project as a trusted ``Project`` header before the service sees the request.
+Two consequences worth knowing:
+
+* Scoping to a project you are not a member of is a hard **403** -- there is no fallback to a default project. Realm admins may scope anywhere.
+* To address a *different* project in a single call, write the prefix yourself. An ``endpoint`` that already starts with ``project/`` is passed through untouched:
+
+  .. code-block:: python
+
+     api.get(f"project/{other_project_id}/kaapana-backend/client/datasets")
+
+.. note::
+   Earlier releases carried the scope in a ``Project`` cookie. That cookie is gone -- nothing writes or reads it. A request without the URL prefix simply carries no project context, so endpoints that require one answer **400**.
 
 Triggering a workflow run
 ============================
@@ -119,5 +145,5 @@ Submitting a run is a single call to the Workflow API:
    )
    run_id = response.json()["id"]
 
-The project the run executes in is taken from the authenticated session, not from the request body.
+The project the run executes in comes from the URL prefix the client adds, not from the request body -- the endpoint rejects a request without it with **400**.
 Poll ``GET workflow-api/v1/workflow-runs/{run_id}`` for its lifecycle status, and ``.../task-runs`` for per-task status and logs.

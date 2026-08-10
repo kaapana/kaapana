@@ -58,7 +58,6 @@ def set_task_form_environment(env_name: str, env_value: str, testcase: dict):
     return testcase
 
 
- 
 @pytest.mark.asyncio
 async def test_workflow(workflow_endpoints: WorkflowEndpoints, testconfig):
     """
@@ -102,5 +101,5 @@ async def test_workflow(workflow_endpoints: WorkflowEndpoints, testconfig):
     logger.info(f"Workflow {workflow_name} started for dag {dag_id}.")
     ### Wait for workflow to finish
     success, msg = wait_for_workflow(kaapana, workflow_name)
-    assert success
     logger.info(msg)
+    assert success, msg

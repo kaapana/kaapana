@@ -52,7 +52,7 @@
       ansible.builtin.debug:
         var: vm_pvcs
 
-    - name: Delete VM
+    - name: Delete VM and wait for removal
       when:
         - vm_check.resources is defined
         - vm_check.resources | length > 0
@@ -63,24 +63,11 @@
         namespace: "{{ harvester_namespace }}"
         kubeconfig: "{{ harvester_kubeconfig }}"
         state: absent
+        wait: true
+        wait_timeout: 600
+        wait_sleep: 10
 
-    - name: Wait until VM is deleted
-      when:
-        - vm_check.resources is defined
-        - vm_check.resources | length > 0
-      kubernetes.core.k8s_info:
-        api_version: kubevirt.io/v1
-        kind: VirtualMachine
-        name: "{{ vm_name }}"
-        namespace: "{{ harvester_namespace }}"
-        kubeconfig: "{{ harvester_kubeconfig }}"
-      register: delete_check
-      until: delete_check.resources | length == 0
-      retries: 60
-      delay: 10
-      changed_when: false
-
-    - name: Delete PVCs attached to VM
+    - name: Delete PVCs and wait for removal
       when:
         - vm_pvcs is defined
         - vm_pvcs | length > 0
@@ -91,24 +78,9 @@
         namespace: "{{ harvester_namespace }}"
         kubeconfig: "{{ harvester_kubeconfig }}"
         state: absent
-      loop: "{{ vm_pvcs }}"
-      ignore_errors: true
-
-    - name: Wait until PVCs are deleted
-      when:
-        - vm_pvcs is defined
-        - vm_pvcs | length > 0
-      kubernetes.core.k8s_info:
-        api_version: v1
-        kind: PersistentVolumeClaim
-        name: "{{ item }}"
-        namespace: "{{ harvester_namespace }}"
-        kubeconfig: "{{ harvester_kubeconfig }}"
-      register: pvc_delete_check
-      until: pvc_delete_check.resources | length == 0
-      retries: 30
-      delay: 5
-      changed_when: false
+        wait: true
+        wait_timeout: 600
+        wait_sleep: 10
       loop: "{{ vm_pvcs }}"
 
     - name: Display result

@@ -293,11 +293,92 @@ gitlab-ci-local --list --variable CI_PIPELINE_SOURCE=web
 - Only the `tests` stage is meant to run locally — build/deploy/test/clean
   need registry credentials, Harvester access, and a test VM.
 
+## 11. Workflow testcases (`ci-config`)
+
+`run_workflows` collects every YAML document under any `<chart>/ci-config/*.yaml`
+as one testcase: the document is the payload for
+`kaapana-backend/client/workflow`, and the test passes when the triggered
+workflow reaches a successful state. Three fields steer the CI and never reach
+the platform:
+
+| Field | Meaning |
+|---|---|
+| `ci_step: <name>` | the handle of this testcase, what a `ci_after` points at. Unique across all collected files, and only needed on a testcase something else depends on |
+| `ci_after: [<name>, ...]` | this testcase runs only after those testcases, on the same worker |
+| `ci_ignore: true` | collect but do not run. Reported as passed, so it is not usable as a prerequisite |
+
+**Everything is parallel by default.** A testcase without `ci_after` forms a
+group of its own, so the workers distribute them freely. Documents of one file
+are *not* a sequence: several documents usually mean parameter variants
+(`validate-dicoms` runs two validators, `download-selected-files` three flag
+combinations) and those must stay independent.
+
+**Declare a sequence when a testcase needs state another one produces.**
+Prerequisites, not positions:
+
+```yaml
+dag_id: "tag-dataset"
+ci_step: evaluate-segmentations-tag-test
+# ... tags one series with TEST
+---
+dag_id: "tag-dataset"
+ci_step: evaluate-segmentations-tag-pred
+# ... tags one series with PRED
+---
+dag_id: evaluate-segmentations
+ci_step: evaluate-segmentations
+ci_after:
+  - evaluate-segmentations-tag-test
+  - evaluate-segmentations-tag-pred
+# ... selects its input by exactly those tags
+```
+
+Connected testcases become one xdist group, ordered so that prerequisites run
+first. The order follows the declaration, not the position in the file, so
+documents can be reordered freely. The group is named after the alphabetically
+first `ci_step` in it and appears in test ids as `test_workflow[dag]@group`.
+
+**What is checked.** A name declared twice, a `ci_after` pointing at a name no
+collected testcase declares, and a cycle all abort collection before any
+workflow is triggered. At runtime each testcase verifies that its prerequisites
+did succeed and fails with `prerequisite '<name>' did not run on this worker`
+otherwise, so a broken order is never silent. This holds because a group always
+runs in one process.
+
+**`PYTEST_DIST: "loadgroup"` is required** and set on the `run_workflows` job.
+The xdist default `load` gives each test to the next free worker and never looks
+at the group, which would split a group and fail every testcase whose
+prerequisite ran on another worker; collection therefore aborts when a
+`ci_after` is declared without `loadgroup`. And `loadgroup` guarantees only that
+a group stays on one worker, not the order within it, which is why the order
+comes from the declarations and is checked at runtime. Scheduling details in the
+[xdist distribution
+modes](https://pytest-xdist.readthedocs.io/en/stable/distribution.html). A run
+without `-n` needs nothing: one process keeps every group together and runs it
+in collection order.
+
+**Limits worth knowing.** A `ci_after` across files only resolves if both files
+are collected in the same run, which matters when narrowing a run with
+`--files` or `--test-dir`. And an order says nothing about state: if another
+testcase overwrites the tags in between, the prerequisite is still green and the
+consumer still fails. Prefer independent testcases over long chains.
+
+Single testcase against a running platform:
+
+```bash
+pytest -s ci/ci-code/integration_tests/tests/test_run_workflows.py \
+  --host <vm-fqdn> --client-secret <secret> \
+  --files data-processing/kaapana-plugin/extension/kaapana-plugin-chart/ci-config/evaluate-segmentations.yaml
+```
+
 ## Known gaps
 
-- The integration tests pass platform state to each other by run order alone
-  (`first_login` → `install_extensions` → `send_data` → `run_workflows`);
-  nothing checks preconditions yet.
+- Between the integration test jobs `needs:` order is the only guarantee:
+  `first_login` → `install_extensions` → `send_data` → `run_workflows` pass
+  platform state along, no job verifies what it expects to find. Inside
+  `run_workflows` the testcases do ([section 11](#11-workflow-testcases-ci-config)).
+- A workflow testcase whose DAG the platform does not know counts as passed, so a
+  failed extension install can leave `run_workflows` green.
 - `install_extensions` and `send_data` carry `retry: 2` — known flakiness.
 - `ci/docs/local-ci.md` predates the current variable set (it references
   variables that no longer exist) — for local runs use

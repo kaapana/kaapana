@@ -1,9 +1,10 @@
 dag_id: "tag-dataset"
+ci_step: tag-dataset
 instance_names:
   - central
 conf_data:
   workflow_form:
-    single_execution: false 
+    single_execution: false
     action: "add"
     tags: "TestTAG"
   data_form:
@@ -16,11 +17,14 @@ remote: false
 username: "kaapana"
 ---
 dag_id: "tag-dataset"
+ci_step: tag-dataset-cleanup
+ci_after:
+  - tag-dataset
 instance_names:
   - central
 conf_data:
   workflow_form:
-    single_execution: false 
+    single_execution: false
     action: "delete"
     tags: "TestTAG"
   data_form:

@@ -54,7 +54,8 @@ setup_integration_tests:
     # current test code
     - pip install --no-deps -e "$CI_PROJECT_DIR/ci/ci-code/integration_tests"
     - |
-      python3 -m pytest -n "${PYTEST_WORKERS:-auto}" -s "$CI_PROJECT_DIR/$PYTEST_FILE" $PYTEST_ARGS \
+      python3 -m pytest -n "${PYTEST_WORKERS:-auto}" --dist "${PYTEST_DIST:-load}" \
+        -s "$CI_PROJECT_DIR/$PYTEST_FILE" $PYTEST_ARGS \
         --junitxml="$ARTIFACTS_DIR/$JUNIT_FILE" | tee "$ARTIFACTS_DIR/$LOG_FILE"
   artifacts:
     paths:
@@ -129,6 +130,7 @@ run_workflows:
     JUNIT_FILE: "run_workflow.xml"
     LOG_FILE: "run_workflow.log"
     PYTEST_WORKERS: "4"
+    PYTEST_DIST: "loadgroup"
 
 playwright_ui_tests:
   extends: .remote_execution_template

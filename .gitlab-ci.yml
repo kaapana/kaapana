@@ -36,13 +36,13 @@ variables:
   CI_EXEC_DEPLOY: "true" # deploy stage: provision test VM + server install + platform deploy
   CI_EXEC_SERVER_INSTALLATION: "true" # "false" skips the OS/microk8s install (target already prepared)
   CI_EXEC_INTEGRATION_TESTS: "true" # test stage: pytest + Playwright against the test VM
+  CI_EXEC_BENCHMARKING: "false" # "true" = run the ingestion-pipeline benchmark suite against the deployed platform
   # Registry-based scan of the images this pipeline pushed (nightly schedules
   # set "true"); scans no longer run inside the build job.
   CI_EXEC_SECURITY_SCAN: "false"
   CI_EXEC_SECURITY_SCAN_ARGUMENTS: "--vulnerability-scan --configuration-check"
   CI_EXEC_DOCKER_PRUNE: "false" # "true" = wipe the runner docker cache first (cold build)
   CI_EXEC_DESTROY_DELAYED: "false" # "true" = keep the test VM for 4h after the pipeline for inspection
-  CI_EXEC_BENCHMARKING: "false" # "true" = run the ingestion-pipeline benchmark suite against the deployed platform
   MAINTENANCE: "false" # "true" pauses push/schedule/MR pipelines (workflow:rules)
 
   # --- Registries, both configured as project variables: CI_REGISTRY_* for
@@ -130,4 +130,5 @@ include:
   - local: /ci/pipeline/build.yml
   - local: /ci/pipeline/deploy.yml
   - local: /ci/pipeline/integration-tests.yml
+  - local: /ci/pipeline/benchmark.yml
   - local: /ci/pipeline/clean.yml

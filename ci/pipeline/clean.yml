@@ -24,6 +24,7 @@ destroy_deployment:
     - { job: send_data, optional: true, artifacts: false }
     - { job: run_workflows, optional: true, artifacts: false }
     - { job: playwright_ui_tests, optional: true, artifacts: false }
+    - { job: benchmark_platform, optional: true, artifacts: false }
   rules:
     # Never destroy externally-provided VMs
     - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
@@ -75,6 +76,7 @@ if_ci_failing:
     - { job: send_data, optional: true, artifacts: true }
     - { job: run_workflows, optional: true, artifacts: true }
     - { job: playwright_ui_tests, optional: true, artifacts: false }
+    - { job: benchmark_platform, optional: true, artifacts: false }
   script:
     - mkdir -p "$ARTIFACTS_DIR"
     # move build.log into the dir the ticket script scans for *.log

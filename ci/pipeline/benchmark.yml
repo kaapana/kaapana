@@ -37,13 +37,18 @@ benchmark_platform:
     # Not baked into $CI_BASE_IMAGE yet (dcmtk is; typer/matplotlib/numpy
     # aren't) — installs in seconds, revisit if this job's runtime matters.
     - pip install -e "$CI_PROJECT_DIR/utils/platform-benchmark"
+    # Own subdirectory, not $ARTIFACTS_DIR directly — that path is shared
+    # with prepare_deployment's deployment.env (pulled in via needs:
+    # artifacts), and expose_as below can't use a wildcard to filter it
+    # back out to just the JSON results.
+    - mkdir -p "$ARTIFACTS_DIR/benchmark"
     - |
       for i in $(seq 1 "$BENCHMARK_RUNS"); do
         tag="${VERSION_TAG}-r${i}"
         # --password: fixed by first_login's set_new_password default (see
         # ci/ci-code/integration_tests/integration_tests/login.py) — same
         # assumption the pytest integration tests already make.
-        benchmark --results-dir "$ARTIFACTS_DIR" ingestion-pipeline \
+        benchmark --results-dir "$ARTIFACTS_DIR/benchmark" ingestion-pipeline \
           --host "https://$VM_FQDN" --username kaapana --password admin \
           --mode "$BENCHMARK_MODE" --data-dir "$BENCHMARK_DATA_DIR" \
           --tag "$tag" --force
@@ -51,5 +56,5 @@ benchmark_platform:
   artifacts:
     when: always
     paths:
-      - "$ARTIFACTS_DIR/*.json"
+      - "$ARTIFACTS_DIR/benchmark/"
     expose_as: "Benchmark Results"

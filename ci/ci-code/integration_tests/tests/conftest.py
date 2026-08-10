@@ -15,8 +15,8 @@ from integration_tests.utils.KaapanaPlaywrightDriver import (
 )
 from integration_tests.workflows import (
     WorkflowEndpoints,
-    collect_all_testcases,
-    read_payload_from_yaml,
+    collect_testcase_files,
+    plan_testcases,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -263,20 +263,35 @@ def generate_workflow_tests(metafunc):
     test_dir = metafunc.config.getoption("test_dir")
 
     if files and len(files) != 0:
-        testcases = []
-        for file in files:
-            testcases += read_payload_from_yaml(file)
+        testcase_files = [Path(file) for file in files]
     elif test_dir:
-        testdir = os.path.join(os.getcwd(), test_dir)
-        testcases = collect_all_testcases(testdir)
+        testcase_files = collect_testcase_files(os.path.join(os.getcwd(), test_dir))
     else:
-        testcases = []
-        for file in Path(__file__).parents[4].rglob("ci-config/*.yaml"):
-            testcases.extend(read_payload_from_yaml(file))
+        testcase_files = sorted(Path(__file__).parents[4].rglob("ci-config/*.yaml"))
 
-    metafunc.parametrize(
-        "testconfig", testcases, ids=[tc.get("dag_id") for tc in testcases]
-    )
+    try:
+        planned = plan_testcases(testcase_files)
+    except ValueError as invalid_declaration:
+        raise pytest.UsageError(str(invalid_declaration)) from None
+
+    if any(case.after for case in planned) and not _distribution_keeps_groups(
+        metafunc.config
+    ):
+        raise pytest.UsageError(
+            "testcases declare ci_after, which needs --dist loadgroup to keep a group "
+            "on one worker"
+        )
+
+    params = []
+    ids = []
+    for case in planned:
+        marks = [pytest.mark.xdist_group(case.group)]
+        if case.step or case.after:
+            marks.append(pytest.mark.ci_step(case.step, case.after))
+        params.append(pytest.param(case.payload, marks=marks))
+        ids.append(case.payload.get("dag_id"))
+
+    metafunc.parametrize("testconfig", params, ids=ids)
 
 
 def pytest_generate_tests(metafunc):
@@ -297,3 +312,56 @@ def pytest_generate_tests(metafunc):
 
     if "testconfig" in metafunc.fixturenames:
         generate_workflow_tests(metafunc)
+
+
+# ---------------------------------------------------------------------------
+# Declared testcase dependencies (ci_step / ci_after)
+# ---------------------------------------------------------------------------
+# Outcome of every ci_step this process ran. Members of one xdist group always
+# land on the same worker, so a process local record is enough to verify the
+# declared prerequisites instead of trusting the order of the distribution,
+# which loadgroup does not promise.
+_step_outcomes: dict[str, str] = {}
+
+
+def _distribution_keeps_groups(config) -> bool:
+    """
+    Whether a group of testcases is kept together by the current distribution.
+    """
+    if hasattr(config, "workerinput"):
+        # xdist resets its own options inside the worker and leaves this flag behind
+        return config.option.loadgroup
+    return not config.option.numprocesses or config.option.dist == "loadgroup"
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "ci_step(name, after): name of a workflow testcase and the names it follows",
+    )
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_makereport(item, call):
+    report = yield
+    marker = item.get_closest_marker("ci_step")
+    if report.when == "call" and marker and marker.args[0]:
+        _step_outcomes[marker.args[0]] = report.outcome
+    return report
+
+
+@pytest.fixture(autouse=True)
+def declared_prerequisites(request):
+    """
+    Fail a testcase whose declared prerequisites did not succeed before it.
+    """
+    marker = request.node.get_closest_marker("ci_step")
+    if not marker:
+        return
+    for prerequisite in marker.args[1]:
+        outcome = _step_outcomes.get(prerequisite, "did not run")
+        if outcome != "passed":
+            pytest.fail(
+                f"prerequisite {prerequisite!r} {outcome} on this worker, so the state "
+                f"this testcase expects was never established"
+            )

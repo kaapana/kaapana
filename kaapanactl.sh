@@ -1360,7 +1360,7 @@ install_gpu_operator() {
 
   # Constants
   local chart_name="gpu-operator"
-  local chart_version="v25.3.0"
+  local chart_version="v25.10.0"
   local helm="/snap/bin/helm"
   local containerd_socket="/var/snap/microk8s/common/run/containerd.sock"
   local containerd_toml="/var/snap/microk8s/current/args/containerd-template.toml"
@@ -1388,7 +1388,7 @@ install_gpu_operator() {
   fi
 
   # Feed JSON values to Helm via stdin (equivalent to -f - in the Python script)
-  cat <<EOF | "${helm}" install "${chart_name}" "${chart_path}" \
+  cat <<EOF | "${helm}" upgrade --install "${chart_name}" "${chart_path}" \
     --version="${chart_version}" \
     --create-namespace \
     --namespace="${chart_name}-resources" \
@@ -1396,6 +1396,9 @@ install_gpu_operator() {
 {
   "operator": {
     "defaultRuntime": "containerd"
+  },
+  "cdi": {
+    "enabled": false
   },
   "driver": {
     "enabled": "${driver_enabled}"
@@ -2219,7 +2222,9 @@ function deploy_chart {
     echo -e "${YELLOW}GPU_SUPPORT: $GPU_SUPPORT ${NC}"
     if [ "${GPU_SUPPORT,,}" == true ];then
         echo -e "-> enabling GPU in Microk8s ..."
-        if [[ $deployments == *"gpu-operator"* ]];then
+        # gpu-operator is installed into its own namespace (gpu-operator-resources),
+        # so it never appears in $deployments (helm ls -n $HELM_NAMESPACE) - check it directly
+        if [[ $deployments == *"gpu-operator"* ]] || $HELM_EXECUTABLE status gpu-operator -n gpu-operator-resources >/dev/null 2>&1;then
             echo -e "-> gpu-operator chart already exists"
         else
             if [ "${OFFLINE_MODE,,}" == true ];then

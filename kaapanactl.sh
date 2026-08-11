@@ -909,7 +909,6 @@ function install_no_proxy_environment {
         echo "${YELLOW}no_proxy not found, setting it and adding ${HOSTNAME}${NC}"
         echo "NO_PROXY=127.0.0.1,$HOSTNAME,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" >> /etc/environment
         echo "no_proxy=127.0.0.1,$HOSTNAME,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" >> /etc/environment
-        sed -i "$ a\\${INSERTLINE}" /etc/environment && echo "Adding $HOSTNAME to no_proxy"
     else
         echo "${YELLOW}no_proxy | NO_PROXY found - check if complete ...!${NC}"
 

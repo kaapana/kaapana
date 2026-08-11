@@ -111,7 +111,13 @@ class OCIRegistryDiscovery:
         self._client: Optional[httpx.AsyncClient] = None
 
     async def __aenter__(self) -> "OCIRegistryDiscovery":
-        self._client = httpx.AsyncClient()
+        timeout = httpx.Timeout(
+            connect=5.0,
+            read=60.0,
+            write=60,
+            pool=5.0,
+        )
+        self._client = httpx.AsyncClient(timeout=timeout)
         return self
 
     async def __aexit__(self, *args: Any) -> None:

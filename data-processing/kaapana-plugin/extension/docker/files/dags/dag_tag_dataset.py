@@ -50,7 +50,7 @@ dag = DAG(
 
 get_input = GetInputOperator(dag=dag, data_type="json")
 tagging = LocalTaggingOperator(dag=dag, input_operator=get_input)
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="all_done")
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 
 check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")

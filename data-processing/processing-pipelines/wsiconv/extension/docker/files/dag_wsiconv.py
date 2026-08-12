@@ -95,7 +95,7 @@ remove_object_from_uploads = LocalVolumeMountOperator(
 )
 
 clean = LocalWorkflowCleanerOperator(
-    dag=dag, trigger_rule="all_done", clean_workflow_dir=True
+    dag=dag, clean_workflow_dir=True
 )
 
 check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")

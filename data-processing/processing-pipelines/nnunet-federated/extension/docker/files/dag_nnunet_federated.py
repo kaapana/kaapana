@@ -166,7 +166,7 @@ put_to_minio = MinioOperator(
     zip_files=True,
 )
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="all_done")
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 nnunet_federated >> zip_model >> bin2dcm >> dcm_send_int >> [clean, check_success]

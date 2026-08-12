@@ -75,7 +75,7 @@ launch_app = KaapanaBaseOperator(
 )
 
 send_dicom = DcmSendOperator(dag=dag, ae_title="MITK-flow", input_operator=mitk)
-clean = LocalWorkflowCleanerOperator(dag=dag, trigger_rule="all_done")
+clean = LocalWorkflowCleanerOperator(dag=dag)
 
 
 check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")

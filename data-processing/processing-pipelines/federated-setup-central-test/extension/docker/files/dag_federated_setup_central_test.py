@@ -78,7 +78,7 @@ dag = DAG(
 )
 
 federated_setup_central_test = FedartedSetupCentralTestOperator(dag=dag)
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="all_done")
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 federated_setup_central_test >> [clean, check_success]

@@ -56,7 +56,7 @@ pool_jsons_two = PoolJsonsOperator(dag=dag, input_operator=extract_two)
 put_to_minio = MinioOperator(
     dag=dag, action="put", none_batch_input_operators=[pool_jsons_one, pool_jsons_two]
 )
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="all_done")
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 
 check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")

@@ -76,7 +76,7 @@ tag_dataset = LocalTaggingOperator(
     add_tags_from_file=True,
     tags_to_add_from_file=["train_test_split_tag"],
 )
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="all_done")
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 
 check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")

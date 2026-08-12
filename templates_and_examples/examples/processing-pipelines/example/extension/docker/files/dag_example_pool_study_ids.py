@@ -47,7 +47,7 @@ get_input = GetInputOperator(dag=dag)
 extract = ExtractStudyIdOperator(dag=dag, input_operator=get_input)
 pool_jsons = PoolJsonsOperator(dag=dag, input_operator=extract)
 put_to_minio = MinioOperator(dag=dag, action="put", none_batch_input_operators=[pool_jsons])
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="all_done")
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 
 check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")

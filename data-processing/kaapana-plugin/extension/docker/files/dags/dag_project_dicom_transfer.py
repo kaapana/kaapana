@@ -205,7 +205,7 @@ copy_thumbnails = LocalCopyThumbnails(dag=dag, input_operator=clean_tags)
 
 
 clean = LocalWorkflowCleanerOperator(
-    dag=dag, clean_workflow_dir=True, trigger_rule="all_done"
+    dag=dag, clean_workflow_dir=True
 )
 check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed_or_skipped")
 

@@ -62,7 +62,7 @@ push_json = Json2MetaOperator(
     dag=dag, dicom_operator=get_input, json_operator=bodypartregression
 )
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="all_done")
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 
 check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")

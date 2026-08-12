@@ -98,8 +98,7 @@ assign_to_project = LocalAssignDataToProjectOperator(
 )
 
 clean = LocalWorkflowCleanerOperator(
-    dag=dag, clean_workflow_dir=True, namespace=SERVICES_NAMESPACE,
-    trigger_rule="all_done"
+    dag=dag, clean_workflow_dir=True, namespace=SERVICES_NAMESPACE
 )
 
 

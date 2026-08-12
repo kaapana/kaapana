@@ -46,7 +46,7 @@ extract = ExtractStudyIdOperator(
     dag=dag, input_operator=get_input
 )
 put_to_minio = MinioOperator(dag=dag, action="put", batch_input_operators=[extract])
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="all_done")
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 
 check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")

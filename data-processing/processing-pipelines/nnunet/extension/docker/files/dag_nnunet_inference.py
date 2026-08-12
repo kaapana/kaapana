@@ -206,7 +206,7 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
 dcmseg_send_multi = DcmSendOperator(
     dag=dag, ae_title=ae_title, input_operator=nrrd2dcmSeg_multi
 )
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="all_done")
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 
 check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")

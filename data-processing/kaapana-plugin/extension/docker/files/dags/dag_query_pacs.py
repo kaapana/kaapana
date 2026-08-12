@@ -206,7 +206,7 @@ push_jsonl = Json2MetaOperator(
 )
 
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False, trigger_rule="all_done")
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
 
 
 

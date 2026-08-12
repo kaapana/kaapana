@@ -91,7 +91,6 @@ remove_object_from_file_uploads = LocalVolumeMountOperator(
 
 clean = LocalWorkflowCleanerOperator(
     dag=dag,
-    trigger_rule="all_done",
     clean_workflow_dir=True,
     namespace=SERVICES_NAMESPACE,
 )

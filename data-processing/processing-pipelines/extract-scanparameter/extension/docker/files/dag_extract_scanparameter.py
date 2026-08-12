@@ -58,7 +58,7 @@ put_to_minio = LocalMinioOperator(
     action_operators=[extract_scanparameter],
     file_white_tuples=(".json", "*"),
 )
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="all_done")
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 
 check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")

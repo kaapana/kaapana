@@ -548,7 +548,6 @@ upload_to_data_api = KaapanaPythonBaseOperator(
 clean = LocalWorkflowCleanerOperator(
     dag=dag,
     clean_workflow_dir=True,
-    trigger_rule="all_done",
     namespace=SERVICES_NAMESPACE,
 )
 

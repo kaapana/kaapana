@@ -89,8 +89,7 @@ put_to_minio = MinioOperator(
 
 clean = LocalWorkflowCleanerOperator(
     dag=dag,
-    clean_workflow_dir=True,
-    trigger_rule="all_done"
+    clean_workflow_dir=True
 )
 
 

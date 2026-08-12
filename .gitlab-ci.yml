@@ -124,6 +124,7 @@ variables:
 # Job definitions live in one file per stage — each file's header states what
 # the stage takes in and hands out.
 include:
+  - local: /ci/pipeline/preflight.yml
   - local: /ci/pipeline/ci-image.yml
   - local: /ci/pipeline/unit-tests.yml
   - local: /ci/pipeline/build.yml

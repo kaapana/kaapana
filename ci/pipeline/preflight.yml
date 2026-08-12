@@ -1,0 +1,77 @@
+# Stage: tests — preflight variable check
+# In:  CI/CD variables only, no checkout
+# Out: nothing — fails within seconds when a required variable is empty,
+#      instead of build/deploy finding out an hour later
+##############################################
+# PREFLIGHT
+##############################################
+preflight_variables:
+  stage: tests
+  tags:
+    - tests-runner
+  image: python:3.12
+  variables:
+    GIT_STRATEGY: none # no checkout needed
+  # runs in every pipeline, regardless of the CI_EXEC_* toggles
+  rules:
+    - when: always
+  script:
+    - |
+      # print only variable names, not the values (several are secrets)
+      missing=""
+      errors=""
+      require() {
+        [ -n "${!1:-}" ] || missing="$missing $1"
+      }
+      require_file() {
+        # File-type variable: the value is a file path; the file must
+        # exist and not be empty
+        { [ -n "${!1:-}" ] && [ -s "${!1}" ]; } || missing="$missing $1(File)"
+      }
+
+      # every job pulls the ci-base image from this registry
+      require CI_REGISTRY_URL
+      require CI_IMAGES_TAG
+      require DOCKER_AUTH_CONFIG
+      # DOCKER_AUTH_CONFIG must contain the registry host, otherwise
+      # image pulls fail (see ci/README.md section 8)
+      if [ -n "${DOCKER_AUTH_CONFIG:-}" ] && [ -n "${CI_REGISTRY_URL:-}" ]; then
+        registry_host="${CI_REGISTRY_URL%%/*}"
+        case "$DOCKER_AUTH_CONFIG" in
+          *"$registry_host"*) ;;
+          *) errors="DOCKER_AUTH_CONFIG has no entry for '$registry_host' (the CI_REGISTRY_URL host)." ;;
+        esac
+      fi
+
+      # build and deploy need the registry credentials
+      if [ "$CI_EXEC_BUILD" = "true" ] || [ "$CI_EXEC_DEPLOY" = "true" ]; then
+        require REGISTRY_URL
+        require REGISTRY_USER
+        require REGISTRY_TOKEN
+      fi
+
+      # deploy creates a test VM, not needed when an external VM is given
+      if [ "$CI_EXEC_DEPLOY" = "true" ] && [ -z "$DEPLOYMENT_INSTANCE_FQDN" ]; then
+        require_file HARVESTER_KUBECONFIG
+        require_file CI_SSH_PRIVATE_KEY
+      fi
+
+      # failures on develop create a GitLab issue and a Slack message
+      if [ "$CI_COMMIT_BRANCH" = "develop" ]; then
+        require GITLAB_API_TOKEN
+        require SLACK_BOT_TOKEN
+        require SLACK_CHANNEL_ID
+      fi
+
+      # scheduled pipelines also run check_readthedocs
+      if [ "$CI_PIPELINE_SOURCE" = "schedule" ]; then
+        require KAAPANA_READTHEDOCS_TOKEN
+      fi
+
+      if [ -n "$missing" ] || [ -n "$errors" ]; then
+        [ -z "$missing" ] || echo "ERROR: required CI variables are empty or missing:$missing"
+        [ -z "$errors" ] || echo "ERROR: $errors"
+        echo "Fix them under Settings -> CI/CD -> Variables (see ci/README.md section 8)."
+        exit 1
+      fi
+      echo "Preflight OK: all required CI variables are set."

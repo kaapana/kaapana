@@ -10,6 +10,8 @@
   tags:
     - tests-runner
   image: python:3.12
+  # unit-test jobs must stay under 10 minutes
+  timeout: 10m
   rules:
     - if: '$CI_EXEC_UNIT_TESTS == "true"'
       when: always
@@ -257,11 +259,15 @@ build_documentation:
   extends: .test_template
   tags:
     - tests-runner
+  timeout: 30m # docs build needs longer than the 10m unit-test limit
   script:
     - cd $KAAPANA_DIR/docs
     - pip install -r requirements.txt
+    # fail the job when make fails
+    - set -o pipefail
     - make html 2>&1 | tee "build_documentation_html.log"
   artifacts:
+    when: always # upload the log also when the build fails
     expose_as: "Documentation"
     paths:
       - $KAAPANA_DIR/docs/build/html/

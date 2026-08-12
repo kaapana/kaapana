@@ -15,7 +15,7 @@ VM → test that live deployment → delete the VM.
 
 | Stage | Jobs | Runs on | Duration |
 |---|---|---|---|
-| `tests` | 8 unit-test suites, docs build | tests runner | minutes |
+| `tests` | preflight variable check, 8 unit-test suites (10 min cap each), docs build | tests runner | minutes |
 | `build` | `build_packages` (+ security scan on nightly) | build runner | hours (warm cache: much less) |
 | `deploy` | `prepare_deployment` → `server_installation` → `platform_deployment` | deploy runner (Ansible over SSH) | ~1 h |
 | `test` | integration tests: login, ports, UI (Playwright), extensions, DICOM data, workflows | deploy runner, against the live VM | 1–3 h |
@@ -205,6 +205,13 @@ Only secrets and registry configuration live as project variables
 `.gitlab-ci.yml`. Do not mirror config values into project variables (see
 the precedence trap above).
 
+The `preflight_variables` job ([`ci/pipeline/preflight.yml`](pipeline/preflight.yml))
+checks at the start of every pipeline that the variables the enabled stages
+need are non-empty (including the `DOCKER_AUTH_CONFIG` entry for the active
+registry host, see below) — a missing one fails the pipeline in seconds, by
+name, instead of surfacing an hour later in build or deploy. Add new required
+variables there.
+
 | Variable | Masked | Protected | Description |
 |---|---|---|---|
 | `CI_REGISTRY_URL` | no | no | Registry for CI builds |
@@ -248,20 +255,25 @@ triple manually in the UI.
 
 1. Extend the right template (`.test_template`, `.build_cli_env`,
    `.remote_execution_template`, `.integration_test_local`) — they carry the
-   runner tag, image, and rules conventions.
-2. Gate it with `rules:` on the matching `CI_EXEC_*` toggle.
-3. Need docker? Prefer a plain daemonless service; a privileged dind service
+   runner tag, image, and rules conventions. `.test_template` caps jobs at
+   10 minutes: a unit-test job that hits the cap is too slow and gets split
+   into separate jobs, not a raised timeout.
+2. Needs a CI/CD variable that is not already checked? Add it to
+   `preflight_variables` ([`ci/pipeline/preflight.yml`](pipeline/preflight.yml))
+   so a misconfiguration fails in seconds, not in your job.
+3. Gate it with `rules:` on the matching `CI_EXEC_*` toggle.
+4. Need docker? Prefer a plain daemonless service; a privileged dind service
    must use the fully-qualified image name (see `task_api_tests`).
-4. **Add the job to `if_ci_failing`'s `needs:` list** (`optional: true`;
+5. **Add the job to `if_ci_failing`'s `needs:` list** (`optional: true`;
    `artifacts: true` only if its logs should feed the failure ticket — never
    for jobs whose artifacts contain secrets). If the job uses the test VM,
    **also add it to `destroy_deployment`'s `needs:` list** — that list is
    the teardown barrier.
-5. Job talks to anything internal or job-local? Extend `NO_PROXY`/`no_proxy`
+6. Job talks to anything internal or job-local? Extend `NO_PROXY`/`no_proxy`
    (both casings).
-6. New dependency between jobs? Declare it in the header of the stage file
+7. New dependency between jobs? Declare it in the header of the stage file
    that consumes it.
-7. Update this README if the job adds an operational surface.
+8. Update this README if the job adds an operational surface.
 
 ## 10. Running the pipeline locally
 

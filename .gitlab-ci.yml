@@ -5,6 +5,7 @@ stages:
   - preflight
   - tests
   - build
+  - security
   - deploy
   - test
   - clean

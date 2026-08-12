@@ -87,10 +87,7 @@ put_to_minio = MinioOperator(
     whitelisted_file_extensions=(".json", ".tar"),
 )
 
-clean = LocalWorkflowCleanerOperator(
-    dag=dag,
-    clean_workflow_dir=True
-)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 
 

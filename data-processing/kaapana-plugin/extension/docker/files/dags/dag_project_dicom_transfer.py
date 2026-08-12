@@ -204,10 +204,8 @@ push_json = LocalJson2MetaOperator(
 copy_thumbnails = LocalCopyThumbnails(dag=dag, input_operator=clean_tags)
 
 
-clean = LocalWorkflowCleanerOperator(
-    dag=dag, clean_workflow_dir=True
-)
-check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed_or_skipped")
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 
 (
     get_input

@@ -104,9 +104,7 @@ put_to_minio_dicom = MinioOperator(
     minio_prefix="downloads",
     whitelisted_file_extensions=(".zip", ".dcm"),
 )
-clean = LocalWorkflowCleanerOperator(
-    dag=dag, clean_workflow_dir=True
-)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 
 get_input >> branch_if_nifti >> [dcm2nifti, put_to_minio_dicom]

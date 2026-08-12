@@ -98,10 +98,7 @@ put_radiomics_to_minio = MinioOperator(
     whitelisted_file_extensions=(".xml", ".json", ".html", ".csv"),
 )
 
-clean = LocalWorkflowCleanerOperator(
-    dag=dag,
-    clean_workflow_dir=True
-)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 
 check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")

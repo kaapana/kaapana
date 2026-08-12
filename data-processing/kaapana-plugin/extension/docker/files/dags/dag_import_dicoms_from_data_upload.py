@@ -102,7 +102,7 @@ def branching_cleaning_uploads_callable(**kwargs):
     if delete_original_file:
         return [remove_object_from_file_uploads.name]
     else:
-        return [clean.name]
+        return [clean.name, check_success.task_id]
 
 
 branching_cleaning_uploads = BranchPythonOperator(

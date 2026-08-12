@@ -94,9 +94,7 @@ remove_object_from_uploads = LocalVolumeMountOperator(
     whitelisted_file_endings=(".zip",),
 )
 
-clean = LocalWorkflowCleanerOperator(
-    dag=dag, clean_workflow_dir=True
-)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 
@@ -107,7 +105,7 @@ def branching_cleaning_uploads_callable(**kwargs):
     if delete_original_file:
         return [remove_object_from_uploads.name]
     else:
-        return [clean.name]
+        return [clean.name, check_success.task_id]
 
 
 branching_cleaning_uploads = BranchPythonOperator(

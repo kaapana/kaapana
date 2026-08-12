@@ -6,6 +6,10 @@ set -Eeuo pipefail
 # Why: `trivy fs` cannot analyze Go binaries inside snaps (returns 0 findings),
 # but packing them into a scratch docker image and running `trivy image` works.
 # This script generalizes that pack-and-scan trick.
+#
+# stdout carries only trivy's own output (table or JSON) — every status echo
+# below is sent to stderr instead, since OfflinePackagesScanner (build_cli)
+# captures stdout and parses it as JSON when --format json is used.
 
 SEVERITY="${SEVERITY:-CRITICAL,HIGH}"
 FORMAT="${FORMAT:-table}"
@@ -69,7 +73,7 @@ case "$MODE" in
       echo "ERROR: invalid channel '$CHANNEL' — format: <track>/<risk>, risk = stable|candidate|beta|edge (e.g. 1.33/stable, latest/stable)" >&2
       exit 1
     fi
-    echo "# downloading snap '$TARGET' channel '$CHANNEL' (not installing)..."
+    echo "# downloading snap '$TARGET' channel '$CHANNEL' (not installing)..." >&2
     (cd "$W" && snap download "$TARGET" --channel="$CHANNEL" --basename=pkg >/dev/null) || {
       echo "ERROR: snap download failed — check the snap name ('$TARGET' — typo?) and channel ('$CHANNEL'); list channels with: snap info $TARGET" >&2
       exit 1
@@ -95,6 +99,6 @@ esac
 printf 'FROM scratch\nCOPY rootfs/ /\n' > "$W/Dockerfile"
 docker build -q -t "$IMG" "$W" >/dev/null
 
-echo "# scanned: $LABEL  date: $(date -u +%Y-%m-%dT%H:%M:%SZ)  severity: $SEVERITY"
+echo "# scanned: $LABEL  date: $(date -u +%Y-%m-%dT%H:%M:%SZ)  severity: $SEVERITY" >&2
 docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
   "$TRIVY_IMAGE" image --scanners vuln --severity "$SEVERITY" -f "$FORMAT" "$IMG"

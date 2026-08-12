@@ -72,6 +72,7 @@ class BuildConfig(BaseModel):
     configuration_check_severity_level: list[str]
     enable_image_stats: bool
     create_sboms: bool
+    offline_packages_scan: bool
     trivy_executable: str = "trivy"
     trivy_timeout: int = 10000
 

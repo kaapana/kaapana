@@ -1,0 +1,116 @@
+---
+# Shared by ci/harvester/setup_*.yaml: create any not-yet-existing VM(s) in
+# the inventory group named by `instance_group`. Scoped to one group per
+# call so a hiccup checking one group's VMs (e.g. a Harvester API error
+# misread as "doesn't exist") can never spill into another group's VMs —
+# each setup_*.yaml calls this only for its own group.
+
+- name: Check if VM already exists
+  kubernetes.core.k8s_info:
+    api_version: kubevirt.io/v1
+    kind: VirtualMachine
+    name: "{{ item.vm_name }}"
+    namespace: "{{ harvester_namespace }}"
+    kubeconfig: "{{ harvester_kubeconfig }}"
+  loop: "{{ groups[instance_group] | map('extract', hostvars) | list }}"
+  loop_control:
+    label: "{{ item.vm_name }}"
+  register: vm_exists_check
+  failed_when: false
+  changed_when: false
+
+- name: Fail loudly if the existence check itself errored
+  ansible.builtin.fail:
+    msg: >-
+      Checking whether {{ item.item.vm_name }} already exists failed:
+      {{ item.msg | default(item.exception | default('unknown error')) }}.
+      Aborting rather than risk treating a real API/connectivity error as
+      "doesn't exist" and re-provisioning a VM that's already running —
+      fix the underlying error (e.g. verify HARVESTER_KUBECONFIG against
+      `kubectl --kubeconfig $HARVESTER_KUBECONFIG get vm -n kaapana-ci`)
+      and re-run.
+  loop: "{{ vm_exists_check.results }}"
+  loop_control:
+    label: "{{ item.item.vm_name }}"
+  when: item.failed | default(false)
+
+- name: Build list of existing VM names
+  ansible.builtin.set_fact:
+    existing_vm_names: >-
+      {{
+        vm_exists_check.results
+        | selectattr('resources', 'defined')
+        | rejectattr('resources', 'equalto', [])
+        | map(attribute='resources.0.metadata.name')
+        | list
+      }}
+
+- name: Build list of VMs to provision
+  ansible.builtin.set_fact:
+    vms_to_provision: >-
+      {{
+        (groups[instance_group] | map('extract', hostvars) | list)
+        | selectattr('vm_name', 'defined')
+        | list
+      }}
+
+- name: Filter to only new VMs (skip existing unless force_recreate)
+  ansible.builtin.set_fact:
+    vms_to_create: >-
+      {{
+        vms_to_provision
+        | rejectattr('vm_name', 'in', existing_vm_names)
+        | list
+      }}
+  when: not force_recreate
+
+- name: Filter to all VMs (force recreate)
+  ansible.builtin.set_fact:
+    vms_to_create: "{{ vms_to_provision }}"
+  when: force_recreate
+
+- name: Display VMs to be created
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        "VMs to create: " +
+        (vms_to_create | map(attribute='vm_name') | join(', '))
+      }}
+  run_once: true
+
+- name: Delete existing VMs (force recreate mode)
+  kubernetes.core.k8s:
+    state: absent
+    kind: VirtualMachine
+    name: "{{ item.vm_name }}"
+    namespace: "{{ harvester_namespace }}"
+    kubeconfig: "{{ harvester_kubeconfig }}"
+  loop: "{{ vms_to_provision }}"
+  loop_control:
+    label: "{{ item.vm_name }}"
+  when: force_recreate
+
+- name: Wait for VMs to be deleted
+  kubernetes.core.k8s_info:
+    api_version: kubevirt.io/v1
+    kind: VirtualMachine
+    name: "{{ item.vm_name }}"
+    namespace: "{{ harvester_namespace }}"
+    kubeconfig: "{{ harvester_kubeconfig }}"
+  loop: "{{ vms_to_provision }}"
+  loop_control:
+    label: "{{ item.vm_name }}"
+  register: vm_deletion_check
+  until: vm_deletion_check.resources | length == 0
+  retries: 30
+  delay: 5
+  changed_when: false
+  when: force_recreate
+
+- name: Provision each VM
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/provision-single-vm.yaml"
+  loop: "{{ vms_to_create }}"
+  loop_control:
+    loop_var: vm_config
+    label: "{{ vm_config.vm_name }}"
+  when: vms_to_create | length > 0

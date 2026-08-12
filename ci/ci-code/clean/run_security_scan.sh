@@ -65,23 +65,23 @@ REPORTS_DIR="$REPO_ROOT/reports"
 mkdir -p "$REPORTS_DIR"
 
 if [[ -f "$SEC_DIR/consolidated_vulnerability_report.json" ]]; then
-  cp "$SEC_DIR/consolidated_vulnerability_report.json" "$REPORTS_DIR/consolidated_vulnerability_scan.json"
+  mv "$SEC_DIR/consolidated_vulnerability_report.json" "$REPORTS_DIR/consolidated_vulnerability_scan.json"
   python3 "$REPO_ROOT/ci/ci-code/clean/create_vulnerability_report.py" \
-    "$SEC_DIR/consolidated_vulnerability_report.json" \
+    "$REPORTS_DIR/consolidated_vulnerability_scan.json" \
     "$REPORTS_DIR/gl-container-scanning-report.json" \
     --output json
   python3 "$REPO_ROOT/ci/ci-code/clean/create_vulnerability_report.py" \
-    "$SEC_DIR/consolidated_vulnerability_report.json" \
+    "$REPORTS_DIR/consolidated_vulnerability_scan.json" \
     "$REPORTS_DIR/interactive_report.html" \
     --output html
 fi
 
 if [[ -f "$SEC_DIR/consolidated_misconfiguration_report.json" ]]; then
-  cp "$SEC_DIR/consolidated_misconfiguration_report.json" "$REPORTS_DIR/consolidated_misconfiguration_check.json"
+  mv "$SEC_DIR/consolidated_misconfiguration_report.json" "$REPORTS_DIR/consolidated_misconfiguration_check.json"
 fi
 
 if [[ -f "$SEC_DIR/consolidated_sbom_report.json" ]]; then
-  cp "$SEC_DIR/consolidated_sbom_report.json" "$REPORTS_DIR/consolidated_sbom.json"
+  mv "$SEC_DIR/consolidated_sbom_report.json" "$REPORTS_DIR/consolidated_sbom.json"
 fi
 
 echo "Reports published to: $REPORTS_DIR"

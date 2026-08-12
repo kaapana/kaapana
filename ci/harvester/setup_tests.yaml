@@ -1,0 +1,118 @@
+---
+# Provision the tests-runner CI VM(s) on Harvester.
+# Usage:
+#   export GITLAB_API_TOKEN=...
+#   export GITLAB_PROJECT_ID=...
+#   export GITLAB_URL=...
+#   export SSH_PUBLIC_KEY=~/.ssh/kaapana.pub
+#   export SSH_PRIVATE_KEY=~/.ssh/kaapana.pem
+#   export HARVESTER_KUBECONFIG=~/.kube/harvester.yaml
+#   ansible-playbook -i ci/harvester/inventory.yaml ci/harvester/setup_tests.yaml
+#
+# Optional:
+#   export FORCE_RECREATE=true  # Delete and recreate this group's VM(s)
+#
+# Runs standalone or as part of setup_ci.yaml (which imports this and the
+# other three group playbooks) — either way it only ever touches
+# tests_instances hosts, never build/security/deploy.
+
+- name: Provision tests-runner CI VM(s) on Harvester
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    harvester_namespace: "kaapana-ci"
+    vm_image_name: "ubuntu24"
+    vm_storage_class: "px-fa-direct-access"
+    vm_network: "harvester-public/dkfz-net"
+    vm_ssh_keypair: "kaapana"
+    vm_user: "ubuntu"
+    vm_dns_domain: "vms.dkfz.de"
+    force_recreate: "{{ lookup('env', 'FORCE_RECREATE') | default('false') | bool }}"
+    instance_group: tests_instances
+
+    gitlab_api_token: "{{ lookup('env', 'GITLAB_API_TOKEN') }}"
+    gitlab_project_id: "{{ lookup('env', 'GITLAB_PROJECT_ID') }}"
+    gitlab_url: "{{ lookup('env', 'GITLAB_URL') }}"
+    ssh_public_key: "{{ lookup('env', 'SSH_PUBLIC_KEY') }}"
+    ssh_private_key: "{{ lookup('env', 'SSH_PRIVATE_KEY') }}"
+    harvester_kubeconfig: "{{ lookup('env', 'HARVESTER_KUBECONFIG') }}"
+
+    required_env_vars:
+      - GITLAB_API_TOKEN
+      - GITLAB_PROJECT_ID
+      - GITLAB_URL
+      - SSH_PUBLIC_KEY
+      - SSH_PRIVATE_KEY
+      - HARVESTER_KUBECONFIG
+
+  tasks:
+    - ansible.builtin.include_tasks: tasks/validate-env.yaml
+    - ansible.builtin.include_tasks: tasks/provision-group.yaml
+
+- name: Add tests-runner VM(s) to inventory (new and existing)
+  hosts: localhost
+  gather_facts: false
+  vars:
+    vm_dns_domain: "vms.dkfz.de"
+    vm_user: "ubuntu"
+    ssh_private_key: "~/.ssh/kaapana.pem"
+  tasks:
+    - name: Register VM in inventory
+      ansible.builtin.add_host:
+        name: "{{ item.vm_name }}"
+        ansible_host: "{{ item.vm_name }}.{{ vm_dns_domain }}"
+        ansible_user: "{{ vm_user }}"
+        ansible_ssh_private_key_file: "{{ ssh_private_key }}"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+        groups: "provisioned_tests_vms"
+        runner_description: "{{ item.runner_description | default('') }}"
+        runner_tags: "{{ item.runner_tags | default([]) }}"
+        runner_limit: "{{ item.runner_limit | default(4) }}"
+        runner_concurrency: "{{ item.runner_concurrency | default(4) }}"
+        runner_global_concurrency: "{{ item.runner_global_concurrency | default(item.runner_limit) }}"
+        runner_executor: "{{ item.runner_executor | default('shell') }}"
+        runner_docker_image: "{{ item.runner_docker_image | default('python:3.12') }}"
+        runner_docker_volumes: "{{ item.runner_docker_volumes | default(['/cache']) }}"
+        runner_docker_services_privileged: "{{ item.runner_docker_services_privileged | default(false) }}"
+        runner_docker_allowed_privileged_services: "{{ item.runner_docker_allowed_privileged_services | default([]) }}"
+      loop: "{{ vms_to_provision }}"
+      loop_control:
+        loop_var: item
+
+- name: Configure tests-runner VM(s)
+  hosts: provisioned_tests_vms
+  gather_facts: false
+  remote_user: ubuntu
+  become: yes
+  tasks:
+    - name: Wait for SSH to be available
+      ansible.builtin.wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 22
+        delay: 10
+        timeout: 300
+
+    - name: Configure VM base (venv, python requirements)
+      ansible.builtin.include_tasks: tasks/configure-vm-base.yaml
+
+    - name: Install Docker
+      ansible.builtin.include_tasks: tasks/install-docker.yaml
+
+    - name: Install kubectl
+      ansible.builtin.include_tasks: tasks/install-kubectl.yaml
+
+    - name: Install Helm
+      ansible.builtin.include_tasks: tasks/install-helm.yaml
+
+    - name: Configure GitLab Runner
+      ansible.builtin.include_tasks: tasks/configure-gitlab-runner.yaml
+
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "CI runner setup complete!"
+          - "VM: {{ inventory_hostname }} ({{ ansible_host }})"
+          - "=========================================="

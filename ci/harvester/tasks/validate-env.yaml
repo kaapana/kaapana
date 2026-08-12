@@ -1,0 +1,9 @@
+---
+# Shared by ci/harvester/setup_*.yaml.
+- name: Validate required environment variables
+  ansible.builtin.assert:
+    that:
+      - lookup('env', item) | default('', true) | length > 0
+    fail_msg: "Required variable {{ item }} is missing. Set it as environment variable."
+  loop: "{{ required_env_vars }}"
+  run_once: true

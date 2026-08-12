@@ -27,7 +27,6 @@
       - apt-transport-https
       - ca-certificates
       - curl
-      - dcmtk
       - git
       - gnupg
       - jq

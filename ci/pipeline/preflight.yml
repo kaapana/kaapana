@@ -20,12 +20,15 @@ preflight_variables:
       # print only variable names, not the values (several are secrets)
       missing=""
       errors=""
+      checked=""
       require() {
+        checked="$checked $1"
         [ -n "${!1:-}" ] || missing="$missing $1"
       }
       require_file() {
         # File-type variable: the value is a file path; the file must
         # exist and not be empty
+        checked="$checked $1(File)"
         { [ -n "${!1:-}" ] && [ -s "${!1}" ]; } || missing="$missing $1(File)"
       }
 
@@ -50,10 +53,21 @@ preflight_variables:
         require REGISTRY_TOKEN
       fi
 
-      # deploy creates a test VM, not needed when an external VM is given
-      if [ "$CI_EXEC_DEPLOY" = "true" ] && [ -z "$DEPLOYMENT_INSTANCE_FQDN" ]; then
-        require_file HARVESTER_KUBECONFIG
+      # A git tag like "0.7.1" starts a release pipeline
+      # build_packages then publishes to the release registry using RELEASE_REGISTRY_* var.s
+      # The tag pattern below is a copy of the one in build.yml
+      if [[ "${CI_COMMIT_TAG:-}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        require RELEASE_REGISTRY_URL
+        require RELEASE_REGISTRY_USER
+        require RELEASE_REGISTRY_TOKEN
+      fi
+
+      if [ "$CI_EXEC_DEPLOY" = "true" ]; then
+        # logging into the deployment target always needs the SSH key
         require_file CI_SSH_PRIVATE_KEY
+        # the kubeconfig is only needed to create a test VM, which is
+        # skipped when an external VM is given
+        [ -n "$DEPLOYMENT_INSTANCE_FQDN" ] || require_file HARVESTER_KUBECONFIG
       fi
 
       # failures on develop create a GitLab issue and a Slack message
@@ -68,6 +82,8 @@ preflight_variables:
         require KAAPANA_READTHEDOCS_TOKEN
       fi
 
+      echo "Checked variables (this pipeline):"
+      for v in $checked; do echo "  - $v"; done
       if [ -n "$missing" ] || [ -n "$errors" ]; then
         [ -z "$missing" ] || echo "ERROR: required CI variables are empty or missing:$missing"
         [ -z "$errors" ] || echo "ERROR: $errors"

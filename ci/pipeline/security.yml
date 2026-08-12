@@ -1,9 +1,8 @@
-# Stage: build (security) — trivy scan + report of the tag this commit resolves to
+# Stage: security — trivy scan + report of the tag this commit resolves to
 # In:  registry state — either just pushed by build_packages in this same
 #      pipeline, or pushed by an earlier one (CI_EXEC_BUILD=false: standalone
 #      rescan of an already-built tag); REGISTRY_* credentials via
-#      .build_cli_env (defined in build.yml, also where the build-runner tag
-#      comes from — see "Running this on your own hardware" in ci/README.md)
+#      .build_cli_env (defined in build.yml)
 # Out: security-reports/ (raw per-container/per-snap scans, misconfig, SBOMs,
 #      trivy cache) as persistent artifacts; the dashboard-facing subset —
 #      consolidated_vulnerability_scan.json, interactive_report.html,
@@ -17,28 +16,20 @@
 ##############################################
 security_scan:
   extends: .build_cli_env
-  stage: build
-  timeout: 4 hours
+  stage: security
+  timeout: 6 hours
+  tags:
+    - security-runner
   needs:
-    # optional: true — lets this run standalone (CI_EXEC_BUILD=false) against
-    # a tag an earlier pipeline already pushed; still ordered after
-    # build_packages when both run in the same pipeline.
     - job: build_packages
       artifacts: false
+      # If build in the pipeline then wait for build, scan nevertheless;
       optional: true
   rules:
-    # No dependency on CI_EXEC_BUILD: this scans whatever git describe
-    # resolves on the current checkout, whether or not this pipeline is the
-    # one that built it.
     - if: '$CI_EXEC_SECURITY_SCAN == "true"'
       when: on_success
     - when: never
-  # Trivy DB persisted across runs on this runner: GIT_STRATEGY: clone wipes
-  # the checkout every job, so without this every run cold-pulls the ~1GB db
-  # from the upstream OCI registry. With runner_concurrency: 2 on the build
-  # runner (ci/harvester/inventory.yaml), two cold pulls landing at once was
-  # hitting TooManyRequests. Trivy itself skips the download once the cached
-  # copy is fresh, so this reduces most runs to a metadata check.
+  # Trivy DB persisted across runs on this runner:
   cache:
     key: trivy-db
     paths:
@@ -57,18 +48,7 @@ security_scan:
     reports:
       container_scanning: "$CI_PROJECT_DIR/reports/gl-container-scanning-report.json"
     exclude:
-      # Trivy DB cache lives inside the reports dir — not a report
       - "$CI_PROJECT_DIR/security-reports/.trivy_cache/**/*"
       - "$CI_PROJECT_DIR/security-reports/.trivy_worker_*/**/*"
-      # Full raw per-container/per-snap Trivy vuln output — one file per
-      # artifact, every finding duplicated in full, undeduplicated detail;
-      # too large to keep expire_in: never. reports/consolidated_vulnerability_scan.json
-      # (deduplicated by CVE, containers and snaps both included) already
-      # carries everything a dashboard or the HTML report needs.
       - "$CI_PROJECT_DIR/security-reports/vuln_scan/**/*"
       - "$CI_PROJECT_DIR/security-reports/snap_scans/**/*"
-      # Published (under their final names) as reports/ above — exclude these
-      # internal copies so the same bytes don't ship twice in the job artifacts.
-      - "$CI_PROJECT_DIR/security-reports/consolidated_vulnerability_report.json"
-      - "$CI_PROJECT_DIR/security-reports/consolidated_misconfiguration_report.json"
-      - "$CI_PROJECT_DIR/security-reports/consolidated_sbom_report.json"

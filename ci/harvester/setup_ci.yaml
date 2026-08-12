@@ -1,6 +1,16 @@
 ---
-# Provision all CI runner VMs on Harvester (tests, build, deploy)
-# Usage:
+# Provision ALL CI runner VMs on Harvester (tests, build, security, deploy) —
+# imports the four group playbooks below and runs them in sequence. Each one
+# is also independently runnable and only ever touches its own group's
+# VM(s), so running one never risks touching another group's already-running
+# VM. Prefer the standalone files when you only need to add/reconfigure one
+# group:
+#   ansible-playbook -i ci/harvester/inventory.yaml ci/harvester/setup_tests.yaml
+#   ansible-playbook -i ci/harvester/inventory.yaml ci/harvester/setup_build.yaml
+#   ansible-playbook -i ci/harvester/inventory.yaml ci/harvester/setup_security.yaml
+#   ansible-playbook -i ci/harvester/inventory.yaml ci/harvester/setup_deploy.yaml
+#
+# Usage (all four):
 #   export GITLAB_API_TOKEN=...
 #   export GITLAB_PROJECT_ID=...
 #   export GITLAB_URL=...
@@ -10,211 +20,9 @@
 #   ansible-playbook -i ci/harvester/inventory.yaml ci/harvester/setup_ci.yaml
 #
 # Optional:
-#   export FORCE_RECREATE=true  # Delete and recreate existing VMs
+#   export FORCE_RECREATE=true  # Delete and recreate existing VMs (every group)
 
-- name: Provision all CI runner VMs on Harvester
-  hosts: localhost
-  connection: local
-  gather_facts: false
-
-  vars:
-    harvester_namespace: "kaapana-ci"
-    vm_image_name: "ubuntu24"
-    vm_storage_class: "px-fa-direct-access"
-    vm_network: "harvester-public/dkfz-net"
-    vm_ssh_keypair: "kaapana"
-    vm_user: "ubuntu"
-    vm_dns_domain: "vms.dkfz.de"
-    force_recreate: "{{ lookup('env', 'FORCE_RECREATE') | default('false') | bool }}"
-
-    gitlab_api_token: "{{ lookup('env', 'GITLAB_API_TOKEN') }}"
-    gitlab_project_id: "{{ lookup('env', 'GITLAB_PROJECT_ID') }}"
-    gitlab_url: "{{ lookup('env', 'GITLAB_URL') }}"
-    ssh_public_key: "{{ lookup('env', 'SSH_PUBLIC_KEY') }}"
-    ssh_private_key: "{{ lookup('env', 'SSH_PRIVATE_KEY') }}"
-    harvester_kubeconfig: "{{ lookup('env', 'HARVESTER_KUBECONFIG') }}"
-
-    required_env_vars:
-      - GITLAB_API_TOKEN
-      - GITLAB_PROJECT_ID
-      - GITLAB_URL
-      - SSH_PUBLIC_KEY
-      - SSH_PRIVATE_KEY
-      - HARVESTER_KUBECONFIG
-
-  tasks:
-    - name: Validate required environment variables
-      ansible.builtin.assert:
-        that:
-          - lookup('env', item) | default('', true) | length > 0
-        fail_msg: "Required variable {{ item }} is missing. Set it as environment variable."
-      loop: "{{ required_env_vars }}"
-      run_once: true
-
-    - name: Check if VM already exists
-      kubernetes.core.k8s_info:
-        api_version: kubevirt.io/v1
-        kind: VirtualMachine
-        name: "{{ item.vm_name }}"
-        namespace: "{{ harvester_namespace }}"
-        kubeconfig: "{{ harvester_kubeconfig }}"
-      loop: >-
-        {{
-          groups['tests_instances'] | map('extract', hostvars) | list +
-          groups['build_instances'] | map('extract', hostvars) | list +
-          groups['deploy_instances'] | map('extract', hostvars) | list
-        }}
-      loop_control:
-        label: "{{ item.vm_name }}"
-      register: vm_exists_check
-      failed_when: false
-      changed_when: false
-
-    - name: Build list of existing VM names
-      ansible.builtin.set_fact:
-        existing_vm_names: >-
-          {{
-            vm_exists_check.results
-            | selectattr('resources', 'defined')
-            | rejectattr('resources', 'equalto', [])
-            | map(attribute='resources.0.metadata.name')
-            | list
-          }}
-
-    - name: Build list of VMs to provision
-      ansible.builtin.set_fact:
-        vms_to_provision: >-
-          {{
-            (
-              groups['tests_instances'] | map('extract', hostvars) | list +
-              groups['build_instances'] | map('extract', hostvars) | list +
-              groups['deploy_instances'] | map('extract', hostvars) | list
-            ) | selectattr('vm_name', 'defined') | list
-          }}
-
-    - name: Filter to only new VMs (skip existing unless force_recreate)
-      ansible.builtin.set_fact:
-        vms_to_create: >-
-          {{
-            vms_to_provision
-            | rejectattr('vm_name', 'in', existing_vm_names)
-            | list
-          }}
-      when: not force_recreate
-
-    - name: Filter to all VMs (force recreate)
-      ansible.builtin.set_fact:
-        vms_to_create: "{{ vms_to_provision }}"
-      when: force_recreate
-
-    - name: Display VMs to be created
-      ansible.builtin.debug:
-        msg: >-
-          {{
-            "VMs to create: " + 
-            (vms_to_create | map(attribute='vm_name') | join(', '))
-          }}
-      run_once: true
-
-    - name: Delete existing VMs (force recreate mode)
-      kubernetes.core.k8s:
-        state: absent
-        kind: VirtualMachine
-        name: "{{ item.vm_name }}"
-        namespace: "{{ harvester_namespace }}"
-        kubeconfig: "{{ harvester_kubeconfig }}"
-      loop: "{{ vms_to_provision }}"
-      loop_control:
-        label: "{{ item.vm_name }}"
-      when: force_recreate
-
-    - name: Wait for VMs to be deleted
-      kubernetes.core.k8s_info:
-        api_version: kubevirt.io/v1
-        kind: VirtualMachine
-        name: "{{ item.vm_name }}"
-        namespace: "{{ harvester_namespace }}"
-        kubeconfig: "{{ harvester_kubeconfig }}"
-      loop: "{{ vms_to_provision }}"
-      loop_control:
-        label: "{{ item.vm_name }}"
-      register: vm_deletion_check
-      until: vm_deletion_check.resources | length == 0
-      retries: 30
-      delay: 5
-      changed_when: false
-      when: force_recreate
-
-    - name: Provision each VM
-      ansible.builtin.include_tasks: tasks/provision-single-vm.yaml
-      loop: "{{ vms_to_create }}"
-      loop_control:
-        loop_var: vm_config
-        label: "{{ vm_config.vm_name }}"
-      when: vms_to_create | length > 0
-
-- name: Add all VMs to inventory (new and existing)
-  hosts: localhost
-  gather_facts: false
-  vars:
-    vm_dns_domain: "vms.dkfz.de"
-    vm_user: "ubuntu"
-    ssh_private_key: "~/.ssh/kaapana.pem"
-  tasks:
-    - name: Register VM in inventory
-      ansible.builtin.add_host:
-        name: "{{ item.vm_name }}"
-        ansible_host: "{{ item.vm_name }}.{{ vm_dns_domain }}"
-        ansible_user: "{{ vm_user }}"
-        ansible_ssh_private_key_file: "{{ ssh_private_key }}"
-        ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
-        groups: "provisioned_vms"
-        runner_description: "{{ item.runner_description | default('') }}"
-        runner_tags: "{{ item.runner_tags | default([]) }}"
-        runner_limit: "{{ item.runner_limit | default(4) }}"
-        runner_concurrency: "{{ item.runner_concurrency | default(4) }}"
-        runner_global_concurrency: "{{ item.runner_global_concurrency | default(item.runner_limit) }}"
-        runner_executor: "{{ item.runner_executor | default('shell') }}"
-        runner_docker_image: "{{ item.runner_docker_image | default('python:3.12') }}"
-        runner_docker_volumes: "{{ item.runner_docker_volumes | default(['/cache']) }}"
-        runner_docker_services_privileged: "{{ item.runner_docker_services_privileged | default(false) }}"
-        runner_docker_allowed_privileged_services: "{{ item.runner_docker_allowed_privileged_services | default([]) }}"
-      loop: "{{ vms_to_provision }}"
-      loop_control:
-        loop_var: item
-
-- name: Configure all provisioned VMs
-  hosts: provisioned_vms
-  gather_facts: false
-  remote_user: ubuntu
-  become: yes
-  tasks:
-    - name: Wait for SSH to be available
-      ansible.builtin.wait_for:
-        host: "{{ inventory_hostname }}"
-        port: 22
-        delay: 10
-        timeout: 300
-
-    - name: Configure VM base (venv, python requirements)
-      ansible.builtin.include_tasks: tasks/configure-vm-base.yaml
-
-    - name: Install Docker
-      ansible.builtin.include_tasks: tasks/install-docker.yaml
-
-    - name: Install kubectl
-      ansible.builtin.include_tasks: tasks/install-kubectl.yaml
-
-    - name: Install Helm
-      ansible.builtin.include_tasks: tasks/install-helm.yaml
-
-    - name: Configure GitLab Runner
-      ansible.builtin.include_tasks: tasks/configure-gitlab-runner.yaml
-
-    - name: Display completion message
-      ansible.builtin.debug:
-        msg:
-          - "=========================================="
-          - "CI runner setup complete!"
-          - "VM: {{ inventory_hostname }} ({{ ansible_host }})"
-          - "=========================================="
+- ansible.builtin.import_playbook: setup_tests.yaml
+- ansible.builtin.import_playbook: setup_build.yaml
+- ansible.builtin.import_playbook: setup_security.yaml
+- ansible.builtin.import_playbook: setup_deploy.yaml

@@ -86,6 +86,24 @@ all:
         #   memory_guest: "256Gi"
         #   disk_size: "512Gi"
 
+
+    security_instances:
+      hosts:
+        security-01:
+          vm_name: kaapana-security-01
+          cpu_cores: 4
+          memory_guest: "8Gi"
+          disk_size: "60Gi"
+          runner_description: "security-runner-{{ vm_name }}"
+          runner_tags: ["security-runner"]
+          runner_limit: 1
+          runner_concurrency: 1
+          runner_executor: docker
+          runner_docker_image: "registry.hzdr.de/kaapana/ci-base:v3"
+          runner_docker_volumes:
+            ["/var/run/docker.sock:/var/run/docker.sock", "/cache"]
+          runner_global_concurrency: 1
+
     deploy_instances:
       hosts:
         deploy-01:

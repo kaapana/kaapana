@@ -16,7 +16,8 @@ VM → test that live deployment → delete the VM.
 | Stage | Jobs | Runs on | Duration |
 |---|---|---|---|
 | `tests` | 8 unit-test suites, docs build | tests runner | minutes |
-| `build` | `build_packages` + `security_scan` (nightly) | build runner | hours (warm cache: much less) |
+| `build` | `build_packages` | build runner | hours (warm cache: much less) |
+| `security` | `security_scan` (nightly) | security runner | hours (warm cache: much less) |
 | `deploy` | `prepare_deployment` → `server_installation` → `platform_deployment` | deploy runner (Ansible over SSH) | ~1 h |
 | `test` | integration tests: login, ports, UI (Playwright), extensions, DICOM data, workflows | deploy runner, against the live VM | 1–3 h |
 | `clean` | `destroy_deployment`, `if_ci_failing` | deploy runner | minutes |
@@ -167,12 +168,11 @@ inside a running platform's API.
 
 1. **As a normal GitLab pipeline** — `CI_EXEC_SECURITY_SCAN=true`, same as
    every other job. No special variable or job needed to run it on your own
-   hardware instead of the shared pool either: `security_scan` extends
-   `.build_cli_env` ([`build.yml`](pipeline/build.yml)), which carries
-   `tags: [build-runner]` — that's the *only* thing that decides which runner
-   executes it. Register your own `gitlab-runner` locally with that same tag
-   and it becomes just another `build-runner` in the pool, eligible to pick up
-   this job (and any other job using `.build_cli_env`) exactly like the
+   hardware instead of the shared pool either: `security_scan` carries its own
+   `tags: [security-runner]` ([`security.yml`](pipeline/security.yml)) — that's
+   the *only* thing that decides which runner executes it. Register your own
+   `gitlab-runner` locally with that same tag and it becomes just another
+   `security-runner` in the pool, eligible to pick up this job exactly like the
    Harvester-provisioned one already does — no pipeline change required:
    ```bash
    # docker, trivy (or just docker — the script pulls the pinned trivy image
@@ -183,14 +183,14 @@ inside a running platform's API.
    chmod +x /usr/local/bin/gitlab-runner
    gitlab-runner register \
      --url https://<your-gitlab-host> \
-     --tag-list build-runner \
+     --tag-list security-runner \
      --executor shell
    # follow the prompts, pasting a registration token from
    # Project → Settings → CI/CD → Runners → "New project runner"
    gitlab-runner run    # or `gitlab-runner start` to install as a service
    ```
-   Whichever `build-runner`-tagged runner happens to pick up the job runs it —
-   your workstation if it's online and free, the shared one otherwise. It
+   Whichever `security-runner`-tagged runner happens to pick up the job runs
+   it — your workstation if it's online and free, the shared one otherwise. It
    still shows up as a normal tracked job in the GitLab UI either way, with
    the same `reports/` artifacts and Security-tab integration.
 2. **Pure local, no CI at all** — run the same script GitLab runs, directly:
@@ -297,18 +297,24 @@ docker push $CI_REGISTRY_URL/ci-base:<tag>
 
 ## 6. Runners
 
-Three runner VMs on Harvester (namespace `kaapana-ci`), defined in
-[`ci/harvester/inventory.yaml`](harvester/inventory.yaml). All use the docker
-executor.
+Four runner VMs on Harvester (namespace `kaapana-ci`), defined in
+[`ci/harvester/inventory.yaml`](harvester/inventory.yaml), one runner
+registration per VM. All use the docker executor.
 
-| Runner | Tag | Special configuration |
-|---|---|---|
-| kaapana-tests-01 | `tests-runner` | Allows privileged **services** matching `docker.io/library/docker:*` (dind for `task_api_tests`); `/builds` shared between job and services |
-| kaapana-build-01 | `build-runner` | Host docker socket mounted into jobs → warm layer cache across pipelines |
-| kaapana-deploy-01 | `deploy-runner` | No machine state; credentials from File-type CI variables |
+| Runner (VM) | Tag | limit | Special configuration |
+|---|---|---|---|
+| kaapana-tests-01 | `tests-runner` | 4 | Allows privileged **services** matching `docker.io/library/docker:*` (dind for `task_api_tests`); `/builds` shared between job and services |
+| kaapana-build-01 | `build-runner` | 1 | Host docker socket mounted into jobs → warm layer cache across pipelines |
+| kaapana-security-01 | `security-runner` | 1 | Own small VM (4 cores/8Gi/60Gi — measured CPU/RAM use is trivial) for `security_scan`, its own `security` pipeline stage — a 4h scan no longer shares build-01's only slot. Still mounts the host docker socket: `ci/ci-code/clean/trivy_scan_anything.sh` (offline snap-package scan) shells out to `docker build`. |
+| kaapana-deploy-01 | `deploy-runner` | 4 | No machine state; credentials from File-type CI variables |
 
-Provision / re-provision (also how you add a runner — add it to the
-inventory first):
+Provisioning is split one file per group — `setup_tests.yaml`,
+`setup_build.yaml`, `setup_security.yaml`, `setup_deploy.yaml` — each of
+which only ever touches its own group's VM(s) (its own "check if it already
+exists", its own runner/docker configuration play), so running one can never
+touch another group's already-running VM, whether or not it's run standalone.
+`setup_ci.yaml` just imports all four in sequence for a full run (also how
+you add a runner — add a new host to the group's inventory entry first):
 
 ```bash
 export GITLAB_API_TOKEN=...      # api scope
@@ -318,8 +324,15 @@ export SSH_PUBLIC_KEY=~/.ssh/kaapana.pub
 export SSH_PRIVATE_KEY=~/.ssh/kaapana.pem
 export HARVESTER_KUBECONFIG=~/.kube/harvester.yaml
 
+# Everything:
 ansible-playbook -i ci/harvester/inventory.yaml ci/harvester/setup_ci.yaml
-# FORCE_RECREATE=true → delete and recreate existing VMs
+
+# Just one group (safe to run any time — never touches the other groups'
+# VMs, new or already-running):
+ansible-playbook -i ci/harvester/inventory.yaml ci/harvester/setup_security.yaml
+
+# FORCE_RECREATE=true → delete and recreate existing VMs (every group when
+# run via setup_ci.yaml, just that group's when run standalone).
 ```
 
 On-VM troubleshooting: `sudo gitlab-runner verify`,

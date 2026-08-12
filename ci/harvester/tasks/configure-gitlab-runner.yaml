@@ -110,7 +110,7 @@
     path: "{{ runner_config_path }}"
     state: absent
   become: no
-  
+
 ################################################
 - name: Debug Python interpreter
   ansible.builtin.debug:

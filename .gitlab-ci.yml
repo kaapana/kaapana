@@ -4,6 +4,7 @@ default:
 stages:
   - tests
   - build
+  - security
   - deploy
   - test
   - clean

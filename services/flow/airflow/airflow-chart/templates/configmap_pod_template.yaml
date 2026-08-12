@@ -60,6 +60,8 @@ data:
               value: "/kaapana/mounted/workflows"
             - name: DEFAULT_REGISTRY
               value: "{{ .Values.global.registry_url }}"
+            - name: DEV_MODE
+              value: {{ .Values.global.dev_mode | toString | default "false" | quote }}
             - name: EXTENSIONS_NAMESPACE
               value: "{{ .Values.global.extensions_namespace }}"
             - name: ENABLE_NFS

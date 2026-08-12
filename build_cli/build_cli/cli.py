@@ -12,9 +12,13 @@ from build_cli.build import (
     BuildConfig,
     BuildHelper,
     BuildState,
+    ContainerScanner,
     IssueTracker,
     OfflineInstallerHelper,
-    TrivyHelper,
+    OfflinePackagesScanner,
+    consolidate_misconfiguration_reports,
+    consolidate_sbom_reports,
+    consolidate_vulnerability_reports,
 )
 from build_cli.container import ContainerHelper
 from build_cli.container.coordinator import BuildCoordinator
@@ -207,6 +211,13 @@ def build(
         envvar="CREATE_SBOMS",
         help="Generate SBOMs for built containers.",
     ),
+    offline_packages_scan: bool = typer.Option(
+        False,
+        "-ops",
+        "--offline-packages-scan",
+        envvar="OFFLINE_PACKAGES_SCAN",
+        help="Scan offline-installer packages (snap packages) for vulnerabilities.",
+    ),
     enable_image_stats: bool = typer.Option(
         False,
         "-is",
@@ -362,6 +373,7 @@ def build(
         configuration_check=configuration_check,
         configuration_check_severity_level=configuration_check_severity_level,
         create_sboms=create_sboms,
+        offline_packages_scan=offline_packages_scan,
         enable_image_stats=enable_image_stats,
         version_latest=version_latest,
         check_expired_vulnerability_db=check_expired_vulnerability_db,
@@ -539,16 +551,25 @@ def run_build(build_config: BuildConfig):
         BuildHelper.generate_report()
 
     if build_config.configuration_check:
-        TrivyHelper.init(build_config=build_config, build_state=build_state)
-        TrivyHelper.misconfiguration_check()
+        ContainerScanner.init(build_config=build_config, build_state=build_state)
+        ContainerScanner.misconfiguration_check()
+        consolidate_misconfiguration_reports(build_config.kaapana_dir / "security-reports")
 
     if build_config.create_sboms:
-        TrivyHelper.init(build_config=build_config, build_state=build_state)
-        TrivyHelper.create_sboms()
+        ContainerScanner.init(build_config=build_config, build_state=build_state)
+        ContainerScanner.create_sboms()
+        consolidate_sbom_reports(build_config.kaapana_dir / "security-reports")
 
     if build_config.vulnerability_scan:
-        TrivyHelper.init(build_config=build_config, build_state=build_state)
-        TrivyHelper.vulnerability_scan()
+        ContainerScanner.init(build_config=build_config, build_state=build_state)
+        ContainerScanner.vulnerability_scan()
+
+    if build_config.offline_packages_scan:
+        OfflinePackagesScanner.init(build_config=build_config, build_state=build_state)
+        OfflinePackagesScanner.vulnerability_scan()
+
+    if build_config.vulnerability_scan or build_config.offline_packages_scan:
+        consolidate_vulnerability_reports(build_config.kaapana_dir / "security-reports")
 
     logger.info("-----------------------------------------------------------")
     logger.info("-------------------------- DONE ---------------------------")

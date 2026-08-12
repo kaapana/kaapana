@@ -18,6 +18,17 @@ from build_cli.utils import get_logger
 
 logger = get_logger()
 
+# Single source of truth for the raw snap packages the offline installer bundles.
+# OfflinePackagesScanner (build_cli/build/trivy_helper.py) scans this same list so
+# the two never drift out of sync.
+OFFLINE_SNAP_PACKAGES: list[tuple[str, str]] = [
+    ("core20", "latest/stable"),
+    ("core24", "latest/stable"),
+    ("microk8s", "1.36/stable"),
+    ("snapd", "latest/stable"),
+    ("helm", "latest/stable"),
+]
+
 
 class OfflineInstallerHelper:
     """
@@ -287,14 +298,7 @@ class OfflineInstallerHelper:
         logger.info(f"Generating Microk8s offline installer for {image_platform}...")
 
         # Download snap packages
-        snaps = [
-            ("core20", "latest/stable"),
-            ("core24", "latest/stable"),
-            ("microk8s", "1.36/stable"),
-            ("snapd", "latest/stable"),
-            ("helm", "latest/stable"),
-        ]
-        for name, version in snaps:
+        for name, version in OFFLINE_SNAP_PACKAGES:
             cls.download_snap_package(name, version, offline_dir)
 
         # Download GPU Operator Helm chart

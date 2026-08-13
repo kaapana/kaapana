@@ -1,8 +1,0 @@
-[
-  { "key": "CI_EXEC_UNIT_TESTS", "value": "false" },
-  { "key": "CI_EXEC_BUILD", "value": "true" },
-  { "key": "CI_EXEC_SECURITY_SCAN", "value": "true" },
-  { "key": "CI_EXEC_DEPLOY", "value": "false" },
-  { "key": "CI_EXEC_INTEGRATION_TESTS", "value": "false" },
-  { "key": "CI_EXEC_SECURITY_SCAN_ARGUMENTS", "value": "--vulnerability-scan --latest" }
-]

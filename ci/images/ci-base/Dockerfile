@@ -38,7 +38,7 @@ RUN curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
     && helm plugin install https://github.com/instrumenta/helm-kubeval
 
 # trivy: kaapana-build runs it as a plain process
-ARG TRIVY_VERSION=0.70.0
+ARG TRIVY_VERSION=0.73.0
 RUN curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" \
         | tar -xz -C /usr/local/bin trivy
 

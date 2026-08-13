@@ -92,6 +92,7 @@ class OCIRegistryDiscovery:
         repository: str,
         username: Optional[str] = None,
         password: Optional[str] = None,
+        client_options: Optional[Dict[str, Any]] = None,
     ):
         """Initialize the OCIRegistryDiscovery client.
 
@@ -100,6 +101,8 @@ class OCIRegistryDiscovery:
             repository: Repository name within the registry (e.g., 'user.name/kaapana/extensions').
             username: Optional username for basic authentication.
             password: Optional password for basic authentication.
+            client_options: Options forwarded to :class:`httpx.AsyncClient`
+                (e.g. ``{"timeout": 60.0, "verify": False}``).
         """
         self.logger = logging.getLogger(__name__)
         self.registry_url = registry_url.rstrip("/")
@@ -109,15 +112,10 @@ class OCIRegistryDiscovery:
         self.bearer_token: Optional[str] = None
         self.basic_auth_header = self._build_basic_auth_header()
         self._client: Optional[httpx.AsyncClient] = None
+        self._client_options: Dict[str, Any] = client_options or {}
 
     async def __aenter__(self) -> "OCIRegistryDiscovery":
-        timeout = httpx.Timeout(
-            connect=5.0,
-            read=60.0,
-            write=60,
-            pool=5.0,
-        )
-        self._client = httpx.AsyncClient(timeout=timeout)
+        self._client = httpx.AsyncClient(**self._client_options)
         return self
 
     async def __aexit__(self, *args: Any) -> None:

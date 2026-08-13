@@ -433,6 +433,9 @@ class OfflineInstallerHelper:
                 repository=repository,
                 username=cls._build_config.registry_username,
                 password=cls._build_config.registry_password,
+                client_options={
+                    "timeout": float(cls._build_config.publish_offline_installer_timeout)
+                },
             ) as client:
                 return await client.create_or_update_tag(
                     tag=version,

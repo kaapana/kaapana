@@ -1,5 +1,4 @@
 dag_id: "send-dicom"
-assert_cleanup: true
 conf_data:
   workflow_form:
     aetitle: kp-Send2OwnPacs

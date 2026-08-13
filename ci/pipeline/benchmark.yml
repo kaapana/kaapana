@@ -30,10 +30,9 @@ benchmark_platform:
     - { job: run_workflows, optional: true }
     - { job: playwright_ui_tests, optional: true }
   script:
-    # BENCHMARK_DATA_DIR (image_modalities checkout root on this runner) is
-    # not set here — it's runner-specific, like HARVESTER_KUBECONFIG /
-    # CI_SSH_PRIVATE_KEY above. Configure it as a project/group CI/CD
-    # variable, or the job fails fast with a clear "Missing option" error.
+    - git clone "https://oauth2:${BENCHMARK_DATA_REPO_TOKEN}@${BENCHMARK_DATA_REPO_URL#https://}" "$BENCHMARK_DATA_REPO_DIR" || git -C "$BENCHMARK_DATA_REPO_DIR" pull
+    - git -C "$BENCHMARK_DATA_REPO_DIR" lfs pull
+    - export BENCHMARK_DATA_DIR="$BENCHMARK_DATA_REPO_DIR/image_modalities"
     # Not baked into $CI_BASE_IMAGE yet (dcmtk is; typer/matplotlib/numpy
     # aren't) — installs in seconds, revisit if this job's runtime matters.
     - pip install -e "$CI_PROJECT_DIR/utils/platform-benchmark"

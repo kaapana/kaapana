@@ -14,6 +14,7 @@ RUN printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d && chmod +x /usr/sbin
 # snap packages by extracting them and running `trivy rootfs` against that.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
+        git-lfs \
         openssh-client \
         curl \
         ca-certificates \
@@ -26,7 +27,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && echo "deb [signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bookworm stable" \
         > /etc/apt/sources.list.d/docker.list \
     && apt-get update && apt-get install -y --no-install-recommends docker-ce-cli docker-buildx-plugin \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && git lfs install --system
 
 # helm + kubeval plugin: kaapana-build hard-fails without both
 ARG HELM_VERSION=3.19.0

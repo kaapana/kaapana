@@ -62,7 +62,7 @@ or `dropped_series` means the receiver cut a series apart mid-transfer. Each
 scenario reports wall time, run p50/p95, scheduler gap p50, peak active runs,
 dropped/split series and the slowest tasks.
 
-**CI**: the repo's `platform_benchmarking` job (`.gitlab-ci.yml`) runs this
+**CI**: the repo's `benchmark_platform` job (`ci/pipeline/benchmark.yml`) runs this
 suite `BENCHMARK_RUNS`× (default 3) against the CI-deployed instance when
 `CI_EXEC_BENCHMARKING=true` (with `CI_EXEC_DEPLOY=true`; on a fresh instance
 also enable the integration tests so `first_login` sets the password). Each
@@ -70,8 +70,13 @@ repetition is tagged `<version>-r<i>`; results persist on the deploy-runner in
 `$CI_BUILDS_DIR/kaapana-benchmark-results` across pipelines, so run 3× on the
 base branch, 3× on the optimized branch (same runner = same hardware), and the
 side-by-side table plus `benchmark compare <base> <new>` show the change.
-`BENCHMARK_DATA_DIR` must be set as a CI/CD variable to an image_modalities
-checkout on the runner. `--data-dir` (or `BENCHMARK_DATA_DIR`) is the image_modalities
+The job downloads the `image_modalities` dataset (git-lfs, ~3GB) itself from
+`BENCHMARK_DATA_REPO_URL` into `BENCHMARK_DATA_REPO_DIR` the first time it
+runs on a given runner, authenticating with `BENCHMARK_DATA_REPO_TOKEN` (a
+masked, read-only project/group CI/CD variable); later runs on the same
+runner reuse that copy instead of downloading again. `--data-dir` (or
+`BENCHMARK_DATA_DIR`, which the job derives as
+`$BENCHMARK_DATA_REPO_DIR/image_modalities`) is the image_modalities
 repo root with `NSCLC/{CT,SEG,RTSTRUCT}/<patient>` (paired by folder name) and
 `CDDP-EAGLE/SM/<patient>` — 10 patients each, giving the 40 distinct series.
 TLS verification is disabled (self-signed platform certs). For a one-off

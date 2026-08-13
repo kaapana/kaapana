@@ -59,8 +59,37 @@ class ContainerScanner:
         return targets
 
     @classmethod
+    def _ensure_checks_bundle(cls) -> None:
+        """Download the Trivy checks (misconfiguration) bundle once before
+        parallel config scans. `trivy config` has no download-only mode, so
+        scanning an empty temp dir forces the bundle download as a side
+        effect; it then lands in the shared cache and every worker skips its
+        own update instead of racing to fetch it concurrently."""
+        empty_dir = Path(
+            tempfile.mkdtemp(prefix=".trivy_empty_", dir=cls._reports_path)
+        )
+        try:
+            cmd = [
+                cls._build_config.trivy_executable,
+                "config",
+                "--cache-dir",
+                str(cls._cache_path),
+                "--format",
+                "json",
+                str(empty_dir),
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+            if result.returncode != 0:
+                raise subprocess.CalledProcessError(
+                    result.returncode, cmd, output=result.stdout, stderr=result.stderr
+                )
+        finally:
+            shutil.rmtree(empty_dir, ignore_errors=True)
+
+    @classmethod
     def misconfiguration_check(cls) -> None:
         """Run Trivy misconfiguration scans on selected charts and containers."""
+        cls._ensure_checks_bundle()
         with alive_bar(
             len(cls._build_state.selected_charts),
             dual_line=True,
@@ -108,6 +137,7 @@ class ContainerScanner:
             "config",
             "--cache-dir",
             str(cls._cache_path),
+            "--skip-check-update",
             "--severity",
             ",".join(cls._build_config.configuration_check_severity_level),
             str(chart.chartfile.parent),
@@ -140,6 +170,7 @@ class ContainerScanner:
             "config",
             "--cache-dir",
             str(cls._cache_path),
+            "--skip-check-update",
             "--severity",
             ",".join(cls._build_config.configuration_check_severity_level),
             str(container.dockerfile.parent),
@@ -162,15 +193,31 @@ class ContainerScanner:
 
     @classmethod
     def _ensure_db(cls) -> None:
-        """Download/update the Trivy vulnerability DB once before parallel scans.
-        Parallel workers all share the same cache dir, so concurrent DB updates
-        deadlock on Trivy's file lock — pre-fetching avoids this."""
+        """Download/update the Trivy vulnerability and Java DBs once before
+        parallel scans. Parallel workers all share the same cache dir, so
+        concurrent DB updates deadlock on Trivy's file lock — and without a
+        shared pre-fetch, every worker would instead pull the Java DB OCI
+        artifact from the mirror at once, racing its redirect-based blob
+        download into 404s."""
         cmd = [
             cls._build_config.trivy_executable,
             "image",
             "--cache-dir",
             str(cls._cache_path),
             "--download-db-only",
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        if result.returncode != 0:
+            raise subprocess.CalledProcessError(
+                result.returncode, cmd, output=result.stdout, stderr=result.stderr
+            )
+
+        cmd = [
+            cls._build_config.trivy_executable,
+            "image",
+            "--cache-dir",
+            str(cls._cache_path),
+            "--download-java-db-only",
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
         if result.returncode != 0:
@@ -216,6 +263,7 @@ class ContainerScanner:
                 "--cache-dir",
                 str(worker_cache),
                 "--skip-db-update",
+                "--skip-java-db-update",
                 "--format",
                 "cyclonedx",
                 "--quiet",
@@ -304,6 +352,7 @@ class ContainerScanner:
                 "--cache-dir",
                 str(worker_cache),
                 "--skip-db-update",
+                "--skip-java-db-update",
                 "--timeout",
                 f"{cls._build_config.trivy_timeout}s",
                 "--severity",

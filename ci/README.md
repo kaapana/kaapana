@@ -53,7 +53,22 @@ nightly run; `check_readthedocs` instead gates on `CI_PIPELINE_SOURCE ==
 "schedule"` directly (see `ci/pipeline/unit-tests.yml`).
 
 Stage toggles (set per run via **CI/CD → Pipelines → Run pipeline**, or
-scripted with `python3 ci/utils/trigger_pipeline.py`):
+scripted with [`glab ci run`](https://gitlab.com/gitlab-org/cli), e.g.
+`glab ci run -b develop --variables CI_EXEC_SECURITY_SCAN:true`). For more
+than a couple of variables, use `--variables-from` with a JSON file instead of
+stacking `--variables` flags — it expects an array of hashes with at least
+`key`/`value`:
+
+```json
+[
+  { "key": "CI_EXEC_SECURITY_SCAN", "value": "true" },
+  { "key": "CI_EXEC_SECURITY_SCAN_ARGUMENTS", "value": "--vulnerability-scan --create-sboms" }
+]
+```
+
+```bash
+glab ci run -b develop --variables-from variables.json
+```
 
 | Variable | Default | Effect |
 |---|---|---|

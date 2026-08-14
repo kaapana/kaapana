@@ -309,13 +309,15 @@ def build(
     ),
     cache_from: bool = typer.Option(
         False,
-        "-cf/--cache-from",
+        "--cache-from/--no-cache-from",
+        "-cf",
         envvar="CACHE_FROM",
         help="Use build cache from registry.",
     ),
     cache_to: bool = typer.Option(
         False,
-        "-ct/--cache-to",
+        "--cache-to/--no-cache-to",
+        "-ct",
         envvar="CACHE_TO",
         help="Push build cache to registry.",
     ),

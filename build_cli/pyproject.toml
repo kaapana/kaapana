@@ -22,6 +22,7 @@ dependencies = [
     "treelib==1.8.0",
     "requests==2.32.4",
     "urllib3==2.5.0",
+    "httpx==0.28.1",
     "rich==14.2.0",
     "networkx==3.5",
     "pydantic==2.12.5",

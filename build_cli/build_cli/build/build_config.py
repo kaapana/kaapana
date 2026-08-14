@@ -79,6 +79,8 @@ class BuildConfig(BaseModel):
     helm_download_timeout: int = 10
     save_image_timeout: int = 6000
 
+    publish_offline_installer_timeout: float = 60.0
+
     @model_validator(mode="before")
     @classmethod
     def preprocess_lists(cls, data: dict[str, Any]) -> dict[str, Any]:

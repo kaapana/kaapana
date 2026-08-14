@@ -2,6 +2,7 @@ from datetime import timedelta
 
 
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 
@@ -111,11 +112,13 @@ put_report_to_minio = MinioOperator(
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-radiomics_federated_central >> put_radiomics_to_minio >> clean
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
+radiomics_federated_central >> put_radiomics_to_minio >> [clean, check_success]
 (
     radiomics_federated_central
     >> get_notebook_from_minio
     >> radiomics_reporting
     >> put_report_to_minio
-    >> clean
+    >> [clean, check_success]
 )

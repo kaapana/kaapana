@@ -1,4 +1,5 @@
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
@@ -57,6 +58,8 @@ put_to_minio = MinioOperator(
 )
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 get_input >> extract_one >> pool_jsons_one >> put_to_minio
 get_input >> extract_two >> pool_jsons_two >> put_to_minio
-put_to_minio >> clean
+put_to_minio >> [clean, check_success]

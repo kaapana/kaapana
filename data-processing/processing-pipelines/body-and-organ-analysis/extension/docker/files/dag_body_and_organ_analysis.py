@@ -1,4 +1,5 @@
 from airflow.utils.dates import days_ago
+from airflow.operators.empty import EmptyOperator
 from datetime import timedelta
 from airflow.models import DAG
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
@@ -188,7 +189,9 @@ push_to_minio = MinioOperator(
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 # --- Task flow ---
-get_input >> dcm2nifti >> boa >> boa_check >> seg2dicom >> send_task >> clean
+get_input >> dcm2nifti >> boa >> boa_check >> seg2dicom >> send_task >> [clean, check_success]
 get_models >> boa
-boa_check >> push_to_minio >> clean
+boa_check >> push_to_minio >> [clean, check_success]

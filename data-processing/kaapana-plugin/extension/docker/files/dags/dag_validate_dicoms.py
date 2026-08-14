@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.operators.ClearValidationResultOperator import (
@@ -85,11 +86,13 @@ put_html_to_minio = MinioOperator(
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 (
     get_input
     >> get_input_json
     >> clear_validation_results
     >> validate
     >> put_html_to_minio
-    >> clean
+    >> [clean, check_success]
 )

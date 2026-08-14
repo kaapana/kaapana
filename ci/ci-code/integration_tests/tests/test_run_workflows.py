@@ -17,18 +17,17 @@ def wait_for_workflow(kaapana: WorkflowEndpoints, workflow_name, timeout=3600) -
     while abs(start_time - time.time()) < timeout:
         try:
             jobs_info = kaapana.get_jobs_info(workflow_name=workflow_name)
-        except:
-            pass
+        except Exception as e:
+            logger.warning(f"Could not fetch jobs for {workflow_name}: {e}")
         jobs_status = [job.get("status") for job in jobs_info]
         logger.debug(f"jobs_info: {jobs_status}")
-        if "failed" in jobs_status:
+        if any(status in ("failed", "deleted") for status in jobs_status):
             msg = f"Workflow {workflow_name} failed: {jobs_info}"
             return False, msg
-        elif jobs_status and jobs_status == ["finished" for _ in jobs_info]:
+        elif jobs_status and all(status == "finished" for status in jobs_status):
             msg = f"Workflow {workflow_name} succeeded."
             return True, msg
-        else:
-            time.sleep(5)
+        time.sleep(5)
     msg = f"Workflow {workflow_name} exceeds timeout {timeout}"
     return False, msg
 

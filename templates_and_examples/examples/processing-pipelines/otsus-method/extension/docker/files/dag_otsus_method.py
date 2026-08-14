@@ -1,4 +1,5 @@
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
@@ -81,7 +82,9 @@ put_report_to_minio = MinioOperator(
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 get_input >> convert >> otsus_method
 
-otsus_method >> seg_to_dcm >> dcm_send >> clean
-otsus_method >> generate_report >> put_report_to_minio >> clean
+otsus_method >> seg_to_dcm >> dcm_send >> [clean, check_success]
+otsus_method >> generate_report >> put_report_to_minio >> [clean, check_success]

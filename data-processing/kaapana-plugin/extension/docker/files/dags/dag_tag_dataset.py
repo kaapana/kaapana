@@ -4,6 +4,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalTaggingOperator import LocalTaggingOperator
 from airflow.utils.dates import days_ago
+from airflow.operators.empty import EmptyOperator
 from airflow.models import DAG
 
 ui_forms = {
@@ -51,4 +52,6 @@ get_input = GetInputOperator(dag=dag, data_type="json")
 tagging = LocalTaggingOperator(dag=dag, input_operator=get_input)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> tagging >> clean
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
+get_input >> tagging >> [clean, check_success]

@@ -38,6 +38,7 @@ from kaapana.operators.HelperThumbnails import NO_THUMBNAIL_MODALITIES, has_ref_
 from kaapanapy.helper import get_minio_client
 from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.settings import KaapanaSettings
+from airflow.operators.empty import EmptyOperator
 
 args = {
     "ui_visible": False,
@@ -547,9 +548,10 @@ upload_to_data_api = KaapanaPythonBaseOperator(
 clean = LocalWorkflowCleanerOperator(
     dag=dag,
     clean_workflow_dir=True,
-    trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
     namespace=SERVICES_NAMESPACE,
 )
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 
 get_input >> (auto_trigger_operator, extract_metadata)
 
@@ -581,3 +583,12 @@ generate_thumbnail >> upload_to_data_api
     put_thumbnail_to_project_bucket,
     upload_to_data_api,
 ] >> clean
+
+[
+    add_to_dataset,
+    assign_to_project,
+    put_html_to_minio,
+    put_results_html_to_minio_admin_bucket,
+    put_thumbnail_to_project_bucket,
+    upload_to_data_api,
+] >> check_success

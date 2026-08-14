@@ -2,6 +2,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.MinioOperator import MinioOperator
@@ -103,10 +104,9 @@ put_to_minio_dicom = MinioOperator(
     minio_prefix="downloads",
     whitelisted_file_extensions=(".zip", ".dcm"),
 )
-clean = LocalWorkflowCleanerOperator(
-    dag=dag, clean_workflow_dir=True, trigger_rule="none_failed_or_skipped"
-)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 
 get_input >> branch_if_nifti >> [dcm2nifti, put_to_minio_dicom]
-dcm2nifti >> put_to_minio_nifti >> clean
-put_to_minio_dicom >> clean
+dcm2nifti >> put_to_minio_nifti >> [clean, check_success]
+put_to_minio_dicom >> [clean, check_success]

@@ -43,12 +43,6 @@ security_scan:
     when: always
     expire_in: never
     paths:
-      - "$CI_PROJECT_DIR/security-reports/"
       - "$CI_PROJECT_DIR/reports/"
     reports:
       container_scanning: "$CI_PROJECT_DIR/reports/gl-container-scanning-report.json"
-    exclude:
-      - "$CI_PROJECT_DIR/security-reports/.trivy_cache/**/*"
-      - "$CI_PROJECT_DIR/security-reports/.trivy_worker_*/**/*"
-      - "$CI_PROJECT_DIR/security-reports/vuln_scan/**/*"
-      - "$CI_PROJECT_DIR/security-reports/snap_scans/**/*"

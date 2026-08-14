@@ -1,3 +1,4 @@
+import asyncio
 import json
 import platform
 import sys
@@ -392,7 +393,13 @@ class OfflineInstallerHelper:
         version: str,
         repository: str = "offline-installer",
     ) -> Optional[str]:
-        """Tar the offline installer dir and publish it as <repo>:<version>."""
+        """Tar the offline installer dir and publish it as <repo>:<version>.
+
+        The tarball is pushed as a single OCI blob and is held completely in memory
+        while uploading (``OCIRegistryDiscovery._upload_file`` reads it with
+        ``read_bytes()``). The build host needs free RAM of at least the tarball size;
+        a payload larger than the available memory cannot be published.
+        """
         if not offline_dir.is_dir():
             msg = (
                 "Cannot publish offline installer: "
@@ -424,21 +431,32 @@ class OfflineInstallerHelper:
         if repository_prefix:
             repository = f"{repository_prefix}/{repository}"
 
-        client = cls._oci_registry_cls()(
-            registry_url=url,
-            repository=repository,
-            username=cls._build_config.registry_username,
-            password=cls._build_config.registry_password,
-        )
-        published = client.create_or_update_tag(
-            tag=version,
-            user_metadata={
-                "kind": "kaapana-offline-installer",
-                "kaapana_version": version,
-                "built_at": datetime.now(timezone.utc).isoformat(),
-            },
-            files=[str(tarball)],
-        )
+        registry_cls = cls._oci_registry_cls()
+
+        async def _push() -> bool:
+            async with registry_cls(
+                registry_url=url,
+                repository=repository,
+                username=cls._build_config.registry_username,
+                password=cls._build_config.registry_password,
+                client_options={
+                    "timeout": float(cls._build_config.publish_offline_installer_timeout)
+                },
+            ) as client:
+                return await client.create_or_update_tag(
+                    tag=version,
+                    user_metadata={
+                        "kind": "kaapana-offline-installer",
+                        "kaapana_version": version,
+                        "built_at": datetime.now(timezone.utc).isoformat(),
+                    },
+                    files=[
+                        tarball.name
+                    ],  # basename only: the puller writes it into its target dir
+                    base_dir=str(tarball.parent),
+                )
+
+        published = asyncio.run(_push())
 
         ref = f"{registry_host}/{repository}:{version}"
         if published:

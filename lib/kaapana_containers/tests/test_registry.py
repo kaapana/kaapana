@@ -122,3 +122,33 @@ class TestListTags:
         )
         with pytest.raises(OCIError, match="server error"):
             await client.list_tags()
+
+
+# ---------------------------------------------------------------------------
+# client_options
+# ---------------------------------------------------------------------------
+
+class TestClientOptions:
+    async def test_default_options_are_retained(self, client):
+        async with client:
+            assert client._client is not None
+            assert client._client.timeout.read == 5.0
+            assert client._client.timeout.write == 5.0
+            assert client._client.timeout.connect == 5.0
+            assert client._client.timeout.pool == 5.0
+
+
+
+    async def test_options_forwarded_to_httpx_client(self):
+        client = OCIRegistryDiscovery(
+            "https://registry.example.com",
+            "user/repo",
+            client_options={"timeout": 60.0},
+        )
+
+        async with client:
+            assert client._client is not None
+            assert client._client.timeout.read == 60.0
+            assert client._client.timeout.write == 60.0
+            assert client._client.timeout.connect == 60.0
+            assert client._client.timeout.pool == 60.0

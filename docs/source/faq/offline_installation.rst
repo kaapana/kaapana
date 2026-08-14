@@ -37,23 +37,39 @@ registry at deploy. ``--skip-platform-images-tarball`` avoids the multi-GB
 platform-images this path doesn't need since we can pull them directly from the
 registry at deploy.
 
+.. hint::
+    The bootstrap payload is uploaded as a single blob that is held **entirely in
+    memory** while it is pushed. The build host needs at least as much free RAM as
+    the packaged tarball (``offline-installer-<version>.tar.gz`` in the build dir,
+    typically a few GB); if the payload exceeds the available memory, the publish
+    step fails with an out-of-memory error.
+
 2. Target host — pull the installer
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Bootstrap needs only ``utils/pull_offline_installer.py`` and its registry client
-(install the ``kaapana-containers`` pip package, or copy
-``lib/kaapana_containers/kaapana_containers/registries/registry.py`` next to it as
-``registry.py``):
+Bootstrap needs only ``utils/pull_offline_installer.py``. It is self-contained and
+uses the Python standard library only — copy that single file to the target and run
+it with the system ``python3`` (3.9+); nothing has to be installed first:
 
 .. code-block:: bash
 
-   python3 utils/pull_offline_installer.py \
+   python3 pull_offline_installer.py \
      --registry-url https://registry.example.com \
      --username <USER> --password <PASS> \
      --tag <version> --target-dir ./microk8s-offline-installer
 
 Use ``http://host:5000`` for a plain-HTTP registry, ``--ca-cert <bundle>`` for a
 private CA, or ``--insecure`` to skip verification.
+
+If ``--default-registry`` included a path prefix at build time (e.g.
+``registry.example.com/kaapana``), the payload lands under that prefix — pass
+``--repository kaapana/offline-installer`` to match.
+
+.. hint::
+    The pull mirrors the push: the blob is buffered **entirely in memory** before it
+    is written to ``--target-dir``. The target host needs at least as much free RAM
+    as the published tarball. If the payload exceeds the available memory, the download
+    fails with an out-of-memory error.
 
 3. Install and deploy (online deploy)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

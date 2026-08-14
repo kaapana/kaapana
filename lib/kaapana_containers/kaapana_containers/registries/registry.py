@@ -222,6 +222,10 @@ class OCIRegistryDiscovery:
         3. PUT blob data to that URL with the digest query parameter
         4. Registry stores the blob and returns 201 Created
 
+        The whole blob is uploaded in a single PUT, so ``data`` is held in
+        memory for the duration of the request. Blobs larger than the available memory
+        cannot be uploaded and will fail with a memory error.
+
         Args:
             data: Raw bytes or string data to upload
             media_type: OCI media type (e.g., application/vnd.oci.image.config.v1+json)
@@ -292,6 +296,9 @@ class OCIRegistryDiscovery:
 
         Reads the file content, determines the appropriate media type,
         uploads it as a blob, and returns metadata.
+
+        The file is held fully in memory before being uploaded (see
+        :meth:`_upload_blob`); the host needs free RAM of at least the size of the file.
 
         Args:
             file_path: Absolute (or cwd-relative) path to the file to read.
@@ -383,6 +390,9 @@ class OCIRegistryDiscovery:
 
     async def _download_blob(self, digest: SHA256Digest) -> bytes:
         """Download a blob by its digest.
+
+        The response body is buffered completely in memory (``resp.content``), so a
+        blob larger than the available memory will fail with a memory error.
 
         Args:
             digest: Blob digest in 'sha256:<hexdigest>' format
@@ -492,6 +502,10 @@ class OCIRegistryDiscovery:
 
         Fetches the tag's metadata, downloads each referenced file as a blob,
         and writes them to the output directory with their original filenames.
+
+        Each file is held fully in memory before being written (see
+        :meth:`_download_blob`); the host needs free RAM of at least the size of the
+        largest file.
 
         Args:
             tag: Tag name to download files from

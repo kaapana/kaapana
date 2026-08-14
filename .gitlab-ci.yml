@@ -110,7 +110,7 @@ variables:
   CI_EXEC_DEPLOY: "true" # deploy stage: provision test VM + server install + platform deploy
   CI_EXEC_SERVER_INSTALLATION: "true" # "false" skips the OS/microk8s install (target already prepared)
   CI_EXEC_INTEGRATION_TESTS: "true" # test stage: pytest + Playwright against the test VM
-  CI_EXEC_BENCHMARKING: "false" # "true" = run the ingestion-pipeline benchmark suite against the deployed platform
+  CI_EXEC_BENCHMARK_ARGUMENTS: "--ingest" # which suites to run: any of --ingest --internet --gpu
   BENCHMARK_MODE: "all" # ingestion-pipeline suite mode: single | medium | max | trickle | all
   BENCHMARK_RUNS: "3" # tagged repetitions per pipeline run (see utils/platform-benchmark/README.md)
 

@@ -91,7 +91,7 @@ def internet(
     tag: Optional[str] = TagOpt,
     force: bool = ForceOpt,
 ):
-    """Run a speedtest pod on the instance's cluster (utils/internet-benchmark image)."""
+    """Run a speedtest pod on the instance's cluster (klakadkfz/speedtest image)."""
     metrics = internet_suite.run(kubectl, namespace, proxy or None)
     _finish("internet", metrics, tag, force, kubectl=kubectl)
 
@@ -104,7 +104,7 @@ def gpu(
     tag: Optional[str] = TagOpt,
     force: bool = ForceOpt,
 ):
-    """Run gpu_burn on all GPUs of the instance (utils/nvidia-benchmark.yaml image)."""
+    """Run gpu_burn on all GPUs of the instance (chrstnhntschl/gpu_burn image)."""
     metrics = gpu_suite.run(kubectl, namespace, seconds)
     _finish("gpu", metrics, tag, force, kubectl=kubectl)
 

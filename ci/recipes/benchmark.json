@@ -1,0 +1,30 @@
+[
+    {
+        "key": "CI_EXEC_UNIT_TESTS",
+        "value": "true"
+    },
+    {
+        "key": "CI_EXEC_BUILD",
+        "value": "true"
+    },
+    {
+        "key": "CI_EXEC_SECURITY_SCAN",
+        "value": "false"
+    },
+    {
+        "key": "CI_EXEC_DEPLOY",
+        "value": "true"
+    },
+    {
+        "key": "CI_EXEC_INTEGRATION_TESTS",
+        "value": "false"
+    },
+    {
+        "key": "CI_EXEC_BENCHMARK",
+        "value": "true"
+    },
+    {
+        "key": "CI_EXEC_DESTROY_DELAYED",
+        "value": "true"
+    }
+]

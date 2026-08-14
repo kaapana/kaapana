@@ -41,17 +41,32 @@ benchmark_platform:
     # artifacts), and expose_as below can't use a wildcard to filter it
     # back out to just the JSON results.
     - mkdir -p "$ARTIFACTS_DIR/benchmark"
+    # internet/gpu run a pod on the deployed cluster rather than hit VM_FQDN
+    # over HTTP — same ssh/key/user the deploy/integration-tests jobs use.
+    - KUBECTL_CMD="ssh -i $CI_SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $VM_USER@$VM_FQDN microk8s kubectl"
     - |
+      args=" $CI_EXEC_BENCHMARK_ARGUMENTS "
       for i in $(seq 1 "$BENCHMARK_RUNS"); do
         tag="${VERSION_TAG}-r${i}"
-        # --password: fixed by first_login's set_new_password default (see
-        # ci/ci-code/integration_tests/integration_tests/login.py) — same
-        # assumption the pytest integration tests already make.
-        benchmark --results-dir "$ARTIFACTS_DIR/benchmark" ingestion-pipeline \
-          --host "https://$VM_FQDN" --username kaapana --password admin \
-          --mode "$BENCHMARK_MODE" --data-dir "$BENCHMARK_DATA_DIR" \
-          --tag "$tag" --force
+        if [[ "$args" == *" --ingest "* ]]; then
+          # --password: fixed by first_login's set_new_password default (see
+          # ci/ci-code/integration_tests/integration_tests/login.py) — same
+          # assumption the pytest integration tests already make.
+          benchmark --results-dir "$ARTIFACTS_DIR/benchmark" ingestion-pipeline \
+            --host "https://$VM_FQDN" --username kaapana --password admin \
+            --mode "$BENCHMARK_MODE" --data-dir "$BENCHMARK_DATA_DIR" \
+            --kubectl "$KUBECTL_CMD" --tag "$tag" --force
+        fi
+        if [[ "$args" == *" --internet "* ]]; then
+          benchmark --results-dir "$ARTIFACTS_DIR/benchmark" internet \
+            --kubectl "$KUBECTL_CMD" --tag "$tag" --force
+        fi
+        if [[ "$args" == *" --gpu "* ]]; then
+          benchmark --results-dir "$ARTIFACTS_DIR/benchmark" gpu \
+            --kubectl "$KUBECTL_CMD" --tag "$tag" --force
+        fi
       done
+      cp "$ARTIFACTS_DIR/benchmark/${tag}.json" "$ARTIFACTS_DIR/benchmark/benchmark-latest.json"
   artifacts:
     when: always
     paths:

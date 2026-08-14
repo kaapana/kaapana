@@ -6,8 +6,8 @@ platform versions. Three suites:
 | suite | what it measures | needs |
 |---|---|---|
 | `ingestion-pipeline` | timing of the ingestion DAG for a fixed DICOM scenario set | platform HTTPS APIs + dcmtk (`dcmsend`, `dcmdump`) |
-| `internet` | ping / download / upload from inside the cluster (speedtest pod, `utils/internet-benchmark` image) | kubectl access |
-| `gpu` | gpu_burn throughput + per-GPU health (`utils/nvidia-benchmark.yaml` image) | kubectl access |
+| `internet` | ping / download / upload from inside the cluster (speedtest pod, `klakadkfz/speedtest` image) | kubectl access |
+| `gpu` | gpu_burn throughput + per-GPU health (`chrstnhntschl/gpu_burn` image) | kubectl access |
 | `helm` | how fast the machine deploys increasingly big helm charts (the kaapana-platform-chart timeout problem) | helm + kubectl access |
 
 ## Install
@@ -62,14 +62,20 @@ or `dropped_series` means the receiver cut a series apart mid-transfer. Each
 scenario reports wall time, run p50/p95, scheduler gap p50, peak active runs,
 dropped/split series and the slowest tasks.
 
-**CI**: the repo's `benchmark_platform` job (`ci/pipeline/benchmark.yml`) runs this
-suite `BENCHMARK_RUNS`× (default 3) against the CI-deployed instance when
+**CI**: the repo's `benchmark_platform` job (`ci/pipeline/benchmark.yml`) runs
+`BENCHMARK_RUNS`× (default 3) against the CI-deployed instance when
 `CI_EXEC_BENCHMARKING=true` (with `CI_EXEC_DEPLOY=true`; on a fresh instance
-also enable the integration tests so `first_login` sets the password). Each
-repetition is tagged `<version>-r<i>`; results persist on the deploy-runner in
+also enable the integration tests so `first_login` sets the password).
+`CI_EXEC_BENCHMARK_ARGUMENTS` (default `--ingest`) picks which suites run each
+repetition — any combination of `--ingest --internet --gpu`; `internet`/`gpu`
+reuse the same ssh/kubectl access the deploy job uses to reach the cluster.
+Each repetition is tagged `<version>-r<i>`; results persist on the deploy-runner in
 `$CI_BUILDS_DIR/kaapana-benchmark-results` across pipelines, so run 3× on the
 base branch, 3× on the optimized branch (same runner = same hardware), and the
-side-by-side table plus `benchmark compare <base> <new>` show the change.
+side-by-side table plus `benchmark compare <base> <new>` show the change. The
+job also copies the last repetition's result to `benchmark-latest.json` in the
+artifacts directory, so downstream tooling can read the latest run without
+knowing the version tag.
 The job downloads the `image_modalities` dataset (git-lfs, ~3GB) itself from
 `BENCHMARK_DATA_REPO_URL` into `BENCHMARK_DATA_REPO_DIR` the first time it
 runs on a given runner, authenticating with `BENCHMARK_DATA_REPO_TOKEN` (a

@@ -1,5 +1,5 @@
-"""Internet suite: run the existing speedtest image (utils/internet-benchmark)
-as a pod on the instance's cluster and parse its --json output."""
+"""Internet suite: run a speedtest pod on the instance's cluster and parse
+its --json output."""
 
 from __future__ import annotations
 

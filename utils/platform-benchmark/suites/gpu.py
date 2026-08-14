@@ -1,5 +1,5 @@
-"""GPU suite: run gpu_burn (utils/nvidia-benchmark.yaml) as a pod on the
-instance's cluster and parse throughput + per-GPU verdicts from its logs."""
+"""GPU suite: run gpu_burn as a pod on the instance's cluster and parse
+throughput + per-GPU verdicts from its logs."""
 
 from __future__ import annotations
 

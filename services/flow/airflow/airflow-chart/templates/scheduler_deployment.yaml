@@ -109,6 +109,8 @@ spec:
           value: "airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth"
         - name: DEFAULT_REGISTRY
           value: "{{ .Values.global.registry_url }}"
+        - name: DEV_MODE
+          value: {{ .Values.global.dev_mode | toString | default "false" | quote }}
         - name: EXTENSIONS_NAMESPACE
           value: "{{ .Values.global.extensions_namespace }}"
         - name: GPU_SUPPORT

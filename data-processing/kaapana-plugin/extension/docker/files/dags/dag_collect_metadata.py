@@ -6,6 +6,7 @@ from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
@@ -64,4 +65,6 @@ put_to_minio = MinioOperator(
 )
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> anonymizer >> extract_metadata >> concat_metadata >> put_to_minio >> clean
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
+get_input >> anonymizer >> extract_metadata >> concat_metadata >> put_to_minio >> [clean, check_success]

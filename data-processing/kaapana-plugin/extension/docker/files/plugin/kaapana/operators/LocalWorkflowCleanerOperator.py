@@ -13,6 +13,7 @@ from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
     AIRFLOW_WORKFLOW_DIR,
+    DEV_MODE,
 )
 
 from kubernetes import client
@@ -75,6 +76,13 @@ class LocalWorkflowCleanerOperator(KaapanaBaseOperator):
         """
         envs = {"CLEAN_WORKFLOW_DIR": str(clean_workflow_dir)}
         self.clean_workflow_dir = clean_workflow_dir
+
+        # In DEV_MODE, skip cleanup on failure so the workflow dir stays around for debugging.
+        # Otherwise always clean up regardless of upstream outcome.
+        kwargs.setdefault(
+            "trigger_rule",
+            "none_failed_min_one_success" if DEV_MODE else "all_done",
+        )
 
         super().__init__(
             dag=dag,

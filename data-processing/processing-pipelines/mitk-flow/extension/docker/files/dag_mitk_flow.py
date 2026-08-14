@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.blueprints.kaapana_global_variables import KAAPANA_BUILD_VERSION
@@ -76,6 +77,8 @@ launch_app = KaapanaBaseOperator(
 send_dicom = DcmSendOperator(dag=dag, ae_title="MITK-flow", input_operator=mitk)
 clean = LocalWorkflowCleanerOperator(dag=dag)
 
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
 get_input >> branch_get_ref_series >> [get_ref_series, mitk]
 get_ref_series >> mitk
-mitk >> launch_app >> send_dicom >> clean
+mitk >> launch_app >> send_dicom >> [clean, check_success]

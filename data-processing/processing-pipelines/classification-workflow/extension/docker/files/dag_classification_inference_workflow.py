@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 from classification_inference_workflow.InferenceOperator import InferenceOperator
 from classification_training_workflow.PreprocessingOperator import PreprocessingOperator
@@ -88,4 +89,6 @@ inference = InferenceOperator(
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> convert >> preprocessing >> inference >> clean
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
+get_input >> convert >> preprocessing >> inference >> [clean, check_success]

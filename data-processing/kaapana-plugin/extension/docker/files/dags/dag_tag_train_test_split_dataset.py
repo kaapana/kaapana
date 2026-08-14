@@ -7,6 +7,9 @@ from kaapana.operators.LocalTaggingOperator import LocalTaggingOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.TrainTestSplitOperator import TrainTestSplitOperator
 
+from airflow.operators.empty import EmptyOperator
+
+
 ui_forms = {
     "documentation_form": {
         "path": "/user_guide/system/airflow.html#tag-train-test-split-dataset",
@@ -75,4 +78,6 @@ tag_dataset = LocalTaggingOperator(
 )
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> train_test_split >> tag_dataset >> clean
+
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
+get_input >> train_test_split >> tag_dataset >> [clean, check_success]

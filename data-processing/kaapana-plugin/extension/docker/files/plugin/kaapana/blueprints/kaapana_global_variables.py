@@ -30,3 +30,4 @@ try:
     CPU_CORE_COUNT = int(get_pool(name="NODE_CPU_CORES").slots)
 except Exception:
     CPU_CORE_COUNT = 1
+DEV_MODE = os.getenv("DEV_MODE", "False").lower() == "true"

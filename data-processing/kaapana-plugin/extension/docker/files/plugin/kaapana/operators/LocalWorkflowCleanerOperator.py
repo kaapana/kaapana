@@ -2,20 +2,23 @@
 # If you have a custom Local Operator, it should be migrated to a processing container based operator.
 import shutil
 from pathlib import Path
+from kaapana.blueprints.kaapana_utils import (
+    clean_previous_dag_run,
+)
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.blueprints.kaapana_global_variables import (
+    DEFAULT_REGISTRY,
+    KAAPANA_BUILD_VERSION,
+    AIRFLOW_WORKFLOW_DIR,
+    DEV_MODE,
+)
 
 from kubernetes import client
 from kubernetes.client.exceptions import ApiException
 
-from kaapana.blueprints.kaapana_global_variables import (
-    AIRFLOW_WORKFLOW_DIR,
-    DEFAULT_REGISTRY,
-    KAAPANA_BUILD_VERSION,
-)
 from kaapana.blueprints.kaapana_utils import (
-    clean_previous_dag_run,
     get_conf_configmap_name,
 )
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
 class LocalWorkflowCleanerOperator(KaapanaBaseOperator):
@@ -69,6 +72,13 @@ class LocalWorkflowCleanerOperator(KaapanaBaseOperator):
         """
         envs = {"CLEAN_WORKFLOW_DIR": str(clean_workflow_dir)}
         self.clean_workflow_dir = clean_workflow_dir
+
+        # In DEV_MODE, skip cleanup on failure so the workflow dir stays around for debugging.
+        # Otherwise always clean up regardless of upstream outcome.
+        kwargs.setdefault(
+            "trigger_rule",
+            "none_failed_min_one_success" if DEV_MODE else "all_done",
+        )
 
         super().__init__(
             dag=dag,

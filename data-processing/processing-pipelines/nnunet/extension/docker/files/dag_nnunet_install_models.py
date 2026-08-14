@@ -1,11 +1,12 @@
 from datetime import timedelta
-
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
+from nnunet.NnUnetModelOperator import NnUnetModelOperator
+
 from airflow.utils.dates import days_ago
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from nnunet.NnUnetModelOperator import NnUnetModelOperator
 
 ui_forms = {
     "documentation_form": {
@@ -61,7 +62,8 @@ model_management = NnUnetModelOperator(dag=dag, name="install-model", input_oper
 clean = LocalWorkflowCleanerOperator(
     dag=dag,
     clean_workflow_dir=True,
-    trigger_rule="none_failed",
 )
 
-get_input >> dcm2bin >> model_management >> clean
+check_success = EmptyOperator(task_id="check-success", dag=dag, trigger_rule="none_failed")
+
+get_input >> dcm2bin >> model_management >> [clean, check_success]

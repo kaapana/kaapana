@@ -118,139 +118,46 @@ ssh -i <kaapana-key> ubuntu@<vm-fqdn>
 
 The platform UI is at `https://<vm-fqdn>`.
 
-**Security scan on demand** — `CI_EXEC_SECURITY_SCAN=true`. Job `security_scan`
-([`ci/pipeline/security.yml`](pipeline/security.yml)): it scans, then always
-formats the report — regardless of scan outcome — then re-raises the scan's
-own exit code last, so the job still fails on a bad scan but never skips
-reporting. It doesn't require a build in the same pipeline either: with
-`CI_EXEC_BUILD=false` it scans whatever tag `git describe` resolves on the
-current checkout, as long as an earlier pipeline already pushed it (same idea
-as "Deploy without rebuilding" above).
+**Security scan on demand** — `CI_EXEC_SECURITY_SCAN=true`. Runs as its own
+`security` stage on a dedicated runner
+([`ci/pipeline/security.yml`](pipeline/security.yml)), and doesn't need a
+build in the same pipeline: with `CI_EXEC_BUILD=false` it scans whatever tag
+is already in the registry (same idea as "Deploy without rebuilding" above).
+A failed scan still publishes whatever it managed to check before failing the
+job.
 
-All of the actual work — run the scanners, consolidate their output, publish
-the reports — lives in one script,
-[`ci/ci-code/clean/run_security_scan.sh`](ci-code/clean/run_security_scan.sh).
-`security_scan` just calls it; see "Two ways to run this" below for running
-that same script outside of the shared-runner default.
+The scan, its consolidation, and publishing all happen via one script,
+[`ci/ci-code/clean/run_security_scan.sh`](ci-code/clean/run_security_scan.sh),
+which you can also run by hand for a local scan with nothing pushed to
+GitLab:
 
-If a tag isn't in the registry, the job fails — but only after scanning
-everything that *is* there: `ContainerScanner` (`build_cli`) collects
-per-image scan failures instead of aborting on the first one, still writes
-the consolidated report from whatever succeeded, and only then fails the
-`kaapana-build` call. The script captures that exit code, runs report
-generation unconditionally against the partial data, and only re-raises the
-failure as its own exit code at the very end — so one missing image costs
-you a red job, not a missing report.
+```bash
+export REGISTRY_URL=<your-registry> REGISTRY_PW=<token>
+./ci/ci-code/clean/run_security_scan.sh --vulnerability-scan --offline-packages-scan
+```
 
-**Artifacts** (all `expire_in: never`, kept indefinitely for planning),
-published to `reports/` by `run_security_scan.sh`:
+It covers container images and the offline installer's bundled snap
+packages. Reports land in `reports/` (kept indefinitely):
 
-| File | Produced when | Contents |
-| --- | --- | --- |
-| `reports/consolidated_vulnerability_scan.json` | `--vulnerability-scan` and/or `--offline-packages-scan` (both on by default) | Deduplicated by CVE, containers *and* snaps — the fetch target for external tooling, e.g. a dashboard that polls this artifact across nightlies; see "API access" below |
-| `reports/interactive_report.html` | same | Same data as a filterable/sortable table |
-| `reports/gl-container-scanning-report.json` | same | The file GitLab's Security tab reads, wired up via `artifacts.reports.container_scanning` |
-| `reports/consolidated_misconfiguration_check.json` | `--configuration-check` (opt-in) | Trivy config-scan findings across charts and containers, deduplicated by rule ID (e.g. `DS-0002`, `KSV-0001`) |
-| `reports/consolidated_sbom.json` | `--create-sboms` (opt-in) | CycloneDX components across all container SBOMs, deduplicated by `purl` |
+| File | Produced when |
+| --- | --- |
+| `reports/consolidated_vulnerability_scan.json` | `--vulnerability-scan` / `--offline-packages-scan` (default) |
+| `reports/interactive_report.html` | same |
+| `reports/gl-container-scanning-report.json` | same — feeds GitLab's Security tab |
+| `reports/consolidated_misconfiguration_check.json` | `--configuration-check` (opt-in) |
+| `reports/consolidated_sbom.json` | `--create-sboms` (opt-in) |
 
-Every file above follows the same shape: a dict keyed by finding ID (CVE / rule
-ID / package `purl`), each entry carrying an `Artifacts: [{name, type}]` list
-of every chart/container/snap it was found in — `type` is one of `container`,
-`snap`, or `chart`. Opt-in reports: add `--configuration-check` /
-`--create-sboms` to `CI_EXEC_SECURITY_SCAN_ARGUMENTS` (e.g. as a schedule
-variable override for the nightly run) to also produce them. **Not** kept:
-the full per-container/per-snap raw Trivy output
-(`security-reports/vuln_scan/*.json`, `security-reports/snap_scans/*.json`,
-one file per artifact with every finding in full, undeduplicated detail) —
-excluded from artifacts, too large to persist `expire_in: never`; the
-consolidated reports already carry what's needed.
-
-**API access** — the consolidated JSON is fetchable without any code beyond
-GitLab's own Job Artifacts API, no new backend endpoint needed:
+Toggle the opt-in reports via `CI_EXEC_SECURITY_SCAN_ARGUMENTS`. The
+consolidated JSON is also fetchable directly through GitLab's Job Artifacts
+API, e.g. for a dashboard polling nightlies:
 
 ```
 GET /api/v4/projects/:id/jobs/artifacts/:ref_name/raw/reports/consolidated_vulnerability_scan.json?job=security_scan
 ```
 
-(`:ref_name` = the branch/tag whose latest `security_scan` job you want, e.g.
-`develop`; requires a project token with `read_api` scope for private
-projects.) A dashboard can poll this on a schedule the same way it would poll
-any other CI artifact — no MinIO/kaapana-backend plumbing involved, and none
-needed: this report describes vulnerabilities in the *images that make up a
-build*, not runtime state of a deployed platform, so it has no natural home
-inside a running platform's API.
-
-**Two ways to run this:**
-
-1. **As a normal GitLab pipeline** — `CI_EXEC_SECURITY_SCAN=true`, same as
-   every other job. No special variable or job needed to run it on your own
-   hardware instead of the shared pool either: `security_scan` carries its own
-   `tags: [security-runner]` ([`security.yml`](pipeline/security.yml)) — that's
-   the *only* thing that decides which runner executes it. Register your own
-   `gitlab-runner` locally with that same tag and it becomes just another
-   `security-runner` in the pool, eligible to pick up this job exactly like the
-   Harvester-provisioned one already does — no pipeline change required:
-   ```bash
-   # docker, trivy (or just docker — the script pulls the pinned trivy image
-   # itself for snap scans), snap, unsquashfs, and a `pip install -e build_cli`
-   # editable install of this repo's build_cli all need to be present already.
-   curl -L --output /usr/local/bin/gitlab-runner \
-     https://gitlab-runner-downloads.s3.amazonaws.com/latest/binaries/gitlab-runner-linux-amd64
-   chmod +x /usr/local/bin/gitlab-runner
-   gitlab-runner register \
-     --url https://<your-gitlab-host> \
-     --tag-list security-runner \
-     --executor shell
-   # follow the prompts, pasting a registration token from
-   # Project → Settings → CI/CD → Runners → "New project runner"
-   gitlab-runner run    # or `gitlab-runner start` to install as a service
-   ```
-   Whichever `security-runner`-tagged runner happens to pick up the job runs
-   it — your workstation if it's online and free, the shared one otherwise. It
-   still shows up as a normal tracked job in the GitLab UI either way, with
-   the same `reports/` artifacts and Security-tab integration.
-2. **Pure local, no CI at all** — run the same script GitLab runs, directly:
-   ```bash
-   export REGISTRY_URL=<your-registry> REGISTRY_PW=<token>
-   ./ci/ci-code/clean/run_security_scan.sh --vulnerability-scan --offline-packages-scan
-   ```
-   Produces the exact same `reports/` output, on your own machine, with
-   nothing pushed to GitLab. Pass any `kaapana-build` scan flags as arguments
-   (falls back to `$SCAN_ARGS` / `$CI_EXEC_SECURITY_SCAN_ARGUMENTS`, then to
-   the same default as CI, if none are given).
-
-**Snap-package scanning** — the offline installer bundles raw `.snap` files
-(`core20`, `core24`, `microk8s`, `snapd`, `helm` — see `OFFLINE_SNAP_PACKAGES`
-in
-[`offline_installer_helper.py`](../build_cli/build_cli/build/offline_installer_helper.py)),
-which the container scan above never touches. `OfflinePackagesScanner`
-(`build_cli`, same file as `ContainerScanner`) scans each one via
-[`ci/ci-code/clean/trivy_scan_anything.sh`](ci-code/clean/trivy_scan_anything.sh)
-when `--offline-packages-scan` is passed (on by default in
-`CI_EXEC_SECURITY_SCAN_ARGUMENTS`): the script downloads the snap (without
-installing it — no snapd daemon needed), unpacks it with `unsquashfs`, packs
-the filesystem into a scratch `FROM scratch` docker image, and runs `trivy
-image` against that — `trivy fs` alone can't analyze the Go binaries inside
-snaps. Per-snap JSON results (and stderr logs, including the script's own
-status lines — stdout is reserved for trivy's own output so it stays valid
-JSON) land in `security-reports/snap_scans/<name>.json` / `.log`, then get
-folded into the same consolidated vulnerability report as the container
-findings (each CVE's `Artifacts` list tags entries `type: "snap"` vs
-`type: "container"`). This depends on newer, less-proven pipeline plumbing
-than the container scan (snap store reachability, nested docker-in-docker via
-the mounted socket) — every snap is scanned independently and failures are
-logged but never fail the job or the container scan.
-
-The Trivy vulnerability DB is cached across runs on the build runner
-(`cache: key: trivy-db` in `security_scan`) — without it, every job's fresh
-`GIT_STRATEGY: clone` checkout starts with an empty DB cache and re-downloads
-it from scratch. Combined with `runner_concurrency: 2`
-(`ci/harvester/inventory.yaml`), two cold downloads landing at the same time
-were hitting `TooManyRequests` on the upstream registry; the cache means most
-runs only need a metadata check. Concurrent scans *within* one job (Trivy's
-`--parallel-processes` workers) were already safe — `ContainerScanner._ensure_db`
-pre-fetches the DB once before workers start, and each worker scans from its
-own copy with `--skip-db-update`.
+Runs on its own `security-runner`-tagged Harvester VM by default; register
+your own `gitlab-runner` with that tag if you'd rather it ran on your own
+hardware — no pipeline change needed.
 
 **Delete a leftover test VM manually** (normally never needed):
 
@@ -321,16 +228,14 @@ registration per VM. All use the docker executor.
 |---|---|---|---|
 | kaapana-tests-01 | `tests-runner` | 4 | Allows privileged **services** matching `docker.io/library/docker:*` (dind for `task_api_tests`); `/builds` shared between job and services |
 | kaapana-build-01 | `build-runner` | 1 | Host docker socket mounted into jobs → warm layer cache across pipelines |
-| kaapana-security-01 | `security-runner` | 1 | Own small VM (4 cores/8Gi/60Gi — measured CPU/RAM use is trivial) for `security_scan`, its own `security` pipeline stage — a 4h scan no longer shares build-01's only slot. Still mounts the host docker socket: `ci/ci-code/clean/trivy_scan_anything.sh` (offline snap-package scan) shells out to `docker build`. |
+| kaapana-security-01 | `security-runner` | 1 | Small dedicated VM so a long scan never blocks builds; host docker socket mounted (needed for the offline-package scan) |
 | kaapana-deploy-01 | `deploy-runner` | 4 | No machine state; credentials from File-type CI variables |
 
-Provisioning is split one file per group — `setup_tests.yaml`,
-`setup_build.yaml`, `setup_security.yaml`, `setup_deploy.yaml` — each of
-which only ever touches its own group's VM(s) (its own "check if it already
-exists", its own runner/docker configuration play), so running one can never
-touch another group's already-running VM, whether or not it's run standalone.
-`setup_ci.yaml` just imports all four in sequence for a full run (also how
-you add a runner — add a new host to the group's inventory entry first):
+Provisioning is one playbook per group — `setup_tests.yaml`,
+`setup_build.yaml`, `setup_security.yaml`, `setup_deploy.yaml` — so running
+one never touches another group's VM(s). `setup_ci.yaml` runs all four in
+sequence (also how you add a runner — add a new host to the group's inventory
+entry first):
 
 ```bash
 export GITLAB_API_TOKEN=...      # api scope

@@ -12,13 +12,9 @@ from build_cli.build import (
     BuildConfig,
     BuildHelper,
     BuildState,
-    ContainerScanner,
     IssueTracker,
     OfflineInstallerHelper,
-    OfflinePackagesScanner,
-    consolidate_misconfiguration_reports,
-    consolidate_sbom_reports,
-    consolidate_vulnerability_reports,
+    SecurityScanner,
 )
 from build_cli.container import ContainerHelper
 from build_cli.container.coordinator import BuildCoordinator
@@ -550,26 +546,34 @@ def run_build(build_config: BuildConfig):
 
         BuildHelper.generate_report()
 
+    security_scan_requested = (
+        build_config.configuration_check
+        or build_config.create_sboms
+        or build_config.vulnerability_scan
+        or build_config.offline_packages_scan
+    )
+    if security_scan_requested:
+        SecurityScanner.init(build_config=build_config, build_state=build_state)
+
     if build_config.configuration_check:
-        ContainerScanner.init(build_config=build_config, build_state=build_state)
-        ContainerScanner.misconfiguration_check()
-        consolidate_misconfiguration_reports(build_config.kaapana_dir / "security-reports")
+        SecurityScanner.misconfiguration_check()
+        SecurityScanner.consolidate_misconfiguration_reports()
 
     if build_config.create_sboms:
-        ContainerScanner.init(build_config=build_config, build_state=build_state)
-        ContainerScanner.create_sboms()
-        consolidate_sbom_reports(build_config.kaapana_dir / "security-reports")
+        SecurityScanner.create_sboms()
+        SecurityScanner.consolidate_sbom_reports()
 
     if build_config.vulnerability_scan:
-        ContainerScanner.init(build_config=build_config, build_state=build_state)
-        ContainerScanner.vulnerability_scan()
+        SecurityScanner.vulnerability_scan()
 
     if build_config.offline_packages_scan:
-        OfflinePackagesScanner.init(build_config=build_config, build_state=build_state)
-        OfflinePackagesScanner.vulnerability_scan()
+        SecurityScanner.offline_packages_scan()
 
     if build_config.vulnerability_scan or build_config.offline_packages_scan:
-        consolidate_vulnerability_reports(build_config.kaapana_dir / "security-reports")
+        SecurityScanner.consolidate_vulnerability_reports()
+
+    if security_scan_requested:
+        SecurityScanner.cleanup()
 
     logger.info("-----------------------------------------------------------")
     logger.info("-------------------------- DONE ---------------------------")

@@ -20,11 +20,19 @@ workflow:
     # Release build: maintainer pushes a protected release
     - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
       when: always
-    - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"
+    - if: $MAINTENANCE == "true"
+      when: never
+    - if: $CI_MERGE_REQUEST_DRAFT == "true"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"
       when: always
-    - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
       when: always
-    - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TITLE !~ /^Draft:/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_LABELS =~ /(^|,)Security(,|$)/
+      when: always
+      variables:
+        CI_EXEC_SECURITY_SCAN: "true"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       when: always
     - when: never
 

@@ -27,6 +27,8 @@
 
 prepare_deployment:
   # Clone repo + Optional: Provision VM
+  # https://docs.gitlab.com/ci/pipelines/settings/#auto-cancel-redundant-pipelines
+  # After job with interruptible: false, the whole pipeline becomes non-interruptible
   interruptible: false
   extends: .remote_execution_template
   needs:

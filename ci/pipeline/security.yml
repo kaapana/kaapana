@@ -3,14 +3,14 @@
 #      pipeline, or pushed by an earlier one (CI_EXEC_BUILD=false: standalone
 #      rescan of an already-built tag); REGISTRY_* credentials via
 #      .build_cli_env (defined in build.yml)
-# Out: security-reports/ (raw per-container/per-snap scans, misconfig, SBOMs,
-#      trivy cache) as persistent artifacts; the dashboard-facing subset —
+# Out: security-reports/ (raw per-container/per-snap scans, trivy cache) as
+#      persistent artifacts; the dashboard-facing subset — always
 #      consolidated_vulnerability_scan.json, interactive_report.html,
-#      gl-container-scanning-report.json (always), consolidated_misconfiguration_check.json
-#      and consolidated_sbom.json (opt-in) — published together to reports/ by
-#      ci/ci-code/clean/run_security_scan.sh. That script is the single source
-#      of truth for "scan + consolidate + publish"; this job just calls it,
-#      and you can run it by hand for a pure-local scan (see ci/README.md).
+#      gl-container-scanning-report.json, and opt-in
+#      consolidated_misconfiguration_check.json / consolidated_sbom.json — in
+#      reports/. Both are written directly by `kaapana-build --scan-only`
+#      (build_cli's SecurityScanner); this job just calls it, and you can run
+#      the same command by hand for a pure-local scan (see ci/README.md).
 ##############################################
 # SECURITY
 ##############################################
@@ -36,9 +36,8 @@ security_scan:
     paths:
       - "$CI_PROJECT_DIR/security-reports/.trivy_cache/"
   script:
-    - export SCAN_ARGS="$CI_EXEC_SECURITY_SCAN_ARGUMENTS"
     - export REGISTRY_PW="$REGISTRY_TOKEN"
-    - bash "$CI_PROJECT_DIR/ci/ci-code/clean/run_security_scan.sh"
+    - kaapana-build --scan-only $CI_EXEC_SECURITY_SCAN_ARGUMENTS --default-registry "$REGISTRY_URL" --kaapana-dir "$CI_PROJECT_DIR"
   artifacts:
     name: "security_$CI_COMMIT_SHORT_SHA"
     when: always

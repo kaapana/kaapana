@@ -45,9 +45,9 @@ Useful Attributes:
 
 | Trigger | What runs |
 |---|---|
-| Merge request | Full pipeline. `Draft:` MRs run nothing. |
+| Merge request | Full pipeline. MRs marked as draft (Draft, WIP, etc.) run nothing. Label the MR `Security` to also run the security scan on MR. |
 | Push to `develop` | Full pipeline. |
-| Nightly schedule | Full pipeline + security scan + ReadTheDocs check. |
+| Nightly schedule | Full pipeline + security scan +|
 | Release tag `X.Y.Z` | Full pipeline, publishing to the release registry with a cold cache ([section 7](#7-releases)). |
 | Web UI / API / trigger | Always allowed; you pick the toggles. |
 
@@ -118,22 +118,21 @@ ssh -i <kaapana-key> ubuntu@<vm-fqdn>
 
 The platform UI is at `https://<vm-fqdn>`.
 
-**Security scan on demand** — `CI_EXEC_SECURITY_SCAN=true`. Runs as its own
-`security` stage on a dedicated runner
+**Security scan on demand** — `CI_EXEC_SECURITY_SCAN=true`, or label the MR
+`Security` (`workflow:rules` in [`.gitlab-ci.yml`](../.gitlab-ci.yml) sets the
+variable for you). Runs as its own `security` stage on a dedicated runner
 ([`ci/pipeline/security.yml`](pipeline/security.yml)), and doesn't need a
 build in the same pipeline: with `CI_EXEC_BUILD=false` it scans whatever tag
 is already in the registry (same idea as "Deploy without rebuilding" above).
 A failed scan still publishes whatever it managed to check before failing the
 job.
 
-The scan, its consolidation, and publishing all happen via one script,
-[`ci/ci-code/clean/run_security_scan.sh`](ci-code/clean/run_security_scan.sh),
-which you can also run by hand for a local scan with nothing pushed to
-GitLab:
+The scan, its consolidation, and publishing all happen inside `kaapana-build` itself (build_cli's `SecurityScanner`)
 
 ```bash
 export REGISTRY_URL=<your-registry> REGISTRY_PW=<token>
-./ci/ci-code/clean/run_security_scan.sh --vulnerability-scan --offline-packages-scan
+kaapana-build --scan-only --vulnerability-scan --offline-packages-scan \
+  --default-registry "$REGISTRY_URL" --kaapana-dir .
 ```
 
 It covers container images and the offline installer's bundled snap
@@ -228,7 +227,7 @@ registration per VM. All use the docker executor.
 |---|---|---|---|
 | kaapana-tests-01 | `tests-runner` | 4 | Allows privileged **services** matching `docker.io/library/docker:*` (dind for `task_api_tests`); `/builds` shared between job and services |
 | kaapana-build-01 | `build-runner` | 1 | Host docker socket mounted into jobs → warm layer cache across pipelines |
-| kaapana-security-01 | `security-runner` | 1 | Small dedicated VM so a long scan never blocks builds; host docker socket mounted (needed for the offline-package scan) |
+| kaapana-security-01 | `security-runner` | 1 | Small dedicated VM so a long scan never blocks builds |
 | kaapana-deploy-01 | `deploy-runner` | 4 | No machine state; credentials from File-type CI variables |
 
 Provisioning is one playbook per group — `setup_tests.yaml`,

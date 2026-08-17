@@ -2708,7 +2708,7 @@ function preflight_checks {
 
     SEVERITY+=(100)
     TEST_NAMES+=("Check if ~/.kube/config matches this microk8s cluster")
-    if kubeconfig_matches_microk8s "/home/$USER/.kube/config"; then
+    if kubeconfig_matches_microk8s "$HOME/.kube/config"; then
         TEST_FAILDS+=(false)
         RESULT_MSGS+=("")
     else

@@ -43,6 +43,10 @@ security_scan:
     when: always
     expire_in: never
     paths:
-      - "$CI_PROJECT_DIR/reports/"
+    # globs -> optional: missing file only warns, never fails the job
+      - "$CI_PROJECT_DIR/reports/interactive_report*.html"
+      - "$CI_PROJECT_DIR/reports/consolidated_vulnerability_scan*.json"
+      - "$CI_PROJECT_DIR/reports/consolidated_sbom*.json"
+      - "$CI_PROJECT_DIR/reports/consolidated_misconfiguration_check*.json"      
     reports:
       container_scanning: "$CI_PROJECT_DIR/reports/gl-container-scanning-report.json"

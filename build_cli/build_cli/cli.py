@@ -227,13 +227,6 @@ def build(
         envvar="USE_LATEST_TAG",
         help="Force version tag to 'latest'.",
     ),
-    check_expired_vulnerability_db: bool = typer.Option(
-        False,
-        "-cevd",
-        "--check-expired-vulnerabilities-database",
-        envvar="CHECK_EXPIRED_VULNERABILITY_DB",
-        help="Check and refresh vulnerability database.",
-    ),
     kaapana_dir: Optional[Path] = typer.Option(
         None,
         "-kd",
@@ -372,7 +365,6 @@ def build(
         offline_packages_scan=offline_packages_scan,
         enable_image_stats=enable_image_stats,
         version_latest=version_latest,
-        check_expired_vulnerability_db=check_expired_vulnerability_db,
         kaapana_dir=kaapana_dir,
         build_dir=build_dir,
         no_login=no_login,

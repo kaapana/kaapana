@@ -33,11 +33,7 @@ def _load_json_report(report_file: Path) -> dict | None:
 
 
 class SecurityScanner:
-    """Trivy-based scanning for everything the security stage covers:
-    container misconfiguration/SBOM/vulnerability checks, and vulnerability
-    scanning of the raw snap packages the offline installer bundles directly
-    (see OFFLINE_SNAP_PACKAGES) — those never pass through a container build,
-    so the container checks never see them."""
+    """Trivy-based scanning for container misconfiguration/SBOM/vulnerability checks and vulnerability scanning of the raw snap packages from the offline installer."""
 
     _build_config: BuildConfig = None  # type: ignore
     _build_state: BuildState = None  # type: ignore
@@ -70,13 +66,8 @@ class SecurityScanner:
 
     @classmethod
     def _acquire_worker_cache(cls) -> Path:
-        """Check out one worker's private copy of the shared trivy cache,
-        creating a pool of `parallel_processes` copies on first use. The
-        vulnerability + Java DB is close to a gigabyte on disk, so copying it
-        is real cost — the copy only needs to happen once per concurrent
-        worker slot (to dodge bbolt's exclusive lock even on reads), not once
-        per scanned target. Every target a worker processes reuses the same
-        copy instead of paying for a fresh one."""
+        """Check out one worker's private copy of the shared trivy cache, creating a pool of `parallel_processes` copies on first use. The
+        vulnerability + Java DB is close to a gigabyte on disk. Every target a worker processes reuses the same copy instead of paying for a fresh one."""
         if cls._worker_cache_pool is None:
             t0 = time.monotonic()
             pool: "queue.Queue" = queue.Queue()

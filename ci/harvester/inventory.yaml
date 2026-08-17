@@ -100,8 +100,7 @@ all:
           runner_concurrency: 1
           runner_executor: docker
           runner_docker_image: "registry.hzdr.de/kaapana/ci-base:v3"
-          runner_docker_volumes:
-            ["/var/run/docker.sock:/var/run/docker.sock", "/cache"]
+          runner_docker_volumes: ["/cache"]
           runner_global_concurrency: 1
 
     deploy_instances:

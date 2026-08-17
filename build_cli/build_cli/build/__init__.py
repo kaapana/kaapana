@@ -9,13 +9,7 @@ from .build_config import BuildConfig
 from .issue_tracker import Issue, IssueTracker
 
 from .offline_installer_helper import OfflineInstallerHelper
-from .trivy_helper import (
-    ContainerScanner,
-    OfflinePackagesScanner,
-    consolidate_misconfiguration_reports,
-    consolidate_sbom_reports,
-    consolidate_vulnerability_reports,
-)
+from .trivy_helper import SecurityScanner
 from .build_helper import BuildHelper
 
 __all__ = [
@@ -23,11 +17,7 @@ __all__ = [
     "BuildHelper",
     "BuildState",
     "OfflineInstallerHelper",
-    "ContainerScanner",
-    "OfflinePackagesScanner",
-    "consolidate_vulnerability_reports",
-    "consolidate_misconfiguration_reports",
-    "consolidate_sbom_reports",
+    "SecurityScanner",
     "Issue",
     "IssueTracker",
 ]

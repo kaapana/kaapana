@@ -10,8 +10,8 @@ FROM python:3.12-slim-bookworm
 RUN printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d && chmod +x /usr/sbin/policy-rc.d
 
 # snapd (for the `snap` CLI — `snap download` needs no running daemon) and
-# squashfs-tools (`unsquashfs`): ci-code/clean/trivy_scan_anything.sh scans
-# snap packages by unpacking them and scanning the filesystem as a trivy image.
+# squashfs-tools (`unsquashfs`): SecurityScanner (build_cli) scans offline
+# snap packages by extracting them and running `trivy rootfs` against that.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         openssh-client \

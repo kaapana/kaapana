@@ -64,7 +64,7 @@ variables:
   # CI_IMAGES_TAG in the same MR that changes ci/images/** — re-pushing an
   # existing tag leaves warm runners on the stale image. Always
   # $CI_REGISTRY_URL, never the release registry.
-  CI_IMAGES_TAG: "v5"
+  CI_IMAGES_TAG: "v4"
   CI_BASE_IMAGE: "$CI_REGISTRY_URL/ci-base:$CI_IMAGES_TAG"
 
   # Purpose-specific tokens, currently aliasing the shared CI_REGISTRY_TOKEN.

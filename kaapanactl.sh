@@ -4,8 +4,14 @@
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 set -euf -o pipefail
 
+# The kubeconfig microk8s maintains for itself, the same file microk8s.kubectl reads.
+MICROK8S_KUBECONFIG="${MICROK8S_KUBECONFIG:-/var/snap/microk8s/current/credentials/client.config}"
+
 function main() {
     init_colors
+    # --kubeconfig beats $KUBECONFIG, so Helm calls in this script always target the local microk8s cluster.
+    HELM_EXECUTABLE="${HELM_EXECUTABLE:-helm} --kubeconfig=$MICROK8S_KUBECONFIG"
+    KUBECTL_EXECUTABLE="${KUBECTL_EXECUTABLE:-microk8s.kubectl}"
     local subcommand="help"
 
     if [[ $# -gt 0 ]]; then
@@ -363,9 +369,6 @@ function deploy() {
         https_proxy=""
     fi
     export HELM_EXPERIMENTAL_OCI=1
-    HELM_EXECUTABLE="${HELM_EXECUTABLE:-helm}"
-    KUBECTL_EXECUTABLE="${KUBECTL_EXECUTABLE:-microk8s.kubectl}"
-
     load_kaapana_config
     ### Parsing command line arguments:
     usage="$(basename "$0")
@@ -621,6 +624,7 @@ function deploy() {
     fi
 
     if [ "$DO_CHECK_SYSTEM" = "true" ]; then
+        require_microk8s_kubeconfig || exit 1
         validate_platform_prefix
         check_system kaapana-admin-chart default
         check_system kaapana-platform-chart default
@@ -686,6 +690,7 @@ function deploy() {
     fi
 
     preflight_checks
+    require_microk8s_kubeconfig || exit 1
 
     echo -e "${YELLOW}Get helm deployments...${NC}"
     deployments=$(
@@ -1627,6 +1632,8 @@ function get_domain {
 }
 
 function delete_deployment {
+    require_microk8s_kubeconfig || return 1
+
     if [ -z "${PLATFORM_PREFIX:-}" ]; then
         if get_platform_prefix_from_release; then
             validate_platform_prefix
@@ -2170,6 +2177,8 @@ function migrate() {
 }
 
 function setup_storage_classes() {
+    require_microk8s_kubeconfig || return 1
+
     WORKDIR=$(mktemp -d)
     tar -xzf "$CHART_PATH" -C "$WORKDIR"
     KAAPANA_STORAGE_CHARTPATH="$WORKDIR/$PLATFORM_NAME/charts/kaapana-storage-chart"
@@ -2639,6 +2648,34 @@ function kubeconfig_matches_microk8s {
     [ "$KUBECONFIG_MATCHES" = true ]
 }
 
+# Hard gate before any Helm call. Not in main() so that install/help still work
+# without microk8s, and not only in preflight, which the user can click past.
+function require_microk8s_kubeconfig {
+    # $HELM_EXECUTABLE carries the --kubeconfig flag and is expanded unquoted,
+    # so spaces or globs in the path would split it.
+    case "$MICROK8S_KUBECONFIG" in
+        *[[:space:]]*|*'*'*|*'?'*|*'['*)
+            echo -e "${RED}\$MICROK8S_KUBECONFIG must not contain whitespace or glob characters.${NC}"
+            echo -e "${RED}Got: $MICROK8S_KUBECONFIG${NC}"
+            return 1
+            ;;
+    esac
+
+    # Check that the kubeconfig file exists and is readable.
+    if [ ! -f "$MICROK8S_KUBECONFIG" ]; then
+        echo -e "${RED}MicroK8s kubeconfig not found: $MICROK8S_KUBECONFIG${NC}"
+        echo -e "${RED}Is MicroK8s installed? Set \$MICROK8S_KUBECONFIG if it lives elsewhere.${NC}"
+        return 1
+    fi
+
+    # Check that the kubeconfig file is readable by the current user.
+    if [ ! -r "$MICROK8S_KUBECONFIG" ]; then
+        echo -e "${RED}MicroK8s kubeconfig is not readable: $MICROK8S_KUBECONFIG${NC}"
+        echo -e "${RED}Add your user to the 'microk8s' group and start a new session, then retry.${NC}"
+        return 1
+    fi
+}
+
 function preflight_checks {
     echo -e "${GREEN}#################################  RUNNING PREFLIGHT CHECKS  #########################################${NC}"
 
@@ -2696,24 +2733,26 @@ function preflight_checks {
         RESULT_MSGS+=("")
     fi
 
-    SEVERITY+=(100)
-    TEST_NAMES+=("Check that \$KUBECONFIG is untouched")
-    if [ -v KUBECONFIG ]; then
-        TEST_FAILDS+=(true)
-        RESULT_MSGS+=("In your environment the \$KUBECONFIG variable is set, this is unconventional and can cause to problems (KUBECONFIG=$KUBECONFIG)")
-    else
+    SEVERITY+=(300)
+    TEST_NAMES+=("Check that the microk8s kubeconfig is readable")
+    if [ -r "$MICROK8S_KUBECONFIG" ]; then
         TEST_FAILDS+=(false)
         RESULT_MSGS+=("")
+    else
+        TEST_FAILDS+=(true)
+        RESULT_MSGS+=("Helm needs $MICROK8S_KUBECONFIG. Install microk8s and make sure you are in the 'microk8s' group.")
     fi
 
-    SEVERITY+=(100)
+    # Advisory only: Helm in this script uses $MICROK8S_KUBECONFIG, not this file.
+    # But a user executing manual helm commands may run into issues if this file does not match the current cluster.
+    SEVERITY+=(50)
     TEST_NAMES+=("Check if ~/.kube/config matches this microk8s cluster")
     if kubeconfig_matches_microk8s "$HOME/.kube/config"; then
         TEST_FAILDS+=(false)
         RESULT_MSGS+=("")
     else
         TEST_FAILDS+=(true)
-        RESULT_MSGS+=("Your kubeconfig differs from the microk8s config beyond its server address or points to another cluster.")
+        RESULT_MSGS+=("Your kubeconfig does not address this microk8s cluster. kaapanactl passes $MICROK8S_KUBECONFIG to Helm, so this does not affect the deployment. However, if you run Helm commands manually, you may need to set KUBECONFIG=$MICROK8S_KUBECONFIG or merge the configs.")
     fi
 
     SEVERITY+=(100)
@@ -3090,9 +3129,11 @@ modinfo nvidia | grep ^version
 nvidia-smi
 
 --- "Resource Health"
-check_system kaapana-admin-chart default
-check_system kaapana-platform-chart default
-check_system "${PLATFORM_PREFIX}-project-admin" admin
+if require_microk8s_kubeconfig; then
+    check_system kaapana-admin-chart default
+    check_system kaapana-platform-chart default
+    check_system "${PLATFORM_PREFIX}-project-admin" admin
+fi
 
 --- "END"
 }

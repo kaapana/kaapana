@@ -15,25 +15,31 @@ VM → test that live deployment → delete the VM.
 
 | Stage | Jobs | Runs on | Duration |
 |---|---|---|---|
-| `tests` | 8 unit-test suites, docs build | tests runner | minutes |
+| `tests` | 8 unit-test suites, docs build, readthedocs build check | tests runner | minutes |
 | `build` | `build_packages` | build runner | hours (warm cache: much less) |
-| `security` | `security_scan` (nightly) | security runner | hours (warm cache: much less) |
+| `security` | trivy: vulnerability_scan, sbom_scan, misconfiguration scan | security runner | hours |
 | `deploy` | `prepare_deployment` → `server_installation` → `platform_deployment` | deploy runner (Ansible over SSH) | ~1 h |
 | `test` | integration tests: login, ports, UI (Playwright), extensions, DICOM data, workflows | deploy runner, against the live VM | 1–3 h |
 | `clean` | `destroy_deployment`, `if_ci_failing` | deploy runner | minutes |
 
-Three facts explain most of the design:
+Useful Attributes:
 
-- **Every job runs in a fresh container** (docker executor on all runners) —
-  nothing persists on the machines; credentials come from File-type CI
-  variables.
-- **The registry is the only handoff between build and deploy.** Both derive
-  the same tag from `git describe`; `prepare_deployment` verifies the chart
-  exists (fail-fast, before any VM is created) and hands the tag to later
-  jobs via the `deployment.env` dotenv artifact.
-- **The test VM is disposable.** `destroy_deployment` deletes it even on
-  failure — except externally-provided VMs (never destroyed) or when you
-  asked to keep it (see recipes).
+- **Every job runs in a fresh docker container**  —
+  nothing CI-related needs installing or persisting on the runner machine: 
+  - CI tools come from ci-base-image container
+  - credentials from CI variables.
+- **The registry is the only interface between build and deploy.** 
+  build and deploy both resolve the same `git describe` tag:
+  
+  - `build` pushes images and the
+  admin chart to the registry, 
+  - `deployment` verifies they exist(fail-fast, before any VM is created) and forwards the tag to later jobs via
+  the `deployment.env` dotenv artifact.
+
+- **Provisioned VM is disposable.** 
+  - VM is created, fresh server-installation is run, Kaapana is deployed, data ingested and tested
+  - `destroy_deployment` deletes the automatically provisioned VM
+  - scheduled - delayed deletion is possible through CI variables
 
 ## 2. What runs when
 
@@ -45,12 +51,7 @@ Three facts explain most of the design:
 | Release tag `X.Y.Z` | Full pipeline, publishing to the release registry with a cold cache ([section 7](#7-releases)). |
 | Web UI / API / trigger | Always allowed; you pick the toggles. |
 
-**The nightly schedule** is a GitLab CI/CD → Schedules entry (external config,
-not in this repo) targeting `develop` with `CI_EXEC_SECURITY_SCAN=true` set as
-a schedule variable — every other toggle stays at its pipeline default. That
-schedule variable is the only thing that turns on `security_scan` on the
-nightly run; `check_readthedocs` instead gates on `CI_PIPELINE_SOURCE ==
-"schedule"` directly (see `ci/pipeline/unit-tests.yml`).
+**The nightly schedule** is a GitLab CI/CD Scheduled Pipeline. There are 2 pipelines set targeting `develop` and latest release.
 
 Stage toggles (set per run via **CI/CD → Pipelines → Run pipeline**, or
 scripted with [`glab ci run`](https://gitlab.com/gitlab-org/cli), e.g.
@@ -389,18 +390,22 @@ the precedence trap above).
 | `CI_SSH_PRIVATE_KEY` | File | no | SSH key for test VMs (Harvester `kaapana` KeyPair) |
 | `DOCKER_AUTH_CONFIG` | no | no | Pull auth for private job images (ci-base) — see below |
 
-**`DOCKER_AUTH_CONFIG` and switching registries.** The CI has used two registries over time , `CI_REGISTRY_URL` selects the active one. 
-Runners pulling the ci-base job image authenticate with `DOCKER_AUTH_CONFIG`:
+### DOCKER_AUTH_CONFIG
+Runners pull the `ci-base` job image using `DOCKER_AUTH_CONFIG`:
 
 ```json
 {"auths":{"registry-1":{"auth":"<base64 user:token>"},"registry-2":{"auth":"<base64 user:token>"}}}
 ```
 
-- Keep an entry for every registry in rotation, then switching `CI_REGISTRY_URL` never breaks image pulls. If you add a new registry, add its entry here in the same change.
+- Keeps an entry for every registry in rotation, so pulling `ci-base` never breaks when you switch registries. If you add a new registry, add its entry here in the same change.
 - Each token must be a deploy token with `read_registry` on the GitLab instance that owns that registry.
 - Symptom of a missing/mismatched entry: job dies in *prepare* with `failed to pull image ... access forbidden`, and the log does **not** show `Authenticating with credentials from $DOCKER_AUTH_CONFIG`.
-- docker ≥ 28 reads `DOCKER_AUTH_CONFIG` from the **job environment** too, overriding `docker login`. Jobs that push images must `unset DOCKER_AUTH_CONFIG` before logging in (the build jobs do). Symptom: `Login Succeeded` followed by `denied` on push.
-- The environment-scoped variable rows (e.g. `DFKZ_CONTAINER_REGISTRY` / `HIFIS_CONTAINER_REGISTRY` scopes) are not directly used; no job declares an `environment`, so only "All (default)" rows ever reach a job. They serve as a parking lot for the inactive registry's values.
+- docker ≥ 28 also reads `DOCKER_AUTH_CONFIG` from the **job environment**, overriding `docker login`. Jobs that push images must `unset DOCKER_AUTH_CONFIG` before logging in (the build jobs do). Symptom: `Login Succeeded` followed by `denied` on push.
+
+### Switching the active registry.
+The CI can build and push to any configured registry. Each registry needs `CI_REGISTRY_URL` / `CI_REGISTRY_TOKEN` and optional `CI_REGISTRY_USER`. Those are currently stored as CI/CD variables with the respective environmnet *scope* (e.g. `DFKZ_CONTAINER_REGISTRY` or `HIFIS_CONTAINER_REGISTRY`). Jobs that needs Container registry have a tag `environment: $REGISTRY_ENV`, and GitLab then automatically uses the credentials from whichever scope `REGISTRY_ENV` points to. 
+
+In order to change the registry, just set the `REGISTRY_ENV` **project variable** to the scope you want (via UI or glab CLI).
 
 Bulk upload from a template:
 

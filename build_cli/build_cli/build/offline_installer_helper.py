@@ -19,8 +19,7 @@ from build_cli.utils import get_logger
 logger = get_logger()
 
 # Single source of truth for the raw snap packages the offline installer bundles.
-# SecurityScanner (build_cli/build/trivy_helper.py) scans this same list so
-# the two never drift out of sync.
+# SecurityScanner (build_cli/build/security_scanner.py) scans this same list.
 OFFLINE_SNAP_PACKAGES: list[tuple[str, str]] = [
     ("core20", "latest/stable"),
     ("core24", "latest/stable"),

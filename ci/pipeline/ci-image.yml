@@ -12,6 +12,8 @@ build_ci_image:
   stage: tests
   tags:
     - build-runner
+  environment:
+    name: $REGISTRY_ENV
   # Not ci-base: the image that builds ci-base must not be ci-base, or a tag
   # bump could never bootstrap itself.
   image: docker.io/library/docker:28-cli

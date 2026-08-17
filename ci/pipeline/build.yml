@@ -12,6 +12,8 @@
   tags:
     - build-runner
   image: $CI_BASE_IMAGE
+  environment:
+    name: $REGISTRY_ENV
   variables:
     GIT_STRATEGY: clone
     GIT_DEPTH: "0" # full history — the global depth 1 would shallow the clone and break git describe

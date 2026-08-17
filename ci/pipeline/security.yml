@@ -28,6 +28,7 @@ security_scan:
   rules:
     - if: '$CI_EXEC_SECURITY_SCAN == "true"'
       when: on_success
+      allow_failure: false
     - when: never
   # Trivy DB persisted across runs on this runner:
   cache:

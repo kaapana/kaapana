@@ -77,10 +77,6 @@ class SecurityScanner:
                 )
                 shutil.copytree(cls._cache_path, worker_cache, dirs_exist_ok=True)
                 pool.put(worker_cache)
-            logger.info(
-                f"[timing] prepared {cls._build_config.parallel_processes} trivy "
-                f"cache copies in {time.monotonic() - t0:.1f}s"
-            )
             cls._worker_cache_pool = pool
         return cls._worker_cache_pool.get()
 
@@ -149,7 +145,6 @@ class SecurityScanner:
                 )
         finally:
             shutil.rmtree(empty_dir, ignore_errors=True)
-        logger.info(f"[timing] checks bundle ensured in {time.monotonic() - t0:.1f}s")
 
     @classmethod
     def misconfiguration_check(cls) -> None:
@@ -291,10 +286,6 @@ class SecurityScanner:
             raise subprocess.CalledProcessError(
                 result.returncode, cmd, output=result.stdout, stderr=result.stderr
             )
-        logger.info(
-            f"[timing] vuln DB ensured in {t1 - t0:.1f}s, "
-            f"java DB ensured in {time.monotonic() - t1:.1f}s"
-        )
 
     @classmethod
     def _fail_on_scan_errors(
@@ -388,7 +379,7 @@ class SecurityScanner:
                         if skipped:
                             logger.info(f"SBOM already exists, skipping: {path.name}")
                         else:
-                            logger.info(f"[timing] SBOM saved at {path.name} in {elapsed:.1f}s")
+                            logger.info(f"SBOM saved at {path.name} in {elapsed:.1f}s")
                     bar()
         cls._fail_on_scan_errors("SBOM generation", failures)
 
@@ -481,7 +472,7 @@ class SecurityScanner:
                             logger.info(f"Skipping (exists): {path.name}")
                         else:
                             logger.info(
-                                f"[timing] Vulnerability report saved at {path.name} in {elapsed:.1f}s"
+                                f"Vulnerability report saved at {path.name} in {elapsed:.1f}s"
                             )
                     bar()
         cls._fail_on_scan_errors("Vulnerability scan", failures)
@@ -623,7 +614,7 @@ class SecurityScanner:
                                 f"{step}={secs:.1f}s" for step, secs in timings.items()
                             )
                             logger.info(
-                                f"[timing] Snap vulnerability report saved at "
+                                f"Snap vulnerability report saved at "
                                 f"{path.name} ({breakdown})"
                             )
                     bar()

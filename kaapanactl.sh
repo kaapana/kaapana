@@ -2615,6 +2615,30 @@ function print_resource_configs {
     echo ""
 }
 
+# Validate if a given kubeconfig file matches the current MicroK8s cluster.
+function kubeconfig_matches_microk8s {
+    local kubeconfig_path="$1"
+    local USER_KUBE_CONFIG
+    local MICROK8S_KUBE_CONFIG
+    local USER_KUBE_SYSTEM_UID
+    local MICROK8S_KUBE_SYSTEM_UID
+    local KUBECONFIG_MATCHES=false
+
+    USER_KUBE_CONFIG="$(microk8s.kubectl --kubeconfig "$kubeconfig_path" config view --raw 2>/dev/null)"
+    MICROK8S_KUBE_CONFIG="$(microk8s.kubectl config view --raw 2>/dev/null)"
+    if [ -n "$USER_KUBE_CONFIG" ] && [ "$USER_KUBE_CONFIG" = "$MICROK8S_KUBE_CONFIG" ]; then
+        KUBECONFIG_MATCHES=true
+    elif [ "$(sed -E "s#^([[:space:]]*server:[[:space:]]*https://)[^:]+(:[0-9]+)\$#\1<host>\2#" <<<"$USER_KUBE_CONFIG")" = "$(sed -E "s#^([[:space:]]*server:[[:space:]]*https://)[^:]+(:[0-9]+)\$#\1<host>\2#" <<<"$MICROK8S_KUBE_CONFIG")" ]; then
+        USER_KUBE_SYSTEM_UID="$(microk8s.kubectl --kubeconfig "$kubeconfig_path" get namespace kube-system -o "jsonpath={.metadata.uid}" 2>/dev/null)"
+        MICROK8S_KUBE_SYSTEM_UID="$(microk8s.kubectl get namespace kube-system -o "jsonpath={.metadata.uid}" 2>/dev/null)"
+        if [ -n "$USER_KUBE_SYSTEM_UID" ] && [ "$USER_KUBE_SYSTEM_UID" = "$MICROK8S_KUBE_SYSTEM_UID" ]; then
+            KUBECONFIG_MATCHES=true
+        fi
+    fi
+
+    [ "$KUBECONFIG_MATCHES" = true ]
+}
+
 function preflight_checks {
     echo -e "${GREEN}#################################  RUNNING PREFLIGHT CHECKS  #########################################${NC}"
 
@@ -2684,24 +2708,7 @@ function preflight_checks {
 
     SEVERITY+=(100)
     TEST_NAMES+=("Check if ~/.kube/config matches this microk8s cluster")
-    # Allow for the server address to differ, if it points to the same cluster (same kube-system namespace uid)
-    local USER_KUBE_CONFIG
-    local MICROK8S_KUBE_CONFIG
-    local USER_KUBE_SYSTEM_UID
-    local MICROK8S_KUBE_SYSTEM_UID
-    local KUBECONFIG_MATCHES=false
-    USER_KUBE_CONFIG="$(microk8s.kubectl --kubeconfig "/home/$USER/.kube/config" config view --raw 2>/dev/null)"
-    MICROK8S_KUBE_CONFIG="$(microk8s.kubectl config view --raw 2>/dev/null)"
-    if [ -n "$USER_KUBE_CONFIG" ] && [ "$USER_KUBE_CONFIG" = "$MICROK8S_KUBE_CONFIG" ]; then
-        KUBECONFIG_MATCHES=true
-    elif [ "$(sed -E "s#^([[:space:]]*server:[[:space:]]*https://)[^:]+(:[0-9]+)\$#\1<host>\2#" <<<"$USER_KUBE_CONFIG")" = "$(sed -E "s#^([[:space:]]*server:[[:space:]]*https://)[^:]+(:[0-9]+)\$#\1<host>\2#" <<<"$MICROK8S_KUBE_CONFIG")" ]; then
-        USER_KUBE_SYSTEM_UID="$(microk8s.kubectl --kubeconfig "/home/$USER/.kube/config" get namespace kube-system -o "jsonpath={.metadata.uid}" 2>/dev/null)"
-        MICROK8S_KUBE_SYSTEM_UID="$(microk8s.kubectl get namespace kube-system -o "jsonpath={.metadata.uid}" 2>/dev/null)"
-        if [ -n "$USER_KUBE_SYSTEM_UID" ] && [ "$USER_KUBE_SYSTEM_UID" = "$MICROK8S_KUBE_SYSTEM_UID" ]; then
-            KUBECONFIG_MATCHES=true
-        fi
-    fi
-    if [ "$KUBECONFIG_MATCHES" = true ]; then
+    if kubeconfig_matches_microk8s "/home/$USER/.kube/config"; then
         TEST_FAILDS+=(false)
         RESULT_MSGS+=("")
     else

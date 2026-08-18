@@ -80,7 +80,7 @@ glab ci run -b develop --variables-from variables.json
 | `CI_EXEC_SERVER_INSTALLATION` | `true` | `false` skips the OS/microk8s install — for already-prepared targets |
 | `CI_EXEC_INTEGRATION_TESTS` | `true` | test stage (needs deploy) |
 | `CI_EXEC_SECURITY_SCAN` | `false` | trivy scan of the built images |
-| `CI_EXEC_SECURITY_SCAN_ARGUMENTS` | `--vulnerability-scan` | extra `kaapana-build --scan-only` flags; add `--configuration-check` / `--create-sboms` to also produce those reports |
+| `CI_EXEC_SECURITY_SCAN_ARGUMENTS` | `--vulnerability-scan --offline-packages-scan --configuration-check --create-sboms` |
 | `CI_EXEC_DOCKER_PRUNE` | `false` | wipe the build cache first (cold, multi-hour build) |
 | `CI_EXEC_DESTROY_DELAYED` | `false` | keep the test VM for 4 h after the pipeline |
 | `MAINTENANCE` | `false` | project variable; pauses MR/push/schedule pipelines (web/API still work) |
@@ -230,11 +230,8 @@ registration per VM. All use the docker executor.
 | kaapana-security-01 | `security-runner` | 1 | Small dedicated VM so a long scan never blocks builds |
 | kaapana-deploy-01 | `deploy-runner` | 4 | No machine state; credentials from File-type CI variables |
 
-Provisioning is one playbook per group — `setup_tests.yaml`,
-`setup_build.yaml`, `setup_security.yaml`, `setup_deploy.yaml` — so running
-one never touches another group's VM(s). `setup_ci.yaml` runs all four in
-sequence (also how you add a runner — add a new host to the group's inventory
-entry first):
+Provision / re-provision (also how you add a runner — add it to the
+inventory first):
 
 ```bash
 export GITLAB_API_TOKEN=...      # api scope
@@ -246,13 +243,7 @@ export HARVESTER_KUBECONFIG=~/.kube/harvester.yaml
 
 # Everything:
 ansible-playbook -i ci/harvester/inventory.yaml ci/harvester/setup_ci.yaml
-
-# Just one group (safe to run any time — never touches the other groups'
-# VMs, new or already-running):
-ansible-playbook -i ci/harvester/inventory.yaml ci/harvester/setup_security.yaml
-
-# FORCE_RECREATE=true → delete and recreate existing VMs (every group when
-# run via setup_ci.yaml, just that group's when run standalone).
+# FORCE_RECREATE=true → delete and recreate existing VMs
 ```
 
 On-VM troubleshooting: `sudo gitlab-runner verify`,

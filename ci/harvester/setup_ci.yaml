@@ -1,5 +1,5 @@
 ---
-# Provision all CI runner VMs on Harvester (tests, build, deploy)
+# Provision all CI runner VMs on Harvester (tests, build, security, deploy)
 # Usage:
 #   export GITLAB_API_TOKEN=...
 #   export GITLAB_PROJECT_ID=...
@@ -62,6 +62,7 @@
         {{
           groups['tests_instances'] | map('extract', hostvars) | list +
           groups['build_instances'] | map('extract', hostvars) | list +
+          groups['security_instances'] | map('extract', hostvars) | list +
           groups['deploy_instances'] | map('extract', hostvars) | list
         }}
       loop_control:
@@ -88,6 +89,7 @@
             (
               groups['tests_instances'] | map('extract', hostvars) | list +
               groups['build_instances'] | map('extract', hostvars) | list +
+              groups['security_instances'] | map('extract', hostvars) | list +
               groups['deploy_instances'] | map('extract', hostvars) | list
             ) | selectattr('vm_name', 'defined') | list
           }}

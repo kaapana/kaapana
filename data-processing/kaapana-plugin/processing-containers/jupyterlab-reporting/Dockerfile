@@ -11,6 +11,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     texlive-plain-generic \
     pandoc
 
-RUN python -m pip install --upgrade setuptools pip && pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt -r /files/requirements.txt
+COPY --from=constraints 0.7.0.txt /constraints.txt
+RUN python -m pip install --upgrade setuptools pip && pip3 install -c /constraints.txt -r /files/requirements.txt
 
 CMD ["/bin/bash","/files/generate_report.sh"]

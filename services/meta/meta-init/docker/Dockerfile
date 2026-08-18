@@ -8,7 +8,8 @@ WORKDIR /
 RUN mkdir /dashboards
 
 COPY files/requirements.txt ./
-RUN pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt --no-cache-dir -r requirements.txt
+COPY --from=constraints 0.7.0.txt /constraints.txt
+RUN pip install -c /constraints.txt --no-cache-dir -r requirements.txt
 
 COPY files/start.py /start.py
 COPY files/saved_objects /

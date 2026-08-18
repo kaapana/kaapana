@@ -9,7 +9,8 @@ WORKDIR /src
 
 # RUN apk add --update alpine-sdk zlib-dev jpeg-dev freetype-dev lcms2-dev openjpeg-dev tiff-dev tk-dev tcl-dev
 
-RUN python3 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt --no-cache-dir -r requirements.txt
+COPY --from=constraints 0.7.0.txt /constraints.txt
+RUN python3 -m pip install -c /constraints.txt --no-cache-dir -r requirements.txt
 RUN make html
 
 

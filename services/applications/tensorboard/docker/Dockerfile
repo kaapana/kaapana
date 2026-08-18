@@ -8,7 +8,8 @@ ENV INGRESS_PATH /tensorboard
 ENV LOG_DIR=/kaapana/mounted/tb-logs
 
 COPY files/requirements.txt /src/requirements.txt
-RUN pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt --no-cache-dir -r /src/requirements.txt
+COPY --from=constraints 0.7.0.txt /constraints.txt
+RUN pip3 install -c /constraints.txt --no-cache-dir -r /src/requirements.txt
 
 COPY files/tensorboard.sh /
 

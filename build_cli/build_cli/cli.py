@@ -547,25 +547,26 @@ def run_build(build_config: BuildConfig):
     if security_scan_requested:
         SecurityScanner.init(build_config=build_config, build_state=build_state)
 
-    if build_config.configuration_check:
-        SecurityScanner.misconfiguration_check()
-        SecurityScanner.consolidate_misconfiguration_reports()
+    try:
+        if build_config.configuration_check:
+            SecurityScanner.misconfiguration_check()
+            SecurityScanner.consolidate_misconfiguration_reports()
 
-    if build_config.create_sboms:
-        SecurityScanner.create_sboms()
-        SecurityScanner.consolidate_sbom_reports()
+        if build_config.create_sboms:
+            SecurityScanner.create_sboms()
+            SecurityScanner.consolidate_sbom_reports()
 
-    if build_config.vulnerability_scan:
-        SecurityScanner.vulnerability_scan()
+        if build_config.vulnerability_scan:
+            SecurityScanner.vulnerability_scan()
 
-    if build_config.offline_packages_scan:
-        SecurityScanner.offline_packages_scan()
+        if build_config.offline_packages_scan:
+            SecurityScanner.offline_packages_scan()
 
-    if build_config.vulnerability_scan or build_config.offline_packages_scan:
-        SecurityScanner.consolidate_vulnerability_reports()
-
-    if security_scan_requested:
-        SecurityScanner.cleanup()
+        if build_config.vulnerability_scan or build_config.offline_packages_scan:
+            SecurityScanner.consolidate_vulnerability_reports()
+    finally:
+        if security_scan_requested:
+            SecurityScanner.cleanup()
 
     logger.info("-----------------------------------------------------------")
     logger.info("-------------------------- DONE ---------------------------")

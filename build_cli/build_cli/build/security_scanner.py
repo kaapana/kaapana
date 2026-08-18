@@ -3,6 +3,7 @@ import queue
 import shutil
 import subprocess
 import tempfile
+import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -21,14 +22,12 @@ logger = get_logger()
 
 
 def _load_json_report(report_file: Path) -> dict | None:
-    """Load a Trivy/CycloneDX JSON report, or None if it's missing/malformed.
-    A single bad file (e.g. from a killed job) shouldn't take the whole
-    consolidated report down."""
+    """Load a Trivy/CycloneDX JSON report, or None if it's unreadable/malformed."""
     try:
         with open(report_file) as f:
             return json.load(f)
-    except json.JSONDecodeError:
-        logger.warning(f"Skipping unparseable scan report: {report_file}")
+    except (OSError, json.JSONDecodeError):
+        logger.warning(f"Skipping unreadable scan report: {report_file}")
         return None
 
 
@@ -42,6 +41,7 @@ class SecurityScanner:
     _snap_reports_path: Path = None  # type: ignore
     _publish_path: Path = None  # type: ignore
     _worker_cache_pool: "queue.Queue | None" = None
+    _worker_cache_lock = threading.Lock()
 
     @classmethod
     def init(cls, build_config: BuildConfig, build_state: BuildState) -> None:
@@ -66,18 +66,19 @@ class SecurityScanner:
 
     @classmethod
     def _acquire_worker_cache(cls) -> Path:
-        """Check out one worker's private copy of the shared trivy cache, creating a pool of `parallel_processes` copies on first use. The
-        vulnerability + Java DB is close to a gigabyte on disk. Every target a worker processes reuses the same copy instead of paying for a fresh one."""
-        if cls._worker_cache_pool is None:
-            t0 = time.monotonic()
-            pool: "queue.Queue" = queue.Queue()
-            for _ in range(cls._build_config.parallel_processes):
-                worker_cache = Path(
-                    tempfile.mkdtemp(prefix=".trivy_worker_", dir=cls._reports_path)
-                )
-                shutil.copytree(cls._cache_path, worker_cache, dirs_exist_ok=True)
-                pool.put(worker_cache)
-            cls._worker_cache_pool = pool
+        """Check out one worker's private copy of the shared trivy cache (~1 GB each).
+        The pool of `parallel_processes` copies is built once, under the lock so
+        threads arriving together don't each build a pool of their own."""
+        with cls._worker_cache_lock:
+            if cls._worker_cache_pool is None:
+                pool: "queue.Queue" = queue.Queue()
+                for _ in range(cls._build_config.parallel_processes):
+                    worker_cache = Path(
+                        tempfile.mkdtemp(prefix=".trivy_worker_", dir=cls._reports_path)
+                    )
+                    shutil.copytree(cls._cache_path, worker_cache, dirs_exist_ok=True)
+                    pool.put(worker_cache)
+                cls._worker_cache_pool = pool
         return cls._worker_cache_pool.get()
 
     @classmethod
@@ -86,14 +87,13 @@ class SecurityScanner:
 
     @classmethod
     def cleanup(cls) -> None:
-        """Remove the per-worker trivy-cache copies made by SBOM/vulnerability/
-        snap scanning, if any were created. Safe to call even if none were —
-        call once after all scanning for this run is done."""
-        if cls._worker_cache_pool is None:
+        """Remove the per-worker trivy-cache copies. Globs rather than draining the
+        pool, so copies still checked out or left by a killed run go too."""
+        if cls._reports_path is None:
             return
-        while not cls._worker_cache_pool.empty():
-            shutil.rmtree(cls._worker_cache_pool.get(), ignore_errors=True)
         cls._worker_cache_pool = None
+        for worker_cache in cls._reports_path.glob(".trivy_worker_*"):
+            shutil.rmtree(worker_cache, ignore_errors=True)
 
     # ------------------------------------------------------------------
     # Containers: misconfiguration, SBOM, vulnerability
@@ -127,7 +127,6 @@ class SecurityScanner:
         empty_dir = Path(
             tempfile.mkdtemp(prefix=".trivy_empty_", dir=cls._reports_path)
         )
-        t0 = time.monotonic()
         try:
             cmd = [
                 cls._build_config.trivy_executable,
@@ -272,7 +271,6 @@ class SecurityScanner:
             raise subprocess.CalledProcessError(
                 result.returncode, cmd, output=result.stdout, stderr=result.stderr
             )
-        t1 = time.monotonic()
 
         cmd = [
             cls._build_config.trivy_executable,

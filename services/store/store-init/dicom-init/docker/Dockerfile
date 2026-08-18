@@ -10,7 +10,8 @@ RUN curl --output /test-dicoms.zip "https://codebase.helmholtz.cloud/api/v4/proj
     && mkdir -p /dicom_test_data && unzip /test-dicoms.zip -d /dicom_test_data && rm -rf test-dicoms.zip
 
 COPY files/requirements.txt /kaapana/app/
-RUN python3 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt --no-cache-dir -r /kaapana/app/requirements.txt && rm /kaapana/app/requirements.txt 
+COPY --from=constraints 0.7.0.txt /constraints.txt
+RUN python3 -m pip install -c /constraints.txt --no-cache-dir -r /kaapana/app/requirements.txt && rm /kaapana/app/requirements.txt 
 
 COPY files/start.py /kaapana/app/start.py
 

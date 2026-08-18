@@ -26,7 +26,8 @@ RUN rm -rf containerd* bin/
 
 # Install pip packages
 COPY files/requirements.txt /app/
-RUN pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt -r /app/requirements.txt
+COPY --from=constraints 0.7.0.txt /constraints.txt
+RUN pip3 install -c /constraints.txt -r /app/requirements.txt
 
 # Copy all files for containers
 COPY files/backend/ /app

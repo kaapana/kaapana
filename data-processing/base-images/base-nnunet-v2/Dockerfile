@@ -29,7 +29,8 @@ RUN git apply run_training_262.patch
 # RUN cd /nnunet-pip-package && pip3 install -e .
 
 # install nnUNet pip package from source
-RUN cd /nnunet-pip-package && pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt ./
-RUN pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt tensorboard==2.18.0
+COPY --from=constraints 0.7.0.txt /constraints.txt
+RUN cd /nnunet-pip-package && pip3 install -c /constraints.txt ./
+RUN pip install -c /constraints.txt tensorboard==2.18.0
 
 WORKDIR /kaapana/app

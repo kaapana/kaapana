@@ -7,7 +7,8 @@ LABEL BUILD_IGNORE="False"
 RUN apt-get update && apt-get install -y xvfb
 
 COPY files/requirements.txt /kaapana/requirements.txt
-RUN pip3 install --upgrade pip && pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt --no-cache-dir -r /kaapana/requirements.txt
+COPY --from=constraints 0.7.0.txt /constraints.txt
+RUN pip3 install --upgrade pip && pip install -c /constraints.txt --no-cache-dir -r /kaapana/requirements.txt
 
 COPY files/* /kaapana/
 

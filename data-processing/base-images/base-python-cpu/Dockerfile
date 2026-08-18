@@ -46,7 +46,8 @@ RUN pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url h
 
 # Install requirements
 COPY files/requirements.txt /app/
-RUN python3 -m pip install --upgrade setuptools pip && pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt -r /app/requirements.txt
+COPY --from=constraints 0.7.0.txt /constraints.txt
+RUN python3 -m pip install --upgrade setuptools pip && pip3 install -c /constraints.txt -r /app/requirements.txt
 
 # Install code server and python extension
 RUN wget https://code-server.dev/install.sh
@@ -80,6 +81,6 @@ RUN python3 -m pip install /app/kaapana_federated
 COPY files/kaapanapy-shim /app/kaapanapy-shim
 WORKDIR /app/kaapanapy-shim
 RUN python3 -m build 
-RUN python3 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt dist/kaapanapy-0.0.1.tar.gz
+RUN python3 -m pip install -c /constraints.txt dist/kaapanapy-0.0.1.tar.gz
 
 WORKDIR /kaapana/app

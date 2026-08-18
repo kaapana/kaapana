@@ -12,7 +12,8 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY files/requirements.txt /
-RUN pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt --no-cache-dir -r /requirements.txt
+COPY --from=constraints 0.7.0.txt /constraints.txt
+RUN pip3 install -c /constraints.txt --no-cache-dir -r /requirements.txt
 
 COPY files/* /kaapana/app/
 

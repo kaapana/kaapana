@@ -7,7 +7,8 @@ LABEL BUILD_IGNORE="False"
 WORKDIR /kaapana/app
 
 COPY files/requirements.txt /kaapana/app/
-RUN python -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt --no-cache-dir -r /kaapana/app/requirements.txt
+COPY --from=constraints 0.7.0.txt /constraints.txt
+RUN python -m pip install -c /constraints.txt --no-cache-dir -r /kaapana/app/requirements.txt
 
 RUN apt-get update && apt-get install -y ldap-utils  && rm -rf /var/lib/apt/lists/* 
 

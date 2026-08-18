@@ -16,7 +16,8 @@ COPY files/requirements.txt /kaapana/app/
 
 
 RUN apt-get update -y && apt-get install -y --no-install-recommends xvfb
-RUN python -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt -r /kaapana/app/requirements.txt
+COPY --from=constraints 0.7.0.txt /constraints.txt
+RUN python -m pip install -c /constraints.txt -r /kaapana/app/requirements.txt
 
 
 CMD ["/bin/bash", "/kaapana/app/radiomics.sh"]

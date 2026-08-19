@@ -283,42 +283,37 @@ Rancher credentials of the form `ext/token-xxxxx:secret` and answers a
 ServiceAccount token with `User "system:unauthenticated" ...
 management.cattle.io`.
 
-The DKFZ proxy is in the way of that endpoint, and `NO_PROXY` cannot get it out
-of the way. `www-int2` answers `CONNECT 10.129.1.5:6443` with `403 Forbidden`,
-and the python kubernetes client sends the request there: its
-`Configuration.__init__` copies `HTTPS_PROXY`/`HTTP_PROXY` out of the
-environment, then resets the env-derived `no_proxy` to `None` a few lines later.
-The exemption that works is `K8S_AUTH_NO_PROXY`: `kubernetes.core` reads
-`K8S_AUTH_*` as its own module options and applies `no_proxy` to the client
-*after* construction, where nothing overwrites it. It is a global variable in
-`.gitlab-ci.yml`, next to the other proxy settings:
+The DKFZ proxy is in the way of that endpoint: `www-int2` answers
+`CONNECT 10.129.1.5:6443` with `403 Forbidden`. The exemption is that address in
+`NO_PROXY` in `.gitlab-ci.yml`, and it holds only because `ci-base` pins
+`kubernetes==36.0.3` in [`harvester/tasks/requirements.txt`](harvester/tasks/requirements.txt).
 
-```yaml
-K8S_AUTH_NO_PROXY: "10.129.1.5" # Harvester API (harvester01)
-```
+Older clients read `NO_PROXY` and throw it away. Up to and including 35.0.0,
+`Configuration.__init__` loads it into `self.no_proxy` and then runs into the
+generated `self.no_proxy = None` four lines below, because the env-loading block
+was inserted above the `"""Proxy URL"""` docstring instead of below it;
+`self.proxy` survives only because its own assignment sits above the insertion
+point. `rest.py` then asks
+`should_bypass_proxies(host, no_proxy=self.no_proxy or "")`, and the `or ""`
+keeps `requests` from consulting the environment on its own, since it does that
+only for `None`. Version 36.0.0 (2026-05-20) moved the env block below both
+declarations. Measured by building the client through `kubernetes.core`'s own
+configuration path with a dead proxy in the environment:
 
-The playbooks run `hosts: localhost` / `connection: local` and are started as
-plain `ansible-playbook` from the job shell, so the job environment is the
-module's environment and `kubernetes.core`'s argument-spec fallback reads it
-there. Nothing in the playbooks mentions the proxy. A `K8S_AUTH_NO_PROXY`
-project variable would override the file (project variables outrank
-`.gitlab-ci.yml` — see the precedence trap in section 7); treat that as a
-one-off escape hatch and fix the address in the file. Measured against the live
-API with a dead proxy in the environment:
+| Client | Pool manager for `https://10.129.1.5:6443` | Result |
+|---|---|---|
+| 35.0.0 | `ProxyManager` | fails, `ProxyError` |
+| 36.0.3 | `PoolManager` | direct, succeeds |
 
-| Environment | Result |
-|---|---|
-| `HTTPS_PROXY` set, nothing else | fails, `ProxyError` |
-| `HTTPS_PROXY` + `NO_PROXY=10.129.1.5` | fails, `ProxyError` |
-| `HTTPS_PROXY` + `K8S_AUTH_NO_PROXY=10.129.1.5` | succeeds |
-
-Running the playbooks by hand from a proxied workstation needs the same
-`export K8S_AUTH_NO_PROXY=10.129.1.5`, since `.gitlab-ci.yml` does not apply
-there; `kubectl` against the same endpoint needs `10.129.1.5` in `NO_PROXY`,
-which it does honor. The Rancher URL used to work only because the proxy
-forwards `sci-cloud.dkfz.de` happily. Symptom when the exemption is missing:
+So the pin is load-bearing: dropping below 36.0.0 silently re-breaks VM
+provisioning. The fallback if that ever happens is `K8S_AUTH_NO_PROXY=10.129.1.5`
+as a job variable — `kubernetes.core` reads `K8S_AUTH_*` as its own module
+options and applies `no_proxy` after the client is built, where the wipe cannot
+reach it. Symptom when the exemption is missing either way:
 `ProxyError('Unable to connect to proxy', OSError('Tunnel connection failed: 403
-Forbidden'))` on the first Harvester task.
+Forbidden'))` on the first Harvester task. Running the playbooks by hand from a
+proxied workstation needs the address in your own shell's `NO_PROXY`, since
+`.gitlab-ci.yml` does not apply there.
 
 **The rights the account needs.** Two bindings, both namespace-scoped, together
 covering every call the playbooks make:

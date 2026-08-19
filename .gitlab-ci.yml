@@ -63,7 +63,7 @@ variables:
   # CI_IMAGES_TAG in the same MR that changes ci/images/** — re-pushing an
   # existing tag leaves warm runners on the stale image. Always
   # $CI_REGISTRY_URL, never the release registry.
-  CI_IMAGES_TAG: "v3"
+  CI_IMAGES_TAG: "v5"
   CI_BASE_IMAGE: "$CI_REGISTRY_URL/ci-base:$CI_IMAGES_TAG"
 
   # Purpose-specific tokens, currently aliasing the shared CI_REGISTRY_TOKEN.
@@ -104,11 +104,11 @@ variables:
   KAAPANA_READTHEDOCS_TOKEN: $KAAPANA_READTHEDOCS_TOKEN # secret — project variable (masked)
 
   # --- DKFZ network proxy. NO_PROXY is mandatory alongside: without the
-  # exemptions, requests to localhost and internal targets (test VMs, job-local
-  # services) hairpin through the proxy and time out.
+  # exemptions, requests to localhost and internal targets (test VMs, Harvester
+  # API) hairpin through the proxy and time out.
   HTTP_PROXY: "http://www-int2.dkfz-heidelberg.de:80"
   HTTPS_PROXY: "http://www-int2.dkfz-heidelberg.de:80"
-  NO_PROXY: "localhost,127.0.0.1,.dkfz.de,.dkfz-heidelberg.de,10.129.1.5"
+  NO_PROXY: "localhost,127.0.0.1,.dkfz.de,.dkfz-heidelberg.de,10.129.1.5" # Harvester API
   no_proxy: "$NO_PROXY" # lowercase twin — some tools read only one casing
 
   # --- Fixed settings

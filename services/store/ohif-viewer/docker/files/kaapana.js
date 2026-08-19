@@ -3,6 +3,14 @@ console.log("Hostname: " + hostname);
 var mode = new URLSearchParams(window.location.search).get("mode") || "default";
 console.log("Mode: " + mode)
 
+// The viewer URL decides the project scope: served under
+// /project/<id>/ohif/ (the portal-ui shell links it that way), DICOMweb
+// requests target the project-scoped dicom-web-filter route. Without the
+// prefix the plain, unscoped route is used.
+var projectPrefix = (window.location.pathname.match(/^\/project\/[^/]+/) || [""])[0];
+console.log("Project prefix: " + (projectPrefix || "(none)"));
+var dicomWebFilterRoot = "https://" + hostname + projectPrefix + "/dicom-web-filter";
+
 const hotkeys = [
   {
     commandName: 'incrementActiveViewport',
@@ -105,9 +113,9 @@ const sharedDataSources = [
     sourceName: "dicomweb",
     configuration: {
       name: "DicomWebFilter",
-      qidoRoot: "https://" + hostname + "/dicom-web-filter",
-      wadoRoot: "https://" + hostname + "/dicom-web-filter",
-      stowRoot: "https://" + hostname + "/dicom-web-filter",
+      qidoRoot: dicomWebFilterRoot,
+      wadoRoot: dicomWebFilterRoot,
+      stowRoot: dicomWebFilterRoot,
       qidoSupportsIncludeField: true,
       supportsReject: true,
       imageRendering: "wadors",
@@ -139,7 +147,7 @@ const configVariants = {
 const selected = configVariants[mode] || configVariants.default;
 
 window.config = {
-  routerBasename: "/ohif/",
+  routerBasename: projectPrefix + "/ohif/",
   defaultDataSourceName: "dicomweb",
   extensions: [],
   modes: [],

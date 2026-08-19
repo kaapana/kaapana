@@ -31,6 +31,27 @@ spec:
             port:
               number: 80
 ---
+# Project-scoped route (/project/<id>/workflow-api/...): auth-backend
+# authorizes against the <id> and injects the enriched Project header, the
+# middlewares strip both prefixes before the request reaches the service.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: workflow-api-project-ingressroute
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: PathRegexp(`^/project/[^/]+/workflow-api(/|$)`)
+      middlewares:
+        - name: strip-project-prefix
+        - name: strip-prefix-workflow-api
+      services:
+        - name: workflow-api
+          port: 80
+---
 apiVersion: v1
 kind: Service
 metadata:

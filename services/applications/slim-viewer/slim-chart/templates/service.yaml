@@ -38,6 +38,27 @@ spec:
             port:
               name: slim-http
 ---
+# Project-scoped route (/project/<id>/slim/...): auth-backend authorizes
+# against the <id>, the middleware strips the prefix, and the app derives its
+# base path and DICOMweb root from the document URL (local.js).
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: slim-project-ingressroute
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: PathRegexp(`^/project/[^/]+/slim(/|$)`)
+      middlewares:
+        - name: strip-project-prefix
+        - name: slim-upgrade-insecure-requests
+      services:
+        - name: slim-service
+          port: 80
+---
 apiVersion: traefik.io/v1alpha1
 kind: Middleware  
 metadata:

@@ -1,12 +1,20 @@
 var hostname=window.location.href.split("//")[1].split("/")[0]
 console.log("Hostname: "+hostname)
+
+// The viewer URL decides the project scope: served under
+// /project/<id>/slim (the portal-ui shell links it that way), DICOMweb
+// requests target the project-scoped dicom-web-filter route. Without the
+// prefix the plain, unscoped route is used.
+var projectPrefix = (window.location.pathname.match(/^\/project\/[^/]+/) || [""])[0];
+console.log("Project prefix: " + (projectPrefix || "(none)"));
+
 window.config = {
-  path: "/slim",
+  path: projectPrefix + "/slim",
   /** This is an array, but we'll only use the first entry for now */
   servers: [
     {
       id: "local",
-      url: "https://"+hostname+"/dicom-web-filter",
+      url: "https://"+hostname+projectPrefix+"/dicom-web-filter",
       write: true
     }
   ],

@@ -104,8 +104,8 @@ variables:
   KAAPANA_READTHEDOCS_TOKEN: $KAAPANA_READTHEDOCS_TOKEN # secret — project variable (masked)
 
   # --- DKFZ network proxy. NO_PROXY is mandatory alongside: without the
-  # exemptions, requests to localhost and internal targets (test VMs, Harvester
-  # API) hairpin through the proxy and time out.
+  # exemptions, requests to localhost and internal targets (test VMs, job-local
+  # services) hairpin through the proxy and time out.
   HTTP_PROXY: "http://www-int2.dkfz-heidelberg.de:80"
   HTTPS_PROXY: "http://www-int2.dkfz-heidelberg.de:80"
   NO_PROXY: "localhost,127.0.0.1,.dkfz.de,.dkfz-heidelberg.de"

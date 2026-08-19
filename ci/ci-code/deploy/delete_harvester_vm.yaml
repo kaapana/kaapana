@@ -15,11 +15,6 @@
     vm_name: "{{ vm_fqdn.split('.')[0] if vm_fqdn else (_vm_name_env[:(_max_name_len | int)] | regex_replace('-+$', '')) }}"
     harvester_namespace: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE') }}"
     harvester_kubeconfig: "{{ lookup('env', 'HARVESTER_KUBECONFIG') }}"
-    _kubeconfig_clusters: "{{ ((lookup('file', harvester_kubeconfig, errors='ignore') | from_yaml) or {}).get('clusters', []) }}"
-    harvester_api_hosts: "{{ _kubeconfig_clusters | map(attribute='cluster.server') | map('urlsplit', 'hostname') | unique | join(',') }}"
-
-  environment:
-    K8S_AUTH_NO_PROXY: "{{ harvester_api_hosts }}"
 
   tasks:
 

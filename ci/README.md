@@ -290,19 +290,21 @@ and the python kubernetes client sends the request there: its
 environment, then resets the env-derived `no_proxy` to `None` a few lines later.
 The exemption that works is `K8S_AUTH_NO_PROXY`: `kubernetes.core` reads
 `K8S_AUTH_*` as its own module options and applies `no_proxy` to the client
-*after* construction, where nothing overwrites it. The playbooks set it in a
-play-level `environment:`, with the hosts read out of the kubeconfig itself:
+*after* construction, where nothing overwrites it. It is a global variable in
+`.gitlab-ci.yml`, next to the other proxy settings:
 
 ```yaml
-_kubeconfig_clusters: "{{ ((lookup('file', harvester_kubeconfig, errors='ignore') | from_yaml) or {}).get('clusters', []) }}"
-harvester_api_hosts: "{{ _kubeconfig_clusters | map(attribute='cluster.server') | map('urlsplit', 'hostname') | unique | join(',') }}"
+K8S_AUTH_NO_PROXY: "10.129.1.5" # Harvester API (harvester01)
 ```
 
-So the endpoint is stated once, in the credential, and a new cluster or a new API
-address needs no change here, in `.gitlab-ci.yml`, or in the project variables. A
-missing or unreadable kubeconfig yields an empty exemption rather than an error,
-and the playbook then fails on its own missing-credential path. Measured against
-the live API with a dead proxy in the environment:
+The playbooks run `hosts: localhost` / `connection: local` and are started as
+plain `ansible-playbook` from the job shell, so the job environment is the
+module's environment and `kubernetes.core`'s argument-spec fallback reads it
+there. Nothing in the playbooks mentions the proxy. A `K8S_AUTH_NO_PROXY`
+project variable would override the file (project variables outrank
+`.gitlab-ci.yml` — see the precedence trap in section 7); treat that as a
+one-off escape hatch and fix the address in the file. Measured against the live
+API with a dead proxy in the environment:
 
 | Environment | Result |
 |---|---|
@@ -310,11 +312,13 @@ the live API with a dead proxy in the environment:
 | `HTTPS_PROXY` + `NO_PROXY=10.129.1.5` | fails, `ProxyError` |
 | `HTTPS_PROXY` + `K8S_AUTH_NO_PROXY=10.129.1.5` | succeeds |
 
-Running the playbooks by hand from a proxied workstation needs nothing extra —
-the same `environment:` block applies. The Rancher URL used to work only because
-the proxy forwards `sci-cloud.dkfz.de` happily. Symptom when the exemption is missing: `ProxyError('Unable to connect to
-proxy', OSError('Tunnel connection failed: 403 Forbidden'))` on the first
-Harvester task.
+Running the playbooks by hand from a proxied workstation needs the same
+`export K8S_AUTH_NO_PROXY=10.129.1.5`, since `.gitlab-ci.yml` does not apply
+there; `kubectl` against the same endpoint needs `10.129.1.5` in `NO_PROXY`,
+which it does honor. The Rancher URL used to work only because the proxy
+forwards `sci-cloud.dkfz.de` happily. Symptom when the exemption is missing:
+`ProxyError('Unable to connect to proxy', OSError('Tunnel connection failed: 403
+Forbidden'))` on the first Harvester task.
 
 **The rights the account needs.** Two bindings, both namespace-scoped, together
 covering every call the playbooks make:
@@ -387,7 +391,7 @@ sshName and `volumeClaimTemplates` annotation — is accepted.
 |---|---|
 | `User "system:unauthenticated" ... management.cattle.io` | The request reached Rancher's proxy. Point the kubeconfig at `https://10.129.1.5:6443`. |
 | `auth whoami` succeeds, every `auth can-i` answers `no` | The RoleBinding does not reach this account. Check the cluster and namespace it was created in, and its `roleRef`: Kubernetes accepts a `roleRef` naming a role that does not exist, creating an inert binding with no error and no event. `roleRef` is immutable, so a wrong one is fixed by deleting and recreating the binding. |
-| `x509: certificate is valid for ... not <host>` | The kubeconfig names a host instead of `10.129.1.5`. |
+| `x509: certificate is valid for ... not <host>` | The kubeconfig names a host instead of `10.129.1.5`. The API cert's SANs are `kubernetes*`, `localhost`, the bare node name `hv-cpu03-20-tp3` and the addresses; `harvester01.dkfz-heidelberg.de` resolves to the VIP but is absent from them. To use a name, either have an admin add the SAN, or set `tls-server-name: kubernetes` in the cluster entry. |
 | `Forbidden ... cannot list resource "rolebindings"` | Namespace members hold no read access to RBAC objects. Use `auth can-i` to see what the account may do. |
 | Playbook fails at "Fetch image by label selector" with `cannot list ... virtualmachineimages` | `kaapana-ci-vm-support` is missing or unbound. |
 

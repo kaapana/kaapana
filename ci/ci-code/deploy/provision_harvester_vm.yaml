@@ -25,15 +25,10 @@
     # Harvester connection
     harvester_namespace: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE', default=undef()) }}"
     harvester_kubeconfig: "{{ lookup('env', 'HARVESTER_KUBECONFIG', default=undef()) }}"
-    _kubeconfig_clusters: "{{ ((lookup('file', harvester_kubeconfig, errors='ignore') | from_yaml) or {}).get('clusters', []) }}"
-    harvester_api_hosts: "{{ _kubeconfig_clusters | map(attribute='cluster.server') | map('urlsplit', 'hostname') | unique | join(',') }}"
     artifacts_dir: "{{ lookup('env', 'ARTIFACTS_DIR', default=undef()) }}"
 
     # Optional behavior
     force_recreate: "{{ force_recreate | default(false) | bool }}"
-
-  environment:
-    K8S_AUTH_NO_PROXY: "{{ harvester_api_hosts }}"
 
   pre_tasks:
   - name: Print all resolved VM variables

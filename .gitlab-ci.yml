@@ -108,7 +108,7 @@ variables:
   # services) hairpin through the proxy and time out.
   HTTP_PROXY: "http://www-int2.dkfz-heidelberg.de:80"
   HTTPS_PROXY: "http://www-int2.dkfz-heidelberg.de:80"
-  NO_PROXY: "localhost,127.0.0.1,.dkfz.de,.dkfz-heidelberg.de"
+  NO_PROXY: "localhost,127.0.0.1,.dkfz.de,.dkfz-heidelberg.de,10.129.1.5"
   no_proxy: "$NO_PROXY" # lowercase twin — some tools read only one casing
 
   # --- Fixed settings

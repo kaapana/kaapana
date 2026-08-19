@@ -5,13 +5,14 @@ from subprocess import PIPE, run
 from typing import Any, Dict, Optional, Set, TypeVar
 
 from alive_progress import alive_bar
-
 from build_cli.build import BuildConfig, BuildState, Issue, IssueTracker
 from build_cli.container import Container
 from build_cli.utils import CommandUtils, get_logger, should_ignore_path
 
 logger = get_logger()
 T = TypeVar("T")  # HelmChart or Container
+
+BUILDX_BUILDER_NAME = "kaapana-buildx"
 
 
 class ContainerHelper:
@@ -62,6 +63,50 @@ class ContainerHelper:
             logger.error("Please install {Container.container_engine} on your system.")
             if cls._build_config.exit_on_error:
                 exit(1)
+
+    @classmethod
+    def ensure_buildx_builder(cls):
+        """
+        Ensure the dedicated docker-container buildx builder exists, but only
+        when this run actually needs it. Container.build() only touches
+        BUILDX_BUILDER_NAME when config.cache_enabled (--cache-from/--cache-to)
+        -- a plain run builds with `docker build` and never needs this builder
+        at all, so skip creating/inspecting it entirely.
+        """
+        if not cls._build_config.cache_enabled:
+            return
+        if cls._build_config.container_engine != "docker":
+            return
+
+        logger.info(f"-> Ensuring buildx builder: {BUILDX_BUILDER_NAME}")
+
+        inspect_result = CommandUtils.run(
+            ["docker", "buildx", "inspect", BUILDX_BUILDER_NAME],
+            logger=logger,
+            timeout=15,
+            context="buildx-inspect",
+            quiet=True,
+        )
+
+        if inspect_result.returncode != 0:
+            CommandUtils.run(
+                [
+                    "docker",
+                    "buildx",
+                    "create",
+                    "--name",
+                    BUILDX_BUILDER_NAME,
+                    "--driver",
+                    "docker-container",
+                ],
+                logger=logger,
+                timeout=60,
+                context="buildx-create",
+                exit_on_error=cls._build_config.exit_on_error,
+                hints=[
+                    "Cache export (--cache-to) requires the docker-container driver."
+                ],
+            )
 
     @classmethod
     def container_registry_login(cls, username: str, password: str):

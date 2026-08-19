@@ -304,21 +304,34 @@ def build(
         "docker",
         "--container-engine",
         envvar="CONTAINER_ENGINE",
-        help="Container engine to use (docker or podman).",
+        help="Container engine to use (docker or podman). Registry build cache "
+        "(--cache-from/--cache-to) requires docker.",
     ),
-    enable_inline_cache: bool = typer.Option(
-        True,
-        "-eic/--no-inline-cache",
-        "--enable-inline-cache/--no-inline-cache",
-        envvar="ENABLE_INLINE_CACHE",
-        help="Embed inline cache metadata in built images (BUILDKIT_INLINE_CACHE=1) so they can be used as cache sources by future builds.",
+    cache_from: bool = typer.Option(
+        False,
+        "-cf/--cache-from",
+        envvar="CACHE_FROM",
+        help="Use build cache from registry.",
     ),
-    cache_from_tag: Optional[str] = typer.Option(
+    cache_to: bool = typer.Option(
+        False,
+        "-ct/--cache-to",
+        envvar="CACHE_TO",
+        help="Push build cache to registry.",
+    ),
+    cache_registry: Optional[str] = typer.Option(
         None,
-        "-cft",
-        "--cache-from-tag",
-        envvar="CACHE_FROM_TAG",
-        help="Version tag to use as cache source when building each image (e.g. 'latest'). Each image will pull <registry>/<image>:<cache-from-tag> and use it as --cache-from. Disabled by default.",
+        "-creg",
+        "--cache-registry",
+        envvar="CACHE_REGISTRY",
+        help="Registry and namespace for the build cache.",
+    ),
+    cache_tag: Optional[str] = typer.Option(
+        "cache",
+        "-ctag",
+        "--cache-tag",
+        envvar="CACHE_TAG",
+        help="Image version/tag for the build cache in the registry.",
     ),
 ):
     """
@@ -377,8 +390,10 @@ def build(
         plain_http=plain_http,
         helm_executable=helm_executable,
         container_engine=container_engine,
-        enable_inline_cache=enable_inline_cache,
-        cache_from_tag=cache_from_tag,
+        cache_from=cache_from,
+        cache_to=cache_to,
+        cache_registry=cache_registry,
+        cache_tag=cache_tag,
     )
     run_build(build_config=config)
 
@@ -447,6 +462,7 @@ def run_build(build_config: BuildConfig):
     HelmChartHelper.init(build_config=build_config, build_state=build_state)
     BuildHelper.init(build_config=build_config, build_state=build_state)
     ContainerHelper.verify_container_engine_installed()
+    ContainerHelper.ensure_buildx_builder()
     HelmChartHelper.verify_helm_installed()
 
     if not build_config.build_only and not build_config.no_login:
@@ -462,8 +478,6 @@ def run_build(build_config: BuildConfig):
     logger.info("-----------------------------------------------------------")
     ContainerHelper.collect_containers()
     ContainerHelper.resolve_base_images_into_container()
-    if build_config.cache_from_tag:
-        ContainerHelper.resolve_cache_from_images(build_config.cache_from_tag)
     HelmChartHelper.collect_charts()
     HelmChartHelper.resolve_chart_dependencies()
     HelmChartHelper.resolve_kaapana_collections()

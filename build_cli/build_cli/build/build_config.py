@@ -38,8 +38,10 @@ class BuildConfig(BaseModel):
     enable_build_kit: bool = (
         True  # Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/
     )
-    enable_inline_cache: bool = True
-    cache_from_tag: Optional[str] = None
+    cache_from: Optional[bool] = False
+    cache_to: Optional[bool] = False
+    cache_registry: Optional[str] = None
+    cache_tag: Optional[str] = "cache"
     parallel_processes: int
     max_build_rounds: int = 5
     max_push_retries: int = 30
@@ -127,6 +129,14 @@ class BuildConfig(BaseModel):
         if not platforms_dir.is_dir():
             raise ValueError(f"`platforms` directory not found in {self.kaapana_dir}")
 
+        # Registry build cache builds via a dedicated buildx docker-container
+        # driver builder, which podman doesn't support.
+        if self.cache_enabled and self.container_engine != "docker":
+            raise ValueError(
+                "Registry build cache (--cache-from/--cache-to) requires "
+                f"--container-engine docker, got {self.container_engine!r}."
+            )
+
         SEVERITY_LEVELS = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
 
         for field_name in [
@@ -153,6 +163,14 @@ class BuildConfig(BaseModel):
                     )
             setattr(self, field_name, normalized)
         return self
+
+    @property
+    def cache_enabled(self) -> bool:
+        """Run-level switch: True iff this run participates in registry build-
+        cache import and/or export. Gates buildx + the dedicated kaapana-buildx
+        builder + OCI-layout bridging on/off for the whole build; when False,
+        containers build with plain `docker build`/`docker push`."""
+        return bool(self.cache_from or self.cache_to)
 
     def log_self(self, logger):
         fields = self.model_dump(

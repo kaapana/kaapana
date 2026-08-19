@@ -8,7 +8,7 @@ docker>=7.1.0
 durationpy==0.10
 idna==3.11
 Jinja2==3.1.6
-kubernetes==35.0.0
+kubernetes==36.0.3
 MarkupSafe==3.0.3
 oauthlib==3.3.1
 packaging==26.0

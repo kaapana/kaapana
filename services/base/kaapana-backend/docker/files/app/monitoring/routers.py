@@ -1,10 +1,12 @@
+import html
 import os
-from fastapi import APIRouter, Response, Depends
-from fastapi.responses import PlainTextResponse
-from app.dependencies import get_monitoring_service
-from .schemas import Measurement
 from typing import List
-from app.middlewares import sanitize_inputs
+
+from app.dependencies import get_monitoring_service
+from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi.responses import PlainTextResponse
+
+from .schemas import Measurement
 
 router = APIRouter(tags=["monitoring"])
 
@@ -55,10 +57,13 @@ def custom_query(q: str, client=Depends(get_monitoring_service)):
 
     Sometimes the prometheus client library returns an empty response for a non-empty query result.
     """
-    # sanitize query path params
-    q = sanitize_inputs(q)
-    result = client.query("custom-query", q)
+    # The SanitizeQueryParams middleware HTML-escapes all query params, which
+    # corrupts every PromQL query with quoted label values; undo it here — q
+    # goes to the Prometheus HTTP API, not into an HTML context.
+    result = client.query("custom-query", html.unescape(q))
     if not result:
-        raise HTTPException(status_code=204, detail="No content")
+        # 404, not 204: a 204 must not carry a body, FastAPI's exception
+        # handler would crash the response.
+        raise HTTPException(status_code=404, detail="No data for query")
     else:
         return result

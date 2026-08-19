@@ -185,6 +185,127 @@ On-VM troubleshooting: `sudo gitlab-runner verify`,
 `sudo systemctl status gitlab-runner`, config at
 `/etc/gitlab-runner/config.toml`.
 
+### Harvester functional user
+
+CI authenticates to Harvester as the `kaapana-ci` ServiceAccount in the
+`kaapana-ci` namespace, held in the `HARVESTER_KUBECONFIG` File variable. The
+account's rights stop at the namespace boundary, and a token issued from a
+`kubernetes.io/service-account-token` Secret has no `exp` claim, so it stays
+valid indefinitely.
+
+**Setup.** Two credentials are involved. `~/.kube/harvester.yaml` is your own
+Rancher kubeconfig and creates and reads the objects in the namespace;
+`/tmp/harvester-ci.kubeconfig` is the ServiceAccount's own credential and is
+used only to check what that account may do. Every command names its kubeconfig
+explicitly. All of them run from a workstation on the DKFZ network.
+
+See if you have enough rights, contact cluster admin if not:
+```bash
+kubectl --kubeconfig ~/.kube/harvester.yaml -n kaapana-ci auth can-i create serviceaccounts
+kubectl --kubeconfig ~/.kube/harvester.yaml -n kaapana-ci auth can-i create rolebindings
+```
+
+```bash
+# 1) the ServiceAccount (any developer with namespace access)
+kubectl --kubeconfig ~/.kube/harvester.yaml create serviceaccount kaapana-ci -n kaapana-ci
+
+# 2) the RoleBinding: admin over kaapana-ci, no rights outside it.
+kubectl --kubeconfig ~/.kube/harvester.yaml create rolebinding kaapana-ci-rolebinding -n kaapana-ci \
+  --clusterrole=cluster-admin --serviceaccount=kaapana-ci:kaapana-ci
+
+# 3) the token (any developer with namespace access)
+kubectl --kubeconfig ~/.kube/harvester.yaml apply -f - <<'EOF'
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kaapana-ci-token
+  namespace: kaapana-ci
+  annotations:
+    kubernetes.io/service-account.name: kaapana-ci
+type: kubernetes.io/service-account-token
+EOF
+
+# 4) build the kubeconfig from the Secret Kubernetes just populated
+kubectl --kubeconfig ~/.kube/harvester.yaml -n kaapana-ci get secret kaapana-ci-token \
+  -o jsonpath='{.data.token}' | base64 -d > /tmp/sa.token
+kubectl --kubeconfig ~/.kube/harvester.yaml -n kaapana-ci get secret kaapana-ci-token \
+  -o jsonpath='{.data.ca\.crt}' | base64 -d > /tmp/harvester-ca.crt
+
+export KUBECONFIG=/tmp/harvester-ci.kubeconfig
+kubectl config set-cluster harvester01 --server=https://10.129.1.5:6443 \
+  --certificate-authority=/tmp/harvester-ca.crt --embed-certs=true
+kubectl config set-credentials kaapana-ci --token="$(cat /tmp/sa.token)"
+kubectl config set-context harvester01 \
+  --cluster=harvester01 --user=kaapana-ci --namespace=kaapana-ci
+kubectl config use-context harvester01
+
+# 5) verify — both must pass — then paste the file into HARVESTER_KUBECONFIG
+#    (Settings -> CI/CD -> Variables) and delete the local copies
+kubectl --kubeconfig /tmp/harvester-ci.kubeconfig auth whoami
+# Username  system:serviceaccount:kaapana-ci:kaapana-ci
+kubectl --kubeconfig /tmp/harvester-ci.kubeconfig get vm
+```
+
+To see what the account actually holds, list its effective rules:
+
+```bash
+kubectl --kubeconfig /tmp/harvester-ci.kubeconfig -n kaapana-ci auth can-i --list
+```
+
+With the RoleBinding in place this shows write verbs on `virtualmachines` and
+`persistentvolumeclaims`. Without it the output holds only the defaults every
+authenticated principal gets — `selfsubjectreviews`, a few read-only
+`settings.harvesterhci.io`, and `/.well-known/openid-configuration`.
+
+The same command run against `~/.kube/harvester.yaml` shows what a developer's
+Rancher project role grants: `persistentvolumeclaims` with write verbs, the
+kubevirt and harvesterhci resources at `get list watch`, `namespaces
+[kaapana-ci] [*]`, and no access to roles or rolebindings.
+
+To confirm the token carries no `exp` claim, decode its payload:
+
+```bash
+kubectl --kubeconfig ~/.kube/harvester.yaml -n kaapana-ci get secret kaapana-ci-token \
+  -o jsonpath='{.data.token}' | base64 -d | cut -d. -f2 | tr '_-' '/+' | base64 -d
+```
+
+**Errors:**
+
+| Symptom | Cause |
+|---|---|
+| `User "system:unauthenticated" ... management.cattle.io` | The request reached Rancher's proxy at `https://sci-cloud.dkfz.de/k8s/clusters/c-zrj95`, which resolves Rancher credentials of the form `ext/token-xxxxx:secret`. Point the kubeconfig at `https://10.129.1.5:6443`. |
+| `auth whoami` succeeds, every `auth can-i` answers `no` | The RoleBinding from step 2 does not reach this account. Check the cluster and the namespace it was created in, and its `roleRef`: Kubernetes accepts a `roleRef` naming a role that does not exist, creating an inert binding with no error and no event. `roleRef` is immutable, so a wrong one is fixed by deleting and recreating the binding. |
+| `x509: certificate is valid for ... not <host>` | The kubeconfig names a host. Use `10.129.1.5`. |
+| `Forbidden ... cannot list resource "rolebindings"` | Namespace members hold no read access to RBAC objects. Use `auth can-i` against the endpoint above to see what the account may do. |
+
+A namespace member can create serviceaccounts, secrets and serviceaccount
+tokens in `kaapana-ci`, and holds no access to roles and rolebindings.
+
+**What exists on harvester01, as of 2026-08-18.** Read off the objects
+themselves — presence of the `kubectl.kubernetes.io/last-applied-configuration`
+annotation distinguishes `kubectl apply -f` from imperative creation:
+
+| Object | Created | Created with |
+|---|---|---|
+| `serviceaccount/kaapana-ci` | 2026-08-14T07:57:44Z | imperative `kubectl create serviceaccount`, or the Rancher UI — carries no `last-applied-configuration` annotation |
+| `serviceaccount/kaapana-ci-token-creator` | 2026-08-14T07:47:46Z | `kubectl apply -f`, which left the annotation behind |
+| `secret/kaapana-ci-token` | 2026-08-18T14:16:05Z | `kubectl apply -f -`, step 3 above |
+| `rolebinding/kaapana-ci-cb` | 2026-08 | `kubectl create rolebinding kaapana-ci-cb --clusterrole=cluster-admin --serviceaccount=kaapana-ci:kaapana-ci --namespace=kaapana-ci`, run by an SCI Cloud admin |
+
+Both ServiceAccounts were created on the morning of 2026-08-14 with a namespace
+member's credentials, ten minutes apart. `auth can-i --list` for
+`system:serviceaccount:kaapana-ci:kaapana-ci` against `https://10.129.1.5:6443`
+returns only the authenticated-principal defaults, and `auth can-i '*' '*'`
+answers `no` in `kaapana-ci`, `default`, `kaapana-develop`, `harvester-public`,
+`kube-system` and cluster-wide. `kaapana-ci-cb` is therefore on a different
+cluster: its `roleRef` names `cluster-admin`, which exists everywhere, and no
+namespace on harvester01 grants this account anything.
+
+`cluster-admin` ships with every Kubernetes cluster, so step 2 creates no
+ClusterRole. Creating one is a cluster-scoped RBAC write and is out of reach of a
+namespace member: `auth can-i create clusterroles` answers `no`, and
+`get clusterrole cluster-admin` answers `Forbidden`.
+
 ## 7. Releases
 
 Pushing a protected tag `X.Y.Z` runs a pipeline where `build_packages` swaps

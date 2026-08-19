@@ -23,9 +23,6 @@ __pycache__
 *.spyproject
 *.pyc
 *.lock
-*package-lock.json
-# https://classic.yarnpkg.com/lang/en/docs/yarn-lock/#toc-check-into-source-control
-!yarn.lock
 *.tgz
 ## Linux
 *~
@@ -47,3 +44,5 @@ tests/venv/*
 lib/workflow_cli/build/
 migration_status
 ci.env
+test-results/
+playwright-report/

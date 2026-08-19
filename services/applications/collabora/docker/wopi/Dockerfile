@@ -1,11 +1,11 @@
 FROM docker.io/node:lts-alpine3.16 as build-stage
 
 WORKDIR /app
-COPY files/ui/yarn.lock files/ui/package*.json ./
-RUN yarn install
+COPY files/ui/package*.json ./
+RUN npm install -g npm@9.9.4 && npm ci
 
 COPY files/ui .
-RUN yarn build
+RUN npm run build
 
 
 FROM local-only/base-python-cpu:latest

@@ -52,4 +52,6 @@ services:
     volumes:
       - ../workflow-ui/docker/files:/app:cached
       - /app/node_modules
-    command: yarn dev --host 0.0.0.0
+    # needs the Dockerfile's DEVELOPMENT stage swap from docker/README.md (the shipped
+    # nginx stage has no npm) and a ports: mapping that reaches vite, not nginx
+    command: npm run dev -- --host 0.0.0.0

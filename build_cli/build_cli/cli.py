@@ -6,8 +6,6 @@ from time import time
 from typing import List, Optional
 
 import typer
-from dotenv import load_dotenv
-
 from build_cli.build import (
     BuildConfig,
     BuildHelper,
@@ -20,6 +18,7 @@ from build_cli.container import ContainerHelper
 from build_cli.container.coordinator import BuildCoordinator
 from build_cli.helm import HelmChartHelper
 from build_cli.utils.logger import get_logger, init_logger, set_console_level
+from dotenv import load_dotenv
 
 
 def _find_kaapana_root(start: Optional[Path] = None) -> Optional[Path]:
@@ -508,8 +507,14 @@ def run_build(build_config: BuildConfig):
             logger.info("-----------------------------------------------------------")
             logger.info("")
             containers = ContainerHelper._build_state.selected_containers
-            coordinator = BuildCoordinator(containers)
-            coordinator.start()
+
+            if build_config.cache_enabled:
+                from build_cli.container.docker_bake import run_bake
+
+                run_bake(containers, build_config)
+            else:
+                coordinator = BuildCoordinator(containers)
+                coordinator.start()
 
             if (
                 build_config.create_offline_installation

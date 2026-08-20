@@ -152,8 +152,6 @@ class Container:
         self.status = Status.NOT_BUILT
         self.build_time: str | float = "-"
         self.push_time: str | float = "-"
-        self.cache_from_images: List[str] = []
-        self.cache_pulled: List[str] = []
 
     def __repr__(self) -> str:
         return f"Container(tag={self.tag!r}, image_name={self.image_name!r}, repo_version={self.version!r}, local={self.local_image})"
@@ -305,33 +303,29 @@ class Container:
             )
         if config.include_model_weights:
             build_args.extend(["--build-arg", "include_model_weights=true"])
-        if config.enable_inline_cache:
-            build_args.extend(["--build-arg", "BUILDKIT_INLINE_CACHE=1"])
         if self.build_lib_context:
             lib_path = config.kaapana_dir / "lib"
             build_args.extend(["--build-context", f"lib={lib_path}"])
 
-        cache_from_args = []
-        if config.cache_from_tag:
-            for cache_image in self.cache_from_images:
-                pull_result = run(
-                    [config.container_engine, "pull", "--quiet", cache_image],
-                    stdout=PIPE,
-                    stderr=PIPE,
-                    timeout=600,
-                    env=dict(os.environ, DOCKER_BUILDKIT=f"{config.enable_build_kit}"),
-                )
-                if pull_result.returncode == 0:
-                    self.cache_pulled.append(cache_image)
-                cache_from_args.extend(["--cache-from", cache_image])
+        build_args.extend(
+            ["--build-context", f"constraints={config.kaapana_dir / "constraints"}"]
+        )
+        if self.image_name == "kaapana-extension-collection":
+            build_args.extend(
+                [
+                    "--build-context",
+                    f"charts={config.build_dir /"kaapana-admin-chart" / "kaapana-extension-collection"  }",
+                ]
+            )
 
         command = [
             config.container_engine,
             "build",
             *build_args,
-            *cache_from_args,
             "-t",
             self.tag,
+            "--builder",
+            "default",
             "-f",
             str(self.dockerfile),
             ".",

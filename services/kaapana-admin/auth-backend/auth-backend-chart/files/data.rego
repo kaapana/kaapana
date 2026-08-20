@@ -46,6 +46,7 @@ allowed_user_endpoints := [
     {"path": "^/collabora-wopi/documents.*", "methods": ["GET","PUT" ,"POST", "HEAD", "PATCH","DELETE"]},
     {"path": "^/collabora/.*", "methods": ["GET","PUT" ,"POST", "HEAD", "PATCH","DELETE"]},
     {"path": "^/notifications/.*", "methods": ["GET", "POST", "PUT"]},
+    {"path": "^/portal-api/.*", "methods": ["GET"]},
 ]
 
 allowed_project_manager_endpoints := [
@@ -55,6 +56,7 @@ allowed_project_manager_endpoints := [
     {"path": "^/kaapana-backend/open-policy-data", "methods": ["GET"]},
     {"path": "^/kaapana-backend/settings", "methods": ["GET"]},
     {"path": "^/kaapana-backend/get-traefik-routes", "methods": ["GET"]},
+    {"path": "^/portal-api/.*", "methods": ["GET"]},
 ]
 
 allowed_admin_endpoints := [

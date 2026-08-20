@@ -1,3 +1,12 @@
+## Decisions in data.rego
+
+- `^/portal-api/.*` GET is granted to every authenticated user. portal-api has
+  no request-level authorization of its own, so this grant is the only gate:
+  any authenticated user can read the ingress-derived menu (entries from
+  `kaapana.ai/ui.*` annotations across all namespaces), including entries their
+  roles cannot open. Accepted trade-off — only menu metadata leaks, the targets
+  themselves stay gated.
+
 ## Install
 ```bash
 curl -L -o opa https://openpolicyagent.org/downloads/v1.18.2/opa_linux_amd64_static

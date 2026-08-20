@@ -1,0 +1,29 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: portal-api
+  namespace: "{{ .Values.global.services_namespace }}"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ingress-reader-portal-api
+rules:
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  # app/ingress_source.py only ever calls list_ingress_for_all_namespaces()
+  verbs: [ "list" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ingress-reader-portal-api-binding
+subjects:
+- kind: ServiceAccount
+  name: portal-api
+  namespace: "{{ .Values.global.services_namespace }}"
+roleRef:
+  kind: ClusterRole
+  name: ingress-reader-portal-api
+  apiGroup: rbac.authorization.k8s.io

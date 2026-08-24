@@ -44,5 +44,9 @@ tests/venv/*
 lib/workflow_cli/build/
 migration_status
 ci.env
+.coverage
+coverage.xml
+tests/ui/coverage/
 test-results/
 playwright-report/
+

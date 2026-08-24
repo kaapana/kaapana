@@ -1,7 +1,6 @@
 # Stage: tests — unit tests + docs
 # In:  the job's own checkout, nothing else
-# Out: JUnit/HTML report artifacts for humans and the MR UI — no pipeline
-#      job consumes anything from this stage
+# Out: JUnit, coverage and HTML report artifacts for the MR UI
 ##############################################
 # TESTS AND DOCS
 ##############################################
@@ -18,13 +17,29 @@
     KAAPANA_DIR: "$CI_PROJECT_DIR"
 
 ##############################################
+# Coverage-reporting pytest jobs
+##############################################
+# GitLab merges the per-job cobertura reports into one MR diff view.
+.pytest_template:
+  extends: .test_template
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    when: always
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+
+##############################################
 # Unit Tests: General Platform Tests
 ##############################################
 unit_tests:
-  extends: .test_template
+  extends: .pytest_template
   script:
     - pip install -r $KAAPANA_DIR/tests/requirements.txt
     - pytest $KAAPANA_DIR/tests/ --junitxml=unittest_report.xml
+        --cov=data-processing/kaapana-plugin/extension/docker/files/plugin/kaapana
+        --cov-report=term --cov-report=xml:coverage.xml
   artifacts:
     reports:
       junit:
@@ -34,7 +49,7 @@ unit_tests:
 # Task API Tests
 ##############################################
 task_api_tests:
-  extends: .test_template
+  extends: .pytest_template
   # These tests build and run real task containers, so they get a per-job
   # docker daemon as a privileged dind service — the only job that needs one.
   # Bind mounts resolve because the runner shares /builds with services, so
@@ -57,8 +72,9 @@ task_api_tests:
     - mkdir -p "$TMPDIR"
     # One pip invocation: task_api depends on the sibling kaapana-containers —
     # installing both together resolves it from the repo instead of PyPI.
-    - pip install $KAAPANA_DIR/lib/kaapana_containers $KAAPANA_DIR/lib/task_api pytest
+    - pip install -e $KAAPANA_DIR/lib/kaapana_containers -e "$KAAPANA_DIR/lib/task_api[test]"
     - pytest $KAAPANA_DIR/lib/task_api/task_api --junitxml=task_api_report.xml
+        --cov=lib/task_api/task_api --cov-report=term --cov-report=xml:coverage.xml
 
   artifacts:
     reports:
@@ -66,7 +82,7 @@ task_api_tests:
         - task_api_report.xml
 
 kaapana_extensions_tests:
-  extends: .test_template
+  extends: .pytest_template
   # One shared registry service for all xdist workers (KAAPANA_TEST_REGISTRY
   # skips pytest-docker; conftest isolates workers by repo).
   services:
@@ -86,6 +102,9 @@ kaapana_extensions_tests:
         $KAAPANA_DIR/lib/kaapana_containers/tests/
         $KAAPANA_DIR/lib/kaapana_extensions/tests/
         --junitxml=kaapana_extensions_report.xml
+        --cov=lib/kaapana_containers/kaapana_containers
+        --cov=lib/kaapana_extensions/kaapana_extensions
+        --cov-report=term --cov-report=xml:coverage.xml
   artifacts:
     when: always
     reports:
@@ -93,10 +112,11 @@ kaapana_extensions_tests:
         - kaapana_extensions_report.xml
 
 workflow_api_tests:
-  extends: .test_template
+  extends: .pytest_template
   script:
     - pip install -r $KAAPANA_DIR/services/base/workflow-api/docker/files/tests/unit/requirements.txt
     - pytest $KAAPANA_DIR/services/base/workflow-api/docker/files/tests/unit --junitxml=workflow_api_report.xml
+        --cov=services/base/workflow-api/docker/files/app --cov-report=term --cov-report=xml:coverage.xml
   artifacts:
     reports:
       junit:
@@ -106,10 +126,11 @@ workflow_api_tests:
 # Portal API Tests
 ##############################################
 portal_api_tests:
-  extends: .test_template
+  extends: .pytest_template
   script:
     - pip install -r $KAAPANA_DIR/services/base/portal-api/docker/tests/requirements.txt
     - pytest $KAAPANA_DIR/services/base/portal-api/docker/tests/ --junitxml=portal_api_report.xml
+        --cov=services/base/portal-api/docker/app --cov-report=term --cov-report=xml:coverage.xml
   artifacts:
     reports:
       junit:
@@ -119,12 +140,14 @@ portal_api_tests:
 # Extension API Tests
 ##############################################
 extensions_api_tests:
-  extends: .test_template
+  extends: .pytest_template
   script:
     - pip install -e "$KAAPANA_DIR/lib/kaapana_containers"
     - pip install -e "$KAAPANA_DIR/lib/kaapana_extensions"
     - pip install -r  $KAAPANA_DIR/services/base/extension-manager-service/docker/files/app/tests/requirements.txt
     - pytest  $KAAPANA_DIR/services/base/extension-manager-service/docker/files/app --junitxml=extensions_api_report.xml
+        --cov=services/base/extension-manager-service/docker/files/app
+        --cov-report=term --cov-report=xml:coverage.xml
   artifacts:
     reports:
       junit:
@@ -134,10 +157,11 @@ extensions_api_tests:
 # Keycloak Backend Tests
 ##############################################
 kaapana_backend_tests:
-  extends: .test_template
+  extends: .pytest_template
   script:
     - pip install -r $KAAPANA_DIR/services/base/kaapana-backend/docker/files/tests/requirements.txt
     - pytest $KAAPANA_DIR/services/base/kaapana-backend/docker/files/tests/ --junitxml=kaapana_backend_report.xml
+        --cov=services/base/kaapana-backend/docker/files/app --cov-report=term --cov-report=xml:coverage.xml
   artifacts:
     reports:
       junit:
@@ -147,10 +171,11 @@ kaapana_backend_tests:
 # Auth Backend Tests
 ##############################################
 auth_backend_tests:
-  extends: .test_template
+  extends: .pytest_template
   script:
     - pip install -r $KAAPANA_DIR/services/kaapana-admin/auth-backend/docker/files/tests/requirements.txt
     - pytest $KAAPANA_DIR/services/kaapana-admin/auth-backend/docker/files/tests/ --junitxml=auth_backend_report.xml
+        --cov=services/kaapana-admin/auth-backend/docker/files --cov-report=term --cov-report=xml:coverage.xml
   artifacts:
     reports:
       junit:
@@ -178,10 +203,12 @@ opa_policy_tests:
 # Access Information Interface Tests
 ##############################################
 access_information_interface_tests:
-  extends: .test_template
+  extends: .pytest_template
   script:
     - pip install -r $KAAPANA_DIR/services/data-separation/access-information-interface/docker/backend/files/tests/requirements.txt
     - pytest $KAAPANA_DIR/services/data-separation/access-information-interface/docker/backend/files/tests/test_keycloak_helper.py --junitxml=aii_report.xml
+        --cov=services/data-separation/access-information-interface/docker/backend/files/app
+        --cov-report=term --cov-report=xml:coverage.xml
   artifacts:
     reports:
       junit:
@@ -191,10 +218,11 @@ access_information_interface_tests:
 # Keycloak Setup Tests
 ##############################################
 keycloak_setup_tests:
-  extends: .test_template
+  extends: .pytest_template
   script:
     - pip install -r $KAAPANA_DIR/services/kaapana-admin/keycloak/keycloak-setup/tests/requirements.txt
     - pytest $KAAPANA_DIR/services/kaapana-admin/keycloak/keycloak-setup/tests/ --junitxml=keycloak_setup_report.xml
+        --cov=services/kaapana-admin/keycloak/keycloak-setup/docker/files --cov-report=term --cov-report=xml:coverage.xml
   artifacts:
     reports:
       junit:

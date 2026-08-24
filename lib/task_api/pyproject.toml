@@ -22,7 +22,7 @@ dependencies = [
     "kaapana-containers",
 ]
 
-[tool.poetry.group.dev.dependencies]
+[project.optional-dependencies]
 test = [
     "pytest>=8.4.1",
     "pytest-cov>=6.2.1",

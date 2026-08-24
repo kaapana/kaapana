@@ -10,7 +10,6 @@ prometheus-api-client==0.5.5
 psycopg2-binary==2.9.10
 python-keycloak==4.7.2
 python-multipart==0.0.20
-pytest==8.3.3
 requests-cache==1.2.1
 SQLAlchemy==2.0.36
 sqlalchemy-json==0.7.0

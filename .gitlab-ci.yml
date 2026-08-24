@@ -45,6 +45,10 @@ variables:
     value: "true"
     options: ["true", "false"]
     description: "tests stage: unit tests + documentation build"
+  CI_EXEC_LINT:
+    value: "true"
+    options: ["true", "false"]
+    description: "lint stage: ruff lint and formatting"
   CI_EXEC_BUILD:
     value: "true"
     options: ["true", "false"]
@@ -169,6 +173,7 @@ variables:
 include:
   - local: /ci/pipeline/preflight.yml
   - local: /ci/pipeline/ci-image.yml
+  - local: /ci/pipeline/lint.yml
   - local: /ci/pipeline/unit-tests.yml
   - local: /ci/pipeline/build.yml
   - local: /ci/pipeline/security.yml

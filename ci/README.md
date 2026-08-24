@@ -16,7 +16,7 @@ VM → test that live deployment → delete the VM.
 | Stage | Jobs | Runs on | Duration |
 |---|---|---|---|
 | `preflight` | preflight variable check | tests runner | seconds |
-| `tests` | unit-test suites, docs build, readthedocs build check | tests runner | each job 5 min timeout |
+| `tests` | ruff lint gate + code quality report, 8 unit-test suites, docs build | tests runner | minutes |
 | `build` | `build_packages` | build runner | hours (warm cache: much less) |
 | `security` | trivy: vulnerability_scan, sbom_scan, misconfiguration scan | security runner | hours |
 | `deploy` | `prepare_deployment` → `server_installation` → `platform_deployment` | deploy runner (Ansible over SSH) | ~1 h |
@@ -74,6 +74,7 @@ glab ci run -b develop --variables-from variables.json
 
 | Variable | Default | Effect |
 |---|---|---|
+| `CI_EXEC_LINT` | `true` | `lint` + `code_quality` jobs |
 | `CI_EXEC_UNIT_TESTS` | `true` | tests stage |
 | `CI_EXEC_BUILD` | `true` | build stage |
 | `CI_EXEC_BUILD_ARGUMENTS` | "--cache-from -pp 8 --keep-buildx-builder" | `kaapana-build` flags, by default use the registry cache and 8 processes in parallel |
@@ -349,7 +350,7 @@ via [gitlab-ci-local](https://github.com/firecow/gitlab-ci-local)
 (`npm install -g gitlab-ci-local`). From the repo root:
 
 ```bash
-# everything the tests stage runs in CI (9 jobs)
+# everything the tests stage runs in CI (11 jobs)
 gitlab-ci-local --stage tests --variable CI_PIPELINE_SOURCE=web --privileged
 
 # a single job
@@ -372,7 +373,26 @@ gitlab-ci-local --list --variable CI_PIPELINE_SOURCE=web
 - Only the `tests` stage is meant to run locally — build/deploy/test/clean
   need registry credentials, Harvester access, and a test VM.
 
-## 11. Workflow testcases (`ci-config`)
+## 11. Reports in the GitLab UI
+
+Four of the five report types GitLab renders natively are wired up. Only
+GitLab reads them, no pipeline job does.
+
+| Report | Produced by | Where it shows |
+|---|---|---|
+| JUnit | every pytest job + `playwright_ui_tests` | pipeline **Tests** tab, failed-test summary in the MR |
+| Coverage (cobertura) | every unit-test job | coverage badge, line markers in the MR diff |
+| Code Quality | `code_quality` | MR **Code Quality** widget |
+| Container scanning | `security` | MR security widget, vulnerability report |
+
+Notes:
+
+- The `coverage` is per suite - each job measures the one directory it exercises. GitLab merges the reports for the diff view.
+- The `lint` job enforces the smaller set in `ruff.toml`.
+- The `code_quality` never fails. It widens the ruleset
+- Container scanning only runs when `CI_EXEC_SECURITY_SCAN=true` (nightly).
+
+## 12. Workflow testcases (`ci-config`)
 
 `run_workflows` collects every YAML document under any `<chart>/ci-config/*.yaml`
 as one testcase: the document is the payload for
@@ -484,7 +504,7 @@ Target branch: _develop_
 - Between the integration test jobs `needs:` order is the only guarantee:
   `first_login` → `install_extensions` → `send_data` → `run_workflows` pass
   platform state along, no job verifies what it expects to find. Inside
-  `run_workflows` the testcases do ([section 11](#11-workflow-testcases-ci-config)).
+  `run_workflows` the testcases do ([section 12](#12-workflow-testcases-ci-config)).
 - A workflow testcase whose DAG the platform does not know counts as passed, so a
   failed extension install can leave `run_workflows` green.
 - `install_extensions` and `send_data` carry `retry: 2` — known flakiness.

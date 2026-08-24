@@ -7,7 +7,7 @@ Best Practices
     :maxdepth: 4
 
     how_to_Dockerfile
-    black_formatter
+    code_formatting
 
 
     

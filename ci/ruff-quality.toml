@@ -1,0 +1,11 @@
+# Advisory ruleset for the code_quality CI job. Run it locally with:
+#   ruff check --config ci/ruff-quality.toml --statistics .
+extend = "../ruff.toml"
+
+[lint]
+# select on top of an extend also clears the extended ignore list
+select = ["E", "W", "F", "I", "B", "C4", "SIM", "UP", "RUF"]
+ignore = [
+    "E501", # the formatter owns line width
+    "B008", # FastAPI's Depends() idiom
+]

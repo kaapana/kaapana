@@ -1,0 +1,49 @@
+# Stage: tests — lint report + Code Quality report
+# In:  the job's own checkout
+# Out: `lint` warns on formatting drift or an enforced ruff rule
+##############################################
+# RUFF
+##############################################
+.ruff_template:
+  stage: tests
+  tags:
+    - tests-runner
+  image: python:3.12
+  rules:
+    - if: '$CI_EXEC_LINT == "true"'
+      when: always
+    - when: never
+  variables:
+    # Bump together with the rev in .pre-commit-config.yaml.
+    RUFF_VERSION: "0.16.4"
+  before_script:
+    - 'grep -q "rev: v$RUFF_VERSION" .pre-commit-config.yaml'
+    - pip install --no-cache-dir "ruff==$RUFF_VERSION"
+
+##############################################
+# Lint: formatting + the enforced rules from ruff.toml — advisory, never blocks
+##############################################
+lint:
+  extends: .ruff_template
+  allow_failure: true
+  script:
+    # check only — run `ruff format .` locally to fix
+    - ruff format --check --diff .
+    - ruff check --output-format=full .
+
+##############################################
+# Code Quality report — advisory, never fails
+##############################################
+code_quality:
+  extends: .ruff_template
+  script:
+    - ruff check --config ci/ruff-quality.toml --output-format=gitlab --exit-zero . > gl-code-quality-report.json
+    # same findings, in the job log
+    - ruff check --config ci/ruff-quality.toml --statistics --exit-zero .
+  artifacts:
+    when: always
+    reports:
+      codequality: gl-code-quality-report.json
+    # available in the job's artifacts via API
+    paths:
+      - gl-code-quality-report.json

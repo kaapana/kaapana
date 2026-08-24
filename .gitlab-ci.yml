@@ -30,6 +30,7 @@ workflow:
 variables:
   # --- Execution toggles: which stages a pipeline runs.
   # Override per-run via "Run pipeline" or per-schedule via schedule variables.
+  CI_EXEC_LINT: "true" # tests stage: ruff format/lint gate + code quality report
   CI_EXEC_UNIT_TESTS: "true" # tests stage: unit tests + documentation build
   CI_EXEC_BUILD: "true" # build stage: full platform build
   CI_EXEC_BUILD_ARGUMENTS: "" # extra kaapana-build flags, e.g. "--vulnerability-scan"
@@ -125,6 +126,7 @@ variables:
 # the stage takes in and hands out.
 include:
   - local: /ci/pipeline/ci-image.yml
+  - local: /ci/pipeline/lint.yml
   - local: /ci/pipeline/unit-tests.yml
   - local: /ci/pipeline/build.yml
   - local: /ci/pipeline/deploy.yml

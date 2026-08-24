@@ -182,7 +182,7 @@ Any label whose key starts with `kaapana.immutable.` is treated as **immutable**
 * Run `DOCKER_BUILDKIT=0 docker compose build`
 * Run `docker compose up` 
 * Ensure all tests pass via `cd files/tests && pytest workflow_run_test.py workflow_test.py`
-* Follow existing formatting using `black` for your changes
+* Format your changes with `ruff format .` from the repository root (see `ruff.toml`)
 * Provide end to end tests for new use cases introduced
 
 

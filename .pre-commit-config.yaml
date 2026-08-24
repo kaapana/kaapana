@@ -1,8 +1,10 @@
+# Install with:
+#   pip install pre-commit && pre-commit install
+# Keep rev in sync with RUFF_VERSION in ci/pipeline/lint.yml.
 repos:
-- repo: local
-  hooks:
-  - id: kaapana-pre-commit
-    name: Kaapana Pre Commmit
-    entry: utils/pre-commit
-    language: system
-    types: [file, python]
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.4
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format

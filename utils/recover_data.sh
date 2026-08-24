@@ -530,7 +530,21 @@ build_namespace_helm_map() {
 # ============================================================================
 # DISCOVER RELEASED PVs AND ADD TO CONFIG
 # ============================================================================
-# Add released PVs to the recovery set unless they match quarantine patterns.
+# Whether a PV hostPath lies inside one of the configured data directories.
+# Compares the plain paths, like the rest of the script - a data dir reached
+# through a symlink is not recognised.
+# Params:
+#   $1 hostPath of the PV.
+# Returns: 0 when the path is inside FAST_DATA_DIR or SLOW_DATA_DIR.
+hostpath_is_in_data_dirs() {
+    local path
+    path="$(normalize_dir_path "$1")"
+
+    [[ "$path" == "$FAST_DATA_DIR"/* || "$path" == "$SLOW_DATA_DIR"/* ]]
+}
+
+# Add released PVs to the recovery set unless they match quarantine patterns or
+# live outside the configured data directories.
 # Params: none.
 # Returns: 0 when discovery completes.
 # Side effects: updates RELEASED_PV_MAP and PVC_CONFIG.
@@ -541,6 +555,8 @@ discover_and_add_released_pvs() {
 
     local json=$($KUBE get pv -o json 2>/dev/null || echo '{"items":[]}')
     local count=0
+    local adopted=0
+    local skipped_outside=0
 
     while IFS=$'\t' read -r pv_name ns pvc_name storage_class capacity hostpath; do
         [[ -z "$pv_name" || -z "$ns" || -z "$pvc_name" ]] && continue
@@ -552,7 +568,33 @@ discover_and_add_released_pvs() {
             continue
         fi
 
+        if [[ -n "$hostpath" ]] && ! hostpath_is_in_data_dirs "$hostpath"; then
+            # The volume sits outside the data directories this recovery was pointed
+            # at, so it belongs to a different platform lifetime - typically because
+            # the data dir was changed between deployments. Adopting it would pair
+            # this claim with data the other claims are not paired with.
+            echo "  Skipping Released PV outside the configured data dirs: $pv_name ($pvc_key)"
+            echo "    path: $hostpath"
+            skipped_outside=$((skipped_outside+1))
+            continue
+        fi
+
+        if [[ -n "${RELEASED_PV_MAP[$pvc_key]:-}" ]]; then
+            # More than one Released PV for a claim means the host carries volumes
+            # from more than one platform lifetime. Keeping only the last one seen
+            # decides per claim, so different services can be recovered from
+            # different lifetimes - which stays silent until data operations start
+            # behaving wrongly. Let the operator decide instead.
+            echo "ERROR: More than one Released PV for $pvc_key:"
+            echo "  - ${RELEASED_PV_MAP[$pvc_key]}"
+            echo "  - $pv_name"
+            echo "Move the volumes of obsolete platform lifetimes out of the data"
+            echo "directories, or quarantine the claim, and run recovery again."
+            exit 1
+        fi
+
         RELEASED_PV_MAP["$pvc_key"]="$pv_name"
+        adopted=$((adopted+1))
 
         # Check if already in PVC_CONFIG using the full key
         if [[ -n "${PVC_CONFIG[$pvc_key]:-}" ]]; then
@@ -581,6 +623,21 @@ discover_and_add_released_pvs() {
 
         ((count++)) || true
     done < <(echo "$json" | jq -r '.items[]? | select(.status.phase=="Released") | [.metadata.name, .spec.claimRef.namespace, .spec.claimRef.name, .spec.storageClassName // "", .spec.capacity.storage // "10Gi", .spec.hostPath.path // ""] | @tsv')
+
+    if [[ $skipped_outside -gt 0 ]]; then
+        echo "  Skipped $skipped_outside Released PV(s) outside $FAST_DATA_DIR / $SLOW_DATA_DIR"
+    fi
+
+    if [[ $adopted -eq 0 && $skipped_outside -gt 0 ]]; then
+        # Every Released PV was filtered out. Continuing would recover empty volumes
+        # and leave the real data orphaned, so say so instead.
+        echo "ERROR: All Released PVs live outside the configured data directories."
+        echo "Fast: $FAST_DATA_DIR"
+        echo "Slow: $SLOW_DATA_DIR"
+        echo "Point --fast-dir/--slow-dir at the data directories that hold the"
+        echo "surviving data, and run recovery again."
+        exit 1
+    fi
 
     echo "  Auto-added $count PVCs from Released PVs"
     echo ""
@@ -692,7 +749,8 @@ filter_quarantined_pvcs_from_config() {
 #   $1 pvc name.
 #   $2 data directory to search.
 #   $3 namespace.
-# Returns: echoes the selected source directory path when found.
+# Returns: echoes the selected source directory path when found; 1 when no
+#   directory matches; 2 when several match and the choice is ambiguous.
 # Side effects: writes discovery details to stderr.
 discover_pv_directory() {
     local pvc_name="$1"
@@ -720,17 +778,15 @@ discover_pv_directory() {
         return 0
     fi
 
-    # Multiple matches - show all and pick newest
-    echo "    Found ${#matches[@]} existing directories:" >&2
+    # Multiple matches - directories from more than one platform lifetime. They
+    # cannot be ordered: the PV name embeds a random UUID, not a timestamp, so
+    # picking one here is a coin flip, and doing it per claim can recover services
+    # from different lifetimes. Report the candidates and let the caller abort.
+    echo "    ERROR: ${#matches[@]} candidate directories for ${namespace}/${pvc_name}:" >&2
     for dir in "${matches[@]}"; do
         echo "      - $(basename "$dir")" >&2
     done
-
-    # Select the NEWEST (reverse sort by name, which sorts by UUID timestamp)
-    local newest=$(printf '%s\n' "${matches[@]}" | sort -r | head -n1)
-    echo "    Selected newest: $(basename "$newest")" >&2
-    echo "$newest"
-    return 0
+    return 2
 }
 
 # Ensure a namespace exists with the expected Helm ownership annotations.
@@ -827,9 +883,18 @@ process_single_pvc() {
     local search_dir=$(get_search_dir_for_storage_class "$storage_class")
     local source_pv_path=""
 
-    if source_pv_path=$(discover_pv_directory "$pvc_name" "$search_dir" "$namespace"); then
-        : # source_pv_path is set
-    else
+    local discover_rc=0
+
+    source_pv_path=$(discover_pv_directory "$pvc_name" "$search_dir" "$namespace") || discover_rc=$?
+    if [[ $discover_rc -eq 2 ]]; then
+        # discover_pv_directory already listed the candidates. Abort the whole
+        # recovery: recovering the remaining claims would build a half-consistent
+        # platform out of volumes from different lifetimes.
+        echo "ERROR: Cannot decide which directory belongs to $namespace/$pvc_name."
+        echo "Move the directories of obsolete platform lifetimes out of $search_dir,"
+        echo "or quarantine the claim, and run recovery again."
+        exit 1
+    elif [[ $discover_rc -ne 0 ]]; then
         echo "    No existing source directory found"
     fi
 

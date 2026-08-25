@@ -1,0 +1,72 @@
+# Stage: benchmark — benchmark suites against the deployed platform
+# In:  deployment.env dotenv (VM_FQDN, VM_USER); $BENCHMARK_CONFIG (File-type
+#      variable holding the dataset, the login and the scenarios — see
+#      ci/benchmark.config.example); the live, integration-tested platform
+# Out: JSON + Markdown + OpenMetrics results as job artifacts
+##############################################
+# BENCHMARK
+##############################################
+benchmark_platform:
+  extends: .remote_execution_template
+  stage: benchmark
+  allow_failure: true
+  timeout: 3 hours
+  rules:
+    - if: '$CI_EXEC_BENCHMARK == "true" && $CI_EXEC_DEPLOY == "true" && $CI_EXEC_INTEGRATION_TESTS == "true"'
+      when: on_success
+    - when: never
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+    - platform_deployment
+    - first_login
+    - run_workflows
+    - playwright_ui_tests
+  script:
+    - test -f "$BENCHMARK_CONFIG" || { echo "BENCHMARK_CONFIG is not set - pass the benchmark config as a File-type CI/CD variable (project setting, or --variables-file BENCHMARK_CONFIG:<file>), see ci/benchmark.config.example"; exit 1; }
+    # set -a: the CLI reads BENCHMARK_PASSWORD from the environment, and the
+    # config's own keys reference each other.
+    - set -a; . "$BENCHMARK_CONFIG"; set +a
+    - |
+      for key in BENCHMARK_DATA_REPO_URL BENCHMARK_DATA_REPO_TOKEN BENCHMARK_CHECKOUT_DIR \
+                 BENCHMARK_DATA_DIR BENCHMARK_PASSWORD BENCHMARK_SUITES BENCHMARK_SCENARIOS; do
+        test -n "${!key}" || { echo "BENCHMARK_CONFIG sets no $key"; exit 1; }
+      done
+    - |
+      # Token kept out of the URL so it can come from a masked variable — a
+      # File-type variable cannot be masked. git-lfs reuses the same credentials.
+      CLONE_URL="https://oauth2:$BENCHMARK_DATA_REPO_TOKEN@${BENCHMARK_DATA_REPO_URL#https://}"
+      if [ -d "$BENCHMARK_CHECKOUT_DIR/.git" ]; then
+        git -C "$BENCHMARK_CHECKOUT_DIR" remote set-url origin "$CLONE_URL"
+        git -C "$BENCHMARK_CHECKOUT_DIR" pull
+      else
+        git clone "$CLONE_URL" "$BENCHMARK_CHECKOUT_DIR"
+      fi
+      git -C "$BENCHMARK_CHECKOUT_DIR" lfs pull
+    - pip install -e "$CI_PROJECT_DIR/utils/platform-benchmark"
+    # Own subdirectory: $ARTIFACTS_DIR also holds prepare_deployment's
+    # deployment.env, and expose_as below cannot filter it back out.
+    - mkdir -p "$ARTIFACTS_DIR/benchmark"
+    # Shipped with the results: the load these numbers came from.
+    - printf '%s\n' "$BENCHMARK_SCENARIOS" > "$ARTIFACTS_DIR/benchmark/scenarios.json"
+    # The internet/gpu suites need cluster access, not HTTP.
+    - KUBECTL_CMD="ssh -i $CI_SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $VM_USER@$VM_FQDN microk8s kubectl"
+    - |
+      SUITE_FLAGS=""
+      for suite in $BENCHMARK_SUITES; do SUITE_FLAGS="$SUITE_FLAGS --suite $suite"; done
+      # --profile keeps CI numbers from being compared against workstation runs.
+      benchmark run \
+        --host "https://$VM_FQDN" \
+        --data-dir "$BENCHMARK_DATA_DIR" --kubectl "$KUBECTL_CMD" \
+        --scenarios "$ARTIFACTS_DIR/benchmark/scenarios.json" \
+        --out-dir "$ARTIFACTS_DIR/benchmark" \
+        --profile ci-vm --repo "$CI_PROJECT_DIR" \
+        ${BENCHMARK_USERNAME:+--username "$BENCHMARK_USERNAME"} \
+        ${BENCHMARK_REPEAT:+--repeat "$BENCHMARK_REPEAT"} \
+        ${BENCHMARK_WARMUP:+--warmup "$BENCHMARK_WARMUP"} \
+        $SUITE_FLAGS
+  artifacts:
+    when: always
+    paths:
+      - "$ARTIFACTS_DIR/benchmark/"
+    expose_as: "Benchmark Results"

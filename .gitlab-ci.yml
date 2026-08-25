@@ -6,6 +6,7 @@ stages:
   - build
   - deploy
   - test
+  - benchmark
   - clean
 
 workflow:
@@ -23,6 +24,10 @@ workflow:
       when: always
     - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "schedule"
       when: always
+    - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TITLE !~ /^Draft:/ && $CI_MERGE_REQUEST_LABELS =~ /(^|,)Benchmark(,|$)/
+      when: always
+      variables:
+        CI_EXEC_BENCHMARK: "true"
     - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TITLE !~ /^Draft:/
       when: always
     - when: never
@@ -36,6 +41,7 @@ variables:
   CI_EXEC_DEPLOY: "true" # deploy stage: provision test VM + server install + platform deploy
   CI_EXEC_SERVER_INSTALLATION: "true" # "false" skips the OS/microk8s install (target already prepared)
   CI_EXEC_INTEGRATION_TESTS: "true" # test stage: pytest + Playwright against the test VM
+  CI_EXEC_BENCHMARK: "false" # benchmark stage: measure the deployed platform; the "Benchmark" MR label sets this
   # Registry-based scan of the images this pipeline pushed (nightly schedules
   # set "true"); scans no longer run inside the build job.
   CI_EXEC_SECURITY_SCAN: "false"
@@ -63,7 +69,7 @@ variables:
   # CI_IMAGES_TAG in the same MR that changes ci/images/** — re-pushing an
   # existing tag leaves warm runners on the stale image. Always
   # $CI_REGISTRY_URL, never the release registry.
-  CI_IMAGES_TAG: "v3"
+  CI_IMAGES_TAG: "v5"
   CI_BASE_IMAGE: "$CI_REGISTRY_URL/ci-base:$CI_IMAGES_TAG"
 
   # Purpose-specific tokens, currently aliasing the shared CI_REGISTRY_TOKEN.
@@ -129,4 +135,5 @@ include:
   - local: /ci/pipeline/build.yml
   - local: /ci/pipeline/deploy.yml
   - local: /ci/pipeline/integration-tests.yml
+  - local: /ci/pipeline/benchmark.yml
   - local: /ci/pipeline/clean.yml

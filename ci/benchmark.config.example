@@ -1,0 +1,76 @@
+# Kaapana benchmark configuration — the content of the File-type CI/CD variable
+# $BENCHMARK_CONFIG. benchmark_platform sources this file, so every line is a
+# shell assignment and $CI_* plus earlier keys expand.
+#
+# File-type variables cannot be masked. The read token is therefore its own key:
+# set it as a masked CI/CD variable of the same name and the assignment below
+# leaves it alone, or paste it here and accept that it is stored in the clear.
+
+# Dataset repo the ingest suite sends, and where the runner checks it out. The
+# token needs read_repository only; git-lfs reuses the same credentials.
+BENCHMARK_DATA_REPO_URL=https://codebase.helmholtz.cloud/kaapana/data.git
+BENCHMARK_DATA_REPO_TOKEN=${BENCHMARK_DATA_REPO_TOKEN:-<read-only access token>}
+BENCHMARK_CHECKOUT_DIR=$CI_BUILDS_DIR/kaapana-data
+
+# Dataset root: what --data-dir points at, and what the scenario paths below are
+# relative to.
+BENCHMARK_DATA_DIR=$BENCHMARK_CHECKOUT_DIR/image_modalities
+
+# Platform login; "admin" is what first_login sets.
+BENCHMARK_USERNAME=kaapana
+BENCHMARK_PASSWORD=admin
+
+# What runs: suites (ingest, internet, gpu, helm), measured repetitions of each,
+# and discarded repetitions before them.
+BENCHMARK_SUITES="ingest"
+BENCHMARK_REPEAT=3
+BENCHMARK_WARMUP=1
+
+# The load the ingest suite sends, in declared order. Paths are sent
+# recursively, so a path is one series directory or a whole modality directory —
+# the scenario set belongs to this file, not to the benchmark code.
+BENCHMARK_SCENARIOS='{
+  "low": {
+    "description": "one CT series with its linked SEG and RTSTRUCT, plus one slide",
+    "paths": [
+      "NSCLC/CT/LUNG1-001",
+      "NSCLC/SEG/LUNG1-001",
+      "NSCLC/RTSTRUCT/LUNG1-001",
+      "CDDP-EAGLE/SM/CDDP-A8B0"
+    ]
+  },
+  "medium": {
+    "description": "five patients (CT + SEG + RTSTRUCT) and five slides at once",
+    "paths": [
+      "NSCLC/CT/LUNG1-001",
+      "NSCLC/CT/LUNG1-002",
+      "NSCLC/CT/LUNG1-003",
+      "NSCLC/CT/LUNG1-004",
+      "NSCLC/CT/LUNG1-005",
+      "NSCLC/SEG/LUNG1-001",
+      "NSCLC/SEG/LUNG1-002",
+      "NSCLC/SEG/LUNG1-003",
+      "NSCLC/SEG/LUNG1-004",
+      "NSCLC/SEG/LUNG1-005",
+      "NSCLC/RTSTRUCT/LUNG1-001",
+      "NSCLC/RTSTRUCT/LUNG1-002",
+      "NSCLC/RTSTRUCT/LUNG1-003",
+      "NSCLC/RTSTRUCT/LUNG1-004",
+      "NSCLC/RTSTRUCT/LUNG1-005",
+      "CDDP-EAGLE/SM/CDDP-A8B0",
+      "CDDP-EAGLE/SM/CDDP-A8B5",
+      "CDDP-EAGLE/SM/CDDP-A8B6",
+      "CDDP-EAGLE/SM/CDDP-A8B7",
+      "CDDP-EAGLE/SM/CDDP-A8B9"
+    ]
+  },
+  "high": {
+    "description": "40 series at once — twice the ingestion DAG max_active_runs",
+    "paths": [
+      "NSCLC/CT",
+      "NSCLC/SEG",
+      "NSCLC/RTSTRUCT",
+      "CDDP-EAGLE/SM"
+    ]
+  }
+}'

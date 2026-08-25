@@ -1,0 +1,19 @@
+[project]
+name = "kaapana-platform-benchmark"
+version = "1.0.0"
+description = "Benchmark a running Kaapana platform: ingestion pipeline, cluster network, GPU, helm"
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.31",
+    "urllib3>=2.0",
+]
+
+[project.scripts]
+benchmark = "kaapana_benchmark.cli:main"
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -34,7 +34,7 @@ const ShellSettingsDemo = defineComponent({
 })
 
 const meta: Meta<typeof ShellSettingsDemo> = {
-  title: 'useShellSettings',
+  title: 'Library / useShellSettings',
   component: ShellSettingsDemo,
 }
 

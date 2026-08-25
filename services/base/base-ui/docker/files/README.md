@@ -4,9 +4,6 @@ Small shared UI library for the Kaapana frontend views (`services/base/*-ui`).
 Holds components/utilities that would otherwise be copy-pasted per view —
 deliberately only small, stable pieces.
 
-Current exports of the main `.` entry (`src/index.ts`) — 16 values plus the
-three types `UserinfoJwt`, `User` and `Project`:
-
 - `httpClient`, `httpClientWithoutTimeout` — the shared axios instances (10 s
   timeout / none). Both rewrite calls to project-scoped services onto
   `/project/<short_id>/<service>/…` via a request interceptor.
@@ -21,10 +18,38 @@ three types `UserinfoJwt`, `User` and `Project`:
   embedded view has unsaved in-memory state.
 - `kaapanaThemeLight`, `kaapanaThemeDark`, `KAAPANA_THEME_LIGHT`,
   `KAAPANA_THEME_DARK` — the shared Vuetify theme definitions and their names.
+- `createKaapanaVuetify()`, `KaapanaVuetifyOptions` — builds the shared theme,
+  icon configuration and platform fonts while allowing consumer extensions.
+- `kaapanaIcons`, `KaapanaIconName` — semantic names for shared action icons.
 - `useAuthStore`, `User` / `useProjectStore`, `Project` — the two Pinia stores
   every view registers.
 - `useShellSettings()` — follows the shell's UI settings (dark mode live, other
   changes via a remount key).
+
+## Styles a consuming view must import
+
+```ts
+import 'vuetify/styles'
+import '@mdi/font/css/materialdesignicons.css'
+```
+
+That is the whole list. In particular there is **no font import**: the platform
+typeface (Roboto, weights 300/400/500) is injected by `createKaapanaVuetify()`,
+so a view that uses the shared Vuetify configuration cannot ship the theme and
+forget the face.
+
+Why it works that way. Vuetify's stylesheet asks for `"Roboto", sans-serif` in 81
+separate rule blocks and exposes no CSS custom property for the family, so a view
+that does not provide the face silently renders in whatever the client OS
+substitutes — Arial on Windows, DejaVu on Linux. Expecting each view to remember
+an import did not work: none of the nine new view containers had one. The
+stylesheets are imported here with `?inline` and injected as a single `<style>`
+element, which costs ~174 kB of base64 inside `index.js` and buys zero font
+requests and nothing for a view to remember. `@mdi/font` is deliberately *not*
+handled this way — its webfont would add ~2 MB of base64.
+
+Changing the family is not possible through the theme, for the same reason it has
+to be shipped: it takes recompiling Vuetify's Sass through `$body-font-family`.
 
 `vue`, `vuetify`, `axios`, `@kyvg/vue3-notification` and `pinia` are all
 peerDependencies and none of them is ever bundled; the consuming view provides
@@ -65,8 +90,6 @@ resolve: {
 Consumers of the `./workflow-execution` entry append `'@koumoul/vjsf'`; the
 other views must not, since they do not install that optional peer. A missing
 entry is a hard build failure (`Rollup failed to resolve import …`).
-
-## Dev loop
 
 One-time (and after every change to `src/`):
 

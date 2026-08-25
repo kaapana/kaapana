@@ -185,25 +185,26 @@ On-VM troubleshooting: `sudo gitlab-runner verify`,
 `sudo systemctl status gitlab-runner`, config at
 `/etc/gitlab-runner/config.toml`.
 
-### Harvester functional user
+### Harvester ServiceAccount user
 
-CI talks to Harvester as the `kaapana-ci` ServiceAccount in the `kaapana-ci`
-namespace. The credential is the `HARVESTER_KUBECONFIG` File-type CI variable:
-GitLab writes the variable's value into a temp file inside the job container and
-sets the variable to that file's *path*, which is what the playbooks hand to the
-`kubeconfig:` option of `kubernetes.core.k8s`. Nothing is stored on the runner
-VMs — `ci/harvester/tasks/configure-vm-base.yaml` copies no kubeconfig — so
-swapping the credential is one variable edit and needs no runner
-re-provisioning. Locally the same variable points at your own file:
-`export HARVESTER_KUBECONFIG=~/.kube/harvester.yaml`.
+CI reaches Harvester as the `kaapana-ci` ServiceAccount in the `kaapana-ci` namespace, through the `HARVESTER_KUBECONFIG` File-type CI variable. 
 
-**Minting the kubeconfig.** Run these with your own Harvester credential; a
-namespace member may create the ServiceAccount and the Secret, but not the RBAC
-objects (see below).
+Unexpirable ServiceAccount token was used to build Harvester config. The kubeconfig must name `https://10.129.1.5:6443` directly, which is now also added by default to `NO_PROXY`.
+
+<details>
+<summary><b>Rebuilding the kubeconfig</b></summary>
+
+Steps 1–3 run with your own Harvester credential.
+
+**1. ServiceAccount and token Secret.** 
+
+The Secret type is what makes the token unexpirable: the API
+server writes a token without an `exp` claim, valid as long as both objects live. No need to recreate if both exists.
 
 ```bash
-kubectl --kubeconfig ~/.kube/harvester.yaml -n kaapana-ci create serviceaccount kaapana-ci
-kubectl --kubeconfig ~/.kube/harvester.yaml apply -f - <<'EOF'
+KC=~/.kube/harvester.yaml
+kubectl --kubeconfig $KC -n kaapana-ci create serviceaccount kaapana-ci
+kubectl --kubeconfig $KC apply -f - <<'EOF'
 apiVersion: v1
 kind: Secret
 metadata:
@@ -213,12 +214,20 @@ metadata:
     kubernetes.io/service-account.name: kaapana-ci
 type: kubernetes.io/service-account-token
 EOF
+```
 
-kubectl --kubeconfig ~/.kube/harvester.yaml -n kaapana-ci get secret kaapana-ci-token \
+**2. Read CA and token.**
+
+```bash
+kubectl --kubeconfig $KC -n kaapana-ci get secret kaapana-ci-token \
   -o jsonpath='{.data.ca\.crt}' | base64 -d > /tmp/harvester-ca.crt
-TOKEN=$(kubectl --kubeconfig ~/.kube/harvester.yaml -n kaapana-ci get secret kaapana-ci-token \
+TOKEN=$(kubectl --kubeconfig $KC -n kaapana-ci get secret kaapana-ci-token \
   -o jsonpath='{.data.token}' | base64 -d)
+```
 
+**3. Assemble the kubeconfig.**
+
+```bash
 export KUBECONFIG=/tmp/harvester-ci.kubeconfig
 kubectl config set-cluster harvester01 --server=https://10.129.1.5:6443 \
   --certificate-authority=/tmp/harvester-ca.crt --embed-certs=true
@@ -226,14 +235,13 @@ kubectl config set-credentials kaapana-ci --token="$TOKEN"
 kubectl config set-context harvester01 --cluster=harvester01 --user=kaapana-ci \
   --namespace=kaapana-ci
 kubectl config use-context harvester01
-unset KUBECONFIG
 ```
 
-Verify before uploading — `auth whoami` must name the ServiceAccount and every
-verb below must answer `yes`:
+**4. Verify.** `auth whoami` must name
+`system:serviceaccount:kaapana-ci:kaapana-ci`, and all nine verbs must answer
+`yes`.
 
 ```bash
-export KUBECONFIG=/tmp/harvester-ci.kubeconfig
 kubectl auth whoami
 for r in "create virtualmachines.kubevirt.io" "delete virtualmachines.kubevirt.io" \
          "list virtualmachineimages.harvesterhci.io" "get keypairs.harvesterhci.io" \
@@ -244,151 +252,17 @@ done
 unset KUBECONFIG
 ```
 
-Then store it as the File-type variable and remove the local copies:
+**5. Store it and wipe the local copies.**
 
 ```bash
-glab variable update HARVESTER_KUBECONFIG < /tmp/harvester-ci.kubeconfig   # keeps type File
-glab variable set HARVESTER_KUBECONFIG -t file < /tmp/harvester-ci.kubeconfig  # first time
+glab variable update HARVESTER_KUBECONFIG < /tmp/harvester-ci.kubeconfig # keeps type File
+glab variable set HARVESTER_KUBECONFIG -t file < /tmp/harvester-ci.kubeconfig # first time only
 shred -u /tmp/harvester-ci.kubeconfig /tmp/harvester-ca.crt
 ```
 
-The File type is what makes GitLab materialize the value as a file; as a normal
-env var the playbooks would receive YAML where they expect a path. `glab variable
-update` has no `--type` flag, so changing an existing variable's type means
-`glab variable delete` followed by `glab variable set -t file`. To try a
-kubeconfig without touching the stored one, pass it per run instead:
-`glab ci run --variables-file HARVESTER_KUBECONFIG:/tmp/harvester-ci.kubeconfig`
-— pipeline variables outrank project variables for that pipeline only, and are
-readable afterwards through the pipeline's variables API.
-
-**Why the token does not expire.** The token comes from a Secret of type
-`kubernetes.io/service-account-token` (`secret/kaapana-ci-token`, annotated
-`kubernetes.io/service-account.name: kaapana-ci`). Tokens the API server puts
-into such a Secret carry no `exp` claim and stay valid as long as the Secret and
-the ServiceAccount exist. Check any time:
-
-```bash
-kubectl --kubeconfig ~/.kube/harvester.yaml -n kaapana-ci get secret kaapana-ci-token \
-  -o jsonpath='{.data.token}' | base64 -d | cut -d. -f2 | tr '_-' '/+' | base64 -d
-```
-
-Do not switch to `kubectl create token` — that is the TokenRequest API, whose
-tokens expire (one hour by default) and would need refreshing every pipeline. To
-revoke, delete the Secret; to rotate, delete and re-apply it and rebuild the
-kubeconfig.
-
-**API server.** The kubeconfig must name `https://10.129.1.5:6443` directly. The
-Rancher proxy (`https://sci-cloud.dkfz.de/k8s/clusters/c-zrj95`) resolves only
-Rancher credentials of the form `ext/token-xxxxx:secret` and answers a
-ServiceAccount token with `User "system:unauthenticated" ...
-management.cattle.io`.
-
-The DKFZ proxy is in the way of that endpoint: `www-int2` answers
-`CONNECT 10.129.1.5:6443` with `403 Forbidden`. The exemption is that address in
-`NO_PROXY` in `.gitlab-ci.yml`, and it holds only because `ci-base` pins
-`kubernetes==36.0.3` in [`harvester/tasks/requirements.txt`](harvester/tasks/requirements.txt).
-
-Older clients read `NO_PROXY` and throw it away. Up to and including 35.0.0,
-`Configuration.__init__` loads it into `self.no_proxy` and then runs into the
-generated `self.no_proxy = None` four lines below, because the env-loading block
-was inserted above the `"""Proxy URL"""` docstring instead of below it;
-`self.proxy` survives only because its own assignment sits above the insertion
-point. `rest.py` then asks
-`should_bypass_proxies(host, no_proxy=self.no_proxy or "")`, and the `or ""`
-keeps `requests` from consulting the environment on its own, since it does that
-only for `None`. Version 36.0.0 (2026-05-20) moved the env block below both
-declarations. Measured by building the client through `kubernetes.core`'s own
-configuration path with a dead proxy in the environment:
-
-| Client | Pool manager for `https://10.129.1.5:6443` | Result |
-|---|---|---|
-| 35.0.0 | `ProxyManager` | fails, `ProxyError` |
-| 36.0.3 | `PoolManager` | direct, succeeds |
-
-So the pin is load-bearing: dropping below 36.0.0 silently re-breaks VM
-provisioning. The fallback if that ever happens is `K8S_AUTH_NO_PROXY=10.129.1.5`
-as a job variable — `kubernetes.core` reads `K8S_AUTH_*` as its own module
-options and applies `no_proxy` after the client is built, where the wipe cannot
-reach it. Symptom when the exemption is missing either way:
-`ProxyError('Unable to connect to proxy', OSError('Tunnel connection failed: 403
-Forbidden'))` on the first Harvester task. Running the playbooks by hand from a
-proxied workstation needs the address in your own shell's `NO_PROXY`, since
-`.gitlab-ci.yml` does not apply there.
-
-**The rights the account needs.** Two bindings, both namespace-scoped, together
-covering every call the playbooks make:
-
-- ClusterRole `kubevirt.io:edit`, bound into `kaapana-ci` — the whole
-  `kubevirt.io` group. Covers "Apply VM manifest", "Wait for VM to be running",
-  "Check if VM exists", "Delete VM and wait for removal".
-- Role `kaapana-ci-vm-support` (manifest below) — everything else:
-  - `harvesterhci.io/virtualmachineimages` `[get,list,watch]` — "Fetch image by
-    label selector" resolves `ubuntu24` to its generated name via
-    `harvesterhci.io/imageDisplayName`.
-  - `harvesterhci.io/keypairs` `[get,list,watch]` — "Get KeyPair" reads
-    `.spec.publicKey` of the `kaapana` KeyPair into the cloud-init userdata.
-  - `secrets` `[get,list,create,update,patch,delete]` — the per-VM
-    `<vm>-cloudinit` Secret, created before the VM and patched once with an
-    `ownerReference` so it is garbage-collected with the VM.
-  - `persistentvolumeclaims` `[get,list,watch,update,patch,delete]` — the disk
-    PVC is created by Harvester from the `harvesterhci.io/volumeClaimTemplates`
-    annotation, so `create` is not needed; the playbooks poll for it, patch the
-    `ownerReference`, and delete it explicitly during teardown.
-
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: kaapana-ci-vm-support
-  namespace: kaapana-ci
-rules:
-  - apiGroups: [""]
-    resources: [secrets]
-    verbs: [get, list, create, update, patch, delete]
-  - apiGroups: [""]
-    resources: [persistentvolumeclaims]
-    verbs: [get, list, watch, update, patch, delete]
-  - apiGroups: ["harvesterhci.io"]
-    resources: [virtualmachineimages, keypairs]
-    verbs: [get, list, watch]
-```
-
-Both RoleBindings name `subjects: [{kind: ServiceAccount, name: kaapana-ci,
-namespace: kaapana-ci}]`; one `roleRef` is `ClusterRole/kubevirt.io:edit`, the
-other `Role/kaapana-ci-vm-support`.
-
-**Who can create what.** A namespace member creates serviceaccounts, secrets and
-serviceaccount tokens in `kaapana-ci`, and holds no access to RBAC objects at
-all: `auth can-i create roles` and `create rolebindings` both answer `no`, and
-`get rolebindings` is `Forbidden`. Every rights change therefore goes through an
-SCI Cloud admin. Cluster-scoped writes are equally out of reach — `create
-clusterroles` answers `no` — but no ClusterRole is needed: `cluster-admin` and
-`kubevirt.io:edit` ship with the cluster.
-
-**How this was set up (August 2026).** The ServiceAccount and the token Secret
-were created with a namespace member's credentials. The first binding an admin
-made was `cluster-admin` (`rolebinding/kaapana-ci-cb`); on harvester01 it had no
-effect — `auth can-i --list` returned only the authenticated-principal defaults
-(`selfsubjectreviews`, a few read-only `settings.harvesterhci.io`,
-`/.well-known/openid-configuration`) and `auth can-i '*' '*'` answered `no` in
-every namespace, so that binding lives on another cluster. Then a RoleBinding of
-`kubevirt.io:edit` landed, and VM create/get/delete started working while the
-playbooks still failed on the image lookup, the keypair, the cloud-init Secret
-and the disk PVC — `kubevirt.io:edit` covers the `kubevirt.io` group and nothing
-else. Adding `kaapana-ci-vm-support` closed the gap. The account now passes all
-nine `auth can-i` checks the script runs, and a `--dry-run=server` VM create —
-which goes through Harvester's admission webhooks with the real multus network,
-sshName and `volumeClaimTemplates` annotation — is accepted.
-
-**Errors:**
-
-| Symptom | Cause |
-|---|---|
-| `User "system:unauthenticated" ... management.cattle.io` | The request reached Rancher's proxy. Point the kubeconfig at `https://10.129.1.5:6443`. |
-| `auth whoami` succeeds, every `auth can-i` answers `no` | The RoleBinding does not reach this account. Check the cluster and namespace it was created in, and its `roleRef`: Kubernetes accepts a `roleRef` naming a role that does not exist, creating an inert binding with no error and no event. `roleRef` is immutable, so a wrong one is fixed by deleting and recreating the binding. |
-| `x509: certificate is valid for ... not <host>` | The kubeconfig names a host instead of `10.129.1.5`. The API cert's SANs are `kubernetes*`, `localhost`, the bare node name `hv-cpu03-20-tp3` and the addresses; `harvester01.dkfz-heidelberg.de` resolves to the VIP but is absent from them. To use a name, either have an admin add the SAN, or set `tls-server-name: kubernetes` in the cluster entry. |
-| `Forbidden ... cannot list resource "rolebindings"` | Namespace members hold no read access to RBAC objects. Use `auth can-i` to see what the account may do. |
-| Playbook fails at "Fetch image by label selector" with `cannot list ... virtualmachineimages` | `kaapana-ci-vm-support` is missing or unbound. |
+**6. Update CI Variable on GitLab
+Rotate by deleting and re-applying the Secret and redoing steps 2–5; revoke by deleting the Secret.
+</details>
 
 ## 7. Releases
 
@@ -421,7 +295,7 @@ the precedence trap above).
 | `DOCKER_IO_USER` / `DOCKER_IO_PASSWORD` | no / yes | no | docker.io account (avoids pull rate limits) |
 | `SLACK_BOT_TOKEN` / `SLACK_CHANNEL_ID` | yes / no | no | Failure notifications on develop |
 | `KAAPANA_READTHEDOCS_TOKEN` | yes | no | Scheduled docs check |
-| `HARVESTER_KUBECONFIG` | File | no | Harvester cluster access — VM provisioning/deletion; kubeconfig of the `kaapana-ci` ServiceAccount ([section 6](#harvester-functional-user)) |
+| `HARVESTER_KUBECONFIG` | File | no | Harvester cluster access — VM provisioning/deletion; kubeconfig of the `kaapana-ci` ServiceAccount ([section 6](#harvester-serviceaccount-user)) |
 | `CI_SSH_PRIVATE_KEY` | File | no | SSH key for test VMs (Harvester `kaapana` KeyPair) |
 | `DOCKER_AUTH_CONFIG` | no | no | Pull auth for private job images (ci-base) — see below |
 

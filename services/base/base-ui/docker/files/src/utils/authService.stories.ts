@@ -12,7 +12,7 @@ const AuthServiceDemo = defineComponent({
 })
 
 const meta: Meta<typeof AuthServiceDemo> = {
-  title: 'authService',
+  title: 'Library / authService',
   component: AuthServiceDemo,
 }
 

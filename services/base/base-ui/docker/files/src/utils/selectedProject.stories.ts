@@ -17,7 +17,7 @@ const SelectedProjectDemo = defineComponent({
 })
 
 const meta: Meta<typeof SelectedProjectDemo> = {
-  title: 'selectedProject',
+  title: 'Library / selectedProject',
   component: SelectedProjectDemo,
 }
 

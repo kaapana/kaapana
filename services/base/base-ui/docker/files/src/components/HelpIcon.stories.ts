@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { HelpIcon } from './HelpIcon'
 
 const meta: Meta<typeof HelpIcon> = {
-  title: 'HelpIcon',
+  title: 'Library / HelpIcon',
   component: HelpIcon,
 }
 

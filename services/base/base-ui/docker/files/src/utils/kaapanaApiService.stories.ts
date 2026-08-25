@@ -12,7 +12,7 @@ const KaapanaApiServiceDemo = defineComponent({
 })
 
 const meta: Meta<typeof KaapanaApiServiceDemo> = {
-  title: 'kaapanaApiService',
+  title: 'Library / kaapanaApiService',
   component: KaapanaApiServiceDemo,
 }
 

@@ -17,7 +17,7 @@ const HttpClientDemo = defineComponent({
 })
 
 const meta: Meta<typeof HttpClientDemo> = {
-  title: 'httpClient',
+  title: 'Library / httpClient',
   component: HttpClientDemo,
 }
 

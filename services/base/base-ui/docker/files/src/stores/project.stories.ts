@@ -18,7 +18,7 @@ const ProjectStoreDemo = defineComponent({
 })
 
 const meta: Meta<typeof ProjectStoreDemo> = {
-  title: 'stores/project',
+  title: 'Library / stores / project',
   component: ProjectStoreDemo,
 }
 

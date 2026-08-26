@@ -201,6 +201,52 @@ keycloak_setup_tests:
         - keycloak_setup_report.xml
 
 ##############################################
+# UI e2e Tests (mock-backed Playwright, no platform)
+##############################################
+# One matrix job per frontend app; each suite starts its app on its own fixed
+# port (4300-4309; the registry lives in each app's playwright.config.ts header).
+# Jobs run containerized, so ports and browser caches are per-job; chromium is
+# fetched on every run.
+ui_e2e_tests:
+  extends: .test_template
+  # Node job: the template's python:3.12 image lacks the node >=20.19 the apps
+  # require (engines), and playwright needs a glibc distro for --with-deps.
+  image: node:22
+  variables:
+    # both casings: chromium must reach the app on localhost, not the proxy
+    NO_PROXY: "localhost,127.0.0.1"
+    no_proxy: "localhost,127.0.0.1"
+  parallel:
+    matrix:
+      - APP:
+          - data-upload-ui
+          - data-gallery-ui
+          - results-ui
+  script:
+    - APP_DIR="services/base/$APP/docker/files"
+    # Apps consuming @kaapana/base-ui (an npm file: link) import its built
+    # dist/ — build the library once before the app's own install/build.
+    - |
+      if grep -q '"@kaapana/base-ui"' "$KAAPANA_DIR/$APP_DIR/package.json"; then
+        (cd "$KAAPANA_DIR/services/base/base-ui/docker/files" && npm ci && npm run build)
+      fi
+    - cd "$KAAPANA_DIR/$APP_DIR"
+    - npm ci
+    - npx playwright install --with-deps chromium
+    - npm run build
+    - npx playwright test
+  # Relative, like every sibling job's report path: artifact paths are resolved
+  # against $CI_PROJECT_DIR (= $KAAPANA_DIR), not against the script's cwd, so
+  # the script's cd into the app does not move them.
+  artifacts:
+    when: always
+    paths:
+      - "services/*/*/docker/files/test-results/"
+    reports:
+      junit:
+        - "services/**/test-results/junit.xml"
+
+##############################################
 # Documentation Build
 ##############################################
 build_documentation:

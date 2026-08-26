@@ -30,8 +30,10 @@ export const useProjectStore = defineStore('project', {
     availableProjectsGetter: (state): Project[] => state.availableProjects,
   },
   actions: {
-    getSelectedProject(): Promise<boolean | void> {
-      return new Promise((resolve) => {
+    // Rejects when the project lookup fails; resolves false only for the
+    // no-matching-project case, which is normal control flow (redirect).
+    getSelectedProject(): Promise<boolean> {
+      return new Promise((resolve, reject) => {
         httpClient.get('/aii/users/current').then((userResponse: any) => {
           const current_user: any = userResponse.data
 
@@ -69,14 +71,8 @@ export const useProjectStore = defineStore('project', {
             this.updateSelectedProject(selected)
             this.availableProjects = response.data
             resolve(true)
-          }).catch((error: any) => {
-            console.error('Error fetching projects:', error)
-            resolve(false)
-          })
-        }).catch((error: any) => {
-          console.error('Error fetching projects:', error)
-          resolve(false)
-        })
+          }).catch(reject)
+        }).catch(reject)
       })
     },
     updateSelectedProject(selectedProject: Project) {

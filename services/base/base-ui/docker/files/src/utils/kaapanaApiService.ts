@@ -99,9 +99,6 @@ import { httpClient } from './httpClient'
           })
           return true
         })
-        .catch((err) => {
-          console.log(err);
-        });
     }
   const kaapanaApiService = {
     helmApiPost,

@@ -89,18 +89,21 @@ class ContainerHelper:
         )
 
         if inspect_result.returncode != 0:
+            create_command = [
+                "docker",
+                "buildx",
+                "create",
+                "--name",
+                BUILDX_BUILDER_NAME,
+                "--driver",
+                "docker-container",
+                "--driver-opt",
+                "network=host",
+            ]
+            create_command.extend(cls._buildx_proxy_driver_opts())
+
             CommandUtils.run(
-                [
-                    "docker",
-                    "buildx",
-                    "create",
-                    "--name",
-                    BUILDX_BUILDER_NAME,
-                    "--driver",
-                    "docker-container",
-                    "--driver-opt",
-                    "network=host",
-                ],
+                create_command,
                 logger=logger,
                 timeout=60,
                 context="buildx-create",
@@ -109,6 +112,36 @@ class ContainerHelper:
                     "Cache export (--cache-to) requires the docker-container driver."
                 ],
             )
+
+    @classmethod
+    def _buildx_proxy_driver_opts(cls) -> list:
+        """
+        Build --driver-opt env.* flags so the isolated docker-container
+        builder inherits proxy settings, mirroring the --http-proxy value
+        already used for --build-arg http_proxy/https_proxy in Container.build().
+
+        Without this, the builder container has its own network namespace and
+        does not automatically pick up the host's proxy, causing outbound
+        requests (e.g. apk/apt package fetches) to fail even though a plain
+        `docker build` on the host succeeds.
+        """
+        http_proxy = cls._build_config.http_proxy
+        if not http_proxy:
+            return []
+
+        driver_opts = []
+        for proxy_var in ("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY"):
+            driver_opts.extend(["--driver-opt", f"env.{proxy_var}={http_proxy}"])
+
+        # Forward the host's no_proxy so internal/registry traffic doesn't get
+        # routed through the proxy as well; the CLI has no dedicated option for
+        # this, so fall back to whatever is set in the calling shell.
+        no_proxy = os.environ.get("no_proxy") or os.environ.get("NO_PROXY")
+        if no_proxy:
+            for no_proxy_var in ("no_proxy", "NO_PROXY"):
+                driver_opts.extend(["--driver-opt", f"env.{no_proxy_var}={no_proxy}"])
+
+        return driver_opts
 
     @classmethod
     def container_registry_login(cls, username: str, password: str):

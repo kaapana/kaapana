@@ -1,4 +1,5 @@
 import os
+import tempfile
 from pathlib import Path
 from shutil import which
 from subprocess import PIPE, run
@@ -89,29 +90,31 @@ class ContainerHelper:
         )
 
         if inspect_result.returncode != 0:
-            create_command = [
-                "docker",
-                "buildx",
-                "create",
-                "--name",
-                BUILDX_BUILDER_NAME,
-                "--driver",
-                "docker-container",
-                "--driver-opt",
-                "network=host",
-            ]
-            create_command.extend(cls._buildx_proxy_driver_opts())
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                create_command = [
+                    "docker",
+                    "buildx",
+                    "create",
+                    "--name",
+                    BUILDX_BUILDER_NAME,
+                    "--driver",
+                    "docker-container",
+                    "--driver-opt",
+                    "network=host",
+                ]
+                create_command.extend(cls._buildx_proxy_driver_opts())
+                create_command.extend(cls._buildx_dns_config_opts(Path(tmp_dir)))
 
-            CommandUtils.run(
-                create_command,
-                logger=logger,
-                timeout=60,
-                context="buildx-create",
-                exit_on_error=cls._build_config.exit_on_error,
-                hints=[
-                    "Cache export (--cache-to) requires the docker-container driver."
-                ],
-            )
+                CommandUtils.run(
+                    create_command,
+                    logger=logger,
+                    timeout=60,
+                    context="buildx-create",
+                    exit_on_error=cls._build_config.exit_on_error,
+                    hints=[
+                        "Cache export (--cache-to) requires the docker-container driver."
+                    ],
+                )
 
     @classmethod
     def _buildx_proxy_driver_opts(cls) -> list:
@@ -142,6 +145,61 @@ class ContainerHelper:
                 driver_opts.extend(["--driver-opt", f"env.{no_proxy_var}={no_proxy}"])
 
         return driver_opts
+
+    @classmethod
+    def _resolve_dns_nameservers(cls) -> list:
+        """
+        Non-loopback nameservers from this process's own /etc/resolv.conf.
+
+        Docker substitutes a real, reachable upstream nameserver into
+        resolv.conf when it generates one for a regular (non
+        --network=host) container -- which is how this process itself is
+        normally started, e.g. inside the ci-base image -- so these
+        addresses are exactly what BuildKit's sandboxed RUN namespace needs.
+        A loopback nameserver (e.g. systemd-resolved's 127.0.0.53 stub) is
+        filtered out: it only resolves within *this* namespace's own
+        loopback, not the separate one BuildKit copies it into.
+        """
+        try:
+            resolv_conf = Path("/etc/resolv.conf").read_text()
+        except OSError:
+            return []
+
+        nameservers = []
+        for line in resolv_conf.splitlines():
+            parts = line.split()
+            if (
+                len(parts) == 2
+                and parts[0] == "nameserver"
+                and not parts[1].startswith("127.")
+            ):
+                nameservers.append(parts[1])
+        return nameservers
+
+    @classmethod
+    def _buildx_dns_config_opts(cls, tmp_dir: Path) -> list:
+        """
+        Write a buildkitd config pinning DNS nameservers for the isolated
+        docker-container builder, and return the --buildkitd-config flag
+        pointing at it (or [] if no usable nameserver was found).
+
+        Without this, RUN steps (e.g. apk/apt) can intermittently fail with
+        "DNS: transient error (try again later)": BuildKit copies this
+        host's /etc/resolv.conf verbatim into each RUN step's own network
+        namespace, and a loopback nameserver there is dead on arrival even
+        though it resolves fine in this namespace. A plain `docker build`
+        doesn't hit this -- dockerd's embedded builder substitutes a real
+        upstream nameserver automatically; BuildKit's own docker-container
+        driver does not.
+        """
+        nameservers = cls._resolve_dns_nameservers()
+        if not nameservers:
+            return []
+
+        config_path = tmp_dir / "buildkitd.toml"
+        servers = ", ".join(f'"{ns}"' for ns in nameservers)
+        config_path.write_text(f"[dns]\n  nameservers = [{servers}]\n")
+        return ["--buildkitd-config", str(config_path)]
 
     @classmethod
     def container_registry_login(cls, username: str, password: str):

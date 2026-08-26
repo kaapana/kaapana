@@ -242,7 +242,7 @@ export const defaultMockData: MockData = {
   },
 }
 
-// Shell-seeded settings, shaped like defaultUIConfig.ts (dag name camelCased).
+// Shell-seeded settings, shaped like portal-ui's defaultUIConfig.ts (dag name camelCased).
 // Every workflows entry MUST include a hideOnUI array — the app's
 // `wfOptions.hideOnUI.includes(...)` is unguarded.
 export const defaultSettings: ShellSettings = {

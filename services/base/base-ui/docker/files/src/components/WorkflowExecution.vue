@@ -554,6 +554,15 @@ function formatFormData(formData: Record<string, any>) {
   });
   return formDataFormatted;
 }
+// The loaders below are fire-and-forget (watchers, tree callbacks), so the
+// error has to be reported here — nobody up the stack can.
+function notifyLoadError(title: string, error: any) {
+  notify({
+    type: "error",
+    title,
+    text: error?.response?.data?.detail ?? error?.message,
+  });
+}
 async function getBackendRootItems() {
   try {
     state.selectedItems = [];
@@ -571,8 +580,7 @@ async function getBackendRootItems() {
       state.treeItems = [];
     }
   } catch (err) {
-    console.error("Failed to load backend data:", err);
-    state.treeItems = [];
+    notifyLoadError("Failed to load the file browser", err);
   }
 }
 async function fetchChildren(item: any) {
@@ -586,7 +594,7 @@ async function fetchChildren(item: any) {
     });
     item.children = response.data;
   } catch (error) {
-    console.error("Error fetching children:", error);
+    notifyLoadError("Failed to load folder contents", error);
     // Set empty children to avoid repeated failed requests
     item.children = [];
   }
@@ -777,7 +785,7 @@ function getKaapanaInstances() {
         .map(({ instance_name }: any) => instance_name)[0];
     })
     .catch((err) => {
-      console.log(err);
+      notifyLoadError("Failed to load runner instances", err);
     });
 }
 function getKaapanaInstancesWithExternalDagAvailable() {
@@ -797,7 +805,7 @@ function getKaapanaInstancesWithExternalDagAvailable() {
       }
     })
     .catch((err) => {
-      console.log(err);
+      notifyLoadError("Failed to load remote runner instances", err);
     });
 }
 function getDags() {
@@ -815,7 +823,7 @@ function getDags() {
       }
     })
     .catch((err) => {
-      console.log(err);
+      notifyLoadError("Failed to load workflows", err);
     });
 }
 function getUiFormSchemas() {
@@ -828,7 +836,7 @@ function getUiFormSchemas() {
       state.schemas_dict = response.data;
     })
     .catch((err) => {
-      console.log(err);
+      notifyLoadError("Failed to load the workflow form", err);
     });
 }
 function getExternalUiFormSchemas() {
@@ -842,7 +850,7 @@ function getExternalUiFormSchemas() {
       state.external_schemas = response.data[state.external_dag_id as string];
     })
     .catch((err) => {
-      console.log(err);
+      notifyLoadError("Failed to load the remote workflow form", err);
     });
 }
 function submitWorkflow() {

@@ -13,7 +13,11 @@
     "paths": {
       "@/*": ["src/*"],
       "axios": ["node_modules/axios"],
-      "axios/*": ["node_modules/axios/*"]
+      "axios/*": ["node_modules/axios/*"],
+      "pinia": ["node_modules/pinia"],
+      "vue": ["node_modules/vue"],
+      "vuetify": ["node_modules/vuetify"],
+      "@kyvg/vue3-notification": ["node_modules/@kyvg/vue3-notification"]
     }
   },
   "include": [

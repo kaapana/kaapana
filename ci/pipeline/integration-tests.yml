@@ -1,5 +1,6 @@
 # Stage: test — integration + UI tests against the live platform
-# In:  deployment.env dotenv (VM_FQDN, VM_USER); CLIENT_SECRET dotenv from
+# In:  VM_FQDN / VM_USER (deployment.env dotenv, else DEPLOYMENT_INSTANCE_*);
+#      CLIENT_SECRET dotenv from
 #      setup_integration_tests; the live platform over HTTPS/DICOM
 # Out: JUnit/log/report artifacts; platform state mutations passed along the
 #      first_login → install_extensions → send_data → run_workflows chain
@@ -12,14 +13,23 @@ setup_integration_tests:
   tags:
     - deploy-runner
   needs:
+    # Absent when CI_EXEC_DEPLOY is false: the platform is already deployed and
+    # the target comes from DEPLOYMENT_INSTANCE_FQDN instead of the dotenv.
     - job: prepare_deployment
       artifacts: true
-    - platform_deployment
+      optional: true
+    - job: platform_deployment
+      optional: true
   rules:
     - if: '$CI_EXEC_INTEGRATION_TESTS == "true"'
       when: on_success
     - when: never
   script:
+    - |
+      if [[ -z "$VM_FQDN" ]]; then
+        echo "ERROR: no deployment target. prepare_deployment did not run, so set DEPLOYMENT_INSTANCE_FQDN (and DEPLOYMENT_INSTANCE_USER) to the already-deployed platform."
+        exit 1
+      fi
     - |
       ansible-playbook "$CI_PROJECT_DIR/ci/ci-code/integration_tests/remote_execution/setup_integration_tests.yaml" \
         -i "$VM_FQDN," \
@@ -38,24 +48,26 @@ setup_integration_tests:
   extends: .remote_execution_template
   stage: test
   rules:
-    - if: '$CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"'
+    - if: '$CI_EXEC_INTEGRATION_TESTS == "true"'
       when: on_success
     - when: never
   needs:
-    - job: prepare_deployment
-      artifacts: true
     - job: setup_integration_tests
       artifacts: true
-    - platform_deployment
+    - job: prepare_deployment
+      artifacts: true
+      optional: true
+    - job: platform_deployment
+      optional: true
   variables:
-    PYTEST_ARGS: "--client-secret $CLIENT_SECRET --host $VM_FQDN --allowed-ports 22,80,443 --download-directory $CI_PROJECT_DIR/downloaded_test_data --test-data-cache-dir /data"
+    PYTEST_ARGS: "--client-secret $CLIENT_SECRET --allowed-ports 22,80,443 --download-directory $CI_PROJECT_DIR/downloaded_test_data --test-data-cache-dir /data"
   script:
     # deps are baked into the job image; this only registers the repo's
     # current test code
     - pip install --no-deps -e "$CI_PROJECT_DIR/ci/ci-code/integration_tests"
     - |
       python3 -m pytest -n "${PYTEST_WORKERS:-auto}" --dist "${PYTEST_DIST:-load}" \
-        -s "$CI_PROJECT_DIR/$PYTEST_FILE" $PYTEST_ARGS \
+        -s "$CI_PROJECT_DIR/$PYTEST_FILE" --host "$VM_FQDN" $PYTEST_ARGS \
         --junitxml="$ARTIFACTS_DIR/$JUNIT_FILE" | tee "$ARTIFACTS_DIR/$LOG_FILE"
   artifacts:
     paths:
@@ -97,9 +109,11 @@ install_extensions:
   needs:
     - job: prepare_deployment
       artifacts: true
+      optional: true
     - job: setup_integration_tests
       artifacts: true
-    - platform_deployment
+    - job: platform_deployment
+      optional: true
     # optional: these are deselectable via CI_EXEC_INTEGRATION_TEST_JOBS, and a
     # needs entry for a job absent from the pipeline is a config error.
     - job: first_login
@@ -122,6 +136,7 @@ send_data:
   needs:
     - job: prepare_deployment
       artifacts: true
+      optional: true
     - job: setup_integration_tests
       artifacts: true
     - job: first_login
@@ -146,6 +161,7 @@ run_workflows:
   needs:
     - job: prepare_deployment
       artifacts: true
+      optional: true
     - job: setup_integration_tests
       artifacts: true
     - job: first_login
@@ -171,7 +187,9 @@ playwright_ui_tests:
   needs:
     - job: prepare_deployment
       artifacts: true
-    - platform_deployment
+      optional: true
+    - job: platform_deployment
+      optional: true
     - job: first_login
       optional: true
   script:

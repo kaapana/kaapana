@@ -60,13 +60,8 @@ variables:
     value: "false"
     options: ["true", "false"]
     description: "Registry scan of the images this pipeline pushed; needs CI_EXEC_BUILD."
-  CI_EXEC_SECURITY_SCAN_ARGUMENTS:
-    value: "--vulnerability-scan --configuration-check --create-sboms"
-    description: "Extra security scan flags; needs CI_EXEC_SECURITY_SCAN"
-  CI_EXEC_DOCKER_PRUNE:
-    value: "false"
-    options: ["true", "false"]
-    description: '"true" = wipe the runner docker cache before build'
+  CI_EXEC_SECURITY_SCAN_ARGUMENTS: "--vulnerability-scan --configuration-check --create-sboms"
+  CI_EXEC_DOCKER_PRUNE: "false"
   CI_EXEC_DESTROY_DELAYED:
     value: "false"
     options: ["true", "false"]

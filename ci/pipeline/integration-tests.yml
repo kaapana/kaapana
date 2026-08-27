@@ -48,7 +48,12 @@ setup_integration_tests:
       artifacts: true
     - platform_deployment
   variables:
-    PYTEST_ARGS: "--client-secret $CLIENT_SECRET --host $VM_FQDN --allowed-ports 22,80,443 --download-directory $CI_PROJECT_DIR/downloaded_test_data"
+    # --download-directory stays per job: the extracted series are written
+    # per run, so concurrent jobs never share a half-extracted directory.
+    # --test-data-repo-root is /data, the host volume the deploy runner mounts
+    # (runner_docker_volumes in ci/harvester/inventory.yaml) — written once by
+    # whichever job clones first, read by every job after that.
+    PYTEST_ARGS: "--client-secret $CLIENT_SECRET --host $VM_FQDN --allowed-ports 22,80,443 --download-directory $CI_PROJECT_DIR/downloaded_test_data --test-data-repo-root /data"
   script:
     # deps are baked into the job image; this only registers the repo's
     # current test code
@@ -63,6 +68,71 @@ setup_integration_tests:
       - "$ARTIFACTS_DIR/$LOG_FILE"
     reports:
       junit: ["$ARTIFACTS_DIR/$JUNIT_FILE"]
+
+
+##############################################
+# Test-data reachability probe (manual / API pipelines only)
+##############################################
+# Clones what CI_TEST_DATA_REPOS points at into the runner's test-data volume
+# and reports how much of each .tcia manifest it covers. Needs no platform, so
+# it answers "is the data repository reachable and complete" in under a minute.
+# Whatever it cannot deliver is what send_data would pull from TCIA instead.
+test_data_probe:
+  stage: test
+  tags:
+    - deploy-runner
+  image: $CI_BASE_IMAGE
+  needs: []
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"
+      when: on_success
+    - when: never
+  variables:
+    TEST_DATA_ROOT: "/data"
+  script:
+    - mkdir -p "$TEST_DATA_ROOT"
+    - pip install --no-deps -e "$CI_PROJECT_DIR/ci/ci-code/integration_tests"
+    - |
+      python3 - <<'PY'
+      import os
+      import sys
+      from pathlib import Path
+
+      from integration_tests.data import (
+          clone_test_data_repos,
+          get_series_to_download_from_manifest,
+      )
+
+      spec = os.environ.get("CI_TEST_DATA_REPOS", "")
+      if not spec:
+          sys.exit("CI_TEST_DATA_REPOS is not set, TCIA would be the only source")
+
+      dirs = clone_test_data_repos(spec, Path(os.environ["TEST_DATA_ROOT"]))
+      if not dirs:
+          sys.exit("no test-data repository could be cloned")
+      print(f"repositories: {dirs}")
+
+      manifests = sorted(
+          Path("ci/ci-code/integration_tests/data/download-info").glob("*.tcia")
+      )
+      total = absent_total = 0
+      for manifest in manifests:
+          # send_data truncates the dataset name the same way
+          dataset = manifest.stem[:16]
+          uids = get_series_to_download_from_manifest(manifest)
+          absent = [
+              uid
+              for uid in uids
+              if not any((Path(d) / dataset / f"{uid}.zip").is_file() for d in dirs)
+          ]
+          total += len(uids)
+          absent_total += len(absent)
+          print(f"{dataset}: {len(uids) - len(absent)}/{len(uids)} series in the repository")
+          for uid in absent:
+              print(f"  falls back to TCIA: {uid}")
+      print(f"total: {total - absent_total}/{total} series served without TCIA")
+      PY
+    - du -sh "$TEST_DATA_ROOT"/* || true
 
 ##############################################
 

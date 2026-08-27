@@ -1,0 +1,1319 @@
+stages:
+  - .pre
+  - tests
+  - build
+  - deploy
+  - test
+  - clean
+  - .post
+build_ci_image:
+  stage: tests
+  tags:
+    - build-runner
+  image:
+    name: docker.io/library/docker:28-cli
+  rules:
+    - if: >-
+        $CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE ==
+        "push" && $CI_COMMIT_BRANCH == "develop")
+      changes:
+        - ci/images/**/*
+        - ci/harvester/tasks/requirements.txt
+        - ci/ci-code/integration_tests/pyproject.toml
+      when: on_success
+    - when: never
+  script:
+    - >
+      set +x
+
+      # # DOCKER_AUTH_CONFIG shadows CLI logins, unset it so build/scan pushes
+      use their logins
+
+      unset DOCKER_AUTH_CONFIG
+
+      echo "$CI_REGISTRY_TOKEN" | docker login "$CI_REGISTRY_URL" -u
+      "$CI_REGISTRY_USER" --password-stdin
+    - >-
+      docker build --build-arg http_proxy="$HTTP_PROXY" --build-arg
+      https_proxy="$HTTPS_PROXY" -f ci/images/ci-base/Dockerfile -t
+      "$CI_BASE_IMAGE" ci
+    - docker push "$CI_BASE_IMAGE"
+  after_script:
+    - docker logout "$CI_REGISTRY_URL" || true
+.test_template:
+  stage: tests
+  tags:
+    - tests-runner
+  image: python:3.12
+  rules:
+    - if: $CI_EXEC_UNIT_TESTS == "true"
+      when: always
+    - when: never
+  variables:
+    KAAPANA_DIR: $CI_PROJECT_DIR
+unit_tests:
+  stage: tests
+  tags:
+    - tests-runner
+  image:
+    name: python:3.12
+  rules:
+    - if: $CI_EXEC_UNIT_TESTS == "true"
+      when: always
+    - when: never
+  variables:
+    KAAPANA_DIR: $CI_PROJECT_DIR
+  script:
+    - pip install -r $KAAPANA_DIR/tests/requirements.txt
+    - pytest $KAAPANA_DIR/tests/ --junitxml=unittest_report.xml
+  artifacts:
+    reports:
+      junit:
+        - unittest_report.xml
+task_api_tests:
+  stage: tests
+  tags:
+    - tests-runner
+  image:
+    name: python:3.12
+  rules:
+    - if: $CI_EXEC_UNIT_TESTS == "true"
+      when: always
+    - when: never
+  variables:
+    KAAPANA_DIR: $CI_PROJECT_DIR
+    DOCKER_HOST: tcp://docker:2375
+    TMPDIR: $CI_PROJECT_DIR/tmp
+    NO_PROXY: localhost,127.0.0.1,docker,.dkfz.de,.dkfz-heidelberg.de
+    no_proxy: localhost,127.0.0.1,docker,.dkfz.de,.dkfz-heidelberg.de
+  services:
+    - name: docker.io/library/docker:28-dind
+      alias: docker
+      variables:
+        DOCKER_TLS_CERTDIR: ''
+  script:
+    - mkdir -p "$TMPDIR"
+    - >-
+      pip install $KAAPANA_DIR/lib/kaapana_containers $KAAPANA_DIR/lib/task_api
+      pytest
+    - pytest $KAAPANA_DIR/lib/task_api/task_api --junitxml=task_api_report.xml
+  artifacts:
+    reports:
+      junit:
+        - task_api_report.xml
+kaapana_extensions_tests:
+  stage: tests
+  tags:
+    - tests-runner
+  image:
+    name: python:3.12
+  rules:
+    - if: $CI_EXEC_UNIT_TESTS == "true"
+      when: always
+    - when: never
+  variables:
+    KAAPANA_DIR: $CI_PROJECT_DIR
+    KAAPANA_TEST_REGISTRY: http://registry:5000
+    NO_PROXY: localhost,127.0.0.1,registry,.dkfz.de,.dkfz-heidelberg.de
+    no_proxy: localhost,127.0.0.1,registry,.dkfz.de,.dkfz-heidelberg.de
+  services:
+    - name: registry:3.1.1
+      alias: registry
+      variables:
+        REGISTRY_STORAGE_DELETE_ENABLED: 'true'
+  script:
+    - pip install -e "$KAAPANA_DIR/lib/kaapana_containers[test]"
+    - pip install -e "$KAAPANA_DIR/lib/kaapana_extensions[test]"
+    - >-
+      pytest -n auto --asyncio-mode=auto
+      $KAAPANA_DIR/lib/kaapana_containers/tests/
+      $KAAPANA_DIR/lib/kaapana_extensions/tests/
+      --junitxml=kaapana_extensions_report.xml
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - kaapana_extensions_report.xml
+workflow_api_tests:
+  stage: tests
+  tags:
+    - tests-runner
+  image:
+    name: python:3.12
+  rules:
+    - if: $CI_EXEC_UNIT_TESTS == "true"
+      when: always
+    - when: never
+  variables:
+    KAAPANA_DIR: $CI_PROJECT_DIR
+  script:
+    - >-
+      pip install -r
+      $KAAPANA_DIR/services/base/workflow-api/docker/files/tests/unit/requirements.txt
+    - >-
+      pytest $KAAPANA_DIR/services/base/workflow-api/docker/files/tests/unit
+      --junitxml=workflow_api_report.xml
+  artifacts:
+    reports:
+      junit:
+        - workflow_api_report.xml
+portal_api_tests:
+  stage: tests
+  tags:
+    - tests-runner
+  image:
+    name: python:3.12
+  rules:
+    - if: $CI_EXEC_UNIT_TESTS == "true"
+      when: always
+    - when: never
+  variables:
+    KAAPANA_DIR: $CI_PROJECT_DIR
+  script:
+    - >-
+      pip install -r
+      $KAAPANA_DIR/services/base/portal-api/docker/tests/requirements.txt
+    - >-
+      pytest $KAAPANA_DIR/services/base/portal-api/docker/tests/
+      --junitxml=portal_api_report.xml
+  artifacts:
+    reports:
+      junit:
+        - portal_api_report.xml
+extensions_api_tests:
+  stage: tests
+  tags:
+    - tests-runner
+  image:
+    name: python:3.12
+  rules:
+    - if: $CI_EXEC_UNIT_TESTS == "true"
+      when: always
+    - when: never
+  variables:
+    KAAPANA_DIR: $CI_PROJECT_DIR
+  script:
+    - pip install -e "$KAAPANA_DIR/lib/kaapana_containers"
+    - pip install -e "$KAAPANA_DIR/lib/kaapana_extensions"
+    - >-
+      pip install -r 
+      $KAAPANA_DIR/services/base/extension-manager-service/docker/files/app/tests/requirements.txt
+    - >-
+      pytest 
+      $KAAPANA_DIR/services/base/extension-manager-service/docker/files/app
+      --junitxml=extensions_api_report.xml
+  artifacts:
+    reports:
+      junit:
+        - extensions_api_report.xml
+kaapana_backend_tests:
+  stage: tests
+  tags:
+    - tests-runner
+  image:
+    name: python:3.12
+  rules:
+    - if: $CI_EXEC_UNIT_TESTS == "true"
+      when: always
+    - when: never
+  variables:
+    KAAPANA_DIR: $CI_PROJECT_DIR
+  script:
+    - >-
+      pip install -r
+      $KAAPANA_DIR/services/base/kaapana-backend/docker/files/tests/requirements.txt
+    - >-
+      pytest $KAAPANA_DIR/services/base/kaapana-backend/docker/files/tests/
+      --junitxml=kaapana_backend_report.xml
+  artifacts:
+    reports:
+      junit:
+        - kaapana_backend_report.xml
+auth_backend_tests:
+  stage: tests
+  tags:
+    - tests-runner
+  image:
+    name: python:3.12
+  rules:
+    - if: $CI_EXEC_UNIT_TESTS == "true"
+      when: always
+    - when: never
+  variables:
+    KAAPANA_DIR: $CI_PROJECT_DIR
+  script:
+    - >-
+      pip install -r
+      $KAAPANA_DIR/services/kaapana-admin/auth-backend/docker/files/tests/requirements.txt
+    - >-
+      pytest
+      $KAAPANA_DIR/services/kaapana-admin/auth-backend/docker/files/tests/
+      --junitxml=auth_backend_report.xml
+  artifacts:
+    reports:
+      junit:
+        - auth_backend_report.xml
+opa_policy_tests:
+  stage: tests
+  tags:
+    - tests-runner
+  image:
+    name: python:3.12
+  rules:
+    - if: $CI_EXEC_UNIT_TESTS == "true"
+      when: always
+    - when: never
+  variables:
+    KAAPANA_DIR: $CI_PROJECT_DIR
+  script:
+    - >-
+      curl -fL -o /usr/local/bin/opa
+      https://openpolicyagent.org/downloads/v1.18.2/opa_linux_amd64_static
+    - chmod +x /usr/local/bin/opa
+    - cd $KAAPANA_DIR/services/kaapana-admin/auth-backend/auth-backend-chart
+    - opa test --v0-compatible -b files
+access_information_interface_tests:
+  stage: tests
+  tags:
+    - tests-runner
+  image:
+    name: python:3.12
+  rules:
+    - if: $CI_EXEC_UNIT_TESTS == "true"
+      when: always
+    - when: never
+  variables:
+    KAAPANA_DIR: $CI_PROJECT_DIR
+  script:
+    - >-
+      pip install -r
+      $KAAPANA_DIR/services/data-separation/access-information-interface/docker/backend/files/tests/requirements.txt
+    - >-
+      pytest
+      $KAAPANA_DIR/services/data-separation/access-information-interface/docker/backend/files/tests/test_keycloak_helper.py
+      --junitxml=aii_report.xml
+  artifacts:
+    reports:
+      junit:
+        - aii_report.xml
+keycloak_setup_tests:
+  stage: tests
+  tags:
+    - tests-runner
+  image:
+    name: python:3.12
+  rules:
+    - if: $CI_EXEC_UNIT_TESTS == "true"
+      when: always
+    - when: never
+  variables:
+    KAAPANA_DIR: $CI_PROJECT_DIR
+  script:
+    - >-
+      pip install -r
+      $KAAPANA_DIR/services/kaapana-admin/keycloak/keycloak-setup/tests/requirements.txt
+    - >-
+      pytest $KAAPANA_DIR/services/kaapana-admin/keycloak/keycloak-setup/tests/
+      --junitxml=keycloak_setup_report.xml
+  artifacts:
+    reports:
+      junit:
+        - keycloak_setup_report.xml
+build_documentation:
+  stage: tests
+  tags:
+    - tests-runner
+  image:
+    name: python:3.12
+  rules:
+    - if: $CI_EXEC_UNIT_TESTS == "true"
+      when: always
+    - when: never
+  variables:
+    KAAPANA_DIR: $CI_PROJECT_DIR
+  script:
+    - cd $KAAPANA_DIR/docs
+    - pip install -r requirements.txt
+    - make html 2>&1 | tee "build_documentation_html.log"
+  artifacts:
+    expose_as: Documentation
+    paths:
+      - $KAAPANA_DIR/docs/build/html/
+      - $KAAPANA_DIR/docs/build_documentation_html.log
+check_readthedocs:
+  stage: tests
+  tags:
+    - tests-runner
+  image:
+    name: $CI_BASE_IMAGE
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop"
+      when: always
+    - when: never
+  variables:
+    KAAPANA_DIR: $CI_PROJECT_DIR
+  script:
+    - bash $KAAPANA_DIR/ci/ci-code/build/check_readthedocs.sh
+.build_cli_env:
+  tags:
+    - build-runner
+  image: $CI_BASE_IMAGE
+  variables:
+    GIT_STRATEGY: clone
+    GIT_DEPTH: '0'
+  before_script:
+    - unset DOCKER_AUTH_CONFIG
+    - pip install -e build_cli/
+    - |-
+      if [[ $CI_PIPELINE_SOURCE == "merge_request_event" ]]; then
+        git checkout -B $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME $CI_COMMIT_SHA
+      elif [[ -n "$CI_COMMIT_TAG" ]]; then
+        # Tag pipeline: no branch ref; stay detached, git describe resolves the tag
+        git checkout $CI_COMMIT_SHA
+      else
+        git checkout -B $CI_COMMIT_BRANCH $CI_COMMIT_SHA
+      fi
+    - git status
+    - git fetch --tags
+build_packages:
+  tags:
+    - build-runner
+  image:
+    name: $CI_BASE_IMAGE
+  variables:
+    GIT_STRATEGY: clone
+    GIT_DEPTH: '0'
+    RUNNER_SCRIPT_TIMEOUT: 8h
+  before_script:
+    - unset DOCKER_AUTH_CONFIG
+    - pip install -e build_cli/
+    - |-
+      if [[ $CI_PIPELINE_SOURCE == "merge_request_event" ]]; then
+        git checkout -B $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME $CI_COMMIT_SHA
+      elif [[ -n "$CI_COMMIT_TAG" ]]; then
+        # Tag pipeline: no branch ref; stay detached, git describe resolves the tag
+        git checkout $CI_COMMIT_SHA
+      else
+        git checkout -B $CI_COMMIT_BRANCH $CI_COMMIT_SHA
+      fi
+    - git status
+    - git fetch --tags
+  stage: build
+  dependencies: []
+  timeout: 8 hours
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
+      when: on_success
+      variables:
+        REGISTRY_URL: $RELEASE_REGISTRY_URL
+        REGISTRY_USER: $RELEASE_REGISTRY_USER
+        REGISTRY_TOKEN: $RELEASE_REGISTRY_TOKEN
+        CI_EXEC_DOCKER_PRUNE: 'true'
+    - if: $CI_EXEC_BUILD == "true"
+      when: on_success
+    - when: never
+  script:
+    - >
+      [[ $CI_EXEC_DOCKER_PRUNE == "true" ]] && docker system prune --all
+      --volumes -f
+    - >
+      set +x
+
+      echo "$REGISTRY_TOKEN" | docker login "$REGISTRY_URL" -u "$REGISTRY_USER"
+      --password-stdin
+
+      if [[ -n "$DOCKER_IO_USER" ]]; then
+        echo "$DOCKER_IO_PASSWORD" | docker login docker.io -u "$DOCKER_IO_USER" --password-stdin
+      fi
+
+      export REGISTRY_PW="$REGISTRY_TOKEN"
+    - kaapana-build --default-registry "$REGISTRY_URL" $CI_EXEC_BUILD_ARGUMENTS
+  artifacts:
+    name: build_$CI_COMMIT_SHORT_SHA
+    when: always
+    paths:
+      - $CI_PROJECT_DIR/build/build.log
+security_scan:
+  tags:
+    - build-runner
+  image:
+    name: $CI_BASE_IMAGE
+  variables:
+    GIT_STRATEGY: clone
+    GIT_DEPTH: '0'
+  before_script:
+    - unset DOCKER_AUTH_CONFIG
+    - pip install -e build_cli/
+    - |-
+      if [[ $CI_PIPELINE_SOURCE == "merge_request_event" ]]; then
+        git checkout -B $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME $CI_COMMIT_SHA
+      elif [[ -n "$CI_COMMIT_TAG" ]]; then
+        # Tag pipeline: no branch ref; stay detached, git describe resolves the tag
+        git checkout $CI_COMMIT_SHA
+      else
+        git checkout -B $CI_COMMIT_BRANCH $CI_COMMIT_SHA
+      fi
+    - git status
+    - git fetch --tags
+  stage: build
+  timeout: 4 hours
+  needs:
+    - job: build_packages
+      artifacts: false
+      optional: false
+  rules:
+    - if: $CI_EXEC_SECURITY_SCAN == "true" && $CI_EXEC_BUILD == "true"
+      when: on_success
+    - when: never
+  script:
+    - |
+      set +x
+      export REGISTRY_PW="$REGISTRY_TOKEN"
+    - >-
+      kaapana-build --scan-only $CI_EXEC_SECURITY_SCAN_ARGUMENTS
+      --default-registry "$REGISTRY_URL"
+  artifacts:
+    name: security_$CI_COMMIT_SHORT_SHA
+    when: always
+    paths:
+      - $CI_PROJECT_DIR/security-reports/
+    exclude:
+      - $CI_PROJECT_DIR/security-reports/.trivy_cache/**/*
+      - $CI_PROJECT_DIR/security-reports/.trivy_worker_*/**/*
+security:
+  stage: build
+  needs:
+    - job: security_scan
+      artifacts: true
+      optional: false
+  tags:
+    - build-runner
+  image:
+    name: $CI_BASE_IMAGE
+  before_script:
+    - pip install jsonschema
+  script:
+    - >-
+      CONSOLIDATED="$CI_PROJECT_DIR/security-reports/consolidated_vulnerability_report.json"
+    - >-
+      python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
+      "$CONSOLIDATED" "$CI_PROJECT_DIR/gl-container-scanning-report.json"
+      --output json
+    - >-
+      python3 "$CI_PROJECT_DIR/ci/ci-code/clean/create_vulnerability_report.py"
+      "$CONSOLIDATED" "$CI_PROJECT_DIR/vulnerability_report.html" --output html
+    - >-
+      echo "Access the report at
+      https://kaapana.pages.hzdr.de/-/kaapana/-/jobs/${CI_JOB_ID}/artifacts/vulnerability_report.html"
+  artifacts:
+    paths:
+      - $CI_PROJECT_DIR/vulnerability_report.html
+    reports:
+      container_scanning: $CI_PROJECT_DIR/gl-container-scanning-report.json
+  allow_failure: true
+  rules:
+    - if: $CI_EXEC_SECURITY_SCAN == "true" && $CI_EXEC_BUILD == "true"
+      when: on_success
+    - when: never
+.remote_execution_template:
+  tags:
+    - deploy-runner
+  image: $CI_BASE_IMAGE
+  variables:
+    ANSIBLE_HOST_KEY_CHECKING: 'False'
+  before_script:
+    - mkdir -p "$ARTIFACTS_DIR"
+    - chmod 600 "$CI_SSH_PRIVATE_KEY"
+prepare_deployment:
+  tags:
+    - deploy-runner
+  image:
+    name: $CI_BASE_IMAGE
+  variables:
+    ANSIBLE_HOST_KEY_CHECKING: 'False'
+    GIT_STRATEGY: clone
+    GIT_DEPTH: '0'
+  before_script:
+    - mkdir -p "$ARTIFACTS_DIR"
+    - chmod 600 "$CI_SSH_PRIVATE_KEY"
+  interruptible: false
+  rules:
+    - if: $CI_EXEC_DEPLOY == "true"
+      when: on_success
+    - when: never
+  stage: deploy
+  script:
+    - git fetch --tags
+    - VERSION_TAG=$(git describe --tags --always)
+    - >
+      if [[ "$CI_EXEC_BUILD_ARGUMENTS" =~ (--latest) && "$VERSION_TAG" =~
+      ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+        BASE_TAG=$(echo "$VERSION_TAG" | sed -E 's/-[0-9]+-g[0-9a-f]+.*//')
+        VERSION_TAG="${BASE_TAG}-latest"
+      fi
+    - echo "Resolved VERSION_TAG=$VERSION_TAG"
+    - >
+      set +x
+
+      helm registry login "${REGISTRY_URL%%/*}" -u "$REGISTRY_USER" -p
+      "$REGISTRY_TOKEN" >/dev/null 2>&1
+
+      if ! helm show chart "oci://$REGISTRY_URL/kaapana-admin-chart" --version
+      "$VERSION_TAG" >/dev/null; then
+        echo "ERROR: kaapana-admin-chart '$VERSION_TAG' not found in $REGISTRY_URL — was this commit built and pushed?"
+        exit 1
+      fi
+    - mkdir -p artifacts
+    - |
+      if [[ -z "$DEPLOYMENT_INSTANCE_FQDN" ]]; then
+        ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/provision_harvester_vm.yaml"
+      else
+        # dcmsend rejects peerhosts > 57 chars — fail now, not mid-tests
+        if [[ ${#DEPLOYMENT_INSTANCE_FQDN} -gt 57 ]]; then
+          echo "ERROR: DEPLOYMENT_INSTANCE_FQDN '${DEPLOYMENT_INSTANCE_FQDN}' is ${#DEPLOYMENT_INSTANCE_FQDN} characters, exceeding the 57-character dcmsend peerhost limit."
+          exit 1
+        fi
+        echo "Skipping VM provisioning and using existing deployment target: $DEPLOYMENT_INSTANCE_FQDN"
+        echo "VM_FQDN=$DEPLOYMENT_INSTANCE_FQDN" > artifacts/deployment.env
+        echo "VM_USER=$DEPLOYMENT_INSTANCE_USER" >> artifacts/deployment.env
+      fi
+    - echo "VERSION_TAG=$VERSION_TAG" >> artifacts/deployment.env
+  artifacts:
+    when: always
+    paths:
+      - artifacts/deployment.env
+    reports:
+      dotenv: artifacts/deployment.env
+server_installation:
+  tags:
+    - deploy-runner
+  image:
+    name: $CI_BASE_IMAGE
+  variables:
+    ANSIBLE_HOST_KEY_CHECKING: 'False'
+  before_script:
+    - mkdir -p "$ARTIFACTS_DIR"
+    - chmod 600 "$CI_SSH_PRIVATE_KEY"
+  stage: deploy
+  rules:
+    - if: $CI_EXEC_DEPLOY == "true" && $CI_EXEC_SERVER_INSTALLATION == "true"
+      when: on_success
+    - when: never
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+      optional: false
+  script:
+    - >
+      ansible-playbook
+      "$CI_PROJECT_DIR/ci/ci-code/deploy/server_installation.yaml" \
+        -i "$VM_FQDN," \
+        -u "$VM_USER" \
+        --private-key "$CI_SSH_PRIVATE_KEY"
+  artifacts:
+    paths:
+      - artifacts/server_installation.log
+    when: always
+    access: developer
+platform_deployment:
+  tags:
+    - deploy-runner
+  image:
+    name: $CI_BASE_IMAGE
+  variables:
+    ANSIBLE_HOST_KEY_CHECKING: 'False'
+  before_script:
+    - mkdir -p "$ARTIFACTS_DIR"
+    - chmod 600 "$CI_SSH_PRIVATE_KEY"
+  stage: deploy
+  needs:
+    - job: server_installation
+      artifacts: true
+      optional: true
+    - job: prepare_deployment
+      artifacts: true
+      optional: false
+  script:
+    - |
+      if [ -z "$VM_FQDN" ]; then
+        echo "ERROR: VM_FQDN is empty. No deployment target."
+        exit 1
+      fi
+    - >
+      ansible-playbook "$CI_PROJECT_DIR/ci/ci-code/deploy/deploy_platform.yaml"
+      \
+        -i "$VM_FQDN," \
+        -u "$VM_USER" \
+        --private-key "$CI_SSH_PRIVATE_KEY"
+    - echo "Kaapana Platform Deployed Successfully"
+    - echo "Access the platform at https://$VM_FQDN"
+    - |
+      echo "<html>
+      <body>
+      <h1>Kaapana Platform Deployed</h1>
+      <p>Access it here: <a href=\"https://$VM_FQDN\">https://$VM_FQDN</a></p>
+      </body>
+      </html>" > artifacts/deployment.html
+  rules:
+    - if: $CI_EXEC_DEPLOY == "true"
+      when: on_success
+    - when: never
+  artifacts:
+    paths:
+      - artifacts/deployment.log
+      - artifacts/system_check.log
+      - artifacts/deployment.html
+    when: always
+    expose_as: Kaapana Deployment Report
+setup_integration_tests:
+  tags:
+    - deploy-runner
+  image:
+    name: $CI_BASE_IMAGE
+  variables:
+    ANSIBLE_HOST_KEY_CHECKING: 'False'
+  before_script:
+    - mkdir -p "$ARTIFACTS_DIR"
+    - chmod 600 "$CI_SSH_PRIVATE_KEY"
+  stage: test
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+      optional: false
+    - job: platform_deployment
+      artifacts: true
+      optional: false
+  rules:
+    - if: $CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"
+      when: on_success
+    - when: never
+  script:
+    - >
+      ansible-playbook
+      "$CI_PROJECT_DIR/ci/ci-code/integration_tests/remote_execution/setup_integration_tests.yaml"
+      \
+        -i "$VM_FQDN," \
+        -u "$VM_USER" \
+        --private-key "$CI_SSH_PRIVATE_KEY"
+  artifacts:
+    reports:
+      dotenv:
+        - artifacts/integration_test_setup.env
+    access: developer
+.integration_test_local:
+  tags:
+    - deploy-runner
+  image: $CI_BASE_IMAGE
+  variables:
+    ANSIBLE_HOST_KEY_CHECKING: 'False'
+    PYTEST_ARGS: >-
+      --client-secret $CLIENT_SECRET --host $VM_FQDN --allowed-ports 22,80,443
+      --download-directory $CI_PROJECT_DIR/downloaded_test_data
+      --test-data-repo-root /srv/kaapana-test-data
+  before_script:
+    - mkdir -p "$ARTIFACTS_DIR"
+    - chmod 600 "$CI_SSH_PRIVATE_KEY"
+  stage: test
+  rules:
+    - if: $CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"
+      when: on_success
+    - when: never
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+    - job: setup_integration_tests
+      artifacts: true
+    - platform_deployment
+  script:
+    - pip install --no-deps -e "$CI_PROJECT_DIR/ci/ci-code/integration_tests"
+    - >
+      python3 -m pytest -n "${PYTEST_WORKERS:-auto}" --dist
+      "${PYTEST_DIST:-load}" \
+        -s "$CI_PROJECT_DIR/$PYTEST_FILE" $PYTEST_ARGS \
+        --junitxml="$ARTIFACTS_DIR/$JUNIT_FILE" | tee "$ARTIFACTS_DIR/$LOG_FILE"
+  artifacts:
+    paths:
+      - $ARTIFACTS_DIR/$JUNIT_FILE
+      - $ARTIFACTS_DIR/$LOG_FILE
+    reports:
+      junit:
+        - $ARTIFACTS_DIR/$JUNIT_FILE
+test_data_probe:
+  stage: test
+  tags:
+    - deploy-runner
+  image:
+    name: $CI_BASE_IMAGE
+  needs: []
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"
+      when: on_success
+    - when: never
+  variables:
+    TEST_DATA_ROOT: /srv/kaapana-test-data
+  script:
+    - mkdir -p "$TEST_DATA_ROOT"
+    - pip install --no-deps -e "$CI_PROJECT_DIR/ci/ci-code/integration_tests"
+    - |
+      python3 - <<'PY'
+      import os
+      import sys
+      from pathlib import Path
+
+      from integration_tests.data import (
+          clone_test_data_repos,
+          get_series_to_download_from_manifest,
+      )
+
+      spec = os.environ.get("CI_TEST_DATA_REPOS", "")
+      if not spec:
+          sys.exit("CI_TEST_DATA_REPOS is not set, TCIA would be the only source")
+
+      dirs = clone_test_data_repos(spec, Path(os.environ["TEST_DATA_ROOT"]))
+      if not dirs:
+          sys.exit("no test-data repository could be cloned")
+      print(f"repositories: {dirs}")
+
+      manifests = sorted(
+          Path("ci/ci-code/integration_tests/data/download-info").glob("*.tcia")
+      )
+      total = absent_total = 0
+      for manifest in manifests:
+          # send_data truncates the dataset name the same way
+          dataset = manifest.stem[:16]
+          uids = get_series_to_download_from_manifest(manifest)
+          absent = [
+              uid
+              for uid in uids
+              if not any((Path(d) / dataset / f"{uid}.zip").is_file() for d in dirs)
+          ]
+          total += len(uids)
+          absent_total += len(absent)
+          print(f"{dataset}: {len(uids) - len(absent)}/{len(uids)} series in the repository")
+          for uid in absent:
+              print(f"  falls back to TCIA: {uid}")
+      print(f"total: {total - absent_total}/{total} series served without TCIA")
+      PY
+    - du -sh "$TEST_DATA_ROOT"/* || true
+scan_ports:
+  tags:
+    - deploy-runner
+  image:
+    name: $CI_BASE_IMAGE
+  variables:
+    ANSIBLE_HOST_KEY_CHECKING: 'False'
+    PYTEST_ARGS: >-
+      --client-secret $CLIENT_SECRET --host $VM_FQDN --allowed-ports 22,80,443
+      --download-directory $CI_PROJECT_DIR/downloaded_test_data
+      --test-data-repo-root /srv/kaapana-test-data
+    PYTEST_FILE: ci/ci-code/integration_tests/tests/test_scan_ports.py
+    JUNIT_FILE: scan_ports.xml
+    LOG_FILE: scan_ports.log
+  before_script:
+    - mkdir -p "$ARTIFACTS_DIR"
+    - chmod 600 "$CI_SSH_PRIVATE_KEY"
+  stage: test
+  rules:
+    - if: $CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"
+      when: on_success
+    - when: never
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+      optional: false
+    - job: setup_integration_tests
+      artifacts: true
+      optional: false
+    - job: platform_deployment
+      artifacts: true
+      optional: false
+  script:
+    - pip install --no-deps -e "$CI_PROJECT_DIR/ci/ci-code/integration_tests"
+    - >
+      python3 -m pytest -n "${PYTEST_WORKERS:-auto}" --dist
+      "${PYTEST_DIST:-load}" \
+        -s "$CI_PROJECT_DIR/$PYTEST_FILE" $PYTEST_ARGS \
+        --junitxml="$ARTIFACTS_DIR/$JUNIT_FILE" | tee "$ARTIFACTS_DIR/$LOG_FILE"
+  artifacts:
+    paths:
+      - $ARTIFACTS_DIR/$JUNIT_FILE
+      - $ARTIFACTS_DIR/$LOG_FILE
+    reports:
+      junit:
+        - $ARTIFACTS_DIR/$JUNIT_FILE
+first_login:
+  tags:
+    - deploy-runner
+  image:
+    name: $CI_BASE_IMAGE
+  variables:
+    ANSIBLE_HOST_KEY_CHECKING: 'False'
+    PYTEST_ARGS: >-
+      --client-secret $CLIENT_SECRET --host $VM_FQDN --allowed-ports 22,80,443
+      --download-directory $CI_PROJECT_DIR/downloaded_test_data
+      --test-data-repo-root /srv/kaapana-test-data
+    PYTEST_FILE: ci/ci-code/integration_tests/tests/test_first_login.py
+    JUNIT_FILE: first_login.xml
+    LOG_FILE: first_login.log
+  before_script:
+    - mkdir -p "$ARTIFACTS_DIR"
+    - chmod 600 "$CI_SSH_PRIVATE_KEY"
+  stage: test
+  rules:
+    - if: $CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"
+      when: on_success
+    - when: never
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+      optional: false
+    - job: setup_integration_tests
+      artifacts: true
+      optional: false
+    - job: platform_deployment
+      artifacts: true
+      optional: false
+  script:
+    - pip install --no-deps -e "$CI_PROJECT_DIR/ci/ci-code/integration_tests"
+    - >
+      python3 -m pytest -n "${PYTEST_WORKERS:-auto}" --dist
+      "${PYTEST_DIST:-load}" \
+        -s "$CI_PROJECT_DIR/$PYTEST_FILE" $PYTEST_ARGS \
+        --junitxml="$ARTIFACTS_DIR/$JUNIT_FILE" | tee "$ARTIFACTS_DIR/$LOG_FILE"
+  artifacts:
+    paths:
+      - $ARTIFACTS_DIR/$JUNIT_FILE
+      - $ARTIFACTS_DIR/$LOG_FILE
+    reports:
+      junit:
+        - $ARTIFACTS_DIR/$JUNIT_FILE
+install_extensions:
+  tags:
+    - deploy-runner
+  image:
+    name: $CI_BASE_IMAGE
+  variables:
+    ANSIBLE_HOST_KEY_CHECKING: 'False'
+    PYTEST_ARGS: >-
+      --client-secret $CLIENT_SECRET --host $VM_FQDN --allowed-ports 22,80,443
+      --download-directory $CI_PROJECT_DIR/downloaded_test_data
+      --test-data-repo-root /srv/kaapana-test-data
+    PYTEST_FILE: ci/ci-code/integration_tests/tests/test_install_extensions.py
+    JUNIT_FILE: install_extensions.xml
+    LOG_FILE: install_extensions.log
+    PYTEST_WORKERS: '4'
+  before_script:
+    - mkdir -p "$ARTIFACTS_DIR"
+    - chmod 600 "$CI_SSH_PRIVATE_KEY"
+  stage: test
+  rules:
+    - if: $CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"
+      when: on_success
+    - when: never
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+      optional: false
+    - job: setup_integration_tests
+      artifacts: true
+      optional: false
+    - job: first_login
+      artifacts: true
+      optional: false
+    - job: platform_deployment
+      artifacts: true
+      optional: false
+    - job: playwright_ui_tests
+      artifacts: true
+      optional: false
+  script:
+    - pip install --no-deps -e "$CI_PROJECT_DIR/ci/ci-code/integration_tests"
+    - >
+      python3 -m pytest -n "${PYTEST_WORKERS:-auto}" --dist
+      "${PYTEST_DIST:-load}" \
+        -s "$CI_PROJECT_DIR/$PYTEST_FILE" $PYTEST_ARGS \
+        --junitxml="$ARTIFACTS_DIR/$JUNIT_FILE" | tee "$ARTIFACTS_DIR/$LOG_FILE"
+  artifacts:
+    paths:
+      - $ARTIFACTS_DIR/$JUNIT_FILE
+      - $ARTIFACTS_DIR/$LOG_FILE
+    reports:
+      junit:
+        - $ARTIFACTS_DIR/$JUNIT_FILE
+  retry: 2
+send_data:
+  tags:
+    - deploy-runner
+  image:
+    name: $CI_BASE_IMAGE
+  variables:
+    ANSIBLE_HOST_KEY_CHECKING: 'False'
+    PYTEST_ARGS: >-
+      --client-secret $CLIENT_SECRET --host $VM_FQDN --allowed-ports 22,80,443
+      --download-directory $CI_PROJECT_DIR/downloaded_test_data
+      --test-data-repo-root /srv/kaapana-test-data
+    PYTEST_FILE: ci/ci-code/integration_tests/tests/test_send_data.py
+    JUNIT_FILE: send_data.xml
+    LOG_FILE: send_data.log
+    PYTEST_WORKERS: '4'
+  before_script:
+    - mkdir -p "$ARTIFACTS_DIR"
+    - chmod 600 "$CI_SSH_PRIVATE_KEY"
+  stage: test
+  rules:
+    - if: $CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"
+      when: on_success
+    - when: never
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+      optional: false
+    - job: setup_integration_tests
+      artifacts: true
+      optional: false
+    - job: first_login
+      artifacts: true
+      optional: false
+    - job: install_extensions
+      artifacts: true
+      optional: false
+  script:
+    - pip install --no-deps -e "$CI_PROJECT_DIR/ci/ci-code/integration_tests"
+    - >
+      python3 -m pytest -n "${PYTEST_WORKERS:-auto}" --dist
+      "${PYTEST_DIST:-load}" \
+        -s "$CI_PROJECT_DIR/$PYTEST_FILE" $PYTEST_ARGS \
+        --junitxml="$ARTIFACTS_DIR/$JUNIT_FILE" | tee "$ARTIFACTS_DIR/$LOG_FILE"
+  artifacts:
+    paths:
+      - $ARTIFACTS_DIR/$JUNIT_FILE
+      - $ARTIFACTS_DIR/$LOG_FILE
+    reports:
+      junit:
+        - $ARTIFACTS_DIR/$JUNIT_FILE
+  retry: 2
+run_workflows:
+  tags:
+    - deploy-runner
+  image:
+    name: $CI_BASE_IMAGE
+  variables:
+    ANSIBLE_HOST_KEY_CHECKING: 'False'
+    PYTEST_ARGS: >-
+      --client-secret $CLIENT_SECRET --host $VM_FQDN --allowed-ports 22,80,443
+      --download-directory $CI_PROJECT_DIR/downloaded_test_data
+      --test-data-repo-root /srv/kaapana-test-data
+    PYTEST_FILE: ci/ci-code/integration_tests/tests/test_run_workflows.py
+    JUNIT_FILE: run_workflow.xml
+    LOG_FILE: run_workflow.log
+    PYTEST_WORKERS: '4'
+    PYTEST_DIST: loadgroup
+  before_script:
+    - mkdir -p "$ARTIFACTS_DIR"
+    - chmod 600 "$CI_SSH_PRIVATE_KEY"
+  stage: test
+  rules:
+    - if: $CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"
+      when: on_success
+    - when: never
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+      optional: false
+    - job: setup_integration_tests
+      artifacts: true
+      optional: false
+    - job: first_login
+      artifacts: true
+      optional: false
+    - job: send_data
+      artifacts: true
+      optional: false
+    - job: install_extensions
+      artifacts: true
+      optional: false
+  script:
+    - pip install --no-deps -e "$CI_PROJECT_DIR/ci/ci-code/integration_tests"
+    - >
+      python3 -m pytest -n "${PYTEST_WORKERS:-auto}" --dist
+      "${PYTEST_DIST:-load}" \
+        -s "$CI_PROJECT_DIR/$PYTEST_FILE" $PYTEST_ARGS \
+        --junitxml="$ARTIFACTS_DIR/$JUNIT_FILE" | tee "$ARTIFACTS_DIR/$LOG_FILE"
+  artifacts:
+    paths:
+      - $ARTIFACTS_DIR/$JUNIT_FILE
+      - $ARTIFACTS_DIR/$LOG_FILE
+    reports:
+      junit:
+        - $ARTIFACTS_DIR/$JUNIT_FILE
+  timeout: 2 hours
+  allow_failure: true
+playwright_ui_tests:
+  tags:
+    - deploy-runner
+  image:
+    name: $CI_BASE_IMAGE
+  variables:
+    ANSIBLE_HOST_KEY_CHECKING: 'False'
+  before_script:
+    - mkdir -p "$ARTIFACTS_DIR"
+    - chmod 600 "$CI_SSH_PRIVATE_KEY"
+  stage: test
+  rules:
+    - if: $CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"
+      when: on_success
+    - when: never
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+      optional: false
+    - job: platform_deployment
+      artifacts: true
+      optional: false
+    - job: first_login
+      artifacts: true
+      optional: false
+  script:
+    - cd "$CI_PROJECT_DIR/tests/ui"
+    - npm ci
+    - npx playwright install chromium
+    - |
+      KAAPANA_TEST_INSTANCE_UI="https://$VM_FQDN" \
+        npx playwright test \
+          --project auth-setup \
+          --project project-management \
+          --workers 1
+  artifacts:
+    when: always
+    paths:
+      - tests/ui/playwright-report/
+      - tests/ui/test-results/
+    expose_as: Playwright UI Report
+    reports:
+      junit: tests/ui/test-results/junit.xml
+destroy_deployment:
+  stage: clean
+  interruptible: false
+  timeout: 1 hour
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+      optional: false
+    - job: server_installation
+      artifacts: false
+      optional: true
+    - job: platform_deployment
+      artifacts: false
+      optional: true
+    - job: setup_integration_tests
+      artifacts: false
+      optional: true
+    - job: scan_ports
+      artifacts: false
+      optional: true
+    - job: first_login
+      artifacts: false
+      optional: true
+    - job: install_extensions
+      artifacts: false
+      optional: true
+    - job: send_data
+      artifacts: false
+      optional: true
+    - job: run_workflows
+      artifacts: false
+      optional: true
+    - job: playwright_ui_tests
+      artifacts: false
+      optional: true
+  rules:
+    - if: $CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN != ""
+      when: never
+    - if: $CI_EXEC_DEPLOY == "true" && $CI_EXEC_DESTROY_DELAYED == "true"
+      when: delayed
+      start_in: 4 hours
+    - if: $CI_EXEC_DEPLOY == "true"
+      when: always
+    - when: never
+  tags:
+    - deploy-runner
+  image:
+    name: $CI_BASE_IMAGE
+  script:
+    - >-
+      ansible-playbook -i localhost,
+      "$CI_PROJECT_DIR/ci/ci-code/deploy/delete_harvester_vm.yaml"
+if_ci_failing:
+  stage: clean
+  tags:
+    - deploy-runner
+  image:
+    name: $CI_BASE_IMAGE
+  needs:
+    - job: build_ci_image
+      artifacts: false
+      optional: true
+    - job: unit_tests
+      artifacts: false
+      optional: true
+    - job: task_api_tests
+      artifacts: false
+      optional: true
+    - job: kaapana_extensions_tests
+      artifacts: false
+      optional: true
+    - job: workflow_api_tests
+      artifacts: false
+      optional: true
+    - job: portal_api_tests
+      artifacts: false
+      optional: true
+    - job: extensions_api_tests
+      artifacts: false
+      optional: true
+    - job: kaapana_backend_tests
+      artifacts: false
+      optional: true
+    - job: auth_backend_tests
+      artifacts: false
+      optional: true
+    - job: opa_policy_tests
+      artifacts: false
+      optional: true
+    - job: access_information_interface_tests
+      artifacts: false
+      optional: true
+    - job: keycloak_setup_tests
+      artifacts: false
+      optional: true
+    - job: build_documentation
+      artifacts: false
+      optional: true
+    - job: check_readthedocs
+      artifacts: false
+      optional: true
+    - job: build_packages
+      artifacts: true
+      optional: true
+    - job: security_scan
+      artifacts: false
+      optional: true
+    - job: security
+      artifacts: false
+      optional: true
+    - job: prepare_deployment
+      artifacts: false
+      optional: true
+    - job: server_installation
+      artifacts: true
+      optional: true
+    - job: platform_deployment
+      artifacts: true
+      optional: true
+    - job: setup_integration_tests
+      artifacts: false
+      optional: true
+    - job: scan_ports
+      artifacts: true
+      optional: true
+    - job: first_login
+      artifacts: true
+      optional: true
+    - job: install_extensions
+      artifacts: true
+      optional: true
+    - job: send_data
+      artifacts: true
+      optional: true
+    - job: run_workflows
+      artifacts: true
+      optional: true
+    - job: playwright_ui_tests
+      artifacts: false
+      optional: true
+  script:
+    - mkdir -p "$ARTIFACTS_DIR"
+    - >-
+      [[ -f "$CI_PROJECT_DIR/build/build.log" ]] && cp
+      "$CI_PROJECT_DIR/build/build.log" "$ARTIFACTS_DIR/" || true
+    - cd "$CI_PROJECT_DIR/ci/ci-code/clean"
+    - python3 create_ticket_if_ci_failed.py
+    - python3 notify_slack.py
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+      when: on_failure
+default:
+  interruptible: true
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "api"
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "trigger"
+      when: always
+    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
+      when: always
+    - if: >-
+        $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "push" &&
+        $CI_COMMIT_BRANCH == "develop"
+      when: always
+    - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: >-
+        $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "merge_request_event"
+        && $CI_MERGE_REQUEST_TITLE !~ /^Draft:/
+      when: always
+    - when: never
+variables:
+  CI_EXEC_UNIT_TESTS: 'true'
+  CI_EXEC_BUILD: 'true'
+  CI_EXEC_BUILD_ARGUMENTS: ''
+  CI_EXEC_DEPLOY: 'true'
+  CI_EXEC_SERVER_INSTALLATION: 'true'
+  CI_EXEC_INTEGRATION_TESTS: 'true'
+  CI_EXEC_SECURITY_SCAN: 'false'
+  CI_EXEC_SECURITY_SCAN_ARGUMENTS: --vulnerability-scan --configuration-check --create-sboms
+  CI_EXEC_DOCKER_PRUNE: 'false'
+  CI_EXEC_DESTROY_DELAYED: 'false'
+  MAINTENANCE: 'false'
+  REGISTRY_URL: $CI_REGISTRY_URL
+  REGISTRY_USER: $CI_REGISTRY_USER
+  REGISTRY_TOKEN: $CI_REGISTRY_TOKEN
+  DOCKER_IO_USER: $DOCKER_IO_USER
+  DOCKER_IO_PASSWORD: $DOCKER_IO_PASSWORD
+  CI_IMAGES_TAG: v3
+  CI_BASE_IMAGE: $CI_REGISTRY_URL/ci-base:$CI_IMAGES_TAG
+  GITLAB_API_TOKEN: $CI_REGISTRY_TOKEN
+  BLABLADOR_API_TOKEN: $CI_REGISTRY_TOKEN
+  DEPLOYMENT_INSTANCE_FQDN: ''
+  DEPLOYMENT_INSTANCE_USER: ubuntu
+  DEPLOYMENT_INSTANCE_VM_NAME: ci-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA
+  DEPLOYMENT_INSTANCE_DOMAIN: vms.dkfz.de
+  DEPLOYMENT_INSTANCE_IMAGE_ID: ubuntu24
+  DEPLOYMENT_INSTANCE_CPU: '32'
+  DEPLOYMENT_INSTANCE_MEMORY: 256Gi
+  DEPLOYMENT_INSTANCE_DISK: 128Gi
+  DEPLOYMENT_INSTANCE_NETWORK: harvester-public/dkfz-net
+  DEPLOYMENT_INSTANCE_STORAGE_CLASS: px-fa-direct-access
+  DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE: kaapana-ci
+  DEPLOYMENT_INSTANCE_SSH_KEYPAIR: kaapana
+  DEPLOYMENT_INSTANCE_PLATFORM_PREFIX: ci-dep
+  SLACK_BOT_TOKEN: $SLACK_BOT_TOKEN
+  SLACK_CHANNEL_ID: $SLACK_CHANNEL_ID
+  KAAPANA_READTHEDOCS_TOKEN: $KAAPANA_READTHEDOCS_TOKEN
+  HTTP_PROXY: http://www-int2.dkfz-heidelberg.de:80
+  HTTPS_PROXY: http://www-int2.dkfz-heidelberg.de:80
+  NO_PROXY: localhost,127.0.0.1,.dkfz.de,.dkfz-heidelberg.de
+  no_proxy: $NO_PROXY
+  ANSIBLE_VERBOSITY: '0'
+  GIT_STRATEGY: fetch
+  GIT_DEPTH: '1'
+  ARTIFACTS_DIR: $CI_PROJECT_DIR/artifacts
+include:
+  - local: /ci/pipeline/ci-image.yml
+  - local: /ci/pipeline/unit-tests.yml
+  - local: /ci/pipeline/build.yml
+  - local: /ci/pipeline/deploy.yml
+  - local: /ci/pipeline/integration-tests.yml
+  - local: /ci/pipeline/clean.yml

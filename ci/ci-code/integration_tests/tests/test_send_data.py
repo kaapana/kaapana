@@ -9,17 +9,23 @@ logger = get_logger(__name__, logging.DEBUG)
 
 
 def test_send_data(
-    host, data_endpoints: DataEndpoints, dataset, download_directory, force_download
+    host,
+    data_endpoints: DataEndpoints,
+    dataset,
+    download_directory,
+    force_download,
+    test_data_repo_dirs,
 ):
     source_file = dataset
     kaapana_dataset = dataset.stem[:16]
-    # DOWNLOAD
+
     logger.info(f"Downloading dataset: {kaapana_dataset}")
     logger.info(f"Download directory: {download_directory}")
     download_data(
         source_file,
         Path(download_directory) / kaapana_dataset,
         force=force_download,
+        repo_dirs=test_data_repo_dirs,
     )
     # SEND
     send_data(Path(download_directory) / kaapana_dataset, host, kaapana_dataset)

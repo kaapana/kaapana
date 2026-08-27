@@ -142,15 +142,12 @@ def get_download_directory(config) -> Path:
 
 
 def get_test_data_cache_dir(config):
-    return config.getoption("--test-data-cache-dir") or os.getenv(
-        "CI_TEST_DATA_CACHE_DIR"
-    )
+    return config.getoption("--test-data-cache-dir")
 
 
 def get_test_data_repo_root(config) -> Path:
     return Path(
         config.getoption("--test-data-repo-root")
-        or os.getenv("CI_TEST_DATA_REPO_ROOT")
         or get_download_directory(config).parent
     )
 

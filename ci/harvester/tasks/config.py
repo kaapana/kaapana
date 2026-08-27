@@ -41,10 +41,7 @@ def apply_settings(
 ):
     runner["limit"] = limit
     runner["request_concurrency"] = request_concurrency
-    # [runners.custom_build_dir] is a table with an "enabled" key, not a bare bool.
     runner["custom_build_dir"] = {"enabled": custom_build_dir}
-    # Volumes live in [runners.docker], which `gitlab-runner register` created
-    # for docker executors. Empty list leaves the registered value alone.
     if docker_volumes:
         runner.setdefault("docker", {})["volumes"] = docker_volumes
 

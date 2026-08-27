@@ -31,14 +31,10 @@
     mode: "0700"
   become: no
 
-# Only host:container entries are real host paths. A bare "/cache" is an
-# anonymous volume and the docker socket is a file, so both are filtered out.
 - name: Ensure host directories for docker bind mounts exist
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    # Sticky and world-writable: job containers run as root today, this keeps
-    # the mount usable if a job image ever stops doing so.
     mode: "1777"
   become: true
   loop: "{{ runner_docker_volumes | select('search', ':') | map('regex_replace', ':.*$', '') | reject('search', '[.]sock$') | select('match', '^/') | list }}"

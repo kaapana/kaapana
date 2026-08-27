@@ -317,7 +317,6 @@ def download_archive(
             payload = fetch()
             extract_archive(payload, outdir)
         except SeriesUnavailable as error:
-            # A miss on the cache or the repo is the normal path, not a problem.
             failures.append(f"{label}: {error}")
             logger.debug(f"{name}: {label} did not deliver it, {error}")
             continue

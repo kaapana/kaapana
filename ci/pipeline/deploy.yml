@@ -20,9 +20,6 @@
     - mkdir -p "$ARTIFACTS_DIR"
     # ssh refuses group/world-readable keys; File variables arrive too open
     - chmod 600 "$CI_SSH_PRIVATE_KEY"
-    # No dotenv when prepare_deployment was skipped, so fall back to the same
-    # pair it would have copied into it. before_script shares the shell with
-    # script, so every later line sees these.
     - export VM_FQDN="${VM_FQDN:-$DEPLOYMENT_INSTANCE_FQDN}"
     - export VM_USER="${VM_USER:-$DEPLOYMENT_INSTANCE_USER}"
 

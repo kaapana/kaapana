@@ -166,7 +166,6 @@ executor.
 | kaapana-tests-01 | `tests-runner` | Allows privileged **services** matching `docker.io/library/docker:*` (dind for `task_api_tests`); `/builds` shared between job and services |
 | kaapana-build-01 | `build-runner` | Host docker socket mounted into jobs → warm layer cache across pipelines |
 | kaapana-deploy-01 | `deploy-runner` | No machine state; credentials from File-type CI variables |
-| kaapana-cache-01 | — | Shared Runner Cache S3 (Garage) + WebUI, registers no runner |
 
 Provision / re-provision:
 

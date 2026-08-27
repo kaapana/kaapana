@@ -12,7 +12,8 @@
   tags:
     - deploy-runner
   # Everything these jobs need is baked into the CI image. VM_FQDN / VM_USER /
-  # VERSION_TAG arrive via the deployment.env dotenv from prepare_deployment.
+  # VERSION_TAG arrive via the deployment.env dotenv from prepare_deployment,
+  # falling back to DEPLOYMENT_INSTANCE_* when that job did not run.
   image: $CI_BASE_IMAGE
   variables:
     ANSIBLE_HOST_KEY_CHECKING: "False"

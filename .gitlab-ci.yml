@@ -30,19 +30,48 @@ workflow:
 variables:
   # --- Execution toggles: which stages a pipeline runs.
   # Override per-run via "Run pipeline" or per-schedule via schedule variables.
-  CI_EXEC_UNIT_TESTS: "true" # tests stage: unit tests + documentation build
-  CI_EXEC_BUILD: "true" # build stage: full platform build
-  CI_EXEC_BUILD_ARGUMENTS: "" # extra kaapana-build flags, e.g. "--vulnerability-scan"
-  CI_EXEC_DEPLOY: "true" # deploy stage: provision test VM + server install + platform deploy
-  CI_EXEC_SERVER_INSTALLATION: "true" # "false" skips the OS/microk8s install (target already prepared)
-  CI_EXEC_INTEGRATION_TESTS: "true" # test stage: pytest + Playwright against the test VM
-  # Registry-based scan of the images this pipeline pushed (nightly schedules
-  # set "true"); scans no longer run inside the build job.
-  CI_EXEC_SECURITY_SCAN: "false"
-  CI_EXEC_SECURITY_SCAN_ARGUMENTS: "--vulnerability-scan --configuration-check"
-  CI_EXEC_DOCKER_PRUNE: "false" # "true" = wipe the runner docker cache first (cold build)
-  CI_EXEC_DESTROY_DELAYED: "false" # "true" = keep the test VM for 4h after the pipeline for inspection
-  MAINTENANCE: "false" # "true" pauses push/schedule/MR pipelines (workflow:rules)
+  # A variable that carries a `description` is prefilled on the New pipeline page
+  CI_EXEC_UNIT_TESTS:
+    value: "true"
+    options: ["true", "false"]
+    description: "tests stage: unit tests + documentation build"
+  CI_EXEC_BUILD:
+    value: "true"
+    options: ["true", "false"]
+    description: "build stage: full platform build"
+  CI_EXEC_BUILD_ARGUMENTS:
+    value: ""
+    description: 'Extra kaapana-build flags, e.g. "--latest"'
+  CI_EXEC_DEPLOY:
+    value: "true"
+    options: ["true", "false"]
+    description: "deploy stage: provision test VM + platform deploy"
+  CI_EXEC_SERVER_INSTALLATION:
+    value: "true"
+    options: ["true", "false"]
+    description: '"false" skips the OS/microk8s install (target already prepared)'
+  CI_EXEC_INTEGRATION_TESTS:
+    value: "true"
+    options: ["true", "false"]
+    description: "test stage: pytest + Playwright against the deployed VM"
+  CI_EXEC_SECURITY_SCAN:
+    value: "false"
+    options: ["true", "false"]
+    description: "Registry scan of the images this pipeline pushed; needs CI_EXEC_BUILD."
+  CI_EXEC_SECURITY_SCAN_ARGUMENTS:
+    value: "--vulnerability-scan --configuration-check --create-sboms"
+    description: "Extra security scan flags; needs CI_EXEC_SECURITY_SCAN"
+  CI_EXEC_DOCKER_PRUNE:
+    value: "false"
+    options: ["true", "false"]
+    description: '"true" = wipe the runner docker cache before build'
+  CI_EXEC_DESTROY_DELAYED:
+    value: "false"
+    options: ["true", "false"]
+    description: '"true" = keep the test VM for 4h after the pipeline for inspection'
+  
+  # "true" pauses push/schedule/MR pipelines (workflow:rules)
+  MAINTENANCE: "false" 
 
   # --- Registries, both configured as project variables: CI_REGISTRY_* for
   # normal builds, RELEASE_REGISTRY_* (protected) for release tag pipelines.
@@ -75,8 +104,12 @@ variables:
   # --- Deployment instance: the per-pipeline test VM on Harvester.
   # FQDN empty → provision a fresh VM; set (plus _USER) → deploy onto an
   # existing machine instead, which the clean stage never destroys.
-  DEPLOYMENT_INSTANCE_FQDN: ""
-  DEPLOYMENT_INSTANCE_USER: "ubuntu"
+  DEPLOYMENT_INSTANCE_FQDN:
+    value: ""
+    description: "Empty = provision a fresh Harvester VM. Set = deploy onto this existing host, which the clean stage never destroys. Max 57 chars (dcmsend peerhost limit)."
+  DEPLOYMENT_INSTANCE_USER:
+    value: "ubuntu"
+    description: "SSH user on the deployment target"
   # vm_name is truncated in the provisioning playbook so the FQDN
   # (<vm_name>.<domain>) stays within the 57-char dcmsend peerhost limit.
   DEPLOYMENT_INSTANCE_VM_NAME: "ci-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"

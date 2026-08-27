@@ -23,8 +23,7 @@ all:
     
     # Harvester connection
     harvester_kubeconfig: "{{ lookup('env', 'HARVESTER_KUBECONFIG') }}"
-    
-    # -----------------------------------------
+    # ----------------------------------------
     # 🔹 ENV VARIABLE VALIDATION LIST
     # -----------------------------------------
     required_env_vars:
@@ -47,10 +46,7 @@ all:
           runner_tags: ["tests-runner"]
           runner_limit: 4
           runner_concurrency: 4
-          # Phase 2 (CI-ARCHITECTURE.md): containerized jobs. build/deploy
-          # runners stay on the shell default until their own flip.
           runner_executor: docker
-          runner_docker_image: "python:3.12"
           # /builds shared with services + privileged allowed for dind only:
           # task_api_tests runs real task containers against a per-job dind.
           runner_docker_volumes: ["/cache", "/builds"]
@@ -70,21 +66,9 @@ all:
           runner_limit: 1
           runner_concurrency: 2
           runner_executor: docker
-          # Default image only carries pipelines from unrebased branches whose
-          # build jobs declare no image: — needs python + git + docker CLI.
-          runner_docker_image: "registry.hzdr.de/kaapana/ci-base:v3"
-          # Socket: warm host-daemon layer cache (CI-ARCHITECTURE.md,
-          # constraint 5). No other host mounts — trivy runs in-process and
-          # scans registry images, not daemon state.
           runner_docker_volumes:
             ["/var/run/docker.sock:/var/run/docker.sock", "/cache"]
           runner_global_concurrency: 1
-        
-        # build-02:
-        #   vm_name: kaapana-build-02
-        #   cpu_cores: 32
-        #   memory_guest: "256Gi"
-        #   disk_size: "512Gi"
 
     deploy_instances:
       hosts:
@@ -97,9 +81,10 @@ all:
           runner_tags: ["deploy-runner"]
           runner_limit: 4
           runner_concurrency: 4
-          # Deploy jobs are stateless containers — tooling from the job image,
-          # secrets from File-type CI variables. No host mounts needed.
           runner_executor: docker
-          runner_docker_image: "registry.hzdr.de/kaapana/ci-base:v3"
-          runner_docker_volumes: ["/cache"]
+          # The one piece of host state these jobs get: without it send_data
+          # re-clones 313 MB of series every pipeline. docker creates /data on
+          # first use; the path is repeated in PYTEST_ARGS in
+          # ci/pipeline/integration-tests.yml.
+          runner_docker_volumes: ["/cache", "/data:/data"]
           runner_global_concurrency: 4

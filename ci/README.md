@@ -127,6 +127,7 @@ jobs with ↻; you rarely need the whole pipeline.
 | `prepare_deployment`: "chart … not found in registry" | The commit was never built. Build it first. |
 | Integration test failed, VM already gone | Re-run with `CI_EXEC_DESTROY_DELAYED=true`, SSH in (recipe above). |
 | `install_extensions` / `send_data` flaky | Known flakiness, `retry: 2` masks most of it. Fails 3× → real; check the JUnit/log artifacts. |
+| `send_data`: "… unavailable from all N source(s)" | Every test-data source failed for that series, the log lists each error. |
 | `playwright_ui_tests` fails | Download the Playwright HTML report artifact — traces and screenshots. |
 | Job dies in prepare: `failed to pull image ... ci-base ... access forbidden` | `DOCKER_AUTH_CONFIG` missing an entry for the active registry host, or its token was minted on the wrong GitLab instance ([section 8](#8-project-cicd-variables-secrets)). |
 | Job stuck "pending" | No runner with the required tag picking it up ([section 6](#6-runners)). |
@@ -165,9 +166,9 @@ executor.
 | kaapana-tests-01 | `tests-runner` | Allows privileged **services** matching `docker.io/library/docker:*` (dind for `task_api_tests`); `/builds` shared between job and services |
 | kaapana-build-01 | `build-runner` | Host docker socket mounted into jobs → warm layer cache across pipelines |
 | kaapana-deploy-01 | `deploy-runner` | No machine state; credentials from File-type CI variables |
+| kaapana-cache-01 | — | Shared Runner Cache S3 (Garage) + WebUI, registers no runner |
 
-Provision / re-provision (also how you add a runner — add it to the
-inventory first):
+Provision / re-provision:
 
 ```bash
 export GITLAB_API_TOKEN=...      # api scope
@@ -178,12 +179,13 @@ export SSH_PRIVATE_KEY=~/.ssh/kaapana.pem
 export HARVESTER_KUBECONFIG=~/.kube/harvester.yaml
 
 ansible-playbook -i ci/harvester/inventory.yaml ci/harvester/setup_ci.yaml
-# FORCE_RECREATE=true → delete and recreate existing VMs
+# FORCE_RECREATE=true → delete and recreate ALL existing VMs
 ```
 
-On-VM troubleshooting: `sudo gitlab-runner verify`,
-`sudo systemctl status gitlab-runner`, config at
-`/etc/gitlab-runner/config.toml`.
+Troubleshooting: The runner runs as a user-mode (user: `ubuntu`) systemd service):
+- `gitlab-runner verify`
+- `systemctl --user status gitlab-runner`
+- configuration  `~/.gitlab-runner/config.toml`.
 
 ## 7. Releases
 
@@ -218,6 +220,7 @@ the precedence trap above).
 | `KAAPANA_READTHEDOCS_TOKEN` | yes | no | Scheduled docs check |
 | `HARVESTER_KUBECONFIG` | File | no | Harvester cluster access — VM provisioning/deletion |
 | `CI_SSH_PRIVATE_KEY` | File | no | SSH key for test VMs (Harvester `kaapana` KeyPair) |
+| `CI_TEST_DATA_REPOS` | File | no | Test-data repositories for `send_data` |
 | `DOCKER_AUTH_CONFIG` | no | no | Pull auth for private job images (ci-base) — see below |
 
 **`DOCKER_AUTH_CONFIG` and switching registries.** The CI has used two registries over time , `CI_REGISTRY_URL` selects the active one. 

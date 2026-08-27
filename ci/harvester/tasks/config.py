@@ -1,16 +1,18 @@
-#!/usr/bin/env python3
 """
 Update a single GitLab Runner in config.toml based on its token.
 - Reads existing config.toml
 - Finds runner by token
 - Updates custom_build_dir (as list of tables), limit, request_concurrency
+- Sets the executor's default image when --default-image is given
 - Writes updated TOML back
 """
 
 import argparse
 from pathlib import Path
+
 import tomli
 import tomli_w
+
 
 def read_config(path):
     path = Path(path)
@@ -18,6 +20,7 @@ def read_config(path):
         with path.open("rb") as f:
             return tomli.load(f)
     return {}
+
 
 def update_runner_by_token(runners, token, updates):
     """
@@ -28,21 +31,36 @@ def update_runner_by_token(runners, token, updates):
         if r.get("token") == token:
             cbd_value = updates.pop("custom_build_dir", None)
             if cbd_value is not None:
-                r["custom_build_dir"] = {"enabled": bool(cbd_value)}  # <-- table, not list
+                r["custom_build_dir"] = {
+                    "enabled": bool(cbd_value)
+                }  # <-- table, not list
+            default_image = updates.pop("default_image", None)
+            if default_image:
+                r.setdefault("docker", {})["image"] = default_image
             # Update remaining keys
             for k, v in updates.items():
                 r[k] = v
             return True
     return False
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Update single GitLab Runner in config.toml")
+    parser = argparse.ArgumentParser(
+        description="Update single GitLab Runner in config.toml"
+    )
     parser.add_argument("--runner-home", required=True)
     parser.add_argument("--config-path", default=None)
-    parser.add_argument("--token", required=True, help="Runner token to identify the runner")
+    parser.add_argument(
+        "--token", required=True, help="Runner token to identify the runner"
+    )
     parser.add_argument("--custom-build-dir", type=bool, default=True)
     parser.add_argument("--limit", type=int, default=1)
     parser.add_argument("--request-concurrency", type=int, default=1)
+    parser.add_argument(
+        "--default-image",
+        default="",
+        help="Executor default image; empty leaves the registered value alone",
+    )
     parser.add_argument("--global-concurrent", type=int, default=None)
     args = parser.parse_args()
 
@@ -53,15 +71,13 @@ def main():
     config.setdefault("runners", [])
 
     # Update the runner matching the token
-    updated = update_runner_by_token(
-        config["runners"],
-        args.token,
-        {
-            "custom_build_dir": args.custom_build_dir,
-            "limit": args.limit,
-            "request_concurrency": args.request_concurrency
-        }
-    )
+    updates = {
+        "custom_build_dir": args.custom_build_dir,
+        "limit": args.limit,
+        "request_concurrency": args.request_concurrency,
+        "default_image": args.default_image,
+    }
+    updated = update_runner_by_token(config["runners"], args.token, updates)
 
     if not updated:
         raise ValueError(f"No runner found with token: {args.token}")
@@ -77,6 +93,7 @@ def main():
         tomli_w.dump(config, f)
 
     print(f"Runner updated in {config_path}")
+
 
 if __name__ == "__main__":
     main()

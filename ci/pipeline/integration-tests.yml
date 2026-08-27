@@ -147,7 +147,9 @@ send_data:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_send_data.py"
     JUNIT_FILE: "send_data.xml"
     LOG_FILE: "send_data.log"
-    PYTEST_WORKERS: "4"
+    # Collecting archives is IO-bound and cheap once the cache is warm;
+    # xdist only interleaves the log across datasets.
+    PYTEST_WORKERS: "0"
   retry: 2
 
 run_workflows:

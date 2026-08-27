@@ -12,12 +12,13 @@ from collections import Counter
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import urlparse
 
 import requests
 from integration_tests.utils.KaapanaAuth import KaapanaAuth
 from integration_tests.utils.logger import get_logger
 
-logger = get_logger(__name__, logging.DEBUG)
+logger = get_logger(__name__, logging.INFO)
 
 TCIA_GETIMAGE_URL = os.getenv(
     "TCIA_GETIMAGE_URL",
@@ -133,19 +134,8 @@ def get_series_to_download_from_manifest(file_path: Path):
     return series_uids
 
 
-def download_from_url(output_dir, input_file="download-urls.txt"):
-    """
-    Download files from urls specified in `dir/download-urls.txt`, save into `output` and unzip `output`.
-    """
-    with open(input_file, "r") as f:
-        for url in f:
-            r = requests.get(url, timeout=HTTP_TIMEOUT)
-            content = zipfile.ZipFile(BytesIO(r.content))
-            content.extractall(output_dir)
-
-
-def fetch_archive(source_dir, dataset: str, series_uid: str) -> bytes:
-    archive = Path(source_dir) / dataset / f"{series_uid}.zip"
+def fetch_archive(source_dir, dataset: str, name: str) -> bytes:
+    archive = Path(source_dir) / dataset / name
     if not archive.is_file():
         raise SeriesUnavailable(f"{archive} does not exist")
     try:
@@ -170,10 +160,17 @@ def fetch_from_tcia(series_uid: str) -> bytes:
             return response.content
         except requests.RequestException as error:
             last_error = error
-            logger.warning(
-                f"TCIA attempt {attempt}/{TCIA_ATTEMPTS} for {series_uid} failed: {error}"
-            )
+            logger.debug(f"TCIA attempt {attempt}/{TCIA_ATTEMPTS} failed: {error}")
     raise SeriesUnavailable(f"TCIA did not deliver {series_uid}: {last_error}")
+
+
+def fetch_from_url(url: str) -> bytes:
+    try:
+        response = requests.get(url, timeout=HTTP_TIMEOUT)
+        response.raise_for_status()
+        return response.content
+    except requests.RequestException as error:
+        raise SeriesUnavailable(f"{url} did not deliver: {error}") from error
 
 
 def extract_archive(payload: bytes, outdir: str):
@@ -185,20 +182,18 @@ def extract_archive(payload: bytes, outdir: str):
         raise SeriesUnavailable(f"unpacking into {outdir} failed: {error}") from error
 
 
-def cache_archive(cache_dir, dataset: str, series_uid: str, payload: bytes):
-    archive = Path(cache_dir) / dataset / f"{series_uid}.zip"
+def cache_archive(cache_dir, dataset: str, name: str, payload: bytes):
+    archive = Path(cache_dir) / dataset / name
     if archive.is_file():
         return
-    half_written = archive.with_name(f"{archive.name}.{uuid.uuid4().hex[:8]}")
+    half_written = archive.with_name(f"{name}.{uuid.uuid4().hex[:8]}")
     try:
         archive.parent.mkdir(parents=True, exist_ok=True)
         half_written.write_bytes(payload)
         os.replace(half_written, archive)
     except OSError as error:
-        logger.warning(f"could not cache {series_uid} at {archive}: {error}")
+        logger.warning(f"could not cache {archive}: {error}")
         half_written.unlink(missing_ok=True)
-    else:
-        logger.info(f"cached {series_uid} at {archive}")
 
 
 def list_of_series_in_dir(dir):
@@ -263,10 +258,7 @@ def clone_test_data_repos(spec: str, dest_root: Path) -> list:
         except (SeriesUnavailable, KeyError, OSError) as error:
             logger.warning(f"repository {n} ({entry.get('url')}) not cloned: {error}")
             continue
-        logger.info(
-            f"cloned repository {n} ({entry.get('url')}) to {repo_dir}, "
-            f"{len(list(repo_dir.glob('**/*.zip')))} series archives"
-        )
+        logger.info(f"cloned {entry.get('url')} to {repo_dir}")
         dirs.append(str(repo_dir))
     return dirs
 
@@ -276,90 +268,114 @@ def cloned_repo_dirs(spec: str, dest_root: str) -> tuple:
     return tuple(clone_test_data_repos(spec, Path(dest_root))) if spec else ()
 
 
-def series_sources(series_uid: str, dataset: str, cache_dir, repo_dirs):
+def dataset_archives(source_file: Path, target_dir: Path):
+    """
+    Every archive a dataset is made of, as (cache name, unpack dir, fetch).
+
+    A .tcia manifest lists one archive per series; anything else is a list of
+    urls, one archive each. Both end up cached as <dataset>/<name>.
+    """
+    if str(source_file).endswith(".tcia"):
+        for series_uid in get_series_to_download_from_manifest(source_file):
+            yield (
+                f"{series_uid}.zip",
+                os.path.join(target_dir, series_uid, series_uid),
+                "TCIA",
+                lambda uid=series_uid: fetch_from_tcia(uid),
+            )
+        return
+
+    for line in Path(source_file).read_text().splitlines():
+        if not (url := line.strip()):
+            continue
+        name = os.path.basename(urlparse(url).path) or "download.zip"
+        yield (
+            name,
+            os.path.join(target_dir, Path(name).stem),
+            urlparse(url).netloc or "origin",
+            lambda u=url: fetch_from_url(u),
+        )
+
+
+def archive_sources(name, dataset, cache_dir, repo_dirs, remote_label, remote):
     """A generator so repo_dirs() only clones once the cache has missed."""
     if cache_dir:
-        yield (
-            f"cache {cache_dir}",
-            lambda: fetch_archive(cache_dir, dataset, series_uid),
-            False,
-        )
+        yield "cache", lambda: fetch_archive(cache_dir, dataset, name), False
     for repo_dir in repo_dirs() if callable(repo_dirs) else repo_dirs or []:
-        yield (
-            f"repository {repo_dir}",
-            lambda d=repo_dir: fetch_archive(d, dataset, series_uid),
-            True,
-        )
-    yield "TCIA", lambda: fetch_from_tcia(series_uid), True
+        yield "data repo", lambda d=repo_dir: fetch_archive(d, dataset, name), True
+    yield remote_label, remote, True
 
 
-def download_series(
-    series_uid: str, dataset: str, series_outdir: str, cache_dir=None, repo_dirs=None
+def download_archive(
+    name, outdir, remote_label, remote, dataset, cache_dir=None, repo_dirs=None
 ):
     failures = []
-    for label, fetch, worth_caching in series_sources(
-        series_uid, dataset, cache_dir, repo_dirs
+    for label, fetch, worth_caching in archive_sources(
+        name, dataset, cache_dir, repo_dirs, remote_label, remote
     ):
-        logger.info(f"{series_uid}: getting it from {label}")
         try:
             payload = fetch()
-            extract_archive(payload, os.path.join(series_outdir, series_uid))
+            extract_archive(payload, outdir)
         except SeriesUnavailable as error:
+            # A miss on the cache or the repo is the normal path, not a problem.
             failures.append(f"{label}: {error}")
-            logger.warning(f"{series_uid}: {label} did not deliver it, {error}")
+            logger.debug(f"{name}: {label} did not deliver it, {error}")
             continue
-        logger.info(f"{series_uid}: got it from {label}")
         if worth_caching and cache_dir:
-            cache_archive(cache_dir, dataset, series_uid, payload)
+            cache_archive(cache_dir, dataset, name, payload)
         return label
 
-    raise SeriesUnavailable(
-        f"{series_uid} unavailable from all source(s) -> " + " | ".join(failures)
+    raise SeriesUnavailable(f"{name} unavailable -> " + " | ".join(failures))
+
+
+@lru_cache(maxsize=None)
+def warn_cache_dir_missing(cache_dir: str):
+    logger.warning(
+        f"cache directory {cache_dir} does not exist — on a runner this usually "
+        "means the volume is not mounted into the job"
     )
+
+
+def already_unpacked(outdir) -> bool:
+    path = Path(outdir)
+    return path.is_dir() and any(path.iterdir())
 
 
 def download_data(
     source_file: Path, target_dir: Path, force=False, cache_dir=None, repo_dirs=None
 ):
-    """Collect a .tcia manifest via download_series(), or a url list directly."""
-    if str(source_file).endswith(".tcia"):
-        series_uids = get_series_to_download_from_manifest(source_file)
-        dataset = Path(target_dir).name
-        order = (
-            ([f"cache {cache_dir}"] if cache_dir else [])
-            + (["test-data repositories"] if repo_dirs else [])
-            + ["TCIA"]
-        )
-        logger.info(
-            f"collecting {dataset}: {len(series_uids)} series, "
-            f"sources tried in this order: {' then '.join(order)}"
-        )
-        if cache_dir and not Path(cache_dir).is_dir():
-            logger.warning(
-                f"cache directory {cache_dir} does not exist — on a runner this "
-                "usually means the volume is not mounted into the job"
-            )
-        served = Counter()
-        for series_uid in series_uids:
-            series_outdir = os.path.join(target_dir, series_uid)
-            if os.path.isdir(series_outdir) and not force:
-                logger.info(f"{series_outdir} exists, use --force-download to refetch")
-                served["already on disk"] += 1
-                continue
+    """Collect every archive of one dataset, cache first and origin last."""
+    dataset = Path(target_dir).name
+    archives = list(dataset_archives(source_file, target_dir))
+    order = (
+        (["cache"] if cache_dir else [])
+        + (["data repo"] if repo_dirs else [])
+        + sorted({label for _, _, label, _ in archives})
+    )
+    logger.info(f"{dataset}: {len(archives)} archives, sources: {' -> '.join(order)}")
+    if cache_dir and not Path(cache_dir).is_dir():
+        warn_cache_dir_missing(str(cache_dir))
+
+    served = Counter()
+    unavailable = []
+    for name, outdir, remote_label, remote in archives:
+        if already_unpacked(outdir) and not force:
+            served["already on disk"] += 1
+            continue
+        try:
             served[
-                download_series(
-                    series_uid, dataset, series_outdir, cache_dir, repo_dirs
+                download_archive(
+                    name, outdir, remote_label, remote, dataset, cache_dir, repo_dirs
                 )
             ] += 1
-        summary = ", ".join(f"{count} from {label}" for label, count in served.items())
-        logger.info(f"collecting {dataset} completed: {summary}")
+        except SeriesUnavailable as error:
+            unavailable.append(str(error))
 
-    elif os.path.isfile(source_file):
-        if force or len([f for f in Path(target_dir).glob("**/*.dcm")]) == 0:
-            logger.info("downloading files from specified urls")
-            download_from_url(target_dir, input_file=str(source_file))
-            logger.info("downloading and extracting files completed")
-        else:
-            logger.info(
-                f"dicom files found in {target_dir=}, use --force-download to refetch"
-            )
+    summary = ", ".join(f"{count} from {label}" for label, count in served.items())
+    logger.info(f"{dataset}: {summary or 'nothing collected'}")
+    if unavailable:
+        for failure in unavailable:
+            logger.error(f"{dataset}: {failure}")
+        raise SeriesUnavailable(
+            f"{dataset}: {len(unavailable)} of {len(archives)} archives unavailable"
+        )

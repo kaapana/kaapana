@@ -20,14 +20,11 @@ from integration_tests.utils.logger import get_logger
 
 logger = get_logger(__name__, logging.INFO)
 
-TCIA_GETIMAGE_URL = os.getenv(
-    "TCIA_GETIMAGE_URL",
-    "https://services.cancerimagingarchive.net/nbia-api/services/v1/getImage",
+TCIA_GETIMAGE_URL = (
+    "https://services.cancerimagingarchive.net/nbia-api/services/v1/getImage"
 )
-# (connect, next chunk) in seconds. Neither bounds the whole transfer.
-HTTP_TIMEOUT = (10, 60)
-TCIA_TIMEOUT = (10, int(os.getenv("TCIA_TIMEOUT", "60")))
-TCIA_ATTEMPTS = int(os.getenv("TCIA_ATTEMPTS", "3"))
+CONNECT_AND_READ_TIMEOUT = (10, 60)
+TCIA_ATTEMPTS = 3
 
 
 class SeriesUnavailable(Exception):
@@ -154,7 +151,7 @@ def fetch_from_tcia(series_uid: str) -> bytes:
             response = requests.get(
                 TCIA_GETIMAGE_URL,
                 params={"SeriesInstanceUID": series_uid},
-                timeout=TCIA_TIMEOUT,
+                timeout=CONNECT_AND_READ_TIMEOUT,
             )
             response.raise_for_status()
             return response.content
@@ -166,7 +163,7 @@ def fetch_from_tcia(series_uid: str) -> bytes:
 
 def fetch_from_url(url: str) -> bytes:
     try:
-        response = requests.get(url, timeout=HTTP_TIMEOUT)
+        response = requests.get(url, timeout=CONNECT_AND_READ_TIMEOUT)
         response.raise_for_status()
         return response.content
     except requests.RequestException as error:
@@ -174,7 +171,6 @@ def fetch_from_url(url: str) -> bytes:
 
 
 def extract_archive(payload: bytes, outdir: str):
-    """Unpacking is what validates a payload, so a bad one falls through."""
     try:
         with zipfile.ZipFile(BytesIO(payload)) as content:
             content.extractall(outdir)
@@ -298,7 +294,6 @@ def dataset_archives(source_file: Path, target_dir: Path):
 
 
 def archive_sources(name, dataset, cache_dir, repo_dirs, remote_label, remote):
-    """A generator so repo_dirs() only clones once the cache has missed."""
     if cache_dir:
         yield "cache", lambda: fetch_archive(cache_dir, dataset, name), False
     for repo_dir in repo_dirs() if callable(repo_dirs) else repo_dirs or []:

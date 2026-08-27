@@ -1,7 +1,9 @@
 # conftest.py
 import logging
 import os
+import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -68,11 +70,6 @@ def pytest_addoption(parser):
         default=None,
         help="Directory of <dataset>/<series-uid>.zip archives that already "
         "exists, tried after the cache instead of cloning. Repeat for several.",
-    )
-    parser.addoption(
-        "--test-data-repo-root",
-        default=None,
-        help="Where CI_TEST_DATA_REPOS is cloned. Defaults next to --download-directory.",
     )
     parser.addoption(
         "--files", nargs="*", default=None, help="Specific test files to collect"
@@ -143,13 +140,6 @@ def get_download_directory(config) -> Path:
 
 def get_test_data_cache_dir(config):
     return config.getoption("--test-data-cache-dir")
-
-
-def get_test_data_repo_root(config) -> Path:
-    return Path(
-        config.getoption("--test-data-repo-root")
-        or get_download_directory(config).parent
-    )
 
 
 def get_json_extension_params(config):
@@ -232,10 +222,12 @@ def test_data_repo_dirs(pytestconfig):
     """Resolved on call, not here, so a warm cache never triggers a clone."""
     preexisting = pytestconfig.getoption("--test-data-repo-dir")
     if preexisting:
-        return lambda: list(preexisting)
+        yield lambda: list(preexisting)
+        return
     spec = os.getenv("CI_TEST_DATA_REPOS", "")
-    repo_root = str(get_test_data_repo_root(pytestconfig))
-    return lambda: list(cloned_repo_dirs(spec, repo_root))
+    clone_root = tempfile.mkdtemp(prefix="test-data-repos-")
+    yield lambda: list(cloned_repo_dirs(spec, clone_root))
+    shutil.rmtree(clone_root, ignore_errors=True)
 
 
 @pytest.fixture(scope="session")

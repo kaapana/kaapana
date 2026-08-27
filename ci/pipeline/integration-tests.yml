@@ -1,7 +1,7 @@
 # Stage: test — integration + UI tests against the live platform
 # In:  VM_FQDN / VM_USER (deployment.env dotenv, else DEPLOYMENT_INSTANCE_*);
-#      CLIENT_SECRET dotenv from
-#      setup_integration_tests; the live platform over HTTPS/DICOM
+#      CLIENT_SECRET dotenv from setup_integration_tests; the live platform
+#      over HTTPS/DICOM
 # Out: JUnit/log/report artifacts; platform state mutations passed along the
 #      first_login → install_extensions → send_data → run_workflows chain
 ##############################################

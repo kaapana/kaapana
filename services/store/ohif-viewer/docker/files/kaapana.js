@@ -155,8 +155,6 @@ window.config = {
     option: "never",
   },
   allowMultiSelectExport: true,
-  // SEG/RT/SR series hydrate without a confirmation prompt: the viewer is
-  // opened for one series from the data view, so the overlay is what was asked for.
   disableConfirmationPrompts: true,
   dataSources: sharedDataSources,
   whiteLabeling: {

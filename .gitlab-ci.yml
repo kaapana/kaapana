@@ -73,10 +73,7 @@ variables:
   CI_EXEC_SECURITY_SCAN_ARGUMENTS:
     value: "--vulnerability-scan --offline-packages-scan --configuration-check --create-sboms"
     description: "Extra security scan flags; needs CI_EXEC_SECURITY_SCAN"
-  CI_EXEC_DOCKER_PRUNE:
-    value: "false"
-    options: ["true", "false"]
-    description: '"true" = wipe the runner docker cache before build'
+  CI_EXEC_DOCKER_PRUNE: "false"
   CI_EXEC_DESTROY_DELAYED:
     value: "false"
     options: ["true", "false"]

@@ -2,8 +2,8 @@ import glob
 import json
 import logging
 import os
-import shutil
 import re
+import shutil
 import subprocess
 import time
 import uuid
@@ -144,25 +144,31 @@ def download_from_url(output_dir, input_file="download-urls.txt"):
             content.extractall(output_dir)
 
 
-def download_from_tcia(outdir, series_uid):
-    """
-    Fetch one series from TCIA into `outdir/series_uid`.
+def fetch_archive(source_dir, dataset: str, series_uid: str) -> bytes:
+    archive = Path(source_dir) / dataset / f"{series_uid}.zip"
+    if not archive.is_file():
+        raise SeriesUnavailable(f"{archive} does not exist")
+    try:
+        payload = archive.read_bytes()
+    except OSError as error:
+        raise SeriesUnavailable(f"reading {archive} failed: {error}") from error
+    if not payload:
+        raise SeriesUnavailable(f"{archive} is empty")
+    return payload
 
-    Raises SeriesUnavailable after TCIA_ATTEMPTS failed tries.
-    """
-    series_outdir = os.path.join(outdir, series_uid)
+
+def fetch_from_tcia(series_uid: str) -> bytes:
     last_error = None
     for attempt in range(1, TCIA_ATTEMPTS + 1):
         try:
-            r = requests.get(
+            response = requests.get(
                 TCIA_GETIMAGE_URL,
                 params={"SeriesInstanceUID": series_uid},
                 timeout=TCIA_TIMEOUT,
             )
-            r.raise_for_status()
-            zipfile.ZipFile(BytesIO(r.content)).extractall(series_outdir)
-            return
-        except (requests.RequestException, zipfile.BadZipFile, OSError) as error:
+            response.raise_for_status()
+            return response.content
+        except requests.RequestException as error:
             last_error = error
             logger.warning(
                 f"TCIA attempt {attempt}/{TCIA_ATTEMPTS} for {series_uid} failed: {error}"
@@ -170,22 +176,29 @@ def download_from_tcia(outdir, series_uid):
     raise SeriesUnavailable(f"TCIA did not deliver {series_uid}: {last_error}")
 
 
-def download_from_repo(
-    repo_dir: str, dataset: str, series_uid: str, series_outdir: str
-):
-    """
-    Take one series from `<repo_dir>/<dataset>/<uid>.zip`.
-
-    The zip holds what TCIA's getImage returns.
-    """
-    archive = Path(repo_dir) / dataset / f"{series_uid}.zip"
-    if not archive.is_file():
-        raise SeriesUnavailable(f"{archive} does not exist")
+def extract_archive(payload: bytes, outdir: str):
+    """Unpacking is what validates a payload, so a bad one falls through."""
     try:
-        with zipfile.ZipFile(archive) as content:
-            content.extractall(os.path.join(series_outdir, series_uid))
+        with zipfile.ZipFile(BytesIO(payload)) as content:
+            content.extractall(outdir)
     except (zipfile.BadZipFile, OSError) as error:
-        raise SeriesUnavailable(f"Unpacking {archive} failed: {error}") from error
+        raise SeriesUnavailable(f"unpacking into {outdir} failed: {error}") from error
+
+
+def cache_archive(cache_dir, dataset: str, series_uid: str, payload: bytes):
+    archive = Path(cache_dir) / dataset / f"{series_uid}.zip"
+    if archive.is_file():
+        return
+    half_written = archive.with_name(f"{archive.name}.{uuid.uuid4().hex[:8]}")
+    try:
+        archive.parent.mkdir(parents=True, exist_ok=True)
+        half_written.write_bytes(payload)
+        os.replace(half_written, archive)
+    except OSError as error:
+        logger.warning(f"could not cache {series_uid} at {archive}: {error}")
+        half_written.unlink(missing_ok=True)
+    else:
+        logger.info(f"cached {series_uid} at {archive}")
 
 
 def list_of_series_in_dir(dir):
@@ -200,26 +213,13 @@ def list_of_series_in_dir(dir):
 
 
 def clone_test_data_repo(entry: dict, dest: Path) -> Path:
-    """
-    Shallow sparse clone of one test-data repository, `entry` being
-    {url, token, ref, path}. Returns the directory holding the series zips.
-
-    An existing `dest` is reused. Every xdist worker calls this, so the clone
-    goes to a private directory and is moved into place with one rename.
-    """
     url, token = entry["url"], entry.get("token", "")
-    ref = entry.get("ref", "main")
     path = entry.get("path", "ci_integration_tests")
-    if dest.is_dir():
-        return dest / path
-
-    authed = url.replace("https://", f"https://oauth2:{token}@", 1) if token else url
+    authed_url = (
+        url.replace("https://", f"https://oauth2:{token}@", 1) if token else url
+    )
     env = {**os.environ, "GIT_LFS_SKIP_SMUDGE": "1", "GIT_TERMINAL_PROMPT": "0"}
-    # Unique per attempt: the root can be a volume shared by several job
-    # containers, and each container's PID namespace starts over at low
-    # numbers, so a pid alone is not unique there.
-    staging = dest.with_name(f"{dest.name}.{os.getpid()}.{uuid.uuid4().hex[:8]}")
-    shutil.rmtree(staging, ignore_errors=True)
+    shutil.rmtree(dest, ignore_errors=True)
     for cmd in (
         [
             "git",
@@ -230,160 +230,136 @@ def clone_test_data_repo(entry: dict, dest: Path) -> Path:
             "--sparse",
             "--filter=blob:none",
             "--branch",
-            ref,
-            authed,
-            str(staging),
+            entry.get("ref", "main"),
+            authed_url,
+            str(dest),
         ],
-        ["git", "-C", str(staging), "sparse-checkout", "set", path],
+        ["git", "-C", str(dest), "sparse-checkout", "set", path],
     ):
         result = subprocess.run(cmd, env=env, capture_output=True, text=True)
         if result.returncode != 0:
-            # The clone url carries the token, keep it out of the CI log.
-            shutil.rmtree(staging, ignore_errors=True)
-            # git echoes the clone url, which carries the token.
-            message = result.stderr.strip().replace(authed, url)
+            shutil.rmtree(dest, ignore_errors=True)
+            without_token = result.stderr.strip().replace(authed_url, url)
             raise SeriesUnavailable(
-                message.replace(token, "***") if len(token) >= 8 else message
+                without_token.replace(token, "***") if token else without_token
             )
-
-    # The clone url carries the token and git keeps it in .git/config. The
-    # destination is a volume every job on this runner can read, so drop the
-    # credential before publishing the directory. Nothing fetches afterwards.
-    subprocess.run(
-        ["git", "-C", str(staging), "remote", "set-url", "origin", url],
-        capture_output=True,
-        text=True,
-    )
-
-    try:
-        os.rename(staging, dest)
-    except OSError:
-        # Another worker got there first, its clone is the one to use.
-        shutil.rmtree(staging, ignore_errors=True)
     return dest / path
 
 
 def clone_test_data_repos(spec: str, dest_root: Path) -> list:
-    """
-    Clone every repository in `spec`, a JSON array of {url, token, ref, path}
-    or a path to a file holding one. A repository that fails is skipped.
-    """
     if os.path.isfile(spec):
         spec = Path(spec).read_text()
     try:
         entries = json.loads(spec)
     except json.JSONDecodeError as error:
-        logger.warning(
-            f"Test-data repositories are not valid JSON, ignoring them: {error}"
-        )
+        logger.warning(f"test-data repositories are not valid JSON, ignoring: {error}")
         return []
 
     dirs = []
     for n, entry in enumerate(entries, start=1):
-        dest = Path(dest_root) / f"test_data_repo_{n}"
-        reused = dest.is_dir()
+        unshared_dest = Path(dest_root) / f"test_data_repo_{n}.{os.getpid()}"
         try:
-            repo_dir = clone_test_data_repo(entry, dest)
+            repo_dir = clone_test_data_repo(entry, unshared_dest)
         except (SeriesUnavailable, KeyError, OSError) as error:
-            logger.warning(f"Repository {n} ({entry.get('url')}) not cloned: {error}")
+            logger.warning(f"repository {n} ({entry.get('url')}) not cloned: {error}")
             continue
         logger.info(
-            f"{'Reused' if reused else 'Cloned'} repository {n} at {repo_dir}, "
-            f"{len(list(repo_dir.glob('**/*.zip')))} series archives."
+            f"cloned repository {n} ({entry.get('url')}) to {repo_dir}, "
+            f"{len(list(repo_dir.glob('**/*.zip')))} series archives"
         )
         dirs.append(str(repo_dir))
     return dirs
 
 
 @lru_cache(maxsize=None)
-def repo_origin(repo_dir: str) -> str:
-    """
-    The remote a cloned repository came from, for log lines. Falls back to the
-    directory itself when it is not a clone (--test-data-repo-dir).
-    """
-    result = subprocess.run(
-        ["git", "-C", repo_dir, "remote", "get-url", "origin"],
-        capture_output=True,
-        text=True,
-    )
-    return result.stdout.strip() or repo_dir
+def cloned_repo_dirs(spec: str, dest_root: str) -> tuple:
+    return tuple(clone_test_data_repos(spec, Path(dest_root))) if spec else ()
 
 
-def download_series(series_uid: str, dataset: str, series_outdir: str, repo_dirs=None):
-    """
-    Get one series, trying the repositories first and TCIA last.
-
-    Raises SeriesUnavailable if every source fails.
-    """
-    sources = [
-        (
-            repo_origin(repo_dir),
-            lambda d=repo_dir: download_from_repo(
-                d, dataset, series_uid, series_outdir
-            ),
+def series_sources(series_uid: str, dataset: str, cache_dir, repo_dirs):
+    """A generator so repo_dirs() only clones once the cache has missed."""
+    if cache_dir:
+        yield (
+            f"cache {cache_dir}",
+            lambda: fetch_archive(cache_dir, dataset, series_uid),
+            False,
         )
-        for repo_dir in repo_dirs or []
-    ]
-    sources.append(("TCIA", lambda: download_from_tcia(series_outdir, series_uid)))
+    for repo_dir in repo_dirs() if callable(repo_dirs) else repo_dirs or []:
+        yield (
+            f"repository {repo_dir}",
+            lambda d=repo_dir: fetch_archive(d, dataset, series_uid),
+            True,
+        )
+    yield "TCIA", lambda: fetch_from_tcia(series_uid), True
 
+
+def download_series(
+    series_uid: str, dataset: str, series_outdir: str, cache_dir=None, repo_dirs=None
+):
     failures = []
-    for label, fetch in sources:
+    for label, fetch, worth_caching in series_sources(
+        series_uid, dataset, cache_dir, repo_dirs
+    ):
         logger.info(f"{series_uid}: getting it from {label}")
         try:
-            fetch()
+            payload = fetch()
+            extract_archive(payload, os.path.join(series_outdir, series_uid))
         except SeriesUnavailable as error:
             failures.append(f"{label}: {error}")
-            logger.warning(f"{series_uid}: download failed from {label}, {error}")
+            logger.warning(f"{series_uid}: {label} did not deliver it, {error}")
             continue
-        logger.info(f"{series_uid}: download successful from {label}")
+        logger.info(f"{series_uid}: got it from {label}")
+        if worth_caching and cache_dir:
+            cache_archive(cache_dir, dataset, series_uid, payload)
         return label
 
     raise SeriesUnavailable(
-        f"{series_uid} unavailable from all {len(failures)} source(s) -> "
-        + " | ".join(failures)
+        f"{series_uid} unavailable from all source(s) -> " + " | ".join(failures)
     )
 
 
-def download_data(source_file: Path, target_dir: Path, force=False, repo_dirs=None):
-    """
-    Download data either from tcia or from from an url.
-    File contains either a tcia manifest or a download url.
-    The data is downloaded into target_dir.
-    Parameter force determines, whether to force download, even if the directories per series already exist.
-    repo_dirs holds the test-data repositories, see download_series().
-    """
-    repo_dirs = list(repo_dirs or [])
+def download_data(
+    source_file: Path, target_dir: Path, force=False, cache_dir=None, repo_dirs=None
+):
+    """Collect a .tcia manifest via download_series(), or a url list directly."""
     if str(source_file).endswith(".tcia"):
         series_uids = get_series_to_download_from_manifest(source_file)
         dataset = Path(target_dir).name
-        order = [repo_origin(repo_dir) for repo_dir in repo_dirs] + ["TCIA"]
-        logger.info(
-            f"Collecting {dataset}: {len(series_uids)} series, "
-            f"sources tried in this order: {' then '.join(order)}."
+        order = (
+            ([f"cache {cache_dir}"] if cache_dir else [])
+            + (["test-data repositories"] if repo_dirs else [])
+            + ["TCIA"]
         )
-        if not repo_dirs:
+        logger.info(
+            f"collecting {dataset}: {len(series_uids)} series, "
+            f"sources tried in this order: {' then '.join(order)}"
+        )
+        if cache_dir and not Path(cache_dir).is_dir():
             logger.warning(
-                "No test-data repository configured, TCIA is the only source."
+                f"cache directory {cache_dir} does not exist — on a runner this "
+                "usually means the volume is not mounted into the job"
             )
         served = Counter()
         for series_uid in series_uids:
             series_outdir = os.path.join(target_dir, series_uid)
             if os.path.isdir(series_outdir) and not force:
-                logger.info(
-                    f"Directory {series_outdir} already exists -> Use --force_download to download anyway."
-                )
+                logger.info(f"{series_outdir} exists, use --force-download to refetch")
                 served["already on disk"] += 1
                 continue
-            served[download_series(series_uid, dataset, series_outdir, repo_dirs)] += 1
+            served[
+                download_series(
+                    series_uid, dataset, series_outdir, cache_dir, repo_dirs
+                )
+            ] += 1
         summary = ", ".join(f"{count} from {label}" for label, count in served.items())
-        logger.info(f"Collecting {dataset} completed: {summary}.")
+        logger.info(f"collecting {dataset} completed: {summary}")
 
     elif os.path.isfile(source_file):
         if force or len([f for f in Path(target_dir).glob("**/*.dcm")]) == 0:
-            logger.info("Downloading files from specified urls")
+            logger.info("downloading files from specified urls")
             download_from_url(target_dir, input_file=str(source_file))
-            logger.info("Downloading and extracting files completed.")
+            logger.info("downloading and extracting files completed")
         else:
             logger.info(
-                f"Dicom files found in {target_dir=}. Skip download. Use --force to force download."
+                f"dicom files found in {target_dir=}, use --force-download to refetch"
             )

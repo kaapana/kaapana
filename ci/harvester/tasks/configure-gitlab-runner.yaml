@@ -31,6 +31,18 @@
     mode: "0700"
   become: no
 
+# Only host:container entries are real host paths. A bare "/cache" is an
+# anonymous volume and the docker socket is a file, so both are filtered out.
+- name: Ensure host directories for docker bind mounts exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    # Sticky and world-writable: job containers run as root today, this keeps
+    # the mount usable if a job image ever stops doing so.
+    mode: "1777"
+  become: true
+  loop: "{{ runner_docker_volumes | select('search', ':') | map('regex_replace', ':.*$', '') | reject('search', '[.]sock$') | select('match', '^/') | list }}"
+
 - name: Install GitLab Runner package
   block:
     - name: Download GitLab Runner repository setup script
@@ -181,10 +193,12 @@
     --runner-home {{ runner_home }}
     --token {{ new_runner.runner.token }}
     --custom-build-dir True
-    --default-image '{{ runner_docker_image }}'
     --limit {{ runner_limit }}
     --request-concurrency {{ runner_concurrency }}
     --global-concurrent {{ runner_global_concurrency }}
+    {% if runner_executor == 'docker' %}
+    --docker-volumes "{{ runner_docker_volumes | join(',') }}"
+    {% endif %}
     --config-path {{ runner_config_path }}
   no_log: true
 

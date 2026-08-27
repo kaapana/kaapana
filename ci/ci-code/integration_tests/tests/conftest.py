@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 import urllib3
-from integration_tests.data import DataEndpoints, clone_test_data_repos
+from integration_tests.data import DataEndpoints, cloned_repo_dirs
 from integration_tests.extensions import ExtensionEndpoints
 from integration_tests.utils.KaapanaPlaywrightDriver import (
     KaapanaPlaywrightDriver,
@@ -20,8 +20,6 @@ from integration_tests.workflows import (
 )
 
 logging.basicConfig(level=logging.INFO)
-
-logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -58,16 +56,23 @@ def pytest_addoption(parser):
         "--force-download", action="store_true", help="Force dataset re-download"
     )
     parser.addoption(
+        "--test-data-cache-dir",
+        default=None,
+        help="Directory of <dataset>/<series-uid>.zip archives read before any "
+        "remote source and populated from them. CI points it at a host volume "
+        "shared by every job on the runner.",
+    )
+    parser.addoption(
         "--test-data-repo-dir",
         action="append",
         default=None,
-        help="Directory of <dataset>/<series-uid>.zip archives, skips cloning. Repeat for several.",
+        help="Directory of <dataset>/<series-uid>.zip archives that already "
+        "exists, tried after the cache instead of cloning. Repeat for several.",
     )
     parser.addoption(
         "--test-data-repo-root",
         default=None,
-        help="Where CI_TEST_DATA_REPOS is cloned. Defaults next to --download-directory; "
-        "CI points it at a host volume shared by every job on the runner.",
+        help="Where CI_TEST_DATA_REPOS is cloned. Defaults next to --download-directory.",
     )
     parser.addoption(
         "--files", nargs="*", default=None, help="Specific test files to collect"
@@ -136,33 +141,18 @@ def get_download_directory(config) -> Path:
     )
 
 
+def get_test_data_cache_dir(config):
+    return config.getoption("--test-data-cache-dir") or os.getenv(
+        "CI_TEST_DATA_CACHE_DIR"
+    )
+
+
 def get_test_data_repo_root(config) -> Path:
-    """
-    Where the test-data repositories are cloned. A clone here is reused by
-    every later job that sees the same directory, so pointing this at a
-    persistent volume is what keeps the data off the network.
-    """
     return Path(
         config.getoption("--test-data-repo-root")
         or os.getenv("CI_TEST_DATA_REPO_ROOT")
         or get_download_directory(config).parent
     )
-
-
-def get_test_data_repo_dirs(config) -> list:
-    """
-    Directories holding the test series, in the order to try them.
-
-    --test-data-repo-dir points at directories that already exist. Otherwise
-    CI_TEST_DATA_REPOS is cloned into --test-data-repo-root, a JSON array of
-    {url, token, ref, path} or a path to a file holding one. Neither set means
-    TCIA only.
-    """
-    if flags := config.getoption("--test-data-repo-dir"):
-        return list(flags)
-    if spec := os.getenv("CI_TEST_DATA_REPOS"):
-        return clone_test_data_repos(spec, get_test_data_repo_root(config))
-    return []
 
 
 def get_json_extension_params(config):
@@ -236,12 +226,19 @@ def force_download(pytestconfig):
 
 
 @pytest.fixture(scope="session")
+def test_data_cache_dir(pytestconfig):
+    return get_test_data_cache_dir(pytestconfig)
+
+
+@pytest.fixture(scope="session")
 def test_data_repo_dirs(pytestconfig):
-    dirs = get_test_data_repo_dirs(pytestconfig)
-    missing = [d for d in dirs if not Path(d).is_dir()]
-    if missing:
-        logging.warning("Configured test-data repositories do not exist: %s", missing)
-    return dirs
+    """Resolved on call, not here, so a warm cache never triggers a clone."""
+    preexisting = pytestconfig.getoption("--test-data-repo-dir")
+    if preexisting:
+        return lambda: list(preexisting)
+    spec = os.getenv("CI_TEST_DATA_REPOS", "")
+    repo_root = str(get_test_data_repo_root(pytestconfig))
+    return lambda: list(cloned_repo_dirs(spec, repo_root))
 
 
 @pytest.fixture(scope="session")

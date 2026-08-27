@@ -8,6 +8,8 @@ import subprocess
 import time
 import uuid
 import zipfile
+from collections import Counter
+from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 
@@ -278,18 +280,33 @@ def clone_test_data_repos(spec: str, dest_root: Path) -> list:
 
     dirs = []
     for n, entry in enumerate(entries, start=1):
+        dest = Path(dest_root) / f"test_data_repo_{n}"
+        reused = dest.is_dir()
         try:
-            repo_dir = clone_test_data_repo(
-                entry, Path(dest_root) / f"test_data_repo_{n}"
-            )
+            repo_dir = clone_test_data_repo(entry, dest)
         except (SeriesUnavailable, KeyError, OSError) as error:
             logger.warning(f"Repository {n} ({entry.get('url')}) not cloned: {error}")
             continue
         logger.info(
-            f"Cloned repository {n} to {repo_dir}, {len(list(repo_dir.glob('**/*.zip')))} series archives."
+            f"{'Reused' if reused else 'Cloned'} repository {n} at {repo_dir}, "
+            f"{len(list(repo_dir.glob('**/*.zip')))} series archives."
         )
         dirs.append(str(repo_dir))
     return dirs
+
+
+@lru_cache(maxsize=None)
+def repo_origin(repo_dir: str) -> str:
+    """
+    The remote a cloned repository came from, for log lines. Falls back to the
+    directory itself when it is not a clone (--test-data-repo-dir).
+    """
+    result = subprocess.run(
+        ["git", "-C", repo_dir, "remote", "get-url", "origin"],
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip() or repo_dir
 
 
 def download_series(series_uid: str, dataset: str, series_outdir: str, repo_dirs=None):
@@ -300,27 +317,26 @@ def download_series(series_uid: str, dataset: str, series_outdir: str, repo_dirs
     """
     sources = [
         (
-            f"repo{n} ({repo_dir})",
+            repo_origin(repo_dir),
             lambda d=repo_dir: download_from_repo(
                 d, dataset, series_uid, series_outdir
             ),
         )
-        for n, repo_dir in enumerate(repo_dirs or [], start=1)
+        for repo_dir in repo_dirs or []
     ]
-    sources.append(("tcia", lambda: download_from_tcia(series_outdir, series_uid)))
+    sources.append(("TCIA", lambda: download_from_tcia(series_outdir, series_uid)))
 
     failures = []
     for label, fetch in sources:
+        logger.info(f"{series_uid}: getting it from {label}")
         try:
             fetch()
-            if failures:
-                logger.info(
-                    f"Got {series_uid} from {label} after {len(failures)} source(s) failed."
-                )
-            return
         except SeriesUnavailable as error:
             failures.append(f"{label}: {error}")
-            logger.warning(f"{label} could not deliver {series_uid}: {error}")
+            logger.warning(f"{series_uid}: download failed from {label}, {error}")
+            continue
+        logger.info(f"{series_uid}: download successful from {label}")
+        return label
 
     raise SeriesUnavailable(
         f"{series_uid} unavailable from all {len(failures)} source(s) -> "
@@ -340,22 +356,27 @@ def download_data(source_file: Path, target_dir: Path, force=False, repo_dirs=No
     if str(source_file).endswith(".tcia"):
         series_uids = get_series_to_download_from_manifest(source_file)
         dataset = Path(target_dir).name
+        order = [repo_origin(repo_dir) for repo_dir in repo_dirs] + ["TCIA"]
         logger.info(
-            f"Collecting {dataset}: {len(series_uids)} series from {len(repo_dirs)} repository(ies), TCIA last."
+            f"Collecting {dataset}: {len(series_uids)} series, "
+            f"sources tried in this order: {' then '.join(order)}."
         )
         if not repo_dirs:
             logger.warning(
                 "No test-data repository configured, TCIA is the only source."
             )
+        served = Counter()
         for series_uid in series_uids:
             series_outdir = os.path.join(target_dir, series_uid)
             if os.path.isdir(series_outdir) and not force:
                 logger.info(
                     f"Directory {series_outdir} already exists -> Use --force_download to download anyway."
                 )
+                served["already on disk"] += 1
                 continue
-            download_series(series_uid, dataset, series_outdir, repo_dirs)
-        logger.info(f"Collecting {dataset} completed.")
+            served[download_series(series_uid, dataset, series_outdir, repo_dirs)] += 1
+        summary = ", ".join(f"{count} from {label}" for label, count in served.items())
+        logger.info(f"Collecting {dataset} completed: {summary}.")
 
     elif os.path.isfile(source_file):
         if force or len([f for f in Path(target_dir).glob("**/*.dcm")]) == 0:

@@ -16,7 +16,7 @@ setup_integration_tests:
       artifacts: true
     - platform_deployment
   rules:
-    - if: '$CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"'
+    - if: '$CI_EXEC_INTEGRATION_TESTS == "true"'
       when: on_success
     - when: never
   script:

@@ -34,13 +34,6 @@
     ssh_private_key: "{{ lookup('env', 'SSH_PRIVATE_KEY') }}"
     harvester_kubeconfig: "{{ lookup('env', 'HARVESTER_KUBECONFIG') }}"
 
-    # Every group of VMs this playbook owns. A new group is picked up by both
-    # the existence check and the provisioning list.
-    ci_vm_groups:
-      - tests_instances
-      - build_instances
-      - deploy_instances
-
     required_env_vars:
       - GITLAB_API_TOKEN
       - GITLAB_PROJECT_ID
@@ -58,14 +51,6 @@
       loop: "{{ required_env_vars }}"
       run_once: true
 
-    - name: Collect the VM definitions of every instance group
-      ansible.builtin.set_fact:
-        ci_vm_definitions: >-
-          {{
-            ci_vm_groups | select('in', groups) | map('extract', groups) | flatten
-            | map('extract', hostvars) | selectattr('vm_name', 'defined') | list
-          }}
-
     - name: Check if VM already exists
       kubernetes.core.k8s_info:
         api_version: kubevirt.io/v1
@@ -73,7 +58,12 @@
         name: "{{ item.vm_name }}"
         namespace: "{{ harvester_namespace }}"
         kubeconfig: "{{ harvester_kubeconfig }}"
-      loop: "{{ ci_vm_definitions }}"
+      loop: >-
+        {{
+          groups['tests_instances'] | map('extract', hostvars) | list +
+          groups['build_instances'] | map('extract', hostvars) | list +
+          groups['deploy_instances'] | map('extract', hostvars) | list
+        }}
       loop_control:
         label: "{{ item.vm_name }}"
       register: vm_exists_check
@@ -93,7 +83,14 @@
 
     - name: Build list of VMs to provision
       ansible.builtin.set_fact:
-        vms_to_provision: "{{ ci_vm_definitions }}"
+        vms_to_provision: >-
+          {{
+            (
+              groups['tests_instances'] | map('extract', hostvars) | list +
+              groups['build_instances'] | map('extract', hostvars) | list +
+              groups['deploy_instances'] | map('extract', hostvars) | list
+            ) | selectattr('vm_name', 'defined') | list
+          }}
 
     - name: Filter to only new VMs (skip existing unless force_recreate)
       ansible.builtin.set_fact:
@@ -176,11 +173,8 @@
         runner_tags: "{{ item.runner_tags | default([]) }}"
         runner_limit: "{{ item.runner_limit | default(4) }}"
         runner_concurrency: "{{ item.runner_concurrency | default(4) }}"
-        # The inner default matters for hosts that run no runner at all.
-        runner_global_concurrency: "{{ item.runner_global_concurrency | default(item.runner_limit | default(4)) }}"
+        runner_global_concurrency: "{{ item.runner_global_concurrency | default(item.runner_limit) }}"
         runner_executor: "{{ item.runner_executor | default('shell') }}"
-        # Empty = the runner gets no default image (see inventory.yaml).
-        runner_docker_image: "{{ item.runner_docker_image | default('') }}"
         runner_docker_volumes: "{{ item.runner_docker_volumes | default(['/cache']) }}"
         runner_docker_services_privileged: "{{ item.runner_docker_services_privileged | default(false) }}"
         runner_docker_allowed_privileged_services: "{{ item.runner_docker_allowed_privileged_services | default([]) }}"
@@ -223,4 +217,3 @@
           - "CI runner setup complete!"
           - "VM: {{ inventory_hostname }} ({{ ansible_host }})"
           - "=========================================="
-

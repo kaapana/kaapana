@@ -23,7 +23,8 @@ all:
     
     # Harvester connection
     harvester_kubeconfig: "{{ lookup('env', 'HARVESTER_KUBECONFIG') }}"
-    # ----------------------------------------
+    
+    # -----------------------------------------
     # 🔹 ENV VARIABLE VALIDATION LIST
     # -----------------------------------------
     required_env_vars:
@@ -82,9 +83,5 @@ all:
           runner_limit: 4
           runner_concurrency: 4
           runner_executor: docker
-          # The one piece of host state these jobs get: without it send_data
-          # re-clones 313 MB of series every pipeline. docker creates /data on
-          # first use; the path is repeated in PYTEST_ARGS in
-          # ci/pipeline/integration-tests.yml.
           runner_docker_volumes: ["/cache", "/data:/data"]
           runner_global_concurrency: 4

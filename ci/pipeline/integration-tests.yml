@@ -48,12 +48,7 @@ setup_integration_tests:
       artifacts: true
     - platform_deployment
   variables:
-    # --download-directory stays per job: the extracted series are written
-    # per run, so concurrent jobs never share a half-extracted directory.
-    # --test-data-repo-root is /data, the host volume the deploy runner mounts
-    # (runner_docker_volumes in ci/harvester/inventory.yaml) — written once by
-    # whichever job clones first, read by every job after that.
-    PYTEST_ARGS: "--client-secret $CLIENT_SECRET --host $VM_FQDN --allowed-ports 22,80,443 --download-directory $CI_PROJECT_DIR/downloaded_test_data --test-data-repo-root /data"
+    PYTEST_ARGS: "--client-secret $CLIENT_SECRET --host $VM_FQDN --allowed-ports 22,80,443 --download-directory $CI_PROJECT_DIR/downloaded_test_data --test-data-cache-dir /data"
   script:
     # deps are baked into the job image; this only registers the repo's
     # current test code
@@ -69,75 +64,14 @@ setup_integration_tests:
     reports:
       junit: ["$ARTIFACTS_DIR/$JUNIT_FILE"]
 
-
-##############################################
-# Test-data reachability probe (manual / API pipelines only)
-##############################################
-# Clones what CI_TEST_DATA_REPOS points at into the runner's test-data volume
-# and reports how much of each .tcia manifest it covers. Needs no platform, so
-# it answers "is the data repository reachable and complete" in under a minute.
-# Whatever it cannot deliver is what send_data would pull from TCIA instead.
-test_data_probe:
-  stage: test
-  tags:
-    - deploy-runner
-  image: $CI_BASE_IMAGE
-  needs: []
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"
-      when: on_success
-    - when: never
-  variables:
-    TEST_DATA_ROOT: "/data"
-  script:
-    - mkdir -p "$TEST_DATA_ROOT"
-    - pip install --no-deps -e "$CI_PROJECT_DIR/ci/ci-code/integration_tests"
-    - |
-      python3 - <<'PY'
-      import os
-      import sys
-      from pathlib import Path
-
-      from integration_tests.data import (
-          clone_test_data_repos,
-          get_series_to_download_from_manifest,
-      )
-
-      spec = os.environ.get("CI_TEST_DATA_REPOS", "")
-      if not spec:
-          sys.exit("CI_TEST_DATA_REPOS is not set, TCIA would be the only source")
-
-      dirs = clone_test_data_repos(spec, Path(os.environ["TEST_DATA_ROOT"]))
-      if not dirs:
-          sys.exit("no test-data repository could be cloned")
-      print(f"repositories: {dirs}")
-
-      manifests = sorted(
-          Path("ci/ci-code/integration_tests/data/download-info").glob("*.tcia")
-      )
-      total = absent_total = 0
-      for manifest in manifests:
-          # send_data truncates the dataset name the same way
-          dataset = manifest.stem[:16]
-          uids = get_series_to_download_from_manifest(manifest)
-          absent = [
-              uid
-              for uid in uids
-              if not any((Path(d) / dataset / f"{uid}.zip").is_file() for d in dirs)
-          ]
-          total += len(uids)
-          absent_total += len(absent)
-          print(f"{dataset}: {len(uids) - len(absent)}/{len(uids)} series in the repository")
-          for uid in absent:
-              print(f"  falls back to TCIA: {uid}")
-      print(f"total: {total - absent_total}/{total} series served without TCIA")
-      PY
-    - du -sh "$TEST_DATA_ROOT"/* || true
-
 ##############################################
 
 scan_ports:
   extends: .integration_test_local
+  rules:
+    - if: $CI_EXEC_INTEGRATION_TEST_JOBS !~ /(^|,)\s*scan_ports\s*(,|$)/
+      when: never
+    - !reference [.integration_test_local, rules]
   variables:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_scan_ports.py"
     JUNIT_FILE: "scan_ports.xml"
@@ -145,6 +79,10 @@ scan_ports:
 
 first_login:
   extends: .integration_test_local
+  rules:
+    - if: $CI_EXEC_INTEGRATION_TEST_JOBS !~ /(^|,)\s*first_login\s*(,|$)/
+      when: never
+    - !reference [.integration_test_local, rules]
   variables:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_first_login.py"
     JUNIT_FILE: "first_login.xml"
@@ -152,14 +90,22 @@ first_login:
 
 install_extensions:
   extends: .integration_test_local
+  rules:
+    - if: $CI_EXEC_INTEGRATION_TEST_JOBS !~ /(^|,)\s*install_extensions\s*(,|$)/
+      when: never
+    - !reference [.integration_test_local, rules]
   needs:
     - job: prepare_deployment
       artifacts: true
     - job: setup_integration_tests
       artifacts: true
-    - first_login
     - platform_deployment
-    - playwright_ui_tests
+    # optional: these are deselectable via CI_EXEC_INTEGRATION_TEST_JOBS, and a
+    # needs entry for a job absent from the pipeline is a config error.
+    - job: first_login
+      optional: true
+    - job: playwright_ui_tests
+      optional: true
   variables:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_install_extensions.py"
     JUNIT_FILE: "install_extensions.xml"
@@ -169,13 +115,19 @@ install_extensions:
 
 send_data:
   extends: .integration_test_local
+  rules:
+    - if: $CI_EXEC_INTEGRATION_TEST_JOBS !~ /(^|,)\s*send_data\s*(,|$)/
+      when: never
+    - !reference [.integration_test_local, rules]
   needs:
     - job: prepare_deployment
       artifacts: true
     - job: setup_integration_tests
       artifacts: true
-    - first_login
-    - install_extensions
+    - job: first_login
+      optional: true
+    - job: install_extensions
+      optional: true
   variables:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_send_data.py"
     JUNIT_FILE: "send_data.xml"
@@ -187,14 +139,21 @@ run_workflows:
   extends: .integration_test_local
   timeout: 2 hours
   allow_failure: true
+  rules:
+    - if: $CI_EXEC_INTEGRATION_TEST_JOBS !~ /(^|,)\s*run_workflows\s*(,|$)/
+      when: never
+    - !reference [.integration_test_local, rules]
   needs:
     - job: prepare_deployment
       artifacts: true
     - job: setup_integration_tests
       artifacts: true
-    - first_login
-    - send_data
-    - install_extensions
+    - job: first_login
+      optional: true
+    - job: send_data
+      optional: true
+    - job: install_extensions
+      optional: true
   variables:
     PYTEST_FILE: "ci/ci-code/integration_tests/tests/test_run_workflows.py"
     JUNIT_FILE: "run_workflow.xml"
@@ -206,14 +165,15 @@ playwright_ui_tests:
   extends: .remote_execution_template
   stage: test
   rules:
-    - if: '$CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"'
-      when: on_success
-    - when: never
+    - if: $CI_EXEC_INTEGRATION_TEST_JOBS !~ /(^|,)\s*playwright_ui_tests\s*(,|$)/
+      when: never
+    - !reference [.integration_test_local, rules]
   needs:
     - job: prepare_deployment
       artifacts: true
     - platform_deployment
-    - first_login
+    - job: first_login
+      optional: true
   script:
     - cd "$CI_PROJECT_DIR/tests/ui"
     - npm ci

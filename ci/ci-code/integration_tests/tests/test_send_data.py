@@ -14,6 +14,7 @@ def test_send_data(
     dataset,
     download_directory,
     force_download,
+    test_data_cache_dir,
     test_data_repo_dirs,
 ):
     source_file = dataset
@@ -25,6 +26,7 @@ def test_send_data(
         source_file,
         Path(download_directory) / kaapana_dataset,
         force=force_download,
+        cache_dir=test_data_cache_dir,
         repo_dirs=test_data_repo_dirs,
     )
     # SEND

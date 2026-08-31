@@ -203,11 +203,20 @@ ansible-playbook -i ci/harvester/inventory.yaml ci/harvester/setup_ci.yaml
 # FORCE_RECREATE=true → delete and recreate existing VMs
 ```
 
-The runner runs as the `ubuntu` user, not system-wide — the playbook masks and
-disables the packaged system service. On-VM troubleshooting is therefore
-unsudoed and user-scoped: `gitlab-runner verify`,
-`systemctl --user status gitlab-runner`, config at
-`~/.gitlab-runner/config.toml`.
+The runner agent is a `gitlab/gitlab-runner` container, not an apt package under
+systemd. It mounts the host docker socket and creates job containers as siblings
+on the host daemon, so bind mounts in `config.toml` resolve against host paths.
+The playbook removes a host-installed runner first, so re-provisioning an older
+VM converts it.
+
+On-VM troubleshooting, all as `ubuntu` with no sudo:
+
+```bash
+docker exec gitlab-runner gitlab-runner verify
+docker logs gitlab-runner
+docker restart gitlab-runner
+grep -vE '^  token' ~/.gitlab-runner/config.toml   # bind-mounted into the container
+```
 
 ## 7. Releases
 

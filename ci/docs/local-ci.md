@@ -22,7 +22,7 @@ Needs Maintainer on the project or a gitlab_runner + token. Creating a runner an
 
 The runner agent is itself a container.
 
-1. Create the runner in GitLab. `TAG` is any tag no other runner has:
+1. Create the runner in GitLab using glab in the repository directory:
 
 ```bash
 TAG=my-workstation
@@ -37,7 +37,8 @@ RUNNER_TOKEN=$(printf '{"runner_type":"project_type","project_id":%s,"descriptio
 2. Register the runner. One runner takes build, tests and deploy:
 
 ```bash
-docker run --rm -v gitlab-runner-config:/etc/gitlab-runner \
+mkdir -p ~/.gitlab-runner
+docker run --rm -v ~/.gitlab-runner:/etc/gitlab-runner \
   gitlab/gitlab-runner:latest register --non-interactive \
   --url https://codebase.helmholtz.cloud --token "$RUNNER_TOKEN" \
   --description "$TAG" --executor docker --limit 4 \
@@ -54,11 +55,10 @@ docker run --rm -v gitlab-runner-config:/etc/gitlab-runner \
 warns `parameters after this may be ignored`, and the flags after it may
 silently not apply.
 
-So check what actually landed before starting anything:
+The config is on your host, so check what actually landed before starting anything:
 
 ```bash
-docker run --rm -v gitlab-runner-config:/etc/gitlab-runner --entrypoint sh \
-  gitlab/gitlab-runner:latest -c 'grep -vE "^  token" /etc/gitlab-runner/config.toml'
+grep -vE '^  token' ~/.gitlab-runner/config.toml
 ```
 
 Three things to look for:
@@ -107,17 +107,34 @@ each, see [inventory.yaml](../harvester/inventory.yaml).
 host daemon: every image no running container holds, and every unused volume,
 including this runner's own caches. Leave the variable off unless you mean it.
 
-3. Start it:
+3. Match the agent-wide cap to that limit. A freshly written config says
+   `concurrent = 1`, which caps the runner regardless of its own `limit`:
+
+```bash
+sed -i 's/^concurrent = .*/concurrent = 4/' ~/.gitlab-runner/config.toml
+```
+
+4. Start it:
 
 ```bash
 docker run -d --name gitlab-runner --restart always \
-  -v gitlab-runner-config:/etc/gitlab-runner \
+  -v ~/.gitlab-runner:/etc/gitlab-runner \
   -v /var/run/docker.sock:/var/run/docker.sock \
   gitlab/gitlab-runner:latest
 
 docker exec gitlab-runner gitlab-runner verify   # must list your runner
 glab runner list                                 # your tag, status online
 ```
+
+`~/.gitlab-runner/config.toml` is yours to edit — `concurrent`, `limit`, extra
+volumes. `docker restart gitlab-runner` picks the change up. The same layout as
+the CI runners, see
+[configure-gitlab-runner.yaml](../harvester/tasks/configure-gitlab-runner.yaml).
+
+Keep `concurrent` and `limit` equal, as the CI runners do
+([inventory.yaml](../harvester/inventory.yaml)). `concurrent` always wins, so a
+larger `limit` alone only produces `the global concurrent limit will not be
+increased and takes precedence`.
 
 ### Each run: point stages at your tag
 
@@ -145,7 +162,7 @@ docker stop gitlab-runner
 glab runner list
 glab api --method DELETE /runners/<id>
 docker rm -f gitlab-runner
-docker volume rm gitlab-runner-config
+rm ~/.gitlab-runner/config.toml
 ```
 
 ## Scenario 2: deploy the platform on your machine

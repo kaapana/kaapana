@@ -269,6 +269,27 @@ class OCIRegistryDiscovery:
             location = urljoin(self.registry_url.rstrip("/") + "/", location.lstrip("/"))
         return location
 
+    def _blob_commit_timeout(self, size: int) -> httpx.Timeout:
+        """Request timeout for a blob-completion PUT, sized to the payload.
+
+        The registry answers the PUT only after it has received, verified and
+        committed the whole blob; behind a buffering proxy or slow storage that
+        takes far longer than any fixed per-operation default (observed >60s for
+        a ~1GB blob on Harbor, aborting the publish with ReadTimeout after the
+        body was fully sent). Allow one second per MiB on top of the client's
+        configured read timeout; an explicitly unlimited (None) read timeout is
+        kept as is.
+        """
+        base = self._client.timeout
+        if base.read is None:
+            return base
+        return httpx.Timeout(
+            connect=base.connect,
+            read=max(base.read, 60.0 + size / 2**20),
+            write=base.write,
+            pool=base.pool,
+        )
+
     async def _complete_blob_upload(
         self,
         location: str,
@@ -282,11 +303,13 @@ class OCIRegistryDiscovery:
         ``kwargs`` carry the body (``content=`` or ``content_factory=``) through to
         :meth:`_request_with_auth_retry`. Pass ``size`` for streamed bodies: the
         explicit Content-Length keeps httpx from falling back to chunked transfer
-        encoding, which not every registry backend accepts for blob PUTs.
+        encoding, which not every registry backend accepts for blob PUTs, and the
+        read timeout is scaled to the payload (see :meth:`_blob_commit_timeout`).
         """
         headers = {"Content-Type": media_type}
         if size is not None:
             headers["Content-Length"] = str(size)
+            kwargs.setdefault("timeout", self._blob_commit_timeout(size))
         separator = "&" if "?" in location else "?"
         await self._request_with_auth_retry(
             "PUT",
@@ -294,6 +317,20 @@ class OCIRegistryDiscovery:
             headers=headers,
             **kwargs,
         )
+
+    async def _blob_exists(self, digest: SHA256Digest) -> bool:
+        """Whether the repository already holds the blob (HEAD, no body transfer).
+
+        Errors count as "not there": the subsequent upload then surfaces the real
+        problem with a meaningful message instead of this probe.
+        """
+        try:
+            await self._request_with_auth_retry(
+                "HEAD", f"{self.registry_url}/v2/{self.repository}/blobs/{digest}"
+            )
+            return True
+        except OCIError:
+            return False
 
     async def _upload_blob(self, data: Union[str, bytes], media_type: str) -> SHA256Digest:
         """Upload a small in-memory blob (config/metadata) to the OCI registry.
@@ -342,6 +379,12 @@ class OCIRegistryDiscovery:
                 sha256.update(chunk)
                 size += len(chunk)
         digest = SHA256Digest(f"sha256:{sha256.hexdigest()}")
+
+        # A blob already in the repository - e.g. from a retried publish whose
+        # earlier attempt timed out client-side after the upload - is not sent again.
+        if await self._blob_exists(digest):
+            self.logger.info(f"Blob {digest} already in the registry, skipping upload")
+            return digest, size
 
         def fresh_stream() -> AsyncIterator[bytes]:
             # Re-opens the file per request attempt so the 401 auth retry can

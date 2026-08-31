@@ -398,8 +398,10 @@ class OfflineInstallerHelper:
         The tarball is pushed as a single OCI blob, streamed from disk by
         ``OCIRegistryDiscovery._upload_file``, so its size is not bounded by the
         build host's memory. ``publish_offline_installer_timeout`` is an httpx
-        timeout and applies per socket operation, not to the whole request, so a
-        long-running upload is fine as long as it keeps making progress.
+        timeout and applies per socket operation, not to the whole request; the
+        read timeout of the final blob PUT is additionally scaled to the tarball
+        size, because the registry only answers once it has committed the whole
+        payload (observed >60s for a ~1GB installer on Harbor).
         """
         if not offline_dir.is_dir():
             msg = (

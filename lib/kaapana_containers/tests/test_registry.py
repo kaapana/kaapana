@@ -196,15 +196,20 @@ class _MockHarbor:
         if request.url.path == "/service/token":
             return httpx.Response(200, headers=headers, json={"token": "test-bearer"})
 
-        # Like real Harbor, /v2/ accepts only bearer tokens; basic credentials get
-        # the 401 + WWW-Authenticate that starts the token flow. This makes every
-        # upload exercise the 401 retry, including the re-sent request body.
+        # The mock demands the bearer-token flow on /v2/ (real Harbor also accepts
+        # basic auth there); forcing the 401 + WWW-Authenticate path makes every
+        # upload exercise the auth retry, including the re-sent request body.
         if not request.headers.get("Authorization", "").startswith("Bearer "):
             headers["WWW-Authenticate"] = (
                 'Bearer realm="https://registry.example.com/service/token",'
                 'service="harbor-registry"'
             )
             return httpx.Response(401, headers=headers)
+
+        if request.method == "HEAD" and "/blobs/sha256:" in request.url.path:
+            digest = request.url.path.rsplit("/", 1)[-1]
+            status = 200 if digest in self.blobs else 404
+            return httpx.Response(status, headers=headers)
 
         if request.method == "POST" and request.url.path.endswith("/blobs/uploads/"):
             return httpx.Response(
@@ -342,6 +347,69 @@ class TestStreamingFileUpload:
         async with client:
             await client._upload_file(str(f))
         assert put_bodies == [payload, payload]
+
+
+class TestBlobCommitTimeout:
+    async def test_completion_put_read_timeout_scales_with_size(
+        self, harbor, harbor_client, tmp_path
+    ):
+        size = 3 * 2**20  # 3 MiB
+        f = tmp_path / "blob.bin"
+        f.write_bytes(b"z" * size)
+        async with harbor_client as client:
+            meta = await client._upload_file(str(f))
+            config_digest = await client._upload_blob(b"cfg", "application/json")
+        file_put = next(
+            r for r in harbor.requests
+            if r.method == "PUT" and r.url.params.get("digest") == meta["digest"]
+        )
+        # per-request timeout overrides the client default; read = 60s + 1s/MiB
+        assert file_put.extensions["timeout"]["read"] == 60.0 + size / 2**20
+        # small in-memory blobs keep the client default (httpx default read: 5s)
+        config_put = next(
+            r for r in harbor.requests
+            if r.method == "PUT" and r.url.params.get("digest") == config_digest
+        )
+        assert config_put.extensions["timeout"]["read"] == pytest.approx(5.0)
+
+    async def test_unlimited_client_read_timeout_is_kept(self, harbor, tmp_path):
+        f = tmp_path / "blob.bin"
+        f.write_bytes(b"z" * 1024)
+        client = OCIRegistryDiscovery(
+            "https://registry.example.com",
+            "user/repo",
+            username="user",
+            password="pass",
+            client_options={
+                "transport": httpx.MockTransport(harbor),
+                "timeout": httpx.Timeout(60.0, read=None),
+            },
+        )
+        async with client:
+            meta = await client._upload_file(str(f))
+        file_put = next(
+            r for r in harbor.requests
+            if r.method == "PUT" and r.url.params.get("digest") == meta["digest"]
+        )
+        assert file_put.extensions["timeout"]["read"] is None
+
+
+class TestSkipExistingBlob:
+    async def test_existing_blob_is_not_uploaded_again(self, harbor, harbor_client, tmp_path):
+        payload = b"already-there"
+        digest = f"sha256:{hashlib.sha256(payload).hexdigest()}"
+        harbor.blobs[digest] = payload  # the mock answers HEAD 200 for known blobs
+        f = tmp_path / "blob.bin"
+        f.write_bytes(payload)
+        async with harbor_client as client:
+            meta = await client._upload_file(str(f))
+        assert meta["digest"] == digest
+        assert meta["size"] == len(payload)
+        uploads = [
+            r for r in harbor.requests
+            if r.method in ("POST", "PUT") and "/blobs/upload" in r.url.path
+        ]
+        assert uploads == []
 
 
 class TestRedirectFollowing:

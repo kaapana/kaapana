@@ -118,16 +118,11 @@ preflight_variables:
 
 ##############################################
 
-# Only for a target given by FQDN: it exists before the pipeline starts, so
-# its state is knowable now rather than after the build stage. A Harvester VM
-# is created by prepare_deployment and cannot be checked here — and being
-# fresh, it cannot carry a platform either. target_readiness in the deploy
-# stage covers that case.
+# Only for a target given by FQDN and disabled redeploy flag.
 preflight_target:
   stage: preflight
   tags:
     - $[[ inputs.runner_tag ]]
-  # ansible and the playbook's tooling are baked into the CI image
   image: $CI_BASE_IMAGE
   rules:
     - if: '$CI_EXEC_DEPLOY == "true" && $CI_EXEC_SERVER_INSTALLATION != "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
@@ -135,13 +130,10 @@ preflight_target:
     - when: never
   variables:
     ANSIBLE_HOST_KEY_CHECKING: "False"
-    # the playbook reads the target from the environment; in the deploy stage
-    # these arrive via dotenv from prepare_deployment, which has not run yet
     VM_FQDN: "$DEPLOYMENT_INSTANCE_FQDN"
     VM_USER: "$DEPLOYMENT_INSTANCE_USER"
   before_script:
     - mkdir -p "$ARTIFACTS_DIR"
-    # ssh refuses group/world-readable keys; File variables arrive too open
     - chmod 600 "$CI_SSH_PRIVATE_KEY"
   script:
     - |

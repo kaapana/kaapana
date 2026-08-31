@@ -94,16 +94,16 @@ Mounting at `/var/run/host-docker.sock` leaves `dind` its own path. `--env` then
 points build jobs at the host daemon, since they set no `DOCKER_HOST` of their
 own and would otherwise find `dind`'s socket or nothing. `task_api_tests` sets
 `DOCKER_HOST: tcp://docker:2375` in its job variables
-([unit-tests.yml](../pipeline/unit-tests.yml)), and job variables outrank
+([unit-tests.yml](pipeline/unit-tests.yml)), and job variables outrank
 `environment` from `config.toml`, so it still reaches its own daemon.
 
 The CI runners do not need this: build-01 mounts the socket and runs no
 services, tests-01 allows privileged services and mounts no socket — one machine
-each, see [inventory.yaml](../harvester/inventory.yaml).
+each, see [inventory.yaml](harvester/inventory.yaml).
 
 **One caveat on a shared workstation.** `build_packages` runs
 `docker system prune --all --volumes -f` when `CI_EXEC_DOCKER_PRUNE=true`
-([build.yml](../pipeline/build.yml)). Through the mounted socket that hits your
+([build.yml](pipeline/build.yml)). Through the mounted socket that hits your
 host daemon: every image no running container holds, and every unused volume,
 including this runner's own caches. Leave the variable off unless you mean it.
 
@@ -129,10 +129,10 @@ glab runner list                                 # your tag, status online
 `~/.gitlab-runner/config.toml` is yours to edit — `concurrent`, `limit`, extra
 volumes. `docker restart gitlab-runner` picks the change up. The same layout as
 the CI runners, see
-[configure-gitlab-runner.yaml](../harvester/tasks/configure-gitlab-runner.yaml).
+[configure-gitlab-runner.yaml](harvester/tasks/configure-gitlab-runner.yaml).
 
 Keep `concurrent` and `limit` equal, as the CI runners do
-([inventory.yaml](../harvester/inventory.yaml)). `concurrent` always wins, so a
+([inventory.yaml](harvester/inventory.yaml)). `concurrent` always wins, so a
 larger `limit` alone only produces `the global concurrent limit will not be
 increased and takes precedence`.
 

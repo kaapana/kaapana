@@ -186,7 +186,7 @@ One machine that has to do both can, by mounting the socket somewhere else
 (`/var/run/host-docker.sock`) and pointing build jobs at it with
 `environment = ["DOCKER_HOST=unix:///var/run/host-docker.sock"]`. That is how a
 workstation runner takes all three stages — see
-[ci/docs/local-ci.md](docs/local-ci.md).
+[ci/local-ci.md](local-ci.md).
 
 Provision / re-provision (also how you add a runner — add it to the
 inventory first):
@@ -423,6 +423,6 @@ pytest -s ci/ci-code/integration_tests/tests/test_run_workflows.py \
 - A workflow testcase whose DAG the platform does not know counts as passed, so a
   failed extension install can leave `run_workflows` green.
 - `install_extensions` and `send_data` carry `retry: 2` — known flakiness.
-- `ci/docs/local-ci.md` predates the current variable set (it references
+- `ci/local-ci.md` predates the current variable set (it references
   variables that no longer exist) — for local runs use
   [section 10](#10-running-the-pipeline-locally) instead.

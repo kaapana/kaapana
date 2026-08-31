@@ -6,13 +6,12 @@
 # PREFLIGHT
 ##############################################
 preflight_variables:
-  stage: tests
+  stage: preflight
   tags:
     - tests-runner
   image: python:3.12
   variables:
     GIT_STRATEGY: none # no checkout needed
-  # runs in every pipeline, regardless of the CI_EXEC_* toggles
   rules:
     - when: always
   script:
@@ -31,18 +30,27 @@ preflight_variables:
         checked="$checked $1(File)"
         { [ -n "${!1:-}" ] && [ -s "${!1}" ]; } || missing="$missing $1(File)"
       }
+      fail() {
+        errors="$errors
+        - $1"
+      }
 
       # every job pulls the ci-base image from this registry
       require CI_REGISTRY_URL
       require CI_IMAGES_TAG
       require DOCKER_AUTH_CONFIG
+      require CI_REGISTRY_USER
+      require CI_REGISTRY_TOKEN
+      if [ "${CI_REGISTRY_USER:-}" = "gitlab-ci-token" ]; then
+        fail "CI_REGISTRY_USER is 'gitlab-ci-token' — the project variable is missing, so pushes will be denied."
+      fi
       # DOCKER_AUTH_CONFIG must contain the registry host, otherwise
       # image pulls fail (see ci/README.md section 8)
       if [ -n "${DOCKER_AUTH_CONFIG:-}" ] && [ -n "${CI_REGISTRY_URL:-}" ]; then
         registry_host="${CI_REGISTRY_URL%%/*}"
         case "$DOCKER_AUTH_CONFIG" in
           *"$registry_host"*) ;;
-          *) errors="DOCKER_AUTH_CONFIG has no entry for '$registry_host' (the CI_REGISTRY_URL host)." ;;
+          *) fail "DOCKER_AUTH_CONFIG has no entry for '$registry_host' (the CI_REGISTRY_URL host)." ;;
         esac
       fi
 
@@ -51,6 +59,9 @@ preflight_variables:
         require REGISTRY_URL
         require REGISTRY_USER
         require REGISTRY_TOKEN
+      fi
+      if [ -n "${DOCKER_IO_USER:-}" ] && [ -z "${DOCKER_IO_PASSWORD:-}" ]; then
+        fail "DOCKER_IO_USER is set but DOCKER_IO_PASSWORD is empty — leave both empty to skip the docker.io login."
       fi
 
       # A git tag like "0.7.1" starts a release pipeline
@@ -68,6 +79,11 @@ preflight_variables:
         # the kubeconfig is only needed to create a test VM, which is
         # skipped when an external VM is given
         [ -n "$DEPLOYMENT_INSTANCE_FQDN" ] || require_file HARVESTER_KUBECONFIG
+        # dcmsend rejects peerhosts longer than 57 chars; prepare_deployment
+        # checks this too, but only after the whole build stage has run
+        if [ -n "${DEPLOYMENT_INSTANCE_FQDN:-}" ] && [ "${#DEPLOYMENT_INSTANCE_FQDN}" -gt 57 ]; then
+          fail "DEPLOYMENT_INSTANCE_FQDN is ${#DEPLOYMENT_INSTANCE_FQDN} characters, over the 57-character dcmsend peerhost limit."
+        fi
       fi
 
       # failures on develop create a GitLab issue and a Slack message
@@ -77,15 +93,15 @@ preflight_variables:
         require SLACK_CHANNEL_ID
       fi
 
-      # scheduled pipelines also run check_readthedocs
-      if [ "$CI_PIPELINE_SOURCE" = "schedule" ]; then
+      # check_readthedocs runs on scheduled develop pipelines only
+      if [ "$CI_PIPELINE_SOURCE" = "schedule" ] && [ "$CI_COMMIT_BRANCH" = "develop" ]; then
         require KAAPANA_READTHEDOCS_TOKEN
       fi
 
       echo "Checked variables (this pipeline):"
       for v in $checked; do echo "  - $v"; done
       if [ -n "$missing" ] || [ -n "$errors" ]; then
-        [ -z "$missing" ] || echo "ERROR: required CI variables are empty or missing:$missing"
+        [ -z "$missing" ] || echo "ERROR: required CI variables are empty or missing: $missing"
         [ -z "$errors" ] || echo "ERROR: $errors"
         echo "Fix them under Settings -> CI/CD -> Variables (see ci/README.md section 8)."
         exit 1

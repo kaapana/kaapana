@@ -10,8 +10,8 @@
   tags:
     - tests-runner
   image: python:3.12
-  # unit-test jobs must stay under 10 minutes
-  timeout: 10m
+  # Each job in test has to finish within 5 minutes. 
+  timeout: 5m
   rules:
     - if: '$CI_EXEC_UNIT_TESTS == "true"'
       when: always
@@ -259,7 +259,6 @@ build_documentation:
   extends: .test_template
   tags:
     - tests-runner
-  timeout: 30m # docs build needs longer than the 10m unit-test limit
   script:
     - cd $KAAPANA_DIR/docs
     - pip install -r requirements.txt

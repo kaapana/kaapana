@@ -15,7 +15,7 @@ VM → test that live deployment → delete the VM.
 
 | Stage | Jobs | Runs on | Duration |
 |---|---|---|---|
-| `tests` | preflight variable check, 8 unit-test suites (10 min cap each), docs build | tests runner | minutes |
+| `tests` | preflight variable check, 8 unit-test suites, docs build | tests runner | each job 5 min timeout |
 | `build` | `build_packages` (+ security scan on nightly) | build runner | hours (warm cache: much less) |
 | `deploy` | `prepare_deployment` → `server_installation` → `platform_deployment` | deploy runner (Ansible over SSH) | ~1 h |
 | `test` | integration tests: login, ports, UI (Playwright), extensions, DICOM data, workflows | deploy runner, against the live VM | 1–3 h |
@@ -207,15 +207,13 @@ the precedence trap above).
 
 The `preflight_variables` job ([`ci/pipeline/preflight.yml`](pipeline/preflight.yml))
 checks at the start of every pipeline that the variables the enabled stages
-need are non-empty (including the `DOCKER_AUTH_CONFIG` entry for the active
-registry host, see below) — a missing one fails the pipeline in seconds, by
-name, instead of surfacing an hour later in build or deploy. Add new required
-variables there.
+need are usable — a missing one fails the pipeline in seconds, by name. Add new
+required variables there.
 
 | Variable | Masked | Protected | Description |
 |---|---|---|---|
 | `CI_REGISTRY_URL` | no | no | Registry for CI builds |
-| `CI_REGISTRY_USER` | no | no | Username for `CI_REGISTRY_TOKEN` (shadows a GitLab-predefined variable — if deleted, jobs silently get `gitlab-ci-token`) |
+| `CI_REGISTRY_USER` | no | no | Username for `CI_REGISTRY_TOKEN` (shadows a GitLab-predefined variable — if deleted, jobs silently get `gitlab-ci-token`; `preflight_variables` fails on that value) |
 | `CI_REGISTRY_TOKEN` | yes | no | Registry push credential; also the default for `GITLAB_API_TOKEN` and `BLABLADOR_API_TOKEN` |
 | `RELEASE_REGISTRY_URL` | no | yes | Release registry (release tag pipelines only) |
 | `RELEASE_REGISTRY_USER` | no | yes | Release deploy-token username |
@@ -255,9 +253,9 @@ triple manually in the UI.
 
 1. Extend the right template (`.test_template`, `.build_cli_env`,
    `.remote_execution_template`, `.integration_test_local`) — they carry the
-   runner tag, image, and rules conventions. `.test_template` caps jobs at
-   10 minutes: a unit-test job that hits the cap is too slow and gets split
-   into separate jobs, not a raised timeout.
+   runner tag, image, and rules conventions. The tests stage has a 10 minute
+   budget; `.test_template` caps a single job at 2 minutes, so a suite that
+   hits the cap is too slow and gets split into separate jobs.
 2. Needs a CI/CD variable that is not already checked? Add it to
    `preflight_variables` ([`ci/pipeline/preflight.yml`](pipeline/preflight.yml))
    so a misconfiguration fails in seconds, not in your job.

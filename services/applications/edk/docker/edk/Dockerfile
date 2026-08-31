@@ -11,7 +11,14 @@ RUN apt-get update -y && apt-get -y install skopeo
 
 # install helm
 ENV HELM_VERSION="v3.21.2"
-RUN curl https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar -xzO linux-amd64/helm > /usr/local/bin/helm && chmod +x /usr/local/bin/helm
+# Download with retries/resume to a file instead of piping into tar: transient
+# connection resets have failed release builds here, and the pipe discarded
+# curl's exit status (no pipefail in the default build shell).
+RUN curl -sS -L -f -C - --retry 20 --retry-all-errors --retry-delay 10 \
+        -o /tmp/helm.tar.gz "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" \
+    && tar -xzOf /tmp/helm.tar.gz linux-amd64/helm > /usr/local/bin/helm \
+    && chmod +x /usr/local/bin/helm \
+    && rm /tmp/helm.tar.gz
 
 RUN mkdir -p /kaapana/app/kaapana
 RUN mkdir -p /kaapana/app/dag

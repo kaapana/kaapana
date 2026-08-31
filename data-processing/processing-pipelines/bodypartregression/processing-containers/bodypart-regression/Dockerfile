@@ -19,9 +19,12 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
 # Clone directory from git
 RUN git clone https://github.com/MIC-DKFZ/BodyPartRegression.git && cd BodyPartRegression && git checkout 7f66baa
 
-# Download public model from zenodo 
-RUN touch BodyPartRegression/src/models/public_bpr_model.zip
-RUN curl --location --header "Connection: Keep-Alive" --header "Keep-Alive: 300" https://zenodo.org/record/5113483/files/public_bpr_model.zip?download=1 -o /kaapana/app/BodyPartRegression/src/models/public_bpr_model.zip 
+# Download public model from zenodo with retries/resume (Zenodo supports range
+# requests); truncated transfers have failed release builds here. The md5sum
+# check below stays as the integrity gate.
+RUN curl -sS -L -f -C - --retry 20 --retry-all-errors --retry-delay 10 \
+        -o /kaapana/app/BodyPartRegression/src/models/public_bpr_model.zip \
+        "https://zenodo.org/record/5113483/files/public_bpr_model.zip?download=1"
 RUN echo "cc0ba26374932f0ca27452f4ad9bf9db /kaapana/app/BodyPartRegression/src/models/public_bpr_model.zip" | md5sum -c
 RUN unzip BodyPartRegression/src/models/public_bpr_model.zip -d /kaapana/app/BodyPartRegression/src/models/
 

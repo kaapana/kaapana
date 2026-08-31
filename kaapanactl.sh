@@ -1220,6 +1220,11 @@ function install_microk8s {
 
             snap ack $assert_path
             snap install --classic $snap_path
+            # A snap installed from a local file tracks no channel, so a later refresh would
+            # jump to latest/stable - across Kubernetes minor versions, which microk8s does
+            # not support. Pin the track the online install uses (sets the channel only, no
+            # download and no restart).
+            snap switch microk8s --channel=$DEFAULT_MICRO_VERSION
             MICROK8S_BASE_IMAGES_TAR_PATH="$SCRIPT_DIR/microk8s_base_images.tar"
             echo "${YELLOW}Start Microk8s image import from $MICROK8S_BASE_IMAGES_TAR_PATH ... ${NC}"
             [ -f $MICROK8S_BASE_IMAGES_TAR_PATH ] && echo "${GREEN}MICROK8S_BASE_IMAGES_TAR exists ... ${NC}" || (echo "${RED}Images tar does not exist -> exit ${NC}" && exit 1)

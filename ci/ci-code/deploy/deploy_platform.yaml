@@ -1,4 +1,8 @@
 ---
+# In:  VERSION_TAG + REGISTRY_* (chart), VM_FQDN / VM_USER (target),
+#      CI_EXEC_REDEPLOY (what to do with a platform already on the target)
+# Out: artifacts/deployment.log, artifacts/undeploy.log (only when replacing),
+#      artifacts/system_check.log, artifacts/system_check.json
 - name: Deploy Kaapana platform
   hosts: all
   gather_facts: true
@@ -14,7 +18,18 @@
     kaapana_dir: "{{ lookup('ansible.builtin.env', 'CI_PROJECT_DIR') }}"
     http_proxy: "{{ lookup('ansible.builtin.env', 'HTTP_PROXY') }}"
     https_proxy: "{{ lookup('ansible.builtin.env', 'HTTPS_PROXY') }}"
+    # Always compare with the bool filter: the string "false" is truthy in Jinja.
+    redeploy: >-
+      {{ lookup('ansible.builtin.env', 'CI_EXEC_REDEPLOY') | default('true', true) }}
     ansible_python_interpreter: /usr/bin/python3
+    # kaapanactl installs this release into HELM_NAMESPACE and keeps the
+    # platform prefix in its values, see get_platform_prefix_from_release.
+    admin_chart: kaapana-admin-chart
+    helm_namespace: default
+    # helm 3 needs -a to list every status, helm 4 removed the flag
+    list_releases_cmd: >-
+      helm -n {{ helm_namespace }} ls --short -a 2>/dev/null
+      || helm -n {{ helm_namespace }} ls --short --no-headers 2>/dev/null
 
   environment:
     http_proxy: "{{ http_proxy }}"
@@ -31,6 +46,7 @@
           Registry: {{ registry_url }}
           Version: {{ version_tag }}
           Kaapana Dir: {{ kaapana_dir }}
+          Redeploy over an existing platform: {{ redeploy }}
 
     - name: Verify microk8s is running
       ansible.builtin.command: microk8s status --wait-ready
@@ -38,6 +54,7 @@
       retries: 3
       delay: 5
       until: microk8s_status.rc == 0
+      changed_when: false
 
     - name: Check kubernetes API is healthy
       ansible.builtin.command: microk8s kubectl cluster-info
@@ -45,6 +62,7 @@
       retries: 3
       delay: 5
       until: cluster_info.rc == 0
+      changed_when: false
 
     - name: Check helm can access kubernetes
       ansible.builtin.command: helm ls -A
@@ -52,12 +70,123 @@
       retries: 3
       delay: 5
       until: helm_check.rc == 0
+      changed_when: false
 
     - name: Copy server installation script
       ansible.builtin.copy:
         src: "{{ kaapana_dir }}/kaapanactl.sh"
         dest: "{{ ansible_facts['env']['HOME'] }}/kaapanactl.sh"
         mode: "0755"
+
+    # Replace or stop, before the deployment starts. Same gate kaapanactl uses
+    # before it deploys: the admin chart release in its helm namespace.
+    - name: Look for a platform already deployed on the target
+      ansible.builtin.shell:
+        cmd: |
+          releases=$({{ list_releases_cmd }})
+          printf '%s\n' "$releases" | grep -Fx {{ admin_chart | quote }} || true
+        executable: /bin/bash
+      register: existing_release
+      changed_when: false
+
+    - name: Read the platform prefix of that deployment
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          helm -n {{ helm_namespace }} get values {{ admin_chart }} -o json \
+            | jq -r '.global.platform_prefix // empty'
+        executable: /bin/bash
+      register: existing_prefix
+      changed_when: false
+      failed_when: false
+      when: existing_release.stdout | trim | length > 0
+
+    - name: Remember the platform found on the target
+      ansible.builtin.set_fact:
+        platform_present: "{{ existing_release.stdout | trim | length > 0 }}"
+        existing_platform_prefix: "{{ existing_prefix.stdout | default('') | trim | default('unknown', true) }}"
+
+    - name: Fail fast when the platform on the target must not be replaced
+      ansible.builtin.fail:
+        msg: |
+          A Kaapana platform is already deployed on {{ vm_fqdn }}:
+            release {{ admin_chart }} in namespace {{ helm_namespace }},
+            platform prefix '{{ existing_platform_prefix }}'
+
+          Deploying on top of it would fail halfway through. Either re-run with
+          CI_EXEC_REDEPLOY=true so this job undeploys it first, or undeploy it
+          on the target:
+            ./kaapanactl.sh deploy --undeploy
+      when:
+        - platform_present | bool
+        - not (redeploy | bool)
+
+    - name: Undeploy the platform already on the target
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          ./kaapanactl.sh deploy --undeploy --quiet --auto-no-hooks 2>&1 | tee undeploy.log
+        chdir: "{{ ansible_facts['env']['HOME'] }}"
+        executable: /bin/bash
+      register: undeploy_result
+      ignore_errors: true
+      when:
+        - platform_present | bool
+        - redeploy | bool
+
+    - name: Save undeploy output
+      ansible.builtin.copy:
+        content: |
+          Undeployment of the platform found on the target
+          ================================================
+          Platform prefix found: {{ existing_platform_prefix }}
+
+          STDOUT:
+          {{ undeploy_result.stdout | default('') }}
+
+          STDERR:
+          {{ undeploy_result.stderr | default('') }}
+
+          Return Code: {{ undeploy_result.rc | default('n/a') }}
+        dest: "{{ artifacts_dir }}/undeploy.log"
+      delegate_to: localhost
+      when: undeploy_result is not skipped
+
+    - name: Fail when the old platform could not be removed cleanly
+      ansible.builtin.fail:
+        msg: |
+          Could not remove the platform already deployed on {{ vm_fqdn }}
+          (rc={{ undeploy_result.rc | default('n/a') }}). The deployment stops
+          here — deploying onto a half-removed platform breaks the target.
+
+          Last lines:
+          {{ (undeploy_result.stdout_lines | default([]))[-15:] | join('\n') }}
+
+          Full output: artifacts/undeploy.log. To force the removal on the
+          target: ./kaapanactl.sh deploy --no-hooks
+      when: undeploy_result.rc | default(0) != 0
+
+    - name: Verify the release is gone after the undeploy
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          releases=$({{ list_releases_cmd }})
+          printf '%s\n' "$releases" | grep -Fx {{ admin_chart | quote }} || true
+        executable: /bin/bash
+      register: remaining_release
+      changed_when: false
+      when: undeploy_result is not skipped
+
+    - name: Fail when the release survived the undeploy
+      ansible.builtin.fail:
+        msg: |
+          Release {{ admin_chart }} is still in namespace {{ helm_namespace }} on
+          {{ vm_fqdn }} after the undeployment. Remove it on the target before
+          deploying again:
+            ./kaapanactl.sh deploy --no-hooks
+      when:
+        - undeploy_result is not skipped
+        - remaining_release.stdout | default('') | trim | length > 0
 
     - name: Deploy the platform using kaapanactl.sh
       ansible.builtin.command:
@@ -101,29 +230,78 @@
 
     - name: Fail if deployment failed
       ansible.builtin.fail:
-        msg: "Deployment failed with return code {{ deploy_result.rc }}"
+        msg: |
+          Deploying the platform on {{ vm_fqdn }} failed (rc={{ deploy_result.rc }}).
+
+          Last lines:
+          {{ (deploy_result.stdout_lines | default([]))[-20:] | join('\n') }}
+
+          Full output: artifacts/deployment.log
       when: deploy_result.rc != 0
 
     - name: Wait for all deployments to be healthy
       ansible.builtin.command:
-        cmd: "{{ ansible_facts['env']['HOME'] }}/kaapanactl.sh deploy --check-system --platform-prefix {{ platform_prefix }}"
+        cmd: >
+          {{ ansible_facts['env']['HOME'] }}/kaapanactl.sh deploy --check-system
+          --platform-prefix {{ platform_prefix }}
+          --check-system-report {{ ansible_facts['env']['HOME'] }}/system_check.json
       register: system_check
       retries: 60
       delay: 10
       until: system_check.rc == 0
+      changed_when: false
+      # The reports below must be published even when the check fails.
+      ignore_errors: true
 
     - name: Display system check output
       ansible.builtin.debug:
-        msg: "System Check Output:\n{{ system_check.stdout }}"
+        msg: "System Check Output:\n{{ system_check.stdout | default('') }}"
 
     - name: Save system check output
       ansible.builtin.copy:
         content: |
           System Health Check
           ===================
-          {{ system_check.stdout }}
+          {{ system_check.stdout | default('') }}
         dest: "{{ artifacts_dir }}/system_check.log"
       delegate_to: localhost
+
+    - name: Fetch the structured system check report
+      ansible.builtin.fetch:
+        src: "{{ ansible_facts['env']['HOME'] }}/system_check.json"
+        dest: "{{ artifacts_dir }}/system_check.json"
+        flat: true
+        fail_on_missing: false
+
+    - name: Read the structured system check report
+      ansible.builtin.stat:
+        path: "{{ artifacts_dir }}/system_check.json"
+      register: system_check_report
+      delegate_to: localhost
+
+    - name: Remember the system check summary
+      ansible.builtin.set_fact:
+        system_check_json: "{{ lookup('ansible.builtin.file', artifacts_dir + '/system_check.json') | from_json }}"
+      when: system_check_report.stat.exists
+
+    - name: Display the system check summary
+      ansible.builtin.debug:
+        msg: "{{ system_check_json.summary }}"
+      when: system_check_json is defined
+
+    - name: Fail when the platform did not become healthy
+      ansible.builtin.fail:
+        msg: |
+          The platform on {{ vm_fqdn }} did not become healthy
+          ({{ system_check.attempts | default(1) }} check attempts).
+          {% if system_check_json is defined %}
+          Unhealthy resources:
+          {% for resource in system_check_json.resources | rejectattr('status', 'in', ['healthy', 'skipped']) %}
+            - {{ resource.kind }} {{ resource.namespace }}/{{ resource.name }} ({{ resource.release }}): {{ resource.message }}
+          {% endfor %}
+          {% endif %}
+          Reports: artifacts/system_check.json, artifacts/system_check.log
+      when: system_check.rc | default(1) != 0
 
     - name: Display deployment success
       ansible.builtin.debug:

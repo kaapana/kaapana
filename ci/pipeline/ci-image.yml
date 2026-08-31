@@ -1,7 +1,17 @@
-# Stage: tests (build_ci_image) — rebuild of the CI job image
-# In:  ci/images/**, pinned dependency files (rules:changes)
-# Out: $CI_BASE_IMAGE pushed to the CI registry (consumed by all other jobs
-#      from the NEXT pipeline on — same-pipeline jobs use the previous tag)
+spec:
+  inputs:
+    runner_tag:
+    builder_image:
+      description: never ci-base, or a tag bump could not bootstrap itself
+    rebuild_paths:
+      type: array
+      default:
+        - ci/images/**/*
+        - ci/harvester/tasks/requirements.txt
+        - ci/ci-code/integration_tests/pyproject.toml
+---
+# Out: $CI_BASE_IMAGE in the CI registry, used by all other jobs from the NEXT
+#      pipeline on — jobs of this pipeline still run the previous tag.
 ##############################################
 # CI IMAGE
 ##############################################
@@ -11,18 +21,13 @@
 build_ci_image:
   stage: tests
   tags:
-    - build-runner
-  # Not ci-base: the image that builds ci-base must not be ci-base, or a tag
-  # bump could never bootstrap itself.
-  image: docker.io/library/docker:28-cli
+    - $[[ inputs.runner_tag ]]
+  image: $[[ inputs.builder_image ]]
   rules:
     # changes: only has a diff basis on push/MR pipelines — it evaluates to
     # true on schedule/web/api/trigger and would rebuild every run
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" || ($CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop")
-      changes:
-        - ci/images/**/*
-        - ci/harvester/tasks/requirements.txt
-        - ci/ci-code/integration_tests/pyproject.toml
+      changes: $[[ inputs.rebuild_paths ]]
       when: on_success
     - when: never
   script:

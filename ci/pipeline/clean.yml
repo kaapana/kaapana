@@ -1,7 +1,15 @@
-# Stage: clean — VM teardown + failure notification
-# In:  deployment.env dotenv (VM_FQDN); job statuses via needs;
-#      HARVESTER_KUBECONFIG (File-type CI variable)
-# Out: VM + PVCs deleted; on develop failures a GitLab issue + Slack message
+spec:
+  inputs:
+    runner_tag:
+    playbook_dir:
+      default: ci/ci-code/deploy
+    scripts_dir:
+      default: ci/ci-code/clean
+    destroy_delay:
+      default: 4 hours
+---
+# Out: VM and PVCs deleted. On develop failures a GitLab issue and a Slack
+#      message.
 # #############################################
 # ############## CLEAN ########################
 # #############################################
@@ -16,6 +24,7 @@ destroy_deployment:
     - job: prepare_deployment
       artifacts: true
     - { job: server_installation, optional: true, artifacts: false }
+    - { job: target_readiness, optional: true, artifacts: false }
     - { job: platform_deployment, optional: true, artifacts: false }
     - { job: setup_integration_tests, optional: true, artifacts: false }
     - { job: scan_ports, optional: true, artifacts: false }
@@ -31,21 +40,21 @@ destroy_deployment:
     # Opt-in delayed destruction (e.g. keep VM alive to inspect after success)
     - if: '$CI_EXEC_DEPLOY == "true" && $CI_EXEC_DESTROY_DELAYED == "true"'
       when: delayed
-      start_in: 4 hours
+      start_in: $[[ inputs.destroy_delay ]]
     # Default: always destroy (on success and on failure)
     - if: '$CI_EXEC_DEPLOY == "true"'
       when: always
     - when: never
   tags:
-    - deploy-runner
+    - $[[ inputs.runner_tag ]]
   image: $CI_BASE_IMAGE
   script:
-    - ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/delete_harvester_vm.yaml"
+    - ansible-playbook -i localhost, "$CI_PROJECT_DIR/$[[ inputs.playbook_dir ]]/delete_harvester_vm.yaml"
 
 if_ci_failing:
   stage: clean
   tags:
-    - deploy-runner
+    - $[[ inputs.runner_tag ]]
   image: $CI_BASE_IMAGE
   # Every pipeline job must be listed (with needs, when: on_failure watches
   # the needed jobs only). artifacts: true marks the jobs whose logs feed the
@@ -72,6 +81,7 @@ if_ci_failing:
     - { job: security, optional: true, artifacts: false }
     - { job: prepare_deployment, optional: true, artifacts: false }
     - { job: server_installation, optional: true, artifacts: true }
+    - { job: target_readiness, optional: true, artifacts: true }
     - { job: platform_deployment, optional: true, artifacts: true }
     - { job: setup_integration_tests, optional: true, artifacts: false }
     - { job: scan_ports, optional: true, artifacts: true }
@@ -84,7 +94,7 @@ if_ci_failing:
     - mkdir -p "$ARTIFACTS_DIR"
     # move build.log into the dir the ticket script scans for *.log
     - '[[ -f "$CI_PROJECT_DIR/build/build.log" ]] && cp "$CI_PROJECT_DIR/build/build.log" "$ARTIFACTS_DIR/" || true'
-    - cd "$CI_PROJECT_DIR/ci/ci-code/clean"
+    - cd "$CI_PROJECT_DIR/$[[ inputs.scripts_dir ]]"
     - python3 create_ticket_if_ci_failed.py
     - python3 notify_slack.py
   rules:

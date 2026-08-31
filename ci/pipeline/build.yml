@@ -1,7 +1,10 @@
-# Stage: build — platform images + charts, and their security scan
-# In:  the job's own checkout; REGISTRY_* credentials
-# Out: images + charts in the registry, tagged git describe of this commit
-#      (the ONLY handover to deploy); build.log + security report artifacts
+spec:
+  inputs:
+    runner_tag:
+      description: that runner mounts the host docker socket, which keeps the layer cache warm
+---
+# Out: images + charts in the registry, tagged git describe of this commit.
+#      That tag is the only handover to the deploy stage.
 ##############################################
 # BUILD
 ##############################################
@@ -9,7 +12,7 @@
 # version tag comes from git describe — full clone + tags keep it deterministic.
 .build_cli_env:
   tags:
-    - build-runner
+    - $[[ inputs.runner_tag ]]
   image: $CI_BASE_IMAGE
   variables:
     GIT_STRATEGY: clone
@@ -114,7 +117,7 @@ security:
     - job: security_scan
       artifacts: true
   tags:
-    - build-runner
+    - $[[ inputs.runner_tag ]]
   image: $CI_BASE_IMAGE
   before_script:
     - pip install jsonschema

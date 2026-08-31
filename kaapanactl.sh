@@ -394,6 +394,7 @@ function deploy() {
     _Argument: --password [Docker registry password]
     _Argument: --port [Set main https-port]
     _Argument: --chart-path [path-to-chart-tgz]
+    _Argument: --check-system-report [path] write the --check-system results as JSON to this file
     _Argument: --kube-helm-install-timeout [seconds]
     _Argument: --kube-helm-deletion-timeout [seconds]
     _Argument: --import-images-tar [path-to-a-tarball]"
@@ -401,6 +402,7 @@ function deploy() {
     QUIET=false
     DO_UNDEPLOY=false
     DO_CHECK_SYSTEM=false
+    CHECK_SYSTEM_REPORT=""
 
     POSITIONAL=()
     while [[ $# -gt 0 ]]
@@ -600,6 +602,13 @@ function deploy() {
                 shift
             ;;
 
+            --check-system-report)
+                CHECK_SYSTEM_REPORT="$2"
+                echo -e "${GREEN}SET CHECK_SYSTEM_REPORT: $CHECK_SYSTEM_REPORT ${NC}"
+                shift
+                shift
+            ;;
+
             *)    # unknown option
                 echo -e "${RED}unknown parameter: $key ${NC}"
                 echo -e "${YELLOW}$usage${NC}"
@@ -622,9 +631,21 @@ function deploy() {
 
     if [ "$DO_CHECK_SYSTEM" = "true" ]; then
         validate_platform_prefix
-        check_system kaapana-admin-chart default
-        check_system kaapana-platform-chart default
-        check_system "${PLATFORM_PREFIX}-project-admin" admin
+        # Check every release before exiting so the report is complete.
+        local system_healthy=true
+        check_system kaapana-admin-chart default || system_healthy=false
+        check_system kaapana-platform-chart default || system_healthy=false
+        check_system "${PLATFORM_PREFIX}-project-admin" admin || system_healthy=false
+
+        if [ -n "$CHECK_SYSTEM_REPORT" ]; then
+            write_check_system_report "$CHECK_SYSTEM_REPORT" "$system_healthy"
+        fi
+
+        if [ "$system_healthy" != "true" ]; then
+            echo -e "${RED}❌ Some resources are unhealthy${NC}"
+            exit 1
+        fi
+        echo -e "${GREEN}✅ All resources healthy${NC}"
         exit 0
     fi
 
@@ -2884,16 +2905,85 @@ function update_coredns_rewrite() {
     fi
 }
 
+# kubectl duration, bounds each rollout wait in check_system.
+ROLLOUT_STATUS_TIMEOUT="${ROLLOUT_STATUS_TIMEOUT:-15s}"
+
+# One JSON object per checked resource, aggregated by write_check_system_report.
+CHECK_SYSTEM_RECORDS=()
+
+function check_system_record() {
+    # release namespace kind name status message
+    local record
+    if ! record=$(jq -cn \
+        --arg release "$1" --arg namespace "$2" --arg kind "$3" \
+        --arg name "$4" --arg status "$5" --arg message "$6" \
+        '{release: $release, namespace: $namespace, kind: $kind, name: $name, status: $status, message: $message}' 2>/dev/null); then
+        return 0    # no jq: the printed output is the only result
+    fi
+    CHECK_SYSTEM_RECORDS+=("$record")
+}
+
+function write_check_system_report() {
+    local path="$1"
+    local healthy="$2"
+
+    if ! command -v jq >/dev/null 2>&1; then
+        echo -e "${YELLOW}jq is not available - skipping the system check report ($path)${NC}"
+        return 0
+    fi
+
+    local resources="[]"
+    if [ "${#CHECK_SYSTEM_RECORDS[@]}" -gt 0 ]; then
+        resources=$(printf '%s\n' "${CHECK_SYSTEM_RECORDS[@]}" | jq -cs '.')
+    fi
+
+    if ! jq -n \
+        --argjson resources "$resources" \
+        --arg healthy "$healthy" \
+        --arg generated_at "$(date --iso-8601=seconds)" \
+        --arg platform_prefix "${PLATFORM_PREFIX:-}" \
+        '{
+            generated_at: $generated_at,
+            platform_prefix: $platform_prefix,
+            healthy: ($healthy == "true"),
+            summary: {
+                checked: ($resources | length),
+                healthy: ($resources | map(select(.status == "healthy")) | length),
+                unhealthy: ($resources | map(select(.status == "unhealthy")) | length),
+                missing: ($resources | map(select(.status == "missing")) | length),
+                skipped: ($resources | map(select(.status == "skipped")) | length)
+            },
+            resources: $resources
+        }' > "$path"; then
+        echo -e "${YELLOW}Could not write the system check report to $path${NC}"
+        return 0
+    fi
+    echo -e "${GREEN}System check report written to $path${NC}"
+}
+
+# Returns 1 if a resource is unhealthy. Returns instead of exiting so the
+# caller can check every release.
 function check_system() {
     release="$1"
     helm_ns="${2:-default}"
 
+    local manifest
+    if ! manifest=$($HELM_EXECUTABLE get manifest "$release" -n "$helm_ns" 2>/dev/null); then
+        echo "❌ Helm release $release not found in namespace $helm_ns"
+        check_system_record "$release" "$helm_ns" "HelmRelease" "$release" "missing" \
+            "helm release not found in namespace $helm_ns"
+        return 1
+    fi
+
     # Extract all resources from the Helm manifest
-    resources=$(
-    $HELM_EXECUTABLE get manifest "$release" -n "$helm_ns" \
+    if ! resources=$(printf '%s\n' "$manifest" \
         | microk8s.kubectl apply --dry-run=client -f - -o json \
-        | jq -r '.items[] | "\(.kind)/\(.metadata.namespace)/\(.metadata.name)"'
-    )
+        | jq -r '.items[] | "\(.kind)/\(.metadata.namespace)/\(.metadata.name)"'); then
+        echo "❌ Could not list the resources of release $release"
+        check_system_record "$release" "$helm_ns" "HelmRelease" "$release" "unhealthy" \
+            "could not list the resources of the release"
+        return 1
+    fi
 
     all_healthy=true
 
@@ -2904,41 +2994,67 @@ function check_system() {
 
     case $kind in
         Deployment)
-        if ! microk8s.kubectl rollout status "deployment/$name" -n "$ns"; then
-            echo "❌ Deployment $name not healthy"
+        # An unbounded wait never yields a report for a broken release. CI
+        # retries the whole check instead.
+        local rollout_output=""
+        if ! rollout_output=$(microk8s.kubectl rollout status "deployment/$name" -n "$ns" --timeout="$ROLLOUT_STATUS_TIMEOUT" 2>&1); then
+            echo "❌ Deployment $name not healthy: $rollout_output"
+            check_system_record "$release" "$ns" "$kind" "$name" "unhealthy" "$(printf '%s' "$rollout_output" | tail -n1)"
             all_healthy=false
+        else
+            echo "$rollout_output"
+            check_system_record "$release" "$ns" "$kind" "$name" "healthy" ""
         fi
         ;;
         StatefulSet)
-        if ! microk8s.kubectl rollout status "statefulset/$name" -n "$ns"; then
-            echo "❌ StatefulSet $name not healthy"
+        local rollout_output=""
+        if ! rollout_output=$(microk8s.kubectl rollout status "statefulset/$name" -n "$ns" --timeout="$ROLLOUT_STATUS_TIMEOUT" 2>&1); then
+            echo "❌ StatefulSet $name not healthy: $rollout_output"
+            check_system_record "$release" "$ns" "$kind" "$name" "unhealthy" "$(printf '%s' "$rollout_output" | tail -n1)"
             all_healthy=false
+        else
+            echo "$rollout_output"
+            check_system_record "$release" "$ns" "$kind" "$name" "healthy" ""
         fi
         ;;
         Pod)
-        phase=$(microk8s.kubectl get pod "$name" -n "$ns" -o jsonpath='{.status.phase}')
+        local pod_message=""
+        # set -e: a vanished resource must not abort the check.
+        phase=$(microk8s.kubectl get pod "$name" -n "$ns" -o jsonpath='{.status.phase}' 2>/dev/null || true)
         if [[ "$phase" != "Running" && "$phase" != "Succeeded" ]]; then
             echo "❌ Pod $name is $phase"
+            pod_message="pod is ${phase:-unknown}"
             all_healthy=false
         fi
 
         # check readiness condition
         ready_cond=$(microk8s.kubectl get pod "$name" -n "$ns" \
-            -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
+            -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || true)
         if [[ "$ready_cond" != "True" ]]; then
             echo "❌ Pod $name is not Ready yet"
+            pod_message="${pod_message:+$pod_message; }pod is not Ready"
             all_healthy=false
+        fi
+
+        if [ -z "$pod_message" ]; then
+            check_system_record "$release" "$ns" "$kind" "$name" "healthy" ""
+        else
+            check_system_record "$release" "$ns" "$kind" "$name" "unhealthy" "$pod_message"
         fi
         ;;
         Job)
         if ! job=$(microk8s.kubectl get job "$name" -n "$ns" -o json 2>/dev/null); then
             echo "ℹ️ Job $name already completed and removed"
+            check_system_record "$release" "$ns" "$kind" "$name" "skipped" "job already completed and removed"
             continue
         fi
-        succeeded=$(microk8s.kubectl get job "$name" -n "$ns" -o jsonpath='{.status.succeeded}')
+        succeeded=$(microk8s.kubectl get job "$name" -n "$ns" -o jsonpath='{.status.succeeded}' 2>/dev/null || true)
         if [[ "$succeeded" != "1" ]]; then
             echo "❌ Job $name not successful"
+            check_system_record "$release" "$ns" "$kind" "$name" "unhealthy" "job not successful"
             all_healthy=false
+        else
+            check_system_record "$release" "$ns" "$kind" "$name" "healthy" ""
         fi
         ;;
         *)
@@ -2947,12 +3063,12 @@ function check_system() {
     done
 
     if [ "$all_healthy" = true ]; then
-        echo "✅ All resources healthy"
-    else
-        echo "❌ Some resources are unhealthy"
-        exit 1
+        echo "✅ All resources of $release are healthy"
+        return 0
     fi
 
+    echo "❌ Some resources of $release are unhealthy"
+    return 1
 }
 
 function create_report {

@@ -4,7 +4,6 @@
   gather_facts: true
   become: false
 
-  remote_user: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_USER') }}"
   environment:
     http_proxy: "{{ lookup('ansible.builtin.env', 'HTTP_PROXY') }}"
     https_proxy: "{{ lookup('ansible.builtin.env', 'HTTPS_PROXY') }}"
@@ -13,6 +12,8 @@
     ansible_python_interpreter: /usr/bin/python3
     kaapana_dir: "{{ lookup('env', 'CI_PROJECT_DIR') }}"
     artifacts_dir: "{{ lookup('env', 'ARTIFACTS_DIR') }}"
+    remote_report: /tmp/target_readiness.json
+    remote_log: /tmp/target_readiness.log
   tasks:
     - name: Increase inotify watchers
       become: yes
@@ -70,9 +71,68 @@
     - name: Add user to microk8s group
       become: true
       ansible.builtin.user:
-        name: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_USER') }}"
+        name: "{{ ansible_user | default(ansible_facts['user_id'], true) }}"
         groups: microk8s
         append: true
 
     - name: Reset SSH connection to apply group changes
       ansible.builtin.meta: reset_connection
+
+    # Same check target_readiness runs when this job is skipped.
+    - name: Verify the installed target is ready for the deployment
+      ansible.builtin.script:
+        cmd: >-
+          {{ playbook_dir }}/target_readiness.py
+          --domain {{ lookup('ansible.builtin.env', 'VM_FQDN') | quote }}
+          --report {{ remote_report | quote }}
+          --log {{ remote_log | quote }}
+        executable: /usr/bin/python3
+      register: readiness
+      changed_when: false
+      failed_when: false
+
+    - name: Show the readiness table
+      ansible.builtin.debug:
+        var: readiness.stdout_lines
+
+    # Fetched as files: ansible captures the output through a pty, CRLF-mangled.
+    - name: Fetch the readiness report
+      ansible.builtin.fetch:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        flat: true
+        fail_on_missing: false
+      loop:
+        - { src: "{{ remote_report }}", dest: "{{ artifacts_dir }}/target_readiness.json" }
+        - { src: "{{ remote_log }}", dest: "{{ artifacts_dir }}/target_readiness.log" }
+
+    - name: Look for the fetched report
+      ansible.builtin.stat:
+        path: "{{ artifacts_dir }}/target_readiness.json"
+      register: readiness_report_file
+      delegate_to: localhost
+
+    - name: Remember the report
+      ansible.builtin.set_fact:
+        readiness_report: "{{ lookup('ansible.builtin.file', artifacts_dir + '/target_readiness.json') | from_json }}"
+      when: readiness_report_file.stat.exists
+
+    - name: Fail when the target is not ready after the server installation
+      ansible.builtin.fail:
+        msg: |
+          The server installation finished, but the target is still not ready:
+          {% if readiness_report is defined %}
+          {% for check in readiness_report.checks | selectattr('status', 'equalto', 'failed') %}
+
+            [{{ check.name }}] {{ check.title }}
+              found: {{ check.details }}
+              fix:   {{ check.remediation }}
+          {% endfor %}
+          {% else %}
+
+            The readiness check itself did not run (rc={{ readiness.rc }}):
+            {{ readiness.stdout | default('') }}
+          {% endif %}
+
+          Reports: artifacts/server_installation.log, artifacts/target_readiness.json
+      when: readiness.rc | default(1) != 0

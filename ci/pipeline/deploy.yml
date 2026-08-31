@@ -1,16 +1,24 @@
-# Stage: deploy — test VM lifecycle start + platform installation
-# In:  registry (chart/images @ VERSION_TAG); HARVESTER_KUBECONFIG +
-#      CI_SSH_PRIVATE_KEY (File-type CI variables)
-# Out: artifacts/deployment.env (dotenv: VM_FQDN, VM_USER, VERSION_TAG) —
-#      the single source of "where is the test system" for all later jobs;
-#      the running platform on the VM (checked, not passed)
+spec:
+  inputs:
+    runner_tag:
+    playbook_dir:
+      default: ci/ci-code/deploy
+    max_fqdn_length:
+      type: number
+      default: 57
+      description: dcmsend rejects longer peerhosts
+---
+# Out: artifacts/deployment.env (dotenv: VM_FQDN, VM_USER, VERSION_TAG), the
+#      single source of "where is the test system" for every later stage.
+#      server_installation (sudo) and target_readiness (no sudo) exclude each
+#      other, selected by CI_EXEC_SERVER_INSTALLATION.
 ##############################################
 # DEPLOY
 ##############################################
 
 .remote_execution_template:
   tags:
-    - deploy-runner
+    - $[[ inputs.runner_tag ]]
   # Everything these jobs need is baked into the CI image. VM_FQDN / VM_USER /
   # VERSION_TAG arrive via the deployment.env dotenv from prepare_deployment.
   image: $CI_BASE_IMAGE
@@ -59,11 +67,11 @@ prepare_deployment:
     - mkdir -p artifacts
     - |
       if [[ -z "$DEPLOYMENT_INSTANCE_FQDN" ]]; then
-        ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/provision_harvester_vm.yaml"
+        ansible-playbook -i localhost, "$CI_PROJECT_DIR/$[[ inputs.playbook_dir ]]/provision_harvester_vm.yaml"
       else
         # dcmsend rejects peerhosts > 57 chars — fail now, not mid-tests
-        if [[ ${#DEPLOYMENT_INSTANCE_FQDN} -gt 57 ]]; then
-          echo "ERROR: DEPLOYMENT_INSTANCE_FQDN '${DEPLOYMENT_INSTANCE_FQDN}' is ${#DEPLOYMENT_INSTANCE_FQDN} characters, exceeding the 57-character dcmsend peerhost limit."
+        if [[ ${#DEPLOYMENT_INSTANCE_FQDN} -gt $[[ inputs.max_fqdn_length ]] ]]; then
+          echo "ERROR: DEPLOYMENT_INSTANCE_FQDN '${DEPLOYMENT_INSTANCE_FQDN}' is ${#DEPLOYMENT_INSTANCE_FQDN} characters, exceeding the $[[ inputs.max_fqdn_length ]]-character dcmsend peerhost limit."
           exit 1
         fi
         echo "Skipping VM provisioning and using existing deployment target: $DEPLOYMENT_INSTANCE_FQDN"
@@ -95,15 +103,49 @@ server_installation:
       artifacts: true
   script:
     - |
-      ansible-playbook "$CI_PROJECT_DIR/ci/ci-code/deploy/server_installation.yaml" \
+      ansible-playbook "$CI_PROJECT_DIR/$[[ inputs.playbook_dir ]]/server_installation.yaml" \
         -i "$VM_FQDN," \
         -u "$VM_USER" \
         --private-key "$CI_SSH_PRIVATE_KEY"
   artifacts:
     paths:
       - "artifacts/server_installation.log"
+      - "artifacts/target_readiness.json"
+      - "artifacts/target_readiness.log"
     when: always
     access: developer
+
+##############################################
+
+target_readiness:
+  extends: .remote_execution_template
+  stage: deploy
+  # Runs when server_installation is skipped. Read-only, needs no root on the
+  # target.
+  rules:
+    - if: '$CI_EXEC_DEPLOY == "true" && $CI_EXEC_SERVER_INSTALLATION != "true"'
+      when: on_success
+    - when: never
+  needs:
+    - job: prepare_deployment
+      artifacts: true
+  script:
+    - |
+      if [ -z "$VM_FQDN" ]; then
+        echo "ERROR: VM_FQDN is empty. No deployment target."
+        exit 1
+      fi
+    - |
+      ansible-playbook "$CI_PROJECT_DIR/$[[ inputs.playbook_dir ]]/target_readiness.yaml" \
+        -i "$VM_FQDN," \
+        -u "$VM_USER" \
+        --private-key "$CI_SSH_PRIVATE_KEY"
+  artifacts:
+    paths:
+      - "artifacts/target_readiness.json"
+      - "artifacts/target_readiness.log"
+    when: always
+    expose_as: "Kaapana Target Readiness"
 
 ##############################################
 
@@ -112,6 +154,8 @@ platform_deployment:
   stage: deploy
   needs:
     - job: server_installation
+      optional: true
+    - job: target_readiness
       optional: true
     - job: prepare_deployment
       artifacts: true
@@ -122,7 +166,7 @@ platform_deployment:
         exit 1
       fi
     - |
-      ansible-playbook "$CI_PROJECT_DIR/ci/ci-code/deploy/deploy_platform.yaml" \
+      ansible-playbook "$CI_PROJECT_DIR/$[[ inputs.playbook_dir ]]/deploy_platform.yaml" \
         -i "$VM_FQDN," \
         -u "$VM_USER" \
         --private-key "$CI_SSH_PRIVATE_KEY"
@@ -143,7 +187,9 @@ platform_deployment:
   artifacts:
     paths:
       - "artifacts/deployment.log"
+      - "artifacts/undeploy.log"
       - "artifacts/system_check.log"
+      - "artifacts/system_check.json"
       - "artifacts/deployment.html"
     when: always
     expose_as: "Kaapana Deployment Report"

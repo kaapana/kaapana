@@ -1,0 +1,101 @@
+---
+# Runs instead of server_installation when CI_EXEC_SERVER_INSTALLATION is not
+# "true". Read-only, no sudo.
+# Out: artifacts/target_readiness.json, artifacts/target_readiness.log
+- name: Check deployment target readiness
+  hosts: all
+  gather_facts: false
+  become: false
+
+  vars:
+    vm_fqdn: "{{ lookup('ansible.builtin.env', 'VM_FQDN') }}"
+    artifacts_dir: "{{ lookup('ansible.builtin.env', 'ARTIFACTS_DIR') }}"
+    ansible_python_interpreter: /usr/bin/python3
+    # NodePorts the platform publishes: https, http, DICOM
+    required_ports: "80,443,11112"
+    min_disk_gib: 80
+    remote_report: /tmp/target_readiness.json
+    remote_log: /tmp/target_readiness.log
+
+  tasks:
+    - name: Probe the SSH connection
+      ansible.builtin.wait_for_connection:
+        timeout: 30
+      ignore_unreachable: true
+      register: ssh_probe
+
+    - name: Fail when the target cannot be reached over SSH
+      ansible.builtin.fail:
+        msg: |
+          Cannot reach the deployment target over SSH.
+            target: {{ vm_fqdn }}
+            user:   {{ ansible_user | default('(not set)') }}
+          Check DEPLOYMENT_INSTANCE_FQDN / DEPLOYMENT_INSTANCE_USER, that the
+          host is up, and that the CI_SSH_PRIVATE_KEY public key is in the
+          authorized_keys of that user.
+          Ansible reported: {{ ssh_probe.msg | default('unreachable') }}
+      when: ssh_probe.unreachable | default(false) or ssh_probe.failed | default(false)
+
+    - name: Run the readiness checks (read-only, no sudo)
+      ansible.builtin.script:
+        cmd: >-
+          {{ playbook_dir }}/target_readiness.py
+          --domain {{ vm_fqdn | quote }}
+          --required-ports {{ required_ports | quote }}
+          --min-disk-gib {{ min_disk_gib }}
+          --report {{ remote_report | quote }}
+          --log {{ remote_log | quote }}
+        executable: /usr/bin/python3
+      register: readiness
+      changed_when: false
+      failed_when: false
+
+    - name: Show the readiness table
+      ansible.builtin.debug:
+        var: readiness.stdout_lines
+
+    # Fetched as files: ansible captures the output through a pty, CRLF-mangled.
+    - name: Fetch the readiness report
+      ansible.builtin.fetch:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        flat: true
+        fail_on_missing: false
+      loop:
+        - { src: "{{ remote_report }}", dest: "{{ artifacts_dir }}/target_readiness.json" }
+        - { src: "{{ remote_log }}", dest: "{{ artifacts_dir }}/target_readiness.log" }
+
+    - name: Look for the fetched report
+      ansible.builtin.stat:
+        path: "{{ artifacts_dir }}/target_readiness.json"
+      register: readiness_report_file
+      delegate_to: localhost
+
+    - name: Fail when the checks did not run at all
+      ansible.builtin.fail:
+        msg: |
+          The readiness check produced no report (rc={{ readiness.rc }}).
+          Output: {{ readiness.stdout | default('') }}
+                  {{ readiness.stderr | default('') }}
+      when: not readiness_report_file.stat.exists
+
+    - name: Remember the report
+      ansible.builtin.set_fact:
+        readiness_report: "{{ lookup('ansible.builtin.file', artifacts_dir + '/target_readiness.json') | from_json }}"
+
+    - name: Fail when the target is not ready
+      ansible.builtin.fail:
+        msg: |
+          Deployment target {{ vm_fqdn }} is not ready for the platform
+          deployment. {{ readiness_report.summary.failed }} check(s) failed:
+          {% for check in readiness_report.checks | selectattr('status', 'equalto', 'failed') %}
+
+            [{{ check.name }}] {{ check.title }}
+              found: {{ check.details }}
+              fix:   {{ check.remediation }}
+          {% endfor %}
+
+          Re-run the pipeline with CI_EXEC_SERVER_INSTALLATION=true to have the
+          server installation prepare the target instead.
+          Report: artifacts/target_readiness.json
+      when: not readiness_report.ready

@@ -1,16 +1,25 @@
-# Stage: tests — unit tests + docs
-# In:  the job's own checkout, nothing else
-# Out: JUnit/HTML report artifacts for humans and the MR UI — no pipeline
-#      job consumes anything from this stage
+spec:
+  inputs:
+    runner_tag:
+    python_image:
+    node_image:
+      description: python_image lacks the node >=20.19 the frontend apps require
+    dind_image:
+      description: >-
+        keep it fully qualified, the runner's privileged-service allowlist
+        matches the literal string
+---
+# Out: JUnit/HTML reports for humans and the MR UI. No other stage consumes
+#      anything from this one.
 ##############################################
 # TESTS AND DOCS
 ##############################################
 .test_template:
   stage: tests
   tags:
-    - tests-runner
-  image: python:3.12
-  # Each job in test has to finish within 5 minutes. 
+    - $[[ inputs.runner_tag ]]
+  image: $[[ inputs.python_image ]]
+  # Each job in test has to finish within 5 minutes.
   timeout: 5m
   rules:
     - if: '$CI_EXEC_UNIT_TESTS == "true"'
@@ -42,10 +51,7 @@ task_api_tests:
   # Bind mounts resolve because the runner shares /builds with services, so
   # all mounted paths (TASK_DIR, TMPDIR) must live under $CI_PROJECT_DIR.
   services:
-    # Must stay fully qualified: the runner's privileged-service allowlist
-    # matches the literal string — a bare "docker:28-dind" silently loses
-    # privileged and dind dies.
-    - name: docker.io/library/docker:28-dind
+    - name: $[[ inputs.dind_image ]]
       alias: docker
       variables:
         DOCKER_TLS_CERTDIR: ""
@@ -211,9 +217,7 @@ keycloak_setup_tests:
 # fetched on every run.
 ui_e2e_tests:
   extends: .test_template
-  # Node job: the template's python:3.12 image lacks the node >=20.19 the apps
-  # require (engines), and playwright needs a glibc distro for --with-deps.
-  image: node:22
+  image: $[[ inputs.node_image ]]
   variables:
     # both casings: chromium must reach the app on localhost, not the proxy
     NO_PROXY: "localhost,127.0.0.1"
@@ -257,8 +261,6 @@ ui_e2e_tests:
 build_documentation:
   stage: tests
   extends: .test_template
-  tags:
-    - tests-runner
   script:
     - cd $KAAPANA_DIR/docs
     - pip install -r requirements.txt

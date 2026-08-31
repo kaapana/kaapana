@@ -1,3 +1,20 @@
+# Pipeline inputs: set per run in the "Run pipeline" form, with
+# `glab ci run -i <name>:<value>`, or per schedule. Resolved when the config is
+# merged, so they are invisible to jobs and to rules:if — anything a rule reads
+# stays a CI/CD variable below. Every input needs a default: without one, push,
+# merge-request and schedule pipelines fail before they start.
+spec:
+  inputs:
+    build_runner_tag:
+      default: build-runner
+      description: runner tag for the ci-image and build stages
+    tests_runner_tag:
+      default: tests-runner
+      description: runner tag for the unit-test stage
+    deploy_runner_tag:
+      default: deploy-runner
+      description: runner tag for the deploy, test and clean stages
+---
 default:
   interruptible: true
 
@@ -35,7 +52,8 @@ variables:
   CI_EXEC_BUILD: "true" # build stage: full platform build
   CI_EXEC_BUILD_ARGUMENTS: "" # extra kaapana-build flags, e.g. "--vulnerability-scan"
   CI_EXEC_DEPLOY: "true" # deploy stage: provision test VM + server install + platform deploy
-  CI_EXEC_SERVER_INSTALLATION: "true" # "false" skips the OS/microk8s install (target already prepared)
+  CI_EXEC_SERVER_INSTALLATION: "true" # "false" skips the OS/microk8s install and runs target_readiness instead
+  CI_EXEC_REDEPLOY: "true" # "true" undeploys a platform already on the target, "false" fails the job
   CI_EXEC_INTEGRATION_TESTS: "true" # test stage: pytest + Playwright against the test VM
   # Registry-based scan of the images this pipeline pushed (nightly schedules
   # set "true"); scans no longer run inside the build job.
@@ -122,13 +140,27 @@ variables:
   # Not declared here: CLIENT_SECRET is extracted from the deployed platform by
   # setup_integration_tests and passed downstream via a dotenv artifact.
 
-# Job definitions live in one file per stage — each file's header states what
-# the stage takes in and hands out.
 include:
   - local: /ci/pipeline/preflight.yml
   - local: /ci/pipeline/ci-image.yml
+    inputs:
+      runner_tag: $[[ inputs.build_runner_tag ]]
+      builder_image: docker.io/library/docker:28-cli
   - local: /ci/pipeline/unit-tests.yml
+    inputs:
+      runner_tag: $[[ inputs.tests_runner_tag ]]
+      python_image: python:3.12
+      node_image: node:22
+      dind_image: docker.io/library/docker:28-dind
   - local: /ci/pipeline/build.yml
+    inputs:
+      runner_tag: $[[ inputs.build_runner_tag ]]
   - local: /ci/pipeline/deploy.yml
+    inputs:
+      runner_tag: $[[ inputs.deploy_runner_tag ]]
   - local: /ci/pipeline/integration-tests.yml
+    inputs:
+      runner_tag: $[[ inputs.deploy_runner_tag ]]
   - local: /ci/pipeline/clean.yml
+    inputs:
+      runner_tag: $[[ inputs.deploy_runner_tag ]]

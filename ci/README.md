@@ -118,7 +118,7 @@ jobs with ↻; you rarely need the whole pipeline.
 | Symptom | Likely cause / what to do |
 |---|---|
 | Unit-test job fails in `pip install` | Dependency change in the component. Reproduce locally — the job runs plain `python:3.12`. |
-| `task_api_tests`: "connection refused" to `docker:2375` | Its dind service died. Usual cause: the service image name must stay **fully qualified** (`docker.io/library/docker:…`) — the privileged-service allowlist matches the literal string. |
+| `task_api_tests` cannot reach `docker:2375` ("connection refused", or `[Errno 113] No route to host`) | Its dind service died — read the **Service container logs** block near the top of the job log, not the pytest traceback. Two known causes: the service image name must stay **fully qualified** (`docker.io/library/docker:…`), since the privileged-service allowlist matches the literal string; or the runner mounts the host docker socket, which collides with the socket dockerd creates (`device or resource busy`) — see [section 6](#6-runners). |
 | Test job times out talking to a service (e.g. `registry:5000`) | DKFZ proxy. The alias must be in `NO_PROXY` **and** `no_proxy` (both casings) in the job variables. |
 | `build_packages` fails immediately | Registry login (`CI_REGISTRY_*` variables) or the build VM's docker daemon. Full log in the `build.log` artifact. |
 | `build_packages` fails on one image | Read `build.log`; usually reproducible locally with `kaapana-build`. |
@@ -166,6 +166,28 @@ executor.
 | kaapana-build-01 | `build-runner` | Host docker socket mounted into jobs → warm layer cache across pipelines |
 | kaapana-deploy-01 | `deploy-runner` | No machine state; credentials from File-type CI variables |
 
+**The tests and build configurations cannot be combined on one runner.**
+`volumes` under `[runners.docker]` is applied to service containers as well as
+to the job container — there is no service-only volume setting, only
+`services_tmpfs`. A mounted host socket therefore lands on
+`/var/run/docker.sock` inside the dind service, exactly where its own dockerd
+wants to create one, and that daemon exits with
+
+```
+failed to load listeners: can't create unix socket /var/run/docker.sock: device or resource busy
+```
+
+Nothing then listens on `docker:2375`. So a runner that mounts the socket at
+that path cannot take `task_api_tests`. Keep the roles split when adding a
+runner to the inventory — the CI VMs have one machine each and no reason to
+share.
+
+One machine that has to do both can, by mounting the socket somewhere else
+(`/var/run/host-docker.sock`) and pointing build jobs at it with
+`environment = ["DOCKER_HOST=unix:///var/run/host-docker.sock"]`. That is how a
+workstation runner takes all three stages — see
+[ci/docs/local-ci.md](docs/local-ci.md).
+
 Provision / re-provision (also how you add a runner — add it to the
 inventory first):
 
@@ -181,9 +203,11 @@ ansible-playbook -i ci/harvester/inventory.yaml ci/harvester/setup_ci.yaml
 # FORCE_RECREATE=true → delete and recreate existing VMs
 ```
 
-On-VM troubleshooting: `sudo gitlab-runner verify`,
-`sudo systemctl status gitlab-runner`, config at
-`/etc/gitlab-runner/config.toml`.
+The runner runs as the `ubuntu` user, not system-wide — the playbook masks and
+disables the packaged system service. On-VM troubleshooting is therefore
+unsudoed and user-scoped: `gitlab-runner verify`,
+`systemctl --user status gitlab-runner`, config at
+`~/.gitlab-runner/config.toml`.
 
 ## 7. Releases
 

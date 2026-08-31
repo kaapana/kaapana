@@ -301,11 +301,11 @@ def check_helm(report, helm):
     return rc == 0
 
 
-def check_existing_platform(report, helm):
+def check_existing_platform(report, helm, redeploy):
     """The gate kaapanactl uses before it deploys: is its admin chart release
     there? The platform prefix comes from that release, as in
     get_platform_prefix_from_release."""
-    title = "No Kaapana platform deployed on the target yet"
+    title = "Existing Kaapana platform on the target"
     if not helm:
         report.add(
             "existing_platform", title, SKIPPED, WARNING, details="helm not installed"
@@ -326,7 +326,7 @@ def check_existing_platform(report, helm):
         timeout=120,
     )
     if rc != 0:
-        report.add("existing_platform", title, PASSED, WARNING)
+        report.add("existing_platform", title, PASSED, WARNING, details="none")
         return None
 
     prefix = ""
@@ -340,12 +340,14 @@ def check_existing_platform(report, helm):
         "existing_platform",
         title,
         FAILED,
-        WARNING,
+        WARNING if redeploy else FATAL,
         details=f"release {ADMIN_CHART_RELEASE} in namespace {HELM_NAMESPACE}, "
         f"platform prefix '{prefix or 'unknown'}'",
         remediation=(
-            "platform_deployment undeploys it first when "
-            "CI_EXEC_REDEPLOY=true, and fails fast otherwise."
+            "platform_deployment undeploys it first."
+            if redeploy
+            else "Undeploy it on the target: './kaapanactl.sh deploy --undeploy', "
+            "or re-run with CI_EXEC_REDEPLOY=true."
         ),
     )
     return prefix or ADMIN_CHART_RELEASE
@@ -539,6 +541,12 @@ def main():
     )
     parser.add_argument("--min-disk-gib", type=int, default=80)
     parser.add_argument(
+        "--redeploy",
+        default="false",
+        help="whether the deployment may replace a platform found here "
+        "(CI_EXEC_REDEPLOY); 'false' makes finding one a fatal check",
+    )
+    parser.add_argument(
         "--microk8s-timeout",
         type=int,
         default=120,
@@ -591,7 +599,9 @@ def main():
     check_microk8s_ready(report, microk8s, args.microk8s_timeout)
     check_kubernetes_api(report, microk8s)
     helm_works = check_helm(report, helm)
-    existing_platform = check_existing_platform(report, helm if helm_works else "")
+    existing_platform = check_existing_platform(
+        report, helm if helm_works else "", args.redeploy.strip().lower() == "true"
+    )
     check_node_port_range(report, required_ports)
     check_ports_free(report, required_ports, existing_platform)
     check_sysctl(

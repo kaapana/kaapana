@@ -53,7 +53,7 @@ variables:
   CI_EXEC_BUILD_ARGUMENTS: "" # extra kaapana-build flags, e.g. "--vulnerability-scan"
   CI_EXEC_DEPLOY: "true" # deploy stage: provision test VM + server install + platform deploy
   CI_EXEC_SERVER_INSTALLATION: "true" # "false" skips the OS/microk8s install and runs target_readiness instead
-  CI_EXEC_REDEPLOY: "true" # "true" undeploys a platform already on the target, "false" fails the job
+  CI_EXEC_REDEPLOY: "false" # "true" undeploys a platform already on the target, "false" fails the job
   CI_EXEC_INTEGRATION_TESTS: "true" # test stage: pytest + Playwright against the test VM
   # Registry-based scan of the images this pipeline pushed (nightly schedules
   # set "true"); scans no longer run inside the build job.

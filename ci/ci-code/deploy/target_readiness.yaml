@@ -14,6 +14,7 @@
     # NodePorts the platform publishes: https, http, DICOM
     required_ports: "80,443,11112"
     min_disk_gib: 80
+    redeploy: "{{ lookup('ansible.builtin.env', 'CI_EXEC_REDEPLOY') | default('false', true) }}"
     remote_report: /tmp/target_readiness.json
     remote_log: /tmp/target_readiness.log
 
@@ -43,6 +44,7 @@
           --domain {{ vm_fqdn | quote }}
           --required-ports {{ required_ports | quote }}
           --min-disk-gib {{ min_disk_gib }}
+          --redeploy {{ redeploy | quote }}
           --report {{ remote_report | quote }}
           --log {{ remote_log | quote }}
         executable: /usr/bin/python3

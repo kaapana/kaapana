@@ -15,7 +15,8 @@ VM → test that live deployment → delete the VM.
 
 | Stage | Jobs | Runs on | Duration |
 |---|---|---|---|
-| `tests` | preflight variable check, 8 unit-test suites, docs build | tests runner | each job 5 min timeout |
+| `preflight` | preflight variable check | tests runner | seconds |
+| `tests` | 8 unit-test suites, docs build | tests runner | each job 5 min timeout |
 | `build` | `build_packages` (+ security scan on nightly) | build runner | hours (warm cache: much less) |
 | `deploy` | `prepare_deployment` → `server_installation` → `platform_deployment` | deploy runner (Ansible over SSH) | ~1 h |
 | `test` | integration tests: login, ports, UI (Playwright), extensions, DICOM data, workflows | deploy runner, against the live VM | 1–3 h |
@@ -253,12 +254,9 @@ triple manually in the UI.
 
 1. Extend the right template (`.test_template`, `.build_cli_env`,
    `.remote_execution_template`, `.integration_test_local`) — they carry the
-   runner tag, image, and rules conventions. The tests stage has a 10 minute
-   budget; `.test_template` caps a single job at 2 minutes, so a suite that
-   hits the cap is too slow and gets split into separate jobs.
-2. Needs a CI/CD variable that is not already checked? Add it to
+   runner tag, image, and rules conventions.`.test_template` caps a single job at 5 minutes.
+2. Add required CI/CD variable that is not already checked to
    `preflight_variables` ([`ci/pipeline/preflight.yml`](pipeline/preflight.yml))
-   so a misconfiguration fails in seconds, not in your job.
 3. Gate it with `rules:` on the matching `CI_EXEC_*` toggle.
 4. Need docker? Prefer a plain daemonless service; a privileged dind service
    must use the fully-qualified image name (see `task_api_tests`).

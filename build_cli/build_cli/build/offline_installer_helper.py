@@ -184,7 +184,13 @@ class OfflineInstallerHelper:
         container_engine: str,
         image_platform: Optional[str] = None,
     ) -> None:
-        """Export specified container images into a tarball using the given container engine."""
+        """Export specified container images into a tarball using the given container engine.
+
+        Raises:
+            RuntimeError: If the export fails. This is always fatal, independent of
+                ``exit_on_error``: continuing would package an offline installer
+                without its images, which only surfaces on the target host.
+        """
         logger.info(f"Exporting images to tarball: {images_tarball_path}")
         command = [container_engine, "save"]
         if image_platform:
@@ -199,13 +205,21 @@ class OfflineInstallerHelper:
             timeout=cls._build_config.save_image_timeout,
         )
         if output.returncode != 0:
-            logger.error(f"Docker save failed: {output.stderr}")
+            msg = (
+                f"{container_engine} save failed: {output.stderr.strip()}. "
+                f"A '... was found but does not provide the specified platform' or "
+                f"'NotFound: content digest' error means the local image store holds "
+                f"the named image with incomplete content for {image_platform or 'the requested platform'}; "
+                f"remove it ({container_engine} rmi <image>) so the build re-pulls it, then rerun."
+            )
+            logger.error(msg)
             IssueTracker.generate_issue(
                 component="docker save",
                 name="Docker save",
-                msg=f"Docker save failed {output.stderr}",
+                msg=msg,
                 level="ERROR",
             )
+            raise RuntimeError(msg)
 
     @staticmethod
     def _default_image_platform() -> str:

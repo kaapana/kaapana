@@ -375,7 +375,7 @@ class OfflineInstallerHelper:
 
     @classmethod
     def _oci_registry_cls(cls):
-        """Import OCIRegistryDiscovery from the in-repo kaapana_containers lib (has dependency on python requests)."""
+        """Import OCIRegistryDiscovery from the in-repo kaapana_containers lib."""
         try:
             from kaapana_containers.registries.registry import OCIRegistryDiscovery
         except ImportError:
@@ -395,10 +395,11 @@ class OfflineInstallerHelper:
     ) -> Optional[str]:
         """Tar the offline installer dir and publish it as <repo>:<version>.
 
-        The tarball is pushed as a single OCI blob and is held completely in memory
-        while uploading (``OCIRegistryDiscovery._upload_file`` reads it with
-        ``read_bytes()``). The build host needs free RAM of at least the tarball size;
-        a payload larger than the available memory cannot be published.
+        The tarball is pushed as a single OCI blob, streamed from disk by
+        ``OCIRegistryDiscovery._upload_file``, so its size is not bounded by the
+        build host's memory. ``publish_offline_installer_timeout`` is an httpx
+        timeout and applies per socket operation, not to the whole request, so a
+        long-running upload is fine as long as it keeps making progress.
         """
         if not offline_dir.is_dir():
             msg = (

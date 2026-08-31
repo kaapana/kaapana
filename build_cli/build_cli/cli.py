@@ -410,6 +410,23 @@ def validate_registry_login_config(build_config: BuildConfig, logger) -> None:
     sys.exit(2)
 
 
+def _log_issue_summary(logger) -> None:
+    """Log all collected build issues.
+
+    Runs in run_build's ``finally`` so the summary also appears when a build step
+    aborts with an exception - grepping issues out of the log must never be the
+    only way to find them.
+    """
+    if not IssueTracker.issues:
+        return
+    logger.info("")
+    logger.info("-----------------------------------------------------------")
+    logger.info("------------------------ ISSUES: --------------------------")
+    logger.info("-----------------------------------------------------------")
+    for issue in IssueTracker.issues:
+        issue.log_self(logger)
+
+
 def run_build(build_config: BuildConfig):
     EXIT_CODE = 0
     if build_config.build_dir.exists():
@@ -442,78 +459,80 @@ def run_build(build_config: BuildConfig):
 
     build_state = BuildState(started_at=time())
 
-    logger.info("-----------------------------------------------------------")
-    ContainerHelper.init(build_config=build_config, build_state=build_state)
-    HelmChartHelper.init(build_config=build_config, build_state=build_state)
-    BuildHelper.init(build_config=build_config, build_state=build_state)
-    ContainerHelper.verify_container_engine_installed()
-    HelmChartHelper.verify_helm_installed()
-
-    if not build_config.build_only and not build_config.no_login:
-        ContainerHelper.container_registry_login(
-            username=build_config.registry_username,
-            password=build_config.registry_password,
-        )
-        HelmChartHelper.helm_registry_login(
-            username=build_config.registry_username,
-            password=build_config.registry_password,
-        )
-
-    logger.info("-----------------------------------------------------------")
-    ContainerHelper.collect_containers()
-    ContainerHelper.resolve_base_images_into_container()
-    if build_config.cache_from_tag:
-        ContainerHelper.resolve_cache_from_images(build_config.cache_from_tag)
-    HelmChartHelper.collect_charts()
-    HelmChartHelper.resolve_chart_dependencies()
-    HelmChartHelper.resolve_kaapana_collections()
-    HelmChartHelper.resolve_preinstall_extensions()
-
-    platform_chart = BuildHelper.get_platform_chart()
-    BuildHelper.generate_build_graph(platform_chart)
-    BuildHelper.generate_build_tree(platform_chart)
-
-    if not build_config.scan_only:
-        logger.info("")
+    # The finally makes the issue summary survive an exception in any build step:
+    # a traceback (e.g. from the offline-installer publish) previously ended the
+    # run before the summary, hiding every earlier failure.
+    try:
         logger.info("-----------------------------------------------------------")
-        logger.info("------------------ BUILD CHARTS ------------------")
-        logger.info("-----------------------------------------------------------")
-        logger.info("")
-        HelmChartHelper.build_and_push_charts(platform_chart=platform_chart)
+        ContainerHelper.init(build_config=build_config, build_state=build_state)
+        HelmChartHelper.init(build_config=build_config, build_state=build_state)
+        BuildHelper.init(build_config=build_config, build_state=build_state)
+        ContainerHelper.verify_container_engine_installed()
+        HelmChartHelper.verify_helm_installed()
 
-    if not build_config.only_charts:
-        BuildHelper.select_containers_to_build()
-        if build_config.scan_only:
-            logger.info("Scan-only: skipping chart and container builds")
-        else:
+        if not build_config.build_only and not build_config.no_login:
+            ContainerHelper.container_registry_login(
+                username=build_config.registry_username,
+                password=build_config.registry_password,
+            )
+            HelmChartHelper.helm_registry_login(
+                username=build_config.registry_username,
+                password=build_config.registry_password,
+            )
+
+        logger.info("-----------------------------------------------------------")
+        ContainerHelper.collect_containers()
+        ContainerHelper.resolve_base_images_into_container()
+        if build_config.cache_from_tag:
+            ContainerHelper.resolve_cache_from_images(build_config.cache_from_tag)
+        HelmChartHelper.collect_charts()
+        HelmChartHelper.resolve_chart_dependencies()
+        HelmChartHelper.resolve_kaapana_collections()
+        HelmChartHelper.resolve_preinstall_extensions()
+
+        platform_chart = BuildHelper.get_platform_chart()
+        BuildHelper.generate_build_graph(platform_chart)
+        BuildHelper.generate_build_tree(platform_chart)
+
+        if not build_config.scan_only:
             logger.info("")
             logger.info("-----------------------------------------------------------")
-            logger.info("------------------ BUILD CONTAINERS ------------------")
+            logger.info("------------------ BUILD CHARTS ------------------")
             logger.info("-----------------------------------------------------------")
             logger.info("")
-            containers = ContainerHelper._build_state.selected_containers
-            coordinator = BuildCoordinator(containers)
-            coordinator.start()
+            HelmChartHelper.build_and_push_charts(platform_chart=platform_chart)
 
-            if (
-                build_config.create_offline_installation
-                or build_config.publish_offline_installer
-            ):
-                OfflineInstallerHelper.init(
-                    build_config=build_config, build_state=build_state
+        if not build_config.only_charts:
+            BuildHelper.select_containers_to_build()
+            if build_config.scan_only:
+                logger.info("Scan-only: skipping chart and container builds")
+            else:
+                logger.info("")
+                logger.info(
+                    "-----------------------------------------------------------"
                 )
-                OfflineInstallerHelper.handle_offline_installation(platform_chart)
+                logger.info("------------------ BUILD CONTAINERS ------------------")
+                logger.info(
+                    "-----------------------------------------------------------"
+                )
+                logger.info("")
+                containers = ContainerHelper._build_state.selected_containers
+                coordinator = BuildCoordinator(containers)
+                coordinator.start()
 
-    if len(IssueTracker.issues) > 0:
-        logger.info("")
-        logger.info("-----------------------------------------------------------")
-        logger.info("------------------------ ISSUES: --------------------------")
-        logger.info("-----------------------------------------------------------")
-        for issue in IssueTracker.issues:
-            issue.log_self(logger)
+                if (
+                    build_config.create_offline_installation
+                    or build_config.publish_offline_installer
+                ):
+                    OfflineInstallerHelper.init(
+                        build_config=build_config, build_state=build_state
+                    )
+                    OfflineInstallerHelper.handle_offline_installation(platform_chart)
+    finally:
+        _log_issue_summary(logger)
 
-        if build_config.exit_on_error:
-            EXIT_CODE = 1
+    if IssueTracker.issues and build_config.exit_on_error:
+        EXIT_CODE = 1
 
     build_state.mark_finished()
     if build_state.duration:

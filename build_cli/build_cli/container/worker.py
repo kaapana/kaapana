@@ -11,9 +11,24 @@ class BuildWorker:
 
     def process_container(self, container: Container, event_queue: EventQueue) -> None:
         """
-        Process a single container.
-        """
+        Process a single container. Guaranteed to emit a terminal event.
 
+        Anything escaping the build/push steps - including the SystemExit that
+        IssueTracker.generate_issue raises under exit_on_error, which would
+        otherwise die silently inside the ThreadPoolExecutor thread - is turned
+        into a FAILED event. Without a terminal event the coordinator would wait
+        on the container's dependents forever and could never abort.
+        """
+        try:
+            self._process_container(container, event_queue)
+        except BaseException as e:  # noqa: B036 - SystemExit must be caught here
+            container.status = Status.FAILED
+            self._emit_event(
+                BuildEvent(type=BuildEventType.FAILED, container=container, error=e),
+                event_queue,
+            )
+
+    def _process_container(self, container: Container, event_queue: EventQueue) -> None:
         self._emit_event(
             BuildEvent(type=BuildEventType.STARTED, container=container),
             event_queue,

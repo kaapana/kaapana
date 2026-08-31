@@ -2,7 +2,7 @@ from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from queue import Empty, PriorityQueue
 from threading import Lock
-from typing import Iterable, Set
+from typing import Iterable, Optional, Set
 
 from build_cli.container import Container
 from build_cli.container.container_helper import (
@@ -42,6 +42,7 @@ class BuildCoordinator:
         self.event_queue: EventQueue = EventQueue()
         self.lock = Lock()
         self.abort_requested = False
+        self.abort_exception: Optional[BaseException] = None
 
     def start(self) -> None:
         """ """
@@ -83,7 +84,12 @@ class BuildCoordinator:
 
                 if self.abort_requested:
                     executor.shutdown(wait=False, cancel_futures=True)
-                    return
+
+        if self.abort_exception is not None:
+            # exit_on_error: stop the whole build here. Returning normally would
+            # let the caller continue into packaging/publishing on top of failed
+            # containers.
+            raise self.abort_exception
 
     def _schedule_ready(
         self,
@@ -182,7 +188,10 @@ class BuildCoordinator:
 
                 if ContainerHelper._build_config.exit_on_error:
                     self.abort_requested = True
-                    e = event.error or RuntimeError(
-                        f"Build failed for {event.container.tag}"
-                    )
+                    e = event.error
+                    if e is None or isinstance(e, SystemExit):
+                        # No usable error, or IssueTracker's exit(1) escaping a
+                        # worker thread: raise something that names the container
+                        # instead of silently exiting.
+                        e = RuntimeError(f"Build failed for {event.container.tag}")
                     self.abort_exception = e

@@ -56,6 +56,7 @@ variables:
     description: "test stage: pytest + Playwright against the deployed VM"
   CI_EXEC_INTEGRATION_TEST_JOBS:
     value: "scan_ports,first_login,playwright_ui_tests,install_extensions,send_data,run_workflows"
+    description: "test stage: which jobs run; remove entries to skip them"
   CI_EXEC_SECURITY_SCAN:
     value: "false"
     options: ["true", "false"]

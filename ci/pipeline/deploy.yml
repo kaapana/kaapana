@@ -121,9 +121,10 @@ target_readiness:
   extends: .remote_execution_template
   stage: deploy
   # Runs when server_installation is skipped. Read-only, needs no root on the
-  # target.
+  # target. Only for a provisioned Harvester VM: a target given by FQDN exists
+  # before the pipeline starts and was already checked by preflight_target.
   rules:
-    - if: '$CI_EXEC_DEPLOY == "true" && $CI_EXEC_SERVER_INSTALLATION != "true"'
+    - if: '$CI_EXEC_DEPLOY == "true" && $CI_EXEC_SERVER_INSTALLATION != "true" && $DEPLOYMENT_INSTANCE_FQDN == ""'
       when: on_success
     - when: never
   needs:
@@ -156,6 +157,8 @@ platform_deployment:
     - job: server_installation
       optional: true
     - job: target_readiness
+      optional: true
+    - job: preflight_target
       optional: true
     - job: prepare_deployment
       artifacts: true

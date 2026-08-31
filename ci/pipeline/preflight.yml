@@ -1,15 +1,23 @@
-# Stage: tests — preflight variable check
-# In:  CI/CD variables only, no checkout
-# Out: nothing — fails within seconds when a required variable is empty,
-#      instead of build/deploy finding out an hour later
+spec:
+  inputs:
+    runner_tag:
+    python_image:
+      default: python:3.12
+    playbook_dir:
+      default: ci/ci-code/deploy
+---
+# Stage: preflight — cheap checks that need nothing built
+# In:  CI/CD variables, and the deployment target when one is given by FQDN
+# Out: nothing, or artifacts/target_readiness.{json,log} — fails within
+#      seconds to a minute, instead of build/deploy finding out an hour later
 ##############################################
 # PREFLIGHT
 ##############################################
 preflight_variables:
   stage: preflight
   tags:
-    - tests-runner
-  image: python:3.12
+    - $[[ inputs.runner_tag ]]
+  image: $[[ inputs.python_image ]]
   variables:
     GIT_STRATEGY: none # no checkout needed
   rules:
@@ -107,3 +115,42 @@ preflight_variables:
         exit 1
       fi
       echo "Preflight OK: all required CI variables are set."
+
+##############################################
+
+# Only for a target given by FQDN: it exists before the pipeline starts, so
+# its state is knowable now rather than after the build stage. A Harvester VM
+# is created by prepare_deployment and cannot be checked here — and being
+# fresh, it cannot carry a platform either. target_readiness in the deploy
+# stage covers that case.
+preflight_target:
+  stage: preflight
+  tags:
+    - $[[ inputs.runner_tag ]]
+  # ansible and the playbook's tooling are baked into the CI image
+  image: $CI_BASE_IMAGE
+  rules:
+    - if: '$CI_EXEC_DEPLOY == "true" && $CI_EXEC_SERVER_INSTALLATION != "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
+      when: on_success
+    - when: never
+  variables:
+    ANSIBLE_HOST_KEY_CHECKING: "False"
+    # the playbook reads the target from the environment; in the deploy stage
+    # these arrive via dotenv from prepare_deployment, which has not run yet
+    VM_FQDN: "$DEPLOYMENT_INSTANCE_FQDN"
+    VM_USER: "$DEPLOYMENT_INSTANCE_USER"
+  before_script:
+    - mkdir -p "$ARTIFACTS_DIR"
+    # ssh refuses group/world-readable keys; File variables arrive too open
+    - chmod 600 "$CI_SSH_PRIVATE_KEY"
+  script:
+    - |
+      ansible-playbook "$CI_PROJECT_DIR/$[[ inputs.playbook_dir ]]/target_readiness.yaml" \
+        -i "$VM_FQDN," \
+        -u "$VM_USER" \
+        --private-key "$CI_SSH_PRIVATE_KEY"
+  artifacts:
+    paths:
+      - "artifacts/target_readiness.json"
+      - "artifacts/target_readiness.log"
+    when: always

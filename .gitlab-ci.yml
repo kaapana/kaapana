@@ -142,6 +142,9 @@ variables:
 
 include:
   - local: /ci/pipeline/preflight.yml
+    inputs:
+      runner_tag: $[[ inputs.tests_runner_tag ]]
+      python_image: python:3.12
   - local: /ci/pipeline/ci-image.yml
     inputs:
       runner_tag: $[[ inputs.build_runner_tag ]]

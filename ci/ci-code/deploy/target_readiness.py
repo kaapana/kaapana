@@ -331,11 +331,13 @@ def check_existing_platform(report, helm, redeploy):
 
     prefix = ""
     try:
-        prefix = (json.loads(out or "{}").get("global") or {}).get(
-            "platform_prefix"
-        ) or ""
+        # helm prints the literal `null` when the release carries no
+        # user-supplied values, so json.loads gives None, not a dict.
+        values = json.loads(out or "{}") or {}
     except json.JSONDecodeError:
-        pass
+        values = {}
+    if isinstance(values, dict):
+        prefix = (values.get("global") or {}).get("platform_prefix") or ""
     report.add(
         "existing_platform",
         title,

@@ -2,6 +2,7 @@ default:
   interruptible: true
 
 stages:
+  - preflight
   - tests
   - build
   - deploy

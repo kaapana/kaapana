@@ -16,7 +16,7 @@ VM → test that live deployment → delete the VM.
 | Stage | Jobs | Runs on | Duration |
 |---|---|---|---|
 | `preflight` | preflight variable check | tests runner | seconds |
-| `tests` | 8 unit-test suites, docs build | tests runner | each job 5 min timeout |
+| `tests` | unit-test suites, docs build | tests runner | each job 5 min timeout |
 | `build` | `build_packages` (+ security scan on nightly) | build runner | hours (warm cache: much less) |
 | `deploy` | `prepare_deployment` → `server_installation` → `platform_deployment` | deploy runner (Ansible over SSH) | ~1 h |
 | `test` | integration tests: login, ports, UI (Playwright), extensions, DICOM data, workflows | deploy runner, against the live VM | 1–3 h |

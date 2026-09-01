@@ -59,6 +59,9 @@ task_api_tests:
         DOCKER_TLS_CERTDIR: ""
   variables:
     DOCKER_HOST: "tcp://docker:2375"
+    # tmp/ is tracked (tmp/.gitkeep) so it survives get_sources' git clean.
+    # The runner's own download_artifacts step (for preflight_target) reads
+    # TMPDIR too, and that step runs before this job's script/mkdir -p.
     TMPDIR: "$CI_PROJECT_DIR/tmp"
     # both casings: the dind service must not hairpin through the DKFZ proxy
     NO_PROXY: "localhost,127.0.0.1,docker,.dkfz.de,.dkfz-heidelberg.de"

@@ -4,7 +4,7 @@ Kaapana applications form one platform. The same action should look
 familiar, the same status should mean the same thing, and important safeguards
 should behave consistently wherever users encounter them.
 
-These guidelines define shared visual language and the interaction rules.
+These guidelines define a shared visual language and interaction rules.
 
 > **Storybook references**
 >
@@ -16,12 +16,11 @@ These guidelines define shared visual language and the interaction rules.
 
 ### Be consistent before being clever
 
-Use existing vuetify default components and Kaapana shared components whenever possible.
-Only style new components if the page genuinely needs something
-different and not purely for aesthetic reasons. If it does,
-determine whether the new pattern applies across
-applications and belongs in the shared `base-ui` library.
-Match its styling to the existing components.
+Use default Vuetify components and Kaapana shared components whenever possible.
+Only style new components if the page genuinely needs something different, not
+purely for aesthetic reasons. If it does, determine whether the new pattern
+applies across applications and belongs in the shared `base-ui` library. Match
+its styling to the existing components.
 
 ## Visual language
 
@@ -31,7 +30,7 @@ Use colors by semantic role, not decoratively. The token names below are the
 names used in the theme and Storybook.
 
 | Token | Light theme | Dark theme | Use |
-|---|---:|---:|---|
+| --- | ---: | ---: | --- |
 | `primary` | `#005BA0` | `#42A5F5` | Main actions, active states, and navigation emphasis |
 | `secondary` | `#5A696E` | `#5A696E` | Supporting emphasis and neutral secondary elements |
 | `background` | `#EEEEEE` | `#121212` | Main application background |
@@ -52,12 +51,12 @@ chips, and snackbars stand out from surrounding content.
 - Use theme roles instead of local color literals.
 - For filled components, use Vuetify's `color` property with a semantic theme
   token. The shared theme selects a contrasting foreground automatically.
-- Check contrast separately when using a theme color directly as foreground text
-  or an icon.
+- Check contrast separately when using a theme color directly for foreground text
+  or icons.
 - Define every surface role explicitly; framework defaults belong to a different
   palette.
 - Keep the page background visibly distinct from primary surfaces in both themes.
-- Use primary color selectively. If every action is primary, none of them is.
+- Use the primary color selectively. If every action is primary, none of them is.
 - Pair color with text, icons, or structure. Meaning must not depend on color
   perception alone.
 
@@ -71,7 +70,7 @@ bundled with the application.
 Use the following Vuetify classes consistently:
 
 | Class | Use |
-|---|---|
+| --- | --- |
 | `text-h4` | Page title |
 | `text-h5` | Section title |
 | `text-h6` | Content title |
@@ -84,7 +83,7 @@ Use the following Vuetify classes consistently:
 Use the emphasis classes independently of the type scale:
 
 | Class | Use |
-|---|---|
+| --- | --- |
 | No emphasis class | High-emphasis content |
 | `text-medium-emphasis` | Supporting information |
 | `text-disabled` | Disabled or inactive content only |
@@ -93,7 +92,7 @@ Use the emphasis classes independently of the type scale:
   captions, and supporting information.
 - Use size and weight to communicate hierarchy.
 - Keep labels and interface copy concise.
-- Do not set a font family or one-off font size on individual components.
+- Do not set a font family or a one-off font size on individual components.
 
 **Storybook:** `Guidelines / Foundations / Typography`
 
@@ -107,7 +106,7 @@ Use spacing in 4 px increments and an 8 px default corner radius.
 Use three elevation levels:
 
 | Elevation | Use |
-|---:|---|
+| ---: | --- |
 | **0** | Flat content inside an already raised surface; pair it with a border |
 | **2** | Resting elevation for cards and other raised content |
 | **5** | Temporary overlays such as menus and dialogs |
@@ -126,7 +125,7 @@ Icons support labels; they do not replace them. Every icon-only control needs an
 accessible name.
 
 | Name | MDI icon | Function |
-|---|---|---|
+| --- | --- | --- |
 | `add` | `mdi-plus` | Add or create an item |
 | `close` | `mdi-close` | Close or dismiss the current surface |
 | `confirm` | `mdi-check` | Confirm or accept an action |
@@ -158,9 +157,8 @@ Users should be able to distinguish the main action, supporting actions,
 destructive actions, unavailable actions, warnings, and errors. Do not make
 everything equally prominent.
 
-
 | Level | Use |
-|---|---|
+| --- | --- |
 | **Primary** | The main action for the current task |
 | **Secondary** | Supporting actions and safe dismissals such as Cancel |
 | **Tertiary** | Low-emphasis details, table actions, and contextual utilities |
@@ -185,9 +183,8 @@ itself be inappropriate.
 ### Actions requiring confirmation
 
 Ask for confirmation when an action is destructive or has an unusually broad
-effect. Do
-not confirm harmless or easily reversible actions. Confirmation fatigue makes
-important warnings less effective.
+effect. Do not confirm harmless or easily reversible actions. Confirmation
+fatigue makes important warnings less effective.
 
 A confirmation must say:
 
@@ -236,7 +233,7 @@ reserve `error` for destructive actions.
 Choose a standard width based on the content:
 
 | Size | Maximum width | Use |
-|---|---:|---|
+| --- | ---: | --- |
 | **Small** | 400 px | A focused confirmation or single decision |
 | **Medium** | 600 px | Forms and editing tasks |
 | **Large** | 900 px | Tables, previews, and comparisons |
@@ -256,8 +253,12 @@ Match the control to the data:
 - use a searchable selection for a long, closed list;
 - allow free-form entry only when values outside the list are valid.
 
-Use default vuetify components, if possible, and do not add custom styling
+Use default Vuetify components where possible, and do not add custom styling
 just for aesthetic reasons. Forms should look similar across applications.
+
+For selections displaying lists of items, consider whether presenting additional
+information about each item, such as a description, status, or icon, would be
+beneficial.
 
 **Storybook:** `Guidelines / Forms / Controls`
 
@@ -286,12 +287,34 @@ Avoid:
 
 ### Unsaved changes
 
-Warn before leaving a view when changes would be lost. This includes navigation,
-project or context switches, closing an edited dialog, and leaving another editing
-workflow. Let users stay and continue editing or leave and discard their changes.
+Warn before an action would discard meaningful unsaved work. This includes
+internal navigation, project or context switches, closing an edited dialog, and
+leaving one editing workflow for another.
 
-Determine this state by comparing the current data with the saved or initial data.
-A pre-filled form has no unsaved changes until the user edits it.
+Determine whether work is unsaved by comparing the current data with its saved
+or initial state. A pre-filled form is not dirty until the user changes it. Clear
+the dirty state after the user saves or deliberately discards the changes.
+
+For actions controlled by the application, show a confirmation dialog before
+discarding changes. This includes closing an edited dialog, pressing Escape,
+clicking outside an edited dialog, and navigating within the application. Let
+users either stay and continue editing or leave and discard their changes. Give
+initial focus to the safe action.
+
+Views embedded in `portal-ui` must also report their combined dirty state through
+`postViewDirty(dirty)` from `@kaapana/base-ui`. Include unsaved work in open
+dialogs when changing the project or replacing the view would discard that work.
+See [Reporting Unsaved Changes (`kaapana:view-dirty`)](../../../../../docs/source/development_guide/preview/landing_page_integration.rst#reporting-unsaved-changes-kaapana-view-dirty).
+
+The portal uses this state to protect shell-controlled navigation, such as
+switching projects, opening another application, or using the shell's refresh
+control. The portal does not control actions inside an embedded view, so
+reporting the dirty state does not replace the application's own confirmation
+dialogs.
+
+Do not show both an application confirmation and a portal confirmation for the
+same action. The component that controls the action is responsible for its
+confirmation.
 
 **Storybook:** `Guidelines / Patterns / Unsaved Changes`
 
@@ -301,13 +324,20 @@ A pre-filled form has no unsaved changes until the user edits it.
 
 Show progress whenever users can perceive a delay.
 
-- Use an initial placeholder shaped like the content to come.
-- Keep a table visible and show its table-level loading state.
+- Use skeleton placeholders for complex content whose expected layout is known
+  and would otherwise shift noticeably while loading.
+- For simple content, use a progress indicator or keep the existing layout with
+  a visible loading state.
+- Keep tables visible and show their table-level loading state.
 - Show mutation progress on the action that started it.
 - Prevent the same mutation from being submitted twice while it runs.
+- If loading and displaying the complete collection does not cause performance
+  problems, show all items by default.
+- Otherwise, use an appropriate approach such as pagination, incremental loading,
+  or infinite scrolling.
 
-Never leave an operation—especially a destructive one—looking inert after it is
-triggered.
+Never leave an operation, especially a destructive one, without visible feedback
+after it is triggered.
 
 **Storybook:** `Guidelines / Feedback / Loading`
 
@@ -331,26 +361,47 @@ feedback.
 
 ### Notifications and alerts
 
-Choose the feedback mechanism by how long the information matters:
+Choose the feedback mechanism based on where the information belongs and how long
+it must remain available.
 
 | Mechanism | Use |
-|---|---|
-| **Transient notification** | Brief outcomes of recent actions: saved, started, copied, updated |
-| **Persistent notification** | Platform events that remain relevant beyond the current view or session |
-| **Inline alert** | Conditions tied to the content currently in view |
+| --- | --- |
+| **Transient notification** | Immediate feedback about an action the user initiated |
+| **Persistent notification** | Important information that must remain available across applications or sessions |
+| **Inline alert** | Information connected to a component, form, or section of the current page |
 
-Do not use temporary notifications for information users need to keep seeing.
+**Transient notifications** appear temporarily in the bottom-right corner. Use
+them for action outcomes such as saving changes, submitting a form, starting a
+workflow, beginning a download, copying a link, or failing to complete an
+action.
 
-> **To be decided - Persisntent notifications:** Proposals to how  persistent notifications are delivered:
->
-> 1. **Non-expiring notification:** Use the same presentation as a transient
->    notification, but keep it visible until the user clicks to mark it as read.
->    This does not preserve read state across page reloads or sessions.
-> 2. **Kaapana notifications API:** Store the notification centrally and manage
->    its read state through the platform notification center.
-> 3. **Combined:** Store the notification through the API and also show it
->    immediately in the current view. Clicking the local notification marks the
->    stored notification as read.
+**Inline alerts** appear close to the affected content and remain visible while
+the condition is relevant. Use them for form-level information, unavailable
+content, loading failures, unsupported selections, or conditions preventing the
+user from continuing.
+
+Both mechanisms can communicate success, information, warnings, or errors.
+Choose based on where the feedback belongs, not its severity. Do not show the
+same message both inline and as a transient notification unless it could
+otherwise be missed.
+
+**Scope:** Keep information that belongs to the current page or component local
+and inline. Use a persistent notification when the user should still be able to
+find the information after leaving the page, switching applications, reloading,
+or returning in a later session.
+
+Create persistent notifications through the Kaapana notifications API. The
+notification service stores them, and the portal displays them in its
+notification center. The portal should also show a transient notification when a
+new persistent notification arrives. Do not show another local notification for
+the same event.
+
+Persistent notifications are suitable for events such as the completion of a
+long-running workflow or import, a shared resource becoming unavailable, or
+something requiring attention after the user leaves the originating page.
+
+> **Goal:** In the future, enable the frontend feedback system to handle API
+> errors that conform to [RFC 9457 Problem Details](https://www.rfc-editor.org/info/rfc9457/).
 
 **Storybook:** `Guidelines / Feedback / Notifications & Alerts`
 
@@ -359,10 +410,10 @@ Do not use temporary notifications for information users need to keep seeing.
 An empty screen should explain why it is empty:
 
 | State | Response |
-|---|---|
+| --- | --- |
 | **Nothing exists yet** | Explain that the collection is empty and offer the natural first action |
 | **Nothing matches** | Explain that filters returned no results and offer a way to clear or change them |
-| **Could not load** | Show an error and a   recovery action; do not present failure as an empty collection |
+| **Could not load** | Show an error and a recovery action; do not present failure as an empty collection |
 
 Avoid generic “No data available” text when the application knows more.
 
@@ -370,13 +421,26 @@ Avoid generic “No data available” text when the application knows more.
 
 ## Accessibility
 
-> **To be filled**
+> **Goal:** Kaapana aims to follow [WCAG 2.2 Level AA](https://www.w3.org/TR/WCAG22/) accessibility standards in the future.
+> The easiest initial improvements are suggested below. When choosing between
+> otherwise suitable design options, prefer the more accessible option.
+> See also the [WCAG 2.2 quick reference](https://www.w3.org/WAI/WCAG22/quickref/) for implementation guidance.
+
+- Make all interactive controls available by keyboard and provide a visible focus indicator.
+- Maintain sufficient color contrast in light and dark themes and do not communicate meaning through color alone.
+- When opening a dialog, move focus into it. When closing it, return focus to the control that opened it.
+- Allow content to remain usable when users zoom or enlarge text.
+- Keep validation messages and errors close to the affected control and explain
+  how to correct the problem.
+- Provide alternatives to dragging interactions.
+- Give links and buttons clear, descriptive labels. Provide an accessible name,
+  such as an `aria-label`, for icon-only controls.
 
 ## Review checklist
 
 Before considering a screen finished, check:
 
-- Is there an already defined vuetify or Kaapana component that meets the need?
+- Is there an existing Vuetify or Kaapana component that meets the need?
 - Is the main action obvious?
 - Are destructive actions protected appropriately?
 - Are unsaved changes protected during navigation?
@@ -385,4 +449,6 @@ Before considering a screen finished, check:
 - Are unavailable actions explained?
 - Does every empty state explain what happened and what to do next?
 - Are colors used by semantic role?
-- Are icons used consistently ?
+- Are icons used consistently?
+
+<!-- Note: Add review-skill to the base-ui repo -->

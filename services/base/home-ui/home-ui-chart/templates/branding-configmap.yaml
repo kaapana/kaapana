@@ -1,0 +1,11 @@
+{{- if .Values.branding.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: home-ui-branding
+  namespace: "{{ .Values.global.services_namespace }}"
+data:
+  branding.json: |
+    {{ dict "logoUrl" .Values.branding.logoUrl "title" .Values.branding.title "text" .Values.branding.text | toJson }}
+{{- end }}

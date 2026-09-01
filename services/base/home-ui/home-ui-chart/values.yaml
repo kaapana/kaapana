@@ -1,0 +1,10 @@
+global: {}
+
+# Deployment-specific branding shown in the Home view header next to the
+# Kaapana logo. When enabled, a ConfigMap shadows the app's default
+# branding.json (logoUrl may be any image URL reachable from the browser).
+branding:
+  enabled: false
+  logoUrl: ""
+  title: ""
+  text: ""

@@ -1,0 +1,78 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: home-ui-service
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    app.kubernetes.io/name: home-ui-service
+spec:
+  selector:
+    app.kubernetes.io/name: home-ui
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
+  type: ClusterIP
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix-home-ui
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  stripPrefix:
+    prefixes:
+    - /home-ui
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: home-ui-ingress
+  namespace: "{{ .Values.global.services_namespace }}"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.services_namespace }}-strip-prefix-home-ui@kubernetescrd
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+    # kaapana.ai/ui.* discovery annotations — schema owned by menu-discovery work
+    kaapana.ai/ui.name: "Home"
+    kaapana.ai/ui.icon: "mdi-home"
+    kaapana.ai/ui.order: "0"
+    kaapana.ai/ui.default: "true"
+    kaapana.ai/ui.id: "home"
+    kaapana.ai/ui.project: "path"
+    kaapana.ai/ui.dev-links: "Kaapana Backend=/kaapana-backend/docs,Kube-Helm API=/kube-helm-api/docs,AII=/aii/docs,Notifications=/notifications/docs"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /home-ui
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: home-ui-service
+            port:
+              number: 5000
+---
+# Project-scoped route (/project/<id>/home-ui/...): auth-backend
+# authorizes against the <id>, the middlewares strip both prefixes, and the
+# app derives its project scope from the document URL (see
+# @kaapana/base-ui's selectedProject util).
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: home-ui-project-ingressroute
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: PathRegexp(`^/project/[^/]+/home-ui(/|$)`)
+      middlewares:
+        - name: strip-project-prefix
+        - name: strip-prefix-home-ui
+      services:
+        - name: home-ui-service
+          port: 5000

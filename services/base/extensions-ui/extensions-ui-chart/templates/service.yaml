@@ -1,0 +1,77 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: extensions-ui-service
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    app.kubernetes.io/name: extensions-ui-service
+spec:
+  selector:
+    app.kubernetes.io/name: extensions-ui
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
+  type: ClusterIP
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix-extensions-ui
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  stripPrefix:
+    prefixes:
+    - /extensions-ui
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: extensions-ui-ingress
+  namespace: "{{ .Values.global.services_namespace }}"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.services_namespace }}-strip-prefix-extensions-ui@kubernetescrd
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+    # kaapana.ai/ui.* discovery annotations — schema owned by menu-discovery work
+    kaapana.ai/ui.name: "Extensions"
+    kaapana.ai/ui.icon: "mdi-puzzle"
+    kaapana.ai/ui.order: "50"
+    kaapana.ai/ui.id: "extensions"
+    kaapana.ai/ui.project: "path"
+    kaapana.ai/ui.dev-links: "Kube-Helm API=/kube-helm-api/docs,AII=/aii/docs"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /extensions-ui
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: extensions-ui-service
+            port:
+              number: 5000
+---
+# Project-scoped route (/project/<id>/extensions-ui/...): auth-backend
+# authorizes against the <id>, the middlewares strip both prefixes, and the
+# app derives its project scope from the document URL (see
+# the shared selectedProject util in @kaapana/base-ui).
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: extensions-ui-project-ingressroute
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: PathRegexp(`^/project/[^/]+/extensions-ui(/|$)`)
+      middlewares:
+        - name: strip-project-prefix
+        - name: strip-prefix-extensions-ui
+      services:
+        - name: extensions-ui-service
+          port: 5000

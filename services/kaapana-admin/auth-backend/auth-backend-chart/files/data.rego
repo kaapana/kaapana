@@ -38,6 +38,7 @@ allowed_user_endpoints := [
     {"path": "^/web/store/.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/web/system/projects.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/kube-helm-api/active-applications", "methods": ["GET"]},
+    {"path": "^/kube-helm-api/pending-applications-count", "methods": ["GET"]},
     {"path": "^/thumbnails/.*", "methods": ["GET"]},
     {"path": "^/aii/.*", "methods": ["GET"]},
     {"path": "^/projects-ui.*", "methods": ["GET"]},
@@ -47,13 +48,16 @@ allowed_user_endpoints := [
     {"path": "^/collabora/.*", "methods": ["GET","PUT" ,"POST", "HEAD", "PATCH","DELETE"]},
     {"path": "^/notifications/.*", "methods": ["GET", "POST", "PUT"]},
     {"path": "^/portal-api/.*", "methods": ["GET"]},
-    # landing-page v2 view containers (data + workflow views)
+    # landing-page v2 view containers (all nine views)
+    {"path": "^/home-ui", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/data-gallery-ui", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/data-upload-ui", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/workflow-execution-ui", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/workflow-list-ui", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/federated-ui", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/results-ui", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/app-ui", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/extensions-ui", "methods": ["GET","POST","PUT","DELETE"]},
 ]
 
 allowed_project_manager_endpoints := [

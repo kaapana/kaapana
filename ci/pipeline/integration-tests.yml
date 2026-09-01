@@ -1,5 +1,7 @@
 spec:
   inputs:
+    exec_integration_tests:
+    exec_deploy:
     runner_tag:
     tests_dir:
       default: ci/ci-code/integration_tests
@@ -22,7 +24,7 @@ setup_integration_tests:
       artifacts: true
     - platform_deployment
   rules:
-    - if: '$CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"'
+    - if: '"$[[ inputs.exec_integration_tests ]]" == "true" && "$[[ inputs.exec_deploy ]]" == "true"'
       when: on_success
     - when: never
   script:
@@ -32,6 +34,7 @@ setup_integration_tests:
         -u "$VM_USER" \
         --private-key "$CI_SSH_PRIVATE_KEY"
   artifacts:
+    expire_in: 2 weeks
     reports:
       dotenv:
         - artifacts/integration_test_setup.env
@@ -44,7 +47,7 @@ setup_integration_tests:
   extends: .remote_execution_template
   stage: test
   rules:
-    - if: '$CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"'
+    - if: '"$[[ inputs.exec_integration_tests ]]" == "true" && "$[[ inputs.exec_deploy ]]" == "true"'
       when: on_success
     - when: never
   needs:
@@ -64,6 +67,7 @@ setup_integration_tests:
         -s "$CI_PROJECT_DIR/$PYTEST_FILE" $PYTEST_ARGS \
         --junitxml="$ARTIFACTS_DIR/$JUNIT_FILE" | tee "$ARTIFACTS_DIR/$LOG_FILE"
   artifacts:
+    expire_in: 2 weeks
     paths:
       - "$ARTIFACTS_DIR/$JUNIT_FILE"
       - "$ARTIFACTS_DIR/$LOG_FILE"
@@ -142,7 +146,7 @@ playwright_ui_tests:
   extends: .remote_execution_template
   stage: test
   rules:
-    - if: '$CI_EXEC_INTEGRATION_TESTS == "true" && $CI_EXEC_DEPLOY == "true"'
+    - if: '"$[[ inputs.exec_integration_tests ]]" == "true" && "$[[ inputs.exec_deploy ]]" == "true"'
       when: on_success
     - when: never
   needs:
@@ -163,6 +167,7 @@ playwright_ui_tests:
           --project project-management \
           --workers 1
   artifacts:
+    expire_in: 2 weeks
     when: always
     paths:
       - tests/ui/playwright-report/

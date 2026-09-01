@@ -1,5 +1,7 @@
 spec:
   inputs:
+    exec_deploy:
+    exec_destroy_delayed:
     runner_tag:
     playbook_dir:
       default: ci/ci-code/deploy
@@ -35,14 +37,14 @@ destroy_deployment:
     - { job: playwright_ui_tests, optional: true, artifacts: false }
   rules:
     # Never destroy externally-provided VMs
-    - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
+    - if: '"$[[ inputs.exec_deploy ]]" == "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
       when: never
     # Opt-in delayed destruction (e.g. keep VM alive to inspect after success)
-    - if: '$CI_EXEC_DEPLOY == "true" && $CI_EXEC_DESTROY_DELAYED == "true"'
+    - if: '"$[[ inputs.exec_deploy ]]" == "true" && "$[[ inputs.exec_destroy_delayed ]]" == "true"'
       when: delayed
       start_in: $[[ inputs.destroy_delay ]]
     # Default: always destroy (on success and on failure)
-    - if: '$CI_EXEC_DEPLOY == "true"'
+    - if: '"$[[ inputs.exec_deploy ]]" == "true"'
       when: always
     - when: never
   tags:

@@ -1,5 +1,9 @@
 spec:
   inputs:
+    exec_deploy:
+    exec_server_installation:
+    exec_redeploy:
+    build_arguments:
     runner_tag:
     playbook_dir:
       default: ci/ci-code/deploy
@@ -24,6 +28,7 @@ spec:
   image: $CI_BASE_IMAGE
   variables:
     ANSIBLE_HOST_KEY_CHECKING: "False"
+    CI_EXEC_REDEPLOY: "$[[ inputs.exec_redeploy ]]" # read by the playbooks
   before_script:
     - mkdir -p "$ARTIFACTS_DIR"
     # ssh refuses group/world-readable keys; File variables arrive too open
@@ -36,7 +41,7 @@ prepare_deployment:
   interruptible: false
   extends: .remote_execution_template
   rules:
-    - if: '$CI_EXEC_DEPLOY == "true"'
+    - if: '"$[[ inputs.exec_deploy ]]" == "true"'
       when: on_success
     - when: never
   stage: deploy
@@ -49,7 +54,7 @@ prepare_deployment:
     - git fetch --tags
     - VERSION_TAG=$(git describe --tags --always)
     - |
-      if [[ "$CI_EXEC_BUILD_ARGUMENTS" =~ (--latest) && "$VERSION_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+      if [[ "$[[ inputs.build_arguments ]]" =~ (--latest) && "$VERSION_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
         BASE_TAG=$(echo "$VERSION_TAG" | sed -E 's/-[0-9]+-g[0-9a-f]+.*//')
         VERSION_TAG="${BASE_TAG}-latest"
       fi
@@ -81,6 +86,7 @@ prepare_deployment:
     - echo "VERSION_TAG=$VERSION_TAG" >> artifacts/deployment.env
 
   artifacts:
+    expire_in: 2 weeks
     when: always
     paths:
       - artifacts/deployment.env
@@ -95,7 +101,7 @@ server_installation:
   # The only job needing sudo on the target. CI_EXEC_SERVER_INSTALLATION=false
   # skips it for already-prepared targets (e.g. local workstations).
   rules:
-    - if: '$CI_EXEC_DEPLOY == "true" && $CI_EXEC_SERVER_INSTALLATION == "true"'
+    - if: '"$[[ inputs.exec_deploy ]]" == "true" && "$[[ inputs.exec_server_installation ]]" == "true"'
       when: on_success
     - when: never
   needs:
@@ -108,6 +114,7 @@ server_installation:
         -u "$VM_USER" \
         --private-key "$CI_SSH_PRIVATE_KEY"
   artifacts:
+    expire_in: 2 weeks
     paths:
       - "artifacts/server_installation.log"
       - "artifacts/target_readiness.json"
@@ -124,7 +131,7 @@ target_readiness:
   # target. Only for a provisioned Harvester VM: a target given by FQDN exists
   # before the pipeline starts and was already checked by preflight_target.
   rules:
-    - if: '$CI_EXEC_DEPLOY == "true" && $CI_EXEC_SERVER_INSTALLATION != "true" && $DEPLOYMENT_INSTANCE_FQDN == ""'
+    - if: '"$[[ inputs.exec_deploy ]]" == "true" && "$[[ inputs.exec_server_installation ]]" != "true" && $DEPLOYMENT_INSTANCE_FQDN == ""'
       when: on_success
     - when: never
   needs:
@@ -142,6 +149,7 @@ target_readiness:
         -u "$VM_USER" \
         --private-key "$CI_SSH_PRIVATE_KEY"
   artifacts:
+    expire_in: 2 weeks
     paths:
       - "artifacts/target_readiness.json"
       - "artifacts/target_readiness.log"
@@ -184,10 +192,11 @@ platform_deployment:
       </body>
       </html>" > artifacts/deployment.html
   rules:
-    - if: '$CI_EXEC_DEPLOY == "true"'
+    - if: '"$[[ inputs.exec_deploy ]]" == "true"'
       when: on_success
     - when: never
   artifacts:
+    expire_in: 2 weeks
     paths:
       - "artifacts/deployment.log"
       - "artifacts/undeploy.log"

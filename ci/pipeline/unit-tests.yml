@@ -1,5 +1,6 @@
 spec:
   inputs:
+    exec_unit_tests:
     runner_tag:
     python_image:
     node_image:
@@ -22,7 +23,7 @@ spec:
   # Each job in test has to finish within 5 minutes.
   timeout: 5m
   rules:
-    - if: '$CI_EXEC_UNIT_TESTS == "true"'
+    - if: '"$[[ inputs.exec_unit_tests ]]" == "true"'
       when: always
     - when: never
   variables:
@@ -37,6 +38,7 @@ unit_tests:
     - pip install -r $KAAPANA_DIR/tests/requirements.txt
     - pytest $KAAPANA_DIR/tests/ --junitxml=unittest_report.xml
   artifacts:
+    expire_in: 2 weeks
     reports:
       junit:
         - unittest_report.xml
@@ -69,6 +71,7 @@ task_api_tests:
     - pytest $KAAPANA_DIR/lib/task_api/task_api --junitxml=task_api_report.xml
 
   artifacts:
+    expire_in: 2 weeks
     reports:
       junit:
         - task_api_report.xml
@@ -95,6 +98,7 @@ kaapana_extensions_tests:
         $KAAPANA_DIR/lib/kaapana_extensions/tests/
         --junitxml=kaapana_extensions_report.xml
   artifacts:
+    expire_in: 2 weeks
     when: always
     reports:
       junit:
@@ -106,6 +110,7 @@ workflow_api_tests:
     - pip install -r $KAAPANA_DIR/services/base/workflow-api/docker/files/tests/unit/requirements.txt
     - pytest $KAAPANA_DIR/services/base/workflow-api/docker/files/tests/unit --junitxml=workflow_api_report.xml
   artifacts:
+    expire_in: 2 weeks
     reports:
       junit:
         - workflow_api_report.xml
@@ -119,6 +124,7 @@ portal_api_tests:
     - pip install -r $KAAPANA_DIR/services/base/portal-api/docker/tests/requirements.txt
     - pytest $KAAPANA_DIR/services/base/portal-api/docker/tests/ --junitxml=portal_api_report.xml
   artifacts:
+    expire_in: 2 weeks
     reports:
       junit:
         - portal_api_report.xml
@@ -134,6 +140,7 @@ extensions_api_tests:
     - pip install -r  $KAAPANA_DIR/services/base/extension-manager-service/docker/files/app/tests/requirements.txt
     - pytest  $KAAPANA_DIR/services/base/extension-manager-service/docker/files/app --junitxml=extensions_api_report.xml
   artifacts:
+    expire_in: 2 weeks
     reports:
       junit:
         - extensions_api_report.xml
@@ -147,6 +154,7 @@ kaapana_backend_tests:
     - pip install -r $KAAPANA_DIR/services/base/kaapana-backend/docker/files/tests/requirements.txt
     - pytest $KAAPANA_DIR/services/base/kaapana-backend/docker/files/tests/ --junitxml=kaapana_backend_report.xml
   artifacts:
+    expire_in: 2 weeks
     reports:
       junit:
         - kaapana_backend_report.xml
@@ -160,6 +168,7 @@ auth_backend_tests:
     - pip install -r $KAAPANA_DIR/services/kaapana-admin/auth-backend/docker/files/tests/requirements.txt
     - pytest $KAAPANA_DIR/services/kaapana-admin/auth-backend/docker/files/tests/ --junitxml=auth_backend_report.xml
   artifacts:
+    expire_in: 2 weeks
     reports:
       junit:
         - auth_backend_report.xml
@@ -191,6 +200,7 @@ access_information_interface_tests:
     - pip install -r $KAAPANA_DIR/services/data-separation/access-information-interface/docker/backend/files/tests/requirements.txt
     - pytest $KAAPANA_DIR/services/data-separation/access-information-interface/docker/backend/files/tests/test_keycloak_helper.py --junitxml=aii_report.xml
   artifacts:
+    expire_in: 2 weeks
     reports:
       junit:
         - aii_report.xml
@@ -204,6 +214,7 @@ keycloak_setup_tests:
     - pip install -r $KAAPANA_DIR/services/kaapana-admin/keycloak/keycloak-setup/tests/requirements.txt
     - pytest $KAAPANA_DIR/services/kaapana-admin/keycloak/keycloak-setup/tests/ --junitxml=keycloak_setup_report.xml
   artifacts:
+    expire_in: 2 weeks
     reports:
       junit:
         - keycloak_setup_report.xml
@@ -248,6 +259,7 @@ ui_e2e_tests:
   # against $CI_PROJECT_DIR (= $KAAPANA_DIR), not against the script's cwd, so
   # the script's cd into the app does not move them.
   artifacts:
+    expire_in: 2 weeks
     when: always
     paths:
       - "services/*/*/docker/files/test-results/"
@@ -268,6 +280,7 @@ build_documentation:
     - set -o pipefail
     - make html 2>&1 | tee "build_documentation_html.log"
   artifacts:
+    expire_in: 2 weeks
     when: always # upload the log also when the build fails
     expose_as: "Documentation"
     paths:

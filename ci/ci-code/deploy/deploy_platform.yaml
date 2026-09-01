@@ -20,7 +20,7 @@
     https_proxy: "{{ lookup('ansible.builtin.env', 'HTTPS_PROXY') }}"
     # Always compare with the bool filter: the string "false" is truthy in Jinja.
     redeploy: >-
-      {{ lookup('ansible.builtin.env', 'CI_EXEC_REDEPLOY') | default('true', true) }}
+      {{ lookup('ansible.builtin.env', 'CI_EXEC_REDEPLOY') | default('false', true) }}
     ansible_python_interpreter: /usr/bin/python3
     # kaapanactl installs this release into HELM_NAMESPACE and keeps the
     # platform prefix in its values, see get_platform_prefix_from_release.

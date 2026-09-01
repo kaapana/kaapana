@@ -1,19 +1,67 @@
 # Pipeline inputs: set per run in the "Run pipeline" form, with
 # `glab ci run -i <name>:<value>`, or per schedule. Resolved when the config is
-# merged, so they are invisible to jobs and to rules:if — anything a rule reads
-# stays a CI/CD variable below. Every input needs a default: without one, push,
-# merge-request and schedule pipelines fail before they start.
+# merged.
 spec:
   inputs:
+    exec_unit_tests:
+      default: "true"
+      options: ["true", "false"]
+      description: "tests stage: unit tests + documentation build"
+    exec_build:
+      default: "true"
+      options: ["true", "false"]
+      description: "build stage: full platform build"
+    exec_build_arguments:
+      default: ""
+      description: extra kaapana-build flags, e.g. "--latest"
+    exec_deploy:
+      default: "true"
+      options: ["true", "false"]
+      description: "deploy stage: provision test VM + server install + platform deploy"
+    exec_server_installation:
+      default: "true"
+      options: ["true", "false"]
+      description: '"false" skips the OS/microk8s install and runs target_readiness instead'
+    exec_redeploy:
+      default: "false"
+      options: ["true", "false"]
+      description: '"true" undeploys a platform already on the target, "false" fails the job'
+    exec_integration_tests:
+      default: "true"
+      options: ["true", "false"]
+      description: "test stage: pytest + Playwright against the test VM"
+    exec_security_scan:
+      default: "false"
+      options: ["true", "false"]
+      description: registry scan of the images this pipeline pushed
+    exec_security_scan_arguments:
+      default: --vulnerability-scan --configuration-check
+    exec_docker_prune:
+      default: "false"
+      options: ["true", "false"]
+      description: '"true" wipes the runner docker cache first (cold build)'
+    exec_destroy_delayed:
+      default: "false"
+      options: ["true", "false"]
+      description: '"true" keeps the test VM for 4h after the pipeline'
+
     build_runner_tag:
       default: build-runner
       description: runner tag for the ci-image and build stages
     tests_runner_tag:
       default: tests-runner
-      description: runner tag for the unit-test stage
+      description: runner tag for the preflight and unit-test stages
     deploy_runner_tag:
       default: deploy-runner
       description: runner tag for the deploy, test and clean stages
+
+    deployment_fqdn:
+      default: ""
+      regex: ^.{0,57}$
+      description: empty provisions a fresh Harvester VM, set deploys onto that host (dcmsend rejects more than 57 characters)
+    deployment_user:
+      default: ubuntu
+      description: SSH user on the deployment target
 ---
 default:
   interruptible: true
@@ -46,21 +94,6 @@ workflow:
     - when: never
 
 variables:
-  # --- Execution toggles: which stages a pipeline runs.
-  # Override per-run via "Run pipeline" or per-schedule via schedule variables.
-  CI_EXEC_UNIT_TESTS: "true" # tests stage: unit tests + documentation build
-  CI_EXEC_BUILD: "true" # build stage: full platform build
-  CI_EXEC_BUILD_ARGUMENTS: "" # extra kaapana-build flags, e.g. "--vulnerability-scan"
-  CI_EXEC_DEPLOY: "true" # deploy stage: provision test VM + server install + platform deploy
-  CI_EXEC_SERVER_INSTALLATION: "true" # "false" skips the OS/microk8s install and runs target_readiness instead
-  CI_EXEC_REDEPLOY: "false" # "true" undeploys a platform already on the target, "false" fails the job
-  CI_EXEC_INTEGRATION_TESTS: "true" # test stage: pytest + Playwright against the test VM
-  # Registry-based scan of the images this pipeline pushed (nightly schedules
-  # set "true"); scans no longer run inside the build job.
-  CI_EXEC_SECURITY_SCAN: "false"
-  CI_EXEC_SECURITY_SCAN_ARGUMENTS: "--vulnerability-scan --configuration-check"
-  CI_EXEC_DOCKER_PRUNE: "false" # "true" = wipe the runner docker cache first (cold build)
-  CI_EXEC_DESTROY_DELAYED: "false" # "true" = keep the test VM for 4h after the pipeline for inspection
   MAINTENANCE: "false" # "true" pauses push/schedule/MR pipelines (workflow:rules)
 
   # --- Registries, both configured as project variables: CI_REGISTRY_* for
@@ -94,10 +127,8 @@ variables:
   # --- Deployment instance: the per-pipeline test VM on Harvester.
   # FQDN empty → provision a fresh VM; set (plus _USER) → deploy onto an
   # existing machine instead, which the clean stage never destroys.
-  DEPLOYMENT_INSTANCE_FQDN: ""
-  DEPLOYMENT_INSTANCE_USER: "ubuntu"
-  # vm_name is truncated in the provisioning playbook so the FQDN
-  # (<vm_name>.<domain>) stays within the 57-char dcmsend peerhost limit.
+  DEPLOYMENT_INSTANCE_FQDN: "$[[ inputs.deployment_fqdn ]]"
+  DEPLOYMENT_INSTANCE_USER: "$[[ inputs.deployment_user ]]"
   DEPLOYMENT_INSTANCE_VM_NAME: "ci-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"
   DEPLOYMENT_INSTANCE_DOMAIN: "vms.dkfz.de"
   DEPLOYMENT_INSTANCE_IMAGE_ID: "ubuntu24"
@@ -145,6 +176,9 @@ include:
     inputs:
       runner_tag: $[[ inputs.tests_runner_tag ]]
       python_image: python:3.12
+      exec_build: $[[ inputs.exec_build ]]
+      exec_deploy: $[[ inputs.exec_deploy ]]
+      exec_server_installation: $[[ inputs.exec_server_installation ]]
   - local: /ci/pipeline/ci-image.yml
     inputs:
       runner_tag: $[[ inputs.build_runner_tag ]]
@@ -155,15 +189,29 @@ include:
       python_image: python:3.12
       node_image: node:22
       dind_image: docker.io/library/docker:28-dind
+      exec_unit_tests: $[[ inputs.exec_unit_tests ]]
   - local: /ci/pipeline/build.yml
     inputs:
       runner_tag: $[[ inputs.build_runner_tag ]]
+      exec_build: $[[ inputs.exec_build ]]
+      exec_security_scan: $[[ inputs.exec_security_scan ]]
+      exec_docker_prune: $[[ inputs.exec_docker_prune ]]
+      build_arguments: $[[ inputs.exec_build_arguments ]]
+      security_scan_arguments: $[[ inputs.exec_security_scan_arguments ]]
   - local: /ci/pipeline/deploy.yml
     inputs:
       runner_tag: $[[ inputs.deploy_runner_tag ]]
+      exec_deploy: $[[ inputs.exec_deploy ]]
+      exec_server_installation: $[[ inputs.exec_server_installation ]]
+      exec_redeploy: $[[ inputs.exec_redeploy ]]
+      build_arguments: $[[ inputs.exec_build_arguments ]]
   - local: /ci/pipeline/integration-tests.yml
     inputs:
       runner_tag: $[[ inputs.deploy_runner_tag ]]
+      exec_integration_tests: $[[ inputs.exec_integration_tests ]]
+      exec_deploy: $[[ inputs.exec_deploy ]]
   - local: /ci/pipeline/clean.yml
     inputs:
       runner_tag: $[[ inputs.deploy_runner_tag ]]
+      exec_deploy: $[[ inputs.exec_deploy ]]
+      exec_destroy_delayed: $[[ inputs.exec_destroy_delayed ]]

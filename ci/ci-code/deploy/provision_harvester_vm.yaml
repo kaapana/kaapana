@@ -5,25 +5,28 @@
   gather_facts: false
   any_errors_fatal: true
 
+  vars_files:
+    - vm_config.yaml
+
   vars:
-    # VM configuration - all from environment variables
+    # vm_config.yaml holds the shape, DEPLOYMENT_INSTANCE_* overrides one key
     vm_name: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_VM_NAME', default=undef()) }}"
-    vm_image_name: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_IMAGE_ID', default=undef()) }}"
-    vm_storage_class: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_STORAGE_CLASS', default=undef()) }}"
-    vm_network: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_NETWORK', default=undef()) }}"
-    vm_ssh_keypair: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_SSH_KEYPAIR', default=undef()) }}"
     vm_user: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_USER', default=undef()) }}"
-    vm_dns_domain: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DOMAIN', default=undef()) }}"
-    vm_cpu_cores: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_CPU', default=undef()) }}"
+    vm_image_name: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_IMAGE_ID') | default(vm_config.image_id, true) }}"
+    vm_storage_class: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_STORAGE_CLASS') | default(vm_config.storage_class, true) }}"
+    vm_network: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_NETWORK') | default(vm_config.network, true) }}"
+    vm_ssh_keypair: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_SSH_KEYPAIR') | default(vm_config.ssh_keypair, true) }}"
+    vm_dns_domain: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DOMAIN') | default(vm_config.domain, true) }}"
+    vm_cpu_cores: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_CPU') | default(vm_config.cpu, true) }}"
     vm_cpu_sockets: 1
     vm_cpu_threads: 1
     vm_cpu_max_sockets: 1
-    vm_memory_guest: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_MEMORY', default=undef()) }}"
+    vm_memory_guest: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_MEMORY') | default(vm_config.memory, true) }}"
     vm_memory_max: "{{ vm_memory_guest }}"
-    vm_disk_size: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DISK', default=undef()) }}"
+    vm_disk_size: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DISK') | default(vm_config.disk, true) }}"
 
     # Harvester connection
-    harvester_namespace: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE', default=undef()) }}"
+    harvester_namespace: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE') | default(vm_config.harvester_namespace, true) }}"
     harvester_kubeconfig: "{{ lookup('env', 'HARVESTER_KUBECONFIG', default=undef()) }}"
     artifacts_dir: "{{ lookup('env', 'ARTIFACTS_DIR', default=undef()) }}"
 

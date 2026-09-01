@@ -1,5 +1,10 @@
 spec:
   inputs:
+    exec_build:
+    exec_security_scan:
+    build_arguments:
+    security_scan_arguments:
+    exec_docker_prune:
     runner_tag:
       description: that runner mounts the host docker socket, which keeps the layer cache warm
 ---
@@ -52,13 +57,15 @@ build_packages:
         REGISTRY_URL: $RELEASE_REGISTRY_URL
         REGISTRY_USER: $RELEASE_REGISTRY_USER
         REGISTRY_TOKEN: $RELEASE_REGISTRY_TOKEN
-        CI_EXEC_DOCKER_PRUNE: "true"
-    - if: '$CI_EXEC_BUILD == "true"'
+    - if: '"$[[ inputs.exec_build ]]" == "true"'
       when: on_success
     - when: never
   script:
     - |
-      [[ $CI_EXEC_DOCKER_PRUNE == "true" ]] && docker system prune --all --volumes -f
+      if [[ "$[[ inputs.exec_docker_prune ]]" == "true" \
+        || "$CI_COMMIT_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        docker system prune --all --volumes -f
+      fi
 
     # Docker logins (set +x to hide credentials from job log)
     - |
@@ -70,11 +77,12 @@ build_packages:
       export REGISTRY_PW="$REGISTRY_TOKEN"
 
     # Run build, capturing exit code so artifacts are always collected
-    - kaapana-build --default-registry "$REGISTRY_URL" $CI_EXEC_BUILD_ARGUMENTS
+    - kaapana-build --default-registry "$REGISTRY_URL" $[[ inputs.build_arguments ]]
 
   # No docker logout needed: login state dies with the job container.
 
   artifacts:
+    expire_in: 2 weeks
     name: "build_$CI_COMMIT_SHORT_SHA"
     when: always
     paths:
@@ -92,7 +100,7 @@ security_scan:
     - job: build_packages
       artifacts: false
   rules:
-    - if: '$CI_EXEC_SECURITY_SCAN == "true" && $CI_EXEC_BUILD == "true"'
+    - if: '"$[[ inputs.exec_security_scan ]]" == "true" && "$[[ inputs.exec_build ]]" == "true"'
       when: on_success
     - when: never
   script:
@@ -100,8 +108,9 @@ security_scan:
     - |
       set +x
       export REGISTRY_PW="$REGISTRY_TOKEN"
-    - kaapana-build --scan-only $CI_EXEC_SECURITY_SCAN_ARGUMENTS --default-registry "$REGISTRY_URL"
+    - kaapana-build --scan-only $[[ inputs.security_scan_arguments ]] --default-registry "$REGISTRY_URL"
   artifacts:
+    expire_in: 2 weeks
     name: "security_$CI_COMMIT_SHORT_SHA"
     when: always
     paths:
@@ -133,12 +142,13 @@ security:
         --output html
     - echo "Access the report at https://kaapana.pages.hzdr.de/-/kaapana/-/jobs/${CI_JOB_ID}/artifacts/vulnerability_report.html"
   artifacts:
+    expire_in: 2 weeks
     paths:
       - "$CI_PROJECT_DIR/vulnerability_report.html"
     reports:
       container_scanning: "$CI_PROJECT_DIR/gl-container-scanning-report.json"
   allow_failure: true
   rules:
-    - if: '$CI_EXEC_SECURITY_SCAN == "true" && $CI_EXEC_BUILD == "true"'
+    - if: '"$[[ inputs.exec_security_scan ]]" == "true" && "$[[ inputs.exec_build ]]" == "true"'
       when: on_success
     - when: never

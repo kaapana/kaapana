@@ -9,9 +9,9 @@
 1 and 2 are GitLab pipelines: they appear in the UI, keep their logs and
 artifacts, and can be retried.
 
-Scenario 1 deployment: the deploy job runs on your
-machine but installs the platform wherever `DEPLOYMENT_INSTANCE_FQDN` points, a
-fresh Harvester VM by default. Combine it with scenario 2 to get both on your
+Scenario 1 deployment: the deploy job runs on your machine but installs the
+platform wherever the `deployment_fqdn` input points, a fresh Harvester VM by
+default. Combine it with scenario 2 to get both on your
 machine — see [Scenarios 1 and 2 at once](#scenarios-1-and-2-at-once).
 
 ## Scenario 1: run the jobs on your machine
@@ -19,13 +19,12 @@ machine — see [Scenarios 1 and 2 at once](#scenarios-1-and-2-at-once).
 ### Once: create and register the runner
 
 Needs Maintainer on the project or a gitlab_runner + token. Creating a runner and registering is also possible via UI. However, most reproducible is using `glab api`
-
-The runner agent is itself a container.
+The runner agent is a run from a docker container.
 
 1. Create the runner in GitLab using glab in the repository directory:
 
 ```bash
-TAG=my-workstation
+TAG=e230-pc11
 PROJECT_ID=$(glab api /projects/kaapana%2Fkaapana | jq -r .id)
 
 RUNNER_TOKEN=$(printf '{"runner_type":"project_type","project_id":%s,"description":"%s","tag_list":["%s"],"run_untagged":false}' \
@@ -34,10 +33,18 @@ RUNNER_TOKEN=$(printf '{"runner_type":"project_type","project_id":%s,"descriptio
   | jq -r .token)
 ```
 
-2. Register the runner. One runner takes build, tests and deploy:
+2. Seed the agent-wide concurrency limit, `concurrent`. It has to be in the
+   file *before* register runs:
 
 ```bash
 mkdir -p ~/.gitlab-runner
+docker run --rm -v ~/.gitlab-runner:/etc/gitlab-runner --entrypoint sh \
+  gitlab/gitlab-runner:latest -c 'printf "concurrent = 4\n" > /etc/gitlab-runner/config.toml'
+```
+
+3. Register the runner. One runner takes build, tests and deploy:
+
+```bash
 docker run --rm -v ~/.gitlab-runner:/etc/gitlab-runner \
   gitlab/gitlab-runner:latest register --non-interactive \
   --url https://codebase.helmholtz.cloud --token "$RUNNER_TOKEN" \
@@ -50,71 +57,23 @@ docker run --rm -v ~/.gitlab-runner:/etc/gitlab-runner \
   --env DOCKER_HOST=unix:///var/run/host-docker.sock
 ```
 
-`--docker-services_privileged` has that underscore, takes a value, and wants the
-`=` form. The dashed spelling is rejected outright; the space-separated form
-warns `parameters after this may be ignored`, and the flags after it may
-silently not apply.
-
-The config is on your host, so check what actually landed before starting anything:
-
+4. Check if the `config.toml` looks correct:
 ```bash
-grep -vE '^  token' ~/.gitlab-runner/config.toml
+docker run --rm -v ~/.gitlab-runner:/etc/gitlab-runner:ro --entrypoint sh \
+  gitlab/gitlab-runner:latest -c 'grep -vE "^  token" /etc/gitlab-runner/config.toml'
 ```
 
-Three things to look for:
+Four things to look for:
 
 | Expect | Why |
 |---|---|
-| `volumes` carries `/var/run/docker.sock:/var/run/host-docker.sock` | build jobs reach the host daemon |
+| `volumes` carries `/var/run/docker.sock:/var/run/host-docker.sock` | build jobs need to reach host daemon |
 | `environment` carries `DOCKER_HOST` | and know where to find it |
-| `[[runners]]` appears **once** | registering again appends a second entry instead of replacing the first, and the runner then polls GitLab twice under one token. Delete the stale block by hand if you see two. |
+| `concurrent = 4` on the first line | We want to run unit-tests in parallel |
+| `[[runners]]` appears **once** | only a single runner should be register to the instance |
 
-### Why the socket is mounted on that odd path
-
-Build jobs use the host docker daemon, which is what keeps their layer cache
-warm across pipelines. `task_api_tests` instead wants its own daemon, and gets
-one as a privileged `dind` service.
-
-The two collide if the socket is mounted at the obvious place. `volumes` under
-`[runners.docker]` is applied to service containers as well as to the job
-container — there is no service-only volume setting. A host socket mounted at
-`/var/run/docker.sock` therefore lands inside the `dind` service on exactly the
-path its own dockerd needs, and that daemon exits at startup with
-
-```
-failed to load listeners: can't create unix socket /var/run/docker.sock: device or resource busy
-```
-
-Nothing then listens on `docker:2375`, and `task_api_tests` fails collection
-with `[Errno 113] No route to host` — a message three layers downstream of the
-cause, so read the **Service container logs** block near the top of the job log
-instead.
-
-Mounting at `/var/run/host-docker.sock` leaves `dind` its own path. `--env` then
-points build jobs at the host daemon, since they set no `DOCKER_HOST` of their
-own and would otherwise find `dind`'s socket or nothing. `task_api_tests` sets
-`DOCKER_HOST: tcp://docker:2375` in its job variables
-([unit-tests.yml](pipeline/unit-tests.yml)), and job variables outrank
-`environment` from `config.toml`, so it still reaches its own daemon.
-
-The CI runners do not need this: build-01 mounts the socket and runs no
-services, tests-01 allows privileged services and mounts no socket — one machine
-each, see [inventory.yaml](harvester/inventory.yaml).
-
-**One caveat on a shared workstation.** `build_packages` runs
-`docker system prune --all --volumes -f` when `CI_EXEC_DOCKER_PRUNE=true`
-([build.yml](pipeline/build.yml)). Through the mounted socket that hits your
-host daemon: every image no running container holds, and every unused volume,
-including this runner's own caches. Leave the variable off unless you mean it.
-
-3. Match the agent-wide cap to that limit. A freshly written config says
-   `concurrent = 1`, which caps the runner regardless of its own `limit`:
-
-```bash
-sed -i 's/^concurrent = .*/concurrent = 4/' ~/.gitlab-runner/config.toml
-```
-
-4. Start it:
+5. Start the agent. Registering only writes the config, nothing polls GitLab
+   until this container runs:
 
 ```bash
 docker run -d --name gitlab-runner --restart always \
@@ -122,32 +81,34 @@ docker run -d --name gitlab-runner --restart always \
   -v /var/run/docker.sock:/var/run/docker.sock \
   gitlab/gitlab-runner:latest
 
-docker exec gitlab-runner gitlab-runner verify   # must list your runner
+docker exec gitlab-runner gitlab-runner verify   # lists your runner
 glab runner list                                 # your tag, status online
 ```
 
-`~/.gitlab-runner/config.toml` is yours to edit — `concurrent`, `limit`, extra
-volumes. `docker restart gitlab-runner` picks the change up. The same layout as
-the CI runners, see
-[configure-gitlab-runner.yaml](harvester/tasks/configure-gitlab-runner.yaml).
+`~/.gitlab-runner/config.toml` is bind-mounted, so edits to `concurrent`,
+`limit` or the volumes take effect on `docker restart gitlab-runner`.
 
-Keep `concurrent` and `limit` equal, as the CI runners do
-([inventory.yaml](harvester/inventory.yaml)). `concurrent` always wins, so a
-larger `limit` alone only produces `the global concurrent limit will not be
-increased and takes precedence`.
+The socket lands on `/var/run/host-docker.sock` inside jobs because a dind
+service needs `/var/run/docker.sock` for itself — the CI runners split those
+two roles over two machines, one workstation does both
+([ci/README.md section 6](README.md#6-runners)).
+
+**`exec_docker_prune:true` wipes your host docker.** `build_packages` runs
+`docker system prune --all --volumes -f` through the mounted socket: every
+image no running container holds, and every unused volume, yours included.
 
 ### Each run: point stages at your tag
 
 The runner tags are pipeline inputs, so this is per run:
 
 ```bash
-glab ci run -b my-branch -i tests_runner_tag:e230-pc11
+glab ci run -b my-branch -i tests_runner_tag:e230-pc11 -i build_runner_tag:e230-pc11 -i deploy_runner_tag:e230-pc11
 ```
 
 | Input | Stage it moves |
 |---|---|
 | `build_runner_tag` | build, and the CI image rebuild |
-| `tests_runner_tag` | unit tests and docs |
+| `tests_runner_tag` | preflight, unit tests and docs |
 | `deploy_runner_tag` | deploy, integration tests, clean |
 
 Set one, two, or all three. Whatever you leave out stays on the shared
@@ -155,15 +116,23 @@ runners. The same three fields are on the **Run pipeline** form in the UI.
 
 Watch it with `glab ci status -b my-branch --live`.
 
-### Decommision the runner
+### Reset everything
+
+Removes the docker container running gitlab-runner, every runner GitLab holds under your tag, and the local config:
 
 ```bash
-docker stop gitlab-runner
-glab runner list
-glab api --method DELETE /runners/<id>
+TAG=e230-pc11
+PROJECT_ID=$(glab api /projects/kaapana%2Fkaapana | jq -r .id)
+
 docker rm -f gitlab-runner
-rm ~/.gitlab-runner/config.toml
+glab api "/projects/$PROJECT_ID/runners?type=project_type&per_page=100" \
+  | jq -r ".[] | select(.description==\"$TAG\") | .id" \
+  | xargs -r -I{} glab api --method DELETE /runners/{}
+docker run --rm -v ~/.gitlab-runner:/etc/gitlab-runner --entrypoint sh \
+  gitlab/gitlab-runner:latest -c \
+  'rm -f /etc/gitlab-runner/config.toml /etc/gitlab-runner/.runner_system_id'
 ```
+
 
 ## Scenario 2: deploy the platform on your machine
 
@@ -171,12 +140,10 @@ rm ~/.gitlab-runner/config.toml
 
 Your machine needs:
 
-- **SSH**: the public half of the `CI_SSH_PRIVATE_KEY` file variable (the
-  Harvester `kaapana` keypair) in `~/.ssh/authorized_keys` of the user CI will
-  log in as.
+- **SSH**: the public half of `CI_SSH_PRIVATE_KEY` (Harvester `kaapana` keypair) placed in `~/.ssh/authorized_keys` for the CI user.
 - **Ports 80, 443 and 11112 free**, and ~80 GiB free under `/var/snap`.
 - **microk8s and helm**, with your user in the `microk8s` group. If they are
-  missing, CI installs them — see the variable table below — which needs
+  missing, CI installs them — see the input table below — which needs
   passwordless sudo for that user.
 
 Check what is missing without touching anything:
@@ -189,23 +156,26 @@ Every failed check prints the command that fixes it.
 
 ### Run the pipeline
 
+These are pipeline inputs, so `-i name:value`. The same fields are on the
+**Run pipeline** form.
+
 ```bash
 glab ci run -b my-branch \
-  --variables DEPLOYMENT_INSTANCE_FQDN:my-host.inet.dkfz-heidelberg.de \
-  --variables DEPLOYMENT_INSTANCE_USER:$USER \
-  --variables CI_EXEC_SERVER_INSTALLATION:false \
-  --variables CI_EXEC_REDEPLOY:true \
-  --variables CI_EXEC_UNIT_TESTS:false \
-  --variables CI_EXEC_INTEGRATION_TESTS:false
+  -i deployment_fqdn:my-host.inet.dkfz-heidelberg.de \
+  -i deployment_user:$USER \
+  -i exec_server_installation:false \
+  -i exec_redeploy:true \
+  -i exec_unit_tests:false \
+  -i exec_integration_tests:false
 ```
 
-| Variable | Meaning |
+| Input | Meaning |
 |---|---|
-| `DEPLOYMENT_INSTANCE_FQDN` | your machine. Empty means "create a Harvester VM". Max 57 characters |
-| `DEPLOYMENT_INSTANCE_USER` | SSH user on it |
-| `CI_EXEC_SERVER_INSTALLATION` | `false` for a prepared machine, `true` to let CI install microk8s and helm (needs sudo) |
-| `CI_EXEC_REDEPLOY` | default `false`: a platform already on the target fails `target_readiness`, undeploy it yourself. `true` lets the job try the undeploy, which currently leaves releases stuck (kaapana#2293, #2257) |
-| `CI_EXEC_UNIT_TESTS`, `CI_EXEC_INTEGRATION_TESTS` | `false` while you only care about the deployment |
+| `deployment_fqdn` | your machine. Empty means "create a Harvester VM". Max 57 characters |
+| `deployment_user` | SSH user on it |
+| `exec_server_installation` | `false` for a prepared machine, `true` to let CI install microk8s and helm (needs sudo) |
+| `exec_redeploy` | default `false`: a platform already on the target fails `preflight_target`, undeploy it yourself. `true` lets the job try the undeploy, which currently leaves releases stuck (kaapana#2293, #2257) |
+| `exec_unit_tests`, `exec_integration_tests` | `false` while you only care about the deployment |
 
 A target given by FQDN is never destroyed by the clean stage.
 
@@ -213,7 +183,7 @@ A target given by FQDN is never destroyed by the clean stage.
 
 | Job | What to look at |
 |---|---|
-| `target_readiness` | the check table in the log, `target_readiness.json` artifact |
+| `preflight_target` | the check table in the log, `target_readiness.json` artifact |
 | `platform_deployment` | `deployment.log`, and `system_check.json` listing every resource and its health |
 
 Then the platform is at `https://<your-fqdn>`. The Keycloak admin password is
@@ -233,11 +203,11 @@ lines merged:
 
 ```bash
 glab ci run -b my-branch \
-  -i deploy_runner_tag:my-workstation \
-  --variables DEPLOYMENT_INSTANCE_FQDN:my-host.inet.dkfz-heidelberg.de \
-  --variables DEPLOYMENT_INSTANCE_USER:$USER \
-  --variables CI_EXEC_SERVER_INSTALLATION:false \
-  --variables CI_EXEC_REDEPLOY:true
+  -i deploy_runner_tag:e230-pc11 \
+  -i deployment_fqdn:my-host.inet.dkfz-heidelberg.de \
+  -i deployment_user:$USER \
+  -i exec_server_installation:false \
+  -i exec_redeploy:true
 ```
 
 The deploy job then runs in a container on your machine and installs the

@@ -1,5 +1,8 @@
 spec:
   inputs:
+    exec_build:
+    exec_deploy:
+    exec_server_installation:
     runner_tag:
     python_image:
       default: python:3.12
@@ -63,7 +66,7 @@ preflight_variables:
       fi
 
       # build and deploy need the registry credentials
-      if [ "$CI_EXEC_BUILD" = "true" ] || [ "$CI_EXEC_DEPLOY" = "true" ]; then
+      if [ "$[[ inputs.exec_build ]]" = "true" ] || [ "$[[ inputs.exec_deploy ]]" = "true" ]; then
         require REGISTRY_URL
         require REGISTRY_USER
         require REGISTRY_TOKEN
@@ -81,7 +84,7 @@ preflight_variables:
         require RELEASE_REGISTRY_TOKEN
       fi
 
-      if [ "$CI_EXEC_DEPLOY" = "true" ]; then
+      if [ "$[[ inputs.exec_deploy ]]" = "true" ]; then
         # logging into the deployment target always needs the SSH key
         require_file CI_SSH_PRIVATE_KEY
         # the kubeconfig is only needed to create a test VM, which is
@@ -125,7 +128,7 @@ preflight_target:
     - $[[ inputs.runner_tag ]]
   image: $CI_BASE_IMAGE
   rules:
-    - if: '$CI_EXEC_DEPLOY == "true" && $CI_EXEC_SERVER_INSTALLATION != "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
+    - if: '"$[[ inputs.exec_deploy ]]" == "true" && "$[[ inputs.exec_server_installation ]]" != "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
       when: on_success
     - when: never
   variables:
@@ -142,6 +145,7 @@ preflight_target:
         -u "$VM_USER" \
         --private-key "$CI_SSH_PRIVATE_KEY"
   artifacts:
+    expire_in: 2 weeks
     paths:
       - "artifacts/target_readiness.json"
       - "artifacts/target_readiness.log"

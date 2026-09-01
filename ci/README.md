@@ -15,9 +15,10 @@ VM → test that live deployment → delete the VM.
 
 | Stage | Jobs | Runs on | Duration |
 |---|---|---|---|
-| `tests` | preflight variable check, 8 unit-test suites, docs build | tests runner | each job 5 min timeout |
+| `preflight` | `preflight_variables`; `preflight_target` when a target is given by FQDN | tests runner | seconds |
+| `tests` | 11 unit-test suites, `ui_e2e_tests` (one job per frontend app), docs build | tests runner | each job 5 min timeout |
 | `build` | `build_packages` (+ security scan on nightly) | build runner | hours (warm cache: much less) |
-| `deploy` | `prepare_deployment` → `server_installation` → `platform_deployment` | deploy runner (Ansible over SSH) | ~1 h |
+| `deploy` | `prepare_deployment` → `server_installation` or `target_readiness` → `platform_deployment` | deploy runner (Ansible over SSH) | ~1 h |
 | `test` | integration tests: login, ports, UI (Playwright), extensions, DICOM data, workflows | deploy runner, against the live VM | 1–3 h |
 | `clean` | `destroy_deployment`, `if_ci_failing` | deploy runner | minutes |
 
@@ -44,38 +45,57 @@ Three facts explain most of the design:
 | Release tag `X.Y.Z` | Full pipeline, publishing to the release registry with a cold cache ([section 7](#7-releases)). |
 | Web UI / API / trigger | Always allowed; you pick the toggles. |
 
-Stage toggles (set per run via **CI/CD → Pipelines → Run pipeline**, or
-scripted with `python3 ci/utils/trigger_pipeline.py`):
+Everything you steer per run is a pipeline **input**, declared in the `spec:`
+block at the top of [`.gitlab-ci.yml`](../.gitlab-ci.yml). Set inputs on the
+**Run pipeline** form, per schedule, or with `glab ci run -i <name>:<value>`.
+A CI/CD variable of the same name has no effect.
 
-| Variable | Default | Effect |
+| Input | Default | Effect |
 |---|---|---|
-| `CI_EXEC_UNIT_TESTS` | `true` | tests stage |
-| `CI_EXEC_BUILD` | `true` | build stage |
-| `CI_EXEC_BUILD_ARGUMENTS` | empty | extra `kaapana-build` flags |
-| `CI_EXEC_DEPLOY` | `true` | deploy stage |
-| `CI_EXEC_SERVER_INSTALLATION` | `true` | `false` skips the OS/microk8s install — for already-prepared targets |
-| `CI_EXEC_INTEGRATION_TESTS` | `true` | test stage (needs deploy) |
-| `CI_EXEC_SECURITY_SCAN` | `false` | trivy scan of the built images |
-| `CI_EXEC_DOCKER_PRUNE` | `false` | wipe the build cache first (cold, multi-hour build) |
-| `CI_EXEC_DESTROY_DELAYED` | `false` | keep the test VM for 4 h after the pipeline |
-| `MAINTENANCE` | `false` | project variable; pauses MR/push/schedule pipelines (web/API still work) |
+| `exec_unit_tests` | `true` | tests stage |
+| `exec_build` | `true` | build stage |
+| `exec_build_arguments` | empty | extra `kaapana-build` flags, e.g. `--latest` |
+| `exec_deploy` | `true` | deploy stage |
+| `exec_server_installation` | `true` | `false` skips the OS/microk8s install and runs `target_readiness` instead |
+| `exec_redeploy` | `false` | `true` undeploys a platform already on the target, `false` fails the job |
+| `exec_integration_tests` | `true` | test stage (needs deploy) |
+| `exec_security_scan` | `false` | trivy scan of the images this pipeline pushed; flags via `exec_security_scan_arguments` |
+| `exec_docker_prune` | `false` | wipe the build cache first (cold, multi-hour build) |
+| `exec_destroy_delayed` | `false` | keep the test VM for 4 h after the pipeline |
+| `deployment_fqdn` | empty | deploy onto that host instead of a fresh Harvester VM (max 57 chars) |
+| `deployment_user` | `ubuntu` | SSH user on that host |
+| `build_runner_tag` | `build-runner` | runner tag for the build stage and the CI image |
+| `tests_runner_tag` | `tests-runner` | runner tag for the preflight and tests stages |
+| `deploy_runner_tag` | `deploy-runner` | runner tag for the deploy, test and clean stages |
+
+`MAINTENANCE` is the one toggle that stays a project variable: `true` pauses
+MR, push and schedule pipelines, web and API runs still start.
+`ci/utils/trigger_pipeline.py` posts variables only, so it cannot set inputs.
 
 ## 3. Recipes
 
-**Unit tests only** — `CI_EXEC_BUILD=false CI_EXEC_DEPLOY=false CI_EXEC_INTEGRATION_TESTS=false`
+All of these are inputs, so `-i name:value` on the command line or the same
+fields on the **Run pipeline** form:
 
-**Build only** — `CI_EXEC_UNIT_TESTS=false CI_EXEC_DEPLOY=false CI_EXEC_INTEGRATION_TESTS=false`
+```bash
+glab ci run -b my-branch -i exec_build:false -i exec_deploy:false
+```
 
-**Deploy without rebuilding** — `CI_EXEC_UNIT_TESTS=false CI_EXEC_BUILD=false`.
+**Unit tests only** — `-i exec_build:false -i exec_deploy:false -i exec_integration_tests:false`
+
+**Build only** — `-i exec_unit_tests:false -i exec_deploy:false -i exec_integration_tests:false`
+
+**Deploy without rebuilding** — `-i exec_unit_tests:false -i exec_build:false`.
 Works only if the commit was built and pushed by an earlier pipeline.
 
-**Deploy onto my own VM** — set `DEPLOYMENT_INSTANCE_FQDN` (and
-`DEPLOYMENT_INSTANCE_USER` if not `ubuntu`). FQDN must be ≤ 57 chars (dcmsend
-limit) and reachable via SSH with the CI keypair. External VMs are never
-destroyed by the clean stage.
+**Deploy onto my own VM** — `-i deployment_fqdn:my-host.dkfz-heidelberg.de`
+(and `-i deployment_user:<user>` if not `ubuntu`). The FQDN must be ≤ 57 chars
+(dcmsend limit) and reachable via SSH with the CI keypair. Such a target is
+checked by `preflight_target` and never destroyed by the clean stage. Full
+walkthrough in [ci/local-ci.md](local-ci.md).
 
 **Keep the test VM to debug a failure** — re-run with
-`CI_EXEC_DESTROY_DELAYED=true`. The VM survives 4 h; the delayed
+`-i exec_destroy_delayed:true`. The VM survives 4 h; the delayed
 `destroy_deployment` job can be cancelled for longer, or started manually.
 
 **Retrying deploy-stage jobs does NOT re-trigger teardown** — GitLab never
@@ -93,7 +113,7 @@ ssh -i <kaapana-key> ubuntu@<vm-fqdn>
 
 The platform UI is at `https://<vm-fqdn>`.
 
-**Security scan on demand** — `CI_EXEC_SECURITY_SCAN=true` (with build).
+**Security scan on demand** — `-i exec_security_scan:true` (with build).
 Reports: `security_scan` artifacts (JSON per image), the `security` job's
 `vulnerability_report.html`, and GitLab's Security tab.
 
@@ -122,13 +142,15 @@ jobs with ↻; you rarely need the whole pipeline.
 | Test job times out talking to a service (e.g. `registry:5000`) | DKFZ proxy. The alias must be in `NO_PROXY` **and** `no_proxy` (both casings) in the job variables. |
 | `build_packages` fails immediately | Registry login (`CI_REGISTRY_*` variables) or the build VM's docker daemon. Full log in the `build.log` artifact. |
 | `build_packages` fails on one image | Read `build.log`; usually reproducible locally with `kaapana-build`. |
-| Build very slow | Cold layer cache (`CI_EXEC_DOCKER_PRUNE`? new build VM?). |
+| Build very slow | Cold layer cache (`exec_docker_prune`? new build VM?). |
 | `prepare_deployment` fails provisioning | Harvester capacity or API — check the job log. |
 | `prepare_deployment`: "chart … not found in registry" | The commit was never built. Build it first. |
-| Integration test failed, VM already gone | Re-run with `CI_EXEC_DESTROY_DELAYED=true`, SSH in (recipe above). |
+| Integration test failed, VM already gone | Re-run with `-i exec_destroy_delayed:true`, SSH in (recipe above). |
 | `install_extensions` / `send_data` flaky | Known flakiness, `retry: 2` masks most of it. Fails 3× → real; check the JUnit/log artifacts. |
 | `playwright_ui_tests` fails | Download the Playwright HTML report artifact — traces and screenshots. |
 | Job dies in prepare: `failed to pull image ... ci-base ... access forbidden` | `DOCKER_AUTH_CONFIG` missing an entry for the active registry host, or its token was minted on the wrong GitLab instance ([section 8](#8-project-cicd-variables-secrets)). |
+| A stage runs although you switched it off | You set a `CI_EXEC_*` variable. The toggles are inputs, `-i exec_*:false` ([section 2](#2-what-runs-when)). |
+| `prepare_deployment`: `... is forbidden: User "..." cannot ...` | `HARVESTER_KUBECONFIG`'s identity lacks that permission ([section 6](#6-runners)). |
 | Job stuck "pending" | No runner with the required tag picking it up ([section 6](#6-runners)). |
 | Everything fails weirdly after a CI-image change | Tag wasn't bumped — bump `CI_IMAGES_TAG` and re-run ([section 5](#5-the-ci-image-ci-base)). |
 
@@ -165,6 +187,28 @@ executor.
 | kaapana-tests-01 | `tests-runner` | Allows privileged **services** matching `docker.io/library/docker:*` (dind for `task_api_tests`); `/builds` shared between job and services |
 | kaapana-build-01 | `build-runner` | Host docker socket mounted into jobs → warm layer cache across pipelines |
 | kaapana-deploy-01 | `deploy-runner` | No machine state; credentials from File-type CI variables |
+
+### The two docker modes
+
+- **Host socket** — `build-runner`. Jobs drive the host daemon through a
+  bind-mounted `/var/run/docker.sock`. The layer cache survives across
+  pipelines and nothing runs privileged. All jobs share that daemon, so
+  `docker system prune --all --volumes -f` in `build_packages` is host-wide, a
+  job holds root on the host, and `-v` paths in a job's own `docker run` are
+  resolved by the host, not inside the job container.
+- **dind service** — `tests-runner`, for `task_api_tests`. A privileged
+  `docker:28-dind` sidecar per job, reached at `tcp://docker:2375`. State is
+  clean per job and nothing leaks onto the host. Its image store starts empty
+  every run, so builds are cold without a registry cache; it needs
+  `services_privileged`, an allowlist matching the image string literally,
+  `DOCKER_TLS_CERTDIR: ""`, and every mounted path under `$CI_PROJECT_DIR`,
+  since `/builds` is what job and service share.
+- `dind-rootless` is not an alternative: the container still needs
+  `--privileged` — only the inner dockerd drops root — and its rootlesskit
+  needs unprivileged user namespaces, which Ubuntu 24.04 blocks by default
+  (`kernel.apparmor_restrict_unprivileged_userns=1`).
+- Build moves into dind once `kaapana-build` restores layers from a BuildKit
+  registry cache. The socket mount and its odd path go away with it.
 
 **The tests and build configurations cannot be combined on one runner.**
 `volumes` under `[runners.docker]` is applied to service containers as well as
@@ -218,6 +262,67 @@ docker restart gitlab-runner
 grep -vE '^  token' ~/.gitlab-runner/config.toml   # bind-mounted into the container
 ```
 
+### Harvester access (`HARVESTER_KUBECONFIG`)
+
+The deploy stage needs one credential: a kubeconfig whose identity may make
+these calls in `DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE` (`kaapana-ci`). Nothing
+else, and nothing cluster-scoped.
+
+| Resource | Verbs | Used for |
+|---|---|---|
+| `kubevirt.io` virtualmachines | get, list, watch, create, delete | the test VM, and waiting for it |
+| `harvesterhci.io` virtualmachineimages, keypairs | get, list | resolve the boot image by display name, read the SSH public key |
+| secrets | get, list, create, patch, delete | the per-VM `<vm>-cloudinit` Secret |
+| persistentvolumeclaims | get, list, watch, patch, delete | the root disk: wait for it, own it, delete it |
+| `k8s.cni.cncf.io` network-attachment-definitions | get, list | only if `DEPLOYMENT_INSTANCE_NETWORK` names another namespace, as `harvester-public/dkfz-net` does |
+
+With cluster-admin rights on the target cluster, any kubeconfig that covers
+that table works — export it, upload it, done.
+
+Without them, make a ServiceAccount in that namespace, have whoever administers
+the cluster grant it the table above, and build a kubeconfig from its token —
+[the method](https://ryanbaker.io/2021-07-26-svc-acct-kubectl/). The DKFZ side
+of that, who to ask and what to send them, is in the Handbook.
+
+Assembling the kubeconfig once the ServiceAccount exists:
+
+```bash
+NS=kaapana-ci
+SERVER=https://10.129.1.5:6443   # Harvester API server
+KUBECTL="kubectl --kubeconfig $HOME/.kube/harvester.yaml -n $NS"
+
+$KUBECTL get secret kaapana-ci-token -o jsonpath='{.data.token}' | base64 -d > /tmp/sa.token
+$KUBECTL get secret kaapana-ci-token -o jsonpath='{.data.ca\.crt}' | base64 -d > /tmp/harvester-ca.crt
+
+export KUBECONFIG=/tmp/harvester-ci.kubeconfig
+kubectl config set-cluster harvester --server=$SERVER \
+  --certificate-authority=/tmp/harvester-ca.crt --embed-certs=true
+kubectl config set-credentials kaapana-ci --token="$(cat /tmp/sa.token)"
+kubectl config set-context harvester --cluster=harvester --user=kaapana-ci --namespace=$NS
+kubectl config use-context harvester
+unset KUBECONFIG
+```
+
+`kaapana-ci-token` is a Secret of type `kubernetes.io/service-account-token`
+annotated with the ServiceAccount name: Kubernetes 1.24+ issues no token Secret
+by itself, and `kubectl create token` expires. `SERVER` is the API server, not
+the `server:` line of a Rancher-issued kubeconfig — that points at the proxy
+(`https://sci-cloud.dkfz.de/k8s/clusters/…`), whose certificate the `ca.crt` in
+the Secret does not sign, and kubectl fails with `x509: certificate signed by
+unknown authority`.
+
+Check it, then upload the file as the `HARVESTER_KUBECONFIG` File variable
+([section 8](#8-project-cicd-variables-secrets)):
+
+```bash
+kubectl --kubeconfig /tmp/harvester-ci.kubeconfig auth whoami        # the ServiceAccount
+kubectl --kubeconfig /tmp/harvester-ci.kubeconfig -n $NS get vm
+kubectl --kubeconfig /tmp/harvester-ci.kubeconfig -n $NS auth can-i --list
+```
+
+A playbook that starts making a call outside the table needs that call granted
+before it can run in CI.
+
 ## 7. Releases
 
 Pushing a protected tag `X.Y.Z` runs a pipeline where `build_packages` swaps
@@ -254,7 +359,7 @@ required variables there.
 | `DOCKER_IO_USER` / `DOCKER_IO_PASSWORD` | no / yes | no | docker.io account (avoids pull rate limits) |
 | `SLACK_BOT_TOKEN` / `SLACK_CHANNEL_ID` | yes / no | no | Failure notifications on develop |
 | `KAAPANA_READTHEDOCS_TOKEN` | yes | no | Scheduled docs check |
-| `HARVESTER_KUBECONFIG` | File | no | Harvester cluster access — VM provisioning/deletion |
+| `HARVESTER_KUBECONFIG` | File | no | Harvester cluster access — VM provisioning/deletion; rights it needs: [section 6](#6-runners) |
 | `CI_SSH_PRIVATE_KEY` | File | no | SSH key for test VMs (Harvester `kaapana` KeyPair) |
 | `DOCKER_AUTH_CONFIG` | no | no | Pull auth for private job images (ci-base) — see below |
 
@@ -286,13 +391,15 @@ triple manually in the UI.
 
 1. Extend the right template (`.test_template`, `.build_cli_env`,
    `.remote_execution_template`, `.integration_test_local`) — they carry the
-   runner tag, image, and rules conventions. The tests stage has a 10 minute
-   budget; `.test_template` caps a single job at 2 minutes, so a suite that
-   hits the cap is too slow and gets split into separate jobs.
+   runner tag, image, and rules conventions. `.test_template` caps a single
+   job at 5 minutes, so a suite that hits the cap gets split into separate
+   jobs.
 2. Needs a CI/CD variable that is not already checked? Add it to
    `preflight_variables` ([`ci/pipeline/preflight.yml`](pipeline/preflight.yml))
    so a misconfiguration fails in seconds, not in your job.
-3. Gate it with `rules:` on the matching `CI_EXEC_*` toggle.
+3. Gate it with `rules:` on the matching `exec_*` input. The input has to be
+   declared in the stage file's own `spec:` block and passed down from the
+   `include:` block in `.gitlab-ci.yml`.
 4. Need docker? Prefer a plain daemonless service; a privileged dind service
    must use the fully-qualified image name (see `task_api_tests`).
 5. **Add the job to `if_ci_failing`'s `needs:` list** (`optional: true`;
@@ -308,33 +415,13 @@ triple manually in the UI.
 
 ## 10. Running the pipeline locally
 
-The `tests` stage runs on any machine with docker — no runner, no GitLab —
-via [gitlab-ci-local](https://github.com/firecow/gitlab-ci-local)
-(`npm install -g gitlab-ci-local`). From the repo root:
+Three ways, all in [ci/local-ci.md](local-ci.md): register your machine as a
+runner and let GitLab schedule real jobs onto it, deploy the platform onto your
+machine from a normal pipeline, or run job scripts with no GitLab at all
+([gitlab-ci-local](https://github.com/firecow/gitlab-ci-local)).
 
-```bash
-# everything the tests stage runs in CI (9 jobs)
-gitlab-ci-local --stage tests --variable CI_PIPELINE_SOURCE=web --privileged
-
-# a single job
-gitlab-ci-local unit_tests --variable CI_PIPELINE_SOURCE=web
-
-# see which jobs would run
-gitlab-ci-local --list --variable CI_PIPELINE_SOURCE=web
-```
-
-- `CI_PIPELINE_SOURCE=web` is required — without it `workflow:rules` falls
-  through to `when: never` and no jobs match.
-- `--privileged` is only needed for `task_api_tests` (its dind service);
-  drop it when running other jobs individually.
-- Jobs run against your **working tree**: uncommitted changes to tracked
-  files are included, untracked files are not.
-- Logs, artifacts, and the copied tree land in `.gitlab-ci-local/`
-  (gitignored).
-- The global variables bake in the DKFZ proxy. Off the DKFZ network, drop
-  it: `--unset-variable HTTP_PROXY --unset-variable HTTPS_PROXY`.
-- Only the `tests` stage is meant to run locally — build/deploy/test/clean
-  need registry credentials, Harvester access, and a test VM.
+The last one covers the `tests` stage; build, deploy and test need registry
+credentials, Harvester access and a target.
 
 ## 11. Workflow testcases (`ci-config`)
 
@@ -423,6 +510,3 @@ pytest -s ci/ci-code/integration_tests/tests/test_run_workflows.py \
 - A workflow testcase whose DAG the platform does not know counts as passed, so a
   failed extension install can leave `run_workflows` green.
 - `install_extensions` and `send_data` carry `retry: 2` — known flakiness.
-- `ci/local-ci.md` predates the current variable set (it references
-  variables that no longer exist) — for local runs use
-  [section 10](#10-running-the-pipeline-locally) instead.

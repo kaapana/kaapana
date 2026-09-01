@@ -60,7 +60,7 @@ function "cache_to" {
 function "cache_from" {
   params = [name]
   result = contains(["True", "true"], CACHE_FROM) ? [
-    { type = "registry", ref = "${CACHE_REGISTRY}/${name}:cache", mode = "max" }
+    { type = "registry", ref = "${CACHE_REGISTRY}/${name}:cache"}
   ] : []
 }
 

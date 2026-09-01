@@ -22,6 +22,10 @@ spec:
   variables:
     GIT_STRATEGY: clone
     GIT_DEPTH: "0" # full history — the global depth 1 would shallow the clone and break git describe
+    # docker build routes through buildx, which since Docker 23 auto-attaches
+    # provenance/SBOM attestations. This registry rejects those pushes with
+    # "blob unknown to registry" on the attestation manifest's blob.
+    BUILDX_NO_DEFAULT_ATTESTATIONS: "1"
   before_script:
     # DOCKER_AUTH_CONFIG shadows CLI logins, unset it so build/scan pushes use their logins
     - unset DOCKER_AUTH_CONFIG

@@ -1,11 +1,16 @@
 spec:
   inputs:
     exec_unit_tests:
+      type: boolean
     runner_tag:
+      type: string
     python_image:
+      type: string
     node_image:
+      type: string
       description: python_image lacks the node >=20.19 the frontend apps require
     dind_image:
+      type: string
       description: >-
         keep it fully qualified, the runner's privileged-service allowlist
         matches the literal string

@@ -1,11 +1,17 @@
 spec:
   inputs:
     exec_deploy:
+      type: boolean
     exec_server_installation:
+      type: boolean
     exec_redeploy:
+      type: boolean
     build_arguments:
+      type: string
     runner_tag:
+      type: string
     playbook_dir:
+      type: string
       default: ci/ci-code/deploy
     max_fqdn_length:
       type: number

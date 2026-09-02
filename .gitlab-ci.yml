@@ -1,67 +1,100 @@
 # Pipeline inputs: set per run in the "Run pipeline" form, with
 # `glab ci run -i <name>:<value>`, or per schedule. Resolved when the config is
 # merged.
+#
+# The inputs form has no grouping mechanism — an input takes only default,
+# description, options, regex, type and rules (no label/heading/order/group).
+# So each description opens with a bracketed header instead, and the form reads
+# grouped whatever order it renders in:
+#   [exec]   what this run does — stage toggles and their arguments
+#   [runner] which runner each stage lands on
+#   [target] where the platform gets deployed
+#
+# Every input is typed. The toggles are `boolean`, so a typo is rejected when
+# the config is merged instead of silently reading as "not true". They carry no
+# `options:` because GitLab allows that only on string, number and array inputs
+# — the type already constrains them to two values. Interpolation renders a
+# boolean as lowercase `true`/`false`, which is why the consumers' existing
+# `"$[[ inputs.x ]]" == "true"` comparisons keep working unchanged.
+# `glab ci run` needs the type spelled out for these: -i 'exec_build:bool(false)'.
+#
+# If you ever add a `rules:` block to an input: it may only reference inputs
+# declared above it, and a forward reference does not error — it silently takes
+# the fallback branch.
 spec:
   inputs:
+    # --- [exec] stage toggles and their arguments
     exec_unit_tests:
-      default: "true"
-      options: ["true", "false"]
-      description: "tests stage: unit tests + documentation build"
+      default: true
+      type: boolean
+      description: "[exec] tests stage: unit tests + documentation build"
     exec_build:
-      default: "true"
-      options: ["true", "false"]
-      description: "build stage: full platform build"
+      default: true
+      type: boolean
+      description: "[exec] build stage: full platform build"
     exec_build_arguments:
       default: ""
-      description: extra kaapana-build flags, e.g. "--latest"
+      type: string
+      description: '[exec] extra kaapana-build flags, e.g. "--latest"'
     exec_deploy:
-      default: "true"
-      options: ["true", "false"]
-      description: "deploy stage: provision test VM + server install + platform deploy"
+      default: true
+      type: boolean
+      description: "[exec] deploy stage: provision test VM + server install + platform deploy"
     exec_server_installation:
-      default: "true"
-      options: ["true", "false"]
-      description: '"false" skips the OS/microk8s install and runs target_readiness instead'
+      default: true
+      type: boolean
+      description: "[exec] false skips the OS/microk8s install and runs target_readiness instead"
     exec_redeploy:
-      default: "false"
-      options: ["true", "false"]
-      description: '"true" undeploys a platform already on the target, "false" fails the job'
+      default: false
+      type: boolean
+      description: "[exec] true undeploys a platform already on the target, false fails the job"
     exec_integration_tests:
-      default: "true"
-      options: ["true", "false"]
-      description: "test stage: pytest + Playwright against the test VM"
+      default: true
+      type: boolean
+      description: "[exec] test stage: pytest + Playwright against the test VM"
     exec_security_scan:
-      default: "false"
-      options: ["true", "false"]
-      description: registry scan of the images this pipeline pushed
+      default: false
+      type: boolean
+      description: "[exec] registry scan of the images this pipeline pushed"
     exec_security_scan_arguments:
       default: --vulnerability-scan --configuration-check
+      type: string
+      description: "[exec] flags for the security scan above"
     exec_docker_prune:
-      default: "false"
-      options: ["true", "false"]
-      description: '"true" wipes the runner docker cache first (cold build)'
+      default: false
+      type: boolean
+      description: "[exec] true wipes the runner docker cache first (cold build)"
     exec_destroy_delayed:
-      default: "false"
-      options: ["true", "false"]
-      description: '"true" keeps the test VM for 4h after the pipeline'
+      default: false
+      type: boolean
+      description: "[exec] true keeps the test VM for 4h after the pipeline"
 
+    # --- [runner] runner tag per stage group. Names are kept as they are: they
+    # are the public handle used by schedules and `glab ci run -i`, so the
+    # alphabetical scatter is cheaper than breaking every caller.
     build_runner_tag:
       default: build-runner
-      description: runner tag for the ci-image and build stages
+      type: string
+      description: "[runner] ci-image and build stages"
     tests_runner_tag:
       default: tests-runner
-      description: runner tag for the preflight and unit-test stages
+      type: string
+      description: "[runner] preflight and unit-test stages"
     deploy_runner_tag:
       default: deploy-runner
-      description: runner tag for the deploy, test and clean stages
+      type: string
+      description: "[runner] deploy, test and clean stages"
 
+    # --- [target] deployment destination
     deployment_fqdn:
       default: ""
+      type: string
       regex: ^.{0,57}$
-      description: empty provisions a fresh Harvester VM, set deploys onto that host (dcmsend rejects more than 57 characters)
+      description: "[target] empty provisions a fresh Harvester VM, set deploys onto that host (dcmsend rejects more than 57 characters)"
     deployment_user:
       default: ubuntu
-      description: SSH user on the deployment target
+      type: string
+      description: "[target] SSH user on the deployment target"
 ---
 default:
   interruptible: true

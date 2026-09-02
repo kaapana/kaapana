@@ -1,13 +1,19 @@
 spec:
   inputs:
     exec_deploy:
+      type: boolean
     exec_destroy_delayed:
+      type: boolean
     runner_tag:
+      type: string
     playbook_dir:
+      type: string
       default: ci/ci-code/deploy
     scripts_dir:
+      type: string
       default: ci/ci-code/clean
     destroy_delay:
+      type: string
       default: 4 hours
 ---
 # Out: VM and PVCs deleted. On develop failures a GitLab issue and a Slack

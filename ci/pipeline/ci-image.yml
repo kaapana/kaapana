@@ -1,7 +1,9 @@
 spec:
   inputs:
     runner_tag:
+      type: string
     builder_image:
+      type: string
       description: never ci-base, or a tag bump could not bootstrap itself
     rebuild_paths:
       type: array

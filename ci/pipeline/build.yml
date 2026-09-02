@@ -1,11 +1,17 @@
 spec:
   inputs:
     exec_build:
+      type: boolean
     exec_security_scan:
+      type: boolean
     build_arguments:
+      type: string
     security_scan_arguments:
+      type: string
     exec_docker_prune:
+      type: boolean
     runner_tag:
+      type: string
       description: that runner mounts the host docker socket, which keeps the layer cache warm
 ---
 # Out: images + charts in the registry, tagged git describe of this commit.

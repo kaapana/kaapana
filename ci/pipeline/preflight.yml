@@ -1,12 +1,18 @@
 spec:
   inputs:
     exec_build:
+      type: boolean
     exec_deploy:
+      type: boolean
     exec_server_installation:
+      type: boolean
     runner_tag:
+      type: string
     python_image:
+      type: string
       default: python:3.12
     playbook_dir:
+      type: string
       default: ci/ci-code/deploy
 ---
 # Stage: preflight — cheap checks that need nothing built

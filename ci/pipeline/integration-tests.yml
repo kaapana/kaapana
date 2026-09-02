@@ -1,11 +1,16 @@
 spec:
   inputs:
     exec_integration_tests:
+      type: boolean
     exec_deploy:
+      type: boolean
     runner_tag:
+      type: string
     tests_dir:
+      type: string
       default: ci/ci-code/integration_tests
     allowed_ports:
+      type: string
       default: 22,80,443
 ---
 # Out: platform state mutations passed along the first_login →

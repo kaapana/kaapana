@@ -11,7 +11,7 @@ import sweep_test_vms as sweep
 
 CI_DIR = Path(__file__).parents[2]
 NOW = datetime(2026, 9, 2, 12, 0, tzinfo=timezone.utc)
-GRACE, MAX_AGE = 1.0, 12.0
+GRACE, MAX_AGE, KEEP = 1.0, 12.0, 4.0
 
 
 def candidate(**overrides) -> sweep.Candidate:
@@ -21,7 +21,7 @@ def candidate(**overrides) -> sweep.Candidate:
 
 
 def decide(**overrides) -> tuple[str, str]:
-    return sweep.decide(candidate(**overrides), GRACE, MAX_AGE)
+    return sweep.decide(candidate(**overrides), GRACE, MAX_AGE, KEEP)
 
 
 def test_the_ci_runner_vms_are_never_swept():
@@ -87,7 +87,44 @@ def test_a_vanished_pipeline_falls_back_to_age():
 
 
 def test_age_comes_from_the_kubernetes_timestamp():
-    assert sweep.age_hours("2026-09-02T09:30:00Z", NOW) == pytest.approx(2.5)
+    assert sweep.hours_since("2026-09-02T09:30:00Z", NOW) == pytest.approx(2.5)
+
+
+def test_a_vm_kept_for_inspection_survives_its_pipeline():
+    """What CI_EXEC_DESTROY_DELAYED asks for. The sweep must not undo it just
+    because the pipeline is over."""
+    action, reason = decide(
+        pipeline_id="819370",
+        pipeline_state="failed",
+        keep_after_pipeline=True,
+        hours_since_pipeline_end=KEEP - 1,
+        age_hours=48,
+    )
+    assert action == "keep"
+    assert "held for inspection" in reason
+
+
+def test_the_keep_window_ends():
+    assert (
+        decide(
+            pipeline_id="819370",
+            pipeline_state="failed",
+            keep_after_pipeline=True,
+            hours_since_pipeline_end=KEEP + 1,
+        )[0]
+        == "delete"
+    )
+
+
+def test_without_the_annotation_a_settled_pipeline_releases_at_once():
+    assert (
+        decide(
+            pipeline_id="819370",
+            pipeline_state="failed",
+            hours_since_pipeline_end=0.0,
+        )[0]
+        == "delete"
+    )
 
 
 def test_collect_reads_the_pipeline_identity(monkeypatch):
@@ -101,7 +138,8 @@ def test_collect_reads_the_pipeline_identity(monkeypatch):
                     "creationTimestamp": "2026-09-02T09:00:00Z",
                     "labels": {sweep.PIPELINE_ID_LABEL: "819338"},
                     "annotations": {
-                        sweep.PIPELINE_URL_ANNOTATION: "https://gitlab/p/1"
+                        sweep.PIPELINE_URL_ANNOTATION: "https://gitlab/p/1",
+                        sweep.KEEP_ANNOTATION: "true",
                     },
                 }
             },
@@ -113,13 +151,19 @@ def test_collect_reads_the_pipeline_identity(monkeypatch):
             },
         ],
     )
-    monkeypatch.setattr(sweep, "pipeline_state", lambda project, pipeline_id: "failed")
+    monkeypatch.setattr(
+        sweep,
+        "pipeline_facts",
+        lambda project, pipeline_id: ("failed", "2026-09-02T11:00:00Z"),
+    )
 
     labelled, unlabelled = sweep.collect("kubeconfig", "kaapana-ci", None, NOW)
 
     assert (labelled.pipeline_id, labelled.pipeline_state) == ("819338", "failed")
     assert labelled.pipeline_url == "https://gitlab/p/1"
     assert labelled.age_hours == pytest.approx(3.0)
+    assert labelled.keep_after_pipeline is True
+    assert labelled.hours_since_pipeline_end == pytest.approx(1.0)
     # No label means GitLab is never asked, so the state stays unknown.
     assert (unlabelled.pipeline_id, unlabelled.pipeline_state) == ("", None)
 
@@ -129,3 +173,4 @@ def test_the_vm_template_stamps_what_the_sweep_reads():
     template = (CI_DIR / "ci-code/deploy/templates/vm.yml.j2").read_text()
     assert sweep.PIPELINE_ID_LABEL in template
     assert sweep.PIPELINE_URL_ANNOTATION in template
+    assert sweep.KEEP_ANNOTATION in template

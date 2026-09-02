@@ -59,6 +59,7 @@
     # reads as "no owner" and falls back to age.
     ci_pipeline_id: "{{ lookup('env', 'CI_PIPELINE_ID', default='') }}"
     ci_pipeline_url: "{{ lookup('env', 'CI_PIPELINE_URL', default='') }}"
+    ci_keep_after_pipeline: "{{ lookup('env', 'CI_EXEC_DESTROY_DELAYED', default='false') }}"
 
     # Harvester connection
     harvester_namespace: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE', default=undef()) }}"

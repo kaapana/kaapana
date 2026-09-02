@@ -21,6 +21,31 @@
     vm_memory_guest: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_MEMORY', default=undef()) }}"
     vm_memory_max: "{{ vm_memory_guest }}"
     vm_disk_size: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DISK', default=undef()) }}"
+    vm_ready_timeout: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_READY_TIMEOUT', default=600) | int }}"
+    vm_ready_interval: 5
+    vm_dns_timeout: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DNS_TIMEOUT', default=300) | int }}"
+    vm_dns_interval: 10
+    # Every printableStatus that will not resolve itself on its own. Doubles as
+    # the set the wait loop breaks on, so a doomed provisioning never sits out
+    # the full timeout.
+    vm_failure_hints:
+      ErrorUnschedulable: >-
+        No node could accept the VM. Either the cluster is out of capacity, or a
+        requested volume cannot be bound.
+      WaitingForVolumeBinding: >-
+        The disk PVC never bound. Check the storage class and its free capacity.
+      ErrorPvcNotFound: >-
+        The disk PVC vanished after the VM started referencing it.
+      DataVolumeError: >-
+        Importing the VM image into the disk failed.
+      ErrImagePull: >-
+        KubeVirt could not pull its own virt-launcher container image. A
+        cluster-side problem, unrelated to the requested VM image.
+      ImagePullBackOff: >-
+        KubeVirt could not pull its own virt-launcher container image. A
+        cluster-side problem, unrelated to the requested VM image.
+      CrashLoopBackOff: >-
+        The VM boots and dies repeatedly.
 
     # Harvester connection
     harvester_namespace: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE', default=undef()) }}"
@@ -239,21 +264,73 @@
         - "Name: {{ vm_name }}"
         - "Namespace: {{ harvester_namespace }}"
 
-  - name: Wait for VM to be running
+  - name: Wait for the VM to reach a settled state
     kubernetes.core.k8s_info:
       api_version: kubevirt.io/v1
       kind: VirtualMachine
       name: "{{ vm_name }}"
       namespace: "{{ harvester_namespace }}"
       kubeconfig: "{{ harvester_kubeconfig }}"
+    register: vm_info
+    vars:
+      _status: "{{ (vm_info.resources | first | default({})).get('status', {}).get('printableStatus', '') }}"
+    until: _status == 'Running' or _status in vm_failure_hints
+    retries: "{{ ((vm_ready_timeout | int) / (vm_ready_interval | int)) | round(0, 'ceil') | int }}"
+    delay: "{{ vm_ready_interval }}"
+    changed_when: false
+
+  - name: Remember the settled VM status
+    ansible.builtin.set_fact:
+      vm_printable_status: "{{ (vm_info.resources | first | default({})).get('status', {}).get('printableStatus', '') }}"
+
+  # The VM status names the category, the instance conditions name the cause:
+  # ErrorUnschedulable covers both exhausted capacity and an unbindable volume,
+  # and only the scheduler's own message tells them apart.
+  - name: Collect the conditions of the VM instance
+    kubernetes.core.k8s_info:
+      api_version: kubevirt.io/v1
+      kind: VirtualMachineInstance
+      name: "{{ vm_name }}"
+      namespace: "{{ harvester_namespace }}"
+      kubeconfig: "{{ harvester_kubeconfig }}"
+    register: vmi_info
+    when: vm_printable_status != 'Running'
+    # The instance may not exist yet; a missing diagnosis must not replace the
+    # actual failure below.
+    failed_when: false
+    changed_when: false
+
+  - name: Fail with the provisioning cause
+    vars:
+      _vmi_conditions: >-
+        {{ (vmi_info.resources | default([]) | first | default({})).get('status', {}).get('conditions', [])
+           | selectattr('status', 'equalto', 'False')
+           | selectattr('message', 'defined')
+           | map(attribute='message') | join(' | ') }}
+    ansible.builtin.fail:
+      msg: >-
+        VM {{ vm_name }} did not reach Running in namespace {{ harvester_namespace }}.
+        Status: {{ vm_printable_status | default('none reported', true) }}.
+        {{ vm_failure_hints.get(vm_printable_status, 'Unexpected state, inspect the VM directly.') }}
+        {% if _vmi_conditions %}Instance conditions: {{ _vmi_conditions }}{% endif %}
+    when: vm_printable_status != 'Running'
 
   - name: Wait for DNS to resolve
     ansible.builtin.command: getent hosts {{ vm_name }}.{{ vm_dns_domain }}
     register: dns_result
     until: dns_result.rc == 0
-    retries: 30
-    delay: 10
+    retries: "{{ ((vm_dns_timeout | int) / (vm_dns_interval | int)) | round(0, 'ceil') | int }}"
+    delay: "{{ vm_dns_interval }}"
     changed_when: false
+    failed_when: false
+
+  - name: Fail if the FQDN never resolved
+    ansible.builtin.fail:
+      msg: >-
+        VM {{ vm_name }} is running, but {{ vm_name }}.{{ vm_dns_domain }} did not
+        resolve within {{ vm_dns_timeout }}s. The VM itself came up, so this is name
+        resolution, not provisioning: check the record in {{ vm_dns_domain }}.
+    when: dns_result.rc != 0
 
   - name: Set VM FQDN fact
     ansible.builtin.set_fact:

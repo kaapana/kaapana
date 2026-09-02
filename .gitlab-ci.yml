@@ -90,6 +90,9 @@ variables:
   DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE: "kaapana-ci"
   DEPLOYMENT_INSTANCE_SSH_KEYPAIR: "kaapana" # Harvester KeyPair resource in the namespace
   DEPLOYMENT_INSTANCE_PLATFORM_PREFIX: "ci-dep" # project namespaces become <prefix>-project-<short_id>
+  # Ripcords, not failure thresholds: a reported failure aborts at once.
+  DEPLOYMENT_INSTANCE_READY_TIMEOUT: "600" # seconds until the VM is Running
+  DEPLOYMENT_INSTANCE_DNS_TIMEOUT: "300" # seconds until the FQDN resolves
 
   # --- Deploy-stage credentials: File-type project variables (the runner
   # writes the value to a temp file, the variable holds that file's path):

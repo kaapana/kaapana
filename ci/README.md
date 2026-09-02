@@ -41,6 +41,7 @@ Useful Attributes:
   - VM is created, fresh server-installation is run, Kaapana is deployed, data ingested and tested
   - `destroy_deployment` deletes the automatically provisioned VM
   - scheduled - delayed deletion is possible through CI variables
+  - a leaked VM is collected by the scheduled sweep
 
 ## 2. What runs when
 
@@ -110,10 +111,11 @@ destroyed by the clean stage.
 `CI_EXEC_DESTROY_DELAYED=true`. The VM survives 4 h; the delayed
 `destroy_deployment` job can be cancelled for longer, or started manually.
 
-**Retrying deploy-stage jobs does NOT re-trigger teardown** — GitLab never
-cascades retries, so a `destroy_deployment` that already ran stays in its
-old state. If a retried `prepare_deployment` provisioned a VM, retry
-`destroy_deployment` manually afterwards (↻ on the job) or the VM leaks.
+**Retrying deploy-stage jobs does NOT re-trigger teardown.** GitLab never
+cascades retries, so a `destroy_deployment` that already ran stays in its old
+state, and a retried `prepare_deployment` leaves its VM without one. Retry
+`destroy_deployment` manually (↻ on the job) to get the capacity back right
+away; otherwise the sweep collects that VM once the pipeline stops running.
 
 **SSH into the test VM** — FQDN is in the `prepare_deployment` log/artifact;
 the key is the `CI_SSH_PRIVATE_KEY` File variable (matches the Harvester

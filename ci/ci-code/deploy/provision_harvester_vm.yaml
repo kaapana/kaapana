@@ -29,7 +29,7 @@
     vm_dns_interval: 10
     # The only states that still resolve on their own. Everything else is a
     # verdict and ends the wait, including a state not listed below.
-    vm_transient_states: ['', 'Provisioning', 'Starting']
+    vm_transient_states: ['', 'Provisioning', 'Starting', 'WaitingForVolumeBinding']
     # Explains a verdict; not the list the wait breaks on.
     vm_failure_hints:
       ErrorUnschedulable: >-
@@ -285,6 +285,9 @@
     retries: "{{ ((vm_ready_timeout | int) / (vm_ready_interval | int)) | round(0, 'ceil') | int }}"
     delay: "{{ vm_ready_interval }}"
     changed_when: false
+    # An exhausted retry budget is a verdict too, and the task below explains it
+    # better than ansible's own retry message.
+    failed_when: false
 
   - name: Remember the settled VM status
     ansible.builtin.set_fact:
@@ -309,6 +312,10 @@
 
   - name: Fail with the provisioning cause
     vars:
+      # Only meaningful when the lookup returned nothing at all: with an object
+      # in hand, its status says more than the module's message.
+      _vm_lookup_error: >-
+        {{ vm_info.msg | default('') if (vm_info.resources | default([]) | length) == 0 else '' }}
       # A quota rejection never creates a VMI, so its cause lives here instead.
       _vm_quota: >-
         {{ (vm_info.resources | first | default({})).get('metadata', {}).get('annotations', {})
@@ -323,6 +330,7 @@
         VM {{ vm_name }} did not reach Running in namespace {{ harvester_namespace }}.
         Status: {{ vm_printable_status | default('none reported', true) }}.
         {{ vm_failure_hints.get(vm_printable_status, 'Unexpected state, inspect the VM directly.') }}
+        {% if _vm_lookup_error %}Lookup: {{ _vm_lookup_error }}{% endif %}
         {% if _vm_quota %}Quota: {{ _vm_quota }}{% endif %}
         {% if _vmi_conditions %}Instance conditions: {{ _vmi_conditions }}{% endif %}
     when: vm_printable_status != 'Running'

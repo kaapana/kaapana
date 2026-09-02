@@ -54,6 +54,12 @@
         launcher pod leaves it here, and Harvester sets runStrategy to Halted,
         so it will not come up on its own either.
 
+    # Stamped onto the VM so the orphan sweep can ask GitLab whether this
+    # pipeline is still running. Empty outside a pipeline, which the sweep
+    # reads as "no owner" and falls back to age.
+    ci_pipeline_id: "{{ lookup('env', 'CI_PIPELINE_ID', default='') }}"
+    ci_pipeline_url: "{{ lookup('env', 'CI_PIPELINE_URL', default='') }}"
+
     # Harvester connection
     harvester_namespace: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE', default=undef()) }}"
     harvester_kubeconfig: "{{ lookup('env', 'HARVESTER_KUBECONFIG', default=undef()) }}"

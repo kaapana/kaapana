@@ -164,7 +164,8 @@ hardware — no pipeline change needed.
 
 ```bash
 export HARVESTER_KUBECONFIG=~/.kube/harvester.yaml   # File variable holds it
-kubectl --kubeconfig $HARVESTER_KUBECONFIG -n kaapana-ci get vm   # ci-<branch>-<sha>
+kubectl --kubeconfig $HARVESTER_KUBECONFIG -n kaapana-ci get vm \
+  -L kaapana.io/ci-pipeline-id   # name is ci-<branch>-<sha>, the column its pipeline
 ansible-playbook -i localhost, ci/ci-code/deploy/delete_harvester_vm.yaml -e vm_name=<name>
 ```
 

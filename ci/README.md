@@ -123,7 +123,9 @@ stage runs, and the sweep deletes every `ci-*` VM in `kaapana-ci` whose
 pipeline has finished, plus unlabelled ones older than
 `VM_SWEEP_MAX_AGE_HOURS`. A VM whose pipeline is still running is never
 touched, VMs asking to be kept get their inspection window, and the runner
-VMs are out of reach because their names lack the `ci-` prefix. Without `VM_SWEEP_APPLY=true` it deletes nothing and only
+VMs are out of reach because their names lack the `ci-` prefix. Which is the
+one rule this imposes: **a VM meant to stay in `kaapana-ci` must not be named
+`ci-*`**, or the sweep will eventually collect it. Without `VM_SWEEP_APPLY=true` it deletes nothing and only
 reports, in the job log and as the `vm_sweep.json` artifact.
 
 **Pause the CI** — set project variable `MAINTENANCE=true`

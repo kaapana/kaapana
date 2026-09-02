@@ -32,7 +32,8 @@ Three facts explain most of the design:
   jobs via the `deployment.env` dotenv artifact.
 - **The test VM is disposable.** `destroy_deployment` deletes it even on
   failure — except externally-provided VMs (never destroyed) or when you
-  asked to keep it (see recipes).
+  asked to keep it (see recipes). A VM that slips past it, the second one a
+  retried job creates, is collected by the scheduled sweep.
 
 ## 2. What runs when
 
@@ -83,10 +84,11 @@ destroyed by the clean stage.
 `CI_EXEC_DESTROY_DELAYED=true`. The VM survives 4 h; the delayed
 `destroy_deployment` job can be cancelled for longer, or started manually.
 
-**Retrying deploy-stage jobs does NOT re-trigger teardown** — GitLab never
-cascades retries, so a `destroy_deployment` that already ran stays in its
-old state. If a retried `prepare_deployment` provisioned a VM, retry
-`destroy_deployment` manually afterwards (↻ on the job) or the VM leaks.
+**Retrying deploy-stage jobs does NOT re-trigger teardown.** GitLab never
+cascades retries, so a `destroy_deployment` that already ran stays in its old
+state, and a retried `prepare_deployment` leaves its VM without one. Retry
+`destroy_deployment` manually (↻ on the job) to get the capacity back right
+away; otherwise the sweep collects that VM once the pipeline stops running.
 
 **SSH into the test VM** — FQDN is in the `prepare_deployment` log/artifact;
 the key is the `CI_SSH_PRIVATE_KEY` File variable (matches the Harvester

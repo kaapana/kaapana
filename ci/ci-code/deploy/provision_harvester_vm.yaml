@@ -21,6 +21,8 @@
     vm_memory_guest: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_MEMORY', default=undef()) }}"
     vm_memory_max: "{{ vm_memory_guest }}"
     vm_disk_size: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DISK', default=undef()) }}"
+    # Resolved lazily, so it follows the truncation vm_name may undergo below.
+    vm_manifest_path: "/tmp/{{ vm_name }}-vm.yml"
     vm_ready_timeout: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_READY_TIMEOUT', default=600) | int }}"
     vm_ready_interval: 5
     vm_dns_timeout: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DNS_TIMEOUT', default=300) | int }}"
@@ -170,13 +172,13 @@
   - name: Render VM manifest from Jinja template
     ansible.builtin.template:
       src: templates/vm.yml.j2
-      dest: /tmp/{{ vm_name }}-vm.yml
+      dest: "{{ vm_manifest_path }}"
       mode: '0644'
 
   - name: Apply VM manifest
     kubernetes.core.k8s:
       state: present
-      definition: "{{ lookup('file', '/tmp/{{ vm_name }}-vm.yml') | from_yaml }}"
+      definition: "{{ lookup('file', vm_manifest_path) | from_yaml }}"
       kubeconfig: "{{ harvester_kubeconfig }}"
     register: vm_apply_result
 
@@ -338,7 +340,7 @@
 
   - name: Clean up local manifest
     ansible.builtin.file:
-      path: /tmp/{{ vm_name }}-vm.yml
+      path: "{{ vm_manifest_path }}"
       state: absent
 
   post_tasks:

@@ -6,8 +6,14 @@ metadata:
   labels:
     harvesterhci.io/creator: harvester
     harvesterhci.io/os: ubuntu
+    # The sweep's only way to tell a leaked VM from one a pipeline still uses.
+    # Age alone cannot: a run may legitimately hold a VM for hours.
+    kaapana.io/ci-pipeline-id: '{{ ci_pipeline_id }}'
   annotations:
     harvesterhci.io/enableCPUAndMemoryHotplug: 'true'
+    # For whoever reads the sweep report; an annotation because label values
+    # forbid the characters a URL brings.
+    kaapana.io/ci-pipeline-url: '{{ ci_pipeline_url }}'
     harvesterhci.io/volumeClaimTemplates: >-
       [{"metadata":{"name":"{{ vm_name }}-disk-0-{{ pvc_suffix }}","annotations":{"harvesterhci.io/imageId":"{{ harvester_namespace }}/{{ vm_image_id }}"}},"spec":{"accessModes":["ReadWriteMany"],"resources":{"requests":{"storage":"{{ vm_disk_size }}"}},"volumeMode":"Block","storageClassName":"{{ vm_storage_class }}"}}]
     network.harvesterhci.io/ips: '[]'

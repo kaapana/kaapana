@@ -2182,6 +2182,25 @@ function setup_storage_classes() {
         --set-string global.slow_data_dir="$SLOW_DATA_DIR"
 }
 
+# Helm pre-creates the chart's crds/ itself but only waits for the CRDs it created:
+# one that already exists is skipped without any check, so a CRD left terminating
+# (finalizer pending) or not yet served after an earlier uninstall makes the install
+# fail later with "no matches for kind ...". Check the existing ones before Helm skips them.
+function wait_for_chart_crds {
+    local crd deletion_ts
+    for crd in $($HELM_EXECUTABLE show crds "$CHART_PATH" | awk '$1=="kind:"{k=$2} k=="CustomResourceDefinition" && $1=="name:"{print $2; k=""}'); do
+        deletion_ts=$(microk8s.kubectl get crd "$crd" -o jsonpath='{.metadata.deletionTimestamp}' 2>/dev/null) || continue
+        if [ -n "$deletion_ts" ]; then
+            echo "${RED}CRD $crd is stuck terminating (since $deletion_ts) and cannot be re-created. Clear its finalizers, then redeploy:${NC}"
+            echo "  microk8s.kubectl patch crd $crd --type=merge -p '{\"metadata\":{\"finalizers\":[]}}'"
+            exit 1
+        fi
+        # Established alone is not enough: Helm resolves kinds via API discovery, which can lag behind it.
+        timeout 180 bash -c "until microk8s.kubectl get '$crd' >/dev/null 2>&1; do sleep 2; done" \
+            || { echo "${RED}CRD $crd exists but is not served by the API after 180s.${NC}"; exit 1; }
+    done
+}
+
 function deploy_chart {
     if [ -z "$CONTAINER_REGISTRY_URL" ]; then
         echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the kaapanactl.sh script!${NC}"
@@ -2379,6 +2398,8 @@ function deploy_chart {
     if [[ ${#kube_helm_timeout_args[@]} -gt 0 ]]; then
         echo "${YELLOW}Applying kube-helm timeout overrides.${NC}"
     fi
+
+    wait_for_chart_crds
 
     # Build helm command with optional --plain-http flag
     HELM_INSTALL_CMD="$HELM_EXECUTABLE -n $HELM_NAMESPACE install --create-namespace"

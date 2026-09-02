@@ -4,7 +4,7 @@ apiVersion: storage.k8s.io/v1
 metadata:
   name: kaapana-hostpath-fast-data-dir
 provisioner: microk8s.io/hostpath
-reclaimPolicy: Delete
+reclaimPolicy: {{ .Values.global.hostpath_reclaim_policy }}
 parameters:
   pvDir: {{.Values.global.fast_data_dir }}
 volumeBindingMode: WaitForFirstConsumer

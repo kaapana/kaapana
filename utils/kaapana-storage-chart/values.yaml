@@ -3,3 +3,6 @@ global:
   slow_data_dir: "/home/kaapana"
   main_node_name: "kaapana-main-node"
   replica_count: 2
+  # Delete (default) removes a PVC's hostpath directory together with the PV; Retain keeps
+  # both on disk for recovery. kaapanactl sets it from --hostpath-reclaim-policy.
+  hostpath_reclaim_policy: Delete

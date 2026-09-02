@@ -393,6 +393,7 @@ function deploy() {
     _Argument: --username [Docker registry username]
     _Argument: --password [Docker registry password]
     _Argument: --port [Set main https-port]
+    _Argument: --hostpath-reclaim-policy [Delete|Retain] (default: Delete)
     _Argument: --chart-path [path-to-chart-tgz]
     _Argument: --kube-helm-install-timeout [seconds]
     _Argument: --kube-helm-deletion-timeout [seconds]
@@ -466,6 +467,20 @@ function deploy() {
             -d|--domain)
                 DOMAIN="$2"
                 echo -e "${GREEN}SET DOMAIN!${NC}";
+                shift # past argument
+                shift # past value
+            ;;
+
+            # Retain keeps a deleted PVC's PV and hostpath directory on disk instead of
+            # deleting them; Delete is the unchanged default. Validated here because an
+            # invalid value would only fail later, inside setup_storage_classes.
+            --hostpath-reclaim-policy)
+                HOSTPATH_RECLAIM_POLICY="$2"
+                if [[ "$HOSTPATH_RECLAIM_POLICY" != "Delete" && "$HOSTPATH_RECLAIM_POLICY" != "Retain" ]]; then
+                    echo -e "${RED}Invalid --hostpath-reclaim-policy '$HOSTPATH_RECLAIM_POLICY': use Delete or Retain.${NC}"
+                    exit 1
+                fi
+                echo -e "${GREEN}SET HOSTPATH_RECLAIM_POLICY: $HOSTPATH_RECLAIM_POLICY ${NC}"
                 shift # past argument
                 shift # past value
             ;;
@@ -1562,6 +1577,7 @@ function load_kaapana_config {
     ######################################################
     STORAGE_PROVIDER="hostpath" # e.g. "hostpath" (microk8s) or "longhorn"
     VOLUME_SLOW_DATA="100Gi" # size of volumes in slow data dir (e.g. 100Gi or 100Ti)
+    HOSTPATH_RECLAIM_POLICY="Delete" # reclaim policy of the kaapana hostpath StorageClasses: Delete or Retain
 }
 
 function delete_all_images_docker {
@@ -2174,12 +2190,19 @@ function setup_storage_classes() {
     tar -xzf "$CHART_PATH" -C "$WORKDIR"
     KAAPANA_STORAGE_CHARTPATH="$WORKDIR/$PLATFORM_NAME/charts/kaapana-storage-chart"
 
+    # reclaimPolicy is immutable, so switching an existing site to Retain would fail the
+    # helm upgrade. Deleting the two hostpath classes lets helm recreate them; bound PVs,
+    # PVCs and their data are not affected by a StorageClass being replaced.
+    microk8s.kubectl delete storageclass kaapana-hostpath-fast-data-dir \
+        kaapana-hostpath-slow-data-dir --ignore-not-found
+
     $HELM_EXECUTABLE -n kaapana-system upgrade --install kaapana-storageclass $KAAPANA_STORAGE_CHARTPATH \
         --create-namespace \
         --set-string global.main_node_name="$MAIN_NODE_NAME" \
         --set-string global.replica_count="$REPLICA_COUNT" \
         --set-string global.fast_data_dir="$FAST_DATA_DIR" \
-        --set-string global.slow_data_dir="$SLOW_DATA_DIR"
+        --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
+        --set-string global.hostpath_reclaim_policy="$HOSTPATH_RECLAIM_POLICY"
 }
 
 function deploy_chart {

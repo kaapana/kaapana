@@ -1,0 +1,38 @@
+# Stage: maintenance - housekeeping that belongs to no single pipeline
+# In:  HARVESTER_KUBECONFIG (File-type CI variable), GITLAB_API_TOKEN
+# Out: artifacts/vm_sweep.json (one document per sweep, for any later
+#      notifier) and artifacts/vm_sweep.log (what if_ci_failing collects)
+##############################################
+# MAINTENANCE
+##############################################
+sweep_test_vms:
+  stage: maintenance
+  # Deletes test VMs whose pipeline has ended: the leak GitLab's
+  # non-cascading retries leave behind (README section 3). Runs in a pipeline
+  # of its own, so needs: [] keeps it from waiting on earlier stages that
+  # produce nothing here.
+  needs: []
+  interruptible: false
+  timeout: 1 hour
+  rules:
+    - if: '$CI_EXEC_VM_SWEEP == "true"'
+      when: always
+    - when: never
+  tags:
+    - deploy-runner
+  image: $CI_BASE_IMAGE
+  script:
+    - mkdir -p "$ARTIFACTS_DIR"
+    - |
+      set -o pipefail
+      ARGS=(--grace-hours "$VM_SWEEP_GRACE_HOURS"
+            --max-age-hours "$VM_SWEEP_MAX_AGE_HOURS"
+            --report "$ARTIFACTS_DIR/vm_sweep.json")
+      [[ "$VM_SWEEP_APPLY" == "true" ]] && ARGS+=(--apply)
+      python3 "$CI_PROJECT_DIR/ci/ci-code/clean/sweep_test_vms.py" "${ARGS[@]}" \
+        | tee "$ARTIFACTS_DIR/vm_sweep.log"
+  artifacts:
+    when: always
+    paths:
+      - artifacts/vm_sweep.json
+      - artifacts/vm_sweep.log

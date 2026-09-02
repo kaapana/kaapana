@@ -782,6 +782,7 @@ function server_installation() {
 
     QUIET=NA
     OFFLINE_SNAPS=NA
+    MICRO_VERSION_EXPLICIT=false
     DNS=""
 
     POSITIONAL=()
@@ -805,6 +806,7 @@ function server_installation() {
 
             -v|--version)
                 DEFAULT_MICRO_VERSION="$2"
+                MICRO_VERSION_EXPLICIT=true
                 echo -e "${GREEN}Kubernetes version set to: $DEFAULT_MICRO_VERSION ${NC}";
                 shift # past argument
                 shift # past value
@@ -845,6 +847,15 @@ function server_installation() {
         esac
     done
 
+
+    # In offline mode the bundled *.snap file decides the Kubernetes version, so -v cannot
+    # influence what is installed. It would only mis-pin the snap channel, making a later
+    # refresh cross Kubernetes minor versions.
+    if [ "$OFFLINE_SNAPS" = "true" ] && [ "$MICRO_VERSION_EXPLICIT" = "true" ]; then
+        echo -e "${RED}ERROR: -v/--version cannot be combined with --offline.${NC}"
+        echo -e "${RED}       The offline installer ships a fixed microk8s version; rerun without -v.${NC}"
+        exit 1
+    fi
 
     case "$OS_PRESENT" in
         "AlmaLinux")
@@ -1224,7 +1235,8 @@ function install_microk8s {
             # jump to latest/stable - across Kubernetes minor versions, which microk8s does
             # not support. Pin the track the online install uses (sets the channel only, no
             # download and no restart).
-            snap switch microk8s --channel=$DEFAULT_MICRO_VERSION
+            snap switch microk8s --channel=$DEFAULT_MICRO_VERSION \
+                || echo "${YELLOW}WARNING: could not pin the microk8s snap channel -> a later 'snap refresh' may cross Kubernetes minor versions.${NC}"
             MICROK8S_BASE_IMAGES_TAR_PATH="$SCRIPT_DIR/microk8s_base_images.tar"
             echo "${YELLOW}Start Microk8s image import from $MICROK8S_BASE_IMAGES_TAR_PATH ... ${NC}"
             [ -f $MICROK8S_BASE_IMAGES_TAR_PATH ] && echo "${GREEN}MICROK8S_BASE_IMAGES_TAR exists ... ${NC}" || (echo "${RED}Images tar does not exist -> exit ${NC}" && exit 1)

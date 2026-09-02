@@ -1,5 +1,6 @@
 import httpx
 import base64
+import http.cookiejar
 import json
 import re
 import hashlib
@@ -115,7 +116,14 @@ class OCIRegistryDiscovery:
         self._client_options: Dict[str, Any] = client_options or {}
 
     async def __aenter__(self) -> "OCIRegistryDiscovery":
-        self._client = httpx.AsyncClient(**self._client_options)
+        # Never keep or send cookies. Harbor sets a session cookie (sid) on every
+        # response, including the 401 that starts the bearer-token flow, and then
+        # rejects every unsafe /v2/ request carrying one as "CSRF token invalid".
+        # Registry clients authenticate per request via Authorization and need none.
+        jar = http.cookiejar.CookieJar(
+            policy=http.cookiejar.DefaultCookiePolicy(allowed_domains=[])
+        )
+        self._client = httpx.AsyncClient(**{"cookies": jar, **self._client_options})
         return self
 
     async def __aexit__(self, *args: Any) -> None:
@@ -252,11 +260,21 @@ class OCIRegistryDiscovery:
         digest = SHA256Digest(f"sha256:{hashlib.sha256(data_bytes).hexdigest()}")
 
         separator = "&" if "?" in location else "?"
+        # The registry answers this PUT only once it has received, verified and
+        # committed the whole blob, which for a multi-GB payload outlasts any
+        # per-operation read timeout (observed >60s for ~1GB on Harbor). Only the
+        # read side is unbounded; connect/write keep the configured limits.
         await self._request_with_auth_retry(
             "PUT",
             f"{location}{separator}digest={digest}",
             headers={"Content-Type": media_type},
             content=data_bytes,
+            timeout=httpx.Timeout(
+                connect=self._client.timeout.connect,
+                read=None,
+                write=self._client.timeout.write,
+                pool=self._client.timeout.pool,
+            ),
         )
         return digest
 
@@ -398,8 +416,13 @@ class OCIRegistryDiscovery:
         Raises:
             OCIError: If blob not found or other HTTP error.
         """
+        # Registries backed by object storage answer blob GETs with a 307; httpx
+        # does not follow redirects by default and a 307 is not an error, so the
+        # empty redirect body would be returned as the blob.
         resp = await self._request_with_auth_retry(
-            "GET", f"{self.registry_url}/v2/{self.repository}/blobs/{digest}"
+            "GET",
+            f"{self.registry_url}/v2/{self.repository}/blobs/{digest}",
+            follow_redirects=True,
         )
         return resp.content
 

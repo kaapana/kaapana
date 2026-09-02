@@ -147,6 +147,12 @@ def build(
         envvar="PUBLISH_OFFLINE_INSTALLER",
         help="Also publish the offline installer as 'offline-installer:<version>'. Requires --create-offline-installation and registry login.",
     ),
+    publish_offline_installer_timeout: float = typer.Option(
+        60.0,
+        "--publish-offline-installer-timeout",
+        envvar="PUBLISH_OFFLINE_INSTALLER_TIMEOUT",
+        help="Socket timeout in seconds for publishing the offline installer. The tarball is sent in a single write, so this also bounds the whole upload: raise it for a large installer or a slow link.",
+    ),
     skip_platform_images_tarball: bool = typer.Option(
         False,
         "--skip-platform-images-tarball",
@@ -353,6 +359,7 @@ def build(
         push_to_microk8s=push_to_microk8s,
         create_offline_installation=create_offline_installation,
         publish_offline_installer=publish_offline_installer,
+        publish_offline_installer_timeout=publish_offline_installer_timeout,
         skip_platform_images_tarball=skip_platform_images_tarball,
         offline_image_platform=offline_image_platform,
         offline_extra_files=offline_extra_files,

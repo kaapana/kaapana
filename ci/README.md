@@ -144,7 +144,7 @@ jobs with ↻; you rarely need the whole pipeline.
 | Integration test failed, VM already gone | Re-run with `CI_EXEC_DESTROY_DELAYED=true`, SSH in (recipe above). |
 | `install_extensions` / `send_data` flaky | Known flakiness, `retry: 2` masks most of it. Fails 3× → real; check the JUnit/log artifacts. |
 | `playwright_ui_tests` fails | Download the Playwright HTML report artifact — traces and screenshots. |
-| `sweep_test_vms` red | A teardown playbook exited non-zero. `vm_sweep.log` names the VM; the sweep finished the remaining ones. |
+| `sweep_test_vms` red | The last log line names it: GitLab refused the pipeline lookup (then nothing was touched), or a teardown playbook failed (then the sweep still finished the other VMs). |
 | Job dies in prepare: `failed to pull image ... ci-base ... access forbidden` | `DOCKER_AUTH_CONFIG` missing an entry for the active registry host, or its token was minted on the wrong GitLab instance ([section 8](#8-project-cicd-variables-secrets)). |
 | Job stuck "pending" | No runner with the required tag picking it up ([section 6](#6-runners)). |
 | Everything fails weirdly after a CI-image change | Tag wasn't bumped — bump `CI_IMAGES_TAG` and re-run ([section 5](#5-the-ci-image-ci-base)). |

@@ -216,6 +216,21 @@ keycloak_setup_tests:
         - keycloak_setup_report.xml
 
 ##############################################
+# VM Sweep Tests
+##############################################
+vm_sweep_tests:
+  extends: .test_template
+  # The sweep deletes VMs, so its decision function is tested without a
+  # cluster and without GitLab, against the CI's own inventory and template.
+  script:
+    - pip install pytest==8.3.3 PyYAML==6.0.3
+    - pytest $KAAPANA_DIR/ci/ci-code/clean/test_sweep_test_vms.py --junitxml=vm_sweep_report.xml
+  artifacts:
+    reports:
+      junit:
+        - vm_sweep_report.xml
+
+##############################################
 # UI e2e Tests (mock-backed Playwright, no platform)
 ##############################################
 # One matrix job per frontend app; each suite starts its app on its own fixed

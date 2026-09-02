@@ -64,6 +64,7 @@ if_ci_failing:
     - { job: kube_helm_tests, optional: true, artifacts: false }
     - { job: access_information_interface_tests, optional: true, artifacts: false }
     - { job: keycloak_setup_tests, optional: true, artifacts: false }
+    - { job: vm_sweep_tests, optional: true, artifacts: false }
     - { job: ui_e2e_tests, optional: true, artifacts: false }
     - { job: build_documentation, optional: true, artifacts: false }
     - { job: check_readthedocs, optional: true, artifacts: false }
@@ -80,6 +81,8 @@ if_ci_failing:
     - { job: send_data, optional: true, artifacts: true }
     - { job: run_workflows, optional: true, artifacts: true }
     - { job: playwright_ui_tests, optional: true, artifacts: false }
+    # Its report is a *.log, so a failed teardown lands in the ticket itself.
+    - { job: sweep_test_vms, optional: true, artifacts: true }
   script:
     - mkdir -p "$ARTIFACTS_DIR"
     # move build.log into the dir the ticket script scans for *.log

@@ -43,6 +43,7 @@ Three facts explain most of the design:
 | Nightly schedule | Full pipeline + security scan + ReadTheDocs check. |
 | Release tag `X.Y.Z` | Full pipeline, publishing to the release registry with a cold cache ([section 7](#7-releases)). |
 | Web UI / API / trigger | Always allowed; you pick the toggles. |
+| VM sweep schedule | Only `sweep_test_vms`, every other stage off (see recipes). |
 
 Stage toggles (set per run via **CI/CD → Pipelines → Run pipeline**, or
 scripted with `python3 ci/utils/trigger_pipeline.py`):
@@ -59,6 +60,10 @@ scripted with `python3 ci/utils/trigger_pipeline.py`):
 | `CI_EXEC_DOCKER_PRUNE` | `false` | wipe the build cache first (cold, multi-hour build) |
 | `CI_EXEC_DESTROY_DELAYED` | `false` | keep the test VM for 4 h after the pipeline |
 | `MAINTENANCE` | `false` | project variable; pauses MR/push/schedule pipelines (web/API still work) |
+| `CI_EXEC_VM_SWEEP` | `false` | maintenance stage only: sweep orphaned test VMs, every other stage off |
+| `VM_SWEEP_APPLY` | `false` | `true` = the sweep deletes; otherwise it only reports |
+| `VM_SWEEP_GRACE_HOURS` | `1` | never touch a VM younger than this |
+| `VM_SWEEP_MAX_AGE_HOURS` | `12` | age ripcord for VMs that carry no pipeline label |
 
 ## 3. Recipes
 
@@ -106,6 +111,14 @@ kubectl --kubeconfig $HARVESTER_KUBECONFIG -n kaapana-ci get vm \
 ansible-playbook -i localhost, ci/ci-code/deploy/delete_harvester_vm.yaml -e vm_name=<name>
 ```
 
+**Sweep leaked test VMs.** Start a run with `CI_EXEC_VM_SWEEP=true`: no other
+stage runs, and the sweep deletes every `ci-*` VM in `kaapana-ci` whose
+pipeline has finished, plus unlabelled ones older than
+`VM_SWEEP_MAX_AGE_HOURS`. A VM whose pipeline is still running is never
+touched, and the runner VMs are out of reach because their names lack the
+`ci-` prefix. Without `VM_SWEEP_APPLY=true` it deletes nothing and only
+reports, in the job log and as the `vm_sweep.json` artifact.
+
 **Pause the CI** — set project variable `MAINTENANCE=true`
 (Settings → CI/CD → Variables); remove it to resume.
 
@@ -129,6 +142,7 @@ jobs with ↻; you rarely need the whole pipeline.
 | Integration test failed, VM already gone | Re-run with `CI_EXEC_DESTROY_DELAYED=true`, SSH in (recipe above). |
 | `install_extensions` / `send_data` flaky | Known flakiness, `retry: 2` masks most of it. Fails 3× → real; check the JUnit/log artifacts. |
 | `playwright_ui_tests` fails | Download the Playwright HTML report artifact — traces and screenshots. |
+| `sweep_test_vms` red | A teardown playbook exited non-zero. `vm_sweep.log` names the VM; the sweep finished the remaining ones. |
 | Job dies in prepare: `failed to pull image ... ci-base ... access forbidden` | `DOCKER_AUTH_CONFIG` missing an entry for the active registry host, or its token was minted on the wrong GitLab instance ([section 8](#8-project-cicd-variables-secrets)). |
 | Job stuck "pending" | No runner with the required tag picking it up ([section 6](#6-runners)). |
 | Everything fails weirdly after a CI-image change | Tag wasn't bumped — bump `CI_IMAGES_TAG` and re-run ([section 5](#5-the-ci-image-ci-base)). |

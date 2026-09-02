@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, Generator, Optional
 
 import requests
-from kaapanapy.logger import get_logger
+from kaapana_client.logger import get_logger
 from pydantic import Field, ValidationError, model_validator
 from pydantic_settings import BaseSettings
 

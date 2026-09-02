@@ -8,10 +8,23 @@ stages:
   - security
   - deploy
   - test
+  - maintenance
   - clean
 
 workflow:
   rules:
+    # The sweep runs as a pipeline of its own: one variable starts it instead
+    # of five, and no forgotten toggle can make a maintenance run build or
+    # deploy anything. Deliberately ahead of the MAINTENANCE pause, because a
+    # paused CI is exactly when leaked VMs pile up.
+    - if: $CI_EXEC_VM_SWEEP == "true"
+      variables:
+        CI_EXEC_UNIT_TESTS: "false"
+        CI_EXEC_BUILD: "false"
+        CI_EXEC_DEPLOY: "false"
+        CI_EXEC_INTEGRATION_TESTS: "false"
+        CI_EXEC_SECURITY_SCAN: "false"
+      when: always
     - if: $CI_PIPELINE_SOURCE == "web"
       when: always
     - if: $CI_PIPELINE_SOURCE == "api"
@@ -86,6 +99,14 @@ variables:
   
   # "true" pauses push/schedule/MR pipelines (workflow:rules)
   MAINTENANCE: "false" 
+
+  # --- Orphan VM sweep (maintenance stage, ci/pipeline/maintenance.yml).
+  # A run may hold its VM for hours, so the owning pipeline's state decides;
+  # the two bounds below only fence that decision in.
+  CI_EXEC_VM_SWEEP: "false" # "true" = sweep only, every other stage off
+  VM_SWEEP_APPLY: "false" # "true" = actually delete; the default reports only
+  VM_SWEEP_GRACE_HOURS: "1" # never touch a VM younger than this
+  VM_SWEEP_MAX_AGE_HOURS: "12" # ripcord for VMs with no pipeline to ask
 
   # --- Registries, both configured as project variables: CI_REGISTRY_* for
   # normal builds, RELEASE_REGISTRY_* (protected) for release tag pipelines.
@@ -182,4 +203,5 @@ include:
   - local: /ci/pipeline/security.yml
   - local: /ci/pipeline/deploy.yml
   - local: /ci/pipeline/integration-tests.yml
+  - local: /ci/pipeline/maintenance.yml
   - local: /ci/pipeline/clean.yml

@@ -40,7 +40,12 @@ class BuildConfig(BaseModel):
     )
     cache_from: Optional[bool] = False
     cache_to: Optional[bool] = False
-    cache_registry: Optional[str] = None
+    cache_to_registry: Optional[str] = None
+    cache_to_username: Optional[str] = None
+    cache_to_password: Optional[str] = None
+    cache_from_registry: Optional[str] = None
+    cache_from_username: Optional[str] = None
+    cache_from_password: Optional[str] = None
     cache_tag: Optional[str] = "cache"
     parallel_processes: int
     max_build_rounds: int = 5
@@ -137,6 +142,31 @@ class BuildConfig(BaseModel):
                 f"--container-engine docker, got {self.container_engine!r}."
             )
 
+        # Cache-to/cache-from each get their own dedicated registry + creds,
+        # falling back to the default registry/credentials when not set
+        # explicitly -- so a single-registry setup needs no extra config,
+        # while a dedicated cache registry can still be configured with its
+        # own login.
+        if self.cache_to:
+            self.cache_to_registry = self.cache_to_registry or self.default_registry
+            self.cache_to_username = self.cache_to_username or self.registry_username
+            self.cache_to_password = self.cache_to_password or self.registry_password
+            if self.cache_to_registry:
+                validate_registry_name(self.cache_to_registry)
+
+        if self.cache_from:
+            self.cache_from_registry = (
+                self.cache_from_registry or self.default_registry
+            )
+            self.cache_from_username = (
+                self.cache_from_username or self.registry_username
+            )
+            self.cache_from_password = (
+                self.cache_from_password or self.registry_password
+            )
+            if self.cache_from_registry:
+                validate_registry_name(self.cache_from_registry)
+
         SEVERITY_LEVELS = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
 
         for field_name in [
@@ -177,6 +207,10 @@ class BuildConfig(BaseModel):
             exclude={
                 "registry_username",
                 "registry_password",
+                "cache_to_username",
+                "cache_to_password",
+                "cache_from_username",
+                "cache_from_password",
             }
         )
         for field_name, value in sorted(fields.items()):

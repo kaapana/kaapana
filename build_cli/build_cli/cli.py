@@ -321,12 +321,43 @@ def build(
         envvar="CACHE_TO",
         help="Push build cache to registry.",
     ),
-    cache_registry: Optional[str] = typer.Option(
+    cache_to_registry: Optional[str] = typer.Option(
         None,
-        "-creg",
-        "--cache-registry",
-        envvar="CACHE_REGISTRY",
-        help="Registry and namespace for the build cache.",
+        "-ctreg",
+        "--cache-to-registry",
+        envvar="CACHE_TO_REGISTRY",
+        help="Registry and namespace to push the build cache to. Defaults to --default-registry.",
+    ),
+    cache_to_username: Optional[str] = typer.Option(
+        None,
+        "--cache-to-username",
+        envvar="CACHE_TO_USER",
+        help="Username for the cache-to registry. Defaults to --username.",
+    ),
+    cache_to_password: Optional[str] = typer.Option(
+        None,
+        "--cache-to-password",
+        envvar="CACHE_TO_PW",
+        help="Password for the cache-to registry. Defaults to --registry-password.",
+    ),
+    cache_from_registry: Optional[str] = typer.Option(
+        None,
+        "-cfreg",
+        "--cache-from-registry",
+        envvar="CACHE_FROM_REGISTRY",
+        help="Registry and namespace to pull the build cache from. Defaults to --default-registry.",
+    ),
+    cache_from_username: Optional[str] = typer.Option(
+        None,
+        "--cache-from-username",
+        envvar="CACHE_FROM_USER",
+        help="Username for the cache-from registry. Defaults to --username.",
+    ),
+    cache_from_password: Optional[str] = typer.Option(
+        None,
+        "--cache-from-password",
+        envvar="CACHE_FROM_PW",
+        help="Password for the cache-from registry. Defaults to --registry-password.",
     ),
     cache_tag: Optional[str] = typer.Option(
         "cache",
@@ -394,7 +425,12 @@ def build(
         container_engine=container_engine,
         cache_from=cache_from,
         cache_to=cache_to,
-        cache_registry=cache_registry,
+        cache_to_registry=cache_to_registry,
+        cache_to_username=cache_to_username,
+        cache_to_password=cache_to_password,
+        cache_from_registry=cache_from_registry,
+        cache_from_username=cache_from_username,
+        cache_from_password=cache_from_password,
         cache_tag=cache_tag,
     )
     run_build(build_config=config)
@@ -469,6 +505,7 @@ def run_build(build_config: BuildConfig):
 
     if not build_config.build_only and not build_config.no_login:
         ContainerHelper.container_registry_login(
+            registry=build_config.default_registry,
             username=build_config.registry_username,
             password=build_config.registry_password,
         )
@@ -476,6 +513,8 @@ def run_build(build_config: BuildConfig):
             username=build_config.registry_username,
             password=build_config.registry_password,
         )
+        if build_config.cache_enabled:
+            ContainerHelper.login_cache_registries()
 
     logger.info("-----------------------------------------------------------")
     ContainerHelper.collect_containers()

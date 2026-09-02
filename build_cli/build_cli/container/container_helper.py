@@ -201,14 +201,15 @@ class ContainerHelper:
         return ["--buildkitd-config", str(config_path)]
 
     @classmethod
-    def container_registry_login(cls, username: str, password: str):
+    def container_registry_login(cls, registry: str, username: str, password: str):
         """
-        Logour and login to the default container registry.
+        Logout and login to a container registry.
+
         Args:
+            registry (str): Registry to log into.
             username (str): Registry username.
             password (str): Registry password.
         """
-        registry = cls._build_config.default_registry
         logger.info(f"-> Container registry-logout: {registry}")
 
         logout_cmd = [cls._build_config.container_engine, "logout", registry]
@@ -239,6 +240,45 @@ class ContainerHelper:
             context="registry-login",
             exit_on_error=cls._build_config.exit_on_error,
         )
+
+    @classmethod
+    def login_cache_registries(cls):
+        """
+        Log in to the dedicated cache-to/cache-from registries.
+
+        cache_to_registry/cache_from_registry (and their credentials) default
+        to the default registry/credentials when not set explicitly (see
+        BuildConfig.validate_all), so this commonly re-logs into the default
+        registry -- harmless, since login is idempotent. It's skipped only to
+        avoid a redundant second login when both directions resolve to the
+        exact same registry+user (e.g. one dedicated cache registry used for
+        both push and pull).
+        """
+        config = cls._build_config
+        seen = set()
+
+        for enabled, registry, username, password in (
+            (
+                config.cache_to,
+                config.cache_to_registry,
+                config.cache_to_username,
+                config.cache_to_password,
+            ),
+            (
+                config.cache_from,
+                config.cache_from_registry,
+                config.cache_from_username,
+                config.cache_from_password,
+            ),
+        ):
+            if not enabled or not registry or not username or not password:
+                continue
+            if (registry, username) in seen:
+                continue
+            seen.add((registry, username))
+            cls.container_registry_login(
+                registry=registry, username=username, password=password
+            )
 
     @classmethod
     def collect_containers(cls) -> Set[Container]:

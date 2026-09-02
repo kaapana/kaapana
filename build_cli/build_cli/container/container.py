@@ -14,7 +14,7 @@ from build_cli.utils import GitUtils, get_logger
 
 logger = get_logger()
 
-BUILDX_BUILDER_NAME = "kaapana-buildx-fresh"
+BUILDX_BUILDER_NAME = "kaapana-buildx"
 
 
 class Status(Enum):
@@ -330,14 +330,14 @@ class Container:
                 build_args.extend(
                     [
                         "--cache-to",
-                        f"type=registry,ref={config.cache_registry}/{self.image_name}:{config.cache_tag}",
+                        f"type=registry,ref={config.cache_to_registry}/{self.image_name}:{config.cache_tag},mode=max",
                     ]
                 )
             if config.cache_from:
                 build_args.extend(
                     [
                         "--cache-from",
-                        f"type=registry,ref={config.cache_registry}/{self.image_name}:{config.cache_tag}",
+                        f"type=registry,ref={config.cache_from_registry}/{self.image_name}:{config.cache_tag}",
                     ]
                 )
 

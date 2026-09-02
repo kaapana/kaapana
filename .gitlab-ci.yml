@@ -173,6 +173,9 @@ variables:
   # The deploy/undeploy playbooks look the release up under these names.
   DEPLOYMENT_INSTANCE_ADMIN_CHART: "kaapana-admin-chart"
   DEPLOYMENT_INSTANCE_HELM_NAMESPACE: "default"
+  # Ripcords, not failure thresholds: a reported failure aborts at once.
+  DEPLOYMENT_INSTANCE_READY_TIMEOUT: "600" # seconds until the VM is Running
+  DEPLOYMENT_INSTANCE_DNS_TIMEOUT: "300" # seconds until the FQDN resolves
 
   # --- Notifications (if_ci_failing on develop)
   SLACK_BOT_TOKEN: $SLACK_BOT_TOKEN # secret — project variable (masked)

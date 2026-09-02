@@ -93,6 +93,12 @@ kaapana_extensions_tests:
       alias: registry
       variables:
         REGISTRY_STORAGE_DELETE_ENABLED: "true"
+        # No disk: a push is fsync-bound, and this runner's synchronous write
+        # path measures ~63 IOPS (~16ms per fsync, spinning storage). 16 xdist
+        # workers queueing behind that pushed individual requests past the
+        # client timeout. The inmemory driver keeps blobs in RAM — the images
+        # here are dummy extensions, and the service is per-job and throwaway.
+        REGISTRY_STORAGE: "inmemory"
   variables:
     KAAPANA_TEST_REGISTRY: "http://registry:5000"
     # both casings: the service must not hairpin through the DKFZ proxy

@@ -24,7 +24,7 @@ The runner agent is a run from a docker container.
 1. Create the runner in GitLab using glab in the repository directory:
 
 ```bash
-TAG=e230-pc11
+TAG=my-tag
 PROJECT_ID=$(glab api /projects/kaapana%2Fkaapana | jq -r .id)
 
 RUNNER_TOKEN=$(printf '{"runner_type":"project_type","project_id":%s,"description":"%s","tag_list":["%s"],"run_untagged":false}' \
@@ -102,7 +102,7 @@ image no running container holds, and every unused volume, yours included.
 The runner tags are pipeline inputs, so this is per run:
 
 ```bash
-glab ci run -b my-branch -i tests_runner_tag:e230-pc11 -i build_runner_tag:e230-pc11 -i deploy_runner_tag:e230-pc11
+glab ci run -b my-branch -i tests_runner_tag:my-tag -i build_runner_tag:my-tag -i deploy_runner_tag:my-tag
 ```
 
 | Input | Stage it moves |

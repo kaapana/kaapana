@@ -1,5 +1,5 @@
 # Stage: maintenance - housekeeping that belongs to no single pipeline
-# In:  HARVESTER_KUBECONFIG (File-type CI variable), GITLAB_API_TOKEN
+# In:  HARVESTER_KUBECONFIG (File-type CI variable), the job's own token
 # Out: artifacts/vm_sweep.json (one document per sweep, for any later
 #      notifier) and artifacts/vm_sweep.log (what if_ci_failing collects)
 ##############################################

@@ -6,14 +6,13 @@ from subprocess import PIPE, run
 from typing import Any, Dict, Optional, Set, TypeVar
 
 from alive_progress import alive_bar
+
 from build_cli.build import BuildConfig, BuildState, Issue, IssueTracker
-from build_cli.container import Container
+from build_cli.container import BUILDX_BUILDER_NAME, Container
 from build_cli.utils import CommandUtils, get_logger, should_ignore_path
 
 logger = get_logger()
 T = TypeVar("T")  # HelmChart or Container
-
-BUILDX_BUILDER_NAME = "kaapana-buildx"
 
 
 class ContainerHelper:

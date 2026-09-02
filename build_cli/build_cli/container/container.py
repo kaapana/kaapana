@@ -14,6 +14,8 @@ from build_cli.utils import GitUtils, get_logger
 
 logger = get_logger()
 
+BUILDX_BUILDER_NAME = "kaapana-buildx-fresh"
+
 
 class Status(Enum):
     NOT_BUILT = auto()  # initial state|waiting for dependencies
@@ -318,6 +320,41 @@ class Container:
                 ]
             )
 
+        if config.cache_enabled:
+            if not config.build_only:
+                ### Use buildkit to push image directly
+                build_args.extend(["--push"])
+                if self.local_image:
+                    self.tag = f"{config.default_registry}/{self.image_name}:latest"
+            if config.cache_to:
+                build_args.extend(
+                    [
+                        "--cache-to",
+                        f"type=registry,ref={config.cache_registry}/{self.image_name}:{config.cache_tag}",
+                    ]
+                )
+            if config.cache_from:
+                build_args.extend(
+                    [
+                        "--cache-from",
+                        f"type=registry,ref={config.cache_registry}/{self.image_name}:{config.cache_tag}",
+                    ]
+                )
+
+            for base_image in self.base_images:
+                if base_image.local_image:
+                    build_args.extend(
+                        [
+                            "--build-context",
+                            f"local-only/{base_image.image_name}=docker-image://{config.default_registry}/{base_image.image_name}:latest",
+                        ]
+                    )
+
+        builder = "default" if not config.cache_enabled else BUILDX_BUILDER_NAME
+
+        ### Disable image attestations, as not all registry support them
+        build_args.extend(["--provenance=false", "--sbom=false"])
+
         command = [
             config.container_engine,
             "build",
@@ -325,30 +362,49 @@ class Container:
             "-t",
             self.tag,
             "--builder",
-            "default",
+            builder,
             "-f",
             str(self.dockerfile),
             ".",
         ]
+        image_log_dir = config.build_dir / "image-logs"
+        image_log_dir.mkdir(parents=True, exist_ok=True)
+        stdout_log_file = image_log_dir / f"{self.image_name}.stdout.log"
+        stderr_log_file = image_log_dir / f"{self.image_name}.stderr.log"
 
         start_time = time.time()
-        output = run(
-            command,
-            stdout=PIPE,
-            stderr=PIPE,
-            universal_newlines=True,
-            timeout=6000,
-            cwd=(
-                self.container_build_dir
-                if self.container_build_dir
-                else self.dockerfile.parent
-            ),
-            env=dict(
-                os.environ,
-                DOCKER_BUILDKIT=f"{config.enable_build_kit}",
-            ),
-        )
+        # Hand real file handles to the subprocess (instead of PIPE) so the
+        # build writes straight to disk as it runs and can be tailed live.
+        with (
+            open(stdout_log_file, "w") as stdout_f,
+            open(stderr_log_file, "w") as stderr_f,
+        ):
+            completed = run(
+                command,
+                stdout=stdout_f,
+                stderr=stderr_f,
+                universal_newlines=True,
+                timeout=6000,
+                cwd=(
+                    self.container_build_dir
+                    if self.container_build_dir
+                    else self.dockerfile.parent
+                ),
+                env=dict(
+                    os.environ,
+                    DOCKER_BUILDKIT=f"{config.enable_build_kit}",
+                ),
+            )
         end_time = time.time()
+
+        # completed.stdout/.stderr are None since the streams were redirected
+        # to files rather than captured; read them back for the checks below.
+        output = subprocess.CompletedProcess(
+            args=command,
+            returncode=completed.returncode,
+            stdout=stdout_log_file.read_text(),
+            stderr=stderr_log_file.read_text(),
+        )
 
         if output.returncode == 0:
             if "---> Running in" in output.stdout:
@@ -446,6 +502,10 @@ class Container:
         issue: Optional[Issue] = None
         duration: Optional[float] = None
         logger.debug(f"{self.tag}: in push()")
+
+        if config.cache_enabled:
+            logger.debug(f"{self.tag}: Pushed image during build!")
+            return issue
 
         if self.status not in {Status.BUILT, Status.NOTHING_CHANGED}:
             logger.warning(

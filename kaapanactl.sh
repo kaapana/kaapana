@@ -1193,6 +1193,21 @@ function dns_check {
     fi
 }
 
+# Pin the Calico pod MTU. Calico auto-detects it from the host NICs (en*/eth*/wl*),
+# so a VPN or tunnel interface with a smaller MTU is not seen and packets above the
+# path MTU are dropped silently (stalled image pulls and uploads). MicroK8s' own
+# CALICO_VETH_MTU (args/cni-env) is only read when the snap generates the manifest at
+# install, so make the same edit here and roll it out to the running calico-node.
+function set_calico_veth_mtu {
+    local mtu=$1 cni_yaml=$2
+    [[ "$mtu" =~ ^[0-9]+$ ]] || { echo "${RED}CALICO_VETH_MTU must be a number, got '$mtu' -> abort.${NC}"; exit 1; }
+    echo "${YELLOW}Setting Calico veth_mtu to $mtu ...${NC}"
+    sed -i 's,veth_mtu: "[0-9]*",veth_mtu: "'"$mtu"'",' "$cni_yaml"
+    microk8s.kubectl apply -f "$cni_yaml"
+    microk8s.kubectl -n kube-system rollout restart ds/calico-node
+    microk8s.kubectl -n kube-system rollout status ds/calico-node --timeout=120s
+}
+
 function install_microk8s {
     if command -v microk8s &> /dev/null
     then
@@ -1284,6 +1299,10 @@ DOCKEREOF
         microk8s.start
         echo "${YELLOW}Wait until microk8s is ready ...${NC}"
         timeout 300 microk8s.status --wait-ready
+
+        if [ -n "${CALICO_VETH_MTU:-}" ]; then
+            set_calico_veth_mtu "$CALICO_VETH_MTU" /var/snap/microk8s/current/args/cni-network/cni.yaml
+        fi
 
         echo "${YELLOW}Enable microk8s RBAC ...${NC}"
         microk8s.enable rbac

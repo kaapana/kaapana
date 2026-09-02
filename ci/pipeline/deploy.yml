@@ -10,7 +10,7 @@
 
 .remote_execution_template:
   tags:
-    - deploy-runner
+    - deploy-runner-ci01
   # Everything these jobs need is baked into the CI image. VM_FQDN / VM_USER /
   # VERSION_TAG arrive via the deployment.env dotenv from prepare_deployment.
   image: $CI_BASE_IMAGE

@@ -1,5 +1,10 @@
 ---
-# Provision all CI runner VMs on Harvester (tests, build, deploy)
+# Provision the CI runner fleet on Harvester.
+#
+# The fleet is declared in inventory.yaml under ci_instances: one entry per
+# VM, each listing the runner roles it hosts. The default fleet is a single
+# VM carrying all four roles.
+#
 # Usage:
 #   export GITLAB_API_TOKEN=...
 #   export GITLAB_PROJECT_ID=...
@@ -10,9 +15,11 @@
 #   ansible-playbook -i ci/harvester/inventory.yaml ci/harvester/setup_ci.yaml
 #
 # Optional:
-#   export FORCE_RECREATE=true  # Delete and recreate existing VMs
+#   export CI_HOSTS=ci-02        # comma-separated; act on these hosts only
+#   export FORCE_RECREATE=true   # delete and recreate the targeted VMs
+#   export RUNNERS_PAUSED=true   # register runners paused (unpause after checking)
 
-- name: Provision all CI runner VMs on Harvester
+- name: Provision CI runner VMs on Harvester
   hosts: localhost
   connection: local
   gather_facts: false
@@ -26,6 +33,7 @@
     vm_user: "ubuntu"
     vm_dns_domain: "vms.dkfz.de"
     force_recreate: "{{ lookup('env', 'FORCE_RECREATE') | default('false') | bool }}"
+    ci_hosts_filter: "{{ lookup('env', 'CI_HOSTS') | default('', true) | split(',') | map('trim') | select | list }}"
 
     gitlab_api_token: "{{ lookup('env', 'GITLAB_API_TOKEN') }}"
     gitlab_project_id: "{{ lookup('env', 'GITLAB_PROJECT_ID') }}"
@@ -51,6 +59,52 @@
       loop: "{{ required_env_vars }}"
       run_once: true
 
+    - name: Select the fleet hosts to act on
+      ansible.builtin.set_fact:
+        fleet_hosts: >-
+          {{
+            groups['ci_instances'] | default([])
+            | select('in', ci_hosts_filter if ci_hosts_filter else groups['ci_instances'] | default([]))
+            | list
+          }}
+
+    - name: Fail if CI_HOSTS names hosts that are not in the inventory
+      ansible.builtin.assert:
+        that:
+          - ci_hosts_filter | difference(groups['ci_instances'] | default([])) | length == 0
+        fail_msg: >-
+          CI_HOSTS refers to unknown hosts:
+          {{ ci_hosts_filter | difference(groups['ci_instances'] | default([])) | join(', ') }}
+
+    - name: Build list of VMs to provision
+      ansible.builtin.set_fact:
+        vms_to_provision: >-
+          {{
+            fleet_hosts | map('extract', hostvars)
+            | selectattr('vm_name', 'defined') | list
+          }}
+
+    - name: Fail if no VM is selected
+      ansible.builtin.assert:
+        that:
+          - vms_to_provision | length > 0
+        fail_msg: "No VMs selected. Declare hosts under ci_instances in the inventory."
+
+    # runner_roles comes from the inventory's all.vars, which the implicit
+    # localhost does not inherit — read it off the target host instead.
+    - name: Validate that every VM lists known runner roles
+      ansible.builtin.assert:
+        that:
+          - item.runners | default([]) | length > 0
+          - item.runners | default([]) | difference(item.runner_roles.keys() | list) | length == 0
+        fail_msg: >-
+          {{ item.vm_name }} declares no runners, or unknown roles
+          ({{ item.runners | default([]) | difference(item.runner_roles.keys() | list) | join(', ') }}).
+          Known roles: {{ item.runner_roles.keys() | join(', ') }}
+      loop: "{{ vms_to_provision }}"
+      loop_control:
+        label: "{{ item.vm_name }}"
+
     - name: Check if VM already exists
       kubernetes.core.k8s_info:
         api_version: kubevirt.io/v1
@@ -58,12 +112,7 @@
         name: "{{ item.vm_name }}"
         namespace: "{{ harvester_namespace }}"
         kubeconfig: "{{ harvester_kubeconfig }}"
-      loop: >-
-        {{
-          groups['tests_instances'] | map('extract', hostvars) | list +
-          groups['build_instances'] | map('extract', hostvars) | list +
-          groups['deploy_instances'] | map('extract', hostvars) | list
-        }}
+      loop: "{{ vms_to_provision }}"
       loop_control:
         label: "{{ item.vm_name }}"
       register: vm_exists_check
@@ -81,17 +130,6 @@
             | list
           }}
 
-    - name: Build list of VMs to provision
-      ansible.builtin.set_fact:
-        vms_to_provision: >-
-          {{
-            (
-              groups['tests_instances'] | map('extract', hostvars) | list +
-              groups['build_instances'] | map('extract', hostvars) | list +
-              groups['deploy_instances'] | map('extract', hostvars) | list
-            ) | selectattr('vm_name', 'defined') | list
-          }}
-
     - name: Filter to only new VMs (skip existing unless force_recreate)
       ansible.builtin.set_fact:
         vms_to_create: >-
@@ -107,14 +145,16 @@
         vms_to_create: "{{ vms_to_provision }}"
       when: force_recreate
 
-    - name: Display VMs to be created
+    - name: Display the fleet
       ansible.builtin.debug:
         msg: >-
           {{
-            "VMs to create: " + 
-            (vms_to_create | map(attribute='vm_name') | join(', '))
+            item.vm_name + ": " + (item.runners | join(', '))
+            + (" [create]" if item.vm_name in (vms_to_create | map(attribute='vm_name') | list) else " [exists]")
           }}
-      run_once: true
+      loop: "{{ vms_to_provision }}"
+      loop_control:
+        label: "{{ item.vm_name }}"
 
     - name: Delete existing VMs (force recreate mode)
       kubernetes.core.k8s:
@@ -169,19 +209,13 @@
         ansible_ssh_private_key_file: "{{ ssh_private_key }}"
         ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
         groups: "provisioned_vms"
-        runner_description: "{{ item.runner_description | default('') }}"
-        runner_tags: "{{ item.runner_tags | default([]) }}"
-        runner_limit: "{{ item.runner_limit | default(4) }}"
-        runner_concurrency: "{{ item.runner_concurrency | default(4) }}"
-        runner_global_concurrency: "{{ item.runner_global_concurrency | default(item.runner_limit) }}"
-        runner_executor: "{{ item.runner_executor | default('shell') }}"
-        runner_docker_image: "{{ item.runner_docker_image | default('python:3.12') }}"
-        runner_docker_volumes: "{{ item.runner_docker_volumes | default(['/cache']) }}"
-        runner_docker_services_privileged: "{{ item.runner_docker_services_privileged | default(false) }}"
-        runner_docker_allowed_privileged_services: "{{ item.runner_docker_allowed_privileged_services | default([]) }}"
+        vm_name: "{{ item.vm_name }}"
+        runners: "{{ item.runners }}"
+        runner_overrides: "{{ item.runner_overrides | default({}) }}"
       loop: "{{ vms_to_provision }}"
       loop_control:
         loop_var: item
+        label: "{{ item.vm_name }}"
 
 - name: Configure all provisioned VMs
   hosts: provisioned_vms
@@ -189,12 +223,16 @@
   remote_user: ubuntu
   become: yes
   tasks:
+    # From the control node: running this on the target would need the very
+    # SSH it is waiting for, so a freshly booted VM came back UNREACHABLE.
     - name: Wait for SSH to be available
       ansible.builtin.wait_for:
-        host: "{{ inventory_hostname }}"
+        host: "{{ ansible_host }}"
         port: 22
         delay: 10
-        timeout: 300
+        timeout: 600
+      delegate_to: localhost
+      become: no
 
     - name: Configure VM base (venv, python requirements)
       ansible.builtin.include_tasks: tasks/configure-vm-base.yaml
@@ -208,7 +246,7 @@
     - name: Install Helm
       ansible.builtin.include_tasks: tasks/install-helm.yaml
 
-    - name: Configure GitLab Runner
+    - name: Configure GitLab Runners
       ansible.builtin.include_tasks: tasks/configure-gitlab-runner.yaml
 
     - name: Display completion message
@@ -217,4 +255,6 @@
           - "=========================================="
           - "CI runner setup complete!"
           - "VM: {{ inventory_hostname }} ({{ ansible_host }})"
+          - "Runners: {{ resolved_runners | map(attribute='description') | join(', ') }}"
+          - "Concurrent job slots: {{ runner_global_concurrency }}"
           - "=========================================="

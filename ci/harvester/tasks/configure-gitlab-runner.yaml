@@ -1,5 +1,5 @@
 ---
-## Configure GitLab runners on VM
+## Configure this VM's GitLab runners — one runner entry per role it hosts.
 ## Config location: ~/.gitlab-runner/config.toml (user-level)
 ## Managed by: systemd (running as ubuntu user)
 
@@ -9,21 +9,28 @@
     runner_home: "/home/{{ ansible_user }}"
     runner_config_dir: "/home/{{ ansible_user }}/.gitlab-runner"
     runner_config_path: "/home/{{ ansible_user }}/.gitlab-runner/config.toml"
-    gitlab_token: "{{ gitlab_api_token }}"
-    runner_description: "{{ runner_description | default(inventory_hostname) }}"
-    runner_tags: "{{ runner_tags | default(['ci-runner']) }}"
-    runner_limit: "{{ runner_limit | default(4) }}"
-    runner_concurrency: "{{ runner_concurrency | default(4) }}"
-    runner_executor: "{{ runner_executor | default('shell') }}"
-    runner_docker_image: "{{ runner_docker_image | default('python:3.12') }}"
-    runner_docker_volumes: "{{ runner_docker_volumes | default(['/cache']) }}"
-    runner_docker_services_privileged: "{{ runner_docker_services_privileged | default(false) }}"
-    runner_docker_allowed_privileged_services: "{{ runner_docker_allowed_privileged_services | default([]) }}"
   become: no
 
-- name: Set global concurrency fact if not defined
+- name: Resolve this VM's runner definitions
   ansible.builtin.set_fact:
-    runner_global_concurrency: "{{ runner_global_concurrency | default(runner_limit) }}"
+    resolved_runners: >-
+      {{
+        resolved_runners | default([]) + [
+          runner_defaults
+          | combine(runner_roles[item])
+          | combine(runner_overrides[item] | default({}))
+          | combine({'role': item,
+                     'description': item ~ '-runner-' ~ vm_name})
+        ]
+      }}
+  loop: "{{ runners }}"
+  become: no
+
+# One job slot per runner limit — anything lower silently caps the roles.
+- name: Compute global concurrency for this VM
+  ansible.builtin.set_fact:
+    runner_global_concurrency: "{{ resolved_runners | map(attribute='limit') | map('int') | sum }}"
+  become: no
 
 - name: Ensure .gitlab-runner directory exists
   ansible.builtin.file:
@@ -105,70 +112,12 @@
     - name: Enable and start user-mode gitlab-runner
       ansible.builtin.command: systemctl --user enable --now gitlab-runner
 
+# Rebuilt from scratch below, so roles dropped from the inventory disappear
+# from the VM instead of lingering as orphaned runner entries.
 - name: Remove existing GitLab Runner config.toml
   ansible.builtin.file:
     path: "{{ runner_config_path }}"
     state: absent
-  become: no
-  
-################################################
-- name: Debug Python interpreter
-  ansible.builtin.debug:
-    var: ansible_python_interpreter
-
-- name: Delete existing GitLab runner (remote)
-  community.general.gitlab_runner:
-    api_url: "{{ gitlab_url }}"
-    api_token: "{{ gitlab_api_token }}"
-    description: "{{ runner_description }}"
-    state: absent
-    project: "{{ gitlab_project_id }}"
-  become: no
-
-- name: Create GitLab runner entry (remote)
-  community.general.gitlab_runner:
-    api_url: "{{ gitlab_url }}"
-    api_token: "{{ gitlab_api_token }}"
-    description: "{{ runner_description }}"
-    state: present
-    active: true
-    tag_list: "{{ runner_tags }}"
-    run_untagged: false
-    locked: false
-    maximum_timeout: 7200
-    project: "{{ gitlab_project_id }}"
-  register: new_runner
-  become: no
-
-- name: Register runner locally
-  ansible.builtin.command: >
-    gitlab-runner register
-    --non-interactive
-    --url "{{ gitlab_url }}"
-    --token "{{ new_runner.runner.token }}"
-    --name "{{ runner_description }}"
-    --executor {{ runner_executor }}
-    {% if runner_executor == 'docker' %}
-    --docker-image "{{ runner_docker_image }}"
-    --docker-pull-policy if-not-present
-    {% for volume in runner_docker_volumes %}
-    --docker-volumes "{{ volume }}"
-    {% endfor %}
-    {% if runner_docker_services_privileged | bool %}
-    --docker-services_privileged true
-    {% endif %}
-    {% for service in runner_docker_allowed_privileged_services %}
-    --docker-allowed-privileged-services "{{ service }}"
-    {% endfor %}
-    {% else %}
-    --shell bash
-    {% endif %}
-    --config "{{ runner_config_path }}"
-  register: register_local
-  changed_when: "'Runner registered successfully' in register_local.stdout"
-  failed_when:
-    - register_local.rc != 0
-    - "'already exists' not in register_local.stderr"
   become: no
 
 - name: Copy config.py to runner home
@@ -177,18 +126,21 @@
     dest: "{{ runner_home }}/config.py"
     mode: "0755"
 
-- name: Update runner configuration (config.toml)
-  ansible.builtin.command: >
-    {{ venv_path }}/bin/python3 config.py
-    --runner-home {{ runner_home }}
-    --token {{ new_runner.runner.token }}
-    --custom-build-dir True
-    --limit {{ runner_limit }}
-    --request-concurrency {{ runner_concurrency }}
-    --global-concurrent {{ runner_global_concurrency }}
-    --config-path {{ runner_config_path }}
+################################################
+- name: Register each runner role
+  ansible.builtin.include_tasks: register-gitlab-runner.yaml
+  loop: "{{ resolved_runners }}"
+  loop_control:
+    loop_var: runner
+    label: "{{ runner.description }}"
 
 ################################################
+# The config was rewritten out from under the running process; a reload picks
+# up every entry at once.
+- name: Restart user-mode gitlab-runner
+  ansible.builtin.command: systemctl --user restart gitlab-runner
+  become: no
+
 - name: Verify GitLab runners
   become: no
   block:

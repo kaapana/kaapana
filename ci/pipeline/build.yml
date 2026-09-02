@@ -9,7 +9,7 @@
 # version tag comes from git describe — full clone + tags keep it deterministic.
 .build_cli_env:
   tags:
-    - build-runner
+    - build-runner-ci01
   image: $CI_BASE_IMAGE
   variables:
     GIT_STRATEGY: clone
@@ -83,6 +83,10 @@ build_packages:
 security_scan:
   extends: .build_cli_env
   stage: build
+  # Own runner, limit 1: trivy unpacks every pushed image, so it must not
+  # share a VM's job slots with a build.
+  tags:
+    - security-runner-ci01
   timeout: 4 hours
   needs:
     # Only the registry state is needed, not artifacts
@@ -114,7 +118,7 @@ security:
     - job: security_scan
       artifacts: true
   tags:
-    - build-runner
+    - security-runner-ci01
   image: $CI_BASE_IMAGE
   before_script:
     - pip install jsonschema

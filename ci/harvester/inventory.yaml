@@ -7,7 +7,7 @@ all:
     venv_path: "/home/ubuntu/venv"
     ansible_python_interpreter: "auto_silent"
     ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
-    
+
     # -----------------------------------------
     # 🔹 REQUIRED ENVIRONMENT VARIABLES
     # -----------------------------------------
@@ -15,15 +15,19 @@ all:
     gitlab_api_token: "{{ lookup('env', 'GITLAB_API_TOKEN') }}"
     gitlab_project_id: "{{ lookup('env', 'GITLAB_PROJECT_ID') }}"
     gitlab_url: "{{ lookup('env', 'GITLAB_URL') }}"
-    
+
     # SSH keys
     ssh_public_key: "{{ lookup('env', 'SSH_PUBLIC_KEY') }}"
     ssh_private_key: "{{ lookup('env', 'SSH_PRIVATE_KEY') }}"
     ansible_ssh_private_key_file: "{{ lookup('env', 'SSH_PRIVATE_KEY') }}"
-    
+
     # Harvester connection
     harvester_kubeconfig: "{{ lookup('env', 'HARVESTER_KUBECONFIG') }}"
-    
+
+    # Register runners paused so a new VM can be inspected before it starts
+    # taking jobs away from the runners already serving the fleet.
+    runners_paused: "{{ lookup('env', 'RUNNERS_PAUSED') | default('false', true) | bool }}"
+
     # -----------------------------------------
     # 🔹 ENV VARIABLE VALIDATION LIST
     # -----------------------------------------
@@ -34,72 +38,91 @@ all:
       - SSH_PUBLIC_KEY
       - SSH_PRIVATE_KEY
       - HARVESTER_KUBECONFIG
-  
-  children:
-    tests_instances:
-      hosts:
-        tests-01:
-          vm_name: kaapana-tests-01
-          cpu_cores: 8
-          memory_guest: "16Gi"
-          disk_size: "128Gi"
-          runner_description: "tests-runner-{{ vm_name }}"
-          runner_tags: ["tests-runner"]
-          runner_limit: 4
-          runner_concurrency: 4
-          # Phase 2 (CI-ARCHITECTURE.md): containerized jobs. build/deploy
-          # runners stay on the shell default until their own flip.
-          runner_executor: docker
-          runner_docker_image: "python:3.12"
-          # /builds shared with services + privileged allowed for dind only:
-          # task_api_tests runs real task containers against a per-job dind.
-          runner_docker_volumes: ["/cache", "/builds"]
-          runner_docker_services_privileged: true
-          runner_docker_allowed_privileged_services: ["docker.io/library/docker:*"]
-          runner_global_concurrency: 4
 
-    build_instances:
+    # -----------------------------------------
+    # 🔹 RUNNER ROLE CATALOG
+    # -----------------------------------------
+    # A role is one runner entry in a VM's config.toml. Every VM under
+    # ci_instances picks the roles it hosts; the VM's `concurrent` is the sum
+    # of the limits of the roles it hosts.
+    runner_defaults:
+      limit: 1
+      request_concurrency: 1
+      executor: docker
+      # Carries pipelines from unrebased branches whose jobs declare no
+      # image: — needs python + git + docker CLI.
+      docker_image: "registry.hzdr.de/kaapana/ci-base:v3"
+      docker_volumes: ["/cache"]
+      docker_services_privileged: false
+      docker_allowed_privileged_services: []
+
+    runner_roles:
+      build:
+        tags: ["build-runner"]
+        # One build per VM: a build saturates the machine's CPU and disk on
+        # its own, and two concurrent builds thrash the shared layer cache.
+        limit: 1
+        request_concurrency: 2
+        # Socket: warm host-daemon layer cache (CI-ARCHITECTURE.md,
+        # constraint 5). No other host mounts.
+        docker_volumes:
+          ["/var/run/docker.sock:/var/run/docker.sock", "/cache"]
+
+      security:
+        tags: ["security-runner"]
+        # Trivy pulls and unpacks every image the build pushed — one scan per
+        # VM, or the scans starve each other on disk I/O.
+        limit: 1
+        request_concurrency: 2
+        # Reads the docker config written by kaapana-build's client-side
+        # login; scans registry images, not daemon state.
+        docker_volumes: ["/cache"]
+
+      tests:
+        tags: ["tests-runner"]
+        limit: 4
+        request_concurrency: 4
+        docker_image: "python:3.12"
+        # /builds shared with services + privileged allowed for dind only:
+        # task_api_tests runs real task containers against a per-job dind.
+        docker_volumes: ["/cache", "/builds"]
+        docker_services_privileged: true
+        docker_allowed_privileged_services: ["docker.io/library/docker:*"]
+
+      deploy:
+        tags: ["deploy-runner"]
+        # Jobs only drive a remote target, so they cost this VM almost
+        # nothing — concurrency is free here.
+        limit: 4
+        request_concurrency: 4
+        # Stateless containers — tooling from the job image, secrets from
+        # File-type CI variables. No host mounts needed.
+        docker_volumes: ["/cache"]
+
+  children:
+    # -----------------------------------------
+    # 🔹 THE FLEET
+    # -----------------------------------------
+    # Grow: add a host with the roles it should carry.
+    # Shrink: delete the host (and its VM) or drop roles from its list.
+    # Per-host tuning: runner_overrides, keyed by role name.
+    ci_instances:
       hosts:
-        build-01:
-          vm_name: kaapana-build-01
+        ci-01:
+          vm_name: kaapana-ci-01
           cpu_cores: 32
           memory_guest: "256Gi"
           disk_size: "512Gi"
-          runner_description: "build-runner-{{ vm_name }}"
-          runner_tags: ["build-runner"]
-          runner_limit: 1
-          runner_concurrency: 2
-          runner_executor: docker
-          # Default image only carries pipelines from unrebased branches whose
-          # build jobs declare no image: — needs python + git + docker CLI.
-          runner_docker_image: "registry.hzdr.de/kaapana/ci-base:v3"
-          # Socket: warm host-daemon layer cache (CI-ARCHITECTURE.md,
-          # constraint 5). No other host mounts — trivy runs in-process and
-          # scans registry images, not daemon state.
-          runner_docker_volumes:
-            ["/var/run/docker.sock:/var/run/docker.sock", "/cache"]
-          runner_global_concurrency: 1
-        
-        # build-02:
-        #   vm_name: kaapana-build-02
-        #   cpu_cores: 32
-        #   memory_guest: "256Gi"
-        #   disk_size: "512Gi"
+          runners: [build, security, tests, deploy]
 
-    deploy_instances:
-      hosts:
-        deploy-01:
-          vm_name: kaapana-deploy-01
-          cpu_cores: 8
-          memory_guest: "16Gi"
-          disk_size: "128Gi"
-          runner_description: "deploy-runner-{{ vm_name }}"
-          runner_tags: ["deploy-runner"]
-          runner_limit: 4
-          runner_concurrency: 4
-          # Deploy jobs are stateless containers — tooling from the job image,
-          # secrets from File-type CI variables. No host mounts needed.
-          runner_executor: docker
-          runner_docker_image: "registry.hzdr.de/kaapana/ci-base:v3"
-          runner_docker_volumes: ["/cache"]
-          runner_global_concurrency: 4
+        # A second VM taking the test load off ci-01:
+        # ci-02:
+        #   vm_name: kaapana-ci-02
+        #   cpu_cores: 16
+        #   memory_guest: "32Gi"
+        #   disk_size: "256Gi"
+        #   runners: [tests, deploy]
+        #   runner_overrides:
+        #     tests:
+        #       limit: 8
+        #       request_concurrency: 8

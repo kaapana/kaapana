@@ -11,7 +11,7 @@
 build_ci_image:
   stage: tests
   tags:
-    - build-runner
+    - build-runner-ci01
   # Not ci-base: the image that builds ci-base must not be ci-base, or a tag
   # bump could never bootstrap itself.
   image: docker.io/library/docker:28-cli

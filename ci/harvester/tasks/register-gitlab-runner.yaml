@@ -1,0 +1,72 @@
+---
+## Register one runner role into this VM's config.toml.
+## Called per entry of resolved_runners; `runner` is the resolved definition.
+
+- name: Delete existing GitLab runner (remote) — {{ runner.description }}
+  community.general.gitlab_runner:
+    api_url: "{{ gitlab_url }}"
+    api_token: "{{ gitlab_api_token }}"
+    description: "{{ runner.description }}"
+    state: absent
+    project: "{{ gitlab_project_id }}"
+  become: no
+
+- name: Create GitLab runner entry (remote) — {{ runner.description }}
+  community.general.gitlab_runner:
+    api_url: "{{ gitlab_url }}"
+    api_token: "{{ gitlab_api_token }}"
+    description: "{{ runner.description }}"
+    state: present
+    paused: "{{ runners_paused }}"
+    tag_list: "{{ runner.tags }}"
+    run_untagged: false
+    locked: false
+    maximum_timeout: 7200
+    project: "{{ gitlab_project_id }}"
+  register: new_runner
+  become: no
+
+- name: Register runner locally — {{ runner.description }}
+  ansible.builtin.command: >
+    gitlab-runner register
+    --non-interactive
+    --url "{{ gitlab_url }}"
+    --token "{{ new_runner.runner.token }}"
+    --name "{{ runner.description }}"
+    --executor {{ runner.executor }}
+    {% if runner.executor == 'docker' %}
+    --docker-image "{{ runner.docker_image }}"
+    --docker-pull-policy if-not-present
+    {% for volume in runner.docker_volumes %}
+    --docker-volumes "{{ volume }}"
+    {% endfor %}
+    {% if runner.docker_services_privileged | bool %}
+    --docker-services_privileged true
+    {% endif %}
+    {% for service in runner.docker_allowed_privileged_services %}
+    --docker-allowed-privileged-services "{{ service }}"
+    {% endfor %}
+    {% else %}
+    --shell bash
+    {% endif %}
+    --config "{{ runner_config_path }}"
+  register: register_local
+  changed_when: "'Runner registered successfully' in register_local.stdout"
+  failed_when:
+    - register_local.rc != 0
+    - "'already exists' not in register_local.stderr"
+  become: no
+
+- name: Update runner configuration (config.toml) — {{ runner.description }}
+  ansible.builtin.command: >
+    {{ venv_path }}/bin/python3 config.py
+    --runner-home {{ runner_home }}
+    --token {{ new_runner.runner.token }}
+    --custom-build-dir True
+    --limit {{ runner.limit }}
+    --request-concurrency {{ runner.request_concurrency }}
+    --global-concurrent {{ runner_global_concurrency }}
+    --config-path {{ runner_config_path }}
+  args:
+    chdir: "{{ runner_home }}"
+  become: no

@@ -156,18 +156,57 @@ docker push $CI_REGISTRY_URL/ci-base:<tag>
 
 ## 6. Runners
 
-Three runner VMs on Harvester (namespace `kaapana-ci`), defined in
-[`ci/harvester/inventory.yaml`](harvester/inventory.yaml). All use the docker
-executor.
+The fleet lives on Harvester (namespace `kaapana-ci`) and is declared in
+[`ci/harvester/inventory.yaml`](harvester/inventory.yaml). Two things are
+declared separately:
 
-| Runner | Tag | Special configuration |
-|---|---|---|
-| kaapana-tests-01 | `tests-runner` | Allows privileged **services** matching `docker.io/library/docker:*` (dind for `task_api_tests`); `/builds` shared between job and services |
-| kaapana-build-01 | `build-runner` | Host docker socket mounted into jobs → warm layer cache across pipelines |
-| kaapana-deploy-01 | `deploy-runner` | No machine state; credentials from File-type CI variables |
+- **`runner_roles`** — a catalog of runner *kinds*. Each role is one
+  `[[runners]]` entry with its own tag, job limit and docker settings.
+- **`ci_instances`** — the VMs, each listing which roles it hosts. A VM's
+  `concurrent` is the sum of the limits of its roles.
 
-Provision / re-provision (also how you add a runner — add it to the
-inventory first):
+The default fleet is **one VM (`kaapana-ci-01`) carrying all four roles**.
+
+| Role | Tag | Limit / VM | Why |
+|---|---|---|---|
+| build | `build-runner` | 1 | A build saturates CPU and disk; two of them thrash the shared layer cache. Host docker socket mounted → warm cache across pipelines |
+| security | `security-runner` | 1 | Trivy unpacks every pushed image — one scan per VM, and never sharing a slot with a build |
+| tests | `tests-runner` | 4 | Allows privileged **services** matching `docker.io/library/docker:*` (dind for `task_api_tests`); `/builds` shared between job and services |
+| deploy | `deploy-runner` | 4 | Jobs only drive a remote target, so they cost the VM almost nothing |
+
+### Growing and shrinking the fleet
+
+All of it is inventory edits — no playbook changes.
+
+```yaml
+# Move the test load onto its own VM
+ci_instances:
+  hosts:
+    ci-01:
+      vm_name: kaapana-ci-01
+      cpu_cores: 32
+      memory_guest: "256Gi"
+      disk_size: "512Gi"
+      runners: [build, security, deploy]   # tests dropped
+
+    ci-02:
+      vm_name: kaapana-ci-02
+      cpu_cores: 16
+      memory_guest: "32Gi"
+      disk_size: "256Gi"
+      runners: [tests]
+      runner_overrides:                    # per-VM tuning of a role
+        tests:
+          limit: 8
+          request_concurrency: 8
+```
+
+Then re-run the playbook. Each VM's `config.toml` is rebuilt from scratch, so
+a role dropped from a host disappears from that VM instead of lingering.
+Deleting a host from the inventory stops the playbook from managing it — the
+VM and its GitLab runner entries have to be removed by hand.
+
+### Provisioning
 
 ```bash
 export GITLAB_API_TOKEN=...      # api scope
@@ -178,12 +217,18 @@ export SSH_PRIVATE_KEY=~/.ssh/kaapana.pem
 export HARVESTER_KUBECONFIG=~/.kube/harvester.yaml
 
 ansible-playbook -i ci/harvester/inventory.yaml ci/harvester/setup_ci.yaml
-# FORCE_RECREATE=true → delete and recreate existing VMs
+# CI_HOSTS=ci-02       → act on these inventory hosts only
+# RUNNERS_PAUSED=true  → register runners paused, so a new VM can be checked
+#                        before it competes for jobs with the live fleet
+# FORCE_RECREATE=true  → delete and recreate the targeted VMs
 ```
 
-On-VM troubleshooting: `sudo gitlab-runner verify`,
-`sudo systemctl status gitlab-runner`, config at
-`/etc/gitlab-runner/config.toml`.
+The playbook is idempotent: an existing VM is reused and only reconfigured.
+Re-running it after an inventory edit is the normal way to apply a change.
+
+On-VM troubleshooting: `gitlab-runner verify`,
+`systemctl --user status gitlab-runner`, config at
+`~ubuntu/.gitlab-runner/config.toml` (user-mode, runs as `ubuntu`).
 
 ## 7. Releases
 

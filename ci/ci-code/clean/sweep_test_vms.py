@@ -37,7 +37,9 @@ TERMINAL_PIPELINE_STATES = frozenset({"success", "failed", "canceled", "skipped"
 REQUIRED_ENV = [
     "HARVESTER_KUBECONFIG",
     "DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE",
-    "GITLAB_API_TOKEN",
+    # The job's own token, not GITLAB_API_TOKEN: that one aliases the registry
+    # credential, which the REST API answers with 401.
+    "CI_JOB_TOKEN",
     "CI_PROJECT_ID",
     "CI_SERVER_URL",
 ]
@@ -105,6 +107,23 @@ def list_vms(kubeconfig: str, namespace: str) -> list[dict]:
         namespace=namespace,
         plural="virtualmachines",
     )["items"]
+
+
+def gitlab_project(server_url: str, project_id: str, job_token: str):
+    """Return the project, having proven that pipelines can be read.
+
+    A credential the API refuses would make every labelled VM look unowned,
+    and the age ripcord would then sweep VMs of running pipelines. The proof
+    therefore happens before a single VM is looked at, and it reads a pipeline
+    rather than just authenticating, because that is the right the sweep needs.
+    """
+    import gitlab
+
+    project = gitlab.Gitlab(url=server_url, job_token=job_token).projects.get(
+        project_id, lazy=True
+    )
+    project.pipelines.list(per_page=1, get_all=False)
+    return project
 
 
 def pipeline_state(project, pipeline_id: str) -> str | None:
@@ -190,10 +209,19 @@ def main() -> int:
     import gitlab
 
     namespace = os.environ["DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE"]
-    project = gitlab.Gitlab(
-        url=os.environ["CI_SERVER_URL"],
-        private_token=os.environ["GITLAB_API_TOKEN"],
-    ).projects.get(os.environ["CI_PROJECT_ID"], lazy=True)
+    try:
+        project = gitlab_project(
+            os.environ["CI_SERVER_URL"],
+            os.environ["CI_PROJECT_ID"],
+            os.environ["CI_JOB_TOKEN"],
+        )
+    except gitlab.exceptions.GitlabError as error:
+        print(
+            f"ERROR: GitLab will not answer for pipelines: {error}. Without a "
+            "pipeline status the sweep cannot tell a leaked VM from one a run "
+            "still needs, so it touched nothing."
+        )
+        return 1
 
     now = datetime.now(timezone.utc)
     candidates = collect(os.environ["HARVESTER_KUBECONFIG"], namespace, project, now)

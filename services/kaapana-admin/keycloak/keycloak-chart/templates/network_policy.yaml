@@ -1,0 +1,30 @@
+{{- if .Values.global.keycloak_ldap_egress_cidrs }}
+# The admin namespace's restrict-egress policy only allows the cluster CIDRs, so a
+# Keycloak LDAP/AD federation whose server is outside them cannot be reached and every
+# sync or login hangs. Sites list their LDAP server CIDRs in
+# global.keycloak_ldap_egress_cidrs; this policy then opens LDAP/LDAPS for the
+# Keycloak pods alone. Unset (the default), nothing is rendered.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-keycloak-ldap-egress
+  namespace: "{{ .Values.global.admin_namespace }}"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak
+      app.kubernetes.io/component: keycloak
+  policyTypes:
+  - Egress
+  egress:
+  {{- range .Values.global.keycloak_ldap_egress_cidrs }}
+  - to:
+    - ipBlock:
+        cidr: {{ . | quote }}
+    ports:
+    - protocol: TCP
+      port: 389
+    - protocol: TCP
+      port: 636
+  {{- end }}
+{{- end }}

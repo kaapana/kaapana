@@ -10,6 +10,9 @@ global:
   internalCidrs:
     - 10.152.183.0/24 ### Default range for services in microk8s https://microk8s.io/docs/change-cidr
     - 10.1.0.0/16 ### Default range for pods in microk8s https://microk8s.io/docs/change-cidr
+  # CIDRs of external LDAP/AD servers the Keycloak pods may reach on TCP 389/636 despite the
+  # admin namespace's restrict-egress policy. Empty renders no policy.
+  keycloak_ldap_egress_cidrs: []
 
 migration-chart:
   enabled: false

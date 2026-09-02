@@ -159,7 +159,10 @@ variables:
   HTTP_PROXY: "http://www-int2.dkfz-heidelberg.de:80"
   HTTPS_PROXY: "http://www-int2.dkfz-heidelberg.de:80"
   NO_PROXY: "localhost,127.0.0.1,.dkfz.de,.dkfz-heidelberg.de"
-  no_proxy: "$NO_PROXY" # lowercase twin — some tools read only one casing
+  # lowercase twins for tools that read only one casing (e.g. wget, curl, pip)
+  http_proxy: "$HTTP_PROXY"
+  https_proxy: "$HTTPS_PROXY"
+  no_proxy: "$NO_PROXY"
 
   # --- Fixed settings
   ANSIBLE_VERBOSITY: 0 # read natively by ansible-playbook

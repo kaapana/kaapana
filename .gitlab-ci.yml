@@ -128,6 +128,7 @@ variables:
   VM_SWEEP_APPLY: "false" # "true" = actually delete; the default reports only
   VM_SWEEP_GRACE_HOURS: "1" # never touch a VM younger than this
   VM_SWEEP_MAX_AGE_HOURS: "12" # ripcord for VMs with no pipeline to ask
+  VM_SWEEP_KEEP_HOURS: "4" # how long a VM asking to be kept outlives its pipeline
 
   # --- Registries, both configured as project variables: CI_REGISTRY_* for
   # normal builds, RELEASE_REGISTRY_* (protected) for release tag pipelines.

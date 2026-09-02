@@ -14,6 +14,10 @@ metadata:
     # For whoever reads the sweep report; an annotation because label values
     # forbid the characters a URL brings.
     kaapana.io/ci-pipeline-url: '{{ ci_pipeline_url }}'
+    # Set when the run asked to keep the VM for inspection. The sweep holds it
+    # for its keep window past the end of the pipeline, because GitLab cannot
+    # express "delayed regardless of the outcome".
+    kaapana.io/ci-keep-after-pipeline: '{{ ci_keep_after_pipeline }}'
     harvesterhci.io/volumeClaimTemplates: >-
       [{"metadata":{"name":"{{ vm_name }}-disk-0-{{ pvc_suffix }}","annotations":{"harvesterhci.io/imageId":"{{ harvester_namespace }}/{{ vm_image_id }}"}},"spec":{"accessModes":["ReadWriteMany"],"resources":{"requests":{"storage":"{{ vm_disk_size }}"}},"volumeMode":"Block","storageClassName":"{{ vm_storage_class }}"}}]
     network.harvesterhci.io/ips: '[]'

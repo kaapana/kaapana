@@ -103,7 +103,10 @@ class KeycloakHelper:
         request=requests.post,
         payload={},
         update_url="",
-        timeout=2,
+        # 30s rather than 2s: while Keycloak is still coming up after a deploy, or waits
+        # on a slow LDAP federation, admin API calls take longer than 2s and the setup
+        # jobs failed spuriously.
+        timeout=30,
         **kwargs,
     ):
         """

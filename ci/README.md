@@ -59,12 +59,13 @@ scripted with `python3 ci/utils/trigger_pipeline.py`):
 | `CI_EXEC_INTEGRATION_TESTS` | `true` | test stage (needs deploy) |
 | `CI_EXEC_SECURITY_SCAN` | `false` | trivy scan of the built images |
 | `CI_EXEC_DOCKER_PRUNE` | `false` | wipe the build cache first (cold, multi-hour build) |
-| `CI_EXEC_DESTROY_DELAYED` | `false` | keep the test VM for 4 h after the pipeline |
+| `CI_EXEC_DESTROY_DELAYED` | `false` | keep the test VM for inspection; the sweep deletes it `VM_SWEEP_KEEP_HOURS` after the pipeline ends |
 | `MAINTENANCE` | `false` | project variable; pauses MR/push/schedule pipelines (web/API still work) |
 | `CI_EXEC_VM_SWEEP` | `false` | maintenance stage only: sweep orphaned test VMs, every other stage off |
 | `VM_SWEEP_APPLY` | `false` | `true` = the sweep deletes; otherwise it only reports |
 | `VM_SWEEP_GRACE_HOURS` | `1` | never touch a VM younger than this |
 | `VM_SWEEP_MAX_AGE_HOURS` | `12` | age ripcord for VMs that carry no pipeline label |
+| `VM_SWEEP_KEEP_HOURS` | `4` | how long a VM asking to be kept outlives its pipeline |
 
 ## 3. Recipes
 
@@ -80,9 +81,13 @@ Works only if the commit was built and pushed by an earlier pipeline.
 limit) and reachable via SSH with the CI keypair. External VMs are never
 destroyed by the clean stage.
 
-**Keep the test VM to debug a failure** — re-run with
-`CI_EXEC_DESTROY_DELAYED=true`. The VM survives 4 h; the delayed
-`destroy_deployment` job can be cancelled for longer, or started manually.
+**Keep the test VM to debug a failure.** Re-run with
+`CI_EXEC_DESTROY_DELAYED=true`. `destroy_deployment` then does not run at all
+and the VM is annotated as one to keep, which the sweep honours until
+`VM_SWEEP_KEEP_HOURS` past the end of the pipeline. Done earlier? Run the
+sweep with `VM_SWEEP_KEEP_HOURS=0` and it takes the VM right away. The wait
+lives in the sweep because GitLab cannot delay a job independently of whether
+the jobs it needs succeeded, and a failure is what you are here to debug.
 
 **Retrying deploy-stage jobs does NOT re-trigger teardown.** GitLab never
 cascades retries, so a `destroy_deployment` that already ran stays in its old
@@ -117,8 +122,8 @@ ansible-playbook -i localhost, ci/ci-code/deploy/delete_harvester_vm.yaml -e vm_
 stage runs, and the sweep deletes every `ci-*` VM in `kaapana-ci` whose
 pipeline has finished, plus unlabelled ones older than
 `VM_SWEEP_MAX_AGE_HOURS`. A VM whose pipeline is still running is never
-touched, and the runner VMs are out of reach because their names lack the
-`ci-` prefix. Without `VM_SWEEP_APPLY=true` it deletes nothing and only
+touched, VMs asking to be kept get their inspection window, and the runner
+VMs are out of reach because their names lack the `ci-` prefix. Without `VM_SWEEP_APPLY=true` it deletes nothing and only
 reports, in the job log and as the `vm_sweep.json` artifact.
 
 **Pause the CI** — set project variable `MAINTENANCE=true`

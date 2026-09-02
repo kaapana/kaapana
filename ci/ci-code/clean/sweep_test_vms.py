@@ -24,6 +24,7 @@ from pathlib import Path
 
 PIPELINE_ID_LABEL = "kaapana.io/ci-pipeline-id"
 PIPELINE_URL_ANNOTATION = "kaapana.io/ci-pipeline-url"
+KEEP_ANNOTATION = "kaapana.io/ci-keep-after-pipeline"
 # The CI runner VMs share this namespace and are named kaapana-*; the prefix is
 # what keeps the sweep off them.
 VM_NAME_PREFIX = "ci-"
@@ -56,10 +57,17 @@ class Candidate:
     # None means "no pipeline to ask": unlabelled VM, or a pipeline GitLab no
     # longer knows. Both fall back to the age ripcord.
     pipeline_state: str | None = None
+    # The run asked for this VM to survive its pipeline, for inspection.
+    keep_after_pipeline: bool = False
+    # None while the pipeline has not finished.
+    hours_since_pipeline_end: float | None = None
 
 
 def decide(
-    candidate: Candidate, grace_hours: float, max_age_hours: float
+    candidate: Candidate,
+    grace_hours: float,
+    max_age_hours: float,
+    keep_hours: float = 0.0,
 ) -> tuple[str, str]:
     """Return ("keep"|"delete", reason) for one VM."""
     if not candidate.name.startswith(VM_NAME_PREFIX):
@@ -69,6 +77,13 @@ def decide(
         return "keep", f"younger than the {grace_hours:g}h grace period"
 
     if candidate.pipeline_state in TERMINAL_PIPELINE_STATES:
+        held_for = candidate.hours_since_pipeline_end
+        if candidate.keep_after_pipeline and (held_for or 0) < keep_hours:
+            return (
+                "keep",
+                f"pipeline {candidate.pipeline_id} is {candidate.pipeline_state}, "
+                f"but the VM is held for inspection until {keep_hours:g}h past it",
+            )
         return (
             "delete",
             f"pipeline {candidate.pipeline_id} is {candidate.pipeline_state}",
@@ -90,9 +105,8 @@ def decide(
     return "keep", f"{unowned} but is below the {max_age_hours:g}h age ripcord"
 
 
-def age_hours(creation_timestamp: str, now: datetime) -> float:
-    created = datetime.fromisoformat(creation_timestamp)
-    return (now - created).total_seconds() / 3600
+def hours_since(timestamp: str, now: datetime) -> float:
+    return (now - datetime.fromisoformat(timestamp)).total_seconds() / 3600
 
 
 # The two I/O functions import their client locally, so the decision logic
@@ -126,13 +140,19 @@ def gitlab_project(server_url: str, project_id: str, job_token: str):
     return project
 
 
-def pipeline_state(project, pipeline_id: str) -> str | None:
+def pipeline_facts(project, pipeline_id: str) -> tuple[str, str] | None:
+    """Return (status, finished_at), or None if GitLab knows no such pipeline.
+
+    finished_at is empty while the pipeline still runs, which is why the caller
+    must not read it as "ended just now".
+    """
     import gitlab
 
     try:
-        return project.pipelines.get(int(pipeline_id)).status
+        pipeline = project.pipelines.get(int(pipeline_id))
     except (gitlab.exceptions.GitlabGetError, ValueError):
         return None
+    return pipeline.status, pipeline.finished_at or ""
 
 
 def delete_vm(vm_name: str) -> None:
@@ -152,17 +172,20 @@ def collect(kubeconfig: str, namespace: str, project, now: datetime) -> list[Can
     candidates = []
     for vm in list_vms(kubeconfig, namespace):
         metadata = vm["metadata"]
+        annotations = metadata.get("annotations", {})
         pipeline_id = metadata.get("labels", {}).get(PIPELINE_ID_LABEL, "")
+        facts = pipeline_facts(project, pipeline_id) if pipeline_id else None
+        state, finished_at = facts if facts else (None, "")
         candidates.append(
             Candidate(
                 name=metadata["name"],
-                age_hours=age_hours(metadata["creationTimestamp"], now),
+                age_hours=hours_since(metadata["creationTimestamp"], now),
                 pipeline_id=pipeline_id,
-                pipeline_url=metadata.get("annotations", {}).get(
-                    PIPELINE_URL_ANNOTATION, ""
-                ),
-                pipeline_state=(
-                    pipeline_state(project, pipeline_id) if pipeline_id else None
+                pipeline_url=annotations.get(PIPELINE_URL_ANNOTATION, ""),
+                pipeline_state=state,
+                keep_after_pipeline=annotations.get(KEEP_ANNOTATION, "") == "true",
+                hours_since_pipeline_end=(
+                    hours_since(finished_at, now) if finished_at else None
                 ),
             )
         )
@@ -196,6 +219,12 @@ def main() -> int:
     )
     parser.add_argument("--grace-hours", type=float, default=1.0)
     parser.add_argument("--max-age-hours", type=float, default=12.0)
+    parser.add_argument(
+        "--keep-hours",
+        type=float,
+        default=4.0,
+        help="how long a VM asking to be kept survives past its pipeline",
+    )
     parser.add_argument("--report", type=Path, help="write the JSON report here")
     args = parser.parse_args()
 
@@ -228,7 +257,9 @@ def main() -> int:
 
     vms: list[dict] = []
     for candidate in candidates:
-        action, reason = decide(candidate, args.grace_hours, args.max_age_hours)
+        action, reason = decide(
+            candidate, args.grace_hours, args.max_age_hours, args.keep_hours
+        )
         entry = {**dataclasses.asdict(candidate), "action": action, "reason": reason}
         entry["outcome"] = "kept"
         entry["error"] = None
@@ -248,6 +279,7 @@ def main() -> int:
         "applied": args.apply,
         "grace_hours": args.grace_hours,
         "max_age_hours": args.max_age_hours,
+        "keep_hours": args.keep_hours,
         "summary": {
             "total": len(vms),
             "deleted": outcomes.count("deleted"),

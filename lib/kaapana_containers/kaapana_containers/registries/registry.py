@@ -4,10 +4,13 @@ import json
 import re
 import hashlib
 import logging
-from typing import Optional, List, Dict, Any, Union, Tuple, NewType
+from typing import AsyncIterator, Optional, List, Dict, Any, Union, Tuple, NewType
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urljoin
+
+# Chunk size for hashing and streaming file blobs to the registry.
+_FILE_CHUNK_SIZE = 1024 * 1024
 
 SHA256Digest = NewType("SHA256Digest", str)
 """Type alias for SHA256 digest strings in format 'sha256:<hexdigest>'."""
@@ -171,7 +174,9 @@ class OCIRegistryDiscovery:
             return {"Authorization": f"Bearer {self.bearer_token}"}
         return self.basic_auth_header.copy()
 
-    async def _request_with_auth_retry(self, method: str, url: str, **kwargs) -> httpx.Response:
+    async def _request_with_auth_retry(
+        self, method: str, url: str, content_factory=None, **kwargs
+    ) -> httpx.Response:
         """Perform an HTTP request with automatic auth retry using OAuth 2.0 bearer tokens.
 
         Follows the OCI/Docker registry authentication flow:
@@ -183,17 +188,27 @@ class OCIRegistryDiscovery:
         This implements the OAuth 2.0 token-based authentication flow used by
         most OCI registries (Docker Hub, GitLab, Harbor, etc.).
 
+        Args:
+            content_factory: Zero-argument callable returning a fresh request body
+                (e.g. a new bytes iterator). Use instead of ``content=`` for streamed
+                bodies: a plain iterator would be consumed by the first attempt and
+                could not be re-sent on the 401 retry.
+
         Raises:
             OCIError: On any non-2xx response.
         """
         headers = kwargs.pop("headers", {})
         headers.update(self._auth_headers())
+        if content_factory is not None:
+            kwargs["content"] = content_factory()
         response = await self._client.request(method, url, headers=headers, **kwargs)
 
         if response.status_code == 401 and "WWW-Authenticate" in response.headers:
             token = await self._get_bearer_token(response.headers["WWW-Authenticate"])
             self.bearer_token = token
             headers["Authorization"] = f"Bearer {token}"
+            if content_factory is not None:
+                kwargs["content"] = content_factory()
             response = await self._client.request(method, url, headers=headers, **kwargs)
 
         if response.is_error:
@@ -213,28 +228,14 @@ class OCIRegistryDiscovery:
         await self._request_with_auth_retry("GET", f"{self.registry_url}/v2/")
         return True
 
-    async def _upload_blob(self, data: Union[str, bytes], media_type: str) -> SHA256Digest:
-        """Upload raw blob data to the OCI registry.
+    async def _start_blob_upload(self) -> str:
+        """Initiate a blob upload session and return the absolute upload URL.
 
-        Follows the OCI blob upload API:
-        1. POST to /v2/{repo}/blobs/uploads/ to initiate upload
-        2. Registry responds with a Location header pointing to the upload URL
-        3. PUT blob data to that URL with the digest query parameter
-        4. Registry stores the blob and returns 201 Created
-
-        The whole blob is uploaded in a single PUT, so ``data`` is held in
-        memory for the duration of the request. Blobs larger than the available memory
-        cannot be uploaded and will fail with a memory error.
-
-        Args:
-            data: Raw bytes or string data to upload
-            media_type: OCI media type (e.g., application/vnd.oci.image.config.v1+json)
-
-        Returns:
-            The SHA256 digest string of the uploaded blob.
+        POSTs to /v2/{repo}/blobs/uploads/; the registry responds with a Location
+        header (possibly relative) pointing to the session the blob is PUT to.
 
         Raises:
-            OCIError: If the registry does not return a Location header, or any HTTP step fails.
+            OCIError: If the registry does not return a Location header, or the POST fails.
         """
         resp = await self._request_with_auth_retry(
             "POST",
@@ -247,18 +248,115 @@ class OCIRegistryDiscovery:
 
         if not location.startswith(("http://", "https://")):
             location = urljoin(self.registry_url.rstrip("/") + "/", location.lstrip("/"))
+        return location
 
-        data_bytes = data.encode("utf-8") if isinstance(data, str) else data
-        digest = SHA256Digest(f"sha256:{hashlib.sha256(data_bytes).hexdigest()}")
+    async def _complete_blob_upload(
+        self,
+        location: str,
+        digest: SHA256Digest,
+        media_type: str,
+        size: Optional[int] = None,
+        **kwargs,
+    ) -> None:
+        """PUT the blob content to the upload session URL with its digest.
 
+        ``kwargs`` carry the body (``content=`` or ``content_factory=``) through to
+        :meth:`_request_with_auth_retry`. Pass ``size`` for streamed bodies: the
+        explicit Content-Length keeps httpx from falling back to chunked transfer
+        encoding, which not every registry backend accepts for blob PUTs.
+        """
+        headers = {"Content-Type": media_type}
+        if size is not None:
+            headers["Content-Length"] = str(size)
         separator = "&" if "?" in location else "?"
         await self._request_with_auth_retry(
             "PUT",
             f"{location}{separator}digest={digest}",
-            headers={"Content-Type": media_type},
-            content=data_bytes,
+            headers=headers,
+            **kwargs,
         )
+
+    async def _blob_exists(self, digest: SHA256Digest) -> bool:
+        """Whether the repository already holds the blob (HEAD, no body transfer).
+
+        Errors count as "not there": the subsequent upload then surfaces the real
+        problem with a meaningful message instead of this probe.
+        """
+        try:
+            await self._request_with_auth_retry(
+                "HEAD", f"{self.registry_url}/v2/{self.repository}/blobs/{digest}"
+            )
+            return True
+        except OCIError:
+            return False
+
+    async def _upload_blob(self, data: Union[str, bytes], media_type: str) -> SHA256Digest:
+        """Upload a small in-memory blob (config/metadata) to the OCI registry.
+
+        The whole blob is uploaded in a single PUT and held in memory for the
+        duration of the request. For file payloads use :meth:`_upload_file`, which
+        streams from disk instead.
+
+        Args:
+            data: Raw bytes or string data to upload
+            media_type: OCI media type (e.g., application/vnd.oci.image.config.v1+json)
+
+        Returns:
+            The SHA256 digest string of the uploaded blob.
+
+        Raises:
+            OCIError: If the registry does not return a Location header, or any HTTP step fails.
+        """
+        location = await self._start_blob_upload()
+        data_bytes = data.encode("utf-8") if isinstance(data, str) else data
+        digest = SHA256Digest(f"sha256:{hashlib.sha256(data_bytes).hexdigest()}")
+        await self._complete_blob_upload(location, digest, media_type, content=data_bytes)
         return digest
+
+    async def _upload_blob_from_file(
+        self, file_path: Path, media_type: str
+    ) -> Tuple[SHA256Digest, int]:
+        """Upload a file as a blob, streaming it from disk in chunks.
+
+        The file is read twice: once to compute the SHA256 digest the registry
+        requires up front, then chunk-wise as the PUT request body. At no point is
+        it held in memory as a whole, so multi-GB payloads (e.g. the offline
+        installer tarball) upload with constant memory.
+
+        Returns:
+            Tuple of (SHA256 digest, file size in bytes).
+
+        Raises:
+            OSError: If the file cannot be read.
+            OCIError: If any registry step fails.
+        """
+        sha256 = hashlib.sha256()
+        size = 0
+        with file_path.open("rb") as f:
+            for chunk in iter(lambda: f.read(_FILE_CHUNK_SIZE), b""):
+                sha256.update(chunk)
+                size += len(chunk)
+        digest = SHA256Digest(f"sha256:{sha256.hexdigest()}")
+
+        # A blob already in the repository - e.g. from a retried publish whose
+        # earlier attempt timed out client-side after the upload - is not sent again.
+        if await self._blob_exists(digest):
+            self.logger.info(f"Blob {digest} already in the registry, skipping upload")
+            return digest, size
+
+        # Called once per request attempt, so the 401 auth retry re-reads the file
+        # from the start instead of re-sending an exhausted iterator. The blocking
+        # reads are acceptable: this client runs one transfer at a time.
+        async def stream() -> AsyncIterator[bytes]:
+            with file_path.open("rb") as f:
+                while chunk := f.read(_FILE_CHUNK_SIZE):
+                    yield chunk
+
+        location = await self._start_blob_upload()
+        await self._complete_blob_upload(
+            location, digest, media_type, size=size, content_factory=stream
+        )
+        return digest, size
 
     def _media_type_from_ext(self, ext: str) -> str:
         """Map file extension to OCI media type.
@@ -294,11 +392,9 @@ class OCIRegistryDiscovery:
     async def _upload_file(self, file_path: str, stored_name: Optional[str] = None) -> Dict[str, Any]:
         """Upload a file as a blob and return its metadata.
 
-        Reads the file content, determines the appropriate media type,
-        uploads it as a blob, and returns metadata.
-
-        The file is held fully in memory before being uploaded (see
-        :meth:`_upload_blob`); the host needs free RAM of at least the size of the file.
+        Determines the media type from the file extension and streams the file
+        from disk (see :meth:`_upload_blob_from_file`), so files larger than the
+        available memory upload fine.
 
         Args:
             file_path: Absolute (or cwd-relative) path to the file to read.
@@ -312,11 +408,11 @@ class OCIRegistryDiscovery:
             OSError: If the file cannot be read.
             OCIError: If the blob upload fails.
         """
-        data = Path(file_path).read_bytes()
-        media_type = self._media_type_from_ext(Path(file_path).suffix)
-        digest = await self._upload_blob(data, media_type)
+        path = Path(file_path)
+        media_type = self._media_type_from_ext(path.suffix)
+        digest, size = await self._upload_blob_from_file(path, media_type)
         name = stored_name if stored_name is not None else file_path
-        return {"digest": digest, "filename": name, "mediaType": media_type, "size": len(data)}
+        return {"digest": digest, "filename": name, "mediaType": media_type, "size": size}
 
     async def create_or_update_tag(
         self,

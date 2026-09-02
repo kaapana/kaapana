@@ -115,9 +115,6 @@ function remove_cert {
         return
     fi
 
-    # "get" exits 0 when the secret exists, and that is the case that must delete it: a
-    # secret that survives the undeploy makes the next install_cert skip generating a
-    # certificate for the new hostname because one "already exists".
     kubectl -n $SECRET_NAMESPACE get secret $SECRET_NAME 
     if [ $? -ne 0 ]; then
         echo "Secret $SECRET_NAME not present in namespace $SECRET_NAMESPACE... skipping deletion"

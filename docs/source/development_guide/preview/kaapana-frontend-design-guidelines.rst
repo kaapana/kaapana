@@ -194,6 +194,30 @@ should not look like a stack of floating boxes.
 
 **Storybook:** :code:`Guidelines / Foundations / Spacing & Shape`
 
+Layout and content width
+------------------------
+
+.. note:: **To be decided:** Decide the maximum content width and whether it should
+    differ by content type. This is just an **initial proposal**.
+
+A view, or a component within one, should take the width its content needs
+rather than the full width it is given. Left unconstrained, a layout keeps
+stretching: columns drift apart, related values end up far from each other, and
+lines of text outgrow a comfortable reading length, so a wide screen ends up
+reading worse than a narrow one. Give the view a maximum width and let the space
+beyond it become margin, with the view centered in it. On displays narrower than
+that maximum, nothing changes.
+
+Inside a view, let the leftover space fall at the trailing edge rather than
+around the component: staying aligned with the content above and beside it keeps
+a screen easier to scan than centering does. A container much wider than what it
+holds can shrink along with it. Centering is fine for something self-contained,
+such as an empty state or the content of a dialog.
+
+Width that carries information is worth taking. Galleries, viewers, and dense
+data grids can use the full width available; treat that as a choice for those
+cases rather than the default.
+
 Icons
 -----
 
@@ -502,8 +526,14 @@ Avoid:
 
     Request failed with status code 409.
 
-Keep technical details in logs; do not use them instead of understandable user
-feedback.
+Do not use technical detail instead of understandable user feedback. Keep it
+available on demand: put the backend message, status code, or request identifier
+behind a disclosure the user can open and copy.
+
+A transient notification dismisses itself. When a failure carries such detail,
+either let clicking the notification open a dialog that stays until the user
+closes it, or show the failure in an inline alert or a persistent notification
+instead.
 
 **Storybook:** :code:`Guidelines / Feedback / Errors`
 
@@ -612,6 +642,10 @@ Before considering a screen finished, check:
 - Are unsaved changes protected during navigation?
 - Can users tell when work is still running?
 - Are failures visible and understandable?
+- Is the full technical detail of a failure reachable on demand, without being
+  shown by default?
+- Does content stay within a readable width instead of stretching across the
+  whole display?
 - Are unavailable actions explained?
 - Does every empty state explain what happened and what to do next?
 - Are colors used by semantic role?

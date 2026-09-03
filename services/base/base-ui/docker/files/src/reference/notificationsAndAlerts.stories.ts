@@ -1,23 +1,72 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { defineComponent, h } from 'vue'
 import { notify } from '@kyvg/vue3-notification'
-import { VAlert, VBtn, VCard, VCardText, VCardTitle, VCol, VRow, VSheet } from 'vuetify/components'
+import {
+  VAlert,
+  VBtn,
+  VCard,
+  VCardText,
+  VCardTitle,
+  VCol,
+  VDivider,
+  VIcon,
+  VRow,
+  VSheet,
+} from 'vuetify/components'
 import { note } from './storyNote'
 
-// Transient notifications use the platform's existing notification library.
-// Storybook can demonstrate the non-expiring local presentation. API-backed
-// persistence is described rather than mocked so the example does not imply
-// that a platform integration already exists.
+// Note the two spellings below. They are not a typo: the notification library
+// takes `warn`, Vuetify's v-alert takes `warning`.
 const transient = [
-  { type: 'success', label: 'success', title: 'Dataset saved.' },
-  { type: 'info', label: 'info', title: 'Two jobs are still running.' },
-  { type: 'warn', label: 'warning', title: 'Results are incomplete.' },
+  {
+    type: 'success',
+    label: 'success',
+    title: 'Dataset saved',
+    text: 'Cohort A is available to everyone on this project.',
+  },
+  {
+    type: 'info',
+    label: 'info',
+    title: 'Import started',
+    text: 'The list updates as the import progresses.',
+  },
+  {
+    type: 'warn',
+    label: 'warning',
+    title: 'Nothing to download',
+    text: 'Select at least one series before starting a download.',
+  },
+  {
+    type: 'error',
+    label: 'error',
+    title: 'Dataset not created',
+    text: 'The dataset could not be created. A dataset with this name already exists.',
+  },
 ] as const
 
 const inline = [
-  { type: 'warning', text: 'Results are incomplete: two jobs are still running.' },
+  {
+    type: 'warning',
+    text: 'Could not refresh the extension list — showing the last version that loaded.',
+  },
   { type: 'info', text: 'This project is read-only for your role.' },
 ] as const
+
+/** One row as the portal's notification center renders it. Presentation only. */
+const storedNotification = () =>
+  h(VSheet, { border: true, rounded: true, class: 'pa-3' }, {
+    default: () => [
+      h('div', { class: 'd-flex ga-3' }, [
+        h(VIcon, { icon: 'mdi-check-circle', color: 'success', class: 'mt-1' }),
+        h('div', [
+          h('div', { class: 'text-subtitle-2' }, 'Workflow finished'),
+          h('p', { class: 'text-body-2 text-medium-emphasis mb-1' },
+            'nnU-Net training completed on Cohort A.'),
+          h('span', { class: 'text-caption text-medium-emphasis' }, '14:02 · Mark as read'),
+        ]),
+      ]),
+    ],
+  })
 
 const NotificationsAndAlerts = defineComponent({
   name: 'NotificationsAndAlerts',
@@ -25,27 +74,37 @@ const NotificationsAndAlerts = defineComponent({
     return () =>
       h('div', [
         note(
-          'Use transient notifications for recent outcomes and inline alerts for conditions tied ' +
-            'to the current content. Persistent notification behavior is still to be decided. ' +
-            'Compare the three proposals below: local, API-backed, or combined.',
+          'Choose by where the information belongs and how long it must stay available, not by ' +
+            'severity: transient for the outcome of an action, inline for a condition of the ' +
+            'content on screen, persistent for anything that must outlive the page. Do not show ' +
+            'the same message in two of them unless it could otherwise be missed.',
         ),
         h(VRow, null, {
           default: () => [
             h(VCol, { cols: 12, md: 4 }, {
               default: () =>
-                h(VCard, null, {
+                h(VCard, { height: '100%' }, {
                   default: () => [
                     h(VCardTitle, null, { default: () => 'Transient — the outcome of an action' }),
                     h(VCardText, null, {
                       default: () => [
                         h('p', { class: 'text-body-2 text-medium-emphasis mb-3' },
-                          'Brief feedback about an action that just completed.'),
+                          'Bottom right, five seconds. A short title naming the outcome plus a ' +
+                            'complete sentence — never a status code.'),
                         h('div', { class: 'd-flex ga-2 flex-wrap' },
                           transient.map((t) =>
-                            h(VBtn, { key: t.type, onClick: () => notify({ type: t.type, title: t.title }) },
+                            h(VBtn, {
+                              key: t.type,
+                              size: 'small',
+                              onClick: () => notify({ type: t.type, title: t.title, text: t.text }),
+                            },
                               { default: () => t.label }),
                           ),
                         ),
+                        h(VDivider, { class: 'my-3' }),
+                        h('p', { class: 'text-caption text-medium-emphasis mb-0' },
+                          'A polled endpoint notifies once and re-arms only after a success, so a ' +
+                            'lasting failure does not toast on every tick.'),
                       ],
                     }),
                   ],
@@ -53,41 +112,23 @@ const NotificationsAndAlerts = defineComponent({
             }),
             h(VCol, { cols: 12, md: 4 }, {
               default: () =>
-                h(VCard, null, {
+                h(VCard, { height: '100%' }, {
                   default: () => [
-                    h(VCardTitle, null, { default: () => 'Persistent — to be decided' }),
+                    h(VCardTitle, null, { default: () => 'Persistent — outlives the page' }),
                     h(VCardText, null, {
                       default: () => [
-                        h(VSheet, { border: true, rounded: true, class: 'pa-3 mb-3' }, {
-                          default: () => [
-                            h('div', { class: 'text-subtitle-2' }, '1. Non-expiring notification'),
-                            h('p', { class: 'text-body-2 text-medium-emphasis my-2' },
-                              'Uses the transient presentation and remains until clicked. It does not survive a reload or session change.'),
-                            h(VBtn, {
-                              size: 'small',
-                              onClick: () =>
-                                notify({
-                                  type: 'info',
-                                  title: 'A platform update is available. Click to mark it as read.',
-                                  duration: -1,
-                                }),
-                            }, { default: () => 'Try local proposal' }),
-                          ],
-                        }),
-                        h(VSheet, { border: true, rounded: true, class: 'pa-3 mb-3' }, {
-                          default: () => [
-                            h('div', { class: 'text-subtitle-2' }, '2. Kaapana notifications API'),
-                            h('p', { class: 'text-body-2 text-medium-emphasis my-2 mb-0' },
-                              'Stores the notification and its read state centrally so it remains available across views and sessions.'),
-                          ],
-                        }),
-                        h(VSheet, { border: true, rounded: true, class: 'pa-3' }, {
-                          default: () => [
-                            h('div', { class: 'text-subtitle-2' }, '3. Combined'),
-                            h('p', { class: 'text-body-2 text-medium-emphasis my-2 mb-0' },
-                              'Stores the notification through the API and also shows it immediately. Clicking the local notification marks the stored one as read.'),
-                          ],
-                        }),
+                        h('p', { class: 'text-body-2 text-medium-emphasis mb-3' },
+                          'Created through the Kaapana notifications API. The notification ' +
+                            'service stores it and its read state; the portal lists it in the ' +
+                            'notification center, as below, and shows a transient notification ' +
+                            'when it arrives. A view must not add a local notification for the ' +
+                            'same event.'),
+                        storedNotification(),
+                        h('p', { class: 'text-caption text-medium-emphasis mt-3 mb-0' },
+                          'Presentation only — this example is not backed by the API. Use it for ' +
+                            'a finished long-running workflow or import, a shared resource ' +
+                            'becoming unavailable, or anything needing attention after the user ' +
+                            'has left the originating page.'),
                       ],
                     }),
                   ],
@@ -95,15 +136,26 @@ const NotificationsAndAlerts = defineComponent({
             }),
             h(VCol, { cols: 12, md: 4 }, {
               default: () =>
-                h(VCard, null, {
+                h(VCard, { height: '100%' }, {
                   default: () => [
                     h(VCardTitle, null, { default: () => 'Inline — a condition of this content' }),
                     h(VCardText, null, {
-                      default: () =>
-                        inline.map((a) =>
-                          h(VAlert, { key: a.type, type: a.type, variant: 'tonal', class: 'mb-3' },
+                      default: () => [
+                        h('p', { class: 'text-body-2 text-medium-emphasis mb-3' },
+                          'Next to what it is about, for as long as it holds. The first alert ' +
+                            'stays because the list on screen stays stale; a toast would claim ' +
+                            'the problem had passed.'),
+                        ...inline.map((a) =>
+                          h(VAlert, {
+                            key: a.type,
+                            type: a.type,
+                            variant: 'tonal',
+                            density: 'compact',
+                            class: 'mb-3',
+                          },
                             { default: () => a.text }),
                         ),
+                      ],
                     }),
                   ],
                 }),

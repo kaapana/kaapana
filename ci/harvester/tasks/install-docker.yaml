@@ -52,6 +52,21 @@
       - docker-buildx-plugin
       - docker-compose-plugin
 
+# The containerd image store keeps only the required platform's blobs from a
+# multi-platform manifest, so re-pushing a pulled image fails with "blob
+# unknown to registry". Recent Docker enables it by default on fresh installs.
+- name: Disable the containerd image store
+  become: yes
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    mode: '0644'
+    content: |
+      {
+        "features": {
+          "containerd-snapshotter": false
+        }
+      }
+
 - name: Start docker
   become: yes
   command: systemctl restart docker

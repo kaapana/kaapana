@@ -89,8 +89,13 @@ class Report:
             f"{'STATUS':<8} {'SEV':<8} {'CHECK':<52} DETAILS",
         ]
         for check in self.checks:
+            status_tag = (
+                f"[{check['status'].upper()}]"
+                if check["status"] in (FAILED, WARNED)
+                else ""
+            )
             lines.append(
-                f"{check['status']:<8} {check['severity']:<8} "
+                f"{status_tag:<8} {check['severity']:<8} "
                 f"{check['title'][:52]:<52} {check['details']}"
             )
             if check["remediation"]:
@@ -566,6 +571,11 @@ def main():
         default="",
         help="write the table to this file as well",
     )
+    parser.add_argument(
+        "--summary-only",
+        action="store_true",
+        help="only print the summary to stdout (failures and warnings)",
+    )
     args = parser.parse_args()
 
     os.environ["PATH"] = os.pathsep.join(
@@ -640,7 +650,15 @@ def main():
         "domain": args.domain,
     }
     table = report.table()
-    print(table)
+    if args.summary_only:
+        summary_lines = [
+            line
+            for line in table.splitlines()
+            if "[FAILED]" in line or "[WARNING]" in line or "passed:" in line
+        ]
+        print("\n".join(summary_lines))
+    else:
+        print(table)
     # Files, not stdout: ansible captures the output through a pty, CRLF-mangled.
     if args.report:
         with open(args.report, "w") as handle:

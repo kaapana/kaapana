@@ -34,6 +34,7 @@ spec:
   image: $CI_BASE_IMAGE
   variables:
     ANSIBLE_HOST_KEY_CHECKING: "False"
+    ANSIBLE_FORCE_COLOR: "true"
     CI_EXEC_REDEPLOY: "$[[ inputs.exec_redeploy ]]" # read by the playbooks
   before_script:
     - mkdir -p "$ARTIFACTS_DIR"
@@ -153,7 +154,8 @@ target_readiness:
       ansible-playbook "$CI_PROJECT_DIR/$[[ inputs.playbook_dir ]]/target_readiness.yaml" \
         -i "$VM_FQDN," \
         -u "$VM_USER" \
-        --private-key "$CI_SSH_PRIVATE_KEY"
+        --private-key "$CI_SSH_PRIVATE_KEY" \
+        --no-output
   artifacts:
     expire_in: 2 weeks
     paths:

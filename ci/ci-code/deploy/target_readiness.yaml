@@ -52,6 +52,10 @@
       changed_when: false
       failed_when: false
 
+    - name: Show the readiness table
+      ansible.builtin.debug:
+        var: readiness.stdout_lines
+
     # Fetched as files: ansible captures the output through a pty, CRLF-mangled.
     - name: Fetch the readiness report
       ansible.builtin.fetch:

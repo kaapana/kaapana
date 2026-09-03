@@ -144,6 +144,7 @@ preflight_target:
     - when: never
   variables:
     ANSIBLE_HOST_KEY_CHECKING: "False"
+    ANSIBLE_FORCE_COLOR: "true"
     VM_FQDN: "$DEPLOYMENT_INSTANCE_FQDN"
     VM_USER: "$DEPLOYMENT_INSTANCE_USER"
     CI_EXEC_REDEPLOY: "$[[ inputs.exec_redeploy ]]" # read by target_readiness.yaml

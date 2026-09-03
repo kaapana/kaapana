@@ -505,6 +505,7 @@ class Container:
 
         if config.cache_enabled:
             logger.debug(f"{self.tag}: Pushed image during build!")
+            self.status = Status.PUSHED
             return issue
 
         if self.status not in {Status.BUILT, Status.NOTHING_CHANGED}:

@@ -36,6 +36,25 @@ data:
     replace: dcmQidoMaxNumberOfResults
     dcmQidoMaxNumberOfResults: 0
     -
+
+    # dcm4chee identifies a patient by PatientID plus IssuerOfPatientID. Its default
+    # SupplementIssuerOfPatientID rule fills a missing issuer with a hash of PatientName and
+    # PatientBirthDate, so one PatientID whose name or birth date differs between senders
+    # (pseudonymised, multicentric data) becomes several patients, and a later series of an
+    # existing study is refused (409 on STOW). Drop that rule and nullify the issuer on every
+    # received object instead: without an issuer dcm4chee matches the existing patient and
+    # study by PatientID alone and keeps whatever issuer is already stored, so earlier data
+    # needs no rewrite.
+    dn: cn=SupplementIssuerOfPatientID,dicomAETitle=KAAPANA,dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
+    changetype: delete
+
+    dn: cn=NullifyIssuerOfPatientID,dicomAETitle=KAAPANA,dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
+    objectClass: dcmArchiveAttributeCoercion2
+    cn: NullifyIssuerOfPatientID
+    dcmDIMSE: C_STORE_RQ
+    dicomTransferRole: SCU
+    dcmURI: merge-attrs:
+    dcmMergeAttribute: IssuerOfPatientID=
 kind: ConfigMap
 metadata:
   name: dcm4che-iid-config

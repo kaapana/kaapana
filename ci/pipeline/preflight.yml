@@ -6,6 +6,8 @@ spec:
       type: boolean
     exec_server_installation:
       type: boolean
+    exec_redeploy:
+      type: boolean
     runner_tag:
       type: string
     python_image:
@@ -127,7 +129,10 @@ preflight_variables:
 
 ##############################################
 
-# Only for a target given by FQDN and disabled redeploy flag.
+# Only for a target given by FQDN. exec_redeploy is forwarded so the readiness
+# check treats an existing platform as a warning instead of a fatal — otherwise
+# a redeploy onto an occupied target fails here telling the user to do what they
+# already did.
 preflight_target:
   stage: preflight
   tags:
@@ -141,6 +146,7 @@ preflight_target:
     ANSIBLE_HOST_KEY_CHECKING: "False"
     VM_FQDN: "$DEPLOYMENT_INSTANCE_FQDN"
     VM_USER: "$DEPLOYMENT_INSTANCE_USER"
+    CI_EXEC_REDEPLOY: "$[[ inputs.exec_redeploy ]]" # read by target_readiness.yaml
   before_script:
     - mkdir -p "$ARTIFACTS_DIR"
     - chmod 600 "$CI_SSH_PRIVATE_KEY"

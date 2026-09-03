@@ -69,6 +69,7 @@ if_ci_failing:
   # issue report — never set it on jobs whose artifacts contain secrets.
   needs:
     - { job: preflight_variables, optional: true, artifacts: false }
+    - { job: preflight_target, optional: true, artifacts: true }
     - { job: build_ci_image, optional: true, artifacts: false }
     - { job: unit_tests, optional: true, artifacts: false }
     - { job: task_api_tests, optional: true, artifacts: false }

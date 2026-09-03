@@ -113,7 +113,7 @@
             release {{ admin_chart }} in namespace {{ helm_namespace }},
             platform prefix '{{ existing_platform_prefix }}'
 
-          Undeploy it on the target, or re-run with CI_EXEC_REDEPLOY=true:
+          Undeploy it on the target, or re-run with '-i exec_redeploy:true':
             ./kaapanactl.sh deploy --undeploy
       when:
         - platform_present | bool

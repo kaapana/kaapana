@@ -1,6 +1,6 @@
 ---
-# Runs instead of server_installation when CI_EXEC_SERVER_INSTALLATION is not
-# "true". Read-only, no sudo.
+# Runs instead of server_installation when the exec_server_installation input
+# is not "true". Read-only, no sudo.
 # Out: artifacts/target_readiness.json, artifacts/target_readiness.log
 - name: Check deployment target readiness
   hosts: all
@@ -97,7 +97,7 @@
               fix:   {{ check.remediation }}
           {% endfor %}
 
-          Re-run the pipeline with CI_EXEC_SERVER_INSTALLATION=true to have the
-          server installation prepare the target instead.
+          Re-run the pipeline with '-i exec_server_installation:true' to have
+          the server installation prepare the target instead.
           Report: artifacts/target_readiness.json
       when: not readiness_report.ready

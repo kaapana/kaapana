@@ -174,8 +174,8 @@ def check_microk8s_group(report):
             details="the group 'microk8s' does not exist on the target",
             remediation=(
                 "microk8s is not installed. Re-run the pipeline with "
-                "CI_EXEC_SERVER_INSTALLATION=true, or install microk8s on the "
-                "target with 'sudo ./kaapanactl.sh install'."
+                "'-i exec_server_installation:true', or install microk8s on "
+                "the target with 'sudo ./kaapanactl.sh install'."
             ),
         )
         return
@@ -349,7 +349,7 @@ def check_existing_platform(report, helm, redeploy):
             "platform_deployment undeploys it first."
             if redeploy
             else "Undeploy it on the target: './kaapanactl.sh deploy --undeploy', "
-            "or re-run with CI_EXEC_REDEPLOY=true."
+            "or re-run with '-i exec_redeploy:true'."
         ),
     )
     return prefix or ADMIN_CHART_RELEASE
@@ -447,7 +447,8 @@ def check_ports_free(report, required_ports, existing_platform):
             details=f"in use by the platform already deployed here: {listed}",
             remediation=(
                 "These ports are released when that platform is undeployed, "
-                "which platform_deployment does when CI_EXEC_REDEPLOY=true."
+                "which platform_deployment does when the pipeline runs with "
+                "'-i exec_redeploy:true'."
             ),
         )
     else:
@@ -580,15 +581,15 @@ def main():
         report,
         "microk8s_installed",
         "microk8s",
-        "Re-run the pipeline with CI_EXEC_SERVER_INSTALLATION=true, or install "
-        "microk8s on the target with 'sudo ./kaapanactl.sh install'.",
+        "Re-run the pipeline with '-i exec_server_installation:true', or "
+        "install microk8s on the target with 'sudo ./kaapanactl.sh install'.",
     )
     helm = check_binary(
         report,
         "helm_installed",
         "helm",
         "Install helm on the target ('sudo snap install helm --classic'), or "
-        "re-run the pipeline with CI_EXEC_SERVER_INSTALLATION=true.",
+        "re-run the pipeline with '-i exec_server_installation:true'.",
     )
     check_binary(
         report,

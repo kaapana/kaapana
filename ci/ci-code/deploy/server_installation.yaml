@@ -14,6 +14,7 @@
     artifacts_dir: "{{ lookup('env', 'ARTIFACTS_DIR') }}"
     remote_report: /tmp/target_readiness.json
     remote_log: /tmp/target_readiness.log
+    redeploy: "{{ lookup('ansible.builtin.env', 'CI_EXEC_REDEPLOY') | default('false', true) }}"
   tasks:
     - name: Increase inotify watchers
       become: yes
@@ -84,6 +85,7 @@
         cmd: >-
           {{ playbook_dir }}/target_readiness.py
           --domain {{ lookup('ansible.builtin.env', 'VM_FQDN') | quote }}
+          --redeploy {{ redeploy | quote }}
           --report {{ remote_report | quote }}
           --log {{ remote_log | quote }}
         executable: /usr/bin/python3

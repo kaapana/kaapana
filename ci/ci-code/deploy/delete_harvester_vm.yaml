@@ -4,19 +4,19 @@
   gather_facts: false
   connection: local
 
-  vars_files:
-    - vm_config.yaml
-
   vars:
     vm_fqdn: "{{ lookup('env', 'VM_FQDN') }}"
-    vm_dns_domain: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DOMAIN') | default(vm_config.domain, true) }}"
+    # Teardown must never be blocked by a blank CI variable, or the VM and its
+    # PVCs leak. These fall back to the .gitlab-ci.yml defaults, which are also
+    # what provisioning used, so the derived name and namespace still match.
+    vm_dns_domain: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DOMAIN') | default('vms.dkfz.de', true) }}"
     _vm_name_env: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_VM_NAME') }}"
     _max_name_len: "{{ 57 - 1 - (vm_dns_domain | length) }}"
     # Prefer VM_FQDN (what prepare_deployment actually created). 
     # Fall back to the env-derived name with the same truncation as provisioning
     # VM_FQDN is only written on successful provisioning, and teardown must also work when prepare_deployment failed halfway.
     vm_name: "{{ vm_fqdn.split('.')[0] if vm_fqdn else (_vm_name_env[:(_max_name_len | int)] | regex_replace('-+$', '')) }}"
-    harvester_namespace: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE') | default(vm_config.harvester_namespace, true) }}"
+    harvester_namespace: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE') | default('kaapana-ci', true) }}"
     harvester_kubeconfig: "{{ lookup('env', 'HARVESTER_KUBECONFIG') }}"
 
   tasks:

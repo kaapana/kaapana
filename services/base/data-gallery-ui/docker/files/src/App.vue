@@ -1,12 +1,10 @@
 <template>
-  <div id="app">
-    <v-app>
-      <notifications position="bottom right" width="20%" :duration="5000" />
-      <v-main>
-        <router-view :key="viewKey"></router-view>
-      </v-main>
-    </v-app>
-  </div>
+  <v-app>
+    <notifications position="bottom right" width="20%" :duration="5000" />
+    <v-main>
+      <router-view :key="viewKey"></router-view>
+    </v-main>
+  </v-app>
 </template>
 
 <script setup lang="ts">
@@ -16,16 +14,10 @@ const { viewKey } = useShellSettings()
 </script>
 
 <style lang="scss">
-#app {
-  font-family: 'Avenir', Helvetica, Arial, sans-serif;
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  font-size: 14px;
-  line-height: 1.42857143;
-  color: #333;
-}
-
+/* No font-family, font-size or text colour is set here on purpose: the platform
+   typeface and the theme's foreground roles come from createKaapanaVuetify, and
+   a local override here would apply the wrong type scale and a fixed grey that
+   ignores the dark theme (design guidelines, "Typography" and "Color"). */
 @media (min-width: 2100px) {
   .container--fluid {
     max-width: 2100px !important;

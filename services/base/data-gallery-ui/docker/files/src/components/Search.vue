@@ -2,7 +2,7 @@
   <div>
     <v-row dense align="center">
       <v-col cols="1" align="center">
-        <v-icon>mdi-magnify</v-icon>
+        <v-icon :icon="kaapanaIcons.search" />
       </v-col>
       <v-col cols="6">
         <v-text-field
@@ -16,44 +16,63 @@
           @keydown.enter="search"
         />
       </v-col>
+      <!-- Every icon-only control carries an accessible name; the tooltip is a
+           sighted affordance, not a substitute for one (guidelines,
+           "Accessibility"). -->
       <v-col cols="1" align="center">
-        <v-btn @click="addEmptyFilter" icon variant="text">
-          <v-icon> mdi-filter-plus-outline </v-icon>
-        </v-btn>
+        <v-tooltip location="bottom" text="Add filter">
+          <template v-slot:activator="{ props: activator }">
+            <v-btn
+              v-bind="activator"
+              :icon="galleryIcons.filterAdd"
+              aria-label="Add filter"
+              variant="text"
+              @click="addEmptyFilter"
+            />
+          </template>
+        </v-tooltip>
       </v-col>
       <v-col cols="1" align="center">
-        <v-btn
-          v-if="!display_filters && filters.length > 0"
-          @click="display_filters = !display_filters"
-          icon
-          variant="text"
+        <v-tooltip
+          v-if="filters.length > 0"
+          location="bottom"
+          :text="display_filters ? 'Hide filters' : 'Show filters'"
         >
-          <v-icon> mdi-filter-menu </v-icon>
-          ({{ filters.length }})
-        </v-btn>
-        <v-btn
-          v-if="display_filters && filters.length > 0"
-          @click="display_filters = !display_filters"
-          icon
-          variant="text"
-        >
-          <v-icon> mdi-filter-menu-outline </v-icon>
-          ({{ filters.length }})
-        </v-btn>
+          <template v-slot:activator="{ props: activator }">
+            <v-btn
+              v-bind="activator"
+              variant="text"
+              :aria-label="`${display_filters ? 'Hide' : 'Show'} ${filters.length} filters`"
+              @click="display_filters = !display_filters"
+            >
+              <v-icon
+                :icon="display_filters ? galleryIcons.filtersHidden : galleryIcons.filtersShown"
+              />
+              ({{ filters.length }})
+            </v-btn>
+          </template>
+        </v-tooltip>
       </v-col>
 
       <v-col cols="1" align="center">
-        <v-tooltip location="bottom">
+        <v-tooltip location="bottom" text="Copy query URL to clipboard">
           <template v-slot:activator="{ props: activator }">
-            <v-btn icon variant="text" v-bind="activator" @click="copyQueryToClipboard">
-              <v-icon>mdi-content-copy</v-icon>
-            </v-btn>
+            <v-btn
+              v-bind="activator"
+              :icon="galleryIcons.copy"
+              aria-label="Copy query URL to clipboard"
+              variant="text"
+              @click="copyQueryToClipboard"
+            />
           </template>
-          <span>Copy Query URL to Clipboard</span>
         </v-tooltip>
       </v-col>
       <v-col cols="2" align="center">
-        <v-btn color="primary" style="width: 100%" @click="search"> Search </v-btn>
+        <!-- The one primary action of the search area; progress shows on the
+             control that started it (guidelines, "Loading"). -->
+        <v-btn color="primary" variant="flat" block :loading="props.loading" @click="search">
+          Search
+        </v-btn>
       </v-col>
     </v-row>
     <div v-show="display_filters" v-for="filter in filters" :key="filter.id">
@@ -64,6 +83,7 @@
             v-model="filter.key_select"
             :items="fieldNames"
             :key="filter.key_select ?? ''"
+            label="Field"
             density="compact"
             variant="underlined"
             hide-details
@@ -71,6 +91,9 @@
           ></v-autocomplete>
         </v-col>
         <v-col cols="5">
+          <!-- A long, closed list is a searchable selection; free-form entry is
+               offered only where values outside the list are legitimate
+               (guidelines, "Choosing inputs"). -->
           <v-autocomplete
             v-if="!filter.freeInput"
             :disabled="filter.key_select == null"
@@ -80,6 +103,7 @@
                 ? mapping[filter.key_select]['items']
                 : []
             "
+            label="Values"
             auto-select-first
             chips
             clearable
@@ -94,6 +118,7 @@
             v-else
             :disabled="filter.key_select == null"
             v-model="filter.freeInputText"
+            label="Values"
             placeholder="Enter values separated by spaces, commas, or newlines"
             rows="2"
             density="compact"
@@ -104,21 +129,35 @@
           ></v-textarea>
         </v-col>
         <v-col cols="1" align="center">
-          <v-tooltip location="bottom">
+          <v-tooltip
+            location="bottom"
+            :text="filter.freeInput ? 'Switch to dropdown' : 'Switch to free input'"
+          >
             <template v-slot:activator="{ props: activator }">
-              <v-btn @click="toggleFreeInput(filter)" size="small" icon variant="text" v-bind="activator">
-                <v-icon>{{
-                  filter.freeInput ? 'mdi-form-dropdown' : 'mdi-form-textarea'
-                }}</v-icon>
-              </v-btn>
+              <v-btn
+                v-bind="activator"
+                size="small"
+                variant="text"
+                :icon="filter.freeInput ? galleryIcons.inputList : galleryIcons.inputFreeText"
+                :aria-label="filter.freeInput ? 'Switch to dropdown' : 'Switch to free input'"
+                @click="toggleFreeInput(filter)"
+              />
             </template>
-            <span>{{ filter.freeInput ? 'Switch to dropdown' : 'Switch to free input' }}</span>
           </v-tooltip>
         </v-col>
         <v-col cols="1" align="center">
-          <v-btn @click="deleteFilter(filter.id)" size="small" icon variant="text">
-            <v-icon>mdi-delete</v-icon>
-          </v-btn>
+          <v-tooltip location="bottom" text="Remove filter">
+            <template v-slot:activator="{ props: activator }">
+              <v-btn
+                v-bind="activator"
+                size="small"
+                variant="text"
+                :icon="kaapanaIcons.delete"
+                aria-label="Remove filter"
+                @click="deleteFilter(filter.id)"
+              />
+            </template>
+          </v-tooltip>
         </v-col>
         <v-spacer />
       </v-row>
@@ -138,7 +177,8 @@ import {
   loadSearchFields,
 } from '@/common/api.service'
 import { ref } from 'vue'
-import { postViewDirty, useProjectStore } from '@kaapana/base-ui'
+import { useProjectStore } from '@kaapana/base-ui'
+import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
 import type { Dataset } from '@/types'
 
 interface Filter {
@@ -149,8 +189,21 @@ interface Filter {
   freeInputText?: string
 }
 
-const props = defineProps<{ selectedDataset?: Dataset | null }>()
-const emit = defineEmits<{ search: [query: any] }>()
+const props = withDefaults(
+  defineProps<{
+    selectedDataset?: Dataset | null
+    /** The gallery's load state, so progress shows on the control that started
+     *  it rather than only far away in the results area. */
+    loading?: boolean
+  }>(),
+  { selectedDataset: null, loading: false },
+)
+const emit = defineEmits<{
+  search: [query: any]
+  /** Unsaved search state. The view combines this with the dialogs' state and
+   *  reports the total to the shell, so the two cannot overwrite each other. */
+  'update:dirty': [dirty: boolean]
+}>()
 
 const projectStore = useProjectStore()
 const route = useRoute()
@@ -288,8 +341,8 @@ async function search() {
 
     if (field_count === 0) {
       notify({
-        title: 'Warning',
-        text: 'No searchable text fields found. Showing filter results only.',
+        title: 'Free-text search unavailable',
+        text: 'This project has no searchable text fields, so only the filters were applied. Add or change filters to narrow the results.',
         type: 'warn',
       })
       emit('search', composeQuery(null))
@@ -298,8 +351,8 @@ async function search() {
 
     if (field_count > max_clause_count) {
       notify({
-        title: 'Error',
-        text: `Too many fields to search (${field_count} > ${max_clause_count}). Add filters to reduce the query-size, or search without free-text.`,
+        title: 'Search too broad',
+        text: `Free text is searched across ${field_count} fields, more than the ${max_clause_count} this index allows. Add a filter to narrow the scope, or search using filters only — the filters were applied without the free text.`,
         type: 'error',
       })
       emit('search', composeQuery(null))
@@ -308,7 +361,14 @@ async function search() {
 
     emit('search', composeQuery(fields))
   } catch (error) {
+    // loadSearchFields already reported why it failed; this says what that
+    // means for the search just run, which is the part the user can act on.
     console.error('[Search.vue] Failed to load search fields:', error)
+    notify({
+      title: 'Searched with filters only',
+      text: 'The searchable fields could not be loaded, so the free text was ignored. Try again once the platform responds.',
+      type: 'warn',
+    })
     emit('search', composeQuery(null))
   }
 }
@@ -464,12 +524,13 @@ watch(
   },
 )
 
-// Report unsaved search state to the shell so a project switch (which reloads
-// this iframe) warns first; query_string and filters live only in memory, so a
-// reload discards them. Watching the boolean posts only on transitions.
+// Unsaved search state: query_string and filters live only in memory, so a
+// reload discards them. Reported upward rather than posted straight to the
+// shell, because the shell must be told the view's *combined* dirty state —
+// open dialogs included (guidelines, "Unsaved changes").
 watch(
   () => !!(query_string.value && query_string.value.trim()) || filters.value.length > 0,
-  (dirty) => postViewDirty(dirty),
+  (dirty) => emit('update:dirty', dirty),
 )
 
 // Handle the rejection so a failure while parsing the deep link can't silently
@@ -479,7 +540,16 @@ processQueryParams().catch((error) => {
   search()
 })
 
-defineExpose({ addFilterItem, reloadDataset })
+/** Drop the free text and every filter, then re-run the search. Backs the
+ *  "nothing matches" empty state's recovery action (guidelines,
+ *  "Empty states"). */
+async function clearSearch() {
+  query_string.value = ''
+  filters.value = []
+  await search()
+}
+
+defineExpose({ addFilterItem, reloadDataset, clearSearch })
 </script>
 
 <style scoped></style>

@@ -1,35 +1,48 @@
 <template>
-  <div>
-    <v-card class="rounded-0">
-      <v-card-title>
-        Metadata
-        <v-spacer></v-spacer>
-        <v-text-field
-          v-model="search"
-          append-icon="mdi-magnify"
-          label="Search"
-          single-line
-          hide-details
-        ></v-text-field>
-      </v-card-title>
-      <v-container class="pa-0" fluid>
-        <v-data-table
-          :headers="headers"
-          :items="tagsData"
-          :search="search"
-          :hide-default-footer="true"
-          height="60vh"
-          :items-per-page="-1"
-          density="compact"
-        />
-      </v-container>
-    </v-card>
-  </div>
+  <v-card :elevation="0" class="rounded-0">
+    <v-card-title class="text-h6">Metadata</v-card-title>
+    <v-card-text class="pb-0">
+      <v-text-field
+        v-model="search"
+        :append-inner-icon="kaapanaIcons.search"
+        label="Search tags"
+        single-line
+        clearable
+        hide-details
+        density="compact"
+        variant="underlined"
+      ></v-text-field>
+    </v-card-text>
+    <v-container class="pa-0" fluid>
+      <v-data-table
+        :headers="headers"
+        :items="tagsData"
+        :search="search"
+        :hide-default-footer="true"
+        height="60vh"
+        :items-per-page="-1"
+        density="compact"
+      >
+        <!-- An empty table says which of the two cases it is, rather than
+             "No data available" (guidelines, "Empty states"). -->
+        <template v-slot:no-data>
+          <div class="text-body-2 text-medium-emphasis py-6">
+            {{
+              search
+                ? 'No DICOM tag matches this search. Clear or change the search text.'
+                : 'No metadata was returned for this series.'
+            }}
+          </div>
+        </template>
+      </v-data-table>
+    </v-container>
+  </v-card>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { loadSeriesData } from '@/common/api.service'
+import { kaapanaIcons } from '@/utils/galleryIcons'
 
 const props = defineProps<{ seriesInstanceUID?: string }>()
 

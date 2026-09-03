@@ -1,16 +1,18 @@
 import { notify } from '@kyvg/vue3-notification'
 import { httpClient, httpClientWithoutTimeout, useAuthStore } from '@kaapana/base-ui'
+import { apiErrorText } from '@/utils/errors'
 import type { Dataset } from '@/types'
 
 const KAAPANA_BACKEND_ENDPOINT = import.meta.env.VITE_KAAPANA_BACKEND_ENDPOINT
 
-const notifyError = (error: any) => {
+// Every failure is reported as "what failed" plus, when the backend supplied
+// one, the actionable detail — never the bare Error, which used to be
+// interpolated straight into the notification as "[object Object]" whenever the
+// response carried no `detail` (design guidelines, "Errors").
+const notifyError = (error: any, title: string, fallback: string) => {
   notify({
-    title: 'Error',
-    text:
-      error.response && error.response.data && error.response.data.detail
-        ? error.response.data.detail
-        : error,
+    title,
+    text: apiErrorText(error, fallback),
     type: 'error',
   })
 }
@@ -30,7 +32,7 @@ const deleteDataset = async (datasetName: string) => {
     )
     return res.data['ok']
   } catch (error: any) {
-    notifyError(error)
+    notifyError(error, 'Dataset not deleted', 'The dataset could not be deleted.')
     throw error
   }
 }
@@ -45,7 +47,7 @@ const loadDatasetByName = async (datasetName: string, access_level = 'project') 
     ).data
     return dataset
   } catch (error: any) {
-    notifyError(error)
+    notifyError(error, 'Dataset not loaded', 'The dataset could not be loaded; the search is not scoped to it.')
     throw error
   }
 }
@@ -57,7 +59,7 @@ const loadDatasets = async (skipIdentifiers = true): Promise<Dataset[]> => {
     })
     return datasets.data
   } catch (error: any) {
-    notifyError(error)
+    notifyError(error, 'Datasets not loaded', 'The list of datasets could not be loaded.')
     throw error
   }
 }
@@ -69,7 +71,7 @@ const loadSeriesData = async (seriesInstanceUID: string) => {
     )
     return response.data
   } catch (error: any) {
-    notifyError(error)
+    notifyError(error, 'Series metadata not loaded', 'The metadata for this series could not be loaded.')
     throw error
   }
 }
@@ -79,7 +81,7 @@ const loadPatients = async (data: any) => {
     const res = await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/series', data)
     return res.data
   } catch (error: any) {
-    notifyError(error)
+    notifyError(error, 'Series not loaded', 'The series matching this search could not be loaded.')
     throw error
   }
 }
@@ -92,7 +94,7 @@ const getAggregatedSeriesNum = async (data: any) => {
     )
     return res.data
   } catch (error: any) {
-    notifyError(error)
+    notifyError(error, 'Series count unavailable', 'The number of matching series could not be determined, so paging may be wrong.')
     throw error
   }
 }
@@ -101,7 +103,7 @@ const loadFieldNames = async () => {
   try {
     return await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/field_names')
   } catch (error: any) {
-    notifyError(error)
+    notifyError(error, 'Filter fields not loaded', 'The fields available for filtering could not be loaded.')
     throw error
   }
 }
@@ -113,7 +115,7 @@ const loadValues = async (key: string, query: any = {}) => {
       query,
     )
   } catch (error: any) {
-    notifyError(error)
+    notifyError(error, 'Filter values not loaded', 'The selectable values for this filter could not be loaded.')
     throw error
   }
 }
@@ -123,7 +125,7 @@ const loadSearchFields = async () => {
     const response = await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/search_fields')
     return response.data
   } catch (error: any) {
-    notifyError(error)
+    notifyError(error, 'Search fields not loaded', 'The searchable fields could not be loaded, so free-text search is unavailable.')
     throw error
   }
 }
@@ -181,15 +183,18 @@ const downloadDatasets = async (concatenatedSeriesUIDs: string) => {
       // The error body is also a Blob (responseType 'blob'), so read it first.
       const reader = new FileReader()
       reader.onload = function () {
-        let errorText = ''
+        let errorText = 'The download could not be completed.'
         try {
-          const errorJson = JSON.parse(reader.result as string)
-          errorText = 'Download failed:' + errorJson.detail
-        } catch (parseError) {
-          errorText = 'Failed to parse error response:' + parseError
+          const detail = JSON.parse(reader.result as string)?.detail
+          if (typeof detail === 'string' && detail.trim() !== '') {
+            errorText = `The download could not be completed. ${detail.trim()}`
+          }
+        } catch {
+          // The body was not the expected JSON problem report; the sentence
+          // above is still the useful thing to show, so keep it.
         }
         notify({
-          title: 'Download Error',
+          title: 'Download failed',
           text: errorText,
           type: 'error',
         })
@@ -212,7 +217,7 @@ const fetchProjects = async () => {
       return (await httpClient.get('/aii/users/' + currentUser.id + '/projects')).data
     }
   } catch (error: any) {
-    notifyError(error)
+    notifyError(error, 'Projects not loaded', 'Your projects could not be loaded.')
     throw error
   }
 }

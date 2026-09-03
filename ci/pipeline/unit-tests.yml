@@ -8,7 +8,7 @@
 .test_template:
   stage: tests
   tags:
-    - tests-runner-ci01
+    - tests-runner
   image: python:3.12
   rules:
     - if: '$CI_EXEC_UNIT_TESTS == "true"'
@@ -274,7 +274,7 @@ build_documentation:
   stage: tests
   extends: .test_template
   tags:
-    - tests-runner-ci01
+    - tests-runner
   script:
     - cd $KAAPANA_DIR/docs
     - pip install -r requirements.txt

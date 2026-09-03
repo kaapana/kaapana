@@ -10,7 +10,7 @@ setup_integration_tests:
   extends: .remote_execution_template
   stage: test
   tags:
-    - deploy-runner-ci01
+    - deploy-runner
   needs:
     - job: prepare_deployment
       artifacts: true

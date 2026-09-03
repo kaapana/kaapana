@@ -37,7 +37,7 @@ destroy_deployment:
       when: always
     - when: never
   tags:
-    - deploy-runner-ci01
+    - deploy-runner
   image: $CI_BASE_IMAGE
   script:
     - ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/delete_harvester_vm.yaml"
@@ -45,7 +45,7 @@ destroy_deployment:
 if_ci_failing:
   stage: clean
   tags:
-    - deploy-runner-ci01
+    - deploy-runner
   image: $CI_BASE_IMAGE
   # Every pipeline job must be listed (with needs, when: on_failure watches
   # the needed jobs only). artifacts: true marks the jobs whose logs feed the

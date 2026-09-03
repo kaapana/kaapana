@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Union
 
 import pydicom
 import pytz
+import requests
 from dateutil import parser
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
@@ -17,6 +18,7 @@ from kaapanapy.settings import KaapanaSettings
 from pydicom.tag import Tag
 
 TIMEZONE = KaapanaSettings().timezone
+SERVICES_NAMESPACE = KaapanaSettings().services_namespace
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -226,6 +228,21 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             project_id := metadata.get("00120020 ClinicalTrialProtocolID_keyword")
         ) and project_id[0].startswith("kp-"):
             sanitized_project_id = project_id[0][3:]  # Remove "kp-" prefix
+            # The tag is written by the sender, so a typo or a project deleted since
+            # would route the series to a project the platform does not have, and the
+            # project steps later in the incoming DAG fail on it. Keep only short_ids
+            # the access-information-interface knows; anything else uses the default.
+            response = requests.get(
+                f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects"
+            )
+            response.raise_for_status()
+            known = [project["short_id"] for project in response.json()]
+            if sanitized_project_id not in known:
+                logger.warning(
+                    f"Unknown project '{sanitized_project_id}' in "
+                    f"ClinicalTrialProtocolID, using '{default_project_short_id}'"
+                )
+                sanitized_project_id = default_project_short_id
 
         metadata["00120010 ClinicalTrialSponsorName_keyword"] = sanitized_dataset
         metadata["00120020 ClinicalTrialProtocolID_keyword"] = sanitized_project_id

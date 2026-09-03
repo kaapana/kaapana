@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test'
 import type { ExtensionMock } from './fixtures/mock-backend'
-import { installMockBackend, defaultMockData, VIEW_PATH } from './fixtures/mock-backend'
+import {
+  confirmAction,
+  installMockBackend,
+  defaultMockData,
+  VIEW_PATH,
+} from './fixtures/mock-backend'
 
 // A single extension whose backend state flips from pending to ready.
 function codeServer(state: 'pending' | 'ready'): ExtensionMock {
@@ -129,6 +134,12 @@ test('a persistently failing poll notifies once, and again after a recovery', as
   failing = true
   await page.clock.runFor(5_000)
   await expect.poll(toasts).toBe(2)
+
+  // The toast auto-dismisses but the list stays stale, so the condition also has
+  // to be stated inline, next to the data it applies to.
+  await expect(
+    page.getByText('Could not refresh the extension list — showing the last version that loaded.'),
+  ).toBeVisible()
 })
 
 test('the refresh control triggers an update-extensions request', async ({ page }) => {
@@ -139,6 +150,9 @@ test('the refresh control triggers an update-extensions request', async ({ page 
   const reqPromise = page.waitForRequest((r) =>
     r.url().includes('/kube-helm-api/update-extensions'),
   )
+  // Downloading the catalogue is high impact (time, bandwidth, disk), so it is
+  // confirmed before the request goes out.
   await page.getByTestId('update-extensions').click()
+  await confirmAction(page, 'Download')
   await reqPromise
 })

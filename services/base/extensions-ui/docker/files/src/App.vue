@@ -7,6 +7,8 @@ const { viewKey } = useShellSettings()
 <template>
   <div id="app">
     <v-app>
+      <!-- Transient notifications: action outcomes, bottom-right per the
+           guidelines' "Notifications and alerts". -->
       <notifications position="bottom right" width="20%" :duration="5000" />
       <v-main>
         <router-view :key="viewKey"></router-view>
@@ -16,16 +18,10 @@ const { viewKey } = useShellSettings()
 </template>
 
 <style lang="scss">
-#app {
-  font-family: "Avenir", Helvetica, Arial, sans-serif;
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  font-size: 14px;
-  line-height: 1.42857143;
-  color: #333;
-}
-
+// No font-family, font-size or colour is set here on purpose. The platform
+// typeface and the light/dark text colours come from the shared theme via
+// createKaapanaVuetify(); overriding them locally is what made this view
+// render in Helvetica on a hardcoded #333 in both themes.
 @media (min-width: 2100px) {
   .container--fluid {
     max-width: 2100px !important;

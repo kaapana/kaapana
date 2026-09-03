@@ -63,3 +63,38 @@ onMounted(() => {
     :accepted-file-types="acceptedFileTypes"
   />
 </template>
+
+<style scoped>
+/* FilePond ships its own palette — a light panel with dark text — which is
+   correct in the light theme and a glaring light block in the dark one. Map its
+   surfaces onto the platform theme roles instead, so the drop zone follows the
+   shell's dark-mode toggle like everything else on the page. */
+:deep(.filepond--root) {
+  font-family: inherit;
+  margin-bottom: 0;
+}
+
+:deep(.filepond--panel-root) {
+  background-color: rgb(var(--v-theme-surface-light));
+  border: 1px dashed rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
+}
+
+:deep(.filepond--drop-label),
+:deep(.filepond--drop-label label) {
+  color: rgb(var(--v-theme-on-surface));
+  font-size: inherit;
+}
+
+:deep(.filepond--label-action) {
+  text-decoration-color: rgb(var(--v-theme-primary));
+}
+
+:deep(.filepond--item-panel) {
+  background-color: rgb(var(--v-theme-surface-variant));
+}
+
+:deep(.filepond--file) {
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+</style>

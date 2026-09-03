@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('search filters the list down to matching extensions', async ({ page }) => {
-  await page.getByLabel('Search').fill('JupyterLab')
+  await page.getByRole('textbox', { name: 'Search' }).fill('JupyterLab')
 
   await expect(page.getByText('JupyterLab')).toBeVisible()
   await expect(page.getByText('MITK Workbench')).toHaveCount(0)

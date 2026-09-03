@@ -58,11 +58,30 @@ test('shows every extension on one page by default', async ({ page }) => {
   await expect(page.locator('.v-data-table-footer__items-per-page')).toContainText('All')
 })
 
-test('renders an empty table when no extensions are available', async ({ page }) => {
+test('an empty catalogue explains itself and offers the first action', async ({ page }) => {
+  // "Avoid generic 'No data available' text when the application knows more."
   await installMockBackend(page, { ...defaultMockData, extensions: [] })
   await page.goto(VIEW_PATH)
 
-  await expect(page.getByText('No data available')).toBeVisible()
+  const emptyState = page.getByTestId('extensions-empty-state')
+  await expect(emptyState.getByText('No extensions available yet')).toBeVisible()
+  await expect(emptyState.getByRole('button', { name: 'Download latest extensions' })).toBeVisible()
+})
+
+test('filtering everything out is reported as a filter result, not an empty catalogue', async ({
+  page,
+}) => {
+  await installMockBackend(page)
+  await page.goto(VIEW_PATH)
+  await expect(page.getByText('MITK Workbench')).toBeVisible()
+
+  await page.getByRole('textbox', { name: 'Search' }).fill('no-such-extension-anywhere')
+
+  const emptyState = page.getByTestId('extensions-empty-state')
+  await expect(emptyState.getByText('No extensions match the current filters')).toBeVisible()
+  // And the way out is offered rather than left to the user to work out.
+  await emptyState.getByRole('button', { name: 'Reset filters' }).click()
+  await expect(page.getByText('MITK Workbench')).toBeVisible()
 })
 
 test('renders a row whose version is absent from available_versions without crashing the table', async ({ page }) => {
@@ -110,11 +129,25 @@ test('survives a backend error, shows no rows, and notifies the user', async ({ 
   )
   await page.goto(VIEW_PATH)
 
-  await expect(page.getByLabel('Search')).toBeVisible()
-  await expect(page.getByText('No data available')).toBeVisible()
+  await expect(page.getByRole('textbox', { name: 'Search' })).toBeVisible()
+  // A load failure must not be dressed up as an empty collection.
+  const emptyState = page.getByTestId('extensions-empty-state')
+  await expect(emptyState.getByText('Could not load the extension list')).toBeVisible()
+
   await expect(page.getByText('MITK Workbench')).toHaveCount(0)
 
   // Unlike a legitimately empty list, a load failure surfaces an error toast.
+  // Asserted before the retry below, which deliberately re-arms the latch and
+  // so produces a second toast.
   const toast = page.locator('.vue-notification-wrapper')
   await expect(toast.getByText('Failed to load extensions')).toBeVisible()
+
+  // The recovery action must actually re-fetch, not merely be present, and a
+  // retry that fails again must report itself rather than going silent.
+  const retried = page.waitForRequest((r) =>
+    /\/kube-helm-api\/extensions(\?.*)?$/.test(r.url()),
+  )
+  await emptyState.getByRole('button', { name: 'Try again' }).click()
+  await retried
+  await expect.poll(async () => await toast.getByText('Failed to load extensions').count()).toBe(2)
 })

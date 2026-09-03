@@ -51,7 +51,7 @@ test('opens the config form and posts entered parameters', async ({ page }) => {
   })
 })
 
-test('aborting the config form fires no install request', async ({ page }) => {
+test('cancelling the config form fires no install request', async ({ page }) => {
   let installCalls = 0
   page.on('request', (r) => {
     if (r.url().includes('/kube-helm-api/helm-install-chart')) installCalls++
@@ -60,7 +60,9 @@ test('aborting the config form fires no install request', async ({ page }) => {
   await page.getByRole('button', { name: 'Install', exact: true }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
-  await dialog.getByRole('button', { name: 'Abort' }).click()
+  // "Cancel" per the guidelines: dismissing a form destroys nothing, so it is a
+  // secondary action, not the error-coloured "Abort" it used to be.
+  await dialog.getByRole('button', { name: 'Cancel' }).click()
 
   await expect(dialog).toBeHidden()
   await page.waitForTimeout(500)

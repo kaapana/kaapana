@@ -14,7 +14,22 @@ and parameterizing them against the `kube-helm-api` backend. Discovered via the
 > `kube-helm-api` view and is the one described here.
 
 The whole app lives under `docker/files/`; the single view is
-`src/views/Extensions.vue`.
+`src/views/Extensions.vue`, supported by four components:
+
+| Path | Purpose |
+| --- | --- |
+| `src/components/ConfirmDialog.vue` | The confirmation pattern for destructive and high-impact actions. |
+| `src/components/ExtensionParamsDialog.vue` | The `extension_params` configuration form, with unsaved-changes protection. |
+| `src/components/ExtensionsEmptyState.vue` | The three empty states (nothing yet / nothing matches / could not load). |
+| `src/components/Upload.vue` | The FilePond drop zone. |
+
+The view follows the [Kaapana frontend design
+guidelines](../base-ui/docker/files/kaapana-design-guidelines-draft.md). The
+visual language is not defined here: the theme, the platform typeface and the
+semantic icon map all come from `@kaapana/base-ui` via
+`createKaapanaVuetify()` in `src/plugins/vuetify.ts`. Reference
+`kaapanaIcons`, never an `mdi-*` string, for any action whose meaning should be
+constant across the platform.
 
 ## Features
 
@@ -38,10 +53,14 @@ Derived from `src/views/Extensions.vue` and the e2e specs:
   `boolean`, `list_single`, `list_multi`, plus `group_name` and `doc`
   (rich-text/HTML) section markers, with per-field validation and help
   tooltips. A just-launched multi-instance briefly shows a disabled *Launched*
-  state.
+  state, with a tooltip explaining why. Closing the configuration form after
+  editing it asks before discarding, and an edited form reports the view as
+  dirty to the shell via `postViewDirty()`.
 - **Uninstall / Delete** — installed extensions show *Uninstall* (single) or
   *Delete* (multi-installable). A stuck *Pending* install exposes a
-  *Force Uninstall / Force Delete* action that passes `--no-hooks`.
+  *Force Uninstall / Force Delete* action that passes `--no-hooks`. All three
+  are destructive, so each opens a confirmation naming the release and version,
+  what stops, and what survives; the safe action takes initial focus.
 - **Version selection** — a per-row dropdown (`versions`) chooses which chart
   version the action targets; the selected version flows into the
   install/uninstall payload.
@@ -50,9 +69,18 @@ Derived from `src/views/Extensions.vue` and the e2e specs:
   spinner while `pending`, a red `mdi-alert-circle` on failure, a green
   `mdi-check-circle` when ready; the tooltip surfaces the aggregated Helm
   status and Kubernetes pod status.
-- **Polling & refresh** — the list is re-fetched every 5 s. The cloud-refresh
-  control triggers a backend re-download of the latest extensions
-  (`update-extensions`).
+- **Polling & refresh** — the list is re-fetched every 5 s. The
+  *Download latest extensions* control triggers a backend re-download
+  (`update-extensions`). It is high impact rather than destructive — time,
+  bandwidth and disk — so it is confirmed with `primary`, not `error`.
+- **Empty and failure states** — an empty screen says which of the three cases
+  it is and offers the way out: nothing published yet (download the catalogue),
+  nothing matching the filters (reset them), or a failed load (retry). A load
+  failure is never presented as an empty catalogue. While a stale list is still
+  on screen, an inline alert says so.
+- **Action feedback** — install and uninstall show progress on the row control
+  that started them and cannot be submitted twice; outcomes arrive as transient
+  notifications.
 - **Upload** — a FilePond drop zone (chunked upload) accepts extension charts
   (`.tgz`) and container images (`.tar`); an uploaded `.tar` is then imported
   via `import-container`.
@@ -94,12 +122,12 @@ prefixed with the `/project/<short_id>` document prefix.
 - **none** — auth, `/aii/*`, and the `/jsons/*` static files are not
   project-scoped.
 
-> The `commonData` store also defines `getPolicyData`
-> (`GET /kaapana-backend/open-policy-data`), but this view **does not call it**
-> — no policy request is made at runtime. The vuex module it was ported from
-> also had `checkAvailableWebsites` / `getExternalWebpages`; neither survived
-> the port, so no external-webpages, traefik-routes or os-dashboards call
-> exists here either.
+> The router loads `getPolicyData` (`GET /kaapana-backend/open-policy-data`)
+> before the view mounts, so the admin-only controls do not flash in and out;
+> an unloaded policy hides them (fail closed). The vuex module it was ported
+> from also had `checkAvailableWebsites` / `getExternalWebpages`; neither
+> survived the port, so no external-webpages, traefik-routes or os-dashboards
+> call exists here either.
 
 ## Development
 
@@ -147,4 +175,13 @@ after any change to its `src/` before running tests — consumers otherwise
 import the stale `dist/` through the npm symlink and nothing errors, the
 change is just missing.
 
-Suites: `list`, `filter`, `install`, `uninstall`, `polling`, `project-scope`.
+Suites: `boot`, `list`, `filter`, `install`, `params`, `uninstall`, `polling`,
+`failures`, `project-scope`, and `guidelines`.
+
+`guidelines.spec.ts` is the odd one out: it covers the design-guideline rules
+rather than a feature — that destructive actions confirm and can be dismissed
+safely, that the safe action holds initial focus, that unsaved edits are
+protected and reported to the shell, that icon-only controls are named and
+keyboard-reachable, and that a running mutation cannot be submitted twice. A
+failure there is a regression against the design system, not against a
+feature.

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import {
+  confirmAction,
   installMockBackend,
   defaultMockData,
   viewPathFor,
@@ -55,6 +56,7 @@ test('no request to a project-scoped service escapes the /project/<slug>/ prefix
   // Refresh the marketplace (the only header action that calls the backend).
   const refreshed = page.waitForResponse((r) => r.url().includes('/kube-helm-api/update-extensions'))
   await page.getByTestId('update-extensions').click()
+  await confirmAction(page, 'Download')
   await refreshed
 
   // Install: the one action whose URL the interceptor rewrites on a POST.
@@ -64,7 +66,8 @@ test('no request to a project-scoped service escapes the /project/<slug>/ prefix
 
   // Uninstall, the mirror-image call.
   const uninstalled = page.waitForResponse((r) => r.url().includes('/kube-helm-api/helm-delete-chart'))
-  await page.getByRole('button', { name: 'Uninstall' }).first().click()
+  await page.getByRole('button', { name: 'Uninstall', exact: true }).first().click()
+  await confirmAction(page, 'Uninstall extension')
   await uninstalled
 
   // The motivating call: FilePond never touches httpClient, so Upload.vue

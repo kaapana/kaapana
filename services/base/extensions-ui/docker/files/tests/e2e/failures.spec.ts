@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { installMockBackend, VIEW_PATH } from './fixtures/mock-backend'
+import { confirmAction, installMockBackend, VIEW_PATH } from './fixtures/mock-backend'
 
 // kube-helm and aii raise FastAPI HTTPExceptions, so a failure body is {detail}.
 function serverError(detail: string) {
@@ -21,12 +21,13 @@ test('a failed uninstall notifies and leaves the row installed', async ({ page }
   await page.goto(VIEW_PATH)
   await expect(page.getByText('MITK Workbench')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Uninstall' }).click()
+  await page.getByRole('button', { name: 'Uninstall', exact: true }).click()
+  await confirmAction(page, 'Uninstall extension')
 
   await expect(page.getByText('Uninstall failed', { exact: true })).toBeVisible()
   await expect(page.getByText('release is locked')).toBeVisible()
   // The extension is still deployed, so the row must keep offering Uninstall.
-  await expect(page.getByRole('button', { name: 'Uninstall' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Uninstall', exact: true })).toBeVisible()
   expect(pageErrors).toEqual([])
 })
 
@@ -40,6 +41,7 @@ test('a failed marketplace refresh notifies and keeps the list', async ({ page }
   await expect(page.getByText('MITK Workbench')).toBeVisible()
 
   await page.getByTestId('update-extensions').click()
+  await confirmAction(page, 'Download')
 
   await expect(page.getByText('Refresh failed', { exact: true })).toBeVisible()
   await expect(page.getByText('helm repo update failed')).toBeVisible()

@@ -237,6 +237,18 @@ export const defaultMockData: MockData = {
   ],
 }
 
+/**
+ * Destructive and high-impact actions open a confirmation dialog before the
+ * request goes out (design guidelines, "Actions requiring confirmation"), so a
+ * spec that exercises one has to pass through it. `name` is the label of the
+ * confirming button, which always names the action rather than saying "OK".
+ */
+export async function confirmAction(page: Page, name: string) {
+  const dialog = page.getByRole('dialog')
+  await dialog.getByRole('button', { name, exact: true }).click()
+  await dialog.waitFor({ state: 'hidden' })
+}
+
 function json(body: unknown, status = 200) {
   return { status, contentType: 'application/json', body: JSON.stringify(body) }
 }

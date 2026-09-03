@@ -1,25 +1,20 @@
 <template>
-  <v-card elevation="5" style="margin: 5px">
-    <v-card-title style="padding: 10px">
-      <v-container>
-        <v-row>
-          <v-col v-for="prop in patientProps" :key="prop" cols="3" style="margin-bottom: -5px">
-            <v-row style="font-size: x-small; padding-bottom: 0">
-              {{ prop }}
-            </v-row>
-            <v-row
-              v-for="data in getMetaData(prop)"
-              :key="data"
-              style="font-size: small; padding-top: 0; margin-top: 0"
-            >
-              {{ data }}
-            </v-row>
-          </v-col>
-        </v-row>
-      </v-container>
+  <!-- Elevation 2 is the resting level for raised content; a page of nested
+       cards must not read as a stack of floating boxes (guidelines, "Spacing
+       and shape"). -->
+  <v-card :elevation="2" class="ma-1">
+    <v-card-title class="pa-3">
+      <v-row no-gutters>
+        <v-col v-for="prop in patientProps" :key="prop" cols="3">
+          <div class="text-caption text-medium-emphasis">{{ prop }}</div>
+          <div v-for="data in getMetaData(prop)" :key="data" class="text-body-2">
+            {{ data }}
+          </div>
+        </v-col>
+      </v-row>
     </v-card-title>
     <v-divider></v-divider>
-    <v-card-text style="padding: 10px">
+    <v-card-text class="pa-3">
       <StudyView
         v-for="seriesInstanceUIDs in studies"
         :key="JSON.stringify(seriesInstanceUIDs)"

@@ -45,6 +45,26 @@ convention).
 - **Deep links** via `?project_name=` / `?dataset_name=` query params, which
   can move the document under another project's prefix.
 
+## Design guidelines
+
+The view follows the Kaapana frontend design guidelines
+(`services/base/base-ui/docker/files/kaapana-design-guidelines-draft.md`). The
+parts that shape the code rather than only its styling:
+
+| Guideline | Where it lives |
+| --- | --- |
+| Visual language | `src/plugins/vuetify.ts` builds Vuetify through `createKaapanaVuetify`, so the theme, the MDI icon set and the platform typeface (Roboto) all arrive together. `App.vue` sets no font or text colour of its own. |
+| Icons | `src/utils/galleryIcons.ts` re-exports the shared `kaapanaIcons` map and names this view's own domain symbols. No `mdi-*` string at a call site. |
+| Action hierarchy | Toolbar and table actions are tertiary (`variant="text"`); the main action of a task area is `color="primary" variant="flat"`; destructive actions are `color="error"`. |
+| Confirmations | `src/components/ConfirmDialog.vue` — title plus consequences, `tone="destructive"` (error) or `tone="high-impact"` (primary), initial focus on the safe action, Escape and outside clicks cancel. Used for removing series from a dataset, deleting a dataset, discarding an edited dialog, and starting a download. |
+| Unavailable actions | Disabled controls carry a tooltip *and* an accessible name that states the precondition, not just the action. |
+| Validation | `SaveDatasetDialog.vue` validates on blur and on submit, and its messages say what to enter and how to fix it. |
+| Unsaved changes | `Search.vue` and `SaveDatasetDialog.vue` each report their own dirty state upward; `Datasets.vue` posts the **combined** state once via `postViewDirty`, so the parts cannot overwrite each other. Closing an edited dialog is guarded. |
+| Loading | Mutation progress shows on the control that started it, and a running mutation cannot be submitted twice. The gallery skeleton mirrors the card grid it replaces. |
+| Errors | `src/utils/errors.ts` turns a rejection into "what failed" plus the backend's actionable `detail`, never a bare status code or an interpolated `Error`. |
+| Empty states | `src/components/GalleryEmptyState.vue` distinguishes "nothing exists yet", "nothing matches" and "could not load", each with its own next step. A failed load is never shown as an empty collection. |
+| Accessibility | Every icon-only control is a real `<v-btn>` with an `aria-label` — handlers used to sit on the `<v-icon>` inside, which no keyboard could reach. Tag chips derive a foreground colour by luminance (`src/utils/tagColors.ts`) instead of inheriting one. |
+
 ## Backend endpoints
 
 All calls go through the shared `httpClient` (axios) in `@kaapana/base-ui`.
@@ -144,6 +164,12 @@ store redirects onto the user's first project.
 Mock-backed Playwright e2e under `docker/files/tests/e2e` — no backend or
 cluster needed; `fixtures/mock-backend.ts` intercepts every backend call with
 `page.route`.
+
+`guidelines.spec.ts` covers the design-guidelines behaviour listed above —
+accessible names, keyboard operability, what a confirmation says and which
+button it focuses, the three empty states, validation wording, the combined
+dirty state, and error text. It asserts behaviour a user can observe, not
+styling, which the shared theme owns.
 
 ```bash
 cd services/base/data-gallery-ui/docker/files

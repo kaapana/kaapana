@@ -1,22 +1,38 @@
 <template>
-  <v-card>
-    <v-card-title style="display: block">
+  <v-card :elevation="0" class="rounded-0">
+    <v-card-title class="d-block">
       <!-- Buttons need auto-width columns: in the narrow detail panel a
            cols="1" slot (~31px) is smaller than a 48px icon button, which
            squeezes it into an oval. -->
       <v-row no-gutters align="center">
-        <v-col class="text-truncate">
+        <v-col class="text-truncate text-h6">
           {{ seriesDescription }}
         </v-col>
         <v-col cols="auto">
-          <v-btn icon variant="text" @click="openInOHIFViewer">
-            <v-icon> mdi-open-in-new </v-icon>
-          </v-btn>
+          <v-tooltip location="bottom" text="Open study in the OHIF viewer">
+            <template v-slot:activator="{ props: activator }">
+              <v-btn
+                v-bind="activator"
+                :icon="kaapanaIcons.externalLink"
+                aria-label="Open study in the OHIF viewer in a new tab"
+                variant="text"
+                @click="openInOHIFViewer"
+              />
+            </template>
+          </v-tooltip>
         </v-col>
         <v-col cols="auto">
-          <v-btn icon variant="text" @click="resetSelected">
-            <v-icon> mdi-close </v-icon>
-          </v-btn>
+          <v-tooltip location="bottom" text="Close details">
+            <template v-slot:activator="{ props: activator }">
+              <v-btn
+                v-bind="activator"
+                :icon="kaapanaIcons.close"
+                aria-label="Close series details"
+                variant="text"
+                @click="resetSelected"
+              />
+            </template>
+          </v-tooltip>
         </v-col>
       </v-row>
     </v-card-title>
@@ -32,10 +48,11 @@
       />
       <div
         v-if="!viewerLoaded"
-        class="d-flex align-center justify-center"
+        class="d-flex flex-column align-center justify-center ga-3"
         style="aspect-ratio: 1 / 1; max-height: 80vh"
       >
         <v-progress-circular indeterminate color="primary" />
+        <span class="text-body-2 text-medium-emphasis">Loading the viewer…</span>
       </div>
       <TagsTable :series-instance-u-i-d="seriesInstanceUID" />
     </v-card-text>
@@ -49,6 +66,7 @@ import { loadSeriesData } from '@/common/api.service'
 import { getProjectBase } from '@kaapana/base-ui'
 import IFrameWindow from './IFrameWindow.vue'
 import { useDatasetsStore } from '@/stores/datasets'
+import { kaapanaIcons } from '@/utils/galleryIcons'
 
 const props = defineProps<{ seriesInstanceUID?: string }>()
 

@@ -41,7 +41,6 @@
       ansible.builtin.script:
         cmd: >-
           {{ playbook_dir }}/target_readiness.py
-          --summary-only
           --domain {{ vm_fqdn | quote }}
           --required-ports {{ required_ports | quote }}
           --min-disk-gib {{ min_disk_gib }}

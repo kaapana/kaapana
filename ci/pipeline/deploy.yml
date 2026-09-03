@@ -154,8 +154,7 @@ target_readiness:
       ansible-playbook "$CI_PROJECT_DIR/$[[ inputs.playbook_dir ]]/target_readiness.yaml" \
         -i "$VM_FQDN," \
         -u "$VM_USER" \
-        --private-key "$CI_SSH_PRIVATE_KEY" \
-        --no-output
+        --private-key "$CI_SSH_PRIVATE_KEY"
   artifacts:
     expire_in: 2 weeks
     paths:

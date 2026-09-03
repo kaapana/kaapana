@@ -134,6 +134,22 @@ def test_patient_age(op):
     assert derived_age == 4
 
 
+# Project routing: a ClinicalTrialProtocolID naming a project unknown to the
+# access-information-interface must fall back to the default project.
+@pytest.mark.params(
+    {"ClinicalTrialProtocolID": "kp-nonexistent"},
+)
+def test_unknown_project_falls_back_to_default(op):
+    import requests  # the MagicMock installed by mock_modules()
+
+    with patch.object(requests, "get") as get:
+        get.return_value.json.return_value = [{"short_id": "admin"}]
+        op.start()
+    json_ct = read_ct()
+
+    assert json_ct["00120020 ClinicalTrialProtocolID_keyword"] == "admin"
+
+
 # DATETIMES
 @pytest.mark.params(
     {"AcquisitionDateTime": NOW.strftime("%Y%m%d%H")},

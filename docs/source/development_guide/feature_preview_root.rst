@@ -24,6 +24,7 @@ Independently of the extension story, :doc:`preview/project_scoping` previews th
     preview/extension_packaging
     preview/extension_manager
     preview/project_scoping
+    preview/kaapana-frontend-design-guidelines
 
 
 

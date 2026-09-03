@@ -8,6 +8,11 @@ spec:
       type: boolean
     build_arguments:
       type: string
+    version_tag:
+      type: string
+      default: ""
+      regex: ^[0-9A-Za-z._+-]*$
+      description: pin the version to deploy; empty resolves it from git describe
     runner_tag:
       type: string
     playbook_dir:
@@ -57,12 +62,17 @@ prepare_deployment:
   script:
     # Resolve the version this pipeline deploys, once, for every later job.
     # Must equal what build_packages pushed — same git describe formula.
-    - git fetch --tags
-    - VERSION_TAG=$(git describe --tags --always)
+    # A non-empty version_tag input deploys that exact version — used to put an
+    # already-built version on a target without rebuilding it here.
     - |
-      if [[ "$[[ inputs.build_arguments ]]" =~ (--latest) && "$VERSION_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-        BASE_TAG=$(echo "$VERSION_TAG" | sed -E 's/-[0-9]+-g[0-9a-f]+.*//')
-        VERSION_TAG="${BASE_TAG}-latest"
+      VERSION_TAG="$[[ inputs.version_tag ]]"
+      if [[ -z "$VERSION_TAG" ]]; then
+        git fetch --tags
+        VERSION_TAG=$(git describe --tags --always)
+        if [[ "$[[ inputs.build_arguments ]]" =~ (--latest) && "$VERSION_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+          BASE_TAG=$(echo "$VERSION_TAG" | sed -E 's/-[0-9]+-g[0-9a-f]+.*//')
+          VERSION_TAG="${BASE_TAG}-latest"
+        fi
       fi
     - echo "Resolved VERSION_TAG=$VERSION_TAG"
 

@@ -48,6 +48,11 @@ spec:
       default: false
       type: boolean
       description: "[exec] true undeploys a platform already on the target, false fails the job"
+    exec_deploy_version_tag:
+      default: ""
+      type: string
+      regex: ^[0-9A-Za-z._+-]*$
+      description: "[exec] deploy this exact version instead of git describe of this commit; it must already be in the registry"
     exec_integration_tests:
       default: true
       type: boolean
@@ -241,6 +246,7 @@ include:
       exec_server_installation: $[[ inputs.exec_server_installation ]]
       exec_redeploy: $[[ inputs.exec_redeploy ]]
       build_arguments: $[[ inputs.exec_build_arguments ]]
+      version_tag: $[[ inputs.exec_deploy_version_tag ]]
   - local: /ci/pipeline/integration-tests.yml
     inputs:
       runner_tag: $[[ inputs.deploy_runner_tag ]]

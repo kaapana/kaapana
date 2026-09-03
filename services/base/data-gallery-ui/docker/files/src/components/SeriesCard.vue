@@ -1,5 +1,5 @@
 <template>
-  <v-container class="pa-0" fluid style="height: 100%">
+  <v-container class="pa-0 fill-height" fluid>
     <v-card @click="onClick" height="100%" :id="seriesInstanceUID" class="seriesCard">
       <v-img :src="src" aspect-ratio="1" @error="img_loading_error = true">
         <template v-slot:placeholder>
@@ -7,17 +7,12 @@
             class="fill-height ma-0"
             align="center"
             justify="center"
-            :style="img_loading_error ? 'background-color: darkgray' : ''"
+            :class="img_loading_error ? 'bg-surface-light' : ''"
           >
-            <v-progress-circular
-              v-if="!img_loading_error"
-              indeterminate
-              color="#0088cc"
-            ></v-progress-circular>
-            <div v-else style="text-align: center">
-              <p></p>
-              <v-icon>mdi-alert-circle-outline</v-icon>
-              <p>Thumbnail unavailable</p>
+            <v-progress-circular v-if="!img_loading_error" indeterminate color="primary" />
+            <div v-else class="text-center text-caption text-medium-emphasis">
+              <v-icon :icon="kaapanaIcons.error" class="d-block mx-auto mb-1" />
+              Thumbnail unavailable
             </div>
           </v-row>
         </template>
@@ -25,67 +20,76 @@
         <v-row class="fill-height ma-0 pa-0">
           <!-- v-app-bar/v-bottom-navigation are app-layout components in Vuetify 3
                (fixed position + v-main padding), so plain elements are used here. -->
-          <v-toolbar flat density="compact" color="rgba(0, 0, 0, 0)" class="card-toolbar">
+          <v-toolbar flat density="compact" color="transparent" class="card-toolbar">
             <Chip :items="[modality]" />
             <v-spacer></v-spacer>
-            <v-btn icon density="compact" @click.stop="showDetails()" color="white">
-              <v-icon>mdi-eye</v-icon>
-            </v-btn>
+            <!-- Over an arbitrary thumbnail no theme role can guarantee
+                 contrast, so this control carries its own scrim and a fixed
+                 light foreground rather than a theme colour that could land
+                 white on white. -->
+            <v-btn
+              :icon="galleryIcons.preview"
+              aria-label="Show series details"
+              density="compact"
+              variant="text"
+              class="on-image"
+              @click.stop="showDetails()"
+            />
           </v-toolbar>
           <div v-if="Object.keys(validationResults).length > 0" class="result-container">
+            <!-- The count and the accessible name carry the meaning; colour only
+                 reinforces it (guidelines, "Color"). -->
             <v-btn
               size="small"
               variant="text"
-              class="v-btn--error-rslt pa-0"
+              class="validation-badge pa-0"
               v-if="'errors' in validationResults && validationResults['errors'] != 0 && isSeriesComplete"
-              @click="triggerValidationResultDetails"
+              :aria-label="`${validationResults['errors']} validation errors — open report`"
+              @click.stop="triggerValidationResultDetails"
             >
               {{ validationResults['errors'] }}
-              <v-icon class="mr-1" color="error">mdi-close-circle</v-icon>
+              <v-icon :icon="kaapanaIcons.error" class="ml-1" color="error" />
             </v-btn>
             <v-btn
               size="small"
               variant="text"
-              class="v-btn--error-rslt pa-0"
+              class="validation-badge pa-0"
               v-if="'warnings' in validationResults && validationResults['warnings'] != 0 && isSeriesComplete"
-              @click="triggerValidationResultDetails"
+              :aria-label="`${validationResults['warnings']} validation warnings — open report`"
+              @click.stop="triggerValidationResultDetails"
             >
               {{ validationResults['warnings'] }}
-              <v-icon class="mr-1" color="warning">mdi-alert-circle</v-icon>
+              <v-icon :icon="galleryIcons.warning" class="ml-1" color="warning" />
             </v-btn>
             <v-btn
               size="small"
               variant="text"
               class="pa-0"
               v-if="!isSeriesComplete"
-              @click="triggerValidationResultDetails"
+              aria-label="Series is incomplete — open report"
+              @click.stop="triggerValidationResultDetails"
             >
-              Broken <v-icon class="mr-1" color="warning">mdi-format-page-break</v-icon>
+              Broken
+              <v-icon :icon="galleryIcons.incomplete" class="ml-1" color="warning" />
             </v-btn>
           </div>
         </v-row>
       </v-img>
-      <v-card-text v-if="settings.datasets.cardText">
+      <v-card-text v-if="settings.datasets.cardText" class="pa-2">
         <div
           v-for="prop in settings.datasets.props.filter((prop: any) => prop.display)"
           :key="prop.name"
+          class="mb-1"
         >
-          <v-row no-gutters style="font-size: x-small">
-            <v-col style="margin-bottom: -5px">
-              {{ prop['name'] }}
-            </v-col>
-          </v-row>
-          <v-row no-gutters style="font-size: small; padding-top: 0" align="start">
-            <v-col>
-              <div :class="prop['truncate'] ? 'text-truncate' : ''">
-                {{ seriesData[prop['name']] || 'N/A' }}
-              </div>
-            </v-col>
-          </v-row>
+          <!-- Supporting label, then the value at full emphasis: hierarchy comes
+               from the platform type scale, not one-off font sizes (guidelines,
+               "Typography"). -->
+          <div class="text-caption text-medium-emphasis">{{ prop['name'] }}</div>
+          <div class="text-body-2" :class="prop['truncate'] ? 'text-truncate' : ''">
+            {{ seriesData[prop['name']] || 'N/A' }}
+          </div>
         </div>
-        <v-row v-if="tags" no-gutters>
-          <TagChip :items="tags" @deleteTag="(tag) => deleteTag(tag)" />
-        </v-row>
+        <TagChip v-if="tags" :items="tags" @deleteTag="(tag) => deleteTag(tag)" />
       </v-card-text>
     </v-card>
   </v-container>
@@ -99,6 +103,8 @@ import { loadSeriesData, updateTags } from '@/common/api.service'
 import { notify } from '@kyvg/vue3-notification'
 import { readSettings, settings as defaultSettings } from '@/static/defaultUIConfig'
 import { useDatasetsStore } from '@/stores/datasets'
+import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
+import { apiErrorText } from '@/utils/errors'
 
 const props = defineProps<{ seriesInstanceUID?: string }>()
 
@@ -129,9 +135,6 @@ function get_data() {
           seriesData.value = data['metadata'] || {}
           tags.value = data['metadata']['Tags'] || []
           isSeriesComplete.value = data?.metadata?.['Is Series Complete'] ?? true
-          if (!isSeriesComplete.value) {
-            console.log(props.seriesInstanceUID)
-          }
           if ('Validation Results' in seriesData.value) {
             processValidationResults(seriesData.value['Validation Results'])
           }
@@ -155,7 +158,11 @@ async function deleteTag(tag: string) {
     .then(() => (tags.value = tags.value.filter((_tag) => _tag !== tag)))
     // updateTags does not report; the chip stays until the server confirms.
     .catch((error: any) =>
-      notify({ title: 'Error', text: error.response?.data?.detail ?? error.message, type: 'error' }),
+      notify({
+        title: 'Tag not removed',
+        text: apiErrorText(error, `The tag “${tag}” could not be removed from this series.`),
+        type: 'error',
+      }),
     )
 }
 
@@ -217,7 +224,11 @@ function modifyTags() {
     })
     // updateTags does not report; the chips stay until the server confirms.
     .catch((error: any) =>
-      notify({ title: 'Error', text: error.response?.data?.detail ?? error.message, type: 'error' }),
+      notify({
+        title: 'Tags not updated',
+        text: apiErrorText(error, 'The tags on this series could not be updated.'),
+        type: 'error',
+      }),
     )
 }
 
@@ -263,14 +274,18 @@ get_data()
 
 <style lang="scss" scoped>
 .selected {
-  /*TODO: This should be aligned with theme*/
-  color: #fff !important;
-  background: #4af !important;
+  /* Selection is a state of the surface, so it uses the theme's primary role and
+     its paired foreground rather than a hardcoded blue. */
+  background: rgb(var(--v-theme-primary)) !important;
+  color: rgb(var(--v-theme-on-primary)) !important;
 }
-.v-card__text {
-  padding: 8px;
+/* A control sitting on top of an arbitrary thumbnail: its own scrim guarantees
+   contrast where no theme colour can. */
+.on-image {
+  color: #fff;
+  background: rgb(0 0 0 / 45%);
 }
-.v-btn--error-rslt {
+.validation-badge {
   min-width: 50px !important;
 }
 /* V2 used a `dense` v-app-bar whose content carried side padding, seating the

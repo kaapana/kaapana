@@ -1,13 +1,13 @@
 <template>
   <div>
-    <splitpanes :class="isDark ? 'dark-theme' : ''">
+    <splitpanes>
       <pane class="main side-navigation" size="70" min-size="30">
         <v-container class="pa-0" fluid>
-          <v-card class="rounded-0">
-            <div style="padding: 10px 10px 10px 10px">
+          <v-card class="rounded-0" :elevation="0">
+            <div class="pa-3">
               <v-row dense align="center">
                 <v-col cols="1" align="center">
-                  <v-icon>mdi-folder</v-icon>
+                  <v-icon :icon="galleryIcons.dataset" />
                 </v-col>
                 <v-col cols="10">
                   <v-autocomplete
@@ -20,24 +20,40 @@
                     return-object
                     single-line
                     density="compact"
+                    no-data-text="No datasets in this project yet"
                     @click:clear="selectedDataset = null"
                   >
                   </v-autocomplete>
                 </v-col>
-                <v-col cols="1" align="center" @click="editDatasetsDialog = true">
-                  <v-icon>mdi-folder-edit-outline</v-icon>
+                <v-col cols="1" align="center">
+                  <!-- Was a bare click handler on the column: not focusable, not
+                       keyboard-operable and with no accessible name. -->
+                  <v-tooltip location="bottom" text="Manage datasets">
+                    <template v-slot:activator="{ props: activator }">
+                      <v-btn
+                        v-bind="activator"
+                        :icon="galleryIcons.datasetEdit"
+                        aria-label="Manage datasets"
+                        variant="text"
+                        density="comfortable"
+                        @click="editDatasetsDialog = true"
+                      />
+                    </template>
+                  </v-tooltip>
                 </v-col>
               </v-row>
               <Search
                 ref="searchRef"
                 :selectedDataset="selectedDataset"
+                :loading="isLoading"
                 @search="(query) => updateData(query)"
+                @update:dirty="(dirty) => (searchDirty = dirty)"
               />
             </div>
           </v-card>
-          <v-card class="rounded-0 elevation-0">
+          <v-card class="rounded-0" :elevation="0">
             <v-divider></v-divider>
-            <div style="padding-left: 10px; padding-right: 10px">
+            <div class="px-3">
               <TagBar />
             </div>
             <v-divider></v-divider>
@@ -56,20 +72,18 @@
         </v-container>
         <!-- Gallery View -->
         <v-container fluid class="pa-0">
-          <v-skeleton-loader v-if="isLoading" class="mx-auto" type="list-item@100">
-          </v-skeleton-loader>
+          <!-- The skeleton mirrors the card grid it replaces, so the layout does
+               not shift when the results arrive (guidelines, "Loading"). -->
+          <v-container v-if="isLoading" fluid class="pa-2">
+            <v-row>
+              <v-col v-for="n in 8" :key="n" cols="3">
+                <v-skeleton-loader type="image, list-item-two-line" />
+              </v-col>
+            </v-row>
+          </v-container>
 
           <!-- Data available -->
-          <v-container
-            fluid
-            class="pa-0"
-            v-else-if="
-              (!isLoading &&
-                Object.entries(patients).length > 0 &&
-                settings.datasets.structured) ||
-              (!isLoading && seriesInstanceUIDs.length > 0 && !settings.datasets.structured)
-            "
-          >
+          <v-container fluid class="pa-0" v-else-if="hasResults">
             <VueSelecto
               dragContainer=".elements"
               :selectableTargets="['.selecto-area .seriesCard']"
@@ -84,62 +98,71 @@
             >
             </VueSelecto>
             <v-container fluid class="pa-0">
-              <v-card class="rounded-0 elevation-0">
-                <v-card-title style="padding-left: 30px; padding-right: 30px">
-                  <v-row class="pa-0">
-                    <v-col class="pa-0" align="right">
-                      {{ displaySelectedItems }}
-                      <v-tooltip location="bottom">
-                        <template v-slot:activator="{ props: activator }">
-                          <span v-bind="activator">
-                            <v-btn :disabled="identifiersOfInterest.length == 0" icon variant="text">
-                              <v-icon color="blue" @click="saveAsDatasetDialog = true">
-                                mdi-plus
-                              </v-icon>
-                            </v-btn>
-                          </span>
-                        </template>
-                        <span>Save as Dataset</span>
-                      </v-tooltip>
-                      <v-tooltip location="bottom">
-                        <template v-slot:activator="{ props: activator }">
-                          <span v-bind="activator">
-                            <v-btn :disabled="identifiersOfInterest.length == 0" icon variant="text">
-                              <v-icon color="green" @click="addToDatasetDialog = true">
-                                mdi-folder-plus-outline
-                              </v-icon>
-                            </v-btn>
-                          </span>
-                        </template>
-                        <span>Add to Dataset</span>
-                      </v-tooltip>
-                      <v-tooltip location="bottom">
+              <v-card class="rounded-0" :elevation="0">
+                <v-card-title class="px-6">
+                  <v-row class="pa-0" align="center">
+                    <v-col class="pa-0 text-right">
+                      <span class="text-body-2 text-medium-emphasis mr-2">
+                        {{ displaySelectedItems }}
+                      </span>
+                      <!-- Contextual utilities, so tertiary by default. The one
+                           destructive action takes the `error` colour and the
+                           main action of the selection takes `primary`; making
+                           all five primary would mean none of them is
+                           (guidelines, "Action hierarchy"). -->
+                      <v-tooltip location="bottom" :text="saveAsHint">
                         <template v-slot:activator="{ props: activator }">
                           <span v-bind="activator">
                             <v-btn
-                              :disabled="identifiersOfInterest.length == 0 || !selectedDataset"
-                              icon
+                              :icon="kaapanaIcons.add"
+                              :aria-label="saveAsHint"
                               variant="text"
-                            >
-                              <v-icon color="red" @click="removeFromDatasetDialog = true">
-                                mdi-folder-minus-outline
-                              </v-icon>
-                            </v-btn>
+                              :disabled="identifiersOfInterest.length == 0"
+                              @click="saveAsDatasetDialog = true"
+                            />
                           </span>
                         </template>
-                        <span>Remove from Dataset</span>
                       </v-tooltip>
-                      <v-tooltip location="bottom">
+                      <v-tooltip location="bottom" :text="addToHint">
                         <template v-slot:activator="{ props: activator }">
                           <span v-bind="activator">
-                            <v-btn :disabled="identifiersOfInterest.length == 0" icon variant="text">
-                              <v-icon color="primary" @click="workflowDialog = true">
-                                mdi-play
-                              </v-icon>
-                            </v-btn>
+                            <v-btn
+                              :icon="galleryIcons.datasetAdd"
+                              :aria-label="addToHint"
+                              variant="text"
+                              :disabled="identifiersOfInterest.length == 0"
+                              @click="addToDatasetDialog = true"
+                            />
                           </span>
                         </template>
-                        <span>Start Workflow</span>
+                      </v-tooltip>
+                      <v-tooltip location="bottom" :text="removeFromHint">
+                        <template v-slot:activator="{ props: activator }">
+                          <span v-bind="activator">
+                            <v-btn
+                              :icon="galleryIcons.datasetRemove"
+                              :aria-label="removeFromHint"
+                              variant="text"
+                              color="error"
+                              :disabled="identifiersOfInterest.length == 0 || !selectedDataset"
+                              @click="removeFromDatasetDialog = true"
+                            />
+                          </span>
+                        </template>
+                      </v-tooltip>
+                      <v-tooltip location="bottom" :text="startWorkflowHint">
+                        <template v-slot:activator="{ props: activator }">
+                          <span v-bind="activator">
+                            <v-btn
+                              :icon="kaapanaIcons.start"
+                              :aria-label="startWorkflowHint"
+                              variant="text"
+                              color="primary"
+                              :disabled="identifiersOfInterest.length == 0"
+                              @click="workflowDialog = true"
+                            />
+                          </span>
+                        </template>
                       </v-tooltip>
                       <DownloadDatasetBtn :selected-series="identifiersOfInterest" />
                     </v-col>
@@ -153,31 +176,24 @@
               class="overflow-auto rounded-0 v-card v-sheet pa-0 elements selecto-area gallery-side-navigation"
             >
               <StructuredGallery
-                v-if="
-                  !isLoading &&
-                  Object.entries(patients).length > 0 &&
-                  settings.datasets.structured
-                "
+                v-if="settings.datasets.structured"
                 v-model:patients="patients"
               />
               <!-- seriesInstanceUIDs deliberately not two-way bound: breaks the Gallery embedded in StructuredGallery -->
-              <Gallery
-                v-else-if="
-                  !isLoading && seriesInstanceUIDs.length > 0 && !settings.datasets.structured
-                "
-                :seriesInstanceUIDs="seriesInstanceUIDs"
-              />
+              <Gallery v-else :seriesInstanceUIDs="seriesInstanceUIDs" />
             </v-container>
           </v-container>
 
-          <!-- No data available or error -->
-          <v-container fluid class="pa-0" v-else>
-            <v-card class="rounded-0">
-              <v-card-text>
-                <h3>{{ message }}</h3>
-              </v-card-text>
-            </v-card>
-          </v-container>
+          <!-- Nothing to show: "nothing yet", "nothing matches" and "could not
+               load" are three different situations with three different next
+               steps (guidelines, "Empty states"). -->
+          <GalleryEmptyState
+            v-else
+            :state="emptyState"
+            :detail="loadError"
+            @retry="updateData(searchQuery, true)"
+            @clear="clearSearch"
+          />
         </v-container>
       </pane>
       <pane class="sidebar side-navigation" size="30" min-size="25">
@@ -196,25 +212,31 @@
       </pane>
     </splitpanes>
     <div>
-      <ConfirmationDialog
-        v-model:show="removeFromDatasetDialog"
-        title="Remove from Dataset"
+      <!-- Removing series from a dataset is hard to undo from the UI, so it is
+           confirmed and coloured `error` (guidelines, "Destructive actions"). -->
+      <ConfirmDialog
+        v-model="removeFromDatasetDialog"
+        :title="`Remove ${identifiersOfInterest.length} series from “${datasetLabelOfSelected}”?`"
+        :consequences="removeFromDatasetConsequences"
+        confirm-label="Remove"
+        :busy="removingFromDataset"
         @confirm="removeFromDataset"
-        @cancel="removeFromDatasetDialog = false"
-      >
-        Are you sure you want to remove
-        <b>{{ identifiersOfInterest.length }} items</b> from the dataset
-        <b>{{ datasetName }}</b
-        >?
-      </ConfirmationDialog>
+      />
       <SaveDatasetDialog
         v-model="saveAsDatasetDialog"
+        :item-count="identifiersOfInterest.length"
+        :existing-names="datasetNames"
+        :busy="savingDataset"
         @save="(name, access_level) => saveDatasetFromDialog(name, access_level)"
-        @cancel="saveAsDatasetDialog = false"
+        @update:dirty="(dirty) => (saveDialogDirty = dirty)"
       />
-      <v-dialog v-model="addToDatasetDialog" width="500">
-        <v-card>
-          <v-card-title> Add to Dataset </v-card-title>
+      <!-- Medium (600px): a form. -->
+      <v-dialog v-model="addToDatasetDialog" max-width="600">
+        <v-card :elevation="5">
+          <v-card-title class="text-h6">Add to dataset</v-card-title>
+          <v-card-subtitle class="text-body-2 text-medium-emphasis pb-2">
+            {{ identifiersOfInterest.length }} series will be added.
+          </v-card-subtitle>
           <v-card-text>
             <v-select
               v-model="datasetToAddTo"
@@ -222,19 +244,29 @@
               :item-title="datasetLabel"
               return-object
               label="Dataset"
+              no-data-text="No datasets in this project yet — use “Save selection as dataset” first"
             ></v-select>
           </v-card-text>
           <v-divider></v-divider>
           <v-card-actions>
             <v-spacer></v-spacer>
-            <v-btn color="primary" :disabled="!datasetToAddTo" @click.stop="addToDataset">
+            <v-btn variant="text" :disabled="addingToDataset" @click.stop="addToDatasetDialog = false">
+              Cancel
+            </v-btn>
+            <v-btn
+              color="primary"
+              variant="flat"
+              :disabled="!datasetToAddTo"
+              :loading="addingToDataset"
+              :prepend-icon="kaapanaIcons.save"
+              @click.stop="addToDataset"
+            >
               Save
             </v-btn>
-            <v-btn @click.stop="addToDatasetDialog = false">Cancel</v-btn>
           </v-card-actions>
         </v-card>
       </v-dialog>
-      <v-dialog v-model="workflowDialog" width="500">
+      <v-dialog v-model="workflowDialog" max-width="600">
         <WorkflowExecution
           :identifiers="identifiersOfInterest"
           :onlyLocal="true"
@@ -250,73 +282,80 @@
         v-model="editDatasetsDialog"
         @close="(reloadDatasets) => editedDatasets(reloadDatasets)"
       />
+      <!-- Large (900px): a report preview. -->
       <v-dialog
         :model-value="datasets_store.showValidationResults"
-        width="850"
-        persistent
-        @click:outside="onValidationResultClose"
-        @keydown.esc="onValidationResultClose"
+        max-width="900"
+        scrollable
+        @update:model-value="(value: boolean) => !value && onValidationResultClose()"
       >
-        <v-card>
-          <v-toolbar flat color="rgba(0, 0, 0, 0)">
-            <v-toolbar-title class="text-h6 text-white pl-0"> Reports </v-toolbar-title>
+        <v-card :elevation="5">
+          <v-toolbar flat color="transparent">
+            <v-toolbar-title class="text-h6">Validation report</v-toolbar-title>
             <v-spacer></v-spacer>
             <v-menu location="bottom end">
               <template v-slot:activator="{ props: activator }">
-                <v-btn icon v-bind="activator" :disabled="false">
-                  <v-icon>mdi-dots-vertical</v-icon>
-                </v-btn>
+                <v-btn
+                  v-bind="activator"
+                  :icon="galleryIcons.more"
+                  aria-label="Report actions"
+                  variant="text"
+                />
               </template>
               <v-list>
-                <v-list-item @click="runValidationWorkflow(validationResultItem)">
-                  <v-list-item-title>Rerun Validation</v-list-item-title>
-                  <template #append>
-                    <v-icon class="mt-4">mdi-play</v-icon>
-                  </template>
-                </v-list-item>
-                <v-list-item @click="deleteValidationResult(validationResultItem)">
-                  <v-list-item-title>Delete Report</v-list-item-title>
-                  <template #append>
-                    <v-icon class="mt-4">mdi-delete-empty</v-icon>
-                  </template>
-                </v-list-item>
-                <v-list-item @click="downloadValidationResult(validationResultItem)">
-                  <v-list-item-title>Download Report</v-list-item-title>
-                  <template #append>
-                    <v-icon class="mt-4">mdi-file-download</v-icon>
-                  </template>
-                </v-list-item>
+                <v-list-item
+                  :prepend-icon="kaapanaIcons.start"
+                  title="Re-run validation"
+                  @click="runValidationWorkflow(validationResultItem)"
+                />
+                <v-list-item
+                  :prepend-icon="kaapanaIcons.delete"
+                  title="Delete report"
+                  @click="deleteValidationResult(validationResultItem)"
+                />
+                <v-list-item
+                  :prepend-icon="galleryIcons.downloadFile"
+                  title="Download report"
+                  @click="downloadValidationResult(validationResultItem)"
+                />
               </v-list>
             </v-menu>
           </v-toolbar>
+          <v-divider />
           <v-card-text v-if="validationResultItem != null">
-            <v-progress-circular
+            <div
               v-if="validationResultLookup.loading"
-              indeterminate
-              color="primary"
-            />
+              class="d-flex flex-column align-center ga-3 py-8"
+            >
+              <v-progress-circular indeterminate color="primary" />
+              <span class="text-body-2 text-medium-emphasis">Loading the report…</span>
+            </div>
             <ElementsFromHTML v-else-if="validationResultUrl" :rawHtmlURL="validationResultUrl" />
-            <div class="container" v-else>
-              <h1 class="pb-5">Validation Report</h1>
-              <p class="text-primary">
-                Report not found, or earlier report has been deleted from workflow results.
-                Please re-run the dicom validation workflow to have up-to-date report.
-              </p>
+            <!-- Information tied to this dialog's content stays inline, next to
+                 what it is about (guidelines, "Notifications and alerts"). -->
+            <div v-else class="py-4">
+              <v-alert
+                type="info"
+                variant="tonal"
+                title="No validation report for this series"
+                text="Either the series has never been validated, or an earlier report was removed with its workflow results. Re-run the validation workflow to produce an up-to-date report."
+              />
               <v-btn
-                class="ma-2 ml-0"
-                variant="outlined"
-                color="light"
+                class="mt-4"
+                color="primary"
+                variant="flat"
+                :prepend-icon="kaapanaIcons.start"
                 @click="runValidationWorkflow(validationResultItem)"
               >
-                <v-icon start>mdi-cog-play</v-icon>
-                Re-run Validation
+                Re-run validation
               </v-btn>
             </div>
-            <v-card-actions>
-              <v-spacer></v-spacer>
-              <v-btn color="primary" @click="onValidationResultClose"> Close </v-btn>
-            </v-card-actions>
           </v-card-text>
+          <v-divider />
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn variant="text" @click="onValidationResultClose">Close</v-btn>
+          </v-card-actions>
         </v-card>
       </v-dialog>
     </div>
@@ -326,7 +365,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useTheme } from 'vuetify'
 import { notify } from '@kyvg/vue3-notification'
 import { Splitpanes, Pane } from 'splitpanes'
 import 'splitpanes/dist/splitpanes.css'
@@ -340,7 +378,8 @@ import Dashboard from '@/components/Dashboard.vue'
 import SaveDatasetDialog from '@/components/SaveDatasetDialog.vue'
 import { WorkflowExecution } from '@kaapana/base-ui/workflow-execution'
 import '@kaapana/base-ui/workflow-execution.css'
-import ConfirmationDialog from '@/components/ConfirmationDialog.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import GalleryEmptyState from '@/components/GalleryEmptyState.vue'
 import EditDatasetsDialog from '@/components/EditDatasetsDialog.vue'
 import DownloadDatasetBtn from '@/components/DownloadDatasetBtn.vue'
 import VueSelecto from '@/components/VueSelecto.vue'
@@ -357,19 +396,19 @@ import {
 import { kaapanaApiService } from '@kaapana/base-ui'
 import { readSettings, settings as defaultSettings } from '@/static/defaultUIConfig'
 import { debounce } from '@/utils/utils'
-import { getProjectSlug, useProjectStore } from '@kaapana/base-ui'
+import { getProjectSlug, postViewDirty, useProjectStore } from '@kaapana/base-ui'
 import { useDatasetsStore } from '@/stores/datasets'
+import { kaapanaIcons, galleryIcons } from '@/utils/galleryIcons'
+import { apiErrorText } from '@/utils/errors'
 import type { Dataset, Patients } from '@/types'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const keycon = new KeyController()
 
 const route = useRoute()
-const theme = useTheme()
 const projectStore = useProjectStore()
 const datasets_store = useDatasetsStore()
 
-const isDark = computed(() => theme.global.current.value.dark)
 
 const searchRef = ref<InstanceType<typeof Search> | null>(null)
 const paginateRef = ref<InstanceType<typeof Paginate> | null>(null)
@@ -378,7 +417,9 @@ const seriesInstanceUIDs = ref<string[]>([])
 const patients = ref<Patients>({})
 const selectedSeriesInstanceUIDs = ref<string[]>([])
 const isLoading = ref(true)
-const message = ref<any>('Loading...')
+// Why the gallery is empty, kept apart from "there is nothing": a failed load
+// must never be presented as an empty collection (guidelines, "Empty states").
+const loadError = ref<string | null>(null)
 const settings = ref<any>(defaultSettings)
 const datasetNames = ref<string[]>([])
 const datasets = ref<Dataset[]>([])
@@ -398,6 +439,15 @@ const aggregatedSeriesNum = ref<number>(100)
 const pageIndex = ref(1)
 const searchQuery = ref<any>({})
 const allPatients = ref(true)
+// Mutation progress belongs on the control that started it, and the same
+// mutation must not be submitted twice while it runs (guidelines, "Loading").
+const savingDataset = ref(false)
+const addingToDataset = ref(false)
+const removingFromDataset = ref(false)
+// The shell needs the view's *combined* dirty state, so the parts are collected
+// here rather than each posting over the others (guidelines, "Unsaved changes").
+const searchDirty = ref(false)
+const saveDialogDirty = ref(false)
 const queryParams: Record<string, any> = { ...route.query }
 
 function datasetLabel(item: Dataset) {
@@ -464,6 +514,7 @@ async function updateData(query: any = {}, useLastquery = false) {
     searchQuery.value = { ...query }
   }
   isLoading.value = true
+  loadError.value = null
   selectedSeriesInstanceUIDs.value = []
   datasets_store.setSelectedItems(selectedSeriesInstanceUIDs.value)
   datasets_store.resetDetailViewItem()
@@ -496,19 +547,22 @@ async function updateData(query: any = {}, useLastquery = false) {
           } else {
             seriesInstanceUIDs.value = data
           }
-          if (seriesInstanceUIDs.value.length === 0) message.value = 'No data found.'
+          loadError.value = null
           isLoading.value = false
         })
-        .catch((e) => {
+        .catch((error) => {
           if (requestId !== updateDataRequestId) return
-          message.value = e
+          // loadPatients already reported; this is what the gallery itself shows
+          // in place of the results.
+          loadError.value = apiErrorText(error, 'The series could not be loaded.')
           isLoading.value = false
         })
     })
     // api.service already notifies on error; without this catch isLoading
     // stays true and the skeleton loader never clears.
-    .catch(() => {
+    .catch((error) => {
       if (requestId !== updateDataRequestId) return
+      loadError.value = apiErrorText(error, 'The series could not be loaded.')
       isLoading.value = false
     })
 }
@@ -562,8 +616,8 @@ async function ensureValidationResultLoaded(resultItemID: string | null) {
     return lookupResult.url
   } catch (error: any) {
     notify({
-      title: 'Error',
-      text: error.response?.data?.detail ?? error.message,
+      title: 'Validation report not loaded',
+      text: apiErrorText(error, 'The validation report for this series could not be loaded.'),
       type: 'error',
     })
     // Don't cache the failure as "loaded, not found" — a retry must refetch.
@@ -601,38 +655,50 @@ async function updateDataset(
     }
     await apiUpdateDataset(body)
     notify({
-      title: `Dataset updated`,
-      text: `Successfully updated dataset ${name} (${access_level}).`,
+      title: 'Dataset updated',
+      text: `The dataset “${name}” (${access_level}) was updated.`,
       type: 'success',
     })
     return true
   } catch (error: any) {
+    // `text: error` used to render the Error object as "[object Object]".
     notify({
-      title: 'Network/Server error',
-      text: error,
+      title: 'Dataset not updated',
+      text: apiErrorText(error, `The dataset “${name}” could not be updated.`),
       type: 'error',
     })
     return false
   }
 }
 async function addToDataset() {
-  const successful = await updateDataset(
-    datasetToAddTo.value!.name,
-    identifiersOfInterest.value,
-    'ADD',
-    datasetToAddTo.value!.access_level,
-  )
-  if (successful) {
-    addToDatasetDialog.value = false
+  addingToDataset.value = true
+  try {
+    const successful = await updateDataset(
+      datasetToAddTo.value!.name,
+      identifiersOfInterest.value,
+      'ADD',
+      datasetToAddTo.value!.access_level,
+    )
+    if (successful) {
+      addToDatasetDialog.value = false
+    }
+  } finally {
+    addingToDataset.value = false
   }
 }
 async function removeFromDataset() {
-  const successful = await updateDataset(
-    selectedDataset.value!.name,
-    identifiersOfInterest.value,
-    'DELETE',
-    selectedDataset.value!.access_level,
-  )
+  removingFromDataset.value = true
+  let successful = false
+  try {
+    successful = await updateDataset(
+      selectedDataset.value!.name,
+      identifiersOfInterest.value,
+      'DELETE',
+      selectedDataset.value!.access_level,
+    )
+  } finally {
+    removingFromDataset.value = false
+  }
 
   removeFromDatasetDialog.value = false
 
@@ -670,12 +736,16 @@ async function removeFromDataset() {
   selectedSeriesInstanceUIDs.value = []
   datasets_store.setSelectedItems(selectedSeriesInstanceUIDs.value)
 
-  if (seriesInstanceUIDs.value.length === 0) message.value = 'No data found.'
 }
 async function saveDatasetFromDialog(name: string, access_level: string) {
-  const successful = await saveDataset(name, identifiersOfInterest.value, access_level)
-  if (successful) {
-    saveAsDatasetDialog.value = false
+  savingDataset.value = true
+  try {
+    const successful = await saveDataset(name, identifiersOfInterest.value, access_level)
+    if (successful) {
+      saveAsDatasetDialog.value = false
+    }
+  } finally {
+    savingDataset.value = false
   }
 }
 async function saveDataset(name: string, identifiers: string[], access_level: string) {
@@ -688,18 +758,15 @@ async function saveDataset(name: string, identifiers: string[], access_level: st
     await createDataset(body)
     notify({
       title: 'Dataset created',
-      text: `Successfully new dataset ${name}.`,
+      text: `The dataset “${name}” now holds ${identifiers.length} series.`,
       type: 'success',
     })
     await updateDatasetNames()
     return true
   } catch (error: any) {
     notify({
-      title: 'Error',
-      text:
-        error.response && error.response.data && error.response.data.detail
-          ? error.response.data.detail
-          : error,
+      title: 'Dataset not created',
+      text: apiErrorText(error, `The dataset “${name}” could not be created.`),
       type: 'error',
     })
     return false
@@ -743,9 +810,9 @@ async function downloadValidationResult(resultItemID: string | null) {
   const resultUri = await ensureValidationResultLoaded(resultItemID)
   if (!resultUri) {
     notify({
-      title: 'Validation report not found',
-      text: 'No workflow report could be resolved for the selected series.',
-      type: 'warning',
+      title: 'Nothing to download',
+      text: 'No validation report exists for this series. Re-run the validation workflow to produce one.',
+      type: 'warn',
     })
     return
   }
@@ -793,6 +860,49 @@ const validationResultLookup = computed(() => {
   )
 })
 const validationResultUrl = computed(() => validationResultLookup.value.url)
+const hasResults = computed(() =>
+  settings.value.datasets.structured
+    ? Object.keys(patients.value).length > 0
+    : seriesInstanceUIDs.value.length > 0,
+)
+/** Which of the guidelines' three empty states applies. A search or a selected
+ *  dataset means the collection was filtered, not that nothing exists. */
+const emptyState = computed<'empty' | 'no-results' | 'error'>(() => {
+  if (loadError.value) return 'error'
+  if (searchDirty.value || selectedDataset.value) return 'no-results'
+  return 'empty'
+})
+const datasetLabelOfSelected = computed(() => selectedDataset.value?.name ?? '')
+const removeFromDatasetConsequences = computed(() => [
+  `The ${identifiersOfInterest.value.length} selected series are removed from the dataset for everyone who can see it.`,
+  'The series themselves stay in the project; only their membership is removed.',
+  'Adding them back means selecting them again.',
+])
+
+// A disabled action says why it is unavailable when the reason is not obvious
+// (guidelines, "Unavailable actions").
+const nothingSelected = computed(() => identifiersOfInterest.value.length === 0)
+const saveAsHint = computed(() =>
+  nothingSelected.value
+    ? 'Select at least one series to save as a dataset'
+    : `Save ${identifiersOfInterest.value.length} series as a new dataset`,
+)
+const addToHint = computed(() =>
+  nothingSelected.value
+    ? 'Select at least one series to add to a dataset'
+    : `Add ${identifiersOfInterest.value.length} series to a dataset`,
+)
+const removeFromHint = computed(() => {
+  if (!selectedDataset.value) return 'Select a dataset first to remove series from it'
+  if (nothingSelected.value) return 'Select at least one series to remove from the dataset'
+  return `Remove ${identifiersOfInterest.value.length} series from “${datasetLabelOfSelected.value}”`
+})
+const startWorkflowHint = computed(() =>
+  nothingSelected.value
+    ? 'Select at least one series to run a workflow on'
+    : `Start a workflow on ${identifiersOfInterest.value.length} series`,
+)
+
 const displaySelectedItems = computed(() => {
   if (aggregatedSeriesNum.value > 0 && aggregatedSeriesNum.value > identifiersOfInterest.value.length) {
     return `${identifiersOfInterest.value.length} selected of ${aggregatedSeriesNum.value}`
@@ -808,6 +918,20 @@ watch(
     datasets_store.setSelectedItems(selectedSeriesInstanceUIDs.value)
   }, 200),
 )
+/** Recovery action for the "nothing matches" empty state: drop the search, the
+ *  filters and the dataset scope, then search again. */
+function clearSearch() {
+  selectedDataset.value = null
+  searchRef.value?.clearSearch()
+}
+
+// One report of the view's combined unsaved state, so the shell can warn before
+// a project switch reloads this iframe and discards it.
+watch(
+  () => searchDirty.value || saveDialogDirty.value,
+  (dirty) => postViewDirty(dirty),
+)
+
 watch(validationResultItem, (value) => {
   if (value) {
     ensureValidationResultLoaded(value)
@@ -818,8 +942,11 @@ watch(validationResultItem, (value) => {
 // Requests are scoped by the document URL prefix, so the view stays usable.
 projectStore.getSelectedProject().catch((error: any) => {
   notify({
-    title: 'Error',
-    text: error.response?.data?.detail ?? error.message,
+    title: 'Project not resolved',
+    text: apiErrorText(
+      error,
+      'The current project could not be resolved. Searches still use the project in the address bar.',
+    ),
     type: 'error',
   })
 })
@@ -836,8 +963,8 @@ onMounted(async () => {
       project = projects.find((p: any) => p.name === queryParams.project_name)
       if (!project) {
         notify({
-          title: 'Error',
-          text: `Project with name ${queryParams.project_name} doesn't exist or you don't have access.`,
+          title: 'Project not found',
+          text: `No project named “${queryParams.project_name}” exists, or you do not have access to it. The view stayed in the current project.`,
           type: 'error',
         })
       }
@@ -867,8 +994,8 @@ onMounted(async () => {
   if (queryParams.dataset_name) {
     if (!datasetNames.value.includes(queryParams.dataset_name)) {
       notify({
-        title: 'Error',
-        text: `Dataset with name ${queryParams.dataset_name} not found.`,
+        title: 'Dataset not found',
+        text: `No dataset named “${queryParams.dataset_name}” exists in this project. Pick one from the dataset selector instead.`,
         type: 'error',
       })
     } else {
@@ -936,14 +1063,14 @@ onBeforeUnmount(() => {
 
 :deep(.item-label.error),
 :deep(.item-count-label.error) {
-  color: red;
-  background: rgb(255 119 119 / 50%);
+  color: rgb(var(--v-theme-on-error));
+  background: rgb(var(--v-theme-error));
 }
 
 :deep(.item-label.warning),
 :deep(.item-count-label.warning) {
-  color: #975300;
-  background: rgb(255 190 109 / 50%);
+  color: rgb(var(--v-theme-on-warning));
+  background: rgb(var(--v-theme-warning));
 }
 
 :deep(.item-label) {
@@ -965,11 +1092,11 @@ onBeforeUnmount(() => {
 }
 
 :deep(.incomplete-alert) {
-  padding: 15px;
-  background-color: #f44336;
-  color: white;
-  margin-bottom: 10px;
-  border-radius: 5px;
+  padding: 16px;
+  background-color: rgb(var(--v-theme-error));
+  color: rgb(var(--v-theme-on-error));
+  margin-bottom: 8px;
+  border-radius: 8px;
 }
 :deep(.hidden) {
   display: none;
@@ -980,10 +1107,8 @@ onBeforeUnmount(() => {
 .splitpanes--vertical > .splitpanes__splitter {
   min-width: 3px;
   cursor: col-resize;
-  background-color: rgba(0, 0, 0, 0.12);
-}
-
-.splitpanes--vertical.dark-theme > .splitpanes__splitter {
-  background-color: hsla(0, 0%, 100%, 0.12);
+  /* The theme's own border role, so the splitter follows light and dark
+     without a hand-rolled variant per theme. */
+  background-color: rgba(var(--v-border-color), var(--v-border-opacity));
 }
 </style>

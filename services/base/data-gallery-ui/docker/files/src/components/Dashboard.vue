@@ -1,32 +1,38 @@
 <template>
-  <v-card elevation="0" style="min-height: 100%">
-    <v-card-title>
-      <v-container align-items="center">
-        <v-row align="center" justify="center">
-          <v-col>
-            <v-row align="center" justify="center"> Patients </v-row>
-            <v-row align="center" justify="center">
-              {{ metrics['Patients'] || 'N/A' }}
-            </v-row>
-          </v-col>
-          <v-col>
-            <v-row align="center" justify="center"> Studies </v-row>
-            <v-row align="center" justify="center">
-              {{ metrics['Studies'] || 'N/A' }}
-            </v-row>
-          </v-col>
-          <v-col>
-            <v-row align="center" justify="center"> Series </v-row>
-            <v-row align="center" justify="center">
-              {{ metrics['Series'] || 'N/A' }}
-            </v-row>
-          </v-col>
-        </v-row>
-      </v-container>
-    </v-card-title>
+  <!-- Flat: this fills the sidebar pane, which is already a surface. -->
+  <v-card :elevation="0" class="rounded-0" style="min-height: 100%">
+    <v-card-text>
+      <v-row align="center" justify="center" class="text-center">
+        <v-col v-for="metric in METRICS" :key="metric">
+          <div class="text-overline text-medium-emphasis">{{ metric }}</div>
+          <div class="text-h5">{{ metrics[metric] ?? '—' }}</div>
+        </v-col>
+      </v-row>
+    </v-card-text>
+
+    <v-divider />
 
     <v-card-text>
+      <div v-if="loading" class="d-flex flex-column align-center ga-3 py-8">
+        <v-progress-circular indeterminate color="primary" />
+        <span class="text-body-2 text-medium-emphasis">Loading statistics…</span>
+      </div>
+
+      <!-- An empty chart area says why it is empty rather than rendering
+           nothing (guidelines, "Empty states"). -->
+      <div
+        v-else-if="Object.keys(histograms).length === 0"
+        class="text-body-2 text-medium-emphasis text-center py-8"
+      >
+        {{
+          failed
+            ? 'The statistics for the current selection could not be loaded.'
+            : 'No statistics for the current selection. Select series, or widen the search, to see their distribution here.'
+        }}
+      </div>
+
       <VueApexCharts
+        v-else
         v-for="[key, values] in Object.entries(histograms)"
         :key="JSON.stringify({ key: values })"
         :options="getApexChartsOptions(key, values)"
@@ -49,6 +55,7 @@ import { useTheme } from 'vuetify'
 import VueApexCharts from 'vue3-apexcharts'
 import { notify } from '@kyvg/vue3-notification'
 import { loadDashboard } from '@/common/api.service'
+import { apiErrorText } from '@/utils/errors'
 
 const props = withDefaults(
   defineProps<{
@@ -68,8 +75,14 @@ const emit = defineEmits<{ dataPointSelection: [payload: { key: string; value: s
 
 const theme = useTheme()
 
+const METRICS = ['Patients', 'Studies', 'Series'] as const
+
 const histograms = ref<Record<string, any>>({})
 const metrics = ref<Record<string, any>>({})
+const loading = ref(false)
+// Kept apart from "nothing to show": a failed load must not be presented as an
+// empty collection (guidelines, "Empty states").
+const failed = ref(false)
 
 function getApexChartsOptions(key: string, values: any): any {
   const isDark = theme.global.current.value.dark
@@ -173,23 +186,34 @@ function updateDashboard() {
   if (props.seriesInstanceUIDs.length === 0 && !props.allPatients) {
     histograms.value = {}
     metrics.value = {}
-  } else {
-    let series = props.seriesInstanceUIDs
-    let query: any = []
-    if (props.allPatients) {
-      series = []
-      query = props.searchQuery
-    }
-    loadDashboard(series, props.fields, query)
-      .then((data) => {
-        histograms.value = data['histograms'] || {}
-        metrics.value = data['metrics'] || {}
-      })
-      // loadDashboard does not report; keep the charts from the last good load.
-      .catch((error: any) =>
-        notify({ title: 'Error', text: error.response?.data?.detail ?? error.message, type: 'error' }),
-      )
+    failed.value = false
+    return
   }
+  let series = props.seriesInstanceUIDs
+  let query: any = []
+  if (props.allPatients) {
+    series = []
+    query = props.searchQuery
+  }
+  loading.value = true
+  failed.value = false
+  loadDashboard(series, props.fields, query)
+    .then((data) => {
+      histograms.value = data['histograms'] || {}
+      metrics.value = data['metrics'] || {}
+    })
+    // loadDashboard does not report; keep the charts from the last good load.
+    .catch((error: any) => {
+      failed.value = true
+      notify({
+        title: 'Statistics not loaded',
+        text: apiErrorText(error, 'The statistics for the current selection could not be loaded.'),
+        type: 'error',
+      })
+    })
+    .finally(() => {
+      loading.value = false
+    })
 }
 
 function dataPointSelection(config: any, key: string, value: any) {

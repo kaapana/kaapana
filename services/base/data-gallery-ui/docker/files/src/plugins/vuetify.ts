@@ -1,24 +1,15 @@
 import 'vuetify/styles'
-import { createVuetify } from 'vuetify'
-import { aliases, mdi } from 'vuetify/iconsets/mdi'
-import {
-  kaapanaThemeLight,
-  kaapanaThemeDark,
-  KAAPANA_THEME_LIGHT,
-  KAAPANA_THEME_DARK,
-} from '@kaapana/base-ui'
+import { createKaapanaVuetify } from '@kaapana/base-ui'
 
-export default createVuetify({
-  theme: {
-    defaultTheme: KAAPANA_THEME_LIGHT,
-    themes: {
-      [KAAPANA_THEME_LIGHT]: kaapanaThemeLight,
-      [KAAPANA_THEME_DARK]: kaapanaThemeDark,
-    },
-  },
-  icons: {
-    defaultSet: 'mdi',
-    aliases,
-    sets: { mdi },
+// The shared factory carries the platform theme, the MDI icon set and the
+// platform typeface (Roboto, injected at runtime) in one place, so this view
+// cannot ship the theme and forget the font. Do not re-declare themes or icon
+// sets here — see the design guidelines, "Visual language".
+export default createKaapanaVuetify({
+  defaults: {
+    // The guidelines' 8px default corner radius ('lg' in Vuetify's scale),
+    // set once here instead of at each call site.
+    VCard: { rounded: 'lg' },
+    VBtn: { rounded: 'lg' },
   },
 })

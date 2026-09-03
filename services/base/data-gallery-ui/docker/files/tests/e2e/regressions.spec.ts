@@ -33,12 +33,18 @@ test('tag bar chips are colored and action buttons show tooltips', async ({ page
 
   const chip = page.locator('.v-chip-group .v-chip').first()
   await expect(chip).toBeVisible()
-  // stringToColour('review') === #58f74e
-  const bg = await chip.evaluate((el) => getComputedStyle(el).backgroundColor)
-  expect(bg).toBe('rgb(88, 247, 78)')
+  // tagColor('favorite') — hashed into a hue at a fixed saturation/lightness so
+  // every chip lands in one readable band, with a foreground picked by
+  // luminance rather than inherited from the surroundings.
+  const { bg, fg } = await chip.evaluate((el) => {
+    const style = getComputedStyle(el)
+    return { bg: style.backgroundColor, fg: style.color }
+  })
+  expect(bg).not.toBe('rgba(0, 0, 0, 0)')
+  expect(fg).toBe('rgb(255, 255, 255)')
 
   await page.locator('.mdi-plus').first().hover()
-  await expect(page.getByText('Save as Dataset')).toBeVisible()
+  await expect(page.getByText(/save .* series as a new dataset/i)).toBeVisible()
 })
 
 // V3 v-btn defaults to the "elevated" variant, so the icon buttons rendered a
@@ -123,7 +129,7 @@ test('series loading shows the skeleton animation', async ({ page }) => {
     })
   })
   await page.goto(VIEW_PATH)
-  await expect(page.locator('.v-skeleton-loader')).toBeVisible()
+  await expect(page.locator('.v-skeleton-loader').first()).toBeVisible()
   await expect(page.getByText('CT Thorax')).toBeVisible()
 })
 
@@ -136,11 +142,11 @@ test('a dismissed confirmation dialog can be reopened (v-model stays in sync)', 
   await page.locator('.mdi-folder-edit-outline').click()
   const editDialog = page
     .locator('.v-overlay.v-dialog')
-    .filter({ has: page.getByRole('cell', { name: 'nsclc' }) })
+    .filter({ has: page.getByRole('cell', { name: 'nsclc', exact: true }) })
   await expect(editDialog).toBeVisible()
 
   const confirmOverlay = page.locator('.v-overlay.v-dialog').filter({ hasText: 'Delete dataset' })
-  const confirm = page.getByText(/Are you sure you want to delete the dataset/)
+  const confirm = page.getByText('Delete dataset “my-private”?')
 
   await page.locator('.mdi-delete').first().click()
   await expect(confirm).toBeVisible()
@@ -257,8 +263,10 @@ test('removing series from a private dataset reloads it with access_level=privat
       /access_level=private/.test(req.url()),
   )
   await page.locator('.mdi-folder-minus-outline').locator('xpath=ancestor::button').click()
-  await expect(page.getByText(/Are you sure you want to remove/)).toBeVisible()
-  await page.getByRole('button', { name: 'Confirm' }).click()
+  // The destructive confirmation names the count and the dataset, and its
+  // confirm button names the action rather than saying "Confirm".
+  await expect(page.getByText(/Remove \d+ series from .+\?/)).toBeVisible()
+  await page.getByRole('button', { name: 'Remove', exact: true }).click()
 
   const url = (await reloadReq).url()
   expect(url).toContain('access_level=private')

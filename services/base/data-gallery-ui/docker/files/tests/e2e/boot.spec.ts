@@ -54,13 +54,16 @@ test('renders the series gallery from typical data', async ({ page }) => {
   await expect(page.getByText('3 selected')).toBeVisible()
 })
 
-test('shows the empty-state message when no series match', async ({ page }) => {
+// With no search text, no filters and no dataset selected, an empty result is
+// "nothing exists yet" — not "nothing matches" and not a failed load.
+test('shows the "nothing yet" empty state when the project has no series', async ({ page }) => {
   const data = makeDefaultMockData()
   data.seriesUids = []
   data.aggregatedSeriesNum = 0
   await bootGallery(page, data)
 
-  await expect(page.getByText('No data found.')).toBeVisible()
+  await expect(page.getByText('No imaging data in this project yet')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Go to Data Upload' })).toBeVisible()
   await expect(page.locator('.seriesCard')).toHaveCount(0)
 })
 
@@ -78,8 +81,11 @@ test('surfaces a backend error as a notification', async ({ page }) => {
   // Re-trigger a load by reloading with the failing route in place.
   await page.reload()
 
-  await expect(page.getByText('Boom')).toBeVisible()
+  await expect(page.getByText('Boom').first()).toBeVisible()
   // The failed load must also clear the loading state — the skeleton loader
   // used to spin forever because the promise chain had no catch.
   await expect(page.locator('.v-skeleton-loader')).toHaveCount(0)
+  // A failure is shown as a failure, never as an empty collection.
+  await expect(page.getByText('Could not load the series')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible()
 })

@@ -1,73 +1,16 @@
-<template>
-  <v-dialog v-model="show" max-width="70vw">
-    <v-card>
-      <v-card-title class="text-h5">
-        Datasets
-        <v-spacer></v-spacer>
-        <v-text-field
-          v-model="search"
-          append-icon="mdi-magnify"
-          label="Search"
-          single-line
-          hide-details
-        ></v-text-field>
-      </v-card-title>
-      <v-card-text>
-        <v-data-table
-          :headers="headers"
-          :items="datasets"
-          :sort-by="sortBy"
-          :search="search"
-          :loading="loading"
-        >
-          <template v-slot:[`item.name`]="{ item }">
-            {{ item.name }}
-          </template>
-          <template v-slot:[`item.size`]="{ item }">
-            {{ item.size }}
-          </template>
-          <template v-slot:[`item.username`]="{ item }">
-            {{ item.username }}
-          </template>
-          <template v-slot:[`item.time_created`]="{ item }">
-            {{ new Date(item.time_created).toLocaleString() }}
-          </template>
-          <template v-slot:[`item.time_updated`]="{ item }">
-            {{ new Date(item.time_updated).toLocaleString() }}
-          </template>
-          <template v-slot:[`item.actions`]="{ item }">
-            <v-icon @click="deleteItem(item)"> mdi-delete </v-icon>
-          </template>
-        </v-data-table>
-      </v-card-text>
-      <v-card-actions class="justify-center">
-        <v-btn color="primary" @click="show = false">Close</v-btn>
-      </v-card-actions>
-      <ConfirmationDialog
-        v-model:show="dialogDelete"
-        title="Delete dataset"
-        confirm-text="Delete"
-        @cancel="closeDelete"
-        @confirm="deleteItemConfirm"
-      >
-        Are you sure you want to delete the dataset <b>{{ editedItem.name }}</b
-        >?
-      </ConfirmationDialog>
-    </v-card>
-  </v-dialog>
-</template>
-
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { notify } from '@kyvg/vue3-notification'
 import { loadDatasets, deleteDataset } from '@/common/api.service'
-import ConfirmationDialog from '@/components/ConfirmationDialog.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import { kaapanaIcons } from '@/utils/galleryIcons'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ close: [editedDatasets: boolean] }>()
 
 const datasets = ref<any[]>([])
 const loading = ref(false)
+const deleting = ref(false)
 const search = ref<string>('')
 const dialogDelete = ref(false)
 const sortBy = [{ key: 'name', order: 'asc' as const }]
@@ -82,6 +25,14 @@ const headers = [
 const editedDatasets = ref(false)
 let editedIndex = -1
 const editedItem = ref<any>({})
+
+// The confirmation says what will happen, what is affected, and what follows
+// (guidelines, "Actions requiring confirmation").
+const deleteConsequences = computed(() => [
+  `The dataset “${editedItem.value.name}” and its membership list are removed for everyone who can see it.`,
+  `The ${editedItem.value.size ?? 0} series it references stay in the project; only the grouping is deleted.`,
+  'This cannot be undone.',
+])
 
 async function loadDatasetsRows() {
   return (await loadDatasets(false)).map((dataset) => ({
@@ -108,11 +59,13 @@ function deleteItem(item: any) {
 }
 
 async function deleteItemConfirm() {
+  deleting.value = true
   try {
     const successful = await deleteDataset(editedItem.value.name)
     if (successful) {
       notify({
-        title: `Deleted dataset ${editedItem.value.name}`,
+        title: 'Dataset deleted',
+        text: `The dataset “${editedItem.value.name}” was deleted.`,
         type: 'success',
       })
       datasets.value.splice(editedIndex, 1)
@@ -121,6 +74,8 @@ async function deleteItemConfirm() {
     }
   } catch {
     // deleteDataset already reported; keep the dialog open so it can be retried.
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -152,3 +107,72 @@ onMounted(() => {
   refreshDatasets()
 })
 </script>
+
+<template>
+  <!-- Large (900px): a table. Content that would not fit belongs in a full view,
+       not a wider dialog (guidelines, "Dialogs"). -->
+  <v-dialog v-model="show" max-width="900">
+    <v-card :elevation="5">
+      <v-card-title class="text-h6">Datasets</v-card-title>
+      <v-card-text>
+        <v-text-field
+          v-model="search"
+          :append-inner-icon="kaapanaIcons.search"
+          label="Search datasets"
+          single-line
+          clearable
+          hide-details
+          density="compact"
+          variant="underlined"
+          class="mb-4"
+        ></v-text-field>
+        <v-data-table
+          :headers="headers"
+          :items="datasets"
+          :sort-by="sortBy"
+          :search="search"
+          :loading="loading"
+        >
+          <template v-slot:[`item.time_created`]="{ item }">
+            {{ new Date(item.time_created).toLocaleString() }}
+          </template>
+          <template v-slot:[`item.time_updated`]="{ item }">
+            {{ new Date(item.time_updated).toLocaleString() }}
+          </template>
+          <template v-slot:[`item.actions`]="{ item }">
+            <!-- Tertiary: a low-emphasis table action, but still a real button
+                 with an accessible name rather than a bare clickable icon. -->
+            <v-btn
+              :icon="kaapanaIcons.delete"
+              :aria-label="`Delete dataset ${item.name}`"
+              variant="text"
+              size="small"
+              density="comfortable"
+              @click="deleteItem(item)"
+            />
+          </template>
+          <template v-slot:no-data>
+            <div class="text-body-2 text-medium-emphasis py-6">
+              No datasets have been created in this project yet. Select series in the gallery and
+              use “Save selection as dataset” to create one.
+            </div>
+          </template>
+        </v-data-table>
+      </v-card-text>
+      <v-divider></v-divider>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn variant="text" @click="show = false">Close</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <ConfirmDialog
+    v-model="dialogDelete"
+    :title="`Delete dataset “${editedItem.name}”?`"
+    :consequences="deleteConsequences"
+    confirm-label="Delete"
+    :busy="deleting"
+    @confirm="deleteItemConfirm"
+  />
+</template>

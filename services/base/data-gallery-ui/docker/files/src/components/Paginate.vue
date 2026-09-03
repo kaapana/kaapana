@@ -1,5 +1,5 @@
 <template>
-  <div align="right" :class="{ 'pagination-container': true, hidden: !showPagination }">
+  <div :class="{ 'pagination-container': true, hidden: !showPagination }">
     <v-pagination v-if="showPagination" :length="computedLength" v-model="pageIndex"> </v-pagination>
   </div>
 </template>
@@ -81,8 +81,11 @@ updatePaginationVisibility()
 .pagination-container {
   display: flex;
   flex-direction: column;
-  align-items: left;
-  margin-right: 10px;
+  /* No align-items on purpose: v-pagination derives how many page buttons it
+     shows from its own width, so the item must keep stretching to the full
+     container width. Constraining it collapses the middle pages into an
+     ellipsis. */
+  margin-right: 8px;
   padding: 0;
 }
 

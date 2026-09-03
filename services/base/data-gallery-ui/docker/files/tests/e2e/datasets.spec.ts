@@ -35,9 +35,9 @@ test('Save as Dataset dialog posts the loaded series as a new dataset', async ({
   )
 
   await page.locator('.mdi-plus').click()
-  await expect(page.getByText('Save Dataset')).toBeVisible()
+  await expect(page.getByText('Save selection as dataset')).toBeVisible()
   await page.getByLabel('Name').first().fill('cohort-x')
-  await page.getByRole('button', { name: 'Save' }).click()
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
 
   const body = (await createReq).postDataJSON()
   expect(body.name).toBe('cohort-x')
@@ -59,7 +59,7 @@ test('Add to Dataset dialog issues an ADD update for the chosen dataset', async 
   await expect(dialog).toBeVisible()
   await dialog.locator('.v-field').click()
   await page.getByRole('option', { name: 'nsclc (project)' }).click()
-  await dialog.getByRole('button', { name: 'Save' }).click()
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click()
 
   const body = (await updateReq).postDataJSON()
   expect(body.action).toBe('ADD')
@@ -71,19 +71,21 @@ test('Edit Datasets dialog lists datasets and deletes one', async ({ page }) => 
   await expect(page.getByText('CT Thorax')).toBeVisible()
 
   await page.locator('.mdi-folder-edit-outline').click()
-  await expect(page.getByRole('cell', { name: 'nsclc' })).toBeVisible()
-  await expect(page.getByRole('cell', { name: 'my-private' })).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'nsclc', exact: true })).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'my-private', exact: true })).toBeVisible()
 
   const deleteReq = page.waitForRequest(
     (req) => req.method() === 'DELETE' && /\/client\/dataset\?.*name=/.test(req.url()),
   )
   await page.locator('.mdi-delete').first().click()
-  await expect(page.getByText(/Are you sure you want to delete the dataset/)).toBeVisible()
-  await expect(page.locator('.v-dialog b', { hasText: 'my-private' })).toBeVisible()
-  await page.getByRole('button', { name: 'Delete' }).click()
+  // The confirmation names what is affected and what follows, rather than
+  // asking "are you sure?" about an unnamed thing.
+  await expect(page.getByText('Delete dataset “my-private”?')).toBeVisible()
+  await expect(page.getByText(/series it references stay in the project/)).toBeVisible()
+  await page.getByRole('button', { name: 'Delete', exact: true }).click()
 
   await deleteReq
-  await expect(page.getByText(/Deleted dataset/)).toBeVisible()
+  await expect(page.getByText('Dataset deleted')).toBeVisible()
 })
 
 test('Edit Datasets dialog shows a loading indicator while datasets load', async ({ page }) => {
@@ -103,5 +105,5 @@ test('Edit Datasets dialog shows a loading indicator while datasets load', async
 
   await page.locator('.mdi-folder-edit-outline').click()
   await expect(page.locator('.v-data-table-progress .v-progress-linear')).toBeVisible()
-  await expect(page.getByRole('cell', { name: 'nsclc' })).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'nsclc', exact: true })).toBeVisible()
 })

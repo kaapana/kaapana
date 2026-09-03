@@ -4,6 +4,7 @@ import logging
 import os
 from os import getenv
 
+import pydicom
 from kaapanapy.helper import load_workflow_config
 from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 from kaapanapy.settings import KaapanaSettings, OperatorSettings
@@ -55,6 +56,7 @@ class DeleteFromPacsOperator:
         ]
 
         series_of_studies_which_should_be_deleted = {}
+        resolved_inputs = 0
 
         for batch_element_dir in batch_folder:
             json_files = glob.glob(
@@ -62,11 +64,30 @@ class DeleteFromPacsOperator:
                 recursive=True,
             )
 
-            for meta_file in json_files:
-                with open(meta_file) as fs:
-                    metadata = json.load(fs)
+            # Raw DICOM input (LocalGetInputDataOperator's default data_type) carries
+            # no metadata json, so this loop used to find nothing and the run ended
+            # successfully without deleting anything. Like delete-from-meta, take the
+            # UIDs from the first DICOM file of the batch element (one series each).
+            dcm_files = sorted(
+                glob.glob(
+                    os.path.join(batch_element_dir, self.operator_in_dir, "*.dcm*"),
+                    recursive=True,
+                )
+            )
+
+            for meta_file in dcm_files[:1] + json_files:
+                with open(meta_file, "rb") as fs:
+                    if meta_file in dcm_files:
+                        dcm = pydicom.dcmread(fs, stop_before_pixels=True)
+                        metadata = {
+                            "0020000E SeriesInstanceUID_keyword": dcm.SeriesInstanceUID,
+                            "0020000D StudyInstanceUID_keyword": dcm.StudyInstanceUID,
+                        }
+                    else:
+                        metadata = json.load(fs)
                     series_uid = metadata["0020000E SeriesInstanceUID_keyword"]
                     study_uid = metadata["0020000D StudyInstanceUID_keyword"]
+                    resolved_inputs += 1
 
                     if self.delete_complete_study:
                         logging.info(f"Deleting study: {study_uid}")
@@ -82,6 +103,14 @@ class DeleteFromPacsOperator:
                             series_of_studies_which_should_be_deleted[study_uid] = [
                                 series_uid
                             ]
+
+        if resolved_inputs == 0:
+            # The run still exits successfully, so say in the task log that it deleted
+            # nothing instead of leaving the data silently in the PACS.
+            logging.warning(
+                f"No DICOM or metadata input found in {self.operator_in_dir}, "
+                "nothing will be deleted."
+            )
 
         # If we are not deleting the complete study, we need to delete the series one by one
         for study_uid, series_uids in series_of_studies_which_should_be_deleted.items():

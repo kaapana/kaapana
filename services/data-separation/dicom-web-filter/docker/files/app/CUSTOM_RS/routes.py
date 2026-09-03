@@ -100,7 +100,10 @@ async def del_study(
         response: Response object
     """
 
-    if project_id not in project_ids_of_user:
+    # Admin tokens carry no project claims (the internal system user of service
+    # workflows is one), so honour the middleware's admin flag as every other
+    # project-scoped route in this service does; regular users stay restricted.
+    if project_id not in project_ids_of_user and not request.scope.get("admin"):
         return Response(status_code=403)
 
     await assert_project_not_archived(project_id)
@@ -168,8 +171,8 @@ async def del_series(
         response: Response object
     """
 
-    # Check if user is in the project
-    if project_id not in project_ids_of_user:
+    # Check if user is in the project; admin tokens are exempt as in del_study
+    if project_id not in project_ids_of_user and not request.scope.get("admin"):
         projects = request.scope.get("token")["projects"]
         logging.info(f"User not in project: {project_id}: {projects=}")
         return Response(status_code=403, content=f"User not in project {project_id}")

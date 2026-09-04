@@ -235,20 +235,17 @@ class Container:
                 base_img = BaseImage.from_tag(base_tag)
                 base_images.add(base_img)
 
-        # Determine registry and version. local-only images get a real
-        # repo_version just like any other image -- their Dockerfile FROM
-        # lines always pin them as "local-only/name:latest" regardless (see
-        # BaseImage/resolve_base_images_into_container/check_base_containers,
-        # which resolve local-only dependencies by name, not by that tag).
-        if build_config.version_latest:
-            version_str, *_ = GitUtils.get_repo_info(dockerfile.parent)
-            base = version_str.split("-")[0]
-            repo_version = f"{base}-latest"
-        else:
-            repo_version, *_ = GitUtils.get_repo_info(dockerfile.parent)
-
+        # Determine registry and version
         if registry and "local-only" in registry:
             local_image = True
+            # If cache_enabled: Use the git-derived image version also for local-images, as they are pushed to the registry.
+            repo_version = (
+                cls._compute_repo_version(dockerfile, build_config)
+                if build_config.cache_enabled
+                else "latest"
+            )
+        else:
+            repo_version = cls._compute_repo_version(dockerfile, build_config)
 
         registry = registry or build_config.default_registry
         tag = (
@@ -288,6 +285,15 @@ class Container:
     @staticmethod
     def _extract_label_value(line: str) -> str:
         return line.split("=", 1)[1].strip().strip('"').strip("'")
+
+    @staticmethod
+    def _compute_repo_version(dockerfile: Path, build_config: BuildConfig) -> str:
+        if build_config.version_latest:
+            version_str, *_ = GitUtils.get_repo_info(dockerfile.parent)
+            base = version_str.split("-")[0]
+            return f"{base}-latest"
+        version, *_ = GitUtils.get_repo_info(dockerfile.parent)
+        return version
 
     def build(self, config: BuildConfig) -> Optional[Issue]:
         logger.debug(f"{self.tag}: start building ...")
@@ -329,7 +335,9 @@ class Container:
                 ### Use buildkit to push image directly
                 build_args.extend(["--push"])
                 if self.local_image:
-                    self.tag = f"{config.default_registry}/{self.image_name}:{self.version}"
+                    self.tag = (
+                        f"{config.default_registry}/{self.image_name}:{self.version}"
+                    )
             if config.cache_to:
                 build_args.extend(
                     [

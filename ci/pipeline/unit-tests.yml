@@ -231,6 +231,9 @@ ui_e2e_tests:
     # both casings: chromium must reach the app on localhost, not the proxy
     NO_PROXY: "localhost,127.0.0.1"
     no_proxy: "localhost,127.0.0.1"
+    # npm ci audits by default, and the audit endpoints are POSTs, which the
+    # DKFZ proxy stalls for 2-5min before returning 503. Both installs paid it.
+    npm_config_audit: "false"
   parallel:
     matrix:
       - APP:

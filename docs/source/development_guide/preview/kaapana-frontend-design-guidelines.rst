@@ -197,9 +197,6 @@ should not look like a stack of floating boxes.
 Layout and content width
 ------------------------
 
-.. note:: **To be decided:** Decide the maximum content width and whether it should
-    differ by content type. This is just an **initial proposal**.
-
 A view, or a component within one, should take the width its content needs
 rather than the full width it is given. Left unconstrained, a layout keeps
 stretching: columns drift apart, related values end up far from each other, and

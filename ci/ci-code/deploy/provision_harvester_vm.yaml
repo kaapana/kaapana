@@ -30,8 +30,18 @@
     # The only states that still resolve on their own. Everything else is a
     # verdict and ends the wait, including a state not listed below.
     vm_transient_states: ['', 'Provisioning', 'Starting', 'WaitingForVolumeBinding']
-    # Explains a verdict; not the list the wait breaks on.
+    # Explains a settled status, a transient one the wait gave up on included.
+    # Not the list the wait breaks on.
     vm_failure_hints:
+      '': >-
+        The VM could not be read at all. Either it was never created, or the
+        lookup error below says why the cluster did not answer.
+      Provisioning: >-
+        Harvester never finished creating the VM. This is the disk image import
+        or the storage backend, not the requested CPU and memory.
+      Starting: >-
+        The launcher pod exists but the guest never reported Running. Check the
+        pod's events and the VM console.
       ErrorUnschedulable: >-
         No node could accept the VM. Either the cluster is out of capacity, or a
         requested volume cannot be bound.
@@ -335,7 +345,10 @@
     ansible.builtin.fail:
       msg: >-
         VM {{ vm_name }} did not reach Running in namespace {{ harvester_namespace }}.
-        Status: {{ vm_printable_status | default('none reported', true) }}.
+        Status: {{ vm_printable_status | default('none reported', true) }}
+        {%- if vm_printable_status in vm_transient_states %}, which is a state the
+        wait tolerates, so this is the {{ vm_ready_timeout }}s budget running out
+        {%- endif %}.
         {{ vm_failure_hints.get(vm_printable_status, 'Unexpected state, inspect the VM directly.') }}
         {% if _vm_lookup_error %}Lookup: {{ _vm_lookup_error }}{% endif %}
         {% if _vm_quota %}Quota: {{ _vm_quota }}{% endif %}

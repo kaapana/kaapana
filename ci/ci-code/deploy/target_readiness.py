@@ -32,28 +32,12 @@ SKIPPED = "skipped"
 # snap binaries are missing from the PATH of some non-interactive SSH sessions.
 EXTRA_PATH = ("/snap/bin", "/usr/local/bin")
 
-# ANSI color codes — only used when stdout is a terminal or CI (where they
-# render as colored text in the job log).
-_COLOR = os.environ.get("CI") or sys.stdout.isatty()
-_RED = "\033[31m" if _COLOR else ""
-_YELLOW = "\033[33m" if _COLOR else ""
-_GREEN = "\033[32m" if _COLOR else ""
-_BOLD = "\033[1m" if _COLOR else ""
-_RESET = "\033[0m" if _COLOR else ""
-
 MICROK8S_APISERVER_ARGS = "/var/snap/microk8s/current/args/kube-apiserver"
 
 # kaapanactl.sh deploys this release into this namespace (PLATFORM_NAME in
 # HELM_NAMESPACE) and keeps the platform prefix in its values.
 ADMIN_CHART_RELEASE = "kaapana-admin-chart"
 HELM_NAMESPACE = "default"
-
-
-_ANSI_RE = re.compile(r"\033\[[0-9;]*m")
-
-
-def strip_ansi(text):
-    return _ANSI_RE.sub("", text)
 
 
 class Report:
@@ -98,50 +82,24 @@ class Report:
         }
 
     def table(self):
-        def _color_status(status):
-            if status == FAILED:
-                return f"{_RED}{status}{_RESET}"
-            if status in (WARNED, SKIPPED):
-                return f"{_YELLOW}{status}{_RESET}"
-            if status == PASSED:
-                return f"{_GREEN}{status}{_RESET}"
-            return status
-
         lines = [
-            "",
-            f"{_BOLD}Kaapana target readiness{_RESET}",
+            "Kaapana target readiness",
             "========================",
             f"{'STATUS':<8} {'SEV':<8} {'CHECK':<52} DETAILS",
         ]
         for check in self.checks:
-            status_cell = _color_status(check["status"])
             lines.append(
-                f"{status_cell:<8} {check['severity']:<8} "
+                f"{check['status']:<8} {check['severity']:<8} "
                 f"{check['title'][:52]:<52} {check['details']}"
             )
             if check["remediation"]:
                 lines.append(f"{'':<8} {'':<8} -> {check['remediation']}")
         summary = self.as_dict({})["summary"]
-        warn = (
-            f"{_YELLOW}{summary['warnings']}{_RESET}"
-            if summary["warnings"]
-            else str(summary["warnings"])
-        )
-        fail = (
-            f"{_RED}{summary['failed']}{_RESET}"
-            if summary["failed"]
-            else str(summary["failed"])
-        )
         lines += [
             "",
-            f"passed: {summary['passed']}  warnings: {warn}  "
-            f"failed: {fail}  skipped: {summary['skipped']}",
-            (
-                f"{_GREEN}{_BOLD}TARGET READY{_RESET}"
-                if self.ready
-                else f"{_RED}{_BOLD}TARGET NOT READY{_RESET}"
-            ),
-            "",
+            f"passed: {summary['passed']}  warnings: {summary['warnings']}  "
+            f"failed: {summary['failed']}  skipped: {summary['skipped']}",
+            "TARGET READY" if self.ready else "TARGET NOT READY",
         ]
         return "\n".join(lines)
 
@@ -687,7 +645,7 @@ def main():
         print(f"JSON report written to {args.report}")
     if args.log:
         with open(args.log, "w") as handle:
-            handle.write(strip_ansi(table) + "\n")
+            handle.write(table + "\n")
     return 0 if report.ready else 1
 
 

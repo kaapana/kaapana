@@ -307,7 +307,10 @@ check_readthedocs:
   extends: .test_template
   image: $CI_BASE_IMAGE # needs curl + jq
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop"
+    # The VM sweep is a schedule on develop too, and its pipeline is meant to
+    # hold nothing but the sweep: a second job here would file a CI ticket out
+    # of a housekeeping run. No CI_EXEC toggle covers this job.
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop" && $CI_EXEC_VM_SWEEP != "true"
       when: always
     - when: never
   script:

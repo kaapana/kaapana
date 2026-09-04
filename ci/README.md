@@ -119,14 +119,24 @@ ansible-playbook -i localhost, ci/ci-code/deploy/delete_harvester_vm.yaml -e vm_
 ```
 
 **Sweep leaked test VMs.** Start a run with `CI_EXEC_VM_SWEEP=true`: no other
-stage runs, and the sweep deletes every `ci-*` VM in `kaapana-ci` whose
+stage runs, and the sweep reports every `ci-*` VM in `kaapana-ci` whose
 pipeline has finished, plus unlabelled ones older than
-`VM_SWEEP_MAX_AGE_HOURS`. A VM whose pipeline is still running is never
-touched, VMs asking to be kept get their inspection window, and the runner
-VMs are out of reach because their names lack the `ci-` prefix. Which is the
-one rule this imposes: **a VM meant to stay in `kaapana-ci` must not be named
-`ci-*`**, or the sweep will eventually collect it. Without `VM_SWEEP_APPLY=true` it deletes nothing and only
-reports, in the job log and as the `vm_sweep.json` artifact.
+`VM_SWEEP_MAX_AGE_HOURS`. Add `VM_SWEEP_APPLY=true` to delete them; without
+it the run only reports, in the job log and as the `vm_sweep.json` artifact.
+A VM whose pipeline is still running is never touched, VMs asking to be kept
+get their inspection window, and the runner VMs are out of reach because
+their names lack the `ci-` prefix. Which is the one rule this imposes: **a VM
+meant to stay in `kaapana-ci` must not be named `ci-*`**, or the sweep will
+eventually collect it.
+
+The unattended version is a pipeline schedule (CI/CD → Schedules) carrying
+`CI_EXEC_VM_SWEEP=true` and `VM_SWEEP_APPLY=true` and nothing else, because
+schedule variables outrank the stage toggles the sweep switches off
+([section 7](#7-releases)). Daily is enough: the grace period and the keep
+window are what decide, not how often the sweep looks. The sweep reads
+pipeline status through `GITLAB_READ_API_TOKEN`
+([section 8](#8-project-cicd-variables-secrets)); without it the run ends on
+one line and touches nothing.
 
 **Pause the CI** — set project variable `MAINTENANCE=true`
 (Settings → CI/CD → Variables); remove it to resume.

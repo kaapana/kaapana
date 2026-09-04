@@ -12,9 +12,11 @@ stages:
 workflow:
   rules:
     # The sweep runs as a pipeline of its own: one variable starts it instead
-    # of five, and no forgotten toggle can make a maintenance run build or
-    # deploy anything. Deliberately ahead of the MAINTENANCE pause, because a
-    # paused CI is exactly when leaked VMs pile up.
+    # of five. These assignments outrank the defaults below and nothing else,
+    # so a toggle the schedule or a project variable carries still wins (the
+    # precedence trap in section 7 of ci/README.md) and the sweep schedule
+    # must therefore carry no other CI_EXEC_* variable. Deliberately ahead of
+    # the MAINTENANCE pause, because a paused CI is when leaked VMs pile up.
     - if: $CI_EXEC_VM_SWEEP == "true"
       variables:
         CI_EXEC_UNIT_TESTS: "false"

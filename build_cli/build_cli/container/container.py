@@ -419,13 +419,23 @@ class Container:
         )
 
         if output.returncode == 0:
-            if "---> Running in" in output.stdout:
-                self.status = Status.BUILT_ONLY if self.local_image else Status.BUILT
-                logger.debug(f"{self.tag}: Build sucessful.")
+            if config.cache_enabled:
+                if config.build_only:
+                    self.status = Status.BUILT_ONLY
+                    self.build_time = end_time - start_time
+                else:
+                    self.status = Status.PUSHED
+                    self.push_time = end_time - start_time
             else:
-                self.status = Status.NOTHING_CHANGED
-                logger.debug(f"{self.tag}: Build sucessful - no changes.")
-            self.build_time = end_time - start_time
+                if "---> Running in" in output.stdout:
+                    self.status = (
+                        Status.BUILT_ONLY if self.local_image else Status.BUILT
+                    )
+                    logger.debug(f"{self.tag}: Build sucessful.")
+                else:
+                    self.status = Status.NOTHING_CHANGED
+                    logger.debug(f"{self.tag}: Build sucessful - no changes.")
+                self.build_time = end_time - start_time
             return issue
 
         else:

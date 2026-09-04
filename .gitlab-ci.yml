@@ -178,6 +178,12 @@ variables:
   # writes the value to a temp file, the variable holds that file's path):
   #   HARVESTER_KUBECONFIG — Harvester cluster access (VM lifecycle)
   #   CI_SSH_PRIVATE_KEY   — private key matching the Harvester "kaapana" KeyPair
+  #
+  # Per-run override of that key, for deploying onto a machine the shared CI
+  # key cannot log into (your own box, with DEPLOYMENT_INSTANCE_FQDN/_USER set).
+  # Add it in the Run pipeline form as either a File variable or a plain
+  # variable holding the key text; ci/utils/resolve_ssh_key.sh takes both.
+  DEPLOYMENT_SSH_KEY: ""
 
   # --- Notifications (if_ci_failing on develop)
   SLACK_BOT_TOKEN: $SLACK_BOT_TOKEN # secret — project variable (masked)

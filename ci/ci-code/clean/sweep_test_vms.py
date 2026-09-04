@@ -69,7 +69,7 @@ def decide(
     candidate: Candidate,
     grace_hours: float,
     max_age_hours: float,
-    keep_hours: float = 0.0,
+    keep_hours: float,
 ) -> tuple[str, str]:
     """Return ("keep"|"delete", reason) for one VM."""
     if not candidate.name.startswith(VM_NAME_PREFIX):
@@ -79,8 +79,15 @@ def decide(
         return "keep", f"younger than the {grace_hours:g}h grace period"
 
     if candidate.pipeline_state in TERMINAL_PIPELINE_STATES:
-        held_for = candidate.hours_since_pipeline_end
-        if candidate.keep_after_pipeline and (held_for or 0) < keep_hours:
+        # A terminal pipeline that reports no end leaves the window with
+        # nothing to count from. The VM's own age is the conservative stand-in:
+        # it never ends the window early, and it always ends it.
+        held_for = (
+            candidate.age_hours
+            if candidate.hours_since_pipeline_end is None
+            else candidate.hours_since_pipeline_end
+        )
+        if candidate.keep_after_pipeline and held_for < keep_hours:
             return (
                 "keep",
                 f"pipeline {candidate.pipeline_id} is {candidate.pipeline_state}, "

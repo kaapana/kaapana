@@ -38,9 +38,11 @@ TERMINAL_PIPELINE_STATES = frozenset({"success", "failed", "canceled", "skipped"
 REQUIRED_ENV = [
     "HARVESTER_KUBECONFIG",
     "DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE",
-    # The job's own token, not GITLAB_API_TOKEN: that one aliases the registry
-    # credential, which the REST API answers with 401.
-    "CI_JOB_TOKEN",
+    # Its own credential, because neither token a job already carries can read
+    # a pipeline: of the pipelines API a job token may reach only
+    # PUT .../metadata, and GITLAB_API_TOKEN aliases the registry credential,
+    # which the REST API answers with 401. read_api is the whole requirement.
+    "GITLAB_READ_API_TOKEN",
     "CI_PROJECT_ID",
     "CI_SERVER_URL",
 ]
@@ -123,7 +125,7 @@ def list_vms(kubeconfig: str, namespace: str) -> list[dict]:
     )["items"]
 
 
-def gitlab_project(server_url: str, project_id: str, job_token: str):
+def gitlab_project(server_url: str, project_id: str, api_token: str):
     """Return the project, having proven that pipelines can be read.
 
     A credential the API refuses would make every labelled VM look unowned,
@@ -133,7 +135,7 @@ def gitlab_project(server_url: str, project_id: str, job_token: str):
     """
     import gitlab
 
-    project = gitlab.Gitlab(url=server_url, job_token=job_token).projects.get(
+    project = gitlab.Gitlab(url=server_url, private_token=api_token).projects.get(
         project_id, lazy=True
     )
     project.pipelines.list(per_page=1, get_all=False)
@@ -242,7 +244,7 @@ def main() -> int:
         project = gitlab_project(
             os.environ["CI_SERVER_URL"],
             os.environ["CI_PROJECT_ID"],
-            os.environ["CI_JOB_TOKEN"],
+            os.environ["GITLAB_READ_API_TOKEN"],
         )
     except gitlab.exceptions.GitlabError as error:
         print(

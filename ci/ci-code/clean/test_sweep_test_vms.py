@@ -116,6 +116,20 @@ def test_the_keep_window_ends():
     )
 
 
+def test_a_keep_window_with_no_pipeline_end_falls_back_to_the_vm_age():
+    """GitLab may report a terminal pipeline without a finished_at. The window
+    must still end, or the annotation would keep the VM forever."""
+    held = dict(
+        pipeline_id="819370", pipeline_state="canceled", keep_after_pipeline=True
+    )
+    assert (
+        decide(**held, hours_since_pipeline_end=None, age_hours=KEEP - 1)[0] == "keep"
+    )
+    assert (
+        decide(**held, hours_since_pipeline_end=None, age_hours=KEEP + 1)[0] == "delete"
+    )
+
+
 def test_without_the_annotation_a_settled_pipeline_releases_at_once():
     assert (
         decide(

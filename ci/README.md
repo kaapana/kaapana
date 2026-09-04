@@ -146,7 +146,7 @@ jobs with ↻; you rarely need the whole pipeline.
 | `build_packages` fails immediately | Registry login (`CI_REGISTRY_*` variables) or the build VM's docker daemon. Full log in the `build.log` artifact. |
 | `build_packages` fails on one image | Read `build.log`; usually reproducible locally with `kaapana-build`. |
 | Build very slow | Cold layer cache (`CI_EXEC_DOCKER_PRUNE`? new build VM?). |
-| `prepare_deployment` fails provisioning | The failure explicitly names its cause. |
+| `prepare_deployment` fails provisioning | The failure names its cause: a VM state with what it implies, an exhausted timeout, a quota rejection, or the scheduler's own message. |
 | `prepare_deployment`: "chart … not found in registry" | The commit was never built. Build it first. |
 | Integration test failed, VM already gone | Re-run with `CI_EXEC_DESTROY_DELAYED=true`, SSH in (recipe above). |
 | `install_extensions` / `send_data` flaky | Known flakiness, `retry: 2` masks most of it. Fails 3× → real; check the JUnit/log artifacts. |

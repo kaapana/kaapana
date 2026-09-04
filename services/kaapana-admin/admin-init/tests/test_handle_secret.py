@@ -16,10 +16,10 @@ from pathlib import Path
 SCRIPT = Path(__file__).resolve().parent.parent / "docker" / "handle-secret.sh"
 
 
-def test_remove_deletes_existing_secret_in_both_namespaces(tmp_path):
+def run_remove(tmp_path, kubectl_mock_logic):
     log = tmp_path / "kubectl.log"
     kubectl = tmp_path / "kubectl"
-    kubectl.write_text(f'#!/bin/sh\necho "$*" >> "{log}"\nexit 0\n')
+    kubectl.write_text(f'#!/bin/sh\necho "$*" >> "{log}"\n{kubectl_mock_logic}')
     kubectl.chmod(0o755)
 
     result = subprocess.run(
@@ -36,7 +36,28 @@ def test_remove_deletes_existing_secret_in_both_namespaces(tmp_path):
         text=True,
         timeout=30,
     )
+    return result, log.read_text() if log.exists() else ""
+
+
+def test_remove_deletes_existing_secret_in_both_namespaces(tmp_path):
+    result, calls = run_remove(tmp_path, "exit 0\n")
+
     assert result.returncode == 0, result.stdout + result.stderr
-    calls = log.read_text()
+    assert "-n services delete secret certificate" in calls
+    assert "-n admin delete secret certificate" in calls
+
+
+def test_remove_succeeds_when_secret_is_already_gone(tmp_path):
+    """Like real kubectl, deleting a missing secret only exits 0 with --ignore-not-found."""
+    result, calls = run_remove(
+        tmp_path,
+        'case "$*" in\n'
+        "  *'get secret'*) exit 1 ;;\n"
+        "  *'delete secret'*--ignore-not-found*) exit 0 ;;\n"
+        "  *'delete secret'*) exit 1 ;;\n"
+        "esac\nexit 0\n",
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
     assert "-n services delete secret certificate" in calls
     assert "-n admin delete secret certificate" in calls

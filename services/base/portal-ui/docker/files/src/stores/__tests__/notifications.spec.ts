@@ -1,15 +1,35 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
+// The socket's only role here is to hand the store's handler to the tests, so
+// events can be delivered without a WebSocket.
+type WsEvent = { type: string; notification_id?: string }
+const ws = vi.hoisted(() => ({
+  handler: null as ((event: WsEvent) => Promise<void> | void) | null,
+}))
+
 vi.mock('@/api/notifications', () => ({
   fetchNotifications: vi.fn(),
   readNotification: vi.fn(),
-  NotificationWebsocket: class {},
-  NotificationEventType: { NEW: 'new', READ: 'read' },
+  readAllNotifications: vi.fn(),
+  NotificationWebsocket: class {
+    onMessage(handler: (event: WsEvent) => Promise<void> | void) {
+      ws.handler = handler
+    }
+  },
+  NotificationEventType: { NEW: 'new', READ: 'read', READ_ALL: 'read_all' },
 }))
 
+vi.mock('@kyvg/vue3-notification', () => ({ notify: vi.fn() }))
+
+import { notify } from '@kyvg/vue3-notification'
 import { useNotificationsStore } from '@/stores/notifications'
-import { fetchNotifications, type KaapanaNotification } from '@/api/notifications'
+import {
+  fetchNotifications,
+  readNotification,
+  readAllNotifications,
+  type KaapanaNotification,
+} from '@/api/notifications'
 
 type FetchResult = Awaited<ReturnType<typeof fetchNotifications>>
 
@@ -117,5 +137,98 @@ describe('notifications store refresh race', () => {
     first.resolve(page(['x']))
     await load
     expect(store.notifications.map((n) => n.id)).toEqual(['x'])
+  })
+})
+
+describe('notifications store markAllAsRead', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.resetAllMocks()
+  })
+
+  it('uses the bulk endpoint once, however many pages are unread', async () => {
+    const store = useNotificationsStore()
+    vi.mocked(fetchNotifications)
+      .mockResolvedValueOnce(page(['a', 'b'], { nextCursor: 'cursor-page-2', hasMore: true, total: 40 }))
+      .mockResolvedValue(page([]))
+    await store.loadMore()
+
+    await store.markAllAsRead()
+
+    expect(readAllNotifications).toHaveBeenCalledTimes(1)
+    expect(readNotification).not.toHaveBeenCalled()
+    expect(store.notifications).toEqual([])
+  })
+})
+
+describe('notifications store websocket events', () => {
+  let store: ReturnType<typeof useNotificationsStore>
+
+  beforeEach(async () => {
+    setActivePinia(createPinia())
+    vi.resetAllMocks()
+    vi.mocked(fetchNotifications).mockResolvedValue(page([]))
+    store = useNotificationsStore()
+    store.connect()
+    // connect() kicks off its own refresh; settle it so the fetch counts below
+    // only cover what the delivered event caused.
+    await store.refresh()
+    vi.mocked(fetchNotifications).mockClear()
+  })
+
+  it('applies a "read" event locally: drops the item, decrements the badge, no fetch', async () => {
+    store.notifications = [N('a'), N('b')]
+    store.total = 5
+
+    await ws.handler!({ type: 'read', notification_id: 'a' })
+
+    expect(store.notifications.map((n) => n.id)).toEqual(['b'])
+    expect(store.total).toBe(4)
+    expect(fetchNotifications).not.toHaveBeenCalled()
+  })
+
+  it('counts a "read" event for an id beyond the loaded pages, never below zero', async () => {
+    store.notifications = [N('a')]
+    store.total = 1
+
+    await ws.handler!({ type: 'read', notification_id: 'page-2-item' })
+    expect(store.notifications.map((n) => n.id)).toEqual(['a'])
+    expect(store.total).toBe(0)
+
+    await ws.handler!({ type: 'read', notification_id: 'page-3-item' })
+    expect(store.total).toBe(0)
+    expect(fetchNotifications).not.toHaveBeenCalled()
+  })
+
+  it('empties the list and zeroes the badge on "read_all" without fetching', async () => {
+    store.notifications = [N('a'), N('b')]
+    store.total = 2
+
+    await ws.handler!({ type: 'read_all' })
+
+    expect(store.notifications).toEqual([])
+    expect(store.total).toBe(0)
+    expect(fetchNotifications).not.toHaveBeenCalled()
+  })
+
+  it('refetches once on "new" and toasts the item named by notification_id', async () => {
+    vi.mocked(fetchNotifications).mockResolvedValue(page(['n1']))
+
+    await ws.handler!({ type: 'new', notification_id: 'n1' })
+
+    expect(fetchNotifications).toHaveBeenCalledTimes(1)
+    expect(notify).toHaveBeenCalledWith(expect.objectContaining({ title: 'n1' }))
+  })
+
+  it('clears locally after mark-all-as-read instead of refetching the list', async () => {
+    store.notifications = [N('a'), N('b')]
+    store.total = 2
+
+    await store.markAllAsRead()
+
+    expect(readAllNotifications).toHaveBeenCalledTimes(1)
+    expect(store.notifications).toEqual([])
+    expect(store.total).toBe(0)
+    expect(fetchNotifications).not.toHaveBeenCalled()
   })
 })

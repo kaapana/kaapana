@@ -3,6 +3,7 @@ import { notify } from '@kyvg/vue3-notification'
 import {
   fetchNotifications,
   readNotification,
+  readAllNotifications,
   NotificationWebsocket,
   NotificationEventType,
   type KaapanaNotification,
@@ -25,9 +26,13 @@ export const useNotificationsStore = defineStore('notifications', {
       if (this.ws) return
       this.ws = new NotificationWebsocket()
       this.ws.onMessage(async (event) => {
-        await this.refresh()
-        if (event.type === NotificationEventType.NEW) {
-          const newest = this.notifications.find((n) => n.id === event.id)
+        if (event.type === NotificationEventType.READ) {
+          this.applyRead(event.notification_id)
+        } else if (event.type === NotificationEventType.READ_ALL) {
+          this.clear()
+        } else if (event.type === NotificationEventType.NEW) {
+          await this.refresh()
+          const newest = this.notifications.find((n) => n.id === event.notification_id)
           if (newest) {
             notify({ title: newest.title, text: newest.description, type: 'info' })
           }
@@ -75,14 +80,24 @@ export const useNotificationsStore = defineStore('notifications', {
         if (refreshId === this.refreshId) this.loading = false
       }
     },
+    applyRead(id?: string) {
+      this.notifications = this.notifications.filter((n) => n.id !== id)
+      this.total = Math.max(0, this.total - 1)
+    },
+    clear() {
+      this.notifications = []
+      this.cursor = null
+      this.hasMore = false
+      this.total = 0
+    },
     async read(id: string) {
       await readNotification(id)
       this.notifications = this.notifications.filter((n) => n.id !== id)
     },
     async markAllAsRead() {
       if (!this.notifications.length) return
-      await Promise.all(this.notifications.map((n) => readNotification(n.id)))
-      await this.refresh()
+      await readAllNotifications()
+      this.clear()
     },
   },
 })

@@ -1,18 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, Header, Query
+from datetime import datetime, timezone
+from typing import Annotated
+from uuid import UUID
+
+from app.dependencies import get_access_service, get_async_db, get_connection_manager
+from app.models import Notification as NotificationModel
 from app.notifications.v2.schemas import (
-    NotificationResponse,
     Metadata,
     Notification,
     NotificationCreate,
     NotificationCreateNoReceivers,
+    NotificationResponse,
 )
-from app.models import Notification as NotificationModel
-from app.dependencies import get_async_db, get_connection_manager, get_access_service
-from uuid import UUID
-from sqlalchemy import select, delete, update, func, cast
-from sqlalchemy.dialects.postgresql import JSONB, ARRAY, TEXT
-from typing import Annotated
-from datetime import datetime, timezone
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from sqlalchemy import cast, delete, func, select, update
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TEXT
 
 router = APIRouter()
 
@@ -164,6 +165,53 @@ async def get_notifications(
             hasMore=has_more,
         ),
     )
+
+
+@router.put("/read", tags=["Frontend API"])
+async def mark_all_read(
+    x_forwarded_user: Annotated[str | None, Header()] = None,
+    db=Depends(get_async_db),
+    con_mgr=Depends(get_connection_manager),
+) -> list[UUID]:
+    """Mark every unread notification of the caller as read.
+
+    One statement and one websocket event however long the (paginated) list
+    is; the per-id endpoint would cost one request and one event each.
+    """
+    if not x_forwarded_user:
+        raise HTTPException(400, "Missing user info")
+    user = x_forwarded_user
+
+    now = datetime.now(timezone.utc)
+    stmt = (
+        update(NotificationModel)
+        .where(NotificationModel.receivers.any(user))
+        .where(~NotificationModel.receviers_read.has_key(user))
+        .values(
+            receviers_read=func.jsonb_set(
+                NotificationModel.receviers_read,
+                cast([user], ARRAY(TEXT)),
+                cast(func.to_jsonb(now), JSONB),
+                True,
+            )
+        )
+        .returning(NotificationModel.id)
+    )
+    ids = list((await db.execute(stmt)).scalars().all())
+    if ids:
+        # Same rule as the per-id endpoint: once every recipient has read a
+        # notification it is dropped.
+        await db.execute(
+            delete(NotificationModel)
+            .where(NotificationModel.id.in_(ids))
+            .where(
+                NotificationModel.receviers_read.has_all(NotificationModel.receivers)
+            )
+        )
+    await db.commit()
+    if ids:
+        await con_mgr.notify_read_all(user_ids=[user])
+    return ids
 
 
 @router.put("/{notification_id}/read", tags=["Frontend API"])

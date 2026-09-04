@@ -297,3 +297,41 @@ check_readthedocs:
     - when: never
   script:
     - bash $KAAPANA_DIR/ci/ci-code/build/check_readthedocs.sh
+
+##############################################
+# npm registry probe (throwaway, gated on CI_EXEC_NPM_PROBE)
+##############################################
+npm_registry_probe:
+  stage: tests
+  tags:
+    - tests-runner
+  image: node:22
+  timeout: 20m
+  rules:
+    - if: $CI_EXEC_NPM_PROBE == "true"
+      when: always
+    - when: never
+  variables:
+    KAAPANA_DIR: "$CI_PROJECT_DIR"
+  script:
+    - env | grep -i proxy || echo "PROBE: no proxy vars"
+    - getent hosts registry.npmjs.org || true
+    - npm config get registry
+    - |
+      echo "PROBE: metadata GET"
+      curl -sS -o /dev/null -w 'PROBE metadata http=%{http_code} dns=%{time_namelookup} conn=%{time_connect} tls=%{time_appconnect} total=%{time_total}\n' \
+        --max-time 120 https://registry.npmjs.org/vue || echo "PROBE metadata FAILED rc=$?"
+    - |
+      echo "PROBE: audit POST (bulk advisories)"
+      curl -sS -o /dev/null -w 'PROBE audit http=%{http_code} dns=%{time_namelookup} conn=%{time_connect} tls=%{time_appconnect} total=%{time_total}\n' \
+        --max-time 600 -X POST -H 'content-type: application/json' \
+        -d '{"vue":["3.4.0"]}' https://registry.npmjs.org/-/npm/v1/security/advisories/bulk || echo "PROBE audit FAILED rc=$?"
+    - |
+      echo "PROBE: quick-audit POST"
+      curl -sS -o /dev/null -w 'PROBE quick http=%{http_code} conn=%{time_connect} total=%{time_total}\n' \
+        --max-time 600 -X POST -H 'content-type: application/json' \
+        -d '{"name":"p","version":"1.0.0","requires":{},"dependencies":{}}' https://registry.npmjs.org/-/npm/v1/security/audits/quick || echo "PROBE quick FAILED rc=$?"
+    - cd "$KAAPANA_DIR/services/base/base-ui/docker/files"
+    - date -Is
+    - npm ci --loglevel=http 2>&1 | tail -40
+    - date -Is

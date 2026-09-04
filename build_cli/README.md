@@ -215,7 +215,7 @@ Pure singleton class -> classes that are never initialized and have only class a
    2. Thread picks task from ready_queue.
    3. When the tasks is finished it updates status of the Container is processed and check if any of the Container of the waiting queue have all their dependency ready (Failed, Built, etc.)
    4. Finishes when all tasks are finished.
-   5. Every container is built and pushed using bash `docker build` and `docker push`
+   5. Every container is built using `docker build`; by default it is pushed afterwards with a separate `docker push`. With `--cache-from`/`--cache-to` (registry build cache, docker only) build and push happen together via `docker buildx build --push --builder kaapana-buildx`, and local-only base images are pushed to the registry too so the isolated builder can pull them back in. Every build also mounts the repo's `constraints/` dir as a build-context for pinning pip installs.
    
 9. OfflineInstaller
    - Just adapted, downloads snap, helm and containers into .tgz and .tar.

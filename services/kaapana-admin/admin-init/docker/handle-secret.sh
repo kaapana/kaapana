@@ -115,15 +115,9 @@ function remove_cert {
         return
     fi
 
-    kubectl -n $SECRET_NAMESPACE get secret $SECRET_NAME 
-    if [ $? -ne 0 ]; then
-        echo "Secret $SECRET_NAME not present in namespace $SECRET_NAMESPACE... skipping deletion"
-    else 
-        if ! kubectl -n $SECRET_NAMESPACE delete secret $SECRET_NAME; then
-            echo "ERROR could not delete secret $SECRET_NAME from namespace $SECRET_NAMESPACE."
-            exit 1
-        fi
-        echo "Secret $SECRET_NAME deleted from namespace $SECRET_NAMESPACE."
+    if ! kubectl -n $SECRET_NAMESPACE delete secret $SECRET_NAME --ignore-not-found; then
+        echo "ERROR could not delete secret $SECRET_NAME from namespace $SECRET_NAMESPACE."
+        exit 1
     fi
 }
 

@@ -314,7 +314,7 @@ npm_registry_probe:
   variables:
     KAAPANA_DIR: "$CI_PROJECT_DIR"
   script:
-    - env | grep -i proxy || echo "PROBE: no proxy vars"
+    - env | grep -i proxy || echo "PROBE no proxy vars"
     - getent hosts registry.npmjs.org || true
     - npm config get registry
     - |

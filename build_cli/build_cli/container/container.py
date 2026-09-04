@@ -235,16 +235,20 @@ class Container:
                 base_img = BaseImage.from_tag(base_tag)
                 base_images.add(base_img)
 
-        # Determine registry and version
-        if registry and "local-only" in registry:
-            local_image = True
-            repo_version = "latest"
-        elif build_config.version_latest:
+        # Determine registry and version. local-only images get a real
+        # repo_version just like any other image -- their Dockerfile FROM
+        # lines always pin them as "local-only/name:latest" regardless (see
+        # BaseImage/resolve_base_images_into_container/check_base_containers,
+        # which resolve local-only dependencies by name, not by that tag).
+        if build_config.version_latest:
             version_str, *_ = GitUtils.get_repo_info(dockerfile.parent)
             base = version_str.split("-")[0]
             repo_version = f"{base}-latest"
         else:
             repo_version, *_ = GitUtils.get_repo_info(dockerfile.parent)
+
+        if registry and "local-only" in registry:
+            local_image = True
 
         registry = registry or build_config.default_registry
         tag = (
@@ -325,7 +329,7 @@ class Container:
                 ### Use buildkit to push image directly
                 build_args.extend(["--push"])
                 if self.local_image:
-                    self.tag = f"{config.default_registry}/{self.image_name}:latest"
+                    self.tag = f"{config.default_registry}/{self.image_name}:{self.version}"
             if config.cache_to:
                 build_args.extend(
                     [
@@ -346,7 +350,7 @@ class Container:
                     build_args.extend(
                         [
                             "--build-context",
-                            f"local-only/{base_image.image_name}=docker-image://{config.default_registry}/{base_image.image_name}:latest",
+                            f"local-only/{base_image.image_name}=docker-image://{config.default_registry}/{base_image.image_name}:{base_image.version}",
                         ]
                     )
 

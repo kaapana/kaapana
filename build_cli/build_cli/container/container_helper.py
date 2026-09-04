@@ -362,8 +362,13 @@ class ContainerHelper:
         logger.debug("")
         for container in cls._build_state.containers_available:
             for base_image in container.base_images:
+                # local-only Dockerfiles always write `FROM
+                # local-only/name:latest`, regardless of the referenced
+                # image's real (git-derived) version -- so local base images
+                # are matched by name, not by that placeholder tag.
                 if base_image.local_image and not any(
-                    base_image.tag == available_container.tag
+                    base_image.registry == available_container.registry
+                    and base_image.image_name == available_container.image_name
                     for available_container in cls._build_state.containers_available
                 ):
                     container.missing_base_images.append(base_image)
@@ -408,10 +413,12 @@ class ContainerHelper:
         for c in cls._build_state.containers_available:
             c.base_images = {
                 (
+                    # Not filtered by version: a local-only FROM line always
+                    # pins ":latest" as a placeholder, not the dependency's
+                    # real version (see check_base_containers).
                     cls.get_container(
                         registry=b.registry,
                         image_name=b.image_name,
-                        version=b.version,
                     )
                     if b.local_image
                     else b

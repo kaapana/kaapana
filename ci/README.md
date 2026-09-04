@@ -215,7 +215,7 @@ jobs with ↻; you rarely need the whole pipeline.
 | `install_extensions` / `send_data` flaky | Known flakiness, `retry: 2` masks most of it. Fails 3× → real; check the JUnit/log artifacts. |
 | `send_data`: "… unavailable from all source(s)" | Every test-data source failed for that series, the log lists each error. |
 | `playwright_ui_tests` fails | Download the Playwright HTML report artifact — traces and screenshots. |
-| `sweep_test_vms` red | The last log line names it: GitLab refused the pipeline lookup (then nothing was touched), or a teardown playbook failed (then the sweep still finished the other VMs). |
+| `sweep_test_vms` red | The last log line names it: GitLab refused the pipeline lookup (then nothing was touched, check `GITLAB_READ_API_TOKEN`), or a teardown playbook failed (then the sweep still finished the other VMs). |
 | Job dies in prepare: `failed to pull image ... ci-base ... access forbidden` | `DOCKER_AUTH_CONFIG` missing an entry for the active registry host, or its token was minted on the wrong GitLab instance ([section 8](#8-project-cicd-variables-secrets)). |
 | Job stuck "pending" | No runner with the required tag picking it up ([section 6](#6-runners)). |
 | Everything fails weirdly after a CI-image change | Tag wasn't bumped — bump `CI_IMAGES_TAG` and re-run ([section 5](#5-the-ci-image-ci-base)). |
@@ -306,7 +306,8 @@ required variables there.
 |---|---|---|---|
 | `CI_REGISTRY_URL` | no | no | Registry for CI builds |
 | `CI_REGISTRY_USER` | no | no | Username for `CI_REGISTRY_TOKEN` (shadows a GitLab-predefined variable — if deleted, jobs silently get `gitlab-ci-token`; `preflight_variables` fails on that value) |
-| `CI_REGISTRY_TOKEN` | yes | no | Registry push credential; also the default for `GITLAB_API_TOKEN` and `BLABLADOR_API_TOKEN` |
+| `CI_REGISTRY_TOKEN` | yes | no | Registry push credential; also the default for `GITLAB_API_TOKEN` and `BLABLADOR_API_TOKEN`. Despite that name it carries no API right: the REST API answers it with 401, so anything reading GitLab needs the token below |
+| `GITLAB_READ_API_TOKEN` | yes | no | Project access token, scope `read_api`, role Reporter. Reads pipeline status for `sweep_test_vms`; the two tokens a job already carries cannot (a job token may only `PUT` pipeline metadata) |
 | `RELEASE_REGISTRY_URL` | no | yes | Release registry (release tag pipelines only) |
 | `RELEASE_REGISTRY_USER` | no | yes | Release deploy-token username |
 | `RELEASE_REGISTRY_TOKEN` | yes | yes | Release deploy-token secret |

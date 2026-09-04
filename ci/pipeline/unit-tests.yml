@@ -231,6 +231,22 @@ ui_e2e_tests:
     # both casings: chromium must reach the app on localhost, not the proxy
     NO_PROXY: "localhost,127.0.0.1"
     no_proxy: "localhost,127.0.0.1"
+    # Cached below, so it must sit inside the project dir.
+    npm_config_cache: "$CI_PROJECT_DIR/.npm"
+    npm_config_prefer_offline: "true"
+    npm_config_audit: "false"
+    npm_config_fund: "false"
+    # The default backoff costs 70s per failed request, which turned a
+    # rate-limiting registry into 7min stalls per install.
+    npm_config_fetch_retries: "2"
+    npm_config_fetch_retry_mintimeout: "2000"
+    npm_config_fetch_retry_maxtimeout: "10000"
+  # Per-app key: nine parallel matrix jobs on one key race on the archive.
+  # The cache is content-addressed, so a stale one is incomplete, never wrong.
+  cache:
+    key: "npm-$APP"
+    paths:
+      - .npm/
   parallel:
     matrix:
       - APP:

@@ -54,6 +54,7 @@ This step also checks if all required local images are present in the collection
   Not all images are pushed to the registry.
   If the Dockerfile contains the line :code:`LABEL REGISTRY="local-only"` the image is build but not pushed to the specified registry.
   It is tagged as :code:`local-only/<image-name>:<version>`.
+  Exception: with the registry build cache enabled (see below), local-only images get a real version and are pushed to the default registry too, so the isolated cache builder can pull them back in.
 
 In a similar manner the kaapana directory and all external source directories are scanned for :code:`Chart.yaml` files.
 For each found file an instance of :code:`HelmChart` is initialized and if existing the .tgz file is removed.
@@ -89,7 +90,7 @@ For each platform-chart that should be build the following steps are proccessed:
 2. All helm charts in this tree are recursively packaged and the dependencies are updated, images associated with a chart are tagged in a uniform pattern
 3. The platform-chart is packaged and pushed.
 4. A list of images is generated in an order that allows to build them successively
-5. All images in the list generated in step 4 are build and all non-local images are pushed to the registry
+5. All images in the list generated in step 4 are build and all non-local images are pushed to the registry (with the registry build cache enabled, build and push happen together and local images are pushed too, see the hint above)
 
 .. hint::
 
@@ -114,6 +115,11 @@ For each platform-chart that should be build the following steps are proccessed:
     **Caching**
 
     All packaged charts and all information regarding the build process like the log file or the dependecy trees are stored in :code:`kaapana/build/`.
+
+.. hint::
+    **Registry build cache**
+
+    :code:`--cache-from`/:code:`--cache-to` (docker only) enable a registry-backed buildx cache via a dedicated :code:`kaapana-buildx` builder. See :code:`build_cli/README.md` or :code:`kaapana-build --help` for the flags.
 
 
 .. _Docker: https://www.docker.com/

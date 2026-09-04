@@ -116,6 +116,44 @@ class ContainerHelper:
                 )
 
     @classmethod
+    def remove_buildx_builder(cls):
+        """
+        Remove the dedicated docker-container buildx builder that
+        ensure_buildx_builder() created at the start of the build. Mirrors
+        that method's guard so a plain run (cache disabled, or a non-docker
+        engine) -- which never created the builder -- never attempts to
+        remove it either. Skipped entirely when --keep-buildx-builder was
+        passed, e.g. to let a follow-up build reuse its cache mounts.
+
+        A failed removal is logged but does not fail the build: the builder
+        is a host-local leftover, not build output.
+        """
+        if not cls._build_config.cache_enabled:
+            return
+        if cls._build_config.container_engine != "docker":
+            return
+        if cls._build_config.keep_buildx_builder:
+            logger.info(
+                f"-> Keeping buildx builder {BUILDX_BUILDER_NAME} (--keep-buildx-builder)"
+            )
+            return
+
+        logger.info(f"-> Removing buildx builder: {BUILDX_BUILDER_NAME}")
+
+        try:
+            CommandUtils.run(
+                ["docker", "buildx", "rm", BUILDX_BUILDER_NAME],
+                logger=logger,
+                timeout=30,
+                context="buildx-rm",
+            )
+        except Exception as e:
+            # CommandUtils.run re-raises (with exit_on_error left False) on
+            # anything short of a non-zero exit code, e.g. a timeout -- catch
+            # that here too so cleanup can never take the build down with it.
+            logger.warning(f"Failed to remove buildx builder {BUILDX_BUILDER_NAME}: {e}")
+
+    @classmethod
     def _buildx_proxy_driver_opts(cls) -> list:
         """
         Build --driver-opt env.* flags so the isolated docker-container

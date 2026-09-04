@@ -47,6 +47,7 @@ class BuildConfig(BaseModel):
     cache_from_username: Optional[str] = None
     cache_from_password: Optional[str] = None
     cache_tag: Optional[str] = "cache"
+    keep_buildx_builder: bool = False
     parallel_processes: int
     max_build_rounds: int = 5
     max_push_retries: int = 30

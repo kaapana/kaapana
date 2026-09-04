@@ -366,6 +366,13 @@ def build(
         envvar="CACHE_TAG",
         help="Image version/tag for the build cache in the registry.",
     ),
+    keep_buildx_builder: bool = typer.Option(
+        False,
+        "--keep-buildx-builder",
+        envvar="KEEP_BUILDX_BUILDER",
+        help="Keep the dedicated kaapana-buildx builder after the build completes "
+        "instead of removing it. Only relevant with --cache-from/--cache-to.",
+    ),
 ):
     """
     Kaapana Platform Builder entry point.
@@ -432,6 +439,7 @@ def build(
         cache_from_username=cache_from_username,
         cache_from_password=cache_from_password,
         cache_tag=cache_tag,
+        keep_buildx_builder=keep_buildx_builder,
     )
     run_build(build_config=config)
 
@@ -622,6 +630,8 @@ def run_build(build_config: BuildConfig):
     finally:
         if security_scan_requested:
             SecurityScanner.cleanup()
+
+    ContainerHelper.remove_buildx_builder()
 
     logger.info("-----------------------------------------------------------")
     logger.info("-------------------------- DONE ---------------------------")

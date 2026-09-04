@@ -90,6 +90,14 @@ def test_age_comes_from_the_kubernetes_timestamp():
     assert sweep.hours_since("2026-09-02T09:30:00Z", NOW) == pytest.approx(2.5)
 
 
+def test_the_gitlab_timestamp_format_parses_too():
+    """The same helper reads both sources: Kubernetes stamps UTC with a Z,
+    GitLab a local offset with milliseconds."""
+    assert sweep.hours_since("2026-09-02T11:30:00.263+02:00", NOW) == pytest.approx(
+        2.5, abs=1e-3
+    )
+
+
 def test_a_vm_kept_for_inspection_survives_its_pipeline():
     """What CI_EXEC_DESTROY_DELAYED asks for. The sweep must not undo it just
     because the pipeline is over."""

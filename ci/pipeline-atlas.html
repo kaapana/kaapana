@@ -1,0 +1,909 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html { color-scheme: light dark; }
+  body { margin: 0; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+</style>
+<title>Kaapana CI Atlas</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground:  #f3f6f7;
+    --surface: #ffffff;
+    --surface-2:#e8edef;
+    --ink:     #131b21;
+    --ink-2:   #3f5260;
+    --ink-3:   #6f8290;
+    --rule:    #d2dade;
+    --rule-2:  #b9c5cb;
+    --accent:  #0a6c7d;
+    --accent-soft:#dbedf0;
+    --gate:    #8a5806;
+    --gate-soft:#f8eed9;
+    --pass:    #1e6a44;
+    --fail:    #a3262f;
+    --fail-soft:#f9e4e5;
+
+    --sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    --cond: "IBM Plex Sans Condensed", "IBM Plex Sans", ui-sans-serif, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:  #0d1418;
+      --surface: #141d23;
+      --surface-2:#1c262d;
+      --ink:     #e5edf1;
+      --ink-2:   #a6bac6;
+      --ink-3:   #7b8f9c;
+      --rule:    #28353d;
+      --rule-2:  #3a4a54;
+      --accent:  #4fd0df;
+      --accent-soft:#10323a;
+      --gate:    #e3b463;
+      --gate-soft:#312611;
+      --pass:    #5fcd93;
+      --fail:    #ff9090;
+      --fail-soft:#3a1c1e;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:  #0d1418;
+    --surface: #141d23;
+    --surface-2:#1c262d;
+    --ink:     #e5edf1;
+    --ink-2:   #a6bac6;
+    --ink-3:   #7b8f9c;
+    --rule:    #28353d;
+    --rule-2:  #3a4a54;
+    --accent:  #4fd0df;
+    --accent-soft:#10323a;
+    --gate:    #e3b463;
+    --gate-soft:#312611;
+    --pass:    #5fcd93;
+    --fail:    #ff9090;
+    --fail-soft:#3a1c1e;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px 96px; }
+
+  /* ---------- masthead ---------- */
+  header.masthead {
+    border-bottom: 2px solid var(--ink);
+    padding: 44px 0 22px;
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    gap: 28px 40px;
+    align-items: end;
+  }
+  h1 {
+    font-family: var(--cond);
+    font-weight: 700;
+    font-size: clamp(34px, 5.2vw, 54px);
+    line-height: 1.02;
+    letter-spacing: -0.015em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .standfirst {
+    margin: 12px 0 0;
+    max-width: 62ch;
+    color: var(--ink-2);
+    font-size: 16px;
+  }
+  .masthead-meta {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-3);
+    text-align: right;
+    line-height: 1.9;
+    white-space: nowrap;
+  }
+  .masthead-meta b { color: var(--ink-2); font-weight: 500; }
+
+  /* ---------- sections ---------- */
+  section { margin-top: 58px; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 6px;
+  }
+  h2 {
+    font-family: var(--cond);
+    font-weight: 600;
+    font-size: 27px;
+    letter-spacing: -0.005em;
+    margin: 0 0 10px;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--cond);
+    font-weight: 600;
+    font-size: 18px;
+    margin: 30px 0 8px;
+  }
+  p { margin: 0 0 12px; max-width: 68ch; }
+  section > p, section > .lede { color: var(--ink-2); }
+  code, .m { font-family: var(--mono); font-size: 0.88em; }
+  code {
+    background: var(--surface-2);
+    padding: 0.1em 0.34em;
+    border-radius: 2px;
+    color: var(--ink);
+  }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- figures ---------- */
+  figure { margin: 22px 0 0; }
+  .fig-frame {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    padding: 8px;
+    overflow-x: auto;
+  }
+  figure svg { display: block; max-width: 100%; height: auto; color: var(--ink-2); }
+  figcaption {
+    font-size: 13px;
+    color: var(--ink-3);
+    margin-top: 9px;
+    max-width: 76ch;
+  }
+  figcaption b { color: var(--ink-2); font-weight: 500; }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 22px;
+    margin-top: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .legend svg { display: inline-block; }
+
+  /* ---------- tables ---------- */
+  .tbl-scroll { overflow-x: auto; margin-top: 18px; }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 13.5px; }
+  th, td {
+    text-align: left;
+    padding: 9px 14px 9px 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  th {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    border-bottom: 1px solid var(--rule-2);
+    white-space: nowrap;
+  }
+  td.k { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; color: var(--ink); }
+  td.d { font-family: var(--mono); font-size: 12.5px; color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td.n { color: var(--ink-2); }
+  tr:last-child td { border-bottom: none; }
+  .grp td {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gate);
+    padding-top: 20px;
+    border-bottom: 1px solid var(--rule-2);
+  }
+
+  /* ---------- pills ---------- */
+  .pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 1px 6px;
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .pill.yes { color: var(--pass); }
+  .pill.no  { color: var(--fail); }
+
+  /* ---------- recipes ---------- */
+  .recipes { display: grid; gap: 18px; margin-top: 20px; }
+  .recipe {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    padding: 16px 18px 18px;
+  }
+  .recipe.warn { border-left-color: var(--gate); }
+  .recipe-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 14px;
+    margin-bottom: 4px;
+  }
+  .recipe h3 { margin: 0; font-size: 17px; }
+  .recipe-when {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    letter-spacing: 0.04em;
+  }
+  .recipe p { font-size: 13.5px; color: var(--ink-2); margin: 4px 0 12px; }
+  pre {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.75;
+    background: var(--surface-2);
+    color: var(--ink);
+    margin: 0;
+    padding: 12px 14px;
+    overflow-x: auto;
+    border-radius: 2px;
+  }
+  pre .fl { color: var(--accent); }
+  pre .cm { color: var(--ink-3); }
+
+  /* ---------- notes ---------- */
+  .note {
+    border-left: 3px solid var(--gate);
+    background: var(--gate-soft);
+    padding: 12px 16px;
+    margin: 20px 0 0;
+    font-size: 13.5px;
+  }
+  .note p { margin: 0; color: var(--ink); max-width: 74ch; }
+  .note p + p { margin-top: 8px; }
+  .note-label {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gate);
+    display: block;
+    margin-bottom: 3px;
+  }
+
+  .traps { margin-top: 18px; display: grid; gap: 0; }
+  .trap {
+    display: grid;
+    grid-template-columns: 22px minmax(0,1fr);
+    gap: 12px;
+    padding: 14px 0;
+    border-top: 1px solid var(--rule);
+    align-items: start;
+  }
+  .trap:last-child { border-bottom: 1px solid var(--rule); }
+  .trap-n {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--fail);
+    padding-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .trap p { margin: 0; font-size: 13.5px; color: var(--ink-2); max-width: 74ch; }
+  .trap p strong { color: var(--ink); font-weight: 600; }
+
+  footer {
+    margin-top: 70px;
+    padding-top: 18px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-3);
+  }
+
+  @media (max-width: 720px) {
+    header.masthead { grid-template-columns: 1fr; }
+    .masthead-meta { text-align: left; }
+    .wrap { padding: 0 18px 72px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <div>
+    <h1>Kaapana CI Atlas</h1>
+    <p class="standfirst">Every path <code>.gitlab-ci.yml</code> can take: what creates a pipeline, which of the 34 jobs each configuration actually produces, and the twelve rule expressions that decide it.</p>
+  </div>
+  <div class="masthead-meta">
+    branch <b>feature/ci-deploy-any-target</b><br>
+    6 stages · 34 jobs · 15 inputs<br>
+    7 included files · <b>1487</b> lines
+  </div>
+</header>
+
+<!-- ======================= 1. ENTRY ======================= -->
+<section>
+  <p class="eyebrow">Gate 0 — does a pipeline exist at all</p>
+  <h2>The entry gate</h2>
+  <p>Before any job is considered, <code>workflow:rules</code> decides whether GitLab creates a pipeline. The global variable <code>MAINTENANCE</code> is the kill switch: set it to <code>"true"</code> and every automatic trigger stops, while manual ones still work.</p>
+
+  <div class="tbl-scroll">
+  <table>
+    <thead>
+      <tr><th>CI_PIPELINE_SOURCE</th><th>Condition</th><th>Pipeline created</th><th>Blocked by MAINTENANCE</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="k">web</td><td class="n">Run pipeline form</td><td><span class="pill yes">always</span></td><td class="d">no</td></tr>
+      <tr><td class="k">api</td><td class="n"><code>glab ci run</code>, REST</td><td><span class="pill yes">always</span></td><td class="d">no</td></tr>
+      <tr><td class="k">trigger</td><td class="n">Trigger token</td><td><span class="pill yes">always</span></td><td class="d">no</td></tr>
+      <tr><td class="k">push</td><td class="n">tag matches <code>\d+\.\d+\.\d+</code></td><td><span class="pill yes">always</span></td><td class="d">no</td></tr>
+      <tr><td class="k">push</td><td class="n">branch is <code>develop</code></td><td><span class="pill yes">yes</span></td><td class="d">yes</td></tr>
+      <tr><td class="k">push</td><td class="n">any other branch</td><td><span class="pill no">never</span></td><td class="d">—</td></tr>
+      <tr><td class="k">schedule</td><td class="n">any</td><td><span class="pill yes">yes</span></td><td class="d">yes</td></tr>
+      <tr><td class="k">merge_request_event</td><td class="n">title not <code>Draft:</code></td><td><span class="pill yes">yes</span></td><td class="d">yes</td></tr>
+      <tr><td class="k">merge_request_event</td><td class="n">title starts <code>Draft:</code></td><td><span class="pill no">never</span></td><td class="d">—</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="note-label">Consequence for feature branches</span>
+    <p>A push to <code>feature/*</code> creates nothing. To test a feature branch you need a <code>web</code>, <code>api</code> or <code>merge_request_event</code> pipeline — which is also why those three ignore <code>MAINTENANCE</code>.</p>
+  </div>
+</section>
+
+<!-- ======================= 2. JOB GRAPH ======================= -->
+<section>
+  <p class="eyebrow">The full graph</p>
+  <h2>34 jobs, six stages, one gate each</h2>
+  <p>Stages run in order, but <code>needs:</code> overrides that inside and across stages — so the real shape is the DAG below. Amber text under each job is its <code>rules:</code> gate; if the gate is false the job is never created, and every <code>needs:</code> pointing at it is marked <code>optional: true</code> so the reduced pipeline still validates.</p>
+
+  <figure>
+    <div class="fig-frame">
+    <svg viewBox="0 0 1348 560" role="img" aria-label="Directed graph of the Kaapana CI pipeline: preflight, tests, build, deploy, test and clean stages, showing each job with its rules gate and the needs edges between them.">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+        </marker>
+        <marker id="ar-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--accent)"/>
+        </marker>
+        <marker id="ar-f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--fail)"/>
+        </marker>
+      </defs>
+
+      <!-- stage headers -->
+      <g font-family="IBM Plex Mono, monospace" font-size="11" font-weight="600" letter-spacing="1.4" fill="var(--accent)">
+        <text x="24"   y="24">1 · PREFLIGHT</text>
+        <text x="244"  y="24">2 · TESTS</text>
+        <text x="464"  y="24">3 · BUILD</text>
+        <text x="684"  y="24">4 · DEPLOY</text>
+        <text x="904"  y="24">5 · TEST</text>
+        <text x="1124" y="24">6 · CLEAN</text>
+      </g>
+      <g stroke="var(--rule-2)" stroke-width="1">
+        <line x1="24" y1="34" x2="216" y2="34"/>
+        <line x1="244" y1="34" x2="436" y2="34"/>
+        <line x1="464" y1="34" x2="656" y2="34"/>
+        <line x1="684" y1="34" x2="876" y2="34"/>
+        <line x1="904" y1="34" x2="1096" y2="34"/>
+        <line x1="1124" y1="34" x2="1316" y2="34"/>
+      </g>
+
+      <!-- ============ boxes ============ -->
+      <g stroke="var(--rule-2)" stroke-width="1" fill="var(--surface)">
+        <!-- preflight -->
+        <rect x="24" y="50" width="192" height="42" rx="2"/>
+        <rect x="24" y="106" width="192" height="42" rx="2" stroke="var(--accent)" stroke-width="1.6"/>
+        <!-- tests -->
+        <rect x="244" y="50" width="192" height="42" rx="2"/>
+        <rect x="244" y="106" width="192" height="42" rx="2"/>
+        <rect x="244" y="162" width="192" height="42" rx="2"/>
+        <rect x="244" y="218" width="192" height="42" rx="2"/>
+        <rect x="244" y="274" width="192" height="42" rx="2"/>
+        <!-- build -->
+        <rect x="464" y="50" width="192" height="42" rx="2"/>
+        <rect x="464" y="118" width="192" height="42" rx="2"/>
+        <rect x="464" y="174" width="192" height="42" rx="2"/>
+        <!-- deploy -->
+        <rect x="684" y="50" width="192" height="42" rx="2"/>
+        <rect x="684" y="118" width="192" height="42" rx="2"/>
+        <rect x="684" y="174" width="192" height="42" rx="2"/>
+        <rect x="684" y="242" width="192" height="42" rx="2"/>
+        <!-- test -->
+        <rect x="904" y="50" width="192" height="42" rx="2"/>
+        <rect x="904" y="106" width="192" height="42" rx="2"/>
+        <rect x="904" y="162" width="192" height="42" rx="2"/>
+        <rect x="904" y="218" width="192" height="42" rx="2"/>
+        <rect x="904" y="274" width="192" height="42" rx="2"/>
+        <rect x="904" y="330" width="192" height="42" rx="2"/>
+        <rect x="904" y="398" width="192" height="42" rx="2"/>
+        <!-- clean -->
+        <rect x="1124" y="50" width="192" height="42" rx="2"/>
+        <rect x="1124" y="174" width="192" height="42" rx="2" stroke="var(--fail)"/>
+      </g>
+
+      <!-- ============ job names ============ -->
+      <g font-family="IBM Plex Mono, monospace" font-size="11.5" font-weight="500" fill="var(--ink)">
+        <text x="34" y="69">preflight_variables</text>
+        <text x="34" y="125">preflight_target</text>
+
+        <text x="254" y="69">build_ci_image</text>
+        <text x="254" y="125">unit + api tests ×13</text>
+        <text x="254" y="181">ui_e2e_tests ×9</text>
+        <text x="254" y="237">build_documentation</text>
+        <text x="254" y="293">check_readthedocs</text>
+
+        <text x="474" y="69">build_packages</text>
+        <text x="474" y="137">security_scan</text>
+        <text x="474" y="193">security</text>
+
+        <text x="694" y="69">prepare_deployment</text>
+        <text x="694" y="137">server_installation</text>
+        <text x="694" y="193">target_readiness</text>
+        <text x="694" y="261">platform_deployment</text>
+
+        <text x="914" y="69">setup_integration_…</text>
+        <text x="914" y="125">first_login</text>
+        <text x="914" y="181">playwright_ui_tests</text>
+        <text x="914" y="237">install_extensions</text>
+        <text x="914" y="293">send_data</text>
+        <text x="914" y="349">run_workflows</text>
+        <text x="914" y="417">scan_ports</text>
+
+        <text x="1134" y="69">destroy_deployment</text>
+        <text x="1134" y="193">if_ci_failing</text>
+      </g>
+
+      <!-- ============ gates ============ -->
+      <g font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--gate)">
+        <text x="34" y="84">when: always</text>
+        <text x="34" y="140">deploy &amp;&amp; !install &amp;&amp; FQDN</text>
+
+        <text x="254" y="84">MR|push:develop + changes</text>
+        <text x="254" y="140">exec_unit_tests</text>
+        <text x="254" y="196">exec_unit_tests · matrix APP</text>
+        <text x="254" y="252">exec_unit_tests</text>
+        <text x="254" y="308">schedule &amp;&amp; develop</text>
+
+        <text x="474" y="84">exec_build || release tag</text>
+        <text x="474" y="152">scan &amp;&amp; build</text>
+        <text x="474" y="208">scan &amp;&amp; build · allow_failure</text>
+
+        <text x="694" y="84">exec_deploy</text>
+        <text x="694" y="152">deploy &amp;&amp; install</text>
+        <text x="694" y="208">deploy &amp;&amp; !install &amp;&amp; !FQDN</text>
+        <text x="694" y="276">exec_deploy</text>
+
+        <text x="914" y="84">itests &amp;&amp; deploy</text>
+        <text x="914" y="140">itests &amp;&amp; deploy</text>
+        <text x="914" y="196">itests &amp;&amp; deploy</text>
+        <text x="914" y="252">itests &amp;&amp; deploy · retry 2</text>
+        <text x="914" y="308">itests &amp;&amp; deploy · retry 2</text>
+        <text x="914" y="364">allow_failure · 2 h</text>
+        <text x="914" y="432">itests &amp;&amp; deploy</text>
+
+        <text x="1134" y="84">deploy &amp;&amp; !FQDN</text>
+      </g>
+      <text x="1134" y="208" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--fail)">on_failure &amp;&amp; develop</text>
+
+      <!-- ============ edges ============ -->
+      <g stroke="currentColor" stroke-width="1.1" fill="none" marker-end="url(#ar)">
+        <!-- build spine -->
+        <path d="M 470 92 L 470 105 L 454 105 L 454 139 L 462 139"/>
+        <path d="M 470 160 L 470 173 L 454 173 L 454 195 L 462 195"/>
+        <!-- deploy spine from prepare_deployment -->
+        <path d="M 690 92 L 690 104 L 672 104 L 672 139 L 682 139"/>
+        <path d="M 672 104 L 672 195 L 682 195"/>
+        <path d="M 672 104 L 672 263 L 682 263"/>
+        <!-- server_installation / target_readiness -> platform_deployment -->
+        <path d="M 876 139 L 890 139 L 890 232 L 800 232 L 800 240"/>
+        <path d="M 876 195 L 886 195 L 886 226 L 812 226 L 812 240"/>
+        <!-- platform_deployment -> setup -->
+        <path d="M 876 263 L 894 263 L 894 71 L 902 71"/>
+        <!-- setup -> scan_ports -->
+        <path d="M 910 92 L 910 100 L 898 100 L 898 419 L 902 419"/>
+        <!-- test chain -->
+        <path d="M 1000 92 L 1000 104"/>
+        <path d="M 1000 148 L 1000 160"/>
+        <path d="M 1000 204 L 1000 216"/>
+        <path d="M 1000 260 L 1000 272"/>
+        <path d="M 1000 316 L 1000 328"/>
+      </g>
+
+      <!-- preflight_target -> platform_deployment (the long optional edge) -->
+      <g stroke="var(--accent)" stroke-width="1.6" fill="none" marker-end="url(#ar-a)">
+        <path d="M 216 127 L 232 127 L 232 494 L 780 494 L 780 286"/>
+      </g>
+      <text x="240" y="488" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--accent)">needs: preflight_target (optional) — the FQDN target is vetted in stage 1, before anything is built</text>
+
+      <!-- teardown barrier -->
+      <g stroke="currentColor" stroke-width="1.1" fill="none">
+        <path d="M 1096 71 L 1110 71"/>
+        <path d="M 1096 127 L 1104 127 L 1104 71"/>
+        <path d="M 1096 183 L 1104 183 L 1104 127"/>
+        <path d="M 1096 239 L 1104 239 L 1104 183"/>
+        <path d="M 1096 295 L 1104 295 L 1104 239"/>
+        <path d="M 1096 351 L 1104 351 L 1104 295"/>
+        <path d="M 1096 419 L 1104 419 L 1104 351"/>
+        <path d="M 1110 71 L 1122 71" marker-end="url(#ar)"/>
+      </g>
+      <text x="1124" y="108" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink-3)">needs: 10 VM jobs</text>
+      <text x="1124" y="120" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink-3)">when: always</text>
+
+      <!-- if_ci_failing -->
+      <g stroke="var(--fail)" stroke-width="1.1" fill="none" stroke-dasharray="4 3">
+        <path d="M 232 520 L 1240 520 L 1240 218" marker-end="url(#ar-f)"/>
+      </g>
+      <text x="240" y="534" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--fail)">needs: all 32 pipeline jobs (optional) — first failure on develop opens a GitLab issue and posts to Slack</text>
+
+      <!-- runner tags -->
+      <g font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink-3)">
+        <text x="24" y="340">tests-runner</text>
+        <text x="244" y="340">tests-runner</text>
+        <text x="464" y="240">build-runner</text>
+        <text x="684" y="308">deploy-runner</text>
+        <text x="904" y="462">deploy-runner</text>
+        <text x="1124" y="240">deploy-runner</text>
+      </g>
+      <g stroke="var(--rule)" stroke-width="1">
+        <line x1="24" y1="328" x2="216" y2="328"/>
+        <line x1="244" y1="328" x2="436" y2="328"/>
+        <line x1="464" y1="228" x2="656" y2="228"/>
+        <line x1="684" y1="296" x2="876" y2="296"/>
+        <line x1="904" y1="450" x2="1096" y2="450"/>
+        <line x1="1124" y1="228" x2="1316" y2="228"/>
+      </g>
+      <text x="464" y="254" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink-3)">host docker socket · warm layer cache</text>
+    </svg>
+    </div>
+    <div class="legend">
+      <span><svg width="26" height="8" aria-hidden="true"><line x1="0" y1="4" x2="24" y2="4" stroke="currentColor" stroke-width="1.1"/></svg> needs — must succeed first</span>
+      <span style="color:var(--accent)"><svg width="26" height="8" aria-hidden="true"><line x1="0" y1="4" x2="24" y2="4" stroke="currentColor" stroke-width="1.6"/></svg> the external-target path</span>
+      <span style="color:var(--fail)"><svg width="26" height="8" aria-hidden="true"><line x1="0" y1="4" x2="24" y2="4" stroke="currentColor" stroke-width="1.1" stroke-dasharray="4 3"/></svg> on_failure only</span>
+      <span style="color:var(--gate)">amber = the job's rules gate</span>
+    </div>
+    <figcaption><b>Reading the graph:</b> stages 1–6 run left to right, but a job with <code>needs:</code> starts as soon as those jobs finish, not when the stage does. <code>build_packages</code> has no <code>needs:</code>, so it waits for the whole <code>tests</code> stage — the 29 minutes the nightly spends before the build even starts. The 13 unit/api jobs and the 9-way <code>ui_e2e_tests</code> matrix are collapsed here: they share one gate and have no edges.</figcaption>
+  </figure>
+</section>
+
+<!-- ======================= 3. DEPLOY MATRIX ======================= -->
+<section>
+  <p class="eyebrow">The branch that actually branches</p>
+  <h2>Where the platform lands</h2>
+  <p>Two variables decide the whole deploy stage: whether <code>DEPLOYMENT_INSTANCE_FQDN</code> is empty, and whether <code>exec_server_installation</code> is true. They select which of three mutually exclusive readiness checks runs, whether a Harvester VM is created, and whether anything gets destroyed at the end.</p>
+
+  <figure>
+    <div class="fig-frame">
+    <svg viewBox="0 0 1080 400" role="img" aria-label="Two by two matrix of deployment target configurations: FQDN empty or set against server installation true or false, showing which jobs run in each of the four cases.">
+      <defs>
+        <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <!-- column headers -->
+      <g font-family="IBM Plex Mono, monospace" font-size="11" font-weight="600" fill="var(--ink)">
+        <text x="290" y="26">exec_server_installation: true</text>
+        <text x="690" y="26">exec_server_installation: false</text>
+      </g>
+      <line x1="290" y1="36" x2="670" y2="36" stroke="var(--rule-2)"/>
+      <line x1="690" y1="36" x2="1070" y2="36" stroke="var(--rule-2)"/>
+
+      <!-- row labels -->
+      <g font-family="IBM Plex Mono, monospace" font-size="11" font-weight="600" fill="var(--ink)">
+        <text x="10" y="96">FQDN empty</text>
+        <text x="10" y="256">FQDN set</text>
+      </g>
+      <g font-family="IBM Plex Sans, sans-serif" font-size="10.5" fill="var(--ink-3)">
+        <text x="10" y="112">fresh Harvester VM</text>
+        <text x="10" y="126">per pipeline</text>
+        <text x="10" y="272">your own machine,</text>
+        <text x="10" y="286">e230-pc11 etc.</text>
+      </g>
+
+      <!-- cells -->
+      <g fill="var(--surface)" stroke="var(--rule-2)" stroke-width="1">
+        <rect x="180" y="52" width="490" height="118" rx="2"/>
+        <rect x="690" y="52" width="380" height="118" rx="2"/>
+        <rect x="180" y="212" width="490" height="118" rx="2" stroke="var(--gate)" stroke-width="1.6"/>
+        <rect x="690" y="212" width="380" height="118" rx="2" stroke="var(--accent)" stroke-width="1.6"/>
+      </g>
+
+      <!-- cell A: FQDN empty + install -->
+      <g font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink)">
+        <text x="196" y="76">provision_harvester_vm</text>
+        <text x="196" y="112">server_installation</text>
+        <text x="196" y="148">platform_deployment</text>
+      </g>
+      <g font-family="IBM Plex Sans, sans-serif" font-size="10" fill="var(--ink-3)">
+        <text x="196" y="90">32 CPU · 256 Gi · ubuntu24</text>
+        <text x="196" y="126">sudo: OS + microk8s, then readiness</text>
+        <text x="196" y="162">destroy_deployment deletes the VM</text>
+      </g>
+      <g stroke="currentColor" stroke-width="1" marker-end="url(#ar2)">
+        <line x1="420" y1="86" x2="420" y2="100"/>
+        <line x1="420" y1="122" x2="420" y2="136"/>
+      </g>
+      <text x="500" y="80" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="600" fill="var(--ink-3)">the nightly</text>
+
+      <!-- cell B: FQDN empty + no install -->
+      <g font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink)">
+        <text x="706" y="76">provision_harvester_vm</text>
+        <text x="706" y="112">target_readiness</text>
+        <text x="706" y="148">platform_deployment</text>
+      </g>
+      <g font-family="IBM Plex Sans, sans-serif" font-size="10" fill="var(--ink-3)">
+        <text x="706" y="90">a bare VM…</text>
+        <text x="706" y="126">…which then fails: nothing installed it</text>
+        <text x="706" y="162">destroy_deployment deletes the VM</text>
+      </g>
+
+      <!-- cell C: FQDN set + install -->
+      <g font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink)">
+        <text x="196" y="236">no preflight_target</text>
+        <text x="196" y="272">server_installation</text>
+        <text x="196" y="308">platform_deployment</text>
+      </g>
+      <g font-family="IBM Plex Sans, sans-serif" font-size="10" fill="var(--gate)">
+        <text x="196" y="250">its rule requires !install — nothing is checked</text>
+      </g>
+      <g font-family="IBM Plex Sans, sans-serif" font-size="10" fill="var(--ink-3)">
+        <text x="196" y="286">sudo apt/microk8s on YOUR host</text>
+        <text x="196" y="322">nothing is destroyed — FQDN targets are kept</text>
+      </g>
+
+      <!-- cell D: FQDN set + no install -->
+      <g font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink)">
+        <text x="706" y="236">preflight_target</text>
+        <text x="706" y="272">platform_deployment</text>
+        <text x="706" y="308">VM kept</text>
+      </g>
+      <g font-family="IBM Plex Sans, sans-serif" font-size="10" fill="var(--accent)">
+        <text x="706" y="250">stage 1 — fails in a minute, not an hour</text>
+      </g>
+      <g font-family="IBM Plex Sans, sans-serif" font-size="10" fill="var(--ink-3)">
+        <text x="706" y="286">no sudo needed on the target</text>
+        <text x="706" y="322">destroy_deployment: when: never</text>
+      </g>
+      <g stroke="var(--accent)" stroke-width="1" marker-end="url(#ar2)" color="var(--accent)">
+        <line x1="900" y1="246" x2="900" y2="260"/>
+      </g>
+
+      <!-- redeploy annotation -->
+      <text x="180" y="362" font-family="IBM Plex Mono, monospace" font-size="10.5" font-weight="600" fill="var(--ink)">exec_redeploy</text>
+      <text x="180" y="378" font-family="IBM Plex Sans, sans-serif" font-size="10.5" fill="var(--ink-2)">reaches the playbooks as CI_EXEC_REDEPLOY. false → an existing platform on the target is fatal; true → a warning, and deploy_platform undeploys it first.</text>
+    </svg>
+    </div>
+    <figcaption><b>The two shaded cells are the interesting ones.</b> Bottom right is the external-target path this branch adds: the readiness check moves into stage 1, so a busy or unreachable host stops the pipeline before the 8-hour build slot is claimed. Bottom left is a gap — with an FQDN <em>and</em> <code>exec_server_installation: true</code>, no readiness check runs at all and the playbook goes on to <code>sudo</code>-install microk8s on your workstation.</figcaption>
+  </figure>
+</section>
+
+<!-- ======================= 4. VERSION HANDOVER ======================= -->
+<section>
+  <p class="eyebrow">Why build and deploy can be split</p>
+  <h2>The only handover is a tag in the registry</h2>
+  <p>Nothing is passed from <code>build</code> to <code>deploy</code> as an artifact. Both stages independently compute the same version string from git, and the registry is the meeting point — which is what makes <code>exec_build: false</code> with <code>exec_deploy: true</code> a valid configuration, and what makes it fail fast when that commit was never built.</p>
+
+  <figure>
+    <div class="fig-frame">
+    <svg viewBox="0 0 1000 250" role="img" aria-label="build_packages and prepare_deployment each compute the same git describe tag; build pushes images and charts to the registry, prepare_deployment probes the registry with helm show chart and exits 1 if the chart is missing.">
+      <defs>
+        <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+        </marker>
+        <marker id="ar3f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--fail)"/>
+        </marker>
+      </defs>
+
+      <g fill="var(--surface)" stroke="var(--rule-2)" stroke-width="1">
+        <rect x="14" y="40" width="212" height="52" rx="2"/>
+        <rect x="14" y="150" width="212" height="52" rx="2"/>
+        <rect x="404" y="86" width="192" height="70" rx="2" stroke="var(--accent)" stroke-width="1.6"/>
+      </g>
+
+      <g font-family="IBM Plex Mono, monospace" font-size="11.5" font-weight="500" fill="var(--ink)">
+        <text x="26" y="62">build_packages</text>
+        <text x="26" y="172">prepare_deployment</text>
+        <text x="418" y="112">$REGISTRY_URL</text>
+      </g>
+      <g font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink-3)">
+        <text x="26" y="78">stage 3 · GIT_DEPTH 0</text>
+        <text x="26" y="188">stage 4 · GIT_DEPTH 0</text>
+        <text x="418" y="128">images + OCI charts</text>
+        <text x="418" y="142">tagged VERSION_TAG</text>
+      </g>
+
+      <!-- git describe boxes -->
+      <g fill="var(--gate-soft)" stroke="var(--gate)" stroke-width="1">
+        <rect x="256" y="52" width="118" height="28" rx="2"/>
+        <rect x="256" y="162" width="118" height="28" rx="2"/>
+      </g>
+      <g font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--gate)">
+        <text x="266" y="70">git describe</text>
+        <text x="266" y="180">git describe</text>
+      </g>
+
+      <g stroke="currentColor" stroke-width="1.1" fill="none" marker-end="url(#ar3)">
+        <line x1="226" y1="66" x2="252" y2="66"/>
+        <line x1="226" y1="176" x2="252" y2="176"/>
+        <path d="M 374 66 L 460 66 L 460 84"/>
+      </g>
+      <text x="382" y="58" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink-2)">docker push · helm push</text>
+
+      <!-- probe -->
+      <g stroke="var(--accent)" stroke-width="1.4" fill="none" color="var(--accent)" marker-end="url(#ar3)">
+        <path d="M 374 176 L 500 176 L 500 158"/>
+      </g>
+      <text x="382" y="168" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--accent)">helm show chart kaapana-admin-chart --version $VERSION_TAG</text>
+
+      <g stroke="var(--fail)" stroke-width="1.2" fill="none" stroke-dasharray="4 3" marker-end="url(#ar3f)">
+        <path d="M 596 128 L 700 128 L 700 128"/>
+      </g>
+      <text x="712" y="124" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--fail)">not found → exit 1</text>
+      <text x="712" y="140" font-family="IBM Plex Sans, sans-serif" font-size="10" fill="var(--ink-3)">before any VM is created</text>
+
+      <!-- latest note -->
+      <text x="14" y="228" font-family="IBM Plex Sans, sans-serif" font-size="10.5" fill="var(--ink-2)">Both use the identical formula, so the tags match by construction. Passing <tspan font-family="IBM Plex Mono, monospace">--latest</tspan> in exec_build_arguments rewrites it to <tspan font-family="IBM Plex Mono, monospace">X.Y.Z-latest</tspan> on both sides.</text>
+    </svg>
+    </div>
+    <figcaption><b>The coupling is the registry, not the pipeline.</b> <code>security_scan</code> works the same way: <code>--scan-only</code> re-resolves the same image list and tag, and Trivy pulls through the registry API, which is why it only needs <code>build_packages</code> to have succeeded, not its artifacts.</figcaption>
+  </figure>
+</section>
+
+<!-- ======================= 5. INPUTS ======================= -->
+<section>
+  <p class="eyebrow">The configuration surface</p>
+  <h2>Fifteen typed inputs</h2>
+  <p>All configuration goes through <code>spec:inputs</code>, resolved when the config is merged — so a typo is rejected instead of silently reading as “not true”. Set them in the Run pipeline form, on a schedule, or with <code>glab ci run -i name:value</code>. Booleans need the type spelled out for glab: <code>-i 'exec_build:bool(false)'</code>.</p>
+
+  <div class="tbl-scroll">
+  <table>
+    <thead>
+      <tr><th>Input</th><th>Type</th><th>Default</th><th>What it switches</th></tr>
+    </thead>
+    <tbody>
+      <tr class="grp"><td colspan="4">exec — what this run does</td></tr>
+      <tr><td class="k">exec_unit_tests</td><td class="d">boolean</td><td class="d">true</td><td class="n">The 23 <code>tests</code>-stage jobs: unit, API, service, the 9-way UI e2e matrix, docs build</td></tr>
+      <tr><td class="k">exec_build</td><td class="d">boolean</td><td class="d">true</td><td class="n"><code>build_packages</code> — full platform build, 8 h timeout</td></tr>
+      <tr><td class="k">exec_build_arguments</td><td class="d">string</td><td class="d">""</td><td class="n">Extra <code>kaapana-build</code> flags; <code>--latest</code> also rewrites the deploy tag</td></tr>
+      <tr><td class="k">exec_deploy</td><td class="d">boolean</td><td class="d">true</td><td class="n">The whole <code>deploy</code> stage, and the gate every <code>test</code>- and <code>clean</code>-stage job shares</td></tr>
+      <tr><td class="k">exec_server_installation</td><td class="d">boolean</td><td class="d">true</td><td class="n">The one <code>sudo</code> job. False routes to <code>target_readiness</code> or <code>preflight_target</code> instead</td></tr>
+      <tr><td class="k">exec_redeploy</td><td class="d">boolean</td><td class="d">false</td><td class="n">Whether an existing platform on the target is fatal or gets undeployed first</td></tr>
+      <tr><td class="k">exec_integration_tests</td><td class="d">boolean</td><td class="d">true</td><td class="n">The 7 <code>test</code>-stage jobs: pytest chain + Playwright against the live platform</td></tr>
+      <tr><td class="k">exec_security_scan</td><td class="d">boolean</td><td class="d">false</td><td class="n"><code>security_scan</code> + <code>security</code>; requires <code>exec_build</code> too</td></tr>
+      <tr><td class="k">exec_security_scan_arguments</td><td class="d">string</td><td class="d">--vulnerability-scan<br>--configuration-check</td><td class="n">Trivy scan flags</td></tr>
+      <tr><td class="k">exec_docker_prune</td><td class="d">boolean</td><td class="d">false</td><td class="n"><code>docker system prune --all --volumes</code> first — a cold build. Forced on release tags</td></tr>
+      <tr><td class="k">exec_destroy_delayed</td><td class="d">boolean</td><td class="d">false</td><td class="n">Keeps the test VM 4 h after the pipeline, to inspect it</td></tr>
+      <tr class="grp"><td colspan="4">runner — which machine each stage group lands on</td></tr>
+      <tr><td class="k">tests_runner_tag</td><td class="d">string</td><td class="d">tests-runner</td><td class="n"><code>preflight</code> and <code>tests</code> stages</td></tr>
+      <tr><td class="k">build_runner_tag</td><td class="d">string</td><td class="d">build-runner</td><td class="n"><code>ci-image</code> and <code>build</code> — mounts the host docker socket, keeps the layer cache warm</td></tr>
+      <tr><td class="k">deploy_runner_tag</td><td class="d">string</td><td class="d">deploy-runner</td><td class="n"><code>deploy</code>, <code>test</code> and <code>clean</code> stages</td></tr>
+      <tr class="grp"><td colspan="4">target — where the platform goes</td></tr>
+      <tr><td class="k">deployment_fqdn</td><td class="d">string, ≤57</td><td class="d">""</td><td class="n">Empty provisions a Harvester VM; set deploys onto that host and never destroys it</td></tr>
+      <tr><td class="k">deployment_user</td><td class="d">string</td><td class="d">ubuntu</td><td class="n">SSH user on the target, passed to every playbook as <code>-u</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Gates that no input controls</h3>
+  <p>Four jobs are decided by the pipeline's context alone, and no input can turn them on or off:</p>
+  <div class="tbl-scroll">
+  <table>
+    <thead><tr><th>Job</th><th>Runs only when</th></tr></thead>
+    <tbody>
+      <tr><td class="k">build_ci_image</td><td class="n">MR or push to <code>develop</code> <em>and</em> a file under <code>ci/images/**</code> changed. <code>changes:</code> has no diff basis on schedule/web/api, where it would evaluate true and rebuild every run</td></tr>
+      <tr><td class="k">check_readthedocs</td><td class="n"><code>schedule</code> pipeline on <code>develop</code>. Its own rule replaces the shared <code>exec_unit_tests</code> gate</td></tr>
+      <tr><td class="k">build_packages</td><td class="n">Also on any <code>X.Y.Z</code> tag regardless of <code>exec_build</code>, with the registry swapped to <code>RELEASE_REGISTRY_*</code></td></tr>
+      <tr><td class="k">if_ci_failing</td><td class="n">A job failed <em>and</em> the branch is <code>develop</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ======================= 6. RECIPES ======================= -->
+<section>
+  <p class="eyebrow">Known-good configurations</p>
+  <h2>Six shapes worth naming</h2>
+  <p>These are the combinations that produce a coherent pipeline. Anything else is reachable, but check it against the matrix above first.</p>
+
+  <div class="recipes">
+
+    <article class="recipe">
+      <div class="recipe-head"><h3>The nightly</h3><span class="recipe-when">schedule · develop · all defaults</span></div>
+      <p>34 jobs. Tests, then build, then a fresh Harvester VM, install, deploy, integration tests, destroy. About 41 minutes to reach the build, most of it the UI e2e matrix serialised on one runner.</p>
+<pre><span class="cm"># nothing to pass — every default is already this shape</span></pre>
+    </article>
+
+    <article class="recipe">
+      <div class="recipe-head"><h3>Preflight only</h3><span class="recipe-when">api · feature branch · under a minute</span></div>
+      <p>Two jobs. Checks the CI variables, then SSHs the target and reports whether it is ready — before a single image is built. What <code>exec_redeploy: false</code> does on an occupied target shows up here.</p>
+<pre>glab ci run -b feature/ci-deploy-any-target <span class="fl">\</span>
+  -i <span class="fl">'exec_unit_tests:bool(false)'</span> <span class="fl">\</span>
+  -i <span class="fl">'exec_build:bool(false)'</span> <span class="fl">\</span>
+  -i <span class="fl">'exec_integration_tests:bool(false)'</span> <span class="fl">\</span>
+  -i <span class="fl">'exec_deploy:bool(true)'</span> <span class="fl">\</span>
+  -i <span class="fl">'exec_server_installation:bool(false)'</span> <span class="fl">\</span>
+  -i <span class="fl">'exec_redeploy:bool(false)'</span> <span class="fl">\</span>
+  -i <span class="fl">'deployment_fqdn:e230-pc11.inet.dkfz-heidelberg.de'</span> <span class="fl">\</span>
+  -i <span class="fl">'deployment_user:m395c'</span></pre>
+    </article>
+
+    <article class="recipe">
+      <div class="recipe-head"><h3>Build only</h3><span class="recipe-when">any branch · up to 8 h</span></div>
+      <p>One job. Pushes images and charts under this commit's <code>git describe</code> tag, which a later deploy-only run can pick up.</p>
+<pre>glab ci run -i <span class="fl">'exec_unit_tests:bool(false)'</span> <span class="fl">\</span>
+  -i <span class="fl">'exec_deploy:bool(false)'</span> <span class="fl">\</span>
+  -i <span class="fl">'exec_integration_tests:bool(false)'</span></pre>
+    </article>
+
+    <article class="recipe">
+      <div class="recipe-head"><h3>Deploy an already-built commit to your own box</h3><span class="recipe-when">api · needs the commit built earlier</span></div>
+      <p>Skips tests and build entirely. <code>prepare_deployment</code> probes the registry for the chart first, so a commit that was never built fails in seconds. The target is never destroyed.</p>
+<pre>glab ci run -i <span class="fl">'exec_unit_tests:bool(false)'</span> <span class="fl">\</span>
+  -i <span class="fl">'exec_build:bool(false)'</span> <span class="fl">\</span>
+  -i <span class="fl">'exec_deploy:bool(true)'</span> <span class="fl">\</span>
+  -i <span class="fl">'exec_server_installation:bool(false)'</span> <span class="fl">\</span>
+  -i <span class="fl">'exec_redeploy:bool(true)'</span> <span class="fl">\</span>
+  -i <span class="fl">'deployment_fqdn:e230-pc11.inet.dkfz-heidelberg.de'</span> <span class="fl">\</span>
+  -i <span class="fl">'deployment_user:m395c'</span></pre>
+    </article>
+
+    <article class="recipe">
+      <div class="recipe-head"><h3>Keep the VM to poke at it</h3><span class="recipe-when">adds 4 h to the pipeline's life</span></div>
+      <p><code>destroy_deployment</code> becomes <code>when: delayed</code>, so the VM survives long enough to log in after a failure.</p>
+<pre>glab ci run -i <span class="fl">'exec_destroy_delayed:bool(true)'</span></pre>
+    </article>
+
+    <article class="recipe warn">
+      <div class="recipe-head"><h3>Release</h3><span class="recipe-when">push a tag X.Y.Z — no inputs involved</span></div>
+      <p>The tag alone forces <code>build_packages</code> on and swaps <code>REGISTRY_*</code> for the release triple through <code>rules:variables</code>, plus a forced <code>docker system prune</code> for a cold build. This works <em>only</em> because no <code>REGISTRY_*</code> project variables exist — a project variable outranks <code>rules:variables</code>, which is what broke the 0.7.0 release.</p>
+<pre>git tag 0.7.1 &amp;&amp; git push origin 0.7.1
+<span class="cm"># requires RELEASE_REGISTRY_URL / _USER / _TOKEN — preflight_variables checks them on tag pipelines</span></pre>
+    </article>
+
+  </div>
+</section>
+
+<!-- ======================= 7. TRAPS ======================= -->
+<section>
+  <p class="eyebrow">Edges that bite</p>
+  <h2>Seven things the rules do not say out loud</h2>
+  <div class="traps">
+    <div class="trap"><span class="trap-n">1</span><p><strong>An FQDN with <code>exec_server_installation: true</code> gets no readiness check and a <code>sudo</code> install on your workstation.</strong> <code>preflight_target</code>'s rule requires <code>!install</code>; <code>target_readiness</code>'s requires an empty FQDN. Neither fires.</p></div>
+    <div class="trap"><span class="trap-n">2</span><p><strong><code>DEPLOYMENT_SSH_KEY</code> without an FQDN is rejected in preflight.</strong> A provisioned Harvester VM only accepts the <code>kaapana</code> keypair, so a per-run key can only reach a target you name.</p></div>
+    <div class="trap"><span class="trap-n">3</span><p><strong>An FQDN over 57 characters fails, twice.</strong> <code>dcmsend</code> rejects longer peerhosts. The input's own <code>regex</code> catches it at merge time, <code>preflight_variables</code> checks the variable, and <code>prepare_deployment</code> checks it again.</p></div>
+    <div class="trap"><span class="trap-n">4</span><p><strong><code>CI_REGISTRY_USER</code> shadows a GitLab-predefined variable.</strong> If the project variable is ever deleted, jobs silently receive <code>gitlab-ci-token</code> and every push is denied — which is why preflight fails explicitly on that exact value.</p></div>
+    <div class="trap"><span class="trap-n">5</span><p><strong>Re-pushing an existing <code>CI_IMAGES_TAG</code> leaves warm runners on the stale image.</strong> Runners pull if-not-present, so a change under <code>ci/images/**</code> has to land with a tag bump in the same MR.</p></div>
+    <div class="trap"><span class="trap-n">6</span><p><strong>The global <code>GIT_DEPTH: 1</code> breaks <code>git describe</code>.</strong> Any job that needs the version — both build jobs and <code>prepare_deployment</code> — must override with <code>GIT_STRATEGY: clone</code> <em>and</em> <code>GIT_DEPTH: "0"</code>.</p></div>
+    <div class="trap"><span class="trap-n">7</span><p><strong>New jobs must be added to two <code>needs:</code> lists by hand.</strong> <code>destroy_deployment</code> is the teardown barrier — anything touching the VM belongs there or the VM dies underneath it — and <code>if_ci_failing</code> lists all 32 jobs, because <code>when: on_failure</code> with <code>needs:</code> only watches the jobs it needs.</p></div>
+  </div>
+</section>
+
+<footer>
+  Sources: .gitlab-ci.yml and ci/pipeline/{preflight,ci-image,unit-tests,build,deploy,integration-tests,clean}.yml on feature/ci-deploy-any-target · job counts from pipeline 820754
+</footer>
+
+</div>
+</body>
+</html>

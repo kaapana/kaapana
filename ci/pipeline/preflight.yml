@@ -93,8 +93,16 @@ preflight_variables:
       fi
 
       if [ "$[[ inputs.exec_deploy ]]" = "true" ]; then
-        # logging into the deployment target always needs the SSH key
-        require_file CI_SSH_PRIVATE_KEY
+        # logging into the deployment target always needs an SSH key:
+        # DEPLOYMENT_SSH_KEY for this run, or the shared CI key
+        if [ -z "${DEPLOYMENT_SSH_KEY:-}" ]; then
+          require_file CI_SSH_PRIVATE_KEY
+        fi
+        # a fresh VM is created with the Harvester keypair, so only an
+        # externally given target can be reached with a per-run key
+        if [ -n "${DEPLOYMENT_SSH_KEY:-}" ] && [ -z "${DEPLOYMENT_INSTANCE_FQDN:-}" ]; then
+          fail "DEPLOYMENT_SSH_KEY is set but DEPLOYMENT_INSTANCE_FQDN is empty — a provisioned test VM only accepts the Harvester keypair. Set the FQDN of your own machine, or unset the key."
+        fi
         # the kubeconfig is only needed to create a test VM, which is
         # skipped when an external VM is given
         [ -n "$DEPLOYMENT_INSTANCE_FQDN" ] || require_file HARVESTER_KUBECONFIG
@@ -150,13 +158,14 @@ preflight_target:
     CI_EXEC_REDEPLOY: "$[[ inputs.exec_redeploy ]]" # read by target_readiness.yaml
   before_script:
     - mkdir -p "$ARTIFACTS_DIR"
-    - chmod 600 "$CI_SSH_PRIVATE_KEY"
+    - export SSH_KEY_FILE="$(bash "$CI_PROJECT_DIR/ci/utils/resolve_ssh_key.sh")"
   script:
     - |
       ansible-playbook "$CI_PROJECT_DIR/$[[ inputs.playbook_dir ]]/target_readiness.yaml" \
         -i "$VM_FQDN," \
         -u "$VM_USER" \
-        --private-key "$CI_SSH_PRIVATE_KEY"
+        --private-key "$SSH_KEY_FILE"
+    - bash "$CI_PROJECT_DIR/$[[ inputs.playbook_dir ]]/report_readiness.sh" "$ARTIFACTS_DIR"
   artifacts:
     expire_in: 2 weeks
     paths:

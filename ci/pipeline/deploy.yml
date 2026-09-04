@@ -38,8 +38,9 @@ spec:
     CI_EXEC_REDEPLOY: "$[[ inputs.exec_redeploy ]]" # read by the playbooks
   before_script:
     - mkdir -p "$ARTIFACTS_DIR"
-    # ssh refuses group/world-readable keys; File variables arrive too open
-    - chmod 600 "$CI_SSH_PRIVATE_KEY"
+    # DEPLOYMENT_SSH_KEY (per-run) or CI_SSH_PRIVATE_KEY, permissions fixed.
+    # before_script and script share one shell, so the export reaches the job.
+    - export SSH_KEY_FILE="$(bash "$CI_PROJECT_DIR/ci/utils/resolve_ssh_key.sh")"
 
 ##############################################
 
@@ -119,7 +120,7 @@ server_installation:
       ansible-playbook "$CI_PROJECT_DIR/$[[ inputs.playbook_dir ]]/server_installation.yaml" \
         -i "$VM_FQDN," \
         -u "$VM_USER" \
-        --private-key "$CI_SSH_PRIVATE_KEY"
+        --private-key "$SSH_KEY_FILE"
   artifacts:
     expire_in: 2 weeks
     paths:
@@ -154,7 +155,8 @@ target_readiness:
       ansible-playbook "$CI_PROJECT_DIR/$[[ inputs.playbook_dir ]]/target_readiness.yaml" \
         -i "$VM_FQDN," \
         -u "$VM_USER" \
-        --private-key "$CI_SSH_PRIVATE_KEY"
+        --private-key "$SSH_KEY_FILE"
+    - bash "$CI_PROJECT_DIR/$[[ inputs.playbook_dir ]]/report_readiness.sh" "$ARTIFACTS_DIR"
   artifacts:
     expire_in: 2 weeks
     paths:
@@ -187,7 +189,7 @@ platform_deployment:
       ansible-playbook "$CI_PROJECT_DIR/$[[ inputs.playbook_dir ]]/deploy_platform.yaml" \
         -i "$VM_FQDN," \
         -u "$VM_USER" \
-        --private-key "$CI_SSH_PRIVATE_KEY"
+        --private-key "$SSH_KEY_FILE"
 
     - echo "Kaapana Platform Deployed Successfully"
     - echo "Access the platform at https://$VM_FQDN"

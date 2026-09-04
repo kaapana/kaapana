@@ -47,10 +47,13 @@
           --redeploy {{ redeploy | quote }}
           --report {{ remote_report | quote }}
           --log {{ remote_log | quote }}
+          --color
         executable: /usr/bin/python3
       register: readiness
       changed_when: false
-      failed_when: false
+      # rc 1 is "target not ready" — report_readiness.sh renders that verdict
+      # on the runner. Anything else means the check itself broke.
+      failed_when: readiness.rc not in [0, 1]
 
     # Fetched as files: ansible captures the output through a pty, CRLF-mangled.
     - name: Fetch the readiness report
@@ -62,35 +65,3 @@
       loop:
         - { src: "{{ remote_report }}", dest: "{{ artifacts_dir }}/target_readiness.json" }
         - { src: "{{ remote_log }}", dest: "{{ artifacts_dir }}/target_readiness.log" }
-
-    - name: Look for the fetched report
-      ansible.builtin.stat:
-        path: "{{ artifacts_dir }}/target_readiness.json"
-      register: readiness_report_file
-      delegate_to: localhost
-
-    - name: Fail when the checks did not run at all
-      ansible.builtin.fail:
-        msg: |
-          The readiness check produced no report (rc={{ readiness.rc }}).
-          Output: {{ readiness.stdout | default('') }}
-                  {{ readiness.stderr | default('') }}
-      when: not readiness_report_file.stat.exists
-
-    - name: Remember the report
-      ansible.builtin.set_fact:
-        readiness_report: "{{ lookup('ansible.builtin.file', artifacts_dir + '/target_readiness.json') | from_json }}"
-
-    - name: Show the readiness table
-      ansible.builtin.debug:
-        msg: "{{ lookup('ansible.builtin.file', artifacts_dir + '/target_readiness.log').split('\n') }}"
-
-    - name: Fail when the target is not ready
-      ansible.builtin.fail:
-        msg: >-
-          {{ vm_fqdn }} is not ready: {{ readiness_report.summary.failed }} fatal
-          check(s) failed, see the table above ('->' lines say how to fix them).
-          Re-run the pipeline with '-i exec_server_installation:true' to have the
-          server installation prepare the target instead.
-          Report: artifacts/target_readiness.json
-      when: not readiness_report.ready

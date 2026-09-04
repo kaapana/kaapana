@@ -32,6 +32,20 @@ SKIPPED = "skipped"
 # snap binaries are missing from the PATH of some non-interactive SSH sessions.
 EXTRA_PATH = ("/snap/bin", "/usr/local/bin")
 
+# Written into the --log file only when --color is passed: the CI job cats
+# that file, so the colors have to survive the trip through the artifact.
+_COLORS = {
+    FAILED: "\033[31m",  # red
+    WARNED: "\033[33m",  # yellow
+    SKIPPED: "\033[90m",  # grey
+    PASSED: "\033[32m",  # green
+}
+_BOLD = "\033[1m"
+_RESET = "\033[0m"
+
+# Worst first, so the reason for a failure is the first thing in the table.
+STATUS_ORDER = (FAILED, WARNED, SKIPPED, PASSED)
+
 MICROK8S_APISERVER_ARGS = "/var/snap/microk8s/current/args/kube-apiserver"
 
 # kaapanactl.sh deploys this release into this namespace (PLATFORM_NAME in
@@ -81,25 +95,36 @@ class Report:
             "checks": self.checks,
         }
 
-    def table(self):
+    def table(self, color=False):
+        def paint(text, status, bold=False):
+            if not color:
+                return text
+            return f"{_BOLD if bold else ''}{_COLORS[status]}{text}{_RESET}"
+
         lines = [
             "Kaapana target readiness",
             "========================",
             f"{'STATUS':<8} {'SEV':<8} {'CHECK':<52} DETAILS",
         ]
-        for check in self.checks:
-            lines.append(
-                f"{check['status']:<8} {check['severity']:<8} "
-                f"{check['title'][:52]:<52} {check['details']}"
-            )
-            if check["remediation"]:
-                lines.append(f"{'':<8} {'':<8} -> {check['remediation']}")
+        for status in STATUS_ORDER:
+            for check in [c for c in self.checks if c["status"] == status]:
+                lines.append(
+                    f"{paint(f'{status:<8}', status)} {check['severity']:<8} "
+                    f"{check['title'][:52]:<52} {check['details']}"
+                )
+                if check["remediation"]:
+                    lines.append(f"{'':<8} {'':<8} -> {check['remediation']}")
         summary = self.as_dict({})["summary"]
         lines += [
             "",
-            f"passed: {summary['passed']}  warnings: {summary['warnings']}  "
-            f"failed: {summary['failed']}  skipped: {summary['skipped']}",
-            "TARGET READY" if self.ready else "TARGET NOT READY",
+            f"failed: {paint(summary['failed'], FAILED) if summary['failed'] else 0}  "
+            f"warnings: {paint(summary['warnings'], WARNED) if summary['warnings'] else 0}  "
+            f"skipped: {summary['skipped']}  passed: {summary['passed']}",
+            (
+                paint("TARGET READY", PASSED, bold=True)
+                if self.ready
+                else paint("TARGET NOT READY", FAILED, bold=True)
+            ),
         ]
         return "\n".join(lines)
 
@@ -562,6 +587,11 @@ def main():
         default="",
         help="write the table to this file as well",
     )
+    parser.add_argument(
+        "--color",
+        action="store_true",
+        help="put ANSI colors in the --log file (the CI job cats it)",
+    )
     args = parser.parse_args()
 
     os.environ["PATH"] = os.pathsep.join(
@@ -635,8 +665,7 @@ def main():
         "user": getpass.getuser(),
         "domain": args.domain,
     }
-    table = report.table()
-    print(table)
+    print(report.table())
     # Files, not stdout: ansible captures the output through a pty, CRLF-mangled.
     if args.report:
         with open(args.report, "w") as handle:
@@ -645,7 +674,7 @@ def main():
         print(f"JSON report written to {args.report}")
     if args.log:
         with open(args.log, "w") as handle:
-            handle.write(table + "\n")
+            handle.write(report.table(color=args.color) + "\n")
     return 0 if report.ready else 1
 
 

@@ -37,7 +37,7 @@ setup_integration_tests:
       ansible-playbook "$CI_PROJECT_DIR/$[[ inputs.tests_dir ]]/remote_execution/setup_integration_tests.yaml" \
         -i "$VM_FQDN," \
         -u "$VM_USER" \
-        --private-key "$CI_SSH_PRIVATE_KEY"
+        --private-key "$SSH_KEY_FILE"
   artifacts:
     expire_in: 2 weeks
     reports:

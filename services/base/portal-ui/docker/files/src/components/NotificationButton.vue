@@ -7,6 +7,7 @@ import type { KaapanaNotification } from '@/api/notifications'
 const notifications = useNotificationsStore()
 
 const dialog = ref(false)
+const confirmMarkAll = ref(false)
 const scrollContainer = ref<HTMLElement | null>(null)
 const scrollThresholdPx = 150
 
@@ -37,13 +38,20 @@ function markRead(id: string) {
   })
 }
 
+// Reads are irreversible and cover every unread notification, loaded or not.
+const markAllText = computed(() => {
+  const n = notifications.total
+  return `${n} ${n === 1 ? 'notification' : 'notifications'} will be marked as read. This cannot be undone.`
+})
+
 function markAllAsRead() {
+  confirmMarkAll.value = false
   notifications.markAllAsRead().catch((err) => {
     console.log(err)
     notify({
       type: 'error',
       title: 'Could not mark all as read',
-      text: 'Some notifications are still unread. Please try again.',
+      text: 'The notifications are still unread. Please try again.',
     })
   })
 }
@@ -74,7 +82,7 @@ function onScroll() {
           <v-icon>mdi-bell</v-icon>
           <h3 class="ml-2">Notifications</h3>
           <v-spacer />
-          <v-btn color="primary" @click="markAllAsRead()">
+          <v-btn color="primary" :disabled="notifications.total === 0" @click="confirmMarkAll = true">
             <v-icon>mdi-check</v-icon>
             Mark all as read
           </v-btn>
@@ -142,6 +150,18 @@ function onScroll() {
         <v-card-actions>
           <v-spacer />
           <v-btn elevation="2" variant="text" @click="dialog = false"> Close </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="confirmMarkAll" width="440">
+      <v-card>
+        <v-card-title>Mark all as read?</v-card-title>
+        <v-card-text>{{ markAllText }}</v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="confirmMarkAll = false">Cancel</v-btn>
+          <v-btn color="primary" @click="markAllAsRead()">Mark all as read</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

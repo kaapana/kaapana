@@ -4,12 +4,18 @@ import { createPinia, setActivePinia } from 'pinia'
 vi.mock('@/api/notifications', () => ({
   fetchNotifications: vi.fn(),
   readNotification: vi.fn(),
+  readAllNotifications: vi.fn(),
   NotificationWebsocket: class {},
-  NotificationEventType: { NEW: 'new', READ: 'read' },
+  NotificationEventType: { NEW: 'new', READ: 'read', READ_ALL: 'read_all' },
 }))
 
 import { useNotificationsStore } from '@/stores/notifications'
-import { fetchNotifications, type KaapanaNotification } from '@/api/notifications'
+import {
+  fetchNotifications,
+  readNotification,
+  readAllNotifications,
+  type KaapanaNotification,
+} from '@/api/notifications'
 
 type FetchResult = Awaited<ReturnType<typeof fetchNotifications>>
 
@@ -117,5 +123,26 @@ describe('notifications store refresh race', () => {
     first.resolve(page(['x']))
     await load
     expect(store.notifications.map((n) => n.id)).toEqual(['x'])
+  })
+})
+
+describe('notifications store markAllAsRead', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.resetAllMocks()
+  })
+
+  it('uses the bulk endpoint once, however many pages are unread', async () => {
+    const store = useNotificationsStore()
+    vi.mocked(fetchNotifications)
+      .mockResolvedValueOnce(page(['a', 'b'], { nextCursor: 'cursor-page-2', hasMore: true, total: 40 }))
+      .mockResolvedValue(page([]))
+    await store.loadMore()
+
+    await store.markAllAsRead()
+
+    expect(readAllNotifications).toHaveBeenCalledTimes(1)
+    expect(readNotification).not.toHaveBeenCalled()
+    expect(store.notifications).toEqual([])
   })
 })

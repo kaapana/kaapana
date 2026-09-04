@@ -128,6 +128,19 @@ portal_api_tests:
         - portal_api_report.xml
 
 ##############################################
+# Notification Service Tests
+##############################################
+notification_service_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/base/notification-service/docker/files/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/base/notification-service/docker/files/tests/ --junitxml=notification_service_report.xml
+  artifacts:
+    reports:
+      junit:
+        - notification_service_report.xml
+
+##############################################
 # Extension API Tests
 ##############################################
 extensions_api_tests:

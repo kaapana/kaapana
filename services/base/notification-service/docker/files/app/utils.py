@@ -1,20 +1,28 @@
+from uuid import UUID
+
 from fastapi import WebSocket
 from fastapi.encoders import jsonable_encoder
-from uuid import UUID
 from pydantic import BaseModel
 
 
 class Event(BaseModel):
     type: str
+
+
+class NotificationEvent(Event):
     notification_id: UUID
 
 
-class EventNew(Event):
+class EventNew(NotificationEvent):
     type: str = "new"
 
 
-class EventRead(Event):
+class EventRead(NotificationEvent):
     type: str = "read"
+
+
+class EventReadAll(Event):
+    type: str = "read_all"
 
 
 class ConnectionManager:
@@ -37,6 +45,9 @@ class ConnectionManager:
 
     async def notify_read_notification(self, user_ids: list[str], id: UUID) -> None:
         await self.send(user_ids=user_ids, event=EventRead(notification_id=id))
+
+    async def notify_read_all(self, user_ids: list[str]) -> None:
+        await self.send(user_ids=user_ids, event=EventReadAll())
 
     async def send(self, user_ids: list[str], event: Event) -> None:
         json_message = jsonable_encoder(event)

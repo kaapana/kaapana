@@ -74,7 +74,9 @@ test('marking one read PUTs to its /read endpoint and drops it from the list', a
   await expect(dialog.getByText('Job B')).toBeVisible()
 })
 
-test('mark all as read PUTs every notification', async ({ page }) => {
+test('mark all as read confirms the count, then PUTs the bulk read endpoint once', async ({
+  page,
+}) => {
   await installMockBackend(page, {
     ...defaultMockData,
     notifications: [
@@ -87,11 +89,37 @@ test('mark all as read PUTs every notification', async ({ page }) => {
 
   const puts: string[] = []
   page.on('request', (r) => {
-    if (/\/notifications\/v2\/.+\/read$/.test(r.url()) && r.method() === 'PUT')
-      puts.push(r.url())
+    if (/\/notifications\/v2\/read$/.test(r.url()) && r.method() === 'PUT') puts.push(r.url())
   })
   await page.getByRole('dialog').getByRole('button', { name: 'Mark all as read' }).click()
-  await expect.poll(() => puts.length).toBe(2)
+  const confirm = page.getByRole('dialog').filter({ hasText: 'This cannot be undone' })
+  await expect(confirm.getByText('2 notifications will be marked as read')).toBeVisible()
+  expect(puts).toHaveLength(0)
+
+  await confirm.getByRole('button', { name: 'Mark all as read' }).click()
+  await expect.poll(() => puts.length).toBe(1)
+})
+
+test('cancelling the mark-all confirmation sends nothing', async ({ page }) => {
+  await installMockBackend(page, {
+    ...defaultMockData,
+    notifications: [makeNotification({ id: 'n1', title: 'Job A' })],
+  })
+  await page.goto('/')
+  await page.locator('.mdi-bell-ring, .mdi-bell-outline').first().click()
+
+  const puts: string[] = []
+  page.on('request', (r) => {
+    if (/\/notifications\/v2\/read$/.test(r.url()) && r.method() === 'PUT') puts.push(r.url())
+  })
+  await page.getByRole('dialog').getByRole('button', { name: 'Mark all as read' }).click()
+  const confirm = page.getByRole('dialog').filter({ hasText: 'This cannot be undone' })
+  await expect(confirm.getByText('1 notification will be marked as read')).toBeVisible()
+  await confirm.getByRole('button', { name: 'Cancel' }).click()
+
+  await expect(confirm).toBeHidden()
+  expect(puts).toHaveLength(0)
+  await expect(page.getByRole('dialog').getByText('Job A')).toBeVisible()
 })
 
 test('a live WebSocket "new" event refreshes the list and updates the badge', async ({ page }) => {
@@ -221,7 +249,7 @@ test('a failing mark-all-as-read keeps the list and toasts', async ({ page }) =>
       makeNotification({ id: 'n2', title: 'Job B' }),
     ],
   })
-  await page.route(/\/notifications\/v2\/.+\/read$/, (r) =>
+  await page.route(/\/notifications\/v2\/read$/, (r) =>
     r.fulfill({
       status: 500,
       contentType: 'application/json',
@@ -232,6 +260,11 @@ test('a failing mark-all-as-read keeps the list and toasts', async ({ page }) =>
   await page.locator('.mdi-bell-ring, .mdi-bell-outline').first().click()
   const dialog = page.getByRole('dialog')
   await dialog.getByRole('button', { name: 'Mark all as read' }).click()
+  await page
+    .getByRole('dialog')
+    .filter({ hasText: 'This cannot be undone' })
+    .getByRole('button', { name: 'Mark all as read' })
+    .click()
 
   await expect(
     page.locator('.vue-notification-wrapper').getByText('Could not mark all as read'),

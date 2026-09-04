@@ -3,6 +3,7 @@ import { notify } from '@kyvg/vue3-notification'
 import {
   fetchNotifications,
   readNotification,
+  readAllNotifications,
   NotificationWebsocket,
   NotificationEventType,
   type KaapanaNotification,
@@ -81,7 +82,7 @@ export const useNotificationsStore = defineStore('notifications', {
     },
     async markAllAsRead() {
       if (!this.notifications.length) return
-      await Promise.all(this.notifications.map((n) => readNotification(n.id)))
+      await readAllNotifications()
       await this.refresh()
     },
   },

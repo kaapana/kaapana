@@ -18,10 +18,11 @@ export interface KaapanaNotification {
 export enum NotificationEventType {
   NEW = 'new',
   READ = 'read',
+  READ_ALL = 'read_all',
 }
 
 export interface NotificationEvent {
-  id: string
+  id?: string // absent for READ_ALL
   type: NotificationEventType
 }
 
@@ -39,6 +40,10 @@ export async function fetchNotifications(params?: { limit?: number; cursor?: str
 
 export async function readNotification(id: NotificationID) {
   return await http.put(`${KAAPANA_NOTIFICATION_ENDPOINT}/v2/${id}/read`)
+}
+
+export async function readAllNotifications() {
+  return await http.put(`${KAAPANA_NOTIFICATION_ENDPOINT}/v2/read`)
 }
 
 export class NotificationWebsocket {

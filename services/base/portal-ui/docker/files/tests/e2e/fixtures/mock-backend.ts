@@ -192,7 +192,7 @@ export async function installMockBackend(page: Page, data: MockData = defaultMoc
   await page.route('**/kaapana-backend/settings/item', (r) => r.fulfill(json({})))
   // SettingsDialog (always mounted in the drawer) loads this on boot.
   await page.route('**/kaapana-backend/dataset/fields', (r) => r.fulfill(json({})))
-  // GET list -> paginated envelope; mark-read PUT (…/{id}/read) -> 200.
+  // GET list -> paginated envelope; mark-read PUTs (…/{id}/read, …/read) -> 200.
   await page.route('**/notifications/v2/**', (r) =>
     r.request().method() === 'GET'
       ? r.fulfill(notificationsBody(data.notifications))

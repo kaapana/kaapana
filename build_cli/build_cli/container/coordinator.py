@@ -61,14 +61,36 @@ class BuildCoordinator:
                 # Initial scheduling
                 self._schedule_ready(executor, futures)
 
-                while (futures or self._has_pending()) and not self.abort_requested:
-                    # 1. Handle events
-                    try:
-                        event = self.event_queue.get(timeout=0.1)
+                while (
+                    futures or self._has_pending() or not self.event_queue.empty()
+                ) and not self.abort_requested:
+                    # 1. Handle all currently queued events. `wait()` below can
+                    # reap several already-completed futures in a single call
+                    # (despite return_when=FIRST_COMPLETED), while a single
+                    # event_queue.get() only drains one event per iteration.
+                    # If that happens on the final container(s), the loop's
+                    # exit condition could become true before every event is
+                    # processed, permanently dropping a progress_bar.advance()
+                    # even though the container built and pushed successfully.
+                    # Draining the queue fully here (plus the event_queue.empty()
+                    # check above) closes that race.
+                    got_event = False
+                    while True:
+                        try:
+                            event = self.event_queue.get_nowait()
+                        except Empty:
+                            break
+                        got_event = True
                         self._handle_event(event)
                         self.event_queue.task_done()
-                    except Empty:
-                        pass
+
+                    if not got_event:
+                        try:
+                            event = self.event_queue.get(timeout=0.1)
+                            self._handle_event(event)
+                            self.event_queue.task_done()
+                        except Empty:
+                            pass
 
                     # 2. Schedule newly-ready containers
                     self._schedule_ready(executor, futures)

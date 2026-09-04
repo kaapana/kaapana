@@ -223,7 +223,7 @@ vm_sweep_tests:
   # The sweep deletes VMs, so its decision function is tested without a
   # cluster and without GitLab, against the CI's own inventory and template.
   script:
-    - pip install pytest==8.3.3 PyYAML==6.0.3
+    - pip install -r $KAAPANA_DIR/ci/ci-code/clean/requirements-test.txt
     - pytest $KAAPANA_DIR/ci/ci-code/clean/test_sweep_test_vms.py --junitxml=vm_sweep_report.xml
   artifacts:
     reports:

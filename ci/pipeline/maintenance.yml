@@ -13,6 +13,9 @@ sweep_test_vms:
   # produce nothing here.
   needs: []
   interruptible: false
+  # Each VM is torn down through the playbook, which waits on the VM and then
+  # on every PVC, so a large backlog can outlast this. Nothing is lost when it
+  # does: the next run picks up whatever is left.
   timeout: 1 hour
   rules:
     - if: '$CI_EXEC_VM_SWEEP == "true"'

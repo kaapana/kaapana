@@ -54,7 +54,7 @@ This step also checks if all required local images are present in the collection
   Not all images are pushed to the registry.
   If the Dockerfile contains the line :code:`LABEL REGISTRY="local-only"` the image is build but not pushed to the specified registry.
   It is tagged as :code:`local-only/<image-name>:<version>`.
-  Exception: with the registry build cache enabled (see below), local-only images get a real version and are pushed to the default registry too, so the isolated cache builder can pull them back in.
+  Exception: with the registry build cache enabled (see below), local-only images get the same git-derived version as non-local images and are pushed to the default registry too, so the isolated cache builder can pull them back in.
 
 In a similar manner the kaapana directory and all external source directories are scanned for :code:`Chart.yaml` files.
 For each found file an instance of :code:`HelmChart` is initialized and if existing the .tgz file is removed.

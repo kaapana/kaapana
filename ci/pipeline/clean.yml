@@ -1,3 +1,12 @@
+spec:
+  inputs:
+    exec_deploy:
+      type: boolean
+    exec_destroy_delayed:
+      type: boolean
+    runner_tag:
+      type: string
+---
 # Stage: clean — VM teardown + failure notification
 # In:  deployment.env dotenv (VM_FQDN); job statuses via needs;
 #      HARVESTER_KUBECONFIG (File-type CI variable)
@@ -26,18 +35,18 @@ destroy_deployment:
     - { job: playwright_ui_tests, optional: true, artifacts: false }
   rules:
     # Never destroy externally-provided VMs
-    - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
+    - if: '"$[[ inputs.exec_deploy ]]" == "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
       when: never
     # Opt-in delayed destruction (e.g. keep VM alive to inspect after success)
-    - if: '$CI_EXEC_DEPLOY == "true" && $CI_EXEC_DESTROY_DELAYED == "true"'
+    - if: '"$[[ inputs.exec_deploy ]]" == "true" && "$[[ inputs.exec_destroy_delayed ]]" == "true"'
       when: delayed
       start_in: 4 hours
     # Default: always destroy (on success and on failure)
-    - if: '$CI_EXEC_DEPLOY == "true"'
+    - if: '"$[[ inputs.exec_deploy ]]" == "true"'
       when: always
     - when: never
   tags:
-    - deploy-runner
+    - $[[ inputs.runner_tag ]]
   image: $CI_BASE_IMAGE
   script:
     - ansible-playbook -i localhost, "$CI_PROJECT_DIR/ci/ci-code/deploy/delete_harvester_vm.yaml"
@@ -45,7 +54,7 @@ destroy_deployment:
 if_ci_failing:
   stage: clean
   tags:
-    - deploy-runner
+    - $[[ inputs.runner_tag ]]
   image: $CI_BASE_IMAGE
   # Every pipeline job must be listed (with needs, when: on_failure watches
   # the needed jobs only). artifacts: true marks the jobs whose logs feed the

@@ -1,3 +1,12 @@
+spec:
+  inputs:
+    exec_integration_tests:
+      type: boolean
+    exec_deploy:
+      type: boolean
+    runner_tag:
+      type: string
+---
 # Stage: test — integration + UI tests against the live platform
 # In:  VM_FQDN / VM_USER (deployment.env dotenv, else DEPLOYMENT_INSTANCE_*);
 #      CLIENT_SECRET dotenv from setup_integration_tests; the live platform
@@ -11,7 +20,7 @@ setup_integration_tests:
   extends: .remote_execution_template
   stage: test
   tags:
-    - deploy-runner
+    - $[[ inputs.runner_tag ]]
   needs:
     - job: prepare_deployment
       artifacts: true
@@ -19,7 +28,7 @@ setup_integration_tests:
     - job: platform_deployment
       optional: true
   rules:
-    - if: '$CI_EXEC_INTEGRATION_TESTS == "true"'
+    - if: '"$[[ inputs.exec_integration_tests ]]" == "true" && "$[[ inputs.exec_deploy ]]" == "true"'
       when: on_success
     - when: never
   script:
@@ -46,7 +55,7 @@ setup_integration_tests:
   extends: .remote_execution_template
   stage: test
   rules:
-    - if: '$CI_EXEC_INTEGRATION_TESTS == "true"'
+    - if: '"$[[ inputs.exec_integration_tests ]]" == "true" && "$[[ inputs.exec_deploy ]]" == "true"'
       when: on_success
     - when: never
   needs:
@@ -177,9 +186,9 @@ playwright_ui_tests:
   extends: .remote_execution_template
   stage: test
   rules:
-    - if: $CI_EXEC_INTEGRATION_TEST_JOBS !~ /(^|,)\s*playwright_ui_tests\s*(,|$)/
-      when: never
-    - !reference [.integration_test_local, rules]
+    - if: '"$[[ inputs.exec_integration_tests ]]" == "true" && "$[[ inputs.exec_deploy ]]" == "true"'
+      when: on_success
+    - when: never
   needs:
     - job: prepare_deployment
       artifacts: true

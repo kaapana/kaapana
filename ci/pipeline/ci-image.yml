@@ -1,3 +1,8 @@
+spec:
+  inputs:
+    runner_tag:
+      type: string
+---
 # Stage: tests (build_ci_image) — rebuild of the CI job image
 # In:  ci/images/**, pinned dependency files (rules:changes)
 # Out: $CI_BASE_IMAGE pushed to the CI registry (consumed by all other jobs
@@ -11,7 +16,7 @@
 build_ci_image:
   stage: tests
   tags:
-    - build-runner
+    - $[[ inputs.runner_tag ]]
   environment:
     name: $REGISTRY_ENV
   # Not ci-base: the image that builds ci-base must not be ci-base, or a tag

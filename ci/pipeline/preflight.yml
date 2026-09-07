@@ -1,3 +1,12 @@
+spec:
+  inputs:
+    exec_build:
+      type: boolean
+    exec_deploy:
+      type: boolean
+    runner_tag:
+      type: string
+---
 # Stage: tests — preflight variable check
 # In:  CI/CD variables only, no checkout
 # Out: nothing — fails within seconds when a required variable is empty,
@@ -8,7 +17,7 @@
 preflight_variables:
   stage: preflight
   tags:
-    - tests-runner
+    - $[[ inputs.runner_tag ]]
   image: python:3.12
   variables:
     GIT_STRATEGY: none # no checkout needed
@@ -55,7 +64,7 @@ preflight_variables:
       fi
 
       # build and deploy need the registry credentials
-      if [ "$CI_EXEC_BUILD" = "true" ] || [ "$CI_EXEC_DEPLOY" = "true" ]; then
+      if [ "$[[ inputs.exec_build ]]" = "true" ] || [ "$[[ inputs.exec_deploy ]]" = "true" ]; then
         require REGISTRY_URL
         require REGISTRY_USER
         require REGISTRY_TOKEN
@@ -73,7 +82,7 @@ preflight_variables:
         require RELEASE_REGISTRY_TOKEN
       fi
 
-      if [ "$CI_EXEC_DEPLOY" = "true" ]; then
+      if [ "$[[ inputs.exec_deploy ]]" = "true" ]; then
         # logging into the deployment target always needs the SSH key
         require_file CI_SSH_PRIVATE_KEY
         # the kubeconfig is only needed to create a test VM, which is

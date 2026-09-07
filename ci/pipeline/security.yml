@@ -1,6 +1,15 @@
+spec:
+  inputs:
+    exec_security_scan:
+      type: boolean
+    security_scan_arguments:
+      type: string
+    runner_tag:
+      type: string
+---
 # Stage: security — trivy scan + report of the tag this commit resolves to
 # In:  registry state — either just pushed by build_packages in this same
-#      pipeline, or pushed by an earlier one (CI_EXEC_BUILD=false: standalone
+#      pipeline, or pushed by an earlier one (exec_build=false: standalone
 #      rescan of an already-built tag); REGISTRY_* credentials via
 #      .build_cli_env (defined in build.yml)
 # Out: security-reports/ (raw per-container/per-snap scans, trivy cache) as
@@ -19,14 +28,18 @@ security_scan:
   stage: security
   timeout: 6 hours
   tags:
-    - security-runner
+    - $[[ inputs.runner_tag ]]
   needs:
     - job: build_packages
       artifacts: false
       # If build in the pipeline then wait for build, scan nevertheless;
       optional: true
   rules:
+    # Set by the workflow rule for Security-labelled merge requests
     - if: '$CI_EXEC_SECURITY_SCAN == "true"'
+      when: on_success
+      allow_failure: false
+    - if: '"$[[ inputs.exec_security_scan ]]" == "true"'
       when: on_success
       allow_failure: false
     - when: never
@@ -37,7 +50,7 @@ security_scan:
       - "$CI_PROJECT_DIR/security-reports/.trivy_cache/"
   script:
     - export REGISTRY_PW="$REGISTRY_TOKEN"
-    - kaapana-build --scan-only $CI_EXEC_SECURITY_SCAN_ARGUMENTS --default-registry "$REGISTRY_URL" --kaapana-dir "$CI_PROJECT_DIR"
+    - kaapana-build --scan-only $[[ inputs.security_scan_arguments ]] --default-registry "$REGISTRY_URL" --kaapana-dir "$CI_PROJECT_DIR"
   artifacts:
     name: "security_$CI_COMMIT_SHORT_SHA"
     when: always

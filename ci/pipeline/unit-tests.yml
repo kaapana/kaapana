@@ -1,3 +1,10 @@
+spec:
+  inputs:
+    exec_unit_tests:
+      type: boolean
+    runner_tag:
+      type: string
+---
 # Stage: tests — unit tests + docs
 # In:  the job's own checkout, nothing else
 # Out: JUnit, coverage and HTML report artifacts for the MR UI
@@ -7,12 +14,12 @@
 .test_template:
   stage: tests
   tags:
-    - tests-runner
+    - $[[ inputs.runner_tag ]]
   image: python:3.12
   # Each job in test has to finish within 5 minutes. 
   timeout: 5m
   rules:
-    - if: '$CI_EXEC_UNIT_TESTS == "true"'
+    - if: '"$[[ inputs.exec_unit_tests ]]" == "true"'
       when: always
     - when: never
   variables:
@@ -364,8 +371,6 @@ ui_unit_tests:
 build_documentation:
   stage: tests
   extends: .test_template
-  tags:
-    - tests-runner
   script:
     - cd $KAAPANA_DIR/docs
     - pip install -r requirements.txt

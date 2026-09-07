@@ -119,14 +119,9 @@ class ContainerHelper:
     def remove_buildx_builder(cls):
         """
         Remove the dedicated docker-container buildx builder that
-        ensure_buildx_builder() created at the start of the build. Mirrors
-        that method's guard so a plain run (cache disabled, or a non-docker
-        engine) -- which never created the builder -- never attempts to
-        remove it either. Skipped entirely when --keep-buildx-builder was
-        passed, e.g. to let a follow-up build reuse its cache mounts.
+        ensure_buildx_builder() created at the start of the build.
 
-        A failed removal is logged but does not fail the build: the builder
-        is a host-local leftover, not build output.
+        A failed removal is logged but does not fail the build.
         """
         if not cls._build_config.cache_enabled:
             return
@@ -148,10 +143,9 @@ class ContainerHelper:
                 context="buildx-rm",
             )
         except Exception as e:
-            # CommandUtils.run re-raises (with exit_on_error left False) on
-            # anything short of a non-zero exit code, e.g. a timeout -- catch
-            # that here too so cleanup can never take the build down with it.
-            logger.warning(f"Failed to remove buildx builder {BUILDX_BUILDER_NAME}: {e}")
+            logger.warning(
+                f"Failed to remove buildx builder {BUILDX_BUILDER_NAME}: {e}"
+            )
 
     @classmethod
     def _buildx_proxy_driver_opts(cls) -> list:
@@ -173,9 +167,6 @@ class ContainerHelper:
         for proxy_var in ("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY"):
             driver_opts.extend(["--driver-opt", f"env.{proxy_var}={http_proxy}"])
 
-        # Forward the host's no_proxy so internal/registry traffic doesn't get
-        # routed through the proxy as well; the CLI has no dedicated option for
-        # this, so fall back to whatever is set in the calling shell.
         no_proxy = os.environ.get("no_proxy") or os.environ.get("NO_PROXY")
         if no_proxy:
             for no_proxy_var in ("no_proxy", "NO_PROXY"):
@@ -184,24 +175,32 @@ class ContainerHelper:
         return driver_opts
 
     @classmethod
-    def _resolve_dns_nameservers(cls) -> list:
+    def _buildx_dns_config_opts(cls, tmp_dir: Path) -> list:
         """
-        Non-loopback nameservers from this process's own /etc/resolv.conf.
+        Work around DNS failures inside the isolated docker-container builder.
 
-        Docker substitutes a real, reachable upstream nameserver into
-        resolv.conf when it generates one for a regular (non
-        --network=host) container -- which is how this process itself is
-        normally started, e.g. inside the ci-base image -- so these
-        addresses are exactly what BuildKit's sandboxed RUN namespace needs.
-        A loopback nameserver (e.g. systemd-resolved's 127.0.0.53 stub) is
-        filtered out: it only resolves within *this* namespace's own
-        loopback, not the separate one BuildKit copies it into.
+        Unlike a plain `docker build`, which resolves DNS through the host's
+        own daemon, the docker-container buildx builder runs as its own
+        separate container and does not reliably pick up the host's DNS
+        setup. In particular, if the host resolves via a local stub (e.g.
+        systemd-resolved), that address doesn't work inside the builder, so
+        RUN steps (apk/apt, etc.) intermittently fail with "DNS: transient
+        error (try again later)" until the builder is recreated with a
+        working nameserver.
+
+        This generates a buildkitd config that pins the builder to real,
+        externally-reachable nameservers, and returns the --buildkitd-config
+        flag pointing at it (or [] if none could be determined).
         """
         try:
             resolv_conf = Path("/etc/resolv.conf").read_text()
         except OSError:
             return []
 
+        # A loopback nameserver (e.g. systemd-resolved's 127.0.0.53 stub)
+        # only answers queries made from this exact process -- it's not a
+        # real DNS server, just a local forwarder. Handed to the builder
+        # as-is, it would be a dead address rather than a working one.
         nameservers = []
         for line in resolv_conf.splitlines():
             parts = line.split()
@@ -211,25 +210,6 @@ class ContainerHelper:
                 and not parts[1].startswith("127.")
             ):
                 nameservers.append(parts[1])
-        return nameservers
-
-    @classmethod
-    def _buildx_dns_config_opts(cls, tmp_dir: Path) -> list:
-        """
-        Write a buildkitd config pinning DNS nameservers for the isolated
-        docker-container builder, and return the --buildkitd-config flag
-        pointing at it (or [] if no usable nameserver was found).
-
-        Without this, RUN steps (e.g. apk/apt) can intermittently fail with
-        "DNS: transient error (try again later)": BuildKit copies this
-        host's /etc/resolv.conf verbatim into each RUN step's own network
-        namespace, and a loopback nameserver there is dead on arrival even
-        though it resolves fine in this namespace. A plain `docker build`
-        doesn't hit this -- dockerd's embedded builder substitutes a real
-        upstream nameserver automatically; BuildKit's own docker-container
-        driver does not.
-        """
-        nameservers = cls._resolve_dns_nameservers()
         if not nameservers:
             return []
 
@@ -451,9 +431,6 @@ class ContainerHelper:
         for c in cls._build_state.containers_available:
             c.base_images = {
                 (
-                    # Not filtered by version: a local-only FROM line always
-                    # pins ":latest" as a placeholder, not the dependency's
-                    # real version (see check_base_containers).
                     cls.get_container(
                         registry=b.registry,
                         image_name=b.image_name,

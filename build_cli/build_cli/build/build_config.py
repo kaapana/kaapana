@@ -136,8 +136,6 @@ class BuildConfig(BaseModel):
         if not platforms_dir.is_dir():
             raise ValueError(f"`platforms` directory not found in {self.kaapana_dir}")
 
-        # Registry build cache builds via a dedicated buildx docker-container
-        # driver builder, which podman doesn't support.
         if self.cache_enabled and self.container_engine != "docker":
             raise ValueError(
                 "Registry build cache (--cache-from/--cache-to) requires "
@@ -157,9 +155,7 @@ class BuildConfig(BaseModel):
                 validate_registry_name(self.cache_to_registry)
 
         if self.cache_from:
-            self.cache_from_registry = (
-                self.cache_from_registry or self.default_registry
-            )
+            self.cache_from_registry = self.cache_from_registry or self.default_registry
             self.cache_from_username = (
                 self.cache_from_username or self.registry_username
             )
@@ -198,10 +194,6 @@ class BuildConfig(BaseModel):
 
     @property
     def cache_enabled(self) -> bool:
-        """Run-level switch: True iff this run participates in registry build-
-        cache import and/or export. Gates buildx + the dedicated kaapana-buildx
-        builder + OCI-layout bridging on/off for the whole build; when False,
-        containers build with plain `docker build`/`docker push`."""
         return bool(self.cache_from or self.cache_to)
 
     def log_self(self, logger):

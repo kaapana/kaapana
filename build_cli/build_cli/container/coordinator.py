@@ -64,16 +64,6 @@ class BuildCoordinator:
                 while (
                     futures or self._has_pending() or not self.event_queue.empty()
                 ) and not self.abort_requested:
-                    # 1. Handle all currently queued events. `wait()` below can
-                    # reap several already-completed futures in a single call
-                    # (despite return_when=FIRST_COMPLETED), while a single
-                    # event_queue.get() only drains one event per iteration.
-                    # If that happens on the final container(s), the loop's
-                    # exit condition could become true before every event is
-                    # processed, permanently dropping a progress_bar.advance()
-                    # even though the container built and pushed successfully.
-                    # Draining the queue fully here (plus the event_queue.empty()
-                    # check above) closes that race.
                     got_event = False
                     while True:
                         try:

@@ -1,16 +1,14 @@
 # Stage: maintenance - housekeeping that belongs to no single pipeline
 # In:  HARVESTER_KUBECONFIG and GITLAB_READ_API_TOKEN (project variables)
-# Out: artifacts/vm_sweep.json (one document per sweep, for any later
-#      notifier) and artifacts/vm_sweep.log (what if_ci_failing collects)
+# Out: artifacts/vm_sweep.log, which is what if_ci_failing collects
 ##############################################
 # MAINTENANCE
 ##############################################
-sweep_test_vms:
+sweep_deployment_vms:
   stage: maintenance
-  # Deletes test VMs whose pipeline has ended: the leak GitLab's
-  # non-cascading retries leave behind (README section 3). Runs in a pipeline
-  # of its own, so needs: [] keeps it from waiting on earlier stages that
-  # produce nothing here.
+  # Deletes deployment VMs whose pipeline has ended: the leak GitLab's
+  # non-cascading retries leave behind (README section 3). needs: [] so it
+  # never waits on an earlier stage.
   needs: []
   interruptible: false
   # Each VM is torn down through the playbook, which waits on the VM and then
@@ -30,13 +28,11 @@ sweep_test_vms:
       set -o pipefail
       ARGS=(--grace-hours "$VM_SWEEP_GRACE_HOURS"
             --max-age-hours "$VM_SWEEP_MAX_AGE_HOURS"
-            --keep-hours "$VM_SWEEP_KEEP_HOURS"
-            --report "$ARTIFACTS_DIR/vm_sweep.json")
+            --keep-hours "$VM_SWEEP_KEEP_HOURS")
       [[ "$VM_SWEEP_APPLY" == "true" ]] && ARGS+=(--apply)
-      python3 "$CI_PROJECT_DIR/ci/ci-code/clean/sweep_test_vms.py" "${ARGS[@]}" \
+      python3 "$CI_PROJECT_DIR/ci/ci-code/clean/sweep_deployment_vms.py" "${ARGS[@]}" \
         | tee "$ARTIFACTS_DIR/vm_sweep.log"
   artifacts:
     when: always
     paths:
-      - artifacts/vm_sweep.json
       - artifacts/vm_sweep.log

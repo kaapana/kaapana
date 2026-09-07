@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Sweep orphaned CI test VMs on Harvester.
+"""Sweep orphaned CI deployment VMs on Harvester.
 
-A test VM leaks whenever its pipeline ends without `destroy_deployment`
+A deployment VM leaks whenever its pipeline ends without `destroy_deployment`
 running for the VM that exists. A retried `prepare_deployment` is the
 documented case, since GitLab never cascades retries. The pipeline id stamped
 on the VM is what separates a leak from a VM a run still needs; age alone
@@ -15,7 +15,6 @@ teardown keeps exactly one implementation.
 
 import argparse
 import dataclasses
-import json
 import os
 import subprocess
 import sys
@@ -25,8 +24,8 @@ from pathlib import Path
 PIPELINE_ID_LABEL = "kaapana.io/ci-pipeline-id"
 PIPELINE_URL_ANNOTATION = "kaapana.io/ci-pipeline-url"
 KEEP_ANNOTATION = "kaapana.io/ci-keep-after-pipeline"
-# The CI runner VMs share this namespace and are named kaapana-*; the prefix is
-# what keeps the sweep off them.
+# The runner VMs share this namespace, but they are named kaapana-*, not after
+# a branch; the prefix is what keeps the sweep off them.
 VM_NAME_PREFIX = "ci-"
 DELETE_PLAYBOOK = Path(__file__).parents[1] / "deploy/delete_harvester_vm.yaml"
 # Anything absent from this set counts as alive: an unknown or newly introduced
@@ -73,7 +72,7 @@ def decide(
 ) -> tuple[str, str]:
     """Return ("keep"|"delete", reason) for one VM."""
     if not candidate.name.startswith(VM_NAME_PREFIX):
-        return "keep", f"not a test VM: name lacks the {VM_NAME_PREFIX!r} prefix"
+        return "keep", f"not a deployment VM: name lacks the {VM_NAME_PREFIX!r} prefix"
 
     if candidate.age_hours < grace_hours:
         return "keep", f"younger than the {grace_hours:g}h grace period"
@@ -234,7 +233,6 @@ def main() -> int:
         default=4.0,
         help="how long a VM asking to be kept survives past its pipeline",
     )
-    parser.add_argument("--report", type=Path, help="write the JSON report here")
     args = parser.parse_args()
 
     missing = [name for name in REQUIRED_ENV if not os.environ.get(name)]
@@ -302,10 +300,6 @@ def main() -> int:
     }
 
     print(format_report(report))
-    if args.report:
-        args.report.parent.mkdir(parents=True, exist_ok=True)
-        args.report.write_text(json.dumps(report, indent=2) + "\n")
-        print(f"Report written to {args.report}")
 
     return 1 if report["summary"]["failed"] else 0
 

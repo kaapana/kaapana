@@ -70,7 +70,7 @@ if_ci_failing:
     - install_extensions
     - send_data
     - run_workflows
-    - sweep_test_vms
+    - sweep_deployment_vms
   script:
     - mkdir -p "$ARTIFACTS_DIR"
     # move build.log into the dir the ticket script scans for *.log

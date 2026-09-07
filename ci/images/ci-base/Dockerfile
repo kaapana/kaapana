@@ -4,6 +4,14 @@
 #   docker build -f ci/images/ci-base/Dockerfile -t <registry>/ci-base:<tag> ci
 FROM python:3.12-slim-bookworm
 
+# policy-rc.d: snapd's postinst tries to start/enable its systemd units, which
+# fails the build in a container with no systemd running. This is the standard
+# Debian trick to make invoke-rc.d skip service actions during `apt-get install`.
+RUN printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d && chmod +x /usr/sbin/policy-rc.d
+
+# snapd (for the `snap` CLI — `snap download` needs no running daemon) and
+# squashfs-tools (`unsquashfs`): SecurityScanner (build_cli) scans offline
+# snap packages by extracting them and running `trivy rootfs` against that.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         openssh-client \
@@ -14,6 +22,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         dcmtk \
         nodejs \
         npm \
+        snapd \
+        squashfs-tools \
     && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
     && echo "deb [signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bookworm stable" \
         > /etc/apt/sources.list.d/docker.list \
@@ -28,7 +38,7 @@ RUN curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
     && helm plugin install https://github.com/instrumenta/helm-kubeval
 
 # trivy: kaapana-build runs it as a plain process
-ARG TRIVY_VERSION=0.70.0
+ARG TRIVY_VERSION=0.73.0
 RUN curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" \
         | tar -xz -C /usr/local/bin trivy
 

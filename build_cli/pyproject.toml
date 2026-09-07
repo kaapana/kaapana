@@ -40,5 +40,6 @@ include = ["build_cli*"]
 build_cli = [
     "configs/*.yaml",
     "configs/*.json",
+    "configs/*.html",
     "configs/.trivyignore.yaml",
 ]

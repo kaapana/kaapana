@@ -14,6 +14,8 @@
   # Everything these jobs need is baked into the CI image. VM_FQDN / VM_USER /
   # VERSION_TAG arrive via the deployment.env dotenv from prepare_deployment.
   image: $CI_BASE_IMAGE
+  environment:
+    name: $REGISTRY_ENV
   variables:
     ANSIBLE_HOST_KEY_CHECKING: "False"
   before_script:
@@ -25,8 +27,14 @@
 
 prepare_deployment:
   # Clone repo + Optional: Provision VM
+  # https://docs.gitlab.com/ci/pipelines/settings/#auto-cancel-redundant-pipelines
+  # After job with interruptible: false, the whole pipeline becomes non-interruptible
   interruptible: false
   extends: .remote_execution_template
+  needs:
+    - job: build_packages
+      artifacts: false
+      optional: true
   rules:
     - if: '$CI_EXEC_DEPLOY == "true"'
       when: on_success

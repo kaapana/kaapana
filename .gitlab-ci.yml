@@ -5,6 +5,7 @@ stages:
   - preflight
   - tests
   - build
+  - security
   - deploy
   - test
   - clean
@@ -20,11 +21,19 @@ workflow:
     # Release build: maintainer pushes a protected release
     - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
       when: always
-    - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"
+    - if: $MAINTENANCE == "true"
+      when: never
+    - if: $CI_MERGE_REQUEST_DRAFT == "true"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"
       when: always
-    - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
       when: always
-    - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TITLE !~ /^Draft:/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_LABELS =~ /(^|,)Security(,|$)/
+      when: always
+      variables:
+        CI_EXEC_SECURITY_SCAN: "true"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       when: always
     - when: never
 
@@ -40,7 +49,7 @@ variables:
   # Registry-based scan of the images this pipeline pushed (nightly schedules
   # set "true"); scans no longer run inside the build job.
   CI_EXEC_SECURITY_SCAN: "false"
-  CI_EXEC_SECURITY_SCAN_ARGUMENTS: "--vulnerability-scan --configuration-check"
+  CI_EXEC_SECURITY_SCAN_ARGUMENTS: "--vulnerability-scan --offline-packages-scan --configuration-check --create-sboms"
   CI_EXEC_DOCKER_PRUNE: "false" # "true" = wipe the runner docker cache first (cold build)
   CI_EXEC_DESTROY_DELAYED: "false" # "true" = keep the test VM for 4h after the pipeline for inspection
   MAINTENANCE: "false" # "true" pauses push/schedule/MR pipelines (workflow:rules)
@@ -64,7 +73,7 @@ variables:
   # CI_IMAGES_TAG in the same MR that changes ci/images/** — re-pushing an
   # existing tag leaves warm runners on the stale image. Always
   # $CI_REGISTRY_URL, never the release registry.
-  CI_IMAGES_TAG: "v5"
+  CI_IMAGES_TAG: "v6"
   CI_BASE_IMAGE: "$CI_REGISTRY_URL/ci-base:$CI_IMAGES_TAG"
 
   # Purpose-specific tokens, currently aliasing the shared CI_REGISTRY_TOKEN.
@@ -129,6 +138,7 @@ include:
   - local: /ci/pipeline/ci-image.yml
   - local: /ci/pipeline/unit-tests.yml
   - local: /ci/pipeline/build.yml
+  - local: /ci/pipeline/security.yml
   - local: /ci/pipeline/deploy.yml
   - local: /ci/pipeline/integration-tests.yml
   - local: /ci/pipeline/clean.yml

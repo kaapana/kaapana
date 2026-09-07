@@ -16,37 +16,61 @@ VM → test that live deployment → delete the VM.
 | Stage | Jobs | Runs on | Duration |
 |---|---|---|---|
 | `preflight` | preflight variable check | tests runner | seconds |
-| `tests` | unit-test suites, docs build | tests runner | each job 5 min timeout |
-| `build` | `build_packages` (+ security scan on nightly) | build runner | hours (warm cache: much less) |
+| `tests` | unit-test suites, docs build, readthedocs build check | tests runner | each job 5 min timeout |
+| `build` | `build_packages` | build runner | hours (warm cache: much less) |
+| `security` | trivy: vulnerability_scan, sbom_scan, misconfiguration scan | security runner | hours |
 | `deploy` | `prepare_deployment` → `server_installation` → `platform_deployment` | deploy runner (Ansible over SSH) | ~1 h |
 | `test` | integration tests: login, ports, UI (Playwright), extensions, DICOM data, workflows | deploy runner, against the live VM | 1–3 h |
 | `clean` | `destroy_deployment`, `if_ci_failing` | deploy runner | minutes |
 
-Three facts explain most of the design:
+Useful Attributes:
 
-- **Every job runs in a fresh container** (docker executor on all runners) —
-  nothing persists on the machines; credentials come from File-type CI
-  variables.
-- **The registry is the only handoff between build and deploy.** Both derive
-  the same tag from `git describe`; `prepare_deployment` verifies the chart
-  exists (fail-fast, before any VM is created) and hands the tag to later
-  jobs via the `deployment.env` dotenv artifact.
-- **The test VM is disposable.** `destroy_deployment` deletes it even on
-  failure — except externally-provided VMs (never destroyed) or when you
-  asked to keep it (see recipes).
+- **Every job runs in a fresh docker container**  —
+  nothing CI-related needs installing or persisting on the runner machine: 
+  - CI tools come from ci-base-image container
+  - credentials from CI variables.
+- **The registry is the only interface between build and deploy.** 
+  build and deploy both resolve the same `git describe` tag:
+  
+  - `build` pushes images and the
+  admin chart to the registry, 
+  - `deployment` verifies they exist(fail-fast, before any VM is created) and forwards the tag to later jobs via
+  the `deployment.env` dotenv artifact.
+
+- **Provisioned VM is disposable.** 
+  - VM is created, fresh server-installation is run, Kaapana is deployed, data ingested and tested
+  - `destroy_deployment` deletes the automatically provisioned VM
+  - scheduled - delayed deletion is possible through CI variables
 
 ## 2. What runs when
 
 | Trigger | What runs |
 |---|---|
-| Merge request | Full pipeline. `Draft:` MRs run nothing. |
+| Merge request | Full pipeline. MRs marked as draft (Draft, WIP, etc.) run nothing. Label the MR `Security` to also run the security scan on MR. |
 | Push to `develop` | Full pipeline. |
-| Nightly schedule | Full pipeline + security scan + ReadTheDocs check. |
+| Nightly schedule | Full pipeline + security scan +|
 | Release tag `X.Y.Z` | Full pipeline, publishing to the release registry with a cold cache ([section 7](#7-releases)). |
 | Web UI / API / trigger | Always allowed; you pick the toggles. |
 
+**The nightly schedule** is a GitLab CI/CD Scheduled Pipeline. There are 2 pipelines set targeting `develop` and latest release.
+
 Stage toggles (set per run via **CI/CD → Pipelines → Run pipeline**, or
-scripted with `python3 ci/utils/trigger_pipeline.py`):
+scripted with [`glab ci run`](https://gitlab.com/gitlab-org/cli), e.g.
+`glab ci run -b develop --variables CI_EXEC_SECURITY_SCAN:true`). For more
+than a couple of variables, use `--variables-from` with a JSON file instead of
+stacking `--variables` flags — it expects an array of hashes with at least
+`key`/`value`:
+
+```json
+[
+  { "key": "CI_EXEC_SECURITY_SCAN", "value": "true" },
+  { "key": "CI_EXEC_SECURITY_SCAN_ARGUMENTS", "value": "--vulnerability-scan --create-sboms" }
+]
+```
+
+```bash
+glab ci run -b develop --variables-from variables.json
+```
 
 | Variable | Default | Effect |
 |---|---|---|
@@ -57,6 +81,7 @@ scripted with `python3 ci/utils/trigger_pipeline.py`):
 | `CI_EXEC_SERVER_INSTALLATION` | `true` | `false` skips the OS/microk8s install — for already-prepared targets |
 | `CI_EXEC_INTEGRATION_TESTS` | `true` | test stage (needs deploy) |
 | `CI_EXEC_SECURITY_SCAN` | `false` | trivy scan of the built images |
+| `CI_EXEC_SECURITY_SCAN_ARGUMENTS` | `--vulnerability-scan --offline-packages-scan --configuration-check --create-sboms` |
 | `CI_EXEC_DOCKER_PRUNE` | `false` | wipe the build cache first (cold, multi-hour build) |
 | `CI_EXEC_DESTROY_DELAYED` | `false` | keep the test VM for 4 h after the pipeline |
 | `MAINTENANCE` | `false` | project variable; pauses MR/push/schedule pipelines (web/API still work) |
@@ -94,9 +119,45 @@ ssh -i <kaapana-key> ubuntu@<vm-fqdn>
 
 The platform UI is at `https://<vm-fqdn>`.
 
-**Security scan on demand** — `CI_EXEC_SECURITY_SCAN=true` (with build).
-Reports: `security_scan` artifacts (JSON per image), the `security` job's
-`vulnerability_report.html`, and GitLab's Security tab.
+**Security scan on demand** — `CI_EXEC_SECURITY_SCAN=true`, or label the MR
+`Security` (`workflow:rules` in [`.gitlab-ci.yml`](../.gitlab-ci.yml) sets the
+variable for you). Runs as its own `security` stage on a dedicated runner
+([`ci/pipeline/security.yml`](pipeline/security.yml)), and doesn't need a
+build in the same pipeline: with `CI_EXEC_BUILD=false` it scans whatever tag
+is already in the registry (same idea as "Deploy without rebuilding" above).
+A failed scan still publishes whatever it managed to check before failing the
+job.
+
+The scan, its consolidation, and publishing all happen inside `kaapana-build` itself (build_cli's `SecurityScanner`)
+
+```bash
+export REGISTRY_URL=<your-registry> REGISTRY_PW=<token>
+kaapana-build --scan-only --vulnerability-scan --offline-packages-scan \
+  --default-registry "$REGISTRY_URL" --kaapana-dir .
+```
+
+It covers container images and the offline installer's bundled snap
+packages. Reports land in `reports/` (kept indefinitely):
+
+| File | Produced when |
+| --- | --- |
+| `reports/consolidated_vulnerability_scan.json` | `--vulnerability-scan` / `--offline-packages-scan` (default) |
+| `reports/interactive_report.html` | same |
+| `reports/gl-container-scanning-report.json` | same — feeds GitLab's Security tab |
+| `reports/consolidated_misconfiguration_check.json` | `--configuration-check` (opt-in) |
+| `reports/consolidated_sbom.json` | `--create-sboms` (opt-in) |
+
+Toggle the opt-in reports via `CI_EXEC_SECURITY_SCAN_ARGUMENTS`. The
+consolidated JSON is also fetchable directly through GitLab's Job Artifacts
+API, e.g. for a dashboard polling nightlies:
+
+```
+GET /api/v4/projects/:id/jobs/artifacts/:ref_name/raw/reports/consolidated_vulnerability_scan.json?job=security_scan
+```
+
+Runs on its own `security-runner`-tagged Harvester VM by default; register
+your own `gitlab-runner` with that tag if you'd rather it ran on your own
+hardware — no pipeline change needed.
 
 **Delete a leftover test VM manually** (normally never needed):
 
@@ -138,7 +199,9 @@ jobs with ↻; you rarely need the whole pipeline.
 One tool image for all jobs that need CI tooling:
 [`ci/images/ci-base/Dockerfile`](images/ci-base/Dockerfile) (build context
 `ci/`, not the repo root). Contains git, docker CLI, helm, trivy, dcmtk,
-nmap, ansible, node/npm, chromium, and the pinned Python test dependencies.
+nmap, ansible, node/npm, chromium, snapd + squashfs-tools (snap-package
+scanning — see [section 2](#2-what-runs-when)), and the pinned Python test
+dependencies.
 Lives at `$CI_REGISTRY_URL/ci-base:$CI_IMAGES_TAG`; rebuilt automatically by
 `build_ci_image` when its inputs change.
 
@@ -157,15 +220,16 @@ docker push $CI_REGISTRY_URL/ci-base:<tag>
 
 ## 6. Runners
 
-Three runner VMs on Harvester (namespace `kaapana-ci`), defined in
-[`ci/harvester/inventory.yaml`](harvester/inventory.yaml). All use the docker
-executor.
+Four runner VMs on Harvester (namespace `kaapana-ci`), defined in
+[`ci/harvester/inventory.yaml`](harvester/inventory.yaml), one runner
+registration per VM. All use the docker executor.
 
-| Runner | Tag | Special configuration |
-|---|---|---|
-| kaapana-tests-01 | `tests-runner` | Allows privileged **services** matching `docker.io/library/docker:*` (dind for `task_api_tests`); `/builds` shared between job and services |
-| kaapana-build-01 | `build-runner` | Host docker socket mounted into jobs → warm layer cache across pipelines |
-| kaapana-deploy-01 | `deploy-runner` | No machine state; credentials from File-type CI variables |
+| Runner (VM) | Tag | limit | Special configuration |
+|---|---|---|---|
+| kaapana-tests-01 | `tests-runner` | 4 | Allows privileged **services** matching `docker.io/library/docker:*` (dind for `task_api_tests`); `/builds` shared between job and services |
+| kaapana-build-01 | `build-runner` | 1 | Host docker socket mounted into jobs → warm layer cache across pipelines |
+| kaapana-security-01 | `security-runner` | 1 | Small dedicated VM so a long scan never blocks builds |
+| kaapana-deploy-01 | `deploy-runner` | 4 | No machine state; credentials from File-type CI variables |
 
 Provision / re-provision (also how you add a runner — add it to the
 inventory first):
@@ -178,6 +242,7 @@ export SSH_PUBLIC_KEY=~/.ssh/kaapana.pub
 export SSH_PRIVATE_KEY=~/.ssh/kaapana.pem
 export HARVESTER_KUBECONFIG=~/.kube/harvester.yaml
 
+# Everything:
 ansible-playbook -i ci/harvester/inventory.yaml ci/harvester/setup_ci.yaml
 # FORCE_RECREATE=true → delete and recreate existing VMs
 ```
@@ -305,18 +370,22 @@ required variables there.
 | `CI_SSH_PRIVATE_KEY` | File | no | SSH key for test VMs (Harvester `kaapana` KeyPair) |
 | `DOCKER_AUTH_CONFIG` | no | no | Pull auth for private job images (ci-base) — see below |
 
-**`DOCKER_AUTH_CONFIG` and switching registries.** The CI has used two registries over time , `CI_REGISTRY_URL` selects the active one. 
-Runners pulling the ci-base job image authenticate with `DOCKER_AUTH_CONFIG`:
+### DOCKER_AUTH_CONFIG
+Runners pull the `ci-base` job image using `DOCKER_AUTH_CONFIG`:
 
 ```json
 {"auths":{"registry-1":{"auth":"<base64 user:token>"},"registry-2":{"auth":"<base64 user:token>"}}}
 ```
 
-- Keep an entry for every registry in rotation, then switching `CI_REGISTRY_URL` never breaks image pulls. If you add a new registry, add its entry here in the same change.
+- Keeps an entry for every registry in rotation, so pulling `ci-base` never breaks when you switch registries. If you add a new registry, add its entry here in the same change.
 - Each token must be a deploy token with `read_registry` on the GitLab instance that owns that registry.
 - Symptom of a missing/mismatched entry: job dies in *prepare* with `failed to pull image ... access forbidden`, and the log does **not** show `Authenticating with credentials from $DOCKER_AUTH_CONFIG`.
-- docker ≥ 28 reads `DOCKER_AUTH_CONFIG` from the **job environment** too, overriding `docker login`. Jobs that push images must `unset DOCKER_AUTH_CONFIG` before logging in (the build jobs do). Symptom: `Login Succeeded` followed by `denied` on push.
-- The environment-scoped variable rows (e.g. `DFKZ_CONTAINER_REGISTRY` / `HIFIS_CONTAINER_REGISTRY` scopes) are not directly used; no job declares an `environment`, so only "All (default)" rows ever reach a job. They serve as a parking lot for the inactive registry's values.
+- docker ≥ 28 also reads `DOCKER_AUTH_CONFIG` from the **job environment**, overriding `docker login`. Jobs that push images must `unset DOCKER_AUTH_CONFIG` before logging in (the build jobs do). Symptom: `Login Succeeded` followed by `denied` on push.
+
+### Switching the active registry.
+The CI can build and push to any configured registry. Each registry needs `CI_REGISTRY_URL` / `CI_REGISTRY_TOKEN` and optional `CI_REGISTRY_USER`. Those are currently stored as CI/CD variables with the respective environmnet *scope* (e.g. `DFKZ_CONTAINER_REGISTRY` or `HIFIS_CONTAINER_REGISTRY`). Jobs that needs Container registry have a tag `environment: $REGISTRY_ENV`, and GitLab then automatically uses the credentials from whichever scope `REGISTRY_ENV` points to. 
+
+In order to change the registry, just set the `REGISTRY_ENV` **project variable** to the scope you want (via UI or glab CLI).
 
 Bulk upload from a template:
 

@@ -46,7 +46,7 @@ The package lives at `build_cli/build_cli/`. `cli.py` is the entry point
 │   ├── build_state.py
 │   ├── issue_tracker.py
 │   ├── offline_installer_helper.py
-│   └── trivy_helper.py
+│   └── security_scanner.py
 ├── ui
 │   ├── __init__.py
 │   ├── progress.py
@@ -104,10 +104,13 @@ Pure singleton class -> classes that are never initialized and have only class a
 - Pure singleton class
 - Helps with offline installation - downloads snap and helm packages + selected containers
   
-#### trivy_helper.py
+#### security_scanner.py
 - Pure singleton class
-- Helps with scans - misconfiguration scan, sbom and vuln scan
-
+- Manages security scans via trivy
+   - misconfiguration
+   - sbom
+   - vuln scan
+   - offline packages scan
 
 ## ui
 

@@ -1,0 +1,52 @@
+# Stage: security — trivy scan + report of the tag this commit resolves to
+# In:  registry state — either just pushed by build_packages in this same
+#      pipeline, or pushed by an earlier one (CI_EXEC_BUILD=false: standalone
+#      rescan of an already-built tag); REGISTRY_* credentials via
+#      .build_cli_env (defined in build.yml)
+# Out: security-reports/ (raw per-container/per-snap scans, trivy cache) as
+#      persistent artifacts; the dashboard-facing subset — always
+#      consolidated_vulnerability_scan.json, interactive_report.html,
+#      gl-container-scanning-report.json, and opt-in
+#      consolidated_misconfiguration_check.json / consolidated_sbom.json — in
+#      reports/. Both are written directly by `kaapana-build --scan-only`
+#      (build_cli's SecurityScanner); this job just calls it, and you can run
+#      the same command by hand for a pure-local scan (see ci/README.md).
+##############################################
+# SECURITY
+##############################################
+security_scan:
+  extends: .build_cli_env
+  stage: security
+  timeout: 6 hours
+  tags:
+    - security-runner
+  needs:
+    - job: build_packages
+      artifacts: false
+      # If build in the pipeline then wait for build, scan nevertheless;
+      optional: true
+  rules:
+    - if: '$CI_EXEC_SECURITY_SCAN == "true"'
+      when: on_success
+      allow_failure: false
+    - when: never
+  # Trivy DB persisted across runs on this runner:
+  cache:
+    key: trivy-db
+    paths:
+      - "$CI_PROJECT_DIR/security-reports/.trivy_cache/"
+  script:
+    - export REGISTRY_PW="$REGISTRY_TOKEN"
+    - kaapana-build --scan-only $CI_EXEC_SECURITY_SCAN_ARGUMENTS --default-registry "$REGISTRY_URL" --kaapana-dir "$CI_PROJECT_DIR"
+  artifacts:
+    name: "security_$CI_COMMIT_SHORT_SHA"
+    when: always
+    expire_in: never
+    paths:
+    # globs -> optional: missing file only warns, never fails the job
+      - "$CI_PROJECT_DIR/reports/interactive_report*.html"
+      - "$CI_PROJECT_DIR/reports/consolidated_vulnerability_scan*.json"
+      - "$CI_PROJECT_DIR/reports/consolidated_sbom*.json"
+      - "$CI_PROJECT_DIR/reports/consolidated_misconfiguration_check*.json"      
+    reports:
+      container_scanning: "$CI_PROJECT_DIR/reports/gl-container-scanning-report.json"

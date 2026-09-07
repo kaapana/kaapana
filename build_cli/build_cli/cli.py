@@ -14,7 +14,7 @@ from build_cli.build import (
     BuildState,
     IssueTracker,
     OfflineInstallerHelper,
-    TrivyHelper,
+    SecurityScanner,
 )
 from build_cli.container import ContainerHelper
 from build_cli.container.coordinator import BuildCoordinator
@@ -207,6 +207,13 @@ def build(
         envvar="CREATE_SBOMS",
         help="Generate SBOMs for built containers.",
     ),
+    offline_packages_scan: bool = typer.Option(
+        False,
+        "-ops",
+        "--offline-packages-scan",
+        envvar="OFFLINE_PACKAGES_SCAN",
+        help="Scan offline-installer packages (snap packages) for vulnerabilities.",
+    ),
     enable_image_stats: bool = typer.Option(
         False,
         "-is",
@@ -219,13 +226,6 @@ def build(
         "--latest",
         envvar="USE_LATEST_TAG",
         help="Force version tag to 'latest'.",
-    ),
-    check_expired_vulnerability_db: bool = typer.Option(
-        False,
-        "-cevd",
-        "--check-expired-vulnerabilities-database",
-        envvar="CHECK_EXPIRED_VULNERABILITY_DB",
-        help="Check and refresh vulnerability database.",
     ),
     kaapana_dir: Optional[Path] = typer.Option(
         None,
@@ -362,9 +362,9 @@ def build(
         configuration_check=configuration_check,
         configuration_check_severity_level=configuration_check_severity_level,
         create_sboms=create_sboms,
+        offline_packages_scan=offline_packages_scan,
         enable_image_stats=enable_image_stats,
         version_latest=version_latest,
-        check_expired_vulnerability_db=check_expired_vulnerability_db,
         kaapana_dir=kaapana_dir,
         build_dir=build_dir,
         no_login=no_login,
@@ -538,17 +538,35 @@ def run_build(build_config: BuildConfig):
 
         BuildHelper.generate_report()
 
-    if build_config.configuration_check:
-        TrivyHelper.init(build_config=build_config, build_state=build_state)
-        TrivyHelper.misconfiguration_check()
+    security_scan_requested = (
+        build_config.configuration_check
+        or build_config.create_sboms
+        or build_config.vulnerability_scan
+        or build_config.offline_packages_scan
+    )
+    if security_scan_requested:
+        SecurityScanner.init(build_config=build_config, build_state=build_state)
 
-    if build_config.create_sboms:
-        TrivyHelper.init(build_config=build_config, build_state=build_state)
-        TrivyHelper.create_sboms()
+    try:
+        if build_config.configuration_check:
+            SecurityScanner.misconfiguration_check()
+            SecurityScanner.consolidate_misconfiguration_reports()
 
-    if build_config.vulnerability_scan:
-        TrivyHelper.init(build_config=build_config, build_state=build_state)
-        TrivyHelper.vulnerability_scan()
+        if build_config.create_sboms:
+            SecurityScanner.create_sboms()
+            SecurityScanner.consolidate_sbom_reports()
+
+        if build_config.vulnerability_scan:
+            SecurityScanner.vulnerability_scan()
+
+        if build_config.offline_packages_scan:
+            SecurityScanner.offline_packages_scan()
+
+        if build_config.vulnerability_scan or build_config.offline_packages_scan:
+            SecurityScanner.consolidate_vulnerability_reports()
+    finally:
+        if security_scan_requested:
+            SecurityScanner.cleanup()
 
     logger.info("-----------------------------------------------------------")
     logger.info("-------------------------- DONE ---------------------------")

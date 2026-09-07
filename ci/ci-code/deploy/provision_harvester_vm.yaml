@@ -27,11 +27,10 @@
     vm_ready_interval: 5
     vm_dns_timeout: "{{ lookup('env', 'DEPLOYMENT_INSTANCE_DNS_TIMEOUT', default=300) | int }}"
     vm_dns_interval: 10
-    # The only states that still resolve on their own. Everything else is a
-    # verdict and ends the wait, including a state not listed below.
+    # The only states that still resolve on their own; everything else ends
+    # the wait, including a state not listed here.
     vm_transient_states: ['', 'Provisioning', 'Starting', 'WaitingForVolumeBinding']
-    # Explains a settled status, a transient one the wait gave up on included.
-    # Not the list the wait breaks on.
+    # Explains a status, not the list the wait breaks on.
     vm_failure_hints:
       '': >-
         The VM could not be read at all. Either it was never created, or the
@@ -64,9 +63,6 @@
         launcher pod leaves it here, and Harvester sets runStrategy to Halted,
         so it will not come up on its own either.
 
-    # Stamped onto the VM so the orphan sweep can ask GitLab whether this
-    # pipeline is still running. Empty outside a pipeline, which the sweep
-    # reads as "no owner" and falls back to age.
     ci_pipeline_id: "{{ lookup('env', 'CI_PIPELINE_ID', default='') }}"
     ci_pipeline_url: "{{ lookup('env', 'CI_PIPELINE_URL', default='') }}"
     ci_keep_after_pipeline: "{{ lookup('env', 'CI_EXEC_DESTROY_DELAYED', default='false') }}"
@@ -302,17 +298,16 @@
     retries: "{{ ((vm_ready_timeout | int) / (vm_ready_interval | int)) | round(0, 'ceil') | int }}"
     delay: "{{ vm_ready_interval }}"
     changed_when: false
-    # An exhausted retry budget is a verdict too, and the task below explains it
-    # better than ansible's own retry message.
+    # An exhausted budget is a verdict too, and the task below says it better
+    # than ansible's retry message.
     failed_when: false
 
   - name: Remember the settled VM status
     ansible.builtin.set_fact:
       vm_printable_status: "{{ (vm_info.resources | first | default({})).get('status', {}).get('printableStatus', '') }}"
 
-  # The VM status names the category, the instance conditions name the cause:
-  # ErrorUnschedulable covers both exhausted capacity and an unbindable volume,
-  # and only the scheduler's own message tells them apart.
+  # ErrorUnschedulable covers both exhausted capacity and an unbindable
+  # volume, and only the scheduler's own message tells them apart.
   - name: Collect the conditions of the VM instance
     kubernetes.core.k8s_info:
       api_version: kubevirt.io/v1
@@ -322,15 +317,13 @@
       kubeconfig: "{{ harvester_kubeconfig }}"
     register: vmi_info
     when: vm_printable_status != 'Running'
-    # The instance may not exist yet; a missing diagnosis must not replace the
-    # actual failure below.
+    # May not exist yet; a missing diagnosis must not mask the failure below.
     failed_when: false
     changed_when: false
 
   - name: Fail with the provisioning cause
     vars:
-      # Only meaningful when the lookup returned nothing at all: with an object
-      # in hand, its status says more than the module's message.
+      # Only meaningful with no object at all: a status says more than this.
       _vm_lookup_error: >-
         {{ vm_info.msg | default('') if (vm_info.resources | default([]) | length) == 0 else '' }}
       # A quota rejection never creates a VMI, so its cause lives here instead.

@@ -1,0 +1,109 @@
+# Stage: tests — preflight variable check
+# In:  CI/CD variables only, no checkout
+# Out: nothing — fails within seconds when a required variable is empty,
+#      instead of build/deploy finding out an hour later
+##############################################
+# PREFLIGHT
+##############################################
+preflight_variables:
+  stage: preflight
+  tags:
+    - tests-runner
+  image: python:3.12
+  variables:
+    GIT_STRATEGY: none # no checkout needed
+  rules:
+    - when: always
+  script:
+    - |
+      # print only variable names, not the values (several are secrets)
+      missing=""
+      errors=""
+      checked=""
+      require() {
+        checked="$checked $1"
+        [ -n "${!1:-}" ] || missing="$missing $1"
+      }
+      require_file() {
+        # File-type variable: the value is a file path; the file must
+        # exist and not be empty
+        checked="$checked $1(File)"
+        { [ -n "${!1:-}" ] && [ -s "${!1}" ]; } || missing="$missing $1(File)"
+      }
+      fail() {
+        errors="$errors
+        - $1"
+      }
+
+      # every job pulls the ci-base image from this registry
+      require CI_REGISTRY_URL
+      require CI_IMAGES_TAG
+      require DOCKER_AUTH_CONFIG
+      require CI_REGISTRY_USER
+      require CI_REGISTRY_TOKEN
+      if [ "${CI_REGISTRY_USER:-}" = "gitlab-ci-token" ]; then
+        fail "CI_REGISTRY_USER is 'gitlab-ci-token' — the project variable is missing, so pushes will be denied."
+      fi
+      # DOCKER_AUTH_CONFIG must contain the registry host, otherwise
+      # image pulls fail (see ci/README.md section 8)
+      if [ -n "${DOCKER_AUTH_CONFIG:-}" ] && [ -n "${CI_REGISTRY_URL:-}" ]; then
+        registry_host="${CI_REGISTRY_URL%%/*}"
+        case "$DOCKER_AUTH_CONFIG" in
+          *"$registry_host"*) ;;
+          *) fail "DOCKER_AUTH_CONFIG has no entry for '$registry_host' (the CI_REGISTRY_URL host)." ;;
+        esac
+      fi
+
+      # build and deploy need the registry credentials
+      if [ "$CI_EXEC_BUILD" = "true" ] || [ "$CI_EXEC_DEPLOY" = "true" ]; then
+        require REGISTRY_URL
+        require REGISTRY_USER
+        require REGISTRY_TOKEN
+      fi
+      if [ -n "${DOCKER_IO_USER:-}" ] && [ -z "${DOCKER_IO_PASSWORD:-}" ]; then
+        fail "DOCKER_IO_USER is set but DOCKER_IO_PASSWORD is empty — leave both empty to skip the docker.io login."
+      fi
+
+      # A git tag like "0.7.1" starts a release pipeline
+      # build_packages then publishes to the release registry using RELEASE_REGISTRY_* var.s
+      # The tag pattern below is a copy of the one in build.yml
+      if [[ "${CI_COMMIT_TAG:-}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        require RELEASE_REGISTRY_URL
+        require RELEASE_REGISTRY_USER
+        require RELEASE_REGISTRY_TOKEN
+      fi
+
+      if [ "$CI_EXEC_DEPLOY" = "true" ]; then
+        # logging into the deployment target always needs the SSH key
+        require_file CI_SSH_PRIVATE_KEY
+        # the kubeconfig is only needed to create a test VM, which is
+        # skipped when an external VM is given
+        [ -n "$DEPLOYMENT_INSTANCE_FQDN" ] || require_file HARVESTER_KUBECONFIG
+        # dcmsend rejects peerhosts longer than 57 chars; prepare_deployment
+        # checks this too, but only after the whole build stage has run
+        if [ -n "${DEPLOYMENT_INSTANCE_FQDN:-}" ] && [ "${#DEPLOYMENT_INSTANCE_FQDN}" -gt 57 ]; then
+          fail "DEPLOYMENT_INSTANCE_FQDN is ${#DEPLOYMENT_INSTANCE_FQDN} characters, over the 57-character dcmsend peerhost limit."
+        fi
+      fi
+
+      # failures on develop create a GitLab issue and a Slack message
+      if [ "$CI_COMMIT_BRANCH" = "develop" ]; then
+        require GITLAB_API_TOKEN
+        require SLACK_BOT_TOKEN
+        require SLACK_CHANNEL_ID
+      fi
+
+      # check_readthedocs runs on scheduled develop pipelines only
+      if [ "$CI_PIPELINE_SOURCE" = "schedule" ] && [ "$CI_COMMIT_BRANCH" = "develop" ]; then
+        require KAAPANA_READTHEDOCS_TOKEN
+      fi
+
+      echo "Checked variables (this pipeline):"
+      for v in $checked; do echo "  - $v"; done
+      if [ -n "$missing" ] || [ -n "$errors" ]; then
+        [ -z "$missing" ] || echo "ERROR: required CI variables are empty or missing: $missing"
+        [ -z "$errors" ] || echo "ERROR: $errors"
+        echo "Fix them under Settings -> CI/CD -> Variables (see ci/README.md section 8)."
+        exit 1
+      fi
+      echo "Preflight OK: all required CI variables are set."

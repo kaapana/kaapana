@@ -186,6 +186,85 @@ On-VM troubleshooting: `sudo gitlab-runner verify`,
 `sudo systemctl status gitlab-runner`, config at
 `/etc/gitlab-runner/config.toml`.
 
+### Harvester ServiceAccount user
+
+CI reaches Harvester as the `kaapana-ci` ServiceAccount in the `kaapana-ci` namespace, through the `HARVESTER_KUBECONFIG` File-type CI variable. 
+
+Unexpirable ServiceAccount token was used to build Harvester config. The kubeconfig must name `https://10.129.1.5:6443` directly, which is now also added by default to `NO_PROXY`.
+
+<details>
+<summary><b>Rebuilding the kubeconfig</b></summary>
+
+Steps 1–3 run with your own Harvester credential.
+
+**1. ServiceAccount and token Secret.** 
+
+The Secret type is what makes the token unexpirable: the API
+server writes a token without an `exp` claim, valid as long as both objects live. No need to recreate if both exists.
+
+```bash
+KC=~/.kube/harvester.yaml
+kubectl --kubeconfig $KC -n kaapana-ci create serviceaccount kaapana-ci
+kubectl --kubeconfig $KC apply -f - <<'EOF'
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kaapana-ci-token
+  namespace: kaapana-ci
+  annotations:
+    kubernetes.io/service-account.name: kaapana-ci
+type: kubernetes.io/service-account-token
+EOF
+```
+
+**2. Read CA and token.**
+
+```bash
+kubectl --kubeconfig $KC -n kaapana-ci get secret kaapana-ci-token \
+  -o jsonpath='{.data.ca\.crt}' | base64 -d > /tmp/harvester-ca.crt
+TOKEN=$(kubectl --kubeconfig $KC -n kaapana-ci get secret kaapana-ci-token \
+  -o jsonpath='{.data.token}' | base64 -d)
+```
+
+**3. Assemble the kubeconfig.**
+
+```bash
+export KUBECONFIG=/tmp/harvester-ci.kubeconfig
+kubectl config set-cluster harvester01 --server=https://10.129.1.5:6443 \
+  --certificate-authority=/tmp/harvester-ca.crt --embed-certs=true
+kubectl config set-credentials kaapana-ci --token="$TOKEN"
+kubectl config set-context harvester01 --cluster=harvester01 --user=kaapana-ci \
+  --namespace=kaapana-ci
+kubectl config use-context harvester01
+```
+
+**4. Verify.** `auth whoami` must name
+`system:serviceaccount:kaapana-ci:kaapana-ci`, and all nine verbs must answer
+`yes`.
+
+```bash
+kubectl auth whoami
+for r in "create virtualmachines.kubevirt.io" "delete virtualmachines.kubevirt.io" \
+         "list virtualmachineimages.harvesterhci.io" "get keypairs.harvesterhci.io" \
+         "create secrets" "patch secrets" "get persistentvolumeclaims" \
+         "patch persistentvolumeclaims" "delete persistentvolumeclaims"; do
+  printf '%-46s %s\n' "$r" "$(kubectl auth can-i $r -n kaapana-ci)"
+done
+unset KUBECONFIG
+```
+
+**5. Store it and wipe the local copies.**
+
+```bash
+glab variable update HARVESTER_KUBECONFIG < /tmp/harvester-ci.kubeconfig # keeps type File
+glab variable set HARVESTER_KUBECONFIG -t file < /tmp/harvester-ci.kubeconfig # first time only
+shred -u /tmp/harvester-ci.kubeconfig /tmp/harvester-ca.crt
+```
+
+**6. Update CI Variable on GitLab
+Rotate by deleting and re-applying the Secret and redoing steps 2–5; revoke by deleting the Secret.
+</details>
+
 ## 7. Releases
 
 Pushing a protected tag `X.Y.Z` runs a pipeline where `build_packages` swaps
@@ -222,7 +301,7 @@ required variables there.
 | `DOCKER_IO_USER` / `DOCKER_IO_PASSWORD` | no / yes | no | docker.io account (avoids pull rate limits) |
 | `SLACK_BOT_TOKEN` / `SLACK_CHANNEL_ID` | yes / no | no | Failure notifications on develop |
 | `KAAPANA_READTHEDOCS_TOKEN` | yes | no | Scheduled docs check |
-| `HARVESTER_KUBECONFIG` | File | no | Harvester cluster access — VM provisioning/deletion |
+| `HARVESTER_KUBECONFIG` | File | no | Harvester cluster access — VM provisioning/deletion; kubeconfig of the `kaapana-ci` ServiceAccount ([section 6](#harvester-serviceaccount-user)) |
 | `CI_SSH_PRIVATE_KEY` | File | no | SSH key for test VMs (Harvester `kaapana` KeyPair) |
 | `DOCKER_AUTH_CONFIG` | no | no | Pull auth for private job images (ci-base) — see below |
 

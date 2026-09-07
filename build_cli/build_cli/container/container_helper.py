@@ -179,16 +179,14 @@ class ContainerHelper:
         """
         Work around DNS failures inside the isolated docker-container builder.
 
-        Unlike a plain `docker build`, which resolves DNS through the host's
-        own daemon, the docker-container buildx builder runs as its own
+        The docker-container buildx builder runs as its own
         separate container and does not reliably pick up the host's DNS
-        setup. In particular, if the host resolves via a local stub (e.g.
+        setup. If the host resolves via a local stub (e.g.
         systemd-resolved), that address doesn't work inside the builder, so
-        RUN steps (apk/apt, etc.) intermittently fail with "DNS: transient
-        error (try again later)" until the builder is recreated with a
-        working nameserver.
+        RUN steps (apk/apt, etc.) fail with "DNS: transient
+        error (try again later)".
 
-        This generates a buildkitd config that pins the builder to real,
+        This method generates a buildkitd config that pins the builder to real,
         externally-reachable nameservers, and returns the --buildkitd-config
         flag pointing at it (or [] if none could be determined).
         """
@@ -197,10 +195,6 @@ class ContainerHelper:
         except OSError:
             return []
 
-        # A loopback nameserver (e.g. systemd-resolved's 127.0.0.53 stub)
-        # only answers queries made from this exact process -- it's not a
-        # real DNS server, just a local forwarder. Handed to the builder
-        # as-is, it would be a dead address rather than a working one.
         nameservers = []
         for line in resolv_conf.splitlines():
             parts = line.split()

@@ -29,11 +29,9 @@ destroy_deployment:
     # Never destroy externally-provided VMs
     - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
       when: never
-    # Opt-in: keep the VM for inspection. Held by the sweep, not by a delayed
-    # job here. GitLab skips a delayed job when a job it needs failed, which is
-    # exactly the situation this switch exists for, and the VM was then left
-    # with no teardown at all. "delayed regardless of the outcome" cannot be
-    # expressed: when: always ignores the needs but takes no start_in.
+    # Opt-in: keep the VM for inspection, which the sweep then honours. Not a
+    # delayed job here, because GitLab skips one as soon as a job it needs
+    # failed, which is the very situation this switch exists for.
     - if: '$CI_EXEC_DEPLOY == "true" && $CI_EXEC_DESTROY_DELAYED == "true"'
       when: never
     # Default: always destroy (on success and on failure)
@@ -88,7 +86,6 @@ if_ci_failing:
     - { job: send_data, optional: true, artifacts: true }
     - { job: run_workflows, optional: true, artifacts: true }
     - { job: playwright_ui_tests, optional: true, artifacts: false }
-    # Its report is a *.log, so a failed teardown lands in the ticket itself.
     - { job: sweep_deployment_vms, optional: true, artifacts: true }
   script:
     - mkdir -p "$ARTIFACTS_DIR"

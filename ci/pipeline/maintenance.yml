@@ -7,13 +7,10 @@
 sweep_deployment_vms:
   stage: maintenance
   # Deletes deployment VMs whose pipeline has ended: the leak GitLab's
-  # non-cascading retries leave behind (README section 3). needs: [] so it
-  # never waits on an earlier stage.
+  # non-cascading retries leave behind (README section 3).
   needs: []
   interruptible: false
-  # Each VM is torn down through the playbook, which waits on the VM and then
-  # on every PVC, so a large backlog can outlast this. Nothing is lost when it
-  # does: the next run picks up whatever is left.
+  # A large backlog can outlast this; the next run picks up what is left.
   timeout: 1 hour
   rules:
     - if: '$CI_EXEC_VM_SWEEP == "true"'

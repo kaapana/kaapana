@@ -91,7 +91,7 @@ glab ci run -b develop --variables-from variables.json
 | `CI_EXEC_VM_SWEEP` | `false` | maintenance stage: sweep orphaned deployment VMs |
 | `VM_SWEEP_APPLY` | `false` | `true` = the sweep deletes; otherwise it only reports |
 | `VM_SWEEP_GRACE_HOURS` | `1` | never touch a VM younger than this |
-| `VM_SWEEP_MAX_AGE_HOURS` | `12` | age ripcord for VMs that carry no pipeline label |
+| `VM_SWEEP_MAX_AGE_HOURS` | `12` | age limit for VMs that carry no pipeline label |
 | `VM_SWEEP_KEEP_HOURS` | `4` | how long a VM asking to be kept outlives its pipeline |
 
 ## 3. Recipes
@@ -181,11 +181,11 @@ kubectl --kubeconfig $HARVESTER_KUBECONFIG -n kaapana-ci get vm \
 ansible-playbook -i localhost, ci/ci-code/deploy/delete_harvester_vm.yaml -e vm_name=<name>
 ```
 
-**Sweep leaked deployment VMs.** Start a run with `CI_EXEC_VM_SWEEP=true` and the
-stage toggles off, and the sweep reports every `ci-*` VM in `kaapana-ci`
+**Sweep leaked deployment VMs.** Start a run with `CI_EXEC_VM_SWEEP=true` and
+the stage toggles off, and the sweep reports every `ci-*` VM in `kaapana-ci`
 whose pipeline has finished, plus unlabelled ones older than
 `VM_SWEEP_MAX_AGE_HOURS`. Add `VM_SWEEP_APPLY=true` to delete them; without
-it the run only reports, in the job log and as the `vm_sweep.json` artifact.
+it the run only reports, in the job log and as the `vm_sweep.log` artifact.
 A VM whose pipeline is still running is never touched, VMs asking to be kept
 get their inspection window, and the runner VMs are out of reach because
 their names lack the `ci-` prefix. Which is the one rule this imposes: **a VM
@@ -195,10 +195,11 @@ eventually collect it.
 The unattended version is a pipeline schedule (CI/CD → Schedules) carrying
 `CI_EXEC_VM_SWEEP=true`, `VM_SWEEP_APPLY=true` and `CI_EXEC_UNIT_TESTS`,
 `CI_EXEC_BUILD`, `CI_EXEC_DEPLOY` and `CI_EXEC_INTEGRATION_TESTS` on
-`"false"`, so that the run holds the sweep and nothing else. It follows the
-`MAINTENANCE` pause like every other schedule. Daily is enough: the grace period and the keep
-window are what decide, not how often the sweep looks. The sweep reads
-pipeline status through `GITLAB_READ_API_TOKEN`
+`"false"`, so that the run holds the sweep and nothing else. It stops while
+`MAINTENANCE=true`, like every other schedule, so a paused CI collects leaked
+VMs until someone runs the sweep from the web UI. Daily is enough: the grace
+period and the keep window are what decide, not how often the sweep looks.
+The sweep reads pipeline status through `GITLAB_READ_API_TOKEN`
 ([section 8](#8-project-cicd-variables-secrets)); without it the run ends on
 one line and touches nothing.
 

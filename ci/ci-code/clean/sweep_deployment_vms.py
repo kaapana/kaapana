@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
-"""Sweep orphaned CI deployment VMs on Harvester.
+"""Delete CI deployment VMs whose pipeline has finished.
 
-A deployment VM leaks whenever its pipeline ends without `destroy_deployment`
-running for the VM that exists. A retried `prepare_deployment` is the
-documented case, since GitLab never cascades retries. The pipeline id stamped
-on the VM is what separates a leak from a VM a run still needs; age alone
-cannot, because a run may legitimately hold a VM for hours. Age is the ripcord
-for VMs that carry no pipeline at all.
+A retried `prepare_deployment` creates a second VM, and GitLab does not run
+`destroy_deployment` again for it, so that VM is never cleaned up.
 
-Reports to stdout and as JSON, and deletes nothing without `--apply`. The
-deletion itself goes through `delete_harvester_vm.yaml` so that VM and PVC
-teardown keeps exactly one implementation.
+The VM carries the id of the pipeline that created it. This script asks GitLab
+whether that pipeline is over. Age alone cannot tell, because a pipeline may
+need its VM for hours.
+
+Reports by default, deletes only with --apply, and leaves the deleting itself
+to delete_harvester_vm.yaml.
 """
 
 import argparse
@@ -21,26 +20,24 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import gitlab
+from kubernetes import client, config
+
 PIPELINE_ID_LABEL = "kaapana.io/ci-pipeline-id"
-PIPELINE_URL_ANNOTATION = "kaapana.io/ci-pipeline-url"
 KEEP_ANNOTATION = "kaapana.io/ci-keep-after-pipeline"
 # The runner VMs share this namespace, but they are named kaapana-*, not after
 # a branch; the prefix is what keeps the sweep off them.
 VM_NAME_PREFIX = "ci-"
 DELETE_PLAYBOOK = Path(__file__).parents[1] / "deploy/delete_harvester_vm.yaml"
 # Anything absent from this set counts as alive: an unknown or newly introduced
-# GitLab state must never authorize a deletion. A pipeline blocked on a delayed
-# destroy_deployment (CI_EXEC_DESTROY_DELAYED) is non-terminal, which is
-# precisely why that case needs no rule of its own.
+# GitLab state must never authorize a deletion.
 TERMINAL_PIPELINE_STATES = frozenset({"success", "failed", "canceled", "skipped"})
 
 REQUIRED_ENV = [
     "HARVESTER_KUBECONFIG",
     "DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE",
-    # Its own credential, because neither token a job already carries can read
-    # a pipeline: of the pipelines API a job token may reach only
-    # PUT .../metadata, and GITLAB_API_TOKEN aliases the registry credential,
-    # which the REST API answers with 401. read_api is the whole requirement.
+    # Its own credential: a job token may only PUT pipeline metadata, and
+    # GITLAB_API_TOKEN aliases the registry credential, which the API rejects.
     "GITLAB_READ_API_TOKEN",
     "CI_PROJECT_ID",
     "CI_SERVER_URL",
@@ -54,11 +51,9 @@ class Candidate:
     name: str
     age_hours: float
     pipeline_id: str = ""
-    pipeline_url: str = ""
-    # None means "no pipeline to ask": unlabelled VM, or a pipeline GitLab no
-    # longer knows. Both fall back to the age ripcord.
+    # None means there is no pipeline to ask: unlabelled VM, or one GitLab no
+    # longer knows. Both fall back to the age limit.
     pipeline_state: str | None = None
-    # The run asked for this VM to survive its pipeline, for inspection.
     keep_after_pipeline: bool = False
     # None while the pipeline has not finished.
     hours_since_pipeline_end: float | None = None
@@ -78,14 +73,11 @@ def decide(
         return "keep", f"younger than the {grace_hours:g}h grace period"
 
     if candidate.pipeline_state in TERMINAL_PIPELINE_STATES:
-        # A terminal pipeline that reports no end leaves the window with
-        # nothing to count from. The VM's own age is the conservative stand-in:
-        # it never ends the window early, and it always ends it.
-        held_for = (
-            candidate.age_hours
-            if candidate.hours_since_pipeline_end is None
-            else candidate.hours_since_pipeline_end
-        )
+        held_for = candidate.hours_since_pipeline_end
+        if held_for is None:
+            # GitLab does not report finished_at for every terminal pipeline
+            held_for = candidate.age_hours
+
         if candidate.keep_after_pipeline and held_for < keep_hours:
             return (
                 "keep",
@@ -110,18 +102,14 @@ def decide(
     )
     if candidate.age_hours >= max_age_hours:
         return "delete", f"{unowned} and is older than {max_age_hours:g}h"
-    return "keep", f"{unowned} but is below the {max_age_hours:g}h age ripcord"
+    return "keep", f"{unowned} but is below the {max_age_hours:g}h age limit"
 
 
 def hours_since(timestamp: str, now: datetime) -> float:
     return (now - datetime.fromisoformat(timestamp)).total_seconds() / 3600
 
 
-# The two I/O functions import their client locally, so the decision logic
-# above stays importable, and testable, without a cluster or GitLab.
 def list_vms(kubeconfig: str, namespace: str) -> list[dict]:
-    from kubernetes import client, config
-
     config.load_kube_config(config_file=kubeconfig)
     return client.CustomObjectsApi().list_namespaced_custom_object(
         group="kubevirt.io",
@@ -134,13 +122,10 @@ def list_vms(kubeconfig: str, namespace: str) -> list[dict]:
 def gitlab_project(server_url: str, project_id: str, api_token: str):
     """Return the project, having proven that pipelines can be read.
 
-    A credential the API refuses would make every labelled VM look unowned,
-    and the age ripcord would then sweep VMs of running pipelines. The proof
-    therefore happens before a single VM is looked at, and it reads a pipeline
-    rather than just authenticating, because that is the right the sweep needs.
+    A credential the API refuses would make every labelled VM look unowned, and
+    the age limit would then sweep VMs of running pipelines. So this reads a
+    pipeline, not just an endpoint, before any VM is looked at.
     """
-    import gitlab
-
     project = gitlab.Gitlab(url=server_url, private_token=api_token).projects.get(
         project_id, lazy=True
     )
@@ -151,11 +136,8 @@ def gitlab_project(server_url: str, project_id: str, api_token: str):
 def pipeline_facts(project, pipeline_id: str) -> tuple[str, str] | None:
     """Return (status, finished_at), or None if GitLab knows no such pipeline.
 
-    finished_at is empty while the pipeline still runs, which is why the caller
-    must not read it as "ended just now".
+    finished_at is empty while the pipeline still runs.
     """
-    import gitlab
-
     try:
         pipeline = project.pipelines.get(int(pipeline_id))
     except (gitlab.exceptions.GitlabGetError, ValueError):
@@ -164,11 +146,7 @@ def pipeline_facts(project, pipeline_id: str) -> tuple[str, str] | None:
 
 
 def delete_vm(vm_name: str) -> None:
-    """Hand the VM to the teardown playbook.
-
-    It derives the name from VM_FQDN's first label, so a bare name passes
-    through unchanged.
-    """
+    """Hand the VM to the teardown playbook, which reads VM_FQDN."""
     subprocess.run(
         ["ansible-playbook", "-i", "localhost,", str(DELETE_PLAYBOOK)],
         env={**os.environ, "VM_FQDN": vm_name},
@@ -189,7 +167,6 @@ def collect(kubeconfig: str, namespace: str, project, now: datetime) -> list[Can
                 name=metadata["name"],
                 age_hours=hours_since(metadata["creationTimestamp"], now),
                 pipeline_id=pipeline_id,
-                pipeline_url=annotations.get(PIPELINE_URL_ANNOTATION, ""),
                 pipeline_state=state,
                 keep_after_pipeline=annotations.get(KEEP_ANNOTATION, "") == "true",
                 hours_since_pipeline_end=(
@@ -237,12 +214,10 @@ def main() -> int:
 
     missing = [name for name in REQUIRED_ENV if not os.environ.get(name)]
     if missing:
-        # Without GitLab access every labelled VM would look unowned and the
-        # age ripcord would sweep live runs, so this is a precondition.
+        # Without GitLab every labelled VM would look unowned, and the age
+        # limit would then sweep live runs.
         print(f"ERROR: missing environment variables: {', '.join(missing)}")
         return 1
-
-    import gitlab
 
     namespace = os.environ["DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE"]
     try:

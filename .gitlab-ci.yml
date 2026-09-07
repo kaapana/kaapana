@@ -89,12 +89,10 @@ variables:
   MAINTENANCE: "false" 
 
   # --- Orphan VM sweep (maintenance stage, ci/pipeline/maintenance.yml).
-  # A run may hold its VM for hours, so the owning pipeline's state decides;
-  # the two bounds below only fence that decision in.
   CI_EXEC_VM_SWEEP: "false" # "true" = run the sweep; the schedule switches the other stages off
   VM_SWEEP_APPLY: "false" # "true" = actually delete; the default reports only
   VM_SWEEP_GRACE_HOURS: "1" # never touch a VM younger than this
-  VM_SWEEP_MAX_AGE_HOURS: "12" # ripcord for VMs with no pipeline to ask
+  VM_SWEEP_MAX_AGE_HOURS: "12" # fallback for VMs with no pipeline to ask
   VM_SWEEP_KEEP_HOURS: "4" # how long a VM asking to be kept outlives its pipeline
 
   # --- Registries, both configured as project variables: CI_REGISTRY_* for
@@ -147,8 +145,6 @@ variables:
   DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE: "kaapana-ci"
   DEPLOYMENT_INSTANCE_SSH_KEYPAIR: "kaapana" # Harvester KeyPair resource in the namespace
   DEPLOYMENT_INSTANCE_PLATFORM_PREFIX: "ci-dep" # project namespaces become <prefix>-project-<short_id>
-  # Ripcords, not failure thresholds: a settled VM state ends the wait at once.
-  # Only a VM that cannot be read at all uses the whole budget.
   DEPLOYMENT_INSTANCE_READY_TIMEOUT: "600" # seconds until the VM is Running
   DEPLOYMENT_INSTANCE_DNS_TIMEOUT: "300" # seconds until the FQDN resolves
 

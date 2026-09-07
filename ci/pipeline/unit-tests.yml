@@ -141,6 +141,19 @@ notification_service_tests:
         - notification_service_report.xml
 
 ##############################################
+# Dicom Web Filter Tests
+##############################################
+dicom_web_filter_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/data-separation/dicom-web-filter/docker/files/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/data-separation/dicom-web-filter/docker/files/tests --junitxml=dicom_web_filter_report.xml
+  artifacts:
+    reports:
+      junit:
+        - dicom_web_filter_report.xml
+
+##############################################
 # Extension API Tests
 ##############################################
 extensions_api_tests:

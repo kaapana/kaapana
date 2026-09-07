@@ -39,3 +39,20 @@ def test_ldif_replaces_hashed_issuer_supplement_with_nullified_issuer():
         "dcmMergeAttribute: IssuerOfPatientID=\n",  # empty value = nullify the tag
     ):
         assert line in rule[1], f"NullifyIssuerOfPatientID must carry '{line.strip()}'"
+
+
+DEPLOYMENT = _repo_root() / "services/store/dcm4chee/dcm4chee-chart/templates/deployment.yaml"
+
+
+def test_ldif_is_reapplied_before_every_dcm4chee_start():
+    """The ldap image imports the LDIF only on first initialisation; existing sites rely on this."""
+    text = DEPLOYMENT.read_text(encoding="utf-8")
+    assert "name: apply-ldap-config" in text, "dcm4chee needs the init step that re-applies the LDIF"
+    assert "ldapmodify -a -c" in text, (
+        "the re-apply must add entries without changetype (-a) and continue past entries that "
+        "already exist or are already deleted (-c), or the second run stops at the first entry"
+    )
+    assert "/import/dcm4che-iid.ldif" in text and "name: dcm4che-iid-config" in text, (
+        "the init step must apply the same ConfigMap the ldap container imports"
+    )
+

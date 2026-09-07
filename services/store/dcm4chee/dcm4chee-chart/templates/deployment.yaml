@@ -26,6 +26,36 @@ spec:
             value: "2"
           - name: TIMEOUT
             value: "10"
+      # The ldap image imports dcm4che-iid.ldif only when it initialises an empty LDAP volume, so a
+      # site that already ran once never received later changes to that file. This step re-applies
+      # the file before every dcm4chee start: `-a` adds entries without a changetype, `-c` carries on
+      # past the "already exists" / "no such object" answers that every entry but the first-ever
+      # application produces. The file must therefore stay idempotent. dcm4chee starts afterwards
+      # and reads the result at boot, so no reload is needed.
+      - name: apply-ldap-config
+        image: "{{ .Values.global.registry_url }}/dcm4chee-ldap:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            set -u
+            AE_DN="dicomAETitle=KAAPANA,dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org"
+            # On a fresh install the ldap container is still importing its default configuration;
+            # wait until the archive AE exists so the file is applied to a complete tree.
+            for i in $(seq 1 150); do
+              ldapsearch -x -H "$LDAP_URL" -D cn=admin,dc=dcm4che,dc=org -w "$LDAP_ROOTPASS" -b "$AE_DN" -s base dn >/dev/null 2>&1 && break
+              echo "waiting for the archive AE in LDAP ($i)"; sleep 2
+            done
+            ldapmodify -a -c -x -H "$LDAP_URL" -D cn=admin,dc=dcm4che,dc=org -w "$LDAP_ROOTPASS" -f /import/dcm4che-iid.ldif || true
+            exit 0
+        env:
+          - name: LDAP_URL
+            value: ldap://ldap-service.{{  .Values.global.services_namespace  }}.svc:389
+          - name: LDAP_ROOTPASS
+            value: secret
+        volumeMounts:
+          - mountPath: /import
+            name: ldif
       containers:
         - name: dcm4chee-container
           image: "{{ .Values.global.registry_url }}/dcm4chee-arc:{{ .Values.global.kaapana_build_version  }}"
@@ -99,6 +129,9 @@ spec:
         - name: storage-data
           persistentVolumeClaim:
             claimName: dcm4chee-dicom-pv-claim
+        - name: ldif
+          configMap:
+            name: dcm4che-iid-config
         - name: nginx-conf
           configMap:
             name: nginx-config

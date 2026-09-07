@@ -1,7 +1,3 @@
-# base-installer only copies DAG/plugin/chart bundles into a mounted volume
-# and pings Helm/Airflow via HTTP - it needs a plain python3 + requests +
-# kaapana_client, nothing from the heavy base-python-cpu (torch, code-server,
-# dcmtk, ...) that most other local-only bases carry.
 FROM python:3.12-slim-bookworm
 
 LABEL REGISTRY="local-only"

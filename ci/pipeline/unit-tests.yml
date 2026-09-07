@@ -92,6 +92,18 @@ kaapana_extensions_tests:
       junit:
         - kaapana_extensions_report.xml
 
+kaapana_client_tests:
+  extends: .test_template
+  script:
+    # No `[test]` extra: the suite needs only pytest on top of the package's own
+    # dependencies, so this also proves it against the shipped install.
+    - pip install $KAAPANA_DIR/lib/kaapana_client pytest
+    - pytest $KAAPANA_DIR/lib/kaapana_client/tests --junitxml=kaapana_client_report.xml
+  artifacts:
+    reports:
+      junit:
+        - kaapana_client_report.xml
+
 workflow_api_tests:
   extends: .test_template
   script:
@@ -114,6 +126,32 @@ portal_api_tests:
     reports:
       junit:
         - portal_api_report.xml
+
+##############################################
+# Notification Service Tests
+##############################################
+notification_service_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/base/notification-service/docker/files/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/base/notification-service/docker/files/tests/ --junitxml=notification_service_report.xml
+  artifacts:
+    reports:
+      junit:
+        - notification_service_report.xml
+
+##############################################
+# Dicom Web Filter Tests
+##############################################
+dicom_web_filter_tests:
+  extends: .test_template
+  script:
+    - pip install -r $KAAPANA_DIR/services/data-separation/dicom-web-filter/docker/files/tests/requirements.txt
+    - pytest $KAAPANA_DIR/services/data-separation/dicom-web-filter/docker/files/tests --junitxml=dicom_web_filter_report.xml
+  artifacts:
+    reports:
+      junit:
+        - dicom_web_filter_report.xml
 
 ##############################################
 # Extension API Tests
@@ -219,9 +257,7 @@ keycloak_setup_tests:
 # UI e2e Tests (mock-backed Playwright, no platform)
 ##############################################
 # One matrix job per frontend app; each suite starts its app on its own fixed
-# port (4300-4309; the registry lives in each app's playwright.config.ts header).
-# Jobs run containerized, so ports and browser caches are per-job; chromium is
-# fetched on every run.
+# port (4300-4309, see each app's playwright.config.ts).
 ui_e2e_tests:
   extends: .test_template
   # Node job: the template's python:3.12 image lacks the node >=20.19 the apps
@@ -234,6 +270,7 @@ ui_e2e_tests:
   parallel:
     matrix:
       - APP:
+          - portal-ui
           - app-ui
           - data-upload-ui
           - extensions-ui
@@ -256,9 +293,8 @@ ui_e2e_tests:
     - npx playwright install --with-deps chromium
     - npm run build
     - npx playwright test
-  # Relative, like every sibling job's report path: artifact paths are resolved
-  # against $CI_PROJECT_DIR (= $KAAPANA_DIR), not against the script's cwd, so
-  # the script's cd into the app does not move them.
+  # artifact paths resolve against $CI_PROJECT_DIR, not the script's cwd, so
+  # the cd into the app does not move them
   artifacts:
     when: always
     paths:
@@ -266,6 +302,31 @@ ui_e2e_tests:
     reports:
       junit:
         - "services/**/test-results/junit.xml"
+
+##############################################
+# UI Unit Tests (vitest — portal-ui shell suites)
+##############################################
+# The shell's vitest unit suites (src/**/__tests__); portal-ui is the only app
+# with a test:unit script, so a single job, not a matrix.
+ui_unit_tests:
+  extends: .test_template
+  # Node job: the template's python:3.12 image lacks the node the app requires
+  # (engines), same reason ui_e2e_tests runs on node:22.
+  image: node:22
+  variables:
+    # both casings: keep npm off the DKFZ proxy for the local registry
+    NO_PROXY: "localhost,127.0.0.1"
+    no_proxy: "localhost,127.0.0.1"
+  script:
+    - cd "$KAAPANA_DIR/services/base/portal-ui/docker/files"
+    - npm ci
+    - npm run test:unit -- --reporter=default --reporter=junit --outputFile.junit=test-results/junit.xml
+  # Relative, like every sibling job's report path — see ui_e2e_tests above.
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "services/base/portal-ui/docker/files/test-results/junit.xml"
 
 ##############################################
 # Documentation Build

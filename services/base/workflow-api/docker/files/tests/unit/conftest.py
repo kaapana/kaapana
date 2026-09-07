@@ -10,7 +10,6 @@ from pathlib import Path
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 import json
-from urllib.parse import quote
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -165,13 +164,12 @@ async def client_fixture(session: AsyncSession):
     app.dependency_overrides[require_dev_mode] = lambda: None
 
     async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        # Default `Project` header for tests, mirroring the enriched header the
+        # traefik forward-auth middleware injects on the platform.
+        headers={"Project": json.dumps({"name": "test-project", "id": "test-id"})},
     ) as ac:
-        # Provide a default `Project` cookie for tests. The app does
-        # `unquote(request.cookies["Project"])` followed by `json.loads`.
-        # Use URL-encoded JSON to match what the application expects.
-        cookie_val = quote(json.dumps({"name": "test-project", "id": "test-id"}))
-        ac.cookies.set("Project", cookie_val)
         yield ac
 
     app.dependency_overrides.clear()

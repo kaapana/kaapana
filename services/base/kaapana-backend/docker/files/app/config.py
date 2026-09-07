@@ -35,8 +35,6 @@ class Settings(BaseSettings):
     keycloak_url: str
     keycloak_service_client_secret: str
 
-    traefik_url: str
-
     airflow_url: str
     services_namespace: str
     admin_namespace: str = Field(validation_alias="ADMIN_NAMESPACE", default="admin")

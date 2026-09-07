@@ -1,6 +1,6 @@
 import axios from 'axios'
+import { prefixProjectScope } from '@/utils/projectScope'
 
-// Create a separate client for kaapana-backend
 const backendClient = axios.create({
     baseURL: import.meta.env.VITE_KAAPANA_BACKEND_URL || "/kaapana-backend/",
     timeout: 10000,
@@ -8,6 +8,9 @@ const backendClient = axios.create({
         'Content-Type': 'application/json',
     },
 })
+
+// /client/dataset(s) both Depends(get_project), so an unprefixed call is a 400.
+backendClient.interceptors.request.use(prefixProjectScope)
 
 backendClient.interceptors.response.use(
     (response) => response,

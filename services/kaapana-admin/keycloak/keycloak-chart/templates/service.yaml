@@ -48,8 +48,12 @@ metadata:
   namespace: "{{  .Values.global.admin_namespace  }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    
+
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+    kaapana.ai/ui.name: "Keycloak"
+    kaapana.ai/ui.section: "system"
+    kaapana.ai/ui.order: "30"
+    kaapana.ai/ui.path: "/auth/admin/master/console/#/kaapana"
 spec:
   rules:
   - host: 

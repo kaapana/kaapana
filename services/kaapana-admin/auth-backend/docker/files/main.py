@@ -3,7 +3,6 @@ import logging
 import os
 import re
 import sys
-import urllib.parse
 
 import httpx
 import jwt
@@ -134,15 +133,15 @@ async def auth_check(request: Request, response: Response):
     # `get_project` dependency answers 400. That missing header is what makes
     # it safe -- NOT a policy miss: role `admin`'s catch-all `^/.*` in data.rego
     # matches an unstripped /project/<bogus>/... path just fine. Requests
-    # without the prefix fall back to the legacy `Project` cookie (see below).
+    # without the prefix carry no project context at all: the URL is now the
+    # only source, the legacy `Project` cookie having gone with the UI that
+    # wrote it.
     #
-    # Enrichment from the prefix additionally requires a token. The bare
-    # /project/<id> shape normalizes to requested_prefix "/", which
-    # auth-policies.rego allows unconditionally, so without this gate an
-    # anonymous caller could probe AII for projects on that route. It gates the
-    # PREFIX path only -- the cookie branch below is deliberately not token-
-    # gated. Anonymous requests reach the gateway solely on oauth2-proxy's
-    # skip_auth_routes (^/auth/.*, ^/kaapana-backend/remote/.*,
+    # Enrichment additionally requires a token. The bare /project/<id> shape
+    # normalizes to requested_prefix "/", which auth-policies.rego allows
+    # unconditionally, so without this gate an anonymous caller could probe AII
+    # for projects on that route. Anonymous requests reach the gateway solely on
+    # oauth2-proxy's skip_auth_routes (^/auth/.*, ^/kaapana-backend/remote/.*,
     # ^/oauth2/metrics$), none of which read the `Project` header.
     #
     # ACCEPTED CONSEQUENCE of that same "/" normalization: an authenticated
@@ -221,37 +220,15 @@ async def auth_check(request: Request, response: Response):
                     )
                 input["input"]["project"] = project
                 input["input"]["requested_prefix"] = stripped_prefix
-        elif project_identifier is None:
-            # Legacy fallback for the shipping landing page, which carries the
-            # selection in a `Project` cookie while services already read the
-            # enriched header. Kept until the UI moves to the URL prefix -- the
-            # cookie is what makes unprefixed requests project-scoped today.
-            #
-            # Deliberately NOT membership-gated, unlike the prefix above: the
-            # gate fails closed on a missing `projects` claim, which would deny
-            # traffic that works today. A non-member can therefore still scope
-            # via the cookie; that residual bypass closes when the cookie
-            # derivation goes away with the legacy UI.
-            project_cookie = request.cookies.get("Project", None)
-            if project_cookie:
-                project_id = json.loads(urllib.parse.unquote(project_cookie))["id"]
-                project = await fetch_project(project_id)
-                if project is not None:
-                    input["input"]["project"] = project
-    except json.JSONDecodeError as e:
-        logger.debug(f"Could not decode the project information from cookies: {e}")
     except httpx.RequestError as e:
         # No enrichment: the path stays unstripped and no project is attached.
         # That is NOT a blanket deny. On the unstripped path `opa eval` measures
         # allow=false for `user` and `project-manager`, so a non-admin's scoped
         # request 403s at OPA -- but role `admin`'s catch-all `^/.*` matches it,
         # so an admin's scoped request proceeds UNSCOPED and the service's own
-        # `get_project` answers 400 on the missing `Project` header. On the
-        # cookie path the request simply carries no project context, as before.
+        # `get_project` answers 400 on the missing `Project` header.
         # Loud, because an AII outage breaks every project-scoped request.
         logger.warning(f"Could not fetch the project information from aii: {e}")
-    except KeyError as e:
-        logger.error(f"Could not identify the project: {e}")
 
     if await check_endpoint(input):
         message = f"Policies satisfied for {method} {requested_prefix} -> ok"

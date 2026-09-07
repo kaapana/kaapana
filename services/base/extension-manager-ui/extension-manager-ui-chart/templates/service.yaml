@@ -44,6 +44,10 @@ metadata:
     traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.services_namespace }}-strip-prefix-extension-manager-ui@kubernetescrd
 {{- end }}
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+    kaapana.ai/ui.name: "Extension Manager"
+    kaapana.ai/ui.section: "experimental"
+    kaapana.ai/ui.order: "40"
+    kaapana.ai/ui.dev-links: "Extensions API=/extensions-api/docs"
 spec:
   rules:
   - host:

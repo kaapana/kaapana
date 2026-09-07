@@ -55,6 +55,7 @@ if_ci_failing:
     - { job: unit_tests, optional: true, artifacts: false }
     - { job: task_api_tests, optional: true, artifacts: false }
     - { job: kaapana_extensions_tests, optional: true, artifacts: false }
+    - { job: kaapana_client_tests, optional: true, artifacts: false }
     - { job: workflow_api_tests, optional: true, artifacts: false }
     - { job: portal_api_tests, optional: true, artifacts: false }
     - { job: extensions_api_tests, optional: true, artifacts: false }
@@ -65,6 +66,7 @@ if_ci_failing:
     - { job: access_information_interface_tests, optional: true, artifacts: false }
     - { job: keycloak_setup_tests, optional: true, artifacts: false }
     - { job: ui_e2e_tests, optional: true, artifacts: false }
+    - { job: ui_unit_tests, optional: true, artifacts: false }
     - { job: build_documentation, optional: true, artifacts: false }
     - { job: check_readthedocs, optional: true, artifacts: false }
     - { job: build_packages, optional: true, artifacts: true }

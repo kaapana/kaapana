@@ -10,6 +10,7 @@ Building on top of the Task API, the new **Workflow API**, centered around the :
 Once built, extensions can be distributed and managed through the new **Extension Manager Service**, which lets users discover, install, and uninstall extensions from OCI registries directly from the Kaapana UI, removing the need for manual Helm chart handling.
 The result is a simpler development loop: extensions are easier to write, package, and manage independently of the internals of the Kaapana platform, while remaining fully interoperable with it.
 Independently of the extension story, :doc:`preview/project_scoping` previews the platform-wide :code:`/project/<id>/` URL convention: the project a request targets becomes part of its URL, and the gateway resolves and authorizes it there before the request reaches any service.
+:doc:`preview/ui_development` describes the frontend that convention is built for — the :code:`portal-ui` shell and the per-view containers it embeds — and :doc:`preview/landing_page_integration` documents the :code:`kaapana.ai/ui.*` Ingress annotations that put an application into its menu.
 
 .. warning::
 
@@ -23,6 +24,8 @@ Independently of the extension story, :doc:`preview/project_scoping` previews th
     preview/workflow_development
     preview/extension_packaging
     preview/extension_manager
+    preview/ui_development
+    preview/landing_page_integration
     preview/project_scoping
 
 

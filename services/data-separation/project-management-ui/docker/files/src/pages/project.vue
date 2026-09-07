@@ -111,7 +111,7 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue';
-import { aiiApiGet, aiiApiPost, aiiApiDelete, kubeHelmPost } from '@/common/services';
+import { aiiApiGet, aiiApiPost, aiiApiDelete, kubeHelmPost, setScopedProject } from '@/common/services';
 import { ProjectItem } from '@/common/types';
 import ProjectUsers from '@/components/ProjectUsers.vue';
 import ProjectWorkflows from '@/components/ProjectWorkflows.vue';
@@ -122,7 +122,6 @@ import EditProjectDialog from '@/components/EditProjectDialog.vue';
 import ArchiveProjectDialog from '@/components/ArchiveProjectDialog.vue';
 import { usePermissions } from '@/permissions/usePermissions';
 import { usePermissionsStore } from '@/permissions/permissions.store';
-import { useCookies } from 'vue3-cookies';
 import { isAdminUser, waitForStoreUser } from '@/common/userAccess';
 
 export default defineComponent({
@@ -172,6 +171,10 @@ export default defineComponent({
     });
   },
 
+  unmounted() {
+    setScopedProject(null);
+  },
+
   watch: {
     '$route.params.id'(newId: string) {
       this.projectId = newId;
@@ -197,13 +200,12 @@ export default defineComponent({
 
     async loadProject({ silent = false } = {}): Promise<void> {
       if (!this.projectId) return;
-      const { cookies } = useCookies();
       try {
         const project: ProjectItem = await aiiApiGet(`projects/${this.projectId}`);
         this.project = project;
-        cookies.set('Project', JSON.stringify({ name: project.name, id: project.id }));
+        setScopedProject(project);
         if (!silent) {
-          this.notify(`Selected project: ${project.name}. You may need to refresh other tabs.`, 'success');
+          this.notify(`Selected project: ${project.name}.`, 'success');
         }
         usePermissionsStore().loadProjectWhitelist(this.projectId);
       } catch (error) {

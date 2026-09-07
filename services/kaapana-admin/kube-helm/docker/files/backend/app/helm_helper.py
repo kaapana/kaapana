@@ -250,7 +250,7 @@ def add_extension_to_dict(
             schemas.KaapanaExtension.model_construct(
                 latest_version=None,
                 chart_name=extension_name,
-                name=extension_name,  # TODO: for backwards compat w/ landing page, delete later
+                name=extension_name,
                 links=[],
                 available_versions={},
                 description=extension_dict["description"],

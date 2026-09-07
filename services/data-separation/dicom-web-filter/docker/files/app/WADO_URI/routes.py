@@ -5,7 +5,7 @@ import httpx
 from app import crud, utils
 from app.config import DICOMWEB_BASE_URL_WADO_URI
 from app.database import get_session
-from app.utils import get_user_project_ids
+from app.utils import get_scoped_project_ids, is_unscoped_admin
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,7 +40,7 @@ async def stream_wado(request: Request):
 async def retrieve_instance(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    project_ids_of_user=Depends(get_user_project_ids),
+    project_ids_of_user=Depends(get_scoped_project_ids),
 ):
     """This endpoint is the wado uri endpoint.
 
@@ -52,7 +52,7 @@ async def retrieve_instance(
         StreamingResponse: Response object
     """
 
-    if request.scope.get("admin") is True:
+    if is_unscoped_admin(request):
         return StreamingResponse(stream_wado(request=request))
 
     studies = await utils.get_filtered_studies_mapped_to_projects(

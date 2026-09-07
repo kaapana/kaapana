@@ -155,7 +155,7 @@ window.config = {
     option: "never",
   },
   allowMultiSelectExport: true,
-  // disableConfirmationPrompts: true,
+  disableConfirmationPrompts: true,
   dataSources: sharedDataSources,
   whiteLabeling: {
     createLogoComponentFn: function (React) {

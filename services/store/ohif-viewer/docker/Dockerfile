@@ -1,16 +1,14 @@
 FROM docker.io/node:26-alpine3.23 AS build
 
 LABEL IMAGE="ohif"
-LABEL VERSION="v3.10.1"
+LABEL VERSION="v3.13.4"
 LABEL BUILD_IGNORE="False"
 
-RUN apk add --no-cache ca-certificates git build-base python3
+RUN apk add --no-cache ca-certificates git
 
-RUN npm install -g yarn
+RUN npm install -g pnpm@11.5.2
 
-RUN git clone https://github.com/OHIF/Viewers.git /src && cd /src && git checkout 9a4a40468fc61e8c4818ea57905239bdff47f634
-
-RUN yarn config set workspaces-experimental true
+RUN git clone https://github.com/OHIF/Viewers.git /src && cd /src && git checkout e1cf19a210b745c81d281b77cb94666654ee70b1
 
 WORKDIR /src
 
@@ -23,8 +21,8 @@ ENV APP_CONFIG="config/kaapana.js"
 COPY files/customization.patch /src/
 RUN git apply --ignore-whitespace customization.patch
 
-RUN yarn install
-RUN yarn run build
+RUN pnpm install --frozen-lockfile
+RUN pnpm run build
 
 FROM docker.io/nginx:1.31-alpine AS production-stage
 
@@ -32,11 +30,10 @@ RUN apk update && apk upgrade libxml2
 
 COPY --from=build /src/platform/app/dist/ /usr/share/nginx/html/ohif/
 
-COPY files/ /usr/share/nginx/html/
+COPY files/manifest.json /usr/share/nginx/html/ohif/manifest.json
+
 COPY files/kaapana.js /usr/share/nginx/html/ohif/app-config.js
 
 COPY conf /etc/nginx
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
-
-

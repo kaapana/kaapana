@@ -1,3 +1,14 @@
+spec:
+  inputs:
+    exec_deploy:
+      type: boolean
+    exec_server_installation:
+      type: boolean
+    build_arguments:
+      type: string
+    runner_tag:
+      type: string
+---
 # Stage: deploy — test VM lifecycle start + platform installation
 # In:  registry (chart/images @ VERSION_TAG); HARVESTER_KUBECONFIG +
 #      CI_SSH_PRIVATE_KEY (File-type CI variables)
@@ -10,7 +21,7 @@
 
 .remote_execution_template:
   tags:
-    - deploy-runner
+    - $[[ inputs.runner_tag ]]
   # Everything these jobs need is baked into the CI image. VM_FQDN / VM_USER /
   # VERSION_TAG arrive via the deployment.env dotenv from prepare_deployment,
   # falling back to DEPLOYMENT_INSTANCE_* when that job did not run.
@@ -39,7 +50,7 @@ prepare_deployment:
       artifacts: false
       optional: true
   rules:
-    - if: '$CI_EXEC_DEPLOY == "true"'
+    - if: '"$[[ inputs.exec_deploy ]]" == "true"'
       when: on_success
     - when: never
   stage: deploy
@@ -52,7 +63,7 @@ prepare_deployment:
     - git fetch --tags
     - VERSION_TAG=$(git describe --tags --always)
     - |
-      if [[ "$CI_EXEC_BUILD_ARGUMENTS" =~ (--latest) && "$VERSION_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+      if [[ "$[[ inputs.build_arguments ]]" =~ (--latest) && "$VERSION_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
         BASE_TAG=$(echo "$VERSION_TAG" | sed -E 's/-[0-9]+-g[0-9a-f]+.*//')
         VERSION_TAG="${BASE_TAG}-latest"
       fi
@@ -95,10 +106,10 @@ prepare_deployment:
 server_installation:
   extends: .remote_execution_template
   stage: deploy
-  # The only job needing sudo on the target. CI_EXEC_SERVER_INSTALLATION=false
+  # The only job needing sudo on the target. exec_server_installation:false
   # skips it for already-prepared targets (e.g. local workstations).
   rules:
-    - if: '$CI_EXEC_DEPLOY == "true" && $CI_EXEC_SERVER_INSTALLATION == "true"'
+    - if: '"$[[ inputs.exec_deploy ]]" == "true" && "$[[ inputs.exec_server_installation ]]" == "true"'
       when: on_success
     - when: never
   needs:
@@ -148,7 +159,7 @@ platform_deployment:
       </body>
       </html>" > artifacts/deployment.html
   rules:
-    - if: '$CI_EXEC_DEPLOY == "true"'
+    - if: '"$[[ inputs.exec_deploy ]]" == "true"'
       when: on_success
     - when: never
   artifacts:

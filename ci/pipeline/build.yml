@@ -1,3 +1,14 @@
+spec:
+  inputs:
+    exec_build:
+      type: boolean
+    build_arguments:
+      type: string
+    exec_docker_prune:
+      type: boolean
+    runner_tag:
+      type: string
+---
 # Stage: build — platform images + charts
 # In:  the job's own checkout; REGISTRY_* credentials
 # Out: images + charts in the registry, tagged git describe of this commit
@@ -10,7 +21,7 @@
 # tags keep it deterministic.
 .build_cli_env:
   tags:
-    - build-runner
+    - $[[ inputs.runner_tag ]]
   image: $CI_BASE_IMAGE
   environment:
     name: $REGISTRY_ENV
@@ -53,13 +64,15 @@ build_packages:
         REGISTRY_URL: $RELEASE_REGISTRY_URL
         REGISTRY_USER: $RELEASE_REGISTRY_USER
         REGISTRY_TOKEN: $RELEASE_REGISTRY_TOKEN
-        CI_EXEC_DOCKER_PRUNE: "true"
-    - if: '$CI_EXEC_BUILD == "true"'
+    - if: '"$[[ inputs.exec_build ]]" == "true"'
       when: on_success
     - when: never
   script:
     - |
-      [[ $CI_EXEC_DOCKER_PRUNE == "true" ]] && docker system prune --all --volumes -f
+      if [[ "$[[ inputs.exec_docker_prune ]]" == "true" \
+        || "$CI_COMMIT_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        docker system prune --all --volumes -f
+      fi
 
     # Docker logins (set +x to hide credentials from job log)
     - |
@@ -71,7 +84,7 @@ build_packages:
       export REGISTRY_PW="$REGISTRY_TOKEN"
 
     # Run build, capturing exit code so artifacts are always collected
-    - kaapana-build --default-registry "$REGISTRY_URL" $CI_EXEC_BUILD_ARGUMENTS
+    - kaapana-build --default-registry "$REGISTRY_URL" $[[ inputs.build_arguments ]]
 
   # No docker logout needed: login state dies with the job container.
 

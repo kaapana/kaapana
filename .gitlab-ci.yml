@@ -13,20 +13,6 @@ stages:
 
 workflow:
   rules:
-    # The sweep runs as a pipeline of its own: one variable starts it instead
-    # of five. These assignments outrank the defaults below and nothing else,
-    # so a toggle the schedule or a project variable carries still wins (the
-    # precedence trap in section 7 of ci/README.md) and the sweep schedule
-    # must therefore carry no other CI_EXEC_* variable. Deliberately ahead of
-    # the MAINTENANCE pause, because a paused CI is when leaked VMs pile up.
-    - if: $CI_EXEC_VM_SWEEP == "true"
-      variables:
-        CI_EXEC_UNIT_TESTS: "false"
-        CI_EXEC_BUILD: "false"
-        CI_EXEC_DEPLOY: "false"
-        CI_EXEC_INTEGRATION_TESTS: "false"
-        CI_EXEC_SECURITY_SCAN: "false"
-      when: always
     - if: $CI_PIPELINE_SOURCE == "web"
       when: always
     - if: $CI_PIPELINE_SOURCE == "api"
@@ -105,7 +91,7 @@ variables:
   # --- Orphan VM sweep (maintenance stage, ci/pipeline/maintenance.yml).
   # A run may hold its VM for hours, so the owning pipeline's state decides;
   # the two bounds below only fence that decision in.
-  CI_EXEC_VM_SWEEP: "false" # "true" = sweep only, every other stage off
+  CI_EXEC_VM_SWEEP: "false" # "true" = run the sweep; the schedule switches the other stages off
   VM_SWEEP_APPLY: "false" # "true" = actually delete; the default reports only
   VM_SWEEP_GRACE_HOURS: "1" # never touch a VM younger than this
   VM_SWEEP_MAX_AGE_HOURS: "12" # ripcord for VMs with no pipeline to ask

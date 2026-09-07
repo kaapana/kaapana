@@ -52,7 +52,7 @@ Useful Attributes:
 | Nightly schedule | Full pipeline + security scan +|
 | Release tag `X.Y.Z` | Full pipeline, publishing to the release registry with a cold cache ([section 7](#7-releases)). |
 | Web UI / API / trigger | Always allowed; you pick the toggles. |
-| VM sweep schedule | Only `sweep_test_vms`, every other stage off (see recipes). |
+| VM sweep schedule | `sweep_deployment_vms` only, because the schedule switches the other stages off (see recipes). |
 
 **The nightly schedule** is a GitLab CI/CD Scheduled Pipeline. There are 2 pipelines set targeting `develop` and latest release.
 
@@ -88,7 +88,7 @@ glab ci run -b develop --variables-from variables.json
 | `CI_EXEC_DOCKER_PRUNE` | `false` | wipe the build cache first (cold, multi-hour build) |
 | `CI_EXEC_DESTROY_DELAYED` | `false` | keep the test VM for inspection; the sweep deletes it `VM_SWEEP_KEEP_HOURS` after the pipeline ends |
 | `MAINTENANCE` | `false` | project variable; pauses MR/push/schedule pipelines (web/API still work) |
-| `CI_EXEC_VM_SWEEP` | `false` | maintenance stage only: sweep orphaned test VMs, every other stage off |
+| `CI_EXEC_VM_SWEEP` | `false` | maintenance stage: sweep orphaned deployment VMs |
 | `VM_SWEEP_APPLY` | `false` | `true` = the sweep deletes; otherwise it only reports |
 | `VM_SWEEP_GRACE_HOURS` | `1` | never touch a VM younger than this |
 | `VM_SWEEP_MAX_AGE_HOURS` | `12` | age ripcord for VMs that carry no pipeline label |
@@ -181,9 +181,9 @@ kubectl --kubeconfig $HARVESTER_KUBECONFIG -n kaapana-ci get vm \
 ansible-playbook -i localhost, ci/ci-code/deploy/delete_harvester_vm.yaml -e vm_name=<name>
 ```
 
-**Sweep leaked test VMs.** Start a run with `CI_EXEC_VM_SWEEP=true`: no other
-stage runs, and the sweep reports every `ci-*` VM in `kaapana-ci` whose
-pipeline has finished, plus unlabelled ones older than
+**Sweep leaked deployment VMs.** Start a run with `CI_EXEC_VM_SWEEP=true` and the
+stage toggles off, and the sweep reports every `ci-*` VM in `kaapana-ci`
+whose pipeline has finished, plus unlabelled ones older than
 `VM_SWEEP_MAX_AGE_HOURS`. Add `VM_SWEEP_APPLY=true` to delete them; without
 it the run only reports, in the job log and as the `vm_sweep.json` artifact.
 A VM whose pipeline is still running is never touched, VMs asking to be kept
@@ -193,9 +193,10 @@ meant to stay in `kaapana-ci` must not be named `ci-*`**, or the sweep will
 eventually collect it.
 
 The unattended version is a pipeline schedule (CI/CD → Schedules) carrying
-`CI_EXEC_VM_SWEEP=true` and `VM_SWEEP_APPLY=true` and nothing else, because
-schedule variables outrank the stage toggles the sweep switches off
-([section 7](#7-releases)). Daily is enough: the grace period and the keep
+`CI_EXEC_VM_SWEEP=true`, `VM_SWEEP_APPLY=true` and `CI_EXEC_UNIT_TESTS`,
+`CI_EXEC_BUILD`, `CI_EXEC_DEPLOY` and `CI_EXEC_INTEGRATION_TESTS` on
+`"false"`, so that the run holds the sweep and nothing else. It follows the
+`MAINTENANCE` pause like every other schedule. Daily is enough: the grace period and the keep
 window are what decide, not how often the sweep looks. The sweep reads
 pipeline status through `GITLAB_READ_API_TOKEN`
 ([section 8](#8-project-cicd-variables-secrets)); without it the run ends on
@@ -225,7 +226,7 @@ jobs with ↻; you rarely need the whole pipeline.
 | `install_extensions` / `send_data` flaky | Known flakiness, `retry: 2` masks most of it. Fails 3× → real; check the JUnit/log artifacts. |
 | `send_data`: "… unavailable from all source(s)" | Every test-data source failed for that series, the log lists each error. |
 | `playwright_ui_tests` fails | Download the Playwright HTML report artifact — traces and screenshots. |
-| `sweep_test_vms` red | The last log line names it: GitLab refused the pipeline lookup (then nothing was touched, check `GITLAB_READ_API_TOKEN`), or a teardown playbook failed (then the sweep still finished the other VMs). |
+| `sweep_deployment_vms` red | The last log line names it: GitLab refused the pipeline lookup (then nothing was touched, check `GITLAB_READ_API_TOKEN`), or a teardown playbook failed (then the sweep still finished the other VMs). |
 | Job dies in prepare: `failed to pull image ... ci-base ... access forbidden` | `DOCKER_AUTH_CONFIG` missing an entry for the active registry host, or its token was minted on the wrong GitLab instance ([section 8](#8-project-cicd-variables-secrets)). |
 | Job stuck "pending" | No runner with the required tag picking it up ([section 6](#6-runners)). |
 | Everything fails weirdly after a CI-image change | Tag wasn't bumped — bump `CI_IMAGES_TAG` and re-run ([section 5](#5-the-ci-image-ci-base)). |
@@ -317,7 +318,7 @@ required variables there.
 | `CI_REGISTRY_URL` | no | no | Registry for CI builds |
 | `CI_REGISTRY_USER` | no | no | Username for `CI_REGISTRY_TOKEN` (shadows a GitLab-predefined variable — if deleted, jobs silently get `gitlab-ci-token`; `preflight_variables` fails on that value) |
 | `CI_REGISTRY_TOKEN` | yes | no | Registry push credential; also the default for `GITLAB_API_TOKEN` and `BLABLADOR_API_TOKEN`. Despite that name it carries no API right: the REST API answers it with 401, so anything reading GitLab needs the token below |
-| `GITLAB_READ_API_TOKEN` | yes | no | Project access token, scope `read_api`, role Reporter. Reads pipeline status for `sweep_test_vms`; the two tokens a job already carries cannot (a job token may only `PUT` pipeline metadata) |
+| `GITLAB_READ_API_TOKEN` | yes | no | Project access token, scope `read_api`, role Reporter. Reads pipeline status for `sweep_deployment_vms`; the two tokens a job already carries cannot (a job token may only `PUT` pipeline metadata) |
 | `RELEASE_REGISTRY_URL` | no | yes | Release registry (release tag pipelines only) |
 | `RELEASE_REGISTRY_USER` | no | yes | Release deploy-token username |
 | `RELEASE_REGISTRY_TOKEN` | yes | yes | Release deploy-token secret |

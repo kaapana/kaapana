@@ -4,7 +4,10 @@ LABEL REGISTRY="local-only"
 LABEL IMAGE="base-installer"
 LABEL VERSION="latest"
 LABEL BUILD_IGNORE="False"
-LABEL BUILD_LIB_CONTEXT="True"
+# This image requires the kaapana/lib directory as a named build context.
+# The build script handles this automatically.
+# To build manually:
+#   docker build --build-context lib=<path-to-kaapana>/lib constraints=<path-to-kaapana>/constraints .
 
 COPY --from=lib kaapana_client /lib/kaapana_client
 COPY --from=constraints 0.7.0.txt /constraints.txt

@@ -3,7 +3,6 @@ FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="extension-api"
 LABEL BUILD_IGNORE="False"
-LABEL BUILD_LIB_CONTEXT="True"
 # This image requires the kaapana/lib directory as a named build context.
 # The build script handles this automatically.
 # To build manually:

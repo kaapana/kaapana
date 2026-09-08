@@ -4,7 +4,6 @@
   gather_facts: true
   become: false
 
-  remote_user: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_USER') }}"
   environment:
     http_proxy: "{{ lookup('ansible.builtin.env', 'HTTP_PROXY') }}"
     https_proxy: "{{ lookup('ansible.builtin.env', 'HTTPS_PROXY') }}"
@@ -70,7 +69,7 @@
     - name: Add user to microk8s group
       become: true
       ansible.builtin.user:
-        name: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_USER') }}"
+        name: "{{ ansible_user | default(ansible_facts['user_id'], true) }}"
         groups: microk8s
         append: true
 

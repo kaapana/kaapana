@@ -1,4 +1,5 @@
 ---
+# Out: artifacts/deployment.log, artifacts/system_check.log
 - name: Deploy Kaapana platform
   hosts: all
   gather_facts: true
@@ -15,6 +16,7 @@
     http_proxy: "{{ lookup('ansible.builtin.env', 'HTTP_PROXY') }}"
     https_proxy: "{{ lookup('ansible.builtin.env', 'HTTPS_PROXY') }}"
     ansible_python_interpreter: /usr/bin/python3
+    admin_chart: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_ADMIN_CHART') }}"
 
   environment:
     http_proxy: "{{ http_proxy }}"
@@ -38,6 +40,7 @@
       retries: 3
       delay: 5
       until: microk8s_status.rc == 0
+      changed_when: false
 
     - name: Check kubernetes API is healthy
       ansible.builtin.command: microk8s kubectl cluster-info
@@ -45,6 +48,7 @@
       retries: 3
       delay: 5
       until: cluster_info.rc == 0
+      changed_when: false
 
     - name: Check helm can access kubernetes
       ansible.builtin.command: helm ls -A
@@ -52,6 +56,7 @@
       retries: 3
       delay: 5
       until: helm_check.rc == 0
+      changed_when: false
 
     - name: Copy server installation script
       ansible.builtin.copy:
@@ -64,7 +69,7 @@
         cmd: >
           {{ ansible_facts['env']['HOME'] }}/kaapanactl.sh deploy
           --quiet
-          --chart {{ registry_url }}/kaapana-admin-chart:{{ version_tag }}
+          --chart {{ registry_url }}/{{ admin_chart }}:{{ version_tag }}
           --username {{ registry_user }}
           --password {{ registry_token }}
           --domain {{ vm_fqdn }}
@@ -87,7 +92,7 @@
         content: |
           Deployment Output
           =================
-          Command: {{ ansible_facts['env']['HOME'] }}/kaapanactl.sh deploy --quiet --chart {{ registry_url }}/kaapana-platform-chart:{{ version_tag }} --domain {{ vm_fqdn }} --platform-prefix {{ platform_prefix }}
+          Command: {{ ansible_facts['env']['HOME'] }}/kaapanactl.sh deploy --quiet --chart {{ registry_url }}/{{ admin_chart }}:{{ version_tag }} --domain {{ vm_fqdn }} --platform-prefix {{ platform_prefix }}
 
           STDOUT:
           {{ deploy_result.stdout | default('') }}
@@ -101,7 +106,13 @@
 
     - name: Fail if deployment failed
       ansible.builtin.fail:
-        msg: "Deployment failed with return code {{ deploy_result.rc }}"
+        msg: |
+          Deploying the platform on {{ vm_fqdn }} failed (rc={{ deploy_result.rc }}).
+
+          Last lines:
+          {{ (deploy_result.stdout_lines | default([]))[-20:] | join('\n') }}
+
+          Full output: artifacts/deployment.log
       when: deploy_result.rc != 0
 
     - name: Wait for all deployments to be healthy

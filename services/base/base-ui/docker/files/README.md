@@ -48,6 +48,11 @@ element, which costs ~174 kB of base64 inside `index.js` and buys zero font
 requests and nothing for a view to remember. `@mdi/font` is deliberately *not*
 handled this way — its webfont would add ~2 MB of base64.
 
+Roboto is SIL OFL-1.1, which asks every copy of the font to carry the copyright
+notice and the licence. `src/utils/roboto-license.txt` is prepended to the
+injected sheet so the text travels in the same string as the base64 — a file in
+`dist/` would not, since a view's Dockerfile copies only its own build output.
+
 Changing the family is not possible through the theme, for the same reason it has
 to be shipped: it takes recompiling Vuetify's Sass through `$body-font-family`.
 

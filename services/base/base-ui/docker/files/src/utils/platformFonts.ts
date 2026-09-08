@@ -18,9 +18,17 @@
 // Vuetify actually asks for are included: 400 appears 53 times in its stylesheet,
 // 500 thirty-five times, 300 fifteen. The remaining weights it names once each
 // (100/600/700/900) are left to the browser to synthesise.
+//
+// Roboto is SIL OFL-1.1, and clause 2 asks every copy of the font to carry the
+// copyright notice and the licence. The subsetted woff2 keeps only the copyright
+// line in its `name` table — Fontsource strips the licence entries — so the text
+// is vendored here and prepended to the injected sheet. It has to sit in the same
+// string as the base64: a file in `dist/` would never reach a user, since the
+// consuming view's Dockerfile copies only its own build output into the image.
 import roboto300 from '@fontsource/roboto/latin-300.css?inline'
 import roboto400 from '@fontsource/roboto/latin-400.css?inline'
 import roboto500 from '@fontsource/roboto/latin-500.css?inline'
+import robotoLicence from './roboto-license.txt?raw'
 
 const STYLE_ID = 'kaapana-platform-fonts'
 
@@ -36,6 +44,6 @@ export function injectPlatformFonts(): void {
   if (document.getElementById(STYLE_ID)) return
   const style = document.createElement('style')
   style.id = STYLE_ID
-  style.textContent = [roboto300, roboto400, roboto500].join('\n')
+  style.textContent = [`/*\n${robotoLicence}\n*/`, roboto300, roboto400, roboto500].join('\n')
   document.head.appendChild(style)
 }

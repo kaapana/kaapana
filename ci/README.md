@@ -52,7 +52,7 @@ Useful Attributes:
 | Nightly schedule | Full pipeline + security scan +|
 | Release tag `X.Y.Z` | Full pipeline, publishing to the release registry with a cold cache ([section 7](#7-releases)). |
 | Web UI / API / trigger | Always allowed; you pick the toggles. |
-| VM sweep schedule | `sweep_deployment_vms` only, because the schedule switches the other stages off (see recipes). |
+| VM sweep schedule | `sweep_deployment_vms` + ReadTheDocs check. The variables the schedule carries are in [section 3](#3-recipes). |
 
 **The nightly schedule** is a GitLab CI/CD Scheduled Pipeline. There are 2 pipelines set targeting `develop` and latest release.
 
@@ -109,12 +109,11 @@ limit) and reachable via SSH with the CI keypair. External VMs are never
 destroyed by the clean stage.
 
 **Keep the test VM to debug a failure.** Re-run with
-`CI_EXEC_DESTROY_DELAYED=true`. `destroy_deployment` then does not run at all
-and the VM is annotated as one to keep, which the sweep honours until
-`VM_SWEEP_KEEP_HOURS` past the end of the pipeline. Done earlier? Run the
-sweep with `VM_SWEEP_KEEP_HOURS=0` and it takes the VM right away. The wait
-lives in the sweep because GitLab cannot delay a job independently of whether
-the jobs it needs succeeded, and a failure is what you are here to debug.
+`CI_EXEC_DESTROY_DELAYED=true`: `destroy_deployment` does not run, and the
+sweep leaves the VM alone until `VM_SWEEP_KEEP_HOURS` after the pipeline
+ends. To get the capacity back sooner, run the sweep with
+`VM_SWEEP_KEEP_HOURS=0`. The grace period still applies, so a fresh VM stays
+either way.
 
 **Retrying deploy-stage jobs does NOT re-trigger teardown.** GitLab never
 cascades retries, so a `destroy_deployment` that already ran stays in its old
@@ -192,15 +191,20 @@ their names lack the `ci-` prefix. Which is the one rule this imposes: **a VM
 meant to stay in `kaapana-ci` must not be named `ci-*`**, or the sweep will
 eventually collect it.
 
-The unattended version is a pipeline schedule (CI/CD → Schedules) carrying
-`CI_EXEC_VM_SWEEP=true`, `VM_SWEEP_APPLY=true` and `CI_EXEC_UNIT_TESTS`,
-`CI_EXEC_BUILD`, `CI_EXEC_DEPLOY` and `CI_EXEC_INTEGRATION_TESTS` on
-`"false"`, so that the run holds the sweep and nothing else. It stops while
-`MAINTENANCE=true`, like every other schedule, so a paused CI collects leaked
-VMs until someone runs the sweep from the web UI. Daily is enough: the grace
-period and the keep window are what decide, not how often the sweep looks.
+For an unattended run, create a pipeline schedule (CI/CD → Schedules) on
+`develop` carrying `CI_EXEC_VM_SWEEP=true` and `VM_SWEEP_APPLY=true`, plus
+`CI_EXEC_UNIT_TESTS`, `CI_EXEC_BUILD`, `CI_EXEC_DEPLOY` and
+`CI_EXEC_INTEGRATION_TESTS` on `"false"`, so that no stage but maintenance
+runs. The run carries `check_readthedocs` as well, which no `CI_EXEC` toggle
+covers. Daily is enough, because the grace period and the keep window decide
+what goes, not how often the sweep runs.
+
+Like every schedule it is paused by `MAINTENANCE=true`, and leaked VMs pile
+up meanwhile. A web run with `CI_EXEC_VM_SWEEP=true` clears them without
+lifting the pause.
+
 The sweep reads pipeline status through `GITLAB_READ_API_TOKEN`
-([section 8](#8-project-cicd-variables-secrets)); without it the run ends on
+([section 8](#8-project-cicd-variables-secrets)). Without it the run ends on
 one line and touches nothing.
 
 **Pause the CI** — set project variable `MAINTENANCE=true`

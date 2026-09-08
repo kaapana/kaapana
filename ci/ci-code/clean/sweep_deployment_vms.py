@@ -126,9 +126,9 @@ def gitlab_project(server_url: str, project_id: str, api_token: str):
     the age limit would then sweep VMs of running pipelines. So this reads a
     pipeline, not just an endpoint, before any VM is looked at.
     """
-    project = gitlab.Gitlab(url=server_url, private_token=api_token).projects.get(
-        project_id, lazy=True
-    )
+    project = gitlab.Gitlab(
+        url=server_url, private_token=api_token, retry_transient_errors=True
+    ).projects.get(project_id, lazy=True)
     project.pipelines.list(per_page=1, get_all=False)
     return project
 
@@ -139,9 +139,13 @@ def pipeline_facts(project, pipeline_id: str) -> tuple[str, str] | None:
     finished_at is empty while the pipeline still runs.
     """
     try:
-        pipeline = project.pipelines.get(int(pipeline_id))
-    except (gitlab.exceptions.GitlabGetError, ValueError):
-        return None
+        pipeline = project.pipelines.get(pipeline_id)
+    except gitlab.exceptions.GitlabGetError as error:
+        if error.response_code == 404:
+            return None
+        # Any other error read as "unknown" would let the age limit delete the
+        # VM of a pipeline that is still running.
+        raise
     return pipeline.status, pipeline.finished_at or ""
 
 
@@ -220,11 +224,15 @@ def main() -> int:
         return 1
 
     namespace = os.environ["DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE"]
+    now = datetime.now(timezone.utc)
     try:
         project = gitlab_project(
             os.environ["CI_SERVER_URL"],
             os.environ["CI_PROJECT_ID"],
             os.environ["GITLAB_READ_API_TOKEN"],
+        )
+        candidates = collect(
+            os.environ["HARVESTER_KUBECONFIG"], namespace, project, now
         )
     except gitlab.exceptions.GitlabError as error:
         print(
@@ -233,9 +241,6 @@ def main() -> int:
             "still needs, so it touched nothing."
         )
         return 1
-
-    now = datetime.now(timezone.utc)
-    candidates = collect(os.environ["HARVESTER_KUBECONFIG"], namespace, project, now)
 
     vms: list[dict] = []
     for candidate in candidates:

@@ -470,7 +470,7 @@ initial focus to the safe action.
 Views embedded in :code:`portal-ui` must also report their combined dirty state through
 :code:`postViewDirty(dirty)` from :code:`@kaapana/base-ui`. Include unsaved work in open
 dialogs when changing the project or replacing the view would discard that work.
-See :doc:`Reporting Unsaved Changes (kaapana:view-dirty) <landing_page_integration>`.
+See :ref:`Reporting Unsaved Changes (kaapana:view-dirty) <view_dirty>`.
 
 The portal uses this state to protect shell-controlled navigation, such as
 switching projects, opening another application, or using the shell's refresh

@@ -1,13 +1,15 @@
 # conftest.py
 import logging
 import os
+import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
 import pytest_asyncio
 import urllib3
-from integration_tests.data import DataEndpoints
+from integration_tests.data import DataEndpoints, cloned_repo_dirs
 from integration_tests.extensions import ExtensionEndpoints
 from integration_tests.utils.KaapanaPlaywrightDriver import (
     KaapanaPlaywrightDriver,
@@ -54,6 +56,20 @@ def pytest_addoption(parser):
     )
     parser.addoption(
         "--force-download", action="store_true", help="Force dataset re-download"
+    )
+    parser.addoption(
+        "--test-data-cache-dir",
+        default=None,
+        help="Directory of <dataset>/<series-uid>.zip archives read before any "
+        "remote source and populated from them. CI points it at a host volume "
+        "shared by every job on the runner.",
+    )
+    parser.addoption(
+        "--test-data-repo-dir",
+        action="append",
+        default=None,
+        help="Directory of <dataset>/<series-uid>.zip archives that already "
+        "exists, tried after the cache instead of cloning. Repeat for several.",
     )
     parser.addoption(
         "--files", nargs="*", default=None, help="Specific test files to collect"
@@ -120,6 +136,10 @@ def get_download_directory(config) -> Path:
         or os.getenv("DOWNLOAD_DIRECTORY")
         or (Path(__file__).parent.parent / "data" / "download-file").resolve()
     )
+
+
+def get_test_data_cache_dir(config):
+    return config.getoption("--test-data-cache-dir")
 
 
 def get_json_extension_params(config):
@@ -190,6 +210,24 @@ def json_extension_params(pytestconfig):
 @pytest.fixture
 def force_download(pytestconfig):
     return pytestconfig.getoption("--force-download", False)
+
+
+@pytest.fixture(scope="session")
+def test_data_cache_dir(pytestconfig):
+    return get_test_data_cache_dir(pytestconfig)
+
+
+@pytest.fixture(scope="session")
+def test_data_repo_dirs(pytestconfig):
+    """Resolved on call, not here, so a warm cache never triggers a clone."""
+    preexisting = pytestconfig.getoption("--test-data-repo-dir")
+    if preexisting:
+        yield lambda: list(preexisting)
+        return
+    spec = os.getenv("CI_TEST_DATA_REPOS", "")
+    clone_root = tempfile.mkdtemp(prefix="test-data-repos-")
+    yield lambda: list(cloned_repo_dirs(spec, clone_root))
+    shutil.rmtree(clone_root, ignore_errors=True)
 
 
 @pytest.fixture(scope="session")

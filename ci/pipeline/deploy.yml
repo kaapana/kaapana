@@ -4,6 +4,8 @@ spec:
       type: boolean
     exec_server_installation:
       type: boolean
+    exec_redeploy:
+      type: boolean
     build_arguments:
       type: string
     runner_tag:
@@ -11,7 +13,7 @@ spec:
 ---
 # Stage: deploy — test VM lifecycle start + platform installation
 # In:  registry (chart/images @ VERSION_TAG); HARVESTER_KUBECONFIG +
-#      CI_SSH_PRIVATE_KEY (File-type CI variables)
+#      DEPLOYMENT_INSTANCE_SSH_KEY (File-type CI variables)
 # Out: artifacts/deployment.env (dotenv: VM_FQDN, VM_USER, VERSION_TAG) —
 #      the single source of "where is the test system" for all later jobs;
 #      the running platform on the VM (checked, not passed)
@@ -30,12 +32,11 @@ spec:
     name: $REGISTRY_ENV
   variables:
     ANSIBLE_HOST_KEY_CHECKING: "False"
+    ANSIBLE_FORCE_COLOR: "true"
+    CI_EXEC_REDEPLOY: "$[[ inputs.exec_redeploy ]]" # read by the playbooks
+  # preflight_target references this before_script — keep it self-contained.
   before_script:
-    - mkdir -p "$ARTIFACTS_DIR"
-    # ssh refuses group/world-readable keys; File variables arrive too open
-    - chmod 600 "$CI_SSH_PRIVATE_KEY"
-    - export VM_FQDN="${VM_FQDN:-$DEPLOYMENT_INSTANCE_FQDN}"
-    - export VM_USER="${VM_USER:-$DEPLOYMENT_INSTANCE_USER}"
+    - chmod 600 "$DEPLOYMENT_INSTANCE_SSH_KEY"
 
 ##############################################
 
@@ -95,6 +96,7 @@ prepare_deployment:
     - echo "VERSION_TAG=$VERSION_TAG" >> artifacts/deployment.env
 
   artifacts:
+    expire_in: 2 weeks
     when: always
     paths:
       - artifacts/deployment.env
@@ -120,8 +122,9 @@ server_installation:
       ansible-playbook "$CI_PROJECT_DIR/ci/ci-code/deploy/server_installation.yaml" \
         -i "$VM_FQDN," \
         -u "$VM_USER" \
-        --private-key "$CI_SSH_PRIVATE_KEY"
+        --private-key "$DEPLOYMENT_INSTANCE_SSH_KEY"
   artifacts:
+    expire_in: 2 weeks
     paths:
       - "artifacts/server_installation.log"
     when: always
@@ -144,10 +147,17 @@ platform_deployment:
         exit 1
       fi
     - |
+      if [ "$CI_EXEC_REDEPLOY" = "true" ]; then
+        ansible-playbook "$CI_PROJECT_DIR/ci/ci-code/deploy/undeploy_platform.yaml" \
+          -i "$VM_FQDN," \
+          -u "$VM_USER" \
+          --private-key "$DEPLOYMENT_INSTANCE_SSH_KEY"
+      fi
+    - |
       ansible-playbook "$CI_PROJECT_DIR/ci/ci-code/deploy/deploy_platform.yaml" \
         -i "$VM_FQDN," \
         -u "$VM_USER" \
-        --private-key "$CI_SSH_PRIVATE_KEY"
+        --private-key "$DEPLOYMENT_INSTANCE_SSH_KEY"
 
     - echo "Kaapana Platform Deployed Successfully"
     - echo "Access the platform at https://$VM_FQDN"
@@ -163,8 +173,10 @@ platform_deployment:
       when: on_success
     - when: never
   artifacts:
+    expire_in: 2 weeks
     paths:
       - "artifacts/deployment.log"
+      - "artifacts/undeploy.log"
       - "artifacts/system_check.log"
       - "artifacts/deployment.html"
     when: always

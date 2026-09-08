@@ -25,7 +25,11 @@ spec:
     exec_server_installation:
       default: true
       type: boolean
-      description: "[exec] false skips the OS/microk8s install on the target"
+      description: "[exec] false skips the OS/microk8s install and runs target_readiness instead"
+    exec_redeploy:
+      default: false
+      type: boolean
+      description: "[exec] true undeploys a platform already on the target, false fails the job"
     exec_integration_tests:
       default: true
       type: boolean
@@ -151,6 +155,11 @@ variables:
   # existing machine instead, which the clean stage never destroys.
   DEPLOYMENT_INSTANCE_FQDN: "$[[ inputs.deployment_fqdn ]]"
   DEPLOYMENT_INSTANCE_USER: "$[[ inputs.deployment_user ]]"
+  # ssh key for user to change when deploying on its own target, with description in the project variable. The key must be in the user's authorized_keys. 
+  DEPLOYMENT_INSTANCE_SSH_KEY:
+    description: "SSH private key for the deployment target user (must match the public key in authorized_keys)"
+
+
   # vm_name is truncated in the provisioning playbook so the FQDN
   # (<vm_name>.<domain>) stays within the 57-char dcmsend peerhost limit.
   DEPLOYMENT_INSTANCE_VM_NAME: "ci-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"
@@ -162,13 +171,13 @@ variables:
   DEPLOYMENT_INSTANCE_NETWORK: "harvester-public/dkfz-net"
   DEPLOYMENT_INSTANCE_STORAGE_CLASS: "px-fa-direct-access"
   DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE: "kaapana-ci"
-  DEPLOYMENT_INSTANCE_SSH_KEYPAIR: "kaapana" # Harvester KeyPair resource in the namespace
+  DEPLOYMENT_INSTANCE_HARVESTER_KEYPAIR: "kaapana" # Harvester KeyPair resource in the namespace
   DEPLOYMENT_INSTANCE_PLATFORM_PREFIX: "ci-dep" # project namespaces become <prefix>-project-<short_id>
-
-  # --- Deploy-stage credentials: File-type project variables (the runner
-  # writes the value to a temp file, the variable holds that file's path):
-  #   HARVESTER_KUBECONFIG — Harvester cluster access (VM lifecycle)
-  #   CI_SSH_PRIVATE_KEY   — private key matching the Harvester "kaapana" KeyPair
+  # kaapanactl's own defaults (kaapanactl.sh, load_kaapana_config): the helm
+  # release is named after the chart and installed into HELM_NAMESPACE=default.
+  # The deploy/undeploy playbooks look the release up under these names.
+  DEPLOYMENT_INSTANCE_ADMIN_CHART: "kaapana-admin-chart"
+  DEPLOYMENT_INSTANCE_HELM_NAMESPACE: "default"
 
   # --- Notifications (if_ci_failing on develop)
   SLACK_BOT_TOKEN: $SLACK_BOT_TOKEN # secret — project variable (masked)
@@ -203,6 +212,8 @@ include:
       runner_tag: $[[ inputs.tests_runner_tag ]]
       exec_build: $[[ inputs.exec_build ]]
       exec_deploy: $[[ inputs.exec_deploy ]]
+      exec_server_installation: $[[ inputs.exec_server_installation ]]
+      exec_redeploy: $[[ inputs.exec_redeploy ]]
   - local: /ci/pipeline/ci-image.yml
     inputs:
       runner_tag: $[[ inputs.build_runner_tag ]]
@@ -226,6 +237,7 @@ include:
       runner_tag: $[[ inputs.deploy_runner_tag ]]
       exec_deploy: $[[ inputs.exec_deploy ]]
       exec_server_installation: $[[ inputs.exec_server_installation ]]
+      exec_redeploy: $[[ inputs.exec_redeploy ]]
       build_arguments: $[[ inputs.exec_build_arguments ]]
   - local: /ci/pipeline/integration-tests.yml
     inputs:

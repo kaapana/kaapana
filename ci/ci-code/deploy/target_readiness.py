@@ -1,0 +1,776 @@
+#!/usr/bin/env python3
+"""Readiness check for a Kaapana deployment target.
+
+Runs on the target as the deploying SSH user. Every check is read-only and
+needs no sudo. Anything that needs root belongs in server_installation.yaml.
+
+Table on stdout and --log. Exit 1 means a fatal check failed.
+"""
+
+import argparse
+import getpass
+import grp
+import json
+import os
+import re
+import shutil
+import socket
+import subprocess
+import sys
+
+# A fatal check blocks the deployment, a warning is only reported.
+FATAL = "fatal"
+WARNING = "warning"
+
+PASSED = "passed"
+FAILED = "failed"
+WARNED = "warning"
+SKIPPED = "skipped"
+
+# snap binaries are missing from the PATH of some non-interactive SSH sessions.
+EXTRA_PATH = ("/snap/bin", "/usr/local/bin")
+
+# Written into the --log file only when --color is passed: the CI job cats
+# that file, so the colors have to survive the trip through the artifact.
+_COLORS = {
+    FAILED: "\033[31m",  # red
+    WARNED: "\033[33m",  # yellow
+    SKIPPED: "\033[90m",  # grey
+    PASSED: "\033[32m",  # green
+}
+_BOLD = "\033[1m"
+_RESET = "\033[0m"
+
+# Worst first, so the reason for a failure is the first thing in the table.
+STATUS_ORDER = (FAILED, WARNED, SKIPPED, PASSED)
+
+MICROK8S_APISERVER_ARGS = "/var/snap/microk8s/current/args/kube-apiserver"
+
+# kaapanactl.sh deploys this release into this namespace (PLATFORM_NAME in
+# HELM_NAMESPACE) and keeps the platform prefix in its values.
+ADMIN_CHART_RELEASE = "kaapana-admin-chart"
+HELM_NAMESPACE = "default"
+
+
+class Report:
+    def __init__(self):
+        self.checks = []
+
+    def add(self, name, title, status, severity, details="", remediation=""):
+        if status == FAILED and severity == WARNING:
+            status = WARNED
+        self.checks.append(
+            {
+                "name": name,
+                "title": title,
+                "status": status,
+                "severity": severity,
+                "details": details,
+                "remediation": remediation if status in (FAILED, WARNED) else "",
+            }
+        )
+        return status
+
+    def counts(self, status):
+        return len([c for c in self.checks if c["status"] == status])
+
+    @property
+    def ready(self):
+        return self.counts(FAILED) == 0
+
+    def summary(self):
+        return {
+            "passed": self.counts(PASSED),
+            "warnings": self.counts(WARNED),
+            "failed": self.counts(FAILED),
+            "skipped": self.counts(SKIPPED),
+        }
+
+    def table(self, color=False):
+        def paint(text, status, bold=False):
+            if not color:
+                return text
+            return f"{_BOLD if bold else ''}{_COLORS[status]}{text}{_RESET}"
+
+        lines = [
+            "Kaapana target readiness",
+            "========================",
+            f"{'STATUS':<8} {'SEV':<8} {'CHECK':<52} DETAILS",
+        ]
+        for status in STATUS_ORDER:
+            for check in [c for c in self.checks if c["status"] == status]:
+                lines.append(
+                    f"{paint(f'{status:<8}', status)} {check['severity']:<8} "
+                    f"{check['title'][:52]:<52} {check['details']}"
+                )
+                if check["remediation"]:
+                    lines.append(f"{'':<8} {'':<8} -> {check['remediation']}")
+        summary = self.summary()
+        lines += [
+            "",
+            f"failed: {paint(summary['failed'], FAILED) if summary['failed'] else 0}  "
+            f"warnings: {paint(summary['warnings'], WARNED) if summary['warnings'] else 0}  "
+            f"skipped: {summary['skipped']}  passed: {summary['passed']}",
+            (
+                paint("TARGET READY", PASSED, bold=True)
+                if self.ready
+                else paint("TARGET NOT READY", FAILED, bold=True)
+            ),
+        ]
+        return "\n".join(lines)
+
+
+def run(cmd, timeout=60):
+    """Run a command, never raise. Returns (rc, stdout, stderr)."""
+    try:
+        proc = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=timeout, check=False
+        )
+        return proc.returncode, (proc.stdout or "").strip(), (proc.stderr or "").strip()
+    except FileNotFoundError:
+        return 127, "", f"{cmd[0]}: command not found"
+    except subprocess.TimeoutExpired:
+        return 124, "", f"{' '.join(cmd)}: timed out after {timeout}s"
+    except OSError as exc:
+        return 126, "", f"{cmd[0]}: {exc}"
+
+
+def read_int(path):
+    try:
+        with open(path) as handle:
+            return int(handle.read().strip())
+    except (OSError, ValueError):
+        return None
+
+
+def check_binary(report, name, binary, remediation, severity=FATAL):
+    path = shutil.which(binary)
+    report.add(
+        name,
+        f"{binary} is installed",
+        PASSED if path else FAILED,
+        severity,
+        details=path or f"{binary} not found in PATH ({os.environ.get('PATH', '')})",
+        remediation=remediation,
+    )
+    return path
+
+
+def check_home_writable(report):
+    home = os.path.expanduser("~")
+    writable = os.path.isdir(home) and os.access(home, os.W_OK)
+    report.add(
+        "home_writable",
+        "Home directory of the SSH user is writable",
+        PASSED if writable else FAILED,
+        FATAL,
+        details=f"HOME={home}",
+        remediation=(
+            "The deployment copies kaapanactl.sh into the home directory of the "
+            "SSH user and runs it from there. Fix the ownership of "
+            f"{home} or deploy as another user."
+        ),
+    )
+
+
+def check_microk8s_group(report):
+    user = getpass.getuser()
+    try:
+        group = grp.getgrnam("microk8s")
+    except KeyError:
+        report.add(
+            "microk8s_group",
+            "SSH user is a member of the microk8s group",
+            FAILED,
+            FATAL,
+            details="the group 'microk8s' does not exist on the target",
+            remediation=(
+                "microk8s is not installed. Re-run the pipeline with "
+                "'-i exec_server_installation:true', or install microk8s on "
+                "the target with 'sudo ./kaapanactl.sh install'."
+            ),
+        )
+        return
+
+    listed = user in group.gr_mem
+    effective = group.gr_gid in os.getgroups()
+    if effective:
+        status, details, remediation = PASSED, f"user '{user}'", ""
+    elif listed:
+        status = FAILED
+        details = f"user '{user}' is in /etc/group, but not in this SSH session"
+        remediation = (
+            "The group membership is not active yet. Reconnect the SSH session "
+            "or reboot the target ('newgrp microk8s' only fixes the local shell)."
+        )
+    else:
+        status = FAILED
+        details = f"user '{user}' is not a member of the microk8s group"
+        remediation = (
+            f"On the target: sudo usermod -a -G microk8s {user}, then reconnect. "
+            "Without it every microk8s call needs sudo and the deployment fails."
+        )
+    report.add(
+        "microk8s_group",
+        "SSH user is a member of the microk8s group",
+        status,
+        # Listed but not active: the microk8s checks below decide.
+        FATAL if not listed else WARNING,
+        details=details,
+        remediation=remediation,
+    )
+
+
+def check_microk8s_ready(report, microk8s, timeout):
+    if not microk8s:
+        report.add(
+            "microk8s_ready",
+            "microk8s is up and ready",
+            SKIPPED,
+            FATAL,
+            details="microk8s not installed",
+        )
+        return
+    rc, out, err = run(
+        [microk8s, "status", "--wait-ready", "--timeout", str(timeout)],
+        timeout=timeout + 30,
+    )
+    first_line = (out or err).splitlines()[0] if (out or err) else ""
+    report.add(
+        "microk8s_ready",
+        "microk8s is up and ready",
+        PASSED if rc == 0 else FAILED,
+        FATAL,
+        details=first_line,
+        remediation=(
+            "On the target: 'microk8s start' and 'microk8s status --wait-ready'. "
+            "A permission error here means the SSH user is not in the microk8s "
+            "group (see the group check above)."
+        ),
+    )
+
+
+def check_kubernetes_api(report, microk8s):
+    if not microk8s:
+        report.add(
+            "kubernetes_api",
+            "Kubernetes API answers without sudo",
+            SKIPPED,
+            FATAL,
+            details="microk8s not installed",
+        )
+        return
+    rc, out, err = run(
+        [microk8s, "kubectl", "get", "nodes", "--no-headers"], timeout=120
+    )
+    node_ready = rc == 0 and any(
+        line.split()[1].startswith("Ready")
+        for line in out.splitlines()
+        if len(line.split()) > 1
+    )
+    report.add(
+        "kubernetes_api",
+        "Kubernetes API answers without sudo and the node is Ready",
+        PASSED if node_ready else FAILED,
+        FATAL,
+        details=out.replace("\n", "; ") if rc == 0 else err,
+        remediation=(
+            "Check 'microk8s kubectl get nodes' on the target. A working API but "
+            "a NotReady node usually means the CNI or DNS addon is broken."
+        ),
+    )
+
+
+def check_helm(report, helm):
+    if not helm:
+        report.add(
+            "helm_cluster_access",
+            "helm reaches the cluster",
+            SKIPPED,
+            FATAL,
+            details="helm not installed",
+        )
+        return False
+
+    rc, out, err = run([helm, "ls", "-A", "-o", "json"], timeout=180)
+    releases = []
+    if rc == 0:
+        try:
+            releases = json.loads(out or "[]")
+        except json.JSONDecodeError as exc:
+            rc, err = 1, f"unreadable helm output: {exc}"
+    report.add(
+        "helm_cluster_access",
+        "helm reaches the cluster",
+        PASSED if rc == 0 else FAILED,
+        FATAL,
+        details=f"{len(releases)} release(s) installed" if rc == 0 else err,
+        remediation=(
+            "helm talks to the cluster through ~/.kube/config. Refresh it with "
+            "'microk8s kubectl config view --raw > ~/.kube/config' on the target."
+        ),
+    )
+    return rc == 0
+
+
+def check_existing_platform(report, helm, redeploy):
+    """The gate kaapanactl uses before it deploys: is its admin chart release
+    there? The platform prefix comes from that release, as in
+    get_platform_prefix_from_release."""
+    title = "Existing Kaapana platform on the target"
+    if not helm:
+        report.add(
+            "existing_platform", title, SKIPPED, WARNING, details="helm not installed"
+        )
+        return None
+
+    rc, out, _ = run(
+        [
+            helm,
+            "-n",
+            HELM_NAMESPACE,
+            "get",
+            "values",
+            ADMIN_CHART_RELEASE,
+            "-o",
+            "json",
+        ],
+        timeout=120,
+    )
+    if rc != 0:
+        report.add("existing_platform", title, PASSED, WARNING, details="none")
+        return None
+
+    prefix = ""
+    try:
+        # helm prints the literal `null` when the release carries no
+        # user-supplied values, so json.loads gives None, not a dict.
+        values = json.loads(out or "{}") or {}
+    except json.JSONDecodeError:
+        values = {}
+    if isinstance(values, dict):
+        prefix = (values.get("global") or {}).get("platform_prefix") or ""
+    report.add(
+        "existing_platform",
+        title,
+        FAILED,
+        WARNING if redeploy else FATAL,
+        details=f"release {ADMIN_CHART_RELEASE} in namespace {HELM_NAMESPACE}, "
+        f"platform prefix '{prefix or 'unknown'}'",
+        remediation=(
+            "platform_deployment undeploys it first."
+            if redeploy
+            else "Undeploy it on the target: './kaapanactl.sh deploy --undeploy', "
+            "or re-run with '-i exec_redeploy:true'."
+        ),
+    )
+    return prefix or ADMIN_CHART_RELEASE
+
+
+def check_node_port_range(report, required_ports):
+    """The platform publishes NodePorts far below the k8s default range."""
+    try:
+        with open(MICROK8S_APISERVER_ARGS) as handle:
+            args = handle.read()
+    except OSError as exc:
+        report.add(
+            "node_port_range",
+            "microk8s NodePort range covers the platform ports",
+            SKIPPED,
+            FATAL,
+            details=f"{MICROK8S_APISERVER_ARGS}: {exc}",
+        )
+        return
+
+    match = re.search(r"--service-node-port-range=(\d+)-(\d+)", args)
+    if match:
+        low, high = int(match.group(1)), int(match.group(2))
+        outside = [port for port in required_ports if not low <= port <= high]
+    else:
+        low, high, outside = None, None, list(required_ports)
+    configured = f"{low}-{high}" if match else "not set (k8s default 30000-32767)"
+    report.add(
+        "node_port_range",
+        "microk8s NodePort range covers the platform ports",
+        PASSED if not outside else FAILED,
+        FATAL,
+        details=f"configured: {configured}; needed: "
+        f"{','.join(str(port) for port in required_ports)}",
+        remediation=(
+            "Add '--service-node-port-range=80-32000' to "
+            f"{MICROK8S_APISERVER_ARGS} and restart microk8s "
+            "('microk8s stop && microk8s start'); without it the platform "
+            "services are rejected by the API server."
+        ),
+    )
+
+
+def listening_ports():
+    """Map of listening TCP port -> local address, or None if ss is unavailable."""
+    ss = shutil.which("ss")
+    if not ss:
+        return None
+    rc, out, _ = run([ss, "-H", "-ltn"])
+    if rc != 0:
+        rc, out, _ = run([ss, "-ltn"])
+    if rc != 0:
+        return None
+    ports = {}
+    for line in out.splitlines():
+        fields = line.split()
+        if len(fields) < 4 or fields[0] == "State":
+            continue
+        port = fields[3].rsplit(":", 1)[-1]
+        if port.isdigit():
+            ports.setdefault(int(port), fields[3])
+    return ports
+
+
+def check_ports_free(report, required_ports, existing_platform):
+    ports = listening_ports()
+    if ports is None:
+        report.add(
+            "ports_free",
+            "Platform host ports are free",
+            SKIPPED,
+            FATAL,
+            details="'ss' is not available on the target",
+        )
+        return
+
+    busy = {port: address for port, address in ports.items() if port in required_ports}
+    if not busy:
+        report.add(
+            "ports_free",
+            "Platform host ports are free",
+            PASSED,
+            FATAL,
+            details=f"{','.join(str(port) for port in required_ports)} unused",
+        )
+        return
+
+    listed = ", ".join(f"{port} ({address})" for port, address in sorted(busy.items()))
+    if existing_platform:
+        report.add(
+            "ports_free",
+            "Platform host ports are free",
+            FAILED,
+            WARNING,
+            details=f"in use by the platform already deployed here: {listed}",
+            remediation=(
+                "These ports are released when that platform is undeployed, "
+                "which platform_deployment does when the pipeline runs with "
+                "'-i exec_redeploy:true'."
+            ),
+        )
+    else:
+        report.add(
+            "ports_free",
+            "Platform host ports are free",
+            FAILED,
+            FATAL,
+            details=f"already in use: {listed}",
+            remediation=(
+                "Stop whatever listens on these ports (find it with "
+                "'sudo ss -ltnp'); the platform publishes them as NodePorts and "
+                "cannot share them."
+            ),
+        )
+
+
+def check_sysctl(report, name, title, path, minimum, severity):
+    value = read_int(path)
+    if value is None:
+        report.add(name, title, SKIPPED, severity, details=f"{path} not readable")
+        return
+    report.add(
+        name,
+        title,
+        PASSED if value >= minimum else FAILED,
+        severity,
+        details=f"{value} (needed: {minimum})",
+        remediation=(
+            f"On the target: sudo sysctl -w {os.path.relpath(path, '/proc/sys').replace('/', '.')}"
+            f"={minimum} (and add it to /etc/sysctl.conf to survive a reboot)."
+        ),
+    )
+
+
+def check_disk_space(report, min_gib):
+    path = next((p for p in ("/var/snap", "/var", "/") if os.path.isdir(p)), "/")
+    stat = os.statvfs(path)
+    free_gib = stat.f_bavail * stat.f_frsize / 1024**3
+    report.add(
+        "disk_space",
+        "Enough free disk space for the container images",
+        PASSED if free_gib >= min_gib else FAILED,
+        FATAL,
+        details=f"{free_gib:.1f} GiB free at {path} (needed: {min_gib} GiB)",
+        remediation=(
+            "The platform images need this space under /var/snap. Free space on "
+            "the target or deploy on a bigger machine."
+        ),
+    )
+
+
+def check_domain_resolves(report, domain):
+    if not domain:
+        report.add(
+            "domain_resolves",
+            "Platform domain resolves on the target",
+            SKIPPED,
+            WARNING,
+            details="no domain passed",
+        )
+        return
+    try:
+        addresses = sorted({info[4][0] for info in socket.getaddrinfo(domain, None)})
+        status, details = PASSED, f"{domain} -> {', '.join(addresses)}"
+        remediation = ""
+    except socket.gaierror as exc:
+        status, details = FAILED, f"{domain}: {exc}"
+        remediation = (
+            "The platform certificate and the CoreDNS rewrite use this name. "
+            "An unresolvable name still deploys but breaks in-cluster access to "
+            "the platform URL."
+        )
+    report.add(
+        "domain_resolves",
+        "Platform domain resolves on the target",
+        status,
+        WARNING,
+        details=details,
+        remediation=remediation,
+    )
+
+
+def check_not_root(report):
+    """kaapanactl refuses to deploy as root (its own preflight, severity 200)."""
+    is_root = os.geteuid() == 0
+    report.add(
+        "not_root",
+        "SSH user is not root",
+        FAILED if is_root else PASSED,
+        FATAL,
+        details=f"user '{getpass.getuser()}' (uid {os.geteuid()})",
+        remediation=(
+            "Deploy as a normal user that is a member of the microk8s group. "
+            "kaapanactl.sh exits when it is started as root."
+        ),
+    )
+
+
+def check_kubeconfig_env(report):
+    """A KUBECONFIG in the environment overrides ~/.kube/config for helm."""
+    value = os.environ.get("KUBECONFIG", "")
+    report.add(
+        "kubeconfig_env",
+        "KUBECONFIG is unset",
+        FAILED if value else PASSED,
+        WARNING,
+        # Only what this SSH session exports: a non-interactive session reads
+        # no profile, so a KUBECONFIG set in .bashrc stays invisible here.
+        details=f"KUBECONFIG={value}" if value else "not set",
+        remediation=(
+            "helm and kubectl read this instead of ~/.kube/config. Unset it "
+            "for the deploying user unless it points at this cluster."
+        ),
+    )
+
+
+def _kubeconfig_view(microk8s, path=""):
+    cmd = [microk8s, "kubectl"]
+    if path:
+        cmd += ["--kubeconfig", path]
+    rc, out, _ = run(cmd + ["config", "view", "--raw"], timeout=120)
+    return out if rc == 0 else ""
+
+
+def _kube_system_uid(microk8s, path=""):
+    cmd = [microk8s, "kubectl"]
+    if path:
+        cmd += ["--kubeconfig", path]
+    rc, out, _ = run(
+        cmd + ["get", "namespace", "kube-system", "-o", "jsonpath={.metadata.uid}"],
+        timeout=120,
+    )
+    return out if rc == 0 else ""
+
+
+def check_kubeconfig_matches_cluster(report, microk8s):
+    """Same check kaapanactl does: the deploying user's kubeconfig must talk to
+    this microk8s, not to some other cluster. A differing server address is
+    allowed as long as both configs reach the same kube-system namespace."""
+    title = "~/.kube/config talks to this microk8s cluster"
+    if not microk8s:
+        report.add(
+            "kubeconfig_matches",
+            title,
+            SKIPPED,
+            WARNING,
+            details="microk8s not installed",
+        )
+        return
+
+    # expanduser, not /home/<user>: system users live elsewhere.
+    user_config_path = os.path.expanduser("~/.kube/config")
+    if not os.path.isfile(user_config_path):
+        report.add(
+            "kubeconfig_matches",
+            title,
+            FAILED,
+            WARNING,
+            details=f"{user_config_path} does not exist",
+            remediation=(
+                "Write it on the target: 'microk8s kubectl config view --raw "
+                "> ~/.kube/config'."
+            ),
+        )
+        return
+
+    user_config = _kubeconfig_view(microk8s, user_config_path)
+    microk8s_config = _kubeconfig_view(microk8s)
+    matches = bool(user_config) and user_config == microk8s_config
+    if not matches:
+        def same_host(text):
+            return re.sub(
+                r"^(\s*server:\s*https://)[^:]+(:\d+)$",
+                r"\1<host>\2",
+                text,
+                flags=re.M,
+            )
+
+        if same_host(user_config) == same_host(microk8s_config):
+            user_uid = _kube_system_uid(microk8s, user_config_path)
+            matches = bool(user_uid) and user_uid == _kube_system_uid(microk8s)
+    report.add(
+        "kubeconfig_matches",
+        title,
+        PASSED if matches else FAILED,
+        WARNING,
+        details=user_config_path if matches else f"{user_config_path} differs",
+        remediation=(
+            ""
+            if matches
+            else "The config differs from the microk8s one beyond its server "
+            "address, or points at another cluster. Refresh it with 'microk8s "
+            "kubectl config view --raw > ~/.kube/config'."
+        ),
+    )
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--domain", default="", help="FQDN the platform is deployed under"
+    )
+    parser.add_argument(
+        "--required-ports",
+        default="80,443,11112",
+        help="host ports the platform publishes (default: 80,443,11112)",
+    )
+    parser.add_argument("--min-disk-gib", type=int, default=80)
+    parser.add_argument(
+        "--redeploy",
+        default="false",
+        help="whether the deployment may replace a platform found here "
+        "(CI_EXEC_REDEPLOY); 'false' makes finding one a fatal check",
+    )
+    parser.add_argument(
+        "--microk8s-timeout",
+        type=int,
+        default=120,
+        help="seconds to wait for 'microk8s status --wait-ready'",
+    )
+    parser.add_argument(
+        "--log",
+        default="",
+        help="write the table to this file as well",
+    )
+    parser.add_argument(
+        "--color",
+        action="store_true",
+        help="put ANSI colors in the --log file (it is kept as a CI artifact)",
+    )
+    args = parser.parse_args()
+
+    os.environ["PATH"] = os.pathsep.join(
+        [os.environ.get("PATH", "")] + [p for p in EXTRA_PATH if os.path.isdir(p)]
+    )
+    required_ports = [
+        int(port) for port in args.required_ports.split(",") if port.strip()
+    ]
+
+    report = Report()
+    check_home_writable(report)
+    check_not_root(report)
+    microk8s = check_binary(
+        report,
+        "microk8s_installed",
+        "microk8s",
+        "Re-run the pipeline with '-i exec_server_installation:true', or "
+        "install microk8s on the target with 'sudo ./kaapanactl.sh install'.",
+    )
+    helm = check_binary(
+        report,
+        "helm_installed",
+        "helm",
+        "Install helm on the target ('sudo snap install helm --classic'), or "
+        "re-run the pipeline with '-i exec_server_installation:true'.",
+    )
+    check_binary(
+        report,
+        "jq_installed",
+        "jq",
+        "kaapanactl.sh parses helm and kubectl output with jq. Install it "
+        "('sudo apt-get install -y jq').",
+    )
+    check_microk8s_group(report)
+    check_microk8s_ready(report, microk8s, args.microk8s_timeout)
+    check_kubernetes_api(report, microk8s)
+    check_kubeconfig_env(report)
+    check_kubeconfig_matches_cluster(report, microk8s)
+    helm_works = check_helm(report, helm)
+    existing_platform = check_existing_platform(
+        report, helm if helm_works else "", args.redeploy.strip().lower() == "true"
+    )
+    check_node_port_range(report, required_ports)
+    check_ports_free(report, required_ports, existing_platform)
+    check_sysctl(
+        report,
+        "vm_max_map_count",
+        "vm.max_map_count is raised for OpenSearch",
+        "/proc/sys/vm/max_map_count",
+        262144,
+        FATAL,
+    )
+    check_sysctl(
+        report,
+        "inotify_watches",
+        "inotify watch limit is raised",
+        "/proc/sys/fs/inotify/max_user_watches",
+        10000,
+        WARNING,
+    )
+    check_sysctl(
+        report,
+        "inotify_instances",
+        "inotify instance limit is raised",
+        "/proc/sys/fs/inotify/max_user_instances",
+        10000,
+        WARNING,
+    )
+    check_disk_space(report, args.min_disk_gib)
+    check_domain_resolves(report, args.domain)
+
+    print(report.table())
+    # A file, not stdout: ansible captures the output through a pty, which
+    # mangles the escape sequences.
+    if args.log:
+        with open(args.log, "w") as handle:
+            handle.write(report.table(color=args.color) + "\n")
+    return 0 if report.ready else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

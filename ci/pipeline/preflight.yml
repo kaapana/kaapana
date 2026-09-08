@@ -4,13 +4,17 @@ spec:
       type: boolean
     exec_deploy:
       type: boolean
+    exec_server_installation:
+      type: boolean
+    exec_redeploy:
+      type: boolean
     runner_tag:
       type: string
 ---
-# Stage: tests — preflight variable check
-# In:  CI/CD variables only, no checkout
-# Out: nothing — fails within seconds when a required variable is empty,
-#      instead of build/deploy finding out an hour later
+# Stage: preflight — cheap checks that need nothing built
+# In:  CI/CD variables, and the deployment target when one is given by FQDN
+# Out: nothing — the readiness table is in the job log, and a run aimed at a
+#      given FQDN is never reported by the clean stage
 ##############################################
 # PREFLIGHT
 ##############################################
@@ -83,8 +87,7 @@ preflight_variables:
       fi
 
       if [ "$[[ inputs.exec_deploy ]]" = "true" ]; then
-        # logging into the deployment target always needs the SSH key
-        require_file CI_SSH_PRIVATE_KEY
+        require_file DEPLOYMENT_INSTANCE_SSH_KEY
         # the kubeconfig is only needed to create a test VM, which is
         # skipped when an external VM is given
         [ -n "$DEPLOYMENT_INSTANCE_FQDN" ] || require_file HARVESTER_KUBECONFIG
@@ -116,3 +119,30 @@ preflight_variables:
         exit 1
       fi
       echo "Preflight OK: all required CI variables are set."
+
+##############################################
+preflight_target:
+  stage: preflight
+  tags:
+    - $[[ inputs.runner_tag ]]
+  image: $CI_BASE_IMAGE
+  rules:
+    - if: '"$[[ inputs.exec_deploy ]]" == "true" && "$[[ inputs.exec_server_installation ]]" != "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
+      when: on_success
+    - when: never
+  variables:
+    ANSIBLE_HOST_KEY_CHECKING: "False"
+    ANSIBLE_FORCE_COLOR: "true"
+    VM_FQDN: "$DEPLOYMENT_INSTANCE_FQDN"
+    VM_USER: "$DEPLOYMENT_INSTANCE_USER"
+    CI_EXEC_REDEPLOY: "$[[ inputs.exec_redeploy ]]"
+  before_script: !reference [.remote_execution_template, before_script]
+  script:
+    - |
+      ansible-playbook "$CI_PROJECT_DIR/ci/ci-code/deploy/target_readiness.yaml" \
+        -i "$VM_FQDN," \
+        -u "$VM_USER" \
+        --private-key "$DEPLOYMENT_INSTANCE_SSH_KEY"
+  # the table, in color; after_script runs even when the playbook failed
+  after_script:
+    - cat "$ARTIFACTS_DIR/target_readiness.log" 2>/dev/null || true

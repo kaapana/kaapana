@@ -25,6 +25,7 @@ destroy_deployment:
     - job: prepare_deployment
       artifacts: true
     - { job: server_installation, optional: true, artifacts: false }
+    - { job: target_readiness, optional: true, artifacts: false }
     - { job: platform_deployment, optional: true, artifacts: false }
     - { job: setup_integration_tests, optional: true, artifacts: false }
     - { job: scan_ports, optional: true, artifacts: false }
@@ -85,6 +86,7 @@ if_ci_failing:
     - { job: security_scan, optional: true, artifacts: false }
     - { job: prepare_deployment, optional: true, artifacts: false }
     - { job: server_installation, optional: true, artifacts: true }
+    - { job: target_readiness, optional: true, artifacts: true }
     - { job: platform_deployment, optional: true, artifacts: true }
     - { job: setup_integration_tests, optional: true, artifacts: false }
     - { job: scan_ports, optional: true, artifacts: true }
@@ -101,6 +103,6 @@ if_ci_failing:
     - python3 create_ticket_if_ci_failed.py
     - python3 notify_slack.py
   rules:
-    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_BRANCH == "develop" && $DEPLOYMENT_INSTANCE_FQDN == ""
       when: on_failure
 

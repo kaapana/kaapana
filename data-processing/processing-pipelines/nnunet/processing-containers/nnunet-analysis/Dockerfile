@@ -1,4 +1,4 @@
-FROM local-only/base-minio-mc:latest
+FROM local-only/base-rclone:latest
 LABEL IMAGE="nnunet-analysis-scripts"
 LABEL VERSION="0.1.0"
 LABEL BUILD_IGNORE="False"

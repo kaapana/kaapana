@@ -14,13 +14,13 @@ spec:
         image: "{{ .Values.global.registry_url }}/nnunet-analysis-scripts:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
-        - name: MINIO_SERVICE
+        - name: S3_SERVICE
           value: "minio-service.{{ .Values.global.services_namespace }}.svc:9000"
-        - name: MINIO_PATH
+        - name: S3_PATH
           value: template-analysis-scripts
-        - name: MINIO_USER
+        - name: S3_USER
           value: {{ .Values.global.credentials_minio_username  | default "" }}
-        - name: MINIO_PASSWORD
+        - name: S3_PASSWORD
           value: {{ .Values.global.credentials_minio_password | default ""}}
         resources:
           requests:

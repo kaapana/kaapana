@@ -1,9 +1,15 @@
 #!/bin/bash
 set -eu
 
-echo minio path: ${MINIO_PATH}
+echo minio path: ${S3_PATH}
 
-mc alias set minio http://${MINIO_SERVICE} ${MINIO_USER} ${MINIO_PASSWORD}
-mc mb --ignore-existing minio/${MINIO_PATH}
+rclone_s3_args=(
+    --s3-provider Other
+    --s3-endpoint "http://${S3_SERVICE}"
+    --s3-access-key-id "${S3_USER}"
+    --s3-secret-access-key "${S3_PASSWORD}"
+)
 
-mc cp -r /files/analysis-scripts/ minio/${MINIO_PATH}
+rclone mkdir "${rclone_s3_args[@]}" ":s3:/${S3_PATH}"
+
+rclone copy "${rclone_s3_args[@]}" /files/analysis-scripts/ ":s3:/${S3_PATH}"

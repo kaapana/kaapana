@@ -181,24 +181,6 @@ def collect(kubeconfig: str, namespace: str, project, now: datetime) -> list[Can
     return candidates
 
 
-def format_report(report: dict) -> str:
-    summary = report["summary"]
-    mode = "apply" if report["applied"] else "dry run"
-    lines = [
-        f"VM sweep in {report['namespace']} ({mode}): "
-        f"{summary['total']} VMs, {summary['deleted']} deleted, "
-        f"{summary['kept']} kept, {summary['failed']} failed",
-    ]
-    for vm in report["vms"]:
-        marker = {"deleted": "-", "failed": "!", "kept": " "}[vm["outcome"]]
-        lines.append(
-            f"  {marker} {vm['name']} ({vm['age_hours']:.1f}h): "
-            f"{vm['action']}, {vm['reason']}"
-            + (f" [{vm['error']}]" if vm["error"] else "")
-        )
-    return "\n".join(lines)
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -242,46 +224,41 @@ def main() -> int:
         )
         return 1
 
-    vms: list[dict] = []
+    mode = "apply" if args.apply else "dry run"
+    print(f"VM sweep in {namespace} ({mode}): {len(candidates)} VMs")
+
+    counts = {"delete": 0, "keep": 0, "failed": 0}
+    # Each decision is printed before it is acted on, so a run that outlasts its
+    # job timeout still says what it saw.
     for candidate in candidates:
         action, reason = decide(
             candidate, args.grace_hours, args.max_age_hours, args.keep_hours
         )
-        entry = {**dataclasses.asdict(candidate), "action": action, "reason": reason}
-        entry["outcome"] = "kept"
-        entry["error"] = None
+        counts[action] += 1
+        print(
+            f"  {action:6s} {candidate.name} ({candidate.age_hours:.1f}h): {reason}",
+            flush=True,
+        )
         if action == "delete" and args.apply:
             try:
                 delete_vm(candidate.name)
-                entry["outcome"] = "deleted"
             except subprocess.CalledProcessError as error:
-                entry["outcome"] = "failed"
-                entry["error"] = f"teardown playbook exited {error.returncode}"
-        vms.append(entry)
+                counts["failed"] += 1
+                print(
+                    f"  failed {candidate.name}: teardown playbook exited "
+                    f"{error.returncode}",
+                    flush=True,
+                )
 
-    outcomes = [vm["outcome"] for vm in vms]
-    report = {
-        "generated_at": now.isoformat(),
-        "namespace": namespace,
-        "applied": args.apply,
-        "grace_hours": args.grace_hours,
-        "max_age_hours": args.max_age_hours,
-        "keep_hours": args.keep_hours,
-        "summary": {
-            "total": len(vms),
-            "deleted": outcomes.count("deleted"),
-            "kept": outcomes.count("kept"),
-            "failed": outcomes.count("failed"),
-            "would_delete": sum(
-                1 for vm in vms if vm["action"] == "delete" and vm["outcome"] == "kept"
-            ),
-        },
-        "vms": vms,
-    }
+    if args.apply:
+        print(
+            f"  {counts['delete'] - counts['failed']} deleted, "
+            f"{counts['keep']} kept, {counts['failed']} failed"
+        )
+    else:
+        print(f"  {counts['delete']} to delete, {counts['keep']} kept")
 
-    print(format_report(report))
-
-    return 1 if report["summary"]["failed"] else 0
+    return 1 if counts["failed"] else 0
 
 
 if __name__ == "__main__":

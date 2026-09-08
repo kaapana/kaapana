@@ -69,16 +69,6 @@ spec:
       type: string
       description: "[runner] deploy, integration-test and clean"
 
-    # --- [target] deployment destination (provisioned automatically by default)
-    deployment_fqdn:
-      default: ""
-      type: string
-      regex: ^.{0,57}$
-      description: "[target] empty provisions a fresh Harvester VM, set deploys onto that host (dcmsend rejects more than 57 characters)"
-    deployment_user:
-      default: ubuntu
-      type: string
-      description: "[target] SSH user on the deployment target"
 ---
 default:
   interruptible: true
@@ -150,14 +140,14 @@ variables:
   GITLAB_API_TOKEN: $CI_REGISTRY_TOKEN
   BLABLADOR_API_TOKEN: $CI_REGISTRY_TOKEN
 
-  # --- Deployment instance: the per-pipeline test VM on Harvester.
-  # FQDN empty → provision a fresh VM; set (plus _USER) → deploy onto an
-  # existing machine instead, which the clean stage never destroys.
-  DEPLOYMENT_INSTANCE_FQDN: "$[[ inputs.deployment_fqdn ]]"
-  DEPLOYMENT_INSTANCE_USER: "$[[ inputs.deployment_user ]]"
-  # ssh key for user to change when deploying on its own target, with description in the project variable. The key must be in the user's authorized_keys. 
+  # --- Deployment target:
+  DEPLOYMENT_INSTANCE_FQDN:
+    description: "Deployment target host. Empty provisions a fresh Harvester VM. Max 57 characters (dcmsend peerhost limit)."
+  DEPLOYMENT_INSTANCE_USER:
+    value: "ubuntu"
+    description: "SSH user on the deployment target"
   DEPLOYMENT_INSTANCE_SSH_KEY:
-    description: "SSH private key for the deployment target user (must match the public key in authorized_keys)"
+    description: "SSH private key for the deployment target user (must match the public key in authorized_keys), leave empty for kaapana keypair"
 
 
   # vm_name is truncated in the provisioning playbook so the FQDN

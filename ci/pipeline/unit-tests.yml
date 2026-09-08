@@ -24,6 +24,11 @@ spec:
     - when: never
   variables:
     KAAPANA_DIR: "$CI_PROJECT_DIR"
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
+  cache:
+    key: pip-test-jobs
+    paths:
+      - "$CI_PROJECT_DIR/.pip-cache"
 
 ##############################################
 # Coverage-reporting pytest jobs
@@ -297,9 +302,7 @@ keycloak_setup_tests:
 # port (4300-4309, see each app's playwright.config.ts).
 ui_e2e_tests:
   extends: .test_template
-  # Node job: the template's python:3.12 image lacks the node >=20.19 the apps
-  # require (engines), and playwright needs a glibc distro for --with-deps.
-  image: node:22
+  image: $CI_BASE_IMAGE
   variables:
     # both casings: chromium must reach the app on localhost, not the proxy
     NO_PROXY: "localhost,127.0.0.1"
@@ -327,7 +330,7 @@ ui_e2e_tests:
       fi
     - cd "$KAAPANA_DIR/$APP_DIR"
     - npm ci
-    - npx playwright install --with-deps chromium
+    - npx playwright install chromium
     - npm run build
     - npx playwright test
   # artifact paths resolve against $CI_PROJECT_DIR, not the script's cwd, so
@@ -347,9 +350,7 @@ ui_e2e_tests:
 # with a test:unit script, so a single job, not a matrix.
 ui_unit_tests:
   extends: .test_template
-  # Node job: the template's python:3.12 image lacks the node the app requires
-  # (engines), same reason ui_e2e_tests runs on node:22.
-  image: node:22
+  image: $CI_BASE_IMAGE
   variables:
     # both casings: keep npm off the DKFZ proxy for the local registry
     NO_PROXY: "localhost,127.0.0.1"

@@ -93,6 +93,17 @@
         - "harvester_kubeconfig={{ harvester_kubeconfig }}"
         - "artifacts_dir={{ artifacts_dir }}"
 
+  - name: Check that the provisioning timeouts are usable
+    ansible.builtin.assert:
+      that:
+        - vm_ready_timeout | int > 0
+        - vm_dns_timeout | int > 0
+      fail_msg: >-
+        A provisioning timeout is not a positive number of seconds, which
+        leaves the wait with zero retries and samples the VM state once.
+        READY={{ lookup('env', 'DEPLOYMENT_INSTANCE_READY_TIMEOUT') | default('unset', true) }},
+        DNS={{ lookup('env', 'DEPLOYMENT_INSTANCE_DNS_TIMEOUT') | default('unset', true) }}
+
   # dcmsend imposes a 57-character limit on the peerhost (FQDN) field.
   # Truncate vm_name here, before any resources are created, so the
   # resulting FQDN (vm_name.vm_dns_domain) stays within that limit.

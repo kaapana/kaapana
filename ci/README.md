@@ -49,10 +49,10 @@ Useful Attributes:
 |---|---|
 | Merge request | Full pipeline. MRs marked as draft (Draft, WIP, etc.) run nothing. Label the MR `Security` to also run the security scan on MR. |
 | Push to `develop` | Full pipeline. |
-| Nightly schedule | Full pipeline + security scan +|
+| Nightly schedule | Full pipeline + security scan + ReadTheDocs check. |
 | Release tag `X.Y.Z` | Full pipeline, publishing to the release registry with a cold cache ([section 7](#7-releases)). |
 | Web UI / API / trigger | Always allowed; you pick the toggles. |
-| VM sweep schedule | `sweep_deployment_vms` + ReadTheDocs check. The variables the schedule carries are in [section 3](#3-recipes). |
+| VM sweep schedule | `sweep_deployment_vms`, plus the preflight and ReadTheDocs checks that every scheduled develop pipeline runs. Its variables are in [section 3](#3-recipes). |
 
 **The nightly schedule** is a GitLab CI/CD Scheduled Pipeline. There are 2 pipelines set targeting `develop` and latest release.
 
@@ -196,9 +196,9 @@ For an unattended run, create a pipeline schedule (CI/CD → Schedules) on
 `develop` carrying `CI_EXEC_VM_SWEEP=true` and `VM_SWEEP_APPLY=true`, plus
 `CI_EXEC_UNIT_TESTS`, `CI_EXEC_BUILD`, `CI_EXEC_DEPLOY` and
 `CI_EXEC_INTEGRATION_TESTS` on `"false"`, so that no stage but maintenance
-runs. The run carries `check_readthedocs` as well, which no `CI_EXEC` toggle
-covers. Daily is enough, because the grace period and the keep window decide
-what goes, not how often the sweep runs.
+runs. The run still carries `preflight_variables` and `check_readthedocs`,
+which no `CI_EXEC` toggle covers. Daily is enough, because the grace period
+and the keep window decide what goes, not how often the sweep runs.
 
 Like every schedule it is paused by `MAINTENANCE=true`, and leaked VMs pile
 up meanwhile. A web run with `CI_EXEC_VM_SWEEP=true` clears them without

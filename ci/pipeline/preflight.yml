@@ -98,6 +98,12 @@ preflight_variables:
         require KAAPANA_READTHEDOCS_TOKEN
       fi
 
+      # the sweep reads pipeline status from the API and talks to Harvester
+      if [ "$CI_EXEC_VM_SWEEP" = "true" ]; then
+        require GITLAB_READ_API_TOKEN
+        require_file HARVESTER_KUBECONFIG
+      fi
+
       echo "Checked variables (this pipeline):"
       for v in $checked; do echo "  - $v"; done
       if [ -n "$missing" ] || [ -n "$errors" ]; then

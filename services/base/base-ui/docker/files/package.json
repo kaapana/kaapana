@@ -25,7 +25,8 @@
   "scripts": {
     "build": "vite build && vue-tsc -p tsconfig.build.json",
     "type-check": "vue-tsc --noEmit",
-    "storybook": "storybook dev -p 6006"
+    "storybook": "storybook dev -p 6006",
+    "build:storybook": "storybook build"
   },
   "peerDependencies": {
     "@koumoul/vjsf": "3.26.1",
@@ -41,6 +42,7 @@
     }
   },
   "devDependencies": {
+    "@fontsource/roboto": "^5.3.0",
     "@koumoul/vjsf": "3.26.1",
     "@kyvg/vue3-notification": "^3.4.1",
     "@mdi/font": "^7.4.47",

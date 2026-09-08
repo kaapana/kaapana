@@ -27,6 +27,7 @@ Independently of the extension story, :doc:`preview/project_scoping` previews th
     preview/ui_development
     preview/landing_page_integration
     preview/project_scoping
+    preview/design_guidelines
 
 
 

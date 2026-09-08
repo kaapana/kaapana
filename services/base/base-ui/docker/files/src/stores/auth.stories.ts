@@ -18,7 +18,7 @@ const AuthStoreDemo = defineComponent({
 })
 
 const meta: Meta<typeof AuthStoreDemo> = {
-  title: 'stores/auth',
+  title: 'Library / stores / auth',
   component: AuthStoreDemo,
 }
 

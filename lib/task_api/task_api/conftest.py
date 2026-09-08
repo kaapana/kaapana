@@ -9,15 +9,41 @@ MODULE_PATH = Path(__file__).parent
 TASK_DIR = Path(MODULE_PATH, "container_templates")
 
 
+def proxy_buildargs():
+    """Forward the CI proxy settings into the image build.
+
+    Docker does not pass the job's environment into build containers, so on a
+    proxied runner the Dockerfile's apt-get cannot reach the archives. Both
+    casings are emitted: apt reads the lowercase names, most other tools read
+    either.
+    """
+    buildargs = {}
+    for name in ("http_proxy", "https_proxy", "no_proxy"):
+        value = os.environ.get(name) or os.environ.get(name.upper())
+        if value:
+            buildargs[name] = value
+            buildargs[name.upper()] = value
+    return buildargs
+
+
 @pytest.fixture(scope="session")
 def tmp_output_dir():
-    yield Path(tempfile.mkdtemp(prefix="task_api_tests_"))
+    # The task containers bind-mount this, and dind only shares the checkout.
+    project_dir = os.environ.get("CI_PROJECT_DIR")
+    parent = Path(project_dir, "tmp") if project_dir else None
+    if parent:
+        parent.mkdir(parents=True, exist_ok=True)
+    yield Path(tempfile.mkdtemp(prefix="task_api_tests_", dir=parent))
 
 
 @pytest.fixture(scope="session", autouse=True)
 def build_image_locally():
     client = docker.from_env()
-    client.images.build(path=f"{TASK_DIR}/dummy/", tag=f"{LOCAL_REGISTRY}/dummy:latest")
+    client.images.build(
+        path=f"{TASK_DIR}/dummy/",
+        tag=f"{LOCAL_REGISTRY}/dummy:latest",
+        buildargs=proxy_buildargs(),
+    )
 
 
 @pytest.fixture(autouse=False)
@@ -29,7 +55,9 @@ def push_to_registry():
         registry=os.environ["REGISTRY_URL"],
     )
     client.images.build(
-        path=f"{TASK_DIR}/dummy/", tag=f"{os.environ["REGISTRY_URL"]}/dummy:latest"
+        path=f"{TASK_DIR}/dummy/",
+        tag=f"{os.environ["REGISTRY_URL"]}/dummy:latest",
+        buildargs=proxy_buildargs(),
     )
     client.images.push(repository=f"{os.environ["REGISTRY_URL"]}/dummy", tag="latest")
 

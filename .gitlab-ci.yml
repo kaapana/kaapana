@@ -50,7 +50,7 @@ variables:
     options: ["true", "false"]
     description: "build stage: full platform build"
   CI_EXEC_BUILD_ARGUMENTS:
-    value: "--cache-from -pp 8"
+    value: "--cache-from -pp 8 --keep-buildx-builder"
     description: 'Extra kaapana-build flags, e.g. "--latest"'
   CI_EXEC_DEPLOY:
     value: "true"

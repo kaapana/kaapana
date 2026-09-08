@@ -1,4 +1,4 @@
-.. _kaapana_frontend_design_guidelines:
+.. _design_guidelines:
 
 ===================================
 Kaapana Frontend Design Guidelines

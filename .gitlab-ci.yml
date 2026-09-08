@@ -83,7 +83,7 @@ variables:
   CI_EXEC_DESTROY_DELAYED:
     value: "false"
     options: ["true", "false"]
-    description: '"true" = keep the test VM for inspection; the sweep deletes it VM_SWEEP_KEEP_HOURS after the pipeline ends'
+    description: '"true" = keep the test VM for 4h after the pipeline; a failing run leaves it to the sweep'
   
   # "true" pauses push/schedule/MR pipelines (workflow:rules)
   MAINTENANCE: "false" 

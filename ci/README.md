@@ -109,11 +109,12 @@ limit) and reachable via SSH with the CI keypair. External VMs are never
 destroyed by the clean stage.
 
 **Keep the test VM to debug a failure.** Re-run with
-`CI_EXEC_DESTROY_DELAYED=true`: `destroy_deployment` does not run, and the
-sweep leaves the VM alone until `VM_SWEEP_KEEP_HOURS` after the pipeline
-ends. To get the capacity back sooner, run the sweep with
-`VM_SWEEP_KEEP_HOURS=0`. The grace period still applies, so a fresh VM stays
-either way.
+`CI_EXEC_DESTROY_DELAYED=true`, and `destroy_deployment` runs four hours later
+instead of right away. Start that job by hand to free the capacity sooner, or
+cancel it to keep the VM longer. A failing run skips the job, and then the
+sweep is the only deleter left. It takes the VM `VM_SWEEP_KEEP_HOURS` after the
+pipeline ends, and a sweep run with `VM_SWEEP_KEEP_HOURS=0` takes it as soon as
+it is past the grace period.
 
 **Retrying deploy-stage jobs does NOT re-trigger teardown.** GitLab never
 cascades retries, so a `destroy_deployment` that already ran stays in its old

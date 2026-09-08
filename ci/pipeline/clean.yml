@@ -2,7 +2,7 @@
 # In:  deployment.env dotenv (VM_FQDN); job statuses via needs;
 #      HARVESTER_KUBECONFIG (File-type CI variable)
 # Out: VM + PVCs deleted; on develop failures a GitLab issue + Slack message
-#      (a VM kept for inspection is left to the sweep, see maintenance.yml)
+#      (after a failing run the kept VM is left to the sweep, see maintenance.yml)
 # #############################################
 # ############## CLEAN ########################
 # #############################################
@@ -29,11 +29,11 @@ destroy_deployment:
     # Never destroy externally-provided VMs
     - if: '$CI_EXEC_DEPLOY == "true" && $DEPLOYMENT_INSTANCE_FQDN != ""'
       when: never
-    # Opt-in: keep the VM for inspection, which the sweep then honours. Not a
-    # delayed job here, because GitLab skips one as soon as a job it needs
-    # failed, which is the very situation this switch exists for.
+    # Opt-in delayed destruction (e.g. keep VM alive to inspect after success).
+    # A failing run skips this job, and the sweep collects the VM instead.
     - if: '$CI_EXEC_DEPLOY == "true" && $CI_EXEC_DESTROY_DELAYED == "true"'
-      when: never
+      when: delayed
+      start_in: 4 hours
     # Default: always destroy (on success and on failure)
     - if: '$CI_EXEC_DEPLOY == "true"'
       when: always

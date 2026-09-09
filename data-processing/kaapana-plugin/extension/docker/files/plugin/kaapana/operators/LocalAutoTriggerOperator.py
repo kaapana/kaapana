@@ -77,6 +77,23 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
         trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
         print(f"# Triggered! ")
 
+    def get_project_form(self, project_identifier):
+        """
+        Project of the incoming series for conf["project_form"], looked up in AII by the raw
+        (0012,0020) ClinicalTrialProtocolID value (short_id or name), as
+        LocalAssignDataToProjectOperator does. An unknown or missing value falls back to the
+        admin project instead of failing the run, like the data assignment itself.
+        """
+        aii_projects = f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects"
+        if project_identifier:
+            response = requests.get(f"{aii_projects}/{project_identifier}")
+            if response.ok:
+                return response.json()
+            print(f"# project '{project_identifier}' not found -> using admin project")
+        response = requests.get(f"{aii_projects}/admin")
+        response.raise_for_status()
+        return response.json()
+
     def set_data_input(self, dag_id, dcm_path, dag_run_id, series_uid, conf={}):
         print("Set input data")
         print(f"# conf: {conf}")
@@ -233,6 +250,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
             ]
         )
         triggering_list = []
+        project_forms = {}
         for batch_element_dir in batch_folders:
             print("#")
             print(f"# Processing batch-element {batch_element_dir}")
@@ -252,11 +270,17 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
             print(f"# Found {len(input_files)} input-files!")
 
             incoming_dcm = pydicom.dcmread(input_files[0])
-            dcm_dataset = (
-                str(incoming_dcm[0x0012, 0x0020].value).lower()
+            project_identifier = (
+                str(incoming_dcm[0x0012, 0x0020].value)
                 if (0x0012, 0x0020) in incoming_dcm
-                else "N/A"
+                else None
             )
+            dcm_dataset = project_identifier.lower() if project_identifier else "N/A"
+            # one AII lookup per project, not per series of the incoming batch
+            if project_identifier not in project_forms:
+                project_forms[project_identifier] = self.get_project_form(
+                    project_identifier
+                )
             series_uid = str(incoming_dcm[0x0020, 0x000E].value)
 
             print("#")
@@ -323,6 +347,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                                 series_uid=series_uid,
                                 conf=conf,
                             )
+                            conf["project_form"] = project_forms[project_identifier]
                             if not single_execution:
                                 for i in range(len(triggering_list)):
                                     if triggering_list[i]["dag_id"] == dag_id:

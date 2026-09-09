@@ -47,6 +47,11 @@ prepare_deployment:
   interruptible: false
   extends: .remote_execution_template
   needs:
+    - job: preflight_variables
+      artifacts: false
+    - job: preflight_target
+      artifacts: false
+      optional: true
     - job: build_packages
       artifacts: false
       optional: true

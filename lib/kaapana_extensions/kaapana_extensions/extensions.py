@@ -8,6 +8,7 @@ import tarfile
 import json
 import tempfile
 import uuid
+import httpx
 import jsonschema
 from dataclasses import dataclass
 from pathlib import Path
@@ -89,12 +90,14 @@ class ExtensionUtilityLibrary:
         repo: str = "",
         username: Optional[str] = None,
         password: Optional[str] = None,
+        timeout: Any = httpx.USE_CLIENT_DEFAULT,
     ):
         self._manager = OCIRegistryDiscovery(
             registry_url=registry,
             repository=repo,
             username=username,
             password=password,
+            timeout=timeout,
         )
         self.logger = self._manager.logger
 

@@ -68,6 +68,8 @@ async def client(registry_url):
         repo=_REPO,
         username=_USER,
         password=_PASSWORD,
+        # httpx' 5s default is too tight for one registry serving all xdist workers
+        timeout=30.0,
     ) as lib:
         yield lib
 

@@ -52,9 +52,9 @@ spec:
           - --statsd.listen-udp=:8125
         resources:
           requests:
-            memory: 50Mi
+            memory: {{ .Values.statsd.resources.requests.memory }}
           limits:
-            memory: 50Mi
+            memory: {{ .Values.statsd.resources.limits.memory }}
         volumeMounts:
         - name: airflow-statsd-config
           mountPath: /tmp/statsd_mapping.yaml

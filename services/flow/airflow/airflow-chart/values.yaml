@@ -30,3 +30,13 @@ kaapana_database:
   postgres_password: root
   postgres_db: airflow
   appName: airflow
+
+# statsd exporter resources; previously hardcoded 50Mi/50Mi in the
+# deployment, which was OOM-killed under metric bursts. Raised and made
+# configurable.
+statsd:
+  resources:
+    requests:
+      memory: 64Mi
+    limits:
+      memory: 128Mi

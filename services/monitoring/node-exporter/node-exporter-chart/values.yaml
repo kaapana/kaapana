@@ -1,4 +1,20 @@
 ---
 global:
     pull_policy_images: "IfNotPresent"
-    
+
+# node-exporter resources; previously hardcoded in the deployment. Memory
+# limit raised 180Mi -> 256Mi (OOM kills on hosts with many mounts), request
+# lowered 180Mi -> 128Mi to reflect actual usage.
+nodeExporter:
+  resources:
+    requests:
+      cpu: 102m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+  sidecarResources:
+    requests:
+      memory: 50Mi
+    limits:
+      memory: 50Mi

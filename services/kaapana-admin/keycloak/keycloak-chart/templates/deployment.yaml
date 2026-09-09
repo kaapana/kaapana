@@ -138,7 +138,9 @@ spec:
               memory: 1250Mi
               cpu: "500m"
             limits:
-              memory: 1400Mi
+              # Raised 1400Mi -> 4Gi: Keycloak was OOM-killed during LDAP user
+              # federation syncs and redeploy login storms.
+              memory: 4Gi
               cpu: "2000m"
           volumeMounts:        
             - name: ssl-config-files

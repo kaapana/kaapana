@@ -248,7 +248,8 @@ the enriched ``Project`` header. Make the count project-specific: an unscoped
 request (no ``Project`` header) should return ``0``.
 
 **When it refreshes.** Counts are polled on every menu poll (~15 s) and are
-re-fetched immediately on a project switch. On a switch the previous project's
+re-fetched immediately on a project switch, and whenever a view asks for a
+:ref:`shell refresh <shell_refresh_message>`. On a switch the previous project's
 counts are dropped first, so a stale count never lingers under the wrong
 project; a failed re-poll therefore hides the badge rather than showing the old
 value. A failed *periodic* poll instead keeps the last known count (no flicker
@@ -426,9 +427,14 @@ must **ask the shell** rather than navigate the top window itself:
    );
 
 ``slug`` is the target project's ``short_id``. The shell validates the origin,
-ignores a slug that is not in the user's project list, then swaps the
-``/project/<short_id>`` prefix on the **current** route and navigates with
-``router.push`` — exactly what its own project selector does.
+then swaps the ``/project/<short_id>`` prefix on the **current** route and
+navigates with ``router.push`` — exactly what its own project selector does.
+
+A slug the shell has never seen is not refused straight away: it refreshes its
+project list once (a project created moments ago is ahead of the ~15 s poll)
+and ignores the slug only if it is *still* unknown. For a non-admin that
+refresh reads ``/aii/users/<id>/projects``, so a project whose membership AII
+has not recorded yet is ignored all the same.
 
 **Why not just set** ``window.top.location``? A hard top-level navigation
 technically works, but it skips two things the shell owns:
@@ -441,6 +447,36 @@ The helper ships as ``switchProject`` in ``@kaapana/base-ui`` (see
 :ref:`base_ui_package`). It posts the message when embedded and falls back to a
 plain top-level navigation when the view is served standalone, where there is
 no shell to ask — posting to itself would silently do nothing.
+
+.. _shell_refresh_message:
+
+Refreshing the Shell From a View (``kaapana:shell-refresh``)
+============================================================
+
+A view that just changed something the shell itself displays — installed an
+extension that brings its own menu entry, created or renamed a project — can
+say so instead of leaving the user in front of a stale drawer until the next
+poll:
+
+.. code-block:: javascript
+
+   // Same origin rule as view-dirty: the shell only trusts same-origin messages.
+   window.parent.postMessage(
+     { type: "kaapana:shell-refresh" }, window.location.origin,
+   );
+
+There is no payload. On receipt the shell re-reads **both** its menu and the
+user's project list; both are cheap, and a view rarely knows which of the two
+its change touched. The menu read additionally asks ``portal-api`` to skip its
+10 s ingress cache, so a just-registered entry shows up right away.
+
+The shell drops repeats within two seconds, so send it on every transition you
+notice and do not throttle it yourself. If the change reaches ``portal-api`` a
+moment late, its own ~15 s poll still catches it.
+
+The helper ships as ``refreshShell()`` in ``@kaapana/base-ui`` (see
+:ref:`base_ui_package`). Standalone it does nothing: there is no shell menu to
+refresh, and reloading the document would only throw away the view's state.
 
 .. _landing_page_troubleshooting:
 

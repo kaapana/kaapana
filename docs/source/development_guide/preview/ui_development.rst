@@ -95,7 +95,9 @@ tab target), menu count badges, the ``localStorage["settings"]`` contract, and
 the messages a view exchanges with the shell — ``kaapana:view-dirty`` to report
 unsaved changes so the shell warns before discarding them, and
 ``kaapana:project-switch`` / ``kaapana:navigate`` to ask the shell to change
-project or open another view without reloading it. It includes a complete
+project or open another view without reloading it, and
+``kaapana:shell-refresh`` to have it re-read the menu and the project list after
+the view changed one of them. It includes a complete
 worked example (Service + Middleware + annotated Ingress) and a
 troubleshooting section.
 
@@ -126,6 +128,8 @@ copy-pasted into every view. It currently exports:
   (:ref:`kaapana:project-switch <project_switch_message>`).
 - ``navigateShell(path)`` — ask the shell to open another view
   (:ref:`kaapana:navigate <shell_navigate_message>`).
+- ``refreshShell()`` — ask the shell to re-read its menu and project list
+  (:ref:`kaapana:shell-refresh <shell_refresh_message>`).
 - ``postViewDirty(dirty)`` — the wrapper for the shell's
   :ref:`unsaved-changes protocol <view_dirty>`.
 - ``useAuthStore`` / ``AuthService`` — authentication state and the

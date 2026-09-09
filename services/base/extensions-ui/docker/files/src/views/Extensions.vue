@@ -353,7 +353,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useNotification } from "@kyvg/vue3-notification";
-import { kaapanaApiService } from "@kaapana/base-ui";
+import { kaapanaApiService, refreshShell } from "@kaapana/base-ui";
 import Upload from "@/components/Upload.vue";
 import { useCommonDataStore } from "@/stores/commonData";
 import { useAuthStore, useProjectStore } from "@kaapana/base-ui";
@@ -409,6 +409,7 @@ const allowedFileTypes = [
 const loading = ref(true);
 let polling = 0;
 let pollErrorNotified = false;
+let previousReadyReleases: string | null = null;
 const launchedAppLinks = ref<any[] | null>([]);
 const search = ref("");
 const selectedFilters = ref<string[]>(["Stable", "Applications", "Workflows", "GPU", "CPU"]);
@@ -518,6 +519,19 @@ function checkDeploymentReady(item: any) {
     return deployments[0].ready;
   }
   return false;
+}
+// Readiness across all versions, so picking another version in a row's dropdown
+// does not read as a transition. Instance rows of a multiinstallable chart share
+// one deployments list (kube-helm shallow-copies), so they go by `successful`.
+function hasReadyDeployment(item: any) {
+  if (item["multiinstallable"] == "yes") {
+    return (
+      item["chart_name"] != item["releaseName"] && item["successful"] == "yes"
+    );
+  }
+  return Object.values(item?.["available_versions"] ?? {}).some(
+    (version: any) => version?.["deployments"]?.[0]?.ready,
+  );
 }
 function getKubeStatus(item: any) {
   if (
@@ -633,6 +647,17 @@ function getHelmCharts() {
       if (launchedAppLinks.value !== null) {
         loading.value = false;
       }
+      // A release that just became ready has registered its ingress, so the
+      // shell has a menu entry to pick up.
+      const ready = (launchedAppLinks.value as any[])
+        .filter((item: any) => hasReadyDeployment(item))
+        .map((item: any) => item.releaseName)
+        .sort()
+        .join(",");
+      if (previousReadyReleases !== null && ready !== previousReadyReleases) {
+        refreshShell();
+      }
+      previousReadyReleases = ready;
       // Re-arm last: a throw while processing the payload lands in .catch and
       // must not toast again every tick.
       pollErrorNotified = false;

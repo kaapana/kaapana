@@ -1,6 +1,7 @@
 export { postViewDirty } from './utils/viewDirty'
 export { getProjectBase, getProjectSlug, switchProject } from './utils/selectedProject'
 export { navigateShell } from './utils/shellNavigation'
+export { refreshShell } from './utils/shellRefresh'
 export { httpClient, httpClientWithoutTimeout } from './utils/httpClient'
 export { default as AuthService, type UserinfoJwt } from './utils/authService'
 export { default as kaapanaApiService } from './utils/kaapanaApiService'

@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import git
+import httpx
 import jsonschema
 from kaapana_containers.registries.registry import OCIError, OCIRegistryDiscovery
 
@@ -86,12 +87,14 @@ class ExtensionUtilityLibrary:
         repo: str = "",
         username: Optional[str] = None,
         password: Optional[str] = None,
+        timeout: Any = httpx.USE_CLIENT_DEFAULT,
     ):
         self._manager = OCIRegistryDiscovery(
             registry_url=registry,
             repository=repo,
             username=username,
             password=password,
+            timeout=timeout,
         )
         self.logger = self._manager.logger
 

@@ -4,9 +4,9 @@
 A retried `prepare_deployment` creates a second VM, and GitLab does not run
 `destroy_deployment` again for it, so that VM is never cleaned up.
 
-The VM carries the id of the pipeline that created it. This script asks GitLab
-whether that pipeline is over. Age alone cannot tell, because a pipeline may
-need its VM for hours.
+The VM carries the id of the pipeline that created it. The sweep asks GitLab
+whether that pipeline has finished, and it never deletes a VM whose pipeline
+is still running, however old that VM is.
 
 Reports by default, deletes only with --apply, and leaves the deleting itself
 to delete_harvester_vm.yaml.

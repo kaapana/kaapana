@@ -78,6 +78,26 @@ spec:
         {{- end }}
         ports:
           - containerPort: 8080
+        # Without probes the pod is Ready as soon as the container runs, so during a
+        # redeploy a still-starting or hung AII keeps receiving traffic and dependent
+        # services fail downstream. The startup probe allows up to 5 min for migration
+        # and population before the liveness probe may restart the container.
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          periodSeconds: 10
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          periodSeconds: 10
         resources:
           limits:
             memory: "5Gi"

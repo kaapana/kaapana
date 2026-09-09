@@ -43,6 +43,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+@app.get("/health")
+async def health():
+    # Probe target for the chart's probes. Static on purpose: a worker only answers
+    # once the lifespan (database population) has run, which is what the probes need.
+    return {"status": "ok"}
+
+
 app.include_router(aii_router, prefix="/aii")
 app.include_router(projects_router, prefix="/projects")
 app.include_router(users_router, prefix="/users")

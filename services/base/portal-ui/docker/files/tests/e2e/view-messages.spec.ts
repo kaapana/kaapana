@@ -1,9 +1,14 @@
 import { test, expect, type Page } from '@playwright/test'
-import { installMockBackend, stubView } from './fixtures/mock-backend'
+import { freezeClock, installMockBackend, stubView } from './fixtures/mock-backend'
+import type { Project } from '../../src/api/projects'
 
 // Exercises the view->shell messages beyond kaapana:view-dirty (covered in
 // view-dirty.spec.ts): kaapana:navigate and kaapana:project-switch, handled in
 // App.vue.
+
+const ADMIN: Project = { id: 1, name: 'admin', short_id: 'admin' }
+const RESB: Project = { id: 2, name: 'research-b', short_id: 'resb' }
+const NEWP: Project = { id: 3, name: 'new-study', short_id: 'newp' }
 
 // Posting on the shell document is equivalent to an iframe posting to its
 // parent: the handler only checks event.origin, which is the same either way.
@@ -42,6 +47,14 @@ async function makeDirty(page: Page) {
   )
   await page.frameLocator('iframe.kaapana-iframe').locator('#make-dirty').click()
   await page.locator('body[data-dirty-seen]').waitFor()
+}
+
+// Serve /aii/projects from a mutable list so the backend can gain a project
+// between fetches. Must be routed AFTER installMockBackend so this wins.
+async function routeProjects(page: Page, get: () => Project[]) {
+  await page.route('**/aii/projects', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(get()) }),
+  )
 }
 
 test('kaapana:navigate opens the requested view without reloading the shell', async ({ page }) => {
@@ -115,10 +128,16 @@ test('kaapana:project-switch swaps the prefix and keeps the route', async ({ pag
   await expect(page).toHaveURL(/\/project\//)
   await markShell(page)
   const routeBefore = new URL(page.url()).pathname.replace(/^\/project\/[^/]+/, '')
+  const fetches: string[] = []
+  page.on('request', (r) => {
+    if (r.url().includes('/aii/projects')) fetches.push(r.url())
+  })
 
   await postFromView(page, { type: 'kaapana:project-switch', slug: 'resb' })
 
   await expect(page).toHaveURL(new RegExp(`/project/resb${routeBefore}$`))
+  // A known slug must not pay for the unknown-slug refresh.
+  expect(fetches).toEqual([])
   await expect(page.locator('.project-select')).toContainText(/research-b/i)
   // switched in place — the shell itself was never reloaded
   expect(await shellAlive(page)).toBe(true)
@@ -135,4 +154,68 @@ test('kaapana:project-switch ignores a project the user does not have', async ({
 
   await expect(page).toHaveURL(before)
   await expect(page.getByText('View unavailable')).toHaveCount(0)
+})
+
+test('kaapana:project-switch refreshes the list for a slug it has not polled yet', async ({
+  page,
+}) => {
+  await page.clock.install()
+  let projects: Project[] = [ADMIN, RESB]
+  await installMockBackend(page)
+  await routeProjects(page, () => projects)
+  await stubView(page, '/data-gallery-ui')
+  await page.goto('/')
+  await expect(page).toHaveURL(/\/project\/admin/)
+  await markShell(page)
+
+  // Created in the view that now asks for it, so the shell has never seen it.
+  projects = [ADMIN, RESB, NEWP]
+  await freezeClock(page)
+  const refresh = page.waitForResponse('**/aii/projects')
+  await postFromView(page, { type: 'kaapana:project-switch', slug: 'newp' })
+  await refresh
+  await page.clock.resume()
+
+  await expect(page).toHaveURL(/\/project\/newp$/)
+  expect(await shellAlive(page)).toBe(true)
+})
+
+test('kaapana:project-switch survives a second refresh starting during its own', async ({
+  page,
+}) => {
+  await page.clock.install()
+  let projects: Project[] = [ADMIN, RESB]
+  await installMockBackend(page)
+  // Once armed, every /aii/projects response waits to be released, so the test
+  // dictates the order in which overlapping refreshes land.
+  const held: Array<() => void> = []
+  let holding = false
+  await page.route('**/aii/projects', async (r) => {
+    if (holding) await new Promise<void>((release) => held.push(release))
+    await r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(projects),
+    })
+  })
+  await stubView(page, '/data-gallery-ui')
+  await page.goto('/')
+  await expect(page).toHaveURL(/\/project\/admin/)
+  await markShell(page)
+
+  projects = [ADMIN, RESB, NEWP]
+  holding = true
+  await freezeClock(page)
+  await postFromView(page, { type: 'kaapana:project-switch', slug: 'newp' })
+  await expect.poll(() => held.length).toBe(1)
+  // The view's own shell-refresh (or the poll) asks for the list again while
+  // the switch's refresh is still in flight.
+  await postFromView(page, { type: 'kaapana:shell-refresh' })
+  held.shift()!()
+  await expect.poll(() => held.length).toBe(1)
+  held.shift()!()
+  await page.clock.resume()
+
+  await expect(page).toHaveURL(/\/project\/newp$/)
+  expect(await shellAlive(page)).toBe(true)
 })

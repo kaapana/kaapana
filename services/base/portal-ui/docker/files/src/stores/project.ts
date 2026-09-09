@@ -29,6 +29,15 @@ function lastSelectedProject(): Project | null {
   }
 }
 
+// refreshProjects() runs one fetch at a time: overlapping fetches could land
+// out of order, and a slower earlier response would drop a just-created
+// project (the App.vue watcher then bounces the user straight off it). A call
+// that arrives mid-fetch queues one follow-up, so every caller resolves after a
+// fetch that started no earlier than its call — App.vue's project-switch
+// re-checks the store on exactly that.
+let inflight: Promise<void> | null = null
+let queued = false
+
 // The selected project lives in the shell URL; the router keeps this store in
 // sync. Views get the selection via their iframe src; localStorage['project']
 // is only the cross-session default for tabs opened without a prefix.
@@ -64,22 +73,34 @@ export const useProjectStore = defineStore('project', {
       clearLegacyProjectCookie()
     },
     /**
-     * Periodic refresh of the project list (on the menu poll's cadence). Unlike
+     * Refresh of the project list — the menu poll's tick and a view's
+     * kaapana:shell-refresh both call it. Unlike
      * ensureLoaded it does NOT run default selection — the URL owns it — and
      * reassigns only on change so the selector doesn't churn. A dropped
      * selection is handled in App.vue; errors keep the last list.
      */
-    async refreshProjects() {
-      let projects: Project[]
-      try {
-        const user = await fetchCurrentAiiUser()
-        projects = await fetchProjects(user)
-      } catch {
-        return
+    refreshProjects(): Promise<void> {
+      if (inflight) {
+        queued = true
+        return inflight
       }
-      if (JSON.stringify(projects) !== JSON.stringify(this.availableProjects)) {
-        this.availableProjects = projects
-      }
+      inflight = (async () => {
+        do {
+          queued = false
+          try {
+            const user = await fetchCurrentAiiUser()
+            const projects = await fetchProjects(user)
+            if (JSON.stringify(projects) !== JSON.stringify(this.availableProjects)) {
+              this.availableProjects = projects
+            }
+          } catch {
+            // errors keep the last list
+          }
+        } while (queued)
+      })().finally(() => {
+        inflight = null
+      })
+      return inflight
     },
   },
 })

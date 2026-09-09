@@ -92,7 +92,7 @@ watch(
 // unsaved state (kaapana:view-dirty) so state-destroying actions can warn, and
 // ask the shell to open a view (kaapana:navigate) or switch projects
 // (kaapana:project-switch).
-window.addEventListener('message', (event) => {
+window.addEventListener('message', async (event) => {
   if (event.origin !== window.location.origin) return
   if (event.data?.type === 'kaapana:view-dirty') {
     viewState.setDirty(!!event.data.dirty)
@@ -106,11 +106,14 @@ window.addEventListener('message', (event) => {
     else unavailableTarget.value = target
   }
   // Via router.push rather than a top-window navigation so the guard's
-  // view-dirty confirm still runs and the shell is not reloaded. Unknown slugs
-  // are ignored — the guard would only bounce them back.
+  // view-dirty confirm still runs and the shell is not reloaded.
   if (event.data?.type === 'kaapana:project-switch') {
     const slug = String(event.data.slug ?? '')
-    if (!project.availableProjects.some((p) => projectSlug(p) === slug)) return
+    const isKnown = () => project.availableProjects.some((p) => projectSlug(p) === slug)
+    // A just-created project is ahead of the 15s poll: refresh once; what is
+    // still unknown is ignored — the guard would only bounce it back.
+    if (!isKnown()) await project.refreshProjects()
+    if (!isKnown()) return
     router.push({ path: withProjectSlug(route.path, slug), query: route.query })
   }
 })

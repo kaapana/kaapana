@@ -12,6 +12,7 @@ import { useMenuStore } from '@/stores/menu'
 import { fetchCurrentAiiUser, fetchProjects, type Project } from '@/api/projects'
 
 const P = (id: number, name: string): Project => ({ id, name, short_id: name })
+const flush = () => new Promise((r) => setTimeout(r, 0))
 
 describe('project store refreshProjects', () => {
   beforeEach(() => {
@@ -29,6 +30,29 @@ describe('project store refreshProjects', () => {
 
     expect(store.availableProjects.map((p) => p.id)).toEqual([1, 2])
     expect(store.selectedProject?.id).toBe(1)
+  })
+
+  it('runs one fetch at a time; a call mid-fetch waits for a follow-up fetch', async () => {
+    const store = useProjectStore()
+    store.availableProjects = [P(1, 'a')]
+    const release: Array<(v: Project[]) => void> = []
+    vi.mocked(fetchProjects).mockImplementation(() => new Promise((r) => release.push(r)))
+
+    const first = store.refreshProjects()
+    let secondSettled = false
+    const second = store.refreshProjects().then(() => (secondSettled = true))
+    await flush()
+    expect(release).toHaveLength(1)
+
+    // The first response predates the second call, so it cannot satisfy it.
+    release[0]([P(1, 'a')])
+    await flush()
+    expect(release).toHaveLength(2)
+    expect(secondSettled).toBe(false)
+
+    release[1]([P(1, 'a'), P(2, 'b')])
+    await Promise.all([first, second])
+    expect(store.availableProjects.map((p) => p.id)).toEqual([1, 2])
   })
 
   it('keeps the last list when the fetch fails', async () => {

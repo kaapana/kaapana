@@ -307,6 +307,8 @@ ui_e2e_tests:
     # both casings: chromium must reach the app on localhost, not the proxy
     NO_PROXY: "localhost,127.0.0.1"
     no_proxy: "localhost,127.0.0.1"
+    # the audit POST goes through the DKFZ proxy and costs ~14s per npm ci
+    npm_config_audit: "false"
   parallel:
     matrix:
       - APP:
@@ -355,6 +357,7 @@ ui_unit_tests:
     # both casings: keep npm off the DKFZ proxy for the local registry
     NO_PROXY: "localhost,127.0.0.1"
     no_proxy: "localhost,127.0.0.1"
+    npm_config_audit: "false"
   script:
     - cd "$KAAPANA_DIR/services/base/portal-ui/docker/files"
     - npm ci

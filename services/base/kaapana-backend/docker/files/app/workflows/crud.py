@@ -336,8 +336,11 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
         service_job=job.service_job,
     )
 
-    db_kaapana_instance.jobs.append(db_job)
-    db.add(db_kaapana_instance)
+    # Add the job on its own instead of appending it to db_kaapana_instance.jobs:
+    # appending lazy-loads the instance's whole job collection first, which on a
+    # long-running site means >100k rows per created job (kaapana#2283). The
+    # foreign key is already set via kaapana_id above, so nothing else is needed.
+    db.add(db_job)
     try:
         db.commit()  # writing, if kaapana_id and external_job_id already exists will fail due to duplicate error
     except IntegrityError as e:
@@ -1749,9 +1752,12 @@ def put_workflow_jobs(db: Session, workflow=schemas.WorkflowUpdate):
             db_job = get_job(db, workflow_job.id)
         db_jobs.append(db_job)
 
-    # add dat shit to dat workflow
-    db_workflow.workflow_jobs.extend(db_jobs)
-    # TODO: create set of db_workflow.workflow_jobs to avoid double listed jobs
+    # Set the foreign key instead of extending db_workflow.workflow_jobs: extending
+    # lazy-loads the workflow's whole job collection first, and for service
+    # workflows this runs on every incoming series (kaapana#2283). Assigning the
+    # same workflow_id twice is a no-op, so a job cannot be listed twice either.
+    for db_job in db_jobs:
+        db_job.workflow_id = db_workflow.workflow_id
 
     db_workflow.time_updated = utc_timestamp
     db.commit()

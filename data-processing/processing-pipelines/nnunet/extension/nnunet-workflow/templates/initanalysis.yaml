@@ -30,4 +30,6 @@ spec:
       restartPolicy: Never
       imagePullSecrets:
       - name: registry-secret
-  backoffLimit: 0
+  # Retry transient failures (slow image pull, eviction) instead of failing the job for
+  # good on the first pod failure, which left the extension without its analysis scripts.
+  backoffLimit: 10

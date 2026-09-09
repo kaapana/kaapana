@@ -1,5 +1,9 @@
 ---
-{{- if not .Values.global.dev_mode}}
+{{- /* global.enable_privileged_pod_admission_policy lets a site keep dev_mode off and still
+run a workload that needs a privileged container. Compared as a lower-cased string on
+purpose: `default true` would swallow an explicit false (Helm treats false as empty), and
+an unset value keeps the policy enforced. */ -}}
+{{- if and (not .Values.global.dev_mode) (ne (lower (toString .Values.global.enable_privileged_pod_admission_policy)) "false") }}
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy
 metadata:

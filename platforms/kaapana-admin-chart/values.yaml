@@ -10,6 +10,10 @@ global:
   internalCidrs:
     - 10.152.183.0/24 ### Default range for services in microk8s https://microk8s.io/docs/change-cidr
     - 10.1.0.0/16 ### Default range for pods in microk8s https://microk8s.io/docs/change-cidr
+  # Render the forbid-privileged-pods ValidatingAdmissionPolicy outside dev_mode. Set to
+  # false only for a site whose workload needs a privileged container (e.g. a
+  # device-access extension); the policy would otherwise deny it.
+  enable_privileged_pod_admission_policy: true
 
 migration-chart:
   enabled: false

@@ -113,6 +113,7 @@ import EditProjectDialog from "@/components/EditProjectDialog.vue";
 import DeleteProjectDialog from "@/components/DeleteProjectDialog.vue";
 import ArchiveProjectDialog from "@/components/ArchiveProjectDialog.vue";
 import { aiiApiGet, aiiApiDelete, aiiApiPost } from "@/common/services";
+import { refreshShell } from "@/common/shell";
 import { ProjectItem, UserItem } from "@/common/types";
 import { isAdminUser, waitForStoreUser } from "@/common/userAccess";
 import { useSnackbar } from "@/composables/useSnackbar";
@@ -223,6 +224,7 @@ export default defineComponent({
     },
     handleEditSuccess() {
       this.editDialog = false;
+      refreshShell();
       const user = store.state.user;
       if (user) this.fetchProjects(user);
       this.notify('Project updated successfully.', 'success');
@@ -240,6 +242,7 @@ export default defineComponent({
       this.deleteDialog = false;
       try {
         await aiiApiDelete(`projects/${project.id}`);
+        refreshShell();
         const user = store.state.user;
         if (user) this.fetchProjects(user);
         this.notify(`Project "${project.name}" deleted.`, 'success');
@@ -258,6 +261,7 @@ export default defineComponent({
       this.archiveDialog = false;
       try {
         await aiiApiPost(`projects/${project.id}/archive`, {});
+        refreshShell();
         const user = store.state.user;
         if (user) this.fetchProjects(user);
         this.notify(`Project "${project.name}" archived.`, 'success');
@@ -269,6 +273,7 @@ export default defineComponent({
     async unarchiveItem(project: ProjectItem) {
       try {
         await aiiApiPost(`projects/${project.id}/unarchive`, {});
+        refreshShell();
         const user = store.state.user;
         if (user) this.fetchProjects(user);
         this.notify(`Project "${project.name}" unarchived.`, 'success');

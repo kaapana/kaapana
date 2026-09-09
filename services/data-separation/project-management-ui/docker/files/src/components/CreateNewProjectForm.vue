@@ -41,6 +41,7 @@
 <script lang="ts" setup>
 import { ref, computed } from 'vue';
 import { aiiApiPost } from '@/common/services';
+import { refreshShell } from '@/common/shell';
 import { projectNameRules } from '@/common/validation';
 
 
@@ -85,7 +86,10 @@ const submit = () => {
     props.onsuccess?.();
 
     aiiApiPost(`projects`, data)
-        .then(() => props.oncomplete?.())
+        .then(() => {
+            refreshShell();
+            props.oncomplete?.();
+        })
         .catch(() => props.oncomplete?.(false));
 }
 

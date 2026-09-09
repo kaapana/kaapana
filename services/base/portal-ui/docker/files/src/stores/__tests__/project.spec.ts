@@ -31,6 +31,23 @@ describe('project store refreshProjects', () => {
     expect(store.selectedProject?.id).toBe(1)
   })
 
+  it('ignores a slower earlier response so a newer list is not clobbered', async () => {
+    const store = useProjectStore()
+    store.availableProjects = [P(1, 'a')]
+    let releaseStale: (v: Project[]) => void = () => {}
+    vi.mocked(fetchProjects)
+      .mockImplementationOnce(() => new Promise((r) => (releaseStale = r)))
+      .mockResolvedValueOnce([P(1, 'a'), P(2, 'b')])
+
+    const stalePoll = store.refreshProjects()
+    await store.refreshProjects()
+    expect(store.availableProjects.map((p) => p.id)).toEqual([1, 2])
+
+    releaseStale([P(1, 'a')])
+    await stalePoll
+    expect(store.availableProjects.map((p) => p.id)).toEqual([1, 2])
+  })
+
   it('keeps the last list when the fetch fails', async () => {
     const store = useProjectStore()
     store.availableProjects = [P(1, 'a')]

@@ -29,6 +29,8 @@ function lastSelectedProject(): Project | null {
   }
 }
 
+let refreshSeq = 0
+
 // The selected project lives in the shell URL; the router keeps this store in
 // sync. Views get the selection via their iframe src; localStorage['project']
 // is only the cross-session default for tabs opened without a prefix.
@@ -64,12 +66,14 @@ export const useProjectStore = defineStore('project', {
       clearLegacyProjectCookie()
     },
     /**
-     * Periodic refresh of the project list (on the menu poll's cadence). Unlike
+     * Refresh of the project list — the menu poll's tick and a view's
+     * kaapana:shell-refresh both call it. Unlike
      * ensureLoaded it does NOT run default selection — the URL owns it — and
      * reassigns only on change so the selector doesn't churn. A dropped
      * selection is handled in App.vue; errors keep the last list.
      */
     async refreshProjects() {
+      const seq = ++refreshSeq
       let projects: Project[]
       try {
         const user = await fetchCurrentAiiUser()
@@ -77,6 +81,9 @@ export const useProjectStore = defineStore('project', {
       } catch {
         return
       }
+      // Dropping a just-created project here would bounce the user straight off
+      // it again (the App.vue watcher re-targets a vanished selection).
+      if (seq !== refreshSeq) return
       if (JSON.stringify(projects) !== JSON.stringify(this.availableProjects)) {
         this.availableProjects = projects
       }

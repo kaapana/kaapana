@@ -226,3 +226,12 @@ export async function stubView(page: Page, pathPrefix: string) {
     }),
   )
 }
+
+/**
+ * Freeze time so the 15s poll cannot fire; pauseAt must land ahead of the
+ * still-ticking clock, hence the margin. Resume before asserting anything
+ * Vuetify must paint or the router must commit — both defer by a timer tick.
+ */
+export async function freezeClock(page: Page) {
+  await page.clock.pauseAt(Date.now() + 5_000)
+}

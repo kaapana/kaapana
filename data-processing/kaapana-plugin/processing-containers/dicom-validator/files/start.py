@@ -32,7 +32,14 @@ logger = get_logger(__name__)
 def get_series_description(all_dicoms: list, meta_key: str = "SeriesDescription"):
     desc = "Unnamed Series"
     for dcm in all_dicoms:
-        ds = pydicom.dcmread(dcm)
+        try:
+            # Header-only read. A slice that cannot be read is skipped here: the
+            # lookup needs one readable slice, and the per-slice validation already
+            # reports the broken one in the result.
+            ds = pydicom.dcmread(dcm, stop_before_pixels=True)
+        except Exception as e:
+            logger.warning(f"Could not read {dcm} for {meta_key}: {e}")
+            continue
         try:
             elem = ds[meta_key]
         except KeyError:
@@ -79,9 +86,18 @@ def run_dicom_validation(
     exit_on_error: bool = False,
     results_2_meta: ValidationResult2Meta = None,
 ):
-    completeness_items = check_completeness(
-        Path(operator_in_dir), Path(operator_out_dir), update_os=True
-    )
+    try:
+        completeness_items = check_completeness(
+            Path(operator_in_dir), Path(operator_out_dir), update_os=True
+        )
+    except Exception as e:
+        logger.warning(f"Completeness check failed, continuing without it: {e}")
+        completeness_items = None
+    # check_completeness returns None or a (bool, message) tuple instead of the
+    # metadata when a slice has no numeric InstanceNumber or no .dcm file is found;
+    # treat both as unknown so the series is still validated and reported.
+    if not hasattr(completeness_items, "is_series_complete"):
+        completeness_items = None
 
     # The processing algorithm
     print(f"Checking {operator_in_dir} for dcm files")
@@ -100,7 +116,13 @@ def run_dicom_validation(
     all_errors = {}
     all_warnings = {}
     for dicom_path in dcm_files:
-        errs, warns = validator.validate_dicom(dicom_path)
+        try:
+            errs, warns = validator.validate_dicom(dicom_path)
+        except Exception as e:
+            # One slice the validator cannot process must not fail the series;
+            # record it as that slice's error and go on.
+            logger.warning(f"Validation of {dicom_path} raised: {e}")
+            errs, warns = [ValidationItem("general", "Error", str(e))], []
         if len(tags_whitelist) > 0:
             errs = filter_errors_by_tag_whitelist(errs, tags_whitelist)
             warns = filter_errors_by_tag_whitelist(warns, tags_whitelist)
@@ -128,7 +150,7 @@ def run_dicom_validation(
         "Validataion Time": f"{validation_time} CEST",
     }
 
-    if not completeness_items.is_series_complete:
+    if completeness_items is not None and not completeness_items.is_series_complete:
         attributes["Series Complete"] = False
         attributes["Missing instances"] = len(
             completeness_items.missing_instance_numbers

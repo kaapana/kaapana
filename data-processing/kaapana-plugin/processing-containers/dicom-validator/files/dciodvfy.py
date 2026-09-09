@@ -1,3 +1,4 @@
+import os
 import re
 import subprocess
 
@@ -7,6 +8,9 @@ from base import ValidationItem, DicomValidatorInterface
 class DCIodValidator(DicomValidatorInterface):
     def __init__(self) -> None:
         super().__init__()
+        # Upper bound for one dciodvfy run: a malformed file can make it block
+        # forever, which used to stall the series until the operator killed the pod.
+        self.timeout = int(os.getenv("DCIODVFY_TIMEOUT", "120"))
 
     @staticmethod
     def process_dciodvfy_output(output: str):
@@ -119,7 +123,14 @@ class DCIodValidator(DicomValidatorInterface):
         """
         cmd = ["dciodvfy", "-new", dicom_path]
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        _, err = process.communicate()
+        try:
+            _, err = process.communicate(timeout=self.timeout)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.communicate()
+            # Report the stuck file as its own error instead of hanging or hiding it.
+            message = f"dciodvfy did not finish within {self.timeout}s"
+            return [ValidationItem("general", "Error", message)], []
         errs = self.process_dciodvfy_output(err.decode("utf-8"))
         vitems = [
             self.get_validataion_item_from_err_tuple(item, idx)

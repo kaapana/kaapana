@@ -110,8 +110,11 @@ def check_completeness(
     if not dicom_filenames:
         return False, "No DICOM files found in the directory."
 
+    # Only header tags are needed here; reading pixel data of every slice made this
+    # step scale with the series' size in bytes, not its slice count.
     dicom_files = [
-        pydicom.dcmread(dicom_filename) for dicom_filename in dicom_filenames
+        pydicom.dcmread(dicom_filename, stop_before_pixels=True)
+        for dicom_filename in dicom_filenames
     ]
     series_uid = dicom_files[0].SeriesInstanceUID
     modality = dicom_files[0].Modality

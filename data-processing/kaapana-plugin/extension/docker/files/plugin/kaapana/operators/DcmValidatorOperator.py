@@ -21,7 +21,9 @@ class DcmValidatorOperator(KaapanaBaseOperator):
         self,
         dag,
         name="dicom-validator",
-        execution_timeout=timedelta(seconds=30),
+        # The container validates a series one slice at a time, so its runtime grows
+        # with the slice count; 30s only fitted small series (#2232).
+        execution_timeout=timedelta(seconds=900),
         validator_alg="dciodvfy",
         exit_on_error=False,
         env_vars=None,

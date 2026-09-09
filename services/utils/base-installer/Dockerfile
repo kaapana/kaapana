@@ -1,9 +1,18 @@
-FROM local-only/base-python-cpu:latest
+FROM python:3.12-slim-bookworm
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-installer"
 LABEL VERSION="latest"
 LABEL BUILD_IGNORE="False"
+# This image requires the kaapana/lib directory as a named build context.
+# The build script handles this automatically.
+# To build manually:
+#   docker build --build-context lib=<path-to-kaapana>/lib constraints=<path-to-kaapana>/constraints .
+
+COPY --from=lib kaapana_client /lib/kaapana_client
+COPY --from=constraints 0.7.0.txt /constraints.txt
+
+RUN pip install --no-cache-dir -c /constraints.txt requests==2.32.3 /lib/kaapana_client
 
 WORKDIR /kaapana/app
 

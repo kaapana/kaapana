@@ -27,7 +27,8 @@ RUN ./Configure \
 WORKDIR /kaapana/app
 
 COPY files/requirements.txt /kaapana/app/
-RUN python -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt -r /kaapana/app/requirements.txt
+COPY --from=constraints 0.7.0.txt /constraints.txt
+RUN python -m pip install -c /constraints.txt -r /kaapana/app/requirements.txt
 
 
 COPY files/* /kaapana/app/

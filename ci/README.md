@@ -76,7 +76,7 @@ glab ci run -b develop --variables-from variables.json
 |---|---|---|
 | `CI_EXEC_UNIT_TESTS` | `true` | tests stage |
 | `CI_EXEC_BUILD` | `true` | build stage |
-| `CI_EXEC_BUILD_ARGUMENTS` | empty | extra `kaapana-build` flags |
+| `CI_EXEC_BUILD_ARGUMENTS` | "--cache-from -pp 8 --keep-buildx-builder" | `kaapana-build` flags, by default use the registry cache and 8 processes in parallel |
 | `CI_EXEC_DEPLOY` | `true` | deploy stage |
 | `CI_EXEC_SERVER_INSTALLATION` | `true` | `false` skips the OS/microk8s install — for already-prepared targets |
 | `CI_EXEC_INTEGRATION_TESTS` | `true` | test stage (needs deploy) |
@@ -449,6 +449,35 @@ pytest -s ci/ci-code/integration_tests/tests/test_run_workflows.py \
   --host <vm-fqdn> --client-secret <secret> \
   --files data-processing/kaapana-plugin/extension/kaapana-plugin-chart/ci-config/evaluate-segmentations.yaml
 ```
+
+## 12. Nightly pipelines
+We use nightly pipelines for several reasons.
+All scheduled pipelines are configured for their purpose.
+Currently we are limited by our GitLab host to at most three scheduled pipelines.
+
+### Pipeline 1
+Target branch: _latest-release tag_
+* Check that the master branch is building successfully from scratch
+
+
+| Variable | Value |
+|---|---|
+| `CI_EXEC_DOCKER_PRUNE` | true |
+| `CI_EXEC_BUILD_ARGUMENTS` | "--build-only" |
+
+
+### Pipeline 2
+Target branch: _develop_
+* Rebuild the registry cache for develop
+* Create vulnerability report and SBOM
+* Delete the custom kaapana-buildx builder after the build by not setting `--keep-buildx-builder` in `CI_EXEC_BUILD_ARGUMENTS`.
+  We do this to prevent the builder volume from growing unrestrictedly.
+
+| Variable | Value |
+|---|---|
+| `CI_EXEC_SECURITY_SCAN` | true |
+| `CI_EXEC_BUILD_ARGUMENTS` | "--cache-to --cache-from -pp8" |
+
 
 ## Known gaps
 

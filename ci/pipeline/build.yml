@@ -41,6 +41,7 @@ build_packages:
   # warm layer cache across pipelines, login state dies with the container.
   variables:
     RUNNER_SCRIPT_TIMEOUT: 8h
+    FF_DISABLE_UMASK_FOR_DOCKER_EXECUTOR: 1 # Disable umask 0000 in the gitlab-runner-helper image. Instead UID and GID are determined from the build image
   timeout: 8 hours
   rules:
     # Release tag pipeline → publish to the release registry. Works only

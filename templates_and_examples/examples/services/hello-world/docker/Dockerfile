@@ -7,7 +7,8 @@ LABEL BUILD_IGNORE="False"
 WORKDIR /kaapana/app
 
 COPY files/requirements.txt requirements.txt
-RUN pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt -r requirements.txt
+COPY --from=constraints 0.7.0.txt /constraints.txt
+RUN pip install -c /constraints.txt -r requirements.txt
 
 COPY files/ ./
 RUN chmod +x boot.sh

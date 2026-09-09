@@ -42,11 +42,12 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py \
     && rm get-pip.py
 
 # install from git:
+COPY --from=constraints 0.7.0.txt /constraints.txt
 RUN apt-get update && apt-get install -y python-dev-is-python3 \
     && git clone -b "v3.1.0" --single-branch https://github.com/AIM-Harvard/pyradiomics.git pyradiomics \
     && cd pyradiomics \
     # && git checkout v3.1.0 \
-    && python3.10 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.7.0/constraints.txt -r requirements.txt \
+    && python3.10 -m pip install -c /constraints.txt -r requirements.txt \
     && python3.10 setup.py install
 
 RUN python3.10 -m pip install pyradiomics

@@ -14,6 +14,8 @@ from build_cli.utils import GitUtils, get_logger
 
 logger = get_logger()
 
+BUILDX_BUILDER_NAME = "kaapana-buildx"
+
 
 class Status(Enum):
     NOT_BUILT = auto()  # initial state|waiting for dependencies
@@ -132,7 +134,6 @@ class Container:
         missing_base_images: List[BaseImage | Container] | None = None,
         build_ignore: bool = False,
         local_image: bool = False,
-        build_lib_context: bool = False,
     ):
         self.dockerfile = dockerfile
         self.registry = registry
@@ -148,12 +149,9 @@ class Container:
         )
         self.build_ignore = build_ignore
         self.local_image = local_image
-        self.build_lib_context = build_lib_context
         self.status = Status.NOT_BUILT
         self.build_time: str | float = "-"
         self.push_time: str | float = "-"
-        self.cache_from_images: List[str] = []
-        self.cache_pulled: List[str] = []
 
     def __repr__(self) -> str:
         return f"Container(tag={self.tag!r}, image_name={self.image_name!r}, repo_version={self.version!r}, local={self.local_image})"
@@ -201,7 +199,6 @@ class Container:
         repo_version = ""
         build_ignore = False
         local_image = False
-        build_lib_context = False
         base_images: set[BaseImage | Container] = set()
         args: dict[str, str] = {}
 
@@ -220,9 +217,6 @@ class Container:
             elif line.startswith("LABEL BUILD_IGNORE="):
                 val = cls._extract_label_value(line).lower()
                 build_ignore = val in {"true", "yes", "1"}
-            elif line.startswith("LABEL BUILD_LIB_CONTEXT="):
-                val = cls._extract_label_value(line).lower()
-                build_lib_context = val in {"true", "yes", "1"}
             elif line.startswith("FROM") and "#ignore" not in line:
                 base_tag = line.split("FROM", 1)[1].split()[0].strip().replace('"', "")
                 base_tag = re.sub(
@@ -238,13 +232,14 @@ class Container:
         # Determine registry and version
         if registry and "local-only" in registry:
             local_image = True
-            repo_version = "latest"
-        elif build_config.version_latest:
-            version_str, *_ = GitUtils.get_repo_info(dockerfile.parent)
-            base = version_str.split("-")[0]
-            repo_version = f"{base}-latest"
+            # If cache_enabled: Use the git-derived image version also for local-images, as they are pushed to the registry.
+            repo_version = (
+                cls._compute_repo_version(dockerfile, build_config)
+                if build_config.cache_enabled
+                else "latest"
+            )
         else:
-            repo_version, *_ = GitUtils.get_repo_info(dockerfile.parent)
+            repo_version = cls._compute_repo_version(dockerfile, build_config)
 
         registry = registry or build_config.default_registry
         tag = (
@@ -277,13 +272,21 @@ class Container:
             base_images=base_images,
             build_ignore=build_ignore,
             local_image=local_image,
-            build_lib_context=build_lib_context,
         )
         return container
 
     @staticmethod
     def _extract_label_value(line: str) -> str:
         return line.split("=", 1)[1].strip().strip('"').strip("'")
+
+    @staticmethod
+    def _compute_repo_version(dockerfile: Path, build_config: BuildConfig) -> str:
+        if build_config.version_latest:
+            version_str, *_ = GitUtils.get_repo_info(dockerfile.parent)
+            base = version_str.split("-")[0]
+            return f"{base}-latest"
+        version, *_ = GitUtils.get_repo_info(dockerfile.parent)
+        return version
 
     def build(self, config: BuildConfig) -> Optional[Issue]:
         logger.debug(f"{self.tag}: start building ...")
@@ -305,65 +308,129 @@ class Container:
             )
         if config.include_model_weights:
             build_args.extend(["--build-arg", "include_model_weights=true"])
-        if config.enable_inline_cache:
-            build_args.extend(["--build-arg", "BUILDKIT_INLINE_CACHE=1"])
-        if self.build_lib_context:
-            lib_path = config.kaapana_dir / "lib"
-            build_args.extend(["--build-context", f"lib={lib_path}"])
 
-        cache_from_args = []
-        if config.cache_from_tag:
-            for cache_image in self.cache_from_images:
-                pull_result = run(
-                    [config.container_engine, "pull", "--quiet", cache_image],
-                    stdout=PIPE,
-                    stderr=PIPE,
-                    timeout=600,
-                    env=dict(os.environ, DOCKER_BUILDKIT=f"{config.enable_build_kit}"),
+        build_args.extend(
+            [
+                "--build-context",
+                f"constraints={config.kaapana_dir / "constraints"}",
+                "--build-context",
+                f"lib={config.kaapana_dir / "lib"}",
+            ]
+        )
+        if self.image_name == "kaapana-extension-collection":
+            build_args.extend(
+                [
+                    "--build-context",
+                    f"charts={config.build_dir /"kaapana-admin-chart" / "kaapana-extension-collection"  }",
+                ]
+            )
+
+        if config.cache_enabled:
+            if not config.build_only:
+                ### Use buildkit to push image directly
+                build_args.extend(["--push"])
+                if self.local_image:
+                    self.tag = (
+                        f"{config.default_registry}/{self.image_name}:{self.version}"
+                    )
+            if config.cache_to:
+                build_args.extend(
+                    [
+                        "--cache-to",
+                        f"type=registry,ref={config.cache_to_registry}/{self.image_name}:{config.cache_tag},mode=max",
+                    ]
                 )
-                if pull_result.returncode == 0:
-                    self.cache_pulled.append(cache_image)
-                cache_from_args.extend(["--cache-from", cache_image])
+            if config.cache_from:
+                build_args.extend(
+                    [
+                        "--cache-from",
+                        f"type=registry,ref={config.cache_from_registry}/{self.image_name}:{config.cache_tag}",
+                    ]
+                )
+
+            for base_image in self.base_images:
+                if base_image.local_image:
+                    build_args.extend(
+                        [
+                            "--build-context",
+                            f"local-only/{base_image.image_name}=docker-image://{config.default_registry}/{base_image.image_name}:{base_image.version}",
+                        ]
+                    )
+
+        builder = "default" if not config.cache_enabled else BUILDX_BUILDER_NAME
+
+        ### Disable image attestations, as not all registry support them
+        build_args.extend(["--provenance=false", "--sbom=false"])
 
         command = [
             config.container_engine,
             "build",
             *build_args,
-            *cache_from_args,
             "-t",
             self.tag,
+            "--builder",
+            builder,
             "-f",
             str(self.dockerfile),
             ".",
         ]
+        image_log_dir = config.build_dir / "image-logs"
+        image_log_dir.mkdir(parents=True, exist_ok=True)
+        stdout_log_file = image_log_dir / f"{self.image_name}.stdout.log"
+        stderr_log_file = image_log_dir / f"{self.image_name}.stderr.log"
 
         start_time = time.time()
-        output = run(
-            command,
-            stdout=PIPE,
-            stderr=PIPE,
-            universal_newlines=True,
-            timeout=6000,
-            cwd=(
-                self.container_build_dir
-                if self.container_build_dir
-                else self.dockerfile.parent
-            ),
-            env=dict(
-                os.environ,
-                DOCKER_BUILDKIT=f"{config.enable_build_kit}",
-            ),
-        )
+        # Hand real file handles to the subprocess (instead of PIPE) so the
+        # build writes straight to disk as it runs and can be tailed live.
+        with (
+            open(stdout_log_file, "w") as stdout_f,
+            open(stderr_log_file, "w") as stderr_f,
+        ):
+            completed = run(
+                command,
+                stdout=stdout_f,
+                stderr=stderr_f,
+                universal_newlines=True,
+                timeout=6000,
+                cwd=(
+                    self.container_build_dir
+                    if self.container_build_dir
+                    else self.dockerfile.parent
+                ),
+                env=dict(
+                    os.environ,
+                    DOCKER_BUILDKIT=f"{config.enable_build_kit}",
+                ),
+            )
         end_time = time.time()
 
+        # completed.stdout/.stderr are None since the streams were redirected
+        # to files rather than captured; read them back for the checks below.
+        output = subprocess.CompletedProcess(
+            args=command,
+            returncode=completed.returncode,
+            stdout=stdout_log_file.read_text(),
+            stderr=stderr_log_file.read_text(),
+        )
+
         if output.returncode == 0:
-            if "---> Running in" in output.stdout:
-                self.status = Status.BUILT_ONLY if self.local_image else Status.BUILT
-                logger.debug(f"{self.tag}: Build sucessful.")
+            if config.cache_enabled:
+                if config.build_only:
+                    self.status = Status.BUILT_ONLY
+                    self.build_time = end_time - start_time
+                else:
+                    self.status = Status.PUSHED
+                    self.push_time = end_time - start_time
             else:
-                self.status = Status.NOTHING_CHANGED
-                logger.debug(f"{self.tag}: Build sucessful - no changes.")
-            self.build_time = end_time - start_time
+                if "---> Running in" in output.stdout:
+                    self.status = (
+                        Status.BUILT_ONLY if self.local_image else Status.BUILT
+                    )
+                    logger.debug(f"{self.tag}: Build sucessful.")
+                else:
+                    self.status = Status.NOTHING_CHANGED
+                    logger.debug(f"{self.tag}: Build sucessful - no changes.")
+                self.build_time = end_time - start_time
             return issue
 
         else:
@@ -452,6 +519,11 @@ class Container:
         issue: Optional[Issue] = None
         duration: Optional[float] = None
         logger.debug(f"{self.tag}: in push()")
+
+        if config.cache_enabled:
+            logger.debug(f"{self.tag}: Pushed image during build!")
+            self.status = Status.PUSHED
+            return issue
 
         if self.status not in {Status.BUILT, Status.NOTHING_CHANGED}:
             logger.warning(

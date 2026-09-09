@@ -3,7 +3,6 @@ FROM local-only/base-python-cpu:latest
 LABEL IMAGE="airflow"
 LABEL VERSION="2.11.0"
 LABEL BUILD_IGNORE="False"
-LABEL BUILD_LIB_CONTEXT="True"
 # This image requires the kaapana/lib directory as a named build context.
 # The build script handles this automatically.
 # To build manually:

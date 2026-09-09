@@ -79,7 +79,7 @@ class BuildState:
             Adds the container to ``containers_available``.
         """
         if container in self.containers_available:
-            logger.error(
+            logger.warning(
                 f"Duplicated container with the same name already present: {container.image_name}. Not adding duplicated container. (Rename container if not a duplicate)"
             )
             return

@@ -1,4 +1,5 @@
 import os
+import tempfile
 from pathlib import Path
 from shutil import which
 from subprocess import PIPE, run
@@ -7,7 +8,7 @@ from typing import Any, Dict, Optional, Set, TypeVar
 from alive_progress import alive_bar
 
 from build_cli.build import BuildConfig, BuildState, Issue, IssueTracker
-from build_cli.container import Container
+from build_cli.container import BUILDX_BUILDER_NAME, Container
 from build_cli.utils import CommandUtils, get_logger, should_ignore_path
 
 logger = get_logger()
@@ -64,14 +65,163 @@ class ContainerHelper:
                 exit(1)
 
     @classmethod
-    def container_registry_login(cls, username: str, password: str):
+    def ensure_buildx_builder(cls):
         """
-        Logour and login to the default container registry.
+        Ensure the dedicated docker-container buildx builder exists, but only
+        when this run actually needs it. Container.build() only touches
+        BUILDX_BUILDER_NAME when config.cache_enabled (--cache-from/--cache-to)
+        -- a plain run builds with `docker build` and never needs this builder
+        at all, so skip creating/inspecting it entirely.
+        """
+        if not cls._build_config.cache_enabled:
+            return
+        if cls._build_config.container_engine != "docker":
+            return
+
+        logger.info(f"-> Ensuring buildx builder: {BUILDX_BUILDER_NAME}")
+
+        inspect_result = CommandUtils.run(
+            ["docker", "buildx", "inspect", BUILDX_BUILDER_NAME],
+            logger=logger,
+            timeout=15,
+            context="buildx-inspect",
+            quiet=True,
+        )
+
+        if inspect_result.returncode != 0:
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                create_command = [
+                    "docker",
+                    "buildx",
+                    "create",
+                    "--name",
+                    BUILDX_BUILDER_NAME,
+                    "--driver",
+                    "docker-container",
+                    "--driver-opt",
+                    "network=host",
+                ]
+                create_command.extend(cls._buildx_proxy_driver_opts())
+                create_command.extend(cls._buildx_dns_config_opts(Path(tmp_dir)))
+
+                CommandUtils.run(
+                    create_command,
+                    logger=logger,
+                    timeout=60,
+                    context="buildx-create",
+                    exit_on_error=cls._build_config.exit_on_error,
+                    hints=[
+                        "Cache export (--cache-to) requires the docker-container driver."
+                    ],
+                )
+
+    @classmethod
+    def remove_buildx_builder(cls):
+        """
+        Remove the dedicated docker-container buildx builder that
+        ensure_buildx_builder() created at the start of the build.
+
+        A failed removal is logged but does not fail the build.
+        """
+        if not cls._build_config.cache_enabled:
+            return
+        if cls._build_config.container_engine != "docker":
+            return
+        if cls._build_config.keep_buildx_builder:
+            logger.info(
+                f"-> Keeping buildx builder {BUILDX_BUILDER_NAME} (--keep-buildx-builder)"
+            )
+            return
+
+        logger.info(f"-> Removing buildx builder: {BUILDX_BUILDER_NAME}")
+
+        try:
+            CommandUtils.run(
+                ["docker", "buildx", "rm", BUILDX_BUILDER_NAME],
+                logger=logger,
+                timeout=30,
+                context="buildx-rm",
+            )
+        except Exception as e:
+            logger.warning(
+                f"Failed to remove buildx builder {BUILDX_BUILDER_NAME}: {e}"
+            )
+
+    @classmethod
+    def _buildx_proxy_driver_opts(cls) -> list:
+        """
+        Build --driver-opt env.* flags so the isolated docker-container
+        builder inherits proxy settings, mirroring the --http-proxy value
+        already used for --build-arg http_proxy/https_proxy in Container.build().
+
+        Without this, the builder container has its own network namespace and
+        does not automatically pick up the host's proxy, causing outbound
+        requests (e.g. apk/apt package fetches) to fail even though a plain
+        `docker build` on the host succeeds.
+        """
+        http_proxy = cls._build_config.http_proxy
+        if not http_proxy:
+            return []
+
+        driver_opts = []
+        for proxy_var in ("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY"):
+            driver_opts.extend(["--driver-opt", f"env.{proxy_var}={http_proxy}"])
+
+        no_proxy = os.environ.get("no_proxy") or os.environ.get("NO_PROXY")
+        if no_proxy:
+            for no_proxy_var in ("no_proxy", "NO_PROXY"):
+                driver_opts.extend(["--driver-opt", f"env.{no_proxy_var}={no_proxy}"])
+
+        return driver_opts
+
+    @classmethod
+    def _buildx_dns_config_opts(cls, tmp_dir: Path) -> list:
+        """
+        Work around DNS failures inside the isolated docker-container builder.
+
+        The docker-container buildx builder runs as its own
+        separate container and does not reliably pick up the host's DNS
+        setup. If the host resolves via a local stub (e.g.
+        systemd-resolved), that address doesn't work inside the builder, so
+        RUN steps (apk/apt, etc.) fail with "DNS: transient
+        error (try again later)".
+
+        This method generates a buildkitd config that pins the builder to real,
+        externally-reachable nameservers, and returns the --buildkitd-config
+        flag pointing at it (or [] if none could be determined).
+        """
+        try:
+            resolv_conf = Path("/etc/resolv.conf").read_text()
+        except OSError:
+            return []
+
+        nameservers = []
+        for line in resolv_conf.splitlines():
+            parts = line.split()
+            if (
+                len(parts) == 2
+                and parts[0] == "nameserver"
+                and not parts[1].startswith("127.")
+            ):
+                nameservers.append(parts[1])
+        if not nameservers:
+            return []
+
+        config_path = tmp_dir / "buildkitd.toml"
+        servers = ", ".join(f'"{ns}"' for ns in nameservers)
+        config_path.write_text(f"[dns]\n  nameservers = [{servers}]\n")
+        return ["--buildkitd-config", str(config_path)]
+
+    @classmethod
+    def container_registry_login(cls, registry: str, username: str, password: str):
+        """
+        Logout and login to a container registry.
+
         Args:
+            registry (str): Registry to log into.
             username (str): Registry username.
             password (str): Registry password.
         """
-        registry = cls._build_config.default_registry
         logger.info(f"-> Container registry-logout: {registry}")
 
         logout_cmd = [cls._build_config.container_engine, "logout", registry]
@@ -102,6 +252,45 @@ class ContainerHelper:
             context="registry-login",
             exit_on_error=cls._build_config.exit_on_error,
         )
+
+    @classmethod
+    def login_cache_registries(cls):
+        """
+        Log in to the dedicated cache-to/cache-from registries.
+
+        cache_to_registry/cache_from_registry (and their credentials) default
+        to the default registry/credentials when not set explicitly (see
+        BuildConfig.validate_all), so this commonly re-logs into the default
+        registry -- harmless, since login is idempotent. It's skipped only to
+        avoid a redundant second login when both directions resolve to the
+        exact same registry+user (e.g. one dedicated cache registry used for
+        both push and pull).
+        """
+        config = cls._build_config
+        seen = set()
+
+        for enabled, registry, username, password in (
+            (
+                config.cache_to,
+                config.cache_to_registry,
+                config.cache_to_username,
+                config.cache_to_password,
+            ),
+            (
+                config.cache_from,
+                config.cache_from_registry,
+                config.cache_from_username,
+                config.cache_from_password,
+            ),
+        ):
+            if not enabled or not registry or not username or not password:
+                continue
+            if (registry, username) in seen:
+                continue
+            seen.add((registry, username))
+            cls.container_registry_login(
+                registry=registry, username=username, password=password
+            )
 
     @classmethod
     def collect_containers(cls) -> Set[Container]:
@@ -185,8 +374,13 @@ class ContainerHelper:
         logger.debug("")
         for container in cls._build_state.containers_available:
             for base_image in container.base_images:
+                # local-only Dockerfiles always write `FROM
+                # local-only/name:latest`, regardless of the referenced
+                # image's real (git-derived) version -- so local base images
+                # are matched by name, not by that placeholder tag.
                 if base_image.local_image and not any(
-                    base_image.tag == available_container.tag
+                    base_image.registry == available_container.registry
+                    and base_image.image_name == available_container.image_name
                     for available_container in cls._build_state.containers_available
                 ):
                     container.missing_base_images.append(base_image)
@@ -234,57 +428,12 @@ class ContainerHelper:
                     cls.get_container(
                         registry=b.registry,
                         image_name=b.image_name,
-                        version=b.version,
                     )
                     if b.local_image
                     else b
                 )
                 for b in c.base_images
             }
-
-    @classmethod
-    def resolve_cache_from_images(cls, cache_from_tag: str):
-        """
-        Populate cache_from_images on each container so the build can use --cache-from.
-
-        For non-local images: uses the same image with cache_from_tag as cache source.
-        For local-only images: finds the closest non-local dependents and uses those,
-        since their inline cache contains all ancestor layers.
-        """
-        all_containers = cls._build_state.containers_available
-
-        # Build reverse dependency map: container -> set of containers that use it as base
-        dependents: dict = {c: set() for c in all_containers}
-        for c in all_containers:
-            for base in c.base_images:
-                if isinstance(base, Container) and base in dependents:
-                    dependents[base].add(c)
-
-        def find_non_local_dependents(container: Container) -> list:
-            """BFS to find the closest non-local containers that depend on this one."""
-            result = []
-            visited = set()
-            queue = list(dependents.get(container, []))
-            while queue:
-                dep = queue.pop(0)
-                if dep in visited:
-                    continue
-                visited.add(dep)
-                if not dep.local_image:
-                    result.append(dep)
-                else:
-                    queue.extend(dependents.get(dep, []))
-            return result
-
-        for c in all_containers:
-            if not c.local_image:
-                c.cache_from_images = [f"{c.registry}/{c.image_name}:{cache_from_tag}"]
-            else:
-                non_local_deps = find_non_local_dependents(c)
-                c.cache_from_images = [
-                    f"{dep.registry}/{dep.image_name}:{cache_from_tag}"
-                    for dep in non_local_deps
-                ]
 
     @classmethod
     def get_container(

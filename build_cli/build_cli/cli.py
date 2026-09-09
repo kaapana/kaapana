@@ -304,21 +304,74 @@ def build(
         "docker",
         "--container-engine",
         envvar="CONTAINER_ENGINE",
-        help="Container engine to use (docker or podman).",
+        help="Container engine to use (docker or podman). Registry build cache "
+        "(--cache-from/--cache-to) requires docker.",
     ),
-    enable_inline_cache: bool = typer.Option(
-        True,
-        "-eic/--no-inline-cache",
-        "--enable-inline-cache/--no-inline-cache",
-        envvar="ENABLE_INLINE_CACHE",
-        help="Embed inline cache metadata in built images (BUILDKIT_INLINE_CACHE=1) so they can be used as cache sources by future builds.",
+    cache_from: bool = typer.Option(
+        False,
+        "--cache-from/--no-cache-from",
+        "-cf",
+        envvar="CACHE_FROM",
+        help="Use build cache from registry.",
     ),
-    cache_from_tag: Optional[str] = typer.Option(
+    cache_to: bool = typer.Option(
+        False,
+        "--cache-to/--no-cache-to",
+        "-ct",
+        envvar="CACHE_TO",
+        help="Push build cache to registry.",
+    ),
+    cache_to_registry: Optional[str] = typer.Option(
         None,
-        "-cft",
-        "--cache-from-tag",
-        envvar="CACHE_FROM_TAG",
-        help="Version tag to use as cache source when building each image (e.g. 'latest'). Each image will pull <registry>/<image>:<cache-from-tag> and use it as --cache-from. Disabled by default.",
+        "-ctreg",
+        "--cache-to-registry",
+        envvar="CACHE_TO_REGISTRY",
+        help="Registry and namespace to push the build cache to. Defaults to --default-registry.",
+    ),
+    cache_to_username: Optional[str] = typer.Option(
+        None,
+        "--cache-to-username",
+        envvar="CACHE_TO_USER",
+        help="Username for the cache-to registry. Defaults to --username.",
+    ),
+    cache_to_password: Optional[str] = typer.Option(
+        None,
+        "--cache-to-password",
+        envvar="CACHE_TO_PW",
+        help="Password for the cache-to registry. Defaults to --registry-password.",
+    ),
+    cache_from_registry: Optional[str] = typer.Option(
+        None,
+        "-cfreg",
+        "--cache-from-registry",
+        envvar="CACHE_FROM_REGISTRY",
+        help="Registry and namespace to pull the build cache from. Defaults to --default-registry.",
+    ),
+    cache_from_username: Optional[str] = typer.Option(
+        None,
+        "--cache-from-username",
+        envvar="CACHE_FROM_USER",
+        help="Username for the cache-from registry. Defaults to --username.",
+    ),
+    cache_from_password: Optional[str] = typer.Option(
+        None,
+        "--cache-from-password",
+        envvar="CACHE_FROM_PW",
+        help="Password for the cache-from registry. Defaults to --registry-password.",
+    ),
+    cache_tag: Optional[str] = typer.Option(
+        "cache",
+        "-ctag",
+        "--cache-tag",
+        envvar="CACHE_TAG",
+        help="Image version/tag for the build cache in the registry.",
+    ),
+    keep_buildx_builder: bool = typer.Option(
+        False,
+        "--keep-buildx-builder",
+        envvar="KEEP_BUILDX_BUILDER",
+        help="Keep the dedicated kaapana-buildx builder after the build completes "
+        "instead of removing it. Only relevant with --cache-from/--cache-to.",
     ),
 ):
     """
@@ -377,8 +430,16 @@ def build(
         plain_http=plain_http,
         helm_executable=helm_executable,
         container_engine=container_engine,
-        enable_inline_cache=enable_inline_cache,
-        cache_from_tag=cache_from_tag,
+        cache_from=cache_from,
+        cache_to=cache_to,
+        cache_to_registry=cache_to_registry,
+        cache_to_username=cache_to_username,
+        cache_to_password=cache_to_password,
+        cache_from_registry=cache_from_registry,
+        cache_from_username=cache_from_username,
+        cache_from_password=cache_from_password,
+        cache_tag=cache_tag,
+        keep_buildx_builder=keep_buildx_builder,
     )
     run_build(build_config=config)
 
@@ -447,10 +508,12 @@ def run_build(build_config: BuildConfig):
     HelmChartHelper.init(build_config=build_config, build_state=build_state)
     BuildHelper.init(build_config=build_config, build_state=build_state)
     ContainerHelper.verify_container_engine_installed()
+    ContainerHelper.ensure_buildx_builder()
     HelmChartHelper.verify_helm_installed()
 
     if not build_config.build_only and not build_config.no_login:
         ContainerHelper.container_registry_login(
+            registry=build_config.default_registry,
             username=build_config.registry_username,
             password=build_config.registry_password,
         )
@@ -458,12 +521,12 @@ def run_build(build_config: BuildConfig):
             username=build_config.registry_username,
             password=build_config.registry_password,
         )
+        if build_config.cache_enabled:
+            ContainerHelper.login_cache_registries()
 
     logger.info("-----------------------------------------------------------")
     ContainerHelper.collect_containers()
     ContainerHelper.resolve_base_images_into_container()
-    if build_config.cache_from_tag:
-        ContainerHelper.resolve_cache_from_images(build_config.cache_from_tag)
     HelmChartHelper.collect_charts()
     HelmChartHelper.resolve_chart_dependencies()
     HelmChartHelper.resolve_kaapana_collections()
@@ -567,6 +630,8 @@ def run_build(build_config: BuildConfig):
     finally:
         if security_scan_requested:
             SecurityScanner.cleanup()
+
+    ContainerHelper.remove_buildx_builder()
 
     logger.info("-----------------------------------------------------------")
     logger.info("-------------------------- DONE ---------------------------")

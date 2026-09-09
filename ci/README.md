@@ -86,7 +86,7 @@ glab ci run -b develop --variables-from variables.json
 | `CI_EXEC_SECURITY_SCAN` | `false` | trivy scan of the built images |
 | `CI_EXEC_SECURITY_SCAN_ARGUMENTS` | `--vulnerability-scan --offline-packages-scan --configuration-check --create-sboms` |
 | `CI_EXEC_DOCKER_PRUNE` | `false` | wipe the build cache first (cold, multi-hour build) |
-| `CI_EXEC_DESTROY_DELAYED` | `false` | keep the test VM for inspection; the sweep deletes it `VM_SWEEP_KEEP_HOURS` after the pipeline ends |
+| `CI_EXEC_DESTROY_DELAYED` | `false` | `destroy_deployment` deletes the test VM four hours later instead of right away; a failing run leaves it to the sweep |
 | `MAINTENANCE` | `false` | project variable; pauses MR/push/schedule pipelines (web/API still work) |
 | `CI_EXEC_VM_SWEEP` | `false` | maintenance stage: sweep orphaned deployment VMs |
 | `VM_SWEEP_APPLY` | `false` | `true` = the sweep deletes; otherwise it only reports |
@@ -186,6 +186,9 @@ the stage toggles off, and the sweep reports every `ci-*` VM in `kaapana-ci`
 whose pipeline has finished, plus unlabelled ones older than
 `VM_SWEEP_MAX_AGE_HOURS`. Add `VM_SWEEP_APPLY=true` to delete them; without
 it the run only reports, in the job log and as the `vm_sweep.log` artifact.
+A teardown that fails turns the job red, so on `develop` the run reaches the
+issue and Slack through `if_ci_failing`, with `vm_sweep.log` among the
+collected logs.
 A VM whose pipeline is still running is never touched, VMs asking to be kept
 get their inspection window, and the runner VMs are out of reach because
 their names lack the `ci-` prefix. Which is the one rule this imposes: **a VM

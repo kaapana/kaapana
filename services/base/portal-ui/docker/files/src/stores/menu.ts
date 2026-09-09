@@ -115,8 +115,9 @@ export const useMenuStore = defineStore('menu', {
       await this.refresh()
       this.loaded = true
     },
-    async refresh() {
-      const [menu, policyData] = await Promise.all([fetchMenu(), fetchPolicyData()]).catch(
+    /** `fresh` skips portal-api's ingress cache — for on-demand refreshes only. */
+    async refresh(fresh = false) {
+      const [menu, policyData] = await Promise.all([fetchMenu(fresh), fetchPolicyData()]).catch(
         (err) => {
           this.error = true
           throw err

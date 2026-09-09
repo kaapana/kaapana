@@ -88,10 +88,9 @@ watch(
   },
 )
 
-// postMessage contract with the embedded views (same-origin only): views report
-// unsaved state (kaapana:view-dirty) so state-destroying actions can warn, and
-// ask the shell to open a view (kaapana:navigate) or switch projects
-// (kaapana:project-switch).
+// postMessage contract with the embedded views, same-origin only; the message
+// types and what each one does are listed in README.md.
+let lastShellRefresh = 0
 window.addEventListener('message', async (event) => {
   if (event.origin !== window.location.origin) return
   if (event.data?.type === 'kaapana:view-dirty') {
@@ -115,6 +114,15 @@ window.addEventListener('message', async (event) => {
     if (!isKnown()) await project.refreshProjects()
     if (!isKnown()) return
     router.push({ path: withProjectSlug(route.path, slug), query: route.query })
+  }
+  // Debounced on the leading edge: senders post from their own polls, and each
+  // fresh read costs portal-api a Kubernetes list.
+  if (event.data?.type === 'kaapana:shell-refresh') {
+    if (Date.now() - lastShellRefresh < 2000) return
+    lastShellRefresh = Date.now()
+    // A failed refresh keeps the last known menu, as the periodic poll does.
+    menu.refresh(true).catch(() => {})
+    project.refreshProjects()
   }
 })
 

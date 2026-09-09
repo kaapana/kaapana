@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { installMockBackend, stubView, defaultMockData } from './fixtures/mock-backend'
+import { MENU_ROUTE, installMockBackend, stubView, defaultMockData } from './fixtures/mock-backend'
 
 test.beforeEach(async ({ page }) => {
   await stubView(page, '/data-gallery-ui')
@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
 
 test('menu endpoint 500: shell still boots, no menu entries, no iframe', async ({ page }) => {
   await installMockBackend(page)
-  await page.route('**/portal-api/menu', (r) =>
+  await page.route(MENU_ROUTE, (r) =>
     r.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
   )
   await page.goto('/')
@@ -28,7 +28,7 @@ const IDLE_TIMEOUT_MS = 1_800_000
 test('a failed boot still arms the idle logout timer', async ({ page }) => {
   await page.clock.install()
   await installMockBackend(page)
-  await page.route('**/portal-api/menu', (r) =>
+  await page.route(MENU_ROUTE, (r) =>
     r.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
   )
   // The logout target is a real top-window navigation; stub it so the assertion

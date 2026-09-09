@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { installMockBackend, stubView, defaultMockData } from './fixtures/mock-backend'
+import { MENU_ROUTE, installMockBackend, stubView, defaultMockData } from './fixtures/mock-backend'
 
 test.beforeEach(async ({ page }) => {
   await installMockBackend(page)
@@ -77,7 +77,7 @@ test('a failing poll keeps the last known menu', async ({ page }) => {
   await page.clock.install()
   let failing = false
   let failedPolls = 0
-  await page.route('**/portal-api/menu', (r) => {
+  await page.route(MENU_ROUTE, (r) => {
     if (failing) {
       failedPolls++
       return r.fulfill({ status: 500, contentType: 'application/json', body: '{}' })

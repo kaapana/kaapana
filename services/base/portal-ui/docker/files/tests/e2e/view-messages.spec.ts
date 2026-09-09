@@ -1,14 +1,29 @@
 import { test, expect, type Page } from '@playwright/test'
-import { freezeClock, installMockBackend, stubView } from './fixtures/mock-backend'
+import { defaultMockData, freezeClock, installMockBackend, stubView } from './fixtures/mock-backend'
 import type { Project } from '../../src/api/projects'
+import type { MenuEntry, MenuResponse } from '../../src/types/menu'
 
 // Exercises the view->shell messages beyond kaapana:view-dirty (covered in
-// view-dirty.spec.ts): kaapana:navigate and kaapana:project-switch, handled in
-// App.vue.
+// view-dirty.spec.ts): kaapana:navigate, kaapana:project-switch and
+// kaapana:shell-refresh, all handled in App.vue.
 
 const ADMIN: Project = { id: 1, name: 'admin', short_id: 'admin' }
 const RESB: Project = { id: 2, name: 'research-b', short_id: 'resb' }
 const NEWP: Project = { id: 3, name: 'new-study', short_id: 'newp' }
+
+// Top-level on purpose: a plain v-list-item paints with no timer due, so it can
+// be asserted under the frozen clock.
+const SLIM: MenuEntry = {
+  type: 'entry',
+  id: 'slim-viewer',
+  label: 'SLIM Viewer',
+  icon: 'mdi-microscope',
+  path: '/slim',
+  target: 'iframe',
+  project: 'path',
+  default: false,
+  order: 5,
+}
 
 // Posting on the shell document is equivalent to an iframe posting to its
 // parent: the handler only checks event.origin, which is the same either way.
@@ -55,6 +70,17 @@ async function routeProjects(page: Page, get: () => Project[]) {
   await page.route('**/aii/projects', (r) =>
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(get()) }),
   )
+}
+
+// Same for the menu, so a refresh can observe a different set than boot did.
+async function routeMenu(page: Page, get: () => MenuResponse) {
+  await page.route(/\/portal-api\/menu(\?.*)?$/, (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(get()) }),
+  )
+}
+
+function drawerEntry(page: Page, label: string) {
+  return page.locator('nav .v-list-item').filter({ hasText: label })
 }
 
 test('kaapana:navigate opens the requested view without reloading the shell', async ({ page }) => {
@@ -178,4 +204,70 @@ test('kaapana:project-switch refreshes the list for a slug it has not polled yet
 
   await expect(page).toHaveURL(/\/project\/newp$/)
   expect(await shellAlive(page)).toBe(true)
+})
+
+test('kaapana:shell-refresh picks up a new menu entry without waiting for the poll', async ({
+  page,
+}) => {
+  await page.clock.install()
+  let menu: MenuResponse = defaultMockData.menu
+  await installMockBackend(page)
+  await routeMenu(page, () => menu)
+  await stubView(page, '/data-gallery-ui')
+  await page.goto('/')
+  await expect(page).toHaveURL(/\/project\/admin/)
+  await markShell(page)
+  await expect(drawerEntry(page, 'SLIM Viewer')).toHaveCount(0)
+
+  await freezeClock(page)
+  // Installed from the extensions view, which reports it ready.
+  menu = { items: [...defaultMockData.menu.items, SLIM] }
+  const fresh = page.waitForRequest(/\/portal-api\/menu\?fresh=1$/)
+  await postFromView(page, { type: 'kaapana:shell-refresh' })
+  await fresh
+
+  await expect(drawerEntry(page, 'SLIM Viewer')).toBeVisible()
+  expect(await shellAlive(page)).toBe(true)
+})
+
+test('a burst of kaapana:shell-refresh messages triggers one fresh menu read', async ({ page }) => {
+  await page.clock.install()
+  await installMockBackend(page)
+  await routeMenu(page, () => defaultMockData.menu)
+  await stubView(page, '/data-gallery-ui')
+  await page.goto('/')
+  await expect(page).toHaveURL(/\/project\/admin/)
+  await markShell(page)
+
+  const fresh: string[] = []
+  page.on('request', (r) => {
+    if (/\/portal-api\/menu\?fresh=1$/.test(r.url())) fresh.push(r.url())
+  })
+  // Frozen throughout: the debounce reads Date.now(), so the whole burst must
+  // land inside one window.
+  await freezeClock(page)
+  const first = page.waitForRequest(/\/portal-api\/menu\?fresh=1$/)
+  for (let i = 0; i < 5; i++) await postFromView(page, { type: 'kaapana:shell-refresh' })
+  await first
+  await page.waitForTimeout(500)
+
+  expect(fresh).toHaveLength(1)
+})
+
+test('the periodic menu poll does not bypass the backend cache', async ({ page }) => {
+  await page.clock.install()
+  await installMockBackend(page)
+  await routeMenu(page, () => defaultMockData.menu)
+  await stubView(page, '/data-gallery-ui')
+  await page.goto('/')
+  await expect(page).toHaveURL(/\/project\/admin/)
+
+  const reads: string[] = []
+  page.on('request', (r) => {
+    if (r.url().includes('/portal-api/menu')) reads.push(r.url())
+  })
+  await page.clock.runFor(45_000)
+
+  await expect.poll(() => reads.length).toBeGreaterThan(1)
+  expect(reads.filter((url) => url.includes('fresh'))).toEqual([])
 })

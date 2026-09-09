@@ -52,8 +52,13 @@ spec:
           mountPropagation: HostToContainer
           name: sys
           readOnly: true
+        # None, not HostToContainer: the host root is shared, so HostToContainer would
+        # propagate every kubelet subPath bind-mount under /var/lib/kubelet/pods into this
+        # long-lived container and pin it. The kubelet then cannot remove the orphaned
+        # pod's subpath ("device or resource busy"), retries forever and degrades until new
+        # pods stay Pending (#2241). Filesystems mounted after start-up are not reported.
         - mountPath: /host/root
-          mountPropagation: HostToContainer
+          mountPropagation: None
           name: root
           readOnly: true
         - mountPath: /var/lib/node_exporter/textfile_collector

@@ -1,3 +1,5 @@
+import time
+
 import app.api as api
 import app.ingress_source as ingress_source
 import pytest
@@ -387,3 +389,34 @@ def test_menu_endpoint_503_before_first_fetch_then_stale_serve(
     response = client.get("/menu")
     assert response.status_code == 200
     assert [item["label"] for item in response.json()["items"]] == ["Home"]
+
+
+def test_menu_fresh_bypasses_the_cache_and_repopulates_it(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls = 0
+
+    async def counted() -> list[IngressInfo]:
+        nonlocal calls
+        calls += 1
+        return [ing(f"app-{calls}", first_path=f"/app-{calls}", name=f"App {calls}")]
+
+    monkeypatch.setattr(ingress_source, "list_ingresses", counted)
+    assert [item["label"] for item in client.get("/menu").json()["items"]] == ["App 1"]
+    assert calls == 1
+
+    # inside the floor the bypass is refused, so no loop can outpace the cache
+    monkeypatch.setattr(api, "_fetched_at", time.monotonic())
+    too_soon = client.get("/menu", params={"fresh": 1})
+    assert [item["label"] for item in too_soon.json()["items"]] == ["App 1"]
+    assert calls == 1
+
+    monkeypatch.setattr(api, "_fetched_at", api._fetched_at - 2)
+    fresh = client.get("/menu", params={"fresh": 1})
+    assert fresh.status_code == 200
+    assert [item["label"] for item in fresh.json()["items"]] == ["App 2"]
+    assert calls == 2
+
+    # the bypass must leave the cache warm, not only re-list
+    assert [item["label"] for item in client.get("/menu").json()["items"]] == ["App 2"]
+    assert calls == 2

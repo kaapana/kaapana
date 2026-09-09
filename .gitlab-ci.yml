@@ -146,8 +146,6 @@ variables:
   DEPLOYMENT_INSTANCE_USER:
     value: "ubuntu"
     description: "SSH user on the deployment target"
-  DEPLOYMENT_INSTANCE_SSH_KEY:
-    description: "SSH private key for the deployment target user (must match the public key in authorized_keys), leave empty for kaapana keypair"
 
 
   # vm_name is truncated in the provisioning playbook so the FQDN

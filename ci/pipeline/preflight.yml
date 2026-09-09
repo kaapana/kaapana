@@ -88,9 +88,11 @@ preflight_variables:
 
       if [ "$[[ inputs.exec_deploy ]]" = "true" ]; then
         require_file DEPLOYMENT_INSTANCE_SSH_KEY
-        # the kubeconfig is only needed to create a test VM, which is
-        # skipped when an external VM is given
-        [ -n "$DEPLOYMENT_INSTANCE_FQDN" ] || require_file HARVESTER_KUBECONFIG
+        if [ -z "$DEPLOYMENT_INSTANCE_FQDN" ]; then
+          require_file HARVESTER_KUBECONFIG
+          require DEPLOYMENT_INSTANCE_DOMAIN
+          require DEPLOYMENT_INSTANCE_HARVESTER_NAMESPACE
+        fi
         # dcmsend rejects peerhosts longer than 57 chars; prepare_deployment
         # checks this too, but only after the whole build stage has run
         if [ -n "${DEPLOYMENT_INSTANCE_FQDN:-}" ] && [ "${#DEPLOYMENT_INSTANCE_FQDN}" -gt 57 ]; then

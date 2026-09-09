@@ -126,7 +126,10 @@ for _ in range(1800):
                 f"Some Kubernetes objects for release {release_name} are not successful yet"
             )
         releases_installed[release_name] = {
-            "version": extension["version"],
+            # release_version, not extension["version"]: `extension` is left over
+            # from the install loop above and names the last extension processed,
+            # so it would overwrite every other release's recorded version (#2300).
+            "version": release_version,
             "installed": installed,
             "is_platform": is_platform,
         }

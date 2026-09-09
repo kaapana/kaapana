@@ -1,0 +1,6 @@
+# Shared by every pytest job in CI.
+[report]
+omit =
+    */tests/*
+    */test_*.py
+    */conftest.py

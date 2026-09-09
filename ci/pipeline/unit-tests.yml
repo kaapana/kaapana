@@ -20,7 +20,7 @@ spec:
   timeout: 5m
   rules:
     - if: '"$[[ inputs.exec_unit_tests ]]" == "true"'
-      when: always
+      when: on_success
     - when: never
   variables:
     KAAPANA_DIR: "$CI_PROJECT_DIR"

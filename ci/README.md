@@ -476,7 +476,7 @@ Target branch: _develop_
 | Variable | Value |
 |---|---|
 | `CI_EXEC_SECURITY_SCAN` | true |
-| `CI_EXEC_BUILD_ARGUMENTS` | "--cache-to --cache-from -pp8" |
+| `CI_EXEC_BUILD_ARGUMENTS` | "--cache-to --cache-from -pp 8" |
 
 
 ## Known gaps

@@ -1,7 +1,7 @@
-import json
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import httpx
+import pytest
 from kaapana_containers.registries.registry import OCIError, OCIRegistryDiscovery
 
 
@@ -17,7 +17,9 @@ def client():
     return c
 
 
-def _mock_response(status_code: int, body: dict | None = None, text: str = "") -> MagicMock:
+def _mock_response(
+    status_code: int, body: dict | None = None, text: str = ""
+) -> MagicMock:
     resp = MagicMock()
     resp.status_code = status_code
     resp.is_error = status_code >= 400
@@ -30,9 +32,12 @@ def _mock_response(status_code: int, body: dict | None = None, text: str = "") -
 # OCIError
 # ---------------------------------------------------------------------------
 
+
 class TestOCIError:
     def test_str_with_code(self):
-        assert str(OCIError("not found", code="NAME_UNKNOWN")) == "NAME_UNKNOWN: not found"
+        assert (
+            str(OCIError("not found", code="NAME_UNKNOWN")) == "NAME_UNKNOWN: not found"
+        )
 
     def test_str_without_code(self):
         assert str(OCIError("generic error")) == "generic error"
@@ -40,7 +45,9 @@ class TestOCIError:
     def test_from_response_parses_oci_body(self):
         resp = _mock_response(
             404,
-            body={"errors": [{"code": "NAME_UNKNOWN", "message": "repository not found"}]},
+            body={
+                "errors": [{"code": "NAME_UNKNOWN", "message": "repository not found"}]
+            },
         )
         err = OCIError.from_response(resp)
         assert err.code == "NAME_UNKNOWN"
@@ -49,7 +56,15 @@ class TestOCIError:
     def test_from_response_with_detail(self):
         resp = _mock_response(
             401,
-            body={"errors": [{"code": "UNAUTHORIZED", "message": "auth required", "detail": "token expired"}]},
+            body={
+                "errors": [
+                    {
+                        "code": "UNAUTHORIZED",
+                        "message": "auth required",
+                        "detail": "token expired",
+                    }
+                ]
+            },
         )
         err = OCIError.from_response(resp)
         assert err.code == "UNAUTHORIZED"
@@ -70,6 +85,7 @@ class TestOCIError:
 # ---------------------------------------------------------------------------
 # check_login
 # ---------------------------------------------------------------------------
+
 
 class TestCheckLogin:
     async def test_success_returns_true(self, client):
@@ -94,6 +110,7 @@ class TestCheckLogin:
 # ---------------------------------------------------------------------------
 # list_tags
 # ---------------------------------------------------------------------------
+
 
 class TestListTags:
     async def test_returns_tag_list(self, client):
@@ -122,3 +139,22 @@ class TestListTags:
         )
         with pytest.raises(OCIError, match="server error"):
             await client.list_tags()
+
+
+# ---------------------------------------------------------------------------
+# client configuration
+# ---------------------------------------------------------------------------
+
+
+class TestClientConfiguration:
+    async def test_timeout_defaults_to_httpx(self):
+        async with OCIRegistryDiscovery(
+            "https://registry.example.com", "user/repo"
+        ) as client:
+            assert client._client.timeout == httpx.AsyncClient().timeout
+
+    async def test_timeout_is_configurable(self):
+        async with OCIRegistryDiscovery(
+            "https://registry.example.com", "user/repo", timeout=1.5
+        ) as client:
+            assert client._client.timeout.read == 1.5

@@ -48,8 +48,10 @@ only app in the platform with a vitest suite.
   `kaapana:view-dirty` (a view reports unsaved state),
   `kaapana:navigate` (a view asks the shell to open another entry; an entry the
   menu cannot offer raises `ViewUnavailableDialog` instead of bouncing
-  silently), and `kaapana:project-switch` (a view asks for a project switch,
-  routed through the guard so the dirty confirm still runs).
+  silently), `kaapana:project-switch` (a view asks for a project switch,
+  routed through the guard so the dirty confirm still runs), and
+  `kaapana:shell-refresh` (a view that changed the menu or the project list
+  asks the shell to re-read both, debounced).
 - **Settings.** `stores/settings.ts` merges the DB copy over
   `static/defaultUIConfig.ts` and seeds `localStorage["settings"]` **before**
   the first iframe mounts — the views read that key synchronously. Dark Mode

@@ -6,6 +6,10 @@ import type { SettingsItem } from '../../../src/api/settings'
 import type { KaapanaNotification } from '../../../src/api/notifications'
 import type { PolicyData } from '../../../src/utils/opa'
 
+// Regex, not a glob: Playwright escapes "?" and anchors, so a glob would let the
+// shell's ?fresh=1 read escape the mock and hit the dev server.
+export const MENU_ROUTE = /\/portal-api\/menu(\?.*)?$/
+
 // Everything the shell fetches on boot, in one overridable bundle.
 // Shapes are imported from the app source so contract drift fails type-check.
 export interface MockData {
@@ -182,7 +186,7 @@ export async function installMockBackend(page: Page, data: MockData = defaultMoc
     r.fulfill(json(data.userinfo)),
   )
   await page.route('**/kaapana-backend/open-policy-data', (r) => r.fulfill(json(data.policyData)))
-  await page.route('**/portal-api/menu', (r) => r.fulfill(json(data.menu)))
+  await page.route(MENU_ROUTE, (r) => r.fulfill(json(data.menu)))
   await page.route('**/aii/users/current', (r) => r.fulfill(json(data.aiiUser)))
   await page.route('**/aii/projects', (r) => r.fulfill(json(data.projects)))
   await page.route(`**/aii/users/${data.aiiUser.id}/projects`, (r) => r.fulfill(json(data.projects)))

@@ -6,6 +6,7 @@ import os
 from task_api.runners.DockerRunner import DockerRunner
 from task_api.processing_container import common
 import re
+from types import SimpleNamespace
 
 from conftest import LOCAL_REGISTRY, TASK_DIR, MODULE_PATH, k8s_cluster_available
 
@@ -59,6 +60,36 @@ def test_pod_name(input_name):
 )
 def test_invalid_examples(bad_name):
     assert not is_valid_pod_name(bad_name)
+
+
+def test_wait_for_task_status_polls_named_pod(monkeypatch):
+    from kubernetes import config
+
+    monkeypatch.setattr(config, "load_config", lambda: None)
+    from task_api.runners import KubernetesRunner as runner
+
+    phases = iter(["Pending", "Running"])
+    calls = []
+
+    def read_namespaced_pod(name, namespace):
+        calls.append((name, namespace))
+        return SimpleNamespace(status=SimpleNamespace(phase=next(phases)))
+
+    # Only a GET of the named pod is offered: a list watch would fail here.
+    monkeypatch.setattr(
+        runner.KubernetesRunner,
+        "api",
+        SimpleNamespace(read_namespaced_pod=read_namespaced_pod),
+    )
+    monkeypatch.setattr(runner.time, "sleep", lambda _: None)
+    task_run = SimpleNamespace(id="task-pod", config=SimpleNamespace(namespace="default"))
+
+    phase = runner.KubernetesRunner.wait_for_task_status(
+        task_run, states=[runner.PodPhase.RUNNING], timeout=5
+    )
+
+    assert phase == runner.PodPhase.RUNNING
+    assert calls == [("task-pod", "default")] * 2
 
 
 def test_merge_env():
